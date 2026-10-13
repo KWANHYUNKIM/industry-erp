@@ -6,6 +6,9 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [소계] 줄은 바탕 rgb(243,243,243) · 굵게, [기초잔액] · [기말잔액]은 굵게만(2026-10-03 실측). */
@@ -52,14 +55,19 @@ function flowOf(entries: JournalEntry[], from: string, to: string): Flow {
  * (그래서 빠른선택 맨 앞의 이름이 '전일동일기간'). 줄은 기초잔액 · 증가(상대계정마다) · 소계 · 감소(상대계정마다) · 소계 · 기말잔액.
  *
  * <p>자금 계정은 현금 · 당좌 · 보통예금(101 · 102 · 103). 증가 · 감소는 자금 분개의 상대 줄 계정으로 가른다.
- * 결재방표시는 우리 장부 인쇄가 결재 칸을 그리지 않아 두지 않았고, 부서 · 프로젝트는 회계전표에 없다.
+ * 결재방표시는 우리 장부 인쇄가 결재 칸을 그리지 않아 두지 않았고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function CashFlowListPage() {
   const { companyName } = useAuth()
   const init = periodOf('금일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -96,7 +104,7 @@ export default function CashFlowListPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -110,6 +118,12 @@ export default function CashFlowListPage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
       </ul>
 

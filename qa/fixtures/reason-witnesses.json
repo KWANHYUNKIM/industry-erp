@@ -5008,20 +5008,6 @@
   ],
   "in": "backend/src/main/java/com/erp/accounting/fixedasset/dto/FixedAssetDtos.java"
  },
- "현금출납장|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/CashBookPage.tsx"
- },
- "현금출납장|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/CashBookPage.tsx"
- },
  "현금출납장|결재방표시": {
   "claim": "결재란을 그리지 않는다",
   "absent": [
@@ -5035,20 +5021,6 @@
   "present": [
    "key={key}"
   ]
- },
- "분개장|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/JournalBookPage.tsx"
- },
- "분개장|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/JournalBookPage.tsx"
  },
  "분개장|채권/채무(어음) No.": {
   "claim": "회계전표가 채권 · 채무 · 어음 번호를 물지 않는다",
@@ -5073,20 +5045,6 @@
    "a.lineNo - b.lineNo"
   ]
  },
- "일/월계표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/DayMonthSheetPage.tsx"
- },
- "일/월계표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/DayMonthSheetPage.tsx"
- },
  "일/월계표|기타": {
   "claim": "결재란을 그리지 않는다",
   "absent": [
@@ -5094,20 +5052,6 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/DayMonthSheetPage.tsx"
- },
- "계정별거래처별원장|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountPartnerLedgerPage.tsx"
- },
- "계정별거래처별원장|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountPartnerLedgerPage.tsx"
  },
  "계정별거래처별원장|결재방표시": {
   "claim": "결재란을 그리지 않는다",
@@ -5123,20 +5067,6 @@
    "blocks.map(blockTable)"
   ]
  },
- "거래처별계정별원장|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/PartnerAccountLedgerPage.tsx"
- },
- "거래처별계정별원장|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/PartnerAccountLedgerPage.tsx"
- },
  "거래처별계정별원장|결재방표시": {
   "claim": "결재란을 그리지 않는다",
   "absent": [
@@ -5150,20 +5080,6 @@
   "present": [
    "blocks.map(blockTable)"
   ]
- },
- "계정별적요별원장|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountRemarkLedgerPage.tsx"
- },
- "계정별적요별원장|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountRemarkLedgerPage.tsx"
  },
  "계정별적요별원장|결재방표시": {
   "claim": "결재란을 그리지 않는다",
@@ -5185,20 +5101,6 @@
    "ETC_CODE"
   ]
  },
- "계정증감내역|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountFlowPage.tsx"
- },
- "계정증감내역|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountFlowPage.tsx"
- },
  "계정증감내역|기타": {
   "claim": "결재란을 그리지 않는다",
   "absent": [
@@ -5206,20 +5108,6 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/AccountFlowPage.tsx"
- },
- "매입/매출장|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/VatBookPage.tsx"
- },
- "매입/매출장|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/VatBookPage.tsx"
  },
  "매입/매출장|최종수정자": {
   "claim": "회계전표가 고친 사람을 들지 않는다",
@@ -5244,20 +5132,6 @@
    "ledger('매출', true)"
   ]
  },
- "거래처거래내역조회|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/PartnerTxListPage.tsx"
- },
- "거래처거래내역조회|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/PartnerTxListPage.tsx"
- },
  "거래처거래내역조회|기타": {
   "claim": "결재란을 그리지 않는다",
   "absent": [
@@ -5272,117 +5146,47 @@
    "blocks.map(blockTable)"
   ]
  },
- "합계잔액시산표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/TrialBalancePage.tsx"
- },
- "합계잔액시산표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/TrialBalancePage.tsx"
- },
- "재무상태표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/BalanceSheetPage.tsx"
- },
- "재무상태표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/BalanceSheetPage.tsx"
- },
  "재무상태표|부서표시방법": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
+  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
   "absent": [
-   "projectId"
+   "label=\"부서표시방법\""
   ],
   "in": "frontend/src/pages/accounting/BalanceSheetPage.tsx"
  },
  "재무상태표|프로젝트표시방법": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
+  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
   "absent": [
-   "projectId"
+   "label=\"프로젝트표시방법\""
   ],
   "in": "frontend/src/pages/accounting/BalanceSheetPage.tsx"
  },
- "손익계산서|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/IncomeStatementPage.tsx"
- },
- "손익계산서|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/IncomeStatementPage.tsx"
- },
  "손익계산서|부서표시방법": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
+  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
   "absent": [
-   "projectId"
+   "label=\"부서표시방법\""
   ],
   "in": "frontend/src/pages/accounting/IncomeStatementPage.tsx"
  },
  "손익계산서|프로젝트표시방법": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
+  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
   "absent": [
-   "projectId"
+   "label=\"프로젝트표시방법\""
   ],
   "in": "frontend/src/pages/accounting/IncomeStatementPage.tsx"
  },
- "원가명세서|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/CostStatementPage.tsx"
- },
- "원가명세서|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/CostStatementPage.tsx"
- },
  "원가명세서|부서표시방법": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
+  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
   "absent": [
-   "projectId"
+   "label=\"부서표시방법\""
   ],
   "in": "frontend/src/pages/accounting/CostStatementPage.tsx"
  },
  "원가명세서|프로젝트표시방법": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
+  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
   "absent": [
-   "projectId"
+   "label=\"프로젝트표시방법\""
   ],
   "in": "frontend/src/pages/accounting/CostStatementPage.tsx"
- },
- "계정명세서|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountDetailPage.tsx"
- },
- "계정명세서|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountDetailPage.tsx"
  },
  "계정명세서|결재방표시": {
   "claim": "결재란을 그리지 않는다",
@@ -5397,20 +5201,6 @@
   "present": [
    "blocks.map((b, i)"
   ]
- },
- "회계거래현황|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/JournalStatusPage.tsx"
- },
- "회계거래현황|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/JournalStatusPage.tsx"
  },
  "회계거래현황|결재방표시": {
   "claim": "결재란을 그리지 않는다",
@@ -5435,39 +5225,11 @@
   ],
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
  },
- "매출(세금)계산서현황|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/TaxInvoiceJournalPage.tsx"
- },
- "매출(세금)계산서현황|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/TaxInvoiceJournalPage.tsx"
- },
  "매출(세금)계산서현황|데이터 보기형식": {
   "claim": "전표 한 장이 한 줄인 현황이다",
   "present": [
    "내역보기 거래명세서"
   ]
- },
- "매입(세금)계산서현황|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/TaxInvoiceJournalPage.tsx"
- },
- "매입(세금)계산서현황|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/TaxInvoiceJournalPage.tsx"
  },
  "매입(세금)계산서현황|데이터 보기형식": {
   "claim": "전표 한 장이 한 줄인 현황이다",
@@ -5475,39 +5237,11 @@
    "내역보기 거래명세서"
   ]
  },
- "거래이력조회(회계)|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/JournalHistoryPage.tsx"
- },
- "거래이력조회(회계)|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/JournalHistoryPage.tsx"
- },
  "거래이력조회(회계)|전표일자": {
   "claim": "전표일자 대신 작업일자로 거른다",
   "present": [
    "r.at.slice(0, 10) >= from"
   ]
- },
- "지출결의서이체리스트|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/TransferListPage.tsx"
- },
- "지출결의서이체리스트|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/TransferListPage.tsx"
  },
  "지출결의서이체리스트|결재방표시": {
   "claim": "결재란을 그리지 않는다",
@@ -5523,20 +5257,6 @@
    "OUT_CODES.includes(l.accountCode)"
   ]
  },
- "자금일보|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
- },
- "자금일보|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
- },
  "자금일보|기타": {
   "claim": "결재란을 그리지 않는다",
   "absent": [
@@ -5544,20 +5264,6 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
- },
- "현금흐름(입출금내역)|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/CashFlowListPage.tsx"
- },
- "현금흐름(입출금내역)|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/CashFlowListPage.tsx"
  },
  "현금흐름(입출금내역)|기타": {
   "claim": "결재란을 그리지 않는다",
@@ -5567,20 +5273,6 @@
   ],
   "in": "frontend/src/pages/accounting/CashFlowListPage.tsx"
  },
- "자금현황표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/FundStatusPage.tsx"
- },
- "자금현황표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/FundStatusPage.tsx"
- },
  "자금현황표|기타": {
   "claim": "결재 칸을 그리지 않는다",
   "absent": [
@@ -5588,20 +5280,6 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/FundStatusPage.tsx"
- },
- "자금증감내역|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
- },
- "자금증감내역|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
  },
  "자금증감내역|기타": {
   "claim": "결재 칸을 그리지 않는다",
@@ -5611,62 +5289,6 @@
   ],
   "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
  },
- "월별손익분석|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/MonthlyPnlPage.tsx"
- },
- "월별손익분석|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/MonthlyPnlPage.tsx"
- },
- "월별원가분석|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/MonthlyCostPage.tsx"
- },
- "월별원가분석|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/MonthlyCostPage.tsx"
- },
- "채권/채무회수기간표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/ArApAgingPage.tsx"
- },
- "채권/채무회수기간표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/ArApAgingPage.tsx"
- },
- "채권/채무잔액분석표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/ArApBalancePage.tsx"
- },
- "채권/채무잔액분석표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/ArApBalancePage.tsx"
- },
  "경영요약보고서|기타": {
   "claim": "결재 칸을 그리지 않는다",
   "absent": [
@@ -5674,20 +5296,6 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/ManagementSummaryPage.tsx"
- },
- "회계집계표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountAggregatePage.tsx"
- },
- "회계집계표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountAggregatePage.tsx"
  },
  "회계집계표|기타": {
   "claim": "결재 칸을 그리지 않는다",
@@ -5697,39 +5305,11 @@
   ],
   "in": "frontend/src/pages/accounting/AccountAggregatePage.tsx"
  },
- "월별매출집계표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
- },
- "월별매출집계표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
- },
  "월별매출집계표|결재방표시": {
   "claim": "결재 칸을 그리지 않는다",
   "absent": [
    "approvalBox",
    "결재란"
-  ],
-  "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
- },
- "월별매입집계표|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
- },
- "월별매입집계표|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
   ],
   "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
  },
@@ -5856,20 +5436,6 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/FixedAssetStockPage.tsx"
- },
- "계정별원장|부서": {
-  "claim": "이 화면이 아직 회계전표 줄의 부서로 거르지 않는다",
-  "absent": [
-   "departmentId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountLedgerPage.tsx"
- },
- "계정별원장|프로젝트": {
-  "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
-  "absent": [
-   "projectId"
-  ],
-  "in": "frontend/src/pages/accounting/AccountLedgerPage.tsx"
  },
  "계정별원장|양식구분": {
   "claim": "결재 칸을 그리지 않는다",

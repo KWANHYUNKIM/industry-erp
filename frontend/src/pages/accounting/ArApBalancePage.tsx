@@ -7,6 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { EcReportHead, reportDate } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 /*
  * 원본 [담당자 계] · [합계] 줄(2026-10-03 실측)은 바탕 (243,243,243) · 굵게 — 출력물 공통의 tr.ec-total(index.css)과 같다.
@@ -42,7 +44,7 @@ interface Row { key: string; p: PartnerOpt; note: number; open: number; aging: A
  *
  * <p>외상 잔액은 가장 최근 증가부터 거슬러 생긴 달에 나눠 담고, 잔액이 0 이하면 이번 달 칸에 둔다(원본에서 음수 잔액이 그렇게 찍혔다).
  * 담당자는 거래처의 관리담당자(이름만 — 우리 거래처는 사원 코드를 들지 않아 담당자코드는 비운다). 수금 · 지급계획은 우리에게 없어 비우고,
- * 차액은 외상 계 − 계획 계. 원본의 '6개의 추가항목생성가능' 열은 빈 자리표라 두지 않았다. 부서 · 프로젝트는 회계전표에 없다.
+ * 차액은 외상 계 − 계획 계. 원본의 '6개의 추가항목생성가능' 열은 빈 자리표라 두지 않았다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function ArApBalancePage() {
   const [side, setSide] = useState<Side>('채권')
@@ -54,7 +56,12 @@ export default function ArApBalancePage() {
   const [thousand, setThousand] = useState(false)
   const [withInactive, setWithInactive] = useState(true)
   const [byParent, setByParent] = useState(true)
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -175,7 +182,7 @@ export default function ArApBalancePage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setSide('채권'); setAsOf(ymd(new Date())); setPartner(''); setManager(''); setWithZero(false); setThousand(false); setWithInactive(true); setByParent(true) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setSide('채권'); setAsOf(ymd(new Date())); setPartner(''); setManager(''); setWithZero(false); setThousand(false); setWithInactive(true); setByParent(true) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -199,6 +206,12 @@ export default function ArApBalancePage() {
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={180} emptyLabel="전체" value={manager} onChange={setManager}
                            items={managers.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
           {([['잔액0포함', withZero, setWithZero], ['천단위', thousand, setThousand], ['사용중단거래처포함', withInactive, setWithInactive]] as const).map(([l, v, set]) => (

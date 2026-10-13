@@ -6,6 +6,8 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { AccountLedger, LedgerRow } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
@@ -26,6 +28,11 @@ const DEPOSITS = ['102', '103']
  * 부서 · 프로젝트는 회계전표가 들지 않는다.
  */
 export default function CashBookPage() {
+  /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const init = periodOf('최근30일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -46,7 +53,7 @@ export default function CashBookPage() {
     setLoading(true)
     setError('')
     try {
-      const rs = await Promise.all(ids.map((accountId) => api.get<AccountLedger>('/journals/ledger', { params: { accountId, from, to } })))
+      const rs = await Promise.all(ids.map((accountId) => api.get<AccountLedger>('/journals/ledger', { params: { ...dp, accountId, from, to } })))
       setLedgers(rs.map((r) => r.data))
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -55,7 +62,7 @@ export default function CashBookPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (accounts.length) void load() }, [accounts, from, to, withDeposit])
+  useEffect(() => { if (accounts.length) void load() }, [dept, project, accounts, from, to, withDeposit])
 
   /* 여러 계정을 합칠 때는 날짜 · 전표번호 차례로 다시 늘어놓고 잔액(차변 − 대변)을 새로 쌓는다. */
   const rows = useMemo(() => {
@@ -78,7 +85,7 @@ export default function CashBookPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWithDeposit(false) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setWithDeposit(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -92,6 +99,12 @@ export default function CashBookPage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
           <label className="inline-flex items-center gap-[3px] text-[12.5px]">

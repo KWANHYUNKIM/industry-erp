@@ -7,6 +7,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -27,7 +29,7 @@ interface Row { key: string; at: string; e: JournalEntry; act: Act }
  * 우리 회계전표는 만든 사람 · 만든 때 · 마지막으로 고친 때만 들어(BaseTimeEntity) 이력은 <b>신규</b>와 마지막 <b>수정</b> 둘뿐이다 —
  * 그래서 [최종이력만 검색]을 켜면 고친 전표는 수정 한 줄, 안 고친 전표는 신규 한 줄이고, 끄면 둘 다 나온다.
  * 지운 전표는 남지 않아(소프트 삭제가 아니다) [삭제] 행위가 없다. 전표상태는 결재 없이 곧 확인이라 [확인]을 끄면 비고 전자결재 · 미확인은 걸리는 줄이 없다. 작업자는 만든 사람을 그대로 쓴다.
- * 부서 · 프로젝트는 회계전표에 없다.
+ * [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function JournalHistoryPage() {
   const init = periodOf('금월(~오늘)')!
@@ -52,7 +54,12 @@ export default function JournalHistoryPage() {
   const [uncheckedOn, setUncheckedOn] = useState(true)
   const [lastOnly, setLastOnly] = useState(true)
   const [byModified, setByModified] = useState(false)
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project, true), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -114,6 +121,7 @@ export default function JournalHistoryPage() {
   useTableColumnCheck(tableRef, '거래이력조회(회계)', [rows.length])
 
   const reset = () => {
+    setDept(''); setProject('')
     setFrom(init.from); setTo(init.to); setUseTime(false); setPartner(''); setKind(''); setAccount(''); setAmtFrom(''); setAmtTo('')
     setRemark(''); setDocNo(''); setWorker(''); setAct(''); setOkOn(true); setApprOn(true); setUncheckedOn(true); setLastOnly(true); setByModified(false)
   }
@@ -160,6 +168,12 @@ export default function JournalHistoryPage() {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}
                            items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="거래유형">
           <select className="ec-input" value={kind} onChange={(e) => setKind(e.target.value)} style={{ width: 140 }}>

@@ -7,6 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { ACCOUNT_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 네 칸 묶음. */
@@ -37,7 +39,12 @@ export default function AccountFlowPage() {
   const [account, setAccount] = useState('')
   const [partners, setPartners] = useState<PartnerOpt[]>([])
   const [partner, setPartner] = useState('')
-  const [entries, setEntries] = useState<JournalEntry[] | null>(null)
+  const [allEntries, setEntries] = useState<JournalEntry[] | null>(null)
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -131,7 +138,7 @@ export default function AccountFlowPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setAccount(''); setPartner(''); setEntries(null) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setAccount(''); setPartner(''); setEntries(null) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -153,6 +160,12 @@ export default function AccountFlowPage() {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}
                            items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
       </ul>
 

@@ -6,6 +6,9 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { AccountLedger, JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [월계] · [금일/전일] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -32,14 +35,19 @@ const addDays = (d: string, n: number) => {
  * <p>현금(101)이 든 전표에서 현금 반대편 줄에 현금 금액만큼이 '현금'(출금 · 입금)이고, 넘치는 몫과 나머지는 모두 '대체'다
  * (현금 열 합 = 현금 계정의 대 · 차 합). 현금 계정 자신은 줄로 세우지 않는다.
  * [금일/전일]은 현금 잔고다 — 차변 쪽에 기간 끝 잔고, 대변 쪽에 기간 첫날 전 잔고. [합계] = [월계] + [금일/전일](그래서 차 · 대가 맞는다).
- * 부서 · 프로젝트는 회계전표가 들지 않는다.
+ * [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다(현금 이월도 그 줄만).
  */
 export default function DayMonthSheetPage() {
   const [mode, setMode] = useState<'월계표' | '일계표'>('월계표')
   const initM = periodOf('전월')!
   const [from, setFrom] = useState(initM.from)
   const [to, setTo] = useState(initM.to)
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [openCash, setOpenCash] = useState(0)
   const [cashId, setCashId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,7 +64,7 @@ export default function DayMonthSheetPage() {
       const [j, l] = await Promise.all([
         api.get<JournalList>('/journals', { params: { from, to, all: true } }),
         cashId != null
-          ? api.get<AccountLedger>('/journals/ledger', { params: { accountId: cashId, from: '1900-01-01', to: addDays(from, -1) } })
+          ? api.get<AccountLedger>('/journals/ledger', { params: { accountId: cashId, from: '1900-01-01', to: addDays(from, -1), departmentId: dept || undefined, projectId: project || undefined } })
           : Promise.resolve(null),
       ])
       setEntries(j.data.rows)
@@ -68,7 +76,7 @@ export default function DayMonthSheetPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to, cashId])
+  useEffect(() => { void load() }, [dept, project, from, to, cashId])
 
   const { lines, cashIn, cashOut } = useMemo(() => {
     const by = new Map<string, Line>()
@@ -113,7 +121,7 @@ export default function DayMonthSheetPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => setModeTo('월계표') },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setModeTo('월계표') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -134,6 +142,12 @@ export default function DayMonthSheetPage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
       </ul>
 

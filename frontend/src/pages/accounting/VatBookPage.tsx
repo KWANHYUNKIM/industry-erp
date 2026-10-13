@@ -9,6 +9,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계 (n 건)] · [누계 (n 건)] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -39,7 +41,7 @@ interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string
  * [[사업자등록번호] 계] · [누계](두 칸 묶음). 매입/매출 판은 원본에서 바꿔 눌러도 매출집계 판이 그대로 남아 못 쟀다 — 매출 · 매입 표를 잇달아 찍는다.
  *
  * <p>부가세 줄(매출 255 · 매입 135)이 든 회계전표가 한 줄이다. 공급가액은 부가세 줄을 뺀 그쪽(매출은 대변 · 매입은 차변) 합.
- * 유형명은 늘 세금계산서, 전자구분은 회계전표가 전자 발행 여부를 들지 않아 비운다. 부서 · 프로젝트는 회계전표에 없다.
+ * 유형명은 늘 세금계산서, 전자구분은 회계전표가 전자 발행 여부를 들지 않아 비운다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  *
  * <p>(세금)계산서발행/수령(E030202)에서 쓴 계산서도 한 줄씩 들어간다 — 분개는 없지만 원본 매출장에
  * '2026/10/12 -4 · 세금계산서 · (주)구로 · 123,000 · 12,300' 으로 떴다(2026-10-12 실측). 유형명은 그 계산서의 부가세유형.
@@ -56,7 +58,12 @@ export default function VatBookPage() {
   const [regKind, setRegKind] = useState<'전체' | '사업자등록번호' | '주민등록번호'>('전체')
   const [docNo, setDocNo] = useState('')
   const [taxOnly, setTaxOnly] = useState(false)
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project, true), [allEntries, dept, project])
   const [vouchers, setVouchers] = useState<TaxVoucher[]>([])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -122,6 +129,7 @@ export default function VatBookPage() {
   useTableColumnCheck(tableRef, '매입/매출장', [rows.length, mode])
 
   const reset = () => {
+    setDept(''); setProject('')
     setMode('매출'); setFrom(init.from); setTo(init.to); setPartner(''); setKind(''); setRegKind('전체'); setDocNo(''); setTaxOnly(false)
   }
 
@@ -262,6 +270,12 @@ export default function VatBookPage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}

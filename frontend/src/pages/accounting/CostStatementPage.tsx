@@ -6,6 +6,8 @@ import EcPeriodPicks, { INCOME_STATEMENT_PICKS } from '../../components/EcPeriod
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { TrialBalance } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const BOLD: React.CSSProperties = { fontWeight: 700 }
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -42,9 +44,14 @@ interface Amounts { [code: string]: { name: string; amt: number } }
  * Ⅳ. 당기총비용합계 · 기초재공품재고액 · 합 계 · 기말재공품재고액 · 타계정대체액 · 당기제품제조원가.
  * 원가 계정은 코드 앞자리(5 · 6 · 7)로 고르고, 재료비 · 노무비 · 경비는 계정명으로 가른다(우리 계정은 그 구분을 들지 않는다).
  * 재공품은 169 계정 잔액. 타계정대체액은 원가를 다른 계정으로 넘긴 분개를 가려 낼 표지가 우리 전표에 없어 비운다.
- * [당기누계]는 아직 없고, 부서 · 프로젝트(와 표시방법)는 회계전표에 없다.
+ * [당기누계]는 아직 없고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다 — [부서표시방법] · [프로젝트표시방법]은 아직 없다.
  */
 export default function CostStatementPage() {
+  /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const { companyName } = useAuth()
   const now = new Date()
   const thisYm = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`
@@ -81,7 +88,7 @@ export default function CostStatementPage() {
 
   /** 한 기간의 원가 계정 금액(차 − 대)과 재공품 기초 · 기말 잔액. */
   async function fetchOne(r: { from: string; to: string }) {
-    const tb = (f: string, t: string) => api.get<TrialBalance>('/journals/trial-balance', { params: { from: f, to: t } }).then((x) => x.data)
+    const tb = (f: string, t: string) => api.get<TrialBalance>('/journals/trial-balance', { params: { ...dp, from: f, to: t } }).then((x) => x.data)
     const [period, open, close] = await Promise.all([tb(r.from, r.to), tb('1900-01-01', dayBefore(r.from)), tb('1900-01-01', r.to)])
     const cost: Amounts = {}
     for (const row of period.rows) {
@@ -99,7 +106,7 @@ export default function CostStatementPage() {
       .catch((err) => setError(extractErrorMessage(err)))
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [from, to, cmpRange, kind])
+  useEffect(() => { load() }, [dept, project, from, to, cmpRange, kind])
 
   const lines = useMemo(() => {
     const codes = [...new Set([...Object.keys(base?.cost ?? {}), ...Object.keys(cmp?.cost ?? {})])].sort()
@@ -136,7 +143,7 @@ export default function CostStatementPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setKind('5'); setFromYm(startYm(fiscalStart)); setToYm(thisYm); setCompare('직전기수'); setThousand(false) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setKind('5'); setFromYm(startYm(fiscalStart)); setToYm(thisYm); setCompare('직전기수'); setThousand(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -170,6 +177,12 @@ export default function CostStatementPage() {
             <EcPeriodPicks labels={INCOME_STATEMENT_PICKS} currentFrom={from} fiscalStart={fiscalStart}
                            onPick={(r) => { setFromYm(r.from.slice(0, 7)); setToYm(r.to.slice(0, 7)) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
           <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">

@@ -5,6 +5,9 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 여섯 칸 묶음. */
@@ -33,7 +36,7 @@ interface Row { key: string; date: string; text: string; partner: string; text1:
  * 지출 · 수금·지급 전표에서 현금 · 예금(101 · 102 · 103) 대변이 한 줄이고, 은행 · 계좌번호는 거래처의 이체정보다.
  * 원본 판에서 은행 · 계좌번호 · 적요1 은 비어 있었다(거래처 이체정보가 없는 자료). [출금계좌]는 돈이 나간 계정으로 거른다.
  * 우리 전표는 결재 없이 곧 확인이라 결재중 · 미확인은 비어 있다. 일별 · 월별 · 전표별 · 거래처별은 원본 판을 못 재 하루 · 한 달 · 전표 · 거래처로 묶는다.
- * [집계]는 ○집계 판이라 아직 없고, 부서 · 프로젝트는 회계전표에 없다.
+ * [집계]는 ○집계 판이라 아직 없고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function TransferListPage() {
   const init = periodOf('최근30일')!
@@ -44,7 +47,12 @@ export default function TransferListPage() {
   const [outAccount, setOutAccount] = useState('')
   const [status, setStatus] = useState<Status>('확인')
   const [partners, setPartners] = useState<PartnerOpt[]>([])
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -114,7 +122,7 @@ export default function TransferListPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setUnit('건별'); setFrom(init.from); setTo(init.to); setDocNo(''); setOutAccount(''); setStatus('확인') } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setUnit('건별'); setFrom(init.from); setTo(init.to); setDocNo(''); setOutAccount(''); setStatus('확인') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -144,6 +152,12 @@ export default function TransferListPage() {
         </EcCond>
         <EcCond label="회계전표No.">
           <input className="ec-input" value={docNo} onChange={(e) => setDocNo(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="출금계좌">
           <select className="ec-input" value={outAccount} onChange={(e) => setOutAccount(e.target.value)} style={{ width: 160 }}>

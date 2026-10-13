@@ -9,6 +9,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, fiscalYearStartOf, periodOf } from '../../components/EcPeriodPicks'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { AccountDivision, JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { lineInDeptProject } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -35,7 +37,7 @@ interface Book { id: number; code: string; name: string; debitSide: boolean; car
  * 끝 [합계] — 차변은 이월 + 기간 차변(원본 1,470,451,000 = 이월 530,380,000 + 940,071,000), 대변은 기간 대변, 잔액은 끝 잔액.
  * 잔액은 계정 구분의 증가 쪽(자산 · 비용은 차 − 대, 나머지는 대 − 차)으로 쌓고, 수익 · 비용 계정의 이월은 기수 첫날부터만 센다.
  * 예금 줄의 거래처명은 그 전표를 만든 계좌 입출금의 통장 이름이다. 일별 · 월별은 하루 · 한 달을 한 줄로 묶는다.
- * 계정별집계 판 · [거래내역없는거래처제외]는 아직 없고, 부서 · 프로젝트는 회계전표에 없다.
+ * 계정별집계 판 · [거래내역없는거래처제외]는 아직 없다. 부서 · 프로젝트는 회계전표 줄의 것(V343)으로 거른다 — 이월잔액도 그 줄만 센다.
  */
 export default function AccountLedgerPage() {
   const init = periodOf('전월')!
@@ -44,6 +46,9 @@ export default function AccountLedgerPage() {
   const [to, setTo] = useState(init.to)
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
   const [accountId, setAccountId] = useState('')
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
   const [withCarry, setWithCarry] = useState(true)
   const [fiscalStart, setFiscalStart] = useState<number | null>(null)
   const [entries, setEntries] = useState<JournalEntry[]>([])
@@ -91,6 +96,7 @@ export default function AccountLedgerPage() {
     for (const e of sorted) {
       for (const l of e.lines) {
         if (accountId && String(l.accountId) !== accountId) continue
+        if (!lineInDeptProject(l, dept, project)) continue
         const acc = accById.get(l.accountId)
         const debitSide = !acc || acc.division === 'ASSET' || acc.division === 'EXPENSE'
         const pl = acc?.division === 'REVENUE' || acc?.division === 'EXPENSE'
@@ -107,12 +113,12 @@ export default function AccountLedgerPage() {
       }
     }
     return [...m.values()].filter((b) => b.rows.length > 0 || b.carry !== 0).sort((a, b) => a.code.localeCompare(b.code))
-  }, [entries, accounts, accountId, withCarry, from, plCut, bookOf])
+  }, [entries, accounts, accountId, dept, project, withCarry, from, plCut, bookOf])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '계정별원장', [books.length, mode])
 
-  const reset = () => { setMode('건별'); setFrom(init.from); setTo(init.to); setAccountId(''); setWithCarry(true) }
+  const reset = () => { setMode('건별'); setFrom(init.from); setTo(init.to); setAccountId(''); setDept(''); setProject(''); setWithCarry(true) }
 
   function bookTable(b: Book) {
     const unit = mode === '월별' ? 7 : 10
@@ -222,6 +228,12 @@ export default function AccountLedgerPage() {
           <span className="ml-1.5">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} fiscalStart={fiscalStart ?? undefined} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="계정" pick>
           <CodePickerField label="계정" hideLabel width={220} emptyLabel="전체" value={accountId} onChange={setAccountId}

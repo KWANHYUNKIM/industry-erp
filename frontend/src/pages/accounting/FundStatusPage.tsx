@@ -7,6 +7,9 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [계정 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
@@ -42,7 +45,7 @@ const CASH_CODES = ['101', '102', '103']
  * 원본에서 외상매입금 · 미지급금도 그렇게 찍혔다(외상매입금 계 −518,824,300). 거래처 없는 줄은 '[ ]'.
  * 현금 · 예금 줄의 거래처 자리는 자금일보처럼 통장(계좌 입출금이 가리키는 전표로 찾음, 현금은 '[ ]')이다 — 전표의 거래처를 쓰면
  * 외상 수금 입금이 '보통예금 / 한울ICT' 로 갈라져 통장 잔액을 볼 수가 없었다.
- * 외화는 회계전표가 외화 금액을 들지 않아 원화만. 부서 · 프로젝트는 회계전표에 없다.
+ * 외화는 회계전표가 외화 금액을 들지 않아 원화만. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function FundStatusPage() {
   const { companyName } = useAuth()
@@ -51,7 +54,12 @@ export default function FundStatusPage() {
   const [to, setTo] = useState(init.to)
   const [byParent, setByParent] = useState(true)
   const [partners, setPartners] = useState<PartnerOpt[]>([])
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [bookOf, setBookOf] = useState<Map<number, { id: number; label: string; no: string }>>(new Map())
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -130,7 +138,7 @@ export default function FundStatusPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setByParent(true) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setByParent(true) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -144,6 +152,12 @@ export default function FundStatusPage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={FUND_STATUS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="대표거래처로 합산">
           {([['거래처관계기준', true], ['개별거래처기준', false]] as const).map(([l, v]) => (

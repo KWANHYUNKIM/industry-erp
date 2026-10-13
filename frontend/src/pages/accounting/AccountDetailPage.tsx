@@ -7,6 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -40,7 +42,7 @@ const PICKS = ['금월(~오늘)', '전월', '전월+금월', '이번기수', '�
  * <p>계정마다 표 하나 — 머리 "회사명 : … / 계정코드(계정명)" 와 "기준일 (단위 : 원)", 열 계정명 · 거래처명 · 금액, 거래처마다 그날까지의 잔액 한 줄,
  * 끝 [합계], 꼬리 [P.n] · 인쇄일시. 거래처 없는 잔액은 원본처럼 '[]' 로 찍는다. 계정을 안 고르면 잔액이 남은 재무상태표 계정이 모두 나온다.
  * [집계계정]은 원본의 집계 계정(유동자산 같은) 축이다 — 우리는 집계 계정을 따로 두지 않아 계정의 세부분류로 묶는다.
- * 부서 · 프로젝트는 회계전표에 없다.
+ * [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function AccountDetailPage() {
   const { companyName } = useAuth()
@@ -51,7 +53,12 @@ export default function AccountDetailPage() {
   const [account, setAccount] = useState('')
   const [partners, setPartners] = useState<PartnerOpt[]>([])
   const [byParent, setByParent] = useState(true)
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -152,7 +159,7 @@ export default function AccountDetailPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setAsOf(ymd(new Date())); setAttr('전표입력계정'); setAccount(''); setByParent(true) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setAsOf(ymd(new Date())); setAttr('전표입력계정'); setAccount(''); setByParent(true) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -178,6 +185,12 @@ export default function AccountDetailPage() {
                              items={accounts.filter((a) => a.division === 'ASSET' || a.division === 'LIABILITY' || a.division === 'EQUITY')
                                .map((a) => ({ value: String(a.id), code: a.code, name: a.name }))} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="대표거래처로 합산">
           {([['거래처관계기준', true], ['개별거래처기준', false]] as const).map(([l, v]) => (

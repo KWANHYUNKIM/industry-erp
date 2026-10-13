@@ -6,6 +6,8 @@ import EcPeriodPicks, { TRIAL_BALANCE_PICKS, periodOf } from '../../components/E
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, TrialBalance } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 /** 원본 묶음 줄 · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243). 묶음은 보통 굵기, [합계]만 굵게. */
 const GROUP_ROW: React.CSSProperties = { background: 'rgb(243, 243, 243)' }
@@ -34,9 +36,14 @@ interface Line { id: number; code: string; name: string; division: AccountDivisi
  * 기말잔액은 처음부터 기간 끝까지 쌓은 잔액을 계정의 제 쪽(자산 → 차변, 부채 · 자본 → 대변)에 부호째 찍는다.
  * 원본은 유동자산 &gt; 당좌자산 &gt; 현금및현금성자산 &gt; 보통예금처럼 여러 층으로 묶고 매출총이익 · 영업이익 같은 계산 줄을 끼운다.
  * 우리 계정은 구분(자산 …)과 세부분류(유동자산 · 매출채권 …) 한 층만 들어 <b>세부분류 묶음 한 층</b>만 세우고, 계산 줄은 아직 없다.
- * 끝 [합계](굵게). 부서 · 프로젝트는 회계전표에 없다.
+ * 끝 [합계](굵게). [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function TrialBalancePage() {
+  /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const { companyName } = useAuth()
   const init = periodOf('이번기수(~전월)', new Date(), undefined) ?? periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
@@ -68,14 +75,14 @@ export default function TrialBalancePage() {
   function load() {
     setError('')
     Promise.all([
-      api.get<TrialBalance>('/journals/trial-balance', { params: { from, to } }),
-      api.get<TrialBalance>('/journals/trial-balance', { params: { from: '1900-01-01', to } }),
+      api.get<TrialBalance>('/journals/trial-balance', { params: { ...dp, from, to } }),
+      api.get<TrialBalance>('/journals/trial-balance', { params: { ...dp, from: '1900-01-01', to } }),
     ])
       .then(([p, c]) => { setPeriod(p.data); setCumul(c.data) })
       .catch((err) => setError(extractErrorMessage(err)))
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [from, to])
+  useEffect(() => { load() }, [dept, project, from, to])
 
   const groups = useMemo(() => {
     if (!period || !cumul) return []
@@ -130,6 +137,7 @@ export default function TrialBalancePage() {
   useTableColumnCheck(tableRef, '합계잔액시산표', [all.length])
 
   const reset = () => {
+    setDept(''); setProject('')
     const r = periodOf('이번기수(~전월)', new Date(), fiscalStart) ?? periodOf('금월(~오늘)')!
     setFrom(r.from); setTo(r.to); setThousand(false); setWithZero(false); setUsedOnly(false)
   }
@@ -161,6 +169,12 @@ export default function TrialBalancePage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={TRIAL_BALANCE_PICKS} currentFrom={from} fiscalStart={fiscalStart} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
           {check('천단위', thousand, setThousand)}

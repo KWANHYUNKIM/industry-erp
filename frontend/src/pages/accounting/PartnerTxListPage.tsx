@@ -7,6 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
@@ -33,7 +35,7 @@ interface Block { key: number; code: string; name: string; rows: Row[] }
  * 우리 분개 줄은 거래처가 없고 전표가 든다. 그래서 거래처가 걸린 전표의 줄을 모두 그 거래처 표에 넣는다(차 · 대가 같아진다).
  *
  * <p>[집계]는 원본의 ○집계 판(집계조건1 · 2 · 집계대상 · 비교기간 · 가로보기 …)이라 아직 만들지 않았다. 거래처별집계 판은 원본을 못 쟀다 —
- * 거래처코드 · 거래처명 · 차변금액 · 대변금액으로 찍는다. 일별 · 월별은 하루 · 한 달을 한 줄로 묶는다. 부서 · 프로젝트는 회계전표에 없다.
+ * 거래처코드 · 거래처명 · 차변금액 · 대변금액으로 찍는다. 일별 · 월별은 하루 · 한 달을 한 줄로 묶는다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function PartnerTxListPage() {
   const { companyName } = useAuth()
@@ -45,7 +47,12 @@ export default function PartnerTxListPage() {
   const [partners, setPartners] = useState<PartnerOpt[]>([])
   const [partner, setPartner] = useState('')
   const [manager, setManager] = useState('')
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -167,7 +174,7 @@ export default function PartnerTxListPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setUnit('건별'); setFrom(init.from); setTo(init.to); setDocNo(''); setPartner(''); setManager('') } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setUnit('건별'); setFrom(init.from); setTo(init.to); setDocNo(''); setPartner(''); setManager('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -201,6 +208,12 @@ export default function PartnerTxListPage() {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}
                            items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={180} emptyLabel="전체" value={manager} onChange={setManager}

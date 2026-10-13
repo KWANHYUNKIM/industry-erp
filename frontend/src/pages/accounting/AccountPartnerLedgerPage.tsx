@@ -8,6 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, fiscalYearStartOf, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, AccountLedger, LedgerRow } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -39,6 +40,11 @@ interface Block { key: number; code: string; name: string; carry: number; rows: 
  * 부서 · 프로젝트는 회계전표가 들지 않는다.
  */
 export default function AccountPartnerLedgerPage() {
+  /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const { companyName } = useAuth()
   const init = periodOf('전월')!
   const [mode, setMode] = useState<Mode>('건별')
@@ -74,7 +80,7 @@ export default function AccountPartnerLedgerPage() {
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<AccountLedger>('/journals/ledger', { params: { accountId, from: '1900-01-01', to } })
+      const r = await api.get<AccountLedger>('/journals/ledger', { params: { ...dp, accountId, from: '1900-01-01', to } })
       setLedger(r.data)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -83,7 +89,7 @@ export default function AccountPartnerLedgerPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (accountId) void load() }, [accountId, from, to])
+  useEffect(() => { if (accountId) void load() }, [dept, project, accountId, from, to])
 
   const pById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners])
   const debitSide = !ledger || ledger.division === 'ASSET' || ledger.division === 'EXPENSE'
@@ -127,6 +133,7 @@ export default function AccountPartnerLedgerPage() {
   useTableColumnCheck(tableRef, '계정별거래처별원장', [blocks.length, mode])
 
   const reset = () => {
+    setDept(''); setProject('')
     setMode('건별'); setFrom(init.from); setTo(init.to); setAccountId(''); setPartner(''); setByParent(false); setManager('')
     setNoCodeOnly(false); setWithCarry(true); setHideIdle(false); setWithInactive(true); setLedger(null)
   }
@@ -244,6 +251,12 @@ export default function AccountPartnerLedgerPage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="계정" pick>
           <CodePickerField label="계정" hideLabel width={220} emptyLabel="선택" value={accountId} onChange={setAccountId}

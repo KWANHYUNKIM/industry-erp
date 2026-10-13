@@ -7,6 +7,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { IncomeStatement, StatementRow } from '../../types/api'
 import { incomeBucketOf, type IncomeBucket } from '../../utils/incomeBuckets'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const BOLD: React.CSSProperties = { fontWeight: 700 }
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -37,9 +39,14 @@ interface AccountOpt { code: string; detailCategory: string | null; division: st
  * <p>표는 재무상태표와 같은 꼴 — 재무제표표시명 | 제 N 기 (기준) 두 칸 | 제 N-1 기 (비교) 두 칸(왼 = 계정, 오른 = 묶음 · 계산 줄).
  * 묶음 · 계산 줄이 굵다. 계정은 세부분류로 묶음에 넣는다(매출액 → 매출, 매출원가 · 제조원가 → 매출원가, 영업외수익 · 영업외비용,
  * 나머지 비용 → 판매비 및 일반관리비). 기수 번호가 없어 머리는 'YYYY년'. [당기누계] · [기초,당기,기말표시]는 원가 계정 쪽 표시라
- * 아직 두지 않았고, 부서 · 프로젝트(와 표시방법)는 회계전표에 없다.
+ * 아직 두지 않았고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다 — [부서표시방법] · [프로젝트표시방법]은 아직 없다.
  */
 export default function IncomeStatementPage() {
+  /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const { companyName } = useAuth()
   const [fiscalStart, setFiscalStart] = useState(1)
   const now = new Date()
@@ -84,14 +91,14 @@ export default function IncomeStatementPage() {
   function load() {
     setError('')
     Promise.all([
-      api.get<IncomeStatement>('/journals/income-statement', { params: { from, to } }),
-      cmpRange ? api.get<IncomeStatement>('/journals/income-statement', { params: cmpRange }) : Promise.resolve(null),
+      api.get<IncomeStatement>('/journals/income-statement', { params: { ...dp, from, to } }),
+      cmpRange ? api.get<IncomeStatement>('/journals/income-statement', { params: { ...cmpRange, ...dp } }) : Promise.resolve(null),
     ])
       .then(([b, c]) => { setBase(b.data); setCmp(c ? c.data : null) })
       .catch((err) => setError(extractErrorMessage(err)))
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [from, to, cmpRange])
+  useEffect(() => { load() }, [dept, project, from, to, cmpRange])
 
   const catOf = useMemo(() => new Map(accounts.map((a) => [a.code, a])), [accounts])
   const sheet = useMemo(() => {
@@ -149,7 +156,7 @@ export default function IncomeStatementPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFromYm(startYm(fiscalStart)); setToYm(thisYm); setCompare('직전기수'); setThousand(false); setWithZero(false) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFromYm(startYm(fiscalStart)); setToYm(thisYm); setCompare('직전기수'); setThousand(false); setWithZero(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -176,6 +183,12 @@ export default function IncomeStatementPage() {
             <EcPeriodPicks labels={INCOME_STATEMENT_PICKS} currentFrom={from} fiscalStart={fiscalStart}
                            onPick={(r) => { setFromYm(r.from.slice(0, 7)); setToYm(r.to.slice(0, 7)) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
           {([['천단위', thousand, setThousand], ['잔액0포함', withZero, setWithZero]] as const).map(([l, v, set]) => (

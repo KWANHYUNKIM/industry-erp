@@ -9,6 +9,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, NOTE_FLOW_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
@@ -33,7 +35,7 @@ interface TaxVoucher { id: number; entryDate: string; entryNo: number; vatType: 
  * <p>열: 일자-No. · 거래처명 · 공급가액 · 매출(매입)부가세 · 매출(매입)합계 · 내역보기, 달마다 [YYYY/MM 계], 끝 [합계](앞 두 칸 묶음).
  * [내역보기]는 판매 · 구매 전표에서 온 줄이면 '내역보기 거래명세서', 회계에서 바로 쓴 줄이면 '회계 I' 이다.
  * 우리 회계전표는 결재를 거치지 않고 저장하면 곧 확인이라 [상태]는 확인 · 전체만 줄이 나오고 결재중 · 미확인은 비어 있다.
- * 부서 · 프로젝트는 회계전표에 없다.
+ * [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 /**
  * menu='세무' — 세무 › 부가세 › 신고전검토자료의 매출(세금)계산서현황(세무) E030212 · 매입(세금)계산서현황(세무). 원본 판이 회계 I 판과
@@ -54,7 +56,12 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
   const [taxOnly, setTaxOnly] = useState(false)
   const [kind, setKind] = useState('')
   const [status, setStatus] = useState<Status>('확인')
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project, true), [allEntries, dept, project])
   const [vouchers, setVouchers] = useState<TaxVoucher[]>([])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -129,7 +136,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setDocNo(''); setPartner(''); setManager(''); setTaxOnly(false); setKind(''); setStatus('확인') } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setDocNo(''); setPartner(''); setManager(''); setTaxOnly(false); setKind(''); setStatus('확인') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -146,6 +153,12 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
         </EcCond>
         <EcCond label="회계전표No.">
           <input className="ec-input" value={docNo} onChange={(e) => setDocNo(e.target.value)} style={{ width: 180 }} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}

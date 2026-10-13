@@ -7,6 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { PRICE_REQUEST_PICKS, fiscalYearStartOf, periodOf } from '../../components/EcPeriodPicks'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 회계집계표 원본 빠른선택 — 금일 … 전월 · 금년 · 전년 · 종료일 · 최근30일(기본). */
@@ -33,7 +35,7 @@ interface Line { name: string; code: string; cell: Cell }
  * 상관없이 차변 쪽 부호다(원본에서 외상매입금 −518,824,300). 계정 코드 차례. 수익 · 비용 계정의 이월잔액은 기수 첫날부터만 쌓는다
  * — 지난 기수 손익은 이익잉여금으로 넘어가므로(원본 ↗ 새 창이라 직접 재지 못했고 회계 원칙을 따랐다).
  * 우리는 집계조건1 · 2(계정 · 거래처 · 거래유형 · 월별 · 일별)와 [코드포함] · [비율표시](금액 비율)를 만든다.
- * 집계조건3 · 집계대상 · 비교기간 · 가로보기는 원본에서 고르는 판을 못 재 두지 않았다. 부서 · 프로젝트는 회계전표에 없다.
+ * 집계조건3 · 집계대상 · 비교기간 · 가로보기는 원본에서 고르는 판을 못 재 두지 않았다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  * 이 화면은 인라인 style · 색 값을 쓰지 않는다(style-check 래칫, 새 파일 기준 0).
  */
 export default function AccountAggregatePage() {
@@ -51,7 +53,12 @@ export default function AccountAggregatePage() {
   const [fiscalStart, setFiscalStart] = useState<number | null>(null)
   const [partner, setPartner] = useState('')
   const [manager, setManager] = useState('')
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -169,7 +176,7 @@ export default function AccountAggregatePage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setAxis1('계정'); setAxis2(''); setWithCode(false); setRatio(false); setAccount(''); setPartner(''); setManager('') } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setAxis1('계정'); setAxis2(''); setWithCode(false); setRatio(false); setAccount(''); setPartner(''); setManager('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -196,6 +203,12 @@ export default function AccountAggregatePage() {
           <span className="ml-1.5">
             <EcPeriodPicks labels={AGG_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="계정" pick>
           <CodePickerField label="계정" hideLabel width={200} emptyLabel="전체" value={account} onChange={setAccount} items={accounts.map((a) => ({ value: a, name: a }))} />

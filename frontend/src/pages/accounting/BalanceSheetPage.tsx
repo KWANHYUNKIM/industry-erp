@@ -5,6 +5,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { BalanceSheet, StatementRow } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const BOLD: React.CSSProperties = { fontWeight: 700 }
 
@@ -68,9 +70,14 @@ function build(rows: StatementRow[], division: 'ASSET' | 'LIABILITY' | 'EQUITY',
  * 1. 자산 &gt; 1) 유동자산 &gt; (1) 당좌자산 처럼 묶음 줄과 자산총계 · 부채총계 · 자본총계 · 부채와자본총계 줄이 굵다.
  * 비교 쪽이 비면 원본은 '-' 를 찍지만 우리는 빈 칸 규칙(ui-check '없음을 줄표로 그리는 칸이 없다')을 따라 비운다. 원본은 묶음 아래를 '현금 및 현금성자산 · 매출채권' 같은 표시 항목으로 찍는데 우리 계정은 그 항목을 들지 않아
  * 계정을 그대로 한 줄씩 찍는다. 회사 기수 번호를 들지 않아 머리는 'YYYY년 (기준)' 이다.
- * [당기누계]는 손익 쪽 비교라 재무상태표에서 뜻을 못 쟀고, 부서 · 프로젝트 표시는 회계전표에 부서 · 프로젝트가 없어 두지 않았다.
+ * [당기누계]는 손익 쪽 비교라 재무상태표에서 뜻을 못 쟀고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거르고, 표시방법은 아직 없다.
  */
 export default function BalanceSheetPage() {
+  /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const { companyName } = useAuth()
   const [month, setMonth] = useState(thisMonth())
   const [compare, setCompare] = useState<Compare>('직전기수')
@@ -104,14 +111,14 @@ export default function BalanceSheetPage() {
   function load() {
     setError('')
     Promise.all([
-      api.get<BalanceSheet>('/journals/balance-sheet', { params: { asOf: monthEnd(month) } }),
-      compareAsOf ? api.get<BalanceSheet>('/journals/balance-sheet', { params: { asOf: compareAsOf } }) : Promise.resolve(null),
+      api.get<BalanceSheet>('/journals/balance-sheet', { params: { ...dp, asOf: monthEnd(month) } }),
+      compareAsOf ? api.get<BalanceSheet>('/journals/balance-sheet', { params: { ...dp, asOf: compareAsOf } }) : Promise.resolve(null),
     ])
       .then(([b, c]) => { setBase(b.data); setCmp(c ? c.data : null) })
       .catch((err) => setError(extractErrorMessage(err)))
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [month, compareAsOf])
+  useEffect(() => { load() }, [dept, project, month, compareAsOf])
 
   const catOf = useMemo(() => new Map(accounts.map((a) => [a.code, a.detailCategory ?? ''])), [accounts])
   /** [잔액0포함]이면 잔액이 없는 재무상태표 계정도 0 으로 세운다. */
@@ -167,7 +174,7 @@ export default function BalanceSheetPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setMonth(thisMonth()); setCompare('직전기수'); setThousand(false); setWithZero(false) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setMonth(thisMonth()); setCompare('직전기수'); setThousand(false); setWithZero(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -184,6 +191,12 @@ export default function BalanceSheetPage() {
           {compare === '직접입력' && (
             <input type="month" className="ec-input" value={compareMonth} onChange={(e) => e.target.value && setCompareMonth(e.target.value)} style={{ width: 130 }} />
           )}
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
           {([['천단위', thousand, setThousand], ['잔액0포함', withZero, setWithZero]] as const).map(([l, v, set]) => (

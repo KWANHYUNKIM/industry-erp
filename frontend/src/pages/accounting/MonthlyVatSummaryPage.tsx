@@ -8,6 +8,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 빠른선택 — 결산 묶음 뒤에 최근30일(기본). */
@@ -30,7 +32,7 @@ interface PartnerOpt { id: number; code: string; name: string; manager: string |
  * <p>표는 거래처코드 · 거래처명 · 달마다 'YYYY.M' 열 · 집계(머리 굵게), 끝 [합계](두 칸 묶음). 거래처마다 한 줄, 처음 나온 차례.
  * 금액은 매입/매출장과 같은 줄(부가세 255 · 135 가 든 회계전표)에서 공급가액 · VAT 를 떼어 고른 쪽을 더한다.
  * [월별동일금액제외]는 나온 달마다 금액이 같은 거래처를 뺀다. 부가세유형은 우리 전표가 세금계산서 하나뿐이다.
- * 부서 · 프로젝트는 회계전표에 없다. 이 화면은 인라인 style · 색 값을 쓰지 않는다(style-check 래칫).
+ * [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다. 이 화면은 인라인 style · 색 값을 쓰지 않는다(style-check 래칫).
  */
 export default function MonthlyVatSummaryPage({ side }: { side: Side }) {
   const title = side === '매출' ? '월별매출집계표' : '월별매입집계표'
@@ -43,7 +45,12 @@ export default function MonthlyVatSummaryPage({ side }: { side: Side }) {
   const [partners, setPartners] = useState<PartnerOpt[]>([])
   const [partner, setPartner] = useState('')
   const [manager, setManager] = useState('')
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project, true), [allEntries, dept, project])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -106,7 +113,7 @@ export default function MonthlyVatSummaryPage({ side }: { side: Side }) {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setAmount('공급가액+VAT'); setKind(''); setSameOut(false); setPartner(''); setManager('') } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setAmount('공급가액+VAT'); setKind(''); setSameOut(false); setPartner(''); setManager('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -124,6 +131,12 @@ export default function MonthlyVatSummaryPage({ side }: { side: Side }) {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}
                            items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={180} emptyLabel="전체" value={manager} onChange={setManager}

@@ -7,6 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
@@ -38,7 +40,7 @@ const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)
  * <p>머리 "회사명 : …" 아래 계정명 한 줄, 표는 거래처코드 · 거래처명 · 잔액 · 미회수월수('N 개월'), 끝 [합계](두 칸 묶음).
  * 잔액은 그날까지 그 계정의 거래처별 잔액(계정의 제 쪽 — 채권은 차 − 대, 채무는 대 − 차). 미회수월수는 잔액을 <b>가장 최근 증가부터
  * 거슬러 채웠을 때</b> 가장 오래된 증가가 몇 달 전인지다(30일 = 한 달, 원본에서 09/28 매출이 10/03 기준 '0 개월'). 잔액이 0 이하이면 비운다.
- * 원본 줄 차례는 기준을 못 재 잔액 큰 순으로 둔다. 결재방표시는 우리 인쇄가 결재 칸을 그리지 않고, 부서 · 프로젝트는 회계전표에 없다.
+ * 원본 줄 차례는 기준을 못 재 잔액 큰 순으로 둔다. 결재방표시는 우리 인쇄가 결재 칸을 그리지 않고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function ArApAgingPage() {
   const { companyName } = useAuth()
@@ -50,7 +52,12 @@ export default function ArApAgingPage() {
   const [byParent, setByParent] = useState(true)
   const [manager, setManager] = useState('')
   const [withInactive, setWithInactive] = useState(true)
-  const [entries, setEntries] = useState<JournalEntry[] | null>(null)
+  const [allEntries, setEntries] = useState<JournalEntry[] | null>(null)
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -132,7 +139,7 @@ export default function ArApAgingPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setAsOf(ymd(new Date())); setAccount(''); setPartner(''); setByParent(true); setManager(''); setWithInactive(true); setEntries(null) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setAsOf(ymd(new Date())); setAccount(''); setPartner(''); setByParent(true); setManager(''); setWithInactive(true); setEntries(null) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -162,9 +169,15 @@ export default function ArApAgingPage() {
           <CodePickerField label="계정" hideLabel width={220} emptyLabel="선택" value={account} onChange={setAccount}
                            items={accounts.filter((a) => a.division === 'ASSET' || a.division === 'LIABILITY').map((a) => ({ value: String(a.id), code: a.code, name: a.name }))} />
         </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={180} emptyLabel="전체" value={manager} onChange={setManager}
                            items={managers.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
           <label className="inline-flex items-center gap-[3px] text-[12.5px]">

@@ -81,30 +81,38 @@ public class JournalController {
     public AccountLedgerResponse ledger(
             @RequestParam Long accountId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return service.accountLedger(accountId, from, to);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long projectId) {
+        return service.accountLedger(accountId, from, to, departmentId, projectId);
     }
 
     /** 합계잔액시산표 */
     @GetMapping("/trial-balance")
     public TrialBalanceResponse trialBalance(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return service.trialBalance(from, to);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long projectId) {
+        return service.trialBalance(from, to, departmentId, projectId);
     }
 
     /** 재무상태표 */
     @GetMapping("/balance-sheet")
     public BalanceSheetResponse balanceSheet(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOf) {
-        return service.balanceSheet(asOf);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOf,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long projectId) {
+        return service.balanceSheet(asOf, departmentId, projectId);
     }
 
     /** 손익계산서 */
     @GetMapping("/income-statement")
     public IncomeStatementResponse incomeStatement(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return service.incomeStatement(from, to);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long projectId) {
+        return service.incomeStatement(from, to, departmentId, projectId);
     }
 }

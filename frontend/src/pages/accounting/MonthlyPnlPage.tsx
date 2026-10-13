@@ -7,6 +7,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import { incomeBucketOf, incomeCalc, type IncomeBucket } from '../../utils/incomeBuckets'
 import type { IncomeStatement } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const BOLD: React.CSSProperties = { fontWeight: 700 }
@@ -39,9 +41,14 @@ const GROUPS: [string, IncomeBucket][] = [
  *
  * <p>손익계산서와 같은 번호 줄(1. 매출 … 12. 당기순이익)을 달마다 한 열씩 — 계정명 · YYYY년 M월 … · 집계. 묶음 · 계산 줄이 굵다.
  * 계정을 묶음에 넣는 가름은 손익계산서와 같은 utils/incomeBuckets 를 쓴다. 원본은 끝에 숨은 열(0 · 계정코드)이 둘 더 있는데 화면에 안 보여 두지 않았다.
- * [기초,당기,기말표시]는 원가 계정 쪽 표시라 손익계산서처럼 아직 없고, 결재방표시는 우리 인쇄가 결재 칸을 그리지 않는다. 부서 · 프로젝트는 회계전표에 없다.
+ * [기초,당기,기말표시]는 원가 계정 쪽 표시라 손익계산서처럼 아직 없고, 결재방표시는 우리 인쇄가 결재 칸을 그리지 않는다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function MonthlyPnlPage() {
+  /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const { companyName } = useAuth()
   const now = new Date()
   const thisYm = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`
@@ -69,7 +76,7 @@ export default function MonthlyPnlPage() {
     setError('')
     try {
       const rs = await Promise.all(months.map((ym) =>
-        api.get<IncomeStatement>('/journals/income-statement', { params: { from: `${ym}-01`, to: monthEnd(ym) } }).then((r) => [ym, r.data] as const)))
+        api.get<IncomeStatement>('/journals/income-statement', { params: { ...dp, from: `${ym}-01`, to: monthEnd(ym) } }).then((r) => [ym, r.data] as const)))
       setByMonth(Object.fromEntries(rs))
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -78,7 +85,7 @@ export default function MonthlyPnlPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [months.join()])
+  useEffect(() => { void load() }, [dept, project, months.join()])
 
   const catOf = useMemo(() => new Map(accounts.map((a) => [a.code, a.detailCategory ?? ''])), [accounts])
   const lines = useMemo(() => {
@@ -114,7 +121,7 @@ export default function MonthlyPnlPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFromYm(startYm(fiscalStart)); setToYm(thisYm) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFromYm(startYm(fiscalStart)); setToYm(thisYm) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -129,6 +136,12 @@ export default function MonthlyPnlPage() {
             <EcPeriodPicks labels={INCOME_STATEMENT_PICKS} currentFrom={`${fromYm}-01`} fiscalStart={fiscalStart}
                            onPick={(r) => { setFromYm(r.from.slice(0, 7)); setToYm(r.to.slice(0, 7)) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
       </ul>
 

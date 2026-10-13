@@ -64,10 +64,16 @@ public class JournalQueryService {
     /** 계정별원장: 해당 계정의 기간 내 분개 + 누적 잔액. */
     @Transactional(readOnly = true)
     public AccountLedgerResponse accountLedger(Long accountId, LocalDate from, LocalDate to) {
+        return accountLedger(accountId, from, to, null, null);
+    }
+
+    /** [부서] · [프로젝트](회계전표 줄, V343)로 거른 계정별원장 — 비우면 전체. */
+    @Transactional(readOnly = true)
+    public AccountLedgerResponse accountLedger(Long accountId, LocalDate from, LocalDate to, Long dept, Long proj) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + accountId));
 
-        List<JournalLine> lines = lineRepository.findByAccountAndPeriod(accountId, from, to);
+        List<JournalLine> lines = lineRepository.findByAccountAndPeriodIn(accountId, from, to, nz(dept), nz(proj));
         boolean debitSide = isDebitSide(account.getDivision());
 
         List<LedgerRow> rows = new ArrayList<>();
@@ -107,11 +113,17 @@ public class JournalQueryService {
     /** 합계잔액시산표. 전체 차변합 = 전체 대변합이면 대차평형. */
     @Transactional(readOnly = true)
     public TrialBalanceResponse trialBalance(LocalDate from, LocalDate to) {
+        return trialBalance(from, to, null, null);
+    }
+
+    /** [부서] · [프로젝트]로 거른 합계잔액시산표 */
+    @Transactional(readOnly = true)
+    public TrialBalanceResponse trialBalance(LocalDate from, LocalDate to, Long dept, Long proj) {
         List<TrialBalanceRow> rows = new ArrayList<>();
         BigDecimal totalDebit = BigDecimal.ZERO;
         BigDecimal totalCredit = BigDecimal.ZERO;
 
-        for (Object[] r : lineRepository.sumByAccount(from, to)) {
+        for (Object[] r : lineRepository.sumByAccountIn(from, to, nz(dept), nz(proj))) {
             Long accountId = (Long) r[0];
             String code = (String) r[1];
             String name = (String) r[2];
@@ -132,13 +144,19 @@ public class JournalQueryService {
     /** 재무상태표: EPOCH~asOf 누적. 자산 = 부채 + 자본 + 당기순이익. */
     @Transactional(readOnly = true)
     public BalanceSheetResponse balanceSheet(LocalDate asOf) {
+        return balanceSheet(asOf, null, null);
+    }
+
+    /** [부서] · [프로젝트]로 거른 재무상태표 */
+    @Transactional(readOnly = true)
+    public BalanceSheetResponse balanceSheet(LocalDate asOf, Long dept, Long proj) {
         List<StatementRow> assets = new ArrayList<>();
         List<StatementRow> liabilities = new ArrayList<>();
         List<StatementRow> equity = new ArrayList<>();
         BigDecimal totalAssets = BigDecimal.ZERO, totalLiab = BigDecimal.ZERO, totalEquity = BigDecimal.ZERO;
         BigDecimal revenue = BigDecimal.ZERO, expense = BigDecimal.ZERO;
 
-        for (Object[] r : lineRepository.sumByAccount(EPOCH, asOf)) {
+        for (Object[] r : lineRepository.sumByAccountIn(EPOCH, asOf, nz(dept), nz(proj))) {
             AccountDivision division = (AccountDivision) r[3];
             BigDecimal debit = (BigDecimal) r[4];
             BigDecimal credit = (BigDecimal) r[5];
@@ -162,11 +180,17 @@ public class JournalQueryService {
     /** 손익계산서: from~to 기간. 당기순이익 = 수익 - 비용. */
     @Transactional(readOnly = true)
     public IncomeStatementResponse incomeStatement(LocalDate from, LocalDate to) {
+        return incomeStatement(from, to, null, null);
+    }
+
+    /** [부서] · [프로젝트]로 거른 손익계산서 */
+    @Transactional(readOnly = true)
+    public IncomeStatementResponse incomeStatement(LocalDate from, LocalDate to, Long dept, Long proj) {
         List<StatementRow> revenues = new ArrayList<>();
         List<StatementRow> expenses = new ArrayList<>();
         BigDecimal totalRevenue = BigDecimal.ZERO, totalExpense = BigDecimal.ZERO;
 
-        for (Object[] r : lineRepository.sumByAccount(from, to)) {
+        for (Object[] r : lineRepository.sumByAccountIn(from, to, nz(dept), nz(proj))) {
             AccountDivision division = (AccountDivision) r[3];
             BigDecimal debit = (BigDecimal) r[4];
             BigDecimal credit = (BigDecimal) r[5];
@@ -197,5 +221,10 @@ public class JournalQueryService {
     /** 자산·비용은 차변이 증가 방향, 부채·자본·수익은 대변이 증가 방향. */
     private static boolean isDebitSide(AccountDivision division) {
         return division == AccountDivision.ASSET || division == AccountDivision.EXPENSE;
+    }
+
+    /** 조건을 끄는 값은 0(쿼리 쪽 규칙). */
+    private static long nz(Long id) {
+        return id != null ? id : 0L;
     }
 }

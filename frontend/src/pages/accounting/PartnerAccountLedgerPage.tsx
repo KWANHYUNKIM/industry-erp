@@ -8,6 +8,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, fiscalYearStartOf, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -54,7 +56,12 @@ export default function PartnerAccountLedgerPage() {
   const [byParent, setByParent] = useState(true)
   const [withCarry, setWithCarry] = useState(true)
   const [hideIdle, setHideIdle] = useState(false)
-  const [entries, setEntries] = useState<JournalEntry[] | null>(null)
+  const [allEntries, setEntries] = useState<JournalEntry[] | null>(null)
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -126,6 +133,7 @@ export default function PartnerAccountLedgerPage() {
   useTableColumnCheck(tableRef, '거래처별계정별원장', [blocks.length, mode])
 
   const reset = () => {
+    setDept(''); setProject('')
     setMode('건별'); setFrom(init.from); setTo(init.to); setAccount(''); setPartner(''); setByParent(true)
     setWithCarry(true); setHideIdle(false); setEntries(null)
   }
@@ -243,6 +251,12 @@ export default function PartnerAccountLedgerPage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="계정" pick>
           <CodePickerField label="계정" hideLabel width={220} emptyLabel="전체" value={account} onChange={setAccount}

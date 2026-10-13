@@ -6,6 +6,8 @@ import EcPeriodPicks, { INCOME_STATEMENT_PICKS } from '../../components/EcPeriod
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { TrialBalance } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const BOLD: React.CSSProperties = { fontWeight: 700 }
@@ -43,9 +45,14 @@ interface Month { cost: Record<string, { name: string; amt: number }>; wipOpen: 
  * <p>원가명세서 줄을 달마다 한 열씩 — 계정명 · YYYY년 M월 … · <b>합계</b>(월별손익분석은 '집계'). 줄 이름에 번호가 붙는다 —
  * Ⅲ. 경비 · IV. 당기총비용합계 · V. 기초재공품재고액 · VI. 합계 · VII. 기말재공품재고액 · VIII. 타계정대체액 · IX. 당기제품제조원가(모두 굵게).
  * 계정 고르기 · 재료비/노무비/경비 가름 · 재공품(169)은 원가명세서와 같다. 합계 열의 기초재공품은 첫 달 기초, 기말재공품은 끝 달 기말이다.
- * 타계정대체액은 원가명세서처럼 가릴 표지가 없어 비운다. 부서 · 프로젝트는 회계전표에 없다.
+ * 타계정대체액은 원가명세서처럼 가릴 표지가 없어 비운다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function MonthlyCostPage() {
+  /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const { companyName } = useAuth()
   const now = new Date()
   const thisYm = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`
@@ -70,7 +77,7 @@ export default function MonthlyCostPage() {
   async function load() {
     setLoading(true)
     setError('')
-    const tb = (f: string, t: string) => api.get<TrialBalance>('/journals/trial-balance', { params: { from: f, to: t } }).then((x) => x.data)
+    const tb = (f: string, t: string) => api.get<TrialBalance>('/journals/trial-balance', { params: { ...dp, from: f, to: t } }).then((x) => x.data)
     const wip = (x: TrialBalance) => { const w = x.rows.find((row) => row.accountCode === WIP_CODE); return w ? Number(w.debit) - Number(w.credit) : 0 }
     try {
       const firstOpen = await tb('1900-01-01', dayBefore(`${months[0]}-01`))
@@ -93,7 +100,7 @@ export default function MonthlyCostPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [months.join(), kind])
+  useEffect(() => { void load() }, [dept, project, months.join(), kind])
 
   const lines = useMemo(() => {
     const m = new Map<string, { code: string; name: string; bucket: Bucket; by: Record<string, number> }>()
@@ -136,7 +143,7 @@ export default function MonthlyCostPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setKind('5'); setFromYm(startYm(fiscalStart)); setToYm(thisYm) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setKind('5'); setFromYm(startYm(fiscalStart)); setToYm(thisYm) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -151,6 +158,12 @@ export default function MonthlyCostPage() {
             <EcPeriodPicks labels={INCOME_STATEMENT_PICKS} currentFrom={`${fromYm}-01`} fiscalStart={fiscalStart}
                            onPick={(r) => { setFromYm(r.from.slice(0, 7)); setToYm(r.to.slice(0, 7)) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="구분">
           {KINDS.map(([l, v]) => (

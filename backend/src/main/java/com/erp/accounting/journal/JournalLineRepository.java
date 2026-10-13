@@ -20,6 +20,21 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
                                              @Param("to") LocalDate to);
 
     /**
+     * 계정별원장 · 현금출납장의 [부서] · [프로젝트] 조건(V343). 0 이면 그 조건을 끈다 —
+     * null 로 끄면 PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Query("select l from JournalLine l " +
+            "join fetch l.entry e left join fetch e.partner " +
+            "join fetch l.account " +
+            "where l.account.id = :accountId and e.entryDate between :from and :to " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
+            "order by e.entryDate asc, e.id asc, l.lineNo asc")
+    List<JournalLine> findByAccountAndPeriodIn(@Param("accountId") Long accountId,
+                                               @Param("from") LocalDate from,
+                                               @Param("to") LocalDate to,
+                                               @Param("dept") long dept, @Param("proj") long proj);
+
+    /**
      * 거래처별 <b>통제계정</b>(외상매출금·외상매입금) 차변합·대변합.
      *
      * <p>판매·구매·정산전표에서 자동으로 만들어진 전표({@code excludeSources})는 뺀다 —
@@ -61,6 +76,17 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
             "group by l.account.id, l.account.code, l.account.name, l.account.division " +
             "order by l.account.code")
     List<Object[]> sumByAccount(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 시산표 · 재무제표의 [부서] · [프로젝트] 조건(V343). 0 이면 그 조건을 끈다. */
+    @Query("select l.account.id, l.account.code, l.account.name, l.account.division, " +
+            "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e " +
+            "where e.entryDate between :from and :to " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
+            "group by l.account.id, l.account.code, l.account.name, l.account.division " +
+            "order by l.account.code")
+    List<Object[]> sumByAccountIn(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                  @Param("dept") long dept, @Param("proj") long proj);
 
     /** 법인세Checklist [2. 손익계산서 매출계정 내역]: 손익계산서 '매출액' 계정(대변 − 차변)을 달별로 */
     @Query("select year(e.entryDate), month(e.entryDate), coalesce(sum(l.credit - l.debit),0) " +

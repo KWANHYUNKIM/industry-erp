@@ -7,6 +7,9 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { INQUIRY_PICKS, SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [계정 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -35,7 +38,7 @@ interface Move { key: string; date: string; counter: string; partner: string; te
  * <p>자금 계정은 현금 · 당좌 · 보통예금(101 · 102 · 103). 원본은 예금 계정을 통장(거래처, 예: 기업은행-1122)마다 갈라 [거래처명] ·
  * [거래처코드]에 찍는다 — 우리도 계좌 입출금(/bank-cards/transactions)이 가리키는 회계전표로 통장을 찾아 가른다(통장명이 없으면
  * '은행명-계좌끝4자리', 거래처코드 자리는 계좌번호). 통장 없이 잡힌 분개(수표 입금 등)는 '[ ]' 줄이다. 외화는 회계전표가 외화 금액을 들지 않아 원화만.
- * 상대계정명은 같은 전표의 다른 줄 계정(둘 이상이면 '첫 계정 외 n'), 상대거래처명은 전표의 거래처. 부서 · 프로젝트는 회계전표에 없다.
+ * 상대계정명은 같은 전표의 다른 줄 계정(둘 이상이면 '첫 계정 외 n'), 상대거래처명은 전표의 거래처. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  *
  * <p><b>자금증감내역</b>(E010815, variant="flow") — 같은 날 실측. 자금일보의 증가 · 감소 두 표만 있다(번호가 <b>1 . 자금의 증가 · 2 . 자금의 감소</b>로
  * 당겨진다). 기본 기간 <b>최근30일</b>(빠른선택 … 이번기수 · 직전기수 · 종료일 · 최근30일), 일자는 줄마다 찍고 거래처코드 열이 없다.
@@ -47,7 +50,12 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
   const init = flow ? periodOf('최근30일')! : periodOf('금일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [allEntries, setEntries] = useState<JournalEntry[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   /* 회계전표 → 그 전표를 만든 통장. 원본은 예금 계정을 통장(거래처명 자리)마다 가른다. */
   const [bookOf, setBookOf] = useState<Map<number, { id: number; label: string; no: string }>>(new Map())
   const [truncated, setTruncated] = useState(false)
@@ -159,7 +167,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -173,6 +181,12 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
           <span className="ml-[6px]">
             <EcPeriodPicks labels={flow ? FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
       </ul>
 

@@ -8,6 +8,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -46,7 +48,12 @@ export default function AccountRemarkLedgerPage() {
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
   const [account, setAccount] = useState('')
   const [remark, setRemark] = useState('')
-  const [entries, setEntries] = useState<JournalEntry[] | null>(null)
+  const [allEntries, setEntries] = useState<JournalEntry[] | null>(null)
+  /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
+  const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -107,7 +114,7 @@ export default function AccountRemarkLedgerPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setMode('건별'); setFrom(init.from); setTo(init.to); setAccount(''); setRemark(''); setEntries(null) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setMode('건별'); setFrom(init.from); setTo(init.to); setAccount(''); setRemark(''); setEntries(null) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -128,6 +135,12 @@ export default function AccountRemarkLedgerPage() {
           <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="계정" pick>
           <CodePickerField label="계정" hideLabel width={220} emptyLabel="선택" value={account} onChange={setAccount}
