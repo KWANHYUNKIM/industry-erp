@@ -75,6 +75,10 @@ public class BillingContract extends BaseTimeEntity {
     @Column(name = "created_by", length = 50)
     private String createdBy;
 
+    /** 계약수정 [H] 이력의 '수정' 줄 작업자. */
+    @Column(name = "updated_by", length = 50)
+    private String updatedBy;
+
     @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineNo")
     @Builder.Default
