@@ -140,6 +140,7 @@ const RULES: Rule[] = [
   ['/accounting/contract-price-change', 'FINANCE'],
   ['/accounting/contract-status', 'FINANCE'],
   ['/accounting/contract-unbilled', 'FINANCE'],
+  ['/accounting/contract-bill-print', 'FINANCE'],
   ['/accounting/contract-bills', 'FINANCE'],
   ['/accounting/contract-reflect', 'FINANCE'],
   ['/accounting/contract-unreflected', 'FINANCE'],

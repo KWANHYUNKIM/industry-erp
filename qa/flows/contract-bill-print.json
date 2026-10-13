@@ -1,0 +1,36 @@
+{
+  "about": "회계 II › 계약관리 › 청구예정자료인쇄(E060907, 2026-10-13 원본 실측 — QA회계2-청구인쇄 계약 2 × 40,000 의 청구예정자료 2026/10/13 -4): 출력물 '청구예정자료리스트' 열 □ · 거래처명 · 계약명 · 항목명 · 수량 · 공급가액 · 부가세 · 합계 · 상세, 끝에 합계(앞 세 칸 묶음). 원본 줄 '2.00 · 80,000 · 8,000 · 88,000'. [상세] → '상세청구예정자료리스트' 창의 월/일이 청구생성번호. 청구예정자료를 지우면 빠진다. 만든 자료는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 계약항목 · 계약 · 청구예정자료(API)",
+      "path": "/accounting/contract-items",
+      "steps": [
+        "wait:1000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const c='P'+String(Date.now()).slice(-4);const it=(await window.__api('POST','/contract-items',{code:c,name:'QA회계2-인쇄항목',unitPrice:40000,vatIncluded:false,billingCycle:'PERIODIC',salesAccountId:null})).body;sessionStorage.setItem('ciId',it.id);const u=(await window.__api('GET','/billing-contracts/units')).body.find((x)=>x.name==='월말청구');const p=(await window.__api('GET','/partners')).body[0];const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');sessionStorage.setItem('ymd',ymd);const bc=(await window.__api('POST','/billing-contracts',{contractDate:ymd,partnerId:p.id,code:null,name:'QA회계2-청구인쇄',billStart:ymd,billEnd:(d.getFullYear()+1)+ymd.slice(4),vatType:'세금계산서',foreignCurrency:false,employeeId:null,departmentId:null,projectId:null,remark:null,lines:[{itemId:it.id,billMonths:ymd.slice(5,7),quantity:2,unitPrice:40000,supplyAmount:null,vatAmount:null,billingUnitId:u.id,remark:'QA회계2'}]})).body;sessionStorage.setItem('bcId',bc.id);const b=(await window.__api('POST','/contract-bills',{billDate:ymd,vatType:'세금계산서',byPartner:false,lines:[{contractLineId:bc.lines[0].id,billMonth:ymd.slice(0,7),quantity:2,unitPrice:40000,supplyAmount:80000,vatAmount:8000,remark:'QA회계2'}]})).body;sessionStorage.setItem('billId',b[0].id);sessionStorage.setItem('billNo',b[0].docNo);return b[0].id})()"
+      ]
+    },
+    {
+      "name": "청구예정자료인쇄 — 줄 · 합계 · 상세",
+      "path": "/accounting/contract-bill-print",
+      "steps": [
+        "wait:1500",
+        "js:window.__row = () => [...document.querySelectorAll('table.ec-report tbody tr')].find((t) => t.innerText.includes('QA회계2-청구인쇄')); true",
+        "expect:[...[...document.querySelectorAll('table.ec-report')][0].querySelectorAll('thead th')].map((t)=>t.innerText.trim()).join('|')==='|거래처명|계약명|항목명|수량|공급가액|부가세|합계|상세'",
+        "expect:(()=>{const c=[...window.__row().cells].map((x)=>x.innerText.trim());return c[2]==='QA회계2-청구인쇄'&&c[3]==='QA회계2-인쇄항목'&&c[4]==='2.00'&&c[5]==='80,000'&&c[6]==='8,000'&&c[7]==='88,000'&&c[8]==='상세'})()",
+        "expect:(()=>{const t=[...document.querySelectorAll('table.ec-report')][0];const r=[...t.querySelectorAll('tbody tr')].pop();return r.cells[1].innerText.trim()==='합계'&&r.cells[1].colSpan===3})()",
+        "js:[...window.__row().querySelectorAll('a')].find((a)=>a.innerText.trim()==='상세').click(); true",
+        "wait:600",
+        "expect:document.body.innerText.includes('상세청구예정자료리스트')",
+        "expect:(()=>{const t=[...document.querySelectorAll('table.ec-report')].pop();const r=[...t.querySelectorAll('tbody tr')].find((x)=>x.innerText.includes('QA회계2-청구인쇄'));const no=sessionStorage.getItem('ymd').replace(/-/g,'/')+' -'+sessionStorage.getItem('billNo');return !!r&&r.cells[2].innerText.trim()===no&&r.cells[8].innerText.trim()==='QA회계2'})()",
+        "js:document.querySelector('[role=dialog] button[aria-label=닫기]').click(); true",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const r=await window.__api('POST','/contract-bills/delete',{ids:[Number(sessionStorage.getItem('billId'))]});return r.status})()",
+        "clicklast:검색(F8)",
+        "wait:1200",
+        "expect:!window.__row()",
+        "js:(async()=>{const a=await window.__api('POST','/billing-contracts/delete',{ids:[Number(sessionStorage.getItem('bcId'))]});const b=await window.__api('DELETE','/contract-items/'+sessionStorage.getItem('ciId'));return a.status+' '+b.status})()"
+      ]
+    }
+  ]
+}
