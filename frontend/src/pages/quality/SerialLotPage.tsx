@@ -254,7 +254,7 @@ export default function SerialLotPage() {
         </tbody>
       </table>
 
-      <Modal open={formOpen} title={editing ? '시리얼/로트No.등록' : '시리얼/로트 No. 생성'} onClose={() => setFormOpen(false)} width={720} error={formError}>
+      <Modal open={formOpen} title={editing ? '시리얼/로트No.등록' : '시리얼/로트 No. 생성'} error={formError} width={720} onClose={() => setFormOpen(false)}>
         <div className="ec-pills mb-[8px]">
           {TABS.map((t) => (
             <button key={t} type="button" className={`ec-pill${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
@@ -298,7 +298,7 @@ export default function SerialLotPage() {
         </div>
       </Modal>
 
-      <Modal open={blocked != null} title="알림" width={520} onClose={() => setBlocked(null)}>
+      <Modal open={blocked != null} title="알림" width={520} error={error} onClose={() => setBlocked(null)}>
         <p className="m-0 leading-[18px]">처리가 불가능한 코드입니다.<br />다음 사항을 확인 바랍니다.</p>
         <p className="mt-[9px] mb-[6px] font-bold">[처리가 불가능한 코드]</p>
         <table className="w-full text-left">
@@ -326,7 +326,7 @@ export default function SerialLotPage() {
                          onSaved={() => { setBulkOpen(false); void load() }} />
       )}
 
-      <Modal open={detail != null} title="시리얼/로트No.내역조회" onClose={() => setDetail(null)} width={760}>
+      <Modal open={detail != null} title="시리얼/로트No.내역조회" width={760} error={error} onClose={() => setDetail(null)}>
         <table className="w-full text-left">
           <thead><tr>
             <th className="text-center">일자-No.</th><th>품목명[규격]</th><th>시리얼/로트No.</th>

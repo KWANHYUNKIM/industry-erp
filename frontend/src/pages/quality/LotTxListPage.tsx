@@ -115,7 +115,7 @@ export default function LotTxListPage() {
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) return setError('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
-    if ((await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n선택한 항목을 삭제 하겠습니까?'))) void removeTx(ids)
+    if ((await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n선택한 품목을 삭제 하겠습니까?'))) void removeTx(ids)
   }
 
   async function load() {
@@ -303,10 +303,18 @@ export default function LotTxListPage() {
         </ul>
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={() => void saveTx()}>저장(F8)</button>
-          {editing
-            ? <button className="ec-btn" onClick={async () => { if ((await ecConfirm('전표를 삭제하겠습니까?'))) void removeTx([editing.id]) }}>삭제</button>
-            : <button className="ec-btn" onClick={() => { setF(emptyForm()); setTried(false) }}>다시 작성</button>}
+          {/* 원본 수정 창: 저장(F8) · 이전 · 다음 · 닫기 · 삭제 · H(2026-10-14 실측). 이전 · 다음은 목록에서 앞 · 뒤 손입력 줄을 같은 창에 연다. [H] 는 아직 없다. */}
+          {editing && (() => {
+            const own = shown.filter((r) => r.manual)
+            const at = own.findIndex((r) => r.id === editing.id)
+            return (<>
+              <button className="ec-btn" disabled={at <= 0} onClick={() => openEdit(own[at - 1])}>이전</button>
+              <button className="ec-btn" disabled={at < 0 || at >= own.length - 1} onClick={() => openEdit(own[at + 1])}>다음</button>
+            </>)
+          })()}
+          {!editing && <button className="ec-btn" onClick={() => { setF(emptyForm()); setTried(false) }}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+          {editing && <button className="ec-btn" onClick={async () => { if ((await ecConfirm('전표를 삭제하겠습니까?\n- 시리얼/로트No.내역입력'))) void removeTx([editing.id]) }}>삭제</button>}
         </div>
       </Modal>
     </EcListShell>

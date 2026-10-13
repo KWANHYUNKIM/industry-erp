@@ -4,7 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { LotTransaction } from '../../types/api'
+import type { Lot, LotTransaction } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
@@ -70,6 +70,12 @@ export default function LotTxStatusPage() {
   /* 접힌 줄의 [프로젝트] · [담당자] — [신규(F2)] 내역입력 창으로 손으로 넣은 줄만 든다(전표가 남긴 줄은 빈칸이라 고르면 빠진다). */
   const [projectCond, setProjectCond] = useState('')
   const [chargeCond, setChargeCond] = useState('')
+  /* 접힌 줄의 [udi코드] — 로트 마스터(시리얼/로트No.등록)의 udi코드로 거른다. 움직임에는 없으니 로트 목록에서 잇는다. */
+  const [udiCond, setUdiCond] = useState('')
+  const [udiOf, setUdiOf] = useState<Map<number, string>>(new Map())
+  useEffect(() => {
+    api.get<Lot[]>('/lots').then((r) => setUdiOf(new Map(r.data.map((l) => [l.id, l.udiCode ?? ''])))).catch(() => setUdiOf(new Map()))
+  }, [])
 
   async function load() {
     setLoading(true); setError('')
@@ -107,11 +113,12 @@ export default function LotTxStatusPage() {
       if (chargeCond && r.chargeName !== chargeCond) return false
       if (mgmtCond && !mgmt.hits([r.itemId], mgmtCond)) return false
       if (noteCond && !(r.note ?? '').includes(noteCond)) return false
+      if (udiCond && !(udiOf.get(r.lotId) ?? '').includes(udiCond)) return false
       if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
       return true
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, expFrom, expTo, lotNo, warehouse, partner, item, docType, keyword, projectCond, chargeCond, mgmtCond, noteCond, mgmt.options])
+  }, [rows, expFrom, expTo, lotNo, warehouse, partner, item, docType, keyword, projectCond, chargeCond, mgmtCond, noteCond, udiCond, udiOf, mgmt.options])
 
   /** 원본 [구분]이 [집계] 일 때 고른 단위로 합친다. */
   const groups = useMemo(() => {
@@ -234,6 +241,9 @@ export default function LotTxStatusPage() {
         <EcCond label="적요">
           <input className="ec-input" value={noteCond} onChange={(e) => setNoteCond(e.target.value)} style={{ width: 220 }} />
         </EcCond>
+        <EcCond label="udi코드">
+          <input className="ec-input w-[220px]" aria-label="udi코드" value={udiCond} onChange={(e) => setUdiCond(e.target.value)} />
+        </EcCond>
       </ul>
 
       {mode === '집계' ? (
@@ -294,10 +304,11 @@ export default function LotTxStatusPage() {
                   <td className="text-center">{r.expireDate ? dateText(r.expireDate) : ''}</td>
                   <td className="text-center">{r.docType ?? r.typeName}</td>
                   <td>{r.partnerName ?? ''}</td>
-                  <td>{r.docType ? '' : (r.note ?? '')}</td>
+                  {/* 내역입력 줄은 [적요] 를 찍고 [연결전표] 가 '2026/10/14 -0'(원본 2026-10-14 실측 — 구매 3 · 적요 QA재고2). 전표가 남긴 줄의 비고는 자동 글이라 비운다. */}
+                  <td>{r.docType && !r.manual ? '' : (r.note ?? '')}</td>
                   <td className="text-right">{qty2(absQty(r))}</td>
                   <td></td>
-                  <td className="text-center ec-link">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : ''}</td>
+                  <td className="text-center ec-link">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : r.docType ? `${dateText(r.txDate)} -0` : ''}</td>
                 </tr>,
               ]
               const next = lines[i + 1]

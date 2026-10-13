@@ -904,11 +904,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/quality/LotStockComparePage.tsx": {
-  "inline": 3,
-  "color": 1,
-  "palette": 0
- },
  "pages/quality/LotStockStatusPage.tsx": {
   "inline": 5,
   "color": 0,

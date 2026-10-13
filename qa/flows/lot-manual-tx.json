@@ -26,8 +26,8 @@
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = (await (await fetch('/api/lots', { headers: H })).json()).find((x) => x.lotNo === 'QA-LOT-001'); return Number(l.stockQty) === Number(sessionStorage.getItem('lotQty')) + 3 })()",
         "js:(async () => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA-LOT-001') && t.innerText.includes('구매') && t.querySelector('button.ec-link')); tr.querySelector('button.ec-link').click(); await new Promise((r) => setTimeout(r, 800)); return 'ok' })()",
         "expect:document.querySelector('[role=dialog] select[aria-label=\"전표구분\"]').disabled && document.querySelector('[role=dialog] input[type=date]').disabled && document.querySelector('[role=dialog] input[aria-label=\"수량\"]').value === '3'",
-        "js:window.confirm = () => true; true",
         "click:삭제",
+        "js:(async () => { [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); return 'ok' })()",
         "wait:1500",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = (await (await fetch('/api/lots', { headers: H })).json()).find((x) => x.lotNo === 'QA-LOT-001'); return Number(l.stockQty) === Number(sessionStorage.getItem('lotQty')) })()"
       ]

@@ -307,12 +307,13 @@ export default function LotLedgerPage() {
                   <td className="text-center">{r.expireDate ? dateText(r.expireDate) : ''}</td>
                   <td className="text-center">{r.docType ?? r.typeName}</td>
                   <td>{r.partnerName ?? ''}</td>
-                  <td>{r.docType ? '' : (r.note ?? '')}</td>
+                  {/* 내역입력 줄은 [적요] 를 찍고 [연결전표] 가 '2026/10/14 -0'(원본 2026-10-14 실측 — 구매 3 · 적요 QA재고2). 전표가 남긴 줄의 비고는 자동 글이라 비운다. */}
+                  <td>{r.docType && !r.manual ? '' : (r.note ?? '')}</td>
                   <td className="text-right">{q > 0 ? qty2(q) : ''}</td>
                   <td className="text-right">{q < 0 ? qty2(-q) : ''}</td>
                   {/* 원본은 잔량이 0 이 된 줄의 [재고수량] 을 비운다(BEN_0048 전월이월 -1 → 구매 1 → 빈칸, 2026-10-13 실측). */}
                   <td className="text-right">{bal ? qty2(bal) : ''}</td>
-                  <td className="text-center ec-link">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : ''}</td>
+                  <td className="text-center ec-link">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : r.docType ? `${dateText(r.txDate)} -0` : ''}</td>
                 </tr>)
             }
             out.push(
