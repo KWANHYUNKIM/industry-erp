@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 export type CostLedgerMode = 'edit' | 'recalc'
 
@@ -75,7 +76,7 @@ export default function CostLedgerModal({ periodId, mode, onClose }: { periodId:
   }
   async function openChange() {
     if (checked.length === 0) {
-      window.alert('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.')
+      void ecAlert('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.')
       return
     }
     setError('')
@@ -237,7 +238,7 @@ function CostLedgerEdit({ periodId, detail, onClose, onSaved }: { periodId: numb
     } catch (err) { setError(extractErrorMessage(err)) }
   }
   async function remove() {
-    if (!window.confirm('삭제한 데이터는 복구되지 않습니다.\n\n삭제하겠습니까?')) return
+    if (!(await ecConfirm('삭제한 데이터는 복구되지 않습니다.\n\n삭제하겠습니까?'))) return
     try { await api.delete(`/cost-periods/${periodId}/ledger/${d.itemId}`); onSaved() } catch (err) { setError(extractErrorMessage(err)) }
   }
 

@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BudgetStatus } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -33,21 +34,21 @@ export default function BudgetPage() {
   }, [])
 
   async function remove(id: number, name: string) {
-    if (!window.confirm(`${name} 예산을 삭제할까요?`)) return
+    if (!(await ecConfirm(`${name} 예산을 삭제할까요?`))) return
     try { await api.delete(`/budgets/${id}`); flash('예산을 삭제했습니다.'); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function edit(id: number, name: string, current: number) {
     const input = window.prompt(`${name} 예산액`, String(current))
     if (input === null) return
     const amount = Number(input)
-    if (!(amount > 0)) return alert('예산액은 0보다 커야 합니다.')
+    if (!(amount > 0)) return ecAlert('예산액은 0보다 커야 합니다.')
     try {
       await api.put(`/budgets/${id}`, { amount })
       flash('예산을 수정했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const rows = status?.rows ?? []

@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import type { CommonCode, Project } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 // 결제수단은 공통코드(PAYMENT_METHOD)에서 가져온다. 화면에 하드코딩하면 항목 하나 늘릴 때마다 배포해야 한다.
@@ -102,7 +103,7 @@ export default function ExpensePage() {
   }
 
   async function remove(e: Expense) {
-    if (!window.confirm(`[${e.accountName}] ${e.amount.toLocaleString()}원 지출을 삭제할까요?`)) return
+    if (!(await ecConfirm(`[${e.accountName}] ${e.amount.toLocaleString()}원 지출을 삭제할까요?`))) return
     try {
       await api.delete(`/expenses/${e.id}`)
       setOk(`[${e.accountName}] ${e.amount.toLocaleString()}원 지출과 그 회계전표를 삭제했습니다.`)

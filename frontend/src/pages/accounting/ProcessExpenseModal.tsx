@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { groupPreservingOrder } from '../../utils/costGroup'
 import CodePickerField from '../../components/CodePickerField'
 import type { Warehouse } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 노무비/경비등록 — 원가계산 전 사전작업.
@@ -96,12 +97,12 @@ export default function ProcessExpenseModal({ period, onClose }: { period: strin
   }
 
   async function remove(r: Row) {
-    if (!confirm(`${r.processName} 의 노무비/경비를 삭제할까요?`)) return
+    if (!(await ecConfirm(`${r.processName} 의 노무비/경비를 삭제할까요?`))) return
     try {
       await api.delete(`/process-expenses/${r.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

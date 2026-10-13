@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { useTableSort } from '../../utils/useTableSort'
+import { ecAlert } from '../../components/EcDialog'
 
 type Division = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
 const DIV_LABEL: Record<Division, string> = { ASSET: '자산', LIABILITY: '부채', EQUITY: '자본', REVENUE: '수익', EXPENSE: '비용' }
@@ -66,7 +67,7 @@ export default function AccountsPage() {
       await api.patch(`/accounts/${a.id}`, { active: !a.active })
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

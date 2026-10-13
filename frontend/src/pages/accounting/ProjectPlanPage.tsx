@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Project } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 II &gt; 계획관리 &gt; 프로젝트계획조회 / 프로젝트계획·실적현황
@@ -146,7 +147,7 @@ export default function ProjectPlanPage() {
   }
 
   async function remove(id: number) {
-    if (!confirm('이 계획을 삭제할까요?')) return
+    if (!(await ecConfirm('이 계획을 삭제할까요?'))) return
     setError(''); setOk('')
     try { await api.delete(`/project-plans/${id}`); load() }
     catch (err) { setError(extractErrorMessage(err)) }
@@ -194,7 +195,7 @@ export default function ProjectPlanPage() {
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) { setError('삭제할 프로젝트계획을(를) 고르세요.'); return }
-    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/project-plans/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())

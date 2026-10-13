@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, PaymentAgency } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface AccountOption { id: number; code: string; name: string }
 
@@ -108,7 +109,7 @@ export default function PaymentAgencyListPage() {
   async function apply(ids: number[], op: '사용중단' | '삭제' | '재사용') {
     setMenuOpen(false); setEditMenu(false)
     if (ids.length === 0) { setError('선택된 데이터가 없습니다.'); return }
-    if (op === '삭제' && !window.confirm('삭제하겠습니까?')) return
+    if (op === '삭제' && !(await ecConfirm('삭제하겠습니까?'))) return
     try {
       for (const id of ids) {
         const a = rows.find((r) => r.id === id)

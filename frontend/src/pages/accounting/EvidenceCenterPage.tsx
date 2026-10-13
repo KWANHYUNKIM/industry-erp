@@ -6,6 +6,7 @@ import type { EvidenceAttachment, EvidenceMethod } from '../../types/api'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 증빙센터 (이카운트 E040730)
@@ -85,24 +86,24 @@ export default function EvidenceCenterPage() {
 
   async function downloadChecked() {
     const targets = rows.filter((r) => checked.includes(r.id) && r.fileId)
-    if (targets.length === 0) return alert('첨부파일이 있는 증빙을 선택하세요.')
+    if (targets.length === 0) return ecAlert('첨부파일이 있는 증빙을 선택하세요.')
     for (const t of targets) {
       try { await downloadStoredFile(t.fileId!, t.fileName ?? 'file') }
-      catch (err) { alert(extractErrorMessage(err)); return }
+      catch (err) { void ecAlert(extractErrorMessage(err)); return }
     }
     setNotice(`${targets.length}개 파일을 내려받았습니다.`)
     window.setTimeout(() => setNotice(''), 2500)
   }
 
   async function deleteChecked() {
-    if (checked.length === 0) return alert('삭제할 증빙을 선택하세요.')
-    if (!window.confirm(`선택한 ${checked.length}건을 삭제할까요? 첨부파일도 함께 지워집니다.`)) return
+    if (checked.length === 0) return ecAlert('삭제할 증빙을 선택하세요.')
+    if (!(await ecConfirm(`선택한 ${checked.length}건을 삭제할까요? 첨부파일도 함께 지워집니다.`))) return
     try {
       await Promise.all(checked.map((id) => api.delete(`/evidence-attachments/${id}`)))
       setNotice(`${checked.length}건을 삭제했습니다.`)
       window.setTimeout(() => setNotice(''), 2500)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const label = (t: string) => <div className="text-ec-label mb-[3px]">{t}</div>

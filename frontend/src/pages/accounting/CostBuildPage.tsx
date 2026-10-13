@@ -7,6 +7,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import ProcessExpenseModal from './ProcessExpenseModal'
 import CostChecklistModal, { type CostChecklistKind } from './CostChecklistModal'
 import CostLedgerModal, { type CostLedgerMode } from './CostLedgerModal'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 II &gt; 이익관리 &gt; 월별이익 &gt; <b>원가생성/수정</b>(E040802) — 2026-10-12 loginaa 실측.
@@ -96,7 +97,7 @@ export default function CostBuildPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
   async function removePeriod(p: Period) {
-    if (!window.confirm('삭제한 데이터는 복구되지 않습니다.\n\n삭제하겠습니까?')) return
+    if (!(await ecConfirm('삭제한 데이터는 복구되지 않습니다.\n\n삭제하겠습니까?'))) return
     setError(''); setOk('')
     try {
       await api.delete(`/cost-periods/${p.id}`)
@@ -106,7 +107,7 @@ export default function CostBuildPage() {
   }
   /** 기타 [회계반영] — 우리에게 자동대체(자동생성설정)가 없으니 원본이 그 설정이 없을 때 하는 안내를 그대로 한다. */
   function reflect() {
-    window.alert('선택된 연월에 대체분개시점이 유효한 자동대체가 존재하지 않습니다.\n\n자동생성전표조회 > Option > 자동생성설정을 확인 바랍니다.')
+    void ecAlert('선택된 연월에 대체분개시점이 유효한 자동대체가 존재하지 않습니다.\n\n자동생성전표조회 > Option > 자동생성설정을 확인 바랍니다.')
   }
 
   const link = (label: string, onClick?: () => void) => (

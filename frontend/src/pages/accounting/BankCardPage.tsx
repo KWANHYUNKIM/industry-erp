@@ -10,6 +10,7 @@ import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Curre
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -345,7 +346,7 @@ export default function BankCardPage() {
             )}
             <BankTxnTable rows={txns} onRemove={async (r) => {
               /* 이 화면에서 넣은 입출금만 지운다 — 다른 전표가 만든 것은 서버가 막고 어디서 지울지 알려 준다(QA 63회차). */
-              if (!window.confirm(`${r.txnNo} ${r.deposit ? '입금' : '출금'} ${won(r.amount)}원을 지울까요? 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`)) return
+              if (!(await ecConfirm(`${r.txnNo} ${r.deposit ? '입금' : '출금'} ${won(r.amount)}원을 지울까요? 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`))) return
               setError('')
               try { await api.delete(`/bank-cards/transactions/${r.id}`); flash(`${r.txnNo} 삭제 — 잔액을 되돌리고 회계전표도 지웠습니다.`); load() }
               catch (err) { setError(extractErrorMessage(err)) }
@@ -354,7 +355,7 @@ export default function BankCardPage() {
         )
         : <CardUsageTable rows={usages} onRemove={async (r) => {
             /* 결제 전 사용내역만 지운다 — 결제된 것은 서버가 막는다(QA 56회차). */
-            if (!window.confirm(`${r.usageNo} 카드사용(${r.merchant} ${won(r.totalAmount)}원)을 지울까요? 회계전표도 지워집니다.`)) return
+            if (!(await ecConfirm(`${r.usageNo} 카드사용(${r.merchant} ${won(r.totalAmount)}원)을 지울까요? 회계전표도 지워집니다.`))) return
             setError('')
             try { await api.delete(`/bank-cards/usages/${r.id}`); flash(`${r.usageNo} 삭제 — 회계전표도 지웠습니다.`); load() }
             catch (err) { setError(extractErrorMessage(err)) }

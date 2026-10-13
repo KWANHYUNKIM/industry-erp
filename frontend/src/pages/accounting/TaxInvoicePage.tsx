@@ -7,6 +7,7 @@ import type { TaxInvoice, TaxInvoiceStatus, TaxInvoiceType } from '../../types/a
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import TaxInvoiceProgressPage from './TaxInvoiceProgressPage'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
@@ -63,17 +64,17 @@ function TradeTaxInvoicePage({ type }: { type: TaxInvoiceType }) {
       flash(`${t.invoiceNo} → ${NEXT_LABEL[t.status]}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
   async function remove(t: TaxInvoice) {
-    if (!window.confirm(`${t.invoiceNo} 세금계산서를 삭제할까요?`)) return
+    if (!(await ecConfirm(`${t.invoiceNo} 세금계산서를 삭제할까요?`))) return
     try {
       await api.delete(`/tax-invoices/${t.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

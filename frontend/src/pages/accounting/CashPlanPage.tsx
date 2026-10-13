@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CashFlowType, CashPlanStatus } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -30,9 +31,9 @@ export default function CashPlanPage() {
   useEffect(() => { load() }, [])
 
   async function remove(id: number, category: string) {
-    if (!window.confirm(`'${category}' 계획을 삭제할까요?`)) return
+    if (!(await ecConfirm(`'${category}' 계획을 삭제할까요?`))) return
     try { await api.delete(`/cash-plans/${id}`); flash('계획을 삭제했습니다.'); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const plans = status?.plans ?? []

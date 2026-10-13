@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { TaxAdjustmentType, TaxReturn } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const thisYear = () => new Date().getFullYear()
@@ -40,23 +41,23 @@ export default function CorporateTaxPage() {
       await api.post(`/corporate-tax/${selectedId}${path}`)
       flash(msg)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function removeReturn(r: TaxReturn) {
-    if (!window.confirm(`${r.fiscalYear}년 신고서를 삭제할까요?`)) return
+    if (!(await ecConfirm(`${r.fiscalYear}년 신고서를 삭제할까요?`))) return
     try {
       await api.delete(`/corporate-tax/${r.id}`)
       flash('신고서를 삭제했습니다.')
       load(false)
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function removeAdjustment(adjId: number) {
     try {
       await api.delete(`/corporate-tax/${selectedId}/adjustments/${adjId}`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   return (
@@ -229,7 +230,7 @@ function AdjustmentForm({ returnId, onSaved }: { returnId: number; onSaved: () =
 
   async function add() {
     if (!name.trim() || !(Number(amount) > 0)) {
-      alert('항목명과 0보다 큰 금액을 입력하세요.')
+      void ecAlert('항목명과 0보다 큰 금액을 입력하세요.')
       return
     }
     setSaving(true)
@@ -241,7 +242,7 @@ function AdjustmentForm({ returnId, onSaved }: { returnId: number; onSaved: () =
       setAmount('')
       onSaved()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -281,7 +282,7 @@ function EditAmounts({ taxReturn, onSaved }: { taxReturn: TaxReturn; onSaved: ()
       setOpen(false)
       onSaved()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     } finally {
       setSaving(false)
     }

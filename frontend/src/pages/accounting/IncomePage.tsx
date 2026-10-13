@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMethod } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -44,9 +45,9 @@ export default function IncomePage() {
   }, [])
 
   async function remove(i: Income) {
-    if (!window.confirm(`'${i.content}' 수입을 삭제할까요?`)) return
+    if (!(await ecConfirm(`'${i.content}' 수입을 삭제할까요?`))) return
     try { await api.delete(`/incomes/${i.id}`); flash('수입을 삭제했습니다.'); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   return (

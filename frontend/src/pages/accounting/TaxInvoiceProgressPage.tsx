@@ -13,6 +13,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import {
   bucketOf, INVOICE_TYPES, salesInvoiceOf, type Bucket, type InvoiceMark, type InvoiceType, type SalesInvoice,
 } from '../../utils/salesInvoice'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface Row { e: JournalEntry; inv: SalesInvoice; bucket: Bucket }
@@ -129,7 +130,7 @@ export default function TaxInvoiceProgressPage() {
 
   async function mark(r: Row, progress: 'ELSEWHERE' | 'LATE') {
     /* 각종구분값변경과 같은 확인 창 — 기한후발행만 묻는다(타발행은 원본도 바로 바뀐다). */
-    if (progress === 'LATE' && !window.confirm('선택하신 전표를 기한 후 발행으로 변환하시겠습니까?')) return
+    if (progress === 'LATE' && !(await ecConfirm('선택하신 전표를 기한 후 발행으로 변환하시겠습니까?'))) return
     try {
       await api.post('/vat-invoice-marks/progress', { ids: [r.e.id], progress })
       await load(period.from, period.to)

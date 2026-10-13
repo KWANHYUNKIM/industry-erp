@@ -8,6 +8,7 @@ import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_STATUS_PICKS } from '../../features/bond/ledger'
 import { flatten, signed, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import { ecAlert } from '../../components/EcDialog'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서리스트 · 거래처리스트와 같은 글). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
@@ -109,7 +110,7 @@ export default function BondPartnerLedgerPrintPage({ side }: { side: BondSide })
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시작성', onClick: () => { setFrom(init.from); setTo(init.to); setAccount(''); setBondNo(''); setPartner('') } },
-        { label: '인쇄', onClick: () => { if (picked.size === 0) { alert(NO_PICK); return } open([...picked]) } },
+        { label: '인쇄', onClick: () => { if (picked.size === 0) { void ecAlert(NO_PICK); return } open([...picked]) } },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}

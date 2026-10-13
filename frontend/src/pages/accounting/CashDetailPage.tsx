@@ -7,6 +7,7 @@ import type {
 } from '../../types/api'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -122,7 +123,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
 
   /* 잘못 넣은 이동을 지운다(QA 56회차 — 지울 길이 없었다). 두 계좌 잔액이 되돌아오고 회계전표도 지워진다. */
   async function remove(t: AccountTransfer) {
-    if (!window.confirm(`${t.transferNo} 계좌간이동을 지울까요? 두 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`)) return
+    if (!(await ecConfirm(`${t.transferNo} 계좌간이동을 지울까요? 두 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`))) return
     onError('')
     try {
       await api.delete(`/cash-details/account-transfers/${t.id}`)
@@ -263,7 +264,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
 
   /* 결제를 지우면 결제계좌로 돈이 돌아오고 묶였던 사용내역은 다시 미결제가 된다(QA 56회차). */
   async function removePayment(p: CardPayment) {
-    if (!window.confirm(`${p.paymentNo} 카드대금결제를 지울까요? 결제계좌로 ${won(p.amount)}원이 돌아가고 사용내역 ${p.lines.length}건은 다시 미결제가 됩니다.`)) return
+    if (!(await ecConfirm(`${p.paymentNo} 카드대금결제를 지울까요? 결제계좌로 ${won(p.amount)}원이 돌아가고 사용내역 ${p.lines.length}건은 다시 미결제가 됩니다.`))) return
     onError('')
     try {
       await api.delete(`/cash-details/card-payments/${p.id}`)
@@ -276,7 +277,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
     onError('')
     if (!cardId) return onError('카드를 선택하세요.')
     if (unpaid.length === 0) return onError('미결제 사용내역이 없습니다.')
-    if (!window.confirm(`${card?.cardName} 미결제 ${unpaid.length}건 · ${won(total)}원을 결제할까요?`)) return
+    if (!(await ecConfirm(`${card?.cardName} 미결제 ${unpaid.length}건 · ${won(total)}원을 결제할까요?`))) return
     setSaving(true)
     try {
       const { data } = await api.post<CardPayment>('/cash-details/card-payments', {

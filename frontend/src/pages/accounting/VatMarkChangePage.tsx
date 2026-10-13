@@ -6,6 +6,7 @@ import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import type { JournalEntry } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 type DocKind = 'PAPER' | 'ELECTRONIC' | 'MODIFY_ERROR' | 'MODIFY_AMOUNT' | 'MODIFY_RETURN' | 'MODIFY_CANCEL' | 'MODIFY_LC' | 'MODIFY_DUPLICATE'
 type Progress = 'NONE' | 'LATE' | 'ELSEWHERE'
@@ -124,10 +125,10 @@ export default function VatMarkChangePage() {
     if (ids) void post('/vat-invoice-marks/doc-kind', { ids, docKind: newKind })
   }
 
-  function changeProgress(progress: Progress, question: string | null) {
+  async function changeProgress(progress: Progress, question: string | null) {
     const ids = pickedIds()
     if (!ids) return
-    if (question && !window.confirm(question)) return
+    if (question && !(await ecConfirm(question))) return
     void post('/vat-invoice-marks/progress', { ids, progress })
   }
 

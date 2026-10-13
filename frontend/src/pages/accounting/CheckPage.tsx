@@ -8,6 +8,7 @@ import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../types/
 import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -93,7 +94,7 @@ export default function CheckPage() {
   }
 
   async function act(c: BankCheck, path: 'dishonor' | 'settle', message: string) {
-    if (!window.confirm(`${c.checkNo} (${won(c.amount)}원) — ${message}할까요?`)) return
+    if (!(await ecConfirm(`${c.checkNo} (${won(c.amount)}원) — ${message}할까요?`))) return
     try {
       await api.post(`/checks/${c.id}/${path}`, { settledDate: today() })
       flash(`${c.checkNo} ${message} 처리`)

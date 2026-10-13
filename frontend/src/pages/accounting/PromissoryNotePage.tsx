@@ -9,6 +9,7 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useNavigate } from 'react-router-dom'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -72,14 +73,14 @@ export default function PromissoryNotePage() {
   const tabCount = (t: Tab) => notes.filter((n) => t === '전체' || n.status === TAB_STATUS[t]).length
 
   function pickAccount(purpose: string): number | null {
-    if (accounts.length === 0) { alert('등록된 계좌가 없습니다. 회계 I > 계좌/카드에서 먼저 등록하세요.'); return null }
+    if (accounts.length === 0) { void ecAlert('등록된 계좌가 없습니다. 회계 I > 계좌/카드에서 먼저 등록하세요.'); return null }
     const picked = window.prompt(
       `${purpose}할 계좌를 선택하세요.\n${accounts.map((a) => `${a.id}: ${a.bankName} ${a.accountNo} (잔액 ${won(a.balance)})`).join('\n')}`,
       String(accounts[0].id),
     )
     if (picked === null) return null
     const id = Number(picked)
-    if (!accounts.some((a) => a.id === id)) { alert('계좌 번호가 올바르지 않습니다.'); return null }
+    if (!accounts.some((a) => a.id === id)) { void ecAlert('계좌 번호가 올바르지 않습니다.'); return null }
     return id
   }
 
@@ -90,39 +91,39 @@ export default function PromissoryNotePage() {
       await api.post(`/notes/${n.id}/settle`, { bankAccountId, settleDate: today() })
       flash(`${n.noteNo} 만기결제 — 계좌 잔액과 분개 반영`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function discount(n: PromissoryNote) {
     const feeInput = window.prompt(`${n.noteNo} 할인료(원). 어음 금액 ${won(n.amount)}`, '0')
     if (feeInput === null) return
     const discountFee = Number(feeInput)
-    if (!Number.isFinite(discountFee) || discountFee < 0) return alert('할인료를 0 이상 숫자로 입력하세요.')
+    if (!Number.isFinite(discountFee) || discountFee < 0) return ecAlert('할인료를 0 이상 숫자로 입력하세요.')
     const bankAccountId = pickAccount('할인 대금을 입금')
     if (bankAccountId === null) return
     try {
       await api.post(`/notes/${n.id}/discount`, { bankAccountId, discountFee, discountDate: today() })
       flash(`${n.noteNo} 할인 — 할인료는 매출채권처분손실로 분개`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function remove(n: PromissoryNote) {
-    if (!window.confirm(`${n.noteNo} 어음(${won(n.amount)}원)을 지울까요? ${n.type === 'RECEIVABLE' ? '외상매출금' : '외상매입금'}이 되돌아가고 회계전표도 지워집니다.`)) return
+    if (!(await ecConfirm(`${n.noteNo} 어음(${won(n.amount)}원)을 지울까요? ${n.type === 'RECEIVABLE' ? '외상매출금' : '외상매입금'}이 되돌아가고 회계전표도 지워집니다.`))) return
     try {
       await api.delete(`/notes/${n.id}`)
       flash(`${n.noteNo} 삭제 — 회계전표도 지웠습니다.`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function dishonor(n: PromissoryNote) {
-    if (!window.confirm(`${n.noteNo}을(를) 부도 처리할까요? 어음채권이 외상매출금으로 환원됩니다.`)) return
+    if (!(await ecConfirm(`${n.noteNo}을(를) 부도 처리할까요? 어음채권이 외상매출금으로 환원됩니다.`))) return
     try {
       await api.post(`/notes/${n.id}/dishonor`, { dishonorDate: today() })
       flash(`${n.noteNo} 부도 — 외상매출금으로 환원`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   return (
