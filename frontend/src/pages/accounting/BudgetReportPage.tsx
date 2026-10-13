@@ -281,8 +281,8 @@ function StatusTable({ rows, months, monthly, thousand }: { rows: AccountRow[]; 
           <tr><td colSpan={3 + cols.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r) => (
           <tr key={r.accountId}>
-            <td>{r.code}</td>
-            <td>{r.name}</td>
+            <td className="text-left">{r.code}</td>
+            <td className="text-left">{r.name}</td>
             <td className="text-right">{fmt(sumOf(r.budget, months), thousand)}</td>
             {cols.map((m) => <td key={m} className="text-right">{fmt(r.budget.get(m) ?? 0, thousand)}</td>)}
           </tr>
@@ -346,8 +346,8 @@ function CompareTable({ rows, months, basis, ratio, zeros, thousand, diffLabel, 
           <tr><td colSpan={2 + n * (1 + buckets.length)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : shown.map((r) => (
           <tr key={r.accountId}>
-            <td>{r.code}</td>
-            <td>{r.name}</td>
+            <td className="text-left">{r.code}</td>
+            <td className="text-left">{r.name}</td>
             {cells(sumOf(r.budget, months), sumOf(r.actual, months), 'all')}
             {buckets.map((b) => cells(sumOf(r.budget, keysOf(b)), sumOf(r.actual, keysOf(b)), b))}
           </tr>
@@ -400,10 +400,10 @@ function LedgerTables({ rows, months, basis, lines, onOpen }: {
             <Fragment key={r.accountId}>
               {months.filter((m) => (r.budget.get(m) ?? 0) !== 0).map((m) => (
                 <tr key={m}>
-                  <td>{r.code}</td>
-                  <td>{r.name}</td>
+                  <td className="text-left">{r.code}</td>
+                  <td className="text-left">{r.name}</td>
                   <td />
-                  <td>[{m.replace('-', '/')} 예산]</td>
+                  <td className="text-left">[{m.replace('-', '/')} 예산]</td>
                   <td />
                   <td className="text-right">{fmt(r.budget.get(m) ?? 0)}</td>
                 </tr>
@@ -430,11 +430,11 @@ function LedgerTables({ rows, months, basis, lines, onOpen }: {
                     <Fragment key={g}>
                       {ls.map((l, i) => (
                         <tr key={`${l.journalId}-${i}`}>
-                          <td>{r.code}</td>
-                          <td>{r.name}</td>
-                          <td><button type="button" className="ec-link" onClick={() => onOpen(l.journalId)}>{dateNo(l.date, l.docNo)}</button></td>
-                          <td>{l.description ?? ''}</td>
-                          <td>{l.partnerName ?? ''}</td>
+                          <td className="text-left">{r.code}</td>
+                          <td className="text-left">{r.name}</td>
+                          <td className="text-left"><button type="button" className="ec-link" onClick={() => onOpen(l.journalId)}>{dateNo(l.date, l.docNo)}</button></td>
+                          <td className="text-left">{l.description ?? ''}</td>
+                          <td className="text-left">{l.partnerName ?? ''}</td>
                           <td className="text-right">{fmt(Number(l.amount))}</td>
                         </tr>
                       ))}
