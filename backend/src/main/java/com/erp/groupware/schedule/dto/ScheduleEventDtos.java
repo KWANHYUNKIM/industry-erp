@@ -140,4 +140,16 @@ public final class ScheduleEventDtos {
             return new ScheduleLabelResponse(l.getId(), l.getCode(), l.getName(), l.getColor(), l.isActive());
         }
     }
+
+    /** 원본 '일정구분등록/수정' — 일정구분코드(수정에선 안 씀) · 일정구분명. */
+    public record SaveScheduleCategoryRequest(
+            @jakarta.validation.constraints.Size(max = 20, message = "일정구분코드는 20자까지 넣을 수 있습니다.") String code,
+            @jakarta.validation.constraints.Size(max = 30, message = "일정구분명은 30자까지 넣을 수 있습니다.") String name
+    ) {}
+
+    public record ScheduleCategoryResponse(Long id, String code, String name, boolean active) {
+        public static ScheduleCategoryResponse from(com.erp.groupware.schedule.ScheduleCategory c) {
+            return new ScheduleCategoryResponse(c.getId(), c.getCode(), c.getName(), c.isActive());
+        }
+    }
 }

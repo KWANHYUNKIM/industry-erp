@@ -22,7 +22,7 @@
         "wait:300",
         "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '일정관리등록' && /부터 3회 까지$/.test([...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=반복설정]').textContent)",
         "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelector('select[aria-label=\"공유자 범위\"]').options].map((o) => o.text).join('|') === '선택|전체'",
-        "js:(() => { const el = [...document.querySelectorAll('[role=dialog]')].pop().querySelector(\"input[aria-label=\\\"\\uacf5\\uc720\\uc790\\\"]\"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, \"QA\\uacf5\\uc720\\uc790\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "js:(() => { const el = [...document.querySelectorAll('[role=dialog]')].pop().querySelector(\"input[aria-label=\\\"\\uacf5\\uc720\\uc790\\\"]\"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, \"QA\\uacf5\\uc720\\uc790\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "click:게시글권한",
         "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('table[aria-label=게시글권한] tbody tr')].map((r) => r.cells[0].textContent + (r.cells[1].querySelector('input').checked ? 1 : 0) + (r.cells[2].querySelector('input').checked ? 1 : 0)).join('|') === '참석자11|공유자11|이외사용자00'",
         "js:document.querySelector('.fixed.inset-0.z-40').click(); true",

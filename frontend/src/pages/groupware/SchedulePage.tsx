@@ -15,6 +15,8 @@ import RepeatModal from '../../features/schedule/components/RepeatModal'
 import RepeatScopeModal, { type RepeatScope } from '../../features/schedule/components/RepeatScopeModal'
 import LabelMasterModal from '../../features/board/components/LabelMasterModal'
 import LabelChip from '../../features/board/components/LabelChip'
+import ScheduleCategoryModal, { type ScheduleCategory } from '../../features/schedule/components/ScheduleCategoryModal'
+import NameChips from '../../features/schedule/components/NameChips'
 
 interface ScheduleEvent {
   id: number
@@ -64,11 +66,9 @@ interface VacationLite { id: number; empName: string; type: string; startDate: s
 interface OrderLite { id: number; partnerName: string; dueDate: string | null; warehouseName: string | null; lines: { lineId: number; itemName: string }[] }
 
 /*
- * 원본 [일정구분]은 고르는 목록이 아니라 글자 칸(코드도움)이다 — loginaa 회사는 주말근무 · 회의 · 회식 · 연차 · 출장 ·
- * 외부인미팅 · 내부교육을 쓴다(2026-10-03, 원본 10월 일정 16건을 그대로 넣어 견주다 알았다). 우리는 회의 · 출장 · 교육 ·
- * 기타 넷만 고를 수 있어 원본 자료를 넣을 수조차 없었다. 칸에 적고, 이미 쓴 구분을 후보로 띄운다.
+ * 원본 [일정구분]은 코드도움이다 — [코드 칸][🔍][이름 칸]. 🔍 은 '일정구분검색'(일정구분 마스터: 001 외부인미팅 · 002 회의 …,
+ * 2026-10-13 실측)을 띄우고, 고르면 코드 · 이름이 찬다. 코드 칸에 코드를 치면 이름이 따라 붙는다. 일정에는 이름으로 남는다.
  */
-const CATEGORY_HINTS = ['회의', '출장', '교육', '기타']
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
 /**
@@ -204,6 +204,11 @@ export default function SchedulePage() {
   const [cals, setCals] = useState<Set<CalKey>>(() => new Set<CalKey>(['SHARED']))
   const [labels, setLabels] = useState<ScheduleLabel[]>([])
   const [showLabels, setShowLabels] = useState(false)
+  /** 원본 [일정구분] 🔍 '일정구분검색' 과 그 마스터. 코드 칸은 폼 밖에 둔다(일정에는 이름만 남는다). */
+  const [showCategories, setShowCategories] = useState(false)
+  const [categories, setCategories] = useState<ScheduleCategory[]>([])
+  const [categoryCode, setCategoryCode] = useState('')
+  const loadCategories = () => api.get<ScheduleCategory[]>('/schedule-categories').then((r) => setCategories(r.data)).catch(() => {})
   const [extras, setExtras] = useState<ExtraBar[]>([])
   const [rows, setRows] = useState<ScheduleEvent[]>([])
   const [error, setError] = useState('')
@@ -251,7 +256,7 @@ export default function SchedulePage() {
   }
   useEffect(() => { void load() }, [])
   const loadLabels = () => api.get<ScheduleLabel[]>('/schedule-labels').then((r) => setLabels(r.data)).catch(() => {})
-  useEffect(() => { void loadLabels() }, [])
+  useEffect(() => { void loadLabels(); void loadCategories() }, [])
   const labelColor = (name: string | null) => labels.find((l) => l.name === name)?.color ?? null
 
   /**
@@ -284,6 +289,7 @@ export default function SchedulePage() {
     setEditing(null)
     setRepeat(null)
     setForm(emptyForm(date))
+    setCategoryCode('')
     setError('')
     setShowForm(true)
   }
@@ -303,6 +309,7 @@ export default function SchedulePage() {
       permAttendeeEdit: r.permAttendeeEdit ?? true, permSharerEdit: r.permSharerEdit ?? true, permOthersView: r.permOthersView ?? false,
       shared: r.shared !== false,
     })
+    setCategoryCode(categories.find((c) => c.name === r.category)?.code ?? '')
     setError('')
     setShowForm(true)
   }
@@ -549,11 +556,18 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
           <li>
             <div className="title">일정구분</div>
             <div className="form">
-              <input className="ec-input w-full" placeholder="일정구분" list="schedule-categories" maxLength={30}
-                     value={form.category} onChange={(e) => set('category', e.target.value)} />
-              <datalist id="schedule-categories">
-                {[...new Set([...rows.map((r) => r.category ?? ''), ...CATEGORY_HINTS].filter(Boolean))].map((c) => <option key={c} value={c} />)}
-              </datalist>
+              <span className="ec-code flex flex-1 min-w-0">
+                <input className="ec-input w-[86px]" placeholder="일정구분" aria-label="일정구분코드" maxLength={20} value={categoryCode}
+                       onChange={(e) => {
+                         const code = e.target.value
+                         setCategoryCode(code)
+                         const hit = categories.find((c) => c.code === code.trim())
+                         if (hit) set('category', hit.name)
+                       }} />
+                <button type="button" className="ec-btn" aria-label="일정구분검색" onClick={() => setShowCategories(true)}>🔍</button>
+                <input className="ec-input flex-1 min-w-0" aria-label="일정구분" maxLength={30} value={form.category}
+                       onChange={(e) => { set('category', e.target.value); setCategoryCode(categories.find((c) => c.name === e.target.value.trim())?.code ?? '') }} />
+              </span>
             </div>
           </li>
           <li>
@@ -609,8 +623,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
           </li>
           <li className="wide">
             <div className="title">참석자</div>
-            <div className="form"><input className="ec-input w-full" placeholder="참석자 (콤마로 구분)" value={form.attendees}
-                                         onChange={(e) => set('attendees', e.target.value)} /></div>
+            <div className="form"><NameChips label="참석자" users={users} value={form.attendees} onChange={(v) => set('attendees', v)} /></div>
           </li>
           {/* 원본 [공유자] — [선택▾] 을 누르면 전체 / 선택. 전체면 칸 없이 '전체' 글만 선다. */}
           <li className="wide">
@@ -622,11 +635,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                 <option>전체</option>
               </select>
               {!form.sharersAll && (
-                <>
-                  <input className="ec-input flex-1" placeholder="공유자" aria-label="공유자" list="schedule-users" value={form.sharers}
-                         onChange={(e) => set('sharers', e.target.value)} />
-                  <datalist id="schedule-users">{users.map((u) => <option key={u.id} value={u.name} />)}</datalist>
-                </>
+                <NameChips label="공유자" users={users} value={form.sharers} onChange={(v) => set('sharers', v)} />
               )}
             </div>
           </li>
@@ -902,6 +911,8 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
           </div>
         </div>
       )}
+      {showCategories && <ScheduleCategoryModal onClose={() => { setShowCategories(false); void loadCategories() }}
+                                                onPick={(c) => { setCategoryCode(c.code); set('category', c.name); setShowCategories(false); void loadCategories() }} />}
       {showLabels && <LabelMasterModal board="SCHEDULE" endpoint="/schedule-labels" title="라벨검색"
                                        onClose={() => { setShowLabels(false); void loadLabels() }} />}
     </EcListShell>

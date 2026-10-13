@@ -1,0 +1,48 @@
+{
+  "about": "일정관리등록 [일정구분] 🔍 '일정구분검색' → [신규 및 수정] '일정구분리스트' → [신규(F2)] '일정구분등록'(다음 코드가 미리 참, 이름 비우면 '일정구분명을 입력 바랍니다.') → 저장하면 리스트 → [이전] → 코드를 눌러 고르면 코드 · 이름 칸이 찬다. [공유자] 🔍 '사용자검색' → 체크 → 적용(F8) 하면 이름 칩. 원본 E070201 2026-10-13 실측. 만든 구분은 API 로 지운다. node qa/shot.mjs qa/flows/schedule-category.json",
+  "shots": [
+    {
+      "name": "일정구분 코드도움 · 공유자 사용자검색",
+      "path": "/groupware/schedule",
+      "steps": [
+        "wait:800",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const cs = await (await fetch('/api/schedule-categories', { headers: H })).json(); for (const c of cs.filter((x) => x.name.startsWith('QA그룹웨어'))) await fetch('/api/schedule-categories/' + c.id, { method: 'DELETE', headers: H }); return true })()",
+        "click:신규(F2)",
+        "wait:400",
+        "js:document.querySelector('[aria-label=\"일정구분검색\"]').click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.textContent.includes('일정구분검색') && d.textContent.includes('일정구분코드'))",
+        "click:신규 및 수정",
+        "wait:400",
+        "expect:document.body.textContent.includes('일정구분리스트')",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '신규(F2)').click(); true",
+        "wait:600",
+        "expect:/^\\d{3}$/.test(document.querySelector('[aria-label=\"일정구분코드\"][placeholder=\"일정구분코드\"]').value)",
+        "js:sessionStorage.qaCatCode = document.querySelector('[aria-label=\"일정구분코드\"][placeholder=\"일정구분코드\"]').value; true",
+        "js:[...document.querySelectorAll('[role=dialog]')].find((d) => d.textContent.includes('일정구분등록')).querySelector('button.ec-btn-primary').click(); true",
+        "wait:300",
+        "expect:document.body.textContent.includes('일정구분명을 입력 바랍니다.')",
+        "set:[aria-label=\"일정구분명\"]|QA그룹웨어-구분",
+        "js:[...document.querySelectorAll('[role=dialog]')].find((d) => d.textContent.includes('일정구분등록')).querySelector('button.ec-btn-primary').click(); true",
+        "wait:700",
+        "expect:!document.body.textContent.includes('일정구분등록') && document.body.textContent.includes('QA그룹웨어-구분')",
+        "click:이전",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === sessionStorage.qaCatCode).click(); true",
+        "wait:400",
+        "expect:document.querySelector('input[aria-label=\"일정구분\"]').value === 'QA그룹웨어-구분' && document.querySelector('input[aria-label=\"일정구분코드\"]').value === sessionStorage.qaCatCode",
+        "js:document.querySelector('[aria-label=\"공유자 사용자검색\"]').click(); true",
+        "wait:600",
+        "expect:document.body.textContent.includes('사용자검색') && document.body.textContent.includes('소속부서')",
+        "js:window.__u = [...document.querySelectorAll('[role=dialog] tbody input[type=checkbox]')][0]; window.__u.click(); window.__u.getAttribute('aria-label')",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:!!document.querySelector('[aria-label=\"공유자 ' + window.__u.getAttribute('aria-label') + ' 빼기\"]')",
+        "js:document.querySelector('[aria-label=\"공유자 ' + window.__u.getAttribute('aria-label') + ' 빼기\"]').click(); true",
+        "wait:200",
+        "expect:!document.querySelector('[aria-label=\"공유자 ' + window.__u.getAttribute('aria-label') + ' 빼기\"]')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const cs = await (await fetch('/api/schedule-categories', { headers: H })).json(); let n = 0; for (const c of cs.filter((x) => x.name.startsWith('QA그룹웨어'))) { await fetch('/api/schedule-categories/' + c.id, { method: 'DELETE', headers: H }); n++ } return 'cleaned ' + n })()"
+      ]
+    }
+  ]
+}
