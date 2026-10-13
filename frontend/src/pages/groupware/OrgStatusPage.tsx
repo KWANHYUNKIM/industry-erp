@@ -56,7 +56,8 @@ export default function OrgStatusPage() {
 
   useEffect(() => {
     Promise.all([api.get<Department[]>('/departments'), api.get<EmployeeMaster[]>('/employees')])
-      .then(([d, e]) => { setDepts(d.data); setEmps(e.data) })
+      // 조직도등록 Fn › 미포함 한 부서(와 그 아래)는 조직도에 서지 않는다(원본 E090222 '조직도에 미포함 처리').
+      .then(([d, e]) => { setDepts(d.data.filter((x) => !(x as Department & { orgExcluded?: boolean }).orgExcluded)); setEmps(e.data) })
       .catch((err) => setError(extractErrorMessage(err)))
   }, [])
 

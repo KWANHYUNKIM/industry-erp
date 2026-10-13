@@ -36,7 +36,15 @@ function subtreeIds(n: Node): number[] {
   return [n.id, ...n.children.flatMap(subtreeIds)]
 }
 
-type Dialog = 'child' | 'move' | 'rename' | 'deptChange' | 'heads' | null
+type Dialog = 'move' | 'rename' | 'deptChange' | 'include' | 'heads' | null
+
+/** 조직도등록 Fn › 미포함(원본 E090222) — 나무에서 빠져 [미포함] 아래에 선 부서. */
+const isExcluded = (d: Department) => (d as Department & { orgExcluded?: boolean }).orgExcluded === true
+
+/** 원본 Fn › 미포함 확인 문구(2026-10-13 실측). */
+const EXCLUDE_ASK = '선택한 항목을 조직도에 미포함 처리하시겠습니까?\n하위부서 존재 시 하위부서까지 미포함 처리됩니다.'
+/** 원본 [사용자포함] · [부서장지정] 을 체크 없이 눌렀을 때. */
+const NO_CHECK = '리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'
 
 /** 사용자ID 열 — 사원에 이어진 로그인 계정. */
 interface UserRow { id: number; username: string; employeeId: number | null }
@@ -67,8 +75,16 @@ interface UserRow { id: number; username: string; employeeId: number | null }
  *   <li>격자 차례는 부서장 먼저, 그다음 사원번호 큰 것부터(원본 인사팀 · 영업팀 실측).</li>
  * </ul>
  *
- * <p>원본에 있지만 받쳐 줄 것이 없어 두지 않은 것: [Fn]›미포함(부서를 나무에서 빼되 마스터는 남기는 상태가 우리에게 없다),
- * [순서변경] · [직위/직급설정].
+ * <p><b>2026-10-13 [Fn]›미포함 · [미포함] 나무 · [사용자포함] 을 더했다(원본에서 기획팀을 미포함했다가 되돌려 실측).</b>
+ * <ul>
+ *   <li>Fn › 미포함: '선택한 항목을 조직도에 미포함 처리하시겠습니까? / 하위부서 존재 시 하위부서까지 미포함 처리됩니다.' →
+ *       부서가 나무에서 빠져 맨 아래 [미포함] 아래에 선다(사원은 그 부서에 그대로, 눌러 보면 사원이 보인다). 미포함 부서에는 Fn 이 없다.</li>
+ *   <li>다시 넣기: 다른 부서의 Fn › 하위부서추가 — 하위부서 코드도움(부서검색)에 <b>미포함 부서만</b> 뜬다. 고르면 그 밑으로 들어간다.</li>
+ *   <li>[미포함(전체그룹)] 알약: 어느 부서에도 없는 사원. 버튼은 [인사발령입력][사용자포함](포함 쪽은 [부서장지정][인사발령입력][부서변경]).
+ *       체크 없이 [사용자포함] 은 '리스트에 선택된 자료가 없습니다. / 체크박스에 체크한 후 다시 시도 바랍니다.'</li>
+ * </ul>
+ * 원본 회사에 부서 없는 사원이 없어 [사용자포함] 창 자체는 재지 못했다 — 우리는 [부서변경]과 같은 부서 고르기 창을 띄운다.
+ * 아직 없는 것: [순서변경] · [직위/직급설정].
  */
 export default function OrgTreePage() {
   const navigate = useNavigate()
@@ -105,19 +121,22 @@ export default function OrgTreePage() {
   useEffect(() => { api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
   const userIdOf = (employeeId: number) => users.find((u) => u.employeeId === employeeId)?.username ?? ''
 
-  const roots = useMemo(() => buildTree(departments), [departments])
+  const roots = useMemo(() => buildTree(departments.filter((d) => !isExcluded(d))), [departments])
+  /** [미포함] 아래 — 미포함 처리한 부서들(하위부서는 그 밑에 그대로). */
+  const excludedRoots = useMemo(() => buildTree(departments.filter(isExcluded)), [departments])
   const byId = useMemo(() => {
     const m = new Map<number, Node>()
     const walk = (ns: Node[]) => ns.forEach((n) => { m.set(n.id, n); walk(n.children) })
     walk(roots)
+    walk(excludedRoots)
     return m
-  }, [roots])
+  }, [roots, excludedRoots])
   const sel = selected != null ? byId.get(selected) ?? null : null
   const active = employees.filter((e) => e.active)
   const countOf = (id: number) => active.filter((e) => e.departmentId === id).length
 
   const members = tab === '미포함'
-    ? active.filter((e) => e.departmentId == null || !byId.has(e.departmentId))
+    ? active.filter((e) => e.departmentId == null || !departments.some((d) => d.id === e.departmentId && d.active))
     : sel ? active.filter((e) => e.departmentId === sel.id) : []
   const headId = tab === '포함' ? sel?.headEmployeeId ?? null : null
   const shown = members
@@ -128,7 +147,7 @@ export default function OrgTreePage() {
   async function designateHead() {
     setError('')
     if (!sel) return
-    if (checked.size === 0) return setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
+    if (checked.size === 0) return alert(NO_CHECK)
     if (checked.size > 1) return setError('리스트에 하나만 체크가 되어야 합니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
     const [employeeId] = [...checked]
     const ask = sel.headEmployeeId != null && sel.headEmployeeId !== employeeId
@@ -167,12 +186,7 @@ export default function OrgTreePage() {
   async function apply() {
     setError('')
     try {
-      if (dialog === 'child') {
-        if (!sel) return
-        const child = departments.find((x) => String(x.id) === pick)
-        if (!child) return setError('하위부서를 선택하세요.')
-        await putDept(child, { parentId: sel.id })
-      } else if (dialog === 'move') {
+      if (dialog === 'move') {
         if (!sel) return
         await putDept(sel, { parentId: pick ? Number(pick) : null })
       } else if (dialog === 'rename') {
@@ -181,6 +195,10 @@ export default function OrgTreePage() {
         await putDept(sel, { name: newName.trim() })
       } else if (dialog === 'heads') {
         await api.put('/departments/heads', Object.entries(heads).map(([id, emp]) => ({ departmentId: Number(id), employeeId: emp ? Number(emp) : null })))
+      } else if (dialog === 'include') {
+        if (!sel) return
+        if (!pick) return setError('하위부서를 선택하세요.')
+        await api.put(`/departments/${pick}/org`, { excluded: false, parentId: sel.id })
       } else if (dialog === 'deptChange') {
         if (!pick) return setError('옮길 부서를 선택하세요.')
         for (const id of checked) await api.put(`/employees/${id}/department`, { departmentId: Number(pick) })
@@ -198,14 +216,18 @@ export default function OrgTreePage() {
     if (!table || !(await exportTableToXlsx(table, '조직도등록'))) setError('내보낼 자료가 없습니다.')
   }
 
-  /** 하위부서로 고를 수 있는 부서 — 자기와 자기 위쪽(고리가 된다)은 뺀다. */
-  const ancestorsOf = (n: Node | null): number[] => {
-    const out: number[] = []
-    let cur = n
-    while (cur) { out.push(cur.id); cur = cur.parentId != null ? byId.get(cur.parentId) ?? null : null }
-    return out
+  /** 원본 하위부서추가의 부서검색 — 미포함 부서(맨 위 것)만 뜬다. */
+  const includeCandidates = excludedRoots
+
+  /** 원본 Fn › 미포함. */
+  async function exclude() {
+    setFnOpen(false)
+    if (!sel || !confirm(EXCLUDE_ASK)) return
+    try {
+      await api.put(`/departments/${sel.id}/org`, { excluded: true, parentId: null })
+      await load()
+    } catch (err) { setError(extractErrorMessage(err)) }
   }
-  const childCandidates = departments.filter((d) => d.active && !ancestorsOf(sel).includes(d.id) && d.parentId !== sel?.id)
   const moveCandidates = sel ? departments.filter((d) => d.active && !subtreeIds(sel).includes(d.id)) : []
 
   const matchFind = (n: Node): boolean => !find || n.name.includes(find) || n.children.some(matchFind)
@@ -223,15 +245,16 @@ export default function OrgTreePage() {
             {isOpen ? '▿' : '▹'}
           </button>
           <span className="text-[12px] text-ec-ink">{n.name}({countOf(n.id)})</span>
-          {selected === n.id && (
+          {selected === n.id && !isExcluded(n) && (
             <span className="relative">
               <button type="button" className="ec-btn ec-btn-sm" onClick={(e) => { e.stopPropagation(); setFnOpen((v) => !v) }}>Fn</button>
               {fnOpen && (
                 <div className="absolute left-0 top-[24px] z-10 bg-ec-panel border border-ec-line border-solid rounded-ec p-[4px] flex flex-col min-w-[110px]"
                      onClick={(e) => e.stopPropagation()}>
-                  <button type="button" className="ec-btn ec-btn-sm justify-start" onClick={() => open('child')}>하위부서추가</button>
+                  <button type="button" className="ec-btn ec-btn-sm justify-start" onClick={() => open('include')}>하위부서추가</button>
                   <button type="button" className="ec-btn ec-btn-sm justify-start" onClick={() => open('move')}>그룹이동</button>
                   <button type="button" className="ec-btn ec-btn-sm justify-start" onClick={() => open('rename')}>이름변경</button>
+                  <button type="button" className="ec-btn ec-btn-sm justify-start" onClick={() => void exclude()}>미포함</button>
                 </div>
               )}
             </span>
@@ -263,6 +286,7 @@ export default function OrgTreePage() {
             <div className="pl-[18px]">{roots.map(nodeRow)}</div>
             <div className={`h-[24px] flex items-center px-[4px] mt-[4px] rounded-ec-menu cursor-pointer font-bold text-[12px] ${tab === '미포함' ? 'bg-ec-blue-wash' : ''}`}
                  onClick={() => { setTab('미포함'); setSelected(null) }}>미포함</div>
+            {excludedRoots.length > 0 && <div className="pl-[18px]" aria-label="미포함 부서">{excludedRoots.map(nodeRow)}</div>}
           </div>
           <div className="flex flex-wrap gap-[4px] mt-[10px]">
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => void doExcel()}>Excel</button>
@@ -288,8 +312,13 @@ export default function OrgTreePage() {
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => void designateHead()}>부서장지정</button>
             )}
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => navigate('/hr/assignments/input')}>인사발령입력</button>
-            <button type="button" className="ec-btn ec-btn-sm disabled:opacity-45" disabled={checked.size === 0}
-                    onClick={() => open('deptChange')}>부서변경</button>
+            {tab === '포함' ? (
+              <button type="button" className="ec-btn ec-btn-sm disabled:opacity-45" disabled={checked.size === 0}
+                      onClick={() => open('deptChange')}>부서변경</button>
+            ) : (
+              <button type="button" className="ec-btn ec-btn-sm"
+                      onClick={() => (checked.size === 0 ? alert(NO_CHECK) : open('deptChange'))}>사용자포함</button>
+            )}
           </div>
           <table id="org-members" className="w-full text-left">
             <thead>
@@ -331,7 +360,7 @@ export default function OrgTreePage() {
       </div>
 
       <Modal error={error} open={dialog != null} onClose={() => setDialog(null)} width={640}
-             title={dialog === 'child' ? '하위부서추가' : dialog === 'move' ? '그룹이동' : dialog === 'rename' ? '이름변경' : dialog === 'heads' ? '부서장설정' : '부서변경'}>
+             title={dialog === 'include' ? '하위부서추가' : dialog === 'move' ? '그룹이동' : dialog === 'rename' ? '이름변경' : dialog === 'heads' ? '부서장설정' : tab === '미포함' ? '사용자포함' : '부서변경'}>
         {dialog === 'heads' && (
           <table className="w-full mb-[10px]">
             <thead><tr><th className="w-[34px]"></th><th className="w-[160px]">부서</th><th>부서장 ID</th></tr></thead>
@@ -351,12 +380,12 @@ export default function OrgTreePage() {
           </table>
         )}
         <ul className={`ec-form mb-[10px]${dialog === 'heads' ? ' hidden' : ''}`}>
-          {dialog === 'child' && (
+          {dialog === 'include' && (
             <>
               <li className="wide"><div className="title">상위부서</div><div className="form">{sel?.name}</div></li>
               <li className="wide"><div className="title">하위부서</div><div className="form">
                 <CodePickerField label="하위부서" hideLabel width={240} emptyLabel="선택 안 함" value={pick} onChange={setPick}
-                                 items={childCandidates.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))} />
+                                 items={includeCandidates.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))} />
               </div></li>
             </>
           )}

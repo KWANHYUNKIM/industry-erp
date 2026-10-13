@@ -72,6 +72,35 @@ public class DepartmentService {
         return DepartmentResponse.from(d, employeeRepository.countByDepartmentId(d.getId()));
     }
 
+    /**
+     * 조직도등록 Fn › 미포함 — 그 부서와 하위부서를 모두 미포함으로 돌리고, 맨 위 부서만 상위에서 떼어 [미포함] 아래에 세운다
+     * (하위부서는 그 아래 그대로). 다시 넣으면(하위부서추가) 고른 상위 밑에 붙고 하위부서까지 포함으로 돌아온다.
+     */
+    @Transactional
+    public DepartmentResponse placeInOrg(Long id, DepartmentDtos.OrgPlacementRequest req) {
+        Department d = get(id);
+        List<Department> all = departmentRepository.findAll();
+        java.util.List<Department> subtree = new java.util.ArrayList<>(List.of(d));
+        for (int i = 0; i < subtree.size(); i++) {
+            Long pid = subtree.get(i).getId();
+            all.stream().filter(c -> c.getParent() != null && c.getParent().getId().equals(pid) && !subtree.contains(c)).forEach(subtree::add);
+        }
+        if (req.excluded()) {
+            d.setParent(null);
+        } else {
+            if (req.parentId() != null) {
+                Department parent = get(req.parentId());
+                if (subtree.contains(parent)) throw ApiException.badRequest("자기 자신이나 하위부서 밑으로는 넣을 수 없습니다.");
+                if (parent.isOrgExcluded()) throw ApiException.badRequest("미포함 부서 밑으로는 넣을 수 없습니다.");
+                d.setParent(parent);
+            } else {
+                d.setParent(null);
+            }
+        }
+        subtree.forEach(x -> x.setOrgExcluded(req.excluded()));
+        return DepartmentResponse.from(d, employeeRepository.countByDepartmentId(d.getId()));
+    }
+
     /** 조직도등록 [부서장설정] 창 [저장(F8)] — 줄마다 부서장을 그대로 덮는다(빈칸이면 부서장 없음). */
     @Transactional
     public void setHeads(List<DepartmentDtos.HeadLine> lines) {

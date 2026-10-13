@@ -46,6 +46,11 @@ public class DepartmentController {
     }
 
     /** 조직도등록 [부서장설정] 창 [저장(F8)]. */
+    @PutMapping("/{id}/org")
+    public DepartmentResponse placeInOrg(@PathVariable Long id, @RequestBody DepartmentDtos.OrgPlacementRequest req) {
+        return departmentService.placeInOrg(id, req);
+    }
+
     @PutMapping("/heads")
     public ResponseEntity<Void> setHeads(@RequestBody List<DepartmentDtos.HeadLine> lines) {
         departmentService.setHeads(lines);

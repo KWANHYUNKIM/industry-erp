@@ -48,4 +48,12 @@ public class Department extends BaseTimeEntity {
      */
     @Column(name = "head_employee_id")
     private Long headEmployeeId;
+
+    /**
+     * 조직도등록 Fn › 미포함(원본 E090222) — 나무에서 빠져 [미포함] 아래에 선다. 사원은 그대로 이 부서 소속이다.
+     * 다시 넣는 길은 다른 부서의 Fn › 하위부서추가.
+     */
+    @Column(name = "org_excluded", nullable = false)
+    @Builder.Default
+    private boolean orgExcluded = false;
 }

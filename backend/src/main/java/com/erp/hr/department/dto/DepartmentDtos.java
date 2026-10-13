@@ -40,14 +40,21 @@ public class DepartmentDtos {
             boolean active,
             long employeeCount,
             /** 부서장 사원 id — 조직도등록 [부서장] 열. 정하는 곳은 PUT …/{id}/head · PUT …/heads 다. */
-            Long headEmployeeId
+            Long headEmployeeId,
+            /** 조직도등록 Fn › 미포함 — 정하는 곳은 PUT …/{id}/org 다. */
+            boolean orgExcluded
     ) {
         public static DepartmentResponse from(Department d, long employeeCount) {
             return new DepartmentResponse(
                     d.getId(), d.getCode(), d.getName(),
                     d.getParent() != null ? d.getParent().getId() : null,
                     d.getParent() != null ? d.getParent().getName() : null,
-                    d.getSortOrder(), d.isActive(), employeeCount, d.getHeadEmployeeId());
+                    d.getSortOrder(), d.isActive(), employeeCount, d.getHeadEmployeeId(), d.isOrgExcluded());
         }
     }
+
+    /**
+     * 조직도등록 Fn › 미포함(excluded=true) · 하위부서추가로 다시 넣기(excluded=false, parentId=넣을 상위 부서 — 비우면 맨 위).
+     */
+    public record OrgPlacementRequest(boolean excluded, Long parentId) {}
 }

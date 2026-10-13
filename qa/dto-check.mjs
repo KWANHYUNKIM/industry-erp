@@ -161,6 +161,7 @@ const OWNED_HERE = new Map([
   ['Check|directEntry', '수령(발행)수표조회 [신규] 수표내역입력(POST /checks/direct)에서 들어온 수표에 서버가 켠다 — 수표관리 등록 창에는 그 칸이 없다(원본 거래유형 수표만증가 · 2026-10-13 실측)'],
   ['CostPeriod|generated', '원가생성/수정 원가계산 [생성](POST /cost-periods/{id}/generate)이 켠다 — 원본 기본등록 창에는 그 칸이 없다(2026-10-12 실측)'],
   ['WorkPost|labels', '공지사항 하단 [라벨변경] 판의 전용 자리(PATCH …/{id}/labels)에서 정한다 — 원본 E200080 글쓰기 창에는 라벨 칸이 없다'],
+  ['Department|orgExcluded', '조직도등록 Fn › 미포함 · 하위부서추가 전용 자리(PUT …/{id}/org)에서 정한다 — 부서 등록 · 수정 창에는 원본도 그 칸이 없다'],
   ['Department|headEmployeeId', '조직도등록 [부서장지정](PUT …/{id}/head) · [부서장설정](PUT …/heads) 전용 자리에서 정한다 — 부서 등록 · 수정 창에는 원본도 부서장 칸이 없다'],
   ['Asset|assetNo', 'DocumentNoGenerator 가 매긴다'],
   ['Assignment|slipDate', '인사발령입력 전표 머리(AssignmentSlipRequest)에서 정한다 — 단건 CreateAssignmentRequest 에는 없다'],
