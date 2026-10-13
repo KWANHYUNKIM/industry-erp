@@ -59,6 +59,8 @@ interface Filters {
   dateFrom: string
   /** 원본 [구분] — 검색할 때 걸린다. */
   gubun: '내역' | '집계'; form: Form; agg1: AsAggKey | ''; agg2: AsAggKey | ''; more: (AsAggKey | '')[]; codeIncl: boolean
+  /** ○집계 조건 칸 옆 [정렬] · [소계] 단추(2026-10-13 원본 실측) — 조건 차례와 같은 자리. */
+  descs: boolean[]; subs: boolean[]
   /** ○집계의 [비교기간] · [기타] 비율표시(2026-10-13 실측). */
   compare: ComparePeriod; ratio: boolean
   /** [기타] 가로보기 — 마지막 집계조건을 열로 눕힌다(집계대상을 골라야 한다, 2026-10-13 실측). */
@@ -95,7 +97,7 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', more: [], codeIncl: false, compare: '사용안함', ratio: false, pivot: false, targets: [], type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', more: [], codeIncl: false, descs: [], subs: [], compare: '사용안함', ratio: false, pivot: false, targets: [], type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
   category: '', itemGroup: '', spec: '', defectType: '', remark: '' }
 
 
@@ -286,7 +288,7 @@ export default function QualityStatusPage() {
                     })()} />
       ) : filters.gubun === '집계' ? (
         <AsAggregateTable title="품질검사현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} lines={pickVals(aggLines, filters.targets)}
-                          value={{ agg1: filters.agg1, agg2: filters.agg2, more: filters.more, codeIncl: filters.codeIncl }}
+                          value={{ agg1: filters.agg1, agg2: filters.agg2, more: filters.more, codeIncl: filters.codeIncl, descs: filters.descs, subs: filters.subs }}
                           measures={pickMeasures(filters.targets)} blankZero={['부적격']} ratio={filters.ratio} pivot={filters.pivot}
                           compare={cmpRange ? { period: reportPeriod(cmpRange.from, cmpRange.to), lines: pickVals(toAgg(toLineRows(cmpShown)), filters.targets) } : undefined} />
       ) : (
@@ -408,7 +410,7 @@ function SearchPanel({
               {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           ) : (
-            <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, more: draft.more, codeIncl: draft.codeIncl }} onChange={onChange} />
+            <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, more: draft.more, codeIncl: draft.codeIncl, descs: draft.descs, subs: draft.subs }} onChange={onChange} sortSum />
           )}
           {/* 원본 ○집계 차례 — 집계조건1 · 2 · [집계대상] · [비교기간] · [기타](2026-10-13 실측). */}
           {draft.gubun === '집계' && (

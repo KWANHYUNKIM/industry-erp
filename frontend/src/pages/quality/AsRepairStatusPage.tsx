@@ -159,7 +159,7 @@ export default function AsRepairStatusPage() {
                 {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
             )
-              : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={AS_AGG_KEYS.filter((k) => k !== '프로젝트')} />}
+              : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={AS_AGG_KEYS.filter((k) => k !== '프로젝트')} sortSum />}
           </span>
         </EcCond>
         <EcCond label="기준일자">

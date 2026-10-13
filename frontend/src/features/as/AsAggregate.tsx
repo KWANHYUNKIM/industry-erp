@@ -91,6 +91,10 @@ export interface AsAggValue {
   agg1: AsAggKey | ''; agg2: AsAggKey | ''; codeIncl: boolean
   /** 집계조건 3 · 4 · 5(원본 품질검사현황은 다섯까지 연다). */
   more?: (AsAggKey | '')[]
+  /** 조건마다 [정렬] 내림(true) — 없으면 올림. 집계조건 차례와 같은 자리. */
+  descs?: boolean[]
+  /** 조건마다 [소계] 표시 — false 면 그 조건의 '… 계' 줄을 뺀다. 없으면 표시. */
+  subs?: boolean[]
 }
 
 /** 고른 집계조건을 차례대로 — 빈 칸에서 끊는다. */
@@ -106,10 +110,23 @@ const DATE_RANK: Partial<Record<AsAggKey, number>> = { 연별: 0, 반기별: 1, 
 const DATE_ORDER_MSG = '집계조건은 연별-반기별-분기별-월별-주차별-일별 순서로만 입력가능합니다.'
 const MAX_AGG = 5
 
-/** 조건 판의 [구분] ○집계 쪽 — 집계조건1 ~ 5(채운 수 + 2 칸까지) · [기타] 코드포함. */
-export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS }: {
+/**
+ * 조건 판의 [구분] ○집계 쪽 — 집계조건1 ~ 5(채운 수 + 2 칸까지) · [기타] 코드포함.
+ *
+ * <code>sortSum</code> — 고른 조건 칸 오른쪽의 두 단추 [정렬](btn-asc ↔ btn-desc) · [소계](btn-add-sum ↔ btn-unadd-sum).
+ * 2026-10-13 원본 품질검사현황(E040623) · A/S접수현황(E040610) 실측: 처음은 올림 · 소계 표시, 품목명[규격] · 월별에서
+ * 품목명 [정렬] 을 누르고 검색하면 MSI(A004) → 인텔(A002), 품목명 [소계] 를 끄면 '… 계' 줄만 없어지고 [합계] 는 그대로.
+ * 마지막 조건은 원래 소계가 없어 [소계] 단추가 서도 바뀌는 것이 없다. 단추 앞의 정렬 기준 선택상자(코드순 · 코드명순 ·
+ * 값 열 / 기준일자 축은 시간순)는 아직 코드순 고정.
+ */
+export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS, sortSum = false }: {
   value: AsAggValue; onChange: (patch: Partial<AsAggValue>) => void; keys?: readonly AsAggKey[]
+  /** 조건 칸 옆 [정렬] · [소계] 단추 — 원본에 있는 화면만 켠다. */
+  sortSum?: boolean
 }) {
+  const descs = value.descs ?? []
+  const subs = value.subs ?? []
+  const flip = (arr: boolean[], i: number, dflt: boolean) => Array.from({ length: MAX_AGG }, (_, j) => (j === i ? !(arr[j] ?? dflt) : (arr[j] ?? dflt)))
   const all: (AsAggKey | '')[] = [value.agg1, value.agg2, ...(value.more ?? [])]
   const filled = aggKeys(value).length
   const shown = Math.min(MAX_AGG, filled + 2)
@@ -122,8 +139,14 @@ export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS }: {
       return
     }
     next[i] = k
-    /* 가운데를 비우면 뒤는 끊긴다 — 원본도 빈 칸 뒤 조건은 보지 않는다. */
-    onChange({ agg1: next[0], agg2: next[1], more: next.slice(2) })
+    /* 가운데를 비우면 뒤는 끊긴다 — 원본도 빈 칸 뒤 조건은 보지 않는다. 칸을 바꾸면 그 칸의 단추는 처음(올림 · 소계)으로. */
+    onChange({
+      agg1: next[0], agg2: next[1], more: next.slice(2),
+      ...(sortSum ? {
+        descs: Array.from({ length: MAX_AGG }, (_, j) => (j === i ? false : (descs[j] ?? false))),
+        subs: Array.from({ length: MAX_AGG }, (_, j) => (j === i ? true : (subs[j] ?? true))),
+      } : {}),
+    })
   }
   return (<>
     {Array.from({ length: shown }, (_, i) => (
@@ -133,6 +156,15 @@ export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS }: {
           <option value=""></option>
           {keys.filter((k) => k === all[i] || !all.includes(k)).map((k) => <option key={k} value={k}>{k}</option>)}
         </select>
+        {sortSum && all[i] && (
+          <span className="ec-btn-group">
+            <button type="button" className="ec-btn ec-btn-sm" aria-label={`집계조건${i + 1} 정렬`} title={descs[i] ? '내림차순' : '오름차순'}
+                    onClick={() => onChange({ descs: flip(descs, i, false) })}>{descs[i] ? '↑↓' : '↓↑'}</button>
+            <button type="button" className="ec-btn ec-btn-sm" aria-label={`집계조건${i + 1} 소계`} aria-pressed={subs[i] ?? true}
+                    title={(subs[i] ?? true) ? '소계표시' : '소계표시안함'}
+                    onClick={() => onChange({ subs: flip(subs, i, true) })}>{(subs[i] ?? true) ? '∑' : '−'}</button>
+          </span>
+        )}
       </span>
     ))}
     <label className="inline-flex items-center gap-[3px]">
@@ -161,6 +193,8 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
 }) {
   const { codeIncl } = value
   const keys = aggKeys(value)
+  const descs = value.descs ?? []
+  const subOn = (L: number) => value.subs?.[L] !== false
   const agg1 = keys[0] ?? ''
   const valsOf = (x: AsAggLine) => x.vals ?? [x.qty]
   type Row = { ns: string[]; cs: string[]; v: number[]; p: number[]; hasV: boolean; hasP: boolean }
@@ -189,7 +223,7 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
   const rows = [...m.values()].sort((a, b) => {
     for (let j = 0; j < keys.length; j++) {
       const d = key(a.ns[j], a.cs[j]).localeCompare(key(b.ns[j], b.cs[j]), 'ko')
-      if (d) return d
+      if (d) return descs[j] ? -d : d
     }
     return 0
   })
@@ -214,7 +248,8 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
   const ref = useRef<HTMLTableElement>(null)
   useTableColumnCheck(ref, `${title} 집계`, [keys.join(','), codeIncl, rows.length, showRatio, !!compare])
   if (pivot && keys.length >= 2 && !compare) return (
-    <AsPivotTable title={title} period={period} lines={lines} keys={keys} codeIncl={codeIncl} measures={measures} cell={cell} valsOf={valsOf} />
+    <AsPivotTable title={title} period={period} lines={lines} keys={keys} codeIncl={codeIncl} measures={measures} cell={cell} valsOf={valsOf}
+                  descs={descs} subs={value.subs ?? []} />
   )
   return (
     <>
@@ -262,6 +297,7 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
               /* 마지막 조건 앞까지 — 끝난 무리마다 깊은 것부터 소계. 이름이 빈 무리는 '[] 계'(원본 창고 빈 칸). */
               for (let L = keys.length - 2; L >= 0; L--) {
                 if (next && nd > L) continue
+                if (!subOn(L)) continue
                 const grp = rows.filter((x) => x.ns.slice(0, L + 1).join('␟') === g.ns.slice(0, L + 1).join('␟'))
                 out.push(
                   <tr key={`${g.ns.slice(0, L + 1).join('␟')}␟계${L}`} className="ec-list-total">
@@ -295,9 +331,11 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
  * [가로보기] 판 — 마지막 조건의 값이 열 묶음이 되고, 묶음마다 값 열(measures)이 선다. 줄은 앞 조건들로 묶고
  * 마지막 줄 조건 앞까지 무리마다 '… 계'(눕기 전과 같은 규칙), 끝에 [합계].
  */
-function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, valsOf }: {
+function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, valsOf, descs, subs }: {
   title: string; period: string; lines: AsAggLine[]; keys: AsAggKey[]; codeIncl: boolean; measures: string[]
   cell: (n: number, i: number) => string; valsOf: (x: AsAggLine) => number[]
+  /** 조건마다 [정렬] 내림 · [소계] 표시 — 눕힌 조건의 [정렬] 은 열 차례를 뒤집는다. */
+  descs: boolean[]; subs: boolean[]
 }) {
   const rowKeys = keys.slice(0, -1)
   const colKey = keys[keys.length - 1]
@@ -305,7 +343,8 @@ function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, va
   /* 열 — 눕힌 조건의 값, 코드순(기준일자 축은 이름이 곧 시간순). */
   const colMap = new Map<string, string>()
   for (const x of lines) { const [n, c] = axis(colKey, x); colMap.set(n, key(n, c)) }
-  const colNames = [...colMap.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ko', { numeric: true })).map(([n]) => n)
+  const colDesc = descs[keys.length - 1] ?? false
+  const colNames = [...colMap.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ko', { numeric: true }) * (colDesc ? -1 : 1)).map(([n]) => n)
   type Row = { ns: string[]; cs: string[]; v: Map<string, number[]> }
   const m = new Map<string, Row>()
   for (const x of lines) {
@@ -322,7 +361,7 @@ function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, va
   const rows = [...m.values()].sort((a, b) => {
     for (let j = 0; j < rowKeys.length; j++) {
       const d = key(a.ns[j], a.cs[j]).localeCompare(key(b.ns[j], b.cs[j]), 'ko')
-      if (d) return d
+      if (d) return descs[j] ? -d : d
     }
     return 0
   })
@@ -369,6 +408,7 @@ function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, va
             /* 소계는 눕기 전 조건 기준 — 마지막 조건(눕힌 것) 앞까지, 곧 줄 조건 전부. 깊은 것부터. */
             for (let L = rowKeys.length - 1; L >= 0; L--) {
               if (next && nd > L) continue
+              if (subs[L] === false) continue
               const pre = g.ns.slice(0, L + 1).join('␟')
               const grp = rows.filter((x) => x.ns.slice(0, L + 1).join('␟') === pre)
               out.push(
