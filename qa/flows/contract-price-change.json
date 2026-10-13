@@ -30,7 +30,10 @@
         "expect:/^36000(\\.0+)?\\/3600(\\.0+)?\\/39600(\\.0+)?$/.test(sessionStorage.getItem('chk'))",
         "clicklast:저장(F8)",
         "wait:500",
-        "expect:document.body.innerText.includes('변경된 내역이 없습니다.')",
+        "expect:!!document.querySelector('[role=dialog][aria-label=알림]')&&document.querySelector('[role=dialog]').innerText.includes('변경된정보가 없습니다.')",
+        "clicklast:확인",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog]')",
         "js:(async()=>{const a=await window.__api('POST','/billing-contracts/delete',{ids:[Number(sessionStorage.getItem('bcId'))]});const b=await window.__api('DELETE','/contract-items/'+sessionStorage.getItem('ciId'));return a.status+' '+b.status})()"
       ]
     }

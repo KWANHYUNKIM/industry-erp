@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcPeriodPicks from '../../components/EcPeriodPicks'
 import EcNumInput from '../../components/EcNumInput'
+import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { periodOf } from '../../utils/periods'
 import { dateText } from '../../utils/dateText'
@@ -33,7 +34,9 @@ interface Edit { quantity: string; unitPrice: string }
  * 항목명 · 청구단위 · <b>수량 · 단가</b>(칸) · 공급가액 · 부가세 · 적요, 아래 [저장(F8)].
  *
  * <p>저장하면 고친 줄의 공급가액(수량 × 단가) · 부가세(10%)를 다시 셈해 계약에 넣는다 — 다음 청구예정자료생성부터 새 값이 들어간다.
- * 원본에서 [저장]은 남의 계약이라 누르지 않았다. ○환율변경(외자 계약) · [설정] 은 아직 없다.
+ * [저장] 은 <b>체크와 상관없이 고친 줄을 모두</b> 저장하고 안내 없이 다시 조회한다 — 2026-10-13 QA회계2-청구인쇄 계약(수량 2 → 3)을
+ * 체크하지 않고 [저장] 했더니 계약현황이 3.00 · 120,000 · 12,000 이 됐다. 고친 것 없이 누르면 '알림' 창 '변경된정보가 없습니다.' [확인].
+ * ○환율변경(외자 계약) · [설정] 은 아직 없다.
  * 진행상태: 원본은 청구종료일이 지난 계약(2026/08/24 종료)도 '진행중' 에 보여, 우리에게 아직 없는 완료 표시가 따로 있는 것으로 보인다 — 지금은 모두 진행중.
  */
 export default function ContractPriceChangePage() {
@@ -77,7 +80,7 @@ export default function ContractPriceChangePage() {
   async function save() {
     const changed = shown.filter((r) => edits[r.lineId]
       && (Number(edits[r.lineId].quantity) !== Number(r.quantity) || Number(edits[r.lineId].unitPrice) !== Number(r.unitPrice)))
-    if (!changed.length) { setNotice('변경된 내역이 없습니다.'); return }
+    if (!changed.length) { setNotice('변경된정보가 없습니다.'); return }
     try {
       setError('')
       await api.post('/billing-contracts/price-change', { lines: changed.map((r) => ({
@@ -99,7 +102,6 @@ export default function ContractPriceChangePage() {
     ]}>
       <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void (searched && shown.length ? save() : load()) } }}>
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-        {notice && <p className="ec-alert mb-[8px]">{notice}</p>}
         <ul className="ec-cond mb-[8px]">
           <EcCond label="계약일자">
             <input type="date" className="ec-input w-[145px]" aria-label="계약일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -158,6 +160,10 @@ export default function ContractPriceChangePage() {
         </div>
         {searched && <div className="mt-[8px]"><button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button></div>}
       </div>
+      <Modal open={!!notice} error={error} title="알림" width={420} onClose={() => setNotice('')}>
+        <p className="text-[12px] mb-[12px]">{notice}</p>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => setNotice('')}>확인</button>
+      </Modal>
     </EcListShell>
   )
 }
