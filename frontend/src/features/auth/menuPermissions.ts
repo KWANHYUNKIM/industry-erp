@@ -60,6 +60,7 @@ const RULES: Rule[] = [
   ['/sales/purchase-order-status', 'PURCHASE'],
   ['/sales/purchase-requests', 'PURCHASE'],
   ['/sales/purchase-request-input', 'PURCHASE'],
+  ['/sales/order-release', 'SALES'],
   ['/sales/purchase-plans', 'PURCHASE'],
   ['/sales/price-requests', 'PURCHASE'],
   ['/sales/purchase-request-status', 'PURCHASE'],

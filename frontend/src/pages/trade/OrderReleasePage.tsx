@@ -1,0 +1,308 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { api, extractErrorMessage } from '../../api/client'
+import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import Modal from '../../components/Modal'
+import EcNumInput from '../../components/EcNumInput'
+import EcEmptyRow from '../../components/ui/EcEmptyRow'
+import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useCondPickers } from '../../utils/useCondPickers'
+import { dateNo } from '../../utils/dateNo'
+import { useShortcut } from '../../utils/useShortcut'
+
+/**
+ * 주문서출고처리(원본 E040230 · 재고 I › 영업관리 › 주문서). 2026-10-13 loginaa 직접 써 보며 잰 것:
+ *
+ * - 알약 [미처리] · [처리]. 조건(Search(F3) 로 내려오는 판): 기준일자(기본 최근30일) · 내.외자구분 · 창고 · 프로젝트 · 거래처 ·
+ *   품목코드 · 기타(수정일자순(정렬)). 판 아래 기간 단추 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · 최근30일.
+ * - 미처리: [체크] · 일자-No. · 거래처명 · 품목명[규격명] · 잔량 · 출고수량(입력) · 납기일자 · 적요. 체크하면 출고수량이 잔량으로 찬다.
+ *   하단 [출고] · [Excel]. [출고] → '출고등록' 창(일자 · 거래처 · 처리구분 '처리') [저장(F8)] — 안내 없이 닫히고 잔량이 준다.
+ * - 처리: [체크] · 일자-No.(출고) · 일자-No.(주문) · 거래처명 · 품목 · 출고수량합계 · 판매('입력' 또는 판매 일자-No.) · 인쇄.
+ *   하단 [판매입력] · Email · 인쇄 · Excel · 처리구분변경 · [처리취소].
+ *   [처리취소] 는 판매가 있으면 '이미 판매입력된 전표가 있습니다. 진행하겠습니까?' 를 묻고, 처리만 지운다(판매는 남고 잔량이 돌아온다).
+ *
+ * 아직 없는 것: Email(바깥 발송) · 처리구분변경(처리구분이 '처리' 하나뿐이라 바꿀 데가 없어 안 쟀다) · 인쇄 열 ·
+ * 출고등록 창의 [판매입력] 체크(켜고 저장하는 흐름은 안 쟀다).
+ */
+type Tab = 'PENDING' | 'DONE'
+
+interface PendingLine {
+  orderId: number; orderNo: string; orderDate: string; orderLineId: number
+  partnerId: number; partnerName: string; warehouseId: number | null; projectId: number | null
+  itemId: number; itemCode: string; itemName: string; spec: string | null
+  orderQty: number; releasedQty: number; remainQty: number
+  dueDate: string | null; remark: string | null; orderUpdatedAt: string | null
+}
+
+interface ReleaseRow {
+  id: number; releaseNo: string; releaseDate: string
+  orderId: number; orderNo: string; orderDate: string
+  partnerName: string; itemSummary: string; totalQty: number
+  saleId: number | null; saleNo: string | null; saleDate: string | null
+}
+
+const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '최근30일'] as const
+const NO_PICK = '리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'
+const qtyText = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const slash = (d: string | null) => (d ? d.replace(/-/g, '/') : '')
+
+export default function OrderReleasePage() {
+  const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const tab: Tab = params.get('tab') === '처리' ? 'DONE' : 'PENDING'
+  const setTab = (t: Tab) => { setChecked(new Set()); setParams(t === 'DONE' ? { tab: '처리' } : {}, { replace: true }) }
+
+  const init = periodOf('최근30일')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  const [domestic, setDomestic] = useState(true)
+  const [foreign, setForeign] = useState(true)
+  const [whCond, setWhCond] = useState('')
+  const [projCond, setProjCond] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
+  const pickers = useCondPickers(['warehouses', 'projects', 'partners', 'items'])
+
+  const [pending, setPending] = useState<PendingLine[]>([])
+  const [done, setDone] = useState<ReleaseRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 미처리 줄의 [출고수량] — 주문 줄 id 별. */
+  const [qty, setQty] = useState<Record<number, string>>({})
+  /** '출고등록' 창. */
+  const [regOpen, setRegOpen] = useState(false)
+  const [regDate, setRegDate] = useState(ymd(new Date()))
+  const [regError, setRegError] = useState('')
+  useShortcut('F8', () => void saveRelease(), regOpen)
+
+  async function load() {
+    setLoading(true); setError('')
+    try {
+      if (tab === 'PENDING') setPending((await api.get<PendingLine[]>('/order-releases/pending', { params: { from, to } })).data)
+      else setDone((await api.get<ReleaseRow[]>('/order-releases', { params: { from, to } })).data)
+    } catch (err) { setError(extractErrorMessage(err)) }
+    finally { setLoading(false) }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load() }, [tab, from, to])
+
+  /** 우리 주문서는 통화가 없어 전부 내자다 — [내자] 를 끄면 다 빠지고 [외자] 만으로는 아무것도 안 걸린다. */
+  const isForeign = (_p: PendingLine) => false
+  const shownPending = useMemo(() => [...pending]
+    // [수정일자순(정렬)] — 주문을 마지막으로 고친 때가 최근인 것부터.
+    .sort((a, b) => (byUpdated ? (b.orderUpdatedAt ?? '').localeCompare(a.orderUpdatedAt ?? '') : 0))
+    .filter((p) => (isForeign(p) ? foreign : domestic))
+    .filter((p) => !whCond || String(p.warehouseId) === whCond)
+    .filter((p) => !projCond || String(p.projectId) === projCond)
+    .filter((p) => !partnerCond || String(p.partnerId) === partnerCond)
+    .filter((p) => !itemCond || String(p.itemId) === itemCond), [pending, byUpdated, domestic, foreign, whCond, projCond, partnerCond, itemCond])
+
+  function toggle(id: number, on: boolean, remain?: number) {
+    setChecked((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
+    // 원본: 체크하면 비어 있던 [출고수량] 이 잔량으로 찬다.
+    if (on && remain != null) setQty((q) => (q[id] ? q : { ...q, [id]: String(remain) }))
+  }
+
+  async function saveRelease() {
+    setRegError('')
+    const lines = shownPending.filter((p) => checked.has(p.orderLineId))
+      .map((p) => ({ orderLineId: p.orderLineId, quantity: Number(qty[p.orderLineId] || p.remainQty) }))
+    try {
+      await api.post('/order-releases', { releaseDate: regDate, lines })
+      setRegOpen(false); setChecked(new Set()); setQty({})
+      void load()
+    } catch (err) { setRegError(extractErrorMessage(err)) }
+  }
+
+  /** [처리취소] — 판매가 걸린 건이 있으면 원본 문구로 묻는다. */
+  async function cancelChecked() {
+    const rows = done.filter((r) => checked.has(r.id))
+    if (rows.length === 0) return alert(NO_PICK)
+    if (rows.some((r) => r.saleId != null) && !confirm('이미 판매입력된 전표가 있습니다.\n진행하겠습니까?')) return
+    const fails: string[] = []
+    for (const r of rows) {
+      try { await api.delete(`/order-releases/${r.id}`) } catch (err) { fails.push(extractErrorMessage(err)) }
+    }
+    setChecked(new Set())
+    void load()
+    if (fails.length) alert(fails.join('\n'))
+  }
+
+  /** 하단 [판매입력] — 고른 건 중 아직 판매가 없는 첫 건으로 판매입력을 연다. */
+  function saleFromChecked() {
+    const r = done.find((x) => checked.has(x.id) && x.saleId == null)
+    if (!r) return alert(checked.size === 0 ? NO_PICK : '이미 판매입력된 전표가 있습니다.')
+    navigate(`/sales/sell?fromRelease=${r.id}`)
+  }
+
+  const rows = tab === 'PENDING' ? shownPending : done
+  const allChecked = rows.length > 0 && rows.every((r) => checked.has('orderLineId' in r ? r.orderLineId : r.id))
+
+  return (
+    <EcListShell
+      title="주문서출고처리"
+      collapseConditions
+      onSearch={load}
+      actions={tab === 'PENDING'
+        ? [
+            { label: '출고', primary: true, disabled: checked.size === 0, onClick: () => { setRegError(''); setRegDate(ymd(new Date())); setRegOpen(true) } },
+            { label: 'Excel' },
+          ]
+        : [
+            { label: '판매입력', primary: true, disabled: checked.size === 0, onClick: saleFromChecked },
+            { label: '인쇄' },
+            { label: 'Excel' },
+            { label: '처리취소', disabled: checked.size === 0, onClick: () => void cancelChecked() },
+          ]}
+    >
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <span className="my-0 mx-[4px]">~</span>
+          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <span className="ml-[6px]">
+            <EcPeriodPicks labels={PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
+        <EcCond label="내.외자구분">
+          <label className="inline-flex items-center gap-[3px] mr-[10px]">
+            <input type="checkbox" checked={domestic && foreign} onChange={(e) => { setDomestic(e.target.checked); setForeign(e.target.checked) }} /> 전체
+          </label>
+          <label className="inline-flex items-center gap-[3px] mr-[10px]">
+            <input type="checkbox" checked={domestic} onChange={(e) => setDomestic(e.target.checked)} /> 내자
+          </label>
+          <label className="inline-flex items-center gap-[3px]">
+            <input type="checkbox" checked={foreign} onChange={(e) => setForeign(e.target.checked)} /> 외자
+          </label>
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체" value={whCond} onChange={setWhCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={projCond} onChange={setProjCond} items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partnerCond} onChange={setPartnerCond} items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목코드" pick>
+          <CodePickerField label="품목코드" hideLabel width={220} emptyLabel="전체" value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[3px]">
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} /> 수정일자순(정렬)
+          </label>
+        </EcCond>
+      </ul>
+
+      <div className="ec-pills mb-[8px]">
+        <button type="button" className={`ec-pill no-ec${tab === 'PENDING' ? ' active' : ''}`} onClick={() => setTab('PENDING')}>미처리</button>
+        <button type="button" className={`ec-pill no-ec${tab === 'DONE' ? ' active' : ''}`} onClick={() => setTab('DONE')}>처리</button>
+      </div>
+      <div className="text-right mb-[4px]">{slash(from)} ~{slash(to)}</div>
+
+      {tab === 'PENDING' ? (
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="w-[34px] text-center">
+                <input type="checkbox" aria-label="전체 선택" checked={allChecked}
+                  onChange={(e) => shownPending.forEach((p) => toggle(p.orderLineId, e.target.checked, p.remainQty))} />
+              </th>
+              <th>일자-No.</th>
+              <th>거래처명</th>
+              <th>품목명[규격명]</th>
+              <th className="text-right">잔량</th>
+              <th className="text-right">출고수량</th>
+              <th>납기일자</th>
+              <th>적요</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? <EcEmptyRow colSpan={8} loading /> : shownPending.length === 0 && <EcEmptyRow colSpan={8} />}
+            {!loading && shownPending.map((p) => (
+              <tr key={p.orderLineId}>
+                <td className="text-center">
+                  <input type="checkbox" aria-label="선택" checked={checked.has(p.orderLineId)}
+                    onChange={(e) => toggle(p.orderLineId, e.target.checked, p.remainQty)} />
+                </td>
+                <td><a className="cursor-pointer" onClick={() => navigate(`/sales/orders?edit=${p.orderId}`)}>{dateNo(p.orderDate, p.orderNo)}</a></td>
+                <td>{p.partnerName}</td>
+                <td>{p.itemName}{p.spec ? ` [${p.spec}]` : ''}</td>
+                <td className="text-right">{qtyText(p.remainQty)}</td>
+                <td className="w-[130px]">
+                  <EcNumInput className="ec-input w-full text-right" value={qty[p.orderLineId] ?? ''}
+                    onValue={(v) => setQty((q) => ({ ...q, [p.orderLineId]: v }))} />
+                </td>
+                <td>{slash(p.dueDate)}</td>
+                <td>{p.remark ?? ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="w-[34px] text-center">
+                <input type="checkbox" aria-label="전체 선택" checked={allChecked}
+                  onChange={(e) => done.forEach((r) => toggle(r.id, e.target.checked))} />
+              </th>
+              <th>일자-No.</th>
+              <th>일자-No.</th>
+              <th>거래처명</th>
+              <th>품목</th>
+              <th className="text-right">출고수량합계</th>
+              <th className="text-center">판매</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? <EcEmptyRow colSpan={7} loading /> : done.length === 0 && <EcEmptyRow colSpan={7} />}
+            {!loading && done.map((r) => (
+              <tr key={r.id}>
+                <td className="text-center">
+                  <input type="checkbox" aria-label="선택" checked={checked.has(r.id)} onChange={(e) => toggle(r.id, e.target.checked)} />
+                </td>
+                <td>{dateNo(r.releaseDate, r.releaseNo)}</td>
+                <td><a className="cursor-pointer" onClick={() => navigate(`/sales/orders?edit=${r.orderId}`)}>{dateNo(r.orderDate, r.orderNo)}</a></td>
+                <td>{r.partnerName}</td>
+                <td>{r.itemSummary}</td>
+                <td className="text-right">{qtyText(r.totalQty)}</td>
+                <td className="text-center">
+                  {r.saleId != null && r.saleNo && r.saleDate
+                    ? <a className="cursor-pointer" onClick={() => navigate(`/sales/sell?edit=${r.saleId}`)}>{dateNo(r.saleDate, r.saleNo).replace(' -', '-')}</a>
+                    : <a className="cursor-pointer" onClick={() => navigate(`/sales/sell?fromRelease=${r.id}`)}>입력</a>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <Modal open={regOpen} error={regError} title="출고등록" width={760} onClose={() => setRegOpen(false)}>
+        <div className="ec-form">
+          <div className="grid grid-cols-2 gap-[6px] items-center">
+            <label className="flex items-center gap-[10px]">
+              <span className="w-[93px] text-ec-label">일자</span>
+              <input type="date" className="ec-input w-[160px]" value={regDate} onChange={(e) => setRegDate(e.target.value)} />
+            </label>
+            <span />
+            <span className="flex items-center gap-[10px]"><span className="w-[93px] text-ec-label">거래처</span></span>
+            <label className="flex items-center gap-[10px]">
+              <span className="w-[93px] text-ec-label">처리구분</span>
+              <select className="ec-input flex-1" value="처리" onChange={() => {}}><option>처리</option></select>
+            </label>
+          </div>
+        </div>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveRelease()}>저장(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setRegOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+    </EcListShell>
+  )
+}

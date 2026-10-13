@@ -200,6 +200,19 @@ interface UnsoldLite {
   unitPrice: number
 }
 
+/** 주문서출고처리 한 건(`GET /order-releases/{id}`) — 판매입력을 미리 채우는 데 쓰는 부분. */
+interface ReleaseDetail {
+  orderId: number
+  orderNo: string
+  orderDate: string
+  partnerId: number
+  warehouseId: number | null
+  projectId: number | null
+  employeeId: number | null
+  taxable: boolean
+  lines: { itemId: number; quantity: number; unitPrice: number }[]
+}
+
 /** 근거전표(수주·발주서) 라인 — 불러오기 팝업의 한 행. */
 interface LoadableLine {
   key: string
@@ -261,6 +274,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * 거래구분을 반품으로 두고 연다 — 수정이 아니다. 원 전표는 손대지 않는다.
    */
   const returnFromId = searchParams.get('returnFrom')
+  /**
+   * 주문서출고처리 '처리' 탭 [판매] '입력' 에서 넘어온 출고처리 건(?fromRelease=). 원본은 판매입력 창이 그 건의
+   * 거래처 · 출하창고 · 품목 · 수량(주문 단가)으로 차서 뜨고, 저장하면 처리 탭 [판매] 칸이 그 판매 일자-No. 로 바뀐다(2026-10-13 실측).
+   */
+  const fromReleaseId = mode === 'sales' ? searchParams.get('fromRelease') : null
+  const releaseLoaded = useRef(false)
 
   // ── 마스터 ─────────────────────────────────────────────
   const [partners, setPartners] = useState<Partner[]>([])
@@ -480,6 +499,32 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       emptyLine(),
     ])
   }, [returnFromId, editing, docs])
+
+  useEffect(() => {
+    if (!fromReleaseId || releaseLoaded.current) return
+    releaseLoaded.current = true
+    void api.get<ReleaseDetail>(`/order-releases/${fromReleaseId}`).then(({ data: r }) => {
+      setPartnerId(String(r.partnerId))
+      if (r.warehouseId != null) setWarehouseId(String(r.warehouseId))
+      setProjectId(r.projectId != null ? String(r.projectId) : '')
+      setEmployeeId(r.employeeId != null ? String(r.employeeId) : '')
+      setTaxable(r.taxable)
+      setLines([
+        ...r.lines.map((l) => ({
+          ...emptyLine(),
+          itemId: String(l.itemId),
+          quantity: String(l.quantity),
+          unitPrice: String(l.unitPrice),
+          sourceOrderId: String(r.orderId),
+          sourceDocType: '주문서',
+          sourceDocDate: r.orderDate,
+          sourceDocNo: r.orderNo,
+        })),
+        emptyLine(),
+      ])
+    }).catch((err) => flash(extractErrorMessage(err)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromReleaseId])
 
   useEffect(() => {
     if (!editId || editing || docs.length === 0) return
@@ -1191,6 +1236,13 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       }
       setSavedDoc({ id: res.data.id, docNo: res.data.docNo })
       deleteTemp()
+      if (fromReleaseId && !editing) {
+        // 출고처리 건에 이 판매를 걸고 처리 탭으로 돌아간다 — 원본도 창이 닫히고 [판매] 칸에 일자-No. 가 찍힌다.
+        await api.patch(`/order-releases/${fromReleaseId}/sale`, { saleId: res.data.id })
+          .catch(() => flash('판매는 저장했지만 출고처리에 잇지 못했습니다.'))
+        navigate('/sales/order-release?tab=처리')
+        return
+      }
       if (editing) {
         // 수정을 마치면 신규 입력 상태로 돌아간다 — 같은 전표를 두 번 저장하는 사고를 막는다.
         setEditing(null)

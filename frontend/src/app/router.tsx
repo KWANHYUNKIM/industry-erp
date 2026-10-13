@@ -208,6 +208,7 @@ const MailPage = lazy(() => import('../pages/groupware/MailPage'))
 const ShortMessagePage = lazy(() => import('../pages/groupware/ShortMessagePage'))
 const OrgChartPage = lazy(() => import('../pages/groupware/OrgChartPage'))
 const SalesOrderPage = lazy(() => import('../pages/trade/SalesOrderPage'))
+const OrderReleasePage = lazy(() => import('../pages/trade/OrderReleasePage'))
 const QuotationPage = lazy(() => import('../pages/trade/QuotationPage'))
 const PurchaseOrderPage = lazy(() => import('../pages/trade/PurchaseOrderPage'))
 const PayablePage = lazy(() => import('../pages/trade/PayablePage'))
@@ -484,6 +485,7 @@ export default function AppRouter() {
         <Route path="/sales/ledger-receivable" element={<LedgerPage side="AR" />} />
         <Route path="/sales/ledger-payable" element={<LedgerPage side="AP" />} />
         <Route path="/sales/orders" element={<SalesOrderPage />} />
+        <Route path="/sales/order-release" element={<OrderReleasePage />} />
         <Route path="/sales/order-status" element={<SalesOrderStatusPage />} />
         <Route path="/sales/trade-history" element={<TradeHistoryPage />} />
         <Route path="/sales/sales-purchase-summary" element={<SalesPurchaseSummaryPage />} />
