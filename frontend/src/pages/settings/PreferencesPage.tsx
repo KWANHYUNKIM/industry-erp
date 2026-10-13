@@ -14,7 +14,8 @@ import { useShortcut } from '../../utils/useShortcut'
  *
  * <p><b>우리 ERP 가 실제로 가진 설정만 싣는다.</b> 원본 항목은 수십 개지만(영업주기 · 편집제한일자 · 전표자동생성 …)
  * 우리에게 그 동작이 없는 것을 줄로 그리면 바꿔도 아무 일이 없는 칸이 된다(옛 화면의 '(미적용)' 토글 다섯이 그랬다).
- * 고정값인 것(국가 · 부가세율 · 채권/채무 계정)은 값만 보이고 누를 수 없다.
+ * 고정값인 것(국가 · 부가세율 · 채권/채무 계정 · 부서/프로젝트별관리 · 단가 vat 별도 · 회계반영 수동 · 로트No. 선택입력)은
+ * 값만 보이고 누를 수 없다 — 코드에서 그 동작을 확인한 것만(2026-10-13 원본 C000113 여섯 탭 실측과 대조).
  */
 
 const TABS = ['공통', '회계', '재고', '관리', '그룹웨어', '데이터센터'] as const
@@ -44,15 +45,34 @@ function sheetOf(p: Preference): Record<TabKey, SheetSection[]> {
       groups: [
         // 원본 기능설정에는 없는 줄 — 회계 장부·재무제표가 기초 기간을 이 달부터 잡는다(원본은 회사정보의 회계기수).
         { title: '기본', rows: [{ label: '회계연도 시작월', value: `${Number(p.fiscalStart)}월`, editable: true }] },
+        // 회계전표 줄(JournalLine)이 부서 · 프로젝트를 늘 받는다 — 끌 수 없다.
+        { title: '관리여부', rows: [
+          { label: '(회계)부서별관리', value: '사용' },
+          { label: '(회계)프로젝트별관리', value: '사용' },
+        ] },
       ],
     }],
     재고: [{
       title: '재고 공통설정',
       groups: [
+        // 판매 · 구매 전표가 프로젝트를 받는다(trade Sales/Purchase.project).
+        { title: '기본', rows: [{ label: '(재고)프로젝트별관리', value: '사용' }] },
         { title: '채권채무관리', rows: [
           { label: '채권계정', value: '외상매출금' },
           { label: '채무계정', value: '외상매입금' },
         ] },
+        // 공급가액 = 수량 × 단가(VatAllocator.lineSupply) — 단가는 늘 부가세 별도다.
+        { title: '단가(vat포함)', rows: [
+          { label: '영업관리', value: '사용안함' },
+          { label: '구매관리', value: '사용안함' },
+        ] },
+        // 저장만으로 회계전표가 생기지 않는다 — [회계반영] 을 따로 누른다.
+        { title: '전표자동생성(회계반영)', rows: [
+          { label: '판매', value: '사용안함' },
+          { label: '구매', value: '사용안함' },
+        ] },
+        // 판매 · 구매 줄의 로트No. 는 비워도 저장된다(SalesLine.lotNo nullable).
+        { title: '입력항목설정(시리얼/로트No.)', rows: [{ label: '필수입력여부', value: '선택입력' }] },
       ],
     }],
     관리: [],
