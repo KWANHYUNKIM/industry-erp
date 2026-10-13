@@ -83,6 +83,9 @@ export default function LotAdjustPage() {
     return next
   })
 
+  /** [합계] 를 지금 값과 다르게 고친 줄. */
+  const edited = (l: Lot) => edits[l.id]?.qty !== undefined && Number(edits[l.id]!.qty) !== Number(l.stockQty)
+
   async function save() {
     const changed = shown.filter((l) => edits[l.id]?.qty !== undefined && Number(edits[l.id]!.qty) !== Number(l.stockQty))
     for (const l of changed) {
@@ -190,8 +193,10 @@ export default function LotAdjustPage() {
               <td>{l.itemName}</td>
               <td>{l.lotNo}</td>
               <td>{l.spec ?? ''}</td>
-              <td><input className="ec-input w-full text-right" aria-label={`${l.lotNo} 합계`} value={qtyOf(l)}
-                         onChange={(e) => setEdit(l.id, { qty: e.target.value })} /></td>
+              {/* 원본은 [합계] 를 고치면 그 칸 바탕이 분홍(246,215,215)이 된다 — 저장 전 무엇을 바꿨는지 보인다(2026-10-13 실측). */}
+              <td className={edited(l) ? 'bg-[var(--ec-bg-cell-edited)]' : undefined}>
+                <input className={`ec-input w-full text-right${edited(l) ? ' bg-transparent' : ''}`} aria-label={`${l.lotNo} 합계`} value={qtyOf(l)}
+                       onChange={(e) => setEdit(l.id, { qty: e.target.value })} /></td>
               <td className="text-center"><button type="button" className="ec-btn ec-btn-sm" onClick={() => void openDetail(l)}>보기</button></td>
               <td><input className="ec-input w-full" aria-label={`${l.lotNo} 적요`} value={edits[l.id]?.remark ?? ''}
                          onChange={(e) => setEdit(l.id, { remark: e.target.value })} /></td>
