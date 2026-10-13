@@ -1,0 +1,16 @@
+{
+  "about": "업무일지(원본 E070304) — 한 부서 · 같은 날 일지가 둘이면 원본은 줄을 늘린다(2026-10-13 실측: 회계팀 10/13 에 QA그룹웨어-일지1 · 일지2 → 부서 칸 rowSpan 2, 첫 줄에 일지1 · 둘째 줄에 일지2, 먼저 쓴 차례). 시험 일지 둘을 API 로 만들고 지운다. node qa/shot.mjs qa/flows/worklog-stack.json",
+  "shots": [
+    {
+      "name": "같은 칸에 일지 둘 → 줄 둘",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ds = (await (await fetch('/api/departments', { headers: H })).json()).filter((d) => d.active); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const ids = []; for (const t of ['QA그룹웨어-쌓기1', 'QA그룹웨어-쌓기2']) { const j = await (await fetch('/api/work-journals', { method: 'POST', headers: H, body: JSON.stringify({ reportDate: day, department: ds[0].name, title: t, content: '' }) })).json(); ids.push(j.id) } sessionStorage.setItem('qaWlStack', JSON.stringify([ids, ds[0].name, day.slice(5, 7) + '/' + day.slice(8, 10)])); return ids.join(',') + ' ' + ds[0].name })()",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:(() => { const [, dept, md] = JSON.parse(sessionStorage.getItem('qaWlStack')); const ths = [...document.querySelectorAll('thead th')]; const col = ths.findIndex((th) => th.textContent.startsWith(md)); const rows = [...document.querySelectorAll('tbody tr')]; const i = rows.findIndex((r) => r.cells[0].textContent.trim() === dept); const first = rows[i], second = rows[i + 1]; return col > 0 && first.cells[0].rowSpan >= 2 && first.cells[1 + (col - 1) * 2].textContent.trim() === 'QA그룹웨어-쌓기1' && second.cells[(col - 1) * 2].textContent.trim() === 'QA그룹웨어-쌓기2' })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const [ids] = JSON.parse(sessionStorage.getItem('qaWlStack')); const out = []; for (const id of ids) out.push((await fetch('/api/work-journals/' + id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

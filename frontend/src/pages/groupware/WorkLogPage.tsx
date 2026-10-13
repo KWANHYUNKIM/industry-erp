@@ -303,27 +303,35 @@ export default function WorkLogPage() {
               </tr>
             </thead>
             <tbody>
-              {deptRows.map((name) => (
-                <tr key={name}>
-                  <td className="w-[150px]">{name}</td>
-                  {days.map((d) => {
-                    const hits = shown.filter((r) => r.department === name && r.reportDate === d)
-                    return (
-                      <Fragment key={d}>
-                        <td className="w-[150px] text-center">
-                          {hits.map((r) => (
-                            <button key={r.id} type="button" onClick={() => setViewing(r)}
-                                    className="no-ec block w-full bg-transparent border-0 p-0 cursor-pointer text-center text-ec-navy truncate">
-                              {r.title}
-                            </button>
-                          ))}
-                        </td>
-                        <td className="w-[30px]" />
-                      </Fragment>
-                    )
-                  })}
-                </tr>
-              ))}
+              {/*
+               * 원본(2026-10-13 실측 — 회계팀 10/13 에 QA 일지 둘): 한 칸에 일지가 여럿이면 줄을 늘린다. 부서 칸은 rowSpan 으로 합치고
+               * N 번째 줄에는 날마다 N 번째 일지(먼저 쓴 차례)만, 없는 날은 빈칸.
+               */}
+              {deptRows.flatMap((name) => {
+                const byDay = days.map((d) => shown.filter((r) => r.department === name && r.reportDate === d).sort((a, b) => a.id - b.id))
+                const n = Math.max(1, ...byDay.map((h) => h.length))
+                return Array.from({ length: n }, (_, k) => (
+                  <tr key={`${name}-${k}`}>
+                    {k === 0 && <td rowSpan={n} className="w-[150px]">{name}</td>}
+                    {days.map((d, di) => {
+                      const r = byDay[di][k]
+                      return (
+                        <Fragment key={d}>
+                          <td className="w-[150px] text-center">
+                            {r && (
+                              <button type="button" onClick={() => setViewing(r)}
+                                      className="no-ec block w-full bg-transparent border-0 p-0 cursor-pointer text-center text-ec-navy truncate">
+                                {r.title}
+                              </button>
+                            )}
+                          </td>
+                          <td className="w-[30px]" />
+                        </Fragment>
+                      )
+                    })}
+                  </tr>
+                ))
+              })}
             </tbody>
           </table>
         </div>
