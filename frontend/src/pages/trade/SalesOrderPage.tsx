@@ -101,6 +101,8 @@ export default function SalesOrderPage() {
   const [fEmployee, setFEmployee] = useState('')
   const pickers = useCondPickers(['warehouses', 'projects', 'employees', 'partners', 'items'])
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
+  /** 견적서조회 [다른전표생성] › 주문서 › 1장라인별로 채운 창이면 그 견적들 — 저장하면 주문서가 그 견적들에 걸린다. */
+  const [fromQuotes, setFromQuotes] = useState<number[] | null>(null)
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
   /** 줄의 품목 코드도움 — 코드·이름·검색어로 찾고 규격을 옆에 보인다. 사용중단 품목은 뺀다. */
@@ -168,6 +170,13 @@ export default function SalesOrderPage() {
         load()
         return
       }
+      if (fromQuotes) {
+        /* 원본: 견적으로 채운 창의 [저장(F8)] — 말 없이 닫히고 견적의 [생성한전표] 에 이 주문서가 걸린다(2026-10-14 실측). */
+        await api.post<SalesOrder>('/quotations/convert', { quotationIds: fromQuotes, order: { ...body, orderDate } })
+        closeForm()
+        load()
+        return
+      }
       const res = await api.post<SalesOrder>('/sales-orders', { ...body, orderDate })
       setOk(`${res.data.orderNo} 수주 등록 완료 (합계 ${won(res.data.totalAmount)}원)`)
       setLines([emptyLine()]); setRemark(''); setDueDate('')
@@ -177,7 +186,7 @@ export default function SalesOrderPage() {
   }
 
   function closeForm() {
-    setShowForm(false); setEditId(null); setError(''); setOk(''); setWhMissing(false)
+    setShowForm(false); setEditId(null); setFromQuotes(null); setError(''); setOk(''); setWhMissing(false)
     setPartnerId(''); setOrderDate(today()); setDueDate(''); setTaxable(true); setRemark('')
     setFWarehouse(''); setFProject(''); setFEmployee(''); setLines([emptyLine()])
   }
@@ -208,6 +217,35 @@ export default function SalesOrderPage() {
       .finally(() => setParams((p) => { p.delete('edit'); return p }, { replace: true }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editParam])
+
+  /**
+   * `?fromQuotes=<id,id>` — 견적서조회 [다른전표생성] › 주문서 › 1장라인별. 원본 실측(2026-10-14): '주문서입력' 창이
+   * 일자 · 납기일자 오늘, 거래처 · 거래유형 · 줄(품목 · 수량 · 단가)은 견적 그대로, 출하창고 · 프로젝트는 견적에 있으면 그것으로 채워 뜬다.
+   * 고른 견적 여럿은 한 장에 줄을 이어 붙인다(거래처는 첫 견적).
+   */
+  const quotesParam = params.get('fromQuotes')
+  useEffect(() => {
+    if (!quotesParam) return
+    const ids = quotesParam.split(',').map(Number).filter((n) => n > 0)
+    api.get<{ id: number; partnerId: number; warehouseId: number | null; projectId: number | null; vatAmount: number
+      lines: { itemId: number; quantity: number; unitPrice: number }[] }[]>('/quotations')
+      .then((r) => {
+        const qs = ids.map((id) => r.data.find((q) => q.id === id)).filter((q) => q != null)
+        if (qs.length === 0) return
+        closeForm()
+        const first = qs[0]
+        setPartnerId(String(first.partnerId)); setOrderDate(today()); setDueDate(today())
+        setTaxable(first.vatAmount > 0)
+        setFWarehouse(first.warehouseId ? String(first.warehouseId) : '')
+        setFProject(first.projectId ? String(first.projectId) : '')
+        setLines([...qs.flatMap((q) => q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) }))), emptyLine()])
+        setFromQuotes(qs.map((q) => q.id))
+        setShowForm(true)
+      })
+      .catch((err) => setError(extractErrorMessage(err)))
+      .finally(() => setParams((p) => { p.delete('fromQuotes'); return p }, { replace: true }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotesParam])
 
   /** 수정 창의 [삭제] — 원본 확인 문구 '전표를 삭제하겠습니까? - 주문서'. */
   async function removeEditing() {

@@ -26,6 +26,9 @@ public interface QuotationRepository extends JpaRepository<Quotation, Long> {
             "order by q.quoteDate desc, q.id desc")
     List<Quotation> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
-    /** 이 수주로 전환된 견적서. 수주를 지울 때 그 견적서의 전환을 풀어 준다. */
-    Optional<Quotation> findByConvertedOrderId(Long convertedOrderId);
+    /**
+     * 이 수주로 전환된 견적서들. 수주를 지울 때 그 견적서들의 전환을 풀어 준다.
+     * 원본 [다른전표생성] › 주문서 › 1장라인별은 고른 견적 여럿을 주문서 한 장으로 모으므로 여럿일 수 있다.
+     */
+    List<Quotation> findAllByConvertedOrderId(Long convertedOrderId);
 }

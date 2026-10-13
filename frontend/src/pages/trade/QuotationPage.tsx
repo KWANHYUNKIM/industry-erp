@@ -273,22 +273,15 @@ export default function QuotationPage() {
   }
 
   /**
-   * 하단 [다른전표생성 ▴] › 주문서 — 원본은 고른 견적으로 '주문서입력' 창을 미리 채워 띄운다(거래처 · 품목 줄 · 일자 오늘, 2026-10-14 실측).
-   * 우리는 같은 내용으로 바로 주문서를 만든다(창 없이 — 남은 것). 고른 것이 여럿이면 한 장씩.
+   * 하단 [다른전표생성 ▴] › 주문서 › <b>1장라인별</b> — 원본은 고른 견적으로 채운 '주문서입력' 창을 띄우고, [저장(F8)] 을 눌러야 주문서가 생긴다
+   * (2026-10-14 원본에서 저장까지 실측: 일자 · 납기일자 오늘, 거래처 · 줄은 견적 그대로, 출하창고가 비면 그 칸만 빨갛게 · 저장 뒤 말 없이 닫힘).
+   * 고른 견적 여럿은 주문서 한 장으로 모인다. 창은 주문서조회 화면의 입력 창을 쓴다.
    */
-  async function convertChecked() {
+  function convertChecked() {
     setMenuAt(null)
-    const targets = shown.filter((q) => picked.has(q.id))
-    const fails: string[] = []
-    const made: string[] = []
-    for (const q of targets) {
-      try { made.push((await api.post<{ orderNo: string }>(`/quotations/${q.id}/convert`)).data.orderNo) }
-      catch (err) { fails.push(extractErrorMessage(err)) }
-    }
-    setPicked(new Set())
-    load()
-    if (fails.length) void ecAlert(fails.join('\n'))
-    else if (made.length && (await ecConfirm(`주문서 ${made.join(', ')} 을(를) 만들었습니다. 주문서조회로 이동할까요?`))) navigate('/sales/orders')
+    const ids = shown.filter((q) => picked.has(q.id)).map((q) => q.id)
+    if (ids.length === 0) return
+    navigate(`/sales/orders?fromQuotes=${ids.join(',')}`)
   }
 
   /** 하단 [진행상태변경] · [다른전표생성] — 버튼 위에 메뉴를 띄운다. 고른 줄이 없으면 셸이 먼저 알린다. */
@@ -366,7 +359,11 @@ export default function QuotationPage() {
             </div>
           ) : (
             <div className="ec-menu fixed" style={{ left: menuAt.left, bottom: menuAt.bottom }} role="menu" aria-label="다른전표생성">
-              <button onClick={() => void convertChecked()}>주문서</button>
+              {/* 원본 '주문서 │ 1장라인별 · 전표라인별 · 직접설정' 한 줄. 전표라인별 · 직접설정은 아직 없다(plans/재고1.md 남은 것). */}
+              <div className="flex items-center gap-[9px] px-[9px] py-[4.5px]">
+                <span>주문서</span>
+                <button className="ec-link" onClick={convertChecked}>1장라인별</button>
+              </div>
             </div>
           )}
         </>

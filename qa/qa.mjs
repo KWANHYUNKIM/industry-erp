@@ -1120,6 +1120,17 @@ async function scenarioSalesPlanScope(f) {
   for (const p of [planAll, planHere, planThere]) await must('DELETE', `/sales-plans/${p.id}`)
 }
 
+/**
+ * 견적서조회 [다른전표생성] › 주문서 › 1장라인별 을 화면처럼 부른다 — 화면이 견적으로 '주문서입력' 창을 채우는 그대로
+ * (일자 · 납기일자 오늘, 거래처 · 창고 · 프로젝트 · 줄은 견적 그대로) 몸을 만들어 [저장(F8)] 한다. extra 로 창에서 고친 값을 덮는다.
+ */
+function quoteOrderBody(q, extra = {}) {
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
+  return { quotationIds: [q.id], order: {
+    partnerId: q.partnerId, orderDate: today, dueDate: today, warehouseId: q.warehouseId ?? undefined, projectId: q.projectId ?? undefined,
+    taxable: Number(q.vatAmount) > 0, lines: q.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice })), ...extra } }
+}
+
 async function scenarioQuotationWarehouseProject(f) {
   section('■ 시나리오. 견적서가 창고·프로젝트를 기억한다')
 
@@ -1153,7 +1164,7 @@ async function scenarioQuotationWarehouseProject(f) {
    * <b>견적 → 수주로 창고·프로젝트가 넘어가는가.</b> 이 두 칸을 만든 까닭이 이것이다 —
    * 넘기지 않으면 맨 앞에서 정한 것이 <b>가운데에서 끊겨</b> 같은 것을 다시 골라야 한다.
    */
-  const conv = await must('POST', `/quotations/${q.id}/convert`)
+  const conv = await must('POST', '/quotations/convert', quoteOrderBody(q))
   const ord = (await must('GET', '/sales-orders')).find((x) => x.id === conv.id)
   eq('견적을 수주로 바꾸면 <b>창고가 따라간다</b>', ord?.warehouseName, f.warehouse.name)
   eq('견적을 수주로 바꾸면 <b>프로젝트가 따라간다</b>', ord?.projectName, proj.name)
@@ -1350,32 +1361,60 @@ async function scenarioQuotation(f) {
   eq('견적서수정: 되돌림', Number(back.totalAmount), 55000)
   eq('[생성한전표] 전환 전에는 주문서 없음', (await must('GET', `/quotations/${quote.id}/generated`))[0]?.slipType ?? null, null)
 
-  const order = await must('POST', `/quotations/${quote.id}/convert`)
-  eq('전환된 수주는 접수 상태', order.statusName, '접수')
+  const order = await must('POST', '/quotations/convert', quoteOrderBody(back, { warehouseId: f.warehouse.id, dueDate: undefined }))
+  /* 원본 2026-10-14 실측: 견적에서 만든 주문서는 진행중(미확인이 아니다). */
+  eq('전환된 수주는 진행중', order.statusName, '진행중')
   eq('수주에 견적 거래처가 승계됨', order.partnerId, f.customer.id)
   eq('수주 합계가 견적 합계와 일치', Number(order.totalAmount), 55000)
   /* 수주일은 전환한 날, 납기는 비운다 — 견적일·유효기한을 옮기면 지난 날짜에 주문이 생겼다(30회차). */
   eq('전환한 수주의 일자는 오늘(견적일이 아니다)', order.orderDate, new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10))
-  isNull('견적 유효기한을 납기로 옮기지 않는다', order.dueDate)
+  isNull('견적 유효기한을 납기로 옮기지 않는다(창에서 비우면 비어 있다)', order.dueDate)
 
   const converted = (await must('GET', '/quotations')).find((q) => q.id === quote.id)
   eq('전환해도 견적 진행상태는 그대로(원본 실측)', converted.statusName, '미확인')
   eq('[생성한전표] 전환 뒤 주문서 번호', (await must('GET', `/quotations/${quote.id}/generated`))[0]?.slipNo, order.orderNo)
   eq('견적에 생성된 수주가 FK로 연결됨', converted.convertedOrderId, order.id)
 
-  await rejects('전환된 견적 재전환은 거부', 'POST', `/quotations/${quote.id}/convert`, undefined, '이미')
+  await rejects('전환된 견적 재전환은 거부', 'POST', '/quotations/convert', quoteOrderBody(back, { warehouseId: f.warehouse.id }), '이미')
 
   const dead = await must('POST', '/quotations', {
     partnerId: f.customer.id, quoteDate: '2026-07-14', taxable: true,
     lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
   })
   await must('POST', `/quotations/${dead.id}/cancel`)
-  await rejects('취소된 견적은 수주전환 불가', 'POST', `/quotations/${dead.id}/convert`, undefined, '취소')
+  await rejects('취소된 견적은 수주전환 불가', 'POST', '/quotations/convert', quoteOrderBody(dead, { warehouseId: f.warehouse.id }), '취소')
 
   // 만든 문서는 치운다. 순서가 있다 — 수주를 먼저 지워야 견적의 전환이 풀린다.
   await must('DELETE', `/sales-orders/${order.id}`)
   await must('DELETE', `/quotations/${quote.id}`)
   await must('DELETE', `/quotations/${dead.id}`)
+
+  /*
+   * 원본 [다른전표생성] › 주문서 › 1장라인별(2026-10-14 원본에서 저장까지 실측): 견적으로 채운 '주문서입력' 창에서 사람이 출하창고를 고르고
+   * [저장(F8)] 해야 주문서가 생긴다. 고른 견적 여럿이 한 장이 되고, 주문서를 지우면 견적들의 [생성한전표] 가 풀린다.
+   */
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
+  const qa1 = await must('POST', '/quotations', { partnerId: f.customer.id, quoteDate: '2026-07-14', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 1001 }] })
+  const qa2 = await must('POST', '/quotations', { partnerId: f.customer.id, quoteDate: '2026-07-14', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }] })
+  const one = await must('POST', '/quotations/convert', { quotationIds: [qa1.id, qa2.id], order: {
+    partnerId: f.customer.id, orderDate: today, dueDate: today, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 1001 }, { itemId: f.product.id, quantity: 1, unitPrice: 1000 }] } })
+  eq('1장라인별: 견적 둘이 주문서 한 장(줄 둘)', one.lines.length, 2)
+  eq('1장라인별: 주문서 합계 3,003+1,000 + 부가세 300+100', Number(one.totalAmount), 4403)
+  eq('1장라인별: 납기일자는 창에서 정한 오늘', one.dueDate, today)
+  eq('1장라인별: 주문서는 진행중', one.statusName, '진행중')
+  const linked = (await must('GET', '/quotations')).filter((q) => q.id === qa1.id || q.id === qa2.id)
+  eq('1장라인별: 두 견적 모두 그 주문서에 걸린다', linked.map((q) => q.convertedOrderId).join(','), `${one.id},${one.id}`)
+  eq('1장라인별: 견적 진행상태는 그대로', linked.map((q) => q.statusName).join(','), '진행중,진행중')
+  await rejects('1장라인별: 이미 만든 견적은 다시 못 만든다', 'POST', '/quotations/convert', { quotationIds: [qa1.id], order: {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1 }] } }, '이미')
+  await must('DELETE', `/sales-orders/${one.id}`)
+  const freed = (await must('GET', '/quotations')).filter((q) => q.id === qa1.id || q.id === qa2.id)
+  eq('주문서를 지우면 두 견적의 생성한전표가 풀린다', freed.map((q) => q.convertedOrderId ?? '없음').join(','), '없음,없음')
+  await must('DELETE', `/quotations/${qa1.id}`)
+  await must('DELETE', `/quotations/${qa2.id}`)
 }
 
 async function scenarioPurchaseOrder(f) {
@@ -10589,6 +10628,14 @@ async function main() {
     await scenarioIssueEmployee(fixtures)
     await scenarioMrpRuns(fixtures)
     await scenarioLotRequiredProduction(fixtures)
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    process.exit(fail > 0 ? 1 : 0)
+  }
+
+  // 견적서만(node qa/qa.mjs quotation) — 시나리오 6(진행상태변경 · 수정 · 생성한전표 · 주문서 만들기)과 창고 · 프로젝트 승계.
+  if (cmd === 'quotation') {
+    await scenarioQuotation(fixtures)
+    await scenarioQuotationWarehouseProject(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }

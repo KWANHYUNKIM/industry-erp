@@ -62,12 +62,12 @@ public class QuotationController {
         return service.cancel(id);
     }
 
-    /** 수주 전환 → 생성된 수주(SalesOrder)를 반환 */
-    @PostMapping("/{id}/convert")
-    public ResponseEntity<SalesOrderResponse> convert(
-            @PathVariable Long id,
+    /** 원본 [다른전표생성] › 주문서 › 1장라인별 — 채운 주문서입력 창의 [저장(F8)]. 만든 주문서를 고른 견적들에 잇는다. */
+    @PostMapping("/convert")
+    public ResponseEntity<SalesOrderResponse> convertMany(
+            @Valid @RequestBody QuotationDtos.ConvertToOrderRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(service.convertToOrder(id, principal.getUsername()));
+        return ResponseEntity.ok(service.convertToOrder(req.quotationIds(), req.order(), principal.getUsername()));
     }
 
     @DeleteMapping("/{id}")

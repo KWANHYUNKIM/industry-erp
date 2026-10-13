@@ -11,7 +11,6 @@ import com.erp.trade.quotation.dto.QuotationDtos.CreateQuotationRequest;
 import com.erp.trade.quotation.dto.QuotationDtos.QuotationResponse;
 import com.erp.trade.quotation.dto.QuotationDtos.QuoteLineRequest;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.CreateSalesOrderRequest;
-import com.erp.trade.salesorder.dto.SalesOrderDtos.OrderLineRequest;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.SalesOrderResponse;
 import com.erp.trade.partner.BusinessPartnerRepository;
 import com.erp.inventory.item.ItemService;
@@ -177,41 +176,24 @@ public class QuotationService {
         return QuotationResponse.from(q);
     }
 
-    /** 수주 전환(원본 [다른전표생성] › 주문서): 견적 라인으로 SalesOrder 를 생성하고 견적에 그 주문을 잇는다. */
+    /**
+     * 원본 [다른전표생성] › 주문서 › 1장라인별(2026-10-14 원본에서 저장까지 실측): 고른 견적으로 '주문서입력' 창을 채워 띄우고,
+     * 사람이 [저장(F8)] 을 눌러야 주문서가 생긴다. 창에서 고친 값이 {@code req} 다. 만든 주문서는 진행중,
+     * 견적은 진행상태 그대로(진행중)이고 [생성한전표] 에 그 주문서가 걸린다 — 주문서를 지우면 풀린다.
+     */
     @Transactional
-    public SalesOrderResponse convertToOrder(Long id, String username) {
-        Quotation q = get(id);
-        if (q.getConvertedOrderId() != null) {
-            throw ApiException.conflict("이미 수주 전환된 견적서입니다: " + q.getQuoteNo());
+    public SalesOrderResponse convertToOrder(List<Long> ids, CreateSalesOrderRequest req, String username) {
+        List<Quotation> quotes = ids.stream().distinct().map(this::get).toList();
+        for (Quotation q : quotes) {
+            if (q.getConvertedOrderId() != null) {
+                throw ApiException.conflict("이미 수주 전환된 견적서입니다: " + q.getQuoteNo());
+            }
+            if (q.getStatus() == QuotationStatus.CANCELLED) {
+                throw ApiException.badRequest("취소된 견적서는 전환할 수 없습니다.");
+            }
         }
-        if (q.getStatus() == QuotationStatus.CANCELLED) {
-            throw ApiException.badRequest("취소된 견적서는 전환할 수 없습니다.");
-        }
-        boolean taxable = q.getVatAmount().signum() > 0;
-        List<OrderLineRequest> orderLines = q.getLines().stream()
-                .map(l -> new OrderLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice()))
-                .toList();
-        /*
-         * <b>견적에서 정한 창고·프로젝트를 수주로 넘긴다.</b> 이것이 이 두 칸을 만든 까닭이다 —
-         * 견적 → 수주 → 판매로 이어질 때 맨 앞에서 정한 것이 <b>중간에 끊기면</b>
-         * 같은 것을 다시 골라야 하고, 프로젝트별 손익에서도 수주 단계가 빠진다.
-         */
-        /*
-         * 수주일은 <b>전환한 날</b>이다 — 주문은 견적을 받아들인 날 생긴다. 예전엔 견적일을 그대로 써서
-         * 9/25 견적을 10/2 에 전환하면 수주가 9/25 로, 번호도 SN-20260925-… 로 앞 날짜에 끼어들었다
-         * (30회차 — 이미 닫은 달 장부에 주문이 새로 생긴다). 견적의 [유효기한] 은 "이 값에 언제까지 팔겠다" 이지
-         * 납기가 아니어서 수주 납기로 옮기지 않는다 — 납기는 수주에서 정한다.
-         */
-        CreateSalesOrderRequest orderReq = new CreateSalesOrderRequest(
-                q.getPartner().getId(), LocalDate.now(), null,
-                q.getWarehouse() != null ? q.getWarehouse().getId() : null,
-                q.getProject() != null ? q.getProject().getId() : null,
-                null,
-                taxable, "견적 " + q.getQuoteNo() + " 전환", orderLines);
-
-        SalesOrderResponse order = salesOrderService.create(orderReq, username);
-        /* 진행상태는 그대로 둔다 — 원본은 주문서를 만들어도 견적이 '진행중' 이다(2026-10-14 실측). */
-        q.setConvertedOrderId(order.id());
+        SalesOrderResponse order = salesOrderService.create(req, username);
+        quotes.forEach(q -> q.setConvertedOrderId(order.id()));
         return order;
     }
 

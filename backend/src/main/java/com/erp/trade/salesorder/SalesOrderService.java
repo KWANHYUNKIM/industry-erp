@@ -450,7 +450,7 @@ public class SalesOrderService {
         // 수주가 사라지면 그 견적서는 전환된 적 없는 상태로 돌아가는 것이 맞다.
         //
         // 진행상태는 건드리지 않는다 — 원본은 주문서를 만들어도 견적의 진행상태가 그대로다(사람이 [진행상태변경] 으로 옮긴다).
-        quotationRepository.findByConvertedOrderId(id).ifPresent(q -> q.setConvertedOrderId(null));
+        quotationRepository.findAllByConvertedOrderId(id).forEach(q -> q.setConvertedOrderId(null));
         salesOrderRepository.delete(order);
     }
 

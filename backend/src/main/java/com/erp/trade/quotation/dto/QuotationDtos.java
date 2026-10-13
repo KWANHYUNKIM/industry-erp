@@ -36,6 +36,15 @@ public final class QuotationDtos {
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<QuoteLineRequest> lines
     ) {}
 
+    /**
+     * 원본 [다른전표생성] › 주문서 › 1장라인별 — 고른 견적으로 채운 '주문서입력' 창에서 [저장(F8)] 을 누를 때 보낸다.
+     * 창에서 고친 값(출하창고 · 납기일자 · 줄)이 {@code order} 에 그대로 담긴다. 고른 견적 여럿이 주문서 한 장이 된다.
+     */
+    public record ConvertToOrderRequest(
+            @NotEmpty(message = "견적서를 선택하세요.") List<Long> quotationIds,
+            @NotNull @Valid com.erp.trade.salesorder.dto.SalesOrderDtos.CreateSalesOrderRequest order
+    ) {}
+
     public record QuoteLineResponse(
             Long id, int lineNo,
             Long itemId, String itemCode, String itemName, String unit,
