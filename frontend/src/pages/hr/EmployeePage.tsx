@@ -12,7 +12,7 @@ import { dateText } from '../../utils/dateText'
 import EmployeeBulkChange from '../../features/employee/components/EmployeeBulkChange'
 import EmployeePayItemTables from '../../features/employee/components/EmployeePayItemTables'
 import EmployeePayrollSettingPanel, {
-  emptyPayrollSetting, payrollSettingBody, payrollSettingForm,
+  emptyPayrollSetting, newPayrollSetting, payrollSettingBody, payrollSettingForm,
   type PayrollSettingForm, type PayrollSettingResponse,
 } from '../../features/employee/components/EmployeePayrollSettingPanel'
 import { ecConfirm } from '../../components/EcDialog'
@@ -100,7 +100,7 @@ export default function EmployeePage() {
     setTab('기본')
     setFormError('')
     setForm(base)
-    if (base === empty) { setPayVals(new Map()); setPaySetting(emptyPayrollSetting) }
+    if (base === empty) { setPayVals(new Map()); setPaySetting(newPayrollSetting) }
     setShowForm(true)
     try {
       const r = await api.get<{ code: string }>('/employees/next-code')

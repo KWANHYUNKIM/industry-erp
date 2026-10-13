@@ -65,6 +65,15 @@ export const emptyPayrollSetting: PayrollSettingForm = {
   nonResident: false, residenceCountry: '', singleTaxRate: false, domesticDispatched: false,
 }
 
+/**
+ * 원본 <b>신규</b> 사원 창의 처음 값 — 건강보험 · 국민연금 · 고용보험이 모두 '안함'(2026-10-14 loginaa 신규 창 실측,
+ * 보험료경감 대상아님 · 장기요양 가입은 숨은 채 그대로). 새로 저장하는 사원에게만 쓴다 — 기타설정 줄이 없는
+ * 기존 사원은 서버가 자동계산(EmployeePayrollSetting.defaults)으로 본다.
+ */
+export const newPayrollSetting: PayrollSettingForm = {
+  ...emptyPayrollSetting, healthMode: 'NONE', pensionMode: 'NONE', employmentMode: 'NONE',
+}
+
 const amountText = (v: number | null) => (v == null ? '' : String(Number(v)))
 
 export function payrollSettingForm(r: PayrollSettingResponse): PayrollSettingForm {
@@ -150,21 +159,26 @@ export default function EmployeePayrollSettingPanel({ value, onChange, onNotice 
                           value={value.healthBaseAmount} onValue={(v) => set('healthBaseAmount', v)} />
             </div>
           )}
-          <div className="mt-[4px] flex items-center gap-[6px]">
-            <span className="shrink-0">증번호</span>
-            <input className="ec-input w-full" placeholder="증번호" maxLength={30}
-                   value={value.healthCardNo} onChange={(e) => set('healthCardNo', e.target.value)} />
-          </div>
-          <div className="mt-[4px]">
-            <span className="mr-[8px]">보험료경감</span>
-            {radio('eps-reduce', value.insuranceReduction, '대상', () => set('insuranceReduction', true))}
-            {radio('eps-reduce', !value.insuranceReduction, '대상아님', () => set('insuranceReduction', false))}
-          </div>
-          <div className="mt-[4px]">
-            <span className="mr-[8px]">장기요양보험가입여부</span>
-            {radio('eps-care', value.longTermCare, '가입', () => set('longTermCare', true))}
-            {radio('eps-care', !value.longTermCare, '미가입', () => set('longTermCare', false))}
-          </div>
+          {/* 원본은 '안함' 이면 증번호 · 보험료경감 · 장기요양 칸을 감춘다(2026-10-14 실측) */}
+          {value.healthMode !== 'NONE' && (
+            <>
+              <div className="mt-[4px] flex items-center gap-[6px]">
+                <span className="shrink-0">증번호</span>
+                <input className="ec-input w-full" placeholder="증번호" maxLength={30}
+                       value={value.healthCardNo} onChange={(e) => set('healthCardNo', e.target.value)} />
+              </div>
+              <div className="mt-[4px]">
+                <span className="mr-[8px]">보험료경감</span>
+                {radio('eps-reduce', value.insuranceReduction, '대상', () => set('insuranceReduction', true))}
+                {radio('eps-reduce', !value.insuranceReduction, '대상아님', () => set('insuranceReduction', false))}
+              </div>
+              <div className="mt-[4px]">
+                <span className="mr-[8px]">장기요양보험가입여부</span>
+                {radio('eps-care', value.longTermCare, '가입', () => set('longTermCare', true))}
+                {radio('eps-care', !value.longTermCare, '미가입', () => set('longTermCare', false))}
+              </div>
+            </>
+          )}
         </div>
       </li>
       <li className="wide">

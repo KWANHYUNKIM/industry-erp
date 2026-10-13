@@ -222,6 +222,16 @@ public class PayrollService {
         BigDecimal employment = setting.getEmploymentMode() != InsuranceBasis.AUTO ? BigDecimal.ZERO
                 : round(insuredIncome.multiply(rates.employment()));
 
+        // 원본 '당월 1일 이후 입사자는 해당월 국민연금, 건강보험, 장기요양보험은 자동계산되지 않습니다.' —
+        // 2026-10-14 loginaa 실측(기본급 1,000,000 · 넷 다 자동계산): 입사 2026/10/14 → 2026/10 대장 네 칸 모두 빈칸(<b>고용보험도</b>),
+        // 입사 2026/10/01 → 연금 47,500 · 건강 36,300 · 장기 4,760 · 고용 9,090. 귀속월 안 2일 이후 입사면 네 보험을 셈하지 않는다.
+        if (joinedAfterFirst(emp.getHireDate(), ym)) {
+            pension = BigDecimal.ZERO;
+            health = BigDecimal.ZERO;
+            care = BigDecimal.ZERO;
+            employment = BigDecimal.ZERO;
+        }
+
         addAutoDeduction(p, "국민연금", pension);
         addAutoDeduction(p, "건강보험", health);
         addAutoDeduction(p, "장기요양보험", care);
@@ -253,6 +263,11 @@ public class PayrollService {
 
         p.recalculate();
         return PayslipResponse.from(payslipRepository.save(p));
+    }
+
+    /** 귀속월 안에서 2일 이후 입사 — 그 달 4대보험을 자동계산하지 않는다(원본 [급여계산이 안되는 경우] 2번). */
+    static boolean joinedAfterFirst(java.time.LocalDate hireDate, java.time.YearMonth month) {
+        return hireDate != null && java.time.YearMonth.from(hireDate).equals(month) && hireDate.getDayOfMonth() > 1;
     }
 
     /** 금액직접입력 한 칸 — 같은 이름 줄이 있으면 금액만 바꾸고(여럿이면 하나로), 없으면 줄을 더한다. 0 이면 그 줄을 뺀다. */
