@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcReportHead, EcReportFoot, reportDate } from '../../components/EcReportFrame'
 import { weekOfYear } from '../../utils/statusAggregate'
+import { ecAlert } from '../../components/EcDialog'
 
 /**
  * A/S접수현황(E040610) · A/S수리현황(E040611)의 <b>○집계</b> — 두 화면이 같은 판이다(2026-10-04 loginaa 실측).
@@ -156,7 +157,7 @@ export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS, sortSum = f
     while (next.length < MAX_AGG) next.push('')
     const prevDates = next.slice(0, i).filter((x): x is AsAggKey => !!x && DATE_RANK[x] != null)
     if (k && DATE_RANK[k] != null && prevDates.some((d) => (DATE_RANK[d] ?? 0) > (DATE_RANK[k] ?? 0))) {
-      window.alert(DATE_ORDER_MSG)
+      void ecAlert(DATE_ORDER_MSG)
       return
     }
     next[i] = k

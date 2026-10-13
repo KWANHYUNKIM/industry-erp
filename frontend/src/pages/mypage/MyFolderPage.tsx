@@ -4,6 +4,7 @@ import { extractErrorMessage } from '../../api/client'
 import { FLAT_MENU } from '../../app/layout/EcountLayout'
 import Modal from '../../components/Modal'
 import { myFolders, type MyFolder } from '../../features/mypage/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * MyPage › MyPage설정 (원본: 사용자 사진 → 개인기능설정 → 기능설정 › My Page설정, 2026-10-13 loginaa 실측).
@@ -132,9 +133,9 @@ export default function MyFolderPage() {
     setLeftChecked(new Set())
   }
 
-  function askDelete(keys: Set<string>) {
+  async function askDelete(keys: Set<string>) {
     setFnFor(null)
-    if (!window.confirm(DELETE_ASK)) return
+    if (!(await ecConfirm(DELETE_ASK))) return
     removeKeys(keys)
   }
 
@@ -178,7 +179,7 @@ export default function MyFolderPage() {
   function bring() {
     setError('')
     const target = draft.find((f) => leftChecked.has(f.key))
-    if (!target) { window.alert('메뉴를 추가할 그룹을 선택하기 바랍니다.'); return }
+    if (!target) { void ecAlert('메뉴를 추가할 그룹을 선택하기 바랍니다.'); return }
     const picked = rightTree.flatMap(leavesOf).filter((n) => rightChecked.has(n.key))
     if (picked.length === 0) return
     setDraft((d) => d.map((f) => {
@@ -240,8 +241,8 @@ export default function MyFolderPage() {
     }
   }
 
-  function close() {
-    if (dirty && !window.confirm(UNSAVED)) return
+  async function close() {
+    if (dirty && !(await ecConfirm(UNSAVED))) return
     navigate('/')
   }
 

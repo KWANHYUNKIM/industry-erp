@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
 import { useShortcut } from '../../../utils/useShortcut'
+import { ecConfirm } from '../../../components/EcDialog'
 
 export interface ScheduleCategory { id: number; code: string; name: string; active: boolean }
 
@@ -79,7 +80,7 @@ export default function ScheduleCategoryModal({ onPick, onClose }: { onPick: (c:
 
   async function act(id: number, a: 'stop' | 'delete' | 'reuse') {
     setError('')
-    if (a === 'delete' && !window.confirm('삭제하겠습니까?')) return
+    if (a === 'delete' && !(await ecConfirm('삭제하겠습니까?'))) return
     try {
       if (a === 'delete') await api.delete(`/schedule-categories/${id}`)
       else await api.patch(`/schedule-categories/${id}/active`, null, { params: { active: a === 'reuse' } })

@@ -4,6 +4,7 @@ import Modal from '../../../components/Modal'
 import EcNumInput from '../../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../../types/api'
+import { ecAlert } from '../../../components/EcDialog'
 
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const slash = (s: string) => s.replace(/-/g, '/')
@@ -84,7 +85,7 @@ export default function PayslipBulkEdit({ ledger, onClose, onSaved }: { ledger: 
 
   function apply() {
     const picked = slips.filter((p) => checked.has(p.id))
-    if (picked.length === 0) { window.alert('선택된 사원이 없습니다.'); return }
+    if (picked.length === 0) { void ecAlert('선택된 사원이 없습니다.'); return }
     setVals(new Map())
     setEditing(picked)
   }

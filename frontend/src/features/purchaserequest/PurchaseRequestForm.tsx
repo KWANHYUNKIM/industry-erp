@@ -12,6 +12,7 @@ import { printDocuments } from '../../utils/printDocument'
 import { openPrintWindow } from '../../utils/print'
 import type { Currency, Item, MyItem, Partner, PurchaseOrder, PurchaseOrderLine, StockRow } from '../../types/api'
 import { purchaseRequestDocument } from './purchaseRequestDocument'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 서버 줄 응답은 줄 거래처도 싣는다(OrderLineResponse.partnerId · partnerName) — 공용 타입에 없어 여기서만 넓힌다. */
 type RequestLine = PurchaseOrderLine & { partnerId?: number | null; partnerName?: string | null }
@@ -160,7 +161,7 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
   }
   async function applyMyItems() {
     const mine = (await api.get<MyItem[]>('/my-items').catch(() => ({ data: [] as MyItem[] }))).data
-    if (mine.length === 0) return alert('등록된 MY품목이 없습니다.\nMY품목 설정에서 기본그룹을 설정하기 바랍니다.')
+    if (mine.length === 0) return ecAlert('등록된 MY품목이 없습니다.\nMY품목 설정에서 기본그룹을 설정하기 바랍니다.')
     addLines(mine.map((m) => {
       const it = itemOf(String(m.itemId))
       return { itemId: String(m.itemId), partnerId: it?.supplierId ? String(it.supplierId) : '', quantity: String(m.defaultQty), unitPrice: String(m.unitPrice || it?.purchasePrice || '') }
@@ -175,7 +176,7 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
     const q = barcode.trim()
     if (!q) return
     const it = items.find((x) => x.barcode === q) ?? items.find((x) => x.code.toLowerCase() === q.toLowerCase())
-    if (!it) return alert(`'${q}' 에 해당하는 품목이 없습니다.`)
+    if (!it) return ecAlert(`'${q}' 에 해당하는 품목이 없습니다.`)
     const at = lines.findIndex((l) => l.itemId === String(it.id))
     if (at >= 0) setLine(at, { quantity: String((Number(lines[at].quantity) || 0) + 1) })
     else addLines([{ itemId: String(it.id), partnerId: it.supplierId ? String(it.supplierId) : '', quantity: '1', unitPrice: it.purchasePrice ? String(it.purchasePrice) : '' }])
@@ -193,7 +194,7 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
     const win = after === 'print' ? openPrintWindow() : null
     if (filled.length === 0) {
       win?.close()
-      alert(`아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n${docName}입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
+      void ecAlert(`아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n${docName}입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       return
     }
     /* 원본: 창고가 비면 문구 없이 그 칸만 빨갛게 두르고 저장하지 않는다. */
@@ -234,7 +235,7 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
 
   async function remove() {
     if (!isEdit) return
-    if (!confirm(`전표를 삭제하겠습니까?\n- ${docName}`)) return
+    if (!(await ecConfirm(`전표를 삭제하겠습니까?\n- ${docName}`))) return
     try {
       await api.delete(`/purchase-orders/${editing!.id}`)
       onDeleted?.()

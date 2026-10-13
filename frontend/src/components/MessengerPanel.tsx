@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../api/client'
 import type { ChatMessage, ChatRoom, User } from '../types/api'
 import { useAuth } from '../features/auth/AuthContext'
 import { ymd } from './EcPeriodPicks'
+import { ecConfirm } from './EcDialog'
 
 /** 폴링 주기(ms). 소켓 대신 증분 폴링(afterId)이라 새 메시지만 내려온다. */
 const POLL_MS = 4000
@@ -306,7 +307,7 @@ function RoomView({ room, meId, messages, setMessages, setRoom, onBack, onError,
   }
 
   async function leave() {
-    if (!window.confirm(`[${room.title}] 대화방에서 나갈까요?`)) return
+    if (!(await ecConfirm(`[${room.title}] 대화방에서 나갈까요?`))) return
     try {
       await api.delete(`/chat/rooms/${room.id}/me`)
       onBack()

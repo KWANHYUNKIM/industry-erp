@@ -4,6 +4,7 @@ import type { EvidenceAttachment, EvidenceMethod } from '../types/api'
 import { downloadStoredFile, formatBytes } from '../utils/fileDownload'
 import EcFileDrop from './EcFileDrop'
 import { ymd } from './EcPeriodPicks'
+import { ecConfirm } from './EcDialog'
 
 /**
  * 전표 하나에 붙은 증빙(첨부파일)을 보고 등록·삭제하는 재사용 패널.
@@ -68,7 +69,7 @@ export default function EvidencePanel({
   }
 
   async function remove(e: EvidenceAttachment) {
-    if (!window.confirm('이 증빙을 삭제할까요? 첨부파일도 함께 지워집니다.')) return
+    if (!(await ecConfirm('이 증빙을 삭제할까요? 첨부파일도 함께 지워집니다.'))) return
     try { await api.delete(`/evidence-attachments/${e.id}`); load() }
     catch (err) { setError(extractErrorMessage(err)) }
   }

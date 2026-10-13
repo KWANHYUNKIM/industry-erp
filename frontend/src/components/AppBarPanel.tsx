@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../api/client'
 import type { NotificationResponse, UserNote, WorkspaceSearch } from '../types/api'
 import MessengerPanel from './MessengerPanel'
+import { ecConfirm } from './EcDialog'
 
 export type PanelKind = 'search' | 'notifications' | 'notes' | 'messenger'
 
@@ -207,7 +208,7 @@ function NotePanel() {
   }
 
   async function remove(n: UserNote) {
-    if (!window.confirm('이 메모를 삭제할까요?')) return
+    if (!(await ecConfirm('이 메모를 삭제할까요?'))) return
     try {
       await api.delete(`/workspace/notes/${n.id}`)
       await load()

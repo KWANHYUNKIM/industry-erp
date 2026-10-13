@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecAlert } from '../../components/EcDialog'
 
 /** 데이터센터 > 데이터내보내기 — 실제 API 데이터를 CSV/Excel/JSON 으로 추출 */
 interface ItemRes { code: string; name: string; spec: string | null; unit: string; categoryName: string; unitPrice: number; safetyStock: number; active: boolean }
@@ -177,7 +178,7 @@ export default function DataExportPage() {
   }
 
   async function exportNow() {
-    if (checked.size === 0) { alert('내보낼 데이터셋을 선택하세요.'); return }
+    if (checked.size === 0) { void ecAlert('내보낼 데이터셋을 선택하세요.'); return }
     setExporting(true)
     setError('')
     try {

@@ -7,6 +7,7 @@ import type { Department, EmployeeMaster } from '../../../types/api'
 import { ymd } from '../../../utils/periods'
 import { ASSIGNMENT_KINDS, type AssignmentKind, type AssignmentLine } from '../types'
 import GridFindButton from '../../../components/GridFindButton'
+import { ecConfirm } from '../../../components/EcDialog'
 
 interface Row {
   assignDate: string
@@ -139,7 +140,7 @@ export default function AssignmentSlipForm({
   }
 
   async function remove() {
-    if (!window.confirm('전표를 삭제하겠습니까?')) return
+    if (!(await ecConfirm('전표를 삭제하겠습니까?'))) return
     try {
       await api.delete(`/employees/assignment-slips/${editDate}/${editNo}`)
       onSaved?.()

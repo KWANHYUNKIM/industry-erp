@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CodeGroup, CommonCode } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * Self-Customizing > 기타관리 > 공통코드 — 카드사·결제대행사·추가항목유형·결제수단처럼
@@ -36,21 +37,21 @@ export default function CommonCodePage() {
   useEffect(() => { load(false) }, [])
 
   async function removeGroup(g: CodeGroup) {
-    if (!window.confirm(`코드 그룹 「${g.name}」을(를) 삭제할까요? 하위 코드도 함께 지워집니다.`)) return
+    if (!(await ecConfirm(`코드 그룹 「${g.name}」을(를) 삭제할까요? 하위 코드도 함께 지워집니다.`))) return
     try {
       await api.delete(`/codes/groups/${g.id}`)
       flash('코드 그룹을 삭제했습니다.')
       load(false)
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function removeCode(c: CommonCode) {
-    if (!window.confirm(`코드 「${c.name}」을(를) 삭제할까요?`)) return
+    if (!(await ecConfirm(`코드 「${c.name}」을(를) 삭제할까요?`))) return
     try {
       await api.delete(`/codes/codes/${c.id}`)
       flash('코드를 삭제했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function toggleActive(c: CommonCode) {
@@ -60,7 +61,7 @@ export default function CommonCodePage() {
         sortOrder: c.sortOrder, active: !c.active, remark: c.remark,
       })
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   return (
@@ -182,7 +183,7 @@ function CodeForm({ groupId, onSaved }: { groupId: number; onSaved: () => void }
 
   async function add() {
     if (!code.trim() || !name.trim()) {
-      alert('코드와 코드명을 입력하세요.')
+      void ecAlert('코드와 코드명을 입력하세요.')
       return
     }
     setSaving(true)
@@ -197,7 +198,7 @@ function CodeForm({ groupId, onSaved }: { groupId: number; onSaved: () => void }
       setValue1('')
       onSaved()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     } finally {
       setSaving(false)
     }

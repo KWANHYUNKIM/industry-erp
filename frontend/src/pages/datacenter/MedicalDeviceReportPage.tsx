@@ -12,6 +12,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import GridFindButton from '../../components/GridFindButton'
 import GridSortModal from '../../components/GridSortModal'
 import { MenuButton } from '../../components/EcSlipShell'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 데이터센터 › 의료기기공급내역보고 (이카운트 C001403)
@@ -193,14 +194,14 @@ export default function MedicalDeviceReportPage() {
   }
 
   async function removeOne() {
-    if (!editId || !window.confirm('삭제하겠습니까?')) return
+    if (!editId || !(await ecConfirm('삭제하겠습니까?'))) return
     try { await api.delete(`/medical-device-reports/entries/${editId}`); setOpen(false); load() }
     catch (err) { setFormError(extractErrorMessage(err)) }
   }
 
   async function removeChecked() {
     const ids = [...picked]
-    if (ids.length === 0 || !window.confirm('삭제하겠습니까?')) return
+    if (ids.length === 0 || !(await ecConfirm('삭제하겠습니까?'))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/medical-device-reports/entries/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())

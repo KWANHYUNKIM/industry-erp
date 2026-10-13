@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Modal from '../../../components/Modal'
 import EcNumInput from '../../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../../api/client'
+import { ecAlert, ecConfirm } from '../../../components/EcDialog'
 
 export interface DailyWorkerRow { id: number; code: string; name: string; department: string | null; hireDate: string | null; resignDate: string | null }
 interface Summary { workerId: number; allowanceTotal: number; deductionTotal: number }
@@ -76,8 +77,8 @@ export default function DailyDirectAmount({ ledger, onClose, onChanged }: { ledg
 
   async function remove(ids: number[]) {
     if (!ledger) return
-    if (ids.length === 0) { window.alert('선택된 자료가 없습니다.'); return }
-    if (!window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
+    if (ids.length === 0) { void ecAlert('선택된 자료가 없습니다.'); return }
+    if (!(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?'))) return
     try {
       await api.delete(`/hr/daily-pay-ledgers/${ledger.id}/direct-amounts`, { params: { workerIds: ids.join(',') } })
       setEditing(null); setChecked(new Set()); loadSummary(); onChanged()

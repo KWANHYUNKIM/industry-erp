@@ -4,6 +4,7 @@ import type { Permission, Role } from '../types/api'
 import EcListShell from '../components/EcListShell'
 import { useTableSort } from '../utils/useTableSort'
 import Modal from '../components/Modal'
+import { ecAlert, ecConfirm } from '../components/EcDialog'
 
 /** 역할·권한 관리: 역할을 만들고, 역할이 접근할 메뉴(권한)를 체크박스로 부여한다.
  *  ADMIN 은 전권(바이패스)이라 권한 목록과 무관하게 모든 메뉴를 쓴다. */
@@ -35,12 +36,12 @@ export default function RolesPage() {
   }, [])
 
   async function remove(role: Role) {
-    if (!confirm(`역할 '${role.displayName}(${role.name})' 을 삭제할까요?`)) return
+    if (!(await ecConfirm(`역할 '${role.displayName}(${role.name})' 을 삭제할까요?`))) return
     try {
       await api.delete(`/roles/${role.id}`)
       loadAll()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

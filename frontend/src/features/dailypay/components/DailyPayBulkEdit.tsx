@@ -3,6 +3,7 @@ import Modal from '../../../components/Modal'
 import EcNumInput from '../../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { DailyWorkerRow } from './DailyDirectAmount'
+import { ecAlert } from '../../../components/EcDialog'
 
 export interface DailyPayLineRow {
   id: number; workerId: number; workerCode: string; workerName: string; days: number; dailyWage: number | null
@@ -51,7 +52,7 @@ export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved }:
 
   function apply() {
     const picked = lines.filter((l) => checked.has(l.id))
-    if (picked.length === 0) { window.alert('선택된 사원이 없습니다.'); return }
+    if (picked.length === 0) { void ecAlert('선택된 사원이 없습니다.'); return }
     setVals(new Map()); setEditing(picked)
   }
 

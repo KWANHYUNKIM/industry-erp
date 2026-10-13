@@ -8,6 +8,7 @@ import {
   createApprovalGroup, deleteApprovalGroup, fetchApprovalGroups, nextGroupCode, setApprovalGroupActive, updateApprovalGroup,
   type ApprovalGroup,
 } from '../groups'
+import { ecConfirm } from '../../../components/EcDialog'
 
 /** 원본 [사용중단/재사용 ▲] — 펴는 항목을 넘겨받는다(목록: 사용중단 · 재사용, 수정 창: 사용중단 · 삭제). */
 function DropUp({ label, items, disabled, onPick }: {
@@ -101,7 +102,7 @@ export default function ApprovalGroupSearchModal({ onPick, onClose }: {
     setError('')
     try {
       if (a === 'delete') {
-        if (!window.confirm('삭제하겠습니까?')) return
+        if (!(await ecConfirm('삭제하겠습니까?'))) return
         for (const id of ids) await deleteApprovalGroup(id)
       } else {
         for (const id of ids) await setApprovalGroupActive(id, a === 'reuse')

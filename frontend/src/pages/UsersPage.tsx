@@ -5,6 +5,7 @@ import CodePickerField from '../components/CodePickerField'
 import type { Role, User } from '../types/api'
 import EcListShell from '../components/EcListShell'
 import { useTableSort } from '../utils/useTableSort'
+import { ecAlert, ecConfirm } from '../components/EcDialog'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -36,17 +37,17 @@ export default function UsersPage() {
       await api.patch(`/users/${user.id}`, { enabled: !user.enabled })
       loadAll()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
   async function remove(user: User) {
-    if (!confirm(`'${user.name}(${user.username})' 계정을 삭제할까요?`)) return
+    if (!(await ecConfirm(`'${user.name}(${user.username})' 계정을 삭제할까요?`))) return
     try {
       await api.delete(`/users/${user.id}`)
       loadAll()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

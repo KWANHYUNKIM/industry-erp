@@ -3,6 +3,7 @@ import Modal from '../../../components/Modal'
 import EcNumInput from '../../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { EmployeeMaster, PayItem } from '../../../types/api'
+import { ecAlert, ecConfirm } from '../../../components/EcDialog'
 
 type Kind = 'ALLOWANCE' | 'DEDUCTION'
 interface Summary { employeeId: number; allowanceTotal: number; deductionTotal: number }
@@ -95,8 +96,8 @@ export default function DirectAmountInput({ ledger, onClose, onChanged }: { ledg
 
   async function remove(ids: number[]) {
     if (!ledger) return
-    if (ids.length === 0) { window.alert('선택된 자료가 없습니다.'); return }
-    if (!window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
+    if (ids.length === 0) { void ecAlert('선택된 자료가 없습니다.'); return }
+    if (!(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?'))) return
     try {
       await api.delete(`/pay-ledgers/${ledger.id}/direct-amounts`, { params: { employeeIds: ids.join(',') } })
       setEditing(null); setChecked(new Set()); loadSummary(); onChanged()

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
+import { ecConfirm } from '../../../components/EcDialog'
 
 /** GET /exports/mappings 한 줄. */
 export interface ExportMapping {
@@ -30,7 +31,7 @@ export default function ExportMappingModal({ open, onClose }: { open: boolean; o
 
   async function remove() {
     if (picked.length === 0) { setErr('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
-    if (!window.confirm('선택한 전표를 삭제 하시겠습니까?')) return
+    if (!(await ecConfirm('선택한 전표를 삭제 하시겠습니까?'))) return
     try { await api.post('/exports/mappings/delete', { ids: picked }); load() } catch (e) { setErr(extractErrorMessage(e)) }
   }
 

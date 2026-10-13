@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CustomFieldDef, CustomFieldType } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * Self-Customizing > 사용자정의필드 (판매입력 II 등 '추가 형식필드'의 정의 관리)
@@ -105,7 +106,7 @@ export default function CustomFieldPage() {
   }
 
   async function remove(id: number) {
-    if (!confirm('이 필드를 삭제할까요? (입력된 값은 남습니다)')) return
+    if (!(await ecConfirm('이 필드를 삭제할까요? (입력된 값은 남습니다)'))) return
     setError('')
     try { await api.delete(`/custom-fields/defs/${id}`); load() }
     catch (err) { setError(extractErrorMessage(err)) }

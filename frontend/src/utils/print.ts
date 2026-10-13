@@ -1,5 +1,6 @@
 import { tableToMatrix } from './tableExport'
 import { escapeHtml } from './escapeHtml'
+import { ecAlert } from '../components/EcDialog'
 
 const PRINT_CSS = `
   * { box-sizing: border-box; }
@@ -65,7 +66,7 @@ export function signModuleOf(path: string): 'ACCOUNTING' | 'INVENTORY' | 'MANAGE
 export function openPrintWindow(): Window | null {
   const win = window.open('', '_blank', 'width=1024,height=768')
   if (!win) {
-    alert('팝업이 차단되어 인쇄창을 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.')
+    void ecAlert('팝업이 차단되어 인쇄창을 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.')
     return null
   }
   win.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
