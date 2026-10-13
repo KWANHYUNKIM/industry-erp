@@ -327,6 +327,14 @@ public class PaySettingService {
                 .orElseThrow(() -> ApiException.notFound("수당·공제 항목을 찾을 수 없습니다. id=" + id));
     }
 
+    /** 수당 이름 → 원본 [비과세유형]. 마스터에 없는 이름(손으로 넣은 줄)은 NONE. */
+    @Transactional(readOnly = true)
+    public PayTaxFreeType taxFreeTypeByName(String name) {
+        return itemRepository.findAll().stream()
+                .filter(i -> i.getKind() == PayslipLineKind.ALLOWANCE && i.getName().equals(name))
+                .findFirst().map(PayItem::getTaxFreeType).orElse(PayTaxFreeType.NONE);
+    }
+
     /** 금액직접입력으로 명세에 새로 붙는 수당 줄의 과세 여부 — 같은 이름 수당항목을 따르고, 없으면 과세. */
     @Transactional(readOnly = true)
     public boolean taxableByName(String name) {

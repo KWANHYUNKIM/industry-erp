@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayGroup, PayItem, Payslip } from '../../types/api'
 import PayLedgerReport from '../../features/payroll/components/PayLedgerReport'
+import PayCalcHelp from '../../features/payroll/components/PayCalcHelp'
 import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -16,13 +17,16 @@ export default function PayrollPage() {
   const [month, setMonth] = useState(params.get('month') ?? thisMonth())
   /*
    * 원본 급여계산/대장 [급여대장 조회]는 항목별 보고서(급여대장 창)를 연다 — ?view=report 면 그 보고서, 아니면 명세를 만들고 확정하는 작업 화면.
-   * 보고서 아래 버튼: 인쇄 · Excel · 사원별 조회 · 작업 화면(우리에게만) · 닫기.
+   * 보고서 아래 버튼(2026-10-13 원본 다시 잼): 기본(수정불가)(양식 고르기 — 원본도 그 하나) · 인쇄 · Excel · 사원별 조회 ·
+   * 급여계산이 안되는 경우 · 닫기. 우리에게만 있던 [작업 화면]은 뺐다(작업 화면은 이 주소에서 ?view= 없이 연다).
    */
   const nav = useNavigate()
   const [view, setView] = useState(params.get('view') === 'report' ? 'report' : 'work')
   const [items, setItems] = useState<PayItem[]>([])
   const [companyName, setCompanyName] = useState('')
   const [payDate, setPayDate] = useState<string | null>(null)
+  /** 원본 급여대장 창 제목은 대장명칭('QA관리-시험대장' · '2026/10 급여') */
+  const [ledgerName, setLedgerName] = useState('')
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [payslips, setPayslips] = useState<Payslip[]>([])
   const [groups, setGroups] = useState<PayGroup[]>([])
@@ -31,6 +35,7 @@ export default function PayrollPage() {
   const [detail, setDetail] = useState<Payslip | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
@@ -41,8 +46,9 @@ export default function PayrollPage() {
     api.get<PayGroup[]>('/pay-settings/groups').then((r) => setGroups(r.data.filter((g) => g.active))).catch(() => {})
     api.get<PayItem[]>('/pay-settings/items').then((r) => setItems(r.data)).catch(() => setItems([]))
     api.get<{ name: string }>('/company').then((r) => setCompanyName(r.data.name)).catch(() => setCompanyName(''))
-    api.get<{ payMonth: string; payDate: string | null }[]>('/pay-ledgers')
-      .then((r) => setPayDate(r.data.find((l) => l.payMonth === month)?.payDate ?? null)).catch(() => setPayDate(null))
+    api.get<{ payMonth: string; payDate: string | null; name: string }[]>('/pay-ledgers')
+      .then((r) => { const l = r.data.find((x) => x.payMonth === month); setPayDate(l?.payDate ?? null); setLedgerName(l?.name ?? '') })
+      .catch(() => setPayDate(null))
   }
 
   useEffect(() => {
@@ -99,14 +105,16 @@ export default function PayrollPage() {
   if (view === 'report') {
     return (
       <EcListShell title="급여대장" searchable={false} actions={[
+        { label: '기본(수정불가)', menu: [{ label: '기본(수정불가)', onClick: () => {} }] },
         { label: '인쇄', primary: true },  // 셸의 기본 인쇄 — 보고서 표를 찍는다
         { label: 'Excel' },
         { label: '사원별 조회', onClick: () => nav(`/hr/payroll/by-employee?ledger=${month}`) },
-        { label: '작업 화면', onClick: () => setView('work') },
+        { label: '급여계산이 안되는 경우', onClick: () => setHelpOpen(true) },
         { label: '닫기', onClick: () => nav('/hr/payroll') },
       ]}>
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-        <PayLedgerReport month={month} payDate={payDate} companyName={companyName} payslips={payslips} employees={employees} items={items} />
+        <PayLedgerReport month={month} title={ledgerName} payDate={payDate} companyName={companyName} payslips={payslips} employees={employees} items={items} />
+        <PayCalcHelp month={month} open={helpOpen} onClose={() => setHelpOpen(false)} payslips={payslips} employees={employees} />
       </EcListShell>
     )
   }

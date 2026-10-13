@@ -31,6 +31,7 @@ public class PayLedgerService {
     private final EmployeeService employeeService;
     private final com.erp.hr.workrecord.WorkRecordService workRecordService;
     private final PayDirectAmountRepository directAmountRepository;
+    private final PayrollTransferRepository transferRepository;
 
     @Transactional(readOnly = true)
     public List<LedgerResponse> findAll() {
@@ -102,6 +103,23 @@ public class PayLedgerService {
         for (Payslip p : payslipRepository.findByPayMonth(l.getPayMonth())) {
             if (p.getStatus() != PayslipStatus.CONFIRMED) p.setStatus(PayslipStatus.CONFIRMED);
         }
+        return toResponse(l);
+    }
+
+    /**
+     * 원본 확정 대장 [급여대장 ▸ 확정취소](2026-10-13 실측): '확정취소 하겠습니까?' → 확인하면 대장이 다시 미확정 칸
+     * (근무기록확정 · 금액직접입력 / 전체계산 · 개인별계산 / 조회 · 일괄수정 · 확정 · 삭제)으로 돌아간다. 안내 문구는 없다.
+     * 우리는 이미 급여이체한 명세가 있으면 막는다 — 이체 분개가 그 금액을 들고 있다.
+     */
+    @Transactional
+    public LedgerResponse unconfirm(Long id) {
+        PayLedger l = get(id);
+        List<Payslip> slips = payslipRepository.findByPayMonth(l.getPayMonth());
+        var transferred = new java.util.HashSet<>(transferRepository.findTransferredPayslipIds());
+        if (slips.stream().anyMatch(p -> transferred.contains(p.getId()))) {
+            throw ApiException.badRequest("급여이체된 급여가 있어 확정취소할 수 없습니다. 급여이체를 먼저 삭제 바랍니다.");
+        }
+        for (Payslip p : slips) p.setStatus(PayslipStatus.DRAFT);
         return toResponse(l);
     }
 

@@ -193,9 +193,7 @@ public class PayrollService {
 
         // 3) 4대보험 자동 공제.
         //    과세소득 = 기본급 + '과세' 수당합. 식대 같은 비과세 수당은 여기서 빠진다.
-        BigDecimal taxableIncome = baseSalary.add(p.getLines().stream()
-                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.isTaxable())
-                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal taxableIncome = taxableIncome(baseSalary, p);
 
         java.time.YearMonth ym = java.time.YearMonth.parse(req.payMonth());
         // 원본 사원등록 [기타설정] — '안함' 이면 그 보험 줄이 없다(0 은 addAutoDeduction 이 넣지 않는다).
@@ -359,6 +357,26 @@ public class PayrollService {
     }
 
     /**
+     * 과세급여 = 기본급 + 과세 수당 + 비과세 수당 중 <b>유형별 월 한도를 넘는 몫</b>(PayTaxFreeType#getMonthlyLimit).
+     * 원본 2026-10-13 실측: 변종호 연차수당(보육수당) 360,000 → 200,000 만 비과세, 과세급여 4,259,000.
+     * 줄의 taxable 표시는 그대로 둔다(원천징수 쪽이 비과세 줄을 그 표시로 모은다).
+     */
+    private BigDecimal taxableIncome(BigDecimal baseSalary, Payslip p) {
+        BigDecimal sum = baseSalary;
+        java.util.Map<PayTaxFreeType, BigDecimal> free = new java.util.EnumMap<>(PayTaxFreeType.class);
+        for (PayslipLine l : p.getLines()) {
+            if (l.getKind() != PayslipLineKind.ALLOWANCE) continue;
+            if (l.isTaxable()) sum = sum.add(l.getAmount());
+            else free.merge(paySettingService.taxFreeTypeByName(l.getName()), l.getAmount(), BigDecimal::add);
+        }
+        for (var e : free.entrySet()) {
+            BigDecimal limit = e.getKey().getMonthlyLimit();
+            if (limit != null && e.getValue().compareTo(limit) > 0) sum = sum.add(e.getValue().subtract(limit));
+        }
+        return sum;
+    }
+
+    /**
      * 원본 공제항목등록 [계산식] — 법정 공제(4대보험 · 소득세)를 셈한 뒤 공제항목을 표시순서대로 푼다.
      * 식은 'X(공제)'(지금까지의 공제 줄) · 지급총액(기타) · 건강보험산출금액(계산항목) 같은 값을 쓸 수 있고,
      * 식이 있는 공제항목은 같은 이름의 줄(법정 공제 줄 포함)을 그 값으로 바꾼다. 원본 사우회비 R( 사우회비(급여지급사항) , 0 ).
@@ -370,9 +388,7 @@ public class PayrollService {
         if (deductions.stream().noneMatch(i -> formulas.containsKey(i.getId()))) return;
         java.util.Map<String, BigDecimal> vars = formulaVars(p, employeeId, baseSalary, group, empAmounts, worked);
         BigDecimal gross = grossPay(baseSalary, p);
-        BigDecimal taxable = baseSalary.add(p.getLines().stream()
-                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.isTaxable())
-                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal taxable = taxableIncome(baseSalary, p);
         vars.put(PayFormulaService.GROSS, gross);
         vars.put(PayFormulaService.TAXABLE_PAY, taxable);
         vars.put(PayFormulaService.TAX_FREE_TOTAL, gross.subtract(taxable));

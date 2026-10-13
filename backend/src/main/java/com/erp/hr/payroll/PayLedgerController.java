@@ -64,6 +64,12 @@ public class PayLedgerController {
         return service.confirm(id);
     }
 
+    /** 확정 대장 [급여대장 ▸ 확정취소] */
+    @PostMapping("/{id}/unconfirm")
+    public LedgerResponse unconfirm(@PathVariable Long id) {
+        return service.unconfirm(id);
+    }
+
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         service.delete(id);

@@ -8,6 +8,8 @@ import { ymd } from '../../utils/periods'
 import type { EmployeeMaster, PayItem } from '../../types/api'
 import PayslipBulkEdit from '../../features/payroll/components/PayslipBulkEdit'
 import DirectAmountInput from '../../features/payroll/components/DirectAmountInput'
+import LedgerLabelMenu from '../../features/payroll/components/LedgerLabelMenu'
+import PayrollSlipCreate from '../../features/payroll/components/PayrollSlipCreate'
 
 interface Ledger { id: number; payMonth: string; name: string; payDate: string; headcount: number; grossTotal: number; confirmedCount: number; workConfirmCount: number; directAmountCount: number }
 interface ConfirmRow { employeeId: number; employeeCode: string; employeeName: string; payItemId: number; payItemName: string; quantity: number }
@@ -33,6 +35,13 @@ const slash = (s: string) => s.replace(/-/g, '/')
  * [사전작업] 금액직접입력은 features/payroll/components/DirectAmountInput.
  * 급여대장 [일괄수정]은 features/payroll/components/PayslipBulkEdit(대상자 선택 → 급여내역수정 격자).
  * [개인별계산]은 사원(퇴사자 포함) 목록에서 체크한 사원만 지우고 다시 셈하고, 끝나면 그 대장의 급여대장을 띄운다(2026-10-12 실측).
+ *
+ * <p>2026-10-13 원본에 시험 대장(QA관리-시험대장)을 만들어 신규 → 전체계산 → 확정 → 확정취소 → 삭제를 해 본 그대로:
+ * 미확정 대장은 칸마다 링크(명세서 칸은 인원이 없어도 '조회 · Email'), [전체계산]이 끝나면 급여대장 창이 뜬다.
+ * [확정]은 확인 창 · 안내 없이 바로, 확정 대장은 칸이 알약 + 펼침 메뉴(LedgerLabelMenu)로 바뀐다 —
+ * 사전작업 ▸ 근무기록확정 · 금액직접입력 / 계산/수정('확정처리된 급여입니다. 확정취소 후 처리 바랍니다.') /
+ * 급여대장 ▸ 조회 · 확정취소('확정취소 하겠습니까?', 안내 없음) · 전표생성 / 명세서 ▸ 조회.
+ * [삭제]는 '2026/10 -2 급여가 전체 삭제됩니다. …' → 안내 없이 줄이 사라진다.
  */
 export default function PayLedgerPage() {
   const nav = useNavigate()
@@ -138,6 +147,8 @@ export default function PayLedgerPage() {
   const [directFor, setDirectFor] = useState<Ledger | null>(null)
   /** 원본 급여대장 [일괄수정] — 대상자 선택 → 급여내역수정 격자 */
   const [bulkFor, setBulkFor] = useState<Ledger | null>(null)
+  /** 확정 대장 [급여대장 ▸ 전표생성] */
+  const [slipFor, setSlipFor] = useState<Ledger | null>(null)
   const [calcAsk, setCalcAsk] = useState<{ ledger: Ledger; ids: number[] | null } | null>(null)
   const [excludeZero, setExcludeZero] = useState(true)
 
@@ -178,6 +189,11 @@ export default function PayLedgerPage() {
         nav(`/hr/payroll/ledger?month=${l.payMonth}&view=report`)
         return
       }
+      // 원본 [전체계산]도 끝나면 그 대장의 급여대장 창을 띄운다(2026-10-13 실측).
+      if (r.data.calculated > 0 && !r.data.failures) {
+        nav(`/hr/payroll/ledger?month=${l.payMonth}&view=report`)
+        return
+      }
       flash(`${r.data.calculated}명 계산${r.data.skipped ? ` · 지급총액 0 이하 ${r.data.skipped}명 제외` : ''}`)
       load()
     } catch (e) {
@@ -188,6 +204,15 @@ export default function PayLedgerPage() {
   async function confirm(l: Ledger) {
     try { await api.post(`/pay-ledgers/${l.id}/confirm`); load() } catch (e) { setError(extractErrorMessage(e)) }
   }
+
+  async function unconfirm(l: Ledger) {
+    if (!window.confirm('확정취소 하겠습니까?')) return
+    try { await api.post(`/pay-ledgers/${l.id}/unconfirm`); load() } catch (e) { setError(extractErrorMessage(e)) }
+  }
+
+  /** 원본 확정 대장 [계산/수정] · 미확정에만 있는 동작을 확정 뒤에 고르면 */
+  const lockedAlert = () => window.alert('확정처리된 급여입니다.\n\n확정취소 후 처리 바랍니다.')
+  const isConfirmed = (l: Ledger) => l.headcount > 0 && l.confirmedCount >= l.headcount
 
   async function remove(l: Ledger) {
     if (!window.confirm(`${slash(l.payMonth)} -1 급여가 전체 삭제됩니다.\n\n삭제된 급여는 복구할 수 없습니다.\n\n삭제하겠습니까?`)) return
@@ -232,6 +257,33 @@ export default function PayLedgerPage() {
               <td>{l.name}</td>
               <td className="text-center">{slash(l.payDate)}</td>
               <td className="text-center">{slash(l.payMonth)}</td>
+              {isConfirmed(l) ? (
+                <>
+                  <td className="text-center">
+                    <LedgerLabelMenu label="사전작업" tone="default" items={[
+                      // 원본도 확정 대장에서 근무기록확정 창(저장(F8) · 삭제 그대로)을 연다(2026-10-13 실측)
+                      { label: `근무기록확정${l.workConfirmCount ? `[${l.workConfirmCount}]` : ''}`, onClick: () => openConfirm(l) },
+                      { label: `금액직접입력${l.directAmountCount ? `[${l.directAmountCount}]` : ''}`, onClick: () => setDirectFor(l) },
+                    ]} />
+                  </td>
+                  <td className="text-center"><LedgerLabelMenu label="계산/수정" tone="default" onClick={lockedAlert} /></td>
+                  <td className="text-right">{l.headcount || ''}</td>
+                  <td className="text-center">
+                    <LedgerLabelMenu label="급여대장" tone="primary" items={[
+                      { label: '조회', onClick: () => nav(`/hr/payroll/ledger?month=${l.payMonth}&view=report`) },
+                      { label: '확정취소', onClick: () => unconfirm(l) },
+                      { label: '전표생성', onClick: () => setSlipFor(l) },
+                    ]} />
+                  </td>
+                  <td className="text-center">
+                    {/* 원본 명세서 ▸ 조회 · Email — Email 은 바깥 발송이라 없다 */}
+                    <LedgerLabelMenu label="명세서" tone="primary" items={[
+                      { label: '조회', onClick: () => nav(`/hr/payroll/by-employee?ledger=${l.payMonth}`) },
+                    ]} />
+                  </td>
+                </>
+              ) : (
+                <>
               <td className="text-center">
                 <div className="flex flex-col items-center">
                   <a href="#" onClick={(e) => { e.preventDefault(); openConfirm(l) }}>
@@ -252,16 +304,16 @@ export default function PayLedgerPage() {
               <td className="text-center">
                 <div className="flex flex-col items-center">
                   <a href="#" onClick={(e) => { e.preventDefault(); nav(`/hr/payroll/ledger?month=${l.payMonth}&view=report`) }}>조회</a>
-                  {l.headcount > 0 && <a href="#" onClick={(e) => { e.preventDefault(); setBulkFor(l) }}>일괄수정</a>}
-                  {l.headcount > l.confirmedCount && (
-                    <a href="#" onClick={(e) => { e.preventDefault(); confirm(l) }}>확정</a>
-                  )}
+                  <a href="#" onClick={(e) => { e.preventDefault(); setBulkFor(l) }}>일괄수정</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); confirm(l) }}>확정</a>
                   <a href="#" onClick={(e) => { e.preventDefault(); remove(l) }}>삭제</a>
                 </div>
               </td>
               <td className="text-center">
-                {l.headcount > 0 && <a href="#" onClick={(e) => { e.preventDefault(); nav(`/hr/payroll/by-employee?ledger=${l.payMonth}`) }}>조회</a>}
+                <a href="#" onClick={(e) => { e.preventDefault(); nav(`/hr/payroll/by-employee?ledger=${l.payMonth}`) }}>조회</a>
               </td>
+                </>
+              )}
               <td className="text-right">{l.headcount ? won(l.grossTotal) : ''}</td>
               {/* 급여구분이 '급여' 하나라(상여 대장 없음) 늘 빈칸 — 원본 급여 대장도 빈칸이다. */}
               <td className="text-right"></td>
@@ -370,6 +422,8 @@ export default function PayLedgerPage() {
       )}</Modal>
 
       <DirectAmountInput ledger={directFor} onClose={() => setDirectFor(null)} onChanged={load} />
+
+      <PayrollSlipCreate ledger={slipFor} onClose={() => setSlipFor(null)} onSaved={flash} />
 
       <PayslipBulkEdit ledger={bulkFor} onClose={() => setBulkFor(null)} onSaved={() => { flash('저장되었습니다.'); load() }} />
 
