@@ -112,9 +112,7 @@ public class PromissoryNoteService {
 
         boolean recordOnly = Boolean.TRUE.equals(req.recordOnly());
         String typedNo = req.noteNo() != null && !req.noteNo().isBlank() ? req.noteNo().trim() : null;
-        if (typedNo != null && !recordOnly) {
-            throw ApiException.badRequest("어음번호는 [내역만등록]에서만 적습니다.");
-        }
+        // 원본 받을어음증가 · 지급어음증가 창에도 [어음번호] 칸이 있다(2026-10-13 실측 — 'QA회계1-001' 로 저장됨). 비우면 서버가 매긴다.
         if (typedNo != null && noteRepository.existsByNoteNo(typedNo)) {
             throw ApiException.conflict("이미 있는 어음번호입니다: " + typedNo);
         }

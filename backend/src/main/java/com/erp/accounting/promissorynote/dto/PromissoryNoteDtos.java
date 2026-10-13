@@ -27,8 +27,9 @@ public final class PromissoryNoteDtos {
             String bankName,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark,
-            /** 원본 [내역만등록] — 회계전표 없이 내역만. 이때만 [어음번호]를 사람이 적는다(비우면 서버가 매긴다). */
+            /** 원본 [내역만등록] — 회계전표 없이 내역만. */
             Boolean recordOnly,
+            /** [어음번호] — 받을어음증가 · 내역만등록 모두 사람이 적는다. 비우면 서버가 매긴다. */
             @Size(max = 30, message = "어음번호는 30자까지 넣을 수 있습니다.")
             String noteNo,
             /** 원본 받을어음증가 · [내역만등록] 의 [부서] · [프로젝트] */

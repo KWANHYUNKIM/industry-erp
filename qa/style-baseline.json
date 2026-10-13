@@ -410,8 +410,8 @@
   "palette": 0
  },
  "pages/accounting/PromissoryNotePage.tsx": {
-  "inline": 21,
-  "color": 4,
+  "inline": 11,
+  "color": 1,
   "palette": 0
  },
  "pages/accounting/TaxInvoiceJournalPage.tsx": {

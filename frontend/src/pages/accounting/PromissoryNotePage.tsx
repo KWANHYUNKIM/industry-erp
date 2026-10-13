@@ -6,6 +6,9 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import CodePickerField from '../../components/CodePickerField'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import Modal from '../../components/Modal'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useNavigate } from 'react-router-dom'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -227,15 +230,21 @@ function Tile({ label, value, strong }: { label: string; value: string; strong?:
   )
 }
 
+/**
+ * 어음등록 — 원본 받을어음증가 · 지급어음증가(E010601, 2026-10-13 loginaa 실측) 한 장 입력.
+ * 칸: 전표일자 · 회계전표No. · 부서 · 프로젝트 · 거래처 · 어음번호 · 만기일자(기본 오늘) · 금액 · 적요, 단추 [저장(F8)] · [저장/전표(F7)] · [다시 작성].
+ * [저장/전표(F7)]는 저장하고 그 분개를 연다(원본: 저장 뒤 폼이 비고 '일반전표' 창에 차) 받을어음 1,000 / 대) 외상매출금 1,000).
+ * 우리는 받을 · 지급을 한 창에서 고르므로 맨 위에 [구분]을 둔다. [발행은행]은 원본에 없어 뺐다.
+ */
 function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose: () => void; onSaved: (n: PromissoryNote) => void }) {
+  const navigate = useNavigate()
   const [type, setType] = useState<'RECEIVABLE' | 'PAYABLE'>('RECEIVABLE')
   const [partnerId, setPartnerId] = useState('')
   const [issueDate, setIssueDate] = useState(today())
-  const [dueDate, setDueDate] = useState('')
+  const [noteNo, setNoteNo] = useState('')
+  const [dueDate, setDueDate] = useState(today())
   const [amount, setAmount] = useState('')
-  const [bankName, setBankName] = useState('')
   const [remark, setRemark] = useState('')
-  /* 원본 받을어음증가 창의 [부서] · [프로젝트](2026-10-13 loginaa 실측: 전표일자 · 회계전표No. · 부서 · 프로젝트 · 거래처 · 어음번호 · 만기일자 · 금액 · 적요). */
   const [dept, setDept] = useState('')
   const [project, setProject] = useState('')
   const deptProject = useDeptProjectItems()
@@ -243,19 +252,30 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
   const [error, setError] = useState('')
 
   const candidates = partners.filter((p) => (type === 'RECEIVABLE' ? p.type !== 'SUPPLIER' : p.type !== 'CUSTOMER'))
+  const partnerItems = useMemo(() => candidates.map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [candidates])
 
-  async function save() {
+  function reset() {
+    setPartnerId(''); setIssueDate(today()); setNoteNo(''); setDueDate(today()); setAmount(''); setRemark(''); setDept(''); setProject(''); setError('')
+  }
+
+  async function save(thenSlip: boolean) {
     setError('')
-    if (!partnerId) return setError('거래처를 선택하세요.')
-    if (!dueDate) return setError('만기일을 입력하세요.')
-    if (!(Number(amount) > 0)) return setError('어음 금액을 입력하세요.')
+    if (!partnerId) return setError('거래처: 자료를 입력 바랍니다.')
+    if (!dueDate) return setError('만기일자: 자료를 입력 바랍니다.')
+    if (!(Number(amount) > 0)) return setError('금액: 자료를 입력 바랍니다.')
     setSaving(true)
     try {
       const res = await api.post<PromissoryNote>('/notes', {
         type, partnerId: Number(partnerId), issueDate, dueDate,
-        amount: Number(amount), bankName: bankName || undefined, remark: remark || undefined,
+        amount: Number(amount), remark: remark || undefined, noteNo: noteNo.trim() || undefined,
         departmentId: dept ? Number(dept) : undefined, projectId: project ? Number(project) : undefined,
       })
+      if (thenSlip) {
+        /* 이 어음이 만든 분개(출처 NOTE · 어음 id)를 찾아 연다. */
+        const j = await api.get<{ rows: { id: number; sourceType: string; sourceId: number | null }[] }>('/journals', { params: { from: issueDate, to: issueDate, all: true } })
+        const e = j.data.rows.find((r) => r.sourceType === 'NOTE' && r.sourceId === res.data.id)
+        if (e) { navigate(`/accounting/journals?entryId=${e.id}`); return }
+      }
       onSaved(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -265,67 +285,48 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 560, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
-          <span className="font-extrabold text-ec-navy">어음등록</span>
-          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
-        </div>
-        <div className="p-[16px]">
-          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-          <table className="w-full text-left">
-            <tbody>
-              <tr>
-                <th className="w-[90px] bg-ec-page">구분<span className="text-ec-danger">*</span></th>
-                <td colSpan={3}>
-                  <select className="ec-input" value={type} onChange={(e) => { setType(e.target.value as 'RECEIVABLE' | 'PAYABLE'); setPartnerId('') }} style={{ width: 200 }}>
-                    <option value="RECEIVABLE">받을어음 (매출대금 수취)</option>
-                    <option value="PAYABLE">지급어음 (매입대금 발행)</option>
-                  </select>
-                  <span className="ml-[8px] text-[12px] text-ec-hint">
-                    {type === 'RECEIVABLE' ? '차)받을어음 / 대)외상매출금' : '차)외상매입금 / 대)지급어음'}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <th className="bg-ec-page">부서</th>
-                <td><CodePickerField label="부서" hideLabel fill emptyLabel="" value={dept} onChange={setDept} items={deptProject.departments} /></td>
-                <th className="bg-ec-page">프로젝트</th>
-                <td><CodePickerField label="프로젝트" hideLabel fill emptyLabel="" value={project} onChange={setProject} items={deptProject.projects} /></td>
-              </tr>
-              <tr>
-                <th className="bg-ec-page">거래처<span className="text-ec-danger">*</span></th>
-                <td colSpan={3}>
-                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
-                    <option value="">거래처 선택</option>
-                    {candidates.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </td>
-              </tr>
-              <tr>
-                <th className="bg-ec-page">발행일</th>
-                <td><input type="date" className="ec-input" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} style={{ width: 150 }} /></td>
-                <th className="w-[70px] bg-ec-page">만기일<span className="text-ec-danger">*</span></th>
-                <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
-              </tr>
-              <tr>
-                <th className="bg-ec-page">금액<span className="text-ec-danger">*</span></th>
-                <td><input type="number" className="ec-input" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 150, textAlign: 'right' }} /></td>
-                <th className="bg-ec-page">발행은행</th>
-                <td><input className="ec-input" value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: 150 }} /></td>
-              </tr>
-              <tr>
-                <th className="bg-ec-page">비고</th>
-                <td colSpan={3}><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} /></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
-          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
-          <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
-        </div>
+    <Modal open title="어음등록" width={560} error={error} onClose={onClose}>
+      <ul className="ec-form mb-[8px]">
+        <EcCond label="구분" span={2}>
+          <select className="ec-input w-[240px]" aria-label="구분" value={type} onChange={(e) => { setType(e.target.value as 'RECEIVABLE' | 'PAYABLE'); setPartnerId('') }}>
+            <option value="RECEIVABLE">받을어음증가</option>
+            <option value="PAYABLE">지급어음증가</option>
+          </select>
+        </EcCond>
+        <EcCond label="전표일자" span={2}>
+          <input type="date" className="ec-input w-[150px]" aria-label="전표일자" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
+        </EcCond>
+        <EcCond label="회계전표No." span={2}>
+          <input className="ec-input w-full" placeholder="회계전표No." disabled value="" />
+        </EcCond>
+        <EcCond label="부서" span={2}>
+          <CodePickerField label="부서" hideLabel pair fill emptyLabel="" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" span={2}>
+          <CodePickerField label="프로젝트" hideLabel pair fill emptyLabel="" value={project} onChange={setProject} items={deptProject.projects} />
+        </EcCond>
+        <EcCond label="거래처" span={2}>
+          <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} />
+        </EcCond>
+        <EcCond label="어음번호" span={2}>
+          <input className="ec-input w-full" placeholder="어음번호" aria-label="어음번호" maxLength={30} value={noteNo} onChange={(e) => setNoteNo(e.target.value)} />
+        </EcCond>
+        <EcCond label="만기일자" span={2}>
+          <input type="date" className="ec-input w-[150px]" aria-label="만기일자" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </EcCond>
+        <EcCond label="금액" span={2}>
+          <input type="number" className="ec-input w-full text-right" aria-label="금액" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </EcCond>
+        <EcCond label="적요" span={2}>
+          <input className="ec-input w-full" placeholder="적요" aria-label="적요" maxLength={300} value={remark} onChange={(e) => setRemark(e.target.value)} />
+        </EcCond>
+      </ul>
+      <div className="flex gap-[5px]">
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save(false)} disabled={saving}>저장(F8)</button>
+        <button type="button" className="ec-btn" onClick={() => void save(true)} disabled={saving}>저장/전표(F7)</button>
+        <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>
+        <button type="button" className="ec-btn ml-auto" onClick={onClose}>닫기</button>
       </div>
-    </div>
+    </Modal>
   )
 }
