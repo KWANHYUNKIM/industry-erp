@@ -68,6 +68,18 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
                                        @Param("from") LocalDate from,
                                        @Param("to") LocalDate to);
 
+    /**
+     * 예산관리 출력물(예산-실적비교표 · 예산-실적대장, 2026-10-14 loginaa 실측)의 실적 — 그 계정들의 전표 줄.
+     * 적요는 전표 줄 적요, 거래처는 줄 거래처(없으면 빈칸)다.
+     */
+    @Query("select e.id, e.entryDate, e.docNo, l.description, lp.name, l.account.id, l.account.division, " +
+            "l.debit, l.credit, l.departmentId, l.projectId " +
+            "from JournalLine l join l.entry e left join l.partner lp " +
+            "where e.entryDate between :from and :to and l.account.id in :accountIds " +
+            "order by e.entryDate, e.docNo, l.lineNo")
+    List<Object[]> budgetActualLines(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                     @Param("accountIds") java.util.Collection<Long> accountIds);
+
     /** 시산표/재무제표용: 계정별 차변합·대변합 집계 (기간 내) */
     @Query("select l.account.id, l.account.code, l.account.name, l.account.division, " +
             "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +

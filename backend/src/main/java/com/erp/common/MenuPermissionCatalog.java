@@ -102,7 +102,7 @@ public final class MenuPermissionCatalog {
         put(m, "BANK", "/api/bank-cards", "/api/cash-details", "/api/checks", "/api/non-cash", "/api/notes",
                 "/api/card-issuers", "/api/payment-agencies");
         put(m, "FIXED_ASSET", "/api/fixed-assets");
-        put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses",
+        put(m, "FINANCE", "/api/budget-plans", "/api/contracts", "/api/incomes", "/api/expenses",
                 "/api/cash-plans", "/api/bonds", "/api/fund-plans",
                 "/api/contract-items", "/api/billing-contracts", "/api/contract-bills");
         put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax",
