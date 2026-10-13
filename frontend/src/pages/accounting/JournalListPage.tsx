@@ -65,7 +65,11 @@ export default function JournalListPage() {
   /** 현금거래(매출처로부터 · 은행차입으로 …)의 원본 [금액]은 금액+수수료다 — 은행차입으로 50,000 · 수수료 1,000 → 51,000(분개는 50,000). */
   const [cashQuickTotal, setCashQuickTotal] = useState<Record<number, number>>({})
   const amountOf = (r: JournalEntry) => cashQuickTotal[r.id] ?? r.totalDebit
-  const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
+  /* 원본 거래유형: 받을어음증가 화면으로 넣은 어음의 전표는 '받을어음증가'(지급은 '지급어음증가') — 2026-10-13 실측.
+     우리 수취/발행 분개 적요가 '받을어음 수취/발행 BN-…' 이다. 할인료 · 부도 전표 이름은 못 쟀다. */
+  const noteLabel = (r: JournalEntry) => ((r.sourceType as string) === 'NOTE' && /^(받을어음|지급어음) 수취\/발행/.test(r.description ?? '')
+    ? `${(r.description ?? '').split(' ')[0]}증가` : undefined)
+  const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? noteLabel(r) ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
   const rowBg = (r: JournalEntry) => r.sourceType === 'SALES' ? 'bg-[var(--ec-bg-sales-row)]'
     : r.sourceType === 'PURCHASE' ? 'bg-[var(--ec-bg-basic)]' : ''
