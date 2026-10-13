@@ -64,6 +64,13 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
+    /** 발주요청 고치기(발주요청 상태일 때만) */
+    @PutMapping("/{id}")
+    public PurchaseOrderResponse update(@PathVariable Long id, @Valid @RequestBody CreatePurchaseOrderRequest req,
+                                        @AuthenticationPrincipal UserPrincipal principal) {
+        return service.update(id, req, principal.getUsername());
+    }
+
     /** 발주계획 확정 (납기일 지정) */
     @PostMapping("/{id}/plan")
     public PurchaseOrderResponse plan(@PathVariable Long id, @RequestBody(required = false) PlanRequest req,

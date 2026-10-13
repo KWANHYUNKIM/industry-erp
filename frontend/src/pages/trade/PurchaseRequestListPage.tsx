@@ -8,6 +8,7 @@ import EcPeriodPicks, { SELF_USE_PICKS, periodOf } from '../../components/EcPeri
 import { useCondPickers } from '../../utils/useCondPickers'
 import { shortDateNo } from '../../utils/dateNo'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
+import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestForm'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 날짜 모양 — 연도를 두 자리로 찍는다(26/10/12-2 · 25/07/12, 2026-10-03 실측). */
@@ -26,6 +27,9 @@ type Tab = '전체' | '진행중' | '완료'
  * <p>우리 발주서 한 장이 발주요청 한 장이다(만들면 REQUESTED 로 선다). 진행상태는 발주확정 · 입고전환이면 '완료', 아직 요청 · 계획 ·
  * 단가확정이면 '진행중'. 취소한 것은 [종결여부]에 '종결'로 남긴다. 내자 · 외자는 통화(KRW 인지)로 가른다.
  * 수량은 줄 수량의 합, 품목은 첫 품목 '외 n건'. 결재 · 확인 단계가 없어 그 탭은 없다.
+ *
+ * <p>[신규(F2)] · [발주요청일자] 를 누르면 '발주요청입력' 창(features/purchaserequest)이 뜬다 — 2026-10-13 실측.
+ * [선택삭제] 는 고른 줄을 한 번에 지운다('전표를 삭제하겠습니까?\n- 발주요청 n건').
  */
 export default function PurchaseRequestListPage() {
   const pickers = useCondPickers(['warehouses', 'projects', 'partners', 'items'])
@@ -43,6 +47,10 @@ export default function PurchaseRequestListPage() {
   const [rows, setRows] = useState<PurchaseOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 열린 창. null = 닫힘, id 0 = 신규(복사 포함), 그 밖 = 그 발주요청 고치기. key 로 창을 새로 띄운다. */
+  const [form, setForm] = useState<{ order: PurchaseOrder | null; key: number } | null>(null)
+  const openForm = (order: PurchaseOrder | null) => setForm({ order, key: Date.now() })
 
   async function load() {
     setLoading(true)
@@ -77,15 +85,35 @@ export default function PurchaseRequestListPage() {
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '발주요청조회', [shown.length])
 
+  /** 원본 수정 창 [이전](목록 아래 줄) · [다음](목록 위 줄). 끝이면 원본 문구로 알린다. */
+  function step(dir: 1 | -1) {
+    const at = shown.findIndex((o) => o.id === form?.order?.id)
+    const target = at < 0 ? undefined : shown[at + dir]
+    if (!target) return alert(dir < 0 ? '다음에 표시할 전표가 없습니다.' : '이전에 표시할 전표가 없습니다.')
+    openForm(target)
+  }
+  async function removeChecked() {
+    const ids = shown.filter((o) => checked.has(o.id)).map((o) => o.id)
+    if (ids.length === 0) return
+    if (!confirm(`전표를 삭제하겠습니까?\n- 발주요청 ${ids.length}건`)) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/purchase-orders/${id}`)))
+    const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
+    if (failed.length > 0) setError(`${failed.length}건을 지우지 못했습니다: ${extractErrorMessage(failed[0].reason)}`)
+    setChecked(new Set())
+    void load()
+  }
+
   return (
     <EcListShell
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="발주요청조회"
       searchable={false}
+      onNew={() => openForm(null)}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시작성', onClick: () => { setFrom(init.from); setTo(init.to); setReqNo(''); setDomestic('전체'); setWarehouse(''); setProject(''); setPartner(''); setItem(''); setByUpdated(false) } },
+        { label: '선택삭제', onClick: removeChecked, disabled: checked.size === 0 },
         { label: 'Excel' },
       ]}
     >
@@ -140,6 +168,10 @@ export default function PurchaseRequestListPage() {
         <thead>
           <tr>
             <th className="w-[34px]"></th>
+            <th className="w-[28px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((o) => checked.has(o.id))}
+                onChange={(e) => setChecked(e.target.checked ? new Set(shown.map((o) => o.id)) : new Set())} />
+            </th>
             <th className="text-center">발주요청일자</th>
             <th>거래처명</th>
             <th>품목</th>
@@ -152,14 +184,21 @@ export default function PurchaseRequestListPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => (
             <tr key={o.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               {/* 원본 '26/10/12-2' — 그날 일련번호만 붙인다. 우리 전표번호(PO-20261012-0002)를 통째로 찍고 있었다(2026-10-13 실측). */}
-              <td className="text-center">{shortDateNo(o.orderDate, o.orderNo)}</td>
+              <td className="text-center">
+                <input type="checkbox" aria-label="선택" checked={checked.has(o.id)}
+                  onChange={(e) => setChecked((cur) => { const n = new Set(cur); if (e.target.checked) n.add(o.id); else n.delete(o.id); return n })} />
+              </td>
+              <td className="text-center">
+                {/* 원본: 일자를 누르면 '발주요청입력(수정)' 창 */}
+                <a className="cursor-pointer" onClick={() => openForm(o)}>{shortDateNo(o.orderDate, o.orderNo)}</a>
+              </td>
               <td>{o.partnerName}</td>
               {/* 원본 '비밀의정원 [96페이지] 외 1건' — 첫 품목에 규격을 붙인다. */}
               <td>{o.lines[0]?.itemName ?? ''}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
@@ -172,6 +211,14 @@ export default function PurchaseRequestListPage() {
           ))}
         </tbody>
       </table>
+      {form && (
+        <PurchaseRequestForm key={form.key} editing={form.order}
+          onClose={() => setForm(null)}
+          onSaved={() => { setForm(null); void load() }}
+          onDeleted={() => { setForm(null); void load() }}
+          onCopy={(src) => openForm({ ...src, id: 0, orderDate: new Date().toLocaleDateString('sv-SE'), dueDate: new Date().toLocaleDateString('sv-SE') })}
+          onStep={step} />
+      )}
     </EcListShell>
   )
 }

@@ -221,6 +221,48 @@ public class PurchaseOrderService {
         return PurchaseOrderResponse.from(saved);
     }
 
+    /**
+     * 발주요청 고치기 — 원본 발주요청조회에서 [발주요청일자]를 눌러 여는 '발주요청입력(수정)' 창(2026-10-13 loginaa 실측).
+     *
+     * <p>원본은 일자를 잠그고 나머지(거래처 · 품목 줄 · 창고 · 납기 …)를 고친다. 그래서 일자 · 번호는 그대로 두고
+     * 머리와 줄을 통째로 바꾼다. 발주계획 이후로 넘어간 것은 이미 다음 단계가 그 줄을 보고 있어 막는다.
+     */
+    @Transactional
+    public PurchaseOrderResponse update(Long id, CreatePurchaseOrderRequest req, String username) {
+        PurchaseOrder po = get(id);
+        expect(po, PurchaseOrderStatus.REQUESTED, "발주요청 상태에서만 고칠 수 있습니다.");
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
+        if (!partner.getType().canBuy()) {
+            throw ApiException.badRequest("매입처가 아닌 거래처에는 발주할 수 없습니다: " + partner.getName());
+        }
+        po.setPartner(partner);
+        po.setDueDate(req.dueDate());
+        po.setEmployee(req.employeeId() == null ? null : employeeRepository.findById(req.employeeId())
+                .orElseThrow(() -> ApiException.notFound("담당자를 찾을 수 없습니다. id=" + req.employeeId())));
+        po.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
+        po.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
+        po.setCurrency((req.currency() == null || req.currency().isBlank()) ? "KRW" : req.currency().trim());
+        if (req.taxable() != null) po.setTaxable(req.taxable());
+        po.setRemark(req.remark());
+        /* 줄은 지우고 다시 단다. 지운 것을 먼저 내보내야 새 줄의 번호(1, 2 …)가 옛 줄과 겹치지 않는다. */
+        po.getLines().clear();
+        orderRepository.saveAndFlush(po);
+        for (OrderLineRequest lr : req.lines()) {
+            Item item = itemService.getUsable(lr.itemId());
+            BigDecimal unitPrice = lr.unitPrice() != null ? lr.unitPrice() : item.getUnitPrice();
+            BusinessPartner linePartner = lr.partnerId() == null ? null
+                    : TradeMasters.requireUsable(partnerRepository.findById(lr.partnerId())
+                            .orElseThrow(() -> ApiException.notFound("라인 거래처를 찾을 수 없습니다. id=" + lr.partnerId())));
+            po.addLine(PurchaseOrderLine.builder()
+                    .item(item).quantity(lr.quantity()).unitPrice(unitPrice)
+                    .partner(linePartner).remark(lr.remark())
+                    .build());
+        }
+        recalculate(po);
+        return PurchaseOrderResponse.from(orderRepository.save(po));
+    }
+
     /** 발주계획 확정 (발주요청 → 발주계획). 납기일을 여기서 정한다. */
     @Transactional
     public PurchaseOrderResponse plan(Long id, PlanRequest req, String username) {
