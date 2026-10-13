@@ -718,6 +718,7 @@ export default function AppRouter() {
         <Route path="/accounting/non-cash" element={<NonCashPage />} />
         <Route path="/accounting/checks" element={<CheckPage />} />
         <Route path="/accounting/checks-deposit" element={<CheckDepositPage />} />
+        <Route path="/accounting/checks-withdraw" element={<CheckDepositPage type="ISSUED" />} />
         <Route path="/accounting/checks-list" element={<CheckListPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued-list" element={<CheckListPage type="ISSUED" />} />
         <Route path="/accounting/checks-ledger" element={<CheckLedgerPage type="RECEIVED" />} />

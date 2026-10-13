@@ -55,6 +55,13 @@ public class BankCheckController {
         return service.depositReport(req, principal.getUsername());
     }
 
+    /** 발행수표출금처리 [지출결의서작성] → 지출결의서 [저장] — 회계전표(지출결의서) + 고른 수표 감소 */
+    @PostMapping("/withdraw-report")
+    public List<CheckResponse> withdrawReport(@Valid @RequestBody BankCheckDtos.DepositReportRequest req,
+                                              @AuthenticationPrincipal UserPrincipal principal) {
+        return service.withdrawReport(req, principal.getUsername());
+    }
+
     /** 받은수표 부도 */
     @PostMapping("/{id}/dishonor")
     public CheckResponse dishonor(@PathVariable Long id, @RequestBody(required = false) SettleRequest req,

@@ -161,36 +161,59 @@ public class BankCheckService {
      */
     @Transactional
     public List<CheckResponse> depositReport(BankCheckDtos.DepositReportRequest req, String username) {
+        return settleByVoucher(CheckType.RECEIVED, req, username);
+    }
+
+    /**
+     * 원본 발행수표출금처리(E060606) [지출결의서작성] → 지출결의서 [저장] (2026-10-14 loginaa 실측) — 수령수표입금처리의 거울.
+     * 26101401562790400001 40,000(수표만증가 · 수표계좌 기업은행-1122 · 거래처 김치좋아) → 돈나간계좌번호 외환은행-2211 → 지출결의서 한 줄
+     * [돈 나간 계좌 5544332211 외환은행-2211 · 계정코드(차변) 1039 보통예금(수표계좌의 계정) · 거래처 1122334455 기업은행-1122 · 40,000 · 적요 QA회계2 발행 · 추가정보 발행수표 …]
+     * → 회계전표 2026/10/14 -4, 발행수표조회에 감소 줄 '2026/10/14 -2 · 거래유형 지출결의서'(체크칸 막힘), 출금처리 목록에서 빠진다.
+     * 지출결의서를 지우면 V392 트리거가 수표를 보유로 되돌린다(발행수표는 수표계좌를 그대로 둔다).
+     *
+     * <p>차변 계정은 수표계좌의 계정이다(발행수표는 늘 수표계좌가 있다).
+     */
+    @Transactional
+    public List<CheckResponse> withdrawReport(BankCheckDtos.DepositReportRequest req, String username) {
+        return settleByVoucher(CheckType.ISSUED, req, username);
+    }
+
+    /** 입금보고서(받은수표) · 지출결의서(발행수표) 한 장으로 고른 수표를 줄인다. */
+    private List<CheckResponse> settleByVoucher(CheckType type, BankCheckDtos.DepositReportRequest req, String username) {
+        boolean received = type == CheckType.RECEIVED;
         boolean cash = Boolean.TRUE.equals(req.cash()) || req.bankAccountId() == null;
         List<BankCheck> checks = new java.util.ArrayList<>();
         List<com.erp.accounting.fastvoucher.dto.FastVoucherDtos.LineInput> vLines = new java.util.ArrayList<>();
         for (BankCheckDtos.DepositReportLine l : req.lines()) {
             BankCheck c = check(l.checkId());
-            requireType(c, CheckType.RECEIVED, "받은수표만 입금할 수 있습니다");
-            requireHeld(c, "입금");
+            requireType(c, type, received ? "받은수표만 입금할 수 있습니다" : "발행수표만 출금할 수 있습니다");
+            requireHeld(c, received ? "입금" : "출금");
             requireNotBeforeIssue(c, req.date(), "일자");
-            Long credit = c.isDirectEntry() && c.getBankAccount() != null && c.getBankAccount().getGlAccount() != null
+            Long account = (!received || c.isDirectEntry()) && c.getBankAccount() != null && c.getBankAccount().getGlAccount() != null
                     ? c.getBankAccount().getGlAccount().getId()
-                    : accountRepository.findByCode("104")
-                        .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: 104")).getId();
+                    : received ? accountRepository.findByCode("104")
+                        .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: 104")).getId()
+                    : null;
+            if (account == null) throw ApiException.badRequest(c.getCheckNo() + " 의 수표계좌에 계정이 없습니다.");
             String memo = l.memo() == null || l.memo().isBlank() ? null : l.memo().trim();
             vLines.add(new com.erp.accounting.fastvoucher.dto.FastVoucherDtos.LineInput(
-                    credit, c.getAmount(), memo, cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null,
+                    account, c.getAmount(), memo, cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null,
                     c.getPartner() != null ? c.getPartner().getId() : null, null, null));
             checks.add(c);
         }
         var v = fastVoucherService.create(new com.erp.accounting.fastvoucher.dto.FastVoucherDtos.CreateVoucherRequest(
-                com.erp.accounting.fastvoucher.FastVoucherType.DEPOSIT_REPORT, req.date(), com.erp.accounting.PaymentMethod.CASH,
+                received ? com.erp.accounting.fastvoucher.FastVoucherType.DEPOSIT_REPORT : com.erp.accounting.fastvoucher.FastVoucherType.EXPENSE_REPORT,
+                req.date(), com.erp.accounting.PaymentMethod.CASH,
                 null, null, null, vLines, req.description() == null || req.description().isBlank() ? null : req.description().trim(),
                 null, null, null, null, null, null, null, null, null), username);
         JournalEntry entry = fastVoucherRepository.findById(v.id()).map(com.erp.accounting.fastvoucher.FastVoucher::getJournalEntry)
-                .orElseThrow(() -> ApiException.notFound("입금보고서를 찾을 수 없습니다. id=" + v.id()));
-        int entryNo = nextEntryNo(CheckType.RECEIVED, req.date());
+                .orElseThrow(() -> ApiException.notFound((received ? "입금보고서" : "지출결의서") + "를 찾을 수 없습니다. id=" + v.id()));
+        int entryNo = nextEntryNo(type, req.date());
         BankAccount into = cash ? null : bankAccount(req.bankAccountId());
         List<CheckResponse> out = new java.util.ArrayList<>();
         for (BankCheck c : checks) {
-            if (!c.isDirectEntry()) c.setBankAccount(into);
-            c.setStatus(CheckStatus.DEPOSITED);
+            if (received && !c.isDirectEntry()) c.setBankAccount(into);
+            c.setStatus(received ? CheckStatus.DEPOSITED : CheckStatus.PAID);
             c.setSettledDate(req.date());
             c.setSettleJournalId(entry.getId());
             c.setDirectOutNo(entryNo);
@@ -373,7 +396,8 @@ public class BankCheckService {
             /* 원본: 입금보고서로 줄인 감소 줄은 체크칸이 막혀 있다 — 입금보고서(회계전표)를 지우면 함께 사라진다. */
             if (c.getSettleJournalId() != null && journalRepository.findById(c.getSettleJournalId())
                     .map((j) -> j.getSourceType() == JournalSourceType.VOUCHER).orElse(false)) {
-                throw ApiException.badRequest(c.getCheckNo() + " 은(는) 입금보고서로 감소한 수표입니다 — 입금보고서에서 삭제하세요.");
+                String doc = c.getType() == CheckType.RECEIVED ? "입금보고서" : "지출결의서";
+                throw ApiException.badRequest(c.getCheckNo() + " 은(는) " + doc + "로 감소한 수표입니다 — " + doc + "에서 삭제하세요.");
             }
             if (c.getSettleJournalId() != null) {
                 JournalEntry e = journalRepository.findById(c.getSettleJournalId()).orElse(null);

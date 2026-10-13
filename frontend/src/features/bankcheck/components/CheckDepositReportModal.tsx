@@ -6,7 +6,7 @@ import { EcCond } from '../../../components/EcStatusPanel'
 import GridCode from '../../../components/GridCode'
 import type { CodeItem } from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
-import type { BankAccountRow, BankCheck } from '../../../types/api'
+import type { BankAccountRow, BankCheck, CheckType } from '../../../types/api'
 
 type MemoMode = 'SAME' | 'CHECKNO' | 'DIRECT'
 type Group = 'LINE' | 'PARTNER'
@@ -39,12 +39,21 @@ export function bankLabel(b: Pick<BankAccountRow, 'name' | 'bankName' | 'account
  * <br>2) [적용] → <b>입금보고서</b> 창: 일자 · 첨언내용, 줄마다 돈 들어온 계좌 · 계정코드(대변) 1039 보통예금(수표계좌의 계정) ·
  * 거래처(원본은 수표계좌 1122334455 기업은행-1122) · 금액 70,000(수표 잔액) · 적요명 · 추가정보 '수령수표 QA2C701'.
  * [저장(F8)] 하면 회계전표(2026/10/13 -22)와 수표 감소(수령수표조회 '2026/10/13 -12 · 입금보고서')가 함께 생기고 목록에서 빠진다.
+ *
+ * <p>type="ISSUED" — 발행수표출금처리(E060606) [지출결의서작성] (2026-10-14 실측): 1) <b>지출결의서작성</b> 창 [돈나간계좌번호] · 적요 · 묶음기준
+ * (비워도 [적용] 이 넘어간다) 2) <b>지출결의서</b> 창: 돈 나간 계좌 검색 · 돈 나간 계좌명 · 계정코드(차변) 1039 보통예금(수표계좌의 계정) · 거래처 ·
+ * 금액 · 적요명 · 추가정보 '발행수표 …'. 돈 나간 계좌를 비우고 [저장] 하면 그 칸에 '자료를 입력 바랍니다.'.
+ * 저장하면 회계전표(2026/10/14 -4)와 발행수표조회 감소 줄 '2026/10/14 -2 · 지출결의서'.
  */
-export default function CheckDepositReportModal({ picks, onClose, onSaved }: {
+export default function CheckDepositReportModal({ type = 'RECEIVED', picks, onClose, onSaved }: {
+  type?: CheckType
   picks: CheckDepositPick[] | null
   onClose: () => void
   onSaved: () => void
 }) {
+  const received = type === 'RECEIVED'
+  const doc = received ? '입금보고서' : '지출결의서'
+  const flow = received ? '돈 들어온 계좌' : '돈 나간 계좌'
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [settle, setSettle] = useState('')
   const [memoMode, setMemoMode] = useState<MemoMode>('SAME')
@@ -82,10 +91,10 @@ export default function CheckDepositReportModal({ picks, onClose, onSaved }: {
   async function save() {
     if (!lines) return
     setError('')
-    if (!settle) { setError('돈 들어온 계좌를 입력 바랍니다.'); return }
+    if (!settle) { setError(received ? '돈 들어온 계좌를 입력 바랍니다.' : `${flow}: 자료를 입력 바랍니다.`); return }
     setSaving(true)
     try {
-      await api.post('/checks/deposit-report', {
+      await api.post(received ? '/checks/deposit-report' : '/checks/withdraw-report', {
         date,
         bankAccountId: settle.startsWith('b') ? Number(settle.slice(1)) : undefined,
         cash: settle === '000' || undefined,
@@ -115,12 +124,12 @@ export default function CheckDepositReportModal({ picks, onClose, onSaved }: {
 
   return (
     <>
-      <Modal open={picks != null && lines == null} title="입금보고서작성" width={780} error={error} onClose={onClose}>
+      <Modal open={picks != null && lines == null} title={`${doc}작성`} width={780} error={error} onClose={onClose}>
         <ul className="ec-form mb-[8px]">
-          <EcCond label="입금계좌" span={2}>
+          <EcCond label={received ? '입금계좌' : '돈나간계좌번호'} span={2}>
             <span className="flex w-full items-center gap-[6px]">
               <span className="w-[160px]">
-                <GridCode title="계좌검색" codeHead="입금계좌" nameHead="계좌명" items={settleItems}
+                <GridCode title="계좌검색" codeHead={received ? '입금계좌' : '돈나간계좌번호'} nameHead="계좌명" items={settleItems}
                           value={settle} onPick={setSettle} />
               </span>
               <span className="flex-1">{settleName}</span>
@@ -139,7 +148,7 @@ export default function CheckDepositReportModal({ picks, onClose, onSaved }: {
         </div>
       </Modal>
 
-      <Modal open={picks != null && lines != null} title="입금보고서" width={1100} error={error} onClose={onClose}>
+      <Modal open={picks != null && lines != null} title={doc} width={1100} error={error} onClose={onClose}>
         <ul className="ec-form mb-[8px]">
           <EcCond label="일자" span={2}>
             <EcDateField value={date} onChange={setDate} />
@@ -154,9 +163,9 @@ export default function CheckDepositReportModal({ picks, onClose, onSaved }: {
             <thead>
               <tr>
                 <th className="w-[32px]" />
-                <th>돈 들어온 계좌 검색</th>
-                <th>돈 들어온 계좌명</th>
-                <th>계정코드(대변)</th>
+                <th>{flow} 검색</th>
+                <th>{flow}명</th>
+                <th>{received ? '계정코드(대변)' : '계정코드(차변)'}</th>
                 <th>계정코드명</th>
                 <th>거래처 검색</th>
                 <th>거래처명</th>
@@ -180,7 +189,7 @@ export default function CheckDepositReportModal({ picks, onClose, onSaved }: {
                     <input className="ec-input w-full" aria-label={`${i + 1}줄 적요명`} maxLength={200} value={l.memo}
                            onChange={(e) => setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, memo: e.target.value } : x)))} />
                   </td>
-                  <td className="text-ec-navy">수령수표 {l.pick.check.checkNo}</td>
+                  <td className="text-ec-navy">{received ? '수령수표' : '발행수표'} {l.pick.check.checkNo}</td>
                 </tr>
               ))}
             </tbody>
