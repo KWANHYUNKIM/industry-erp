@@ -165,6 +165,8 @@ export default function SurveyInputPage() {
     if (!draft && filled.length === 0) return setError('문항을 한 줄 이상 입력하세요. (초안으로는 저장할 수 있습니다)')
     // 원본 [저장]은 '설문조사를 진행하시겠습니까?' 를 먼저 묻는다.
     if (!draft && !window.confirm('설문조사를 진행하시겠습니까?')) return
+    // 원본은 묻고 난 뒤 [필수항목]이 하나도 안 켜져 있으면 그 칸에 말풍선을 띄우고 저장하지 않는다(2026-10-13 실측).
+    if (!draft && !filled.some((r) => r.required)) return setError('최소 1개의 문항은 필수입력값으로 선택되어야합니다.')
     try {
       if (editId != null) {
         const { draft: _d, ...body } = payload(draft)

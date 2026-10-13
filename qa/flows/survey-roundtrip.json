@@ -1,5 +1,5 @@
 {
-  "about": "설문 한 바퀴를 화면만으로 — 설문조사입력(제목 · 외부 · 단답형 질문 하나) [저장] '설문조사를 진행하시겠습니까?' → 설문조사 목록 제목 → '설문조사' 창 [참여하기] → 답 넣고 [제출] → 내 응답(answeredByMe) → 설문조사현황 [검색(F8)] 출력물에 응답 × 질문 한 줄. 끝에 지운다. node qa/shot.mjs qa/flows/survey-roundtrip.json",
+  "about": "설문 한 바퀴를 화면만으로 — 설문조사입력(제목 · 외부 · 단답형 질문 하나 · 필수항목 켬 — 안 켜면 원본처럼 '최소 1개의 문항은 필수입력값으로…' 로 막힘) [저장] '설문조사를 진행하시겠습니까?' → 설문조사 목록 제목 → '설문조사' 창 [참여하기] → 답 넣고 [제출] → 내 응답(answeredByMe) → 설문조사현황 [검색(F8)] 출력물에 응답 × 질문 한 줄. 끝에 지운다. node qa/shot.mjs qa/flows/survey-roundtrip.json",
   "shots": [
     {
       "name": "설문조사입력 — 화면으로 저장",
@@ -8,7 +8,7 @@
         "wait:800",
         "setnear:제목|QA그룹웨어-화면설문",
         "js:[...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '외부').querySelector('input').click(); true",
-        "js:(() => { const tr = document.querySelector('.ec-grid-input tbody tr'); const s = tr.querySelector('select'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'SHORT_TEXT'); s.dispatchEvent(new Event('change', { bubbles: true })); const i = [...tr.querySelectorAll('input')].find((x) => x.type !== 'checkbox' && !x.disabled); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA좋아하는 점심메뉴는?'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:(() => { const tr = document.querySelector('.ec-grid-input tbody tr'); const s = tr.querySelector('select'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'SHORT_TEXT'); s.dispatchEvent(new Event('change', { bubbles: true })); const i = [...tr.querySelectorAll('input')].find((x) => x.type !== 'checkbox' && !x.disabled); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA좋아하는 점심메뉴는?'); i.dispatchEvent(new Event('input', { bubbles: true })); tr.querySelector('input[type=checkbox]').click(); return true })()",
         "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; true",
         "click:저장",
         "wait:1200",

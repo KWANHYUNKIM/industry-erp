@@ -84,6 +84,15 @@ export default function SurveyPage() {
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  /** 원본 진행 중 설문 창 [설문끝내기] — 묻고 나서 '완료' 로 바꾼다(2026-10-13 실측, 창은 그대로 [설문결과보기] 줄로 바뀐다). */
+  async function finishOne(s: SurveyDoc) {
+    if (!confirm('설문을 끝내면 더이상 설문을 진행할 수 없습니다. 계속 진행하시겠습니까?')) return
+    try {
+      const r = await api.patch<SurveyDoc>(`/surveys/${s.id}`, { status: 'CLOSED' })
+      setViewing(r.data); void load()
+    } catch (err) { alert(extractErrorMessage(err)) }
+  }
+
   async function load() {
     setError('')
     try { setRows((await api.get<SurveyDoc[]>('/surveys')).data) }
@@ -245,6 +254,7 @@ export default function SurveyPage() {
         <ViewModal survey={viewing} onClose={() => setViewing(null)}
                    onResult={() => void openResult(viewing)}
                    onParticipants={() => void openParticipants(viewing)}
+                   onFinish={() => void finishOne(viewing)}
                    onAnswer={() => { setAnswering(viewing); setViewing(null) }}
                    onEdit={() => navigate(`/groupware/survey-input?edit=${viewing.id}`)}
                    onCopy={() => navigate(`/groupware/survey-input?copy=${viewing.id}`)}
@@ -372,9 +382,12 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
  * 원본 제목을 누르면 뜨는 '설문조사' 창(2026-10-13 실측) — 위 [설문대상자(35) 👤], 둥근 판(머리 --ec-bg-disabled '설문기간 : … ' + 머리말),
  * 질문마다 둥근 판(머리 질문 제목, 안에 보기). 하단 [설문결과보기][수정][복사][삭제][닫기].
  * 답할 수 있는 설문이면 [참여하기] 로 답하기 창을 연다(원본은 완료된 설문만 재서 답하는 단추 이름은 못 쟀다).
+ * <b>진행 중</b>인 설문은 원본 하단이 [설문끝내기][설문여부][수정][복사][삭제][닫기][H] 다(2026-10-13 실측) — [설문결과보기] 자리에
+ * [설문끝내기] · [설문여부](= '설문조사참여여부' 창)가 선다. 끝내면 [설문결과보기] 줄로 돌아온다.
+ * 원본 작성자 창에는 답을 내는 단추가 없었다(보기 칸만 눌림) — 우리 [참여하기] 는 그대로 둔다.
  */
-function ViewModal({ survey: r, onClose, onResult, onParticipants, onAnswer, onEdit, onCopy, onDelete, onHistory }: {
-  survey: SurveyDoc; onClose: () => void; onResult: () => void; onParticipants: () => void; onAnswer: () => void
+function ViewModal({ survey: r, onClose, onResult, onParticipants, onFinish, onAnswer, onEdit, onCopy, onDelete, onHistory }: {
+  survey: SurveyDoc; onClose: () => void; onResult: () => void; onParticipants: () => void; onFinish: () => void; onAnswer: () => void
   onEdit: () => void; onCopy: () => void; onDelete: () => void; onHistory: () => void
 }) {
   const canAnswer = r.status === 'OPEN' && !r.expired && !r.answeredByMe
@@ -398,7 +411,12 @@ function ViewModal({ survey: r, onClose, onResult, onParticipants, onAnswer, onE
         </div>
       ))}
       <div className="flex gap-[6px] mt-[10px]">
-        <button type="button" className="ec-btn ec-btn-primary" onClick={onResult}>설문결과보기</button>
+        {r.status === 'OPEN' ? (
+          <>
+            <button type="button" className="ec-btn ec-btn-primary" onClick={onFinish}>설문끝내기</button>
+            <button type="button" className="ec-btn" onClick={onParticipants}>설문여부</button>
+          </>
+        ) : <button type="button" className="ec-btn ec-btn-primary" onClick={onResult}>설문결과보기</button>}
         {canAnswer && <button type="button" className="ec-btn" onClick={onAnswer}>참여하기</button>}
         <button type="button" className="ec-btn" onClick={onEdit}>수정</button>
         <button type="button" className="ec-btn" onClick={onCopy}>복사</button>
