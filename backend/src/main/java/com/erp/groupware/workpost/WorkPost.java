@@ -113,4 +113,15 @@ public class WorkPost extends BaseTimeEntity {
     /** 원본 [라벨] — 제목 앞 칩(중요 · 외근 …). 라벨 이름을 쉼표로 잇는다. 없으면 null. */
     @Column(length = 200)
     private String labels;
+
+    /** 통합회의록 입력 창 [주 차 구분] — 주차검색의 코드 1 ~ 5('1주차' …). 다른 게시판은 null. */
+    @Column(name = "week_no")
+    private Integer weekNo;
+
+    /**
+     * 통합회의록의 부서 칸(경영지원팀 회의록 · 구매팀 회의록 · 생산팀 회의록 · 영업팀 회의록)에 이은 팀별회의록 글 id.
+     * 칸 차례대로 쉼표로 잇고 빈 칸은 빈 글자('12,,,15'). 다른 게시판은 null.
+     */
+    @Column(name = "meeting_links", length = 100)
+    private String meetingLinks;
 }

@@ -20,13 +20,18 @@ public enum PostBoard {
     /** 공유정보 &gt; 회의록(예시) &gt; 팀별회의록 게시판 (E200068). 진행상태 자리가 '부서구분'. */
     MEETING("팀별회의록 게시판"),
     /** 공유정보 &gt; 프로젝트 진행관리(예시) &gt; 간판제작 프로젝트관리 (E072501). */
-    SIGN("간판제작 프로젝트관리");
+    SIGN("간판제작 프로젝트관리"),
+    /**
+     * 공유정보 &gt; 회의록(예시) &gt; 통합회의록 (E200066, 2026-10-13 실측). 팀별회의록({@link #MEETING}) 글을 부서마다 한 칸씩 잇고
+     * [주 차 구분]을 단다. 진행상태는 WORK 처럼 진행중 · 완료.
+     */
+    MINUTES("통합회의록");
 
     /**
      * 게시글번호를 이 게시판 혼자 세는가. 2026-10-13 원본: 공지사항(…16)과 팀별회의록(…16)의 번호가 겹치고,
      * 통합게시판은 2 · 간판제작은 12 에서 멈춘다 — 새 게시판들은 각자 센다. WORK · 공지사항은 예전 실측(한 줄기)대로 둔다.
      */
-    public boolean ownNumbering() { return this == SHARED || this == MEETING || this == SIGN; }
+    public boolean ownNumbering() { return this == SHARED || this == MEETING || this == SIGN || this == MINUTES; }
 
     /** 진행상태 이름을 회사가 정한 게시판인가 — 그 이름은 status(진행중/완료)가 아니라 stage 에 적는다. */
     public boolean namedStages() { return this == SHARED || this == MEETING || this == SIGN; }

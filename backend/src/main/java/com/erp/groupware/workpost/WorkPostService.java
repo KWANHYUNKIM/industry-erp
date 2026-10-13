@@ -58,6 +58,7 @@ public class WorkPostService {
         // 게시글번호는 게시판을 가로질러 하나의 줄기다. max+1 이라 두 사람이 동시에 쓰면
         // 같은 번호를 읽으므로 번호 공간에 락을 건다.
         PostBoard board = req.board() != null ? req.board() : PostBoard.WORK;
+        requireContent(board, req.content());
         // 새 게시판(통합게시판 · 팀별회의록 · 간판제작)은 번호를 혼자 센다 — PostBoard#ownNumbering.
         docNo.lockNumberSpace(board.ownNumbering() ? "WORK-POST-NO-" + board.name() : "WORK-POST-NO");
         WorkPost post = WorkPost.builder()
@@ -65,7 +66,7 @@ public class WorkPostService {
                 .postNo((board.ownNumbering() ? workPostRepository.maxPostNoOf(board) : workPostRepository.maxPostNo()) + 1)
                 .postDate(req.postDate() != null ? req.postDate() : LocalDate.now())
                 .title(req.title())
-                .content(req.content())
+                .content(req.content() == null ? "" : req.content())
                 .writer(writer)
                 .forwardTo(req.forwardTo())
                 .ccTo(req.ccTo())
@@ -78,6 +79,8 @@ public class WorkPostService {
                  * 진행상태가 회사가 정한 이름뿐이라 '완료로 바꾼 때' 가 따로 없다.
                  */
                 .completedAt(board.namedStages() ? java.time.LocalDateTime.now() : null)
+                .weekNo(board == PostBoard.MINUTES ? weekOf(req.weekNo()) : null)
+                .meetingLinks(board == PostBoard.MINUTES ? joinLinks(req.meetingLinks()) : null)
                 .build();
         return WorkPostResponse.from(workPostRepository.save(post), displayName(writer));
     }
@@ -86,14 +89,51 @@ public class WorkPostService {
     @Transactional
     public WorkPostResponse update(Long id, WorkPostDtos.UpdateWorkPostRequest req) {
         WorkPost post = getPost(id);
+        requireContent(post.getBoard(), req.content());
         post.setTitle(req.title());
-        post.setContent(req.content());
+        post.setContent(req.content() == null ? "" : req.content());
         post.setForwardTo(req.forwardTo());
         post.setCcTo(req.ccTo());
         post.setNotice(Boolean.TRUE.equals(req.notice()));
         post.setAttachment(attachmentOf(req.attachmentId()));
         if (post.getBoard().namedStages()) post.setStage(blankToNull(req.stage()));
+        if (post.getBoard() == PostBoard.MINUTES) {
+            post.setWeekNo(weekOf(req.weekNo()));
+            post.setMeetingLinks(joinLinks(req.meetingLinks()));
+        }
         return WorkPostResponse.from(post, displayName(post.getWriter()));
+    }
+
+    /** 통합회의록은 내용 없이도 저장된다(원본 2026-10-13 — 부서 칸 · 주 차만 넣고 저장). 그 밖의 게시판은 막는다. */
+    private static void requireContent(PostBoard board, String content) {
+        if (board != PostBoard.MINUTES && (content == null || content.isBlank())) throw ApiException.badRequest("내용을 입력하세요.");
+    }
+
+    /** 원본 주차검색: 1 1주차 ~ 5 5주차. */
+    private static Integer weekOf(Integer w) {
+        if (w == null) return null;
+        if (w < 1 || w > 5) throw ApiException.badRequest("주 차 구분은 1주차 ~ 5주차 중에서 고르세요.");
+        return w;
+    }
+
+    /**
+     * 통합회의록 부서 칸 → '12,,,15'. 칸마다 <b>팀별회의록 게시판 글</b>만 이을 수 있다
+     * (원본 칸의 🔍 는 '팀별회의록 게시판검색창' 을 띄운다). 모두 비면 null.
+     */
+    private String joinLinks(java.util.List<Long> ids) {
+        if (ids == null || ids.stream().allMatch(java.util.Objects::isNull)) return null;
+        if (ids.size() > 4) throw ApiException.badRequest("부서 회의록 칸은 넷입니다.");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ids.size(); i++) {
+            if (i > 0) sb.append(',');
+            Long linked = ids.get(i);
+            if (linked == null) continue;
+            WorkPost m = workPostRepository.findById(linked)
+                    .filter(x -> x.getBoard() == PostBoard.MEETING)
+                    .orElseThrow(() -> ApiException.badRequest("팀별회의록 게시판 글을 찾을 수 없습니다. id=" + linked));
+            sb.append(m.getId());
+        }
+        return sb.toString();
     }
 
     private static String blankToNull(String s) { return s == null || s.isBlank() ? null : s.trim(); }

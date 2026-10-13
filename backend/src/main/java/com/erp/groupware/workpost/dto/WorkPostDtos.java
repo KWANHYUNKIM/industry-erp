@@ -18,7 +18,8 @@ public final class WorkPostDtos {
             PostBoard board,
             @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String title,
-            @NotBlank(message = "내용을 입력하세요.") String content,
+            /** 내용. 통합회의록은 비워도 저장된다(원본 2026-10-13) — 그 밖의 게시판은 서버가 '내용을 입력하세요.' 로 막는다. */
+            String content,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String forwardTo,
             /** 원본 WORK입력 폼의 [참조자]. 전달자와 같은 자유입력. */
@@ -30,7 +31,11 @@ public final class WorkPostDtos {
             /** 첨부 파일 id. 원본 격자의 [첨부] 열. 안 붙일 수 있다. */
             Long attachmentId,
             /** 원본 입력 창 맨 위 [진행상태] — 회사가 정한 이름을 쓰는 게시판만(SHARED · MEETING · SIGN). */
-            @Size(max = 40, message = "진행상태는 40자까지 넣을 수 있습니다.") String stage
+            @Size(max = 40, message = "진행상태는 40자까지 넣을 수 있습니다.") String stage,
+            /** 통합회의록 [주 차 구분] 1 ~ 5. 다른 게시판은 무시한다. */
+            Integer weekNo,
+            /** 통합회의록 부서 칸(경영지원팀 · 구매팀 · 생산팀 · 영업팀 회의록)에 이을 팀별회의록 글 id, 칸 차례대로(빈 칸은 null). */
+            java.util.List<Long> meetingLinks
     ) {}
 
     /**
@@ -42,7 +47,8 @@ public final class WorkPostDtos {
     public record UpdateWorkPostRequest(
             @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String title,
-            @NotBlank(message = "내용을 입력하세요.") String content,
+            /** 내용. 통합회의록은 비워도 저장된다(원본 2026-10-13) — 그 밖의 게시판은 서버가 '내용을 입력하세요.' 로 막는다. */
+            String content,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String forwardTo,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
@@ -52,7 +58,11 @@ public final class WorkPostDtos {
             /** null 이면 첨부를 뗀다. 안 보내는 것과 구분하지 않는다 — 수정은 통째로 덮는다. */
             Long attachmentId,
             /** 원본 입력 창 [진행상태] — 회사가 정한 이름을 쓰는 게시판만. 그 밖의 게시판은 무시한다. */
-            @Size(max = 40, message = "진행상태는 40자까지 넣을 수 있습니다.") String stage
+            @Size(max = 40, message = "진행상태는 40자까지 넣을 수 있습니다.") String stage,
+            /** 통합회의록 [주 차 구분]. 수정은 통째로 덮는다. */
+            Integer weekNo,
+            /** 통합회의록 부서 칸에 이은 팀별회의록 글 id(칸 차례대로, 빈 칸은 null). */
+            java.util.List<Long> meetingLinks
     ) {}
 
     /** 원본 '조회자 현황'의 오른쪽 한 줄 — 이름 · 최초조회일시 · 최종조회일시. */
@@ -116,7 +126,11 @@ public final class WorkPostDtos {
             /** 원본 [라벨] 칩 */
             java.util.List<String> labels,
             /** 회사가 정한 진행상태 이름(SHARED · MEETING · SIGN). 그 게시판들은 statusName 도 이 이름이다. */
-            String stage
+            String stage,
+            /** 통합회의록 [주 차 구분] 1 ~ 5(격자 [주 차] 는 'n주차'). */
+            Integer weekNo,
+            /** 통합회의록 부서 칸마다 이은 팀별회의록 글 id(칸 차례대로, 빈 칸은 null). 다른 게시판은 빈 목록. */
+            java.util.List<Long> meetingLinks
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
             var f = p.getAttachment();
@@ -134,7 +148,17 @@ public final class WorkPostDtos {
                     p.getViewCount(), p.getCreatedAt(),
                     p.getLabels() == null || p.getLabels().isBlank() ? java.util.List.of()
                             : java.util.Arrays.stream(p.getLabels().split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList(),
-                    p.getStage());
+                    p.getStage(),
+                    p.getWeekNo(),
+                    parseLinks(p.getMeetingLinks()));
+        }
+
+        /** '12,,,15' → [12, null, null, 15]. 빈 글자 · null 이면 빈 목록. */
+        public static java.util.List<Long> parseLinks(String s) {
+            if (s == null || s.isEmpty()) return java.util.List.of();
+            java.util.List<Long> out = new java.util.ArrayList<>();
+            for (String x : s.split(",", -1)) out.add(x.isBlank() ? null : Long.valueOf(x.trim()));
+            return java.util.Collections.unmodifiableList(out);
         }
     }
 }
