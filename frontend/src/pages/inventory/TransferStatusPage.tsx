@@ -11,6 +11,7 @@ import { printDocuments } from '../../utils/printDocument'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 > 창고이동현황 (이카운트 E040505)
@@ -262,7 +263,7 @@ export default function TransferStatusPage() {
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) { setError('삭제할 창고이동을(를) 고르세요.'); return }
-    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/stock-transfers/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())

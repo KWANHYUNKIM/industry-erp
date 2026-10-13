@@ -9,6 +9,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import type { StockAdjustmentSlip } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 type Line = { itemId: string; quantity: string; kind: string }
 type Grid = 'defect' | 'normal'
@@ -149,7 +150,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
   }
 
   async function remove() {
-    if (!adjustNo || !confirm('전표를 삭제하겠습니까?')) return
+    if (!adjustNo || !(await ecConfirm('전표를 삭제하겠습니까?'))) return
     try {
       await api.delete(`/stock-adjustments/slips/${encodeURIComponent(adjustNo)}`)
       onDone?.()

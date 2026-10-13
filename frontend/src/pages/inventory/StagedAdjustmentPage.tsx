@@ -10,6 +10,7 @@ import Modal from '../../components/Modal'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { useSearchParams } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 > 단계별재고조정 / 재고조정진행단계 (이카운트 E040604·E040650)
@@ -104,14 +105,14 @@ export default function StagedAdjustmentPage() {
   }
 
   async function act(r: StagedAdjustment, kind: 'apply' | 'reject') {
-    if (kind === 'apply' && !confirm(`${r.adjustNo}을(를) 반영할까요? 재고가 ${num(r.actualQty)}(으)로 조정됩니다.`)) return
+    if (kind === 'apply' && !(await ecConfirm(`${r.adjustNo}을(를) 반영할까요? 재고가 ${num(r.actualQty)}(으)로 조정됩니다.`))) return
     try { await api.post(`/staged-adjustments/${r.id}/${kind}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   async function remove(r: StagedAdjustment) {
-    if (!confirm(`${r.adjustNo}을(를) 삭제할까요?`)) return
+    if (!(await ecConfirm(`${r.adjustNo}을(를) 삭제할까요?`))) return
     try { await api.delete(`/staged-adjustments/${r.id}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const shown = useMemo(() => rows

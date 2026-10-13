@@ -11,6 +11,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, SELF_USE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { StockAdjustment } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated: boolean }
 
@@ -108,7 +109,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
   }, [shown, item, keyword, partnerName])
 
   async function removePicked() {
-    if (!confirm('선택한 전표를 삭제 하겠습니까?')) return
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     try {
       for (const no of picked) await api.delete(`/stock-adjustments/slips/${encodeURIComponent(no)}`)
       setPicked(new Set())

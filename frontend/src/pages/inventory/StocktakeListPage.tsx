@@ -10,6 +10,7 @@ import EcPeriodPicks, { STOCKTAKE_LIST_PICKS, periodOf } from '../../components/
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import type { StagedAdjustment, StockAdjustment } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated: boolean }
 /** 단계별재고조정을 반영하면 서버가 적요 앞에 이 말 + 실사번호를 붙여 재고조정(ADJUST)을 만든다(StagedStockAdjustmentService.apply). */
@@ -123,7 +124,7 @@ export default function StocktakeListPage() {
    */
   async function removePicked() {
     if (picked.size === 0) return setError('삭제할 전표를 선택하세요.')
-    if (!confirm('선택한 전표를 삭제 하겠습니까?')) return
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     try {
       for (const l of lines.filter((x) => picked.has(x.key))) {
         await api.delete(l.sort === '간편' ? `/stock-adjustments/stocktakes/${l.id}` : `/staged-adjustments/${l.id}`)

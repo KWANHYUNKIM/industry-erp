@@ -15,6 +15,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { clearItemSuggestCache } from '../../features/item/api/itemSuggest'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const inputCls = 'ec-input w-full'
 
@@ -364,7 +365,7 @@ export default function ItemsPage() {
 
   async function bulkChange() {
     const targets = shown.filter((it) => selected.has(it.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
     const patch = bulkField === 'stockTracked'
       ? { stockTracked: bulkValue === 'Y' }
       : { [bulkField]: bulkValue ? Number(bulkValue) : null }
@@ -374,7 +375,7 @@ export default function ItemsPage() {
     setSelected(new Set())
     setBulkOpen(false)
     await load()
-    if (failed > 0) alert(`${targets.length - failed}건 변경, ${failed}건 실패.`)
+    if (failed > 0) void ecAlert(`${targets.length - failed}건 변경, ${failed}건 실패.`)
   }
 
   async function setActive(targets: Item[], active: boolean) {
@@ -383,20 +384,20 @@ export default function ItemsPage() {
     const failed = results.filter((r) => r.status === 'rejected').length
     setSelected(new Set())
     await load()
-    if (failed > 0) alert(`${targets.length - failed}건 ${active ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+    if (failed > 0) void ecAlert(`${targets.length - failed}건 ${active ? '재사용' : '사용중단'}, ${failed}건 실패.`)
   }
 
   /** [사용중단/재사용] 본 버튼 — 고른 것이 모두 사용중단이면 되살리고, 하나라도 살아 있으면 중단한다. */
   async function toggleActive() {
     const targets = shown.filter((it) => selected.has(it.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
     await setActive(targets, targets.every((it) => !it.active))
   }
 
   /** 펼침의 [사용중단] · [재사용] — 고른 줄만. */
   async function setActiveChecked(active: boolean) {
     const targets = shown.filter((it) => selected.has(it.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
     await setActive(targets, active)
   }
 
@@ -405,14 +406,14 @@ export default function ItemsPage() {
    * 확인 창 '삭제하겠습니까?', 지운 뒤에는 말 없이 목록만 다시 그린다(C000029 실측).
    */
   async function removeSelected() {
-    if (selected.size === 0) { alert(NO_PICK); return }
-    if (!confirm('삭제하겠습니까?')) return
+    if (selected.size === 0) { void ecAlert(NO_PICK); return }
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     const ids = Array.from(selected)
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/items/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected')
     setSelected(new Set())
     await load()
-    if (failed.length > 0) alert(extractErrorMessage((failed[0] as PromiseRejectedResult).reason))
+    if (failed.length > 0) void ecAlert(extractErrorMessage((failed[0] as PromiseRejectedResult).reason))
   }
 
   /** 수정 창 [사용중단/재사용] — 열어 둔 품목 하나를 뒤집고 창을 닫는다. */
@@ -426,7 +427,7 @@ export default function ItemsPage() {
   /** 수정 창 펼침 [삭제] — 확인 글도 '삭제하겠습니까?'(C000029 실측). */
   async function removeOne() {
     if (editId == null) return
-    if (!confirm('삭제하겠습니까?')) return
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     try {
       await api.delete(`/items/${editId}`)
       closeForm()
@@ -573,17 +574,17 @@ export default function ItemsPage() {
       collapseConditions
       onNew={showForm ? closeForm : openCreate}
       // 원본 차례: 신규(F2) · 바코드 · 관계설정 · 계층그룹 · 변경 · 재고조정 · 사용중단/재사용 ▴ · Excel · 웹자료올리기
-      actions={[{ label: '바코드', onClick: () => { if (picked.length === 0) { alert(NO_PICK); return } setBarcodeOpen(true) } },
+      actions={[{ label: '바코드', onClick: () => { if (picked.length === 0) { void ecAlert(NO_PICK); return } setBarcodeOpen(true) } },
                 { label: '관계설정', onClick: () => setRelationOpen(true) },
                 { label: '계층그룹', onClick: () => setGroupOpen(true) },
                 { label: '변경', onClick: () => {
-                  if (selected.size === 0) { alert(NO_PICK); return }
+                  if (selected.size === 0) { void ecAlert(NO_PICK); return }
                   setBulkValue(''); setBulkOpen(true)
                 } },
                 // 원본 [재고조정] — 고른 품목을 물고 재고조정 화면을 연다
                 { label: '재고조정', onClick: () => {
                   const [first] = [...selected]
-                  if (first == null) { alert(NO_PICK); return }
+                  if (first == null) { void ecAlert(NO_PICK); return }
                   navigate(`/inventory/staged-adjustment?item=${first}`)
                 } },
                 /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회는 전표 쓰임을 모으는 API 가 없어 남은 것(거래처와 같다). */

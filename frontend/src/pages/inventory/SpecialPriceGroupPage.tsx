@@ -5,6 +5,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
+import { ecAlert } from '../../components/EcDialog'
 
 const SALES_GROUPS = ['일반가', '대리점가', '특판가']
 const PURCHASE_GROUPS = ['표준매입가', '계약단가']
@@ -59,7 +60,7 @@ export default function SpecialPriceGroupPage() {
         salesPriceGroup: groups[p.id]?.sales || null,
         purchasePriceGroup: groups[p.id]?.purchase || null,
       })))
-      alert(changed.length ? `${changed.length}개 거래처 단가그룹을 저장했습니다.` : '변경된 내용이 없습니다.')
+      void ecAlert(changed.length ? `${changed.length}개 거래처 단가그룹을 저장했습니다.` : '변경된 내용이 없습니다.')
       load()
     } catch (err) {
       setError(extractErrorMessage(err))

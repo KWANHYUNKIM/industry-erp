@@ -12,6 +12,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -68,24 +69,24 @@ export default function TransferPage() {
    * 그러면 창고이동조회에 있지도 않은 이동이 두 줄 남는다. 서버가 옮겼던 재고를 되돌린다.
    */
   async function removeTransfer(r: StockTransfer) {
-    if (!confirm(`창고이동 '${r.transferNo}' 을(를) 삭제할까요? 옮겼던 재고도 되돌아갑니다.`)) return
+    if (!(await ecConfirm(`창고이동 '${r.transferNo}' 을(를) 삭제할까요? 옮겼던 재고도 되돌아갑니다.`))) return
     try {
       await api.delete(`/stock-transfers/${r.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
   /** 재고조정·폐기 등도 지울 자리가 없었다(QA 10회차) — 창고이동과 같이 서버가 바뀐 재고를 되돌린다. */
   async function removeAdjustment(r: { id: number; adjustNo: string; typeName?: string }) {
-    if (!confirm(`'${r.adjustNo}' 을(를) 삭제할까요? 바뀐 재고도 되돌아갑니다.`)) return
+    if (!(await ecConfirm(`'${r.adjustNo}' 을(를) 삭제할까요? 바뀐 재고도 되돌아갑니다.`))) return
     try {
       await api.delete(`/stock-adjustments/${r.id}`)
       setOk(`${r.adjustNo} 삭제 — 재고를 되돌렸습니다.`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PriceOrderLine } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
+import { ecAlert } from '../../components/EcDialog'
 
 type Cat = 'SALES' | 'PURCHASE'
 const CAT_LABEL: Record<Cat, string> = { SALES: '영업관리', PURCHASE: '구매관리' }
@@ -90,7 +91,7 @@ export default function PriceOrderPage() {
       const payload = { category: cat, settings: lines.map((l, i) => ({ ...l, applyOrder: i + 1 })) }
       const r = await api.put<PriceOrderLine[]>('/price-order-settings', payload)
       setLines(r.data)
-      alert(`[${CAT_LABEL[cat]}] 단가적용순서를 저장했습니다.`)
+      void ecAlert(`[${CAT_LABEL[cat]}] 단가적용순서를 저장했습니다.`)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {

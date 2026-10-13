@@ -3,6 +3,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { AllocationRow, Item, LocationStock, Warehouse, WarehouseLocation, WmsOverview } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const qty = (n: number) => n.toLocaleString('ko-KR')
 
@@ -58,12 +59,12 @@ export default function WmsPage() {
   const unallocatedTotal = allocations.reduce((a, r) => a + r.unallocatedQuantity, 0)
 
   async function removeLocation(l: WarehouseLocation) {
-    if (!window.confirm(`로케이션 ${l.code}를 삭제할까요?`)) return
+    if (!(await ecConfirm(`로케이션 ${l.code}를 삭제할까요?`))) return
     try {
       await api.delete(`/wms/locations/${l.id}`)
       flash('로케이션을 삭제했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   return (

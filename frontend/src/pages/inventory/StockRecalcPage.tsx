@@ -2,6 +2,7 @@ import { useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 > 잔량재집계 (이카운트 E040607)
@@ -56,7 +57,7 @@ export default function StockRecalcPage() {
 
   async function run(apply: boolean) {
     if (fromMonth > toMonth) return setError('시작월이 종료월보다 뒤입니다.')
-    if (apply && !window.confirm('재집계를 반영하면 거래잔량·현재고가 수불 이력 기준으로 덮어써집니다. 진행할까요?')) return
+    if (apply && !(await ecConfirm('재집계를 반영하면 거래잔량·현재고가 수불 이력 기준으로 덮어써집니다. 진행할까요?'))) return
     setBusy(true); setError(''); setNotice('')
     try {
       const params = { fromMonth, toMonth }

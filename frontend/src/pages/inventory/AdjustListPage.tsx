@@ -13,6 +13,7 @@ import type { StockAdjustment } from '../../types/api'
 import Modal from '../../components/Modal'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { adjustSlipHtml } from '../../utils/adjustSlipDocument'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** [이력조회] 한 줄(GET /stock-adjustments/histories). 거래처 · 담당자는 id 만 온다. */
 interface HistoryRow {
@@ -101,7 +102,7 @@ export default function AdjustListPage() {
   /** [인쇄] — 고른 줄을 전표(번호)별로 묶어 재고조정전표 미리보기. 창은 누른 순간 연다(팝업 차단). */
   function printPicked() {
     const sel = shown.filter((r) => picked.has(r.id))
-    if (sel.length === 0) return alert(NO_PICK)
+    if (sel.length === 0) return ecAlert(NO_PICK)
     const win = openPrintWindow()
     if (!win) return
     const byNo = new Map<string, StockAdjustment[]>()
@@ -125,7 +126,7 @@ export default function AdjustListPage() {
   /** 원본 [선택삭제] — 고른 조정을 지우고 재고를 되돌린다(서버가 반대 거래를 남긴다). */
   async function removePicked() {
     if (picked.size === 0) return setError('삭제할 전표를 선택하세요.')
-    if (!confirm('선택한 전표를 삭제 하겠습니까?')) return
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     try {
       for (const id of picked) await api.delete(`/stock-adjustments/${id}`)
     } catch (e) {
