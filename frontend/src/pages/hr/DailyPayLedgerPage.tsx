@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
 import DailyDirectAmount, { type DailyWorkerRow } from '../../features/dailypay/components/DailyDirectAmount'
 import DailyPayBulkEdit, { type DailyPayLineRow } from '../../features/dailypay/components/DailyPayBulkEdit'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 interface Ledger {
   id: number; payMonth: string; seq: number; name: string; paidMonth: string; payDate: string
@@ -122,7 +123,7 @@ export default function DailyPayLedgerPage() {
     }
   }
   async function deleteConfirm() {
-    if (!confirmFor || !window.confirm('삭제하시겠습니까?')) return
+    if (!confirmFor || !(await ecConfirm('삭제하시겠습니까?'))) return
     try {
       await api.delete(`/hr/daily-pay-ledgers/${confirmFor.id}/work-confirms`)
       setConfirmFor(null)
@@ -151,7 +152,7 @@ export default function DailyPayLedgerPage() {
   const pickRows = pickWorkers.filter((w) => !pickQuery || [w.code, w.name, w.department ?? ''].some((v) => v.includes(pickQuery)))
   function askPicked() {
     if (!pickFor) return
-    if (picked.size === 0) { window.alert('선택된 사원이 없습니다.\n\n계산처리할 사원에 체크한 후 다시 시도 바랍니다.'); return }
+    if (picked.size === 0) { void ecAlert('선택된 사원이 없습니다.\n\n계산처리할 사원에 체크한 후 다시 시도 바랍니다.'); return }
     setExcludeZero(true)
     setCalcAsk({ ledger: pickFor, ids: [...picked] })
   }
@@ -172,7 +173,7 @@ export default function DailyPayLedgerPage() {
     try { await api.post(`/hr/daily-pay-ledgers/${l.id}/confirm`); load() } catch (e) { setError(extractErrorMessage(e)) }
   }
   async function remove(l: Ledger) {
-    if (!window.confirm(`${slash(l.payMonth)} -${l.seq} 급여가 전체 삭제됩니다.\n\n삭제된 급여는 복구할 수 없습니다.\n\n삭제하겠습니까?`)) return
+    if (!(await ecConfirm(`${slash(l.payMonth)} -${l.seq} 급여가 전체 삭제됩니다.\n\n삭제된 급여는 복구할 수 없습니다.\n\n삭제하겠습니까?`))) return
     try { await api.delete(`/hr/daily-pay-ledgers/${l.id}`); load() } catch (e) { setError(extractErrorMessage(e)) }
   }
 

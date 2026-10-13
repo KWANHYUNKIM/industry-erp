@@ -7,6 +7,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EditStateMenu from '../../components/EditStateMenu'
+import { ecConfirm } from '../../components/EcDialog'
 
 type KindType = 'BASIC' | 'VACATION' | 'COMMUTE'
 interface Kind { id: number; code: string; name: string; kindGroup: string | null; type: KindType; typeName: string; vacationKindId: number | null; commuteRuleId: number | null; hourUnit: boolean; remark: string | null; active: boolean }
@@ -95,7 +96,7 @@ export default function AttendanceKindListPage() {
   /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
   async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
-    if (op === '삭제' && !window.confirm('삭제하시겠습니까?')) return
+    if (op === '삭제' && !(await ecConfirm('삭제하시겠습니까?'))) return
     try {
       for (const k of rows.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/hr/attendance-kinds/${k.id}`)

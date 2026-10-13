@@ -8,6 +8,7 @@ import AssignmentSlipForm from '../../features/assignment/components/AssignmentS
 import { groupSlips, slipLabel, type AssignmentLine } from '../../features/assignment/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 관리 &gt; 인사관리 &gt; 인사발령 &gt; <b>인사발령조회</b> (원본 E020602).
@@ -44,7 +45,7 @@ export default function AssignmentListPage() {
   const allChecked = slips.length > 0 && slips.every((s) => checked.has(keyOf(s)))
 
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm('전표를 삭제하겠습니까?')) return
+    if (checked.size === 0 || !(await ecConfirm('전표를 삭제하겠습니까?'))) return
     try {
       for (const s of slips.filter((x) => checked.has(keyOf(x)))) {
         await api.delete(`/employees/assignment-slips/${s[0].slipDate}/${s[0].slipNo}`)

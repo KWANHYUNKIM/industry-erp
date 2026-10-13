@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, DailyWork, DailyWorkSummary, EmployeeMaster } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -60,21 +61,21 @@ export default function DailyWagePage() {
     const total = rows.filter((r) => selected.includes(r.id)).reduce((a, r) => a + r.netPay, 0)
     const via = accounts.find((a) => String(a.id) === payAccountId)
     const viaText = via ? `${via.bankName} ${via.accountNo}` : '현금'
-    if (!window.confirm(`선택한 ${selected.length}건을 지급 처리할까요?\n실지급액 합계: ${won(total)}원 (${viaText})\n회계전표: 차)잡급 / 대)예수금·${via ? '예금' : '현금'}`)) return
+    if (!(await ecConfirm(`선택한 ${selected.length}건을 지급 처리할까요?\n실지급액 합계: ${won(total)}원 (${viaText})\n회계전표: 차)잡급 / 대)예수금·${via ? '예금' : '현금'}`))) return
     try {
       await api.post('/daily-works/pay', { ids: selected, paidDate: today(), bankAccountId: via ? via.id : null })
       flash(`${selected.length}건 지급 완료`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function remove(r: DailyWork) {
-    if (!window.confirm(`${r.employeeName} ${r.workDate} 출역을 삭제할까요?`)) return
+    if (!(await ecConfirm(`${r.employeeName} ${r.workDate} 출역을 삭제할까요?`))) return
     try {
       await api.delete(`/daily-works/${r.id}`)
       flash('출역을 삭제했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   return (

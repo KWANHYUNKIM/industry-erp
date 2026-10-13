@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
 import GridFindButton from '../../components/GridFindButton'
 import type { EmployeeMaster } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 관리 > 근태관리 > 근태입력.
@@ -174,8 +175,8 @@ export default function LeaveInputPage() {
     const outside = valid.map((l) => kindVacation[l.type]).filter((v, i) => v && (valid[i].startDate < v.from || valid[i].startDate > v.to))
     if (outside.length > 0) {
       const v = outside[0]!
-      const ok = window.confirm(`휴가 ${v.name} (사용기간 ${v.from.replace(/-/g, '/')} ~ ${v.to.replace(/-/g, '/')})\n\n`
-        + '휴가코드가 입력된 근태일자에 포함되지 않습니다.\n포함되지 않은 코드를 입력한 경우 출력물에서 조회되지 않습니다.\n저장하시겠습니까?')
+      const ok = (await ecConfirm(`휴가 ${v.name} (사용기간 ${v.from.replace(/-/g, '/')} ~ ${v.to.replace(/-/g, '/')})\n\n`
+        + '휴가코드가 입력된 근태일자에 포함되지 않습니다.\n포함되지 않은 코드를 입력한 경우 출력물에서 조회되지 않습니다.\n저장하시겠습니까?'))
       if (!ok) return
     }
     setSaving(true)

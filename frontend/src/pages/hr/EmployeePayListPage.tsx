@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 
@@ -104,7 +105,7 @@ export default function EmployeePayListPage() {
    * '아래의 경우 처리가 불가능합니다.' 창에 [구분 사원코드 · 사유 '확정처리된 급여입니다. 확정취소 후 처리바랍니다.'] 로 알린다.
    */
   async function deleteChecked() {
-    if (!window.confirm('삭제하겠습니까?')) return
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     const picked = shown.filter((p) => checked.has(p.id))
     const blocked = picked.filter((p) => p.status === 'CONFIRMED')
     let failed = ''
@@ -117,7 +118,7 @@ export default function EmployeePayListPage() {
     load()
     if (failed) setError(failed)
     if (blocked.length > 0) {
-      alert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n'
+      void ecAlert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n'
         + blocked.map((p) => `${p.employeeCode}  확정처리된 급여입니다. 확정취소 후 처리바랍니다.`).join('\n'))
     }
   }

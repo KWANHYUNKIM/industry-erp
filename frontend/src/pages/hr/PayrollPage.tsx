@@ -6,6 +6,7 @@ import type { EmployeeMaster, PayGroup, PayItem, Payslip } from '../../types/api
 import PayLedgerReport from '../../features/payroll/components/PayLedgerReport'
 import PayCalcHelp from '../../features/payroll/components/PayCalcHelp'
 import { ymd } from '../../components/EcPeriodPicks'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -64,14 +65,14 @@ export default function PayrollPage() {
       flash(`${emp.name} 급여명세를 생성했습니다.`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
   async function calcAll() {
     const targets = employees.filter((e) => !byEmp.has(e.id))
     if (targets.length === 0) return flash('모든 사원의 급여명세가 이미 있습니다.')
-    if (!window.confirm(`미작성 ${targets.length}명의 급여명세를 일괄 생성할까요?`)) return
+    if (!(await ecConfirm(`미작성 ${targets.length}명의 급여명세를 일괄 생성할까요?`))) return
     /*
      * 개별 실패는 멈추지 않고 넘어가되 <b>센다</b>. 예전엔 실패를 버리고 늘 'N명 급여계산 완료' 라고 해서,
      * 기본급이 없는 사원 등에서 실패해도 다 된 줄 알았다(QA 18회차).
@@ -89,13 +90,13 @@ export default function PayrollPage() {
 
   async function confirm(p: Payslip) {
     try { await api.post(`/payslips/${p.id}/confirm`); flash(`${p.employeeName} 확정`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function remove(p: Payslip) {
-    if (!window.confirm(`${p.employeeName} ${p.payMonth} 급여명세를 삭제할까요?`)) return
+    if (!(await ecConfirm(`${p.employeeName} ${p.payMonth} 급여명세를 삭제할까요?`))) return
     try { await api.delete(`/payslips/${p.id}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const totals = payslips.reduce((a, p) => ({

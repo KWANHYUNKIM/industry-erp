@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface Line { id: number; workDate: string; workerId: number; workerCode: string; workerName: string; payItem: string; quantity: number }
 interface Row extends Line { slipDate: string; slipNo: number }
@@ -62,7 +63,7 @@ export default function DailyWorkListPage() {
   const keyOf = (r: Row) => `${r.slipDate}/${r.slipNo}`
 
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm('삭제하시겠습니까?')) return
+    if (checked.size === 0 || !(await ecConfirm('삭제하시겠습니까?'))) return
     try {
       const slips = new Map(shown.filter((r) => checked.has(keyOf(r))).map((r) => [keyOf(r), r]))
       for (const r of slips.values()) await api.delete(`/hr/daily-work-entries/${r.slipDate}/${r.slipNo}`)

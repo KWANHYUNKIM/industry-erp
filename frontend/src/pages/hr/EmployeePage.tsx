@@ -15,6 +15,7 @@ import EmployeePayrollSettingPanel, {
   emptyPayrollSetting, payrollSettingBody, payrollSettingForm,
   type PayrollSettingForm, type PayrollSettingResponse,
 } from '../../features/employee/components/EmployeePayrollSettingPanel'
+import { ecConfirm } from '../../components/EcDialog'
 
 const inputCls = 'ec-input w-full'
 
@@ -193,7 +194,7 @@ export default function EmployeePage() {
   }
 
   async function deleteOne() {
-    if (!editId || !window.confirm(CONFIRM_DELETE)) return
+    if (!editId || !(await ecConfirm(CONFIRM_DELETE))) return
     try {
       await removeIds([editId])
       setShowForm(false)
@@ -204,7 +205,7 @@ export default function EmployeePage() {
   }
 
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm(CONFIRM_DELETE)) return
+    if (checked.size === 0 || !(await ecConfirm(CONFIRM_DELETE))) return
     try {
       await removeIds([...checked])
     } catch (err) {

@@ -10,6 +10,7 @@ import { useDeptGroups } from '../../utils/deptGroups'
 import { printDocuments } from '../../utils/printDocument'
 import { formatDays } from '../../utils/dayCount'
 import { vacationFetchRange } from '../../utils/vacationFetchRange'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 관리 > 근태관리 > 근태조회.
@@ -183,13 +184,13 @@ export default function LeaveListPage() {
       await api.put(`/hr/vacations/${r.id}/status`, { status })
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
   async function removeChecked() {
     if (checked.size === 0) return setError('지울 근태를 고르세요.')
-    if (!confirm(`${checked.size}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`${checked.size}건을 삭제할까요?`))) return
     setError('')
     try {
       for (const id of checked) await api.delete(`/hr/vacations/${id}`)

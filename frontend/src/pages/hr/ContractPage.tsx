@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster, EmploymentContract, ContractStatus, ContractType } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -61,12 +62,12 @@ export default function ContractPage() {
 
   async function act(c: EmploymentContract, action: 'send' | 'terminate') {
     const label = action === 'send' ? '발송' : '해지'
-    if (action === 'terminate' && !window.confirm(`${c.contractNo} 계약을 해지할까요?`)) return
+    if (action === 'terminate' && !(await ecConfirm(`${c.contractNo} 계약을 해지할까요?`))) return
     try {
       await api.post(`/employment-contracts/${c.id}/${action}`)
       flash(`${c.contractNo} ${label}`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function sign(c: EmploymentContract) {
@@ -76,16 +77,16 @@ export default function ContractPage() {
       await api.post(`/employment-contracts/${c.id}/sign`, { signedBy: name.trim() })
       flash(`${c.contractNo} 서명 완료`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function remove(c: EmploymentContract) {
-    if (!window.confirm(`${c.contractNo} 계약을 삭제할까요?`)) return
+    if (!(await ecConfirm(`${c.contractNo} 계약을 삭제할까요?`))) return
     try {
       await api.delete(`/employment-contracts/${c.id}`)
       flash('계약을 삭제했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   return (

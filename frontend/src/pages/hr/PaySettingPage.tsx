@@ -7,6 +7,7 @@ import type {
 } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -54,7 +55,7 @@ export default function PaySettingPage() {
   useEffect(() => { load() }, [])
 
   async function removeGroup(g: PayGroup) {
-    if (!window.confirm(`${g.name} 그룹을 삭제할까요?`)) return
+    if (!(await ecConfirm(`${g.name} 그룹을 삭제할까요?`))) return
     try {
       await api.delete(`/pay-settings/groups/${g.id}`)
       flash('그룹을 삭제했습니다.')
@@ -436,7 +437,7 @@ function TransferTab({ transfers, onError, onDone }: {
     onError('')
     if (!bankAccountId) return onError('출금할 회사 계좌를 선택하세요.')
     if (pending.length === 0) return onError('이체할 확정 급여명세가 없습니다.')
-    if (!window.confirm(`${payMonth} 급여 ${pending.length}건 · 실지급액 ${won(totalNet)}원을 이체할까요?`)) return
+    if (!(await ecConfirm(`${payMonth} 급여 ${pending.length}건 · 실지급액 ${won(totalNet)}원을 이체할까요?`))) return
     setRunning(true)
     try {
       const { data } = await api.post<PayrollTransfer>('/pay-settings/transfers', {

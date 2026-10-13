@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { EmployeeMaster, PayGroup, PayGroupEmployee, PayItem, PayslipLineKind } from '../../types/api'
 import EditStateMenu from '../../components/EditStateMenu'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 원본 그룹 폼은 수당 · 공제 격자마다 빈 줄 세 개로 시작한다. */
 const BLANK_LINES = 3
@@ -135,10 +136,10 @@ export default function PayGroupListPage() {
     setMenuOpen(false)
     if (ids.size === 0) {
       // 원본: 버튼은 늘 펼쳐지고, 고른 줄 없이 항목을 누르면 알림 창
-      window.alert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
+      void ecAlert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
       return
     }
-    if (op === '삭제' && !window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
+    if (op === '삭제' && !(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?'))) return
     try {
       for (const g of groups.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/pay-settings/groups/${g.id}`)

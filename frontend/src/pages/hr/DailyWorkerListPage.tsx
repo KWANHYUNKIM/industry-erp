@@ -9,6 +9,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department } from '../../types/api'
 import { ymd } from '../../utils/periods'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface DailyWorker {
   id: number; code: string; name: string; foreigner: boolean; nationality: string | null
@@ -129,7 +130,7 @@ export default function DailyWorkerListPage() {
   }
 
   async function deleteOne() {
-    if (!editId || !window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
+    if (!editId || !(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?'))) return
     try {
       await api.delete(`/hr/daily-workers/${editId}`)
       setOpen(false)
@@ -140,7 +141,7 @@ export default function DailyWorkerListPage() {
   }
 
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
+    if (checked.size === 0 || !(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?'))) return
     try {
       for (const id of checked) await api.delete(`/hr/daily-workers/${id}`)
     } catch (e) {

@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecConfirm } from '../../components/EcDialog'
 
 /** 관리 > 근태입력 — 사원별 출퇴근 시간 입력 (백엔드 /api/hr/attendance 연동) */
 interface Row {
@@ -91,7 +92,7 @@ export default function AttendanceInputPage() {
 
   /** 날짜를 잘못 골라 넣은 기록을 지운다 — 출·퇴근을 비워도 그 날이 근무일·결근으로 집계됐다. */
   async function remove(r: { id: number; date: string; empName: string }) {
-    if (!confirm(`${r.empName} ${dateText(r.date)} 근태를 삭제할까요?`)) return
+    if (!(await ecConfirm(`${r.empName} ${dateText(r.date)} 근태를 삭제할까요?`))) return
     try {
       await api.delete(`/hr/attendance/${r.id}`)
       setOk(`${r.empName} ${dateText(r.date)} 근태 삭제`)

@@ -8,6 +8,7 @@ import type { EmployeeMaster } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import { koreanDateTime } from '../../features/employeecommute/types'
 import { requireSelection } from '../../components/EcDialog'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface CommuteEvent {
   id: number; kind: 'IN' | 'OUT'; at: string; place: string | null; outside: boolean; halfDay: boolean; reason: string | null
@@ -157,7 +158,7 @@ export default function EmployeeCommutePage() {
   }
 
   async function deleteIds(ids: Set<number>) {
-    if (ids.size === 0 || !window.confirm('선택한 사원의 근무기록을 삭제하겠습니까?')) return false
+    if (ids.size === 0 || !(await ecConfirm('선택한 사원의 근무기록을 삭제하겠습니까?'))) return false
     try {
       for (const id of ids) await api.delete(`/hr/employee-commutes/${id}`)
     } catch (e) {

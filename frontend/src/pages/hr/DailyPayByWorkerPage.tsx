@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 급여작업 &gt; <b>일용근로 사원별급여조회</b> (원본 E020135).
@@ -49,7 +50,7 @@ export default function DailyPayByWorkerPage() {
     && (workerCond.length === 0 || workerCond.includes(String(r.workerId))))
 
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm('삭제하시겠습니까?')) return
+    if (checked.size === 0 || !(await ecConfirm('삭제하시겠습니까?'))) return
     try {
       for (const id of checked) await api.delete(`/hr/daily-pay-ledgers/lines/${id}`)
     } catch (e) {

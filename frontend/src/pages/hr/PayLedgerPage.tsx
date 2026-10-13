@@ -10,6 +10,7 @@ import PayslipBulkEdit from '../../features/payroll/components/PayslipBulkEdit'
 import DirectAmountInput from '../../features/payroll/components/DirectAmountInput'
 import LedgerLabelMenu from '../../features/payroll/components/LedgerLabelMenu'
 import PayrollSlipCreate from '../../features/payroll/components/PayrollSlipCreate'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 interface Ledger { id: number; payMonth: string; name: string; payDate: string; headcount: number; grossTotal: number; confirmedCount: number; workConfirmCount: number; directAmountCount: number }
 interface ConfirmRow { employeeId: number; employeeCode: string; employeeName: string; payItemId: number; payItemName: string; quantity: number }
@@ -107,7 +108,7 @@ export default function PayLedgerPage() {
   }
 
   async function deleteConfirm() {
-    if (!confirmFor || !window.confirm('삭제하시겠습니까?')) return
+    if (!confirmFor || !(await ecConfirm('삭제하시겠습니까?'))) return
     try {
       await api.delete(`/work-records/confirms/${confirmFor.payMonth}`)
       setConfirmFor(null)
@@ -165,7 +166,7 @@ export default function PayLedgerPage() {
 
   function askPicked() {
     if (!pickFor) return
-    if (checked.size === 0) { window.alert('선택된 사원이 없습니다.\n\n계산처리할 사원에 체크한 후 다시 시도 바랍니다.'); return }
+    if (checked.size === 0) { void ecAlert('선택된 사원이 없습니다.\n\n계산처리할 사원에 체크한 후 다시 시도 바랍니다.'); return }
     setExcludeZero(true)
     setCalcAsk({ ledger: pickFor, ids: [...checked] })
   }
@@ -206,16 +207,16 @@ export default function PayLedgerPage() {
   }
 
   async function unconfirm(l: Ledger) {
-    if (!window.confirm('확정취소 하겠습니까?')) return
+    if (!(await ecConfirm('확정취소 하겠습니까?'))) return
     try { await api.post(`/pay-ledgers/${l.id}/unconfirm`); load() } catch (e) { setError(extractErrorMessage(e)) }
   }
 
   /** 원본 확정 대장 [계산/수정] · 미확정에만 있는 동작을 확정 뒤에 고르면 */
-  const lockedAlert = () => window.alert('확정처리된 급여입니다.\n\n확정취소 후 처리 바랍니다.')
+  const lockedAlert = () => ecAlert('확정처리된 급여입니다.\n\n확정취소 후 처리 바랍니다.')
   const isConfirmed = (l: Ledger) => l.headcount > 0 && l.confirmedCount >= l.headcount
 
   async function remove(l: Ledger) {
-    if (!window.confirm(`${slash(l.payMonth)} -1 급여가 전체 삭제됩니다.\n\n삭제된 급여는 복구할 수 없습니다.\n\n삭제하겠습니까?`)) return
+    if (!(await ecConfirm(`${slash(l.payMonth)} -1 급여가 전체 삭제됩니다.\n\n삭제된 급여는 복구할 수 없습니다.\n\n삭제하겠습니까?`))) return
     try { await api.delete(`/pay-ledgers/${l.id}`); load() } catch (e) { setError(extractErrorMessage(e)) }
   }
 

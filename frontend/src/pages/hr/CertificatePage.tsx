@@ -10,6 +10,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { ymd } from '../../utils/periods'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface Form { kind: CertificateKind | ''; employeeId: string; purpose: string; issueDate: string }
 const blankForm = (): Form => ({ kind: '', employeeId: '', purpose: '', issueDate: ymd(new Date()) })
@@ -91,7 +92,7 @@ export default function CertificatePage() {
   }
 
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm('삭제하시겠습니까?')) return
+    if (checked.size === 0 || !(await ecConfirm('삭제하시겠습니까?'))) return
     try {
       for (const id of checked) await api.delete(`/hr/certificates/${id}`)
     } catch (e) {

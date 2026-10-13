@@ -6,6 +6,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { annualLeaveDays } from '../../utils/annualLeave'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface Summary { vacationKindId: number; code: string; name: string; periodFrom: string; periodTo: string; headcount: number }
 interface GrantRow { employeeId: number; carryOverDays: number; currentDays: number }
@@ -98,7 +99,7 @@ export default function VacationGrantPage() {
   }
 
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm('삭제하시겠습니까?')) return
+    if (checked.size === 0 || !(await ecConfirm('삭제하시겠습니까?'))) return
     try {
       for (const id of checked) await api.delete(`/hr/vacation-kinds/${id}/grants`)
     } catch (e) {

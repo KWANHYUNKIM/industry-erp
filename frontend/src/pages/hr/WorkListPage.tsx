@@ -8,6 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem } from '../../types/api'
 import WorkHistoryView from '../../features/workrecord/components/WorkHistoryView'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface SlipLine { employeeId: number; payItemId: number }
 interface SlipRow { slipDate: string; slipNo: number; employeeLabel: string; payItemLabel: string; quantity: number; lines: SlipLine[] }
@@ -74,7 +75,7 @@ export default function WorkListPage() {
     (empCond.length === 0 || empCond.includes(String(l.employeeId))) && (itemCond.length === 0 || itemCond.includes(String(l.payItemId)))))
 
   async function deleteChecked() {
-    if (!window.confirm('삭제하겠습니까?')) return
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     try {
       for (const r of shown.filter((x) => checked.has(keyOf(x)))) {
         await api.delete(`/work-records/${r.slipDate}/${r.slipNo}`)

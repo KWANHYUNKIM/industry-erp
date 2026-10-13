@@ -7,6 +7,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import { ecConfirm } from '../../components/EcDialog'
 
 type Category = 'EDUCATION' | 'CAREER' | 'LICENSE' | 'FAMILY' | 'LANGUAGE' | 'REWARD' | 'TRAINING' | 'TRIP' | 'MEMO' | 'WORK_STATUS' | 'GUARANTOR'
 type DateKey = 'fromDate' | 'toDate' | 'date3' | 'date4'
@@ -163,7 +164,7 @@ export default function HrCardPage() {
   }
 
   async function deleteDetail() {
-    if (!card || !detail || !window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
+    if (!card || !detail || !(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?'))) return
     try {
       await api.delete(`/employees/${card.id}/hr-details/${detail.cat.key}`)
       setDetail(null)

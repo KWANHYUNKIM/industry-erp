@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { formatDays } from '../../utils/dayCount'
 import { dateText } from '../../utils/dateText'
 import { withRemain } from '../../utils/vacationRemain'
+import { ecAlert } from '../../components/EcDialog'
 
 /**
  * 관리 > 휴가사용실적현황 — 사원별 휴가 종류·기간·사용일수 실적 조회 (백엔드 /api/hr/vacations 연동)
@@ -133,7 +134,7 @@ export default function VacationUsePage() {
       await api.put(`/hr/vacations/${r.id}/status`, { status })
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

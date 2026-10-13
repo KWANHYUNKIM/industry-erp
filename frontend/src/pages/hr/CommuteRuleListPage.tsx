@@ -5,6 +5,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import EditStateMenu from '../../components/EditStateMenu'
+import { ecConfirm } from '../../components/EcDialog'
 
 type Method = 'WORK_TIME' | 'LATE' | 'EARLY_LEAVE' | 'FORMULA'
 type DayKind = 'ALL' | 'WORKDAY' | 'HOLIDAY'
@@ -120,7 +121,7 @@ export default function CommuteRuleListPage() {
   /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
   async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
-    if (op === '삭제' && !window.confirm('삭제하시겠습니까?')) return
+    if (op === '삭제' && !(await ecConfirm('삭제하시겠습니까?'))) return
     try {
       for (const r of rows.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/hr/commute-rules/${r.id}`)

@@ -5,6 +5,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { PayItem, PayMethod, PayTaxFreeType, PayslipLineKind } from '../../types/api'
 import PayItemFormulaModal, { type PayItemFormula } from '../../features/payitem/components/PayItemFormulaModal'
 import InsuranceRateModal from '../../features/payitem/components/InsuranceRateModal'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const TAX_FREE: [PayTaxFreeType, string][] = [
   ['NONE', '전액과세'], ['NIGHT_WORK', '야간근로수당'], ['CHILDCARE', '보육수당'], ['MEAL', '식대'], ['VEHICLE', '차량유지비'],
@@ -142,10 +143,10 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
     const targets = rows.filter((r) => r.id && checked.has(r.id))
     if (targets.length === 0) {
       // 원본: 버튼은 늘 펼쳐지고, 고른 줄 없이 항목을 누르면 알림 창
-      window.alert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
+      void ecAlert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
       return
     }
-    if (op === '삭제' && !window.confirm('삭제하겠습니까?')) return
+    if (op === '삭제' && !(await ecConfirm('삭제하겠습니까?'))) return
     try {
       for (const r of targets) {
         if (op === '삭제') await api.delete(`/pay-settings/items/${r.id}`)
