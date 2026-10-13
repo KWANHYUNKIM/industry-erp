@@ -40,6 +40,27 @@ function slipNo(docNo: string) {
 
 /** 원본 [거래유형] 이름 — 판매 회계반영은 '매출전표 I', 구매는 '매입전표 I', 직접 입력은 '일반전표'. */
 const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표', VAT_SALES: '매출전표 I', VAT_PURCHASE: '매입전표 I' }
+/**
+ * 원본 조건 [업무] 코드도움 '업무검색'(2026-10-13 loginaa 실측) — 전표를 넣은 화면. 고르면 그 화면의 [거래유형] 전표만 남는다
+ * (업무 '매출' → 거래유형 '매출전표 I' 만, 판매 회계반영 전표도 매출전표 I 다). 묶음은 원본 나무의 2단.
+ */
+const WORK_TREE: [string, string[]][] = [
+  ['FastEntry', ['일반전표', '지출결의서', '입금보고서', '가지급금정산서', '잔액조정']],
+  ['매출매입거래', ['매출', '매입']],
+  ['현금거래', ['매출처로부터', '카드매출대금회수', '일시적으로(입금)', '은행차입으로', '기타입금', '매입처로', '영수증으로',
+    '법인카드대금결제', '계좌간이동', '일시적으로(출금)', '은행으로', '기타출금']],
+  ['비현금거래', ['일반영수증', '신용카드전표', '기타']],
+  ['어음거래', ['받을어음증가', '받을어음감소', '지급어음증가', '지급어음감소']],
+  ['고정자산', ['고정자산증가', '고정자산감소']],
+  ['수입비용', ['매입대금청구서수령', '(세금)계산서수령', '일반영수증수령', '거래대금지급', '관세사에지급', '본계정대체']],
+]
+/** 업무 이름과 [거래유형] 글자가 다른 것 — 나머지는 같은 글자다. */
+const WORK_TYPE_LABEL: Record<string, string> = {
+  매출: '매출전표 I', 매입: '매입전표 I', '일시적으로(입금)': '입금-일시적으로', '일시적으로(출금)': '출금-일시적으로',
+}
+const WORK_ITEMS = WORK_TREE.flatMap(([group, names]) => names.map((n) => ({ value: `${group}/${n}`, name: n, sub: group })))
+const workTypeOf = (value: string) => { const n = value.split('/')[1]; return WORK_TYPE_LABEL[n] ?? n }
+
 /** 매출전표 I · 매입전표 I 화면으로 넣은 전표 — 전표번호를 누르면 그 화면의 수정 창(?journal=)이 열린다(원본 실측). */
 const VAT_SLIP_SCREEN: Record<string, string> = { VAT_SALES: '/accounting/sales-slip', VAT_PURCHASE: '/accounting/purchase-slip' }
 
@@ -84,10 +105,11 @@ export default function JournalListPage() {
   const [from, setFrom] = useState(defaultPeriod().from)
   const [to, setTo] = useState(defaultPeriod().to)
   /* 원본 조건(2026-10-13 실측): 기준일자 · 회계전표No. · 거래처 · 계정 · 부서 · 프로젝트 · 업무 · 관리번호 · 금액 ~ ·
-     채권/채무(어음) No. · 적요 · 작성자 · 최종수정자 · 기타[수정일자순(정렬)]. 업무 · 관리번호 ·
-     채권/채무No. 는 회계전표가 들지 않아 없다. 최종수정자는 V353(updated_by) — 전표를 고치거나 확인 · 확인취소한 사람. */
+     채권/채무(어음) No. · 적요 · 작성자 · 최종수정자 · 기타[수정일자순(정렬)]. 관리번호(원본 코드도움 '관리번호' —
+     관리번호코드 · 관리번호명, 수입 건별 번호) · 채권/채무No. 는 회계전표가 들지 않아 없다. 최종수정자는 V353(updated_by) — 전표를 고치거나 확인 · 확인취소한 사람. */
   const pickers = useCondPickers(['partners'])
   const [docCond, setDocCond] = useState('')
+  const [workCond, setWorkCond] = useState<string[]>([])
   const [partnerCond, setPartnerCond] = useState('')
   const [accountCond, setAccountCond] = useState('')
   const [amountFrom, setAmountFrom] = useState('')
@@ -159,6 +181,7 @@ export default function JournalListPage() {
     && (!docCond || r.docNo.includes(docCond) || slipNo(r.docNo).includes(docCond))
     && (!partnerCond || String(r.partnerId) === partnerCond)
     && (!accountCond || r.lines.some((l) => l.accountCode === accountCond))
+    && (workCond.length === 0 || workCond.some((w) => workTypeOf(w) === typeLabel(r)))
     && ((!deptCond && !projectCond) || r.lines.some((l) => lineInDeptProject(l, deptCond, projectCond)))
     && (!amountFrom || amountOf(r) >= Number(amountFrom))
     && (!amountTo || amountOf(r) <= Number(amountTo))
@@ -168,7 +191,7 @@ export default function JournalListPage() {
     && (!keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
   ).sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [rows, keyword, statusTab, docCond, partnerCond, accountCond, deptCond, projectCond, amountFrom, amountTo, memoCond, authorCond, editorCond, byUpdated, cashQuickTotal])
+  [rows, keyword, statusTab, docCond, workCond, voucherType, partnerCond, accountCond, deptCond, projectCond, amountFrom, amountTo, memoCond, authorCond, editorCond, byUpdated, cashQuickTotal])
 
   const picked = shown.filter((r) => checked.has(r.id))
 
@@ -208,7 +231,7 @@ export default function JournalListPage() {
   const total = shown.reduce((a, r) => a + amountOf(r), 0)
   const reset = () => {
     const p = defaultPeriod(); setFrom(p.from); setTo(p.to); setKeyword('')
-    setDocCond(''); setPartnerCond(''); setAccountCond(''); setDeptCond(''); setProjectCond(''); setAmountFrom(''); setAmountTo(''); setMemoCond(''); setAuthorCond(''); setEditorCond(''); setByUpdated(false)
+    setDocCond(''); setWorkCond([]); setPartnerCond(''); setAccountCond(''); setDeptCond(''); setProjectCond(''); setAmountFrom(''); setAmountTo(''); setMemoCond(''); setAuthorCond(''); setEditorCond(''); setByUpdated(false)
   }
 
   return (
@@ -252,6 +275,10 @@ export default function JournalListPage() {
         </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel fill emptyLabel="전체" value={projectCond} onChange={setProjectCond} items={deptProject.projects} />
+        </EcCond>
+        <EcCond label="업무" pick>
+          <CodePickerField label="업무" hideLabel fill multiple emptyLabel="" values={workCond}
+                           onChangeMulti={(v) => setWorkCond(v)} items={WORK_ITEMS} />
         </EcCond>
         <EcCond label="금액">
           <span className="inline-flex w-full items-center gap-[4px]">
