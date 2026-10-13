@@ -238,7 +238,10 @@ export default function EcListShell({
   const hasBottom = Boolean(onNew || renderForm) || resolved.length > 0
 
   return (
-    <div className="flex flex-col min-h-[100%]">
+    // 원본: 하단 버튼줄은 격자(본문) 바로 다음에 흐르고, 자료가 창보다 길 때만 창 바닥에 붙는다(.ec-footer sticky —
+    // 지금은 틀(.ec-frame)이 아니라 창이 스크롤돼 고정이 안 걸린다, plans/공용.md 남은 것).
+    // 틀 높이를 채우지 않는다 — min-h-100% 로 채우면 짧은 목록에서도 버튼줄이 틀 바닥으로 밀려났다(2026-10-13 6개 화면 실측).
+    <div className="ec-list-shell flex flex-col">
       {/* 상단: ★제목 + 검색 (styles/shell.css .ec-page-head) */}
       <div className="ec-page-head">
         {/* 원본 휴대폰 목록 화면은 제목을 감추고 검색 도구만 남긴다 */}
@@ -292,7 +295,7 @@ export default function EcListShell({
         onFlash={flash}
       />
 
-      {/* 하단 버튼줄 — 원본처럼 본문 틀 바닥에 붙는다. 버튼이 하나도 없으면 빈 띠로 보이므로 아예 그리지 않는다. */}
+      {/* 하단 버튼줄 — 원본처럼 격자 바로 아래. 버튼이 하나도 없으면 빈 띠로 보이므로 아예 그리지 않는다. */}
       <div ref={toolbarRef} className={`ec-footer${moreOpen ? ' open' : ''}`} style={hasBottom ? undefined : { display: 'none' }}>
         <div className="ec-footer-btns">
         {(onNew || renderForm) && (

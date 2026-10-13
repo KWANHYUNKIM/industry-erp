@@ -261,6 +261,12 @@ main table,
 #root table.ec-head700 thead th {
   font-weight: 700 !important;
 }
+/* 목록 틀(EcListShell) 안의 격자 머리는 700 — 2026-10-13 원본 목록 6개(판매조회 · 카드사등록 · 거래처리스트 · 퇴사자리스트 ·
+   사원리스트 · A/S수리현황) 모두 700, 전표 입력 격자(구매입력)만 400(위 전역 값). 판매조회는 th 400 + 안쪽 span 700 이라 보이는 것은 700.
+   목록 틀 안의 팝업 입력 폼(.ec-modal), 칸에 입력칸이 든 입력 격자(원본 400), 원본이 400 인 출력물(ec-report-head400)은 뺀다. */
+#root .ec-list-shell table:not(.no-ec):not(.ec-report-head400):not(:has(tbody :is(input:not([type="checkbox"]), select, textarea))) thead th:not(.ec-modal *) {
+  font-weight: 700 !important;
+}
 /*
  * 조회 목록 본문 — 2026-09-21 구매조회 실측(줄마다 읽음):
  * 줄무늬는 <b>한 줄 건너</b> (249,249,249), 본문 칸에는 <b>세로선이 없고</b> 아래 선 1px 만 있다
@@ -341,6 +347,14 @@ main table,
 #root table.ec-report tfoot td {
   padding: 3px !important;
   line-height: 1.428571 !important;
+}
+/* 출력물 격자의 선은 1px — 목록 격자의 머리카락(0.5px)이 아니다(2026-10-13 실측: 채권거래내역 E060405 · A/S수리현황 E040611
+   머리 6px 3px 3px · 본문 3px 인 격자는 선 1px → 머리 27.1 · 본문 24.1. 같은 날 채권증가현황 · 채권잔액분석표처럼
+   목록 여백(9px 2.7px 7.2px)인 격자는 0.5px). 0.5px 이면 칸마다 0.5px 씩 낮아 원본보다 짧게 그려졌다. */
+#root table.ec-report thead th,
+#root table.ec-report tbody td,
+#root table.ec-report tfoot td {
+  border-width: 1px !important;
 }
 /*
  * 줄무늬는 <b>출력물 공통이 아니다</b> — 화면마다 잰 대로 켠다(2026-09-21).

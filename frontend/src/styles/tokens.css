@@ -108,6 +108,7 @@
   --ec-gnb-h: 46px;
   --ec-lnb-w: 209px;
   --ec-footer-h: 38px;
+  --ec-footer-gap: 9px;                     /* 격자 끝 → 하단 버튼줄 (원본 .contents 아래 여백) */
 
   /* ── 옛 이름(화면 코드가 아직 쓴다) → 새 토큰 ── */
   --ec-blue-dark: var(--ec-navy);

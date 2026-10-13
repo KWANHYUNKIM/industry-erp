@@ -505,7 +505,8 @@
   font-size: var(--ec-fs);
 }
 
-/* 하단 버튼줄 — 원본 .footer.footer-fixed: 본문 틀 바닥에 붙어 있고(스크롤해도 그 자리),
+/* 하단 버튼줄 — 원본 .footer: 본문(.contents) 바로 다음에 흐른다 — 격자 끝 + 9(2026-10-13 카드사등록 · 퇴사자리스트 실측).
+   자료가 창보다 길면 .footer-fixed 처럼 창 바닥에 붙는다(스크롤해도 그 자리, 거래처리스트 · 사원리스트).
    바탕은 본문 틀과 같고 윗선이 없다. 높이 38 · 여백 6.3px 9px · 버튼 사이 5 */
 .ec-footer {
   position: sticky;
@@ -516,7 +517,7 @@
   flex-wrap: wrap;
   gap: 5px;
   min-height: var(--ec-footer-h);
-  margin: 10px -10px -10px;
+  margin: var(--ec-footer-gap) -10px -10px;
   padding: 6.3px 9px;
   background: var(--ec-bg-page);
 }
