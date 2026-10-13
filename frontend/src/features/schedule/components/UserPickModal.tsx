@@ -4,12 +4,14 @@ import Modal from '../../../components/Modal'
 import { useShortcut } from '../../../utils/useShortcut'
 
 interface UserLite { id: number; name: string; department: string | null }
+interface PresetLite { id: number; name: string; active: boolean; steps: { stepOrder: number; approverId: number; approverName: string }[] }
 
 /**
  * 원본 일정관리등록 [참석자] · [공유자] 의 🔍 '사용자검색'(E070201, 2026-10-13 loginaa 실측).
  * 알약 [조직도](켬) · 격자 [소속부서](부서마다 칸을 합친다) [☐ 전체][성명], 하단 [적용(F8)][닫기].
  * 이미 칸에 든 사람은 체크된 채로 열린다. 적용하면 칸에 이름 칩(⊖ 로 뺀다)이 선다.
- * 원본 알약 [결재라인별] 은 재지 않아 두지 않는다.
+ * 알약 [결재라인별](2026-10-13 실측) — 결재설정의 결재라인마다 [줄번호][결재라인](합침) [☐][성명] — 성명은 결재 차례대로.
+ * 같은 사람이 여러 결재라인에 있으면 줄마다 따로 서고, 한쪽을 체크하면 같은 이름이 함께 체크된다(이름으로 고르므로).
  */
 export default function UserPickModal({ selected, onApply, onClose }: {
   selected: string[]; onApply: (names: string[]) => void; onClose: () => void
@@ -19,9 +21,12 @@ export default function UserPickModal({ selected, onApply, onClose }: {
   const [keyword, setKeyword] = useState('')
   const [applied, setApplied] = useState('')
   const [picked, setPicked] = useState<Set<string>>(new Set(selected))
+  const [tab, setTab] = useState<'org' | 'line'>('org')
+  const [presets, setPresets] = useState<PresetLite[]>([])
 
   useEffect(() => {
     api.get<UserLite[]>('/users').then((r) => setUsers(r.data)).catch((err) => setError(extractErrorMessage(err)))
+    api.get<PresetLite[]>('/approval-settings/presets').then((r) => setPresets(r.data.filter((p) => p.active && p.steps.length > 0))).catch(() => {})
   }, [])
   const apply = () => onApply(users.map((u) => u.name).filter((n) => picked.has(n)).concat([...picked].filter((n) => !users.some((u) => u.name === n))))
   useShortcut('F8', apply)
@@ -33,7 +38,11 @@ export default function UserPickModal({ selected, onApply, onClose }: {
     const d = u.department || '(미지정)'
     groups.set(d, [...(groups.get(d) ?? []), u])
   }
-  const allOn = shown.length > 0 && shown.every((u) => picked.has(u.name))
+  const lines = presets
+    .map((p) => ({ ...p, steps: [...p.steps].sort((a, b) => a.stepOrder - b.stepOrder).filter((st) => !applied || st.approverName.includes(applied) || p.name.includes(applied)) }))
+    .filter((p) => p.steps.length > 0)
+  const tabNames = tab === 'org' ? shown.map((u) => u.name) : lines.flatMap((p) => p.steps.map((st) => st.approverName))
+  const allOn = tabNames.length > 0 && tabNames.every((n) => picked.has(n))
   const toggle = (name: string) => setPicked((s) => { const n = new Set(s); if (n.has(name)) n.delete(name); else n.add(name); return n })
 
   return (
@@ -46,15 +55,47 @@ export default function UserPickModal({ selected, onApply, onClose }: {
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => setApplied(keyword)}>Search(F3)</button>
         </div>
       </div>
-      <div className="ec-pills mb-[8px]"><button type="button" className="ec-pill active">조직도</button></div>
+      <div className="ec-pills mb-[8px]">
+        <button type="button" className={`ec-pill ${tab === 'org' ? 'active' : ''}`} onClick={() => setTab('org')}>조직도</button>
+        <button type="button" className={`ec-pill ${tab === 'line' ? 'active' : ''}`} onClick={() => setTab('line')}>결재라인별</button>
+      </div>
       <div className="max-h-[300px] overflow-y-auto">
+        {tab === 'line' ? (
+          <table className="w-full table-fixed" aria-label="결재라인별">
+            <thead>
+              <tr>
+                <th className="w-[30px]" />
+                <th>결재라인</th>
+                <th className="w-[34px]">
+                  <input type="checkbox" aria-label="전체" checked={allOn}
+                         onChange={() => setPicked((s) => { const n = new Set(s); for (const nm of tabNames) { if (allOn) n.delete(nm); else n.add(nm) } return n })} />
+                </th>
+                <th>성명</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.length === 0 ? (
+                <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : lines.flatMap((p, pi) => p.steps.map((st, i) => (
+                <tr key={`${p.id}-${st.stepOrder}`}>
+                  {i === 0 && <td rowSpan={p.steps.length} className="text-center text-ec-hint">{pi + 1}</td>}
+                  {i === 0 && <td rowSpan={p.steps.length}>{p.name}</td>}
+                  <td className="text-center">
+                    <input type="checkbox" aria-label={`${p.name} ${st.approverName}`} checked={picked.has(st.approverName)} onChange={() => toggle(st.approverName)} />
+                  </td>
+                  <td className="cursor-pointer text-ec-navy" onClick={() => toggle(st.approverName)}>{st.approverName}</td>
+                </tr>
+              )))}
+            </tbody>
+          </table>
+        ) : (
         <table className="w-full table-fixed">
           <thead>
             <tr>
               <th>소속부서</th>
               <th className="w-[34px]">
                 <input type="checkbox" aria-label="전체" checked={allOn}
-                       onChange={() => setPicked((s) => { const n = new Set(s); for (const u of shown) { if (allOn) n.delete(u.name); else n.add(u.name) } return n })} />
+                       onChange={() => setPicked((s) => { const n = new Set(s); for (const nm of tabNames) { if (allOn) n.delete(nm); else n.add(nm) } return n })} />
               </th>
               <th>성명</th>
             </tr>
@@ -73,6 +114,7 @@ export default function UserPickModal({ selected, onApply, onClose }: {
             )))}
           </tbody>
         </table>
+        )}
       </div>
       <div className="flex gap-[6px] mt-[14px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={apply}>적용(F8)</button>
