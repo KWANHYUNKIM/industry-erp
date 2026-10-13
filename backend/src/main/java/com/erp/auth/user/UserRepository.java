@@ -12,4 +12,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /** 이 역할을 가진 사용자 수 (역할 삭제 가능 여부 판정용). */
     long countByRoles_Id(Long roleId);
+
+    long countByEnabledTrue();
 }

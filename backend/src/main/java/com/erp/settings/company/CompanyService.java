@@ -3,6 +3,7 @@ package com.erp.settings.company;
 import com.erp.common.ApiException;
 import com.erp.settings.company.dto.CompanyDtos.CompanyResponse;
 import com.erp.settings.company.dto.CompanyDtos.CreateCompanyRequest;
+import com.erp.settings.company.dto.CompanyDtos.UpdateCompanyRequest;
 import com.erp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,10 +66,30 @@ public class CompanyService {
         // 레지스트리 등록(public). Company 는 @Table(schema="public") 이라 항상 public 에 저장된다.
         Company company = companyRepository.save(Company.builder()
                 .code(code).name(req.name()).schemaName(schema).active(true)
+                .maxUsers(req.maxUsers()).expiresOn(req.expiresOn())
                 .createdAt(LocalDateTime.now())
                 .build());
         log.info("회사 생성 완료 → {} ({}), 스키마 {}", req.name(), code, schema);
         return CompanyResponse.from(company);
+    }
+
+    /**
+     * 회사명 · 사용여부 · 사용자 수 · 사용기한을 고친다.
+     * 본사(public)는 중지하거나 기한을 걸 수 없다 — 회사를 관리하는 쪽이 잠기면 아무도 풀 수 없다.
+     */
+    @Transactional
+    public CompanyResponse update(Long id, UpdateCompanyRequest req) {
+        Company c = companyRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("회사를 찾을 수 없습니다. id=" + id));
+        if (TenantContext.DEFAULT.equals(c.getSchemaName())
+                && (!req.active() || req.expiresOn() != null || req.maxUsers() != null)) {
+            throw ApiException.badRequest("본사는 사용 중지 · 사용기한 · 사용자 수 제한을 걸 수 없습니다.");
+        }
+        c.setName(req.name().trim());
+        c.setActive(req.active());
+        c.setMaxUsers(req.maxUsers());
+        c.setExpiresOn(req.expiresOn());
+        return CompanyResponse.from(c);
     }
 
     private void createSchema(String schema) {

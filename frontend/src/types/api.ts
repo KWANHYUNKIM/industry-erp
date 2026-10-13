@@ -48,6 +48,10 @@ export interface Company {
   schemaName: string
   active: boolean
   createdAt: string | null
+  /** 사용자 수 한도. null = 제한 없음 */
+  maxUsers: number | null
+  /** 사용기한(이 날까지). null = 무기한 */
+  expiresOn: string | null
 }
 
 export interface CreateUserRequest {

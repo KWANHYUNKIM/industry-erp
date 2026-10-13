@@ -11,4 +11,6 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
     boolean existsByCode(String code);
 
     boolean existsBySchemaName(String schemaName);
+
+    Optional<Company> findBySchemaName(String schemaName);
 }

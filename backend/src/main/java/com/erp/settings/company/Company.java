@@ -3,6 +3,7 @@ package com.erp.settings.company;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -41,4 +42,17 @@ public class Company {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    /** 쓸 수 있는 사용자(사용 중인 계정) 수. 비면 제한 없음. */
+    @Column(name = "max_users")
+    private Integer maxUsers;
+
+    /** 사용기한(이 날까지 쓴다). 비면 무기한. 지나면 로그인도, 이미 받은 토큰도 막힌다. */
+    @Column(name = "expires_on")
+    private LocalDate expiresOn;
+
+    /** 오늘 쓸 수 있는가 — 사용 중이고 기한이 지나지 않았다. */
+    public boolean usableOn(LocalDate today) {
+        return active && (expiresOn == null || !today.isAfter(expiresOn));
+    }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../../features/auth/AuthContext'
 import { api, extractErrorMessage } from '../../api/client'
 import type {
   CustomFieldDef, EmployeeMaster, Item, ItemCost, MyItem, Partner, Project, PurchaseDoc,
@@ -423,7 +424,9 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
   const gridRef = useRef<HTMLDivElement>(null)
   // 열을 더할 때 합계행(tfoot)을 같이 안 고치면 숫자가 엉뚱한 열 아래에 선다. 개발 모드에서 잡는다.
   useTableColumnCheck(gridRef, '판매/구매입력 명세 그리드', [cols, lines.length])
-  const tempKey = `ec-slip-temp:${mode}`
+  // 회사 · 사용자마다 따로 둔다. 같은 브라우저에서 다른 회사로 들어가면 앞 회사의 쓰던 전표가 불려 오던 것.
+  const { companyCode, user } = useAuth()
+  const tempKey = `ec-slip-temp:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
 
   const flash = (msg: string) => {
     setNotice(msg)

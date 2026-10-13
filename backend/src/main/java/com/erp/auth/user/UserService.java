@@ -6,7 +6,9 @@ import com.erp.auth.user.dto.UserDtos.CreateUserRequest;
 import com.erp.auth.user.dto.UserDtos.UpdateUserRequest;
 import com.erp.auth.user.dto.UserDtos.UserResponse;
 import com.erp.auth.role.RoleRepository;
+import com.erp.settings.company.CompanyAccessService;
 import com.erp.settings.securitypolicy.SecurityPolicyService;
+import com.erp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -28,6 +30,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecurityPolicyService securityPolicyService;
+    private final CompanyAccessService companyAccessService;
 
     @Transactional(readOnly = true)
     public List<UserResponse> findAll() {
@@ -47,6 +50,7 @@ public class UserService {
             throw ApiException.conflict("이미 사용 중인 아이디입니다: " + request.username());
         }
         requirePasswordPolicy(request.password());
+        requireSeat();
 
         User user = User.builder()
                 .username(request.username())
@@ -69,8 +73,14 @@ public class UserService {
     @Transactional
     public UserResponse setEnabled(Long id, boolean enabled) {
         User user = getUser(id);
+        if (enabled && !user.isEnabled()) requireSeat();
         user.setEnabled(enabled);
         return UserResponse.from(user);
+    }
+
+    /** 회사의 사용자 수 한도 — 사용 중인 계정이 한도에 찼으면 새 계정을 만들거나 다시 켜지 못한다. */
+    private void requireSeat() {
+        companyAccessService.requireSeat(TenantContext.get(), userRepository.countByEnabledTrue());
     }
 
     @Transactional
@@ -84,6 +94,7 @@ public class UserService {
             user.setAnnualLeaveDays(request.annualLeaveDays());
         }
         if (request.enabled() != null) {
+            if (request.enabled() && !user.isEnabled()) requireSeat();
             user.setEnabled(request.enabled());
         }
         if (request.roleNames() != null) {

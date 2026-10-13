@@ -3,6 +3,7 @@ package com.erp.settings.company;
 import com.erp.common.ApiException;
 import com.erp.settings.company.dto.CompanyDtos.CompanyResponse;
 import com.erp.settings.company.dto.CompanyDtos.CreateCompanyRequest;
+import com.erp.settings.company.dto.CompanyDtos.UpdateCompanyRequest;
 import com.erp.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,12 @@ public class CompanyController {
     public CompanyResponse create(@Valid @RequestBody CreateCompanyRequest req) {
         requireHostTenant();
         return companyService.create(req);
+    }
+
+    @PutMapping("/{id}")
+    public CompanyResponse update(@PathVariable Long id, @Valid @RequestBody UpdateCompanyRequest req) {
+        requireHostTenant();
+        return companyService.update(id, req);
     }
 
     /** 회사 관리는 본사(public)에서만. 다른 회사 관리자가 남의 회사를 만들지 못하게. */

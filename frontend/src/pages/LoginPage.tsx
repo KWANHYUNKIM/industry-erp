@@ -3,10 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthContext'
 import { extractErrorMessage } from '../api/client'
 
+const LAST_COMPANY_KEY = 'erp_last_company_code'
+
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [companyCode, setCompanyCode] = useState('')
+  // 회사코드는 필수다(원본 이카운트와 같다). 매번 치지 않게 마지막으로 들어간 회사코드를 채워 둔다.
+  const [companyCode, setCompanyCode] = useState(() => {
+    try { return localStorage.getItem(LAST_COMPANY_KEY) ?? '' } catch { return '' }
+  })
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -17,7 +22,8 @@ export default function LoginPage() {
     setError('')
     setSubmitting(true)
     try {
-      await login(companyCode, username, password)
+      await login(companyCode.trim(), username, password)
+      try { localStorage.setItem(LAST_COMPANY_KEY, companyCode.trim()) } catch { /* 저장 못 해도 로그인은 됐다 */ }
       navigate('/', { replace: true })
     } catch (err) {
       setError(extractErrorMessage(err, '로그인에 실패했습니다.'))
@@ -41,9 +47,10 @@ export default function LoginPage() {
               type="text"
               value={companyCode}
               onChange={(e) => setCompanyCode(e.target.value)}
-              autoFocus
+              required
+              autoFocus={!companyCode}
               className="w-full rounded-lg border border-ec-line px-3 py-2 text-ec-text outline-none focus:border-ec-blue focus:ring-2 focus:ring-ec-blue-tint"
-              placeholder="회사코드 (본사는 비워두세요)"
+              placeholder="회사코드"
             />
           </div>
 

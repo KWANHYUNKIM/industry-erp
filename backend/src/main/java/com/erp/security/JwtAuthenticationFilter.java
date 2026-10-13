@@ -1,5 +1,6 @@
 package com.erp.security;
 
+import com.erp.settings.company.CompanyAccessService;
 import com.erp.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -26,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final CompanyAccessService companyAccessService;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -36,9 +38,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
         boolean tenantSet = false;
         try {
-            if (token != null && tokenProvider.validate(token)) {
+            // 로그인 뒤에 회사가 중지되거나 사용기한이 지나면 토큰이 살아 있어도 인증하지 않는다(→ 401 → 로그인 화면,
+            // 거기서 이유를 말해 준다). 요청마다 public.companies 를 한 번 읽는다.
+            String tenant = token != null && tokenProvider.validate(token) ? tenantOf(token) : null;
+            if (tenant != null && companyAccessService.isUsable(tenant)) {
                 // 사용자 로딩·이후 모든 DB 접근이 이 회사 스키마로 가도록 테넌트를 먼저 건다.
-                TenantContext.set(tokenProvider.getTenant(token));
+                TenantContext.set(tenant);
                 tenantSet = true;
 
                 String username = tokenProvider.getUsername(token);
@@ -56,6 +61,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 TenantContext.clear();   // 스레드 풀에 테넌트가 눌어붙지 않도록
             }
         }
+    }
+
+    /** 회사 정보가 없는 옛 토큰은 본사 것이다(TenantContext.set(null) 이 본사로 가던 것과 같다). */
+    private String tenantOf(String token) {
+        String t = tokenProvider.getTenant(token);
+        return t == null || t.isBlank() ? TenantContext.DEFAULT : t;
     }
 
     private String resolveToken(HttpServletRequest request) {

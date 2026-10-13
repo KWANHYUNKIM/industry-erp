@@ -22,7 +22,7 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 export async function login(username = process.env.ERP_USER ?? 'admin', password = process.env.ERP_PASS ?? 'admin1234') {
   const r = await (await fetch(`${API}/auth/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ companyCode: process.env.ERP_COMPANY ?? '0001', username, password }),
   })).json()
   const token = r.token ?? r.accessToken
   if (!token) throw new Error('로그인 실패: ' + JSON.stringify(r))

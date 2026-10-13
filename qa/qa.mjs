@@ -3463,7 +3463,7 @@ async function scenarioWorkspace(f) {
   eq('고정 해제됨', updated.pinned, false)
 
   // 다른 사용자로는 남의 메모가 보이지도, 지워지지도 않는다
-  const other = await call('POST', '/auth/login', { username: 'manager', password: 'manager1234' })
+  const other = await call('POST', '/auth/login', { companyCode: '0001', username: 'manager', password: 'manager1234' })
   if (other.ok) {
     const otherToken = other.data.token
     const saved = token
@@ -3538,7 +3538,7 @@ async function scenarioCreatedByFk() {
   })
 
   const adminToken = token
-  const asUser = await call('POST', '/auth/login', { username: UNAME, password: 'qa-pass-1234' })
+  const asUser = await call('POST', '/auth/login', { companyCode: '0001', username: UNAME, password: 'qa-pass-1234' })
   eq('신규 사용자로 로그인됨', asUser.ok, true)
   token = asUser.data.token
 
@@ -4171,7 +4171,7 @@ async function scenarioPayrollReadGuard() {
 
   const P2 = `${P}READGUARD`
   const asUser = async (username, password, path) => {
-    const login = await call('POST', '/auth/login', { username, password })
+    const login = await call('POST', '/auth/login', { companyCode: '0001', username, password })
     if (!login.ok) return { status: login.status, data: login.data }
     const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${login.data.token}` } })
     return { status: res.status }
@@ -4202,7 +4202,7 @@ async function scenarioPayrollReadGuard() {
   // 사원 목록은 담당자 드롭다운으로 여기저기 쓰여 막을 수 없다. 대신 급여 칸만 가린다 —
   // 안 그러면 급여명세를 막아 놔도 사원 목록으로 기본급이 그대로 새어 나간다.
   const rowsOf = async (username) => {
-    const login = await call('POST', '/auth/login', { username, password: 'qatest1234' })
+    const login = await call('POST', '/auth/login', { companyCode: '0001', username, password: 'qatest1234' })
     const res = await fetch(`${BASE}/employees`, {
       headers: { Authorization: `Bearer ${login.data.token}` },
     })
@@ -7215,7 +7215,7 @@ async function scenarioLeaveApproval() {
     formData: { periodFrom: '2091-03-05T09:00:00', periodTo: '2091-03-05T13:00:00', reason: `${P}반차`, detail: '반차' },
     approverIds: [mgr.id], referenceUserIds: [], shareUserIds: [], temporary: false,
   })
-  const login = await call('POST', '/auth/login', { username: 'manager', password: 'manager1234' })
+  const login = await call('POST', '/auth/login', { companyCode: '0001', username: 'manager', password: 'manager1234' })
   const saved = token
   token = login.data.token
   await must('POST', `/approvals/${doc.id}/approve`, { comment: 'QA 승인' })
@@ -10548,7 +10548,7 @@ async function scenarioMasterResave() {
 async function main() {
   const cmd = process.argv[2] ?? 'all'
 
-  const login = await call('POST', '/auth/login', { username: USER, password: PASS })
+  const login = await call('POST', '/auth/login', { companyCode: '0001', username: USER, password: PASS })
   if (!login.ok) {
     console.error(`로그인 실패 (HTTP ${login.status}). 백엔드가 ${BASE} 에서 떠 있는지 확인하세요.`)
     process.exit(2)
@@ -10809,7 +10809,7 @@ async function scenarioChat() {
   eq('내가 한 말은 내 안 읽은 수에 안 든다', Number(mine.unread), 0)
 
   const saved = token
-  const asMate = await call('POST', '/auth/login', { username: 'manager', password: 'manager1234' })
+  const asMate = await call('POST', '/auth/login', { companyCode: '0001', username: 'manager', password: 'manager1234' })
   eq('상대로 로그인된다', asMate.ok, true)
   if (asMate.ok) {
     token = asMate.data.token
@@ -11163,7 +11163,7 @@ async function scenarioNoPermission() {
     email: 'qanoperm@example.com', roleNames: [`${P}NOPERM`],
   })
   const low = await must('POST', '/auth/login',
-    { username: `${P.toLowerCase()}noperm`, password: 'qanoperm1234' })
+    { companyCode: '0001', username: `${P.toLowerCase()}noperm`, password: 'qanoperm1234' })
   eq('권한이 하나도 없는 계정이다', (low.permissionCodes ?? []).length, 0)
 
   const 낮은쪽 = async (method, path, body) => {
