@@ -6,6 +6,9 @@ import { openAppBarPanel } from '../../components/AppBarPanel'
 import Modal from '../../components/Modal'
 import type { SurveyDoc, SurveyResult, SurveyStatus } from '../../types/api'
 import { EcCond } from '../../components/EcStatusPanel'
+import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { matrixToXlsx } from '../../utils/excel'
+import { escapeHtml } from '../../utils/escapeHtml'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사조회 (이카운트 E070257)
@@ -426,9 +429,39 @@ function ParticipantsModal({ rows, onClose }: { rows: Participant[]; onClose: ()
 /**
  * 원본 '설문조사 결과보기'(2026-10-13 실측) — 둥근 판: 머리(--ec-bg-disabled) '요약' · 설문대상자수 · 설문응답자수 · 설문미응답자수, 아래 머리말.
  * 질문마다 제목 줄 + 격자 [항목][응답자수][응답비율 0.00%][전체응답자수(칸 합침, 'N명')]. 서술형은 답 원문 줄.
- * 하단 [닫기](원본 [인쇄▲][Excel] 은 두지 않았다).
+ * 하단 [인쇄▲(PDF · 미리보기 · 프린트문제해결)][Excel][닫기] — 우리는 인쇄 · PDF(인쇄 대화상자에서 PDF 로 저장) · 미리보기 · Excel 을 둔다.
+ * [프린트문제해결]은 이카운트 도움말 창이라 두지 않았다.
  */
 function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () => void }) {
+  const [printMenu, setPrintMenu] = useState(false)
+  const pct = (n: number, all: number) => `${(all ? (n * 100) / all : 0).toFixed(2)}%`
+  /** 판 그대로 인쇄창에 옮긴다 — 요약 · 질문마다 격자. */
+  const print = (autoPrint: boolean) => {
+    const win = openPrintWindow()
+    if (!win) return
+    const e = escapeHtml
+    const body = result.questions.map((q) => {
+      const opts = Object.entries(q.counts)
+      const rows = opts.length === 0
+        ? (q.texts.length === 0 ? [`<tr><td colspan="3">&nbsp;</td><td>${q.answeredCount}명</td></tr>`]
+          : q.texts.map((t, i) => `<tr><td colspan="3">${e(t)}</td>${i === 0 ? `<td rowspan="${q.texts.length}">${q.answeredCount}명</td>` : ''}</tr>`))
+        : opts.map(([o, n], i) => `<tr><td>${e(o)}</td><td>${n}</td><td>${pct(n, q.answeredCount)}</td>${i === 0 ? `<td rowspan="${opts.length}">${q.answeredCount}명</td>` : ''}</tr>`)
+      return `<p>${e(q.content)}</p><table><thead><tr><th>항목</th><th>응답자수</th><th>응답비율</th><th>전체응답자수</th></tr></thead><tbody>${rows.join('')}</tbody></table>`
+    }).join('')
+    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>설문조사 결과보기</title>`
+      + `<style>body{font-family:sans-serif;font-size:12px;padding:16px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid;padding:4px 6px;text-align:left}</style></head>`
+      + `<body><h3>설문조사 결과보기</h3><p><b>요약</b><br>설문대상자수 : ${result.targetCount}<br>설문응답자수 : ${result.responseCount}<br>`
+      + `설문미응답자수 : ${Math.max(0, result.targetCount - result.responseCount)}</p>${body}</body></html>`, autoPrint)
+  }
+  /** [Excel] — 질문마다의 격자를 한 장에: 질문 · 항목 · 응답자수 · 응답비율 · 전체응답자수. */
+  const excel = () => void matrixToXlsx({
+    headers: ['질문', '항목', '응답자수', '응답비율', '전체응답자수'],
+    rows: result.questions.flatMap((q) => {
+      const opts = Object.entries(q.counts)
+      if (opts.length === 0) return (q.texts.length ? q.texts : ['']).map((t) => [q.content, t, '', '', `${q.answeredCount}명`])
+      return opts.map(([o, n]) => [q.content, o, n, pct(n, q.answeredCount), `${q.answeredCount}명`])
+    }),
+  }, '설문조사 결과보기')
   return (
     <Modal open title="설문조사 결과보기" width={780} onClose={onClose}>
       <div className="text-[14px] font-bold mb-[8px]">설문조사 결과보기</div>
@@ -457,7 +490,7 @@ function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () =>
                 ) : opts.map(([opt, n], i) => (
                   <tr key={opt}>
                     <td>{opt}</td><td>{n}</td>
-                    <td>{(q.answeredCount ? (n * 100) / q.answeredCount : 0).toFixed(2)}%</td>
+                    <td>{pct(n, q.answeredCount)}</td>
                     {i === 0 && <td rowSpan={opts.length}>{q.answeredCount}명</td>}
                   </tr>
                 ))}
@@ -466,7 +499,22 @@ function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () =>
           </div>
         )
       })}
-      <div className="flex gap-[6px] mt-[10px]"><button type="button" className="ec-btn" onClick={onClose}>닫기</button></div>
+      <div className="flex gap-[6px] mt-[10px]">
+        <span className="ec-btn-group relative">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => print(true)}>인쇄</button>
+          <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="인쇄 펼치기" onClick={() => setPrintMenu((m) => !m)}>▴</button>
+          {printMenu && (
+            <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
+              <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"
+                      onClick={() => { setPrintMenu(false); print(true) }}>PDF</button>
+              <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"
+                      onClick={() => { setPrintMenu(false); print(false) }}>미리보기</button>
+            </div>
+          )}
+        </span>
+        <button type="button" className="ec-btn" onClick={excel}>Excel</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
     </Modal>
   )
 }
