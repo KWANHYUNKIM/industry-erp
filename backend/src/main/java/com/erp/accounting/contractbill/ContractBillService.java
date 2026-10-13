@@ -2,6 +2,7 @@ package com.erp.accounting.contractbill;
 
 import com.erp.accounting.billingcontract.BillingContractLine;
 import com.erp.accounting.billingcontract.BillingContractService;
+import com.erp.accounting.contractbill.dto.ContractBillDtos;
 import com.erp.accounting.contractbill.dto.ContractBillDtos.BillLine;
 import com.erp.accounting.contractbill.dto.ContractBillDtos.BillLineView;
 import com.erp.accounting.contractbill.dto.ContractBillDtos.InvoiceRow;
@@ -161,6 +162,46 @@ public class ContractBillService {
         }
         out.sort((a, b) -> a.entryDate().equals(b.entryDate()) ? Integer.compare(nz(a.entryNo()), nz(b.entryNo())) : a.entryDate().compareTo(b.entryDate()));
         return out;
+    }
+
+    /**
+     * 청구자료수정 [회계전표삭제] → '회계전표번호보기' 창(2026-10-13 실측) — ● 연결회계전표내역: 청구예정자료 '20261013-3' · 회계전표 '2026/10/13-10'.
+     * 이 청구자료의 줄이 든 전표마다, 그 전표에 묶인 청구자료를 모두 보인다.
+     */
+    @Transactional(readOnly = true)
+    public List<ContractBillDtos.JournalLink> journalLinks(Long billId) {
+        ContractBill b = get(billId);
+        List<Long> jids = b.getLines().stream().map(ContractBillLine::getJournalEntryId).filter((j) -> j != null).distinct().toList();
+        if (jids.isEmpty()) return List.of();
+        Map<Long, JournalEntry> entries = journalRepository.findAllById(jids).stream().collect(Collectors.toMap(JournalEntry::getId, Function.identity()));
+        List<BillJournal> out = new ArrayList<>();
+        for (ContractBillLine l : repository.findReflectedLines()) {
+            if (!jids.contains(l.getJournalEntryId())) continue;
+            out.add(new BillJournal(l.getBill(), l.getJournalEntryId()));
+        }
+        return out.stream().distinct().map((h) -> {
+            JournalEntry e = entries.get(h.journalId());
+            return new ContractBillDtos.JournalLink(h.bill().getId(), h.bill().getBillDate(), h.bill().getDocNo(), h.journalId(),
+                    e != null ? e.getEntryDate() : null, e != null ? entryNo(e.getDocNo()) : null);
+        }).toList();
+    }
+
+    private record BillJournal(ContractBill bill, Long journalId) {}
+
+    /**
+     * '회계전표번호보기' [삭제] → '삭제하겠습니까?' [확인] — 연결된 매출전표를 지우고, 그 전표에 묶인 청구자료(다른 청구생성번호까지)를
+     * 미반영으로 되돌린다(원본 안내: "[삭제]를 할 경우, 연결된 다른 청구생성번호 역시 회계반영이 취소됩니다.").
+     * 그 뒤 청구자료수정 창은 다시 [저장(F8)] · 닫기 · 삭제 다.
+     */
+    @Transactional
+    public void unreflect(Long billId) {
+        ContractBill b = get(billId);
+        List<Long> jids = b.getLines().stream().map(ContractBillLine::getJournalEntryId).filter((j) -> j != null).distinct().toList();
+        if (jids.isEmpty()) throw ApiException.badRequest("회계반영된 청구자료가 아닙니다.");
+        for (Long jid : jids) {
+            repository.clearJournal(jid);
+            if (journalRepository.existsById(jid)) journalService.deleteManual(jid);
+        }
     }
 
     private static int nz(Integer v) { return v != null ? v : 0; }

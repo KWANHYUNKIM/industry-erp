@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
+import EcBadge from '../../components/ui/EcBadge'
 import { ymd } from '../../utils/periods'
 import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -26,6 +27,10 @@ const vatOf = (supply: number) => Math.floor(supply * 0.1)
  * 계약 줄 × 청구월을 골라 [적용] → 줄(항목 · 계약 · 거래처 · 청구예정월 · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 청구단위 · 적요, 수량~부가세 고침)
  * → [일괄생성](한 장) · [거래처별생성](거래처마다 한 장) · 닫기. 같은 달을 두 번 생성해도 막지 않는다.
  * 번호를 누르면 청구자료수정 창: 저장(F8) · 닫기 · 삭제 — 삭제 확인 '전표를 삭제하겠습니까?'.
+ * 회계/판매일괄반영으로 매출전표를 만든 청구자료는 [회계반영여부] 가 주황 ✓ 이고, 수정 창이 닫기 · 회계전표삭제 · 삭제 다(저장이 없다).
+ * [회계전표삭제] → '회계전표번호보기' 창: ● 연결회계전표내역(청구예정자료 '20261013-3' · 회계전표 '2026/10/13-10'),
+ * 빨간 안내 '[삭제]를 할 경우, 연결된 다른 청구생성번호 역시 회계반영이 취소됩니다.' · 삭제 · 취소 → '삭제하겠습니까?' [확인]
+ * → 수정 창이 다시 저장(F8) · 닫기 · 삭제(2026-10-13 실측).
  */
 export default function ContractBillPage() {
   const now = new Date()
@@ -49,7 +54,9 @@ export default function ContractBillPage() {
   const [toMonth, setToMonth] = useState(monthOf(now))
   const [found, setFound] = useState<BillableLine[]>([])
   const [foundPick, setFoundPick] = useState<Set<number>>(new Set())
-  const [confirm, setConfirm] = useState<'delete' | 'pickedDelete' | null>(null)
+  const [confirm, setConfirm] = useState<'delete' | 'pickedDelete' | 'unreflect' | null>(null)
+  // [회계전표삭제] → 회계전표번호보기
+  const [links, setLinks] = useState<{ billId: number; billDate: string; billDocNo: number; journalEntryId: number; entryDate: string | null; entryNo: number | null }[] | null>(null)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '청구예정자료리스트', [rows.length])
 
@@ -110,6 +117,21 @@ export default function ContractBillPage() {
   async function saveEdit() {
     try { await api.put(`/contract-bills/${open}`, { lines: body() }); setOpen(null); await load() } catch (e) { setError(extractErrorMessage(e)) }
   }
+  const openRow = typeof open === 'number' ? rows.find((r) => r.id === open) : undefined
+  async function openLinks() {
+    try { setLinks((await api.get(`/contract-bills/${open}/journals`)).data) } catch (e) { setError(extractErrorMessage(e)) }
+  }
+  async function unreflect() {
+    setConfirm(null)
+    try {
+      await api.post(`/contract-bills/${open}/unreflect`)
+      setLinks(null)
+      const r = (await api.get<ContractBillRow[]>('/contract-bills', { params: { from, to } })).data
+      setRows(r)
+      const b = r.find((x) => x.id === open)
+      if (b) openEdit(b)
+    } catch (e) { setError(extractErrorMessage(e)) }
+  }
   async function remove(ids: number[]) {
     setConfirm(null)
     try { await api.post('/contract-bills/delete', { ids }); setOpen(null); await load() } catch (e) { setError(extractErrorMessage(e)) }
@@ -152,7 +174,7 @@ export default function ContractBillPage() {
                 <td>{firstLine(b)?.contractName ?? ''}</td>
                 <td>{firstLine(b)?.partnerName ?? ''}</td>
                 <td className="text-right">{won(b.totalAmount)}</td>
-                <td className="text-center">{b.accountingReflected ? 'Y' : ''}</td>
+                <td className="text-center">{b.accountingReflected ? <EcBadge tone="warn">✓</EcBadge> : ''}</td>
                 <td className="text-center">{b.salesCreated ? 'Y' : ''}</td>
               </tr>
             ))}
@@ -218,6 +240,10 @@ export default function ContractBillPage() {
             <button type="button" className="ec-btn ec-btn-primary" disabled={!lines.length} onClick={() => void create(false)}>일괄생성</button>
             <button type="button" className="ec-btn" disabled={!lines.length} onClick={() => void create(true)}>거래처별생성</button>
             <button type="button" className="ec-btn" onClick={() => setOpen(null)}>닫기</button>
+          </> : openRow?.lines.some((l) => l.journalEntryId != null) ? <>
+            <button type="button" className="ec-btn" onClick={() => setOpen(null)}>닫기</button>
+            <button type="button" className="ec-btn" onClick={() => void openLinks()}>회계전표삭제</button>
+            <button type="button" className="ec-btn" onClick={() => setConfirm('delete')}>삭제</button>
           </> : <>
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => setOpen(null)}>닫기</button>
@@ -277,11 +303,31 @@ export default function ContractBillPage() {
         </div>
       </Modal>
 
+      <Modal open={links != null} title="회계전표번호보기" width={760} error={error} onClose={() => setLinks(null)}>
+        <p className="font-bold mb-[6px]">● 연결회계전표내역</p>
+        <table className="w-full mb-[6px]">
+          <thead><tr><th className="text-center">청구예정자료</th><th className="text-center">회계전표</th></tr></thead>
+          <tbody>
+            {(links ?? []).map((l) => (
+              <tr key={`${l.billId}-${l.journalEntryId}`}>
+                <td className="text-center">{l.billDate.replace(/-/g, '')}-{l.billDocNo}</td>
+                <td className="text-center">{l.entryDate ? `${dateText(l.entryDate)}-${l.entryNo ?? ''}` : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-ec-danger mb-[12px]">[삭제]를 할 경우, 연결된 다른 청구생성번호 역시 회계반영이 취소됩니다.</p>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => setConfirm('unreflect')}>삭제</button>
+          <button type="button" className="ec-btn" onClick={() => setLinks(null)}>취소</button>
+        </div>
+      </Modal>
+
       <Modal open={confirm != null} title="알림" width={420} error={error} onClose={() => setConfirm(null)}>
-        <p className="mb-[12px]">{confirm === 'delete' ? '전표를 삭제하겠습니까?' : '선택한 전표를 삭제 하겠습니까?'}</p>
+        <p className="mb-[12px]">{confirm === 'unreflect' ? '삭제하겠습니까?' : confirm === 'delete' ? '전표를 삭제하겠습니까?' : '선택한 전표를 삭제 하겠습니까?'}</p>
         <div className="flex gap-[5px]">
           <button type="button" className="ec-btn ec-btn-primary"
-                  onClick={() => void remove(confirm === 'delete' && typeof open === 'number' ? [open] : [...picked])}>확인</button>
+                  onClick={() => void (confirm === 'unreflect' ? unreflect() : remove(confirm === 'delete' && typeof open === 'number' ? [open] : [...picked]))}>확인</button>
           <button type="button" className="ec-btn" onClick={() => setConfirm(null)}>취소</button>
         </div>
       </Modal>

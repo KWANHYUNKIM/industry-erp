@@ -50,6 +50,18 @@ public class ContractBillController {
         return service.invoices(from, to);
     }
 
+    /** 청구자료수정 [회계전표삭제] → '회계전표번호보기' 창의 연결회계전표내역 */
+    @GetMapping("/{id}/journals")
+    public List<ContractBillDtos.JournalLink> journals(@PathVariable Long id) {
+        return service.journalLinks(id);
+    }
+
+    /** '회계전표번호보기' [삭제] — 연결 매출전표를 지우고 묶인 청구자료를 미반영으로 */
+    @PostMapping("/{id}/unreflect")
+    public void unreflect(@PathVariable Long id) {
+        service.unreflect(id);
+    }
+
     @GetMapping("/{id}")
     public BillResponse one(@PathVariable Long id) {
         return service.findOne(id);

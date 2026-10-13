@@ -115,6 +115,9 @@ public final class ContractBillDtos {
             Boolean vatOmitted
     ) {}
 
+    /** 청구자료수정 [회계전표삭제] → '회계전표번호보기' 창의 연결회계전표내역 한 줄 — 청구예정자료 · 회계전표. */
+    public record JournalLink(Long billId, LocalDate billDate, Integer billDocNo, Long journalEntryId, LocalDate entryDate, Integer entryNo) {}
+
     /** 매출(세금)계산서현황(계약)(E060910, 제목 '매출청구서현황') 한 줄 — 반영으로 만든 매출전표 I. */
     public record InvoiceRow(
             Long journalEntryId, LocalDate entryDate, Integer entryNo, String docNo,

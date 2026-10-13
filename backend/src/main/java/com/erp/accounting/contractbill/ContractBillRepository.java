@@ -29,6 +29,11 @@ public interface ContractBillRepository extends JpaRepository<ContractBill, Long
            "where l.id in :ids")
     List<ContractBillLine> findLinesByIds(@Param("ids") List<Long> ids);
 
+    /** [회계전표삭제] — 그 전표를 든 줄을 모두 미반영으로(다른 청구생성번호 줄까지, 원본 안내 글 그대로). */
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update ContractBillLine l set l.journalEntryId = null where l.journalEntryId = :jid")
+    int clearJournal(@Param("jid") Long journalId);
+
     /** 매출(세금)계산서현황(계약) — 반영된 줄(전표 id 별로 묶는다). */
     @Query("select l from ContractBillLine l join fetch l.bill where l.journalEntryId is not null")
     List<ContractBillLine> findReflectedLines();

@@ -44,6 +44,28 @@
         "clicklast:검색(F8)",
         "wait:1500",
         "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계2-반영계약'));return !!tr&&tr.cells[7].innerText.trim()==='20,000'&&tr.cells[8].innerText.trim()==='2,000'})()",
+        "js:(async()=>{const bill=(await window.__api('GET','/contract-bills')).body.find((b)=>b.id===Number(sessionStorage.getItem('billId')));const ps=(await window.__api('GET','/accounts')).body;const id=(c)=>ps.find((a)=>a.code===c).id;const r=await window.__api('POST','/contract-bills/reflect',{lineIds:[bill.lines[0].id],vatType:'세금계산서',partnerId:bill.lines[0].partnerId,supplyAmount:20000,vatAmount:2000,accountId:id('404'),settleAccountId:id('108')});return r.status})()"
+      ]
+    },
+    {
+      "name": "청구예정자료생성 — 반영된 청구자료 [회계전표삭제]",
+      "path": "/accounting/contract-bills",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계2-반영계약'));return !!tr&&tr.cells[7].innerText.trim()==='✓'})()",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계2-반영계약'));tr.cells[1].querySelector('a').click();return true})()",
+        "wait:500",
+        "expect:![...document.querySelectorAll('button')].some((b)=>b.innerText.trim()==='저장(F8)')",
+        "clicklast:회계전표삭제",
+        "wait:800",
+        "expect:document.body.innerText.includes('연결회계전표내역')&&document.body.innerText.includes('연결된 다른 청구생성번호 역시 회계반영이 취소됩니다')",
+        "clicklast:삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('button')].some((b)=>b.innerText.trim()==='저장(F8)')",
         "js:(async()=>{const a=await window.__api('POST','/contract-bills/delete',{ids:[Number(sessionStorage.getItem('billId'))]});const b=await window.__api('POST','/billing-contracts/delete',{ids:[Number(sessionStorage.getItem('bcId'))]});const c=await window.__api('DELETE','/contract-items/'+sessionStorage.getItem('ciId'));return a.status+' '+b.status+' '+c.status})()"
       ]
     }
