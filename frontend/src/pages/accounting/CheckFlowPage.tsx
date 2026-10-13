@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 
@@ -21,6 +22,9 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * [거래유형]은 원본 현황 판에 자료가 없어 못 쟀다 — 우리는 그 움직임의 이름(수령 · 입금완료 · 부도)을 열에 적고 같은 값으로 거른다.
  * 수표내역입력으로 분개 없이 넣은 수표는 수령수표조회에서 잰 값(2026-10-13) '수표만증가' · '수표만감소' 를 쓴다 — [일자-No.] 도 빈칸.
  * 부서 · 프로젝트는 수표에 없다.
+ *
+ * <p>줄은 거래처마다 묶는다(2026-10-13 QA회계2 수표 셋으로 잼 — 증가 · 감소 둘 다): 거래처코드 차례(거래처 없는 묶음이 먼저),
+ * 묶음 안은 일자-No. 차례, 묶음 끝에 '거래처명 계'(거래처 없으면 '[] 계', 가운데 · 굵게 · 회색) 줄, 맨 끝 '합계'(가운데).
  *
  * <p><b>발행수표증가현황</b>(E060611) · <b>감소현황</b>(E060612)도 조건 · 열이 같다(계좌 조건이 [발행수표계좌]). 증가는 발행한 날,
  * 감소는 은행에서 빠져나간(결제완료) 날이다. 계정명은 끊은 계좌의 총계정이고, 결제는 분개를 안 만들어(발행 때 이미 반영)
@@ -89,6 +93,19 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [checks, type, flow, from, to, partner, bankAccount, checkNo, remark, author, kind])
   const total = shown.reduce((a, c) => a + Number(c.amount), 0)
+  const pickers = useCondPickers(['partners'])
+  const codeOf = (partnerId: number | null) => pickers.partners.find((p) => p.id === partnerId)?.code ?? ''
+  const groups = useMemo(() => {
+    const by = new Map<string, BankCheck[]>()
+    for (const c of shown) {
+      const k = String(c.partnerId ?? '')
+      by.set(k, [...(by.get(k) ?? []), c])
+    }
+    return [...by.values()]
+      .map((cs) => ({ cs, code: cs[0].partnerId == null ? '' : codeOf(cs[0].partnerId), sum: cs.reduce((a, c) => a + Number(c.amount), 0) }))
+      .sort((a, b) => a.code.localeCompare(b.code))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, pickers.partners])
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
   const partners = useMemo(() => {
     const m = new Map<number, string>()
@@ -172,21 +189,27 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
             <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((c) => (
-            <tr key={c.id}>
-              <td className="text-center">{dateText(dayOf(c))} {noOf(c)}</td>
-              <td>{c.checkNo}</td>
-              <td>{c.partnerName ?? ''}</td>
-              <td>{accountOf(c)}</td>
-              <td className="text-center">{kindOf(c)}</td>
-              <td>{c.remark ?? ''}</td>
-              <td className="text-right">{won(Number(c.amount))}</td>
-            </tr>
-          ))}
+          ) : groups.flatMap((g) => [
+            ...g.cs.map((c) => (
+              <tr key={c.id}>
+                <td className="text-center">{dateText(dayOf(c))} {noOf(c)}</td>
+                <td>{c.checkNo}</td>
+                <td>{c.partnerName ?? ''}</td>
+                <td>{accountOf(c)}</td>
+                <td className="text-center">{kindOf(c)}</td>
+                <td>{c.remark ?? ''}</td>
+                <td className="text-right">{won(Number(c.amount))}</td>
+              </tr>
+            )),
+            <tr key={`sub-${g.cs[0].id}`} className="font-bold bg-ec-stripe">
+              <td colSpan={6} className="text-center">{g.cs[0].partnerName ? g.cs[0].partnerName : `[${g.code}]`} 계</td>
+              <td className="text-right">{won(g.sum)}</td>
+            </tr>,
+          ])}
         </tbody>
         <tfoot>
           <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
-            <td colSpan={6}>합계</td>
+            <td colSpan={6} className="text-center">합계</td>
             <td className="text-right">{won(total)}</td>
           </tr>
         </tfoot>

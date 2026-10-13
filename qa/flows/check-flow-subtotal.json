@@ -1,0 +1,31 @@
+{
+  "about": "수령수표증가현황 · 감소현황 — 거래처마다 묶어 '거래처명 계'(거래처 없으면 '[] 계') 줄과 '합계'. 수표내역입력(API)으로 거래처 없는 수표 둘 · 있는 수표 하나를 넣고 감소까지 한 뒤 두 화면의 줄 차례 · 소계를 본다(2026-10-13 원본 실측과 같은 모양). 끝에 지운다.",
+  "shots": [
+    {
+      "name": "증가현황 — '[] 계' 15,000 · '거래처명 계' 20,000 · 합계 35,000",
+      "path": "/accounting/checks-in",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const today=new Date(Date.now()+9*3600e3).toISOString().slice(0,10);const acc=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>x.active);const ps=(await window.__api('GET','/partners')).body;const p=(ps.content??ps)[0];const tag=String(Date.now()).slice(-8);const nos=['QA2A'+tag,'QA2B'+tag,'QA2C'+tag];sessionStorage.setItem('nos',JSON.stringify(nos));sessionStorage.setItem('pName',p.name);const mk=(inc,pid,no,amt)=>window.__api('POST','/checks/direct',{type:'RECEIVED',date:today,increase:inc,partnerId:pid,bankAccountId:acc.id,lines:[{checkNo:no,amount:amt,remark:'QA회계2 소계'}]});const r=[await mk(true,null,nos[0],10000),await mk(true,p.id,nos[1],20000),await mk(true,null,nos[2],5000),await mk(false,null,nos[0],10000),await mk(false,p.id,nos[1],20000),await mk(false,null,nos[2],5000)];return r.map((x)=>x.status).join(',')})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:window.__rows=()=>{const nos=JSON.parse(sessionStorage.getItem('nos'));const trs=[...document.querySelectorAll('tbody tr')];const out=[];trs.forEach((t,i)=>{if(nos.some((n)=>t.innerText.includes(n)))out.push(i)});return {trs,idx:out}};true",
+        "expect:(()=>{const {trs,idx}=window.__rows();const nos=JSON.parse(sessionStorage.getItem('nos'));const a=trs.findIndex((t)=>t.innerText.includes(nos[0])),c=trs.findIndex((t)=>t.innerText.includes(nos[2])),b=trs.findIndex((t)=>t.innerText.includes(nos[1]));const subB=trs.slice(b+1).find((t)=>t.cells.length===2);return idx.length===3&&a<c&&trs.slice(c+1).some((t)=>t.cells.length===2&&t.cells[0].innerText.trim()==='[] 계')&&!!subB&&subB.cells[0].innerText.trim()===sessionStorage.getItem('pName')+' 계'&&subB.cells[0].colSpan===6})()",
+        "expect:(()=>{const t=document.querySelector('tfoot tr');return t.cells[0].innerText.trim()==='합계'&&getComputedStyle(t.cells[0]).textAlign==='center'})()"
+      ]
+    },
+    {
+      "name": "감소현황 — 같은 묶음 · 소계, 끝에 넣은 수표를 지운다",
+      "path": "/accounting/checks-out",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const nos=JSON.parse(sessionStorage.getItem('nos'));const trs=[...document.querySelectorAll('tbody tr')];const b=trs.findIndex((t)=>t.innerText.includes(nos[1]));const sub=trs.slice(b+1).find((t)=>t.cells.length===2);return b>=0&&!!sub&&sub.cells[0].innerText.trim()===sessionStorage.getItem('pName')+' 계'&&sub.cells[1].innerText.trim()!==''&&trs.some((t)=>t.cells.length===2&&t.cells[0].innerText.trim()==='[] 계')})()",
+        "js:(async()=>{const nos=JSON.parse(sessionStorage.getItem('nos'));const cs=(await window.__api('GET','/checks')).body.filter((c)=>nos.includes(c.checkNo));const ids=cs.map((c)=>c.id);const r=await window.__api('POST','/checks/delete',{decreaseIds:ids,increaseIds:ids});window.__del=r.status;return r.status})()",
+        "wait:500",
+        "expect:window.__del===200||window.__del===204"
+      ]
+    }
+  ]
+}
