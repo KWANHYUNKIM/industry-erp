@@ -1,0 +1,48 @@
+{
+  "about": "실제원가현황 · 표준원가현황 [정렬/소계기준 설정](원본 E040804 · E040808, 2026-10-13 잼) — '정렬/소계/합계 설정' 창에 [페이지분할] 열, 처음 1 품목구분(세트포함) 소계 표시 · 2 품목코드 표시안함 · 3 없음. 실제원가 원가집계표는 합계영역이 ◉표시로 막혀 있고 표시항목은 [소계] 줄만(단가 넷 빈칸). 소계를 끄면 '… 계' 줄이 없어지고 누계만 남는다. 자료를 만들지 않는다. node qa/shot.mjs qa/flows/cost-status-sort.json",
+  "shots": [
+    {
+      "name": "실제원가현황 — 설정 창 기본값",
+      "path": "/accounting/actual-cost",
+      "steps": [
+        "js:try { localStorage.removeItem('actual-cost-status-sort'); localStorage.removeItem('standard-cost-status-sort') } catch (e) {} ; true",
+        "wait:1500",
+        "click:설정",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const s = (i) => d.querySelector(`select[aria-label=\"정렬/소계기준 ${i}\"]`).value; return s(1) === '품목구분(세트포함) (원가집계표)' && s(2) === '품목코드 (품목)' && s(3) === '' && d.querySelectorAll('input[name=subtotal-0]')[0].checked && d.querySelectorAll('input[name=subtotal-1]')[1].checked && d.querySelector('input[aria-label=\"페이지분할 3\"]').disabled })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const t = d.querySelectorAll('input[name=total]'); return t[0].checked && t[0].disabled && t[1].disabled })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const rows = d.querySelectorAll('table[aria-label=\"소계/합계 표시항목\"] tbody tr'); const b = [...rows[0].querySelectorAll('input')].map((x) => (x.checked ? 'Y' : 'n')).join(''); return rows.length === 1 && b === 'YnYYnYYnYYnY' })()",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "실제원가현황 — 소계 끄기",
+      "path": "/accounting/actual-cost",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => / 계$/.test(tr.cells[0]?.textContent.trim() ?? ''))",
+        "expect:[...document.querySelectorAll('tfoot tr')].some((tr) => tr.cells[0]?.textContent.trim() === '누계' && tr.cells[0].colSpan === 4)",
+        "click:설정",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input[name=subtotal-0]')[1].click(); true",
+        "wait:150",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => / 계$/.test(tr.cells[0]?.textContent.trim() ?? ''))",
+        "expect:[...document.querySelectorAll('tfoot tr')].some((tr) => tr.cells[0]?.textContent.trim() === '누계')"
+      ]
+    },
+    {
+      "name": "표준원가현황 — 설정 창 기본값",
+      "path": "/accounting/standard-cost",
+      "steps": [
+        "wait:1500",
+        "click:설정",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const s = (i) => d.querySelector(`select[aria-label=\"정렬/소계기준 ${i}\"]`).value; const t = d.querySelectorAll('input[name=total]'); return s(1) === '품목구분(세트포함) (표준원가)' && s(2) === '품목코드 (품목)' && t[0].checked && !t[0].disabled })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const b = [...d.querySelectorAll('table[aria-label=\"소계/합계 표시항목\"] input[type=checkbox]')]; return b.length === 2 && b.every((x) => x.checked) })()",
+        "click:닫기"
+      ]
+    }
+  ]
+}

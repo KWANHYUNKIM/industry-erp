@@ -140,8 +140,8 @@
   "palette": 0
  },
  "pages/accounting/ActualCostPage.tsx": {
-  "inline": 13,
-  "color": 4,
+  "inline": 6,
+  "color": 2,
   "palette": 0
  },
  "pages/accounting/ArApAgingPage.tsx": {

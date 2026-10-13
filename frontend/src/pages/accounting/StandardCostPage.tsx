@@ -8,6 +8,24 @@ import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
 import { useCostPeriods, costPeriodText, costPeriodRange, inCostPeriod, type CostPeriod } from '../../utils/costPeriods'
+import EcSortSubtotalModal, { withSubtotals, showsItem, type SortSubtotal } from '../../components/EcSortSubtotalModal'
+import { costCategorySortKey } from '../../utils/costGroup'
+
+/*
+ * [정렬/소계기준] [설정] — '정렬/소계/합계 설정' 창(2026-10-13 원본 E040808 실측). 처음 값: 1 품목구분(세트포함) (표준원가)
+ * 소계 표시 · 2 품목코드 (품목) 표시안함 · 3 없음, 합계영역 표시, 소계/합계 표시항목 ◉직접설정 [단가] 소계 · 합계 체크.
+ * 열에 [페이지분할]이 있다. 기준 고르기는 원본이 '항목추가' 창(표준원가 · 품목 마스터의 항목 100여 개)인데,
+ * 우리 품목 마스터에 있는 것만 둔다.
+ */
+const SORT_KEYS = ['단가 (표준원가)', '품목구분(세트포함) (표준원가)', '품목코드 (품목)', '품목명 (품목)', '규격 (품목)',
+  '품목명[규격] (품목)', '단위 (품목)', '품목구분 (품목)', '생산공정명 (품목)', '품목그룹1명 (품목)']
+const SORT_STORE = 'standard-cost-status-sort'
+const DEFAULT_SORT: SortSubtotal = {
+  lines: [{ key: '품목구분(세트포함) (표준원가)', desc: false, subtotal: true }, { key: '품목코드 (품목)', desc: false, subtotal: false },
+    { key: '', desc: false, subtotal: false }],
+  total: true,
+  items: { custom: true, sub: {}, total: {} },
+}
 
 /**
  * 품목 → <b>생산공정명</b>. 원본 원가 화면 셋이 이 칸을 둔다.
@@ -78,6 +96,11 @@ export default function StandardCostPage() {
   const [itemGroupCond, setItemGroupCond] = useState('')
   const [processCond, setProcessCond] = useState('')
   const [itemCond, setItemCond] = useState('')
+  const [sortOpen, setSortOpen] = useState(false)
+  const [sortCfg, setSortCfg] = useState<SortSubtotal>(() => {
+    try { const x = localStorage.getItem(SORT_STORE); if (x) return JSON.parse(x) as SortSubtotal } catch { /* 저장소를 못 쓰면 기본값 */ }
+    return DEFAULT_SORT
+  })
 
   /* 원본 [기준월] — 원가 기간 코드도움. */
   const [periodId, setPeriodId] = useState('')
@@ -124,6 +147,25 @@ export default function StandardCostPage() {
     .filter((r) => !processCond || processOf(r.itemId) === processCond)
     .filter((r) => !itemCond || String(r.itemId) === itemCond)
   const total = shown.reduce((s, r) => s + r.standardTotal, 0)
+  const itemOf = (id: number) => items.find((x) => x.id === id)
+  const sortValue = (r: Cost, key: string): string | number => {
+    const it = itemOf(r.itemId)
+    switch (key) {
+      case '단가 (표준원가)': return r.standardTotal
+      case '품목구분(세트포함) (표준원가)': case '품목구분 (품목)': return costCategorySortKey(catOf.get(r.itemId) ?? '')
+      case '품목코드 (품목)': return r.itemCode
+      case '품목명 (품목)': return r.itemName
+      case '규격 (품목)': return it?.spec ?? ''
+      case '품목명[규격] (품목)': return `${r.itemName}${it?.spec ? ` [${it.spec}]` : ''}`
+      case '단위 (품목)': return it?.unit ?? ''
+      case '생산공정명 (품목)': return processOf(r.itemId)
+      case '품목그룹1명 (품목)': return mgmt.groupOf(r.itemId) ?? ''
+      default: return ''
+    }
+  }
+  const groupLabel = (r: Cost, key: string) => key.startsWith('품목구분')
+    ? (catOf.get(r.itemId) ?? '') : key === '단가 (표준원가)' ? r.standardTotal.toLocaleString('ko-KR') : String(sortValue(r, key))
+  const out = withSubtotals(shown, sortCfg, sortValue, groupLabel)
   const processNames = [...new Set(bors.map((b) => b.processName).filter(Boolean))].sort()
 
   const reset = () => {
@@ -189,6 +231,10 @@ export default function StandardCostPage() {
             단가0포함
           </label>
         </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy text-[12px]"
+                  onClick={() => setSortOpen(true)}>설정</button>
+        </EcCond>
       </ul>
       {shownPeriod && <EcReportHead title="표준원가현황" period={costPeriodRange(shownPeriod)} />}
       <table className="w-full text-left">
@@ -207,26 +253,39 @@ export default function StandardCostPage() {
             <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r) => (
-            <tr key={r.id}>
-              <td>{r.itemCode}</td>
-              <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
-              <td>{catOf.get(r.itemId) ?? ''}</td>
-              <td>{processOf(r.itemId)}</td>
-              <td className="text-right">{r.standardTotal.toLocaleString('ko-KR')}</td>
+          ) : out.map((o) => o.kind === 'row' ? (
+            <tr key={o.row.id}>
+              <td>{o.row.itemCode}</td>
+              <td>{o.row.itemName}{specOf(o.row.itemId) ? ` [${specOf(o.row.itemId)}]` : ''}</td>
+              <td>{catOf.get(o.row.itemId) ?? ''}</td>
+              <td>{processOf(o.row.itemId)}</td>
+              <td className="text-right">{o.row.standardTotal.toLocaleString('ko-KR')}</td>
+            </tr>
+          ) : (
+            <tr key={o.key} className="font-bold bg-ec-stripe">
+              <td colSpan={4} className="text-center">{o.label} 계</td>
+              <td className="text-right">
+                {showsItem(sortCfg, 'sub', '단가') ? o.list.reduce((s, r) => s + r.standardTotal, 0).toLocaleString('ko-KR') : ''}
+              </td>
             </tr>
           ))}
         </tbody>
-        {shown.length > 0 && (
+        {shown.length > 0 && sortCfg.total && (
           <tfoot>
-            <tr className="font-bold bg-ec-page">
+            <tr className="font-bold bg-ec-disabled">
               <td colSpan={4} className="text-center">합계</td>
-              <td className="text-right">{total.toLocaleString('ko-KR')}</td>
+              <td className="text-right">{showsItem(sortCfg, 'total', '단가') ? total.toLocaleString('ko-KR') : ''}</td>
             </tr>
           </tfoot>
         )}
       </table>
       {shownPeriod && <EcReportFoot />}
+      {sortOpen && (
+        <EcSortSubtotalModal keys={SORT_KEYS} itemCols={['단가']} pageSplit value={sortCfg}
+          onApply={(v) => { setSortCfg(v); setSortOpen(false) }}
+          onSave={(v) => { try { localStorage.setItem(SORT_STORE, JSON.stringify(v)) } catch { /* 저장소를 못 쓰면 이번만 */ } }}
+          onClose={() => setSortOpen(false)} />
+      )}
     </EcListShell>
   )
 }

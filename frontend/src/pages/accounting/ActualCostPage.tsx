@@ -1,16 +1,18 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { stockCostMapFromLast } from '../../utils/stockValue'
-import { groupByCategory } from '../../utils/costGroup'
+import { costCategorySortKey } from '../../utils/costGroup'
+import EcSortSubtotalModal, { withSubtotals, showsItem, type SortSubtotal } from '../../components/EcSortSubtotalModal'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCostPeriods, costPeriodText, inCostPeriod } from '../../utils/costPeriods'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 회계 > 실제원가현황.
@@ -131,6 +133,25 @@ function monthRange(period: string): { from: string; to: string } {
   const [y, m] = period.split('-').map(Number)
   const last = new Date(y, m, 0).getDate()
   return { from: `${period}-01`, to: `${period}-${String(last).padStart(2, '0')}` }
+}
+
+/*
+ * 원가집계표 [정렬/소계기준] [설정] — '정렬/소계/합계 설정' 창(2026-10-13 원본 E040804 실측). 처음 값: 1 품목구분(세트포함) (원가집계표)
+ * 소계 표시 · 2 품목코드 (품목) 표시안함 · 3 없음. 합계영역은 ◉표시 로 막혀 있다(맨 아래 '누계' 가 늘 선다).
+ * 소계/합계 표시항목 ◉직접설정, [소계] 줄만 — 수량 · 금액 체크, 단가 넷은 빈칸. 소계를 끄면 '… 계' 줄 없이 같은 차례로만 선다.
+ * 기준 고르기는 원본이 '항목추가' 창(원가집계표 열 · 품목 마스터 항목)인데, 우리 자료에 있는 것만 둔다.
+ */
+const SORT_KEYS = ['기초수량 (원가집계표)', '기초단가 (원가집계표)', '기초금액 (원가집계표)', '증가수량 (원가집계표)', '증가단가 (원가집계표)',
+  '증가금액 (원가집계표)', '감소수량 (원가집계표)', '감소단가 (원가집계표)', '감소금액 (원가집계표)', '기말수량 (원가집계표)',
+  '기말단가 (원가집계표)', '기말금액 (원가집계표)', '품목구분(세트포함) (원가집계표)', '품목코드 (품목)', '품목명 (품목)', '규격 (품목)',
+  '품목명[규격] (품목)', '단위 (품목)', '품목구분 (품목)', '생산공정명 (품목)', '품목그룹1명 (품목)']
+const ITEM_COLS = ['기초수량', '기초단가', '기초금액', '증가수량', '증가단가', '증가금액', '감소수량', '감소단가', '감소금액', '기말수량', '기말단가', '기말금액']
+const SORT_STORE = 'actual-cost-status-sort'
+const DEFAULT_SORT: SortSubtotal = {
+  lines: [{ key: '품목구분(세트포함) (원가집계표)', desc: false, subtotal: true }, { key: '품목코드 (품목)', desc: false, subtotal: false },
+    { key: '', desc: false, subtotal: false }],
+  total: true,
+  items: { custom: true, sub: { 기초단가: false, 증가단가: false, 감소단가: false, 기말단가: false }, total: {} },
 }
 
 export default function ActualCostPage() {
@@ -278,7 +299,48 @@ export default function ActualCostPage() {
    * 원본 원가집계표의 <b>품목구분별 소계</b>(원재료 계 · 부재료 계 · … · 누계).
    * 순서와 '모르는 구분을 버리지 않는' 규칙은 utils/costGroup 에 있다.
    */
-  const groups = useMemo(() => groupByCategory(summary, (r) => r.categoryName), [summary])
+  const [sortOpen, setSortOpen] = useState(false)
+  const [sortCfg, setSortCfg] = useState<SortSubtotal>(() => {
+    try { const x = localStorage.getItem(SORT_STORE); if (x) return JSON.parse(x) as SortSubtotal } catch { /* 저장소를 못 쓰면 기본값 */ }
+    return DEFAULT_SORT
+  })
+  type SumRow = (typeof summary)[number]
+  const sortValue = (r: SumRow, key: string): string | number | null => {
+    const it = items.find((x) => x.id === r.itemId)
+    const unit = (amt: number | null, qty: number) => (amt == null || qty === 0 ? null : amt / qty)
+    switch (key) {
+      case '기초수량 (원가집계표)': return r.opening
+      case '기초단가 (원가집계표)': return unit(r.openAmt, r.opening)
+      case '기초금액 (원가집계표)': return r.openAmt
+      case '증가수량 (원가집계표)': return r.inQty
+      case '증가단가 (원가집계표)': return unit(r.inAmt, r.inQty)
+      case '증가금액 (원가집계표)': return r.inAmt
+      case '감소수량 (원가집계표)': return r.outQty
+      case '감소단가 (원가집계표)': return unit(r.outAmt, r.outQty)
+      case '감소금액 (원가집계표)': return r.outAmt
+      case '기말수량 (원가집계표)': return r.closing
+      case '기말단가 (원가집계표)': return r.price
+      case '기말금액 (원가집계표)': return r.closeAmt
+      case '품목구분(세트포함) (원가집계표)': case '품목구분 (품목)': return costCategorySortKey(r.categoryName)
+      case '품목코드 (품목)': return r.itemCode
+      case '품목명 (품목)': return r.itemName
+      case '규격 (품목)': return it?.spec ?? ''
+      case '품목명[규격] (품목)': return `${r.itemName}${it?.spec ? ` [${it.spec}]` : ''}`
+      case '단위 (품목)': return it?.unit ?? ''
+      case '생산공정명 (품목)': return processOf(r.itemId)
+      case '품목그룹1명 (품목)': return mgmt.groupOf(r.itemId) ?? ''
+      default: return ''
+    }
+  }
+  const groupLabel = (r: SumRow, key: string) => {
+    if (key.startsWith('품목구분')) return r.categoryName || '(미지정)'
+    const v = sortValue(r, key)
+    return typeof v === 'number' ? won(v) : (v ?? '')
+  }
+  const out = withSubtotals(summary, sortCfg, sortValue, groupLabel)
+  /* 소계 줄 칸은 표시항목을 map 으로 찍는다 — 개발 중에는 그린 표의 열 수를 잰다. */
+  const gridRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(gridRef, '실제원가현황 원가집계표', [out.length, sortCfg, mode])
 
   /*
    * <b>수불부 줄은 그 보기를 눌렀을 때 받는다.</b> 다섯 보기 중 [증가내역]·[감소내역]만
@@ -354,11 +416,15 @@ export default function ActualCostPage() {
     after: allocAfter.reduce((n, r) => n + r.amount, 0),
   }), [allocBefore, allocAfter, mode])
 
-  const totals = summary.reduce((a, r) => ({
-    open: a.open + (r.openAmt ?? 0), in: a.in + (r.inAmt ?? 0),
-    out: a.out + (r.outAmt ?? 0), close: a.close + (r.closeAmt ?? 0),
-    unknown: a.unknown + (r.price == null && (r.opening || r.inQty || r.outQty || r.closing) ? 1 : 0),
-  }), { open: 0, in: 0, out: 0, close: 0, unknown: 0 })
+  /** 묶음의 수량 · 금액 합 — 소계 줄과 누계 줄이 같은 규칙으로 더한다. */
+  function sumOf(list: typeof summary) {
+    return list.reduce((a, r) => ({
+      openQty: a.openQty + r.opening, open: a.open + (r.openAmt ?? 0), inQty: a.inQty + r.inQty, in: a.in + (r.inAmt ?? 0),
+      outQty: a.outQty + r.outQty, out: a.out + (r.outAmt ?? 0), closeQty: a.closeQty + r.closing, close: a.close + (r.closeAmt ?? 0),
+      unknown: a.unknown + (r.price == null && (r.opening || r.inQty || r.outQty || r.closing) ? 1 : 0),
+    }), { openQty: 0, open: 0, inQty: 0, in: 0, outQty: 0, out: 0, closeQty: 0, close: 0, unknown: 0 })
+  }
+  const totals = sumOf(summary)
 
   return (
     <EcListShell
@@ -414,21 +480,24 @@ export default function ActualCostPage() {
             {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </EcCond>
+        {/* 원본 [기타] 차례(2026-10-13 실측): 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함. 예전엔 결재방표시가 따로 한 줄이었다. */}
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">
-            <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
-            사용중단품목포함
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            결재방표시
           </label>
           <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             수량관리제외품목포함
           </label>
-        </EcCond>
-        <EcCond label="결재방표시">
           <label className="text-[12.5px] flex items-center gap-[4px]">
-            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
-            인쇄물에 결재란(도장칸)을 찍는다
+            <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
+            사용중단품목포함
           </label>
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy text-[12px]"
+                  onClick={() => setSortOpen(true)}>설정</button>
         </EcCond>
       </ul>
 
@@ -526,11 +595,11 @@ export default function ActualCostPage() {
           )}
         </div>
       ) : mode === '원가집계표' ? (
-        <div className="overflow-x-auto">
+        <div ref={gridRef} className="overflow-x-auto">
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
-                <th className="w-[34px]"></th>
+                {/* 원본 원가집계표는 줄 번호 칸이 없다(2026-10-13 실측 16칸). */}
                 <th>품목코드</th>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다(2026-09-09 실측). */}
                 <th>품목명[규격]</th>
@@ -562,74 +631,66 @@ export default function ActualCostPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={17} className="ec-empty">불러오는 중…</td></tr>
+                <tr><td colSpan={16} className="ec-empty">불러오는 중…</td></tr>
               ) : summary.length === 0 ? (
-                <tr><td colSpan={17} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-              ) : groups.map((g) => {
-                // 소계는 그 묶음 줄만 더한다 — 화면에 안 보이는 줄이 섞이면 누계와 어긋난다.
-                const sub = g.rows.reduce((a, r) => ({
-                  open: a.open + (r.openAmt ?? 0), in: a.in + (r.inAmt ?? 0),
-                  out: a.out + (r.outAmt ?? 0), close: a.close + (r.closeAmt ?? 0),
-                }), { open: 0, in: 0, out: 0, close: 0 })
-                return (
-                  <Fragment key={g.name}>
-                    {g.rows.map((r, i) => (
+                <tr><td colSpan={16} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : out.map((o) => {
+                if (o.kind === 'row') {
+                  const r = o.row
+                  return (
                 <tr key={r.itemId}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{r.itemCode}</td>
                   <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
-                  <td className="text-ec-label">{r.categoryName}</td>
-                  <td className="text-ec-label">{processOf(r.itemId)}</td>
-                  <td className="text-right text-ec-label">{num(r.opening)}</td>
-                  <td className="text-right text-ec-label">{unitOf(r.openAmt, r.opening)}</td>
-                  <td className="text-right text-ec-label">{won(r.openAmt)}</td>
-                  <td className="text-right text-ec-blue">{num(r.inQty)}</td>
-                  <td className="text-right text-ec-blue">{unitOf(r.inAmt, r.inQty)}</td>
-                  <td className="text-right text-ec-blue">{won(r.inAmt)}</td>
-                  <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(r.outQty)}</td>
-                  <td style={{ textAlign: 'right', color: '#a5561b' }}>{unitOf(r.outAmt, r.outQty)}</td>
-                  <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(r.outAmt)}</td>
+                  <td>{r.categoryName}</td>
+                  <td>{processOf(r.itemId)}</td>
+                  <td className="text-right">{num(r.opening)}</td>
+                  <td className="text-right">{unitOf(r.openAmt, r.opening)}</td>
+                  <td className="text-right">{won(r.openAmt)}</td>
+                  <td className="text-right">{num(r.inQty)}</td>
+                  <td className="text-right">{unitOf(r.inAmt, r.inQty)}</td>
+                  <td className="text-right">{won(r.inAmt)}</td>
+                  <td className="text-right">{num(r.outQty)}</td>
+                  <td className="text-right">{unitOf(r.outAmt, r.outQty)}</td>
+                  <td className="text-right">{won(r.outAmt)}</td>
                   {/* 기말수량이 음수면 그 자체가 문제다. 0으로 감추면 아무도 못 본다. */}
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.closing < 0 ? 'var(--ec-danger)' : undefined }}>
-                    {num(r.closing)}
-                  </td>
-                  <td style={{ textAlign: 'right', color: r.price == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{won(r.price)}</td>
-                  <td className="text-right font-bold">{won(r.closeAmt)}</td>
+                  <td className={`text-right${r.closing < 0 ? ' text-ec-danger' : ''}`}>{num(r.closing)}</td>
+                  <td className={`text-right${r.price == null ? ' text-ec-off' : ''}`}>{won(r.price)}</td>
+                  <td className="text-right">{won(r.closeAmt)}</td>
                 </tr>
-                    ))}
-                    {/* 원본 소계 줄: '원재료 계' · '부재료 계' · … */}
-                    <tr style={{ background: '#f2f6fc', fontWeight: 700 }}>
-                      <td colSpan={5} className="text-right text-ec-navy">
-                        {g.name} 계 ({g.rows.length}품목)
-                      </td>
-                      <td colSpan={2}></td>
-                      <td className="text-right">{won(sub.open)}</td>
-                      <td colSpan={2}></td>
-                      <td className="text-right">{won(sub.in)}</td>
-                      <td colSpan={2}></td>
-                      <td className="text-right">{won(sub.out)}</td>
-                      <td colSpan={2}></td>
-                      <td className="text-right">{won(sub.close)}</td>
-                    </tr>
-                  </Fragment>
+                  )
+                }
+                /* 원본 소계 줄: '원재료 계' — 이름은 네 칸을 묶어 가운데, 수량 · 금액만(표시항목 직접설정), 회색(#f3f3f3) 굵게. */
+                const t = sumOf(o.list)
+                const val: Record<string, string> = {
+                  기초수량: num(t.openQty), 기초단가: unitOf(t.open, t.openQty), 기초금액: won(t.open),
+                  증가수량: num(t.inQty), 증가단가: unitOf(t.in, t.inQty), 증가금액: won(t.in),
+                  감소수량: num(t.outQty), 감소단가: unitOf(t.out, t.outQty), 감소금액: won(t.out),
+                  기말수량: num(t.closeQty), 기말단가: unitOf(t.close, t.closeQty), 기말금액: won(t.close),
+                }
+                return (
+                  <tr key={o.key} className="font-bold bg-ec-stripe">
+                    <td colSpan={4} className="text-center">{o.label} 계</td>
+                    {ITEM_COLS.map((c) => <td key={c} className="text-right">{showsItem(sortCfg, 'sub', c) ? val[c] : ''}</td>)}
+                  </tr>
                 )
               })}
             </tbody>
             {summary.length > 0 && (
               <tfoot>
-                <tr className="font-bold bg-ec-page">
-                  {/* 원본은 맨 아래를 '합계' 가 아니라 [누계] 라고 적는다. */}
-                  <td colSpan={7} className="text-right">누계 ({summary.length}품목)</td>
+                {/* 원본은 맨 아래를 '합계' 가 아니라 [누계] 라고 적는다 — 이름 네 칸 가운데, #e9ecef 굵게, 수량 · 금액. */}
+                <tr className="font-bold bg-ec-disabled">
+                  <td colSpan={4} className="text-center">누계</td>
+                  <td className="text-right">{num(totals.openQty)}</td><td />
                   <td className="text-right">{won(totals.open)}</td>
-                  <td colSpan={2}></td>
+                  <td className="text-right">{num(totals.inQty)}</td><td />
                   <td className="text-right">{won(totals.in)}</td>
-                  <td colSpan={2}></td>
+                  <td className="text-right">{num(totals.outQty)}</td><td />
                   <td className="text-right">{won(totals.out)}</td>
-                  <td colSpan={2}></td>
-                  <td className="text-right text-ec-navy">
+                  <td className="text-right">{num(totals.closeQty)}</td><td />
+                  <td className="text-right">
                     {won(totals.close)}
                     {totals.unknown > 0 && (
-                      <span title={`단가를 모르는 품목 ${totals.unknown}건은 금액에서 뺐습니다.`} style={{ color: 'var(--ec-warn)' }}> *</span>
+                      <span title={`단가를 모르는 품목 ${totals.unknown}건은 금액에서 뺐습니다.`} className="text-ec-warn"> *</span>
                     )}
                   </td>
                 </tr>
@@ -699,6 +760,12 @@ export default function ActualCostPage() {
             )}
           </table>
         </div>
+      )}
+      {sortOpen && (
+        <EcSortSubtotalModal keys={SORT_KEYS} itemCols={ITEM_COLS} pageSplit totalLocked width={1067} value={sortCfg}
+          onApply={(v) => { setSortCfg(v); setSortOpen(false) }}
+          onSave={(v) => { try { localStorage.setItem(SORT_STORE, JSON.stringify(v)) } catch { /* 저장소를 못 쓰면 이번만 */ } }}
+          onClose={() => setSortOpen(false)} />
       )}
     </EcListShell>
   )

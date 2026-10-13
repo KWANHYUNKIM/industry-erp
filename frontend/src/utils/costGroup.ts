@@ -72,3 +72,12 @@ export function groupPreservingOrder<T>(rows: T[], nameOf: (row: T) => string): 
   }
   return out
 }
+
+/**
+ * 정렬/소계기준 [품목구분(세트포함)] 의 정렬 값 — 원본 차례(원재료 · 부재료 · 반제품 · 제품 · 상품, 모르는 구분은 뒤에 이름순).
+ * 실제원가현황 E040804 원가집계표 2026-10-13 실측: 원재료 계 → 부재료 계 → 제품 계 → 상품 계 → 상품세트 계.
+ */
+export function costCategorySortKey(name: string): string {
+  const i = (COST_GROUP_ORDER as readonly string[]).indexOf(name)
+  return `${String(i === -1 ? COST_GROUP_ORDER.length : i).padStart(2, '0')}${name}`
+}
