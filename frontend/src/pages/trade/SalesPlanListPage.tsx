@@ -4,28 +4,14 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
-import EcPeriodPicks, { QUOTATION_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { dateNo } from '../../utils/dateNo'
 import { ecConfirm } from '../../components/EcDialog'
+import SalesPlanForm, { type SalesPlanDoc as Doc, type SalesPlanRow as PlanRow } from '../../features/salesplan/components/SalesPlanForm'
 
-/** 서버 한 줄 — 같은 planNo 의 줄들이 한 전표다. */
-interface PlanRow {
-  id: number; planNo: string; planDate: string; lineNo: number
-  itemId: number; itemCode: string; itemName: string
-  employeeId: number | null; employeeName: string | null
-  partnerId: number | null; partnerName: string | null
-  warehouseId: number | null; warehouseName: string | null
-  projectId: number | null; projectName: string | null
-  planQty: number; unitPrice: number; planAmount: number; remark: string | null
-}
-interface Doc { planNo: string; planDate: string; lines: PlanRow[]; amount: number }
-interface LineForm { partnerId: string; employeeId: string; itemId: string; planQty: string; unitPrice: string; planAmount: string; remark: string }
-const emptyLine = (): LineForm => ({ partnerId: '', employeeId: '', itemId: '', planQty: '', unitPrice: '', planAmount: '', remark: '' })
-const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
-const num = (v: string) => Number(v || 0)
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
@@ -54,10 +40,7 @@ export default function SalesPlanListPage() {
 
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Doc | null>(null)
-  const [f, setF] = useState({ expectedDate: ymd(new Date()), warehouseId: '', projectId: '' })
-  const [lines, setLines] = useState<LineForm[]>(emptyLines())
   const [formError, setFormError] = useState('')
-  const [saving, setSaving] = useState(false)
 
   async function load() {
     setLoading(true); setError('')
@@ -68,14 +51,6 @@ export default function SalesPlanListPage() {
     finally { setLoading(false) }
   }
   useEffect(() => { void load() }, [])
-  /* 원본 매출계획입력: 품목을 고르면 [단가] 에 품목의 출고단가(우리 items.unitPrice)가 차고 예상매출액은 수량 × 단가(수량이 비면 0). */
-  const [prices, setPrices] = useState<Map<string, number>>(new Map())
-  useEffect(() => {
-    api.get<{ id: number; unitPrice?: number | null }[]>('/items')
-      .then((r) => setPrices(new Map(r.data.map((x) => [String(x.id), Number(x.unitPrice ?? 0)]))))
-      .catch(() => undefined)
-  }, [])
-
   const docs = useMemo(() => {
     const m = new Map<string, Doc>()
     for (const r of rows) {
@@ -93,59 +68,9 @@ export default function SalesPlanListPage() {
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '매출계획조회', [docs.length])
 
-  function openNew() {
-    setEditing(null); setFormError('')
-    setF({ expectedDate: ymd(new Date()), warehouseId: '', projectId: '' })
-    setLines(emptyLines()); setOpen(true)
-  }
-  function openEdit(d: Doc) {
-    setEditing(d); setFormError('')
-    const h = d.lines[0]
-    setF({ expectedDate: d.planDate, warehouseId: h.warehouseId ? String(h.warehouseId) : '', projectId: h.projectId ? String(h.projectId) : '' })
-    setLines([...d.lines.map((l) => ({
-      partnerId: l.partnerId ? String(l.partnerId) : '', employeeId: l.employeeId ? String(l.employeeId) : '',
-      itemId: String(l.itemId), planQty: l.planQty ? String(l.planQty) : '', unitPrice: l.unitPrice ? String(l.unitPrice) : '',
-      planAmount: String(l.planAmount), remark: l.remark ?? '',
-    })), emptyLine()])
-    setOpen(true)
-  }
-  const setLine = (i: number, patch: Partial<LineForm>) =>
-    setLines((ls) => {
-      const next = ls.map((l, j) => {
-        if (j !== i) return l
-        const n = { ...l, ...patch }
-        /* 원본처럼 수량 · 단가를 고치면 예상매출액이 수량 × 단가로 다시 선다. */
-        if (('planQty' in patch || 'unitPrice' in patch) && (num(n.planQty) || num(n.unitPrice))) n.planAmount = String(num(n.planQty) * num(n.unitPrice))
-        return n
-      })
-      return next[next.length - 1].itemId ? [...next, emptyLine()] : next
-    })
-  const filled = lines.filter((l) => l.itemId)
-  const total = filled.reduce((s, l) => s + num(l.planAmount), 0)
-
-  async function save() {
-    setFormError('')
-    if (filled.length === 0) return setFormError('자료를 입력 바랍니다.')
-    const body = {
-      expectedDate: f.expectedDate,
-      warehouseId: f.warehouseId ? Number(f.warehouseId) : undefined,
-      projectId: f.projectId ? Number(f.projectId) : undefined,
-      lines: filled.map((l) => ({
-        partnerId: l.partnerId ? Number(l.partnerId) : undefined, employeeId: l.employeeId ? Number(l.employeeId) : undefined,
-        itemId: Number(l.itemId), planQty: num(l.planQty), unitPrice: num(l.unitPrice), planAmount: num(l.planAmount),
-        remark: l.remark || undefined,
-      })),
-    }
-    setSaving(true)
-    try {
-      if (editing) await api.put(`/sales-plans/docs/${encodeURIComponent(editing.planNo)}`, body)
-      else await api.post('/sales-plans/docs', body)
-      setOpen(false)
-      await load()
-    } catch (err) { setFormError(extractErrorMessage(err)) }
-    finally { setSaving(false) }
-  }
-  useShortcut('F8', save, open)
+  /* 원본 [신규(F2)] 는 매출계획입력 창을 띄운다 — 폼은 매출계획입력 화면과 같은 부품(features/salesplan). */
+  function openNew() { setEditing(null); setFormError(''); setOpen(true) }
+  function openEdit(d: Doc) { setEditing(d); setFormError(''); setOpen(true) }
   useShortcut('F2', openNew, !open)
 
   async function removeDocs(nos: string[]) {
@@ -233,57 +158,8 @@ export default function SalesPlanListPage() {
 
       <Modal open={open} width={1080} error={formError} onClose={() => setOpen(false)}
              title={editing ? '매출계획수정' : '매출계획입력'}>
-        <ul className="ec-form">
-          <li><div className="title">예상매출일자</div><div className="form">
-            <input type="date" className="ec-input w-[150px]" value={f.expectedDate} disabled={!!editing}
-                   onChange={(e) => setF((x) => ({ ...x, expectedDate: e.target.value }))} />
-          </div></li>
-          <li><div className="title">창고</div><div className="form">
-            <CodePickerField label="창고" hideLabel fill emptyLabel="선택 안 함" placeholder="창고" value={f.warehouseId}
-                             onChange={(v) => setF((x) => ({ ...x, warehouseId: v }))} items={pickers.warehouses} />
-          </div></li>
-          <li><div className="title">프로젝트</div><div className="form">
-            <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 안 함" placeholder="프로젝트" value={f.projectId}
-                             onChange={(v) => setF((x) => ({ ...x, projectId: v }))} items={pickers.projects} />
-          </div></li>
-        </ul>
-        <table className="w-full ec-head700 mt-[8px]">
-          <thead><tr>
-            <th className="w-[34px]"></th>
-            <th className="w-[170px]">거래처</th>
-            <th className="w-[140px]">담당자</th>
-            <th className="w-[170px]">품목</th>
-            <th className="w-[80px] text-right">수량</th>
-            <th className="w-[100px] text-right">단가</th>
-            <th className="w-[110px] text-right">예상매출액</th>
-            <th>비고</th>
-          </tr></thead>
-          <tbody>
-            {lines.map((l, i) => (
-              <tr key={i}>
-                <td className="text-center">{i + 1}</td>
-                <td><CodePickerField label="거래처" hideLabel fill emptyLabel="지우기" placeholder="거래처" value={l.partnerId}
-                                     onChange={(v) => setLine(i, { partnerId: v })} items={pickers.partners} /></td>
-                <td><CodePickerField label="담당자" hideLabel fill emptyLabel="지우기" placeholder="담당자" value={l.employeeId}
-                                     onChange={(v) => setLine(i, { employeeId: v })} items={pickers.employees} /></td>
-                <td><CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목" value={l.itemId}
-                                     onChange={(v) => setLine(i, v ? { itemId: v, unitPrice: String(prices.get(v) ?? 0) } : { itemId: v })} items={pickers.items} /></td>
-                <td><input className="ec-input w-full text-right" value={l.planQty} disabled={!l.itemId} onChange={(e) => setLine(i, { planQty: e.target.value })} /></td>
-                <td><input className="ec-input w-full text-right" value={l.unitPrice} disabled={!l.itemId} onChange={(e) => setLine(i, { unitPrice: e.target.value })} /></td>
-                <td><input className="ec-input w-full text-right" value={l.planAmount} disabled={!l.itemId} onChange={(e) => setLine(i, { planAmount: e.target.value })} /></td>
-                <td><input className="ec-input w-full" value={l.remark} disabled={!l.itemId} onChange={(e) => setLine(i, { remark: e.target.value })} /></td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot><tr><td colSpan={6}></td><td className="text-right">{won(total)}</td><td></td></tr></tfoot>
-        </table>
-        <div className="flex gap-[4px] mt-[9px]">
-          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
-          {/* 원본 수정 창 단추 차례: 저장(F8) · 복사 · 닫기 · 삭제 · 보내기 · H (복사 · 보내기 · H 는 없다) / 입력: 저장(F8) · 다시 작성 · 리스트 */}
-          {!editing && <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
-          <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
-          {editing && <button className="ec-btn" onClick={async () => { if ((await ecConfirm('전표를 삭제하겠습니까?\n- 매출계획'))) void removeDocs([editing.planNo]) }}>삭제</button>}
-        </div>
+        <SalesPlanForm editing={editing} active={open} onError={setFormError} onClose={() => setOpen(false)}
+                       onSaved={() => { if (editing) setOpen(false); void load() }} />
       </Modal>
     </EcListShell>
   )
