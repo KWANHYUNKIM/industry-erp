@@ -15,6 +15,8 @@ import com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest;
 import com.erp.accounting.contractbill.dto.ContractBillDtos.BillResponse;
 import com.erp.accounting.contractbill.dto.ContractBillDtos.CreateBillRequest;
 import com.erp.common.ApiException;
+import com.erp.trade.sales.SalesService;
+import com.erp.trade.sales.dto.SalesDtos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,8 @@ public class ContractBillService {
     private final ContractBillRepository repository;
     private final BillingContractService contractService;
     private final JournalService journalService;
+    /** accounting → trade (CLAUDE.md 4.1 허용) — 판매반영은 판매를 trade 의 규칙(재고 · 번호)대로 만든다. */
+    private final SalesService salesService;
     /** 같은 모듈(accounting) — 반영한 전표를 읽기만 한다. */
     private final JournalEntryRepository journalRepository;
 
@@ -121,7 +125,7 @@ public class ContractBillService {
     public List<BillLineView> lines(LocalDate from, LocalDate to, Boolean reflected) {
         return repository.findLinesInPeriod(from != null ? from : LocalDate.of(1900, 1, 1), to != null ? to : LocalDate.of(9999, 12, 31))
                 .stream()
-                .filter((l) -> reflected == null || reflected == (l.getJournalEntryId() != null))
+                .filter((l) -> reflected == null || reflected == l.isReflected())
                 .map(BillLineView::from).toList();
     }
 
@@ -134,7 +138,7 @@ public class ContractBillService {
         List<ContractBillLine> ls = repository.findLinesByIds(req.lineIds());
         if (ls.size() != req.lineIds().stream().distinct().count()) throw ApiException.notFound("청구자료를 찾을 수 없습니다.");
         for (ContractBillLine l : ls) {
-            if (l.getJournalEntryId() != null) {
+            if (l.isReflected()) {
                 throw ApiException.badRequest("이미 회계반영된 청구자료입니다: " + l.getBill().getBillDate() + " -" + l.getBill().getDocNo());
             }
             if (!l.getContractLine().getContract().getPartner().getId().equals(req.partnerId())) {
@@ -149,6 +153,41 @@ public class ContractBillService {
                 req.accountId(), req.settleAccountId(), null, req.eInvoiceKind(), req.vatOmitted(), null), username);
         for (ContractBillLine l : ls) l.setJournalEntryId(je.getId());
         return je.getId();
+    }
+
+    /**
+     * [판매반영 › 판매전표 발행] 판매입력 창 [저장(F8)] — 고른 줄(한 거래처)의 계약 줄 상세-품목연결설정을 판매 한 장의 줄로 만든다.
+     * 품목 수량은 연결설정 수량 × 청구 수량, 금액은 연결설정 공급가액 · 부가세 × 청구 수량. 판매가 생기면 그 줄은 회계반영 · 판매반영
+     * 두 격자에서 빠지고, 판매조회에서 지우면 다시 나온다(원본 2026/10/13 -8 실측).
+     */
+    @Transactional
+    public Long reflectSales(ContractBillDtos.SalesReflectRequest req, String username) {
+        List<ContractBillLine> ls = repository.findLinesByIds(req.lineIds());
+        if (ls.size() != req.lineIds().stream().distinct().count()) throw ApiException.notFound("청구자료를 찾을 수 없습니다.");
+        Long partnerId = ls.get(0).getContractLine().getContract().getPartner().getId();
+        List<SalesDtos.SalesLineRequest> lines = new ArrayList<>();
+        for (ContractBillLine l : ls) {
+            if (l.isReflected()) {
+                throw ApiException.badRequest("이미 반영된 청구자료입니다: " + l.getBill().getBillDate() + " -" + l.getBill().getDocNo());
+            }
+            if (!l.getContractLine().getContract().getPartner().getId().equals(partnerId)) {
+                throw ApiException.badRequest("거래처가 다른 청구자료는 한 전표로 반영할 수 없습니다.");
+            }
+            if (l.getContractLine().getProducts().isEmpty()) {
+                throw ApiException.badRequest("계약입력 시, 입력한 계약항목의 상세-품목연결설정을 해야합니다.");
+            }
+            BigDecimal times = l.getQuantity();
+            for (var p : l.getContractLine().getProducts()) {
+                lines.add(new SalesDtos.SalesLineRequest(p.getItem().getId(), p.getQuantity().multiply(times), p.getUnitPrice(),
+                        null, null, null, null, p.getSupplyAmount().multiply(times), req.taxable() ? p.getVatAmount().multiply(times) : null));
+            }
+        }
+        var c = ls.get(0).getContractLine().getContract();
+        SalesDtos.SalesResponse sale = salesService.create(new SalesDtos.CreateSalesRequest(partnerId, req.warehouseId(),
+                req.saleDate() != null ? req.saleDate() : LocalDate.now(), req.taxable(), false, null,
+                c.getProject() != null ? c.getProject().getId() : null, null, false, lines), username);
+        for (ContractBillLine l : ls) l.setSalesId(sale.id());
+        return sale.id();
     }
 
     /**
@@ -228,7 +267,7 @@ public class ContractBillService {
     }
 
     private static void requireOpen(ContractBill b) {
-        if (b.getLines().stream().anyMatch((l) -> l.getJournalEntryId() != null) || b.isSalesCreated()) {
+        if (b.getLines().stream().anyMatch(ContractBillLine::isReflected) || b.isSalesCreated()) {
             throw ApiException.badRequest("회계반영 · 판매생성된 청구자료는 고치거나 지울 수 없습니다.");
         }
     }

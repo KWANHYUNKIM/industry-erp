@@ -5,6 +5,14 @@ export interface ContractItemRow {
   id: number; code: string; name: string; unitPrice: number; vatIncluded: boolean
   billingCycle: BillingCycle; billingCycleName: string
   salesAccountId: number | null; salesAccountCode: string | null; salesAccountName: string | null; active: boolean
+  /** 목록 [품목별단가] — 품목연결설정 공급가액 합계. 없으면 null. */
+  productPrice: number | null; products: ProductLink[]
+}
+
+/** 품목연결설정 한 줄 — 서버 ContractItemDtos.ProductLink(계약항목 · 계약 줄 [상세]가 같이 쓴다). */
+export interface ProductLink {
+  itemId: number; itemCode: string | null; itemName: string | null; spec: string | null
+  quantity: number; unitPrice: number; supplyAmount: number | null; vatAmount: number | null
 }
 
 export interface BillingUnitRow { id: number; code: string; name: string }
@@ -13,6 +21,7 @@ export interface ContractLineRow {
   id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; billMonths: string
   quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number
   billingUnitId: number | null; billingUnitCode: string | null; billingUnitName: string | null; remark: string | null
+  products: ProductLink[]
 }
 
 export interface BillingContractRow {
@@ -52,6 +61,10 @@ export interface BillLineView {
   itemId: number; itemCode: string; itemName: string; salesAccountId: number | null
   billMonth: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number
   billingUnitId: number | null; billingUnitName: string | null; remark: string | null
+  /** [판매전표 발행]으로 만든 판매 id. */
+  salesId: number | null
+  /** 계약 줄 상세-품목연결설정 — 있는 줄만 판매반영 격자에 나온다. */
+  products: ProductLink[]
 }
 
 /** 매출(세금)계산서현황(계약) 한 줄 — 서버 ContractBillDtos.InvoiceRow. */

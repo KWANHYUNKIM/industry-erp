@@ -65,6 +65,13 @@ public class ContractBillController {
     }
 
     /** '회계전표번호보기' [삭제] — 연결 매출전표를 지우고 묶인 청구자료를 미반영으로 */
+    /** 회계/판매일괄반영 [판매반영 › 판매전표 발행] 판매입력 [저장(F8)]. */
+    @PostMapping("/reflect-sales")
+    public java.util.Map<String, Long> reflectSales(@Valid @RequestBody ContractBillDtos.SalesReflectRequest req,
+                                                    @AuthenticationPrincipal UserPrincipal principal) {
+        return java.util.Map.of("salesId", service.reflectSales(req, principal.getUsername()));
+    }
+
     @PostMapping("/{id}/unreflect")
     public void unreflect(@PathVariable Long id) {
         service.unreflect(id);

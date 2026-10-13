@@ -95,7 +95,11 @@ public final class ContractBillDtos {
             Long employeeId, Long departmentId, Long projectId, String projectName, boolean foreignCurrency,
             Long itemId, String itemCode, String itemName, Long salesAccountId,
             String billMonth, BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
-            Long billingUnitId, String billingUnitName, String remark
+            Long billingUnitId, String billingUnitName, String remark,
+            /** [판매전표 발행]으로 만든 판매 id. */
+            Long salesId,
+            /** 계약 줄 상세-품목연결설정 — 있는 줄만 판매반영 격자에 나오고, [판매전표 발행] 판매입력의 줄이 된다. */
+            List<com.erp.accounting.contractitem.dto.ContractItemDtos.ProductLink> products
     ) {
         public static BillLineView from(ContractBillLine l) {
             BillingContractLine cl = l.getContractLine();
@@ -109,9 +113,25 @@ public final class ContractBillDtos {
                     i.getId(), i.getCode(), i.getName(), i.getSalesAccount() != null ? i.getSalesAccount().getId() : null,
                     l.getBillMonth(), l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     cl.getBillingUnit() != null ? cl.getBillingUnit().getId() : null,
-                    cl.getBillingUnit() != null ? cl.getBillingUnit().getName() : null, l.getRemark());
+                    cl.getBillingUnit() != null ? cl.getBillingUnit().getName() : null, l.getRemark(),
+                    l.getSalesId(), cl.getProducts().stream()
+                            .map((p) -> com.erp.accounting.contractitem.dto.ContractItemDtos.ProductLink.of(
+                                    p.getItem(), p.getQuantity(), p.getUnitPrice(), p.getSupplyAmount(), p.getVatAmount())).toList());
         }
     }
+
+    /**
+     * 회계/판매일괄반영 [판매반영] → [판매전표 발행] 판매입력 창 [저장(F8)] — 고른 거래처 한 곳의 청구자료 줄을 판매 한 장으로.
+     * 2026-10-13 loginaa 실측: 일자(오늘) · 거래처 · 출하창고(100 본사창고) · 거래유형(아래 [부가세율 적용 ▾] 값) ·
+     * 줄 = 계약 줄 상세-품목연결설정(D001 1 × 120,000 · 12,000 / D002 1 × 220,000 · 22,000).
+     */
+    public record SalesReflectRequest(
+            @NotEmpty(message = "반영할 자료를 선택 바랍니다.") List<Long> lineIds,
+            LocalDate saleDate,
+            @NotNull(message = "출하창고: 자료를 입력 바랍니다.") Long warehouseId,
+            /** 거래유형 — 부가세율 적용(true) · 부가세율 미적용(false). */
+            boolean taxable
+    ) {}
 
     /**
      * 회계/판매일괄반영 [매출전표 I] 창 [저장(F8)] — 고른 거래처 한 곳의 청구자료 줄을 매출전표 I 한 장으로(2026-10-13 실측:

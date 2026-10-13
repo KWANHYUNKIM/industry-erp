@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.erp.accounting.contractitem.dto.ContractItemDtos.ProductLink;
 
 public final class BillingContractDtos {
     private BillingContractDtos() {}
@@ -41,19 +42,25 @@ public final class BillingContractDtos {
             BigDecimal supplyAmount,
             BigDecimal vatAmount,
             @NotNull(message = "청구단위를 입력하세요.") Long billingUnitId,
-            @Size(max = 200) String remark
+            @Size(max = 200) String remark,
+            /** 줄 [상세] 품목연결설정 — [적용(F8)]했을 때만 보낸다. 비우면 품목연결이 없는 줄(판매반영에 안 나옴). */
+            List<@Valid ProductLink> products
     ) {}
 
     public record LineResponse(
             Long id, Integer lineNo, Long itemId, String itemCode, String itemName, String billMonths,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
-            Long billingUnitId, String billingUnitCode, String billingUnitName, String remark
+            Long billingUnitId, String billingUnitCode, String billingUnitName, String remark,
+            List<ProductLink> products
     ) {
         public static LineResponse from(BillingContractLine l) {
             BillingUnit u = l.getBillingUnit();
+            List<ProductLink> ps = l.getProducts().stream()
+                    .map((p) -> ProductLink.of(
+                            p.getItem(), p.getQuantity(), p.getUnitPrice(), p.getSupplyAmount(), p.getVatAmount())).toList();
             return new LineResponse(l.getId(), l.getLineNo(), l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
                     l.getBillMonths(), l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
-                    u != null ? u.getId() : null, u != null ? u.getCode() : null, u != null ? u.getName() : null, l.getRemark());
+                    u != null ? u.getId() : null, u != null ? u.getCode() : null, u != null ? u.getName() : null, l.getRemark(), ps);
         }
     }
 

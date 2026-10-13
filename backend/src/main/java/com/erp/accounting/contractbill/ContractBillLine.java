@@ -53,4 +53,13 @@ public class ContractBillLine {
     /** 회계/판매일괄반영(E060906)으로 만든 매출전표 I. 회계거래조회에서 그 전표를 지우면 DB 가 비운다(V354 ON DELETE SET NULL). */
     @Column(name = "journal_entry_id")
     private Long journalEntryId;
+
+    /** 회계/판매일괄반영 [판매반영 › 판매전표 발행]으로 만든 판매. 판매조회에서 그 전표를 지우면 DB 가 비운다(V372 ON DELETE SET NULL). */
+    @Column(name = "sales_id")
+    private Long salesId;
+
+    /** 회계반영이든 판매반영이든 한 번 반영되면 두 격자 모두에서 빠진다(원본 실측). */
+    public boolean isReflected() {
+        return journalEntryId != null || salesId != null;
+    }
 }

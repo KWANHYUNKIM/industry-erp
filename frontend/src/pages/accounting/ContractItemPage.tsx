@@ -6,17 +6,25 @@ import GridCode from '../../components/GridCode'
 import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { won, type BillingCycle, type ContractItemRow } from '../../features/billingcontract/types'
+import { won, type BillingCycle, type ContractItemRow, type ProductLink } from '../../features/billingcontract/types'
+import ProductLinkModal, { SetTag, type ProductOption } from '../../features/billingcontract/ProductLinkModal'
 
-interface Form { id: number | null; code: string; name: string; unitPrice: string; vatIncluded: boolean; billingCycle: BillingCycle; salesAccountId: string }
-const blank = (): Form => ({ id: null, code: '', name: '', unitPrice: '0', vatIncluded: false, billingCycle: 'ONCE', salesAccountId: '' })
+interface Form {
+  id: number | null; code: string; name: string; unitPrice: string; vatIncluded: boolean; billingCycle: BillingCycle; salesAccountId: string
+  products: ProductLink[]
+}
+const blank = (): Form => ({ id: null, code: '', name: '', unitPrice: '0', vatIncluded: false, billingCycle: 'ONCE', salesAccountId: '', products: [] })
+const productTotal = (ps: ProductLink[]) => ps.reduce((s, p) => s + Number(p.supplyAmount ?? 0), 0)
 
 /**
  * 회계 II › 계약관리 › <b>계약항목등록</b>(E060901 계약항목리스트) — 2026-10-13 loginaa 실측.
  *
  * <p>열: 계약항목코드 · 계약항목명 · 청구주기 · 단가 · 품목별단가 · 수량별단가 · 사용구분(Yes/No). 버튼: 신규(F2) · 사용중단/재사용 · Excel.
  * [신규] 창 '계약항목등록': 계약항목코드(5자) · 계약항목명(비우고 저장하면 둘 다 빨갛게) · 단가 + VAT포함 · 청구주기(1회 기본 · 주기적) · 매출계정.
- * 저장하면 창이 닫히고 목록 끝에 붙는다(코드 차례). 품목별 · 수량별단가 [설정] 창은 아직 재지 않아 열만 비워 둔다.
+ * 저장하면 창이 닫히고 목록 끝에 붙는다(코드 차례).
+ * <p>[품목별단가 › 설정] → '품목연결설정' 창(2026-10-13 실측, {@link ProductLinkModal}) — 고른 품목들의 공급가액 합계가 창의 품목별단가 칸과
+ * 목록 [품목별단가] 열이 된다(00007 렌탈 품목관리 340,000). 계약입력 줄 [상세]가 이 설정을 복사해 쓰고, 그것을 [적용]한 계약 줄만
+ * 회계/판매일괄반영 [판매반영]에 나온다. 수량별단가 [설정] 창(수량 N 이상 · 적용단가 · VAT포함, 00003 실측)은 아직 두지 않는다.
  */
 export default function ContractItemPage() {
   const [rows, setRows] = useState<ContractItemRow[]>([])
@@ -25,6 +33,8 @@ export default function ContractItemPage() {
   const [invalid, setInvalid] = useState<Set<string>>(new Set())
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [error, setError] = useState('')
+  const [products, setProducts] = useState<ProductOption[]>([])
+  const [linkOpen, setLinkOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '계약항목리스트', [rows.length])
 
@@ -39,6 +49,7 @@ export default function ContractItemPage() {
     api.get<{ id: number; code: string; name: string }[]>('/accounts')
       .then((r) => setAccounts(r.data.map((a) => ({ value: String(a.id), code: a.code, name: a.name }))))
       .catch(() => setAccounts([]))
+    api.get<ProductOption[]>('/items').then((r) => setProducts(r.data)).catch(() => setProducts([]))
   }, [])
 
   const set = (patch: Partial<Form>) => setForm((f) => (f ? { ...f, ...patch } : f))
@@ -50,7 +61,7 @@ export default function ContractItemPage() {
     setInvalid(bad)
     if (bad.size) return
     const body = { code: form.code.trim(), name: form.name.trim(), unitPrice: Number(form.unitPrice) || 0, vatIncluded: form.vatIncluded,
-      billingCycle: form.billingCycle, salesAccountId: form.salesAccountId ? Number(form.salesAccountId) : null }
+      billingCycle: form.billingCycle, salesAccountId: form.salesAccountId ? Number(form.salesAccountId) : null, products: form.products }
     try {
       if (form.id) await api.put(`/contract-items/${form.id}`, body)
       else await api.post('/contract-items', body)
@@ -67,7 +78,8 @@ export default function ContractItemPage() {
     } catch (e) { setError(extractErrorMessage(e)) }
   }
   const edit = (r: ContractItemRow) => { setInvalid(new Set()); setForm({ id: r.id, code: r.code, name: r.name, unitPrice: String(Number(r.unitPrice)),
-    vatIncluded: r.vatIncluded, billingCycle: r.billingCycle, salesAccountId: r.salesAccountId != null ? String(r.salesAccountId) : '' }) }
+    vatIncluded: r.vatIncluded, billingCycle: r.billingCycle, salesAccountId: r.salesAccountId != null ? String(r.salesAccountId) : '',
+    products: r.products ?? [] }) }
   const bad = (k: string) => (invalid.has(k) ? ' outline outline-1 outline-ec-danger' : '')
 
   return (
@@ -110,7 +122,7 @@ export default function ContractItemPage() {
               <td><a href="#" onClick={(e) => { e.preventDefault(); edit(r) }}>{r.name}</a></td>
               <td className="text-center">{r.billingCycleName}</td>
               <td className="text-right">{Number(r.unitPrice) ? won(r.unitPrice) : ''}</td>
-              <td className="text-right" />
+              <td className="text-right">{r.productPrice != null ? won(r.productPrice) : ''}</td>
               <td className="text-right" />
               <td className="text-center">{r.active ? 'Yes' : 'No'}</td>
             </tr>
@@ -141,6 +153,13 @@ export default function ContractItemPage() {
                 </label>
               </li>
               <li className="flex items-center gap-[8px]">
+                <span className="w-[120px] text-ec-hint">품목별단가</span>
+                <span className="flex-1 flex flex-col items-start gap-[4px]">
+                  {form.products.length > 0 && <span className="ec-input w-full text-right bg-ec-disabled">{won(productTotal(form.products))}</span>}
+                  <SetTag set={form.products.length > 0} label="설정" onClick={() => setLinkOpen(true)} />
+                </span>
+              </li>
+              <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">청구주기</span>
                 {(['ONCE', 'PERIODIC'] as BillingCycle[]).map((c) => (
                   <label key={c} className="inline-flex items-center gap-[3px] mr-[10px]">
@@ -165,6 +184,8 @@ export default function ContractItemPage() {
           </div>
         )}
       </Modal>
+      <ProductLinkModal open={linkOpen} value={form?.products ?? []} products={products} onClose={() => setLinkOpen(false)}
+        onApply={(ps) => { set({ products: ps }); setLinkOpen(false) }} />
     </EcListShell>
   )
 }

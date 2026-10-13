@@ -9,10 +9,15 @@ import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/CodePickerField'
 import { ymd } from '../../utils/periods'
 import type { Partner } from '../../types/api'
-import { VAT_TYPES, won, type BillingContractRow, type BillingUnitRow, type ContractItemRow } from '../../features/billingcontract/types'
+import { VAT_TYPES, won, type BillingContractRow, type BillingUnitRow, type ContractItemRow, type ProductLink } from '../../features/billingcontract/types'
+import ProductLinkModal, { SetTag, type ProductOption } from '../../features/billingcontract/ProductLinkModal'
 
-interface Line { itemId: string; billMonths: string; quantity: string; unitPrice: string; supplyAmount: string; vatAmount: string; billingUnitId: string; remark: string }
-const blankLine = (): Line => ({ itemId: '', billMonths: '', quantity: '', unitPrice: '', supplyAmount: '', vatAmount: '', billingUnitId: '', remark: '' })
+interface Line {
+  itemId: string; billMonths: string; quantity: string; unitPrice: string; supplyAmount: string; vatAmount: string; billingUnitId: string; remark: string
+  /** [상세] 품목연결설정 — [적용]하기 전에는 null(계약항목의 설정을 보여만 준다). */
+  products: ProductLink[] | null
+}
+const blankLine = (): Line => ({ itemId: '', billMonths: '', quantity: '', unitPrice: '', supplyAmount: '', vatAmount: '', billingUnitId: '', remark: '', products: null })
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
 const vatOf = (supply: number) => Math.floor(supply * 0.1)
 /** 이력 창 작업일시 — 원본 '2026/10/13 오후 2:30:17' */
@@ -29,7 +34,9 @@ function actedAt(iso: string) {
  * <p>머리: 계약일자(오늘) · 거래처 · 계약코드(다음 번호 '00017') · 계약명 · 청구시작일(오늘) · 청구종료일(비어 있음, 필수) ·
  * 부가세유형(세금계산서) · 통화(내자) · 담당자 · 부서 · 프로젝트 · 적요.
  * 줄: 항목코드(고르면 항목명 · 단가가 찬다) · 항목명 · 청구예정월([등록] → 청구예정월등록 창: 전체 · 1월 ~ 12월 체크 → 적용하면 주황 '등록') ·
- * 수량 · 단가 · 공급가액(수량 × 단가) · 부가세(10%) · 청구단위(필수) · 적요, 아래 합계.
+ * 수량 · 단가 · 공급가액(수량 × 단가) · 부가세(10%) · 청구단위(필수) · 적요 · 상세, 아래 합계.
+ * [상세] → 품목연결설정 창(계약항목 00007 이면 D001 · D002 를 미리 보여 줌). [적용(F8)]해야 줄에 붙고 [상세]가 주황 글자가 된다 —
+ * 붙인 줄의 청구자료만 회계/판매일괄반영 [판매반영]에 나온다(원본 도움말 '계약입력 시, 입력한 계약항목의 상세-품목연결설정을 해야합니다.').
  * 버튼: 저장(F8) · 다시 작성 · 리스트. 저장하면 안내 없이 새 빈 판(다음 계약코드)으로 바뀐다. 청구종료일 · 청구단위가 비면 칸을 빨갛게 막는다.
  * 원본의 [저장/전표(F7)] · 첨부 · 담당자 · 부서는 아직 두지 않는다.
  *
@@ -62,6 +69,8 @@ export default function BillingContractEntryPage() {
   const [items, setItems] = useState<ContractItemRow[]>([])
   const [units, setUnits] = useState<BillingUnitRow[]>([])
   const [monthsFor, setMonthsFor] = useState<number | null>(null)
+  const [detailFor, setDetailFor] = useState<number | null>(null)
+  const [products, setProducts] = useState<ProductOption[]>([])
   const [monthPick, setMonthPick] = useState<Set<string>>(new Set())
   const [invalid, setInvalid] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
@@ -82,6 +91,7 @@ export default function BillingContractEntryPage() {
         setItems(it.data.filter((x) => x.active)); setUnits(u.data)
       })
       .catch((e) => setError(extractErrorMessage(e)))
+    api.get<ProductOption[]>('/items').then((r) => setProducts(r.data)).catch(() => setProducts([]))
     const sourceId = editId ?? copyId
     if (!sourceId) { setLoaded(null); void reset(); return }
     api.get<BillingContractRow>(`/billing-contracts/${sourceId}`).then(async ({ data: c }) => {
@@ -98,7 +108,8 @@ export default function BillingContractEntryPage() {
       setProjectId(c.projectId != null ? String(c.projectId) : ''); setRemark(c.remark ?? '')
       const ls = c.lines.map((l) => ({ itemId: String(l.itemId), billMonths: l.billMonths, quantity: String(Number(l.quantity)),
         unitPrice: String(Number(l.unitPrice)), supplyAmount: String(Number(l.supplyAmount)), vatAmount: String(Number(l.vatAmount)),
-        billingUnitId: l.billingUnitId != null ? String(l.billingUnitId) : '', remark: l.remark ?? '' }))
+        billingUnitId: l.billingUnitId != null ? String(l.billingUnitId) : '', remark: l.remark ?? '',
+        products: l.products?.length ? l.products : null }))
       setLines([...ls, ...Array.from({ length: Math.max(0, 3 - ls.length) }, blankLine)])
     }).catch((e) => setError(extractErrorMessage(e)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -117,7 +128,7 @@ export default function BillingContractEntryPage() {
   }))
   const pickItem = (i: number, v: string) => {
     const it = items.find((x) => String(x.id) === v)
-    setLine(i, { itemId: v, unitPrice: it ? String(Number(it.unitPrice)) : '' })
+    setLine(i, { itemId: v, unitPrice: it ? String(Number(it.unitPrice)) : '', products: null })
   }
   const filled = lines.map((l, i) => ({ l, i })).filter(({ l }) => l.itemId)
   const sum = (k: keyof Line) => filled.reduce((s, { l }) => s + (Number(l[k]) || 0), 0)
@@ -134,7 +145,7 @@ export default function BillingContractEntryPage() {
       employeeId: null, departmentId: null, projectId: projectId ? Number(projectId) : null, remark: remark || null,
       lines: filled.map(({ l }) => ({ itemId: Number(l.itemId), billMonths: l.billMonths, quantity: Number(l.quantity) || 0,
         unitPrice: Number(l.unitPrice) || 0, supplyAmount: Number(l.supplyAmount) || 0, vatAmount: Number(l.vatAmount) || 0,
-        billingUnitId: Number(l.billingUnitId), remark: l.remark || null })) }
+        billingUnitId: Number(l.billingUnitId), remark: l.remark || null, products: l.products })) }
     try {
       setError('')
       if (editId) { await api.put(`/billing-contracts/${editId}`, body); nav('/accounting/billing-contracts') }
@@ -206,6 +217,7 @@ export default function BillingContractEntryPage() {
                 <th className="w-[100px]">부가세</th>
                 <th className="w-[150px]">청구단위</th>
                 <th>적요</th>
+                <th className="w-[50px]">상세</th>
               </tr>
             </thead>
             <tbody>
@@ -226,6 +238,7 @@ export default function BillingContractEntryPage() {
                     <GridCode title="청구단위" codeHead="청구단위코드" nameHead="청구단위명" items={unitCodes} value={l.billingUnitId} onPick={(v) => setLine(i, { billingUnitId: v })} />
                   </td>
                   <td className="pad"><input className="ec-input w-full" aria-label={`${i + 1}줄 적요`} maxLength={200} value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} /></td>
+                  <td className="pad text-center"><SetTag set={!!l.products?.length} label="상세" onClick={() => setDetailFor(i)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -236,13 +249,18 @@ export default function BillingContractEntryPage() {
                 <td />
                 <td className="text-right">{won(sum('supplyAmount'))}</td>
                 <td className="text-right">{won(sum('vatAmount'))}</td>
-                <td colSpan={2} />
+                <td colSpan={3} />
               </tr>
             </tfoot>
           </table>
         </div>
         <button type="button" className="ec-btn ec-btn-sm mt-[6px]" onClick={() => setLines((ls) => [...ls, blankLine()])}>줄 추가</button>
       </div>
+
+      {/* 원본: 줄 [상세] → 품목연결설정. 그 줄의 계약항목 설정을 보여 주고, [적용(F8)]해야 계약 줄에 붙는다(2026-10-13 실측). */}
+      <ProductLinkModal open={detailFor != null} products={products} onClose={() => setDetailFor(null)}
+        value={detailFor != null ? (lines[detailFor].products ?? items.find((x) => String(x.id) === lines[detailFor].itemId)?.products ?? []) : []}
+        onApply={(ps) => { if (detailFor != null) setLine(detailFor, { products: ps.length ? ps : null }); setDetailFor(null) }} />
 
       <Modal open={monthsFor != null} title="청구예정월등록" width={420} error={error} onClose={() => setMonthsFor(null)}>
         <ul className="ec-cond mb-[8px] grid grid-cols-1 gap-[4px]">

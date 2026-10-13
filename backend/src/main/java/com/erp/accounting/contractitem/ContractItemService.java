@@ -1,6 +1,7 @@
 package com.erp.accounting.contractitem;
 
 import com.erp.accounting.account.AccountService;
+import com.erp.accounting.contractitem.dto.ContractItemDtos;
 import com.erp.accounting.contractitem.dto.ContractItemDtos.ContractItemResponse;
 import com.erp.accounting.contractitem.dto.ContractItemDtos.SaveContractItemRequest;
 import com.erp.common.ApiException;
@@ -18,6 +19,7 @@ public class ContractItemService {
 
     private final ContractItemRepository repository;
     private final AccountService accountService;
+    private final com.erp.inventory.item.ItemService itemService;
 
     @Transactional(readOnly = true)
     public List<ContractItemResponse> findAll() {
@@ -70,5 +72,13 @@ public class ContractItemService {
         i.setVatIncluded(req.vatIncluded());
         i.setBillingCycle(req.billingCycle());
         i.setSalesAccount(req.salesAccountId() != null ? accountService.getUsable(req.salesAccountId()) : null);
+        if (req.products() != null) {
+            i.getProducts().clear();
+            int no = 1;
+            for (ContractItemDtos.ProductLink p : req.products()) {
+                i.getProducts().add(ContractItemProduct.builder().contractItem(i).lineNo(no++).item(itemService.get(p.itemId()))
+                        .quantity(p.quantity()).unitPrice(p.unitPrice()).supplyAmount(p.supplyOrDefault()).vatAmount(p.vatOrDefault()).build());
+            }
+        }
     }
 }

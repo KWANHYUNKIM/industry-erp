@@ -48,4 +48,10 @@ public class ContractItem extends BaseTimeEntity {
 
     @Column(nullable = false)
     private boolean active;
+
+    /** 품목연결설정(차례대로). */
+    @OneToMany(mappedBy = "contractItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("lineNo ASC")
+    @Builder.Default
+    private java.util.List<ContractItemProduct> products = new java.util.ArrayList<>();
 }

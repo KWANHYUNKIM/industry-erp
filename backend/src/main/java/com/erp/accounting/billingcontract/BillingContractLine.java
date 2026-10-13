@@ -56,6 +56,12 @@ public class BillingContractLine {
     @Column(length = 200)
     private String remark;
 
+    /** 품목연결설정(차례대로). */
+    @OneToMany(mappedBy = "contractLine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("lineNo ASC")
+    @Builder.Default
+    private java.util.List<BillingContractLineProduct> products = new java.util.ArrayList<>();
+
     /** 이 줄이 그 달(1~12)에 청구되나. */
     public boolean billsIn(int month) {
         String m = String.format("%02d", month);

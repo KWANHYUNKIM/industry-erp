@@ -38,6 +38,7 @@ public class BillingContractService {
     private final BillingContractRepository repository;
     private final BillingUnitRepository unitRepository;
     private final ContractItemService itemService;
+    private final com.erp.inventory.item.ItemService productItemService;
     private final PartnerService partnerService;
     private final ProjectService projectService;
 
@@ -216,13 +217,21 @@ public class BillingContractService {
             BigDecimal price = nz(l.unitPrice());
             BigDecimal supply = l.supplyAmount() != null ? l.supplyAmount() : qty.multiply(price).setScale(0, RoundingMode.HALF_UP);
             BigDecimal vat = l.vatAmount() != null ? l.vatAmount() : supply.multiply(BigDecimal.valueOf(0.1)).setScale(0, RoundingMode.DOWN);
-            c.getLines().add(BillingContractLine.builder()
+            BillingContractLine line = BillingContractLine.builder()
                     .contract(c).lineNo(no++).item(itemService.get(l.itemId()))
                     .billMonths(l.billMonths() != null ? l.billMonths() : "")
                     .quantity(qty).unitPrice(price).supplyAmount(supply).vatAmount(vat)
                     .billingUnit(unitRepository.findById(l.billingUnitId())
                             .orElseThrow(() -> ApiException.notFound("청구단위를 찾을 수 없습니다. id=" + l.billingUnitId())))
-                    .remark(l.remark()).build());
+                    .remark(l.remark()).build();
+            if (l.products() != null) {
+                int pn = 1;
+                for (var p : l.products()) {
+                    line.getProducts().add(BillingContractLineProduct.builder().contractLine(line).lineNo(pn++).item(productItemService.get(p.itemId()))
+                            .quantity(p.quantity()).unitPrice(p.unitPrice()).supplyAmount(p.supplyOrDefault()).vatAmount(p.vatOrDefault()).build());
+                }
+            }
+            c.getLines().add(line);
         }
     }
 
