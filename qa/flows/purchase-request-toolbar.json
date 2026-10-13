@@ -1,0 +1,24 @@
+{
+  "about": "발주요청입력 격자 툴바(원본 E040314 2026-10-13 실측 차례: 찾기(F3) · 정렬 · My품목 · 소요 · 주문 · 전표불러오기 · 재고불러오기 · 바코드 · 전표 바코드 · 검증). 재고불러오기 → 전체수량 · 창고수량 열, 바코드 → 켜지고 칸이 생겨 품목코드 Enter 로 한 줄, 같은 코드 한 번 더 → 수량 2. 저장하지 않는다.",
+  "shots": [
+    {
+      "name": "툴바",
+      "path": "/sales/purchase-request-input",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=[...document.querySelectorAll('.ec-toolbar button')].map((b)=>b.textContent.trim());return t.join('|')==='찾기(F3)|정렬|My품목|소요|주문|전표불러오기|재고불러오기|바코드|전표 바코드|검증'})()",
+        "click:재고불러오기",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('th')].some((t)=>t.textContent.trim()==='전체수량') && [...document.querySelectorAll('th')].some((t)=>t.textContent.trim()==='창고수량')",
+        "click:바코드",
+        "wait:300",
+        "js:(async()=>{const it=(await (await fetch('/api/items',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})).json()).find((x)=>x.active!==false);sessionStorage.setItem('prtCode',it.code);return it.code})()",
+        "js:(()=>{const i=document.querySelector('input[placeholder=\"바코드/품목코드 후 Enter\"]');const set=(v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,v);i.dispatchEvent(new Event('input',{bubbles:true}))};set(sessionStorage.getItem('prtCode'));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()",
+        "wait:500",
+        "js:(()=>{const i=document.querySelector('input[placeholder=\"바코드/품목코드 후 Enter\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,sessionStorage.getItem('prtCode'));i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()",
+        "wait:500",
+        "expect:[...document.querySelectorAll('tbody tr')][0].querySelectorAll('input').length>0 && [...[...document.querySelectorAll('tbody tr')][0].querySelectorAll('input')].some((i)=>i.value==='2')"
+      ]
+    }
+  ]
+}

@@ -10,7 +10,7 @@ import { lineSupply, roundWon } from '../../utils/lineSupply'
 import { dateNo } from '../../utils/dateNo'
 import { printDocuments } from '../../utils/printDocument'
 import { openPrintWindow } from '../../utils/print'
-import type { Currency, Item, Partner, PurchaseOrder, PurchaseOrderLine } from '../../types/api'
+import type { Currency, Item, MyItem, Partner, PurchaseOrder, PurchaseOrderLine, StockRow } from '../../types/api'
 import { purchaseRequestDocument } from './purchaseRequestDocument'
 
 /** 서버 줄 응답은 줄 거래처도 싣는다(OrderLineResponse.partnerId · partnerName) — 공용 타입에 없어 여기서만 넓힌다. */
@@ -118,6 +118,62 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
   })
   const sum = (k: 'supply' | 'vat' | 'total') => calc.reduce((a, c) => a + c[k], 0)
   const qtySum = lines.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
+
+  /*
+   * 격자 툴바 — 원본 발주요청입력(E040314) 2026-10-13 실측 차례: 찾기(F3) · 정렬 · My품목 ▴ · 소요 · 주문 · 전표불러오기 ·
+   * 재고불러오기 · 바코드 · 전표 바코드 · 검증.
+   * - My품목: 담긴 것이 없으면 '등록된 MY품목이 없습니다. MY품목 설정에서 기본그룹을 설정하기 바랍니다.'
+   * - 재고불러오기: 격자 [규격] 뒤에 전체수량 · 창고수량 열이 생긴다.
+   * - 바코드: 누르면 켜져 주황(btn-warning)이 되고 '합산기본수량' 고르기가 붙는다.
+   * - 소요(소요량계산 창) · 주문(주문서검색창) · 전표불러오기(메뉴 고르기 창)는 원본 창이 커서 아직 안 옮겼고, 전표 바코드 · 검증은 못 쟀다.
+   */
+  const [findOpen, setFindOpen] = useState(false)
+  const [findText, setFindText] = useState('')
+  const [stocks, setStocks] = useState<StockRow[] | null>(null)
+  const [barcodeOn, setBarcodeOn] = useState(false)
+  const [barcode, setBarcode] = useState('')
+  const hit = (l: LineForm) => {
+    const q = findText.trim().toLowerCase()
+    if (!q || !l.itemId) return false
+    const it = itemOf(l.itemId)
+    return [it?.code, it?.name, partnerOf(l.partnerId)?.name].some((v) => (v ?? '').toLowerCase().includes(q))
+  }
+  function sortLines() {
+    setLines((ls) => {
+      const full = ls.filter((l) => l.itemId).sort((a, b) => (itemOf(a.itemId)?.code ?? '').localeCompare(itemOf(b.itemId)?.code ?? ''))
+      return [...full, ...ls.filter((l) => !l.itemId)]
+    })
+  }
+  function addLines(add: LineForm[]) {
+    setLines((ls) => {
+      const full = [...ls.filter((l) => l.itemId), ...add]
+      return [...full, ...Array.from({ length: Math.max(1, MIN_ROWS - full.length) }, emptyLine)]
+    })
+  }
+  async function applyMyItems() {
+    const mine = (await api.get<MyItem[]>('/my-items').catch(() => ({ data: [] as MyItem[] }))).data
+    if (mine.length === 0) return alert('등록된 MY품목이 없습니다.\nMY품목 설정에서 기본그룹을 설정하기 바랍니다.')
+    addLines(mine.map((m) => {
+      const it = itemOf(String(m.itemId))
+      return { itemId: String(m.itemId), partnerId: it?.supplierId ? String(it.supplierId) : '', quantity: String(m.defaultQty), unitPrice: String(m.unitPrice || it?.purchasePrice || '') }
+    }))
+  }
+  async function loadStocks() {
+    try { setStocks((await api.get<StockRow[]>('/stock')).data) } catch (e) { setError(extractErrorMessage(e)) }
+  }
+  const stockAll = (itemId: string) => (stocks ?? []).filter((x) => String(x.itemId) === itemId).reduce((a, x) => a + Number(x.quantity), 0)
+  const stockWh = (itemId: string) => (stocks ?? []).filter((x) => String(x.itemId) === itemId && String(x.warehouseId) === warehouseId).reduce((a, x) => a + Number(x.quantity), 0)
+  function scan() {
+    const q = barcode.trim()
+    if (!q) return
+    const it = items.find((x) => x.barcode === q) ?? items.find((x) => x.code.toLowerCase() === q.toLowerCase())
+    if (!it) return alert(`'${q}' 에 해당하는 품목이 없습니다.`)
+    const at = lines.findIndex((l) => l.itemId === String(it.id))
+    if (at >= 0) setLine(at, { quantity: String((Number(lines[at].quantity) || 0) + 1) })
+    else addLines([{ itemId: String(it.id), partnerId: it.supplierId ? String(it.supplierId) : '', quantity: '1', unitPrice: it.purchasePrice ? String(it.purchasePrice) : '' }])
+    setBarcode('')
+  }
+  const notYet = (why: string) => ({ disabled: true, title: why })
 
   /**
    * after — 'close': 창을 닫는다(창 모드) · 'new': 빈 화면(화면 [저장(F8)] · 저장/신규) · 'keep': 저장/내용유지 ·
@@ -232,6 +288,26 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
         </label>
       </div>
 
+      <div className="ec-toolbar">
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFindOpen((v) => !v)}>찾기(F3)</button>
+        {findOpen && <input className="ec-input w-[130px]" autoFocus value={findText} placeholder="품목 · 거래처" onChange={(e) => setFindText(e.target.value)} />}
+        <button type="button" className="ec-btn ec-btn-sm" onClick={sortLines}>정렬</button>
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => void applyMyItems()}>My품목</button>
+        <button type="button" className="ec-btn ec-btn-sm" {...notYet('소요량계산 창은 아직 없습니다.')}>소요</button>
+        <button type="button" className="ec-btn ec-btn-sm" {...notYet('주문서검색창은 아직 없습니다.')}>주문</button>
+        <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표불러오기 메뉴 창은 아직 없습니다.')}>전표불러오기</button>
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadStocks()}>재고불러오기</button>
+        <button type="button" className={`ec-btn ec-btn-sm${barcodeOn ? ' bg-[var(--ec-bg-tag)] border-[var(--ec-bg-tag)] text-ec-panel' : ''}`}
+          onClick={() => setBarcodeOn((v) => !v)}>바코드</button>
+        {barcodeOn && (
+          <input className="ec-input w-[170px]" autoFocus value={barcode} placeholder="바코드/품목코드 후 Enter"
+            onChange={(e) => setBarcode(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scan() } }} />
+        )}
+        <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표 바코드 출력은 아직 없습니다.')}>전표 바코드</button>
+        <button type="button" className="ec-btn ec-btn-sm" {...notYet('원본 [검증] 결과 창을 아직 못 쟀습니다.')}>검증</button>
+      </div>
+
       <table className="w-full text-left table-fixed">
         <thead>
           <tr>
@@ -241,6 +317,8 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
             <th className="w-[150px]">거래처코드</th>
             <th>거래처명</th>
             <th className="w-[70px]">규격</th>
+            {stocks && <th className="w-[80px] text-right">전체수량</th>}
+            {stocks && <th className="w-[80px] text-right">창고수량</th>}
             <th className="w-[80px] text-right">수량</th>
             <th className="w-[100px] text-right">단가</th>
             <th className="w-[100px] text-right">공급가액</th>
@@ -250,7 +328,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
         </thead>
         <tbody>
           {lines.map((l, i) => (
-            <tr key={i}>
+            <tr key={i} className={hit(l) ? 'bg-ec-blue-wash' : undefined}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td>
                 <CodePickerField label="품목" hideLabel fill placeholder="품목코드" emptyLabel="선택 해제"
@@ -263,6 +341,8 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
               </td>
               <td>{partnerOf(l.partnerId)?.name ?? ''}</td>
               <td>{itemOf(l.itemId)?.spec ?? ''}</td>
+              {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockAll(l.itemId).toLocaleString('ko-KR') : ''}</td>}
+              {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockWh(l.itemId).toLocaleString('ko-KR') : ''}</td>}
               <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
               <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
               <td className="text-right">{l.itemId ? won(calc[i].supply) : ''}</td>
@@ -273,7 +353,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={6}></td>
+            <td colSpan={stocks ? 8 : 6}></td>
             <td className="text-right">{qtySum.toLocaleString('ko-KR')}</td>
             <td></td>
             <td className="text-right">{won(sum('supply'))}</td>
