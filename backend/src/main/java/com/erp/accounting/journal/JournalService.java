@@ -120,7 +120,7 @@ public class JournalService {
      * 결재중(전자결재 진행 중)인 전표는 건드리지 않는다. 이미 그 상태인 것은 세지 않는다.
      */
     @Transactional
-    public int changeStatus(List<Long> ids, JournalConfirmStatus status) {
+    public int changeStatus(List<Long> ids, JournalConfirmStatus status, String username) {
         if (status == JournalConfirmStatus.IN_APPROVAL) {
             throw ApiException.badRequest("결재중은 전자결재로만 바뀝니다.");
         }
@@ -131,6 +131,7 @@ public class JournalService {
                 throw ApiException.badRequest("전자결재 진행중인 전표는 바꿀 수 없습니다: " + e.getDocNo());
             }
             e.setConfirmStatus(status);
+            e.setUpdatedBy(username);
             changed++;
         }
         return changed;
@@ -146,13 +147,56 @@ public class JournalService {
     public JournalEntry createVatSlip(com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest req, String username) {
         boolean sales = Boolean.TRUE.equals(req.sales());
         LocalDate date = req.entryDate() != null ? req.entryDate() : LocalDate.now();
+        JournalEntry e = newEntry(sales ? JournalSourceType.VAT_SALES : JournalSourceType.VAT_PURCHASE, null, date,
+                null, null, username);
+        fillVatSlip(e, req);
+        return save(e);
+    }
+
+    /**
+     * 매출전표 I(수정) · 매입전표 I 수정 창 [저장(F8)] — 원본은 일자 · 번호를 막고 나머지를 고친다(2026-10-13 실측:
+     * 공급가액 100,000 → 200,000 이면 부가세 20,000 으로 따라가고, 저장하면 창이 닫히며 회계거래조회 금액이 220,000).
+     * 분개 줄은 통째로 다시 만든다.
+     */
+    @Transactional
+    public JournalEntry updateVatSlip(Long id, com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest req, String username) {
+        JournalEntry e = entryRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
+        JournalSourceType want = Boolean.TRUE.equals(req.sales()) ? JournalSourceType.VAT_SALES : JournalSourceType.VAT_PURCHASE;
+        if (e.getSourceType() != want) {
+            throw ApiException.badRequest("매출전표 I · 매입전표 I 로 만든 전표만 이 화면에서 고칠 수 있습니다.");
+        }
+        if (e.getConfirmStatus() == JournalConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표는 고칠 수 없습니다: " + e.getDocNo());
+        }
+        e.getLines().clear();
+        entryRepository.flush();
+        fillVatSlip(e, req);
+        e.setUpdatedBy(username);
+        return save(e);
+    }
+
+    /**
+     * 매출: 차) 입금계좌(외상매출금) 합계 / 대) 매출계정(제품매출) 공급가액 · 부가세예수금(255) 부가세.
+     * 매입: 차) 매입계정(원재료) 공급가액 · 부가세대급금(135) 부가세 / 대) 출금계좌(외상매입금) 합계.
+     * 수수료: 차) 지급수수료(831) / 대) 입금(출금)계좌 — 매출 · 매입 같다(26/10/13-9 · -11, 수수료 1,000 → 합계 111,000).
+     * 원본 전표 인쇄는 줄마다 적요 칸에 거래처명과 적요를 찍는다 — 우리 줄 적요는 적요(비면 거래처명)다.
+     */
+    private void fillVatSlip(JournalEntry e, com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest req) {
+        boolean sales = Boolean.TRUE.equals(req.sales());
         BusinessPartner partner = resolvePartner(req.partnerId());
         BigDecimal supply = req.supplyAmount();
         BigDecimal vat = nz(req.vatAmount());
+        BigDecimal fee = nz(req.feeAmount());
         String desc = req.description() != null && !req.description().isBlank() ? req.description().trim() : partner.getName();
-        JournalEntry e = newEntry(sales ? JournalSourceType.VAT_SALES : JournalSourceType.VAT_PURCHASE, null, date,
-                desc, partner, username);
-        e.setVatType(req.vatType().trim());
+        e.setDescription(desc);
+        e.setPartner(partner);
+        String vatType = req.vatType().trim();
+        e.setVatType(vatType);
+        e.setEInvoiceKind("세금계산서".equals(vatType) && req.eInvoiceKind() != null && !req.eInvoiceKind().isBlank()
+                ? req.eInvoiceKind().trim() : null);
+        e.setVatOmitted(Boolean.TRUE.equals(req.vatOmitted()));
+        e.setVatDetail(sales ? com.erp.accounting.journal.dto.JournalDtos.writeVatDetail(req.vatDetail()) : null);
         Account main = account(req.accountId());
         Account settle = account(req.settleAccountId());
         if (sales) {
@@ -164,8 +208,11 @@ public class JournalService {
             if (vat.signum() > 0) addDebit(e, "135", vat, desc);
             addCreditAccount(e, settle, supply.add(vat), desc);
         }
+        if (fee.signum() > 0) {
+            addDebit(e, "831", fee, desc);
+            addCreditAccount(e, settle, fee, desc);
+        }
         e.stampDeptProject(req.departmentId(), req.projectId());
-        return save(e);
     }
 
     /** 수동전표 삭제. 업무전표에서 자동생성된 전표는 회계반영취소로만 지운다. */
@@ -788,6 +835,7 @@ public class JournalService {
                 .sourceType(type)
                 .sourceId(sourceId)
                 .createdBy(createdBy)
+                .updatedBy(createdBy)
                 .build();
     }
 

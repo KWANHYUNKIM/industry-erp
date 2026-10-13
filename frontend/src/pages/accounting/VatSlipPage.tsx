@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import Modal from '../../components/Modal'
+import type { JournalEntry, JournalLine } from '../../types/api'
 import EcSlipShell from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
@@ -27,38 +29,86 @@ const TAXED = new Set(['세금계산서', '소매매출', '카드매출', '세.�
 /** 오늘(YYYY-MM-DD) — 이 화면은 기간을 묻지 않아 기간 도구를 들이지 않는다. */
 const today = () => new Date().toLocaleDateString('sv-SE')
 
+/* 원본 [전자종류] 목록 글자 그대로(2026-10-13 loginaa — 부가세유형 세금계산서일 때만 뜬다, 기본 전자(세금)계산서-신규). */
+const E_INVOICE_KINDS = ['종이(세금)계산서', '전자(세금)계산서-신규', '기재사항착오정정', '공급가액변동', '환입', '계약의해제',
+  '내국신용장개설', '착오에의한이중발행']
+const DEFAULT_E_KIND = '전자(세금)계산서-신규'
+
 interface AccountOpt { id: number; code: string; name: string }
+
+/** [세부내역] 창 한 줄 — 월/일 · 품명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 비고. 숫자는 글자로 든다(입력 중 그대로). */
+interface DetailItem { itemDate: string; name: string; spec: string; qty: string; unitPrice: string; supply: string; vat: string; note: string }
+interface DetailState {
+  serialNo: string; receipt: '청구' | '영수'; note: string
+  cash: string; check: string; bill: string; credit: string
+  items: DetailItem[]
+}
+interface VatDetailDto {
+  serialNo?: string | null; receipt?: string | null; note?: string | null
+  cash?: number | null; check?: number | null; bill?: number | null; credit?: number | null
+  items?: { itemDate?: string | null; name?: string | null; spec?: string | null; qty?: number | null; unitPrice?: number | null
+    supplyAmount?: number | null; vatAmount?: number | null; note?: string | null }[] | null
+}
+type VatLine = JournalLine & { departmentId?: number | null; projectId?: number | null }
+type VatEntry = Omit<JournalEntry, 'lines'> & { lines: VatLine[]; vatType?: string | null; eInvoiceKind?: string | null; vatOmitted?: boolean; vatDetail?: VatDetailDto | null }
+
+const blankItem = (itemDate = ''): DetailItem => ({ itemDate, name: '', spec: '', qty: '', unitPrice: '', supply: '', vat: '', note: '' })
+/* 원본 창은 네 줄로 열리고 첫 줄 월/일이 전표 일자다. */
+const blankDetail = (date: string): DetailState => ({
+  serialNo: '', receipt: '청구', note: '', cash: '', check: '', bill: '', credit: '',
+  items: [blankItem(date), blankItem(), blankItem(), blankItem()],
+})
+const num = (v: string) => Number(v) || 0
+const str = (v: number | null | undefined) => (v == null || v === 0 ? '' : String(v))
+const won = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 회계 I › 매출/매입거래 › <b>매출전표 I</b> · <b>매입전표 I</b> — 2026-10-13 loginaa 실측.
  *
- * <p>칸: 일자 · 부서 · 프로젝트 · 부가세유형(기본 세금계산서) · 거래처 · 공급가액 · 부가세(공급가액의 10%, 영세율 · 계산서는 0) · 적요 ·
- * 매출계정(기본 제품매출) · 입금계좌(기본 외상매출금) — 매입은 매입계정(원재료) · 출금계좌(외상매입금).
- * 저장하면 칸이 처음으로 돌아간다. 회계거래조회 거래유형 '매출전표 I', 전표 차) 외상매출금 110,000 / 대) 제품매출 100,000 ·
- * 부가세예수금 10,000(카드매출 · 좋은컴퓨터 · 100,000 · 10,000 으로 잼, 26/10/13-6).
- * <b>부가세유형을 전표가 든다</b>(V349) — 지출증빙현황 · 전표vs매출매입자료비교가 카드 · 현금영수증을 나눌 근거다.
+ * <p>칸(매출): 일자-No. · 연결거래 · 부서 · 프로젝트 · 부가세유형(기본 세금계산서) — 세금계산서면 그 아래 [전자종류] ·
+ * 모든 유형에 [예정누락분] · 거래처 · 공급가액 · 부가세(공급가액의 10%, 영세율 · 계산서는 0) · 세부내역 · 적요 ·
+ * 매출계정(기본 제품매출) · 입금계좌(기본 외상매출금) · 수수료. 매입은 전표일자 · 연결전표 · … · 매입계정(원재료) ·
+ * 출금계좌(외상매입금) · 수수료 — <b>[세부내역]이 없다</b>.
+ * 수수료 1,000 → 차) 지급수수료(판) 1,000 / 대) 입금(출금)계좌 1,000(매출 · 매입 같다, 26/10/13-9 · -11).
+ * [세부내역] 창(세금계산서내역등록): 수량 × 단가 → 공급가액 → 부가세 10%, 외상매출금 = 합계 − 현금 − 수표 − 어음,
+ * [적용(F8)]이 격자 합계를 공급가액 · 부가세로 옮긴다.
  *
- * <p>두지 않은 것: 연결거래 · 전자(세금)계산서-신규 · 예정누락아님 표지 · 세부내역 · 수수료 · [저장/전표(F7)] · [웹자료올리기].
+ * <p>회계거래조회에서 전표번호를 누르면 <b>수정 창</b>(?journal=id) — 일자 · 번호는 막히고, [저장(F8)]하면 닫혀 목록으로
+ * 돌아간다(공급가액 100,000 → 200,000 이면 목록 금액 220,000). 수정 창 버튼: 저장(F8) · 저장/전표(F7) · 복사 · 삭제 · 닫기.
+ * [저장/전표(F7)]는 저장하고 그 전표의 분개를 연다. [삭제] 확인 '전표를 삭제하겠습니까?' + '- 매출' / '- 매입전표 I'.
+ *
+ * <p>두지 않은 것: 연결거래 고르기(원본도 '없음'만 보였다) · [매출전표II로 변경] · [이전] · [다음] · [보내기] · [H] · [웹자료올리기] ·
+ * 부가세유형 칸을 접어 두고 표지(전자(세금)계산서-신규 · 예정누락아님)만 보이는 원본의 접힌 모양 — 우리는 늘 펼쳐 둔다.
  */
 export default function VatSlipPage({ sales }: { sales: boolean }) {
   const navigate = useNavigate()
-  const title = sales ? '매출전표 I' : '매입전표 I'
+  const [params] = useSearchParams()
+  const editId = Number(params.get('journal')) || null
   const types = sales ? SALES_TYPES : PURCHASE_TYPES
   const pickers = useCondPickers(['partners'])
   const deptProject = useDeptProjectItems()
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
   const [date, setDate] = useState(today())
+  const [slipNo, setSlipNo] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [projectId, setProjectId] = useState('')
   const [vatType, setVatType] = useState('세금계산서')
+  const [eKind, setEKind] = useState(DEFAULT_E_KIND)
+  const [omitted, setOmitted] = useState(false)
   const [partnerId, setPartnerId] = useState('')
   const [supply, setSupply] = useState('')
   const [vat, setVat] = useState('')
   const [memo, setMemo] = useState('')
   const [accountId, setAccountId] = useState('')
   const [settleId, setSettleId] = useState('')
+  const [fee, setFee] = useState('')
+  const [detail, setDetail] = useState<DetailState | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [draft, setDraft] = useState<DetailState>(blankDetail(today()))
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const title = editId ? (sales ? '매출전표 I(수정)' : '매입전표 I') : (sales ? '매출전표 I' : '매입전표 I')
 
   /* 원본 기본 계정: 매출 4049 제품매출 · 1089 외상매출금, 매입 1539 원재료 · 2519 외상매입금(우리 코드 404 · 108 · 153 · 251). */
   const defaults = useMemo(() => {
@@ -68,37 +118,133 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
   useEffect(() => {
     api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
   }, [])
-  useEffect(() => { setAccountId(defaults.main); setSettleId(defaults.settle) }, [defaults])
+  useEffect(() => { if (!editId) { setAccountId(defaults.main); setSettleId(defaults.settle) } }, [defaults, editId])
+
+  /* 수정 창 — 분개 줄에서 칸을 되살린다(매출: 1줄 차변 = 입금계좌, 255 아닌 첫 대변 = 매출계정; 매입은 거꾸로, 831 차변 = 수수료). */
+  useEffect(() => {
+    if (!editId) return
+    api.get<VatEntry>(`/journals/${editId}`).then(({ data: e }) => {
+      const lines = e.lines
+      const vatCode = sales ? '255' : '135'
+      const mainLine = lines.find((l) => (sales ? l.credit > 0 : l.debit > 0) && l.accountCode !== vatCode && l.accountCode !== '831')
+      const settleLine = lines.find((l) => (sales ? l.debit > 0 : l.credit > 0) && l.accountCode !== '831')
+      const sum = (pred: (l: (typeof lines)[number]) => boolean, side: 'debit' | 'credit') =>
+        lines.filter(pred).reduce((a, l) => a + l[side], 0)
+      setDate(e.entryDate)
+      setSlipNo(e.docNo.replace(/^.*-0*/, ''))
+      setDepartmentId(lines[0]?.departmentId ? String(lines[0].departmentId) : '')
+      setProjectId(lines[0]?.projectId ? String(lines[0].projectId) : '')
+      setVatType(e.vatType ?? '세금계산서')
+      setEKind(e.eInvoiceKind ?? DEFAULT_E_KIND)
+      setOmitted(!!e.vatOmitted)
+      setPartnerId(e.partnerId ? String(e.partnerId) : '')
+      setSupply(String(mainLine ? (sales ? mainLine.credit : mainLine.debit) : 0))
+      setVat(String(sum((l) => l.accountCode === vatCode, sales ? 'credit' : 'debit')))
+      setFee(str(sum((l) => l.accountCode === '831', 'debit')))
+      setMemo(e.description && e.description !== e.partnerName ? e.description : '')
+      setAccountId(mainLine ? String(mainLine.accountId) : '')
+      setSettleId(settleLine ? String(settleLine.accountId) : '')
+      const d = e.vatDetail
+      setDetail(d ? {
+        serialNo: d.serialNo ?? '', receipt: d.receipt === '영수' ? '영수' : '청구', note: d.note ?? '',
+        cash: str(d.cash), check: str(d.check), bill: str(d.bill), credit: str(d.credit),
+        items: [...(d.items ?? []).map((it) => ({ itemDate: it.itemDate ?? '', name: it.name ?? '', spec: it.spec ?? '',
+          qty: str(it.qty), unitPrice: str(it.unitPrice), supply: str(it.supplyAmount), vat: str(it.vatAmount), note: it.note ?? '' })),
+        ...Array.from({ length: Math.max(0, 4 - (d.items?.length ?? 0)) }, () => blankItem())],
+      } : null)
+    }).catch((err) => setError(extractErrorMessage(err)))
+  }, [editId, sales])
 
   const accountItems: CodeItem[] = useMemo(() => accounts.map((a) => ({ value: String(a.id), code: a.code, name: a.name })), [accounts])
 
   function reset() {
-    setDate(today()); setDepartmentId(''); setProjectId(''); setVatType('세금계산서'); setPartnerId('')
-    setSupply(''); setVat(''); setMemo(''); setAccountId(defaults.main); setSettleId(defaults.settle); setError('')
+    setDate(today()); setSlipNo(''); setDepartmentId(''); setProjectId(''); setVatType('세금계산서'); setEKind(DEFAULT_E_KIND)
+    setOmitted(false); setPartnerId(''); setSupply(''); setVat(''); setMemo(''); setFee(''); setDetail(null)
+    setAccountId(defaults.main); setSettleId(defaults.settle); setError('')
   }
 
+  const vatOf = (t: string, s: number) => (TAXED.has(t) ? Math.round(s / 10) : 0)
   function onSupply(v: string) {
     setSupply(v)
-    setVat(TAXED.has(vatType) ? String(Math.round((Number(v) || 0) / 10)) : '0')
+    setVat(String(vatOf(vatType, num(v))))
   }
   function onType(t: string) {
     setVatType(t)
-    setVat(TAXED.has(t) ? String(Math.round((Number(supply) || 0) / 10)) : '0')
+    setVat(String(vatOf(t, num(supply))))
   }
 
-  async function save() {
+  /* ── [세부내역] 창 ── */
+  function openDetail() {
+    setDraft(detail ?? blankDetail(date))
+    setDetailOpen(true)
+  }
+  /** 외상매출금 = 합계 − 현금 − 수표 − 어음(원본은 줄을 넣자 외상매출금이 110,000 으로 따라왔다). */
+  function withCredit(d: DetailState): DetailState {
+    const total = d.items.reduce((a, it) => a + num(it.supply) + num(it.vat), 0)
+    return { ...d, credit: String(Math.max(0, total - num(d.cash) - num(d.check) - num(d.bill))) }
+  }
+  function setItem(i: number, patch: Partial<DetailItem>) {
+    setDraft((d) => {
+      const items = d.items.map((it, k) => {
+        if (k !== i) return it
+        const next = { ...it, ...patch }
+        if ('qty' in patch || 'unitPrice' in patch) {
+          if (next.qty !== '' && next.unitPrice !== '') next.supply = String(Math.round(num(next.qty) * num(next.unitPrice)))
+        }
+        if ('qty' in patch || 'unitPrice' in patch || 'supply' in patch) next.vat = String(vatOf(vatType, num(next.supply)))
+        return next
+      })
+      return withCredit({ ...d, items })
+    })
+  }
+  const draftSupply = draft.items.reduce((a, it) => a + num(it.supply), 0)
+  const draftVat = draft.items.reduce((a, it) => a + num(it.vat), 0)
+  function applyDetail() {
+    /* 창에서 친 값을 전표가 든다 — 일련번호 · 비고는 앞뒤 빈칸을 떼고, 현금 · 수표 · 어음 · 외상매출금은 그대로. */
+    setDetail({ ...draft, serialNo: draft.serialNo.trim(), note: draft.note.trim(),
+      cash: draft.cash, check: draft.check, bill: draft.bill, credit: draft.credit })
+    setSupply(String(draftSupply))
+    setVat(String(draftVat))
+    setDetailOpen(false)
+  }
+  /* 창이 떠 있을 때 F8 은 [적용(F8)] — 전표 [저장(F8)]은 막아 둔다(아래 actions disabled). */
+  useEffect(() => {
+    if (!detailOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'F8') { e.preventDefault(); applyDetail() } }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  function detailBody() {
+    if (!sales || !detail) return undefined
+    const items = detail.items.filter((it) => it.name.trim() || num(it.supply) || num(it.vat))
+    return {
+      serialNo: detail.serialNo.trim() || undefined, receipt: detail.receipt, note: detail.note.trim() || undefined,
+      cash: num(detail.cash), check: num(detail.check), bill: num(detail.bill), credit: num(detail.credit),
+      items: items.map((it) => ({ itemDate: it.itemDate || undefined, name: it.name.trim() || undefined, spec: it.spec.trim() || undefined,
+        qty: num(it.qty), unitPrice: num(it.unitPrice), supplyAmount: num(it.supply), vatAmount: num(it.vat), note: it.note.trim() || undefined })),
+    }
+  }
+
+  async function save(thenSlip = false) {
     setError('')
     if (!partnerId) { setError('거래처: 자료를 입력 바랍니다.'); return }
-    if (!(Number(supply) > 0)) { setError('공급가액: 자료를 입력 바랍니다.'); return }
+    if (!(num(supply) > 0)) { setError('공급가액: 자료를 입력 바랍니다.'); return }
     setSaving(true)
     try {
-      await api.post('/journals/vat-slip', {
+      const body = {
         sales, entryDate: date, departmentId: departmentId ? Number(departmentId) : undefined,
         projectId: projectId ? Number(projectId) : undefined, vatType, partnerId: Number(partnerId),
-        supplyAmount: Number(supply), vatAmount: Number(vat) || 0, description: memo.trim() || undefined,
-        accountId: Number(accountId), settleAccountId: Number(settleId),
-      })
-      reset()
+        supplyAmount: num(supply), vatAmount: num(vat), description: memo.trim() || undefined,
+        accountId: Number(accountId), settleAccountId: Number(settleId), feeAmount: num(fee),
+        eInvoiceKind: vatType === '세금계산서' ? eKind : undefined, vatOmitted: omitted, vatDetail: detailBody(),
+      }
+      const { data } = editId
+        ? await api.put<JournalEntry>(`/journals/vat-slip/${editId}`, body)
+        : await api.post<JournalEntry>('/journals/vat-slip', body)
+      if (thenSlip) navigate(`/accounting/journals?entryId=${data.id}`)
+      else if (editId) navigate('/accounting/journals')
+      else reset()
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -106,19 +252,52 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
     }
   }
 
+  async function remove() {
+    if (!editId) return
+    try {
+      await api.delete(`/journals/${editId}`)
+      setConfirmDelete(false)
+      navigate('/accounting/journals')
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  /** [복사] — 같은 칸으로 새 전표를 연다(일자는 오늘). */
+  function copy() {
+    setDate(today()); setSlipNo('')
+    navigate(sales ? '/accounting/sales-slip' : '/accounting/purchase-slip')
+  }
+
+  const actions = editId
+    ? [
+        { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
+        { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
+        { label: '복사', onClick: copy },
+        { label: '삭제', onClick: () => setConfirmDelete(true) },
+        { label: '닫기', onClick: () => navigate('/accounting/journals') },
+      ]
+    : [
+        { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
+        { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
+        { label: '다시 작성', onClick: () => reset() },
+        { label: '리스트', onClick: () => navigate('/accounting/journals') },
+      ]
+
   return (
+    <>
     <form onSubmit={(e) => { e.preventDefault(); void save() }}>
-      <EcSlipShell
-        title={title}
-        actions={[
-          { label: '저장(F8)', primary: true, submit: true, disabled: saving },
-          { label: '다시 작성', onClick: () => reset() },
-          { label: '리스트', onClick: () => navigate('/accounting/journals') },
-        ]}>
+      <EcSlipShell title={title} actions={actions}>
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
         <ul className="ec-form mb-[8px]">
-          <EcCond label="일자" span={2}>
-            <EcDateField value={date} onChange={setDate} />
+          <EcCond label={sales ? '일자-No.' : '전표일자'} span={2}>
+            <div className="flex items-center gap-[4px]">
+              <EcDateField value={date} onChange={setDate} disabled={!!editId} />
+              {slipNo && <span>- {slipNo}</span>}
+            </div>
+          </EcCond>
+          <EcCond label={sales ? '연결거래' : '연결전표'} span={2}>
+            <span className="text-ec-navy">없음</span>
           </EcCond>
           <EcCond label="부서" span={2}>
             <CodePickerField label="부서" hideLabel pair fill emptyLabel="(없음)" value={departmentId} onChange={setDepartmentId} items={deptProject.departments} />
@@ -127,9 +306,24 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
             <CodePickerField label="프로젝트" hideLabel pair fill emptyLabel="(없음)" value={projectId} onChange={setProjectId} items={deptProject.projects} />
           </EcCond>
           <EcCond label="부가세유형" span={2}>
-            <select className="ec-input w-full" aria-label="부가세유형" value={vatType} onChange={(e) => onType(e.target.value)}>
-              {types.map((t) => <option key={t}>{t}</option>)}
-            </select>
+            <div className="w-full">
+              <select className="ec-input w-full" aria-label="부가세유형" value={vatType} onChange={(e) => onType(e.target.value)}>
+                {types.map((t) => <option key={t}>{t}</option>)}
+              </select>
+              {vatType === '세금계산서' && (
+                <div className="flex items-center gap-[6px] mt-[4px]">
+                  <span className="ec-label-chip">전자종류</span>
+                  <select className="ec-input flex-1" aria-label="전자종류" value={eKind} onChange={(e) => setEKind(e.target.value)}>
+                    {E_INVOICE_KINDS.map((k) => <option key={k}>{k}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="flex items-center gap-[6px] mt-[4px]">
+                <span className="ec-label-chip">예정누락분</span>
+                <label><input type="radio" name="vat-omitted" checked={!omitted} onChange={() => setOmitted(false)} /> 예정누락아님</label>
+                <label><input type="radio" name="vat-omitted" checked={omitted} onChange={() => setOmitted(true)} /> 예정누락</label>
+              </div>
+            </div>
           </EcCond>
           <EcCond label="거래처" span={2}>
             <CodePickerField label="거래처" hideLabel pair fill emptyLabel="(없음)" value={partnerId} onChange={setPartnerId} items={pickers.partners} />
@@ -140,6 +334,11 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
           <EcCond label="부가세" span={2}>
             <EcNumInput className="ec-input w-full text-right" aria-label="부가세" value={vat} onValue={setVat} />
           </EcCond>
+          {sales && (
+            <EcCond label="세부내역" span={2}>
+              <a className="text-ec-navy cursor-pointer" onClick={openDetail}>세부내역</a>
+            </EcCond>
+          )}
           <EcCond label="적요" span={2}>
             <input className="ec-input w-full" placeholder="적요" maxLength={300} value={memo} onChange={(e) => setMemo(e.target.value)} />
           </EcCond>
@@ -149,8 +348,80 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
           <EcCond label={sales ? '입금계좌' : '출금계좌'} span={2}>
             <CodePickerField label={sales ? '입금계좌' : '출금계좌'} hideLabel pair fill emptyLabel="(없음)" value={settleId} onChange={setSettleId} items={accountItems} />
           </EcCond>
+          <EcCond label="수수료" span={2}>
+            <EcNumInput className="ec-input w-full text-right" aria-label="수수료" value={fee} onValue={setFee} />
+          </EcCond>
         </ul>
       </EcSlipShell>
     </form>
+
+      <Modal open={detailOpen} title="세금계산서내역등록" width={780} error={error} onClose={() => setDetailOpen(false)}>
+        <ul className="ec-form mb-[8px]">
+          <EcCond label="일련번호">
+            <input className="ec-input w-full" placeholder="일련번호" maxLength={30} value={draft.serialNo}
+                   onChange={(e) => setDraft({ ...draft, serialNo: e.target.value })} />
+          </EcCond>
+          <EcCond label="청구/영수">
+            <label><input type="radio" name="vat-receipt" checked={draft.receipt === '청구'} onChange={() => setDraft({ ...draft, receipt: '청구' })} /> 청구</label>
+            <label className="ml-[8px]"><input type="radio" name="vat-receipt" checked={draft.receipt === '영수'} onChange={() => setDraft({ ...draft, receipt: '영수' })} /> 영수</label>
+          </EcCond>
+          <EcCond label="비고" span={2}>
+            <input className="ec-input w-full" placeholder="비고" maxLength={300} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
+          </EcCond>
+          <EcCond label="현금">
+            <EcNumInput className="ec-input w-full text-right" aria-label="현금" value={draft.cash} onValue={(v) => setDraft(withCredit({ ...draft, cash: v }))} />
+          </EcCond>
+          <EcCond label="수표">
+            <EcNumInput className="ec-input w-full text-right" aria-label="수표" value={draft.check} onValue={(v) => setDraft(withCredit({ ...draft, check: v }))} />
+          </EcCond>
+          <EcCond label="어음">
+            <EcNumInput className="ec-input w-full text-right" aria-label="어음" value={draft.bill} onValue={(v) => setDraft(withCredit({ ...draft, bill: v }))} />
+          </EcCond>
+          <EcCond label="외상매출금">
+            <EcNumInput className="ec-input w-full text-right" aria-label="외상매출금" value={draft.credit} onValue={(v) => setDraft({ ...draft, credit: v })} />
+          </EcCond>
+        </ul>
+        <table className="w-full">
+          <thead>
+            <tr><th className="w-[30px]"></th><th>월/일</th><th>품명</th><th>규격</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th><th className="text-right">부가세</th><th>비고</th></tr>
+          </thead>
+          <tbody>
+            {draft.items.map((it, i) => (
+              <tr key={i}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td><input type="date" className="ec-input w-full" aria-label={`${i + 1}줄 월/일`} value={it.itemDate} onChange={(e) => setItem(i, { itemDate: e.target.value })} /></td>
+                <td><input className="ec-input w-full" aria-label={`${i + 1}줄 품명`} maxLength={100} value={it.name} onChange={(e) => setItem(i, { name: e.target.value })} /></td>
+                <td><input className="ec-input w-full" aria-label={`${i + 1}줄 규격`} maxLength={100} value={it.spec} onChange={(e) => setItem(i, { spec: e.target.value })} /></td>
+                <td><EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 수량`} value={it.qty} onValue={(v) => setItem(i, { qty: v })} /></td>
+                <td><EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 단가`} value={it.unitPrice} onValue={(v) => setItem(i, { unitPrice: v })} /></td>
+                <td><EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 공급가액`} value={it.supply} onValue={(v) => setItem(i, { supply: v })} /></td>
+                <td><EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 부가세`} value={it.vat} onValue={(v) => setItem(i, { vat: v })} /></td>
+                <td><input className="ec-input w-full" aria-label={`${i + 1}줄 비고`} maxLength={100} value={it.note} onChange={(e) => setItem(i, { note: e.target.value })} /></td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={6}></td>
+              <td className="text-right">{won(draftSupply)}</td>
+              <td className="text-right">{won(draftVat)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+        <div className="flex gap-[5px] mt-[8px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={applyDetail}>적용(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setDetailOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />{sales ? '- 매출' : '- 매입전표 I'}</p>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void remove()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      </Modal>
+    </>
   )
 }

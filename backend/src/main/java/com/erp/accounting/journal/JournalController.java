@@ -47,6 +47,14 @@ public class JournalController {
         return JournalEntryResponse.from(journalService.createVatSlip(req, principal.getUsername()));
     }
 
+    /** 매출전표 I(수정) · 매입전표 I 수정 창 [저장(F8)] */
+    @PutMapping("/vat-slip/{id}")
+    public JournalEntryResponse updateVatSlip(@PathVariable Long id,
+                                              @Valid @RequestBody com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest req,
+                                              @AuthenticationPrincipal UserPrincipal principal) {
+        return JournalEntryResponse.from(journalService.updateVatSlip(id, req, principal.getUsername()));
+    }
+
     /** 현금거래 간편입력 */
     @PostMapping("/cash")
     public ResponseEntity<JournalEntryResponse> createCash(
@@ -58,8 +66,9 @@ public class JournalController {
 
     /** 회계거래조회 [확인] · [확인취소] */
     @PostMapping("/status")
-    public JournalDtos.ChangeStatusResponse changeStatus(@Valid @RequestBody JournalDtos.ChangeStatusRequest req) {
-        return new JournalDtos.ChangeStatusResponse(journalService.changeStatus(req.ids(), req.status()));
+    public JournalDtos.ChangeStatusResponse changeStatus(@Valid @RequestBody JournalDtos.ChangeStatusRequest req,
+                                                         @AuthenticationPrincipal UserPrincipal principal) {
+        return new JournalDtos.ChangeStatusResponse(journalService.changeStatus(req.ids(), req.status(), principal.getUsername()));
     }
 
     /** 수동전표 삭제 (업무전표 생성분은 회계반영취소로만) */

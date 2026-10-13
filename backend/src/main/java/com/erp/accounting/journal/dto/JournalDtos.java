@@ -54,8 +54,54 @@ public final class JournalDtos {
             @PositiveOrZero(message = "부가세는 0 이상이어야 합니다.") BigDecimal vatAmount,
             @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.") String description,
             @NotNull(message = "매출계정: 자료를 입력 바랍니다.") Long accountId,
-            @NotNull(message = "입금계좌: 자료를 입력 바랍니다.") Long settleAccountId
+            @NotNull(message = "입금계좌: 자료를 입력 바랍니다.") Long settleAccountId,
+            /** [수수료] — 차) 지급수수료(831) / 대) 입금(출금)계좌(2026-10-13 실측: 매출 · 매입 모두 같은 모양). */
+            @PositiveOrZero(message = "수수료는 0 이상이어야 합니다.") BigDecimal feeAmount,
+            /** [전자종류] — 부가세유형이 세금계산서일 때만. */
+            @Size(max = 30, message = "전자종류는 30자까지입니다.") String eInvoiceKind,
+            /** [예정누락분] true = 예정누락 */
+            Boolean vatOmitted,
+            /** 매출전표 I [세부내역] (매입전표 I 에는 이 칸이 없다) */
+            @jakarta.validation.Valid VatDetail vatDetail
     ) {}
+
+    /**
+     * 매출전표 I [세부내역] 창(세금계산서내역등록) — 일련번호 · 청구/영수 · 비고 · 현금 · 수표 · 어음 · 외상매출금 + 품목 격자.
+     * 원본은 격자의 공급가액 · 부가세 합계를 [적용(F8)] 때 전표의 공급가액 · 부가세로 옮긴다(화면이 한다).
+     */
+    public record VatDetail(
+            @Size(max = 30, message = "일련번호는 30자까지입니다.") String serialNo,
+            /** 청구 · 영수 */
+            @Size(max = 10) String receipt,
+            @Size(max = 300, message = "비고는 300자까지입니다.") String note,
+            BigDecimal cash, BigDecimal check, BigDecimal bill, BigDecimal credit,
+            @Size(max = 100, message = "세부내역은 100줄까지입니다.") List<@jakarta.validation.Valid VatDetailItem> items
+    ) {}
+
+    public record VatDetailItem(
+            LocalDate itemDate,
+            @Size(max = 100, message = "품명은 100자까지입니다.") String name,
+            @Size(max = 100, message = "규격은 100자까지입니다.") String spec,
+            BigDecimal qty, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
+            @Size(max = 100, message = "비고는 100자까지입니다.") String note
+    ) {}
+
+    /** 세부내역 ↔ JSON 글자(journal_entries.vat_detail). */
+    private static final com.fasterxml.jackson.databind.ObjectMapper VAT_JSON =
+            new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
+                    .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    public static String writeVatDetail(VatDetail d) {
+        if (d == null) return null;
+        try { return VAT_JSON.writeValueAsString(d); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException(ex); }
+    }
+
+    public static VatDetail readVatDetail(String json) {
+        if (json == null || json.isBlank()) return null;
+        try { return VAT_JSON.readValue(json, VatDetail.class); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException ex) { return null; }
+    }
 
     /** 현금거래 간편입력. 입금이면 차)현금·대)상대계정, 출금이면 차)상대계정·대)현금. */
     public record CashTxnRequest(
@@ -108,7 +154,11 @@ public final class JournalDtos {
             /** 원본 회계거래조회 탭 [결재중 · 미확인 · 확인] */
             com.erp.accounting.journal.JournalConfirmStatus confirmStatus,
             /** 매출전표 I · 매입전표 I 의 [부가세유형](V349) */
-            String vatType
+            String vatType,
+            /** 매출전표 I · 매입전표 I 의 [전자종류] · [예정누락분] · [세부내역](V353) */
+            String eInvoiceKind, boolean vatOmitted, VatDetail vatDetail,
+            /** 회계거래조회 조건 [최종수정자](V353) */
+            String updatedBy
     ) {
         public static JournalEntryResponse from(JournalEntry e) {
             return new JournalEntryResponse(
@@ -119,7 +169,9 @@ public final class JournalDtos {
                     e.totalDebit(), e.totalCredit(), e.isBalanced(),
                     e.getLines().stream().map(JournalLineResponse::from).toList(),
                     e.getCreatedBy(), e.getCreatedAt(), e.getUpdatedAt(),
-                    e.getConfirmStatus(), e.getVatType());
+                    e.getConfirmStatus(), e.getVatType(),
+                    e.getEInvoiceKind(), e.isVatOmitted(), readVatDetail(e.getVatDetail()),
+                    e.getUpdatedBy() != null ? e.getUpdatedBy() : e.getCreatedBy());
         }
     }
 

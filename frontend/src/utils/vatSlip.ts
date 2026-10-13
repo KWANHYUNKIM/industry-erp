@@ -21,7 +21,7 @@ export function vatSlipAmounts(lines: readonly Line[], side: VatSide): { supply:
   const code = VAT_ACCOUNT[side]
   const vatLines = lines.filter((l) => l.accountCode === code)
   if (vatLines.length === 0) return null
-  const others = lines.filter((l) => l.accountCode !== code)
+  const others = withoutFee(lines).filter((l) => l.accountCode !== code)
   /* 정상 방향: 매출은 대변, 매입은 차변. */
   const normal = (l: Line) => Number(side === '매출' ? l.credit : l.debit)
   const opposite = (l: Line) => Number(side === '매출' ? l.debit : l.credit)
@@ -30,4 +30,23 @@ export function vatSlipAmounts(lines: readonly Line[], side: VatSide): { supply:
     ? -others.reduce((s, l) => s + opposite(l), 0)
     : others.reduce((s, l) => s + normal(l), 0)
   return { supply, vat }
+}
+
+/**
+ * 매출전표 I · 매입전표 I 의 <b>[수수료]</b> 두 줄을 뺀다 — 차) 지급수수료(831) X / 대) 입금(출금)계좌 X(2026-10-13 loginaa 26/10/13-9 · -11).
+ * 빼지 않으면 매출은 입금계좌의 수수료 대변이, 매입은 지급수수료 차변이 공급가액에 더해진다(100,000 + 1,000).
+ * 수수료 대변은 <b>같은 계정이 차변(매출) 또는 대변(매입)에 이미 선</b> 줄 — 그 계좌에 X 짜리 줄이 하나 더 있는 것으로 알아본다.
+ * 그렇게 짝이 지어질 때만 뺀다(지출결의서의 지급수수료처럼 짝이 없는 831 은 그대로 공급가액이다).
+ */
+function withoutFee<T extends Line>(lines: readonly T[]): T[] {
+  const fees = lines.filter((l) => l.accountCode === '831' && Number(l.debit) > 0)
+  if (fees.length === 0) return [...lines]
+  const drop = new Set<T>()
+  for (const fee of fees) {
+    const x = Number(fee.debit)
+    const settle = lines.find((l) => !drop.has(l) && l !== fee && Number(l.credit) === x
+      && lines.some((m) => m !== l && m.accountCode === l.accountCode && (Number(m.debit) > 0 || Number(m.credit) > 0)))
+    if (settle) { drop.add(fee); drop.add(settle) }
+  }
+  return lines.filter((l) => !drop.has(l))
 }

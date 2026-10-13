@@ -7,7 +7,7 @@ import type { JournalEntry } from '../../types/api'
 
 /** 원본 회계거래조회 탭 [결재중 · 미확인 · 확인] — 전표의 진행상태. */
 type ConfirmStatus = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
-type Row = JournalEntry & { confirmStatus: ConfirmStatus }
+type Row = JournalEntry & { confirmStatus: ConfirmStatus; /** 마지막으로 고친 사람(V353) — 조건 [최종수정자] */ updatedBy?: string | null }
 const STATUS_TABS = ['전체', '결재중', '미확인', '확인'] as const
 const STATUS_OF: Record<string, ConfirmStatus> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
 
@@ -39,7 +39,9 @@ function slipNo(docNo: string) {
 }
 
 /** 원본 [거래유형] 이름 — 판매 회계반영은 '매출전표 I', 구매는 '매입전표 I', 직접 입력은 '일반전표'. */
-const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표' }
+const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표', VAT_SALES: '매출전표 I', VAT_PURCHASE: '매입전표 I' }
+/** 매출전표 I · 매입전표 I 화면으로 넣은 전표 — 전표번호를 누르면 그 화면의 수정 창(?journal=)이 열린다(원본 실측). */
+const VAT_SLIP_SCREEN: Record<string, string> = { VAT_SALES: '/accounting/sales-slip', VAT_PURCHASE: '/accounting/purchase-slip' }
 
 /** 회계전표 조회 — 판매/구매 회계반영으로 생성된 분개(차변/대변)를 전표 단위로 조회. */
 export default function JournalListPage() {
@@ -77,13 +79,13 @@ export default function JournalListPage() {
     ? `${(r.description ?? '').split(' ')[0]}증가` : undefined)
   const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? noteLabel(r) ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
-  const rowBg = (r: JournalEntry) => r.sourceType === 'SALES' ? 'bg-[var(--ec-bg-sales-row)]'
-    : r.sourceType === 'PURCHASE' ? 'bg-[var(--ec-bg-basic)]' : ''
+  const rowBg = (r: JournalEntry) => (r.sourceType as string) === 'SALES' || (r.sourceType as string) === 'VAT_SALES' ? 'bg-[var(--ec-bg-sales-row)]'
+    : (r.sourceType as string) === 'PURCHASE' || (r.sourceType as string) === 'VAT_PURCHASE' ? 'bg-[var(--ec-bg-basic)]' : ''
   const [from, setFrom] = useState(defaultPeriod().from)
   const [to, setTo] = useState(defaultPeriod().to)
   /* 원본 조건(2026-10-13 실측): 기준일자 · 회계전표No. · 거래처 · 계정 · 부서 · 프로젝트 · 업무 · 관리번호 · 금액 ~ ·
-     채권/채무(어음) No. · 적요 · 작성자 · 최종수정자 · 기타[수정일자순(정렬)]. 부서 · 프로젝트 · 업무 · 관리번호 ·
-     채권/채무No. · 최종수정자는 회계전표가 들지 않아 없다. */
+     채권/채무(어음) No. · 적요 · 작성자 · 최종수정자 · 기타[수정일자순(정렬)]. 업무 · 관리번호 ·
+     채권/채무No. 는 회계전표가 들지 않아 없다. 최종수정자는 V353(updated_by) — 전표를 고치거나 확인 · 확인취소한 사람. */
   const pickers = useCondPickers(['partners'])
   const [docCond, setDocCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
@@ -92,6 +94,7 @@ export default function JournalListPage() {
   const [amountTo, setAmountTo] = useState('')
   const [memoCond, setMemoCond] = useState('')
   const [authorCond, setAuthorCond] = useState('')
+  const [editorCond, setEditorCond] = useState('')
   const [byUpdated, setByUpdated] = useState(false)
   const [openId, setOpenId] = useState<number | null>(wanted)
   const [error, setError] = useState('')
@@ -148,6 +151,8 @@ export default function JournalListPage() {
   }, [rows])
   const authorItems = useMemo(() => [...new Set(rows.map((r) => r.createdBy ?? '').filter(Boolean))].sort()
     .map((n) => ({ value: n, name: n })), [rows])
+  const editorItems = useMemo(() => [...new Set(rows.map((r) => r.updatedBy ?? r.createdBy ?? '').filter(Boolean))].sort()
+    .map((n) => ({ value: n, name: n })), [rows])
 
   const shown = useMemo(() => rows.filter((r) =>
     (statusTab === '전체' || STATUS_OF[statusTab] === r.confirmStatus)
@@ -159,10 +164,11 @@ export default function JournalListPage() {
     && (!amountTo || amountOf(r) <= Number(amountTo))
     && (!memoCond || (r.description ?? '').includes(memoCond))
     && (!authorCond || (r.createdBy ?? '') === authorCond)
+    && (!editorCond || (r.updatedBy ?? r.createdBy ?? '') === editorCond)
     && (!keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
   ).sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [rows, keyword, statusTab, docCond, partnerCond, accountCond, deptCond, projectCond, amountFrom, amountTo, memoCond, authorCond, byUpdated, cashQuickTotal])
+  [rows, keyword, statusTab, docCond, partnerCond, accountCond, deptCond, projectCond, amountFrom, amountTo, memoCond, authorCond, editorCond, byUpdated, cashQuickTotal])
 
   const picked = shown.filter((r) => checked.has(r.id))
 
@@ -202,7 +208,7 @@ export default function JournalListPage() {
   const total = shown.reduce((a, r) => a + amountOf(r), 0)
   const reset = () => {
     const p = defaultPeriod(); setFrom(p.from); setTo(p.to); setKeyword('')
-    setDocCond(''); setPartnerCond(''); setAccountCond(''); setDeptCond(''); setProjectCond(''); setAmountFrom(''); setAmountTo(''); setMemoCond(''); setAuthorCond(''); setByUpdated(false)
+    setDocCond(''); setPartnerCond(''); setAccountCond(''); setDeptCond(''); setProjectCond(''); setAmountFrom(''); setAmountTo(''); setMemoCond(''); setAuthorCond(''); setEditorCond(''); setByUpdated(false)
   }
 
   return (
@@ -259,6 +265,9 @@ export default function JournalListPage() {
         </EcCond>
         <EcCond label="작성자" pick>
           <CodePickerField label="작성자" hideLabel fill emptyLabel="전체" value={authorCond} onChange={setAuthorCond} items={authorItems} />
+        </EcCond>
+        <EcCond label="최종수정자" pick>
+          <CodePickerField label="최종수정자" hideLabel fill emptyLabel="전체" value={editorCond} onChange={setEditorCond} items={editorItems} />
         </EcCond>
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">
@@ -326,7 +335,10 @@ export default function JournalListPage() {
                 <td>
                   {/* 원본: 전표번호를 누르면 그 전표의 입력 화면(지출결의서 · 입금보고서 …)이 열린다. 우리는 결의서만 열고 나머지는 분개를 펼친다. */}
                   <a className="text-ec-navy cursor-pointer" title={r.docNo}
-                     onClick={(e) => { if (voucherType[r.id]) { e.stopPropagation(); navigate(`${VOUCHER_SCREEN_BY_TYPE_NAME[voucherType[r.id]] ?? '/accounting/vouchers'}?journal=${r.id}`) } }}>
+                     onClick={(e) => {
+                       if (voucherType[r.id]) { e.stopPropagation(); navigate(`${VOUCHER_SCREEN_BY_TYPE_NAME[voucherType[r.id]] ?? '/accounting/vouchers'}?journal=${r.id}`) }
+                       else if (VAT_SLIP_SCREEN[r.sourceType]) { e.stopPropagation(); navigate(`${VAT_SLIP_SCREEN[r.sourceType]}?journal=${r.id}`) }
+                     }}>
                     {slipNo(r.docNo)}
                   </a>
                 </td>

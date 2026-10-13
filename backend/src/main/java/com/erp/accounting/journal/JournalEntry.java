@@ -67,6 +67,23 @@ public class JournalEntry extends BaseTimeEntity {
     @Column(name = "vat_type", length = 30)
     private String vatType;
 
+    /** [부가세유형 세금계산서] 아래 [전자종류](전자(세금)계산서-신규 · 종이(세금)계산서 · 기재사항착오정정 …, V353). */
+    @Column(name = "e_invoice_kind", length = 30)
+    private String eInvoiceKind;
+
+    /** [예정누락분] — true 면 '예정누락'(예정신고 때 빠뜨려 확정신고에 넣는 것). 원본 기본 '예정누락아님'. */
+    @Column(name = "vat_omitted", nullable = false)
+    @Builder.Default
+    private boolean vatOmitted = false;
+
+    /** 매출전표 I [세부내역](세금계산서내역등록) 한 덩어리 — JSON 글자(V353). 서비스가 읽고 쓴다. */
+    @Column(name = "vat_detail", columnDefinition = "text")
+    private String vatDetail;
+
+    /** 마지막으로 고친 사람 — 회계거래조회 조건 [최종수정자](V353). 만들 때는 만든 사람. */
+    @Column(name = "updated_by", length = 50)
+    private String updatedBy;
+
     @OneToMany(mappedBy = "entry", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineNo asc")
     @Builder.Default
