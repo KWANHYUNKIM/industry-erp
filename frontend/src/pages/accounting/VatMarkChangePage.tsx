@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { vatSlipAmounts, type VatSide } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import type { JournalEntry } from '../../types/api'
@@ -26,9 +25,16 @@ const DOC_KINDS: { value: DocKind; label: string }[] = [
   { value: 'MODIFY_RETURN', label: '환입' }, { value: 'MODIFY_CANCEL', label: '계약의해제' },
   { value: 'MODIFY_LC', label: '내국신용장개설' }, { value: 'MODIFY_DUPLICATE', label: '착오에의한이중발급' },
 ]
-const PROGRESSES: { value: '' | Progress; label: string }[] = [
-  { value: '', label: '전체' }, { value: 'NONE', label: '발행 안됨' }, { value: 'LATE', label: '기한후 발행' }, { value: 'ELSEWHERE', label: '타발행' },
+/** 원본 진행상태 체크칸(2026-10-14 실측 — 처음엔 모두 꺼짐 = 전부). 전송완료 · 메일발송완료는 국세청 · 메일로 보내야 생겨 우리에겐 늘 비어 있다. */
+const PROGRESSES: { value: Progress | 'SENT' | 'MAILED'; label: string }[] = [
+  { value: 'NONE', label: '미발행' }, { value: 'SENT', label: '전송완료' }, { value: 'MAILED', label: '메일발송완료' },
+  { value: 'ELSEWHERE', label: '타발행' }, { value: 'LATE', label: '기한후발행' },
 ]
+/** 원본 각종구분값변경의 [일자] — '2026/10/14-4'(번호 앞 칸 없음, 진행단계의 '2026/10/14 -4' 와 다르다). */
+const dateNoTight = (date: string, docNo: string) => {
+  const seq = docNo.split('-').pop() ?? ''
+  return `${date.replace(/-/g, '/')}-${Number(seq) || seq}`
+}
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -42,7 +48,7 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
  * 확인 창 문구는 원본 그대로.
  *
  * <p>두지 않은 것: [전자로변환](원본에서 눌러도 줄이 바뀌지 않아 무엇을 하는지 잴 수 없었다) · 세무신고거래처코드 · 거래처관리담당자 ·
- * 부서 · 프로젝트 · 예정누락 · 최초작성자 · 최종수정자 조건 · 진행상태 전송완료 · 예정발송완료(국세청 전송을 하지 않는다).
+ * 부서 · 프로젝트 · 예정누락(◉정상 ○예정누락) · 세무신고거래처순 · 최초작성자 · 최종수정자 조건.
  */
 export default function VatMarkChangePage() {
   const today = new Date()
@@ -50,7 +56,7 @@ export default function VatMarkChangePage() {
   const [to, setTo] = useState(iso(today))
   const [sideCond, setSideCond] = useState<SideCond>('매출')
   const [docCond, setDocCond] = useState<'' | DocKind>('')
-  const [progressCond, setProgressCond] = useState<'' | Progress>('')
+  const [progressCond, setProgressCond] = useState<Set<string>>(new Set())
   const [order, setOrder] = useState<Order>('일자순')
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [marks, setMarks] = useState<Map<number, Mark>>(new Map())
@@ -87,7 +93,7 @@ export default function VatMarkChangePage() {
           docKind: m?.docKind ?? 'ELECTRONIC', docKindName: m?.docKindName ?? '전자(세금)계산서',
           progress: m?.progress ?? 'NONE', progressName: m?.progressName ?? '발행 안됨' }
         if (docCond && row.docKind !== docCond) continue
-        if (progressCond && row.progress !== progressCond) continue
+        if (progressCond.size > 0 && !progressCond.has(row.progress)) continue
         out.push(row)
         break
       }
@@ -143,7 +149,7 @@ export default function VatMarkChangePage() {
           <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
         </EcCond>
         <EcCond label="매출/매입 구분">
-          {(['전체', '매출', '매입'] as SideCond[]).map((s) => (
+          {(['매출', '매입', '전체'] as SideCond[]).map((s) => (
             <label key={s} className="inline-flex items-center gap-[3px] mr-[10px]">
               <input type="radio" name="vat-mark-side" checked={sideCond === s} onChange={() => setSideCond(s)} /> {s}
             </label>
@@ -156,9 +162,14 @@ export default function VatMarkChangePage() {
           </select>
         </EcCond>
         <EcCond label="진행상태">
+          <label className="inline-flex items-center gap-[3px] mr-[10px]">
+            <input type="checkbox" checked={progressCond.size === PROGRESSES.length}
+                   onChange={(e) => setProgressCond(e.target.checked ? new Set(PROGRESSES.map((p) => p.value)) : new Set())} /> 전체
+          </label>
           {PROGRESSES.map((p) => (
             <label key={p.value} className="inline-flex items-center gap-[3px] mr-[10px]">
-              <input type="radio" name="vat-mark-progress" checked={progressCond === p.value} onChange={() => setProgressCond(p.value)} /> {p.label}
+              <input type="checkbox" checked={progressCond.has(p.value)}
+                     onChange={() => setProgressCond((c) => { const n = new Set(c); if (n.has(p.value)) n.delete(p.value); else n.add(p.value); return n })} /> {p.label}
             </label>
           ))}
         </EcCond>
@@ -203,7 +214,7 @@ export default function VatMarkChangePage() {
                        onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n })} />
                 {' '}{i + 1}
               </td>
-              <td className="text-center">{dateNo(r.date, r.no)}</td>
+              <td className="text-center">{dateNoTight(r.date, r.no)}</td>
               <td className="text-center">{r.vat === 0 ? '계산서' : '세금계산서'}</td>
               <td>{r.partner}</td>
               <td className="text-right">{won(r.supply)}</td>

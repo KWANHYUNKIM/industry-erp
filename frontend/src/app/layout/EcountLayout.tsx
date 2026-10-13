@@ -563,7 +563,12 @@ const MENU: TopMenu[] = [
       {
         label: '전자(세금)계산서',
         nodes: [
+          // 원본 회계 I › 전자(세금)계산서 차례(2026-10-14 실측). 각종구분값변경 · 홈택스 자료비교 · 요약은 세무 › 신고전검토자료와 같은 화면.
+          // 홈택스자료조회 · 전자(세금)계산서 · 현금영수증은 아직 없다(plans/회계1.md 남은 것). 매입세금계산서는 원본에 없는 우리 화면.
           { label: '(세금)계산서진행단계', to: '/accounting/tax-invoice-sales' },
+          { label: '각종구분값변경', to: '/accounting/vat/marks' },
+          { label: '이카운트 vs 홈택스 자료비교', to: '/accounting/vat/hometax-compare' },
+          { label: '매출(세금)계산서요약', to: '/accounting/vat/sales-tax-summary' },
           { label: '매입세금계산서', to: '/accounting/tax-invoice-purchase' },
         ],
       },

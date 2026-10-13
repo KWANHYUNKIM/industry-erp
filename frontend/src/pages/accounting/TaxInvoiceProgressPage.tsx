@@ -290,7 +290,13 @@ export default function TaxInvoiceProgressPage() {
                   )}
                 </td>
                 <td></td>
-                <td><a className="text-ec-navy cursor-pointer" onClick={() => openSlip(r)}>내역보기</a></td>
+                {/* 원본 2026-10-14: 매출전표 I 로 넣은 줄은 링크 없이 '회계 I', 판매에서 온 줄은 [내역보기][거래명세서]. */}
+                <td>{String(r.e.sourceType) === 'VAT_SALES' ? '회계 I' : (
+                  <span className="inline-flex gap-[6px]">
+                    <a className="text-ec-navy cursor-pointer" onClick={() => openSlip(r)}>내역보기</a>
+                    {r.e.sourceType === 'SALES' && <a className="text-ec-navy">거래명세서</a>}
+                  </span>
+                )}</td>
                 <td className="text-center"><a className="text-ec-navy">인쇄</a></td>
                 <td className="text-center"><a className="text-ec-navy">이력</a></td>
               </tr>
