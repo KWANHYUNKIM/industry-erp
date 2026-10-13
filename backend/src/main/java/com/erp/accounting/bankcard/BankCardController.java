@@ -40,6 +40,11 @@ public class BankCardController {
         return service.updateAccount(id, req);
     }
 
+    @DeleteMapping("/accounts/{id}")
+    public void deleteAccount(@PathVariable Long id) {
+        service.deleteAccount(id);
+    }
+
     @GetMapping("/cards")
     public List<CreditCardResponse> cards() {
         return service.findCards();
@@ -53,6 +58,11 @@ public class BankCardController {
     @PutMapping("/cards/{id}")
     public CreditCardResponse updateCard(@PathVariable Long id, @Valid @RequestBody CreditCardRequest req) {
         return service.updateCard(id, req);
+    }
+
+    @DeleteMapping("/cards/{id}")
+    public void deleteCard(@PathVariable Long id) {
+        service.deleteCard(id);
     }
 
     @GetMapping("/transactions")

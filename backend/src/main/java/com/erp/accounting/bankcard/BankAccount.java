@@ -70,4 +70,15 @@ public class BankAccount extends BaseTimeEntity {
 
     @Column(length = 200)
     private String remark;
+
+    /** 원본 계좌등록의 [검색창내용]. */
+    @Column(name = "search_text", length = 100)
+    private String searchText;
+
+    /** 원본 [이체정보] 창의 적요1 · 적요2. */
+    @Column(name = "transfer_remark1", length = 100)
+    private String transferRemark1;
+
+    @Column(name = "transfer_remark2", length = 100)
+    private String transferRemark2;
 }

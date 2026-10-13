@@ -12,6 +12,8 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, Long> 
 
     boolean existsByAccountNo(String accountNo);
 
+    boolean existsByCode(String code);
+
     @Query("select b from BankAccount b join fetch b.glAccount order by b.bankName, b.accountNo")
     List<BankAccount> findAllWithAccount();
 

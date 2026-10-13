@@ -56,4 +56,27 @@ public class CreditCard extends BaseTimeEntity {
 
     @Column(length = 200)
     private String remark;
+
+    /** 원본 [카드구분] 신용카드 · 체크카드. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "card_kind", nullable = false, length = 10)
+    @Builder.Default
+    private CardKind cardKind = CardKind.CREDIT;
+
+    /** 원본 [사업용 카드 구분] Y/N(기본 N). */
+    @Column(name = "business_use", nullable = false)
+    private boolean businessUse;
+
+    /** 원본 [계정] — 이 카드를 쓰면 대변에 잡히는 계정(기본 미지급금). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "gl_account_id")
+    private com.erp.accounting.account.Account glAccount;
+
+    /** 원본 [카드관리자]. */
+    @Column(length = 50)
+    private String manager;
+
+    /** 원본 [검색창내용]. */
+    @Column(name = "search_text", length = 100)
+    private String searchText;
 }

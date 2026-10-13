@@ -471,7 +471,13 @@ public class JournalService {
         if (isPositive(u.getVatAmount())) {
             addDebit(e, "135", u.getVatAmount(), "부가세대급금");
         }
-        addCredit(e, "253", u.getTotalAmount(), "미지급금 (" + u.getCard().getCardName() + ")");
+        // 원본 카드등록의 [계정] — 그 카드를 쓰면 대변에 잡히는 계정이다(기본 미지급금). 안 정한 옛 카드는 미지급금.
+        com.erp.accounting.account.Account cardAccount = u.getCard().getGlAccount();
+        if (cardAccount != null) {
+            addCreditAccount(e, cardAccount, u.getTotalAmount(), cardAccount.getName() + " (" + u.getCard().getCardName() + ")");
+        } else {
+            addCredit(e, "253", u.getTotalAmount(), "미지급금 (" + u.getCard().getCardName() + ")");
+        }
         return save(e);
     }
 

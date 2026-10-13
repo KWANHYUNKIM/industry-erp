@@ -58,20 +58,27 @@ public class BankCardService {
 
     @Transactional
     public BankAccountResponse createAccount(BankAccountRequest req) {
-        if (bankAccountRepository.existsByAccountNo(req.accountNo())) {
-            throw ApiException.conflict("이미 등록된 계좌번호입니다: " + req.accountNo());
+        String accountNo = accountNoOf(req);
+        if (bankAccountRepository.existsByAccountNo(accountNo)) {
+            throw ApiException.conflict("이미 등록된 계좌번호입니다: " + accountNo);
+        }
+        if (req.code() != null && !req.code().isBlank() && bankAccountRepository.existsByCode(req.code().trim())) {
+            throw ApiException.conflict("이미 등록된 계좌코드입니다: " + req.code().trim());
         }
         BankAccount b = BankAccount.builder()
-                .code(req.code())
+                .code(blankToNull(req.code()))
                 .name(req.name())
-                .bankName(req.bankName())
-                .accountNo(req.accountNo())
+                .bankName(req.bankName() != null ? req.bankName() : "")
+                .accountNo(accountNo)
                 .holder(req.holder())
                 .glAccount(glAccount(req.glAccountId()))
                 .currency(currency(req.currencyId()))
                 .balance(nz(req.openingBalance()))
                 .active(req.active() == null || req.active())
                 .remark(req.remark())
+                .searchText(req.searchText())
+                .transferRemark1(req.transferRemark1())
+                .transferRemark2(req.transferRemark2())
                 .build();
         return BankAccountResponse.from(bankAccountRepository.save(b));
     }
@@ -79,20 +86,37 @@ public class BankCardService {
     @Transactional
     public BankAccountResponse updateAccount(Long id, BankAccountRequest req) {
         BankAccount b = bankAccount(id);
-        if (!b.getAccountNo().equals(req.accountNo()) && bankAccountRepository.existsByAccountNo(req.accountNo())) {
-            throw ApiException.conflict("이미 등록된 계좌번호입니다: " + req.accountNo());
+        String accountNo = req.accountNo() != null && !req.accountNo().isBlank() ? req.accountNo().trim() : b.getAccountNo();
+        if (!b.getAccountNo().equals(accountNo) && bankAccountRepository.existsByAccountNo(accountNo)) {
+            throw ApiException.conflict("이미 등록된 계좌번호입니다: " + accountNo);
         }
-        b.setCode(req.code());
+        // 원본은 수정 창에서 계좌코드가 잠긴다 — 이미 코드가 있는 계좌의 코드는 바꾸지 않는다.
+        if (b.getCode() == null || b.getCode().isBlank()) b.setCode(blankToNull(req.code()));
         b.setName(req.name());
-        b.setBankName(req.bankName());
-        b.setAccountNo(req.accountNo());
+        if (req.bankName() != null) b.setBankName(req.bankName());
+        b.setAccountNo(accountNo);
         b.setHolder(req.holder());
         b.setGlAccount(glAccount(req.glAccountId()));
         b.setCurrency(currency(req.currencyId()));
         b.setActive(req.active() == null || req.active());
         b.setRemark(req.remark());
+        if (req.searchText() != null) b.setSearchText(blankToNull(req.searchText()));
+        if (req.transferRemark1() != null) b.setTransferRemark1(blankToNull(req.transferRemark1()));
+        if (req.transferRemark2() != null) b.setTransferRemark2(blankToNull(req.transferRemark2()));
         // 잔액은 입출금으로만 움직인다. 여기서 openingBalance 로 덮어쓰면 수불과 어긋난다.
         return BankAccountResponse.from(b);
+    }
+
+    /** 원본 [사용중단/재사용 ▲ 삭제] — '삭제하겠습니까?'. 입출금 · 카드 등이 물고 있으면 지울 수 없다(사용중단으로). */
+    @Transactional
+    public void deleteAccount(Long id) {
+        BankAccount b = bankAccount(id);
+        try {
+            bankAccountRepository.delete(b);
+            bankAccountRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw ApiException.conflict("거래가 있는 계좌는 삭제할 수 없습니다. 사용중단하세요: " + (b.getName() != null ? b.getName() : b.getAccountNo()));
+        }
     }
 
     // ── 카드 마스터 ────────────────────────────────────────────────────
@@ -104,41 +128,89 @@ public class BankCardService {
 
     @Transactional
     public CreditCardResponse createCard(CreditCardRequest req) {
-        if (cardRepository.existsByCardNo(req.cardNo())) {
-            throw ApiException.conflict("이미 등록된 카드번호입니다: " + req.cardNo());
+        String cardNo = req.cardNo() != null && !req.cardNo().isBlank() ? req.cardNo().trim() : blankToNull(req.code());
+        if (cardNo == null) throw ApiException.badRequest("카드코드를 입력하세요.");
+        if (cardRepository.existsByCardNo(cardNo)) {
+            throw ApiException.conflict("이미 등록된 카드번호입니다: " + cardNo);
+        }
+        if (req.code() != null && !req.code().isBlank() && cardRepository.existsByCode(req.code().trim())) {
+            throw ApiException.conflict("이미 등록된 카드코드입니다: " + req.code().trim());
         }
         CreditCard c = CreditCard.builder()
-                .code(req.code())
-                .cardName(req.cardName())
-                .cardCompany(req.cardCompany())
-                .cardNo(req.cardNo())
-                .type(req.type())
+                .code(blankToNull(req.code()))
+                .cardName(req.cardName() != null ? req.cardName() : "")
+                .cardCompany(req.cardCompany() != null ? req.cardCompany() : "")
+                .cardNo(cardNo)
+                .type(req.type() != null ? req.type() : CardType.CORPORATE)
                 .ownerName(req.ownerName())
                 .settlementAccount(req.settlementAccountId() != null ? bankAccount(req.settlementAccountId()) : null)
                 .settlementDay(req.settlementDay())
                 .active(req.active() == null || req.active())
                 .remark(req.remark())
                 .build();
+        applyCardRegister(c, req);
         return CreditCardResponse.from(cardRepository.save(c));
     }
 
     @Transactional
     public CreditCardResponse updateCard(Long id, CreditCardRequest req) {
         CreditCard c = card(id);
-        if (!c.getCardNo().equals(req.cardNo()) && cardRepository.existsByCardNo(req.cardNo())) {
-            throw ApiException.conflict("이미 등록된 카드번호입니다: " + req.cardNo());
+        String cardNo = req.cardNo() != null && !req.cardNo().isBlank() ? req.cardNo().trim() : c.getCardNo();
+        if (!c.getCardNo().equals(cardNo) && cardRepository.existsByCardNo(cardNo)) {
+            throw ApiException.conflict("이미 등록된 카드번호입니다: " + cardNo);
         }
-        c.setCode(req.code());
-        c.setCardName(req.cardName());
-        c.setCardCompany(req.cardCompany());
-        c.setCardNo(req.cardNo());
-        c.setType(req.type());
+        // 원본 '신용카드수정' 창은 카드코드가 잠긴다 — 코드가 있는 카드의 코드는 바꾸지 않는다.
+        if (c.getCode() == null || c.getCode().isBlank()) c.setCode(blankToNull(req.code()));
+        c.setCardName(req.cardName() != null ? req.cardName() : "");
+        if (req.cardCompany() != null) c.setCardCompany(req.cardCompany());
+        c.setCardNo(cardNo);
+        if (req.type() != null) c.setType(req.type());
         c.setOwnerName(req.ownerName());
         c.setSettlementAccount(req.settlementAccountId() != null ? bankAccount(req.settlementAccountId()) : null);
         c.setSettlementDay(req.settlementDay());
         c.setActive(req.active() == null || req.active());
         c.setRemark(req.remark());
+        applyCardRegister(c, req);
         return CreditCardResponse.from(c);
+    }
+
+    /** 원본 카드등록 창의 카드구분 · 사업용 · 계정 · 카드관리자 · 검색창내용. */
+    private void applyCardRegister(CreditCard c, CreditCardRequest req) {
+        // 안 보낸 칸은 그대로 둔다 — 사용중단/재사용처럼 일부만 보내는 호출이 값을 지우지 않게(비우려면 "" 를 보낸다).
+        if (req.cardKind() != null) c.setCardKind(req.cardKind());
+        // 원본: 체크카드로 바꾸면 [결제계좌] 칸이 빨개지고 '돈나가는계좌를 선택합니다.' — 계좌 없이는 저장되지 않는다.
+        if (c.getCardKind() == CardKind.CHECK && c.getSettlementAccount() == null) {
+            throw ApiException.badRequest("돈나가는계좌를 선택합니다. 체크카드는 결제계좌가 있어야 합니다.");
+        }
+        if (req.businessUse() != null) c.setBusinessUse(req.businessUse());
+        c.setGlAccount(req.glAccountId() != null ? account(req.glAccountId())
+                : c.getGlAccount() != null ? c.getGlAccount()
+                : accountRepository.findByCode("253").orElse(null));
+        if (req.manager() != null) c.setManager(blankToNull(req.manager()));
+        if (req.searchText() != null) c.setSearchText(blankToNull(req.searchText()));
+    }
+
+    /** 원본 [사용중단/재사용 ▲ 삭제]. 사용내역이 있는 카드는 지울 수 없다(사용중단으로). */
+    @Transactional
+    public void deleteCard(Long id) {
+        CreditCard c = card(id);
+        try {
+            cardRepository.delete(c);
+            cardRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw ApiException.conflict("사용내역이 있는 카드는 삭제할 수 없습니다. 사용중단하세요: " + c.getCardName());
+        }
+    }
+
+    private static String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v.trim();
+    }
+
+    /** 원본은 계좌번호를 [이체정보] 창에서 따로 받는다 — 안 주면 계좌코드를 계좌번호로 쓴다. */
+    private static String accountNoOf(BankAccountRequest req) {
+        if (req.accountNo() != null && !req.accountNo().isBlank()) return req.accountNo().trim();
+        if (req.code() != null && !req.code().isBlank()) return req.code().trim();
+        throw ApiException.badRequest("계좌코드를 입력하세요.");
     }
 
     // ── 계좌 입출금 ────────────────────────────────────────────────────

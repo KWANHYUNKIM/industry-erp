@@ -4,6 +4,7 @@ import com.erp.accounting.bankcard.BankAccount;
 import com.erp.accounting.bankcard.BankTransaction;
 import com.erp.accounting.bankcard.CardUsage;
 import com.erp.accounting.bankcard.CreditCard;
+import com.erp.accounting.bankcard.CardKind;
 import com.erp.accounting.bankcard.CardType;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
@@ -27,10 +28,11 @@ public final class BankCardDtos {
             String code,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String name,
+            /* 원본 통장계좌등록 창에는 은행명 · 계좌번호가 없다([이체정보] 창에 있다) — 안 주면 계좌번호는 계좌코드. */
             @Size(max = 50, message = "은행명은 50자까지 넣을 수 있습니다.")
-            @NotBlank(message = "은행명을 입력하세요.") String bankName,
+            String bankName,
             @Size(max = 50, message = "계좌번호는 50자까지 넣을 수 있습니다.")
-            @NotBlank(message = "계좌번호를 입력하세요.") String accountNo,
+            String accountNo,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String holder,
             /** 분개에 쓸 예금계정. 없으면 보통예금(103) */
@@ -40,7 +42,15 @@ public final class BankCardDtos {
             @PositiveOrZero(message = "기초잔액은 0보다 작을 수 없습니다.") BigDecimal openingBalance,
             Boolean active,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /** 원본 [검색창내용]. */
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String searchText,
+            /** 원본 [이체정보] 창의 적요1 · 적요2. */
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String transferRemark1,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String transferRemark2
     ) {}
 
     public record BankAccountResponse(
@@ -49,7 +59,8 @@ public final class BankCardDtos {
             Long glAccountId, String glAccountCode, String glAccountName,
             /** 원본 [외화통장환종]. 안 정한 통장은 null — 원화다. */
             Long currencyId, String currencyCode, String currencyName,
-            BigDecimal balance, boolean active, String remark
+            BigDecimal balance, boolean active, String remark,
+            String searchText, String transferRemark1, String transferRemark2
     ) {
         public static BankAccountResponse from(BankAccount b) {
             return new BankAccountResponse(
@@ -59,7 +70,8 @@ public final class BankCardDtos {
                     b.getCurrency() != null ? b.getCurrency().getId() : null,
                     b.getCurrency() != null ? b.getCurrency().getCode() : null,
                     b.getCurrency() != null ? b.getCurrency().getName() : null,
-                    b.getBalance(), b.isActive(), b.getRemark());
+                    b.getBalance(), b.isActive(), b.getRemark(),
+                    b.getSearchText(), b.getTransferRemark1(), b.getTransferRemark2());
         }
     }
 
@@ -69,20 +81,32 @@ public final class BankCardDtos {
             /* 원본 [카드코드]. 이미 있는 카드에는 없으므로 필수가 아니다. */
             @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
             String code,
+            /* 원본은 카드명을 비워도 저장한다(필수는 카드코드 · 계정). */
             @Size(max = 50, message = "카드명은 50자까지 넣을 수 있습니다.")
-            @NotBlank(message = "카드명을 입력하세요.") String cardName,
+            String cardName,
+            /* 원본 카드등록 창에는 카드사 · 카드번호 · 법인/개인이 없다 — 안 주면 카드번호는 카드코드, 종류는 법인카드. */
             @Size(max = 50, message = "카드사는 50자까지 넣을 수 있습니다.")
-            @NotBlank(message = "카드사를 입력하세요.") String cardCompany,
+            String cardCompany,
             @Size(max = 30, message = "카드번호는 30자까지 넣을 수 있습니다.")
-            @NotBlank(message = "카드번호를 입력하세요.") String cardNo,
-            @NotNull(message = "카드 종류를 선택하세요.") CardType type,
+            String cardNo,
+            CardType type,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String ownerName,
             Long settlementAccountId,
             Integer settlementDay,
             Boolean active,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /** 원본 [카드구분] — 안 주면 신용카드. 체크카드는 결제계좌가 있어야 한다. */
+            CardKind cardKind,
+            /** 원본 [사업용 카드 구분] — 안 주면 N. */
+            Boolean businessUse,
+            /** 원본 [계정] — 카드를 쓰면 대변에 잡히는 계정. 안 주면 미지급금(253). */
+            Long glAccountId,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String manager,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String searchText
     ) {}
 
     public record CreditCardResponse(
@@ -94,17 +118,26 @@ public final class BankCardDtos {
              * 카드 사용이 어느 계정으로 분개되는지를 카드 목록에서 바로 보라는 뜻이다.
              */
             String glAccountName,
-            Integer settlementDay, boolean active, String remark
+            Integer settlementDay, boolean active, String remark,
+            CardKind cardKind, String cardKindName, boolean businessUse,
+            Long glAccountId, String glAccountCode,
+            String manager, String searchText
     ) {
         public static CreditCardResponse from(CreditCard c) {
             BankAccount s = c.getSettlementAccount();
+            com.erp.accounting.account.Account g = c.getGlAccount();
             return new CreditCardResponse(
                     c.getId(), c.getCode(), c.getCardName(), c.getCardCompany(), c.getCardNo(),
                     c.getType(), c.getType().getDisplayName(), c.getOwnerName(),
                     s != null ? s.getId() : null,
-                    s != null ? s.getBankName() + " " + s.getAccountNo() : null,
-                    s != null && s.getGlAccount() != null ? s.getGlAccount().getName() : null,
-                    c.getSettlementDay(), c.isActive(), c.getRemark());
+                    // 원본 [결제계좌명] 은 계좌등록의 [계좌명](예: 기업은행-1122)이다. 계좌명이 없는 옛 계좌만 은행 + 번호.
+                    s == null ? null : s.getName() != null && !s.getName().isBlank() ? s.getName() : s.getBankName() + " " + s.getAccountNo(),
+                    // 원본 [계정명] — 카드의 [계정](기본 미지급금). 계정을 안 정한 옛 카드는 비워 둔다.
+                    g != null ? g.getName() : null,
+                    c.getSettlementDay(), c.isActive(), c.getRemark(),
+                    c.getCardKind(), c.getCardKind().getDisplayName(), c.isBusinessUse(),
+                    g != null ? g.getId() : null, g != null ? g.getCode() : null,
+                    c.getManager(), c.getSearchText());
         }
     }
 
