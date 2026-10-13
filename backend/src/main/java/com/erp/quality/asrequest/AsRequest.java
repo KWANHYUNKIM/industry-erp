@@ -33,7 +33,7 @@ public class AsRequest extends BaseTimeEntity {
     private String asNo;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "partner_id", nullable = false)
+    @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -19,7 +19,8 @@ public final class AsDtos {
 
     public record AsLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity
+            /* 원본은 0 · 빈칸만 막고(빨간 테두리) 음수는 받는다(2026-10-13 실측: -1 저장 → 합계줄 -1). */
+            @NotNull(message = "수량을 입력하세요.") BigDecimal quantity
     ) {}
 
     public record AsLineResponse(Long id, int lineNo, Long itemId, String itemCode, String itemName, String itemSpec,
@@ -31,7 +32,8 @@ public final class AsDtos {
     }
 
     public record CreateAsRequest(
-            @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /* 원본 A/S접수입력은 [거래처] 없이도 저장한다(2026-10-13 실측 — 빨간 테두리는 창고 · 품목 · 수량뿐). */
+            Long partnerId,
             /* 예전 한 품목 접수. lines 가 없으면 이 품목 1개로 한 줄을 만든다. */
             Long itemId,
             LocalDate receiptDate,
@@ -46,7 +48,9 @@ public final class AsDtos {
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String charge,
             /** 원본 격자의 품목 줄. */
-            List<@jakarta.validation.Valid AsLineRequest> lines
+            List<@jakarta.validation.Valid AsLineRequest> lines,
+            /** 원본 입력 창의 [접수진행상태] — 새 접수도 고를 수 있다(기본 000 접수). null 이면 접수. */
+            AsStatus status
     ) {}
 
     /**
@@ -101,7 +105,8 @@ public final class AsDtos {
         public static AsResponse from(AsRequest a) {
             return new AsResponse(
                     a.getId(), a.getAsNo(),
-                    a.getPartner().getId(), a.getPartner().getName(),
+                    a.getPartner() != null ? a.getPartner().getId() : null,
+                    a.getPartner() != null ? a.getPartner().getName() : "",
                     a.getItem().getId(), a.getItem().getName(),
                     a.getItem().getCode(), a.getItem().getSpec(),
                     a.getItem().getCategory(),

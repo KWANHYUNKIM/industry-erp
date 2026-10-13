@@ -76,7 +76,7 @@ public class AsService {
 
     @Transactional
     public AsResponse create(CreateAsRequest req, String username) {
-        BusinessPartner partner = partnerService.get(req.partnerId());
+        BusinessPartner partner = req.partnerId() == null ? null : partnerService.get(req.partnerId());
         List<AsLineRequest> lines = req.lines() != null && !req.lines().isEmpty() ? req.lines()
                 : req.itemId() != null ? List.of(new AsLineRequest(req.itemId(), BigDecimal.ONE)) : List.of();
         if (lines.isEmpty()) throw ApiException.badRequest("품목을 1개 이상 입력하세요.");
@@ -93,10 +93,12 @@ public class AsService {
                 .scheduledDate(req.scheduledDate())
                 .symptom(req.symptom())
                 .charge(req.charge())
-                .status(AsStatus.RECEIVED)
+                .status(req.status() != null ? req.status() : AsStatus.RECEIVED)
                 .createdBy(username)
                 .build();
 
+        /* 처음부터 [완료]로 받으면 그날이 완료일이다 — 수정에서 완료로 바꿀 때와 같다. */
+        if (as.getStatus() == AsStatus.COMPLETED) as.setDoneDate(date);
         applyLines(as, lines);
         return AsResponse.from(asRepository.save(as));
     }
@@ -111,6 +113,7 @@ public class AsService {
         if (as.getId() != null) asRepository.flush();
         int no = 0;
         for (AsLineRequest l : lines) {
+            if (l.quantity() != null && l.quantity().signum() == 0) throw ApiException.badRequest("수량을 입력하세요.");
             Item item = itemService.get(l.itemId());
             if (no == 0) as.setItem(item);
             as.getLines().add(AsRequestLine.builder()
