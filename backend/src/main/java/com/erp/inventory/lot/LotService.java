@@ -140,7 +140,13 @@ public class LotService {
     @Transactional
     public void delete(Long id) {
         Lot lot = getLot(id);
-        List<LotTransaction> txs = lotTxRepository.findByLotOrderByTxDateAscIdAsc(lot);
+        List<LotTransaction> all = lotTxRepository.findByLotOrderByTxDateAscIdAsc(lot);
+        /*
+         * 등록할 때 수량을 준 예전 호출이 남긴 '로트 입고' 줄은 마스터의 일부라 같이 지운다 — 원본 등록은 내역을 만들지 않아
+         * 그 줄은 원본에 없고, 어느 화면에서도 지울 수 없어 로트가 영영 남았다(QA재고2-ADJ, 2026-10-04 ~ 10-14).
+         */
+        List<LotTransaction> registration = all.stream().filter(LotService::isRegistrationInbound).toList();
+        List<LotTransaction> txs = all.stream().filter(t -> !isRegistrationInbound(t)).toList();
         if (!txs.isEmpty()) {
             LotTransaction t = txs.get(0);
             String kind = t.getDocType() != null ? t.getDocType() : t.getType().getDisplayName();
@@ -148,8 +154,14 @@ public class LotService {
                     + lot.getLotNo() + "] " + kind + ": " + t.getTxDate().toString().replace("-", "")
                     + (t.getSourceNo() != null ? " " + t.getSourceNo() : ""));
         }
+        lotTxRepository.deleteAll(registration);
         lotRepository.delete(lot);
         changeHistory.record(HISTORY_TARGET, id, com.erp.common.history.ChangeHistoryService.DELETED);
+    }
+
+    private static boolean isRegistrationInbound(LotTransaction t) {
+        return t.getType() == LotTxType.INBOUND && t.getDocType() == null && t.getSourceId() == null && !t.isManual()
+                && t.getNote() != null && t.getNote().startsWith("로트 입고 ");
     }
 
     /** 원본 목록 [사용중단/재사용] — 확인 창 · 안내 없이 바로 바뀐다. */
