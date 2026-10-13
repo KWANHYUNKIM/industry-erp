@@ -463,6 +463,14 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        /* 원본 회계 I › 매출/매입거래(2026-10-13 loginaa) — 매출전표 I · 매입전표 I. */
+        label: '매출/매입거래',
+        nodes: [
+          { label: '매출전표 I', to: '/accounting/sales-slip' },
+          { label: '매입전표 I', to: '/accounting/purchase-slip' },
+        ],
+      },
+      {
         /* 원본 회계 I › 현금거래(2026-10-12 loginaa) — 현금예금입금 · 현금예금출금 두 묶음. */
         label: '현금거래',
         nodes: [

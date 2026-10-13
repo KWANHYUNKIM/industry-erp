@@ -121,6 +121,7 @@ const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
 const TaxInvoicePage = lazy(() => import('../pages/accounting/TaxInvoicePage'))
 const JournalEntryPage = lazy(() => import('../pages/accounting/JournalEntryPage'))
+const VatSlipPage = lazy(() => import('../pages/accounting/VatSlipPage'))
 const CashTxnPage = lazy(() => import('../pages/accounting/CashTxnPage'))
 const CashDetailPage = lazy(() => import('../pages/accounting/CashDetailPage'))
 const BankCardPage = lazy(() => import('../pages/accounting/BankCardPage'))
@@ -646,6 +647,8 @@ export default function AppRouter() {
         <Route path="/accounting/tax-invoice-sales" element={<TaxInvoicePage type="SALES" />} />
         <Route path="/accounting/tax-invoice-purchase" element={<TaxInvoicePage type="PURCHASE" />} />
         <Route path="/accounting/journal-entry" element={<JournalEntryPage />} />
+        <Route path="/accounting/sales-slip" element={<VatSlipPage sales />} />
+        <Route path="/accounting/purchase-slip" element={<VatSlipPage sales={false} />} />
         <Route path="/accounting/bank-cards" element={<BankCardPage />} />
         <Route path="/accounting/fixed-assets" element={<FixedAssetPage />} />
         <Route path="/accounting/fixed-asset-ledger" element={<FixedAssetLedgerPage />} />
