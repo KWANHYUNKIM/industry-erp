@@ -15,6 +15,13 @@ interface Line { itemId: string; billMonths: string; quantity: string; unitPrice
 const blankLine = (): Line => ({ itemId: '', billMonths: '', quantity: '', unitPrice: '', supplyAmount: '', vatAmount: '', billingUnitId: '', remark: '' })
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
 const vatOf = (supply: number) => Math.floor(supply * 0.1)
+/** 이력 창 작업일시 — 원본 '2026/10/13 오후 2:30:17' */
+function actedAt(iso: string) {
+  const d = new Date(iso)
+  const h = d.getHours()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 
 /**
  * 회계 II › 계약관리 › 계약 › <b>계약입력</b>(E060902) — 2026-10-13 loginaa 실측.
@@ -25,11 +32,20 @@ const vatOf = (supply: number) => Math.floor(supply * 0.1)
  * 수량 · 단가 · 공급가액(수량 × 단가) · 부가세(10%) · 청구단위(필수) · 적요, 아래 합계.
  * 버튼: 저장(F8) · 다시 작성 · 리스트. 저장하면 안내 없이 새 빈 판(다음 계약코드)으로 바뀐다. 청구종료일 · 청구단위가 비면 칸을 빨갛게 막는다.
  * 원본의 [저장/전표(F7)] · 첨부 · 담당자 · 부서는 아직 두지 않는다.
+ *
+ * <p>계약조회 [계약번호] 로 열면 <b>계약수정</b>(2026-10-13 실측): 계약일자 뒤에 ' -2'(그날 번호), 버튼 저장(F8) · 복사 · 닫기 · 삭제 · H.
+ * [복사] → 계약입력: 계약일자 오늘 · 계약코드 다음 번호 · 계약명 비움, 나머지 머리와 줄은 그대로.
+ * [삭제] → 알림 '전표를 삭제하겠습니까?' / '- 계약' 확인 · 취소. [H] → '이력' 창 [2026/10/13 -2] 작업자ID · 작업일시 · 상태(신규 · 수정).
+ * 원본 [저장/전표(F7)](▲ 명세서)는 아직 못 쟀다.
  */
 export default function BillingContractEntryPage() {
   const nav = useNavigate()
   const [params] = useSearchParams()
   const editId = params.get('id')
+  const copyId = params.get('copy')
+  const [loaded, setLoaded] = useState<BillingContractRow | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [contractDate, setContractDate] = useState(ymd(new Date()))
   const [partnerId, setPartnerId] = useState('')
   const [code, setCode] = useState('')
@@ -66,9 +82,18 @@ export default function BillingContractEntryPage() {
         setItems(it.data.filter((x) => x.active)); setUnits(u.data)
       })
       .catch((e) => setError(extractErrorMessage(e)))
-    if (!editId) { void reset(); return }
-    api.get<BillingContractRow>(`/billing-contracts/${editId}`).then(({ data: c }) => {
-      setContractDate(c.contractDate); setPartnerId(String(c.partnerId)); setCode(c.code); setName(c.name ?? '')
+    const sourceId = editId ?? copyId
+    if (!sourceId) { setLoaded(null); void reset(); return }
+    api.get<BillingContractRow>(`/billing-contracts/${sourceId}`).then(async ({ data: c }) => {
+      setInvalid(new Set())
+      if (editId) {
+        setLoaded(c); setContractDate(c.contractDate); setCode(c.code); setName(c.name ?? '')
+      } else {
+        // [복사] — 원본: 계약일자 오늘 · 계약코드 다음 번호 · 계약명 비움
+        setLoaded(null); setContractDate(ymd(new Date())); setName('')
+        try { setCode((await api.get<{ code: string }>('/billing-contracts/next-code')).data.code) } catch { setCode('') }
+      }
+      setPartnerId(String(c.partnerId))
       setBillStart(c.billStart); setBillEnd(c.billEnd); setVatType(c.vatType); setForeignCurrency(c.foreignCurrency)
       setProjectId(c.projectId != null ? String(c.projectId) : ''); setRemark(c.remark ?? '')
       const ls = c.lines.map((l) => ({ itemId: String(l.itemId), billMonths: l.billMonths, quantity: String(Number(l.quantity)),
@@ -77,7 +102,7 @@ export default function BillingContractEntryPage() {
       setLines([...ls, ...Array.from({ length: Math.max(0, 3 - ls.length) }, blankLine)])
     }).catch((e) => setError(extractErrorMessage(e)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editId])
+  }, [editId, copyId])
 
   const itemCodes = useMemo(() => items.map((x) => ({ value: String(x.id), code: x.code, name: x.name })), [items])
   const unitCodes = useMemo(() => units.map((x) => ({ value: String(x.id), code: x.code, name: x.name })), [units])
@@ -113,16 +138,38 @@ export default function BillingContractEntryPage() {
     try {
       setError('')
       if (editId) { await api.put(`/billing-contracts/${editId}`, body); nav('/accounting/billing-contracts') }
+      else if (copyId) { await api.post('/billing-contracts', body); nav('/accounting/billing-contracts/new') }
       else { await api.post('/billing-contracts', body); await reset() }
     } catch (e) { setError(extractErrorMessage(e)) }
   }
+
+  async function remove() {
+    if (!editId) return
+    try {
+      setError('')
+      await api.post('/billing-contracts/delete', { ids: [Number(editId)] })
+      setConfirmDelete(false)
+      nav('/accounting/billing-contracts')
+    } catch (e) { setConfirmDelete(false); setError(extractErrorMessage(e)) }
+  }
+  const slipNo = loaded ? `${loaded.contractDate.replaceAll('-', '/')} -${loaded.docNo}` : ''
+  const history = loaded ? [
+    ...(loaded.createdAt ? [{ worker: loaded.createdBy ?? '', at: loaded.createdAt, action: '신규' }] : []),
+    ...(loaded.updatedBy && loaded.updatedAt ? [{ worker: loaded.updatedBy, at: loaded.updatedAt, action: '수정' }] : []),
+  ] : []
   const bad = (k: string) => (invalid.has(k) ? ' outline outline-1 outline-ec-danger rounded-ec' : '')
   const row = (label: string, body: React.ReactNode) => (
     <li className="flex items-center gap-[8px]"><span className="w-[93px] shrink-0 text-ec-hint">{label}</span><span className="flex-1 flex items-center gap-[4px]">{body}</span></li>
   )
 
   return (
-    <EcListShell title="계약입력" searchable={false} actions={[
+    <EcListShell title={editId ? '계약수정' : '계약입력'} searchable={false} actions={editId ? [
+      { label: '저장(F8)', primary: true, onClick: () => void save() },
+      { label: '복사', onClick: () => nav(`/accounting/billing-contracts/new?copy=${editId}`) },
+      { label: '닫기', onClick: () => nav('/accounting/billing-contracts') },
+      { label: '삭제', onClick: () => setConfirmDelete(true) },
+      { label: 'H', onClick: () => setHistoryOpen(true) },
+    ] : [
       { label: '저장(F8)', primary: true, onClick: () => void save() },
       { label: '다시 작성', onClick: () => void reset() },
       { label: '리스트', onClick: () => nav('/accounting/billing-contracts') },
@@ -130,7 +177,7 @@ export default function BillingContractEntryPage() {
       <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void save() } }}>
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
         <ul className="ec-form mb-[8px] grid grid-cols-2 gap-x-[30px] gap-y-[6px] mobile:grid-cols-1">
-          {row('계약일자', <EcDateField value={contractDate} onChange={setContractDate} />)}
+          {row('계약일자', <><EcDateField value={contractDate} onChange={setContractDate} />{loaded && <span>-{loaded.docNo}</span>}</>)}
           {row('거래처', <span className={`flex-1${bad('partner')}`} aria-invalid={invalid.has('partner')}>
             <GridCode title="거래처검색" codeHead="거래처코드" nameHead="거래처명" items={partners} value={partnerId} onPick={setPartnerId} /></span>)}
           {row('계약코드', <input className="ec-input flex-1" aria-label="계약코드" maxLength={20} value={code} onChange={(e) => setCode(e.target.value)} />)}
@@ -213,6 +260,36 @@ export default function BillingContractEntryPage() {
           }}>적용(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setMonthsFor(null)}>닫기</button>
         </div>
+      </Modal>
+
+      <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- 계약</p>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void remove()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      </Modal>
+
+      <Modal open={historyOpen} title="이력" width={760} error={error} onClose={() => setHistoryOpen(false)}>
+        <p className="mb-[6px]">[{slipNo}]</p>
+        <table className="w-full text-left">
+          <thead>
+            <tr><th className="w-[40px]"></th><th className="text-center">작업자ID</th><th className="text-center">작업일시</th><th className="text-center">상태</th></tr>
+          </thead>
+          <tbody>
+            {history.length === 0 ? (
+              <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : history.map((h, i) => (
+              <tr key={h.action}>
+                <td className="text-center">{i + 1}</td>
+                <td className="text-center">{h.worker}</td>
+                <td className="text-center">{actedAt(h.at)}</td>
+                <td className="text-center">{h.action}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="mt-[12px]"><button type="button" className="ec-btn" onClick={() => setHistoryOpen(false)}>닫기</button></div>
       </Modal>
     </EcListShell>
   )

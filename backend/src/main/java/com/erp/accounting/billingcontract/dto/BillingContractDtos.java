@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class BillingContractDtos {
@@ -61,7 +62,8 @@ public final class BillingContractDtos {
             Long partnerId, String partnerCode, String partnerName,
             LocalDate billStart, LocalDate billEnd, String vatType, boolean foreignCurrency,
             Long employeeId, Long departmentId, Long projectId, String projectName, String remark,
-            BigDecimal totalAmount, List<LineResponse> lines
+            BigDecimal totalAmount, List<LineResponse> lines,
+            String createdBy, LocalDateTime createdAt, String updatedBy, LocalDateTime updatedAt
     ) {
         public static ContractResponse from(BillingContract c, List<BillingContractLine> lines) {
             BigDecimal total = lines.stream().map((l) -> l.getSupplyAmount().add(l.getVatAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -70,7 +72,8 @@ public final class BillingContractDtos {
                     c.getBillStart(), c.getBillEnd(), c.getVatType(), c.isForeignCurrency(),
                     c.getEmployeeId(), c.getDepartmentId(),
                     c.getProject() != null ? c.getProject().getId() : null, c.getProject() != null ? c.getProject().getName() : null,
-                    c.getRemark(), total, lines.stream().map(LineResponse::from).toList());
+                    c.getRemark(), total, lines.stream().map(LineResponse::from).toList(),
+                    c.getCreatedBy(), c.getCreatedAt(), c.getUpdatedBy(), c.getUpdatedAt());
         }
     }
 

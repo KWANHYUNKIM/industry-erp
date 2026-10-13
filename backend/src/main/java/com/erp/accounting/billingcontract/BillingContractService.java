@@ -75,8 +75,9 @@ public class BillingContractService {
     }
 
     @Transactional
-    public ContractResponse update(Long id, SaveContractRequest req) {
+    public ContractResponse update(Long id, SaveContractRequest req, String username) {
         BillingContract c = get(id);
+        c.setUpdatedBy(username);
         String code = req.code() == null || req.code().isBlank() ? c.getCode() : req.code().trim();
         if (!code.equals(c.getCode()) && repository.existsByCode(code)) throw ApiException.conflict("이미 등록된 계약코드입니다: " + code);
         c.setCode(code);

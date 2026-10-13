@@ -1,0 +1,55 @@
+{
+  "about": "회계 II › 계약조회 [계약번호] → 계약수정(2026-10-13 원본 실측): 계약일자 뒤 ' -N', 버튼 저장(F8) · 복사 · 닫기 · 삭제 · H. [H] '이력' 창 [YYYY/MM/DD -N] 신규 → 저장하고 다시 열면 수정 줄. [복사] → 계약입력(계약명 비움 · 다음 계약코드 · 줄 그대로). [삭제] '전표를 삭제하겠습니까?' / '- 계약' → 목록에서 빠진다. 만든 항목은 끝에 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 계약항목 · 계약(API)",
+      "path": "/accounting/contract-items",
+      "steps": [
+        "wait:1000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const c='E'+String(Date.now()).slice(-4);const it=(await window.__api('POST','/contract-items',{code:c,name:'QA회계2-수정창',unitPrice:10000,vatIncluded:false,billingCycle:'PERIODIC',salesAccountId:null})).body;sessionStorage.setItem('ciId',it.id);const u=(await window.__api('GET','/billing-contracts/units')).body.find((x)=>x.name==='월말청구');const p=(await window.__api('GET','/partners')).body[0];const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await window.__api('POST','/billing-contracts',{contractDate:ymd,partnerId:p.id,code:null,name:'QA회계2-수정창계약',billStart:ymd,billEnd:(d.getFullYear()+1)+ymd.slice(4),vatType:'세금계산서',foreignCurrency:false,employeeId:null,departmentId:null,projectId:null,remark:null,lines:[{itemId:it.id,billMonths:'01,02,03,04,05,06,07,08,09,10,11,12',quantity:2,unitPrice:10000,supplyAmount:null,vatAmount:null,billingUnitId:u.id,remark:null}]});sessionStorage.setItem('bcId',r.body.id);sessionStorage.setItem('bcCode',r.body.code);return r.status})()",
+        "wait:500"
+      ]
+    },
+    {
+      "name": "계약수정 — H · 저장 · 복사 · 삭제",
+      "path": "/accounting/billing-contracts",
+      "steps": [
+        "js:window.__btn = (t) => { const b = [...document.querySelectorAll('button')].filter((x) => x.innerText.trim() === t).pop(); b.click(); return true }; window.__first = (t) => { [...document.querySelectorAll('button')].find((x) => x.innerText.trim() === t).click(); return true }; window.__open = () => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA회계2-수정창계약')); tr.cells[1].querySelector('a').click(); return true }; true",
+        "wait:1000",
+        "js:window.__open()",
+        "wait:1200",
+        "expect:document.body.innerText.includes('계약수정')&&/^-\\d+$/.test([...document.querySelectorAll('li')].find((l)=>l.innerText.startsWith('계약일자')).innerText.split('\\n').pop().trim())",
+        "expect:['저장(F8)','복사','닫기','삭제','H'].every((t)=>[...document.querySelectorAll('button')].some((b)=>b.innerText.trim()===t))",
+        "js:window.__btn('H')",
+        "wait:400",
+        "expect:document.body.innerText.includes('이력')&&/\\[\\d{4}\\/\\d{2}\\/\\d{2} -\\d+\\]/.test(document.body.innerText)&&[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('신규'))",
+        "js:window.__first('닫기')",
+        "wait:300",
+        "js:window.__btn('저장(F8)')",
+        "wait:1500",
+        "js:window.__open()",
+        "wait:1200",
+        "js:window.__btn('H')",
+        "wait:400",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t)=>/오[전후] \\d+:\\d{2}:\\d{2}/.test(t.innerText)&&t.innerText.trim().endsWith('수정'))",
+        "js:window.__first('닫기')",
+        "wait:300",
+        "js:window.__btn('복사')",
+        "wait:1200",
+        "expect:document.body.innerText.includes('계약입력')&&document.querySelector('[aria-label=\"계약명\"]').value===''&&document.querySelector('[aria-label=\"계약코드\"]').value!==sessionStorage.getItem('bcCode')&&[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('QA회계2-수정창'))",
+        "js:window.__btn('리스트')",
+        "wait:1200",
+        "js:window.__open()",
+        "wait:1200",
+        "js:window.__btn('삭제')",
+        "wait:300",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')&&document.body.innerText.includes('- 계약')",
+        "js:window.__btn('확인')",
+        "wait:1500",
+        "expect:location.pathname==='/accounting/billing-contracts'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('QA회계2-수정창계약')))",
+        "js:(async()=>{const r=await fetch('/api/contract-items/'+sessionStorage.getItem('ciId'),{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});return r.status})()"
+      ]
+    }
+  ]
+}

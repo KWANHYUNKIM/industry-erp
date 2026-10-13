@@ -59,8 +59,9 @@ public class BillingContractController {
     }
 
     @PutMapping("/{id}")
-    public ContractResponse update(@PathVariable Long id, @Valid @RequestBody SaveContractRequest req) {
-        return service.update(id, req);
+    public ContractResponse update(@PathVariable Long id, @Valid @RequestBody SaveContractRequest req,
+                                   @AuthenticationPrincipal UserPrincipal principal) {
+        return service.update(id, req, principal.getUsername());
     }
 
     /** 계약조회 [선택삭제] */

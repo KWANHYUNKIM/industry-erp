@@ -21,6 +21,7 @@ export interface BillingContractRow {
   billStart: string; billEnd: string; vatType: string; foreignCurrency: boolean
   employeeId: number | null; departmentId: number | null; projectId: number | null; projectName: string | null
   remark: string | null; totalAmount: number; lines: ContractLineRow[]
+  createdBy: string | null; createdAt: string | null; updatedBy: string | null; updatedAt: string | null
 }
 
 export interface BillableLine {
