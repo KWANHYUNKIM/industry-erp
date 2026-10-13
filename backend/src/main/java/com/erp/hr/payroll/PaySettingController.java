@@ -24,6 +24,35 @@ public class PaySettingController {
 
     private final PaySettingService service;
     private final PayrollTransferService transferService;
+    private final PayFormulaService formulaService;
+
+    /** 원본 수당항목등록 [계산식] — 모든 항목의 계산식리스트. */
+    @GetMapping("/formulas")
+    public List<PaySettingDtos.FormulaResponse> formulas() {
+        return formulaService.findAll();
+    }
+
+    /** 계산식등록 오른쪽 찾기 목록 */
+    @GetMapping("/formula-variables")
+    public List<PaySettingDtos.FormulaVariableGroup> formulaVariables() {
+        return formulaService.variables();
+    }
+
+    @PostMapping("/items/{id}/formulas")
+    public PaySettingDtos.FormulaResponse createFormula(@PathVariable Long id, @Valid @RequestBody PaySettingDtos.FormulaRequest req) {
+        return formulaService.create(id, req);
+    }
+
+    @PutMapping("/formulas/{id}")
+    public PaySettingDtos.FormulaResponse updateFormula(@PathVariable Long id, @Valid @RequestBody PaySettingDtos.FormulaRequest req) {
+        return formulaService.update(id, req);
+    }
+
+    /** 원본 계산식리스트 [사용중단/재사용] */
+    @PostMapping("/formulas/{id}/toggle-active")
+    public PaySettingDtos.FormulaResponse toggleFormula(@PathVariable Long id) {
+        return formulaService.toggleActive(id);
+    }
 
     @GetMapping("/items")
     public List<PayItemResponse> items() {

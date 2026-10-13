@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { PayItem, PayMethod, PayTaxFreeType, PayslipLineKind } from '../../types/api'
+import PayItemFormulaModal, { type PayItemFormula } from '../../features/payitem/components/PayItemFormulaModal'
 
 const TAX_FREE: [PayTaxFreeType, string][] = [
   ['NONE', '전액과세'], ['NIGHT_WORK', '야간근로수당'], ['CHILDCARE', '보육수당'], ['MEAL', '식대'], ['VEHICLE', '차량유지비'],
@@ -53,8 +54,10 @@ const blank = (): Row => ({
  * 원본 공제리스트의 소득세 · 주민세 · 국민연금 · 건강보험 · 고용보험 · 장기요양은 우리 급여계산이 따로 셈하는
  * 법정 공제라 항목으로 두지 않는다.
  *
- * <p>[계산식]은 그리지 않았다 — 원본은 항목마다 사용시점별 계산식(예: R( 기본급(급여지급사항) , 0 ))을
- * 따로 두고 급여계산이 그것을 푼다. 우리 급여계산은 그룹 금액을 그대로 더하므로 계산식을 담을 자리가 없다.
+ * <p>[계산식] — 원본은 항목마다 적용시점별 계산식(예: 부양가족수당
+ * R( ( 기본급(급여지급사항) * 0.01 * 간이세액표 적용 부양가족수(계산항목) ) ))을 두고 급여계산이 그것을 푼다.
+ * 칸에는 가장 늦은 적용시점의 식을, 없으면 '설정' 을 보이고 누르면 계산식리스트가 뜬다(PayItemFormulaModal).
+ * 식이 없는 항목은 예전처럼 그룹 · 급여지급사항 금액을 그대로 쓴다. 공제항목의 계산식은 아직 없다.
  * 웹자료올리기 · H(이력)도 없다.
  */
 export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: PayslipLineKind }) {
@@ -65,6 +68,16 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
   const [includeInactive, setIncludeInactive] = useState(false)
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const tableRef = useRef<HTMLTableElement>(null)
+  const [formulas, setFormulas] = useState<PayItemFormula[]>([])
+  const [formulaItem, setFormulaItem] = useState<Row | null>(null)
+  const loadFormulas = () => {
+    if (!isAllowance) return
+    api.get<PayItemFormula[]>('/pay-settings/formulas').then((r) => setFormulas(r.data)).catch(() => setFormulas([]))
+  }
+  useEffect(loadFormulas, [kind])
+  const currentFormula = (id: number) => formulas
+    .filter((f) => f.payItemId === id && f.active)
+    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0]?.formula
   useTableColumnCheck(tableRef, `${word}리스트`, [rows, includeInactive])
 
   function load() {
@@ -172,6 +185,7 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
             {isAllowance && <th className="w-[70px] text-right">배율</th>}
             {isAllowance && <th className="w-[120px]">비과세유형</th>}
             {isAllowance && <th className="w-[130px]">지급유형</th>}
+            {isAllowance && <th>계산식</th>}
             <th>산출방법</th>
           </tr>
         </thead>
@@ -221,11 +235,24 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
                   </select>
                 </td>
               )}
+              {isAllowance && (
+                <td>
+                  {r.id != null && (
+                    <button type="button" className="ec-link text-left" onClick={() => setFormulaItem(r)}>
+                      {currentFormula(r.id) ?? '설정'}
+                    </button>
+                  )}
+                </td>
+              )}
               <td><input className="ec-input w-full" value={r.calcNote} onChange={(e) => edit(idx, { calcNote: e.target.value })} /></td>
             </tr>
           ))}
         </tbody>
       </table>
+      {formulaItem?.id != null && (
+        <PayItemFormulaModal item={{ id: formulaItem.id, code: formulaItem.code, name: formulaItem.name }}
+                             formulas={formulas} onClose={() => setFormulaItem(null)} onChanged={loadFormulas} />
+      )}
     </EcListShell>
   )
 }

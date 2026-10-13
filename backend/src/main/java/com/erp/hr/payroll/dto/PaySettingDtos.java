@@ -245,4 +245,19 @@ public final class PaySettingDtos {
                     s.isSingleTaxRate(), s.isDomesticDispatched());
         }
     }
+
+    /** 원본 계산식등록 — 적용시점(YYYY-MM) · 계산식 */
+    public record FormulaRequest(
+            @NotBlank(message = "적용시점을 입력 바랍니다.") String effectiveFrom,
+            @NotBlank(message = "계산식을 입력 바랍니다.") @Size(max = 2000) String formula
+    ) {}
+
+    public record FormulaResponse(Long id, Long payItemId, String effectiveFrom, String formula, boolean active) {
+        public static FormulaResponse from(com.erp.hr.payroll.PayItemFormula f) {
+            return new FormulaResponse(f.getId(), f.getPayItem().getId(), f.getEffectiveFrom(), f.getFormula(), f.isActive());
+        }
+    }
+
+    /** 계산식등록 오른쪽 찾기 목록의 한 무리 — 무리 이름과 항목 이름들 */
+    public record FormulaVariableGroup(String group, java.util.List<String> names) {}
 }

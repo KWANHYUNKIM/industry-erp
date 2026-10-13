@@ -41,6 +41,7 @@ public class PayrollService {
     private final PaySettingService paySettingService;
     private final WithholdingTaxCalculator taxCalculator;
     private final PayDirectAmountRepository payDirectAmountRepository;
+    private final PayFormulaService payFormulaService;
 
     @Transactional(readOnly = true)
     public List<PayslipResponse> payroll(String month) {
@@ -170,6 +171,11 @@ public class PayrollService {
                         .auto(false).build());
             }
         }
+
+        // 1-2) 원본 수당항목 [계산식] — 귀속월에 걸리는 식이 있는 수당은 그 식의 값이 그 항목 금액이다.
+        //      원본 부양가족수당 R( ( 기본급(급여지급사항) * 0.01 * 간이세액표 적용 부양가족수(계산항목) ) ):
+        //      기본급 3,800,000 · 본인 1명 → 38,000, 배우자 공제 + 가족 1명 → 114,000(2026-10-13 실측). 식이 없는 항목은 위 셈 그대로.
+        applyFormulas(p, emp.getId(), req.payMonth(), baseSalary, group, empAmounts, worked);
 
         // 2-1) 원본 [사전작업] 금액직접입력 — 그 귀속월에 이 사원에게 손으로 정한 금액이 있으면 그 항목의 셈 대신 쓴다.
         //      기본급 · 수당은 과세소득 셈 전에, 소득세 · 지방소득세는 자동 셈을 막도록 여기서, 4대보험은 자동 셈 뒤에 덮는다.
@@ -326,6 +332,69 @@ public class PayrollService {
         if (amount.signum() <= 0) return;
         p.addLine(PayslipLine.builder()
                 .kind(PayslipLineKind.DEDUCTION).name(name).amount(amount).auto(true).build());
+    }
+
+    /** 수당 [계산식] 을 표시순서대로 푼다. 앞 항목의 결과는 뒤 식의 'X(수당)' 으로 쓰인다. */
+    private void applyFormulas(Payslip p, Long employeeId, String payMonth, BigDecimal baseSalary, PayGroup group,
+                               java.util.Map<Long, BigDecimal> empAmounts, java.util.Map<Long, BigDecimal> worked) {
+        java.util.Map<Long, String> formulas = payFormulaService.formulasFor(payMonth);
+        if (formulas.isEmpty()) return;
+        EmployeePayrollSetting setting = paySettingService.payrollSetting(employeeId);
+        java.util.Map<String, BigDecimal> vars = new java.util.HashMap<>();
+        vars.put("기본급(급여지급사항)", baseSalary);
+        vars.put("기본급(수당)", baseSalary);
+        java.util.List<PayItem> items = new java.util.ArrayList<>();
+        for (Long id : paySettingService.allItemIds()) {
+            PayItem item = paySettingService.item(id);
+            if (item.getKind() != PayslipLineKind.ALLOWANCE || "기본급".equals(item.getName())) continue;
+            items.add(item);
+            BigDecimal unit = empAmounts.get(item.getId());
+            if (unit == null && group != null) {
+                for (PayGroupLine gl : group.getLines()) {
+                    if (gl.getPayItem().getId().equals(item.getId())) unit = gl.resolveAmount();
+                }
+            }
+            if (unit == null && (item.getPayMethod() == PayMethod.HOURLY || item.getPayMethod() == PayMethod.DAILY)) {
+                unit = item.getDefaultAmount();   // 변동수당 단가 — 위 1-1 셈과 같다
+            }
+            vars.put(item.getName() + "(급여지급사항)", unit == null ? BigDecimal.ZERO : unit);
+            vars.put(item.getName() + "(근무기록확정)", worked.getOrDefault(item.getId(), BigDecimal.ZERO));
+            vars.put(item.getName() + "(수당)", lineAmount(p, item.getName()));
+        }
+        vars.put("건강보험보수월액(기타설정(사원))", nz(setting.getHealthBaseAmount()));
+        vars.put("국민연금기준소득월액(기타설정(사원))", nz(setting.getPensionBaseAmount()));
+        vars.put("고용보험보수총액(기타설정(사원))", nz(setting.getEmploymentBaseAmount()));
+        vars.put("배우자(기타설정(사원))", setting.isSpouseDeduction() ? BigDecimal.ONE : BigDecimal.ZERO);
+        vars.put("공제대상가족수(기타설정(사원))", BigDecimal.valueOf(setting.getDependents()));
+        vars.put("20세이하 자녀수(기타설정(사원))", BigDecimal.valueOf(setting.getChildren()));
+        vars.put("간이세액표적용방법(기타설정(사원))", BigDecimal.valueOf(setting.getTaxScale()));
+        vars.put(PayFormulaService.FAMILY_COUNT, BigDecimal.valueOf(setting.familyCount()));
+        items.sort(java.util.Comparator.comparingInt(PayItem::getSortOrder).thenComparing(PayItem::getId));
+        for (PayItem item : items) {
+            String f = formulas.get(item.getId());
+            if (f == null || !item.isActive()) continue;
+            BigDecimal amount;
+            try {
+                amount = PayFormula.evaluate(f, vars).setScale(0, RoundingMode.HALF_UP);
+            } catch (IllegalArgumentException | ArithmeticException e) {
+                throw ApiException.badRequest("[" + item.getName() + "] " + PayFormula.INVALID);
+            }
+            p.getLines().removeIf(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.getName().equals(item.getName()));
+            vars.put(item.getName() + "(수당)", amount);
+            if (amount.signum() <= 0) continue;
+            p.addLine(PayslipLine.builder().kind(PayslipLineKind.ALLOWANCE).name(item.getName()).amount(amount)
+                    .taxable(item.isTaxable()).auto(false).build());
+        }
+        for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
+    }
+
+    private static BigDecimal lineAmount(Payslip p, String name) {
+        return p.getLines().stream().filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.getName().equals(name))
+                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
     }
 
     /** 외국인근로자 단일세율(조세특례제한법 제18조의2) — 원본 [기타설정] 단일세율 */

@@ -31,6 +31,7 @@ public class PaySettingService {
     private final com.erp.common.DocumentNoGenerator documentNoGenerator;
     private final EmployeePayItemRepository employeePayItemRepository;
     private final EmployeePayrollSettingRepository payrollSettingRepository;
+    private final PayItemFormulaRepository formulaRepository;
 
     // ── 항목 ──────────────────────────────────────────────────────────
 
@@ -184,7 +185,9 @@ public class PaySettingService {
      */
     @Transactional
     public void deleteItem(Long id) {
-        itemRepository.delete(item(id));
+        PayItem target = item(id);
+        formulaRepository.deleteAll(formulaRepository.findByItem(id));   // 항목의 계산식리스트는 항목과 함께 간다
+        itemRepository.delete(target);
         itemRepository.flush();
     }
 
@@ -269,6 +272,12 @@ public class PaySettingService {
 
     private static String blankToNull(String v) {
         return v == null || v.isBlank() ? null : v.trim();
+    }
+
+    /** 급여계산용 — 모든 수당 · 공제 항목 id */
+    @Transactional(readOnly = true)
+    public List<Long> allItemIds() {
+        return itemRepository.findAll().stream().map(PayItem::getId).toList();
     }
 
     /** 급여계산용 — 이 사원이 [급여지급사항]에 넣어 둔 항목 id → 금액. */
