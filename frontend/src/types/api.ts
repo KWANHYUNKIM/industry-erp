@@ -753,6 +753,13 @@ export interface Attendance {
   workMinutes: number | null
   late: boolean
   note: string | null
+  /** 아래는 출/퇴근기록부(ID) 창(E070305)의 칸 — 장소 · ☐외근 · ☐오전반차설정, 입력한 때(지각현황(ID) [입력시간]) */
+  username: string
+  department: string | null
+  place: string | null
+  outsideWork: boolean
+  halfLeave: boolean
+  enteredAt: string | null
 }
 
 // 결재선 지정용 간단 사용자 옵션

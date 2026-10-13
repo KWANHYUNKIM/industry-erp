@@ -73,42 +73,4 @@ public class AttendanceService {
         }
         return AttendanceResponse.from(attendanceRepository.save(att));
     }
-
-    @Transactional(readOnly = true)
-    public AttendanceResponse today(String username) {
-        return attendanceRepository.findByUserUsernameAndWorkDate(username, LocalDate.now())
-                .map(AttendanceResponse::from)
-                .orElse(null);
-    }
-
-    @Transactional
-    public AttendanceResponse clockIn(String username) {
-        LocalDate today = LocalDate.now();
-        attendanceRepository.findByUserUsernameAndWorkDate(username, today).ifPresent(a -> {
-            if (a.getClockIn() != null) {
-                throw ApiException.conflict("이미 출근 처리되었습니다.");
-            }
-        });
-
-        Attendance att = attendanceRepository.findByUserUsernameAndWorkDate(username, today)
-                .orElseGet(() -> {
-                    User user = userRepository.findByUsername(username)
-                            .orElseThrow(() -> ApiException.notFound("사용자를 찾을 수 없습니다."));
-                    return Attendance.builder().user(user).workDate(today).build();
-                });
-        att.setClockIn(LocalTime.now().withNano(0));
-        return AttendanceResponse.from(attendanceRepository.save(att));
-    }
-
-    @Transactional
-    public AttendanceResponse clockOut(String username) {
-        LocalDate today = LocalDate.now();
-        Attendance att = attendanceRepository.findByUserUsernameAndWorkDate(username, today)
-                .orElseThrow(() -> ApiException.badRequest("출근 기록이 없습니다. 먼저 출근하세요."));
-        if (att.getClockIn() == null) {
-            throw ApiException.badRequest("출근 기록이 없습니다. 먼저 출근하세요.");
-        }
-        att.setClockOut(LocalTime.now().withNano(0));
-        return AttendanceResponse.from(att);
-    }
 }

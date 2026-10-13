@@ -213,6 +213,10 @@ const FieldWorkStatusPage = lazy(() => import('../pages/groupware/FieldWorkStatu
 const WorkPage = lazy(() => import('../pages/groupware/WorkPage'))
 const WorkLogPage = lazy(() => import('../pages/groupware/WorkLogPage'))
 const AttendancePage = lazy(() => import('../pages/groupware/AttendancePage'))
+const AttendanceIdStatusPage = lazy(() => import('../pages/groupware/AttendanceIdStatusPage'))
+const AttendanceIdLatePage = lazy(() => import('../pages/groupware/AttendanceIdLatePage'))
+const AttendanceIdDailyHoursPage = lazy(() => import('../pages/groupware/AttendanceIdDailyHoursPage'))
+const AttendanceIdIntegratedPage = lazy(() => import('../pages/groupware/AttendanceIdIntegratedPage'))
 const CrmPage = lazy(() => import('../pages/groupware/CrmPage'))
 const BusinessCardPage = lazy(() => import('../pages/groupware/BusinessCardPage'))
 const ProjectPage = lazy(() => import('../pages/groupware/ProjectPage'))
@@ -852,6 +856,10 @@ export default function AppRouter() {
         <Route path="/groupware/work" element={<WorkPage />} />
         <Route path="/groupware/worklog" element={<WorkLogPage />} />
         <Route path="/groupware/attendance" element={<AttendancePage />} />
+        <Route path="/groupware/attendance-status" element={<AttendanceIdStatusPage />} />
+        <Route path="/groupware/attendance-late" element={<AttendanceIdLatePage />} />
+        <Route path="/groupware/daily-hours" element={<AttendanceIdDailyHoursPage />} />
+        <Route path="/groupware/work-integrated" element={<AttendanceIdIntegratedPage />} />
         <Route path="/groupware/crm" element={<CrmPage />} />
         <Route path="/groupware/cards" element={<BusinessCardPage />} />
         <Route path="/groupware/project" element={<ProjectPage />} />

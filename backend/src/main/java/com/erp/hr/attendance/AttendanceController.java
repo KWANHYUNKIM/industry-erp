@@ -34,19 +34,4 @@ public class AttendanceController {
                                      @Valid @RequestBody RecordRequest req) {
         return attendanceService.record(principal.getUsername(), req);
     }
-
-    @GetMapping("/today")
-    public AttendanceResponse today(@AuthenticationPrincipal UserPrincipal principal) {
-        return attendanceService.today(principal.getUsername());
-    }
-
-    @PostMapping("/clock-in")
-    public AttendanceResponse clockIn(@AuthenticationPrincipal UserPrincipal principal) {
-        return attendanceService.clockIn(principal.getUsername());
-    }
-
-    @PostMapping("/clock-out")
-    public AttendanceResponse clockOut(@AuthenticationPrincipal UserPrincipal principal) {
-        return attendanceService.clockOut(principal.getUsername());
-    }
 }

@@ -464,11 +464,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/groupware/AttendancePage.tsx": {
-  "inline": 7,
-  "color": 5,
-  "palette": 0
- },
  "pages/groupware/BusinessCardPage.tsx": {
   "inline": 18,
   "color": 3,

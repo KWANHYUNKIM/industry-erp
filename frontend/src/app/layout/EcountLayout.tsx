@@ -1055,18 +1055,17 @@ const MENU: TopMenu[] = [
             ],
           },
           { label: '업무일지', to: '/groupware/worklog' },
-          // 원본 그룹웨어의 출/퇴근 묶음은 다섯 개다. 우리 화면은 관리 > 근태관리에 있어서
-          // 새로 만들지 않고 같은 화면을 가리킨다.
+          // 원본 그룹웨어의 출/퇴근 묶음은 다섯 개다(2026-10-14 사이트맵). (ID) 현황 넷은 날마다 한 줄 목록이라
+          // 관리 > 근태관리의 사원별 집계 화면(/hr/…)과 달라 그룹웨어 화면을 따로 둔다(plans/그룹웨어/E070305.md).
+          // 원본에 없는 출/퇴근입력 · 출/퇴근조회(/hr/attendance-input · -list)는 메뉴에서만 뺐다 — 라우트는 그대로(관리 몫).
           {
             label: '출/퇴근',
             children: [
               { label: '출/퇴근기록부(ID)', to: '/groupware/attendance' },
-              { label: '출/퇴근입력', to: '/hr/attendance-input' },
-              { label: '출/퇴근조회', to: '/hr/attendance-list' },
-              { label: '출/퇴근현황(ID)', to: '/hr/attendance-status' },
-              { label: '지각현황(ID)', to: '/hr/attendance-late' },
-              { label: '일별근무시간(ID)', to: '/hr/daily-hours' },
-              { label: '출퇴근/근태/일정현황(ID)', to: '/hr/work-integrated' },
+              { label: '출/퇴근현황(ID)', to: '/groupware/attendance-status' },
+              { label: '지각현황(ID)', to: '/groupware/attendance-late' },
+              { label: '일별근무시간(ID)', to: '/groupware/daily-hours' },
+              { label: '출퇴근/근태/일정현황(ID)', to: '/groupware/work-integrated' },
             ],
           },
         ],
