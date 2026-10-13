@@ -1,0 +1,22 @@
+{
+  "about": "시리얼/로트No.내역조회(E040618) — 2026-10-03 원본: 한 줄은 구매 · 판매 전표의 시리얼/로트 줄이고 [전표구분] '구매' · [연결전표-No.] 를 찍는다. 그 줄은 그 전표에서만 고치고 지운다. 로트관리 품목(QA재고2-로트품목)을 만들어 로트No. QA2-L001 로 5개 구매 → 2개 판매 → 내역 두 줄 · 로트 재고 3 → 판매 수정(1개) → 로트 4 → 판매 지움 → 5 → 구매 지움 → 로트도 사라짐. 품목은 재고 이력이 남아 못 지워(409) 다음에 다시 쓴다(코드 QA2LOT01).",
+  "shots": [
+    {
+      "name": "구매 5 · 판매 2 → 내역조회 [구매 5.00 · 판매 2.00] + 연결전표 → 로트 3 → 수정 1 → 4 → 지우면 되돌림",
+      "path": "/quality/lot-tx-list",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => (r.status === 204 ? null : r.json())); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const base = it[0]; const item = it.find((x) => x.code === 'QA2LOT01') ?? await A('POST', '/items', { code: 'QA2LOT01', name: 'QA재고2-로트품목', unit: 'EA', category: base.category, unitPrice: 0, safetyStock: 0, lotManaged: true }); const c = pa[0], w = wh[0]; const lot = async () => (await A('GET', '/lots')).find((l) => l.lotNo === 'QA2-L001'); const pur = await A('POST', '/purchases', { partnerId: c.id, warehouseId: w.id, remark: 'QA재고2', lines: [{ itemId: item.id, quantity: 5, unitPrice: 1000, lotNo: 'QA2-L001' }] }); const s = await A('POST', '/sales', { partnerId: c.id, warehouseId: w.id, remark: 'QA재고2', lines: [{ itemId: item.id, quantity: 2, unitPrice: 2000, lotNo: 'QA2-L001' }] }); const l1 = await lot(); sessionStorage.setItem('lotq', JSON.stringify({ item: item.id, pur: pur.id, sale: s.id, purNo: pur.docNo, l1: l1 && Number(l1.stockQty), c: c.id, w: w.id })); return '품목 ' + item.id + ' 구매 ' + pur.docNo + ' 판매 ' + s.docNo + ' 로트 재고 ' + (l1 && l1.stockQty) })()",
+        "expect:JSON.parse(sessionStorage.getItem('lotq')).l1 === 3",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA2-L001') && tr.innerText.includes('구매') && tr.innerText.includes('5.00') && / -\\d+/.test(tr.cells[6].innerText))",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA2-L001') && tr.innerText.includes('판매') && tr.innerText.includes('2.00'))",
+        "expect:[...document.querySelectorAll('th')].map((t) => t.innerText.trim()).join('|').includes('전표구분|연결전표-No.|유효기한')",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('lotq')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const u = await fetch('/api/sales/' + x.sale, { method: 'PUT', headers: H, body: JSON.stringify({ partnerId: x.c, warehouseId: x.w, remark: 'QA재고2', lines: [{ itemId: x.item, quantity: 1, unitPrice: 2000, lotNo: 'QA2-L001' }] }) }); const l = (await (await fetch('/api/lots', { headers: H })).json()).find((l) => l.lotNo === 'QA2-L001'); const tx = (await (await fetch('/api/lots/transactions', { headers: H })).json()).filter((t) => t.lotNo === 'QA2-L001'); return u.ok && Number(l.stockQty) === 4 && tx.length === 2 })()",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('lotq')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/sales/' + x.sale, { method: 'DELETE', headers: H }); const l = (await (await fetch('/api/lots', { headers: H })).json()).find((l) => l.lotNo === 'QA2-L001'); return Number(l.stockQty) === 5 })()",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('lotq')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/purchases/' + x.pur, { method: 'DELETE', headers: H }); const l = (await (await fetch('/api/lots', { headers: H })).json()).find((l) => l.lotNo === 'QA2-L001'); const tx = (await (await fetch('/api/lots/transactions', { headers: H })).json()).filter((t) => t.lotNo === 'QA2-L001'); return !l && tx.length === 0 })()"
+      ]
+    }
+  ]
+}

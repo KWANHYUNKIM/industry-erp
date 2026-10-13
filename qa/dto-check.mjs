@@ -14,8 +14,13 @@
  *
  * <h3>재는 방법</h3>
  * 셋이 <b>모두</b> 맞을 때만 문제로 본다.
- *   1. 같은 stem 으로 {@code Create…Request} · {@code Update…Request} · {@code …Response}
- *      가 다 있다 (즉 사람이 등록·수정하는 마스터다. 조회 전용 DTO 는 건너뛴다)
+ *   1. 같은 stem 으로 {@code Create…Request} 와 {@code …Response} 가 있다
+ *      (즉 사람이 만드는 것이다. 조회 전용 DTO 는 건너뛴다)
+ *      <b>{@code Update…Request} 는 있으면 같이 본다.</b> 예전에는 그것까지 있어야만
+ *      쟀는데, 우리 큰 전표들은 수정도 {@code Create…Request} 를 그대로 받는다
+ *      (PUT /sales/{id} 가 CreateSalesRequest 를 받는다). 그 바람에 판매·구매·수주·발주·
+ *      견적·출하·생산 같은 <b>가장 큰 것들이 통째로 검사 밖</b>에 있었다 — 재는 마스터가
+ *      28개였고, 넓히니 55개다(2026-09-10).
  *   2. 그 stem 의 <b>엔티티에 저장되는 필드</b>다 ({@code @Column} 또는 {@code @JoinColumn})
  *      — 파생값·표시이름은 엔티티에 없으므로 여기서 걸러진다
  *   3. 두 요청 record 어디에도 없다
@@ -145,6 +150,68 @@ function resolveEntity(stem) {
   const ends = [...entities.keys()].filter((k) => k.endsWith(stem))
   return ends.length === 1 ? entities.get(ends[0]) : null
 }
+/**
+ * <b>그 stem 에서만</b> 사람이 정하지 않는 것. 이름을 위 SERVER_OWNED 에 넣으면
+ * <b>어느 엔티티에서든</b> 그 이름이 빠지므로(품목·거래처의 active 까지 안 재게 된다)
+ * 한 화면에서만 서버가 채우는 값은 여기 적는다.
+ */
+const OWNED_HERE = new Map([
+  ['Lot|useYn', '시리얼/로트No.등록 목록 · 수정 창 [사용중단/재사용] 전용 자리(POST /lots/use)에서 정한다 — 원본 생성 · 수정 창에는 사용구분 칸이 없다(2026-10-13 실측, plans/재고2/E040617.md)'],
+  ['Bill|salesCreated', '청구예정자료의 판매생성여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다(2026-10-13 실측)'],
+  ['Bill|accountingReflected', '청구예정자료의 회계반영여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다'],
+  ['ScheduleEvent|repeatGroup', '반복설정으로 펼쳐 넣을 때 서버가 묶음 값을 매긴다 — 등록 요청의 repeat 에서 나온다(원본 E070201 반복설정 창)'],
+  ['ScheduleEvent|repeatRule', '등록 요청 repeat.summary(원본 요약보기 글)를 서버가 펼친 줄마다 찍는다 — 우리는 고칠 때 반복을 다시 펼치지 않는다'],
+  ['SupplyUsage|repeatGroup', '공용품관리 반복설정으로 펼쳐 넣을 때 서버가 묶음 값을 매긴다 — 등록 요청의 repeat 에서 나온다(원본 E070204 반복설정 창, 2026-10-13 실측)'],
+  ['SupplyUsage|repeatRule', '등록 요청 repeat.summary(원본 요약보기 글)를 서버가 펼친 줄마다 찍는다 — 고칠 때 반복을 다시 펼치지 않는다(원본 수정 창도 글만 보인다)'],
+  ['Check|directEntry', '수령(발행)수표조회 [신규] 수표내역입력(POST /checks/direct)에서 들어온 수표에 서버가 켠다 — 수표관리 등록 창에는 그 칸이 없다(원본 거래유형 수표만증가 · 2026-10-13 실측)'],
+  ['Check|directInNo', '수표내역입력 전표 번호 — 서버가 (수표 종류, 날짜) 마다 check_entry_counters 로 매긴다(원본 [일자] \'2026/10/13 -5\', 지운 번호 재사용 없음 · 2026-10-13 실측)'],
+  ['Check|directOutNo', '수표내역입력 감소 전표 번호 — directInNo 와 같은 번호 줄에서 서버가 매긴다'],
+  ['Check|settleJournalId', '손을 떠날 때 회계전표 id — 입금보고서 · 지출결의서 · 입금 · 부도 분개를 만들 때 서버가 넣는다(수표조회 감소 줄 [회계전표일자-No.] 링크용)'],
+  ['Check|departmentId', '수표내역입력 줄(DirectLine · DirectEditLine, POST · PUT /checks/direct)에서 정한다 — 수표관리 등록(CreateCheckRequest)에는 원본도 부서 칸이 없다(2026-10-14 실측)'],
+  ['CostPeriod|generated', '원가생성/수정 원가계산 [생성](POST /cost-periods/{id}/generate)이 켠다 — 원본 기본등록 창에는 그 칸이 없다(2026-10-12 실측)'],
+  ['WorkPost|labels', '공지사항 하단 [라벨변경] 판의 전용 자리(PATCH …/{id}/labels)에서 정한다 — 원본 E200080 글쓰기 창에는 라벨 칸이 없다'],
+  ['Department|orgExcluded', '조직도등록 Fn › 미포함 · 하위부서추가 전용 자리(PUT …/{id}/org)에서 정한다 — 부서 등록 · 수정 창에는 원본도 그 칸이 없다'],
+  ['Department|headEmployeeId', '조직도등록 [부서장지정](PUT …/{id}/head) · [부서장설정](PUT …/heads) 전용 자리에서 정한다 — 부서 등록 · 수정 창에는 원본도 부서장 칸이 없다'],
+  ['Asset|assetNo', 'DocumentNoGenerator 가 매긴다'],
+  ['Assignment|slipDate', '인사발령입력 전표 머리(AssignmentSlipRequest)에서 정한다 — 단건 CreateAssignmentRequest 에는 없다'],
+  ['Assignment|slipNo', '전표 번호 — 그 일자 안에서 서버가 매긴다'],
+  ['Assignment|prevDepartment', '발령 전 부서 — 저장할 때 사원의 지금 부서를 서버가 찍는다'],
+  ['Assignment|prevJobTitle', '발령 전 직위 — 저장할 때 사원의 지금 직위를 서버가 찍는다'],
+  ['Assignment|hireKind', '인사발령입력 줄(AssignmentSlipLine)에서 정한다 — 단건 CreateAssignmentRequest 에는 없다'],
+  ['Asset|accumulatedDepreciation', '감가상각을 돌릴 때마다 서버가 쌓는다'],
+  ['Asset|disposalAmount', '처분 처리에서 찍는다 — 등록할 때 정하면 안 판 자산에 처분액이 생긴다'],
+  ['CollectData|channel', '원본 수집대상은 Email 하나뿐이다 — 고를 것이 없어 서버가 EMAIL 로 둔다'],
+  ['CollectData|builtIn', '문서마다 처음부터 있는 기본 줄(마이그레이션이 심는다) — 사람이 만들 수 없다'],
+  ['Bookmark|sortOrder', '새 북마크는 맨 뒤(max+1)로 서버가 매긴다. 차례 바꾸기는 통째로 다시 보내는 자리가 따로 있다'],
+  ['FieldWork|rejectReason', '반려할 때 찍는다(POST /{id}/reject)'],
+  ['Payslip|allowanceTotal', '수당 줄에서 더한다'],
+  ['Payslip|deductionTotal', '공제 줄에서 더한다'],
+  ['Payslip|netPay', '수당합 − 공제합이다'],
+  ['Lot|stockQty', '입출고가 쌓아 올린다'],
+  ['Lot|held', '보류는 전용 자리에서 바꾼다'],
+  ['MaterialIssue|issueNo', 'DocumentNoGenerator 가 매긴다'],
+  ['WorkOrder|lineNo', '전표 안 줄 차례 — 서버가 보낸 줄 순서대로 매긴다'],
+  ['WorkOrder|project', 'POST·PUT /work-orders/slips 의 SaveWorkOrderSlipRequest.projectId 가 정한다(CreateWorkOrderRequest 는 품목 하나짜리 옛 자리)'],
+  ['Production|workResultNo', 'SaveProductionSlipRequest.workResultNo 가 정한다 — 작업내역입력 [연결전표] → [신규] 로 연 생산입고'],
+  ['Production|lotNo', 'SaveProductionSlipRequest.lines[].lotNo 가 정한다(옛 CreateProductionRequest 는 작업지시 하나짜리 자리)'],
+  ['Production|lineNo', '전표 안 줄 차례 — 서버가 보낸 줄 순서대로 매긴다'],
+  ['Production|entryType', 'POST·PUT /productions/slips 의 SaveProductionSlipRequest 가 정한다(CreateProductionRequest 는 작업지시 하나짜리 옛 자리라 소모 유무로 I·II 를 서버가 정한다)'],
+  ['Production|subcontractUnitPrice', 'SaveProductionSlipRequest.lines[] 가 정한다 — 옛 CreateProductionRequest 는 외주처 품목단가로 서버가 깐다'],
+  ['Production|subcontractAmount', 'SaveProductionSlipRequest.lines[] 가 정한다(안 주면 단가 × 수량)'],
+  ['Production|subcontractVat', 'SaveProductionSlipRequest.lines[] 가 정한다(안 주면 합계의 10%, 원 미만 버림)'],
+  ['WorkResult|resultNo', 'DocumentNoGenerator 가 매긴다'],
+  ['Inspection|inspectionNo', 'DocumentNoGenerator 가 매긴다'],
+  ['Company|schemaName', '회사코드로 서버가 짓는다(co_0002 …)'],
+  ['Company|active', '회사를 내리는 자리를 아직 안 만들었다 — 만들 때 여기서 빼면 검사가 다시 잰다'],
+  ['PurchaseOrder|convertedPurchaseId', '구매로 넘길 때 서버가 잇는다'],
+  ['PurchaseOrder|requestProgress', '발주요청조회 [진행상태변경] 이 따로 정한다(PATCH /request-progress) — 입력 창에는 없다'],
+  ['Quotation|convertedOrderId', '수주로 넘길 때 서버가 잇는다'],
+  ['SalesPlan|planNo', 'DocumentNoGenerator 가 매긴다'],
+  ['SalesPlan|planDate', '[예상매출일자]에서 서버가 정한다 — 안 정하면 계획연월의 첫날이다'],
+  ['SalesPlan|lineNo', '전표 안 줄 차례 — 저장할 때 서버가 1부터 매긴다(여러 줄 전표, 2026-10-04)'],
+  ['SpecialPrice|active', '전용 엔드포인트(PATCH /{id}/active)로 바꾼다'],
+])
+
 let problems = 0
 let checked = 0
 
@@ -156,7 +223,8 @@ for (const file of javaFiles(ROOT, 'Dtos.java')) {
     const create = recs.get(`Create${stem}Request`)
     const update = recs.get(`Update${stem}Request`)
     // 등록·수정이 둘 다 있어야 '사람이 관리하는 마스터' 다. 조회 전용은 건너뛴다.
-    if (!create || !update) continue
+    /* 수정 전용 record 가 없어도 본다 — 큰 전표들은 수정도 Create…Request 를 그대로 받는다. */
+    if (!create) continue
     const stored = resolveEntity(stem)
     if (!stored) continue
 
@@ -169,12 +237,12 @@ for (const file of javaFiles(ROOT, 'Dtos.java')) {
      * 이걸 안 보면 응답 이름을 전부 '…Name' 으로 바꾸는 수밖에 없는데, 그건 검사에
      * 맞추려고 API 를 바꾸는 것이라 앞뒤가 뒤집힌다.
      */
-    const settable = new Set([...create, ...update])
+    const settable = new Set([...create, ...(update ?? [])])
     for (const f of [...settable]) {
       if (f.endsWith('Id')) settable.add(f.slice(0, -2))
     }
     const missing = fields.filter((f) =>
-      stored.has(f) && !settable.has(f) && !SERVER_OWNED.has(f))
+      stored.has(f) && !settable.has(f) && !SERVER_OWNED.has(f) && !OWNED_HERE.has(`${stem}|${f}`))
     if (missing.length > 0) {
       problems++
       console.log(`  ❌ ${stem} — 응답에 있고 엔티티에 저장되는데 등록·수정에서 정할 수 없다`)

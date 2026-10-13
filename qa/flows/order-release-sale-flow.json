@@ -1,0 +1,117 @@
+{
+  "about": "주문서 묶음 흐름(원본 E040204 · E040230 · E040212 2026-10-14 실측) — 주문 QAJ1P · QAJ1-Z12 3 × 300 = 990(납기일자 오늘, 저장하면 말 없이 닫힘) → 출고처리 2 → 미처리 잔량 1.00 → 처리 탭 판매 [입력] → 판매입력 2 × 300 = 600 · 60 · 660 → 처리 판매 칸 '일자-N' → 미판매현황 '3.00 · 1.00 · 300 · 30' → 출고처리된 주문 삭제는 '알림' 창 '주문출고처리된 내역' 으로 막힘 → 판매 삭제(판매 칸 '입력') → 처리취소 → 주문 삭제. 판매할 재고 2 는 처음에 구매(API)로 넣고 끝에 지운다. node qa/shot.mjs qa/flows/order-release-sale-flow.json",
+  "shots": [
+    {
+      "name": "주문서입력 — 납기일자 오늘, 3 × 300 = 990, 저장하면 말 없이 닫힌다",
+      "path": "/sales/orders",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const p = (await g('/api/partners')).find((x) => x.code === 'QAJ1P'); const it = (await g('/api/items')).find((x) => x.code === 'QAJ1-Z12'); const wh = (await g('/api/warehouses')).find((x) => x.code === 'WH-01'); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const r = await (await fetch('/api/purchases', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, warehouseId: wh.id, purchaseDate: d, taxable: true, remark: 'QA재고1 주문흐름 재고', lines: [{ itemId: it.id, quantity: 2, unitPrice: 200 }] }) })).json(); sessionStorage.setItem('ofl', JSON.stringify({ purchaseId: r.id, today: d })); return r.purchaseNo })()",
+        "click:신규(F2)",
+        "wait:500",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ofl')); return [...document.querySelectorAll('[role=dialog] input[type=date]')].filter((i) => i.value === S.today).length === 2 })()",
+        "click:매출처 선택",
+        "pickrow:QAJ1P",
+        "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QAJ1-Z12",
+        "set:[role=dialog] tbody input.text-right#0|3",
+        "set:[role=dialog] tbody input.text-right#1|300",
+        "expect:document.querySelector('[role=dialog] tfoot').innerText.includes('990')",
+        "click:출하창고 선택",
+        "pickrow:WH-01",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; const S = JSON.parse(sessionStorage.getItem('ofl')); S.orderId = o.id; S.orderNo = o.orderNo; S.label = o.orderDate.replace(/-/g, '/') + ' -' + Number(o.orderNo.split('-').pop()); sessionStorage.setItem('ofl', JSON.stringify(S)); return S.label })()",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ofl')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-특가')); return !!tr && tr.innerText.includes('990') && tr.innerText.includes('진행중') })()"
+      ]
+    },
+    {
+      "name": "주문서출고처리 — 2 출고 → 잔량 1.00 → 처리 탭 [입력] → 판매 2 × 300 = 660",
+      "path": "/sales/order-release",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ofl')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => [...t.querySelectorAll('a')].some((a) => a.textContent.trim() === S.label)); window.__set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; window.__row().querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:300",
+        "expect:window.__row().querySelectorAll('input')[1].value.replace(/[^0-9.]/g, '') === '3'",
+        "js:(() => { const i = window.__row().querySelectorAll('input')[1]; i.focus(); window.__set(i, '2'); i.blur(); return true })()",
+        "click:출고",
+        "wait:500",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('처리구분')",
+        "click:저장(F8)",
+        "wait:2000",
+        "expect:window.__row().cells[4].innerText.trim() === '1.00'",
+        "click:처리",
+        "wait:2000",
+        "expect:(() => { const r = window.__row(); return r.cells[5].innerText.trim() === '2.00' && r.cells[6].innerText.trim() === '입력' })()",
+        "js:(() => { [...window.__row().querySelectorAll('a')].find((a) => a.textContent.trim() === '입력').click(); return true })()",
+        "wait:3500",
+        "expect:location.pathname === '/sales/sell' && /2\\s+600\\s+60\\s+0\\s+660/.test(document.querySelector('tfoot').innerText)",
+        "click:저장(F8)",
+        "wait:3500",
+        "expect:location.pathname === '/sales/order-release' && /^\\d{4}\\/\\d{2}\\/\\d{2}-\\d+$/.test(window.__row()?.cells[6].innerText.trim() ?? '')"
+      ]
+    },
+    {
+      "name": "미판매현황 — 3.00 · 1.00 · 300 · 30",
+      "path": "/sales/unsold",
+      "steps": [
+        "wait:1500",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ofl')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.innerText.trim() === S.label); return !!tr && [...tr.cells].slice(2, 6).map((c) => c.innerText.trim()).join('|') === '3.00|1.00|300|30' })()",
+        "expect:[...document.querySelectorAll('tbody tr.ec-list-total td')].some((c) => / 계$/.test(c.innerText.trim())) && document.querySelector('tfoot').innerText.includes('총합계')"
+      ]
+    },
+    {
+      "name": "출고처리된 주문 삭제 — '알림' 창 · 주문출고처리된 내역",
+      "path": "/sales/orders",
+      "steps": [
+        "allowapi:409: /api/sales-orders/",
+        "wait:1500",
+        "js:window.confirm = () => true; (() => { const S = JSON.parse(sessionStorage.getItem('ofl')); [...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === S.label).click(); return true })()",
+        "wait:1200",
+        "clicklast:삭제",
+        "wait:1500",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ofl')); const d = [...document.querySelectorAll('[role=dialog]')].at(-1); const want = S.orderNo.replace(/^SN-(\\d{8})-0*(\\d+)$/, '$1-$2'); return d.innerText.includes('아래의 경우 처리가 불가능합니다.') && d.innerText.includes(want) && d.innerText.includes('주문출고처리된 내역') })()",
+        "clicklast:닫기"
+      ]
+    },
+    {
+      "name": "되돌리기 1 — 판매 삭제",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:2500",
+        "js:window.confirm = () => true; (() => { const S = JSON.parse(sessionStorage.getItem('ofl')); [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.orderNo)).cells[0].click(); return true })()",
+        "click:선택삭제",
+        "wait:2500",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ofl')); return ![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(S.orderNo)) })()"
+      ]
+    },
+    {
+      "name": "되돌리기 2 — 처리 판매 칸 '입력' → 처리취소",
+      "path": "/sales/order-release?tab=처리",
+      "steps": [
+        "wait:2000",
+        "js:window.confirm = () => true; (() => { const S = JSON.parse(sessionStorage.getItem('ofl')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => [...t.querySelectorAll('a')].some((a) => a.textContent.trim() === S.label)); return true })()",
+        "expect:window.__row().cells[6].innerText.trim() === '입력'",
+        "js:window.__row().querySelector('input[type=checkbox]').click(); true",
+        "click:처리취소",
+        "wait:2000",
+        "expect:!window.__row()"
+      ]
+    },
+    {
+      "name": "되돌리기 3 — 주문 삭제, 재고 구매도 지운다",
+      "path": "/sales/orders",
+      "steps": [
+        "wait:1500",
+        "js:window.confirm = () => true; (() => { const S = JSON.parse(sessionStorage.getItem('ofl')); [...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === S.label).click(); return true })()",
+        "wait:1200",
+        "clicklast:삭제",
+        "wait:2000",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ofl')); return !document.querySelector('[role=dialog]') && ![...document.querySelectorAll('tbody a')].some((a) => a.textContent.trim() === S.label) })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('ofl')); return (await fetch('/api/purchases/' + S.purchaseId, { method: 'DELETE', headers: H })).ok })()"
+      ]
+    }
+  ]
+}

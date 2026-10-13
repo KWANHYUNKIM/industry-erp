@@ -1,0 +1,63 @@
+package com.erp.trade.orderrelease.dto;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+public final class OrderReleaseDtos {
+    private OrderReleaseDtos() {}
+
+    /** 미처리 탭 한 줄 — 주문 줄과 아직 출고처리 안 한 잔량. */
+    public record PendingLine(
+            Long orderId, String orderNo, LocalDate orderDate, Long orderLineId,
+            Long partnerId, String partnerName, Long warehouseId, Long projectId,
+            Long itemId, String itemCode, String itemName, String spec,
+            BigDecimal orderQty, BigDecimal releasedQty, BigDecimal remainQty,
+            LocalDate dueDate, String remark, java.time.LocalDateTime orderUpdatedAt) {}
+
+    /** 처리 탭 한 줄. */
+    public record ReleaseRow(
+            Long id, String releaseNo, LocalDate releaseDate,
+            Long orderId, String orderNo, LocalDate orderDate,
+            String partnerName, String itemSummary, BigDecimal totalQty,
+            Long saleId, String saleNo, LocalDate saleDate) {}
+
+    /** 판매입력으로 넘길 때 — 거래처 · 창고 · 프로젝트 · 담당자와 줄(품목 · 수량 · 주문 단가). */
+    public record ReleaseDetail(
+            Long id, String releaseNo, LocalDate releaseDate,
+            Long orderId, String orderNo, LocalDate orderDate,
+            Long partnerId, Long warehouseId, Long projectId, Long employeeId, boolean taxable,
+            Long saleId, List<DetailLine> lines,
+            /** 처리 탭 [인쇄] '출 고 증' 의 창고 · 납품처(2026-10-13 실측: 창고 본사창고 · 납품처 QA재고1-거래처). */
+            String partnerName, String warehouseName) {}
+
+    /** itemCode · itemName — 출고증의 품목코드 · 품목명 열. */
+    public record DetailLine(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String itemCode, String itemName,
+                             /** '주문서출고처리수정' 창의 줄 — 처리 줄 id · 규격 · [추가수량](주문수량 − 다른 처리 건 수량). */
+                             Long lineId, String spec, BigDecimal addableQty) {}
+
+    /** '주문서출고처리수정' [저장(F8)] — 줄마다 수량. 0 도 받는다(원본 실측). */
+    public record UpdateReleaseRequest(@NotEmpty @Valid List<UpdateReleaseLine> lines) {}
+
+    public record UpdateReleaseLine(
+            @NotNull Long lineId,
+            @NotNull(message = "수량을 입력하세요.") @PositiveOrZero(message = "수량은 0 이상이어야 합니다.") BigDecimal quantity) {}
+
+    /** '출고등록' 창 [저장(F8)] — 일자와 고른 주문 줄의 출고수량. 처리구분은 '처리' 하나뿐이라 받지 않는다. */
+    public record CreateReleaseRequest(
+            @NotNull(message = "일자를 입력하세요.") LocalDate releaseDate,
+            @NotEmpty(message = "리스트에 선택된 자료가 없습니다.") @Valid List<ReleaseLineRequest> lines) {}
+
+    public record ReleaseLineRequest(
+            @NotNull Long orderLineId,
+            @NotNull(message = "출고수량을 입력하세요.") @Positive(message = "출고수량은 0보다 커야 합니다.") BigDecimal quantity) {}
+
+    /** 처리 탭 [판매] '입력' 으로 만든 판매를 건다. */
+    public record LinkSaleRequest(@NotNull Long saleId) {}
+}

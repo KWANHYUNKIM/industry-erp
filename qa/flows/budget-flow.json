@@ -1,0 +1,99 @@
+{
+  "about": "예산관리(월별예산조회 E020201 · 예산현황 E020202 · 예산-실적비교표 E020203 · 예산-실적대장 E020205) — 원본 2026-10-14 loginaa 실측 흐름(plans/회계2/E020201.md 4장)을 우리 811 복리후생비 · 101 현금으로: [예산계정설정] 811 → 예산입력 빈 줄 [입력] → 월별예산입력 10월 100,000 [적용(F8)] → 예산입력 합계 100,000 [저장(F8)](안내 없이 닫힘) → 목록 811 100,000 → 예산현황 2026/10 100,000 → 일반전표 차 811 11,000 / 대 101 11,000 · 적요 'QA회계2 예산' → 대장 실적 계 +11,000 · 전표 줄 11,000 · 비교표 10월 예산 100,000 · 실적 +11,000 · 차 → 전표 22,000 으로 수정 → 대장 +22,000 → 전표 삭제 → 대장 되돌림 → 예산 10월 0 → 목록 811 0(줄은 남는다) → 지움.",
+  "shots": [
+    {
+      "name": "월별예산조회 — 예산 +100,000(10월)",
+      "path": "/accounting/budget",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const call = async (m, p, b) => { const r = await fetch('/api' + p, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.status === 204 ? null : r.json() }; const y = new Date().getFullYear(); const acc = await call('GET', '/accounts'); const a811 = acc.find((a) => a.code === '811').id; const a101 = acc.find((a) => a.code === '101').id; await call('POST', '/budget-plans/delete', { year: y, accountIds: [a811] }); const rep = await call('GET', '/budget-plans/report?fromYear=' + y + '&toYear=' + y); sessionStorage.setItem('bud', JSON.stringify({ a811, a101, y })); return 'ok' })()",
+        "wait:1200",
+        "click:예산계정설정",
+        "wait:500",
+        "js:[...document.querySelectorAll('button[title=\"계정 선택\"]')].pop().click()",
+        "pickrow:811",
+        "click:예산입력",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('[role=dialog] thead th')].map((t) => t.innerText.trim()).join('|').endsWith('부서명|프로젝트명|예산')",
+        "click:입력",
+        "wait:500",
+        "expect:[...document.querySelectorAll('th')].some((t) => t.innerText.trim() === '1/4분기기준') && [...document.querySelectorAll('th')].some((t) => t.innerText.trim() === '상반기')",
+        "set:input[aria-label=\"10월\"]|100000",
+        "set:input[aria-label=\"적요\"]|QA회계2",
+        "expect:[...document.querySelectorAll('tr.ec-total')].some((tr) => tr.innerText.includes('예산총액') && tr.innerText.includes('100,000'))",
+        "click:적용(F8)",
+        "wait:400",
+        "expect:[...document.querySelectorAll('tfoot tr.ec-total')].some((tr) => tr.innerText.includes('합계') && tr.innerText.includes('100,000'))",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[1]?.innerText.trim() === '811') && Number(([...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[1]?.innerText.trim() === '811').cells[3]).innerText.replace(/,/g, '')) === 100000",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const call = async (m, p, b) => { const r = await fetch('/api' + p, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.status === 204 ? null : r.json() }; const s = JSON.parse(sessionStorage.getItem('bud')); const rep = await call('GET', '/budget-plans/report?fromYear=' + s.y + '&toYear=' + s.y); const mine = rep.actuals.filter((l) => l.accountId === s.a811); s.yb = mine.reduce((t, l) => t + Number(l.amount), 0); s.ob = mine.filter((l) => l.date.slice(5, 7) === '10').reduce((t, l) => t + Number(l.amount), 0); sessionStorage.setItem('bud', JSON.stringify(s)); return JSON.stringify(s) })()"
+      ]
+    },
+    {
+      "name": "예산현황 — 2026/10 100,000",
+      "path": "/accounting/budget/status",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('table.ec-report tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '811') && Number(([...document.querySelectorAll('table.ec-report tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '811').cells[12]).innerText.replace(/,/g, '')) === 100000 && Number(([...document.querySelectorAll('table.ec-report tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '811').cells[2]).innerText.replace(/,/g, '')) === 100000",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const call = async (m, p, b) => { const r = await fetch('/api' + p, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.status === 204 ? null : r.json() }; const s = JSON.parse(sessionStorage.getItem('bud')); const body = { entryDate: s.y + '-10-14', description: 'QA회계2 예산', lines: [{ accountId: s.a811, debit: 11000, description: 'QA회계2 예산' }, { accountId: s.a101, credit: 11000, description: 'QA회계2 예산' }] }; const j = await call(\"POST\", '/journals', body); if (j && j.id) s.je = j.id; sessionStorage.setItem('bud', JSON.stringify(s)); return 'je ' + s.je })()"
+      ]
+    },
+    {
+      "name": "예산-실적대장 — 전표 11,000",
+      "path": "/accounting/budget/ledger",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const t = [...[...document.querySelectorAll('table.ec-report')][1].querySelectorAll('tr.ec-total')].find((tr) => tr.cells[0].innerText.trim() === '복리후생비 / ' + JSON.parse(sessionStorage.getItem('bud')).y + '/ 실적 계'); return t && Number((t.cells[1]).innerText.replace(/,/g, '')) === JSON.parse(sessionStorage.getItem('bud')).yb + 11000 })()",
+        "expect:(() => { const t = [...[...document.querySelectorAll('table.ec-report')][0].querySelectorAll('tr.ec-total')].find((tr) => tr.cells[0].innerText.trim() === '복리후생비 예산 계'); return t && Number((t.cells[1]).innerText.replace(/,/g, '')) === 100000 })()",
+        "expect:[...[...document.querySelectorAll('table.ec-report')][1].querySelectorAll('tbody tr')].some((tr) => tr.cells[3]?.innerText.trim() === 'QA회계2 예산' && tr.cells[5]?.innerText.trim() === '11,000')"
+      ]
+    },
+    {
+      "name": "예산-실적비교표 — 10월 예산 · 실적 · 차",
+      "path": "/accounting/budget/compare",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('table.ec-report tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '811') && Number(([...document.querySelectorAll('table.ec-report tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '811').cells[32]).innerText.replace(/,/g, '')) === 100000 && Number(([...document.querySelectorAll('table.ec-report tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '811').cells[33]).innerText.replace(/,/g, '')) === JSON.parse(sessionStorage.getItem('bud')).ob + 11000 && Number(([...document.querySelectorAll('table.ec-report tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '811').cells[34]).innerText.replace(/,/g, '')) === 100000 - JSON.parse(sessionStorage.getItem('bud')).ob - 11000",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const call = async (m, p, b) => { const r = await fetch('/api' + p, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.status === 204 ? null : r.json() }; const s = JSON.parse(sessionStorage.getItem('bud')); const body = { entryDate: s.y + '-10-14', description: 'QA회계2 예산', lines: [{ accountId: s.a811, debit: 22000, description: 'QA회계2 예산' }, { accountId: s.a101, credit: 22000, description: 'QA회계2 예산' }] }; const j = await call(\"PUT\", '/journals/' + s.je, body); if (j && j.id) s.je = j.id; sessionStorage.setItem('bud', JSON.stringify(s)); return 'je ' + s.je })()"
+      ]
+    },
+    {
+      "name": "예산-실적대장 — 전표 22,000 으로 수정",
+      "path": "/accounting/budget/ledger",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const t = [...[...document.querySelectorAll('table.ec-report')][1].querySelectorAll('tr.ec-total')].find((tr) => tr.cells[0].innerText.trim() === '복리후생비 / ' + JSON.parse(sessionStorage.getItem('bud')).y + '/ 실적 계'); return t && Number((t.cells[1]).innerText.replace(/,/g, '')) === JSON.parse(sessionStorage.getItem('bud')).yb + 22000 })()",
+        "expect:(() => { const t = [...[...document.querySelectorAll('table.ec-report')][0].querySelectorAll('tr.ec-total')].find((tr) => tr.cells[0].innerText.trim() === '복리후생비 예산 계'); return t && Number((t.cells[1]).innerText.replace(/,/g, '')) === 100000 })()",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const call = async (m, p, b) => { const r = await fetch('/api' + p, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.status === 204 ? null : r.json() }; const s = JSON.parse(sessionStorage.getItem('bud')); await call('DELETE', '/journals/' + s.je); return 'del ' + s.je })()"
+      ]
+    },
+    {
+      "name": "예산-실적대장 — 전표 삭제 뒤 되돌림",
+      "path": "/accounting/budget/ledger",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const t = [...[...document.querySelectorAll('table.ec-report')][1].querySelectorAll('tr.ec-total')].find((tr) => tr.cells[0].innerText.trim() === '복리후생비 / ' + JSON.parse(sessionStorage.getItem('bud')).y + '/ 실적 계'); return t && Number((t.cells[1]).innerText.replace(/,/g, '')) === JSON.parse(sessionStorage.getItem('bud')).yb + 0 })()",
+        "expect:(() => { const t = [...[...document.querySelectorAll('table.ec-report')][0].querySelectorAll('tr.ec-total')].find((tr) => tr.cells[0].innerText.trim() === '복리후생비 예산 계'); return t && Number((t.cells[1]).innerText.replace(/,/g, '')) === 100000 })()"
+      ]
+    },
+    {
+      "name": "월별예산조회 — 예산 10월 0 으로(줄은 남음)",
+      "path": "/accounting/budget",
+      "steps": [
+        "wait:1500",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[1]?.innerText.trim() === '811').cells[2].querySelector('button').click()",
+        "wait:1200",
+        "click:100,000",
+        "wait:500",
+        "set:input[aria-label=\"10월\"]|",
+        "click:적용(F8)",
+        "wait:300",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[1]?.innerText.trim() === '811') && Number(([...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[1]?.innerText.trim() === '811').cells[3]).innerText.replace(/,/g, '')) === 0",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const call = async (m, p, b) => { const r = await fetch('/api' + p, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.status === 204 ? null : r.json() }; const s = JSON.parse(sessionStorage.getItem('bud')); await call('POST', '/budget-plans/delete', { year: s.y, accountIds: [s.a811] }); return 'cleaned' })()"
+      ]
+    }
+  ]
+}

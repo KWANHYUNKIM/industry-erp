@@ -1,53 +1,47 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
+import EcPeriodPicks, { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Lot, StockRow } from '../../api/types'
+import type { Lot, StockRow } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 II > 시리얼/로트No. > 품목vs시리얼재고수량비교 (이카운트 E041018)
- * 품목 단위 재고(창고 합계)와 그 품목의 로트재고 합계를 대조해 **불일치(차이)** 를 드러낸다.
- * 로트 추적 품목인데 차이가 있으면 로트 미부여 입출고가 있었다는 뜻 → 재고 신뢰도 점검용.
- * 데이터는 GET /api/stock + GET /api/lots 그대로(백엔드 무변경).
+ * 품목 재고(창고 합계)와 그 품목의 시리얼/로트 재고 합계를 품목마다 나란히 놓는다.
+ *
+ * <p>원본(2026-10-14 loginaa 실측):
+ * 조건 [비교기준] 시리얼/로트No.(기본) · 품목 — 시리얼/로트No. 면 로트 수량이 있는 품목만, 품목이면 품목 수량이 있는 품목만 찍는다
+ * (A001 1,597.00 | -1.00 | 1,598.00 은 둘 다, A003 5,373.00 | (빈칸) 은 품목 기준에만, F001 (빈칸) | 6.00 은 시리얼 기준에만).
+ * [기준일자] 금일 · [품목]. 격자 품목코드 · 품목명 · 규격 · 품목별수량 · 시리얼/로트수량 · 수량차이(= 품목 − 시리얼), 품목코드 차례,
+ * 0 은 빈칸, 끝에 '합계'(세 칸을 묶음) 줄. 아래 단추 인쇄 · Excel.
+ * 내역입력 구매 2(QA재고2-L02) → 시리얼/로트수량 +2 · 품목별수량 그대로 · 합계 325 → 327.
  */
 interface Row {
   itemId: number
   itemCode: string
   itemName: string
-  unit: string
-  itemStock: number   // 품목재고(창고 합계)
-  lotStock: number    // 로트재고 합계
-  lotCount: number    // 재고 있는 로트 수
-  diff: number        // itemStock - lotStock
+  spec: string
+  itemStock: number
+  lotStock: number
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
+const qty2 = (n: number) => (n ? n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '')
+const BASES = ['시리얼/로트No.', '품목'] as const
 
 export default function LotStockComparePage() {
-  /*
-   * 받아 온 자료를 <b>그대로 둔다.</b> 예전에는 load() 안에서 품목별로 세어 Row 만
-   * 남겼는데, 그러면 조건이 바뀌어도 다시 셀 수가 없다 — 원본이 두는 [창고] 조건을
-   * 달려면 <b>창고를 고를 때마다 다시 세야</b> 한다.
-   */
   const [stocks, setStocks] = useState<StockRow[]>([])
   const [lots, setLots] = useState<Lot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [diffOnly, setDiffOnly] = useState(false)
-  /* 원본 조건에 <b>[창고]</b> 가 있다(사본 실측). 재고도 로트도 창고를 달고 온다. */
-  /**
-   * 원본 조건 <b>[기준일자]</b> — 그 날 시점의 수량으로 견준다.
-   *
-   * <p>이 표는 "품목재고와 로트재고합이 어긋나 있나" 를 보는 것이라, <b>어긋나기 시작한
-   * 날</b>을 찾으려면 날짜를 되돌려 봐야 한다. 오늘 것만 볼 수 있으면 언제부터인지
-   * 알 수가 없다. <b>품목과 로트를 같은 날짜로</b> 되돌린다 — 한쪽만 되돌리면 있지도 않은
-   * 차이가 표에 가득 찬다.
-   */
+  const [base, setBase] = useState<typeof BASES[number]>('시리얼/로트No.')
+  /* [기준일자] — 그 날 시점으로 품목 · 로트를 같이 되돌린다(한쪽만 되돌리면 없는 차이가 생긴다). 빈칸 = 금일. */
   const [asOf, setAsOf] = useState('')
-  const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
+  /* [창고] — 대조표(ecount-form-fields)에 있는 조건. 고르면 그 창고의 품목 재고 · 로트만 다시 센다(창고 없는 로트는 빠진다). */
+  const [warehouse, setWarehouse] = useState('')
   const pickers = useCondPickers(['warehouses', 'items'])
 
   async function load() {
@@ -69,44 +63,31 @@ export default function LotStockComparePage() {
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [asOf])
 
   const rows = useMemo<Row[]>(() => {
-    const keep = (name: string | null) => !warehouse || (name ?? '').includes(warehouse)
     const map = new Map<number, Row>()
-    const ensure = (itemId: number, code: string, name: string, unit: string): Row => {
+    const ensure = (itemId: number, code: string, name: string, spec: string | null): Row => {
       let r = map.get(itemId)
-      if (!r) { r = { itemId, itemCode: code, itemName: name, unit, itemStock: 0, lotStock: 0, lotCount: 0, diff: 0 }; map.set(itemId, r) }
+      if (!r) { r = { itemId, itemCode: code, itemName: name, spec: spec ?? '', itemStock: 0, lotStock: 0 }; map.set(itemId, r) }
       return r
     }
-    // 로트가 있는 품목만 대상(로트 추적 품목)
-    for (const lot of lots) {
-      if (!keep(lot.warehouseName)) continue
-      const r = ensure(lot.itemId, lot.itemCode, lot.itemName, lot.unit)
-      r.lotStock += lot.stockQty
-      if (lot.stockQty > 0) r.lotCount += 1
-    }
-    // 품목재고(창고 합계)를 로트 추적 품목에만 더한다
-    for (const st of stocks) {
-      if (!keep(st.warehouseName)) continue
-      const r = map.get(st.itemId)
-      if (r) r.itemStock += st.quantity
-    }
-    return [...map.values()].map((r) => ({ ...r, diff: r.itemStock - r.lotStock }))
-      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff) || a.itemName.localeCompare(b.itemName))
-  }, [stocks, lots, warehouse])
+    const keep = (id: number | null) => !warehouse || String(id) === warehouse
+    for (const lot of lots) if (keep(lot.warehouseId)) ensure(lot.itemId, lot.itemCode, lot.itemName, lot.spec).lotStock += Number(lot.stockQty)
+    for (const st of stocks) if (keep(st.warehouseId)) ensure(st.itemId, st.itemCode, st.itemName, st.spec).itemStock += Number(st.quantity)
+    const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+    return [...map.values()]
+      .filter((r) => (base === '품목' ? r.itemStock !== 0 : r.lotStock !== 0))
+      .sort((a, b) => cmp(a.itemCode, b.itemCode))
+  }, [stocks, lots, base, warehouse])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
     return rows.filter((r) => {
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
-      if (item && !r.itemName.includes(item)) return false
-      if (diffOnly && r.diff === 0) return false
+      if (item && String(r.itemId) !== item) return false
       return true
     })
-  }, [rows, keyword, diffOnly, item])
+  }, [rows, keyword, item])
 
-  const stats = useMemo(() => ({
-    items: shown.length,
-    mismatched: shown.filter((r) => r.diff !== 0).length,
-  }), [shown])
+  const total = useMemo(() => shown.reduce((t, r) => ({ item: t.item + r.itemStock, lot: t.lot + r.lotStock }), { item: 0, lot: 0 }), [shown])
 
   return (
     <EcListShell
@@ -114,74 +95,74 @@ export default function LotStockComparePage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
+      actions={[{ label: '인쇄' }, { label: 'Excel' }]}
     >
-      {/* 원본 조건: <b>[창고]</b> — 창고를 고르면 그 창고의 재고와 로트만 다시 센다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        {/* 원본 차례: 비교기준 · <b>기준일자</b> · 창고 · 품목 (사본 실측). */}
-        <span>기준일자</span>
-        <input type="date" className="ec-input" value={asOf}
-               onChange={(e) => setAsOf(e.target.value)} style={{ width: 148 }} />
-        <span>창고</span>
-        <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
-                         value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
-        {/* 원본 조건 차례: … 창고 · <b>품목</b>. 검색어 칸이 품목 노릇을 하고 있었지만
-            이름이 없어 무엇으로 거르는 칸인지 화면만 보고는 알 수 없었다. */}
-        <span>품목</span>
-        <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
-                         value={item} onChange={setItem} items={pickers.items} />
-      </div>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      <ul className="ec-cond mb-[8px]">
+        {/* 원본 조건 차례: 비교기준 · 기준일자 · 품목 */}
+        <EcCond label="비교기준">
+          {BASES.map((b) => (
+            <label key={b} className="inline-flex items-center gap-[3px] mr-[10px]">
+              <input type="radio" name="lot-compare-base" checked={base === b} onChange={() => setBase(b)} /> {b}
+            </label>
+          ))}
+        </EcCond>
+        <EcCond label="기준일자">
+          <div className="flex items-center gap-[6px] flex-wrap">
+            <input type="date" className="ec-input w-[150px]" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
+          </div>
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
+                           value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={item} onChange={setItem} items={pickers.items} />
+        </EcCond>
+      </ul>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-          <input type="checkbox" checked={diffOnly} onChange={(e) => setDiffOnly(e.target.checked)} />
-          차이있는 품목만
-        </label>
-        <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>로트 추적 품목 기준. 차이 = 품목재고 − 로트재고합</span>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          대상품목 <b style={{ color: '#3c4553' }}>{stats.items}</b>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-          차이발생 <b style={{ color: stats.mismatched > 0 ? '#c60a2e' : '#1c6b32', fontSize: 14 }}>{stats.mismatched}</b>
-        </div>
-      </div>
-
-      <table className="w-full text-left">
+      {/* 원본 격자는 출력물 꼴 — 머리 12px 700 · 27.6(6px 3px 3px) · 본문 24.1(3px) · 합계 회색(243 · 243 · 243) 700(2026-10-14 실측). */}
+      <table className="ec-report w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            {/* 머리는 전역 규칙으로 가운데(원본 머리 가운데 · 700) — 정렬 클래스는 칸과 같게 둔다. */}
             <th>품목코드</th>
             <th>품목명</th>
-            <th style={{ textAlign: 'center' }}>단위</th>
-            <th style={{ textAlign: 'right' }}>품목재고</th>
-            <th style={{ textAlign: 'right' }}>로트재고합</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
-            <th style={{ textAlign: 'right' }}>로트수</th>
+            <th>규격</th>
+            <th className="text-right">품목별수량</th>
+            <th className="text-right">시리얼/로트수량</th>
+            <th className="text-right">수량차이</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
-              {rows.length === 0 ? '로트 추적 품목이 없습니다.' : '조건에 맞는 품목이 없습니다.'}
-            </td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r) => (
             <tr key={r.itemId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
-              <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
-              <td style={{ textAlign: 'right' }}>{num(r.itemStock)}</td>
-              <td style={{ textAlign: 'right' }}>{num(r.lotStock)}</td>
-              <td style={{ textAlign: 'right', fontWeight: r.diff !== 0 ? 700 : 400, color: r.diff === 0 ? '#8a929c' : r.diff > 0 ? '#c07a00' : '#c60a2e' }}>
-                {r.diff === 0 ? '0' : r.diff > 0 ? `+${num(r.diff)}` : num(r.diff)}
-              </td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.lotCount}</td>
+              <td>{r.spec}</td>
+              <td className="text-right">{qty2(r.itemStock)}</td>
+              <td className="text-right">{qty2(r.lotStock)}</td>
+              <td className="text-right">{qty2(r.itemStock - r.lotStock)}</td>
             </tr>
           ))}
         </tbody>
+        {!loading && shown.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={3} className="text-center">합계</td>
+              <td className="text-right">{qty2(total.item)}</td>
+              <td className="text-right">{qty2(total.lot)}</td>
+              <td className="text-right">{qty2(total.item - total.lot)}</td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </EcListShell>
   )

@@ -1,0 +1,40 @@
+{
+  "about": "통합회의록(원본 E200066) · 팀별회의록(E200068) 입력 창 — 원본 2026-10-14 실측: 통합회의록 차례 제목('2026/10/14 ' 미리) · 진행상태(진행중 · 완료, 처음 진행중) · 전달자 '전체' · 공지사항여부 Y/N(처음 N) · 참조자 '전체'. 완료로 저장하면 그 글 진행상태가 완료. 팀별회의록도 참조자 처음 '전체'. 끝에 지운다. node qa/shot.mjs qa/flows/minutes-form.json",
+  "shots": [
+    {
+      "name": "통합회의록 신규 — 차례 · 처음 값 · 완료로 저장",
+      "path": "/groupware/minutes-board",
+      "steps": [
+        "wait:800",
+        "click:신규(F2)",
+        "wait:500",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const t = [...d.querySelectorAll('.ec-form > li > .title')].map((x) => x.textContent.trim()); return t.slice(0, 5).join(',') === '제목,진행상태,전달자,공지사항여부,참조자' })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const radios = [...d.querySelectorAll('input[name=minutes-notice]')]; return d.querySelector('select[aria-label=\"진행상태\"]').value === 'IN_PROGRESS' && radios.length === 2 && !radios[0].checked && radios[1].checked })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const li = [...d.querySelectorAll('.ec-form > li')].find((l) => l.querySelector('.title')?.textContent.trim() === '참조자'); return li.querySelector('.form button').textContent.trim() === '전체' })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const i = d.querySelector('input[placeholder=\"제목\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-회의록상태'); i.dispatchEvent(new Event('input', { bubbles: true })); const s = d.querySelector('select[aria-label=\"진행상태\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'DONE'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:2000",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/work-posts?board=MINUTES', { headers: H })).json(); const p = ps.find((x) => x.title === 'QA그룹웨어-회의록상태'); return !!p && p.status === 'DONE' && !p.ccTo && !p.notice })()"
+      ]
+    },
+    {
+      "name": "팀별회의록 신규 — 참조자 처음 '전체'",
+      "path": "/groupware/meeting-board",
+      "steps": [
+        "wait:800",
+        "click:신규(F2)",
+        "wait:500",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const li = [...d.querySelectorAll('.ec-form > li')].find((l) => l.querySelector('.title')?.textContent.trim() === '참조자'); return li.querySelector('.form button').textContent.trim() === '전체' })()",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/minutes-board",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/work-posts?board=MINUTES', { headers: H })).json(); const out = []; for (const p of ps.filter((x) => x.title.startsWith('QA그룹웨어-회의록상태'))) out.push((await fetch('/api/work-posts/' + p.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "about": "재고 II 품질검사현황(E040623) ○집계 [집계대상] — 원본 2026-10-13 실측: 집계조건1 · 2 아래 [집계대상] 코드도움 후보가 수량 · 시료 · 적격 · 부적격 넷이고, 고른 값 열만 격자에 선다(안 고르면 넷 다). [시료]만 고르면 머리에 시료만 있고 적격 · 부적격은 없다.",
+  "shots": [
+    {
+      "name": "집계 → 집계대상 시료",
+      "path": "/quality/inspection-status",
+      "steps": [
+        "wait:1000",
+        "click:상세검색",
+        "wait:300",
+        "js:(() => { const l = [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '집계'); if (!l) return 'no-label:' + document.querySelectorAll('input[type=radio]').length; l.querySelector('input').click(); return true })()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('label')].some((l) => l.innerText.trim() === '시료')",
+        "js:(() => { const el = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '품목명[규격]')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, '품목명[규격]'); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '시료').querySelector('input').click(); true",
+        "click:조회",
+        "wait:1000",
+        "expect:(() => { const hs = [...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()); return hs.includes('시료') && !hs.includes('적격') && !hs.includes('부적격') })()"
+      ]
+    }
+  ]
+}

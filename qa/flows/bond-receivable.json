@@ -1,0 +1,89 @@
+{
+  "about": "회계 II 채권관리 — 채권조회 [신규(F2)] 로 증가 50,000 을 넣고(계정 108 Enter → 1089/108 외상매출금, 채권번호는 [Fn ▸ 코드생성]), 같은 번호로 감소 20,000(API) → 채권거래내역 50,000 · 20,000 · 30,000 · 채권현황 잔액 30,000 → [선택삭제] 로 둘 다 지운다. 원본 E060403 · E060404 · E060405 2026-10-12 실측과 같은 숫자.",
+  "shots": [
+    {
+      "name": "준비 — 거래처 하나(API)",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/partners').then((r) => { const p = r.body.find((x) => x.code); sessionStorage.setItem('bp', p.code); sessionStorage.setItem('bpId', String(p.id)); return p.code })",
+        "expect:!!sessionStorage.getItem('bp')"
+      ]
+    },
+    {
+      "name": "[신규(F2)] 증가 50,000 저장",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "click:신규(F2)",
+        "wait:800",
+        "js:window.__type = (sel, v) => { const el = document.querySelector(sel); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true }; true",
+        "js:window.__type('[role=dialog] input[aria-label=\"계정검색\"]', '108')",
+        "wait:300",
+        "js:window.__type('[role=dialog] input[aria-label=\"거래처검색\"]', sessionStorage.getItem('bp'))",
+        "wait:300",
+        "js:document.querySelector('button[aria-label=\"1줄 채권번호 Fn\"]').click(); true",
+        "click:코드생성",
+        "js:sessionStorage.setItem('bno', document.querySelector('input[aria-label=\"1줄 채권번호\"]').value); sessionStorage.getItem('bno')",
+        "expect:/^\\d{20}$/.test(sessionStorage.getItem('bno'))",
+        "set:input[aria-label=\"1줄 금액\"]|50000",
+        "set:input[aria-label=\"1줄 적요\"]|QA회계2 화면시험",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')) && t.innerText.includes('증가') && t.innerText.includes('50,000') && t.innerText.includes('채권내역'))"
+      ]
+    },
+    {
+      "name": "같은 번호로 감소 20,000(API)",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/accounts').then((a) => window.__api('POST', '/bonds', { side: 'RECEIVABLE', entryDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), direction: 'DECREASE', lines: [{ accountId: a.body.find((x) => x.code === '108').id, partnerId: Number(sessionStorage.getItem('bpId')), bondNo: sessionStorage.getItem('bno'), amount: 20000, memo: 'QA회계2 화면시험' }] })).then((r) => r.status)"
+      ]
+    },
+    {
+      "name": "채권거래내역 — 50,000 → 30,000",
+      "path": "/accounting/bonds/ar/ledger",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno') + ' 계') && t.innerText.includes('50,000') && t.innerText.includes('20,000') && t.innerText.includes('30,000'))"
+      ]
+    },
+    {
+      "name": "채권현황 — 잔액 30,000",
+      "path": "/accounting/bonds/ar/status",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')) && t.innerText.includes('30,000') && t.innerText.includes('QA회계2 화면시험'))"
+      ]
+    },
+    {
+      "name": "거래처채권관리대장 — 그 번호 증가 50,000 · 감소 20,000 · 잔액 30,000",
+      "path": "/accounting/bonds/ar/partner-ledger",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes(sessionStorage.getItem('bno'))).map((t) => t.innerText).join('|').includes('30,000')"
+      ]
+    },
+    {
+      "name": "거래처채권집계관리대장 — 그 번호 한 줄 50,000 · 20,000 · 30,000",
+      "path": "/accounting/bonds/ar/partner-summary",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')) && t.innerText.includes('50,000') && t.innerText.includes('20,000') && t.innerText.includes('30,000'))"
+      ]
+    },
+    {
+      "name": "[선택삭제] — 두 장 다 지운다",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes(sessionStorage.getItem('bno'))).forEach((t) => t.querySelector('input[type=checkbox]').click()); true",
+        "click:선택삭제",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:1000",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')))"
+      ]
+    }
+  ]
+}

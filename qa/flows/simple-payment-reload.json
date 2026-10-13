@@ -1,0 +1,36 @@
+{
+  "about": "간이지급명세서(E030116) — 사업 · 기타소득 서식은 만들 때의 기타원천세를 담아 둔다. 원본 2026-10-14 QA세무-강사: 사업 1,000,000(940909) · 기타 500,000(76) 으로 만들고 사업 200,000 · 기타 300,000(62) 을 더 넣어도 서식은 1,000,000 · 500,000, [새로불러오기] '직접 수정한 사항은 유지되지 않으며 …' 확인 뒤 사업 1,200,000 · 36,000 · 3,600 · 39,600 (한 줄), 기타는 76 · 79 만이라 500,000 그대로. 시험 자료(2091/10, QA세무)는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "만들 때 담기 · 새로불러오기",
+      "path": "/accounting/simple-payment",
+      "steps": [
+        "wait:1000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const d = await (await fetch('/api/simple-payment-statements', { headers: H })).json(); const ids = d.filter((s) => s.managerDept === 'QA세무' && s.payYear === 2091).map((s) => s.id); if (ids.length) await fetch('/api/simple-payment-statements/delete', { method: 'POST', headers: H, body: JSON.stringify(ids) }); const m = await (await fetch('/api/other-withholdings?month=2091-10', { headers: H })).json(); for (const w of m.rows.filter((w) => w.payeeName === 'QA세무-강사')) await fetch('/api/other-withholdings/' + w.id, { method: 'DELETE', headers: H }); const w = (b) => fetch('/api/other-withholdings', { method: 'POST', headers: H, body: JSON.stringify({ payDate: '2091-10-14', payeeName: 'QA세무-강사', description: 'QA세무', ...b }) }); await w({ incomeType: 'BUSINESS', incomeCode: '940909', grossAmount: 1000000 }); await w({ incomeType: 'OTHER', incomeCode: '76', grossAmount: 500000 }); const st = (kind) => fetch('/api/simple-payment-statements', { method: 'POST', headers: H, body: JSON.stringify({ kind, payYear: 2091, period: 10, reportDate: '2091-10-31', managerDept: 'QA세무', managerName: 'QA세무', managerPhone: '02-000-0000', submitter: 'DIRECT' }) }); await st('BUSINESS'); await st('OTHER'); await w({ incomeType: 'BUSINESS', incomeCode: '940909', grossAmount: 200000 }); await w({ incomeType: 'OTHER', incomeCode: '62', grossAmount: 300000 }); return 'setup' })()",
+        "js:(() => { location.reload(); return 'reload' })()",
+        "wait:2000",
+        "js:(() => { const tr = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('2091년 10 - 10월') && t.innerText.includes('사업소득')); [...tr.querySelectorAll('button')].find((b) => b.textContent.trim() === '조회').click(); return 'opened' })()",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tr')].some((t) => t.innerText.includes('940909') && t.innerText.includes('1,000,000') && t.innerText.includes('30,000'))",
+        "click:새로불러오기",
+        "wait:400",
+        "expect:document.body.innerText.includes('직접 수정한 사항은 유지되지 않으며')",
+        "js:(() => { [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '확인').click(); return 'ok' })()",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tr')].some((t) => t.innerText.includes('940909') && t.innerText.includes('1,200,000') && t.innerText.includes('36,000') && t.innerText.includes('39,600'))",
+        "clicklast:닫기",
+        "wait:500",
+        "js:(() => { const tr = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('2091년 10 - 10월') && t.innerText.includes('기타소득')); [...tr.querySelectorAll('button')].find((b) => b.textContent.trim() === '조회').click(); return 'opened' })()",
+        "wait:1200",
+        "expect:document.body.innerText.includes('소득코드 76(강연료 등), 79(자문료 등)')",
+        "click:새로불러오기",
+        "wait:400",
+        "js:(() => { [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '확인').click(); return 'ok' })()",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tr')].some((t) => /^1\\s+2091\\s+10\\s+76/.test(t.innerText.trim()) && t.innerText.includes('500,000')) && ![...document.querySelectorAll('tr')].some((t) => /\\s62\\s/.test(t.innerText))",
+        "clicklast:닫기",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const d = await (await fetch('/api/simple-payment-statements', { headers: H })).json(); const ids = d.filter((s) => s.managerDept === 'QA세무' && s.payYear === 2091).map((s) => s.id); await fetch('/api/simple-payment-statements/delete', { method: 'POST', headers: H, body: JSON.stringify(ids) }); const m = await (await fetch('/api/other-withholdings?month=2091-10', { headers: H })).json(); for (const w of m.rows.filter((w) => w.payeeName === 'QA세무-강사')) await fetch('/api/other-withholdings/' + w.id, { method: 'DELETE', headers: H }); return 'cleanup' })()"
+      ]
+    }
+  ]
+}

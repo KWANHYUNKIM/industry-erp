@@ -1,9 +1,9 @@
 package com.erp.config;
 
-import com.erp.trade.domain.OrderStage;
-import com.erp.trade.domain.OrderType;
-import com.erp.trade.repository.OrderStageRepository;
-import com.erp.trade.repository.OrderTypeRepository;
+import com.erp.trade.ordertype.OrderStage;
+import com.erp.trade.ordertype.OrderType;
+import com.erp.trade.ordertype.OrderStageRepository;
+import com.erp.trade.ordertype.OrderTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

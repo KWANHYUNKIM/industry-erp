@@ -289,6 +289,8 @@ public class GlobalExceptionHandler {
             Map.entry("sales_lines", "판매전표"),
             Map.entry("sales_orders", "주문서"),
             Map.entry("sales_order_lines", "주문서"),
+            Map.entry("order_releases", "주문서출고처리"),
+            Map.entry("order_release_lines", "주문서출고처리"),
             Map.entry("purchases", "구매전표"),
             Map.entry("purchase_lines", "구매전표"),
             Map.entry("purchase_orders", "발주서"),

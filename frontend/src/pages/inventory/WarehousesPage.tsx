@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
-import type { Warehouse } from '../../api/types'
+import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import EcHistoryButton from '../../components/EcHistory'
 import EcFileDrop from '../../components/EcFileDrop'
-import { useAuth } from '../../auth/AuthContext'
 import { useTableSort } from '../../utils/useTableSort'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const inputCls = 'ec-input w-full'
 
@@ -20,12 +21,28 @@ const KINDS = ['창고', '공장', '외주'] as const
 interface ProcessRow { id: number; name: string; active: boolean }
 interface PartnerRow { id: number; code: string; name: string; type: string }
 
+/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
+function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
+  return (
+    <label className="relative inline-block align-middle cursor-pointer">
+      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
+
 export default function WarehousesPage() {
-  const { companyName } = useAuth()
   const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /**
+   * 마지막 [저장] 이 창고명이 비어 막혔는가. 원본(E040102 2026-10-13 실측)은 글 없이
+   * 창고명 칸에 빨간 테두리를 두르고 탭에 빨간 '!' 를 단다. 저장하면 말 없이 창을 닫는다.
+   */
+  const [invalid, setInvalid] = useState(false)
   const [showForm, setShowForm] = useState(false)
   /** 원본 창고등록리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
@@ -85,6 +102,8 @@ export default function WarehousesPage() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    if (!form.name.trim()) { setInvalid(true); return }
+    setInvalid(false)
     try {
       const body = {
         name: form.name, location: form.location, kind: form.kind,
@@ -117,8 +136,22 @@ export default function WarehousesPage() {
    */
   async function toggleActive() {
     const targets = warehouses.filter((w) => checked.has(w.id))
-    if (targets.length === 0) { setError('사용중단하거나 되살릴 창고를 고르세요.'); return }
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
     const reviving = targets.every((w) => !w.active)
+    await setActive(targets, reviving)
+  }
+
+  /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(창고등록리스트 E040102 실측 — 거래처리스트와 같은 글). */
+  const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
+
+  /** 펼침의 [사용중단] · [재사용] — 고른 줄만. */
+  async function setActiveChecked(active: boolean) {
+    const targets = warehouses.filter((w) => checked.has(w.id))
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
+    await setActive(targets, active)
+  }
+
+  async function setActive(targets: Warehouse[], reviving: boolean) {
     setError('')
     const results = await Promise.allSettled(targets.map((w) => api.put(`/warehouses/${w.id}`, {
       name: w.name, location: w.location, kind: w.kind,
@@ -131,14 +164,39 @@ export default function WarehousesPage() {
     if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
   }
 
-  async function remove(w: Warehouse) {
-    if (!confirm(`창고 '${w.name}'을(를) 삭제할까요?`)) return
+  /**
+   * 원본은 줄마다 [삭제] 가 없다 — 체크한 줄을 [사용중단/재사용 ▴] 펼침(사용중단 · 삭제 · 재사용)의 [삭제] 로 지운다.
+   * 확인 창 '삭제하겠습니까?', 지운 뒤에는 말 없이 목록만 다시 그린다(거래처리스트와 같은 틀).
+   */
+  async function removeChecked() {
+    const targets = warehouses.filter((w) => checked.has(w.id))
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     try {
-      await api.delete(`/warehouses/${w.id}`)
-      load()
+      for (const w of targets) await api.delete(`/warehouses/${w.id}`)
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
+    setChecked(new Set())
+    load()
+  }
+
+  /** 수정 창의 [사용중단/재사용] — 열어 둔 창고 하나를 뒤집고 창을 닫는다. */
+  async function toggleOne(id: number) {
+    const w = warehouses.find((x) => x.id === id)
+    if (!w) return
+    await setActive([w], !w.active)
+    setShowForm(false)
+    setEditId(null)
+  }
+
+  /**
+   * 원본 [신규] 는 창고코드에 다음 번호를 채운다(loginaa: 00000 · 00001 이 있으면 00002 — 자릿수를 지킨다).
+   * 다섯 자리 숫자 코드 중 가장 큰 것 + 1, 없으면 00001.
+   */
+  function nextCode() {
+    const nums = warehouses.map((w) => w.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
+    return String(nums.length ? Math.max(...nums) + 1 : 1).padStart(5, '0')
   }
 
 
@@ -161,46 +219,54 @@ export default function WarehousesPage() {
 
   return (
     <EcListShell
-      title="창고등록 리스트"
-      onNew={() => { setEditId(null); setForm({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }); setShowForm(true) }}
+      title="창고등록리스트"
+      onNew={() => { setEditId(null); setInvalid(false); setForm({ code: nextCode(), name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }); setShowForm(true) }}
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
-                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
+                /* 원본 펼침: 사용중단 · 삭제 · 재사용(E040102 실측). */
+                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive, menu: [
+                  { label: '사용중단', onClick: () => setActiveChecked(false) },
+                  { label: '삭제', onClick: removeChecked },
+                  { label: '재사용', onClick: () => setActiveChecked(true) },
+                ] },
                 { label: 'Excel' },
                 { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
-      <Modal open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
+      <Modal error={error} open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>
-            {editId ? '창고 수정' : '새 창고 등록'}
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">
+            {editId ? '창고수정' : '창고등록'}
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">창고코드 *</label>
+              <label className="mb-1 block text-sm text-ec-label">창고코드 *</label>
               {/* 코드는 전표가 그 값으로 묶여 있어 만들 때만 정한다(거래처·품목과 같다). */}
               <input className={inputCls} value={form.code} disabled={editId != null}
                      title={editId != null ? '전표가 코드로 묶여 있어 수정할 수 없습니다.' : undefined}
                      onChange={(e) => setForm({ ...form, code: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">창고명 *</label>
-              <input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <label className="mb-1 block text-sm text-ec-label">창고명 *</label>
+              <input className={`${inputCls} ${invalid && !form.name.trim() ? 'border-[color:var(--ec-text-danger)]' : ''}`}
+                     aria-invalid={invalid && !form.name.trim()} placeholder="창고명"
+                     value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">위치</label>
+              <label className="mb-1 block text-sm text-ec-label">위치</label>
               <input className={inputCls} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">구분</label>
+              <label className="mb-1 block text-sm text-ec-label">구분</label>
               <select className={inputCls} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                {KINDS.map((k) => <option key={k}>{k}</option>)}
+                {/* 원본 이름표: 창고 · 공장 · 공장(외주비관리). 값은 그대로 '외주'. */}
+                {KINDS.map((k) => <option key={k} value={k}>{k === '외주' ? '공장(외주비관리)' : k}</option>)}
               </select>
             </div>
             {/* 구분에 맞는 칸만 낸다. 창고인데 생산공정을 고르게 두면 뜻 없는 값이 쌓인다. */}
             {form.kind === '공장' && (
               <div>
-                <label className="mb-1 block text-sm text-slate-600">생산공정</label>
+                <label className="mb-1 block text-sm text-ec-label">생산공정</label>
                 {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
                 <CodePickerField label="생산공정" hideLabel fill placeholder="생산공정"
                                  emptyLabel="선택 안 함"
@@ -210,7 +276,7 @@ export default function WarehousesPage() {
             )}
             {form.kind === '외주' && (
               <div>
-                <label className="mb-1 block text-sm text-slate-600">외주거래처 *</label>
+                <label className="mb-1 block text-sm text-ec-label">외주거래처 *</label>
                 {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
                 <CodePickerField label="외주거래처 *" hideLabel fill placeholder="외주거래처"
                                  emptyLabel="선택하세요"
@@ -219,15 +285,22 @@ export default function WarehousesPage() {
               </div>
             )}
           </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="ec-btn ec-btn-primary">등록</button>
+          {/* 원본: 신규 저장(F8) · 다시 작성 · 웹자료올리기 · 닫기 / 수정 저장(F8) · 다시 작성 · 사용중단/재사용 · 닫기 · H(이력). */}
+          <div className="mt-[12px] flex justify-end gap-[4px]">
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setForm((f) => ({ ...f, name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }))}>다시 작성</button>
+            {editId != null
+              ? <button type="button" className="ec-btn" onClick={() => toggleOne(editId)}>사용중단/재사용</button>
+              : <button type="button" className="ec-btn" onClick={() => setWebOpen(true)}>웹자료올리기</button>}
+            <button type="button" className="ec-btn" onClick={() => { setShowForm(false); setEditId(null) }}>닫기</button>
+            <EcHistoryButton target="WAREHOUSE" id={editId} last />
           </div>
         </form>
       )}</Modal>
 
       <div className="overflow-x-auto">
       {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>사용구분</span>
         <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
           <option>전체</option><option>사용</option><option>중단</option>
@@ -237,47 +310,39 @@ export default function WarehousesPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34, textAlign: 'center' }}>
-                <input type="checkbox"
-                       checked={warehouses.length > 0 && warehouses.every((w) => checked.has(w.id))}
-                       onChange={() => setChecked(
-                         warehouses.every((w) => checked.has(w.id)) ? new Set() : new Set(warehouses.map((w) => w.id)),
-                       )} />
+              <th className="w-[34px] text-center">
+                <NumCheck no="" label="전체 선택"
+                          on={warehouses.length > 0 && warehouses.every((w) => checked.has(w.id))}
+                          onChange={() => setChecked(
+                            warehouses.every((w) => checked.has(w.id)) ? new Set() : new Set(warehouses.map((w) => w.id)),
+                          )} />
               </th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('창고코드')}>창고코드 {sort.mark('창고코드')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('창고명')}>창고명 {sort.mark('창고명')}</th>
-              <th style={{ width: 70, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
-              <th style={{ textAlign: 'center', width: 120, cursor: 'pointer' }} onClick={() => sort.toggle('생산공정명')}>생산공정명 {sort.mark('생산공정명')}</th>
-              <th style={{ textAlign: 'center', width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('외주거래처명')}>외주거래처명 {sort.mark('외주거래처명')}</th>
-              <th>위치</th>
-              <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
-              {/*
-                원본 창고등록리스트의 마지막 열 [추가사업장명]. 사본에서는 모든 창고가
-                <b>본 사업장(주식회사 팜인)</b> 하나로 찍혀 있다.
-                우리에겐 추가사업장 마스터가 없다 — 그래서 지어내지 않고 <b>로그인한 회사</b>를
-                그대로 적는다. 추가사업장을 만들면 그때 이 칸이 갈라진다.
-              */}
-              <th style={{ textAlign: 'center', width: 150 }}>추가사업장명</th>
-              <th>관리</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('창고코드')}>창고코드 {sort.mark('창고코드')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('창고명')}>창고명 {sort.mark('창고명')}</th>
+              <th className="w-[70px] text-center cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
+              <th className="text-center w-[120px] cursor-pointer" onClick={() => sort.toggle('생산공정명')}>생산공정명 {sort.mark('생산공정명')}</th>
+              <th className="text-center w-[140px] cursor-pointer" onClick={() => sort.toggle('외주거래처명')}>외주거래처명 {sort.mark('외주거래처명')}</th>
+              {/* 원본 창고등록리스트 열(loginaa E040102 2026-10-13 실측): 창고코드 · 창고명 · 구분 · 생산공정명 · 외주거래처명 · 사용. 위치 · 추가사업장명 · 관리 열은 없다. */}
+              <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
-              shown.map((w) => (
-                <tr key={w.id} style={{ color: w.active ? undefined : '#9aa1ab' }}>
-                  <td style={{ textAlign: 'center' }}>
-                    <input type="checkbox" checked={checked.has(w.id)} onChange={() => setChecked((prev) => {
+              shown.map((w, i) => (
+                <tr key={w.id} style={{ color: w.active ? undefined : 'var(--ec-text-hint)' }}>
+                  <td className="text-center">
+                    <NumCheck no={i + 1} label="선택" on={checked.has(w.id)} onChange={() => setChecked((prev) => {
                       const next = new Set(prev)
                       if (next.has(w.id)) next.delete(w.id); else next.add(w.id)
                       return next
                     })} />
                   </td>
                   {/* 원본은 코드·이름을 눌러 그 창고를 연다(사본 실측: 두 칸이 링크다). */}
-                  <td style={{ fontFamily: 'monospace' }}>
+                  <td>
                     <button type="button" onClick={() => openEdit(w)}
                             style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
                       {w.code}
@@ -289,22 +354,18 @@ export default function WarehousesPage() {
                       {w.name}
                     </button>
                   </td>
-                  <td style={{ textAlign: 'center', color: w.kind === '창고' ? '#5a626e' : 'var(--ec-blue-dark)', fontWeight: w.kind === '창고' ? 400 : 700 }}>
+                  <td style={{ textAlign: 'center', color: w.kind === '창고' ? 'var(--ec-label)' : 'var(--ec-blue-dark)', fontWeight: w.kind === '창고' ? 400 : 700 }}>
                     {w.kind}
                   </td>
                   {/* 이름은 화면이 붙인다 — 서버는 id 만 준다(inventory 가 다른 모듈을 참조할 수 없다). */}
-                  <td style={{ textAlign: 'center', color: '#5a626e' }}>
+                  <td className="text-center text-ec-label">
                     {processes.find((pr) => pr.id === w.processId)?.name ?? ''}
                   </td>
-                  <td style={{ textAlign: 'center', color: '#5a626e' }}>
+                  <td className="text-center text-ec-label">
                     {partners.find((pt) => pt.id === w.outsourcingPartnerId)?.name ?? ''}
                   </td>
-                  <td>{w.location ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}>{w.active ? 'YES' : 'NO'}</td>
-                  <td style={{ textAlign: 'center', color: '#5a626e' }}>{companyName ?? ''}</td>
-                  <td>
-                    <button onClick={() => remove(w)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-                  </td>
+                  {/* 원본은 'Yes' · 'No'(거래처리스트의 YES 와 다르다). */}
+                  <td className="text-center">{w.active ? 'Yes' : 'No'}</td>
                 </tr>
               ))
             )}
@@ -323,21 +384,21 @@ export default function WarehousesPage() {
         return (
           <div onClick={() => setGroupOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 560, maxWidth: '92vw', maxHeight: '84vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
                 <span>계층그룹 · 창고 위치별 분류</span>
                 <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setGroupOpen(false)}>닫기</button>
               </div>
-              <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
-                <p style={{ margin: '0 0 8px', color: '#5a626e' }}>등록된 창고를 <b>위치</b> 기준으로 묶어 보여줍니다. 총 {warehouses.length}개 · {groups.size}개 그룹</p>
+              <div className="p-[14px] text-[12.5px] text-ec-text">
+                <p className="mt-0 mx-0 mb-[8px] text-ec-label">등록된 창고를 <b>위치</b> 기준으로 묶어 보여줍니다. 총 {warehouses.length}개 · {groups.size}개 그룹</p>
                 {Array.from(groups.entries()).map(([g, list]) => (
-                  <div key={g} style={{ marginBottom: 10, border: '1px solid #e6eaef', borderRadius: 3 }}>
-                    <div style={{ padding: '6px 10px', background: '#f5f8ff', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{g} <span style={{ color: '#8a929c', fontWeight: 400 }}>({list.length})</span></div>
-                    <div style={{ padding: '6px 10px', lineHeight: 1.8 }}>
-                      {list.map((w) => <span key={w.id} style={{ display: 'inline-block', marginRight: 10, color: '#3c4553' }}>[{w.code}] {w.name}</span>)}
+                  <div key={g} className="mb-[10px] border border-ec-line-soft border-solid rounded-[3px]">
+                    <div style={{ padding: '6px 10px', background: '#f5f8ff', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{g} <span className="text-ec-hint font-normal">({list.length})</span></div>
+                    <div className="py-[6px] px-[10px] leading-[1.8]">
+                      {list.map((w) => <span key={w.id} className="inline-block mr-[10px] text-ec-text">[{w.code}] {w.name}</span>)}
                     </div>
                   </div>
                 ))}
-                <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#c07a00' }}>* 사용자 정의 그룹/계층 저장은 백엔드 미연동입니다. 현재는 위치값 기준 분류만 제공합니다.</p>
+                <p className="mt-[4px] mx-0 mb-0 text-[11.5px] text-ec-warn">* 사용자 정의 그룹/계층 저장은 백엔드 미연동입니다. 현재는 위치값 기준 분류만 제공합니다.</p>
               </div>
             </div>
           </div>
@@ -347,26 +408,26 @@ export default function WarehousesPage() {
       {webOpen && (
         <div onClick={() => setWebOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 520, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>웹자료올리기 · 창고 대량 등록</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setWebOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
-              <p style={{ margin: '0 0 8px' }}>엑셀/CSV 파일로 창고를 한 번에 등록하는 기능입니다. 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text">
+              <p className="mt-0 mx-0 mb-[8px]">엑셀/CSV 파일로 창고를 한 번에 등록하는 기능입니다. 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
               {/* 원본 [웹자료올리기] 도 끌어다 놓을 수 있다. 파일 선택 버튼은 그대로 둔다. */}
               <EcFileDrop
                 hint="여기에 파일 놓기 (엑셀·CSV)"
                 onFiles={(fs) => onPickFile({ target: { files: fs } } as unknown as React.ChangeEvent<HTMLInputElement>)}
               />
               {webFile && (
-                <div style={{ marginTop: 10, border: '1px solid #e6eaef', borderRadius: 3, padding: 10, background: '#f9fbfd' }}>
-                  <div><b>{webFile.name}</b> · 데이터 <b style={{ color: 'var(--ec-blue-dark)' }}>{webFile.total.toLocaleString()}</b>행 인식</div>
-                  {webFile.head.length > 0 && <div style={{ marginTop: 4, color: '#5a626e' }}>헤더: {webFile.head.join(' · ')}</div>}
+                <div className="mt-[10px] border border-ec-line-soft border-solid rounded-[3px] p-[10px] bg-ec-page">
+                  <div><b>{webFile.name}</b> · 데이터 <b className="text-ec-navy">{webFile.total.toLocaleString()}</b>행 인식</div>
+                  {webFile.head.length > 0 && <div className="mt-[4px] text-ec-label">헤더: {webFile.head.join(' · ')}</div>}
                 </div>
               )}
-              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="mt-[12px] flex items-center gap-[8px]">
                 <button className="ec-btn" disabled title="서버 업로드 API 미구현" style={{ opacity: .55, cursor: 'default' }}>업로드 실행 (백엔드 미연동)</button>
-                <span style={{ fontSize: 11.5, color: '#c07a00' }}>* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
+                <span className="text-[11.5px] text-ec-warn">* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
               </div>
             </div>
           </div>

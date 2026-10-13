@@ -1,221 +1,241 @@
-import { useEffect, useState } from 'react'
-import { api, extractErrorMessage } from '../../api/client'
-import type { ManagementItem } from '../../api/types'
+import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import EcHistoryButton from '../../components/EcHistory'
 import { useTableSort } from '../../utils/useTableSort'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { api, extractErrorMessage } from '../../api/client'
+import type { ManagementItem } from '../../types/api'
+import { EcCond } from '../../components/EcStatusPanel'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
-/** 재고 기초등록 > 관리항목등록 — 실제 CRUD 연동 */
+/** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서 · 창고 · 프로젝트 리스트와 같은 글). */
+const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
+
+/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
+function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
+  return (
+    <label className="relative inline-block align-middle cursor-pointer">
+      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
+
+/**
+ * 재고 I › 기초등록 › <b>관리항목등록</b> (원본 E040104, 화면 제목 '관리항목리스트').
+ *
+ * <p>2026-10-14 loginaa 에서 등록 · 수정 · 삭제해 본 그대로:
+ * <ul>
+ *   <li>격자: 번호 · 관리항목코드 · 관리항목명 · 사용(Yes). 코드 글자 순(*01 다음 00001). 머리 400 · 34.7, 본문 29.7.
+ *       버튼 신규(F2) · 사용중단/재사용 ▲(사용중단 · 삭제 · 미사용코드조회 · 재사용) · Excel · 웹자료올리기.</li>
+ *   <li>Search(F3) 조건: 관리항목코드 · 관리항목명 · 사용구분(전체 · <b>사용</b> · 사용중단) · 기타 수정일자순(정렬).</li>
+ *   <li>[신규(F2)] '관리항목등록' 창: 관리항목코드(다음 번호 00001 꼴 — 다섯 자리 숫자 코드 중 가장 큰 것 + 1) · 관리항목명.
+ *       버튼 저장(F8) · 다시 작성 · 닫기. 빈 관리항목명은 글 없이 빨간 테두리. 있는 코드면 '이미 관리항목등록에 존재하는 코드입니다.'
+ *       저장하면 말 없이 닫히고 목록에 붙는다.</li>
+ *   <li>코드 · 이름을 누르면 '관리항목수정' 창 — 코드가 글자로 잠기고 저장(F8) · 다시 작성 · 사용중단/재사용 ▲(사용중단 · 삭제) · 닫기 · H.
+ *       H 는 마지막으로 고친 때 한 줄(창고 · 부서 · 프로젝트와 같다).</li>
+ *   <li>리스트 삭제 확인 '삭제하겠습니까?'.</li>
+ * </ul>
+ * 원본에 없는 [설명] 은 칸 · 열에서 뺐다(서버 값은 그대로 둔다). 미사용코드조회 · 웹자료올리기 · 수정일자순은 아직 없다.
+ */
 export default function ManageItemsPage() {
   const [rows, setRows] = useState<ManagementItem[]>([])
-  /** 고치는 중인 관리항목. */
-  const [editId, setEditId] = useState<number | null>(null)
-  /** 원본 관리항목리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
-  const [checked, setChecked] = useState<Set<number>>(new Set())
-  const [keyword, setKeyword] = useState('')
-  /*
-   * 원본 관리항목등록 조건 차례: <b>관리항목코드</b> · 관리항목명 · 사용구분.
-   * 검색상자는 코드와 이름을 <b>한꺼번에</b> 훑어서, 코드로만 좁힐 수가 없었다.
-   */
-  const [codeCond, setCodeCond] = useState('')
-  const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ code: '', name: '', description: '' })
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [quick, setQuick] = useState('')
+  const [cond, setCond] = useState<{ code: string; name: string; use: 'ALL' | 'Y' | 'N' }>({ code: '', name: '', use: 'Y' })
+  /** 마지막 [저장] 이 관리항목명이 비어 막혔는가 — 원본은 글 없이 그 칸만 빨갛다. */
+  const [invalid, setInvalid] = useState(false)
+  const tableRef = useRef<HTMLTableElement>(null)
 
-  async function load() {
-    setLoading(true)
-    try {
-      const r = await api.get<ManagementItem[]>('/management-items')
-      setRows(r.data)
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+  const [formOpen, setFormOpen] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [editId, setEditId] = useState<number | null>(null)
+  const [code, setCode] = useState('')
+  const [name, setName] = useState('')
+  const [editMenu, setEditMenu] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  function load() {
+    setError('')
+    api.get<ManagementItem[]>('/management-items').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
-
   useEffect(() => { load() }, [])
 
-  /**
-   * 원본처럼 목록에서 눌러 연다. <b>수정이 아예 없었다</b> — 이름을 잘못 넣으면
-   * 지우고 다시 만들어야 했고, 품목이 그 관리항목을 물고 있으면 지울 수도 없었다.
-   */
-  function openEdit(m: ManagementItem) {
-    setEditId(m.id)
-    setForm({ code: m.code, name: m.name, description: m.description ?? '' })
-    setShowForm(true)
+  function openNew() {
+    setEditId(null); setFormError(''); setInvalid(false); setName(''); setEditMenu(false)
+    // 원본 다음 번호: 다섯 자리 숫자 코드 중 가장 큰 것 + 1(20150101 같은 여덟 자리가 있어도 00001 부터)
+    const max = rows.map((r) => (/^[0-9]{5}$/.test(r.code) ? Number(r.code) : 0)).reduce((a, b) => Math.max(a, b), 0)
+    setCode(String(max + 1).padStart(5, '0'))
+    setFormOpen(true)
   }
 
-  async function submit() {
-    setError('')
-    if (!form.name.trim()) return setError('관리항목명을 입력하세요.')
+  function openEdit(m: ManagementItem) {
+    setEditId(m.id); setFormError(''); setInvalid(false); setCode(m.code); setName(m.name); setEditMenu(false)
+    setFormOpen(true)
+  }
+
+  async function save(ev?: React.FormEvent) {
+    ev?.preventDefault()
+    if (!name.trim()) { setInvalid(true); return }
+    setInvalid(false)
     try {
       if (editId) {
-        /* 코드는 품목이 그 값으로 묶여 있어 만들 때만 정한다. */
-        await api.put(`/management-items/${editId}`, {
-          name: form.name,
-          description: form.description || undefined,
-          active: rows.find((r) => r.id === editId)?.active,
-        })
+        const cur = rows.find((r) => r.id === editId)
+        await api.put(`/management-items/${editId}`, { name: name.trim(), description: cur?.description ?? undefined, active: cur?.active })
       } else {
-        await api.post('/management-items', {
-          code: form.code || undefined,
-          name: form.name,
-          description: form.description || undefined,
-        })
+        await api.post('/management-items', { code: code.trim() || undefined, name: name.trim() })
       }
-      setEditId(null)
-      setForm({ code: '', name: '', description: '' })
-      setShowForm(false)
+      setFormOpen(false)
       load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
+    } catch (e) {
+      setFormError(extractErrorMessage(e))
     }
   }
 
-  async function toggleActive(m: ManagementItem) {
+  async function apply(ids: number[], op: '사용중단' | '삭제' | '재사용') {
+    setMenuOpen(false); setEditMenu(false)
+    if (ids.length === 0) { void ecAlert(NO_PICK); return }
+    if (op === '삭제' && !(await ecConfirm(formOpen ? '삭제하시겠습니까?' : '삭제하겠습니까?'))) return
     try {
-      await api.put(`/management-items/${m.id}`, { name: m.name, description: m.description ?? undefined, active: !m.active })
-      load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
+      for (const id of ids) {
+        const r = rows.find((x) => x.id === id)
+        if (!r) continue
+        if (op === '삭제') await api.delete(`/management-items/${id}`)
+        else await api.put(`/management-items/${id}`, { name: r.name, description: r.description ?? undefined, active: op === '재사용' })
+      }
+      setFormOpen(false)
+    } catch (e) {
+      if (formOpen) setFormError(extractErrorMessage(e)); else setError(extractErrorMessage(e))
     }
-  }
-
-  /**
-   * 원본 관리항목리스트의 [사용중단/재사용]. 고른 것을 한 번에 세운다.
-   * 모두 중단이면 되살리고, 하나라도 살아 있으면 중단한다(거래처·창고·품목과 같은 규칙).
-   */
-  async function toggleCheckedActive() {
-    const targets = shown.filter((r) => checked.has(r.id))
-    if (targets.length === 0) { setError('사용중단하거나 되살릴 관리항목을 고르세요.'); return }
-    const reviving = targets.every((r) => !r.active)
-    setError('')
-    const results = await Promise.allSettled(targets.map((r) => api.put(`/management-items/${r.id}`,
-      { name: r.name, description: r.description ?? undefined, active: reviving })))
-    const failed = results.filter((r) => r.status === 'rejected').length
     setChecked(new Set())
-    await load()
-    if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+    load()
   }
 
   const shownRows = rows
-    .filter((r) => !codeCond || r.code.includes(codeCond))
-    .filter((r) => !keyword || r.code.includes(keyword) || r.name.includes(keyword))
-    .filter((r) => useCond === '전체' || (r.active ? '사용' : '중단') === useCond)
-
-  /*
-   * 원본 관리항목등록도 머리를 눌러 정렬한다(사본이 코드·이름에 정렬 표시를 달았다).
-   * [설명]에는 원본도 표시가 없어 우리도 안 건다 — 표시를 안 단 칸까지 눌리게 하면
-   * 이번에는 <b>표시가 없는데 정렬되는</b> 반대쪽 거짓말이 된다.
-   */
+    .filter((r) => cond.use === 'ALL' || (cond.use === 'Y') === r.active)
+    .filter((r) => !quick || r.code.includes(quick) || r.name.includes(quick))
+    .filter((r) => r.code.includes(cond.code.trim()) && r.name.includes(cond.name.trim()))
+    .sort((a, b) => a.code.localeCompare(b.code))
   const sort = useTableSort(shownRows, {
     관리항목코드: (r) => r.code,
     관리항목명: (r) => r.name,
-    사용: (r) => (r.active ? '사용' : '중지'),
+    사용: (r) => (r.active ? 'Yes' : 'No'),
   })
   const shown = sort.sorted
+  useTableColumnCheck(tableRef, '관리항목리스트', [shown.length])
+  const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.id))
 
   return (
     <EcListShell
       title="관리항목리스트"
-      search={keyword}
-      onSearchChange={setKeyword}
-      onSearch={load}
-      onNew={() => { setEditId(null); setForm({ code: '', name: '', description: '' }); setShowForm(true) }}
-      actions={[{ label: '새로고침', onClick: load },
-                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleCheckedActive },
-                { label: 'Excel' }]}
+      search={quick}
+      onSearchChange={setQuick}
+      onSearch={() => undefined}
+      collapseConditions
+      onNew={openNew}
+      actions={[
+        /* 원본은 고른 줄이 없어도 펼친다 — 항목을 누르면 '리스트에 선택된 자료가 없습니다.' */
+        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v) },
+        { label: 'Excel' },
+      ]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-
-      <Modal open={showForm} title={editId ? '관리항목 수정' : '관리항목 등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>{editId ? '관리항목 수정' : '관리항목 등록'}</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>코드(미입력시 자동)</div>
-              <input className="ec-input" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="MG001" style={{ width: 130 }} />
-            </label>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>관리항목명 *</div>
-              <input className="ec-input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} style={{ width: 200 }} />
-            </label>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>설명</div>
-              <input className="ec-input" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} style={{ width: 280 }} />
-            </label>
-            <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
+      <ul className="ec-cond">
+        <EcCond label="관리항목코드"><input className="ec-input w-full" placeholder="관리항목코드" value={cond.code} onChange={(e) => setCond({ ...cond, code: e.target.value })} /></EcCond>
+        <EcCond label="관리항목명"><input className="ec-input w-full" placeholder="관리항목명" value={cond.name} onChange={(e) => setCond({ ...cond, name: e.target.value })} /></EcCond>
+        <EcCond label="사용구분">
+          {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]"><input type="radio" name="mitem-use" checked={cond.use === v} onChange={() => setCond({ ...cond, use: v })} /> {l}</label>
+          ))}
+        </EcCond>
+      </ul>
+      {menuOpen && (
+        <>
+          <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
+          <div className="ec-menu fixed top-auto right-auto bottom-[44px] left-[300px] mobile:left-[16px]">
+            {(['사용중단', '삭제', '재사용'] as const).map((op) => (
+              <button key={op} type="button" onClick={() => apply([...checked], op)}>{op}</button>
+            ))}
           </div>
-        </div>
-      )}</Modal>
+        </>
+      )}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {/* 원본 조건 차례: <b>관리항목코드</b> · 관리항목명 · 사용구분 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>관리항목코드</span>
-        <input className="ec-input" value={codeCond} placeholder="관리항목코드"
-               onChange={(e) => setCodeCond(e.target.value)} style={{ width: 150 }} />
-        <span>사용구분</span>
-        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
-          <option>전체</option><option>사용</option><option>중단</option>
-        </select>
-      </div>
-
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
-              <input type="checkbox"
-                     checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
-                     onChange={() => setChecked(
-                       shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
-                     )} />
+            <th className="w-[34px] text-center">
+              <NumCheck no="" label="전체 선택" on={allChecked}
+                        onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('관리항목코드')}>관리항목코드 {sort.mark('관리항목코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('관리항목명')}>관리항목명 {sort.mark('관리항목명')}</th>
-            <th>설명</th>
-            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('관리항목코드')}>관리항목코드 {sort.mark('관리항목코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('관리항목명')}>관리항목명 {sort.mark('관리항목명')}</th>
+            <th className="w-[160px] text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
           </tr>
         </thead>
         <tbody>
-          {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r) => (
-            <tr key={r.id} style={{ color: r.active ? undefined : '#9aa1ab' }}>
-              <td style={{ textAlign: 'center' }}>
-                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
-                  const next = new Set(prev)
-                  if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
-                  return next
-                })} />
+          {shown.length === 0 ? (
+            <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r, i) => (
+            <tr key={r.id} className={r.active ? undefined : 'text-ec-hint'}>
+              <td className="text-center">
+                <NumCheck no={i + 1} label="선택" on={checked.has(r.id)}
+                          onChange={() => {
+                            const next = new Set(checked)
+                            if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                            setChecked(next)
+                          }} />
               </td>
-              {/* 원본은 코드·이름을 눌러 그 관리항목을 연다. */}
-              <td style={{ fontFamily: 'monospace' }}>
-                <button type="button" onClick={() => openEdit(r)}
-                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
-                  {r.code}
-                </button>
-              </td>
-              <td>
-                <button type="button" onClick={() => openEdit(r)}
-                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5 }}>
-                  {r.name}
-                </button>
-              </td>
-              <td style={{ color: '#5a626e' }}>{r.description ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: r.active ? '#1c7c3c' : '#9aa1ab' }} onClick={() => toggleActive(r)}>
-                  {r.active ? '사용' : '중단'}
-                </button>
-              </td>
+              <td><a href="#" onClick={(e) => { e.preventDefault(); openEdit(r) }}>{r.code}</a></td>
+              <td><a href="#" onClick={(e) => { e.preventDefault(); openEdit(r) }}>{r.name}</a></td>
+              <td className="text-center">{r.active ? 'Yes' : 'No'}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <Modal error={formError} open={formOpen} title={editId ? '관리항목수정' : '관리항목등록'} width={760} onClose={() => setFormOpen(false)}>{(
+        <form onSubmit={save}>
+          <ul className="ec-form">
+            <li className="wide">
+              <span className="title">관리항목코드</span>
+              <div className="form">
+                {editId ? <span>{code}</span> : <input className="ec-input w-full" placeholder="관리항목코드" value={code} onChange={(e) => setCode(e.target.value)} />}
+              </div>
+            </li>
+            <li className="wide">
+              <span className="title">관리항목명</span>
+              <div className="form">
+                <input className={`ec-input w-full ${invalid && !name.trim() ? 'border-[color:var(--ec-text-danger)]' : ''}`}
+                       aria-invalid={invalid && !name.trim()} value={name} placeholder="관리항목명" autoFocus onChange={(e) => setName(e.target.value)} />
+              </div>
+            </li>
+          </ul>
+          <div className="relative flex gap-[6px] mt-[12px]">
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            <button type="button" className="ec-btn"
+                    onClick={() => { const m = rows.find((x) => x.id === editId); if (m) openEdit(m); else setName('') }}>
+              다시 작성
+            </button>
+            {editId && (
+              <span className="relative inline-flex">
+                <button type="button" className="ec-btn" onClick={() => setEditMenu((v) => !v)}>사용중단/재사용 ▲</button>
+                {editMenu && (
+                  <div className="ec-menu top-auto bottom-[calc(100%+4px)] left-0 right-auto">
+                    {(rows.find((x) => x.id === editId)?.active ? ['사용중단', '삭제'] as const : ['재사용', '삭제'] as const)
+                      .map((op) => <button key={op} type="button" onClick={() => apply([editId], op)}>{op}</button>)}
+                  </div>
+                )}
+              </span>
+            )}
+            <button type="button" className="ec-btn" onClick={() => setFormOpen(false)}>닫기</button>
+            <EcHistoryButton target="MANAGEMENT_ITEM" id={editId} last />
+          </div>
+        </form>
+      )}</Modal>
     </EcListShell>
   )
 }

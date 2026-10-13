@@ -1,0 +1,23 @@
+{
+  "about": "관리 > 일용근로 수당등록 · 공제등록(E020136 · E020137) — 원본 열 차례 그대로: 계산식 뒤 산출방법 · 공통숫자항목 · 공통문자항목(수당 2 · 3, 공제 1 · 2 · 3). 기본 항목 02 일근무 · 01 소득세 · 02 지방소득세.",
+  "shots": [
+    {
+      "name": "수당리스트 열",
+      "path": "/hr/daily-allowance-items",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim()).filter(Boolean).join(',')==='수당항목코드,수당항목명,표시순서,지급유형,배율,근무기록,과세구분,계산식,산출방법,공통숫자항목2,공통숫자항목3,공통문자항목2,공통문자항목3'",
+        "expect:document.querySelector('table tbody tr').innerText.includes('일근무')"
+      ]
+    },
+    {
+      "name": "공제리스트 열",
+      "path": "/hr/daily-deduction-items",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim()).filter(Boolean).join(',')==='공제항목코드,공제항목명,표시순서,계산식,산출방법,공통숫자항목1,공통숫자항목2,공통숫자항목3,공통문자항목1,공통문자항목2,공통문자항목3'",
+        "expect:document.querySelectorAll('table tbody tr').length===2"
+      ]
+    }
+  ]
+}

@@ -59,6 +59,15 @@ public class FileStorageService {
         return meta;
     }
 
+    /** 같은 바이트로 새 파일을 하나 더 만든다 — ECDrive [복사]. 원본을 지워도 사본은 남는다. */
+    @Transactional
+    public StoredFile duplicate(Long id, String uploader) {
+        StoredFile src = meta(id);
+        StoredFile copy = save(src.getName(), src.getContentType(), load(id), uploader);
+        copy.setOwnerCode(src.getOwnerCode());
+        return copy;
+    }
+
     @Transactional(readOnly = true)
     public StoredFile meta(Long id) {
         return fileRepository.findById(id)

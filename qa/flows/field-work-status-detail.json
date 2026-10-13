@@ -1,0 +1,82 @@
+{
+  "about": "외근현황(원본 E070255, 2026-10-13 잼) — [정렬/소계기준 설정] 의 상세설정 '설정' 창(소계상세설정: 소계표시명 · 소계기준 ◉월 ◯일 · 상위 소계명 포함여부 · 건 수 표시 / 합계상세설정: 합계표시명), 조건 탭 [기본][전체], [양식] 외근현황용 · 기본(수정불가). 원본 결과: 'K5[H] / 2026/10/07  계' · 'K5[H] QA소 (2 건)' · 'QA합'. 시험 외근 둘(어제 · 오늘)을 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-work-status-detail.json",
+  "shots": [
+    {
+      "name": "준비 — 어제 · 오늘 외근 하나씩(같은 차량)",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:try { localStorage.removeItem('field-work-status-sort') } catch (e) {} ; true",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toLocaleDateString('sv-SE') }; const ids = []; for (const n of [1, 0]) ids.push((await (await fetch('/api/field-works', { method: 'POST', headers: H, body: JSON.stringify({ workDate: day(n), vehicleNo: 'QA1', vehicleName: 'QA-K5[H]', distance: 100, purpose: 'QA그룹웨어-상세설정' }) })).json()).id); sessionStorage.setItem('qaFwDetail', JSON.stringify(ids)); sessionStorage.setItem('qaFwDays', JSON.stringify([day(1), day(0)].map((x) => x.replaceAll('-', '/')))); return ids.join(',') })()"
+      ]
+    },
+    {
+      "name": "조건 탭 [기본][전체] · 양식",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "expect:[...document.querySelectorAll('ul[aria-label=\"조건 탭\"] button')].map((b) => b.textContent).join('|') === '기본|전체'",
+        "expect:[...document.querySelectorAll('.ec-form > li > .title')].map((t) => t.textContent).join('|') === '일자|이동수단|사용자|사용목적|운행거리|적요|기타|정렬/소계기준'",
+        "click:전체",
+        "wait:150",
+        "expect:[...document.querySelectorAll('.ec-form > li > .title')].map((t) => t.textContent).join('|') === '일자|사용자|이동수단|주행전 계기판거리|주행후 계기판거리|운행거리|사용목적|적요|부서|기타|정렬/소계기준'",
+        "js:document.querySelector('button[aria-label=\"양식\"]').click(); true",
+        "wait:150",
+        "expect:document.querySelector('button[aria-label=\"양식\"]').textContent.startsWith('외근현황용') && [...document.querySelector('button[aria-label=\"양식\"]').parentElement.querySelectorAll(':scope > div button')].map((b) => b.textContent.trim()).join('|') === '✓ 외근현황용|기본(수정불가)'",
+        "js:[...document.querySelector('button[aria-label=\"양식\"]').parentElement.querySelectorAll(':scope > div button')][1].click(); true",
+        "wait:150",
+        "set:.ec-form input[placeholder=\"적요\"]|QA그룹웨어-상세설정",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent).join('|') === '일자|부서명|사용자명|사용목적명|주행전 계기판거리|주행후 계기판거리|운행거리|적요|이동수단명'",
+        "expect:[...document.querySelectorAll('tbody tr')][0].cells[8].textContent === 'QA-K5[H]' && [...document.querySelectorAll('tbody tr')].every((tr) => [...tr.cells].reduce((a, c) => a + c.colSpan, 0) === 9)"
+      ]
+    },
+    {
+      "name": "상세설정 — 소계표시명 · 건수 · 일 단위 · 상위 포함 · 합계표시명",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:location.reload(); true",
+        "wait:1500",
+        "set:.ec-form input[placeholder=\"적요\"]|QA그룹웨어-상세설정",
+        "click:설정",
+        "wait:300",
+        "expect:![...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"상세설정 2\"]') && !![...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"합계영역 상세설정\"]')",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"상세설정 1\"]').click(); true",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.getAttribute('aria-label') === '소계상세설정' && [...d.querySelectorAll('.ec-form .title')].map((t) => t.textContent).join('|') === '소계표시명|상위 소계명 포함여부|건 수 표시' && d.querySelector('input[name=detail-parent]').disabled && d.querySelectorAll('input[name=detail-count]')[1].checked })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const i = d.querySelector('input[placeholder=\"소계표시명\"]'); if (i.value !== 'QA소') { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'QA소'); i.dispatchEvent(new Event('input', { bubbles: true })) } d.querySelectorAll('input[name=detail-count]')[0].click(); return true })()",
+        "wait:150",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '적용(F8)').click(); true",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input[name=subtotal-1]')[0].click(); true",
+        "wait:150",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"상세설정 2\"]').click(); true",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return [...d.querySelectorAll('.ec-form .title')].map((t) => t.textContent).join('|') === '소계표시명|소계기준|상위 소계명 포함여부|건 수 표시' && d.querySelectorAll('input[name=detail-unit]')[0].checked && !d.querySelector('input[name=detail-parent]').disabled })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); d.querySelectorAll('input[name=detail-unit]')[1].click(); d.querySelectorAll('input[name=detail-parent]')[0].click(); return true })()",
+        "wait:150",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '적용(F8)').click(); true",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"합계영역 상세설정\"]').click(); true",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.getAttribute('aria-label') === '합계상세설정' && [...d.querySelectorAll('.ec-form .title')].map((t) => t.textContent).join('|') === '합계표시명' })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const i = d.querySelector('input[placeholder=\"합계표시명\"]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'QA합'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:150",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '적용(F8)').click(); true",
+        "wait:300",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '적용(F8)').click(); true",
+        "wait:300",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(() => { const [d1, d2] = JSON.parse(sessionStorage.getItem('qaFwDays')); const labs = [...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells[0].colSpan === 4).map((tr) => tr.cells[0].textContent.trim()); return labs.join('|') === `QA-K5[H] / ${d1} 계|QA-K5[H] / ${d2} 계|QA-K5[H] QA소 (2 건)|QA합` })()"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:try { localStorage.removeItem('field-work-status-sort') } catch (e) {} ; true",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const out = []; for (const id of JSON.parse(sessionStorage.getItem('qaFwDetail'))) out.push((await fetch('/api/field-works/' + id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

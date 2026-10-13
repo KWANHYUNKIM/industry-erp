@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
-import type { Partner, SalesDoc, PurchaseDoc, Project } from '../../api/types'
+import type { Partner, SalesDoc, PurchaseDoc, Project } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
@@ -41,10 +41,17 @@ export default function ConditionSearchPage() {
   async function loadBase() {
     setLoading(true); setError('')
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [p, s, pu, pr] = await Promise.all([
         api.get<Partner[]>('/partners'),
-        api.get<SalesDoc[]>('/sales'),
-        api.get<PurchaseDoc[]>('/purchases'),
+        /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서 걸렀다 —
+       * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+       */
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
         api.get<Project[]>('/projects'),
       ])
       setPartners(p.data)
@@ -52,7 +59,9 @@ export default function ConditionSearchPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { loadBase() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadBase() }, [from, to])
 
   // 대상 거래처 집합(관계기준별)
   const targetPartners = useMemo<Partner[]>(() => {
@@ -99,7 +108,7 @@ export default function ConditionSearchPage() {
   }
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
 
   function reset() {
     setFrom(monthStart); setTo(today)
@@ -118,18 +127,18 @@ export default function ConditionSearchPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/* 원본은 조건을 라벨 표로 세로로 쌓는다: 기준일자 / 거래처 / 프로젝트 / 종류 */}
-      <table className="w-full text-left" style={{ marginBottom: 10 }}>
+      <table className="w-full text-left mb-[10px]">
         <tbody>
           <tr>
             <th style={th}>기준일자</th>
             <td colSpan={3}>
               <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <span className="my-0 mx-[6px] text-ec-label">~</span>
               <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-              <span style={{ marginLeft: 8 }}>
+              <span className="ml-[8px]">
                 <button className="ec-btn ec-btn-sm" onClick={() => preset(0, 'range')}>금일</button>
                 <button className="ec-btn ec-btn-sm" style={{ marginLeft: 3 }} onClick={() => preset(7, 'range')}>최근7일</button>
                 <button className="ec-btn ec-btn-sm" style={{ marginLeft: 3 }} onClick={() => preset(0, 'month')}>금월</button>
@@ -167,14 +176,14 @@ export default function ConditionSearchPage() {
                 <option value="GROUP">연결거래처합산</option>
                 <option value="SELECTED">선택거래처합산</option>
               </select>
-              <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-label)' }}>거래처관계기준</span>
+              <span className="ml-[8px] text-[12px] text-ec-label">거래처관계기준</span>
             </td>
           </tr>
         </tbody>
       </table>
 
       {ran && basis === 'GROUP' && (
-        <p style={{ fontSize: 12, color: '#5a626e', marginBottom: 6 }}>
+        <p className="text-[12px] text-ec-label mb-[6px]">
           연결거래처합산 대상: <b>{targetPartners.length}</b>개 거래처
           {targetPartners.length > 0 && ` (${targetPartners.map((p) => p.name).join(', ')})`}
         </p>
@@ -182,33 +191,33 @@ export default function ConditionSearchPage() {
 
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}></th>
+          <th className="w-[34px]"></th>
           <th>거래처</th>
-          <th style={{ textAlign: 'right' }}>매출(공급가)</th>
-          <th style={{ textAlign: 'right' }}>매입(공급가)</th>
-          <th style={{ textAlign: 'right' }}>순액</th>
+          <th className="text-right">매출(공급가)</th>
+          <th className="text-right">매입(공급가)</th>
+          <th className="text-right">순액</th>
         </tr></thead>
         <tbody>
           {!ran ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>조건을 정하고 검색하세요.</td></tr>
+            <tr><td colSpan={5} className="text-center text-ec-hint p-[20px]">조건을 정하고 검색하세요.</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.name}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.sale)}</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>{won(r.purchase)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.net >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(r.net)}</td>
+              <td className="text-right text-ec-blue">{won(r.sale)}</td>
+              <td className="text-right text-ec-warn">{won(r.purchase)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(r.net)}</td>
             </tr>
           ))}
         </tbody>
         {ran && rows.length > 0 && (
-          <tfoot><tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-            <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({BASIS_LABEL[basis]})</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.sale)}</td>
-            <td style={{ textAlign: 'right', color: '#c07a00' }}>{won(totals.purchase)}</td>
-            <td style={{ textAlign: 'right', color: totals.net >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(totals.net)}</td>
+          <tfoot><tr className="font-bold bg-ec-page">
+            <td colSpan={2} className="text-right">합계 ({BASIS_LABEL[basis]})</td>
+            <td className="text-right text-ec-blue">{won(totals.sale)}</td>
+            <td className="text-right text-ec-warn">{won(totals.purchase)}</td>
+            <td style={{ textAlign: 'right', color: totals.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(totals.net)}</td>
           </tr></tfoot>
         )}
       </table>

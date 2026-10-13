@@ -1,0 +1,19 @@
+{
+  "about": "판매조회 [거래명세서 인쇄] — 새 창 대신 화면 안 iframe 으로 받아 서식을 본다. 공급자(회사정보)·공급받는자(거래처)·합계·한글금액이 찍히고, [담당] 은 전표 담당 사원, 작성자는 [작성] 으로 따로(31회차 — 작성자 아이디를 담당으로 찍었다). 아무것도 만들지 않는다.",
+  "shots": [
+    {
+      "name": "맨 위 판매 전표 하나를 펼쳐 인쇄",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:window.open = () => { const f = document.createElement('iframe'); f.id = 'pf'; f.style.cssText = 'position:fixed;left:0;top:0;width:1100px;height:900px;z-index:99999;background:#fff;border:0'; document.body.appendChild(f); const w = f.contentWindow; w.print = () => {}; return w }; true",
+        "wait:1500",
+        "js:document.querySelector('tbody tr').click(); true",
+        "wait:600",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '거래명세서 인쇄').click(); true",
+        "wait:2500",
+        "expect:(() => { const t = document.getElementById('pf')?.contentDocument?.body?.innerText ?? ''; return t.includes('거래명세서') && t.includes('공급자') && t.includes('공급받는자') && t.includes('합계금액') && t.includes('작성:') && /일금 .+원정/.test(t) })()",
+        "expect:!(document.getElementById('pf')?.contentDocument?.body?.innerText ?? '').includes('회사정보 미등록')"
+      ]
+    }
+  ]
+}

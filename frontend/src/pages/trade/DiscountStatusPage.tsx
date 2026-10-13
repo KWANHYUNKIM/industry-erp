@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { subtotalBy } from '../../utils/subtotalBy'
+import { discountRows, discountSubtotals, type DiscountSrc } from '../../utils/discountRows'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PurchaseDoc, SalesDoc } from '../../api/types'
+import type { PurchaseDoc, SalesDoc } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
@@ -30,25 +31,34 @@ import { useCondPickers } from '../../utils/useCondPickers'
  */
 /** 판매·구매 전표는 일자 이름만 다르고 이 화면이 쓰는 칸은 같다. */
 type Doc = (SalesDoc | PurchaseDoc)
-const docDate = (d: Doc) => ('saleDate' in d ? d.saleDate : d.purchaseDate)
 
-interface Row {
-  date: string
-  partner: string
-  warehouse: string | null
-  employee: string | null
-  project: string | null
-  /** 전표 공급가액 합(판매·구매·외주). */
-  orgAmount: number
-  /** 그중 회계로 넘어간 금액 */
-  reflectedAmount: number
-  remarks: string[]
-  docNos: string[]
+/**
+ * 외주비 한 줄 — <code>GET /api/accounting-reflection/subcontract</code>(외주비일괄회계반영과 같은 자료).
+ * 외주공장 생산입고의 외주비(공급가액)와, 반영했으면 그 회계전표 번호를 준다.
+ */
+interface SubcontractRow {
+  productionId: number; prodNo: string; productionDate: string
+  amount: number; fromWarehouseId: number | null; fromWarehouseName: string | null
+  partnerId: number | null; partnerName: string | null
+  projectId: number | null; employeeId: number | null; note: string | null
+  journalId: number | null
 }
 
+/** 세 화면이 읽는 한 장 — 판매·구매 전표와 외주비 줄을 같은 모양으로 맞춘다. */
+type Src = DiscountSrc
+const fromDoc = (d: Doc): Src => ({
+  date: 'saleDate' in d ? d.saleDate : d.purchaseDate, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName,
+  warehouseId: d.warehouseId ?? null, warehouseName: d.warehouseName, employeeName: d.employeeName,
+  projectId: d.projectId ?? null, projectName: d.projectName ?? null,
+  supplyAmount: d.supplyAmount, reflected: !!d.accountingReflected, remark: d.remark ?? null, taxable: !!d.taxable,
+})
+
 export default function DiscountStatusPage({ kind, title, amountLabel, defaultPick, withTradeType }: {
-  /** 어느 전표를 보나. 외주비는 구매전표로 본다 — 외주 전용 도메인이 없다. */
-  kind: 'SALES' | 'PURCHASE'
+  /**
+   * 어느 전표를 보나. 외주비는 예전엔 구매전표로 봤다(외주 도메인이 없었다) — 2026-10-02 에 외주비일괄회계반영
+   * (생산입고 외주비 → 매입전표)이 생겨 이제 그 줄을 본다: 생산금액 = 외주비 공급가액, 회계반영금액 = 반영한 줄의 금액.
+   */
+  kind: 'SALES' | 'PURCHASE' | 'SUBCONTRACT'
   title: string
   /** 원본 금액 열 이름 — 판매금액 · 구매금액 · 생산금액. */
   amountLabel: string
@@ -68,10 +78,12 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
    * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
    */
   const [signBox, setSignBox] = useState(false)
-  const [docs, setDocs] = useState<Doc[]>([])
+  const [docs, setDocs] = useState<Src[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  // 거래처 코드도움은 id 를 준다 — 검색창(이름 일부)과 칸을 나눈다.
+  const [partnerCond, setPartnerCond] = useState('')
   /*
    * <b>[직전기수]는 회계연도 시작월을 모르면 계산할 수 없다</b>(periodOf 가 null 을 준다).
    * 처음엔 periodOf(...)! 로 눌러 뒀는데, 구매할인현황이 그 기본값이라 화면이 <b>통째로
@@ -85,7 +97,20 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
   const [to, setTo] = useState(init.to)
   const [warehouse, setWarehouse] = useState('')
   const [employee, setEmployee] = useState('')
-  const [minDiff, setMinDiff] = useState('')
+  /*
+   * 2026-09-08 에 원본 둘(판매할인현황 E040216 · 구매할인현황 E040313)을 열어 쟀다.
+   * 조건이 <b>열아홉</b>이고 두 화면이 글자 하나까지 같다(사본에는 열하나만 적혀 있었다).
+   * 접힌 줄은 없다 — 접힘 표시를 눌러도 줄 수가 그대로다.
+   *
+   * <p>원본 [할인금액]은 <b>구간</b>이다(할인금액 ~). 우리는 '차액 이상' 한 칸이었다.
+   */
+  const [discFrom, setDiscFrom] = useState('')
+  const [discTo, setDiscTo] = useState('')
+  /** 원본 [적요]. 줄에 이미 모아 오고 있는데 거를 자리가 없었다. */
+  const [remarkCond, setRemarkCond] = useState('')
+  /** [거래처그룹1] — 거래처 마스터에 붙는 값이라 전표 응답에는 없다. 이름으로 잇는다. */
+  const pgroup = usePartnerGroups()
+  const [partnerGroup, setPartnerGroup] = useState('')
   /** 원본 [거래유형]. 전표의 과세 여부로 거른다. */
   const [tradeType, setTradeType] = useState<'전체' | '과세' | '면세'>('전체')
   /** 원본 조건 판의 [프로젝트]. 전표가 프로젝트를 들고 있는데 거를 수가 없었다. */
@@ -95,8 +120,19 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Doc[]>(kind === 'SALES' ? '/sales' : '/purchases')
-      setDocs(res.data)
+      if (kind === 'SUBCONTRACT') {
+        const res = await api.get<SubcontractRow[]>('/accounting-reflection/subcontract', { params: { from, to } })
+        setDocs(res.data.map((r) => ({
+          date: r.productionDate, docNo: r.prodNo, partnerId: r.partnerId ?? 0, partnerName: r.partnerName ?? '(외주처 없음)',
+          warehouseId: r.fromWarehouseId, warehouseName: r.fromWarehouseName,
+          employeeName: pickers.employees.find((e) => e.id === r.employeeId)?.name ?? null,
+          projectId: r.projectId, projectName: pickers.projects.find((p) => p.id === r.projectId)?.name ?? null,
+          supplyAmount: Number(r.amount), reflected: r.journalId != null, remark: r.note, taxable: true,
+        })))
+      } else {
+        const res = await api.get<Doc[]>(kind === 'SALES' ? '/sales' : '/purchases')
+        setDocs(res.data.map(fromDoc))
+      }
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -104,7 +140,9 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     }
   }
 
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [kind])
+  /* 외주비 줄은 담당자 · 프로젝트를 id 로만 준다 — 목록이 오면 이름을 다시 붙인다. */
+  const reloadKey = kind === 'SUBCONTRACT' ? [from, to, pickers.employees.length, pickers.projects.length].join('|') : ''
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [kind, reloadKey])
 
   useEffect(() => {
     // 회계 기수 계산에 쓸 시작월. 못 받으면 [이번기수]·[직전기수] 는 눌러도 아무 일이 없다
@@ -122,35 +160,23 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     if (r) { applied.current = true; setFrom(r.from); setTo(r.to) }
   }, [fiscalStart, defaultPick])
 
-  /** 원본은 한 줄이 <b>일자 × 거래처</b>다. 전표가 여럿이면 합쳐 한 줄로 낸다. */
-  const rows = useMemo(() => {
-    const m = new Map<string, Row>()
-    for (const d of docs) {
-      const date = docDate(d)
-      if (date < from || date > to) continue
-      if (tradeType !== '전체' && (d.taxable ? '과세' : '면세') !== tradeType) continue
-      const key = `${date}|${d.partnerName}`
-      const cur = m.get(key) ?? {
-        date, partner: d.partnerName,
-        warehouse: d.warehouseName, employee: d.employeeName, project: d.projectName ?? null,
-        orgAmount: 0, reflectedAmount: 0, remarks: [], docNos: [],
-      }
-      cur.orgAmount += d.supplyAmount
-      if (d.accountingReflected) cur.reflectedAmount += d.supplyAmount
-      if (d.remark) cur.remarks.push(d.remark)
-      cur.docNos.push(d.docNo)
-      m.set(key, cur)
-    }
-    return [...m.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.partner.localeCompare(b.partner)))
-  }, [docs, from, to, tradeType])
+  /**
+   * 원본은 한 줄이 <b>일자 × 거래처</b>다. 창고·담당자·프로젝트·거래유형은 <b>전표마다</b> 걸고 나서 합친다
+   * — 합친 줄의 첫 전표 값으로 거르면 같은 날 다른 창고 전표가 통째로 빠졌다(utils/discountRows).
+   */
+  const rows = useMemo(
+    () => discountRows(docs, { from, to, tradeType, warehouse, employee, project }),
+    [docs, from, to, tradeType, warehouse, employee, project])
 
-  const min = Number(minDiff)
+  const min = Number(discFrom)
+  const max = Number(discTo)
   const shown = rows.filter((r) => {
     if (keyword && !r.partner.includes(keyword)) return false
-    if (warehouse && !(r.warehouse ?? '').includes(warehouse)) return false
-    if (employee && !(r.employee ?? '').includes(employee)) return false
-    if (project && (r.project ?? '') !== project) return false
-    if (minDiff && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
+    if (partnerCond && String(r.partnerId) !== partnerCond) return false
+    if (discFrom && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
+    if (discTo && !Number.isNaN(max) && r.orgAmount - r.reflectedAmount > max) return false
+    if (partnerGroup && pgroup.groupOfName(r.partner) !== partnerGroup) return false
+    if (remarkCond && !r.remarks.some((t) => t.includes(remarkCond))) return false
     return true
   })
 
@@ -171,9 +197,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
    */
   const SUBTOTALS = ['거래처', '창고', '담당자'] as const
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
-  const groups = useMemo(() => subtotalBy(shown,
-    (r) => (subtotal === '창고' ? r.warehouse : subtotal === '담당자' ? r.employee : r.partner),
-    { org: (r) => r.orgAmount, ref: (r) => r.reflectedAmount }), [shown, subtotal])
+  const groups = useMemo(() => discountSubtotals(shown, subtotal), [shown, subtotal])
 
   const totals = shown.reduce(
     (a, r) => ({ org: a.org + r.orgAmount, ref: a.ref + r.reflectedAmount }),
@@ -193,7 +217,8 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
           setFrom(init.from); setTo(init.to)
-          setKeyword(''); setWarehouse(''); setEmployee(''); setMinDiff('')
+          setKeyword(''); setPartnerCond(''); setWarehouse(''); setEmployee('')
+          setDiscFrom(''); setDiscTo(''); setRemarkCond(''); setPartnerGroup(''); setProject('')
         } },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -227,8 +252,19 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
+                           value={partnerCond} onChange={(v) => setPartnerCond(v)}
                            items={pickers.partners} />
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 열아홉): 기준일자 · 거래유형 · 창고 · (창고계층그룹) ·
+          거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) · 프로젝트 ·
+          (프로젝트그룹1 · 프로젝트그룹2) · 거래처관리담당자 · 할인금액 · <b>적요</b> ·
+          (양식) · 적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+        */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
@@ -241,59 +277,66 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
                            items={pickers.employees} />
         </EcCond>
         <EcCond label="할인금액">
-          <input className="ec-input" type="number" placeholder="차액 이상" value={minDiff}
-                 onChange={(e) => setMinDiff(e.target.value)} style={{ width: 130, textAlign: 'right' }} />
+          <input className="ec-input" type="number" value={discFrom}
+                 onChange={(e) => setDiscFrom(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
+          <span className="text-ec-label">~</span>
+          <input className="ec-input" type="number" value={discTo}
+                 onChange={(e) => setDiscTo(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {shown.length}줄
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        회계로 안 넘어간 금액 <b style={{ color: totals.org - totals.ref > 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        회계로 안 넘어간 금액 <b style={{ color: totals.org - totals.ref > 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
           {won(totals.org - totals.ref)}
         </b>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 자료가 없습니다." />
       ) : (
       <table className="ec-grid w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center', width: 80 }}>월/일</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center w-[80px]">월/일</th>
             <th>거래처명</th>
-            <th style={{ width: 130, textAlign: 'right' }}>{amountLabel}</th>
-            <th style={{ width: 130, textAlign: 'right' }}>회계반영금액</th>
-            <th style={{ width: 130, textAlign: 'right' }}>차액</th>
+            <th className="w-[130px] text-right">{amountLabel}</th>
+            <th className="w-[130px] text-right">회계반영금액</th>
+            <th className="w-[130px] text-right">차액</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => {
             const diff = r.orgAmount - r.reflectedAmount
             return (
               <tr key={`${r.date}-${r.partner}`}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{monthDay(r.date)}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{monthDay(r.date)}</td>
                 <td>{r.partner}</td>
-                <td style={{ textAlign: 'right' }}>{won(r.orgAmount)}</td>
-                <td style={{ textAlign: 'right', color: r.reflectedAmount === 0 ? '#c9ced6' : undefined }}>
+                <td className="text-right">{won(r.orgAmount)}</td>
+                <td style={{ textAlign: 'right', color: r.reflectedAmount === 0 ? 'var(--ec-text-off)' : undefined }}>
                   {won(r.reflectedAmount)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: diff > 0 ? '#c60a2e' : '#8a929c' }}>{won(diff)}</td>
-                <td style={{ color: '#5a626e' }} title={r.docNos.join(', ')}>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: diff > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{won(diff)}</td>
+                <td className="text-ec-label" title={r.docNos.join(', ')}>
                   {r.remarks.length > 0 ? r.remarks.join(' / ') : r.docNos.join(', ')}
                 </td>
               </tr>
@@ -302,11 +345,11 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.org)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.ref)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(totals.org - totals.ref)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={3} className="text-right">합계</td>
+              <td className="text-right">{won(totals.org)}</td>
+              <td className="text-right">{won(totals.ref)}</td>
+              <td className="text-right text-ec-navy">{won(totals.org - totals.ref)}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -316,23 +359,23 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
 
       {view === '표' && shown.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
           <table className="w-full text-left">
             <thead><tr>
               <th>{subtotal}</th>
-              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 140, textAlign: 'right' }}>{amountLabel}</th>
-              <th style={{ width: 140, textAlign: 'right' }}>회계반영금액</th>
-              <th style={{ width: 140, textAlign: 'right' }}>차액</th>
+              <th className="w-[90px] text-right">건수</th>
+              <th className="w-[140px] text-right">{amountLabel}</th>
+              <th className="w-[140px] text-right">회계반영금액</th>
+              <th className="w-[140px] text-right">차액</th>
             </tr></thead>
             <tbody>
               {groups.map((g) => (
                 <tr key={g.label}>
-                  <td style={{ fontWeight: 600 }}>{g.label}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.org)}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.ref)}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: g.sums.org - g.sums.ref > 0 ? '#c60a2e' : '#8a929c' }}>
+                  <td className="font-semibold">{g.label}</td>
+                  <td className="text-right">{g.count}</td>
+                  <td className="text-right">{won(g.sums.org)}</td>
+                  <td className="text-right">{won(g.sums.ref)}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: g.sums.org - g.sums.ref > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                     {won(g.sums.org - g.sums.ref)}
                   </td>
                 </tr>

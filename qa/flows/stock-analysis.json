@@ -1,0 +1,18 @@
+{
+  "about": "재고잔량분석표(E040727) — 2026-10-13 loginaa 원본 실측대로: 출력물 머리(제목 · 회사명 · 기준일자), 열 품목코드 · 품목명[규격] · 재고수량 · 재고수량현황(기준일자의 달부터 넉 달 + 기타) · 미판매, 다섯 칸의 합이 재고수량, 맨 끝 [합계], [재고수량] 링크는 그 품목의 재고수불부(넉 달 전 1일 ~ 기준일자).",
+  "shots": [
+    {
+      "name": "재고잔량분석표 — 머리 · 달 이름 · 줄마다 다섯 칸 합 = 재고수량 · 합계 · 재고수량 링크",
+      "path": "/inventory/stock-analysis",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const d=new Date(Date.now()+9*36e5);const m=[0,1,2,3].map((k)=>new Date(d.getUTCFullYear(),d.getUTCMonth()-k,1).getMonth()+1+'월');const h=[...document.querySelectorAll('table.ec-report thead th')].map((t)=>t.innerText.trim()).join('|');return h===['품목코드','품목명[규격]','재고수량','재고수량현황','미판매',...m,'기타'].join('|')&&document.body.innerText.includes('재고잔량분석표')})()",
+        "expect:(()=>{const n=(t)=>Number((t||'').replace(/,/g,''))||0;const rows=[...document.querySelectorAll('table.ec-report tbody tr')];return rows.length>0&&rows.every((r)=>{const c=[...r.cells].map((x)=>n(x.innerText));return Math.abs(c[2]-(c[3]+c[4]+c[5]+c[6]+c[7]))<0.001})})()",
+        "expect:(()=>{const n=(t)=>Number((t||'').replace(/,/g,''))||0;const rows=[...document.querySelectorAll('table.ec-report tbody tr')];const f=document.querySelector('table.ec-report tfoot tr');const tot=rows.reduce((a,r)=>a+n(r.cells[2].innerText),0);return f.cells[0].innerText.trim()==='합계'&&f.cells[0].colSpan===2&&Math.abs(n(f.cells[1].innerText)-tot)<0.001})()",
+        "js:sessionStorage.setItem('saCode',document.querySelector('table.ec-report tbody tr').cells[0].innerText.trim());document.querySelector('table.ec-report tbody tr').cells[2].querySelector('a').click();true",
+        "wait:1500",
+        "expect:location.pathname==='/inventory/ledger'&&/itemId=\\d+/.test(location.search)&&/from=\\d{4}-\\d{2}-01/.test(location.search)"
+      ]
+    }
+  ]
+}

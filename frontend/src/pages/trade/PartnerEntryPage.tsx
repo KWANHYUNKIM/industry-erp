@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
+import type { Partner, PurchaseDoc, SalesDoc } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -44,8 +46,9 @@ const LINKS: { label: string; to: (p: Partner) => string }[] = [
   { label: '구매조회', to: (p) => `/sales/purchase-list?partner=${encodeURIComponent(p.name)}` },
   { label: '채권현황', to: (p) => `/sales/receivable-status?partner=${encodeURIComponent(p.name)}` },
   { label: '채무현황', to: (p) => `/sales/payable-status?partner=${encodeURIComponent(p.name)}` },
-  { label: '거래처관리대장1(채권)', to: (p) => `/sales/partner-ledger-receivable?partner=${encodeURIComponent(p.name)}` },
-  { label: '거래처관리대장1(채무)', to: (p) => `/sales/partner-ledger-payable?partner=${encodeURIComponent(p.name)}` },
+  // 대장은 거래처 조건이 id 다(코드도움 값) — 이름이 겹치는 거래처가 섞이지 않게 id 로 문다.
+  { label: '거래처관리대장1(채권)', to: (p) => `/sales/partner-ledger-receivable?partnerId=${p.id}` },
+  { label: '거래처관리대장1(채무)', to: (p) => `/sales/partner-ledger-payable?partnerId=${p.id}` },
   { label: '전표입력', to: (p) => `/sales/sell?partnerId=${p.id}` },
 ]
 
@@ -119,25 +122,19 @@ export default function PartnerEntryPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e' }}>거래처</span>
-        <select
-          className="ec-input"
-          style={{ width: 220 }}
-          value={partnerId}
-          onChange={(e) => setPartnerId(e.target.value ? Number(e.target.value) : '')}
-        >
-          <option value="">전체</option>
-          {partners.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-        </select>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="flex items-center gap-[6px] mb-[8px]">
+        <span className="text-[12.5px] text-ec-label">거래처</span>
+        <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" placeholder="거래처"
+                         value={String(partnerId)} onChange={(v) => setPartnerId(v ? Number(v) : '')}
+                         items={partnerCodeItems(partners)} />
         {selectedPartner && (
-          <span style={{ fontSize: 12.5, color: '#8a929c' }}>
+          <span className="text-[12.5px] text-ec-hint">
             {selectedPartner.typeName}{selectedPartner.manager ? ` · 담당 ${selectedPartner.manager}` : ''}{selectedPartner.phone ? ` · ${selectedPartner.phone}` : ''}
           </span>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          공급가액 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
+        <span className="ml-auto text-[12.5px] text-ec-label">
+          공급가액 합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString()}</b>
         </span>
       </div>
 
@@ -145,17 +142,17 @@ export default function PartnerEntryPage() {
         원본의 바로가기 묶음. 고른 거래처를 물고 열린다 — 거기서 다시 고르게 하면
         허브가 있으나 마나다. 거래처를 안 고르면 눌러도 뜻이 없으므로 그때는 잠근다.
       */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+      <div className="flex flex-wrap gap-[6px] mb-[10px]">
         {LINKS.map((l) => (selectedPartner ? (
           <Link key={l.label} to={l.to(selectedPartner)} className="ec-btn no-ec"
                 style={{ textDecoration: 'none', color: 'var(--ec-blue-dark)' }}>
             {l.label}
           </Link>
         ) : (
-          <span key={l.label} className="ec-btn" style={{ color: '#c9ced6', cursor: 'default' }}>{l.label}</span>
+          <span key={l.label} className="ec-btn" style={{ color: 'var(--ec-text-off)', cursor: 'default' }}>{l.label}</span>
         )))}
         {!selectedPartner && (
-          <span style={{ fontSize: 11.5, color: '#8a929c', alignSelf: 'center' }}>
+          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', alignSelf: 'center' }}>
             거래처를 먼저 고르세요.
           </span>
         )}
@@ -163,30 +160,30 @@ export default function PartnerEntryPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>일자</th><th>전표번호</th><th>거래처</th>
-            <th style={{ textAlign: 'center' }}>구분</th>
+            <th className="text-center">구분</th>
             <th>품목명</th>
-            <th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
+            <th className="text-right">수량</th><th className="text-right">단가</th>
+            <th className="text-right">공급가액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{dateText(r.date)}</td>
+              <td>{r.docNo}</td>
               <td>{r.partner}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.gubun === '판매' ? '#1c56b0' : '#c07a00' }}>{r.gubun}</td>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: r.gubun === '판매' ? '#1c56b0' : 'var(--ec-warn)' }}>{r.gubun}</td>
               <td>{r.itemName}</td>
-              <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.amount.toLocaleString()}</td>
+              <td className="text-right">{r.qty.toLocaleString()}</td>
+              <td className="text-right">{r.unitPrice.toLocaleString()}</td>
+              <td className="text-right font-semibold">{r.amount.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>

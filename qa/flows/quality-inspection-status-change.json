@@ -1,0 +1,24 @@
+{
+  "about": "품질검사조회(E040622) — 2026-10-04 원본 실측 알약 [전체 · 확인 · 진행중(기본) · 완료] · 버튼 [진행상태변경 · 인쇄]. 검사 하나(QA재고2)를 골라 [진행상태변경] → [완료] → 서버 COMPLETED · [완료] 알약에 보이고 지운다. [확인] = 전체(결재 없는 회사).",
+  "shots": [
+    {
+      "name": "진행중 검사 → 진행상태변경 완료 → 완료 알약 → 지움",
+      "path": "/quality/inspection",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = (await (await fetch('/api/items', { headers: H })).json()).filter((x) => x.active !== false); const r = await (await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ inspector: 'QA재고2', remark: 'QA재고2 상태변경', lines: [{ itemId: it[0].id, method: 'FULL', quantity: 3 }] }) })).json(); sessionStorage.setItem('qis', String(r.id)); const seq = Number(r.inspectionNo.split('-').pop()); sessionStorage.setItem('qisNo', r.inspectionDate.slice(2).replace(/-/g, '/') + '-' + seq); return r.inspectionNo })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.innerText.trim()).join('|') === '전체|확인|진행중|완료' && ['진행상태변경', '인쇄'].every((t) => [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === t))",
+        "js:(() => { const no = sessionStorage.getItem('qisNo'); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.querySelector('td:nth-child(2)')?.innerText.trim() === no); tr.querySelector('input[type=checkbox]').click(); return no })()",
+        "wait:300",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '진행상태변경').click(); true",
+        "wait:500",
+        "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === '완료').click(); true",
+        "wait:1500",
+        "expect:(async () => { const r = await (await fetch('/api/quality-inspections', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).json(); const x = r.find((y) => String(y.id) === sessionStorage.getItem('qis')); return x && x.status === 'COMPLETED' })()",
+        "expect:(async () => { const r = await fetch('/api/quality-inspections/' + sessionStorage.getItem('qis'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+      ]
+    }
+  ]
+}

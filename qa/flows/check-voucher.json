@@ -1,0 +1,50 @@
+{
+  "about": "수령수표조회 [일자-No.] 링크 → 그 수표내역입력 전표 — 전표일자는 막히고 ' - N' 번호, 전표구분은 '증가' 글자. 금액을 고쳐 저장하면 같은 번호로 금액만 바뀐다. 다시 열어 [삭제] → 알림 '전표를 삭제하겠습니까?' / '- 수령수표내역입력' → 확인하면 줄이 사라진다(2026-10-13 원본 실측). 발행수표감소현황은 거래처마다 묶어 '[] 계' 줄을 단다.",
+  "shots": [
+    {
+      "name": "링크로 연 전표 — 고쳐 저장 · 삭제",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "js:window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); el.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); el.blur(); return true }; true",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const a=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>x.active);const no='QAV'+Date.now();sessionStorage.setItem('vNo',no);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await window.__api('POST','/checks/direct',{type:'RECEIVED',date:ymd,increase:true,partnerId:null,bankAccountId:a.id,lines:[{checkNo:no,amount:10000,remark:'QA회계2 전표링크'}]});sessionStorage.setItem('vEntry',r.body[0].directInNo);return r.status})()",
+        "js:(()=>{location.reload();return true})()",
+        "wait:2500",
+        "js:window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); el.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); el.blur(); return true }; true",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('vNo')));tr.cells[1].querySelector('a').click();return true})()",
+        "wait:800",
+        "expect:(()=>{const li=[...document.querySelectorAll('li')];const d=li.find((x)=>x.innerText.trim().startsWith('전표일자'));const k=li.find((x)=>x.innerText.trim().startsWith('전표구분'));return !!d&&d.innerText.includes('- '+sessionStorage.getItem('vEntry'))&&!!d.querySelector('input:disabled,select:disabled')&&k.innerText.includes('증가')&&!k.querySelector('select')})()",
+        "expect:[...document.querySelectorAll('button')].some((b)=>b.innerText.trim()==='삭제')",
+        "expect:document.querySelector('[aria-label=\"1줄 수표번호\"]').value===sessionStorage.getItem('vNo')",
+        "js:window.__set('1줄 금액','12000')",
+        "click:저장(F8)",
+        "wait:2000",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('vNo')));return !!tr&&tr.cells[5].innerText.trim()==='12,000'&&tr.cells[1].innerText.includes('-'+sessionStorage.getItem('vEntry'))})()",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('vNo')));tr.cells[1].querySelector('a').click();return true})()",
+        "wait:800",
+        "clicklast:삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')&&document.body.innerText.includes('- 수령수표내역입력')",
+        "clicklast:확인",
+        "wait:2000",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('vNo'))))"
+      ]
+    },
+    {
+      "name": "발행수표감소현황 — 거래처 묶음 '[] 계'",
+      "path": "/accounting/checks-issued-out",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const a=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>x.active);const no='QAW'+Date.now();sessionStorage.setItem('wNo',no);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');await window.__api('POST','/checks/direct',{type:'ISSUED',date:ymd,increase:true,partnerId:null,bankAccountId:a.id,lines:[{checkNo:no,amount:5000,remark:'QA회계2'}]});const r=await window.__api('POST','/checks/direct',{type:'ISSUED',date:ymd,increase:false,partnerId:null,bankAccountId:a.id,lines:[{checkNo:no,amount:5000,remark:'QA회계2'}]});sessionStorage.setItem('wId',r.body[0].id);return r.status})()",
+        "js:(()=>{location.reload();return true})()",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t)=>/^\\[.*\\] 계$/.test(t.cells[0].innerText.trim()))",
+        "js:(async()=>{const id=Number(sessionStorage.getItem('wId'));const r=await window.__api('POST','/checks/delete',{decreaseIds:[],increaseIds:[id]});return r.status})()"
+      ]
+    }
+  ]
+}

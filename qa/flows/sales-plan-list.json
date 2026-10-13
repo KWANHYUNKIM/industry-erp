@@ -1,0 +1,27 @@
+{
+  "about": "매출계획조회 · 입력(E040625 · E040624) — 2026-10-04 원본: 여러 줄 전표(예상매출일자-No. 머리, 줄 거래처 · 담당자 · 품목 · 수량 · 단가 · 예상매출액 · 비고), 목록 금액 = 전표 합, 거래처 · 품목명은 첫 줄. 빈 저장 '자료를 입력 바랍니다.' → 두 줄 전표(2×1,000 · 5,000) → 목록 한 줄 7,000 → 수정(한 줄로) 2,000 → 비교표 예상매출에 잡힘 → 지움.",
+  "shots": [
+    {
+      "name": "두 줄 전표 → 목록 7,000 → 수정 → 비교표 반영 → 지움",
+      "path": "/sales/sales-plan-list",
+      "steps": [
+        "allowapi:400: /api/sales-plans/docs",
+        "wait:2000",
+        "click:신규(F2)",
+        "wait:600",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('자료를 입력 바랍니다.')",
+        "clicklast:닫기",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => (r.status === 204 ? null : r.json())); const [pa, it] = await Promise.all([A('GET', '/partners'), A('GET', '/items')]); const items = it.filter((x) => x.active !== false); const d = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const rows = await A('POST', '/sales-plans/docs', { expectedDate: d, lines: [{ partnerId: pa[0].id, itemId: items[0].id, planQty: 2, unitPrice: 1000, remark: 'QA재고2' }, { partnerId: pa[0].id, itemId: items[1].id, planAmount: 5000, remark: 'QA재고2' }] }); sessionStorage.setItem('spl', JSON.stringify({ no: rows[0].planNo, n: items[0].name, p: pa[0].name, i0: items[0].id, d })); return rows.map((r) => r.planNo + '#' + r.lineNo + ' ' + r.planAmount).join(', ') })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '|일자-No.|거래처명|담당자명|창고명|프로젝트명|품목명|금액'",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('spl')); const trs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[6] && t.cells[6].innerText.trim() === x.n && t.cells[7].innerText.trim() === '7,000'); return trs.length >= 1 && trs[0].cells[2].innerText.trim() === x.p })()",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('spl')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const r = await fetch('/api/sales-plans/docs/' + encodeURIComponent(x.no), { method: 'PUT', headers: H, body: JSON.stringify({ expectedDate: x.d, lines: [{ itemId: x.i0, planQty: 2, unitPrice: 1000 }] }) }); const rows = await r.json(); const all = (await (await fetch('/api/sales-plans', { headers: H })).json()).filter((y) => y.planNo === x.no); return r.ok && rows.length === 1 && all.length === 1 && Number(all[0].planAmount) === 2000 })()",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('spl')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const rows = await (await fetch('/api/sales-plans/compare?from=' + x.d + '&to=' + x.d + '&by1=ITEM&itemId=' + x.i0, { headers: H })).json(); return rows.length === 1 && Number(rows[0].planAmount) >= 2000 })()",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('spl')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/sales-plans/docs/' + encodeURIComponent(x.no), { method: 'DELETE', headers: H }); const left = (await (await fetch('/api/sales-plans', { headers: H })).json()).filter((y) => y.planNo === x.no); return d.status === 204 && left.length === 0 })()"
+      ]
+    }
+  ]
+}

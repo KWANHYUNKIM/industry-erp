@@ -1,0 +1,71 @@
+{
+  "about": "공용품관리 [반복설정] · [라벨변경] · [복사](원본 E070204, 2026-10-13 잼) — 매일 3회로 저장하면 3줄(같은 묶음, 원본도 13·14·15일 세 줄) → 아무것도 안 고르면 [라벨변경] 이 잠김(원본은 '리스트에 선택된 자료가 없습니다.' 를 띄운다) → 둘째 줄 번호 칸 체크 → [라벨변경] '라벨검색창' 에서 QAGW-L1 을 누르면 그 줄만 제목 앞에 라벨 칩 → 줄 열어 [복사] 는 같은 날 · 제목이 찬 '공용품관리등록'(반복설정은 빈 채) → [수정] '반복일정수정' → [삭제] '반복일정삭제' 전체 반복일정 → 0줄. 시험용 공용품 · 라벨은 API 로 만들고 끝에 지운다. node qa/shot.mjs qa/flows/supplies-repeat-label.json",
+  "shots": [
+    {
+      "name": "준비 — 시험용 공용품 QAGW-SUP2 · 라벨 QAGW-L1",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const old = await fetch('/api/supply-usages?from=2000-01-01&to=2100-12-31', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => d.filter((u) => u.title === 'QA그룹웨어-반복')); const seen = new Set(); for (const u of old) { if (seen.has(u.repeatGroup ?? u.id)) continue; seen.add(u.repeatGroup ?? u.id); await fetch('/api/supply-usages/' + u.id + '?scope=ALL', { method: 'DELETE', headers: H }) } const ss = await fetch('/api/supplies', { headers: H }).then((r) => r.json()); if (!ss.some((x) => x.code === 'QAGW-SUP2')) await fetch('/api/supplies', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-SUP2', name: 'QA그룹웨어-노트북', category: '사무용품', unit: '개', stockQty: 0 }) }); const ls = await fetch('/api/supply-labels', { headers: H }).then((r) => r.json()); if (!ls.some((x) => x.code === 'QAGW-L1')) await fetch('/api/supply-labels', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-L1', name: 'QA그룹웨어-라벨', color: '#d32f2f' }) }); return true })()"
+      ]
+    },
+    {
+      "name": "반복설정 매일 3회 → 3줄 · 라벨변경 · 복사 · 반복일정수정 · 전체 삭제",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:window.confirm = () => true; window.__alerted = ''; window.alert = (m) => { window.__alerted = m }; true",
+        "click:신규(F2)",
+        "pick:공용품:QAGW-SUP2",
+        "setnear:제목|QA그룹웨어-반복",
+        "click:반복설정",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '반복설정' && [...document.querySelectorAll('[role=dialog]')].pop().querySelector('[aria-label=요약보기]').textContent.startsWith('매일, ')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('label')].find((l) => l.textContent.trim() === '횟수').querySelector('input').click(); true",
+        "wait:200",
+        "js:(() => { const el = [...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[aria-label=\"횟수\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '3'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:200",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '공용품관리등록' && /^매일, \\d{4}\\/\\d{2}\\/\\d{2} 부터 3회 까지$/.test([...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=반복설정]').textContent)",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:fetch('/api/supply-usages?from=2000-01-01&to=2100-12-31', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => d.filter((u) => u.title === 'QA그룹웨어-반복')).then((a) => a.length === 3 && new Set(a.map((u) => u.repeatGroup)).size === 1 && !!a[0].repeatGroup && a.every((u) => /부터 3회 까지$/.test(u.repeatRule)))",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => !tr.closest('[role=dialog]') && tr.innerText.includes('QA그룹웨어-반복')).length === 3",
+        "expect:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨변경').disabled",
+        "js:[...document.querySelectorAll('tbody tr')].filter((tr) => !tr.closest('[role=dialog]') && tr.innerText.includes('QA그룹웨어-반복'))[1].querySelector('td[role=checkbox]').click(); true",
+        "wait:200",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => !tr.closest('[role=dialog]') && tr.innerText.includes('QA그룹웨어-반복'))[1].querySelector('td[role=checkbox]').getAttribute('aria-checked') === 'true'",
+        "click:라벨변경",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '라벨검색창' && [...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('사용중단포함')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody button')].find((b) => b.textContent === 'QAGW-L1').click(); true",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => !tr.closest('[role=dialog]') && tr.innerText.includes('QA그룹웨어-반복')).map((tr) => tr.querySelector('.ec-label-chip')?.textContent ?? '').join('|') === '|QA그룹웨어-라벨|'",
+        "js:[...document.querySelectorAll('tbody tr')].filter((tr) => !tr.closest('[role=dialog]') && tr.innerText.includes('QA그룹웨어-반복'))[0].querySelectorAll('td button')[1].click(); true",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '공용품관리' && [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].map((b) => b.textContent.trim()).join(',') .endsWith('수정,인쇄,복사,닫기,삭제')",
+        "click:복사",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '공용품관리등록' && [...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[placeholder=제목]').value === 'QA그룹웨어-반복' && [...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=반복설정]').textContent === '반복설정'",
+        "click:닫기",
+        "js:[...document.querySelectorAll('tbody tr')].filter((tr) => !tr.closest('[role=dialog]') && tr.innerText.includes('QA그룹웨어-반복'))[0].querySelectorAll('td button')[1].click(); true",
+        "click:수정",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '반복일정수정' && [...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('기존에 등록된 반복일정을 수정할 대상 기간을 선택합니다.')",
+        "click:취소",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop()?.getAttribute('aria-label') === '공용품관리'",
+        "click:닫기",
+        "js:[...document.querySelectorAll('tbody tr')].filter((tr) => !tr.closest('[role=dialog]') && tr.innerText.includes('QA그룹웨어-반복'))[0].querySelectorAll('td button')[1].click(); true",
+        "click:삭제",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '반복일정삭제'",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('label')].find((l) => l.textContent.trim() === '전체 반복일정').querySelector('input').click(); true",
+        "click:적용(F8)",
+        "wait:1500",
+        "expect:fetch('/api/supply-usages?from=2000-01-01&to=2100-12-31', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => d.filter((u) => u.title === 'QA그룹웨어-반복')).then((a) => a.length === 0)",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => !tr.closest('[role=dialog]') && tr.innerText.includes('QA그룹웨어-반복')).length === 0"
+      ]
+    },
+    {
+      "name": "정리 — 시험용 공용품 · 라벨",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ss = await fetch('/api/supplies', { headers: H }).then((r) => r.json()); const s = ss.find((x) => x.code === 'QAGW-SUP2'); if (s) await fetch('/api/supplies/' + s.id, { method: 'DELETE', headers: H }); const ls = await fetch('/api/supply-labels', { headers: H }).then((r) => r.json()); const l = ls.find((x) => x.code === 'QAGW-L1'); if (l) await fetch('/api/supply-labels/' + l.id, { method: 'DELETE', headers: H }); return true })()"
+      ]
+    }
+  ]
+}

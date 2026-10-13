@@ -1,0 +1,35 @@
+{
+  "about": "비현금거래·지출결의서(빠른전표) 목록 — 기간 안에 5천 건이 넘으면 앞 5천 건만 받고 안내와 [오천건이상조회] 를 띄운다. 누르면 다 받는다(52회차 — 전에는 몇 건이든 통째로 받았다). 자료 양에 따라 잘리지 않을 수도 있어 '안내가 뜨면 버튼이 눌리고, 안 뜨면 안 눌린다' 를 본다. 아무것도 저장하지 않는다.",
+  "shots": [
+    {
+      "name": "비현금거래 — 넓은 기간",
+      "path": "/accounting/non-cash",
+      "steps": [
+        "wait:800",
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = document.body.innerText.includes('앞 5,000건만'); return !!b && b.disabled === !banner })()",
+        "set:input[type=date]#0|2000-01-01",
+        "set:input[type=date]#1|2099-12-31",
+        "wait:2500",
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = document.body.innerText.includes('앞 5,000건만'); return !!b && b.disabled === !banner })()",
+        "js:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); if (b && !b.disabled) b.click(); return true })()",
+        "wait:4000",
+        "expect:!document.body.innerText.includes('앞 5,000건만')"
+      ]
+    },
+    {
+      "name": "지출결의서 — 넓은 기간",
+      "path": "/accounting/vouchers",
+      "steps": [
+        "wait:800",
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = document.body.innerText.includes('앞 5,000건만'); return !!b && b.disabled === !banner })()",
+        "set:input[type=date]#0|2000-01-01",
+        "set:input[type=date]#1|2099-12-31",
+        "wait:2500",
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = document.body.innerText.includes('앞 5,000건만'); return !!b && b.disabled === !banner })()",
+        "js:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); if (b && !b.disabled) b.click(); return true })()",
+        "wait:4000",
+        "expect:!document.body.innerText.includes('앞 5,000건만')"
+      ]
+    }
+  ]
+}

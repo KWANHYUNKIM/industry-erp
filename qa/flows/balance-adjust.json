@@ -1,0 +1,83 @@
+{
+  "about": "잔액조정입력(E010209) · 잔액실사조회(E010211) · 잔액조정조회(E010210) · 잔액조정현황(E010212) — 원본 2026-10-14 loginaa 실측과 같은 흐름: 기준일자 전월 말일 · [조정] → '잔액실사(계정별)' → 안 고치고 저장 '변경된정보가 없습니다.' → 부서 없음 줄 실잔액 = 장부 + 11,000 · 적요 QA회계1 잔액조정(조정금액 −11,000) → 저장(안내 없이 닫힘) → 차변금액 +11,000 · 진행단계 [수정 · 추가 · 조회] → 시산표 811 차변만 +11,000(한쪽 전표) → 실사조회 · 조회 · 현황에 한 줄씩(차이(차변) 11,000) → [선택삭제] '선택한 전표를 삭제 하겠습니까?' → 잔액 · 시산표 되돌림. 원본 8109 는 우리 811. node qa/shot.mjs qa/flows/balance-adjust.json",
+  "shots": [
+    {
+      "name": "잔액조정입력 — 조정 · 저장 · 잔액",
+      "path": "/accounting/balance-adjust",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const e = new Date(d.getFullYear(), d.getMonth(), 0); const asOf = e.getFullYear() + '-' + String(e.getMonth() + 1).padStart(2, '0') + '-' + String(e.getDate()).padStart(2, '0'); const tb = await (await fetch('/api/journals/trial-balance?from=' + asOf + '&to=' + asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '811') || { debit: 0, credit: 0 }; const acc = (await (await fetch('/api/journals/balance-adjustments/accounts?asOf=' + asOf, { headers: H })).json()).find((x) => x.code === '811'); sessionStorage.setItem('ba-base', JSON.stringify({ asOf, d811: Number(r.debit), c811: Number(r.credit), bal: Number(acc.debitAmount), tbd: Number(tb.totalDebit), tbc: Number(tb.totalCredit) })); return sessionStorage.getItem('ba-base') })()",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|계정|계정명|거래처별집계구분|차변금액|대변금액|진행단계'",
+        "expect:(() => { const b = JSON.parse(sessionStorage.getItem('ba-base')); return document.body.innerText.includes(b.asOf.replaceAll('-', '/')) })()",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.innerText.trim() === '811'); [...tr.querySelectorAll('button')].find((x) => x.innerText.trim() === '조정').click(); return true })()",
+        "wait:800",
+        "expect:document.body.innerText.includes('잔액실사(계정별)') && [...document.querySelectorAll('[role=dialog] thead th')].map((t) => t.innerText.trim()).join('|') === '|부서|프로젝트|장부잔액|실잔액|조정금액|적요코드|적요명'",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('변경된정보가 없습니다.')",
+        "clicklast:확인",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const row = document.querySelector('[aria-label=\"1 실잔액\"]').closest('tr'); const book = Number(row.cells[3].innerText.replace(/,/g, '') || 0); sessionStorage.setItem('ba-book', String(book)); set(document.querySelector('[aria-label=\"1 실잔액\"]'), String(book + 11000)); set(document.querySelector('[aria-label=\"1 적요명\"]'), 'QA회계1 잔액조정'); return 'book ' + book })()",
+        "wait:300",
+        "expect:document.querySelector('[aria-label=\"1 실잔액\"]').closest('tr').cells[5].innerText.trim() === '-11,000'",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:!document.body.innerText.includes('잔액실사(계정별)')",
+        "expect:(() => { const b = JSON.parse(sessionStorage.getItem('ba-base')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.innerText.trim() === '811'); return Number(tr.cells[4].innerText.replace(/,/g, '')) === b.bal + 11000 && tr.cells[6].innerText.replace(/\\s+/g, ' ').trim() === '수정 추가 조회' })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const b = JSON.parse(sessionStorage.getItem('ba-base')); const tb = await (await fetch('/api/journals/trial-balance?from=' + b.asOf + '&to=' + b.asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '811'); return Number(r.debit) === b.d811 + 11000 && Number(r.credit) === b.c811 && Number(tb.totalDebit) === b.tbd + 11000 && Number(tb.totalCredit) === b.tbc })()"
+      ]
+    },
+    {
+      "name": "잔액실사조회 — 한 줄",
+      "path": "/accounting/balance-audits",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|구분|전표일자|계정명|장부가액|실가액|회계전표'",
+        "expect:(() => { const book = Number(sessionStorage.getItem('ba-book')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[3]?.innerText.trim() === '복리후생비'); return !!tr && tr.cells[1].innerText.trim() === '계정별' && Number(tr.cells[4].innerText.replace(/,/g, '')) === book && Number(tr.cells[5].innerText.replace(/,/g, '')) === book + 11000 && / -\\d+$/.test(tr.cells[6].innerText.trim()) })()"
+      ]
+    },
+    {
+      "name": "잔액조정현황 — 차이(차변) 11,000",
+      "path": "/accounting/balance-adjust-status",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '일자|계정코드|계정명|거래처명|조정후잔액(차변)|조정후잔액(대변)|차이(차변)|차이(대변)|적요명'",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[8]?.innerText.trim() === 'QA회계1 잔액조정'); return !!tr && tr.cells[1].innerText.trim() === '811' && tr.cells[6].innerText.trim() === '11,000' && [...document.querySelectorAll('tbody tr')].some((t) => / 계$/.test(t.cells[0]?.innerText.trim() ?? '')) && document.querySelector('tfoot').innerText.includes('합계') })()"
+      ]
+    },
+    {
+      "name": "잔액조정조회 — 선택삭제 → 되돌림",
+      "path": "/accounting/balance-adjustments",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|잔액조정번호|계정명|장부가액|실가액|인쇄'",
+        "click:선택삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다.')",
+        "clicklast:확인",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[2]?.innerText.trim() === '복리후생비' && /^\\d{4}\\/\\d{2}\\/\\d{2} -\\d+$/.test(t.cells[1].innerText.trim())); tr.querySelector('input[type=checkbox]').click(); return tr.cells[1].innerText })()",
+        "click:선택삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('선택한 전표를 삭제 하겠습니까?')",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.cells[2]?.innerText.trim() === '복리후생비')",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const b = JSON.parse(sessionStorage.getItem('ba-base')); const tb = await (await fetch('/api/journals/trial-balance?from=' + b.asOf + '&to=' + b.asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '811') || { debit: 0, credit: 0 }; const acc = (await (await fetch('/api/journals/balance-adjustments/accounts?asOf=' + b.asOf, { headers: H })).json()).find((x) => x.code === '811'); return Number(r.debit) === b.d811 && Number(tb.totalDebit) === b.tbd && Number(acc.debitAmount) === b.bal && acc.adjustmentIds.length === 0 })()"
+      ]
+    },
+    {
+      "name": "자동생성전표조회 — 신규(F2) 입력년월 → 알림",
+      "path": "/accounting/auto-journals",
+      "steps": [
+        "wait:1200",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|일자-No.|합계|적요|인쇄' && document.body.innerText.includes('등록된 데이터가 없습니다.')",
+        "click:신규(F2)",
+        "wait:400",
+        "expect:document.body.innerText.includes('자동생성전표를 입력할 연월을 선택하기 바랍니다.')",
+        "clicklast:확인",
+        "wait:400",
+        "expect:document.body.innerText.includes('선택된 연월에 대체분개시점이 유효한 자동대체가 존재하지 않습니다.')",
+        "clicklast:확인"
+      ]
+    }
+  ]
+}

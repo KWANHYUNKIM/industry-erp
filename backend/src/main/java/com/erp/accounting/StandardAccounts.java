@@ -1,6 +1,6 @@
 package com.erp.accounting;
 
-import com.erp.accounting.domain.AccountDivision;
+import com.erp.accounting.account.AccountDivision;
 
 import java.util.List;
 
@@ -43,9 +43,17 @@ public final class StandardAccounts {
             required("104", "받을수표", AccountDivision.ASSET, "유동자산"),
             required("108", "외상매출금", AccountDivision.ASSET, "매출채권"),
             required("110", "받을어음", AccountDivision.ASSET, "매출채권"),
+            // 카드매출대금회수가 카드사 미수금을 코드로 찾는다(FastVoucherService).
+            required("120", "미수금", AccountDivision.ASSET, "유동자산"),
             required("134", "가지급금", AccountDivision.ASSET, "유동자산"),
             required("135", "부가세대급금", AccountDivision.ASSET, "유동자산"),
             required("146", "상품", AccountDivision.ASSET, "재고자산"),
+            // 매입 회계반영이 품목구분으로 가른다(JournalService.stockAccountOf) — 없으면 그 구분의 매입을 반영 못 한다.
+            required("150", "제품", AccountDivision.ASSET, "재고자산"),
+            required("153", "원재료", AccountDivision.ASSET, "재고자산"),
+            required("162", "부재료", AccountDivision.ASSET, "재고자산"),
+            // 수입비용(회계 II) 서류징수시 전표가 쌓고 본계정대체가 비운다(ImportCostService) — 원본 1689 미착품.
+            required("168", "미착품", AccountDivision.ASSET, "재고자산"),
             required("203", "감가상각누계액", AccountDivision.ASSET, "유형자산"),   // 자산 차감계정
             of("206", "기계장치", AccountDivision.ASSET, "유형자산"),
             of("208", "차량운반구", AccountDivision.ASSET, "유형자산"),
@@ -60,22 +68,30 @@ public final class StandardAccounts {
             of("331", "자본금", AccountDivision.EQUITY, "자본금"),
             // ── 수익
             required("401", "상품매출", AccountDivision.REVENUE, "매출액"),
+            required("404", "제품매출", AccountDivision.REVENUE, "매출액"),
             of("901", "이자수익", AccountDivision.REVENUE, "영업외수익"),
             of("904", "임대료수입", AccountDivision.REVENUE, "영업외수익"),
             of("930", "잡이익", AccountDivision.REVENUE, "영업외수익"),
             required("914", "유형자산처분이익", AccountDivision.REVENUE, "영업외수익"),
             // ── 비용
             of("451", "상품매출원가", AccountDivision.EXPENSE, "매출원가"),
+            // 외주비일괄회계반영이 코드로 찾는다(SubcontractReflectionService).
+            required("533", "외주가공비", AccountDivision.EXPENSE, "제조원가"),
             required("801", "급여", AccountDivision.EXPENSE, "판매관리비"),
+            // 일용직 지급 분개가 코드로 찾는다(JournalService.createFromDailyWagePay, QA 69회차).
+            required("805", "잡급", AccountDivision.EXPENSE, "판매관리비"),
             of("811", "복리후생비", AccountDivision.EXPENSE, "판매관리비"),
             of("812", "여비교통비", AccountDivision.EXPENSE, "판매관리비"),
             of("814", "통신비", AccountDivision.EXPENSE, "판매관리비"),
             of("815", "수도광열비", AccountDivision.EXPENSE, "판매관리비"),
             required("818", "감가상각비", AccountDivision.EXPENSE, "판매관리비"),
             of("830", "소모품비", AccountDivision.EXPENSE, "판매관리비"),
-            of("831", "지급수수료", AccountDivision.EXPENSE, "판매관리비"),
+            // 현금거래(영수증으로 · 매출처로부터 …)의 [수수료]가 코드로 찾는다(FastVoucherService).
+            required("831", "지급수수료", AccountDivision.EXPENSE, "판매관리비"),
             of("833", "광고선전비", AccountDivision.EXPENSE, "판매관리비"),
             required("835", "대손상각비", AccountDivision.EXPENSE, "판매관리비"),
+            // 은행차입으로 [수수료] · 은행으로 [이자금액]이 코드로 찾는다(FastVoucherService).
+            required("951", "이자비용", AccountDivision.EXPENSE, "영업외비용"),
             required("936", "매출채권처분손실", AccountDivision.EXPENSE, "영업외비용"),
             required("970", "유형자산처분손실", AccountDivision.EXPENSE, "영업외비용"));
 }

@@ -8,6 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /**
  * 영업관리 > 출력물 > <b>출하지시서현황</b>.
@@ -16,14 +17,18 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
  * [출하지시서현황]이 출하지시서 <b>조회 화면</b>을 가리키고 있었다 — 라우트는 있으니
  * ui-check 도 통과했고, 눌러 보면 등록 폼이 달린 조회 화면이 떴다.
  *
- * <p>원본 조건 판 실측(사본 2장):
- *   [구분] 내역 | 집계 | 라인별 · [비교기간] · 일자(직접입력) + 기간 빠른선택 ·
- *   출하지시No. · 출하예정일 · 창고 · 거래처 · 품목 · 정렬기준 · [데이터 보기형식]
+ * <p>원본 조건 판 실측(2026-09-08, 접힌 줄을 펼쳐 <b>스물둘</b>. 사본에는 열둘뿐이었다):
+ *   [구분] 내역 | 집계 | 라인별 · [비교기간] · 일자 · 출하지시No. · 출하예정일 · 창고 ·
+ *   프로젝트 · 관리항목 · 거래처 · 품목 · <b>오더관리번호 · 규격 · 담당자 ·
+ *   거래처관리담당자 · 진행상태 · 적요 · 작성자</b> · (최종수정자 · 제목 · 사용자지정) ·
+ *   적용양식 · 정렬기준 · 데이터 보기형식.
  * <p>결과 열: <b>품목명(규격) · 수량 · 창고명 · 거래처명 · 연락처 · 적요</b>.
  * 출하현황과 달리 <b>연락처</b>가 있다 — 지시서는 물건을 보낼 곳에 연락하려고 보는 것이다.
  *
- * <p>대상은 <b>아직 안 나간 출하지시(READY)</b>다. 이미 나간 것은 출하현황이 본다.
- * 여기서까지 완료분을 세면 "보낼 것이 얼마나 남았나" 를 알 수 없다.
+ * <p><b>[진행상태]를 조건으로 두기 전까지 이 화면은 READY 만 그렸다.</b> 원본은 상태를
+ * 고르게 하니 <b>전부</b> 를 그리는 화면이다 — 나간 지시를 아예 안 보여 주면 "지시한 것이
+ * 나갔나" 를 여기서 확인할 수가 없었고, 밀린 것만 보는 화면은 <b>미출하현황</b>이 따로 있다.
+ * 기본값은 원본과 같이 [전체]다.
  */
 interface ShipLine {
   itemId: number
@@ -38,22 +43,37 @@ interface ShipLine {
 interface Shipment {
   id: number
   shipNo: string
+  partnerId: number
   partnerName: string
+  /** 근거 주문번호. 원본 조건의 [오더관리번호]다. 직접 등록한 지시면 null. */
+  salesOrderNo: string | null
+  /** 전표 담당자. 거래처를 맡은 사람([거래처관리담당자])과 다른 사람이다. */
+  employeeName: string | null
+  createdBy: string | null
   shipDate: string
   dueDate: string | null
   status: 'READY' | 'SHIPPED' | 'CANCELED'
   statusName: string
   totalQuantity: number
+  warehouseId: number | null
   warehouseName: string | null
   /** 귀속 프로젝트. 서버가 이미 주고 있는데 이 화면이 안 받고 있었다. */
+  projectId: number | null
   projectName: string | null
   contact: string | null
   remark: string | null
   lines: ShipLine[]
 }
 
-type Mode = '내역' | '집계' | '라인별'
-const MODES = ['내역', '집계', '라인별'] as const
+/*
+ * 원본 [구분]은 <b>내역·집계 둘</b>이다(대조표 실측). [라인별]은 우리가 더 둔 갈래였는데,
+ * 2026-09-09 에 원본(E040222) 격자를 재 보니 <b>[내역]이 이미 줄 단위</b>였다 —
+ * 일자-No. · 품목명(규격) · 수량 · 창고명 · 거래처명 · 연락처 · 적요.
+ * 우리 [내역]만 지시서로 접고 있어서 줄을 보려고 갈래를 하나 더 만들어 둔 것이다
+ * (판매·구매·생산불출·작업내역·출하현황에 이어 <b>여섯 번째</b> 같은 꼴). 갈래를 없앤다.
+ */
+type Mode = '내역' | '집계'
+const MODES = ['내역', '집계'] as const
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function ShipmentOrderStatusPage() {
@@ -77,6 +97,19 @@ export default function ShipmentOrderStatusPage() {
   /** 원본 출하지시서현황 조건의 [프로젝트]. */
   const [project, setProject] = useState('')
   const [item, setItem] = useState('')
+  /*
+   * 2026-09-08 실측으로 드러난 일곱. 값은 전부 응답에 진작 오던 것이라
+   * 서버를 고칠 일이 없었다 — 화면이 묻지 않았을 뿐이다.
+   */
+  const [orderNoCond, setOrderNoCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [pmgrCond, setPmgrCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'READY' | 'SHIPPED' | 'CANCELED'>('ALL')
+  /** [거래처관리담당자] — 거래처 마스터에 매인 사람이라 전표 응답에 없다. 이름으로 잇는다. */
+  const pmgr = usePartnerManagers()
 
   async function load() {
     setLoading(true)
@@ -100,6 +133,8 @@ export default function ShipmentOrderStatusPage() {
     const p = periodOf('금월(~오늘)')!
     setFrom(p.from); setTo(p.to); setCompare('사용안함'); setMode('내역'); setView('표')
     setShipNo(''); setDueDate(''); setWarehouse(''); setPartner(''); setProject(''); setItem('')
+    setOrderNoCond(''); setSpecCond(''); setEmpCond(''); setPmgrCond('')
+    setRemarkCond(''); setAuthorCond(''); setStatusFilter('ALL')
   }
 
   /**
@@ -111,19 +146,25 @@ export default function ShipmentOrderStatusPage() {
   const [mgmtCond, setMgmtCond] = useState('')
 
   const shown = useMemo(() => rows.filter((r) => {
-    // 아직 안 나간 지시만. 취소된 것도 뺀다 — 보낼 것이 아니다.
-    if (r.status !== 'READY') return false
+    if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
     if (r.shipDate < from || r.shipDate > to) return false
     if (shipNo && !r.shipNo.includes(shipNo)) return false
     if (dueDate && (r.dueDate ?? '') !== dueDate) return false
-    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
-    if (partner && !r.partnerName.includes(partner)) return false
-    if (project && !(r.projectName ?? '').includes(project)) return false
-    if (item && !r.lines.some((l) => (l.itemCode + ' ' + l.itemName).includes(item))) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
+    if (partner && String(r.partnerId) !== partner) return false
+    if (project && String(r.projectId) !== project) return false
+    if (item && !r.lines.some((l) => String(l.itemId) === item)) return false
     if (!mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond)) return false
+    if (orderNoCond && (r.salesOrderNo ?? '') !== orderNoCond) return false
+    if (specCond && !r.lines.some((l) => (l.spec ?? '') === specCond)) return false
+    if (empCond && (r.employeeName ?? '') !== empCond) return false
+    if (pmgrCond && pmgr.managerOfName(r.partnerName) !== pmgrCond) return false
+    if (remarkCond && !((r.remark ?? '') + ' ' + r.lines.map((l) => l.remark ?? '').join(' ')).includes(remarkCond)) return false
+    if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }), [rows, from, to, shipNo, dueDate, warehouse, partner, project, item, mgmtCond, mgmt.options])
+  }), [rows, from, to, shipNo, dueDate, warehouse, partner, project, item, mgmtCond, mgmt.options,
+       orderNoCond, specCond, empCond, pmgrCond, remarkCond, authorCond, statusFilter, pmgr.options])
 
   /** 라인별 — 원본 결과 격자의 단위다. */
   const lines = useMemo(
@@ -173,8 +214,9 @@ export default function ShipmentOrderStatusPage() {
         { label: 'Excel(화면)' },
       ]}
       help={
-        <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>
-          아직 나가지 않은 <b>출하지시</b>만 봅니다. 이미 나간 것은 출하현황에서 봅니다.
+        <p className="text-[12.5px] leading-[1.7]">
+          <b>출하지시</b>를 봅니다. [진행상태]로 아직 안 나간 것만 골라 볼 수 있고,
+          밀린 것만 모아 보려면 미출하현황이 따로 있습니다.
         </p>
       }
     >
@@ -222,141 +264,153 @@ export default function ShipmentOrderStatusPage() {
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측): … 품목 · <b>오더관리번호 · 규격 · 담당자 ·
+          거래처관리담당자 · 진행상태 · 적요</b> · (문자형식1~5 · 장문형식1) · <b>작성자</b> ·
+          (최종수정자 · 제목 · 사용자지정) · 적용양식 · 정렬기준 · 데이터 보기형식.
+          출하현황과 달리 [시리얼/로트No.]·[연락처]·[주소]가 없다 — 그쪽은 나간 물건을
+          좇는 화면이고 여기는 지시를 보는 화면이다.
+        */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
+                           value={orderNoCond} onChange={setOrderNoCond}
+                           items={[...new Set(rows.map((r) => r.salesOrderNo).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(rows.flatMap((r) => r.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond}
+                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="진행상태">
+          <div className="ec-pills">
+            {(['ALL', 'READY', 'SHIPPED', 'CANCELED'] as const).map((s) => (
+              <button key={s} type="button" className={'ec-pill no-ec' + (statusFilter === s ? ' active' : '')}
+                      onClick={() => setStatusFilter(s)}>
+                {s === 'ALL' ? '전체' : s === 'READY' ? '출하지시' : s === 'SHIPPED' ? '출하완료' : '취소'}
+              </button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        지시 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        지시수량 <b style={{ color: '#c07a00', fontSize: 14 }}>{num(totalQty)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        지시 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        지시수량 <b className="text-ec-warn text-[14px]">{num(totalQty)}</b>
       </div>
 
       {error && (
-        <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+        <p className="ec-alert ec-alert-danger mb-[8px]">
           {error}
         </p>
       )}
 
       {view === '그래프' ? (
-        <EcBarChart rows={chartRows} unit=" 개" emptyText="아직 나가지 않은 출하지시가 없습니다." />
+        <EcBarChart rows={chartRows} unit=" 개" emptyText="출하지시가 없습니다." />
       ) : mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>품목명(규격)</th>
-              <th style={{ width: 70 }}>단위</th>
-              <th style={{ width: 100, textAlign: 'right' }}>지시건수</th>
-              <th style={{ width: 130, textAlign: 'right' }}>수량</th>
+              <th className="w-[70px]">단위</th>
+              <th className="w-[100px] text-right">지시건수</th>
+              <th className="w-[130px] text-right">수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((r, i) => (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{r.spec ? r.name + '(' + r.spec + ')' : r.name}</td>
                 <td>{r.unit}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.count)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{num(r.qty)}</td>
+                <td className="text-right">{num(r.count)}</td>
+                <td className="text-right font-semibold text-ec-warn">{num(r.qty)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byItem.length}품목)</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>{num(totalQty)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      ) : mode === '라인별' ? (
-        <table className="w-full text-left">
-          <thead>
-            <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 150 }}>출하지시No.</th>
-              <th style={{ width: 110 }}>출하예정일</th>
-              <th>품목명(규격)</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 130 }}>창고명</th>
-              <th style={{ width: 150 }}>거래처명</th>
-              <th style={{ width: 130 }}>연락처</th>
-              <th>적요</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : lines.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : lines.map(({ key, r, l }, i) => (
-              <tr key={key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.shipNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
-                <td>{itemLabel(l)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(l.quantity)} {l.unit}</td>
-                <td>{r.warehouseName ?? ''}</td>
-                <td>{r.partnerName}</td>
-                <td style={{ color: r.contact ? undefined : '#c9ced6' }}>{r.contact ?? ''}</td>
-                <td style={{ color: '#8a929c' }}>{l.remark ?? r.remark ?? ''}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({lines.length}줄)</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>
-                {num(lines.reduce((n, x) => n + x.l.quantity, 0))}
-              </td>
-              <td colSpan={4}></td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={4} className="text-right">합계 ({byItem.length}품목)</td>
+              <td className="text-right text-ec-warn">{num(totalQty)}</td>
             </tr>
           </tfoot>
         </table>
       ) : (
         <table className="w-full text-left">
           <thead>
+            {/*
+              원본 격자(2026-09-09 E040222 실측):
+              <b>일자-No. · 품목명(규격) · 수량 · 창고명 · 거래처명 · 연락처 · 적요</b>.
+              원본은 일자와 번호를 한 칸에 적는다 - 우리는 번호만 두고 일자를 안 두어
+              <b>언제 낸 지시인지 이 표에서 볼 수 없었다.</b>
+              [출하예정일]은 원본에 없지만 우리가 더 두는 열이다.
+            */}
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 150 }}>출하지시No.</th>
-              <th style={{ width: 110 }}>일자</th>
-              <th style={{ width: 110 }}>출하예정일</th>
-              <th>품목명(요약)</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량합계</th>
-              <th style={{ width: 130 }}>창고명</th>
-              <th style={{ width: 150 }}>거래처명</th>
-              <th style={{ width: 130 }}>연락처</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[190px] text-center">일자-No.</th>
+              <th className="w-[110px]">출하예정일</th>
+              <th>품목명(규격)</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[130px]">창고명</th>
+              <th className="w-[150px]">거래처명</th>
+              <th className="w-[130px]">연락처</th>
+              <th>적요</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
-              <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.shipNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.shipDate)}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
-                <td>
-                  {r.lines.length === 0 ? '' : itemLabel(r.lines[0])}
-                  {r.lines.length > 1 ? ' 외 ' + (r.lines.length - 1) + '건' : ''}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{num(r.totalQuantity)}</td>
+              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            ) : lines.length === 0 ? (
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : lines.map(({ key, r, l }, i) => (
+              <tr key={key}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{dateText(r.shipDate)} {r.shipNo}</td>
+                <td>{dateText(r.dueDate) || ''}</td>
+                <td>{itemLabel(l)}</td>
+                <td className="text-right font-semibold">{num(l.quantity)} {l.unit}</td>
                 <td>{r.warehouseName ?? ''}</td>
                 <td>{r.partnerName}</td>
-                <td style={{ color: r.contact ? undefined : '#c9ced6' }}>{r.contact ?? ''}</td>
+                <td style={{ color: r.contact ? undefined : 'var(--ec-text-off)' }}>{r.contact ?? ''}</td>
+                <td className="text-ec-hint">{l.remark ?? r.remark ?? ''}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>{num(totalQty)}</td>
-              <td colSpan={3}></td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={4} className="text-right">합계 ({lines.length}줄)</td>
+              <td className="text-right text-ec-warn">
+                {num(lines.reduce((n, x) => n + x.l.quantity, 0))}
+              </td>
+              <td colSpan={4}></td>
             </tr>
           </tfoot>
         </table>

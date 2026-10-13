@@ -1,0 +1,155 @@
+package com.erp.hr.payroll;
+
+import com.erp.hr.payroll.dto.PaySettingDtos.PayGroupRequest;
+import com.erp.hr.payroll.dto.PaySettingDtos.PayGroupResponse;
+import com.erp.hr.payroll.dto.PaySettingDtos.PayItemRequest;
+import com.erp.hr.payroll.dto.PaySettingDtos.PayItemResponse;
+import com.erp.hr.payroll.dto.PaySettingDtos.TransferRequest;
+import com.erp.hr.payroll.dto.PaySettingDtos.TransferResponse;
+import com.erp.security.UserPrincipal;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import com.erp.hr.payroll.dto.PaySettingDtos;
+
+/** 관리 > 급여 설정(수당·공제 항목/그룹)과 급여이체 */
+@RestController
+@RequestMapping("/api/pay-settings")
+@RequiredArgsConstructor
+public class PaySettingController {
+
+    private final PaySettingService service;
+    private final PayrollTransferService transferService;
+    private final PayFormulaService formulaService;
+
+    /** 원본 수당항목등록 [계산식] — 모든 항목의 계산식리스트. */
+    @GetMapping("/formulas")
+    public List<PaySettingDtos.FormulaResponse> formulas() {
+        return formulaService.findAll();
+    }
+
+    /** 계산식등록 오른쪽 찾기 목록 */
+    @GetMapping("/formula-variables")
+    public List<PaySettingDtos.FormulaVariableGroup> formulaVariables(
+            @RequestParam(defaultValue = "ALLOWANCE") PayslipLineKind kind) {
+        return formulaService.variables(kind);
+    }
+
+    @PostMapping("/items/{id}/formulas")
+    public PaySettingDtos.FormulaResponse createFormula(@PathVariable Long id, @Valid @RequestBody PaySettingDtos.FormulaRequest req) {
+        return formulaService.create(id, req);
+    }
+
+    @PutMapping("/formulas/{id}")
+    public PaySettingDtos.FormulaResponse updateFormula(@PathVariable Long id, @Valid @RequestBody PaySettingDtos.FormulaRequest req) {
+        return formulaService.update(id, req);
+    }
+
+    /** 원본 계산식리스트 [사용중단/재사용] */
+    @PostMapping("/formulas/{id}/toggle-active")
+    public PaySettingDtos.FormulaResponse toggleFormula(@PathVariable Long id) {
+        return formulaService.toggleActive(id);
+    }
+
+    @GetMapping("/items")
+    public List<PayItemResponse> items() {
+        return service.findItems();
+    }
+
+    @PostMapping("/items")
+    public PayItemResponse createItem(@Valid @RequestBody PayItemRequest req) {
+        return service.createItem(req);
+    }
+
+    @PutMapping("/items/{id}")
+    public PayItemResponse updateItem(@PathVariable Long id, @Valid @RequestBody PayItemRequest req) {
+        return service.updateItem(id, req);
+    }
+
+    /** 원본 수당리스트 [사용중단/재사용 ▲] 의 [삭제]. */
+    @DeleteMapping("/items/{id}")
+    public void deleteItem(@PathVariable Long id) {
+        service.deleteItem(id);
+    }
+
+    /** 원본 사원등록 [급여지급사항] — 이 사원의 수당·공제 금액. */
+    @GetMapping("/employees/{employeeId}/items")
+    public List<PaySettingDtos.EmployeePayItemResponse> employeePayItems(@PathVariable Long employeeId) {
+        return service.findEmployeePayItems(employeeId);
+    }
+
+    @PutMapping("/employees/{employeeId}/items")
+    public List<PaySettingDtos.EmployeePayItemResponse> replaceEmployeePayItems(
+            @PathVariable Long employeeId, @Valid @RequestBody List<PaySettingDtos.@Valid EmployeePayItemInput> body) {
+        return service.replaceEmployeePayItems(employeeId, body);
+    }
+
+    /** 원본 사원등록 [기타설정] — 4대보험 계산 여부 · 공제대상가족 · 간이세액표 적용방법. */
+    @GetMapping("/employees/{employeeId}/settings")
+    public PaySettingDtos.EmployeePayrollSettingResponse employeePayrollSetting(@PathVariable Long employeeId) {
+        return service.findPayrollSetting(employeeId);
+    }
+
+    @PutMapping("/employees/{employeeId}/settings")
+    public PaySettingDtos.EmployeePayrollSettingResponse saveEmployeePayrollSetting(
+            @PathVariable Long employeeId, @Valid @RequestBody PaySettingDtos.EmployeePayrollSettingRequest body) {
+        return service.savePayrollSetting(employeeId, body);
+    }
+
+    /** 원본 수당/공제그룹등록 [사원 등록] — 적용사원 목록. */
+    @GetMapping("/groups/{id}/employees")
+    public List<PaySettingDtos.GroupEmployeeResponse> groupEmployees(@PathVariable Long id) {
+        return service.findGroupEmployees(id);
+    }
+
+    /** 원본 [적용사원등록] 저장 — 적용사원을 통째로 바꾼다. */
+    @PutMapping("/groups/{id}/employees")
+    public List<PaySettingDtos.GroupEmployeeResponse> replaceGroupEmployees(
+            @PathVariable Long id, @Valid @RequestBody List<PaySettingDtos.@Valid GroupEmployeeInput> body) {
+        return service.replaceGroupEmployees(id, body);
+    }
+
+    @GetMapping("/groups")
+    public List<PayGroupResponse> groups() {
+        return service.findGroups();
+    }
+
+    @PostMapping("/groups")
+    public PayGroupResponse createGroup(@Valid @RequestBody PayGroupRequest req) {
+        return service.createGroup(req);
+    }
+
+    @PutMapping("/groups/{id}")
+    public PayGroupResponse updateGroup(@PathVariable Long id, @Valid @RequestBody PayGroupRequest req) {
+        return service.updateGroup(id, req);
+    }
+
+    @DeleteMapping("/groups/{id}")
+    public ResponseEntity<Void> deleteGroup(@PathVariable Long id) {
+        service.deleteGroup(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ── 급여이체 ──────────────────────────────────────────────────────
+
+    @GetMapping("/transfers")
+    public List<TransferResponse> transfers() {
+        return transferService.findAll();
+    }
+
+    /** 이미 이체된 급여명세 id — 이체 화면이 대상 목록에서 제외한다 */
+    @GetMapping("/transfers/transferred-payslips")
+    public List<Long> transferredPayslips() {
+        return transferService.transferredPayslipIds();
+    }
+
+    @PostMapping("/transfers")
+    public TransferResponse createTransfer(@Valid @RequestBody TransferRequest req,
+                                           @AuthenticationPrincipal UserPrincipal principal) {
+        return transferService.create(req, principal.getUsername());
+    }
+}

@@ -1,0 +1,41 @@
+{
+  "about": "관리 > 휴가항목등록(E020702) — 원본처럼 [신규(F2)] 창에 다음 휴가코드 · 올해 1/1 ~ 12/31 · 이월 '사용안함' 이 미리 차 있고, 휴가명을 넣고 저장하면 목록에 붙는다. 근태항목등록에서 근태유형 '휴가' 를 고르면 [휴가코드]가 나타나고 비우면 막힌다. 시험 휴가항목은 ▲ › 삭제로 지운다.",
+  "shots": [
+    {
+      "name": "휴가항목 신규 → 목록",
+      "path": "/hr/vacation-kinds",
+      "steps": [
+        "click:신규(F2)",
+        "expect:(()=>{const d=document.querySelector('[role=dialog]');const y=new Date().getFullYear();const ds=d.querySelectorAll('input[type=date]');return /^\\d{5}$/.test(d.querySelector('.ec-form input.ec-input').value)&&ds[0].value===y+'-01-01'&&ds[1].value===y+'-12-31'&&[...d.querySelectorAll('input[type=radio]')].find(r=>r.parentElement.textContent.trim()==='사용안함').checked})()",
+        "setnear:휴가명|QA관리-휴가",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-휴가')&&t.innerText.includes('Yes'))"
+      ]
+    },
+    {
+      "name": "근태항목 — 휴가 유형은 휴가코드가 있어야",
+      "path": "/hr/attendance-kinds",
+      "steps": [
+        "click:신규(F2)",
+        "setnear:근태명칭|QA관리-휴가근태",
+        "js:[...document.querySelectorAll('[role=dialog] input[name=ak-type]')].find(r=>r.parentElement.textContent.trim()==='휴가').click();true",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('휴가코드')",
+        "clicklast:저장(F8)",
+        "expect:document.body.innerText.includes('휴가코드를 입력 바랍니다.')",
+        "clicklast:닫기"
+      ]
+    },
+    {
+      "name": "휴가항목 삭제",
+      "path": "/hr/vacation-kinds",
+      "steps": [
+        "js:window.confirm=()=>true;(async()=>{for(let i=0;i<40;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-휴가'));if(tr){tr.querySelector('input[type=checkbox]').click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "click:사용중단/재사용",
+        "js:[...document.querySelectorAll('.ec-menu button')].find(b=>b.textContent==='삭제').click();true",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-휴가'))"
+      ]
+    }
+  ]
+}

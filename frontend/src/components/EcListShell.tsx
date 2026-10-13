@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
-import { openPrintWindow, printTable, type PrintSignLine } from '../utils/print'
+import { openPrintWindow, printTable, signModuleOf, type PrintSignLine } from '../utils/print'
+import { ecAlert, NO_SELECTION_MESSAGE } from './EcDialog'
 import { findDataTable } from '../utils/tableExport'
 import Modal from './Modal'
 import TableContextMenu from './TableContextMenu'
+import { INQUIRY_PICKS, periodOf } from '../utils/periods'
 
 /**
  * 인쇄 시점에 기본 결재란을 가져온다. 셸이 뜰 때마다 미리 부르면 인쇄하지 않는 화면에서도
@@ -13,7 +15,8 @@ import TableContextMenu from './TableContextMenu'
  */
 async function defaultSignLine(): Promise<PrintSignLine | null> {
   try {
-    const r = await api.get<PrintSignLine>('/print-sign-lines/default')
+    // 결재란은 모듈(회계 · 재고 · 관리)마다 따로다 — 화면 주소로 고른다(printDocument 와 같은 규칙)
+    const r = await api.get<PrintSignLine>('/print-sign-lines/default', { params: { module: signModuleOf(window.location.pathname) } })
     return r.status === 204 ? null : r.data
   } catch {
     return null
@@ -24,13 +27,40 @@ export interface BottomAction {
   label: string
   onClick?: () => void
   primary?: boolean
-  /**
-   * 지금은 누를 수 없는 버튼. 원본은 <b>고른 줄이 있어야 도는 버튼</b>
-   * ([선택삭제]·[진행상태변경]·[다른전표생성] 같은 것)을 아무것도 안 골랐을 때
-   * 회색으로 잠가 둔다(사본 실측). 우리는 누르게 두고 나서 "고르세요" 라고 되물었는데,
-   * 그건 사람에게 헛걸음을 시키는 것이다 — 누르기 전에 못 누른다고 보여 주는 편이 낫다.
-   */
+  /** 지금은 누를 수 없는 버튼(권한 · 상태 때문에). 고른 줄이 없는 것은 잠그지 말고 `selected` 를 준다. */
   disabled?: boolean
+  /**
+   * 고른 줄 수 — <b>고른 줄에 대고 하는 버튼</b>([선택삭제] · [진행상태변경] · [다른전표생성] …)에 준다.
+   * 원본(2026-10-13 loginaa 구매조회 실측)은 이 버튼을 잠그지 않고, 0 줄인 채로 누르면 화면 안 '알림' 창에
+   * "리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다." 를 띄운다. 0 이면 셸이 그 알림을 띄우고 onClick 은 안 부른다.
+   */
+  selected?: number
+  /**
+   * 붙은 ▴ 펼침 — 원본 [입금보고서작성 ▴] 의 [채권만감소] 처럼 같은 버튼에 딸린 다른 동작(채권감소등록 E060402 실측).
+   * 펼침은 위로 열린다(버튼줄이 화면 바닥에 있다).
+   */
+  menu?: { label: string; onClick: () => void }[]
+}
+
+/** 하단 버튼 하나 — menu 가 있으면 붙은 묶음(.ec-btn-group + ▴). */
+function FooterButton({ a }: { a: BottomAction }) {
+  const [open, setOpen] = useState(false)
+  const cls = `ec-btn${a.primary ? ' ec-btn-primary' : ''}`
+  if (!a.menu?.length) return <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>
+  return (
+    <span className="ec-btn-group relative">
+      <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>
+      <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} onClick={() => setOpen((v) => !v)}>▴</button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
+          {a.menu.map((m) => (
+            <button key={m.label} type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"
+                    onClick={() => { setOpen(false); m.onClick() }}>{m.label}</button>
+          ))}
+        </div>
+      )}
+    </span>
+  )
 }
 
 /** onClick이 없을 때 셸이 기본 동작을 붙여주는 액션 라벨 */
@@ -42,11 +72,58 @@ const PRINT_LABELS = ['인쇄', '출력']
  */
 const PREVIEW_LABELS = ['미리보기']
 
+const CONDS = '.ec-cond, .ec-search-conds'
+/** 조건 판 안에서 화면이 둔 [검색(F8)] · [다시작성] 단추를 알아보는 글자 */
+const SEARCH_RE = /^검색(\(F8\))?$/
+const RESET_RE = /^다시\s?작성$/
+const condsOf = (root: HTMLElement | null) => root?.querySelector<HTMLElement>(CONDS) ?? null
+const condButton = (root: HTMLElement | null, re: RegExp) =>
+  [...(condsOf(root)?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((b) => re.test(b.textContent?.trim() ?? '')) ?? null
+const isCheck = (f: Element) => f instanceof HTMLInputElement && (f.type === 'checkbox' || f.type === 'radio')
+/** ▾ 에 둘 기간 — 판 안의 빠른선택 단추 글자, 없으면 날짜칸이 둘 이상일 때 조회 화면 묶음(INQUIRY_PICKS) */
+function pickLabels(el: HTMLElement): string[] {
+  const own = [...el.querySelectorAll('.ec-btn-pick')].map((b) => b.textContent?.trim() ?? '').filter(Boolean)
+  if (own.length) return own
+  return el.querySelectorAll('input[type="date"]').length >= 2 ? [...INQUIRY_PICKS] : []
+}
+/**
+ * 떠 있는 조건 판에서는 셸의 줄이 [검색(F8)│▾] [다시작성] 을 맡는다 — 화면이 판 안에 둔 같은 단추(와 빠른선택 줄)는
+ * 겹치므로 감춘다(index.css <code>[data-shell-dup]</code>). 그 단추만 든 줄(li)이면 줄째 감춘다.
+ */
+function markOwnButtons(el: HTMLElement) {
+  const own = (b: Element) => b.classList.contains('ec-btn-pick') || SEARCH_RE.test(b.textContent?.trim() ?? '') || RESET_RE.test(b.textContent?.trim() ?? '')
+  for (const b of el.querySelectorAll('button')) {
+    if (!own(b)) continue
+    const li = b.closest('li')
+    const box = li && el.contains(li) && [...li.querySelectorAll('button')].every(own) && !li.querySelector('input, select') ? li : b
+    box.setAttribute('data-shell-dup', '')
+  }
+}
+/** React 가 듣는 칸에 값을 넣는다 — value 만 바꾸면 화면 상태가 안 바뀐다(네이티브 setter + input 이벤트). */
+function setFieldValue(f: HTMLInputElement | HTMLSelectElement, v: string) {
+  const proto = f instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
+  Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(f, v)
+  f.dispatchEvent(new Event(f instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }))
+}
+/** [다시작성] 기본 동작 — 판의 칸을 처음 본 값으로. 체크 · 라디오는 눌러서 바꾼다(React 는 click 으로 듣는다). */
+function restoreFields(el: HTMLElement, first: WeakMap<Element, string | boolean>) {
+  for (const f of el.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')) {
+    if (!first.has(f)) continue
+    const v = first.get(f)!
+    if (isCheck(f)) {
+      const c = f as HTMLInputElement
+      // 라디오는 처음 켜져 있던 것을 다시 누르면 같은 묶음의 나머지가 꺼진다
+      if (c.type === 'radio' ? (v === true && !c.checked) : c.checked !== v) c.click()
+    }
+    else if (f.value !== v) setFieldValue(f, v as string)
+  }
+}
+
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
   renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
-  signLine = false, children,
+  signLine = false, collapseConditions, onReset, children,
 }: {
   title: string
   search?: string
@@ -76,6 +153,22 @@ export default function EcListShell({
    * 끌 방법도 없었다. 화면에 조건을 다는 것보다 이 한 줄이 먼저다.
    */
   signLine?: boolean
+  /**
+   * 조회 조건을 접어 두고 [Search(F3)] 로 펼친다. 조건은 화면 안의 <code>.ec-cond</code> 나
+   * <code>.ec-search-conds</code> 를 그대로 쓴다(화면은 고칠 것이 없다).
+   * 기본값은 원본 규칙(2026-10-13 판매조회 · 사원리스트 · 채권거래내역 · A/S수리현황 실측, plans/공용.md 규칙 3):
+   * <ul>
+   *   <li>머리에 빠른 검색칸이 있는 화면(<code>searchable</code>) — 접혀서 시작한다.</li>
+   *   <li>없는 화면(현황 · 내역) — 펼쳐서 시작하고, 조건 판의 [검색(F8)] 을 누르면 접히며 머리에 [Search(F3)] 가 생긴다.</li>
+   * </ul>
+   * 값을 주면 그 값이 이긴다(<code>collapseConditions={rows !== null}</code> 처럼 화면이 직접 정하던 곳).
+   */
+  collapseConditions?: boolean
+  /**
+   * 조건 판 [다시작성] — 조건을 처음 값으로 되돌린다. 주지 않으면 조건 판 안의 화면 [다시작성] 단추를 누르고,
+   * 그것도 없으면 셸이 판의 칸(입력 · 선택 · 체크)을 처음 보았을 때의 값으로 되돌린다.
+   */
+  onReset?: () => void
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -85,10 +178,80 @@ export default function EcListShell({
   const [helpOpen, setHelpOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
+  const [headMore, setHeadMore] = useState(false)   // 휴대폰: 머리 도구 펼침(⌄) — 제목 · 도움말
+  // 조건 판 — 원본 규칙(plans/공용.md 규칙 3 · 4). 판이 있는지는 그려진 뒤에야 안다.
+  const [hasConds, setHasConds] = useState(false)
+  const [searched, setSearched] = useState(false)   // 검색칸 없는 화면: 조건 판 [검색(F8)] 을 한 번 눌렀다
+  const collapse = collapseConditions ?? (hasConds && (searchable || searched))
+  // 검색칸 없는 화면도 접힌 뒤에는 머리에 [Search(F3)] 가 생긴다(원본 A/S수리현황)
+  const showSearch = searchable || (collapseConditions === undefined && searched)
+  const [condOpen, setCondOpen] = useState(false)
+  const [barTop, setBarTop] = useState<number | null>(null)
+  const [picks, setPicks] = useState<string[]>([])   // ▾ 기간 빠른선택 — 판 안의 .ec-btn-pick, 없으면 날짜칸 둘에 INQUIRY_PICKS
+  const [picksOpen, setPicksOpen] = useState(false)
+  const firstValues = useRef(new WeakMap<Element, string | boolean>())
+  useLayoutEffect(() => {
+    const el = condsOf(bodyRef.current)
+    if (Boolean(el) !== hasConds) setHasConds(Boolean(el))
+    if (!el) return
+    // [다시작성] 이 되돌릴 '처음 값' — 칸을 처음 본 때의 값(화면이 나중에 그리는 칸도 처음 본 때)
+    for (const f of el.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')) {
+      if (!firstValues.current.has(f)) firstValues.current.set(f, isCheck(f) ? (f as HTMLInputElement).checked : f.value)
+    }
+    // 펼친 조건 판 바로 아래에 [검색(F8)] 줄을 붙인다 — 판 높이는 화면마다 달라 그려진 뒤 잰다
+    const top = condOpen ? el.offsetTop + el.offsetHeight : null
+    if (top !== barTop) setBarTop(top)
+    if (condOpen) {
+      markOwnButtons(el)
+      const labels = pickLabels(el)
+      if (labels.join('|') !== picks.join('|')) setPicks(labels)
+    }
+  })
+  const onSearchRef = useRef(onSearch)
+  onSearchRef.current = onSearch
+  const footerSearchRef = useRef<(() => void) | undefined>(undefined)
+
+  /** 조건 판 [검색(F8)] — 화면이 판 안에 둔 [검색] 단추가 있으면 그것(그 화면의 조건으로 찾는다), 없으면 onSearch. */
+  const searchConds = () => {
+    const own = condButton(bodyRef.current, SEARCH_RE)
+    if (own) own.click()
+    else if (onSearchRef.current) onSearchRef.current()
+    else footerSearchRef.current?.()
+    setCondOpen(false)
+    setPicksOpen(false)
+  }
+  const resetConds = () => {
+    if (onReset) { onReset(); return }
+    const own = condButton(bodyRef.current, RESET_RE)
+    if (own) { own.click(); return }
+    const el = condsOf(bodyRef.current)
+    if (el) restoreFields(el, firstValues.current)
+  }
+  /** ▾ 기간 빠른선택 — 고르면 기간을 넣고 바로 찾는다(원본). */
+  const pickPeriod = (label: string) => {
+    const el = condsOf(bodyRef.current)
+    if (!el) return
+    const own = [...el.querySelectorAll<HTMLButtonElement>('.ec-btn-pick')].find((b) => b.textContent?.trim() === label)
+    if (own) own.click()
+    else {
+      const r = periodOf(label)
+      const dates = el.querySelectorAll<HTMLInputElement>('input[type="date"]')
+      if (r && dates.length >= 2) {
+        if (r.from) setFieldValue(dates[0], r.from)
+        setFieldValue(dates[1], r.to)
+      }
+    }
+    setPicksOpen(false)
+    // 화면 상태가 새 기간으로 다시 그려진 다음에 찾는다 — 같은 틱이면 옛 기간으로 찾는다
+    window.setTimeout(searchConds, 0)
+  }
 
   // 페이지가 검색을 직접 처리하지 않으면 셸이 렌더된 행을 필터링한다
   const searchHandledByPage = typeof onSearch === 'function'
-  const searchValue = searchHandledByPage ? (search ?? '') : localSearch
+  // 낱말을 화면이 들고 있지 않으면(onSearchChange 없음) 셸이 들고 행을 추린다 — 전에는 칸에 글자가 안 들어갔다
+  const keywordLocal = !onSearchChange
+  const searchValue = keywordLocal ? localSearch : (search ?? '')
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -137,13 +300,16 @@ export default function EcListShell({
   }
 
   const runSearch = () => {
-    if (searchHandledByPage) onSearch!()
+    // 원본: 검색창이 비어 있으면 [Search(F3)] 는 조회 조건 판을 펼친다(닫는다)
+    if (collapse && !searchValue.trim()) { setCondOpen((v) => !v); setPicksOpen(false); return }
+    if (keywordLocal && localSearch.trim()) filterRows(localSearch)
+    else if (searchHandledByPage) onSearch!()
     else filterRows(localSearch)
   }
 
   const changeSearch = (v: string) => {
-    if (searchHandledByPage) onSearchChange?.(v)
-    else setLocalSearch(v)
+    if (keywordLocal) setLocalSearch(v)
+    else onSearchChange!(v)
   }
 
   // 우클릭 메뉴의 '이 값으로 검색'. 페이지가 검색을 처리하는 경우 onSearchChange 로 값을 넣은 뒤
@@ -172,8 +338,16 @@ export default function EcListShell({
     /* [미리보기]를 [인쇄]보다 <b>먼저</b> 본다 — '인쇄 미리보기' 는 둘 다 품는다. */
     if (!handler && PREVIEW_LABELS.some((l) => a.label.includes(l))) handler = doPreview
     if (!handler && PRINT_LABELS.some((l) => a.label.includes(l))) handler = doPrint
+    // 검색칸 없는 화면: 하단 [검색(F8)] 도 조건 판을 접는다(원본 A/S수리현황 — 판 아래 줄이든 하단이든 같은 검색)
+    if (handler && SEARCH_RE.test(a.label.trim())) {
+      const run = handler
+      handler = () => { run(); if (collapseConditions === undefined && hasConds && !searchable) setSearched(true); setCondOpen(false) }
+    }
+    // 고른 줄이 없으면 잠그지 않고 원본 알림을 띄운다(BottomAction.selected) — 우클릭 메뉴도 같은 동작
+    if (a.selected === 0) handler = () => { void ecAlert(NO_SELECTION_MESSAGE) }
     return { ...a, onClick: handler }
   })
+  footerSearchRef.current = resolved.find((a) => SEARCH_RE.test(a.label.trim()))?.onClick
 
   /**
    * 검색(F8) — 원본 현황 화면의 단축키다. 우리 하단 버튼은 라벨만 `검색(F8)` 이었고
@@ -189,12 +363,15 @@ export default function EcListShell({
   const keyRef = useRef<Record<string, (() => void) | undefined>>({})
   keyRef.current = formOpen ? {} : {
     // 검색 — 라벨에 F8 이 적힌 버튼, 없으면 primary 버튼
-    F8: (resolved.find((a) => a.label.includes('F8') && a.onClick)
-      ?? resolved.find((a) => a.primary && a.onClick))?.onClick,
+    // 조건 판이 보이면 그 판의 [검색(F8)] 이 먼저다(원본 — 판 안의 칸에서 F8)
+    F8: condOpen ? searchConds
+      : (!collapse && condButton(bodyRef.current, SEARCH_RE)) ? () => condButton(bodyRef.current, SEARCH_RE)?.click()
+      : (resolved.find((a) => a.label.includes('F8') && a.onClick)
+        ?? resolved.find((a) => a.primary && a.onClick))?.onClick,
     // 신규 — 하단 좌측 버튼(모달 폼이 있으면 그걸 연다)
     F2: (onNew || renderForm) ? () => (renderForm ? setFormOpen(true) : onNew?.()) : undefined,
     // Search — 목록 낱말 추리기. 검색상자를 숨긴 화면(searchable={false})에는 없다.
-    F3: searchable ? runSearch : undefined,
+    F3: showSearch ? runSearch : undefined,
   }
 
   useEffect(() => {
@@ -211,52 +388,40 @@ export default function EcListShell({
   const hasBottom = Boolean(onNew || renderForm) || resolved.length > 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      {/* 상단: ☆제목 + 검색 */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{title}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
-          {searchable && <>
+    // 원본: 하단 버튼줄은 격자(본문) 바로 다음에 흐르고, 자료가 창보다 길 때만 창 바닥에 붙는다(.ec-footer sticky —
+    // 지금은 틀(.ec-frame)이 아니라 창이 스크롤돼 고정이 안 걸린다, plans/공용.md 남은 것).
+    // 틀 높이를 채우지 않는다 — min-h-100% 로 채우면 짧은 목록에서도 버튼줄이 틀 바닥으로 밀려났다(2026-10-13 6개 화면 실측).
+    <div className="ec-list-shell flex flex-col">
+      {/* 상단: ★제목 + 검색 (styles/shell.css .ec-page-head) */}
+      <div className={`ec-page-head${headMore ? ' more' : ''}`}>
+        {/* 원본 휴대폰 목록 화면은 제목을 감추고 검색 도구만 남긴다 */}
+        <span className="ec-page-title m-hide">{title}</span>
+        <div className="tools relative">
+          {showSearch && <>
             <input
-              className="ec-input"
+              className="ec-input ec-quick"
               placeholder="입력 후 [Enter]"
               value={searchValue}
               onChange={(e) => changeSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
-              style={{ width: 160 }}
             />
             <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
           </>}
           {option && <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>}
-          <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
+          <button className="ec-btn m-hide" onClick={() => setHelpOpen(true)}>도움말</button>
+          {/* 휴대폰: 한 줄에 못 둔 머리 도구(제목 · 도움말)는 ⌄ 로 펼친다(원본 btn-toolbar-more) */}
+          <button className="ec-btn ec-more" aria-label="도구 더 보기" onClick={() => setHeadMore((v) => !v)}>{headMore ? '⌃' : '⌄'}</button>
 
           {optionOpen && (
             <>
-              <div
-                onClick={() => setOptionOpen(false)}
-                style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-              />
-              <div
-                style={{
-                  position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41,
-                  background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
-                  boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4,
-                }}
-              >
+              <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
+              <div className="ec-menu">
                 {[
                   { label: 'Excel 내려받기', run: doExcel },
                   { label: '인쇄', run: doPrint },
                   { label: '검색조건 초기화', run: async () => { setLocalSearch(''); filterRows('') } },
                 ].map((m) => (
-                  <button
-                    key={m.label}
-                    onClick={() => { setOptionOpen(false); void m.run() }}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px',
-                      fontSize: 12, background: 'none', border: 0, cursor: 'pointer',
-                    }}
-                  >
+                  <button key={m.label} onClick={() => { setOptionOpen(false); void m.run() }}>
                     {m.label}
                   </button>
                 ))}
@@ -266,17 +431,38 @@ export default function EcListShell({
         </div>
       </div>
 
-      {notice && (
-        <div style={{
-          marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3,
-          background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91',
-        }}>
-          {notice}
-        </div>
-      )}
+      {notice && <div className="ec-notice">{notice}</div>}
 
       {/* 그리드 본문 */}
-      <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>{children}</div>
+      <div ref={bodyRef} data-conds={collapse ? (condOpen ? 'open' : 'closed') : undefined}
+           className={`flex-1 min-h-0 ec-list-body${collapse ? (condOpen ? ' conds-open' : ' conds-closed') : ''}`}
+           onKeyDown={(e) => { if (e.key === 'Escape' && condOpen) setCondOpen(false) }}
+           onClick={(e) => {
+             // 검색칸 없는 화면: 펼쳐 둔 조건 판의 [검색(F8)] 을 누르면(화면이 먼저 찾고) 판이 접힌다
+             if (collapseConditions !== undefined || searchable || searched || condOpen) return
+             const b = (e.target as HTMLElement).closest('button')
+             if (b && b.closest(CONDS) && SEARCH_RE.test(b.textContent?.trim() ?? '')) setSearched(true)
+           }}>
+        {children}
+        {/* 원본 조건 판 아래 줄: [검색(F8)│▾ 기간 빠른선택] [다시작성] — [닫기] 는 없다(Search(F3) · Esc 로 닫는다) */}
+        {condOpen && barTop !== null && (
+          <div className="ec-search-bar" style={{ top: barTop }}>
+            <span className="ec-btn-group relative">
+              <button className="ec-btn ec-btn-primary ec-btn-sm" onClick={searchConds}>검색(F8)</button>
+              {picks.length > 0 && (
+                <button className="ec-btn ec-btn-primary ec-btn-sm ec-btn-arrow" aria-label="기간 빠른선택"
+                        onClick={() => setPicksOpen((v) => !v)}>▾</button>
+              )}
+              {picksOpen && (
+                <div className="ec-menu ec-search-picks">
+                  {picks.map((l) => <button key={l} type="button" onClick={() => pickPeriod(l)}>{l}</button>)}
+                </div>
+              )}
+            </span>
+            <button className="ec-btn ec-btn-sm" onClick={resetConds}>다시작성</button>
+          </div>
+        )}
+      </div>
 
       {/* 표 우클릭 메뉴 — 등록·수정·삭제 + 행/열 기능 + 이 화면의 기능 */}
       <TableContextMenu
@@ -289,14 +475,9 @@ export default function EcListShell({
         onFlash={flash}
       />
 
-      {/* 하단 액션 툴바. 버튼이 하나도 없으면 구분선만 남아 빈 띠로 보이므로 아예 그리지 않는다. */}
-      <div
-        ref={toolbarRef}
-        style={{
-          display: hasBottom ? 'flex' : 'none',
-          gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5',
-        }}
-      >
+      {/* 하단 버튼줄 — 원본처럼 격자 바로 아래. 버튼이 하나도 없으면 빈 띠로 보이므로 아예 그리지 않는다. */}
+      <div ref={toolbarRef} className={`ec-footer${moreOpen ? ' open' : ''}`} style={hasBottom ? undefined : { display: 'none' }}>
+        <div className="ec-footer-btns">
         {(onNew || renderForm) && (
           <button
             className="ec-btn ec-btn-primary"
@@ -305,13 +486,10 @@ export default function EcListShell({
             {newLabel}
           </button>
         )}
-        {resolved.map((a, i) => (
-          <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`}
-                  onClick={a.onClick} disabled={a.disabled}
-                  style={a.disabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}>
-            {a.label}
-          </button>
-        ))}
+        {resolved.map((a, i) => <FooterButton key={i} a={a} />)}
+        </div>
+        {/* 휴대폰: 한 줄에 다 안 들어가는 버튼은 ⌄ 로 펼친다(원본) */}
+        <button className="ec-btn ec-more" aria-label="버튼 더 보기" onClick={() => setMoreOpen((v) => !v)}>{moreOpen ? '⌃' : '⌄'}</button>
       </div>
 
       {renderForm && (
@@ -325,45 +503,22 @@ export default function EcListShell({
         </Modal>
       )}
 
-      {helpOpen && (
-        <div
-          onClick={() => setHelpOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#fff', borderRadius: 4, width: 420, maxWidth: '90vw',
-              boxShadow: '0 10px 30px rgba(0,0,0,.2)',
-            }}
-          >
-            <div style={{
-              padding: '10px 14px', borderBottom: '1px solid #e6eaef',
-              fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center',
-            }}>
-              <span>{title} · 도움말</span>
-              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
-            </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
-              {help ?? (
-                <ul style={{ paddingLeft: 16, margin: 0 }}>
-                  <li><b>Search(F3)</b> — 목록에서 입력한 낱말이 포함된 행만 추립니다.</li>
-                  <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
-                  <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>
-                  <li><b>Option</b> — 내려받기·인쇄·검색조건 초기화를 모아둔 메뉴입니다.</li>
-                  <li><b>표 우클릭</b> — 맨 위에 <b>등록·수정·삭제</b>가 있습니다. 이어서 행 상세·복사,
-                    이 값으로 검색, 열 숨기기(다시 조회하면 원래대로), 화면 기능이 나옵니다.
-                    수정·삭제가 흐리게 보이면 그 화면에 해당 기능이 없다는 뜻입니다.
-                    Shift+우클릭은 브라우저 기본 메뉴입니다.</li>
-                </ul>
-              )}
-            </div>
-          </div>
+      <Modal open={helpOpen} title={`${title} · 도움말`} width={420} onClose={() => setHelpOpen(false)}>
+        <div className="leading-[1.7]">
+          {help ?? (
+            <ul className="pl-[16px] m-0">
+              <li><b>Search(F3)</b> — 목록에서 입력한 낱말이 포함된 행만 추립니다.</li>
+              <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
+              <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>
+              <li><b>Option</b> — 내려받기·인쇄·검색조건 초기화를 모아둔 메뉴입니다.</li>
+              <li><b>표 우클릭</b> — 맨 위에 <b>등록·수정·삭제</b>가 있습니다. 이어서 행 상세·복사,
+                이 값으로 검색, 열 숨기기(다시 조회하면 원래대로), 화면 기능이 나옵니다.
+                수정·삭제가 흐리게 보이면 그 화면에 해당 기능이 없다는 뜻입니다.
+                Shift+우클릭은 브라우저 기본 메뉴입니다.</li>
+            </ul>
+          )}
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

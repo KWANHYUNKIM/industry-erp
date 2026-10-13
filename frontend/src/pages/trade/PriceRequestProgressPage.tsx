@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PurchaseOrder, PurchaseOrderStatus } from '../../api/types'
+import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -25,8 +25,8 @@ const LABEL: Record<PurchaseOrderStatus, string> = {
   ORDERED: '발주확정', RECEIVED: '입고전환', CANCELLED: '취소',
 }
 const COLOR: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: '#c07a00', PLANNED: '#8a929c', PRICED: '#7a5bb5',
-  ORDERED: 'var(--ec-blue)', RECEIVED: '#1c7c3c', CANCELLED: '#c60a2e',
+  REQUESTED: 'var(--ec-warn)', PLANNED: 'var(--ec-text-hint)', PRICED: '#7a5bb5',
+  ORDERED: 'var(--ec-blue)', RECEIVED: 'var(--ec-success)', CANCELLED: 'var(--ec-danger)',
 }
 /** 오늘보다 지난 날짜인가. 목록에 날짜만 적어 두면 지났는지를 <b>사람이 세어야</b> 한다. */
 const expired = (d: string | null) => !!d && d < new Date().toISOString().slice(0, 10)
@@ -47,9 +47,9 @@ function Stepper({ status }: { status: PurchaseOrderStatus }) {
   if (status === 'CANCELLED') return <span style={{ color: COLOR.CANCELLED, fontWeight: 700 }}>취소됨</span>
   const idx = PIPELINE.indexOf(status)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+    <div className="flex items-center gap-[3px]">
       {PIPELINE.map((st, i) => (
-        <span key={st} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+        <span key={st} className="flex items-center gap-[3px]">
           <span title={LABEL[st]} style={{
             width: 9, height: 9, borderRadius: '50%',
             background: i <= idx ? COLOR[status] : '#e2e6eb',
@@ -124,11 +124,20 @@ export default function PriceRequestProgressPage() {
 
   async function load() {
     setLoading(true); setError('')
-    try { setRows((await api.get<PurchaseOrder[]>('/purchase-orders')).data) }
+    /*
+     * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서 걸렀다 —
+     * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+     */
+    const period: Record<string, string> = {}
+    if (from) period.from = from
+    if (to) period.to = to
+    try { setRows((await api.get<PurchaseOrder[]>('/purchase-orders', { params: period })).data) }
     catch (err) { setError(extractErrorMessage(err)); setRows([]) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
   /* 거래처 마스터에서 [관리담당자]를 가져와 거래처명으로 잇는다 — 전표는 이름만 들고 온다. */
   useEffect(() => {
     api.get<{ name: string; manager: string | null }[]>('/partners')
@@ -139,9 +148,9 @@ export default function PriceRequestProgressPage() {
   const shown = useMemo(() => rows
     .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.orderNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
-    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
-    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
-    .filter((r) => !projCond || r.projectName === projCond)
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
+    .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
+    .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !empCond || (r.employeeName ?? '').includes(empCond))
     .filter((r) => !partnerMgrCond || partnerMgrs.get(r.partnerName) === partnerMgrCond)
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
@@ -175,16 +184,16 @@ export default function PriceRequestProgressPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       {/* 원본은 이 알약 줄에 <b>[진행상태]</b> 라는 이름표를 붙인다 — 이름이 없으면
           무엇을 고르는 알약인지 화면만 보고는 알 수 없다. */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginRight: 6 }}>진행상태</span>
+      <div className="flex gap-[2px] mb-[8px] flex-wrap items-center">
+        <span className="text-[12.5px] text-ec-label mr-[6px]">진행상태</span>
         {(['ALL', ...PIPELINE, 'CANCELLED'] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : '#3a4453', fontWeight: statusFilter === s ? 700 : 400,
+            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ec-text)', fontWeight: statusFilter === s ? 700 : 400,
           }}>{s === 'ALL' ? '전체' : LABEL[s]} ({count(s)})</button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12.5, color: '#5a626e' }}>
-          확정금액 합계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totalAmount)}</b>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12.5, color: 'var(--ec-label)' }}>
+          확정금액 합계 <b className="text-ec-blue text-[14px]">{won(totalAmount)}</b>
         </span>
       </div>
 
@@ -195,10 +204,10 @@ export default function PriceRequestProgressPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -212,7 +221,7 @@ export default function PriceRequestProgressPage() {
             <>
               <input type="date" className="ec-input" value={validFrom}
                      onChange={(e) => setValidFrom(e.target.value)} style={{ width: 145 }} />
-              <span style={{ margin: '0 4px' }}>~</span>
+              <span className="my-0 mx-[4px]">~</span>
               <input type="date" className="ec-input" value={validTo}
                      onChange={(e) => setValidTo(e.target.value)} style={{ width: 145 }} />
             </>
@@ -248,49 +257,49 @@ export default function PriceRequestProgressPage() {
         </EcCond>
       </ul>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/* 원본 실측: [단가요청번호]는 가운데다. */}
-            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('단가요청번호')}>단가요청번호 {sort.mark('단가요청번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>{/* 원본 차례: 단가요청번호 · 품목 · 진행단계 · <b>거래처명</b> · 확정금액 —
+            <th className="cursor-pointer text-center" onClick={() => sort.toggle('단가요청번호')}>단가요청번호 {sort.mark('단가요청번호')}</th><th className="cursor-pointer" onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>{/* 원본 차례: 단가요청번호 · 품목 · 진행단계 · <b>거래처명</b> · 확정금액 —
                 거래처명이 진행단계 뒤다. 우리는 맨 앞에 두어 어긋나 있었다. */}
             <th>품목</th>
-            <th style={{ width: 320 }}>진행단계</th>
+            <th className="w-[320px]">진행단계</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>확정금액</th>
+            <th className="text-right">확정금액</th>
             {/*
               원본 격자에도 [유효기간] 열이 있다(stby_price_req.expire_date, 사본 실측).
               지난 것은 붉게 적는다 — 목록에 날짜만 적어 두면 <b>지났는지를 사람이 세어야</b> 한다.
             */}
-            <th style={{ width: 110, textAlign: 'center' }}>유효기간</th><th>담당</th>
+            <th className="w-[110px] text-center">유효기간</th><th>담당</th>
             {/* 원본 격자의 마지막 열 [이력]. */}
-            <th style={{ width: 60, textAlign: 'center' }}>이력</th>
+            <th className="w-[60px] text-center">이력</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => [
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', textAlign: 'center', color: 'var(--ec-blue-dark)', fontWeight: 600 }}>{r.orderNo}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.orderDate)}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center text-ec-navy font-semibold">{r.orderNo}</td>
+              <td>{dateText(r.orderDate)}</td>
               <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
               <td><Stepper status={r.status} /></td>
               <td>{r.partnerName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
+              <td className="text-right font-semibold text-ec-blue">{won(r.totalAmount)}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace',
-                           color: expired(r.priceValidUntil) ? '#c60a2e' : '#5a626e',
+                           color: expired(r.priceValidUntil) ? 'var(--ec-danger)' : 'var(--ec-label)',
                            fontWeight: expired(r.priceValidUntil) ? 700 : 400 }}>
                 {r.priceValidUntil ?? ''}
               </td>
               <td>{r.employeeName ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button onClick={() => toggleHistory(r.id)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                   {openHistory === r.id ? '접기' : '펼치기'}
@@ -299,26 +308,26 @@ export default function PriceRequestProgressPage() {
             </tr>,
             openHistory === r.id ? (
               <tr key={`${r.id}-history`}>
-                <td colSpan={10} style={{ background: '#fbfcfe', padding: '8px 14px' }}>
+                <td colSpan={10} className="bg-ec-page py-[8px] px-[14px]">
                   {history.length === 0 ? (
-                    <span style={{ fontSize: 12, color: '#9aa1ab' }}>자취가 없습니다.</span>
+                    <span className="text-[12px] text-ec-hint">자취가 없습니다.</span>
                   ) : (
-                    <table className="w-full text-left" style={{ maxWidth: 720 }}>
+                    <table className="w-full text-left max-w-[720px]">
                       <thead><tr>
-                        <th style={{ width: 34 }}></th><th style={{ width: 150 }}>일시</th>
-                        <th style={{ width: 180 }}>단계</th><th style={{ width: 100 }}>바꾼 사람</th><th>비고</th>
+                        <th className="w-[34px]"></th><th className="w-[150px]">일시</th>
+                        <th className="w-[180px]">단계</th><th className="w-[100px]">바꾼 사람</th><th>비고</th>
                       </tr></thead>
                       <tbody>
                         {history.map((h, k) => (
                           <tr key={`${h.changedAt}-${k}`}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
-                            <td style={{ fontFamily: 'monospace' }}>{h.changedAt.slice(0, 16).replace('T', ' ')}</td>
+                            <td className="text-center text-ec-hint">{k + 1}</td>
+                            <td>{h.changedAt.slice(0, 16).replace('T', ' ')}</td>
                             <td>
                               {h.fromStatusName ? `${h.fromStatusName} → ` : ''}
-                              <b style={{ color: 'var(--ec-blue-dark)' }}>{h.toStatusName}</b>
+                              <b className="text-ec-navy">{h.toStatusName}</b>
                             </td>
-                            <td style={{ color: '#5a626e' }}>{h.changedBy ?? ''}</td>
-                            <td style={{ color: '#8a929c' }}>{h.note ?? ''}</td>
+                            <td className="text-ec-label">{h.changedBy ?? ''}</td>
+                            <td className="text-ec-hint">{h.note ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>

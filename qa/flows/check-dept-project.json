@@ -1,0 +1,66 @@
+{
+  "about": "수령수표조회(E060603) [신규(F2)] 수령수표내역입력 줄의 [부서] · [프로젝트] — 코드도움으로 고르면 칸에 이름('개발팀' · '20210801A Project'), 저장 → 수령수표거래내역 [부서명] · [프로젝트명], 조회 조건 [부서]로 걸러짐. [일자-No.] 로 연 수정 창 끝 [H] → '이력' 창 머리 '[2026/10/14 -4]' · 신규 → 고쳐 저장 뒤 수정(2026-10-14 원본 실측). 발행수표조회 감소 줄 '지출결의서' 의 [회계전표일자-No.] 를 누르면 그 지출결의서(수정)로 간다.",
+  "shots": [
+    {
+      "name": "수령수표내역입력 — 부서 · 프로젝트 → 저장 → 수정 → [H] 신규 · 수정",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "js:window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); el.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); el.blur(); return true }; true",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const d=(await window.__api('GET','/departments')).body[0];const p=(await window.__api('GET','/projects')).body[0];const a=(await window.__api('GET','/bank-cards/accounts')).body.filter((x)=>x.active)[0];sessionStorage.setItem('dpDept',d.code);sessionStorage.setItem('dpDeptName',d.name);sessionStorage.setItem('dpDeptId',d.id);sessionStorage.setItem('dpProj',p.code);sessionStorage.setItem('dpProjName',p.name);sessionStorage.setItem('dpAcct',a.code??a.accountNo);sessionStorage.setItem('dpNo','QADP'+Date.now());return true})()",
+        "wait:800",
+        "click:신규(F2)",
+        "wait:800",
+        "js:window.__set('계좌검색', sessionStorage.getItem('dpAcct'))",
+        "js:window.__set('1줄 수표번호', sessionStorage.getItem('dpNo'))",
+        "js:window.__set('1줄 금액', '35000')",
+        "js:window.__set('부서검색', sessionStorage.getItem('dpDept'))",
+        "js:window.__set('프로젝트검색', sessionStorage.getItem('dpProj'))",
+        "js:window.__set('1줄 적요', 'QA회계2 부서')",
+        "wait:400",
+        "expect:document.querySelector('[aria-label=\"부서검색\"]').value===sessionStorage.getItem('dpDeptName')&&document.querySelector('[aria-label=\"프로젝트검색\"]').value===sessionStorage.getItem('dpProjName')",
+        "clicklast:저장(F8)",
+        "wait:2000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('dpNo')))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('dpNo'))).querySelector('a').click()",
+        "wait:1000",
+        "expect:document.querySelector('[aria-label=\"부서검색\"]').value===sessionStorage.getItem('dpDeptName')",
+        "clicklast:저장(F8)",
+        "wait:2000",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('dpNo'))).querySelector('a').click()",
+        "wait:1000",
+        "clicklast:H",
+        "wait:1200",
+        "expect:(()=>{const t=document.body.innerText;return t.includes('이력')&&/\\[\\d{4}\\/\\d{2}\\/\\d{2} -\\d+\\]/.test(t)&&t.includes('신규')&&t.includes('수정')})()",
+        "clicklast:닫기",
+        "wait:300",
+        "clicklast:닫기",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "수령수표거래내역 — [부서명] · [프로젝트명], 조건 [부서]",
+      "path": "/accounting/checks-ledger",
+      "steps": [
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('dpNo'))&&t.innerText.includes('증가'));return !!tr&&tr.cells[6].innerText.trim()===sessionStorage.getItem('dpDeptName')&&tr.cells[7].innerText.trim()===sessionStorage.getItem('dpProjName')})()"
+      ]
+    },
+    {
+      "name": "발행수표조회 — 지출결의서 감소 줄 [회계전표일자-No.] → 지출결의서(수정), 끝에 QA 자료 지움",
+      "path": "/accounting/checks-issued-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const as=(await window.__api('GET','/bank-cards/accounts')).body.filter((x)=>x.active);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const no='QADPW'+Date.now();sessionStorage.setItem('dpW',no);const r=await window.__api('POST','/checks/direct',{type:'ISSUED',date:ymd,increase:true,partnerId:null,bankAccountId:as[0].id,lines:[{checkNo:no,amount:12000,remark:'QA회계2 링크'}]});const w=await window.__api('POST','/checks/withdraw-report',{date:ymd,bankAccountId:as[1].id,description:null,lines:[{checkId:r.body[0].id,memo:'QA회계2 링크'}]});sessionStorage.setItem('dpWJ',w.body[0].settleJournalId);location.reload();return w.status})()",
+        "wait:2500",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('dpW'))&&t.innerText.includes('지출결의서')).cells[9].querySelector('a').click()",
+        "wait:1500",
+        "expect:location.pathname==='/accounting/vouchers'&&location.search.includes('journal='+sessionStorage.getItem('dpWJ'))",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const v=(await window.__api('GET','/vouchers?type=EXPENSE_REPORT&from='+ymd+'&to='+ymd)).body.rows.find((x)=>x.lines.some((l)=>l.description==='QA회계2 링크'));await window.__api('DELETE','/vouchers/'+v.id);const cs=(await window.__api('GET','/checks')).body;const w=cs.find((x)=>x.checkNo===sessionStorage.getItem('dpW'));const r=cs.find((x)=>x.checkNo===sessionStorage.getItem('dpNo'));const del=await window.__api('POST','/checks/delete',{decreaseIds:[],increaseIds:[w.id,r.id]});const left=(await window.__api('GET','/checks')).body.filter((x)=>x.checkNo===sessionStorage.getItem('dpW')||x.checkNo===sessionStorage.getItem('dpNo')).length;sessionStorage.setItem('dpGone',String(del.status===200&&left===0));return true})()",
+        "wait:800",
+        "expect:sessionStorage.getItem('dpGone')==='true'"
+      ]
+    }
+  ]
+}

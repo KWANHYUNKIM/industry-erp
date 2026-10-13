@@ -1,0 +1,89 @@
+{
+  "about": "중도정산등록/수정(E030114) — 원본 흐름(plans/세무/E030114.md 4장): QA세무01 을 퇴사자리스트 [신규(F2)] 로 퇴직처리(2026/09/30) → 중도정산 빈 선택 문구 셋 → 대상자추가 → [등록] 에서 원천징수연월 창(기본 이번 달) 저장 → [저장/계산처리] → 목록 · 퇴사자리스트 '중도정산원천징수연월' 에 그 달 → 퇴사자리스트 [선택삭제](중도정산한 내역이 삭제 됩니다.) → 중도정산 목록에서도 사라짐. 끝나면 QA세무01 은 재직으로 돌아온다.",
+  "shots": [
+    {
+      "name": "퇴사자리스트 [신규(F2)] — QA세무01 퇴직처리 2026/09/30",
+      "path": "/hr/retired",
+      "steps": [
+        "wait:1200",
+        "click:신규(F2)",
+        "wait:500",
+        "js:document.querySelector('[role=dialog] button[title=\"사원 선택\"]').click(); true",
+        "wait:800",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tr')].find((tr) => [...tr.cells].some((td) => td.innerText.trim() === 'QA세무01')).click(); true",
+        "wait:800",
+        "choose:[role=dialog] .ec-date select#2|2026",
+        "choose:[role=dialog] .ec-date select#3|09",
+        "set:[role=dialog] .ec-date input[inputmode=numeric]#1|30",
+        "set:[role=dialog] input[placeholder=\"퇴사사유\"]|QA세무 퇴직",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA세무01') && t.innerText.includes('2026/09/30'))"
+      ]
+    },
+    {
+      "name": "중도정산 — 빈 선택 문구 · 대상자추가 · 원천징수연월 · 계산처리",
+      "path": "/accounting/withholding/mid-settlement",
+      "steps": [
+        "wait:1500",
+        "expect:document.body.innerText.includes('중도정산등록/수정') && document.body.innerText.includes('귀속연도 : 2026년도')",
+        "click:계산처리",
+        "wait:300",
+        "expect:document.body.innerText.includes('계산처리할 사원이 선택되지 않았습니다.')",
+        "clicklast:확인",
+        "wait:300",
+        "click:선택삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('삭제할 사원이 선택되지 않았습니다.')",
+        "clicklast:확인",
+        "wait:300",
+        "click:대상자추가",
+        "wait:900",
+        "expect:document.body.innerText.includes('중도정산 대상자 추가') && !!document.querySelector('input[aria-label=\"QA세무-퇴직 선택\"]')",
+        "click:적용(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('등록할 사원이 선택되지 않았습니다.')",
+        "clicklast:확인",
+        "wait:300",
+        "js:document.querySelector('input[aria-label=\"QA세무-퇴직 선택\"]').click(); true",
+        "click:적용(F8)",
+        "wait:1200",
+        "expect:(() => { const t = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA세무-퇴직')); return !!t && t.innerText.includes('26.09.30') && t.cells[4].innerText.trim() === '' })()",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA세무-퇴직')).querySelector('a').click(); true",
+        "wait:1200",
+        "expect:document.body.innerText.includes('중도정산의 원천징수연월을 선택합니다.') && document.querySelector('select[aria-label=\"원천징수연월 연\"]').value === String(new Date().getFullYear()) && document.querySelector('select[aria-label=\"원천징수연월 월\"]').value === String(new Date().getMonth() + 1).padStart(2, '0')",
+        "clicklast:저장(F8)",
+        "wait:1000",
+        "expect:!document.body.innerText.includes('중도정산의 원천징수연월을 선택합니다.') && document.body.innerText.includes(`${new Date().getFullYear()}년${String(new Date().getMonth() + 1).padStart(2, '0')}월`)",
+        "click:저장/계산처리(F8)",
+        "wait:1500",
+        "clicklast:닫기",
+        "wait:800",
+        "expect:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA세무-퇴직')).cells[4].innerText.trim() === `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}`"
+      ]
+    },
+    {
+      "name": "퇴사자리스트 — 중도정산원천징수연월 · [선택삭제] 하면 중도정산도 지워짐",
+      "path": "/hr/retired",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const t = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA세무01')); return !!t && t.cells[6].innerText.trim() === '2026/09' && t.cells[7].innerText.trim() === `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}` })()",
+        "js:document.querySelector('input[aria-label=\"QA세무01 선택\"]').click(); true",
+        "click:선택삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('중도정산한 내역이 삭제 됩니다.')",
+        "clicklast:확인",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA세무01'))"
+      ]
+    },
+    {
+      "name": "중도정산 목록에서도 사라짐",
+      "path": "/accounting/withholding/mid-settlement",
+      "steps": [
+        "wait:1500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA세무-퇴직'))"
+      ]
+    }
+  ]
+}

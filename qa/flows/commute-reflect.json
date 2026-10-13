@@ -1,0 +1,67 @@
+{
+  "about": "관리 > 출/퇴근반영기준(E020725) → 근태항목등록(E020701) → 근태입력(E020710) [출/퇴근 ▲ › 사원기준] — 원본 2026-10-13 실측(QA01 지각 · 직접설정 09:00~18:00, 변종호 출근 14:08:35 · 퇴근 14:11:29 → 지각 일 1.00 · 시간 5.15 · 조퇴 3.82 · 근무 0.03). 반영기준을 [직접설정]으로 고르면 기준시간 · 오전반차설정 · 요일 · 업무일/휴일이 펴지고 계산단위 시간이면 최대시간 · 반영단위가 생긴다. 근태항목 유형 '출/퇴근'은 계산단위 대신 출/퇴근반영기준 코드도움(비우면 '출/퇴근반영기준을 입력 바랍니다.'). QA관리-사원1 이 10:30:25 출근 · 17:00 퇴근하면 셈은 지각 1.50 시간(초는 가까운 분으로 — 2차 실측 10:30:25 → 90분), 일별 적요 '출근: 10:30 / 퇴근: 17:00'. 근태입력은 계정(사용자) 기준이라 계정이 없는 사원은 줄을 못 깔고 그 이름을 알린다. 끝에 만든 것을 지운다.",
+  "shots": [
+    {
+      "name": "출/퇴근반영기준 직접설정 · 시간 단위 칸",
+      "path": "/hr/commute-rules",
+      "steps": [
+        "wait:1200",
+        "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const ks=await (await fetch('/api/hr/attendance-kinds',{headers:H})).json();for(const k of ks.filter(k=>k.name==='QA관리-지각반영'))await fetch('/api/hr/attendance-kinds/'+k.id,{method:'DELETE',headers:H});const rs=await (await fetch('/api/hr/commute-rules',{headers:H})).json();for(const r of rs.filter(r=>r.code==='QAGL01'))await fetch('/api/hr/commute-rules/'+r.id,{method:'DELETE',headers:H});return true})()",
+        "js:location.reload();true",
+        "wait:1500",
+        "click:신규(F2)",
+        "setnear:반영기준코드|QAGL01",
+        "setnear:반영기준명|QA관리-지각반영",
+        "js:[...document.querySelectorAll('[role=dialog] input[name=cr-method]')].find(r=>r.parentElement.textContent.trim()==='지각').click();true",
+        "js:[...document.querySelectorAll('[role=dialog] input[name=cr-unit]')].find(r=>r.parentElement.textContent.trim()==='시간').click();true",
+        "expect:!document.querySelector('[role=dialog]').innerText.includes('기준시간')",
+        "js:[...document.querySelectorAll('[role=dialog] input[name=cr-basis]')].find(r=>r.parentElement.textContent.trim()==='직접설정').click();true",
+        "wait:200",
+        "expect:(()=>{const t=document.querySelector('[role=dialog]').innerText;return t.includes('기준시간')&&t.includes('오전반차설정')&&t.includes('업무일/휴일')&&t.includes('최대시간')&&t.includes('반영단위')})()",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QAGL01')&&t.innerText.includes('지각')&&t.innerText.includes('직접설정'))"
+      ]
+    },
+    {
+      "name": "근태항목 출/퇴근 → 반영기준 고르기",
+      "path": "/hr/attendance-kinds",
+      "steps": [
+        "wait:1200",
+        "allowapi:400: /api/hr/attendance-kinds",
+        "click:신규(F2)",
+        "wait:400",
+        "setnear:근태명칭|QA관리-지각반영",
+        "js:[...document.querySelectorAll('[role=dialog] input[name=ak-type]')].find(r=>r.parentElement.textContent.trim()==='출/퇴근').click();true",
+        "wait:200",
+        "expect:(()=>{const t=document.querySelector('[role=dialog]').innerText;return t.includes('출/퇴근반영기준')&&!t.includes('계산단위')})()",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('출/퇴근반영기준을 입력 바랍니다.')",
+        "click:출/퇴근반영기준 선택",
+        "wait:400",
+        "pickrow:QAGL01",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-지각반영')&&t.innerText.includes('출/퇴근'))"
+      ]
+    },
+    {
+      "name": "근태입력 출/퇴근 ▲ 사원기준 → 적용",
+      "path": "/hr/leave-input",
+      "steps": [
+        "wait:1200",
+        "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};let es=await (await fetch('/api/employees/all',{headers:H})).json();let e=es.find(x=>x.name==='QA관리-사원1');if(!e)e=await (await fetch('/api/employees',{method:'POST',headers:H,body:JSON.stringify({code:'QAGL-E1',name:'QA관리-사원1'})})).json();const p=n=>String(n).padStart(2,'0');const t=new Date();let d=new Date(t);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()-1);const day=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());sessionStorage.setItem('qaGlDay',day);sessionStorage.setItem('qaGlEmp',e.id);const cs=await (await fetch('/api/hr/employee-commutes?from='+day+'&to='+day,{headers:H})).json();for(const c of cs.filter(c=>c.employeeId===e.id))await fetch('/api/hr/employee-commutes/'+c.id,{method:'DELETE',headers:H});await fetch('/api/hr/employee-commutes/clock',{method:'POST',headers:H,body:JSON.stringify({employeeId:e.id,at:day+'T10:30:25',reason:'QA관리',out:false})});await fetch('/api/hr/employee-commutes/clock',{method:'POST',headers:H,body:JSON.stringify({employeeId:e.id,at:day+'T17:00:00',out:true})});return true})()",
+        "expect:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const day=sessionStorage.getItem('qaGlDay');const ks=await (await fetch('/api/hr/attendance-kinds',{headers:H})).json();const k=ks.find(k=>k.name==='QA관리-지각반영');const r=await (await fetch('/api/hr/commute-rules/reflect?mode=DAILY&from='+day+'&to='+day+'&kindIds='+k.id+'&employeeIds='+sessionStorage.getItem('qaGlEmp'),{headers:H})).json();return r.length===1&&Number(r[0].amount)===1.5&&r[0].note==='출근: 10:30 / 퇴근: 17:00'})()",
+        "click:출/퇴근 ▲",
+        "click:사원기준",
+        "wait:800",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('근태코드')",
+        "click:적용(F8)",
+        "wait:1200",
+        "expect:document.body.innerText.includes('계정이 이어지지 않은 사원은 넣지 못했습니다')&&document.body.innerText.includes('QA관리-사원1')",
+        "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const day=sessionStorage.getItem('qaGlDay');const emp=Number(sessionStorage.getItem('qaGlEmp'));const cs=await (await fetch('/api/hr/employee-commutes?from='+day+'&to='+day,{headers:H})).json();for(const c of cs.filter(c=>c.employeeId===emp))await fetch('/api/hr/employee-commutes/'+c.id,{method:'DELETE',headers:H});const ks=await (await fetch('/api/hr/attendance-kinds',{headers:H})).json();for(const k of ks.filter(k=>k.name==='QA관리-지각반영'))await fetch('/api/hr/attendance-kinds/'+k.id,{method:'DELETE',headers:H});const rs=await (await fetch('/api/hr/commute-rules',{headers:H})).json();for(const r of rs.filter(r=>r.code==='QAGL01'))await fetch('/api/hr/commute-rules/'+r.id,{method:'DELETE',headers:H});return true})()"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "about": "MyPage > MyPage설정(원본: 개인기능설정 › My Page설정) — 뿌리 [Fn] 그룹추가로 폴더를 만들고, 오른쪽 메뉴검색 나무에서 메뉴를 체크해 [←] 로 담고, [설정] 으로 표시명을 바꾼 뒤 [저장(F8)] 하면 MyPage 2단 끝에 그 폴더가 서고 왼쪽 메뉴에 고친 이름이 선다. 그룹을 안 고르고 [←] 는 원본 문구로 막는다. 만든 폴더는 [Fn] 삭제 → 저장으로 지운다.",
+  "shots": [
+    {
+      "name": "그룹추가 → 메뉴 담기 → 표시명 → 저장 → 삭제 → 저장",
+      "path": "/mypage/folders",
+      "steps": [
+        "wait:1200",
+        "js:(()=>{window.__alerts=[];window.alert=m=>window.__alerts.push(m);window.confirm=m=>{window.__alerts.push(m);return true};return true})()",
+        "js:(()=>{const fn=[...document.querySelectorAll('button')].find(b=>b.textContent==='Fn');fn.click();return true})()",
+        "wait:200",
+        "click:그룹추가",
+        "wait:200",
+        "set:input.ec-input.w-\\[200px\\]|QAmypage-화면시험",
+        "js:(()=>{document.querySelector('input.ec-input.w-\\\\[200px\\\\]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()",
+        "wait:300",
+        "click:←",
+        "wait:200",
+        "expect:window.__alerts.includes('메뉴를 추가할 그룹을 선택하기 바랍니다.')",
+        "js:(()=>{const c=d=>d.innerText.replace(/[▸▾▣]/g,'').replace('Fn','').trim();const rows=()=>[...document.querySelectorAll('li > div')];rows().find(d=>c(d)==='재고').querySelector('button[aria-label=\"펼치기\"]').click();return true})()",
+        "wait:200",
+        "js:(()=>{const c=d=>d.innerText.replace(/[▸▾▣]/g,'').replace('Fn','').trim();const rows=()=>[...document.querySelectorAll('li > div')];rows().find(d=>c(d)==='재고 I').querySelector('button[aria-label=\"펼치기\"]').click();return true})()",
+        "wait:200",
+        "js:(()=>{const c=d=>d.innerText.replace(/[▸▾▣]/g,'').replace('Fn','').trim();const rows=()=>[...document.querySelectorAll('li > div')];rows().find(d=>c(d)==='기초등록').querySelector('button[aria-label=\"펼치기\"]').click();return true})()",
+        "wait:200",
+        "js:(()=>{const c=d=>d.innerText.replace(/[▸▾▣]/g,'').replace('Fn','').trim();const rows=()=>[...document.querySelectorAll('li > div')];rows().find(d=>c(d)==='품목등록').querySelector('input[type=checkbox]').click();rows().find(d=>c(d)==='QAmypage-화면시험').querySelector('input[type=checkbox]').click();return true})()",
+        "wait:200",
+        "click:←",
+        "wait:300",
+        "expect:/\\d+ \\/ 200/.test(document.body.innerText)",
+        "js:(()=>{const li=[...document.querySelectorAll('li')].find(l=>l.innerText.replace('Fn','').trim()==='품목등록'&&l.querySelector('button')?.textContent==='Fn');li.querySelector('button').click();return true})()",
+        "wait:200",
+        "click:설정",
+        "wait:300",
+        "set:.ec-modal input.ec-input|QAmypage-내품목",
+        "click:적용(F8)",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:/QAmypage-화면시험/.test(document.querySelector('.ec-subnav').innerText)",
+        "expect:/예시4\\. 비영리[\\s\\S]*QAmypage-화면시험/.test(document.querySelector('.ec-subnav').innerText)",
+        "js:(()=>{const c=d=>d.innerText.replace(/[▸▾▣]/g,'').replace('Fn','').trim();const q=[...document.querySelectorAll('li > div')].find(d=>c(d)==='QAmypage-화면시험');[...q.querySelectorAll('button')].find(b=>b.textContent==='Fn').click();return true})()",
+        "wait:200",
+        "click:삭제",
+        "wait:200",
+        "expect:window.__alerts.some(m=>m.startsWith('선택한 항목을 삭제하겠습니까?'))",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:!/QAmypage-화면시험/.test(document.querySelector('.ec-subnav').innerText)"
+      ]
+    }
+  ]
+}

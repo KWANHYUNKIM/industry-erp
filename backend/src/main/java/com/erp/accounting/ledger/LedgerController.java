@@ -1,0 +1,61 @@
+package com.erp.accounting.ledger;
+
+import com.erp.accounting.ledger.dto.LedgerDtos.PartnerBalanceResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
+import java.util.List;
+import com.erp.accounting.ledger.dto.LedgerDtos;
+
+@RestController
+@RequestMapping("/api/ledger")
+@RequiredArgsConstructor
+public class LedgerController {
+
+    private final LedgerService ledgerService;
+
+    /** 거래처별 채권/채무 현황. asOf 를 주면 그 날짜까지의 기준일자 잔액. */
+    @GetMapping("/partner-balances")
+    public List<PartnerBalanceResponse> partnerBalances(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOf) {
+        return ledgerService.partnerBalances(asOf);
+    }
+
+    /**
+     * 거래처별채권·거래처별채무의 기간 움직임.
+     *
+     * <p>{@code side=AR} 이면 채권(기초채권 · 재고매출 · 회계매출 · 수금합계 · 기타할인등차액 · 잔액),
+     * {@code AP} 면 채무다. 원본 화면이 잔액을 이렇게 쪼개 보여 준다.
+     */
+    /**
+     * 거래처관리대장 I 의 [집계구분] <b>[전표별]</b>. [일별]·[월별]은 화면이 이 줄을 묶는다.
+     */
+    @GetMapping("/partner-entries")
+    public LedgerDtos.PartnerEntryList partnerEntries(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "AR") String side,
+            /* [오천건이상조회] — 잘려 왔을 때 화면이 붙여 다시 부른다. */
+            @RequestParam(defaultValue = "false") boolean all) {
+        List<LedgerDtos.PartnerEntryResponse> rows = ledgerService.partnerEntries(from, to, !"AP".equalsIgnoreCase(side));
+        boolean truncated = !all && rows.size() > ENTRY_PAGE_ROWS;
+        return new LedgerDtos.PartnerEntryList(truncated ? rows.subList(0, ENTRY_PAGE_ROWS) : rows, rows.size(), truncated);
+    }
+
+    /** 한 번에 내려보낼 원장 줄 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
+    private static final int ENTRY_PAGE_ROWS = 5000;
+
+    @GetMapping("/partner-movements")
+    public List<LedgerDtos.PartnerMovementResponse> partnerMovements(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "AR") String side) {
+        return ledgerService.partnerMovements(from, to, !"AP".equalsIgnoreCase(side));
+    }
+}

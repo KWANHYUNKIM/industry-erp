@@ -1,0 +1,38 @@
+{
+  "about": "관리 > 수당 · 공제항목등록 계산식등록 [SUMIFS( 조건부 합계] — 원본 2026-10-13 실측: 누르면 '조건부 합계검색'(합산대상 · 합산기준 · 조건 1~5, 적용(F8) · 닫기), 적용하면 SumIfs(공제,항목금액,합산기준 in (＂귀속연월동일(이번 지급사항 제외)＂),공제항목코드 in (\"07\",\"99\")) 같은 글자가 들어간다(원본에는 저장 안 함). 우리: 같은 창 · 같은 글자 → 급여계산이 이 사원의 다른 귀속월 급여에서 합한다. 1월 기본급 3,800,000 → 2월 공제 = 수당 누계 × 0.01 = 38,000, 1월은 누계 0 이라 줄 없음. 시험 항목 · 사원 · 급여는 지운다.",
+  "shots": [
+    {
+      "name": "SUMIFS — 조건부 합계검색 → 적용 글자 → 저장 → 1월 0 · 2월 38,000 → 정리",
+      "path": "/hr/deduction-items",
+      "steps": [
+        "wait:1500",
+        "js:window.confirm=()=>true;true",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const it=await (await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAS'+(Date.now()%10000),name:'QA관리-누계공제',kind:'DEDUCTION',taxable:false,defaultAmount:0,active:true,sortOrder:95,taxFreeType:null,payMethod:'FIXED'})})).json();sessionStorage.setItem('qaSfItem',String(it.id));const e=await (await fetch('/api/employees',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-누계식',hireDate:'2091-01-01',baseSalary:3800000,payType:'FIXED'})})).json();sessionStorage.setItem('qaSfEmp',String(e.id));return !!it.id&&!!e.id})()",
+        "js:location.reload();true",
+        "wait:3000",
+        "js:(async()=>{for(let k=0;k<20;k++){const tr=[...document.querySelectorAll('table tbody tr')].find(tr=>[...tr.querySelectorAll('input')].some(i=>i.value==='QA관리-누계공제'));const b=tr&&[...tr.querySelectorAll('button')].find(b=>b.textContent.trim()==='설정');if(b){b.click();return true}await new Promise(z=>setTimeout(z,500))}return false})()",
+        "wait:800",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();[...d.querySelectorAll('button')].find(b=>b.textContent.trim()==='신규(F2)').click();return true})()",
+        "wait:800",
+        "js:(()=>{const set=(lbl,v)=>{const s=document.querySelector('[role=dialog] select[aria-label=\"'+lbl+'\"]');if(![...s.options].some(o=>o.value===v)){const o=document.createElement('option');o.value=v;o.text=v;s.add(o)}Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,v);s.dispatchEvent(new Event('change',{bubbles:true}))};set('적용시점 연도','2091');set('적용시점 월','01');return true})()",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(x=>x.textContent.trim()==='SUMIFS( 조건부 합계').click();true",
+        "wait:800",
+        "expect:(()=>{const t=[...document.querySelectorAll('[role=dialog]')].pop().innerText;return ['조건부 합계검색','합산대상','합산기준','조건 1','적용(F8)'].every(s=>t.includes(s))})()",
+        "js:(()=>{const s=document.querySelector('select[aria-label=\"합산기준\"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'귀속연도 동일(~귀속연월)(이번지급사항제외)');s.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "wait:300",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find(x=>x.textContent.trim()==='적용(F8)').click();true",
+        "wait:500",
+        "expect:document.querySelector('[role=dialog] textarea[aria-label=\"계산식\"]').value.trim()==='SumIfs(수당,항목금액,합산기준 in (＂귀속연도 동일(~귀속연월)(이번지급사항제외)＂))'",
+        "js:(()=>{const ta=document.querySelector('[role=dialog] textarea[aria-label=\"계산식\"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta,ta.value+'* 0.01');ta.dispatchEvent(new Event('input',{bubbles:true}));return true})()",
+        "wait:200",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();[...d.querySelectorAll('button')].find(b=>b.textContent.trim()==='저장(F8)').click();return true})()",
+        "wait:1000",
+        "expect:(()=>{const t=[...document.querySelectorAll('[role=dialog]')].pop().innerText;return t.includes('계산식리스트')&&t.includes('SumIfs(수당,항목금액')})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const e=Number(sessionStorage.getItem('qaSfEmp'));const mk=async m=>await (await fetch('/api/payslips',{method:'POST',headers:h,body:JSON.stringify({employeeId:e,payMonth:m})})).json();const g=p=>Number(((p.lines||[]).find(l=>l.name==='QA관리-누계공제')||{}).amount||0);const a=await mk('2091-01');const b=await mk('2091-02');sessionStorage.setItem('qaSfCalc',g(a)+'/'+g(b));for(const p of [a,b])if(p.id)await fetch('/api/payslips/'+p.id,{method:'DELETE',headers:h});return true})()",
+        "expect:sessionStorage.getItem('qaSfCalc')==='0/38000'",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};await fetch('/api/employees/'+sessionStorage.getItem('qaSfEmp'),{method:'DELETE',headers:h});await fetch('/api/pay-settings/items/'+sessionStorage.getItem('qaSfItem'),{method:'DELETE',headers:h});return true})()"
+      ]
+    }
+  ]
+}

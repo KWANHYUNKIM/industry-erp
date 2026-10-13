@@ -1,0 +1,68 @@
+{
+  "about": "매출전표 I · 매입전표 I → 회계거래조회 · 시산표 · 매입/매출장(원본 C000011 · E010303 · E010806, 2026-10-14 loginaa 실측 — plans/회계1/C000011.md). 빈 저장은 알림 없이 거래처 칸만 빨간 테두리(.ec-invalid), 거래처 코드 CUST-001 + Enter 는 창 없이 바로 채움, 공급가액 10,000 → 부가세 1,000, 적요를 비우고 [저장/전표(F7)] → 빈 입력 화면(분개 판 안 뜸) · 전표 적요 빈칸(줄 적요만 거래처명) · 시산표 108 차 +11,000 · 255 대 +1,000 · 404 대 +10,000 → 수정 창 20,000 + 적요 → 회계거래조회 22,000 · 'QA회계1 매출전표' → 매입 10,000(153 차 · 135 차 · 251 대 +11,000) · 세부내역 든 매출 하나 더 → 매입/매출장 [매입/매출] 한 표 9열 · 일자-No. 는 그날 부가세 전표 일련(1 부터 빈틈 없이) · 세부내역 '품명 외 n건'(품명이 없으면 적요) · 'YYYY/MM 계 (n 건)' → 셋 다 지우면 시산표 처음으로. 만든 전표는 지운다.",
+  "shots": [
+    {
+      "name": "매출전표 I — 빈 저장 빨간 테두리 · 코드 Enter · 적요 비운 [저장/전표(F7)]",
+      "path": "/accounting/sales-slip",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); sessionStorage.setItem('vsbDay', ymd); const tb = await fetch('/api/journals/trial-balance?from=' + ymd + '&to=' + ymd, { headers: H }).then((r) => r.json()); const g = (c) => { const r = tb.rows.find((x) => x.accountCode === c); return r ? Number(r.debit) + ':' + Number(r.credit) : '0:0' }; sessionStorage.setItem('vsbTb0', ['108', '255', '404', '153', '135', '251'].map(g).join(',')); return sessionStorage.getItem('vsbTb0') })()",
+        "click:저장(F8)",
+        "wait:600",
+        "expect:!!document.querySelector('.ec-invalid') && !document.querySelector('.ec-alert')",
+        "js:(() => { const i = [...document.querySelectorAll('.ec-code input.code')].find((x) => x.placeholder === '거래처'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; i.focus(); set.call(i, 'CUST-001'); i.dispatchEvent(new Event('input', { bubbles: true })); return i.value })()",
+        "wait:300",
+        "js:(() => { const i = [...document.querySelectorAll('.ec-code input.code')].find((x) => x.placeholder === '거래처'); i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return 'enter' })()",
+        "wait:600",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('.ec-code input.name')].some((x) => x.value === '(주)대신전자') && !document.querySelector('.ec-invalid')",
+        "set:input[aria-label=공급가액]|10000",
+        "wait:400",
+        "expect:document.querySelector('input[aria-label=부가세]').value.replace(/,/g, '') === '1000'",
+        "click:저장/전표(F7)",
+        "wait:1500",
+        "expect:location.pathname === '/accounting/sales-slip' && !location.search && document.querySelector('input[aria-label=공급가액]').value === ''",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = sessionStorage.getItem('vsbDay'); const r = await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H }).then((x) => x.json()); const e = r.rows.filter((x) => x.sourceType === 'VAT_SALES' && x.partnerName === '(주)대신전자' && Number(x.totalDebit) === 11000 && !x.description).sort((a, b) => b.id - a.id)[0]; if (!e) return false; sessionStorage.setItem('vsbSale', e.id); return e.lines.every((l) => l.description === '(주)대신전자') })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = sessionStorage.getItem('vsbDay'); const tb = await fetch('/api/journals/trial-balance?from=' + day + '&to=' + day, { headers: H }).then((r) => r.json()); const g = (c) => { const r = tb.rows.find((x) => x.accountCode === c); return r ? [Number(r.debit), Number(r.credit)] : [0, 0] }; const b = sessionStorage.getItem('vsbTb0').split(',').map((s) => s.split(':').map(Number)); return g('108')[0] - b[0][0] === 11000 && g('255')[1] - b[1][1] === 1000 && g('404')[1] - b[2][1] === 10000 })()"
+      ]
+    },
+    {
+      "name": "매출전표 I(수정) — 20,000 + 적요 → 회계거래조회 22,000 · 적요",
+      "path": "/accounting/journals",
+      "steps": [
+        "js:(() => { history.pushState(null, '', '/accounting/sales-slip?journal=' + sessionStorage.getItem('vsbSale')); dispatchEvent(new PopStateEvent('popstate')); return location.search })()",
+        "wait:2500",
+        "expect:document.querySelector('input[aria-label=공급가액]').value.replace(/,/g, '') === '10000' && document.querySelector('input[placeholder=적요]').value === ''",
+        "set:input[aria-label=공급가액]|20000",
+        "set:input[placeholder=적요]|QA회계1 매출전표",
+        "wait:400",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/journals' && [...document.querySelectorAll('tbody tr')].some((t) => /매출전표 I\\s+22,000\\s+\\(주\\)대신전자\\s+QA회계1 매출전표/.test(t.innerText))"
+      ]
+    },
+    {
+      "name": "매입/매출장 [매입/매출] — 한 표 9열 · 장부 일련 · 세부내역 품명 요약 · 월 계",
+      "path": "/accounting/vat-book",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = await A('GET', '/accounts'); const a = (c) => acc.find((x) => x.code === c).id; const ps = await A('GET', '/partners'); const sup = ps.find((p) => p.code === 'SUPP-001'); const cus = ps.find((p) => p.code === 'CUST-001'); const day = sessionStorage.getItem('vsbDay'); const p = await A('POST', '/journals/vat-slip', { sales: false, entryDate: day, vatType: '세금계산서', partnerId: sup.id, supplyAmount: 10000, vatAmount: 1000, description: 'QA회계1 매입전표', accountId: a('153'), settleAccountId: a('251'), eInvoiceKind: '전자(세금)계산서-신규' }); const d = await A('POST', '/journals/vat-slip', { sales: true, entryDate: day, vatType: '세금계산서', partnerId: cus.id, supplyAmount: 3000, vatAmount: 300, description: 'QA회계1 세부', accountId: a('404'), settleAccountId: a('108'), eInvoiceKind: '전자(세금)계산서-신규', vatDetail: { receipt: '청구', items: [{ name: 'QA회계1 볼트', supplyAmount: 2000, vatAmount: 200 }, { name: 'QA회계1 너트', supplyAmount: 1000, vatAmount: 100 }] } }); sessionStorage.setItem('vsbBuy', p.id); sessionStorage.setItem('vsbDet', d.id); return p.id + ' ' + d.id })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = sessionStorage.getItem('vsbDay'); const tb = await fetch('/api/journals/trial-balance?from=' + day + '&to=' + day, { headers: H }).then((r) => r.json()); const g = (c) => { const r = tb.rows.find((x) => x.accountCode === c); return r ? [Number(r.debit), Number(r.credit)] : [0, 0] }; const b = sessionStorage.getItem('vsbTb0').split(',').map((s) => s.split(':').map(Number)); return g('153')[0] - b[3][0] === 10000 && g('135')[0] - b[4][0] === 1000 && g('251')[1] - b[5][1] === 11000 })()",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '매입/매출').querySelector('input').click()",
+        "wait:800",
+        "click:금일",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('table')].filter((t) => t.querySelector('thead')).length === 1 && [...document.querySelector('table').querySelectorAll('thead th')].map((x) => x.innerText.trim()).join('|') === '일자-No.|유형명|전자구분|거래처명|세부내역|매입공급가액|매입부가세|매출공급가액|매출부가세'",
+        "expect:(() => { const day = sessionStorage.getItem('vsbDay').replace(/-/g, '/'); const rs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells.length === 9 && t.cells[0].innerText.startsWith(day)); const nos = rs.map((t) => Number(t.cells[0].innerText.split('-').pop())); return nos.length >= 3 && nos.every((n, i) => n === i + 1) })()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.cells.length === 9 && t.cells[3].innerText.trim() === '(주)대신전자' && t.cells[4].innerText.trim() === 'QA회계1 볼트 외 1건' && t.cells[7].innerText.trim() === '3,000' && t.cells[8].innerText.trim() === '300')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.cells.length === 9 && t.cells[3].innerText.trim() === '(주)대신전자' && t.cells[4].innerText.trim() === 'QA회계1 매출전표' && t.cells[7].innerText.trim() === '20,000' && t.cells[8].innerText.trim() === '2,000')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.cells.length === 9 && t.cells[3].innerText.trim() === '오피스디포' && t.cells[4].innerText.trim() === 'QA회계1 매입전표' && t.cells[5].innerText.trim() === '10,000' && t.cells[6].innerText.trim() === '1,000' && t.cells[7].innerText.trim() === '')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => /^\\d{4}\\/\\d{2}\\s+계 \\(\\d+ 건\\)$/.test(t.cells[0].innerText.trim()) && t.cells[0].colSpan === 5)",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '매입').querySelector('input').click()",
+        "wait:1500",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x) => x.innerText.trim()).join('|') === '일자-No.|유형명|전자구분|거래처명|세부내역|매입공급가액|매입부가세' && [...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('오피스디포'))",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await Promise.all(['vsbSale', 'vsbBuy', 'vsbDet'].map((k) => fetch('/api/journals/' + sessionStorage.getItem(k), { method: 'DELETE', headers: H }))); return r.every((x) => x.ok) })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = sessionStorage.getItem('vsbDay'); const tb = await fetch('/api/journals/trial-balance?from=' + day + '&to=' + day, { headers: H }).then((r) => r.json()); const g = (c) => { const r = tb.rows.find((x) => x.accountCode === c); return r ? Number(r.debit) + ':' + Number(r.credit) : '0:0' }; return ['108', '255', '404', '153', '135', '251'].map(g).join(',') === sessionStorage.getItem('vsbTb0') })()"
+      ]
+    }
+  ]
+}

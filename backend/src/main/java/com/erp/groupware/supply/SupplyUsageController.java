@@ -1,0 +1,62 @@
+package com.erp.groupware.supply;
+
+import com.erp.groupware.supply.dto.SupplyUsageDtos.ChangeSupplyLabelRequest;
+import com.erp.groupware.supply.dto.SupplyUsageDtos.CreateSupplyUsageRequest;
+import com.erp.groupware.supply.dto.SupplyUsageDtos.SupplyUsageResponse;
+import com.erp.groupware.supply.dto.SupplyUsageDtos.UpdateSupplyUsageRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+
+/** 그룹웨어 &gt; 사내관리 &gt; 공용품관리 — 공용품 사용/반납 내역. */
+@RestController
+@RequestMapping("/api/supply-usages")
+@RequiredArgsConstructor
+public class SupplyUsageController {
+
+    private final SupplyUsageService service;
+
+    @GetMapping
+    public List<SupplyUsageResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long supplyItemId,
+            @RequestParam(required = false) Long userId) {
+        return service.search(from, to, supplyItemId, userId);
+    }
+
+    @PostMapping
+    public ResponseEntity<SupplyUsageResponse> create(@Valid @RequestBody CreateSupplyUsageRequest req) {
+        return ResponseEntity.ok(service.create(req));
+    }
+
+    /** 원본 조회 창 [H] '이력'. */
+    @GetMapping("/{id}/history")
+    public List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(@PathVariable Long id) {
+        return service.history(id);
+    }
+
+    @PutMapping("/{id}")
+    public SupplyUsageResponse update(@PathVariable Long id, @Valid @RequestBody UpdateSupplyUsageRequest req) {
+        return service.update(id, req);
+    }
+
+    /** 원본 하단 [라벨변경] — 체크한 줄들에 라벨을 붙인다. */
+    @PutMapping("/label")
+    public ResponseEntity<Void> changeLabel(@Valid @RequestBody ChangeSupplyLabelRequest req) {
+        service.changeLabel(req);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** scope: 반복 줄일 때 ONE(이번 일정만, 기본) · FOLLOWING(향후 모든 일정) · ALL(전체 반복일정). */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @RequestParam(required = false) String scope) {
+        service.delete(id, scope);
+        return ResponseEntity.noContent().build();
+    }
+}

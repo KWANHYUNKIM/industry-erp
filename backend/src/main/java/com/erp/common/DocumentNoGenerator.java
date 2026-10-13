@@ -53,6 +53,29 @@ public class DocumentNoGenerator {
     }
 
     /**
+     * 마스터 코드 채번: {@code PREFIX + 0채움 일련번호} (예: CI001, PRJ-2605).
+     * <p>
+     * 그 접두어 뒤가 숫자인 코드 중 <b>가장 큰 값 + 1</b>. 건수 + 1 로 하던 곳들이(카드사·결제대행·
+     * 관리항목·쇼핑몰계정·프로젝트) 하나라도 지우면 이미 쓰는 번호를 다시 줬다 — 프로젝트는 QA 가
+     * 쌓은 460개를 정리하자 PRJ-26461 다음이 PRJ-2605 로 되돌아갔다.
+     *
+     * @param table      테이블명 (호출부 상수)
+     * @param codeColumn 코드 컬럼 (호출부 상수)
+     * @param width      일련번호 0채움 자릿수 (넘치면 그대로 길어진다)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public String nextMasterCode(String prefix, String table, String codeColumn, int width) {
+        lockNumberSpace(prefix);
+        String tail = "substring(" + codeColumn + " from " + (prefix.length() + 1) + ")";
+        Object max = em.createNativeQuery(
+                        "select coalesce(max(cast(" + tail + " as integer)), 0) from " + table
+                                + " where " + codeColumn + " like :prefix and " + tail + " ~ '^[0-9]+$'")
+                .setParameter("prefix", prefix + "%")
+                .getSingleResult();
+        return prefix + String.format("%0" + width + "d", ((Number) max).intValue() + 1);
+    }
+
+    /**
      * 같은 번호 공간의 채번을 트랜잭션 단위로 직렬화한다. 트랜잭션이 끝나면 자동 해제되고,
      * {@code key} 가 다르면 서로를 막지 않는다.
      * <p>

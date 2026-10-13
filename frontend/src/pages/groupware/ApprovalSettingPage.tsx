@@ -3,9 +3,17 @@ import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import Modal from '../../components/Modal'
+import { useTableSort } from '../../utils/useTableSort'
+import { useShortcut } from '../../utils/useShortcut'
+import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
+import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
+import { UserPermissionModal, ViewTimingModal, type ViewTiming, type WithInputSettings } from '../../features/approval/components/FormInputSettings'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
-} from '../../api/types'
+} from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 // 원본 전자결재 > 기초자료등록 아래의 두 화면 이름 그대로다(공통양식등록 · 결재설정).
 const TABS = ['공통양식등록', '결재설정'] as const
@@ -41,6 +49,34 @@ export default function ApprovalSettingPage() {
   const [editingPreset, setEditingPreset] = useState<ApprovalPreset | 'new' | null>(null)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3000) }
+  /** 기안서작성 맨 위 '00 기본'(BASIC)은 제품이 심는 양식이라 원본 공통양식리스트에 없다(2026-10-03 실측). */
+  const companyTemplates = templates.filter((t) => t.code !== 'BASIC')
+  const tsort = useTableSort(companyTemplates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
+  const [quickOpen, setQuickOpen] = useState(false)
+  const [quickName, setQuickName] = useState('')
+  const [quickCopy, setQuickCopy] = useState('')
+  const [quickErr, setQuickErr] = useState('')
+  function openQuickNew() { setQuickName(''); setQuickCopy(''); setQuickErr(''); setQuickOpen(true) }
+  /** '양식등록' — 이름과 복사할 양식만 받아 만든다. 양식코드는 우리 서버가 필수라 자동으로 붙인다(원본 화면에는 없다). */
+  async function quickSave() {
+    setQuickErr('')
+    if (!quickName.trim()) return setQuickErr('양식명을 입력하세요.')
+    const src = templates.find((t) => String(t.id) === quickCopy)
+    try {
+      // 원본: 새 양식의 정렬순서는 0, 저장하면 곧바로 '입력화면설정' 창이 그 양식으로 열린다(2026-10-03 실측).
+      const res = await api.post<ApprovalFormTemplateAdmin>('/approval-settings/templates', {
+        code: `FORM-${Date.now().toString(36).toUpperCase()}`,
+        name: quickName.trim(),
+        sortOrder: 0,
+        active: true,
+        fieldSchema: src ? src.fieldSchema : [],
+      })
+      setQuickOpen(false)
+      await load()
+      setEditing(res.data)
+    } catch (err) { setQuickErr(extractErrorMessage(err)) }
+  }
+  useShortcut('F8', () => void quickSave(), quickOpen)
 
   async function load() {
     setLoading(true)
@@ -63,7 +99,8 @@ export default function ApprovalSettingPage() {
   useEffect(() => { load() }, [])
 
   async function removeTemplate(t: ApprovalFormTemplateAdmin) {
-    if (!window.confirm(`${t.name} 양식을 삭제할까요?`)) return
+    // 원본 '입력화면설정' [삭제] 의 확인 문구 그대로.
+    if (!(await ecConfirm('등록한 양식을 삭제하겠습니까?\n삭제된 양식은 복구되지 않습니다.'))) return
     try {
       await api.delete(`/approval-settings/templates/${t.id}`)
       flash(`${t.name} 양식을 삭제했습니다.`)
@@ -72,7 +109,7 @@ export default function ApprovalSettingPage() {
   }
 
   async function removePreset(p: ApprovalPreset) {
-    if (!window.confirm(`결재선 "${p.name}"을 삭제할까요?`)) return
+    if (!(await ecConfirm(`결재선 "${p.name}"을 삭제할까요?`))) return
     try {
       await api.delete(`/approval-settings/presets/${p.id}`)
       flash('결재선을 삭제했습니다.')
@@ -87,79 +124,75 @@ export default function ApprovalSettingPage() {
 
   return (
     <EcListShell
-      title={tab}
-      newLabel={tab === '공통양식등록' ? '양식 추가(F2)' : '결재선 추가(F2)'}
-      onNew={() => (tab === '공통양식등록' ? setEditing('new') : setEditingPreset('new'))}
-      actions={[{ label: '새로고침', onClick: load }]}
+      // 원본 공통양식등록 화면의 제목은 '공통양식리스트' 다(2026-10-03 실측). 두 화면은 메뉴가 따로라 화면 안 탭은 없다.
+      title={tab === '공통양식등록' ? '공통양식리스트' : tab}
+      newLabel={tab === '공통양식등록' ? '신규(F2)' : '결재선 추가(F2)'}
+      onNew={() => (tab === '공통양식등록' ? openQuickNew() : setEditingPreset('new'))}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
-        {TABS.map((t) => (
-          <button key={t} onClick={() => { setTab(t); setEditing(null); setEditingPreset(null); setError('') }} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
-            fontWeight: tab === t ? 700 : 400,
-            borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t} ({t === '공통양식등록' ? templates.length : presets.length})</button>
-        ))}
-      </div>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
-
-      {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p className="ec-empty">불러오는 중…</p>
         : tab === '공통양식등록' ? (
           <>
             {editing && (
               <TemplateForm
                 template={editing === 'new' ? null : editing}
+                onDelete={editing !== 'new' ? () => { const t = editing; setEditing(null); void removeTemplate(t) } : undefined}
                 onError={setError}
                 onClose={() => setEditing(null)}
                 onSaved={(name) => { setEditing(null); flash(`${name} 양식을 저장했습니다.`); load() }}
               />
             )}
-            <table ref={tableRef} className="w-full text-left">
+            {/*
+              원본 공통양식리스트(E070107): [정렬순서▼][양식명▼][구분▼][결재문서] 네 칸, 양식명을 누르면 그 양식을 고친다,
+              하단 [신규(F2)] 하나. 우리는 순서·양식코드·양식명·입력항목·기안서·사용·처리 일곱 칸이었다.
+              [구분]은 양식의 기본 구분(기본값설정 › 구분, '구분검색' 01 지출결의서 · 02 휴가신청서 …)의 이름. 삭제는 양식을 열어서 한다.
+            */}
+            <table className="w-full text-left">
               <thead>
                 <tr>
-                  <th style={{ width: 34 }}></th>
-                  <th style={{ width: 70, textAlign: 'right' }}>순서</th>
-                  <th style={{ width: 130 }}>양식코드</th>
-                  <th style={{ width: 180 }}>양식명</th>
-                  <th>입력항목</th>
-                  <th style={{ width: 90, textAlign: 'center' }}>기안서</th>
-                  <th style={{ width: 80, textAlign: 'center' }}>사용</th>
-                  <th style={{ width: 110, textAlign: 'center' }}>처리</th>
+                  <th className="w-[160px] text-center cursor-pointer text-ec-navy" onClick={() => tsort.toggle('정렬순서')}>정렬순서 {tsort.mark('정렬순서')}</th>
+                  <th className="cursor-pointer text-ec-navy" onClick={() => tsort.toggle('양식명')}>양식명 {tsort.mark('양식명')}</th>
+                  <th className="w-[200px] text-ec-navy">구분 ▼</th>
+                  <th className="w-[150px]">결재문서</th>
                 </tr>
               </thead>
               <tbody>
-                {templates.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-                ) : templates.map((t, i) => (
+                {companyTemplates.length === 0 ? (
+                  <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                ) : tsort.sorted.map((t) => (
                   <tr key={t.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ textAlign: 'right', color: '#5a626e' }}>{t.sortOrder}</td>
-                    <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{t.code}</td>
-                    <td style={{ fontWeight: 600 }}>{t.name}</td>
-                    <td style={{ color: '#5a626e', fontSize: 12 }}>
-                      {t.fieldSchema.length === 0
-                        ? <span style={{ color: '#9aa1ab' }}>자유서식 (본문만)</span>
-                        : t.fieldSchema.map((f) => f.label).join(' · ')}
+                    <td className="text-center">{t.sortOrder}</td>
+                    <td>
+                      <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
+                              onClick={() => setEditing(t)}>{t.name}{t.active ? '' : ' (사용중단)'}</button>
                     </td>
-                    <td style={{ textAlign: 'center', color: t.documentCount > 0 ? '#5a626e' : '#9aa1ab' }}>{t.documentCount}건</td>
-                    <td style={{ textAlign: 'center', color: t.active ? '#1c7c3c' : '#8a929c' }}>{t.active ? '사용' : '중지'}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', gap: 3 }}>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(t)}>수정</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: t.documentCount > 0 ? '#c9ced6' : '#c60a2e' }}
-                          onClick={() => removeTemplate(t)}>삭제</button>
-                      </div>
-                    </td>
+                    <td>{(t as WithGroup).groupName ?? ''}</td>
+                    <td />
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
-              ※ 기안서가 한 건이라도 쓰인 양식은 삭제할 수 없습니다(그 기안서들이 양식을 가리킵니다). 사용중지로 내리면 새 기안에서만 사라지고 과거 문서는 그대로 열립니다.
-            </div>
+
+            {/* 원본 [신규(F2)] → '양식등록': 양식명 + 복사대상양식 만 묻는다. 저장하면 목록에 생기고, 양식명을 눌러 칸을 고친다. */}
+            <Modal error={quickErr} open={quickOpen} title="양식등록" width={640} onClose={() => setQuickOpen(false)}>
+              <ul className="ec-form mb-[10px]">
+                <li className="wide"><div className="title">양식명</div><div className="form">
+                  <input className="ec-input w-full" placeholder="양식명" value={quickName} onChange={(e) => setQuickName(e.target.value)} />
+                </div></li>
+                <li className="wide"><div className="title">복사대상양식</div><div className="form">
+                  <select className="ec-input w-full" aria-label="복사대상양식" value={quickCopy} onChange={(e) => setQuickCopy(e.target.value)}>
+                    <option value="">기본(기본)</option>
+                    {companyTemplates.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                  </select>
+                </div></li>
+              </ul>
+              <div className="flex gap-[6px]">
+                <button type="button" className="ec-btn ec-btn-primary" onClick={() => void quickSave()}>저장(F8)</button>
+                <button type="button" className="ec-btn" onClick={() => setQuickOpen(false)}>닫기</button>
+              </div>
+            </Modal>
           </>
         ) : (
           <>
@@ -173,46 +206,46 @@ export default function ApprovalSettingPage() {
                 onSaved={(name) => { setEditingPreset(null); flash(`결재선 "${name}"을 저장했습니다.`); load() }}
               />
             )}
-            <table className="w-full text-left">
+            <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
-                  <th style={{ width: 34 }}></th>
-                  <th style={{ width: 200 }}>결재선</th>
-                  <th style={{ width: 150 }}>적용 양식</th>
+                  <th className="w-[34px]"></th>
+                  <th className="w-[200px]">결재선</th>
+                  <th className="w-[150px]">적용 양식</th>
                   <th>결재 순서</th>
-                  <th style={{ width: 80, textAlign: 'center' }}>사용</th>
-                  <th style={{ width: 110, textAlign: 'center' }}>처리</th>
+                  <th className="w-[80px] text-center">사용</th>
+                  <th className="w-[110px] text-center">처리</th>
                 </tr>
               </thead>
               <tbody>
                 {presets.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                 ) : presets.map((p, i) => (
                   <tr key={p.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ fontWeight: 600 }}>{p.name}</td>
-                    <td style={{ color: '#5a626e' }}>{p.formTemplateName ?? '공통(모든 양식)'}</td>
+                    <td className="text-center text-ec-hint">{i + 1}</td>
+                    <td className="font-semibold">{p.name}</td>
+                    <td className="text-ec-label">{p.formTemplateName ?? '공통(모든 양식)'}</td>
                     <td>
                       {p.steps.map((s, idx) => (
                         <span key={s.stepOrder}>
-                          {idx > 0 && <span style={{ color: '#c9ced6', margin: '0 5px' }}>→</span>}
-                          <span style={{ color: 'var(--ec-blue-dark)' }}>{s.approverName}</span>
-                          {s.department && <span style={{ color: '#9aa1ab', fontSize: 11.5 }}> ({s.department})</span>}
+                          {idx > 0 && <span className="text-ec-off my-0 mx-[5px]">→</span>}
+                          <span className="text-ec-navy">{s.approverName}</span>
+                          {s.department && <span className="text-ec-hint text-[11.5px]"> ({s.department})</span>}
                         </span>
                       ))}
                     </td>
-                    <td style={{ textAlign: 'center', color: p.active ? '#1c7c3c' : '#8a929c' }}>{p.active ? '사용' : '중지'}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', gap: 3 }}>
+                    <td style={{ textAlign: 'center', color: p.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{p.active ? '사용' : '중지'}</td>
+                    <td className="text-center">
+                      <div className="inline-flex gap-[3px]">
                         <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditingPreset(p)}>수정</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => removePreset(p)}>삭제</button>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => removePreset(p)}>삭제</button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+            <div className="mt-[8px] text-[11.5px] text-ec-hint">
               ※ 결재선은 기안할 때 결재자를 하나씩 고르지 않으려고 미리 만들어 두는 순서입니다. 같은 결재자가 연속으로 오는 결재선은 저장되지 않습니다.
             </div>
           </>
@@ -225,9 +258,11 @@ export default function ApprovalSettingPage() {
 
 interface FieldRow { key: string; label: string; type: ApprovalFieldType; required: boolean }
 
-function TemplateForm({ template, onError, onClose, onSaved }: {
+function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
   template: ApprovalFormTemplateAdmin | null
   onError: (m: string) => void; onClose: () => void; onSaved: (name: string) => void
+  /** 목록에서 [처리] 칸을 뺐으므로 삭제는 양식을 열어서 한다. */
+  onDelete?: () => void
 }) {
   const isNew = template === null
   // 표(table) 같은 편집 미지원 항목은 건드리지 않고 그대로 보존한다.
@@ -236,6 +271,17 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
   const [name, setName] = useState(template?.name ?? '')
   const [sortOrder, setSortOrder] = useState(String(template?.sortOrder ?? 0))
   const [active, setActive] = useState(template?.active ?? true)
+  /** 원본 기본값설정 › 구분 — '구분검색'에서 고른 그룹코드. */
+  const [groupCode, setGroupCode] = useState((template as WithGroup | null)?.groupCode ?? '')
+  const [groups, setGroups] = useState<ApprovalGroup[]>([])
+  /** 원본 [기안서확인시점설정] · [사용자별권한] — 창에서 [적용]/[저장] 하면 여기 담기고, 이 창의 [저장(F8)] 이 서버에 보낸다. */
+  const inputs = template as (ApprovalFormTemplateAdmin & WithInputSettings) | null
+  const [refTiming, setRefTiming] = useState<ViewTiming>(inputs?.referenceViewTiming ?? 'DEFAULT')
+  const [shareTiming, setShareTiming] = useState<ViewTiming>(inputs?.shareViewTiming ?? 'DEFAULT')
+  const [userPerms, setUserPerms] = useState<Record<string, 'ALLOW' | 'DENY'>>(inputs?.userPermissions ?? {})
+  const [showTiming, setShowTiming] = useState(false)
+  const [showPerms, setShowPerms] = useState(false)
+  useEffect(() => { fetchApprovalGroups().then(setGroups).catch(() => setGroups([])) }, [])
   const [fields, setFields] = useState<FieldRow[]>(
     (template?.fieldSchema ?? [])
       .filter((f) => EDITABLE_TYPES.includes(f.type))
@@ -262,7 +308,8 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
     ]
     setSaving(true)
     try {
-      const body = { code: code.toUpperCase(), name, sortOrder: Number(sortOrder) || 0, active, fieldSchema: schema }
+      const body = { code: code.toUpperCase(), name, sortOrder: Number(sortOrder) || 0, active, fieldSchema: schema, groupCode: groupCode || null,
+        referenceViewTiming: refTiming, shareViewTiming: shareTiming, userPermissions: userPerms }
       if (isNew) await api.post('/approval-settings/templates', body)
       else await api.put(`/approval-settings/templates/${template.id}`, body)
       onSaved(name)
@@ -274,11 +321,12 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>
-        {isNew ? '양식 추가' : `양식 수정 — ${template.code}`}
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">
+        {/* 원본은 양식을 열면 '입력화면설정' 창이다 */}
+        {isNew ? '양식 추가' : '입력화면설정'}
       </div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+      <div className="flex gap-[12px] flex-wrap items-end mb-[12px]">
         <Field label="양식코드 *">
           <input className="ec-input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
             style={{ width: 150 }} placeholder="LEAVE" disabled={!isNew} />
@@ -289,6 +337,22 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
         <Field label="정렬순서">
           <input className="ec-input" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ width: 90, textAlign: 'right' }} />
         </Field>
+        {/* 원본 입력화면설정 › 기본값설정 › [구분] (직접지정 · 코드도움 '구분검색') */}
+        <Field label="구분">
+          {/* 비우면 미설정. 창에서 구분을 늘리고([신규(F2)]) 이름을 고친다([수정]). */}
+          <ApprovalGroupField
+            value={groupCode ? { code: groupCode, name: groups.find((g) => g.code === groupCode)?.name ?? groupCode } : null}
+            onChange={(g) => { setGroupCode(g?.code ?? ''); fetchApprovalGroups().then(setGroups).catch(() => {}) }} />
+        </Field>
+        {/* 원본 입력화면설정 › 기본 › [기안서확인시점설정] · [사용자별권한] — 글자 링크 '설정' 이 창을 연다. */}
+        <Field label="기안서확인시점설정">
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy h-[26px]" onClick={() => setShowTiming(true)}>설정</button>
+        </Field>
+        <Field label="사용자별권한">
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy h-[26px]" onClick={() => setShowPerms(true)}>
+            설정{Object.keys(userPerms).length > 0 ? ` (${Object.keys(userPerms).length})` : ''}
+          </button>
+        </Field>
         <Field label="사용여부">
           <select className="ec-input" value={active ? '1' : '0'} onChange={(e) => setActive(e.target.value === '1')} style={{ width: 100 }}>
             <option value="1">사용</option>
@@ -296,32 +360,36 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
           </select>
         </Field>
         {!isNew && (
-          <span style={{ fontSize: 11.5, color: '#8a929c', paddingBottom: 5 }}>
+          <span className="text-[11.5px] text-ec-hint pb-[5px]">
             양식코드는 바꿀 수 없습니다(기안서 {template.documentCount}건이 이 코드를 가리킵니다).
           </span>
         )}
       </div>
 
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#5a626e', marginBottom: 4 }}>입력항목</div>
+      {showTiming && <ViewTimingModal reference={refTiming} share={shareTiming} onClose={() => setShowTiming(false)}
+                                      onApply={(v) => { setRefTiming(v.reference); setShareTiming(v.share); setShowTiming(false) }} />}
+      {showPerms && <UserPermissionModal value={userPerms} onClose={() => setShowPerms(false)}
+                                         onApply={(v) => { setUserPerms(v); setShowPerms(false) }} />}
+      <div className="text-[12.5px] font-bold text-ec-label mb-[4px]">입력항목</div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 160 }}>키 (영문)</th>
-            <th style={{ width: 200 }}>라벨</th>
-            <th style={{ width: 150 }}>타입</th>
-            <th style={{ width: 80, textAlign: 'center' }}>필수</th>
-            <th style={{ width: 40 }}></th>
+            <th className="w-[34px]"></th>
+            <th className="w-[160px]">키 (영문)</th>
+            <th className="w-[200px]">라벨</th>
+            <th className="w-[150px]">타입</th>
+            <th className="w-[80px] text-center">필수</th>
+            <th className="w-[40px]"></th>
           </tr>
         </thead>
         <tbody>
           {fields.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>
+            <tr><td colSpan={6} className="text-center text-ec-hint p-[14px]">
               입력항목이 없으면 자유서식(본문만)으로 작성합니다.
             </td></tr>
           ) : fields.map((f, i) => (
             <tr key={i}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td><input className="ec-input" value={f.key} onChange={(e) => setField(i, { key: e.target.value })} style={{ width: '100%' }} placeholder="startDate" /></td>
               <td><input className="ec-input" value={f.label} onChange={(e) => setField(i, { label: e.target.value })} style={{ width: '100%' }} placeholder="시작일" /></td>
               <td>
@@ -329,29 +397,30 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
                   {EDITABLE_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
                 </select>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={f.required} onChange={(e) => setField(i, { required: e.target.checked })} />
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="ec-btn" onClick={() => setFields((fs) => fs.filter((_, idx) => idx !== i))}>×</button>
               </td>
             </tr>
           ))}
           {preserved.map((f, i) => (
-            <tr key={`p-${i}`} style={{ background: '#f7f9fb' }}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>-</td>
-              <td style={{ color: '#8a929c' }}>{f.key}</td>
-              <td style={{ color: '#8a929c' }}>{f.label}</td>
-              <td style={{ color: '#8a929c' }}>{TYPE_LABEL[f.type] ?? f.type}</td>
-              <td colSpan={2} style={{ color: '#9aa1ab', fontSize: 11.5 }}>이 화면에서 편집하지 않고 그대로 보존합니다</td>
+            <tr key={`p-${i}`} style={{ background: 'var(--ec-bg-page)' }}>
+              <td className="text-center text-ec-hint">-</td>
+              <td className="text-ec-hint">{f.key}</td>
+              <td className="text-ec-hint">{f.label}</td>
+              <td className="text-ec-hint">{TYPE_LABEL[f.type] ?? f.type}</td>
+              <td colSpan={2} className="text-ec-hint text-[11.5px]">이 화면에서 편집하지 않고 그대로 보존합니다</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+      <div className="flex gap-[6px] mt-[8px]">
         <button className="ec-btn" onClick={() => setFields((fs) => [...fs, { key: '', label: '', type: 'text', required: false }])}>+ 항목 추가</button>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
+        {onDelete && <button className="ec-btn" onClick={onDelete}>삭제</button>}
         <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
       </div>
     </div>
@@ -402,11 +471,11 @@ function PresetForm({ preset, templates, members, onError, onClose, onSaved }: {
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">
         {isNew ? '결재선 추가' : `결재선 수정 — ${preset.name}`}
       </div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+      <div className="flex gap-[12px] flex-wrap items-end mb-[10px]">
         <Field label="결재선 이름 *">
           <input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 220 }} placeholder="팀장→본부장→대표" />
         </Field>
@@ -424,16 +493,16 @@ function PresetForm({ preset, templates, members, onError, onClose, onSaved }: {
         </Field>
       </div>
 
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#5a626e', marginBottom: 4 }}>결재 순서</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="text-[12.5px] font-bold text-ec-label mb-[4px]">결재 순서</div>
+      <div className="flex gap-[8px] flex-wrap items-center">
         {approverIds.map((id, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {i > 0 && <span style={{ color: 'var(--ec-blue)' }}>→</span>}
-            <span style={{ fontSize: 11.5, color: '#8a929c' }}>{i + 1}차</span>
-            <select className="ec-input" value={id} onChange={(e) => setApprover(i, e.target.value)} style={{ width: 170 }}>
-              <option value="">결재자 선택</option>
-              {members.map((m) => <option key={m.id} value={m.id}>{m.name} {m.department ? `(${m.department})` : ''}</option>)}
-            </select>
+          <div key={i} className="flex items-center gap-[4px]">
+            {i > 0 && <span className="text-ec-blue">→</span>}
+            <span className="text-[11.5px] text-ec-hint">{i + 1}차</span>
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+            <CodePickerField label={`${i + 1}차 결재자`} hideLabel width={170} placeholder="결재자" emptyLabel="선택 해제"
+                             value={id} onChange={(v) => setApprover(i, v)}
+                             items={members.map((m) => ({ value: String(m.id), name: m.name, sub: m.department || null }))} />
             {approverIds.length > 1 && (
               <button className="ec-btn" onClick={() => setApproverIds((ids) => ids.filter((_, idx) => idx !== i))}>×</button>
             )}
@@ -442,7 +511,7 @@ function PresetForm({ preset, templates, members, onError, onClose, onSaved }: {
         <button className="ec-btn" onClick={() => setApproverIds((ids) => [...ids, ''])}>+ 결재자 추가</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+      <div className="flex gap-[6px] mt-[10px]">
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
         <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
       </div>
@@ -452,8 +521,8 @@ function PresetForm({ preset, templates, members, onError, onClose, onSaved }: {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
     </label>
   )

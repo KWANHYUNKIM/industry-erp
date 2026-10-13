@@ -1,0 +1,218 @@
+package com.erp.accounting.cash;
+
+import com.erp.accounting.bankcard.BankCardService;
+import com.erp.accounting.journal.JournalService;
+import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
+import com.erp.accounting.bankcard.AccountTransfer;
+import com.erp.accounting.bankcard.BankAccount;
+import com.erp.accounting.bankcard.CardPayment;
+import com.erp.accounting.bankcard.CardPaymentLine;
+import com.erp.accounting.bankcard.CardUsage;
+import com.erp.accounting.bankcard.CreditCard;
+import com.erp.accounting.journal.JournalEntry;
+import com.erp.accounting.bankcard.dto.BankCardDtos.CardUsageResponse;
+import com.erp.accounting.cash.dto.CashDetailDtos.AccountTransferRequest;
+import com.erp.accounting.cash.dto.CashDetailDtos.AccountTransferResponse;
+import com.erp.accounting.cash.dto.CashDetailDtos.CardPaymentRequest;
+import com.erp.accounting.cash.dto.CashDetailDtos.CardPaymentResponse;
+import com.erp.accounting.bankcard.AccountTransferRepository;
+import com.erp.accounting.bankcard.BankAccountRepository;
+import com.erp.accounting.bankcard.CardPaymentRepository;
+import com.erp.accounting.bankcard.CardUsageRepository;
+import com.erp.accounting.bankcard.CreditCardRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import com.erp.accounting.bankcard.dto.BankCardDtos;
+import com.erp.accounting.cash.dto.CashDetailDtos;
+
+/**
+ * 회계 I > 현금거래 세분류 — 계좌간이동 · 법인카드 대금결제.
+ *
+ * 두 거래 모두 계좌가 실제로 움직이므로 잔액과 입출금 내역을 남긴다.
+ * 분개는 여기서 한 번만 만들고, 계좌 쪽은 BankCardService.recordExternal 로 잔액·내역만 기록한다
+ * (이중 분개 방지).
+ */
+@Service
+@RequiredArgsConstructor
+public class CashDetailService {
+
+    private final AccountTransferRepository transferRepository;
+    private final CardPaymentRepository paymentRepository;
+    private final CardUsageRepository usageRepository;
+    private final CreditCardRepository cardRepository;
+    private final BankAccountRepository bankAccountRepository;
+    private final JournalService journalService;
+    private final BankCardService bankCardService;
+    private final DocumentNoGenerator docNoGenerator;
+
+    // ── 계좌간이동 ────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<AccountTransferResponse> findTransfers() {
+        return findTransfers(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     *
+     * <p>안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 로 쓰면
+     * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public List<AccountTransferResponse> findTransfers(java.time.LocalDate from, java.time.LocalDate to) {
+        return transferRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(AccountTransferResponse::from).toList();
+    }
+
+    @Transactional
+    public AccountTransferResponse transfer(AccountTransferRequest req, String username) {
+        if (req.fromAccountId().equals(req.toAccountId())) {
+            throw ApiException.badRequest("출금 계좌와 입금 계좌가 같을 수 없습니다.");
+        }
+        BankAccount from = bankAccount(req.fromAccountId());
+        BankAccount to = bankAccount(req.toAccountId());
+        LocalDate date = req.transferDate() != null ? req.transferDate() : LocalDate.now();
+
+        AccountTransfer t = AccountTransfer.builder()
+                .transferNo(docNoGenerator.next("AT-", "account_transfers", "transfer_no", "transfer_date", date))
+                .transferDate(date)
+                .fromAccount(from)
+                .toAccount(to)
+                .amount(req.amount())
+                .description(req.description())
+                .createdBy(username)
+                .build();
+        transferRepository.save(t);   // 분개가 sourceId 로 이 id 를 쓴다
+
+        JournalEntry entry = journalService.createFromAccountTransfer(t);
+        t.setJournalEntry(entry);
+
+        // 출금 → 입금 순서. 잔액이 모자라면 출금에서 막히고 전체가 롤백된다.
+        String desc = "계좌간이동 " + t.getTransferNo();
+        bankCardService.recordExternal(from.getId(), false, req.amount(), date, desc, entry, username);
+        bankCardService.recordExternal(to.getId(), true, req.amount(), date, desc, entry, username);
+
+        return AccountTransferResponse.from(t);
+    }
+
+    /**
+     * 계좌간이동 삭제(QA 56회차 — 잘못 넣으면 반대로 한 번 더 이동하는 수밖에 없었다).
+     * 두 계좌의 잔액을 되돌리고(입금 계좌에 그 돈이 남아 있어야 한다) 분개를 지운다.
+     */
+    @Transactional
+    public void deleteTransfer(Long id, String username) {
+        AccountTransfer t = transferRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계좌간이동을 찾을 수 없습니다. id=" + id));
+        bankCardService.reverseExternal(t.getJournalEntry(), "계좌간이동 취소 " + t.getTransferNo(), username);
+        transferRepository.delete(t);
+        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.ACCOUNT_TRANSFER, id);
+    }
+
+    // ── 법인카드 대금결제 ─────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<CardPaymentResponse> findPayments() {
+        return findPayments(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 예전에는 물어보지도 않고 전 기간을 통째로 주었다.
+     *
+     * <p>안 주면 <b>넓은 경계</b>로 채운다 — <code>:from is null or …</code> 로 쓰면
+     * PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Transactional(readOnly = true)
+    public List<CardPaymentResponse> findPayments(java.time.LocalDate from, java.time.LocalDate to) {
+        return paymentRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(CardPaymentResponse::from).toList();
+    }
+
+    /** 아직 결제하지 않은 카드사용 (결제 화면의 대상 목록) */
+    @Transactional(readOnly = true)
+    public List<CardUsageResponse> unpaidUsages(Long cardId) {
+        Set<Long> paid = new HashSet<>(paymentRepository.findPaidUsageIds());
+        return usageRepository.findByCard(cardId).stream()
+                .filter(u -> !paid.contains(u.getId()))
+                .map(CardUsageResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public CardPaymentResponse payCard(CardPaymentRequest req, String username) {
+        CreditCard card = cardRepository.findById(req.cardId())
+                .orElseThrow(() -> ApiException.notFound("카드를 찾을 수 없습니다. id=" + req.cardId()));
+
+        // 결제계좌: 요청에 없으면 카드에 등록된 결제계좌
+        BankAccount account = req.bankAccountId() != null
+                ? bankAccount(req.bankAccountId())
+                : card.getSettlementAccount();
+        if (account == null) {
+            throw ApiException.badRequest("결제계좌를 선택하세요. (카드에 등록된 결제계좌가 없습니다: "
+                    + card.getCardName() + ")");
+        }
+
+        Set<Long> paid = new HashSet<>(paymentRepository.findPaidUsageIds());
+        List<CardUsage> targets = usageRepository.findByCard(card.getId()).stream()
+                .filter(u -> !paid.contains(u.getId()))
+                .filter(u -> req.cardUsageIds() == null || req.cardUsageIds().isEmpty()
+                        || req.cardUsageIds().contains(u.getId()))
+                .toList();
+
+        if (targets.isEmpty()) {
+            throw ApiException.badRequest(card.getCardName() + " 에 결제할 미결제 사용내역이 없습니다.");
+        }
+
+        LocalDate date = req.paymentDate() != null ? req.paymentDate() : LocalDate.now();
+        BigDecimal total = targets.stream()
+                .map(CardUsage::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        CardPayment p = CardPayment.builder()
+                .paymentNo(docNoGenerator.next("CP-", "card_payments", "payment_no", "payment_date", date))
+                .paymentDate(date)
+                .card(card)
+                .bankAccount(account)
+                .amount(total)
+                .createdBy(username)
+                .build();
+        for (CardUsage u : targets) {
+            p.addLine(CardPaymentLine.builder().cardUsage(u).amount(u.getTotalAmount()).build());
+        }
+        paymentRepository.save(p);
+
+        JournalEntry entry = journalService.createFromCardPayment(p);
+        p.setJournalEntry(entry);
+
+        bankCardService.recordExternal(account.getId(), false, total, date,
+                "카드대금 결제 " + card.getCardName() + " " + p.getPaymentNo(), entry, username);
+
+        return CardPaymentResponse.from(p);
+    }
+
+    /**
+     * 카드대금결제 삭제 — 결제계좌로 돈을 돌려놓고 분개를 지운다. 묶였던 사용내역은 다시 미결제가 된다.
+     */
+    @Transactional
+    public void deletePayment(Long id, String username) {
+        CardPayment p = paymentRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("카드대금결제를 찾을 수 없습니다. id=" + id));
+        bankCardService.reverseExternal(p.getJournalEntry(), "카드대금 결제 취소 " + p.getPaymentNo(), username);
+        paymentRepository.delete(p);
+        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.CARD_PAYMENT, id);
+    }
+
+    private BankAccount bankAccount(Long id) {
+        return bankAccountRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + id));
+    }
+}

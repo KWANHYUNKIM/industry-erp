@@ -1,0 +1,122 @@
+{
+  "about": "자가사용입력(E040503) · 자가사용조회의 자가사용수정 창 — 2026-10-12 원본 실측. 창고 없이 저장하면 막히고, 두 줄 전표(API)는 조회에 '품목 외 1건' · 수량 합 한 줄로 뜬다. [일자-No.] 를 누르면 수정 창(일자 잠김)이 뜨고 [삭제]로 지우면 두 품목 재고가 되돌아온다.",
+  "shots": [
+    {
+      "name": "자가사용입력 — 격자 [품목코드 · 품목명 · 규격 · 수량 · 사용유형], 창고 없이 저장하면 '창고를 입력하세요.'",
+      "path": "/inventory/self-use-input",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|품목코드|품목명|규격|수량|사용유형'",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('창고를 입력하세요.')"
+      ]
+    },
+    {
+      "name": "자가사용조회 — 두 줄 전표가 '외 1건' · 수량 5 로 뜨고, 수정 창에서 삭제하면 재고가 되돌아온다",
+      "path": "/inventory/self-use",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body;const a=st.find((s)=>Number(s.quantity)>=10);const b=st.find((s)=>s.warehouseId===a.warehouseId&&s.itemId!==a.itemId&&Number(s.quantity)>=10);sessionStorage.setItem('su',JSON.stringify({wh:a.warehouseId,a:a.itemId,b:b.itemId,qa:Number(a.quantity),qb:Number(b.quantity)}));const r=await window.__api('POST','/stock-adjustments/slips',{type:'SELF_USE',warehouseId:a.warehouseId,lines:[{itemId:a.itemId,quantity:2,kind:'QA재고1'},{itemId:b.itemId,quantity:3}]});sessionStorage.setItem('suNo',r.body&&r.body.adjustNo);return r.status})()",
+        "wait:600",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Search(F3)').click(); true",
+        "wait:400",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const no=sessionStorage.getItem('suNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===dn);return !!tr&&/외 1건$/.test(tr.cells[4].innerText.trim())&&tr.cells[5].innerText.trim()==='5'})()",
+        "js:(()=>{const no=sessionStorage.getItem('suNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());[...document.querySelectorAll('tbody tr a')].find((a)=>a.innerText.trim()===dn).click();return true})()",
+        "wait:1200",
+        "expect:(()=>{const d=document.querySelector('[role=dialog]');return !!d&&d.innerText.includes('자가사용수정')&&d.querySelector('input[type=date]').disabled&&d.querySelectorAll('tbody tr').length>=3})()",
+        "js:window.confirm=()=>true; [...document.querySelectorAll('[role=dialog] button')].find((b)=>b.innerText.trim()==='삭제').click(); true",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('su'));const st=(await window.__api('GET','/stock')).body;const q=(i)=>Number(st.find((x)=>x.itemId===i&&x.warehouseId===s.wh).quantity);window.__ok=q(s.a)===s.qa&&q(s.b)===s.qb;return window.__ok})()",
+        "wait:500",
+        "expect:window.__ok===true"
+      ]
+    },
+    {
+      "name": "자가사용현황 — 거래처를 든 자가사용 전표가 [거래처명] 열에 찍히고 [거래처] 조건으로 걸린다, 끝나면 지운다",
+      "path": "/inventory/self-use-status",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=10);const p=(await window.__api('GET','/partners')).body[0];sessionStorage.setItem('suP',p.name);const r=await window.__api('POST','/stock-adjustments/slips',{type:'SELF_USE',warehouseId:st.warehouseId,partnerId:p.id,lines:[{itemId:st.itemId,quantity:1,kind:'QA재고1'}]});sessionStorage.setItem('suNo',r.body&&r.body.adjustNo);return r.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const hs=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());const i=hs.indexOf('거래처명');const no=sessionStorage.getItem('suNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(dn)&&t.innerText.includes('QA재고1')||t.innerText.includes(dn));return i>0&&!!tr&&tr.cells[i].innerText.trim()===sessionStorage.getItem('suP')})()",
+        "js:(async()=>(await window.__api('DELETE','/stock-adjustments/slips/'+sessionStorage.getItem('suNo'))).status)()"
+      ]
+    },
+    {
+      "name": "불량처리입력 — 머리 [발견창고 · 처리방법(폐기 기본)], 격자 끝 [불량유형]; 폐기 전표는 불량처리조회와 폐기현황에 뜨고 재고가 빠졌다가 지우면 돌아온다",
+      "path": "/inventory/defect-input",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:800",
+        "expect:document.querySelector('select').value==='폐기'&&[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|품목코드|품목명|규격|수량|불량유형'&&document.body.innerText.includes('발견창고')",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('발견창고를 입력하세요.')",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=10);sessionStorage.setItem('df',JSON.stringify({wh:st.warehouseId,it:st.itemId,q:Number(st.quantity)}));const r=await window.__api('POST','/stock-adjustments/slips',{type:'DEFECT',warehouseId:st.warehouseId,handling:'폐기',lines:[{itemId:st.itemId,quantity:2,kind:'QA재고1'}]});sessionStorage.setItem('dfNo',r.body&&r.body.adjustNo);const s2=(await window.__api('GET','/stock')).body.find((x)=>x.itemId===st.itemId&&x.warehouseId===st.warehouseId);window.__dec=Number(s2.quantity)===Number(st.quantity)-2&&r.body.handling==='폐기';return r.status})()",
+        "wait:600",
+        "expect:window.__dec===true"
+      ]
+    },
+    {
+      "name": "폐기현황 — 처리방법 폐기인 불량처리 전표가 뜬다, 끝나면 지우고 재고가 돌아온다",
+      "path": "/inventory/disposal-status",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const no=sessionStorage.getItem('dfNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());return [...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(dn))})()",
+        "js:(async()=>{await window.__api('DELETE','/stock-adjustments/slips/'+sessionStorage.getItem('dfNo'));const s=JSON.parse(sessionStorage.getItem('df'));const x=(await window.__api('GET','/stock')).body.find((y)=>y.itemId===s.it&&y.warehouseId===s.wh);window.__back=Number(x.quantity)===s.q;return window.__back})()",
+        "wait:600",
+        "expect:window.__back===true"
+      ]
+    },
+    {
+      "name": "불량처리입력 품목대체 — 알약 [불량품목 · 정상품목] 이 서고 [정상품목] 격자로 바뀐다(폐기 · 정상사용에는 없다)",
+      "path": "/inventory/defect-input",
+      "steps": [
+        "wait:800",
+        "expect:!document.querySelector('[role=tablist]')",
+        "js:(()=>{const s=document.querySelector('select');const set=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;set.call(s,'품목대체');s.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=tablist] button')].map((b)=>b.innerText.trim()).join('|')==='불량품목|정상품목'",
+        "js:[...document.querySelectorAll('[role=tablist] button')].find((b)=>b.innerText.trim()==='정상품목').click(); true",
+        "wait:300",
+        "expect:document.querySelector('[role=tablist] button.active').innerText.trim()==='정상품목'&&[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|품목코드|품목명|규격|수량|불량유형'"
+      ]
+    },
+    {
+      "name": "품목대체 전표 — 불량 1 은 나가고 정상 3 은 들어온다; 불량처리조회는 수량 1, 대체사용현황은 두 줄; 정상사용은 재고가 그대로; 지우면 되돌아온다",
+      "path": "/inventory/defect",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body;const a=st.find((s)=>Number(s.quantity)>=10);const b=st.find((s)=>s.warehouseId===a.warehouseId&&s.itemId!==a.itemId&&Number(s.quantity)>=10);sessionStorage.setItem('sb',JSON.stringify({wh:a.warehouseId,a:a.itemId,b:b.itemId,qa:Number(a.quantity),qb:Number(b.quantity)}));const r=await window.__api('POST','/stock-adjustments/slips',{type:'DEFECT',warehouseId:a.warehouseId,handling:'품목대체',lines:[{itemId:a.itemId,quantity:1,kind:'QA재고1'},{itemId:b.itemId,quantity:3,normal:true}]});sessionStorage.setItem('sbNo',r.body&&r.body.adjustNo);const n=await window.__api('POST','/stock-adjustments/slips',{type:'DEFECT',warehouseId:a.warehouseId,handling:'정상사용',lines:[{itemId:a.itemId,quantity:2,kind:'QA재고1'}]});sessionStorage.setItem('nuNo',n.body&&n.body.adjustNo);const s2=(await window.__api('GET','/stock')).body;const q=(i)=>Number(s2.find((x)=>x.itemId===i&&x.warehouseId===a.warehouseId).quantity);window.__mv=r.status===200&&n.status===200&&q(a.itemId)===Number(a.quantity)-1&&q(b.itemId)===Number(b.quantity)+3&&n.body.lines.length===2;return window.__mv})()",
+        "wait:800",
+        "expect:window.__mv===true",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Search(F3)').click(); true",
+        "wait:400",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const no=sessionStorage.getItem('sbNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===dn);return !!tr&&!/외/.test(tr.innerText)&&[...tr.cells].some((c)=>c.innerText.trim()==='1')})()",
+        "js:(async()=>{await window.__api('DELETE','/stock-adjustments/slips/'+sessionStorage.getItem('nuNo'));return true})()"
+      ]
+    },
+    {
+      "name": "대체사용현황 — 품목대체 전표의 불량 줄과 정상 줄이 [불량수량] · [정상수량] 으로 같이 선다, 끝나면 지우고 재고가 돌아온다",
+      "path": "/inventory/substitute-status",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const no=sessionStorage.getItem('sbNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());const hs=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());const di=hs.indexOf('불량수량'),ni=hs.indexOf('정상수량');const trs=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(dn));return di>0&&ni===di+1&&trs.length===2&&trs.some((t)=>t.cells[di].innerText.trim()==='1.00'&&t.cells[ni].innerText.trim()==='')&&trs.some((t)=>t.cells[ni].innerText.trim()==='3.00'&&t.cells[di].innerText.trim()==='')})()",
+        "js:(async()=>{await window.__api('DELETE','/stock-adjustments/slips/'+sessionStorage.getItem('sbNo'));const s=JSON.parse(sessionStorage.getItem('sb'));const st=(await window.__api('GET','/stock')).body;const q=(i)=>Number(st.find((x)=>x.itemId===i&&x.warehouseId===s.wh).quantity);window.__back=q(s.a)===s.qa&&q(s.b)===s.qb;return window.__back})()",
+        "wait:600",
+        "expect:window.__back===true"
+      ]
+    }
+  ]
+}

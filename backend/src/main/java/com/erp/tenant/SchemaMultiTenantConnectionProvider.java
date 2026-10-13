@@ -52,7 +52,10 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
     private void setSearchPath(Connection connection, String schema) throws SQLException {
         try (Statement st = connection.createStatement()) {
             // schema 는 안전 검증을 거친 스키마명 상수만 들어온다.
-            st.execute("SET search_path TO \"" + schema + "\", public");
+            // 뒤에 public 을 붙이지 않는다. 붙이면 회사 스키마에 테이블이 빠졌을 때 오류 대신 조용히
+            // 본사 테이블을 읽고 쓴다(다른 회사 자료가 보인다). public 에만 있는 레지스트리(companies)는
+            // 엔티티가 @Table(schema = "public") 으로 스키마를 박아 두어 search_path 가 필요 없다.
+            st.execute("SET search_path TO \"" + schema + "\"");
         }
     }
 

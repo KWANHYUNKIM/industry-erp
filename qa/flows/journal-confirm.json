@@ -1,0 +1,42 @@
+{
+  "about": "회계거래조회(원본 회계 I › 회계거래관리 › 회계거래조회, 2026-10-13 실측) — 원본은 저장한 전표가 곧 [확인] 탭에 서고 화면도 [확인] 탭으로 열린다. 시험 전표(현금출금 복리후생비 3,000 'QA회계1-확인')를 API 로 넣고 → 확인 탭에 있음 → [확인취소] → 미확인 탭 → [확인] → 확인 탭 → [선택삭제] '전표를 삭제하겠습니까? - 회계거래조회' [확인] → 404. node qa/shot.mjs qa/flows/journal-confirm.json",
+  "shots": [
+    {
+      "name": "확인(기본) → 확인취소 → 확인 → 선택삭제",
+      "path": "/accounting/journals",
+      "steps": [
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = (await A('GET', '/accounts')).find((a) => a.code === '811'); const r = await A('POST', '/journals/cash', { entryDate: new Date().toISOString().slice(0, 10), deposit: false, counterAccountId: acc.id, amount: 3000, description: 'QA회계1-확인' }); sessionStorage.setItem('jcId', r.id); window.confirm = () => true; return r.docNo })()",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:document.querySelector('.ec-pill.active').textContent.trim() === '확인'",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA회계1-확인')); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:200",
+        "click:확인취소",
+        "wait:800",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '미확인').click(); return true })()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA회계1-확인')); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:200",
+        "js:(() => { [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '확인' && !b.classList.contains('ec-pill')).click(); return true })()",
+        "wait:800",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '확인').click(); return true })()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA회계1-확인')); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:200",
+        "click:선택삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 회계거래조회')",
+        "js:(() => { [...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.textContent.trim() === '확인').click(); return true })()",
+        "wait:800",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "allowapi:404: /api/journals/",
+        "expect:(async () => (await fetch('/api/journals/' + sessionStorage.getItem('jcId'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).status === 404)()"
+      ]
+    }
+  ]
+}

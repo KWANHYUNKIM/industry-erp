@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Warehouse } from '../../api/types'
+import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
-import { stockCostMap } from '../../utils/stockValue'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import { materialDiff, type BomLine } from '../../utils/woEfficiency'
-import type { Item, PurchaseDoc } from '../../api/types'
+import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 생산 > 생산입고/소모현황 I (이카운트 E040415)
@@ -26,9 +28,18 @@ import { useCondPickers } from '../../utils/useCondPickers'
  *   품목별 — 품목마다 입고합·소모합. 반제품은 <b>양쪽에 다 뜬다</b>(만들어서 다시 쓰는 것),
  *            그게 이 보기의 쓸모다
  *
- * <b>주의:</b> E040415 자체의 조건 판은 실측하지 못했다(원본 세션 접근 불가).
- * 같은 출력물 묶음에서 실측한 조건 모양(구분 · 일자 구간 기본 금월(~오늘) · 창고 · 품목)을
- * 따랐다. 원본을 다시 열면 대조할 것.
+ * <b>2026-09-09 원본 조건 판을 드디어 열어 쟀다</b>(그때까지는 못 봐서 같은 묶음의
+ * 다른 화면 모양을 따르고 있었다). <b>서른다섯 칸</b>이다:
+ * 구분 · <b>기준일자</b> · 단가표시 · 창고 · 창고계층그룹 · 보내는창고 · 보내는창고계층그룹 ·
+ * 받는창고 · 받는창고계층그룹 · 생산품목 · <b>생산품목구분</b> · 생산품목그룹1~3 ·
+ * 생산품목계층그룹 · 소모품목 · <b>소모품목구분</b> · 소모품목그룹1~3 · 소모품목계층그룹 ·
+ * 담당자 · 오더관리번호 · 프로젝트 · 프로젝트그룹1~2 · 적요 · 최초작성자 · 최종수정자 ·
+ * 양식 · 적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+ * [구분] 기본값은 <b>거래별</b>, [단가표시]는 생산·소모 양쪽 다 <b>입고단가</b>,
+ * [기준일자]는 <b>금월(~오늘)</b> 이다.
+ *
+ * <p>이 계정에는 생산입고 자료가 금월·전월 모두 없어 <b>격자가 비어 있었다</b> —
+ * 열 이름과 차례는 쟀고 칸의 정렬은 못 쟀다(대조표에 '?'). 지어내지 않는다.
  */
 /**
  * 원본 [구분] 실측(사본 · 생산입고/소모현황 I):
@@ -40,9 +51,14 @@ import { useCondPickers } from '../../utils/useCondPickers'
  * '생산품목라인별집계'는 생산품목 × 소모자재 조합으로, 한 완제품에 어떤 자재가
  * 얼마나 들어갔는지 보는 자리다.
  *
- * <p>원본 [단가표시] 실측: 생산품목단가 | 입고단가 | 입고단가(VAT포함) | 월별원가 | 소모품목단가.
- * 이 중 <b>입고단가·입고단가(VAT포함)</b> 는 우리 생산실적에 단가 칸이 없어 만들 수 없다
- * (원본은 생산입고 전표가 단가를 들고 있다). 나머지 셋은 그대로 둔다.
+ * <p>원본 [단가표시] 실측(2026-10-02 loginaa): <b>생산품목단가</b> 와 <b>소모품목단가</b> 를 <b>따로</b> 고른다 —
+ * 둘 다 [입고단가 | 입고단가(VAT포함) | 월별원가]. 입고단가는 재고자산평가와 같은 평가단가(마지막 입고단가 →
+ * 품목 구매단가), VAT포함은 그 1.1배, 월별원가는 그 달의 표준원가다. 예전에는 셋을 한 줄에 섞어
+ * "어느 단가로 금액을 셀지" 를 고르게 했는데, 원본은 금액을 늘 <b>차이 × 소모품목단가</b> 로 센다.
+ *
+ * <p><b>차이 = 표준소모수량 − 실제소모수량</b> 이다(원본 실측: 소모를 안 넣은 전표가 표준 90 · 실제 빈칸 · 차이 90 ·
+ * 금액 90×단가). 덜 쓰면 +, 더 쓰면 − 다. 그리고 생산품목은 <b>제 줄</b>이 따로 있다 — 생산수량과
+ * 생산품목단가는 그 줄에만 찍고 소모 줄에는 비운다.
  * 담당자 조건도 생산실적에 담당자가 없어 못 만든다 — createdBy 는 계정이지 담당 사원이 아니다.
  *
  * <p>원본 결과 열 실측: 일자-No. · 생산품목코드 · 생산품목명 · 소모품목코드 · 소모품목명 ·
@@ -73,6 +89,16 @@ interface Production {
   productUnit: string
   warehouseId: number
   warehouseName: string
+  /*
+   * <b>여기 넷은 <code>ProductionResponse</code> 가 진작 싣고 있었는데 이 화면만
+   * 받아 두지 않았다.</b> 그래서 원본 조건 [보내는창고]·[프로젝트]·[적요]·[최초작성자]를
+   * "우리에겐 그 값이 없다" 고 미뤄 두고 있었다 — 없던 게 아니라 안 읽고 있었다
+   * (생산입고현황은 같은 응답으로 진작 넷을 다 걸고 있다).
+   */
+  fromWarehouseId: number | null
+  fromWarehouseName: string | null
+  projectName: string | null
+  note: string | null
   producedQty: number
   productionDate: string
   createdBy: string | null
@@ -84,11 +110,8 @@ interface Production {
 const num = (n: number) => n.toLocaleString('ko-KR')
 const won = (n: number | null) => (n == null ? '-' : Math.round(n).toLocaleString('ko-KR'))
 
-/**
- * 원본 [단가표시]. 입고단가·입고단가(VAT포함)는 생산실적에 단가가 없어 뺐다.
- * 없는 값을 이름만 걸어 두면 화면이 거짓말을 한다.
- */
-const PRICE_BASES = ['소모품목단가', '생산품목단가', '월별원가'] as const
+/** 원본 [단가표시] — 생산품목단가 · 소모품목단가 를 따로 이 셋 중에서 고른다. */
+const PRICE_BASES = ['입고단가', '입고단가(VAT포함)', '월별원가'] as const
 type PriceBasis = typeof PRICE_BASES[number]
 
 interface BomRow { productId: number; lines: { componentId: number; componentName: string; quantity: number }[] }
@@ -103,6 +126,15 @@ export default function ProductionIssueStatusPage() {
    * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
    */
   const [signBox, setSignBox] = useState(false)
+  /*
+   * 원본 [정렬/소계기준](2026-09-09 E040415 실측 — 조건 판 끝에서 둘째 줄).
+   * 앞 바퀴에는 목록에 남겨 두었다. 우리 [거래별] 표는 <b>생산전표 × 소모자재</b> 줄이라
+   * 줄 수가 금세 수십이 되는데, <b>무엇으로 묶어 봐도 소계가 없었다</b> —
+   * "이 완제품에 자재가 통틀어 얼마나 들어갔나" 를 눈으로 더해야 했다.
+   * 축은 이 표가 실제로 들고 있는 넷이다(없는 축을 이름만 걸어 두지 않는다).
+   */
+  const SUBTOTALS = ['생산품목', '소모품목', '창고', '일자'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('생산품목')
   const [rows, setRows] = useState<Production[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -118,13 +150,27 @@ export default function ProductionIssueStatusPage() {
      * 걸려서, "이 완제품을 만들 때 이 자재를 얼마나 썼나" 를 두 조건으로 좁힐 수가 없었다.
      */
     product: '', material: '',
+    /*
+     * 원본 조건 차례는 [생산품목] 바로 다음이 <b>[생산품목구분]</b>, [소모품목] 다음이
+     * <b>[소모품목구분]</b> 이다(2026-09-09 실측). 품목구분은 품목 마스터가 진작 들고
+     * 있는 값인데(<code>categoryName</code>), 이 화면은 그것으로 거를 수가 없었다 —
+     * "완제품만" "원자재만" 으로 좁히려면 품목을 하나씩 골라야 했다.
+     */
+    productCat: '', materialCat: '',
+    /* 원본 [보내는창고]·[받는창고] — 우리 [창고]는 둘 중 어느 쪽이든 거는 우리 것이다. */
+    fromWh: '', toWh: '',
+    /* 원본 [생산품목그룹1]·[소모품목그룹1]. 품목그룹은 품목 마스터에 붙는 값이다. */
+    productGroup: '', materialGroup: '',
+    /* 원본 [프로젝트]·[적요]·[최초작성자]. 셋 다 응답에 있었다. */
+    project: '', note: '', author: '',
     /** 원본 [담당자]. 값은 사원명이고 전표에는 id 만 있어 사원 목록으로 잇는다. */
     manager: '',
   })
-  const [priceBasis, setPriceBasis] = useState<PriceBasis>('소모품목단가')
+  const [prodBasis, setProdBasis] = useState<PriceBasis>('입고단가')
+  const [matBasis, setMatBasis] = useState<PriceBasis>('입고단가')
   const [boms, setBoms] = useState<BomRow[]>([])
   const [items, setItems] = useState<Item[]>([])
-  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [purchases, setPurchases] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -136,7 +182,13 @@ export default function ProductionIssueStatusPage() {
       api.get<Warehouse[]>('/warehouses'),
       api.get<BomRow[]>('/boms'),
       api.get<Item[]>('/items'),
-      api.get<PurchaseDoc[]>('/purchases'),
+      /*
+       * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 평가단가 지도
+       * 하나를 만드는 것뿐인데 구매 전표를 통째로 받고 있었다(실측 984KB).
+       * /purchases/item-prices 는 품목당 한 줄만 낸다 — 2026-09-10 에 만든 자리인데
+       * 이 화면이 안 옮겨져 있었다.
+       */
+      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
       api.get<CostRow[]>('/costs'),
     ])
       .then(([p, w, b, i, pu, c]) => {
@@ -158,8 +210,19 @@ export default function ProductionIssueStatusPage() {
    * 한쪽만 보면 "그 자재가 어디에 쓰였나"를 못 찾는다.
    */
   const hitItem = (p: Production) => !cond.item
-    || p.productName.includes(cond.item) || p.productCode.includes(cond.item)
-    || p.materials.some((m) => m.componentName.includes(cond.item) || m.componentCode.includes(cond.item))
+    || String(p.productId) === cond.item
+    || p.materials.some((m) => String(m.componentId) === cond.item)
+
+  /** 품목 id → 품목구분. 원본 [생산품목구분]·[소모품목구분]이 쓰는 축이다. */
+  const catOf = useMemo(
+    () => new Map(items.filter((i) => i.categoryName).map((i) => [i.id, i.categoryName as string])),
+    [items])
+  const catOptions = useMemo(() => [...new Set(catOf.values())].sort(), [catOf])
+  /** 품목 id → 품목그룹1. 원본 [생산품목그룹1]·[소모품목그룹1]이 쓰는 축이다. */
+  const groupOf = useMemo(
+    () => new Map(items.filter((i) => i.itemGroupName).map((i) => [i.id, i.itemGroupName as string])),
+    [items])
+  const groupOptions = useMemo(() => [...new Set(groupOf.values())].sort(), [groupOf])
 
   /** 사원 id → 이름. */
   const nameOfEmployee = new Map(
@@ -169,14 +232,26 @@ export default function ProductionIssueStatusPage() {
     .filter((p) => !cond.from || p.productionDate >= cond.from)
     .filter((p) => !cond.to || p.productionDate <= cond.to)
     .filter((p) => !cond.warehouseId || String(p.warehouseId) === cond.warehouseId)
-    .filter((p) => !cond.orderNo || p.workOrderNo.includes(cond.orderNo))
+    .filter((p) => !cond.orderNo || (p.workOrderNo ?? '').includes(cond.orderNo))
     .filter((p) => !cond.manager || (nameOfEmployee.get(p.employeeId ?? -1) ?? '') === cond.manager)
     .filter(hitItem)
     // 원본 조건의 [생산품목]·[소모품목] — 둘을 함께 걸면 그 조합만 남는다.
-    .filter((p) => !cond.product
-      || p.productName.includes(cond.product) || p.productCode.includes(cond.product))
-    .filter((p) => !cond.material
-      || p.materials.some((m) => m.componentName.includes(cond.material) || m.componentCode.includes(cond.material)))
+    .filter((p) => !cond.product || String(p.productId) === cond.product)
+    .filter((p) => !cond.material || p.materials.some((m) => String(m.componentId) === cond.material))
+    /* 원본 [생산품목구분]·[소모품목구분]. 품목 마스터의 품목구분으로 거른다. */
+    .filter((p) => !cond.productCat || catOf.get(p.productId) === cond.productCat)
+    .filter((p) => !cond.materialCat
+      || p.materials.some((m) => catOf.get(m.componentId) === cond.materialCat))
+    /* 원본 [생산품목그룹1]·[소모품목그룹1]. */
+    .filter((p) => !cond.productGroup || groupOf.get(p.productId) === cond.productGroup)
+    .filter((p) => !cond.materialGroup
+      || p.materials.some((m) => groupOf.get(m.componentId) === cond.materialGroup))
+    /* 원본 [보내는창고]·[받는창고]. 생산입고는 자재가 나간 창고와 완제품이 든 창고가 다르다. */
+    .filter((p) => !cond.fromWh || String(p.fromWarehouseId ?? '') === cond.fromWh)
+    .filter((p) => !cond.toWh || String(p.warehouseId) === cond.toWh)
+    .filter((p) => !cond.project || (p.projectName ?? '').includes(cond.project))
+    .filter((p) => !cond.note || (p.note ?? '').includes(cond.note))
+    .filter((p) => !cond.author || (p.createdBy ?? '') === cond.author)
     .sort((a, b) => (a.productionDate < b.productionDate ? 1 : -1))
 
   /**
@@ -185,19 +260,20 @@ export default function ProductionIssueStatusPage() {
    * 모르면 null 이다. 0 으로 채우면 자재를 두 배 써도 금액 차이가 0으로 보인다.
    */
   const evalPrice = useMemo(
-    () => stockCostMap(items, purchases.map((d) => ({
-      purchaseDate: d.purchaseDate,
-      lines: (d.lines ?? []).map((l) => ({ itemId: l.itemId, unitPrice: l.unitPrice })),
-    }))),
+    () => stockCostMapFromLast(items, purchases),
     [items, purchases],
   )
   const monthlyCost = useMemo(
     () => new Map(costs.map((c) => [`${c.itemId}:${c.period}`, c.standardTotal])), [costs])
 
-  const priceOf = (itemId: number, date: string): number | null => {
-    if (priceBasis === '월별원가') return monthlyCost.get(`${itemId}:${date.slice(0, 7)}`) ?? null
-    return evalPrice.get(itemId) ?? null
+  const priceOf = (itemId: number, date: string, basis: PriceBasis): number | null => {
+    if (basis === '월별원가') return monthlyCost.get(`${itemId}:${date.slice(0, 7)}`) ?? null
+    const p = evalPrice.get(itemId)
+    if (p == null) return null
+    return basis === '입고단가(VAT포함)' ? p * 1.1 : p
   }
+
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
 
   const bomByProduct = useMemo(
     () => new Map<number, BomLine[]>(boms.map((b) => [b.productId, b.lines])), [boms])
@@ -214,36 +290,32 @@ export default function ProductionIssueStatusPage() {
       p.producedQty,
       () => 1,   // 수량만 필요하다. 금액은 [단가표시]가 정한 단가로 아래에서 따로 센다.
     )
+    /*
+     * 코드·단위는 실제 소모 줄에서 읽고, <b>BOM 에 있는데 안 쓴 자재</b>(실제 0)는 품목 마스터에서 읽는다.
+     * 소모 줄에서만 읽어 그 줄의 [소모품목코드] 가 비었다(수동소모 전표 실측).
+     */
     const codeOf = new Map(p.materials.map((m) => [m.componentId, m.componentCode]))
     const unitOf = new Map(p.materials.map((m) => [m.componentId, m.unit]))
     return diffs
       .filter((d) => d.stdQty !== 0 || d.actualQty !== 0)
       .map((d) => {
-        /*
-         * 원본 결과 열은 <b>생산품목단가</b>와 <b>소모품목단가</b>가 <b>둘 다</b> 있다.
-         * [단가표시]는 그중 <b>어느 것으로 금액을 셀지</b>를 고르는 조건이다 —
-         * 하나만 그리면 고른 쪽만 보이고 다른 쪽은 볼 방법이 없다.
-         */
-        const productPrice = priceOf(p.productId, p.productionDate)
-        const materialPrice = priceOf(d.componentId, p.productionDate)
-        const price = priceBasis === '생산품목단가' ? productPrice : materialPrice
-        const gap = d.actualQty - d.stdQty
+        /* 원본: 차이 = 표준 − 실제(덜 쓰면 +), 금액 = 차이 × 소모품목단가. */
+        const materialPrice = priceOf(d.componentId, p.productionDate, matBasis)
+        const gap = d.stdQty - d.actualQty
         return {
           prod: p,
           componentId: d.componentId,
-          componentCode: codeOf.get(d.componentId) ?? '',
+          componentCode: codeOf.get(d.componentId) ?? itemById.get(d.componentId)?.code ?? '',
           componentName: d.componentName,
-          unit: unitOf.get(d.componentId) ?? '',
+          unit: unitOf.get(d.componentId) ?? itemById.get(d.componentId)?.unit ?? '',
           stdQty: d.stdQty,
           actualQty: d.actualQty,
           gap,
-          productPrice,
           materialPrice,
-          price,
-          amount: price == null ? null : gap * price,
+          amount: materialPrice == null ? null : gap * materialPrice,
         }
       })
-  }), [shown, bomByProduct, priceBasis, evalPrice, monthlyCost])
+  }), [shown, bomByProduct, matBasis, evalPrice, monthlyCost, itemById])
 
   /** 품목별 — 같은 품목이 입고에도 소모에도 나올 수 있다(반제품). 양쪽을 한 줄에 둔다. */
   const byItem = useMemo(() => {
@@ -337,7 +409,11 @@ export default function ProductionIssueStatusPage() {
 
   const reset = () => {
     setMode('거래별')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '', product: '', material: '', manager: '' })
+    setCond({
+      from: init.from, to: init.to, warehouseId: '', item: '', orderNo: '', product: '',
+      material: '', manager: '', productCat: '', materialCat: '',
+      fromWh: '', toWh: '', productGroup: '', materialGroup: '', project: '', note: '', author: '',
+    })
   }
 
   return (
@@ -357,7 +433,10 @@ export default function ProductionIssueStatusPage() {
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
         view={view} onViewChange={setView}
-        dateLabel="생산일자"
+        subtotal={subtotal}
+        subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
+        dateLabel="기준일자"
       >
         <EcCond label="구분">
           <div className="ec-pills">
@@ -371,12 +450,17 @@ export default function ProductionIssueStatusPage() {
         </EcCond>
         {mode === '거래별' && (
           <EcCond label="단가표시">
-            <div className="ec-pills">
-              {PRICE_BASES.map((b) => (
-                <button key={b} type="button" className={`ec-pill no-ec${priceBasis === b ? ' active' : ''}`}
-                        onClick={() => setPriceBasis(b)}>{b}</button>
-              ))}
-            </div>
+            {([['생산품목단가', prodBasis, setProdBasis], ['소모품목단가', matBasis, setMatBasis]] as const).map(([lbl, v, set]) => (
+              <div key={lbl} className="flex items-center gap-[6px] mr-[12px]">
+                <span className="text-[12px] text-ec-label">{lbl}</span>
+                <div className="ec-pills">
+                  {PRICE_BASES.map((b) => (
+                    <button key={b} type="button" className={`ec-pill no-ec${v === b ? ' active' : ''}`}
+                            onClick={() => set(b)}>{b}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </EcCond>
         )}
         <EcCond label="창고" pick>
@@ -389,48 +473,104 @@ export default function ProductionIssueStatusPage() {
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        {/* 원본 차례: [창고] 다음이 [보내는창고] · [받는창고] 다(계층그룹은 우리에게 없다). */}
+        <EcCond label="보내는창고" pick>
+          <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
+                           value={cond.fromWh} onChange={(v) => setC({ fromWh: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+        </EcCond>
+        <EcCond label="받는창고" pick>
+          <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
+                           value={cond.toWh} onChange={(v) => setC({ toWh: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+        </EcCond>
         {/* 원본 조건은 [생산품목]과 [소모품목]이 따로다. 위 [품목]은 어느 쪽이든 거는 우리 것이다. */}
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.product} onChange={(v) => setC({ product: v })}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="생산품목구분">
+          <select className="ec-input" style={{ width: 140 }} value={cond.productCat}
+                  onChange={(e) => setC({ productCat: e.target.value })}>
+            <option value="">전체</option>
+            {catOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="생산품목그룹1" pick>
+          <CodePickerField label="생산품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.productGroup} onChange={(v) => setC({ productGroup: v })}
+                           items={groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="소모품목" pick>
           <CodePickerField label="소모품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.material} onChange={(v) => setC({ material: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="소모품목구분">
+          <select className="ec-input" style={{ width: 140 }} value={cond.materialCat}
+                  onChange={(e) => setC({ materialCat: e.target.value })}>
+            <option value="">전체</option>
+            {catOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="소모품목그룹1" pick>
+          <CodePickerField label="소모품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.materialGroup} onChange={(v) => setC({ materialGroup: v })}
+                           items={groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
                            value={cond.manager} onChange={(v) => setCond({ ...cond, manager: v })}
                            items={pickers.employees} />
         </EcCond>
+        {/* 원본 차례: [담당자] · (오더관리번호) · [프로젝트] · (프로젝트그룹1/2) · [적요] · [최초작성자]. */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={[...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" style={{ width: 200 }} value={cond.note}
+                 onChange={(e) => setC({ note: e.target.value })} placeholder="전체" />
+        </EcCond>
+        {/*
+          원본은 [담당자](전표의 담당 사원)와 [최초작성자](만든 계정)를 <b>따로</b> 묻는다 —
+          생산입고현황에서 이미 갈라 둔 자리다.
+        */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.author} onChange={(v) => setC({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="작업지시번호">
           <input className="ec-input" placeholder="WO-…" value={cond.orderNo}
                  onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '거래별' ? '생산' : '묶음'}{' '}
-        <b style={{ color: '#3c4553' }}>{num(
+        <b className="text-ec-text">{num(
           mode === '거래별' ? shown.length
             : mode === '생산품목별집계' ? byProduct.length
               : mode === '소모품목별집계' ? byMaterial.length
                 : mode === '생산품목라인별집계' ? byProductLine.length
                   : byItem.length,
         )}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        입고 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        입고 <b className="text-ec-blue text-[14px]">{num(totals.inQty)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         소모 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
       </div>
 
@@ -444,116 +584,182 @@ export default function ProductionIssueStatusPage() {
       ) : (
       <div className="overflow-x-auto">
         {mode === '거래별' ? (
+          <>
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ textAlign: 'center' }}>일자-No.</th>
+                <th className="w-[34px]"></th>
+                <th className="text-center">일자-No.</th>
                 <th>생산품목코드</th>
                 <th>생산품목명</th>
                 <th>소모품목코드</th>
                 <th>소모품목명</th>
-                <th style={{ textAlign: 'right' }}>생산수량</th>
-                <th style={{ textAlign: 'right' }}>표준소모수량</th>
-                <th style={{ textAlign: 'right' }}>실제소모수량</th>
+                <th className="text-right">생산수량</th>
+                <th className="text-right">표준소모수량</th>
+                <th className="text-right">실제소모수량</th>
                 {/* 원본 열 순서: … 실제소모수량 · 생산품목단가 · 소모품목단가 · 차이 · 금액 */}
-                <th style={{ textAlign: 'right' }}>생산품목단가</th>
-                <th style={{ textAlign: 'right' }}>소모품목단가</th>
-                <th style={{ textAlign: 'right' }}>차이</th>
-                <th style={{ textAlign: 'right' }} title={`금액은 [${priceBasis}] 로 셉니다`}>금액</th>
+                <th className="text-right">생산품목단가</th>
+                <th className="text-right">소모품목단가</th>
+                <th className="text-right">차이</th>
+                <th className="text-right" title="차이 × 소모품목단가">금액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
-              ) : flatRows.length === 0 ? (
-                <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-              ) : flatRows.map((r, i) => {
-                /* 실제가 표준보다 많으면(차이 양수) 그만큼 더 쓴 것이다 — 붉게. */
-                const over = r.gap > 0
-                return (
-                  <tr key={`${r.prod.id}-${r.componentId}`}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
-                      {r.prod.productionDate.replace(/-/g, '/')} {r.prod.prodNo}
-                    </td>
-                    <td style={{ fontFamily: 'monospace' }}>{r.prod.productCode}</td>
-                    <td>{r.prod.productName}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{r.componentCode}</td>
-                    <td>{r.componentName}</td>
-                    <td style={{ textAlign: 'right' }}>{num(r.prod.producedQty)}</td>
-                    <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.stdQty)}</td>
-                    <td style={{ textAlign: 'right' }}>{num(r.actualQty)}</td>
-                    {/* 금액을 세는 쪽 단가를 굵게 — [단가표시] 가 고른 쪽이 어디인지 표에서 보인다. */}
-                    <td style={{ textAlign: 'right', color: r.productPrice == null ? '#c9ced6' : '#5a626e',
-                                 fontWeight: priceBasis === '생산품목단가' ? 700 : undefined }}>
-                      {won(r.productPrice)}
-                    </td>
-                    <td style={{ textAlign: 'right', color: r.materialPrice == null ? '#c9ced6' : '#5a626e',
-                                 fontWeight: priceBasis === '생산품목단가' ? undefined : 700 }}>
-                      {won(r.materialPrice)}
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: over ? '#c60a2e' : r.gap < 0 ? '#1c7c3c' : '#9aa1ab' }}>
-                      {num(r.gap)}
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount == null ? '#c9ced6' : over ? '#c60a2e' : undefined }}>
-                      {won(r.amount)}
-                    </td>
-                  </tr>
-                )
-              })}
+                <tr><td colSpan={13} className="text-center text-ec-ink p-[20px]">불러오는 중…</td></tr>
+              ) : shown.length === 0 ? (
+                <tr><td colSpan={13} className="text-center text-ec-ink p-[20px]">등록된 데이터가 없습니다.</td></tr>
+              ) : (() => {
+                /* 원본처럼 생산품목이 제 줄을 먼저 갖고(생산수량 · 생산품목단가), 그 아래 소모 줄이 선다. */
+                const byProd = new Map<number, typeof flatRows>()
+                flatRows.forEach((r) => byProd.set(r.prod.id, [...(byProd.get(r.prod.id) ?? []), r]))
+                let n = 0
+                return shown.flatMap((p) => {
+                  const dateNoText = dateNo(p.productionDate, p.prodNo)
+                  const pp = priceOf(p.productId, p.productionDate, prodBasis)
+                  return [
+                    <tr key={`${p.id}-p`} style={{ background: 'var(--ec-bg-page)' }}>
+                      <td className="text-center text-ec-hint">{++n}</td>
+                      <td className="text-center">{dateNoText}</td>
+                      <td>{p.productCode}</td>
+                      <td>{p.productName}</td>
+                      <td></td>
+                      <td></td>
+                      <td className="text-right font-semibold">{num(p.producedQty)}</td>
+                      <td className="text-right"></td>
+                      <td className="text-right"></td>
+                      <td style={{ textAlign: 'right', color: pp == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{pp == null ? '' : won(pp)}</td>
+                      <td className="text-right"></td>
+                      <td className="text-right"></td>
+                      <td className="text-right"></td>
+                    </tr>,
+                    ...(byProd.get(p.id) ?? []).map((r) => {
+                      /* 차이 = 표준 − 실제. 음수면 BOM 보다 더 쓴 것이다 — 붉게. */
+                      const over = r.gap < 0
+                      return (
+                        <tr key={`${p.id}-${r.componentId}`}>
+                          <td className="text-center text-ec-hint">{++n}</td>
+                          <td className="text-center">{dateNoText}</td>
+                          <td>{p.productCode}</td>
+                          <td>{p.productName}</td>
+                          <td>{r.componentCode}</td>
+                          <td>{r.componentName}</td>
+                          <td className="text-right"></td>
+                          <td className="text-right text-ec-label">{num(r.stdQty)}</td>
+                          <td className="text-right">{r.actualQty ? num(r.actualQty) : ''}</td>
+                          <td className="text-right"></td>
+                          <td style={{ textAlign: 'right', color: r.materialPrice == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>
+                            {won(r.materialPrice)}
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: over ? 'var(--ec-danger)' : r.gap > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
+                            {num(r.gap)}
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount == null ? 'var(--ec-text-off)' : over ? 'var(--ec-danger)' : undefined }}>
+                            {won(r.amount)}
+                          </td>
+                        </tr>
+                      )
+                    }),
+                  ]
+                })
+              })()}
             </tbody>
-            {flatRows.length > 0 && (
+            {shown.length > 0 && (
               <tfoot>
-                <tr style={{ fontWeight: 700, background: '#f5f7fa' }}>
-                  <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({flatRows.length}줄)</td>
-                  <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.stdQty, 0))}</td>
-                  <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.actualQty, 0))}</td>
+                <tr className="font-bold bg-ec-page">
+                  <td colSpan={6} className="text-right">합계 ({flatRows.length}줄)</td>
+                  <td className="text-right">{num(shown.reduce((n, p) => n + p.producedQty, 0))}</td>
+                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.stdQty, 0))}</td>
+                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.actualQty, 0))}</td>
                   {/* 생산품목단가 · 소모품목단가 — 단가는 더할 값이 아니라 비워 둔다 */}
                   <td colSpan={2}></td>
-                  <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.gap, 0))}</td>
+                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.gap, 0))}</td>
                   {/* 단가를 모르는 줄은 빼고 센다 — 0 으로 채우면 차이가 없는 것처럼 보인다 */}
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                  <td className="text-right text-ec-navy">
                     {won(flatRows.reduce((n, r) => n + (r.amount ?? 0), 0))}
                     {flatRows.some((r) => r.amount == null) && (
-                      <span title="단가를 모르는 줄은 빼고 셌습니다." style={{ color: '#c07a00' }}> *</span>
+                      <span title="단가를 모르는 줄은 빼고 셌습니다." className="text-ec-warn"> *</span>
                     )}
                   </td>
                 </tr>
               </tfoot>
             )}
           </table>
+          {/*
+            원본 [정렬/소계기준]으로 묶은 소계. 표를 다시 그리지 않고 <b>아래에 덧붙인다</b> —
+            줄 사이에 소계를 끼우면 정렬을 걸었을 때 소계가 엉뚱한 데로 따라간다.
+            단가를 모르는 줄의 금액은 0 이 아니라 <b>빼고</b> 센다(위 합계와 같은 규칙).
+          */}
+          {flatRows.length > 0 && (() => {
+            const keyOf = (r: typeof flatRows[number]) => (
+              subtotal === '생산품목' ? r.prod.productName
+                : subtotal === '소모품목' ? r.componentName
+                  : subtotal === '창고' ? r.prod.warehouseName
+                    : r.prod.productionDate)
+            const groups = subtotalBy(flatRows, keyOf, {
+              std: (r) => r.stdQty, act: (r) => r.actualQty,
+              gap: (r) => r.gap, amount: (r) => r.amount ?? 0,
+            })
+            return (
+              <>
+                <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
+                <table className="w-full text-left">
+                  <thead><tr>
+                    <th>{subtotal}</th>
+                    <th className="w-[80px] text-right">건수</th>
+                    <th className="w-[130px] text-right">표준소모수량</th>
+                    <th className="w-[130px] text-right">실제소모수량</th>
+                    <th className="w-[110px] text-right">차이</th>
+                    <th className="w-[140px] text-right">금액</th>
+                  </tr></thead>
+                  <tbody>
+                    {groups.map((g) => (
+                      <tr key={g.label}>
+                        <td className="font-semibold">{g.label}</td>
+                        <td className="text-right">{g.count}</td>
+                        <td className="text-right">{num(g.sums.std)}</td>
+                        <td className="text-right">{num(g.sums.act)}</td>
+                        <td className="text-right">{num(g.sums.gap)}</td>
+                        <td className="text-right">{won(g.sums.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )
+          })()}
+          </>
         ) : mode === '생산품목별집계' ? (
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ width: 140 }}>품목코드</th>
+                <th className="w-[34px]"></th>
+                <th className="w-[140px]">품목코드</th>
                 <th>생산품목</th>
-                <th style={{ width: 100, textAlign: 'right' }}>전표수</th>
-                <th style={{ width: 130, textAlign: 'right' }}>입고수량</th>
+                <th className="w-[100px] text-right">전표수</th>
+                <th className="w-[130px] text-right">입고수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink p-[20px]">불러오는 중…</td></tr>
               ) : byProduct.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink p-[20px]">등록된 데이터가 없습니다.</td></tr>
               ) : byProduct.map((g, i) => (
                 <tr key={g.itemId}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>{g.code}</td>
                   <td>{g.name}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{num(g.qty)} {g.unit}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right font-semibold text-ec-blue">{num(g.qty)} {g.unit}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byProduct.length}품목)</td>
-                <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={3} className="text-right">합계 ({byProduct.length}품목)</td>
+                <td className="text-right">{num(shown.length)}</td>
+                <td className="text-right text-ec-blue">{num(totals.inQty)}</td>
               </tr>
             </tfoot>
           </table>
@@ -561,31 +767,31 @@ export default function ProductionIssueStatusPage() {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ width: 140 }}>품목코드</th>
+                <th className="w-[34px]"></th>
+                <th className="w-[140px]">품목코드</th>
                 <th>소모자재</th>
-                <th style={{ width: 100, textAlign: 'right' }}>소모건수</th>
-                <th style={{ width: 130, textAlign: 'right' }}>소모수량</th>
+                <th className="w-[100px] text-right">소모건수</th>
+                <th className="w-[130px] text-right">소모수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink p-[20px]">불러오는 중…</td></tr>
               ) : byMaterial.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink p-[20px]">등록된 데이터가 없습니다.</td></tr>
               ) : byMaterial.map((g, i) => (
                 <tr key={g.itemId}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>{g.code}</td>
                   <td>{g.name}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)} {g.unit}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byMaterial.length}자재)</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={4} className="text-right">합계 ({byMaterial.length}자재)</td>
                 <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.outQty)}</td>
               </tr>
             </tfoot>
@@ -594,26 +800,26 @@ export default function ProductionIssueStatusPage() {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>생산품목</th>
                 <th>소모자재</th>
-                <th style={{ width: 100, textAlign: 'right' }}>전표수</th>
-                <th style={{ width: 120, textAlign: 'right' }}>입고수량</th>
-                <th style={{ width: 120, textAlign: 'right' }}>소모수량</th>
+                <th className="w-[100px] text-right">전표수</th>
+                <th className="w-[120px] text-right">입고수량</th>
+                <th className="w-[120px] text-right">소모수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={6} className="text-center text-ec-ink p-[20px]">불러오는 중…</td></tr>
               ) : byProductLine.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="text-center text-ec-ink p-[20px]">등록된 데이터가 없습니다.</td></tr>
               ) : byProductLine.map((g, i) => (
                 <tr key={g.key}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>{g.product}</td>
                   <td>{g.material}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(g.producedQty)}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right text-ec-blue">{num(g.producedQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.usedQty)} {g.unit}</td>
                 </tr>
               ))}
@@ -622,43 +828,43 @@ export default function ProductionIssueStatusPage() {
         ) : (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '5%' }} /><col style={{ width: '16%' }} /><col />
-              <col style={{ width: '10%' }} /><col style={{ width: '12%' }} />
-              <col style={{ width: '10%' }} /><col style={{ width: '12%' }} />
+              <col className="w-[5%]" /><col className="w-[16%]" /><col />
+              <col className="w-[10%]" /><col className="w-[12%]" />
+              <col className="w-[10%]" /><col className="w-[12%]" />
             </colgroup>
             <thead>
               <tr>
                 <th></th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ textAlign: 'right' }}>입고건수</th>
-                <th style={{ textAlign: 'right' }}>입고수량</th>
-                <th style={{ textAlign: 'right' }}>소모건수</th>
-                <th style={{ textAlign: 'right' }}>소모수량</th>
+                <th className="text-right">입고건수</th>
+                <th className="text-right">입고수량</th>
+                <th className="text-right">소모건수</th>
+                <th className="text-right">소모수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : byItem.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : byItem.map((g, i) => (
                 // 입고와 소모가 둘 다 있는 품목 = 만들어서 다시 쓰는 반제품. 눈에 띄게 둔다.
                 <tr key={g.itemId} style={g.inQty > 0 && g.outQty > 0 ? { background: '#f7f4ff' } : undefined}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>{g.code}</td>
                   <td>
                     {g.name}
                     {g.inQty > 0 && g.outQty > 0 && (
                       <span style={{ marginLeft: 8, fontSize: 11, color: '#6b4bb8' }}>반제품 · 만들어서 다시 씀</span>
                     )}
                   </td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.inCount || ''}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.inQty ? 'var(--ec-blue)' : '#c9ced6' }}>
+                  <td className="text-right text-ec-hint">{g.inCount || ''}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.inQty ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
                     {g.inQty ? num(g.inQty) : '—'}
                   </td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.outCount || ''}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.outQty ? '#a5561b' : '#c9ced6' }}>
+                  <td className="text-right text-ec-hint">{g.outCount || ''}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.outQty ? '#a5561b' : 'var(--ec-text-off)' }}>
                     {g.outQty ? num(g.outQty) : '—'}
                   </td>
                 </tr>
@@ -667,10 +873,10 @@ export default function ProductionIssueStatusPage() {
             {byItem.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
-                  <td style={{ background: '#f5f7fa' }}></td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: '#a5561b' }}>{num(totals.outQty)}</td>
+                  <td colSpan={4} className="text-right font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totals.inQty)}</td>
+                  <td className="bg-ec-page"></td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.outQty)}</td>
                 </tr>
               </tfoot>
             )}

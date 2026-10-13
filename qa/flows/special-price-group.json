@@ -1,0 +1,30 @@
+{
+  "about": "거래처특별단가그룹등록(E040120) — 거래처 링크 → '거래처특별단가그룹수정' 창 → 구매단가그룹명 코드도움으로 그룹을 고르고 저장(F8) → 말 없이 닫히고 목록 줄에 그룹명 → 구매입력 단가가 그 그룹의 특별단가(원본 QAJ1P · QAJ1 → 구매입력 700, 2026-10-14). 그룹(QA-FLOWSPG) · 품목 555 는 API 로 만들고, 구매 단가적용순서의 거래처별특별단가(품목별)를 켰다가 끝에 되돌린다. 그룹을 지우면 거래처의 단가그룹도 비워진다.",
+  "shots": [
+    {
+      "name": "링크 → 수정 창 → 구매단가그룹 → 저장 말 없음 → 구매 단가 555",
+      "path": "/inventory/special-price-group",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/partners','/items','/special-prices/groups'].map((p) => window.__api('GET', p))).then(async ([pa, it, gs]) => { const s = pa.body.find((x) => x.code === 'QA-SUPP'), i = it.body.find((x) => x.code === 'QA-MAT'); sessionStorage.setItem('spgPartner', s.id); sessionStorage.setItem('spgItem', i.id); sessionStorage.setItem('spgWas', JSON.stringify({ salesPriceGroup: s.salesPriceGroup ?? null, purchasePriceGroup: s.purchasePriceGroup ?? null })); let g = gs.body.find((x) => x.code === 'QA-FLOWSPG'); if (!g) g = (await window.__api('POST', '/special-prices/groups', { code: 'QA-FLOWSPG', name: 'QA 화면시험 거래처그룹' })).body; sessionStorage.setItem('spgGroup', g.id); const r = await window.__api('POST', '/special-prices', { groupId: g.id, itemId: i.id, unitPrice: 555, remark: 'QA 화면시험' }); return r.status })",
+        "js:window.__api('GET', '/price-order-settings?category=PURCHASE').then((r) => { sessionStorage.setItem('spgPo', JSON.stringify(r.body)); return window.__api('PUT', '/price-order-settings', { category: 'PURCHASE', settings: r.body.map((l) => (l.functionName === '거래처별특별단가(품목별)' ? { ...l, active: true } : l)) }) }).then((r) => r.status)",
+        "js:location.reload(); true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:[...document.querySelectorAll('table tbody a')].find((a) => a.textContent.trim() === 'QA-SUPP').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('form')].some((f) => /구매단가그룹명/.test(f.textContent) && /저장\\(F8\\)/.test(f.textContent))",
+        "pick:구매단가그룹명:QA-FLOWSPG",
+        "expect:[...document.querySelectorAll('input')].some((i) => i.placeholder === '구매단가그룹명' && i.value === 'QA 화면시험 거래처그룹')",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('form')].some((f) => /구매단가그룹명/.test(f.textContent) && /저장\\(F8\\)/.test(f.textContent))",
+        "expect:![...document.querySelectorAll('[role=alertdialog]')].length",
+        "expect:[...document.querySelectorAll('table tbody tr')].some((r) => r.cells[0]?.textContent.trim() === 'QA-SUPP' && r.cells[3]?.textContent.trim() === 'QA 화면시험 거래처그룹')",
+        "js:window.__api('GET', '/special-prices/resolve?tradeType=PURCHASE&itemId=' + sessionStorage.getItem('spgItem') + '&partnerId=' + sessionStorage.getItem('spgPartner')).then((r) => { sessionStorage.setItem('spgPrice', r.body.unitPrice); return 'resolve ' + r.body.unitPrice })",
+        "expect:Number(sessionStorage.getItem('spgPrice')) === 555",
+        "js:window.__api('PATCH', '/partners/' + sessionStorage.getItem('spgPartner') + '/price-group', JSON.parse(sessionStorage.getItem('spgWas'))).then(() => window.__api('DELETE', '/special-prices/groups/' + sessionStorage.getItem('spgGroup'))).then(() => window.__api('PUT', '/price-order-settings', { category: 'PURCHASE', settings: JSON.parse(sessionStorage.getItem('spgPo')) })).then((r) => r.status)"
+      ]
+    }
+  ]
+}

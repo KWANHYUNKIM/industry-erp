@@ -1,0 +1,65 @@
+{
+  "about": "관리 마스터 수정 창 [사용중단/재사용 ▲](원본 근태항목 · 휴가항목 · 부서 · 반영기준 · 수당/공제그룹 수정 창, 2026-10-04 실측) — 쓰는 항목이면 사용중단 · 삭제, 사용중단이면 재사용 · 삭제. 휴가항목 · 부서로 사용중단 → 재사용 · 삭제가 나오고 삭제하면 사라진다.",
+  "shots": [
+    {
+      "name": "휴가항목 수정 창 — 사용중단 → 삭제",
+      "path": "/hr/vacation-kinds",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await (await fetch('/api/hr/vacation-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-상태메뉴',periodFrom:'2091-01-01',periodTo:'2091-12-31',carryOver:false})})).json();sessionStorage.setItem('qaSm1',String(r.id));sessionStorage.setItem('qaSm1Name','QA관리-상태메뉴');return !!r.id})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:window.confirm=()=>true;true",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-상태메뉴'));tr.querySelector('a').click();return true})()",
+        "wait:500",
+        "click:사용중단/재사용 ▲",
+        "wait:200",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog] .ec-menu button')].find(b=>b.innerText.trim()==='사용중단').click();return true})()",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ls=await (await fetch('/api/hr/vacation-kinds',{headers:h})).json();const x=ls.find(v=>v.id===Number(sessionStorage.getItem('qaSm1')));sessionStorage.setItem('qaSm1Act',String(x&&x.active));return true})()",
+        "expect:sessionStorage.getItem('qaSm1Act')==='false'",
+        "click:사용중단포함",
+        "wait:500",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-상태메뉴'));tr.querySelector('a').click();return true})()",
+        "wait:500",
+        "click:사용중단/재사용 ▲",
+        "wait:200",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-menu button')].map(b=>b.innerText.trim()).join()==='재사용,삭제'",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog] .ec-menu button')].find(b=>b.innerText.trim()==='삭제').click();return true})()",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ls=await (await fetch('/api/hr/vacation-kinds',{headers:h})).json();sessionStorage.setItem('qaSm1Gone',String(!ls.some(v=>v.id===Number(sessionStorage.getItem('qaSm1')))));return true})()",
+        "expect:sessionStorage.getItem('qaSm1Gone')==='true'"
+      ]
+    },
+    {
+      "name": "부서 수정 창 — 사용중단 → 삭제",
+      "path": "/hr/departments",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await (await fetch('/api/departments',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-상태메뉴부서'})})).json();sessionStorage.setItem('qaSm2',String(r.id));sessionStorage.setItem('qaSm2Name','QA관리-상태메뉴부서');return !!r.id})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:window.confirm=()=>true;true",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-상태메뉴부서'));tr.querySelector('a').click();return true})()",
+        "wait:500",
+        "click:사용중단/재사용 ▲",
+        "wait:200",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog] .ec-menu button')].find(b=>b.innerText.trim()==='사용중단').click();return true})()",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ls=await (await fetch('/api/departments',{headers:h})).json();const x=ls.find(v=>v.id===Number(sessionStorage.getItem('qaSm2')));sessionStorage.setItem('qaSm2Act',String(x&&x.active));return true})()",
+        "expect:sessionStorage.getItem('qaSm2Act')==='false'",
+        "click:사용중단포함",
+        "wait:500",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-상태메뉴부서'));tr.querySelector('a').click();return true})()",
+        "wait:500",
+        "click:사용중단/재사용 ▲",
+        "wait:200",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-menu button')].map(b=>b.innerText.trim()).join()==='재사용,삭제'",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog] .ec-menu button')].find(b=>b.innerText.trim()==='삭제').click();return true})()",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ls=await (await fetch('/api/departments',{headers:h})).json();sessionStorage.setItem('qaSm2Gone',String(!ls.some(v=>v.id===Number(sessionStorage.getItem('qaSm2')))));return true})()",
+        "expect:sessionStorage.getItem('qaSm2Gone')==='true'"
+      ]
+    }
+  ]
+}

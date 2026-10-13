@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../api/types'
+import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../types/api'
 import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -29,6 +29,13 @@ export default function FixedAssetPage() {
   /**
    * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
    * 기본은 <b>비워</b> 둔다: 자산은 <b>몇 해를 두고 상각한다</b> — 올해로 자르면 재작년에 산 자산이 목록에서 사라진다.
+   */
+  /*
+   * <b>여기는 기간 기본값을 두지 않는다.</b> 같은 날 회계 화면 넷(빠른전표·어음·수표·계약)에는
+   * 금월(~오늘)을 넣었는데 이 화면은 <b>자산대장</b>이라 뜻이 다르다 — 거르는 축이
+   * <b>취득일</b>이고, 위 요약이 [사용중 건수 · 취득가액 · 장부가액]을 더한다.
+   * 금월로 열면 이번 달에 산 자산만 남아 <b>가진 자산이 사라진 것처럼</b> 보인다.
+   * 열자마자 1,776KB 를 받는 것은 그래서 그대로 둔다(2026-09-10 실측).
    */
   const [pFrom, setPFrom] = useState('')
   const [pTo, setPTo] = useState('')
@@ -71,7 +78,8 @@ export default function FixedAssetPage() {
       const { data } = await api.post<DepreciationRun>('/fixed-assets/depreciate', { period })
       flash(data.assetCount === 0
         ? `${data.period} 상각 대상이 없습니다 (건너뜀 ${data.skippedCount}건 — 이미 상각했거나 상각 완료).`
-        : `${data.period} 감가상각 ${data.assetCount}건 · 총 ${won(data.totalAmount)}원 (건너뜀 ${data.skippedCount}건)`)
+        : `${data.period} 감가상각 ${data.assetCount}건 · 총 ${won(data.totalAmount)}원 (건너뜀 ${data.skippedCount}건)`
+          + (data.gaps?.length ? ` ⚠ 앞 달 상각이 빠져 있습니다 — ${data.gaps.join(' / ')}. 빠진 달부터 차례로 돌리세요.` : ''))
       await load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -107,16 +115,16 @@ export default function FixedAssetPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
           <button key={t} onClick={() => { setTab(t); setShowForm(false); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({t === '자산목록' ? assets.length : deps.length})</button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: '#5a626e' }}>
-          사용중 {inUse.length}건 · 취득가액 {won(totalCost)} · 장부가액 <b style={{ color: 'var(--ec-blue-dark)' }}>{won(totalBook)}</b>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
+          사용중 {inUse.length}건 · 취득가액 {won(totalCost)} · 장부가액 <b className="text-ec-navy">{won(totalBook)}</b>
         </span>
       </div>
       {/*
@@ -125,11 +133,11 @@ export default function FixedAssetPage() {
         원본 고정자산대장은 이 계정에 <b>업무 권한이 없어</b> 조건 판을 못 봤다(2026-09-01 확인).
         원본을 열 수 있게 되면 그때 실측해서 묶음과 기본값을 맞춘다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label flex-wrap">
         <span>기간</span>
         <input type="date" className="ec-input" value={pFrom}
                onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input type="date" className="ec-input" value={pTo}
                onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
         <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={pFrom}
@@ -137,28 +145,28 @@ export default function FixedAssetPage() {
       </div>
 
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {tab === '감가상각' && (
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 8 }}>
-          <label style={{ fontSize: 12.5 }}>
-            <div style={{ color: '#5a626e', marginBottom: 3 }}>귀속월</div>
+        <div className="flex items-end gap-[10px] border border-ec-line border-solid bg-white p-[12px] mb-[8px]">
+          <label className="text-[12.5px]">
+            <div className="text-ec-label mb-[3px]">귀속월</div>
             <input className="ec-input" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 140 }} />
           </label>
           <button className="ec-btn ec-btn-primary" onClick={runDepreciation}>감가상각 실행</button>
-          <span style={{ fontSize: 11.5, color: '#8a929c', paddingBottom: 5 }}>
+          <span className="text-[11.5px] text-ec-hint pb-[5px]">
             ※ 사용중 자산 전체를 상각하고 차)감가상각비 / 대)감가상각누계액 분개를 만듭니다.
             같은 달을 다시 실행해도 이중 상각되지 않습니다.
           </span>
         </div>
       )}
 
-      <Modal open={showForm && tab === '자산목록'} title="고정자산 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm && tab === '자산목록'} title="고정자산 등록" onClose={() => setShowForm(false)}>{(
         <AssetForm accounts={accounts} onError={setError} onSaved={() => { setShowForm(false); flash('자산을 등록했습니다.'); load() }} />
       )}</Modal>
 
-      {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p className="ec-empty">불러오는 중…</p>
         : tab === '자산목록' ? <AssetTable rows={assets} onDispose={dispose} />
         : <DepreciationTable rows={shownDeps} period={period} />}
     </EcListShell>
@@ -170,41 +178,41 @@ function AssetTable({ rows, onDispose }: { rows: FixedAsset[]; onDispose: (a: Fi
     <table className="w-full text-left">
       <thead>
         <tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 130 }}>자산번호</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[130px]">자산번호</th>
           <th>자산명</th>
-          <th style={{ width: 110 }}>자산계정</th>
-          <th style={{ width: 100 }}>취득일</th>
-          <th style={{ width: 110, textAlign: 'right' }}>취득가액</th>
-          <th style={{ width: 90, textAlign: 'center' }}>상각방법</th>
-          <th style={{ width: 70, textAlign: 'center' }}>내용연수</th>
-          <th style={{ width: 110, textAlign: 'right' }}>상각누계액</th>
-          <th style={{ width: 110, textAlign: 'right' }}>장부가액</th>
-          <th style={{ width: 80, textAlign: 'center' }}>상태</th>
-          <th style={{ width: 70, textAlign: 'center' }}>처리</th>
+          <th className="w-[110px]">자산계정</th>
+          <th className="w-[100px]">취득일</th>
+          <th className="w-[110px] text-right">취득가액</th>
+          <th className="w-[90px] text-center">상각방법</th>
+          <th className="w-[70px] text-center">내용연수</th>
+          <th className="w-[110px] text-right">상각누계액</th>
+          <th className="w-[110px] text-right">장부가액</th>
+          <th className="w-[80px] text-center">상태</th>
+          <th className="w-[70px] text-center">처리</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((a, i) => (
           <tr key={a.id}>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-            <td style={{ fontFamily: 'monospace' }}>{a.assetNo}</td>
-            <td style={{ fontWeight: 600 }}>{a.name}</td>
-            <td style={{ color: '#5a626e' }}>{a.assetAccountName}</td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td>{a.assetNo}</td>
+            <td className="font-semibold">{a.name}</td>
+            <td className="text-ec-label">{a.assetAccountName}</td>
             <td>{dateText(a.acquisitionDate)}</td>
-            <td style={{ textAlign: 'right' }}>{won(a.acquisitionCost)}</td>
-            <td style={{ textAlign: 'center', color: '#5a626e' }}>
+            <td className="text-right">{won(a.acquisitionCost)}</td>
+            <td className="text-center text-ec-label">
               {a.methodName}{a.declineRate ? ` ${a.declineRate}%` : ''}
             </td>
-            <td style={{ textAlign: 'center' }}>{a.usefulLifeYears}년</td>
-            <td style={{ textAlign: 'right', color: '#c60a2e' }}>{won(a.accumulatedDepreciation)}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(a.bookValue)}</td>
-            <td style={{ textAlign: 'center', color: a.status === 'IN_USE' ? '#1c7c3c' : '#8a929c' }}>
+            <td className="text-center">{a.usefulLifeYears}년</td>
+            <td className="text-right text-ec-danger">{won(a.accumulatedDepreciation)}</td>
+            <td className="text-right font-bold">{won(a.bookValue)}</td>
+            <td style={{ textAlign: 'center', color: a.status === 'IN_USE' ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
               {a.statusName}{a.status === 'DISPOSED' && a.disposalDate ? ` (${a.disposalDate})` : ''}
             </td>
-            <td style={{ textAlign: 'center' }}>
+            <td className="text-center">
               {a.status === 'IN_USE' && (
                 <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onDispose(a)}>처분</button>
               )}
@@ -222,39 +230,39 @@ function DepreciationTable({ rows, period }: { rows: DepreciationRow[]; period: 
     <table className="w-full text-left">
       <thead>
         <tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 90 }}>귀속월</th>
-          <th style={{ width: 130 }}>자산번호</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[90px]">귀속월</th>
+          <th className="w-[130px]">자산번호</th>
           <th>자산명</th>
-          <th style={{ width: 100 }}>상각일</th>
-          <th style={{ width: 110, textAlign: 'right' }}>상각액</th>
-          <th style={{ width: 120, textAlign: 'right' }}>상각 후 누계</th>
-          <th style={{ width: 120, textAlign: 'right' }}>상각 후 장부가</th>
-          <th style={{ width: 140 }}>회계전표</th>
+          <th className="w-[100px]">상각일</th>
+          <th className="w-[110px] text-right">상각액</th>
+          <th className="w-[120px] text-right">상각 후 누계</th>
+          <th className="w-[120px] text-right">상각 후 장부가</th>
+          <th className="w-[140px]">회계전표</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
             <td>{r.period}</td>
-            <td style={{ fontFamily: 'monospace' }}>{r.assetNo}</td>
+            <td>{r.assetNo}</td>
             <td>{r.assetName}</td>
             <td>{dateText(r.depreciationDate)}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>{won(r.amount)}</td>
-            <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.accumulatedAfter)}</td>
-            <td style={{ textAlign: 'right' }}>{won(r.bookValueAfter)}</td>
-            <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.journalDocNo ?? ''}</td>
+            <td className="text-right font-bold text-ec-danger">{won(r.amount)}</td>
+            <td className="text-right text-ec-hint">{won(r.accumulatedAfter)}</td>
+            <td className="text-right">{won(r.bookValueAfter)}</td>
+            <td className="text-ec-blue">{r.journalDocNo ?? ''}</td>
           </tr>
         ))}
       </tbody>
       {rows.length > 0 && (
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-            <td colSpan={5} style={{ textAlign: 'right' }}>{period} 상각 합계</td>
-            <td style={{ textAlign: 'right' }}>{won(total)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={5} className="text-right">{period} 상각 합계</td>
+            <td className="text-right">{won(total)}</td>
             <td colSpan={3}></td>
           </tr>
         </tfoot>
@@ -266,9 +274,13 @@ function DepreciationTable({ rows, period }: { rows: DepreciationRow[]; period: 
 function AssetForm({ accounts, onError, onSaved }: {
   accounts: AccountOption[]; onError: (m: string) => void; onSaved: () => void
 }) {
-  // 감가상각누계액(203)은 차감계정이라 자산 등록 대상에서 뺀다.
+  /*
+   * 고정자산은 <b>비유동(유형) 자산 계정</b>(2xx — 기계장치 206 · 차량운반구 208 · 비품 212 …)에만 단다.
+   * 예전엔 자산 계정 전부라 현금·외상매출금·원재료에도 고정자산을 등록해 감가상각할 수 있었다(34회차).
+   * 감가상각누계액은 차감계정이라 뺀다.
+   */
   const assetAccounts = useMemo(
-    () => accounts.filter((a) => a.division === 'ASSET' && a.code !== '203'), [accounts])
+    () => accounts.filter((a) => a.division === 'ASSET' && a.code.startsWith('2') && !a.name.includes('누계')), [accounts])
   const [form, setForm] = useState({
     name: '', assetAccountId: '', acquisitionDate: today(), acquisitionCost: '',
     salvageValue: '', usefulLifeYears: '5', method: 'STRAIGHT_LINE' as DepreciationMethod,
@@ -311,9 +323,9 @@ function AssetForm({ accounts, onError, onSaved }: {
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>고정자산 등록</div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">고정자산 등록</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="자산명 *">
           <input className="ec-input" value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 170 }} placeholder="CNC 선반 1호기" />
         </Field>
@@ -346,7 +358,7 @@ function AssetForm({ accounts, onError, onSaved }: {
             <input className="ec-input" type="number" step="any" value={form.declineRate} onChange={(e) => set('declineRate', e.target.value)} style={{ width: 100, textAlign: 'right' }} placeholder="45.1" />
           </Field>
         )}
-        <div style={{ fontSize: 12.5, paddingBottom: 5, color: 'var(--ec-blue-dark)', fontWeight: 700 }}>
+        <div className="text-[12.5px] pb-[5px] text-ec-navy font-bold">
           월 상각액 ≈ {won(monthly)}
         </div>
         <Field label="비고">
@@ -354,8 +366,8 @@ function AssetForm({ accounts, onError, onSaved }: {
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
-        ※ 정액법은 (취득가액 − 잔존가액) ÷ 내용연수를 매달 1/12씩, 정률법은 장부가액 × 상각률을 매달 1/12씩 상각합니다. 잔존가액 아래로는 내려가지 않습니다.
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">
+        ※ 정액법은 (취득가액 − 잔존가액) ÷ 내용연수를 매달 1/12씩, 정률법은 기초(회계연도 첫날) 장부가액 × 상각률을 그해 매달 1/12씩 상각합니다. 잔존가액 아래로는 내려가지 않습니다.
       </div>
     </div>
   )
@@ -363,8 +375,8 @@ function AssetForm({ accounts, onError, onSaved }: {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
     </label>
   )

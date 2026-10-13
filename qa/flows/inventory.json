@@ -1,0 +1,61 @@
+{
+  "about": "재고 화면 회귀 시험. node qa/shot.mjs qa/flows/inventory.json — 만든 전표는 끝에 지운다(지우면 재고가 되돌아오는지도 본다).",
+  "shots": [
+    {
+      "name": "창고이동 — QA창고 → QA창고2 로 1개 옮기면 번호와 함께 '이동 완료', 두 창고 재고가 1씩 움직이고 지우면 돌아온다",
+      "path": "/inventory/transfer",
+      "steps": [
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const q=(w)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName===w);return x?x.quantity:0};sessionStorage.setItem('qaA0',q('QA창고'));sessionStorage.setItem('qaB0',q('QA창고2'));return true})",
+        "click:창고이동 등록",
+        "click:품목 선택",
+        "pickrow:QA-MAT",
+        "choose:[role=dialog] select#0|QA창고",
+        "choose:[role=dialog] select#1|QA창고2",
+        "set:[role=dialog] input[type=number]|1",
+        "click:이동처리",
+        "expect:/TR-[0-9]{8}-[0-9]{4} 이동 완료/.test(document.body.innerText)",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const q=(w)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName===w);return x?x.quantity:0};sessionStorage.setItem('qaA1',q('QA창고'));sessionStorage.setItem('qaB1',q('QA창고2'));return true})",
+        "expect:Number(sessionStorage.getItem('qaA0')) - Number(sessionStorage.getItem('qaA1')) === 1 && Number(sessionStorage.getItem('qaB1')) - Number(sessionStorage.getItem('qaB0')) === 1",
+        "apidel:/stock-transfers|TR-[0-9]{8}-[0-9]{4}|transferNo",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaA2',String(x?x.quantity:0));return true})",
+        "expect:Number(sessionStorage.getItem('qaA2')) === Number(sessionStorage.getItem('qaA0'))"
+      ]
+    },
+    {
+      "name": "폐기 — QA창고의 QA원자재 1개를 폐기하면 번호와 함께 '폐기 완료', 재고가 1 줄고, 목록의 [삭제]로 지우면 돌아온다(10회차까지 지울 길이 없었다)",
+      "path": "/inventory/transfer",
+      "steps": [
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaD0',String(x?x.quantity:0));return true})",
+        "click:폐기",
+        "click:폐기 등록",
+        "click:품목 선택",
+        "pickrow:QA-MAT",
+        "choose:[role=dialog] select#0|QA창고",
+        "set:[role=dialog] input[type=number]|1",
+        "click:폐기 처리",
+        "expect:/SA-[0-9]{8}-[0-9]{4} 폐기 완료/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaAdj', document.body.innerText.match(/SA-[0-9]{8}-[0-9]{4}(?= 폐기 완료)/)[0]); true",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaD1',String(x?x.quantity:0));return true})",
+        "expect:Number(sessionStorage.getItem('qaD0')) - Number(sessionStorage.getItem('qaD1')) === 1",
+        "js:window.confirm = () => true; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaAdj'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '삭제') b.click() }); true",
+        "expect:document.body.innerText.includes(sessionStorage.getItem('qaAdj') + ' 삭제')",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaD2',String(x?x.quantity:0));return true})",
+        "expect:Number(sessionStorage.getItem('qaD2')) === Number(sessionStorage.getItem('qaD0'))"
+      ]
+    },
+    {
+      "name": "창고이동 — 출고·입고 창고를 같게 하면 그 말을 창 안에(15회차까지 창 뒤)",
+      "path": "/inventory/transfer",
+      "steps": [
+        "click:창고이동 등록",
+        "click:품목 선택",
+        "pickrow:QA-MAT",
+        "choose:[role=dialog] select#0|QA창고",
+        "choose:[role=dialog] select#1|QA창고",
+        "set:[role=dialog] input[type=number]|1",
+        "click:이동처리",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('출고창고와 입고창고가 같을 수 없습니다.')"
+      ]
+    }
+  ]
+}

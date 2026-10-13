@@ -1,0 +1,22 @@
+{
+  "about": "지출등록 — 저장하면 번호·계정·금액과 '회계전표 생성(대변 …)' 안내가 뜬다(39회차 — 저장해도 아무 말이 없었고, 장부에도 안 올라갔다). 먼 날짜에 넣고 지운다.",
+  "shots": [
+    {
+      "name": "지출 저장 → 안내 → 뒷정리",
+      "path": "/accounting/expense",
+      "steps": [
+        "click:지출등록(F2)",
+        "wait:500",
+        "choose:[role=dialog] select#0|[811] 복리후생비",
+        "set:[role=dialog] input[type=date]#0|2091-06-01",
+        "set:[role=dialog] input.ec-input:not([type])#0|QA 화면시험 지출",
+        "set:[role=dialog] input[type=number]#0|11000",
+        "choose:[role=dialog] select#1|계좌이체",
+        "clicklast:저장",
+        "expect:/EX-[0-9]{8}-[0-9]{4} 저장 · \\[복리후생비\\] 11,000원 — 회계전표 생성\\(대변 보통예금\\)/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaEx', document.body.innerText.match(/EX-[0-9]{8}-[0-9]{4}(?= 저장)/)[0]); true",
+        "apidel:/expenses|@qaEx|docNo"
+      ]
+    }
+  ]
+}

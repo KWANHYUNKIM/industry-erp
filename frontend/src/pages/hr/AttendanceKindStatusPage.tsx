@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { leaveNo } from '../../utils/leaveNo'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { formatDays } from '../../utils/dayCount'
+import { useDeptGroups } from '../../utils/deptGroups'
+import { subtotalBy } from '../../utils/subtotalBy'
+import { vacationFetchRange } from '../../utils/vacationFetchRange'
 
 /**
  * 관리 > 근태관리 > 근태현황 — 연차·반차 같은 <b>근태 기록</b>을 기간·조건으로 본다.
@@ -23,6 +27,13 @@ import { formatDays } from '../../utils/dayCount'
  * 거기에 직급도 사원번호도 없고 사원 마스터와 이어 주는 연결도 없었기 때문이다.
  * 이제 계정에 사원(Employee)을 이을 수 있어 그 세 칸을 채운다(사용자관리에서 잇는다).
  *
+ * <p><b>2026-09-09 원본(E020715) 실측 — 조건은 스물하나다</b>(사본은 열하나였다):
+ * 구분 · 기준일자 · 사원 · 부서 · 부서계층그룹 · 프로젝트 · 프로젝트그룹1 · 프로젝트그룹2 ·
+ * 근태항목 · 휴가항목 · 근태그룹 · 적요 · 상태 · 재직구분 · 양식 · 정렬/소계기준 ·
+ * 근태일자 · 최초작성자 · 최종수정자 · 적용양식 · 양식구분.
+ * 사본이 빠뜨린 것 가운데 <b>[부서계층그룹]과 [근태일자]</b>는 그 자리에서 만들었고,
+ * <b>[기준일자]와 [근태일자]가 서로 다른 것</b>이라는 것도 여기서 드러났다.
+ *
  * <p>안 이은 계정은 직급·사원번호가 빈칸이다. 지어내지 않는다. 부서명도 이어져 있으면
  * <b>부서 마스터</b>의 이름을 쓴다 — 계정의 자유입력 부서는 부서 마스터와 맞는다는
  * 보장이 없어 같은 부서가 두 이름으로 갈릴 수 있다.
@@ -31,6 +42,7 @@ interface Vacation {
   id: number
   /** 전표일자 — 이 근태를 올린 날. 근태일자와 다르다(미리 올릴 수 있다). */
   docDate: string
+  docNo: string | null
   empName: string
   /** 사원번호·직급. 계정이 사원과 안 이어져 있으면 null. */
   empCode: string | null
@@ -53,6 +65,13 @@ interface Vacation {
 /** 원본 [재직구분]. 휴가잔여일수현황·휴가사용실적현황과 같은 값이라 이름도 같게 둔다. */
 const EMPLOYMENTS = [['ACTIVE', '재직자'], ['RESIGNED', '퇴사자'], ['ALL', '전체']] as const
 
+/**
+ * 원본 조건 <b>[정렬/소계기준]</b>. 축은 [설정] 창에서 고르는데 그 창은 <b>값을 저장</b>하므로
+ * 열지 않았다(조회 화면만 연다는 규칙). 그래서 <b>줄이 실제로 들고 있는 값</b>으로만 축을 둔다 —
+ * 지어내지 않는다. 이 화면에서 "누가 얼마나 썼나" 를 되짚는 축이 이 셋이다.
+ */
+const SUBTOTALS = ['없음', '부서', '근태항목', '사원'] as const
+
 /** 원본 [근태] 열은 일수다 — 소수 셋째 자리까지 채워 찍는다(사본 값 1.250). */
 const days = formatDays
 
@@ -70,18 +89,63 @@ export default function AttendanceKindStatusPage() {
   const init = periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
-  const [dept, setDept] = useState('')
-  const [emp, setEmp] = useState('')
-  const [kind, setKind] = useState('')
+  const [dept, setDept] = useState<string[]>([])
+  /*
+   * 원본 조건 <b>[부서계층그룹]</b> — [부서] 바로 다음이다(2026-09-09 실측).
+   * [부서]는 그 부서 하나로 좁히고 이쪽은 <b>그 부서와 그 아래 전부</b>를 본다.
+   * 근태조회가 앞 바퀴에 만들어 둔 훅을 그대로 쓴다.
+   */
+  const [deptGroup, setDeptGroup] = useState('')
+  const { groups: deptGroups, inGroup } = useDeptGroups()
+  /*
+   * 원본 조건 <b>[근태일자]</b>. 위 기간([기준일자])과 <b>다른 것</b>이다 —
+   * [기준일자]는 그 근태를 <b>올린 날</b>(전표일자)이고, 이쪽은 <b>휴가가 걸쳐 있는 날</b>이다.
+   * 우리는 그 둘을 한 칸으로 뭉뚱그려 기간을 근태일자에 걸면서 이름만 [근태일자]라 달아,
+   * <b>전표일자로는 좁힐 길이 아예 없었다</b>(표에는 열로 찍히는데도).
+   */
+  const [dayCond, setDayCond] = useState('')
+  /** [사원] · [부서] — 여러 개 고르는 코드도움. 근태 줄은 계정 단위라 이름으로 거른다. */
+  const [emp, setEmp] = useState<string[]>([])
+  const [empList, setEmpList] = useState<{ id: number; code: string; name: string; department: string }[]>([])
+  const [deptList, setDeptList] = useState<{ id: number; code?: string | null; name: string }[]>([])
+  useEffect(() => {
+    api.get<typeof empList>('/employees/all').then((r) => setEmpList(r.data)).catch(() => setEmpList([]))
+    api.get<typeof deptList>('/departments').then((r) => setDeptList(r.data)).catch(() => setDeptList([]))
+  }, [])
+  /** [근태항목] — 근태항목등록 마스터에서 여러 개 고른다(값은 근태 줄에 적히는 근태항목명). */
+  const [kind, setKind] = useState<string[]>([])
+  const [kindMaster, setKindMaster] = useState<{ code: string; name: string; kindGroup: string | null; vacationKindId: number | null }[]>([])
+  /** [휴가항목] · [근태그룹] — 근태 줄의 근태항목이 가리키는 휴가코드 · 근태그룹으로 거른다. */
+  const [vkCond, setVkCond] = useState<string[]>([])
+  const [groupCond, setGroupCond] = useState<string[]>([])
+  const [vkMaster, setVkMaster] = useState<{ id: number; code: string; name: string }[]>([])
+  const [groupMaster, setGroupMaster] = useState<{ code: string; name: string }[]>([])
+  useEffect(() => {
+    api.get<typeof kindMaster>('/hr/attendance-kinds').then((r) => setKindMaster(r.data)).catch(() => setKindMaster([]))
+    api.get<typeof vkMaster>('/hr/vacation-kinds').then((r) => setVkMaster(r.data)).catch(() => setVkMaster([]))
+    api.get<typeof groupMaster>('/hr/attendance-kind-groups').then((r) => setGroupMaster(r.data)).catch(() => setGroupMaster([]))
+  }, [])
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   const [reason, setReason] = useState('')
-  const [status, setStatus] = useState('전체')
+  /**
+   * 원본 [상태]는 알약이 아니라 <b>체크박스 넷</b>이다 — 전체 · 결재중 · UserPay · 확인.
+   * 켜져 있는 것은 <b>[확인] 하나뿐</b>이다(2026-09-09 실측). 우리는 [전체]로 열고 있었다 —
+   * 아직 결재가 안 끝난 근태까지 섞여 합계에 들어가므로, 그 숫자를 그대로 적으면
+   * <b>확정되지 않은 휴가가 쓴 것으로 세어진다.</b>
+   * [UserPay]는 이카운트의 유료 결제 연동이라 우리에게 대응하는 것이 없다.
+   */
+  const [stAll, setStAll] = useState(false)
+  const [stPending, setStPending] = useState(false)
+  const [stConfirmed, setStConfirmed] = useState(true)
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('없음')
 
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Vacation[]>('/hr/vacations')
+      /* 기준일자가 올해 밖이면(1월의 [전월]) 올해 것만 받아서는 늘 빈 표다 — 그 해들을 묻는다. */
+      const range = vacationFetchRange(from, to)
+      const res = await api.get<Vacation[]>('/hr/vacations', { params: range ?? {} })
       setRows([...res.data].sort((a, b) =>
         (a.startDate < b.startDate ? 1 : a.startDate > b.startDate ? -1 : b.id - a.id)))
     } catch (err) {
@@ -91,26 +155,42 @@ export default function AttendanceKindStatusPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간이 다른 해로 넘어가면 다시 받는다 — 같은 해 안에서는 받아 둔 것을 화면이 거른다. */
+  const fetchKey = JSON.stringify(vacationFetchRange(from, to))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [fetchKey])
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)
-    setDept(''); setEmp(''); setKind(''); setReason(''); setStatus('전체')
+    setDept([]); setEmp([]); setKind([]); setVkCond([]); setGroupCond([]); setReason('')
+    setDeptGroup(''); setDayCond('')
+    setStAll(false); setStPending(false); setStConfirmed(true); setSubtotal('없음')
   }
 
-  /** 근태일자가 구간에 <b>걸치기만 해도</b> 본다 — 연차가 월말·월초에 걸치면 잘리면 안 된다. */
+  /** 원본 [기준일자] — 그 근태를 <b>올린 날</b>(전표일자)이 구간에 드나. */
   const shown = useMemo(() => rows.filter((r) => {
-    if (r.endDate < from || r.startDate > to) return false
-    if (dept && !(r.department ?? '').includes(dept)) return false
-    if (emp && !r.empName.includes(emp)) return false
-    if (kind && !r.type.includes(kind)) return false
+    if (r.docDate < from || r.docDate > to) return false
+    /* 원본 [근태일자] — 그날 근태가 <b>걸쳐 있나</b>. 사흘짜리 휴가는 가운데 날로도 걸려야 한다. */
+    if (dayCond && (r.startDate > dayCond || r.endDate < dayCond)) return false
+    if (dept.length && !dept.includes(r.department ?? '')) return false
+    if (!inGroup(r.department, deptGroup)) return false
+    if (emp.length && !emp.includes(r.empName)) return false
+    if (kind.length && !kind.includes(r.type)) return false
+    const km = kindMaster.find((k) => k.name === r.type)
+    if (vkCond.length && !vkCond.includes(String(km?.vacationKindId ?? ''))) return false
+    if (groupCond.length && !groupCond.includes(km?.kindGroup ?? '')) return false
     if (reason && !(r.reason ?? '').includes(reason)) return false
-    if (status !== '전체' && r.status !== (status === '결재중' ? 'PENDING' : 'APPROVED')) return false
+    /* [전체]를 켜면 상태를 안 가린다. 아니면 켜 둔 것에 걸리는 줄만 남긴다. */
+    if (!stAll) {
+      const hit = (stPending && r.status === 'PENDING') || (stConfirmed && r.status === 'APPROVED')
+      if (!hit) return false
+    }
     // 원본 [재직구분] — 기본은 재직자다. 퇴사자 근태는 정산할 때 따로 본다.
     if (employment === 'ACTIVE' && !r.active) return false
     if (employment === 'RESIGNED' && r.active) return false
     return true
-  }), [rows, from, to, dept, emp, kind, reason, status, employment])
+  }), [rows, from, to, dept, deptGroup, inGroup, dayCond, emp, kind, vkCond, groupCond, kindMaster, reason,
+    stAll, stPending, stConfirmed, employment])
 
   const totalDays = shown.reduce((n, r) => n + r.days, 0)
 
@@ -137,44 +217,71 @@ export default function AttendanceKindStatusPage() {
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
-        dateLabel="근태일자"
+        dateLabel="기준일자"
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
         {/*
           원본 근태현황의 조건 이름과 차례는 <b>사원 · 부서</b> 다(사본 실측).
           우리는 [부서명]·[사원명] 으로 이름도 다르고 앞뒤도 뒤집혀 있었다.
         */}
-        <EcCond label="사원" pick>
-          <input className="ec-input" placeholder="사원명 일부" value={emp}
-                 onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
+        <EcCond label="사원">
+          <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={emp} onChangeMulti={(v) => setEmp(v)}
+                           items={empList.map((e) => ({ value: e.name, code: e.code, name: e.name, sub: e.department }))} />
         </EcCond>
         <EcCond label="부서" pick>
-          <input className="ec-input" placeholder="부서명 일부" value={dept}
-                 onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={dept} onChangeMulti={(v) => setDept(v)}
+                           items={deptList.map((d) => ({ value: d.name, code: d.code ?? undefined, name: d.name }))} />
+        </EcCond>
+        <EcCond label="부서계층그룹">
+          <select className="ec-input" value={deptGroup} style={{ width: 160 }}
+                  onChange={(e) => setDeptGroup(e.target.value)}>
+            <option value="">전체</option>
+            {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
         </EcCond>
         {/*
           원본 근태현황의 이름은 [근태종류]가 아니라 <b>[근태항목]</b> 이다(사본 실측).
           근태조회는 진작 그 이름인데 이 화면만 달랐다 — 같은 값을 두 이름으로 부르고 있었다.
 
-          후보는 <b>실제로 올라온 근태</b>에서 뽑는다. 근태항목 마스터가 없어 고를 목록을
-          지어낼 수 없고, 지어내면 골라도 아무것도 안 나오는 보기가 생긴다.
+          후보는 근태항목등록 마스터(코드 · 이름)에, 마스터에 없는 옛 근태 이름을 더한다. 여러 개 고른다.
         */}
         <EcCond label="근태항목" pick>
-          <CodePickerField label="근태항목" hideLabel width={180} emptyLabel="전체"
-                           value={kind} onChange={setKind}
-                           items={[...new Set(rows.map((r) => r.type))].filter(Boolean).sort()
-                             .map((t) => ({ value: t, name: t }))} />
+          <CodePickerField label="근태항목" hideLabel fill multiple placeholder="근태항목"
+                           values={kind} onChangeMulti={(v) => setKind(v)}
+                           items={[...kindMaster.map((k) => ({ value: k.name, code: k.code, name: k.name })),
+                             ...[...new Set(rows.map((r) => r.type))].filter((t) => t && !kindMaster.some((k) => k.name === t))
+                               .map((t) => ({ value: t, name: t }))]} />
+        </EcCond>
+        <EcCond label="휴가항목">
+          <CodePickerField label="휴가항목" hideLabel fill multiple placeholder="휴가항목" values={vkCond} onChangeMulti={(v) => setVkCond(v)}
+                           items={vkMaster.map((v) => ({ value: String(v.id), code: v.code, name: v.name }))} />
+        </EcCond>
+        <EcCond label="근태그룹">
+          <CodePickerField label="근태그룹" hideLabel fill multiple placeholder="근태그룹" values={groupCond} onChangeMulti={(v) => setGroupCond(v)}
+                           items={groupMaster.map((g) => ({ value: g.name, code: g.code, name: g.name }))} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={reason}
                  onChange={(e) => setReason(e.target.value)} style={{ width: 220 }} />
         </EcCond>
+        {/*
+          원본 [상태]는 체크박스 넷이다 — 전체 · 결재중 · UserPay · 확인. [확인]만 켜져 있다.
+          <b>배열로 돌려 그리지 않는다</b> — 이름이 글자로 안 남으면 조건 검사가 못 본다.
+        */}
         <EcCond label="상태">
-          <div className="ec-pills">
-            {['전체', '결재중', '확인'].map((s) => (
-              <button key={s} type="button" className={`ec-pill no-ec${status === s ? ' active' : ''}`}
-                      onClick={() => setStatus(s)}>{s}</button>
-            ))}
-          </div>
+          <label className="text-[12px] mr-[12px]">
+            <input type="checkbox" checked={stAll}
+                   onChange={(e) => setStAll(e.target.checked)} /> 전체
+          </label>
+          <label className="text-[12px] mr-[12px]">
+            <input type="checkbox" checked={stPending}
+                   onChange={(e) => setStPending(e.target.checked)} /> 결재중
+          </label>
+          <label className="text-[12px] mr-[12px]">
+            <input type="checkbox" checked={stConfirmed}
+                   onChange={(e) => setStConfirmed(e.target.checked)} /> 확인
+          </label>
         </EcCond>
         {/* 원본 [재직구분] — 전체·재직자·퇴사자. 기본은 [재직자]로 뜬다(사본 실측). */}
         <EcCond label="재직구분">
@@ -185,83 +292,121 @@ export default function AttendanceKindStatusPage() {
             ))}
           </div>
         </EcCond>
+        {/*
+          원본 차례: <b>[재직구분] 다음이 [양식]·[정렬/소계기준]·[근태일자]</b> 다
+          (2026-09-09 실측). 근태조회는 [근태일자]가 <b>맨 앞 [기준일자] 바로 뒤</b>인데
+          이 화면은 뒤쪽이다 — 두 화면이 서로 다르다.
+        */}
+        <EcCond label="근태일자">
+          <input type="date" className="ec-input" value={dayCond}
+                 onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        근태 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{days(totalDays)}</b>일
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        근태 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        합계 <b className="text-ec-navy text-[14px]">{days(totalDays)}</b>일
         {byKind.length > 0 && (
-          <span style={{ marginLeft: 10, color: '#8a929c' }}>
+          <span className="ml-[10px] text-ec-hint">
             {byKind.map(([k, v]) => `${k} ${days(v)}일`).join(' · ')}
           </span>
         )}
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/* 원본 실측: 왼쪽. */}
-            <th style={{ width: 110 }}>전표일자</th>
-            <th style={{ textAlign: 'center', width: 190 }}>근태일자</th>
-            <th style={{ width: 150 }}>부서명</th>
-            <th style={{ width: 90 }}>직급</th>
-            <th style={{ width: 110 }}>사원번호</th>
-            <th style={{ width: 120 }}>사원명</th>
-            <th style={{ width: 120 }}>근태종류</th>
+            <th className="w-[110px]">전표일자</th>
+            <th className="text-center w-[190px]">근태일자</th>
+            <th className="w-[150px]">부서명</th>
+            <th className="w-[90px]">직급</th>
+            <th className="w-[110px]">사원번호</th>
+            <th className="w-[120px]">사원명</th>
+            <th className="w-[120px]">근태종류</th>
             {/* 원본은 이 표에서 [근태]를 가장 넓게 둔다(180 · 나머지 100~120) — 읽으라는 값이다. */}
-            <th style={{ width: 180, textAlign: 'right' }}>근태</th>
+            <th className="w-[180px] text-right">근태</th>
             <th>적요</th>
-            <th style={{ width: 90, textAlign: 'center' }}>상태</th>
+            <th className="w-[90px] text-center">상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               {/* 원본은 [전표일자]를 눌러 그 근태 전표를 연다. 우리는 근태조회로 넘긴다. */}
-              <td style={{ fontFamily: 'monospace' }}>
+              <td>
                 <Link to={`/hr/leave-list?emp=${encodeURIComponent(r.empName)}`}
-                      style={{ color: 'var(--ec-blue)' }}>{r.docDate}</Link>
+                      style={{ color: 'var(--ec-blue)' }}>{leaveNo(r.docNo, r.startDate)}</Link>
               </td>
-              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
+              <td className="text-center">
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
               </td>
               <td>{r.department ?? ''}</td>
-              <td style={{ color: r.jobTitle ? undefined : '#c9ced6' }}>{r.jobTitle ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? ''}</td>
+              <td style={{ color: r.jobTitle ? undefined : 'var(--ec-text-off)' }}>{r.jobTitle ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : 'var(--ec-text-off)' }}>{r.empCode ?? ''}</td>
               <td>{r.empName}</td>
               <td>{r.type}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{days(r.days)}</td>
-              <td style={{ color: r.reason ? undefined : '#c9ced6' }}>{r.reason ?? ''}</td>
+              <td className="text-right font-semibold">{days(r.days)}</td>
+              <td style={{ color: r.reason ? undefined : 'var(--ec-text-off)' }}>{r.reason ?? ''}</td>
               <td style={{
                 textAlign: 'center', fontWeight: 700,
-                color: r.status === 'APPROVED' ? '#1c7c3c' : r.status === 'PENDING' ? '#c07a00' : '#c60a2e',
+                color: r.status === 'APPROVED' ? 'var(--ec-success)' : r.status === 'PENDING' ? 'var(--ec-warn)' : 'var(--ec-danger)',
               }}>{r.statusName}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-            <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{days(totalDays)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={8} className="text-right">합계 ({shown.length}건)</td>
+            <td className="text-right text-ec-navy">{days(totalDays)}</td>
             <td colSpan={2}></td>
           </tr>
         </tfoot>
       </table>
+
+      {subtotal !== '없음' && shown.length > 0 && (() => {
+        const keyOf = (r: Vacation) =>
+          (subtotal === '부서' ? r.department : subtotal === '근태항목' ? r.type : r.empName) || ''
+        const groups = subtotalBy(shown, keyOf, { days: (r) => r.days })
+        return (
+          <>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[130px] text-right">근태</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right font-bold text-ec-navy">
+                      {days(g.sums.days)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }
