@@ -208,7 +208,6 @@ const ApprovalAllPage = lazy(() => import('../pages/groupware/ApprovalAllPage'))
 const ApprovalSettingPage = lazy(() => import('../pages/groupware/ApprovalSettingPage'))
 const EcDrivePage = lazy(() => import('../pages/groupware/EcDrivePage'))
 const WorkSampleBoardPage = lazy(() => import('../pages/groupware/WorkSampleBoardPage'))
-const MultiSlipPage = lazy(() => import('../pages/groupware/MultiSlipPage'))
 const AnonymousBoardPage = lazy(() => import('../pages/groupware/AnonymousBoardPage'))
 const FieldWorkPage = lazy(() => import('../pages/groupware/FieldWorkPage'))
 const FieldWorkStatusPage = lazy(() => import('../pages/groupware/FieldWorkStatusPage'))
@@ -860,11 +859,6 @@ export default function AppRouter() {
         <Route path="/groupware/car-info" element={<WorkSampleBoardPage />} />
         <Route path="/groupware/car-doc" element={<WorkSampleBoardPage />} />
         <Route path="/groupware/car-run" element={<WorkSampleBoardPage />} />
-        {/* 그룹웨어 › 다목적관리 — 다목적 전표 넷(plans/그룹웨어/E200276.md). 화면 하나가 주소로 게시판을 고른다. */}
-        <Route path="/groupware/multi-input" element={<MultiSlipPage />} />
-        <Route path="/groupware/sales-contract" element={<MultiSlipPage />} />
-        <Route path="/groupware/bond-collect" element={<MultiSlipPage />} />
-        <Route path="/groupware/monthly-attendance" element={<MultiSlipPage />} />
         <Route path="/groupware/anonymous-board" element={<AnonymousBoardPage />} />
         <Route path="/groupware/field-works" element={<FieldWorkPage />} />
         <Route path="/groupware/field-work-status" element={<FieldWorkStatusPage />} />
