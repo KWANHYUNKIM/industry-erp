@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EcFileDrop from '../../components/EcFileDrop'
+import EcHistoryButton from '../../components/EcHistory'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import GroupMasterModal from '../../components/GroupMasterModal'
@@ -843,7 +844,7 @@ export default function ItemsPage() {
 
           {/*
             원본 버튼: 신규 저장(F8) · 다규격품목 · 다시 작성 · 웹자료올리기 · 닫기 /
-            수정 저장(F8) · 복사 · 사용중단/재사용 ▴(사용중단 · 삭제) · 다시 작성 · 닫기 · H(이력 — 남은 것).
+            수정 저장(F8) · 복사 · 사용중단/재사용 ▴(사용중단 · 삭제) · 다시 작성 · 닫기 · H.
           */}
           <div className="mt-[12px] flex justify-end gap-[4px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
@@ -873,6 +874,8 @@ export default function ItemsPage() {
               </>
             )}
             <button type="button" className="ec-btn" onClick={closeForm}>닫기</button>
+            {/* 원본 수정 창 끝 [H] — 신규 창(id 없음)에서는 저절로 안 그린다. */}
+            <EcHistoryButton target="ITEM" id={editId} />
           </div>
         </form>
       )}</Modal>

@@ -4,6 +4,7 @@ import com.erp.inventory.managementitem.ManagementItemService;
 import com.erp.common.ApiException;
 import com.erp.common.StoredFile;
 import com.erp.common.StoredFileRepository;
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.inventory.item.dto.ItemDtos.CreateItemRequest;
 import com.erp.inventory.item.dto.ItemDtos.ItemResponse;
 import com.erp.inventory.item.dto.ItemDtos.UpdateItemRequest;
@@ -27,6 +28,9 @@ public class ItemService {
     private final StoredFileRepository storedFileRepository;
     // 같은 inventory 모듈이지만 리포지토리가 아니라 공개 service 를 거친다 — CLAUDE.md 4.2
     private final ManagementItemService managementItemService;
+    /** 수정 창 [H] 이력(원본 품목등록 수정 창 끝 버튼). 대상 이름은 한 번 정하면 바꾸지 않는다. */
+    private final ChangeHistoryService changeHistory;
+    public static final String HISTORY_TARGET = "ITEM";
 
     @Transactional(readOnly = true)
     public List<ItemResponse> findAll() {
@@ -74,12 +78,15 @@ public class ItemService {
                 req.lotManaged(), req.qcType(), req.qcMethod(),
                 req.qcOnPurchase(), req.qcOnProduction(),
                 req.autoProductionOnSales(), req.autoProductionOnTransfer());
-        return ItemResponse.from(itemRepository.save(item));
+        Item saved = itemRepository.save(item);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
+        return ItemResponse.from(saved);
     }
 
     @Transactional
     public ItemResponse update(Long id, UpdateItemRequest req) {
         Item item = getItem(id);
+        boolean wasActive = item.isActive();
         item.setName(req.name());
         item.setSpec(req.spec());
         item.setUnit(req.unit() != null ? req.unit().trim() : "");
@@ -106,6 +113,7 @@ public class ItemService {
         if (req.active() != null) {
             item.setActive(req.active());
         }
+        changeHistory.recordUpdate(HISTORY_TARGET, item.getId(), wasActive, item.isActive());
         return ItemResponse.from(item);
     }
 
@@ -126,6 +134,7 @@ public class ItemService {
     public void delete(Long id) {
         Item item = getItem(id);
         itemRepository.delete(item);
+        changeHistory.record(HISTORY_TARGET, id, ChangeHistoryService.DELETED);
     }
 
     /** 다른 서비스가 품목 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
