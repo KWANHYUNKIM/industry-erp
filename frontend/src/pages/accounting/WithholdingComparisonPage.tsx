@@ -17,7 +17,8 @@ type Company = { name?: string; bizRegNo?: string }
  * 원본 2026: 근로소득 달마다 6 · 21,669,000 · 1,200,000 · 646,370 · 64,620, 합계 60 · 216,690,000 · 12,000,000 · 6,463,700 · 646,200.
  *
  * <p>차이여부는 신고서가 있고 금액(지급총액 − 제출제외)이 다를 때만 — 소득세가 달라도 빈칸이다(원본 2026/10 근로소득 625,010 · 646,370, 2026-10-12).
- * 다를 때 찍히는 글자는 아직 못 쟀다('O').
+ * 다를 때는 주황 체크(fa-check, 색은 --ec-bg-tag 와 같은 246·136·45) 하나 — 2026-10-13 원본에 QA 로 2026/10 신고서를 만들어 금액을 20,000,000 으로 고쳐 잼
+ * (급여대장 21,669,000 − 1,200,000 = 20,469,000 과 다름), 누르면 아무것도 안 열린다. 잰 뒤 신고서는 지움.
  * 중도퇴사 · 연말정산 · 법인원천은 자료가 없어 빈다. 중도퇴사기준은 고를 수 있지만 쓰는 자료가 없다.
  */
 export default function WithholdingComparisonPage() {
@@ -105,7 +106,7 @@ export default function WithholdingComparisonPage() {
                 <td className="text-right">{num(r.reportedCount)}</td>
                 <td className="text-right">{num(r.reportedGross)}</td>
                 <td className="text-right">{num(r.reportedTax)}</td>
-                <td className="text-center">{r.differs ? 'O' : ''}</td>
+                <td className="text-center">{r.differs ? <span className="text-[var(--ec-bg-tag)]" title="차이">✔</span> : ''}</td>
               </tr>
             ))}
           </tbody>
