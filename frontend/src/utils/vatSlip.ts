@@ -82,3 +82,26 @@ function withoutFee<T extends Line>(lines: readonly T[]): T[] {
   }
   return lines.filter((l) => !drop.has(l))
 }
+
+/* 매출에서 [전자종류]가 붙는 유형 — 세금계산서 · 영세율 · 계산서 · 계산서(고정자산)에 붙고 카드매출 · 수출엔 없다(2026-10-13 실측).
+   세.계(고정자산)은 같은 무리로 본다. */
+export const SALES_E_KIND_TYPES = new Set(['세금계산서', '영세율', '계산서', '계산서(고정자산)', '세.계(고정자산)'])
+/* 매입(2026-10-13 loginaa 매입전표 I 신규에서 유형을 하나씩 골라 잼): 세금계산서 · 영세율 · 계산서 · 세금계산서(불공) ·
+   세금계산서(수입) · 세.계(고정-수입) · 세.계(고정-불공) · 계산서(고정자산)에 붙는다. 현금영수증 · 현금영수증(고정자산)은
+   [승인번호], 카드매입 · 신용카드(고정자산)은 [신용카드] 칸이 대신 서고, 매입자발행세금계산서는 예정누락분만, 기타수입 ·
+   재활용 · 기타매입은 아무것도 없다. 세.계(고정자산) · 영세율(수입) · 계산서(수입)은 목록 가운데라 골라 보지 못했다(안 붙인다). */
+export const PURCHASE_E_KIND_TYPES = new Set(['세금계산서', '영세율', '계산서', '세금계산서(불공)', '세금계산서(수입)', '세.계(고정-수입)',
+  '세.계(고정-불공)', '계산서(고정자산)'])
+/** 그 유형에 [전자종류]가 붙나 — 매출전표 I · 매입전표 I · 매입/매출장 [전자구분]. */
+export const hasEKind = (sales: boolean, t: string): boolean => (sales ? SALES_E_KIND_TYPES : PURCHASE_E_KIND_TYPES).has(t)
+
+/**
+ * 매입/매출장 [전자구분] 글자 — 2026-10-13 loginaa 매출장 2026/09: 전자(세금)계산서-신규 전표가 '전자-신'.
+ * 전자종류를 고르지 않은 전표(판매 회계반영 등)도 전자종류가 붙는 유형이면 기본값(신규)이다. 다른 전자종류의 줄임말은 못 재 비운다.
+ */
+export function eKindShort(sales: boolean, vatType: string | null | undefined, eInvoiceKind: string | null | undefined): string {
+  const t = vatType?.trim() || '세금계산서'
+  if (!hasEKind(sales, t)) return ''
+  const k = eInvoiceKind?.trim() || '전자(세금)계산서-신규'
+  return k === '전자(세금)계산서-신규' ? '전자-신' : ''
+}

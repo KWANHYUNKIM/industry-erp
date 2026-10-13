@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { vatSlipAmounts } from '../../utils/vatSlip'
+import { eKindShort, vatEntrySide, vatSlipAmounts } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
@@ -27,7 +27,7 @@ const KIND_NAME = '세금계산서'
 
 /** 마지막으로 고친 사람(V353 updated_by) — 없으면 만든 사람. */
 const editorOf = (e: JournalEntry) => (e as JournalEntry & { updatedBy?: string | null }).updatedBy ?? e.createdBy ?? null
-interface Row { key: string; side: Side; date: string; no: string; kindName: string; partnerId: number | null; partner: string; text: string; supply: number; vat: number }
+interface Row { key: string; side: Side; date: string; no: string; kindName: string; eKind: string; partnerId: number | null; partner: string; text: string; supply: number; vat: number }
 /** 세무 › 부가세 › (세금)계산서발행/수령에서 쓴 분개 없는 계산서. */
 interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string; entryNo: number; vatType: string; partnerId: number; partnerName: string; supplyAmount: number; vatAmount: number; remark: string | null }
 
@@ -43,7 +43,7 @@ interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string
  * [[사업자등록번호] 계] · [누계](두 칸 묶음). 매입/매출 판은 원본에서 바꿔 눌러도 매출집계 판이 그대로 남아 못 쟀다 — 매출 · 매입 표를 잇달아 찍는다.
  *
  * <p>부가세 줄(매출 255 · 매입 135)이 든 회계전표가 한 줄이다. 공급가액은 부가세 줄을 뺀 그쪽(매출은 대변 · 매입은 차변) 합.
- * 유형명은 늘 세금계산서, 전자구분은 회계전표가 전자 발행 여부를 들지 않아 비운다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
+ * 유형명은 회계전표의 부가세유형(없으면 세금계산서), 전자구분은 전자종류의 줄임(2026-10-13 실측 '전자-신' — utils/vatSlip eKindShort). [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  *
  * <p>(세금)계산서발행/수령(E030202)에서 쓴 계산서도 한 줄씩 들어간다 — 분개는 없지만 원본 매출장에
  * '2026/10/12 -4 · 세금계산서 · (주)구로 · 123,000 · 12,300' 으로 떴다(2026-10-12 실측). 유형명은 그 계산서의 부가세유형.
@@ -111,10 +111,19 @@ export default function VatBookPage() {
       if (regKind !== '전체' && (p?.regNoKind ?? '사업자등록번호') !== regKind) continue
       for (const side of ['매출', '매입'] as Side[]) {
         /* 반품(역분개)은 공급가액도 음수다 — utils/vatSlip. */
-        const amt = vatSlipAmounts(e.lines, side)
+        let amt = vatSlipAmounts(e.lines, side)
+        /* 부가세 줄이 없는 매출전표 I · 매입전표 I(영세율 · 계산서 …)도 장에 선다 — 부가세 0, 공급가액은 그쪽 합에서 [수수료](831 차변)를 뺀 것. */
+        const vt = (e as JournalEntry & { vatType?: string | null }).vatType?.trim()
+        if (!amt && vt && vatEntrySide(e) === side) {
+          const fee = e.lines.reduce((t, l) => t + (l.accountCode === '831' ? Number(l.debit) : 0), 0)
+          amt = { supply: e.lines.reduce((t, l) => t + Number(side === '매출' ? l.credit : l.debit), 0) - fee, vat: 0 }
+        }
         if (!amt) continue
         const { supply, vat } = amt
-        out.push({ key: `${e.id}${side}`, side, date: e.entryDate, no: e.docNo, kindName: KIND_NAME, partnerId: e.partnerId, partner: e.partnerName ?? '',
+        /* 유형명 · 전자구분 — 매출전표 I · 매입전표 I(V353)와 판매 회계반영이 든 부가세유형 · 전자종류로(없으면 세금계산서 · 신규). */
+        const ve = e as JournalEntry & { vatType?: string | null; eInvoiceKind?: string | null }
+        out.push({ key: `${e.id}${side}`, side, date: e.entryDate, no: e.docNo, kindName: ve.vatType?.trim() || KIND_NAME,
+          eKind: eKindShort(side === '매출', ve.vatType, ve.eInvoiceKind), partnerId: e.partnerId, partner: e.partnerName ?? '',
           text: e.description ?? '', supply, vat })
       }
     }
@@ -123,7 +132,7 @@ export default function VatBookPage() {
       const p = pById.get(v.partnerId)
       if (taxOnly && !p?.taxReport) continue
       if (regKind !== '전체' && (p?.regNoKind ?? '사업자등록번호') !== regKind) continue
-      out.push({ key: `tv-${v.id}`, side: v.side === 'SALES' ? '매출' : '매입', date: v.entryDate, no: String(v.entryNo), kindName: v.vatType,
+      out.push({ key: `tv-${v.id}`, side: v.side === 'SALES' ? '매출' : '매입', date: v.entryDate, no: String(v.entryNo), kindName: v.vatType, eKind: '',
         partnerId: v.partnerId, partner: v.partnerName, text: v.remark ?? '', supply: Number(v.supplyAmount), vat: Number(v.vatAmount) })
     }
     out.sort((a, b) => a.date.localeCompare(b.date))
@@ -170,7 +179,7 @@ export default function VatBookPage() {
                   <tr key={r.key}>
                     <td className="text-center text-ec-blue">{dateNo(r.date, r.no)}</td>
                     <td>{r.kindName}</td>
-                    <td></td>
+                    <td>{r.eKind}</td>
                     <td>{r.partner}</td>
                     <td>{r.text}</td>
                     <td className="text-right">{won(r.supply)}</td>
@@ -291,7 +300,7 @@ export default function VatBookPage() {
         <EcCond label="부가세유형">
           <select className="ec-input" value={kind} onChange={(e) => setKind(e.target.value)} style={{ width: 140 }}>
             <option value="">전체</option>
-            {[...new Set([KIND_NAME, ...vouchers.map((v) => v.vatType)])].map((k) => <option key={k} value={k}>{k}</option>)}
+            {[...new Set([KIND_NAME, ...allEntries.map((e) => (e as JournalEntry & { vatType?: string | null }).vatType?.trim()).filter((t): t is string => !!t), ...vouchers.map((v) => v.vatType)])].map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </EcCond>
         <EcCond label="세무신고거래처구분">
