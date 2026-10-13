@@ -78,7 +78,13 @@ export default function DailyStockPage() {
   const [costNote, setCostNote] = useState('')
 
   const today = ymd(new Date())
-  const [basis, setBasis] = useState<Basis>('입고단가(품목)')
+  /*
+   * 원본 [원가](2026-10-13 실측): 선입선출(판매)* · 월별원가 · 입고단가(품목) · 입고단가(품목) - VAT 제외 · 최종구매가, 기본은 선입선출.
+   * 우리는 셋에 기본이 입고단가였다. 선입선출은 그 날 남은 층의 금액 ÷ 수량(/stock/fifo-onhand)이다.
+   * [입고단가(품목) - VAT 제외] 는 품목에 '입고단가 VAT 포함' 표시가 없어 아직 없다.
+   */
+  const [basis, setBasis] = useState<Basis>('선입선출(판매)')
+  const [fifo, setFifo] = useState<Map<number, number>>(new Map())
   /* 원본 일별재고현황의 기준일자 기본값은 [금일] 이다(사본 실측). 검사가 읽을 수 있게 periodOf 로 적는다 — 값은 오늘 그대로다. */
   const [cond, setCond] = useState({
     date: periodOf('금일')!.to, warehouseId: '', item: '', category: '', itemGroup: '',
@@ -102,7 +108,7 @@ export default function DailyStockPage() {
     setCostNote('')
     try {
       const period = cond.date.slice(0, 7)
-      const [s, w, p, i] = await Promise.all([
+      const [s, w, p, i, f] = await Promise.all([
         api.get<StockRow[]>('/stock', { params: { asOf: cond.date } }),
         api.get<Warehouse[]>('/warehouses'),
         /*
@@ -114,7 +120,9 @@ export default function DailyStockPage() {
         api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
         api.get<Item[]>('/items'),
+        api.get<{ itemId: number; quantity: number; value: number }[]>('/stock/fifo-onhand', { params: { asOf: cond.date } }),
       ])
+      setFifo(new Map(f.data.filter((r) => Number(r.quantity) > 0).map((r) => [r.itemId, Number(r.value) / Number(r.quantity)])))
       setStock(s.data)
       setWarehouses(w.data)
       setLastPrices(p.data)
@@ -148,6 +156,7 @@ export default function DailyStockPage() {
       monthlyCost: costOf.get(itemId) ?? null,
       lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
       itemPurchasePrice: unitPrices.get(itemId) ?? null,
+      fifoUnitCost: fifo.get(itemId) ?? null,
     })
   }
 
@@ -172,7 +181,7 @@ export default function DailyStockPage() {
 
   /* [다시 작성]은 기본값으로 되돌린다 — 체크 셋도 실측한 기본값 그대로다. */
   const reset = () => {
-    setBasis('입고단가(품목)')
+    setBasis('선입선출(판매)')
     setCond({ date: periodOf('금일')!.to, warehouseId: '', item: '', category: '', itemGroup: '' })
     setWithInactive(true); setWithUntracked(false); setSignBox(false)
     setSubtotal('창고')
@@ -225,7 +234,7 @@ export default function DailyStockPage() {
         </EcCond>
         <EcCond label="원가">
           <div className="ec-pills">
-            {(['월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
+            {(['선입선출(판매)', '월별원가', '입고단가(품목)', '최종구매가'] as const).map((b) => (
               <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
                       onClick={() => setBasis(b)}>
                 {b}

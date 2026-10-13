@@ -33,8 +33,33 @@ public class StockFifoService {
 
     private static final Pattern DOC = Pattern.compile("([A-Z]{1,4}-\\d{8}-\\d+)\\s*$");
 
+    /** 그 날 남아 있는 선입선출 층 — 품목별 수량 · 금액(원본 일별재고현황 원가 [선입선출(판매)]). */
+    public record OnHand(Long itemId, BigDecimal quantity, BigDecimal value) {}
+
     @Transactional(readOnly = true)
     public List<SaleCost> saleCosts(LocalDate to) {
+        return walk(to).sales();
+    }
+
+    /**
+     * 원본 일별재고현황(E040807)의 기본 원가 [선입선출(판매)](2026-10-13 실측) — 그 날까지 걸은 뒤 <b>남은 층</b>의 금액.
+     * 판매원가와 같은 걸음이라 판매가 꺼내 간 층은 이미 빠져 있다.
+     */
+    @Transactional(readOnly = true)
+    public List<OnHand> onHand(LocalDate asOf) {
+        List<OnHand> rows = new ArrayList<>();
+        walk(asOf).layers().forEach((itemId, qd) -> {
+            BigDecimal q = BigDecimal.ZERO;
+            BigDecimal v = BigDecimal.ZERO;
+            for (BigDecimal[] l : qd) { q = q.add(l[0]); v = v.add(l[0].multiply(l[1])); }
+            if (q.signum() > 0) rows.add(new OnHand(itemId, q, v.setScale(2, RoundingMode.HALF_UP)));
+        });
+        return rows;
+    }
+
+    private record Walk(List<SaleCost> sales, Map<Long, Deque<BigDecimal[]>> layers) {}
+
+    private Walk walk(LocalDate to) {
         List<StockTransaction> all = transactionRepository.findUpToWithItem(to);
 
         /* 1) 되돌림 줄과 그 앞선 짝을 지운다. */
@@ -100,7 +125,7 @@ public class StockFifoService {
             String[] p = k.split("#");
             rows.add(new SaleCost(p[0], Long.valueOf(p[1]), v[0], v[1].setScale(2, RoundingMode.HALF_UP)));
         });
-        return rows;
+        return new Walk(rows, layers);
     }
 
     /** '판매삭제 원복 SO-…' · '생산입고취소 PI-…' · 'A/S소모 취소 …' 처럼 앞선 움직임을 되돌리는 줄. */

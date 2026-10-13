@@ -36,6 +36,14 @@ public class StockController {
         return fifoService.saleCosts(to);
     }
 
+    /** 원본 일별재고현황 원가 [선입선출(판매)] — 그 날 남은 선입선출 층의 품목별 수량 · 금액. */
+    @GetMapping("/fifo-onhand")
+    public List<StockFifoService.OnHand> fifoOnHand(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate asOf) {
+        return fifoService.onHand(asOf);
+    }
+
     /** 현재고 목록 */
     /**
      * 재고 목록. <b>asOf 를 주면 그 시점 재고</b>다(재고현황·창고별재고·일별재고·BOM재고의
