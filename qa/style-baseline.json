@@ -430,8 +430,8 @@
   "palette": 0
  },
  "pages/accounting/VatBookPage.tsx": {
-  "inline": 8,
-  "color": 2,
+  "inline": 5,
+  "color": 1,
   "palette": 0
  },
  "pages/accounting/VatSummaryPage.tsx": {

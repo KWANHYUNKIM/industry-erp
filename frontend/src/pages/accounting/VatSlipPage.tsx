@@ -87,7 +87,7 @@ const won = (n: number) => n.toLocaleString('ko-KR')
  *
  * <p>회계거래조회에서 전표번호를 누르면 <b>수정 창</b>(?journal=id) — 일자 · 번호는 막히고, [저장(F8)]하면 닫혀 목록으로
  * 돌아간다(공급가액 100,000 → 200,000 이면 목록 금액 220,000).
- * [저장/전표(F7)]는 저장하고 그 전표의 분개를 연다. [삭제] 확인 '전표를 삭제하겠습니까?' + '- 매출' / '- 매입전표 I'.
+ * [저장/전표(F7)]도 [저장(F8)]과 같다(2026-10-14 실측 — 분개 판은 안 뜬다). [삭제] 확인 '전표를 삭제하겠습니까?' + '- 매출' / '- 매입전표 I'.
  *
  * <p>부가세유형 칸은 접혀 있다 — 유형 아래 표지(전자(세금)계산서-신규 · 예정누락아님)만 보이고 누르면 [전자종류] · [예정누락분]이 펼쳐진다.
  * 수정 창 [이전] · [다음] · [H](전표이력보기)는 원본대로 둔다.
@@ -127,6 +127,8 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
   const [loaded, setLoaded] = useState<VatEntry | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  /** 원본 빈 저장: 알림 없이 거래처 칸만 빨간 테두리(.has-error > .validation, 0.5px rgb 215,62,62 · 둥글기 6) — 말풍선 글자는 없다(2026-10-14 실측: popover 내용 빈칸). */
+  const [partnerInvalid, setPartnerInvalid] = useState(false)
   const title = editId ? (sales ? '매출전표 I(수정)' : '매입전표 I') : (sales ? '매출전표 I' : '매입전표 I')
 
   /* 원본 기본 계정: 매출 4049 제품매출 · 1089 외상매출금, 매입 1539 원재료 · 2519 외상매입금(우리 코드 404 · 108 · 153 · 251). */
@@ -181,7 +183,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
   function reset() {
     setDate(today()); setSlipNo(''); setDepartmentId(''); setProjectId(''); setVatType('세금계산서'); setEKind(DEFAULT_E_KIND)
     setOmitted(false); setPartnerId(''); setSupply(''); setVat(''); setMemo(''); setFee(''); setDetail(null)
-    setAccountId(defaults.main); setSettleId(defaults.settle); setError('')
+    setAccountId(defaults.main); setSettleId(defaults.settle); setError(''); setPartnerInvalid(false)
   }
 
   const vatOf = (t: string, s: number) => (TAXED.has(t) ? Math.round(s / 10) : 0)
@@ -247,9 +249,9 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
     }
   }
 
-  async function save(thenSlip = false) {
+  async function save() {
     setError('')
-    if (!partnerId) { setError('거래처: 자료를 입력 바랍니다.'); return }
+    if (!partnerId) { setPartnerInvalid(true); return }
     if (!(num(supply) > 0)) { setError('공급가액: 자료를 입력 바랍니다.'); return }
     setSaving(true)
     try {
@@ -260,11 +262,10 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
         accountId: Number(accountId), settleAccountId: Number(settleId), feeAmount: num(fee),
         eInvoiceKind: hasEKind(sales, vatType) ? eKind : undefined, vatOmitted: omitted, vatDetail: detailBody(),
       }
-      const { data } = editId
-        ? await api.put<JournalEntry>(`/journals/vat-slip/${editId}`, body)
-        : await api.post<JournalEntry>('/journals/vat-slip', body)
-      if (thenSlip) navigate(`/accounting/journals?entryId=${data.id}`)
-      else if (editId) navigate('/accounting/journals')
+      if (editId) await api.put<JournalEntry>(`/journals/vat-slip/${editId}`, body)
+      else await api.post<JournalEntry>('/journals/vat-slip', body)
+      /* [저장/전표(F7)]도 [저장(F8)]과 같다(2026-10-14 실측): 신규는 빈 입력 화면, 수정 창은 닫히고 회계거래조회. 분개 판은 안 뜬다. */
+      if (editId) navigate('/accounting/journals')
       else reset()
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -298,7 +299,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
     ? (sales
       ? [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
-          { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
+          { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving || detailOpen },
           { label: '복사', onClick: copy },
           { label: '이전', onClick: () => nav.prev && navigate(nav.prev), disabled: !nav.prev },
           { label: '다음', onClick: () => nav.next && navigate(nav.next), disabled: !nav.next },
@@ -308,7 +309,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
         ]
       : [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
-          { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
+          { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving || detailOpen },
           { label: '복사', onClick: copy },
           { label: '삭제', onClick: () => setConfirmDelete(true) },
           { label: '닫기', onClick: () => navigate('/accounting/journals') },
@@ -316,7 +317,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
         ])
     : [
         { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
-        { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
+        { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving || detailOpen },
         { label: '다시 작성', onClick: () => reset() },
         { label: '리스트', onClick: () => navigate('/accounting/journals') },
       ]
@@ -375,7 +376,10 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
             </div>
           </EcCond>
           <EcCond label="거래처" span={2}>
-            <CodePickerField label="거래처" hideLabel pair fill emptyLabel="(없음)" value={partnerId} onChange={setPartnerId} items={pickers.partners} />
+            <div className={`w-full${partnerInvalid ? ' ec-invalid' : ''}`}>
+              <CodePickerField label="거래처" hideLabel pair fill emptyLabel="(없음)" value={partnerId}
+                               onChange={(v) => { setPartnerId(v); if (v) setPartnerInvalid(false) }} items={pickers.partners} />
+            </div>
           </EcCond>
           <EcCond label="공급가액" span={2}>
             <EcNumInput className="ec-input w-full text-right" aria-label="공급가액" value={supply} onValue={onSupply} />

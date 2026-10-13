@@ -105,3 +105,25 @@ export function eKindShort(sales: boolean, vatType: string | null | undefined, e
   const k = eInvoiceKind?.trim() || '전자(세금)계산서-신규'
   return k === '전자(세금)계산서-신규' ? '전자-신' : ''
 }
+
+/**
+ * 매입/매출장 [세부내역] — 전표 [세부내역] 창의 품명 요약(2026-10-14 loginaa 매입/매출장 'LED PCB 외 2건').
+ * 첫 품명 + ' 외 n건'(품명이 하나면 그것만), 품명이 없으면 빈칸. 적요는 여기 오지 않는다.
+ */
+export function vatDetailSummary(items: { name?: string | null }[] | null | undefined): string {
+  const names = (items ?? []).map((i) => i.name?.trim() ?? '').filter(Boolean)
+  if (names.length === 0) return ''
+  return names.length === 1 ? names[0] : `${names[0]} 외 ${names.length - 1}건`
+}
+
+/**
+ * 매입/매출장 [일자-No.] 의 No. — 회계전표 번호가 아니라 그날 부가세 전표(매출 · 매입 한 줄로)의 일련이다
+ * (2026-10-14 loginaa: 회계 26/10/14-12 매출 · -13 매입이 장에서 2026/10/14 -1 · -2). 입력 차례(ord)대로 날마다 1부터.
+ */
+export function bookSerials<T extends { date: string; ord: number }>(rows: T[]): Map<T, number> {
+  const out = new Map<T, number>()
+  const byDay = new Map<string, T[]>()
+  for (const r of rows) byDay.set(r.date, [...(byDay.get(r.date) ?? []), r])
+  for (const rs of byDay.values()) [...rs].sort((a, b) => a.ord - b.ord).forEach((r, i) => out.set(r, i + 1))
+  return out
+}

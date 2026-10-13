@@ -1,7 +1,7 @@
 /** 세금계산서 전표의 공급가액 · 부가세 — npm run test:unit */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { invoiceSlipAmounts, vatEntrySide, vatSlipAmounts } from './vatSlip.ts'
+import { bookSerials, invoiceSlipAmounts, vatDetailSummary, vatEntrySide, vatSlipAmounts } from './vatSlip.ts'
 
 const L = (accountCode: string, debit: number, credit: number) => ({ accountCode, debit, credit })
 
@@ -52,4 +52,17 @@ test('계산서(면세) — 부가세 줄이 없어도 부가세유형 계산서
   const buy = { sourceType: 'VAT_PURCHASE', vatType: '계산서', lines: [L('153', 50000, 0), L('251', 0, 50000)] }
   assert.deepEqual(invoiceSlipAmounts(buy, '매입'), { supply: 50000, vat: 0 })
   assert.equal(invoiceSlipAmounts({ ...sale, vatType: '카드매출' }, '매출'), null)
+})
+
+/* 2026-10-14 loginaa 매입/매출장 — 세부내역은 품명 요약, 일자-No. 는 그날 부가세 전표 일련. */
+test('세부내역 — 첫 품명 외 n건 · 하나면 그것 · 없으면 빈칸', () => {
+  assert.equal(vatDetailSummary([{ name: 'LED PCB' }, { name: '케이스' }, { name: '' }, { name: '나사' }]), 'LED PCB 외 2건')
+  assert.equal(vatDetailSummary([{ name: '볼트' }, { name: ' ' }]), '볼트')
+  assert.equal(vatDetailSummary(null), '')
+})
+
+test('일자-No. — 날마다 입력 차례로 1부터(회계 -12 · -13 → -1 · -2)', () => {
+  const a = { date: '2026-10-14', ord: 13 }, b = { date: '2026-10-14', ord: 12 }, c = { date: '2026-10-13', ord: 99 }
+  const m = bookSerials([a, b, c])
+  assert.deepEqual([m.get(b), m.get(a), m.get(c)], [1, 2, 1])
 })
