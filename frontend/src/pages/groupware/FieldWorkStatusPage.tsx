@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
@@ -8,12 +8,48 @@ import type { FieldWork, FieldWorkSummary } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
 import { useAuth } from '../../features/auth/AuthContext'
 import FieldWorkFormModal, { type FieldWorkUser } from '../../features/fieldwork/components/FieldWorkFormModal'
+import EcSortSubtotalModal, { sortBySubtotal, showsItem, type SortSubtotal } from '../../components/EcSortSubtotalModal'
 
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 외근조회와 같다). */
 /** 원본 빠른선택(2026-10-03 실측): 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · <b>최근30일</b>. */
 const FIELD_STATUS_PICKS = [...INQUIRY_PICKS, '최근30일'] as const
 const monthAgo = () => { const d = new Date(); d.setMonth(d.getMonth() - 1); return ymd(d) }
 const num = (v: number) => v.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/*
+ * 원본 [정렬/소계기준] [설정] — '정렬/소계/합계 설정' 창(2026-10-13 실측). 기준: 없음 · 일자 · 차량종류 · 사용자명 · 사용목적 ·
+ * 주행전 계기판거리 · 주행후 계기판거리 · 운행거리 · 적요. 처음엔 1 차량종류(소계 표시) · 2 일자(표시안함) · 3 없음, 합계영역 표시,
+ * 소계/합계 표시항목 ◉직접설정(세 숫자 열 소계 · 합계 모두 체크). 1 사용자명 · 2 일자 둘 다 소계를 켜면 원본은
+ * 안쪽부터 '2026/10 계' → '변종호 계' → '합계' — <b>일자 소계는 달 단위</b>였다(상세설정 창은 재지 못했다).
+ */
+const SORT_KEYS = ['일자', '차량종류', '사용자명', '사용목적', '주행전 계기판거리', '주행후 계기판거리', '운행거리', '적요']
+const ITEM_COLS = ['주행전 계기판거리', '주행후 계기판거리', '운행거리'] as const
+const SORT_STORE = 'field-work-status-sort'
+const DEFAULT_SORT: SortSubtotal = {
+  lines: [{ key: '차량종류', desc: false, subtotal: true }, { key: '일자', desc: false, subtotal: false }, { key: '', desc: false, subtotal: false }],
+  total: true,
+  items: { custom: true, sub: {}, total: {} },
+}
+/** 정렬에 쓰는 값. 차량종류는 대소문자를 가리지 않는다(k5[H]·K5[H] 가 한 묶음). */
+function sortValue(r: FieldWork, key: string): string | number | null {
+  switch (key) {
+    case '일자': return r.workDate
+    case '차량종류': return (r.vehicleName ?? r.vehicleNo ?? '').toUpperCase()
+    case '사용자명': return r.userName ?? ''
+    case '사용목적': return r.usePurpose ?? ''
+    case '주행전 계기판거리': return r.odometerBefore != null ? Number(r.odometerBefore) : null
+    case '주행후 계기판거리': return r.odometerAfter != null ? Number(r.odometerAfter) : null
+    case '운행거리': return r.distance != null ? Number(r.distance) : null
+    case '적요': return r.purpose ?? ''
+    default: return ''
+  }
+}
+/** 소계 줄을 가르는 값 · 이름표. 일자는 달('2026/10'). */
+function groupLabel(r: FieldWork, key: string): string {
+  if (key === '일자') return r.workDate.slice(0, 7).replace('-', '/')
+  const v = sortValue(r, key)
+  return typeof v === 'number' ? num(v) : (v ?? '')
+}
 
 /**
  * 그룹웨어 > 공유정보 > 외근조회 > 외근현황 (이카운트 E070255)
@@ -30,7 +66,7 @@ const num = (v: number) => v.toLocaleString('ko-KR', { minimumFractionDigits: 2,
  * <p>출력물의 [일자]를 누르면 '외근입력' 창이 그 기록으로 열린다(저장 · 삭제 뒤 출력물을 다시 뽑는다, 2026-10-03 실측).
  *
  * <p>[주행전/주행후 계기판거리]는 외근입력에서 차량을 고르면 뜨는 두 칸의 값이다(V264). 계 · 합계에 같이 더한다. 조건의 [기타](도착전내역만보기 ·
- * 모든날짜표시) · [최근30일] · 정렬/소계 [설정] 창도 받쳐 줄 것이 없어 두지 않았다.
+ * 모든날짜표시) · [최근30일] · 정렬/소계 [설정] 창(2026-10-13)도 원본대로 둔다.
  */
 export default function FieldWorkStatusPage() {
   const { user } = useAuth()
@@ -54,6 +90,12 @@ export default function FieldWorkStatusPage() {
    */
   const [beforeArrival, setBeforeArrival] = useState(false)
   const [allDates, setAllDates] = useState(false)
+  const [showSort, setShowSort] = useState(false)
+  /** [적용/저장] 하면 다음에 열 때도 그대로(이 브라우저에만). */
+  const [sortCfg, setSortCfg] = useState<SortSubtotal>(() => {
+    try { const x = localStorage.getItem(SORT_STORE); if (x) return JSON.parse(x) as SortSubtotal } catch { /* 저장소를 못 쓰면 기본값 */ }
+    return DEFAULT_SORT
+  })
 
   useEffect(() => { api.get<FieldWorkUser[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
 
@@ -83,17 +125,38 @@ export default function FieldWorkStatusPage() {
   }
   useShortcut('F8', () => void search(), view === 'cond' && !editing)
 
-  /** 차량종류별 묶음 — 원본은 대소문자를 가리지 않고 묶는다. 이름표는 처음 나온 모양을 대문자로. */
-  const groups = (() => {
-    const m = new Map<string, { label: string; list: FieldWork[] }>()
-    for (const r of rows) {
-      const name = r.vehicleName ?? r.vehicleNo ?? ''
-      const key = name.toUpperCase()
-      const g = m.get(key) ?? { label: key, list: [] }
-      g.list.push(r)
-      m.set(key, g)
+  /**
+   * 정렬 · 소계 — 소계를 켠 기준마다, 그 기준까지의 값이 바뀌면 안쪽 기준부터 '값 계' 줄을 넣는다.
+   * 일자 소계를 켜면 그 줄의 정렬도 달 단위로 묶는다(같은 달 안은 일자 · 입력 차례).
+   */
+  const out = (() => {
+    const lines = sortCfg.lines
+    const ordered = sortBySubtotal(rows, sortCfg, (r, k) => {
+      const l = lines.find((x) => x.key === k)
+      return k === '일자' && l?.subtotal ? groupLabel(r, k) : sortValue(r, k)
+    })
+    const subs = lines.map((l, i) => ({ l, i })).filter((x) => x.l.key && x.l.subtotal)
+    const prefix = (r: FieldWork, upto: number) => lines.slice(0, upto + 1).filter((l) => l.key).map((l) => groupLabel(r, l.key)).join('\u0001')
+    type Out = { kind: 'row'; r: FieldWork } | { kind: 'sub'; label: string; list: FieldWork[]; key: string }
+    const res: Out[] = []
+    const acc = subs.map(() => ({ key: '', label: '', list: [] as FieldWork[] }))
+    const close = (from: number) => {
+      for (let j = subs.length - 1; j >= from; j--) {
+        if (acc[j].list.length) res.push({ kind: 'sub', label: acc[j].label, list: acc[j].list, key: `${j}:${acc[j].key}` })
+        acc[j] = { key: '', label: '', list: [] }
+      }
     }
-    return [...m.values()]
+    for (const r of ordered) {
+      const changed = subs.findIndex((x, j) => acc[j].list.length > 0 && prefix(r, x.i) !== acc[j].key)
+      if (changed >= 0) close(changed)
+      subs.forEach((x, j) => {
+        if (!acc[j].list.length) acc[j] = { key: prefix(r, x.i), label: groupLabel(r, x.l.key), list: [] }
+        acc[j].list.push(r)
+      })
+      res.push({ kind: 'row', r })
+    }
+    close(0)
+    return res
   })()
   /** [모든날짜표시] — 기간 안에서 기록이 하나도 없는 날. */
   const emptyDays = (() => {
@@ -161,6 +224,12 @@ export default function FieldWorkStatusPage() {
                 </label>
               </div>
             </li>
+            <li className="wide">
+              <div className="title">정렬/소계기준</div>
+              <div className="form">
+                <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy" onClick={() => setShowSort(true)}>설정</button>
+              </div>
+            </li>
           </ul>
           <div className="flex flex-wrap items-center gap-[6px] mt-[8px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void search()}>검색(F8)</button>
@@ -189,31 +258,28 @@ export default function FieldWorkStatusPage() {
                 </tr>
               ) : (
                 <>
-                  {groups.map((g) => (
-                    <Fragment key={g.label}>
-                      {g.list.map((r) => (
-                        <tr key={r.id}>
-                          <td>
-                            <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
-                                    onClick={() => setEditing(r)}>{reportDate(r.workDate)}</button>
-                          </td>
-                          <td>{r.vehicleName ?? r.vehicleNo ?? ''}</td>
-                          <td>{r.userName}</td>
-                          <td>{r.usePurpose ?? ''}</td>
-                          <td className="text-right">{r.odometerBefore != null ? num(Number(r.odometerBefore)) : ''}</td>
-                          <td className="text-right">{r.odometerAfter != null ? num(Number(r.odometerAfter)) : ''}</td>
-                          <td className="text-right">{r.distance != null ? num(Number(r.distance)) : ''}</td>
-                          <td>{r.purpose ?? ''}</td>
-                        </tr>
-                      ))}
-                      <tr className="font-bold bg-ec-page">
-                        <td colSpan={4} className="text-center">{g.label} 계</td>
-                        <td className="text-right">{num(sumOf(g.list, 'odometerBefore'))}</td>
-                        <td className="text-right">{num(sumOf(g.list, 'odometerAfter'))}</td>
-                        <td className="text-right">{num(sum(g.list))}</td>
-                        <td />
-                      </tr>
-                    </Fragment>
+                  {out.map((o) => o.kind === 'row' ? (
+                    <tr key={o.r.id}>
+                      <td>
+                        <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
+                                onClick={() => setEditing(o.r)}>{reportDate(o.r.workDate)}</button>
+                      </td>
+                      <td>{o.r.vehicleName ?? o.r.vehicleNo ?? ''}</td>
+                      <td>{o.r.userName}</td>
+                      <td>{o.r.usePurpose ?? ''}</td>
+                      <td className="text-right">{o.r.odometerBefore != null ? num(Number(o.r.odometerBefore)) : ''}</td>
+                      <td className="text-right">{o.r.odometerAfter != null ? num(Number(o.r.odometerAfter)) : ''}</td>
+                      <td className="text-right">{o.r.distance != null ? num(Number(o.r.distance)) : ''}</td>
+                      <td>{o.r.purpose ?? ''}</td>
+                    </tr>
+                  ) : (
+                    <tr key={o.key} className="font-bold bg-ec-page">
+                      <td colSpan={4} className="text-center">{o.label} 계</td>
+                      <td className="text-right">{showsItem(sortCfg, 'sub', ITEM_COLS[0]) ? num(sumOf(o.list, 'odometerBefore')) : ''}</td>
+                      <td className="text-right">{showsItem(sortCfg, 'sub', ITEM_COLS[1]) ? num(sumOf(o.list, 'odometerAfter')) : ''}</td>
+                      <td className="text-right">{showsItem(sortCfg, 'sub', ITEM_COLS[2]) ? num(sum(o.list)) : ''}</td>
+                      <td />
+                    </tr>
                   ))}
                   {emptyDays.length > 0 && (
                     <>
@@ -224,13 +290,15 @@ export default function FieldWorkStatusPage() {
                       </tr>
                     </>
                   )}
-                  <tr className="font-bold bg-ec-page">
-                    <td colSpan={4} className="text-center">합계</td>
-                    <td className="text-right">{num(sumOf(rows, 'odometerBefore'))}</td>
-                    <td className="text-right">{num(sumOf(rows, 'odometerAfter'))}</td>
-                    <td className="text-right">{num(sum(rows))}</td>
-                    <td />
-                  </tr>
+                  {sortCfg.total && (
+                    <tr className="font-bold bg-ec-page">
+                      <td colSpan={4} className="text-center">합계</td>
+                      <td className="text-right">{showsItem(sortCfg, 'total', ITEM_COLS[0]) ? num(sumOf(rows, 'odometerBefore')) : ''}</td>
+                      <td className="text-right">{showsItem(sortCfg, 'total', ITEM_COLS[1]) ? num(sumOf(rows, 'odometerAfter')) : ''}</td>
+                      <td className="text-right">{showsItem(sortCfg, 'total', ITEM_COLS[2]) ? num(sum(rows)) : ''}</td>
+                      <td />
+                    </tr>
+                  )}
                 </>
               )}
             </tbody>
@@ -239,6 +307,12 @@ export default function FieldWorkStatusPage() {
           <FieldWorkFormModal open={!!editing} record={editing} users={users} myUsername={user?.username}
                               onClose={() => setEditing(null)} onSaved={() => void search()} />
         </>
+      )}
+      {showSort && (
+        <EcSortSubtotalModal keys={SORT_KEYS} itemCols={[...ITEM_COLS]} value={sortCfg}
+                             onApply={(v) => { setSortCfg(v); setShowSort(false) }}
+                             onSave={(v) => { try { localStorage.setItem(SORT_STORE, JSON.stringify(v)) } catch { /* 저장소를 못 쓰면 이번만 */ } }}
+                             onClose={() => setShowSort(false)} />
       )}
     </EcListShell>
   )

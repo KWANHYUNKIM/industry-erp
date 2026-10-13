@@ -4,7 +4,16 @@ import { useShortcut } from '../utils/useShortcut'
 
 /** 정렬/소계기준 한 줄 — key 가 '' 이면 '없음'. */
 export interface SortLine { key: string; desc: boolean; subtotal: boolean }
-export interface SortSubtotal { lines: SortLine[]; total: boolean }
+/**
+ * ⊙소계/합계 표시항목 — 숫자 열마다 소계 · 합계 줄에 값을 찍을지. custom 이 false(기본설정)면 전부 찍는다.
+ * 외근현황 E070255 실측(2026-10-13): ◯기본설정 ◉직접설정, 격자 [열…] × [소계][합계] 체크(기본설정이면 전부 체크된 채 막힘).
+ */
+export interface SubtotalItems { custom: boolean; sub: Record<string, boolean>; total: Record<string, boolean> }
+export interface SortSubtotal { lines: SortLine[]; total: boolean; items?: SubtotalItems }
+
+/** 이 열을 소계(kind='sub') · 합계(kind='total') 줄에 찍나. */
+export const showsItem = (v: SortSubtotal, kind: 'sub' | 'total', col: string) =>
+  !v.items || !v.items.custom || v.items[kind][col] !== false
 
 export const emptySortSubtotal = (first = ''): SortSubtotal => ({
   lines: [{ key: first, desc: false, subtotal: false }, { key: '', desc: false, subtotal: false }, { key: '', desc: false, subtotal: false }],
@@ -17,8 +26,10 @@ export const emptySortSubtotal = (first = ''): SortSubtotal => ({
  * 소계/합계라인(◯표시 ◉표시안함 — 기준이 없음이면 막힘) · 상세설정, 아래 '합계영역' 줄. ⊙소계/합계 표시항목, [적용(F8)▲ 적용/저장][닫기].
  * 소계 · 합계를 표시로 바꾸면 그 줄 상세설정에 '설정' 이 붙는다 — 그 창은 재지 못해 두지 않았다.
  */
-export default function EcSortSubtotalModal({ keys, value, onApply, onSave, onClose }: {
+export default function EcSortSubtotalModal({ keys, itemCols, value, onApply, onSave, onClose }: {
   keys: string[]
+  /** 주면 아래 '⊙ 소계/합계 표시항목' 판을 그린다(숫자 열 이름). */
+  itemCols?: string[]
   value: SortSubtotal
   onApply: (v: SortSubtotal) => void
   /** [적용(F8)▲] › 적용/저장 — 다음에 열 때도 그 기준으로. */
@@ -96,6 +107,35 @@ export default function EcSortSubtotalModal({ keys, value, onApply, onSave, onCl
           </tr>
         </tbody>
       </table>
+      {itemCols && itemCols.length > 0 && (() => {
+        const items: SubtotalItems = v.items ?? { custom: false, sub: {}, total: {} }
+        const setItems = (patch: Partial<SubtotalItems>) => setV({ ...v, items: { ...items, ...patch } })
+        const box = (kind: 'sub' | 'total', col: string) => (
+          <input type="checkbox" aria-label={`${kind === 'sub' ? '소계' : '합계'} ${col}`} disabled={!items.custom}
+                 checked={!items.custom || items[kind][col] !== false}
+                 onChange={(e) => setItems({ [kind]: { ...items[kind], [col]: e.target.checked } })} />
+        )
+        return (
+          <>
+            <div className="text-[12px] mt-[14px] mb-[6px]">⊙ 소계/합계 표시항목</div>
+            <div className="flex gap-[10px] mb-[6px] text-[12px]">
+              <label className="inline-flex items-center gap-[3px] cursor-pointer">
+                <input type="radio" name="items-mode" checked={!items.custom} onChange={() => setItems({ custom: false })} />기본설정
+              </label>
+              <label className="inline-flex items-center gap-[3px] cursor-pointer">
+                <input type="radio" name="items-mode" checked={items.custom} onChange={() => setItems({ custom: true })} />직접설정
+              </label>
+            </div>
+            <table className="w-full" aria-label="소계/합계 표시항목">
+              <thead><tr><th />{itemCols.map((c) => <th key={c} className="text-center">{c}</th>)}</tr></thead>
+              <tbody>
+                <tr><td className="text-center">소계</td>{itemCols.map((c) => <td key={c} className="text-center">{box('sub', c)}</td>)}</tr>
+                <tr><td className="text-center">합계</td>{itemCols.map((c) => <td key={c} className="text-center">{box('total', c)}</td>)}</tr>
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
       <div className="flex gap-[6px] mt-[14px]">
         <span className="ec-btn-group relative">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => onApply(v)}>적용(F8)</button>
