@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
 import { openPrintWindow, printTable, type PrintSignLine } from '../utils/print'
 import { findDataTable } from '../utils/tableExport'
 import Modal from './Modal'
 import TableContextMenu from './TableContextMenu'
+import { INQUIRY_PICKS, periodOf } from '../utils/periods'
 
 /**
  * 인쇄 시점에 기본 결재란을 가져온다. 셸이 뜰 때마다 미리 부르면 인쇄하지 않는 화면에서도
@@ -68,11 +69,58 @@ const PRINT_LABELS = ['인쇄', '출력']
  */
 const PREVIEW_LABELS = ['미리보기']
 
+const CONDS = '.ec-cond, .ec-search-conds'
+/** 조건 판 안에서 화면이 둔 [검색(F8)] · [다시작성] 단추를 알아보는 글자 */
+const SEARCH_RE = /^검색(\(F8\))?$/
+const RESET_RE = /^다시\s?작성$/
+const condsOf = (root: HTMLElement | null) => root?.querySelector<HTMLElement>(CONDS) ?? null
+const condButton = (root: HTMLElement | null, re: RegExp) =>
+  [...(condsOf(root)?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((b) => re.test(b.textContent?.trim() ?? '')) ?? null
+const isCheck = (f: Element) => f instanceof HTMLInputElement && (f.type === 'checkbox' || f.type === 'radio')
+/** ▾ 에 둘 기간 — 판 안의 빠른선택 단추 글자, 없으면 날짜칸이 둘 이상일 때 조회 화면 묶음(INQUIRY_PICKS) */
+function pickLabels(el: HTMLElement): string[] {
+  const own = [...el.querySelectorAll('.ec-btn-pick')].map((b) => b.textContent?.trim() ?? '').filter(Boolean)
+  if (own.length) return own
+  return el.querySelectorAll('input[type="date"]').length >= 2 ? [...INQUIRY_PICKS] : []
+}
+/**
+ * 떠 있는 조건 판에서는 셸의 줄이 [검색(F8)│▾] [다시작성] 을 맡는다 — 화면이 판 안에 둔 같은 단추(와 빠른선택 줄)는
+ * 겹치므로 감춘다(index.css <code>[data-shell-dup]</code>). 그 단추만 든 줄(li)이면 줄째 감춘다.
+ */
+function markOwnButtons(el: HTMLElement) {
+  const own = (b: Element) => b.classList.contains('ec-btn-pick') || SEARCH_RE.test(b.textContent?.trim() ?? '') || RESET_RE.test(b.textContent?.trim() ?? '')
+  for (const b of el.querySelectorAll('button')) {
+    if (!own(b)) continue
+    const li = b.closest('li')
+    const box = li && el.contains(li) && [...li.querySelectorAll('button')].every(own) && !li.querySelector('input, select') ? li : b
+    box.setAttribute('data-shell-dup', '')
+  }
+}
+/** React 가 듣는 칸에 값을 넣는다 — value 만 바꾸면 화면 상태가 안 바뀐다(네이티브 setter + input 이벤트). */
+function setFieldValue(f: HTMLInputElement | HTMLSelectElement, v: string) {
+  const proto = f instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
+  Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(f, v)
+  f.dispatchEvent(new Event(f instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }))
+}
+/** [다시작성] 기본 동작 — 판의 칸을 처음 본 값으로. 체크 · 라디오는 눌러서 바꾼다(React 는 click 으로 듣는다). */
+function restoreFields(el: HTMLElement, first: WeakMap<Element, string | boolean>) {
+  for (const f of el.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')) {
+    if (!first.has(f)) continue
+    const v = first.get(f)!
+    if (isCheck(f)) {
+      const c = f as HTMLInputElement
+      // 라디오는 처음 켜져 있던 것을 다시 누르면 같은 묶음의 나머지가 꺼진다
+      if (c.type === 'radio' ? (v === true && !c.checked) : c.checked !== v) c.click()
+    }
+    else if (f.value !== v) setFieldValue(f, v as string)
+  }
+}
+
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
   renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
-  signLine = false, children,
+  signLine = false, collapseConditions, onReset, children,
 }: {
   title: string
   search?: string
@@ -102,6 +150,22 @@ export default function EcListShell({
    * 끌 방법도 없었다. 화면에 조건을 다는 것보다 이 한 줄이 먼저다.
    */
   signLine?: boolean
+  /**
+   * 조회 조건을 접어 두고 [Search(F3)] 로 펼친다. 조건은 화면 안의 <code>.ec-cond</code> 나
+   * <code>.ec-search-conds</code> 를 그대로 쓴다(화면은 고칠 것이 없다).
+   * 기본값은 원본 규칙(2026-10-13 판매조회 · 사원리스트 · 채권거래내역 · A/S수리현황 실측, plans/공용.md 규칙 3):
+   * <ul>
+   *   <li>머리에 빠른 검색칸이 있는 화면(<code>searchable</code>) — 접혀서 시작한다.</li>
+   *   <li>없는 화면(현황 · 내역) — 펼쳐서 시작하고, 조건 판의 [검색(F8)] 을 누르면 접히며 머리에 [Search(F3)] 가 생긴다.</li>
+   * </ul>
+   * 값을 주면 그 값이 이긴다(<code>collapseConditions={rows !== null}</code> 처럼 화면이 직접 정하던 곳).
+   */
+  collapseConditions?: boolean
+  /**
+   * 조건 판 [다시작성] — 조건을 처음 값으로 되돌린다. 주지 않으면 조건 판 안의 화면 [다시작성] 단추를 누르고,
+   * 그것도 없으면 셸이 판의 칸(입력 · 선택 · 체크)을 처음 보았을 때의 값으로 되돌린다.
+   */
+  onReset?: () => void
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -112,10 +176,78 @@ export default function EcListShell({
   const [formOpen, setFormOpen] = useState(false)
   const [notice, setNotice] = useState('')
   const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
+  // 조건 판 — 원본 규칙(plans/공용.md 규칙 3 · 4). 판이 있는지는 그려진 뒤에야 안다.
+  const [hasConds, setHasConds] = useState(false)
+  const [searched, setSearched] = useState(false)   // 검색칸 없는 화면: 조건 판 [검색(F8)] 을 한 번 눌렀다
+  const collapse = collapseConditions ?? (hasConds && (searchable || searched))
+  // 검색칸 없는 화면도 접힌 뒤에는 머리에 [Search(F3)] 가 생긴다(원본 A/S수리현황)
+  const showSearch = searchable || (collapseConditions === undefined && searched)
+  const [condOpen, setCondOpen] = useState(false)
+  const [barTop, setBarTop] = useState<number | null>(null)
+  const [picks, setPicks] = useState<string[]>([])   // ▾ 기간 빠른선택 — 판 안의 .ec-btn-pick, 없으면 날짜칸 둘에 INQUIRY_PICKS
+  const [picksOpen, setPicksOpen] = useState(false)
+  const firstValues = useRef(new WeakMap<Element, string | boolean>())
+  useLayoutEffect(() => {
+    const el = condsOf(bodyRef.current)
+    if (Boolean(el) !== hasConds) setHasConds(Boolean(el))
+    if (!el) return
+    // [다시작성] 이 되돌릴 '처음 값' — 칸을 처음 본 때의 값(화면이 나중에 그리는 칸도 처음 본 때)
+    for (const f of el.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')) {
+      if (!firstValues.current.has(f)) firstValues.current.set(f, isCheck(f) ? (f as HTMLInputElement).checked : f.value)
+    }
+    // 펼친 조건 판 바로 아래에 [검색(F8)] 줄을 붙인다 — 판 높이는 화면마다 달라 그려진 뒤 잰다
+    const top = condOpen ? el.offsetTop + el.offsetHeight : null
+    if (top !== barTop) setBarTop(top)
+    if (condOpen) {
+      markOwnButtons(el)
+      const labels = pickLabels(el)
+      if (labels.join('|') !== picks.join('|')) setPicks(labels)
+    }
+  })
+  const onSearchRef = useRef(onSearch)
+  onSearchRef.current = onSearch
+  const footerSearchRef = useRef<(() => void) | undefined>(undefined)
+
+  /** 조건 판 [검색(F8)] — 화면이 판 안에 둔 [검색] 단추가 있으면 그것(그 화면의 조건으로 찾는다), 없으면 onSearch. */
+  const searchConds = () => {
+    const own = condButton(bodyRef.current, SEARCH_RE)
+    if (own) own.click()
+    else if (onSearchRef.current) onSearchRef.current()
+    else footerSearchRef.current?.()
+    setCondOpen(false)
+    setPicksOpen(false)
+  }
+  const resetConds = () => {
+    if (onReset) { onReset(); return }
+    const own = condButton(bodyRef.current, RESET_RE)
+    if (own) { own.click(); return }
+    const el = condsOf(bodyRef.current)
+    if (el) restoreFields(el, firstValues.current)
+  }
+  /** ▾ 기간 빠른선택 — 고르면 기간을 넣고 바로 찾는다(원본). */
+  const pickPeriod = (label: string) => {
+    const el = condsOf(bodyRef.current)
+    if (!el) return
+    const own = [...el.querySelectorAll<HTMLButtonElement>('.ec-btn-pick')].find((b) => b.textContent?.trim() === label)
+    if (own) own.click()
+    else {
+      const r = periodOf(label)
+      const dates = el.querySelectorAll<HTMLInputElement>('input[type="date"]')
+      if (r && dates.length >= 2) {
+        if (r.from) setFieldValue(dates[0], r.from)
+        setFieldValue(dates[1], r.to)
+      }
+    }
+    setPicksOpen(false)
+    // 화면 상태가 새 기간으로 다시 그려진 다음에 찾는다 — 같은 틱이면 옛 기간으로 찾는다
+    window.setTimeout(searchConds, 0)
+  }
 
   // 페이지가 검색을 직접 처리하지 않으면 셸이 렌더된 행을 필터링한다
   const searchHandledByPage = typeof onSearch === 'function'
-  const searchValue = searchHandledByPage ? (search ?? '') : localSearch
+  // 낱말을 화면이 들고 있지 않으면(onSearchChange 없음) 셸이 들고 행을 추린다 — 전에는 칸에 글자가 안 들어갔다
+  const keywordLocal = !onSearchChange
+  const searchValue = keywordLocal ? localSearch : (search ?? '')
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -164,13 +296,16 @@ export default function EcListShell({
   }
 
   const runSearch = () => {
-    if (searchHandledByPage) onSearch!()
+    // 원본: 검색창이 비어 있으면 [Search(F3)] 는 조회 조건 판을 펼친다(닫는다)
+    if (collapse && !searchValue.trim()) { setCondOpen((v) => !v); setPicksOpen(false); return }
+    if (keywordLocal && localSearch.trim()) filterRows(localSearch)
+    else if (searchHandledByPage) onSearch!()
     else filterRows(localSearch)
   }
 
   const changeSearch = (v: string) => {
-    if (searchHandledByPage) onSearchChange?.(v)
-    else setLocalSearch(v)
+    if (keywordLocal) setLocalSearch(v)
+    else onSearchChange!(v)
   }
 
   // 우클릭 메뉴의 '이 값으로 검색'. 페이지가 검색을 처리하는 경우 onSearchChange 로 값을 넣은 뒤
@@ -199,8 +334,14 @@ export default function EcListShell({
     /* [미리보기]를 [인쇄]보다 <b>먼저</b> 본다 — '인쇄 미리보기' 는 둘 다 품는다. */
     if (!handler && PREVIEW_LABELS.some((l) => a.label.includes(l))) handler = doPreview
     if (!handler && PRINT_LABELS.some((l) => a.label.includes(l))) handler = doPrint
+    // 검색칸 없는 화면: 하단 [검색(F8)] 도 조건 판을 접는다(원본 A/S수리현황 — 판 아래 줄이든 하단이든 같은 검색)
+    if (handler && SEARCH_RE.test(a.label.trim())) {
+      const run = handler
+      handler = () => { run(); if (collapseConditions === undefined && hasConds && !searchable) setSearched(true); setCondOpen(false) }
+    }
     return { ...a, onClick: handler }
   })
+  footerSearchRef.current = resolved.find((a) => SEARCH_RE.test(a.label.trim()))?.onClick
 
   /**
    * 검색(F8) — 원본 현황 화면의 단축키다. 우리 하단 버튼은 라벨만 `검색(F8)` 이었고
@@ -216,12 +357,15 @@ export default function EcListShell({
   const keyRef = useRef<Record<string, (() => void) | undefined>>({})
   keyRef.current = formOpen ? {} : {
     // 검색 — 라벨에 F8 이 적힌 버튼, 없으면 primary 버튼
-    F8: (resolved.find((a) => a.label.includes('F8') && a.onClick)
-      ?? resolved.find((a) => a.primary && a.onClick))?.onClick,
+    // 조건 판이 보이면 그 판의 [검색(F8)] 이 먼저다(원본 — 판 안의 칸에서 F8)
+    F8: condOpen ? searchConds
+      : (!collapse && condButton(bodyRef.current, SEARCH_RE)) ? () => condButton(bodyRef.current, SEARCH_RE)?.click()
+      : (resolved.find((a) => a.label.includes('F8') && a.onClick)
+        ?? resolved.find((a) => a.primary && a.onClick))?.onClick,
     // 신규 — 하단 좌측 버튼(모달 폼이 있으면 그걸 연다)
     F2: (onNew || renderForm) ? () => (renderForm ? setFormOpen(true) : onNew?.()) : undefined,
     // Search — 목록 낱말 추리기. 검색상자를 숨긴 화면(searchable={false})에는 없다.
-    F3: searchable ? runSearch : undefined,
+    F3: showSearch ? runSearch : undefined,
   }
 
   useEffect(() => {
@@ -247,7 +391,7 @@ export default function EcListShell({
         {/* 원본 휴대폰 목록 화면은 제목을 감추고 검색 도구만 남긴다 */}
         <span className="ec-page-title mobile:hidden">{title}</span>
         <div className="tools relative">
-          {searchable && <>
+          {showSearch && <>
             <input
               className="ec-input ec-quick"
               placeholder="입력 후 [Enter]"
@@ -282,7 +426,35 @@ export default function EcListShell({
       {notice && <div className="ec-notice">{notice}</div>}
 
       {/* 그리드 본문 */}
-      <div ref={bodyRef} className="flex-1 min-h-0">{children}</div>
+      <div ref={bodyRef} data-conds={collapse ? (condOpen ? 'open' : 'closed') : undefined}
+           className={`flex-1 min-h-0 ec-list-body${collapse ? (condOpen ? ' conds-open' : ' conds-closed') : ''}`}
+           onKeyDown={(e) => { if (e.key === 'Escape' && condOpen) setCondOpen(false) }}
+           onClick={(e) => {
+             // 검색칸 없는 화면: 펼쳐 둔 조건 판의 [검색(F8)] 을 누르면(화면이 먼저 찾고) 판이 접힌다
+             if (collapseConditions !== undefined || searchable || searched || condOpen) return
+             const b = (e.target as HTMLElement).closest('button')
+             if (b && b.closest(CONDS) && SEARCH_RE.test(b.textContent?.trim() ?? '')) setSearched(true)
+           }}>
+        {children}
+        {/* 원본 조건 판 아래 줄: [검색(F8)│▾ 기간 빠른선택] [다시작성] — [닫기] 는 없다(Search(F3) · Esc 로 닫는다) */}
+        {condOpen && barTop !== null && (
+          <div className="ec-search-bar" style={{ top: barTop }}>
+            <span className="ec-btn-group relative">
+              <button className="ec-btn ec-btn-primary ec-btn-sm" onClick={searchConds}>검색(F8)</button>
+              {picks.length > 0 && (
+                <button className="ec-btn ec-btn-primary ec-btn-sm ec-btn-arrow" aria-label="기간 빠른선택"
+                        onClick={() => setPicksOpen((v) => !v)}>▾</button>
+              )}
+              {picksOpen && (
+                <div className="ec-menu ec-search-picks">
+                  {picks.map((l) => <button key={l} type="button" onClick={() => pickPeriod(l)}>{l}</button>)}
+                </div>
+              )}
+            </span>
+            <button className="ec-btn ec-btn-sm" onClick={resetConds}>다시작성</button>
+          </div>
+        )}
+      </div>
 
       {/* 표 우클릭 메뉴 — 등록·수정·삭제 + 행/열 기능 + 이 화면의 기능 */}
       <TableContextMenu

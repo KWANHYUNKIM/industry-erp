@@ -499,6 +499,13 @@ frontend/src/
 | 격자 | — | 격자 그대로, **표 안에서만** 옆으로 민다 |
 | 입력 폼 · 조회 조건 | 2열 · 여러 칸 | 1열, 이름표 93 |
 
+- **조건 판의 처음 상태는 머리에 빠른 검색칸이 있느냐로 갈립니다(PC · 휴대폰 같다, plans/공용.md 규칙 3 · 4).**
+  검색칸이 있는 화면(판매조회 E040206 · 사원리스트)은 조건을 접어 두고, 검색창이 빈 채로 [Search(F3)] 를 누르면 머리 아래로
+  조건 판이 내려옵니다. 검색칸이 없는 현황 · 내역(채권거래내역 · A/S수리현황)은 펼쳐서 시작하고 [검색(F8)] 을 누르면 접히며
+  머리에 [Search(F3)] 가 생깁니다. 판 아래 줄은 [검색(F8)│▾ 기간 빠른선택] [다시작성] — [닫기] 는 없습니다(Esc · Search(F3)).
+  `EcListShell` 이 `searchable` 로 이렇게 하고(`collapseConditions` 로 바꿀 수 있음, [다시작성] 은 `onReset` · 없으면 판 안의
+  [다시작성] 단추 · 그것도 없으면 칸을 처음 값으로), 화면 안의 `.ec-cond` 를 그대로 판으로 씁니다.
+  `.ec-cond` 가 아닌 손으로 짠 조건 줄은 `className="ec-search-conds"` 를 붙이세요.
 - 규칙은 `styles/shell.css`(틀) · `styles/index.css`(부품) 의 `@media (max-width: 768px)` 에 있습니다. 화면 코드에서는
   Tailwind 변형 **`mobile:`** 을 씁니다(`mobile:hidden` · `mobile:w-full`, index.css `@custom-variant mobile`).
   `md:` · `lg:` 같은 Tailwind 기본 구간은 원본과 경계가 달라(768 · 1024) 쓰지 않습니다.

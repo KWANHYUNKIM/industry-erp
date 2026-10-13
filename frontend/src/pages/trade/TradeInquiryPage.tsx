@@ -518,7 +518,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
           총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.
         </span>
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
+        {/* .ec-search-conds — 원본처럼 접어 두고 [Search(F3)] 로 펼친다(EcListShell) */}
+        <span className="ec-search-conds" style={{ marginLeft: 'auto', display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
           {/*
             <b>이 파일이 겸하는 두 화면은 이 줄을 서로 다르게 부른다</b>(사본 실측) —
             판매조회는 [기준일자], 구매조회는 [일자]다. 한 이름으로 눌러 두면 한쪽이 늘 틀린다.
