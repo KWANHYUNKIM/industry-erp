@@ -87,6 +87,13 @@ public class SalesOrderService {
                 .toList();
     }
 
+    /** 한 건 — 주문서조회 `?edit=<id>` 가 기간 밖의 주문도 바로 수정 창으로 연다(일정관리 납기 막대). */
+    @Transactional(readOnly = true)
+    public SalesOrderResponse findOne(Long id) {
+        return SalesOrderResponse.from(salesOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id)));
+    }
+
     /**
      * 미출하현황: 접수·진행중 주문의 라인들(완료·취소 제외).
      *

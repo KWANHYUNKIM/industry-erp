@@ -54,6 +54,12 @@ public class SalesOrderController {
         return salesOrderService.findUnsold(from, to);
     }
 
+    /** 한 건 — 주문서조회 `?edit=<id>` 로 수정 창을 바로 연다. */
+    @GetMapping("/{id}")
+    public SalesOrderResponse one(@PathVariable Long id) {
+        return salesOrderService.findOne(id);
+    }
+
     /** 주문서조회 [생성한전표] 의 '조회' — 이 주문에서 만든 출하지시서 · 판매 전표. */
     @GetMapping("/{id}/generated")
     public List<SalesOrderDtos.GeneratedSlipRow> generated(@PathVariable Long id) {

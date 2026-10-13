@@ -1,5 +1,6 @@
 import { resolveSpecialPrice } from '../../features/price/specialPrice'
 import { useEffect, useMemo, useState, type FormEvent, useRef} from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -191,6 +192,21 @@ export default function SalesOrderPage() {
     setLines([...o.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) })), emptyLine()])
     setShowForm(true)
   }
+
+  /**
+   * `?edit=<id>` — 다른 화면(그룹웨어 일정관리의 납기 막대)이 주문 하나를 바로 '주문수정' 창으로 연다.
+   * 기간 밖의 주문일 수 있어 목록에서 찾지 않고 한 건을 받아 온다. 연 뒤에는 주소에서 지워 새로고침에 다시 뜨지 않게 한다.
+   */
+  const [params, setParams] = useSearchParams()
+  const editParam = params.get('edit')
+  useEffect(() => {
+    if (!editParam) return
+    api.get<SalesOrder>(`/sales-orders/${editParam}`)
+      .then((r) => openEdit(r.data))
+      .catch((err) => setError(extractErrorMessage(err)))
+      .finally(() => setParams((p) => { p.delete('edit'); return p }, { replace: true }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editParam])
 
   /** 수정 창의 [삭제] — 원본 확인 문구 '전표를 삭제하겠습니까? - 주문서'. */
   async function removeEditing() {
