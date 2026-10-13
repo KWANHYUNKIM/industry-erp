@@ -10,6 +10,7 @@ import { amountVariance, priceVariance, qtyVariance, weightedAvgPrice } from '..
 import type { Item, PurchaseDoc } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { useCostPeriods, costPeriodText, inCostPeriod } from '../../utils/costPeriods'
 
 /**
  * 품목 → <b>생산공정명</b>. 원본 원가 화면 셋이 이 칸을 둔다.
@@ -124,7 +125,13 @@ export default function VariancePage() {
   const [keyword, setKeyword] = useState('')
   // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
   const [itemCond, setItemCond] = useState('')
-  const [period, setPeriod] = useState('전체')
+  /*
+   * 원본 [기준월] — 원가 기간 코드도움(2026-10-13 실측, 월별이익현황 · 표준원가현황 · 실제원가현황과 같은 '재고월별원가' 창,
+   * 기본 최근 기간). 우리는 자료에 있는 달을 모은 '전체' 고름칸이었다. 비우면 전체 달을 본다.
+   */
+  const [periodId, setPeriodId] = useState('')
+  const { periods: costPeriods, first: firstPeriod } = useCostPeriods((f) => { if (f) setPeriodId(String(f.id)) })
+  const cp = costPeriods.find((p) => String(p.id) === periodId) ?? null
   const [withInactive, setWithInactive] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -175,14 +182,7 @@ export default function VariancePage() {
   }
   useEffect(() => { load() }, [])
 
-  const periods = useMemo(() => {
-    const fromCosts = costs.map((r) => r.period)
-    const fromProds = productions.map((p) => p.productionDate.slice(0, 7))
-    const fromBuys = purchases.map((p) => p.purchaseDate.slice(0, 7))
-    return [...new Set([...fromCosts, ...fromProds, ...fromBuys])].sort().reverse()
-  }, [costs, productions, purchases])
-
-  const inPeriod = (yyyymm: string) => period === '전체' || yyyymm === period
+  const inPeriod = (yyyymm: string) => !cp || inCostPeriod(cp, yyyymm)
   const catOf = useMemo(() => new Map(items.map((i) => [i.id, i.categoryName])), [items])
   const hit = (itemId: number, code: string, name: string) => {
     if (!withInactive && inactive.has(itemId)) return false
@@ -263,7 +263,7 @@ export default function VariancePage() {
       })
       .filter((r) => hit(r.itemId, r.code, r.name))
       .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0))
-  }, [purchases, period, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
+  }, [purchases, cp, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
       categoryCond, itemGroupCond, nameOf, stdPriceOf])
 
   // ── 소모수량차이: BOM 표준소모 vs 실제 투입 (자재별 집계)
@@ -290,7 +290,7 @@ export default function VariancePage() {
       })
       .filter((r) => hit(r.itemId, r.code, r.name))
       .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0) || Math.abs(b.diffQty) - Math.abs(a.diffQty))
-  }, [productions, boms, period, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
+  }, [productions, boms, cp, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
       categoryCond, itemGroupCond, nameOf, stdPriceOf, evalPriceOf])
 
   // ── 노무비·경비차이
@@ -317,7 +317,7 @@ export default function VariancePage() {
            */
           label: '다시 작성',
           onClick: () => {
-            setPeriod('전체'); setKeyword(''); setItemCond('')
+            setPeriodId(firstPeriod ? String(firstPeriod.id) : ''); setKeyword(''); setItemCond('')
             setWithInactive(true); setWithUntracked(false)
             setCategoryCond(''); setItemGroupCond('')
           },
@@ -338,10 +338,9 @@ export default function VariancePage() {
           </div>
         </EcCond>
         <EcCond label="기준월" pick>
-          <select className="ec-input" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 140 }}>
-            <option>전체</option>
-            {periods.map((p) => <option key={p}>{p}</option>)}
-          </select>
+          <CodePickerField label="기준월" hideLabel width={260} placeholder="기준월"
+                           value={periodId} onChange={setPeriodId}
+                           items={costPeriods.map((p) => ({ value: String(p.id), name: costPeriodText(p) }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
