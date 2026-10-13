@@ -343,6 +343,9 @@ node qa/shot.mjs qa/flows/<내 흐름>.json     # 입력 화면을 고쳤으면 
 - **백엔드 컴파일 확인은 살아 있는 `backend/target` 에 하지 않는다.** 서버(spring-boot:run)가 그 클래스를 쓰고 있어서, 남이 서버 도중 컴파일하면
   `NoClassDefFoundError` 로 500 이 난다(2026-10-13 관리). 확인용 컴파일은 사본에서: `rsync -a --delete --exclude target backend/ /tmp/erp-compile-<모듈>/ && (cd /tmp/erp-compile-<모듈> && ./mvnw -o -q compile)`
   (무거운 명령 잠금 안). 진짜 `backend/` 컴파일은 재기동 잠금 안에서, 곧바로 재기동할 때만.
+- **스크립트로 파일을 고칠 때 읽기 전에 비우지 않는다.** `open(p,'w')` · `> 같은파일` · `sed ... > 같은파일` 처럼 출력 경로가 입력과 같으면
+  읽기 전에 파일이 비어, 그 파일의 **남의 미커밋 작업까지 되살릴 수 없게 사라진다**(2026-10-13 23:55 router.tsx · EcountLayout.tsx).
+  먼저 변수로 다 읽고 → 고치고 → 크기가 그럴듯한지 보고 → 쓴다. 가능하면 Edit 도구를 쓴다. 스크래치 파일 이름은 `<모듈>-` 을 붙여 남의 것과 겹치지 않게.
 - `.git/index.lock` 이 있다는 오류가 나면 남이 지금 git 을 쓰는 중이다. **lock 파일을 지우지 않고** 몇 초 뒤 다시 한다.
   `pgrep -x git` 이 비어 있는데도 1분 넘게 남아 있을 때만 지운다.
 - 커밋 제목은 `fix(<화면>): <무엇이 원본과 달랐나>` 처럼 문제가 보이게. 지금 체크아웃된 브랜치에 커밋하고 그 브랜치의 origin 으로 푸시한다. 푸시가 거절되면 `git pull --rebase` 후 다시.

@@ -8,6 +8,7 @@
 # 마이그레이션 없는 엔티티 · 이름 바뀐 옛 마이그레이션 사본). 그래서 서버는 HEAD 를 꺼낸 사본에서만 띄운다.
 # 내 백엔드 변경을 서버에서 보려면 **먼저 커밋**한다.
 #
+# 공유 개발 서버는 Flyway out-of-order 로 띄운다(본사 · 테넌트 둘 다) — 여럿이 받은 마이그레이션 번호의 커밋 차례가 엇갈려도 거절하지 않게.
 # 순서: 재기동 잠금 → HEAD 의 backend 를 새 폴더로 꺼냄 → 거기서 컴파일(실패하면 서버는 그대로 두고 끝)
 #       → 옛 서버를 내림 → 새 폴더에서 띄움 → 3분 안에 응답하는지 → 안 뜨면 직전 폴더로 되돌려 띄움.
 set -u
@@ -40,7 +41,7 @@ stop_server() {
 }
 
 start_from() {   # $1 = 폴더
-  (cd "$1" && nohup ./mvnw -o -q spring-boot:run > $LOG 2>&1 &) ; disown 2>/dev/null || true
+  (cd "$1" && nohup ./mvnw -o -q spring-boot:run -Dspring-boot.run.arguments=--spring.flyway.out-of-order=true > $LOG 2>&1 &) ; disown 2>/dev/null || true
   for _ in $(seq 1 36); do sleep 5; up && return 0; done
   return 1
 }
