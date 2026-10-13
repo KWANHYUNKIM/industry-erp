@@ -2020,6 +2020,8 @@ export interface PurchaseOrderLine {
   vatAmount: number
   /** 원본 조건 [적요]. 줄마다 붙는 메모다. */
   remark: string | null
+  /** 발주계획조회 [종결여부] — 이 줄을 종결했나(원본은 줄마다 닫는다). */
+  planClosed: boolean
 }
 
 export interface PurchaseOrder {
@@ -2051,6 +2053,8 @@ export interface PurchaseOrder {
   convertedPurchaseId: number | null
   remark: string | null
   createdBy: string | null
+  /** 원본 발주계획조회 [최종수정자]. */
+  updatedBy: string | null
   /** 원본 발주서조회 조건의 [최초작성일자]·[최종작업일자], 그리고 [기타]의 수정일자순(정렬). */
   createdAt: string | null
   updatedAt: string | null

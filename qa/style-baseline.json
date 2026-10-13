@@ -1145,8 +1145,8 @@
   "palette": 0
  },
  "pages/trade/PurchasePlanListPage.tsx": {
-  "inline": 4,
-  "color": 2,
+  "inline": 0,
+  "color": 1,
   "palette": 0
  },
  "pages/trade/PurchaseRequestListPage.tsx": {

@@ -78,6 +78,14 @@ public class PurchaseOrderController {
         return service.plan(id, req, principal.getUsername());
     }
 
+    /** 발주계획조회 격자 — 줄 하나의 수량 · 단가 · 종결여부. */
+    @PatchMapping("/{id}/lines/{lineId}/plan")
+    public PurchaseOrderResponse updatePlanLine(@PathVariable Long id, @PathVariable Long lineId,
+                                                @Valid @RequestBody PurchaseOrderDtos.PlanLineRequest req,
+                                                @AuthenticationPrincipal UserPrincipal principal) {
+        return service.updatePlanLine(id, lineId, req, principal.getUsername());
+    }
+
     /** 단가요청 회신 반영 */
     @PostMapping("/{id}/prices")
     public PurchaseOrderResponse applyPrices(@PathVariable Long id, @Valid @RequestBody ApplyPricesRequest req,

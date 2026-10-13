@@ -74,14 +74,14 @@
       ]
     },
     {
-      "name": "발주계획조회 — 계획 단계로 올린 발주서 1장이 건별 줄(수량 3.00 · 진행중)로 뜨고, 요청 단계의 것은 안 뜬다, 끝나면 지운다",
+      "name": "발주계획조회 — 계획 단계로 올린 발주서 1장이 건별 줄(수량 입력칸 3 · 종결여부 '종결' · 진행상태 '조회')로 뜨고, 요청 단계의 것은 안 뜬다, 끝나면 지운다",
       "path": "/sales/purchase-plans",
       "steps": [
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const ps=(await window.__api('GET','/partners')).body;const p=ps.find((x)=>x.type==='SUPPLIER'||x.type==='BOTH')||ps[0];const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const a=await window.__api('POST','/purchase-orders',{partnerId:p.id,orderDate:today,lines:[{itemId:it.id,quantity:3,unitPrice:1000}]});const b=await window.__api('POST','/purchase-orders',{partnerId:p.id,orderDate:today,lines:[{itemId:it.id,quantity:4,unitPrice:1000}]});const pl=await window.__api('POST','/purchase-orders/'+a.body.id+'/plan',{dueDate:today});sessionStorage.setItem('plA',a.body.id);sessionStorage.setItem('plANo',a.body.orderNo);sessionStorage.setItem('plB',b.body.id);sessionStorage.setItem('plBNo',b.body.orderNo);return a.status+'/'+b.status+'/'+pl.status})()",
         "click:검색(F8)",
         "wait:1500",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')];const a=tr.find((t)=>t.innerText.includes(sessionStorage.getItem('plANo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')));return h==='|일자-No.|거래처코드명|품목명|수량|단가|금액|부가세|합계|종결여부|진행상태'&&!!a&&a.cells[4].innerText.trim()==='3.00'&&a.cells[10].innerText.trim()==='진행중'&&!tr.some((t)=>t.innerText.includes(sessionStorage.getItem('plBNo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')))})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')];const a=tr.find((t)=>t.innerText.includes(sessionStorage.getItem('plANo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')));return h==='||일자-No.|거래처코드명|품목명|수량|단가|금액|부가세|합계|최종수정자|종결여부|진행상태'&&!!a&&a.cells[5].querySelector('input').value==='3'&&a.cells[11].innerText.trim()==='종결'&&a.cells[12].innerText.trim()==='조회'&&!tr.some((t)=>t.innerText.includes(sessionStorage.getItem('plBNo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')))})()",
         "js:(async()=>(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('plA'))).status+'/'+(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('plB'))).status)()"
       ]
     },

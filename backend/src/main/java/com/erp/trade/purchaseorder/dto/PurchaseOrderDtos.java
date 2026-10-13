@@ -46,7 +46,22 @@ public final class PurchaseOrderDtos {
             /* 원본 발주서의 [프로젝트]. 발주 시점에는 안 정했을 수 있어 필수가 아니다. */
             Long projectId,
             String currency,
-            @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
+            @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines,
+            /**
+             * 원본 메뉴 <b>발주계획입력</b>(E040316)에서 넣은 것 — 요청을 거치지 않고 바로 [발주계획] 단계로 만든다.
+             * 비우면 예전처럼 발주요청(REQUESTED)이다.
+             */
+            Boolean plan
+    ) {}
+
+    /**
+     * 발주계획조회 격자에서 그 줄을 바로 고친다(원본 C000076, 2026-10-13 실측) — 수량 · 단가 칸은 입력칸이고
+     * 칸을 벗어나면 저장된다. [종결여부] '종결' · 완료 탭의 '취소' 도 이 줄 하나만 바꾼다. 비운 값은 그대로 둔다.
+     */
+    public record PlanLineRequest(
+            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            Boolean closed
     ) {}
 
     /** 발주계획: 납기일 확정 */
@@ -84,7 +99,9 @@ public final class PurchaseOrderDtos {
              */
             ItemCategory itemCategory, String itemCategoryName,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
-            Long partnerId, String partnerName, String remark
+            Long partnerId, String partnerName, String remark,
+            /** 발주계획 [종결여부] — 이 줄을 종결했나. */
+            boolean planClosed
     ) {
         public static OrderLineResponse from(PurchaseOrderLine l) {
             return new OrderLineResponse(
@@ -96,7 +113,8 @@ public final class PurchaseOrderDtos {
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getPartner() != null ? l.getPartner().getId() : null,
                     l.getPartner() != null ? l.getPartner().getName() : null,
-                    l.getRemark());
+                    l.getRemark(),
+                    l.isPlanClosed());
         }
     }
 
@@ -124,6 +142,8 @@ public final class PurchaseOrderDtos {
             PurchaseOrderStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             Boolean taxable, Long convertedPurchaseId, String remark, String createdBy,
+            /** 원본 발주계획조회 [최종수정자]. */
+            String updatedBy,
             /**
              * 만든 때 · 고친 때. 원본 발주서조회 조건의 [최초작성일자] · [최종작업일자] 와
              * [기타] 의 <b>수정일자순(정렬)</b> 이 이 두 값을 본다. PurchaseOrder 는
@@ -149,6 +169,7 @@ public final class PurchaseOrderDtos {
                     po.getStatus(), po.getStatus().getDisplayName(),
                     po.getSupplyAmount(), po.getVatAmount(), po.getTotalAmount(),
                     po.getTaxable(), po.getConvertedPurchaseId(), po.getRemark(), po.getCreatedBy(),
+                    po.getUpdatedBy(),
                     po.getCreatedAt(), po.getUpdatedAt(),
                     po.getRequestProgress(),
                     po.getLines().stream().map(OrderLineResponse::from).toList());

@@ -40,12 +40,19 @@ const MIN_ROWS = 3
  * 단추줄 [저장(F8) ▴] · [저장/전표(F7)] · [다시 작성] · [리스트]. [저장(F8)] 은 저장하고 빈 화면으로(안내 없음),
  * ▴ 메뉴 '저장/전자결재 · 저장/내용유지 · 저장/신규', [저장/전표(F7)] 는 저장하고 '발주요청서' 인쇄창을 띄운 뒤 빈 화면,
  * [리스트] 는 발주요청조회로. 전자결재는 우리 결재가 발주요청을 안 받아 뺐다.
+ *
+ * <p><b>plan</b> 이면 '발주계획입력'(E040316, 2026-10-13 loginaa 실측)이다 — 칸은 같고 다른 것만: 머리 이름 [일자] · [입고될창고],
+ * 격자에 [합계] 열이 없고(공급가액 · 부가세까지), 툴바에 [발주요청] · [품목별안전재고] 가 끼고, 단추줄은 저장(F8) ▴ · 다시 작성 · 리스트
+ * (저장/전표가 없다). 저장하면 안내 없이 비우되 <b>입고될창고는 남긴다</b>. 입고될창고가 비면 그 칸만 빨갛게 — 요청과 같다.
+ * 서버에는 plan: true 로 보내 요청을 거치지 않고 바로 [발주계획] 단계가 된다.
  */
-export default function PurchaseRequestForm({ editing, page, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
+export default function PurchaseRequestForm({ editing, page, plan, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
   /** 고칠 발주요청. null 이면 신규. */
   editing: PurchaseOrder | null
   /** 창이 아니라 '발주요청입력' 화면으로 그린다. */
   page?: boolean
+  /** 발주계획입력 — 바로 계획 단계로 저장한다. */
+  plan?: boolean
   onClose?: () => void
   onSaved?: () => void
   onDeleted?: () => void
@@ -67,6 +74,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
   }, [])
 
   const isEdit = editing != null && editing.id > 0
+  const docName = plan ? '발주계획' : '발주요청'
   const [orderDate, setOrderDate] = useState(editing?.orderDate ?? today())
   const [dueDate, setDueDate] = useState(editing?.dueDate ?? today())
   const [employeeId, setEmployeeId] = useState(editing?.employeeId ? String(editing.employeeId) : '')
@@ -185,7 +193,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
     const win = after === 'print' ? openPrintWindow() : null
     if (filled.length === 0) {
       win?.close()
-      alert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n발주요청입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')
+      alert(`아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n${docName}입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       return
     }
     /* 원본: 창고가 비면 문구 없이 그 칸만 빨갛게 두르고 저장하지 않는다. */
@@ -206,6 +214,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
         unitPrice: l.unitPrice === '' ? null : Number(l.unitPrice),
         partnerId: l.partnerId ? Number(l.partnerId) : null,
       })),
+      plan: plan || undefined,
     }
     setSaving(true)
     try {
@@ -213,7 +222,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
         ? await api.put<PurchaseOrder>(`/purchase-orders/${editing!.id}`, body)
         : await api.post<PurchaseOrder>('/purchase-orders', body)).data
       if (after === 'print') await printDocuments([purchaseRequestDocument(saved)], win)
-      if (page) { if (after !== 'keep') reset() }
+      if (page) { if (after !== 'keep') reset(plan) }
       else onSaved?.()
     } catch (e) {
       win?.close()
@@ -225,7 +234,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
 
   async function remove() {
     if (!isEdit) return
-    if (!confirm('전표를 삭제하겠습니까?\n- 발주요청')) return
+    if (!confirm(`전표를 삭제하겠습니까?\n- ${docName}`)) return
     try {
       await api.delete(`/purchase-orders/${editing!.id}`)
       onDeleted?.()
@@ -234,8 +243,9 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
     }
   }
 
-  const reset = () => {
-    setOrderDate(today()); setDueDate(today()); setEmployeeId(''); setWarehouseId(''); setProjectId('')
+  /** 원본 발주계획입력은 저장 뒤 비울 때 입고될창고를 남긴다(2026-10-13 실측) — [다시 작성]은 다 비운다. */
+  const reset = (keepWarehouse = false) => {
+    setOrderDate(today()); setDueDate(today()); setEmployeeId(''); if (!keepWarehouse) setWarehouseId(''); setProjectId('')
     setCurrency('KRW'); setTaxable(true); setWhMissing(false); setLines(Array.from({ length: MIN_ROWS }, emptyLine)); setError('')
   }
 
@@ -243,7 +253,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
     <>
       <div className="ec-form mb-[8px] grid grid-cols-2 gap-x-[24px] gap-y-[6px] mobile:grid-cols-1">
         <label className="flex items-center gap-[8px]">
-          <span className="w-[93px] shrink-0 text-ec-label">일자-No.</span>
+          <span className="w-[93px] shrink-0 text-ec-label">{plan ? '일자' : '일자-No.'}</span>
           <input type="date" className="ec-input w-[150px]" value={orderDate} onChange={(e) => setOrderDate(e.target.value)}
             /* 원본 수정 창도 일자를 잠근다 — 번호가 일자에 묶여 있다. */
             disabled={isEdit} />
@@ -263,9 +273,9 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
           </select>
         </label>
         <div className="flex items-center gap-[8px]">
-          <span className="w-[93px] shrink-0 text-ec-label">창고</span>
+          <span className="w-[93px] shrink-0 text-ec-label">{plan ? '입고될창고' : '창고'}</span>
           <div className={`inline-block${whMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={whMissing || undefined}>
-            <CodePickerField label="창고" hideLabel width={240} emptyLabel="선택 안 함" placeholder="창고"
+            <CodePickerField label="창고" hideLabel width={240} emptyLabel="선택 안 함" placeholder={plan ? '입고될창고' : '창고'}
               value={warehouseId} onChange={(v) => { setWarehouseId(v); if (v) setWhMissing(false) }}
               items={pickers.warehouses} />
           </div>
@@ -295,8 +305,10 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => void applyMyItems()}>My품목</button>
         <button type="button" className="ec-btn ec-btn-sm" {...notYet('소요량계산 창은 아직 없습니다.')}>소요</button>
         <button type="button" className="ec-btn ec-btn-sm" {...notYet('주문서검색창은 아직 없습니다.')}>주문</button>
+        {plan && <button type="button" className="ec-btn ec-btn-sm" {...notYet('발주요청 불러오기 창은 아직 없습니다.')}>발주요청</button>}
         <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표불러오기 메뉴 창은 아직 없습니다.')}>전표불러오기</button>
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadStocks()}>재고불러오기</button>
+        {plan && <button type="button" className="ec-btn ec-btn-sm" {...notYet('품목별안전재고 불러오기는 아직 없습니다.')}>품목별안전재고</button>}
         <button type="button" className={`ec-btn ec-btn-sm${barcodeOn ? ' bg-[var(--ec-bg-tag)] border-[var(--ec-bg-tag)] text-ec-panel' : ''}`}
           onClick={() => setBarcodeOn((v) => !v)}>바코드</button>
         {barcodeOn && (
@@ -323,7 +335,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
             <th className="w-[100px] text-right">단가</th>
             <th className="w-[100px] text-right">공급가액</th>
             <th className="w-[80px] text-right">부가세</th>
-            <th className="w-[100px] text-right">합계</th>
+            {!plan && <th className="w-[100px] text-right">합계</th>}
           </tr>
         </thead>
         <tbody>
@@ -347,7 +359,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
               <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
               <td className="text-right">{l.itemId ? won(calc[i].supply) : ''}</td>
               <td className="text-right">{l.itemId ? won(calc[i].vat) : ''}</td>
-              <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>
+              {!plan && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
             </tr>
           ))}
         </tbody>
@@ -358,7 +370,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
             <td></td>
             <td className="text-right">{won(sum('supply'))}</td>
             <td className="text-right">{won(sum('vat'))}</td>
-            <td className="text-right">{won(sum('total'))}</td>
+            {!plan && <td className="text-right">{won(sum('total'))}</td>}
           </tr>
         </tfoot>
       </table>
@@ -369,12 +381,12 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
   if (page) {
     return (
       <form onSubmit={(e) => { e.preventDefault(); void save('new') }}>
-        <EcSlipShell title="발주요청입력"
+        <EcSlipShell title={`${docName}입력`}
           actions={[
             { label: '저장(F8)', primary: true, submit: true, disabled: saving,
               menu: [{ label: '저장/내용유지', onClick: () => void save('keep') }, { label: '저장/신규', onClick: () => void save('new') }] },
-            { label: '저장/전표(F7)', disabled: saving, onClick: () => void save('print') },
-            { label: '다시 작성', onClick: reset },
+            ...(plan ? [] : [{ label: '저장/전표(F7)', disabled: saving, onClick: () => void save('print') }]),
+            { label: '다시 작성', onClick: () => reset() },
             { label: '리스트', onClick: () => onList?.() },
           ]}>
           {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -385,12 +397,12 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
   }
 
   return (
-    <Modal open title={isEdit ? '발주요청입력(수정)' : '발주요청입력'} width={1040} onClose={() => onClose?.()} error={error}>
+    <Modal open title={isEdit ? `${docName}입력(수정)` : `${docName}입력`} width={1040} onClose={() => onClose?.()} error={error}>
       {body}
       {/* 원본 단추줄 — 신규: 저장(F8) · 저장/전표(F7) · 다시 작성 · 닫기 / 수정: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H */}
       <div className="mt-[10px] flex flex-wrap items-center gap-[4px]">
         <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={() => void save()}>{saving ? '저장 중…' : '저장(F8)'}</button>
-        <button type="button" className="ec-btn" disabled={saving} onClick={() => void save('print')}>저장/전표(F7)</button>
+        {!plan && <button type="button" className="ec-btn" disabled={saving} onClick={() => void save('print')}>저장/전표(F7)</button>}
         {isEdit ? <>
           <button type="button" className="ec-btn" onClick={() => onCopy?.(editing!)}>복사</button>
           <button type="button" className="ec-btn" onClick={() => onStep?.(1)}>이전</button>
@@ -398,7 +410,7 @@ export default function PurchaseRequestForm({ editing, page, onClose, onSaved, o
           <button type="button" className="ec-btn" onClick={() => onClose?.()}>닫기</button>
           <button type="button" className="ec-btn" onClick={remove}>삭제</button>
         </> : <>
-          <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>
+          <button type="button" className="ec-btn" onClick={() => reset()}>다시 작성</button>
           <button type="button" className="ec-btn" onClick={() => onClose?.()}>닫기</button>
         </>}
       </div>

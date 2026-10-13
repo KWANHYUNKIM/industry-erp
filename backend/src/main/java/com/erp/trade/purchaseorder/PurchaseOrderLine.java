@@ -53,6 +53,14 @@ public class PurchaseOrderLine {
     @Builder.Default
     private BigDecimal vatAmount = BigDecimal.ZERO;
 
+    /**
+     * 발주계획 [종결여부] — 원본 발주계획조회(C000076)는 계획을 <b>줄마다</b> 종결한다(2026-10-13 실측).
+     * 종결한 줄은 완료 탭으로 가고 주황 '취소' 로 되돌린다. 발주 흐름 상태(PurchaseOrderStatus)와 따로 간다.
+     */
+    @Column(name = "plan_closed", nullable = false)
+    @Builder.Default
+    private boolean planClosed = false;
+
     @Column(name = "line_no", nullable = false)
     @Builder.Default
     private Integer lineNo = 1;

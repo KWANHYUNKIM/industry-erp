@@ -17,6 +17,7 @@ import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.ApplyPricesRequest;
 import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.CreatePurchaseOrderRequest;
 import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.LinePriceRequest;
 import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.OrderLineRequest;
+import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.PlanLineRequest;
 import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.PlanRequest;
 import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.ReceiveRequest;
@@ -196,10 +197,12 @@ public class PurchaseOrderService {
                 .warehouse(warehouse)
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .currency(currency)
-                .status(PurchaseOrderStatus.REQUESTED)
+                /* 발주계획입력(E040316)에서 넣은 것은 요청을 거치지 않고 바로 계획이다. */
+                .status(Boolean.TRUE.equals(req.plan()) ? PurchaseOrderStatus.PLANNED : PurchaseOrderStatus.REQUESTED)
                 .taxable(req.taxable() == null || req.taxable())
                 .remark(req.remark())
                 .createdBy(username)
+                .updatedBy(username)
                 .build();
 
         for (OrderLineRequest lr : req.lines()) {
@@ -230,7 +233,10 @@ public class PurchaseOrderService {
     @Transactional
     public PurchaseOrderResponse update(Long id, CreatePurchaseOrderRequest req, String username) {
         PurchaseOrder po = get(id);
-        expect(po, PurchaseOrderStatus.REQUESTED, "발주요청 상태에서만 고칠 수 있습니다.");
+        /* 발주계획조회의 [일자-No.] 도 같은 창(발주계획입력 수정)으로 계획을 고친다 — 단가확정 이후는 다음 단계가 본다. */
+        if (po.getStatus() != PurchaseOrderStatus.REQUESTED && po.getStatus() != PurchaseOrderStatus.PLANNED) {
+            throw ApiException.badRequest("발주요청 · 발주계획 상태에서만 고칠 수 있습니다. (현재: " + po.getStatus().getDisplayName() + ")");
+        }
         BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!partner.getType().canBuy()) {
@@ -260,7 +266,32 @@ public class PurchaseOrderService {
                     .build());
         }
         recalculate(po);
+        po.setUpdatedBy(username);
         return PurchaseOrderResponse.from(orderRepository.save(po));
+    }
+
+    /**
+     * 발주계획조회 격자에서 줄 하나를 고친다(원본 C000076, 2026-10-13 실측).
+     *
+     * <p>수량 · 단가는 칸을 벗어나면 저장되고 금액 · 부가세 · 합계가 다시 계산된다. 발주로 넘어간 계획(발주확정 이후)은
+     * 이미 발주서가 그 값을 보고 있어 막는다. [종결여부] '종결' · 완료 탭 '취소' 는 그 줄만 닫고 연다 — 확인 창 없이 바로.
+     */
+    @Transactional
+    public PurchaseOrderResponse updatePlanLine(Long id, Long lineId, PlanLineRequest req, String username) {
+        PurchaseOrder po = get(id);
+        if (po.getStatus() != PurchaseOrderStatus.PLANNED && po.getStatus() != PurchaseOrderStatus.PRICED) {
+            throw ApiException.badRequest("발주계획 상태에서만 고칠 수 있습니다. (현재: " + po.getStatus().getDisplayName() + ")");
+        }
+        PurchaseOrderLine line = po.getLines().stream()
+                .filter(l -> l.getId().equals(lineId))
+                .findFirst()
+                .orElseThrow(() -> ApiException.badRequest("발주서 " + po.getOrderNo() + " 에 없는 라인입니다. lineId=" + lineId));
+        if (req.quantity() != null) line.setQuantity(req.quantity());
+        if (req.unitPrice() != null) line.setUnitPrice(req.unitPrice());
+        if (req.closed() != null) line.setPlanClosed(req.closed());
+        recalculate(po);
+        po.setUpdatedBy(username);
+        return PurchaseOrderResponse.from(po);
     }
 
     /** 발주계획 확정 (발주요청 → 발주계획). 납기일을 여기서 정한다. */
@@ -446,6 +477,8 @@ public class PurchaseOrderService {
      */
     private void trace(PurchaseOrder po, PurchaseOrderStatus from, PurchaseOrderStatus to,
                        String username, String note) {
+        /* 단계를 넘긴 사람도 [최종수정자] 다. */
+        if (username != null) po.setUpdatedBy(username);
         historyRepository.save(com.erp.trade.purchaseorder.PurchaseOrderHistory.builder()
                 .order(po)
                 .changedAt(java.time.LocalDateTime.now())

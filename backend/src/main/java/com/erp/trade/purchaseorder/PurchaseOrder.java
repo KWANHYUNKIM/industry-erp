@@ -122,6 +122,10 @@ public class PurchaseOrder extends BaseTimeEntity {
     @Column(name = "created_by", length = 50)
     private String createdBy;
 
+    /** 원본 발주계획조회 [최종수정자] — 만들 때는 만든 사람, 고칠 때마다 고친 사람. */
+    @Column(name = "updated_by", length = 50)
+    private String updatedBy;
+
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineNo asc")
     @Builder.Default

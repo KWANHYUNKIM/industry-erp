@@ -2086,11 +2086,11 @@
   "in": "backend"
  },
  "최종수정자": {
-  "claim": "거래 전표(판매·구매·출하 …)는 고친 사람을 남기지 않는다 — updatedBy 필드가 없다(고친 사람을 남기는 것은 수집데이터등록뿐이다)",
+  "claim": "판매 전표(그리고 구매·출하 …)는 고친 사람을 남기지 않는다 — updatedBy 필드가 없다. 남기는 것은 수집데이터등록과 발주서(발주계획조회 [최종수정자], 2026-10-13 purchase_orders.updated_by)뿐이다",
   "absent": [
    "updatedBy"
   ],
-  "in": "backend/src/main/java/com/erp/trade"
+  "in": "backend/src/main/java/com/erp/trade/sales"
  },
  "거래처등록|최초작성자": {
   "claim": "거래처 마스터에는 만든 사람을 남기지 않는다",
