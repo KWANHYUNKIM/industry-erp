@@ -74,7 +74,9 @@ export default function PayLedgerPage() {
         api.get<PayItem[]>('/pay-settings/items'),
         api.get<ConfirmRow[]>('/work-records/confirms', { params: { from: l.payMonth, to: l.payMonth } }),
       ])
-      setEmployees(e.data)
+      // 원본(2026-10-14 실측): 창에 오르는 사원은 [급여구분] 변동급뿐이다(고정급 천우석 · QA세무-퇴직은 없음,
+      // 새 사원을 변동급으로 바꾸자 바로 첫 줄에 나옴) — 사원번호 차례.
+      setEmployees(e.data.filter((x) => x.payType === 'VARIABLE').sort((a, b) => a.code.localeCompare(b.code)))
       setVarItems(it.data.filter((i) => i.active && i.kind === 'ALLOWANCE' && (i.payMethod === 'HOURLY' || i.payMethod === 'DAILY')))
       fill(rows.data)
     } catch (err) {
@@ -94,10 +96,12 @@ export default function PayLedgerPage() {
 
   async function saveConfirm() {
     if (!confirmFor) return
+    // [근무기록]은 고정급 사원의 근무도 불러오지만 창에 없는 사원은 저장하지 않는다(원본도 창에 보이는 줄만 확정).
+    const shown = new Set(employees.map((x) => x.id))
     const cells = [...grid.entries()].filter(([, v]) => v !== '' && Number(v) !== 0).map(([k, v]) => {
       const [employeeId, payItemId] = k.split('#').map(Number)
       return { employeeId, payItemId, quantity: Number(v) }
-    })
+    }).filter((c) => shown.has(c.employeeId))
     try {
       await api.put(`/work-records/confirms/${confirmFor.payMonth}`, cells)
       setConfirmFor(null)
@@ -333,6 +337,7 @@ export default function PayLedgerPage() {
             <table className="w-full whitespace-nowrap">
               <thead>
                 <tr>
+                  <th></th>
                   <th>사원번호</th>
                   <th>사원명</th>
                   <th>부서명</th>
@@ -340,8 +345,12 @@ export default function PayLedgerPage() {
                 </tr>
               </thead>
               <tbody>
-                {employees.map((e) => (
+                {employees.length === 0 && (
+                  <tr><td colSpan={4 + varItems.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                )}
+                {employees.map((e, n) => (
                   <tr key={e.id}>
+                    <td className="text-center">{n + 1}</td>
                     <td>{e.code}</td>
                     <td>{e.name}</td>
                     <td>{e.department}</td>
