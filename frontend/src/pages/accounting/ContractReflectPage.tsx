@@ -30,6 +30,19 @@ interface Group {
 }
 
 const num = (s: string) => Number(s) || 0
+/** 원본 적요 — 줄이 둘 이상이면 첫 줄 항목명 뒤에 ' 외 N건'(같은 항목이어도 줄 수로 센다, 2026-10-13 실측 '이카운트 사용료 외 1건'). */
+const more = (name: string, n: number) => (n > 1 ? `${name} 외 ${n - 1}건` : name)
+
+/** 줄 묶음 → 격자 한 줄(거래처). [일부반영] 은 고른 줄만으로 다시 만든다. */
+function groupOf(ls: BillLineView[]): Group {
+  const trade = ls.reduce((s, l) => s + Number(l.supplyAmount), 0)
+  const vat = ls.reduce((s, l) => s + Number(l.vatAmount), 0)
+  return {
+    partnerId: ls[0].partnerId, partnerCode: ls[0].partnerCode, partnerName: ls[0].partnerName, foreignCurrency: ls[0].foreignCurrency,
+    lines: ls, trade, adjust: '0', foreign: '0', rate: '0', supply: String(trade), vat: String(vat),
+    accountId: ls[0].salesAccountId != null ? String(ls[0].salesAccountId) : '', memo: more(ls[0].itemName, ls.length),
+  }
+}
 
 /**
  * 회계 II › 계약관리 › 회계반영 › <b>회계/판매일괄반영</b>(E060906) — 2026-10-13 loginaa 실측.
@@ -41,8 +54,13 @@ const num = (s: string) => Number(s) || 0
  * (거래처명 · 일자-No. · 계약명 · 항목명 · 매출계정 · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 적요).
  * 골라 [매출전표 I] → '회계/판매일괄반영' 창(전표일자 · 연결전표 없음 · 부서 · 프로젝트 · 부가세유형 · 거래처 · 공급가액 · 부가세 · 적요 ·
  * 매출계정 4049 제품매출 · 입금계좌 1089 외상매출금 · 수수료) [저장(F8)] → 매출전표 I 한 장, 그 거래처는 목록에서 빠진다.
- * <p>판매반영 격자: 거래처명 · 거래가액 · 내.외자구분 · 환율 · 외화금액 · 공급가액 · 부가세 · 합계 · 상세 — [부가세율 적용] · [판매전표 발행] 은
- * 원본에서 아직 눌러 보지 않아 두지 않는다. [일부반영] · 매출전표 II · 회계전표No. 지정도 아직 없다.
+ * <p>[일부반영](2026-10-13 QA회계2-청구거래처 청구 -4 · -5 로 실측): 거래처를 하나만 골라야 한다 — 아니면 '알림' 창
+ * '자료를 1개 선택 시에만 가능합니다.'. 고르면 '일괄회계반영' 창(매출 세금계산서 미청구 리스트)에 줄마다 □ 가 붙고, 고른 줄만
+ * [매출전표 I] 로 반영한다(-5 1 × 40,000 만 → 전표 공급가액 40,000 · 부가세 4,000 · 적요 '이카운트 사용료', 격자에는 -4 80,000 이 남음).
+ * 격자 적요는 줄이 둘 이상이면 '이카운트 사용료 외 1건'.
+ * <p>판매반영 격자: 거래처명 · 거래가액 · 내.외자구분 · 환율 · 외화금액 · 공급가액 · 부가세 · 합계 · 상세 — 원본에서 QA 계약(계약항목 '이카운트 사용료')
+ * 청구자료가 판매반영에는 나오지 않아 [부가세율 적용] · [판매전표 발행] 은 아직 못 눌렀다. 고른 줄 위의 [공급가액계산 ▾ · 계산방법 선택 ▾ · 적용],
+ * 매출전표 II · 회계전표No. 지정도 아직 없다.
  */
 export default function ContractReflectPage() {
   // 원본 기본: 전월 1일 ~ 오늘(2026/09/01 ~ 2026/10/13 실측). '전월+금월' 버튼은 끝이 이번 달 말일이라 끝만 오늘로.
@@ -57,6 +75,10 @@ export default function ContractReflectPage() {
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<Group | null>(null)
+  // [일부반영] — 상세 창에 □ 를 붙여 고른 줄만 반영한다
+  const [partial, setPartial] = useState(false)
+  const [linePick, setLinePick] = useState<Set<number>>(new Set())
+  const [notice, setNotice] = useState('')
   // [매출전표 I] 창 — 고른 거래처를 하나씩
   const [queue, setQueue] = useState<Group[]>([])
   const [slip, setSlip] = useState<null | {
@@ -88,15 +110,7 @@ export default function ContractReflectPage() {
   useEffect(() => {
     const m = new Map<number, BillLineView[]>()
     shown.forEach((r) => m.set(r.partnerId, [...(m.get(r.partnerId) ?? []), r]))
-    setGroups([...m.values()].map((ls) => {
-      const trade = ls.reduce((s, l) => s + Number(l.supplyAmount), 0)
-      const vat = ls.reduce((s, l) => s + Number(l.vatAmount), 0)
-      return {
-        partnerId: ls[0].partnerId, partnerCode: ls[0].partnerCode, partnerName: ls[0].partnerName, foreignCurrency: ls[0].foreignCurrency,
-        lines: ls, trade, adjust: '0', foreign: '0', rate: '0', supply: String(trade), vat: String(vat),
-        accountId: ls[0].salesAccountId != null ? String(ls[0].salesAccountId) : '', memo: ls[0].itemName,
-      }
-    }))
+    setGroups([...m.values()].map(groupOf))
     setPicked(new Set())
   }, [shown])
 
@@ -244,15 +258,26 @@ export default function ContractReflectPage() {
             {VAT_TYPES.map((v) => <option key={v}>{v}</option>)}
           </select>
           <button type="button" className="ec-btn ec-btn-primary" disabled={pickedGroups.length === 0} onClick={() => startReflect(pickedGroups)}>매출전표 I</button>
+          <button type="button" className="ec-btn" onClick={() => {
+            if (pickedGroups.length !== 1) { setNotice('자료를 1개 선택 시에만 가능합니다.'); return }
+            setPartial(true); setLinePick(new Set()); setDetail(pickedGroups[0])
+          }}>일부반영</button>
         </div>
       )}
 
-      <Modal open={detail != null} title="일괄회계반영" width={980} error={error} onClose={() => setDetail(null)}>
+      <Modal open={!!notice} error={error} title="알림" width={420} onClose={() => setNotice('')}>
+        <p className="text-[12px] mb-[12px]">{notice}</p>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => setNotice('')}>확인</button>
+      </Modal>
+
+      <Modal open={detail != null} title="일괄회계반영" width={980} error={error} onClose={() => { setDetail(null); setPartial(false) }}>
         {detail && <>
           <EcReportHead title={`매출 ${filter.vatType || '세금계산서'} 미청구 리스트`} period={reportPeriod(from, to)} sub={detail.partnerName} />
           <table className="ec-report w-full">
             <thead>
               <tr>
+                {partial && <th className="w-[25px]"><input type="checkbox" aria-label="전체 선택" checked={detail.lines.every((l) => linePick.has(l.lineId))}
+                  onChange={(e) => setLinePick(e.target.checked ? new Set(detail.lines.map((l) => l.lineId)) : new Set())} /></th>}
                 <th>거래처명</th><th className="text-center">일자-No.</th><th>계약명</th><th>항목명</th><th>매출계정</th>
                 <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th>
                 <th className="text-right">부가세</th><th className="text-right">합계</th><th>적요</th>
@@ -261,6 +286,8 @@ export default function ContractReflectPage() {
             <tbody>
               {detail.lines.map((l) => (
                 <tr key={l.lineId}>
+                  {partial && <td className="text-center"><input type="checkbox" aria-label={`${dateText(l.billDate)} -${l.billDocNo} 선택`} checked={linePick.has(l.lineId)}
+                    onChange={() => setLinePick((p) => { const n = new Set(p); if (n.has(l.lineId)) n.delete(l.lineId); else n.add(l.lineId); return n })} /></td>}
                   <td>{l.partnerName}</td>
                   <td className="text-center">{dateText(l.billDate)} -{l.billDocNo}</td>
                   <td>{l.contractName ?? ''}</td>
@@ -275,6 +302,7 @@ export default function ContractReflectPage() {
                 </tr>
               ))}
               <tr className="ec-total">
+                {partial && <td />}
                 <td colSpan={5} className="text-center">합계</td>
                 <td className="text-right">{won(detail.lines.reduce((s, l) => s + Number(l.quantity), 0))}</td>
                 <td className="text-right">{won(detail.lines.reduce((s, l) => s + Number(l.unitPrice), 0))}</td>
@@ -287,8 +315,11 @@ export default function ContractReflectPage() {
           </table>
           <EcReportFoot />
           <div className="flex gap-[5px] mt-[8px]">
-            {kind === 'acct' && <button type="button" className="ec-btn ec-btn-primary" onClick={() => { const g = detail; setDetail(null); startReflect([g]) }}>매출전표 I</button>}
-            <button type="button" className="ec-btn" onClick={() => setDetail(null)}>닫기</button>
+            {kind === 'acct' && <button type="button" className="ec-btn ec-btn-primary" disabled={partial && linePick.size === 0} onClick={() => {
+              const g = partial ? groupOf(detail.lines.filter((l) => linePick.has(l.lineId))) : detail
+              setDetail(null); setPartial(false); startReflect([g])
+            }}>매출전표 I</button>}
+            <button type="button" className="ec-btn" onClick={() => { setDetail(null); setPartial(false) }}>닫기</button>
           </div>
         </>}
       </Modal>
