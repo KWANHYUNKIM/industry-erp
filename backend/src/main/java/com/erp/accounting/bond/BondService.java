@@ -82,15 +82,16 @@ public class BondService {
      */
     @Transactional
     public BondEntryResponse createDepositReport(BondSide side, DepositReportRequest req, String username) {
-        if (side != BondSide.RECEIVABLE) {
-            throw ApiException.badRequest("입금보고서는 채권에서만 만들 수 있습니다.");
-        }
+        /* 채무감소등록 [지출결의서작성](2026-10-13 loginaa 실측)이 거울이다: QA2P001 잔액 50,000 에서 20,000 을 기업은행-1122 로 내니
+           지출결의서(돈 나간 계좌 기업은행-1122 · 계정코드(차변) 2519 외상매입금 · (주)구로) 회계전표 2026/10/13 -21 과
+           채무 감소 2026/10/13 -2(출처업무 지출결의서)가 함께 생겨 잔액 30,000. */
+        FastVoucherType type = side == BondSide.RECEIVABLE ? FastVoucherType.DEPOSIT_REPORT : FastVoucherType.EXPENSE_REPORT;
         boolean cash = Boolean.TRUE.equals(req.cash()) || req.bankAccountId() == null;
         List<LineInput> vLines = req.lines().stream().map(l -> new LineInput(
                 l.accountId(), l.amount(), blankToNull(l.memo()),
                 cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null, l.partnerId(), null, null)).toList();
         VoucherResponse v = fastVoucherService.create(new CreateVoucherRequest(
-                FastVoucherType.DEPOSIT_REPORT, req.date(), PaymentMethod.CASH, null, null, null, vLines,
+                type, req.date(), PaymentMethod.CASH, null, null, null, vLines,
                 blankToNull(req.description()), null, null, null, null, null, null, null, null, null), username);
 
         int no = entryRepository.maxEntryNo(side, req.date()) + 1;

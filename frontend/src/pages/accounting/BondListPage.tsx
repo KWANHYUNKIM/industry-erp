@@ -100,7 +100,7 @@ export default function BondListPage({ side }: { side: BondSide }) {
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [shown.length])
 
-  const sources = [...new Set([source, ...(side === 'RECEIVABLE' ? ['입금보고서'] : []), ...rows.map((r) => r.sourceName)])]
+  const sources = [...new Set([source, side === 'RECEIVABLE' ? '입금보고서' : '지출결의서', ...rows.map((r) => r.sourceName)])]
     .map((s) => ({ value: s, name: s }))
 
   /** [선택삭제] — 연결 장이 끼어 있으면 먼저 '제외됩니다' 알림, 아니면 '전표를 삭제하겠습니까?'. */

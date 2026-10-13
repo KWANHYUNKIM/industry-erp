@@ -41,7 +41,7 @@ public class BondController {
         return service.create(req, principal.getUsername());
     }
 
-    /** 채권감소등록 [입금보고서작성] → 입금보고서 [저장] — 회계전표 + 연결된 채권 감소 한 장. */
+    /** 채권감소등록 [입금보고서작성] → 입금보고서 · 채무감소등록 [지출결의서작성] → 지출결의서 [저장] — 회계전표 + 연결된 감소 한 장. */
     @PostMapping("/deposit-report")
     public BondEntryResponse depositReport(@RequestParam BondSide side, @Valid @RequestBody DepositReportRequest req,
                                            @AuthenticationPrincipal UserPrincipal principal) {

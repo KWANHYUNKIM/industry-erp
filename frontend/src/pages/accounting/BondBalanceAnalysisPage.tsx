@@ -53,9 +53,14 @@ interface Row {
  * <p>2026-10-13 다시 잼: 격자는 출력물(.ec-report)이 아니라 <b>조회 목록 격자(table-list)</b> — 머리 700 · 33.8(두 줄 다 가운데),
  * 줄 28.4. '{담당} 계' · '총합계' 줄은 이름이 <b>네 칸</b>(담당자코드 ~ 거래처명)을 차지하고 700 · 바탕 247.
  * [미회수월수] 는 오른쪽, [거래처코드] 는 링크(남색) → 그 거래처 · 계정으로 연 '채권현황' 창.
+ *
+ * <p><b>채무잔액분석표</b>(E060508, 2026-10-13 실측)는 [여신한도] 열이 없고 [미회수월수] 대신 [미지급월수], 계 · 총합계 이름은
+ * 계정명까지 <b>다섯 칸</b>이다. (주)구로 2016 발생 2,000,000 + 2026/10 30,000 → 잔액 2,030,000 · '12 개월초과' · 2026/10 30,000 · 기타 2,000,000.
  */
 export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
   const word = sideWord(side)
+  /** 채무잔액분석표(E060508)는 [여신한도] 열이 없고 [미회수월수] 가 [미지급월수] 다. */
+  const ar = side === 'RECEIVABLE'
   const title = `${word}잔액분석표`
   const masters = useBondMasters()
   const navigate = useNavigate()
@@ -144,8 +149,10 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
 
   const sumRow = (key: string, label: string, s: ReturnType<typeof sum>) => (
     <tr key={key} className="ec-list-total [&_td]:!font-bold">
-      <td colSpan={4} className="text-center">{label}</td>
-      <td className="text-center" /><td className="text-center" />
+      {/* 채권은 이름 네 칸 + 여신한도 · 계정명 빈칸, 채무는 여신한도가 없고 이름이 계정명까지 다섯 칸(2026-10-13 실측). */}
+      {ar
+        ? <><td colSpan={4} className="text-center">{label}</td><td className="text-center" /><td className="text-center" /></>
+        : <td colSpan={5} className="text-center">{label}</td>}
       <td className="text-right">{won(s.balance)}</td>
       <td className="text-center" />
       {s.aging.map((n, i) => <td key={`a${i}`} className="text-right">{cell(n)}</td>)}
@@ -194,10 +201,10 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
               <th rowSpan={2}>담당자명</th>
               <th rowSpan={2}>거래처코드</th>
               <th rowSpan={2}>거래처명</th>
-              <th rowSpan={2} className="text-right">여신한도</th>
+              {ar && <th rowSpan={2} className="text-right">여신한도</th>}
               <th rowSpan={2}>계정명</th>
               <th rowSpan={2} className="text-right">잔액</th>
-              <th rowSpan={2}>미회수월수</th>
+              <th rowSpan={2}>{ar ? '미회수월수' : '미지급월수'}</th>
               <th colSpan={7} className="text-center">{word}잔액현황</th>
               <th colSpan={7} className="text-center">만기일자별현황</th>
               <th rowSpan={2}>모바일</th>
@@ -212,9 +219,9 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={24} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={ar ? 24 : 23} className="ec-empty">불러오는 중…</td></tr>
             ) : groups.length === 0 ? (
-              <tr><td colSpan={24} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={ar ? 24 : 23} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : groups.flatMap((g) => [
               ...g.rows.map((r) => (
                 <tr key={r.key}>
@@ -227,7 +234,7 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
                     </button>
                   </td>
                   <td>{r.partnerName}</td>
-                  <td className="text-right">{r.creditLimit ? won(r.creditLimit) : ''}</td>
+                  {ar && <td className="text-right">{r.creditLimit ? won(r.creditLimit) : ''}</td>}
                   <td>{r.accountName}</td>
                   <td className="text-right">{won(r.balance)}</td>
                   <td className="text-right">{r.months > 12 ? '12 개월초과' : String(r.months)}</td>
