@@ -43,7 +43,8 @@ interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string
  * 계 · 누계 건수는 합친 수(2026-10-14 실측). 라디오를 누르면 곧바로 조회된다.
  *
  * <p>[일자-No.] 의 No. 는 회계전표 번호가 아니라 그날 부가세 전표의 일련(매출 · 매입 한 줄로, utils/vatSlip bookSerials),
- * [세부내역]은 적요가 아니라 [세부내역] 창의 품명 요약(vatDetailSummary — 없으면 빈칸). 2026-10-14 실측.
+ * [세부내역]은 [세부내역] 창의 품명 요약(vatDetailSummary 'LED PCB 외 2건'), 품명이 없으면 적요(원본 26/10/14 '적요 QA회계1 장부A' 전표가
+ * 장에 'QA회계1 장부A'), 적요도 없으면 빈칸. 2026-10-14 실측. 원본은 처음 저장 뒤 수정 창에서 넣은 적요는 장에 안 따라왔다(남은 것).
  *
  * <p>부가세 줄(매출 255 · 매입 135)이 든 회계전표가 한 줄이다. 공급가액은 부가세 줄을 뺀 그쪽(매출은 대변 · 매입은 차변) 합.
  * 유형명은 회계전표의 부가세유형(없으면 세금계산서), 전자구분은 전자종류의 줄임(2026-10-13 실측 '전자-신' — utils/vatSlip eKindShort). [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
@@ -127,7 +128,7 @@ export default function VatBookPage() {
         const ve = e as JournalEntry & { vatType?: string | null; eInvoiceKind?: string | null; vatDetail?: { items?: { name?: string | null }[] | null } | null }
         const row: Row = { key: `${e.id}${side}`, side, date: e.entryDate, no: 0, ord: e.id, kindName: ve.vatType?.trim() || KIND_NAME,
           eKind: eKindShort(side === '매출', ve.vatType, ve.eInvoiceKind), partnerId: e.partnerId, partner: e.partnerName ?? '',
-          text: vatDetailSummary(ve.vatDetail?.items), supply, vat }
+          text: vatDetailSummary(ve.vatDetail?.items) || (e.description ?? ''), supply, vat }
         out.push(row)
         if (shown) keep.add(row)
       }

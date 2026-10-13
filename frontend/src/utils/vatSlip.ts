@@ -108,7 +108,7 @@ export function eKindShort(sales: boolean, vatType: string | null | undefined, e
 
 /**
  * 매입/매출장 [세부내역] — 전표 [세부내역] 창의 품명 요약(2026-10-14 loginaa 매입/매출장 'LED PCB 외 2건').
- * 첫 품명 + ' 외 n건'(품명이 하나면 그것만), 품명이 없으면 빈칸. 적요는 여기 오지 않는다.
+ * 첫 품명 + ' 외 n건'(품명이 하나면 그것만), 품명이 없으면 빈칸 — 그때 장은 적요를 찍는다(VatBookPage).
  */
 export function vatDetailSummary(items: { name?: string | null }[] | null | undefined): string {
   const names = (items ?? []).map((i) => i.name?.trim() ?? '').filter(Boolean)
