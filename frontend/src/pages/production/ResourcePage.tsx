@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 생산관리 > 자원등록.
@@ -111,12 +112,12 @@ export default function ResourcePage() {
   }
 
   async function remove(r: ProductionResource) {
-    if (!confirm(`자원 '${r.name}'을(를) 삭제할까요?`)) return
+    if (!(await ecConfirm(`자원 '${r.name}'을(를) 삭제할까요?`))) return
     try {
       await api.delete(`/resources/${r.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

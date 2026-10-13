@@ -14,6 +14,7 @@ import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesor
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item, Production, ProductionEntryType, ProductionMaterial, Warehouse, WorkOrder } from '../../types/api'
 import { subcontractCost, subcontractVat } from '../../utils/subcontractCost'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 원본(이카운트) <b>생산입고 I · II · III</b> 입력 화면. 셋은 뼈대가 같고 소모를 정하는 법만 다르다.
@@ -430,7 +431,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   }
 
   async function removeSlip() {
-    if (!editNo || !window.confirm(`${editNo} 전표를 삭제합니다. 재고와 작업지시 진척이 되돌아갑니다.`)) return
+    if (!editNo || !(await ecConfirm(`${editNo} 전표를 삭제합니다. 재고와 작업지시 진척이 되돌아갑니다.`))) return
     try {
       await api.delete(`/productions/slips/${encodeURIComponent(editNo)}`)
       navigate('/production/receipt-inquiry')

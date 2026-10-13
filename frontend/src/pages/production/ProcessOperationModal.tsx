@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 작업코드등록 — 원본 공정등록의 [작업코드등록] 버튼이 여는 자리.
@@ -66,12 +67,12 @@ export default function ProcessOperationModal({ processes, onClose }: {
   }
 
   async function remove(r: Row) {
-    if (!confirm(`작업코드 '${r.code} ${r.name}' 을(를) 삭제할까요?`)) return
+    if (!(await ecConfirm(`작업코드 '${r.code} ${r.name}' 을(를) 삭제할까요?`))) return
     try {
       await api.delete(`/process-operations/${r.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

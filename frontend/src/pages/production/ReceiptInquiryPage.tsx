@@ -9,6 +9,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { printDocuments } from '../../utils/printDocument'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 생산관리 > 생산입고조회 — 완제품 생산입고 내역 조회 (/api/productions 연동).
@@ -206,7 +207,7 @@ export default function ReceiptInquiryPage() {
   async function removeChecked() {
     const targets = shown.filter((x) => checked.has(x.id))
     if (targets.length === 0) { setError('지울 줄을 고르세요.'); return }
-    if (!confirm(`고른 ${targets.length}건을 삭제할까요? 생산으로 늘었던 완제품과 줄었던 자재가 되돌아갑니다.`)) return
+    if (!(await ecConfirm(`고른 ${targets.length}건을 삭제할까요? 생산으로 늘었던 완제품과 줄었던 자재가 되돌아갑니다.`))) return
     setError('')
     const results = await Promise.allSettled(targets.map((x) => api.delete(`/productions/${x.id}`)))
     const failed = results.filter((x) => x.status === 'rejected').length

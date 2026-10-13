@@ -9,6 +9,7 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 생산관리 > 작업 > 작업내역조회 (/api/work-results).
@@ -190,7 +191,7 @@ export default function WorkResultInquiryPage() {
 
   async function removeChecked() {
     if (checked.size === 0) return setError('지울 작업내역을 고르세요.')
-    if (!confirm(`${checked.size}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`${checked.size}건을 삭제할까요?`))) return
     setError('')
     try {
       for (const id of checked) await api.delete(`/work-results/${id}`)

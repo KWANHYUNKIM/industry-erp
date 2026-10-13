@@ -11,6 +11,7 @@ import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { downloadStoredFile } from '../../utils/fileDownload'
 import type { Item, Warehouse, WorkOrder } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 I &gt; 생산/외주 &gt; <b>작업지시서입력</b>.
@@ -222,7 +223,7 @@ export default function WorkOrderEntryPage() {
   }
 
   async function removeSlip() {
-    if (!editNo || !window.confirm(`${editNo} 작업지시서를 삭제합니다.`)) return
+    if (!editNo || !(await ecConfirm(`${editNo} 작업지시서를 삭제합니다.`))) return
     try {
       await api.delete(`/work-orders/slips/${encodeURIComponent(editNo)}`)
       navigate('/production/work-orders')

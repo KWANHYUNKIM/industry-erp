@@ -5,6 +5,7 @@ import type { Bom, Item } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const inputCls = 'ec-input'
 
@@ -139,12 +140,12 @@ export default function BomPage() {
   }
 
   async function remove(b: Bom) {
-    if (!confirm(`'${b.productName}' BOM을 삭제할까요?`)) return
+    if (!(await ecConfirm(`'${b.productName}' BOM을 삭제할까요?`))) return
     try {
       await api.delete(`/boms/${b.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

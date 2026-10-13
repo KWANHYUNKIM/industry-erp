@@ -14,6 +14,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { printDocuments } from '../../utils/printDocument'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { ecConfirm } from '../../components/EcDialog'
 
 
 /**
@@ -115,7 +116,7 @@ export default function WorkOrderPage() {
   async function removeChecked() {
     const nos = [...new Set(orders.filter((x) => checked.has(x.id)).map((x) => x.orderNo))]
     if (nos.length === 0) { setError('지울 작업지시서를 고르세요.'); return }
-    if (!confirm(`고른 작업지시서 ${nos.length}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`고른 작업지시서 ${nos.length}건을 삭제할까요?`))) return
     setError('')
     const results = await Promise.allSettled(nos.map((no) => api.delete(`/work-orders/slips/${encodeURIComponent(no)}`)))
     const failed = results.flatMap((r) => (r.status === 'rejected' ? [extractErrorMessage(r.reason)] : []))

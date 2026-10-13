@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 type PlanStatus = 'REVIEW' | 'CONFIRMED' | 'ORDERED'
 const COLOR: Record<PlanStatus, string> = { REVIEW: 'var(--ec-warn)', CONFIRMED: 'var(--ec-blue)', ORDERED: 'var(--ec-success)' }
@@ -59,12 +60,12 @@ export default function PlanningPage() {
 
   async function confirmPlan(p: Plan) {
     try { await api.patch(`/production-plans/${p.id}/status`, { status: 'CONFIRMED' }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   async function makeWorkOrder(p: Plan) {
-    if (!window.confirm(`${p.productName} ${p.planQty} 작업지시를 생성할까요?`)) return
+    if (!(await ecConfirm(`${p.productName} ${p.planQty} 작업지시를 생성할까요?`))) return
     try { const res = await api.post<Plan>(`/production-plans/${p.id}/work-order`); setOk(`작업지시 ${res.data.workOrderNo} 생성 완료`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const shown = plans.filter((p) => !keyword || p.productName.includes(keyword) || p.planWeek.includes(keyword))

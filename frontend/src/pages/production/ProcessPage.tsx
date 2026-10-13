@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import ProcessOperationModal from './ProcessOperationModal'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 생산관리 > 공정등록 — 생산 공정 마스터 (백엔드 /api/processes 연동) */
 interface ProductionProcess {
@@ -129,12 +130,12 @@ export default function ProcessPage() {
   }
 
   async function remove(p: ProductionProcess) {
-    if (!confirm(`공정 '${p.name}'을(를) 삭제할까요?`)) return
+    if (!(await ecConfirm(`공정 '${p.name}'을(를) 삭제할까요?`))) return
     try {
       await api.delete(`/processes/${p.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

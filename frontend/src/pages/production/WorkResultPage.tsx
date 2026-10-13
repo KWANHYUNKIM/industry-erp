@@ -9,6 +9,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 생산관리 > 작업 > 작업내역입력 (/api/work-results).
@@ -207,7 +208,7 @@ export default function WorkResultPage() {
   }
   async function linkSlip() {
     if (linked) return void openLinked()
-    if (!window.confirm('연결전표를 생성하려면 먼저 저장해야 합니다.\n계속 진행하겠습니까?')) return
+    if (!(await ecConfirm('연결전표를 생성하려면 먼저 저장해야 합니다.\n계속 진행하겠습니까?'))) return
     const saved = await save()
     if (saved) await openLinked(saved)
   }
@@ -266,12 +267,12 @@ export default function WorkResultPage() {
   }
 
   async function remove(r: WorkResult) {
-    if (!confirm(`'${r.process}' 작업내역을 삭제할까요?`)) return
+    if (!(await ecConfirm(`'${r.process}' 작업내역을 삭제할까요?`))) return
     try {
       await api.delete(`/work-results/${r.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 생산관리 > 생산계획/MRP생성 — 주차별 소요량 대비 계획수량 (/api/production-plans).
@@ -122,7 +123,7 @@ export default function MrpPage() {
    * 현장으로 나간다.
    */
   async function makeWorkOrder(r: Row) {
-    if (!window.confirm(`${r.productName} ${r.planQty} 작업지시를 생성할까요?`)) return
+    if (!(await ecConfirm(`${r.productName} ${r.planQty} 작업지시를 생성할까요?`))) return
     setError(''); setOk('')
     try {
       const res = await api.post<Row>(`/production-plans/${r.id}/work-order`)
@@ -580,7 +581,7 @@ function MrpRunList({ onMessage, onError }: { onMessage: (m: string) => void; on
 
   async function generate(r: MrpRun, kind: 'PLAN' | 'MRP') {
     const done = kind === 'PLAN' ? r.planGeneratedAt : r.mrpGeneratedAt
-    if (done && !window.confirm('생성처리를 하겠습니까?\n\n기존에 수정된 내역이 있다면 수정내역이 모두 사라지고 새롭게 계산됩니다.\n\n생성 후에는 이전으로 복구되지 않습니다.')) return
+    if (done && !(await ecConfirm('생성처리를 하겠습니까?\n\n기존에 수정된 내역이 있다면 수정내역이 모두 사라지고 새롭게 계산됩니다.\n\n생성 후에는 이전으로 복구되지 않습니다.'))) return
     try {
       const res = await api.post<MrpRunLine[]>(`/mrp-runs/${r.id}/generate`, null, { params: { kind } })
       const n = res.data.filter((l) => Number(l.planQty) > 0).length
@@ -711,7 +712,7 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
     }
   }
   async function remove() {
-    if (!run || !window.confirm(`${runLabel(run)} 을(를) 지울까요? 저장된 계산도 함께 지워집니다.`)) return
+    if (!run || !(await ecConfirm(`${runLabel(run)} 을(를) 지울까요? 저장된 계산도 함께 지워집니다.`))) return
     try {
       await api.delete(`/mrp-runs/${run.id}`)
       onSaved(`${runLabel(run)} 지웠습니다.`)

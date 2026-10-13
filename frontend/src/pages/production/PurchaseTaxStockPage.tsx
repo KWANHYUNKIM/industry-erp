@@ -10,6 +10,7 @@ import EcPeriodPicks, { AS_PICKS, SALES_TAX_LIST_PICKS, SALES_TAX_STOCK_PICKS, p
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface JournalLine { accountCode: string; accountName: string; debit: number; credit: number; description: string | null }
 interface Journal {
@@ -133,7 +134,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
   /** 원본 [선택삭제]. 구매 · 판매에서 온 전표는 회계반영 취소로만 지워진다 — 서버가 막으면 그 까닭을 보인다. */
   async function removeChecked() {
     if (picked.length === 0) return
-    if (!confirm('선택한 전표를 삭제 하겠습니까?')) return
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     const results = await deleteJournals(picked.map((x) => x.id))
     const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
     setChecked(new Set())

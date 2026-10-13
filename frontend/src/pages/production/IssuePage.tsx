@@ -12,6 +12,7 @@ import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import SlipLoadModal, { type LoadedSlip } from '../../features/slipload/components/SlipLoadModal'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
 /** 원본 탭 [전체 · 결재중 · 미확인 · 확인] — 진행상태. */
@@ -417,12 +418,12 @@ export default function IssuePage() {
   }
 
   async function remove(r: MaterialIssue) {
-    if (!confirm(`'${r.itemName}' 불출내역을 삭제할까요?`)) return
+    if (!(await ecConfirm(`'${r.itemName}' 불출내역을 삭제할까요?`))) return
     try {
       await api.delete(`/material-issues/${r.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
@@ -430,7 +431,7 @@ export default function IssuePage() {
   async function removeChecked() {
     const targets = shown.filter((r) => checked.has(r.id))
     if (targets.length === 0) { setError('지울 불출내역을 고르세요.'); return }
-    if (!confirm(`고른 ${targets.length}건을 삭제할까요? 옮겼던 재고도 되돌아갑니다.`)) return
+    if (!(await ecConfirm(`고른 ${targets.length}건을 삭제할까요? 옮겼던 재고도 되돌아갑니다.`))) return
     setError('')
     const results = await Promise.allSettled(targets.map((r) => api.delete(`/material-issues/${r.id}`)))
     const failed = results.filter((x) => x.status === 'rejected').length

@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 생산관리 > BOR(작업소요시간).
@@ -145,12 +146,12 @@ export default function BorPage() {
   }
 
   async function remove(r: BorRow) {
-    if (!confirm(`[${r.productName}] ${r.seq}. ${r.workName} 을(를) 삭제할까요?`)) return
+    if (!(await ecConfirm(`[${r.productName}] ${r.seq}. ${r.workName} 을(를) 삭제할까요?`))) return
     try {
       await api.delete(`/bor/${r.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
