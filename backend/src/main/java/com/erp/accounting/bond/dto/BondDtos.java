@@ -1,5 +1,8 @@
 package com.erp.accounting.bond.dto;
 
+import com.erp.accounting.fastvoucher.FastVoucher;
+import com.erp.accounting.journal.JournalEntry;
+
 import com.erp.accounting.bond.BondDirection;
 import com.erp.accounting.bond.BondEntry;
 import com.erp.accounting.bond.BondLine;
@@ -70,14 +73,49 @@ public final class BondDtos {
             Long id, BondSide side, LocalDate entryDate, Integer entryNo,
             BondDirection direction, String directionName,
             String createdBy, String updatedBy,
-            List<LineResponse> lines
+            List<LineResponse> lines,
+            /** 원본 [출처업무] — '채권내역'(직접 입력) · '입금보고서'(채권감소등록 [입금보고서작성]). */
+            String sourceName,
+            /** 연결된 입금보고서 · 그 회계전표 — 원본 [회계일자-No.] 칸. 직접 넣은 장은 모두 비어 있다. */
+            Long sourceVoucherId, Long journalEntryId, LocalDate journalDate, String journalDocNo
     ) {
         public static BondEntryResponse from(BondEntry e) {
+            FastVoucher v = e.getSourceVoucher();
+            JournalEntry j = v != null ? v.getJournalEntry() : null;
             return new BondEntryResponse(
                     e.getId(), e.getSide(), e.getEntryDate(), e.getEntryNo(),
                     e.getDirection(), e.getDirection().getDisplayName(),
                     e.getCreatedBy(), e.getUpdatedBy(),
-                    e.getLines().stream().map(LineResponse::from).toList());
+                    e.getLines().stream().map(LineResponse::from).toList(),
+                    v != null ? v.getType().getDisplayName() : (e.getSide() == BondSide.RECEIVABLE ? "채권내역" : "채무내역"),
+                    v != null ? v.getId() : null,
+                    j != null ? j.getId() : null,
+                    j != null ? j.getEntryDate() : null,
+                    j != null ? j.getDocNo() : null);
         }
     }
+
+    /**
+     * 채권감소등록 [입금보고서작성] 창 — 원본(2026-10-13 loginaa 실측) 수금형태 · 입금계좌 · 적요 · 전표 묶음기준을 고르고
+     * [적용] 하면 입금보고서가 채워진 채 열리고, 거기서 [저장] 하면 회계전표(차 입금계좌 / 대 채권계정)와 채권 감소가 함께 생긴다.
+     * 우리는 그 입금보고서 창의 줄을 그대로 받는다(줄마다 채권번호를 들고 온다).
+     */
+    public record DepositReportRequest(
+            @NotNull(message = "일자를 입력하세요.") LocalDate date,
+            /** 입금계좌 — 비우고 cash 가 참이면 000 현금. */
+            Long bankAccountId,
+            Boolean cash,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String description,
+            @NotEmpty(message = "저장할 내용이 없습니다.") List<@Valid DepositLine> lines
+    ) {}
+
+    public record DepositLine(
+            @NotNull(message = "계정을 입력하세요.") Long accountId,
+            Long partnerId,
+            @NotNull(message = "채권번호 : 유효키항목 필수입력") @Size(max = 30) String bondNo,
+            @NotNull(message = "금액을 입력 바랍니다.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            Long departmentId,
+            Long projectId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String memo
+    ) {}
 }

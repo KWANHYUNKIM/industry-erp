@@ -42,6 +42,15 @@ public class BondEntry extends BaseTimeEntity {
     @Column(nullable = false, length = 10)
     private BondDirection direction;
 
+    /**
+     * 원본 [출처업무] '입금보고서' — 채권감소등록 [입금보고서작성]으로 만든 감소 장이 그 입금보고서를 가리킨다(2026-10-13 loginaa 실측).
+     * 비어 있으면 [채권내역]에서 직접 넣은 장이다. 입금보고서를 지우면 DB 가 이 장도 지운다(ON DELETE CASCADE) —
+     * 원본도 입금보고서를 지우자 감소 줄이 사라지고 잔액이 되돌아왔다. 연결된 장은 채권조회에서 고치거나 지울 수 없다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_voucher_id")
+    private com.erp.accounting.fastvoucher.FastVoucher sourceVoucher;
+
     @Column(name = "created_by", length = 50)
     private String createdBy;
 

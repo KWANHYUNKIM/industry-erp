@@ -31,6 +31,32 @@ export interface BottomAction {
    * 그건 사람에게 헛걸음을 시키는 것이다 — 누르기 전에 못 누른다고 보여 주는 편이 낫다.
    */
   disabled?: boolean
+  /**
+   * 붙은 ▴ 펼침 — 원본 [입금보고서작성 ▴] 의 [채권만감소] 처럼 같은 버튼에 딸린 다른 동작(채권감소등록 E060402 실측).
+   * 펼침은 위로 열린다(버튼줄이 화면 바닥에 있다).
+   */
+  menu?: { label: string; onClick: () => void }[]
+}
+
+/** 하단 버튼 하나 — menu 가 있으면 붙은 묶음(.ec-btn-group + ▴). */
+function FooterButton({ a }: { a: BottomAction }) {
+  const [open, setOpen] = useState(false)
+  const cls = `ec-btn${a.primary ? ' ec-btn-primary' : ''}`
+  if (!a.menu?.length) return <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>
+  return (
+    <span className="ec-btn-group relative">
+      <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>
+      <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} onClick={() => setOpen((v) => !v)}>▴</button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
+          {a.menu.map((m) => (
+            <button key={m.label} type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"
+                    onClick={() => { setOpen(false); m.onClick() }}>{m.label}</button>
+          ))}
+        </div>
+      )}
+    </span>
+  )
 }
 
 /** onClick이 없을 때 셸이 기본 동작을 붙여주는 액션 라벨 */
@@ -277,12 +303,7 @@ export default function EcListShell({
             {newLabel}
           </button>
         )}
-        {resolved.map((a, i) => (
-          <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`}
-                  onClick={a.onClick} disabled={a.disabled}>
-            {a.label}
-          </button>
-        ))}
+        {resolved.map((a, i) => <FooterButton key={i} a={a} />)}
         </div>
         {/* 휴대폰: 한 줄에 다 안 들어가는 버튼은 ⌄ 로 펼친다(원본) */}
         <button className="ec-btn ec-more" aria-label="버튼 더 보기" onClick={() => setMoreOpen((v) => !v)}>{moreOpen ? '⌃' : '⌄'}</button>

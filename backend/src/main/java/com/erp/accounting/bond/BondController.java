@@ -3,6 +3,7 @@ package com.erp.accounting.bond;
 import com.erp.accounting.bond.dto.BondDtos.BondEntryResponse;
 import com.erp.accounting.bond.dto.BondDtos.CreateBondRequest;
 import com.erp.accounting.bond.dto.BondDtos.DeleteBondsRequest;
+import com.erp.accounting.bond.dto.BondDtos.DepositReportRequest;
 import com.erp.accounting.bond.dto.BondDtos.UpdateBondRequest;
 import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -38,6 +39,13 @@ public class BondController {
     public BondEntryResponse create(@Valid @RequestBody CreateBondRequest req,
                                     @AuthenticationPrincipal UserPrincipal principal) {
         return service.create(req, principal.getUsername());
+    }
+
+    /** 채권감소등록 [입금보고서작성] → 입금보고서 [저장] — 회계전표 + 연결된 채권 감소 한 장. */
+    @PostMapping("/deposit-report")
+    public BondEntryResponse depositReport(@RequestParam BondSide side, @Valid @RequestBody DepositReportRequest req,
+                                           @AuthenticationPrincipal UserPrincipal principal) {
+        return service.createDepositReport(side, req, principal.getUsername());
     }
 
     @PutMapping("/{id}")

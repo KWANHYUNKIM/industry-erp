@@ -30,6 +30,13 @@ export interface BondEntry {
   createdBy: string | null
   updatedBy: string | null
   lines: BondLine[]
+  /** 원본 [출처업무] — '채권내역' · '채무내역'(직접 입력) · '입금보고서'(채권감소등록 [입금보고서작성]). */
+  sourceName: string
+  /** 연결된 입금보고서와 그 회계전표 — 원본 [회계일자-No.]. 직접 넣은 장은 null. */
+  sourceVoucherId: number | null
+  journalEntryId: number | null
+  journalDate: string | null
+  journalDocNo: string | null
 }
 
 /** 장 · 줄을 펼친 한 줄 — 조회 · 현황 화면은 모두 이것을 센다. */
@@ -40,12 +47,19 @@ export interface BondRow extends BondLine {
   direction: BondDirection
   createdBy: string | null
   updatedBy: string | null
+  sourceName: string
+  sourceVoucherId: number | null
+  journalEntryId: number | null
+  journalDate: string | null
+  journalDocNo: string | null
 }
 
 export function flatten(entries: BondEntry[]): BondRow[] {
   return entries.flatMap((e) => e.lines.map((l) => ({
     ...l, entryId: e.id, entryDate: e.entryDate, entryNo: e.entryNo, direction: e.direction,
     createdBy: e.createdBy, updatedBy: e.updatedBy,
+    sourceName: e.sourceName, sourceVoucherId: e.sourceVoucherId,
+    journalEntryId: e.journalEntryId, journalDate: e.journalDate, journalDocNo: e.journalDocNo,
   })))
 }
 

@@ -3,6 +3,15 @@ package com.erp.accounting.bond;
 import com.erp.accounting.account.AccountService;
 import com.erp.accounting.bond.dto.BondDtos.BondEntryResponse;
 import com.erp.accounting.bond.dto.BondDtos.CreateBondRequest;
+import com.erp.accounting.bond.dto.BondDtos.DepositLine;
+import com.erp.accounting.bond.dto.BondDtos.DepositReportRequest;
+import com.erp.accounting.PaymentMethod;
+import com.erp.accounting.fastvoucher.FastVoucherRepository;
+import com.erp.accounting.fastvoucher.FastVoucherService;
+import com.erp.accounting.fastvoucher.FastVoucherType;
+import com.erp.accounting.fastvoucher.dto.FastVoucherDtos.CreateVoucherRequest;
+import com.erp.accounting.fastvoucher.dto.FastVoucherDtos.LineInput;
+import com.erp.accounting.fastvoucher.dto.FastVoucherDtos.VoucherResponse;
 import com.erp.accounting.bond.dto.BondDtos.LineRequest;
 import com.erp.accounting.bond.dto.BondDtos.UpdateBondRequest;
 import com.erp.common.ApiException;
@@ -36,6 +45,11 @@ public class BondService {
     private final AccountService accountService;
     private final PartnerService partnerService;
     private final ProjectService projectService;
+    private final FastVoucherService fastVoucherService;
+    private final FastVoucherRepository fastVoucherRepository;
+
+    /** 원본 선택삭제가 연결된 장을 뺄 때 쓰는 사유 글자(2026-10-13 실측). */
+    public static final String LINKED_REASON = "파생관계로 연결된 전표";
 
     /** 기준일 끝까지의 모든 장 — 조회는 기간으로, 거래내역 · 현황은 이월잔액까지 화면이 다시 센다. */
     @Transactional(readOnly = true)
@@ -60,9 +74,51 @@ public class BondService {
         return BondEntryResponse.from(entryRepository.save(e));
     }
 
+    /**
+     * 채권감소등록 [입금보고서작성] → 입금보고서 [저장] — 원본(2026-10-13 loginaa 실측): QA2B001 잔액 50,000 에서 20,000 을 기업은행-1122 로
+     * 받으니 회계전표 2026/10/13-18(차 기업은행 20,000 / 대 외상매출금 20,000 김치좋아)과 채권 감소 2026/10/13-2(출처업무 입금보고서)가
+     * 함께 생겨 잔액이 30,000 이 됐다. 입금보고서를 지우면 감소 줄도 사라진다(FK ON DELETE CASCADE).
+     * 같은 트랜잭션이라 감소 줄이 막히면(채권번호 없음) 전표도 남지 않는다.
+     */
+    @Transactional
+    public BondEntryResponse createDepositReport(BondSide side, DepositReportRequest req, String username) {
+        if (side != BondSide.RECEIVABLE) {
+            throw ApiException.badRequest("입금보고서는 채권에서만 만들 수 있습니다.");
+        }
+        boolean cash = Boolean.TRUE.equals(req.cash()) || req.bankAccountId() == null;
+        List<LineInput> vLines = req.lines().stream().map(l -> new LineInput(
+                l.accountId(), l.amount(), blankToNull(l.memo()),
+                cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null, l.partnerId(), null, null)).toList();
+        VoucherResponse v = fastVoucherService.create(new CreateVoucherRequest(
+                FastVoucherType.DEPOSIT_REPORT, req.date(), PaymentMethod.CASH, null, null, null, vLines,
+                blankToNull(req.description()), null, null, null, null, null, null, null, null, null), username);
+
+        int no = entryRepository.maxEntryNo(side, req.date()) + 1;
+        BondEntry e = BondEntry.builder()
+                .side(side).entryDate(req.date()).entryNo(no)
+                .direction(BondDirection.DECREASE).createdBy(username).updatedBy(username)
+                .sourceVoucher(fastVoucherRepository.getReferenceById(v.id()))
+                .build();
+        e.replaceLines(toLines(req.lines().stream().map(BondService::toLineRequest).toList(), BondDirection.DECREASE));
+        entryRepository.saveAndFlush(e);
+        return BondEntryResponse.from(load(e.getId()));
+    }
+
+    private static LineRequest toLineRequest(DepositLine l) {
+        return new LineRequest(l.accountId(), l.partnerId(), l.bondNo(), l.amount(), null,
+                l.departmentId(), l.projectId(), blankToNull(l.memo()));
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
     @Transactional
     public BondEntryResponse update(Long id, UpdateBondRequest req, String username) {
         BondEntry e = load(id);
+        if (e.getSourceVoucher() != null) {
+            throw ApiException.badRequest(LINKED_REASON + "는 " + e.getSourceVoucher().getType().getDisplayName() + "에서 고칩니다.");
+        }
         e.replaceLines(toLines(req.lines(), e.getDirection()));
         e.setUpdatedBy(username);
         return BondEntryResponse.from(e);
@@ -70,7 +126,13 @@ public class BondService {
 
     @Transactional
     public void delete(List<Long> ids) {
-        for (Long id : ids) entryRepository.delete(load(id));
+        List<BondEntry> es = ids.stream().map(this::load).toList();
+        /* 원본: 연결된 장은 '선택한 전표 중 아래에 해당하는 내역은 제외됩니다 — 파생관계로 연결된 전표'로 빼고 나머지만 지운다.
+           화면이 미리 빼서 보내므로, 여기 닿았다면 막는다. */
+        if (es.stream().anyMatch(e -> e.getSourceVoucher() != null)) {
+            throw ApiException.badRequest(LINKED_REASON + "는 지울 수 없습니다.");
+        }
+        entryRepository.deleteAll(es);
     }
 
     private BondEntry load(Long id) {

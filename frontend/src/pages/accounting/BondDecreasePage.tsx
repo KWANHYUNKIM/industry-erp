@@ -7,6 +7,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import BondEntryModal, { type BondPrefillLine } from '../../features/bond/components/BondEntryModal'
+import DepositReportModal, { type DepositPick } from '../../features/bond/components/DepositReportModal'
 import { openBonds, type OpenBond } from '../../features/bond/ledger'
 import { flatten, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
 
@@ -19,8 +20,8 @@ import { flatten, sideWord, won, type BondRow, type BondSide } from '../../featu
  *
  * <p>버튼 [입금보고서작성 ▴] 의 펼침 [채권만감소] — 체크한 줄로 <b>채권내역입력 감소 창</b>을 채워 연다(계정 · 거래처 · 채권번호 ·
  * 감소금액 · 증가 줄의 적요). 아무것도 안 고르면 '리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'
- * 본 버튼 [입금보고서작성](수금형태 · 입금계좌 · 적요 · 전표 묶음기준 창 → 입금보고서와 연결된 감소)은 회계전표와 채권을 잇는
- * 연결전표가 아직 없어 두지 않는다. 외화(잔액환율 · 외화잔액)는 채권내역에 통화가 없어 빈칸 · 0 이다.
+ * 본 버튼 [입금보고서작성](2026-10-13 실측): 수금형태 · 입금계좌 · 적요 · 전표 묶음기준 창 → [적용] → 채워진 입금보고서 → [저장] 하면
+ * 회계전표(차 입금계좌 / 대 외상매출금)와 채권 감소(출처업무 입금보고서)가 함께 생긴다 — DepositReportModal. 외화(잔액환율 · 외화잔액)는 채권내역에 통화가 없어 빈칸 · 0 이다.
  */
 export default function BondDecreasePage({ side }: { side: BondSide }) {
   const word = sideWord(side)
@@ -64,22 +65,37 @@ export default function BondDecreasePage({ side }: { side: BondSide }) {
   const setCell = (b: OpenBond, k: 'dc' | 'amt', v: string) =>
     setPicked((s) => ({ ...s, [b.key]: { ...(s[b.key] ?? { dc: '', amt: String(Math.round(b.balance)) }), [k]: v } }))
 
-  function decreaseOnly() {
+  const [deposit, setDeposit] = useState<DepositPick[] | null>(null)
+
+  function chosenLines(): BondPrefillLine[] | null {
     const chosen = open.filter((b) => picked[b.key])
-    if (chosen.length === 0) { setAlert(true); return }
-    setPrefill(chosen.map((b) => ({
+    if (chosen.length === 0) { setAlert(true); return null }
+    return chosen.map((b) => ({
       accountId: b.accountId, partnerId: b.partnerId, bondNo: b.bondNo,
       amount: Number(picked[b.key].amt) || 0, departmentId: b.departmentId,
       projectId: rows.find((r) => r.bondNo === b.bondNo && r.direction === 'INCREASE')?.projectId ?? null,
       memo: b.memo,
-    })))
+    }))
+  }
+
+  function decreaseOnly() {
+    const ls = chosenLines()
+    if (ls) setPrefill(ls)
+  }
+
+  /** [입금보고서작성] — 고른 줄로 입금보고서작성 창을 연다(채권만). */
+  function depositReport() {
+    const ls = chosenLines()
+    if (ls) setDeposit(ls)
   }
 
   return (
     <EcListShell
       title={title}
       searchable={false}
-      actions={[{ label: `${word}만감소`, primary: true, onClick: decreaseOnly }]}
+      actions={side === 'RECEIVABLE'
+        ? [{ label: '입금보고서작성', primary: true, onClick: depositReport, menu: [{ label: '채권만감소', onClick: decreaseOnly }] }]
+        : [{ label: `${word}만감소`, primary: true, onClick: decreaseOnly }]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table ref={tableRef} className="w-full text-left">
@@ -146,8 +162,9 @@ export default function BondDecreasePage({ side }: { side: BondSide }) {
               <td className="text-right">{won(total)}</td>
               <td />
               <td className="text-right">0</td>
-              <td className="text-right">{won(sumOf('dc'))}</td>
-              <td className="text-right">{won(sumOf('amt'))}</td>
+              {/* 원본 합계줄은 할인 · 감소 칸이 두 줄 — 위 '외화 0', 아래 원화 합(2026-10-13 실측). */}
+              <td className="text-right"><span className="flex justify-between"><span className="text-ec-label">외화</span>0</span>{won(sumOf('dc'))}</td>
+              <td className="text-right"><span className="flex justify-between"><span className="text-ec-label">외화</span>0</span>{won(sumOf('amt'))}</td>
               <td colSpan={3} />
             </tr>
           </tfoot>
@@ -158,6 +175,7 @@ export default function BondDecreasePage({ side }: { side: BondSide }) {
         <p className="mb-[12px]">리스트에 선택된 자료가 없습니다.<br /><br />체크박스에 체크한 후 다시 시도 바랍니다.</p>
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => setAlert(false)}>확인</button>
       </Modal>
+      <DepositReportModal picks={deposit} masters={masters} onClose={() => setDeposit(null)} onSaved={() => void load()} />
       <BondEntryModal side={side} open={prefill != null} entryId={null} prefill={prefill} masters={masters}
                       onClose={() => setPrefill(null)} onSaved={() => void load()} />
     </EcListShell>

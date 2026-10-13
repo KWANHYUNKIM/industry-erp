@@ -15,11 +15,13 @@ public interface BondEntryRepository extends JpaRepository<BondEntry, Long> {
 
     @Query("select distinct e from BondEntry e left join fetch e.lines l " +
            "left join fetch l.account left join fetch l.partner left join fetch l.project " +
+           "left join fetch e.sourceVoucher sv left join fetch sv.journalEntry " +
            "where e.side = :side and e.entryDate <= :to " +
            "order by e.entryDate desc, e.entryNo desc")
     List<BondEntry> findUpTo(@Param("side") BondSide side, @Param("to") LocalDate to);
 
     @Query("select distinct e from BondEntry e left join fetch e.lines l " +
-           "left join fetch l.account left join fetch l.partner left join fetch l.project where e.id = :id")
+           "left join fetch l.account left join fetch l.partner left join fetch l.project " +
+           "left join fetch e.sourceVoucher sv left join fetch sv.journalEntry where e.id = :id")
     Optional<BondEntry> findWithLines(@Param("id") Long id);
 }
