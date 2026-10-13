@@ -53,6 +53,8 @@ export const yearEndApi = {
     api.post<Settlement[]>(`/tax-settlements/targets`, { attributionYear, kind, employeeIds }).then((r) => r.data),
   remove: (ids: number[]) => api.post(`/tax-settlements/delete`, ids),
   calculate: (ids: number[]) => api.post<Settlement[]>(`/tax-settlements/calculate`, ids).then((r) => r.data),
+  saveWithholdingMonth: (id: number, withholdingMonth: string) =>
+    api.put<Settlement>(`/tax-settlements/${id}/withholding-month`, { withholdingMonth }).then((r) => r.data),
   savePrevEmployers: (id: number, rows: PrevEmployer[]) => api.put<Settlement>(`/tax-settlements/${id}/prev-employers`, rows).then((r) => r.data),
   saveDeductions: (id: number, group: 'INSURANCE' | 'MEDICAL', rows: Deduction[]) =>
     api.put<Settlement>(`/tax-settlements/${id}/deductions`, rows, { params: { group } }).then((r) => r.data),

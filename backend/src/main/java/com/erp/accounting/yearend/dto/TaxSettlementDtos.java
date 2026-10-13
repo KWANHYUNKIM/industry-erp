@@ -41,6 +41,9 @@ public class TaxSettlementDtos {
     public record DeductionResponse(Long id, int lineNo, TaxDeductionKind kind, String targetName, String relation,
                                     TaxDataSource dataSource, boolean unlimited, long amount, Integer receiptCount) {}
 
+    /** 중도정산 원천징수연월 선택 창 — YYYY-MM. */
+    public record WithholdingMonthRequest(String withholdingMonth) {}
+
     /** 대상자추가 [적용(F8)] — 귀속연도 · 종류 · 고른 사원. */
     public record TargetsRequest(int attributionYear, TaxSettlementKind kind, List<Long> employeeIds) {}
 

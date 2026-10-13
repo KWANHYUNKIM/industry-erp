@@ -27,6 +27,9 @@ export default function YearEndSettlementPage({ kind = 'YEAR_END' }: { kind?: Se
   const thisYear = new Date().getFullYear()
   const [year, setYear] = useState(mid ? thisYear : thisYear - 1)
   const [condEmp, setCondEmp] = useState('')
+  // 중도정산만 — 퇴사일자 구간(원본 기본 올해 1/1 ~ 12/31)
+  const [resignFrom, setResignFrom] = useState(`${thisYear}-01-01`)
+  const [resignTo, setResignTo] = useState(`${thisYear}-12-31`)
   const [donation, setDonation] = useState(false)
   const [rows, setRows] = useState<Settlement[]>([])
   const [shownYear, setShownYear] = useState(year)
@@ -40,19 +43,24 @@ export default function YearEndSettlementPage({ kind = 'YEAR_END' }: { kind?: Se
   const [error, setError] = useState('')
   const kindName = mid ? '중도정산' : '연말정산'
 
+  const empsRef = useRef<Emp[]>([])
+  empsRef.current = emps
+  const inRange = (d?: string | null) => !d || ((!resignFrom || d >= resignFrom) && (!resignTo || d <= resignTo))
+
   function load(y = year) {
     setError('')
     yearEndApi.list(y, kind)
       .then((r) => {
         // [기부금 조정명세 입력 대상] — 기부금 이월 조정명세가 있는 사람만. 우리는 기부금 공제를 아직 못 넣어(남은 것) 켜면 아무도 없다.
         const byEmp = condEmp ? r.filter((x) => String(x.employeeId) === condEmp) : r
-        setRows(donation ? [] : byEmp); setShownYear(y); setPicked(new Set())
+        const byResign = mid ? byEmp.filter((x) => inRange(empsRef.current.find((e) => e.id === x.employeeId)?.resignDate)) : byEmp
+        setRows(donation ? [] : byResign); setShownYear(y); setPicked(new Set())
       })
       .catch((e) => { setRows([]); setError(extractErrorMessage(e)) })
   }
   useEffect(() => {
-    load()
-    api.get<Emp[]>('/employees/all').then((r) => setEmps(r.data)).catch(() => setEmps([]))
+    // 사원(퇴사일)을 먼저 받아야 중도정산 [퇴사일자] 로 거를 수 있다
+    api.get<Emp[]>('/employees/all').then((r) => { setEmps(r.data); empsRef.current = r.data }).catch(() => setEmps([])).finally(() => load())
     api.get<Company | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -120,6 +128,15 @@ export default function YearEndSettlementPage({ kind = 'YEAR_END' }: { kind?: Se
             <option value="">{company?.name ? `${company.name} ${company.bizRegNo ?? ''}` : '전체'}</option>
           </select>
         </EcCond>
+        {mid && (
+          <EcCond label="퇴사일자">
+            <span className="inline-flex items-center gap-[4px]">
+              <input type="date" className="ec-input w-[145px]" aria-label="퇴사일자 시작" value={resignFrom} onChange={(e) => setResignFrom(e.target.value)} />
+              ~
+              <input type="date" className="ec-input w-[145px]" aria-label="퇴사일자 끝" value={resignTo} onChange={(e) => setResignTo(e.target.value)} />
+            </span>
+          </EcCond>
+        )}
         <EcCond label="사원번호" pick>
           <CodePickerField label="사원번호" hideLabel width={200} emptyLabel="전체" value={condEmp} onChange={setCondEmp}
                            items={emps.map((e) => ({ value: String(e.id), code: e.code, name: e.name }))} />

@@ -860,6 +860,8 @@ const MENU: TopMenu[] = [
           { label: '퇴직정산', children: [
             { label: '퇴사자리스트', to: '/hr/retired' },
             { label: '퇴직금계산', to: '/hr/retirement-pay' },
+            { label: '중도정산등록/수정', to: '/accounting/withholding/mid-settlement' },
+            { label: '중도정산 PDF 다운로드', to: '/accounting/withholding/mid-settlement-pdf' },
           ] },
           { label: '연말정산', children: [
             { label: '정산내역등록/수정', to: '/accounting/withholding/year-end' },

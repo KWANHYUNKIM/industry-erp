@@ -96,9 +96,14 @@ export function SettlementFormModal({ id, empName, onClose, onChanged }: {
   const [s, setS] = useState<Settlement | null>(null)
   const [pills, setPills] = useState(false)
   const [sub, setSub] = useState<'prev' | 'INSURANCE' | 'MEDICAL' | null>(null)
+  const [monthOpen, setMonthOpen] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => { yearEndApi.get(id).then(setS).catch((e) => setError(extractErrorMessage(e))) }, [id])
+  // 중도정산은 원천징수연월이 비어 있으면 '원천징수연월 선택' 창이 이 창 위에 먼저 뜬다(E030114.md 3.1)
+  useEffect(() => {
+    yearEndApi.get(id).then((n) => { setS(n); setMonthOpen(n.kind === 'MID_TERM' && !n.withholdingMonth) })
+      .catch((e) => setError(extractErrorMessage(e)))
+  }, [id])
   const changed = (n: Settlement) => { setS(n); onChanged() }
 
   async function calculate() {
@@ -135,7 +140,12 @@ export function SettlementFormModal({ id, empName, onClose, onChanged }: {
           <table className="w-full mb-[8px]">
             <thead><tr><th className="w-[260px]">기본정보</th><th>입력내용</th></tr></thead>
             <tbody>
-              {s.kind === 'MID_TERM' && <tr><th className="text-left">원천징수연월</th><td>{s.withholdingMonth ? `${s.withholdingMonth.slice(0, 4)}년${s.withholdingMonth.slice(5)}월` : ''}</td></tr>}
+              {s.kind === 'MID_TERM' && (
+                <tr>
+                  <th className="text-left">원천징수연월 <button type="button" className="ec-btn ec-btn-sm" onClick={() => setMonthOpen(true)}>수정</button></th>
+                  <td>{s.withholdingMonth ? `${s.withholdingMonth.slice(0, 4)}년${s.withholdingMonth.slice(5)}월` : ''}</td>
+                </tr>
+              )}
               <tr><th className="text-left">◢ 소득자 인적 사항</th><td>{empName} / 일반 / 세대주 / 부(유주택자) · 내국인 / 거주자</td></tr>
               <tr><th className="text-left">계산설정</th><td>{s.standardAuto ? '표준세액공제 자동계산' : '표준세액공제 미적용'} / {s.childCredit ? '자녀세액공제 적용' : '자녀세액공제 미적용'} / {s.singleRate ? '단일세율 적용' : '단일세율 미적용'}</td></tr>
               <tr>
@@ -191,10 +201,65 @@ export function SettlementFormModal({ id, empName, onClose, onChanged }: {
             {s.kind === 'YEAR_END' && <button className="ec-btn" disabled title="바깥 연동 — 누르지 않는다">연말정산 간소화 PDF</button>}
           </div>
 
+          {monthOpen && <WithholdingMonthModal s={s} onClose={() => setMonthOpen(false)} onSaved={(n) => { changed(n); setMonthOpen(false) }} />}
           {sub === 'prev' && <PrevEmployerModal s={s} onClose={() => setSub(null)} onSaved={changed} />}
           {(sub === 'INSURANCE' || sub === 'MEDICAL') && <DeductionModal s={s} group={sub} empName={empName} onClose={() => setSub(null)} onSaved={changed} />}
         </>
       )}
+    </Modal>
+  )
+}
+
+/**
+ * `중도정산 원천징수연월(지급연월) 선택` 창(E030114.md 3.1) — 연 · 월 두 칸, 기본 <b>이번 달</b>(퇴사월이 아니다).
+ * [저장(F8)] 하면 안내 없이 닫힌다. 목록 · 퇴사자리스트의 '중도정산원천징수연월' 이 이 달이 된다.
+ */
+export function WithholdingMonthModal({ s, onClose, onSaved }: { s: Settlement; onClose: () => void; onSaved: (n: Settlement) => void }) {
+  const now = new Date()
+  const init = s.withholdingMonth ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [y, setY] = useState(init.slice(0, 4))
+  const [m, setM] = useState(init.slice(5, 7))
+  const [error, setError] = useState('')
+  const years = Array.from({ length: 6 }, (_, i) => String(now.getFullYear() + 1 - i))
+  const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
+
+  async function save() {
+    try {
+      onSaved(await yearEndApi.saveWithholdingMonth(s.id, `${y}-${m}`))
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  return (
+    <Modal open title="중도정산 원천징수연월(지급연월) 선택" onClose={onClose} width={560} error={error}>
+      <ul className="mb-[8px] list-disc pl-[18px]">
+        <li>중도정산의 원천징수연월을 선택합니다.</li>
+        <li>원천징수이행상황 신고서에 중도정산내역 자동반영시 퇴사자의 퇴사일자를 귀속연월,<br />
+          원천징수연월을 지급연월로 하여 귀속연월과 지급연월이 일치하는 신고서에 반영됩니다.</li>
+      </ul>
+      <table className="w-full mb-[8px]">
+        <thead><tr><th className="w-[160px]">항목</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <th className="text-left">원천징수연월</th>
+            <td>
+              <span className="inline-flex gap-[4px]">
+                <select className="ec-input w-[80px]" aria-label="원천징수연월 연" value={y} onChange={(e) => setY(e.target.value)}>
+                  {years.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <select className="ec-input w-[60px]" aria-label="원천징수연월 월" value={m} onChange={(e) => setM(e.target.value)}>
+                  {months.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="flex gap-[4px]">
+        <button className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button>
+        <button className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
     </Modal>
   )
 }

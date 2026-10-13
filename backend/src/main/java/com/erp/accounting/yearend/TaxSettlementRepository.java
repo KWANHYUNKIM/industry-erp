@@ -10,4 +10,6 @@ public interface TaxSettlementRepository extends JpaRepository<TaxSettlement, Lo
     List<TaxSettlement> findByAttributionYearAndKindOrderByIdAsc(int attributionYear, TaxSettlementKind kind);
 
     Optional<TaxSettlement> findByAttributionYearAndEmployeeIdAndKind(int attributionYear, Long employeeId, TaxSettlementKind kind);
+
+    List<TaxSettlement> findByEmployeeIdInAndKind(java.util.Collection<Long> employeeIds, TaxSettlementKind kind);
 }

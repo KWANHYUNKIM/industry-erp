@@ -26,7 +26,7 @@ const month = (d: string | null) => (d ? d.slice(0, 7).replace('-', '/') : '')
  *
  * <p>열: 번호 · 사번 · 성명 · 부서 · 입사일자 · 퇴사일자 · 중도정산귀속월 · 중도정산원천징수연월 · 퇴직소득귀속월 ·
  * 퇴직소득원천징수연월 · 퇴직소득지급일자. 줄은 사번 글자 차례(원본이 00001 · 002 · 1 · 10 · 11 … 로 찍는다).
- * 중도정산귀속월은 원본에서 모든 줄이 퇴사월이라 퇴사일자의 달을 찍는다. 중도정산원천징수연월은 중도정산이 없어 비운다.
+ * 중도정산귀속월은 원본에서 모든 줄이 퇴사월이라 퇴사일자의 달을 찍는다. 중도정산원천징수연월은 중도정산등록/수정(E030114)의 원천징수연월(없으면 빈칸).
  * 퇴직소득 세 칸은 그 사원의 [퇴직금계산] 에서 읽는다 — 귀속월 = 퇴직금계산의 퇴사일 달(사원 퇴사일과 다를 수 있다:
  * 원본 홍길동 퇴사 2024/10/01 · 귀속 2024/12 · 원천징수 2024/10 · 지급 2024/10/16), 원천징수연월 · 지급일자는 그대로(2026-10-12 실측).
  * 한 사원에 여럿이면 지급일이 가장 늦은 것.
@@ -45,6 +45,8 @@ const month = (d: string | null) => (d ? d.slice(0, 7).replace('-', '/') : '')
 export default function RetiredEmployeePage() {
   const [rows, setRows] = useState<Emp[]>([])
   const [pays, setPays] = useState<Map<number, RetirePay>>(new Map())
+  /** 사원 → 중도정산 원천징수연월(YYYY-MM) — 중도정산등록/수정(E030114)의 원천징수연월 창에서 정한 달 */
+  const [midMonths, setMidMonths] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [emp, setEmp] = useState('')
@@ -78,6 +80,14 @@ export default function RetiredEmployeePage() {
         if (!prev || (x.payDate ?? '') > (prev.payDate ?? '')) m.set(x.employeeId, x)
       }
       setPays(m)
+      // 중도정산은 귀속연도 = 퇴사한 해. 퇴사한 해마다 한 번씩 읽는다.
+      const years = [...new Set(r.data.filter((e) => e.resignDate).map((e) => Number(e.resignDate!.slice(0, 4))))]
+      const mids = await Promise.all(years.map((y) =>
+        api.get<{ employeeId: number; withholdingMonth: string | null }[]>('/tax-settlements', { params: { year: y, kind: 'MID_TERM' } })
+          .then((x) => x.data).catch(() => [])))
+      const mm = new Map<number, string>()
+      for (const x of mids.flat()) if (x.withholdingMonth) mm.set(x.employeeId, x.withholdingMonth)
+      setMidMonths(mm)
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -217,7 +227,7 @@ export default function RetiredEmployeePage() {
               <td className="text-center">{slash(r.hireDate)}</td>
               <td className="text-center">{slash(r.resignDate)}</td>
               <td className="text-center">{month(r.resignDate)}</td>
-              <td className="text-center"></td>
+              <td className="text-center">{(midMonths.get(r.id) ?? '').replace('-', '/')}</td>
               <td className="text-center">{month(pays.get(r.id)?.retireDate ?? null)}</td>
               <td className="text-center">{(pays.get(r.id)?.withholdingMonth ?? '').replace('-', '/')}</td>
               <td className="text-center">{slash(pays.get(r.id)?.payDate ?? null)}</td>

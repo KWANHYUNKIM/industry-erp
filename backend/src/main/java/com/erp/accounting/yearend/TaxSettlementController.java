@@ -4,6 +4,7 @@ import com.erp.accounting.yearend.dto.TaxSettlementDtos.DeductionRequest;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.PrevEmployerRequest;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.SettlementResponse;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.TargetsRequest;
+import com.erp.accounting.yearend.dto.TaxSettlementDtos.WithholdingMonthRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,6 +43,12 @@ public class TaxSettlementController {
     @PostMapping("/delete")
     public void delete(@RequestBody List<Long> ids) {
         service.delete(ids);
+    }
+
+    /** 중도정산 원천징수연월(지급연월) 선택 창 [저장(F8)] */
+    @PutMapping("/{id}/withholding-month")
+    public SettlementResponse saveWithholdingMonth(@PathVariable Long id, @RequestBody WithholdingMonthRequest req) {
+        return service.saveWithholdingMonth(id, req.withholdingMonth());
     }
 
     /** 종(전)근무지 및 납세조합 [저장(F8)] */

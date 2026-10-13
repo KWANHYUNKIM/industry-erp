@@ -62,6 +62,29 @@ public class TaxSettlementService {
         repository.deleteAllById(ids);
     }
 
+    /**
+     * 퇴사자리스트 [선택삭제] · 퇴직처리 [삭제](퇴사 거둠) — 원본 확인 창 "중도정산한 내역이 삭제 됩니다." 대로
+     * 그 사원들의 중도정산을 같이 지운다(hr 이 부른다 — hr → accounting 허용 간선).
+     */
+    @Transactional
+    public void deleteByEmployees(Collection<Long> employeeIds, TaxSettlementKind kind) {
+        if (employeeIds == null || employeeIds.isEmpty()) return;
+        repository.deleteAll(repository.findByEmployeeIdInAndKind(employeeIds, kind));
+    }
+
+    /**
+     * 중도정산 원천징수연월(지급연월) 선택 창 [저장(F8)] — YYYY-MM. 원본 안내: 퇴사일자를 귀속연월, 이 달을 지급연월로 하여
+     * 신고서에 반영된다(plans/세무/E030114.md 3.1). 연말정산은 이 칸을 쓰지 않는다(원본 계산처리 뒤에도 빈칸).
+     */
+    @Transactional
+    public SettlementResponse saveWithholdingMonth(Long id, String month) {
+        TaxSettlement s = get(id);
+        if (s.getKind() != TaxSettlementKind.MID_TERM) throw ApiException.badRequest("원천징수연월은 중도정산만 정합니다.");
+        if (month == null || !month.matches("\\d{4}-(0[1-9]|1[0-2])")) throw ApiException.badRequest("원천징수연월을 입력 바랍니다.");
+        s.setWithholdingMonth(month);
+        return toResponse(s);
+    }
+
     /** 종(전)근무지 및 납세조합 [저장(F8)] — 그 정산의 종전 줄을 통째로 바꾼다. */
     @Transactional
     public SettlementResponse savePrevEmployers(Long id, List<PrevEmployerRequest> rows) {
