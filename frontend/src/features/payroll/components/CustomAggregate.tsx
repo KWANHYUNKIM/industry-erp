@@ -8,7 +8,11 @@ import { useTableColumnCheck } from '../../../utils/assertTableColumns'
  */
 export interface AggDim { key: string; label: string; group: string; codeLabel?: string | null }
 /** 집계대상 하나 — cols 가 있으면 그 열들로 펼친다(수당금액(전체) → 기본급 · 식대 …). format 은 그 열의 숫자 꼴(기본 쉼표 원). */
-export interface AggTarget { key: string; label: string; cols?: string[]; format?: (n: number) => string }
+export interface AggTarget {
+  key: string; label: string; cols?: string[]; format?: (n: number) => string
+  /** 더하지 않고 묶음의 다른 합계로 셈하는 열(이익율 = 이익 ÷ 판매액). v(열이름) 은 그 묶음의 합계 — 고르지 않은 열도 읽는다. */
+  calc?: (v: (col: string) => number) => number
+}
 /** 집계할 한 건 — 조건마다 코드 · 이름, 열마다 금액. */
 export interface AggRecord { dims: Record<string, { code: string; name: string }>; values: Record<string, number> }
 export interface AggState { conds: string[]; targets: string[]; ratio: boolean; withCode: boolean }
@@ -100,7 +104,9 @@ export function CustomAggregateTable({ dims, targets, records, agg: value, name 
   const fmts = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.format ?? won))
   useTableColumnCheck(ref, `${name} 사용자지정집계`, [conds.join(), cols.join(), value.ratio, value.withCode])
 
-  const sum = (rs: AggRecord[]) => cols.map((c) => rs.reduce((s, r) => s + (r.values[c] ?? 0), 0))
+  const calcs = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.calc))
+  const sumOf = (rs: AggRecord[], c: string) => rs.reduce((s, r) => s + (r.values[c] ?? 0), 0)
+  const sum = (rs: AggRecord[]) => cols.map((c, i) => { const f = calcs[i]; return f ? f((k) => sumOf(rs, k)) : sumOf(rs, c) })
   const total = sum(records)
   const out: Out[] = []
   /** 한 갈래를 펼친다 — 마지막 조건마다 한 줄, 그 위 조건이 끝날 때마다 소계 줄. */

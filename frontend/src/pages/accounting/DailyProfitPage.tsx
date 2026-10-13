@@ -13,6 +13,8 @@ import { useItemFlags } from '../../utils/useInactiveItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
+import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 
 /**
  * 이익관리 > 일별이익현황 (이카운트 C000140)
@@ -32,7 +34,6 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
  *
  * 우리에게 없는 것과 이유:
  *   선입선출 — 입고 레이어를 남기지 않아 계산할 수 없다(일별재고현황과 같다)
- *   사용자지정집계 — 집계축을 사용자가 정의하는 기능이 없다
  *   결재방표시·수량관리제외품목 — 대응 개념이 없다
  * 대신 원본에 없는 <b>일자별</b>을 구분에 넣었다 — 화면 이름이 '일별'이라 하루 단위 줄이 있어야 한다.
  *
@@ -49,10 +50,43 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
  * 같은 거래처의 품목을 나란히 보려면 이쪽이라야 한다.
  *
  * <p>'일자별' 은 원본에 없는 우리 것이다. 일별이익현황이니 하루 단위로 접어 보는 쪽이
- * 쓸모가 있어 맨 뒤에 남겼다. '사용자지정집계'(저장해 둔 집계 조합)는 아직 없다.
+ * 쓸모가 있어 맨 뒤에 남겼다. '사용자지정집계' 는 2026-10-13 에 만들었다(아래 PROFIT_DIMS).
  */
-type Mode = '라인별' | '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별' | '일자별'
-const MODES = ['라인별', '품목별', '거래처별', '품목별거래처별', '거래처별품목별', '일자별'] as const
+type Mode = '라인별' | '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별' | '사용자지정집계' | '일자별'
+const MODES = ['라인별', '품목별', '거래처별', '품목별거래처별', '거래처별품목별', '사용자지정집계', '일자별'] as const
+
+/**
+ * [구분] <b>사용자지정집계</b> — 원본 E040806 집계조건검색 창(2026-10-13 실측):
+ * 기준일자(일별 · 월별 · 연별) · 판매(담당자 · 창고 · 거래유형 · 관리항목 · 프로젝트) · 거래처(거래처 · 거래처그룹1 · 거래처그룹2) ·
+ * 품목(품목명[규격] · 품목그룹1 · 품목그룹2 · 품목그룹3). 우리 판매 줄에 없는 관리항목 · 거래처그룹2 · 품목그룹2 · 3 은 뺐다.
+ * 집계대상검색 창: 판매(수량 · 판매액 · 원가 · 이익) · 일별이익(판매부대비용 · 부대비용포함이익 · 이익율).
+ * 결과(거래처 · 수량 · 이익 · 이익율): '(주)삼성 5.00 8,357,868 98%' … '합계 44.00 9,245,263 93%' — 이익율은 묶음의 이익 ÷ 판매액, 정수 %.
+ */
+const PROFIT_DIMS: AggDim[] = [
+  { key: 'day', label: '일별', group: '기준일자', codeLabel: null },
+  { key: 'month', label: '월별', group: '기준일자', codeLabel: null },
+  { key: 'year', label: '연별', group: '기준일자', codeLabel: null },
+  { key: 'employee', label: '담당자', group: '판매' },
+  { key: 'warehouse', label: '창고', group: '판매' },
+  { key: 'taxType', label: '거래유형', group: '판매', codeLabel: null },
+  { key: 'project', label: '프로젝트', group: '판매' },
+  { key: 'partner', label: '거래처', group: '거래처' },
+  { key: 'partnerGroup', label: '거래처그룹1', group: '거래처', codeLabel: null },
+  { key: 'item', label: '품목명[규격]', group: '품목', codeLabel: '품목코드' },
+  { key: 'itemGroup', label: '품목그룹1', group: '품목', codeLabel: null },
+]
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const PROFIT_TARGETS: AggTarget[] = [
+  { key: 'qty', label: '수량', format: qty2 },
+  { key: 'revenue', label: '판매액' },
+  { key: 'cost', label: '원가' },
+  { key: 'profit', label: '이익' },
+  { key: 'extra', label: '판매부대비용' },
+  { key: 'profitNet', label: '부대비용포함이익' },
+  /* 이익율은 더하지 않는다 — 묶음마다 이익 ÷ 판매액(정수 %). */
+  { key: 'rate', label: '이익율', format: (n) => `${n}%`,
+    calc: (v) => (v('판매액') ? Math.round((v('이익') / v('판매액')) * 100) : 0) },
+]
 /**
  * 원가 기준.
  *
@@ -113,6 +147,7 @@ export default function DailyProfitPage() {
    * 품목을 모아야 한다. 이익현황은 품목으로 접어 보는 것이 첫 화면이다.
    */
   const [mode, setMode] = useState<Mode>('품목별')
+  const [agg, setAgg] = useState<AggState>(EMPTY_AGG)
   /* 원본 기본 원가는 [선입선출(판매)] 다(2026-10-04 실측 — 라디오가 거기 찍혀 있다). */
   const [basis, setBasis] = useState<Basis>('선입선출(판매)')
   const [withVat, setWithVat] = useState(false)
@@ -227,6 +262,8 @@ export default function DailyProfitPage() {
           key: `${d.id}-${l.itemId}-${l.lotNo ?? ''}`,
           date: d.saleDate, docNo: d.docNo,
           partnerId: d.partnerId, partnerName: d.partnerName,
+          warehouseId: d.warehouseId, warehouseName: d.warehouseName, taxType: d.taxable ? '과세' : '면세',
+          projectName: d.projectName ?? '', employeeName: d.employeeName ?? '',
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
           /** 열이 [품목명[규격]] 이다 — 규격을 대괄호로 붙인다(이름만 찍고 있었다, 8회차 화면 점검). */
           itemLabel: l.itemName + (l.spec ? `[${l.spec}]` : ''),
@@ -238,6 +275,32 @@ export default function DailyProfitPage() {
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sales, cond, tradeKind, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+
+  /** 사용자지정집계가 묶는 한 건 — 판매 줄 하나. 원가를 모르는 줄은 원가 · 이익을 0 으로 더한다(판매액은 그대로). */
+  const aggRecords = useMemo(() => {
+    const pcode = new Map(pickers.partners.map((p) => [p.value, p.code]))
+    return lines.map((l) => {
+      const d = l.date.replace(/-/g, '/')
+      const cost = l.cost ?? 0, profit = l.profit ?? 0
+      const pg = pgroup.groupOfName(l.partnerName) ?? ''
+      const ig = mgmtItems.groupOf(l.itemId) ?? ''
+      return {
+        dims: {
+          day: { code: d, name: d }, month: { code: d.slice(0, 7), name: d.slice(0, 7) }, year: { code: d.slice(0, 4), name: d.slice(0, 4) },
+          employee: { code: l.employeeName, name: l.employeeName },
+          warehouse: { code: String(l.warehouseId ?? ''), name: l.warehouseName ?? '' },
+          taxType: { code: l.taxType, name: l.taxType },
+          project: { code: l.projectName, name: l.projectName },
+          partner: { code: pcode.get(String(l.partnerId)) ?? String(l.partnerId), name: l.partnerName },
+          partnerGroup: { code: pg, name: pg },
+          item: { code: l.itemCode, name: l.itemLabel },
+          itemGroup: { code: ig, name: ig },
+        },
+        values: { 수량: l.quantity, 판매액: l.revenue, 원가: cost, 이익: profit, 판매부대비용: l.extraCost, 부대비용포함이익: profit - l.extraCost },
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines, pickers.partners])
 
   /** 구분에 따라 묶는다. 라인별은 안 묶고, 나머지는 키를 만들어 합친다. */
   const rows = useMemo(() => {
@@ -314,6 +377,7 @@ export default function DailyProfitPage() {
     거래처별: ['거래처'],
     품목별거래처별: ['품목코드', '품목명[규격]', '거래처'],
     거래처별품목별: ['거래처', '품목코드', '품목명[규격]'],
+    사용자지정집계: [],
   }
   const heads = HEADS[mode]
   /*
@@ -366,6 +430,7 @@ export default function DailyProfitPage() {
               </button>
             ))}
           </div>
+          {mode === '사용자지정집계' && <CustomAggregateConds dims={PROFIT_DIMS} targets={PROFIT_TARGETS} value={agg} onChange={setAgg} />}
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
@@ -498,6 +563,11 @@ export default function DailyProfitPage() {
         {!allUnknown && <span className="text-ec-hint"> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
       </div>
 
+      {mode === '사용자지정집계' ? (<>
+        <EcReportHead title="일별이익현황" period={reportPeriod(cond.from, cond.to)} />
+        <CustomAggregateTable dims={PROFIT_DIMS} targets={PROFIT_TARGETS} records={aggRecords} agg={agg} name="일별이익현황" />
+        <EcReportFoot />
+      </>) : (
       <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
@@ -584,6 +654,7 @@ export default function DailyProfitPage() {
           )}
         </table>
       </div>
+      )}
       <Modal error={error} open={whyOpen} title="이익이 안 나올 경우" onClose={() => setWhyOpen(false)}>{(
         <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
           이익 = 판매액 − (판매수량 × 원가단가) 입니다. 원가단가를 못 찾으면 이익 칸이 비거나

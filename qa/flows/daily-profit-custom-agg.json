@@ -1,0 +1,17 @@
+{
+  "about": "일별이익현황 [구분] 사용자지정집계 — 2026-10-13 원본 E040806 실측: 집계조건(기준일자 · 판매 · 거래처 · 품목 갈래) · 집계대상(수량 · 판매액 · 원가 · 이익 · 판매부대비용 · 부대비용포함이익 · 이익율). 거래처 / 수량 · 이익 · 이익율 → 머리 '거래처 · 수량 · 이익 · 이익율', 수량 5.00 꼴, 이익율 정수 %(더하지 않고 이익 ÷ 판매액), 끝에 합계. 출력물 머리 회사명 · 기간.",
+  "shots": [
+    {
+      "name": "거래처 × 수량 · 이익 · 이익율 → 합계 줄 이익율 = 합계 이익 ÷ 합계 판매액",
+      "path": "/accounting/daily-profit",
+      "steps": [
+        "wait:3000",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '사용자지정집계').click(); await W(400); const sel = document.querySelector('select[aria-label=\"집계조건1\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, 'partner'); sel.dispatchEvent(new Event('change', { bubbles: true })); await W(200); for (const t of ['수량', '판매액', '이익', '이익율']) { const l = [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === t && x.querySelector('input[type=checkbox]')); l.querySelector('input').click(); await W(100) } await W(400); return 'ok' })()",
+        "js:[...document.querySelectorAll('table.ec-report tbody tr')].slice(-2).map((r) => r.innerText.replace(/\\s+/g, ' ')).join(' / ')",
+        "expect:[...document.querySelectorAll('table.ec-report thead th')].map((t) => t.innerText.trim()).join('|') === '거래처|수량|판매액|이익|이익율'",
+        "expect:document.body.innerText.includes('회사명 :')",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')]; const last = rows[rows.length - 1]; if (!last || last.cells[0].innerText.trim() !== '합계') return rows.length === 1; const n = (s) => Number(s.replace(/[,%]/g, '')); const rev = n(last.cells[2].innerText), pf = n(last.cells[3].innerText); return /^\\d[\\d,]*\\.\\d\\d$/.test(last.cells[1].innerText.trim()) && last.cells[4].innerText.trim() === (rev ? Math.round(pf / rev * 100) + '%' : '') })()"
+      ]
+    }
+  ]
+}
