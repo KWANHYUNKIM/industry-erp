@@ -174,7 +174,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       onReset={resetConds}
       actions={[
         { label: '신규(F2)', onClick: () => { setVoucher(null); setEntryOpen(true) } },
-        { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
+        { label: '선택삭제', selected: picked.size, onClick: () => setConfirmDelete(true) },
         { label: 'Excel' },
       ]}
     >
