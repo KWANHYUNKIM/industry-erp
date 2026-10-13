@@ -1,6 +1,7 @@
 package com.erp.accounting.journal;
 
 import com.erp.accounting.account.Account;
+import com.erp.trade.partner.BusinessPartner;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -55,4 +56,17 @@ public class JournalLine {
     /** 줄의 [프로젝트]. */
     @Column(name = "project_id")
     private Long projectId;
+
+    /**
+     * 줄의 [거래처] — 원본 일반전표 격자는 줄마다 거래처코드 · 거래처명을 받는다(2026-10-13 loginaa E010201).
+     * 비어 있으면 전표 한 장의 거래처(entry.partner)를 따른다. 계정별원장 · 거래처원장은 줄 거래처를 먼저 본다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private BusinessPartner partner;
+
+    /** 줄 거래처, 없으면 전표 거래처. */
+    public BusinessPartner effectivePartner() {
+        return partner != null ? partner : (entry != null ? entry.getPartner() : null);
+    }
 }

@@ -84,6 +84,10 @@ public class JournalEntry extends BaseTimeEntity {
     @Column(name = "updated_by", length = 50)
     private String updatedBy;
 
+    /** 일반전표 머리의 [첨언내용](여러 줄) — 원본 E010201 입력 판. */
+    @Column(name = "memo", length = 1000)
+    private String memo;
+
     @OneToMany(mappedBy = "entry", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineNo asc")
     @Builder.Default

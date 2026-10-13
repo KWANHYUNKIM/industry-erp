@@ -14,7 +14,7 @@ import com.erp.accounting.journal.dto.JournalDtos.CashTxnRequest;
 import com.erp.accounting.journal.dto.JournalDtos.CreateJournalRequest;
 import com.erp.accounting.journal.dto.JournalDtos.ManualLineInput;
 import com.erp.accounting.account.AccountRepository;
-import com.erp.trade.partner.BusinessPartnerRepository;
+import com.erp.trade.partner.PartnerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,20 +61,51 @@ public class JournalService {
     private final JournalEntryRepository entryRepository;
     private final AccountRepository accountRepository;
     private final AccountService accountService;
-    private final BusinessPartnerRepository partnerRepository;
+    private final PartnerService partnerService;
     private final BankAccountRepository bankAccountRepository;
 
-    /** 일반전표 직접입력. 사용자가 차/대변 라인을 입력하며, 차변합=대변합이어야 저장된다. */
+    /**
+     * 일반전표(E010201) 저장. 사용자가 차/대변 라인을 입력하며, 차변합=대변합이어야 저장된다.
+     * 원본 검증 문구(2026-10-13 loginaa 실측): 줄이 없으면 '계정코드를 입력 바랍니다.',
+     * 차대가 다르면 '대차금액이 맞지 않아 저장할 수 없습니다.'
+     */
     @Transactional
     public JournalEntry createManual(CreateJournalRequest req, String username) {
-        List<ManualLineInput> inputs = req.lines();
-        if (inputs == null || inputs.size() < 2) {
-            throw ApiException.badRequest("분개는 차변·대변 최소 2줄이 필요합니다.");
-        }
         LocalDate date = req.entryDate() != null ? req.entryDate() : LocalDate.now();
         JournalEntry e = newEntry(JournalSourceType.MANUAL, null, date,
-                req.description(), resolvePartner(req.partnerId()), username);
+                null, resolvePartner(req.partnerId()), username);
+        fillManual(e, req);
+        return saveManual(e);
+    }
 
+    /**
+     * 일반전표 수정 창 [저장(F8)] — 회계거래조회에서 전표번호를 눌러 연 창. 원본은 전표일자를 막고 줄을 고친다
+     * (2026-10-13 실측: 11,000 → 22,000 이면 창이 닫히고 회계거래조회 금액 22,000). 분개 줄은 통째로 다시 만든다.
+     */
+    @Transactional
+    public JournalEntry updateManual(Long id, CreateJournalRequest req, String username) {
+        JournalEntry e = entryRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
+        if (e.getSourceType() != JournalSourceType.MANUAL) {
+            throw ApiException.badRequest("일반전표로 만든 전표만 이 화면에서 고칠 수 있습니다.");
+        }
+        if (e.getConfirmStatus() == JournalConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표는 고칠 수 없습니다: " + e.getDocNo());
+        }
+        e.getLines().clear();
+        entryRepository.flush();
+        e.setPartner(resolvePartner(req.partnerId()));
+        fillManual(e, req);
+        e.setUpdatedBy(username);
+        return saveManual(e);
+    }
+
+    private void fillManual(JournalEntry e, CreateJournalRequest req) {
+        List<ManualLineInput> inputs = req.lines() == null ? List.of() : req.lines();
+        if (inputs.isEmpty()) {
+            throw ApiException.badRequest("계정코드를 입력 바랍니다.");
+        }
+        String firstMemo = null;
         for (ManualLineInput in : inputs) {
             BigDecimal debit = nz(in.debit());
             BigDecimal credit = nz(in.credit());
@@ -83,12 +114,28 @@ public class JournalService {
             if (hasDebit == hasCredit) {   // 둘 다 있거나 둘 다 없음
                 throw ApiException.badRequest("각 라인은 차변 또는 대변 한쪽만 입력하세요.");
             }
+            if (firstMemo == null && in.description() != null && !in.description().isBlank()) firstMemo = in.description().trim();
             e.addLine(JournalLine.builder()
                     .account(account(in.accountId())).debit(debit).credit(credit)
                     .description(in.description())
+                    .partner(resolvePartner(in.partnerId()))
                     .departmentId(in.departmentId()).projectId(in.projectId()).build());
         }
-        return save(e);
+        // 원본 일반전표에는 머리 적요가 없다 — 회계거래조회 [적요]는 첫 줄 적요다.
+        String desc = req.description() != null && !req.description().isBlank() ? req.description().trim() : firstMemo;
+        e.setDescription(desc);
+        e.setMemo(req.memo() != null && !req.memo().isBlank() ? req.memo().trim() : null);
+        // 머리 거래처가 없으면 첫 줄 거래처를 전표 거래처로 — 회계거래조회 [거래처명] 이 이것을 찍는다.
+        if (e.getPartner() == null) {
+            e.getLines().stream().map(JournalLine::getPartner).filter(java.util.Objects::nonNull).findFirst().ifPresent(e::setPartner);
+        }
+    }
+
+    private JournalEntry saveManual(JournalEntry e) {
+        if (!e.isBalanced()) {
+            throw ApiException.badRequest("대차금액이 맞지 않아 저장할 수 없습니다.");
+        }
+        return entryRepository.save(e);
     }
 
     /** 현금거래 간편입력. 입금 → 차)현금·대)상대계정, 출금 → 차)상대계정·대)현금. */
@@ -234,8 +281,7 @@ public class JournalService {
 
     private BusinessPartner resolvePartner(Long id) {
         if (id == null) return null;
-        return partnerRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + id));
+        return partnerService.get(id);
     }
 
     private static BigDecimal nz(BigDecimal v) {

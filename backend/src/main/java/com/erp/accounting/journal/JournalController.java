@@ -41,6 +41,14 @@ public class JournalController {
         return ResponseEntity.ok(JournalEntryResponse.from(entry));
     }
 
+    /** 일반전표 수정 창 [저장(F8)] */
+    @PutMapping("/{id}")
+    public JournalEntryResponse updateManual(@PathVariable Long id,
+                                             @Valid @RequestBody CreateJournalRequest req,
+                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return JournalEntryResponse.from(journalService.updateManual(id, req, principal.getUsername()));
+    }
+
     /** 회계 I › 매출/매입거래 › 매출전표 I · 매입전표 I */
     @PostMapping("/vat-slip")
     public JournalEntryResponse vatSlip(@Valid @RequestBody com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest req,

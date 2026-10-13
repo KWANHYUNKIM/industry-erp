@@ -91,9 +91,9 @@ public class JournalQueryService {
             totalCredit = totalCredit.add(l.getCredit());
             rows.add(new LedgerRow(
                     l.getEntry().getEntryDate(), l.getEntry().getDocNo(), l.getDescription(),
-                    l.getEntry().getPartner() != null ? l.getEntry().getPartner().getName() : null,
+                    l.effectivePartner() != null ? l.effectivePartner().getName() : null,
                     l.getDebit(), l.getCredit(), running, counterOf(l),
-                    l.getEntry().getPartner() != null ? l.getEntry().getPartner().getId() : null));
+                    l.effectivePartner() != null ? l.effectivePartner().getId() : null));
         }
         return new AccountLedgerResponse(
                 account.getId(), account.getCode(), account.getName(), account.getDivision(),

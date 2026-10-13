@@ -26,17 +26,23 @@ public final class JournalDtos {
             String description,
             /** 줄의 [부서] · [프로젝트] (원본 일반전표 격자) */
             Long departmentId,
-            Long projectId
+            Long projectId,
+            /** 줄의 [거래처](원본 일반전표 격자 거래처코드 · 거래처명) — 비우면 전표 거래처를 따른다. */
+            Long partnerId
     ) {}
 
-    /** 일반전표 직접입력. 차변합=대변합이어야 저장된다. */
+    /**
+     * 일반전표 직접입력 · 수정. 차변합=대변합이어야 저장된다.
+     * 원본 일반전표(E010201)에는 머리 적요가 없다 — 비우면 첫 줄 적요가 전표 적요(회계거래조회 [적요])가 된다.
+     */
     public record CreateJournalRequest(
             LocalDate entryDate,
-            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.")
-            @NotBlank(message = "적요를 입력하세요.") String description,
+            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.") String description,
             Long partnerId,
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
-            List<@jakarta.validation.Valid ManualLineInput> lines
+            List<@jakarta.validation.Valid ManualLineInput> lines,
+            /** 머리 [첨언내용] */
+            @Size(max = 1000, message = "첨언내용은 1000자까지 넣을 수 있습니다.") String memo
     ) {}
 
     /**
@@ -119,14 +125,18 @@ public final class JournalDtos {
             Long id, int lineNo,
             Long accountId, String accountCode, String accountName,
             BigDecimal debit, BigDecimal credit, String description,
-            Long departmentId, Long projectId
+            Long departmentId, Long projectId,
+            /** 줄 거래처(V390 journal_lines.partner_id) — 없으면 null(전표 거래처는 머리 partnerId). */
+            Long partnerId, String partnerCode, String partnerName
     ) {
         public static JournalLineResponse from(JournalLine l) {
+            var p = l.getPartner();
             return new JournalLineResponse(
                     l.getId(), l.getLineNo(),
                     l.getAccount().getId(), l.getAccount().getCode(), l.getAccount().getName(),
                     l.getDebit(), l.getCredit(), l.getDescription(),
-                    l.getDepartmentId(), l.getProjectId());
+                    l.getDepartmentId(), l.getProjectId(),
+                    p != null ? p.getId() : null, p != null ? p.getCode() : null, p != null ? p.getName() : null);
         }
     }
 
@@ -158,7 +168,9 @@ public final class JournalDtos {
             /** 매출전표 I · 매입전표 I 의 [전자종류] · [예정누락분] · [세부내역](V353) */
             String eInvoiceKind, boolean vatOmitted, VatDetail vatDetail,
             /** 회계거래조회 조건 [최종수정자](V353) */
-            String updatedBy
+            String updatedBy,
+            /** 일반전표 [첨언내용] */
+            String memo
     ) {
         public static JournalEntryResponse from(JournalEntry e) {
             return new JournalEntryResponse(
@@ -171,7 +183,8 @@ public final class JournalDtos {
                     e.getCreatedBy(), e.getCreatedAt(), e.getUpdatedAt(),
                     e.getConfirmStatus(), e.getVatType(),
                     e.getEInvoiceKind(), e.isVatOmitted(), readVatDetail(e.getVatDetail()),
-                    e.getUpdatedBy() != null ? e.getUpdatedBy() : e.getCreatedBy());
+                    e.getUpdatedBy() != null ? e.getUpdatedBy() : e.getCreatedBy(),
+                    e.getMemo());
         }
     }
 

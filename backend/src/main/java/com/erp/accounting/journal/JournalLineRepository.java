@@ -11,7 +11,7 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
 
     /** 계정별원장: 특정 계정의 기간 내 분개 라인(전표·거래처 포함) */
     @Query("select l from JournalLine l " +
-            "join fetch l.entry e left join fetch e.partner " +
+            "join fetch l.entry e left join fetch e.partner left join fetch l.partner " +
             "join fetch l.account " +
             "where l.account.id = :accountId and e.entryDate between :from and :to " +
             "order by e.entryDate asc, e.id asc, l.lineNo asc")
@@ -24,7 +24,7 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
      * null 로 끄면 PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
      */
     @Query("select l from JournalLine l " +
-            "join fetch l.entry e left join fetch e.partner " +
+            "join fetch l.entry e left join fetch e.partner left join fetch l.partner " +
             "join fetch l.account " +
             "where l.account.id = :accountId and e.entryDate between :from and :to " +
             "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
@@ -35,7 +35,7 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
                                                @Param("dept") long dept, @Param("proj") long proj);
 
     /**
-     * 거래처별 <b>통제계정</b>(외상매출금·외상매입금) 차변합·대변합.
+     * 거래처별 <b>통제계정</b>(외상매출금·외상매입금) 차변합·대변합. 거래처는 줄 거래처(일반전표 격자), 없으면 전표 거래처.
      *
      * <p>판매·구매·정산전표에서 자동으로 만들어진 전표({@code excludeSources})는 뺀다 —
      * 그건 이미 전표 자체로 세고 있어서 두 번 세게 된다.
@@ -43,12 +43,12 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
      * <p>누적 잔액을 낼 때는 {@code from} 에 아주 이른 날짜를 준다. null 을 넘겨
      * 조건을 끄는 방식은 PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
      */
-    @Query("select e.partner.id, coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
-            "from JournalLine l join l.entry e " +
-            "where l.account.code = :accountCode and e.partner is not null " +
+    @Query("select coalesce(lp.id, ep.id), coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e left join l.partner lp left join e.partner ep " +
+            "where l.account.code = :accountCode and (lp is not null or ep is not null) " +
             "and e.sourceType not in :excludeSources " +
             "and e.entryDate between :from and :to " +
-            "group by e.partner.id")
+            "group by coalesce(lp.id, ep.id)")
     List<Object[]> sumControlAccountByPartner(@Param("accountCode") String accountCode,
                                               @Param("excludeSources") java.util.Collection<com.erp.accounting.journal.JournalSourceType> excludeSources,
                                               @Param("from") LocalDate from,
@@ -58,9 +58,9 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
      * 통제계정을 움직인 회계전표 <b>줄</b> — 거래처관리대장 [전표별] 에 판매·수금과 나란히 세운다.
      * 열: 일자 · 전표번호 · 출처 · 거래처 id · 거래처명 · 차변 · 대변.
      */
-    @Query("select e.entryDate, e.docNo, e.sourceType, e.partner.id, e.partner.name, l.debit, l.credit " +
-            "from JournalLine l join l.entry e " +
-            "where l.account.code = :accountCode and e.partner is not null " +
+    @Query("select e.entryDate, e.docNo, e.sourceType, coalesce(lp.id, ep.id), coalesce(lp.name, ep.name), l.debit, l.credit " +
+            "from JournalLine l join l.entry e left join l.partner lp left join e.partner ep " +
+            "where l.account.code = :accountCode and (lp is not null or ep is not null) " +
             "and e.sourceType not in :excludeSources " +
             "and e.entryDate between :from and :to")
     List<Object[]> controlAccountLines(@Param("accountCode") String accountCode,
