@@ -26,9 +26,12 @@ public class SupplyUsageService {
     /** 기간을 안 주면 오늘부터 한 주 — 원본 기본값과 같다. */
     private static final int DEFAULT_DAYS = 6;
 
+    /** [H] 이력의 대상 이름(이미 적힌 줄과 같은 글자) */
+    public static final String SUPPLY_USAGE_HISTORY = "SUPPLY_USAGE";
     private final SupplyUsageRepository repository;
     private final SupplyRepository supplyRepository;
     private final UserRepository userRepository;
+    private final com.erp.common.history.ChangeHistoryService workHistoryService;
 
     @Transactional(readOnly = true)
     public List<SupplyUsageResponse> search(LocalDate from, LocalDate to, Long supplyItemId, Long userId) {
@@ -71,6 +74,7 @@ public class SupplyUsageService {
                     .repeatRule(rule)
                     .build();
             SupplyUsage saved = repository.save(u);
+            workHistoryService.record(SUPPLY_USAGE_HISTORY, saved.getId(), com.erp.common.history.ChangeHistoryService.CREATED);
             if (first == null) first = saved;
         }
         return SupplyUsageResponse.from(first);
@@ -95,8 +99,16 @@ public class SupplyUsageService {
             if (req.returnStatus() != null) u.setReturnStatus(req.returnStatus());
             if (u.isAllDay()) { u.setStartTime(null); u.setEndTime(null); }
             validateTimes(u.isAllDay(), u.getStartTime(), u.getEndTime());
+            workHistoryService.record(SUPPLY_USAGE_HISTORY, u.getId(), com.erp.common.history.ChangeHistoryService.UPDATED);
         }
         return SupplyUsageResponse.from(target);
+    }
+
+    /** 원본 공용품 조회 창 [H] '이력' — 저장할 때마다 한 줄(신규 · 수정). 이 표 전의 자료는 만든 때만 안다(작업자 빈칸). */
+    @Transactional(readOnly = true)
+    public List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(Long id) {
+        SupplyUsage u = get(id);
+        return workHistoryService.list(SUPPLY_USAGE_HISTORY, id, null, u.getCreatedAt());
     }
 
     /** 원본 하단 [라벨변경] — 체크한 줄에만 붙인다(반복 묶음의 다른 줄은 그대로였다, 실측). 빈 이름이면 라벨을 뗀다. */

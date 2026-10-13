@@ -13,6 +13,7 @@ import { escapeHtml } from '../../utils/escapeHtml'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { defaultRepeat, repeatSummary, type RepeatRule } from '../../utils/scheduleRepeat'
 import RepeatModal from '../../features/schedule/components/RepeatModal'
+import { EcHistoryModal } from '../../components/EcHistory'
 import RepeatScopeModal, { type RepeatScope } from '../../features/schedule/components/RepeatScopeModal'
 import LabelMasterModal from '../../features/board/components/LabelMasterModal'
 import LabelChip from '../../features/board/components/LabelChip'
@@ -165,6 +166,8 @@ export default function SuppliesPage() {
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }))
   /** '공용품관리' 조회 창에 띄운 내역. */
   const [viewing, setViewing] = useState<Usage | null>(null)
+  /** 원본 조회 창 [H] → '이력'(2026-10-13 실측 — 일정관리와 같은 창). */
+  const [history, setHistory] = useState<Usage | null>(null)
 
   // 공용품 마스터 관리 팝업
   const [showMaster, setShowMaster] = useState(false)
@@ -483,12 +486,13 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
               </tbody>
             </table>
             <div className="flex gap-[6px]">
-              {/* 원본 차례: [수정][인쇄][복사][닫기][삭제][H] — [H](이력)는 받쳐 줄 기록이 없어 넣지 않았다. */}
+              {/* 원본 차례: [수정][인쇄][복사][닫기][삭제][H] */}
               <button className="ec-btn ec-btn-primary" onClick={() => askEdit(viewing)}>수정</button>
               <button className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
               <button className="ec-btn" onClick={() => openCopy(viewing)}>복사</button>
               <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
               <button className="ec-btn" onClick={() => askRemove(viewing)}>삭제</button>
+              <button className="ec-btn" onClick={() => setHistory(viewing)}>H</button>
             </div>
           </>
         )}
@@ -499,6 +503,11 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
                      onApply={(r) => { setRepeat(r); setShowRepeat(false) }}
                      onRemove={() => { setRepeat(null); setShowRepeat(false) }}
                      onClose={() => setShowRepeat(false)} />
+      )}
+      {/* 머리 '[2026/01/23 -1]' — 그날 쓰임 가운데 몇째로 넣었나. */}
+      {history && (
+        <EcHistoryModal url={`/supply-usages/${history.id}/history`} onClose={() => setHistory(null)}
+                          head={`[${history.useDate.replaceAll('-', '/')} -${Math.max(1, rows.filter((r) => r.useDate === history.useDate && r.id <= history.id).length)}]`} />
       )}
       {askScope && (
         <RepeatScopeModal title={askScope.action === 'edit' ? '반복일정수정' : '반복일정삭제'} onClose={() => setAskScope(null)}

@@ -36,6 +36,12 @@ public class ScheduleEventController {
         return ResponseEntity.ok(scheduleEventService.create(req, principal.getUsername()));
     }
 
+    /** 원본 '일정조회' [H] '이력'. */
+    @GetMapping("/{id}/history")
+    public List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(@PathVariable Long id) {
+        return scheduleEventService.history(id);
+    }
+
     @PatchMapping("/{id}")
     public ScheduleEventResponse update(@PathVariable Long id, @Valid @RequestBody UpdateScheduleEventRequest req,
                                         @AuthenticationPrincipal UserPrincipal principal) {

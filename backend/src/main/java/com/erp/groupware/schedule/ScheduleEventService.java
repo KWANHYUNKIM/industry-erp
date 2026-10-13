@@ -17,7 +17,10 @@ import com.erp.groupware.schedule.dto.ScheduleEventDtos;
 public class ScheduleEventService {
 
     private final com.erp.inventory.project.ProjectService projectService;
+    /** [H] 이력의 대상 이름(이미 적힌 줄과 같은 글자) */
+    public static final String SCHEDULE_HISTORY = "SCHEDULE";
     private final ScheduleEventRepository scheduleEventRepository;
+    private final com.erp.common.history.ChangeHistoryService workHistoryService;
 
     /** 일자 오름차순, 그다음 시간/ID 순. */
     @Transactional(readOnly = true)
@@ -117,6 +120,8 @@ public class ScheduleEventService {
                     .createdBy(username)
                     .build();
             ScheduleEvent saved = scheduleEventRepository.save(e);
+            workHistoryService.record(SCHEDULE_HISTORY, saved.getId(),
+                    com.erp.common.history.ChangeHistoryService.CREATED);
             if (first == null) first = saved;
         }
         return ScheduleEventResponse.from(first);
@@ -152,8 +157,17 @@ public class ScheduleEventService {
             if (req.permAttendeeEdit() != null) e.setPermAttendeeEdit(req.permAttendeeEdit());
             if (req.permSharerEdit() != null) e.setPermSharerEdit(req.permSharerEdit());
             if (req.permOthersView() != null) e.setPermOthersView(req.permOthersView());
+            workHistoryService.record(SCHEDULE_HISTORY, e.getId(),
+                    com.erp.common.history.ChangeHistoryService.UPDATED);
         }
         return ScheduleEventResponse.from(target);
+    }
+
+    /** 원본 '일정조회' [H] '이력' — 저장할 때마다 한 줄(신규 · 수정). */
+    @Transactional(readOnly = true)
+    public List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(Long id) {
+        ScheduleEvent e = get(id);
+        return workHistoryService.list(SCHEDULE_HISTORY, id, e.getCreatedBy(), e.getCreatedAt());
     }
 
     /** 원본 '반복일정삭제' — ONE(이번 일정만, 기본) · FOLLOWING(향후 모든 일정) · ALL(전체 반복일정). */

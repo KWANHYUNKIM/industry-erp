@@ -35,6 +35,12 @@ public class SupplyUsageController {
         return ResponseEntity.ok(service.create(req));
     }
 
+    /** 원본 조회 창 [H] '이력'. */
+    @GetMapping("/{id}/history")
+    public List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(@PathVariable Long id) {
+        return service.history(id);
+    }
+
     @PutMapping("/{id}")
     public SupplyUsageResponse update(@PathVariable Long id, @Valid @RequestBody UpdateSupplyUsageRequest req) {
         return service.update(id, req);

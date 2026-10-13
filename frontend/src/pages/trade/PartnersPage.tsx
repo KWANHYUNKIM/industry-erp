@@ -8,6 +8,7 @@ import Modal from '../../components/Modal'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
+import EcHistoryButton from '../../components/EcHistory'
 import GroupMasterModal from '../../components/GroupMasterModal'
 
 const inputCls = 'ec-input w-full'
@@ -825,6 +826,8 @@ export default function PartnersPage() {
               <button type="button" className="ec-btn" onClick={() => toggleOne(editId)}>사용중단/재사용</button>
             )}
             <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+            {/* 원본 수정 창 끝의 [H] — 이 거래처의 이력(신규 · 수정 · 삭제 · 사용중단 · 재사용) */}
+            <EcHistoryButton target="PARTNER" id={editId} />
           </div>
         </form>
       )}</Modal>

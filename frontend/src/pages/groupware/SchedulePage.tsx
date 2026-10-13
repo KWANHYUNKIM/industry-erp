@@ -18,6 +18,7 @@ import LabelMasterModal from '../../features/board/components/LabelMasterModal'
 import LabelChip from '../../features/board/components/LabelChip'
 import ScheduleCategoryModal, { type ScheduleCategory } from '../../features/schedule/components/ScheduleCategoryModal'
 import NameChips from '../../features/schedule/components/NameChips'
+import { EcHistoryModal } from '../../components/EcHistory'
 
 interface ScheduleEvent {
   id: number
@@ -219,6 +220,8 @@ export default function SchedulePage() {
   const [editId, setEditId] = useState<number | null>(null)
   /** '일정조회' 창에 띄운 일정. */
   const [viewing, setViewing] = useState<ScheduleEvent | null>(null)
+  /** 원본 '일정조회' [H] → '이력'. */
+  const [history, setHistory] = useState<ScheduleEvent | null>(null)
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 일정관리(기본 양식) 조건 차례: 기준일자 · 참석자 · 제목 · 장소 · 일정구분 · 라벨 · 기타 · 본문.
@@ -694,11 +697,17 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
               <button className="ec-btn" onClick={() => copyOf(viewing)}>복사</button>
               <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
               {canEdit(viewing) && <button className="ec-btn" onClick={() => askRemove(viewing)}>삭제</button>}
+              <button className="ec-btn" onClick={() => setHistory(viewing)}>H</button>
             </div>
           </>
         )}
       </Modal>
 
+      {/* '일정조회' 위에 뜨도록 그 뒤에 둔다. 머리 '[2026/10/13 -4]' — 그날 일정 가운데 몇째로 넣었나. */}
+      {history && (
+        <EcHistoryModal url={`/schedule-events/${history.id}/history`} onClose={() => setHistory(null)}
+                          head={`[${history.eventDate.replaceAll('-', '/')} -${rows.filter((r) => r.eventDate === history.eventDate && r.id <= history.id).length}]`} />
+      )}
       {/* '일정조회' 위에 뜨도록 그 뒤에 둔다. */}
       {askScope && (
         <RepeatScopeModal onClose={() => setAskScope(null)}

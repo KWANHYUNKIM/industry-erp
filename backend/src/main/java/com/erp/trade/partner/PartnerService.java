@@ -1,6 +1,7 @@
 package com.erp.trade.partner;
 
 import com.erp.common.ApiException;
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.trade.partner.dto.PartnerDtos.CreatePartnerRequest;
 import com.erp.trade.partner.dto.PartnerDtos.PartnerResponse;
 import com.erp.trade.partner.dto.PartnerDtos.UpdatePartnerRequest;
@@ -20,6 +21,9 @@ public class PartnerService {
 
     private final BusinessPartnerRepository partnerRepository;
     private final PartnerGroupRepository partnerGroupRepository;
+    /** 수정 창 [H] 의 이력 — 원본 거래처등록 C000009 */
+    private final ChangeHistoryService changeHistory;
+    public static final String HISTORY_TARGET = "PARTNER";
 
     /** 원본 [거래처코드구분]. */
     private static final List<String> REG_NO_KINDS =
@@ -94,12 +98,15 @@ public class PartnerService {
                 .apNoManaged(Boolean.TRUE.equals(req.apNoManaged()))
                 .active(true)
                 .build();
-        return PartnerResponse.from(partnerRepository.save(p));
+        BusinessPartner saved = partnerRepository.save(p);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
+        return PartnerResponse.from(saved);
     }
 
     @Transactional
     public PartnerResponse update(Long id, UpdatePartnerRequest req) {
         BusinessPartner p = getPartner(id);
+        boolean wasActive = p.isActive();
         p.setName(req.name());
         p.setType(req.type());
         String regNoKind = oneOf(req.regNoKind(), REG_NO_KINDS, "사업자등록번호", "거래처코드구분");
@@ -143,6 +150,7 @@ public class PartnerService {
         if (req.active() != null) {
             p.setActive(req.active());
         }
+        changeHistory.recordUpdate(HISTORY_TARGET, p.getId(), wasActive, p.isActive());
         return PartnerResponse.from(p);
     }
 
@@ -196,6 +204,7 @@ public class PartnerService {
     @Transactional
     public void delete(Long id) {
         partnerRepository.delete(getPartner(id));
+        changeHistory.record(HISTORY_TARGET, id, ChangeHistoryService.DELETED);
     }
 
     private static String emptyToNull(String v) {
