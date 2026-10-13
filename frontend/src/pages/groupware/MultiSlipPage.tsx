@@ -21,7 +21,7 @@ import { exportTableToXlsx } from '../../utils/excel'
  */
 
 type Board = 'MULTI_INPUT' | 'SALES_CONTRACT' | 'BOND_COLLECT' | 'MONTHLY_ATTENDANCE'
-type Master = 'emp' | 'dept' | 'route' | 'partner'
+type Master = 'emp' | 'dept' | 'route' | 'partner' | 'partnerCode'
 type Fields = Record<string, string>
 
 /** 입력 격자 한 칸. code 칸은 고르면 nameKey 칸에 이름을 채운다(돋보기 없음 — 치고 칸을 떠나면 채워짐). */
@@ -29,7 +29,8 @@ interface InCol {
   key: string
   head: string
   width: number
-  kind: 'code' | 'name' | 'text' | 'memo' | 'num' | 'date' | 'calc'
+  /** none = 원본도 칸이 안 열린다(영업자별 계약상황 [계약일자] — 목록은 전표 일자). */
+  kind: 'code' | 'name' | 'text' | 'memo' | 'num' | 'none' | 'calc'
   master?: Master
   nameKey?: string
   /** 처음 값(원본 단가 · 청구한근무시간 '0'). */
@@ -86,13 +87,15 @@ const BOARDS: Record<string, BoardCfg> = {
   '/groupware/sales-contract': {
     board: 'SALES_CONTRACT', title: '영업자별 계약상황', width: 1304, rows: 6, period: 'lastYear', linkHead: '계약일자',
     cols: [
-      { key: 'contractDate', head: '계약일자', width: 234, kind: 'date' },
+      // 원본 [계약일자] 칸은 눌러도 입력이 안 열린다(2026-10-14 신규 · 수정 둘 다) — 목록 '계약일자' 는 전표 일자다.
+      { key: 'contractDate', head: '계약일자', width: 234, kind: 'none' },
       { key: 'no', head: '번호', width: 41, kind: 'text' },
       { key: 'empCode', head: '사번', width: 41, kind: 'code', master: 'emp', nameKey: 'empName' },
       { key: 'empName', head: '영업자', width: 75, kind: 'name' },
       { key: 'bizNo', head: '사업자번호', width: 122, kind: 'code', master: 'partner', nameKey: 'partnerName' },
       { key: 'partnerName', head: '거래처', width: 126, kind: 'name' },
-      // 원본 [계약코드] 코드도움이 무엇을 띄우는지 못 쟀다(남은 것) — 코드 · 이름 둘 다 글자로 받는다.
+      // 원본 [계약코드] 는 코드 칸('계약여부검색' 창: 코드 · 항목명 · 적요 — loginaa 에 등록된 항목 없음, 안 맞는 코드는 지워짐),
+      // [계약여부] 는 그 이름 칸(글자를 그대로 쳐도 저장된다 — '계약'). 항목이 없어 우리는 둘 다 글자 칸으로 둔다.
       { key: 'contractCode', head: '계약코드', width: 41, kind: 'text' },
       { key: 'contractName', head: '계약여부', width: 60, kind: 'text' },
       { key: 'qty', head: '수량', width: 53, kind: 'num' },
@@ -115,7 +118,8 @@ const BOARDS: Record<string, BoardCfg> = {
     board: 'BOND_COLLECT', title: '채권회수 상황판', width: 960, rows: 3, period: 'lastYear',
     cols: [
       { key: 'managerCode', head: '담당자', width: 70, kind: 'code', master: 'emp', nameKey: 'managerName', showName: true },
-      { key: 'partnerName', head: '거래처', width: 102, kind: 'text' },
+      // 원본 [거래처] 는 코드 칸(거래처검색 — 고르면 칸에 거래처명). 고르지 않고 친 글은 안 맞는 코드라 지워져 저장되지 않는다(2026-10-14).
+      { key: 'partnerCode', head: '거래처', width: 102, kind: 'code', master: 'partnerCode', nameKey: 'partnerName', showName: true },
       { key: 'target', head: '목표금액', width: 102, kind: 'num' },
       { key: 'c1', head: '1차 회수액', width: 102, kind: 'num' },
       { key: 'c2', head: '2차 회수액', width: 102, kind: 'num' },
@@ -158,13 +162,15 @@ const BOARDS: Record<string, BoardCfg> = {
       { key: 'absent', head: '무단결근(횟수)', width: 60, kind: 'num' },
       { key: 'note', head: '소명(필요시 기재)', width: 200, kind: 'memo' },
     ],
-    // 목록 열은 입력 열과 다르다(회사가 목록에 내건 항목). 짝은 E200276.md 3.4 끝 — 원본에 글이 없어 숫자로는 못 맞춤.
+    // 목록 열은 입력 열과 다르다(회사가 목록에 내건 항목). 2026-10-14 원본 저장으로 짝 확정:
+    // 영업 일수 = 근무가능일수 · 휴가일수 = 휴가일수 · 지각횟수 = 무단결근(횟수) · 휴일근무 청구시간 = 청구한근무시간 · 비고 = 소명.
     list: [
       { head: '부서', width: 200, cell: (f) => f.deptName ?? '' },
       { head: '이름', width: 104, cell: (f) => f.empName ?? '' },
       { head: '영업 일수', width: 96, cell: (f) => f.availDays ?? '', align: 'right' },
       { head: '휴가일수', width: 85, cell: (f) => f.vacationDays ?? '', align: 'right' },
-      { head: '지각횟수', width: 81, cell: (f) => (f.lateBefore || f.lateAfter ? String(num(f.lateBefore) + num(f.lateAfter)) : ''), align: 'right' },
+      // 원본 목록 '지각횟수' = 입력 [무단결근(횟수)](2026-10-14 실측: 지각 이전 1 · 이후 4 · 무단결근 3 → '3').
+      { head: '지각횟수', width: 81, cell: (f) => f.absent ?? '', align: 'right' },
       { head: '휴일근무 청구시간', width: 135, cell: (f) => f.claimedHours ?? '', align: 'right' },
       { head: '비고', width: 700, cell: (f) => f.note ?? '', pre: true },
     ],
@@ -237,6 +243,7 @@ const MASTER_TITLE: Record<Master, [string, string, string]> = {
   dept: ['부서검색', '부서코드', '부서명'],
   route: ['판매경로검색', '코드', '항목명'],
   partner: ['거래처검색', '사업자번호', '거래처명'],
+  partnerCode: ['거래처검색', '거래처코드', '거래처명'],
 }
 
 export default function MultiSlipPage() {
@@ -257,7 +264,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   const [condOpen, setCondOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [stageMenu, setStageMenu] = useState(false)
-  const [masters, setMasters] = useState<Record<Master, CodeItem[]>>({ emp: [], dept: [], route: ROUTES, partner: [] })
+  const [masters, setMasters] = useState<Record<Master, CodeItem[]>>({ emp: [], dept: [], route: ROUTES, partner: [], partnerCode: [] })
 
   // 입력 창
   const [open, setOpen] = useState(false)
@@ -287,8 +294,10 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
       .then((r) => setMasters((m) => ({ ...m, emp: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })) }))).catch(() => {})
     if (need.has('dept')) api.get<{ code: string; name: string }[]>('/departments')
       .then((r) => setMasters((m) => ({ ...m, dept: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })) }))).catch(() => {})
-    if (need.has('partner')) api.get<{ code: string; name: string; bizRegNo: string | null }[]>('/partners')
-      .then((r) => setMasters((m) => ({ ...m, partner: r.data.filter((x) => x.bizRegNo).map((x) => ({ value: x.bizRegNo!, code: x.bizRegNo, name: x.name })) }))).catch(() => {})
+    if (need.has('partner') || need.has('partnerCode')) api.get<{ code: string; name: string; bizRegNo: string | null }[]>('/partners')
+      .then((r) => setMasters((m) => ({ ...m,
+        partner: r.data.filter((x) => x.bizRegNo).map((x) => ({ value: x.bizRegNo!, code: x.bizRegNo, name: x.name })),
+        partnerCode: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })) }))).catch(() => {})
   }, [cfg])
 
   const shown = useMemo(() => rows.filter((s) =>
@@ -421,7 +430,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
     }
     if (c.kind === 'calc') return <input className="ec-input w-full text-right" aria-label={c.head} value={v} readOnly disabled />
     if (c.kind === 'memo') return <textarea className="ec-input w-full h-[26px] resize-y" aria-label={c.head} value={v} onChange={(e) => setCell(i, c.key, e.target.value)} />
-    if (c.kind === 'date') return <input type="date" className="ec-input w-full" aria-label={c.head} value={v} onChange={(e) => setCell(i, c.key, e.target.value)} />
+    if (c.kind === 'none') return null
     return <input className={`ec-input w-full${c.kind === 'num' ? ' text-right' : ''}`} aria-label={c.head} value={v}
                   inputMode={c.kind === 'num' ? 'decimal' : undefined} onChange={(e) => setCell(i, c.key, e.target.value)} />
   }
