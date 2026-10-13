@@ -59,13 +59,27 @@ export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN'
  *   E2000xx 꼴(WORK · 공지사항 · 팀별회의록)은 '게시글번호' · '작성자명', 완료일 열이 없다.
  * - stages: 회사가 정한 진행상태 이름(서버 stage). null 이면 WORK 의 진행중/완료.
  * - labels: [라벨] · [라벨변경] · [라벨설정] 이 있는가(통합게시판에는 없다).
+ * - stageLabel: 진행상태 자리의 이름(팀별회의록은 '부서구분'). defaultStage: 새 글의 진행상태(안 주면 stages[0]).
  */
-const BOARD_CFG: Record<PostBoardCode, { wide: boolean; stages: string[] | null; labels: boolean; period: 'yearBack' | 'lastYear' }> = {
+type BoardCfg = {
+  wide: boolean; stages: string[] | null; labels: boolean; period: 'yearBack' | 'lastYear'
+  stageLabel?: string; defaultStage?: string
+}
+const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   WORK: { wide: false, stages: null, labels: true, period: 'yearBack' },
   NOTICE: { wide: false, stages: ['기본'], labels: true, period: 'yearBack' },
   SHARED: { wide: true, stages: ['Default'], labels: false, period: 'lastYear' },
-  MEETING: { wide: false, stages: ['영업팀', '생산팀', '구매팀', '경영지원팀'], labels: true, period: 'yearBack' },
-  SIGN: { wide: true, stages: ['수주견적', '디자인팀 시안', '자재발주, 제작', '현장시공'], labels: true, period: 'yearBack' },
+  /*
+   * 팀별회의록 게시판(E200068, 2026-10-13 실측): 알약 [전체][경영지원팀][구매팀][생산팀][영업팀][항목을 자유롭게 추가 할 수 있습니다.],
+   * 격자 머리 '부서구분', 입력 창 [부서구분] 의 처음 값이 '항목을 자유롭게 추가 할 수 있습니다.' 다. 기본 기간 전년.
+   */
+  MEETING: {
+    wide: false, labels: true, period: 'lastYear', stageLabel: '부서구분',
+    stages: ['경영지원팀', '구매팀', '생산팀', '영업팀', '항목을 자유롭게 추가 할 수 있습니다.'],
+    defaultStage: '항목을 자유롭게 추가 할 수 있습니다.',
+  },
+  /* 간판제작 프로젝트관리(E200070, 2026-10-13 실측): 알약 [전체][수주견적][디자인팀 시안][자재발주, 제작][현장시공], 기본 기간 전년. */
+  SIGN: { wide: true, stages: ['수주견적', '디자인팀 시안', '자재발주, 제작', '현장시공'], labels: true, period: 'lastYear' },
 }
 
 /**
@@ -104,7 +118,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
    * 우리 서버의 상태(진행중/완료)는 WORK 의 것이라 공지사항에서는 쓰지 않고 '기본' 으로 보인다.
    */
   const statuses: string[] = cfg.stages ?? ['진행중', '완료']
-  const statusOf = (r: WorkPost) => (board === 'NOTICE' ? '기본' : namedStages ? (r.stage ?? cfg.stages![0]) : r.statusName)
+  const firstStage = cfg.defaultStage ?? cfg.stages?.[0] ?? ''
+  const stageLabel = cfg.stageLabel ?? '진행상태'
+  const statusOf = (r: WorkPost) => (board === 'NOTICE' ? '기본' : namedStages ? (r.stage ?? firstStage) : r.statusName)
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -273,7 +289,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       forwardTo: form.forwardAll ? null : form.forwardTo.join(', '),
       ccTo: form.ccTo.length ? form.ccTo.join(', ') : null,
       notice: form.notice,
-      stage: namedStages ? (form.stage || cfg.stages![0]) : null,
+      stage: namedStages ? (form.stage || firstStage) : null,
       // 수정은 통째로 덮는다 — 첨부를 안 보내면 서버가 뗀다(예전 수정이 그래서 첨부를 잃었다).
       attachmentId: attachment ? attachment.id : null,
     }
@@ -571,7 +587,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               <th className="w-[100px] text-center">{cfg.wide ? '작성자' : '작성자명'}</th>
               <th className="w-[150px] text-center">전달자</th>
               {cfg.wide && <th className="w-[100px] text-center">완료일</th>}
-              <th className="w-[150px] text-center">진행상태</th>
+              <th className="w-[150px] text-center">{stageLabel}</th>
               <th className="w-[60px] text-center">첨부</th>
               <th className="w-[60px] text-center">조회</th>
             </tr>
@@ -689,9 +705,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           {/* 원본 입력 창 맨 위 [진행상태] — 회사가 정한 이름(통합게시판 'Default' 하나). */}
           {namedStages && (
             <li className="wide">
-              <div className="title">진행상태</div>
+              <div className="title">{stageLabel}</div>
               <div className="form">
-                <select className="ec-input w-[260px]" value={form.stage || cfg.stages![0]} onChange={(e) => set('stage', e.target.value)}>
+                <select className="ec-input w-[260px]" value={form.stage || firstStage} onChange={(e) => set('stage', e.target.value)}>
                   {cfg.stages!.map((st) => <option key={st} value={st}>{st}</option>)}
                 </select>
               </div>
