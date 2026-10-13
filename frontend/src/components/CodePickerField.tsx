@@ -47,7 +47,7 @@ export default function CodePickerField({
    * 안 고르면 전체라는 뜻은 [전체] 지우기 항목(emptyLabel)이 말해 준다.
    */
   label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
-  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain,
+  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain, hideNew,
 }: {
   /** 코드도움 창의 격자 열(대상마다 다르다 — CodeSearchModal). 없으면 항목 모양을 보고 고른다. */
   columns?: CodeColumn[]
@@ -57,6 +57,8 @@ export default function CodePickerField({
   onNew?: () => void
   /** 사원검색 꼴 — [사용중단포함] · [Option] 없음 */
   plain?: boolean
+  /** 창의 [신규(F2)] 를 안 그린다 */
+  hideNew?: boolean
   label: string
   /** 단일 선택 값. multiple 이면 쓰지 않는다. */
   value?: string
@@ -254,6 +256,7 @@ export default function CodePickerField({
         onApply={() => { setOpen(false); setQ('') }}
         onNew={onNew}
         plain={plain}
+        hideNew={hideNew}
       />
     </div>
   )

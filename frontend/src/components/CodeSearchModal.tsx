@@ -100,7 +100,7 @@ export function defaultCodeColumns(label: string, items: CodeItem[], kinds?: Map
 
 export default function CodeSearchModal({
   open, label, title, items, columns, value, onPick, onClose, emptyLabel,
-  multiple, picked = [], onToggle, onClearAll, onApply, initialQuery = '', onNew, plain,
+  multiple, picked = [], onToggle, onClearAll, onApply, initialQuery = '', onNew, plain, hideNew,
 }: {
   open: boolean
   /** 대상 이름(거래처 · 창고 …). 창 제목 기본값은 `${label}검색`. */
@@ -123,6 +123,8 @@ export default function CodeSearchModal({
   onNew?: () => void
   /** 사원검색 꼴 — [사용중단포함] · [Option] 이 없다. */
   plain?: boolean
+  /** [신규(F2)] 가 없는 창(거래처특별단가그룹수정의 단가그룹 코드도움 — 하단 [닫기] 하나, E040120 실측). */
+  hideNew?: boolean
 }) {
   const [q, setQ] = useState(initialQuery)
   const [withStopped, setWithStopped] = useState(false)
@@ -161,7 +163,7 @@ export default function CodeSearchModal({
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'F2') { e.preventDefault(); runNew() }
+      if (e.key === 'F2' && !hideNew) { e.preventDefault(); runNew() }
       if (e.key === 'F3') { e.preventDefault(); searchRef.current?.focus() }
       if (e.key === 'F8' && multiple) { e.preventDefault(); onApply?.() }
     }
@@ -258,7 +260,7 @@ export default function CodeSearchModal({
           <button type="button" className="ec-btn ec-btn-primary" onClick={onApply}>적용(F8)</button>
           <button type="button" className="ec-btn" onClick={onClearAll}>전체 해제</button>
         </>}
-        <button type="button" className="ec-btn" onClick={runNew} title={route || onNew ? undefined : '등록 화면이 없는 대상입니다'}>신규(F2)</button>
+        {!hideNew && <button type="button" className="ec-btn" onClick={runNew} title={route || onNew ? undefined : '등록 화면이 없는 대상입니다'}>신규(F2)</button>}
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
         {multiple && picked.length > 0 && (
           <span className="ml-auto text-[12px] text-ec-label">선택 <b className="text-ec-blue">{picked.length}</b>건</span>

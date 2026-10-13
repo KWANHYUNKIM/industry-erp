@@ -639,11 +639,6 @@
   "color": 6,
   "palette": 0
  },
- "pages/inventory/SpecialPriceGroupPage.tsx": {
-  "inline": 7,
-  "color": 0,
-  "palette": 0
- },
  "pages/inventory/StagedAdjustmentPage.tsx": {
   "inline": 14,
   "color": 2,
