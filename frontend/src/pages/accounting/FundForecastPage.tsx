@@ -38,7 +38,8 @@ import {
  * (일자 · 상대계정명 · 거래처명 · 적요 · 금액). 실측 흐름: 이월 보통예금 921,424,000 + 계좌 미지정건 증가 30,000 → 합계 921,454,000.
  *
  * <p>수금 · 지급 · 어음 · 채권 · 채무 계획은 다른 전표에서 오는 계획이라 우리에게 자료가 없어 그 줄은 늘 빈칸이다.
- * 부서 · 프로젝트는 계획전표에만 있다(회계전표 실적에는 걸리지 않는다). [양식] · [결재방표시]는 두지 않는다.
+ * 부서 · 프로젝트는 계획전표에만 있다(회계전표 실적에는 걸리지 않는다). [양식](적용양식)은 두지 않는다.
+ * [결재방표시]는 일보 [기타] 줄 맨 앞 · 월보/연보 [양식구분] 줄(처음 꺼짐) — 켜면 인쇄에 결재란.
  */
 const KINDS = ['자금', '수금', '지급', '어음', '채권', '채무'] as const
 
@@ -59,6 +60,8 @@ export default function FundForecastPage({ variant }: { variant: 'daily' | 'mont
   const [kinds, setKinds] = useState<Set<string>>(new Set(KINDS))
   const [method, setMethod] = useState<'' | 'DEPOSIT' | 'NOTE' | 'ETC'>('')
   const [includeBaseDay, setIncludeBaseDay] = useState(true)
+  /** 원본 [결재방표시] — 일보는 [기타] 줄 맨 앞, 월보 · 연보는 [양식구분] 줄(2026-10-14 실측, 처음 꺼짐). */
+  const [signLine, setSignLine] = useState(false)
   const [actuals, setActuals] = useState<ActualMove[]>([])
   const [plans, setPlans] = useState<FundPlan[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,7 +98,7 @@ export default function FundForecastPage({ variant }: { variant: 'daily' | 'mont
 
   function reset() {
     setFrom(initFrom); setTo(initFrom); setBase(today); setDept(''); setProject(''); setDir('')
-    setKinds(new Set(KINDS)); setMethod(''); setIncludeBaseDay(true)
+    setKinds(new Set(KINDS)); setMethod(''); setIncludeBaseDay(true); setSignLine(false)
   }
   const toggleKind = (k: string, on: boolean) => setKinds((s) => { const n = new Set(s); if (on) n.add(k); else n.delete(k); return n })
   const radio = <T extends string>(name: string, value: T, cur: T, label: string, on: (v: T) => void) => (
@@ -109,6 +112,7 @@ export default function FundForecastPage({ variant }: { variant: 'daily' | 'mont
     <EcListShell
       title={title}
       searchable={false}
+      signLine={signLine}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: reset },
@@ -178,10 +182,22 @@ export default function FundForecastPage({ variant }: { variant: 'daily' | 'mont
           </div>
         </EcCond>
         <EcCond label="기타">
+          {variant === 'daily' && (
+            <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+              <input type="checkbox" checked={signLine} onChange={(e) => setSignLine(e.target.checked)} /> 결재방표시
+            </label>
+          )}
           <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={includeBaseDay} onChange={(e) => setIncludeBaseDay(e.target.checked)} /> 실적기준일의 계획전표 포함하기
           </label>
         </EcCond>
+        {variant !== 'daily' && (
+          <EcCond label="양식구분">
+            <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+              <input type="checkbox" checked={signLine} onChange={(e) => setSignLine(e.target.checked)} /> 결재방표시
+            </label>
+          </EcCond>
+        )}
       </ul>
 
       <div className="ec-report-head">

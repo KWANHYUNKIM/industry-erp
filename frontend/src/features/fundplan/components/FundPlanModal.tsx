@@ -42,6 +42,7 @@ const blank = (): Form => ({
  * 상대계정 · 거래처 · 금액 · 적요. 버튼줄 신규: 저장(F8) · 다시 작성 · 닫기 / 수정: 저장(F8) · 삭제 · 닫기.
  * 원본은 필수 칸이 없다 — 빈 창을 저장해도 금액 빈 줄이 하나 생긴다. 수정 창은 모든 칸을 고칠 수 있다.
  * '어음'을 고르면 계좌 줄이 사라진다(어음번호 칸은 원본에도 없다). [반복설정] · [H](이력)는 두지 않았다.
+ * 2026-10-14 다시 잼: 창 폭 960, 코드칸은 [코드][이름] 두 칸(계좌번호 1122334455 + Enter → '기업은행-1122').
  */
 export default function FundPlanModal({ open, planId, masters, onClose, onSaved }: {
   open: boolean
@@ -117,7 +118,7 @@ export default function FundPlanModal({ open, planId, masters, onClose, onSaved 
   )
 
   return (
-    <Modal open={open} title={title} width={780} error={error} onClose={onClose}>
+    <Modal open={open} title={title} width={960} error={error} onClose={onClose}>
       <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void save() } }}>
         <h3 className="text-[14px] font-bold mb-[8px]">{title}</h3>
         <ul className="ec-cond mb-[8px]">
@@ -129,11 +130,11 @@ export default function FundPlanModal({ open, planId, masters, onClose, onSaved 
             <EcDateField value={f.planDate} onChange={(v) => set({ planDate: v })} />
           </EcCond>
           <EcCond label="부서코드" pick>
-            <CodePickerField label="부서코드" hideLabel width={420} emptyLabel="선택 안 함" value={f.departmentId}
+            <CodePickerField pair label="부서코드" hideLabel width={420} emptyLabel="선택 안 함" value={f.departmentId}
                              onChange={(v) => set({ departmentId: v })} items={masters.departments} />
           </EcCond>
           <EcCond label="프로젝트코드" pick>
-            <CodePickerField label="프로젝트코드" hideLabel width={420} emptyLabel="선택 안 함" value={f.projectId}
+            <CodePickerField pair label="프로젝트코드" hideLabel width={420} emptyLabel="선택 안 함" value={f.projectId}
                              onChange={(v) => set({ projectId: v })} items={masters.projects} />
           </EcCond>
           <EcCond label="입력구분">
@@ -144,17 +145,17 @@ export default function FundPlanModal({ open, planId, masters, onClose, onSaved 
               </span>
               {/* 원본은 '어음'을 고르면 계좌 줄이 사라지고 다른 칸이 나오지 않는다(2026-10-12 실측) */}
               {f.method === 'DEPOSIT' && (
-                <CodePickerField label="계좌번호" hideLabel width={420} emptyLabel="선택 안 함" value={f.bankAccountId}
+                <CodePickerField pair label="계좌번호" hideLabel width={420} emptyLabel="선택 안 함" value={f.bankAccountId}
                                  onChange={(v) => set({ bankAccountId: v })} items={masters.bankAccounts} />
               )}
             </div>
           </EcCond>
           <EcCond label="상대계정" pick>
-            <CodePickerField label="상대계정" hideLabel width={420} emptyLabel="선택 안 함" value={f.counterAccountId}
+            <CodePickerField pair label="상대계정" hideLabel width={420} emptyLabel="선택 안 함" value={f.counterAccountId}
                              onChange={(v) => set({ counterAccountId: v })} items={masters.accounts} />
           </EcCond>
           <EcCond label="거래처" pick>
-            <CodePickerField label="거래처" hideLabel width={420} emptyLabel="선택 안 함" value={f.partnerId}
+            <CodePickerField pair label="거래처" hideLabel width={420} emptyLabel="선택 안 함" value={f.partnerId}
                              onChange={(v) => set({ partnerId: v })} items={masters.partners} />
           </EcCond>
           <EcCond label="금액">
