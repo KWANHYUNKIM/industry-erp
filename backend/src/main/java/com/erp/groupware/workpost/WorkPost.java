@@ -116,6 +116,7 @@ public class WorkPost extends BaseTimeEntity {
 
     /** 통합회의록 입력 창 [주 차 구분] — 주차검색의 코드 1 ~ 5('1주차' …). 다른 게시판은 null. */
     @Column(name = "week_no")
+    @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.SMALLINT)
     private Integer weekNo;
 
     /**
