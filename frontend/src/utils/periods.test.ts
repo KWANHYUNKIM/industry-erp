@@ -233,3 +233,7 @@ test('fiscalYearStartOf — 기수 첫날, 시작월 앞 달이면 지난해', (
   assert.equal(fiscalYearStartOf('2026-02-10', 4), '2025-04-01')
   assert.equal(fiscalYearStartOf('2026-04-01', 4), '2026-04-01')
 })
+
+test('전년+금년 은 작년 1월 1일부터 올해 12월 31일까지다 — 게시판 조건 판', () => {
+  assert.deepEqual(periodOf('전년+금년', new Date(2026, 9, 13)), { from: '2025-01-01', to: '2026-12-31' })
+})

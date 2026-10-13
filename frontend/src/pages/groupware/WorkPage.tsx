@@ -9,7 +9,8 @@ import { fetchLabels, type BoardLabel } from '../../features/board/labels'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { ymd, BOARD_PICKS } from '../../components/EcPeriodPicks'
+import UserPickModal from '../../features/schedule/components/UserPickModal'
 import { useShortcut } from '../../utils/useShortcut'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import EcFileDrop from '../../components/EcFileDrop'
@@ -17,12 +18,22 @@ import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 
-/** 원본 목록 오른쪽 위의 조회 기간 — 오늘부터 1년 전 같은 날까지(2025/10/03 ~ 2026/10/03). */
-function periodFrom() {
+/**
+ * 원본 목록 오른쪽 위의 조회 기간(= 조건 판 [게시일]의 기본값).
+ * - yearBack: 오늘부터 1년 전 같은 날까지(WORK · 공지사항, 2026-10-03 실측 2025/10/03 ~ 2026/10/03).
+ * - lastYear: 전년 1/1 ~ 12/31(통합게시판, 2026-10-13 실측 2025/01/01 ~ 2025/12/31 — 올해 쓴 글은
+ *   [Search(F3)] → [금년] 으로 봐야 보인다. 원본 그대로다).
+ */
+function defaultPeriod(kind: 'yearBack' | 'lastYear') {
   const d = new Date()
-  d.setFullYear(d.getFullYear() - 1)
-  return ymd(d)
+  if (kind === 'lastYear') return { from: `${d.getFullYear() - 1}-01-01`, to: `${d.getFullYear() - 1}-12-31` }
+  const back = new Date(d)
+  back.setFullYear(d.getFullYear() - 1)
+  return { from: ymd(back), to: ymd(d) }
 }
+
+/** 전달자 · 참조자 칸에 든 이름들. 서버에는 ', ' 로 이어 한 글자열로 간다(전체 = null). */
+const splitNames = (v: string | null | undefined) => (v ?? '').split(',').map((x) => x.trim()).filter(Boolean)
 
 const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -36,8 +47,9 @@ function stampText(iso?: string | null) {
   return `${dateText(ymd(d))} (${WEEK[d.getDay()]}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-type Form = { title: string; content: string; forwardTo: string; ccTo: string; notice: boolean; postDate: string; stage: string }
-const emptyForm = (stage = ''): Form => ({ title: '', content: '', forwardTo: '', ccTo: '', notice: false, postDate: today(), stage })
+/** forwardAll: 원본 [전달자] 의 '전체'(켬) / '선택'(이름을 고른다). */
+type Form = { title: string; content: string; forwardAll: boolean; forwardTo: string[]; ccTo: string[]; notice: boolean; postDate: string; stage: string }
+const emptyForm = (stage = ''): Form => ({ title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage })
 
 export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN'
 
@@ -48,12 +60,12 @@ export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN'
  * - stages: 회사가 정한 진행상태 이름(서버 stage). null 이면 WORK 의 진행중/완료.
  * - labels: [라벨] · [라벨변경] · [라벨설정] 이 있는가(통합게시판에는 없다).
  */
-const BOARD_CFG: Record<PostBoardCode, { wide: boolean; stages: string[] | null; labels: boolean }> = {
-  WORK: { wide: false, stages: null, labels: true },
-  NOTICE: { wide: false, stages: ['기본'], labels: true },
-  SHARED: { wide: true, stages: ['Default'], labels: false },
-  MEETING: { wide: false, stages: ['영업팀', '생산팀', '구매팀', '경영지원팀'], labels: true },
-  SIGN: { wide: true, stages: ['수주견적', '디자인팀 시안', '자재발주, 제작', '현장시공'], labels: true },
+const BOARD_CFG: Record<PostBoardCode, { wide: boolean; stages: string[] | null; labels: boolean; period: 'yearBack' | 'lastYear' }> = {
+  WORK: { wide: false, stages: null, labels: true, period: 'yearBack' },
+  NOTICE: { wide: false, stages: ['기본'], labels: true, period: 'yearBack' },
+  SHARED: { wide: true, stages: ['Default'], labels: false, period: 'lastYear' },
+  MEETING: { wide: false, stages: ['영업팀', '생산팀', '구매팀', '경영지원팀'], labels: true, period: 'yearBack' },
+  SIGN: { wide: true, stages: ['수주견적', '디자인팀 시안', '자재발주, 제작', '현장시공'], labels: true, period: 'yearBack' },
 }
 
 /**
@@ -111,15 +123,51 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   /** View 창에 띄운 글. */
   const [viewing, setViewing] = useState<WorkPost | null>(null)
 
-  const from = periodFrom()
-  const to = today()
+  /*
+   * 조회 기간 — 원본 [Search(F3)] 를 검색창이 빈 채로 누르면 내려오는 조건 판의 [게시일]. 판에서 고친 값은
+   * [검색(F8)] 을 눌러야 목록에 걸린다(원본도 그렇다).
+   */
+  const [period, setPeriod] = useState(() => defaultPeriod(cfg.period))
+  const { from, to } = period
+  const [condOpen, setCondOpen] = useState(false)
+  const [cond, setCond] = useState({ from: period.from, to: period.to, title: '' })
+  const [titleFilter, setTitleFilter] = useState('')
+  useEffect(() => {
+    const p = defaultPeriod(BOARD_CFG[board].period)
+    setPeriod(p)
+    setCond({ ...p, title: '' })
+    setTitleFilter('')
+  }, [board])
+  function applyCond() {
+    setPeriod({ from: cond.from, to: cond.to })
+    setTitleFilter(cond.title.trim())
+    setCondOpen(false)
+    void load()
+  }
+  /** 원본 [Search(F3)] — 검색창이 비었으면 조건 판을 내리고, 글자가 있으면 그 글자로 찾는다. */
+  function onSearch() {
+    if (!keyword.trim()) { setCondOpen((v) => !v); return }
+    void load()
+  }
+
+  /** 원본 화면 안 '알림' 창 — '삭제하겠습니까?' [확인][취소]. 브라우저 confirm 대신. ids 가 지울 글. */
+  const [confirmIds, setConfirmIds] = useState<number[] | null>(null)
+  /** 전달자 · 참조자 🔍 '사용자검색' 창. */
+  const [pickFor, setPickFor] = useState<'forwardTo' | 'ccTo' | null>(null)
+  /** 전달자 '전체 / 선택' 고르기 판. */
+  const [forwardMenu, setForwardMenu] = useState(false)
+  /** 하단 [진행상태변경 ▲] 의 진행상태 목록 판. */
+  const [stageMenu, setStageMenu] = useState(false)
+  /** 바깥 기능 버튼(보내기 · 업무지원AI · 이력조회 · 웹자료올리기)을 눌렀을 때의 안내. */
+  const [info, setInfo] = useState('')
 
   /** 원본 '라벨조회' 의 라벨 마스터(코드 · 이름 · 색). */
   const [labelMaster, setLabelMaster] = useState<BoardLabel[]>([])
   const [masterOpen, setMasterOpen] = useState(false)
 
   // Search(F3) — 버튼 라벨이 약속한 단축키. 창이 떠 있을 때는 뒤 화면이 바뀌면 안 된다.
-  useShortcut('F3', load, !showForm && !viewing && !masterOpen)
+  useShortcut('F3', onSearch, !showForm && !viewing && !masterOpen && !condOpen)
+  useShortcut('F8', applyCond, condOpen && !showForm && !viewing)
   useShortcut('F2', openNew, !showForm && !viewing && !masterOpen)
   useShortcut('F8', () => void submit(), showForm)
 
@@ -166,21 +214,34 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   function openEdit(r: WorkPost) {
     setViewing(null)
     setEditId(r.id)
-    setForm({ title: r.title, content: r.content, forwardTo: r.forwardTo ?? '', ccTo: r.ccTo ?? '', notice: r.notice, postDate: r.postDate, stage: r.stage ?? '' })
+    setForm({
+      title: r.title, content: r.content,
+      forwardAll: !r.forwardTo, forwardTo: splitNames(r.forwardTo), ccTo: splitNames(r.ccTo),
+      notice: r.notice, postDate: r.postDate, stage: r.stage ?? '',
+    })
     setAttachment(r.attachmentId ? { id: r.attachmentId, name: r.attachmentName ?? '첨부' } : null)
     setError('')
     setShowForm(true)
   }
 
-  async function removeOne(id: number) {
-    if (!confirm('삭제하겠습니까?')) return
-    try {
-      await api.delete(`/work-posts/${id}`)
-      setViewing(null)
-      load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
+  /** [삭제] — 먼저 '알림' 창으로 묻는다. 지우는 일은 [확인] 에서(doDelete). */
+  function removeOne(id: number) { setConfirmIds([id]) }
+
+  async function doDelete() {
+    const ids = confirmIds ?? []
+    setConfirmIds(null)
+    for (const id of ids) {
+      try {
+        await api.delete(`/work-posts/${id}`)
+      } catch (err) {
+        setError(extractErrorMessage(err))
+      }
     }
+    setViewing(null)
+    setShowForm(false)
+    setEditId(null)
+    setSelected(new Set())
+    load()
   }
 
   function set<K extends keyof Form>(k: K, v: Form[K]) { setForm((f) => ({ ...f, [k]: v })) }
@@ -205,19 +266,28 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     setError('')
     if (!form.title.trim()) return setError('제목을 입력하세요.')
     if (!form.content.trim()) return setError('내용을 입력하세요.')
+    if (!form.forwardAll && form.forwardTo.length === 0) return setError('전달자를 선택하세요.')
     const common = {
       title: form.title, content: form.content,
-      forwardTo: form.forwardTo || null, ccTo: form.ccTo || null,
+      // 전달자 '전체' 는 null 로 둔다. 알림은 보내지 않는다 — 우리는 누구에게 전달했는지 적어 두기만 한다.
+      forwardTo: form.forwardAll ? null : form.forwardTo.join(', '),
+      ccTo: form.ccTo.length ? form.ccTo.join(', ') : null,
       notice: form.notice,
       stage: namedStages ? (form.stage || cfg.stages![0]) : null,
       // 수정은 통째로 덮는다 — 첨부를 안 보내면 서버가 뗀다(예전 수정이 그래서 첨부를 잃었다).
       attachmentId: attachment ? attachment.id : null,
     }
     try {
-      if (editId != null) await api.put(`/work-posts/${editId}`, common)
-      else await api.post('/work-posts', { ...common, board, postDate: form.postDate })
-      setShowForm(false)
-      setEditId(null)
+      if (editId != null) {
+        // 원본: 수정 저장 뒤에는 목록이 아니라 그 글의 View 로 돌아간다(2026-10-13 실측).
+        const res = await api.put<WorkPost>(`/work-posts/${editId}`, common)
+        setShowForm(false)
+        setEditId(null)
+        setViewing(res.data)
+      } else {
+        await api.post('/work-posts', { ...common, board, postDate: form.postDate })
+        setShowForm(false)
+      }
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -230,15 +300,23 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     return next
   })
 
-  /** 원본 [진행상태변경] — 고른 글의 진행상태를 한꺼번에 바꾼다. */
-  async function changeStatusSelected() {
+  /**
+   * 원본 [진행상태변경 ▲] — 위로 진행상태 목록이 펴지고, 하나를 누르면 고른 글이 모두 그 상태가 된다.
+   * 회사가 정한 이름(통합게시판 · 팀별회의록 · 간판제작)은 stage 로, WORK 는 진행중/완료(status)로 보낸다.
+   */
+  function openStageMenu() {
+    if (shown.every((r) => !selected.has(r.id))) return setError('상태를 바꿀 글을 고르세요. 행번호 칸을 누르면 선택됩니다.')
+    setStageMenu((v) => !v)
+  }
+  async function changeStatusSelected(target: string) {
+    setStageMenu(false)
     const targets = shown.filter((r) => selected.has(r.id))
-    if (targets.length === 0) return setError('상태를 바꿀 글을 고르세요. 행번호 칸을 누르면 선택됩니다.')
-    const done = window.confirm(`${targets.length}건을 '완료'로 바꿀까요? (취소를 누르면 '진행중')`)
     for (const r of targets) {
       try {
         // enum 값은 IN_PROGRESS 다. 'ONGOING' 을 보내면 400 이 난다(직접 시험해서 잡았다).
-        await api.patch(`/work-posts/${r.id}/status`, { status: done ? 'DONE' : 'IN_PROGRESS' })
+        await api.patch(`/work-posts/${r.id}/status`, namedStages
+          ? { stage: target }
+          : { status: target === '완료' ? 'DONE' : 'IN_PROGRESS' })
       } catch (err) {
         setError(extractErrorMessage(err))
       }
@@ -306,16 +384,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   async function deleteSelected() {
     const targets = shown.filter((r) => selected.has(r.id))
     if (targets.length === 0) return setError('지울 글을 고르세요. 행번호 칸을 누르면 선택됩니다.')
-    if (!window.confirm('삭제하겠습니까?')) return
-    for (const r of targets) {
-      try {
-        await api.delete(`/work-posts/${r.id}`)
-      } catch (err) {
-        setError(extractErrorMessage(err))
-      }
-    }
-    setSelected(new Set())
-    load()
+    setConfirmIds(targets.map((r) => r.id))
   }
 
   async function doExcel() {
@@ -340,6 +409,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     .filter((r) => r.postDate >= from && r.postDate <= to)
     .filter((r) => tab === '전체' || statusOf(r) === tab)
     .filter(passLabel)
+    .filter((r) => !titleFilter || r.title.includes(titleFilter))
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? r.writer).includes(keyword))
   /*
    * 원본(2026-10-03 같은 글 넷을 넣어 견줌): 번호 붙은 줄은 공지 여부와 상관없이 <b>새 글부터</b>(15 · 14 · 13 · 12),
@@ -439,13 +509,47 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           </span>}
           <input className="ec-input w-[110px]" placeholder="입력 후 [Enter]" value={keyword}
                  onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load() }} />
-          <button className="ec-btn ec-btn-primary" onClick={load}>Search(F3)</button>
+          <button className="ec-btn ec-btn-primary" onClick={onSearch}>Search(F3)</button>
           <button className="ec-btn">Option</button>
           <button className="ec-btn">도움말</button>
         </div>
       </div>
 
+      {/*
+        원본 조건 판(2026-10-13 통합게시판 실측): 메뉴 · 게시일 · 유형 · 완료일 · 제목 · 내용1 · 사용자 · 게시글번호 · 삭제구분 · 기타 ·
+        입력경로 · 적용양식, 아래 [검색(F8)] + 기간 빠른선택. 우리는 게시일 · 제목만 건다(나머지는 받쳐 줄 자료가 없다).
+      */}
+      {condOpen && (
+        <div className="ec-cond mb-[8px]">
+          <ul className="ec-form border-0">
+            <li className="wide">
+              <div className="title">게시일</div>
+              <div className="form gap-[4px]">
+                <input type="date" className="ec-input w-[140px]" value={cond.from} onChange={(e) => setCond((c) => ({ ...c, from: e.target.value }))} />
+                ~
+                <input type="date" className="ec-input w-[140px]" value={cond.to} onChange={(e) => setCond((c) => ({ ...c, to: e.target.value }))} />
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">제목</div>
+              <div className="form">
+                <input className="ec-input w-full" placeholder="제목" value={cond.title}
+                       onChange={(e) => setCond((c) => ({ ...c, title: e.target.value }))}
+                       onKeyDown={(e) => { if (e.key === 'Enter') applyCond() }} />
+              </div>
+            </li>
+          </ul>
+          <div className="flex flex-wrap gap-[4px] mt-[8px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={applyCond}>검색(F8)</button>
+            <EcPeriodPicks labels={BOARD_PICKS} currentFrom={cond.from}
+                           onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
+            <button type="button" className="ec-btn" onClick={() => setCond({ ...defaultPeriod(cfg.period), title: '' })}>다시작성</button>
+          </div>
+        </div>
+      )}
+
       {error && !showForm && !viewing && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {info && <p className="ec-alert mb-[8px]" onClick={() => setInfo('')}>{info}</p>}
 
       {/* 원본 목록 오른쪽 위의 조회 기간 */}
       <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>
@@ -518,8 +622,27 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           [인쇄]는 원본처럼 View 창 안에 있다. [웹자료올리기]는 입력 창의 첨부 자리다.
         */}
         <button className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
+        {/* 원본 [보내기 ▲] · [업무지원AI ▲] — 메일 · 바깥 AI 로 나가는 기능이라 모양만 둔다(누르면 안내). */}
+        <button className="ec-btn" onClick={() => setInfo('보내기는 지원하지 않습니다(메일 · 쪽지 발송).')}>보내기 ▲</button>
+        <button className="ec-btn" onClick={() => setInfo('업무지원AI는 지원하지 않습니다(바깥 서비스).')}>업무지원AI ▲</button>
         {/* 공지사항은 상태가 '기본' 하나라 바꿀 곳이 없다. */}
-        <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0 || statuses.length < 2} onClick={() => void changeStatusSelected()}>진행상태변경</button>
+        <span className="relative">
+          <button className="ec-btn disabled:opacity-45" disabled={statuses.length < 2 && !namedStages} onClick={openStageMenu}>진행상태변경 ▲</button>
+          {stageMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setStageMenu(false)} />
+              <ul role="menu" aria-label="진행상태변경"
+                  className="absolute bottom-full left-0 mb-[4px] z-[41] min-w-[140px] py-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec shadow-lg">
+                {statuses.map((st) => (
+                  <li key={st}>
+                    <button type="button" role="menuitem" className="no-ec w-full text-left px-[10px] py-[4px] bg-transparent border-0 cursor-pointer hover:bg-ec-blue-wash"
+                            onClick={() => void changeStatusSelected(st)}>{st}</button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </span>
         {cfg.labels && <span className="relative">
           <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={openLabels}>라벨변경</button>
           {labelOpen && (
@@ -553,6 +676,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         <button className="ec-btn" onClick={() => setOpened((v) => !v)}>{opened ? '모두접기' : '모두펼쳐보기'}</button>
         <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
+        <button className="ec-btn" onClick={() => setInfo('이력조회는 아직 지원하지 않습니다.')}>이력조회</button>
+        <button className="ec-btn" onClick={() => setInfo('웹자료올리기는 지원하지 않습니다 — 신규(F2) 입력 창의 [첨부] 를 쓰세요.')}>웹자료올리기</button>
       </div>
 
       {masterOpen && <LabelMasterModal board={board} onClose={() => { setMasterOpen(false); void load() }} />}
@@ -572,6 +697,42 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </div>
             </li>
           )}
+          {/*
+            원본 [전달자]: 글자 링크 '전체' 를 누르면 [전체][선택] 판, '선택' 이면 🔍 사용자검색 + 이름 칩.
+            [참조자] 는 처음부터 '선택'. 원본은 전달자에게 알림을 보내지만 우리는 적어 두기만 한다.
+          */}
+          <li className="wide">
+            <div className="title">전달자</div>
+            <div className="form gap-[6px] relative">
+              <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy underline"
+                      onClick={() => setForwardMenu((v) => !v)}>{form.forwardAll ? '전체' : '선택'}</button>
+              {forwardMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setForwardMenu(false)} />
+                  <ul role="menu" aria-label="전달자"
+                      className="absolute top-full left-0 mt-[2px] z-[41] min-w-[110px] py-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec shadow-lg">
+                    {(['전체', '선택'] as const).map((m) => (
+                      <li key={m}>
+                        <button type="button" role="menuitem" className="no-ec w-full text-left px-[10px] py-[4px] bg-transparent border-0 cursor-pointer hover:bg-ec-blue-wash"
+                                onClick={() => { setForwardMenu(false); set('forwardAll', m === '전체') }}>{m}</button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {!form.forwardAll && <NameChips names={form.forwardTo} placeholder="전달자" onPick={() => setPickFor('forwardTo')}
+                                              onRemove={(n) => set('forwardTo', form.forwardTo.filter((x) => x !== n))} />}
+            </div>
+          </li>
+          <li className="wide">
+            <div className="title">참조자</div>
+            <div className="form gap-[6px]">
+              <span className="text-ec-ink">선택</span>
+              <NameChips names={form.ccTo} placeholder="참조자" onPick={() => setPickFor('ccTo')}
+                         onRemove={(n) => set('ccTo', form.ccTo.filter((x) => x !== n))} />
+            </div>
+          </li>
+          {/* 원본 차례: 진행상태 · 권한 · 비밀번호 · 전달자 · 참조자 · 제목(+공지사항여부) · 첨부 */}
           <li className="wide">
             <div className="title">제목</div>
             <div className="form flex-col items-start">
@@ -583,16 +744,6 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                 <input type="checkbox" checked={form.notice} onChange={(e) => set('notice', e.target.checked)} />
               </label>
             </div>
-          </li>
-          <li className="wide">
-            <div className="title">전달자</div>
-            <div className="form"><input className="ec-input w-full" value={form.forwardTo} placeholder="전체"
-                                         onChange={(e) => set('forwardTo', e.target.value)} /></div>
-          </li>
-          <li className="wide">
-            <div className="title">참조자</div>
-            <div className="form"><input className="ec-input w-full" value={form.ccTo} placeholder="전체"
-                                         onChange={(e) => set('ccTo', e.target.value)} /></div>
           </li>
           <li className="wide">
             <div className="title">첨부</div>
@@ -612,12 +763,21 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         <textarea className="ec-input w-full h-[160px] py-[8px] resize-y" value={form.content}
                   onChange={(e) => set('content', e.target.value)} />
         <div className="flex gap-[6px] mt-[10px]">
+          {/* 원본 신규: 저장(F8) · 다시 작성 · 리스트 · 닫기 / 수정: 저장(F8) · 리스트 · View · 닫기 · 삭제 */}
           <button className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
           {editId == null && (
             <button className="ec-btn" onClick={() => { setForm(emptyForm()); setAttachment(null); setError('') }}>다시 작성</button>
           )}
+          <button className="ec-btn" onClick={() => { setShowForm(false); setEditId(null) }}>리스트</button>
+          {editId != null && (
+            <button className="ec-btn" onClick={() => {
+              const r = rows.find((x) => x.id === editId)
+              setShowForm(false); setEditId(null)
+              if (r) setViewing(r)
+            }}>View</button>
+          )}
           <button className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
-          {editId != null && <button className="ec-btn" onClick={() => void removeOne(editId).then(() => setShowForm(false))}>삭제</button>}
+          {editId != null && <button className="ec-btn" onClick={() => removeOne(editId)}>삭제</button>}
         </div>
       </Modal>
 
@@ -645,13 +805,27 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[120px] px-[12px]">{viewing.content}</div>
             <div className="flex gap-[6px] mt-[10px]">
               <button className="ec-btn" onClick={() => openEdit(viewing)}>수정</button>
-              <button className="ec-btn" onClick={() => void removeOne(viewing.id)}>삭제</button>
+              <button className="ec-btn" onClick={() => removeOne(viewing.id)}>삭제</button>
               <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
               <button className="ec-btn" onClick={() => printPost(viewing)}>인쇄</button>
             </div>
           </>
         )}
       </Modal>
+
+      {/* 원본 '알림' 창 — 삭제하겠습니까? [확인][취소] (2026-10-13 통합게시판 View [삭제] 실측) */}
+      <Modal error={error} open={!!confirmIds} title="알림" width={420} onClose={() => setConfirmIds(null)}>
+        <p className="text-[12px] text-ec-ink min-h-[60px]">삭제하겠습니까?</p>
+        <div className="flex gap-[6px] mt-[10px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void doDelete()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setConfirmIds(null)}>취소</button>
+        </div>
+      </Modal>
+
+      {pickFor && (
+        <UserPickModal selected={form[pickFor]} onClose={() => setPickFor(null)}
+                       onApply={(names) => { set(pickFor, names); setPickFor(null) }} />
+      )}
 
       {/* 원본 '조회자 현황' 창 */}
       <Modal error={error} open={!!readers} title="조회자 현황" width={780} onClose={() => setReaders(null)}>
@@ -691,6 +865,24 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           <button type="button" className="ec-btn" onClick={() => setReaders(null)}>닫기</button>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+/** 전달자 · 참조자 칸 — 🔍(사용자검색) + 고른 이름 칩(× 로 뺀다). 원본 '선택 🔍 [전달자]'. */
+function NameChips({ names, placeholder, onPick, onRemove }: {
+  names: string[]; placeholder: string; onPick: () => void; onRemove: (name: string) => void
+}) {
+  return (
+    <div className="flex-1 flex items-center gap-[4px] flex-wrap ec-input min-h-[26px] h-auto">
+      <button type="button" aria-label={`${placeholder} 검색`} className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" onClick={onPick}>🔍</button>
+      {names.length === 0 && <span className="text-ec-hint cursor-pointer" onClick={onPick}>{placeholder}</span>}
+      {names.map((n) => (
+        <span key={n} className="inline-flex items-center px-[6px] rounded-ec bg-ec-blue-wash text-ec-navy">
+          {n}
+          <button type="button" aria-label={`${n} 빼기`} className="no-ec bg-transparent border-0 p-0 ml-[4px] cursor-pointer" onClick={() => onRemove(n)}>×</button>
+        </span>
+      ))}
     </div>
   )
 }

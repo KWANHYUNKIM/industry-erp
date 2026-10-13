@@ -77,6 +77,9 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
       return { from: ymd(new Date(t.getFullYear(), 0, 1)), to: ymd(new Date(t.getFullYear(), 11, 31)) }
     case '전년':
       return { from: ymd(new Date(t.getFullYear() - 1, 0, 1)), to: ymd(new Date(t.getFullYear() - 1, 11, 31)) }
+    /* 게시판 조건 판(통합게시판 E200076, 2026-10-13 실측)의 마지막 빠른선택 — 작년 1월 1일 ~ 올해 12월 31일. */
+    case '전년+금년':
+      return { from: ymd(new Date(t.getFullYear() - 1, 0, 1)), to: ymd(new Date(t.getFullYear(), 11, 31)) }
     /* 인원현황(E020609) 빠른선택 — 올해 1월 1일부터 <b>오늘</b>까지(2026-10-03 원본 실측). */
     case '금년(~오늘)':
       return { from: ymd(new Date(t.getFullYear(), 0, 1)), to: ymd(t) }
@@ -233,6 +236,9 @@ export const STATUS_PICKS = [...BASE_PICKS, '전월+금월'] as const
 
 /** 출/퇴근현황(ID)(E070306) · 주문서현황(E040209) */
 export const INQUIRY_PICKS = [...BASE_PICKS, '종료일'] as const
+
+/** 게시판 조건 판(통합게시판 E200076, 2026-10-13 실측) — 금년 · 전년 · 종료일 · (+1개월) 둘 · 전년+금년이 뒤에 붙는다. */
+export const BOARD_PICKS = [...BASE_PICKS, '금년', '전년', '종료일', '최근30일(+1개월)', '최근40일(+1개월)', '전년+금년'] as const
 
 /**
  * 채권현황(E040721) — 조회 묶음 뒤에 <b>[말일]</b>이 붙는다(2026-09-02 원본 실측).
