@@ -27,7 +27,12 @@ import { weekOfYear } from '../../utils/statusAggregate'
  *       '인텔… 계'(마지막 조건 앞까지의 무리마다 소계, 깊은 것부터), 창고가 빈 무리는 '[] 계', '정재원 계', [합계].
  *       소계 줄 다음 줄은 앞 칸을 다시 적는다(정재원이 두 번 나온다) — 바로 앞 줄과 같은 앞 칸만 비운다.
  *       기준일자 축은 굵은 것부터만 — 월별 뒤에 연별을 고르면 "집계조건은 연별-반기별-분기별-월별-주차별-일별 순서로만
- *       입력가능합니다.". [가로보기] 는 '집계대상에서 가로보기 대상을 선택바랍니다.' 만 확인했다(대상 창을 못 열어 아직 없다).</li>
+ *       입력가능합니다.".</li>
+ *   <li>품질검사현황 <b>[가로보기]</b>(2026-10-13 실측, 담당자 · 월별, 집계대상 수량 · 시료) — <b>마지막 조건이 열로 눕는다</b>.
+ *       머리 첫 줄 [담당자(rowspan 2) | 2026/05(colspan 값 수) | 2026/06 …], 둘째 줄 값 이름(수량 | 시료)이 칸마다 되풀이.
+ *       줄은 남은 조건으로 묶고 값이 없는 칸은 빈칸, 소계는 눕기 전 조건 기준 그대로(마지막 조건 앞까지 — 조건 둘이면
+ *       '염석훈 계' 처럼 담당자마다), 끝 [합계] 는 칸마다. 오른쪽 줄 합계 열은 없다. 열 차례는 그 조건의 정렬(월별은 시간순).
+ *       집계대상을 안 고르고 켜면 '집계대상에서 가로보기 대상을 선택바랍니다.'(화면이 막는다). <code>pivot</code> 으로 켠다.</li>
  * </ul>
  */
 export const AS_AGG_KEYS = ['일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자', '창고', '관리항목',
@@ -139,8 +144,10 @@ export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS }: {
 /** ○집계 판 — 머리글 · 표 · 꼬리. */
 const DATE_KEYS: AsAggKey[] = ['일별', '주차별', '월별', '분기별', '반기별', '연별']
 
-export function AsAggregateTable({ title, period, lines, value, measures = ['수량'], blankZero = [], formats = {}, ratio = false, compare }: {
+export function AsAggregateTable({ title, period, lines, value, measures = ['수량'], blankZero = [], formats = {}, ratio = false, compare, pivot = false }: {
   title: string; period: string; lines: AsAggLine[]; value: AsAggValue
+  /** [가로보기] — 마지막 조건을 열로 눕힌다(조건이 둘 이상일 때). */
+  pivot?: boolean
   /** [기타] 비율표시 — 값 열마다 '…비율'(합계 대비 %, 반올림 정수). */
   ratio?: boolean
   /** [비교기간] — 비교 구간의 줄과 두 구간 이름. 주면 값 열이 구간마다 한 벌씩 선다. */
@@ -206,6 +213,9 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
   /* 조건 수 · 코드포함에 따라 열이 는다 — 렌더된 표를 직접 잰다. */
   const ref = useRef<HTMLTableElement>(null)
   useTableColumnCheck(ref, `${title} 집계`, [keys.join(','), codeIncl, rows.length, showRatio, !!compare])
+  if (pivot && keys.length >= 2 && !compare) return (
+    <AsPivotTable title={title} period={period} lines={lines} keys={keys} codeIncl={codeIncl} measures={measures} cell={cell} valsOf={valsOf} />
+  )
   return (
     <>
       <EcReportHead title={title} period={period} />
@@ -276,6 +286,108 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
           )}
         </table>
       )}
+      <EcReportFoot page={false} />
+    </>
+  )
+}
+
+/**
+ * [가로보기] 판 — 마지막 조건의 값이 열 묶음이 되고, 묶음마다 값 열(measures)이 선다. 줄은 앞 조건들로 묶고
+ * 마지막 줄 조건 앞까지 무리마다 '… 계'(눕기 전과 같은 규칙), 끝에 [합계].
+ */
+function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, valsOf }: {
+  title: string; period: string; lines: AsAggLine[]; keys: AsAggKey[]; codeIncl: boolean; measures: string[]
+  cell: (n: number, i: number) => string; valsOf: (x: AsAggLine) => number[]
+}) {
+  const rowKeys = keys.slice(0, -1)
+  const colKey = keys[keys.length - 1]
+  const key = (n: string, c: string) => c || n
+  /* 열 — 눕힌 조건의 값, 코드순(기준일자 축은 이름이 곧 시간순). */
+  const colMap = new Map<string, string>()
+  for (const x of lines) { const [n, c] = axis(colKey, x); colMap.set(n, key(n, c)) }
+  const colNames = [...colMap.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ko', { numeric: true })).map(([n]) => n)
+  type Row = { ns: string[]; cs: string[]; v: Map<string, number[]> }
+  const m = new Map<string, Row>()
+  for (const x of lines) {
+    const ax = rowKeys.map((k) => axis(k, x))
+    const ns = ax.map((a) => a[0]); const cs = ax.map((a) => a[1])
+    const k = ns.join('␟')
+    const r = m.get(k) ?? { ns, cs, v: new Map() }
+    const col = axis(colKey, x)[0]
+    const cur = r.v.get(col) ?? measures.map(() => 0)
+    valsOf(x).forEach((n, i) => { cur[i] += n })
+    r.v.set(col, cur)
+    m.set(k, r)
+  }
+  const rows = [...m.values()].sort((a, b) => {
+    for (let j = 0; j < rowKeys.length; j++) {
+      const d = key(a.ns[j], a.cs[j]).localeCompare(key(b.ns[j], b.cs[j]), 'ko')
+      if (d) return d
+    }
+    return 0
+  })
+  const head = (k: AsAggKey) => [...(codeIncl && CODED.includes(k) ? [`${k}코드`] : []), k]
+  const cellsOf = (n: string, c: string, k: AsAggKey) => [...(codeIncl && CODED.includes(k) ? [c] : []), n]
+  const cols = rowKeys.flatMap(head)
+  /* 칸 하나 — 그 무리에 값이 하나도 없으면 빈칸(원본 염석훈 줄의 빈 달). */
+  const sumCol = (rs: Row[], col: string) => {
+    const hit = rs.filter((r) => r.v.has(col))
+    return hit.length ? measures.map((_, i) => hit.reduce((n, r) => n + r.v.get(col)![i], 0)) : null
+  }
+  const valTds = (rs: Row[], keyp: string, bold = false) => colNames.flatMap((col) => {
+    const v = sumCol(rs, col)
+    return measures.map((_, i) => <td key={`${keyp}${col}${i}`} className={`text-right${bold ? ' font-bold' : ''}`}>{v ? cell(v[i], i) : ''}</td>)
+  })
+  const diffAt = (a: Row, b: Row) => { let j = 0; while (j < rowKeys.length && a.ns[j] === b.ns[j]) j++; return j }
+  const ref = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(ref, `${title} 가로보기`, [keys.join(','), codeIncl, rows.length, colNames.length, measures.length])
+  return (
+    <>
+      <EcReportHead title={title} period={period} />
+      <table ref={ref} className="w-full text-left">
+        <thead>
+          <tr>
+            {cols.map((h) => <th key={h} rowSpan={2}>{h}</th>)}
+            {colNames.map((c) => <th key={c} colSpan={measures.length} className="text-center">{c}</th>)}
+          </tr>
+          <tr>{colNames.flatMap((c) => measures.map((h) => <th key={`${c}${h}`} className="text-right">{h}</th>))}</tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr><td colSpan={cols.length + Math.max(1, colNames.length * measures.length)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : rows.flatMap((g, i) => {
+            const d = i === 0 ? 0 : diffAt(rows[i - 1], g)
+            const showFrom = d <= keys.length - 2 ? 0 : d
+            const next = rows[i + 1]
+            const nd = next ? diffAt(g, next) : 0
+            const out = [
+              <tr key={g.ns.join('␟')}>
+                {rowKeys.flatMap((k, j) => cellsOf(g.ns[j], g.cs[j], k).map((v, q) => <td key={`${j}-${q}`}>{j >= showFrom ? v : ''}</td>))}
+                {valTds([g], 'v')}
+              </tr>,
+            ]
+            /* 소계는 눕기 전 조건 기준 — 마지막 조건(눕힌 것) 앞까지, 곧 줄 조건 전부. 깊은 것부터. */
+            for (let L = rowKeys.length - 1; L >= 0; L--) {
+              if (next && nd > L) continue
+              const pre = g.ns.slice(0, L + 1).join('␟')
+              const grp = rows.filter((x) => x.ns.slice(0, L + 1).join('␟') === pre)
+              out.push(
+                <tr key={`${pre}␟계${L}`} className="ec-list-total">
+                  <td colSpan={cols.length} className="text-center font-bold">{g.ns[L] || '[]'} 계</td>
+                  {valTds(grp, 's', true)}
+                </tr>,
+              )
+            }
+            return out
+          })}
+        </tbody>
+        {rows.length > 0 && (
+          <tfoot><tr className="ec-total">
+            <td colSpan={cols.length} className="text-center">합계</td>
+            {valTds(rows, 't')}
+          </tr></tfoot>
+        )}
+      </table>
       <EcReportFoot page={false} />
     </>
   )

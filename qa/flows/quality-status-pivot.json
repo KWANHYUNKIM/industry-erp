@@ -1,0 +1,28 @@
+{
+  "about": "재고 II 품질검사현황(E040623) ○집계 [가로보기] — 원본 2026-10-13 실측(담당자 · 월별, 집계대상 수량 · 시료): 마지막 조건(월별)이 열 묶음으로 눕는다. 머리 [담당자(rowspan 2) | 2026/05(colspan 2) …] / [수량 | 시료 …], 담당자마다 '… 계', 끝 [합계]. 집계대상 없이 켜면 '집계대상에서 가로보기 대상을 선택바랍니다.'. 있는 자료로 본다(만들지 않음).",
+  "shots": [
+    {
+      "name": "담당자 · 월별 + 가로보기 → 안내 → 집계대상 수량 · 시료 → 달마다 두 칸",
+      "path": "/quality/inspection-status",
+      "steps": [
+        "wait:1000",
+        "js:window.alert = (m) => { window.__alert = m }; true",
+        "click:상세검색",
+        "wait:300",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '집계').querySelector('input').click(); true",
+        "wait:300",
+        "set:select[aria-label=\"집계조건1\"]|담당자",
+        "set:select[aria-label=\"집계조건2\"]|월별",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '가로보기').querySelector('input').click(); true",
+        "click:조회",
+        "wait:400",
+        "expect:window.__alert === '집계대상에서 가로보기 대상을 선택바랍니다.'",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '수량').querySelector('input').click(); [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '시료').querySelector('input').click(); true",
+        "click:조회",
+        "wait:1200",
+        "expect:(() => { const t = document.querySelector('table'); const h0 = [...t.tHead.rows[0].cells]; const h1 = [...t.tHead.rows[1].cells].map((c) => c.innerText.trim()); return h0[0].innerText.trim() === '담당자' && h0[0].rowSpan === 2 && /^\\d{4}\\/\\d{2}$/.test(h0[1].innerText.trim()) && h0[1].colSpan === 2 && h1.slice(0, 2).join('|') === '수량|시료' && h1.length === (h0.length - 1) * 2 })()",
+        "expect:(() => { const rows = [...document.querySelectorAll('tbody tr')]; return rows.some((r) => r.classList.contains('ec-list-total') && / 계$/.test(r.cells[0].innerText.trim())) && document.querySelector('tfoot td').innerText.trim() === '합계' && document.querySelector('tfoot tr').cells.length === 1 + ([...document.querySelector('table').tHead.rows[0].cells].length - 1) * 2 })()"
+      ]
+    }
+  ]
+}

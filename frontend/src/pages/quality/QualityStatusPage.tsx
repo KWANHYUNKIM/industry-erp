@@ -61,6 +61,8 @@ interface Filters {
   gubun: '내역' | '집계'; form: Form; agg1: AsAggKey | ''; agg2: AsAggKey | ''; more: (AsAggKey | '')[]; codeIncl: boolean
   /** ○집계의 [비교기간] · [기타] 비율표시(2026-10-13 실측). */
   compare: ComparePeriod; ratio: boolean
+  /** [기타] 가로보기 — 마지막 집계조건을 열로 눕힌다(집계대상을 골라야 한다, 2026-10-13 실측). */
+  pivot: boolean
   /** ○집계 [집계대상] — 수량 · 시료 · 적격 · 부적격 중 고른 값 열. 비면 넷 다(2026-10-13 실측: 코드도움 후보가 이 넷). */
   targets: string[]
   /** 원본 품질검사현황 조건의 [창고]·[프로젝트]. 검사에 그 칸이 없어 못 걸렀다. */
@@ -93,7 +95,7 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', more: [], codeIncl: false, compare: '사용안함', ratio: false, targets: [], type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', more: [], codeIncl: false, compare: '사용안함', ratio: false, pivot: false, targets: [], type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
   category: '', itemGroup: '', spec: '', defectType: '', remark: '' }
 
 
@@ -239,7 +241,10 @@ export default function QualityStatusPage() {
     return n
   }, [filters])
 
-  const applyDraft = () => { setFilters(draft); setPanelOpen(false) }
+  const applyDraft = () => {
+    if (draft.gubun === '집계' && draft.pivot && !draft.targets.length) { window.alert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
+    setFilters(draft); setPanelOpen(false)
+  }
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
   const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
 
@@ -282,7 +287,7 @@ export default function QualityStatusPage() {
       ) : filters.gubun === '집계' ? (
         <AsAggregateTable title="품질검사현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} lines={pickVals(aggLines, filters.targets)}
                           value={{ agg1: filters.agg1, agg2: filters.agg2, more: filters.more, codeIncl: filters.codeIncl }}
-                          measures={pickMeasures(filters.targets)} blankZero={['부적격']} ratio={filters.ratio}
+                          measures={pickMeasures(filters.targets)} blankZero={['부적격']} ratio={filters.ratio} pivot={filters.pivot}
                           compare={cmpRange ? { period: reportPeriod(cmpRange.from, cmpRange.to), lines: pickVals(toAgg(toLineRows(cmpShown)), filters.targets) } : undefined} />
       ) : (
       <>
@@ -426,6 +431,9 @@ function SearchPanel({
                   <input type="radio" name="qs-compare" checked={draft.compare === k} onChange={() => onChange({ compare: k })} /> {k}
                 </label>
               ))}
+              <label className="inline-flex items-center gap-[3px]">
+                <input type="checkbox" checked={draft.pivot} onChange={(e) => onChange({ pivot: e.target.checked })} /> 가로보기
+              </label>
               <label className="inline-flex items-center gap-[3px]">
                 <input type="checkbox" checked={draft.ratio} onChange={(e) => onChange({ ratio: e.target.checked })} /> 비율표시
               </label>
