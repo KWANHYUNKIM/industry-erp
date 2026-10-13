@@ -55,7 +55,7 @@ public class WorkRecordService {
         int slipNo = repository.maxSlipNo(req.slipDate()) + 1;
         saveLines(req.slipDate(), slipNo, req.lines());
         SlipResponse saved = findSlip(req.slipDate(), slipNo);
-        record(saved, "신규", worker);
+        record(saved, "신규", worker, snapshot(req.slipDate(), slipNo));
         return saved;
     }
 
@@ -67,7 +67,7 @@ public class WorkRecordService {
         repository.flush();
         saveLines(slipDate, slipNo, req.lines());
         SlipResponse saved = findSlip(slipDate, slipNo);
-        record(saved, "수정", worker);
+        record(saved, "수정", worker, snapshot(slipDate, slipNo));
         return saved;
     }
 
@@ -75,8 +75,9 @@ public class WorkRecordService {
     @Transactional
     public void delete(LocalDate slipDate, int slipNo, String worker) {
         SlipResponse before = findSlip(slipDate, slipNo);
+        String lines = snapshot(slipDate, slipNo);
         repository.deleteBySlipDateAndSlipNo(slipDate, slipNo);
-        record(before, "삭제", worker);
+        record(before, "삭제", worker, lines);
     }
 
     /**
@@ -95,8 +96,13 @@ public class WorkRecordService {
         return historyRepository.findBySlipDateAndSlipNoOrderByActedAtAscIdAsc(slipDate, slipNo).stream().map(HistoryRow::from).toList();
     }
 
-    private void record(SlipResponse slip, String action, String worker) {
-        historyRepository.save(WorkRecordHistory.builder()
+    private String snapshot(LocalDate slipDate, int slipNo) {
+        return HistoryRow.writeLines(repository.findSlip(slipDate, slipNo).stream()
+                .map(com.erp.hr.workrecord.dto.WorkRecordDtos.HistoryLine::from).toList());
+    }
+
+    private void record(SlipResponse slip, String action, String worker, String linesJson) {
+        historyRepository.save(WorkRecordHistory.builder().linesJson(linesJson)
                 .slipDate(slip.slipDate()).slipNo(slip.slipNo()).action(action)
                 .employeeName(slip.employeeLabel()).payItemName(slip.payItemLabel()).quantity(slip.quantity())
                 .worker(worker == null ? "" : worker).actedAt(java.time.LocalDateTime.now())

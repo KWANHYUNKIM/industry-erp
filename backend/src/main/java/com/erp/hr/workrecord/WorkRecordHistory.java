@@ -50,4 +50,8 @@ public class WorkRecordHistory {
 
     @Column(name = "acted_at", nullable = false)
     private LocalDateTime actedAt;
+
+    /** 그때의 줄(근무일자 · 사원 · 부서 · 수당항목 · 단위 · 근무기록) JSON — 이력의 [전표번호] 창 · 근무일자/부서 조건. */
+    @Column(name = "lines_json", columnDefinition = "text")
+    private String linesJson;
 }
