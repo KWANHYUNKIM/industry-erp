@@ -52,6 +52,8 @@ interface SalesOrder {
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
+/** 서버(SalesOrderService.delete)가 막을 때 첫 줄 — 원본 '알림' 창의 첫 줄 그대로. */
+const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.'
 interface LineInput { itemId: string; quantity: string; unitPrice: string }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
 /** 원본 주문서입력 격자는 빈 줄 셋으로 뜬다. */
@@ -76,6 +78,8 @@ export default function SalesOrderPage() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [error, setError] = useState('')
+  /** 지우기가 막힌 줄(구분 · 해당 메뉴 · 사유) — 원본 '알림' 창의 표. */
+  const [blocked, setBlocked] = useState<string[][] | null>(null)
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   /** 주문수정 — 원본은 [일자-No.] 를 누르면 같은 입력 창이 '주문수정' 으로 뜬다(2026-10-13 실측). */
@@ -189,17 +193,17 @@ export default function SalesOrderPage() {
         load()
         return
       }
-      const res = await api.post<SalesOrder>('/sales-orders', { ...body, orderDate })
-      setOk(`${res.data.orderNo} 수주 등록 완료 (합계 ${won(res.data.totalAmount)}원)`)
-      setLines(blankLines()); setRemark(''); setDueDate('')
-      setFWarehouse(''); setFProject(''); setFEmployee('')
+      /* 원본 주문서입력 [저장(F8)] — 말 없이 창이 닫히고 목록에 '일자 -N · 진행중' 이 선다(2026-10-14 실측 두 번). */
+      await api.post<SalesOrder>('/sales-orders', { ...body, orderDate })
+      closeForm()
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
   function closeForm() {
     setShowForm(false); setEditId(null); setFromQuotes(null); setError(''); setOk(''); setWhMissing(false)
-    setPartnerId(''); setOrderDate(today()); setDueDate(''); setTaxable(true); setRemark('')
+    /* 원본 주문서입력은 납기일자가 오늘로 차서 열린다(2026-10-14 실측 — 일자 · 납기일자 둘 다 14). */
+    setPartnerId(''); setOrderDate(today()); setDueDate(today()); setTaxable(true); setRemark('')
     setFWarehouse(''); setFProject(''); setFEmployee(''); setLines(blankLines())
   }
 
@@ -264,7 +268,24 @@ export default function SalesOrderPage() {
     if (editId == null) return
     if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 주문서'))) return
     try { await api.delete(`/sales-orders/${editId}`); closeForm(); load() }
-    catch (err) { setError(extractErrorMessage(err)) }
+    catch (err) { showDeleteFails([extractErrorMessage(err)]) }
+  }
+
+  /**
+   * 지우기가 막혔을 때. 원본(2026-10-14 실측)은 출고처리한 주문서를 지우면 630×450 '알림' 창에
+   * '아래의 경우 처리가 불가능합니다.' 세 줄과 표(구분 · 해당 메뉴 · 사유 — 20261014-3 · 주문 · 주문출고처리된 내역), [닫기] 를 띄운다.
+   * 서버가 그 표의 줄을 '구분 · 메뉴 · 사유' 로 보내므로 그것을 표로 펴고, 다른 거절은 그대로 알린다.
+   */
+  function showDeleteFails(msgs: string[]) {
+    const rows: string[][] = []
+    const other: string[] = []
+    for (const m of msgs) {
+      const [head, ...rest] = m.split('\n')
+      if (head === BLOCKED_HEAD) rest.forEach((l) => rows.push(l.split(' · ')))
+      else other.push(m)
+    }
+    if (rows.length) setBlocked(rows)
+    if (other.length) void ecAlert(other.join('\n'))
   }
 
   /** [선택삭제] — 고른 주문을 하나씩 지운다. 막힌 것(출하 · 판매가 붙은 것)은 이유를 모아 알린다. */
@@ -279,7 +300,7 @@ export default function SalesOrderPage() {
     }
     setChecked(new Set())
     load()
-    if (fails.length) void ecAlert(fails.join('\n'))
+    if (fails.length) showDeleteFails(fails)
   }
 
   /**
@@ -572,7 +593,22 @@ export default function SalesOrderPage() {
         </form>
       )}</Modal>
 
-      <Modal open={loaded != null} title="불러온 전표" width={760} onClose={() => setLoaded(null)}>{loaded && (
+      <Modal open={blocked != null} title="알림" width={630} error={error} onClose={() => setBlocked(null)}>{blocked && (
+        <div>
+          <p className="m-0 leading-[18px]">{BLOCKED_HEAD}<br />자세한 내용은 아래의 사항을 참고하시기 바랍니다.<br />아래 사항을 수정 후 다시 진행하시기 바랍니다.</p>
+          <table className="w-full text-left mt-[9px]">
+            <thead><tr><th>구분</th><th>해당 메뉴</th><th>사유</th></tr></thead>
+            <tbody>
+              {blocked.map((r, i) => <tr key={i}><td>{r[0]}</td><td>{r[1] ?? ''}</td><td>{r[2] ?? ''}</td></tr>)}
+            </tbody>
+          </table>
+          <div className="mt-[9px]">
+            <button type="button" className="ec-btn" onClick={() => setBlocked(null)}>닫기</button>
+          </div>
+        </div>
+      )}</Modal>
+
+      <Modal open={loaded != null} title="불러온 전표" width={760} error={error} onClose={() => setLoaded(null)}>{loaded && (
         <div>
           <p className="mb-[6px]">주문서 : {(() => { const o = orders.find((x) => x.id === editId); return o ? dateNo(o.orderDate, o.orderNo) : '' })()}</p>
           <table className="w-full text-left">

@@ -1120,7 +1120,7 @@
   "palette": 0
  },
  "pages/trade/SalesOrderStatusPage.tsx": {
-  "inline": 21,
+  "inline": 17,
   "color": 3,
   "palette": 0
  },
@@ -1200,8 +1200,8 @@
   "palette": 0
  },
  "pages/trade/UnsoldStatusPage.tsx": {
-  "inline": 16,
-  "color": 5,
+  "inline": 14,
+  "color": 3,
   "palette": 0
  },
  "pages/UsersPage.tsx": {

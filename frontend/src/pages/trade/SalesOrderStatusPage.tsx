@@ -9,7 +9,6 @@ import { comparePeriodOf, fetchWindow, type ComparePeriod } from '../../componen
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
-import { dateText } from '../../utils/dateText'
 import EcBarChart from '../../components/EcBarChart'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
@@ -48,9 +47,6 @@ type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   RECEIVED: '접수', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소',
-}
-const STATUS_COLOR: Record<OrderStatus, string> = {
-  RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)',
 }
 
 interface OrderLineResponse {
@@ -284,9 +280,10 @@ export default function SalesOrderStatusPage() {
   const shown = useMemo(() => {
     const f = filters
     const out = rows.filter((r) => (!f.dateFrom || r.date >= f.dateFrom) && (!f.dateTo || r.date <= f.dateTo) && matches(r))
+    /* 원본은 일자 오름차순(2026/10/01 -1 이 첫 줄). */
     out.sort((a, b) => f.sortByDoc
-      ? (a.orderNo < b.orderNo ? 1 : a.orderNo > b.orderNo ? -1 : 0)
-      : (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+      ? a.orderNo.localeCompare(b.orderNo)
+      : (a.date.localeCompare(b.date) || a.orderNo.localeCompare(b.orderNo)))
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, keyword, filters])
@@ -554,72 +551,81 @@ export default function SalesOrderStatusPage() {
         </table>
       ) : (
       <table className="w-full text-left">
+        {/*
+          2026-10-14 원본 실측(주문 3 × 300 → '2026/10/14 -3 · 코카콜라 [355ml] · 3.00 · 300 · 900 · (사)경남주류협회') —
+          격자 열은 <b>일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 거래처명 · 적요</b> 일곱이고 번호 칸이 없다.
+          일자 오름차순, 달마다 '2026/10 계'(두 칸을 합친 굵은 회색 줄 rgb(247, 247, 247)) · 맨 끝 '총합계'.
+          우리는 번호 · 납기 · 진행 · 출하완료수량 · 미출하 · 부가세 여섯 칸이 더 있었고 최신순이었다.
+        */}
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            {/*
-              열 이름을 원본 글자 그대로 맞췄다(2026-09-09 실측). 우리는 [일자]와
-              [주문번호]를 두 칸으로 나눠 두었는데 원본은 <b>[일자-No.] 한 칸</b>이다 —
-              미출하현황이 이미 그 꼴이라 같은 방식으로 합쳤다. [매출처]는 [거래처명],
-              [주문수량]은 [수량], [품목명]은 <b>[품목명(규격)]</b> 이다(규격은 진작 받아
-              두고 안 찍고 있었다).
-            */}
             <th className="w-[170px] cursor-pointer" onClick={() => sort.toggle('일자')}>일자-No. {sort.mark('일자')}</th>
-            <th>납기</th>
-            <th className="text-center">진행</th>
             <th>품목명(규격)</th>
             <th className="text-right">수량</th>
-            <th className="text-right" title="출하완료된 수량. 출하지시만 낸 것은 넣지 않는다.">출하완료수량</th>
-            <th className="text-right" title="출하완료만 뺀 수량입니다. 출하지시만 낸 수량은 아직 남은 것으로 셉니다 — 미출하현황은 출하지시도 빼므로 숫자가 다를 수 있습니다.">미출하(완료기준)</th>
             <th className="text-right">단가</th>
             <th className="text-right">공급가액</th>
-            {/* 원본은 [거래처명]이 <b>공급가액 뒤</b>에 온다 — 우리는 앞쪽에 두고 있었다. */}
             <th>거래처명</th>
-            <th className="text-right">부가세</th>
-            {/*
-              원본 주문서현황(E040209)의 격자 열은
-              <b>일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 거래처명 · 적요</b> 다
-              (2026-09-09 원본 실측 — [검색(F8)] 을 눌러 격자를 띄우고 머리를 읽었다).
-              <b>[적요]가 우리에게만 없었다.</b> 응답은 진작 싣고 있었고 이 화면은 그 값으로
-              <b>거르기까지</b> 하고 있었다(위 f.remark 필터) — 거를 수는 있는데 볼 수는
-              없는 열이었다. 미출하현황에서 [창고명]이 꼭 같은 꼴이었다.
-            */}
             <th className="w-[150px]">적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} className="text-center text-ec-hint p-[20px]">
+            <tr><td colSpan={7} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '주문 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : sort.sorted.map((r, i) => (
-            <tr key={r.key}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{dateNo(r.date, r.orderNo)}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.dueDate) || ''}</td>
-              <td className="text-center">
-                <span style={{ color: STATUS_COLOR[r.status], fontWeight: 600, fontSize: 12 }}>
-                  {r.statusName || STATUS_LABEL[r.status]}
-                </span>
-              </td>
-              <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''}</td>
-              <td className="text-right">{r.qty.toLocaleString()}</td>
-              <td className="text-right text-ec-label">{r.shippedQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: r.unshipped > 0 ? 600 : 400, color: r.unshipped > 0 ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>{r.unshipped.toLocaleString()}</td>
-              <td className="text-right">{r.unitPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
-              <td>{r.partner}</td>
-              <td className="text-right text-ec-hint">{r.vat.toLocaleString()}</td>
-              <td className="text-ec-hint">{r.remark ?? ''}</td>
-            </tr>
-          ))}
+          ) : byMonth(sort.sorted).flatMap((g) => [
+            ...g.rows.map((r) => (
+              <tr key={r.key}>
+                <td>{dateNo(r.date, r.orderNo)}</td>
+                <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                <td className="text-right">{qty2(r.qty)}</td>
+                <td className="text-right">{r.unitPrice.toLocaleString()}</td>
+                <td className="text-right">{r.supply.toLocaleString()}</td>
+                <td>{r.partner}</td>
+                <td>{r.remark ?? ''}</td>
+              </tr>
+            )),
+            <tr key={`m-${g.month}`} className="ec-list-total">
+              <td colSpan={2} className="text-center font-bold">{g.month} 계</td>
+              <td className="text-right font-bold">{qty2(g.qty)}</td>
+              <td></td>
+              <td className="text-right font-bold">{g.supply.toLocaleString()}</td>
+              <td colSpan={2}></td>
+            </tr>,
+          ])}
         </tbody>
+        {!loading && shown.length > 0 && (
+          <tfoot>
+            <tr className="ec-list-total">
+              <td colSpan={2} className="text-center font-bold">총합계</td>
+              <td className="text-right font-bold">{qty2(shown.reduce((a, r) => a + r.qty, 0))}</td>
+              <td></td>
+              <td className="text-right font-bold">{totals.supply.toLocaleString()}</td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
       )}
     </EcListShell>
   )
+}
+
+/** 원본 수량 칸은 소수 둘째 자리까지('3.00'). */
+const qty2 = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** 원본 라인별 격자 — 이어진 같은 달 줄마다 'YYYY/MM 계'. */
+function byMonth<R extends { date: string; qty: number; supply: number }>(rs: R[]) {
+  const out: { month: string; rows: R[]; qty: number; supply: number }[] = []
+  for (const r of rs) {
+    const month = r.date.slice(0, 7).replace('-', '/')
+    let g = out[out.length - 1]
+    if (!g || g.month !== month) { g = { month, rows: [], qty: 0, supply: 0 }; out.push(g) }
+    g.rows.push(r); g.qty += r.qty; g.supply += r.supply
+  }
+  return out
 }
 
 /** 비교기간 증감 표시 — 늘면 초록, 줄면 빨강. */

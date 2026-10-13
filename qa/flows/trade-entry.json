@@ -48,8 +48,10 @@
         "click:출하창고 선택",
         "pickrow:QA-WH",
         "click:저장(F8)",
-        "expect:/SN-[0-9]{8}-[0-9]{4} 수주 등록 완료/.test(document.body.innerText)",
-        "apidel:/sales-orders|SN-[0-9]{8}-[0-9]{4}|orderNo"
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSO', o.orderNo); return o.orderNo })()",
+        "apidel:/sales-orders|@__lastSO|orderNo"
       ]
     }
   ]

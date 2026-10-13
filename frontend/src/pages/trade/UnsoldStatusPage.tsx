@@ -69,6 +69,8 @@ interface UnsoldLine {
 }
 
 const num = (n: number) => n.toLocaleString()
+/** 원본 수량 칸은 소수 둘째 자리까지 찍는다('3.00'). */
+const qty = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /*
  * 원본 미판매현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
@@ -150,9 +152,10 @@ export default function UnsoldStatusPage() {
     .filter((r) => !cond.orderQtyFrom || r.orderQty >= Number(cond.orderQtyFrom))
     .filter((r) => !cond.orderQtyTo || r.orderQty <= Number(cond.orderQtyTo))
     .slice()
+    /* 원본은 일자 오름차순(2025/11/01 -2 가 첫 줄) — 같은 날은 번호 차례. */
     .sort((a, b) => (byDue
       ? ((a.dueDate ?? '') < (b.dueDate ?? '') ? -1 : (a.dueDate ?? '') > (b.dueDate ?? '') ? 1 : 0)
-      : 0))
+      : (a.orderDate.localeCompare(b.orderDate) || a.orderNo.localeCompare(b.orderNo))))
 
   /** 품목별 보기 — 주문번호가 여럿 섞이므로 건수로 대신 보여 준다. */
   const byItem = useMemo(() => {
@@ -176,9 +179,20 @@ export default function UnsoldStatusPage() {
    */
   const lineVat = (r: UnsoldLine) => (r.taxable ? Math.round(r.unsoldAmount * 0.1) : 0)
   const totals = shown.reduce(
-    (a, r) => ({ qty: a.qty + r.unsoldQty, amount: a.amount + r.unsoldAmount, vat: a.vat + lineVat(r) }),
-    { qty: 0, amount: 0, vat: 0 },
+    (a, r) => ({ orderQty: a.orderQty + r.orderQty, qty: a.qty + r.unsoldQty, amount: a.amount + r.unsoldAmount, vat: a.vat + lineVat(r) }),
+    { orderQty: 0, qty: 0, amount: 0, vat: 0 },
   )
+  /** 원본 라인별 격자 — 달마다 'YYYY/MM 계' 줄을 끼운다(shown 이 이미 일자 오름차순). */
+  const byMonth = (() => {
+    const out: { month: string; rows: UnsoldLine[]; orderQty: number; unsoldQty: number; amount: number; vat: number }[] = []
+    for (const r of shown) {
+      const month = r.orderDate.slice(0, 7).replace('-', '/')
+      let g = out[out.length - 1]
+      if (!g || g.month !== month) { g = { month, rows: [], orderQty: 0, unsoldQty: 0, amount: 0, vat: 0 }; out.push(g) }
+      g.rows.push(r); g.orderQty += r.orderQty; g.unsoldQty += r.unsoldQty; g.amount += r.unsoldAmount; g.vat += lineVat(r)
+    }
+    return out
+  })()
   const reset = () => {
     setMode('라인별')
     setCond({
@@ -315,7 +329,7 @@ export default function UnsoldStatusPage() {
         <EcCond label="정렬기준">
           <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byDue} onChange={(e) => setByDue(e.target.checked)} />
-            납기일순 (기본: 미판매수량순)
+            납기일순 (기본: 일자순)
           </label>
         </EcCond>
       </EcStatusPanel>
@@ -346,68 +360,65 @@ export default function UnsoldStatusPage() {
       <div className="overflow-x-auto">
         {mode === '라인별' ? (
           <table className="w-full text-left">
-            <colgroup>
-              <col className="w-[4%]" /><col className="w-[13%]" /><col />
-              <col className="w-[8%]" /><col className="w-[8%]" /><col className="w-[8%]" />
-              <col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[12%]" />
-              <col className="w-[9%]" /><col className="w-[10%]" />
-            </colgroup>
             {/*
-              2026-09-09 원본 실측 — 격자 열은
-              <b>일자-No. · 품목명(규격) · 수량 · 미판매수량 · 미판매공급가액 · 거래처명 ·
-              적요 · 품목별납기일자 · 미판매부가세</b> 다([검색(F8)] 을 눌러야 머리가 나온다).
-              우리 이름은 넷이 달랐고([주문번호]·[거래처]·[품목]·[주문수량]),
-              <b>[적요]와 [미판매부가세]는 아예 없었다</b> — 적요는 응답이 진작 싣던 값이다.
-              [판매수량]은 우리 것이라 그대로 둔다(미판매가 왜 그만큼인지 보는 칸이다).
+              2026-10-14 원본 실측(주문 3 → 미판매 3.00 · 900 · 90) — 격자 열은
+              <b>일자-No. · 품목명(규격) · 수량 · 미판매수량 · 미판매공급가액 · 미판매부가세 · 품목별납기일자 · 거래처명 · 적요</b> 아홉이고
+              번호 칸이 없다. 수량은 '3.00', 품목명은 '코카콜라 [355ml]', 일자 오름차순, 달마다 '2026/10 계'(두 칸을 합친 굵은 회색 줄)와
+              맨 끝 '총합계'. 우리는 번호 칸 · [판매수량] 이 더 있고 미판매부가세가 끝에, 납기가 거래처 뒤에 있었다.
+              원본 이름은 [품목별납기일자] 지만 우리 납기는 전표 하나다 — 그 값을 줄마다 찍는다.
             */}
             <thead>
               <tr>
-                <th></th>
-                <th>일자-No.</th>
+                <th className="text-center">일자-No.</th>
                 <th>품목명(규격)</th>
                 <th className="text-right">수량</th>
-                <th className="text-right">판매수량</th>
                 <th className="text-right">미판매수량</th>
                 <th className="text-right">미판매공급가액</th>
+                <th className="text-right">미판매부가세</th>
+                <th className="text-center">품목별납기일자</th>
                 <th>거래처명</th>
                 <th>적요</th>
-                {/* 원본 이름은 [품목별납기일자] 지만 우리 납기는 전표 단위 하나다 — 이름을 그대로 쓰면 거짓이 된다. */}
-                <th>납기일자</th>
-                <th className="text-right">미판매부가세</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} className="text-center text-ec-ink">불러오는 중…</td></tr>
+                <tr><td colSpan={9} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={11} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-              ) : shown.map((r, i) => (
-                <tr key={r.orderLineId} className="cursor-pointer"
-                    onClick={() => navigate('/sales/order-status')}>
-                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
-                  <td className="text-ec-blue">{dateNo(r.orderDate, r.orderNo)}</td>
-                  <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''} <span className="text-[11px] text-ec-hint">{r.itemCode}</span></td>
-                  <td className="text-right">{num(r.orderQty)}</td>
-                  <td className="text-right text-ec-hint">{num(r.soldQty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: '#a5561b' }}>
-                    {num(r.unsoldQty)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
-                  </td>
-                  <td className="text-right">{num(r.unsoldAmount)}</td>
-                  <td>{r.partnerName}</td>
-                  <td className="text-ec-hint">{r.remark ?? ''}</td>
-                  <td>{r.dueDate ? r.dueDate.replace(/-/g, '/') : ''}</td>
-                  <td className="text-right text-ec-hint">{num(lineVat(r))}</td>
-                </tr>
-              ))}
+                <tr><td colSpan={9} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+              ) : byMonth.flatMap((g) => [
+                ...g.rows.map((r) => (
+                  <tr key={r.orderLineId} className="cursor-pointer"
+                      onClick={() => navigate('/sales/order-status')}>
+                    <td className="text-center text-ec-blue">{dateNo(r.orderDate, r.orderNo)}</td>
+                    <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                    <td className="text-right">{qty(r.orderQty)}</td>
+                    <td className="text-right">{qty(r.unsoldQty)}</td>
+                    <td className="text-right">{num(r.unsoldAmount)}</td>
+                    <td className="text-right">{num(lineVat(r))}</td>
+                    <td className="text-center">{r.dueDate ? r.dueDate.replace(/-/g, '/') : ''}</td>
+                    <td>{r.partnerName}</td>
+                    <td>{r.remark ?? ''}</td>
+                  </tr>
+                )),
+                <tr key={`m-${g.month}`} className="ec-list-total">
+                  <td colSpan={2} className="text-center font-bold">{g.month} 계</td>
+                  <td className="text-right font-bold">{qty(g.orderQty)}</td>
+                  <td className="text-right font-bold">{qty(g.unsoldQty)}</td>
+                  <td className="text-right font-bold">{num(g.amount)}</td>
+                  <td className="text-right font-bold">{num(g.vat)}</td>
+                  <td colSpan={3}></td>
+                </tr>,
+              ])}
             </tbody>
             {shown.length > 0 && (
               <tfoot>
-                <tr>
-                  <td colSpan={5} className="text-right font-bold bg-ec-page">합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.qty)}</td>
-                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totals.amount)}</td>
-                  <td colSpan={3} className="bg-ec-page"></td>
-                  <td className="text-right font-bold bg-ec-page text-ec-hint">{num(totals.vat)}</td>
+                <tr className="ec-list-total">
+                  <td colSpan={2} className="text-center font-bold">총합계</td>
+                  <td className="text-right font-bold">{qty(totals.orderQty)}</td>
+                  <td className="text-right font-bold">{qty(totals.qty)}</td>
+                  <td className="text-right font-bold">{num(totals.amount)}</td>
+                  <td className="text-right font-bold">{num(totals.vat)}</td>
+                  <td colSpan={3}></td>
                 </tr>
               </tfoot>
             )}

@@ -19,17 +19,20 @@
         "pickrow:QA-WH",
         "expect:document.querySelector('[role=dialog] [data-invalid]') === null",
         "click:저장(F8)",
-        "expect:/SN-[0-9]{8}-[0-9]{4} 수주 등록 완료/.test(document.body.innerText)",
-        "js:const no = document.body.innerText.match(/SN-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})(?= 수주 등록 완료)/); sessionStorage.setItem('soiOrder', no[0]); sessionStorage.setItem('soiDateNo', `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`); true",
-        "click:닫기"
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSO', o.orderNo); return o.orderNo })()",
+        "js:const no = (sessionStorage.getItem('__lastSO') || '').match(/SN-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); sessionStorage.setItem('soiOrder', no[0]); sessionStorage.setItem('soiDateNo', `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`); true"
       ]
     },
     {
-      "name": "[진행상태변경] — 안 고르면 잠김, 고르면 메뉴 → 완료",
+      "name": "[진행상태변경] — 안 고르면 알림(원본 그대로), 고르면 메뉴 → 완료",
       "path": "/sales/orders",
       "steps": [
         "wait:800",
-        "expect:[...document.querySelectorAll('.ec-footer button')].find((b) => b.textContent.trim() === '진행상태변경').disabled",
+        "js:window.__alerted = ''; window.alert = (m) => { window.__alerted = m }; [...document.querySelectorAll('.ec-footer button')].find((b) => b.textContent.trim() === '진행상태변경').click(); true",
+        "wait:300",
+        "expect:window.__alerted.startsWith('리스트에 선택된 자료가 없습니다.')",
         "js:[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes(sessionStorage.getItem('soiDateNo'))).querySelector('input[type=checkbox]').click(); true",
         "click:진행상태변경",
         "expect:document.querySelector('[role=menu][aria-label=진행상태변경]').innerText.includes('미확인') && document.querySelector('[role=menu]').innerText.includes('진행중')",
