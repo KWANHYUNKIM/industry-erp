@@ -1,6 +1,7 @@
 package com.erp.inventory.warehouse;
 
 import com.erp.common.ApiException;
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.inventory.warehouse.dto.WarehouseDtos.CreateWarehouseRequest;
 import com.erp.inventory.warehouse.dto.WarehouseDtos.UpdateWarehouseRequest;
 import com.erp.inventory.warehouse.dto.WarehouseDtos.WarehouseResponse;
@@ -19,6 +20,9 @@ public class WarehouseService {
     private static final java.util.List<String> KINDS = java.util.List.of("창고", "공장", "외주");
 
     private final WarehouseRepository warehouseRepository;
+    private final ChangeHistoryService changeHistory;
+    /** [H] 이력 대상 이름 — 한 번 정하면 바꾸지 않는다(공용.md '붙이는 법'). */
+    public static final String HISTORY_TARGET = "WAREHOUSE";
 
     @Transactional(readOnly = true)
     public List<WarehouseResponse> findAll() {
@@ -43,12 +47,15 @@ public class WarehouseService {
                 .outsourcingPartnerId(req.outsourcingPartnerId())
                 .active(true)
                 .build();
-        return WarehouseResponse.from(warehouseRepository.save(w));
+        Warehouse saved = warehouseRepository.save(w);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
+        return WarehouseResponse.from(saved);
     }
 
     @Transactional
     public WarehouseResponse update(Long id, UpdateWarehouseRequest req) {
         Warehouse w = getWarehouse(id);
+        boolean wasActive = w.isActive();
         String kind = normalizeKind(req.kind());
         requireOutsourcingPartner(kind, req.outsourcingPartnerId());
         w.setName(req.name());
@@ -60,6 +67,7 @@ public class WarehouseService {
         if (req.active() != null) {
             w.setActive(req.active());
         }
+        changeHistory.recordUpdate(HISTORY_TARGET, w.getId(), wasActive, w.isActive());
         return WarehouseResponse.from(w);
     }
 
@@ -86,6 +94,7 @@ public class WarehouseService {
     @Transactional
     public void delete(Long id) {
         warehouseRepository.delete(getWarehouse(id));
+        changeHistory.record(HISTORY_TARGET, id, ChangeHistoryService.DELETED);
     }
 
     /** 다른 서비스가 창고 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */

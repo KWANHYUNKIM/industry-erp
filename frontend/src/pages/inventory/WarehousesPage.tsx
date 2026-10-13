@@ -4,6 +4,7 @@ import CodePickerField from '../../components/CodePickerField'
 import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import EcHistoryButton from '../../components/EcHistory'
 import EcFileDrop from '../../components/EcFileDrop'
 import { useTableSort } from '../../utils/useTableSort'
 
@@ -283,7 +284,7 @@ export default function WarehousesPage() {
               </div>
             )}
           </div>
-          {/* 원본: 신규 저장(F8) · 다시 작성 · 웹자료올리기 · 닫기 / 수정 저장(F8) · 다시 작성 · 사용중단/재사용 · 닫기 · H(이력 — 남은 것). */}
+          {/* 원본: 신규 저장(F8) · 다시 작성 · 웹자료올리기 · 닫기 / 수정 저장(F8) · 다시 작성 · 사용중단/재사용 · 닫기 · H(이력). */}
           <div className="mt-[12px] flex justify-end gap-[4px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => setForm((f) => ({ ...f, name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }))}>다시 작성</button>
@@ -291,6 +292,7 @@ export default function WarehousesPage() {
               ? <button type="button" className="ec-btn" onClick={() => toggleOne(editId)}>사용중단/재사용</button>
               : <button type="button" className="ec-btn" onClick={() => setWebOpen(true)}>웹자료올리기</button>}
             <button type="button" className="ec-btn" onClick={() => { setShowForm(false); setEditId(null) }}>닫기</button>
+            <EcHistoryButton target="WAREHOUSE" id={editId} last />
           </div>
         </form>
       )}</Modal>

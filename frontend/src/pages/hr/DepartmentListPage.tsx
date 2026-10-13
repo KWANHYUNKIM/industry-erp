@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import EcHistoryButton from '../../components/EcHistory'
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -243,6 +244,7 @@ export default function DepartmentListPage() {
             </button>
             {editId != null && <EditStateMenu active={rows.find((x) => x.id === editId)?.active ?? true} onPick={(op) => { setFormOpen(false); applyToChecked(op, new Set([editId])) }} />}
             <button type="button" className="ec-btn" onClick={() => setFormOpen(false)}>닫기</button>
+            <EcHistoryButton target="DEPARTMENT" id={editId} last />
           </div>
         </form>
       )}</Modal>

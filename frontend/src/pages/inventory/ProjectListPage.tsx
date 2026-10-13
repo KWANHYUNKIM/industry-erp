@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import EcHistoryButton from '../../components/EcHistory'
 import BulkChangeModal from '../../components/BulkChangeModal'
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -258,6 +259,7 @@ export default function ProjectListPage() {
               </span>
             )}
             <button type="button" className="ec-btn" onClick={() => setFormOpen(false)}>닫기</button>
+            <EcHistoryButton target="PROJECT" id={editId} last />
           </div>
         </form>
       )}</Modal>

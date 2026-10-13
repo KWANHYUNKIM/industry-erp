@@ -2,6 +2,7 @@ package com.erp.hr.department;
 
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.hr.department.dto.DepartmentDtos.CreateDepartmentRequest;
 import com.erp.hr.department.dto.DepartmentDtos.DepartmentResponse;
 import com.erp.hr.department.dto.DepartmentDtos.UpdateDepartmentRequest;
@@ -21,6 +22,9 @@ public class DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
     private final DocumentNoGenerator docNoGenerator;
+    private final ChangeHistoryService changeHistory;
+    /** [H] 이력 대상 이름 — 한 번 정하면 바꾸지 않는다(공용.md '붙이는 법'). */
+    public static final String HISTORY_TARGET = "DEPARTMENT";
 
     @Transactional(readOnly = true)
     public List<DepartmentResponse> findAll() {
@@ -42,7 +46,9 @@ public class DepartmentService {
                 .sortOrder(req.sortOrder() != null ? req.sortOrder() : 0)
                 .active(true)
                 .build();
-        return DepartmentResponse.from(departmentRepository.save(d), 0);
+        Department saved = departmentRepository.save(d);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
+        return DepartmentResponse.from(saved, 0);
     }
 
     @Transactional
@@ -50,11 +56,13 @@ public class DepartmentService {
         Department d = get(id);
         Department parent = req.parentId() != null ? get(req.parentId()) : null;
         checkNoCycle(d, parent);
+        boolean wasActive = d.isActive();
 
         d.setName(req.name().trim());
         d.setParent(parent);
         if (req.sortOrder() != null) d.setSortOrder(req.sortOrder());
         if (req.active() != null) d.setActive(req.active());
+        changeHistory.recordUpdate(HISTORY_TARGET, d.getId(), wasActive, d.isActive());
         return DepartmentResponse.from(d, employeeRepository.countByDepartmentId(d.getId()));
     }
 
@@ -124,6 +132,7 @@ public class DepartmentService {
                 .forEach(c -> c.setParent(null));
         departmentRepository.flush();
         departmentRepository.delete(d);
+        changeHistory.record(HISTORY_TARGET, id, ChangeHistoryService.DELETED);
     }
 
     /** 다른 모듈(사원 배치 등)에서 부서 엔티티가 필요할 때 쓰는 진입점. */

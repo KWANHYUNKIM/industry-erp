@@ -2,6 +2,7 @@ package com.erp.inventory.project;
 
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.inventory.project.dto.ProjectDtos.CreateProjectRequest;
 import com.erp.inventory.project.dto.ProjectDtos.ProjectResponse;
 import com.erp.inventory.project.dto.ProjectDtos.UpdateProjectRequest;
@@ -21,6 +22,9 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final DocumentNoGenerator documentNoGenerator;
+    private final ChangeHistoryService changeHistory;
+    /** [H] 이력 대상 이름 — 한 번 정하면 바꾸지 않는다(공용.md '붙이는 법'). */
+    public static final String HISTORY_TARGET = "PROJECT";
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> findAll() {
@@ -47,7 +51,9 @@ public class ProjectService {
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
-        return ProjectResponse.from(projectRepository.save(p));
+        Project saved = projectRepository.save(p);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
+        return ProjectResponse.from(saved);
     }
 
     /** 다른 서비스가 프로젝트 엔티티를 얻는 진입점 (전표에 붙이기 위해). */
@@ -61,6 +67,7 @@ public class ProjectService {
     public ProjectResponse update(Long id, UpdateProjectRequest req) {
         Project p = projectRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + id));
+        boolean wasActive = p.isActive();
 
         if (req.name() != null) p.setName(req.name());
         if (req.manager() != null) p.setManager(req.manager());
@@ -73,6 +80,7 @@ public class ProjectService {
 
         // 완료 처리 시 진척률 100 동기화
         if (p.getStatus() == ProjectStatus.DONE) p.setProgress(100);
+        changeHistory.recordUpdate(HISTORY_TARGET, p.getId(), wasActive, p.isActive());
 
         return ProjectResponse.from(p);
     }
@@ -89,6 +97,7 @@ public class ProjectService {
         try {
             projectRepository.delete(p);
             projectRepository.flush();   // FK 위반을 이 시점에 발생시켜 잡는다
+            changeHistory.record(HISTORY_TARGET, id, ChangeHistoryService.DELETED);
         } catch (DataIntegrityViolationException e) {
             throw ApiException.badRequest("이 프로젝트를 참조하는 전표·계획·업무일지가 있어 삭제할 수 없습니다. 먼저 연결을 해제하세요.");
         }
