@@ -84,7 +84,7 @@ async function printInspections(rs: QualityInspection[]) {
  *       '선택한 전표를 삭제 하겠습니까?', 고른 것이 없으면 '리스트에 선택된 자료가 없습니다.'</li>
  * </ul>
  * 예전 화면은 품목 하나짜리 검사성적(검사구분 · 로트 · 검사수량 · 불량수 · 판정)이라 줄도 시료도 종결여부도 없었다.
- * [출처] 는 [검사요청] 으로 불러온 검사만 '검사요청' 으로 찍는다 — 구매 · 생산 … 에서 불러오기와 [확인] 알약(전표 확인 결재)은 아직 없다.
+ * [출처] 는 빈칸이다(원본도 [검사요청] 으로 불러온 검사에 빈칸, 2026-10-14) — [확인] 알약(전표 확인 결재)은 아직 없다.
  * 조건 판은 원본 조건 대조표의 것(기준일자 · 품목 · 창고 · 프로젝트)을 그대로 둔다.
  */
 /** @param entry 원본 [..입력] 메뉴로 열었을 때 — 입력 창을 열고 뜬다. */
@@ -415,7 +415,8 @@ export default function QualityInspectionPage({ entry = false }: { entry?: boole
               <td className="text-right">{qty2(r.inspectedQty)}</td>
               <td className="text-right">{qty2(r.goodQty)}</td>
               <td className="text-right">{r.defectQty ? qty2(r.defectQty) : ''}</td>
-              <td>{r.requestNo ? '검사요청' : ''}</td>
+              {/* 원본 [출처] — [검사요청] 으로 불러온 검사도 빈칸이었다(2026-10-14 실측, 26/10/14-1). 무엇을 찍는지는 아직 못 봄. */}
+              <td></td>
               <td className="text-center">
                 <button type="button" className={`ec-link${r.status === 'COMPLETED' ? ' text-ec-warn' : ''}`}
                         onClick={() => toggleStatus(r)}>{r.statusName}</button>
