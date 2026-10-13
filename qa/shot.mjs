@@ -54,7 +54,10 @@ try {
       else if (kind === 'allowapi') allowed.push(`API ${rest.join(':')}`)
       else if (kind === 'js') {
         // true 가 아닌 값을 돌려주면 찍는다 — 화면이 띄운 안내·번호를 시나리오 출력에서 바로 보려고.
-        const v = await b.evaluate(rest.join(':'))
+        // 20초 안에 안 끝나면 실패로 — 단계 안의 Promise 가 오류로 영영 안 풀리면(타이머 안에서 던진 예외 등)
+        // 예전에는 시험 전체가 그 자리에서 멈췄다(2026-10-03, 작업지시서작업처리 단계에서 34분).
+        const v = await Promise.race([b.evaluate(rest.join(':')),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('js 단계가 20초 안에 안 끝났다: ' + rest.join(':').slice(0, 80))), 20000))])
         if (v !== true && v !== undefined && v !== null) console.log('  ↳', String(v).slice(0, 300))
       }
       else if (kind === 'pick') {

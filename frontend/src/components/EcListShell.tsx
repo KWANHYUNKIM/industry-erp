@@ -179,6 +179,7 @@ export default function EcListShell({
   const [formOpen, setFormOpen] = useState(false)
   const [notice, setNotice] = useState('')
   const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
+  const [headMore, setHeadMore] = useState(false)   // 휴대폰: 머리 도구 펼침(⌄) — 제목 · 도움말
   // 조건 판 — 원본 규칙(plans/공용.md 규칙 3 · 4). 판이 있는지는 그려진 뒤에야 안다.
   const [hasConds, setHasConds] = useState(false)
   const [searched, setSearched] = useState(false)   // 검색칸 없는 화면: 조건 판 [검색(F8)] 을 한 번 눌렀다
@@ -392,9 +393,9 @@ export default function EcListShell({
     // 틀 높이를 채우지 않는다 — min-h-100% 로 채우면 짧은 목록에서도 버튼줄이 틀 바닥으로 밀려났다(2026-10-13 6개 화면 실측).
     <div className="ec-list-shell flex flex-col">
       {/* 상단: ★제목 + 검색 (styles/shell.css .ec-page-head) */}
-      <div className="ec-page-head">
+      <div className={`ec-page-head${headMore ? ' more' : ''}`}>
         {/* 원본 휴대폰 목록 화면은 제목을 감추고 검색 도구만 남긴다 */}
-        <span className="ec-page-title mobile:hidden">{title}</span>
+        <span className="ec-page-title m-hide">{title}</span>
         <div className="tools relative">
           {showSearch && <>
             <input
@@ -407,7 +408,9 @@ export default function EcListShell({
             <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
           </>}
           {option && <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>}
-          <button className="ec-btn mobile:hidden" onClick={() => setHelpOpen(true)}>도움말</button>
+          <button className="ec-btn m-hide" onClick={() => setHelpOpen(true)}>도움말</button>
+          {/* 휴대폰: 한 줄에 못 둔 머리 도구(제목 · 도움말)는 ⌄ 로 펼친다(원본 btn-toolbar-more) */}
+          <button className="ec-btn ec-more" aria-label="도구 더 보기" onClick={() => setHeadMore((v) => !v)}>{headMore ? '⌃' : '⌄'}</button>
 
           {optionOpen && (
             <>

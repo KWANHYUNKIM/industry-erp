@@ -805,30 +805,40 @@
     border-radius: var(--ec-radius-panel);
     box-shadow: var(--ec-shadow-pop);
   }
-  .ec-m-apps-grid {
+  .ec-m-panel.ec-m-apps-grid {
+    top: 51px;
+    left: 0;
+    right: 0;
+    max-height: calc(100vh - 51px);
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    padding: 10px;
+    border: 0;
+    border-radius: 0;
   }
   .ec-m-apps-grid > .ec-appbar-btn {
     width: auto;
-    height: auto;
+    height: 84px;
     flex-direction: column;
-    gap: 3px;
-    padding: 8px 2px;
-    font-size: 18px;
+    gap: 8px;
+    padding: 10px 6px;
+    border-radius: var(--ec-radius);
+    font-size: 30px;
   }
   .ec-m-apps-grid > .ec-appbar-btn > span {
-    font-size: 11px;
-    color: var(--ec-text);
+    font-size: var(--ec-fs);
+    color: var(--ec-ink);
     white-space: nowrap;
   }
 
-  /* 화면 머리 — 줄을 바꿔 도구가 화면 안에 머문다 */
+  /* 화면 머리 — 줄을 바꿔 도구가 화면 안에 머문다.
+     목록 머리는 제목 · 도움말을 접어 두고 ⌄ 로 펼친다(원본 btn-toolbar-more) */
   .ec-page-head {
     flex-wrap: wrap;
     row-gap: 6px;
   }
+  .ec-page-head:not(.more) .m-hide { display: none; }
   .ec-page-head > .tools {
     flex-wrap: wrap;
   }
