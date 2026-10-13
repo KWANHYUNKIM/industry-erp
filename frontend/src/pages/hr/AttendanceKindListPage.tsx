@@ -9,10 +9,11 @@ import { api, extractErrorMessage } from '../../api/client'
 import EditStateMenu from '../../components/EditStateMenu'
 
 type KindType = 'BASIC' | 'VACATION' | 'COMMUTE'
-interface Kind { id: number; code: string; name: string; kindGroup: string | null; type: KindType; typeName: string; vacationKindId: number | null; hourUnit: boolean; remark: string | null; active: boolean }
+interface Kind { id: number; code: string; name: string; kindGroup: string | null; type: KindType; typeName: string; vacationKindId: number | null; commuteRuleId: number | null; hourUnit: boolean; remark: string | null; active: boolean }
 interface Vacation { id: number; code: string; name: string; active: boolean }
-interface Form { code: string; name: string; kindGroup: string; type: KindType; vacationKindId: string; hourUnit: boolean; remark: string }
-const blankForm = (): Form => ({ code: '', name: '', kindGroup: '', type: 'BASIC', vacationKindId: '', hourUnit: false, remark: '' })
+interface CommuteRule { id: number; code: string; name: string; active: boolean }
+interface Form { code: string; name: string; kindGroup: string; type: KindType; vacationKindId: string; commuteRuleId: string; hourUnit: boolean; remark: string }
+const blankForm = (): Form => ({ code: '', name: '', kindGroup: '', type: 'BASIC', vacationKindId: '', commuteRuleId: '', hourUnit: false, remark: '' })
 const TYPES: [KindType, string][] = [['BASIC', '기본'], ['VACATION', '휴가'], ['COMMUTE', '출/퇴근']]
 
 /**
@@ -23,6 +24,8 @@ const TYPES: [KindType, string][] = [['BASIC', '기본'], ['VACATION', '휴가']
  *   <li>격자 근태코드 · 근태명칭 · 근태그룹 · 근태유형 · 사용 · 적요(근태코드 차례). 버튼 신규(F2) · 사용중단/재사용 ▲(사용중단 · 삭제 · 재사용) · Excel.</li>
  *   <li>[신규(F2)] '근태항목등록' 창: 근태코드(다음 번호 30013 미리 채움) · 근태명칭 · 근태그룹 · 근태유형(기본 · 휴가 · 출/퇴근) ·
  *       계산단위(일 · 시간) · 적요. 저장하면 안내 없이 목록에 붙는다. 삭제는 '삭제하시겠습니까?'.</li>
+ *   <li>근태유형 '출/퇴근'(2026-10-13 실측)이면 계산단위 칸이 사라지고 '출/퇴근반영기준' 코드도움이 생긴다 — 계산단위는 그 기준을 따른다.
+ *       근태입력 [출/퇴근 ▲ › 사원기준] 의 근태코드 코드도움은 이 유형의 항목만 띄운다.</li>
  * </ul>
  * 근태입력의 [근태항목]이 이 목록(사용 중인 것)에서 고른다. 근태유형이 '휴가' 면 원본처럼 [휴가코드](휴가항목등록)가 나타나고
  * 비면 '휴가코드를 입력 바랍니다.' 로 막힌다. 연차에서 빼는 것은 여전히 이름이 연차 · 반차인 항목이다. 근태그룹은 원본처럼 코드도움(근태그룹검색 · [신규] 근태그룹등록 — AttendanceGroupField)이고 그룹 이름을 담는다.
@@ -39,6 +42,7 @@ export default function AttendanceKindListPage() {
   const [formError, setFormError] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<Form>(blankForm())
+  const [rules, setRules] = useState<CommuteRule[]>([])
   const tableRef = useRef<HTMLTableElement>(null)
 
   function load() {
@@ -48,6 +52,7 @@ export default function AttendanceKindListPage() {
   useEffect(() => {
     load()
     api.get<Vacation[]>('/hr/vacation-kinds').then((r) => setVacations(r.data)).catch(() => setVacations([]))
+    api.get<CommuteRule[]>('/hr/commute-rules').then((r) => setRules(r.data)).catch(() => setRules([]))
   }, [])
 
   const filtered = rows.filter((r) => (includeInactive || r.active) && (!quick || r.code.includes(quick) || r.name.includes(quick)))
@@ -67,14 +72,16 @@ export default function AttendanceKindListPage() {
   }
   function openEdit(k: Kind) {
     setEditId(k.id); setFormError('')
-    setForm({ code: k.code, name: k.name, kindGroup: k.kindGroup ?? '', type: k.type, vacationKindId: k.vacationKindId ? String(k.vacationKindId) : '', hourUnit: k.hourUnit, remark: k.remark ?? '' })
+    setForm({ code: k.code, name: k.name, kindGroup: k.kindGroup ?? '', type: k.type, vacationKindId: k.vacationKindId ? String(k.vacationKindId) : '', commuteRuleId: k.commuteRuleId ? String(k.commuteRuleId) : '', hourUnit: k.hourUnit, remark: k.remark ?? '' })
     setOpen(true)
   }
 
   async function save() {
     if (!form.name.trim()) { setFormError('근태명칭을 입력 바랍니다.'); return }
     if (form.type === 'VACATION' && !form.vacationKindId) { setFormError('휴가코드를 입력 바랍니다.'); return }
-    const body = { ...form, code: form.code.trim() || null, vacationKindId: form.type === 'VACATION' ? Number(form.vacationKindId) : null }
+    if (form.type === 'COMMUTE' && !form.commuteRuleId) { setFormError('출/퇴근반영기준을 입력 바랍니다.'); return }
+    const body = { ...form, code: form.code.trim() || null, vacationKindId: form.type === 'VACATION' ? Number(form.vacationKindId) : null,
+      commuteRuleId: form.type === 'COMMUTE' ? Number(form.commuteRuleId) : null }
     try {
       if (editId) await api.put(`/hr/attendance-kinds/${editId}`, { ...body, active: rows.find((r) => r.id === editId)?.active ?? true })
       else await api.post('/hr/attendance-kinds', body)
@@ -93,7 +100,7 @@ export default function AttendanceKindListPage() {
       for (const k of rows.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/hr/attendance-kinds/${k.id}`)
         else await api.put(`/hr/attendance-kinds/${k.id}`, {
-          code: k.code, name: k.name, kindGroup: k.kindGroup, type: k.type, vacationKindId: k.vacationKindId, hourUnit: k.hourUnit, remark: k.remark, active: op === '재사용',
+          code: k.code, name: k.name, kindGroup: k.kindGroup, type: k.type, vacationKindId: k.vacationKindId, commuteRuleId: k.commuteRuleId, hourUnit: k.hourUnit, remark: k.remark, active: op === '재사용',
         })
       }
     } catch (e) {
@@ -197,6 +204,17 @@ export default function AttendanceKindListPage() {
               </div>
             </li>
           )}
+          {form.type === 'COMMUTE' && (
+            <li className="wide">
+              <span className="title">출/퇴근반영기준</span>
+              <div className="form">
+                <CodePickerField label="출/퇴근반영기준" hideLabel fill placeholder="출/퇴근반영기준" emptyLabel="선택 해제"
+                                 value={form.commuteRuleId} onChange={(v) => setForm({ ...form, commuteRuleId: v })}
+                                 items={rules.filter((x) => x.active).map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+              </div>
+            </li>
+          )}
+          {form.type !== 'COMMUTE' && (
           <li className="wide">
             <span className="title">계산단위</span>
             <div className="form flex items-center gap-[12px]">
@@ -207,6 +225,7 @@ export default function AttendanceKindListPage() {
               ))}
             </div>
           </li>
+          )}
           <li className="wide">
             <span className="title">적요</span>
             <div className="form"><textarea className="ec-input w-full h-[48px]" placeholder="적요" value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} /></div>

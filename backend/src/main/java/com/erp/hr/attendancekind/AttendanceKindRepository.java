@@ -9,6 +9,11 @@ public interface AttendanceKindRepository extends JpaRepository<AttendanceKind, 
     @org.springframework.data.jpa.repository.Query("select k from AttendanceKind k left join fetch k.vacationKind order by k.code")
     List<AttendanceKind> findAllByOrderByCodeAsc();
 
+    boolean existsByCommuteRule_Id(Long commuteRuleId);
+
+    @org.springframework.data.jpa.repository.Query("select k from AttendanceKind k join fetch k.commuteRule where k.type = com.erp.hr.attendancekind.AttendanceKindType.COMMUTE order by k.code")
+    List<AttendanceKind> findCommuteKinds();
+
     boolean existsByVacationKind_Id(Long vacationKindId);
 
     boolean existsByCode(String code);

@@ -39,6 +39,11 @@ public class AttendanceKind extends BaseTimeEntity {
     @JoinColumn(name = "vacation_kind_id")
     private VacationKind vacationKind;
 
+    /** 근태유형이 '출/퇴근' 일 때 원본 [출/퇴근반영기준] — 꼭 고른다. 계산단위는 이 규칙을 따른다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "commute_rule_id")
+    private CommuteRule commuteRule;
+
     @Column(name = "hour_unit", nullable = false)
     private boolean hourUnit;
 

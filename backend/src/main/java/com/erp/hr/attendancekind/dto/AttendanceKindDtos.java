@@ -17,6 +17,8 @@ public class AttendanceKindDtos {
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String kindGroup,
             @NotNull(message = "근태유형을 선택 바랍니다.") AttendanceKindType type,
             Long vacationKindId,
+            /** 근태유형 출/퇴근일 때 출/퇴근반영기준 */
+            Long commuteRuleId,
             boolean hourUnit,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.") String remark,
             Boolean active
@@ -25,13 +27,16 @@ public class AttendanceKindDtos {
     public record AttendanceKindResponse(
             Long id, String code, String name, String kindGroup, AttendanceKindType type, String typeName,
             Long vacationKindId, String vacationKindCode, String vacationKindName,
+            Long commuteRuleId, String commuteRuleCode, String commuteRuleName,
             boolean hourUnit, String remark, boolean active
     ) {
         public static AttendanceKindResponse from(AttendanceKind k) {
             VacationKind v = k.getVacationKind();
+            com.erp.hr.attendancekind.CommuteRule c = k.getCommuteRule();
             return new AttendanceKindResponse(k.getId(), k.getCode(), k.getName(), k.getKindGroup(), k.getType(),
                     k.getType().getDisplayName(), v != null ? v.getId() : null, v != null ? v.getCode() : null,
-                    v != null ? v.getName() : null, k.isHourUnit(), k.getRemark(), k.isActive());
+                    v != null ? v.getName() : null, c != null ? c.getId() : null, c != null ? c.getCode() : null,
+                    c != null ? c.getName() : null, k.isHourUnit(), k.getRemark(), k.isActive());
         }
     }
 

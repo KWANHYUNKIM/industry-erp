@@ -51,6 +51,28 @@ public class CommuteRule extends BaseTimeEntity {
     @Column(name = "ex3_from", length = 8) private String ex3From;
     @Column(name = "ex3_to", length = 8) private String ex3To;
 
+    /** 직접설정 기준시간 'D|HH:MM' */
+    @Column(name = "base_from", length = 8) private String baseFrom;
+    @Column(name = "base_to", length = 8) private String baseTo;
+    /** 직접설정 오전반차설정(지각) · 오후반차설정(조퇴) 'D|HH:MM' */
+    @Column(name = "half_from", length = 8) private String halfFrom;
+    @Column(name = "half_to", length = 8) private String halfTo;
+    @Column(name = "half_use", nullable = false) private boolean halfUse;
+
+    /** 직접설정 요일 — 일월화수목금토 차례로 '0'/'1' 일곱 자(원본 기본 월~금). */
+    @Column(nullable = false, length = 7)
+    private String weekdays;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "day_kind", nullable = false, length = 10)
+    private CommuteRuleDayKind dayKind;
+
+    /** 계산단위 시간일 때만 — 최대시간 · 반영단위 */
+    @Column(name = "max_hours") private Integer maxHours;
+    @Column(name = "max_minutes") private Integer maxMinutes;
+    @Column(name = "unit_hours") private Integer unitHours;
+    @Column(name = "unit_minutes") private Integer unitMinutes;
+
     @Column(length = 500)
     private String remark;
 

@@ -10,14 +10,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * 관리 › 근태관리 › 출/퇴근(사원) › 출/퇴근반영기준(원본 E020725). 지금은 규칙을 담아 두기만 한다 —
- * 출퇴근 기록을 근태로 옮기는 셈(지각 · 조퇴 · 추가근무시간)은 아직 이 규칙을 읽지 않는다.
+ * 관리 › 근태관리 › 출/퇴근(사원) › 출/퇴근반영기준(원본 E020725). 셈은 {@link CommuteReflectService} 가
+ * 이 규칙으로 한다(근태입력 [출/퇴근 ▲ › 사원기준]).
  */
 @Service
 @RequiredArgsConstructor
 public class CommuteRuleService {
 
     private final CommuteRuleRepository repository;
+    private final AttendanceKindRepository kindRepository;
 
     @Transactional(readOnly = true)
     public List<CommuteRuleResponse> findAll() {
@@ -38,11 +39,16 @@ public class CommuteRuleService {
         CommuteRule r = get(id);
         apply(r, req);
         if (req.active() != null) r.setActive(req.active());
+        kindRepository.findCommuteKinds().stream().filter(k -> k.getCommuteRule().getId().equals(id))
+                .forEach(k -> k.setHourUnit(r.isHourUnit()));
         return CommuteRuleResponse.from(r);
     }
 
     @Transactional
     public void delete(Long id) {
+        if (kindRepository.existsByCommuteRule_Id(id)) {
+            throw ApiException.badRequest("근태항목에서 사용 중인 출/퇴근반영기준은 삭제할 수 없습니다.");
+        }
         repository.delete(get(id));
     }
 
@@ -56,6 +62,16 @@ public class CommuteRuleService {
         r.setEx1From(blank(req.ex1From())); r.setEx1To(blank(req.ex1To()));
         r.setEx2From(blank(req.ex2From())); r.setEx2To(blank(req.ex2To()));
         r.setEx3From(blank(req.ex3From())); r.setEx3To(blank(req.ex3To()));
+        r.setBaseFrom(blank(req.baseFrom())); r.setBaseTo(blank(req.baseTo()));
+        r.setHalfFrom(blank(req.halfFrom())); r.setHalfTo(blank(req.halfTo()));
+        r.setHalfUse(req.halfUse());
+        r.setWeekdays(req.weekdays() == null || req.weekdays().isBlank() ? "0111110" : req.weekdays());
+        r.setDayKind(req.dayKind() == null ? CommuteRuleDayKind.ALL : req.dayKind());
+        // 최대시간 · 반영단위는 원본도 계산단위 '시간' 일 때만 보인다
+        r.setMaxHours(req.hourUnit() ? req.maxHours() : null);
+        r.setMaxMinutes(req.hourUnit() ? req.maxMinutes() : null);
+        r.setUnitHours(req.hourUnit() ? req.unitHours() : null);
+        r.setUnitMinutes(req.hourUnit() ? req.unitMinutes() : null);
         r.setRemark(blank(req.remark()));
     }
 

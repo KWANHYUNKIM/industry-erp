@@ -7,6 +7,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
 import GridFindButton from '../../components/GridFindButton'
+import type { EmployeeMaster } from '../../types/api'
 
 /**
  * 관리 > 근태관리 > 근태입력.
@@ -19,10 +20,17 @@ import GridFindButton from '../../components/GridFindButton'
  * <p>우리 근태입력은 <b>출퇴근 시각</b>을 넣는 화면이었다. 출퇴근은 원본에서도 따로
  * [출/퇴근기록부(ID)] 가 맡는다 — 그 화면은 그대로 두고 이 자리만 원본 뜻으로 돌린다.
  *
+ * <p>격자 위 <b>[출/퇴근 ▲ › 사원기준]</b>(원본 2026-10-13 실측) — '출/퇴근기록' 창: 기간(금월 1일 ~ 오늘) · 근태코드(근태유형
+ * 출/퇴근인 근태항목만 띄움) · 사원 · 부서 · 프로젝트, 아래 [기간별 ▾ / 일별] [적용(F8)] [닫기]. 적용하면 출/퇴근기록부(사원)의 기록을
+ * 근태항목의 출/퇴근반영기준으로 셈해 줄을 깐다(지각 · 시간 → 5.15 처럼). 저장은 아직 아니다. ID기준 · 프로젝트는 없다.
+ *
  * <p>원본처럼 <b>여러 줄을 한 번에</b> 넣는다. 한 줄씩 저장하게 하면 월초에 열 명 연차를
  * 넣을 때 열 번 저장해야 한다.
  */
-interface UserRow { id: number; name: string; department: string | null }
+interface UserRow { id: number; name: string; department: string | null; employeeId: number | null }
+interface CommuteKind { id: number; code: string; name: string; type: string; active: boolean }
+interface ReflectLine { workDate: string; employeeId: number; employeeName: string; kindId: number; kindName: string; amount: number }
+const monthStart = () => { const d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), 1)) }
 
 interface LineInput {
   key: number
@@ -91,6 +99,48 @@ export default function LeaveInputPage() {
    * <p>저장하지 않고 <b>줄만 채운다.</b> 저장은 기존 [저장]이 한다 — 넣기 전에 눈으로
    * 확인하고 한 줄쯤 고칠 수 있어야 하고, 검사도 한 자리에만 두는 편이 낫다.
    */
+  const [commuteMenu, setCommuteMenu] = useState(false)
+  const [cmOpen, setCmOpen] = useState(false)
+  const [cmError, setCmError] = useState('')
+  const [cm, setCm] = useState({ from: monthStart(), to: ymd(new Date()), kinds: [] as string[], emps: [] as string[], depts: [] as string[], mode: 'PERIOD' })
+  const [commuteKinds, setCommuteKinds] = useState<CommuteKind[]>([])
+  const [employees, setEmployees] = useState<EmployeeMaster[]>([])
+  const [depts, setDepts] = useState<{ id: number; code?: string | null; name: string }[]>([])
+
+  function openCommute() {
+    setCommuteMenu(false); setCmError('')
+    setCm((c) => ({ ...c, from: monthStart(), to: ymd(new Date()) }))
+    api.get<CommuteKind[]>('/hr/attendance-kinds').then((r) => setCommuteKinds(r.data.filter((k) => k.active && k.type === 'COMMUTE'))).catch(() => setCommuteKinds([]))
+    api.get<EmployeeMaster[]>('/employees/all').then((r) => setEmployees(r.data)).catch(() => setEmployees([]))
+    api.get<typeof depts>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+    setCmOpen(true)
+  }
+
+  /** [적용(F8)] — 셈한 줄을 격자에 깐다. 사원에 이어진 계정이 없으면 근태를 넣을 수 없어 따로 알린다. */
+  async function applyCommute() {
+    setCmError('')
+    try {
+      const r = await api.get<ReflectLine[]>('/hr/commute-rules/reflect', { params: {
+        from: cm.from, to: cm.to, mode: cm.mode,
+        kindIds: cm.kinds.join(',') || undefined, employeeIds: cm.emps.join(',') || undefined, departmentIds: cm.depts.join(',') || undefined,
+      } })
+      const userOf = (empId: number) => users.find((u) => u.employeeId === empId)
+      const made = r.data.filter((x) => userOf(x.employeeId)).map((x) => ({
+        ...emptyLine(x.workDate), userId: String(userOf(x.employeeId)!.id), type: x.kindName, days: String(x.amount),
+      }))
+      const missing = [...new Set(r.data.filter((x) => !userOf(x.employeeId)).map((x) => x.employeeName))]
+      setLines((prev) => {
+        const kept = prev.filter((l) => l.userId)
+        const blanks = prev.filter((l) => !l.userId)
+        return [...kept, ...made, ...blanks.slice(0, Math.max(0, 3 - kept.length - made.length))]
+      })
+      setCmOpen(false)
+      setError(missing.length ? `계정이 이어지지 않은 사원은 넣지 못했습니다: ${missing.join(', ')}` : '')
+    } catch (e) {
+      setCmError(extractErrorMessage(e))
+    }
+  }
+
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkUsers, setBulkUsers] = useState<Set<number>>(new Set())
   const [bulkForm, setBulkForm] = useState({ type: '연차', startDate: '', endDate: '', days: '1', reason: '' })
@@ -237,7 +287,62 @@ export default function LeaveInputPage() {
       </div>
 
       {/* 원본 격자 위 [찾기(F3)] */}
-      <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={tableRef} /></div>
+      <div className="flex gap-[6px] mb-[6px] relative">
+        <GridFindButton tableRef={tableRef} />
+        {/* 원본 격자 위 [출/퇴근 ▲] — 사원기준 · ID기준(ID기준은 아직 없다) */}
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setCommuteMenu((v) => !v)}>출/퇴근 ▲</button>
+        {commuteMenu && (
+          <>
+            <div className="ec-backdrop-clear" onClick={() => setCommuteMenu(false)} />
+            <div className="ec-menu absolute top-[26px] left-[60px]">
+              <button type="button" onClick={openCommute}>사원기준</button>
+            </div>
+          </>
+        )}
+      </div>
+      <Modal error={cmError} open={cmOpen} title="출/퇴근기록" width={760} onClose={() => setCmOpen(false)}>
+        <ul className="ec-form">
+          <li className="wide">
+            <span className="title">기간</span>
+            <div className="form flex items-center gap-[6px]">
+              <input type="date" className="ec-input w-[150px]" value={cm.from} onChange={(e) => setCm({ ...cm, from: e.target.value })} /> ~
+              <input type="date" className="ec-input w-[150px]" value={cm.to} onChange={(e) => setCm({ ...cm, to: e.target.value })} />
+            </div>
+          </li>
+          <li className="wide">
+            <span className="title">근태코드</span>
+            <div className="form">
+              <CodePickerField label="근태코드" hideLabel fill multiple placeholder="근태코드" values={cm.kinds}
+                               onChangeMulti={(v) => setCm({ ...cm, kinds: v })}
+                               items={commuteKinds.map((k) => ({ value: String(k.id), code: k.code, name: k.name }))} />
+            </div>
+          </li>
+          <li className="wide">
+            <span className="title">사원</span>
+            <div className="form">
+              <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={cm.emps}
+                               onChangeMulti={(v) => setCm({ ...cm, emps: v })}
+                               items={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name }))} />
+            </div>
+          </li>
+          <li className="wide">
+            <span className="title">부서</span>
+            <div className="form">
+              <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={cm.depts}
+                               onChangeMulti={(v) => setCm({ ...cm, depts: v })}
+                               items={depts.map((d) => ({ value: String(d.id), code: d.code ?? undefined, name: d.name }))} />
+            </div>
+          </li>
+        </ul>
+        <div className="flex gap-[6px] mt-[12px]">
+          <select className="ec-input w-[90px]" value={cm.mode} onChange={(e) => setCm({ ...cm, mode: e.target.value })}>
+            <option value="PERIOD">기간별</option>
+            <option value="DAILY">일별</option>
+          </select>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={applyCommute}>적용(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setCmOpen(false)}>닫기</button>
+        </div>
+      </Modal>
       <div className="overflow-x-auto">
         <table ref={tableRef} className="ec-grid w-full text-left">
           <thead>

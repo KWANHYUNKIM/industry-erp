@@ -26,6 +26,7 @@ public class AttendanceKindService {
     private final AttendanceKindRepository repository;
     private final VacationKindRepository vacationRepository;
     private final VacationGrantRepository grantRepository;
+    private final CommuteRuleRepository commuteRuleRepository;
     private final com.erp.hr.employee.EmployeeService employeeService;
     private final DocumentNoGenerator documentNoGenerator;
 
@@ -76,7 +77,17 @@ public class AttendanceKindService {
         } else {
             k.setVacationKind(null);
         }
-        k.setHourUnit(req.hourUnit());
+        if (req.type() == AttendanceKindType.COMMUTE) {
+            // 원본: 출/퇴근이면 계산단위 칸이 사라지고 반영기준의 계산단위를 따른다
+            if (req.commuteRuleId() == null) throw ApiException.badRequest("출/퇴근반영기준을 입력 바랍니다.");
+            CommuteRule rule = commuteRuleRepository.findById(req.commuteRuleId())
+                    .orElseThrow(() -> ApiException.notFound("출/퇴근반영기준을 찾을 수 없습니다."));
+            k.setCommuteRule(rule);
+            k.setHourUnit(rule.isHourUnit());
+        } else {
+            k.setCommuteRule(null);
+            k.setHourUnit(req.hourUnit());
+        }
         k.setRemark(req.remark() == null || req.remark().isBlank() ? null : req.remark().trim());
     }
 
