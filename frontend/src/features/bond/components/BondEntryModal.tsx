@@ -170,24 +170,29 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
     <Modal open={open} title={title} width={1100} error={error} onClose={onClose}>
       <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void save() } }}>
         <h3 className="text-[14px] font-bold mb-[8px]">{title}</h3>
-        <ul className="ec-cond mb-[8px] grid grid-cols-2 mobile:grid-cols-1">
-          <li className="flex items-center gap-[8px]">
-            <span className="w-[93px] text-ec-hint">전표일자</span>
-            {editing && entry
-              ? <span>{entry.entryDate.replaceAll('-', '/')} - {entry.entryNo}</span>
-              : <EcDateField value={date} onChange={changeDate} />}
+        {/* 조건 판(.ec-cond)이 아니라 입력 판이다 — .ec-cond 로 두면 채권조회의 접힌 조건 판 규칙에 같이 숨는다. */}
+        <ul className="ec-form mb-[8px] mobile:grid-cols-1">
+          <li>
+            <span className="title">전표일자</span>
+            <span className="form">
+              {editing && entry
+                ? <span>{entry.entryDate.replaceAll('-', '/')} - {entry.entryNo}</span>
+                : <EcDateField value={date} onChange={changeDate} />}
+            </span>
           </li>
-          <li className="flex items-center gap-[8px]">
-            <span className="w-[93px] text-ec-hint">증감구분</span>
-            {editing
-              ? <span>{inc ? '증가' : '감소'}</span>
-              : (
-                <select className="ec-input flex-1" aria-label="증감구분" value={direction}
-                        onChange={(e) => { setDirection(e.target.value as BondDirection); setCellErr(null) }}>
-                  <option value="INCREASE">증가</option>
-                  <option value="DECREASE">감소</option>
-                </select>
-              )}
+          <li>
+            <span className="title">증감구분</span>
+            <span className="form">
+              {editing
+                ? <span>{inc ? '증가' : '감소'}</span>
+                : (
+                  <select className="ec-input flex-1" aria-label="증감구분" value={direction}
+                          onChange={(e) => { setDirection(e.target.value as BondDirection); setCellErr(null) }}>
+                    <option value="INCREASE">증가</option>
+                    <option value="DECREASE">감소</option>
+                  </select>
+                )}
+            </span>
           </li>
         </ul>
 
