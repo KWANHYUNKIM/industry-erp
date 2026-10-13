@@ -147,7 +147,8 @@ export default function ApprovalDraftPage() {
 
   function selectForm(t: ApprovalFormTemplate & WithGroup) {
     setSelected(t)
-    setTitle(t.name)
+    // 원본 '00 기본' 양식은 제목이 빈칸(자리표시 '제목')으로 열린다(2026-10-14 E070103 실측).
+    setTitle(t.code === 'BASIC' ? '' : t.name)
     // 원본: 양식의 기본값설정 › 구분(휴가신청서 → 02 휴가신청서)으로 [구분] 칸이 열린다.
     setCategory(t.groupName ?? '')
     setFormData(initialFormData(t))
@@ -377,7 +378,7 @@ export default function ApprovalDraftPage() {
                   </tr>
                   <tr>
                     <th className="bg-ec-page">제목<span className="text-ec-danger ml-[2px]">*</span></th>
-                    <td><input className="ec-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} /></td>
+                    <td><input className="ec-input" placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} /></td>
                   </tr>
                   <tr>
                     <th className="bg-ec-page">부서</th>

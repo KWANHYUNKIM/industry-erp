@@ -9,7 +9,7 @@
         "setnear:제목|QA 15회차 결재 시험",
         "click:결재자 선택",
         "pickrow:김부장",
-        "click:확인",
+        "click:적용(F8)",
         "click:저장/결재",
         "expect:document.querySelector('[role=dialog]')?.innerText.includes('필수 항목을 입력하세요: 시행 일자')",
         "setnear:시행 일자|2026-10-01",

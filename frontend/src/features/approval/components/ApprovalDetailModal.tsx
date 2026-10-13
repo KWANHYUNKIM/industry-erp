@@ -82,7 +82,7 @@ function RowsView({ rows, field }: { rows: Record<string, unknown>[]; field?: Ap
   )
 }
 
-export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, onClose, onAct, onCopy, onDelete }: {
+export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, onClose, onAct, onCopy, onDelete, onSubmit }: {
   doc: ApprovalDoc
   fields: ApprovalField[]
   isMyTurn: boolean
@@ -91,6 +91,8 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
   onAct: (d: ApprovalDoc, kind: 'approve' | 'reject') => void
   onCopy: (d: ApprovalDoc) => void
   onDelete: (d: ApprovalDoc) => void
+  /** 내 기안중(임시저장) 문서 — 원본은 문서를 열어 [저장/결재(F7)] 로 상신한다. */
+  onSubmit?: (d: ApprovalDoc) => void
 }) {
   const refs = doc.participants.filter((p) => p.role === 'REFERENCE')
   const shares = doc.participants.filter((p) => p.role === 'SHARE')
@@ -174,7 +176,8 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
             <button className="ec-btn ec-btn-primary" onClick={() => onAct(doc, 'approve')}>승인</button>
             <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={() => onAct(doc, 'reject')}>반려</button>
           </>}
-          <button className="ec-btn" onClick={() => onCopy(doc)}>기안서복사</button>
+          {onSubmit && <button className="ec-btn ec-btn-primary" onClick={() => onSubmit(doc)}>저장/결재(F7)</button>}
+          {doc.status !== 'DRAFTING' && <button className="ec-btn" onClick={() => onCopy(doc)}>기안서복사</button>}
           {canDelete && <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={() => onDelete(doc)}>삭제</button>}
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

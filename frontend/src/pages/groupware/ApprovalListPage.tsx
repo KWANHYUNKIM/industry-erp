@@ -13,7 +13,6 @@ import { ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useShortcut } from '../../utils/useShortcut'
 import { requireSelection } from '../../components/EcDialog'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
@@ -191,7 +190,9 @@ export default function ApprovalListPage({
   const catOf = (d: ApprovalDoc) => (d as ApprovalDoc & { category?: string | null }).category ?? ''
   const inPeriod = (d: ApprovalDoc) =>
     (!from || (d.draftDate ?? '') >= from) && (!to || (d.draftDate ?? '') <= to)
+  // 원본 기안서통합관리 [전체] 에는 기안중(임시저장) 문서가 없다 — [기안중] 알약에만 선다(2026-10-14 E070108 실측). 내결재관리 [전체] 에는 있다.
   const filtered = rows.filter((r) => inTab(r, tab, user?.name)).filter(inPeriod)
+    .filter((r) => !(isAll && tab === '전체' && r.status === 'DRAFTING'))
     .filter((r) => !formType || catOf(r) === formType)
     .filter((r) => !dept || (r.department ?? '') === dept)
     .filter((r) => !project || String(r.projectId ?? '') === project)
@@ -246,7 +247,7 @@ export default function ApprovalListPage({
       setDetail(null)
       load()
     } catch (err) {
-      void ecAlert(extractErrorMessage(err))
+      alert(extractErrorMessage(err))
     }
   }
 
@@ -269,7 +270,7 @@ export default function ApprovalListPage({
         : '고른 문서 중 지금 내 차례인 것이 없습니다.')
       return
     }
-    if (!(await ecConfirm(`${targets.length}건을 결재할까요?`))) return
+    if (!window.confirm(`${targets.length}건을 결재할까요?`)) return
     const failed: string[] = []
     for (const d of targets) {
       try {
@@ -321,7 +322,7 @@ export default function ApprovalListPage({
         : '고른 문서 중 지울 수 있는 것이 없습니다.')
       return
     }
-    if (!(await ecConfirm(`${targets.length}건을 삭제할까요? (삭제 탭에서 다시 볼 수 있습니다)`))) return
+    if (!window.confirm('기안서를 삭제하겠습니까?\n삭제된 기안서는 복구되지 않습니다.')) return
     const failed: string[] = []
     for (const d of targets) {
       try {
@@ -344,19 +345,19 @@ export default function ApprovalListPage({
       flash('상신되었습니다.')
       load()
     } catch (err) {
-      void ecAlert(extractErrorMessage(err))
+      alert(extractErrorMessage(err))
     }
   }
 
   async function remove(d: ApprovalDoc) {
-    if (!(await ecConfirm(`'${d.title}' 기안서를 삭제할까요? (삭제 탭에서 다시 볼 수 있습니다)`))) return
+    if (!window.confirm('기안서를 삭제하겠습니까?\n삭제된 기안서는 복구되지 않습니다.')) return
     try {
       await api.delete(`/approvals/${d.id}`)
       setDetail(null)
       flash('삭제되었습니다.')
       load()
     } catch (err) {
-      void ecAlert(extractErrorMessage(err))
+      alert(extractErrorMessage(err))
     }
   }
 
@@ -561,14 +562,12 @@ export default function ApprovalListPage({
                 <td className="text-center">
                   {/* 원본 기안서통합관리의 [결재] 칸은 줄마다 '보기'(문서를 열어 거기서 결재한다), [조회]는 빈칸. 내결재관리는 그 자리에서 승인 · 반려. */}
                   {/* 원본 내결재관리도 [결재] 칸은 '보기' — 문서를 열어 그 안의 [승인][반려]로 결재한다. 아직 올리지 않은 내 기안만 [상신]. */}
-                  {!isAll && r.status === 'DRAFTING' && isMine(r) && !r.deleted ? (
-                    <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => submitDraft(r)}>상신</button>
-                  ) : (
-                    <a onClick={() => setDetail(r)} className="text-ec-navy cursor-pointer">보기</a>
-                  )}
+                  {/* 기안중(임시저장) 줄도 원본은 '보기' — 상신은 문서를 열어 [저장/결재(F7)] 로 한다(2026-10-14 E070105 실측). */}
+                  <a onClick={() => setDetail(r)} className="text-ec-navy cursor-pointer">보기</a>
                 </td>
                 <td className="text-center">
-                  <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => copy(r)}>복사</button>
+                  {/* 원본은 기안중(임시저장) 줄의 [기안서복사] 가 빈칸이다. */}
+                  {r.status !== 'DRAFTING' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => copy(r)}>복사</button>}
                 </td>
                 {isAll && <td className="text-center" />}
                 <td className="whitespace-nowrap">
@@ -628,6 +627,7 @@ export default function ApprovalListPage({
           onAct={act}
           onCopy={copy}
           onDelete={remove}
+          onSubmit={isMine(detail) && !detail.deleted && detail.status === 'DRAFTING' ? submitDraft : undefined}
         />
       )}
 
