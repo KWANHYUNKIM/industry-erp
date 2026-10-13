@@ -13,6 +13,10 @@ public interface WorkPostRepository extends JpaRepository<WorkPost, Long> {
     @Query("select coalesce(max(p.postNo), 0) from WorkPost p")
     int maxPostNo();
 
+    /** 번호를 혼자 세는 게시판({@link PostBoard#ownNumbering()})의 마지막 번호. */
+    @Query("select coalesce(max(p.postNo), 0) from WorkPost p where p.board = :board")
+    int maxPostNoOf(@Param("board") PostBoard board);
+
     /**
      * 원본 [공지사항여부] 가 켜진 글은 <b>맨 위에 붙는다.</b> 켜 놓고 날짜순으로 밀리면
      * 공지가 아니다. 공지끼리는 다시 최신순이다.

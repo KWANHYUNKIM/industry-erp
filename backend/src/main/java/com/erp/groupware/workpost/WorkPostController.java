@@ -46,7 +46,7 @@ public class WorkPostController {
 
     @PatchMapping("/{id}/status")
     public WorkPostResponse updateStatus(@PathVariable Long id, @RequestBody(required = false) UpdateWorkPostStatusRequest req) {
-        return workPostService.updateStatus(id, req != null ? req : new UpdateWorkPostStatusRequest(null, null));
+        return workPostService.updateStatus(id, req != null ? req : new UpdateWorkPostStatusRequest(null, null, null));
     }
 
     @PatchMapping("/{id}/labels")

@@ -57,10 +57,12 @@ public class WorkPostService {
     public WorkPostResponse create(CreateWorkPostRequest req, String writer) {
         // 게시글번호는 게시판을 가로질러 하나의 줄기다. max+1 이라 두 사람이 동시에 쓰면
         // 같은 번호를 읽으므로 번호 공간에 락을 건다.
-        docNo.lockNumberSpace("WORK-POST-NO");
+        PostBoard board = req.board() != null ? req.board() : PostBoard.WORK;
+        // 새 게시판(통합게시판 · 팀별회의록 · 간판제작)은 번호를 혼자 센다 — PostBoard#ownNumbering.
+        docNo.lockNumberSpace(board.ownNumbering() ? "WORK-POST-NO-" + board.name() : "WORK-POST-NO");
         WorkPost post = WorkPost.builder()
-                .board(req.board() != null ? req.board() : PostBoard.WORK)
-                .postNo(workPostRepository.maxPostNo() + 1)
+                .board(board)
+                .postNo((board.ownNumbering() ? workPostRepository.maxPostNoOf(board) : workPostRepository.maxPostNo()) + 1)
                 .postDate(req.postDate() != null ? req.postDate() : LocalDate.now())
                 .title(req.title())
                 .content(req.content())
@@ -70,6 +72,12 @@ public class WorkPostService {
                 .notice(Boolean.TRUE.equals(req.notice()))
                 .attachment(attachmentOf(req.attachmentId()))
                 .status(WorkPostStatus.IN_PROGRESS)
+                .stage(board.namedStages() ? blankToNull(req.stage()) : null)
+                /*
+                 * 원본 통합게시판 · 간판제작 격자의 [완료일]은 저장한 날이 찍혀 있다(2026-10-13 글 1건 저장 → 2026/10/13).
+                 * 진행상태가 회사가 정한 이름뿐이라 '완료로 바꾼 때' 가 따로 없다.
+                 */
+                .completedAt(board.namedStages() ? java.time.LocalDateTime.now() : null)
                 .build();
         return WorkPostResponse.from(workPostRepository.save(post), displayName(writer));
     }
@@ -84,12 +92,21 @@ public class WorkPostService {
         post.setCcTo(req.ccTo());
         post.setNotice(Boolean.TRUE.equals(req.notice()));
         post.setAttachment(attachmentOf(req.attachmentId()));
+        if (post.getBoard().namedStages()) post.setStage(blankToNull(req.stage()));
         return WorkPostResponse.from(post, displayName(post.getWriter()));
     }
+
+    private static String blankToNull(String s) { return s == null || s.isBlank() ? null : s.trim(); }
 
     @Transactional
     public WorkPostResponse updateStatus(Long id, UpdateWorkPostStatusRequest req) {
         WorkPost post = getPost(id);
+        // 회사가 정한 진행상태 이름을 쓰는 게시판 — 이름만 바꾼다(진행중/완료 토글은 WORK 의 것).
+        if (post.getBoard().namedStages()) {
+            if (req.stage() == null || req.stage().isBlank()) throw ApiException.badRequest("진행상태를 고르세요.");
+            post.setStage(req.stage().trim());
+            return WorkPostResponse.from(post, displayName(post.getWriter()));
+        }
         WorkPostStatus target = req.status() != null ? req.status()
                 : (post.getStatus() == WorkPostStatus.DONE ? WorkPostStatus.IN_PROGRESS : WorkPostStatus.DONE);
         post.setStatus(target);

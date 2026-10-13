@@ -28,7 +28,9 @@ public final class WorkPostDtos {
             Boolean notice,
             LocalDate postDate,
             /** 첨부 파일 id. 원본 격자의 [첨부] 열. 안 붙일 수 있다. */
-            Long attachmentId
+            Long attachmentId,
+            /** 원본 입력 창 맨 위 [진행상태] — 회사가 정한 이름을 쓰는 게시판만(SHARED · MEETING · SIGN). */
+            @Size(max = 40, message = "진행상태는 40자까지 넣을 수 있습니다.") String stage
     ) {}
 
     /**
@@ -48,7 +50,9 @@ public final class WorkPostDtos {
             /** 원본 [공지사항여부]. 안 주면 끈다 — 수정은 통째로 덮는다. */
             Boolean notice,
             /** null 이면 첨부를 뗀다. 안 보내는 것과 구분하지 않는다 — 수정은 통째로 덮는다. */
-            Long attachmentId
+            Long attachmentId,
+            /** 원본 입력 창 [진행상태] — 회사가 정한 이름을 쓰는 게시판만. 그 밖의 게시판은 무시한다. */
+            @Size(max = 40, message = "진행상태는 40자까지 넣을 수 있습니다.") String stage
     ) {}
 
     /** 원본 '조회자 현황'의 오른쪽 한 줄 — 이름 · 최초조회일시 · 최종조회일시. */
@@ -82,7 +86,9 @@ public final class WorkPostDtos {
              * 원본 [완료일시]. 안 주고 완료로 바꾸면 <b>지금</b>으로 찍는다.
              * 뒤늦게 정리하는 경우가 있어 직접 적을 수도 있게 둔다.
              */
-            LocalDateTime completedAt
+            LocalDateTime completedAt,
+            /** 회사가 정한 진행상태 이름으로 바꿀 때(SHARED · MEETING · SIGN 의 [진행상태변경]). 주면 status 는 안 건드린다. */
+            @Size(max = 40, message = "진행상태는 40자까지 넣을 수 있습니다.") String stage
     ) {}
 
     public record WorkPostResponse(
@@ -108,7 +114,9 @@ public final class WorkPostDtos {
             /** 원본 View 머리줄의 작성 일시 — '16 | 제목 | guest | 2026/10/03 (토) 오후 12:53:08'. */
             LocalDateTime createdAt,
             /** 원본 [라벨] 칩 */
-            java.util.List<String> labels
+            java.util.List<String> labels,
+            /** 회사가 정한 진행상태 이름(SHARED · MEETING · SIGN). 그 게시판들은 statusName 도 이 이름이다. */
+            String stage
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
             var f = p.getAttachment();
@@ -117,13 +125,16 @@ public final class WorkPostDtos {
                     p.getPostNo(), p.getPostDate(),
                     p.getTitle(), p.getContent(), p.getWriter(), writerName, p.getForwardTo(),
                     p.getCcTo(), p.isNotice(),
-                    p.getStatus(), p.getStatus().getDisplayName(), p.getCompletedAt(),
+                    p.getStatus(),
+                    p.getBoard().namedStages() && p.getStage() != null ? p.getStage() : p.getStatus().getDisplayName(),
+                    p.getCompletedAt(),
                     f != null ? f.getId() : null,
                     f != null ? f.getName() : null,
                     f != null ? f.getSizeBytes() : null,
                     p.getViewCount(), p.getCreatedAt(),
                     p.getLabels() == null || p.getLabels().isBlank() ? java.util.List.of()
-                            : java.util.Arrays.stream(p.getLabels().split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList());
+                            : java.util.Arrays.stream(p.getLabels().split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList(),
+                    p.getStage());
         }
     }
 }

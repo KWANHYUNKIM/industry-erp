@@ -103,6 +103,13 @@ public class WorkPost extends BaseTimeEntity {
     @Builder.Default
     private int viewCount = 0;
 
+    /**
+     * 회사가 정한 진행상태 이름(통합게시판 'Default', 팀별회의록 '영업팀', 간판제작 '수주견적' …).
+     * WORK 의 진행중/완료는 {@link #status} 를 쓰고 이 칸은 비운다. {@link PostBoard#namedStages()}.
+     */
+    @Column(length = 40)
+    private String stage;
+
     /** 원본 [라벨] — 제목 앞 칩(중요 · 외근 …). 라벨 이름을 쉼표로 잇는다. 없으면 null. */
     @Column(length = 200)
     private String labels;
