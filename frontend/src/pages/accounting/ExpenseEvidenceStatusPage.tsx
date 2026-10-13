@@ -3,8 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import type { ExpenseEvidenceAccount, ExpenseEvidenceCompareRow, ExpenseEvidenceStatus } from '../../types/api'
-import { dateNo } from '../../utils/dateNo'
+import type { ExpenseEvidenceAccount, ExpenseEvidenceStatus } from '../../types/api'
+import { JournalVatCompareView, type JvcInit } from './JournalVatComparePage'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcReportFoot } from '../../components/EcReportFrame'
 
@@ -200,85 +200,23 @@ function AccountSettingModal({ onClose, onSaved }: { onClose: () => void; onSave
   )
 }
 
-/** 금액 링크 → 원본 '전표vs매출매입자료비교' 창. 한 전표의 여러 줄은 전표번호 · 매출매입자료 칸을 묶는다. */
+/**
+ * 금액 링크 → 원본은 [전표vs매출매입자료비교] 화면을 조건 판 · 쪽번호 · 인쇄 · Excel 까지 통째로 창에 띄운다(2026-10-13 loginaa 실측).
+ * 채우는 조건: 조회일자 = 기준월 첫날 ~ 끝날 · 계정명 = 그 계정 ·
+ * 세금계산서 칸이면 부가세유형 '세금계산서' + 전표기준 '매출매입자료 있는 것만' + 조회자료 '전체',
+ * 증빙없음 칸이면 전표기준 '매출매입자료 없는 것만'(조회자료 줄은 숨는다).
+ */
 function CompareModal({ range, accountId, kind, onClose }: {
   range: Range; accountId: number | null; kind: string | null; onClose: () => void
 }) {
-  const [rows, setRows] = useState<ExpenseEvidenceCompareRow[]>([])
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    api.get<ExpenseEvidenceCompareRow[]>('/expense-evidence/compare', { params: { ...range, accountId, kind } })
-      .then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
-  }, [range.from, range.to, accountId, kind])   // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* 같은 전표의 줄 수 — 첫 줄에 rowSpan */
-  const span = new Map<number, number>()
-  rows.forEach((r) => span.set(r.entryId, (span.get(r.entryId) ?? 0) + 1))
-  const seen = new Set<number>()
-  const firstOf = (id: number) => (seen.has(id) ? false : (seen.add(id), true))
-  const sum = (k: 'debit' | 'credit') => rows.reduce((t, r) => t + Number(r[k]), 0)
-  /* 매출매입자료는 전표마다 한 번만 센다 */
-  const perEntry = [...new Map(rows.map((r) => [r.entryId, r])).values()]
-  const vatSum = (k: 'supply' | 'vat' | 'vatTotal') => perEntry.reduce((t, r) => t + Number(r[k]), 0)
-  const vatTotals = { supply: vatSum('supply'), vat: vatSum('vat'), vatTotal: vatSum('vatTotal') }
-
+  const init: JvcInit = {
+    from: `${range.from}-01`, to: `${range.to}-${pad2(lastDay(range.to))}`,
+    accountIds: accountId != null ? [String(accountId)] : [],
+    ...(kind === '증빙없음' ? { has: '없는것' as const } : { has: '있는것' as const, mismatch: '전체' as const, vatTypes: ['21'] }),
+  }
   return (
-    <Modal open title="전표vs매출매입자료비교" width={1000} error={error} onClose={onClose}>
-      <div className="ec-report-title">전표vs매출매입자료비교</div>
-      <div className="text-right mb-[4px]">{periodText(range.from, range.to)}</div>
-      <div className="max-h-[440px] overflow-auto">
-        <table className="w-full ec-report ec-report-head400">
-          <thead>
-            <tr><th colSpan={5}>전표자료</th><th colSpan={6}>매출매입자료</th></tr>
-            <tr>
-              <th>전표번호</th><th>계정</th><th>거래처</th><th>차변</th><th>대변</th>
-              <th>매출매입번호</th><th>유형명</th><th>거래처</th><th>공급가액</th><th>부가세</th><th>합계</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : rows.map((r, i) => {
-              const first = firstOf(r.entryId)
-              const n = span.get(r.entryId) ?? 1
-              return (
-                <tr key={`${r.entryId}-${i}`}>
-                  {first && <td rowSpan={n}>{dateNo(r.entryDate, r.docNo)}</td>}
-                  <td>{r.accountName}</td>
-                  <td>{r.partnerName ?? ''}</td>
-                  <td className="text-right">{won(r.debit)}</td>
-                  <td className="text-right">{won(r.credit)}</td>
-                  {first && <>
-                    <td rowSpan={n}>{r.vatDocNo ? dateNo(r.entryDate, r.vatDocNo) : ''}</td>
-                    <td rowSpan={n}>{r.vatKind ?? ''}</td>
-                    <td rowSpan={n}>{r.vatPartnerName ?? ''}</td>
-                    <td rowSpan={n} className="text-right">{won(r.supply)}</td>
-                    <td rowSpan={n} className="text-right">{won(r.vat)}</td>
-                    <td rowSpan={n} className="text-right">{won(r.vatTotal)}</td>
-                  </>}
-                </tr>
-              )
-            })}
-          </tbody>
-          {rows.length > 0 && (
-            <tfoot>
-              <tr>
-                <td colSpan={3} className="text-center">합계</td>
-                <td className="text-right">{won(sum('debit'))}</td>
-                <td className="text-right">{won(sum('credit'))}</td>
-                <td colSpan={3}></td>
-                <td className="text-right">{won(vatTotals.supply)}</td>
-                <td className="text-right">{won(vatTotals.vat)}</td>
-                <td className="text-right">{won(vatTotals.vatTotal)}</td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-      <div className="flex gap-[6px] mt-[12px]">
-        <button className="ec-btn" onClick={onClose}>닫기</button>
-      </div>
+    <Modal open title="전표vs매출매입자료비교" width={1100} onClose={onClose}>
+      <JournalVatCompareView init={init} />
     </Modal>
   )
 }
