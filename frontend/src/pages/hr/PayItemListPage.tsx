@@ -160,7 +160,17 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
       searchable={false}
       actions={[
         { label: '저장(F8)', onClick: save, primary: true },
-        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v), disabled: checked.size === 0 },
+        {
+          label: '사용중단/재사용 ▲',
+          // 원본은 고른 줄이 없어도 버튼이 살아 있고, 누르면 알림 창으로 막는다
+          onClick: () => {
+            if (checked.size === 0) {
+              window.alert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
+              return
+            }
+            setMenuOpen((v) => !v)
+          },
+        },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
       ]}
     >
