@@ -1,0 +1,16 @@
+{
+  "about": "실제원가현황 [기준월] — 2026-10-13 원본 E040804 실측: 달 칸이 아니라 원가 기간 코드도움('2026/10  ~ 2026/10  (총평균법)'), 기본 최근 기간.",
+  "shots": [
+    {
+      "name": "기준월이 원가 기간 코드도움으로 열린다",
+      "path": "/accounting/actual-cost",
+      "steps": [
+        "wait:3500",
+        "js:[...document.querySelectorAll('.ec-cond li')].find((l) => l.innerText.includes('기준월'))?.querySelector('input')?.value",
+        "expect:!document.querySelector('input[type=month]')",
+        "expect:/\\d{4}\\/\\d{2} ~ \\d{4}\\/\\d{2} \\(/.test([...([...document.querySelectorAll('.ec-cond li')].find((l) => l.innerText.includes('기준월'))?.querySelectorAll('input') ?? [])].map((i) => i.value).join(' '))",
+        "expect:document.querySelectorAll('table thead th').length > 0"
+      ]
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { groupByCategory } from '../../utils/costGroup'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
+import { useCostPeriods, costPeriodText, inCostPeriod } from '../../utils/costPeriods'
 import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
@@ -125,12 +126,6 @@ const won = (n: number | null) => (n == null ? '-' : Math.round(n).toLocaleStrin
 const unitOf = (amt: number | null, qty: number) =>
   (amt == null || qty === 0 ? '' : Math.round(amt / qty).toLocaleString('ko-KR'))
 
-/** 이번 달을 yyyy-MM 으로. 원본 [기준월]의 기본값이다. */
-function thisMonth(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
 /** yyyy-MM → 그 달의 첫날·마지막날. */
 function monthRange(period: string): { from: string; to: string } {
   const [y, m] = period.split('-').map(Number)
@@ -149,7 +144,16 @@ export default function ActualCostPage() {
    */
   const [signBox, setSignBox] = useState(false)
   const [mode, setMode] = useState<Mode>('원가집계표')
-  const [period, setPeriod] = useState(thisMonth())
+  /*
+   * 원본 [기준월]은 달 고르기가 아니라 <b>원가 기간 코드도움</b>이다(2026-10-13 실측: '2026/10  ~ 2026/10  (총평균법)',
+   * 월별이익현황 · 표준원가현황과 같은 '재고월별원가' 창, 기본 최근 기간). 우리는 type=month 칸이었다.
+   * 여러 달 기간이면 수불 · 생산은 기간 전체로 받고, 달마다 서는 원가 · 노무비/경비는 끝 달의 것을 본다.
+   */
+  const [periodId, setPeriodId] = useState('')
+  const { periods: costPeriods, first: firstPeriod } = useCostPeriods((f) => { if (f) setPeriodId(String(f.id)) })
+  const cp = costPeriods.find((p) => String(p.id) === periodId) ?? null
+  const period = cp?.endMonth ?? ''
+  const rangeOf = () => (cp ? { from: monthRange(cp.startMonth).from, to: monthRange(cp.endMonth).to } : monthRange(period))
   const [keyword, setKeyword] = useState('')
   // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
   const [itemCond, setItemCond] = useState('')
@@ -176,9 +180,10 @@ export default function ActualCostPage() {
   const [withUntracked, setWithUntracked] = useState(false)
 
   async function load() {
+    if (!period) return
     setLoading(true)
     setError('')
-    const { from, to } = monthRange(period)
+    const { from, to } = rangeOf()
     try {
       const [mv, it, pu, ex, cs, pr, br] = await Promise.all([
         api.get<MovementRow[]>('/stock/movement', { params: { from, to } }),
@@ -288,7 +293,7 @@ export default function ActualCostPage() {
   const ledgerFor = useRef('')
   useEffect(() => {
     if (!needLedger || ledgerFor.current === period) return
-    const { from, to } = monthRange(period)
+    const { from, to } = rangeOf()
     ledgerFor.current = period
     api.get<{ opening: number; rows: LedgerRow[] }>('/stock/ledger', { params: { from, to, all: true } })
       .then((r) => setLedger(r.data.rows))
@@ -322,7 +327,7 @@ export default function ActualCostPage() {
   const producedByItem = useMemo(() => {
     const m = new Map<number, number>()
     for (const pr of productions) {
-      if (pr.productionDate.slice(0, 7) !== period) continue
+      if (cp ? !inCostPeriod(cp, pr.productionDate.slice(0, 7)) : pr.productionDate.slice(0, 7) !== period) continue
       m.set(pr.productId, (m.get(pr.productId) ?? 0) + pr.producedQty)
     }
     return m
@@ -364,7 +369,7 @@ export default function ActualCostPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         /* 처음 연 판으로 — 사용중단품목포함은 켜짐이 기본이다(위 실측). 예전엔 꺼 버리고 품목구분 · 품목그룹1 · 수량관리제외는 남겼다. */
-        { label: '다시 작성', onClick: () => { setPeriod(thisMonth()); setKeyword(''); setItemCond(''); setWithInactive(true); setCategoryCond(''); setItemGroupCond(''); setWithUntracked(false) } },
+        { label: '다시 작성', onClick: () => { setPeriodId(firstPeriod ? String(firstPeriod.id) : ''); setKeyword(''); setItemCond(''); setWithInactive(true); setCategoryCond(''); setItemGroupCond(''); setWithUntracked(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -380,8 +385,9 @@ export default function ActualCostPage() {
           </div>
         </EcCond>
         <EcCond label="기준월" pick>
-          <input className="ec-input" type="month" value={period}
-                 onChange={(e) => setPeriod(e.target.value)} style={{ width: 150 }} />
+          <CodePickerField label="기준월" hideLabel width={260} placeholder="기준월"
+                           value={periodId} onChange={setPeriodId}
+                           items={costPeriods.map((p) => ({ value: String(p.id), name: costPeriodText(p) }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
