@@ -38,7 +38,6 @@ export default function PrintSignLinePage() {
   const [lines, setLines] = useState<SignLineRow[]>([])
   const [open, setOpen] = useState<[boolean, boolean]>([true, true])
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [preview, setPreview] = useState(false)
 
   useEffect(() => { setModule(moduleOf(pathname)) }, [pathname])
@@ -64,9 +63,7 @@ export default function PrintSignLinePage() {
           slots: l.slots.map((s) => ({ title: s.title, widthPx: s.widthPx, fontPx: s.fontPx })),
         })),
       }, { params: { module } })
-      setLines(r.data.lines)
-      setNotice('저장되었습니다.')
-      window.setTimeout(() => setNotice(''), 2500)
+      setLines(r.data.lines)   // 원본은 안내 없이 그대로 — 빈 가로가 80 으로 채워진 것이 보인다
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -90,7 +87,6 @@ export default function PrintSignLinePage() {
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {lines.map((l, li) => (
         <section key={l.lineNo} className="mb-[9px]">

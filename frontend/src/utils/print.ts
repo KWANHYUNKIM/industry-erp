@@ -37,11 +37,15 @@ const px = (n: number | null | undefined) => (n ? `${Math.round(n)}px` : '')
 /** 출력물 우측 상단 결재란. 그릴 칸이 없으면 아무것도 그리지 않는다. 인쇄 창 · 화면 미리보기가 같이 쓴다. */
 export function signLineHtml(line?: PrintSignLine | null): string {
   if (!line || line.slots.length === 0) return ''
-  const b = 'border:1px solid #c9d1da;'
-  const label = `<th rowspan="2" style="${b}width:${px(line.labelWidth)};font-size:${px(line.labelFont)}">${escapeHtml(line.labelName ?? '')}</th>`
-  const heads = line.slots.map((s) => `<th style="${b}width:${px(s.widthPx)};font-size:${px(s.fontPx)}">${escapeHtml(s.title ?? '')}</th>`).join('')
-  const cells = line.slots.map((s) => `<td class="sign" style="${b}width:${px(s.widthPx)}"></td>`).join('')
-  return `<table class="signline" style="border-collapse:collapse"><thead><tr>${label}${heads}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`
+  // 칸 크기는 인라인으로 박는다 — 화면 미리보기(앱 전역 표 규칙)와 인쇄 창이 같은 그림이어야 한다(no-ec 로 앱 규칙에서 뺀다)
+  const cell = (w: number | null | undefined, h: number | null, f?: number | null) =>
+    `box-sizing:border-box;border:1px solid #c9d1da;padding:0;text-align:center;font-weight:400;width:${px(w)};min-width:${px(w)};max-width:${px(w)};${h ? `height:${h}px;` : ''}${f ? `font-size:${px(f)};` : ''}`
+  const total = (line.labelWidth ?? 0) + line.slots.reduce((a, s) => a + (s.widthPx ?? 0), 0)
+  const label = `<th rowspan="2" style="${cell(line.labelWidth, null, line.labelFont)}">${escapeHtml(line.labelName ?? '')}</th>`
+  const heads = line.slots.map((s) => `<th style="${cell(s.widthPx, 26, s.fontPx)}">${escapeHtml(s.title ?? '')}</th>`).join('')
+  const cells = line.slots.map((s) => `<td class="sign" style="${cell(s.widthPx, 51)}"></td>`).join('')
+  return `<table class="signline no-ec" style="border-collapse:collapse;table-layout:fixed;width:${total}px">`
+    + `<thead><tr>${label}${heads}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`
 }
 
 /** 화면 주소로 그 출력물의 모듈을 정한다 — 회계 · 관리(급여) · 그 밖은 재고 */
