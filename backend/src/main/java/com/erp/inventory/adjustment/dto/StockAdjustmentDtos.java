@@ -183,4 +183,13 @@ public final class StockAdjustmentDtos {
                     a == null ? null : a.getId(), a == null ? null : a.getAdjustNo(), a == null ? null : a.getAdjustDate());
         }
     }
+
+    /** 재고조정조회 [이력조회] 한 줄. 거래처 · 담당자는 id 만 — 재고(기반층)는 거래 · 인사 모듈을 모른다, 이름은 화면이 붙인다. */
+    public record HistoryRow(Long id, java.time.LocalDateTime workedAt, String adjustNo, LocalDate adjustDate,
+                             String action, String itemLabel, Long partnerId, Long employeeId, String worker) {
+        public static HistoryRow from(com.erp.inventory.adjustment.StockAdjustmentHistory h) {
+            return new HistoryRow(h.getId(), h.getWorkedAt(), h.getAdjustNo(), h.getAdjustDate(), h.getAction(),
+                    h.getItemLabel(), h.getPartnerId(), h.getEmployeeId(), h.getWorker());
+        }
+    }
 }

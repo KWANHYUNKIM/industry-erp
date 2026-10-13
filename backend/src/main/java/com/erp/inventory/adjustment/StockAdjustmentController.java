@@ -52,6 +52,15 @@ public class StockAdjustmentController {
     }
 
     /** 원본 재고실사조회(E040613)의 '간편' 줄 — 간편재고조정이 남긴 실사. */
+    /** 원본 재고조정조회 [이력조회 ▴] — sort 는 간편 · 단계별. */
+    @GetMapping("/histories")
+    public List<StockAdjustmentDtos.HistoryRow> histories(
+            @RequestParam String sort,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return stockAdjustmentService.histories(sort, from, to);
+    }
+
     @GetMapping("/stocktakes")
     public List<StockAdjustmentDtos.StocktakeResponse> stocktakes(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

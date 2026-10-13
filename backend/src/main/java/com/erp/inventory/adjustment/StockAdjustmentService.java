@@ -37,6 +37,7 @@ public class StockAdjustmentService {
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
     private final StocktakeRepository stocktakeRepository;
+    private final StockAdjustmentHistoryRepository historyRepository;
 
     /**
      * 원본 [오천건이상조회] 와 같은 문턱. 이 위로는 눌러야 간다.
@@ -152,6 +153,7 @@ public class StockAdjustmentService {
                 .createdBy(username)
                 .build();
         StockAdjustment saved = adjustmentRepository.save(adjustment);
+        logHistory(saved, "신규", username);
         if (simpleStocktake && req.type() == StockAdjustmentType.ADJUST) {
             stocktakeRepository.save(Stocktake.builder()
                     .stocktakeNo(docNoGenerator.next("ST-", "stocktakes", "stocktake_no", "stocktake_date", date))
@@ -203,7 +205,36 @@ public class StockAdjustmentService {
         StockAdjustment a = adjustmentRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("재고조정을 찾을 수 없습니다. id=" + id));
         revert(a, username);
+        logHistory(a, "삭제", username);
         adjustmentRepository.delete(a);
+    }
+
+    /**
+     * 원본 재고조정조회 [이력조회 ▴] 의 한 줄을 남긴다 — 재고조정(ADJUST)만(자가사용 · 불량처리 등은 그 화면 몫).
+     * 단계별재고조정이 만든 조정은 적요가 '단계별조정 ' 으로 시작한다(StagedStockAdjustmentService).
+     */
+    private void logHistory(StockAdjustment a, String action, String username) {
+        if (a.getType() != StockAdjustmentType.ADJUST) return;
+        String spec = a.getItem().getSpec();
+        historyRepository.save(StockAdjustmentHistory.builder()
+                .adjustNo(a.getAdjustNo())
+                .adjustDate(a.getAdjustDate())
+                .sort(a.getReason() != null && a.getReason().startsWith("단계별조정 ") ? "단계별" : "간편")
+                .action(action)
+                .itemLabel(a.getItem().getName() + (spec == null || spec.isBlank() ? "" : " [" + spec + "]"))
+                .partnerId(a.getPartnerId())
+                .employeeId(a.getEmployeeId())
+                .worker(username)
+                .workedAt(java.time.LocalDateTime.now())
+                .build());
+    }
+
+    /** [이력조회 ▴] 간편조정 이력조회 · 단계별조정 이력조회 — 작업일자 구간, 최근 것부터. */
+    @Transactional(readOnly = true)
+    public List<StockAdjustmentDtos.HistoryRow> histories(String sort, LocalDate from, LocalDate to) {
+        return historyRepository.findBySortAndWorkedAtBetweenOrderByWorkedAtDescIdDesc(
+                        sort, from.atStartOfDay(), to.plusDays(1).atStartOfDay().minusNanos(1))
+                .stream().map(StockAdjustmentDtos.HistoryRow::from).toList();
     }
 
     /**
