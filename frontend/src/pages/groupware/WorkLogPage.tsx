@@ -4,7 +4,8 @@ import Modal from '../../components/Modal'
 import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Project, WorkJournal } from '../../types/api'
+import type { Partner, Project, WorkJournal } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { useAuth } from '../../features/auth/AuthContext'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -66,7 +67,7 @@ const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerNam
  * 필수는 <b>부서 · 제목</b> — 비운 채 저장하면 문구 없이 두 칸만 빨갛게 두른다. 원글을 고쳐 저장하면 '조회' 창으로 돌아온다.
  * 수정 창 하단은 [저장(F8)][닫기][삭제][H]. 격자 둘째 칸(30)은 답글 수 '[1]' 이다(답글이 있을 때만).
  *
- * <p>두지 않은 것: 조회 창의 R · 답글펼치기 · H, 답글 창의 [본문보기], 입력 창의 첨부 · 서식 편집기, 거래처 코드도움(우리는 글자 칸).
+ * <p>두지 않은 것: 조회 창의 R · 답글펼치기 · H, 답글 창의 [본문보기], 입력 창의 첨부 · 서식 편집기.
  * 원본은 조회 창에서 지운 뒤 격자를 다시 읽지 않아 지운 제목이 [검색] 전까지 남는데, 우리는 바로 다시 읽는다.
  */
 export default function WorkLogPage() {
@@ -75,6 +76,7 @@ export default function WorkLogPage() {
   const [error, setError] = useState('')
   const [view, setView] = useState<'cond' | 'result'>('cond')
   const [projects, setProjects] = useState<Project[]>([])
+  const [partners, setPartners] = useState<Partner[]>([])
   /** 부서 마스터 — 격자의 줄이고 조건 [부서]의 후보다. */
   const [depts, setDepts] = useState<DeptRow[]>([])
   const [inactiveDepts, setInactiveDepts] = useState<Set<string>>(new Set())
@@ -104,6 +106,7 @@ export default function WorkLogPage() {
       .then((r) => { setDepts(r.data); setInactiveDepts(inactiveDeptNames(r.data)) })
       .catch(() => { /* 못 받으면 일지에 적힌 부서만 줄로 세운다 */ })
     api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
+    api.get<Partner[]>('/partners').then((r) => setPartners(r.data)).catch(() => {})
   }, [])
 
   async function search() {
@@ -251,6 +254,14 @@ export default function WorkLogPage() {
 
   const deptItems = depts.filter((d) => withInactiveDept || d.active).map((d) => ({ value: d.name, code: d.code ?? '', name: d.name }))
   const projectItems = projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))
+  /**
+   * 원본 [거래처] 는 조건 · 작성 창 둘 다 코드도움('거래처검색' — 기본 · 거래처정보 · 여신단가 · 부가정보 탭, 2026-10-14 실측).
+   * 일지는 거래처 이름을 적어 두므로 값은 이름이다. 옛 일지의 손으로 친 이름도 칸에 보이게 한 줄 더한다.
+   */
+  const partnerItemsFor = (v: string) => {
+    const items = partnerCodeItems(partners).map((p) => ({ ...p, value: p.name }))
+    return v && !items.some((i) => i.value === v) ? [...items, { value: v, code: '', name: v }] : items
+  }
 
   return (
     <EcListShell title="업무일지" searchable={view === 'result'} onSearch={() => setView('cond')}
@@ -287,7 +298,7 @@ export default function WorkLogPage() {
             </li>
             <li className="wide">
               <div className="title">거래처</div>
-              <div className="form"><input className="ec-input w-full" placeholder="거래처" value={cond.partnerName} onChange={(e) => setC('partnerName', e.target.value)} /></div>
+              <div className="form"><CodePickerField label="거래처" hideLabel fill value={cond.partnerName} onChange={(v) => setC('partnerName', v)} items={partnerItemsFor(cond.partnerName)} /></div>
             </li>
             <li className="wide">
               <div className="title">제목</div>
@@ -414,7 +425,7 @@ export default function WorkLogPage() {
           </li>
           <li>
             <div className="title">거래처</div>
-            <div className="form"><input className="ec-input w-full" placeholder="거래처" value={form.partnerName} onChange={(e) => setF('partnerName', e.target.value)} /></div>
+            <div className="form"><CodePickerField label="거래처" hideLabel fill value={form.partnerName} onChange={(v) => setF('partnerName', v)} items={partnerItemsFor(form.partnerName)} /></div>
           </li>
           <li>
             <div className="title">프로젝트</div>

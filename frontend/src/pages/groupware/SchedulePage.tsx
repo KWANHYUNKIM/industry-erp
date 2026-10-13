@@ -244,7 +244,8 @@ export default function SchedulePage() {
     eventDate: date, ...defaultTimes(), title: '', category: '', owner: '',
     location: '', labelText: '', attendees: user?.name ?? '', remark: '',
     sharers: '', sharersAll: false, permAttendeeEdit: true, permSharerEdit: true, permOthersView: false,
-    shared: true,
+    // 원본 신규 창 [캘린더] 처음 값은 '개인일정캘린더'(2026-10-14 E070201 실측) — 그래서 새 일정은 처음 체크(공유만)에서 안 보인다.
+    shared: false,
   })
   /** 신규 창의 [반복설정] — 적용하면 주황 요약 글이 그 자리에 선다. 고칠 때는 일정에 적힌 요약 글만 보인다. */
   const [repeat, setRepeat] = useState<RepeatRule | null>(null)

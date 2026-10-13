@@ -6,9 +6,11 @@
       "path": "/groupware/schedule",
       "steps": [
         "js:window.confirm = () => true; true",
+        "js:document.querySelector('input[aria-label=\"개인일정캘린더\"]').click(); true",
         "expect:!!document.querySelector('#schedule-month table') && document.querySelector('#schedule-month .bg-ec-blue-wash')",
         "click:신규(F2)",
         "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정관리등록'",
+        "expect:document.querySelector('[role=dialog] select[aria-label=\"캘린더\"]').value === 'PERSONAL'",
         "expect:/^\\d{2}:00$/.test(document.querySelectorAll('[role=dialog] input[type=time]')[0].value) && Number(document.querySelectorAll('[role=dialog] input[type=time]')[1].value.slice(0, 2)) === Number(document.querySelectorAll('[role=dialog] input[type=time]')[0].value.slice(0, 2)) + 1",
         "click:저장(F8)",
         "expect:document.querySelector('[role=dialog]')?.innerText.includes('일정 제목을 입력하세요.')",
@@ -23,6 +25,7 @@
       "name": "일정을 누르면 '일정조회' → [수정]으로 장소를 바꾸면 다시 열었을 때 바뀐 값",
       "path": "/groupware/schedule",
       "steps": [
+        "js:document.querySelector('input[aria-label=\"개인일정캘린더\"]').click(); true",
         "js:[...document.querySelectorAll('#schedule-month button')].find((b) => b.title === 'QA그룹웨어-일정').click(); true",
         "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정조회' && document.querySelector('[role=dialog]').innerText.includes('QA회의실')",
         "click:수정",
@@ -40,6 +43,7 @@
       "name": "'일정조회' [삭제] — 원본 문구를 묻고 지우면 달력에서 사라짐",
       "path": "/groupware/schedule",
       "steps": [
+        "js:document.querySelector('input[aria-label=\"개인일정캘린더\"]').click(); true",
         "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; [...document.querySelectorAll('#schedule-month button')].find((b) => b.title === 'QA그룹웨어-일정').click(); true",
         "click:삭제",
         "expect:window.__asked.startsWith('선택한 일정이 삭제 됩니다.') && window.__asked.endsWith('계속 진행 하겠습니까?')",

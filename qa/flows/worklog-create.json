@@ -1,5 +1,5 @@
 {
-  "about": "업무일지(원본 E070304) 신규를 화면으로 — 조건 판 [검색(F8)] → 격자 → [신규(F2)] '업무일지게시글작성'에서 업무보고일 · 부서(코드도움) · 제목만 넣고(원본처럼 본문 없이) [저장(F8)] → 다시 읽어도 그 부서 줄 · 그날 칸에 제목. 끝에 지운다. node qa/shot.mjs qa/flows/worklog-create.json",
+  "about": "업무일지(원본 E070304) 신규를 화면으로 — 조건 판 [검색(F8)] → 격자 → [신규(F2)] '업무일지게시글작성'에서 업무보고일 · 부서(코드도움) · 거래처(코드도움 '거래처검색' — 원본 2026-10-14 실측) · 제목만 넣고(원본처럼 본문 없이) [저장(F8)] → 다시 읽어도 그 부서 줄 · 그날 칸에 제목. 끝에 지운다. node qa/shot.mjs qa/flows/worklog-create.json",
   "shots": [
     {
       "name": "신규 폼으로 일지 하나",
@@ -14,10 +14,16 @@
         "wait:600",
         "js:(() => { const m = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '부서검색'); const tr = [...m.querySelectorAll('tbody tr')].find((r) => !r.innerText.includes('전체') && !r.innerText.includes('선택 안 함')); sessionStorage.setItem('qaWlDept', tr.innerText.replace(/\\s+/g, ' ').trim()); tr.click(); return sessionStorage.getItem('qaWlDept') })()",
         "wait:400",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '업무일지게시글작성'); d.querySelector('button[title=\"거래처 선택\"], button[title=\"거래처 코드도움\"]').click(); return true })()",
+        "wait:600",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '거래처검색'); const ths = [...m.querySelectorAll('thead th')].map((t) => t.textContent.trim()); const ni = ths.findIndex((t) => t.includes('명')); const tr = [...m.querySelectorAll('tbody tr')].find((r) => r.cells.length > 1); const name = tr.cells[ni < 0 ? 1 : ni].innerText.trim(); sessionStorage.setItem('qaWlPartner', name); tr.click(); return name })()",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '업무일지게시글작성').innerText.length > 0 && [...document.querySelectorAll('[role=dialog] input')].some((i) => i.value === sessionStorage.getItem('qaWlPartner'))",
         "setnear:제목|QA그룹웨어-화면일지",
         "click:저장(F8)",
         "wait:1200",
         "expect:!document.querySelector('[role=dialog]')",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const js = await (await fetch('/api/work-journals', { headers: H })).json(); const j = js.find((x) => x.title === 'QA그룹웨어-화면일지'); return !!j && j.partnerName === sessionStorage.getItem('qaWlPartner') })()",
         "js:location.reload(); true",
         "wait:2500",
         "click:검색(F8)",
