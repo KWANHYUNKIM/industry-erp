@@ -298,7 +298,9 @@ public class JournalService {
          * 면세 · 반품 · 여러 품목 전표는 예전 적요를 그대로 둔다(여러 품목의 요약 모양은 아직 못 봤다).
          */
         boolean seen = s.isTaxable() && !s.isReturnSlip() && s.getLines().size() == 1;
-        String lineDesc = seen ? s.getLines().get(0).getItem().getName() : null;
+        /* 판매입력 II 금액조정 할인이 있으면 원본은 할인을 한 줄로 쳐서 "QA재고1-볼트 외 1건" 이라 적는다(2026-10-13 실측). */
+        boolean discounted = isNonZero(s.getDiscountSupply()) || isNonZero(s.getDiscountVat());
+        String lineDesc = seen ? s.getLines().get(0).getItem().getName() + (discounted ? " 외 1건" : "") : null;
         String entryDesc = seen
                 ? "매출 : 세금계산서 / " + s.getPartner().getName() + " / "
                   + String.format("%,d", s.getSupplyAmount().longValue()) + " / " + String.format("%,d", s.getVatAmount().longValue())

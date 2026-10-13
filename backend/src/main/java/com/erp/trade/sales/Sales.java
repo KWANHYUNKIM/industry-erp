@@ -85,6 +85,22 @@ public class Sales extends BaseTimeEntity {
     private boolean accountingReflected = false;
 
     /**
+     * 판매입력 II [금액조정] 의 <b>할인 감소(-)</b> — 공급가액 · 부가세(원본 E040253, 2026-10-13 loginaa 실측).
+     * 원본 창에서는 할인의 [합계] 칸만 고칠 수 있고 공급가액 · 부가세로 나뉜다(1,100 → 1,000 · 100).
+     *
+     * <p>전표 머리 금액({@link #supplyAmount} · {@link #vatAmount} · {@link #totalAmount})은 <b>할인을 뺀 값</b>이다
+     * — 원본 판매조회의 금액합계 · 매출전표 금액이 그렇다(9,900 / 9,000 · 900). 줄 합계 − 할인 = 머리.
+     * 판매입력(I) 전표는 늘 0 이다.
+     */
+    @Column(name = "discount_supply", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal discountSupply = BigDecimal.ZERO;
+
+    @Column(name = "discount_vat", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal discountVat = BigDecimal.ZERO;
+
+    /**
      * 부가세를 <b>전표 단위</b>로 계산했는가. 이카운트 판매·구매입력의 [거래별부가세계산]
      * ({@code calcbySlip}) 이다. false 면 라인별로 반올림한다 — 잔돈이 1원 단위로 달라진다.
      *

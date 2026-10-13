@@ -134,6 +134,7 @@ const MENU: TopMenu[] = [
             children: [
               { label: '판매조회', to: '/sales/sales-list' },
               { label: '판매입력', to: '/sales/sell' },
+              { label: '판매입력 II', to: '/sales/sell2' },
               { label: '거래처중심입력', to: '/sales/partner-entry' },
               { label: '품목중심입력', to: '/sales/item-entry' },
               { label: '판매단가일괄변경', to: '/sales/sales-price-bulk' },

@@ -337,6 +337,9 @@ public class SalesService {
             totalSupply = totalSupply.add(supplies.get(i));
             totalVat = totalVat.add(vats.get(i));
         }
+        // 판매입력 II 의 금액조정 할인은 단가를 바꿔도 그대로 두고 머리에서 뺀다.
+        totalSupply = totalSupply.subtract(slip.getDiscountSupply());
+        totalVat = totalVat.subtract(slip.getDiscountVat());
         slip.setSupplyAmount(totalSupply);
         slip.setVatAmount(totalVat);
         slip.setTotalAmount(totalSupply.add(totalVat));
@@ -590,9 +593,30 @@ public class SalesService {
                     (isReturn ? "판매반품 " : "판매 ") + sales.getDocNo(), username);
         }
 
+        /*
+         * 판매입력 II [금액조정] 할인 감소(-). 원본은 머리 금액에서 뺀다 — 판매조회 금액합계 9,900 · 매출전표
+         * 외상매출금 9,900 / 제품매출 9,000 · 부가세예수금 900(2026-10-13 loginaa 실측, 10,000 · 1,000 에 할인 1,100).
+         */
+        BigDecimal dSupply = nzWon(req.discountSupply());
+        BigDecimal dVat = taxable ? nzWon(req.discountVat()) : BigDecimal.ZERO;
+        if (dSupply.signum() != 0 || dVat.signum() != 0) {
+            if (isReturn) throw ApiException.badRequest("반품 전표에는 금액조정(할인)을 넣을 수 없습니다.");
+            if (dSupply.add(dVat).compareTo(totalSupply.add(totalVat)) > 0) {
+                throw ApiException.badRequest("할인 합계가 거래 합계보다 큽니다.");
+            }
+        }
+        sales.setDiscountSupply(dSupply);
+        sales.setDiscountVat(dVat);
+        totalSupply = totalSupply.subtract(dSupply);
+        totalVat = totalVat.subtract(dVat);
+
         sales.setSupplyAmount(totalSupply);
         sales.setVatAmount(totalVat);
         sales.setTotalAmount(totalSupply.add(totalVat));
+    }
+
+    private static BigDecimal nzWon(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v.setScale(0, RoundingMode.HALF_UP);
     }
 
     private String generateDocNo(LocalDate date) {

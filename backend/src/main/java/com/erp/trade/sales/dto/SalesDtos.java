@@ -70,8 +70,24 @@ public final class SalesDtos {
             Long employeeId,
             /** 거래별부가세계산 — 전표 합계에 한 번 반올림한다. 비우면 라인별 반올림(기존 동작). */
             Boolean vatBySlip,
-            @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<SalesLineRequest> lines
-    ) {}
+            @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<SalesLineRequest> lines,
+            /**
+             * 판매입력 II [금액조정] 할인 감소(-) 의 공급가액 · 부가세(선택, 비우면 0). 원본 창은 할인 [합계] 만 받아
+             * 공급가액 · 부가세로 나눈다(1,100 → 1,000 · 100) — 나눈 값을 그대로 보낸다. 전표 머리 금액에서 뺀다.
+             */
+            @PositiveOrZero(message = "할인 공급가액은 0 이상이어야 합니다.")
+            BigDecimal discountSupply,
+            @PositiveOrZero(message = "할인 부가세는 0 이상이어야 합니다.")
+            BigDecimal discountVat
+    ) {
+        /** 금액조정 없는 전표(판매입력 · A/S · 쇼핑몰 주문). */
+        public CreateSalesRequest(Long partnerId, Long warehouseId, LocalDate saleDate, Boolean taxable,
+                                  Boolean returnSlip, String remark, Long projectId, Long employeeId,
+                                  Boolean vatBySlip, List<SalesLineRequest> lines) {
+            this(partnerId, warehouseId, saleDate, taxable, returnSlip, remark, projectId, employeeId,
+                    vatBySlip, lines, null, null);
+        }
+    }
 
     public record SalesLineResponse(
             /**
@@ -155,7 +171,9 @@ public final class SalesDtos {
              */
             LocalDateTime createdAt,
             Long employeeId, String employeeName,
-            List<SalesLineResponse> lines
+            List<SalesLineResponse> lines,
+            /** 판매입력 II [금액조정] 할인 감소(-) — 머리 금액은 이미 뺀 값이다. 판매입력(I) 전표는 0. */
+            BigDecimal discountSupply, BigDecimal discountVat
     ) {
         public static SalesResponse from(Sales s) {
             return new SalesResponse(
@@ -176,7 +194,8 @@ public final class SalesDtos {
                     s.getCreatedAt(),
                     s.getEmployee() != null ? s.getEmployee().getId() : null,
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
-                    s.getLines().stream().map(SalesLineResponse::from).toList());
+                    s.getLines().stream().map(SalesLineResponse::from).toList(),
+                    s.getDiscountSupply(), s.getDiscountVat());
         }
     }
 }

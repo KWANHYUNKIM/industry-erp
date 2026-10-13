@@ -356,6 +356,9 @@ export interface SalesDoc {
   employeeId: number | null
   employeeName: string | null
   lines: TradeLine[]
+  /** 판매입력 II [금액조정] 할인 감소(-) — 머리 금액(supply/vat/total)은 이미 뺀 값. 판매입력(I) 전표는 0. */
+  discountSupply?: number
+  discountVat?: number
 }
 
 export interface PurchaseDoc {

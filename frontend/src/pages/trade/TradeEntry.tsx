@@ -96,6 +96,16 @@ interface LineInput {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
+
+/**
+ * 판매입력 II [금액조정] 할인 합계 → 공급가액 · 부가세. 원본 창은 할인의 [합계] 칸만 고칠 수 있고
+ * 1,100 을 넣으면 1,000 · 100 으로 나눈다(2026-10-13 loginaa 실측). 과세면 공급가액 = round(합계 ÷ 1.1).
+ */
+function splitDiscount(total: number, taxable: boolean) {
+  const t = Math.max(0, Math.round(total))
+  const supply = taxable ? Math.round(t / 1.1) : t
+  return { supply, vat: t - supply, total: t }
+}
 const num = (s: string) => Number(s) || 0
 const today = () => {
   const d = new Date()
@@ -260,8 +270,13 @@ const OPTIONAL_COLS = [
 ] as const
 type OptionalColId = typeof OPTIONAL_COLS[number]['id']
 
-export default function TradeEntry({ mode }: { mode: Mode }) {
-  const cfg = CFG[mode]
+/**
+ * `adjust` — <b>판매입력 II</b>(원본 E040253 · ESD066M). 판매입력과 같은 전표지만 격자 아래에 <b>금액조정</b> 표가 있고
+ * 툴바 [금액조정] 창에서 <b>할인 감소(-)</b> 를 넣는다(2026-10-13 loginaa 실측). 할인은 전표 머리 금액에서 빠진다.
+ */
+export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjust?: boolean }) {
+  const cfg = adjust && mode === 'sales' ? { ...CFG.sales, title: '판매입력 II' } : CFG[mode]
+  const isAdjust = adjust && mode === 'sales'
   const navigate = useNavigate()
   // 판매조회에서 [수정]으로 들어오면 `?edit=<전표 id>` 가 붙는다 — 원본도 조회에서 전표번호를 누르면
   // 같은 입력 화면이 수정 모드로 열린다.
@@ -314,12 +329,21 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [showExtra, setShowExtra] = useState(false)      // 확장(추가) 항목 펼치기
   // 거래별부가세계산(원본 calcbySlip). 켜면 라인마다 반올림하지 않고 전표 합계에 한 번 물린다.
   const [vatBySlip, setVatBySlip] = useState(false)
+  /**
+   * 판매입력 II [금액조정] 의 할인 <b>합계</b>(원본 창은 이 칸만 고칠 수 있다). 공급가액 · 부가세는 여기서 나눈다 — {@link splitDiscount}.
+   * 창에서 고치는 값(adjDraft)과 [적용(F8)] 한 값(discountTotal)을 따로 둔다: 원본도 [적용] 전에는 전표가 안 바뀐다.
+   */
+  const [discountTotal, setDiscountTotal] = useState(0)
+  const [adjOpen, setAdjOpen] = useState(false)
+  const [adjDraft, setAdjDraft] = useState('')
+  const [adjFolded, setAdjFolded] = useState(false)
 
   // ── 명세 ──────────────────────────────────────────────
   const [lines, setLines] = useState<LineInput[]>(emptyLines)
   const [cols, setCols] = useState<Record<OptionalColId, boolean>>({
     stockAll: false, stockWh: false, unit: false, priceVat: false,
-    lineTotal: false,
+    // 원본 판매입력 II 격자는 [부가세] 다음 [합계] 를 기본으로 보인다(2026-10-13 실측).
+    lineTotal: isAdjust,
     mgmtItem: false, srcType: false, srcDate: false, srcNo: false, qcRequest: false,
   })
   const [colPickerOpen, setColPickerOpen] = useState(false)
@@ -530,6 +554,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     if (!editId || editing || docs.length === 0) return
     const d = docs.find((x) => String(x.id) === editId)
     if (!d) return
+    // 금액조정(할인)이 든 전표는 판매입력 II 전표다 — 원본도 판매조회에서 그 전표를 열면 [판매입력 II(수정)] 창이 뜬다.
+    const disc = mode === 'sales' ? Number((d as SalesDoc).discountSupply ?? 0) + Number((d as SalesDoc).discountVat ?? 0) : 0
+    if (disc !== 0 && !isAdjust) { navigate(`/sales/sell2?edit=${d.id}`, { replace: true }); return }
+    setDiscountTotal(disc)
     setEditing({ id: d.id, docNo: d.docNo })
     setDate((d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate)
     setPartnerId(String(d.partnerId))
@@ -915,6 +943,31 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const checkedIdx = lines.map((l, i) => (l.checked && l.itemId ? i : -1)).filter((i) => i >= 0)
   const targetIdx = () => (checkedIdx.length > 0 ? checkedIdx : lines.map((l, i) => (l.itemId ? i : -1)).filter((i) => i >= 0))
 
+  /** [금액조정] — 품목이 없으면 원본처럼 '자료를 입력 바랍니다.' 만 띄운다. */
+  function openAdjust() {
+    if (!lines.some((l) => l.itemId)) { flash('자료를 입력 바랍니다.'); return }
+    setAdjDraft(discountTotal ? String(discountTotal) : '')
+    setAdjOpen(true)
+  }
+  function applyAmountAdjust() {
+    setDiscountTotal(Math.max(0, Math.round(num(adjDraft))))
+    setAdjOpen(false)
+  }
+  /*
+   * 창의 [적용(F8)]. 전표 틀(EcSlipShell)도 window 에 F8(저장)을 걸어 두었다 — 창이 열려 있을 때 저장이 돌면 안 되므로
+   * <b>capture 단계</b>에서 먼저 받아 전파를 끊는다.
+   */
+  useEffect(() => {
+    if (!adjOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F8' || e.repeat) return
+      e.preventDefault(); e.stopPropagation()
+      applyAmountAdjust()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  })
+
   // ── 계산 ──────────────────────────────────────────────
   // 부가세 배분은 백엔드 `VatAllocator` 와 같은 규칙이어야 한다 — 화면에 보이는 값과
   // 저장된 값이 1원이라도 다르면 사용자는 화면을 못 믿는다.
@@ -943,6 +996,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     extra: lines.reduce((s, l) => s + num(l.extraCost), 0),
     total: computed.reduce((s, c) => s + c.total, 0),
   }
+  /** 금액조정 할인을 나눈 값과 조정 후 합계(판매입력 II). 판매입력(I)에서는 늘 0 이라 net = totals. */
+  const discount = splitDiscount(isAdjust ? discountTotal : 0, taxable)
+  const net = { supply: totals.supply - discount.supply, vat: totals.vat - discount.vat, total: totals.total - discount.total }
   /** 명세 각 줄의 매출·원가·이익. 원가 미등록이면 cost 가 null 이고 합계에서 뺀다. */
   const profitRows = lines
     .map((l, idx) => ({ l, idx }))
@@ -1120,6 +1176,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   // ── 저장 ──────────────────────────────────────────────
   function reset(keepHeader = false) {
     setLines(emptyLines())
+    setDiscountTotal(0)
     setRemark('')
     setCustomValues({})
     setOk(''); setError('')
@@ -1174,7 +1231,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
       lines: validLines,
+      ...(isAdjust ? { discountSupply: discount.supply, discountVat: discount.vat } : {}),
     }
+    if (isAdjust && discount.total > totals.total) return setError('할인 합계가 거래 합계보다 큽니다.')
     try {
       // 수정 모드면 PUT — 서버가 옛 라인의 재고를 되돌리고 새 라인으로 다시 반영한다.
       const res = editing
@@ -1383,7 +1442,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       label: cfg.cashLabel,
       onClick: () => {
         setCashMsg('')
-        setCashForm({ date: today(), departmentId: '', projectId: '', method: mode === 'sales' ? '현금' : '', amount: String(totals.total || ''), fee: '0', note: '' })
+        setCashForm({ date: today(), departmentId: '', projectId: '', method: mode === 'sales' ? '현금' : '', amount: String(net.total || ''), fee: '0', note: '' })
         api.get<typeof cashBanks>('/bank-cards/accounts').then((r) => setCashBanks(r.data)).catch(() => setCashBanks([]))
         api.get<typeof cashDepts>('/departments').then((r) => setCashDepts(r.data)).catch(() => setCashDepts([]))
         setCashOpen(true)
@@ -1593,9 +1652,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           **판매입력 II** 다. 즉 원본에는 판매입력(ESD006M)과 판매입력 II(ESD066M)가 따로 있고,
           금액조정 표는 뒤엣것에 있다.
 
-          우리 화면은 이름을 [판매입력 II] 로 달고 있으면서 구조는 앞엣것을 따른다.
-          그래서 금액조정 표는 **우리에게 없는 것이 맞다** — 다만 '다른 화면이라서' 가 아니라
-          '우리가 따르는 쪽에는 없어서' 다. 이름과 구조가 어긋난 것은 따로 볼 일이다.
+          2026-10-13 판매입력 II 를 따로 열었다(/sales/sell2, adjust) — 그쪽에서만 격자 아래 금액조정 표와
+          [금액조정] 창을 그린다. 판매입력(/sales/sell)에는 원본처럼 없다.
         */}
         {foreign && rate > 0 && (
           <div className="mt-[6px] text-right text-[12px] text-ec-label">
@@ -1696,6 +1754,19 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             두 화면을 겸해서 둘 다 맞출 수 없다. 더 많은 버튼을 가진 판매입력에 맞췄다.
           */}
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => { ensureDocs(); setSlipLoadOpen(true) }}>전표불러오기</button>
+          {/*
+            판매입력 II 는 [전표불러오기] 다음이 [금액조정] · [거래별계산] 이다(2026-10-13 실측).
+            할인을 [적용] 하면 버튼이 주황(원본 btn-warning 246·136·45 — 토큰 --ec-bg-tag)으로 바뀐다.
+          */}
+          {isAdjust && (
+            <button
+              type="button"
+              className={`ec-btn ec-btn-sm${discount.total > 0 ? ' bg-[var(--ec-bg-tag)] border-[var(--ec-bg-tag)] text-ec-panel' : ''}`}
+              onClick={openAdjust}
+            >
+              금액조정
+            </button>
+          )}
           {/* 원본 calcbySlip. 누를 때마다 켜고 끄며, 켜진 상태는 전표에 저장된다. */}
           <button
             type="button"
@@ -1705,7 +1776,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               : '라인마다 반올림합니다. 눌러서 전표 합계 기준으로 바꿉니다.'}
             onClick={() => setVatBySlip((v) => !v)}
           >
-            거래별부가세계산{vatBySlip ? ' ✓' : ''}
+            {isAdjust ? '거래별계산' : '거래별부가세계산'}{vatBySlip ? ' ✓' : ''}
           </button>
           <button
             type="button" className="ec-btn ec-btn-sm" style={{ marginLeft: 'auto' }}
@@ -2071,6 +2142,51 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           </table>
         </div>
 
+        {/*
+          판매입력 II 격자 아래 금액조정 표(원본 #totalsum, 2026-10-13 실측). 할인을 [적용] 하기 전에는
+          '거래별 부가세 합계' 한 줄, 적용하면 '할인 감소(-)' 와 '조정 후 합계' 가 붙는다.
+        */}
+        {isAdjust && (
+          <table className="ec-grid mt-[6px] w-full">
+            <thead>
+              <tr>
+                <th>금액조정항목명</th>
+                <th className="w-[200px]">증감구분</th>
+                <th className="w-[150px] text-right">공급가액</th>
+                <th className="w-[150px] text-right">부가세</th>
+                <th className="w-[150px] text-right">합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>거래별 부가세 합계</td>
+                <td />
+                <td className="text-right">{won(totals.supply)}</td>
+                <td className="text-right">{won(totals.vat)}</td>
+                <td className="text-right">{won(totals.total)}</td>
+              </tr>
+              {discount.total > 0 && (
+                <>
+                  <tr>
+                    <td>할인</td>
+                    <td className="text-center">감소(-)</td>
+                    <td className="text-right">{won(discount.supply)}</td>
+                    <td className="text-right">{won(discount.vat)}</td>
+                    <td className="text-right">{won(discount.total)}</td>
+                  </tr>
+                  <tr>
+                    <td>조정 후 합계</td>
+                    <td />
+                    <td className="text-right">{won(net.supply)}</td>
+                    <td className="text-right">{won(net.vat)}</td>
+                    <td className="text-right">{won(net.total)}</td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        )}
+
         {error && <p className="ec-alert ec-alert-danger mt-[10px]">{error}</p>}
         {ok && <p className="ec-alert ec-alert-success mt-[10px]">{ok}</p>}
 
@@ -2317,6 +2433,79 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </Modal>
 
       {/* ── 검증 결과 ────────────────────────────────────── */}
+      {/*
+        판매입력 II [금액조정] 창(원본 ESD066P, 2026-10-13 loginaa 실측). 나무 모양 표: 합계 ▸ 부가세율 10% 계 ▸ 판매 · 할인 감소(-).
+        고칠 수 있는 칸은 <b>할인의 [합계]</b> 하나뿐이고 공급가액 · 부가세는 거기서 나뉜다. [접기] 는 하위 줄을 접는다.
+      */}
+      <Modal error={null} open={adjOpen} title="금액조정" width={780} onClose={() => setAdjOpen(false)}>
+        {(() => {
+          const d = splitDiscount(num(adjDraft), taxable)
+          const after = { supply: totals.supply - d.supply, vat: totals.vat - d.vat, total: totals.total - d.total }
+          return (
+            <>
+              <button type="button" className="ec-btn ec-btn-sm mb-[6px]" onClick={() => setAdjFolded((v) => !v)}>
+                {adjFolded ? '펼치기' : '접기'}
+              </button>
+              <table className="ec-grid w-full">
+                <thead>
+                  <tr>
+                    <th>금액조정항목명</th>
+                    <th className="w-[160px]">증감구분</th>
+                    <th className="w-[110px] text-right">공급가액</th>
+                    <th className="w-[110px] text-right">부가세</th>
+                    <th className="w-[110px] text-right">합계</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="bg-ec-page">
+                    <td>▴ 합계</td>
+                    <td />
+                    <td className="text-right">{won(after.supply)}</td>
+                    <td className="text-right">{won(after.vat)}</td>
+                    <td className="text-right">{won(after.total)}</td>
+                  </tr>
+                  {!adjFolded && (
+                    <>
+                      <tr className="bg-ec-page">
+                        <td className="pl-[18px]">▴ {taxable ? '부가세율 10% 계' : '면세 계'}</td>
+                        <td />
+                        <td className="text-right">{won(after.supply)}</td>
+                        <td className="text-right">{won(after.vat)}</td>
+                        <td className="text-right">{won(after.total)}</td>
+                      </tr>
+                      <tr>
+                        <td className="pl-[36px]">판매</td>
+                        <td />
+                        <td className="text-right">{won(totals.supply)}</td>
+                        <td className="text-right">{won(totals.vat)}</td>
+                        <td className="text-right">{won(totals.total)}</td>
+                      </tr>
+                      <tr className="bg-ec-page">
+                        <td className="pl-[36px]">할인</td>
+                        <td className="text-center">감소(-)</td>
+                        <td className="text-right">{won(d.supply)}</td>
+                        <td className="text-right">{won(d.vat)}</td>
+                        <td className="bg-ec-panel p-0">
+                          <EcNumInput
+                            className="ec-input w-full text-right"
+                            value={adjDraft}
+                            onValue={setAdjDraft}
+                            aria-label="할인 합계"
+                          />
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+              <div className="mt-[9px]">
+                <button type="button" className="ec-btn ec-btn-primary" onClick={applyAmountAdjust}>적용(F8)</button>
+              </div>
+            </>
+          )
+        })()}
+      </Modal>
+
       {/* 이익계산 — 원본 profitCalc. 원가는 회계(item_costs)가 소유하므로 화면에서 읽어 계산한다. */}
       <Modal error={error} open={profitOpen} title="이익계산" width={780} onClose={() => setProfitOpen(false)}>
         {costs === null ? (

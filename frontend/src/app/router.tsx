@@ -482,6 +482,7 @@ export default function AppRouter() {
         <Route path="/sales" element={<Navigate to="/sales/partners" replace />} />
         <Route path="/sales/partners" element={<PartnersPage />} />
         <Route path="/sales/sell" element={<TradeEntry mode="sales" />} />
+        <Route path="/sales/sell2" element={<TradeEntry key="sell2" mode="sales" adjust />} />
         <Route path="/sales/buy" element={<TradeEntry mode="purchase" />} />
         <Route path="/sales/sales-list" element={<TradeInquiryPage mode="sales" />} />
         <Route path="/sales/purchase-list" element={<TradeInquiryPage mode="purchase" />} />
