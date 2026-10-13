@@ -192,7 +192,14 @@ public final class AccountingReflectionDtos {
 
     public record ReflectRequest(
             @NotNull(message = "구분(판매/구매)을 지정하세요.") SlipKind kind,
-            @NotEmpty(message = "반영할 전표를 선택하세요.") List<Long> ids
+            @NotEmpty(message = "반영할 전표를 선택하세요.") List<Long> ids,
+            /**
+             * 전표 id → 고른 [부가세유형](선택). 원본 판매 · 구매일괄회계반영 격자의 부가세유형 칸은 고르기다
+             * (2026-10-13 loginaa 판매: 세금계산서 · 영세율 · 계산서 · 소매매출 · 수출 · 카드매출 · 계산서(고정자산) ·
+             * 세.계(고정자산) · 소매(면세) · 카드매출(면세) · 현금영수증(면세) · 현금영수증 · 매입자발행세금계산서 · 영세율(기타) · 기타매출).
+             * 고른 값이 분개의 부가세유형으로 그대로 들어간다. 없으면 과세 → 세금계산서, 면세 → 계산서.
+             */
+            java.util.Map<Long, @jakarta.validation.constraints.Size(max = 30, message = "부가세유형은 30자까지입니다.") String> vatTypes
     ) {}
 
     public record ReflectResult(int reflectedCount) {}

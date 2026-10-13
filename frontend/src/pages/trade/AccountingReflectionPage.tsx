@@ -358,6 +358,17 @@ export default function AccountingReflectionPage() {
     { supply: 0, vat: 0 },
   ), [shown])
 
+  /**
+   * 거래처 줄의 [부가세유형] 고르기(판매). 원본 판매일괄회계반영 격자 칸이 고르기다(2026-10-13 loginaa 실측, 아래 15가지) —
+   * 기본은 과세 전표면 세금계산서, 면세 전표면 계산서. 고른 값이 반영 분개의 부가세유형으로 그대로 들어간다.
+   * 구매 쪽 고르기 목록은 아직 못 재서 예전처럼 과세 · 면세를 글자로 둔다.
+   */
+  const [groupVat, setGroupVat] = useState<Record<number, string>>({})
+  const SALES_VAT_TYPES = ['세금계산서', '영세율', '계산서', '소매매출', '수출', '카드매출', '계산서(고정자산)', '세.계(고정자산)',
+    '소매(면세)', '카드매출(면세)', '현금영수증(면세)', '현금영수증', '매입자발행세금계산서', '영세율(기타)', '기타매출']
+  /* 고르기 항목은 표 밖에서 만든다 — 표 안의 .map 은 ui-check 가 '칸이 변하는 표' 로 본다. */
+  const salesVatOptions = SALES_VAT_TYPES.map((v) => <option key={v} value={v}>{v}</option>)
+
   const byPartner = useMemo(() => {
     const m = new Map()
     for (const s of shown) {
@@ -392,13 +403,16 @@ export default function AccountingReflectionPage() {
     setOk(`${count}건 회계반영 완료${nos.length ? ` — 회계전표 ${shown}` : ''}`)
   }
 
-  /** 거래처 한 줄을 통째로 반영한다. 미반영 전표가 없으면 부를 일이 없다. */
-  async function reflectPartner(ids: number[]) {
+  /** 거래처 한 줄을 통째로 반영한다. 미반영 전표가 없으면 부를 일이 없다. vatType — 그 줄에서 고른 [부가세유형]. */
+  async function reflectPartner(ids: number[], vatType?: string) {
     if (ids.length === 0) return
     setError(''); setOk('')
     try {
       const res = await api.post<{ reflectedCount: number }>(
-        '/accounting-reflection/reflect', { kind: kind.toUpperCase(), ids })
+        '/accounting-reflection/reflect', {
+          kind: kind.toUpperCase(), ids,
+          ...(vatType ? { vatTypes: Object.fromEntries(ids.map((id) => [id, vatType])) } : {}),
+        })
       await reflectedNote(res.data.reflectedCount, ids)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -718,9 +732,15 @@ export default function AccountingReflectionPage() {
                   <td className="text-ec-label text-[11.5px]">
                     {[...g.items].slice(0, 2).join(', ')}{g.items.size > 2 ? ` 외 ${g.items.size - 2}` : ''}
                   </td>
-                  {/* 과세·면세가 섞인 거래처는 둘 다 적는다 — 하나로 적으면 거짓말이 된다. */}
+                  {/* 과세·면세가 섞인 거래처는 둘 다 적는다 — 하나로 적으면 거짓말이 된다. 판매는 원본처럼 고르기. */}
                   <td className="text-center text-[11.5px] text-ec-label">
-                    {[...g.vatTypes].join('·')}
+                    {kind === 'sales' ? (
+                      <select className="ec-input w-full" aria-label="부가세유형"
+                        value={groupVat[g.partnerId] ?? (g.vatTypes.size === 1 && g.vatTypes.has('면세') ? '계산서' : '세금계산서')}
+                        onChange={(e) => setGroupVat((m) => ({ ...m, [g.partnerId]: e.target.value }))}>
+                        {salesVatOptions}
+                      </select>
+                    ) : [...g.vatTypes].join('·')}
                   </td>
                   {/* 일부만 반영된 거래처를 표시하지 않으면 "이 거래처는 끝냈다" 고 착각한다. */}
                   <td style={{ textAlign: 'center', fontWeight: 700, color: partial ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>
@@ -729,7 +749,7 @@ export default function AccountingReflectionPage() {
                   <td className="text-center">
                     {g.ids.length > 0 ? (
                       <button className="ec-btn" style={{ height: 20, padding: '0 6px' }}
-                              onClick={() => reflectPartner(g.ids)}>
+                              onClick={() => reflectPartner(g.ids, kind === 'sales' ? groupVat[g.partnerId] : undefined)}>
                         {g.ids.length}건 반영
                       </button>
                     ) : <span className="text-ec-success text-[11.5px]">완료</span>}

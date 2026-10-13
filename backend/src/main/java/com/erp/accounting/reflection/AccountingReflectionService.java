@@ -63,6 +63,13 @@ public class AccountingReflectionService {
         return new ReflectResult(count);
     }
 
+    /** 화면에서 고른 [부가세유형]. 비었으면 null — 분개가 과세 여부로 정한다. */
+    private static String vatTypeOf(ReflectRequest req, Long id) {
+        if (req.vatTypes() == null) return null;
+        String v = req.vatTypes().get(id);
+        return v == null || v.isBlank() ? null : v.trim();
+    }
+
     @Transactional(readOnly = true)
     public List<SlipResponse> list(SlipKind kind, boolean onlyUnreflected) {
         List<SlipResponse> slips = switch (kind) {
@@ -126,7 +133,7 @@ public class AccountingReflectionService {
             List<Sales> targets = salesRepository.findAllById(req.ids());
             for (Sales s : targets) {
                 if (!s.isAccountingReflected()) {
-                    journalService.createFromSales(s);   // 실제 분개 생성
+                    journalService.createFromSales(s, vatTypeOf(req, s.getId()));   // 실제 분개 생성
                     s.setAccountingReflected(true);
                     count++;
                 }
@@ -135,7 +142,7 @@ public class AccountingReflectionService {
             List<Purchase> targets = purchaseRepository.findAllById(req.ids());
             for (Purchase p : targets) {
                 if (!p.isAccountingReflected()) {
-                    journalService.createFromPurchase(p);
+                    journalService.createFromPurchase(p, vatTypeOf(req, p.getId()));
                     p.setAccountingReflected(true);
                     count++;
                 }

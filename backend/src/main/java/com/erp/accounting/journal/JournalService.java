@@ -289,6 +289,12 @@ public class JournalService {
     /** 판매 → 분개. 차)외상매출금 / 대)상품매출·제품매출(품목구분별)·부가세예수금 */
     @Transactional
     public JournalEntry createFromSales(Sales s) {
+        return createFromSales(s, null);
+    }
+
+    /** vatType — 판매일괄회계반영에서 고른 [부가세유형]. null 이면 과세 → 세금계산서, 면세 → 계산서. */
+    @Transactional
+    public JournalEntry createFromSales(Sales s, String vatType) {
         if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SALES, s.getId())) {
             throw ApiException.conflict("이미 회계반영된 판매전표입니다: " + s.getDocNo());
         }
@@ -303,13 +309,13 @@ public class JournalService {
         boolean discounted = isNonZero(s.getDiscountSupply()) || isNonZero(s.getDiscountVat());
         String lineDesc = seen ? s.getLines().get(0).getItem().getName() + (discounted ? " 외 1건" : "") : null;
         String entryDesc = seen
-                ? "매출 : 세금계산서 / " + s.getPartner().getName() + " / "
+                ? "매출 : " + (vatType != null ? vatType : "세금계산서") + " / " + s.getPartner().getName() + " / "
                   + String.format("%,d", s.getSupplyAmount().longValue()) + " / " + String.format("%,d", s.getVatAmount().longValue())
                 : "판매 " + s.getDocNo();
         JournalEntry e = newEntry(JournalSourceType.SALES, s.getId(), s.getSaleDate(),
                 entryDesc, s.getPartner(), s.getCreatedBy());
         /* 원본 판매 회계반영 전표의 부가세유형 — 매입/매출장 유형명이 '세금계산서'(2026-10-13 loginaa 실측). 면세 판매는 '계산서'. */
-        e.setVatType(s.isTaxable() ? "세금계산서" : "계산서");
+        e.setVatType(vatType != null ? vatType : s.isTaxable() ? "세금계산서" : "계산서");
 
         addDebit(e, "108", s.getTotalAmount(), seen ? lineDesc : "외상매출금");
         byAccount(s.getLines(),
@@ -331,13 +337,19 @@ public class JournalService {
     /** 매입 → 분개. 차)상품·제품·원재료·부재료(품목구분별)·부가세대급금 / 대)외상매입금 */
     @Transactional
     public JournalEntry createFromPurchase(Purchase p) {
+        return createFromPurchase(p, null);
+    }
+
+    /** vatType — 구매일괄회계반영에서 고른 [부가세유형]. null 이면 과세 → 세금계산서, 면세 → 계산서. */
+    @Transactional
+    public JournalEntry createFromPurchase(Purchase p, String vatType) {
         if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.PURCHASE, p.getId())) {
             throw ApiException.conflict("이미 회계반영된 구매전표입니다: " + p.getDocNo());
         }
         JournalEntry e = newEntry(JournalSourceType.PURCHASE, p.getId(), p.getPurchaseDate(),
                 "구매 " + p.getDocNo(), p.getPartner(), p.getCreatedBy());
         /* 판매와 같다 — 과세 구매 '세금계산서', 면세 '계산서'. */
-        e.setVatType(p.isTaxable() ? "세금계산서" : "계산서");
+        e.setVatType(vatType != null ? vatType : p.isTaxable() ? "세금계산서" : "계산서");
 
         byAccount(p.getLines(),
                 l -> stockAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
