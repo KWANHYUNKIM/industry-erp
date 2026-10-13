@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
-import Modal from './Modal'
+import { useRef, useState } from 'react'
+import CodeSearchModal, { type CodeColumn } from './CodeSearchModal'
 
 /**
  * 코드도움 — 이카운트의 `code.openpopup` 패턴.
@@ -35,6 +35,8 @@ export interface CodeItem {
    * <b>그 창이 찾던 항목들을 한 칸에서 다 찾게</b> 한다. (utils/codeItems)
    */
   extra?: string | null
+  /** 사용중단된 것 — 창에서 [사용중단포함] 을 켜야 보인다. */
+  stopped?: boolean
 }
 
 export default function CodePickerField({
@@ -45,8 +47,16 @@ export default function CodePickerField({
    * 안 고르면 전체라는 뜻은 [전체] 지우기 항목(emptyLabel)이 말해 준다.
    */
   label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
-  hideLabel, multiple, values, onChangeMulti, fill, pair,
+  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain,
 }: {
+  /** 코드도움 창의 격자 열(대상마다 다르다 — CodeSearchModal). 없으면 항목 모양을 보고 고른다. */
+  columns?: CodeColumn[]
+  /** 창 제목(기본 `${label}검색`) */
+  popupTitle?: string
+  /** 창의 [신규(F2)] — 없으면 이름으로 등록 화면을 짐작해 새 창으로 연다 */
+  onNew?: () => void
+  /** 사원검색 꼴 — [사용중단포함] · [Option] 없음 */
+  plain?: boolean
   label: string
   /** 단일 선택 값. multiple 이면 쓰지 않는다. */
   value?: string
@@ -123,14 +133,6 @@ export default function CodePickerField({
       : pickedItems.length === 1 ? labelOf(pickedItems[0])
       : `${labelOf(pickedItems[0])} 외 ${pickedItems.length - 1}명`)
     : (selected ? labelOf(selected) : '')
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-    if (!needle) return items
-    return items.filter((i) =>
-      `${i.code ?? ''} ${i.name} ${i.sub ?? ''} ${i.alias ?? ''} ${i.extra ?? ''}`
-        .toLowerCase().includes(needle))
-  }, [items, q])
-
   /** 단일 선택 — 고르는 즉시 닫는다. */
   function pick(item: CodeItem | null) {
     onChange?.(item ? item.value : '', item)
@@ -234,76 +236,25 @@ export default function CodePickerField({
       </div>
       )}
 
-      <Modal open={open} title={`${label} 선택`} width={520} onClose={() => setOpen(false)}>
-        <div className="flex gap-[6px] mb-[8px]">
-          <input
-            className="ec-input"
-            autoFocus
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            // <form> 안에 놓이면 Enter 가 바깥 폼을 제출해 버린다 — 막는다
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (shown.length === 1) pick(shown[0]) } }}
-            placeholder={items.some((i) => i.extra) ? '코드·이름 외에 대표자·전화·주소로도 찾습니다' : '코드 또는 이름으로 검색'}
-            style={{ flex: 1 }}
-          />
-          <span style={{ fontSize: 12.5, color: 'var(--ec-text-hint)', alignSelf: 'center' }}>{shown.length}건</span>
-        </div>
-
-        <div className="max-h-[320px] overflow-y-auto border border-ec-line border-solid">
-          <table className="w-full text-left">
-            <thead><tr>
-              {multiple && <th className="w-[34px]"></th>}
-              <th className="w-[120px]">코드</th>
-              <th>이름</th>
-              <th className="w-[120px]"></th>
-            </tr></thead>
-            <tbody>
-              {/* emptyLabel="" — 꼭 하나를 골라야 하는 칸(수집데이터등록 [수신문서])은 지우기 줄이 없다. */}
-              {!multiple && emptyLabel !== '' && (
-                <tr onClick={() => pick(null)} className="cursor-pointer">
-                  <td colSpan={3} className="text-ec-hint">({emptyLabel})</td>
-                </tr>
-              )}
-              {shown.length === 0 ? (
-                <tr><td colSpan={multiple ? 4 : 3} className="text-center text-ec-hint p-[16px]">
-                  검색 결과가 없습니다.
-                </td></tr>
-              ) : shown.map((i) => {
-                const on = multiple ? picked.includes(i.value) : i.value === value
-                return (
-                  <tr
-                    key={i.value}
-                    onClick={() => (multiple ? toggle(i) : pick(i))}
-                    style={{ cursor: 'pointer', background: on ? 'var(--ec-blue-light)' : undefined }}
-                  >
-                    {multiple && (
-                      <td className="text-center">
-                        <input type="checkbox" readOnly checked={on} />
-                      </td>
-                    )}
-                    <td>{i.code ?? ''}</td>
-                    <td className="font-semibold">{i.name}</td>
-                    <td className="text-ec-hint">{i.sub ?? ''}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {multiple && (
-          <div className="flex items-center gap-[8px] mt-[8px]">
-            <span className="text-[12.5px] text-ec-label">
-              선택 <b className="text-ec-blue">{picked.length}</b>명
-              {pickedItems.length > 0 && <span className="text-ec-hint"> · {pickedItems.map((i) => i.name).join(', ')}</span>}
-            </span>
-            <div className="ml-auto flex gap-[6px]">
-              <button type="button" className="ec-btn" onClick={clearAll}>전체 해제</button>
-              <button type="button" className="ec-btn ec-btn-primary" onClick={() => { setOpen(false); setQ('') }}>확인</button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <CodeSearchModal
+        open={open}
+        label={label}
+        title={popupTitle}
+        items={items}
+        columns={columns}
+        value={value}
+        emptyLabel={emptyLabel}
+        initialQuery={q}
+        onPick={pick}
+        onClose={() => { setOpen(false); setQ('') }}
+        multiple={multiple}
+        picked={picked}
+        onToggle={toggle}
+        onClearAll={clearAll}
+        onApply={() => { setOpen(false); setQ('') }}
+        onNew={onNew}
+        plain={plain}
+      />
     </div>
   )
 }

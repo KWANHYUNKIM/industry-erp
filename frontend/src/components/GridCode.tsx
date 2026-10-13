@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import Modal from './Modal'
+import { useState } from 'react'
+import CodeSearchModal from './CodeSearchModal'
 import type { CodeItem } from './CodePickerField'
 
 /** 원본처럼 칸 위에 뜨는 말풍선 — '유효키항목 필수입력' · '계정코드를 입력 바랍니다.' */
@@ -25,11 +25,6 @@ export default function GridCode({ title, codeHead, nameHead, items, value, onPi
   const [typed, setTyped] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
-  const shown = useMemo(() => {
-    const n = q.trim().toLowerCase()
-    return n ? items.filter((x) => `${x.code ?? ''} ${x.name} ${x.extra ?? ''}`.toLowerCase().includes(n)) : items
-  }, [items, q])
-
   function submit() {
     const n = (typed ?? '').trim()
     setTyped(null)
@@ -54,25 +49,21 @@ export default function GridCode({ title, codeHead, nameHead, items, value, onPi
              }}
              onBlur={() => { if (typed) submit(); else setTyped(null) }} />
       {err && <ErrTip msg={err} />}
-      <Modal open={open} title={title} width={760} onClose={() => setOpen(false)}>
-        <div className="flex justify-end gap-[5px] mb-[8px]">
-          <input className="ec-input w-[180px]" autoFocus value={q} onChange={(e) => setQ(e.target.value)} aria-label={`${title} 검색어`} />
-        </div>
-        <table className="w-full">
-          <thead><tr><th>{codeHead}</th><th>{nameHead}</th></tr></thead>
-          <tbody>
-            {shown.length === 0
-              ? <tr><td colSpan={2} className="ec-empty">조회 결과가 없습니다.</td></tr>
-              : shown.map((x) => (
-                <tr key={x.value} className="cursor-pointer" onClick={() => { onPick(x.value); setOpen(false) }}>
-                  <td className="text-ec-navy">{x.code}</td>
-                  <td className="text-ec-navy">{x.name}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-        <div className="mt-[8px]"><button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button></div>
-      </Modal>
+      <CodeSearchModal
+        open={open}
+        label={nameHead.replace(/명$/, '')}
+        title={title}
+        items={items}
+        columns={[
+          { head: codeHead, width: 466, cell: (x) => x.code ?? '', link: true },
+          { head: nameHead, width: 466, cell: (x) => x.name, link: true },
+        ]}
+        value={value}
+        initialQuery={q}
+        plain
+        onPick={(x) => { if (x) onPick(x.value); setOpen(false) }}
+        onClose={() => setOpen(false)}
+      />
     </span>
   )
 }
