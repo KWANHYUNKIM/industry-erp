@@ -13,7 +13,11 @@ import GroupMasterModal from '../../components/GroupMasterModal'
 const inputCls = 'ec-input w-full'
 
 const empty = {
-  code: '', name: '', type: 'CUSTOMER', bizRegNo: '', ceoName: '',
+  /*
+   * 원본 거래처에는 매출처 · 매입처 구분이 없다 — 새로 만든 거래처가 판매입력 · 구매입력의 거래처검색 양쪽에 다 뜬다
+   * (E010101 → E040205 · E040303, 2026-10-13 실측). 우리 기본이 매출처라 새 거래처가 구매입력에서 안 보였다.
+   */
+  code: '', name: '', type: 'BOTH', bizRegNo: '', ceoName: '',
   bizType: '', bizItem: '', manager: '', phone: '', mobile: '',
   /** 원본 거래처관리대장 I 머리말이 찍는 값들. */
   email: '', fax: '', creditLimit: '0',
@@ -48,6 +52,21 @@ const empty = {
  * 자주 쓰는 [기본]까지 스크롤해야 했다. 나머지 탭 항목은 원본을 열어 보지 못해
  * (탭을 누르기 전에는 DOM 에 없다) 우리 값을 뜻에 맞게 나눠 담았다.
  */
+/**
+ * 원본 번호 칸(form-checkbox-numbered, 거래처리스트 E010101) — 번호가 곧 체크 칸이다.
+ * 안 고르면 흰 바탕 회색 번호, 고르면 파랑. 머리 칸은 번호 없이 전체 선택(판매조회 · 주문서출고처리와 같은 모양).
+ */
+function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
+  return (
+    <label className="relative inline-block align-middle cursor-pointer">
+      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
+
 const FORM_TABS = ['기본', '거래처정보', '여신/단가', '부가정보'] as const
 type FormTab = typeof FORM_TABS[number]
 
@@ -144,9 +163,12 @@ export default function PartnersPage() {
   const shown = sort.sorted
   const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
-  /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 19회차). */
-  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
+  /**
+   * 마지막 [저장] 이 상호가 비어 막혔는가. 원본(E010101 2026-10-13 실측)은 글을 띄우지 않고
+   * 상호 칸에 빨간 테두리(0.5px, --ec-text-danger 와 같은 색)를 두르고 탭 오른쪽 위에 빨간 동그라미 '!' 를 단다.
+   */
+  const [invalid, setInvalid] = useState(false)
   /**
    * 수정 대상 거래처 id. null 이면 신규.
    *
@@ -205,12 +227,14 @@ export default function PartnersPage() {
   function openCreate() {
     setEditId(null)
     setForm({ ...empty, code: nextCode() })
+    setInvalid(false)
     setFormTab('기본')
     setShowForm(true)
   }
 
   function openEdit(p: Partner) {
     setEditId(p.id)
+    setInvalid(false)
     setForm({
       code: p.code, name: p.name, type: p.type,
       bizRegNo: p.bizRegNo ?? '', ceoName: p.ceoName ?? '',
@@ -240,6 +264,8 @@ export default function PartnersPage() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    if (!form.name.trim()) { setInvalid(true); setFormTab('기본'); return }
+    setInvalid(false)
     /* 원본은 저장할 때 같은 코드가 있으면 [공지] 창으로 "이미 등록된 코드입니다." 를 띄우고 그 거래처를 보여 준다. */
     if (editId == null) {
       const dup = partners.find((x) => x.code === form.code.trim())
@@ -262,7 +288,7 @@ export default function PartnersPage() {
       // 거래처코드는 수정 요청에 없다 — 전표가 코드로 묶여 있어 바꾸면 과거 전표와 어긋난다.
       if (editId != null) await api.put(`/partners/${editId}`, body)
       else await api.post('/partners', body)
-      setOk(`거래처 [${form.code}] ${form.name} ${editId != null ? '수정' : '등록'} 완료`)
+      /* 원본은 저장하면 말없이 창을 닫고 목록만 다시 그린다(신규 · 수정 둘 다). */
       setForm({ ...empty })
       setShowForm(false)
       load()
@@ -364,6 +390,19 @@ export default function PartnersPage() {
     }
   }
 
+  /** 수정 창의 [사용중단/재사용] — 열어 둔 거래처 하나를 뒤집는다. */
+  async function toggleOne(id: number) {
+    const x = partners.find((p) => p.id === id)
+    if (!x) return
+    try {
+      await api.put(`/partners/${x.id}`, wholePartner(x, { active: !x.active }))
+      setShowForm(false)
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
   /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(거래처리스트 E010101 실측, 두 줄). */
   const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
 
@@ -416,7 +455,7 @@ export default function PartnersPage() {
           if (checked.size === 0) { alert(NO_PICK); return }
           setError(''); setBulkValue(''); setBulkOpen(true)
         } },
-        /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회는 아직 없다(보드에 남김). */
+        /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회(기준일자 동안 전표가 없는 거래처)는 아직 없다 — 전표 쓰임을 모으는 API 가 없다(plans/재고1.md 남은 것). */
         { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive, menu: [
           { label: '사용중단', onClick: () => setActiveChecked(false) },
           { label: '삭제', onClick: removeChecked },
@@ -427,7 +466,6 @@ export default function PartnersPage() {
       ]}
     >
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
-      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[8px]">
         <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
@@ -467,13 +505,18 @@ export default function PartnersPage() {
         })}>조건 지우기</button>
       </div>
 
-      <Modal error={error} open={showForm} title={editId ? '거래처수정' : '거래처등록'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="거래처등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">{editId ? '거래처 수정' : '새 거래처 등록'}</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">거래처등록</div>
           <ul className="ec-tabs" style={{ marginBottom: 10 }}>
             {FORM_TABS.map((t) => (
-              <li key={t} className={`ec-tab${formTab === t ? ' active' : ''}`}
-                  onClick={() => setFormTab(t)} style={{ cursor: 'pointer' }}>{t}</li>
+              <li key={t} className={`ec-tab relative${formTab === t ? ' active' : ''}`}
+                  onClick={() => setFormTab(t)} style={{ cursor: 'pointer' }}>{t}
+                {/* 원본: 빈 필수칸이 있는 탭 오른쪽 위의 빨간 동그라미 '!'(16×16, 위 -6.3px). 상호는 [기본] 에 있다. */}
+                {t === '기본' && invalid && !form.name.trim() && (
+                  <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
+                )}
+              </li>
             ))}
           </ul>
 
@@ -486,7 +529,9 @@ export default function PartnersPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">상호(이름) *</label>
-              <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
+              <input className={`${inputCls} ${invalid && !form.name.trim() ? 'border-[color:var(--ec-text-danger)]' : ''}`}
+                     aria-invalid={invalid && !form.name.trim()} placeholder="상호(이름)"
+                     value={form.name} onChange={(e) => set('name', e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">대표자명</label>
@@ -775,6 +820,10 @@ export default function PartnersPage() {
               }}>복사</button>
             )}
             <button type="button" className="ec-btn" onClick={() => { setForm(empty); setFormTab('기본') }}>다시 작성</button>
+            {/* 원본 수정 창: 저장(F8) · 복사 · 다시 작성 · 사용중단/재사용 · 닫기 · H. 이 거래처 하나를 뒤집고 창을 닫는다. */}
+            {editId != null && (
+              <button type="button" className="ec-btn" onClick={() => toggleOne(editId)}>사용중단/재사용</button>
+            )}
             <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
           </div>
         </form>
@@ -785,11 +834,11 @@ export default function PartnersPage() {
           <thead>
             <tr>
               <th className="w-[34px] text-center">
-                <input type="checkbox"
-                       checked={shown.length > 0 && shown.every((x) => checked.has(x.id))}
-                       onChange={() => setChecked(
-                         shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
-                       )} />
+                <NumCheck no="" label="전체 선택"
+                          on={shown.length > 0 && shown.every((x) => checked.has(x.id))}
+                          onChange={() => setChecked(
+                            shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
+                          )} />
               </th>
               {/* 원본 거래처리스트 기본 열(loginaa E010101 실측): 코드 · 거래처명 · 대표자명 · 전화번호 · Email · 주소 · 적요 · 사용구분 · 이체정보. 칸은 모두 가운데. */}
               <th className="cursor-pointer text-center" onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
@@ -809,10 +858,10 @@ export default function PartnersPage() {
             ) : shown.length === 0 ? (
               <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
-              shown.map((p) => (
+              shown.map((p, i) => (
                 <tr key={p.id} style={{ color: p.active ? undefined : 'var(--ec-text-hint)' }}>
                   <td className="text-center">
-                    <input type="checkbox" checked={checked.has(p.id)} onChange={() => setChecked((prev) => {
+                    <NumCheck no={i + 1} label="선택" on={checked.has(p.id)} onChange={() => setChecked((prev) => {
                       const next = new Set(prev)
                       if (next.has(p.id)) next.delete(p.id); else next.add(p.id)
                       return next
