@@ -10,10 +10,10 @@ import type { InsuranceWorkplace } from './types'
  * 등록 창: 사업장명 · 사업장관리번호(11자리 아니면 '자릿수는 11입니다.') · 사업장전화번호 · 사업자등록번호 · 저장(F8) · 다시작성 · 닫기.
  * 수정 창: 사업장관리번호는 글자로만(못 고침) · 저장(F8) · 다시작성 · 사용중단/재사용(▴ 삭제) · 닫기.
  */
-export default function WorkplaceModal({ onClose, onPick }: { onClose: () => void; onPick?: (w: InsuranceWorkplace) => void }) {
+export default function WorkplaceModal({ onClose, startNew }: { onClose: () => void; startNew?: boolean }) {
   const [rows, setRows] = useState<InsuranceWorkplace[]>([])
   const [company, setCompany] = useState<{ name?: string; bizRegNo?: string } | null>(null)
-  const [edit, setEdit] = useState<InsuranceWorkplace | 'new' | null>(null)
+  const [edit, setEdit] = useState<InsuranceWorkplace | 'new' | null>(startNew ? 'new' : null)
   const [form, setForm] = useState({ name: '', manageNo: '', phone: '' })
   const [error, setError] = useState<string | null>(null)
   const [menu, setMenu] = useState(false)
@@ -37,6 +37,7 @@ export default function WorkplaceModal({ onClose, onPick }: { onClose: () => voi
     try {
       if (edit === 'new') await api.post('/hr/insurance/workplaces', form)
       else if (edit) await api.put(`/hr/insurance/workplaces/${edit.id}`, form)
+      if (startNew) { onClose(); return }
       setEdit(null)
       load()
     } catch (e) {
@@ -58,7 +59,7 @@ export default function WorkplaceModal({ onClose, onPick }: { onClose: () => voi
 
   if (edit) {
     return (
-      <Modal open title={edit === 'new' ? '사업장관리등록' : '사업장관리수정'} onClose={() => setEdit(null)} width={960} error={error}>
+      <Modal open title={edit === 'new' ? '사업장관리등록' : '사업장관리수정'} onClose={() => (startNew ? onClose() : setEdit(null))} width={960} error={error}>
         <ul className="ec-form mb-[8px] [&>li]:col-span-2">
           <li><span className="title">사업장명</span><div className="form">
             <input className="ec-input w-full" placeholder="사업장명" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div></li>
@@ -81,14 +82,14 @@ export default function WorkplaceModal({ onClose, onPick }: { onClose: () => voi
               {menu && <div className="ec-menu absolute bottom-[28px] left-0"><button onClick={remove}>삭제</button></div>}
             </span>
           )}
-          <button className="ec-btn" onClick={() => setEdit(null)}>닫기</button>
+          <button className="ec-btn" onClick={() => (startNew ? onClose() : setEdit(null))}>닫기</button>
         </div>
       </Modal>
     )
   }
 
   return (
-    <Modal open title={onPick ? '사업장관리검색' : '사업장관리조회'} onClose={onClose} width={960} error={error}>
+    <Modal open title="사업장관리조회" onClose={onClose} width={960} error={error}>
       <table className="ec-list-grid mb-[8px]">
         <thead>
           <tr><th className="w-[40px]" /><th>사업장명</th><th>사업장관리번호</th><th>사업장전화번호</th><th>사업자등록번호</th></tr>
@@ -98,8 +99,8 @@ export default function WorkplaceModal({ onClose, onPick }: { onClose: () => voi
           {rows.map((w, i) => (
             <tr key={w.id} className={w.active ? undefined : 'text-ec-hint'}>
               <td className="text-center">{i + 1}</td>
-              <td><a className="cursor-pointer" onClick={() => (onPick ? onPick(w) : open(w))}>{w.name}</a></td>
-              <td><a className="cursor-pointer" onClick={() => (onPick ? onPick(w) : open(w))}>{w.manageNo}</a></td>
+              <td><a className="cursor-pointer" onClick={() => open(w)}>{w.name}</a></td>
+              <td><a className="cursor-pointer" onClick={() => open(w)}>{w.manageNo}</a></td>
               <td>{w.phone}</td>
               <td>{biz}</td>
             </tr>

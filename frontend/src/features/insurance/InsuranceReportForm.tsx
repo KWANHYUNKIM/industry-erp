@@ -314,8 +314,7 @@ export default function InsuranceReportForm({ kind }: { kind: InsuranceKind }) {
           </tbody>
         </table>
       </div>
-      {wpOpen && <WorkplaceModal onClose={() => { setWpOpen(false); loadWorkplaces() }}
-                                 onPick={(w) => { setForm((p) => ({ ...p, workplaceId: String(w.id) })); setWpOpen(false); loadWorkplaces() }} />}
+      {wpOpen && <WorkplaceModal startNew onClose={() => { setWpOpen(false); loadWorkplaces() }} />}
     </EcListShell>
   )
 }

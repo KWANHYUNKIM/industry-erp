@@ -124,7 +124,7 @@ export default function InsuranceReportListPage() {
         </EcCond>
       </ul>
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="ec-list-grid">
+        <table ref={tableRef} className="ec-report-head400 [&_td]:whitespace-nowrap">
           <thead>
             <tr>
               <th rowSpan={2} className="w-[25px]">
