@@ -100,7 +100,8 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
      그 분개의 거래처는 수표계좌라 수표의 거래처를 찍지 않는다. */
   const byVoucher = (c: BankCheck) => flow === '감소' && !!c.settledByVoucher
   const partnerOf = (c: BankCheck) => (byVoucher(c) ? null : c.partnerId)
-  const kindOf = (c: BankCheck) => (byVoucher(c) ? (received ? '입금보고서' : '지출결의서')
+  /* 채권감소 [입금보고서작성] 수금형태 '수표'(채무감소 지급형태 '수표')로 늘어난 수표 — 증가도 거래유형 '입금보고서' · '지출결의서'(2026-10-14 실측). */
+  const kindOf = (c: BankCheck) => (byVoucher(c) || (flow === '증가' && c.issuedByVoucher) ? (received ? '입금보고서' : '지출결의서')
     : c.directEntry ? (flow === '증가' ? '수표만증가' : '수표만감소')
     : flow === '증가' ? (received ? '수령' : '발행') : c.statusName)
   const shown = useMemo(() => checks
@@ -192,7 +193,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
         <EcCond label="거래유형">
           <select className="ec-input" value={kind} onChange={(e) => setKind(e.target.value)} style={{ width: 120 }}>
             <option value="">전체</option>
-            {(flow === '증가' ? [received ? '수령' : '발행', '수표만증가'] : received ? ['입금완료', '부도', '수표만감소', '입금보고서'] : ['결제완료', '수표만감소', '지출결의서']).map((k) => <option key={k} value={k}>{k}</option>)}
+            {(flow === '증가' ? [received ? '수령' : '발행', '수표만증가', received ? '입금보고서' : '지출결의서'] : received ? ['입금완료', '부도', '수표만감소', '입금보고서'] : ['결제완료', '수표만감소', '지출결의서']).map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </EcCond>
         <EcCond label="최초작성자" pick>

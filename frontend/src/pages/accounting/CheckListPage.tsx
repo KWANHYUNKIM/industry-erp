@@ -104,7 +104,10 @@ export default function CheckListPage({ type }: { type: CheckType }) {
 
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
   /* 수령수표입금처리 [입금보고서작성] 으로 줄인 감소 줄은 거래유형 '입금보고서'(2026-10-13 실측) — 체크칸이 막히고 입금보고서를 지우면 사라진다. */
-  const byVoucher = (m: Move) => !m.inc && !!m.c.settledByVoucher
+  const byVoucher = (m: Move) => (m.inc ? !!m.c.issuedByVoucher : !!m.c.settledByVoucher)
+  /* 채권감소 [입금보고서작성] 수금형태 '수표'(채무감소 지급형태 '수표')로 늘어난 증가 줄도 거래유형 '입금보고서' · '지출결의서', 체크칸 막힘 —
+     감소 줄과 달리 거래처명은 채권(채무)의 거래처가 찍히고 [일자-No.] · [회계전표일자-No.] 둘 다 그 전표(수정)를 연다(2026-10-14 실측). */
+  const voucherJournal = (m: Move) => (m.inc ? m.c.issueJournalId : m.c.settleJournalId) ?? null
   /* 발행수표출금처리 [지출결의서작성] 으로 줄인 감소 줄은 '지출결의서'. 입금 · 출금처리 감소 줄은 둘 다 거래처명 빈칸(2026-10-14 실측 — 그 분개의 거래처는 수표계좌다). */
   const kindOf = (m: Move) => (byVoucher(m) ? (received ? '입금보고서' : '지출결의서') : m.c.directEntry ? (m.inc ? '수표만증가' : '수표만감소') : m.inc ? (received ? '수령' : '발행') : m.c.statusName)
   /* 수표내역입력 전표 번호(원본 [일자] '2026/10/13 -5' 의 5) — 분개로 움직인 줄은 없다. */
@@ -118,7 +121,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
     return out
       .filter((m) => m.date >= from && m.date <= to)
       .filter((m) => (m.inc ? showInc : showDec))
-      .filter((m) => (m.c.directEntry ? direct : linked))
+      .filter((m) => (m.c.directEntry && !m.c.issuedByVoucher ? direct : linked))
       .filter((m) => !checkNo || m.c.checkNo.includes(checkNo))
       .filter((m) => !kind || kindOf(m) === kind)
       .filter((m) => !partner || String(m.c.partnerId) === partner)
@@ -279,19 +282,21 @@ export default function CheckListPage({ type }: { type: CheckType }) {
                 <td>
                   {entryNo(m) != null && !byVoucher(m)
                     ? <a href="#" onClick={(e) => { e.preventDefault(); openVoucher(m) }}>{dateText(m.date)} -{entryNo(m)}</a>
-                    : entryNo(m) != null ? `${dateText(m.date)} -${entryNo(m)}` : dateText(m.date)}
+                    : entryNo(m) != null && m.inc && byVoucher(m) && voucherJournal(m) != null
+                      ? <a href="#" onClick={(e) => { e.preventDefault(); navigate(`/accounting/vouchers?journal=${voucherJournal(m)}`) }}>{dateText(m.date)} -{entryNo(m)}</a>
+                      : entryNo(m) != null ? `${dateText(m.date)} -${entryNo(m)}` : dateText(m.date)}
                 </td>
                 <td>{m.c.checkNo}</td>
                 <td>{m.inc ? '증가' : '감소'}</td>
-                <td>{byVoucher(m) ? '' : m.c.partnerName ?? ''}</td>
+                <td>{byVoucher(m) && !m.inc ? '' : m.c.partnerName ?? ''}</td>
                 <td className="text-right">{won(Number(m.c.amount))}</td>
                 <td>{m.c.remark ?? ''}</td>
                 {!received && <td className="text-ec-navy">인쇄</td>}
                 <td>{kindOf(m)}</td>
                 {/* 원본 '2026/10/13 -12' — 우리 GL 번호의 끝 일련번호만 */}
                 {/* 입금보고서 · 지출결의서로 줄인 감소 줄은 원본처럼 그 전표(수정) 창을 연다 */}
-                <td>{no && byVoucher(m) && m.c.settleJournalId != null
-                  ? <a href="#" onClick={(e) => { e.preventDefault(); navigate(`/accounting/vouchers?journal=${m.c.settleJournalId}`) }}>{dateNo(m.date, no)}</a>
+                <td>{no && byVoucher(m) && voucherJournal(m) != null
+                  ? <a href="#" onClick={(e) => { e.preventDefault(); navigate(`/accounting/vouchers?journal=${voucherJournal(m)}`) }}>{dateNo(m.date, no)}</a>
                   : no ? dateNo(m.date, no) : ''}</td>
               </tr>
             )
