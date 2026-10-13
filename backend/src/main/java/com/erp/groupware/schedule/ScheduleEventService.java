@@ -22,10 +22,63 @@ public class ScheduleEventService {
     /** 일자 오름차순, 그다음 시간/ID 순. */
     @Transactional(readOnly = true)
     public List<ScheduleEventResponse> findAll() {
+        return findAll(null);
+    }
+
+    /**
+     * 보는 사람이 볼 수 있는 일정만(원본 [권한] 게시글권한 · [캘린더]). viewer 가 null 이면 전부(내부 호출).
+     */
+    @Transactional(readOnly = true)
+    public List<ScheduleEventResponse> findAll(Viewer viewer) {
         return scheduleEventRepository.findAll(
                         Sort.by(Sort.Order.asc("eventDate"), Sort.Order.asc("startTime"), Sort.Order.asc("id"))).stream()
+                .filter(e -> viewer == null || canView(e, viewer))
                 .map(ScheduleEventResponse::from)
                 .toList();
+    }
+
+    /** 일정을 보는 사람 — 로그인 ID · 이름(참석자 · 공유자 칸은 이름으로 적힌다) · 관리자 여부. */
+    public record Viewer(String username, String name, boolean admin) {}
+
+    private static boolean listed(String names, Viewer v) {
+        if (names == null || names.isBlank()) return false;
+        for (String n : names.split(",")) {
+            String t = n.trim();
+            if (t.isEmpty()) continue;
+            if (t.equals(v.name()) || t.equals(v.username())) return true;
+        }
+        return false;
+    }
+
+    private static boolean isCreator(ScheduleEvent e, Viewer v) {
+        return e.getCreatedBy() != null && e.getCreatedBy().equals(v.username());
+    }
+
+    private static boolean isSharer(ScheduleEvent e, Viewer v) {
+        return "전체".equals(e.getSharers() != null ? e.getSharers().trim() : null) || listed(e.getSharers(), v);
+    }
+
+    /**
+     * 원본 [캘린더] · [권한] 게시글권한(2026-10-13 실측 표: 참석자 · 공유자는 조회가 늘 켜져 있고, 이외사용자 조회는 기본 끔).
+     * 개인일정캘린더(shared=false)는 만든 사람만 본다. 만든 사람이 없는 옛 일정은 그대로 모두가 본다.
+     */
+    static boolean canView(ScheduleEvent e, Viewer v) {
+        if (isCreator(e, v)) return true;
+        if (!e.isShared()) return false;
+        if (e.getCreatedBy() == null || v.admin()) return true;
+        return listed(e.getAttendees(), v) || isSharer(e, v) || e.isPermOthersView();
+    }
+
+    /** 원본 게시글권한의 [수정/삭제] — 만든 사람, 켜져 있으면 참석자 · 공유자. */
+    static boolean canEdit(ScheduleEvent e, Viewer v) {
+        if (isCreator(e, v) || e.getCreatedBy() == null) return true;
+        if (!e.isShared()) return false;
+        if (v.admin()) return true;
+        return (e.isPermAttendeeEdit() && listed(e.getAttendees(), v)) || (e.isPermSharerEdit() && isSharer(e, v));
+    }
+
+    private void checkEdit(ScheduleEvent e, Viewer v) {
+        if (v != null && !canEdit(e, v)) throw ApiException.forbidden("이 일정을 수정/삭제할 권한이 없습니다.");
     }
 
     /**
@@ -75,7 +128,13 @@ public class ScheduleEventService {
      */
     @Transactional
     public ScheduleEventResponse update(Long id, UpdateScheduleEventRequest req) {
+        return update(id, req, null);
+    }
+
+    @Transactional
+    public ScheduleEventResponse update(Long id, UpdateScheduleEventRequest req, Viewer viewer) {
         ScheduleEvent target = get(id);
+        checkEdit(target, viewer);
         for (ScheduleEvent e : scopeOf(target, req.scope())) {
             if (req.eventDate() != null && e == target) e.setEventDate(req.eventDate());
             if (req.startTime() != null) e.setStartTime(req.startTime());
@@ -100,7 +159,14 @@ public class ScheduleEventService {
     /** 원본 '반복일정삭제' — ONE(이번 일정만, 기본) · FOLLOWING(향후 모든 일정) · ALL(전체 반복일정). */
     @Transactional
     public void delete(Long id, String scope) {
-        scheduleEventRepository.deleteAll(scopeOf(get(id), scope));
+        delete(id, scope, null);
+    }
+
+    @Transactional
+    public void delete(Long id, String scope, Viewer viewer) {
+        ScheduleEvent target = get(id);
+        checkEdit(target, viewer);
+        scheduleEventRepository.deleteAll(scopeOf(target, scope));
     }
 
     private List<ScheduleEvent> scopeOf(ScheduleEvent target, String scope) {

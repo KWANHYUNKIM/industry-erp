@@ -1,11 +1,11 @@
 {
-  "about": "일정관리(원본 E070201) 양식 고르기 차례(월간양식 · 기본(수정불가) · 일간 · 월간 · 사용자별), 월간은 칩 없이 제목만, 월간 칸의 시간 있는 일정은 캘린더 색 점(종일은 막대), 일간 · 사용자별 양식 — 오늘 10:00~11:00 시험 일정(참석자 = 첫 사용자)이 일간 'AM 10:00' 줄에만(노란 캘린더 색), 사용자별 그 사람 줄 · AM 10:00 칸에 뜬다. 줄 글은 '제목/MM/DD (요일) 10:00 ~ 11:00/장소/참석자'. 시험 일정은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/schedule-views.json",
+  "about": "일정관리(원본 E070201) 양식 고르기 차례(월간양식 · 기본(수정불가) · 일간 · 월간 · 사용자별), 월간은 칩 없이 제목만, 월간 칸의 시간 있는 일정은 캘린더 색 점(종일은 막대), 일간 · 사용자별 양식 — 오늘 10:00~11:00 시험 일정(참석자 = 첫 사용자)이 일간 'AM 10:00' 줄에만(노란 캘린더 색), 사용자별 그 사람 줄 · AM 10:00 칸에 뜬다. 줄 글은 '제목/MM/DD (요일) 10:00 ~ 11:00/장소/참석자'. 시험 일정은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/schedule-views.json / 2026-10-13: 왼쪽 캘린더 체크박스 넷(내 캘린더 [기본] 공유일정캘린더 켬 · 개인일정캘린더, 다른 캘린더 휴가확인용 · 납기일자확인용), 입력 창 [캘린더] · [라벨] 🔍 '라벨검색'.",
   "shots": [
     {
       "name": "준비",
       "path": "/groupware/schedule",
       "steps": [
-        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const users = await (await fetch('/api/users', { headers: H })).json(); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const e = await (await fetch('/api/schedule-events', { method: 'POST', headers: H, body: JSON.stringify({ eventDate: day, startTime: '10:00', endTime: '11:00', title: 'QA그룹웨어-일간', category: '회의', location: 'QA실', attendees: users[0].name }) })).json(); sessionStorage.setItem('qaEv', JSON.stringify([e.id, users[0].name])); return e.id + ' ' + users[0].name })()"
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const users = await (await fetch('/api/users', { headers: H })).json(); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const e = await (await fetch('/api/schedule-events', { method: 'POST', headers: H, body: JSON.stringify({ eventDate: day, startTime: '10:00', endTime: '11:00', title: 'QA그룹웨어-일간', category: '회의', labelText: '회의', location: 'QA실', attendees: users[0].name }) })).json(); sessionStorage.setItem('qaEv', JSON.stringify([e.id, users[0].name])); return e.id + ' ' + users[0].name })()"
       ]
     },
     {
@@ -33,6 +33,23 @@
       "path": "/groupware/schedule",
       "steps": [
         "js:fetch('/api/schedule-events/' + JSON.parse(sessionStorage.getItem('qaEv'))[0], { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => 'del ' + r.status)"
+      ]
+    },
+    {
+      "name": "캘린더 체크박스 · 입력 창 캘린더 · 라벨검색",
+      "path": "/groupware/schedule",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('input[type=checkbox][aria-label]')].map((i) => i.getAttribute('aria-label') + (i.checked ? '+' : '-')).filter((t) => t.includes('캘린더')).join('|') === '[기본] 공유일정캘린더+|개인일정캘린더-|휴가확인용 캘린더-|납기일자확인용 캘린더-'",
+        "js:document.querySelector('input[aria-label=\"납기일자확인용 캘린더\"]').click(); true",
+        "wait:1200",
+        "js:document.querySelector('input[aria-label=\"납기일자확인용 캘린더\"]').click(); true",
+        "click:신규(F2)",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog] select[aria-label=\"캘린더\"] option')].map((o) => o.textContent).join('|') === '[기본] 공유일정캘린더|개인일정캘린더'",
+        "js:document.querySelector('[role=dialog] button[aria-label=\"라벨검색\"]').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((x) => x.getAttribute('aria-label') === '라벨검색')"
       ]
     }
   ]

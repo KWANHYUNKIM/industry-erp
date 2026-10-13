@@ -33,7 +33,12 @@ function StopMenu({ disabled, onPick }: { disabled?: boolean; onPick: (a: 'stop'
  * 비우고 저장하면 문구 없이 빈 칸만 빨갛다. 저장하면 목록으로 돌아온다. 수정 창에서는 코드가 막히고
  * [사용중단/재사용 ▲] 이 붙는다 — [삭제]는 묻지 않고 지운다.
  */
-export default function LabelMasterModal({ board, onClose }: { board: string; onClose: () => void }) {
+export default function LabelMasterModal({ board, onClose, endpoint = '/work-post-labels', title = '라벨조회' }: {
+  board: string; onClose: () => void
+  /** 라벨 마스터 API — 일정관리는 '/schedule-labels'(원본 '라벨검색' 창). */
+  endpoint?: string
+  title?: string
+}) {
   const [labels, setLabels] = useState<BoardLabel[]>([])
   const [keyword, setKeyword] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
@@ -44,7 +49,7 @@ export default function LabelMasterModal({ board, onClose }: { board: string; on
   const [paletteOpen, setPaletteOpen] = useState(false)
 
   async function load() {
-    try { setLabels(await fetchLabels(board)) } catch (err) { setError(extractErrorMessage(err)) }
+    try { setLabels(endpoint === '/work-post-labels' ? await fetchLabels(board) : (await api.get<BoardLabel[]>(endpoint)).data) } catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { void load() /* eslint-disable-next-line */ }, [board])
 
@@ -58,8 +63,8 @@ export default function LabelMasterModal({ board, onClose }: { board: string; on
     if (!edit.code.trim() || !edit.name.trim()) return setInvalid(true)
     try {
       const body = { board, code: edit.code.trim(), name: edit.name.trim(), color: edit.color }
-      if (edit.id == null) await api.post('/work-post-labels', body)
-      else await api.put(`/work-post-labels/${edit.id}`, body)
+      if (edit.id == null) await api.post(endpoint, body)
+      else await api.put(`${endpoint}/${edit.id}`, body)
       setEdit(null)
       void load()
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -69,8 +74,8 @@ export default function LabelMasterModal({ board, onClose }: { board: string; on
     setError('')
     try {
       for (const id of ids) {
-        if (a === 'delete') await api.delete(`/work-post-labels/${id}`)
-        else await api.patch(`/work-post-labels/${id}/active`, null, { params: { active: a === 'reuse' } })
+        if (a === 'delete') await api.delete(`${endpoint}/${id}`)
+        else await api.patch(`${endpoint}/${id}/active`, null, { params: { active: a === 'reuse' } })
       }
       setChecked(new Set())
       setEdit(null)
@@ -82,9 +87,9 @@ export default function LabelMasterModal({ board, onClose }: { board: string; on
 
   return (
     <>
-      <Modal open title="라벨조회" width={760} error={edit ? null : error} onClose={onClose}>
+      <Modal open title={title} width={760} error={edit ? null : error} onClose={onClose}>
         <div className="flex items-center mb-[8px]">
-          <span className="text-[14px] font-bold">라벨조회</span>
+          <span className="text-[14px] font-bold">{title}</span>
           <div className="ml-auto flex gap-[4px]">
             <input className="ec-input w-[110px]" placeholder="입력 후 [Enter]" aria-label="라벨 검색" value={keyword}
                    onChange={(e) => setKeyword(e.target.value)} />

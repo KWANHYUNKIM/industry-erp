@@ -6,7 +6,6 @@ import Modal from '../../components/Modal'
 import EcMonthCalendar from '../../components/EcMonthCalendar'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
-import { isMyEvent } from '../../utils/myCalendar'
 import { useShortcut } from '../../utils/useShortcut'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
@@ -14,6 +13,8 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { defaultRepeat, repeatSummary, type RepeatRule } from '../../utils/scheduleRepeat'
 import RepeatModal from '../../features/schedule/components/RepeatModal'
 import RepeatScopeModal, { type RepeatScope } from '../../features/schedule/components/RepeatScopeModal'
+import LabelMasterModal from '../../features/board/components/LabelMasterModal'
+import LabelChip from '../../features/board/components/LabelChip'
 
 interface ScheduleEvent {
   id: number
@@ -38,7 +39,29 @@ interface ScheduleEvent {
   permAttendeeEdit?: boolean
   permSharerEdit?: boolean
   permOthersView?: boolean
+  /** 원본 [캘린더] — true 면 [기본] 공유일정캘린더, false 면 개인일정캘린더(만든 사람만 본다). */
+  shared?: boolean
 }
+
+/** 원본 '라벨검색'(라벨코드 · 라벨명 · 색상) 한 줄 — 달력 칸의 칩 색. */
+interface ScheduleLabel { id: number; code: string; name: string; color: string; active: boolean }
+
+/**
+ * 원본 왼쪽 캘린더(2026-10-13 E070201 실측) — 내 캘린더: [기본] 공유일정캘린더(켬) · 개인일정캘린더,
+ * 다른 캘린더: 휴가확인용 캘린더 · 납기일자확인용 캘린더. 체크박스라 여럿을 함께 켠다. 색은 tokens.css.
+ */
+type CalKey = 'SHARED' | 'PERSONAL' | 'LEAVE' | 'DUE'
+const MY_CALS: [CalKey, string][] = [['SHARED', '[기본] 공유일정캘린더'], ['PERSONAL', '개인일정캘린더']]
+const OTHER_CALS: [CalKey, string][] = [['LEAVE', '휴가확인용 캘린더'], ['DUE', '납기일자확인용 캘린더']]
+const CAL_COLOR: Record<CalKey, string> = {
+  SHARED: 'var(--ec-bg-calendar)', PERSONAL: 'var(--ec-cal-personal)', LEAVE: 'var(--ec-cal-leave)', DUE: 'var(--ec-cal-due)',
+}
+/** 색은 캘린더마다 다르다 — 토큰 이름만 넘겨 그린다(화면 코드에 색 값을 쓰지 않는다). */
+const paint = (color: string) => (el: HTMLElement | null) => { if (el) el.style.backgroundColor = color }
+/** 다른 캘린더(휴가 · 납기)의 막대 하나 — 일정이 아니라 다른 화면의 자료다. */
+interface ExtraBar { key: string; date: string; text: string; cal: CalKey }
+interface VacationLite { id: number; empName: string; type: string; startDate: string; endDate: string | null; status?: string }
+interface OrderLite { id: number; partnerName: string; dueDate: string | null; warehouseName: string | null; lines: { lineId: number; itemName: string }[] }
 
 /*
  * 원본 [일정구분]은 고르는 목록이 아니라 글자 칸(코드도움)이다 — loginaa 회사는 주말근무 · 회의 · 회식 · 연차 · 출장 ·
@@ -62,6 +85,8 @@ type Form = {
   sharers: string; sharersAll: boolean
   /** 원본 [권한] 게시글권한 — 참석자 · 공유자 수정/삭제, 이외사용자 조회. */
   permAttendeeEdit: boolean; permSharerEdit: boolean; permOthersView: boolean
+  /** 원본 [캘린더] — 공유일정캘린더(true) · 개인일정캘린더(false). */
+  shared: boolean
 }
 
 /** 원본 [권한] '게시글권한' 을 누르면 펴지는 표(2026-10-13 실측). 조회는 참석자 · 공유자가 늘 켜져 있다. */
@@ -154,22 +179,19 @@ function defaultTimes(now = new Date()) {
  * <p>신규 폼 '일정관리등록' 의 시간은 다음 정각부터 한 시간이 기본이고, 참석자에는 나를 넣어 둔다(원본 실측).
  * [공유자](선택 / 전체) · [권한](게시글권한 표) · [반복설정](반복설정 창 → 주황 요약 글) 은 2026-10-13 원본을 재서 붙였다.
  * 반복 일정은 날마다 한 줄씩 들어가고, [수정] · [삭제] 는 먼저 '반복일정삭제' 창(이번 일정만 · 향후 모든 일정 · 전체 반복일정)을 띄운다.
- * 원본 [일정알림] 은 데모에서 '데모에서는 해당 기능이 제한되어 있습니다.' 만 떠 재지 못했다 — 두지 않는다. [캘린더] 고르기도 아직 없다.
+ * 원본 [일정알림] 은 데모에서 '데모에서는 해당 기능이 제한되어 있습니다.' 만 떠 재지 못했다 — 두지 않는다.
  *
  * <p>기본 양식 목록 컬럼은 (선택칸 25) 일자(요일) 100 · 시작시간 55 · 종료시간 55 · 참석자성명 160 · 제목 300 · 장소 170 이다.
  *
- * <p>원본 왼쪽에는 <b>캘린더 고르기</b>가 있다: 내 캘린더 · [기본] 공유일정캘린더 · 다른 캘린더.
- * 일정의 <b>만든 사람(createdBy)</b>으로 가른다. 개인/공개 구분은 우리 자료에 없으므로
- * [공유일정캘린더]는 <b>전체</b>다 — 없는 구분을 지어내지 않는다.
+ * <p><b>2026-10-13 캘린더 · 라벨 · 권한.</b> 왼쪽은 체크박스 넷 — 내 캘린더([기본] 공유일정캘린더 · 개인일정캘린더),
+ * 다른 캘린더(휴가확인용 = 휴가 '사원/휴가종류', 납기일자확인용 = 주문서 '[거래처] 품목 창고'). 입력 창의 [캘린더]는
+ * 내 캘린더 둘 중 하나(개인일정은 만든 사람만 본다). 달력 칸의 둥근 칩은 일정구분이 아니라 <b>라벨</b>이다 —
+ * '라벨검색'(라벨코드 · 라벨명 · 색상)에서 고른 색. [권한] 게시글권한은 서버가 보기를 거르고 수정/삭제를 막는다.
  */
-/** 원본 왼쪽 캘린더 목록. '다른 캘린더' 는 사람을 골라 그 사람 일정만 본다. */
 interface UserRow { id: number; name: string }
 
-const CALENDARS = ['내 캘린더', '[기본] 공유일정캘린더', '다른 캘린더'] as const
-type Calendar = typeof CALENDARS[number]
-
 export default function SchedulePage() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [view, setView] = useState<View>('월간양식')
   /** 달력 칸을 쓰는 두 양식 — 월간양식은 일정구분 칩을 붙이고, 월간은 붙이지 않는다(2026-10-03 실측). */
   const isMonth = view === '월간양식' || view === '월간'
@@ -178,8 +200,11 @@ export default function SchedulePage() {
   /** 일간 · 사용자별 이 보는 날. */
   const [day, setDay] = useState(() => ymd(new Date()))
   const [users, setUsers] = useState<UserRow[]>([])
-  const [calendar, setCalendar] = useState<Calendar>('[기본] 공유일정캘린더')
-  const [otherOwner, setOtherOwner] = useState('')
+  /** 켜 둔 캘린더 — 원본 첫 화면은 [기본] 공유일정캘린더만 켜져 있다. */
+  const [cals, setCals] = useState<Set<CalKey>>(() => new Set<CalKey>(['SHARED']))
+  const [labels, setLabels] = useState<ScheduleLabel[]>([])
+  const [showLabels, setShowLabels] = useState(false)
+  const [extras, setExtras] = useState<ExtraBar[]>([])
   const [rows, setRows] = useState<ScheduleEvent[]>([])
   const [error, setError] = useState('')
   /** 입력 창. editId 가 있으면 고치는 중. */
@@ -208,6 +233,7 @@ export default function SchedulePage() {
     eventDate: date, ...defaultTimes(), title: '', category: '', owner: '',
     location: '', labelText: '', attendees: user?.name ?? '', remark: '',
     sharers: '', sharersAll: false, permAttendeeEdit: true, permSharerEdit: true, permOthersView: false,
+    shared: true,
   })
   /** 신규 창의 [반복설정] — 적용하면 주황 요약 글이 그 자리에 선다. 고칠 때는 일정에 적힌 요약 글만 보인다. */
   const [repeat, setRepeat] = useState<RepeatRule | null>(null)
@@ -224,6 +250,33 @@ export default function SchedulePage() {
     catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { void load() }, [])
+  const loadLabels = () => api.get<ScheduleLabel[]>('/schedule-labels').then((r) => setLabels(r.data)).catch(() => {})
+  useEffect(() => { void loadLabels() }, [])
+  const labelColor = (name: string | null) => labels.find((l) => l.name === name)?.color ?? null
+
+  /**
+   * 다른 캘린더 — 휴가확인용은 휴가(근태)를 '사원/휴가종류' 로 시작일~종료일 날마다(원본 '신문섭/예비군' 사흘),
+   * 납기일자확인용은 주문서 줄을 '[거래처] 품목 창고' 로 납기일자에(원본 '[(주)진로어패럴] 울트라 스킨 본사창고').
+   */
+  useEffect(() => {
+    const out: ExtraBar[] = []
+    const jobs: Promise<unknown>[] = []
+    if (cals.has('LEAVE')) jobs.push(api.get<VacationLite[]>('/hr/vacations', { params: { year: month.getFullYear() } }).then((r) => {
+      for (const v of r.data) {
+        const end = v.endDate ?? v.startDate
+        for (let d = new Date(v.startDate); ymd(d) <= end; d.setDate(d.getDate() + 1)) {
+          out.push({ key: `L${v.id}-${ymd(d)}`, date: ymd(d), text: `${v.empName}/${v.type}`, cal: 'LEAVE' })
+        }
+      }
+    }))
+    if (cals.has('DUE')) jobs.push(api.get<OrderLite[]>('/sales-orders').then((r) => {
+      for (const o of r.data) {
+        if (!o.dueDate) continue
+        for (const l of o.lines) out.push({ key: `D${l.lineId}`, date: o.dueDate, text: `[${o.partnerName}] ${l.itemName} ${o.warehouseName ?? ''}`.trim(), cal: 'DUE' })
+      }
+    }))
+    Promise.all(jobs).then(() => setExtras(out)).catch((err) => setError(extractErrorMessage(err)))
+  }, [cals, month])
   useEffect(() => { api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
 
   function openNew(date?: string) {
@@ -248,6 +301,7 @@ export default function SchedulePage() {
       labelText: r.labelText ?? '', attendees: r.attendees ?? '', remark: r.remark ?? '',
       sharers: r.sharers === '전체' ? '' : (r.sharers ?? ''), sharersAll: r.sharers === '전체',
       permAttendeeEdit: r.permAttendeeEdit ?? true, permSharerEdit: r.permSharerEdit ?? true, permOthersView: r.permOthersView ?? false,
+      shared: r.shared !== false,
     })
     setError('')
     setShowForm(true)
@@ -345,17 +399,23 @@ export default function SchedulePage() {
   const toggle = (id: number) =>
     setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
-  /** 규칙은 utils/myCalendar 에 있다 — 조용히 좁아지기 쉬운 자리라 단위시험을 붙였다. */
-  const isMine = (r: ScheduleEvent) =>
-    isMyEvent(r, { name: user?.name, username: user?.username })
-
-  /** 만든 사람 목록 — [다른 캘린더] 에서 고른다. */
-  const owners = [...new Set(rows.map((r) => (r.createdBy ?? '').trim()).filter(Boolean))].sort()
+  /**
+   * 원본 [권한] 게시글권한의 수정/삭제 — 만든 사람, 켜져 있으면 참석자 · 공유자(서버도 같은 규칙으로 막는다).
+   * 볼 수 없는 일정은 서버가 아예 내려 보내지 않는다.
+   */
+  const names = (s: string | null | undefined) => (s ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  const me = (n: string) => n === user?.name || n === user?.username
+  const canEdit = (r: ScheduleEvent) => {
+    if (!r.createdBy || r.createdBy === user?.username) return true
+    if (r.shared === false) return false
+    if (isAdmin) return true
+    return (r.permAttendeeEdit !== false && names(r.attendees).some(me))
+      || (r.permSharerEdit !== false && ((r.sharers ?? '').trim() === '전체' || names(r.sharers).some(me)))
+  }
 
   /** 캘린더 고르기와 검색창 — 두 양식이 같이 쓴다. */
   const inCalendar = rows
-    .filter((r) => calendar === '[기본] 공유일정캘린더'
-      || (calendar === '내 캘린더' ? isMine(r) : !otherOwner || (r.createdBy ?? '') === otherOwner))
+    .filter((r) => cals.has(r.shared === false ? 'PERSONAL' : 'SHARED'))
     .filter((r) => !keyword
       || r.title.includes(keyword)
       || (r.owner ?? '').includes(keyword)
@@ -421,7 +481,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
   const eventLine = (r: ScheduleEvent) => (
     <button key={r.id} type="button" title={lineText(r)} onClick={() => setViewing(r)}
             className="no-ec flex items-center gap-[4px] w-full bg-transparent border-0 p-0 cursor-pointer text-left text-ec-ink">
-      {r.category && <span className="ec-label-chip">{r.category}</span>}
+      {r.labelText && <LabelChip name={r.labelText} color={labelColor(r.labelText)} />}
       <span className="truncate">{lineText(r)}</span>
     </button>
   )
@@ -434,22 +494,20 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
     </div>
   )
 
+  const calRow = ([k, label]: [CalKey, string]) => (
+    <label key={k} className="inline-flex items-center gap-[6px] text-[12px] cursor-pointer">
+      <input type="checkbox" checked={cals.has(k)} aria-label={label}
+             onChange={() => setCals((c) => { const n = new Set(c); if (n.has(k)) n.delete(k); else n.add(k); return n })} />
+      <span className="inline-block w-[12px] h-[12px] rounded-[3px]" ref={paint(CAL_COLOR[k])} />
+      {label}
+    </label>
+  )
   const calendarPicker = (
     <div className="flex flex-col gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
-      <span className="text-[12px] text-ec-navy">▾ 캘린더</span>
-      {CALENDARS.map((c) => (
-        <label key={c} className="inline-flex items-center gap-[6px] text-[12px] cursor-pointer">
-          <input type="radio" name="calendar" checked={calendar === c} onChange={() => setCalendar(c)} />
-          {c}
-        </label>
-      ))}
-      {calendar === '다른 캘린더' && (
-        <select className="ec-input" value={otherOwner} onChange={(e) => setOtherOwner(e.target.value)}>
-          <option value="">전체</option>
-          {owners.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      )}
-      <span className="text-[11px] text-ec-hint">내 캘린더는 내가 만들었거나 담당·참석자에 내가 있는 일정입니다.</span>
+      <span className="text-[12px] text-ec-navy">▾ 내 캘린더</span>
+      {MY_CALS.map(calRow)}
+      <span className="text-[12px] text-ec-navy mt-[6px]">▾ 다른 캘린더</span>
+      {OTHER_CALS.map(calRow)}
     </div>
   )
 
@@ -499,8 +557,13 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
             </div>
           </li>
           <li>
-            <div className="title">담당</div>
-            <div className="form"><input className="ec-input w-full" value={form.owner} onChange={(e) => set('owner', e.target.value)} /></div>
+            <div className="title">캘린더</div>
+            <div className="form">
+              <select className="ec-input w-full" aria-label="캘린더" value={form.shared ? 'SHARED' : 'PERSONAL'}
+                      onChange={(e) => set('shared', e.target.value === 'SHARED')}>
+                {MY_CALS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </div>
           </li>
           <li>
             <div className="title">장소</div>
@@ -509,8 +572,15 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
           </li>
           <li>
             <div className="title">라벨</div>
-            <div className="form"><input className="ec-input w-full" placeholder="라벨" value={form.labelText}
-                                         onChange={(e) => set('labelText', e.target.value)} /></div>
+            <div className="form flex gap-[4px]">
+              {/* 원본 [라벨] 🔍 → '라벨검색'(라벨코드 · 라벨명 · 색상) — 고른 라벨이 달력 칸의 칩이 된다. */}
+              <button type="button" className="ec-btn" aria-label="라벨검색" onClick={() => setShowLabels(true)}>🔍</button>
+              <input className="ec-input w-full" placeholder="라벨" list="schedule-labels" value={form.labelText}
+                     onChange={(e) => set('labelText', e.target.value)} />
+              <datalist id="schedule-labels">
+                {labels.filter((l) => l.active).map((l) => <option key={l.id} value={l.name} />)}
+              </datalist>
+            </div>
           </li>
           <li className="wide">
             <div className="title">날짜/시간</div>
@@ -608,11 +678,11 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
               {viewing.remark ?? ''}
             </div>
             <div className="flex gap-[6px] mt-[10px]">
-              <button className="ec-btn ec-btn-primary" onClick={() => askEdit(viewing)}>수정</button>
+              {canEdit(viewing) && <button className="ec-btn ec-btn-primary" onClick={() => askEdit(viewing)}>수정</button>}
               <button className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
               <button className="ec-btn" onClick={() => copyOf(viewing)}>복사</button>
               <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
-              <button className="ec-btn" onClick={() => askRemove(viewing)}>삭제</button>
+              {canEdit(viewing) && <button className="ec-btn" onClick={() => askRemove(viewing)}>삭제</button>}
             </div>
           </>
         )}
@@ -679,9 +749,13 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                                         className={`no-ec flex items-center w-full border-0 py-[3.6px] px-[0.9px] cursor-pointer text-left text-ec-ink ${r.startTime ? 'bg-transparent' : 'bg-ec-calendar'}`}>
                                   {/* 원본: 시간 없는(종일) 일정은 캘린더 색 막대, 시간 있는 일정은 그 색 점(7.19 동그라미) */}
                                   {r.startTime && <span className="inline-block shrink-0 w-[7.1875px] h-[7.1875px] mr-[4.5px] rounded-full bg-ec-calendar" />}
-                                  {view === '월간양식' && r.category && <span className="ec-label-chip mr-[4.5px]">{r.category}</span>}
+                                  {view === '월간양식' && r.labelText && <LabelChip name={r.labelText} color={labelColor(r.labelText)} className="mr-[4.5px]" />}
                                   <b className="truncate">{r.title}</b>
                                 </button>
+                              ))}
+                              {extras.filter((x) => x.date === key).map((x) => (
+                                <div key={x.key} title={x.text} ref={paint(CAL_COLOR[x.cal])}
+                                     className="truncate w-full py-[3.6px] px-[0.9px] text-ec-ink">{x.text}</div>
                               ))}
                             </>
                           )}
@@ -828,6 +902,8 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
           </div>
         </div>
       )}
+      {showLabels && <LabelMasterModal board="SCHEDULE" endpoint="/schedule-labels" title="라벨검색"
+                                       onClose={() => { setShowLabels(false); void loadLabels() }} />}
     </EcListShell>
   )
 }

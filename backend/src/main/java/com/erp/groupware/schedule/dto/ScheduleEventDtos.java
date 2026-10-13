@@ -127,4 +127,17 @@ public final class ScheduleEventDtos {
                     e.isPermAttendeeEdit(), e.isPermSharerEdit(), e.isPermOthersView());
         }
     }
+
+    /** 원본 '라벨검색' 의 등록 · 수정 — 라벨코드(수정에선 안 씀) · 라벨명 · 색상('#ff0000'). */
+    public record SaveScheduleLabelRequest(
+            @jakarta.validation.constraints.Size(max = 20, message = "라벨코드는 20자까지 넣을 수 있습니다.") String code,
+            @jakarta.validation.constraints.Size(max = 20, message = "라벨명은 20자까지 넣을 수 있습니다.") String name,
+            @jakarta.validation.constraints.Size(max = 7, message = "색상을 다시 고르세요.") String color
+    ) {}
+
+    public record ScheduleLabelResponse(Long id, String code, String name, String color, boolean active) {
+        public static ScheduleLabelResponse from(com.erp.groupware.schedule.ScheduleLabel l) {
+            return new ScheduleLabelResponse(l.getId(), l.getCode(), l.getName(), l.getColor(), l.isActive());
+        }
+    }
 }

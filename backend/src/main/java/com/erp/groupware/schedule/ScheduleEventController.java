@@ -20,9 +20,13 @@ public class ScheduleEventController {
 
     private final ScheduleEventService scheduleEventService;
 
+    private static ScheduleEventService.Viewer viewer(UserPrincipal p) {
+        return p == null ? null : new ScheduleEventService.Viewer(p.getUsername(), p.getName(), p.isAdmin());
+    }
+
     @GetMapping
-    public List<ScheduleEventResponse> list() {
-        return scheduleEventService.findAll();
+    public List<ScheduleEventResponse> list(@AuthenticationPrincipal UserPrincipal principal) {
+        return scheduleEventService.findAll(viewer(principal));
     }
 
     @PostMapping
@@ -33,13 +37,15 @@ public class ScheduleEventController {
     }
 
     @PatchMapping("/{id}")
-    public ScheduleEventResponse update(@PathVariable Long id, @Valid @RequestBody UpdateScheduleEventRequest req) {
-        return scheduleEventService.update(id, req);
+    public ScheduleEventResponse update(@PathVariable Long id, @Valid @RequestBody UpdateScheduleEventRequest req,
+                                        @AuthenticationPrincipal UserPrincipal principal) {
+        return scheduleEventService.update(id, req, viewer(principal));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id, @RequestParam(required = false) String scope) {
-        scheduleEventService.delete(id, scope);
+    public ResponseEntity<Void> delete(@PathVariable Long id, @RequestParam(required = false) String scope,
+                                       @AuthenticationPrincipal UserPrincipal principal) {
+        scheduleEventService.delete(id, scope, viewer(principal));
         return ResponseEntity.noContent().build();
     }
 }
