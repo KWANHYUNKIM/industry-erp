@@ -34,6 +34,13 @@ public class QcTypeService {
     private final QcCheckItemDetailRepository detailRepository;
     // 품목은 재고 모듈의 공개 service 로 읽는다 — CLAUDE.md 4.2
     private final ItemService itemService;
+    /* [H] '이력' — 수정 창마다 마지막으로 고친 때 한 줄(2026-10-14 원본: '2026/10/14 오전 5:26:39 [GUEST]').
+       사용중단 · 재사용은 그 줄을 바꾸지 않았다(사용중단 뒤 다시 열어도 만든 때) — 그래서 저장 · 신규만 적는다. */
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+    public static final String HISTORY_TYPE = "QC_TYPE";
+    public static final String HISTORY_TYPE_SLOT = "QC_TYPE_SLOT";
+    public static final String HISTORY_CHECK_ITEM = "QC_CHECK_ITEM";
+    public static final String HISTORY_DETAIL = "QC_CHECK_ITEM_DETAIL";
 
     /* ───────────── 검사유형 ───────────── */
 
@@ -52,6 +59,7 @@ public class QcTypeService {
             throw ApiException.conflict("이미 등록된 코드입니다."); // 원본 문구(2026-10-14 E040632 실측)
         }
         QcType t = typeRepository.save(QcType.builder().code(code).name(req.name().trim()).build());
+        changeHistory.record(HISTORY_TYPE, t.getId(), com.erp.common.history.ChangeHistoryService.CREATED);
         return new TypeResponse(t.getId(), t.getCode(), t.getName(), true, false, false);
     }
 
@@ -59,6 +67,7 @@ public class QcTypeService {
     public TypeResponse updateType(Long id, UpdateTypeRequest req) {
         QcType t = getType(id);
         t.setName(req.name().trim());
+        changeHistory.record(HISTORY_TYPE, id, com.erp.common.history.ChangeHistoryService.UPDATED);
         return new TypeResponse(t.getId(), t.getCode(), t.getName(), t.isActive(),
                 !t.getCheckSlots().isEmpty(), !t.getItemIds().isEmpty());
     }
@@ -122,6 +131,7 @@ public class QcTypeService {
         }
         t.getCheckSlots().clear();
         t.getCheckSlots().addAll(next);
+        changeHistory.record(HISTORY_TYPE_SLOT, typeId, com.erp.common.history.ChangeHistoryService.UPDATED);
         return findSlots(typeId);
     }
 
@@ -231,6 +241,7 @@ public class QcTypeService {
         }
         QcCheckItem c = checkItemRepository.save(QcCheckItem.builder()
                 .code(code).name(req.name().trim()).format(req.format()).required(req.required()).build());
+        changeHistory.record(HISTORY_CHECK_ITEM, c.getId(), com.erp.common.history.ChangeHistoryService.CREATED);
         return toResponse(c);
     }
 
@@ -249,6 +260,7 @@ public class QcTypeService {
         c.setName(req.name().trim());
         c.setFormat(req.format());
         c.setRequired(req.required());
+        changeHistory.record(HISTORY_CHECK_ITEM, id, com.erp.common.history.ChangeHistoryService.UPDATED);
         return toResponse(c);
     }
 
@@ -310,6 +322,7 @@ public class QcTypeService {
         }
         QcCheckItemDetail d = detailRepository.save(QcCheckItemDetail.builder()
                 .checkItem(c).code(code).name(req.name().trim()).build());
+        changeHistory.record(HISTORY_DETAIL, d.getId(), com.erp.common.history.ChangeHistoryService.CREATED);
         return new DetailResponse(d.getId(), d.getCode(), d.getName(), d.isActive());
     }
 
@@ -317,6 +330,7 @@ public class QcTypeService {
     public DetailResponse updateDetail(Long detailId, SaveDetailRequest req) {
         QcCheckItemDetail d = getDetail(detailId);
         d.setName(req.name().trim());
+        changeHistory.record(HISTORY_DETAIL, detailId, com.erp.common.history.ChangeHistoryService.UPDATED);
         return new DetailResponse(d.getId(), d.getCode(), d.getName(), d.isActive());
     }
 
