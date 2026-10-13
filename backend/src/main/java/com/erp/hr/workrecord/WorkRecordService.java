@@ -194,8 +194,8 @@ public class WorkRecordService {
         WorkRecord first = lines.get(0);
         int more = lines.size() - 1;
         String emp = first.getEmployee().getName() + (more > 0 ? " 외 " + more + "건" : "");
-        BigDecimal qty = lines.stream().map(WorkRecord::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new SlipResponse(first.getSlipDate(), first.getSlipNo(), emp, first.getPayItem().getName(), qty,
+        // 근무조회의 [근무기록] 은 첫 줄 값이다 — 원본 E090105(2026-10-13) 2026/10/04 -1 정재원 3.00 + 변종호 6.00 → '3.00'.
+        return new SlipResponse(first.getSlipDate(), first.getSlipNo(), emp, first.getPayItem().getName(), first.getQuantity(),
                 lines.stream().map(LineResponse::from).toList());
     }
 }

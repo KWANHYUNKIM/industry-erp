@@ -14,6 +14,18 @@ interface SlipRow { slipDate: string; slipNo: number; employeeLabel: string; pay
 /** 원본 근무조회 [Search(F3)] 판의 빠른선택(2026-10-03 실측) */
 const WORK_LIST_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '전월+금월', '차월', '금년'] as const
 
+/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
+function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
+  return (
+    <label className="relative inline-flex align-middle cursor-pointer">
+      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
+
 const thisYear = () => {
   const y = new Date().getFullYear()
   return { from: `${y}-01-01`, to: `${y}-12-31` }
@@ -26,6 +38,9 @@ const thisYear = () => {
  * (여러 줄이면 '정재원 외 1건') · 수당항목 · 근무기록, 최신순. 버튼 신규(F2) · 선택삭제('삭제하시겠습니까?') · Excel.
  * [전표일자]를 누르면 근무입력이 그 전표로 열린다. 조건 판은 접혀 있고 [Search(F3)]로 편다 — 기준일자 · 사원 · 수당항목
  * (여러 개 고르는 코드도움, 전표 줄 하나라도 맞으면 보인다). 프로젝트 조건(근무 전표에 프로젝트가 없다)은 없다.
+ * 2026-10-13 다시 잼: 여러 줄 전표의 [근무기록] 은 <b>첫 줄</b> 값(2026/10/04 -1 정재원 3.00 + 변종호 6.00 → 3.00),
+ * 번호 칸(form-checkbox-numbered) · 머리 굵기 400 · 기간 '2026/01/01 ~2026/12/31'. [선택삭제] 는 고른 줄이 없어도 눌리고
+ * '리스트에 선택된 자료가 없습니다.' 알림, 고르면 '삭제하겠습니까?' → 안내 없이 줄이 사라진다.
  * 오른쪽 위 [이력] 을 누르면 '근무조회 이력조회'(features/workrecord WorkHistoryView) — 버튼줄은 Excel 만, [전체] 알약으로 돌아온다.
  */
 export default function WorkListPage() {
@@ -59,7 +74,11 @@ export default function WorkListPage() {
     (empCond.length === 0 || empCond.includes(String(l.employeeId))) && (itemCond.length === 0 || itemCond.includes(String(l.payItemId)))))
 
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm('삭제하시겠습니까?')) return
+    if (checked.size === 0) {
+      window.alert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
+      return
+    }
+    if (!window.confirm('삭제하겠습니까?')) return
     try {
       for (const r of shown.filter((x) => checked.has(keyOf(x)))) {
         await api.delete(`/work-records/${r.slipDate}/${r.slipNo}`)
@@ -79,7 +98,8 @@ export default function WorkListPage() {
       searchable={false}
       onNew={historyMode ? undefined : () => nav('/hr/work-input')}
       actions={historyMode ? [{ label: 'Excel' }] : [
-        { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
+        // 원본 E090105(2026-10-13)는 고른 줄이 없어도 눌리고 '리스트에 선택된 자료가 없습니다.' 알림 — 잠그지 않는다
+        { label: '선택삭제', onClick: deleteChecked, disabled: false },
         { label: 'Excel' },
       ]}
     >
@@ -112,13 +132,13 @@ export default function WorkListPage() {
           <EcPeriodPicks labels={WORK_LIST_PICKS} currentFrom={range.from} onPick={setRange} />
         </li>
       </ul>
-      <div className="text-right text-ec-hint mb-[4px]">{shownRange.from.replace(/-/g, '/')} ~ {shownRange.to.replace(/-/g, '/')}</div>
-      <table ref={tableRef} className="w-full text-left">
+      <div className="text-right text-ec-hint mb-[4px]">{shownRange.from.replace(/-/g, '/')} ~{shownRange.to.replace(/-/g, '/')}</div>
+      <table ref={tableRef} className="w-full text-left ec-report-head400">
         <thead>
           <tr>
             <th className="w-[34px] text-center">
-              <input type="checkbox" checked={allChecked}
-                     onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map(keyOf)))} />
+              <NumCheck no="" label="전체 선택" on={allChecked}
+                        onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map(keyOf)))} />
             </th>
             <th>전표일자</th>
             <th>사원</th>
@@ -129,11 +149,11 @@ export default function WorkListPage() {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r) => (
+          ) : shown.map((r, i) => (
             <tr key={keyOf(r)}>
               <td className="text-center">
-                <input type="checkbox" checked={checked.has(keyOf(r))}
-                       onChange={() => {
+                <NumCheck no={i + 1} label="선택" on={checked.has(keyOf(r))}
+                         onChange={() => {
                          const next = new Set(checked)
                          if (next.has(keyOf(r))) next.delete(keyOf(r)); else next.add(keyOf(r))
                          setChecked(next)
