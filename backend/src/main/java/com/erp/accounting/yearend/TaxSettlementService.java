@@ -33,6 +33,13 @@ public class TaxSettlementService {
         return repository.findByAttributionYearAndKindOrderByIdAsc(attributionYear, kind).stream().map(TaxSettlementService::toResponse).toList();
     }
 
+    /** 그 해 · 그 종류에 이미 정산이 있는 사원 — 대상자추가 창에서 뺀다. */
+    @Transactional(readOnly = true)
+    public java.util.Set<Long> employeeIds(int attributionYear, TaxSettlementKind kind) {
+        return repository.findByAttributionYearAndKindOrderByIdAsc(attributionYear, kind).stream()
+                .map(TaxSettlement::getEmployeeId).collect(java.util.stream.Collectors.toSet());
+    }
+
     @Transactional(readOnly = true)
     public SettlementResponse find(Long id) {
         return toResponse(get(id));
@@ -98,6 +105,8 @@ public class TaxSettlementService {
                 throw ApiException.badRequest(kinds.contains(TaxDeductionKind.MEDICAL) ? "구분을 입력 바랍니다." : "보험료 구분을 입력 바랍니다.");
             }
             if (!kinds.contains(r.kind())) throw ApiException.badRequest("이 창에서 넣을 수 없는 공제입니다: " + r.kind());
+            if (n(r.amount()) < 0) throw ApiException.badRequest("납입금액은 0 이상이어야 합니다.");
+            if (r.receiptCount() != null && r.receiptCount() < 0) throw ApiException.badRequest("건수는 0 이상이어야 합니다.");
             TaxSettlementDeduction d = new TaxSettlementDeduction();
             d.setSettlement(s);
             d.setLineNo(no++);
@@ -129,31 +138,7 @@ public class TaxSettlementService {
         s.setCurIncomeTax(c.incomeTax());
         s.setCurLocalTax(c.localTax());
 
-        var b = YearEndTaxCalculator.Input.builder()
-                .basicDeductionCount(s.getBasicDeductionCount())
-                .currentTax(c.incomeTax(), c.localTax());
-        long pay = c.totalPay(), pension = c.nationalPension(), health = c.healthInsurance(), employment = c.employmentInsurance();
-        long prevTax = 0, prevLocal = 0;
-        for (TaxSettlementPrevEmployer p : s.getPrevEmployers()) {
-            pay += p.taxablePay();
-            pension += p.getNationalPension() + p.getOtherPension();
-            health += p.getHealthInsurance();
-            employment += p.getEmploymentInsurance();
-            prevTax += p.getDecidedIncomeTax();
-            prevLocal += p.getDecidedLocalTax();
-        }
-        long protection = 0, disabled = 0, medSelf = 0, medOther = 0;
-        for (TaxSettlementDeduction d : s.getDeductions()) {
-            switch (d.getKind()) {
-                case PROTECTION_INSURANCE -> protection += d.getAmount();
-                case DISABLED_INSURANCE -> disabled += d.getAmount();
-                case MEDICAL -> { if (d.isUnlimited()) medSelf += d.getAmount(); else medOther += d.getAmount(); }
-            }
-        }
-        var r = YearEndTaxCalculator.calculate(b.totalPay(pay).nonTaxable(c.nonTaxable())
-                .nationalPension(pension).healthInsurance(health).employmentInsurance(employment)
-                .protectionInsurance(protection).disabledInsurance(disabled).medicalSelf(medSelf).medicalOther(medOther)
-                .prevTax(prevTax, prevLocal).build());
+        var r = compute(s);
 
         s.setTotalSalary(r.totalSalary());
         s.setEarnedIncomeDeduction(r.earnedIncomeDeduction());
@@ -175,6 +160,36 @@ public class TaxSettlementService {
         return toResponse(s);
     }
 
+    /** 저장된 입력(주현 cur_* · 종전 · 공제)으로 계산기를 돌린다 — 계산처리 때 결과 칸을, 조회 때 영수증 칸 낱낱을 낸다. */
+    private static YearEndTaxCalculator.Result compute(TaxSettlement s) {
+        var b = YearEndTaxCalculator.Input.builder()
+                .basicDeductionCount(s.getBasicDeductionCount())
+                .currentTax(s.getCurIncomeTax(), s.getCurLocalTax());
+        long pay = s.getCurTotalPay(), pension = s.getCurNationalPension(), health = s.getCurHealthInsurance(),
+                employment = s.getCurEmploymentInsurance();
+        long prevTax = 0, prevLocal = 0;
+        for (TaxSettlementPrevEmployer p : s.getPrevEmployers()) {
+            pay += p.taxablePay();
+            pension += p.getNationalPension() + p.getOtherPension();
+            health += p.getHealthInsurance();
+            employment += p.getEmploymentInsurance();
+            prevTax += p.getDecidedIncomeTax();
+            prevLocal += p.getDecidedLocalTax();
+        }
+        long protection = 0, disabled = 0, medSelf = 0, medOther = 0;
+        for (TaxSettlementDeduction d : s.getDeductions()) {
+            switch (d.getKind()) {
+                case PROTECTION_INSURANCE -> protection += d.getAmount();
+                case DISABLED_INSURANCE -> disabled += d.getAmount();
+                case MEDICAL -> { if (d.isUnlimited()) medSelf += d.getAmount(); else medOther += d.getAmount(); }
+            }
+        }
+        return YearEndTaxCalculator.calculate(b.totalPay(pay).nonTaxable(s.getCurNonTaxable())
+                .nationalPension(pension).healthInsurance(health).employmentInsurance(employment)
+                .protectionInsurance(protection).disabledInsurance(disabled).medicalSelf(medSelf).medicalOther(medOther)
+                .prevTax(prevTax, prevLocal).build());
+    }
+
     private TaxSettlement get(Long id) {
         return repository.findById(id).orElseThrow(() -> ApiException.notFound("정산 내역을 찾을 수 없습니다."));
     }
@@ -192,6 +207,7 @@ public class TaxSettlementService {
                 s.getDecidedIncomeTax(), s.getDecidedLocalTax(), s.getDecidedRuralTax(),
                 s.getPrevIncomeTax(), s.getPrevLocalTax(), s.getCurIncomeTax(), s.getCurLocalTax(),
                 s.getBalanceIncomeTax(), s.getBalanceLocalTax(),
+                s.getCalculatedAt() == null ? null : compute(s),
                 s.getPrevEmployers().stream().map(p -> new PrevEmployerResponse(p.getId(), p.getLineNo(), p.getBizNo(),
                         p.getCompanyName(), p.getPeriodFrom(), p.getPeriodTo(), p.getSalary(), p.getBonus(), p.getOtherPay(),
                         p.taxablePay(), p.getNonTaxable(), p.getReducedIncome(), p.getNationalPension(), p.getOtherPension(),

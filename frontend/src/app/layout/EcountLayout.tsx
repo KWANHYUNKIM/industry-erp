@@ -860,6 +860,9 @@ const MENU: TopMenu[] = [
             { label: '퇴사자리스트', to: '/hr/retired' },
             { label: '퇴직금계산', to: '/hr/retirement-pay' },
           ] },
+          { label: '연말정산', children: [
+            { label: '정산내역등록/수정', to: '/accounting/withholding/year-end' },
+          ] },
           { label: '간이지급명세서', to: '/accounting/simple-payment' },
           { label: '지급명세서', children: [
             { label: '소득자료제출집계표', to: '/accounting/withholding/income-submission' },

@@ -3,6 +3,7 @@ package com.erp.accounting.yearend.dto;
 import com.erp.accounting.yearend.TaxDataSource;
 import com.erp.accounting.yearend.TaxDeductionKind;
 import com.erp.accounting.yearend.TaxSettlementKind;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,7 +28,9 @@ public class TaxSettlementDtos {
                                       Long decidedIncomeTax, Long decidedLocalTax, Long decidedRuralTax) {}
 
     public record DeductionRequest(TaxDeductionKind kind, String targetName, String relation, TaxDataSource dataSource,
-                                   Boolean unlimited, Long amount, Integer receiptCount) {}
+                                   Boolean unlimited,
+                                   @PositiveOrZero(message = "납입금액은 0 이상이어야 합니다.") Long amount,
+                                   @PositiveOrZero(message = "건수는 0 이상이어야 합니다.") Integer receiptCount) {}
 
     public record PrevEmployerResponse(Long id, int lineNo, String bizNo, String companyName, LocalDate periodFrom,
                                        LocalDate periodTo, long salary, long bonus, long otherPay, long taxablePay,
@@ -37,6 +40,9 @@ public class TaxSettlementDtos {
 
     public record DeductionResponse(Long id, int lineNo, TaxDeductionKind kind, String targetName, String relation,
                                     TaxDataSource dataSource, boolean unlimited, long amount, Integer receiptCount) {}
+
+    /** 대상자추가 [적용(F8)] — 귀속연도 · 종류 · 고른 사원. */
+    public record TargetsRequest(int attributionYear, TaxSettlementKind kind, List<Long> employeeIds) {}
 
     /** 정산 한 건 — 목록 줄 + 원천징수영수증 칸. 사원 이름은 화면이 사원 목록에서 붙인다(employeeId). */
     public record SettlementResponse(
@@ -48,5 +54,7 @@ public class TaxSettlementDtos {
             long decidedIncomeTax, long decidedLocalTax, long decidedRuralTax,
             long prevIncomeTax, long prevLocalTax, long currentIncomeTax, long currentLocalTax,
             long balanceIncomeTax, long balanceLocalTax,
+            /* 원천징수영수증 칸 낱낱 — 계산처리한 뒤에만(저장된 입력으로 다시 셈). 계산 전이면 null. */
+            com.erp.accounting.yearend.YearEndTaxCalculator.Result receipt,
             List<PrevEmployerResponse> prevEmployers, List<DeductionResponse> deductions) {}
 }

@@ -4,13 +4,20 @@ import com.erp.accounting.withholding.WithholdingService;
 import com.erp.accounting.yearend.TaxSettlementService;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.CurrentPay;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.SettlementResponse;
+import com.erp.accounting.yearend.TaxSettlementKind;
 import com.erp.common.ApiException;
+import com.erp.hr.employee.EmployeeService;
+import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;
+import com.erp.hr.payroll.dto.YearEndDtos.Candidate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.text.Collator;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.Locale;
 import java.util.List;
 import java.util.Set;
 
@@ -30,6 +37,28 @@ public class YearEndPayService {
     private final PayslipRepository payslipRepository;
     private final PayrollService payrollService;
     private final TaxSettlementService taxSettlementService;
+    private final EmployeeService employeeService;
+
+    /**
+     * 대상자추가 창의 후보 — 원본(plans/세무/연말정산.md 2장 · E030114.md 2장):
+     * 연말정산 = 재직 사원(+ [퇴직자 포함] 이면 귀속연도 퇴사자), 중도정산 = 귀속연도 퇴사자. 이미 그 해 정산이 있는 사람은 뺀다.
+     * 성명 가나다 차례(원본 고준희 · 김기현 · 김동건 …). 주민번호 잠금은 넣지 않는다(우리 사원에 주민번호 칸 없음 — 사용자 결정 대기).
+     */
+    @Transactional(readOnly = true)
+    public List<Candidate> candidates(int year, TaxSettlementKind kind, boolean includeRetired) {
+        Set<Long> existing = taxSettlementService.employeeIds(year, kind);
+        Collator ko = Collator.getInstance(Locale.KOREAN);
+        return employeeService.findAllIncludingResigned().stream()
+                .filter(e -> !existing.contains(e.id()))
+                .filter(e -> {
+                    boolean retiredInYear = !e.active() && e.resignDate() != null && e.resignDate().getYear() == year;
+                    if (kind == TaxSettlementKind.MID_TERM) return retiredInYear;
+                    return e.active() || (includeRetired && retiredInYear);
+                })
+                .sorted(Comparator.comparing(EmployeeResponse::name, ko))
+                .map(e -> new Candidate(e.id(), e.code(), e.name(), e.resignDate()))
+                .toList();
+    }
 
     /** 목록 [계산처리] — 고른 정산마다 한 해 급여를 다시 모아 계산한다. */
     @Transactional

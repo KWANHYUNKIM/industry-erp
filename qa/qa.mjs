@@ -10565,6 +10565,13 @@ async function main() {
     process.exit(fail > 0 ? 1 : 0)
   }
 
+  // 연말정산만(node qa/qa.mjs yearend) — 대상자 · 종전 · 공제 · 계산처리(원본 사례 C 숫자) · 선택삭제.
+  if (cmd === 'yearend') {
+    await scenarioYearEndSettlement()
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    process.exit(fail > 0 ? 1 : 0)
+  }
+
   // A/S 소모 쪽만(node qa/qa.mjs as) — 수리 · 판매연결전표 · 소모현황.
   if (cmd === 'as') {
     await scenarioAsConsumption(fixtures)
@@ -10730,6 +10737,7 @@ async function main() {
   await scenarioCorporateTaxChecklist()
   await scenarioExpenseEvidence()
   await scenarioSimplePayment()
+  await scenarioYearEndSettlement()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11542,6 +11550,44 @@ async function scenarioSimplePayment() {
   await must('POST', '/simple-payment-statements/delete', [st.id])
   eq('선택삭제', (await must('GET', '/simple-payment-statements')).some((x) => x.id === st.id), false)
   for (const w of ws) await must('DELETE', `/other-withholdings/${w.id}`)
+}
+
+/**
+ * 세무 › 연말정산등록/수정(원본 E030109) — 사례 C(plans/세무/연말정산.md 4장): 종(전)근무지 총급여 6천만 · 국민연금 2,700,000 ·
+ * 기납부 3,000,000/300,000 + 보장성 1,200,000 · 의료비 5,000,000 → 결정 3,937,500/393,750 · 차감 937,500/93,750(원본 숫자).
+ * 대상자 = 재직 사원, 이미 정산이 있으면 후보에서 빠진다. 귀속 2091 로 남의 자료와 안 겹치게.
+ */
+async function scenarioYearEndSettlement() {
+  section('■ 연말정산 — 대상자 · 종전 · 공제 · 계산처리(사례 C) · 선택삭제')
+  const Y = 2091
+  const emp = (await must('GET', '/employees')).find((e) => e.active !== false)
+  for (const x of await must('GET', `/tax-settlements?year=${Y}&kind=YEAR_END`)) await must('POST', '/tax-settlements/delete', [x.id])
+  await rejects('대상자를 안 고르면 막는다', 'POST', '/tax-settlements/targets', { attributionYear: Y, kind: 'YEAR_END', employeeIds: [] }, '등록할 사원이 선택되지 않았습니다.')
+  eq('재직 사원은 대상자 후보', (await must('GET', `/tax-settlements/candidates?year=${Y}&kind=YEAR_END`)).some((c) => c.employeeId === emp.id), true)
+  const [s] = await must('POST', '/tax-settlements/targets', { attributionYear: Y, kind: 'YEAR_END', employeeIds: [emp.id] })
+  eq('이미 정산이 있으면 후보에서 빠진다', (await must('GET', `/tax-settlements/candidates?year=${Y}&kind=YEAR_END`)).some((c) => c.employeeId === emp.id), false)
+  const prev = { bizNo: '123-45-67890', companyName: 'QA세무-종전', salary: 60000000, nationalPension: 2700000, decidedIncomeTax: 3000000, decidedLocalTax: 300000 }
+  await rejects('종전 사업자등록번호가 비면 막는다', 'PUT', `/tax-settlements/${s.id}/prev-employers`, [{ ...prev, bizNo: '' }], '사업자등록번호를 입력하세요.')
+  await must('PUT', `/tax-settlements/${s.id}/prev-employers`, [prev])
+  await rejects('보험료 구분이 비면 막는다', 'PUT', `/tax-settlements/${s.id}/deductions?group=INSURANCE`, [{ kind: null, amount: 1200000 }], '보험료 구분을 입력 바랍니다.')
+  await rejects('납입금액이 음수면 막는다', 'PUT', `/tax-settlements/${s.id}/deductions?group=INSURANCE`, [{ kind: 'PROTECTION_INSURANCE', amount: -1 }], '0 이상')
+  await must('PUT', `/tax-settlements/${s.id}/deductions?group=INSURANCE`, [{ kind: 'PROTECTION_INSURANCE', targetName: emp.name, relation: '본인', dataSource: 'NTS', amount: 1200000 }])
+  await must('PUT', `/tax-settlements/${s.id}/deductions?group=MEDICAL`, [{ kind: 'MEDICAL', targetName: emp.name, relation: '본인', dataSource: 'NTS', unlimited: true, amount: 5000000 }])
+  await rejects('계산처리할 사원을 안 고르면 막는다', 'POST', '/tax-settlements/calculate', [], '계산처리할 사원이 선택되지 않았습니다.')
+  const [c] = await must('POST', '/tax-settlements/calculate', [s.id])
+  const r = c.receipt ?? {}
+  // 귀속 2091 — 확정 급여명세가 없으니 주(현) 0, 종전만으로 원본 사례 C 와 같다
+  eq('주(현)근무지 기납부는 0(귀속 2091 급여 없음)', `${r.currentIncomeTax}/${r.currentLocalTax}`, '0/0')
+  {
+    eq('사례 C 단계 — 총급여 · 근로소득공제 · 과세표준 · 산출 · 근로소득세액공제',
+      [r.totalSalary, r.earnedIncomeDeduction, r.taxBase, r.computedTax, r.earnedIncomeTaxCredit].join(' '), '60000000 12750000 43050000 5197500 660000')
+    eq('사례 C 특별세액공제 — 보장성 대상 · 공제 · 의료비 대상 · 공제 · 표준 · 계',
+      [r.insuranceBase, r.insuranceCredit, r.medicalBase, r.medicalCredit, r.standardTaxCredit, r.taxCreditTotal].join(' '), '1000000 120000 3200000 480000 0 1260000')
+    eq('사례 C 결정 · 차감징수(원본 3,937,500/393,750 · 937,500/93,750)',
+      [c.decidedIncomeTax, c.decidedLocalTax, c.balanceIncomeTax, c.balanceLocalTax].join(' '), '3937500 393750 937500 93750')
+  }
+  await must('POST', '/tax-settlements/delete', [s.id])
+  eq('선택삭제하면 목록에서 사라진다', (await must('GET', `/tax-settlements?year=${Y}&kind=YEAR_END`)).some((x) => x.id === s.id), false)
 }
 
 async function scenarioCommuteRule() {
