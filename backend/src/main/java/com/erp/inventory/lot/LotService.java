@@ -31,6 +31,10 @@ public class LotService {
     private final WarehouseRepository warehouseRepository;
     private final LotTransactionRepository lotTxRepository;
     private final com.erp.inventory.project.ProjectService projectService;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    /** 시리얼/로트No.등록 수정 창 [H] 의 대상 이름(change_histories.target — 바꾸지 않는다). */
+    public static final String HISTORY_TARGET = "LOT";
 
     @Transactional(readOnly = true)
     public List<LotTransactionResponse> transactions() {
@@ -101,6 +105,7 @@ public class LotService {
                 .udiCode(blank(req.udiCode()))
                 .build();
         Lot saved = lotRepository.save(lot);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), com.erp.common.history.ChangeHistoryService.CREATED);
         /* 원본 등록은 마스터만 만든다(내역 0줄) — 수량을 준 때만(예전 호출) 입고 줄을 남긴다. */
         if (qty.signum() == 0) return LotResponse.from(saved);
         /*
@@ -126,6 +131,7 @@ public class LotService {
         }
         lot.setExpireDate(req.expireDate());
         lot.setUdiCode(blank(req.udiCode()));
+        changeHistory.record(HISTORY_TARGET, lot.getId(), com.erp.common.history.ChangeHistoryService.UPDATED);
         return LotResponse.from(lot);
     }
 
@@ -145,12 +151,18 @@ public class LotService {
                     + (t.getSourceNo() != null ? " " + t.getSourceNo() : ""));
         }
         lotRepository.delete(lot);
+        changeHistory.record(HISTORY_TARGET, id, com.erp.common.history.ChangeHistoryService.DELETED);
     }
 
     /** 원본 목록 [사용중단/재사용] — 확인 창 · 안내 없이 바로 바뀐다. */
     @Transactional
     public void setUse(List<Long> ids, boolean use) {
-        for (Long id : ids) getLot(id).setUseYn(use);
+        for (Long id : ids) {
+            Lot lot = getLot(id);
+            boolean was = lot.isUseYn();
+            lot.setUseYn(use);
+            if (was != use) changeHistory.recordUpdate(HISTORY_TARGET, id, was, use);
+        }
     }
 
     @Transactional
