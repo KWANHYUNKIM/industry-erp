@@ -34,8 +34,9 @@ public class PaySettingController {
 
     /** 계산식등록 오른쪽 찾기 목록 */
     @GetMapping("/formula-variables")
-    public List<PaySettingDtos.FormulaVariableGroup> formulaVariables() {
-        return formulaService.variables();
+    public List<PaySettingDtos.FormulaVariableGroup> formulaVariables(
+            @RequestParam(defaultValue = "ALLOWANCE") PayslipLineKind kind) {
+        return formulaService.variables(kind);
     }
 
     @PostMapping("/items/{id}/formulas")

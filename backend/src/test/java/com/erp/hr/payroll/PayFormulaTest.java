@@ -52,4 +52,33 @@ class PayFormulaTest {
         assertThrows(IllegalArgumentException.class, () -> eval("R(기본급(급여지급사항), 3)", v));      // -5~2 범위값만
         assertThrows(IllegalArgumentException.class, () -> eval("( 기본급(급여지급사항)", v));
     }
+
+    /** 원본 공제항목 건강보험 식(2026-10-13 실측 글자) — 장기요양 줄이 따로 있으면 건강보험만, 없으면 둘을 더한다. */
+    @Test
+    void 조건_참_거짓() {
+        String f = "[조건1] 장기요양보험(공제구분) > 0, [참1] 건강보험산출금액(계산항목), "
+                + "[거짓1] 건강보험산출금액(계산항목) + 장기요양산출금액(계산항목)";
+        Map<String, BigDecimal> v = new java.util.HashMap<>(Map.of(
+                "장기요양보험(공제)", new BigDecimal("19070"),
+                "건강보험산출금액(계산항목)", new BigDecimal("134710"),
+                "장기요양산출금액(계산항목)", new BigDecimal("19070")));
+        assertEquals(0, new BigDecimal("134710").compareTo(eval(f, v)));
+        v.put("장기요양보험(공제)", BigDecimal.ZERO);
+        assertEquals(0, new BigDecimal("153780").compareTo(eval(f, v)));
+    }
+
+    @Test
+    void 조건_안에_조건_AND_OR_비교() {
+        Map<String, BigDecimal> v = Map.of("기본급(수당)", new BigDecimal("3000000"));
+        String nested = "[조건1] 기본급(수당) >= 3000000 AND 기본급(수당) <> 0, [참1] [조건2] 기본급(수당) < 1, [참2] 1, [거짓2] 2, [거짓1] 3";
+        assertEquals(0, new BigDecimal("2").compareTo(eval(nested, v)));
+        assertEquals(0, BigDecimal.ONE.compareTo(eval("[조건1] 1 = 2 OR (1 <= 1), [참1] 1, [거짓1] 0", v)));
+        assertThrows(IllegalArgumentException.class, () -> eval("[조건1] 1 > 0, [참1] 1", v));   // [거짓1] 이 빠짐
+    }
+
+    @Test
+    void 주민세_원본식_공제구분은_공제와_같다() {
+        String f = "F( ( 소득세(공제구분) * 0.1 ) * 0.1 ) * 10";   // 원본 주민세 — 10원 미만 절사
+        assertEquals(0, new BigDecimal("12340").compareTo(eval(f, Map.of("소득세(공제)", new BigDecimal("123456")))));
+    }
 }

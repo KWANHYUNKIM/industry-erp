@@ -57,7 +57,9 @@ const blank = (): Row => ({
  * <p>[계산식] — 원본은 항목마다 적용시점별 계산식(예: 부양가족수당
  * R( ( 기본급(급여지급사항) * 0.01 * 간이세액표 적용 부양가족수(계산항목) ) ))을 두고 급여계산이 그것을 푼다.
  * 칸에는 가장 늦은 적용시점의 식을, 없으면 '설정' 을 보이고 누르면 계산식리스트가 뜬다(PayItemFormulaModal).
- * 식이 없는 항목은 예전처럼 그룹 · 급여지급사항 금액을 그대로 쓴다. 공제항목의 계산식은 아직 없다.
+ * 식이 없는 항목은 예전처럼 그룹 · 급여지급사항 금액을 그대로 쓴다. 공제항목도 같은 창으로 식을 둔다 — 급여계산이
+ * 4대보험 · 소득세를 셈한 뒤 공제항목을 표시순서대로 풀어 같은 이름 줄을 바꾼다(원본 사우회비 R( 사우회비(급여지급사항) , 0 ),
+ * 건강보험 [조건1] 장기요양보험(공제구분) &gt; 0, [참1] …, [거짓1] …).
  * 웹자료올리기 · H(이력)도 없다.
  */
 export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: PayslipLineKind }) {
@@ -71,7 +73,6 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
   const [formulas, setFormulas] = useState<PayItemFormula[]>([])
   const [formulaItem, setFormulaItem] = useState<Row | null>(null)
   const loadFormulas = () => {
-    if (!isAllowance) return
     api.get<PayItemFormula[]>('/pay-settings/formulas').then((r) => setFormulas(r.data)).catch(() => setFormulas([]))
   }
   useEffect(loadFormulas, [kind])
@@ -235,15 +236,13 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
                   </select>
                 </td>
               )}
-              {isAllowance && (
-                <td>
-                  {r.id != null && (
-                    <button type="button" className="ec-link text-left" onClick={() => setFormulaItem(r)}>
-                      {currentFormula(r.id) ?? '설정'}
-                    </button>
-                  )}
-                </td>
-              )}
+              <td>
+                {r.id != null && (
+                  <button type="button" className="ec-link text-left" onClick={() => setFormulaItem(r)}>
+                    {currentFormula(r.id) ?? '설정'}
+                  </button>
+                )}
+              </td>
               <td><input className="ec-input w-full" value={r.calcNote} onChange={(e) => edit(idx, { calcNote: e.target.value })} /></td>
             </tr>
           ))}
@@ -251,7 +250,7 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
       </table>
       {formulaItem?.id != null && (
         <PayItemFormulaModal item={{ id: formulaItem.id, code: formulaItem.code, name: formulaItem.name }}
-                             formulas={formulas} onClose={() => setFormulaItem(null)} onChanged={loadFormulas} />
+                             formulas={formulas} kind={kind} onClose={() => setFormulaItem(null)} onChanged={loadFormulas} />
       )}
     </EcListShell>
   )

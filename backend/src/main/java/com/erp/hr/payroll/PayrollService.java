@@ -238,6 +238,9 @@ public class PayrollService {
             addAutoDeduction(p, WithholdingService.LOCAL_INCOME_TAX, taxCalculator.localIncomeTax(incomeTax));
         }
 
+        // 3-1) 원본 공제항목 [계산식] — 법정 공제를 다 셈한 뒤 푼다(식이 'X(공제)' · 산출금액을 쓴다).
+        applyDeductionFormulas(p, emp.getId(), req.payMonth(), baseSalary, group, empAmounts, worked);
+
         for (PayDirectAmount d : direct) {
             if (d.getKind() == PayslipLineKind.DEDUCTION
                     && !WithholdingService.INCOME_TAX.equals(d.getItemName()) && !WithholdingService.LOCAL_INCOME_TAX.equals(d.getItemName())) {
@@ -339,15 +342,97 @@ public class PayrollService {
                                java.util.Map<Long, BigDecimal> empAmounts, java.util.Map<Long, BigDecimal> worked) {
         java.util.Map<Long, String> formulas = payFormulaService.formulasFor(payMonth);
         if (formulas.isEmpty()) return;
+        java.util.Map<String, BigDecimal> vars = formulaVars(p, employeeId, baseSalary, group, empAmounts, worked);
+        for (PayItem item : sortedItems(PayslipLineKind.ALLOWANCE)) {
+            if ("기본급".equals(item.getName())) continue;
+            BigDecimal amount = solve(formulas, item, vars);
+            if (amount == null) continue;
+            vars.put(item.getName() + "(수당)", amount);
+            replaceLine(p, item, amount);
+        }
+        for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
+    }
+
+    /**
+     * 원본 공제항목등록 [계산식] — 법정 공제(4대보험 · 소득세)를 셈한 뒤 공제항목을 표시순서대로 푼다.
+     * 식은 'X(공제)'(지금까지의 공제 줄) · 지급총액(기타) · 건강보험산출금액(계산항목) 같은 값을 쓸 수 있고,
+     * 식이 있는 공제항목은 같은 이름의 줄(법정 공제 줄 포함)을 그 값으로 바꾼다. 원본 사우회비 R( 사우회비(급여지급사항) , 0 ).
+     */
+    private void applyDeductionFormulas(Payslip p, Long employeeId, String payMonth, BigDecimal baseSalary, PayGroup group,
+                                        java.util.Map<Long, BigDecimal> empAmounts, java.util.Map<Long, BigDecimal> worked) {
+        java.util.Map<Long, String> formulas = payFormulaService.formulasFor(payMonth);
+        java.util.List<PayItem> deductions = sortedItems(PayslipLineKind.DEDUCTION);
+        if (deductions.stream().noneMatch(i -> formulas.containsKey(i.getId()))) return;
+        java.util.Map<String, BigDecimal> vars = formulaVars(p, employeeId, baseSalary, group, empAmounts, worked);
+        BigDecimal gross = grossPay(baseSalary, p);
+        BigDecimal taxable = baseSalary.add(p.getLines().stream()
+                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.isTaxable())
+                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        vars.put(PayFormulaService.GROSS, gross);
+        vars.put(PayFormulaService.TAXABLE_PAY, taxable);
+        vars.put(PayFormulaService.TAX_FREE_TOTAL, gross.subtract(taxable));
+        vars.put("건강보험산출금액(계산항목)", sumDeduction(p, "건강보험"));
+        vars.put("장기요양산출금액(계산항목)", sumDeduction(p, "장기요양보험"));
+        vars.put("국민연금(계산항목)", sumDeduction(p, "국민연금"));
+        vars.put("고용보험(계산항목)", sumDeduction(p, "고용보험"));
+        vars.put("소득세(계산항목)", sumDeduction(p, WithholdingService.INCOME_TAX));
+        for (String n : PayFormulaService.STATUTORY_DEDUCTIONS) vars.put(n + "(공제)", sumDeduction(p, n));
+        for (PayItem item : deductions) {
+            BigDecimal unit = empAmounts.get(item.getId());
+            if (unit == null && group != null) {
+                for (PayGroupLine gl : group.getLines()) {
+                    if (gl.getPayItem().getId().equals(item.getId())) unit = gl.resolveAmount();
+                }
+            }
+            vars.put(item.getName() + "(급여지급사항)", unit == null ? BigDecimal.ZERO : unit);
+            vars.put(item.getName() + "(공제)", sumDeduction(p, item.getName()));
+        }
+        for (PayItem item : deductions) {
+            BigDecimal amount = solve(formulas, item, vars);
+            if (amount == null) continue;
+            vars.put(item.getName() + "(공제)", amount);
+            replaceLine(p, item, amount);
+        }
+        for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
+    }
+
+    private java.util.List<PayItem> sortedItems(PayslipLineKind kind) {
+        java.util.List<PayItem> items = new java.util.ArrayList<>();
+        for (Long id : paySettingService.allItemIds()) {
+            PayItem item = paySettingService.item(id);
+            if (item.getKind() == kind) items.add(item);
+        }
+        items.sort(java.util.Comparator.comparingInt(PayItem::getSortOrder).thenComparing(PayItem::getId));
+        return items;
+    }
+
+    /** 귀속월에 걸리는 식이 있으면 푼 값(원 단위 반올림), 없거나 사용중단 항목이면 null. */
+    private static BigDecimal solve(java.util.Map<Long, String> formulas, PayItem item, java.util.Map<String, BigDecimal> vars) {
+        String f = formulas.get(item.getId());
+        if (f == null || !item.isActive()) return null;
+        try {
+            return PayFormula.evaluate(f, vars).setScale(0, RoundingMode.HALF_UP);
+        } catch (IllegalArgumentException | ArithmeticException e) {
+            throw ApiException.badRequest("[" + item.getName() + "] " + PayFormula.INVALID);
+        }
+    }
+
+    private static void replaceLine(Payslip p, PayItem item, BigDecimal amount) {
+        p.getLines().removeIf(l -> l.getKind() == item.getKind() && l.getName().equals(item.getName()));
+        if (amount.signum() <= 0) return;
+        p.addLine(PayslipLine.builder().kind(item.getKind()).name(item.getName()).amount(amount)
+                .taxable(item.getKind() == PayslipLineKind.ALLOWANCE && item.isTaxable()).auto(false).build());
+    }
+
+    /** 수당 · 공제 식이 같이 쓰는 값 — 급여지급사항 · 근무기록확정 · 수당 · 기타설정(사원) · 부양가족수. */
+    private java.util.Map<String, BigDecimal> formulaVars(Payslip p, Long employeeId, BigDecimal baseSalary, PayGroup group,
+                                                          java.util.Map<Long, BigDecimal> empAmounts, java.util.Map<Long, BigDecimal> worked) {
         EmployeePayrollSetting setting = paySettingService.payrollSetting(employeeId);
         java.util.Map<String, BigDecimal> vars = new java.util.HashMap<>();
         vars.put("기본급(급여지급사항)", baseSalary);
         vars.put("기본급(수당)", baseSalary);
-        java.util.List<PayItem> items = new java.util.ArrayList<>();
-        for (Long id : paySettingService.allItemIds()) {
-            PayItem item = paySettingService.item(id);
-            if (item.getKind() != PayslipLineKind.ALLOWANCE || "기본급".equals(item.getName())) continue;
-            items.add(item);
+        for (PayItem item : sortedItems(PayslipLineKind.ALLOWANCE)) {
+            if ("기본급".equals(item.getName())) continue;
             BigDecimal unit = empAmounts.get(item.getId());
             if (unit == null && group != null) {
                 for (PayGroupLine gl : group.getLines()) {
@@ -369,23 +454,7 @@ public class PayrollService {
         vars.put("20세이하 자녀수(기타설정(사원))", BigDecimal.valueOf(setting.getChildren()));
         vars.put("간이세액표적용방법(기타설정(사원))", BigDecimal.valueOf(setting.getTaxScale()));
         vars.put(PayFormulaService.FAMILY_COUNT, BigDecimal.valueOf(setting.familyCount()));
-        items.sort(java.util.Comparator.comparingInt(PayItem::getSortOrder).thenComparing(PayItem::getId));
-        for (PayItem item : items) {
-            String f = formulas.get(item.getId());
-            if (f == null || !item.isActive()) continue;
-            BigDecimal amount;
-            try {
-                amount = PayFormula.evaluate(f, vars).setScale(0, RoundingMode.HALF_UP);
-            } catch (IllegalArgumentException | ArithmeticException e) {
-                throw ApiException.badRequest("[" + item.getName() + "] " + PayFormula.INVALID);
-            }
-            p.getLines().removeIf(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.getName().equals(item.getName()));
-            vars.put(item.getName() + "(수당)", amount);
-            if (amount.signum() <= 0) continue;
-            p.addLine(PayslipLine.builder().kind(PayslipLineKind.ALLOWANCE).name(item.getName()).amount(amount)
-                    .taxable(item.isTaxable()).auto(false).build());
-        }
-        for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
+        return vars;
     }
 
     private static BigDecimal lineAmount(Payslip p, String name) {
