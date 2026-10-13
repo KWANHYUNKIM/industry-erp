@@ -515,7 +515,7 @@ const MENU: TopMenu[] = [
       {
         label: '전자(세금)계산서',
         nodes: [
-          { label: '매출세금계산서', to: '/accounting/tax-invoice-sales' },
+          { label: '(세금)계산서진행단계', to: '/accounting/tax-invoice-sales' },
           { label: '매입세금계산서', to: '/accounting/tax-invoice-purchase' },
         ],
       },

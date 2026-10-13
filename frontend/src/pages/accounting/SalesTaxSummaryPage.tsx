@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { vatSlipAmounts } from '../../utils/vatSlip'
+import { bucketOf, salesInvoiceOf, type InvoiceMark } from '../../utils/salesInvoice'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -8,9 +8,6 @@ import EcPeriodPicks from '../../components/EcPeriodPicks'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
 
-type DocKind = 'PAPER' | 'ELECTRONIC' | 'MODIFY_ERROR' | 'MODIFY_AMOUNT' | 'MODIFY_RETURN' | 'MODIFY_CANCEL' | 'MODIFY_LC' | 'MODIFY_DUPLICATE'
-type Progress = 'NONE' | 'LATE' | 'ELSEWHERE'
-interface Mark { journalEntryId: number; docKind: DocKind; progress: Progress }
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 type Kind = '세금계산서' | '계산서'
 interface Cell { count: number; supply: number; vat: number }
@@ -30,29 +27,12 @@ const GROUPS: { kind: string; total: string; rows: { key: string; label: string 
   { kind: '타발행', total: '타발행 계', rows: [{ key: 'ELSEWHERE', label: '타발행' }] },
   { kind: '기한후발행', total: '기한후발행 계', rows: [{ key: 'LATE', label: '기한후발행' }] },
 ]
-/**
- * 원본 (세금)계산서진행단계(요약의 구분 글자를 누르면 뜨는 창)의 [계산서분류] — 계산서 · 계산서(고정자산) · 세금계산서 ·
- * 세금계산서(고정자산) · 영세율. 2026-10-13 loginaa 2026/01 ~ 2026/10: 요약 미발행 38건 954,407,000 · 95,440,700 =
- * 진행단계 미발행 탭 38건(줄이 회계전표 일자-No. — 같은 회계전표를 센다).
- */
-const INVOICE_TYPES = ['세금계산서', '세.계(고정자산)', '영세율', '계산서', '계산서(고정자산)']
 const PICKS = ['금월(~오늘)', '전월', '이번기수', '직전기수', '직전분기', '직전반기'] as const
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 const lastDay = (m: string) => {
   const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)
   return `${m}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-/**
- * 진행상태 → 줄. 국세청 전송을 하지 않으므로 전자(세금)계산서는 모두 '미발행'이다(전송대기 · 전송중 · 에러 · 전송완료는 늘 빈 줄).
- * 타발행 · 기한후 발행이 종이/전자보다 먼저다.
- */
-function bucketOf(m: Mark | undefined): string {
-  if (m?.progress === 'ELSEWHERE') return 'ELSEWHERE'
-  if (m?.progress === 'LATE') return 'LATE'
-  if (m?.docKind === 'PAPER') return 'PAPER'
-  return 'UNSENT'
 }
 
 /**
@@ -90,24 +70,17 @@ export default function SalesTaxSummaryPage() {
     try {
       const [j, m] = await Promise.all([
         api.get<JournalList>('/journals', { params: { from, to, all: true } }),
-        api.get<Mark[]>('/vat-invoice-marks'),
+        api.get<InvoiceMark[]>('/vat-invoice-marks'),
       ])
       const marks = new Map(m.data.map((x) => [x.journalEntryId, x]))
       const cells = new Map<string, Cell>()
+      /* 줄 규칙은 (세금)계산서진행단계와 같다(utils/salesInvoice) — 두 화면의 건수가 같아야 한다. */
       for (const e of j.data.rows as (JournalEntry & { vatType?: string | null })[]) {
-        const vt = e.vatType?.trim()
-        /* 부가세유형이 붙은 전표(매출전표 I 등)는 (세금)계산서 유형만 — 카드매출 · 현금영수증 · 소매 · 수출 … 은 계산서가 아니다. */
-        if (vt && !INVOICE_TYPES.includes(vt)) continue
-        let amt = vatSlipAmounts(e.lines, '매출')
-        /* 계산서(면세)는 부가세 줄이 없다 — 매출 계정 대변이 곧 공급가액(지급수수료 831 짝은 지운다). */
-        if (!amt && vt?.startsWith('계산서')) {
-          amt = { supply: e.lines.reduce((t, l) => t + Number(l.credit) - (l.accountCode === '831' ? Number(l.debit) : 0), 0), vat: 0 }
-        }
-        const isInvoice = vt ? !vt.startsWith('계산서') : amt?.vat !== 0
-        if (!amt || (kind === '세금계산서') !== isInvoice) continue
+        const inv = salesInvoiceOf(e)
+        if (!inv || inv.kind !== kind) continue
         const key = bucketOf(marks.get(e.id))
         const c = cells.get(key) ?? { count: 0, supply: 0, vat: 0 }
-        cells.set(key, { count: c.count + 1, supply: c.supply + amt.supply, vat: c.vat + amt.vat })
+        cells.set(key, { count: c.count + 1, supply: c.supply + inv.supply, vat: c.vat + inv.vat })
       }
       setReport({ from, to, cells })
     } catch (e) {

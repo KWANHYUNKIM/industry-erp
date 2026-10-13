@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { TaxInvoice, TaxInvoiceStatus, TaxInvoiceType } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import TaxInvoiceProgressPage from './TaxInvoiceProgressPage'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
@@ -22,8 +23,16 @@ const NEXT_LABEL: Record<TaxInvoiceStatus, string | null> = {
   DRAFT: '발행', ISSUED: '전송', SENT: '승인', APPROVED: null,
 }
 
-/** (세금)계산서진행단계 — 매출/매입 세금계산서를 작성→발행→전송→승인으로 진행. */
+/**
+ * 매출은 원본 (세금)계산서진행단계(회계전표 기준 — TaxInvoiceProgressPage)다. 매입은 원본에 진행단계 화면이 없어
+ * 구매조회에서 끊은 trade 세금계산서(작성 → 발행 → 전송 → 승인)를 그대로 본다.
+ */
 export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
+  return type === 'SALES' ? <TaxInvoiceProgressPage /> : <TradeTaxInvoicePage type={type} />
+}
+
+/** 매입 세금계산서 — 구매조회에서 끊은 세금계산서를 작성→발행→전송→승인으로 진행. */
+function TradeTaxInvoicePage({ type }: { type: TaxInvoiceType }) {
   const [rows, setRows] = useState<TaxInvoice[]>([])
   const [from, setFrom] = useState(firstOfYear())
   const [to, setTo] = useState(today())
