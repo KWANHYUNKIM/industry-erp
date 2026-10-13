@@ -6,6 +6,7 @@ import { myFolders, MY_FOLDERS_EVENT, type MyFolder } from '../../features/mypag
 import AppBarPanel, { type PanelKind } from '../../components/AppBarPanel'
 import TableContextMenu from '../../components/TableContextMenu'
 import type { NotificationResponse } from '../../types/api'
+import { ecAlert } from '../../components/EcDialog'
 
 /** 이카운트 v5 실제 레이아웃 재현:
  *  [최상단 북마크바]
@@ -1408,7 +1409,7 @@ export default function EcountLayout() {
 
   function openLeaf(leaf: Leaf) {
     if (leaf.to) gotoMenu(leaf.to, [topIdx, tabIdx])
-    else alert(`[${leaf.label}] 메뉴는 준비 중입니다.`)
+    else void ecAlert(`[${leaf.label}] 메뉴는 준비 중입니다.`)
   }
 
   // 앱바 아이콘 클릭: 라우트가 있으면 이동, 인쇄면 화면 인쇄, 나머지는 안내
