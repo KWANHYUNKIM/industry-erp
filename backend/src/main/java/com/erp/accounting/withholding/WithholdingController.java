@@ -6,6 +6,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import com.erp.accounting.withholding.dto.WithholdingDtos.WithholdingReturnRequest;
 import com.erp.accounting.withholding.dto.WithholdingDtos.WithholdingReturnResponse;
+import com.erp.security.UserPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,13 +29,21 @@ public class WithholdingController {
     }
 
     @PostMapping("/returns")
-    public WithholdingReturnResponse createReturn(@Valid @RequestBody WithholdingReturnRequest req) {
-        return returnService.create(req);
+    public WithholdingReturnResponse createReturn(@Valid @RequestBody WithholdingReturnRequest req,
+                                                  @AuthenticationPrincipal UserPrincipal principal) {
+        return returnService.create(req, principal == null ? null : principal.getUsername());
     }
 
     @PutMapping("/returns/{id}")
-    public WithholdingReturnResponse updateReturn(@PathVariable Long id, @Valid @RequestBody WithholdingReturnRequest req) {
-        return returnService.update(id, req);
+    public WithholdingReturnResponse updateReturn(@PathVariable Long id, @Valid @RequestBody WithholdingReturnRequest req,
+                                                  @AuthenticationPrincipal UserPrincipal principal) {
+        return returnService.update(id, req, principal == null ? null : principal.getUsername());
+    }
+
+    /** 목록 [이력] — 원본 '원천징수이행상황신고서 이력' 창 */
+    @GetMapping("/returns/{id}/history")
+    public List<WithholdingDtos.ReturnHistoryRow> returnHistory(@PathVariable Long id) {
+        return returnService.history(id);
     }
 
     /** 선택삭제 */
@@ -64,6 +74,18 @@ public class WithholdingController {
     public WithholdingDtos.IncomeSubmission incomeSubmission(@RequestParam String kind, @RequestParam String from,
                                                             @RequestParam String to) {
         return incomeSubmissionService.summary(kind, from, to);
+    }
+
+    /** 신고서 [신규] 직접지정 '급여대장검색' — 그 지급연월의 급여대장 */
+    @GetMapping("/ledger-picks")
+    public List<WithholdingDtos.LedgerPick> ledgerPicks(@RequestParam String payMonth) {
+        return service.ledgerPicks(payMonth);
+    }
+
+    /** 급여대장검색 [상세내역] — 간이소득내역 */
+    @GetMapping("/ledger-picks/{id}/income")
+    public List<WithholdingDtos.SimpleIncomeRow> ledgerIncome(@PathVariable Long id) {
+        return service.ledgerIncome(id);
     }
 
     @GetMapping("/statement")

@@ -1,0 +1,62 @@
+{
+  "about": "원천징수이행상황신고서 [신규] › 소득자료반영기준 ○직접지정 › 급여대장검색(원본 2026-10-13 실측) — 신고서 지급연월의 대장만 보이고, 신고대상금액은 급여대장금액에서 제출제외 비과세(차량유지비)만 뺀 것(식대는 남는다). [상세내역] 조회 → 간이소득내역, [적용(F8)] → 칸에 '2088/01-1[급여]'. 지급연월을 바꾸면 신고일자가 다음 달 10일로. 전월미환급세액 ○직접지정 → 원천세신고서검색 창. 저장하지 않는다.",
+  "shots": [
+    {
+      "name": "지급연월 2088/01 → 신고일자 2088-02-10 · 급여대장검색 한 줄",
+      "path": "/accounting/withholding",
+      "steps": [
+        "js:window.__set = (el, v) => { const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; window.__btn = (t) => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === t); true",
+        "wait:800",
+        "js:window.__btn('신규(F2)').click(); true",
+        "wait:400",
+        "js:(() => { const m = document.querySelectorAll('[role=dialog] input[type=month]'); window.__set(m[1], '2088-01'); return true })()",
+        "wait:200",
+        "expect:document.querySelector('[role=dialog] input[type=date]').value === '2088-02-10'",
+        "js:[...document.querySelectorAll('[role=dialog] label')].find((l) => l.innerText.trim() === '직접지정').querySelector('input').click(); true",
+        "wait:300",
+        "js:document.querySelector('[title=급여대장검색]').click(); true",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tr')].some((t) => /2088\\/01-1\\s*2088\\/01\\s*급여\\s*2088\\/01 급여\\s*1\\s*3,200,000\\s*3,200,000\\s*조회/.test(t.innerText))"
+      ]
+    },
+    {
+      "name": "[상세내역] 조회 → 간이소득내역 · [적용] → 칸에 대장",
+      "path": "/accounting/withholding",
+      "steps": [
+        "js:window.__set = (el, v) => { const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; window.__btn = (t) => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === t); true",
+        "wait:800",
+        "js:window.__btn('신규(F2)').click(); true",
+        "wait:400",
+        "js:(() => { const m = document.querySelectorAll('[role=dialog] input[type=month]'); window.__set(m[1], '2088-01'); return true })()",
+        "js:[...document.querySelectorAll('[role=dialog] label')].find((l) => l.innerText.trim() === '직접지정').querySelector('input').click(); true",
+        "wait:300",
+        "js:document.querySelector('[title=급여대장검색]').click(); true",
+        "wait:1200",
+        "js:[...document.querySelectorAll('a')].find((a) => a.innerText.trim() === '조회' && a.closest('tr').innerText.includes('2088/01-1')).click(); true",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('간이소득내역') && d.innerText.includes('소득자료반영기준 : 신고기간') && /합계\\[1\\]명\\s*3,200,000\\s*0\\s*200,000\\s*3,200,000\\s*74,350/.test(d.innerText))",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].filter((d) => d.innerText.includes('간이소득내역')).pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '닫기').click(); true",
+        "wait:300",
+        "js:document.querySelector('input[aria-label=\"2088/01-1 선택\"]').click(); true",
+        "js:window.__btn('적용(F8)').click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog] input')].some((i) => i.value === '2088/01-1[급여]')"
+      ]
+    },
+    {
+      "name": "전월미환급세액 ○직접지정 → 원천세신고서검색",
+      "path": "/accounting/withholding",
+      "steps": [
+        "js:window.__btn = (t) => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === t); true",
+        "wait:800",
+        "js:window.__btn('신규(F2)').click(); true",
+        "wait:400",
+        "js:document.querySelectorAll('[role=dialog] input[name=wh-refund]')[1].click(); true",
+        "wait:300",
+        "js:document.querySelector('[title=원천세신고서검색]').click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('원천세신고서검색') && /귀속연월\\s*신고구분\\s*\\(연말정산\\)\\s*지급연월\\s*신고일자\\s*차월이월환급세액\\s*환급신청액/.test(d.innerText))"
+      ]
+    }
+  ]
+}

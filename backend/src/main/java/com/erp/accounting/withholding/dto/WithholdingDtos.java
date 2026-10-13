@@ -109,6 +109,9 @@ public final class WithholdingDtos {
         }
     }
 
+    /** 원본 '원천징수이행상황신고서 이력' 한 줄 — 순번 · 작업자ID · 작업일시 · 신고서종류 · 상태. */
+    public record ReturnHistoryRow(int seq, String changedBy, java.time.LocalDateTime changedAt, String kind, String action) {}
+
     /** 원천징수부 — 지급연월 한 줄. 총급여는 과세분(기본급 + 과세 수당)이고 비과세 수당은 따로 든다(원본 Ⅰ · Ⅱ쪽). */
     public record LedgerMonth(
             String payMonth,
@@ -153,4 +156,21 @@ public final class WithholdingDtos {
     public record ComparisonRow(String month, String kind, int count, BigDecimal gross, BigDecimal nonTaxable,
                                 BigDecimal incomeTax, BigDecimal localIncomeTax,
                                 Integer reportedCount, BigDecimal reportedGross, BigDecimal reportedTax, boolean differs) {}
+
+    /**
+     * 원본 신고서 [신규] › 소득자료반영기준 ○직접지정 › [급여대장] '급여대장검색' 한 줄(2026-10-13 loginaa 실측).
+     * 열: 귀속연월(2026/10-1) · 지급연월 · 구분 · 급여대장명칭 · 인원 · 급여대장금액 · 신고대상금액 · 상세내역 · 반영여부.
+     * 신고대상금액 = 급여대장금액 − <b>제출제외 비과세</b>(차량유지비) — 원본 21,669,000 − 1,200,000 = 20,469,000.
+     * 식대 같은 제출대상 비과세는 빼지 않는다(신고서 A01 총지급액에 들어간다).
+     */
+    public record LedgerPick(Long id, String code, String payMonth, String kind, String name,
+                             int headcount, BigDecimal ledgerAmount, BigDecimal reportAmount) {}
+
+    /**
+     * 원본 '간이소득내역' 창 한 줄(급여대장검색의 [상세내역] 조회) — 사원번호 · 성명 · 입사일 · 퇴사일 · 급여대장금액 ·
+     * 제출제외 비과세 · 제출대상 비과세 및 감면 · 제출대상 금액 · 소득세.
+     */
+    public record SimpleIncomeRow(String employeeCode, String employeeName, LocalDate hireDate, LocalDate resignDate,
+                                  BigDecimal ledgerAmount, BigDecimal excludedNonTaxable, BigDecimal submittedNonTaxable,
+                                  BigDecimal submitAmount, BigDecimal incomeTax) {}
 }

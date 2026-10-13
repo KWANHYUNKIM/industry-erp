@@ -51,6 +51,7 @@ public class WithholdingService {
     private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
     private final com.erp.hr.payroll.PayLedgerService payLedgerService;
     private final com.erp.accounting.otherwithholding.OtherWithholdingRepository otherWithholdingRepository;
+    private final com.erp.hr.payroll.PaySettingService paySettingService;
 
     /** 원천징수이행상황신고서 (귀속월 기준) */
     @Transactional(readOnly = true)
@@ -101,11 +102,11 @@ public class WithholdingService {
         }
 
         List<WithholdingDtos.IncomeSection> sections = new ArrayList<>();
-        // A01 총지급액은 비과세를 뺀 과세 급여 — 원본 2025/07 6명 20,469,000(급여대장 21,669,000 − 차량유지비 1,200,000).
+        // A01 총지급액은 <b>제출제외 비과세</b>만 뺀다 — 원본 2026/10 6명 20,469,000(급여대장 21,669,000 − 차량유지비 1,200,000).
+        // 식대 등 제출대상 비과세(800,000)는 총지급액에 남는다(원본 간이소득내역 2026-10-13 실측). 예전엔 비과세를 모두 뺐다.
+        Set<String> excluded = submitExcludedNames();
         BigDecimal nonTaxable = all.stream().filter(p -> p.getStatus() == PayslipStatus.CONFIRMED)
-                .flatMap(p -> p.getLines().stream())
-                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable())
-                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(p -> excludedNonTaxable(p, excluded)).reduce(BigDecimal.ZERO, BigDecimal::add);
         sections.add(new WithholdingDtos.IncomeSection("A01", "근로소득(간이세액)", rows.size(), totalGross.subtract(nonTaxable),
                 totalIncomeTax, totalLocal));
         java.time.YearMonth ym = java.time.YearMonth.parse(month);
@@ -133,6 +134,77 @@ public class WithholdingService {
                 month, rows.size(), draftCount,
                 totalGross, totalIncomeTax, totalLocal, totalIncomeTax.add(totalLocal),
                 rows, sections, grandTax, grandLocal, grandTax.add(grandLocal));
+    }
+
+    /**
+     * 지급명세서 <b>제출제외 비과세</b> 수당의 이름 — 수당항목의 비과세유형이 차량유지비(자가운전보조금)인 것.
+     * 식대 · 야간근로수당 · 보육수당은 제출대상 비과세라 신고서 총지급액에 남는다.
+     */
+    private Set<String> submitExcludedNames() {
+        return paySettingService.findItems().stream()
+                .filter(i -> i.taxFreeType() == com.erp.hr.payroll.PayTaxFreeType.VEHICLE)
+                .map(com.erp.hr.payroll.dto.PaySettingDtos.PayItemResponse::name)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private static BigDecimal nonTaxableOf(Payslip p, Set<String> excluded, boolean wantExcluded) {
+        return p.getLines().stream()
+                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable()
+                        && excluded.contains(l.getName()) == wantExcluded)
+                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal excludedNonTaxable(Payslip p, Set<String> excluded) {
+        return nonTaxableOf(p, excluded, true);
+    }
+
+    /** 대장의 지급연월 — 지급일의 달(없으면 귀속연월). 원본 급여대장검색은 신고서 [지급연월] 과 같은 대장만 보인다. */
+    private static String ledgerPayMonth(com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse l) {
+        return l.payDate() != null ? l.payDate().toString().substring(0, 7) : l.payMonth();
+    }
+
+    /**
+     * 원본 '급여대장검색' — 신고서의 지급연월에 지급한 급여대장. 귀속연월 칸은 '2026/10-1'(같은 귀속월 대장의 차수).
+     * 2026-10-13 loginaa: 지급연월 2026/10 이면 2026/10-1 하나, 2026/09 로 바꾸면 2026/09-1 하나만 보인다.
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.LedgerPick> ledgerPicks(String payMonth) {
+        if (payMonth == null || !MONTH.matcher(payMonth).matches()) {
+            throw ApiException.badRequest("지급연월 형식이 올바르지 않습니다(YYYY-MM): " + payMonth);
+        }
+        Set<String> excluded = submitExcludedNames();
+        var ledgers = payLedgerService.findAll().stream()
+                .sorted(java.util.Comparator.comparing(com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse::id)).toList();
+        Map<String, Integer> seq = new java.util.HashMap<>();
+        List<WithholdingDtos.LedgerPick> out = new ArrayList<>();
+        for (var l : ledgers) {
+            int n = seq.merge(l.payMonth(), 1, Integer::sum);
+            if (!payMonth.equals(ledgerPayMonth(l))) continue;
+            List<Payslip> slips = payslipRepository.findByPayMonth(l.payMonth());
+            BigDecimal gross = slips.stream().map(Payslip::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal ex = slips.stream().map(p -> excludedNonTaxable(p, excluded)).reduce(BigDecimal.ZERO, BigDecimal::add);
+            out.add(new WithholdingDtos.LedgerPick(l.id(), l.payMonth().replace('-', '/') + "-" + n, payMonth,
+                    "급여", l.name(), slips.size(), gross, gross.subtract(ex)));
+        }
+        out.sort(java.util.Comparator.comparing(WithholdingDtos.LedgerPick::code).reversed());
+        return out;
+    }
+
+    /** 원본 '간이소득내역' — 그 대장의 사원별 급여대장금액 · 제출제외/제출대상 비과세 · 제출대상 금액 · 소득세(사원번호 차례). */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.SimpleIncomeRow> ledgerIncome(Long ledgerId) {
+        var ledger = payLedgerService.findAll().stream().filter(l -> l.id().equals(ledgerId)).findFirst()
+                .orElseThrow(() -> ApiException.notFound("급여대장을 찾을 수 없습니다."));
+        Set<String> excluded = submitExcludedNames();
+        return payslipRepository.findByPayMonth(ledger.payMonth()).stream()
+                .sorted(java.util.Comparator.comparing((Payslip p) -> p.getEmployee().getCode()))
+                .map(p -> {
+                    BigDecimal ex = nonTaxableOf(p, excluded, true);
+                    return new WithholdingDtos.SimpleIncomeRow(p.getEmployee().getCode(), p.getEmployee().getName(),
+                            p.getEmployee().getHireDate(), p.getEmployee().getResignDate(),
+                            p.grossPay(), ex, nonTaxableOf(p, excluded, false), p.grossPay().subtract(ex),
+                            deduction(p, INCOME_TAX));
+                }).toList();
     }
 
     /**
@@ -350,6 +422,7 @@ public class WithholdingService {
         });
         List<WithholdingDtos.ComparisonRow> out = new ArrayList<>();
         Map<String, BigDecimal[]> total = new java.util.LinkedHashMap<>();
+        Set<String> excludedNames = submitExcludedNames();
         for (int m = 1; m <= 12; m++) {
             String month = String.format("%s-%02d", prefix, m);
             java.time.YearMonth ym = java.time.YearMonth.parse(month);
@@ -357,10 +430,10 @@ public class WithholdingService {
             List<Payslip> ps = slips.getOrDefault(month, List.of());
             if (!ps.isEmpty()) {
                 BigDecimal gross = BigDecimal.ZERO, nonTax = BigDecimal.ZERO, tax = BigDecimal.ZERO, local = BigDecimal.ZERO;
+                // 비과세 칸은 제출제외 비과세만 — 원본 2026 합계 60명 216,690,000 · 비과세 12,000,000(차량유지비 200,000 × 60, 식대는 안 셈)
                 for (Payslip p : ps) {
                     gross = gross.add(p.grossPay());
-                    nonTax = nonTax.add(p.getLines().stream().filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable())
-                            .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+                    nonTax = nonTax.add(excludedNonTaxable(p, excludedNames));
                     tax = tax.add(deduction(p, INCOME_TAX));
                     local = local.add(deduction(p, LOCAL_INCOME_TAX));
                 }

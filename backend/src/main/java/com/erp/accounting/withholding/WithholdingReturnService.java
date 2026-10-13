@@ -23,6 +23,7 @@ public class WithholdingReturnService {
     private static final Pattern MONTH = Pattern.compile("\\d{4}-(0[1-9]|1[0-2])");
 
     private final WithholdingReturnRepository repository;
+    private final WithholdingReturnHistoryRepository historyRepository;
     private final CompanyInfoService companyInfoService;
 
     @Transactional(readOnly = true)
@@ -34,7 +35,7 @@ public class WithholdingReturnService {
     }
 
     @Transactional
-    public WithholdingReturnResponse create(WithholdingReturnRequest req) {
+    public WithholdingReturnResponse create(WithholdingReturnRequest req, String username) {
         if (req.filingType() == null || req.filingMethod() == null || req.reportDate() == null) {
             throw ApiException.badRequest("신고구분 · 신고방법 · 신고일자를 입력하세요.");
         }
@@ -53,12 +54,13 @@ public class WithholdingReturnService {
                 .includeYearEnd(Boolean.TRUE.equals(req.includeYearEnd()))
                 .build());
         applyIncomeBasis(r, req);
+        record(r, username, "신규");
         return WithholdingReturnResponse.from(r, companyInfoService.get());
     }
 
     /** 신고구분 · 신고일자만 바꾼다. 나머지는 요청에 실려 와도 무시한다(원본에서 막힌 칸). */
     @Transactional
-    public WithholdingReturnResponse update(Long id, WithholdingReturnRequest req) {
+    public WithholdingReturnResponse update(Long id, WithholdingReturnRequest req, String username) {
         WithholdingReturn r = find(id);
         if (req.filingType() != null && req.filingType() != r.getFilingType()) {
             if (repository.existsByAttributionMonthAndPayMonthAndFilingType(
@@ -69,6 +71,7 @@ public class WithholdingReturnService {
         }
         if (req.reportDate() != null) r.setReportDate(req.reportDate());
         applyIncomeBasis(r, req);
+        record(r, username, "수정");
         return WithholdingReturnResponse.from(r, companyInfoService.get());
     }
 
@@ -78,6 +81,26 @@ public class WithholdingReturnService {
             throw ApiException.badRequest("리스트에 선택된 자료가 없습니다.");
         }
         repository.deleteAllById(ids);
+    }
+
+    /** 원본 [이력] 창 — 남긴 차례대로(순번 1부터). */
+    @Transactional(readOnly = true)
+    public List<com.erp.accounting.withholding.dto.WithholdingDtos.ReturnHistoryRow> history(Long id) {
+        find(id);
+        var rows = historyRepository.findByWithholdingReturnIdOrderByChangedAtAscIdAsc(id);
+        List<com.erp.accounting.withholding.dto.WithholdingDtos.ReturnHistoryRow> out = new java.util.ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            var h = rows.get(i);
+            out.add(new com.erp.accounting.withholding.dto.WithholdingDtos.ReturnHistoryRow(
+                    i + 1, h.getChangedBy(), h.getChangedAt(), h.getKind(), h.getAction()));
+        }
+        return out;
+    }
+
+    private void record(WithholdingReturn r, String username, String action) {
+        historyRepository.save(WithholdingReturnHistory.builder()
+                .withholdingReturn(r).changedAt(java.time.LocalDateTime.now()).changedBy(username)
+                .kind(WithholdingReturnHistory.KIND_INFO).action(action).build());
     }
 
     /** 원본 [소득자료반영기준] — ◉신고기간이면 고른 대장을 지운다. */
