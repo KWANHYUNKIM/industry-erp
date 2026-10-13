@@ -65,6 +65,13 @@ public class JournalLine {
     @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 
+    /**
+     * 잔액조정(E010209) 줄의 [실잔액] — 이 줄의 차변 · 대변은 조정금액(실잔액 − 장부잔액)이고, 장부잔액 = 실잔액 − 조정금액이다.
+     * 잔액조정조회 · 잔액실사조회의 장부가액 · 실가액, 잔액조정현황의 조정후잔액이 이것을 읽는다(V396). 다른 전표는 비어 있다.
+     */
+    @Column(name = "adjust_actual", precision = 18, scale = 2)
+    private BigDecimal adjustActual;
+
     /** 줄 거래처, 없으면 전표 거래처. */
     public BusinessPartner effectivePartner() {
         return partner != null ? partner : (entry != null ? entry.getPartner() : null);

@@ -25,6 +25,8 @@ public enum JournalSourceType {
     /** 회계 1 매출/매입거래의 두 전표 — 부가세유형을 든다(V349). */
     VAT_SALES("매출전표 I"),
     VAT_PURCHASE("매입전표 I"),
+    /** 회계 I › FastEntry › 잔액조정입력 — 한쪽(차변 또는 대변)만 있는 전표다(원본 2026-10-14 실측, V396). */
+    BALANCE_ADJUST("잔액조정"),
     MANUAL("수동입력");
 
     private final String displayName;
