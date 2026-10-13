@@ -9,6 +9,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { matrixToXlsx } from '../../utils/excel'
 import { escapeHtml } from '../../utils/escapeHtml'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사조회 (이카운트 E070257)
@@ -75,22 +76,22 @@ export default function SurveyPage() {
   const [history, setHistory] = useState<SurveyDoc | null>(null)
   async function openParticipants(s: SurveyDoc) {
     try { setParticipants((await api.get<Participant[]>(`/surveys/${s.id}/participants`)).data) }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   async function removeOne(s: SurveyDoc) {
     // 원본 '설문조사' 창 [삭제] 문구(2026-10-13 실측).
-    if (!confirm('삭제한 데이터는 복구되지 않습니다.\n\n삭제하겠습니까?')) return
+    if (!(await ecConfirm('삭제한 데이터는 복구되지 않습니다.\n\n삭제하겠습니까?'))) return
     try { await api.delete(`/surveys/${s.id}`); setViewing(null); void load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   /** 원본 진행 중 설문 창 [설문끝내기] — 묻고 나서 '완료' 로 바꾼다(2026-10-13 실측, 창은 그대로 [설문결과보기] 줄로 바뀐다). */
   async function finishOne(s: SurveyDoc) {
-    if (!confirm('설문을 끝내면 더이상 설문을 진행할 수 없습니다. 계속 진행하시겠습니까?')) return
+    if (!(await ecConfirm('설문을 끝내면 더이상 설문을 진행할 수 없습니다. 계속 진행하시겠습니까?'))) return
     try {
       const r = await api.patch<SurveyDoc>(`/surveys/${s.id}`, { status: 'CLOSED' })
       setViewing(r.data); void load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function load() {
@@ -102,13 +103,13 @@ export default function SurveyPage() {
 
   async function openResult(s: SurveyDoc) {
     try { setResult((await api.get<SurveyResult>(`/surveys/${s.id}/result`)).data) }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function removeSelected() {
     const targets = shown.filter((r) => selected.has(r.id))
-    if (targets.length === 0) return alert('지울 설문을 고르세요. (왼쪽 회색 번호 칸을 누릅니다)')
-    if (!confirm(`${targets.length}건을 삭제할까요? 응답도 함께 사라집니다.`)) return
+    if (targets.length === 0) return ecAlert('지울 설문을 고르세요. (왼쪽 회색 번호 칸을 누릅니다)')
+    if (!(await ecConfirm(`${targets.length}건을 삭제할까요? 응답도 함께 사라집니다.`))) return
     const failed: string[] = []
     for (const r of targets) {
       try { await api.delete(`/surveys/${r.id}`) }
@@ -116,7 +117,7 @@ export default function SurveyPage() {
     }
     setSelected(new Set())
     void load()
-    if (failed.length) alert(`지우지 못한 설문 ${failed.length}건 — ${failed.join(' / ')}`)
+    if (failed.length) void ecAlert(`지우지 못한 설문 ${failed.length}건 — ${failed.join(' / ')}`)
   }
 
   const toggle = (id: number) =>

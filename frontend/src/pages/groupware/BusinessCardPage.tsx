@@ -4,6 +4,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BusinessCard, Partner, User } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 그룹웨어 > 고객관리 > 명함관리 — 거래처 담당자 연락처를 회사 자산으로 남긴다 */
 export default function BusinessCardPage() {
@@ -50,12 +51,12 @@ export default function BusinessCardPage() {
   })
 
   async function remove(c: BusinessCard) {
-    if (!window.confirm(`${c.name} (${c.companyName ?? ''}) 명함을 삭제할까요?`)) return
+    if (!(await ecConfirm(`${c.name} (${c.companyName ?? ''}) 명함을 삭제할까요?`))) return
     try {
       await api.delete(`/business-cards/${c.id}`)
       flash('명함을 삭제했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
 

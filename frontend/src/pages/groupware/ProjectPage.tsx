@@ -6,6 +6,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
@@ -83,21 +84,21 @@ export default function ProjectPage() {
 
   async function patch(p: Project, body: Record<string, unknown>) {
     try { await api.patch(`/projects/${p.id}`, body); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   function editProgress(p: Project) {
     const v = prompt(`[${p.name}] 진척률(0~100)`, String(p.progress))
     if (v === null) return
     const n = Number(v)
-    if (!Number.isFinite(n) || n < 0 || n > 100) { alert('0~100 사이 숫자를 입력하세요.'); return }
+    if (!Number.isFinite(n) || n < 0 || n > 100) { void ecAlert('0~100 사이 숫자를 입력하세요.'); return }
     patch(p, { progress: n })
   }
 
   async function remove(p: Project) {
-    if (!confirm(`[${p.code}] ${p.name} 프로젝트를 삭제할까요?`)) return
+    if (!(await ecConfirm(`[${p.code}] ${p.name} 프로젝트를 삭제할까요?`))) return
     try { await api.delete(`/projects/${p.id}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }  // 전표·계획 참조 시 서버가 막는다(400)
+    catch (err) { void ecAlert(extractErrorMessage(err)) }  // 전표·계획 참조 시 서버가 막는다(400)
   }
 
   const shownRows = rows

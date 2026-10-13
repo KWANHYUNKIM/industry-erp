@@ -18,6 +18,7 @@ import RepeatScopeModal, { type RepeatScope } from '../../features/schedule/comp
 import LabelMasterModal from '../../features/board/components/LabelMasterModal'
 import LabelChip from '../../features/board/components/LabelChip'
 import type { BoardLabel } from '../../features/board/labels'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 그룹웨어 > 사내관리 > 공용품관리 (이카운트 E070204)
@@ -267,7 +268,7 @@ export default function SuppliesPage() {
   }
 
   async function removeOne(id: number, scope?: RepeatScope) {
-    if (!confirm(DELETE_ASK)) return
+    if (!(await ecConfirm(DELETE_ASK))) return
     try {
       await api.delete(`/supply-usages/${id}`, { params: scope ? { scope } : undefined })
       setViewing(null)
@@ -298,11 +299,11 @@ export default function SuppliesPage() {
   }
 
   async function removeSupply(s: Supply) {
-    if (!confirm(`[${s.name}] 공용품을 삭제할까요?`)) return
+    if (!(await ecConfirm(`[${s.name}] 공용품을 삭제할까요?`))) return
     try {
       await api.delete(`/supplies/${s.id}`)
       setSupplies((await api.get<Supply[]>('/supplies')).data)
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const timeText = (u: Usage) =>

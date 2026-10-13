@@ -9,6 +9,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 
@@ -84,7 +85,7 @@ export default function CrmPage() {
       await api.patch(`/crm-activities/${row.id}`, { stage })
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

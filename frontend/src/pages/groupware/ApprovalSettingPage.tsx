@@ -13,6 +13,7 @@ import { UserPermissionModal, ViewTimingModal, type ViewTiming, type WithInputSe
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 // 원본 전자결재 > 기초자료등록 아래의 두 화면 이름 그대로다(공통양식등록 · 결재설정).
 const TABS = ['공통양식등록', '결재설정'] as const
@@ -99,7 +100,7 @@ export default function ApprovalSettingPage() {
 
   async function removeTemplate(t: ApprovalFormTemplateAdmin) {
     // 원본 '입력화면설정' [삭제] 의 확인 문구 그대로.
-    if (!window.confirm('등록한 양식을 삭제하겠습니까?\n삭제된 양식은 복구되지 않습니다.')) return
+    if (!(await ecConfirm('등록한 양식을 삭제하겠습니까?\n삭제된 양식은 복구되지 않습니다.'))) return
     try {
       await api.delete(`/approval-settings/templates/${t.id}`)
       flash(`${t.name} 양식을 삭제했습니다.`)
@@ -108,7 +109,7 @@ export default function ApprovalSettingPage() {
   }
 
   async function removePreset(p: ApprovalPreset) {
-    if (!window.confirm(`결재선 "${p.name}"을 삭제할까요?`)) return
+    if (!(await ecConfirm(`결재선 "${p.name}"을 삭제할까요?`))) return
     try {
       await api.delete(`/approval-settings/presets/${p.id}`)
       flash('결재선을 삭제했습니다.')

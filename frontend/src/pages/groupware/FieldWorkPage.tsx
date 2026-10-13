@@ -7,6 +7,7 @@ import type { FieldWork, FieldWorkSummary } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useShortcut } from '../../utils/useShortcut'
+import { ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 실측). */
@@ -71,7 +72,7 @@ export default function FieldWorkPage() {
   async function deleteSelected() {
     const targets = rows.filter((r) => selected.has(r.id))
     if (targets.length === 0) return
-    if (!window.confirm('삭제하겠습니까?')) return
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     const failed: string[] = []
     for (const r of targets) {
       try { await api.delete(`/field-works/${r.id}`) } catch (err) { failed.push(extractErrorMessage(err)) }

@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 부서 트리 노드 (children 은 sortOrder → 이름 순) */
 interface Node extends Department {
@@ -71,19 +72,19 @@ export default function OrgChartPage() {
       flash(departmentId == null ? '부서 배치를 해제했습니다.' : '부서를 옮겼습니다.')
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
   async function remove(d: Department) {
-    if (!window.confirm(`부서 「${d.name}」을(를) 삭제할까요?`)) return
+    if (!(await ecConfirm(`부서 「${d.name}」을(를) 삭제할까요?`))) return
     try {
       await api.delete(`/departments/${d.id}`)
       if (selected === d.id) setSelected(null)
       flash('부서를 삭제했습니다.')
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

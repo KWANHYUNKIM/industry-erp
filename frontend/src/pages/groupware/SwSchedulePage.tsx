@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert } from '../../components/EcDialog'
 
 interface Project {
   id: number
@@ -73,7 +74,7 @@ export default function SwSchedulePage() {
     try {
       await api.patch(`/projects/${r.id}`, { progress: next, status: next >= 100 ? 'DONE' : undefined })
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   /*

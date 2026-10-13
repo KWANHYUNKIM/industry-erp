@@ -8,6 +8,7 @@ import type { Department, EmployeeMaster } from '../../types/api'
 import { useAuth } from '../../features/auth/AuthContext'
 import { useShortcut } from '../../utils/useShortcut'
 import { exportTableToXlsx } from '../../utils/excel'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 interface Node extends Department {
   children: Node[]
@@ -147,13 +148,13 @@ export default function OrgTreePage() {
   async function designateHead() {
     setError('')
     if (!sel) return
-    if (checked.size === 0) return alert(NO_CHECK)
+    if (checked.size === 0) return ecAlert(NO_CHECK)
     if (checked.size > 1) return setError('리스트에 하나만 체크가 되어야 합니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
     const [employeeId] = [...checked]
     const ask = sel.headEmployeeId != null && sel.headEmployeeId !== employeeId
       ? '이미 지정된 부서장이 있습니다. 선택하신 ID로 부서장을 변경하시겠습니까?'
       : '해당 ID를 부서장으로 지정하시겠습니까?'
-    if (!window.confirm(ask)) return
+    if (!(await ecConfirm(ask))) return
     try {
       await api.put(`/departments/${sel.id}/head`, { employeeId })
       setChecked(new Set())
@@ -222,7 +223,7 @@ export default function OrgTreePage() {
   /** 원본 Fn › 미포함. */
   async function exclude() {
     setFnOpen(false)
-    if (!sel || !confirm(EXCLUDE_ASK)) return
+    if (!sel || !(await ecConfirm(EXCLUDE_ASK))) return
     try {
       await api.put(`/departments/${sel.id}/org`, { excluded: true, parentId: null })
       await load()
@@ -317,7 +318,7 @@ export default function OrgTreePage() {
                       onClick={() => open('deptChange')}>부서변경</button>
             ) : (
               <button type="button" className="ec-btn ec-btn-sm"
-                      onClick={() => (checked.size === 0 ? alert(NO_CHECK) : open('deptChange'))}>사용자포함</button>
+                      onClick={() => (checked.size === 0 ? ecAlert(NO_CHECK) : open('deptChange'))}>사용자포함</button>
             )}
           </div>
           <table id="org-members" className="w-full text-left">

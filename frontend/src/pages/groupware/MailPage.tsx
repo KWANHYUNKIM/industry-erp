@@ -5,6 +5,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { Mail, SharedMailBox, User } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const when = (s: string | null) => (s ? s.replace('T', ' ').slice(0, 16) : '')
 
@@ -79,11 +80,11 @@ export default function MailPage() {
     )
     if (picked === null) return
     const assigneeId = Number(picked)
-    if (!users.some((u) => u.id === assigneeId)) return alert('담당자 번호가 올바르지 않습니다.')
+    if (!users.some((u) => u.id === assigneeId)) return ecAlert('담당자 번호가 올바르지 않습니다.')
     try {
       await api.post(`/mails/${m.id}/assign`, { assigneeId })
       flash('담당자를 배정했습니다.'); setOpen(null); load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function handle(m: Mail) {
@@ -92,21 +93,21 @@ export default function MailPage() {
     try {
       await api.post(`/mails/${m.id}/handle`, { note })
       flash('처리 완료했습니다.'); setOpen(null); load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function trashMail(m: Mail) {
     try { await api.delete(`/mails/${m.id}`); flash('지운함으로 옮겼습니다.'); setOpen(null); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   async function restoreMail(m: Mail) {
     try { await api.post(`/mails/${m.id}/restore`); flash('복원했습니다.'); setOpen(null); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   async function permanentDelete(m: Mail) {
-    if (!confirm('영구삭제하면 복구할 수 없습니다. 삭제할까요?')) return
+    if (!(await ecConfirm('영구삭제하면 복구할 수 없습니다. 삭제할까요?'))) return
     try { await api.delete(`/mails/${m.id}/permanent`); flash('영구삭제했습니다.'); setOpen(null); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function markSpam(m: Mail, spamOn: boolean) {
@@ -114,25 +115,25 @@ export default function MailPage() {
       await api.post(`/mails/${m.id}/${spamOn ? 'spam' : 'not-spam'}`)
       flash(spamOn ? '스팸으로 옮겼습니다.' : '스팸을 해제했습니다.')
       setOpen(null); load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function addRule() {
-    if (!ruleForm.pattern.trim()) return alert('걸러낼 문자열을 입력하세요.')
+    if (!ruleForm.pattern.trim()) return ecAlert('걸러낼 문자열을 입력하세요.')
     try {
       await api.post('/spam-rules', { kind: ruleForm.kind, pattern: ruleForm.pattern.trim() })
       setRuleForm({ ...ruleForm, pattern: '' }); flash('규칙을 추가했습니다.'); load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function toggleRule(r: SpamRule) {
     try { await api.put(`/spam-rules/${r.id}`, { kind: r.kind, pattern: r.pattern, active: !r.active, note: r.note }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function removeRule(r: SpamRule) {
-    if (!confirm(`[${r.kindName}: ${r.pattern}] 규칙을 삭제할까요?`)) return
-    try { await api.delete(`/spam-rules/${r.id}`); load() } catch (err) { alert(extractErrorMessage(err)) }
+    if (!(await ecConfirm(`[${r.kindName}: ${r.pattern}] 규칙을 삭제할까요?`))) return
+    try { await api.delete(`/spam-rules/${r.id}`); load() } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const shared = box?.mails ?? []

@@ -11,6 +11,7 @@ import DriveFolderPicker from '../../features/drive/components/DriveFolderPicker
 import DriveHistoryModal from '../../features/drive/components/DriveHistoryModal'
 import DriveDetailModal from '../../features/drive/components/DriveDetailModal'
 import { driveSize, driveStamp } from '../../features/drive/driveFormat'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const TREE = [
   { key: 'my', label: 'My Drive', icon: '📁', drive: 'MY' },
@@ -183,16 +184,16 @@ export default function EcDrivePage() {
       await api.post('/drive-documents/upload', fd, { params: { drive, parentId: inDrive && folder ? folder.id : undefined } })
       void load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     } finally {
       setUploading(false)
     }
   }
 
   async function download(d: DriveDocument) {
-    if (!d.fileId) return alert('이 항목에는 실제 파일이 없습니다(메타데이터만 등록됨).')
+    if (!d.fileId) return ecAlert('이 항목에는 실제 파일이 없습니다(메타데이터만 등록됨).')
     try { await downloadStoredFile(d.fileId, d.name) }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function patch(d: DriveDocument, body: Partial<Pick<DriveDocument, 'important' | 'trashed' | 'name'>>) {
@@ -200,23 +201,23 @@ export default function EcDrivePage() {
       await api.patch(`/drive-documents/${d.id}`, body)
       void load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
   /** 원본 [휴지통으로이동] 의 확인 문구 그대로(2026-10-12 다시 잼 — 아래 ※ 줄까지). */
-  function toTrash(d: DriveDocument) {
-    if (!window.confirm(`선택한 폴더/파일을 휴지통으로 이동하시겠습니까?\n'${d.name}' 가 30일 후 완전히 삭제 됩니다.\n\n※ 해당 파일이 첨부된 전표/기안서/게시글에서 연결이 취소됩니다. 파일 복원 시에는 재연결됩니다.`)) return
+  async function toTrash(d: DriveDocument) {
+    if (!(await ecConfirm(`선택한 폴더/파일을 휴지통으로 이동하시겠습니까?\n'${d.name}' 가 30일 후 완전히 삭제 됩니다.\n\n※ 해당 파일이 첨부된 전표/기안서/게시글에서 연결이 취소됩니다. 파일 복원 시에는 재연결됩니다.`))) return
     void patch(d, { trashed: true })
   }
 
   async function remove(d: DriveDocument) {
-    if (!window.confirm(`[${d.name}] 영구 삭제할까요?`)) return
+    if (!(await ecConfirm(`[${d.name}] 영구 삭제할까요?`))) return
     try {
       await api.delete(`/drive-documents/${d.id}`)
       void load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
@@ -266,7 +267,7 @@ export default function EcDrivePage() {
       const dest = p.parentId != null ? data.find((f) => f.id === p.parentId) ?? null : null
       if (sel === (p.drive === 'SHARED' ? 'shared' : 'my') && (folder?.id ?? null) === p.parentId) void load()
       else open(p.drive === 'SHARED' ? 'shared' : 'my', dest)
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   /** 하단 [File▲] › Folder — 고른 폴더를 안의 폴더 차례 그대로 지금 있는 곳에 만들고 파일을 올린다. */
@@ -291,7 +292,7 @@ export default function EcDrivePage() {
         await api.post('/drive-documents/upload', fd, { params: { drive, parentId: made.get(path) ?? undefined } })
       }
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     } finally {
       setUploading(false)
       void load()

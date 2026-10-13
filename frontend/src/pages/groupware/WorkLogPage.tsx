@@ -11,6 +11,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { inactiveDeptNames, showsJournal, type DeptRow } from '../../utils/inactiveDept'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
+import { ecConfirm } from '../../components/EcDialog'
 
 const WORKLOG_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '종료일', '최근3일+7일'] as const
 
@@ -206,7 +207,7 @@ export default function WorkLogPage() {
     // 원본은 답글이 달린 글이면 묻지도 않고 이 안내만 띄운다(2026-10-12 실측). 서버도 같은 말로 막는다.
     if (rows.some((x) => x.parentId === r.id)) return setError('답변이 있는 글은 삭제할 수 없습니다.\n\n답변 삭제 후 다시 시도 바랍니다.')
     setError('')
-    if (!window.confirm('게시글을 삭제하면 복구할 수 없습니다.\n삭제하겠습니까?')) return
+    if (!(await ecConfirm('게시글을 삭제하면 복구할 수 없습니다.\n삭제하겠습니까?'))) return
     try {
       await api.delete(`/work-journals/${r.id}`)
       // 답글을 지우면 '조회' 창은 원글을 띄운 채로 남는다(원본 실측).

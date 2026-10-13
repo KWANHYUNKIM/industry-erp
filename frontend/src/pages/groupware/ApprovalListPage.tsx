@@ -13,6 +13,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useShortcut } from '../../utils/useShortcut'
 import { requireSelection } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
@@ -245,7 +246,7 @@ export default function ApprovalListPage({
       setDetail(null)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
@@ -268,7 +269,7 @@ export default function ApprovalListPage({
         : '고른 문서 중 지금 내 차례인 것이 없습니다.')
       return
     }
-    if (!window.confirm(`${targets.length}건을 결재할까요?`)) return
+    if (!(await ecConfirm(`${targets.length}건을 결재할까요?`))) return
     const failed: string[] = []
     for (const d of targets) {
       try {
@@ -320,7 +321,7 @@ export default function ApprovalListPage({
         : '고른 문서 중 지울 수 있는 것이 없습니다.')
       return
     }
-    if (!window.confirm(`${targets.length}건을 삭제할까요? (삭제 탭에서 다시 볼 수 있습니다)`)) return
+    if (!(await ecConfirm(`${targets.length}건을 삭제할까요? (삭제 탭에서 다시 볼 수 있습니다)`))) return
     const failed: string[] = []
     for (const d of targets) {
       try {
@@ -343,19 +344,19 @@ export default function ApprovalListPage({
       flash('상신되었습니다.')
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
   async function remove(d: ApprovalDoc) {
-    if (!window.confirm(`'${d.title}' 기안서를 삭제할까요? (삭제 탭에서 다시 볼 수 있습니다)`)) return
+    if (!(await ecConfirm(`'${d.title}' 기안서를 삭제할까요? (삭제 탭에서 다시 볼 수 있습니다)`))) return
     try {
       await api.delete(`/approvals/${d.id}`)
       setDetail(null)
       flash('삭제되었습니다.')
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, ShortMessage, User } from '../../types/api'
 import { shiftMonths, ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 그룹웨어 > 쪽지 (이카운트 E010851 쪽지수발신내역 · C000663 커뮤니케이션센터 — 원본 DOM 이 같은 화면이다)
@@ -92,22 +93,22 @@ export default function ShortMessagePage() {
   }
 
   async function archiveChecked(archived: boolean) {
-    if (checked.length === 0) return alert('쪽지를 선택하세요.')
+    if (checked.length === 0) return ecAlert('쪽지를 선택하세요.')
     try {
       await Promise.all(checked.map((id) =>
         api.post(`/short-messages/${id}/${archived ? 'archive' : 'unarchive'}`)))
       flash(archived ? `${checked.length}건을 보관했습니다.` : `${checked.length}건을 보관함에서 꺼냈습니다.`)
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function deleteChecked() {
-    if (checked.length === 0) return alert('쪽지를 선택하세요.')
-    if (!window.confirm(`선택한 ${checked.length}건을 삭제할까요?`)) return
+    if (checked.length === 0) return ecAlert('쪽지를 선택하세요.')
+    if (!(await ecConfirm(`선택한 ${checked.length}건을 삭제할까요?`))) return
     try {
       await api.post('/short-messages/delete', { ids: checked })
       flash(`${checked.length}건을 삭제했습니다.`); load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   const inputCls = 'ec-input'

@@ -19,6 +19,7 @@ import LabelChip from '../../features/board/components/LabelChip'
 import ScheduleCategoryModal, { type ScheduleCategory } from '../../features/schedule/components/ScheduleCategoryModal'
 import NameChips from '../../features/schedule/components/NameChips'
 import { EcHistoryModal } from '../../components/EcHistory'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 interface ScheduleEvent {
   id: number
@@ -339,7 +340,7 @@ export default function SchedulePage() {
     const body = { ...rest, sharers: sharersAll ? '전체' : form.sharers }
     // 원본: 참석자에게 같은 시간 일정이 이미 있으면 'OO님의 공유일정이 존재합니다. 저장 하겠습니까?' 를 묻는다.
     const clash = attendeeClash()
-    if (clash && !confirm(`${clash}님의 공유일정이 존재합니다.\n저장 하겠습니까?`)) return
+    if (clash && !(await ecConfirm(`${clash}님의 공유일정이 존재합니다.\n저장 하겠습니까?`))) return
     try {
       if (editId != null) {
         // PATCH 는 null 을 '그대로 둠' 으로 읽는다 — 지운 칸은 빈 글자로 보내야 비워진다.
@@ -382,7 +383,7 @@ export default function SchedulePage() {
   const DELETE_ASK = '선택한 일정이 삭제 됩니다.\n한번 지워진 자료는 복구 될 수 없습니다.\n\n계속 진행 하겠습니까?'
 
   async function removeOne(id: number, scope?: RepeatScope) {
-    if (!confirm(DELETE_ASK)) return
+    if (!(await ecConfirm(DELETE_ASK))) return
     try {
       await api.delete(`/schedule-events/${id}`, scope ? { params: { scope } } : undefined)
       setViewing(null)
@@ -396,8 +397,8 @@ export default function SchedulePage() {
 
   async function removeSelected() {
     const targets = shown.filter((r) => selected.has(r.id))
-    if (targets.length === 0) return alert('지울 일정을 고르세요. (왼쪽 회색 번호 칸을 누릅니다)')
-    if (!confirm(DELETE_ASK)) return
+    if (targets.length === 0) return ecAlert('지울 일정을 고르세요. (왼쪽 회색 번호 칸을 누릅니다)')
+    if (!(await ecConfirm(DELETE_ASK))) return
     const failed: string[] = []
     for (const r of targets) {
       try { await api.delete(`/schedule-events/${r.id}`) }
@@ -405,7 +406,7 @@ export default function SchedulePage() {
     }
     setSelected(new Set())
     void load()
-    if (failed.length) alert(`지우지 못한 일정 ${failed.length}건 — ${failed.join(' / ')}`)
+    if (failed.length) void ecAlert(`지우지 못한 일정 ${failed.length}건 — ${failed.join(' / ')}`)
   }
 
   const toggle = (id: number) =>

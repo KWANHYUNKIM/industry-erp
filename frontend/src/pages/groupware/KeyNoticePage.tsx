@@ -6,6 +6,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import EcListShell from '../../components/EcListShell'
 import ApprovalDetailModal, { STATUS_LABEL, statusColor } from '../../features/approval/components/ApprovalDetailModal'
 import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate } from '../../types/api'
+import { ecAlert } from '../../components/EcDialog'
 
 /**
  * 그룹웨어 > 공유정보 > 주요전달사항 (이카운트 E070205)
@@ -85,7 +86,7 @@ export default function KeyNoticePage() {
       setDetail(null)
       void load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
