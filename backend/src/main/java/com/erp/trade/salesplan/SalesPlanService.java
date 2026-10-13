@@ -258,11 +258,14 @@ public class SalesPlanService {
         }
         java.util.Map<String, BigDecimal[]> acc = new java.util.LinkedHashMap<>();
         java.util.Map<String, String[]> labels = new java.util.HashMap<>();
+        /* 원본(2026-10-14 실측): 줄은 <b>기간 안 계획이 있는 축 값</b>만 선다. 표시조건 품목명이면 계획 품목 줄만(다른 품목 판매는 빠짐),
+         * 표시조건 없음이면 계획이 하나라도 있으면 판매 전부를 한 줄로, 계획이 없으면 판매가 있어도 '등록된 데이터가 없습니다.'. */
+        java.util.Set<String> planned = new java.util.HashSet<>();
         for (SalesPlan p : planRepository.findByPlanDateBetween(from, to)) {
             if (!pass(itemId, p.getItem()) || !pass(partnerId, p.getPartner()) || !pass(warehouseId, p.getWarehouse())
                     || !pass(employeeId, p.getEmployee()) || !pass(projectId, p.getProject())) continue;
             Object[] dims = {p.getItem(), p.getPartner(), p.getWarehouse(), p.getEmployee(), p.getProject()};
-            add(acc, labels, dims, by1, by2, nz(p.getPlanAmount()), nz(p.getPlanQty()), BigDecimal.ZERO, BigDecimal.ZERO);
+            planned.add(add(acc, labels, dims, by1, by2, nz(p.getPlanAmount()), nz(p.getPlanQty()), BigDecimal.ZERO, BigDecimal.ZERO));
         }
         for (Sales s : salesRepository.findWithLinesBySaleDateBetween(from, to)) {
             if (s.isReturnSlip() ? !withReturn : !withNormal) continue;
@@ -276,6 +279,7 @@ public class SalesPlanService {
         }
         List<com.erp.trade.salesplan.dto.SalesPlanDtos.CompareRow> out = new ArrayList<>();
         acc.forEach((k, v) -> {
+            if (!planned.contains(k)) return;
             String[] lb = labels.get(k);
             out.add(new com.erp.trade.salesplan.dto.SalesPlanDtos.CompareRow(lb[0], lb[1], lb[2], lb[3], v[0], v[1], v[2], v[3]));
         });
@@ -288,13 +292,14 @@ public class SalesPlanService {
         return id == null || (master != null && idOf(master).equals(id));
     }
 
-    private void add(java.util.Map<String, BigDecimal[]> acc, java.util.Map<String, String[]> labels, Object[] dims,
+    private String add(java.util.Map<String, BigDecimal[]> acc, java.util.Map<String, String[]> labels, Object[] dims,
                      String by1, String by2, BigDecimal planAmt, BigDecimal planQty, BigDecimal saleAmt, BigDecimal saleQty) {
         String[] k1 = keyOf(dims, by1), k2 = keyOf(dims, by2);
         String key = k1[0] + "\u0001" + k2[0];
         labels.putIfAbsent(key, new String[]{k1[0], k1[1], k2[0], k2[1]});
         BigDecimal[] v = acc.computeIfAbsent(key, x -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
         v[0] = v[0].add(planAmt); v[1] = v[1].add(planQty); v[2] = v[2].add(saleAmt); v[3] = v[3].add(saleQty);
+        return key;
     }
 
     /** 축 하나의 [코드, 이름]. 고르지 않은 축(없음)은 빈 칸 하나로 모은다. 값이 없는 전표는 코드 없이 '(미지정)'. */

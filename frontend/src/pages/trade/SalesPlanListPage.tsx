@@ -68,6 +68,13 @@ export default function SalesPlanListPage() {
     finally { setLoading(false) }
   }
   useEffect(() => { void load() }, [])
+  /* 원본 매출계획입력: 품목을 고르면 [단가] 에 품목의 출고단가(우리 items.unitPrice)가 차고 예상매출액은 수량 × 단가(수량이 비면 0). */
+  const [prices, setPrices] = useState<Map<string, number>>(new Map())
+  useEffect(() => {
+    api.get<{ id: number; unitPrice?: number | null }[]>('/items')
+      .then((r) => setPrices(new Map(r.data.map((x) => [String(x.id), Number(x.unitPrice ?? 0)]))))
+      .catch(() => undefined)
+  }, [])
 
   const docs = useMemo(() => {
     const m = new Map<string, Doc>()
@@ -260,7 +267,7 @@ export default function SalesPlanListPage() {
                 <td><CodePickerField label="담당자" hideLabel fill emptyLabel="지우기" placeholder="담당자" value={l.employeeId}
                                      onChange={(v) => setLine(i, { employeeId: v })} items={pickers.employees} /></td>
                 <td><CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목" value={l.itemId}
-                                     onChange={(v) => setLine(i, { itemId: v })} items={pickers.items} /></td>
+                                     onChange={(v) => setLine(i, v ? { itemId: v, unitPrice: String(prices.get(v) ?? 0) } : { itemId: v })} items={pickers.items} /></td>
                 <td><input className="ec-input w-full text-right" value={l.planQty} disabled={!l.itemId} onChange={(e) => setLine(i, { planQty: e.target.value })} /></td>
                 <td><input className="ec-input w-full text-right" value={l.unitPrice} disabled={!l.itemId} onChange={(e) => setLine(i, { unitPrice: e.target.value })} /></td>
                 <td><input className="ec-input w-full text-right" value={l.planAmount} disabled={!l.itemId} onChange={(e) => setLine(i, { planAmount: e.target.value })} /></td>
@@ -272,10 +279,10 @@ export default function SalesPlanListPage() {
         </table>
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
-          {editing
-            ? <button className="ec-btn" onClick={async () => { if ((await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) void removeDocs([editing.planNo]) }}>삭제</button>
-            : <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
+          {/* 원본 수정 창 단추 차례: 저장(F8) · 복사 · 닫기 · 삭제 · 보내기 · H (복사 · 보내기 · H 는 없다) / 입력: 저장(F8) · 다시 작성 · 리스트 */}
+          {!editing && <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+          {editing && <button className="ec-btn" onClick={async () => { if ((await ecConfirm('전표를 삭제하겠습니까?\n- 매출계획'))) void removeDocs([editing.planNo]) }}>삭제</button>}
         </div>
       </Modal>
     </EcListShell>
