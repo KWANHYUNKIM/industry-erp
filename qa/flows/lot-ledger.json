@@ -14,6 +14,15 @@
         "expect:document.body.innerText.includes('시리얼/로트No.재고수불부') && !!document.querySelector('tfoot') && document.querySelector('tfoot').innerText.includes('합계')",
         "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('lotl')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const a = await fetch('/api/sales/' + x.sale, { method: 'DELETE', headers: H }); const b = await fetch('/api/purchases/' + x.pur, { method: 'DELETE', headers: H }); return a.status === 204 && b.status === 204 })()"
       ]
+    },
+    {
+      "name": "잔량이 0 이 된 줄은 [재고수량] 이 빈칸(원본 BEN_0048, 2026-10-13) — QA재고2-ADJ 는 lot-stock-status 흐름이 0 으로 되돌려 둔다",
+      "path": "/quality/lot-ledger",
+      "steps": [
+        "wait:3000",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')]; const i = rows.findIndex((r) => r.innerText.trim().startsWith('QA재고2-ADJ 계')); return i > 0 && rows[i - 1].cells.length >= 9 && rows[i - 1].cells[8].innerText.trim() === '' })()",
+        "expect:![...document.querySelectorAll('table.ec-report tbody td')].some((td) => td.innerText.trim() === '0.00')"
+      ]
     }
   ]
 }

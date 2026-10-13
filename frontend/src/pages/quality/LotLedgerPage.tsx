@@ -310,7 +310,8 @@ export default function LotLedgerPage() {
                   <td>{r.docType ? '' : (r.note ?? '')}</td>
                   <td className="text-right">{q > 0 ? qty2(q) : ''}</td>
                   <td className="text-right">{q < 0 ? qty2(-q) : ''}</td>
-                  <td className="text-right">{qty2(bal)}</td>
+                  {/* 원본은 잔량이 0 이 된 줄의 [재고수량] 을 비운다(BEN_0048 전월이월 -1 → 구매 1 → 빈칸, 2026-10-13 실측). */}
+                  <td className="text-right">{bal ? qty2(bal) : ''}</td>
                   <td className="text-center ec-link">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : ''}</td>
                 </tr>)
             }
@@ -331,7 +332,7 @@ export default function LotLedgerPage() {
               <td colSpan={6} className="text-center">합계</td>
               <td className="text-right">{qty2(totals.inQty)}</td>
               <td className="text-right">{qty2(totals.outQty)}</td>
-              <td className="text-right">{qty2(totals.closing)}</td>
+              <td className="text-right">{totals.closing ? qty2(totals.closing) : ''}</td>
               <td></td>
             </tr>
           </tfoot>

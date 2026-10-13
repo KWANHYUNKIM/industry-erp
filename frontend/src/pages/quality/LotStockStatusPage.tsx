@@ -103,7 +103,7 @@ function LotLedgerModal({ row, asOf, onClose }: { row: Row; asOf: string; onClos
                 <td>{t.docType ? '' : (t.note ?? '')}</td>
                 <td className="text-right">{q > 0 ? qty2(q) : ''}</td>
                 <td className="text-right">{q < 0 ? qty2(-q) : ''}</td>
-                <td className="text-right">{qty2(bal)}</td>
+                <td className="text-right">{bal ? qty2(bal) : ''}</td>
                 <td className="text-center ec-link">{t.sourceNo ? dateNo(t.txDate, t.sourceNo) : ''}</td>
               </tr>)
           })}
@@ -120,7 +120,7 @@ function LotLedgerModal({ row, asOf, onClose }: { row: Row; asOf: string; onClos
             <td colSpan={6} className="text-center">합계</td>
             <td className="text-right">{inQty ? qty2(inQty) : ''}</td>
             <td className="text-right">{outQty ? qty2(outQty) : ''}</td>
-            <td className="text-right">{qty2(opening + inQty - outQty)}</td>
+            <td className="text-right">{opening + inQty - outQty ? qty2(opening + inQty - outQty) : ''}</td>
             <td></td>
           </tr>
         </tfoot>
