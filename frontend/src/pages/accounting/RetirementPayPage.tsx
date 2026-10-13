@@ -164,7 +164,7 @@ export default function RetirementPayPage() {
         { label: '인쇄' },
         // 원본은 안 고르고 누르면 '리스트에 선택된 자료가 없습니다.' 를 되묻는다 — 우리는 미리 잠근다(qa/ui-check '고른 줄에 대고 하는 버튼').
         // 고르고 누르면 원본 그대로 '삭제하겠습니까?'
-        { label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 },
+        { label: '선택삭제', onClick: () => setConfirmDelete(true), selected: picked.size },
         { label: 'Excel' },
       ]}
     >

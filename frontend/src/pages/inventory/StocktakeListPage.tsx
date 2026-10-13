@@ -148,7 +148,7 @@ export default function StocktakeListPage() {
         /* 원본 버튼줄 — 재고조정조회와 같은 두 갈래(2026-10-12 실측). */
         { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
         { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
-        { label: '선택삭제', onClick: () => void removePicked(), disabled: picked.size === 0 },
+        { label: '선택삭제', onClick: () => void removePicked(), selected: picked.size },
         { label: 'Excel' },
       ]}
     >

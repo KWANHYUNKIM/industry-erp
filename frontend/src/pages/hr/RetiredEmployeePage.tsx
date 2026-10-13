@@ -148,7 +148,7 @@ export default function RetiredEmployeePage() {
       actions={[
         { label: 'Email' },
         { label: '인쇄' },
-        { label: '선택삭제', disabled: checked.size === 0, onClick: () => void cancelRetire([...checked]) },
+        { label: '선택삭제', selected: checked.size, onClick: () => void cancelRetire([...checked]) },
         { label: 'Excel' },
       ]}
     >

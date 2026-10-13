@@ -157,7 +157,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') } },
         { label: '신규(F2)', onClick: () => { setVoucher(null); setEntryOpen(true) } },
-        { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
+        { label: '선택삭제', selected: picked.size, onClick: () => setConfirmDelete(true) },
         { label: 'Excel' },
       ]}
     >

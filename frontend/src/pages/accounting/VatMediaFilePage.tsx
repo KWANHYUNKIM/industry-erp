@@ -142,7 +142,7 @@ export default function VatMediaFilePage() {
 
   return (
     <EcListShell title="과세자료전산매체" option={false} onNew={openNew}
-                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 }]}>
+                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), selected: picked.size }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {confirmDelete && (
         <div className="ec-alert mb-[8px] flex items-center gap-[6px]">

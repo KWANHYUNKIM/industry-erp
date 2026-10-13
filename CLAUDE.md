@@ -477,6 +477,10 @@ frontend/src/
   (`#fff`·`rgb(`)의 개수를 `qa/style-baseline.json` 에 적어 두고, 늘면 실패합니다(새 파일의 기준은 0).
   줄여도 실패합니다 — `node qa/style-check.mjs --update` 로 기준을 조이세요. 2026-10-03 처음 잰 값은 인라인 13,609 · 색 5,651,
   같은 날 화면 274개의 색을 토큰으로 바꿔 색은 831 로 줄었습니다.
+- **[선택삭제] 같은 고른 줄 버튼은 잠그지 않습니다**(원본 구매조회 실측). EcListShell `actions` 에 `selected: 고른수` 를 주면 0 일 때 셸이
+  원본 알림("리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.")을 띄웁니다. 직접 그린 버튼은 `requireSelection(n)`. `ui-check` 가 봅니다.
+- **알림 · 확인은 화면 안 창으로** — `window.alert` · `confirm` 대신 `ecAlert(글)` · `await ecConfirm(글)`(`components/EcDialog`, 틀은 App 의 `EcDialogHost`).
+  기본 창은 그 탭의 JS 를 멈춰 같은 Chrome 을 쓰는 작업자 · 자동 검사를 세웁니다. 흐름의 `window.confirm = () => true` 바꿔 끼우기는 그대로 먹습니다.
 - 테두리는 `var(--ec-hair)`(0.5px, 레티나에서 기기 픽셀 1칸)입니다. 본문 틀(`.ec-frame`)만 원본도 1px 입니다.
 - Tailwind 둥글기·그림자는 `index.css` 가 원본 단계로 덮습니다(`rounded-lg` → 10, `rounded-xl/2xl` → 20, 그림자 없음).
   새 화면에서는 Tailwind 색·둥글기 대신 위 클래스를 쓰세요.

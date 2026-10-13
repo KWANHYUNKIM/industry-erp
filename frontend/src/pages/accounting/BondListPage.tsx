@@ -136,7 +136,7 @@ export default function BondListPage({ side }: { side: BondSide }) {
       title={title}
       actions={[
         { label: '신규(F2)', primary: true, onClick: () => setModal({ open: true, id: null }) },
-        { label: '선택삭제', disabled: picked.size === 0, onClick: askDelete },
+        { label: '선택삭제', selected: picked.size, onClick: askDelete },
         { label: 'Excel' },
       ]}
     >

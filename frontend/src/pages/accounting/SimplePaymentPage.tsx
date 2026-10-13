@@ -130,7 +130,7 @@ export function StatementListPage({ daily }: { daily: boolean }) {
   return (
     <EcListShell title={title} option={false}
                  onNew={() => { setFormError(''); setForm(defaults(daily ? 'DAILY' : 'LABOR')) }}
-                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 }]}>
+                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), selected: picked.size }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-center">

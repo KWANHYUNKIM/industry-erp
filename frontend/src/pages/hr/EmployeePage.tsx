@@ -273,7 +273,7 @@ export default function EmployeePage() {
           if (checked.size === 0) { setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
           setError(''); setBulkOpen(true)
         } },
-        { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
+        { label: '선택삭제', onClick: deleteChecked, selected: checked.size },
         { label: 'Excel' },
       ]}
     >

@@ -81,7 +81,7 @@ export default function DailyWorkListPage() {
       searchable={false}
       onNew={() => nav('/hr/daily-work-input')}
       actions={[
-        { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
+        { label: '선택삭제', onClick: deleteChecked, selected: checked.size },
         { label: 'Excel' },
       ]}
     >

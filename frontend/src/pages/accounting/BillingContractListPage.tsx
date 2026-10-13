@@ -77,7 +77,7 @@ export default function BillingContractListPage() {
       { label: '검색(F8)', primary: true, onClick: () => void load() },
       { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setPartner(''); setItem(''); setContract(''); setVatType(''); setUnit(''); setCurrency(''); setProject('') } },
       { label: '신규(F2)', onClick: () => nav('/accounting/billing-contracts/new') },
-      { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
+      { label: '선택삭제', selected: picked.size, onClick: () => setConfirmDelete(true) },
       { label: 'Excel' },
     ]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}

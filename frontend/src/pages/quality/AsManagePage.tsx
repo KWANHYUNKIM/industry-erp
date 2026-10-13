@@ -289,10 +289,10 @@ export default function AsManagePage() {
       onSearchChange={setKeyword}
       onNew={openNew}
       actions={[
-        { label: '진행상태변경', onClick: () => setStageOpen(true), disabled: picked.size === 0 },
+        { label: '진행상태변경', onClick: () => setStageOpen(true), selected: picked.size },
         /* 원본 버튼줄: 신규(F2) · Email · 진행상태변경 · 보내기 · 접수증인쇄 · 바코드(품목) · 다른전표생성 · 선택삭제 · Excel · 이력조회. */
         { label: '접수증인쇄', onClick: () => void printAsReceipts(rows.filter((r) => picked.has(r.id))), disabled: picked.size === 0 },
-        { label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 },
+        { label: '선택삭제', onClick: removeChecked, selected: picked.size },
         { label: 'Excel' },
       ]}
     >

@@ -104,10 +104,6 @@ export default function EmployeePayListPage() {
    * '아래의 경우 처리가 불가능합니다.' 창에 [구분 사원코드 · 사유 '확정처리된 급여입니다. 확정취소 후 처리바랍니다.'] 로 알린다.
    */
   async function deleteChecked() {
-    if (checked.size === 0) {
-      alert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
-      return
-    }
     if (!window.confirm('삭제하겠습니까?')) return
     const picked = shown.filter((p) => checked.has(p.id))
     const blocked = picked.filter((p) => p.status === 'CONFIRMED')
@@ -136,7 +132,7 @@ export default function EmployeePayListPage() {
       actions={[
         { label: 'Email' },
         { label: '인쇄' },
-        { label: '선택삭제', onClick: deleteChecked },
+        { label: '선택삭제', onClick: deleteChecked, selected: checked.size },
         { label: 'Excel' },
       ]}
     >

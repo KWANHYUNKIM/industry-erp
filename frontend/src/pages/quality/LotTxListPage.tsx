@@ -163,7 +163,7 @@ export default function LotTxListPage() {
       onNew={openNew}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 },
+        { label: '선택삭제', onClick: removeChecked, selected: picked.size },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setExpiryOpt('사용안함'); setExpFrom(''); setExpTo(''); setItem('') } },
         { label: 'Excel' },
       ]}

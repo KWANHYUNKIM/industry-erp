@@ -159,7 +159,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         { label: '인쇄' },
         ...(list && tab === '미확인' ? [{ label: '확인', disabled: picked.length === 0, onClick: () => void changeStatus('CONFIRMED') }] : []),
         ...(list && tab === '확인' ? [{ label: '확인취소', disabled: picked.length === 0, onClick: () => void changeStatus('UNCONFIRMED') }] : []),
-        ...(list ? [{ label: '선택삭제', disabled: picked.length === 0, onClick: () => void removeChecked() }] : []),
+        ...(list ? [{ label: '선택삭제', selected: picked.length, onClick: () => void removeChecked() }] : []),
         { label: 'Excel' },
       ]}
     >

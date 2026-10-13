@@ -7475,40 +7475,46 @@ console.log('\n■ 트랜잭션 애노테이션이 도는 자리에 붙어 있�
     Object.keys(조회예외).filter((k) => !쓴예외.has(k)).join(', ') || '없음', '없음')
 }
 
-// ── 1-s13) 고른 줄이 있어야 도는 버튼을 미리 잠갔나 ──────────────────────
-console.log('\n■ 고른 줄이 있어야 도는 버튼을 미리 잠갔나')
+// ── 1-s13) 고른 줄이 있어야 도는 버튼을 미리 잠그지 않았나 ──────────────────
+console.log('\n■ 고른 줄이 있어야 도는 버튼을 미리 잠그지 않았나')
 
 /*
- * 원본은 <b>고른 줄에 대고 하는 버튼</b>([선택삭제]·[진행상태변경]·[라벨변경] 같은 것)을
- * 아무것도 안 골랐을 때 회색으로 잠가 둔다. 사본에서 실제로 그렇게 잡혀 있다 —
- * 선택삭제 100개 중 7개, 진행상태변경 3개, 다른전표생성 3개가 안 눌리는 상태였다.
+ * <b>2026-10-13 원본 실측으로 뒤집었다.</b> 전에는 "원본은 고른 줄이 없으면 [선택삭제] 를 회색으로 잠근다(사본)" 고 보고
+ * 잠그라고 시켰는데, 살아 있는 원본(loginaa 구매조회 E040304 · 근무조회 E090105)은 <b>잠그지 않는다</b> —
+ * 아무것도 안 고르고 누르면 화면 안 '알림' 창에 "리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다." 가 뜬다.
  *
- * <p>우리는 열 자리 모두 <b>누를 수 있게</b> 두고, 누른 다음에야 "고르세요" 라고 되물었다.
- * 그건 사람에게 헛걸음을 시키는 것이다 — 누르기 전에 못 누른다고 보여 주는 편이 낫다.
- *
- * <p>버튼 이름이 <b>선택…</b> 으로 시작하거나, 누르는 함수 이름이 Selected·Checked 로
- * 끝나는 것을 고른 줄에 대고 하는 버튼으로 본다. 그 버튼에는 disabled 가 붙어 있어야 한다.
+ * <p>그래서: 고른 줄에 대고 하는 버튼([선택…] · [진행상태변경] · [라벨변경] · [결재/검토완료])은
+ * <b>고른 줄 수로 잠그지 않는다.</b> EcListShell 의 actions 로 넘기는 것은 <code>selected: 고른수</code> 를 주면 셸이 0 일 때 알림을 띄운다
+ * (components/EcListShell BottomAction.selected · components/EcDialog). 화면이 직접 그린 버튼은 누른 함수 안에서
+ * <code>requireSelection(n)</code> 으로 같은 알림을 띄운다.
  */
 {
   const bad = []
   let 잰버튼 = 0
+  const LABEL = /^(선택[^']*|진행상태변경|라벨변경|결재\/검토완료)$/
+  const 잠금 = /(size|length)\s*===\s*0|!\s*\w+\.(size|length)\b/
   for (const f of walk(join('frontend', 'src', 'pages'))) {
     if (!f.endsWith('.tsx')) continue
     const src = readFileSync(f, 'utf8')
     const 파일 = f.split(/[\\/]/).pop()
 
-    /* 1) EcListShell 의 actions 로 넘긴 것 */
-    for (const m of src.matchAll(/\{\s*label:\s*'(선택[^']*|진행상태변경|라벨변경|결재\/검토완료)'[^}]*\}/g)) {
+    /* 1) EcListShell 의 actions 로 넘긴 것 — 고른 수로 잠그지 않고 selected 를 준다 */
+    for (const m of src.matchAll(/\{\s*label:\s*'([^']*)'[^}]*\}/g)) {
+      if (!LABEL.test(m[1])) continue
       잰버튼 += 1
-      if (!/disabled\s*:/.test(m[0])) bad.push(`${파일}  [${m[1]}] 이 안 잠긴다`)
+      const dis = /disabled\s*:\s*([^,}]*)/.exec(m[0])?.[1] ?? ''
+      if (잠금.test(dis)) bad.push(`${파일}  [${m[1]}] 이 고른 줄이 없으면 잠긴다 — selected: 고른수 로`)
+      else if (!/selected\s*:/.test(m[0])) bad.push(`${파일}  [${m[1]}] 에 selected 가 없다 — 0 줄일 때 알림이 안 뜬다`)
     }
     /* 2) 화면이 직접 그린 <button> */
-    for (const m of src.matchAll(/<button[^>]*onClick=\{\(\)\s*=>\s*(?:void\s+)?\w*(?:Selected|Checked)\(\)[^>]*>([^<]{1,14})<\/button>/g)) {
+    for (const m of src.matchAll(/<button\b[^>]*>([^<]{1,14})<\/button>/g)) {
+      if (!LABEL.test(m[1].trim())) continue
       잰버튼 += 1
-      if (!/\bdisabled=/.test(m[0])) bad.push(`${파일}  [${m[1].trim()}] 이 안 잠긴다`)
+      const dis = /\bdisabled=\{([^}]*)\}/.exec(m[0])?.[1] ?? ''
+      if (잠금.test(dis)) bad.push(`${파일}  [${m[1].trim()}] 이 고른 줄이 없으면 잠긴다 — requireSelection 으로`)
     }
   }
-  eq(`고른 줄에 대고 하는 버튼 ${잰버튼}개가 안 골랐을 때 잠긴다`, bad.join('\n') || '없음', '없음')
+  eq(`고른 줄에 대고 하는 버튼 ${잰버튼}개가 안 골랐을 때 잠기지 않고 알림을 띄운다`, bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-s15) 이름이 겹치는 화면 ─────────────────────────────────────────────

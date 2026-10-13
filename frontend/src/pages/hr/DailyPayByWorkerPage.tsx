@@ -63,7 +63,7 @@ export default function DailyPayByWorkerPage() {
 
   return (
     <EcListShell title="일용근로 사원별급여조회" searchable={false}
-                 actions={[{ label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 }, { label: 'Excel' }]}>
+                 actions={[{ label: '선택삭제', onClick: deleteChecked, selected: checked.size }, { label: 'Excel' }]}>
       <div className="ec-pills mb-[8px]"><button type="button" className="ec-pill active">전체</button></div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">

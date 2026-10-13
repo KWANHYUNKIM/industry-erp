@@ -146,7 +146,7 @@ export default function AdjustListPage() {
         { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
         { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
         { label: '인쇄', onClick: printPicked },
-        { label: '선택삭제', onClick: () => void removePicked(), disabled: picked.size === 0 },
+        { label: '선택삭제', onClick: () => void removePicked(), selected: picked.size },
         { label: 'Excel' },
         { label: '이력조회', onClick: () => { setHistOpen(true); void loadHist() } },
       ]}

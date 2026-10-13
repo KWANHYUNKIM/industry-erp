@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
-import { openPrintWindow, printTable, type PrintSignLine } from '../utils/print'
+import { openPrintWindow, printTable, signModuleOf, type PrintSignLine } from '../utils/print'
+import { ecAlert, NO_SELECTION_MESSAGE } from './EcDialog'
 import { findDataTable } from '../utils/tableExport'
 import Modal from './Modal'
 import TableContextMenu from './TableContextMenu'
@@ -14,7 +15,8 @@ import { INQUIRY_PICKS, periodOf } from '../utils/periods'
  */
 async function defaultSignLine(): Promise<PrintSignLine | null> {
   try {
-    const r = await api.get<PrintSignLine>('/print-sign-lines/default')
+    // 결재란은 모듈(회계 · 재고 · 관리)마다 따로다 — 화면 주소로 고른다(printDocument 와 같은 규칙)
+    const r = await api.get<PrintSignLine>('/print-sign-lines/default', { params: { module: signModuleOf(window.location.pathname) } })
     return r.status === 204 ? null : r.data
   } catch {
     return null
@@ -25,13 +27,14 @@ export interface BottomAction {
   label: string
   onClick?: () => void
   primary?: boolean
-  /**
-   * 지금은 누를 수 없는 버튼. 원본은 <b>고른 줄이 있어야 도는 버튼</b>
-   * ([선택삭제]·[진행상태변경]·[다른전표생성] 같은 것)을 아무것도 안 골랐을 때
-   * 회색으로 잠가 둔다(사본 실측). 우리는 누르게 두고 나서 "고르세요" 라고 되물었는데,
-   * 그건 사람에게 헛걸음을 시키는 것이다 — 누르기 전에 못 누른다고 보여 주는 편이 낫다.
-   */
+  /** 지금은 누를 수 없는 버튼(권한 · 상태 때문에). 고른 줄이 없는 것은 잠그지 말고 `selected` 를 준다. */
   disabled?: boolean
+  /**
+   * 고른 줄 수 — <b>고른 줄에 대고 하는 버튼</b>([선택삭제] · [진행상태변경] · [다른전표생성] …)에 준다.
+   * 원본(2026-10-13 loginaa 구매조회 실측)은 이 버튼을 잠그지 않고, 0 줄인 채로 누르면 화면 안 '알림' 창에
+   * "리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다." 를 띄운다. 0 이면 셸이 그 알림을 띄우고 onClick 은 안 부른다.
+   */
+  selected?: number
   /**
    * 붙은 ▴ 펼침 — 원본 [입금보고서작성 ▴] 의 [채권만감소] 처럼 같은 버튼에 딸린 다른 동작(채권감소등록 E060402 실측).
    * 펼침은 위로 열린다(버튼줄이 화면 바닥에 있다).
@@ -339,6 +342,8 @@ export default function EcListShell({
       const run = handler
       handler = () => { run(); if (collapseConditions === undefined && hasConds && !searchable) setSearched(true); setCondOpen(false) }
     }
+    // 고른 줄이 없으면 잠그지 않고 원본 알림을 띄운다(BottomAction.selected) — 우클릭 메뉴도 같은 동작
+    if (a.selected === 0) handler = () => { void ecAlert(NO_SELECTION_MESSAGE) }
     return { ...a, onClick: handler }
   })
   footerSearchRef.current = resolved.find((a) => SEARCH_RE.test(a.label.trim()))?.onClick

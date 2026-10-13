@@ -107,7 +107,7 @@ export default function OtherWithholdingPage() {
                  onNew={() => navigate('/accounting/other-withholding/input')}
                  actions={[
                    { label: '일반전표작성', onClick: () => void openJournal() },
-                   { label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 },
+                   { label: '선택삭제', onClick: () => setConfirmDelete(true), selected: picked.size },
                  ]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 

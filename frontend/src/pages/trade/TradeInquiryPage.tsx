@@ -482,7 +482,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         /* 원본 버튼줄 차례: … 선택삭제 앞이 <b>[회계반영]</b> 이다. */
         { label: `회계반영${selected.size ? ` (${selected.size})` : ''}`,
           onClick: () => void reflectSelected(), disabled: selected.size === 0 },
-        { label: '선택삭제', onClick: () => void deleteSelected(), disabled: selected.size === 0 },
+        { label: '선택삭제', onClick: () => void deleteSelected(), selected: selected.size },
         /*
          * 원본 [거래내역보기(구매)] — 지금 고른 거래처의 거래만 남긴다.
          * 조회 화면에서 한 거래처만 훑고 싶을 때 조건을 다시 고르지 않아도 된다.

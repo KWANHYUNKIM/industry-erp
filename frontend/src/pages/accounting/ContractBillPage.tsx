@@ -143,7 +143,7 @@ export default function ContractBillPage() {
   return (
     <EcListShell title="청구예정자료리스트" searchable={false} actions={[
       { label: '신규(F2)', primary: true, onClick: openNew },
-      { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirm('pickedDelete') },
+      { label: '선택삭제', selected: picked.size, onClick: () => setConfirm('pickedDelete') },
     ]}>
       {error && !open && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <p className="text-right mb-[4px]">{dateText(from)} ~ {dateText(to)}</p>

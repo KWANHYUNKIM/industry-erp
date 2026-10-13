@@ -546,7 +546,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
         : [
           { label: '미리보기' },
           { label: '인쇄' },
-          { label: '선택삭제', onClick: removeSelected, disabled: selected.size === 0 },
+          { label: '선택삭제', onClick: removeSelected, selected: selected.size },
           { label: 'Excel' },
         ]}
     >

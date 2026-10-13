@@ -380,7 +380,7 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
       // 원본 하단: 기본 [미리보기][라벨변경 ▾][인쇄][Excel] · 일간 [인쇄][Excel] · 월간 · 공용품별 [인쇄]
       actions={view === '기본' ? [{ label: '미리보기' },
         // 원본(E070204)은 안 고르고 누르면 '리스트에 선택된 자료가 없습니다.' 를 띄운다 — 우리는 미리 잠근다(ui-check 규칙).
-        { label: '라벨변경', disabled: checked.size === 0, onClick: () => setLabelWin('change') },
+        { label: '라벨변경', selected: checked.size, onClick: () => setLabelWin('change') },
         { label: '인쇄' }, { label: 'Excel' }]
         : view === '일간' ? [{ label: '인쇄' }, { label: 'Excel' }] : [{ label: '인쇄' }]}
     >

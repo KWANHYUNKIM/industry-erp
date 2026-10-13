@@ -138,7 +138,7 @@ function ReturnsView() {
     <EcListShell
       title="원천징수이행상황신고서"
       onNew={() => { setFormError(''); setForm(blankForm()) }}
-      actions={[{ label: '선택삭제', onClick: askDelete, disabled: picked.size === 0 }]}
+      actions={[{ label: '선택삭제', onClick: askDelete, selected: picked.size }]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 

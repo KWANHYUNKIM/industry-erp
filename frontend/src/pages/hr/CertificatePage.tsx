@@ -123,7 +123,7 @@ export default function CertificatePage() {
       onNew={openNew}
       actions={[
         { label: '인쇄', onClick: () => setPrinting(rows.filter((r) => checked.has(r.id))), disabled: checked.size === 0 },
-        { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
+        { label: '선택삭제', onClick: deleteChecked, selected: checked.size },
       ]}
     >
       <ul className="ec-cond mb-[8px]">

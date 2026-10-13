@@ -156,7 +156,7 @@ export default function SalesPlanListPage() {
       searchable={false}
       onNew={openNew}
       actions={[
-        { label: '선택삭제', disabled: picked.size === 0,
+        { label: '선택삭제', selected: picked.size,
           onClick: () => { if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeDocs([...picked]) } },
         { label: 'Excel' },
       ]}

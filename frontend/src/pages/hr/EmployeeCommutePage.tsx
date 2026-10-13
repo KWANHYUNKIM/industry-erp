@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import { koreanDateTime } from '../../features/employeecommute/types'
+import { requireSelection } from '../../components/EcDialog'
 
 interface CommuteEvent {
   id: number; kind: 'IN' | 'OUT'; at: string; place: string | null; outside: boolean; halfDay: boolean; reason: string | null
@@ -188,7 +189,7 @@ export default function EmployeeCommutePage() {
       title="출/퇴근기록부(사원)"
       searchable={false}
       onNew={() => openNew()}
-      actions={view === '리스트' ? [{ label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 }, { label: 'Excel' }] : []}
+      actions={view === '리스트' ? [{ label: '선택삭제', onClick: deleteChecked, selected: checked.size }, { label: 'Excel' }] : []}
     >
       <div className="text-center font-bold text-[18px] mb-[8px]">출/퇴근기록부(사원)</div>
       <div className="ec-pills mb-[8px]">
@@ -256,7 +257,7 @@ export default function EmployeeCommutePage() {
         <CommuteTable rows={dayShown} checked={dayChecked} setChecked={setDayChecked} onOpen={(r) => openRecord(r, dayList)} />
         <div className="flex gap-[6px] mt-[8px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => { setDayList(null); openNew(dayList ?? undefined) }}>신규(F2)</button>
-          <button type="button" className="ec-btn" disabled={dayChecked.size === 0} onClick={deleteDayChecked}>선택삭제</button>
+          <button type="button" className="ec-btn" onClick={() => { if (requireSelection(dayChecked.size)) void deleteDayChecked() }}>선택삭제</button>
           <button type="button" className="ec-btn">Excel</button>
           <button type="button" className="ec-btn" onClick={() => setDayList(null)}>닫기</button>
         </div>

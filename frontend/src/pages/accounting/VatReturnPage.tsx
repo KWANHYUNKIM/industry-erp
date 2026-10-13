@@ -405,7 +405,7 @@ export default function VatReturnPage() {
 
   return (
     <EcListShell title="부가가치세신고서(일반)" option={false} onNew={openNew}
-                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 }]}>
+                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), selected: picked.size }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {confirmDelete && (
         <div className="ec-alert mb-[8px] flex items-center gap-[6px]">

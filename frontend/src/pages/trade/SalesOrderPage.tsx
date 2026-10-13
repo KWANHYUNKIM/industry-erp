@@ -331,8 +331,8 @@ export default function SalesOrderPage() {
       newLabel="신규(F2)"
       onNew={() => { closeForm(); setShowForm(true) }}
       /* 원본 차례: 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드 · 다른전표생성 · 전자결재 · 선택삭제 · Excel · 이력조회 — 바깥 발송 · 결재는 뺀다. */
-      actions={[{ label: '진행상태변경', onClick: openStatusMenu, disabled: checked.size === 0 }, { label: '인쇄' },
-        { label: '선택삭제', onClick: removeChecked, disabled: checked.size === 0 }, { label: 'Excel' }]}
+      actions={[{ label: '진행상태변경', onClick: openStatusMenu, selected: checked.size }, { label: '인쇄' },
+        { label: '선택삭제', onClick: removeChecked, selected: checked.size }, { label: 'Excel' }]}
     >
       {statusMenu && (
         <>

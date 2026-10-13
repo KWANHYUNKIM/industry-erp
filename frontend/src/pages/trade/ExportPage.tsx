@@ -9,6 +9,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
 import ExportSlipPickModal, { type PickedSlip } from '../../features/export/components/ExportSlipPickModal'
 import ExportMappingModal, { type ExportMapping } from '../../features/export/components/ExportMappingModal'
+import { requireSelection } from '../../components/EcDialog'
 
 const fx = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 })
 const today = () => ymd(new Date())
@@ -240,7 +241,7 @@ export default function ExportPage() {
       <div className="flex flex-wrap gap-[6px] mt-[8px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => setEditing('new')}>신규(F2)</button>
         <button type="button" className="ec-btn" disabled={picked.length === 0} onClick={() => void toggleConfirm()}>진행상태변경</button>
-        <button type="button" className="ec-btn" disabled={picked.length === 0} onClick={() => void removePicked()}>선택삭제</button>
+        <button type="button" className="ec-btn" onClick={() => { if (requireSelection(picked.length)) void removePicked() }}>선택삭제</button>
         <button type="button" className="ec-btn" onClick={() => setMappingOpen(true)}>매핑조회</button>
       </div>
       <ExportMappingModal open={mappingOpen} onClose={() => setMappingOpen(false)} />

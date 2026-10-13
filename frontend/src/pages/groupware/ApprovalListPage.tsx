@@ -12,6 +12,7 @@ import ApprovalDetailModal, { STATUS_LABEL, VOUCHER_LABEL, statusColor } from '.
 import { ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useShortcut } from '../../utils/useShortcut'
+import { requireSelection } from '../../components/EcDialog'
 
 /**
  * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
@@ -602,12 +603,12 @@ export default function ApprovalListPage({
             <button className="ec-btn ec-btn-primary" onClick={() => navigate('/groupware/approval/draft')}>
               신규(F2)
             </button>
-            <button className="ec-btn" disabled={selected.size === 0} style={selected.size === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined} onClick={() => void approveSelected()}>결재/검토완료</button>
+            <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void approveSelected() }}>결재/검토완료</button>
           </>
         ) : (
-          <button className="ec-btn" disabled={selected.size === 0} style={selected.size === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined} onClick={() => void deleteSelected()}>선택삭제</button>
+          <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void deleteSelected() }}>선택삭제</button>
         )}
-        <button className="ec-btn" disabled={selected.size === 0} style={selected.size === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined} onClick={() => void changeLabelSelected()}>라벨변경</button>
+        <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void changeLabelSelected() }}>라벨변경</button>
         {bottomActions.map((a) => {
           const onClick = a.includes('Excel') || a.includes('엑셀') ? () => { void doExcel() }
             : a.includes('인쇄') || a.includes('출력') ? () => doPrint()

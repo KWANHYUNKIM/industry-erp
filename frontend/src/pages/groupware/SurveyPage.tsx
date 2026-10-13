@@ -157,7 +157,7 @@ export default function SurveyPage() {
         { label: '대화방', onClick: () => openAppBarPanel('messenger') },
         // 2026-10-13 원본 하단은 [신규(F2)][Email][대화방][선택삭제] 뿐이다 — 예전에 둔 [미리보기] · [Excel] 은 뺐다.
         // [Email] 은 설문을 메일로 보내는 것이라 원본에서 눌러 보지 않았다(바깥으로 나감) — 두지 않는다.
-        { label: '선택삭제', onClick: removeSelected, disabled: selected.size === 0 },
+        { label: '선택삭제', onClick: removeSelected, selected: selected.size },
       ]}
     >
       <div className="ec-pills" style={{ marginBottom: 6 }}>

@@ -220,7 +220,7 @@ export default function PurchasePlanListPage() {
           { label: '다른전표생성', disabled: true },
           closeBtn,
         ]),
-        { label: '선택삭제', onClick: () => void removeChecked(), disabled: picked.length === 0 },
+        { label: '선택삭제', onClick: () => void removeChecked(), selected: picked.length },
         { label: 'Excel' },
       ]}
     >

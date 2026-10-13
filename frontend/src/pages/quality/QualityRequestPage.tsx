@@ -232,9 +232,9 @@ export default function QualityRequestPage() {
       actions={[
         /* 원본 버튼줄(2026-10-04): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 전자결재 · 선택삭제 · Excel · 이력조회 · 웹자료올리기.
            Email · 보내기는 바깥으로 보내는 일이라 두지 않는다. */
-        { label: '진행상태변경', disabled: picked.size === 0, onClick: () => setStatusOpen(true) },
+        { label: '진행상태변경', selected: picked.size, onClick: () => setStatusOpen(true) },
         { label: '인쇄', disabled: picked.size === 0, onClick: () => void printRequests(rows.filter((r) => picked.has(r.id))) },
-        { label: '선택삭제', disabled: picked.size === 0,
+        { label: '선택삭제', selected: picked.size,
           onClick: () => { if (window.confirm('전표를 삭제하겠습니까?')) void removeIds([...picked]) } },
         { label: 'Excel' },
       ]}

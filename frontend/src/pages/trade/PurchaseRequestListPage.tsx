@@ -177,11 +177,11 @@ export default function PurchaseRequestListPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시작성', onClick: () => { setFrom(init.from); setTo(init.to); setReqNo(''); setDomestic('전체'); setWarehouse(''); setProject(''); setPartner(''); setItem(''); setByUpdated(false) } },
-        { label: '진행상태변경', disabled: checked.size === 0,
+        { label: '진행상태변경', selected: checked.size,
           onClick: () => setProgressMenu({ at: above(footerBtn('진행상태변경')), ids: [...checked] }) },
         { label: '인쇄', disabled: checked.size === 0, onClick: () => printRows(shown.filter((o) => checked.has(o.id))) },
         { label: '다른전표생성', disabled: checked.size === 0, onClick: () => setOtherMenu(above(footerBtn('다른전표생성'))) },
-        { label: '선택삭제', onClick: removeChecked, disabled: checked.size === 0 },
+        { label: '선택삭제', onClick: removeChecked, selected: checked.size },
         { label: 'Excel' },
       ]}
     >

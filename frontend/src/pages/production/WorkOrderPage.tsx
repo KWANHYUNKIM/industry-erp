@@ -229,7 +229,7 @@ export default function WorkOrderPage() {
       onSearch={load}
       title="작업지시서조회"
       onNew={() => navigate('/production/work-order-entry')}
-      actions={[{ label: '진행상태변경', onClick: () => setStatusPick((v) => !v), disabled: checked.size === 0 },
+      actions={[{ label: '진행상태변경', onClick: () => setStatusPick((v) => !v), selected: checked.size },
                 { label: '인쇄' },
                 { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
                 { label: 'Excel' }]}

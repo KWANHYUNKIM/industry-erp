@@ -76,7 +76,7 @@ export default function FundPlanListPage() {
       title={title}
       actions={[
         { label: '신규(F2)', primary: true, onClick: () => setModal({ open: true, id: null }) },
-        { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
+        { label: '선택삭제', selected: picked.size, onClick: () => setConfirmDelete(true) },
         { label: 'Excel' },
       ]}
     >

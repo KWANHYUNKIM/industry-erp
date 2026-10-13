@@ -131,7 +131,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
       onSearch={() => void load()}
       onNew={() => navigate(selfUse ? '/inventory/self-use-input' : '/inventory/defect-input')}
       actions={[
-        { label: '선택삭제', onClick: () => void removePicked(), disabled: picked.size === 0 },
+        { label: '선택삭제', onClick: () => void removePicked(), selected: picked.size },
         { label: 'Excel' },
       ]}
     >

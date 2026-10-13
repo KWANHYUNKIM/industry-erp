@@ -125,7 +125,7 @@ export default function ShortMessagePage() {
       actions={[
         { label: '검색(F8)', onClick: () => load(), primary: true },
         { label: box === 'archived' ? '보관해제' : '보관', onClick: () => archiveChecked(box !== 'archived') },
-        { label: '선택삭제', onClick: deleteChecked, disabled: checked.length === 0 },
+        { label: '선택삭제', onClick: deleteChecked, selected: checked.length },
         { label: 'Excel' },
       ]}
       help={

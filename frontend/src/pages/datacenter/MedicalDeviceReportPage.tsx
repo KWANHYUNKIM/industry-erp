@@ -272,7 +272,7 @@ export default function MedicalDeviceReportPage() {
 
   return (
     <EcListShell title="의료기기공급내역보고" collapseConditions onNew={openNew} onSearch={load}
-                 actions={[{ label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 }, { label: 'Excel' }]}>
+                 actions={[{ label: '선택삭제', onClick: removeChecked, selected: picked.size }, { label: 'Excel' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">

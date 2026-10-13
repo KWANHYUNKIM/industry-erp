@@ -74,10 +74,6 @@ export default function WorkListPage() {
     (empCond.length === 0 || empCond.includes(String(l.employeeId))) && (itemCond.length === 0 || itemCond.includes(String(l.payItemId)))))
 
   async function deleteChecked() {
-    if (checked.size === 0) {
-      window.alert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
-      return
-    }
     if (!window.confirm('삭제하겠습니까?')) return
     try {
       for (const r of shown.filter((x) => checked.has(keyOf(x)))) {
@@ -98,8 +94,8 @@ export default function WorkListPage() {
       searchable={false}
       onNew={historyMode ? undefined : () => nav('/hr/work-input')}
       actions={historyMode ? [{ label: 'Excel' }] : [
-        // 원본 E090105(2026-10-13)는 고른 줄이 없어도 눌리고 '리스트에 선택된 자료가 없습니다.' 알림 — 잠그지 않는다
-        { label: '선택삭제', onClick: deleteChecked, disabled: false },
+        // 원본 E090105(2026-10-13)는 고른 줄이 없어도 눌리고 '리스트에 선택된 자료가 없습니다.' 알림 — 셸이 띄운다(selected)
+        { label: '선택삭제', onClick: deleteChecked, selected: checked.size },
         { label: 'Excel' },
       ]}
     >

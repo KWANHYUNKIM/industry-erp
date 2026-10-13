@@ -15,6 +15,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import EcFileDrop from '../../components/EcFileDrop'
 import { dateText } from '../../utils/dateText'
+import { requireSelection } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 
@@ -721,7 +722,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           )}
         </span>
         {cfg.labels && <span className="relative">
-          <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={openLabels}>라벨변경</button>
+          <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) openLabels() }}>라벨변경</button>
           {labelOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setLabelOpen(false)} />
@@ -751,7 +752,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         {/* 원본 하단 [라벨설정] — '라벨조회' 창(2026-10-12 잼, [라벨] · [라벨변경]의 + 와 같은 창). 통합게시판에는 없다. */}
         {cfg.labels && <button className="ec-btn" onClick={() => setMasterOpen(true)}>라벨설정</button>}
         <button className="ec-btn" onClick={() => setOpened((v) => !v)}>{opened ? '모두접기' : '모두펼쳐보기'}</button>
-        <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void deleteSelected()}>선택삭제</button>
+        <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void deleteSelected() }}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
         <button className="ec-btn" onClick={() => setInfo('이력조회는 아직 지원하지 않습니다.')}>이력조회</button>
         <button className="ec-btn" onClick={() => setInfo('웹자료올리기는 지원하지 않습니다 — 신규(F2) 입력 창의 [첨부] 를 쓰세요.')}>웹자료올리기</button>
