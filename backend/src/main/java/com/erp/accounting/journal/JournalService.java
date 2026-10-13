@@ -235,8 +235,10 @@ public class JournalService {
         BigDecimal supply = req.supplyAmount();
         BigDecimal vat = nz(req.vatAmount());
         BigDecimal fee = nz(req.feeAmount());
-        String desc = req.description() != null && !req.description().isBlank() ? req.description().trim() : partner.getName();
-        e.setDescription(desc);
+        // 전표 적요는 적은 그대로 — 비우면 회계거래조회 적요도 빈칸이다(2026-10-14 원본 26/10/14-12). 줄 적요만 거래처명으로 채운다.
+        String memo = req.description() != null && !req.description().isBlank() ? req.description().trim() : null;
+        String desc = memo != null ? memo : partner.getName();
+        e.setDescription(memo);
         e.setPartner(partner);
         String vatType = req.vatType().trim();
         e.setVatType(vatType);
