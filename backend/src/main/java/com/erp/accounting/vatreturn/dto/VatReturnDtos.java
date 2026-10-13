@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public final class VatReturnDtos {
 
@@ -48,4 +49,12 @@ public final class VatReturnDtos {
                     v.getReportDate(), v.getDueDate(), v.isTaxAgent(), v.isClosure());
         }
     }
+
+    /** [신고서등] 창 한 줄 — 저장된 서류와 마지막으로 만든 때(원본 '부가세신고서 최종수정일 … 이후로 수정된 서류'). */
+    public record VatReturnDocSummary(String docCode, LocalDateTime writtenAt) {}
+
+    /** 서류 한 장 — data 는 화면이 센 숫자(JSON 글자). */
+    public record VatReturnDocResponse(String docCode, String data, LocalDateTime writtenAt) {}
+
+    public record VatReturnDocRequest(@NotNull(message = "서류 내용이 없습니다.") String data) {}
 }

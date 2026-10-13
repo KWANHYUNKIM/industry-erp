@@ -13,8 +13,19 @@ interface PartnerOpt { id: number; name: string; bizRegNo: string | null }
 interface Mark { journalEntryId: number; docKind: string; progress: string }
 /** 합계표 한 장의 계산서 한 장 — 거래처 · 전자 여부 · 금액. */
 interface Invoice { partnerId: number | null; partner: string; bizNo: string; personal: boolean; electronic: boolean; supply: number; vat: number }
-type Doc = '부가가치세신고서' | '매출세금계산서' | '매입세금계산서'
-const DOCS: Doc[] = ['부가가치세신고서', '매출세금계산서', '매입세금계산서']
+/** [신고서등] 창의 서류 — 서버 vat_return_docs.doc_code. */
+type DocCode = 'RETURN' | 'SALES_INVOICE' | 'PURCHASE_INVOICE' | 'CARD_SALES' | 'CARD_RECEIPT'
+/** 원본 첨부서류명 목록(35종) 중 우리가 만드는 것 — 번호는 원본 그대로. */
+const ATTACHMENTS: [number, DocCode, string][] = [
+  [1, 'SALES_INVOICE', '매출세금계산서'], [2, 'PURCHASE_INVOICE', '매입세금계산서'],
+  [6, 'CARD_SALES', '신용카드 매출전표 등 발행금액 집계표'], [15, 'CARD_RECEIPT', '신용카드 매입전표 등 수령금액 합계표'],
+]
+const DOC_TITLE: Record<DocCode, string> = {
+  RETURN: '부가가치세신고서', SALES_INVOICE: '매출세금계산서', PURCHASE_INVOICE: '매입세금계산서',
+  CARD_SALES: '신용카드 매출전표 등 발행금액 집계표', CARD_RECEIPT: '신용카드 매입전표 등 수령금액 합계표',
+}
+interface DocSummary { docCode: DocCode; writtenAt: string }
+interface DocStored { docCode: DocCode; data: string; writtenAt: string }
 export interface CompanyInfo {
   name?: string; ceo?: string; bizRegNo?: string; bizType?: string; bizItem?: string
   tel?: string; email?: string; address?: string; addressDetail?: string
@@ -22,6 +33,24 @@ export interface CompanyInfo {
 type Term = 1 | 2
 type Kind = '예정' | '확정'
 interface Amt { supply: number; vat: number }
+/** 건수 · 공급가액 · 세액 — 수령명세서(갑)의 한 칸. */
+interface Cnt { n: number; supply: number; vat: number }
+/**
+ * 카드 · 현금영수증 서류의 숫자 — 2026-10-13 loginaa 실측: 매출전표 I 카드매출 100,000 · 현금영수증 200,000(9/30) →
+ * 신용카드 매출전표 등 발행금액 집계표 [새로불러오기] 합계 330,000 = ⑥ 신용·직불·기명식 선불카드 110,000 + ⑦ 현금영수증 220,000,
+ * 과세 매출분 같은 숫자(공급대가 — 부가세 포함), 면세 매출분 · 봉사료 · ⑨ · ⑩ 0.
+ * 매입전표 I 현금영수증 50,000 · 5,000 → 수령명세서(갑) ⑤ 현금영수증 1 · 50,000 · 5,000, 신고서 (44) 일반매입 50,000 · 5,000.
+ */
+export interface CardTally {
+  saleCard: number; saleCash: number; saleCardFree: number; saleCashFree: number
+  /** ⑤ 현금영수증 · ⑦ 사업용 신용카드. 카드매입은 원본이 카드번호를 필수로 받아 넣어 보지 못했다 — 카드번호가 없는 우리는 ⑦ 로 센다. */
+  recvCash: Cnt; recvCard: Cnt
+  /** 신고서 (44) 일반매입 · (45) 고정자산매입 — 합이 (15) · (52). */
+  general: Amt; fixed: Amt
+}
+const CNT0: Cnt = { n: 0, supply: 0, vat: 0 }
+const CARDS0: CardTally = { saleCard: 0, saleCash: 0, saleCardFree: 0, saleCashFree: 0, recvCash: CNT0, recvCard: CNT0,
+  general: { supply: 0, vat: 0 }, fixed: { supply: 0, vat: 0 } }
 export interface Sheet {
   year: number; term: Term; kind: Kind; first: number; last: number; end: number; from: string; to: string
   taxInvoice: Amt; zeroInvoice: Amt; purchaseGeneral: Amt; purchaseFixed: Amt
@@ -29,6 +58,8 @@ export interface Sheet {
   cardSales: Amt
   /** (15) 그 밖의 공제매입세액 — 신용카드매출전표등 수령명세서 제출분(현금영수증 · 카드매입, 고정자산 포함). */
   otherPurchase: Amt
+  /** 첨부서류 6 · 15 와 신고서 (44) · (45). 예전에 저장한 신고서에는 없다. */
+  cards?: CardTally
   salesInvoices: Invoice[]; purchaseInvoices: Invoice[]
 }
 
@@ -61,6 +92,8 @@ const FIXED_CATEGORIES = ['유형자산', '무형자산']
  */
 const CARD_SALES = ['카드매출', '현금영수증']
 const CARD_PURCHASES = ['현금영수증', '카드매입', '신용카드(고정자산)', '현금영수증(고정자산)']
+/** 집계표의 면세 매출분 — 부가세 줄이 없어 매출 계정 대변이 곧 금액이다. */
+const FREE_CARD_SALES = ['카드매출(면세)', '현금영수증(면세)']
 type VatTyped = JournalEntry & { vatType?: string | null }
 const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + 'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid gray;padding:3px}'
@@ -92,18 +125,38 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
   }
   const cat = new Map(accounts.map((a) => [a.code, a.detailCategory ?? '']))
   let taxInvoice = ZERO, zeroInvoice = ZERO, purchaseGeneral = ZERO, purchaseFixed = ZERO, cardSales = ZERO, otherPurchase = ZERO
+  const cards: CardTally = { ...CARDS0, recvCash: { ...CNT0 }, recvCard: { ...CNT0 } }
+  const tallySale = (type: string, a: Amt) => {
+    cardSales = add(cardSales, a)
+    if (type === '카드매출') cards.saleCard += a.supply + a.vat
+    else cards.saleCash += a.supply + a.vat
+  }
+  const tallyReceipt = (type: string, a: Amt) => {
+    otherPurchase = add(otherPurchase, a)
+    const k = type.startsWith('현금영수증') ? 'recvCash' : 'recvCard'
+    cards[k] = { n: cards[k].n + 1, supply: cards[k].supply + a.supply, vat: cards[k].vat + a.vat }
+    if (type.includes('고정자산')) cards.fixed = add(cards.fixed, a)
+    else cards.general = add(cards.general, a)
+  }
   for (const e of r.data.rows as VatTyped[]) {
     /* 카드 · 현금영수증은 세금계산서가 아니다 — (1) · (10) 과 세금계산서합계표에서 빼고 (3) · (15) 로. */
     const type = e.vatType?.trim()
     const side = type ? vatEntrySide(e) : null
     if (type && side === '매출' && CARD_SALES.includes(type)) {
       const a = vatSlipAmounts(e.lines, '매출')
-      if (a) cardSales = add(cardSales, a)
+      if (a) tallySale(type, a)
+      continue
+    }
+    if (type && side === '매출' && FREE_CARD_SALES.includes(type)) {
+      /* 지급수수료(831) 차변은 짝이 되는 입금계좌 대변을 지운다(utils/vatSlip withoutFee 와 같은 까닭). */
+      const free = e.lines.reduce((t, l) => t + Number(l.credit) - (l.accountCode === '831' ? Number(l.debit) : 0), 0)
+      if (type === '카드매출(면세)') cards.saleCardFree += free
+      else cards.saleCashFree += free
       continue
     }
     if (type && side === '매입' && CARD_PURCHASES.includes(type)) {
       const a = vatSlipAmounts(e.lines, '매입')
-      if (a) otherPurchase = add(otherPurchase, a)
+      if (a) tallyReceipt(type, a)
       continue
     }
     const s = vatSlipAmounts(e.lines, '매출')
@@ -125,8 +178,13 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
     const a: Amt = { supply: Number(t.supplyAmount), vat: Number(t.vatAmount) }
     const bizNo = bizNoOf(t.partnerId)
     const inv: Invoice = { partnerId: t.partnerId, partner: t.partnerName, bizNo, personal: bizNo.length === 13, electronic: true, supply: a.supply, vat: a.vat }
-    if (t.side === 'SALES' && CARD_SALES.includes(t.vatType)) { cardSales = add(cardSales, a); continue }
-    if (t.side === 'PURCHASE' && CARD_PURCHASES.includes(t.vatType)) { otherPurchase = add(otherPurchase, a); continue }
+    if (t.side === 'SALES' && CARD_SALES.includes(t.vatType)) { tallySale(t.vatType, a); continue }
+    if (t.side === 'SALES' && FREE_CARD_SALES.includes(t.vatType)) {
+      if (t.vatType === '카드매출(면세)') cards.saleCardFree += a.supply
+      else cards.saleCashFree += a.supply
+      continue
+    }
+    if (t.side === 'PURCHASE' && CARD_PURCHASES.includes(t.vatType)) { tallyReceipt(t.vatType, a); continue }
     if (t.side === 'SALES') {
       if (t.vatType === '세금계산서') { taxInvoice = add(taxInvoice, a); salesInvoices.push(inv) }
       else if (t.vatType === '영세율') { zeroInvoice = add(zeroInvoice, a); salesInvoices.push(inv) }
@@ -137,7 +195,7 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
     }
   }
   return { year: v.year, term: first <= 6 ? 1 : 2, kind: v.returnKind === 'FINAL' ? '확정' : '예정', first, last, end, from, to,
-    taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, cardSales, otherPurchase, salesInvoices, purchaseInvoices }
+    taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, cardSales, otherPurchase, cards, salesInvoices, purchaseInvoices }
 }
 
 /**
@@ -153,12 +211,15 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
  * 현금영수증 · 카드매입(고정자산 포함)인 매입은 (15) 그 밖의 공제매입세액(2026-10-13 실측 — CARD_SALES 위 주석).
  * 예정신고누락 · 대손 · 경감공제 · 가산세는 우리 자료에 없어 0 이다.
  *
- * <p>첨부서류는 위 알약으로 고른다 — 매출 · 매입세금계산서 합계표까지.
+ * <p>[신고서등 › 조회] 는 원본처럼 '부가세신고서(첨부서류)' 창 — 신고서와 첨부서류 1 · 2 · 6 · 15 를 [조회] · [새로불러오기] 한다.
+ * 서류는 처음 [조회] 때 센 숫자를 저장해 두고(vat_return_docs) [새로불러오기] 전까지 그대로 보여 준다. 신고서보다 늦게 만든 첨부서류가
+ * 있으면 창 머리에 빨간 '부가세신고서 최종수정일 … 이후로 수정된 서류가 있습니다.', 신고서 [조회] 때 '다시 작성하시겠습니까?'
+ * ([취소] 는 저장된 숫자 그대로) — 2026-10-13 loginaa 실측.
  *
  * <p>신고서 목록은 원본처럼 [신규(F2)] 로 만들고 신고기간을 눌러 고치고 [선택삭제] 로 지운다(2026-10-12). 귀속연도는 지난해 ~ 올해,
  * 그보다 앞선 해는 부가세신고서 PDF 다운로드(E030216, VatReturnPdfPage)에 선다.
  *
- * <p>두지 않은 것: 이력 · 나머지 첨부서류 31종 · 휴폐업조회(홈택스) · 영수증서 · 전자파일 · PDF ·
+ * <p>두지 않은 것: 이력 · 자료비교 · 나머지 첨부서류 31종 · 휴폐업조회(홈택스) · 영수증서 · 전자파일 · PDF ·
  * [자료입력](칸 손으로 고치기) · 예정신고누락분 · 그 밖의 공제 · 공제받지 못할 · 가산세 명세(모두 0 으로 그린다).
  */
 export default function VatReturnPage() {
@@ -175,8 +236,13 @@ export default function VatReturnPage() {
   const [form, setForm] = useState<ReturnForm | null>(null)
   const [formError, setFormError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [sheet, setSheet] = useState<Sheet | null>(null)
-  const [doc, setDoc] = useState<Doc>('부가가치세신고서')
+  /** [신고서등 › 조회] 로 연 '부가세신고서(첨부서류)' 창 — 그 신고서와 저장된 서류의 만든 때. */
+  const [win, setWin] = useState<VatReturnRow | null>(null)
+  const [written, setWritten] = useState<Partial<Record<DocCode, string>>>({})
+  /** 연 서류 한 장. */
+  const [view, setView] = useState<{ code: DocCode; sheet: Sheet } | null>(null)
+  /** 원본 '알림' 창 — 글줄과 [확인] · [취소]. */
+  const [ask, setAsk] = useState<{ lines: string[]; yes: () => void; no?: () => void } | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -198,24 +264,72 @@ export default function VatReturnPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [])
 
-  async function search(v: VatReturnRow) {
+  async function loadWritten(v: VatReturnRow) {
+    const r = await api.get<DocSummary[]>(`/vat-returns/${v.id}/docs`)
+    setWritten(Object.fromEntries(r.data.map((d) => [d.docCode, d.writtenAt])))
+  }
+
+  async function openWin(v: VatReturnRow) {
     setError('')
     try {
-      const s = await loadVatSheet(v, accounts)
-      setDoc('부가가치세신고서')
-      setSheet(s)
+      await loadWritten(v)
+      setWin(v)
     } catch (e) {
-      setSheet(null); setError(extractErrorMessage(e))
+      setError(extractErrorMessage(e))
     }
+  }
+
+  /** 그 기간의 회계전표 · (세금)계산서에서 다시 세어 그 서류로 저장한다 — 원본 [새로불러오기] · 처음 [조회] · 신고서 '다시 작성'. */
+  async function writeDoc(code: DocCode): Promise<Sheet | null> {
+    if (!win) return null
+    try {
+      const sheet = await loadVatSheet(win, accounts)
+      await api.put(`/vat-returns/${win.id}/docs/${code}`, { data: JSON.stringify(sheet) })
+      await loadWritten(win)
+      return sheet
+    } catch (e) {
+      setError(extractErrorMessage(e))
+      return null
+    }
+  }
+
+  async function showDoc(code: DocCode, rewrite: boolean) {
+    if (!win) return
+    let sheet: Sheet | null = null
+    if (!rewrite) {
+      const r = await api.get<DocStored | ''>(`/vat-returns/${win.id}/docs/${code}`)
+      if (r.data) sheet = JSON.parse(r.data.data) as Sheet
+    }
+    if (!sheet) sheet = await writeDoc(code)
+    if (sheet) setView({ code, sheet })
+  }
+
+  /** 원본: 첨부서류를 신고서보다 늦게 만들었으면 신고서 [조회] 때 '다시 작성하시겠습니까?' — [취소] 는 저장된 숫자 그대로. */
+  function openDoc(code: DocCode) {
+    if (code === 'RETURN' && stale) {
+      setAsk({ lines: ['부가가치세 신고서 최종수정일 이후 수정된 첨부서류가 있습니다.', '부가가치세 신고서를 다시 작성하시겠습니까?'],
+        yes: () => void showDoc(code, true).catch((e) => setError(extractErrorMessage(e))),
+        no: () => void showDoc(code, false).catch((e) => setError(extractErrorMessage(e))) })
+      return
+    }
+    void showDoc(code, false).catch((e) => setError(extractErrorMessage(e)))
+  }
+
+  function reloadDoc(code: DocCode) {
+    setAsk({ lines: ['선택한 문서를 새로불러오시겠습니까?'], yes: () => void writeDoc(code) })
   }
 
   function print() {
     const el = document.getElementById('vat-return-sheet')
-    const win = openPrintWindow()
-    if (!win || !el) return
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>부가가치세신고서</title><style>${PRINT_CSS}</style></head>`
+    const w = openPrintWindow()
+    if (!w || !el || !view) return
+    fillAndPrint(w, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${DOC_TITLE[view.code]}</title><style>${PRINT_CSS}</style></head>`
       + `<body>${el.innerHTML}</body></html>`)
   }
+
+  const returnAt = written.RETURN
+  /** 신고서보다 늦게 만든 첨부서류가 있나. */
+  const stale = !!returnAt && ATTACHMENTS.some(([, c]) => (written[c] ?? '') > returnAt)
 
   const openNew = () => {
     const due = dueOf(initYear, (q + 1) * 3)
@@ -249,7 +363,6 @@ export default function VatReturnPage() {
     try {
       await api.post('/vat-returns/delete', [...picked])
       setConfirmDelete(false)
-      setSheet(null)
       await load()
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -262,8 +375,7 @@ export default function VatReturnPage() {
 
   return (
     <EcListShell title="부가가치세신고서(일반)" option={false} onNew={openNew}
-                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 },
-                   ...(sheet ? [{ label: '인쇄', onClick: print }] : [])]}>
+                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {confirmDelete && (
         <div className="ec-alert mb-[8px] flex items-center gap-[6px]">
@@ -300,23 +412,74 @@ export default function VatReturnPage() {
               <td className="text-center"><button className="ec-link" onClick={() => openRow(r)}>{r.periodName}</button></td>
               <td className="text-center">{r.includesOmitted ? 'YES' : 'NO'}</td>
               <td className="text-center">{company?.name ?? ''}</td>
-              <td className="text-center"><button className="ec-link" onClick={() => void search(r)}>조회</button></td>
+              <td className="text-center"><button className="ec-link" onClick={() => void openWin(r)}>조회</button></td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {sheet && (
-        <>
-          <div className="ec-pills mb-[8px]">
-            {DOCS.map((d) => <button key={d} className={`ec-pill${doc === d ? ' active' : ''}`} onClick={() => setDoc(d)}>{d}</button>)}
+      {win && (
+        <Modal open error={error} title="부가세신고서(첨부서류)" width={900} onClose={() => { setWin(null); setView(null) }}>
+          <table className="w-full mb-[6px]">
+            <thead>
+              <tr><th className="text-center">신고기간</th><th className="text-center">사업자등록번호</th><th className="text-center">예정누락기간</th>
+                <th className="text-center">신고(작성)일자</th><th className="text-center">납부기한</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="text-center">{win.periodName}</td><td className="text-center">{company?.bizRegNo ?? ''}</td>
+                <td className="text-center">{omittedOf(win)}</td>
+                <td className="text-center">{win.reportDate.replace(/-/g, '/')}</td><td className="text-center">{win.dueDate.replace(/-/g, '/')}</td>
+              </tr>
+            </tbody>
+          </table>
+          {stale && returnAt && (
+            <p className="text-[var(--ec-text-danger)] mb-[6px]">부가세신고서 최종수정일 {stamp(returnAt)} 이후로 수정된 서류가 있습니다.</p>
+          )}
+          <table className="w-full mb-[6px]">
+            <thead><tr><th>신고서</th><th className="text-center w-[90px]">조회</th><th className="text-center w-[110px]">새로불러오기</th></tr></thead>
+            <tbody>
+              <DocRow no={1} name="부가가치세신고서" written={!!returnAt} onOpen={() => openDoc('RETURN')} onReload={() => reloadDoc('RETURN')} />
+            </tbody>
+          </table>
+          <table className="w-full">
+            <thead><tr><th>첨부서류명</th><th className="text-center w-[90px]">조회</th><th className="text-center w-[110px]">새로불러오기</th></tr></thead>
+            <tbody>
+              {ATTACHMENTS.map(([no, code, name]) => (
+                <DocRow key={code} no={no} name={name} written={!!written[code]} onOpen={() => openDoc(code)} onReload={() => reloadDoc(code)} />
+              ))}
+            </tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button className="ec-btn" onClick={() => { setWin(null); setView(null) }}>닫기</button>
           </div>
+        </Modal>
+      )}
+
+      {view && (
+        <Modal open error={error} title={DOC_TITLE[view.code]} width={900} onClose={() => setView(null)}>
           <div id="vat-return-sheet">
-            {doc === '부가가치세신고서' && <ReturnSheet s={sheet} c={company} />}
-            {doc === '매출세금계산서' && <InvoiceSummarySheet side="매출" s={sheet} c={company} invoices={sheet.salesInvoices} />}
-            {doc === '매입세금계산서' && <InvoiceSummarySheet side="매입" s={sheet} c={company} invoices={sheet.purchaseInvoices} />}
+            {view.code === 'RETURN' && <ReturnSheet s={view.sheet} c={company} />}
+            {view.code === 'SALES_INVOICE' && <InvoiceSummarySheet side="매출" s={view.sheet} c={company} invoices={view.sheet.salesInvoices} />}
+            {view.code === 'PURCHASE_INVOICE' && <InvoiceSummarySheet side="매입" s={view.sheet} c={company} invoices={view.sheet.purchaseInvoices} />}
+            {view.code === 'CARD_SALES' && <CardSalesSheet s={view.sheet} c={company} />}
+            {view.code === 'CARD_RECEIPT' && <CardReceiptSheet s={view.sheet} c={company} />}
           </div>
-        </>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button className="ec-btn" onClick={print}>인쇄</button>
+            <button className="ec-btn" onClick={() => setView(null)}>닫기</button>
+          </div>
+        </Modal>
+      )}
+
+      {ask && (
+        <Modal open error={error} title="알림" width={480} onClose={() => setAsk(null)}>
+          {ask.lines.map((l) => <p key={l}>{l}</p>)}
+          <div className="flex gap-[6px] mt-[12px]">
+            <button className="ec-btn ec-btn-primary" onClick={() => { const y = ask.yes; setAsk(null); y() }}>확인</button>
+            <button className="ec-btn" onClick={() => { const n = ask.no; setAsk(null); n?.() }}>취소</button>
+          </div>
+        </Modal>
       )}
 
       {form && (
@@ -387,11 +550,41 @@ export default function VatReturnPage() {
   )
 }
 
+/** 원본 [신고서등] 창 한 줄 — 만들어 둔 서류는 [조회] 가 주황 꼬리표(2026-10-13 실측 --ec-bg-tag). */
+function DocRow({ no, name, written, onOpen, onReload }: { no: number; name: string; written: boolean; onOpen: () => void; onReload: () => void }) {
+  return (
+    <tr>
+      <td>{no} {name}</td>
+      <td className="text-center">
+        <button className={written ? 'rounded-[6px] px-[4px] bg-[var(--ec-bg-tag)] text-white' : 'ec-link'} onClick={onOpen}>조회</button>
+      </td>
+      <td className="text-center"><button className="ec-link" onClick={onReload}>새로불러오기</button></td>
+    </tr>
+  )
+}
+
+/** 예정누락기간 — 확정이면 그 기의 예정 석 달. */
+function omittedOf(v: VatReturnRow) {
+  if (v.returnKind !== 'FINAL') return ''
+  const first = v.monthFrom <= 6 ? 1 : 7
+  return `${v.year}/${String(first).padStart(2, '0')} ~ ${v.year}/${String(first + 2).padStart(2, '0')}`
+}
+
+/** 원본 '2026/10/13 (화) 오후 3:47:15'. */
+function stamp(iso: string) {
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  const h = d.getHours()
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} (${'일월화수목금토'[d.getDay()]}) ${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
 export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
   const p = s
   const pad = (n: number) => String(n).padStart(2, '0')
   const sales = add(add(s.taxInvoice, s.cardSales), s.zeroInvoice)
   const purchase = add(add(s.purchaseGeneral, s.purchaseFixed), s.otherPurchase)
+  /* 예전에 저장한 신고서는 (44) · (45) 를 안 나눠 들고 있다 — (15) 를 (44) 로. */
+  const cards = s.cards ?? { ...CARDS0, general: s.otherPurchase }
   const payable = sales.vat - purchase.vat
   const address = [c?.address, c?.addressDetail].filter(Boolean).join(' ')
   /* 원본 칸 하나 — [구분 · (번호) · 금액 · 세율 · 세액]. 세율이 없는 칸은 비운다. */
@@ -475,6 +668,167 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
           <tr><td className="text-center">(31)</td><td>{c?.bizType ?? ''}</td><td>{c?.bizItem ?? ''}</td><td className="text-right">{won(sales.supply)}</td></tr>
           <tr><td className="text-center">(34)</td><td>수입금액제외</td><td></td><td className="text-right"></td></tr>
           <tr className="ec-total"><td className="text-center">(35)</td><td colSpan={2} className="font-bold">합 계</td><td className="text-right font-bold">{won(sales.supply)}</td></tr>
+        </tbody>
+      </table>
+
+      {/* 뒤쪽 — 원본 2026 2기 예정 실측: ⑦ 예정신고누락분 명세 (36)~(43) · (15) 그 밖의 공제매입세액 명세 (44)~(52) ·
+          (17) 공제받지 못할 매입세액 명세 (53)~(56). 우리 자료로 차는 것은 (44) · (45) · (52) 뿐이다. */}
+      <p className="mt-[8px] mb-[4px]">⑦ 예정신고누락분 명세</p>
+      <table className="w-full ec-report mb-[8px]">
+        <thead>
+          <tr><th>구 분</th><th className="text-center">번호</th><th className="text-right">금 액</th><th className="text-center">세 율</th><th className="text-right">세 액</th></tr>
+        </thead>
+        <tbody>
+          {line('매출 · 과세 · 세금계산서', '(36)', ZERO, '10/100')}
+          {line('매출 · 과세 · 기타', '(37)', ZERO, '10/100')}
+          {line('매출 · 영세율 · 세금계산서', '(38)', ZERO, '0/100')}
+          {line('매출 · 영세율 · 기타', '(39)', ZERO, '0/100')}
+          {line('매출 · 합계', '(40)', ZERO, '')}
+          {line('매입 · 세금계산서', '(41)', ZERO, '')}
+          {line('매입 · 그 밖의 공제매입세액', '(42)', ZERO, '')}
+          {line('매입 · 합계', '(43)', ZERO, '')}
+        </tbody>
+      </table>
+      <p className="mb-[4px]">(15) 그 밖의 공제매입세액 명세</p>
+      <table className="w-full ec-report mb-[8px]">
+        <thead>
+          <tr><th>구 분</th><th className="text-center">번호</th><th className="text-right">금 액</th><th className="text-center">세 율</th><th className="text-right">세 액</th></tr>
+        </thead>
+        <tbody>
+          {line('신용카드매출전표등 수령명세서제출분 · 일반매입', '(44)', cards.general, '')}
+          {line('신용카드매출전표등 수령명세서제출분 · 고정자산매입', '(45)', cards.fixed, '')}
+          {line('의제매입세액', '(46)', ZERO, '뒤쪽참조')}
+          {line('재활용폐자원등 매입세액', '(47)', ZERO, '뒤쪽참조')}
+          {line('과세사업전환 매입세액', '(48)', ZERO, '', true)}
+          {line('재고매입세액', '(49)', ZERO, '', true)}
+          {line('변제대손세액', '(50)', ZERO, '', true)}
+          {line('외국인 관광객에 대한 환급세액', '(51)', ZERO, '', true)}
+          {line('합계', '(52)', add(cards.general, cards.fixed), '')}
+        </tbody>
+      </table>
+      <p className="mb-[4px]">(17) 공제받지 못할 매입세액 명세</p>
+      <table className="w-full ec-report">
+        <thead>
+          <tr><th>구 분</th><th className="text-center">번호</th><th className="text-right">금 액</th><th className="text-center">세 율</th><th className="text-right">세 액</th></tr>
+        </thead>
+        <tbody>
+          {line('공제받지 못할 매입세액', '(53)', ZERO, '')}
+          {line('공통매입세액 면세사업분', '(54)', ZERO, '')}
+          {line('대손처분받은 세액', '(55)', ZERO, '')}
+          {line('합계', '(56)', ZERO, '')}
+        </tbody>
+      </table>
+    </>
+  )
+}
+
+/** 첨부서류 머리 — 제출자 인적사항 줄. */
+function Submitter({ rows }: { rows: [string, string][][] }) {
+  return (
+    <table className="w-full ec-report mb-[8px]">
+      <tbody>
+        {rows.map((r, i) => (
+          <tr key={i}>{r.map(([k, v], j) => [<th key={`h${j}`}>{k}</th>, <td key={`d${j}`}>{v}</td>])}</tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+/**
+ * 첨부서류 6 — <b>신용카드 매출전표 등 발행금액 집계표</b>([별지 제23호서식]) — 2026-10-13 loginaa 2기 예정 실측(CardTally 주석).
+ * 2. 발행금액 현황 [⑤ 합계 · ⑥ 신용·직불·기명식 선불카드 · ⑦ 현금영수증 · ⑧ 직불·기명식 선불전자지급수단] ×
+ * [합계 · 과세 매출분 · 면세 매출분 · 봉사료], 3. ⑨ 세금계산서 발급금액 · ⑩ 계산서 발급금액. 빈 칸도 0 을 찍는다.
+ */
+export function CardSalesSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
+  const k = s.cards ?? CARDS0
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const address = [c?.address, c?.addressDetail].filter(Boolean).join(' ')
+  const rowOf = (label: string, card: number, cash: number, bold = false) => (
+    <tr key={label} className={bold ? 'ec-total' : undefined}>
+      <td className="text-center">{label}</td>
+      <td className="text-right">{won(card + cash)}</td><td className="text-right">{won(card)}</td>
+      <td className="text-right">{won(cash)}</td><td className="text-right">0</td>
+    </tr>
+  )
+  return (
+    <>
+      <p>■ 부가가치세법 시행규칙 [별지 제23호서식]</p>
+      <p className="ec-report-title">신용카드 매출전표 등 발행금액 집계표</p>
+      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad(s.first)}월 01일 ~ {pad(s.last)}월 {pad(s.end)}일)</p>
+      <p className="mb-[4px]">1. 제출자 인적사항</p>
+      <Submitter rows={[[['① 상호(법인명)', c?.name ?? ''], ['② 성명(대표자)', c?.ceo ?? '']],
+        [['③ 사업장소재지', address], ['④ 사업자등록번호', c?.bizRegNo ?? '']]]} />
+      <p className="mb-[4px]">2. 신용카드매출전표 등 발행금액 현황</p>
+      <table className="w-full ec-report mb-[8px]">
+        <thead>
+          <tr><th className="text-center">구 분</th><th className="text-right">⑤ 합 계</th><th className="text-right">⑥ 신용·직불·기명식 선불카드</th>
+            <th className="text-right">⑦ 현금영수증</th><th className="text-right">⑧ 직불·기명식 선불전자지급수단</th></tr>
+        </thead>
+        <tbody>
+          {rowOf('합 계', k.saleCard + k.saleCardFree, k.saleCash + k.saleCashFree, true)}
+          {rowOf('과세 매출분', k.saleCard, k.saleCash)}
+          {rowOf('면세 매출분', k.saleCardFree, k.saleCashFree)}
+          {rowOf('봉 사 료', 0, 0)}
+        </tbody>
+      </table>
+      <p className="mb-[4px]">3. 신용카드매출전표등 발행금액(⑤합계) 중 세금계산서(계산서) 발급명세</p>
+      <table className="w-full ec-report">
+        <tbody>
+          <tr><th>⑨ 세금계산서 발급금액</th><td className="text-right">0</td><th>⑩ 계산서 발급금액</th><td className="text-right">0</td></tr>
+        </tbody>
+      </table>
+    </>
+  )
+}
+
+/**
+ * 첨부서류 15 — <b>신용카드매출전표등 수령명세서(갑)</b>([별지 제16호서식(1)]) — 2026-10-13 loginaa 2기 예정 실측.
+ * 2. 매입내역 합계 [거래건수 · 공급가액 · 세액] — ④ 합계(0 도 찍는다) · ⑤ 현금영수증 · ⑥ 화물운전자복지카드 · ⑦ 사업용 신용카드 ·
+ * ⑧ 그 밖의 신용카드 등(값이 없으면 칸을 비운다). 3. 그 밖의 신용카드 등 카드회원번호별 명세 — 카드번호를 안 들고 있어 비어 있다.
+ */
+export function CardReceiptSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
+  const k = s.cards ?? CARDS0
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const sum: Cnt = { n: k.recvCash.n + k.recvCard.n, supply: k.recvCash.supply + k.recvCard.supply, vat: k.recvCash.vat + k.recvCard.vat }
+  const rowOf = (label: string, x: Cnt | null, always = false) => {
+    const show = always || (x != null && x.n > 0)
+    return (
+      <tr key={label} className={always ? 'ec-total' : undefined}>
+        <td>{label}</td>
+        <td className="text-right">{show && x ? won(x.n) : ''}</td>
+        <td className="text-right">{show && x ? won(x.supply) : ''}</td>
+        <td className="text-right">{show && x ? won(x.vat) : ''}</td>
+      </tr>
+    )
+  }
+  return (
+    <>
+      <p>■ 부가가치세법 시행규칙 [별지 제16호서식(1)]</p>
+      <p className="ec-report-title">신용카드 매출전표등 수령명세서(갑)</p>
+      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad(s.first)}월 01일 ~ {pad(s.last)}월 {pad(s.end)}일)</p>
+      <p className="mb-[4px]">1. 제출자 인적사항</p>
+      <Submitter rows={[[['① 상 호 (법인명)', c?.name ?? ''], ['② 사업자등록번호', c?.bizRegNo ?? '']],
+        [['③ 성 명 (대표자)', c?.ceo ?? ''], ['', '']]]} />
+      <p className="mb-[4px]">2. 신용카드 등 매입내역 합계</p>
+      <table className="w-full ec-report mb-[8px]">
+        <thead><tr><th>구 분</th><th className="text-right">거래건수</th><th className="text-right">공급가액</th><th className="text-right">세 액</th></tr></thead>
+        <tbody>
+          {rowOf('④ 합 계', sum, true)}
+          {rowOf('⑤ 현금영수증', k.recvCash)}
+          {rowOf('⑥ 화물운전자복지카드', null)}
+          {rowOf('⑦ 사업용 신용카드', k.recvCard)}
+          {rowOf('⑧ 그 밖의 신용카드 등', null)}
+        </tbody>
+      </table>
+      <p className="mb-[4px]">3. 그 밖의 신용ㆍ직불카드, 기명식선불카드, 직불전자지급수단 및 기명식선불전자지급수단 매출전표 수령금액 합계</p>
+      <table className="w-full ec-report">
+        <thead>
+          <tr><th className="text-center">일련번호</th><th>⑨ 카드회원번호</th><th>⑩ 공급자(가맹점) 사업자등록번호</th>
+            <th className="text-right">거래건수</th><th className="text-right">공급가액</th><th className="text-right">세액</th></tr>
+        </thead>
+        <tbody>
+          <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         </tbody>
       </table>
     </>
