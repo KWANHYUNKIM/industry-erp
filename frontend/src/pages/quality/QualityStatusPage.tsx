@@ -38,6 +38,13 @@ const FORMS = ['일별', '월별', '라인별', '전표별', '품목별', '전�
 type Form = (typeof FORMS)[number]
 /** ○집계의 값 열 — 원본 그대로. */
 const MEASURES = ['수량', '시료', '적격', '부적격']
+/** [집계대상] 으로 고른 값 열만 — 원본 차례(수량 · 시료 · 적격 · 부적격)를 지킨다. 안 고르면 넷 다. */
+const pickMeasures = (targets: string[]) => (targets.length ? MEASURES.filter((m) => targets.includes(m)) : MEASURES)
+const pickVals = (lines: AsAggLine[], targets: string[]) => {
+  if (!targets.length) return lines
+  const idx = MEASURES.map((m, i) => (targets.includes(m) ? i : -1)).filter((i) => i >= 0)
+  return lines.map((l) => ({ ...l, vals: idx.map((i) => l.vals?.[i] ?? 0) }))
+}
 const TYPES: QualityInspectionType[] = ['INCOMING', 'PROCESS', 'SHIPMENT']
 const TYPE_LABEL: Record<QualityInspectionType, string> = {
   INCOMING: '수입검사', PROCESS: '공정검사', SHIPMENT: '출하검사',
@@ -54,6 +61,8 @@ interface Filters {
   gubun: '내역' | '집계'; form: Form; agg1: AsAggKey | ''; agg2: AsAggKey | ''; codeIncl: boolean
   /** ○집계의 [비교기간] · [기타] 비율표시(2026-10-13 실측). */
   compare: ComparePeriod; ratio: boolean
+  /** ○집계 [집계대상] — 수량 · 시료 · 적격 · 부적격 중 고른 값 열. 비면 넷 다(2026-10-13 실측: 코드도움 후보가 이 넷). */
+  targets: string[]
   /** 원본 품질검사현황 조건의 [창고]·[프로젝트]. 검사에 그 칸이 없어 못 걸렀다. */
   warehouse: string
   project: string
@@ -84,7 +93,7 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', codeIncl: false, compare: '사용안함', ratio: false, type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', codeIncl: false, compare: '사용안함', ratio: false, targets: [], type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
   category: '', itemGroup: '', spec: '', defectType: '', remark: '' }
 
 
@@ -271,10 +280,10 @@ export default function QualityStatusPage() {
                       return [...m].map(([label, value]) => ({ label, value }))
                     })()} />
       ) : filters.gubun === '집계' ? (
-        <AsAggregateTable title="품질검사현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} lines={aggLines}
+        <AsAggregateTable title="품질검사현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} lines={pickVals(aggLines, filters.targets)}
                           value={{ agg1: filters.agg1, agg2: filters.agg2, codeIncl: filters.codeIncl }}
-                          measures={MEASURES} blankZero={['부적격']} ratio={filters.ratio}
-                          compare={cmpRange ? { period: reportPeriod(cmpRange.from, cmpRange.to), lines: toAgg(toLineRows(cmpShown)) } : undefined} />
+                          measures={pickMeasures(filters.targets)} blankZero={['부적격']} ratio={filters.ratio}
+                          compare={cmpRange ? { period: reportPeriod(cmpRange.from, cmpRange.to), lines: pickVals(toAgg(toLineRows(cmpShown)), filters.targets) } : undefined} />
       ) : (
       <>
       <EcReportHead title="품질검사현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
@@ -395,6 +404,18 @@ function SearchPanel({
             </select>
           ) : (
             <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, codeIncl: draft.codeIncl }} onChange={onChange} />
+          )}
+          {/* 원본 ○집계 차례 — 집계조건1 · 2 · [집계대상] · [비교기간] · [기타](2026-10-13 실측). */}
+          {draft.gubun === '집계' && (
+            <span className="inline-flex flex-wrap items-center gap-[8px]">
+              <span className="text-ec-label">집계대상</span>
+              {MEASURES.map((m) => (
+                <label key={m} className="inline-flex items-center gap-[3px]">
+                  <input type="checkbox" checked={draft.targets.includes(m)}
+                         onChange={(e) => onChange({ targets: e.target.checked ? [...draft.targets, m] : draft.targets.filter((x) => x !== m) })} /> {m}
+                </label>
+              ))}
+            </span>
           )}
           {/* 원본 ○집계 아래 줄 — [비교기간] 사용안함 … 전일동일기간, [기타] 가로보기 · 비율표시 · 코드포함(2026-10-13 실측). */}
           {draft.gubun === '집계' && (
