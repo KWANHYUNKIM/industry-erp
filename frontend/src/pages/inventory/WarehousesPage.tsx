@@ -7,6 +7,7 @@ import Modal from '../../components/Modal'
 import EcHistoryButton from '../../components/EcHistory'
 import EcFileDrop from '../../components/EcFileDrop'
 import { useTableSort } from '../../utils/useTableSort'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const inputCls = 'ec-input w-full'
 
@@ -135,7 +136,7 @@ export default function WarehousesPage() {
    */
   async function toggleActive() {
     const targets = warehouses.filter((w) => checked.has(w.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
     const reviving = targets.every((w) => !w.active)
     await setActive(targets, reviving)
   }
@@ -146,7 +147,7 @@ export default function WarehousesPage() {
   /** 펼침의 [사용중단] · [재사용] — 고른 줄만. */
   async function setActiveChecked(active: boolean) {
     const targets = warehouses.filter((w) => checked.has(w.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
     await setActive(targets, active)
   }
 
@@ -169,12 +170,12 @@ export default function WarehousesPage() {
    */
   async function removeChecked() {
     const targets = warehouses.filter((w) => checked.has(w.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
-    if (!confirm('삭제하겠습니까?')) return
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     try {
       for (const w of targets) await api.delete(`/warehouses/${w.id}`)
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
     setChecked(new Set())
     load()

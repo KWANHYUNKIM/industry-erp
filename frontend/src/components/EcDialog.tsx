@@ -101,9 +101,9 @@ export function EcDialogHost() {
         <div className="ec-modal-body flex flex-col min-h-[229px]">
           <p className="flex-1 m-0 whitespace-pre-line break-words leading-[18px]">{top.message}</p>
           <div className="flex gap-[5px] mt-[9px]">
-            <button ref={okRef} type="button" className="ec-btn ec-btn-primary" onClick={() => close(top, true)}>확인</button>
+            <button ref={okRef} type="button" className="ec-btn ec-btn-primary min-w-[var(--ec-btn-min-w)] justify-center" onClick={() => close(top, true)}>확인</button>
             {top.kind === 'confirm' && (
-              <button type="button" className="ec-btn" onClick={() => close(top, false)}>취소</button>
+              <button type="button" className="ec-btn min-w-[var(--ec-btn-min-w)] justify-center" onClick={() => close(top, false)}>취소</button>
             )}
           </div>
         </div>

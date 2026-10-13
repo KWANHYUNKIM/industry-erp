@@ -8,6 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Project } from '../../types/api'
 import { EcCond } from '../../components/EcStatusPanel'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서 · 창고 · 거래처 리스트와 같은 글). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
@@ -97,9 +98,9 @@ export default function ProjectListPage() {
 
   async function apply(ids: number[], op: '사용중단' | '삭제' | '재사용') {
     setMenuOpen(false); setEditMenu(false)
-    if (ids.length === 0) { alert(NO_PICK); return }
+    if (ids.length === 0) { void ecAlert(NO_PICK); return }
     // 원본 글: 리스트에서는 '삭제하겠습니까?', 수정 창에서는 '삭제하시겠습니까?'
-    if (op === '삭제' && !window.confirm(formOpen ? '삭제하시겠습니까?' : '삭제하겠습니까?')) return
+    if (op === '삭제' && !(await ecConfirm(formOpen ? '삭제하시겠습니까?' : '삭제하겠습니까?'))) return
     try {
       for (const id of ids) {
         if (op === '삭제') await api.delete(`/projects/${id}`)

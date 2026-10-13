@@ -9,6 +9,7 @@ import type { Department } from '../../types/api'
 import DepartmentHierarchy from '../../features/department/components/DepartmentHierarchy'
 import EditStateMenu from '../../components/EditStateMenu'
 import { EcCond } from '../../components/EcStatusPanel'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서리스트 · 창고 · 거래처 같은 글). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
@@ -108,9 +109,9 @@ export default function DepartmentListPage() {
   /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
   async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
-    if (ids.size === 0) { alert(NO_PICK); return }
-    if (op === '삭제' && !window.confirm(
-      '삭제하시겠습니까?\n\n조직도에 포함된 부서인 경우에는 조직도에서도 하위부서를 포함하여 모두 삭제됩니다.')) return
+    if (ids.size === 0) { void ecAlert(NO_PICK); return }
+    if (op === '삭제' && !(await ecConfirm(
+      '삭제하시겠습니까?\n\n조직도에 포함된 부서인 경우에는 조직도에서도 하위부서를 포함하여 모두 삭제됩니다.'))) return
     try {
       for (const d of rows.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/departments/${d.id}`)
