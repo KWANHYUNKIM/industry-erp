@@ -126,7 +126,7 @@ export default function ApprovalDraftPage() {
       .catch(() => setPresets([]))
     fetchApprovalGroups().then(setGroups).catch(() => setGroups([]))
     api
-      .get<(ApprovalFormTemplate & WithGroup)[]>('/approval-form-templates')
+      .get<(ApprovalFormTemplate & WithGroup)[]>('/approval-form-templates', { params: { forDraft: true } })
       .then((r) => {
         setTemplates(r.data)
         if (!copyFrom) return

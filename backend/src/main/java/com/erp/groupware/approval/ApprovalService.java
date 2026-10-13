@@ -84,14 +84,25 @@ public class ApprovalService {
         if ("reference".equals(scope)) {
             return d.getParticipants().stream()
                     .anyMatch(p -> p.getRole() == ApprovalParticipantRole.REFERENCE
-                            && p.getUser().getUsername().equals(username));
+                            && p.getUser().getUsername().equals(username) && participantSees(d, p));
         }
         if ("mine".equals(scope)) {
             return d.getDrafter().getUsername().equals(username)
                     || d.getLines().stream().anyMatch(l -> l.getApprover().getUsername().equals(username))
-                    || d.getParticipants().stream().anyMatch(p -> p.getUser().getUsername().equals(username));
+                    || d.getParticipants().stream().anyMatch(p -> p.getUser().getUsername().equals(username) && participantSees(d, p));
         }
         return true;
+    }
+
+    /**
+     * 원본 공통양식 [기안서확인시점설정] — 수신참조(기본 결재완료후) · 공유자(기본 결재완료전)가 이 문서를 지금 볼 수 있나.
+     * 결재완료후면 최종 승인(APPROVED) 전에는 그 사람 목록에 나오지 않는다.
+     */
+    private static boolean participantSees(ApprovalDocument d, ApprovalParticipant p) {
+        ApprovalFormTemplate t = d.getFormTemplate();
+        ApprovalViewTiming timing = t == null ? ApprovalViewTiming.DEFAULT
+                : p.getRole() == ApprovalParticipantRole.REFERENCE ? t.getReferenceViewTiming() : t.getShareViewTiming();
+        return timing.visible(p.getRole(), d.getStatus());
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +116,8 @@ public class ApprovalService {
                 .orElseThrow(() -> ApiException.notFound("기안자를 찾을 수 없습니다."));
 
         ApprovalFormTemplate template = resolveTemplate(req);
+        // 원본 [사용자별권한] 사용불가 — 그 양식은 기안서작성에서 고를 수 없다.
+        if (!template.usableBy(drafter.getId())) throw ApiException.forbidden("이 양식을 사용할 권한이 없습니다: " + template.getName());
         LocalDate draftDate = req.draftDate() != null ? req.draftDate() : LocalDate.now();
 
         List<Long> approverIds = req.approverIds() == null ? List.of() : req.approverIds();

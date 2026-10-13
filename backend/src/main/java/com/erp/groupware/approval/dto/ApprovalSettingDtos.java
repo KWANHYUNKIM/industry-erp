@@ -28,7 +28,12 @@ public final class ApprovalSettingDtos {
             /** 양식별 입력 항목 정의. 비우면 자유서식(본문만). */
             List<Map<String, Object>> fieldSchema,
             /** 기본 구분(그룹코드) — 원본 기본값설정 › 구분. 비우면 구분 없음. */
-            @Size(max = 20, message = "구분 코드는 20자까지 넣을 수 있습니다.") String groupCode
+            @Size(max = 20, message = "구분 코드는 20자까지 넣을 수 있습니다.") String groupCode,
+            /** 원본 [기안서확인시점설정] — DEFAULT(기본설정) · BEFORE(결재완료전) · AFTER(결재완료후). 비우면 그대로. */
+            com.erp.groupware.approval.ApprovalViewTiming referenceViewTiming,
+            com.erp.groupware.approval.ApprovalViewTiming shareViewTiming,
+            /** 원본 [사용자별권한] — 사용자 id → ALLOW · DENY. 비우면 그대로, 빈 맵이면 모두 권한그룹. */
+            Map<String, String> userPermissions
     ) {}
 
     public record FormTemplateResponse(
@@ -38,12 +43,16 @@ public final class ApprovalSettingDtos {
             long documentCount,
             String groupCode,
             /** 공통양식리스트 [구분] 열 — 구분의 이름 */
-            String groupName
+            String groupName,
+            com.erp.groupware.approval.ApprovalViewTiming referenceViewTiming,
+            com.erp.groupware.approval.ApprovalViewTiming shareViewTiming,
+            Map<String, String> userPermissions
     ) {
         public static FormTemplateResponse from(ApprovalFormTemplate t, long documentCount, String groupName) {
             return new FormTemplateResponse(
                     t.getId(), t.getCode(), t.getName(), t.getSortOrder(), t.isActive(),
-                    t.getFieldSchema(), documentCount, t.getGroupCode(), groupName);
+                    t.getFieldSchema(), documentCount, t.getGroupCode(), groupName,
+                    t.getReferenceViewTiming(), t.getShareViewTiming(), t.getUserPermissions());
         }
     }
 

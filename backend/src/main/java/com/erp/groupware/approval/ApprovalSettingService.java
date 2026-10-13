@@ -59,6 +59,7 @@ public class ApprovalSettingService {
                 .fieldSchema(schema(req.fieldSchema()))
                 .groupCode(groupCode(req.groupCode()))
                 .build();
+        applyInputSettings(t, req);
         return FormTemplateResponse.from(templateRepository.save(t), 0, groupName(t.getGroupCode()));
     }
 
@@ -71,7 +72,22 @@ public class ApprovalSettingService {
         t.setActive(req.active() == null || req.active());
         t.setFieldSchema(schema(req.fieldSchema()));
         t.setGroupCode(groupCode(req.groupCode()));
+        applyInputSettings(t, req);
         return FormTemplateResponse.from(t, documentRepository.countByFormTemplateId(t.getId()), groupName(t.getGroupCode()));
+    }
+
+    /** 원본 입력화면설정의 [기안서확인시점설정] · [사용자별권한]. 요청에 없으면 그대로 둔다. */
+    private static void applyInputSettings(ApprovalFormTemplate t, FormTemplateRequest req) {
+        if (req.referenceViewTiming() != null) t.setReferenceViewTiming(req.referenceViewTiming());
+        if (req.shareViewTiming() != null) t.setShareViewTiming(req.shareViewTiming());
+        if (req.userPermissions() != null) {
+            Map<String, String> m = new java.util.LinkedHashMap<>();
+            req.userPermissions().forEach((k, v) -> {
+                if ("ALLOW".equals(v) || "DENY".equals(v)) m.put(k, v);
+                else if (v != null && !"GROUP".equals(v)) throw ApiException.badRequest("사용자별권한 값을 다시 고르세요: " + v);
+            });
+            t.setUserPermissions(m);
+        }
     }
 
     /** 기안서가 한 건도 없는 양식만 삭제한다. 쓰인 양식은 사용중지로 내린다. */
@@ -91,8 +107,11 @@ public class ApprovalSettingService {
      * 컨트롤러가 리포지토리를 직접 부르던 자리(CLAUDE.md 3장)를 여기로 옮겼다.
      */
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> activeTemplates() {
+    public List<Map<String, Object>> activeTemplates(String username) {
+        Long userId = username == null ? null : userRepository.findByUsername(username).map(u -> u.getId()).orElse(null);
         return templateRepository.findByActiveTrueOrderBySortOrderAscCodeAsc().stream()
+                // 원본 [사용자별권한] 사용불가면 그 사람의 기안서작성 양식 목록에서 빠진다.
+                .filter(t -> t.usableBy(userId))
                 .map(t -> {
                     Map<String, Object> m = new java.util.LinkedHashMap<>();
                     m.put("id", t.getId());

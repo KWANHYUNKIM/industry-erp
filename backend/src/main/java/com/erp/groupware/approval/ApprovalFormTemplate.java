@@ -48,6 +48,32 @@ public class ApprovalFormTemplate extends BaseTimeEntity {
     @Column(name = "group_code", length = 20)
     private String groupCode;
 
+    /** 원본 [기안서확인시점설정] › 수신참조 확인시점. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reference_view_timing", nullable = false, length = 10)
+    @Builder.Default
+    private ApprovalViewTiming referenceViewTiming = ApprovalViewTiming.DEFAULT;
+
+    /** 원본 [기안서확인시점설정] › 공유문서 확인시점. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "share_view_timing", nullable = false, length = 10)
+    @Builder.Default
+    private ApprovalViewTiming shareViewTiming = ApprovalViewTiming.DEFAULT;
+
+    /**
+     * 원본 [사용자별권한] '대상자선택' — 사용자 id(글자) → ALLOW(사용허가) · DENY(사용불가).
+     * 없는 사용자는 권한그룹(기본, 누구나 쓴다).
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "user_permissions", nullable = false, columnDefinition = "jsonb")
+    @Builder.Default
+    private Map<String, String> userPermissions = new java.util.LinkedHashMap<>();
+
+    /** 이 사용자가 이 양식으로 기안할 수 있나(원본 사용불가면 기안서작성 양식 목록에서 빠진다). */
+    public boolean usableBy(Long userId) {
+        return userId == null || !"DENY".equals(userPermissions.get(String.valueOf(userId)));
+    }
+
     /**
      * 양식별 입력 항목 정의. 프론트가 이걸 읽어 폼을 그린다.
      * 빈 배열이면 자유서식(본문 리치텍스트)만 쓴다.

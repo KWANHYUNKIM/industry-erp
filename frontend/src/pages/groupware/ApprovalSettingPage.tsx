@@ -9,6 +9,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { useShortcut } from '../../utils/useShortcut'
 import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
 import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
+import { UserPermissionModal, ViewTimingModal, type ViewTiming, type WithInputSettings } from '../../features/approval/components/FormInputSettings'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../types/api'
@@ -272,6 +273,13 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
   /** 원본 기본값설정 › 구분 — '구분검색'에서 고른 그룹코드. */
   const [groupCode, setGroupCode] = useState((template as WithGroup | null)?.groupCode ?? '')
   const [groups, setGroups] = useState<ApprovalGroup[]>([])
+  /** 원본 [기안서확인시점설정] · [사용자별권한] — 창에서 [적용]/[저장] 하면 여기 담기고, 이 창의 [저장(F8)] 이 서버에 보낸다. */
+  const inputs = template as (ApprovalFormTemplateAdmin & WithInputSettings) | null
+  const [refTiming, setRefTiming] = useState<ViewTiming>(inputs?.referenceViewTiming ?? 'DEFAULT')
+  const [shareTiming, setShareTiming] = useState<ViewTiming>(inputs?.shareViewTiming ?? 'DEFAULT')
+  const [userPerms, setUserPerms] = useState<Record<string, 'ALLOW' | 'DENY'>>(inputs?.userPermissions ?? {})
+  const [showTiming, setShowTiming] = useState(false)
+  const [showPerms, setShowPerms] = useState(false)
   useEffect(() => { fetchApprovalGroups().then(setGroups).catch(() => setGroups([])) }, [])
   const [fields, setFields] = useState<FieldRow[]>(
     (template?.fieldSchema ?? [])
@@ -299,7 +307,8 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
     ]
     setSaving(true)
     try {
-      const body = { code: code.toUpperCase(), name, sortOrder: Number(sortOrder) || 0, active, fieldSchema: schema, groupCode: groupCode || null }
+      const body = { code: code.toUpperCase(), name, sortOrder: Number(sortOrder) || 0, active, fieldSchema: schema, groupCode: groupCode || null,
+        referenceViewTiming: refTiming, shareViewTiming: shareTiming, userPermissions: userPerms }
       if (isNew) await api.post('/approval-settings/templates', body)
       else await api.put(`/approval-settings/templates/${template.id}`, body)
       onSaved(name)
@@ -334,6 +343,15 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
             value={groupCode ? { code: groupCode, name: groups.find((g) => g.code === groupCode)?.name ?? groupCode } : null}
             onChange={(g) => { setGroupCode(g?.code ?? ''); fetchApprovalGroups().then(setGroups).catch(() => {}) }} />
         </Field>
+        {/* 원본 입력화면설정 › 기본 › [기안서확인시점설정] · [사용자별권한] — 글자 링크 '설정' 이 창을 연다. */}
+        <Field label="기안서확인시점설정">
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy h-[26px]" onClick={() => setShowTiming(true)}>설정</button>
+        </Field>
+        <Field label="사용자별권한">
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy h-[26px]" onClick={() => setShowPerms(true)}>
+            설정{Object.keys(userPerms).length > 0 ? ` (${Object.keys(userPerms).length})` : ''}
+          </button>
+        </Field>
         <Field label="사용여부">
           <select className="ec-input" value={active ? '1' : '0'} onChange={(e) => setActive(e.target.value === '1')} style={{ width: 100 }}>
             <option value="1">사용</option>
@@ -347,6 +365,10 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
         )}
       </div>
 
+      {showTiming && <ViewTimingModal reference={refTiming} share={shareTiming} onClose={() => setShowTiming(false)}
+                                      onApply={(v) => { setRefTiming(v.reference); setShareTiming(v.share); setShowTiming(false) }} />}
+      {showPerms && <UserPermissionModal value={userPerms} onClose={() => setShowPerms(false)}
+                                         onApply={(v) => { setUserPerms(v); setShowPerms(false) }} />}
       <div className="text-[12.5px] font-bold text-ec-label mb-[4px]">입력항목</div>
       <table className="w-full text-left">
         <thead>
