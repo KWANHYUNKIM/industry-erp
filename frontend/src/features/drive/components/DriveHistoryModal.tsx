@@ -62,7 +62,8 @@ export default function DriveHistoryModal({ docId, drive, onClose }: {
               <td className="truncate" title={h.name}>{h.name}</td>
               <td className="text-right">{h.folder ? '' : driveSize(h.sizeBytes)}</td>
               <td>{h.actor}</td>
-              <td></td>
+              {/* 원본은 파일 줄에만 '* 파일관리'(가운데 · 11px) — 2026-10-14 파일업로드 줄에서 잼 */}
+              <td className="text-center text-[11px]">{h.folder ? '' : '* 파일관리'}</td>
               <td>{h.ip}</td>
               <td className="truncate" title={h.location ?? ''}>{h.location}</td>
             </tr>

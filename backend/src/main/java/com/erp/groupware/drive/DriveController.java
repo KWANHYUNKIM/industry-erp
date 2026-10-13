@@ -76,8 +76,8 @@ public class DriveController {
             @RequestPart("file") MultipartFile file,
             @RequestParam(required = false, defaultValue = "MY") String drive,
             @RequestParam(required = false) Long parentId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(driveService.upload(file, drive, parentId, principal.getUsername()));
+            @AuthenticationPrincipal UserPrincipal principal, HttpServletRequest http) {
+        return ResponseEntity.ok(driveService.upload(file, drive, parentId, principal.getUsername(), clientIp(http)));
     }
 
     /** 다운로드는 공통 파일 엔드포인트로 넘긴다(파일 id 를 알려준다). */

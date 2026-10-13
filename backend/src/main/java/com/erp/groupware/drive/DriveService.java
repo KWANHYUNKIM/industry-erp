@@ -300,6 +300,16 @@ public class DriveService {
     /** 폴더 안에 올리면 그 폴더의 드라이브를 따른다. */
     @Transactional
     public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader) {
+        return upload(file, drive, parentId, uploader, null);
+    }
+
+    /**
+     * 원본(2026-10-14 loginaa My Drive 에 QA 파일 하나 올려 잼): [버전/이력] 에 행위 '파일업로드' · 크기 '0KB' · 작업자 'GUEST' ·
+     * 위치 <b>'My Drive'</b> 한 줄. 폴더 [생성] 은 맨 위면 위치가 빈칸인데 파일 올리기는 드라이브 이름이 찍힌다.
+     * 폴더 안에 올렸을 때의 위치는 못 쟀다 — 폴더 이력과 같은 '/폴더' 꼴로 둔다.
+     */
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader, String ip) {
         DriveDocument parent = parentId != null ? getDoc(parentId) : null;
         if (parent != null && !parent.isFolder()) throw ApiException.badRequest("폴더 안에만 올릴 수 있습니다.");
         if (parent != null) drive = parent.getDrive();
@@ -316,7 +326,13 @@ public class DriveService {
                 .trashed(false)
                 .parent(parent)
                 .build();
-        return DocumentResponse.from(documentRepository.save(doc));
+        documentRepository.save(doc);
+        historyRepository.save(DriveHistory.builder()
+                .document(doc).action("파일업로드").name(doc.getName()).sizeBytes(doc.getSizeBytes())
+                .actor(uploader).ip(ip)
+                .location(parent != null ? folderPath(parent) : ("SHARED".equals(doc.getDrive()) ? "Shared Drive" : "My Drive"))
+                .build());
+        return DocumentResponse.from(doc);
     }
 
     /** 다운로드할 파일 id. 파일 없이 등록만 된 항목이면 400. */

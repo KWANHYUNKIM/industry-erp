@@ -304,7 +304,11 @@ export default function EcDrivePage() {
     { label: '상세보기', run: () => setDetailId(d.id) },
   ]
 
-  /** 원본 ⋮ — 폴더도 파일도 같은 차례. */
+  /**
+   * 원본 ⋮ — 폴더도 파일도 같은 차례. 파일은 [이름변경] 다음에 [다운로드] 가 끼인다(2026-10-14 파일 하나 올려 잼:
+   * 이동 · 복사 · 중요문서함에 추가 · 이름변경 · 다운로드 · 버전관리 · 휴지통으로이동 · 버전/이력 · 상세보기 · 연결내역보기).
+   * 버전관리 · 연결내역보기는 받쳐 줄 자료(파일 판 · 전표 첨부 연결)가 없어 두지 않는다.
+   */
   const commonMenu = (d: DriveDocument): MenuItem[] => [
     { label: '이동', run: () => setTransfer({ mode: 'move', doc: d }) },
     { label: '복사', run: () => setTransfer({ mode: 'copy', doc: d }) },
@@ -312,6 +316,7 @@ export default function EcDrivePage() {
       ? { label: '중요문서함에서제거', run: () => void patch(d, { important: false }) }
       : { label: '중요문서함에 추가', run: () => void patch(d, { important: true }) },
     { label: '이름변경', run: () => openRename(d) },
+    ...(!d.folder && d.fileId ? [{ label: '다운로드', run: () => void download(d) }] : []),
     { label: '휴지통으로이동', run: () => toTrash(d) },
     ...tailMenu(d),
   ]
@@ -336,10 +341,7 @@ export default function EcDrivePage() {
           { label: '새 폴더', run: () => openNewFolder(d.drive, d.id) },
           ...commonMenu(d),
         ]
-      : [
-          ...(d.fileId ? [{ label: '다운로드', run: () => void download(d) }] : []),
-          ...commonMenu(d),
-        ]
+      : commonMenu(d)
 
   return (
     <div className="flex flex-col min-h-[100%]">
