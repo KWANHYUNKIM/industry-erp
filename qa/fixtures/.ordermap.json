@@ -745,7 +745,7 @@
  ],
  [
   "카드사등록",
-  "accounting/PaymentMastersPage.tsx"
+  "accounting/CardIssuerListPage.tsx"
  ],
  [
   "커뮤니케이션센터",
