@@ -1,5 +1,5 @@
 {
-  "about": "품질검사유형등록(E040632) — 2026-10-12 원본 실측: 검사유형리스트 열 [유형코드 · 유형명 · 검사항목설정 · 품목설정]. [신규(F2)] 창(품질검사유형코드 · 품질검사유형명)을 비운 채 저장하면 두 칸이 빨개지고, 채워 저장하면 창이 닫히며 줄이 생긴다(설정 버튼은 회색). [검사항목등록] 에서 코드형식 항목을 만들고(코드 00001 미리 채움) [검사항목설정] 코드형검사항목1 에 넣으면 버튼이 파래진다. [사용중단/재사용 ▲] › 삭제('삭제하시겠습니까?')로 줄이 사라진다.",
+  "about": "품질검사유형등록(E040632) — 2026-10-12 원본 실측: 검사유형리스트 열 [유형코드 · 유형명 · 검사항목설정 · 품목설정]. [신규(F2)] 창(품질검사유형코드 · 품질검사유형명)을 비운 채 저장하면 두 칸이 빨개지고, 채워 저장하면 창이 닫히며 줄이 생긴다(설정 버튼은 회색). [검사항목등록] 에서 코드형식 항목을 만들고(코드 00001 미리 채움) [검사항목설정] 코드형검사항목1 에 넣으면 버튼이 파래진다. [사용중단/재사용 ▲] › 삭제('삭제하시겠습니까?')로 줄이 사라진다. 2026-10-14 다시 잼(원본 QA2T): 수정 창 ▲ · H, 사용구분, 품목추가 창, 빈 이름 빨간 칸 — 둘째 shot.",
   "shots": [
     {
       "name": "신규 유형 → 빈 저장 막힘 → 저장 → 검사항목 등록 · 설정 → 삭제",
@@ -17,6 +17,40 @@
         "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return ['코드형검사항목1', '숫자형검사항목4', '문자형검사항목4'].every((t) => d.innerText.includes(t)) })()",
         "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); window.confirm = () => true; B('닫기', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(300); const row = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QAFLOW2')); row.querySelector('input[type=checkbox]').click(); await W(100); B('사용중단/재사용 ▲').click(); await W(100); B('삭제').click(); await W(1200); B('검사항목등록').click(); await W(600); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const r2 = [...d.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-흐름외관')); r2.querySelector('input[type=checkbox]').click(); await W(100); B('사용중단/재사용 ▲', d).click(); await W(100); B('삭제', d).click(); await W(1200); B('닫기', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(300); return 'ok' })()",
         "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QAFLOW2'))"
+      ]
+    },
+    {
+      "name": "수정 창 [저장 · 다시 작성 · 사용중단/재사용 ▲ · 닫기 · H] → H 이력 한 줄 → 사용중단(묻지 않고 닫힘 · 기본 목록에서 빠짐) → [사용구분] 사용중단에서 보임 → ▲ 재사용 · 삭제 → 재사용 → 품목설정 빈 선택삭제 문구 · [추가] '품목추가' 창 → 검사항목 빈 이름 빨간 칸 → 지움",
+      "path": "/quality/inspection-type",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const D = () => [...document.querySelectorAll('[role=dialog],[role=alertdialog]')].pop(); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const row = () => [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QAFLOW3')); const dlgBtns = () => [...D().querySelectorAll('button')].map((b) => b.innerText.trim()).filter((t) => t && t !== '✕').join('|'); window.__q = { W, B, D, set, row, dlgBtns }; window.confirm = () => true; return 'ok' })()",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('신규(F2)').click(); await W(400); set(D().querySelector('input[aria-label=\"품질검사유형코드\"]'), 'QAFLOW3'); set(D().querySelector('input[aria-label=\"품질검사유형명\"]'), 'QA재고2-흐름유형'); await W(100); B('저장(F8)', D()).click(); await W(1200); return !!row() })()",
+        "expect:!!window.__q.row()",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; row().querySelector('button.ec-link').click(); await W(500); return D().innerText.slice(0, 40) + ' / ' + dlgBtns() })()",
+        "expect:window.__q.D().innerText.includes('품질검사유형수정') && window.__q.dlgBtns() === '저장(F8)|다시 작성|사용중단/재사용 ▲|닫기|H'",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('H', D()).click(); await W(1000); return D().innerText.replace(/\\s+/g, ' ') })()",
+        "expect:(() => { const t = window.__q.D().innerText; return t.includes('이력') && /\\d{4}\\/\\d\\d\\/\\d\\d (오전|오후) \\d+:\\d\\d:\\d\\d \\[ADMIN\\]/.test(t) })()",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('닫기', D()).click(); await W(300); B('사용중단/재사용 ▲', D()).click(); await W(200); return [...D().querySelectorAll('.ec-menu button')].map((b) => b.innerText.trim()).join('|') })()",
+        "expect:[...window.__q.D().querySelectorAll('.ec-menu button')].map((b) => b.innerText.trim()).join('|') === '사용중단|삭제'",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('사용중단', D()).click(); await W(1200); return !D() + ' ' + !row() })()",
+        "expect:!window.__q.D() && !window.__q.row()",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '사용중단').querySelector('input').click(); await W(400); return !!row() })()",
+        "expect:!!window.__q.row()",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; row().querySelector('button.ec-link').click(); await W(500); B('사용중단/재사용 ▲', D()).click(); await W(200); return [...D().querySelectorAll('.ec-menu button')].map((b) => b.innerText.trim()).join('|') })()",
+        "expect:[...window.__q.D().querySelectorAll('.ec-menu button')].map((b) => b.innerText.trim()).join('|') === '재사용|삭제'",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('재사용', D()).click(); await W(1200); [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '사용').querySelector('input').click(); await W(400); return !!row() })()",
+        "expect:!!window.__q.row() && !window.__q.D()",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; [...row().querySelectorAll('button')].find((b) => b.innerText.trim() === '품목설정').click(); await W(600); B('선택삭제', D()).click(); await W(400); return D().innerText.replace(/\\s+/g, ' ') })()",
+        "expect:window.__q.D().getAttribute('role') === 'alertdialog' && window.__q.D().innerText.includes('선택된 자료가 없습니다.') && window.__q.D().innerText.includes('삭제할 자료를 체크한 후 다시 시도 바랍니다.')",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('확인', D()).click(); await W(300); B('추가', D()).click(); await W(800); return D().innerText.slice(0, 30) })()",
+        "expect:window.__q.D().innerText.startsWith('품목추가') && [...window.__q.D().querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|품목코드|품목명|검사유형' && window.__q.dlgBtns() === '적용(F8)|닫기'",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('닫기', D()).click(); await W(300); B('닫기', D()).click(); await W(300); B('검사항목등록').click(); await W(500); B('신규(F2)', D()).click(); await W(600); B('저장(F8)', D()).click(); await W(300); return D().innerText.slice(0, 20) })()",
+        "expect:!!window.__q.D().querySelector('input[aria-label=\"검사항목명\"].border-ec-danger') && !document.body.innerText.includes('입력하세요')",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('닫기', D()).click(); await W(300); return D()?.innerText.slice(0, 10) })()",
+        "expect:window.__q.D().innerText.startsWith('검사항목리스트') && [...window.__q.D().querySelectorAll('tbody tr')].filter((r) => r.innerText.includes('코드형식')).every((r) => r.cells[6].innerText.trim() === '추가')",
+        "js:(async () => { const {W,B,D,set,row,dlgBtns}=window.__q; B('닫기', D()).click(); await W(300); row().querySelector('button.ec-link').click(); await W(500); B('사용중단/재사용 ▲', D()).click(); await W(200); B('삭제', D()).click(); await W(600); const a = document.querySelector('[role=alertdialog]'); if (a) { B('확인', a).click(); await W(1200) } return !row() })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ts = await (await fetch('/api/quality-types', { headers: H })).json(); return !ts.some((t) => t.code === 'QAFLOW3') })()"
       ]
     }
   ]
