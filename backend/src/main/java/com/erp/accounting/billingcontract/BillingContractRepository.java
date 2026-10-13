@@ -32,6 +32,11 @@ public interface BillingContractRepository extends JpaRepository<BillingContract
            "where c.billEnd >= :fromDay and c.billStart <= :toDay order by c.contractDate, c.docNo, l.lineNo")
     List<BillingContractLine> findLinesActiveBetween(@Param("fromDay") LocalDate fromDay, @Param("toDay") LocalDate toDay);
 
+    /** 계약단가/수량일괄변경 — 계약일자 구간의 계약 줄. */
+    @Query("select l from BillingContractLine l join fetch l.contract c join fetch c.partner left join fetch c.project join fetch l.item left join fetch l.billingUnit " +
+           "where c.contractDate >= :from and c.contractDate <= :to order by c.contractDate, c.docNo, l.lineNo")
+    List<BillingContractLine> findLinesByContractDate(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
     @Query("select l from BillingContractLine l join fetch l.contract c join fetch c.partner join fetch l.item left join fetch l.billingUnit where l.id in :ids")
     List<BillingContractLine> findLinesById(@Param("ids") List<Long> ids);
 }

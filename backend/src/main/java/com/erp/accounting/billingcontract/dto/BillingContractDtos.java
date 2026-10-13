@@ -92,4 +92,29 @@ public final class BillingContractDtos {
     }
 
     public record DeleteRequest(List<Long> ids) {}
+
+    /** 계약단가/수량일괄변경 한 줄 — 계약 줄 하나. */
+    public record PriceChangeLine(
+            Long lineId, Long contractId, LocalDate contractDate, Integer docNo, String contractCode, String contractName,
+            Long partnerId, String partnerName, Long employeeId, LocalDate billStart, LocalDate billEnd, String vatType,
+            boolean foreignCurrency, Long projectId, String projectName, Long departmentId, Long itemId, String itemName,
+            Long billingUnitId, String billingUnitName, BigDecimal quantity, BigDecimal unitPrice,
+            BigDecimal supplyAmount, BigDecimal vatAmount, String remark
+    ) {
+        public static PriceChangeLine from(BillingContractLine l) {
+            BillingContract c = l.getContract();
+            return new PriceChangeLine(l.getId(), c.getId(), c.getContractDate(), c.getDocNo(), c.getCode(), c.getName(),
+                    c.getPartner().getId(), c.getPartner().getName(), c.getEmployeeId(), c.getBillStart(), c.getBillEnd(), c.getVatType(),
+                    c.isForeignCurrency(), c.getProject() != null ? c.getProject().getId() : null,
+                    c.getProject() != null ? c.getProject().getName() : null, c.getDepartmentId(),
+                    l.getItem().getId(), l.getItem().getName(),
+                    l.getBillingUnit() != null ? l.getBillingUnit().getId() : null, l.getBillingUnit() != null ? l.getBillingUnit().getName() : null,
+                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(), l.getRemark());
+        }
+    }
+
+    /** 계약단가/수량일괄변경 [저장(F8)] — 고친 줄의 수량 · 단가(공급가액 · 부가세는 다시 셈한다). */
+    public record PriceChangeRequest(@NotEmpty List<@Valid PriceChangeItem> lines) {}
+
+    public record PriceChangeItem(@NotNull Long lineId, @NotNull BigDecimal quantity, @NotNull BigDecimal unitPrice) {}
 }

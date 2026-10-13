@@ -64,6 +64,20 @@ public class BillingContractController {
         return service.update(id, req, principal.getUsername());
     }
 
+    /** 계약단가/수량일괄변경(E060904) [검색(F8)] */
+    @GetMapping("/price-change")
+    public List<BillingContractDtos.PriceChangeLine> priceChangeLines(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.priceChangeLines(from, to);
+    }
+
+    /** 계약단가/수량일괄변경 [저장(F8)] */
+    @PostMapping("/price-change")
+    public void changePrices(@Valid @RequestBody BillingContractDtos.PriceChangeRequest req, @AuthenticationPrincipal UserPrincipal principal) {
+        service.changePrices(req.lines(), principal.getUsername());
+    }
+
     /** 계약조회 [선택삭제] */
     @PostMapping("/delete")
     public void delete(@RequestBody BillingContractDtos.DeleteRequest req) {

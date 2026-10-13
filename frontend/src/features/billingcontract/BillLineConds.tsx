@@ -15,11 +15,15 @@ export interface BillLineFilter {
   currency: '' | 'D' | 'F'; department: string; project: string
 }
 
+/** 조건이 읽는 줄 칸 — 청구자료 줄(BillLineView)과 계약 줄(계약단가/수량일괄변경)이 같이 쓴다. */
+export type BillCondRow = Pick<BillLineView, 'contractId' | 'contractCode' | 'contractName' | 'itemId' | 'itemName' | 'partnerId' | 'partnerName'
+  | 'employeeId' | 'vatType' | 'billingUnitId' | 'billingUnitName' | 'foreignCurrency' | 'departmentId' | 'projectId'>
+
 export function emptyFilter(vatType = ''): BillLineFilter {
   return { contract: '', item: '', partner: '', employee: '', vatType, unit: '', currency: '', department: '', project: '' }
 }
 
-export function applyFilter(rows: BillLineView[], f: BillLineFilter): BillLineView[] {
+export function applyFilter<T extends BillCondRow>(rows: T[], f: BillLineFilter): T[] {
   return rows
     .filter((r) => !f.contract || String(r.contractId) === f.contract)
     .filter((r) => !f.item || String(r.itemId) === f.item)
@@ -39,16 +43,18 @@ export function useBillLineFilter(initialVat = '') {
 }
 
 /** 조건 칸들(<code>.ec-cond</code> 안의 <code>EcCond</code> 줄). 기간 칸은 화면이 앞에 둔다. */
-export function BillLineConds({ rows, filter, set, full, vatAll }: {
-  rows: BillLineView[]; filter: BillLineFilter; set: (p: Partial<BillLineFilter>) => void
+export function BillLineConds({ rows, filter, set, full, vatAll, currency = full }: {
+  rows: BillCondRow[]; filter: BillLineFilter; set: (p: Partial<BillLineFilter>) => void
   /** 담당자 · 내.외자구분까지(일괄반영). */
   full: boolean
+  /** 내.외자구분 칸(기본은 full 과 같다). 계약단가/수량일괄변경은 맨 끝에 ◉내자 ○외자 로 따로 둔다. */
+  currency?: boolean
   /** 부가세유형에 '전체' 를 둔다(미반영현황). 일괄반영은 유형 하나를 골라 그 유형만 반영한다. */
   vatAll: boolean
 }) {
   const pickers = useCondPickers(full ? ['employees'] : [])
   const dp = useDeptProjectItems()
-  const opts = (f: (r: BillLineView) => [string, string] | null) => {
+  const opts = (f: (r: BillCondRow) => [string, string] | null) => {
     const m = new Map<string, string>()
     rows.forEach((r) => { const kv = f(r); if (kv) m.set(kv[0], kv[1]) })
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([value, name]) => ({ value, name }))
@@ -72,7 +78,7 @@ export function BillLineConds({ rows, filter, set, full, vatAll }: {
         </select>
       </EcCond>
       <EcCond label="청구단위" pick><CodePickerField label="청구단위" hideLabel width={180} emptyLabel="청구단위" value={filter.unit} onChange={(v) => set({ unit: v })} items={units} /></EcCond>
-      {full && (
+      {currency && (
         <EcCond label="내.외자구분">
           {([['', '전체'], ['D', '내자'], ['F', '외자']] as const).map(([v, n]) => (
             <label key={v} className="inline-flex items-center gap-[3px] mr-[10px]">

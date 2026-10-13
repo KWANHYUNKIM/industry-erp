@@ -3,6 +3,8 @@ package com.erp.accounting.billingcontract;
 import com.erp.accounting.billingcontract.dto.BillingContractDtos.BillableLine;
 import com.erp.accounting.billingcontract.dto.BillingContractDtos.BillingUnitResponse;
 import com.erp.accounting.billingcontract.dto.BillingContractDtos.ContractResponse;
+import com.erp.accounting.billingcontract.dto.BillingContractDtos.PriceChangeItem;
+import com.erp.accounting.billingcontract.dto.BillingContractDtos.PriceChangeLine;
 import com.erp.accounting.billingcontract.dto.BillingContractDtos.SaveContractRequest;
 import com.erp.accounting.billingcontract.dto.BillingContractDtos.SaveLine;
 import com.erp.accounting.contractitem.ContractItemService;
@@ -87,6 +89,33 @@ public class BillingContractService {
         }
         apply(c, req);
         return findOne(id);
+    }
+
+    /** 계약단가/수량일괄변경 [검색(F8)] — 계약일자 구간의 계약 줄. */
+    @Transactional(readOnly = true)
+    public List<PriceChangeLine> priceChangeLines(LocalDate from, LocalDate to) {
+        return repository.findLinesByContractDate(from, to).stream().map(PriceChangeLine::from).toList();
+    }
+
+    /**
+     * 계약단가/수량일괄변경 [저장(F8)] — 수량 · 단가를 바꾸고 공급가액(수량 × 단가) · 부가세(10%, 버림)를 다시 셈한다.
+     * 이미 만든 청구예정자료는 그대로 두고, 다음 청구예정자료생성부터 새 값이 들어간다.
+     */
+    @Transactional
+    public void changePrices(List<PriceChangeItem> items, String username) {
+        Map<Long, BillingContractLine> lines = repository.findLinesById(items.stream().map(PriceChangeItem::lineId).toList())
+                .stream().collect(Collectors.toMap(BillingContractLine::getId, (l) -> l));
+        for (PriceChangeItem it : items) {
+            BillingContractLine l = lines.get(it.lineId());
+            if (l == null) throw ApiException.notFound("계약 줄을 찾을 수 없습니다. id=" + it.lineId());
+            if (it.quantity().signum() < 0 || it.unitPrice().signum() < 0) throw ApiException.badRequest("수량 · 단가는 0 이상이어야 합니다.");
+            BigDecimal supply = it.quantity().multiply(it.unitPrice()).setScale(0, RoundingMode.HALF_UP);
+            l.setQuantity(it.quantity());
+            l.setUnitPrice(it.unitPrice());
+            l.setSupplyAmount(supply);
+            l.setVatAmount(supply.multiply(BigDecimal.valueOf(0.1)).setScale(0, RoundingMode.DOWN));
+            l.getContract().setUpdatedBy(username);
+        }
     }
 
     /** 계약조회 [선택삭제]. */
