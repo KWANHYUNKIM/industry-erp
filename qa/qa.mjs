@@ -10837,6 +10837,7 @@ async function main() {
   await scenarioCorporateTaxChecklist()
   await scenarioExpenseEvidence()
   await scenarioSimplePayment()
+  await scenarioImportCost()
   await scenarioYearEndSettlement()
   await scenarioMidTermSettlement()
   await scenarioPressedTwice(fixtures)
@@ -11634,6 +11635,61 @@ async function scenarioExpenseEvidence() {
 /**
  * 간이지급명세서(E030116) — 담당자 세 칸 필수, 사업소득 서식은 그 달 기타원천세를 소득자마다 묶는다(세율 3).
  */
+/**
+ * 회계 II › 수입비용(輸入 — 미착품, 원본 E060201 ~ E060210) — plans/회계2/수입비용.md 3장 흐름표 그대로:
+ * 청구서 100,000 → 계산서 20,000(+부가세 2,000) → 영수증 10,000 → 지급 100,000 · 관세사 32,000 → 본계정대체 130,000 → 대장 잔액 0,
+ * 대체를 지우면 잔액 130,000. 분개는 원본 계정별원장(1689 미착품 · 2519 외상매입금) 실측대로.
+ */
+async function scenarioImportCost() {
+  section('■ 수입비용 (관리번호 → 서류징수 → 자금지급 → 본계정대체 → 수입관리대장)')
+  const items = await must('GET', '/import-costs/items')
+  eq('비용항목 기본 여섯이 정렬순서대로', items.slice(0, 6).map((i) => i.code).join(','), '10,12,13,14,15,16')
+  await rejects('있는 비용항목 코드는 막는다', 'POST', '/import-costs/items', { code: '12', name: 'QA회계2-중복', sortOrder: 9 }, '이미 비용항목등록에 존재하는 코드입니다.')
+  const extra = await must('POST', '/import-costs/items', { code: 'QA2', name: 'QA회계2-통관비', sortOrder: 9 })
+  await must('PUT', `/import-costs/items/${extra.id}`, { name: 'QA회계2-통관비', sortOrder: 9, active: false })
+  const partner = (await must('GET', '/partners'))[0]
+  const bank = (await must('GET', '/bank-cards/accounts')).find((b) => b.active)
+  const accounts = await must('GET', '/accounts')
+  const acc = (code) => accounts.find((a) => a.code === code)
+  eq('표준계정 168 미착품', acc('168')?.name, '미착품')
+  const next = (await must('GET', '/import-costs/lots/next-code')).code
+  eq('다음 관리번호는 9자리', next.length, 9)
+  const lot = await must('POST', '/import-costs/lots', { name: 'QA회계2-수입1', partnerId: partner.id, firstTradeDate: '2026-09-01', remark: 'QA회계2' })
+  eq('빈 코드면 다음 번호를 매긴다', lot.code, next)
+  await rejects('관리번호 없이 저장하면 막는다', 'POST', '/import-costs/vouchers', { voucherDate: '2026-10-14', kind: 'BILL_RECEIPT', amount: 1 }, '관리번호')
+  const day = '2026-10-14'
+  const base = { voucherDate: day, lotId: lot.id, remark: 'QA회계2' }
+  const vs = []
+  vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'BILL_RECEIPT', amount: 100000 }))
+  vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'TAX_INVOICE', amount: 20000, vat: 2000, costItemId: items[0].id }))
+  vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'GENERAL_RECEIPT', amount: 10000, costItemId: items[0].id }))
+  vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'TRADE_PAYMENT', amount: 100000, bankAccountId: bank.id }))
+  vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'BROKER_PAYMENT', amount: 32000, bankAccountId: bank.id, partnerId: partner.id }))
+  const lines = async (v) => (await must('GET', `/journals/${v.journalEntryId}`)).lines
+    .map((l) => `${l.accountCode}:${Number(l.debit) || -Number(l.credit)}`).join(' ')
+  eq('청구서 분개 차 미착품 / 대 외상매입금', await lines(vs[0]), '168:100000 251:-100000')
+  eq('세금계산서 분개 차 미착품 공급가 · 부가세대급금 / 대 합계', await lines(vs[1]), '168:20000 135:2000 251:-22000')
+  eq('관세사에지급 분개 차 외상매입금 / 대 계좌', await lines(vs[4]), `251:32000 ${bank.glAccountCode}:-32000`)
+  const row = async () => (await must('GET', `/import-costs/ledger?from=2026-10-01&to=2026-10-31&lotId=${lot.id}`)).rows[0]
+  let r = await row()
+  eq('대장 상품대금 · 직접설정가능 · 합계', `${r.goods} ${r.costs[items[0].id]} ${r.total}`, '100000 30000 130000')
+  eq('대장 거래대금지급 · 관세사에지급 · 최초대금지급일', `${r.tradePaid} ${r.brokerPaid} ${r.firstPaymentDate}`, `100000 32000 ${day}`)
+  const transfer = await must('POST', '/import-costs/vouchers', { ...base, kind: 'TRANSFER', amount: 130000, accountId: acc('153').id })
+  eq('본계정대체 분개 차 원재료 / 대 미착품', await lines(transfer), '153:130000 168:-130000')
+  r = await row()
+  eq('대체 뒤 대체금액 · 잔액 · 통관일', `${r.transfer} ${r.balance} ${r.clearanceDate}`, `130000 0 ${day}`)
+  eq('전표검색에 여섯 장', (await must('GET', `/import-costs/vouchers?from=${day}&to=${day}`)).filter((v) => v.lotId === lot.id).length, 6)
+  await must('POST', '/import-costs/vouchers/delete', { ids: [transfer.id] })
+  r = await row()
+  eq('대체를 지우면 잔액 130,000 · 통관일 빈칸', `${r.transfer} ${r.balance} ${r.clearanceDate}`, '0 130000 null')
+  eq('지운 전표의 회계전표도 사라진다', (await call('GET', `/journals/${transfer.journalEntryId}`)).ok, false)
+  await rejects('전표가 쓰는 관리번호는 못 지운다', 'DELETE', `/import-costs/lots/${lot.id}`, undefined, '쓰고 있는')
+  await must('POST', '/import-costs/vouchers/delete', { ids: vs.map((v) => v.id) })
+  await must('DELETE', `/import-costs/lots/${lot.id}`)
+  await must('DELETE', `/import-costs/items/${extra.id}`)
+  eq('QA 자료를 다 지웠다', (await must('GET', '/import-costs/lots')).some((l) => l.id === lot.id), false)
+}
+
 async function scenarioSimplePayment() {
   section('■ 간이지급명세서')
   const base = { kind: 'BUSINESS', payYear: 2026, period: 9, reportDate: '2026-10-31', managerDept: 'QA세무', managerName: 'QA세무', managerPhone: '02-000-0000', submitter: 'DIRECT' }

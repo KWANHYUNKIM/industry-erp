@@ -1,0 +1,238 @@
+{
+  "about": "회계 II › 수입비용(輸入 — 미착품, E060201 ~ E060210) 흐름 — plans/회계2/수입비용.md 3장 숫자 그대로: 청구서 100,000 → 계산서 20,000(부가세 2,000 자동) → 영수증 10,000 → 지급 100,000 · 관세사 32,000 → 수입관리대장 합계 130,000 → 본계정대체 130,000 → 잔액 빈칸 · 통관일 → 대체 선택삭제('전표를 삭제하겠습니까? - 본계정대체') → 잔액 130,000 → 다섯 장 선택삭제('삭제하겠습니까?'). 관리번호는 API 로 지운다(원본은 삭제 단추 없음).",
+  "shots": [
+    {
+      "name": "비용항목등록 — 빈 저장 빨강 · 있는 코드 문구",
+      "path": "/accounting/import-cost/items",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:800",
+        "allowapi:409: /api/import-costs/items",
+        "expect:document.body.innerText.includes('비용항목 직접설정가능') && document.body.innerText.includes('운반비')",
+        "click:신규(F2)",
+        "wait:400",
+        "clicklast:저장(F8)",
+        "wait:300",
+        "expect:document.querySelector('[aria-label=\"코드\"]').className.includes('border-ec-danger') && document.querySelector('[aria-label=\"정렬순서\"]').className.includes('border-ec-danger')",
+        "js:window.__set('코드', '12'); window.__set('비용명칭', 'QA회계2-중복'); window.__set('정렬순서', '9')",
+        "wait:200",
+        "clicklast:저장(F8)",
+        "wait:800",
+        "expect:document.body.innerText.includes('이미 비용항목등록에 존재하는 코드입니다.')",
+        "clicklast:닫기",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "관리번호등록 — 다음 번호 · 빈 저장 빨강 · 저장하면 목록",
+      "path": "/accounting/import-cost/lots",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:800",
+        "js:(async()=>{const p=(await window.__api('GET','/partners')).body[0];sessionStorage.setItem('icPartner',p.code);const b=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>x.active);sessionStorage.setItem('icBank',b.code??b.accountNo);return true})()",
+        "wait:400",
+        "click:신규(F2)",
+        "wait:600",
+        "expect:/^\\d{9}$/.test(document.querySelector('[aria-label=\"관리번호코드\"]').value)",
+        "js:sessionStorage.setItem('icLot', document.querySelector('[aria-label=\"관리번호코드\"]').value)",
+        "clicklast:저장(F8)",
+        "wait:300",
+        "expect:document.querySelector('[aria-label=\"관리번호명\"]').className.includes('border-ec-danger')",
+        "js:window.__set('관리번호명', 'QA회계2-수입1'); window.__set('적요', 'QA회계2')",
+        "js:window.__code('거래처', sessionStorage.getItem('icPartner'))",
+        "wait:500",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:!!window.__row(sessionStorage.getItem('icLot')) && window.__row(sessionStorage.getItem('icLot')).innerText.includes('QA회계2-수입1')"
+      ]
+    },
+    {
+      "name": "매입대금청구서수령 100,000 — 저장 뒤 관리번호 남고 폼 비움",
+      "path": "/accounting/import-cost/bill",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:800",
+        "js:window.__code('관리번호', sessionStorage.getItem('icLot'))",
+        "wait:500",
+        "js:window.__set('금액', '100000')",
+        "wait:200",
+        "js:window.__set('적요', 'QA회계2-flow')",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:window.__codeOf('관리번호') === sessionStorage.getItem('icLot') && document.querySelector('[aria-label=\"적요\"]').value === ''"
+      ]
+    },
+    {
+      "name": "(세금)계산서수령 공급가 20,000 → 부가세 2,000 자동",
+      "path": "/accounting/import-cost/tax-invoice",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:800",
+        "js:window.__code('관리번호', sessionStorage.getItem('icLot'))",
+        "wait:500",
+        "js:window.__set('공급가액', '20000')",
+        "wait:300",
+        "expect:document.querySelector('[aria-label=\"부가세\"]').value.replace(/,/g,'') === '2000'",
+        "js:window.__set('적요', 'QA회계2-flow')",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:window.__codeOf('관리번호') === sessionStorage.getItem('icLot') && document.querySelector('[aria-label=\"적요\"]').value === ''"
+      ]
+    },
+    {
+      "name": "일반영수증수령 — 빈 저장은 관리번호만 빨강 · 10,000",
+      "path": "/accounting/import-cost/receipt",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:800",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:!!document.querySelector('.ec-code input.ec-input.code[placeholder=\"관리번호\"]').closest('[class*=\"border-ec-danger\"]')",
+        "js:window.__code('관리번호', sessionStorage.getItem('icLot'))",
+        "wait:500",
+        "js:window.__set('금액', '10000')",
+        "wait:200",
+        "js:window.__set('적요', 'QA회계2-flow')",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:window.__codeOf('관리번호') === sessionStorage.getItem('icLot') && document.querySelector('[aria-label=\"적요\"]').value === ''"
+      ]
+    },
+    {
+      "name": "거래대금지급 100,000",
+      "path": "/accounting/import-cost/trade-payment",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:800",
+        "js:window.__code('관리번호', sessionStorage.getItem('icLot'))",
+        "wait:500",
+        "js:window.__code('출금계좌', sessionStorage.getItem('icBank'))",
+        "wait:500",
+        "js:window.__set('금액', '100000')",
+        "wait:200",
+        "js:window.__set('적요', 'QA회계2-flow')",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:window.__codeOf('관리번호') === sessionStorage.getItem('icLot') && document.querySelector('[aria-label=\"적요\"]').value === ''"
+      ]
+    },
+    {
+      "name": "관세사에지급 32,000",
+      "path": "/accounting/import-cost/broker-payment",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:800",
+        "js:window.__code('관리번호', sessionStorage.getItem('icLot'))",
+        "wait:500",
+        "js:window.__code('출금계좌', sessionStorage.getItem('icBank'))",
+        "wait:500",
+        "js:window.__code('관세사', sessionStorage.getItem('icPartner'))",
+        "wait:500",
+        "js:window.__set('금액', '32000')",
+        "wait:200",
+        "js:window.__set('적요', 'QA회계2-flow')",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:window.__codeOf('관리번호') === sessionStorage.getItem('icLot') && document.querySelector('[aria-label=\"적요\"]').value === ''"
+      ]
+    },
+    {
+      "name": "수입관리대장 — 상품대금 100,000 · 직접설정가능 30,000 · 합계 130,000 · 지급 100,000 / 32,000",
+      "path": "/accounting/import-cost/ledger",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:1500",
+        "expect:(()=>{const c=[...window.__row(sessionStorage.getItem('icLot')).cells].map((td)=>td.innerText.trim());return c[4]==='100,000'&&c[7]==='30,000'&&c.includes('130,000')&&c.includes('32,000')&&c[c.length-2]==='100,000'})()"
+      ]
+    },
+    {
+      "name": "본계정대체 원재료 130,000 — 저장 뒤 구입자산 남고 관리번호 비움",
+      "path": "/accounting/import-cost/transfer",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:800",
+        "js:window.__code('구입자산', '153')",
+        "wait:500",
+        "js:window.__code('관리번호', sessionStorage.getItem('icLot'))",
+        "wait:500",
+        "js:window.__set('금액', '130000'); window.__set('적요', 'QA회계2-flow')",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:window.__codeOf('구입자산') === '153' && window.__codeOf('관리번호') === ''"
+      ]
+    },
+    {
+      "name": "수입관리대장 — 대체 130,000 · 잔액 빈칸 · 통관일",
+      "path": "/accounting/import-cost/ledger",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:1500",
+        "expect:(()=>{const c=[...window.__row(sessionStorage.getItem('icLot')).cells].map((td)=>td.innerText.trim());const n=c.length;return c[n-6]==='130,000'&&c[n-5]===''&&/\\d{4}\\/\\d\\d\\/\\d\\d/.test(c[n-3])})()"
+      ]
+    },
+    {
+      "name": "수입비용전표검색 — 본계정대체 한 장 선택삭제 '전표를 삭제하겠습니까? - 본계정대체'",
+      "path": "/accounting/import-cost/vouchers",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr)=>tr.innerText.includes('QA회계2-flow')).length === 6",
+        "js:window.__row('수입비용-본계정대체').querySelector('input[type=checkbox]').click(); true",
+        "wait:300",
+        "click:선택삭제",
+        "wait:400",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 본계정대체')",
+        "js:(() => { const b = [...document.querySelectorAll('button')].filter((x) => x.textContent.trim() === '확인').pop(); b.click(); return true })()",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr)=>tr.innerText.includes('QA회계2-flow')).length === 5"
+      ]
+    },
+    {
+      "name": "수입관리대장 — 대체를 지우면 잔액 130,000 · 통관일 빈칸",
+      "path": "/accounting/import-cost/ledger",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:1500",
+        "expect:(()=>{const c=[...window.__row(sessionStorage.getItem('icLot')).cells].map((td)=>td.innerText.trim());const n=c.length;return c[n-6]===''&&c[n-5]==='130,000'&&c[n-3]===''})()"
+      ]
+    },
+    {
+      "name": "수입비용전표검색 — 나머지 다섯 장 선택삭제 '삭제하겠습니까?'",
+      "path": "/accounting/import-cost/vouchers",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
+        "wait:1500",
+        "js:[...document.querySelectorAll('tbody tr')].filter((tr)=>tr.innerText.includes('QA회계2-flow')).forEach((tr)=>tr.querySelector('input[type=checkbox]').click()); true",
+        "wait:300",
+        "click:선택삭제",
+        "wait:400",
+        "expect:document.body.innerText.includes('삭제하겠습니까?') && !document.body.innerText.includes('- 본계정대체')",
+        "js:(() => { const b = [...document.querySelectorAll('button')].filter((x) => x.textContent.trim() === '확인').pop(); b.click(); return true })()",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr)=>tr.innerText.includes('QA회계2-flow'))"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const api=(m,p,b)=>fetch('/api'+p,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});const code=sessionStorage.getItem('icLot');const lots=await (await api('GET','/import-costs/lots')).json();const lot=lots.find((l)=>l.code===code&&l.name==='QA회계2-수입1');if(!lot)return true;const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const vs=await (await api('GET','/import-costs/vouchers?from=2000-01-01&to=2099-12-31')).json();const ids=vs.filter((v)=>v.lotId===lot.id).map((v)=>v.id);if(ids.length)await api('POST','/import-costs/vouchers/delete',{ids});await api('DELETE','/import-costs/lots/'+lot.id);return true})()"
+  ]
+}

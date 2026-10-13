@@ -750,7 +750,27 @@ const MENU: TopMenu[] = [
       },
       {
         label: '수입비용',
-        nodes: [{ label: '수입등록·수입비용현황', to: '/accounting/income' }],
+        /* 원본 회계 II › 수입비용(輸入 — 미착품) 사이트맵 차례(2026-10-14 실측). 예전 '수입등록·수입비용현황'(/accounting/income, 收入)은
+           원본 이 메뉴에 없는 화면이라 메뉴에서만 뺐다(라우트는 그대로 — 어디로 둘지 사용자 결정 대기, plans/회계2.md). */
+        nodes: [
+          { label: '관리번호등록', to: '/accounting/import-cost/lots' },
+          { label: '비용항목등록', to: '/accounting/import-cost/items' },
+          { label: '서류징수시', children: [
+            { label: '매입대금청구서수령', to: '/accounting/import-cost/bill' },
+            { label: '(세금)계산서수령', to: '/accounting/import-cost/tax-invoice' },
+            { label: '일반영수증수령', to: '/accounting/import-cost/receipt' },
+          ] },
+          { label: '자금지급시', children: [
+            { label: '거래대금지급', to: '/accounting/import-cost/trade-payment' },
+            { label: '관세사에지급', to: '/accounting/import-cost/broker-payment' },
+          ] },
+          { label: '통관완료시', children: [{ label: '본계정대체', to: '/accounting/import-cost/transfer' }] },
+          { label: '수입비용전표검색', to: '/accounting/import-cost/vouchers' },
+          { label: '수입비용출력물', children: [
+            { label: '수입관리대장', to: '/accounting/import-cost/ledger' },
+            { label: '자금현황표', to: '/accounting/fund-status' },
+          ] },
+        ],
       },
       {
         label: '프로젝트',

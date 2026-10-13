@@ -177,6 +177,11 @@ const ContractInvoiceStatusPage = lazy(() => import('../pages/accounting/Contrac
 const CurrencyPage = lazy(() => import('../pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
 const IncomePage = lazy(() => import('../pages/accounting/IncomePage'))
+const ImportLotPage = lazy(() => import('../pages/accounting/ImportLotPage'))
+const ImportCostItemPage = lazy(() => import('../pages/accounting/ImportCostItemPage'))
+const ImportCostEntryPage = lazy(() => import('../pages/accounting/ImportCostEntryPage'))
+const ImportCostVoucherListPage = lazy(() => import('../pages/accounting/ImportCostVoucherListPage'))
+const ImportCostLedgerPage = lazy(() => import('../pages/accounting/ImportCostLedgerPage'))
 const QualityInspectionPage = lazy(() => import('../pages/quality/QualityInspectionPage'))
 const QualityRequestPage = lazy(() => import('../pages/quality/QualityRequestPage'))
 const QualityRequestEntryPage = lazy(() => import('../pages/quality/QualityRequestEntryPage'))
@@ -804,6 +809,17 @@ export default function AppRouter() {
         <Route path="/settings/currencies" element={<CurrencyPage />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />
         <Route path="/accounting/income" element={<IncomePage />} />
+        {/* 회계 II › 수입비용(輸入 — 미착품, 원본 E060201 ~ E060210). /accounting/income(收入 등록)은 메뉴에서만 뺐다 — 사용자 결정 대기 */}
+        <Route path="/accounting/import-cost/lots" element={<ImportLotPage />} />
+        <Route path="/accounting/import-cost/items" element={<ImportCostItemPage />} />
+        <Route path="/accounting/import-cost/bill" element={<ImportCostEntryPage key="bill" kind="BILL_RECEIPT" />} />
+        <Route path="/accounting/import-cost/tax-invoice" element={<ImportCostEntryPage key="tax" kind="TAX_INVOICE" />} />
+        <Route path="/accounting/import-cost/receipt" element={<ImportCostEntryPage key="receipt" kind="GENERAL_RECEIPT" />} />
+        <Route path="/accounting/import-cost/trade-payment" element={<ImportCostEntryPage key="trade" kind="TRADE_PAYMENT" />} />
+        <Route path="/accounting/import-cost/broker-payment" element={<ImportCostEntryPage key="broker" kind="BROKER_PAYMENT" />} />
+        <Route path="/accounting/import-cost/transfer" element={<ImportCostEntryPage key="transfer" kind="TRANSFER" />} />
+        <Route path="/accounting/import-cost/vouchers" element={<ImportCostVoucherListPage />} />
+        <Route path="/accounting/import-cost/ledger" element={<ImportCostLedgerPage />} />
         <Route path="/accounting/cost-build" element={<CostBuildPage />} />
         <Route path="/accounting/standard-cost" element={<StandardCostPage />} />
         <Route path="/accounting/actual-cost" element={<ActualCostPage />} />

@@ -2,6 +2,8 @@ package com.erp.accounting.importcost.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,19 +18,20 @@ public final class ImportCostDtos {
     // ── 비용항목 ─────────────────────────────────────────────
     public record CostItemResponse(Long id, String code, String name, Integer sortOrder, boolean active) {}
 
-    public record CreateCostItemRequest(@NotBlank String code, @NotBlank String name, @NotNull Integer sortOrder) {}
+    public record CreateCostItemRequest(@NotBlank @Size(max = 20) String code, @NotBlank @Size(max = 100) String name,
+                                        @NotNull @PositiveOrZero Integer sortOrder) {}
 
-    public record UpdateCostItemRequest(@NotBlank String name, @NotNull Integer sortOrder, Boolean active) {}
+    public record UpdateCostItemRequest(@NotBlank @Size(max = 100) String name, @NotNull @PositiveOrZero Integer sortOrder, Boolean active) {}
 
     // ── 관리번호 ─────────────────────────────────────────────
     public record LotResponse(Long id, String code, String name, Long partnerId, String partnerCode, String partnerName,
                               LocalDate firstTradeDate, String remark, boolean active) {}
 
-    public record CreateLotRequest(String code, @NotBlank String name, @NotNull Long partnerId,
-                                   LocalDate firstTradeDate, String remark) {}
+    public record CreateLotRequest(@Size(max = 30) String code, @NotBlank @Size(max = 100) String name, @NotNull Long partnerId,
+                                   LocalDate firstTradeDate, @Size(max = 300) String remark) {}
 
-    public record UpdateLotRequest(@NotBlank String name, @NotNull Long partnerId, LocalDate firstTradeDate,
-                                   String remark, Boolean active) {}
+    public record UpdateLotRequest(@NotBlank @Size(max = 100) String name, @NotNull Long partnerId, LocalDate firstTradeDate,
+                                   @Size(max = 300) String remark, Boolean active) {}
 
     // ── 전표 ─────────────────────────────────────────────────
     public record VoucherResponse(Long id, LocalDate voucherDate, String kind, String kindName,
@@ -47,9 +50,9 @@ public final class ImportCostDtos {
      */
     public record SaveVoucherRequest(@NotNull LocalDate voucherDate, @NotBlank String kind, Long lotId,
                                      Long partnerId, Long costItemId,
-                                     BigDecimal amount, BigDecimal vat, BigDecimal fee,
+                                     @PositiveOrZero BigDecimal amount, @PositiveOrZero BigDecimal vat, @PositiveOrZero BigDecimal fee,
                                      Long accountId, Long bankAccountId, Long departmentId, Long projectId,
-                                     String vatType, String remark) {}
+                                     @Size(max = 30) String vatType, @Size(max = 300) String remark) {}
 
     public record DeleteVouchersRequest(@NotNull List<Long> ids) {}
 
