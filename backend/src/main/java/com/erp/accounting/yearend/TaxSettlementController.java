@@ -4,7 +4,6 @@ import com.erp.accounting.yearend.dto.TaxSettlementDtos.DeductionRequest;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.PrevEmployerRequest;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.SettlementResponse;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.TargetsRequest;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,9 +50,12 @@ public class TaxSettlementController {
         return service.savePrevEmployers(id, rows);
     }
 
-    /** 보험료 세액공제 창(group=INSURANCE) · 의료비 창(group=MEDICAL) [저장(F8)] */
+    /**
+     * 보험료 세액공제 창(group=INSURANCE) · 의료비 창(group=MEDICAL) [저장(F8)].
+     * 줄 목록을 그대로 받는 자리라 {@code List<@Valid …>} 는 메서드 검증 예외(전역 처리기 밖 → 500)가 된다 — 음수는 서비스가 같은 문구로 막는다.
+     */
     @PutMapping("/{id}/deductions")
-    public SettlementResponse saveDeductions(@PathVariable Long id, @RequestParam String group, @RequestBody List<@Valid DeductionRequest> rows) {
+    public SettlementResponse saveDeductions(@PathVariable Long id, @RequestParam String group, @RequestBody List<DeductionRequest> rows) {
         List<TaxDeductionKind> kinds = "MEDICAL".equals(group)
                 ? List.of(TaxDeductionKind.MEDICAL)
                 : List.of(TaxDeductionKind.PROTECTION_INSURANCE, TaxDeductionKind.DISABLED_INSURANCE);
