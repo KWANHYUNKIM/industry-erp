@@ -58,6 +58,7 @@ public class SalesOrderService {
     private final ShipmentRepository shipmentRepository;
     private final QuotationRepository quotationRepository;
     private final ShipmentLineRepository shipmentLineRepository;
+    private final com.erp.trade.orderrelease.OrderReleaseRepository orderReleaseRepository;
     private final DocumentNoGenerator docNoGenerator;
     private final OrderTypeRepository orderTypeRepository;
     private final OrderStageRepository orderStageRepository;
@@ -435,6 +436,16 @@ public class SalesOrderService {
     public void delete(Long id) {
         SalesOrder order = salesOrderRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id));
+        /*
+         * 원본(2026-10-14 실측): 출고처리한 주문서를 지우면 '알림' 창 — '아래의 경우 처리가 불가능합니다.' 와
+         * 구분 '20261014-2' · 해당 메뉴 '주문' · 사유 '주문출고처리된 내역'. 처리취소한 뒤에야 지워진다.
+         * 막지 않으면 order_releases.sales_order_id FK 에 걸려 500 이 났다.
+         */
+        if (orderReleaseRepository.existsBySalesOrderId(id)) {
+            String seq = order.getOrderNo().substring(order.getOrderNo().lastIndexOf('-') + 1).replaceFirst("^0+(?=\\d)", "");
+            throw ApiException.conflict("아래의 경우 처리가 불가능합니다.\n"
+                    + order.getOrderDate().toString().replace("-", "") + "-" + seq + " · 주문 · 주문출고처리된 내역");
+        }
         if (shipmentRepository.existsBySalesOrderId(id)) {
             throw ApiException.conflict(
                     "출하가 있어 지울 수 없습니다. 먼저 출하를 지우세요: " + order.getOrderNo());

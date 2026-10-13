@@ -54,6 +54,8 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
 interface LineInput { itemId: string; quantity: string; unitPrice: string }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
+/** 원본 주문서입력 격자는 빈 줄 셋으로 뜬다. */
+const blankLines = () => [emptyLine(), emptyLine(), emptyLine()]
 
 /**
  * 오더관리(수주) — 원본 영업관리 &gt; 주문서 &gt; <b>주문서조회</b>(E040204) 자리. 2026-10-03 loginaa 실측(자료가 든 판):
@@ -100,7 +102,17 @@ export default function SalesOrderPage() {
   const [fProject, setFProject] = useState('')
   const [fEmployee, setFEmployee] = useState('')
   const pickers = useCondPickers(['warehouses', 'projects', 'employees', 'partners', 'items'])
-  const [lines, setLines] = useState<LineInput[]>([emptyLine()])
+  /** 입력 창의 프로젝트 코드도움 — 사용중단은 뺀다(고쳐 여는 주문이 이미 쓰는 것은 남긴다). 조회 조건은 전부 그대로. */
+  const [projActive, setProjActive] = useState<Map<number, boolean>>(new Map())
+  useEffect(() => {
+    api.get<{ id: number; active?: boolean }[]>('/projects')
+      .then((r) => setProjActive(new Map(r.data.map((p) => [p.id, p.active !== false])))).catch(() => {})
+  }, [])
+  const formProjects = useMemo(() => pickers.projects.filter((p) => projActive.get(Number(p.value)) !== false || p.value === fProject),
+    [pickers.projects, projActive, fProject])
+  /** 주문수정 [불러온 전표] 창 — 줄마다 이 주문서를 만든 견적서. */
+  const [loaded, setLoaded] = useState<{ rows: { code: string; name: string; spec: string | null; qty: number; slip: string; slipNo: string }[] } | null>(null)
+  const [lines, setLines] = useState<LineInput[]>(blankLines())
   /** 견적서조회 [다른전표생성] › 주문서 › 1장라인별로 채운 창이면 그 견적들 — 저장하면 주문서가 그 견적들에 걸린다. */
   const [fromQuotes, setFromQuotes] = useState<number[] | null>(null)
 
@@ -129,7 +141,7 @@ export default function SalesOrderPage() {
       if (field === 'itemId' && value) {
         const it = itemById.get(value)
         if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: String(it.unitPrice) }
-        if (!next[idx].quantity) next[idx] = { ...next[idx], quantity: '1' }
+        /* 원본 주문서입력: 품목을 고르면 단가만 차고 수량은 빈칸 · 공급가 0 — 커서가 수량 칸으로 간다(2026-10-14 실측). */
         // 거래처의 특별단가가 있으면 덮는다(50회차 — 수주는 특별단가를 몰랐다).
         void resolveSpecialPrice('SALES', value, partnerId).then((p) => {
           if (p != null) setLines((cur) => cur.map((l, i) => (i === idx ? { ...l, unitPrice: String(p) } : l)))
@@ -179,7 +191,7 @@ export default function SalesOrderPage() {
       }
       const res = await api.post<SalesOrder>('/sales-orders', { ...body, orderDate })
       setOk(`${res.data.orderNo} 수주 등록 완료 (합계 ${won(res.data.totalAmount)}원)`)
-      setLines([emptyLine()]); setRemark(''); setDueDate('')
+      setLines(blankLines()); setRemark(''); setDueDate('')
       setFWarehouse(''); setFProject(''); setFEmployee('')
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -188,7 +200,7 @@ export default function SalesOrderPage() {
   function closeForm() {
     setShowForm(false); setEditId(null); setFromQuotes(null); setError(''); setOk(''); setWhMissing(false)
     setPartnerId(''); setOrderDate(today()); setDueDate(''); setTaxable(true); setRemark('')
-    setFWarehouse(''); setFProject(''); setFEmployee(''); setLines([emptyLine()])
+    setFWarehouse(''); setFProject(''); setFEmployee(''); setLines(blankLines())
   }
 
   function openEdit(o: SalesOrder) {
@@ -310,6 +322,28 @@ export default function SalesOrderPage() {
     openEdit(target)
   }
 
+  /**
+   * 주문수정 [불러온 전표] — 원본 '불러온 전표' 창(2026-10-14 실측): '주문서 : 2026/10/14 -2' 아래 줄마다 품목코드 · 품목명 · 규격 · 수량 ·
+   * 불러온 전표('견적서') · 불러온 전표일자-No.('2026/10/14 -2'), 하단 적용(F8) · 닫기. 견적 없이 만든 주문서는 두 칸이 빈다
+   * (원본은 그 자리에 [연결하기] 를 둔다 — 우리는 아직 연결을 바꾸지 못한다).
+   * 견적 → 주문은 견적의 convertedOrderId 로 걸려 있다. 줄은 품목으로 그 견적을 찾는다.
+   */
+  async function openLoaded() {
+    const o = orders.find((x) => x.id === editId)
+    if (!o) return
+    try {
+      const qs = (await api.get<{ quoteNo: string; quoteDate: string; convertedOrderId: number | null; lines: { itemId: number }[] }[]>('/quotations')).data
+        .filter((q) => q.convertedOrderId === o.id)
+      setLoaded({
+        rows: o.lines.map((l) => {
+          const q = qs.find((x) => x.lines.some((ql) => ql.itemId === l.itemId))
+          return { code: l.itemCode ?? '', name: l.itemName, spec: l.spec ?? null, qty: l.quantity,
+            slip: q ? '견적서' : '', slipNo: q ? dateNo(q.quoteDate, q.quoteNo) : '' }
+        }),
+      })
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
+  }
+
   async function openGenerated(o: SalesOrder) {
     try { setGenerated({ order: o, rows: (await api.get<GeneratedRow[]>(`/sales-orders/${o.id}/generated`)).data }) }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
@@ -412,8 +446,13 @@ export default function SalesOrderPage() {
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10 }}>
           <table className="w-full text-left mb-[8px] max-w-[820px]">
             <tbody>
+              {/* 원본 주문서입력 머리 차례(2026-10-14 실측): 일자 · 거래처 / 담당자 · 출하창고 / 거래유형 · 통화 / 프로젝트 · 납기일자. */}
               <tr>
-                <th style={th}>매출처 *</th>
+                <th style={th}>일자</th>
+                <td><input type="date" className={inputCls} value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }}
+                  /* 주문수정에서는 원본도 일자가 잠긴다 — 번호가 일자에 묶여 있다. */
+                  disabled={editId != null} /></td>
+                <th style={th}>거래처</th>
                 <td>
                   {/* 긴 드롭다운이었다 — 4회차에 다른 입력 화면 15곳은 코드도움으로 바꿨는데 여기만 남아 있었다(9회차). */}
                   <CodePickerField label="매출처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매출처 선택"
@@ -428,14 +467,14 @@ export default function SalesOrderPage() {
                                    }}
                                    items={partnerCodeItems(customers)} />
                 </td>
-                <th style={th}>부가세</th>
-                <td>
-                  <select className={inputCls} value={taxable ? 'Y' : 'N'} onChange={(e) => setTaxable(e.target.value === 'Y')} style={{ width: 120 }}>
-                    <option value="Y">과세 (10%)</option><option value="N">면세</option>
-                  </select>
-                </td>
               </tr>
               <tr>
+                <th style={th}>담당자</th>
+                <td>
+                  <CodePickerField label="담당자" hideLabel width={170} emptyLabel="선택 안 함"
+                                   value={fEmployee} onChange={setFEmployee}
+                                   items={pickers.employees.map((x) => ({ ...x, value: String(x.id) }))} />
+                </td>
                 {/*
                   수주의 [창고]·[프로젝트]·[담당자]. 견적에서 전환하면 그 값이 따라오는데,
                   <b>수주를 직접 만들면 정할 데가 없어</b> 미출하현황의 그 조건들이 헛돌았다.
@@ -448,27 +487,24 @@ export default function SalesOrderPage() {
                                      items={pickers.warehouses} />
                   </div>
                 </td>
+              </tr>
+              <tr>
+                {/* 원본 [거래유형] '부가세율 적용'. 통화(내자)는 외화 결정 대기라 두지 않는다. */}
+                <th style={th}>거래유형</th>
+                <td colSpan={3}>
+                  <select className={inputCls} value={taxable ? 'Y' : 'N'} onChange={(e) => setTaxable(e.target.value === 'Y')} style={{ width: 170 }}>
+                    <option value="Y">부가세율 적용</option><option value="N">면세</option>
+                  </select>
+                </td>
+              </tr>
+              <tr>
                 <th style={th}>프로젝트</th>
                 <td>
+                  {/* 원본 '프로젝트리스트' 코드도움은 사용중단 프로젝트를 빼고 띄운다([사용중단포함] 을 눌러야 보인다, 2026-10-14 실측). */}
                   <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="선택 안 함"
                                    value={fProject} onChange={setFProject}
-                                   items={pickers.projects} />
+                                   items={formProjects} />
                 </td>
-              </tr>
-              <tr>
-                <th style={th}>담당자</th>
-                <td>
-                  <CodePickerField label="담당자" hideLabel width={170} emptyLabel="선택 안 함"
-                                   value={fEmployee} onChange={setFEmployee}
-                                   items={pickers.employees.map((x) => ({ ...x, value: String(x.id) }))} />
-                </td>
-                <td colSpan={2}></td>
-              </tr>
-              <tr>
-                <th style={th}>수주일자</th>
-                <td><input type="date" className={inputCls} value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }}
-                  /* 주문수정에서는 원본도 일자가 잠긴다 — 번호가 일자에 묶여 있다. */
-                  disabled={editId != null} /></td>
                 <th style={th}>납기일자</th>
                 <td><input type="date" className={inputCls} value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
@@ -479,6 +515,8 @@ export default function SalesOrderPage() {
             <thead>
               <tr>
                 <th className="w-[34px]"></th><th>품목</th>
+                {/* 원본 격자 차례: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세. 단위 · 관리항목 열은 원본도 꺼져 있다(2026-10-14). */}
+                <th className="w-[100px]">규격</th>
                 <th className="w-[110px] text-right">수량</th>
                 <th className="w-[130px] text-right">단가</th>
                 <th className="w-[130px] text-right">공급가액</th>
@@ -494,6 +532,7 @@ export default function SalesOrderPage() {
                                      value={String(l.itemId)} onChange={(v) => updateLine(idx, 'itemId', v)}
                                      items={itemPicks} />
                   </td>
+                  <td>{itemById.get(l.itemId)?.spec ?? ''}</td>
                   <td><EcNumInput className={`${inputCls} text-right w-full`} value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} /></td>
                   <td><EcNumInput className={`${inputCls} text-right w-full`} value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} /></td>
                   <td className="text-right">{won(computed[idx].supply)}</td>
@@ -503,13 +542,13 @@ export default function SalesOrderPage() {
             </tbody>
             <tfoot>
               <tr className="font-bold bg-ec-page">
-                <td colSpan={4} className="text-right">합계</td>
+                <td colSpan={5} className="text-right">합계</td>
                 <td className="text-right">{won(totals.supply)}</td>
                 {/* 부가세 열 아래에 부가세 포함 합계가 서 있었다(23회차) — 열마다 제 합을, 총액은 따로 한 줄. */}
                 <td className="text-right">{won(totals.vat)}</td>
               </tr>
               <tr className="font-bold bg-ec-page">
-                <td colSpan={4} className="text-right">합계금액 (부가세 포함)</td>
+                <td colSpan={5} className="text-right">합계금액 (부가세 포함)</td>
                 <td colSpan={2} className="text-right text-ec-blue">{won(totals.total)}</td>
               </tr>
             </tfoot>
@@ -520,6 +559,7 @@ export default function SalesOrderPage() {
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             {/* 원본 주문수정 단추줄: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H */}
             {editId != null && <>
+              <button type="button" className="ec-btn" onClick={() => void openLoaded()}>불러온 전표</button>
               <button type="button" className="ec-btn" onClick={copyEditing}>복사</button>
               <button type="button" className="ec-btn" onClick={() => step(1)}>이전</button>
               <button type="button" className="ec-btn" onClick={() => step(-1)}>다음</button>
@@ -530,6 +570,31 @@ export default function SalesOrderPage() {
           {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
           {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
         </form>
+      )}</Modal>
+
+      <Modal open={loaded != null} title="불러온 전표" width={760} onClose={() => setLoaded(null)}>{loaded && (
+        <div>
+          <p className="mb-[6px]">주문서 : {(() => { const o = orders.find((x) => x.id === editId); return o ? dateNo(o.orderDate, o.orderNo) : '' })()}</p>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th className="w-[34px]"></th><th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th>
+              <th>불러온 전표</th><th>불러온 전표일자-No.</th>
+            </tr></thead>
+            <tbody>
+              {loaded.rows.map((r, i) => (
+                <tr key={i}>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{r.code}</td><td>{r.name}</td><td>{r.spec ?? ''}</td><td className="text-right">{won(r.qty)}</td>
+                  <td>{r.slip}</td><td>{r.slipNo}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-[8px] flex gap-[4px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => setLoaded(null)}>적용(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setLoaded(null)}>닫기</button>
+          </div>
+        </div>
       )}</Modal>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>

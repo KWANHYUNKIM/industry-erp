@@ -22,6 +22,9 @@ public interface OrderReleaseRepository extends JpaRepository<OrderRelease, Long
     @Query("select r from OrderRelease r join fetch r.salesOrder o join fetch o.partner where r.id = :id")
     Optional<OrderRelease> findWithOrder(@Param("id") Long id);
 
+    /** 주문서 삭제를 막는 조건 — 원본은 출고처리된 주문을 '주문출고처리된 내역' 으로 막는다. */
+    boolean existsBySalesOrderId(Long salesOrderId);
+
     /** 주문 줄마다 이미 출고처리한 수량 — [object[]{lineId, sum}]. */
     @Query("select l.salesOrderLine.id, sum(l.quantity) from OrderReleaseLine l " +
             "where l.salesOrderLine.id in :lineIds group by l.salesOrderLine.id")
