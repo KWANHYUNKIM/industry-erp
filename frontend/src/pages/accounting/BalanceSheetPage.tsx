@@ -8,7 +8,7 @@ import type { BalanceSheet, StatementRow } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import {
-  fetchSplit, groupsOf, HorizontalStatementTable, ShowModeConds, StatementTable, toBalanceSheet, useShowModes,
+  fetchSplit, groupsOf, HorizontalStatementTable, ShowModeRadios, StatementTable, toBalanceSheet, useShowModes,
   type SLine, type Split,
 } from '../../features/statement/showMode'
 
@@ -214,7 +214,8 @@ export default function BalanceSheetPage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <ShowModeConds m={modes} name="bs" />
+        <EcCond label="부서표시방법"><ShowModeRadios m={modes} which="dept" name="bs" /></EcCond>
+        <EcCond label="프로젝트표시방법"><ShowModeRadios m={modes} which="proj" name="bs" /></EcCond>
         <EcCond label="기준일자">
           <input type="month" className="ec-input" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} style={{ width: 130, marginRight: 10 }} />
           {COMPARES.map((v) => (

@@ -25,6 +25,8 @@ type Side = '매출' | '매입'
 /** 우리 전표는 부가세가 붙은 세금계산서 거래만 부가세 줄을 남긴다 — 계산서 · 카드 · 영세 같은 다른 유형이 없다. */
 const KIND_NAME = '세금계산서'
 
+/** 마지막으로 고친 사람(V353 updated_by) — 없으면 만든 사람. */
+const editorOf = (e: JournalEntry) => (e as JournalEntry & { updatedBy?: string | null }).updatedBy ?? e.createdBy ?? null
 interface Row { key: string; side: Side; date: string; no: string; kindName: string; partnerId: number | null; partner: string; text: string; supply: number; vat: number }
 /** 세무 › 부가세 › (세금)계산서발행/수령에서 쓴 분개 없는 계산서. */
 interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string; entryNo: number; vatType: string; partnerId: number; partnerName: string; supplyAmount: number; vatAmount: number; remark: string | null }
@@ -57,6 +59,8 @@ export default function VatBookPage() {
   const [kind, setKind] = useState('')
   const [regKind, setRegKind] = useState<'전체' | '사업자등록번호' | '주민등록번호'>('전체')
   const [docNo, setDocNo] = useState('')
+  /** 원본 조건 [최종수정자] — 회계전표를 마지막으로 고친(확인 · 확인취소 포함) 사람, 고친 적 없으면 만든 사람(V353). */
+  const [editor, setEditor] = useState('')
   const [taxOnly, setTaxOnly] = useState(false)
   const [allEntries, setEntries] = useState<JournalEntry[]>([])
   /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
@@ -101,6 +105,7 @@ export default function VatBookPage() {
     for (const e of sorted) {
       if (partner && String(e.partnerId) !== partner) continue
       if (docNo && !e.docNo.includes(docNo)) continue
+      if (editor && (editorOf(e) ?? '') !== editor) continue
       const p = e.partnerId != null ? pById.get(e.partnerId) : undefined
       if (taxOnly && !p?.taxReport) continue
       if (regKind !== '전체' && (p?.regNoKind ?? '사업자등록번호') !== regKind) continue
@@ -113,7 +118,7 @@ export default function VatBookPage() {
           text: e.description ?? '', supply, vat })
       }
     }
-    for (const v of docNo ? [] : vouchers) {
+    for (const v of docNo || editor ? [] : vouchers) {
       if (partner && String(v.partnerId) !== partner) continue
       const p = pById.get(v.partnerId)
       if (taxOnly && !p?.taxReport) continue
@@ -123,14 +128,16 @@ export default function VatBookPage() {
     }
     out.sort((a, b) => a.date.localeCompare(b.date))
     return kind ? out.filter((r) => r.kindName === kind) : out
-  }, [entries, vouchers, partner, docNo, taxOnly, regKind, pById, kind])
+  }, [entries, vouchers, partner, docNo, editor, taxOnly, regKind, pById, kind])
+  const editorItems = useMemo(() => [...new Set(entries.map((e) => editorOf(e) ?? '').filter(Boolean))].sort()
+    .map((n) => ({ value: n, name: n })), [entries])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '매입/매출장', [rows.length, mode])
 
   const reset = () => {
     setDept(''); setProject('')
-    setMode('매출'); setFrom(init.from); setTo(init.to); setPartner(''); setKind(''); setRegKind('전체'); setDocNo(''); setTaxOnly(false)
+    setMode('매출'); setFrom(init.from); setTo(init.to); setPartner(''); setKind(''); setRegKind('전체'); setDocNo(''); setEditor(''); setTaxOnly(false)
   }
 
   /** 매출 · 매입 한 표 — 분개장이 아니라 전표 한 장이 한 줄이다. */
@@ -293,6 +300,9 @@ export default function VatBookPage() {
               <input type="radio" name="vat-reg" checked={regKind === v} onChange={() => setRegKind(v)} /> {v}
             </label>
           ))}
+        </EcCond>
+        <EcCond label="최종수정자" pick>
+          <CodePickerField label="최종수정자" hideLabel fill emptyLabel="전체" value={editor} onChange={setEditor} items={editorItems} />
         </EcCond>
         <EcCond label="회계전표No.">
           <input className="ec-input" value={docNo} onChange={(e) => setDocNo(e.target.value)} style={{ width: 180 }} />

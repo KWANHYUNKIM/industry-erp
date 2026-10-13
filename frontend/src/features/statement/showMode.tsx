@@ -1,6 +1,5 @@
 import { Fragment, useState, type ReactNode, type RefObject } from 'react'
 import { api } from '../../api/client'
-import { EcCond } from '../../components/EcStatusPanel'
 import type { CodeItem } from '../../components/CodePickerField'
 import type { AccountDivision, BalanceSheet, IncomeStatement, StatementRow, TrialBalance } from '../../types/api'
 
@@ -31,16 +30,17 @@ export function useShowModes(onSplit: () => void) {
   return { deptMode, projMode, setDeptMode, setProjMode, by, mode, reset }
 }
 
-export function ShowModeConds({ m, name }: { m: ReturnType<typeof useShowModes>; name: string }) {
-  const radios = (value: ShowMode, set: (v: ShowMode) => void, key: string) => MODES.map((v) => (
-    <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
-      <input type="radio" name={`${name}-${key}`} checked={value === v} onChange={() => set(v)} /> {v}
-    </label>
-  ))
+/** [부서표시방법] · [프로젝트표시방법] 라디오 셋 — 화면이 <EcCond label="부서표시방법"> 안에 둔다. */
+export function ShowModeRadios({ m, which, name }: { m: ReturnType<typeof useShowModes>; which: 'dept' | 'proj'; name: string }) {
+  const value = which === 'dept' ? m.deptMode : m.projMode
+  const set = which === 'dept' ? m.setDeptMode : m.setProjMode
   return (
     <>
-      <EcCond label="부서표시방법">{radios(m.deptMode, m.setDeptMode, 'dept')}</EcCond>
-      <EcCond label="프로젝트표시방법">{radios(m.projMode, m.setProjMode, 'proj')}</EcCond>
+      {MODES.map((v) => (
+        <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+          <input type="radio" name={`${name}-${which}`} checked={value === v} onChange={() => set(v)} /> {v}
+        </label>
+      ))}
     </>
   )
 }

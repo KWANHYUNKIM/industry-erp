@@ -10,7 +10,7 @@ import { incomeBucketOf, type IncomeBucket } from '../../utils/incomeBuckets'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import {
-  fetchSplit, groupsOf, HorizontalStatementTable, ShowModeConds, StatementTable, toIncomeStatement, useShowModes,
+  fetchSplit, groupsOf, HorizontalStatementTable, ShowModeRadios, StatementTable, toIncomeStatement, useShowModes,
   type SLine, type Split,
 } from '../../features/statement/showMode'
 
@@ -191,7 +191,8 @@ export default function IncomeStatementPage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <ShowModeConds m={modes} name="is" />
+        <EcCond label="부서표시방법"><ShowModeRadios m={modes} which="dept" name="is" /></EcCond>
+        <EcCond label="프로젝트표시방법"><ShowModeRadios m={modes} which="proj" name="is" /></EcCond>
         <EcCond label="기준일자">
           <input type="month" className="ec-input" value={fromYm} onChange={(e) => e.target.value && setFromYm(e.target.value)} style={{ width: 130 }} />
           <span className="my-0 mx-[4px]">~</span>

@@ -9,7 +9,7 @@ import type { TrialBalance } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import {
-  fetchSplit, groupsOf, HorizontalStatementTable, ShowModeConds, StatementTable, toTrialBalance, useShowModes,
+  fetchSplit, groupsOf, HorizontalStatementTable, ShowModeRadios, StatementTable, toTrialBalance, useShowModes,
   type SLine, type Split, type SplitBy,
 } from '../../features/statement/showMode'
 
@@ -208,7 +208,8 @@ export default function CostStatementPage() {
             </label>
           ))}
         </EcCond>
-        <ShowModeConds m={modes} name="cs" />
+        <EcCond label="부서표시방법"><ShowModeRadios m={modes} which="dept" name="cs" /></EcCond>
+        <EcCond label="프로젝트표시방법"><ShowModeRadios m={modes} which="proj" name="cs" /></EcCond>
         <EcCond label="기준일자">
           <input type="month" className="ec-input" value={fromYm} onChange={(e) => e.target.value && setFromYm(e.target.value)} style={{ width: 130 }} />
           <span className="my-0 mx-[4px]">~</span>

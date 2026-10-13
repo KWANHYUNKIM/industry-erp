@@ -5098,15 +5098,6 @@
   ],
   "in": "frontend/src/pages/accounting/AccountFlowPage.tsx"
  },
- "매입/매출장|최종수정자": {
-  "claim": "회계전표가 고친 사람을 들지 않는다",
-  "absent": [
-   "updatedBy",
-   "modifiedBy",
-   "lastModifiedBy"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
- },
  "매입/매출장|결재방표시": {
   "claim": "결재란을 그리지 않는다",
   "absent": [
@@ -5134,48 +5125,6 @@
   "present": [
    "blocks.map(blockTable)"
   ]
- },
- "재무상태표|부서표시방법": {
-  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
-  "absent": [
-   "label=\"부서표시방법\""
-  ],
-  "in": "frontend/src/pages/accounting/BalanceSheetPage.tsx"
- },
- "재무상태표|프로젝트표시방법": {
-  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
-  "absent": [
-   "label=\"프로젝트표시방법\""
-  ],
-  "in": "frontend/src/pages/accounting/BalanceSheetPage.tsx"
- },
- "손익계산서|부서표시방법": {
-  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
-  "absent": [
-   "label=\"부서표시방법\""
-  ],
-  "in": "frontend/src/pages/accounting/IncomeStatementPage.tsx"
- },
- "손익계산서|프로젝트표시방법": {
-  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
-  "absent": [
-   "label=\"프로젝트표시방법\""
-  ],
-  "in": "frontend/src/pages/accounting/IncomeStatementPage.tsx"
- },
- "원가명세서|부서표시방법": {
-  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
-  "absent": [
-   "label=\"부서표시방법\""
-  ],
-  "in": "frontend/src/pages/accounting/CostStatementPage.tsx"
- },
- "원가명세서|프로젝트표시방법": {
-  "claim": "부서 · 프로젝트별로 열을 펼치는 표시방법을 아직 두지 않았다",
-  "absent": [
-   "label=\"프로젝트표시방법\""
-  ],
-  "in": "frontend/src/pages/accounting/CostStatementPage.tsx"
  },
  "계정명세서|결재방표시": {
   "claim": "결재란을 그리지 않는다",
