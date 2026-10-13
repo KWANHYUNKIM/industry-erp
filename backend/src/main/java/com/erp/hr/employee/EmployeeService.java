@@ -150,6 +150,37 @@ public class EmployeeService {
     }
 
     /**
+     * 세무 &gt; 퇴직정산 &gt; 퇴사자리스트(E020126) 의 [퇴직처리] 창 저장 — 입사일자 · 퇴사일자 · 퇴사사유만 바꾼다.
+     * 퇴사일을 넣으면 사용중단으로 내린다(update 와 같은 규칙). 2026-10-13 loginaa: 사원은 수정 때 막히고, 빈 입사 · 퇴사일자는 빨간 칸.
+     */
+    @Transactional
+    public EmployeeResponse retire(Long id, EmployeeDtos.RetireRequest req) {
+        Employee e = get(id);
+        if (req.hireDate() == null) throw ApiException.badRequest("입사일자를 입력 바랍니다.");
+        if (req.resignDate() == null) throw ApiException.badRequest("퇴사일자를 입력 바랍니다.");
+        if (req.resignDate().isBefore(req.hireDate())) throw ApiException.badRequest("퇴사일자가 입사일자보다 빠릅니다.");
+        e.setHireDate(req.hireDate());
+        e.setResignDate(req.resignDate());
+        e.setResignReason(blankToNull(req.resignReason()));
+        e.setActive(false);
+        return EmployeeResponse.from(e);
+    }
+
+    /**
+     * [퇴직처리] 창의 [삭제] · 퇴사자리스트 [선택삭제] — 원본 확인 창 "중도정산한 내역이 삭제 됩니다." 뒤에
+     * 그 사원이 퇴사자리스트에서 빠지고 재직(사원 고르기 창)으로 돌아온다(2026-10-13 loginaa 00007 QA세무-퇴직).
+     */
+    @Transactional
+    public void cancelRetire(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) throw ApiException.badRequest("리스트에 선택된 자료가 없습니다.");
+        for (Long id : ids) {
+            Employee e = get(id);
+            e.setResignDate(null);
+            e.setActive(true);
+        }
+    }
+
+    /**
      * 원본 사원리스트의 [선택삭제] · 사원등록 창의 [삭제].
      *
      * <p>원본은 확인 창("한번 지워진 자료는 복구될 수 없습니다.") 뒤에 실제로 지운다.

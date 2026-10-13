@@ -159,6 +159,18 @@ public class EmployeeController {
         return employeeService.update(id, req);
     }
 
+    /** 세무 퇴사자리스트의 [퇴직처리] 저장 — 입사 · 퇴사일자 · 퇴사사유 */
+    @PutMapping("/{id}/retirement")
+    public EmployeeDtos.EmployeeResponse retire(@PathVariable Long id, @Valid @RequestBody EmployeeDtos.RetireRequest req) {
+        return employeeService.retire(id, req);
+    }
+
+    /** 세무 퇴사자리스트의 [삭제] · [선택삭제] — 퇴사를 거두고 재직으로 */
+    @PostMapping("/retirement/cancel")
+    public void cancelRetire(@RequestBody java.util.List<Long> ids) {
+        employeeService.cancelRetire(ids);
+    }
+
     /** 원본 [선택삭제]·[삭제]. 전표·급여·근태가 물고 있는 사원은 FK 가 막는다. */
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {

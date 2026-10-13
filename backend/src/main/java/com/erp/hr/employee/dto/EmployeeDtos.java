@@ -190,6 +190,13 @@ public class EmployeeDtos {
             @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String duty
     ) {}
 
+    /** 세무 퇴사자리스트 [퇴직처리] 창 — 입사일자 · 퇴사일자 · 퇴사사유 */
+    public record RetireRequest(
+            LocalDate hireDate,
+            LocalDate resignDate,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String resignReason
+    ) {}
+
     /** 원본 사원등록 폼이 열릴 때 미리 채우는 다음 사원번호. */
     /** 인사카드 [인사자료] 한 줄 — 날짜 둘 + 글자 칸 일곱(항목마다 뜻이 다르다, EmployeeHrDetail 참고). */
     public record HrDetailRow(

@@ -115,6 +115,17 @@ public class WithholdingService {
             sections.add(new WithholdingDtos.IncomeSection("A03", "일용근로", daily.count(), daily.wage(),
                     daily.incomeTax(), daily.localIncomeTax()));
         }
+        // 퇴직소득 [A22 그 외] — 퇴직금계산의 원천징수연월이 이 달인 것. 연금계좌(A21) 이체는 우리에게 없다.
+        // 원본 2026/09 퇴직 1명 8,778,618 · 소득세 130,680 이 확인서 퇴직소득 줄로 간다(세무신고 묶음 남은 것).
+        List<com.erp.accounting.retirementpay.RetirementPay> retires = retirementPayRepository.findAll().stream()
+                .filter(r -> month.equals(r.getWithholdingMonth())).toList();
+        if (!retires.isEmpty()) {
+            sections.add(new WithholdingDtos.IncomeSection("A22", "퇴직소득(그 외)",
+                    (int) retires.stream().map(r -> r.getEmployee().getId()).distinct().count(),
+                    retires.stream().map(com.erp.accounting.retirementpay.RetirementPay::getRetirementPay).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    retires.stream().map(com.erp.accounting.retirementpay.RetirementPay::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    retires.stream().map(com.erp.accounting.retirementpay.RetirementPay::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)));
+        }
         // 기타원천세는 귀속연월로 싣고 인원은 소득자 수 — 원본 2025/07 사업소득 [A25] 2명(5줄) · 1,916,000.
         // 법인에 준 이자 · 배당은 [A80 내·외국법인원천] — 원본 2025/07 김꽃 꽃꽃이 센터 이자 1,000,000 · 250,000(A50 은 0).
         java.util.Map<String, List<com.erp.accounting.otherwithholding.OtherWithholding>> byCode =
