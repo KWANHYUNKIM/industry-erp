@@ -148,7 +148,7 @@ export default function LotStockStatusPage() {
   /*
    * 원본 [기타]의 <b>[사용중단시리얼/로트포함]</b> — <b>켜진 채로</b> 열린다(2026-10-02 loginaa 실측). 예전 주석은 '꺼진 채로' 라
    * 적었는데 이날 직접 읽은 체크 상태가 켜짐이었다 — 더 새로 잰 값을 따른다.
-   * 우리 로트의 '사용중단' 은 <b>보류(held)</b> 다.
+   * 사용중단은 시리얼/로트No.등록의 [사용중단](lots.use_yn)이다 — 끄면 사용중단 로트를 뺀다(예전엔 보류(held)로 걸렀다).
    */
   const [withHeld, setWithHeld] = useState(true)
   /*
@@ -182,7 +182,7 @@ export default function LotStockStatusPage() {
   const shown = useMemo(() => {
     const kw = keyword.trim()
     return lots.filter((l) => {
-      if (!withHeld && l.held) return false
+      if (!withHeld && !l.useYn) return false
       if (expiryOpt !== '사용안함' && (!l.expireDate || (expFrom && l.expireDate < expFrom) || (expTo && l.expireDate > expTo))) return false
       /* 원본은 잔량 0 인 로트를 아예 안 찍는다 — [재고수량] 셋을 다 켜도 0.00 줄이 없다(2026-10-13 실측, 343줄 중 0). */
       if (l.stockQty === 0) return false

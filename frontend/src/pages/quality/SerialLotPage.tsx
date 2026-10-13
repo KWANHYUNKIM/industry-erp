@@ -9,6 +9,9 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { expiryDirectRange } from '../../utils/expiryRange'
+import EditStateMenu from '../../components/EditStateMenu'
+import BulkChangeModal from '../../components/BulkChangeModal'
+import EcHistoryButton from '../../components/EcHistory'
 import { ecConfirm } from '../../components/EcDialog'
 
 /**
@@ -54,6 +57,9 @@ export default function SerialLotPage() {
   const [form, setForm] = useState(emptyForm)
   const [lotMissing, setLotMissing] = useState(false)
   const [formError, setFormError] = useState('')
+  /* 원본 삭제가 막히면 뜨는 '알림' 창 — [코드 | 코드명 | 자료] 표(2026-10-13 실측: 'QA재고2-L01 | | 구매: 20261013-0'). */
+  const [blocked, setBlocked] = useState<{ code: string; data: string[] } | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   /* [보기] — 그 로트로 거른 내역조회 창. */
   const [detail, setDetail] = useState<Lot | null>(null)
@@ -127,7 +133,14 @@ export default function SerialLotPage() {
       setFormOpen(false)
       void load()
     } catch (err) {
-      setFormError(extractErrorMessage(err))
+      const msg = extractErrorMessage(err)
+      if (!msg.startsWith('처리가 불가능한 코드입니다')) { setFormError(msg); return }
+      /* 자료 = 그 로트를 쓴 내역 — '구매: 20261013-0'(내역입력처럼 연결전표가 없으면 -0). */
+      const txs = (await api.get<LotTransaction[]>('/lots/transactions')).data.filter((t) => t.lotId === editing.id)
+      setBlocked({
+        code: editing.lotNo,
+        data: [...new Set(txs.map((t) => `${t.docType ?? t.typeName}: ${t.txDate.replace(/-/g, '')}-${t.sourceNo ? Number(t.sourceNo.split('-').pop()) || 0 : 0}`))],
+      })
     }
   }
 
@@ -172,7 +185,7 @@ export default function SerialLotPage() {
       onNew={openNew}
       actions={[
         { label: '바코드(시리얼/로트No.)', disabled: true },
-        { label: '변경', disabled: true },
+        { label: '변경', onClick: () => { if (checked.size === 0) setError('리스트에 선택된 자료가 없습니다.'); else { setError(''); setBulkOpen(true) } } },
         { label: '사용중단/재사용', menu: [
           { label: '사용중단', onClick: () => void setUseOf([...checked], false) },
           { label: '재사용', onClick: () => void setUseOf([...checked], true) },
@@ -276,15 +289,42 @@ export default function SerialLotPage() {
         <div className="mt-[8px] flex gap-[4px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => editing ? openEdit(editing) : setForm(emptyForm())}>다시 작성</button>
+          {/* 원본 수정 창: [사용중단/재사용 ▲] → 사용중단(재사용) · 삭제, 끝에 [H](마지막으로 고친 때 한 줄 — 2026-10-14 실측 "2026/02/25 오전 10:16:32 [GUEST]"). */}
           {editing && (
-            <>
-              <button type="button" className="ec-btn" onClick={() => void setUseOf([editing.id], !editing.useYn)}>{editing.useYn ? '사용중단' : '재사용'}</button>
-              <button type="button" className="ec-btn" onClick={() => void remove()}>삭제</button>
-            </>
+            <EditStateMenu active={editing.useYn} onPick={(op) => op === '삭제' ? void remove() : void setUseOf([editing.id], op === '재사용')} />
           )}
           <button type="button" className="ec-btn" onClick={() => setFormOpen(false)}>닫기</button>
+          <EcHistoryButton target="LOT" id={editing?.id} last />
         </div>
       </Modal>
+
+      <Modal open={blocked != null} title="알림" width={520} onClose={() => setBlocked(null)}>
+        <p className="m-0 leading-[18px]">처리가 불가능한 코드입니다.<br />다음 사항을 확인 바랍니다.</p>
+        <p className="mt-[9px] mb-[6px] font-bold">[처리가 불가능한 코드]</p>
+        <table className="w-full text-left">
+          <thead><tr><th>코드</th><th>코드명</th><th>자료</th></tr></thead>
+          <tbody>
+            <tr><td>{blocked?.code}</td><td></td><td>{blocked?.data.join(', ')}</td></tr>
+          </tbody>
+        </table>
+        <div className="mt-[9px]"><button type="button" className="ec-btn" onClick={() => setBlocked(null)}>닫기</button></div>
+      </Modal>
+
+      {bulkOpen && (
+        <BulkChangeModal rows={rows.filter((r) => checked.has(r.id)).map((r) => ({ ...r, code: r.lotNo }))} codeLabel="시리얼/로트No."
+                         fields={[
+                           { key: 'expireDate', label: '유효기한', kind: 'date' },
+                           { key: 'udiCode', label: 'udi코드', kind: 'text' },
+                           { key: 'useYn', label: '사용구분', kind: 'select', options: [['true', '사용'], ['false', '사용중단']] },
+                         ]}
+                         initial={(r) => ({ expireDate: r.expireDate ?? '', udiCode: r.udiCode ?? '', useYn: String(r.useYn) })}
+                         saveRow={async (r, d) => {
+                           await api.put(`/lots/${r.id}`, { itemId: r.itemId, expireDate: d.expireDate || null, udiCode: d.udiCode.trim() || null })
+                           if (String(r.useYn) !== d.useYn) await api.post('/lots/use', { ids: [r.id], use: d.useYn !== 'false' })
+                         }}
+                         onClose={() => setBulkOpen(false)}
+                         onSaved={() => { setBulkOpen(false); void load() }} />
+      )}
 
       <Modal open={detail != null} title="시리얼/로트No.내역조회" onClose={() => setDetail(null)} width={760}>
         <table className="w-full text-left">
