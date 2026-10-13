@@ -127,6 +127,8 @@ public class ItemService {
         if (req.unitPrice() != null) item.setUnitPrice(req.unitPrice());
         if (req.purchasePrice() != null) item.setPurchasePrice(req.purchasePrice());
         if (req.gradePrices() != null) item.setGradePrices(req.gradePrices());
+        // 원본 품목별단가(E040122)에서 단가를 저장해도 품목 [H] 에 '수정' 한 줄이 붙는다(2026-10-14 실측).
+        changeHistory.record(HISTORY_TARGET, item.getId(), ChangeHistoryService.UPDATED);
         return ItemResponse.from(item);
     }
 

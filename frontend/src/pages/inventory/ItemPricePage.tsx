@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import EcNumInput from '../../components/EcNumInput'
 import EcEmptyRow from '../../components/ui/EcEmptyRow'
+import EcHistoryButton from '../../components/EcHistory'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useShortcut } from '../../utils/useShortcut'
@@ -25,6 +26,10 @@ import type { Item } from '../../types/api'
  * - 표시조건 2 = 거래처 · ☑품목별(거래처) 로 [검색(F8)] 하면 품목과 거래처를 골라야 한다 —
  *   거래처 칸 밑 안내 '검색창에 거래처코드를 입력하고 검색 바랍니다.'(품목도 같은 자리에 빨간 테두리). 고르면 열이
  *   품목코드 · 품목명 · 규격 · 단위 · 거래처 · 거래처명 · 출고단가 · 거래처별조정률 · 품목별(거래처) · 입고단가 · 단가A ~ J, 한 줄.
+ *
+ * 2026-10-14 다시 잼(재고1): 머리 12px **400** 가운데(이 화면은 목록인데 400 — 공용 700 규칙에서 뺀다) · 열 폭 품목코드 144 · 품목명 145 · 단가 칸 100 ·
+ *   단가 링크 남색(text-ec-navy) · 머리 오른쪽 Search(F3) · 도움말(Option 없음). 단가 칸 → '품목등록' 창 960(원본은 일곱 탭 다 있는 품목 수정 창이
+ *   [단가] 탭으로 열린다 — 버튼 저장(F8) · 복사 · 사용중단/재사용 · 다시 작성 · 닫기 · H). 저장하면 말 없이 닫히고 그 줄이 바뀌며, [H] 에 '수정' 한 줄이 붙는다.
  *
  * 우리에게 없는 것: 창고별 단가(품목그룹별(창고) · 품목별(창고)) · 거래처별조정률 — 담을 자료가 없어 조건에서 뺐다.
  * 품목등록 창의 VAT포함 체크 · 다른 탭(기본 · 수량 · 원가 …)은 품목등록 화면에 있다.
@@ -172,8 +177,12 @@ export default function ItemPricePage() {
   }
 
   const priceLink = (it: Item, key: PriceKey, value: number) => (
-    <td key={key} className="text-right"><a className="cursor-pointer" onClick={() => openPrice(it, key)}>{num(value)}</a></td>
+    <td key={key} className="text-right">
+      <a href="#" className="text-ec-navy" onClick={(e) => { e.preventDefault(); openPrice(it, key) }}>{num(value)}</a>
+    </td>
   )
+  /** [다시 작성] — 창을 연 때 값으로 */
+  const resetPrices = () => { if (edit) openPrice(edit, focusKey) }
 
   const checkbox = (label: string, checked: boolean, onChange: (v: boolean) => void, disabled = false) => (
     <label className={`inline-flex items-center gap-[3px] mr-[10px]${disabled ? ' text-ec-text-off' : ''}`}>
@@ -200,6 +209,7 @@ export default function ItemPricePage() {
     <EcListShell
       title="품목별단가"
       collapseConditions
+      option={false}
       search={search}
       onSearchChange={setSearch}
       onSearch={() => applyConds()}
@@ -253,17 +263,19 @@ export default function ItemPricePage() {
         <EcCond label="기타">{checkbox('수정일자순(정렬)', byUpdated, setByUpdated)}</EcCond>
       </ul>
 
-      <table ref={tableRef} className="w-full">
+      {/* 원본 머리는 400 — ec-report-head400 이 공용 목록 격자 700 규칙에서 뺀다 */}
+      <table ref={tableRef} className="w-full ec-report-head400">
         <thead>
           <tr>
             {keyCols.map((k) => (k === '품목'
-              ? [a.withCode && <th key="ic">품목코드</th>, <th key="in">품목명</th>, <th key="sp">규격</th>, <th key="un">단위</th>]
+              ? [a.withCode && <th key="ic" className="w-[144px]">품목코드</th>, <th key="in" className="w-[145px]">품목명</th>,
+                 <th key="sp" className="w-[100px]">규격</th>, <th key="un" className="w-[100px]">단위</th>]
               : [a.withCode && <th key="pc">거래처</th>, <th key="pn">거래처명</th>]))}
-            {a.outPrice && <th className="text-right">출고단가</th>}
-            {salesSpecial.map((k) => <th key={k} className="text-right">{SPECIAL_LABEL[k]}</th>)}
-            {a.inPrice && <th className="text-right">입고단가</th>}
-            {buySpecial.map((k) => <th key={k} className="text-right">{SPECIAL_LABEL[k]}</th>)}
-            {gradeIdx.map((i) => <th key={i} className="text-right">단가{GRADE_LABELS[i]}</th>)}
+            {a.outPrice && <th className="w-[100px]">출고단가</th>}
+            {salesSpecial.map((k) => <th key={k} className="w-[100px]">{SPECIAL_LABEL[k]}</th>)}
+            {a.inPrice && <th className="w-[100px]">입고단가</th>}
+            {buySpecial.map((k) => <th key={k} className="w-[100px]">{SPECIAL_LABEL[k]}</th>)}
+            {gradeIdx.map((i) => <th key={i} className="w-[100px]">단가{GRADE_LABELS[i]}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -283,7 +295,7 @@ export default function ItemPricePage() {
         </tbody>
       </table>
 
-      <Modal open={!!edit} error={saveErr} title="품목등록" width={760} onClose={() => setEdit(null)}>
+      <Modal open={!!edit} error={saveErr} title="품목등록" width={960} onClose={() => setEdit(null)}>
         <div className="ec-pills mb-[8px]">
           <button type="button" className="ec-pill no-ec active">단가</button>
         </div>
@@ -302,7 +314,9 @@ export default function ItemPricePage() {
         </div>
         <div className="flex gap-[4px] mt-[9px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void savePrices()}>저장(F8)</button>
+          <button type="button" className="ec-btn" onClick={resetPrices}>다시 작성</button>
           <button type="button" className="ec-btn" onClick={() => setEdit(null)}>닫기</button>
+          <EcHistoryButton target="ITEM" id={edit?.id} />
         </div>
       </Modal>
     </EcListShell>
