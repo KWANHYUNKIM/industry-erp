@@ -6,6 +6,7 @@ import { ymd } from '../../../components/EcPeriodPicks'
 import type { FieldWork } from '../../../types/api'
 import { useShortcut } from '../../../utils/useShortcut'
 import VehiclePicker from './VehiclePicker'
+import { ecConfirm } from '../../../components/EcDialog'
 
 export interface FieldWorkUser { id: number; name: string; username: string }
 
@@ -88,6 +89,15 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
       odometerBefore: form.odometerBefore ? Number(form.odometerBefore) : null,
       odometerAfter: form.odometerAfter ? Number(form.odometerAfter) : null,
     }
+    // 원본: 같은 이동수단이 같은 날 겹치는 시간에 이미 쓰였으면 묻는다(2026-10-13 E070254 실측 — 글자 '[코드/명]' 그대로).
+    try {
+      const day = await api.get<{ rows: { id: number; vehicleNo: string | null; startTime: string | null; endTime: string | null }[] }>(
+        '/field-works', { params: { from: form.workDate, to: form.workDate } })
+      const s = form.startTime || '00:00', e = form.endTime || '23:59'
+      const clash = (day.data.rows ?? []).some((r) => r.id !== record?.id && r.vehicleNo === form.vehicleNo
+        && (r.startTime ?? '00:00').slice(0, 5) < e && s < (r.endTime ?? '23:59').slice(0, 5))
+      if (clash && !(await ecConfirm('동일한 시간에 [코드/명]의 기록이 존재합니다. 저장하시겠습니까?'))) return
+    } catch { /* 겹침 확인을 못 해도 저장은 서버가 판단한다 */ }
     try {
       if (record) await api.put(`/field-works/${record.id}`, body)
       else await api.post('/field-works', body)
@@ -97,7 +107,7 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
   }
 
   async function remove() {
-    if (!record || !window.confirm('삭제하겠습니까?')) return
+    if (!record || !(await ecConfirm('삭제하겠습니까?'))) return
     try {
       await api.delete(`/field-works/${record.id}`)
       onClose()
