@@ -349,11 +349,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/accounting/MonthlyProfitPage.tsx": {
-  "inline": 18,
-  "color": 7,
-  "palette": 0
- },
  "pages/accounting/NonCashPage.tsx": {
   "inline": 11,
   "color": 3,

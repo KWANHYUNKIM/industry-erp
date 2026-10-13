@@ -2,8 +2,8 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
-import { costOf, sumExtraCost, type CostBasis } from '../../utils/costBasis'
-import { ymd } from '../../components/EcPeriodPicks'
+import { costOf } from '../../utils/costBasis'
+import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -14,150 +14,108 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /**
- * 이익관리 > 월별이익현황
+ * 이익관리 > 월별이익현황(E040805)
  *
- * 일별이익현황과 <b>같은 결함</b>이 있었다 — `/api/profit/monthly` 는 그 달의 <b>매입액</b>을
- * 원가로 놓는다. 자재를 몰아 사들인 달은 잘 팔았어도 적자로 찍힌다.
- * 이익은 판 물건의 원가로 재야 한다: 이익 = 판매액 − (판매수량 × 원가단가).
- *
- * 원가 기준은 일별이익현황(C000140)에서 <b>실측한</b> 것을 그대로 쓴다.
- *
- * <p>조건 판은 한동안 실측을 못 해 미뤄 뒀는데, 원본 화면 사본으로 대조했다.
- * 원본 [구분]은 <b>품목별 | 거래처별 | 품목별거래처별 | 거래처별품목별</b> 넷이고,
- * 우리에겐 뒤 둘이 없었다. '월별'은 원본에 없는 우리 것이라 맨 뒤에 남긴다 —
- * 월별이익현황이니 달을 접어 보는 쪽도 쓸모가 있다.
+ * <p><b>2026-10-13 원본 실측(loginaa, 기준월 2026/09 ~ 2026/09 (총평균법))</b>
+ * <ul>
+ *   <li>[기준월]은 달 고르기가 아니라 <b>코드도움</b>이다 — 원가생성/수정(E040802)에서 만든 원가 기간
+ *       ('재고월별원가' 창: 기준월 · 원가계산방법 · 소모량기준)을 하나 고른다. 기본은 맨 위(최근) 기간.
+ *       비워 두고 [검색(F8)] 을 누르면 안내 없이 칸에 빨간 테두리만 두르고 검색하지 않는다.</li>
+ *   <li>원가는 그 기간에 <b>생성한 원가</b>다(같은 품목이면 줄마다 같은 단가 — A001 28,426).
+ *       [원가] 고르기는 일별이익현황에만 있다. 예전 우리는 [연도] · 달 두 칸 · [원가] 넷 · [구분] 다섯째 '월별' 을
+ *       두었는데 원본에 없다.</li>
+ *   <li>격자 머리 두 줄: 앞머리 · 판매(수량 · 단가 · 금액) · 원가(단가 · 금액) · 판매부대비용 · 이익(단가 · 금액) · 이익율.
+ *       <b>이익은 부대비용까지 뺀다</b>(314,500,000 − 5,258,888 − 1,000 = 309,240,112). 부대비용 0 은 빈칸.
+ *       번호 열 · [건수] 는 없다. 차례는 코드 순. 합계 줄은 단가 칸을 비운다. 이익율은 정수 %.</li>
+ *   <li>표 위 제목은 [구분]마다 품목별이익현황 · 거래처별이익현황 · 품목/거래처별이익현황 · 거래처/품목별이익현황,
+ *       거래처 칸은 [거래처코드 · 거래처명] 두 칸이다.</li>
+ * </ul>
+ * '소모량기준'(실소모량) 열은 우리 원가 기간이 들지 않아 창에 없다.
  */
-type Mode = '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별' | '월별'
-const MODES = ['품목별', '거래처별', '품목별거래처별', '거래처별품목별', '월별'] as const
-/**
- * 원가 기준.
- *
- * <p>원본 실측: [원가] 선입선출(판매) | 월별원가 | <b>입고단가(품목)</b> | 입고단가(품목) - VAT 제외
- *
- * <p>우리 '품목단가' 가 원본의 '입고단가(품목)' 에 해당하는데, 품목 단가가 하나뿐이던 시절
- * <b>판매단가</b>를 읽고 있었다. 원가에 판매가를 넣으면 이익이 0 근처로 나오는데
- * 숫자가 그럴듯해서 눈으로는 안 걸린다. 이제 품목의 구매단가를 읽는다.
- * 구매단가를 안 정한 품목(0)은 기준이 없는 것이므로 원가·이익을 '—' 로 둔다.
- *
- * <p>선입선출은 아직 없다 — 로트별 입고원가를 따라가야 해서 자료가 더 필요하다.
- */
-type Basis = CostBasis
+type Mode = '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별'
+const MODES = ['품목별', '거래처별', '품목별거래처별', '거래처별품목별'] as const
+const REPORT_TITLE: Record<Mode, string> = {
+  품목별: '품목별이익현황', 거래처별: '거래처별이익현황',
+  품목별거래처별: '품목/거래처별이익현황', 거래처별품목별: '거래처/품목별이익현황',
+}
 
 interface CostRow { itemId: number; period: string; standardTotal: number }
+interface CostPeriod { id: number; startMonth: string; endMonth: string; methodName: string; latest: boolean }
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const num = (n: number) => n.toLocaleString()
-const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 1000) / 10)
-const nowYear = () => Number(ymd(new Date()).slice(0, 4))
+/** 원본 이익율은 정수 % 다(98% · -8%). */
+const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 100))
+const ymSlash = (ym: string) => ym.replace('-', '/')
+const periodText = (p: CostPeriod) => `${ymSlash(p.startMonth)} ~ ${ymSlash(p.endMonth)} (${p.methodName})`
+/** 그 달의 마지막 날 — 'YYYY-MM' → 'YYYY-MM-DD'. */
+const monthEnd = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number)
+  return `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+}
 
 export default function MonthlyProfitPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['warehouses', 'projects', 'partners', 'items'])
   /*
-   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
-   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다.
-   */
-  /*
-   * 원본 [기타]의 <b>[수량관리제외품목포함]</b> — 재고수량을 안 세는 품목(용역·수수료 …)까지
-   * 같이 볼지다. 기본은 <b>켜짐</b>이다(사본 실측). 이 화면만 켜져 있다 — 달 단위 이익은 <b>판 것을 다</b> 봐야 맞기 때문이다.
+   * 원본 [기타]의 <b>[수량관리제외품목포함]</b> — 기본 <b>켜짐</b>, [결재방표시] 는 꺼짐(사본 실측).
    */
   const [withUntracked, setWithUntracked] = useState(true)
   const { untracked } = useItemFlags()
   const [signBox, setSignBox] = useState(false)
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
-  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
-  /* 원가 [선입선출(판매)] — 판매 전표 · 품목별 선입선출 단가(서버가 재고 이력으로 셈한다). 키는 '전표번호#품목id'. */
-  const [fifo, setFifo] = useState<Map<string, number>>(new Map())
-  /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
-  const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const [year, setYear] = useState(nowYear())
-  /*
-   * 원본 월별이익현황 조건의 <b>[기준월]</b>. 우리는 연도만 골랐고, 예외에는
-   * '월을 열로 편다' 고 적어 두었는데 그건 [구분]이 '월별' 일 때만 맞다.
-   * 품목별·거래처별로 보면 월이 어디에도 안 남아, <b>상반기만</b> 같은 것을 못 봤다.
-   */
-  const [fromMonth, setFromMonth] = useState('1')
-  const [toMonth, setToMonth] = useState('12')
+  /* 원본 [기준월] — 원가 기간 코드도움. 기본은 최근 기간. */
+  const [periods, setPeriods] = useState<CostPeriod[]>([])
+  const [periodId, setPeriodId] = useState('')
+  const [periodMissing, setPeriodMissing] = useState(false)
+  /** 검색한 때의 기간 — 표 위 기간 글자와 판매 거르기는 이 값을 쓴다. */
+  const [shown, setShown] = useState<CostPeriod | null>(null)
   const [mode, setMode] = useState<Mode>('품목별')
-  const [basis, setBasis] = useState<Basis>('입고단가(품목)')
+  const [shownMode, setShownMode] = useState<Mode>('품목별')
   const [withVat, setWithVat] = useState(false)
-  /**
-   * 원본 월별이익현황 조건 실측(사본): 구분 · 기준월 · <b>창고 · 프로젝트 · 관리항목 ·
-   * 거래처 · 품목</b> · 판매액 · 기타.
-   *
-   * <p>우리에겐 연도·구분·판매액·원가뿐이라 <b>거를 수가 없었다</b> — 한 해치 판매가
-   * 통째로 나오고, "이 거래처만" "이 창고만" 을 보려면 화면을 눈으로 훑는 수밖에 없었다.
-   * 일별이익현황에는 이미 있는 조건들이라 같은 이름·같은 자리로 둔다.
-   *
-   * <p>[관리항목]은 안 만든다 — 판매 라인이 관리항목을 안 들어서 거를 수가 없다.
-   */
-  /*
-   * 2026-09-08 에 원본(E040805)의 조건 판을 재니 <b>[전체] 탭이 스물넷</b>이다
-   * ([기본] 탭은 스물하나에 차례도 조금 다르다). 사본에는 열뿐이었다. 접힌 줄은 없다.
-   *
-   * <p>여기서 만든 여섯: 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 ·
-   * 거래처관리담당자 · 거래유형. 값은 판매 전표 응답에 진작 다 있다.
-   */
   const [cond, setCond] = useState({ warehouse: '', project: '', partner: '', item: '',
     partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
-  function load() {
+  function load(pid = periodId, list = periods) {
+    const p = list.find((x) => String(x.id) === pid)
+    if (!p) { setPeriodMissing(true); return }
+    setPeriodMissing(false)
     setLoading(true)
     setError('')
-    /*
-     * <b>보는 해를 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서
-     * <code>saleDate.slice(0, 4) === year</code> 로 걸렀다 — 화면은 해를 고르게 해 놓고
-     * 서버에는 아무것도 안 보내는 꼴이었다. 이 표에는 <b>이월도 누계도 없다</b>
-     * (거래처원장·월별채권채무와 다르다) — 그 해 전표만 있으면 숫자가 같다.
-     */
-    const period = { from: `${year}-01-01`, to: `${year}-12-31` }
     Promise.all([
-      api.get<SalesDoc[]>('/sales', { params: period }),
+      api.get<SalesDoc[]>('/sales', { params: { from: `${p.startMonth}-01`, to: monthEnd(p.endMonth) } }),
       api.get<CostRow[]>('/costs'),
-      /*
-       * <b>마지막 입고단가만 받는다.</b> 아래 lastPurchasePrice 가 하던 일을 서버가 한다 —
-       * 그 손계산은 <b>목록 차례에 기대는 옛 규칙</b>이었다(같은 날이면 id 가 작은 쪽이
-       * 이긴다). /purchases/item-prices 는 나중에 적은 전표를 마지막 입고로 본다.
-       */
-      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
-      // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
-      api.get<{ id: number; purchasePrice: number }[]>('/items'),
-      /* 원가 [선입선출(판매)] — 그 날까지의 재고 이력으로 판매 줄마다 꺼낸 층의 원가. */
-      api.get<{ docNo: string; itemId: number; quantity: number; cost: number }[]>('/stock/fifo-sale-costs', { params: { to: period.to } }),
     ])
-      .then(([s, c, p, i, f]) => {
-        setSales(s.data); setCosts(c.data); setLastPrices(p.data)
-        setFifo(new Map(f.data.filter((r) => Number(r.quantity) > 0)
-          .map((r) => [`${r.docNo}#${r.itemId}`, Number(r.cost) / Number(r.quantity)])))
-        setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
-      })
+      .then(([s, c]) => { setSales(s.data); setCosts(c.data); setShown(p); setShownMode(mode) })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }
 
-  /* 해를 바꾸면 그 해로 다시 받는다. */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [year])
+  useEffect(() => {
+    api.get<CostPeriod[]>('/cost-periods')
+      .then((r) => {
+        setPeriods(r.data)
+        const first = r.data.find((p) => p.latest) ?? r.data[0]
+        if (first) { setPeriodId(String(first.id)); load(String(first.id), r.data) }
+      })
+      .catch((err) => setError(extractErrorMessage(err)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
+  /** 그 달의 생성 원가(단가). 원가 기간이 여러 달이면 판 달의 것을 쓴다. */
   const costByItemPeriod = useMemo(
     () => new Map(costs.map((c) => [`${c.itemId}:${c.period}`, c.standardTotal])), [costs])
-
-  /** 그 품목을 마지막으로 산 단가. 서버가 정한 값이다(같은 날이면 나중에 적은 전표). */
-  const lastPurchasePrice = useMemo(
-    () => new Map(lastPrices.map((r) => [r.itemId, r.unitPrice])), [lastPrices])
-
-  /** 원가단가. 규칙은 utils/costBasis 에 있다 — 거기서 못 박아 두고 여기서는 잇기만 한다. */
-  const costPrice = (itemId: number, saleDate: string, docNo: string): number | null => costOf(basis, {
+  const costPrice = (itemId: number, saleDate: string): number | null => costOf('월별원가', {
     monthlyCost: costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null,
-    lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
-    itemPurchasePrice: unitPrices.get(itemId) ?? null,
-    fifoUnitCost: fifo.get(`${docNo}#${itemId}`) ?? null,
+    lastPurchasePrice: null, itemPurchasePrice: null,
   })
+  const partnerCode = useMemo(
+    () => new Map(pickers.partners.map((p) => [p.value, p.code ?? ''])), [pickers.partners])
 
   /**
    * 원본 [관리항목]. 품목 마스터에 붙는 값이라 판매 전표 응답에는 없다 —
@@ -170,12 +128,7 @@ export default function MonthlyProfitPage() {
   const pmgr = usePartnerManagers()
 
   const lines = useMemo(() => sales
-    .filter((d) => d.saleDate.slice(0, 4) === String(year))
-    // 원본 조건 [기준월] — 연도 안에서 볼 달을 좁힌다.
-    .filter((d) => {
-      const m = Number(d.saleDate.slice(5, 7))
-      return m >= Number(fromMonth) && m <= Number(toMonth)
-    })
+    .filter((d) => !shown || (d.saleDate.slice(0, 7) >= shown.startMonth && d.saleDate.slice(0, 7) <= shown.endMonth))
     .filter((d) => !cond.warehouse || String(d.warehouseId) === cond.warehouse)
     .filter((d) => !cond.project || String(d.projectId) === cond.project)
     .filter((d) => !cond.partner || String(d.partnerId) === cond.partner)
@@ -191,59 +144,49 @@ export default function MonthlyProfitPage() {
       .filter((l) => !cond.category || (l.itemCategoryName ?? '') === cond.category)
       .filter((l) => !cond.itemGroup || mgmt.groupOf(l.itemId) === cond.itemGroup)
       .map((l) => {
-      const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
-      const price = costPrice(l.itemId, d.saleDate, d.docNo)
-      const cost = price === null ? null : price * l.quantity
-      return {
-        month: d.saleDate.slice(0, 7),
-        partnerId: d.partnerId, partnerName: d.partnerName,
-        itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName,
-        /** 열이 [품목명[규격]] 이다 — 규격을 대괄호로 붙인다(이름만 찍고 있었다, 8회차 화면 점검). */
-        itemLabel: l.itemName + (l.spec ? `[${l.spec}]` : ''),
-        quantity: l.quantity, revenue, cost,
-        profit: cost === null ? null : revenue - cost,
-        /**
-         * 판매부대비용. 원본 이익현황의 [판매부대비용] 열.
-         *
-         * <p>전표 합계에 더하지 않는 돈이다 — 거래처에 청구한 것이 아니라 우리가 썼다.
-         * 그래서 판매액에는 안 들어가는데 이익에서도 안 빠지고 있었다.
-         */
-        extraCost: Number(l.extraCost ?? 0),
-      }
-    })),
+        const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
+        const price = costPrice(l.itemId, d.saleDate)
+        const cost = price === null ? null : price * l.quantity
+        /** 판매부대비용 — 전표 합계에 안 들어가는 우리가 쓴 돈이다. 원본은 이익에서 뺀다. */
+        const extraCost = Number(l.extraCost ?? 0)
+        return {
+          partnerId: d.partnerId, partnerCode: partnerCode.get(String(d.partnerId)) ?? '', partnerName: d.partnerName,
+          itemId: l.itemId, itemCode: l.itemCode,
+          /** 열이 [품목명[규격]] 이다 — 원본은 이름 뒤 한 칸 띄우고 대괄호(울트라 스킨 [140ml]). */
+          itemLabel: l.itemName + (l.spec ? ` [${l.spec}]` : ''),
+          quantity: l.quantity, revenue, cost, extraCost,
+          profit: cost === null ? null : revenue - cost - extraCost,
+        }
+      })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sales, year, fromMonth, toMonth, cond, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+    [sales, shown, cond, withVat, costByItemPeriod, partnerCode, withUntracked, mgmtCond])
 
   const rows = useMemo(() => {
     const keyOf = (l: typeof lines[number]) =>
-      mode === '월별' ? l.month
-        : mode === '품목별' ? String(l.itemId)
-          : mode === '거래처별' ? String(l.partnerId)
-            : mode === '거래처별품목별' ? `${l.partnerId}:${l.itemId}`
-              : `${l.itemId}:${l.partnerId}`
+      shownMode === '품목별' ? String(l.itemId)
+        : shownMode === '거래처별' ? String(l.partnerId)
+          : shownMode === '거래처별품목별' ? `${l.partnerId}:${l.itemId}`
+            : `${l.itemId}:${l.partnerId}`
     const labelOf = (l: typeof lines[number]) =>
-      mode === '월별' ? [`${Number(l.month.slice(5))}월`, '', '']
-        : mode === '품목별' ? [l.itemCode, l.itemLabel, '']
-          : mode === '거래처별' ? [l.partnerName, '', '']
-            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemLabel]
-              : [l.itemCode, l.itemLabel, l.partnerName]
-
-    const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number; extra: number }>()
+      shownMode === '품목별' ? [l.itemCode, l.itemLabel]
+        : shownMode === '거래처별' ? [l.partnerCode, l.partnerName]
+          : shownMode === '거래처별품목별' ? [l.partnerCode, l.partnerName, l.itemCode, l.itemLabel]
+            : [l.itemCode, l.itemLabel, l.partnerCode, l.partnerName]
+    const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; extra: number }>()
     lines.forEach((l) => {
       const k = keyOf(l)
-      const g = m.get(k) ?? { key: k, label: labelOf(l), qty: 0, revenue: 0, cost: 0, profit: 0, count: 0, extra: 0 }
+      const g = m.get(k) ?? { key: k, label: labelOf(l), qty: 0, revenue: 0, cost: 0, profit: 0, extra: 0 }
       g.qty += l.quantity
       g.revenue += l.revenue
-      // 부대비용은 원가를 알든 모르든 다 더한다 — 실제로 쓴 돈이라 빼면 거짓이 된다.
       g.extra += l.extraCost
       // 한 줄이라도 원가를 모르면 그 묶음의 원가·이익은 알 수 없다.
       if (l.cost === null || g.cost === null) { g.cost = null; g.profit = null }
       else { g.cost += l.cost; g.profit = (g.profit ?? 0) + (l.profit ?? 0) }
-      g.count += 1
       m.set(k, g)
     })
-    return [...m.values()].sort((a, b) => (mode === '월별' ? (a.key < b.key ? -1 : 1) : b.revenue - a.revenue))
-  }, [lines, mode])
+    /* 원본 차례는 앞머리 코드 순이다(A001 · B001 …, 1234567002 · 1234567004 …). */
+    return [...m.values()].sort((a, b) => a.label.join('\u0000').localeCompare(b.label.join('\u0000')))
+  }, [lines, shownMode])
 
   const known = lines.filter((l) => l.cost !== null)
   const totals = {
@@ -251,40 +194,43 @@ export default function MonthlyProfitPage() {
     knownRevenue: known.reduce((n, l) => n + l.revenue, 0),
     cost: known.reduce((n, l) => n + (l.cost ?? 0), 0),
     profit: known.reduce((n, l) => n + (l.profit ?? 0), 0),
+    extra: lines.reduce((n, l) => n + l.extraCost, 0),
     qty: lines.reduce((n, l) => n + l.quantity, 0),
   }
   const unknownCost = lines.length - known.length
   const allUnknown = lines.length > 0 && known.length === 0
 
-  const years = [nowYear(), nowYear() - 1, nowYear() - 2]
-  /** 구분마다 앞쪽 라벨 열이 다르다. 열 수가 바뀌므로 한 곳에서 정한다. */
+  /** 구분마다 앞머리 칸이 다르다. 원본 실측 글자 그대로. */
   const HEADS: Record<Mode, string[]> = {
-    /* 원본은 규격을 품목명 뒤 대괄호에 붙여 <b>[품목명[규격]]</b> 한 칸으로 적는다. */
     품목별: ['품목코드', '품목명[규격]'],
-    거래처별: ['거래처'],
-    품목별거래처별: ['품목코드', '품목명[규격]', '거래처'],
-    거래처별품목별: ['거래처', '품목코드', '품목명[규격]'],
-    월별: ['월'],
+    거래처별: ['거래처코드', '거래처명'],
+    품목별거래처별: ['품목코드', '품목명[규격]', '거래처코드', '거래처명'],
+    거래처별품목별: ['거래처코드', '거래처명', '품목코드', '품목명[규격]'],
   }
-  const heads = HEADS[mode]
-  const colCount = 1 + heads.length + 1 + 7
-
-  /** 판매부대비용과 그것을 뺀 이익. 규칙은 utils/costBasis 에 못 박아 뒀다. */
-  const extraTotals = sumExtraCost(lines.map((l) => ({ profit: l.profit, extraCost: l.extraCost })))
+  const heads = HEADS[shownMode]
+  const TAIL = 9
+  const colCount = heads.length + TAIL
+  const per = (v: number | null, q: number) => (v === null || q === 0 ? null : Math.round(v / q))
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
-  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
   const tableRef = useRef<HTMLDivElement>(null)
-  useTableColumnCheck(tableRef, '월별이익현황', [mode, basis, withVat, rows.length])
+  useTableColumnCheck(tableRef, '월별이익현황', [shownMode, withVat, rows.length])
+
+  const reset = () => {
+    setCond({ warehouse: '', project: '', partner: '', item: '',
+      partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
+    setMgmtCond(''); setMode('품목별'); setWithVat(false); setWithUntracked(true); setSignBox(false)
+    const first = periods.find((p) => p.latest) ?? periods[0]
+    setPeriodId(first ? String(first.id) : '')
+  }
 
   return (
     <EcListShell
       title="월별이익현황"
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => setCond({ warehouse: '', project: '', partner: '', item: '',
-          partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' }) },
+        { label: '검색(F8)', primary: true, onClick: () => load() },
+        { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -292,47 +238,22 @@ export default function MonthlyProfitPage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
-        <span className="text-[12.5px] text-ec-label">연도</span>
-        <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
-          {years.map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-        <span className="text-[12.5px] text-ec-label ml-[8px]">기준월</span>
-        <select className="ec-input" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} style={{ width: 80 }}>
-          {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{m}월</option>)}
-        </select>
-        <span className="text-[12.5px] text-ec-label">~</span>
-        <select className="ec-input" value={toMonth} onChange={(e) => setToMonth(e.target.value)} style={{ width: 80 }}>
-          {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{m}월</option>)}
-        </select>
-        <span className="text-[12.5px] text-ec-label ml-[8px]">구분</span>
-        <div className="ec-pills">
-          {MODES.map((m) => (
-            <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
-                    onClick={() => setMode(m)}>{m}</button>
-          ))}
-        </div>
-        <span className="text-[12.5px] text-ec-label ml-[8px]">판매액</span>
-        <div className="ec-pills">
-          {([['공급가액', false], ['공급가액+VAT', true]] as const).map(([label, v]) => (
-            <button key={label} type="button" className={`ec-pill no-ec${withVat === v ? ' active' : ''}`}
-                    onClick={() => setWithVat(v)}>{label}</button>
-          ))}
-        </div>
-        <span className="text-[12.5px] text-ec-label ml-[8px]">원가</span>
-        <div className="ec-pills">
-          {(['선입선출(판매)', '월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
-            <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
-                    onClick={() => setBasis(b)}>{b}</button>
-          ))}
-        </div>
-      </div>
-
-      {/*
-        원본 월별이익현황 조건의 창고·프로젝트·거래처·품목. 일별이익현황과 같은 이름·같은 자리다.
-        [관리항목]은 판매 라인이 관리항목을 안 들어 거를 수가 없어 만들지 않는다.
-      */}
-      <ul className="ec-cond" style={{ marginBottom: 10 }}>
+      <ul className="ec-cond mb-[10px]">
+        <EcCond label="구분">
+          <div className="ec-pills">
+            {MODES.map((m) => (
+              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
+                      onClick={() => setMode(m)}>{m}</button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="기준월" pick>
+          <span className={periodMissing ? 'rounded-ec outline outline-1 outline-ec-danger' : undefined}>
+            <CodePickerField label="기준월" hideLabel width={260} placeholder="기준월"
+                             value={periodId} onChange={(v) => { setPeriodId(v); if (v) setPeriodMissing(false) }}
+                             items={periods.map((p) => ({ value: String(p.id), name: periodText(p) }))} />
+          </span>
+        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
@@ -407,6 +328,14 @@ export default function MonthlyProfitPage() {
             ))}
           </div>
         </EcCond>
+        <EcCond label="판매액">
+          <div className="ec-pills">
+            {([['공급가액', false], ['공급가액+VAT', true]] as const).map(([label, v]) => (
+              <button key={label} type="button" className={`ec-pill no-ec${withVat === v ? ' active' : ''}`}
+                      onClick={() => setWithVat(v)}>{label}</button>
+            ))}
+          </div>
+        </EcCond>
         {/* 원본 [기타] — 결재방표시와 같은 줄에 선다(사본 실측). */}
         <EcCond label="수량관리제외품목포함">
           <label className="text-[12.5px] flex items-center gap-[4px]">
@@ -423,124 +352,74 @@ export default function MonthlyProfitPage() {
       </ul>
 
       {unknownCost > 0 && (
-        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
-          <b>{num(unknownCost)}</b>개 라인의 {basis} 를 찾지 못했습니다. 그 줄의 원가·이익은 <b>'—'</b> 로 두고
-          합계에서도 뺐습니다 — 0 으로 채우면 이익이 매출 전액으로 부풀어 오릅니다.
+        <p className="ec-alert ec-alert-info mb-[8px]">
+          <b>{num(unknownCost)}</b>개 라인의 원가가 이 기준월에 생성돼 있지 않습니다 — [원가생성/수정]에서 [생성]하세요.
+          그 줄의 원가 · 이익은 '—' 로 두고 합계에서도 뺐습니다.
         </p>
       )}
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        판매액 <b className="text-ec-blue text-[14px]">{won(totals.revenue)}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        원가 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        이익 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
-          {allUnknown ? '—' : won(totals.profit)}
-        </b>
-        {!allUnknown && <span className="text-ec-hint"> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
-      </div>
-
+      {shown && <EcReportHead title={REPORT_TITLE[shownMode]} period={`${ymSlash(shown.startMonth)} ~ ${ymSlash(shown.endMonth)}`} />}
       <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th className="w-[40px]"></th>
-              {heads.map((h) => <th key={h}>{h}</th>)}
-              {/*
-                <b>월별이익현황(E040805) [구분]=품목별 2026-09-09 원본 격자 실측</b>(자료 33줄).
-                원본 머리는 <b>두 줄</b>이다 —
-                위: [품목코드 · 품목명[규격] · 판매(3) · 원가(2) · 이익(2) · <b>이익율</b>],
-                아래: 판매 밑에 [수량·단가·금액], 원가·이익 밑에 각각 [단가·금액].
-                <b>일별이익현황(E040806)과 다른 점</b>: 이쪽에는
-                [이익금액(부대비용포함)]·[판매부대비용]이 <b>없다</b>. 우리는 둘 다 그리는데
-                우리 열이니 그대로 둔다(부대비용을 뺀 이익을 월 단위로도 보고 싶다).
-                [구분]도 넷뿐이다 — 원본에 [라인별]·[사용자지정집계]가 없고,
-                우리 다섯째 [월별]은 우리 것이다. 기본값(품목별)은 같다.
-                우리는 한 줄 머리라 <b>금액만</b> 낸다(단가 셋은 아직 없다).
-                [건수]도 원본에 없는 우리 열이다.
-
-                <p><b>2026-09-10 — [이익]과 [이익율]은 원본에서 두 칸인데 우리는 한 칸에
-                합쳐 그리고 있었다.</b> 머리를 <code>{'{'}'이익'{'}'} ({'{'}'이익율'{'}'})</code> 로
-                적어 두었는데, 정렬 검사는 <code>&lt;th&gt;{'{'}'이름'{'}'}&lt;/th&gt;</code> 처럼
-                <b>표현식 하나만</b> 든 머리는 읽지만 뒤에 글자가 붙으면 못 읽는다 —
-                그래서 이 두 열은 <b>검사에서 통째로 빠져 있었다</b>(정렬 대조표에는
-                [이익율]=우 가 진작 적혀 있었는데 맞춰 볼 머리가 없었다).
-                고정 이름을 표현식에 담으면 <b>검사가 조용해질 뿐 맞는 것이 아니다.</b>
-                두 칸으로 가르고 머리를 글자 그대로 적었다.
-              */}
-              <th className="text-right w-[70px]">건수</th>
+              {heads.map((h) => <th key={h} rowSpan={2}>{h}</th>)}
+              <th colSpan={3} className="text-center">판매</th>
+              <th colSpan={2} className="text-center">원가</th>
+              <th rowSpan={2} className="text-right w-[110px]">판매부대비용</th>
+              <th colSpan={2} className="text-center">이익</th>
+              <th rowSpan={2} className="text-right w-[80px]">이익율</th>
+            </tr>
+            <tr>
               <th className="text-right w-[90px]">수량</th>
-              <th className="text-right w-[130px]">판매액</th>
-              <th className="text-right w-[130px]">원가</th>
-              <th className="text-right w-[130px]">이익</th>
-              <th className="text-right w-[90px]">이익율</th>
-              <th className="text-right w-[120px]">판매부대비용</th>
-              <th className="text-right w-[140px]">이익금액(부대비용포함)</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={colCount} className="text-center text-ec-ink">불러오는 중…</td></tr>
+              <tr><td colSpan={colCount} className="ec-empty">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={colCount} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-            ) : rows.map((r, i) => {
-              const color = r.profit === null ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : r.profit < 0 ? 'var(--ec-danger)' : undefined
-              return (
-                <tr key={r.key}>
-                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
-                  {heads.map((h, hi) => (
-                    <td key={h} style={hi === 0 && mode === '품목별' ? { fontFamily: 'monospace' } : undefined}>
-                      {r.label[hi]}
-                    </td>
-                  ))}
-                  <td className="text-right text-ec-hint">{num(r.count)}</td>
-                  <td className="text-right">{num(r.qty)}</td>
-                  <td className="text-right text-ec-blue">{won(r.revenue)}</td>
-                  <td style={{ textAlign: 'right', color: r.cost === null ? 'var(--ec-text-off)' : '#a5561b' }}>
-                    {r.cost === null ? '—' : won(r.cost)}
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color }}>
-                    {r.profit === null ? '—' : won(r.profit)}
-                  </td>
-                  <td style={{ textAlign: 'right', color: r.profit === null ? 'var(--ec-text-off)' : 'var(--ec-text-hint)' }}>
-                    {r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}
-                  </td>
-                  <td style={{ textAlign: 'right', color: r.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>
-                    {r.extra === 0 ? '—' : won(r.extra)}
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? 'var(--ec-text-off)' : (r.profit - r.extra) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                    {r.profit === null ? '—' : won(r.profit - r.extra)}
-                  </td>
-                </tr>
-              )
-            })}
+              <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : rows.map((r) => (
+              <tr key={r.key}>
+                {heads.map((h, hi) => <td key={h}>{r.label[hi]}</td>)}
+                <td className="text-right">{num(r.qty)}</td>
+                <td className="text-right">{per(r.revenue, r.qty) === null ? '' : won(per(r.revenue, r.qty) as number)}</td>
+                <td className="text-right">{won(r.revenue)}</td>
+                <td className="text-right">{per(r.cost, r.qty) === null ? '—' : won(per(r.cost, r.qty) as number)}</td>
+                <td className="text-right">{r.cost === null ? '—' : won(r.cost)}</td>
+                <td className="text-right">{r.extra === 0 ? '' : won(r.extra)}</td>
+                <td className="text-right">{per(r.profit, r.qty) === null ? '—' : won(per(r.profit, r.qty) as number)}</td>
+                <td className="text-right">{r.profit === null ? '—' : won(r.profit)}</td>
+                <td className="text-right">{r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}</td>
+              </tr>
+            ))}
           </tbody>
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={colCount - 7} className="text-right font-bold bg-ec-page">합계</td>
+                {/* 원본 합계 줄은 단가 칸을 비운다(2026-10-13 실측: 합계 6,771 · · 587,680,000 · · 268,357,011 · 2,000 · · 319,320,989 · 54%). */}
+                <td colSpan={heads.length} className="text-center font-bold bg-ec-page">합계</td>
                 <td className="text-right font-bold bg-ec-page">{num(totals.qty)}</td>
-                <td className="text-right font-bold bg-ec-page text-ec-blue">{won(totals.revenue)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : '#a5561b' }}>
-                  {allUnknown ? '—' : won(totals.cost)}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                  {allUnknown ? '—' : won(totals.profit)}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : 'var(--ec-text-hint)' }}>
-                  {allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: extraTotals.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>
-                  {extraTotals.extra === 0 ? '—' : won(extraTotals.extra)}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : extraTotals.profitWithExtra < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                  {allUnknown ? '—' : won(extraTotals.profitWithExtra)}
-                </td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{won(totals.revenue)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : won(totals.cost)}</td>
+                <td className="text-right font-bold bg-ec-page">{totals.extra === 0 ? '' : won(totals.extra)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : won(totals.profit)}</td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}</td>
               </tr>
             </tfoot>
           )}
         </table>
       </div>
+      {shown && <EcReportFoot />}
     </EcListShell>
   )
 }
