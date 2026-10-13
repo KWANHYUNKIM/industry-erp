@@ -34,7 +34,14 @@ if (cmd === 'save') {
     .filter((r) => !r.includes(':') && !r.includes('*') && r !== '/login' && r.startsWith(prefix))
   if (!prefix) routes.unshift('/')
   mkdirSync(a, { recursive: true })
-  const br = await openBrowser({ width: 1600, height: 900 })
+  // 처음 로그인부터 못 하면(남이 백엔드를 재기동하는 중 — ECONNREFUSED) 스택 대신 한 줄로 알리고 실패로 끝낸다.
+  // 예전에는 node 스택만 찍고 끝나 '0 화면' 인지 알아보기 어려웠다(2026-10-14 공용 4차).
+  let br
+  try { br = await openBrowser({ width: 1600, height: 900 }) }
+  catch (e) {
+    console.log(`✗ 실패 — 로그인 못 함(${e.cause?.code ?? e.message.slice(0, 60)}). 백엔드(8081)가 뜬 뒤 다시 돌린다(뜬 화면은 이어서 뜬다). 0/${routes.length}`)
+    process.exit(1)
+  }
   let n = 0
   // 로그인 화면이 찍힌 라우트 — 백엔드가 도중에 내려가면 앱이 /login 으로 튕기고, 그 화면을 '고친 뒤' 로 떠서
   // 엉터리 비교가 나왔다(2026-10-14 공용 3차: 63화면이 전부 로그인 화면). 이런 화면은 저장하지 않고 '실패' 로 센다.
