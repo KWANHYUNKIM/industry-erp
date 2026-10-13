@@ -145,6 +145,9 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
             <th>{received ? '수령수표계좌코드' : '발행수표계좌코드'}</th>
             <th>거래처명</th>
             <th>계정명</th>
+            {/* 원본 부서명 · 프로젝트명 — 우리 수표에 칸이 없어 늘 빈칸(2026-10-14 발행수표거래내역 실측 열 차례) */}
+            <th>부서명</th>
+            <th>프로젝트명</th>
             <th>적요</th>
             <th className="text-right">증가금액</th>
             <th className="text-right">감소금액</th>
@@ -153,13 +156,13 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
             ...(g.opening !== 0 ? [
               <tr key={`${g.c.id}-open`}>
-                <td colSpan={9} className="text-center">이월잔액</td>
+                <td colSpan={11} className="text-center">이월잔액</td>
                 <td className="text-right">{won(g.opening)}</td>
               </tr>,
             ] : []),
@@ -169,16 +172,20 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
                 <td>{l.kind}</td>
                 <td>{g.c.checkNo}</td>
                 <td>{g.c.bankAccountId != null ? acctNo.get(g.c.bankAccountId) ?? '' : ''}</td>
-                <td>{g.c.partnerName ?? ''}</td>
+                {/* 입금 · 출금처리(입금보고서 · 지출결의서)로 줄인 감소 줄은 거래처 빈칸(원본 — 그 분개의 거래처는 수표계좌) */}
+                <td>{l.dec && g.c.settledByVoucher ? '' : g.c.partnerName ?? ''}</td>
                 <td>{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')}</td>
+                <td />
+                <td />
                 <td>{g.c.remark ?? ''}</td>
                 <td className="text-right">{won(l.inc)}</td>
                 <td className="text-right">{won(l.dec)}</td>
-                <td className="text-right">{Math.round(l.bal).toLocaleString('ko-KR')}</td>
+                {/* 원본은 잔액 0 을 빈칸으로 그린다(발행수표거래내역 감소 줄) */}
+                <td className="text-right">{Math.round(l.bal) === 0 ? '' : Math.round(l.bal).toLocaleString('ko-KR')}</td>
               </tr>
             )),
             <tr key={`${g.c.id}-sub`} style={SUB_ROW}>
-              <td colSpan={7} className="text-center">{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
+              <td colSpan={9} className="text-center">{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
               <td className="text-right">{won(g.inc)}</td>
               <td className="text-right">{won(g.dec)}</td>
               <td></td>
@@ -187,7 +194,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
         </tbody>
         <tfoot>
           <tr style={SUB_ROW}>
-            <td colSpan={7} className="text-center">누계</td>
+            <td colSpan={9} className="text-center">누계</td>
             <td className="text-right">{won(total.inc)}</td>
             <td className="text-right">{won(total.dec)}</td>
             <td></td>

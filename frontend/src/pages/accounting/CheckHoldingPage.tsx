@@ -169,12 +169,15 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
             </tr>,
           ])}
         </tbody>
-        <tfoot>
-          <tr style={SUB_ROW}>
-            <td colSpan={5} className="text-center">합계</td>
-            <td className="text-right">{won(total)}</td>
-          </tr>
-        </tfoot>
+        {/* 원본 발행수표현황 빈 판은 '등록된 데이터가 없습니다.' 한 줄뿐 — 합계 줄이 없다(2026-10-14 실측) */}
+        {groups.length > 0 && (
+          <tfoot>
+            <tr style={SUB_ROW}>
+              <td colSpan={5} className="text-center">합계</td>
+              <td className="text-right">{won(total)}</td>
+            </tr>
+          </tfoot>
+        )}
       </table>
       <EcReportFoot />
     </EcListShell>

@@ -99,7 +99,8 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
   /* 수령수표입금처리 [입금보고서작성] 으로 줄인 감소 줄은 거래유형 '입금보고서'(2026-10-13 실측) — 체크칸이 막히고 입금보고서를 지우면 사라진다. */
   const byVoucher = (m: Move) => !m.inc && !!m.c.settledByVoucher
-  const kindOf = (m: Move) => (byVoucher(m) ? '입금보고서' : m.c.directEntry ? (m.inc ? '수표만증가' : '수표만감소') : m.inc ? (received ? '수령' : '발행') : m.c.statusName)
+  /* 발행수표출금처리 [지출결의서작성] 으로 줄인 감소 줄은 '지출결의서'. 입금 · 출금처리 감소 줄은 둘 다 거래처명 빈칸(2026-10-14 실측 — 그 분개의 거래처는 수표계좌다). */
+  const kindOf = (m: Move) => (byVoucher(m) ? (received ? '입금보고서' : '지출결의서') : m.c.directEntry ? (m.inc ? '수표만증가' : '수표만감소') : m.inc ? (received ? '수령' : '발행') : m.c.statusName)
   /* 수표내역입력 전표 번호(원본 [일자] '2026/10/13 -5' 의 5) — 분개로 움직인 줄은 없다. */
   const entryNo = (m: Move) => (m.inc ? m.c.directInNo : m.c.directOutNo) ?? null
   const moves = useMemo(() => {
@@ -156,7 +157,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       setError(extractErrorMessage(e))
     }
   }
-  const kinds = received ? ['수령', '입금완료', '부도', '수표만증가', '수표만감소', '입금보고서'] : ['발행', '결제완료', '수표만증가', '수표만감소']
+  const kinds = received ? ['수령', '입금완료', '부도', '수표만증가', '수표만감소', '입금보고서'] : ['발행', '결제완료', '수표만증가', '수표만감소', '지출결의서']
   const resetConds = () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') }
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [moves.length])
@@ -241,15 +242,17 @@ export default function CheckListPage({ type }: { type: CheckType }) {
             <th>거래처명</th>
             <th className="text-right">금액</th>
             <th>적요</th>
+            {/* 원본 발행수표조회에만 있는 [인쇄] 열(줄마다 '인쇄' 링크 — 인쇄는 누르지 않아 무엇을 여는지 못 잼) */}
+            {!received && <th>인쇄</th>}
             <th>거래유형</th>
             <th>회계전표일자-No.</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={received ? 9 : 10} className="ec-empty">불러오는 중…</td></tr>
           ) : moves.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={received ? 9 : 10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : moves.map((m, i) => {
             const no = (m.inc ? m.c.issueJournalNo : m.c.settleJournalNo) ?? ''
             return (
@@ -265,9 +268,10 @@ export default function CheckListPage({ type }: { type: CheckType }) {
                 </td>
                 <td>{m.c.checkNo}</td>
                 <td>{m.inc ? '증가' : '감소'}</td>
-                <td>{m.c.partnerName ?? ''}</td>
+                <td>{byVoucher(m) ? '' : m.c.partnerName ?? ''}</td>
                 <td className="text-right">{won(Number(m.c.amount))}</td>
                 <td>{m.c.remark ?? ''}</td>
+                {!received && <td className="text-ec-navy">인쇄</td>}
                 <td>{kindOf(m)}</td>
                 {/* 원본 '2026/10/13 -12' — 우리 GL 번호의 끝 일련번호만 */}
                 <td>{no ? dateNo(m.date, no) : ''}</td>

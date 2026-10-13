@@ -92,12 +92,17 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     const gl = (flow === '증가' ? c.issueJournalNo : c.settleJournalNo) ?? ''
     return gl ? `-${Number(gl.split('-').pop()) || gl}` : ''
   }
-  const kindOf = (c: BankCheck) => (c.directEntry ? (flow === '증가' ? '수표만증가' : '수표만감소')
+  /* 입금처리 · 출금처리로 줄인 감소 — 원본 발행수표감소현황 '2026/10/14 -2 · (거래처 빈칸) · 지출결의서' · '[] 계'(2026-10-14 실측).
+     그 분개의 거래처는 수표계좌라 수표의 거래처를 찍지 않는다. */
+  const byVoucher = (c: BankCheck) => flow === '감소' && !!c.settledByVoucher
+  const partnerOf = (c: BankCheck) => (byVoucher(c) ? null : c.partnerId)
+  const kindOf = (c: BankCheck) => (byVoucher(c) ? (received ? '입금보고서' : '지출결의서')
+    : c.directEntry ? (flow === '증가' ? '수표만증가' : '수표만감소')
     : flow === '증가' ? (received ? '수령' : '발행') : c.statusName)
   const shown = useMemo(() => checks
     .filter((c) => c.type === type)
     .filter((c) => { const d = dayOf(c); return !!d && d >= from && d <= to })
-    .filter((c) => !partner || String(c.partnerId) === partner)
+    .filter((c) => !partner || String(partnerOf(c)) === partner)
     .filter((c) => !bankAccount || (c.bankAccountName ?? '') === bankAccount)
     .filter((c) => !checkNo || c.checkNo.includes(checkNo))
     .filter((c) => !remark || (c.remark ?? '').includes(remark))
@@ -113,11 +118,11 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   const groups = useMemo(() => {
     const by = new Map<string, BankCheck[]>()
     for (const c of shown) {
-      const k = grouped ? String(c.partnerId ?? '') : ''
+      const k = grouped ? String(partnerOf(c) ?? '') : ''
       by.set(k, [...(by.get(k) ?? []), c])
     }
     return [...by.values()]
-      .map((cs) => ({ cs, code: cs[0].partnerId == null ? '' : codeOf(cs[0].partnerId), sum: cs.reduce((a, c) => a + Number(c.amount), 0) }))
+      .map((cs) => ({ cs, code: partnerOf(cs[0]) == null ? '' : codeOf(partnerOf(cs[0])), sum: cs.reduce((a, c) => a + Number(c.amount), 0) }))
       .sort((a, b) => a.code.localeCompare(b.code))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, pickers.partners, grouped])
@@ -175,7 +180,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
         <EcCond label="거래유형">
           <select className="ec-input" value={kind} onChange={(e) => setKind(e.target.value)} style={{ width: 120 }}>
             <option value="">전체</option>
-            {(flow === '증가' ? [received ? '수령' : '발행', '수표만증가'] : received ? ['입금완료', '부도', '수표만감소'] : ['결제완료', '수표만감소']).map((k) => <option key={k} value={k}>{k}</option>)}
+            {(flow === '증가' ? [received ? '수령' : '발행', '수표만증가'] : received ? ['입금완료', '부도', '수표만감소', '입금보고서'] : ['결제완료', '수표만감소', '지출결의서']).map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </EcCond>
         <EcCond label="최초작성자" pick>
@@ -208,7 +213,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
               <tr key={c.id}>
                 <td>{dateText(dayOf(c))} {noOf(c)}</td>
                 <td>{c.checkNo}</td>
-                <td>{c.partnerName ?? ''}</td>
+                <td>{byVoucher(c) ? '' : c.partnerName ?? ''}</td>
                 <td>{accountOf(c)}</td>
                 <td>{kindOf(c)}</td>
                 <td>{c.remark ?? ''}</td>
@@ -216,7 +221,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
               </tr>
             )),
             ...(grouped ? [<tr key={`sub-${g.cs[0].id}`} className="font-bold bg-ec-stripe">
-              <td colSpan={6} className="text-center">{g.cs[0].partnerName ? g.cs[0].partnerName : `[${g.code}]`} 계</td>
+              <td colSpan={6} className="text-center">{partnerOf(g.cs[0]) != null && g.cs[0].partnerName ? g.cs[0].partnerName : `[${g.code}]`} 계</td>
               <td className="text-right">{won(g.sum)}</td>
             </tr>] : []),
           ])}
