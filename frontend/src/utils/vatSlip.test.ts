@@ -1,7 +1,7 @@
 /** 세금계산서 전표의 공급가액 · 부가세 — npm run test:unit */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { vatEntrySide, vatSlipAmounts } from './vatSlip.ts'
+import { invoiceSlipAmounts, vatEntrySide, vatSlipAmounts } from './vatSlip.ts'
 
 const L = (accountCode: string, debit: number, credit: number) => ({ accountCode, debit, credit })
 
@@ -43,4 +43,13 @@ test('부가세유형 전표의 쪽 — 판매 회계반영(SALES)은 매출, �
   assert.equal(vatEntrySide({ sourceType: 'MANUAL', lines: sale }), '매출')
   assert.equal(vatEntrySide({ sourceType: 'MANUAL', lines: buy }), '매입')
   assert.equal(vatEntrySide({ sourceType: 'MANUAL', lines: [L('101', 1, 0), L('102', 0, 1)] }), null)
+})
+
+test('계산서(면세) — 부가세 줄이 없어도 부가세유형 계산서면 공급가액, 부가세 0', () => {
+  const sale = { sourceType: 'VAT_SALES', vatType: '계산서', lines: [L('108', 100000, 0), L('404', 0, 100000)] }
+  assert.deepEqual(invoiceSlipAmounts(sale, '매출'), { supply: 100000, vat: 0 })
+  assert.equal(invoiceSlipAmounts(sale, '매입'), null)
+  const buy = { sourceType: 'VAT_PURCHASE', vatType: '계산서', lines: [L('153', 50000, 0), L('251', 0, 50000)] }
+  assert.deepEqual(invoiceSlipAmounts(buy, '매입'), { supply: 50000, vat: 0 })
+  assert.equal(invoiceSlipAmounts({ ...sale, vatType: '카드매출' }, '매출'), null)
 })

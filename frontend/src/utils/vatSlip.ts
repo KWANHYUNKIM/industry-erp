@@ -49,6 +49,22 @@ export function vatSlipAmounts(lines: readonly Line[], side: VatSide): { supply:
 }
 
 /**
+ * 부가세 줄이 없는 <b>계산서(면세)</b>까지 센다 — 부가세유형이 '계산서 …' 이고 출처로 쪽이 맞으면,
+ * 매출은 대변 · 매입은 차변 합이 공급가액(수수료 두 줄은 뺀다), 부가세 0.
+ * 2026-10-13 loginaa 부가세Checklist: 9/30 매출전표 I 계산서 100,000 두 장 → 1. 부가세매출액 +200,000 ·
+ * 6. 중복거래 매출에 두 줄(부가세 0), 매입전표 I 계산서 50,000 두 장 → 6. 매입에 두 줄.
+ */
+export function invoiceSlipAmounts(
+  e: { sourceType: string; vatType?: string | null; lines: readonly Line[] }, side: VatSide,
+): { supply: number; vat: number } | null {
+  const amt = vatSlipAmounts(e.lines, side)
+  if (amt) return amt
+  if (!e.vatType?.trim().startsWith('계산서') || vatEntrySide(e) !== side) return null
+  const supply = withoutFee(e.lines).reduce((s, l) => s + Number(side === '매출' ? l.credit : l.debit), 0)
+  return { supply, vat: 0 }
+}
+
+/**
  * 매출전표 I · 매입전표 I 의 <b>[수수료]</b> 두 줄을 뺀다 — 차) 지급수수료(831) X / 대) 입금(출금)계좌 X(2026-10-13 loginaa 26/10/13-9 · -11).
  * 빼지 않으면 매출은 입금계좌의 수수료 대변이, 매입은 지급수수료 차변이 공급가액에 더해진다(100,000 + 1,000).
  * 수수료 대변은 <b>같은 계정이 차변(매출) 또는 대변(매입)에 이미 선</b> 줄 — 그 계좌에 X 짜리 줄이 하나 더 있는 것으로 알아본다.

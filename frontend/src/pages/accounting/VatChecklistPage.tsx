@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { vatSlipAmounts, type VatSide } from '../../utils/vatSlip'
+import { invoiceSlipAmounts, vatSlipAmounts, type VatSide } from '../../utils/vatSlip'
 import { incomeBucketOf } from '../../utils/incomeBuckets'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -14,6 +14,8 @@ interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: bool
 interface AccountOpt { code: string; detailCategory: string | null; division: string }
 interface VoucherRow { id: number; journalEntryId: number | null; type: 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT' }
 interface VoucherList { rows: VoucherRow[] }
+/** (세금)계산서발행/수령(E030202) — 분개 없는 부가세 신고용 계산서. */
+interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string; partnerName: string; supplyAmount: number; vatAmount: number; remark: string | null }
 interface AccRow { code: string; name: string; amount: number; vat: number }
 interface SlipRow { key: string; date: string; partner: string; supply: number; vat: number; description: string }
 interface BalanceRow { key: string; account: string; partner: string; balance: number }
@@ -30,6 +32,8 @@ const CASH_CODES = ['101', '102', '103']
 /** 원본 4. 의 상대 — 이카운트(회사)와 주고받은 세금계산서. */
 const ECOUNT = '이카운트'
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
+/** 6. 중복거래의 부가세는 0 도 찍는다(원본 계산서 줄 '100,000 · 0 · 100,000'). */
+const num = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const lastDay = (m: string) => {
   const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)
   return `${m}-${String(d.getDate()).padStart(2, '0')}`
@@ -54,10 +58,11 @@ function vatByAccount(entries: JournalEntry[]): AccRow[] {
   return [...by.values()].sort((a, b) => a.code.localeCompare(b.code))
 }
 
+/** 부가세 줄이 든 전표 + 계산서(면세, 부가세유형 '계산서 …') — 원본 1. 부가세매출액 · 6. 중복거래가 계산서도 센다. */
 function slipRows(entries: JournalEntry[], side: VatSide): SlipRow[] {
   const out: SlipRow[] = []
-  for (const e of entries) {
-    const amt = vatSlipAmounts(e.lines, side)
+  for (const e of entries as (JournalEntry & { vatType?: string | null })[]) {
+    const amt = invoiceSlipAmounts(e, side)
     if (amt) out.push({ key: `${side}${e.id}`, date: e.entryDate, partner: e.partnerName ?? '', supply: amt.supply, vat: amt.vat, description: e.description ?? '' })
   }
   return out.sort((a, b) => a.date.localeCompare(b.date))
@@ -80,6 +85,9 @@ function duplicates(rows: SlipRow[]): SlipRow[] {
  * 2. 지출결의서중 부가세가 등록된 상황 · 3. 가지급금정산서중 부가세가 등록된 상황 [계정코드 · 계정명 · 금액 · 수수료 · 부가세],
  * 4. 이카운트 매출 매입과 맞는지 확인 — 이카운트가 우리에게 발행한 것 · 우리가 이카운트로 입력한 것 [일자 · 거래처명 · 금액 · 수수료 · 적요]
  * (원본 2026/09/28 이카운트 4,000,000 · 400,000 — '수수료' 칸에 부가세가 찍힌다),
+ * 계산서(면세)도 센다(2026-10-13 실측 — 9/30 매출전표 I 계산서 100,000 두 장: 1. 396,450,000 → 396,650,000,
+ * 6. 매출 '2026/09/30 QA세무-계산서 100,000 0 100,000' 두 줄 · 매입전표 I 계산서 50,000 두 장도 6. 매입에 두 줄),
+ * (세금)계산서발행/수령(분개 없음)의 계산서도 1. · 6. 에 싣는다(같은 날 실측 — 부가세매출액만 +200,000, 손익계산서매출액 그대로),
  * 5. 자금현황표상 마이너스인 계정 [계정명 · 거래처명 · 잔액](자금현황표와 같은 차변 − 대변 잔액, 조회 끝날까지),
  * 6. 중복거래 확인대상 자료 매출 · 매입 [일자 · 거래처명 · 공급가액 · 부가세 · 합계].
  *
@@ -104,19 +112,26 @@ export default function VatChecklistPage() {
     const from = `${f}-01`
     const to = lastDay(t)
     try {
-      const [period, upTo, pl, vouchers] = await Promise.all([
+      const [period, upTo, pl, vouchers, taxVouchers] = await Promise.all([
         api.get<JournalList>('/journals', { params: { from, to, all: true } }),
         api.get<JournalList>('/journals', { params: { from: '2000-01-01', to, all: true } }),
         api.get<IncomeStatement>('/journals/income-statement', { params: { from, to } }),
         api.get<VoucherList>('/vouchers', { params: { from, to, all: true } }),
+        api.get<TaxVoucher[]>('/tax-vouchers', { params: { from, to } }),
       ])
       const entries = period.data.rows
       const cat = new Map(accounts.map((a) => [a.code, a]))
       const plSales = pl.data.revenues
         .filter((r) => incomeBucketOf(r.division, cat.get(r.accountCode)?.detailCategory ?? '') === 'SALES')
         .reduce((s, r) => s + Number(r.amount), 0)
-      const sales = slipRows(entries, '매출')
-      const purchases = slipRows(entries, '매입')
+      /* (세금)계산서발행/수령의 계산서도 1. 부가세매출액 · 4. · 6. 에 실린다 — 원본 9/30 매출 계산서 100,000 두 장:
+         부가세매출액 396,450,000 → 396,650,000(손익계산서매출액은 그대로) · 6. 매출 두 줄(2026-10-13 loginaa). */
+      const tvRows = (side: TaxVoucher['side']): SlipRow[] => taxVouchers.data.filter((v) => v.side === side).map((v) => ({
+        key: `T${v.id}`, date: v.entryDate, partner: v.partnerName ?? '', supply: Number(v.supplyAmount), vat: Number(v.vatAmount), description: v.remark ?? '',
+      }))
+      const byDate = (a: SlipRow, b: SlipRow) => a.date.localeCompare(b.date)
+      const sales = [...slipRows(entries, '매출'), ...tvRows('SALES')].sort(byDate)
+      const purchases = [...slipRows(entries, '매입'), ...tvRows('PURCHASE')].sort(byDate)
       /* 간편전표가 만든 회계전표 — 전표 쪽 출처 칸보다 간편전표가 든 전표 id 로 잇는다. */
       const typeOf = new Map(vouchers.data.rows.filter((v) => v.journalEntryId != null).map((v) => [v.journalEntryId!, v.type]))
       const voucherOf = (type: VoucherRow['type']) => entries.filter((e) => typeOf.get(e.id) === type)
@@ -208,10 +223,10 @@ export default function VatChecklistPage() {
           <p className="mt-[12px] mb-[4px]">6.중복거래 확인대상 자료</p>
           <p className="mb-[4px]">매출</p>
           <CheckTable title="6. 중복 매출" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]}
-                      rows={sheet.dupSales.map((r) => [reportDate(r.date), r.partner, won(r.supply), won(r.vat), won(r.supply + r.vat)])} />
+                      rows={sheet.dupSales.map((r) => [reportDate(r.date), r.partner, won(r.supply), num(r.vat), won(r.supply + r.vat)])} />
           <p className="mt-[8px] mb-[4px]">매입</p>
           <CheckTable title="6. 중복 매입" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]}
-                      rows={sheet.dupPurchases.map((r) => [reportDate(r.date), r.partner, won(r.supply), won(r.vat), won(r.supply + r.vat)])} />
+                      rows={sheet.dupPurchases.map((r) => [reportDate(r.date), r.partner, won(r.supply), num(r.vat), won(r.supply + r.vat)])} />
 
           <EcReportFoot page={false} />
         </div>
