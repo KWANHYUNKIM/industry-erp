@@ -208,7 +208,7 @@ export default function AsRepairListPage() {
     <EcListShell
       onSearch={load}
       title="A/S수리조회"
-      searchable={false}
+      /* 원본 E040606 은 머리에 빠른 검색칸이 있고 조건 판은 접혀서 시작한다 — [Search(F3)] 로 펴고 판 아래 [검색(F8)] 로 찾으면 접힌다(2026-10-13 실측). */
       onNew={openNew}
       actions={[
         /* 원본 버튼줄: 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 다른전표생성 · 선택삭제 · Excel · 이력조회.

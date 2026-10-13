@@ -70,6 +70,26 @@ public class LotController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 원본 수정 창 [저장(F8)] — 품목 · udi코드 · 유효기한. */
+    @PutMapping("/{id}")
+    public LotResponse update(@PathVariable Long id, @Valid @RequestBody com.erp.inventory.lot.dto.LotDtos.UpdateLotRequest req) {
+        return lotService.update(id, req);
+    }
+
+    /** 원본 수정 창 [삭제] — 내역이 있으면 막힌다. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        lotService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 원본 목록 [사용중단/재사용]. */
+    @PostMapping("/use")
+    public ResponseEntity<Void> setUse(@Valid @RequestBody com.erp.inventory.lot.dto.LotDtos.LotUseRequest req) {
+        lotService.setUse(req.ids(), req.use());
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{id}/consume")
     public LotResponse consume(@PathVariable Long id, @Valid @RequestBody ConsumeLotRequest req) {
         return lotService.consume(id, req);

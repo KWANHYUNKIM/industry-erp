@@ -88,17 +88,21 @@ public class LotService {
                     .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()))
                 : null;
 
+        BigDecimal qty = req.inboundQty() != null ? req.inboundQty() : BigDecimal.ZERO;
         Lot lot = Lot.builder()
-                .lotNo(req.lotNo())
+                .lotNo(req.lotNo().trim())
                 .item(item)
                 .warehouse(warehouse)
                 .inboundDate(req.inboundDate() != null ? req.inboundDate() : LocalDate.now())
                 .expireDate(req.expireDate())
-                .inboundQty(req.inboundQty())
-                .stockQty(req.inboundQty())
+                .inboundQty(qty)
+                .stockQty(qty)
                 .held(false)
+                .udiCode(blank(req.udiCode()))
                 .build();
         Lot saved = lotRepository.save(lot);
+        /* 원본 등록은 마스터만 만든다(내역 0줄) — 수량을 준 때만(예전 호출) 입고 줄을 남긴다. */
+        if (qty.signum() == 0) return LotResponse.from(saved);
         /*
          * 입고 이력은 <b>입고일자</b>에 단다. 여태 등록한 날(오늘)로 달아, 입고일을 지난 날로 적은 로트가
          * 기준일자를 그 사이로 잡은 재고현황·품목vs시리얼비교에서 0 으로 되돌려지고(오늘 들어온 것으로 빼서)
@@ -107,6 +111,46 @@ public class LotService {
         recordTx(saved, LotTxType.INBOUND, req.inboundQty(), saved.getStockQty(), "로트 입고 " + saved.getLotNo(),
                 saved.getInboundDate());
         return LotResponse.from(saved);
+    }
+
+    /** 원본 수정 창 — 번호는 잠기고 품목 · udi코드 · 유효기한만. 내역이 있으면 품목은 못 바꾼다(그 내역의 품목과 어긋난다). */
+    @Transactional
+    public LotResponse update(Long id, LotDtos.UpdateLotRequest req) {
+        Lot lot = getLot(id);
+        if (!lot.getItem().getId().equals(req.itemId())) {
+            if (lotTxRepository.countByLot(lot) > 0) {
+                throw ApiException.badRequest("내역이 있는 시리얼/로트No. 는 품목을 바꿀 수 없습니다.");
+            }
+            lot.setItem(itemRepository.findById(req.itemId())
+                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + req.itemId())));
+        }
+        lot.setExpireDate(req.expireDate());
+        lot.setUdiCode(blank(req.udiCode()));
+        return LotResponse.from(lot);
+    }
+
+    /**
+     * 원본 수정 창 [삭제] — 내역(전표 · 내역입력 · 재고조정)이 있으면 막는다. 원본 문구(2026-10-13 실측):
+     * '처리가 불가능한 코드입니다. 다음 사항을 확인 바랍니다.' + 표 [코드 | 코드명 | 자료] = 'QA재고2-L01 | | 구매: 20261013-0'.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Lot lot = getLot(id);
+        List<LotTransaction> txs = lotTxRepository.findByLotOrderByTxDateAscIdAsc(lot);
+        if (!txs.isEmpty()) {
+            LotTransaction t = txs.get(0);
+            String kind = t.getDocType() != null ? t.getDocType() : t.getType().getDisplayName();
+            throw ApiException.badRequest("처리가 불가능한 코드입니다. 다음 사항을 확인 바랍니다. ["
+                    + lot.getLotNo() + "] " + kind + ": " + t.getTxDate().toString().replace("-", "")
+                    + (t.getSourceNo() != null ? " " + t.getSourceNo() : ""));
+        }
+        lotRepository.delete(lot);
+    }
+
+    /** 원본 목록 [사용중단/재사용] — 확인 창 · 안내 없이 바로 바뀐다. */
+    @Transactional
+    public void setUse(List<Long> ids, boolean use) {
+        for (Long id : ids) getLot(id).setUseYn(use);
     }
 
     @Transactional

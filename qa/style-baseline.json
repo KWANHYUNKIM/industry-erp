@@ -954,11 +954,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/quality/SerialLotPage.tsx": {
-  "inline": 16,
-  "color": 0,
-  "palette": 0
- },
  "pages/quality/UninspectedPage.tsx": {
   "inline": 7,
   "color": 2,

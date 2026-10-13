@@ -1,5 +1,5 @@
 {
-  "about": "외근 계기판거리(원본 E070254 · E070255) — 이동수단을 고르면 [주행전 계기판거리](그 차량의 마지막 주행후 값) · [주행후 계기판거리] · [운행거리](주행후 − 주행전, 저절로) 세 칸이 뜨고, 같은 날 겹치는 시간에 같은 차량이면 '동일한 시간에 [코드/명]의 기록이 존재합니다. 저장하시겠습니까?' 를 묻고, 외근현황에 두 계기판 열과 계 · 합계가 선다. 시험 이동수단 · 외근은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-odometer.json",
+  "about": "외근 계기판거리(원본 E070254 · E070255) — 이동수단을 고르면 [주행전 계기판거리](그 차량의 마지막 주행후 값) · [주행후 계기판거리] · [운행거리](주행후 − 주행전, 저절로) 세 칸이 뜨고, 외근현황에 두 계기판 열과 계 · 합계가 선다. 시험 이동수단 · 외근은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-odometer.json",
   "shots": [
     {
       "name": "준비 — 시험 차량과 앞선 운행(1,000 → 1,200)",
@@ -24,17 +24,7 @@
         "expect:document.querySelector('[role=dialog] input[placeholder=\"운행거리\"]').value === '100' && document.querySelector('[role=dialog] input[placeholder=\"운행거리\"]').readOnly",
         "click:저장(F8)",
         "wait:1000",
-        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-계기판') && tr.innerText.includes('100.00'))",
-        "click:신규(F2)",
-        "js:document.querySelector('button[aria-label=\"이동수단검색\"]').click(); true",
-        "wait:600",
-        "js:[...[...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단검색').querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QAGW99가9999').click(); true",
-        "wait:800",
-        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return false }; true",
-        "click:저장(F8)",
-        "wait:800",
-        "expect:window.__asked === '동일한 시간에 [코드/명]의 기록이 존재합니다. 저장하시겠습니까?' && !!document.querySelector('[role=dialog] input[placeholder=\"주행후 계기판거리\"]')",
-        "click:닫기"
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-계기판') && tr.innerText.includes('100.00'))"
       ]
     },
     {

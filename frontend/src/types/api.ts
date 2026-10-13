@@ -1209,6 +1209,8 @@ export interface BankCheck {
   /** 수표내역입력 전표 번호 — 원본 [일자] '2026/10/13 -5' 의 5(늘린 전표 · 줄인 전표). */
   directInNo?: number | null
   directOutNo?: number | null
+  /** 수령수표입금처리 [입금보고서작성] 으로 손을 떠난 수표 — 수령수표조회 거래유형 '입금보고서', 감소 줄 체크칸 막힘. */
+  settledByVoucher?: boolean
 }
 
 // ===== 비현금거래 (대체전표) =====
@@ -1543,6 +1545,9 @@ export interface Lot {
   /** 저장하지 않고 파생되는 상태 (보류 우선 → 수량 0이면 출고완료) */
   status: LotStatus
   statusName: string
+  /** 원본 [사용구분] — true 사용, false 사용중단. */
+  useYn: boolean
+  udiCode: string | null
 }
 
 export type LotTxType = 'INBOUND' | 'OUTBOUND' | 'ADJUST'

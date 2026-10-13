@@ -55,4 +55,16 @@ public class Lot extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean held = false;
+
+    /*
+     * 원본 시리얼/로트No.등록(E040617)의 [사용구분] — 마스터 플래그(사용 · 사용중단). 목록 기본은 '사용' 이고
+     * 사용중단해도 재고현황에는 그대로 남는다(그 화면 '사용중단시리얼/로트포함' 기본 켬, 2026-10-13 실측).
+     */
+    @Column(name = "use_yn", nullable = false)
+    @Builder.Default
+    private boolean useYn = true;
+
+    /** 원본 생성 창 기본 탭의 [udi코드](의료기기 표준코드). */
+    @Column(name = "udi_code", length = 100)
+    private String udiCode;
 }

@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -86,7 +87,25 @@ public final class LotDtos {
             Long warehouseId,
             LocalDate inboundDate,
             LocalDate expireDate,
-            @NotNull(message = "입고수량을 입력하세요.") @Positive(message = "입고수량은 0보다 커야 합니다.") BigDecimal inboundQty
+            /*
+             * 원본 등록 창에는 수량 칸이 없다 — 등록만으로는 내역 · 재고가 생기지 않는다(2026-10-13 실측: 등록 직후 [보기] 0줄).
+             * 수량은 내역입력 · 전표가 만든다. 그래서 선택이다(없거나 0 이면 마스터만).
+             */
+            @PositiveOrZero(message = "입고수량은 0보다 작을 수 없습니다.") BigDecimal inboundQty,
+            @Size(max = 100, message = "udi코드는 100자까지 넣을 수 있습니다.") String udiCode
+    ) {}
+
+    /** 원본 수정 창 — 시리얼/로트No. 는 잠기고 품목 · udi코드 · 유효기한만 고친다. */
+    public record UpdateLotRequest(
+            @NotNull(message = "품목을 선택하세요.") Long itemId,
+            LocalDate expireDate,
+            @Size(max = 100, message = "udi코드는 100자까지 넣을 수 있습니다.") String udiCode
+    ) {}
+
+    /** 원본 목록 [사용중단/재사용] — 체크한 로트를 한꺼번에. */
+    public record LotUseRequest(
+            @NotEmpty(message = "리스트에 선택된 자료가 없습니다.") List<Long> ids,
+            boolean use
     ) {}
 
     /**
@@ -125,7 +144,9 @@ public final class LotDtos {
             Long warehouseId, String warehouseName,
             LocalDate inboundDate, LocalDate expireDate,
             BigDecimal inboundQty, BigDecimal stockQty,
-            boolean held, LotStatus status, String statusName
+            boolean held, LotStatus status, String statusName,
+            /** 원본 [사용구분] — true 사용, false 사용중단. */
+            boolean useYn, String udiCode
     ) {
         /**
          * 기준일자 시점의 잔량으로 바꿔 준다. <b>상태도 같이 다시 낸다</b> —
@@ -135,7 +156,7 @@ public final class LotDtos {
             LotStatus s = LotStatus.of(held, qty);
             return new LotResponse(id, lotNo, itemId, itemCode, itemName, unit, spec,
                     warehouseId, warehouseName, inboundDate, expireDate, inboundQty, qty,
-                    held, s, s.getDisplayName());
+                    held, s, s.getDisplayName(), useYn, udiCode);
         }
 
         public static LotResponse from(Lot l) {
@@ -149,7 +170,7 @@ public final class LotDtos {
                     l.getWarehouse() != null ? l.getWarehouse().getName() : null,
                     l.getInboundDate(), l.getExpireDate(),
                     l.getInboundQty(), l.getStockQty(),
-                    l.isHeld(), status, status.getDisplayName());
+                    l.isHeld(), status, status.getDisplayName(), l.isUseYn(), l.getUdiCode());
         }
     }
 }
