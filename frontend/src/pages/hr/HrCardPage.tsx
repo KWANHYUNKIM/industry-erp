@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
+import EcHistoryButton from '../../components/EcHistory'
 
 type Category = 'EDUCATION' | 'CAREER' | 'LICENSE' | 'FAMILY' | 'LANGUAGE' | 'REWARD' | 'TRAINING' | 'TRIP' | 'MEMO' | 'WORK_STATUS' | 'GUARANTOR'
 type DateKey = 'fromDate' | 'toDate' | 'date3' | 'date4'
@@ -235,6 +236,8 @@ export default function HrCardPage() {
           </ul>
           <div className="flex gap-[6px] mt-[12px]">
             <button type="button" className="ec-btn" onClick={() => setCard(null)}>닫기</button>
+            {/* 원본 인사카드 창 끝 [H] — 사원등록 [H] 와 같은 사원 이력(2026-10-14 실측) */}
+            <EcHistoryButton target="EMPLOYEE" id={card?.id} numbered head={`사원코드: ${card?.code ?? ''}`} />
           </div>
         </>
       )}</Modal>

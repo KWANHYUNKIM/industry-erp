@@ -20,7 +20,11 @@ export function historyTime(iso: string): string {
  *
  * @param url  이력을 읽을 주소(예: /schedule-events/12/history, /change-history?target=PARTNER&id=3)
  */
-export function EcHistoryModal({ url, head, last, onClose }: { url: string; head?: string; last?: boolean; onClose: () => void }) {
+/**
+ * @param numbered 사원(사원등록 · 인사카드등록) 꼴 — 머리 첫 칸이 '순번', 열 폭 44 · 105 · 396 · 396, 순번 가운데
+ *                 (2026-10-14 loginaa E090101 · E020603 실측, 머리 '사원코드: 00008').
+ */
+export function EcHistoryModal({ url, head, last, numbered, onClose }: { url: string; head?: string; last?: boolean; numbered?: boolean; onClose: () => void }) {
   const [rows, setRows] = useState<HistoryRow[]>([])
   const [error, setError] = useState('')
   useEffect(() => {
@@ -31,12 +35,14 @@ export function EcHistoryModal({ url, head, last, onClose }: { url: string; head
       {head && <div className="text-[12px] mb-[6px]">{head}</div>}
       {last ? <LastChange rows={rows} /> : (
       <table className="w-full">
-        {/* 원본 열 폭 53 · 222 · 444 · 222(창 960, 거래처등록 실측) */}
-        <thead><tr><th className="w-[53px]" /><th className="w-[222px]">작업자ID</th><th className="w-[444px]">작업일시</th><th className="w-[222px]">상태</th></tr></thead>
+        {/* 원본 열 폭 53 · 222 · 444 · 222(창 960, 거래처등록 실측) · 사원은 순번 44 · 105 · 396 · 396 */}
+        {numbered
+          ? <thead><tr><th className="w-[44px]">순번</th><th className="w-[105px]">작업자ID</th><th className="w-[396px]">작업일시</th><th className="w-[396px]">상태</th></tr></thead>
+          : <thead><tr><th className="w-[53px]" /><th className="w-[222px]">작업자ID</th><th className="w-[444px]">작업일시</th><th className="w-[222px]">상태</th></tr></thead>}
         <tbody>
           {rows.map((r) => (
             <tr key={r.seq}>
-              <td>{r.seq}</td>
+              <td className={numbered ? 'text-center' : undefined}>{r.seq}</td>
               <td className="text-center text-ec-navy">{(r.worker ?? '').toUpperCase()}</td>
               <td className="text-center">{historyTime(r.workedAt)}</td>
               <td className="text-center">{r.action}</td>
@@ -76,13 +82,15 @@ function LastChange({ rows }: { rows: HistoryRow[] }) {
  * 마스터 수정 창 하단 끝의 [H] — 누르면 그 줄의 '이력' 창(원본 거래처등록 수정 창 [저장(F8)] … [닫기] [H]).
  * 신규 창에는 달지 않는다(아직 이력이 없다). target 은 백엔드 서비스가 record 할 때 쓴 글자와 같아야 한다.
  */
-export default function EcHistoryButton({ target, id, last }: { target: string; id: number | null | undefined; last?: boolean }) {
+export default function EcHistoryButton({ target, id, last, numbered, head }: {
+  target: string; id: number | null | undefined; last?: boolean; numbered?: boolean; head?: string
+}) {
   const [open, setOpen] = useState(false)
   if (id == null) return null
   return (
     <>
       <button type="button" className="ec-btn" onClick={() => setOpen(true)}>H</button>
-      {open && <EcHistoryModal url={`/change-history?target=${encodeURIComponent(target)}&id=${id}`} last={last} onClose={() => setOpen(false)} />}
+      {open && <EcHistoryModal url={`/change-history?target=${encodeURIComponent(target)}&id=${id}`} last={last} numbered={numbered} head={head} onClose={() => setOpen(false)} />}
     </>
   )
 }

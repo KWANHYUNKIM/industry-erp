@@ -32,6 +32,18 @@ public class PaySettingService {
     private final EmployeePayItemRepository employeePayItemRepository;
     private final EmployeePayrollSettingRepository payrollSettingRepository;
     private final PayItemFormulaRepository formulaRepository;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    /**
+     * 수당리스트 · 공제리스트 하단 [H] — 원본은 줄마다가 아니라 <b>리스트 전체</b>를 마지막으로 저장한 때 · 사람 한 줄
+     * ('2024/10/21 오후 3:26:09 [ECMASTER]', 2026-10-14 loginaa E090103 · E090114 실측). 리스트 하나를 id 0 으로 둔다.
+     */
+    public static final String HISTORY_ALLOWANCES = "ALLOWANCE_ITEMS";
+    public static final String HISTORY_DEDUCTIONS = "DEDUCTION_ITEMS";
+
+    private void recordList(PayslipLineKind kind, String action) {
+        changeHistory.record(kind == PayslipLineKind.DEDUCTION ? HISTORY_DEDUCTIONS : HISTORY_ALLOWANCES, 0L, action);
+    }
 
     // ── 항목 ──────────────────────────────────────────────────────────
 
@@ -59,6 +71,7 @@ public class PaySettingService {
         PayItem saved = itemRepository.save(i);
         formulaRepository.save(PayItemFormula.builder()
                 .payItem(saved).effectiveFrom(DEFAULT_FORMULA_FROM).formula(defaultFormula(saved)).build());
+        recordList(saved.getKind(), com.erp.common.history.ChangeHistoryService.CREATED);
         return PayItemResponse.from(saved);
     }
 
@@ -83,6 +96,7 @@ public class PaySettingService {
         i.setDefaultAmount(req.defaultAmount() != null ? req.defaultAmount() : i.getDefaultAmount());
         i.setActive(req.active() == null || req.active());
         applyListFields(i, req);
+        recordList(i.getKind(), com.erp.common.history.ChangeHistoryService.UPDATED);
         return PayItemResponse.from(i);
     }
 
@@ -203,6 +217,7 @@ public class PaySettingService {
         formulaRepository.deleteAll(formulaRepository.findByItem(id));   // 항목의 계산식리스트는 항목과 함께 간다
         itemRepository.delete(target);
         itemRepository.flush();
+        recordList(target.getKind(), com.erp.common.history.ChangeHistoryService.DELETED);
     }
 
     // ── 사원등록 [급여지급사항] ─────────────────────────────────────────

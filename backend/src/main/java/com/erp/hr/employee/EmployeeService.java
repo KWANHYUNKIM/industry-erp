@@ -36,6 +36,12 @@ public class EmployeeService {
     /** 인사발령 전표 [H] 이력의 대상 이름(common/history). 한 번 정하면 바꾸지 않는다. */
     public static final String SLIP_HISTORY_TARGET = "ASSIGNMENT_SLIP";
 
+    /**
+     * 사원등록 · 인사카드등록 수정 창 [H] 의 대상 이름. 원본은 두 화면이 같은 이력을 본다(2026-10-14 loginaa 00008 QA관리-입사:
+     * 신규 → 수정(입사일) → 수정(입사일 · 기타설정) → 수정(인사발령 [사원정보에 반영]) 네 줄이 두 창에 똑같이).
+     */
+    public static final String HISTORY_TARGET = "EMPLOYEE";
+
     /** 인사발령 전표 하나(일자 · 차례)를 이력 열쇠 하나로 — 2026-10-14 -1 → 20261014001. */
     public static long slipHistoryId(LocalDate slipDate, int slipNo) {
         return (slipDate.getYear() * 10000L + slipDate.getMonthValue() * 100L + slipDate.getDayOfMonth()) * 1000L + slipNo;
@@ -104,7 +110,9 @@ public class EmployeeService {
                 .duty(blankToNull(req.duty()))
                 .active(true)
                 .build();
-        return EmployeeResponse.from(employeeRepository.save(e));
+        Employee saved = employeeRepository.save(e);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), com.erp.common.history.ChangeHistoryService.CREATED);
+        return EmployeeResponse.from(saved);
     }
 
     /**
@@ -157,6 +165,7 @@ public class EmployeeService {
             e.setResignDate(null);
         }
         e.setActive(active);
+        changeHistory.record(HISTORY_TARGET, e.getId(), com.erp.common.history.ChangeHistoryService.UPDATED);
         return EmployeeResponse.from(e);
     }
 
@@ -207,6 +216,7 @@ public class EmployeeService {
         employeePayrollSettingRepository.deleteByEmployeeId(id);   // [기타설정] — 사원과 같이 간다
         employeeRepository.delete(e);
         employeeRepository.flush();   // FK 위반을 이 트랜잭션 안에서 터뜨린다
+        changeHistory.record(HISTORY_TARGET, id, com.erp.common.history.ChangeHistoryService.DELETED);
     }
 
     /**
@@ -388,6 +398,7 @@ public class EmployeeService {
             String toTitle;
             if (req.reflect()) {
                 applyAssignment(e, l.type(), date, l.departmentId(), l.jobTitle());
+                changeHistory.record(HISTORY_TARGET, e.getId(), com.erp.common.history.ChangeHistoryService.UPDATED);   // 원본도 사원 [H] 에 '수정'
                 toDept = e.getDepartment();
                 toTitle = e.getJobTitle();
             } else {

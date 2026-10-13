@@ -11,6 +11,7 @@ import type { EmployeeMaster, EmployeePayType, PayItem } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import EmployeeBulkChange from '../../features/employee/components/EmployeeBulkChange'
 import EmployeePayItemTables from '../../features/employee/components/EmployeePayItemTables'
+import EcHistoryButton from '../../components/EcHistory'
 import EmployeePayrollSettingPanel, {
   emptyPayrollSetting, newPayrollSetting, payrollSettingBody, payrollSettingForm,
   type PayrollSettingForm, type PayrollSettingResponse,
@@ -480,6 +481,8 @@ export default function EmployeePage() {
             </button>
             {editId && <button type="button" className="ec-btn" onClick={deleteOne}>삭제</button>}
             <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+            {/* 원본 수정 창 끝 [H] — 사원 이력(인사카드등록과 같은 이력) */}
+            <EcHistoryButton target="EMPLOYEE" id={editId} numbered head={`사원코드: ${form.code}`} />
           </div>
         </form>
       )}</Modal>

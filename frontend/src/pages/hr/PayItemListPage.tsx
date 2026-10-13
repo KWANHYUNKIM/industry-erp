@@ -6,6 +6,7 @@ import type { PayItem, PayMethod, PayTaxFreeType, PayslipLineKind } from '../../
 import PayItemFormulaModal, { type PayItemFormula } from '../../features/payitem/components/PayItemFormulaModal'
 import InsuranceRateModal from '../../features/payitem/components/InsuranceRateModal'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcHistoryModal } from '../../components/EcHistory'
 
 const TAX_FREE: [PayTaxFreeType, string][] = [
   ['NONE', '전액과세'], ['NIGHT_WORK', '야간근로수당'], ['CHILDCARE', '보육수당'], ['MEAL', '식대'], ['VEHICLE', '차량유지비'],
@@ -62,13 +63,15 @@ const blank = (): Row => ({
  * 식이 없는 항목은 예전처럼 그룹 · 급여지급사항 금액을 그대로 쓴다. 공제항목도 같은 창으로 식을 둔다 — 급여계산이
  * 4대보험 · 소득세를 셈한 뒤 공제항목을 표시순서대로 풀어 같은 이름 줄을 바꾼다(원본 사우회비 R( 사우회비(급여지급사항) , 0 ),
  * 건강보험 [조건1] 장기요양보험(공제구분) &gt; 0, [참1] …, [거짓1] …).
- * 웹자료올리기 · H(이력)도 없다.
+ * 웹자료올리기는 없다. [H] 는 원본처럼 리스트 전체를 마지막으로 저장한 때 · 사람 한 줄(2026-10-14 실측).
  */
 export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: PayslipLineKind }) {
   const isAllowance = kind === 'ALLOWANCE'
   const word = isAllowance ? '수당' : '공제'
   const [rows, setRows] = useState<Row[]>([])
   const [error, setError] = useState('')
+  /** 원본 하단 [H] — 리스트 전체를 마지막으로 저장한 때 · 사람 한 줄(서버 PaySettingService.HISTORY_*) */
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [includeInactive, setIncludeInactive] = useState(false)
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const tableRef = useRef<HTMLTableElement>(null)
@@ -172,8 +175,10 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
         { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v) },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
         ...(isAllowance ? [] : [{ label: '세율/세액등록', onClick: () => setRateOpen(true) }]),
+        { label: 'H', onClick: () => setHistoryOpen(true) },
       ]}
     >
+      {historyOpen && <EcHistoryModal url={`/change-history?target=${isAllowance ? 'ALLOWANCE_ITEMS' : 'DEDUCTION_ITEMS'}&id=0`} last onClose={() => setHistoryOpen(false)} />}
       {menuOpen && (
         <>
           <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
