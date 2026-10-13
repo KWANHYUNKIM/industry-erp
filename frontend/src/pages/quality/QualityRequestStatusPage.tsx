@@ -68,6 +68,13 @@ export default function QualityRequestStatusPage() {
   const [menu, setMenu] = useState<'현황' | '집계'>('현황')
   /** 집계조건1 ~ 5 — 빈 칸에서 끊는다. */
   const [aggs, setAggs] = useState<(AggKey | '')[]>(['', '', '', '', ''])
+  /*
+   * 집계조건 칸 옆 두 단추(2026-10-13 원본 E040630 실측) — [정렬](btn-asc ↔ btn-desc) · [소계](btn-add-sum ↔ btn-unadd-sum).
+   * 처음은 올림 · 소계 표시. 월별을 내림으로 바꾸면 2026/09 → 2026/05, 월별 소계를 끄면 '2026/05 계' 줄이 없어진다
+   * (품목별 계 · 총합계는 그대로). 칸을 고른 뒤에만 단추가 선다.
+   */
+  const [descs, setDescs] = useState<boolean[]>([false, false, false, false, false])
+  const [subs, setSubs] = useState<boolean[]>([true, true, true, true, true])
   const aggCols = useMemo(() => {
     const out: AggKey[] = []
     for (const k of aggs) { if (!k) break; out.push(k) }
@@ -81,6 +88,8 @@ export default function QualityRequestStatusPage() {
       return
     }
     setAggs(aggs.map((x, j) => (j === i ? k : x)))
+    setDescs(descs.map((x, j) => (j === i ? false : x)))
+    setSubs(subs.map((x, j) => (j === i ? true : x)))
   }
   const mgmt = useItemMgmt()
   const [error, setError] = useState('')
@@ -112,10 +121,10 @@ export default function QualityRequestStatusPage() {
   const shown = useMemo(() => matched.filter((r) => inRange(r.requestDate, from, to)), [matched, from, to])
 
   /** 현황 줄 — 요청의 품목 줄마다(줄이 없는 옛 요청은 머리 품목 하나). */
-  type Line = { key: string; r: QualityInspectionRequest; itemId: number; itemName: string; spec: string | null; method: string; qty: number }
+  type Line = { key: string; r: QualityInspectionRequest; itemId: number; itemCode: string; itemName: string; spec: string | null; method: string; qty: number }
   const toLines = (rs: QualityInspectionRequest[]): Line[] => rs.flatMap((r) => (r.lines?.length
-    ? r.lines.map((l) => ({ key: `${r.id}-${l.id}`, r, itemId: l.itemId, itemName: l.itemName, spec: l.spec, method: l.methodName, qty: Number(l.quantity) }))
-    : [{ key: `${r.id}`, r, itemId: r.itemId, itemName: r.itemName, spec: r.spec, method: '', qty: Number(r.requestQty) }])
+    ? r.lines.map((l) => ({ key: `${r.id}-${l.id}`, r, itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, method: l.methodName, qty: Number(l.quantity) }))
+    : [{ key: `${r.id}`, r, itemId: r.itemId, itemCode: r.itemCode, itemName: r.itemName, spec: r.spec, method: '', qty: Number(r.requestQty) }])
     .filter((l) => !item || String(l.itemId) === item))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const lines = useMemo<Line[]>(() => toLines(shown), [shown, item])
@@ -167,6 +176,20 @@ export default function QualityRequestStatusPage() {
     }
   }
   /**
+   * 축의 정렬 값 — 기준일자 축은 시간순, 품목별은 <b>품목코드순</b>(원본 2026-10-13: 같은 달 안에서 인텔 코어 A002 가
+   * MSI A004 앞 — 이름순이면 MSI 가 앞선다), 전표별은 일자-No., 나머지는 이름순.
+   */
+  const ordOf = (k: AggKey, l: Line): string => {
+    const d = l.r.requestDate
+    switch (k) {
+      case '일별': case '월별': case '분기별': case '반기별': case '연별': return d
+      case '주차별': return `${d.slice(0, 4)}${String(weekOfYear(d)).padStart(2, '0')}`
+      case '전표별': return `${d}␟${l.r.requestNo}`
+      case '품목별': return l.itemCode
+      default: return axis(k, l)
+    }
+  }
+  /**
    * ○집계 — 고른 조건들로 묶어 수량을 더한다. 2026-10-13 원본 실측(담당자별 · 품목별 · 월별):
    * 줄마다 이름을 모두 적고, <b>모든 조건 차례마다</b> 끝난 무리의 '… 계'를 깊은 것부터 단다 —
    * [정재원 | 인텔… | 2026/05 | 20.00] → '2026/05 계' … '2026/09 계' → '인텔… 계' → … → '정재원 계' → '총합계'.
@@ -175,15 +198,11 @@ export default function QualityRequestStatusPage() {
    */
   const aggRows = useMemo(() => {
     if (!aggCols.length) return []
-    const m = new Map<string, { ns: string[]; q: number | null; p: number | null; ord: number[] }>()
-    const seen = aggCols.map(() => new Map<string, number>())
+    const m = new Map<string, { ns: string[]; q: number | null; p: number | null; ord: string[] }>()
     const add = (l: Line, side: 'q' | 'p') => {
       const ns = aggCols.map((k) => axis(k, l))
-      const ord = ns.map((_, j) => {
-        const pre = ns.slice(0, j + 1).join('␟')
-        if (!seen[j].has(pre)) seen[j].set(pre, seen[j].size)
-        return seen[j].get(pre)!
-      })
+      /* 무리의 정렬 값은 그 무리에서 처음 본 줄의 것(같은 이름이면 같은 값). */
+      const ord = aggCols.map((k) => ordOf(k, l))
       const key = ns.join('␟')
       const v = m.get(key) ?? { ns, q: null, p: null, ord }
       v[side] = (v[side] ?? 0) + l.qty
@@ -192,11 +211,18 @@ export default function QualityRequestStatusPage() {
     for (const l of lines) add(l, 'q')
     for (const l of cmpLines) add(l, 'p')
     return [...m.values()].sort((a, b) => {
-      for (let j = 0; j < aggCols.length; j++) if (a.ord[j] !== b.ord[j]) return a.ord[j] - b.ord[j]
+      for (let j = 0; j < aggCols.length; j++) {
+        /* 기준일자 축은 이름(달 · 분기 …)으로 묶이므로 이름으로 견준다 — 같은 달 안의 날짜가 차례를 흔들지 않게. */
+        const x = DATE_RANK[aggCols[j]] != null && aggCols[j] !== '주차별' ? a.ns[j] : a.ord[j]
+        const y = DATE_RANK[aggCols[j]] != null && aggCols[j] !== '주차별' ? b.ns[j] : b.ord[j]
+        if (a.ns[j] === b.ns[j]) continue
+        const c = x < y ? -1 : x > y ? 1 : a.ns[j].localeCompare(b.ns[j], 'ko')
+        return descs[j] ? -c : c
+      }
       return 0
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, cmpLines, aggCols])
+  }, [lines, cmpLines, aggCols, descs])
   const total = months.reduce((a, g) => a + g.sum, 0)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '품질검사요청현황', [months.length, menu, aggCols.join(','), aggRows.length, compare])
@@ -238,6 +264,15 @@ export default function QualityRequestStatusPage() {
                     <option value=""></option>
                     {AGG_KEYS.filter((k) => k === aggs[i] || !aggs.includes(k)).map((k) => <option key={k} value={k}>{k}</option>)}
                   </select>
+                  {aggs[i] && (
+                    <span className="ec-btn-group">
+                      <button type="button" className="ec-btn ec-btn-sm" aria-label={`집계조건${i + 1} 정렬`} title={descs[i] ? '내림차순' : '올림차순'}
+                              onClick={() => setDescs(descs.map((x, j) => (j === i ? !x : x)))}>{descs[i] ? '↑↓' : '↓↑'}</button>
+                      <button type="button" className="ec-btn ec-btn-sm" aria-label={`집계조건${i + 1} 소계`} aria-pressed={subs[i]}
+                              title={subs[i] ? '소계 표시' : '소계 표시안함'}
+                              onClick={() => setSubs(subs.map((x, j) => (j === i ? !x : x)))}>{subs[i] ? '∑' : '−'}</button>
+                    </span>
+                  )}
                 </span>
               ))}
             </span>
@@ -315,6 +350,7 @@ export default function QualityRequestStatusPage() {
               ]
               for (let L = aggCols.length - 1; L >= 0; L--) {
                 if (next && nd > L) continue
+                if (!subs[L]) continue
                 const pre = x.ns.slice(0, L + 1).join('␟')
                 const grp = aggRows.filter((y) => y.ns.slice(0, L + 1).join('␟') === pre)
                 const sumOf = (vs: (number | null)[]) => (vs.some((v) => v != null) ? vs.reduce<number>((n, v) => n + (v ?? 0), 0) : null)
