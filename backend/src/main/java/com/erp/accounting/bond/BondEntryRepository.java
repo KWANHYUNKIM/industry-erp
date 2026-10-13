@@ -24,4 +24,8 @@ public interface BondEntryRepository extends JpaRepository<BondEntry, Long> {
            "left join fetch l.account left join fetch l.partner left join fetch l.project " +
            "left join fetch e.sourceVoucher sv left join fetch sv.journalEntry where e.id = :id")
     Optional<BondEntry> findWithLines(@Param("id") Long id);
+
+    /** 입금보고서(지출결의서) 한 장이 만든 감소 줄 — 그 전표 수정 때 금액 대조(FastVoucherService). */
+    @Query("select l from BondLine l join l.entry e where e.sourceVoucher.id = :voucherId")
+    List<BondLine> findLinesBySourceVoucher(@Param("voucherId") Long voucherId);
 }

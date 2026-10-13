@@ -10,6 +10,9 @@ public interface BankCheckRepository extends JpaRepository<BankCheck, Long> {
 
     boolean existsByCheckNo(String checkNo);
 
+    /** 수령수표입금처리 [입금보고서작성]으로 그 회계전표에 묶인 수표. */
+    List<BankCheck> findBySettleJournalId(Long settleJournalId);
+
     java.util.Optional<BankCheck> findByCheckNo(String checkNo);
 
     /** 수표내역입력 증가 전표 한 장의 줄 — (종류, 날짜, 번호). */

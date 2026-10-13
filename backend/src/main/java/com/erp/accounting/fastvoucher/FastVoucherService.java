@@ -50,6 +50,9 @@ public class FastVoucherService {
     private final JournalService journalService;
     private final BankCardService bankCardService;
     private final DocumentNoGenerator docNoGenerator;
+    /* 채권감소등록 [입금보고서작성] · 수령수표입금처리 [입금보고서작성]으로 만든 입금보고서의 '추가정보'(채권 감소 · 수령수표) — 수정 검증용. */
+    private final com.erp.accounting.bond.BondEntryRepository bondEntryRepository;
+    private final com.erp.accounting.bankcheck.BankCheckRepository bankCheckRepository;
 
     @Transactional(readOnly = true)
     public List<VoucherResponse> findAll(FastVoucherType type) {
@@ -120,12 +123,59 @@ public class FastVoucherService {
         if (req.type() != null && req.type() != v.getType()) {
             throw ApiException.badRequest("전표 종류는 바꿀 수 없습니다.");
         }
+        requireExtraInfoMatches(v, req);
+        /* 수령수표입금처리로 손을 떠난 수표는 이 전표의 회계전표를 가리킨다. 옛 회계전표를 지우면 트리거
+           (bank_checks_release_settle_journal)가 수표를 보유로 되돌리므로, 지우기 전에 떼었다가 새 회계전표에 다시 건다. */
+        List<com.erp.accounting.bankcheck.BankCheck> checks = v.getJournalEntry() == null ? List.of()
+                : bankCheckRepository.findBySettleJournalId(v.getJournalEntry().getId());
+        checks.forEach(c -> c.setSettleJournalId(null));
         undo(v, username);
         v.getLines().clear();
         voucherRepository.flush();
         if (req.method() != null) v.setMethod(req.method());
         apply(v, req, username);
+        if (!checks.isEmpty()) {
+            Long journalId = v.getJournalEntry().getId();
+            checks.forEach(c -> c.setSettleJournalId(journalId));
+        }
         return VoucherResponse.from(v);
+    }
+
+    /**
+     * 채권감소등록 [입금보고서작성](채무감소 [지출결의서작성]) · 수령수표입금처리 [입금보고서작성]으로 만든 전표는 줄마다 '추가정보'
+     * (채권번호별 감소 금액 · 수령수표)를 들고 있다. 원본(2026-10-13 loginaa, 회계2 채권감소등록 E060402 실측)은 그 전표를 열어
+     * 금액만 고쳐 저장하면 '금액과 추가정보의 합계액이 일치하지 않은 분개가 있습니다.' 로 막는다 — 감소 내역 · 수표와 금액이 어긋나지 않게.
+     * 분개 하나 = 같은 계정 · 거래처(수표는 거래처) 줄 묶음.
+     */
+    private void requireExtraInfoMatches(FastVoucher v, CreateVoucherRequest req) {
+        java.util.Map<String, BigDecimal> extra = new java.util.HashMap<>();
+        boolean byPartnerOnly = false;
+        for (com.erp.accounting.bond.BondLine l : bondEntryRepository.findLinesBySourceVoucher(v.getId())) {
+            extra.merge(key(l.getAccount().getId(), l.getPartner() == null ? null : l.getPartner().getId()), l.getAmount(), BigDecimal::add);
+        }
+        if (extra.isEmpty() && v.getJournalEntry() != null) {
+            for (com.erp.accounting.bankcheck.BankCheck c : bankCheckRepository.findBySettleJournalId(v.getJournalEntry().getId())) {
+                extra.merge(key(null, c.getPartner() == null ? null : c.getPartner().getId()), c.getAmount(), BigDecimal::add);
+                byPartnerOnly = true;
+            }
+        }
+        if (extra.isEmpty()) return;
+        java.util.Map<String, BigDecimal> lines = new java.util.HashMap<>();
+        for (LineInput l : req.lines() == null ? List.<LineInput>of() : req.lines()) {
+            if (l.amount() == null) continue;
+            lines.merge(key(byPartnerOnly ? null : l.accountId(), l.partnerId()), l.amount(), BigDecimal::add);
+        }
+        java.util.Set<String> keys = new java.util.HashSet<>(extra.keySet());
+        keys.addAll(lines.keySet());
+        for (String k : keys) {
+            if (extra.getOrDefault(k, BigDecimal.ZERO).compareTo(lines.getOrDefault(k, BigDecimal.ZERO)) != 0) {
+                throw ApiException.badRequest("금액과 추가정보의 합계액이 일치하지 않은 분개가 있습니다.");
+            }
+        }
+    }
+
+    private static String key(Long accountId, Long partnerId) {
+        return accountId + ":" + partnerId;
     }
 
     /** 삭제 — 분개 · 계좌 입출금을 함께 되돌린다(원본 회계거래조회 [삭제]). */
