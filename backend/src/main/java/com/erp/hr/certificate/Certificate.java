@@ -30,8 +30,9 @@ public class Certificate extends BaseTimeEntity {
     @Column(name = "issue_seq", nullable = false)
     private Integer issueSeq;
 
+    /** 증명서종류 — 원본은 '====' 그대로 저장되고 목록에 '없음' 으로 나온다(2026-10-14 실측). */
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private CertificateKind kind;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

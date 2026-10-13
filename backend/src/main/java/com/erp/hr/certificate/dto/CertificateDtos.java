@@ -11,7 +11,7 @@ import java.time.LocalDate;
 public class CertificateDtos {
 
     public record CertificateRequest(
-            @NotNull(message = "증명서종류를 선택 바랍니다.") CertificateKind kind,
+            CertificateKind kind,                              // null = 원본 '===='(목록 '없음')
             @NotNull(message = "사원번호를 입력 바랍니다.") Long employeeId,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String purpose,
@@ -39,7 +39,7 @@ public class CertificateDtos {
             Employee e = c.getEmployee();
             return new CertificateResponse(
                     c.getId(), c.getIssueYear() + "-" + c.getIssueSeq(),
-                    c.getKind(), c.getKind().getDisplayName(),
+                    c.getKind(), c.getKind() != null ? c.getKind().getDisplayName() : "없음",
                     e.getId(), e.getCode(), e.getName(), e.getAddress(),
                     e.getDepartment() != null ? e.getDepartment().getName() : "",
                     e.getJobTitle() != null ? e.getJobTitle() : "",

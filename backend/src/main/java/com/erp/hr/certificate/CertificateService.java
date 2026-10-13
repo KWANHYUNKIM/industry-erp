@@ -63,11 +63,8 @@ public class CertificateService {
     }
 
     private Employee employee(CertificateRequest req) {
-        Employee e = employeeService.get(req.employeeId());
-        if (req.kind() == CertificateKind.RESIGNATION && e.getResignDate() == null) {
-            throw ApiException.badRequest("퇴사일이 없는 사원입니다. 퇴직증명서를 발급할 수 없습니다: " + e.getName());
-        }
-        return e;
+        // 원본은 퇴사일이 없는 사원에게도 퇴직증명서를 저장한다(2026-10-14 실측 — 재직 사원 2024-003 을 퇴직증명서로 고쳐 저장됨).
+        return employeeService.get(req.employeeId());
     }
 
     private Certificate get(Long id) {

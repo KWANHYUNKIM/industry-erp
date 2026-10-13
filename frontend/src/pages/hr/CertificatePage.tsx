@@ -13,6 +13,8 @@ import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
 
 interface Form { kind: CertificateKind | ''; employeeId: string; purpose: string; issueDate: string }
+/** 원본 '====' 은 재직증명서 판으로 그린다(2026-10-14 실측). */
+const docKindName = (kind: CertificateKind | '' | null) => CERTIFICATE_KINDS.find(([k]) => k === (kind || 'EMPLOYMENT'))![1]
 const blankForm = (): Form => ({ kind: '', employeeId: '', purpose: '', issueDate: ymd(new Date()) })
 
 /**
@@ -23,8 +25,13 @@ const blankForm = (): Form => ({ kind: '', employeeId: '', purpose: '', issueDat
  *   <li>[전체] 알약 · 격자 발행번호 · 사원번호 · 성명 · 증명서종류 · 용도 · 발행일 · 인쇄(줄마다 [인쇄]) — 최근 발행이 위.
  *       버튼 신규(F2) · 인쇄 ▲ · 선택삭제('삭제하시겠습니까?').</li>
  *   <li>[신규(F2)] '각종증명서등록' 창: 증명서종류(==== · 재직증명서 · 퇴직증명서 · 경력증명서) · 사원번호(코드도움) · 용도 ·
- *       발행일(오늘) · ▸ 증명서 확인(펴면 증명서가 보인다) · 저장(F8) · 다시 작성 · 닫기. 저장하면 안내 없이 닫히고 목록 맨 위에
+ *       발행일(오늘) · ▸ 증명서 확인(펴면 증명서가 보인다) · 저장(F8)▴ · 다시 작성 · 닫기. 저장하면 안내 없이 닫히고 목록 맨 위에
  *       2026-1 꼴 발행번호(발행일의 해 - 그해 차례)로 붙는다.</li>
+ *   <li>2026-10-14 다시 잼: 필수는 사원번호 하나 — 비우고 저장하면 문구 없이 그 칸 테두리만 빨갛다. 증명서종류를 '====' 로 두면 그대로
+ *       저장되어 목록 증명서종류가 '없음'(증명서 판은 재직증명서 꼴). 재직 중인 사원도 퇴직증명서로 저장된다.
+ *       저장 ▴ 메뉴는 '저장/전표(F7)' 하나 — 저장하고 창을 닫은 뒤 인쇄 창을 띄운다(그 창의 인쇄는 누르지 않았다).
+ *       발행번호를 클릭하면 '각종증명서수정' 창(증명서 확인이 펴져 있음) · 저장(F8)▴ · 다시 작성 · 삭제 · 닫기, 삭제 '삭제하겠습니까?' →
+ *       안내 없이 닫힘. 목록 [선택삭제] 도 '삭제하겠습니까?'. 마지막 번호를 지우면 그 번호를 다시 쓴다(2026-1 지움 → 새 것도 2026-1).</li>
  * </ul>
  * 조건 판은 접혀 있고 [Search(F3)]로 편다(2026-10-04 실측) — 증명서종류(전체 · 재직 · 퇴직 · 경력) · 발행일([사용]) · 사원번호 ·
  * 용도 · 발송여부. 발송여부(Email 발송 기록)는 메일을 보내지 않아 두지 않는다.
@@ -47,6 +54,8 @@ export default function CertificatePage() {
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<Form>(blankForm())
   const [preview, setPreview] = useState(false)
+  const [empBad, setEmpBad] = useState(false)
+  const [saveMenu, setSaveMenu] = useState(false)
   const [printing, setPrinting] = useState<Certificate[]>([])
   const tableRef = useRef<HTMLTableElement>(null)
 
@@ -69,21 +78,49 @@ export default function CertificatePage() {
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.id))
 
   function openNew() {
-    setEditId(null); setForm(blankForm()); setFormError(''); setPreview(false); setFormOpen(true)
+    setEditId(null); setForm(blankForm()); setFormError(''); setEmpBad(false); setSaveMenu(false); setPreview(false); setFormOpen(true)
   }
   function openEdit(c: Certificate) {
     setEditId(c.id)
-    setForm({ kind: c.kind, employeeId: String(c.employeeId), purpose: c.purpose ?? '', issueDate: c.issueDate })
-    setFormError(''); setPreview(false); setFormOpen(true)
+    setForm({ kind: c.kind ?? '', employeeId: String(c.employeeId), purpose: c.purpose ?? '', issueDate: c.issueDate })
+    // 원본 수정 창은 증명서 확인이 펴진 채 열린다.
+    setFormError(''); setEmpBad(false); setSaveMenu(false); setPreview(true); setFormOpen(true)
   }
 
-  async function save() {
-    if (!form.kind) { setFormError('증명서종류를 선택 바랍니다.'); return }
-    if (!form.employeeId) { setFormError('사원번호를 입력 바랍니다.'); return }
-    const body = { kind: form.kind, employeeId: Number(form.employeeId), purpose: form.purpose || null, issueDate: form.issueDate }
+  // 창이 떠 있을 때 F8 = 저장, F7 = 저장/전표(원본 단축키).
+  const saveRef = useRef<(print?: boolean) => Promise<void>>(async () => {})
+  useEffect(() => {
+    if (!formOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F8' || e.key === 'F7') { e.preventDefault(); void saveRef.current(e.key === 'F7') }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [formOpen])
+
+  /** 저장(F8) · 저장/전표(F7). 전표는 저장한 증명서로 인쇄 창을 띄운다. */
+  async function save(print = false) {
+    setSaveMenu(false)
+    // 원본: 사원번호만 필수 — 문구 없이 그 칸 테두리만 빨갛다. 증명서종류 '====' 는 그대로 저장('없음').
+    if (!form.employeeId) { setEmpBad(true); return }
+    const body = { kind: form.kind || null, employeeId: Number(form.employeeId), purpose: form.purpose || null, issueDate: form.issueDate }
     try {
-      if (editId) await api.put(`/hr/certificates/${editId}`, body)
-      else await api.post('/hr/certificates', body)
+      const r = editId ? await api.put<Certificate>(`/hr/certificates/${editId}`, body) : await api.post<Certificate>('/hr/certificates', body)
+      setFormOpen(false)
+      load()
+      if (print) setPrinting([r.data])
+    } catch (e) {
+      setFormError(extractErrorMessage(e))
+    }
+  }
+
+  saveRef.current = save
+
+  /** 수정 창 [삭제] — 원본 '삭제하겠습니까?' → 안내 없이 닫힌다. */
+  async function deleteEditing() {
+    if (!editId || !(await ecConfirm('삭제하겠습니까?'))) return
+    try {
+      await api.delete(`/hr/certificates/${editId}`)
       setFormOpen(false)
       load()
     } catch (e) {
@@ -92,7 +129,7 @@ export default function CertificatePage() {
   }
 
   async function deleteChecked() {
-    if (checked.size === 0 || !(await ecConfirm('삭제하시겠습니까?'))) return
+    if (checked.size === 0 || !(await ecConfirm('삭제하겠습니까?'))) return
     try {
       for (const id of checked) await api.delete(`/hr/certificates/${id}`)
     } catch (e) {
@@ -102,14 +139,14 @@ export default function CertificatePage() {
     load()
   }
 
-  const docOf = (c: Pick<Certificate, 'issueNo' | 'kind' | 'kindName' | 'employeeName' | 'address' | 'department' | 'jobTitle' | 'hireDate' | 'resignDate' | 'purpose' | 'issueDate'>): CertificateDocData => ({
-    // 재직증명서는 발행일까지. 경력증명서는 퇴사일까지 — 아직 다니면 비운다(원본 '2019년 01월 05일~', 2026-10-04 실측).
-    ...c, endDate: c.kind === 'EMPLOYMENT' ? c.issueDate : c.resignDate,
+  const docOf = (c: Pick<Certificate, 'issueNo' | 'kind' | 'employeeName' | 'address' | 'department' | 'jobTitle' | 'hireDate' | 'resignDate' | 'purpose' | 'issueDate'>): CertificateDocData => ({
+    // 재직증명서('====' 포함)는 발행일까지. 경력증명서는 퇴사일까지 — 아직 다니면 비운다(원본 '2019년 01월 05일~', 2026-10-04 실측).
+    ...c, kindName: docKindName(c.kind), endDate: !c.kind || c.kind === 'EMPLOYMENT' ? c.issueDate : c.resignDate,
   })
   const formEmp = employees.find((e) => String(e.id) === form.employeeId)
   const editing = rows.find((r) => r.id === editId)
-  const formDoc: CertificateDocData | null = form.kind && formEmp ? docOf({
-    issueNo: editing?.issueNo ?? '', kind: form.kind, kindName: CERTIFICATE_KINDS.find(([k]) => k === form.kind)![1],
+  const formDoc: CertificateDocData | null = formEmp ? docOf({
+    issueNo: editing?.issueNo ?? '', kind: form.kind || null,
     employeeName: formEmp.name, address: formEmp.address ?? null, department: formEmp.department, jobTitle: formEmp.jobTitle,
     hireDate: formEmp.hireDate, resignDate: formEmp.resignDate, purpose: form.purpose, issueDate: form.issueDate,
   }) : null
@@ -199,7 +236,7 @@ export default function CertificatePage() {
         </tbody>
       </table>
 
-      <Modal error={formError} open={formOpen} title="각종증명서등록" width={960} onClose={() => setFormOpen(false)}>
+      <Modal error={formError} open={formOpen} title={editId ? '각종증명서수정' : '각종증명서등록'} width={960} onClose={() => setFormOpen(false)}>
         <ul className="ec-form">
           <li className="wide">
             <span className="title">증명서종류</span>
@@ -212,7 +249,7 @@ export default function CertificatePage() {
           </li>
           <li className="wide">
             <span className="title">사원번호</span>
-            <div className="form">
+            <div className={`form ${empBad && !form.employeeId ? '[&_.ec-input]:border-ec-danger' : ''}`} aria-invalid={empBad && !form.employeeId}>
               <CodePickerField label="사원번호" hideLabel fill placeholder="사원번호" emptyLabel="선택 해제"
                                value={form.employeeId} onChange={(v) => setForm({ ...form, employeeId: v })}
                                items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
@@ -228,10 +265,21 @@ export default function CertificatePage() {
           </li>
         </ul>
         <button type="button" className="ec-btn ec-btn-pick mt-[8px]" onClick={() => setPreview((v) => !v)}>{preview ? '▾' : '▸'} 증명서 확인</button>
-        {preview && (formDoc ? <CertificateDoc d={formDoc} company={company} /> : <p className="text-ec-hint">증명서종류와 사원번호를 넣으면 보입니다.</p>)}
+        {preview && (formDoc ? <CertificateDoc d={formDoc} company={company} /> : <p className="text-ec-hint">사원번호를 넣으면 보입니다.</p>)}
         <div className="flex gap-[6px] mt-[12px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button>
-          <button type="button" className="ec-btn" onClick={() => (editing ? openEdit(editing) : setForm(blankForm()))}>다시 작성</button>
+          {/* 원본 신규: 저장(F8)▴ · 다시 작성 · 닫기 / 수정: 저장(F8)▴ · 다시 작성 · 삭제 · 닫기. ▴ 메뉴는 '저장/전표(F7)' 하나. */}
+          <span className="ec-btn-group relative">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기" onClick={() => setSaveMenu((v) => !v)}>▴</button>
+            {saveMenu && (
+              <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[120px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
+                <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"
+                        onClick={() => void save(true)}>저장/전표(F7)</button>
+              </div>
+            )}
+          </span>
+          <button type="button" className="ec-btn" onClick={() => (editing ? openEdit(editing) : (setForm(blankForm()), setEmpBad(false)))}>다시 작성</button>
+          {editId && <button type="button" className="ec-btn" onClick={() => void deleteEditing()}>삭제</button>}
           <button type="button" className="ec-btn" onClick={() => setFormOpen(false)}>닫기</button>
         </div>
       </Modal>

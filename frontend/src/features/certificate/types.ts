@@ -4,7 +4,8 @@ export type CertificateKind = 'EMPLOYMENT' | 'RESIGNATION' | 'CAREER'
 export interface Certificate {
   id: number
   issueNo: string
-  kind: CertificateKind
+  /** null = 원본 '====' 그대로 저장(목록 '없음'). */
+  kind: CertificateKind | null
   kindName: string
   employeeId: number
   employeeCode: string
