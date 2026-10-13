@@ -38,7 +38,7 @@
         "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
         "wait:600",
-        "click:매출처 선택",
+        "js:document.querySelector('[role=dialog] input[placeholder=\"매출처 선택\"]').click(); true",
         "pickrow:QA-CUST",
         "expect:document.querySelectorAll('[role=dialog] tbody input.text-right')[1].value === '777'",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status })); true",
