@@ -25,6 +25,8 @@ import EcNumInput from '../../components/EcNumInput'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { CASH_QUICK_KINDS, VOUCHER_SCREEN_BY_TYPE_NAME } from '../../features/cashquick/kinds'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { lineInDeptProject } from '../../utils/deptProject'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 기본 기간 [6개월(+1개월)] — 2026-10-13 에 2026/04/01 ~ 2026/11/12 였다. */
@@ -51,6 +53,10 @@ export default function JournalListPage() {
   const wanted = Number(params.get('entryId')) || null
 
   const [rows, setRows] = useState<Row[]>([])
+  /* 원본 조건 [부서] · [프로젝트] — 그 부서 · 프로젝트가 붙은 줄(V343)이 하나라도 있는 전표. */
+  const [deptCond, setDeptCond] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const deptProject = useDeptProjectItems()
   /* 원본은 [확인] 탭으로 열린다(2026-10-13 실측 — 저장한 전표는 곧 확인이라 거기 다 있다). */
   const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]>('확인')
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -148,6 +154,7 @@ export default function JournalListPage() {
     && (!docCond || r.docNo.includes(docCond) || slipNo(r.docNo).includes(docCond))
     && (!partnerCond || String(r.partnerId) === partnerCond)
     && (!accountCond || r.lines.some((l) => l.accountCode === accountCond))
+    && ((!deptCond && !projectCond) || r.lines.some((l) => lineInDeptProject(l, deptCond, projectCond)))
     && (!amountFrom || amountOf(r) >= Number(amountFrom))
     && (!amountTo || amountOf(r) <= Number(amountTo))
     && (!memoCond || (r.description ?? '').includes(memoCond))
@@ -155,7 +162,7 @@ export default function JournalListPage() {
     && (!keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
   ).sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [rows, keyword, statusTab, docCond, partnerCond, accountCond, amountFrom, amountTo, memoCond, authorCond, byUpdated, cashQuickTotal])
+  [rows, keyword, statusTab, docCond, partnerCond, accountCond, deptCond, projectCond, amountFrom, amountTo, memoCond, authorCond, byUpdated, cashQuickTotal])
 
   const picked = shown.filter((r) => checked.has(r.id))
 
@@ -195,7 +202,7 @@ export default function JournalListPage() {
   const total = shown.reduce((a, r) => a + amountOf(r), 0)
   const reset = () => {
     const p = defaultPeriod(); setFrom(p.from); setTo(p.to); setKeyword('')
-    setDocCond(''); setPartnerCond(''); setAccountCond(''); setAmountFrom(''); setAmountTo(''); setMemoCond(''); setAuthorCond(''); setByUpdated(false)
+    setDocCond(''); setPartnerCond(''); setAccountCond(''); setDeptCond(''); setProjectCond(''); setAmountFrom(''); setAmountTo(''); setMemoCond(''); setAuthorCond(''); setByUpdated(false)
   }
 
   return (
@@ -233,6 +240,12 @@ export default function JournalListPage() {
         </EcCond>
         <EcCond label="계정" pick>
           <CodePickerField label="계정" hideLabel fill emptyLabel="전체" value={accountCond} onChange={setAccountCond} items={accountItems} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel fill emptyLabel="전체" value={deptCond} onChange={setDeptCond} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel fill emptyLabel="전체" value={projectCond} onChange={setProjectCond} items={deptProject.projects} />
         </EcCond>
         <EcCond label="금액">
           <span className="inline-flex w-full items-center gap-[4px]">
