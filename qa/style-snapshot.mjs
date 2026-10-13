@@ -36,10 +36,25 @@ if (cmd === 'save') {
   mkdirSync(a, { recursive: true })
   const br = await openBrowser({ width: 1600, height: 900 })
   let n = 0
+  // 로그인 화면이 찍힌 라우트 — 백엔드가 도중에 내려가면 앱이 /login 으로 튕기고, 그 화면을 '고친 뒤' 로 떠서
+  // 엉터리 비교가 나왔다(2026-10-14 공용 3차: 63화면이 전부 로그인 화면). 이런 화면은 저장하지 않고 '실패' 로 센다.
+  const failed = []
+  let streak = 0
   for (const r of routes) {
     if (existsSync(join(a, file(r)))) { n++; continue }   // 끊겼다 다시 돌리면 이어서 뜬다
     try {
       await br.goto(r, 1200)
+      if (await br.evaluate(`location.pathname === '/login'`)) {
+        failed.push(r)
+        console.log('  ✗ 로그인 화면', r)
+        // 연달아 셋이면 백엔드가 내려갔거나 토큰이 죽은 것 — 더 떠 봐야 다 로그인 화면이다
+        if (++streak >= 3) { console.log('  ✗ 로그인 화면이 연달아 3번 — 백엔드(8081)가 떠 있는지 보고 다시 돌린다(뜬 화면은 이어서 뜬다)'); break }
+        // 401 을 받은 앱은 토큰을 지운다 — 다시 심지 않으면 뒤의 화면도 전부 로그인 화면이다
+        try { await br.loginAs(process.env.ERP_USER ?? 'admin', process.env.ERP_PASS ?? 'admin1234') }
+        catch (e) { console.log('  ✗ 다시 로그인 못 함 —', e.message.slice(0, 80)); break }
+        continue
+      }
+      streak = 0
       const snap = await br.evaluate(`(() => {
         const P = ${JSON.stringify(PROPS)}, out = {}
         // 보이는 요소만 센다 — 숨은 요소(휴대폰 전용 단추 등)를 더해도 번호가 밀리지 않게
@@ -61,7 +76,11 @@ if (cmd === 'save') {
   }
   await br.close()
   console.log(`${n}/${routes.length} 화면을 떴다 → ${a}`)
-  process.exit(0)
+  if (failed.length) {
+    console.log(`✗ 실패 ${failed.length} — 로그인 화면이 찍혀 저장하지 않았다: ${failed.slice(0, 5).join(' ')}${failed.length > 5 ? ' …' : ''}`)
+    process.exit(1)
+  }
+  process.exit(n === routes.length ? 0 : 1)
 }
 
 if (cmd === 'diff') {
