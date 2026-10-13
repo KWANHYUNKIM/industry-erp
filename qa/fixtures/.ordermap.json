@@ -1130,5 +1130,13 @@
  [
   "인쇄용결재라인등록(재고)",
   "settings/PrintSignLinePage.tsx"
+ ],
+ [
+  "🔸 칸반보드 활용 예시 🔸",
+  "groupware/WorkSampleBoardPage.tsx"
+ ],
+ [
+  "📅 프로젝트 진행현황 칸반",
+  "groupware/ProjectKanbanPage.tsx"
  ]
 ]
