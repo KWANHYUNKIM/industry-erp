@@ -5,6 +5,7 @@ import com.erp.accounting.journal.JournalEntry;
 import com.erp.accounting.journal.JournalLine;
 import com.erp.accounting.journal.JournalSourceType;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -36,6 +37,24 @@ public final class JournalDtos {
             Long partnerId,
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
             List<@jakarta.validation.Valid ManualLineInput> lines
+    ) {}
+
+    /**
+     * 회계 I › 매출/매입거래 › <b>매출전표 I · 매입전표 I</b> 한 장(2026-10-13 loginaa 실측) —
+     * 일자 · 부서 · 프로젝트 · 부가세유형 · 거래처 · 공급가액 · 부가세 · 적요 · 매출(매입)계정 · 입금(출금)계좌.
+     */
+    public record VatSlipRequest(
+            @NotNull(message = "매출 · 매입을 고르세요.") Boolean sales,
+            LocalDate entryDate,
+            Long departmentId,
+            Long projectId,
+            @NotBlank(message = "부가세유형: 자료를 입력 바랍니다.") @Size(max = 30, message = "부가세유형은 30자까지입니다.") String vatType,
+            @NotNull(message = "거래처: 자료를 입력 바랍니다.") Long partnerId,
+            @NotNull(message = "공급가액: 자료를 입력 바랍니다.") @Positive(message = "공급가액은 0보다 커야 합니다.") BigDecimal supplyAmount,
+            @PositiveOrZero(message = "부가세는 0 이상이어야 합니다.") BigDecimal vatAmount,
+            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.") String description,
+            @NotNull(message = "매출계정: 자료를 입력 바랍니다.") Long accountId,
+            @NotNull(message = "입금계좌: 자료를 입력 바랍니다.") Long settleAccountId
     ) {}
 
     /** 현금거래 간편입력. 입금이면 차)현금·대)상대계정, 출금이면 차)상대계정·대)현금. */
@@ -87,7 +106,9 @@ public final class JournalDtos {
             /** 원본 거래이력조회(회계)의 [작업자] · [작업일자] — 만든 사람 · 만든 때 · 마지막으로 고친 때. */
             String createdBy, java.time.LocalDateTime createdAt, java.time.LocalDateTime updatedAt,
             /** 원본 회계거래조회 탭 [결재중 · 미확인 · 확인] */
-            com.erp.accounting.journal.JournalConfirmStatus confirmStatus
+            com.erp.accounting.journal.JournalConfirmStatus confirmStatus,
+            /** 매출전표 I · 매입전표 I 의 [부가세유형](V349) */
+            String vatType
     ) {
         public static JournalEntryResponse from(JournalEntry e) {
             return new JournalEntryResponse(
@@ -98,7 +119,7 @@ public final class JournalDtos {
                     e.totalDebit(), e.totalCredit(), e.isBalanced(),
                     e.getLines().stream().map(JournalLineResponse::from).toList(),
                     e.getCreatedBy(), e.getCreatedAt(), e.getUpdatedAt(),
-                    e.getConfirmStatus());
+                    e.getConfirmStatus(), e.getVatType());
         }
     }
 

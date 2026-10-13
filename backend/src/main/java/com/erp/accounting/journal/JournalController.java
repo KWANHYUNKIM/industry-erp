@@ -40,6 +40,13 @@ public class JournalController {
         return ResponseEntity.ok(JournalEntryResponse.from(entry));
     }
 
+    /** 회계 I › 매출/매입거래 › 매출전표 I · 매입전표 I */
+    @PostMapping("/vat-slip")
+    public JournalEntryResponse vatSlip(@Valid @RequestBody com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest req,
+                                        @AuthenticationPrincipal UserPrincipal principal) {
+        return JournalEntryResponse.from(journalService.createVatSlip(req, principal.getUsername()));
+    }
+
     /** 현금거래 간편입력 */
     @PostMapping("/cash")
     public ResponseEntity<JournalEntryResponse> createCash(

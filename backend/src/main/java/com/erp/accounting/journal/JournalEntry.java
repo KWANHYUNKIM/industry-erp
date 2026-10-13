@@ -60,6 +60,13 @@ public class JournalEntry extends BaseTimeEntity {
     @Builder.Default
     private JournalConfirmStatus confirmStatus = JournalConfirmStatus.CONFIRMED;
 
+    /**
+     * 매출전표 I · 매입전표 I 의 [부가세유형](세금계산서 · 카드매출 · 현금영수증 …, V349). 그 밖의 전표는 비어 있다.
+     * 지출증빙현황 · 전표vs매출매입자료비교가 이 값으로 증빙을 나눈다.
+     */
+    @Column(name = "vat_type", length = 30)
+    private String vatType;
+
     @OneToMany(mappedBy = "entry", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineNo asc")
     @Builder.Default

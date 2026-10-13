@@ -263,14 +263,6 @@
   ],
   "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
  },
- "표준원가현황|생산공정": {
-  "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
-  "absent": [
-   "process",
-   "Process"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
- },
  "차이분석|생산공정": {
   "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
   "absent": [
@@ -4808,12 +4800,11 @@
   "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서현황(재고)|부가세유형": {
-  "claim": "매출 분개가 부가세 유형을 남기지 않는다",
+  "claim": "이 화면이 회계전표의 부가세유형(V349 — 매출전표 I · 매입전표 I 만 든다)으로 거르지 않는다",
   "absent": [
-   "vatType",
-   "VatType"
+   "vatType"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서현황(재고)|정렬/소계기준": {
   "claim": "달마다 소계를 고정으로 넣는다",
@@ -4842,12 +4833,11 @@
   "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서조회(재고)|부가세유형": {
-  "claim": "매출 분개가 부가세 유형을 남기지 않는다",
+  "claim": "이 화면이 회계전표의 부가세유형(V349 — 매출전표 I · 매입전표 I 만 든다)으로 거르지 않는다",
   "absent": [
-   "vatType",
-   "VatType"
+   "vatType"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서조회(재고)|발송여부": {
   "claim": "발송 이력이 없다",
@@ -4873,12 +4863,11 @@
   "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
  "매입(세금)계산서조회(재고)|부가세유형": {
-  "claim": "매출 분개가 부가세 유형을 남기지 않는다",
+  "claim": "이 화면이 회계전표의 부가세유형(V349 — 매출전표 I · 매입전표 I 만 든다)으로 거르지 않는다",
   "absent": [
-   "vatType",
-   "VatType"
+   "vatType"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
  "A/S수리조회|발송여부": {
   "claim": "발송 이력이 없다",

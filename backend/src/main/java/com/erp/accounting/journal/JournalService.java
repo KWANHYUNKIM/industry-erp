@@ -136,12 +136,45 @@ public class JournalService {
         return changed;
     }
 
+    /**
+     * 매출전표 I · 매입전표 I(2026-10-13 loginaa 실측 26/10/13-6) —
+     * 매출: 차) 입금계좌(외상매출금) 합계 / 대) 매출계정(제품매출) 공급가액 · 부가세예수금(255) 부가세.
+     * 매입: 차) 매입계정(원재료) 공급가액 · 부가세대급금(135) 부가세 / 대) 출금계좌(외상매입금) 합계.
+     * 원본 전표 인쇄는 줄마다 적요 칸에 거래처명과 적요를 찍는다 — 우리 줄 적요는 적요(비면 거래처명)다.
+     */
+    @Transactional
+    public JournalEntry createVatSlip(com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest req, String username) {
+        boolean sales = Boolean.TRUE.equals(req.sales());
+        LocalDate date = req.entryDate() != null ? req.entryDate() : LocalDate.now();
+        BusinessPartner partner = resolvePartner(req.partnerId());
+        BigDecimal supply = req.supplyAmount();
+        BigDecimal vat = nz(req.vatAmount());
+        String desc = req.description() != null && !req.description().isBlank() ? req.description().trim() : partner.getName();
+        JournalEntry e = newEntry(sales ? JournalSourceType.VAT_SALES : JournalSourceType.VAT_PURCHASE, null, date,
+                desc, partner, username);
+        e.setVatType(req.vatType().trim());
+        Account main = account(req.accountId());
+        Account settle = account(req.settleAccountId());
+        if (sales) {
+            addDebitAccount(e, settle, supply.add(vat), desc);
+            addCreditAccount(e, main, supply, desc);
+            if (vat.signum() > 0) addCredit(e, "255", vat, desc);
+        } else {
+            addDebitAccount(e, main, supply, desc);
+            if (vat.signum() > 0) addDebit(e, "135", vat, desc);
+            addCreditAccount(e, settle, supply.add(vat), desc);
+        }
+        e.stampDeptProject(req.departmentId(), req.projectId());
+        return save(e);
+    }
+
     /** 수동전표 삭제. 업무전표에서 자동생성된 전표는 회계반영취소로만 지운다. */
     @Transactional
     public void deleteManual(Long id) {
         JournalEntry e = entryRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
-        if (e.getSourceType() != JournalSourceType.MANUAL) {
+        if (e.getSourceType() != JournalSourceType.MANUAL && e.getSourceType() != JournalSourceType.VAT_SALES
+                && e.getSourceType() != JournalSourceType.VAT_PURCHASE) {
             throw ApiException.badRequest("업무전표에서 생성된 회계전표는 회계반영 취소로만 삭제할 수 있습니다.");
         }
         entryRepository.delete(e);
