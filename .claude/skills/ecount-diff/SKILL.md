@@ -303,8 +303,9 @@ node qa/shot.mjs qa/flows/<내 흐름>.json     # 입력 화면을 고쳤으면 
     L=/tmp/erp-backend-restart.lock
     # 15분 넘은 잠금은 죽은 작업자가 남긴 것이다 — 치운다
     [ -d $L ] && [ -n "$(find $L -maxdepth 0 -mmin +15)" ] && rm -rf $L
-    mkdir $L && { echo "<모듈> $(date +%T)" > $L/owner; (cd backend && ./mvnw -o -q compile) && { …서버 내리고 올리기…; 뜰 때까지 기다림; }; rm -rf $L; } || cat $L/owner
+    mkdir $L && { echo "<모듈> $(date +%T)" > $L/owner; rm -rf backend/target/classes/db && (cd backend && ./mvnw -o -q compile) && { …서버 내리고 올리기…; 뜰 때까지 기다림; }; rm -rf $L; } || cat $L/owner
     ```
+    `target/classes/db` 를 먼저 지운다 — 이름이 바뀐 옛 마이그레이션 사본이 거기 남아 체크섬이 어긋나 기동이 막혔다(2026-10-13 V385).
     **컴파일이 성공한 다음에만 서버를 내린다.** 컴파일 실패면 서버는 그대로 두고 잠금을 풀고, 실패한 파일이 남의 것이면(반쯤 커밋된 변경) 2분 뒤 다시 한다.
     2026-10-13 재고1 이 컴파일을 안 보고 서버부터 내렸다가, 남의 반쯤 들어온 DTO 때문에 못 올려 3~4분 동안 모두의 백엔드가 꺼졌다.
     `mkdir` 이 실패하면 재기동하지 않는다(`;` 로 잇지 않는다 — 남의 잠금을 지나쳐 재기동하고 그 잠금을 지운 적이 있다).
