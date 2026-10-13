@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
+import { EcHistoryModal } from '../../components/EcHistory'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, Project, WorkJournal } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
@@ -67,7 +68,12 @@ const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerNam
  * 필수는 <b>부서 · 제목</b> — 비운 채 저장하면 문구 없이 두 칸만 빨갛게 두른다. 원글을 고쳐 저장하면 '조회' 창으로 돌아온다.
  * 수정 창 하단은 [저장(F8)][닫기][삭제][H]. 격자 둘째 칸(30)은 답글 수 '[1]' 이다(답글이 있을 때만).
  *
- * <p>두지 않은 것: 조회 창의 R · 답글펼치기 · H, 답글 창의 [본문보기], 입력 창의 첨부 · 서식 편집기.
+ * <p><b>2026-10-14 [H] · 답글펼치기.</b> 조회 창의 글 카드마다(원글 · 답글) 와 수정 창 하단에 [H] — '이력' 창(머리 '게시글번호 : 원글번호',
+ * 저장할 때마다 1 GUEST … 신규 · 2 … 수정). 하단 [답글펼치기] 는 처음엔 답글 본문이 펼쳐진 채이고 누르면 [답글접기] 로만 바뀌며,
+ * [답글접기] 를 누르면 답글 카드가 머리 줄(↳ 번호 · 제목 · 작성자 · 시각)만 남는다(원본 실측 차례 그대로).
+ *
+ * <p>두지 않은 것: 조회 창의 R('조회자 현황' — 미조회자 이름 · 조회자 이름 · 최초조회일시 · 최종조회일시, 조회 기록 표가 없다),
+ * 답글 · 수정 창의 [본문보기], 입력 창의 첨부 · 서식 편집기.
  * 원본은 조회 창에서 지운 뒤 격자를 다시 읽지 않아 지운 제목이 [검색] 전까지 남는데, 우리는 바로 다시 읽는다.
  */
 export default function WorkLogPage() {
@@ -96,6 +102,10 @@ export default function WorkLogPage() {
   const [form, setForm] = useState<Form>(emptyForm)
   const setF = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }))
   const [viewing, setViewing] = useState<WorkJournal | null>(null)
+  /** 원본 [답글펼치기] — init(처음 · 펼쳐 둠) → open([답글접기]) → closed(머리 줄만, [답글펼치기]). */
+  const [replyFold, setReplyFold] = useState<'init' | 'open' | 'closed'>('init')
+  /** [H] '이력' 창을 띄울 글 */
+  const [historyOf, setHistoryOf] = useState<WorkJournal | null>(null)
   /** 답글 창이면 원글 id — 저장할 때 parentId 로 보낸다. */
   const [replyTo, setReplyTo] = useState<number | null>(null)
   /** 저장을 눌렀는데 비어 있던 필수칸 — 원본은 문구 없이 그 칸만 빨갛게 두른다(부서 · 제목). */
@@ -156,6 +166,16 @@ export default function WorkLogPage() {
     }
     walk(root.id, 1)
     return out
+  }
+  /** 답글이면 맨 위 원글 번호 — 원본 이력 머리 '게시글번호 : 8' 은 답글도 원글 번호다. */
+  const rootId = (r: WorkJournal): number => {
+    let cur = r
+    for (let i = 0; i < 50 && cur.parentId != null; i++) {
+      const p = rows.find((x) => x.id === cur.parentId)
+      if (!p) return cur.parentId
+      cur = p
+    }
+    return cur.id
   }
   const fill = (r: WorkJournal): Form => ({
     reportDate: r.reportDate, department: r.department ?? '', partnerName: r.partnerName ?? '',
@@ -375,7 +395,7 @@ export default function WorkLogPage() {
       )}
 
       {/* 원본 '조회' */}
-      <Modal error={error} open={!!viewing} title="조회" width={780} onClose={() => setViewing(null)}>
+      <Modal error={error} open={!!viewing} title="조회" width={780} onClose={() => { setViewing(null); setReplyFold('init') }}>
         {viewing && (
           <>
             {[{ r: viewing, depth: 0 }, ...threadOf(viewing)].map(({ r, depth }, n) => (
@@ -386,6 +406,7 @@ export default function WorkLogPage() {
                   <span className="text-ec-navy">{r.authorName}</span>
                   <span>{stampText(r.createdAt)}</span>
                 </div>
+                {(depth === 0 || replyFold !== 'closed') && (<>
                 <div className="py-[9px] px-[9px] text-[12px] leading-[1.8]">
                   <div>업무보고일 : {r.reportDate.replace(/-/g, '')}</div>
                   <div>부서 : {r.department ?? ''}</div>
@@ -398,13 +419,17 @@ export default function WorkLogPage() {
                   {depth === 0 && <button type="button" className="ec-btn" onClick={() => openCopy(r)}>복사</button>}
                   <button type="button" className="ec-btn" onClick={() => openEdit(r)}>수정</button>
                   <button type="button" className="ec-btn" onClick={() => void remove(r)}>삭제</button>
+                  <button type="button" className="ec-btn" onClick={() => setHistoryOf(r)}>H</button>
                 </div>
+                </>)}
               </div>
             ))}
             <div className="flex gap-[6px] mt-[10px]">
               <button type="button" className="ec-btn ec-btn-primary" onClick={() => openReply(viewing)}>답변</button>
               <button type="button" className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
-              <button type="button" className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
+              <button type="button" className="ec-btn" onClick={() => { setViewing(null); setReplyFold('init') }}>닫기</button>
+              <button type="button" className="ec-btn"
+                      onClick={() => setReplyFold((f) => (f === 'open' ? 'closed' : 'open'))}>{replyFold === 'open' ? '답글접기' : '답글펼치기'}</button>
             </div>
           </>
         )}
@@ -442,9 +467,17 @@ export default function WorkLogPage() {
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
           {/* 원본 수정 창: [저장(F8)][닫기][삭제][H] — 새 글 · 답글 창에는 [삭제]가 없다 */}
-          {editId != null && (() => { const r = rows.find((x) => x.id === editId); return r ? <button type="button" className="ec-btn" onClick={() => void remove(r)}>삭제</button> : null })()}
+          {editId != null && (() => { const r = rows.find((x) => x.id === editId); return r ? <>
+            <button type="button" className="ec-btn" onClick={() => void remove(r)}>삭제</button>
+            <button type="button" className="ec-btn" onClick={() => setHistoryOf(r)}>H</button>
+          </> : null })()}
         </div>
       </Modal>
+
+      {historyOf && (
+        <EcHistoryModal url={`/work-journals/${historyOf.id}/history`} head={`게시글번호 : ${rootId(historyOf)}`}
+                        onClose={() => setHistoryOf(null)} />
+      )}
     </EcListShell>
   )
 }

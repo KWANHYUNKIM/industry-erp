@@ -41,6 +41,12 @@ public class WorkJournalController {
         return workJournalService.update(id, req, principal.getUsername());
     }
 
+    /** 원본 [H] '이력' */
+    @GetMapping("/{id}/history")
+    public List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(@PathVariable Long id) {
+        return workJournalService.history(id);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         workJournalService.delete(id, principal.getUsername());

@@ -8,6 +8,8 @@ import com.erp.groupware.workjournal.dto.WorkJournalDtos.WorkJournalResponse;
 import com.erp.trade.partner.BusinessPartnerRepository;
 import com.erp.auth.user.UserRepository;
 import com.erp.inventory.project.ProjectService;
+import com.erp.common.history.ChangeHistoryService;
+import com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,11 +22,15 @@ import com.erp.groupware.workjournal.dto.WorkJournalDtos;
 @RequiredArgsConstructor
 public class WorkJournalService {
 
+    /** [H] '이력' 대상 글자(change_histories.target). */
+    public static final String WORK_JOURNAL_HISTORY = "WORK_JOURNAL";
+
     private final WorkJournalRepository workJournalRepository;
     private final UserRepository userRepository;
     private final BusinessPartnerRepository partnerRepository;
     // 프로젝트는 inventory 가 소유한다. 리포지토리를 직접 주입하지 않고 그 모듈의 서비스를 거친다.
     private final ProjectService projectService;
+    private final ChangeHistoryService changeHistoryService;
 
     @Transactional(readOnly = true)
     public List<WorkJournalResponse> findAll() {
@@ -59,7 +65,9 @@ public class WorkJournalService {
                 .parentId(parentOf(req.parentId()))
                 .build();
 
-        return WorkJournalResponse.from(workJournalRepository.save(journal));
+        WorkJournal saved = workJournalRepository.save(journal);
+        changeHistoryService.record(WORK_JOURNAL_HISTORY, saved.getId(), ChangeHistoryService.CREATED);
+        return WorkJournalResponse.from(saved);
     }
 
     /**
@@ -75,7 +83,19 @@ public class WorkJournalService {
         j.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         j.setTitle(req.title());
         j.setContent(req.content() != null ? req.content() : "");
+        changeHistoryService.record(WORK_JOURNAL_HISTORY, j.getId(), ChangeHistoryService.UPDATED);
         return WorkJournalResponse.from(j);
+    }
+
+    /**
+     * 원본 '조회' 창 · 수정 창 [H] '이력'(2026-10-14 E070304 실측) — 저장할 때마다 한 줄(1 GUEST … 신규 · 2 … 수정).
+     * 답글도 자기 줄을 갖는다. 이 표를 붙이기 전의 글은 만든 사람 · 때로 '신규' 한 줄을 지어 보인다.
+     */
+    @Transactional(readOnly = true)
+    public List<ChangeHistoryResponse> history(Long id) {
+        WorkJournal j = workJournalRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("업무일지를 찾을 수 없습니다. id=" + id));
+        return changeHistoryService.list(WORK_JOURNAL_HISTORY, id, j.getAuthor().getUsername(), j.getCreatedAt());
     }
 
     /** 원본 '조회' 창의 [삭제] — '게시글을 삭제하면 복구할 수 없습니다.' 를 묻고 지운다. */
