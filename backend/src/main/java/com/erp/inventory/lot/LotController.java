@@ -1,9 +1,7 @@
 package com.erp.inventory.lot;
 
 import com.erp.inventory.lot.dto.LotDtos.AdjustLotRequest;
-import com.erp.inventory.lot.dto.LotDtos.ConsumeLotRequest;
 import com.erp.inventory.lot.dto.LotDtos.CreateLotRequest;
-import com.erp.inventory.lot.dto.LotDtos.HoldLotRequest;
 import com.erp.inventory.lot.dto.LotDtos.LotResponse;
 import com.erp.inventory.lot.dto.LotDtos.LotTransactionResponse;
 import jakarta.validation.Valid;
@@ -88,16 +86,6 @@ public class LotController {
     public ResponseEntity<Void> setUse(@Valid @RequestBody com.erp.inventory.lot.dto.LotDtos.LotUseRequest req) {
         lotService.setUse(req.ids(), req.use());
         return ResponseEntity.noContent().build();
-    }
-
-    @PatchMapping("/{id}/consume")
-    public LotResponse consume(@PathVariable Long id, @Valid @RequestBody ConsumeLotRequest req) {
-        return lotService.consume(id, req);
-    }
-
-    @PatchMapping("/{id}/hold")
-    public LotResponse hold(@PathVariable Long id, @RequestBody HoldLotRequest req) {
-        return lotService.hold(id, req);
     }
 
     @PatchMapping("/{id}/adjust")

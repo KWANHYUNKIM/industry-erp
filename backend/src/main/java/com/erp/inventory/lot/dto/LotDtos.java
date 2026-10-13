@@ -128,14 +128,6 @@ public final class LotDtos {
 
     public record DeleteTxRequest(@NotEmpty(message = "리스트에 선택된 자료가 없습니다.") List<Long> ids) {}
 
-    public record ConsumeLotRequest(
-            @NotNull(message = "출고수량을 입력하세요.") @Positive(message = "출고수량은 0보다 커야 합니다.") BigDecimal qty
-    ) {}
-
-    public record HoldLotRequest(
-            boolean held
-    ) {}
-
     public record LotResponse(
             Long id, String lotNo,
             Long itemId, String itemCode, String itemName, String unit,

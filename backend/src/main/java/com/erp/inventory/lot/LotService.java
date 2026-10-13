@@ -4,9 +4,7 @@ import com.erp.common.ApiException;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.warehouse.Warehouse;
 import com.erp.inventory.lot.dto.LotDtos.AdjustLotRequest;
-import com.erp.inventory.lot.dto.LotDtos.ConsumeLotRequest;
 import com.erp.inventory.lot.dto.LotDtos.CreateLotRequest;
-import com.erp.inventory.lot.dto.LotDtos.HoldLotRequest;
 import com.erp.inventory.lot.dto.LotDtos.LotResponse;
 import com.erp.inventory.lot.dto.LotDtos.LotTransactionResponse;
 import com.erp.inventory.item.ItemRepository;
@@ -165,22 +163,6 @@ public class LotService {
         }
     }
 
-    @Transactional
-    public LotResponse consume(Long id, ConsumeLotRequest req) {
-        Lot lot = getLot(id);
-        if (lot.isHeld()) {
-            throw ApiException.badRequest("보류 상태의 로트는 출고할 수 없습니다.");
-        }
-        if (req.qty().compareTo(lot.getStockQty()) > 0) {
-            throw ApiException.badRequest(String.format(
-                    "로트 재고가 부족합니다. 현재고 %s, 요청 %s",
-                    lot.getStockQty().stripTrailingZeros().toPlainString(), req.qty().stripTrailingZeros().toPlainString()));
-        }
-        lot.setStockQty(lot.getStockQty().subtract(req.qty()));
-        recordTx(lot, LotTxType.OUTBOUND, req.qty().negate(), lot.getStockQty(), "로트 소모");
-        return LotResponse.from(lot);
-    }
-
     /** 로트 실사 조정 — 실사수량으로 재고를 맞추고 차이를 조정 이력으로 남긴다. */
     @Transactional
     public LotResponse adjust(Long id, AdjustLotRequest req) {
@@ -205,13 +187,6 @@ public class LotService {
                 .lot(lot).txDate(LocalDate.now()).type(LotTxType.ADJUST)
                 .quantityChange(delta).balanceAfter(target).note(note).docType("재고조정")
                 .build());
-        return LotResponse.from(lot);
-    }
-
-    @Transactional
-    public LotResponse hold(Long id, HoldLotRequest req) {
-        Lot lot = getLot(id);
-        lot.setHeld(req.held());
         return LotResponse.from(lot);
     }
 
@@ -324,21 +299,46 @@ public class LotService {
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .partnerName(blank(req.partnerName())).chargeName(blank(req.chargeName())).mgmtName(blank(req.mgmtName()))
                 .build());
+        changeHistory.record(HISTORY_TX_TARGET, t.getId(), com.erp.common.history.ChangeHistoryService.CREATED);
         return LotTransactionResponse.from(t);
     }
 
-    /** 내역입력 고치기 — 원본 수정 창은 [일자] · [전표구분] 을 잠근다. 예전 수량을 되돌리고 새로 적는다. */
+    /** [H] 이력의 대상 이름 — 내역입력 한 줄. */
+    public static final String HISTORY_TX_TARGET = "LOT_TX";
+
+    /**
+     * 내역입력 고치기 — 원본 수정 창은 [일자] · [전표구분] 을 잠근다. <b>같은 줄을 고친다</b>(id 그대로) —
+     * 예전엔 지우고 새로 만들어 id 가 바뀌어 수정 창 [H] 이력을 이을 수 없었다. 예전 수량을 그 로트에서 되돌리고
+     * (로트를 바꿨으면 예전 로트에서) 새 수량을 새 로트에 더한다.
+     */
     @Transactional
     public LotTransactionResponse updateManual(Long id, LotDtos.ManualTxRequest req) {
-        LotTransaction old = lotTxRepository.findById(id)
+        LotTransaction t = lotTxRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("시리얼/로트No.내역을 찾을 수 없습니다. id=" + id));
-        if (!old.isManual()) throw ApiException.badRequest("전표에서 생긴 내역은 그 전표에서 고칩니다.");
-        LocalDate date = old.getTxDate();
-        String docType = old.getDocType();
-        deleteManual(List.of(id));
-        lotTxRepository.flush();
-        return createManual(new LotDtos.ManualTxRequest(date, docType, req.warehouseId(), req.itemId(), req.quantity(),
-                req.lotNo(), req.partnerName(), req.mgmtName(), req.chargeName(), req.projectId(), req.note()));
+        if (!t.isManual()) throw ApiException.badRequest("전표에서 생긴 내역은 그 전표에서 고칩니다.");
+        int sign = MANUAL_DOC_SIGN.getOrDefault(t.getDocType(), 0);
+        Lot lot = lotRepository.findByLotNo(req.lotNo().trim())
+                .orElseThrow(() -> ApiException.badRequest("등록되지 않은 시리얼/로트No. 입니다: " + req.lotNo()));
+        if (!lot.getItem().getId().equals(req.itemId())) {
+            throw ApiException.badRequest("시리얼/로트No. " + lot.getLotNo() + " 은(는) 다른 품목("
+                    + lot.getItem().getName() + ")의 것입니다.");
+        }
+        Warehouse wh = warehouseRepository.findById(req.warehouseId())
+                .orElseThrow(() -> ApiException.badRequest("창고를 찾을 수 없습니다."));
+        if (sign != 0) t.getLot().setStockQty(t.getLot().getStockQty().subtract(t.getQuantityChange()));
+        BigDecimal change = req.quantity().multiply(BigDecimal.valueOf(sign));
+        lot.setStockQty(lot.getStockQty().add(change));
+        t.setLot(lot);
+        t.setQuantityChange(sign == 0 ? req.quantity() : change);
+        t.setBalanceAfter(lot.getStockQty());
+        t.setWarehouse(wh);
+        t.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
+        t.setPartnerName(blank(req.partnerName()));
+        t.setChargeName(blank(req.chargeName()));
+        t.setMgmtName(blank(req.mgmtName()));
+        t.setNote(blank(req.note()));
+        changeHistory.record(HISTORY_TX_TARGET, t.getId(), com.erp.common.history.ChangeHistoryService.UPDATED);
+        return LotTransactionResponse.from(t);
     }
 
     /** 원본 목록 [선택삭제] — 손으로 넣은 줄만. 지우면 로트 재고가 되돌아간다. */
@@ -359,10 +359,6 @@ public class LotService {
 
     private static String blank(String v) {
         return v == null || v.isBlank() ? null : v.trim();
-    }
-
-    private void recordTx(Lot lot, LotTxType type, BigDecimal change, BigDecimal balanceAfter, String note) {
-        recordTx(lot, type, change, balanceAfter, note, LocalDate.now());
     }
 
     private void recordTx(Lot lot, LotTxType type, BigDecimal change, BigDecimal balanceAfter, String note,

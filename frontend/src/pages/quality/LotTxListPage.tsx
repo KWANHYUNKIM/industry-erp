@@ -13,6 +13,7 @@ import Modal from '../../components/Modal'
 import { useShortcut } from '../../utils/useShortcut'
 import { ymd } from '../../components/EcPeriodPicks'
 import { ecConfirm } from '../../components/EcDialog'
+import EcHistoryButton from '../../components/EcHistory'
 
 /*
  * 원본 '시리얼/로트No.내역입력' [전표구분] 후보 — 차례 그대로(2026-10-12 실측, 기본 견적).
@@ -303,7 +304,7 @@ export default function LotTxListPage() {
         </ul>
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={() => void saveTx()}>저장(F8)</button>
-          {/* 원본 수정 창: 저장(F8) · 이전 · 다음 · 닫기 · 삭제 · H(2026-10-14 실측). 이전 · 다음은 목록에서 앞 · 뒤 손입력 줄을 같은 창에 연다. [H] 는 아직 없다. */}
+          {/* 원본 수정 창: 저장(F8) · 이전 · 다음 · 닫기 · 삭제 · H(2026-10-14 실측). 이전 · 다음은 목록에서 앞 · 뒤 손입력 줄을 같은 창에 연다. [H] 는 그 줄의 이력 — 서버가 같은 줄을 고쳐 id 가 그대로라 이어진다. */}
           {editing && (() => {
             const own = shown.filter((r) => r.manual)
             const at = own.findIndex((r) => r.id === editing.id)
@@ -315,6 +316,7 @@ export default function LotTxListPage() {
           {!editing && <button className="ec-btn" onClick={() => { setF(emptyForm()); setTried(false) }}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
           {editing && <button className="ec-btn" onClick={async () => { if ((await ecConfirm('전표를 삭제하겠습니까?\n- 시리얼/로트No.내역입력'))) void removeTx([editing.id]) }}>삭제</button>}
+          <EcHistoryButton target="LOT_TX" id={editing?.id} last />
         </div>
       </Modal>
     </EcListShell>
