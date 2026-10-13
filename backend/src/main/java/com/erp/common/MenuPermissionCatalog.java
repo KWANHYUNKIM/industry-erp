@@ -102,7 +102,8 @@ public final class MenuPermissionCatalog {
                 "/api/card-issuers", "/api/payment-agencies");
         put(m, "FIXED_ASSET", "/api/fixed-assets");
         put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses",
-                "/api/cash-plans", "/api/bonds", "/api/fund-plans");
+                "/api/cash-plans", "/api/bonds", "/api/fund-plans",
+                "/api/contract-items", "/api/billing-contracts", "/api/contract-bills");
         put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax",
                 "/api/medical-device-reports", "/api/vat-returns", "/api/vat-media-files", "/api/vat-invoice-marks",
                 "/api/expense-evidence", "/api/withholding-payees");

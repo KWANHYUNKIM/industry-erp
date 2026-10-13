@@ -1,0 +1,92 @@
+package com.erp.accounting.billingcontract.dto;
+
+import com.erp.accounting.billingcontract.BillingContract;
+import com.erp.accounting.billingcontract.BillingContractLine;
+import com.erp.accounting.billingcontract.BillingUnit;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+public final class BillingContractDtos {
+    private BillingContractDtos() {}
+
+    public record SaveContractRequest(
+            @NotNull(message = "계약일자를 입력하세요.") LocalDate contractDate,
+            @NotNull(message = "거래처를 입력하세요.") Long partnerId,
+            @Size(max = 20) String code,
+            @Size(max = 100) String name,
+            @NotNull(message = "청구시작일을 입력하세요.") LocalDate billStart,
+            @NotNull(message = "청구종료일을 입력하세요.") LocalDate billEnd,
+            @NotBlank(message = "부가세유형을 선택하세요.") String vatType,
+            boolean foreignCurrency,
+            Long employeeId,
+            Long departmentId,
+            Long projectId,
+            @Size(max = 200) String remark,
+            @NotEmpty(message = "계약항목을 입력하세요.") List<@Valid SaveLine> lines
+    ) {}
+
+    public record SaveLine(
+            @NotNull(message = "항목코드를 입력하세요.") Long itemId,
+            @Size(max = 40) String billMonths,
+            BigDecimal quantity,
+            BigDecimal unitPrice,
+            BigDecimal supplyAmount,
+            BigDecimal vatAmount,
+            @NotNull(message = "청구단위를 입력하세요.") Long billingUnitId,
+            @Size(max = 200) String remark
+    ) {}
+
+    public record LineResponse(
+            Long id, Integer lineNo, Long itemId, String itemCode, String itemName, String billMonths,
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
+            Long billingUnitId, String billingUnitCode, String billingUnitName, String remark
+    ) {
+        public static LineResponse from(BillingContractLine l) {
+            BillingUnit u = l.getBillingUnit();
+            return new LineResponse(l.getId(), l.getLineNo(), l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
+                    l.getBillMonths(), l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                    u != null ? u.getId() : null, u != null ? u.getCode() : null, u != null ? u.getName() : null, l.getRemark());
+        }
+    }
+
+    public record ContractResponse(
+            Long id, LocalDate contractDate, Integer docNo, String code, String name,
+            Long partnerId, String partnerCode, String partnerName,
+            LocalDate billStart, LocalDate billEnd, String vatType, boolean foreignCurrency,
+            Long employeeId, Long departmentId, Long projectId, String projectName, String remark,
+            BigDecimal totalAmount, List<LineResponse> lines
+    ) {
+        public static ContractResponse from(BillingContract c, List<BillingContractLine> lines) {
+            BigDecimal total = lines.stream().map((l) -> l.getSupplyAmount().add(l.getVatAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
+            return new ContractResponse(c.getId(), c.getContractDate(), c.getDocNo(), c.getCode(), c.getName(),
+                    c.getPartner().getId(), c.getPartner().getCode(), c.getPartner().getName(),
+                    c.getBillStart(), c.getBillEnd(), c.getVatType(), c.isForeignCurrency(),
+                    c.getEmployeeId(), c.getDepartmentId(),
+                    c.getProject() != null ? c.getProject().getId() : null, c.getProject() != null ? c.getProject().getName() : null,
+                    c.getRemark(), total, lines.stream().map(LineResponse::from).toList());
+        }
+    }
+
+    /** 청구자료생성의 [계약] 찾기(계약현황) 한 줄 — 계약 줄 × 청구할 달. */
+    public record BillableLine(
+            Long contractLineId, Long contractId, LocalDate contractDate, Integer docNo, String contractCode, String contractName,
+            Long partnerId, String partnerName, String itemCode, String itemName, String billMonth, String billMonths,
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
+            Long billingUnitId, String billingUnitCode, String billingUnitName, String remark
+    ) {}
+
+    public record BillingUnitResponse(Long id, String code, String name) {
+        public static BillingUnitResponse from(BillingUnit u) {
+            return new BillingUnitResponse(u.getId(), u.getCode(), u.getName());
+        }
+    }
+
+    public record DeleteRequest(List<Long> ids) {}
+}
