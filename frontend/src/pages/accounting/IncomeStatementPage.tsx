@@ -63,6 +63,7 @@ export default function IncomeStatementPage() {
   const [cmpToYm, setCmpToYm] = useState(thisYm)
   const [thousand, setThousand] = useState(false)
   const [withZero, setWithZero] = useState(false)
+  const [hideIdle, setHideIdle] = useState(false)
   const [accounts, setAccounts] = useState<(AccountOpt & { name: string })[]>([])
   const [base, setBase] = useState<IncomeStatement | null>(null)
   const [cmp, setCmp] = useState<IncomeStatement | null>(null)
@@ -159,8 +160,8 @@ export default function IncomeStatementPage() {
   const groups = useMemo(() => {
     if (!modes.by || !splitBase) return []
     const items = modes.by === 'department' ? deptProject.departments : deptProject.projects
-    return groupsOf(modes.mode, modes.by, items, new Set(splitBase.keys()))
-  }, [modes.by, modes.mode, splitBase, deptProject])
+    return groupsOf(modes.mode, modes.by, items, new Set(splitBase.keys()), hideIdle)
+  }, [modes.by, modes.mode, splitBase, deptProject, hideIdle])
   const groupIs = (s: Split | null, key: string, f: string, t: string) => toIncomeStatement(s?.get(key) ?? [], f, t)
 
   const fmt = (n: number | null) => (n == null || n === 0 ? '' : Math.round(thousand ? n / 1000 : n).toLocaleString('ko-KR'))
@@ -221,7 +222,7 @@ export default function IncomeStatementPage() {
           <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
-          {([['천단위', thousand, setThousand], ['잔액0포함', withZero, setWithZero]] as const).map(([l, v, set]) => (
+          {([['천단위', thousand, setThousand], ['잔액0포함', withZero, setWithZero], ['내역없는부서/프로젝트제외', hideIdle, setHideIdle]] as const).map(([l, v, set]) => (
             <label key={l} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {l}
             </label>

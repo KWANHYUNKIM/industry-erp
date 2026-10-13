@@ -1,5 +1,5 @@
 {
-  "about": "회계 I › 주요재무제표 [부서표시방법] · [프로젝트표시방법] 집계 · 종 · 횡 (2026-10-13 원본 손익계산서 실측): 종은 부서마다 한 장(자료 있는 부서만, 부서 없는 줄이 먼저 '00(기타부서)', 회사명 뒤 ' / 코드(이름)'), 횡은 한 표에 합계 · 등록된 부서 전부 · 기타 열. 한쪽을 종 · 횡으로 바꾸면 다른 쪽이 집계로, 비교가 선택안함으로.",
+  "about": "회계 I › 주요재무제표 [부서표시방법] · [프로젝트표시방법] 집계 · 종 · 횡 (2026-10-13 원본 손익계산서 실측): 종은 부서마다 한 장(자료 있는 부서만, 부서 없는 줄이 먼저 '00(기타부서)', 회사명 뒤 ' / 코드(이름)'), 횡은 한 표에 합계 · 등록된 부서 전부 · 기타 열. 한쪽을 종 · 횡으로 바꾸면 다른 쪽이 집계로, 비교가 선택안함으로. 기타 [내역없는부서/프로젝트제외](원본 손익계산서 횡: 합계 · 부서 11 · 기타 → 합계 · 영업교육팀 · 기타)를 켜면 횡에서도 자료가 없는 부서 열이 빠진다.",
   "shots": [
     { "path": "/accounting/income-statement", "steps": [
       "wait:1500",
@@ -12,7 +12,13 @@
       "wait:1500",
       "expect:document.querySelectorAll('input[name=is-dept]')[0].checked",
       "expect:(() => { const h = [...document.querySelectorAll('table thead th')].map(t => t.textContent); return h[1] === '합계' && h[h.length - 1] === '기타' })()",
-      "expect:(() => { const r = [...document.querySelectorAll('table tbody tr')].find(t => t.cells[0].textContent === '12. 당기순이익'); return r && r.cells.length > 5 })()"
+      "expect:(() => { const r = [...document.querySelectorAll('table tbody tr')].find(t => t.cells[0].textContent === '12. 당기순이익'); return r && r.cells.length > 5 })()",
+      "js:document.querySelectorAll('input[name=is-dept]')[2].click()",
+      "wait:1500",
+      "js:(() => { const n = document.querySelectorAll('table thead th').length; sessionStorage.setItem('idleCols', n); return n })()",
+      "js:(() => { [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '내역없는부서/프로젝트제외').querySelector('input').click(); return true })()",
+      "wait:500",
+      "expect:(() => { const h = [...document.querySelectorAll('table thead th')].map(t => t.textContent); return h.length < Number(sessionStorage.getItem('idleCols')) && h[1] === '합계' && h[h.length - 1] === '기타' })()"
     ] },
     { "path": "/accounting/balance-sheet", "steps": [
       "wait:1500",

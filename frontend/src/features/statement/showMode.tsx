@@ -128,8 +128,9 @@ const byCode = (a: CodeItem, b: CodeItem) => (a.code ?? '').localeCompare(b.code
  * 횡: 등록된 부서(프로젝트) 전부 + 기타(원본은 자료가 없는 부서도 열을 세운다).
  * 종: 자료가 있는 것만, 부서 없는 줄이 먼저 — 원본 머리 '00(기타부서)'. 프로젝트 쪽 이름은 횡의 '기타'를 쓴다.
  */
-export function groupsOf(mode: ShowMode, by: SplitBy, items: CodeItem[], present: Set<string>): SplitGroup[] {
-  const sorted = [...items].sort(byCode)
+export function groupsOf(mode: ShowMode, by: SplitBy, items: CodeItem[], present: Set<string>, hideIdle = false): SplitGroup[] {
+  /* 기타 [내역없는부서/프로젝트제외] — 횡에서도 자료가 있는 것만(2026-10-13 손익계산서 횡: 열 11개 + 기타 → 영업교육팀 · 기타). */
+  const sorted = [...items].sort(byCode).filter((i) => !hideIdle || present.has(i.value))
   const rest: SplitGroup = { key: '', label: by === 'department' ? '00(기타부서)' : '기타', head: '기타' }
   const one = (i: CodeItem): SplitGroup => ({ key: i.value, label: i.code ? `${i.code}(${i.name})` : i.name, head: i.name })
   if (mode === '횡') return [...sorted.map(one), rest]
