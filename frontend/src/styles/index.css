@@ -1199,4 +1199,10 @@ th.ec-empty {
 .ec-org-profile-body dt { color: var(--ec-icon); }
 .ec-org-profile-body dd { margin: 0; padding-left: 4.5px; }
 .ec-org-profile-close { position: absolute; top: 4.5px; right: 9px; border: 0; background: transparent; color: var(--ec-icon); cursor: pointer; }
+
+/* 필수칸을 비운 채 저장했을 때 — 원본 .has-error > .validation (업무일지 E070304 2026-10-14 실측):
+   칸을 2.7px 바깥에서 0.5px 빨간 선(rgb 215,62,62) · 둥글기 6 으로 두른다. 문구는 없다. */
+.ec-invalid { position: relative; }
+.ec-invalid::after { content: ''; position: absolute; inset: -2.7px; border: var(--ec-hair) solid var(--ec-text-danger);
+  border-radius: 6px; pointer-events: none; }
 } /* @layer components */

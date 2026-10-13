@@ -61,7 +61,13 @@ const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerNam
  * 원글 아래에 '↳ 1 제목 작성자 시각' 카드가 붙는다(답글 카드의 버튼은 [답글][수정][삭제]). 답글은 격자에 찍히지 않는다.
  * [복사]는 같은 칸을 채운 새 글 창. 답글이 달린 글의 [삭제]는 '답변이 있는 글은 삭제할 수 없습니다. 답변 삭제 후 다시 시도 바랍니다.'
  *
- * <p>두지 않은 것: 조회 창의 R · 답글펼치기, 답글 창의 [본문보기], 입력 창의 첨부 · 서식 편집기, 격자 둘째 칸의 쓰임(원본도 비어 있었다).
+ * <p><b>2026-10-14 다시 쟀다(원본에 QA그룹웨어-일지를 넣고 고치고 지웠다).</b> 신규 창에는 임시저장 배너가 없다
+ * (원본 임시저장은 게시판 입력 창 `temporary_board/…` 만 쓴다 — 본문을 치고 닫았다 다시 열어도 안내가 안 뜬다).
+ * 필수는 <b>부서 · 제목</b> — 비운 채 저장하면 문구 없이 두 칸만 빨갛게 두른다. 원글을 고쳐 저장하면 '조회' 창으로 돌아온다.
+ * 수정 창 하단은 [저장(F8)][닫기][삭제][H]. 격자 둘째 칸(30)은 답글 수 '[1]' 이다(답글이 있을 때만).
+ *
+ * <p>두지 않은 것: 조회 창의 R · 답글펼치기 · H, 답글 창의 [본문보기], 입력 창의 첨부 · 서식 편집기, 거래처 코드도움(우리는 글자 칸).
+ * 원본은 조회 창에서 지운 뒤 격자를 다시 읽지 않아 지운 제목이 [검색] 전까지 남는데, 우리는 바로 다시 읽는다.
  */
 export default function WorkLogPage() {
   const { user } = useAuth()
@@ -90,6 +96,8 @@ export default function WorkLogPage() {
   const [viewing, setViewing] = useState<WorkJournal | null>(null)
   /** 답글 창이면 원글 id — 저장할 때 parentId 로 보낸다. */
   const [replyTo, setReplyTo] = useState<number | null>(null)
+  /** 저장을 눌렀는데 비어 있던 필수칸 — 원본은 문구 없이 그 칸만 빨갛게 두른다(부서 · 제목). */
+  const [invalid, setInvalid] = useState<Set<'department' | 'title'>>(new Set())
 
   useEffect(() => {
     api.get<DeptRow[]>('/departments')
@@ -129,6 +137,8 @@ export default function WorkLogPage() {
     return cond.department ? names.filter((n) => n.includes(cond.department)) : names
   })()
   const days = daysOf(cond.from, cond.to, cond.dow)
+  /** 원글 아래 답글 수(답글의 답글은 세지 않는다). */
+  const replyCount = (id: number) => rows.filter((x) => x.parentId === id).length
   const gridRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(gridRef, '업무일지 부서×일자', [view, days.length, deptRows.length])
 
@@ -150,6 +160,7 @@ export default function WorkLogPage() {
   })
   /** 원본 [답글(F8)] · [답변] — 그 글의 칸을 그대로 채운 작성 창. '조회' 창은 열어 둔다. */
   function openReply(r: WorkJournal) {
+    setInvalid(new Set())
     setEditId(null)
     setReplyTo(r.id)
     setForm(fill(r))
@@ -158,6 +169,7 @@ export default function WorkLogPage() {
   }
   /** 원본 [복사] — 같은 칸을 채운 새 글. */
   function openCopy(r: WorkJournal) {
+    setInvalid(new Set())
     setViewing(null)
     setEditId(null)
     setReplyTo(null)
@@ -167,6 +179,7 @@ export default function WorkLogPage() {
   }
 
   function openNew() {
+    setInvalid(new Set())
     setReplyTo(null)
     setEditId(null)
     setForm(emptyForm())
@@ -174,6 +187,8 @@ export default function WorkLogPage() {
     setShowForm(true)
   }
   function openEdit(r: WorkJournal) {
+    setInvalid(new Set())
+    // 원본: 원글 [수정] 은 '조회' 창 자리에 작성 창을 띄우고, 저장하면 다시 '조회' 창(submit)
     if (r.parentId == null) setViewing(null)
     setReplyTo(null)
     setEditId(r.id)
@@ -184,7 +199,12 @@ export default function WorkLogPage() {
 
   async function submit() {
     setError('')
-    if (!form.title.trim()) return setError('제목을 입력하세요.')
+    // 원본(2026-10-14): 부서 · 제목이 비면 저장하지 않고 두 칸을 빨갛게만 두른다 — 알림 문구는 없다.
+    const miss = new Set<'department' | 'title'>()
+    if (!form.department) miss.add('department')
+    if (!form.title.trim()) miss.add('title')
+    setInvalid(miss)
+    if (miss.size > 0) return
     const body = {
       reportDate: form.reportDate,
       department: form.department || undefined,
@@ -195,10 +215,13 @@ export default function WorkLogPage() {
       parentId: replyTo ?? undefined,
     }
     try {
-      if (editId != null) await api.put(`/work-journals/${editId}`, body)
-      else await api.post('/work-journals', body)
+      const saved = editId != null
+        ? (await api.put<WorkJournal>(`/work-journals/${editId}`, body)).data
+        : (await api.post<WorkJournal>('/work-journals', body)).data
       setShowForm(false)
       setReplyTo(null)
+      // 원본: 원글을 고쳐 저장하면 그 글의 '조회' 창으로 돌아온다(고친 제목으로). 답글을 고치면 조회 창은 원글 그대로.
+      if (editId != null && saved && saved.parentId == null) setViewing(saved)
       if (view === 'result') void search()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
@@ -212,6 +235,7 @@ export default function WorkLogPage() {
       await api.delete(`/work-journals/${r.id}`)
       // 답글을 지우면 '조회' 창은 원글을 띄운 채로 남는다(원본 실측).
       if (r.parentId == null) setViewing(null)
+      setShowForm(false)
       void search()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
@@ -326,7 +350,8 @@ export default function WorkLogPage() {
                               </button>
                             )}
                           </td>
-                          <td className="w-[30px]" />
+                          {/* 원본 둘째 칸 = 답글 수 '[1]'(답글이 있을 때만) */}
+                          <td className="w-[30px] text-center">{r && replyCount(r.id) > 0 ? `[${replyCount(r.id)}]` : ''}</td>
                         </Fragment>
                       )
                     })}
@@ -385,7 +410,7 @@ export default function WorkLogPage() {
           </li>
           <li>
             <div className="title">부서</div>
-            <div className="form"><CodePickerField label="부서" hideLabel fill value={form.department} onChange={(v) => setF('department', v)} items={deptItems} /></div>
+            <div className={`form${invalid.has('department') && !form.department ? ' ec-invalid' : ''}`}><CodePickerField label="부서" hideLabel fill value={form.department} onChange={(v) => setF('department', v)} items={deptItems} /></div>
           </li>
           <li>
             <div className="title">거래처</div>
@@ -397,7 +422,7 @@ export default function WorkLogPage() {
           </li>
           <li className="wide">
             <div className="title">제목</div>
-            <div className="form"><input className="ec-input w-full" placeholder="제목" value={form.title} onChange={(e) => setF('title', e.target.value)} /></div>
+            <div className={`form${invalid.has('title') && !form.title.trim() ? ' ec-invalid' : ''}`}><input className="ec-input w-full" aria-label="제목" value={form.title} onChange={(e) => setF('title', e.target.value)} /></div>
           </li>
         </ul>
         <textarea className="ec-input w-full h-[200px] py-[8px] resize-y" aria-label="본문" value={form.content}
@@ -405,6 +430,8 @@ export default function WorkLogPage() {
         <div className="flex gap-[6px] mt-[10px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+          {/* 원본 수정 창: [저장(F8)][닫기][삭제][H] — 새 글 · 답글 창에는 [삭제]가 없다 */}
+          {editId != null && (() => { const r = rows.find((x) => x.id === editId); return r ? <button type="button" className="ec-btn" onClick={() => void remove(r)}>삭제</button> : null })()}
         </div>
       </Modal>
     </EcListShell>

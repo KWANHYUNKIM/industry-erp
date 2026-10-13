@@ -12,7 +12,7 @@
         "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '업무일지게시글작성' && document.querySelector('[role=dialog]').innerText.includes('작성자 :')",
         "js:(() => { const d = document.querySelector('[role=dialog]'); const t = new Date(); const day = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); sessionStorage.setItem('qaWlDay', day.slice(5, 7) + '/' + day.slice(8, 10)); const i = d.querySelector('input[type=date]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, day); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); d.querySelector('button[title=\"부서 선택\"]').click(); return true })()",
         "wait:600",
-        "js:(() => { const m = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '부서 선택'); const tr = [...m.querySelectorAll('tbody tr')].find((r) => !r.innerText.includes('전체') && !r.innerText.includes('선택 안 함')); sessionStorage.setItem('qaWlDept', tr.innerText.replace(/\\s+/g, ' ').trim()); tr.click(); return sessionStorage.getItem('qaWlDept') })()",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '부서검색'); const tr = [...m.querySelectorAll('tbody tr')].find((r) => !r.innerText.includes('전체') && !r.innerText.includes('선택 안 함')); sessionStorage.setItem('qaWlDept', tr.innerText.replace(/\\s+/g, ' ').trim()); tr.click(); return sessionStorage.getItem('qaWlDept') })()",
         "wait:400",
         "setnear:제목|QA그룹웨어-화면일지",
         "click:저장(F8)",

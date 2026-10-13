@@ -1,5 +1,5 @@
 {
-  "about": "업무일지(원본 E070304) — 조건 판 → [검색(F8)] → 부서 × 일자 격자(날마다 'MM/DD(요일)' 두 칸, 제목은 그 부서 · 그날 칸에 링크) → 제목을 누르면 '조회'(번호 · 제목 · 작성자 · 작성 시각 · 업무보고일 : yyyymmdd) → [수정]으로 제목을 고치면 격자가 바뀌고 → [삭제] '게시글을 삭제하면 복구할 수 없습니다. 삭제하겠습니까?' 면 사라진다. 시험 일지는 API 로 만든다. node qa/shot.mjs qa/flows/worklog-grid.json",
+  "about": "업무일지(원본 E070304) — 조건 판 → [검색(F8)] → 부서 × 일자 격자(날마다 'MM/DD(요일)' 두 칸, 제목은 그 부서 · 그날 칸에 링크) → 제목을 누르면 '조회'(번호 · 제목 · 작성자 · 작성 시각 · 업무보고일 : yyyymmdd) → [수정]으로 제목을 고쳐 저장하면 원본처럼 '조회' 창으로 돌아오고(고친 제목) 격자도 바뀌고 → [삭제] '게시글을 삭제하면 복구할 수 없습니다. 삭제하겠습니까?' 면 사라진다. 시험 일지는 API 로 만든다. node qa/shot.mjs qa/flows/worklog-grid.json",
   "shots": [
     {
       "name": "준비 — 오늘 · 첫 부서로 시험 일지",
@@ -23,11 +23,13 @@
         "setnear:제목|QA그룹웨어-일지2",
         "click:저장(F8)",
         "wait:800",
-        "expect:[...document.querySelectorAll('tbody button')].some((b) => b.textContent.trim() === 'QA그룹웨어-일지2')",
-        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; [...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QA그룹웨어-일지2').click(); true",
-        "click:삭제",
-        "wait:800",
-        "expect:window.__asked === '게시글을 삭제하면 복구할 수 없습니다.\\n삭제하겠습니까?' && ![...document.querySelectorAll('tbody button')].some((b) => b.textContent.includes('QA그룹웨어-일지'))"
+        "expect:(() => { const v = document.querySelector('[role=dialog][aria-label=\"조회\"]'); return !!v && v.innerText.includes('QA그룹웨어-일지2') && [...document.querySelectorAll('tbody button')].some((b) => b.textContent.trim() === 'QA그룹웨어-일지2') })()",
+        "js:[...document.querySelectorAll('[role=dialog][aria-label=\"조회\"] button')].find((b) => b.textContent.trim() === '삭제').click(); true",
+        "wait:400",
+        "expect:document.body.innerText.includes('게시글을 삭제하면 복구할 수 없습니다.')",
+        "click:확인",
+        "wait:1000",
+        "expect:!document.querySelector('[role=dialog][aria-label=\"조회\"]') && ![...document.querySelectorAll('tbody button')].some((b) => b.textContent.includes('QA그룹웨어-일지'))"
       ]
     }
   ]
