@@ -60,6 +60,30 @@ public final class BankCheckDtos {
             String remark
     ) {}
 
+    /**
+     * 수표조회 [일자-No.] 링크로 연 수표내역입력 전표를 고쳐 저장 — 전표일자 · 전표구분은 막히고(2026-10-13 원본 실측) 거래처 · 수표계좌 · 줄을 고친다.
+     * 줄의 id 는 이미 있는 수표, 없으면 새로 더한 줄. 전표에 있던 수표가 빠지면 그 움직임을 지운다.
+     */
+    public record DirectEditRequest(
+            @NotNull(message = "수표 종류를 선택하세요.") CheckType type,
+            @NotNull(message = "전표일자를 입력하세요.") LocalDate date,
+            boolean increase,
+            @NotNull Integer entryNo,
+            Long partnerId,
+            @NotNull(message = "수표계좌를 선택하세요.") Long bankAccountId,
+            @jakarta.validation.constraints.NotEmpty(message = "수표번호를 입력하세요.")
+            java.util.List<@jakarta.validation.Valid DirectEditLine> lines
+    ) {}
+
+    public record DirectEditLine(
+            Long id,
+            @Size(max = 30, message = "수표번호는 30자까지 넣을 수 있습니다.")
+            @NotBlank(message = "수표번호를 입력하세요.") String checkNo,
+            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String remark
+    ) {}
+
     /** 수령(발행)수표조회 [선택삭제] — 고른 줄의 수표 id 를 감소 · 증가로 나눠 보낸다. */
     public record DeleteMovesRequest(java.util.List<Long> decreaseIds, java.util.List<Long> increaseIds) {}
 

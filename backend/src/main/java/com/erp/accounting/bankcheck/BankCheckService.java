@@ -201,22 +201,92 @@ public class BankCheckService {
                         .build();
                 out.add(CheckResponse.from(checkRepository.save(c)));
             } else {
-                BankCheck c = checkRepository.findByCheckNo(no)
-                        .orElseThrow(() -> ApiException.notFound("수표를 찾을 수 없습니다: " + no));
-                requireType(c, req.type(), (req.type() == CheckType.RECEIVED ? "수령" : "발행") + "수표만 줄일 수 있습니다");
-                requireHeld(c, "감소");
-                if (!c.isDirectEntry()) {
-                    throw ApiException.badRequest(no + " 은(는) 회계전표로 받은 수표입니다 — 수표관리에서 입금 · 부도(결제) 처리하세요.");
-                }
-                requireNotBeforeIssue(c, req.date(), "전표일자");
-                c.setStatus(req.type() == CheckType.RECEIVED ? CheckStatus.DEPOSITED : CheckStatus.PAID);
-                c.setSettledDate(req.date());
-                c.setDirectOutNo(entryNo);
-                c.setUpdatedBy(username);
-                out.add(CheckResponse.from(c));
+                out.add(CheckResponse.from(decreaseDirect(req.type(), no, req.date(), entryNo, username)));
             }
         }
         return out;
+    }
+
+    /**
+     * 수표조회 [일자-No.] 링크로 연 수표내역입력 전표를 고쳐 저장한다(2026-10-13 loginaa 실측: 전표일자 · 전표구분은 막히고
+     * 거래처 · 수표계좌 · 줄의 수표번호 · 금액 · 적요를 고친다. 저장해도 번호(-10)는 그대로).
+     * 증가 전표: 남은 줄은 고치고, 새 줄은 같은 번호로 수표를 더하고, 빠진 수표는 지운다(감소가 있으면 그 감소부터 취소 — [선택삭제]와 같다).
+     * 감소 전표: 수표 한 장의 금액 · 적요는 증가 쪽 것이라 그대로 두고, 새 줄은 같은 번호로 줄이고, 빠진 줄은 감소를 취소한다.
+     */
+    @Transactional
+    public List<CheckResponse> updateDirect(BankCheckDtos.DirectEditRequest req, String username) {
+        List<BankCheck> current = req.increase()
+                ? checkRepository.findByTypeAndIssueDateAndDirectInNoOrderByIdAsc(req.type(), req.date(), req.entryNo())
+                : checkRepository.findByTypeAndSettledDateAndDirectOutNoOrderByIdAsc(req.type(), req.date(), req.entryNo());
+        if (current.isEmpty()) {
+            throw ApiException.notFound("전표를 찾을 수 없습니다: " + req.date() + " -" + req.entryNo());
+        }
+        java.util.Set<Long> mine = current.stream().map(BankCheck::getId).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> kept = new java.util.HashSet<>();
+        for (BankCheckDtos.DirectEditLine l : req.lines()) {
+            if (l.id() == null) continue;
+            if (!mine.contains(l.id())) throw ApiException.badRequest("이 전표의 줄이 아닙니다. id=" + l.id());
+            kept.add(l.id());
+        }
+        List<Long> dropped = current.stream().map(BankCheck::getId).filter((id) -> !kept.contains(id)).toList();
+        if (!dropped.isEmpty()) {
+            deleteMoves(req.increase() ? List.of() : dropped, req.increase() ? dropped : List.of(), username);
+        }
+
+        BankAccount account = bankAccount(req.bankAccountId());
+        var partner = req.partnerId() == null ? null : partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        List<CheckResponse> out = new java.util.ArrayList<>();
+        for (BankCheckDtos.DirectEditLine l : req.lines()) {
+            String no = l.checkNo().trim();
+            if (!req.increase()) {
+                out.add(CheckResponse.from(l.id() != null ? check(l.id())
+                        : decreaseDirect(req.type(), no, req.date(), req.entryNo(), username)));
+                continue;
+            }
+            BankCheck c;
+            if (l.id() != null) {
+                c = check(l.id());
+                if (!c.getCheckNo().equals(no) && checkRepository.existsByCheckNo(no)) {
+                    throw ApiException.conflict("이미 등록된 수표번호입니다: " + no);
+                }
+                c.setCheckNo(no);
+                c.setAmount(l.amount());
+                c.setRemark(l.remark());
+                c.setPartner(partner);
+                c.setBankAccount(account);
+                c.setUpdatedBy(username);
+            } else {
+                if (checkRepository.existsByCheckNo(no)) {
+                    throw ApiException.conflict("이미 등록된 수표번호입니다: " + no);
+                }
+                c = checkRepository.save(BankCheck.builder()
+                        .checkNo(no).type(req.type()).status(CheckStatus.HELD)
+                        .issueDate(req.date()).amount(l.amount())
+                        .partner(partner).bankAccount(account).remark(l.remark())
+                        .createdBy(username).updatedBy(username).directEntry(true).directInNo(req.entryNo())
+                        .build());
+            }
+            out.add(CheckResponse.from(c));
+        }
+        return out;
+    }
+
+    /** 수표내역입력 감소 한 줄 — 같은 번호의 보유 수표를 손을 떠난 것으로(받은수표는 입금완료, 발행수표는 결제완료 자리). */
+    private BankCheck decreaseDirect(CheckType type, String no, LocalDate date, int entryNo, String username) {
+        BankCheck c = checkRepository.findByCheckNo(no)
+                .orElseThrow(() -> ApiException.notFound("수표를 찾을 수 없습니다: " + no));
+        requireType(c, type, (type == CheckType.RECEIVED ? "수령" : "발행") + "수표만 줄일 수 있습니다");
+        requireHeld(c, "감소");
+        if (!c.isDirectEntry()) {
+            throw ApiException.badRequest(no + " 은(는) 회계전표로 받은 수표입니다 — 수표관리에서 입금 · 부도(결제) 처리하세요.");
+        }
+        requireNotBeforeIssue(c, date, "전표일자");
+        c.setStatus(type == CheckType.RECEIVED ? CheckStatus.DEPOSITED : CheckStatus.PAID);
+        c.setSettledDate(date);
+        c.setDirectOutNo(entryNo);
+        c.setUpdatedBy(username);
+        return c;
     }
 
     /**

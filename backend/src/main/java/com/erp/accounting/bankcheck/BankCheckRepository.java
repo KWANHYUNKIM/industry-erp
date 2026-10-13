@@ -12,6 +12,12 @@ public interface BankCheckRepository extends JpaRepository<BankCheck, Long> {
 
     java.util.Optional<BankCheck> findByCheckNo(String checkNo);
 
+    /** 수표내역입력 증가 전표 한 장의 줄 — (종류, 날짜, 번호). */
+    List<BankCheck> findByTypeAndIssueDateAndDirectInNoOrderByIdAsc(CheckType type, java.time.LocalDate date, Integer no);
+
+    /** 수표내역입력 감소 전표 한 장의 줄. */
+    List<BankCheck> findByTypeAndSettledDateAndDirectOutNoOrderByIdAsc(CheckType type, java.time.LocalDate date, Integer no);
+
     @Query("select c from BankCheck c " +
            "left join fetch c.partner left join fetch c.bankAccount " +
            "where c.issueDate >= :from and c.issueDate <= :to " +

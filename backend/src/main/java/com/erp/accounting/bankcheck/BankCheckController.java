@@ -69,6 +69,13 @@ public class BankCheckController {
         return service.directEntry(req, principal.getUsername());
     }
 
+    /** 수표조회 [일자-No.] 로 연 수표내역입력 전표 고쳐 저장 */
+    @PutMapping("/direct")
+    public List<CheckResponse> updateDirect(@Valid @RequestBody BankCheckDtos.DirectEditRequest req,
+                                            @AuthenticationPrincipal UserPrincipal principal) {
+        return service.updateDirect(req, principal.getUsername());
+    }
+
     /** 수령(발행)수표조회 [선택삭제] — 감소 줄(입금 · 부도 · 결제 취소)과 증가 줄(수표 삭제) */
     @PostMapping("/delete")
     public void deleteMoves(@RequestBody BankCheckDtos.DeleteMovesRequest req,

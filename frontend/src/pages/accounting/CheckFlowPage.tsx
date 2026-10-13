@@ -26,7 +26,8 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  *
  * <p>수령수표는 줄을 거래처마다 묶는다(2026-10-13 QA회계2 수표 셋으로 잼 — 증가 · 감소 둘 다): 거래처코드 차례(거래처 없는 묶음이 먼저),
  * 묶음 안은 일자-No. 차례, 묶음 끝에 '거래처명 계'(거래처 없으면 '[] 계', 가운데 · 굵게 · 회색) 줄, 맨 끝 '합계'(가운데).
- * 발행수표증가현황은 같은 날 잰 판에 거래처 묶음 · '계' 줄이 없다(합계만) — 발행은 묶지 않는다.
+ * 발행수표증가현황은 같은 날 잰 판에 거래처 묶음 · '계' 줄이 없다(합계만) — 발행 증가는 묶지 않는다.
+ * 발행수표감소현황은 묶는다(2026-10-13 QA회계2 수표만감소 1줄로 잼 — '[] 계' 5,000 · '합계' 5,000).
  *
  * <p><b>발행수표증가현황</b>(E060611) · <b>감소현황</b>(E060612)도 조건 · 열이 같다(계좌 조건이 [발행수표계좌]). 증가는 발행한 날,
  * 감소는 은행에서 빠져나간(결제완료) 날이다. 계정명은 끊은 계좌의 총계정이고, 결제는 분개를 안 만들어(발행 때 이미 반영)
@@ -38,6 +39,8 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     ? (flow === '증가' ? '수령수표증가현황' : '수령수표감소현황')
     : (flow === '증가' ? '발행수표증가현황' : '발행수표감소현황')
   const acctLabel = received ? '수령수표계좌' : '발행수표계좌'
+  /* 거래처 묶음 · '계' 줄 — 수령은 증가 · 감소 둘 다, 발행은 감소만(원본 실측). */
+  const grouped = received || flow === '감소'
   const account = '받을수표'
   /* 발행수표의 계정명 — 끊은 계좌의 총계정(분개가 대변에 쓰는 것). */
   const [glByAccount, setGlByAccount] = useState<Map<number, string>>(new Map())
@@ -106,14 +109,14 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   const groups = useMemo(() => {
     const by = new Map<string, BankCheck[]>()
     for (const c of shown) {
-      const k = received ? String(c.partnerId ?? '') : ''
+      const k = grouped ? String(c.partnerId ?? '') : ''
       by.set(k, [...(by.get(k) ?? []), c])
     }
     return [...by.values()]
       .map((cs) => ({ cs, code: cs[0].partnerId == null ? '' : codeOf(cs[0].partnerId), sum: cs.reduce((a, c) => a + Number(c.amount), 0) }))
       .sort((a, b) => a.code.localeCompare(b.code))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, pickers.partners, received])
+  }, [shown, pickers.partners, grouped])
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
   const partners = useMemo(() => {
     const m = new Map<number, string>()
@@ -209,7 +212,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
                 <td className="text-right">{won(Number(c.amount))}</td>
               </tr>
             )),
-            ...(received ? [<tr key={`sub-${g.cs[0].id}`} className="font-bold bg-ec-stripe">
+            ...(grouped ? [<tr key={`sub-${g.cs[0].id}`} className="font-bold bg-ec-stripe">
               <td colSpan={6} className="text-center">{g.cs[0].partnerName ? g.cs[0].partnerName : `[${g.code}]`} 계</td>
               <td className="text-right">{won(g.sum)}</td>
             </tr>] : []),

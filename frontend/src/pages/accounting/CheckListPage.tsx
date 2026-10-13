@@ -3,7 +3,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import CheckDirectEntryModal from '../../features/bankcheck/components/CheckDirectEntryModal'
+import CheckDirectEntryModal, { type CheckVoucher } from '../../features/bankcheck/components/CheckDirectEntryModal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -34,6 +34,7 @@ interface Move { key: string; date: string; inc: boolean; c: BankCheck }
  * 우리 수표는 받는 순간 분개가 생기는 연결전표라 거래유형은 수령 · 입금완료 · 부도(발행 · 결제완료)로 둔다.
  * [최종수정자] = 마지막으로 입금 · 부도 · 결제나 그 취소를 한 사람. [인쇄] 열 · [발행수표인쇄]는 수표 용지 인쇄 이력인데 우리는 수표를 인쇄하지 않는다.
  * [신규(F2)]는 원본처럼 수령(발행)수표내역입력 창을 연다(features/bankcheck/components/CheckDirectEntryModal).
+ * 직접입력 줄의 [일자] '2026/10/13 -10' 은 링크 — 그 수표내역입력 전표를 열어 고치거나 [삭제] 한다(2026-10-13 실측).
  */
 export default function CheckListPage({ type }: { type: CheckType }) {
   const received = type === 'RECEIVED'
@@ -58,6 +59,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [entryOpen, setEntryOpen] = useState(false)
+  const [voucher, setVoucher] = useState<CheckVoucher | null>(null)
   const [checks, setChecks] = useState<BankCheck[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -113,6 +115,15 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   const accounts = useMemo(() => [...new Set(ofType.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [ofType])
   const authors = useMemo(() => [...new Set(ofType.map((c) => c.createdBy).filter(Boolean) as string[])].sort(), [ofType])
   const editors = useMemo(() => [...new Set(ofType.map((c) => c.updatedBy).filter(Boolean) as string[])].sort(), [ofType])
+  /* [일자-No.] 링크 — 같은 (날짜, 번호, 증감) 의 수표들이 한 전표다. */
+  function openVoucher(m: Move) {
+    const no = entryNo(m)
+    if (no == null) return
+    const checks = ofType.filter((c) => (m.inc ? c.issueDate === m.date && c.directInNo === no : c.settledDate === m.date && c.directOutNo === no))
+      .sort((a, b) => a.id - b.id)
+    setVoucher({ date: m.date, increase: m.inc, entryNo: no, checks })
+    setEntryOpen(true)
+  }
   const allPicked = moves.length > 0 && moves.every((m) => picked.has(m.key))
 
   async function removePicked() {
@@ -145,7 +156,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') } },
-        { label: '신규(F2)', onClick: () => setEntryOpen(true) },
+        { label: '신규(F2)', onClick: () => { setVoucher(null); setEntryOpen(true) } },
         { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
         { label: 'Excel' },
       ]}
@@ -233,7 +244,11 @@ export default function CheckListPage({ type }: { type: CheckType }) {
                   <input type="checkbox" aria-label={`${m.c.checkNo} ${m.inc ? incName : decName} 선택`} checked={picked.has(m.key)}
                          onChange={(e) => setPicked((s) => { const n = new Set(s); if (e.target.checked) n.add(m.key); else n.delete(m.key); return n })} />
                 </td>
-                <td className="text-center">{dateText(m.date)}{entryNo(m) != null ? ` -${entryNo(m)}` : ''}</td>
+                <td className="text-center">
+                  {entryNo(m) != null
+                    ? <a href="#" onClick={(e) => { e.preventDefault(); openVoucher(m) }}>{dateText(m.date)} -{entryNo(m)}</a>
+                    : dateText(m.date)}
+                </td>
                 <td>{m.c.checkNo}</td>
                 <td className="text-center">{m.inc ? '증가' : '감소'}</td>
                 <td>{m.c.partnerName ?? ''}</td>
@@ -247,7 +262,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         </tbody>
       </table>
 
-      <CheckDirectEntryModal type={type} open={entryOpen} onClose={() => setEntryOpen(false)} onSaved={() => void load()} />
+      <CheckDirectEntryModal type={type} open={entryOpen} voucher={voucher} onClose={() => { setEntryOpen(false); setVoucher(null) }} onSaved={() => void load()} />
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
         <p className="mb-[12px]">선택한 전표를 삭제 하겠습니까?</p>
         <div className="flex gap-[5px]">
