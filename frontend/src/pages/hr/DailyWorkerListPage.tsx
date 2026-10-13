@@ -66,6 +66,8 @@ export default function DailyWorkerListPage() {
   const [bulkOpen, setBulkOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
+  const [nameBad, setNameBad] = useState(false)
+  const [saveMenu, setSaveMenu] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<Form>(blankForm())
   const [tab, setTab] = useState<Tab>('기본')
@@ -92,14 +94,14 @@ export default function DailyWorkerListPage() {
 
   /** base 를 주면 그 값으로 새 사원을 연다 — 원본 [복사](사원번호만 새로 매긴다). */
   async function openNew(base?: Form) {
-    setEditId(null); setForm(base ?? blankForm()); setFormError(''); setTab('기본'); setOpen(true)
+    setEditId(null); setForm(base ?? blankForm()); setFormError(''); setNameBad(false); setSaveMenu(false); setTab('기본'); setOpen(true)
     try {
       const r = await api.get<{ code: string }>('/hr/daily-workers/next-code')
       setForm((f) => (f.code ? f : { ...f, code: r.data.code }))
     } catch { /* 비우면 서버가 매긴다 */ }
   }
   function openEdit(w: DailyWorker) {
-    setEditId(w.id); setFormError(''); setTab('기본')
+    setEditId(w.id); setFormError(''); setNameBad(false); setSaveMenu(false); setTab('기본')
     setForm({
       code: w.code, name: w.name, foreigner: w.foreigner, nationality: str(w.nationality), departmentId: str(w.departmentId),
       mobile: str(w.mobile), email: str(w.email), hireDate: str(w.hireDate), resignDate: str(w.resignDate),
@@ -111,8 +113,13 @@ export default function DailyWorkerListPage() {
     setOpen(true)
   }
 
-  async function save() {
-    if (!form.name.trim()) { setFormError('성명을 입력 바랍니다.'); setTab('기본'); return }
+  /**
+   * 저장(F8) — 닫는다. ▴ '저장/내용유지' — 저장한 사원의 수정 창으로 남는다, '저장/신규' — 빈 신규 창(다음 사원번호)으로.
+   * 성명이 비면 원본처럼 문구 없이 그 칸 테두리만 빨갛다(2026-10-14 실측).
+   */
+  async function save(after: 'close' | 'keep' | 'new' = 'close') {
+    setSaveMenu(false)
+    if (!form.name.trim()) { setNameBad(true); setTab('기본'); return }
     const body = {
       ...form, code: form.code.trim() || null, departmentId: form.departmentId ? Number(form.departmentId) : null,
       hireDate: form.hireDate || null, resignDate: form.resignDate || null,
@@ -120,10 +127,11 @@ export default function DailyWorkerListPage() {
       dailyWage: num(form.dailyWage), fixedIncomeTax: num(form.fixedIncomeTax), fixedLocalTax: num(form.fixedLocalTax),
     }
     try {
-      if (editId) await api.put(`/hr/daily-workers/${editId}`, body)
-      else await api.post('/hr/daily-workers', body)
-      setOpen(false)
+      const r = editId ? await api.put<DailyWorker>(`/hr/daily-workers/${editId}`, body) : await api.post<DailyWorker>('/hr/daily-workers', body)
       load()
+      if (after === 'keep') openEdit(r.data)
+      else if (after === 'new') void openNew()
+      else setOpen(false)
     } catch (e) {
       setFormError(extractErrorMessage(e))
     }
@@ -239,7 +247,13 @@ export default function DailyWorkerListPage() {
                 {editId ? <span>{form.code}</span> : <input className="ec-input w-full" value={form.code} onChange={(e) => set({ code: e.target.value })} />}
               </div>
             </li>
-            {text('성명', 'name', true)}
+            <li className="wide">
+              <span className="title">성명</span>
+              <div className="form">
+                <input className={`ec-input w-full ${nameBad && !form.name.trim() ? 'border-ec-danger' : ''}`} aria-invalid={nameBad && !form.name.trim()}
+                       placeholder="성명" value={form.name} onChange={(e) => set({ name: e.target.value })} />
+              </div>
+            </li>
             <li>
               <span className="title">외국인</span>
               <div className="form flex items-center gap-[6px]">
@@ -347,8 +361,19 @@ export default function DailyWorkerListPage() {
           </>
         )}
         <div className="flex gap-[6px] mt-[12px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button>
-          {/* 원본 수정 창 버튼(2026-10-04 실측): 저장(F8) · 복사 · 다시 작성 · 삭제 · 닫기 · H */}
+          {/* 원본(2026-10-14): 저장(F8)▴ — 저장/내용유지 · 저장/신규. 수정 창 버튼(2026-10-04 실측): 저장(F8)▴ · 복사 · 다시 작성 · 삭제 · 닫기 · H */}
+          <span className="ec-btn-group relative">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기" onClick={() => setSaveMenu((v) => !v)}>▴</button>
+            {saveMenu && (
+              <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[120px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
+                <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"
+                        onClick={() => void save('keep')}>저장/내용유지</button>
+                <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"
+                        onClick={() => void save('new')}>저장/신규</button>
+              </div>
+            )}
+          </span>
           {editId && <button type="button" className="ec-btn" onClick={() => openNew({ ...form, code: '' })}>복사</button>}
           <button type="button" className="ec-btn" onClick={() => { const w = rows.find((x) => x.id === editId); if (w) openEdit(w); else setForm({ ...blankForm(), code: form.code }) }}>다시 작성</button>
           {editId && <button type="button" className="ec-btn" onClick={deleteOne}>삭제</button>}

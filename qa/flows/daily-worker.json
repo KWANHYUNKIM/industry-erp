@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 일용근로 사원등록(E020105) — 원본처럼 [신규(F2)] 창에 다음 사원번호(다섯 자리)가 미리 차 있고, 성명 · [급여지급사항] 일근무 150,000 을 넣고 저장하면 목록에 붙는다. 다시 열면 일근무가 남아 있고, 선택삭제로 지운다. [급여통장] 은행은 은행코드 코드도움 — 088 을 고르면 신한은행으로 저장된다.",
+  "about": "관리 > 일용근로 사원등록(E020105) — 원본처럼 [신규(F2)] 창에 다음 사원번호(다섯 자리)가 미리 차 있고, 성명 · [급여지급사항] 일근무 150,000 을 넣고 저장하면 목록에 붙는다. 다시 열면 일근무가 남아 있고, 선택삭제로 지운다. [급여통장] 은행은 은행코드 코드도움 — 088 을 고르면 신한은행으로 저장된다. 두 번째(2026-10-14 원본): 성명 빈 채 저장 → 문구 없이 성명 칸만 빨강, [저장(F8)▴] '저장/내용유지' 는 저장한 사원의 수정 창으로 남고 '저장/신규' 는 다음 번호의 빈 신규 창.",
   "shots": [
     {
       "name": "일용근로 사원 신규 → 급여지급사항 → 저장 → 다시 열기 → 삭제",
@@ -15,16 +15,42 @@
         "expect:document.querySelector('[role=dialog] table tbody tr:first-child td:last-child input').value==='150,000'",
         "clicklast:저장(F8)",
         "wait:1200",
-        "js:(async()=>{for(let i=0;i<40;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-일용'));if(tr){sessionStorage.setItem('qaDwCode',tr.cells[1].innerText.trim());tr.querySelectorAll('a')[1].click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "js:(async()=>{for(let i=0;i<40;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.cells[2]?.innerText.trim()==='QA관리-일용');if(tr){sessionStorage.setItem('qaDwCode',tr.cells[1].innerText.trim());tr.querySelectorAll('a')[1].click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
         "clicklast:급여지급사항",
         "expect:document.querySelector('[role=dialog] table tbody tr:first-child td:last-child input').value==='150,000'",
         "clicklast:닫기",
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const ws=await (await fetch('/api/hr/daily-workers',{headers:h})).json();const w=ws.find(x=>x.name==='QA관리-일용');sessionStorage.setItem('qaDwBank',String(!!w&&w.bankName==='신한은행'));return true})()",
         "expect:sessionStorage.getItem('qaDwBank')==='true'",
-        "js:(async()=>{for(let i=0;i<20;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-일용'));if(tr){tr.querySelector('input[type=checkbox]').click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "js:(async()=>{for(let i=0;i<20;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.cells[2]?.innerText.trim()==='QA관리-일용');if(tr){tr.querySelector('input[type=checkbox]').click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
         "click:선택삭제",
         "wait:1200",
-        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-일용'))"
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.cells[2]?.innerText.trim()==='QA관리-일용')"
+      ]
+    },
+    {
+      "name": "빈 성명 · 저장/내용유지 · 저장/신규",
+      "path": "/hr/daily-workers",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "click:신규(F2)",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return !!d.querySelector('input[aria-invalid=true][placeholder=\"성명\"]')&&!d.querySelector('.ec-alert')})()",
+        "setnear:성명|QA관리-유지",
+        "js:document.querySelector('[role=dialog] button[aria-label=\"저장 더보기\"]').click();true",
+        "clicklast:저장/내용유지",
+        "wait:1200",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return !!d&&[...d.querySelectorAll('button')].some(b=>b.textContent==='삭제')&&d.querySelector('input[placeholder=\"성명\"]').value==='QA관리-유지'})()",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-유지'))",
+        "js:document.querySelector('[role=dialog] button[aria-label=\"저장 더보기\"]').click();true",
+        "clicklast:저장/신규",
+        "wait:1200",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return !!d&&![...d.querySelectorAll('button')].some(b=>b.textContent==='삭제')&&d.querySelector('input[placeholder=\"성명\"]').value===''&&/^\\d{5}$/.test(d.querySelector('.ec-form input.ec-input').value)})()",
+        "clicklast:닫기",
+        "js:(async()=>{for(let i=0;i<20;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-유지'));if(tr){tr.querySelector('input[type=checkbox]').click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "click:선택삭제",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-유지'))"
       ]
     }
   ]
