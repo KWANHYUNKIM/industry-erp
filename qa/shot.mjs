@@ -39,7 +39,7 @@ if (!scenarioPath) { console.error('사용법: node qa/shot.mjs <시나리오.js
 const scenario = JSON.parse(readFileSync(scenarioPath, 'utf8'))
 const baseDir = dirname(resolve(scenarioPath))
 
-const b = await openBrowser({ port: Number(process.env.CDP_PORT ?? 9335) })
+const b = await openBrowser()
 let failed = false
 try {
   for (const shot of scenario.shots) {

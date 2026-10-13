@@ -8,7 +8,7 @@
  *   await b.close()
  */
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -29,7 +29,12 @@ export async function login(username = process.env.ERP_USER ?? 'admin', password
   return token
 }
 
-export async function openBrowser({ port = 9333, width = 1600, height = 900 } = {}) {
+/**
+ * port 는 기본 0 — Chrome 이 빈 포트를 고르고 프로필의 DevToolsActivePort 에 적는다. 그 프로필에서 읽으므로
+ * <b>내가 띄운 Chrome 에만</b> 붙는다. 예전엔 스크립트마다 포트가 고정(9333 · 9335 …)이라, 작업자 둘이 같은 검사를
+ * 동시에 돌리면 두 번째 Chrome 은 포트를 못 잡고, 두 번째 스크립트는 같은 포트의 <b>남의 Chrome</b> 에 붙어 그 화면을 몰았다.
+ */
+export async function openBrowser({ port = Number(process.env.CDP_PORT ?? 0), width = 1600, height = 900 } = {}) {
   const token = await login()
   const profile = mkdtempSync(join(tmpdir(), 'erp-cdp-'))
   const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
@@ -38,7 +43,10 @@ export async function openBrowser({ port = 9333, width = 1600, height = 900 } = 
   let target
   for (let i = 0; i < 50 && !target; i++) {
     await sleep(200)
-    try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page') } catch { /* 아직 안 뜸 */ }
+    try {
+      if (!port) port = Number(readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0])
+      if (port) target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page')
+    } catch { /* 아직 안 뜸 */ }
   }
   if (!target) { chrome.kill(); throw new Error('Chrome 디버깅 포트에 붙지 못했다') }
 

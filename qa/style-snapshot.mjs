@@ -34,7 +34,7 @@ if (cmd === 'save') {
     .filter((r) => !r.includes(':') && !r.includes('*') && r !== '/login' && r.startsWith(prefix))
   if (!prefix) routes.unshift('/')
   mkdirSync(a, { recursive: true })
-  const br = await openBrowser({ port: Number(process.env.CDP_PORT ?? 9341), width: 1600, height: 900 })
+  const br = await openBrowser({ width: 1600, height: 900 })
   let n = 0
   for (const r of routes) {
     if (existsSync(join(a, file(r)))) { n++; continue }   // 끊겼다 다시 돌리면 이어서 뜬다

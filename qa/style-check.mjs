@@ -4,6 +4,7 @@
  *
  *   node qa/style-check.mjs            검사
  *   node qa/style-check.mjs --update   지금 개수를 기준(qa/style-baseline.json)으로 적는다
+ *   node qa/style-check.mjs --update <파일…>   그 파일들의 기준만 고친다(여러 작업자가 같은 트리를 쓸 때 — 남의 작업 중인 개수를 안 섞는다)
  *
  * 색·크기·둥글기의 단일 출처는 frontend/src/styles/tokens.css 다(CLAUDE.md 10.1). 화면은 클래스(.ec-btn …)를
  * 붙이거나, 꼭 인라인이어야 하면 var(--ec-…) 토큰을 쓴다. 2026-10-03 에 재 보니 인라인 style 이 13,161곳,
@@ -44,9 +45,18 @@ for (const f of walk(ROOT).filter((f) => f.endsWith('.tsx') && !f.endsWith('.tes
 const total = (m, k) => Object.values(m).reduce((n, x) => n + (x[k] ?? 0), 0)
 
 if (process.argv.includes('--update')) {
-  const sorted = Object.fromEntries(Object.entries(now).sort(([a], [b]) => a.localeCompare(b)))
+  // 경로를 주면 그 파일만 — frontend/src/ 기준 상대경로로 맞춘다(저장소 경로 · 절대경로 둘 다 받는다)
+  const only = process.argv.slice(process.argv.indexOf('--update') + 1)
+    .map((a) => a.replaceAll('\\', '/').replace(/^.*?frontend\/src\//, ''))
+  let next = now
+  if (only.length) {
+    next = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : {}
+    for (const f of only) { if (now[f]) next[f] = now[f]; else delete next[f] }
+    console.log(`그 파일만: ${only.join(' · ')}`)
+  }
+  const sorted = Object.fromEntries(Object.entries(next).sort(([a], [b]) => a.localeCompare(b)))
   writeFileSync(BASELINE, JSON.stringify(sorted, null, 1) + '\n')
-  console.log(`기준을 적었다: ${KINDS.map((k) => `${k} ${total(now, k)}`).join(' · ')} (${Object.keys(now).length}개 파일)`)
+  console.log(`기준을 적었다: ${KINDS.map((k) => `${k} ${total(sorted, k)}`).join(' · ')} (${Object.keys(sorted).length}개 파일)`)
   process.exit(0)
 }
 if (!existsSync(BASELINE)) {
@@ -70,7 +80,7 @@ for (const g of grew) console.log(`  ❌ 늘었다: ${g} — 부품 클래스(st
 if (shrank.length) {
   for (const s of shrank.slice(0, 10)) console.log(`  ❌ 줄었다: ${s}`)
   if (shrank.length > 10) console.log(`  … 외 ${shrank.length - 10}곳`)
-  console.log('  줄인 만큼 기준을 조이세요 — node qa/style-check.mjs --update')
+  console.log('  줄인 만큼 기준을 조이세요 — node qa/style-check.mjs --update <내가 고친 파일…>')
 }
 const fail = grew.length + shrank.length
 console.log(fail ? `\n실패 ${fail}` : '\n기준과 같다')

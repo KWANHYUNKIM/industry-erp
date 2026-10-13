@@ -8,13 +8,15 @@
 set -u
 cd "$(dirname "$0")/.."
 fail=0
+# 실행마다 자기 로그 폴더 — 여러 작업자가 동시에 돌리면 고정 경로의 로그를 서로 덮어써 남의 실패를 읽었다.
+LOG=$(mktemp -d "${TMPDIR:-/tmp}/precommit.XXXXXX")
 run() {
   local name="$1"; shift
-  if "$@" > "${TMPDIR:-/tmp}/precommit-$name.log" 2>&1; then
+  if "$@" > "$LOG/$name.log" 2>&1; then
     echo "  ✅ $name"
   else
-    echo "  ❌ $name — ${TMPDIR:-/tmp}/precommit-$name.log"
-    tail -15 "${TMPDIR:-/tmp}/precommit-$name.log" | sed 's/^/     /'
+    echo "  ❌ $name — $LOG/$name.log"
+    tail -15 "$LOG/$name.log" | sed 's/^/     /'
     fail=1
   fi
 }

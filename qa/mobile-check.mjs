@@ -25,7 +25,7 @@ if (!prefix) routes.unshift('/')
 // ROUTES=/a,/b 로 몇 화면만 다시 볼 수 있다(고친 뒤 실패했던 화면만 재점검)
 if (process.env.ROUTES) routes.splice(0, routes.length, ...process.env.ROUTES.split(','))
 
-const b = await openBrowser({ port: Number(process.env.CDP_PORT ?? 9342), width: WIDTH, height: 800 })
+const b = await openBrowser({ width: WIDTH, height: 800 })
 let bad = 0, seen = 0
 for (const r of routes) {
   try {
