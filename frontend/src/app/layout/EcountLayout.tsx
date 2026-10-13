@@ -919,9 +919,11 @@ const MENU: TopMenu[] = [
           // 순서·묶음은 원본 공유정보 메뉴 트리 그대로다.
           // 사원연락처·조직도현황·외근현황은 예전에 원본도 '권한없음'이라 빼 두었는데 2026-10-03 원본이 열려 실측해 넣었다.
           { label: '주요전달사항', to: '/groupware/key-notice' },
-          { label: '게시판', children: [
-            { label: '공지사항', to: '/groupware/notice' },
+          // 2026-10-13 원본: '*통합게시판*' 묶음 아래 게시판 하나, 그다음 '🔔 공지사항' 이 묶음 없이 온다.
+          { label: '*통합게시판*', children: [
+            { label: '공유정보/업무관리 게시판 20개까지', to: '/groupware/shared-board' },
           ] },
+          { label: '🔔 공지사항', to: '/groupware/notice' },
           {
             label: '사내관리',
             children: [

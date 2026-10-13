@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { exportTableToXlsx } from '../../utils/excel'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
@@ -35,8 +36,25 @@ function stampText(iso?: string | null) {
   return `${dateText(ymd(d))} (${WEEK[d.getDay()]}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-type Form = { title: string; content: string; forwardTo: string; ccTo: string; notice: boolean; postDate: string }
-const emptyForm = (): Form => ({ title: '', content: '', forwardTo: '', ccTo: '', notice: false, postDate: today() })
+type Form = { title: string; content: string; forwardTo: string; ccTo: string; notice: boolean; postDate: string; stage: string }
+const emptyForm = (stage = ''): Form => ({ title: '', content: '', forwardTo: '', ccTo: '', notice: false, postDate: today(), stage })
+
+export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN'
+
+/**
+ * 게시판마다 다른 것(2026-10-13 원본 실측).
+ * - wide: E0725xx 꼴(통합게시판 · 간판제작) — 머리 '번호' · '작성자', 전달자 뒤에 [완료일] 열이 있다.
+ *   E2000xx 꼴(WORK · 공지사항 · 팀별회의록)은 '게시글번호' · '작성자명', 완료일 열이 없다.
+ * - stages: 회사가 정한 진행상태 이름(서버 stage). null 이면 WORK 의 진행중/완료.
+ * - labels: [라벨] · [라벨변경] · [라벨설정] 이 있는가(통합게시판에는 없다).
+ */
+const BOARD_CFG: Record<PostBoardCode, { wide: boolean; stages: string[] | null; labels: boolean }> = {
+  WORK: { wide: false, stages: null, labels: true },
+  NOTICE: { wide: false, stages: ['기본'], labels: true },
+  SHARED: { wide: true, stages: ['Default'], labels: false },
+  MEETING: { wide: false, stages: ['영업팀', '생산팀', '구매팀', '경영지원팀'], labels: true },
+  SIGN: { wide: true, stages: ['수주견적', '디자인팀 시안', '자재발주, 제작', '현장시공'], labels: true },
+}
 
 /**
  * 게시판 목록 화면. 원본은 게시판을 여러 개 두고 게시글을 그 아래 다는데,
@@ -61,7 +79,11 @@ const emptyForm = (): Form => ({ title: '', content: '', forwardTo: '', ccTo: ''
  * <p>답글·복사·보내기·업무지원AI·라벨·이력조회는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도
  * 아무 일 없는 버튼은 있는 것만 못하다.
  */
-export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: 'WORK' | 'NOTICE'; title?: string } = {}) {
+export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: PostBoardCode; title?: string } = {}) {
+  const cfg = BOARD_CFG[board]
+  /** 서버가 stage 를 적는 게시판(공지사항의 '기본'은 화면에서만 붙이는 이름이라 뺀다). */
+  const namedStages = board === 'SHARED' || board === 'MEETING' || board === 'SIGN'
+  const colCount = cfg.wide ? 9 : 8
   const [rows, setRows] = useState<WorkPost[]>([])
   const [tab, setTab] = useState<string>('전체')
   /*
@@ -69,8 +91,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
    * 상태가 <b>'기본' 하나</b> — 알약 [전체][기본], 모든 줄의 진행상태 '기본'. WORK 는 진행중 · 완료 그대로.
    * 우리 서버의 상태(진행중/완료)는 WORK 의 것이라 공지사항에서는 쓰지 않고 '기본' 으로 보인다.
    */
-  const statuses: string[] = board === 'NOTICE' ? ['기본'] : ['진행중', '완료']
-  const statusOf = (r: WorkPost) => (board === 'NOTICE' ? '기본' : r.statusName)
+  const statuses: string[] = cfg.stages ?? ['진행중', '완료']
+  const statusOf = (r: WorkPost) => (board === 'NOTICE' ? '기본' : namedStages ? (r.stage ?? cfg.stages![0]) : r.statusName)
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -144,7 +166,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   function openEdit(r: WorkPost) {
     setViewing(null)
     setEditId(r.id)
-    setForm({ title: r.title, content: r.content, forwardTo: r.forwardTo ?? '', ccTo: r.ccTo ?? '', notice: r.notice, postDate: r.postDate })
+    setForm({ title: r.title, content: r.content, forwardTo: r.forwardTo ?? '', ccTo: r.ccTo ?? '', notice: r.notice, postDate: r.postDate, stage: r.stage ?? '' })
     setAttachment(r.attachmentId ? { id: r.attachmentId, name: r.attachmentName ?? '첨부' } : null)
     setError('')
     setShowForm(true)
@@ -187,6 +209,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       title: form.title, content: form.content,
       forwardTo: form.forwardTo || null, ccTo: form.ccTo || null,
       notice: form.notice,
+      stage: namedStages ? (form.stage || cfg.stages![0]) : null,
       // 수정은 통째로 덮는다 — 첨부를 안 보내면 서버가 뗀다(예전 수정이 그래서 첨부를 잃었다).
       attachmentId: attachment ? attachment.id : null,
     }
@@ -327,6 +350,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     a.postDate !== b.postDate ? (a.postDate < b.postDate ? 1 : -1) : b.postNo - a.postNo
   const numbered = [...shown].sort(newestFirst)
   const pinned = shown.filter((r) => r.notice).sort(newestFirst)
+  /** 게시판마다 [완료일] 열이 붙었다 빠졌다 한다 — 머리 · 본문 · 빈 줄 칸 수를 개발 모드에서 본다. */
+  const gridRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(gridRef, `${board} 게시판`, [shown.length, opened, loading, board])
 
   /** 격자 한 줄의 데이터 칸(게시글번호부터). 맨 위 공지 줄과 번호 붙은 줄이 같이 쓴다. */
   const cells = (r: WorkPost, pin: boolean) => {
@@ -336,7 +362,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         <td className={bg}>{r.postNo}</td>
         <td className={bg}>
           {/* 원본 [라벨] 칩 — 제목 앞(여백 3.6 4.5 2.7 · 둥글기 10 · 오른쪽 4.5, 실측) */}
-          {(r.labels ?? []).map((l) => <LabelChip key={l} name={l} color={colorOf(l)} className="mr-[4.5px]" />)}
+          {cfg.labels && (r.labels ?? []).map((l) => <LabelChip key={l} name={l} color={colorOf(l)} className="mr-[4.5px]" />)}
           <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
                   onClick={() => openView(r)}>
             {r.title}
@@ -344,6 +370,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         </td>
         <td className={bg}>{r.writerName ?? r.writer}</td>
         <td className={bg}>{r.forwardTo ?? ''}</td>
+        {cfg.wide && <td className={`${bg} text-center`}>{r.completedAt ? dateText(r.completedAt.slice(0, 10)) : ''}</td>}
         <td className={`${bg} text-ec-navy`}>{statusOf(r)}</td>
         {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
         <td className={`${bg} text-center`}>
@@ -381,7 +408,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
           {board === 'NOTICE' && <span className="ec-pill no-ec">진행상태를 자유롭게 추가 가능합니다</span>}
         </div>
         <div className="ml-auto flex gap-[4px]">
-          <span className="relative">
+          {cfg.labels && <span className="relative">
             <button type="button" className={`ec-btn${labelFilter ? ' ec-btn-primary' : ''}`} onClick={openFilter}>라벨</button>
             {filterOpen && (
               <>
@@ -409,7 +436,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 </div>
               </>
             )}
-          </span>
+          </span>}
           <input className="ec-input w-[110px]" placeholder="입력 후 [Enter]" value={keyword}
                  onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load() }} />
           <button className="ec-btn ec-btn-primary" onClick={load}>Search(F3)</button>
@@ -423,7 +450,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       {/* 원본 목록 오른쪽 위의 조회 기간 */}
       <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>
 
-      <div id="work-list" className="flex-1 min-h-0">
+      <div id="work-list" ref={gridRef} className="flex-1 min-h-0">
         <table className="w-full text-left">
           <thead>
             <tr>
@@ -435,10 +462,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 {shown.length > 0 && selected.size === shown.length ? '☑' : ''}
               </th>
               {/* 원본 컬럼 순서: 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회 */}
-              <th className="w-[90px] text-center">게시글번호</th>
+              <th className="w-[90px] text-center">{cfg.wide ? '번호' : '게시글번호'}</th>
               <th className="text-center">제목</th>
-              <th className="w-[100px] text-center">작성자명</th>
+              <th className="w-[100px] text-center">{cfg.wide ? '작성자' : '작성자명'}</th>
               <th className="w-[150px] text-center">전달자</th>
+              {cfg.wide && <th className="w-[100px] text-center">완료일</th>}
               <th className="w-[150px] text-center">진행상태</th>
               <th className="w-[60px] text-center">첨부</th>
               <th className="w-[60px] text-center">조회</th>
@@ -446,9 +474,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={colCount} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               <>
                 {pinned.map((r) => (
@@ -470,7 +498,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                     </tr>
                     {opened && (
                       <tr>
-                        <td colSpan={8} className="bg-ec-page px-[14px] py-[10px]">
+                        <td colSpan={colCount} className="bg-ec-page px-[14px] py-[10px]">
                           <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[20px]">{r.content}</div>
                         </td>
                       </tr>
@@ -491,8 +519,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         */}
         <button className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
         {/* 공지사항은 상태가 '기본' 하나라 바꿀 곳이 없다. */}
-        <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0 || board === 'NOTICE'} onClick={() => void changeStatusSelected()}>진행상태변경</button>
-        <span className="relative">
+        <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0 || statuses.length < 2} onClick={() => void changeStatusSelected()}>진행상태변경</button>
+        {cfg.labels && <span className="relative">
           <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={openLabels}>라벨변경</button>
           {labelOpen && (
             <>
@@ -519,9 +547,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
               </div>
             </>
           )}
-        </span>
-        {/* 원본 하단 [라벨설정] — '라벨조회' 창(2026-10-12 잼, [라벨] · [라벨변경]의 + 와 같은 창). */}
-        <button className="ec-btn" onClick={() => setMasterOpen(true)}>라벨설정</button>
+        </span>}
+        {/* 원본 하단 [라벨설정] — '라벨조회' 창(2026-10-12 잼, [라벨] · [라벨변경]의 + 와 같은 창). 통합게시판에는 없다. */}
+        {cfg.labels && <button className="ec-btn" onClick={() => setMasterOpen(true)}>라벨설정</button>}
         <button className="ec-btn" onClick={() => setOpened((v) => !v)}>{opened ? '모두접기' : '모두펼쳐보기'}</button>
         <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
@@ -533,6 +561,17 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       <Modal error={error} open={showForm} title={`${title}입력${editId != null ? '(수정)' : ''}`}
              onClose={() => setShowForm(false)} width={780}>
         <ul className="ec-form mb-[10px]">
+          {/* 원본 입력 창 맨 위 [진행상태] — 회사가 정한 이름(통합게시판 'Default' 하나). */}
+          {namedStages && (
+            <li className="wide">
+              <div className="title">진행상태</div>
+              <div className="form">
+                <select className="ec-input w-[260px]" value={form.stage || cfg.stages![0]} onChange={(e) => set('stage', e.target.value)}>
+                  {cfg.stages!.map((st) => <option key={st} value={st}>{st}</option>)}
+                </select>
+              </div>
+            </li>
+          )}
           <li className="wide">
             <div className="title">제목</div>
             <div className="form flex-col items-start">
