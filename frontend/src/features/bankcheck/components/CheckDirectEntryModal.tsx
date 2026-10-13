@@ -143,15 +143,22 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
           </li>
           <li className="flex items-center gap-[8px]">
             <span className="w-[93px] text-ec-hint">거래처코드</span>
-            <span className="flex-1">
-              <GridCode title="거래처검색" codeHead="거래처코드" nameHead="거래처명" items={partners} value={partnerId} onPick={setPartnerId} />
+            {/* 원본 — 코드칸 옆에 이름칸('1234567004' · '김치좋아', 2026-10-14 실측) */}
+            <span className="flex-1 flex gap-[4px]">
+              <span className="w-[140px]">
+                <GridCode title="거래처검색" codeHead="거래처코드" nameHead="거래처명" items={partners} value={partnerId} onPick={setPartnerId} />
+              </span>
+              <input className="ec-input flex-1" aria-label="거래처명" readOnly tabIndex={-1} value={partners.find((x) => x.value === partnerId)?.name ?? ''} />
             </span>
           </li>
           <li className="flex items-center gap-[8px]">
             <span className="w-[93px] text-ec-hint">수표계좌</span>
-            <span className={`flex-1${accountErr ? ' outline outline-1 outline-ec-danger rounded-ec' : ''}`} aria-invalid={accountErr}>
-              <GridCode title="계좌검색" codeHead="계좌코드" nameHead="계좌명" items={accounts} value={accountId}
-                        onPick={(v) => { setAccountId(v); setAccountErr(false) }} />
+            <span className="flex-1 flex gap-[4px]">
+              <span className={`w-[140px]${accountErr ? ' outline outline-1 outline-ec-danger rounded-ec' : ''}`} aria-invalid={accountErr}>
+                <GridCode title="계좌검색" codeHead="계좌코드" nameHead="계좌명" items={accounts} value={accountId}
+                          onPick={(v) => { setAccountId(v); setAccountErr(false) }} />
+              </span>
+              <input className="ec-input flex-1" aria-label="수표계좌명" readOnly tabIndex={-1} value={accounts.find((x) => x.value === accountId)?.name ?? ''} />
             </span>
           </li>
         </ul>

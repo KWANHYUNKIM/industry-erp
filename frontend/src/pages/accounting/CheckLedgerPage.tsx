@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
@@ -133,14 +134,13 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
         </EcCond>
       </ul>
 
-      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
-        {title} <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span>
-      </h3>
-      <table ref={tableRef} className="w-full text-left">
+      {/* 원본 출력물 머리 — 제목 24px · '회사명 :' · 기간, 아래 [P.1] · 출력한 때(2026-10-14 실측) */}
+      <EcReportHead title={title} period={reportPeriod(from, to)} />
+      <table ref={tableRef} className="ec-report w-full text-left">
         <thead>
           <tr>
-            <th className="text-center">일자</th>
-            <th className="text-center">증감구분</th>
+            <th>일자</th>
+            <th>증감구분</th>
             <th>수표번호</th>
             <th>{received ? '수령수표계좌코드' : '발행수표계좌코드'}</th>
             <th>거래처명</th>
@@ -159,14 +159,14 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
           ) : groups.flatMap((g) => [
             ...(g.opening !== 0 ? [
               <tr key={`${g.c.id}-open`}>
-                <td colSpan={9}>이월잔액</td>
+                <td colSpan={9} className="text-center">이월잔액</td>
                 <td className="text-right">{won(g.opening)}</td>
               </tr>,
             ] : []),
             ...g.lines.map((l, i) => (
               <tr key={`${g.c.id}-${i}`}>
-                <td className="text-center">{dateText(l.date)}</td>
-                <td className="text-center">{l.kind}</td>
+                <td>{dateText(l.date)}</td>
+                <td>{l.kind}</td>
                 <td>{g.c.checkNo}</td>
                 <td>{g.c.bankAccountId != null ? acctNo.get(g.c.bankAccountId) ?? '' : ''}</td>
                 <td>{g.c.partnerName ?? ''}</td>
@@ -178,7 +178,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
               </tr>
             )),
             <tr key={`${g.c.id}-sub`} style={SUB_ROW}>
-              <td colSpan={7}>{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
+              <td colSpan={7} className="text-center">{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
               <td className="text-right">{won(g.inc)}</td>
               <td className="text-right">{won(g.dec)}</td>
               <td></td>
@@ -187,13 +187,14 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
         </tbody>
         <tfoot>
           <tr style={SUB_ROW}>
-            <td colSpan={7}>누계</td>
+            <td colSpan={7} className="text-center">누계</td>
             <td className="text-right">{won(total.inc)}</td>
             <td className="text-right">{won(total.dec)}</td>
             <td></td>
           </tr>
         </tfoot>
       </table>
+      <EcReportFoot />
     </EcListShell>
   )
 }

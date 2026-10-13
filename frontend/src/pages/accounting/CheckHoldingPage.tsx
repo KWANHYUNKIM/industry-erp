@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
+import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcReportFrame'
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -19,7 +20,8 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 24
  * <p>조건: 기준일자(<b>하루</b>, 빠른선택 금일 … 전월 · 종료일 · 최근30일 — 기본 [최근30일]의 끝날 = 오늘) · 계정 · 수표번호 ·
  * 수령수표계좌 · 부서 · 프로젝트. 열: 수령일자 · 수표번호 · 거래처명 · 계정명 · 적요 · 금액.
  * 줄은 <b>거래처마다 묶이고</b> 묶음 끝에 '거래처명 [코드] 계' 줄(바탕 회색 · 굵게), 맨 끝에 '합계'. 묶음 안은 수령일 오름차순,
- * 묶음끼리는 가장 늦은 수령일이 위다(실측: 2016/02/28 · 2016/01/15 · 2015/08/30 · 2015/04/01 차례).
+ * 묶음끼리는 <b>거래처명 차례</b> — 한글 이름이 먼저, 영문 이름은 뒤(2026-10-14 실측: (주)구로 · 구로조명유통 · 김치좋아 ·
+ * 휴대폰매장아울렛 · Bisket World 차례 — 2026/10/14 에 받은 김치좋아가 2015 년 묶음들 사이에 섰다).
  *
  * <p>기준일자에 아직 들고 있는(입금 · 부도 전) 받은수표를 센다 — 받은 날 ≤ 기준일자, 닫힌 날(settledDate)이 없거나 그 뒤.
  * 계정명은 우리 분개가 쓰는 <b>받을수표</b>(104)다. 원본이 보통예금을 찍은 줄은 수표내역입력(분개 없음)으로 넣은 것이었다 —
@@ -87,7 +89,11 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
         cs.sort((a, b) => (a.issueDate < b.issueDate ? -1 : a.issueDate > b.issueDate ? 1 : a.checkNo.localeCompare(b.checkNo)))
         return { cs, last: cs[cs.length - 1].issueDate, sum: cs.reduce((a, c) => a + Number(c.amount), 0) }
       })
-      .sort((a, b) => (a.last < b.last ? 1 : a.last > b.last ? -1 : 0))
+      .sort((a, b) => {
+        const an = a.cs[0].partnerName ?? '', bn = b.cs[0].partnerName ?? ''
+        const rank = (n: string) => (!n ? 2 : /^[A-Za-z]/.test(n) ? 1 : 0)
+        return rank(an) - rank(bn) || an.localeCompare(bn, 'ko')
+      })
   }, [held])
   const total = groups.reduce((a, g) => a + g.sum, 0)
   const accounts = useMemo(() => [...new Set(checks.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [checks])
@@ -128,13 +134,12 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
         </EcCond>
       </ul>
 
-      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
-        {title} <span className="font-normal text-ec-hint">{dateText(asOf)}</span>
-      </h3>
-      <table ref={tableRef} className="w-full text-left">
+      {/* 원본 출력물 머리 — 제목 24px · '회사명 :' · 기준일자, 아래 [P.1] · 출력한 때(2026-10-14 실측) */}
+      <EcReportHead title={title} period={reportDate(asOf)} />
+      <table ref={tableRef} className="ec-report w-full text-left">
         <thead>
           <tr>
-            <th className="text-center">{received ? '수령일자' : '발행일자'}</th>
+            <th>{received ? '수령일자' : '발행일자'}</th>
             <th>수표번호</th>
             <th>거래처명</th>
             <th>계정명</th>
@@ -150,7 +155,7 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
           ) : groups.flatMap((g) => [
             ...g.cs.map((c) => (
               <tr key={c.id}>
-                <td className="text-center">{dateText(c.issueDate)}</td>
+                <td>{dateText(c.issueDate)}</td>
                 <td>{c.checkNo}</td>
                 <td>{c.partnerName ?? ''}</td>
                 <td>{accountOf(c)}</td>
@@ -159,18 +164,19 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
               </tr>
             )),
             <tr key={`sub-${g.cs[0].id}`} style={SUB_ROW}>
-              <td colSpan={5}>{g.cs[0].partnerName ? `${g.cs[0].partnerName} ` : ''}[{codeOf(g.cs[0].partnerId) ?? ''}] 계</td>
+              <td colSpan={5} className="text-center">{g.cs[0].partnerName ? `${g.cs[0].partnerName} ` : ''}[{codeOf(g.cs[0].partnerId) ?? ''}] 계</td>
               <td className="text-right">{won(g.sum)}</td>
             </tr>,
           ])}
         </tbody>
         <tfoot>
           <tr style={SUB_ROW}>
-            <td colSpan={5}>합계</td>
+            <td colSpan={5} className="text-center">합계</td>
             <td className="text-right">{won(total)}</td>
           </tr>
         </tfoot>
       </table>
+      <EcReportFoot />
     </EcListShell>
   )
 }

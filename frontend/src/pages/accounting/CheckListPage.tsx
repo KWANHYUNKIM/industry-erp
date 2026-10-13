@@ -8,9 +8,24 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import type { BankCheck, CheckType } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
+
+/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑(2026-10-14 수령수표조회 실측 '1'). */
+function NumCheck({ no, on, onChange, label, head = false, disabled = false }: {
+  no: number | ''; on: boolean; onChange: (v: boolean) => void; label: string; head?: boolean; disabled?: boolean
+}) {
+  return (
+    <label className={`relative ${disabled ? 'cursor-default' : 'cursor-pointer'} ${head ? 'block mx-auto w-[18px] h-[18px]' : 'inline-block align-middle'}`}>
+      <input type="checkbox" aria-label={label} checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer disabled:cursor-default" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : disabled ? 'bg-ec-panel text-ec-hint' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
 
 /** 수표 한 장이 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(입금 · 부도 · 결제완료) 감소. */
 interface Move { key: string; date: string; inc: boolean; c: BankCheck }
@@ -142,6 +157,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
     }
   }
   const kinds = received ? ['수령', '입금완료', '부도', '수표만증가', '수표만감소', '입금보고서'] : ['발행', '결제완료', '수표만증가', '수표만감소']
+  const resetConds = () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') }
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [moves.length])
 
@@ -154,10 +170,9 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   return (
     <EcListShell
       title={title}
-      searchable={false}
+      onSearch={() => void load()}
+      onReset={resetConds}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') } },
         { label: '신규(F2)', onClick: () => { setVoucher(null); setEntryOpen(true) } },
         { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
         { label: 'Excel' },
@@ -213,24 +228,21 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         </EcCond>
       </ul>
 
-      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
-        {title} <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span>
-      </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="text-center">
-              <input type="checkbox" aria-label="전체 선택" checked={allPicked}
-                     onChange={(e) => setPicked(e.target.checked ? new Set(moves.map((m) => m.key)) : new Set())} />
+            <th className="w-[42px]">
+              <NumCheck no="" head on={allPicked} label="전체 선택"
+                        onChange={(v) => setPicked(v ? new Set(moves.filter((m) => !byVoucher(m)).map((m) => m.key)) : new Set())} />
             </th>
-            <th className="text-center">일자</th>
+            <th>일자</th>
             <th>수표번호</th>
-            <th className="text-center">증감구분</th>
+            <th>증감구분</th>
             <th>거래처명</th>
             <th className="text-right">금액</th>
             <th>적요</th>
-            <th className="text-center">거래유형</th>
-            <th className="text-center">회계전표일자-No.</th>
+            <th>거래유형</th>
+            <th>회계전표일자-No.</th>
           </tr>
         </thead>
         <tbody>
@@ -238,26 +250,27 @@ export default function CheckListPage({ type }: { type: CheckType }) {
             <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : moves.length === 0 ? (
             <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : moves.map((m) => {
+          ) : moves.map((m, i) => {
             const no = (m.inc ? m.c.issueJournalNo : m.c.settleJournalNo) ?? ''
             return (
               <tr key={m.key}>
                 <td className="text-center">
-                  <input type="checkbox" aria-label={`${m.c.checkNo} ${m.inc ? incName : decName} 선택`} checked={picked.has(m.key)} disabled={byVoucher(m)}
-                         onChange={(e) => setPicked((s) => { const n = new Set(s); if (e.target.checked) n.add(m.key); else n.delete(m.key); return n })} />
+                  <NumCheck no={i + 1} label={`${m.c.checkNo} ${m.inc ? incName : decName} 선택`} on={picked.has(m.key)} disabled={byVoucher(m)}
+                            onChange={(v) => setPicked((s) => { const n = new Set(s); if (v) n.add(m.key); else n.delete(m.key); return n })} />
                 </td>
-                <td className="text-center">
+                <td>
                   {entryNo(m) != null && !byVoucher(m)
                     ? <a href="#" onClick={(e) => { e.preventDefault(); openVoucher(m) }}>{dateText(m.date)} -{entryNo(m)}</a>
                     : entryNo(m) != null ? `${dateText(m.date)} -${entryNo(m)}` : dateText(m.date)}
                 </td>
                 <td>{m.c.checkNo}</td>
-                <td className="text-center">{m.inc ? '증가' : '감소'}</td>
+                <td>{m.inc ? '증가' : '감소'}</td>
                 <td>{m.c.partnerName ?? ''}</td>
                 <td className="text-right">{won(Number(m.c.amount))}</td>
                 <td>{m.c.remark ?? ''}</td>
-                <td className="text-center">{kindOf(m)}</td>
-                <td className="text-center">{no ? `${dateText(m.date)} ${no}` : ''}</td>
+                <td>{kindOf(m)}</td>
+                {/* 원본 '2026/10/13 -12' — 우리 GL 번호의 끝 일련번호만 */}
+                <td>{no ? dateNo(m.date, no) : ''}</td>
               </tr>
             )
           })}

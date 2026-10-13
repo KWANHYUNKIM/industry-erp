@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -86,7 +87,10 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   const entryNoOf = (c: BankCheck) => (flow === '증가' ? c.directInNo : c.directOutNo) ?? null
   const noOf = (c: BankCheck) => {
     const n = entryNoOf(c)
-    return n != null ? `-${n}` : (flow === '증가' ? c.issueJournalNo : c.settleJournalNo) ?? ''
+    if (n != null) return `-${n}`
+    /* 원본 '2026/10/13 -12' — 우리 GL 번호(GL-20261013-0012)의 끝 일련번호만 */
+    const gl = (flow === '증가' ? c.issueJournalNo : c.settleJournalNo) ?? ''
+    return gl ? `-${Number(gl.split('-').pop()) || gl}` : ''
   }
   const kindOf = (c: BankCheck) => (c.directEntry ? (flow === '증가' ? '수표만증가' : '수표만감소')
     : flow === '증가' ? (received ? '수령' : '발행') : c.statusName)
@@ -180,17 +184,16 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
         </EcCond>
       </ul>
 
-      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
-        {title} <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span>
-      </h3>
-      <table ref={tableRef} className="w-full text-left">
+      {/* 원본 출력물 머리 — 제목 24px · '회사명 :' · 기간, 아래 [P.1] · 출력한 때(2026-10-14 실측) */}
+      <EcReportHead title={title} period={reportPeriod(from, to)} />
+      <table ref={tableRef} className="ec-report w-full text-left">
         <thead>
           <tr>
-            <th className="text-center">일자-No.</th>
+            <th>일자-No.</th>
             <th>수표번호</th>
             <th>거래처명</th>
             <th>계정명</th>
-            <th className="text-center">거래유형</th>
+            <th>거래유형</th>
             <th>적요</th>
             <th className="text-right">금액</th>
           </tr>
@@ -203,11 +206,11 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
           ) : groups.flatMap((g) => [
             ...g.cs.map((c) => (
               <tr key={c.id}>
-                <td className="text-center">{dateText(dayOf(c))} {noOf(c)}</td>
+                <td>{dateText(dayOf(c))} {noOf(c)}</td>
                 <td>{c.checkNo}</td>
                 <td>{c.partnerName ?? ''}</td>
                 <td>{accountOf(c)}</td>
-                <td className="text-center">{kindOf(c)}</td>
+                <td>{kindOf(c)}</td>
                 <td>{c.remark ?? ''}</td>
                 <td className="text-right">{won(Number(c.amount))}</td>
               </tr>
@@ -225,6 +228,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
           </tr>
         </tfoot>
       </table>
+      <EcReportFoot />
     </EcListShell>
   )
 }
