@@ -12,6 +12,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { dateNo } from '../../utils/dateNo'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
+import { ecAlert } from '../../components/EcDialog'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
@@ -99,7 +100,7 @@ export default function AsRepairStatusPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to])
   function search() {
-    if (gubun === '집계' && pivot && !target) { window.alert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
+    if (gubun === '집계' && pivot && !target) { void ecAlert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
     setApplied({ compare: gubun === '집계' ? compare : '사용안함', pivot, ratio })
     void load()
   }

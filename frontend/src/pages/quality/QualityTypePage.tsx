@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 II › 품질관리 › 품질검사 › <b>품질검사유형등록</b>(E040632 검사유형리스트) — 2026-10-12 loginaa 실측.
@@ -131,7 +132,7 @@ export default function QualityTypePage() {
   async function bulkTypes(what: 'stop' | 'delete' | 'reuse') {
     const ids = [...typeChecks.checked]
     if (ids.length === 0) { setError('선택된 데이터가 없습니다.'); return }
-    if (what === 'delete' && !window.confirm('삭제하시겠습니까?')) return
+    if (what === 'delete' && !(await ecConfirm('삭제하시겠습니까?'))) return
     const ok = await run(() => api.post('/quality-types/bulk', { ids, active: what === 'delete' ? null : what === 'reuse' }))
     if (ok) { typeChecks.clear(); void load() }
   }
@@ -200,7 +201,7 @@ export default function QualityTypePage() {
   async function bulkCheckItems(what: 'stop' | 'delete' | 'reuse') {
     const ids = [...checkChecks.checked]
     if (ids.length === 0) { setError('선택된 데이터가 없습니다.'); return }
-    if (what === 'delete' && !window.confirm('코드형일 경우 하위 상세항목코드도 같이 삭제됩니다.\n삭제하시겠습니까?')) return
+    if (what === 'delete' && !(await ecConfirm('코드형일 경우 하위 상세항목코드도 같이 삭제됩니다.\n삭제하시겠습니까?'))) return
     const ok = await run(() => api.post('/quality-check-items/bulk', { ids, active: what === 'delete' ? null : what === 'reuse' }))
     if (ok) { checkChecks.clear(); void load() }
   }
@@ -234,7 +235,7 @@ export default function QualityTypePage() {
   async function bulkDetails(what: 'stop' | 'delete' | 'reuse') {
     const ids = [...detailChecks.checked]
     if (ids.length === 0) { setError('선택된 데이터가 없습니다.'); return }
-    if (what === 'delete' && !window.confirm('삭제하시겠습니까?')) return
+    if (what === 'delete' && !(await ecConfirm('삭제하시겠습니까?'))) return
     const ok = await run(() => api.post('/quality-check-item-details/bulk', { ids, active: what === 'delete' ? null : what === 'reuse' }))
     if (ok) { detailChecks.clear(); void reloadDetails() }
   }

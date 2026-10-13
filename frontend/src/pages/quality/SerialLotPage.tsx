@@ -9,6 +9,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { expiryDirectRange } from '../../utils/expiryRange'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.등록</b> (이카운트 E040617)
@@ -120,7 +121,7 @@ export default function SerialLotPage() {
   }
 
   async function remove() {
-    if (!editing || !window.confirm('삭제하겠습니까?')) return
+    if (!editing || !(await ecConfirm('삭제하겠습니까?'))) return
     try {
       await api.delete(`/lots/${editing.id}`)
       setFormOpen(false)

@@ -12,6 +12,7 @@ import type { Lot, LotTransaction } from '../../types/api'
 import Modal from '../../components/Modal'
 import { useShortcut } from '../../utils/useShortcut'
 import { ymd } from '../../components/EcPeriodPicks'
+import { ecConfirm } from '../../components/EcDialog'
 
 /*
  * 원본 '시리얼/로트No.내역입력' [전표구분] 후보 — 차례 그대로(2026-10-12 실측, 기본 견적).
@@ -111,10 +112,10 @@ export default function LotTxListPage() {
       await load()
     } catch (e) { setError(extractErrorMessage(e)) }
   }
-  function removeChecked() {
+  async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) return setError('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
-    if (window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n선택한 항목을 삭제 하겠습니까?')) void removeTx(ids)
+    if ((await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n선택한 항목을 삭제 하겠습니까?'))) void removeTx(ids)
   }
 
   async function load() {
@@ -303,7 +304,7 @@ export default function LotTxListPage() {
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={() => void saveTx()}>저장(F8)</button>
           {editing
-            ? <button className="ec-btn" onClick={() => { if (window.confirm('전표를 삭제하겠습니까?')) void removeTx([editing.id]) }}>삭제</button>
+            ? <button className="ec-btn" onClick={async () => { if ((await ecConfirm('전표를 삭제하겠습니까?'))) void removeTx([editing.id]) }}>삭제</button>
             : <button className="ec-btn" onClick={() => { setF(emptyForm()); setTried(false) }}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>

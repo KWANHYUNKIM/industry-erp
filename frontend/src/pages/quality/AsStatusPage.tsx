@@ -11,6 +11,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine } from '../../features/as/AsAggregate'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
+import { ecAlert } from '../../components/EcDialog'
 
 /**
  * 재고 II > A/S관리 > A/S접수현황 (이카운트 E040610). 데이터는 GET /api/as-requests 의 접수와 그 품목 줄.
@@ -178,7 +179,7 @@ export default function AsStatusPage() {
   }, [filters])
 
   const applyDraft = () => {
-    if (draft.gubun === '집계' && draft.pivot && !draft.target) { window.alert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
+    if (draft.gubun === '집계' && draft.pivot && !draft.target) { void ecAlert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
     setFilters(draft); setPanelOpen(false)
   }
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }

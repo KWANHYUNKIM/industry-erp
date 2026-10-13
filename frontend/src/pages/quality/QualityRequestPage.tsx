@@ -13,6 +13,7 @@ import EcPeriodPicks, { ymd, periodOf, QUALITY_REQUEST_PICKS } from '../../compo
 import { printDocuments } from '../../utils/printDocument'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { DocPullButton, type PullKind, type PulledLine } from '../../features/quality/DocPull'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 II &gt; 품질관리 &gt; 품질검사요청 — <b>품질검사요청조회</b>(E040629) · <b>품질검사요청입력</b>(E040628), 2026-10-04 loginaa 실측(입력 · 삭제).
@@ -235,7 +236,7 @@ export default function QualityRequestPage() {
         { label: '진행상태변경', selected: picked.size, onClick: () => setStatusOpen(true) },
         { label: '인쇄', disabled: picked.size === 0, onClick: () => void printRequests(rows.filter((r) => picked.has(r.id))) },
         { label: '선택삭제', selected: picked.size,
-          onClick: () => { if (window.confirm('전표를 삭제하겠습니까?')) void removeIds([...picked]) } },
+          onClick: async () => { if ((await ecConfirm('전표를 삭제하겠습니까?'))) void removeIds([...picked]) } },
         { label: 'Excel' },
       ]}
     >
@@ -425,7 +426,7 @@ export default function QualityRequestPage() {
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
           {editing
-            ? <button className="ec-btn" onClick={() => { if (window.confirm('전표를 삭제하겠습니까?')) void removeIds([editing.id]) }}>삭제</button>
+            ? <button className="ec-btn" onClick={async () => { if ((await ecConfirm('전표를 삭제하겠습니까?'))) void removeIds([editing.id]) }}>삭제</button>
             : <button className="ec-btn" onClick={() => { setLines(emptyLines()); setPulled(false) }}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>

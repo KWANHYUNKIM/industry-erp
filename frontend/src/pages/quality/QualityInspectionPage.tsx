@@ -13,6 +13,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import { DocPullButton, type PulledLine } from '../../features/quality/DocPull'
 import { printDocuments } from '../../utils/printDocument'
+import { ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
 const qty0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -294,10 +295,10 @@ export default function QualityInspectionPage() {
       setError(extractErrorMessage(err))
     }
   }
-  function removeChecked() {
+  async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) return setError('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
-    if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeIds(ids)
+    if ((await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) void removeIds(ids)
   }
   /** 목록 [진행상태변경] — 고른 검사를 진행중 · 완료로. */
   const [statusOpen, setStatusOpen] = useState(false)
@@ -527,7 +528,7 @@ export default function QualityInspectionPage() {
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
           {editing
-            ? <button className="ec-btn" onClick={() => { if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeIds([editing.id]) }}>삭제</button>
+            ? <button className="ec-btn" onClick={async () => { if ((await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) void removeIds([editing.id]) }}>삭제</button>
             : <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>

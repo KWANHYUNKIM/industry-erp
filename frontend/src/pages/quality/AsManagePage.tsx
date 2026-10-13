@@ -15,6 +15,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import AsReceiptScreen from '../../features/as/AsReceiptForm'
 import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, blankAsDraft, emptyAsLines,
   type AsFormLine, type AsReceiptDraft, type AsStatus } from '../../features/as/AsReceiptForm'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 II › A/S관리 › A/S접수조회(E040602) · A/S접수입력(E040601) · A/S접수수정
@@ -212,13 +213,13 @@ export default function AsManagePage() {
   useShortcut('F8', save, open)
 
   async function removeOne() {
-    if (!editing || !window.confirm('선택한 전표를 삭제 하겠습니까?')) return
+    if (!editing || !(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     try { await api.delete(`/as-requests/${editing.id}`); setOpen(false); load() }
     catch (err) { setFormError(extractErrorMessage(err)) }
   }
   async function removeChecked() {
     const ids = [...picked]
-    if (ids.length === 0 || !window.confirm('선택한 전표를 삭제 하겠습니까?')) return
+    if (ids.length === 0 || !(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/as-requests/${id}`)))
     const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
     setPicked(new Set())

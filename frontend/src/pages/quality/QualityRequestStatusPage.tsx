@@ -12,6 +12,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { weekOfYear } from '../../utils/statusAggregate'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 import type { QualityInspectionRequest } from '../../types/api'
+import { ecAlert } from '../../components/EcDialog'
 
 const qty = (n: number) => n.toLocaleString('ko-KR')
 /** 집계 판의 수량은 소수 둘째 자리까지(원본 '1.00'). */
@@ -84,7 +85,7 @@ export default function QualityRequestStatusPage() {
   function setAgg(i: number, k: AggKey | '') {
     const prevDates = aggs.slice(0, i).filter((x): x is AggKey => !!x && DATE_RANK[x] != null)
     if (k && DATE_RANK[k] != null && prevDates.some((d) => (DATE_RANK[d] ?? 0) > (DATE_RANK[k] ?? 0))) {
-      window.alert(DATE_ORDER_MSG)
+      void ecAlert(DATE_ORDER_MSG)
       return
     }
     setAggs(aggs.map((x, j) => (j === i ? k : x)))

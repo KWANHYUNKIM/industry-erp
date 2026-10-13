@@ -11,6 +11,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import type { Item, Partner, Warehouse } from '../../types/api'
 import AsRepairScreen, { asRepairBody, blankRepairDraft, blankRepairLines, repairDateNo, type AsRepairDraft, type AsReqPick, type RepairFormLine, type RepairType } from '../../features/as/AsRepairForm'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 II › A/S관리 › A/S수리조회(E040606) · A/S수리입력(E040605) · 판매연결전표
@@ -130,13 +131,13 @@ export default function AsRepairListPage() {
   }
 
   async function removeOne() {
-    if (!editing || !window.confirm('선택한 전표를 삭제 하겠습니까?')) return
+    if (!editing || !(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     try { await api.delete(`/as-repairs/${editing.id}`); setOpen(false); load() }
     catch (e) { setFormError(extractErrorMessage(e)) }
   }
   async function removeChecked() {
     const ids = [...picked]
-    if (ids.length === 0 || !window.confirm('선택한 전표를 삭제 하겠습니까?')) return
+    if (ids.length === 0 || !(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/as-repairs/${id}`)))
     const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
     setPicked(new Set())
@@ -170,7 +171,7 @@ export default function AsRepairListPage() {
     } catch (e) { setSaleError(extractErrorMessage(e)) }
   }
   async function removeSale(s: LinkedSale) {
-    if (!saleFor || !window.confirm(`${s.docNo} 판매를 삭제할까요? (재고 · 매출이 되돌아갑니다)`)) return
+    if (!saleFor || !(await ecConfirm(`${s.docNo} 판매를 삭제할까요? (재고 · 매출이 되돌아갑니다)`))) return
     try { setSaleFor((await api.delete<Repair>(`/as-repairs/${saleFor.id}/sales/${s.salesId}`)).data); load() }
     catch (e) { setSaleError(extractErrorMessage(e)) }
   }

@@ -12,6 +12,7 @@ import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../comp
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine } from '../../features/as/AsAggregate'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
+import { ecAlert } from '../../components/EcDialog'
 
 /**
  * 재고 II > 품질관리 > 품질검사현황 (이카운트 E040623)
@@ -246,7 +247,7 @@ export default function QualityStatusPage() {
   }, [filters])
 
   const applyDraft = () => {
-    if (draft.gubun === '집계' && draft.pivot && !draft.targets.length) { window.alert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
+    if (draft.gubun === '집계' && draft.pivot && !draft.targets.length) { void ecAlert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
     setFilters(draft); setPanelOpen(false)
   }
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
