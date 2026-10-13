@@ -381,7 +381,7 @@ export default function QuotationPage() {
               {generated.rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
-                  <td className="text-right">{won(r.quantity)}</td><td className="text-right">{won(r.remaining)}</td>
+                  <td className="text-right">{won(r.quantity)}</td><td className="text-right">{/* 원본은 다 넘어간 줄의 잔량을 비워 둔다(2026-10-14 실측 — 0 이 아니다). */}{r.remaining ? won(r.remaining) : ''}</td>
                   <td>{r.slipType ?? ''}</td><td>{r.slipDate && r.slipNo ? dateNo({ quoteDate: r.slipDate, quoteNo: r.slipNo }) : ''}</td>
                 </tr>
               ))}
