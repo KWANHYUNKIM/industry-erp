@@ -212,7 +212,7 @@ public class PurchaseOrderService {
                     : TradeMasters.requireUsable(partnerRepository.findById(lr.partnerId())
                             .orElseThrow(() -> ApiException.notFound("라인 거래처를 찾을 수 없습니다. id=" + lr.partnerId())));
             po.addLine(PurchaseOrderLine.builder()
-                    .item(item).quantity(lr.quantity()).unitPrice(unitPrice)
+                    .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
                     .build());
         }
@@ -261,7 +261,7 @@ public class PurchaseOrderService {
                     : TradeMasters.requireUsable(partnerRepository.findById(lr.partnerId())
                             .orElseThrow(() -> ApiException.notFound("라인 거래처를 찾을 수 없습니다. id=" + lr.partnerId())));
             po.addLine(PurchaseOrderLine.builder()
-                    .item(item).quantity(lr.quantity()).unitPrice(unitPrice)
+                    .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
                     .build());
         }
@@ -289,6 +289,7 @@ public class PurchaseOrderService {
         if (req.quantity() != null) line.setQuantity(req.quantity());
         if (req.unitPrice() != null) line.setUnitPrice(req.unitPrice());
         if (req.closed() != null) line.setPlanClosed(req.closed());
+        if (Boolean.TRUE.equals(req.calculated())) line.setPlanCalcDate(LocalDate.now());
         recalculate(po);
         po.setUpdatedBy(username);
         return PurchaseOrderResponse.from(po);

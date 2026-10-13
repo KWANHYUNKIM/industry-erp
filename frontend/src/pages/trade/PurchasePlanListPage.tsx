@@ -11,6 +11,7 @@ import Modal from '../../components/Modal'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestForm'
+import PlanQtyAdjustModal, { type AdjustLine } from '../../features/purchaseplan/PlanQtyAdjustModal'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -43,8 +44,8 @@ const done = (r: Row) => r.closed || ordered(r.status)
  *   <li>[진행상태] '조회' → '발주번호확인' 창(No. · 발주번호). 발주서가 없으면 안내 두 줄.</li>
  *   <li>하단: 신규(F2) · 수량조정 · 다른전표생성 ▴(발주서) · 메신저 · 종결 · 선택삭제 · Excel. 전체 탭은 신규 · 메신저 · 선택삭제 · Excel.
  *       고른 것 없이 누르면 '리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.', 선택삭제는 '삭제하겠습니까?'.</li>
- *   <li>[수량조정] 은 계산 창이다 — 입력수량 + 품목별 · 창고별 안전재고 + 미판매 + 미불출 − 보유재고 − 미입고(음수면 0) → 발주확정수량.
- *       아직 안 옮겼다(다음 바퀴). 메신저는 우리에게 없다.</li>
+ *   <li>[수량조정] 은 계산 창이다 — 입력수량 + 품목별 · 창고별 안전재고 + 미판매 + 미불출 − 보유재고 − 미입고(음수면 0) → 발주확정수량
+ *       (PlanQtyAdjustModal). 메신저는 우리에게 없다.</li>
  * </ul>
  *
  * <p>우리는 발주계획을 따로 전표로 두지 않고 발주서가 [발주계획] 단계를 지난다 — 계획 단계에 들어선(PLANNED 이상) 발주서가 계획이다.
@@ -71,6 +72,7 @@ export default function PurchasePlanListPage() {
   const [drafts, setDrafts] = useState<Record<string, { qty?: string; price?: string }>>({})
   const [orderOf, setOrderOf] = useState<Row | null>(null)
   const [form, setForm] = useState<{ key: number; order: PurchaseOrder } | null>(null)
+  const [adjust, setAdjust] = useState<AdjustLine[] | null>(null)
 
   async function load() {
     setLoading(true)
@@ -182,6 +184,22 @@ export default function PurchasePlanListPage() {
     if (o) setForm({ key: Date.now(), order: o })
   }
 
+  /** [수량조정] — 고른 건별 줄을 계산 창에 올린다. 발주로 넘어간 줄은 못 고친다. */
+  function openAdjust() {
+    if (picked.length === 0) return needPick()
+    const out: AdjustLine[] = []
+    for (const r of picked) {
+      if (r.lineId == null || !editable(r)) continue
+      const o = orders.find((x) => x.id === r.orderId)
+      const l = o?.lines.find((x) => x.id === r.lineId)
+      if (!o || !l) continue
+      out.push({ orderId: o.id, lineId: l.id, orderDate: o.orderDate, orderNo: o.orderNo, itemId: l.itemId, itemCode: l.itemCode,
+        itemName: l.itemName, spec: l.spec, inputQty: Number(l.inputQuantity ?? l.quantity), qty: Number(l.quantity),
+        warehouseId: o.warehouseId, warehouseName: o.warehouseName, calcDate: l.planCalcDate })
+    }
+    if (out.length > 0) setAdjust(out)
+  }
+
   const closeBtn = tab === '완료'
     ? { label: '종결취소', onClick: () => (picked.length === 0 ? needPick() : void setClosed(picked, false)) }
     : { label: '종결', onClick: () => (picked.length === 0 ? needPick() : void setClosed(picked, true)) }
@@ -197,8 +215,8 @@ export default function PurchasePlanListPage() {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setProject(''); setPartner(''); setItem(''); setUnit('건별'); setZero('전체') } },
         ...(tab === '전체' ? [] : [
-          /* 수량조정 계산 창(안전재고 · 미판매 · 미불출 · 보유재고 · 미입고) · 다른전표생성 ▴ 발주서 는 아직 없어 잠가 둔다. */
-          { label: '수량조정', disabled: true },
+          { label: '수량조정', onClick: openAdjust },
+          /* 다른전표생성 ▴ 발주서 는 아직 없어 잠가 둔다. */
           { label: '다른전표생성', disabled: true },
           closeBtn,
         ]),
@@ -333,6 +351,10 @@ export default function PurchasePlanListPage() {
         <div className="mt-[10px]"><button type="button" className="ec-btn" onClick={() => setOrderOf(null)}>닫기</button></div>
       </>)}</Modal>
 
+      {adjust && (
+        <PlanQtyAdjustModal lines={adjust} onClose={() => setAdjust(null)}
+          onSaved={() => { setAdjust(null); setChecked(new Set()); void load() }} />
+      )}
       {form && (
         <PurchaseRequestForm key={form.key} editing={form.order} plan
           onClose={() => setForm(null)}

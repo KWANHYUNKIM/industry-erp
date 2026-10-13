@@ -61,6 +61,17 @@ public class PurchaseOrderLine {
     @Builder.Default
     private boolean planClosed = false;
 
+    /**
+     * 처음 넣은 수량 — 원본 [수량조정] 창의 [입력수량]. 격자에서 수량을 고쳐도(그것은 [발주확정수량]) 이 값은 그대로다.
+     * 계산식의 출발점이다(입력수량 + 안전재고 + 미판매 + 미불출 − 보유재고 − 미입고).
+     */
+    @Column(name = "input_quantity", precision = 18, scale = 2)
+    private BigDecimal inputQuantity;
+
+    /** 원본 [수량조정] 창의 [최종계산일자] — 처음엔 전표 일자, [수량조정] 을 저장할 때마다 그날. */
+    @Column(name = "plan_calc_date")
+    private java.time.LocalDate planCalcDate;
+
     @Column(name = "line_no", nullable = false)
     @Builder.Default
     private Integer lineNo = 1;

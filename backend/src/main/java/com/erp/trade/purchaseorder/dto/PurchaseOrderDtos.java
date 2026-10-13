@@ -59,9 +59,12 @@ public final class PurchaseOrderDtos {
      * 칸을 벗어나면 저장된다. [종결여부] '종결' · 완료 탭의 '취소' 도 이 줄 하나만 바꾼다. 비운 값은 그대로 둔다.
      */
     public record PlanLineRequest(
-            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            /* 0 은 받는다 — [수량조정] 계산이 0 을 내고(원본 C004 7 + 3,070 − 14,620 − 10,800 → 0), 조회 조건에도 [수량0] 이 있다. */
+            @PositiveOrZero(message = "수량은 0 이상이어야 합니다.") BigDecimal quantity,
             @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
-            Boolean closed
+            Boolean closed,
+            /** [수량조정] 창에서 저장했다 — [최종계산일자] 를 오늘로. 격자에서 칸을 고친 것은 계산이 아니다. */
+            Boolean calculated
     ) {}
 
     /** 발주계획: 납기일 확정 */
@@ -101,7 +104,9 @@ public final class PurchaseOrderDtos {
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
             Long partnerId, String partnerName, String remark,
             /** 발주계획 [종결여부] — 이 줄을 종결했나. */
-            boolean planClosed
+            boolean planClosed,
+            /** [수량조정] 창의 [입력수량] · [최종계산일자]. */
+            BigDecimal inputQuantity, LocalDate planCalcDate
     ) {
         public static OrderLineResponse from(PurchaseOrderLine l) {
             return new OrderLineResponse(
@@ -114,7 +119,8 @@ public final class PurchaseOrderDtos {
                     l.getPartner() != null ? l.getPartner().getId() : null,
                     l.getPartner() != null ? l.getPartner().getName() : null,
                     l.getRemark(),
-                    l.isPlanClosed());
+                    l.isPlanClosed(),
+                    l.getInputQuantity() != null ? l.getInputQuantity() : l.getQuantity(), l.getPlanCalcDate());
         }
     }
 

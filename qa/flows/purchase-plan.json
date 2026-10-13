@@ -68,6 +68,30 @@
         "expect:window.__alerts.includes('삭제하겠습니까?')&&![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('ppNo'))",
         "expect:(async()=>!(await window.__api('GET','/purchase-orders')).body.some((x)=>String(x.id)===sessionStorage.getItem('ppId')))()"
       ]
+    },
+    {
+      "name": "발주계획조회 [수량조정] — 7 로 넣고 격자에서 9 로 고친 계획을 골라 열면 입력수량 7 · 발주확정수량 9. [계산처리] → 계산식등록 [적용(F8)] 이면 입력수량 + 안전재고 + 미판매 + 미불출 − 보유재고(입고창고) − 미입고(발주확정) 를 넣고(음수는 0), [저장(F8)] 하면 수량이 그 값 · 최종계산일자가 오늘이 된다. 끝나면 지운다",
+      "path": "/sales/purchase-plans",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.code==='QA-PROD');const p=(await window.__api('GET','/partners')).body.find((x)=>x.code==='QA-SUPP');const w=(await window.__api('GET','/warehouses')).body.find((x)=>x.code==='QA-WH');const r=await window.__api('POST','/purchase-orders',{partnerId:p.id,warehouseId:w.id,plan:true,lines:[{itemId:it.id,partnerId:p.id,quantity:7,unitPrice:50}]});const lid=r.body.lines[0].id;await window.__api('PATCH','/purchase-orders/'+r.body.id+'/lines/'+lid+'/plan',{quantity:9});sessionStorage.setItem('qaId',r.body.id);sessionStorage.setItem('qaNo',r.body.orderNo.replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'));const today=new Date(Date.now()+9*36e5).toISOString().slice(0,10);const stock=(await window.__api('GET','/stock?asOf='+today)).body.filter((s)=>s.itemId===it.id&&s.warehouseId===w.id).reduce((a,s)=>a+Number(s.quantity),0);const uns=(await window.__api('GET','/sales-orders/unsold')).body.filter((u)=>u.itemId===it.id&&u.orderDate<=today).reduce((a,u)=>a+Number(u.unsoldQty),0);const unp=(await window.__api('GET','/purchase-orders/unpurchased')).body.filter((u)=>u.itemId===it.id&&u.statusName==='발주확정'&&u.orderDate<=today).reduce((a,u)=>a+Number(u.restQty),0);const wos=(await window.__api('GET','/work-orders')).body.filter((x)=>x.status!=='COMPLETED'&&x.orderDate<=today);const req=wos.length?(await window.__api('GET','/material-issues/wo-requirements?workOrderIds='+[...new Set(wos.map((x)=>x.id))].join(','))).body:[];const uni=req.filter((q)=>q.componentId===it.id).reduce((a,q)=>a+Number(q.remainingQty),0);let q=7+Number(it.safetyStock||0)+uns+uni-stock-unp;if(q<0)q=0;const mu=Number(it.minPurchaseUnit||0);if(mu>0&&q>0)q=Math.ceil(q/mu)*mu;sessionStorage.setItem('qaExpect',String(q));return 'expect '+q})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('qaNo')).cells[1].querySelector('input').click(); true",
+        "click:수량조정",
+        "wait:500",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find((x)=>x.innerText.includes('수량조정'));const h=[...d.querySelectorAll('thead th')].map((t)=>t.innerText.replace(/\\s+/g,'')).join('|');const tr=d.querySelector('tbody tr');return h==='|전표번호|품목코드|품목명|규격|입력수량|품목별안전재고(+)|창고별안전재고(+)|미판매(+)|미불출(+)|보유재고(-)|미입고(-)|최소구매단위|발주확정수량|입고창고명|최종계산일자'&&tr.cells[2].innerText.trim()==='QA-PROD'&&tr.cells[5].innerText.trim()==='7'&&tr.cells[13].querySelector('input').value==='9'})()",
+        "click:계산처리",
+        "wait:300",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find((x)=>x.innerText.includes('계산식등록'));const boxes=[...d.querySelectorAll('input[type=checkbox]')].map((b)=>b.checked);return !!d&&d.innerText.includes('보유재고기준일')&&d.innerText.includes('미불출기준일 납기일자')})()",
+        "click:적용(F8)",
+        "wait:2000",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find((x)=>x.innerText.includes('수량조정'));return ![...document.querySelectorAll('[role=dialog]')].some((x)=>x.innerText.includes('계산식등록'))&&d.querySelector('tbody tr').cells[13].querySelector('input').value===sessionStorage.getItem('qaExpect')})()",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async()=>{const r=(await window.__api('GET','/purchase-orders')).body.find((x)=>String(x.id)===sessionStorage.getItem('qaId'));const today=new Date(Date.now()+9*36e5).toISOString().slice(0,10);return Number(r.lines[0].quantity)===Number(sessionStorage.getItem('qaExpect'))&&Number(r.lines[0].inputQuantity)===7&&r.lines[0].planCalcDate===today})()",
+        "js:(async()=>(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('qaId'))).status)()"
+      ]
     }
   ]
 }

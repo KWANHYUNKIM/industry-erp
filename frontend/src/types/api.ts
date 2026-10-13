@@ -2022,6 +2022,10 @@ export interface PurchaseOrderLine {
   remark: string | null
   /** 발주계획조회 [종결여부] — 이 줄을 종결했나(원본은 줄마다 닫는다). */
   planClosed: boolean
+  /** [수량조정] 창의 [입력수량] — 처음 넣은 수량. 격자에서 고친 수량(발주확정수량)과 따로 간다. */
+  inputQuantity: number
+  /** [수량조정] 창의 [최종계산일자]. */
+  planCalcDate: string | null
 }
 
 export interface PurchaseOrder {
