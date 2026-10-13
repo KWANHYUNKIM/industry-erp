@@ -22,7 +22,7 @@ public interface BankCheckRepository extends JpaRepository<BankCheck, Long> {
     List<BankCheck> findByTypeAndSettledDateAndDirectOutNoOrderByIdAsc(CheckType type, java.time.LocalDate date, Integer no);
 
     @Query("select c from BankCheck c " +
-           "left join fetch c.partner left join fetch c.bankAccount " +
+           "left join fetch c.partner left join fetch c.bankAccount left join fetch c.project " +
            "where c.issueDate >= :from and c.issueDate <= :to " +
            "order by c.issueDate desc, c.id desc")
     List<BankCheck> findAllWithRefs(@Param("from") java.time.LocalDate from,

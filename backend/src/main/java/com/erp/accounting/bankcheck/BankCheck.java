@@ -71,6 +71,18 @@ public class BankCheck extends BaseTimeEntity {
     @Column(length = 200)
     private String remark;
 
+    /**
+     * 원본 수령(발행)수표내역입력 줄의 [부서] — 수표거래내역 [부서명], 조회 · 현황 조건 [부서](2026-10-14 loginaa 실측 '개발팀').
+     * hr 를 참조하지 않으려 id 만 든다(CLAUDE.md 4.1 — accounting → hr 는 부채 간선). 이름은 화면이 부서 목록에서 붙인다.
+     */
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    /** 줄의 [프로젝트] — 수표거래내역 [프로젝트명] '20210801A Project'. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.project.Project project;
+
     @Column(length = 50)
     private String createdBy;
 

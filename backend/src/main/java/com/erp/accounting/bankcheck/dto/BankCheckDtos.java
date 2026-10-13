@@ -57,7 +57,10 @@ public final class BankCheckDtos {
             @NotBlank(message = "수표번호를 입력하세요.") String checkNo,
             @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /* 원본 줄의 [부서] · [프로젝트] 코드도움(2026-10-14 실측) */
+            Long departmentId,
+            Long projectId
     ) {}
 
     /**
@@ -81,7 +84,9 @@ public final class BankCheckDtos {
             @NotBlank(message = "수표번호를 입력하세요.") String checkNo,
             @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            Long departmentId,
+            Long projectId
     ) {}
 
     /**
@@ -119,7 +124,11 @@ public final class BankCheckDtos {
             /* 수표내역입력 전표 번호 — 원본 [일자] '2026/10/13 -5' 의 5. 늘린 전표 · 줄인 전표. */
             Integer directInNo, Integer directOutNo,
             /* 입금보고서(수령수표입금처리)로 손을 떠난 수표 — 원본 수령수표조회 거래유형 '입금보고서', 그 감소 줄은 체크칸이 막힌다. */
-            boolean settledByVoucher
+            boolean settledByVoucher,
+            /* 손을 떠날 때 회계전표 id — 수표조회 감소 줄 [회계전표일자-No.] 를 누르면 그 입금보고서(수정) · 지출결의서(수정)를 연다. */
+            Long settleJournalId,
+            /* 원본 줄의 [부서] · [프로젝트] — 부서 이름은 화면이 부서 목록에서 붙인다(hr 를 참조하지 않는다). */
+            Long departmentId, Long projectId, String projectName
     ) {
         public static CheckResponse from(BankCheck c) {
             return from(c, null, null, false);
@@ -140,7 +149,10 @@ public final class BankCheckDtos {
                     c.getBankAccount() != null
                             ? c.getBankAccount().getBankName() + " " + c.getBankAccount().getAccountNo() : null,
                     c.getSettledDate(), c.getRemark(), c.getCreatedBy(), c.getUpdatedBy(), c.isDirectEntry(), issueJournalNo, settleJournalNo,
-                    c.getDirectInNo(), c.getDirectOutNo(), settledByVoucher);
+                    c.getDirectInNo(), c.getDirectOutNo(), settledByVoucher, c.getSettleJournalId(),
+                    c.getDepartmentId(),
+                    c.getProject() != null ? c.getProject().getId() : null,
+                    c.getProject() != null ? c.getProject().getName() : null);
         }
     }
 }

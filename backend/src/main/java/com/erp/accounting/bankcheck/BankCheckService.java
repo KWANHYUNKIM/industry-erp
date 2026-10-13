@@ -40,6 +40,8 @@ public class BankCheckService {
     private final com.erp.accounting.fastvoucher.FastVoucherService fastVoucherService;
     private final com.erp.accounting.fastvoucher.FastVoucherRepository fastVoucherRepository;
     private final com.erp.accounting.account.AccountRepository accountRepository;
+    private final com.erp.inventory.project.ProjectService projectService;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
 
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager em;
@@ -280,6 +282,7 @@ public class BankCheckService {
                         .checkNo(no).type(req.type()).status(CheckStatus.HELD)
                         .issueDate(req.date()).amount(line.amount())
                         .partner(partner).bankAccount(account).remark(line.remark())
+                        .departmentId(line.departmentId()).project(project(line.projectId()))
                         .createdBy(username).updatedBy(username).directEntry(true).directInNo(entryNo)
                         .build();
                 out.add(CheckResponse.from(checkRepository.save(c)));
@@ -287,6 +290,7 @@ public class BankCheckService {
                 out.add(CheckResponse.from(decreaseDirect(req.type(), no, req.date(), entryNo, username)));
             }
         }
+        changeHistory.record(historyTarget(req.type(), req.increase()), historyId(req.date(), entryNo), com.erp.common.history.ChangeHistoryService.CREATED);
         return out;
     }
 
@@ -313,7 +317,7 @@ public class BankCheckService {
         }
         List<Long> dropped = current.stream().map(BankCheck::getId).filter((id) -> !kept.contains(id)).toList();
         if (!dropped.isEmpty()) {
-            deleteMoves(req.increase() ? List.of() : dropped, req.increase() ? dropped : List.of(), username);
+            removeMoves(req.increase() ? List.of() : dropped, req.increase() ? dropped : List.of(), username);
         }
 
         BankAccount account = bankAccount(req.bankAccountId());
@@ -336,6 +340,8 @@ public class BankCheckService {
                 c.setCheckNo(no);
                 c.setAmount(l.amount());
                 c.setRemark(l.remark());
+                c.setDepartmentId(l.departmentId());
+                c.setProject(project(l.projectId()));
                 c.setPartner(partner);
                 c.setBankAccount(account);
                 c.setUpdatedBy(username);
@@ -347,11 +353,13 @@ public class BankCheckService {
                         .checkNo(no).type(req.type()).status(CheckStatus.HELD)
                         .issueDate(req.date()).amount(l.amount())
                         .partner(partner).bankAccount(account).remark(l.remark())
+                        .departmentId(l.departmentId()).project(project(l.projectId()))
                         .createdBy(username).updatedBy(username).directEntry(true).directInNo(req.entryNo())
                         .build());
             }
             out.add(CheckResponse.from(c));
         }
+        changeHistory.record(historyTarget(req.type(), req.increase()), historyId(req.date(), req.entryNo()), com.erp.common.history.ChangeHistoryService.UPDATED);
         return out;
     }
 
@@ -383,6 +391,26 @@ public class BankCheckService {
      */
     @Transactional
     public void deleteMoves(List<Long> decreaseIds, List<Long> increaseIds, String username) {
+        /* 지우는 수표내역입력 전표마다 이력 '삭제' 한 줄(원본 [H] 는 전표 한 장의 이력이다). 지우기 전에 번호를 모은다. */
+        java.util.Set<String> vouchers = new java.util.LinkedHashSet<>();
+        for (Long id : decreaseIds == null ? List.<Long>of() : decreaseIds) {
+            BankCheck c = check(id);
+            if (c.getDirectOutNo() != null && c.getSettledDate() != null && c.getSettleJournalId() == null) {
+                vouchers.add(historyTarget(c.getType(), false) + "|" + historyId(c.getSettledDate(), c.getDirectOutNo()));
+            }
+        }
+        for (Long id : increaseIds == null ? List.<Long>of() : increaseIds) {
+            BankCheck c = check(id);
+            if (c.getDirectInNo() != null) vouchers.add(historyTarget(c.getType(), true) + "|" + historyId(c.getIssueDate(), c.getDirectInNo()));
+        }
+        removeMoves(decreaseIds, increaseIds, username);
+        for (String v : vouchers) {
+            String[] p = v.split("\\|");
+            changeHistory.record(p[0], Long.valueOf(p[1]), com.erp.common.history.ChangeHistoryService.DELETED);
+        }
+    }
+
+    private void removeMoves(List<Long> decreaseIds, List<Long> increaseIds, String username) {
         java.util.Set<Long> inc = new java.util.LinkedHashSet<>(increaseIds == null ? List.of() : increaseIds);
         java.util.Set<Long> dec = new java.util.LinkedHashSet<>(decreaseIds == null ? List.of() : decreaseIds);
         for (Long id : inc) {
@@ -426,6 +454,23 @@ public class BankCheckService {
     }
 
     // ── 내부 ──────────────────────────────────────────────────────────
+
+    /**
+     * 원본 수표내역입력(수정) 창의 [H] — 이력은 수표가 아니라 <b>전표 한 장</b>(머리 '[2026/10/14 -4]')의 것이다(2026-10-14 loginaa 실측:
+     * 저장 → '신규', 고쳐 저장 → '수정'). 대상 이름은 (수표 종류, 증가/감소) 마다 하나, id 는 날짜와 번호를 이은 수(20261014 0004).
+     * 한 번 정하면 바꾸지 않는다(이미 적힌 이력과 묶이는 열쇠다). 화면(CheckDirectEntryModal)이 같은 규칙으로 부른다.
+     */
+    public static String historyTarget(CheckType type, boolean increase) {
+        return "CHECK_ENTRY_" + (type == CheckType.RECEIVED ? "R" : "I") + (increase ? "_IN" : "_OUT");
+    }
+
+    public static long historyId(LocalDate date, int entryNo) {
+        return (date.getYear() * 10000L + date.getMonthValue() * 100L + date.getDayOfMonth()) * 10000L + entryNo;
+    }
+
+    private com.erp.inventory.project.Project project(Long id) {
+        return id == null ? null : projectService.get(id);
+    }
 
     /**
      * 수표내역입력 전표 번호 — (수표 종류, 날짜) 마다 1 부터, 지운 번호는 다시 주지 않는다(원본 실측: -1 ~ -4 를 지운 뒤 -5).
