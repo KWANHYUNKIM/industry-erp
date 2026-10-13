@@ -47,6 +47,10 @@ public class EmployeeCommute extends BaseTimeEntity {
     @Column(name = "morning_half", nullable = false)
     private boolean morningHalf;
 
+    /** 퇴근 창 □오후반차설정 — 퇴근 이력 중 하나라도 걸려 있으면 */
+    @Column(name = "afternoon_half", nullable = false)
+    private boolean afternoonHalf;
+
     @Column(length = 200)
     private String reason;
 }
