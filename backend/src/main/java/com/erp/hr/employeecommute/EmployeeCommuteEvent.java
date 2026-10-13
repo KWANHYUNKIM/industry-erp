@@ -50,6 +50,13 @@ public class EmployeeCommuteEvent extends BaseTimeEntity {
     @Column(length = 200)
     private String reason;
 
+    /** [H] 출퇴근이력보기 — 처음 넣은 / 마지막으로 고친 로그인 아이디 */
+    @Column(name = "created_by", length = 50)
+    private String createdBy;
+
+    @Column(name = "updated_by", length = 50)
+    private String updatedBy;
+
     public boolean isIn() {
         return IN.equals(kind);
     }

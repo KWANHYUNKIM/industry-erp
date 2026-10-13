@@ -41,6 +41,11 @@ public class EmployeeCommuteService {
 
     @Transactional
     public CommuteResponse clock(ClockRequest req) {
+        return clock(req, null);
+    }
+
+    @Transactional
+    public CommuteResponse clock(ClockRequest req, String worker) {
         LocalDate day = req.at().toLocalDate();
         var existing = repository.findByEmployee_IdAndWorkDate(req.employeeId(), day);
         if (existing.isEmpty()) {
@@ -51,7 +56,7 @@ public class EmployeeCommuteService {
                     .workDate(day).clockIn(req.at())
                     .place(blank(req.place())).outside(req.outside()).morningHalf(req.morningHalf()).reason(blank(req.reason()))
                     .build());
-            eventRepository.save(event(c, EmployeeCommuteEvent.IN, req));
+            eventRepository.save(event(c, EmployeeCommuteEvent.IN, req, worker));
             return CommuteResponse.from(c, eventRepository.findOfCommute(c.getId()));
         }
         EmployeeCommute c = existing.get();
@@ -68,20 +73,20 @@ public class EmployeeCommuteService {
         if (out) {
             if (!working) throw ApiException.conflict("출근시간이 없습니다. 출근을 먼저 입력바랍니다.");
             if (req.at().isBefore(events.get(events.size() - 1).getAt()))
-                throw ApiException.badRequest("퇴근시간이 출근시간보다 앞섭니다.");
+                throw ApiException.badRequest(after(events.get(events.size() - 1).getAt()));
         } else {
             // 원본: [신규(F2)] 창에서 그날 출근만 한 사원으로 다시 [출근]을 누르면 막는다. 퇴근 뒤에는 다시 출근이 된다.
             if (working) throw ApiException.conflict("출근시간이 입력되어 있습니다.\n해당 일자를 클릭하여 퇴근시간을 입력바랍니다.");
             if (!events.isEmpty() && req.at().isBefore(events.get(events.size() - 1).getAt()))
                 throw ApiException.badRequest("출근시간이 퇴근시간보다 앞섭니다.");
         }
-        eventRepository.save(event(c, out ? EmployeeCommuteEvent.OUT : EmployeeCommuteEvent.IN, req));
+        eventRepository.save(event(c, out ? EmployeeCommuteEvent.OUT : EmployeeCommuteEvent.IN, req, worker));
         return CommuteResponse.from(c, sync(c));
     }
 
     /** 이력 한 줄 펼쳐 [저장] — 장소 · 시간 · □외근(출근만) · □반차 · 사유 */
     @Transactional
-    public CommuteResponse updateEvent(Long eventId, EventUpdateRequest req) {
+    public CommuteResponse updateEvent(Long eventId, EventUpdateRequest req, String worker) {
         EmployeeCommuteEvent ev = getEvent(eventId);
         if (!ev.getAt().toLocalDate().equals(req.at().toLocalDate()))
             throw ApiException.badRequest("일자는 바꿀 수 없습니다. 시간만 고쳐 주십시오.");
@@ -90,6 +95,7 @@ public class EmployeeCommuteService {
         ev.setOutside(ev.isIn() && req.outside());
         ev.setHalfDay(req.halfDay());
         ev.setReason(blank(req.reason()));
+        ev.setUpdatedBy(worker);
         EmployeeCommute c = ev.getCommute();
         return CommuteResponse.from(c, sync(c));
     }
@@ -132,12 +138,18 @@ public class EmployeeCommuteService {
         return eventRepository.findById(id).orElseThrow(() -> ApiException.notFound("출/퇴근 이력을 찾을 수 없습니다."));
     }
 
-    private static EmployeeCommuteEvent event(EmployeeCommute c, String kind, ClockRequest req) {
+    /** 원본 2026-10-13: 출근 3:03:44 뒤 3:03 으로 퇴근하면 '오후 3:03 이후로 입력 바랍니다.' */
+    private static String after(java.time.LocalDateTime t) {
+        int h = t.getHour();
+        return (h < 12 ? "오전 " : "오후 ") + (h % 12 == 0 ? 12 : h % 12) + ":" + String.format("%02d", t.getMinute()) + " 이후로 입력 바랍니다.";
+    }
+
+    private static EmployeeCommuteEvent event(EmployeeCommute c, String kind, ClockRequest req, String worker) {
         boolean in = EmployeeCommuteEvent.IN.equals(kind);
         return EmployeeCommuteEvent.builder().commute(c).kind(kind).at(req.at())
                 .place(blank(req.place())).outside(in && req.outside())
                 .halfDay(in ? req.morningHalf() : req.afternoonHalf())
-                .reason(blank(req.reason())).build();
+                .reason(blank(req.reason())).createdBy(worker).updatedBy(worker).build();
     }
 
     private static String blank(String s) {

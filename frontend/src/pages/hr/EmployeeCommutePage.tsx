@@ -6,8 +6,13 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { ymd } from '../../utils/periods'
+import { koreanDateTime } from '../../features/employeecommute/types'
 
-interface CommuteEvent { id: number; kind: 'IN' | 'OUT'; at: string; place: string | null; outside: boolean; halfDay: boolean; reason: string | null }
+interface CommuteEvent {
+  id: number; kind: 'IN' | 'OUT'; at: string; place: string | null; outside: boolean; halfDay: boolean; reason: string | null
+  createdAt: string | null; createdBy: string | null; updatedAt: string | null; updatedBy: string | null
+}
+const stamp = (at: string | null, by: string | null) => (at ? `${koreanDateTime(at)}${by ? ` [ ${by} ]` : ''}` : '')
 interface Commute {
   id: number; workDate: string; employeeId: number; employeeCode: string; employeeName: string; department: string
   clockIn: string; clockOut: string | null; place: string | null; outside: boolean; morningHalf: boolean; reason: string | null
@@ -48,6 +53,8 @@ const nowLocal = () => { const d = new Date(); return `${ymd(d)}T${String(d.getH
  */
 export default function EmployeeCommutePage() {
   const [view, setView] = useState<View>('월별')
+  /** 이력 줄 [H] — '출퇴근이력보기' */
+  const [auditOf, setAuditOf] = useState<CommuteEvent | null>(null)
   const [month, setMonth] = useState(() => ymd(new Date()).slice(0, 7))
   const [day, setDay] = useState(() => ymd(new Date()))
   const [rows, setRows] = useState<Commute[]>([])
@@ -254,6 +261,24 @@ export default function EmployeeCommutePage() {
         </div>
       </Modal>
 
+      {/* 원본 2026-10-13: 이력 줄 [H] → '출퇴근이력보기' — 최초입력시간 · 최종수정시간 '2026/10/13 오후 3:03:28 [ GUEST ]', 닫기.
+          고친 적이 없으면 최종수정시간도 최초와 같다. */}
+      <Modal error={formError} open={auditOf !== null} title="출퇴근이력보기" width={780} onClose={() => setAuditOf(null)}>
+        {auditOf && (
+          <table className="w-full">
+            <thead><tr><th className="text-center">최초입력시간</th><th className="text-center">최종수정시간</th></tr></thead>
+            <tbody>
+              <tr>
+                <td className="text-center">{stamp(auditOf.createdAt, auditOf.createdBy)}</td>
+                <td className="text-center">{stamp(auditOf.updatedAt ?? auditOf.createdAt, auditOf.updatedBy ?? auditOf.createdBy)}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+        <div className="flex gap-[6px] mt-[12px]">
+          <button type="button" className="ec-btn" onClick={() => setAuditOf(null)}>닫기</button>
+        </div>
+      </Modal>
       <Modal error={formError} open={open} title="출/퇴근기록부" width={760} onClose={closeRecord}>
         <div className="text-center font-bold text-[32px] text-ec-blue mb-[8px]">{longTime(`${form.at}:00`).split(' ').slice(1).join(' ')}</div>
         <div className="flex gap-[10px] mobile:flex-col">
@@ -339,6 +364,7 @@ export default function EmployeeCommutePage() {
                     <div className="flex gap-[4px]">
                       <button type="button" className="ec-btn ec-btn-primary ec-btn-sm" onClick={() => saveEvent(ev)}>저장</button>
                       {ev.kind === 'OUT' && <button type="button" className="ec-btn ec-btn-sm" onClick={() => deleteEvent(ev)}>삭제</button>}
+                      <button type="button" className="ec-btn ec-btn-sm" onClick={() => setAuditOf(ev)}>H</button>
                     </div>
                   </div>
                 )}

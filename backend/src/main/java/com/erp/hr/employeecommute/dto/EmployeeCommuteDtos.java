@@ -38,9 +38,11 @@ public class EmployeeCommuteDtos {
     ) {}
 
     /** 이력 한 줄 — kind IN(출근) · OUT(퇴근) */
-    public record EventResponse(Long id, String kind, LocalDateTime at, String place, boolean outside, boolean halfDay, String reason) {
+    public record EventResponse(Long id, String kind, LocalDateTime at, String place, boolean outside, boolean halfDay, String reason,
+                                LocalDateTime createdAt, String createdBy, LocalDateTime updatedAt, String updatedBy) {
         public static EventResponse from(EmployeeCommuteEvent e) {
-            return new EventResponse(e.getId(), e.getKind(), e.getAt(), e.getPlace(), e.isOutside(), e.isHalfDay(), e.getReason());
+            return new EventResponse(e.getId(), e.getKind(), e.getAt(), e.getPlace(), e.isOutside(), e.isHalfDay(), e.getReason(),
+                    e.getCreatedAt(), e.getCreatedBy(), e.getUpdatedAt(), e.getUpdatedBy());
         }
     }
 
