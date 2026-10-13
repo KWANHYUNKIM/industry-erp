@@ -8,7 +8,6 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
@@ -115,9 +114,10 @@ public final class LotDtos {
     public record ManualTxRequest(
             LocalDate txDate,
             @NotBlank(message = "전표구분을 선택하세요.") @Size(max = 30, message = "전표구분은 30자까지 넣을 수 있습니다.") String docType,
-            @NotNull(message = "창고를 입력하세요.") Long warehouseId,
+            /* 창고 · 수량 부호는 서비스가 본다 — 재고조정 줄은 창고 없이 생기고 수량이 음수다(원본 0 → 5 = -5.00, 2026-10-14 실측). */
+            Long warehouseId,
             @NotNull(message = "품목코드를 입력하세요.") Long itemId,
-            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "수량을 입력하세요.") BigDecimal quantity,
             @NotBlank(message = "시리얼/로트No.를 입력하세요.") @Size(max = 50, message = "시리얼/로트No.은(는) 50자까지 넣을 수 있습니다.") String lotNo,
             @Size(max = 100, message = "거래처는 100자까지 넣을 수 있습니다.") String partnerName,
             @Size(max = 100, message = "관리항목은 100자까지 넣을 수 있습니다.") String mgmtName,

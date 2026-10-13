@@ -14,6 +14,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { ymd } from '../../components/EcPeriodPicks'
 import { ecConfirm } from '../../components/EcDialog'
 import EcHistoryButton from '../../components/EcHistory'
+import { LOT_ADJUST, lotShownQty, lotTxEditable } from '../../utils/lotQty'
 
 /*
  * 원본 '시리얼/로트No.내역입력' [전표구분] 후보 — 차례 그대로(2026-10-12 실측, 기본 견적).
@@ -80,7 +81,7 @@ export default function LotTxListPage() {
     setEditing(r)
     setF({
       txDate: r.txDate, docType: r.docType ?? '견적', warehouseId: r.txWarehouseId ? String(r.txWarehouseId) : '',
-      itemId: String(r.itemId), quantity: String(Math.abs(Number(r.quantityChange))), lotNo: r.lotNo,
+      itemId: String(r.itemId), quantity: String(lotShownQty(r)), lotNo: r.lotNo,
       partnerId: String(pickers.partners.find((p) => p.name === r.partnerName)?.value ?? ''),
       mgmtId: '', chargeName: r.chargeName ?? '', projectId: r.projectId ? String(r.projectId) : '', note: r.note ?? '',
     })
@@ -90,11 +91,12 @@ export default function LotTxListPage() {
   const missing = (v: string) => tried && !v
   async function saveTx() {
     setTried(true); setFormError('')
-    if (!f.warehouseId || !f.itemId || !f.quantity || !f.lotNo) return
+    /* 재고조정 줄은 창고 없이 생긴다(원본 수정 창도 창고가 빈 채) — 창고는 그 밖의 줄만 필수. */
+    if ((!f.warehouseId && f.docType !== LOT_ADJUST) || !f.itemId || !f.quantity || !f.lotNo) return
     const partner = pickers.partners.find((p) => String(p.value) === f.partnerId)
     const mgmt = mgmts.find((m) => String(m.id) === f.mgmtId)
     const body = {
-      txDate: f.txDate, docType: f.docType, warehouseId: Number(f.warehouseId), itemId: Number(f.itemId),
+      txDate: f.txDate, docType: f.docType, warehouseId: f.warehouseId ? Number(f.warehouseId) : undefined, itemId: Number(f.itemId),
       quantity: Number(f.quantity), lotNo: f.lotNo, partnerName: partner?.name, mgmtName: mgmt?.name ?? (editing?.mgmtName ?? undefined),
       chargeName: f.chargeName || undefined, projectId: f.projectId ? Number(f.projectId) : undefined, note: f.note || undefined,
     }
@@ -236,13 +238,13 @@ export default function LotTxListPage() {
                 </td>
                 <td className="text-center">
                   {/* 손으로 넣은 줄만 열린다 — 전표가 남긴 줄은 그 전표에서 고친다. */}
-                  {r.manual
+                  {lotTxEditable(r)
                     ? <button type="button" className="ec-link" onClick={() => openEdit(r)}>{`${dateText(r.txDate)} -${seqOf.get(r.id) ?? ''}`}</button>
                     : `${dateText(r.txDate)} -${seqOf.get(r.id) ?? ''}`}
                 </td>
                 <td>{r.itemName}{spec ? ` [${spec}]` : ''}</td>
                 <td>{r.lotNo}</td>
-                <td className="text-right">{Math.abs(Number(r.quantityChange)).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="text-right">{lotShownQty(r).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className="text-center">{r.docType ?? r.typeName}</td>
                 <td className="text-center">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : ''}</td>
                 <td className="text-center">{r.expireDate ? dateText(r.expireDate) : ''}</td>
@@ -262,9 +264,10 @@ export default function LotTxListPage() {
             <select className="ec-input w-full" aria-label="전표구분" value={f.docType} disabled={!!editing}
                     onChange={(e) => setF((x) => ({ ...x, docType: e.target.value }))}>
               {DOC_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
+              {editing?.docType === LOT_ADJUST && <option value={LOT_ADJUST}>{LOT_ADJUST}</option>}
             </select>
           </div></li>
-          <li><div className="title">창고</div><div className={`form${missing(f.warehouseId) ? ' [&_input]:border-ec-danger' : ''}`}>
+          <li><div className="title">창고</div><div className={`form${missing(f.warehouseId) && f.docType !== LOT_ADJUST ? ' [&_input]:border-ec-danger' : ''}`}>
             <CodePickerField label="창고" hideLabel fill pair value={f.warehouseId} items={pickers.warehouses}
                              onChange={(v) => setF((x) => ({ ...x, warehouseId: v }))} />
           </div></li>
@@ -306,7 +309,7 @@ export default function LotTxListPage() {
           <button className="ec-btn ec-btn-primary" onClick={() => void saveTx()}>저장(F8)</button>
           {/* 원본 수정 창: 저장(F8) · 이전 · 다음 · 닫기 · 삭제 · H(2026-10-14 실측). 이전 · 다음은 목록에서 앞 · 뒤 손입력 줄을 같은 창에 연다. [H] 는 그 줄의 이력 — 서버가 같은 줄을 고쳐 id 가 그대로라 이어진다. */}
           {editing && (() => {
-            const own = shown.filter((r) => r.manual)
+            const own = shown.filter(lotTxEditable)
             const at = own.findIndex((r) => r.id === editing.id)
             return (<>
               <button className="ec-btn" disabled={at <= 0} onClick={() => openEdit(own[at - 1])}>이전</button>

@@ -8,6 +8,10 @@ import Modal from '../../components/Modal'
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { Lot, LotTransaction } from '../../types/api'
 import { dateNo } from '../../utils/dateNo'
+import { ecAlert } from '../../components/EcDialog'
+import { historyTime } from '../../components/EcHistory'
+import { ymd } from '../../utils/periods'
+import { lotShownQty } from '../../utils/lotQty'
 
 const qty2 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -42,10 +46,11 @@ export default function LotAdjustPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [detail, setDetail] = useState<Lot | null>(null)
   const [detailRows, setDetailRows] = useState<LotTransaction[]>([])
   const [detailSeq, setDetailSeq] = useState<Map<number, number>>(new Map())
+  /** 원본 격자 아래 오른쪽 '2026/10/14 오전 2:17:55' — 조회한 때. */
+  const [loadedAt, setLoadedAt] = useState('')
 
   async function load() {
     setLoading(true)
@@ -53,6 +58,9 @@ export default function LotAdjustPage() {
     try {
       setLots((await api.get<Lot[]>('/lots')).data)
       setEdits({})
+      const d = new Date()
+      const p2 = (n: number) => String(n).padStart(2, '0')
+      setLoadedAt(historyTime(`${ymd(d)}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`))
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -72,7 +80,8 @@ export default function LotAdjustPage() {
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '시리얼/로트No.재고조정', [shown.length])
 
-  const qtyOf = (l: Lot) => edits[l.id]?.qty ?? String(Number(l.stockQty))
+  /* 원본 [합계] 칸은 0 이면 비우고 나머지는 소수 둘째 자리까지(5.00 · -1.00) 찍는다(2026-10-14 실측). */
+  const qtyOf = (l: Lot) => edits[l.id]?.qty ?? (Number(l.stockQty) === 0 ? '' : Number(l.stockQty).toFixed(2))
   const setEdit = (id: number, patch: { qty?: string; remark?: string }) =>
     setEdits((e) => ({ ...e, [id]: { ...e[id], ...patch } }))
 
@@ -89,7 +98,7 @@ export default function LotAdjustPage() {
   async function save() {
     const changed = shown.filter((l) => edits[l.id]?.qty !== undefined && Number(edits[l.id]!.qty) !== Number(l.stockQty))
     for (const l of changed) {
-      if (edits[l.id]!.qty!.trim() === '' || Number.isNaN(Number(edits[l.id]!.qty))) { setError(`${l.lotNo} 의 합계를 숫자로 입력하세요.`); return }
+      if (Number.isNaN(Number(edits[l.id]!.qty))) { setError(`${l.lotNo} 의 합계를 숫자로 입력하세요.`); return }
     }
     setSaving(true)
     setError('')
@@ -97,8 +106,9 @@ export default function LotAdjustPage() {
       for (const l of changed) {
         await api.patch(`/lots/${l.id}/adjust`, { actualQty: Number(edits[l.id]!.qty), note: edits[l.id]!.remark || null })
       }
-      setNotice('저장되었습니다.')
       await load()
+      /* 원본은 '알림' 창 '저장되었습니다.' [확인] — 확인 뒤 [합계] 는 저장한 값, [적요] 는 비워진다. */
+      await ecAlert('저장되었습니다.')
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -135,7 +145,6 @@ export default function LotAdjustPage() {
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {notice && <p className="ec-alert ec-alert-success mb-[8px]">{notice}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="유효기한">
           <input type="date" className="ec-input w-[145px]" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} />
@@ -204,6 +213,7 @@ export default function LotAdjustPage() {
           ))}
         </tbody>
       </table>
+      {loadedAt && <div className="text-right mt-[4px]">{loadedAt}</div>}
       <div className="mt-[8px]">
         <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={() => void save()}>저장(F8)</button>
       </div>
@@ -223,7 +233,7 @@ export default function LotAdjustPage() {
                 <td className="text-center">{`${t.txDate.replace(/-/g, '/')} -${detailSeq.get(t.id) ?? ''}`}</td>
                 <td>{t.itemName}{detail?.spec ? ` [${detail.spec}]` : ''}</td>
                 <td>{t.lotNo}</td>
-                <td className="text-right">{qty2(Math.abs(Number(t.quantityChange)))}</td>
+                <td className="text-right">{qty2(lotShownQty(t))}</td>
                 <td className="text-center">{t.docType ?? t.typeName}</td>
                 <td>{t.sourceNo ? dateNo(t.txDate, t.sourceNo) : ''}</td>
                 <td>{(t.expireDate ?? '').replace(/-/g, '/')}</td>

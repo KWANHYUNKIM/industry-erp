@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
+import { lotInOut } from '../../utils/lotQty'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../components/EcPeriodPicks'
 import { expiryDirectRange } from '../../utils/expiryRange'
@@ -117,8 +118,8 @@ export default function LotLedgerPage() {
     }
     return [...by.values()]
       .map((g) => {
-        const inQty = g.moves.reduce((a, r) => a + Math.max(Number(r.quantityChange), 0), 0)
-        const outQty = g.moves.reduce((a, r) => a + Math.max(-Number(r.quantityChange), 0), 0)
+        const inQty = g.moves.reduce((a, r) => a + lotInOut(r).in, 0)
+        const outQty = g.moves.reduce((a, r) => a + lotInOut(r).out, 0)
         return { ...g, inQty, outQty, closing: g.opening + inQty - outQty }
       })
       .filter((g) => g.opening !== 0 || g.moves.length > 0)
@@ -309,8 +310,9 @@ export default function LotLedgerPage() {
                   <td>{r.partnerName ?? ''}</td>
                   {/* 내역입력 줄은 [적요] 를 찍고 [연결전표] 가 '2026/10/14 -0'(원본 2026-10-14 실측 — 구매 3 · 적요 QA재고2). 전표가 남긴 줄의 비고는 자동 글이라 비운다. */}
                   <td>{r.docType && !r.manual ? '' : (r.note ?? '')}</td>
-                  <td className="text-right">{q > 0 ? qty2(q) : ''}</td>
-                  <td className="text-right">{q < 0 ? qty2(-q) : ''}</td>
+                  {/* 재고조정 줄은 원본이 [출고수량] 에 −(늘린 양) 을 찍는다 — 0 → 5 면 출고 -5.00 · 재고 5.00(utils/lotQty). */}
+                  <td className="text-right">{lotInOut(r).in ? qty2(lotInOut(r).in) : ''}</td>
+                  <td className="text-right">{lotInOut(r).out ? qty2(lotInOut(r).out) : ''}</td>
                   {/* 원본은 잔량이 0 이 된 줄의 [재고수량] 을 비운다(BEN_0048 전월이월 -1 → 구매 1 → 빈칸, 2026-10-13 실측). */}
                   <td className="text-right">{bal ? qty2(bal) : ''}</td>
                   <td className="text-center ec-link">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : r.docType ? `${dateText(r.txDate)} -0` : ''}</td>

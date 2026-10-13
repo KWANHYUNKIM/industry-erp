@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Lot, LotTransaction } from '../../types/api'
+import { lotShownQty } from '../../utils/lotQty'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
@@ -149,7 +150,8 @@ export default function LotTxStatusPage() {
   }, [rows])
   const lines = useMemo(() => [...shown].sort((a, b) =>
     a.txDate < b.txDate ? -1 : a.txDate > b.txDate ? 1 : (seqOf.get(a.id) ?? 0) - (seqOf.get(b.id) ?? 0)), [shown, seqOf])
-  const absQty = (r: LotTransaction) => Math.abs(Number(r.quantityChange))
+  /* 재고조정 줄은 원본이 −(늘린 양) 으로 찍는다(utils/lotQty). */
+  const absQty = (r: LotTransaction) => lotShownQty(r)
   const totalQty = useMemo(() => lines.reduce((s, r) => s + absQty(r), 0), [lines])
 
   return (

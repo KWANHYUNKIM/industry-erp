@@ -178,14 +178,13 @@ public class LotService {
             throw ApiException.badRequest("실사수량이 현재고와 같습니다. 조정할 차이가 없습니다.");
         }
         lot.setStockQty(target);
-        String note = "로트 실사조정" + (req.note() != null && !req.note().isBlank() ? " (" + req.note() + ")" : "");
         /*
          * 원본 시리얼/로트No.재고조정(E040634)이 남기는 줄은 [전표구분] '재고조정' · [연결전표-No.] 없음이다
          * (2026-10-04 실측: QA재고2-LOT1 을 0 → 5 로 맞추면 내역조회에 2026/10/04 -1 · 재고조정 한 줄).
          */
         lotTxRepository.save(LotTransaction.builder()
                 .lot(lot).txDate(LocalDate.now()).type(LotTxType.ADJUST)
-                .quantityChange(delta).balanceAfter(target).note(note).docType("재고조정")
+                .quantityChange(delta).balanceAfter(target).note(blank(req.note())).docType(ADJUST_DOC).manual(true)
                 .build());
         return LotResponse.from(lot);
     }
@@ -279,6 +278,8 @@ public class LotService {
     public LotTransactionResponse createManual(LotDtos.ManualTxRequest req) {
         Integer sign = MANUAL_DOC_SIGN.get(req.docType());
         if (sign == null) throw ApiException.badRequest("전표구분을 선택하세요.");
+        if (req.warehouseId() == null) throw ApiException.badRequest("창고를 입력하세요.");
+        if (req.quantity().signum() <= 0) throw ApiException.badRequest("수량은 0보다 커야 합니다.");
         Lot lot = lotRepository.findByLotNo(req.lotNo().trim())
                 .orElseThrow(() -> ApiException.badRequest("등록되지 않은 시리얼/로트No. 입니다: " + req.lotNo()));
         if (!lot.getItem().getId().equals(req.itemId())) {
@@ -315,15 +316,20 @@ public class LotService {
     public LotTransactionResponse updateManual(Long id, LotDtos.ManualTxRequest req) {
         LotTransaction t = lotTxRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("시리얼/로트No.내역을 찾을 수 없습니다. id=" + id));
-        if (!t.isManual()) throw ApiException.badRequest("전표에서 생긴 내역은 그 전표에서 고칩니다.");
-        int sign = MANUAL_DOC_SIGN.getOrDefault(t.getDocType(), 0);
+        if (!editable(t)) throw ApiException.badRequest("전표에서 생긴 내역은 그 전표에서 고칩니다.");
+        int sign = stockSign(t.getDocType());
+        boolean adjustLine = ADJUST_DOC.equals(t.getDocType());
+        if (!adjustLine && req.warehouseId() == null) throw ApiException.badRequest("창고를 입력하세요.");
+        if (adjustLine ? req.quantity().signum() == 0 : req.quantity().signum() <= 0) {
+            throw ApiException.badRequest("수량은 0보다 커야 합니다.");
+        }
         Lot lot = lotRepository.findByLotNo(req.lotNo().trim())
                 .orElseThrow(() -> ApiException.badRequest("등록되지 않은 시리얼/로트No. 입니다: " + req.lotNo()));
         if (!lot.getItem().getId().equals(req.itemId())) {
             throw ApiException.badRequest("시리얼/로트No. " + lot.getLotNo() + " 은(는) 다른 품목("
                     + lot.getItem().getName() + ")의 것입니다.");
         }
-        Warehouse wh = warehouseRepository.findById(req.warehouseId())
+        Warehouse wh = req.warehouseId() == null ? null : warehouseRepository.findById(req.warehouseId())
                 .orElseThrow(() -> ApiException.badRequest("창고를 찾을 수 없습니다."));
         if (sign != 0) t.getLot().setStockQty(t.getLot().getStockQty().subtract(t.getQuantityChange()));
         BigDecimal change = req.quantity().multiply(BigDecimal.valueOf(sign));
@@ -347,14 +353,35 @@ public class LotService {
         for (Long id : ids) {
             LotTransaction t = lotTxRepository.findById(id)
                     .orElseThrow(() -> ApiException.notFound("시리얼/로트No.내역을 찾을 수 없습니다. id=" + id));
-            if (!t.isManual()) {
+            if (!editable(t)) {
                 throw ApiException.badRequest("[" + (t.getDocType() != null ? t.getDocType() : t.getType().getDisplayName())
                         + "] 에서 생긴 내역은 그 전표(화면)에서 지웁니다.");
             }
-            Integer sign = MANUAL_DOC_SIGN.getOrDefault(t.getDocType(), 0);
+            int sign = stockSign(t.getDocType());
             if (sign != 0) t.getLot().setStockQty(t.getLot().getStockQty().subtract(t.getQuantityChange()));
             lotTxRepository.delete(t);
         }
+    }
+
+    /** 시리얼/로트No.재고조정(E040634)이 남기는 줄의 [전표구분]. */
+    public static final String ADJUST_DOC = "재고조정";
+
+    /**
+     * 내역 한 줄의 [수량] 이 로트 재고를 어느 쪽으로 움직이나. 재고조정 줄은 원본이 <b>출고로</b> 적는다 —
+     * 0 → 5 로 맞추면 내역조회 [수량] -5.00 · 수불부 [출고수량] -5.00 · [재고수량] 5.00(2026-10-14 loginaa 실측 QA재고2-ADJ1).
+     * 그래서 −1: 수량 -5 = 재고 +5. 우리는 {@code quantityChange} 에 재고가 움직인 양(+5)을 둔다.
+     */
+    private static int stockSign(String docType) {
+        return ADJUST_DOC.equals(docType) ? -1 : MANUAL_DOC_SIGN.getOrDefault(docType, 0);
+    }
+
+    /**
+     * 내역조회에서 고치고 지울 수 있는 줄 — 손으로 넣은 줄과 재고조정 줄. 원본은 재고조정 줄도 같은 내역입력 창으로 열리고
+     * [삭제] 하면 그 로트 재고가 되돌아간다(2026-10-14 실측: 5.00 → 줄 지움 → 재고현황에서 빠짐 · 합계 330 → 325).
+     * 예전 재고조정 줄은 manual 이 아니었다(QA재고2-ADJ 20261004 · 20261013) — 전표구분으로도 본다.
+     */
+    private static boolean editable(LotTransaction t) {
+        return t.isManual() || ADJUST_DOC.equals(t.getDocType());
     }
 
     private static String blank(String v) {
