@@ -323,6 +323,18 @@ public class PurchaseOrderService {
         return PurchaseOrderResponse.from(po);
     }
 
+    /**
+     * 발주요청조회 [진행상태변경] · [종결여부] — 미확인 / 진행중 / 완료(원본 E040315, 2026-10-13 실측).
+     * 발주 흐름 상태는 건드리지 않는다. 원본도 완료로 바꾼 요청을 그대로 고치고 지울 수 있다.
+     */
+    @Transactional
+    public PurchaseOrderResponse changeRequestProgress(Long id, PurchaseRequestProgress progress) {
+        if (progress == null) throw ApiException.badRequest("진행상태를 고르세요.");
+        PurchaseOrder po = get(id);
+        po.setRequestProgress(progress);
+        return PurchaseOrderResponse.from(po);
+    }
+
     @Transactional
     public PurchaseOrderResponse cancel(Long id, String username) {
         PurchaseOrder po = get(id);

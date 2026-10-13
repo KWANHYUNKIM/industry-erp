@@ -87,6 +87,14 @@ public class PurchaseOrder extends BaseTimeEntity {
     @Builder.Default
     private PurchaseOrderStatus status = PurchaseOrderStatus.REQUESTED;
 
+    /**
+     * 발주요청 [종결여부](미확인 · 진행중 · 완료) — 사람이 [진행상태변경]으로 정한다. 비어 있으면 발주 흐름으로 정한다
+     * (발주확정 · 입고전환이면 완료, 아니면 진행중).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "request_progress", length = 20)
+    private PurchaseRequestProgress requestProgress;
+
     @Column(name = "supply_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default
     private BigDecimal supplyAmount = BigDecimal.ZERO;

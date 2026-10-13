@@ -103,6 +103,13 @@ public class PurchaseOrderController {
         return service.confirm(id, principal.getUsername());
     }
 
+    /** 발주요청 [진행상태변경] — body {"progress": "UNCONFIRMED" | "IN_PROGRESS" | "COMPLETED"}. */
+    @PatchMapping("/{id}/request-progress")
+    public PurchaseOrderResponse changeRequestProgress(@PathVariable Long id,
+                                                       @RequestBody java.util.Map<String, PurchaseRequestProgress> body) {
+        return service.changeRequestProgress(id, body.get("progress"));
+    }
+
     @PostMapping("/{id}/cancel")
     public PurchaseOrderResponse cancel(@PathVariable Long id,
                                         @AuthenticationPrincipal UserPrincipal principal) {

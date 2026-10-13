@@ -263,6 +263,7 @@ const UnpurchasedStatusPage = lazy(() => import('../pages/trade/UnpurchasedStatu
 const PurchaseOrderStatusPage = lazy(() => import('../pages/trade/PurchaseOrderStatusPage'))
 const PurchaseRequestStatusPage = lazy(() => import('../pages/trade/PurchaseRequestStatusPage'))
 const PurchaseRequestListPage = lazy(() => import('../pages/trade/PurchaseRequestListPage'))
+const PurchaseRequestInputPage = lazy(() => import('../pages/trade/PurchaseRequestInputPage'))
 const PurchasePlanListPage = lazy(() => import('../pages/trade/PurchasePlanListPage'))
 const PriceRequestListPage = lazy(() => import('../pages/trade/PriceRequestListPage'))
 /* 이름표 묶음은 값이라 lazy 로 못 받는다 — 화면 파일에서 그대로 가져온다. */
@@ -511,6 +512,7 @@ export default function AppRouter() {
         <Route path="/sales/unpurchased" element={<UnpurchasedStatusPage />} />
         <Route path="/sales/purchase-order-status" element={<PurchaseOrderStatusPage />} />
         <Route path="/sales/purchase-requests" element={<PurchaseRequestListPage />} />
+        <Route path="/sales/purchase-request-input" element={<PurchaseRequestInputPage />} />
         <Route path="/sales/purchase-plans" element={<PurchasePlanListPage />} />
         <Route path="/sales/price-requests" element={<PriceRequestListPage />} />
         <Route path="/sales/purchase-request-status" element={<PurchaseRequestStatusPage />} />

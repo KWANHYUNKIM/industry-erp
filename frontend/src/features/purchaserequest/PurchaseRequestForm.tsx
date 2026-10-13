@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import Modal from '../../components/Modal'
+import EcSlipShell from '../../components/EcSlipShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcNumInput from '../../components/EcNumInput'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
 import { dateNo } from '../../utils/dateNo'
+import { printDocuments } from '../../utils/printDocument'
+import { openPrintWindow } from '../../utils/print'
 import type { Currency, Item, Partner, PurchaseOrder, PurchaseOrderLine } from '../../types/api'
+import { purchaseRequestDocument } from './purchaseRequestDocument'
 
 /** 서버 줄 응답은 줄 거래처도 싣는다(OrderLineResponse.partnerId · partnerName) — 공용 타입에 없어 여기서만 넓힌다. */
 type RequestLine = PurchaseOrderLine & { partnerId?: number | null; partnerName?: string | null }
@@ -31,17 +35,26 @@ const MIN_ROWS = 3
  * — 삭제는 '전표를 삭제하겠습니까?\n- 발주요청'.
  *
  * <p>우리 발주요청은 발주서(REQUESTED)와 같은 자료다. 머리 매입처는 첫 줄의 거래처로 둔다.
+ *
+ * <p><b>page</b> 면 창이 아니라 메뉴 '발주요청입력'(E040314) 화면으로 그린다 — 원본 사이드바에 따로 있다(2026-10-13 실측).
+ * 단추줄 [저장(F8) ▴] · [저장/전표(F7)] · [다시 작성] · [리스트]. [저장(F8)] 은 저장하고 빈 화면으로(안내 없음),
+ * ▴ 메뉴 '저장/전자결재 · 저장/내용유지 · 저장/신규', [저장/전표(F7)] 는 저장하고 '발주요청서' 인쇄창을 띄운 뒤 빈 화면,
+ * [리스트] 는 발주요청조회로. 전자결재는 우리 결재가 발주요청을 안 받아 뺐다.
  */
-export default function PurchaseRequestForm({ editing, onClose, onSaved, onDeleted, onCopy, onStep }: {
+export default function PurchaseRequestForm({ editing, page, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
   /** 고칠 발주요청. null 이면 신규. */
   editing: PurchaseOrder | null
-  onClose: () => void
-  onSaved: () => void
-  onDeleted: () => void
+  /** 창이 아니라 '발주요청입력' 화면으로 그린다. */
+  page?: boolean
+  onClose?: () => void
+  onSaved?: () => void
+  onDeleted?: () => void
   /** [복사] — 같은 내용을 신규 창으로(일자 · 납기 오늘). */
-  onCopy: (src: PurchaseOrder) => void
+  onCopy?: (src: PurchaseOrder) => void
   /** [이전](+1, 목록 아래) · [다음](-1, 목록 위). */
-  onStep: (dir: 1 | -1) => void
+  onStep?: (dir: 1 | -1) => void
+  /** 화면 [리스트] — 발주요청조회로. */
+  onList?: () => void
 }) {
   const pickers = useCondPickers(['warehouses', 'projects', 'employees'])
   const [items, setItems] = useState<Item[]>([])
@@ -106,14 +119,21 @@ export default function PurchaseRequestForm({ editing, onClose, onSaved, onDelet
   const sum = (k: 'supply' | 'vat' | 'total') => calc.reduce((a, c) => a + c[k], 0)
   const qtySum = lines.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
 
-  async function save() {
+  /**
+   * after — 'close': 창을 닫는다(창 모드) · 'new': 빈 화면(화면 [저장(F8)] · 저장/신규) · 'keep': 저장/내용유지 ·
+   * 'print': 저장/전표(F7) — 저장한 전표로 '발주요청서' 인쇄창을 띄우고 창이면 닫고 화면이면 비운다.
+   */
+  async function save(after: 'close' | 'new' | 'keep' | 'print' = page ? 'new' : 'close') {
     setError('')
+    /* 인쇄창은 누른 순간 연다 — 저장을 기다린 뒤 열면 팝업 차단에 걸린다. 막히면 닫는다. */
+    const win = after === 'print' ? openPrintWindow() : null
     if (filled.length === 0) {
+      win?.close()
       alert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n발주요청입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')
       return
     }
     /* 원본: 창고가 비면 문구 없이 그 칸만 빨갛게 두르고 저장하지 않는다. */
-    if (!warehouseId) { setWhMissing(true); return }
+    if (!warehouseId) { win?.close(); setWhMissing(true); return }
     const body = {
       partnerId: filled.find((l) => l.partnerId)?.partnerId ? Number(filled.find((l) => l.partnerId)!.partnerId) : null,
       orderDate,
@@ -133,10 +153,14 @@ export default function PurchaseRequestForm({ editing, onClose, onSaved, onDelet
     }
     setSaving(true)
     try {
-      if (isEdit) await api.put(`/purchase-orders/${editing!.id}`, body)
-      else await api.post('/purchase-orders', body)
-      onSaved()
+      const saved = (isEdit
+        ? await api.put<PurchaseOrder>(`/purchase-orders/${editing!.id}`, body)
+        : await api.post<PurchaseOrder>('/purchase-orders', body)).data
+      if (after === 'print') await printDocuments([purchaseRequestDocument(saved)], win)
+      if (page) { if (after !== 'keep') reset() }
+      else onSaved?.()
     } catch (e) {
+      win?.close()
       setError(extractErrorMessage(e))
     } finally {
       setSaving(false)
@@ -148,7 +172,7 @@ export default function PurchaseRequestForm({ editing, onClose, onSaved, onDelet
     if (!confirm('전표를 삭제하겠습니까?\n- 발주요청')) return
     try {
       await api.delete(`/purchase-orders/${editing!.id}`)
-      onDeleted()
+      onDeleted?.()
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -159,8 +183,8 @@ export default function PurchaseRequestForm({ editing, onClose, onSaved, onDelet
     setCurrency('KRW'); setTaxable(true); setWhMissing(false); setLines(Array.from({ length: MIN_ROWS }, emptyLine)); setError('')
   }
 
-  return (
-    <Modal open title={isEdit ? '발주요청입력(수정)' : '발주요청입력'} width={1040} onClose={onClose} error={error}>
+  const body = (
+    <>
       <div className="ec-form mb-[8px] grid grid-cols-2 gap-x-[24px] gap-y-[6px] mobile:grid-cols-1">
         <label className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">일자-No.</span>
@@ -259,18 +283,43 @@ export default function PurchaseRequestForm({ editing, onClose, onSaved, onDelet
         </tfoot>
       </table>
 
+    </>
+  )
+
+  if (page) {
+    return (
+      <form onSubmit={(e) => { e.preventDefault(); void save('new') }}>
+        <EcSlipShell title="발주요청입력"
+          actions={[
+            { label: '저장(F8)', primary: true, submit: true, disabled: saving,
+              menu: [{ label: '저장/내용유지', onClick: () => void save('keep') }, { label: '저장/신규', onClick: () => void save('new') }] },
+            { label: '저장/전표(F7)', disabled: saving, onClick: () => void save('print') },
+            { label: '다시 작성', onClick: reset },
+            { label: '리스트', onClick: () => onList?.() },
+          ]}>
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+          {body}
+        </EcSlipShell>
+      </form>
+    )
+  }
+
+  return (
+    <Modal open title={isEdit ? '발주요청입력(수정)' : '발주요청입력'} width={1040} onClose={() => onClose?.()} error={error}>
+      {body}
       {/* 원본 단추줄 — 신규: 저장(F8) · 저장/전표(F7) · 다시 작성 · 닫기 / 수정: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H */}
       <div className="mt-[10px] flex flex-wrap items-center gap-[4px]">
-        <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={save}>{saving ? '저장 중…' : '저장(F8)'}</button>
+        <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={() => void save()}>{saving ? '저장 중…' : '저장(F8)'}</button>
+        <button type="button" className="ec-btn" disabled={saving} onClick={() => void save('print')}>저장/전표(F7)</button>
         {isEdit ? <>
-          <button type="button" className="ec-btn" onClick={() => onCopy(editing!)}>복사</button>
-          <button type="button" className="ec-btn" onClick={() => onStep(1)}>이전</button>
-          <button type="button" className="ec-btn" onClick={() => onStep(-1)}>다음</button>
-          <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+          <button type="button" className="ec-btn" onClick={() => onCopy?.(editing!)}>복사</button>
+          <button type="button" className="ec-btn" onClick={() => onStep?.(1)}>이전</button>
+          <button type="button" className="ec-btn" onClick={() => onStep?.(-1)}>다음</button>
+          <button type="button" className="ec-btn" onClick={() => onClose?.()}>닫기</button>
           <button type="button" className="ec-btn" onClick={remove}>삭제</button>
         </> : <>
           <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>
-          <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+          <button type="button" className="ec-btn" onClick={() => onClose?.()}>닫기</button>
         </>}
       </div>
     </Modal>

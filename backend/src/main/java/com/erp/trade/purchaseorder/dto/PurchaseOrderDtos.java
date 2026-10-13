@@ -4,6 +4,7 @@ import com.erp.inventory.item.ItemCategory;
 import com.erp.trade.purchaseorder.PurchaseOrder;
 import com.erp.trade.purchaseorder.PurchaseOrderLine;
 import com.erp.trade.purchaseorder.PurchaseOrderStatus;
+import com.erp.trade.purchaseorder.PurchaseRequestProgress;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
@@ -129,6 +130,8 @@ public final class PurchaseOrderDtos {
              * BaseTimeEntity 를 물려받아 진작 채우고 있는데 응답이 안 실었다.
              */
             LocalDateTime createdAt, LocalDateTime updatedAt,
+            /** 발주요청 [종결여부] — 사람이 정한 것. null 이면 발주 흐름으로 본다. */
+            PurchaseRequestProgress requestProgress,
             List<OrderLineResponse> lines
     ) {
         public static PurchaseOrderResponse from(PurchaseOrder po) {
@@ -147,6 +150,7 @@ public final class PurchaseOrderDtos {
                     po.getSupplyAmount(), po.getVatAmount(), po.getTotalAmount(),
                     po.getTaxable(), po.getConvertedPurchaseId(), po.getRemark(), po.getCreatedBy(),
                     po.getCreatedAt(), po.getUpdatedAt(),
+                    po.getRequestProgress(),
                     po.getLines().stream().map(OrderLineResponse::from).toList());
         }
     }

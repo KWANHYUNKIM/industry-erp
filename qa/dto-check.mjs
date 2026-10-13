@@ -199,6 +199,7 @@ const OWNED_HERE = new Map([
   ['Company|schemaName', '회사코드로 서버가 짓는다(co_0002 …)'],
   ['Company|active', '회사를 내리는 자리를 아직 안 만들었다 — 만들 때 여기서 빼면 검사가 다시 잰다'],
   ['PurchaseOrder|convertedPurchaseId', '구매로 넘길 때 서버가 잇는다'],
+  ['PurchaseOrder|requestProgress', '발주요청조회 [진행상태변경] 이 따로 정한다(PATCH /request-progress) — 입력 창에는 없다'],
   ['Quotation|convertedOrderId', '수주로 넘길 때 서버가 잇는다'],
   ['SalesPlan|planNo', 'DocumentNoGenerator 가 매긴다'],
   ['SalesPlan|planDate', '[예상매출일자]에서 서버가 정한다 — 안 정하면 계획연월의 첫날이다'],

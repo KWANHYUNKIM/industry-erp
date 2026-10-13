@@ -1150,8 +1150,8 @@
   "palette": 0
  },
  "pages/trade/PurchaseRequestListPage.tsx": {
-  "inline": 5,
-  "color": 2,
+  "inline": 4,
+  "color": 0,
   "palette": 0
  },
  "pages/trade/PurchaseRequestStatusPage.tsx": {
