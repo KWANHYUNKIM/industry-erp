@@ -8,10 +8,12 @@ import Modal from '../../components/Modal'
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { Lot, LotTransaction } from '../../types/api'
 import { dateNo } from '../../utils/dateNo'
-import { ecAlert } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { historyTime } from '../../components/EcHistory'
 import { ymd } from '../../utils/periods'
-import { lotShownQty } from '../../utils/lotQty'
+import { lotShownQty, lotTxEditable } from '../../utils/lotQty'
+import { useShortcut } from '../../utils/useShortcut'
+import LotTxEntryModal from '../../features/lot/components/LotTxEntryModal'
 
 const qty2 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -33,7 +35,7 @@ const kindOf = (n: number): QtyKind => (n === 1 ? '1' : n === 0 ? '0' : '기타'
  * 우리는 로트 실사조정 API(PATCH /lots/{id}/adjust)가 같은 일을 한다 — 바뀐 줄만 보낸다.
  */
 export default function LotAdjustPage() {
-  const pickers = useCondPickers(['items'])
+  const pickers = useCondPickers(['items', 'warehouses', 'partners', 'projects', 'employees'])
   const [lots, setLots] = useState<Lot[]>([])
   const [expFrom, setExpFrom] = useState('')
   const [expTo, setExpTo] = useState('')
@@ -49,6 +51,10 @@ export default function LotAdjustPage() {
   const [detail, setDetail] = useState<Lot | null>(null)
   const [detailRows, setDetailRows] = useState<LotTransaction[]>([])
   const [detailSeq, setDetailSeq] = useState<Map<number, number>>(new Map())
+  /* 원본 [보기] 창 = 그 로트로 열린 시리얼/로트No.내역조회 — 줄 체크칸 · [신규(F2)] · [선택삭제] · [Excel](2026-10-14 실측). */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const [entryOpen, setEntryOpen] = useState(false)
+  const [entryEditing, setEntryEditing] = useState<LotTransaction | null>(null)
   /** 원본 격자 아래 오른쪽 '2026/10/14 오전 2:17:55' — 조회한 때. */
   const [loadedAt, setLoadedAt] = useState('')
 
@@ -130,6 +136,28 @@ export default function LotAdjustPage() {
       }
       setDetailSeq(seq)
       setDetailRows(r.data.filter((t) => t.lotId === l.id).sort((a, b) => (a.txDate < b.txDate ? 1 : a.txDate > b.txDate ? -1 : b.id - a.id)))
+      setPicked(new Set())
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  /** 창에서 넣거나 지운 뒤 — 창 목록과 뒤의 [합계](로트 재고)를 함께 다시 읽는다. 원본도 창을 닫으면 합계가 바뀌어 있다. */
+  async function afterDetailChange() {
+    if (detail) await openDetail(detail)
+    await load()
+  }
+  const openEntry = (t: LotTransaction | null) => { setEntryEditing(t); setEntryOpen(true) }
+  useShortcut('F2', () => openEntry(null), detail != null && !entryOpen)
+
+  /* 원본 [선택삭제]: 고른 것이 없으면 '알림' 창 — '선택된 자료가 없습니다. / 삭제할 자료를 체크한 후 다시 시도 바랍니다.'(2026-10-14 실측). */
+  async function removePicked() {
+    const ids = [...picked]
+    if (ids.length === 0) return void ecAlert('선택된 자료가 없습니다.\n삭제할 자료를 체크한 후 다시 시도 바랍니다.')
+    if (!(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n선택한 품목을 삭제 하겠습니까?'))) return
+    try {
+      await api.post('/lots/transactions/delete', { ids })
+      await afterDetailChange()
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -222,15 +250,31 @@ export default function LotAdjustPage() {
       <Modal error={error} open={detail != null} title="시리얼/로트No.내역조회" onClose={() => setDetail(null)} width={760}>
         <table className="w-full text-left">
           <thead><tr>
+            <th className="w-[34px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={detailRows.length > 0 && detailRows.every((t) => picked.has(t.id))}
+                     onChange={(e) => setPicked(e.target.checked ? new Set(detailRows.map((t) => t.id)) : new Set())} />
+            </th>
             <th className="text-center">일자-No.</th><th>품목명[규격]</th><th>시리얼/로트No.</th>
             <th className="text-right">수량</th><th className="text-center">전표구분</th><th>연결전표-No.</th><th>유효기한</th>
           </tr></thead>
           <tbody>
             {detailRows.length === 0 ? (
-              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : detailRows.map((t) => (
+              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : detailRows.map((t, i) => (
               <tr key={t.id}>
-                <td className="text-center">{`${t.txDate.replace(/-/g, '/')} -${detailSeq.get(t.id) ?? ''}`}</td>
+                <td className="text-center">
+                  <input type="checkbox" aria-label={`${i + 1}`} checked={picked.has(t.id)} onChange={() => setPicked((s) => {
+                    const n = new Set(s)
+                    if (n.has(t.id)) n.delete(t.id); else n.add(t.id)
+                    return n
+                  })} />
+                </td>
+                <td className="text-center">
+                  {/* 손으로 넣은 줄(재고조정 포함)만 내역입력 창이 수정으로 열린다 — 내역조회와 같다. */}
+                  {lotTxEditable(t)
+                    ? <button type="button" className="ec-link" onClick={() => openEntry(t)}>{`${t.txDate.replace(/-/g, '/')} -${detailSeq.get(t.id) ?? ''}`}</button>
+                    : `${t.txDate.replace(/-/g, '/')} -${detailSeq.get(t.id) ?? ''}`}
+                </td>
                 <td>{t.itemName}{detail?.spec ? ` [${detail.spec}]` : ''}</td>
                 <td>{t.lotNo}</td>
                 <td className="text-right">{qty2(lotShownQty(t))}</td>
@@ -241,7 +285,15 @@ export default function LotAdjustPage() {
             ))}
           </tbody>
         </table>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => openEntry(null)}>신규(F2)</button>
+          <button type="button" className="ec-btn" onClick={() => void removePicked()}>선택삭제</button>
+          {/* 원본 [Excel] 은 내려받기라 누르지 않는다 — 모양만 둔다. */}
+          <button type="button" className="ec-btn">Excel</button>
+        </div>
       </Modal>
+      <LotTxEntryModal open={entryOpen} editing={entryEditing} siblings={detailRows.filter(lotTxEditable)} pickers={pickers}
+                       onClose={() => setEntryOpen(false)} onSaved={() => void afterDetailChange()} onEdit={(t) => openEntry(t)} />
     </EcListShell>
   )
 }
