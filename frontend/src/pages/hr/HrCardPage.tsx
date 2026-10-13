@@ -18,6 +18,8 @@ const YN = ['여', '부']
 /**
  * 원본 [인사자료] 입력 창의 열 차례(2026-10-03 loginaa 실측, 열한 항목 전부). 서버는 날짜 넷 + 글자 칸 열로 받는다.
  * 원본 가족사항의 동거여부 · 부양여부는 여/부 라디오 — 우리도 라디오(줄마다 이름을 따로 둔다). 숫자 칸(비용 · 일수)은 글자로 담고 오른쪽에 붙인다.
+ * 2026-10-13 실측: 숫자 칸은 칸을 떠나면 '1,234,567.50'(쉼표 · 소수 둘), 창 맨 아래 합계 줄(교육비용 · 출장비용 · 근무실태 일수 여덟 칸, 비면 0.00).
+ * 근무실태 [연도]는 글자 칸(합계 없음). 자격/면허코드 · 교육코드는 코드도움이 아니라 글자 칸이다(Enter 가 다음 칸으로 간다).
  */
 const CATEGORIES: { key: Category; label: string; cols: Col[] }[] = [
   {
@@ -83,7 +85,7 @@ const CATEGORIES: { key: Category; label: string; cols: Col[] }[] = [
   },
   {
     key: 'WORK_STATUS', label: '근무실태', cols: [
-      { label: '연도', key: 'text1', kind: 'number' }, { label: '총휴가일수', key: 'text2', kind: 'number' },
+      { label: '연도', key: 'text1' }, { label: '총휴가일수', key: 'text2', kind: 'number' },
       { label: '사용휴가일수', key: 'text3', kind: 'number' }, { label: '연가', key: 'text4', kind: 'number' },
       { label: '경조', key: 'text5', kind: 'number' }, { label: '특별', key: 'text6', kind: 'number' },
       { label: '병가', key: 'text7', kind: 'number' }, { label: '조퇴', key: 'text8', kind: 'number' },
@@ -274,14 +276,23 @@ export default function HrCardPage() {
                                   ))}
                                 </span>
                               ) : c.kind === 'number' ? (
-                                <input className="ec-input w-full text-right" inputMode="decimal" value={r[c.key]}
-                                       onChange={(ev) => set(ev.target.value.replace(/[^0-9.]/g, ''))} />
+                                <NumCell value={r[c.key]} onValue={set} />
                               ) : <input className="ec-input w-full" value={r[c.key]} onChange={(ev) => set(ev.target.value)} />}
                           </td>
                         )
                       })}
                     </tr>
                   ))}
+                  {detail.cat.cols.some((c) => c.kind === 'number') && (
+                    <tr className="ec-total">
+                      <td></td>
+                      {detail.cat.cols.map((c) => (
+                        <td key={c.label} className="text-right">
+                          {c.kind === 'number' ? two(detail.rows.reduce((n, x) => n + (Number(x[c.key]) || 0), 0)) : ''}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -294,5 +305,19 @@ export default function HrCardPage() {
         )
       )}</Modal>
     </EcListShell>
+  )
+}
+
+/** 숫자 칸 · 합계 꼴 — 원본 교육비용 1234567.5 → '1,234,567.50', 빈 합계 '0.00'(2026-10-13 실측). */
+const two = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** 인사자료 숫자 칸 — 입력 중엔 그대로, 칸을 떠나면 쉼표 · 소수 둘째 자리. */
+function NumCell({ value, onValue }: { value: string; onValue: (v: string) => void }) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <input className="ec-input w-full text-right" inputMode="decimal"
+           value={focused || value === '' || Number.isNaN(Number(value)) ? value : two(Number(value))}
+           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+           onChange={(ev) => onValue(ev.target.value.replace(/[^0-9.]/g, ''))} />
   )
 }

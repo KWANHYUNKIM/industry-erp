@@ -55,6 +55,27 @@
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const g=await (await fetch('/api/employees/'+e.id+'/hr-details/FAMILY',{headers:h})).json();const d=await fetch('/api/employees/'+e.id+'/hr-details/FAMILY',{method:'DELETE',headers:h});sessionStorage.setItem('qaFam',String(g.length===1&&g[0].text2==='QA관리-가족'&&g[0].text8==='여'&&g[0].text9==='부'&&d.ok));return true})()",
         "expect:sessionStorage.getItem('qaFam')==='true'"
       ]
+    },
+    {
+      "name": "인사카드 → 교육사항 교육비용 1,234,567.50 · 합계 줄 · 근무실태 연도는 글자 칸 (저장 안 함)",
+      "path": "/hr/cards",
+      "steps": [
+        "js:(async()=>{for(let i=0;i<60;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent==='EMP-0001');if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "wait:1500",
+        "js:[...document.querySelectorAll('[role=dialog] button')].filter(b=>b.textContent==='입력')[6].click();true",
+        "wait:1500",
+        "set:[role=dialog]:last-of-type table tbody tr:first-child td:nth-child(7) input|1234567.5",
+        "wait:300",
+        "js:document.activeElement&&document.activeElement.blur();true",
+        "wait:300",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const v=d.querySelector('table tbody tr:first-child td:nth-child(7) input').value;const t=d.querySelector('table tbody tr.ec-total');return v==='1,234,567.50'&&t&&t.cells[6].innerText.trim()==='1,234,567.50'&&t.cells[1].innerText.trim()===''})()",
+        "clicklast:닫기",
+        "wait:500",
+        "js:[...document.querySelectorAll('[role=dialog] button')].filter(b=>b.textContent==='입력')[9].click();true",
+        "wait:1500",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.querySelector('table tbody tr.ec-total');return t&&t.cells[1].innerText.trim()===''&&t.cells[2].innerText.trim()==='0.00'&&t.cells[9].innerText.trim()==='0.00'&&t.cells[10].innerText.trim()===''})()",
+        "clicklast:닫기"
+      ]
     }
   ]
 }
