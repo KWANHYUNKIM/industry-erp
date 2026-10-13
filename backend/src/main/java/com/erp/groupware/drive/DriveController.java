@@ -5,6 +5,7 @@ import com.erp.groupware.drive.dto.DriveDtos.CreateFolderRequest;
 import com.erp.groupware.drive.dto.DriveDtos.DocumentResponse;
 import com.erp.groupware.drive.dto.DriveDtos.UpdateDocumentRequest;
 import com.erp.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,31 @@ public class DriveController {
 
     private final DriveService driveService;
 
+    /** 원본 [버전/이력]의 IP — 프록시 뒤면 X-Forwarded-For 의 첫 주소. */
+    private static String clientIp(HttpServletRequest http) {
+        String f = http.getHeader("X-Forwarded-For");
+        if (f != null && !f.isBlank()) return f.split(",")[0].trim();
+        return http.getRemoteAddr();
+    }
+
+    /** 원본 드라이브 머리 우클릭 [버전/이력] — 그 드라이브 전체. */
+    @GetMapping("/history")
+    public List<DriveDtos.HistoryResponse> driveHistory(@RequestParam(required = false, defaultValue = "MY") String drive) {
+        return driveService.history(null, drive);
+    }
+
+    /** 원본 ⋮ [버전/이력] — 폴더면 안에 든 것까지. */
+    @GetMapping("/{id}/history")
+    public List<DriveDtos.HistoryResponse> history(@PathVariable Long id) {
+        return driveService.history(id, null);
+    }
+
+    /** 원본 ⋮ [상세보기]. */
+    @GetMapping("/{id}/detail")
+    public DriveDtos.DetailResponse detail(@PathVariable Long id) {
+        return driveService.detail(id);
+    }
+
     @GetMapping
     public List<DocumentResponse> list(@RequestParam(required = false, defaultValue = "my") String folder,
                                        @RequestParam(required = false) Long parentId,
@@ -33,8 +59,8 @@ public class DriveController {
     @PostMapping("/folders")
     public ResponseEntity<DocumentResponse> createFolder(
             @Valid @RequestBody CreateFolderRequest req,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(driveService.createFolder(req, principal.getUsername()));
+            @AuthenticationPrincipal UserPrincipal principal, HttpServletRequest http) {
+        return ResponseEntity.ok(driveService.createFolder(req, principal.getUsername(), clientIp(http)));
     }
 
     @PostMapping
@@ -63,21 +89,23 @@ public class DriveController {
     public record FileRef(Long fileId) {}
 
     @PatchMapping("/{id}")
-    public DocumentResponse update(@PathVariable Long id, @RequestBody UpdateDocumentRequest req) {
-        return driveService.update(id, req);
+    public DocumentResponse update(@PathVariable Long id, @RequestBody UpdateDocumentRequest req,
+                                   @AuthenticationPrincipal UserPrincipal principal, HttpServletRequest http) {
+        return driveService.update(id, req, principal.getUsername(), clientIp(http));
     }
 
     /** 원본 ⋮ [이동] — 'ECDrive' 창에서 고른 폴더로 옮긴다. */
     @PostMapping("/{id}/move")
-    public DocumentResponse move(@PathVariable Long id, @RequestBody DriveDtos.TransferRequest req) {
-        return driveService.move(id, req);
+    public DocumentResponse move(@PathVariable Long id, @RequestBody DriveDtos.TransferRequest req,
+                                 @AuthenticationPrincipal UserPrincipal principal, HttpServletRequest http) {
+        return driveService.move(id, req, principal.getUsername(), clientIp(http));
     }
 
     /** 원본 ⋮ [복사] — 폴더면 안에 든 것까지 통째로. */
     @PostMapping("/{id}/copy")
     public DocumentResponse copy(@PathVariable Long id, @RequestBody DriveDtos.TransferRequest req,
-                                 @AuthenticationPrincipal UserPrincipal principal) {
-        return driveService.copy(id, req, principal.getUsername());
+                                 @AuthenticationPrincipal UserPrincipal principal, HttpServletRequest http) {
+        return driveService.copy(id, req, principal.getUsername(), clientIp(http));
     }
 
     @DeleteMapping("/{id}")

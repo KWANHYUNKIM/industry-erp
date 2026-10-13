@@ -8,6 +8,9 @@ import EcFileDrop from '../../components/EcFileDrop'
 import Modal from '../../components/Modal'
 import DriveFolderTree, { type DrivePlace } from '../../features/drive/components/DriveFolderTree'
 import DriveFolderPicker from '../../features/drive/components/DriveFolderPicker'
+import DriveHistoryModal from '../../features/drive/components/DriveHistoryModal'
+import DriveDetailModal from '../../features/drive/components/DriveDetailModal'
+import { driveSize, driveStamp } from '../../features/drive/driveFormat'
 
 const TREE = [
   { key: 'my', label: 'My Drive', icon: '📁', drive: 'MY' },
@@ -17,19 +20,8 @@ const TREE = [
 ] as const
 type TreeKey = (typeof TREE)[number]['key']
 
-const fmtSize = (b: number) => {
-  if (b <= 0) return '-'
-  if (b < 1024) return `${b} B`
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
-  return `${(b / 1024 / 1024).toFixed(1)} MB`
-}
-const pad2 = (n: number) => String(n).padStart(2, '0')
-/** 원본 [최종수정일자] — '2026/10/03 오후 6:34:41'. */
-const stampText = (iso: string | null) => {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${d.toLocaleTimeString('ko-KR')}`
-}
+const fmtSize = driveSize
+const stampText = driveStamp
 
 /** [더보기] ⋮ · 우클릭 · 나무 우클릭 메뉴의 한 줄. */
 type MenuItem = { label: string; run: () => void; danger?: boolean }
@@ -70,7 +62,9 @@ function PopMenu({ items, onClose }: { items: MenuItem[]; onClose: () => void })
  * Shared Drive 맨 위는 '해당 위치로 이동/복사가 불가합니다.', 되면 고른 곳으로 들어간다. 같은 이름 폴더가 있는 곳으로
  * 옮기면 하나로 합쳐진다. 나무는 여러 단계(만든 차례), 목록은 최종수정일자 최근 순.
  * 휴지통으로이동 문구 아래에 '※ 해당 파일이 첨부된 전표/기안서/게시글에서 연결이 취소됩니다. …' 가 붙는다.
- * 버전/이력 · 상세보기는 아직 없다.
+ * <p><b>2026-10-13 버전/이력 · 상세보기.</b> 버전/이력 창은 폴더면 안에 든 것까지, 나무의 My Drive 우클릭이면
+ * 드라이브 전체의 이력(생성 · 이름변경 · 이동 · 복사(T))을 최근 것부터 낸다. 나무의 폴더 우클릭은 ⋮ 에서
+ * [중요문서함에 추가]만 빠진 차례다.
  */
 export default function EcDrivePage() {
   const [sel, setSel] = useState<TreeKey>('my')
@@ -100,6 +94,12 @@ export default function EcDrivePage() {
   const [menuFor, setMenuFor] = useState<number | null>(null)
   /** 나무에서 우클릭한 드라이브 */
   const [treeMenu, setTreeMenu] = useState<'MY' | 'SHARED' | null>(null)
+  /** 나무에서 우클릭한 폴더 id */
+  const [treeFolderMenu, setTreeFolderMenu] = useState<number | null>(null)
+  /** [버전/이력] 창 — 폴더/파일 id(없으면 드라이브 전체) */
+  const [history, setHistory] = useState<{ docId: number | null; drive: 'MY' | 'SHARED' } | null>(null)
+  /** [상세보기] 창 */
+  const [detailId, setDetailId] = useState<number | null>(null)
   const [treeOpen, setTreeOpen] = useState(true)
   /** '새 폴더' 창 — 어느 드라이브 · 어느 폴더 안에 만드나. */
   const [newFolder, setNewFolder] = useState<{ drive: string; parentId: number | null } | null>(null)
@@ -298,7 +298,12 @@ export default function EcDrivePage() {
     }
   }
 
-  /** 원본 ⋮ — 폴더도 파일도 같은 차례(버전/이력 · 상세보기는 아직 없다). */
+  const tailMenu = (d: DriveDocument): MenuItem[] => [
+    { label: '버전/이력', run: () => setHistory({ docId: d.id, drive: d.drive === 'SHARED' ? 'SHARED' : 'MY' }) },
+    { label: '상세보기', run: () => setDetailId(d.id) },
+  ]
+
+  /** 원본 ⋮ — 폴더도 파일도 같은 차례. */
   const commonMenu = (d: DriveDocument): MenuItem[] => [
     { label: '이동', run: () => setTransfer({ mode: 'move', doc: d }) },
     { label: '복사', run: () => setTransfer({ mode: 'copy', doc: d }) },
@@ -307,6 +312,17 @@ export default function EcDrivePage() {
       : { label: '중요문서함에 추가', run: () => void patch(d, { important: true }) },
     { label: '이름변경', run: () => openRename(d) },
     { label: '휴지통으로이동', run: () => toTrash(d) },
+    ...tailMenu(d),
+  ]
+
+  /** 나무의 폴더 우클릭 — ⋮ 에서 [중요문서함에 추가]만 빠진다(2026-10-13 실측). */
+  const treeFolderItems = (d: DriveDocument): MenuItem[] => [
+    { label: '새 폴더', run: () => openNewFolder(d.drive, d.id) },
+    { label: '이동', run: () => setTransfer({ mode: 'move', doc: d }) },
+    { label: '복사', run: () => setTransfer({ mode: 'copy', doc: d }) },
+    { label: '이름변경', run: () => openRename(d) },
+    { label: '휴지통으로이동', run: () => toTrash(d) },
+    ...tailMenu(d),
   ]
 
   const rowMenu = (d: DriveDocument): MenuItem[] => d.trashed
@@ -359,7 +375,12 @@ export default function EcDrivePage() {
                 <PopMenu onClose={() => setTreeMenu(null)} items={[
                   { label: '새 폴더', run: () => openNewFolder(drive, null) },
                   { label: '휴지통보기', run: () => open('trash', null) },
+                  { label: '버전/이력', run: () => setHistory({ docId: null, drive }) },
                 ]} />
+              )}
+              onFolderContextMenu={(f) => setTreeFolderMenu(f.id)}
+              folderExtra={(f) => treeFolderMenu === f.id && (
+                <PopMenu onClose={() => setTreeFolderMenu(null)} items={treeFolderItems(f)} />
               )}
             />
           )}
@@ -523,6 +544,9 @@ export default function EcDrivePage() {
         <DriveFolderPicker mode={transfer.mode} doc={transfer.doc} folders={treeFolders.filter((f) => !f.trashed)}
                            onPick={(p) => void doTransfer(p)} onClose={() => setTransfer(null)} />
       )}
+
+      {history && <DriveHistoryModal docId={history.docId} drive={history.drive} onClose={() => setHistory(null)} />}
+      {detailId != null && <DriveDetailModal docId={detailId} onClose={() => setDetailId(null)} />}
 
       {/* 원본 '새 폴더' 창 */}
       <Modal error={folderErr} open={!!newFolder} title="새 폴더" width={640} onClose={() => setNewFolder(null)}>

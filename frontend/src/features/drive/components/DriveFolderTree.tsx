@@ -13,7 +13,7 @@ const INDENT = ['pl-[14px]', 'pl-[28px]', 'pl-[42px]', 'pl-[56px]', 'pl-[70px]',
  * 본 화면 왼쪽과 [이동] · [복사] 창이 같이 쓴다.
  */
 export default function DriveFolderTree({
-  folders, place, onOpen, onContextMenu, extra,
+  folders, place, onOpen, onContextMenu, extra, onFolderContextMenu, folderExtra,
 }: {
   folders: DriveDocument[]
   place: DrivePlace | null
@@ -22,6 +22,10 @@ export default function DriveFolderTree({
   onContextMenu?: (drive: 'MY' | 'SHARED', e: React.MouseEvent) => void
   /** 드라이브 머리 바로 아래 붙일 것(우클릭 메뉴) */
   extra?: (drive: 'MY' | 'SHARED') => React.ReactNode
+  /** 폴더 줄 우클릭(원본: 새 폴더 · 이동 · 복사 · 이름변경 · 휴지통으로이동 · 버전/이력 · 상세보기) */
+  onFolderContextMenu?: (f: DriveDocument) => void
+  /** 폴더 줄 바로 아래 붙일 것(우클릭 메뉴) */
+  folderExtra?: (f: DriveDocument) => React.ReactNode
 }) {
   const [closed, setClosed] = useState<Set<number>>(new Set())
   const kids = (drive: string, pid: number | null) =>
@@ -35,11 +39,13 @@ export default function DriveFolderTree({
       const open = !closed.has(f.id)
       return (
         <div key={f.id}>
-          <div className={`flex items-center w-full py-[4px] pr-[10px] text-[12px] ${INDENT[Math.min(depth, INDENT.length - 1)]} ${on(drive, f.id) ? 'bg-ec-blue-wash text-ec-blue font-bold' : 'text-ec-text'}`}>
+          <div onContextMenu={(e) => { if (onFolderContextMenu) { e.preventDefault(); onFolderContextMenu(f) } }}
+               className={`relative flex items-center w-full py-[4px] pr-[10px] text-[12px] ${INDENT[Math.min(depth, INDENT.length - 1)]} ${on(drive, f.id) ? 'bg-ec-blue-wash text-ec-blue font-bold' : 'text-ec-text'}`}>
             <button type="button" className="no-ec w-[12px] bg-transparent border-0 p-0 cursor-pointer text-ec-label text-[10px]"
                     onClick={() => sub.length && toggle(f.id)}>{sub.length ? (open ? '▾' : '▸') : ''}</button>
             <button type="button" className="no-ec flex-1 text-left bg-transparent border-0 p-0 cursor-pointer text-inherit font-inherit truncate"
                     onClick={() => onOpen({ drive, parentId: f.id })}>📁 {f.name}</button>
+            {folderExtra?.(f)}
           </div>
           {open && branch(drive, f.id, depth + 1)}
         </div>

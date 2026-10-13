@@ -38,6 +38,18 @@ public final class DriveDtos {
             Boolean trashed
     ) {}
 
+    /** 원본 [버전/이력] 창의 한 줄. 작업자는 원본처럼 ID 를 대문자로 낸다('GUEST'). */
+    public record HistoryResponse(
+            Long id, String at, String action, String name, long sizeBytes, boolean folder,
+            String actor, String ip, String location
+    ) {}
+
+    /** 원본 [상세보기] 창 — 종류 · 위치 · 크기 · 생성일자 · 수정일자 · 최초작업자 · 최종작업자. */
+    public record DetailResponse(
+            Long id, String name, boolean folder, String location, long sizeBytes,
+            String createdAt, String updatedAt, String firstActor, String lastActor
+    ) {}
+
     public record DocumentResponse(
             Long id, String name, String drive, long sizeBytes,
             String uploader, boolean important, boolean trashed,

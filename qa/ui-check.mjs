@@ -7439,6 +7439,7 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
     'AttendanceInputRequest.clockOut': '위와 같다',
     'CreateRoomRequest.name': '대화방 이름은 표에 길이를 안 걸었다',
     'CreateCompanyRequest.adminName': '회사가 아니라 함께 만드는 관리자 계정의 이름이다',
+    'CreateFolderRequest.name': '원본 새 폴더 이름은 50자에서 더 안 들어간다(2026-10-13 ECDrive 실측) — 표는 파일 이름과 같이 써서 200',
   }
 
   /* 1) 엔티티마다 글자 칸 길이 */

@@ -21,6 +21,55 @@ public class DriveService {
 
     private final DriveDocumentRepository documentRepository;
     private final FileStorageService fileStorage;
+    private final DriveHistoryRepository historyRepository;
+
+    /** 원본 [버전/이력] 에 한 줄 남긴다. 이름 · 크기 · 위치는 지금 값 그대로 적어 둔다. */
+    private void log(DriveDocument doc, String action, String actor, String ip) {
+        historyRepository.save(DriveHistory.builder()
+                .document(doc).action(action).name(doc.getName()).sizeBytes(doc.getSizeBytes())
+                .actor(actor).ip(ip).location(folderPath(doc.getParent())).build());
+    }
+
+    /** '/폴더/폴더' — 드라이브 맨 위면 빈 글자(원본 [위치] 빈칸). */
+    private static String folderPath(DriveDocument folder) {
+        StringBuilder sb = new StringBuilder();
+        for (DriveDocument f = folder; f != null; f = f.getParent()) sb.insert(0, "/" + f.getName());
+        return sb.toString();
+    }
+
+    /**
+     * 원본 [버전/이력](2026-10-13 실측). 폴더면 <b>자기와 안에 든 것 전부</b>의 이력, 드라이브 머리(My Drive)면
+     * 그 드라이브 전체. 휴지통에 들어간 것의 줄은 빠진다(휴지통으로 옮기자 My Drive 이력이 비었다). 최근 것이 위.
+     */
+    @Transactional(readOnly = true)
+    public List<DriveDtos.HistoryResponse> history(Long id, String drive) {
+        List<DriveDocument> scope = id != null
+                ? withChildren(getDoc(id))
+                : documentRepository.findAllOrdered().stream()
+                        .filter(d -> ("SHARED".equalsIgnoreCase(drive) ? "SHARED" : "MY").equalsIgnoreCase(d.getDrive())).toList();
+        List<Long> ids = scope.stream().filter(d -> !d.isTrashed()).map(DriveDocument::getId).toList();
+        if (ids.isEmpty()) return List.of();
+        return historyRepository.findByDocumentIds(ids).stream()
+                .map(h -> new DriveDtos.HistoryResponse(h.getId(),
+                        h.getCreatedAt() != null ? h.getCreatedAt().toString() : null,
+                        h.getAction(), h.getName(), h.getSizeBytes(), h.getDocument().isFolder(),
+                        h.getActor() != null ? h.getActor().toUpperCase() : null, h.getIp(), h.getLocation()))
+                .toList();
+    }
+
+    /** 원본 [상세보기] — 위치는 'My Drive/폴더/자기 이름', 최종작업자는 마지막으로 손댄 사람. */
+    @Transactional(readOnly = true)
+    public DriveDtos.DetailResponse detail(Long id) {
+        DriveDocument doc = getDoc(id);
+        String root = "SHARED".equalsIgnoreCase(doc.getDrive()) ? "Shared Drive" : "My Drive";
+        String last = historyRepository.findByDocumentIds(List.of(id)).stream()
+                .map(DriveHistory::getActor).filter(java.util.Objects::nonNull).findFirst().orElse(doc.getUploader());
+        return new DriveDtos.DetailResponse(doc.getId(), doc.getName(), doc.isFolder(),
+                root + folderPath(doc.getParent()) + "/" + doc.getName(), doc.getSizeBytes(),
+                doc.getCreatedAt() != null ? doc.getCreatedAt().toString() : null,
+                doc.getUpdatedAt() != null ? doc.getUpdatedAt().toString() : null,
+                doc.getUploader(), last);
+    }
 
     /** folder: my / shared / important / trash */
     @Transactional(readOnly = true)
@@ -69,6 +118,11 @@ public class DriveService {
     /** 원본 우클릭 [새 폴더] → '새 폴더' 창의 [저장(F8)]. 폴더 안에 폴더도 만든다. */
     @Transactional
     public DocumentResponse createFolder(CreateFolderRequest req, String uploader) {
+        return createFolder(req, uploader, null);
+    }
+
+    @Transactional
+    public DocumentResponse createFolder(CreateFolderRequest req, String uploader, String ip) {
         DriveDocument parent = req.parentId() != null ? getDoc(req.parentId()) : null;
         if (parent != null && !parent.isFolder()) throw ApiException.badRequest("폴더 안에만 폴더를 만들 수 있습니다.");
         DriveDocument doc = DriveDocument.builder()
@@ -81,17 +135,26 @@ public class DriveService {
                 .folder(true)
                 .parent(parent)
                 .build();
-        return DocumentResponse.from(documentRepository.save(doc));
+        documentRepository.save(doc);
+        log(doc, "생성", uploader, ip);
+        return DocumentResponse.from(doc);
     }
 
     @Transactional
     public DocumentResponse update(Long id, UpdateDocumentRequest req) {
+        return update(id, req, null, null);
+    }
+
+    @Transactional
+    public DocumentResponse update(Long id, UpdateDocumentRequest req, String actor, String ip) {
         DriveDocument doc = getDoc(id);
         if (req.name() != null) {
             /* 원본 이름변경 창은 비우고 [저장(F8)] 하면 '이름을 입력 바랍니다.' */
             if (req.name().isBlank()) throw ApiException.badRequest("이름을 입력 바랍니다.");
             if (doc.isFolder() && req.name().trim().length() > 50) throw ApiException.badRequest("최대 50자까지 입력 가능합니다.");
+            boolean changed = !doc.getName().equals(req.name().trim());
             doc.setName(req.name().trim());
+            if (changed) log(doc, "이름변경", actor, ip);
         }
         if (req.important() != null) doc.setImportant(req.important());
         /* 폴더를 휴지통에 넣거나 꺼내면 안에 든 것도 같이 간다 — 원본 휴지통도 폴더째 옮긴다. */
@@ -142,10 +205,18 @@ public class DriveService {
      */
     @Transactional
     public DocumentResponse move(Long id, DriveDtos.TransferRequest req) {
+        return move(id, req, null, null);
+    }
+
+    /** 원본 이력은 옮긴 것 한 줄 — 행위 '이동', 위치는 <b>옮겨 간 곳</b>. */
+    @Transactional
+    public DocumentResponse move(Long id, DriveDtos.TransferRequest req, String actor, String ip) {
         DriveDocument doc = getDoc(id);
         DriveDocument target = checkTarget(doc, req);
         String drive = target != null ? target.getDrive() : "MY";
-        return DocumentResponse.from(moveInto(doc, target, drive));
+        DriveDocument moved = moveInto(doc, target, drive);
+        if (moved == doc) log(doc, "이동", actor, ip);
+        return DocumentResponse.from(moved);
     }
 
     private DriveDocument moveInto(DriveDocument doc, DriveDocument target, String drive) {
@@ -166,10 +237,18 @@ public class DriveService {
     /** 원본 [복사]. 폴더면 안에 든 것까지 새로 만들고, 파일은 바이트까지 따로 둔다(원본을 지워도 사본은 남는다). */
     @Transactional
     public DocumentResponse copy(Long id, DriveDtos.TransferRequest req, String uploader) {
+        return copy(id, req, uploader, null);
+    }
+
+    /** 원본 이력은 새로 생긴 사본 한 줄 — 행위 '복사(T)', 위치는 사본이 선 곳. 원본 쪽에는 줄이 안 생긴다. */
+    @Transactional
+    public DocumentResponse copy(Long id, DriveDtos.TransferRequest req, String uploader, String ip) {
         DriveDocument doc = getDoc(id);
         DriveDocument target = checkTarget(doc, req);
         String drive = target != null ? target.getDrive() : "MY";
-        return DocumentResponse.from(copyInto(doc, target, drive, uploader));
+        DriveDocument made = copyInto(doc, target, drive, uploader);
+        log(made, "복사(T)", uploader, ip);
+        return DocumentResponse.from(made);
     }
 
     private DriveDocument copyInto(DriveDocument src, DriveDocument target, String drive, String uploader) {
