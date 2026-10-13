@@ -1138,5 +1138,21 @@
  [
   "📅 프로젝트 진행현황 칸반",
   "groupware/ProjectKanbanPage.tsx"
+ ],
+ [
+  "다목적 게시판 입력항목은",
+  "groupware/MultiSlipPage.tsx"
+ ],
+ [
+  "영업자별 계약상황",
+  "groupware/MultiSlipPage.tsx"
+ ],
+ [
+  "채권회수 상황판",
+  "groupware/MultiSlipPage.tsx"
+ ],
+ [
+  "월근태",
+  "groupware/MultiSlipPage.tsx"
  ]
 ]

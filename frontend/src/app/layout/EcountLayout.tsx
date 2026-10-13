@@ -1119,6 +1119,21 @@ const MENU: TopMenu[] = [
           { label: '커뮤니케이션센터', to: '/groupware/messages' },
         ],
       },
+      {
+        // 원본 사이트맵 그룹웨어 끝 묶음(2026-10-14). 이름에 '게시판' 이 붙어도 다목적 전표다(일자-No. + 격자 줄).
+        label: '다목적관리',
+        nodes: [
+          { label: '*다목적게시판*', children: [{ label: '다목적 게시판 입력항목은', to: '/groupware/multi-input' }] },
+          {
+            label: '영업',
+            children: [
+              { label: '영업자별 계약상황', to: '/groupware/sales-contract' },
+              { label: '채권회수 상황판', to: '/groupware/bond-collect' },
+            ],
+          },
+          { label: '월근태보고', children: [{ label: '월근태', to: '/groupware/monthly-attendance' }] },
+        ],
+      },
     ],
   },
   {
