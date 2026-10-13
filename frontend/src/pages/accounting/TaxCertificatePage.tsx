@@ -66,8 +66,8 @@ export default function TaxCertificatePage() {
       })
       const sheets = await Promise.all(inside.map((v) => loadVatSheet(v, ac.data)))
       setRows(sheets.map((sh) => ({
-        from: sh.from, to: sh.to, sales: sh.taxInvoice.supply + sh.zeroInvoice.supply,
-        tax: sh.taxInvoice.vat + sh.zeroInvoice.vat - sh.purchaseGeneral.vat - sh.purchaseFixed.vat,
+        from: sh.from, to: sh.to, sales: sh.taxInvoice.supply + sh.cardSales.supply + sh.zeroInvoice.supply,
+        tax: sh.taxInvoice.vat + sh.cardSales.vat + sh.zeroInvoice.vat - sh.purchaseGeneral.vat - sh.purchaseFixed.vat - sh.otherPurchase.vat,
       })).sort((a, b) => a.from.localeCompare(b.from)))
     } catch (e) {
       setRows(null); setError(extractErrorMessage(e))

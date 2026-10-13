@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { vatSlipAmounts } from '../../utils/vatSlip'
+import { vatEntrySide, vatSlipAmounts } from '../../utils/vatSlip'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
@@ -25,6 +25,10 @@ interface Amt { supply: number; vat: number }
 export interface Sheet {
   year: number; term: Term; kind: Kind; first: number; last: number; end: number; from: string; to: string
   taxInvoice: Amt; zeroInvoice: Amt; purchaseGeneral: Amt; purchaseFixed: Amt
+  /** (3) 과세 신용카드ㆍ현금영수증발행분 — 부가세유형 카드매출 · 현금영수증(매출). */
+  cardSales: Amt
+  /** (15) 그 밖의 공제매입세액 — 신용카드매출전표등 수령명세서 제출분(현금영수증 · 카드매입, 고정자산 포함). */
+  otherPurchase: Amt
   salesInvoices: Invoice[]; purchaseInvoices: Invoice[]
 }
 
@@ -49,6 +53,15 @@ const add = (a: Amt, b: Amt): Amt => ({ supply: a.supply + b.supply, vat: a.vat 
 const ZERO: Amt = { supply: 0, vat: 0 }
 /** 고정자산 매입 — 부가세 줄 옆 차변이 유형 · 무형자산 계정인 매입. */
 const FIXED_CATEGORIES = ['유형자산', '무형자산']
+/**
+ * 부가세유형으로 칸이 정해지는 전표 — 2026-10-13 loginaa 2기 예정 실측: 매출전표 I 카드매출 100,000 · 현금영수증 200,000 을 넣고
+ * 신고서 [새로불러오기] → (3) 300,000 · 30,000(세금계산서발급분 (1) 은 그대로). 매입전표 I 현금영수증 50,000 은 신용카드매출전표등
+ * 수령명세서(갑) ⑤현금영수증 1 · 50,000 · 5,000 → 신고서 (15) 그 밖의 공제매입세액 · (44) 일반매입 50,000 · 5,000((10) 은 그대로).
+ * 카드매입은 원본이 카드번호를 필수로 받아 넣어 보지 않았다 — 같은 명세서의 [사업용신용카드 · 그 밖의 신용카드] 칸이라 (15) 로 센다.
+ */
+const CARD_SALES = ['카드매출', '현금영수증']
+const CARD_PURCHASES = ['현금영수증', '카드매입', '신용카드(고정자산)', '현금영수증(고정자산)']
+type VatTyped = JournalEntry & { vatType?: string | null }
 const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + 'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid gray;padding:3px}'
   + '.text-right{text-align:right}.text-center{text-align:center}.ec-report-title{font-size:16px;font-weight:bold;text-align:center}'
@@ -78,8 +91,21 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
     return { partnerId: e.partnerId, partner: e.partnerName ?? '', bizNo, personal: bizNo.length === 13, electronic, supply: a.supply, vat: a.vat }
   }
   const cat = new Map(accounts.map((a) => [a.code, a.detailCategory ?? '']))
-  let taxInvoice = ZERO, zeroInvoice = ZERO, purchaseGeneral = ZERO, purchaseFixed = ZERO
-  for (const e of r.data.rows) {
+  let taxInvoice = ZERO, zeroInvoice = ZERO, purchaseGeneral = ZERO, purchaseFixed = ZERO, cardSales = ZERO, otherPurchase = ZERO
+  for (const e of r.data.rows as VatTyped[]) {
+    /* 카드 · 현금영수증은 세금계산서가 아니다 — (1) · (10) 과 세금계산서합계표에서 빼고 (3) · (15) 로. */
+    const type = e.vatType?.trim()
+    const side = type ? vatEntrySide(e) : null
+    if (type && side === '매출' && CARD_SALES.includes(type)) {
+      const a = vatSlipAmounts(e.lines, '매출')
+      if (a) cardSales = add(cardSales, a)
+      continue
+    }
+    if (type && side === '매입' && CARD_PURCHASES.includes(type)) {
+      const a = vatSlipAmounts(e.lines, '매입')
+      if (a) otherPurchase = add(otherPurchase, a)
+      continue
+    }
     const s = vatSlipAmounts(e.lines, '매출')
     if (s) {
       if (s.vat === 0) zeroInvoice = add(zeroInvoice, s)
@@ -99,6 +125,8 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
     const a: Amt = { supply: Number(t.supplyAmount), vat: Number(t.vatAmount) }
     const bizNo = bizNoOf(t.partnerId)
     const inv: Invoice = { partnerId: t.partnerId, partner: t.partnerName, bizNo, personal: bizNo.length === 13, electronic: true, supply: a.supply, vat: a.vat }
+    if (t.side === 'SALES' && CARD_SALES.includes(t.vatType)) { cardSales = add(cardSales, a); continue }
+    if (t.side === 'PURCHASE' && CARD_PURCHASES.includes(t.vatType)) { otherPurchase = add(otherPurchase, a); continue }
     if (t.side === 'SALES') {
       if (t.vatType === '세금계산서') { taxInvoice = add(taxInvoice, a); salesInvoices.push(inv) }
       else if (t.vatType === '영세율') { zeroInvoice = add(zeroInvoice, a); salesInvoices.push(inv) }
@@ -109,7 +137,7 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
     }
   }
   return { year: v.year, term: first <= 6 ? 1 : 2, kind: v.returnKind === 'FINAL' ? '확정' : '예정', first, last, end, from, to,
-    taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, salesInvoices, purchaseInvoices }
+    taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, cardSales, otherPurchase, salesInvoices, purchaseInvoices }
 }
 
 /**
@@ -121,8 +149,9 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
  * 원본 2026 2기 예정: (1) 396,450,000 · 39,645,000 / (10) 315,234,000 · 31,523,400 / ㉰ 8,121,600 / (30) 8,121,600.
  *
  * <p>숫자는 회계전표의 부가세 줄로 낸다(utils/vatSlip): (1) 매출 부가세가 있는 것 · (5) 매출 영세율(부가세 0) ·
- * (10) 매입 중 (12) 고정자산(차변이 유형 · 무형자산 계정)이 아닌 것. 신용카드 · 현금영수증 · 예정신고누락 · 대손 · 경감공제 · 가산세는
- * 우리 자료에 없어 0 이다.
+ * (10) 매입 중 (12) 고정자산(차변이 유형 · 무형자산 계정)이 아닌 것. 부가세유형이 카드매출 · 현금영수증인 매출은 (3),
+ * 현금영수증 · 카드매입(고정자산 포함)인 매입은 (15) 그 밖의 공제매입세액(2026-10-13 실측 — CARD_SALES 위 주석).
+ * 예정신고누락 · 대손 · 경감공제 · 가산세는 우리 자료에 없어 0 이다.
  *
  * <p>첨부서류는 위 알약으로 고른다 — 매출 · 매입세금계산서 합계표까지.
  *
@@ -361,9 +390,9 @@ export default function VatReturnPage() {
 export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
   const p = s
   const pad = (n: number) => String(n).padStart(2, '0')
-  const sales = add(s.taxInvoice, s.zeroInvoice)
-  const purchase = add(s.purchaseGeneral, s.purchaseFixed)
-  const payable = s.taxInvoice.vat - purchase.vat
+  const sales = add(add(s.taxInvoice, s.cardSales), s.zeroInvoice)
+  const purchase = add(add(s.purchaseGeneral, s.purchaseFixed), s.otherPurchase)
+  const payable = sales.vat - purchase.vat
   const address = [c?.address, c?.addressDetail].filter(Boolean).join(' ')
   /* 원본 칸 하나 — [구분 · (번호) · 금액 · 세율 · 세액]. 세율이 없는 칸은 비운다. */
   const line = (label: string, no: string, a: Amt | null, rate: string, vatOnly = false, mark = '') => (
@@ -399,7 +428,7 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
         <tbody>
           {line('과세 · 세금계산서발급분', '(1)', s.taxInvoice, '10/100')}
           {line('과세 · 매입자발행세금계산서', '(2)', ZERO, '10/100')}
-          {line('과세 · 신용카드ㆍ현금영수증발행분', '(3)', ZERO, '10/100')}
+          {line('과세 · 신용카드ㆍ현금영수증발행분', '(3)', s.cardSales, '10/100')}
           {line('과세 · 기타(정규영수증외매출분)', '(4)', ZERO, '')}
           {line('영세율 · 세금계산서발급분', '(5)', s.zeroInvoice, '0/100')}
           {line('영세율 · 기타', '(6)', ZERO, '0/100')}
@@ -411,7 +440,7 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
           {line('세금계산서수취분 · 고정자산매입', '(12)', s.purchaseFixed, '')}
           {line('예정신고누락분', '(13)', ZERO, '')}
           {line('매입자발행세금계산서', '(14)', ZERO, '')}
-          {line('그 밖의 공제매입세액', '(15)', ZERO, '')}
+          {line('그 밖의 공제매입세액', '(15)', s.otherPurchase, '')}
           {line('합계 ((10)-(11)+(12)+(13)+(14)+(15))', '(16)', purchase, '')}
           {line('공제받지 못할 매입세액', '(17)', ZERO, '')}
           {line('차감계 ((16)-(17))', '(18)', purchase, '', false, '㉯ ')}
