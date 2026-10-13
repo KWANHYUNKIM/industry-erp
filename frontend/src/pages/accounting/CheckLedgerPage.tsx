@@ -3,6 +3,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
@@ -25,7 +26,9 @@ interface Move { date: string; kind: '증가' | '감소'; inc: number; dec: numb
  * 값), 그 아래 기간 안 움직임(받은 날 증가 · 입금 · 부도 날 감소)과 그때의 잔액, 묶음 끝에 '계정명 / 수표번호 계' 줄(증가 · 감소 합,
  * 바탕 회색 · 굵게), 맨 끝 '누계'. 원본은 기간 앞 수표가 이월 줄만 남고 움직임이 없어도 묶음을 보인다([0 포함]).
  *
- * <p>부서 · 프로젝트는 수표에 없어 조건도 열(부서명 · 프로젝트명)도 두지 않는다 — 열만 세우면 늘 빈칸이다.
+ * <p>부서명 · 프로젝트명 = 수표내역입력 줄의 [부서] · [프로젝트](2026-10-14 실측 '개발팀' · '20210801A Project'), 조건 [부서] · [프로젝트] 로 거른다.
+ * 원본은 [검색] 앞에 '잔액재집계' 창(재집계 후 조회 / 재집계 없이 조회)을 띄우는데, 마지막 재집계 뒤 고친 전표가 있을 때만이다
+ * (재집계 후 다시 [검색] 하면 안 뜬다, 2026-10-14 실측). 우리 잔액은 [검색] 마다 전표에서 새로 세니 늘 '재집계 후' 와 같다 — 창을 두지 않는다.
  * 계정명은 우리 분개가 쓰는 받을수표(104). 수령수표계좌코드는 입금한 계좌의 계좌번호다.
  *
  * <p><b>발행수표거래내역</b>(E060614)도 조건 · 열이 같다([발행수표계좌] · [발행수표계좌코드]). 발행한 날 증가, 은행에서 빠져나간(결제완료)
@@ -41,6 +44,10 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
   const [to, setTo] = useState(init.to)
   const [checkNo, setCheckNo] = useState('')
   const [bankAccount, setBankAccount] = useState('')
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const { departments, projects } = useDeptProjectItems()
+  const deptName = (id?: number | null) => (id == null ? '' : departments.find((d) => d.value === String(id))?.name ?? '')
   /* 원본 [잔액]의 [0 포함] 태그 — 켜진 채 열린다. 끄면 기간 끝 잔액이 0 인 수표(다 입금 · 부도된 것)를 뺀다. */
   const [withZero, setWithZero] = useState(true)
   const [checks, setChecks] = useState<BankCheck[]>([])
@@ -74,6 +81,8 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
     .filter((c) => c.type === type)
     .filter((c) => !checkNo || c.checkNo.includes(checkNo))
     .filter((c) => !bankAccount || (c.bankAccountName ?? '') === bankAccount)
+    .filter((c) => !dept || String(c.departmentId ?? '') === dept)
+    .filter((c) => !project || String(c.projectId ?? '') === project)
     .map((c) => {
       const amt = Number(c.amount)
       const opening = c.issueDate < from && (!c.settledDate || c.settledDate >= from) ? amt : 0
@@ -87,7 +96,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
     .filter((g) => g.opening !== 0 || g.lines.length > 0)
     .filter((g) => withZero || g.bal !== 0)
     .sort((a, b) => a.c.checkNo.localeCompare(b.c.checkNo)),
-  [checks, type, from, to, checkNo, bankAccount, withZero])
+  [checks, type, from, to, checkNo, bankAccount, dept, project, withZero])
   const total = groups.reduce((a, g) => ({ inc: a.inc + g.inc, dec: a.dec + g.dec }), { inc: 0, dec: 0 })
   const accounts = useMemo(() => [...new Set(checks.filter((c) => c.type === type).map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [checks, type])
   const tableRef = useRef<HTMLTableElement>(null)
@@ -99,7 +108,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setBankAccount(''); setWithZero(true) } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setBankAccount(''); setDept(''); setProject(''); setWithZero(true) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -127,6 +136,12 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
           <CodePickerField label={acctLabel} hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
                            items={accounts.map((a) => ({ value: a, name: a }))} />
         </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={200} emptyLabel="전체" value={dept} onChange={setDept} items={departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={projects} />
+        </EcCond>
         <EcCond label="잔액">
           <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={withZero} onChange={(e) => setWithZero(e.target.checked)} /> 0 포함
@@ -145,7 +160,6 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
             <th>{received ? '수령수표계좌코드' : '발행수표계좌코드'}</th>
             <th>거래처명</th>
             <th>계정명</th>
-            {/* 원본 부서명 · 프로젝트명 — 우리 수표에 칸이 없어 늘 빈칸(2026-10-14 발행수표거래내역 실측 열 차례) */}
             <th>부서명</th>
             <th>프로젝트명</th>
             <th>적요</th>
@@ -175,8 +189,8 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
                 {/* 입금 · 출금처리(입금보고서 · 지출결의서)로 줄인 감소 줄은 거래처 빈칸(원본 — 그 분개의 거래처는 수표계좌) */}
                 <td>{l.dec && g.c.settledByVoucher ? '' : g.c.partnerName ?? ''}</td>
                 <td>{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')}</td>
-                <td />
-                <td />
+                <td>{deptName(g.c.departmentId)}</td>
+                <td>{g.c.projectName ?? ''}</td>
                 <td>{g.c.remark ?? ''}</td>
                 <td className="text-right">{won(l.inc)}</td>
                 <td className="text-right">{won(l.dec)}</td>

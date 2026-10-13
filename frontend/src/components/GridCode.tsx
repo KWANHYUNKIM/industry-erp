@@ -17,9 +17,11 @@ export function ErrTip({ msg }: { msg: string }) {
  * F2 · 빈 칸 Enter 도 창을 연다. 이름은 옆 열이 그린다.
  * (회계 I 지출결의서 · 입금보고서 화면 안의 같은 칸을 공용으로 꺼낸 것이다.)
  */
-export default function GridCode({ title, codeHead, nameHead, items, value, onPick, err }: {
+export default function GridCode({ title, codeHead, nameHead, items, value, onPick, err, showName = false }: {
   title: string; codeHead: string; nameHead: string; items: CodeItem[]
   value: string; onPick: (v: string) => void; err?: string | null
+  /** 고른 뒤 칸에 코드 대신 이름을 보인다 — 원본 수표내역입력 줄의 [부서] '개발팀' · [프로젝트] '20210801A Project'(이름 열이 따로 없다). */
+  showName?: boolean
 }) {
   const selected = items.find((x) => x.value === value) ?? null
   const [typed, setTyped] = useState<string | null>(null)
@@ -41,7 +43,7 @@ export default function GridCode({ title, codeHead, nameHead, items, value, onPi
     <span className="relative block">
       <input className={`ec-input w-full${err ? ' outline outline-1 outline-ec-danger' : ''}`} aria-label={title}
              placeholder={codeHead}
-             value={typed ?? selected?.code ?? ''}
+             value={typed ?? (showName ? selected?.name : selected?.code) ?? ''}
              onChange={(e) => { setTyped(e.target.value); if (!e.target.value) onPick('') }}
              onKeyDown={(e) => {
                if (e.key === 'Enter') { e.preventDefault(); submit() }

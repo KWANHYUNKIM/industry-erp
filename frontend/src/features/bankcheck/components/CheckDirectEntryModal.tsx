@@ -6,10 +6,20 @@ import EcNumInput from '../../../components/EcNumInput'
 import GridCode from '../../../components/GridCode'
 import type { CodeItem } from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
+import { EcHistoryModal } from '../../../components/EcHistory'
+import { useDeptProjectItems } from '../../cashquick/useDeptProject'
+import { dateText } from '../../../utils/dateText'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../../types/api'
 
-interface Line { id?: number; checkNo: string; amount: string; remark: string }
-const blank = (): Line => ({ checkNo: '', amount: '', remark: '' })
+interface Line { id?: number; checkNo: string; amount: string; remark: string; departmentId: string; projectId: string }
+const blank = (): Line => ({ checkNo: '', amount: '', remark: '', departmentId: '', projectId: '' })
+
+/**
+ * 원본 [H] 는 수표가 아니라 전표 한 장의 이력(머리 '[2026/10/14 -4]', 저장 '신규' → 고쳐 저장 '수정')이다 —
+ * 서버 BankCheckService.historyTarget · historyId 와 같은 규칙(대상 CHECK_ENTRY_{R|I}_{IN|OUT}, id = yyyymmdd·10000 + 번호).
+ */
+const historyTarget = (type: CheckType, increase: boolean) => `CHECK_ENTRY_${type === 'RECEIVED' ? 'R' : 'I'}_${increase ? 'IN' : 'OUT'}`
+const historyId = (date: string, no: number) => Number(date.replaceAll('-', '')) * 10000 + no
 
 /** 수표조회 [일자-No.] 링크로 연 전표 한 장 — 같은 (종류, 날짜, 번호, 증가/감소) 의 수표들. */
 export interface CheckVoucher { date: string; increase: boolean; entryNo: number; checks: BankCheck[] }
@@ -28,10 +38,11 @@ function newCheckNo(row: number, now = new Date()): string {
  * <p>머리: 전표일자(오늘) · 전표구분(증가 · 감소, 기본 증가) · 거래처코드 · 수표계좌(필수 — 비우고 저장하면 칸만 빨갛게).
  * 줄(3줄): 수표번호(칸에 들어가면 자동번호) · 금액 · 부서 · 프로젝트 · 적요, 아래 금액 합계. 버튼 저장(F8) · 다시 작성 · 닫기.
  * 저장하면 창이 닫히고 목록에 '수표만증가' · '수표만감소' 줄이 생긴다 — 분개가 없어 [회계전표일자-No.] 는 빈칸.
- * 부서 · 프로젝트는 우리 수표에 그 칸이 없어 두지 않는다. [웹자료올리기]는 없다.
+ * 줄의 [부서] · [프로젝트] 는 코드도움으로 고르고 칸에는 이름이 남는다(2026-10-14 실측 '개발팀' · '20210801A Project') — 수표거래내역 [부서명] · [프로젝트명].
+ * [웹자료올리기]는 없다.
  *
  * <p><b>voucher</b> 를 주면 수표조회 [일자-No.] 링크로 연 그 전표다(2026-10-13 실측): 전표일자는 막히고 뒤에 ' - 10' 번호,
- * 전표구분은 글자('증가'), 거래처 · 수표계좌 · 줄은 고칠 수 있고 저장해도 번호는 그대로. 버튼은 저장(F8) · 삭제 · 닫기.
+ * 전표구분은 글자('증가'), 거래처 · 수표계좌 · 줄은 고칠 수 있고 저장해도 번호는 그대로. 버튼은 저장(F8) · 삭제 · 닫기 · H(이력).
  * [삭제]는 알림 '전표를 삭제하겠습니까?' / '- 수령수표내역입력' 확인 · 취소 → 목록에서 그 줄이 사라진다.
  * 감소 전표의 금액 · 적요는 수표 한 장의 값(증가 쪽)이라 막는다.
  */
@@ -50,6 +61,8 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const { departments, projects } = useDeptProjectItems()
   const editing = !!voucher
 
   function reset() {
@@ -58,7 +71,10 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
       const first = voucher.checks[0]
       setDate(voucher.date); setIncrease(voucher.increase)
       setPartnerId(first?.partnerId != null ? String(first.partnerId) : ''); setAccountId(first?.bankAccountId != null ? String(first.bankAccountId) : '')
-      setLines(pad3(voucher.checks.map((c) => ({ id: c.id, checkNo: c.checkNo, amount: String(Number(c.amount)), remark: c.remark ?? '' }))))
+      setLines(pad3(voucher.checks.map((c) => ({
+        id: c.id, checkNo: c.checkNo, amount: String(Number(c.amount)), remark: c.remark ?? '',
+        departmentId: c.departmentId != null ? String(c.departmentId) : '', projectId: c.projectId != null ? String(c.projectId) : '',
+      }))))
       return
     }
     setDate(ymd(new Date())); setIncrease(true); setPartnerId(''); setAccountId('')
@@ -90,7 +106,10 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
     try {
       const body = {
         type, date, increase, partnerId: partnerId ? Number(partnerId) : null, bankAccountId: Number(accountId),
-        lines: filled.map((l) => ({ id: l.id ?? null, checkNo: l.checkNo.trim(), amount: Number(l.amount), remark: l.remark || null })),
+        lines: filled.map((l) => ({
+          id: l.id ?? null, checkNo: l.checkNo.trim(), amount: Number(l.amount), remark: l.remark || null,
+          departmentId: l.departmentId ? Number(l.departmentId) : null, projectId: l.projectId ? Number(l.projectId) : null,
+        })),
       }
       if (voucher) await api.put('/checks/direct', { ...body, entryNo: voucher.entryNo })
       else await api.post('/checks/direct', body)
@@ -170,6 +189,8 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
                 <th className="w-[34px]" />
                 <th className="w-[240px]">수표번호</th>
                 <th>금액</th>
+                <th className="w-[140px]">부서</th>
+                <th className="w-[160px]">프로젝트</th>
                 <th>적요</th>
               </tr>
             </thead>
@@ -187,6 +208,18 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
                                 value={l.amount} onValue={(v) => setLine(i, { amount: v })} />
                   </td>
                   <td className="pad">
+                    {!increase && l.id != null
+                      ? <span className="block px-[5px]">{departments.find((d) => d.value === l.departmentId)?.name ?? ''}</span>
+                      : <GridCode title="부서검색" codeHead="부서코드" nameHead="부서명" items={departments} value={l.departmentId} showName
+                                  onPick={(v) => setLine(i, { departmentId: v })} />}
+                  </td>
+                  <td className="pad">
+                    {!increase && l.id != null
+                      ? <span className="block px-[5px]">{projects.find((p) => p.value === l.projectId)?.name ?? ''}</span>
+                      : <GridCode title="프로젝트검색" codeHead="프로젝트코드" nameHead="프로젝트명" items={projects} value={l.projectId} showName
+                                  onPick={(v) => setLine(i, { projectId: v })} />}
+                  </td>
+                  <td className="pad">
                     <input className="ec-input w-full" aria-label={`${i + 1}줄 적요`} maxLength={200} disabled={!increase && l.id != null}
                            value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} />
                   </td>
@@ -197,7 +230,7 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
               <tr>
                 <td colSpan={2} />
                 <td className="text-right">{won(total)}</td>
-                <td />
+                <td colSpan={3} />
               </tr>
             </tfoot>
           </table>
@@ -209,8 +242,13 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
             ? <button type="button" className="ec-btn" onClick={() => setConfirmDelete(true)}>삭제</button>
             : <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>}
           <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+          {editing && <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>}
         </div>
       </div>
+      {historyOpen && voucher && (
+        <EcHistoryModal url={`/change-history?target=${historyTarget(type, voucher.increase)}&id=${historyId(voucher.date, voucher.entryNo)}`}
+                        head={`[${dateText(voucher.date)} -${voucher.entryNo}]`} onClose={() => setHistoryOpen(false)} />
+      )}
       <Modal open={confirmDelete} title="알림" width={420} onClose={() => setConfirmDelete(false)}>
         <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {title}</p>
         <div className="flex gap-[5px]">

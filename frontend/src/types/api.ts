@@ -1270,6 +1270,12 @@ export interface BankCheck {
   directOutNo?: number | null
   /** 수령수표입금처리 [입금보고서작성] 으로 손을 떠난 수표 — 수령수표조회 거래유형 '입금보고서', 감소 줄 체크칸 막힘. */
   settledByVoucher?: boolean
+  /** 손을 떠날 때 회계전표 id — 감소 줄 [회계전표일자-No.] 가 그 입금보고서(수정) · 지출결의서(수정)를 연다. */
+  settleJournalId?: number | null
+  /** 수표내역입력 줄의 [부서] · [프로젝트] — 부서 이름은 부서 목록에서 붙인다. */
+  departmentId?: number | null
+  projectId?: number | null
+  projectName?: string | null
 }
 
 // ===== 비현금거래 (대체전표) =====

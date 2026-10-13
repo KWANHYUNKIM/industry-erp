@@ -3,6 +3,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -23,7 +24,7 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * [거래유형]은 원본 현황 판에 자료가 없어 못 쟀다 — 우리는 그 움직임의 이름(수령 · 입금완료 · 부도)을 열에 적고 같은 값으로 거른다.
  * 수표내역입력으로 분개 없이 넣은 수표는 수령수표조회에서 잰 값(2026-10-13) '수표만증가' · '수표만감소' 를 쓰고, [일자-No.] 는 그 수표 전표 번호('2026/10/13 -5').
  * 같은 날 같은 번호(한 전표의 여러 줄)는 수표번호 차례.
- * 부서 · 프로젝트는 수표에 없다.
+ * 조건 [부서] · [프로젝트] 는 수표내역입력 줄의 부서 · 프로젝트로 거른다.
  *
  * <p>수령수표는 줄을 거래처마다 묶는다(2026-10-13 QA회계2 수표 셋으로 잼 — 증가 · 감소 둘 다): 거래처코드 차례(거래처 없는 묶음이 먼저),
  * 묶음 안은 일자-No. 차례, 묶음 끝에 '거래처명 계'(거래처 없으면 '[] 계', 가운데 · 굵게 · 회색) 줄, 맨 끝 '합계'(가운데).
@@ -57,6 +58,9 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   const [to, setTo] = useState(init.to)
   const [partner, setPartner] = useState('')
   const [bankAccount, setBankAccount] = useState('')
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const { departments, projects } = useDeptProjectItems()
   const [checkNo, setCheckNo] = useState('')
   const [remark, setRemark] = useState('')
   const [author, setAuthor] = useState('')
@@ -104,6 +108,8 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     .filter((c) => { const d = dayOf(c); return !!d && d >= from && d <= to })
     .filter((c) => !partner || String(partnerOf(c)) === partner)
     .filter((c) => !bankAccount || (c.bankAccountName ?? '') === bankAccount)
+    .filter((c) => !dept || String(c.departmentId ?? '') === dept)
+    .filter((c) => !project || String(c.projectId ?? '') === project)
     .filter((c) => !checkNo || c.checkNo.includes(checkNo))
     .filter((c) => !remark || (c.remark ?? '').includes(remark))
     .filter((c) => !author || (c.createdBy ?? '') === author)
@@ -111,7 +117,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     .sort((a, b) => (dayOf(a) < dayOf(b) ? -1 : dayOf(a) > dayOf(b) ? 1
       : (entryNoOf(a) ?? 0) - (entryNoOf(b) ?? 0) || a.checkNo.localeCompare(b.checkNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [checks, type, flow, from, to, partner, bankAccount, checkNo, remark, author, kind])
+  [checks, type, flow, from, to, partner, dept, project, bankAccount, checkNo, remark, author, kind])
   const total = shown.reduce((a, c) => a + Number(c.amount), 0)
   const pickers = useCondPickers(['partners'])
   const codeOf = (partnerId: number | null) => pickers.partners.find((p) => p.id === partnerId)?.code ?? ''
@@ -143,7 +149,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setPartner(''); setBankAccount(''); setCheckNo(''); setRemark(''); setAuthor(''); setKind('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setPartner(''); setDept(''); setProject(''); setBankAccount(''); setCheckNo(''); setRemark(''); setAuthor(''); setKind('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -160,6 +166,12 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={200} emptyLabel="전체" value={dept} onChange={setDept} items={departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={projects} />
         </EcCond>
         <EcCond label={received ? '수령수표계좌' : '발행수표계좌'} pick>
           <CodePickerField label={acctLabel} hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}

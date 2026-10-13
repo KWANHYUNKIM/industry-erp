@@ -10,6 +10,8 @@ import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPer
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import type { BankCheck, CheckType } from '../../types/api'
+import { useNavigate } from 'react-router-dom'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -67,6 +69,10 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   const [direct, setDirect] = useState(true)
   const [linked, setLinked] = useState(true)
   const [partner, setPartner] = useState('')
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const { departments, projects } = useDeptProjectItems()
+  const navigate = useNavigate()
   const [bankAccount, setBankAccount] = useState('')
   const [remark, setRemark] = useState('')
   const [author, setAuthor] = useState('')
@@ -116,6 +122,8 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       .filter((m) => !checkNo || m.c.checkNo.includes(checkNo))
       .filter((m) => !kind || kindOf(m) === kind)
       .filter((m) => !partner || String(m.c.partnerId) === partner)
+      .filter((m) => !dept || String(m.c.departmentId ?? '') === dept)
+      .filter((m) => !project || String(m.c.projectId ?? '') === project)
       .filter((m) => !bankAccount || (m.c.bankAccountName ?? '') === bankAccount)
       .filter((m) => !remark || (m.c.remark ?? '').includes(remark))
       .filter((m) => !author || (m.c.createdBy ?? '') === author)
@@ -124,7 +132,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1
         : (entryNo(b) ?? 0) - (entryNo(a) ?? 0) || (a.inc === b.inc ? b.c.id - a.c.id : a.inc ? 1 : -1)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ofType, from, to, showInc, showDec, direct, linked, checkNo, kind, partner, bankAccount, remark, author, editor])
+  }, [ofType, from, to, showInc, showDec, direct, linked, checkNo, kind, partner, dept, project, bankAccount, remark, author, editor])
   const partners = useMemo(() => {
     const m = new Map<number, string>()
     ofType.forEach((c) => { if (c.partnerId != null) m.set(c.partnerId, c.partnerName ?? '') })
@@ -158,7 +166,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
     }
   }
   const kinds = received ? ['수령', '입금완료', '부도', '수표만증가', '수표만감소', '입금보고서'] : ['발행', '결제완료', '수표만증가', '수표만감소', '지출결의서']
-  const resetConds = () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') }
+  const resetConds = () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setDept(''); setProject(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') }
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [moves.length])
 
@@ -211,6 +219,13 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} />
+        </EcCond>
+        {/* 원본 조건 차례: 거래처 … 부서 · 프로젝트 · 수령수표계좌(2026-10-14 실측) */}
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={200} emptyLabel="전체" value={dept} onChange={setDept} items={departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={projects} />
         </EcCond>
         <EcCond label={received ? '수령수표계좌' : '발행수표계좌'} pick>
           <CodePickerField label={acctLabel} hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
@@ -274,7 +289,10 @@ export default function CheckListPage({ type }: { type: CheckType }) {
                 {!received && <td className="text-ec-navy">인쇄</td>}
                 <td>{kindOf(m)}</td>
                 {/* 원본 '2026/10/13 -12' — 우리 GL 번호의 끝 일련번호만 */}
-                <td>{no ? dateNo(m.date, no) : ''}</td>
+                {/* 입금보고서 · 지출결의서로 줄인 감소 줄은 원본처럼 그 전표(수정) 창을 연다 */}
+                <td>{no && byVoucher(m) && m.c.settleJournalId != null
+                  ? <a href="#" onClick={(e) => { e.preventDefault(); navigate(`/accounting/vouchers?journal=${m.c.settleJournalId}`) }}>{dateNo(m.date, no)}</a>
+                  : no ? dateNo(m.date, no) : ''}</td>
               </tr>
             )
           })}

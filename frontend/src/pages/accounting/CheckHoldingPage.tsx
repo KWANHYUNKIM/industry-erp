@@ -3,6 +3,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -26,7 +27,8 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 24
  * <p>기준일자에 아직 들고 있는(입금 · 부도 전) 받은수표를 센다 — 받은 날 ≤ 기준일자, 닫힌 날(settledDate)이 없거나 그 뒤.
  * 계정명은 우리 분개가 쓰는 <b>받을수표</b>(104)다. 원본이 보통예금을 찍은 줄은 수표내역입력(분개 없음)으로 넣은 것이었다 —
  * 그 수표는 고른 수표계좌의 계정을 찍는다(2026-10-13 실측: 계좌 5544332211 → 보통예금, 거래처 없으면 '[] 계' 묶음).
- * 부서 · 프로젝트는 수표(BankCheck)가 들지 않는다.
+ * 조건 [부서] · [프로젝트] 는 수표내역입력 줄의 부서 · 프로젝트로 거른다.
+ * 원본 [검색] 앞 '잔액재집계' 창은 두지 않는다(우리는 [검색] 마다 새로 센다 — CheckLedgerPage 참고).
  *
  * <p><b>발행수표현황</b>(E060608)도 조건 · 열이 같다(조건의 [수령수표계좌] 자리가 [발행수표계좌], 첫 열이 [발행일자]) —
  * 아직 은행에서 안 빠져나간(결제 전) 발행수표다. 계정명은 그 수표를 끊은 계좌의 계정(분개가 대변에 쓰는 것)이다.
@@ -50,6 +52,9 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
   const [asOf, setAsOf] = useState(init.to)
   const [checkNo, setCheckNo] = useState('')
   const [bankAccount, setBankAccount] = useState('')
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const { departments, projects } = useDeptProjectItems()
   const [checks, setChecks] = useState<BankCheck[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -74,8 +79,10 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
     .filter((c) => c.type === type)
     .filter((c) => c.issueDate <= asOf && (!c.settledDate || c.settledDate > asOf))
     .filter((c) => !checkNo || c.checkNo.includes(checkNo))
-    .filter((c) => !bankAccount || (c.bankAccountName ?? '') === bankAccount),
-  [checks, type, asOf, checkNo, bankAccount])
+    .filter((c) => !bankAccount || (c.bankAccountName ?? '') === bankAccount)
+    .filter((c) => !dept || String(c.departmentId ?? '') === dept)
+    .filter((c) => !project || String(c.projectId ?? '') === project),
+  [checks, type, asOf, checkNo, bankAccount, dept, project])
 
   const codeOf = (partnerId: number | null) => pickers.partners.find((p) => p.id === partnerId)?.code ?? ''
   const groups = useMemo(() => {
@@ -106,7 +113,7 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setAsOf(init.to); setCheckNo(''); setBankAccount('') } },
+        { label: '다시 작성', onClick: () => { setAsOf(init.to); setCheckNo(''); setBankAccount(''); setDept(''); setProject('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -131,6 +138,12 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
         <EcCond label={received ? '수령수표계좌' : '발행수표계좌'} pick>
           <CodePickerField label={acctLabel} hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
                            items={accounts.map((a) => ({ value: a, name: a }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={200} emptyLabel="전체" value={dept} onChange={setDept} items={departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={projects} />
         </EcCond>
       </ul>
 
