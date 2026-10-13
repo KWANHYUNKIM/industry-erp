@@ -43,13 +43,14 @@ public class ItemService {
     @Transactional
     public ItemResponse create(CreateItemRequest req) {
         if (itemRepository.existsByCode(req.code())) {
-            throw ApiException.conflict("이미 존재하는 품목코드입니다: " + req.code());
+            // 원본 [공지] 창 문구 그대로(C000029 실측 — 같은 품목코드로 신규 저장).
+            throw ApiException.conflict("이미 등록된 코드입니다.");
         }
         Item item = Item.builder()
                 .code(req.code())
                 .name(req.name())
                 .spec(req.spec())
-                .unit(req.unit())
+                .unit(req.unit() != null ? req.unit().trim() : "")
                 .category(req.category())
                 .unitPrice(req.unitPrice())
                 // 안 주면 0 — "구매 기준단가를 안 정했다" 는 뜻이고, 구매할인을 계산하지 않는다.
@@ -81,7 +82,7 @@ public class ItemService {
         Item item = getItem(id);
         item.setName(req.name());
         item.setSpec(req.spec());
-        item.setUnit(req.unit());
+        item.setUnit(req.unit() != null ? req.unit().trim() : "");
         item.setCategory(req.category());
         item.setUnitPrice(req.unitPrice());
         item.setPurchasePrice(req.purchasePrice() != null ? req.purchasePrice() : BigDecimal.ZERO);

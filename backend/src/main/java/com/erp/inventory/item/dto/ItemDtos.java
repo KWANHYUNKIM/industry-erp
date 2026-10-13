@@ -16,13 +16,14 @@ public final class ItemDtos {
     public record CreateItemRequest(
             @Size(max = 50, message = "품목코드는 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "품목코드를 입력하세요.") String code,
-            @Size(max = 200, message = "품명은 200자까지 넣을 수 있습니다.")
-            @NotBlank(message = "품명을 입력하세요.") String name,
+            @Size(max = 200, message = "품목명은 200자까지 넣을 수 있습니다.")
+            @NotBlank(message = "품목명을 입력하세요.") String name,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String spec,
+            /** 단위 (선택). 원본 품목등록은 단위가 비어도 저장한다 — 빈 칸 표시는 품목명에만 붙는다(C000029 실측). */
             @Size(max = 20, message = "단위는 20자까지 넣을 수 있습니다.")
-            @NotBlank(message = "단위를 입력하세요.") String unit,
-            @NotNull(message = "품목분류를 선택하세요.") ItemCategory category,
+            String unit,
+            @NotNull(message = "품목구분을 선택하세요.") ItemCategory category,
             @NotNull(message = "단가를 입력하세요.") @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             /** 구매(입고) 기준단가. 안 주면 0 — "구매 기준단가를 안 정했다" 는 뜻이다. */
             @PositiveOrZero(message = "구매단가는 0 이상이어야 합니다.") BigDecimal purchasePrice,
@@ -92,13 +93,14 @@ public final class ItemDtos {
     ) {}
 
     public record UpdateItemRequest(
-            @Size(max = 200, message = "품명은 200자까지 넣을 수 있습니다.")
-            @NotBlank(message = "품명을 입력하세요.") String name,
+            @Size(max = 200, message = "품목명은 200자까지 넣을 수 있습니다.")
+            @NotBlank(message = "품목명을 입력하세요.") String name,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String spec,
+            /** 단위 (선택). 원본 품목등록은 단위가 비어도 저장한다 — 빈 칸 표시는 품목명에만 붙는다(C000029 실측). */
             @Size(max = 20, message = "단위는 20자까지 넣을 수 있습니다.")
-            @NotBlank(message = "단위를 입력하세요.") String unit,
-            @NotNull(message = "품목분류를 선택하세요.") ItemCategory category,
+            String unit,
+            @NotNull(message = "품목구분을 선택하세요.") ItemCategory category,
             @NotNull(message = "단가를 입력하세요.")
             @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             /** 구매(입고) 기준단가. 안 주면 0 — "구매 기준단가를 안 정했다" 는 뜻이다. */

@@ -13,7 +13,9 @@ public enum ItemCategory {
     SUB_MATERIAL("부재료"),
     SEMI_FINISHED("반제품"),
     FINISHED("제품"),
-    MERCHANDISE("상품");
+    MERCHANDISE("상품"),
+    /** 원본 품목구분 [무형상품] — 용역 · 수수료처럼 물건이 없는 상품(C000029 실측: 원재료 · 부재료 · 제품 · 반제품 · 상품 · 무형상품). */
+    INTANGIBLE("무형상품");
 
     private final String displayName;
 

@@ -259,7 +259,7 @@ public class JournalService {
             case RAW_MATERIAL -> "153";
             case SUB_MATERIAL -> "162";
             case FINISHED, SEMI_FINISHED -> "150";
-            case MERCHANDISE -> "146";
+            case MERCHANDISE, INTANGIBLE -> "146";
         };
     }
 

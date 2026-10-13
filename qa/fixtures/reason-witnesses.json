@@ -1,12 +1,4 @@
 {
- "품목등록 리스트|관계설정": {
-  "claim": "품목 사이 관계(대체품·세트) 개념이 없다",
-  "absent": [
-   "substituteItem",
-   "setComponent"
-  ],
-  "in": "backend"
- },
  "거래처리스트|SMS": {
   "claim": "문자 발송을 붙이지 않았다",
   "absent": [
@@ -301,15 +293,6 @@
    "Currency"
   ],
   "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
- },
- "품목등록|부가정보": {
-  "claim": "우리 품목에 숫자형추가항목 칸이 없다",
-  "absent": [
-   "extraNum",
-   "attrNum",
-   "userNum"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "원가생성_수정|공정명": {
   "claim": "원가를 공정 단위로 쌓지 않는다",
@@ -2278,15 +2261,6 @@
    "Approval"
   ],
   "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
- },
- "품목등록|원가": {
-  "claim": "표준원가 넷 중 셋(재료비·노무비·경비)이 우리 품목에 없다",
-  "absent": [
-   "materialCost",
-   "laborCost",
-   "overheadCost"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "근태입력|저장/전표(F7)": {
   "claim": "근태를 회계전표로 넘기지 않는다",
