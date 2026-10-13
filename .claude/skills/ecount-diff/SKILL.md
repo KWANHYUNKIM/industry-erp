@@ -277,7 +277,7 @@ Self-Customizing 은 0장 대로 사용자 · 권한 · 보안 · 회사정보�
 
 ```bash
 bash qa/precommit.sh                       # typecheck · test:unit · ui-check · dto-check · arch-check · style-check
-cd backend && ./mvnw -o -q compile         # 백엔드를 건드렸을 때
+rsync -a --delete --exclude target backend/ /tmp/erp-compile-<모듈>/ && (cd /tmp/erp-compile-<모듈> && ./mvnw -o -q compile)   # 백엔드를 건드렸을 때 — 살아 있는 target 말고 사본에서(5장)
 node qa/schema-check.mjs                   # 스키마 · enum 을 건드렸을 때
 node qa/screen-check.mjs <접두사>           # 내 화면들
 node qa/shot.mjs qa/flows/<내 흐름>.json     # 입력 화면을 고쳤으면 흐름을 하나 더해 두고 돌린다
@@ -294,7 +294,7 @@ node qa/shot.mjs qa/flows/<내 흐름>.json     # 입력 화면을 고쳤으면 
   ```
   기다리는 동안 다른 일(원본 재기 · 코드 읽기)을 한다. 백엔드 재기동 잠금과는 별개다.
 - 백엔드 재기동은 모든 작업자가 쓰는 서버(8081)를 내렸다 올리는 일이다. 재기동하는 1~2분 동안 **남의 QA 가 전부 실패**하므로:
-  - 재기동은 바퀴마다 **한 번만** 한다. 백엔드를 여러 번 고쳐야 하면 컴파일(`./mvnw -o -q compile`)로 확인해 가며 모았다가 마지막에 한 번.
+  - 재기동은 바퀴마다 **한 번만** 한다. 백엔드를 여러 번 고쳐야 하면 사본 컴파일(5장)로 확인해 가며 모았다가 마지막에 한 번.
   - 잠금 안에서만 한다. 잠금 폴더에 내 정보를 남겨, 잠근 쪽이 죽어도 남이 영원히 기다리지 않게 한다:
     ```bash
     L=/tmp/erp-backend-restart.lock
@@ -323,6 +323,12 @@ node qa/shot.mjs qa/flows/<내 흐름>.json     # 입력 화면을 고쳤으면 
 - **내가 고친 파일만** `git add <경로>` 로 올린다. `git add -A` · `git add .` 는 쓰지 않는다.
 - 남의 변경을 `checkout -- ` · `restore` · `reset` · `stash` 로 되돌리지 않는다. 같은 파일을 남이 고치고 있으면 내 hunk 만 `git add -p` 로.
 - 공용 파일(`router.tsx` · `EcountLayout.tsx` · `menuPermissions.ts` · `tokens.css` · `index.css` · `shell.css` · 마이그레이션)은 고치면 **바로** 커밋한다 — 오래 들고 있을수록 겹친다.
+- 개인 인덱스로 'HEAD 내용 + 내 변경' 을 커밋했으면 **작업 트리의 그 파일도 커밋한 내용과 똑같이** 써 둔다. 안 그러면 작업 트리에
+  옛 내용이 남아, 다음에 그 파일을 커밋하는 사람이 내 줄을 지운다(2026-10-13 plans/그룹웨어.md 의 기록 표가 이렇게 지워질 뻔했다).
+  남의 미커밋 변경이 같은 파일에 있으면 그 변경 + 내 변경을 작업 트리에 둔다.
+- **백엔드 컴파일 확인은 살아 있는 `backend/target` 에 하지 않는다.** 서버(spring-boot:run)가 그 클래스를 쓰고 있어서, 남이 서버 도중 컴파일하면
+  `NoClassDefFoundError` 로 500 이 난다(2026-10-13 관리). 확인용 컴파일은 사본에서: `rsync -a --delete --exclude target backend/ /tmp/erp-compile-<모듈>/ && (cd /tmp/erp-compile-<모듈> && ./mvnw -o -q compile)`
+  (무거운 명령 잠금 안). 진짜 `backend/` 컴파일은 재기동 잠금 안에서, 곧바로 재기동할 때만.
 - `.git/index.lock` 이 있다는 오류가 나면 남이 지금 git 을 쓰는 중이다. **lock 파일을 지우지 않고** 몇 초 뒤 다시 한다.
   `pgrep -x git` 이 비어 있는데도 1분 넘게 남아 있을 때만 지운다.
 - 커밋 제목은 `fix(<화면>): <무엇이 원본과 달랐나>` 처럼 문제가 보이게. 지금 체크아웃된 브랜치에 커밋하고 그 브랜치의 origin 으로 푸시한다. 푸시가 거절되면 `git pull --rebase` 후 다시.
