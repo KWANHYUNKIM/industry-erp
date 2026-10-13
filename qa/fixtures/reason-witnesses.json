@@ -238,15 +238,6 @@
   ],
   "in": "backend/src/main/java/com/erp/settings/currency/Currency.java"
  },
- "계좌등록|검색창내용": {
-  "claim": "계좌 마스터에 찾기용 별칭 칸이 없다",
-  "absent": [
-   "alias",
-   "Alias",
-   "searchKey"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/bankcard/BankAccount.java"
- },
  "품목등록|생산공정": {
   "claim": "품목 마스터에 공정을 매어 두지 않는다 — 공정은 작업지시가 든다",
   "absent": [
@@ -1933,13 +1924,6 @@
    "ItemGroup"
   ],
   "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
- },
- "계좌등록|이체정보": {
-  "claim": "계좌/카드 화면에 [이체정보] 칸을 아직 안 붙였다",
-  "absent": [
-   "이체정보"
-  ],
-  "in": "frontend/src/pages/accounting/BankCardPage.tsx"
  },
  "발주서입력|추가수량": {
   "claim": "수량을 둘로 나눠 적지 않는다",

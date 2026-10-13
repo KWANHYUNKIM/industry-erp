@@ -457,6 +457,8 @@ const MENU: TopMenu[] = [
           { label: '계정과목등록', to: '/accounting/accounts' },
           /* 원본 사이트맵 E010103 카드등록(카드리스트). 계좌입출금 · 카드사용은 아래 [계좌/카드] 화면에 남아 있다. */
           { label: '카드등록', to: '/accounting/cards' },
+          /* 원본 E010104 계좌등록(계좌리스트) */
+          { label: '계좌등록', to: '/accounting/bank-accounts' },
           { label: '계좌/카드', to: '/accounting/bank-cards' },
           { label: '카드사등록', to: '/accounting/card-issuers' },
           { label: '결제대행사등록', to: '/accounting/payment-agencies' },

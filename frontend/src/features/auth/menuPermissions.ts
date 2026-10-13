@@ -98,6 +98,7 @@ const RULES: Rule[] = [
   ['/accounting/tax-invoice', 'TAX_INVOICE'],
   ['/accounting/bank-cards', 'BANK'],
   ['/accounting/cards', 'BANK'],
+  ['/accounting/bank-accounts', 'BANK'],
   ['/accounting/card-issuers', 'BANK'],
   ['/accounting/payment-agencies', 'BANK'],
   ['/accounting/cash-details', 'BANK'],

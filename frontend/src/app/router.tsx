@@ -127,6 +127,7 @@ const CashTxnPage = lazy(() => import('../pages/accounting/CashTxnPage'))
 const CashDetailPage = lazy(() => import('../pages/accounting/CashDetailPage'))
 const BankCardPage = lazy(() => import('../pages/accounting/BankCardPage'))
 const CardListPage = lazy(() => import('../pages/accounting/CardListPage'))
+const BankAccountListPage = lazy(() => import('../pages/accounting/BankAccountListPage'))
 const FixedAssetPage = lazy(() => import('../pages/accounting/FixedAssetPage'))
 const FixedAssetLedgerPage = lazy(() => import('../pages/accounting/FixedAssetLedgerPage'))
 const FixedAssetFlowPage = lazy(() => import('../pages/accounting/FixedAssetFlowPage'))
@@ -671,6 +672,7 @@ export default function AppRouter() {
         <Route path="/accounting/purchase-slip" element={<VatSlipPage sales={false} />} />
         <Route path="/accounting/bank-cards" element={<BankCardPage />} />
         <Route path="/accounting/cards" element={<CardListPage />} />
+        <Route path="/accounting/bank-accounts" element={<BankAccountListPage />} />
         <Route path="/accounting/fixed-assets" element={<FixedAssetPage />} />
         <Route path="/accounting/fixed-asset-ledger" element={<FixedAssetLedgerPage />} />
         <Route path="/accounting/fixed-asset-in" element={<FixedAssetFlowPage flow="증가" />} />

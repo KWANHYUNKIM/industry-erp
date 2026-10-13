@@ -377,7 +377,7 @@
  ],
  [
   "계좌등록",
-  "accounting/BankCardPage.tsx"
+  "accounting/BankAccountListPage.tsx"
  ],
  [
   "창고이동현황",
