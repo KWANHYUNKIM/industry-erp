@@ -43,7 +43,6 @@ public class SimplePaymentService {
     private final SimplePaymentStatementRepository repository;
     private final OtherWithholdingRepository otherWithholdingRepository;
     private final WithholdingService withholdingService;
-    private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
     private final ObjectMapper objectMapper;
 
     /** daily 면 지급명세서(일용직)만, 아니면 간이지급명세서(일용 빼고). */
@@ -62,14 +61,14 @@ public class SimplePaymentService {
     @Transactional
     public StatementResponse create(StatementRequest req) {
         checkPeriod(req);
-        // 원본 E030116: 같은 자료구분 · 지급연월이 이미 있으면 '이미 생성된 자료입니다.'(2026-10-13, 간이 근로소득 2026 하반기)
-        if (req.kind() != SimplePaymentKind.DAILY
-                && repository.existsByKindAndPayYearAndPeriod(req.kind(), req.payYear(), req.period())) {
+        // 원본 E030116: 같은 자료구분 · 지급연월이 이미 있으면 '이미 생성된 자료입니다.'(2026-10-13, 간이 근로소득 2026 하반기).
+        // 지급명세서(일용직) E020146 도 같다(2026-10-14 2026년 10월 두 번째 [저장] 이 막힘).
+        if (repository.existsByKindAndPayYearAndPeriod(req.kind(), req.payYear(), req.period())) {
             throw ApiException.badRequest(DUPLICATE);
         }
         SimplePaymentStatement s = SimplePaymentStatement.builder().build();
         apply(s, req);
-        if (isPayee(s.getKind())) s.setSheetSnapshot(write(countPayees(s)));
+        snapshot(s);
         return toResponse(repository.save(s));
     }
 
@@ -77,13 +76,11 @@ public class SimplePaymentService {
     public StatementResponse update(Long id, StatementRequest req) {
         checkPeriod(req);
         SimplePaymentStatement s = find(id);
-        // 원본 수정 창은 자료구분 · 지급연월이 잠겨 있다 — 신고일자 · 담당자 · 제출자만 바뀐다
-        if (s.getKind() != SimplePaymentKind.DAILY
-                && (req.kind() != s.getKind() || !req.payYear().equals(s.getPayYear()) || !req.period().equals(s.getPeriod()))) {
+        // 원본 수정 창은 자료구분 · 지급연월이 잠겨 있다 — 신고일자 · 담당자 · 제출자만 바뀐다(일용직도 같다)
+        if ((req.kind() != s.getKind() || !req.payYear().equals(s.getPayYear()) || !req.period().equals(s.getPeriod()))) {
             throw ApiException.badRequest("자료구분 · 지급연월은 바꿀 수 없습니다.");
         }
-        if (req.kind() != SimplePaymentKind.DAILY
-                && repository.existsByKindAndPayYearAndPeriodAndIdNot(req.kind(), req.payYear(), req.period(), id)) {
+        if (repository.existsByKindAndPayYearAndPeriodAndIdNot(req.kind(), req.payYear(), req.period(), id)) {
             throw ApiException.badRequest(DUPLICATE);
         }
         apply(s, req);
@@ -117,24 +114,39 @@ public class SimplePaymentService {
         }
         YearMonth ym = YearMonth.of(s.getPayYear(), s.getPeriod());
         if (s.getKind() == SimplePaymentKind.DAILY) {
-            List<DailyRow> rows = dailyWorkService.monthWorkers(ym).stream()
-                    .map(w -> new DailyRow(w.name(), w.days(), w.lastDate(), w.wage(), w.incomeTax(), w.localIncomeTax()))
-                    .toList();
+            List<DailyRow> rows = s.getSheetSnapshot() != null ? read(s.getSheetSnapshot(), new TypeReference<List<DailyRow>>() {})
+                    : countDaily(s);
             return new SheetResponse(toResponse(s), List.of(), List.of(), rows);
         }
-        List<PayeeRow> rows = s.getSheetSnapshot() != null ? read(s.getSheetSnapshot()) : countPayees(s);
+        List<PayeeRow> rows = s.getSheetSnapshot() != null ? read(s.getSheetSnapshot(), new TypeReference<List<PayeeRow>>() {})
+                : countPayees(s);
         return new SheetResponse(toResponse(s), List.of(), rows, List.of());
     }
 
     /**
      * [새로불러오기] — 원본 확인 창 '직접 수정한 사항은 유지되지 않으며, 입력된 자료를 바탕으로 새로 불러옵니다.' 뒤
-     * 그 달 기타원천세를 다시 세어 담아 둔다(다시 열어도 새 숫자). 근로 · 일용은 늘 새로 세므로 그대로 보인다.
+     * 그 달 기타원천세(일용직은 일용근로 급여대장)를 다시 세어 담아 둔다(다시 열어도 새 숫자). 근로는 늘 새로 센다.
+     * 원본 지급명세서(일용직) 2026-10-14: 400,000(2일)로 만든 뒤 대장을 600,000(3일)으로 다시 계산해도 서식 400,000 →
+     * [새로불러오기] 뒤 '1 명 1 건 600,000'.
      */
     @Transactional
     public SheetResponse reload(Long id) {
-        SimplePaymentStatement s = find(id);
-        if (isPayee(s.getKind())) s.setSheetSnapshot(write(countPayees(s)));
+        snapshot(find(id));
         return sheet(id);
+    }
+
+    /** 만들 때 · [새로불러오기] 때 서식 숫자를 담아 둔다 — 사업 · 기타소득 · 일용근로. 근로소득은 담지 않는다. */
+    private void snapshot(SimplePaymentStatement s) {
+        if (isPayee(s.getKind())) s.setSheetSnapshot(write(countPayees(s)));
+        else if (s.getKind() == SimplePaymentKind.DAILY) s.setSheetSnapshot(write(countDaily(s)));
+    }
+
+    /** 그 지급연월의 일용근로 급여대장을 사람마다 — 원천징수영수증(일용직) 목록과 같은 숫자. */
+    private List<DailyRow> countDaily(SimplePaymentStatement s) {
+        String month = YearMonth.of(s.getPayYear(), s.getPeriod()).toString();
+        return withholdingService.dailyReceipts(month).stream()
+                .map(w -> new DailyRow(w.employeeName(), w.days(), w.lastDate(), w.totalPay(), w.incomeTax(), w.localIncomeTax()))
+                .toList();
     }
 
     private static boolean isPayee(SimplePaymentKind kind) {
@@ -166,7 +178,7 @@ public class SimplePaymentService {
         return rows;
     }
 
-    private String write(List<PayeeRow> rows) {
+    private String write(List<?> rows) {
         try {
             return objectMapper.writeValueAsString(rows);
         } catch (JsonProcessingException e) {
@@ -174,9 +186,9 @@ public class SimplePaymentService {
         }
     }
 
-    private List<PayeeRow> read(String json) {
+    private <T> List<T> read(String json, TypeReference<List<T>> type) {
         try {
-            return objectMapper.readValue(json, new TypeReference<List<PayeeRow>>() {});
+            return objectMapper.readValue(json, type);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }

@@ -49,6 +49,7 @@ public class WithholdingService {
     private final WithholdingReturnRepository returnRepository;
     private final com.erp.accounting.retirementpay.RetirementPayRepository retirementPayRepository;
     private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
+    private final com.erp.hr.dailyworker.DailyPayService dailyPayService;
     private final com.erp.hr.payroll.PayLedgerService payLedgerService;
     private final com.erp.accounting.otherwithholding.OtherWithholdingRepository otherWithholdingRepository;
     private final com.erp.hr.payroll.PaySettingService paySettingService;
@@ -414,16 +415,33 @@ public class WithholdingService {
         return out;
     }
 
-    /** 원천징수영수증(일용직) — 그 달(근무일 기준) 출역을 사원마다. */
+    /**
+     * 원천징수영수증(일용직) · 지급명세서(일용직) — 그 지급연월의 일용근로 급여대장(관리 › 일용근로 급여계산/대장) 줄을 사원마다 더한다.
+     * 2026-10-14 원본: 일당 200,000 사원 근무기록확정 2 → 전체계산 → 대장 400,000 · 공제 0 이면 영수증 목록 400,000 · 세금 빈칸,
+     * 지급명세서 서식 '1 명 1 건 400,000 0 0 0'. 소득세 · 지방소득세는 대장 값 그대로다(일 15만 원 공제 · 6% 로 다시 셈하지 않는다).
+     * 예전엔 출역(hr.dailywork) 기록에서 셌는데, 관리의 일용근로 화면은 급여대장(hr.dailyworker)을 쓴다.
+     */
     @Transactional(readOnly = true)
     public List<WithholdingDtos.DailyReceipt> dailyReceipts(String month) {
         if (month == null || !MONTH.matcher(month).matches()) {
             throw ApiException.badRequest("지급연월 형식이 올바르지 않습니다(YYYY-MM): " + month);
         }
-        return dailyWorkService.monthWorkers(java.time.YearMonth.parse(month)).stream()
-                .map(w -> new WithholdingDtos.DailyReceipt(w.employeeId(), w.code(), w.name(), w.days(), w.lastDate(),
-                        w.wage(), BigDecimal.ZERO, w.incomeTax(), w.localIncomeTax()))
-                .toList();
+        Map<Long, List<com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine>> by = new java.util.LinkedHashMap<>();
+        for (com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine l : dailyPayService.reportLines("0000-01", "9999-12")) {
+            if (month.equals(l.paidMonth())) by.computeIfAbsent(l.workerId(), k -> new ArrayList<>()).add(l);
+        }
+        return by.values().stream().map(ls -> {
+            com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine f = ls.get(0);
+            return new WithholdingDtos.DailyReceipt(f.workerId(), f.workerCode(), f.workerName(),
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::days).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::lastWorkDate).filter(java.util.Objects::nonNull)
+                            .max(java.util.Comparator.naturalOrder()).orElse(null),
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    BigDecimal.ZERO,
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::incomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::localTax).reduce(BigDecimal.ZERO, BigDecimal::add));
+        }).sorted(java.util.Comparator.comparing(WithholdingDtos.DailyReceipt::employeeCode,
+                java.util.Comparator.nullsLast(String::compareTo))).toList();
     }
 
     /** 원천세신고자료비교표의 구분 — 원본 차례 그대로. 신고서 소득구분 코드가 있는 것만 신고내역과 견준다. */

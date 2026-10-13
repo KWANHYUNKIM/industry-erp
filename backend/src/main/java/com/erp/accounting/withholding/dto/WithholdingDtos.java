@@ -150,7 +150,7 @@ public final class WithholdingDtos {
                                    BigDecimal localIncomeTax) {}
 
     /** 원천징수영수증(일용직) 한 사원 — 원본 목록 [사원번호 · 사원명 · 총지급액 · 비과세총액 · 소득세 · 지방소득세] + 근무일수 · 최종근무일. */
-    public record DailyReceipt(Long employeeId, String employeeCode, String employeeName, int days, LocalDate lastDate,
+    public record DailyReceipt(Long employeeId, String employeeCode, String employeeName, BigDecimal days, LocalDate lastDate,
                                BigDecimal totalPay, BigDecimal nonTaxable, BigDecimal incomeTax, BigDecimal localIncomeTax) {}
 
     /**

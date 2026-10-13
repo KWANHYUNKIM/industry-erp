@@ -267,7 +267,7 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
     api.get<SimplePaymentSheet>(`/simple-payment-statements/${id}/sheet`)
       .then((r) => setSheet(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
-  /** 원본 [새로불러오기] — 확인 창 뒤 그 달 기타원천세를 다시 세어 담아 둔다(사업 · 기타소득). */
+  /** 원본 [새로불러오기] — 확인 창 뒤 그 달 기타원천세(일용직은 일용근로 급여대장)를 다시 세어 담아 둔다. */
   function reload() {
     setConfirmReload(false)
     setError('')
@@ -280,6 +280,8 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
   const address = [company?.address, company?.addressDetail].filter(Boolean).join(' ')
   const [y, m, d] = (s?.reportDate ?? '').split('-')
   const payee = s?.kind === 'BUSINESS' || s?.kind === 'OTHER'
+  // 만들 때 숫자를 담아 두는 서식 — [새로불러오기] 는 확인 창 뒤 다시 센다(사업 · 기타 · 일용, 원본 2026-10-14)
+  const saved = payee || s?.kind === 'DAILY'
   function print() {
     const win = openPrintWindow()
     if (!win || !paperRef.current) return
@@ -299,13 +301,13 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
               : '지급자는 「소득세법」 제164조의3제1항에 따라 위의 내용을 제출하며, 위 내용을 충분히 검토하고 지급자가 알고 있는 사실 그대로를 정확하게 적었음을 확인합니다.'}
           </p>
           <p className="text-center my-[8px]">{y} 년 {m} 월 {d} 일</p>
-          <p className="text-right">제출자: {company?.name ?? ''} (서명 또는 인)</p>
+          <p className="text-right">{s.kind === 'DAILY' ? `징수의무자(지급자) ${company?.ceo ?? ''}` : `제출자: ${company?.name ?? ''}`} (서명 또는 인)</p>
         </div>
       )}
       <div className="flex gap-[6px] mt-[12px]">
         {/* 원본 사업 · 기타소득 서식: [인쇄] · Excel · [새로불러오기] · [닫기] · H · 도장인쇄 · [지급자 보관용 ▼] */}
-        {payee && <button className="ec-btn ec-btn-primary" onClick={print}>인쇄</button>}
-        <button className="ec-btn" onClick={() => (payee ? setConfirmReload(true) : load())}>새로불러오기</button>
+        {saved && <button className="ec-btn ec-btn-primary" onClick={print}>인쇄</button>}
+        <button className="ec-btn" onClick={() => (saved ? setConfirmReload(true) : load())}>새로불러오기</button>
         <button className="ec-btn" onClick={onClose}>닫기</button>
         {payee && (
           <select className="ec-input w-[120px]" aria-label="보관용" value={copy} onChange={(e) => setCopy(e.target.value as SheetCopy)}>
@@ -385,7 +387,7 @@ export function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSh
   const sum = (k: 'taxable' | 'incomeTax' | 'localIncomeTax') => sheet.daily.reduce((t, r) => t + Number(r[k]), 0)
   return (
     <>
-      <p>소득세법 시행규칙 [별지 제24호서식(4)]</p>
+      <p>■ 소득세법 시행규칙 [별지 제24호서식(4)] &lt;개정 2023. 3. 20&gt; (3쪽 중 제1쪽)</p>
       <div className="ec-report-title">일용근로소득 지급명세서 (지급자제출용)</div>
       <p className="text-center mb-[8px]">[일용근로소득 지급명세서(원천징수영수증) 월별 제출집계표]</p>
       <table className="w-full ec-report ec-report-head400 mb-[12px]">
@@ -417,7 +419,8 @@ export function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSh
       <table className="w-full ec-report ec-report-head400">
         <thead>
           <tr>
-            <th className="text-center">⑯ 번호</th><th>⑰ 성명</th><th className="text-center">㉑ 근무월</th>
+            <th className="text-center">⑯ 번호</th><th>⑰ 성명</th><th>⑱ 전화번호</th><th className="text-center">⑲ 외국인여부</th>
+            <th>⑳ 주민등록번호</th><th className="text-center">㉑ 근무월</th>
             <th className="text-right">㉒ 근무일수</th><th className="text-center">㉓ 최종근무일</th>
             <th className="text-right">㉔ 과세소득</th><th className="text-right">㉕ 비과세소득</th>
             <th className="text-right">㉖ 소득세</th><th className="text-right">㉗ 지방소득세</th>
@@ -425,13 +428,14 @@ export function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSh
         </thead>
         <tbody>
           {sheet.daily.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sheet.daily.map((r, i) => (
             <tr key={i}>
               <td className="text-center">{i + 1}</td>
               <td>{r.name}</td>
+              <td></td><td className="text-center"></td><td></td>
               <td className="text-center">{pad2(s.period)}</td>
-              <td className="text-right">{r.days}</td>
+              <td className="text-right">{Number(r.days)}</td>
               <td className="text-center">{r.lastDate ? r.lastDate.slice(8) : ''}</td>
               <td className="text-right">{won(r.taxable)}</td>
               <td className="text-right">0</td>
