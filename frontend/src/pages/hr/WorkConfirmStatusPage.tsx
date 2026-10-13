@@ -132,7 +132,8 @@ export default function WorkConfirmStatusPage() {
         {/* 원본 끝 단추 [종료월] — 시작은 그대로 두고 끝을 이번 달로 */}
         <button type="button" className="ec-btn" onClick={() => setRange({ ...range, to: pick('금월').to })}>종료월</button>
       </div>
-      <table ref={tableRef} className="w-full text-left">
+      {/* 원본 격자는 출력물 값(머리 700 · 6px 3px 3px · 선 1px · 본문 3px · 24.1 · 계/합계 회색 243 가운데) — 2026-10-13 실측. 출력물 머리(24px 제목)는 없다 */}
+      <table ref={tableRef} className="ec-report w-full text-left">
         <thead>
           <tr>
             <th>귀속연월-NO</th>
@@ -153,8 +154,8 @@ export default function WorkConfirmStatusPage() {
                   <MonthRows key={m} month={m} rows={rs} />
                 )
               })}
-              <tr className="font-bold">
-                <td colSpan={4}>합계</td>
+              <tr className="ec-total">
+                <td colSpan={4} className="text-center">합계</td>
                 <td className="text-right">{qty(total)}</td>
               </tr>
             </>
@@ -178,8 +179,8 @@ function MonthRows({ month, rows }: { month: string; rows: ConfirmRow[] }) {
           <td className="text-right">{qty(Number(r.quantity))}</td>
         </tr>
       ))}
-      <tr className="font-bold">
-        <td colSpan={4}>{label} 계</td>
+      <tr className="ec-total">
+        <td colSpan={4} className="text-center">{label} 계</td>
         <td className="text-right">{qty(rows.reduce((s, r) => s + Number(r.quantity), 0))}</td>
       </tr>
     </>

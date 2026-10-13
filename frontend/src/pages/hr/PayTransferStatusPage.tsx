@@ -67,6 +67,8 @@ export default function PayTransferStatusPage() {
       return !!d && d >= paidRange.from && d <= paidRange.to
     })
     .filter(({ e }) => banks.length === 0 || banks.includes(e?.bankCode ?? ''))
+    // 원본(2026-10-13 실측): 대장 차례(귀속연월-NO 오름차순) · 대장 안은 사원코드 순 — 서버는 귀속월 내림차순으로 준다
+    .sort((a, b) => a.p.payMonth.localeCompare(b.p.payMonth) || a.p.employeeCode.localeCompare(b.p.employeeCode))
 
   return (
     <EcListShell title="급여이체현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
@@ -106,7 +108,7 @@ export default function PayTransferStatusPage() {
         ))}
       </div>
       <EcReportHead title="급여이체현황" period={reportPeriod(`${range.from}-01`, range.to.replace('-', '/'))} />
-      <table ref={tableRef} className="w-full text-left">
+      <table ref={tableRef} className="ec-report w-full text-left">
         <thead>
           <tr>
             <th>은행코드</th>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
+import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
@@ -271,13 +272,13 @@ export default function PayrollStatusPage() {
         {/* 원본 끝 단추 [종료월] — 시작은 그대로 두고 끝을 이번 달로 */}
         <button type="button" className="ec-btn" onClick={() => setRange({ ...range, to: pick('금월').to })}>종료월</button>
       </div>
-      <div className="text-center font-bold mb-[2px]">급여현황</div>
-      <div className="text-ec-hint mb-[4px]">{range.from.replace('-', '/')}/01 ~ {range.to.replace('-', '/')}</div>
+      {/* 원본은 출력물 머리(제목 24px · 회사명 · 기간) — 2026-10-13 실측 */}
+      <EcReportHead title="급여현황" period={reportPeriod(`${range.from}-01`, range.to.replace('-', '/'))} />
       {mode === '사용자지정집계' ? (
         <CustomAggregateTable name="급여현황" dims={AGG_DIMS} targets={aggTargets} records={aggRecords} agg={agg} />
       ) : (
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full text-left whitespace-nowrap">
+        <table ref={tableRef} className="ec-report w-full text-left whitespace-nowrap">
           <thead>
             <tr>
               <th>귀속연월-NO</th>
@@ -300,8 +301,8 @@ export default function PayrollStatusPage() {
                 {groups.map((g) => (
                   <GroupRows key={g.name} g={g} cells={cells} subtotal={sumRows(g.rows, { key: `s-${g.name}`, label: `${g.name} 계`, ledgerName: '', department: '', employeeName: '' })} />
                 ))}
-                <tr className="font-bold">
-                  <td colSpan={5}>합계</td>
+                <tr className="ec-total">
+                  <td colSpan={5} className="text-center">합계</td>
                   {cells(total)}
                 </tr>
               </>
@@ -327,8 +328,9 @@ function GroupRows({ g, cells, subtotal }: { g: { name: string; rows: Row[] }; c
           {cells(r)}
         </tr>
       ))}
-      <tr className="font-bold">
-        <td colSpan={5}>{subtotal.label}</td>
+      {/* 원본 '성명 계' · 합계 줄(2026-10-13 실측): ec-total(700 · 칸마다 rgb 243) · 이름 칸 가운데(colSpan 5). 격자는 출력물(ec-report) — 머리 700 · 6px 3px 3px · 선 1px · 본문 3px · 24.1 */}
+      <tr className="ec-total">
+        <td colSpan={5} className="text-center">{subtotal.label}</td>
         {cells(subtotal)}
       </tr>
     </>

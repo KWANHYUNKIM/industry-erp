@@ -98,15 +98,32 @@ export default function EmployeePayListPage() {
   const amountOf = (p: Payslip, col: string, kind: 'ALLOWANCE' | 'DEDUCTION') =>
     p.lines.filter((l) => l.kind === kind && (kind === 'ALLOWANCE' ? l.name : colOf(l.name)) === col).reduce((s, l) => s + Number(l.amount), 0)
 
+  /**
+   * 원본 [선택삭제](2026-10-13 실측) — 고른 줄이 없으면 '리스트에 선택된 자료가 없습니다. …' 알림, 있으면 '삭제하겠습니까?' →
+   * 안내 없이 줄이 사라진다(급여대장 인원 · 지급총액도 그만큼 준다). 확정된 대장의 명세는 지우지 않고
+   * '아래의 경우 처리가 불가능합니다.' 창에 [구분 사원코드 · 사유 '확정처리된 급여입니다. 확정취소 후 처리바랍니다.'] 로 알린다.
+   */
   async function deleteChecked() {
-    if (checked.size === 0 || !window.confirm('삭제하시겠습니까?')) return
+    if (checked.size === 0) {
+      alert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
+      return
+    }
+    if (!window.confirm('삭제하겠습니까?')) return
+    const picked = shown.filter((p) => checked.has(p.id))
+    const blocked = picked.filter((p) => p.status === 'CONFIRMED')
+    let failed = ''
     try {
-      for (const id of checked) await api.delete(`/payslips/${id}`)
+      for (const p of picked.filter((x) => x.status !== 'CONFIRMED')) await api.delete(`/payslips/${p.id}`)
     } catch (e) {
-      setError(extractErrorMessage(e))
+      failed = extractErrorMessage(e)
     }
     setChecked(new Set())
     load()
+    if (failed) setError(failed)
+    if (blocked.length > 0) {
+      alert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n'
+        + blocked.map((p) => `${p.employeeCode}  확정처리된 급여입니다. 확정취소 후 처리바랍니다.`).join('\n'))
+    }
   }
 
   const allChecked = shown.length > 0 && shown.every((p) => checked.has(p.id))
@@ -117,8 +134,9 @@ export default function EmployeePayListPage() {
       collapseConditions
       searchable={false}
       actions={[
+        { label: 'Email' },
         { label: '인쇄' },
-        { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
+        { label: '선택삭제', onClick: deleteChecked },
         { label: 'Excel' },
       ]}
     >
@@ -144,7 +162,7 @@ export default function EmployeePayListPage() {
       </ul>
       <div className="text-right mb-[4px] text-ec-hint">{range.from.replace('-', '/')}/01 ~ {range.to.replace('-', '/')}</div>
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full text-left whitespace-nowrap">
+        <table ref={tableRef} className="w-full text-left whitespace-nowrap ec-report-head400">
           <thead>
             <tr>
               <th className="w-[34px] text-center">
@@ -166,17 +184,17 @@ export default function EmployeePayListPage() {
           <tbody>
             {shown.length === 0 ? (
               <tr><td colSpan={9 + allowanceCols.length + deductionCols.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((p) => (
+            ) : shown.map((p, i) => (
               <tr key={p.id}>
-                <td className="text-center">
+                <td className="text-center whitespace-nowrap">
                   <input type="checkbox" checked={checked.has(p.id)}
                          onChange={() => {
                            const next = new Set(checked)
                            if (next.has(p.id)) next.delete(p.id); else next.add(p.id)
                            setChecked(next)
-                         }} />
+                         }} /> {i + 1}
                 </td>
-                <td>
+                <td className="text-center">
                   <a href="#" onClick={(e) => { e.preventDefault(); nav(`/hr/payroll/ledger?month=${p.payMonth}`) }}>
                     {p.payMonth.replace('-', '/')}
                   </a>
