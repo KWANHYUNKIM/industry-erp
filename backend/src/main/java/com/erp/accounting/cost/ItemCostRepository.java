@@ -19,6 +19,11 @@ public interface ItemCostRepository extends JpaRepository<ItemCost, Long> {
 
     Optional<ItemCost> findByItemIdAndPeriod(Long itemId, String period);
 
+    /** 원가생성 [수량비교] · [전월금액비교] · [이력] — 달 구간의 원가 행(품목까지). */
+    @Query("select c from ItemCost c join fetch c.item " +
+            "where c.period >= :from and c.period <= :to order by c.period, c.item.code")
+    List<ItemCost> findRangeWithItem(@Param("from") String from, @Param("to") String to);
+
     /** 원가생성/수정 [삭제] — 그 기간에 잡은 원가를 지운다. 기간은 yyyy-MM 이라 글자 차례가 곧 달 차례다. */
     @Modifying
     @Query("delete from ItemCost c where c.period >= :from and c.period <= :to")

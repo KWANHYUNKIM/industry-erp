@@ -68,6 +68,19 @@ public class PurchaseService {
     private final PurchaseLineRepository purchaseLineRepository;
 
     /**
+     * 기간 안 구매의 품목별 [수량, 공급가액] — 원가생성 [전월금액비교](금액비교 Checklist)의
+     * '현재기준 전월 구매수량 · 구매금액'. 원가를 계산한 때도 같은 값을 남겨 두고 나중에 견준다.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, BigDecimal[]> purchaseByItem(java.time.LocalDate from, java.time.LocalDate to) {
+        java.util.Map<Long, BigDecimal[]> out = new java.util.HashMap<>();
+        for (PurchaseLineRepository.ItemAggregate a : purchaseLineRepository.aggregateByItemBetween(from, to)) {
+            out.put(a.getItemId(), new BigDecimal[]{a.getQty(), a.getAmount()});
+        }
+        return out;
+    }
+
+    /**
      * 품목별 <b>마지막 입고단가</b>. 품목당 한 줄이다.
      *
      * <p>줄을 <b>오래된 것부터</b> 받아 접는다 — 뒤엣것이 이기므로 같은 날 전표가 둘이면

@@ -62,6 +62,26 @@ public class ItemCost extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal actualOverhead = BigDecimal.ZERO;
 
+    /*
+     * 원가생성 [생성] 때 남기는 값(2026-10-13, V357) — 원본 [수량비교](재고수량 Checklist)의 '월별원가 기초수량',
+     * [전월금액비교](금액비교 Checklist)의 '이전 월별원가 구매수량 · 구매금액', [이력]의 작업자 · 수정시간.
+     * 나중에 전표를 고치면 장부와 어긋나는데, 그 어긋남을 보여 주는 것이 두 Checklist 다.
+     */
+    @Column(name = "opening_qty", precision = 18, scale = 2)
+    private BigDecimal openingQty;
+
+    @Column(name = "purchase_qty", precision = 18, scale = 2)
+    private BigDecimal purchaseQty;
+
+    @Column(name = "purchase_amount", precision = 18, scale = 2)
+    private BigDecimal purchaseAmount;
+
+    @Column(name = "calc_by", length = 50)
+    private String calcBy;
+
+    @Column(name = "calc_at")
+    private java.time.LocalDateTime calcAt;
+
     /** 표준원가 합계 */
     public BigDecimal standardTotal() {
         return nz(materialCost).add(nz(laborCost)).add(nz(overheadCost));

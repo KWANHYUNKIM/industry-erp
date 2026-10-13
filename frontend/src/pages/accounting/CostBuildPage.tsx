@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useNavigate } from 'react-router-dom'
 import { ymd } from '../../components/EcPeriodPicks'
 import ProcessExpenseModal from './ProcessExpenseModal'
+import CostChecklistModal, { type CostChecklistKind } from './CostChecklistModal'
 
 /**
  * 재고 II &gt; 이익관리 &gt; 월별이익 &gt; <b>원가생성/수정</b>(E040802) — 2026-10-12 loginaa 실측.
@@ -21,7 +22,8 @@ import ProcessExpenseModal from './ProcessExpenseModal'
  * 원본에서 원가계산 [수정] 이 여는 자리라 그리로 옮겼다.
  *
  * <p>선입선출법은 입고 레이어(어느 입고분이 얼마에 들어와 남았나)를 남기지 않아 못 한다 — 기간은 만들 수 있지만
- * [표준원가생성] 이 막는다. [기말금액재계산] · [수량비교] · [전월금액비교] · [회계반영] · [이력] · [웹자료올리기] 는 아직 없다.
+ * [표준원가생성] 이 막는다. [수량비교] · [전월금액비교] · [이력] 은 CostChecklistModal(2026-10-13).
+ * [기말금액재계산] · [회계반영] · [웹자료올리기] 는 아직 없다.
  */
 interface Item { id: number; code: string; name: string; spec?: string | null; searchKeyword?: string | null; active?: boolean }
 interface Cost {
@@ -84,6 +86,8 @@ export default function CostBuildPage() {
   const [keyword, setKeyword] = useState('')
   /** 사전작업(노무비/경비등록)을 여는 기준년월. 실제원가 계산이 이 달을 본다. */
   const [expensePeriod, setExpensePeriod] = useState<string | null>(null)
+  /** 원가현황 [수량비교] · [전월금액비교] · 기타 [이력] 창. */
+  const [checklist, setChecklist] = useState<{ id: number; kind: CostChecklistKind } | null>(null)
 
   async function load() {
     setLoading(true)
@@ -183,6 +187,7 @@ export default function CostBuildPage() {
       {expensePeriod && (
         <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
       )}
+      {checklist && <CostChecklistModal periodId={checklist.id} kind={checklist.kind} onClose={() => setChecklist(null)} />}
       {error && !regOpen && !editPeriod && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
@@ -215,9 +220,13 @@ export default function CostBuildPage() {
                   </td>
                   <td className="text-center">
                     {link('조회', () => navigate('/accounting/actual-cost'))}
+                    {link('수량비교', () => setChecklist({ id: p.id, kind: 'qty' }))}
+                    {link('전월금액비교', () => setChecklist({ id: p.id, kind: 'amount' }))}
                     {link('삭제', () => void removePeriod(p))}
                   </td>
-                  <td className="text-center" />
+                  <td className="text-center">
+                    {link('이력', () => setChecklist({ id: p.id, kind: 'history' }))}
+                  </td>
                 </>
               ) : (
                 <>

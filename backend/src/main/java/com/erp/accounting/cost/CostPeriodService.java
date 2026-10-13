@@ -27,6 +27,8 @@ public class CostPeriodService {
     private final CostPeriodRepository periodRepository;
     private final ItemCostRepository itemCostRepository;
     private final CostService costService;
+    private final com.erp.inventory.stock.StockService stockService;
+    private final com.erp.trade.purchase.PurchaseService purchaseService;
 
     @Transactional(readOnly = true)
     public List<CostPeriodResponse> findAll() {
@@ -73,12 +75,113 @@ public class CostPeriodService {
     /** 원가계산 [생성] — 기간의 달마다 생산실적 · 노무비/경비로 실제원가를 낸다. */
     @Transactional
     public CostRunResult generate(Long id) {
+        return generate(id, null);
+    }
+
+    /**
+     * 원가계산 [생성]. 계산한 때의 <b>기초수량 · 그 달 구매수량/금액 · 계산한 사람/때</b>를 원가 행에 남긴다 —
+     * [수량비교] · [전월금액비교] 가 나중에 장부와 견주고 [이력] 이 보여 준다(원본 E040802 2026-10-13 실측).
+     */
+    @Transactional
+    public CostRunResult generate(Long id, String username) {
         CostPeriod p = latest(id);
         int rows = 0;
         List<String> months = months(p);
-        for (String m : months) rows += costService.calcActual(m).size();
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        for (String m : months) {
+            rows += costService.calcActual(m).size();
+            YearMonth ym = YearMonth.parse(m);
+            java.util.Map<Long, java.math.BigDecimal> opening = bookOpening(ym);
+            java.util.Map<Long, java.math.BigDecimal[]> bought = purchaseService.purchaseByItem(ym.atDay(1), ym.atEndOfMonth());
+            for (ItemCost c : itemCostRepository.findRangeWithItem(m, m)) {
+                Long itemId = c.getItem().getId();
+                c.setOpeningQty(opening.getOrDefault(itemId, java.math.BigDecimal.ZERO));
+                java.math.BigDecimal[] b = bought.get(itemId);
+                c.setPurchaseQty(b != null ? b[0] : java.math.BigDecimal.ZERO);
+                c.setPurchaseAmount(b != null ? b[1] : java.math.BigDecimal.ZERO);
+                c.setCalcBy(username);
+                c.setCalcAt(now);
+            }
+        }
         p.setGenerated(true);
         return new CostRunResult(months.size(), rows);
+    }
+
+    /** 장부(재고수불) 기초수량 — 그 달 1일 앞까지 순증감. 수불이 없는 품목은 맵에 없다. */
+    private java.util.Map<Long, java.math.BigDecimal> bookOpening(YearMonth ym) {
+        java.util.Map<Long, java.math.BigDecimal> out = new java.util.HashMap<>();
+        for (var r : stockService.movement(ym.atDay(1), ym.atEndOfMonth(), null)) out.put(r.itemId(), r.opening());
+        return out;
+    }
+
+    private static String nameSpec(ItemCost c) {
+        return c.getItem().getName();
+    }
+
+    private static java.math.BigDecimal nz(java.math.BigDecimal v) { return v != null ? v : java.math.BigDecimal.ZERO; }
+
+    /**
+     * 원가현황 [수량비교] — 원본 '재고수량 Checklist'(2026-10-13 실측): 품목코드 · 품목명[규격] · 장부 기초수량 ·
+     * 월별원가 기초수량 · 차이(= 장부 − 월별원가), 차이 작은 차례. 머리 기간은 그 원가 기간의 시작달.
+     */
+    @Transactional(readOnly = true)
+    public com.erp.accounting.cost.dto.CostPeriodDtos.Checklist<com.erp.accounting.cost.dto.CostPeriodDtos.QtyCompareRow> qtyCompare(Long id) {
+        CostPeriod p = periodRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("원가 기간을 찾을 수 없습니다. id=" + id));
+        String m = p.getStartMonth();
+        java.util.Map<Long, java.math.BigDecimal> book = bookOpening(YearMonth.parse(m));
+        List<com.erp.accounting.cost.dto.CostPeriodDtos.QtyCompareRow> rows = new ArrayList<>();
+        for (ItemCost c : itemCostRepository.findRangeWithItem(m, m)) {
+            java.math.BigDecimal b = book.get(c.getItem().getId());
+            java.math.BigDecimal k = c.getOpeningQty();
+            rows.add(new com.erp.accounting.cost.dto.CostPeriodDtos.QtyCompareRow(
+                    c.getItem().getCode(), nameSpec(c), c.getItem().getSpec(), b, k, nz(b).subtract(nz(k))));
+        }
+        rows.sort(java.util.Comparator.comparing(com.erp.accounting.cost.dto.CostPeriodDtos.QtyCompareRow::diff));
+        return new com.erp.accounting.cost.dto.CostPeriodDtos.Checklist<>(m, m, rows);
+    }
+
+    /**
+     * 원가현황 [전월금액비교] — 원본 '금액비교 Checklist'(2026-10-13 실측, 2026/10 기간에서 열면 머리 2026/09 ~ 2026/09):
+     * 현재기준 전월 구매수량 · 구매금액 / 이전 월별원가 구매수량 · 구매금액 / 수량차이 · 금액차이(= 지금 − 그때), 금액차이 작은 차례.
+     * 어긋난 품목만 싣는다(원본 19줄 모두 차이가 있었다). 전월 원가를 계산하지 않았으면 빈 표다.
+     */
+    @Transactional(readOnly = true)
+    public com.erp.accounting.cost.dto.CostPeriodDtos.Checklist<com.erp.accounting.cost.dto.CostPeriodDtos.AmountCompareRow> amountCompare(Long id) {
+        CostPeriod p = periodRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("원가 기간을 찾을 수 없습니다. id=" + id));
+        YearMonth prev = YearMonth.parse(p.getStartMonth()).minusMonths(1);
+        String m = prev.toString();
+        java.util.Map<Long, java.math.BigDecimal[]> now = purchaseService.purchaseByItem(prev.atDay(1), prev.atEndOfMonth());
+        List<com.erp.accounting.cost.dto.CostPeriodDtos.AmountCompareRow> rows = new ArrayList<>();
+        for (ItemCost c : itemCostRepository.findRangeWithItem(m, m)) {
+            if (c.getCalcAt() == null) continue;
+            java.math.BigDecimal[] n = now.get(c.getItem().getId());
+            java.math.BigDecimal nq = n != null ? n[0] : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal na = n != null ? n[1] : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal qd = nq.subtract(nz(c.getPurchaseQty()));
+            java.math.BigDecimal ad = na.subtract(nz(c.getPurchaseAmount()));
+            if (qd.signum() == 0 && ad.signum() == 0) continue;
+            rows.add(new com.erp.accounting.cost.dto.CostPeriodDtos.AmountCompareRow(
+                    c.getItem().getCode(), nameSpec(c), c.getItem().getSpec(),
+                    nq, na, nz(c.getPurchaseQty()), nz(c.getPurchaseAmount()), qd, ad));
+        }
+        rows.sort(java.util.Comparator.comparing(com.erp.accounting.cost.dto.CostPeriodDtos.AmountCompareRow::amountDiff));
+        return new com.erp.accounting.cost.dto.CostPeriodDtos.Checklist<>(m, m, rows);
+    }
+
+    /** 기타 [이력] — 원본 열: 품목코드 · 품목명 · 작업자 · 수정시간 · 최종상태('계산'). 계산한 원가 행만. */
+    @Transactional(readOnly = true)
+    public List<com.erp.accounting.cost.dto.CostPeriodDtos.HistoryRow> history(Long id) {
+        CostPeriod p = periodRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("원가 기간을 찾을 수 없습니다. id=" + id));
+        List<com.erp.accounting.cost.dto.CostPeriodDtos.HistoryRow> rows = new ArrayList<>();
+        for (ItemCost c : itemCostRepository.findRangeWithItem(p.getStartMonth(), p.getEndMonth())) {
+            if (c.getCalcAt() == null) continue;
+            rows.add(new com.erp.accounting.cost.dto.CostPeriodDtos.HistoryRow(
+                    c.getItem().getCode(), c.getItem().getName(), c.getCalcBy(), c.getCalcAt(), "계산"));
+        }
+        return rows;
     }
 
     /** 원가현황 [삭제] — 기간과 그 기간에 잡은 원가를 함께 지운다. */

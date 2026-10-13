@@ -15,6 +15,13 @@ public interface PurchaseLineRepository extends JpaRepository<PurchaseLine, Long
             "from PurchaseLine l group by l.item.id")
     List<ItemAggregate> aggregateByItem();
 
+    /** 기간 안 구매의 품목별 수량 · 공급가액 — 원가생성 [전월금액비교] 가 본다. */
+    @Query("select l.item.id as itemId, coalesce(sum(l.quantity),0) as qty, " +
+            "coalesce(sum(l.supplyAmount),0) as amount " +
+            "from PurchaseLine l where l.purchase.purchaseDate >= :from and l.purchase.purchaseDate <= :to " +
+            "group by l.item.id")
+    List<ItemAggregate> aggregateByItemBetween(@Param("from") java.time.LocalDate from, @Param("to") java.time.LocalDate to);
+
     /**
      * 한 발주의 품목별 구매 전환수량 — 구매 저장 시 <b>발주수량을 넘지 않는지</b> 볼 때 쓴다.
      * 판매(SalesLineRepository.aggregateSoldByOrder)와 같은 규칙이다.
