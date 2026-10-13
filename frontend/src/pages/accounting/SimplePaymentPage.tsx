@@ -235,7 +235,7 @@ export function StatementListPage({ daily }: { daily: boolean }) {
       )}
 
       {confirmDelete && (
-        <Modal open title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
+        <Modal open title="확인" width={420} error={error} onClose={() => setConfirmDelete(false)}>
           <p className="mb-[12px]">삭제한 데이터는 복구되지 않습니다.<br />삭제하겠습니까?</p>
           <div className="flex gap-[6px]">
             <button className="ec-btn ec-btn-primary" onClick={doDelete}>확인</button>
@@ -315,7 +315,7 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
         )}
       </div>
       {confirmReload && (
-        <Modal open title="확인" width={420} onClose={() => setConfirmReload(false)}>
+        <Modal open title="확인" width={420} error={error} onClose={() => setConfirmReload(false)}>
           <p className="mb-[12px]">직접 수정한 사항은 유지되지 않으며,<br />입력된 자료를 바탕으로 새로 불러옵니다.<br />진행하시겠습니까?</p>
           <div className="flex gap-[6px]">
             <button className="ec-btn ec-btn-primary" onClick={reload}>확인</button>
