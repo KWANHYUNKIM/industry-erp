@@ -152,6 +152,9 @@ const ContractItemPage = lazy(() => import('../pages/accounting/ContractItemPage
 const BillingContractEntryPage = lazy(() => import('../pages/accounting/BillingContractEntryPage'))
 const BillingContractListPage = lazy(() => import('../pages/accounting/BillingContractListPage'))
 const ContractBillPage = lazy(() => import('../pages/accounting/ContractBillPage'))
+const ContractReflectPage = lazy(() => import('../pages/accounting/ContractReflectPage'))
+const ContractUnreflectedPage = lazy(() => import('../pages/accounting/ContractUnreflectedPage'))
+const ContractInvoiceStatusPage = lazy(() => import('../pages/accounting/ContractInvoiceStatusPage'))
 const CurrencyPage = lazy(() => import('../pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
 const IncomePage = lazy(() => import('../pages/accounting/IncomePage'))
@@ -711,6 +714,9 @@ export default function AppRouter() {
         <Route path="/accounting/billing-contracts/new" element={<BillingContractEntryPage />} />
         <Route path="/accounting/billing-contracts" element={<BillingContractListPage />} />
         <Route path="/accounting/contract-bills" element={<ContractBillPage />} />
+        <Route path="/accounting/contract-reflect" element={<ContractReflectPage />} />
+        <Route path="/accounting/contract-unreflected" element={<ContractUnreflectedPage />} />
+        <Route path="/accounting/contract-invoices" element={<ContractInvoiceStatusPage />} />
         <Route path="/settings/currencies" element={<CurrencyPage />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />
         <Route path="/accounting/income" element={<IncomePage />} />

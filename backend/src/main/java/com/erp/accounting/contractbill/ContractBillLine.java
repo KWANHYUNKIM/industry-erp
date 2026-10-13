@@ -49,4 +49,8 @@ public class ContractBillLine {
 
     @Column(length = 200)
     private String remark;
+
+    /** 회계/판매일괄반영(E060906)으로 만든 매출전표 I. 회계거래조회에서 그 전표를 지우면 DB 가 비운다(V354 ON DELETE SET NULL). */
+    @Column(name = "journal_entry_id")
+    private Long journalEntryId;
 }

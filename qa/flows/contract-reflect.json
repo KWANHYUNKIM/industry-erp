@@ -1,0 +1,51 @@
+{
+  "about": "회계 II › 계약관리 › 회계반영 — 청구예정자료(API: 계약항목 · 계약 · 일괄생성 2 × 10,000) → 회계/판매일괄반영: 거래처 줄 거래가액 20,000 · 부가세 2,000 · 합계 22,000 · 적요 항목명 → [상세] '매출 세금계산서 미청구 리스트' → 골라 [매출전표 I] 창(매출계정 제품매출 · 입금계좌 외상매출금) [저장(F8)] → 줄이 빠진다 → 매출(세금)계산서현황(계약) '매출청구서현황' 20,000 · 2,000 · 22,000 · '2026/10 계' → 회계미반영현황(계약)에 없다 → 그 전표를 지우면 회계미반영현황에 다시 나온다(2026-10-13 원본 실측: 전표 [삭제] 뒤 회계반영여부가 빈칸). 만든 자료는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "청구자료 만들기 · 회계/판매일괄반영",
+      "path": "/accounting/contract-reflect",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const c='R'+String(Date.now()).slice(-4);const it=(await window.__api('POST','/contract-items',{code:c,name:'QA회계2-반영항목',unitPrice:10000,vatIncluded:false,billingCycle:'PERIODIC',salesAccountId:null,active:true})).body;sessionStorage.setItem('ciId',it.id);const u=(await window.__api('GET','/billing-contracts/units')).body[0];const ps=(await window.__api('GET','/partners')).body;const p=ps[ps.length-1];sessionStorage.setItem('pName',p.name);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');sessionStorage.setItem('ym',ymd.slice(0,7));const bc=(await window.__api('POST','/billing-contracts',{contractDate:ymd,partnerId:p.id,code:null,name:'QA회계2-반영계약',billStart:ymd,billEnd:(d.getFullYear()+1)+ymd.slice(4),vatType:'세금계산서',foreignCurrency:false,employeeId:null,departmentId:null,projectId:null,remark:null,lines:[{itemId:it.id,billMonths:'01,02,03,04,05,06,07,08,09,10,11,12',quantity:2,unitPrice:10000,supplyAmount:null,vatAmount:null,billingUnitId:u.id,remark:null}]})).body;sessionStorage.setItem('bcId',bc.id);const b=(await window.__api('POST','/contract-bills',{billDate:ymd,vatType:'세금계산서',byPartner:false,lines:[{contractLineId:bc.lines[0].id,billMonth:ymd.slice(0,7),quantity:2,unitPrice:10000,supplyAmount:20000,vatAmount:2000,remark:'QA회계2'}]})).body;sessionStorage.setItem('billId',b[0].id);return b[0].totalAmount})()",
+        "clicklast:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('pName'));return !!tr&&tr.cells[2].innerText.trim()==='20,000'&&tr.cells[8].innerText.trim()==='22,000'&&tr.querySelector('[aria-label=\"적요\"]').value==='QA회계2-반영항목'})()",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('pName'));[...tr.querySelectorAll('a')].find((a)=>a.innerText.trim()==='상세').click();return true})()",
+        "wait:400",
+        "expect:document.body.innerText.includes('매출 세금계산서 미청구 리스트')&&document.body.innerText.includes('QA회계2-반영계약')",
+        "clicklast:닫기",
+        "wait:300",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('pName'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "clicklast:매출전표 I",
+        "wait:500",
+        "expect:document.body.innerText.includes('입금계좌')&&document.querySelectorAll('[aria-label=\"공급가액\"]').length>0",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('pName')))"
+      ]
+    },
+    {
+      "name": "매출(세금)계산서현황(계약)",
+      "path": "/accounting/contract-invoices",
+      "steps": [
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('pName')));return !!tr&&tr.cells[2].innerText.trim()==='20,000'&&tr.cells[3].innerText.trim()==='2,000'&&tr.cells[4].innerText.trim()==='22,000'})()",
+        "expect:document.body.innerText.includes('매출청구서현황')&&document.body.innerText.includes(sessionStorage.getItem('ym').replace('-','/')+' 계')"
+      ]
+    },
+    {
+      "name": "회계미반영현황(계약) — 전표를 지우면 다시 나온다",
+      "path": "/accounting/contract-unreflected",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "expect:!document.body.innerText.includes('QA회계2-반영계약')",
+        "js:(async()=>{const bill=(await window.__api('GET','/contract-bills')).body.find((b)=>b.id===Number(sessionStorage.getItem('billId')));const r=await window.__api('DELETE','/journals/'+bill.lines[0].journalEntryId);return r.status})()",
+        "clicklast:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계2-반영계약'));return !!tr&&tr.cells[7].innerText.trim()==='20,000'&&tr.cells[8].innerText.trim()==='2,000'})()",
+        "js:(async()=>{const a=await window.__api('POST','/contract-bills/delete',{ids:[Number(sessionStorage.getItem('billId'))]});const b=await window.__api('POST','/billing-contracts/delete',{ids:[Number(sessionStorage.getItem('bcId'))]});const c=await window.__api('DELETE','/contract-items/'+sessionStorage.getItem('ciId'));return a.status+' '+b.status+' '+c.status})()"
+      ]
+    }
+  ]
+}

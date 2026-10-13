@@ -28,6 +28,28 @@ public class ContractBillController {
         return service.findAll(from, to);
     }
 
+    /** 회계/판매일괄반영(E060906) · 회계미반영현황(계약)(E060908) — 청구자료 줄. reflected=false 면 미반영만. */
+    @GetMapping("/lines")
+    public List<ContractBillDtos.BillLineView> lines(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                     @RequestParam(required = false) Boolean reflected) {
+        return service.lines(from, to, reflected);
+    }
+
+    /** 회계/판매일괄반영 [매출전표 I] 창 [저장(F8)] — 만든 회계전표 id. */
+    @PostMapping("/reflect")
+    public java.util.Map<String, Long> reflect(@Valid @RequestBody ContractBillDtos.ReflectRequest req,
+                                               @AuthenticationPrincipal UserPrincipal principal) {
+        return java.util.Map.of("journalEntryId", service.reflect(req, principal.getUsername()));
+    }
+
+    /** 매출(세금)계산서현황(계약)(E060910) — 기준일자(전표일자) 기간. */
+    @GetMapping("/invoices")
+    public List<ContractBillDtos.InvoiceRow> invoices(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.invoices(from, to);
+    }
+
     @GetMapping("/{id}")
     public BillResponse one(@PathVariable Long id) {
         return service.findOne(id);
