@@ -1,0 +1,66 @@
+{
+  "about": "업무일지 [H] '이력' · [답글펼치기](원본 E070304, 2026-10-14 실측) — 원글을 API 로 넣고 → 조회 창 [H] '게시글번호 : 번호' · '1 … 신규' → [수정] 으로 제목 고쳐 저장 → [H] 에 '2 … 수정' → [답글(F8)] 로 답글 → 답글 카드 [H] 머리도 원글 번호 → [답글펼치기] → [답글접기] 로만 바뀌고 본문 그대로 → [답글접기] → 답글 카드 머리 줄만. 끝에 지운다. node qa/shot.mjs qa/flows/worklog-history.json",
+  "shots": [
+    {
+      "name": "준비 — 원글 하나",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const t = new Date(); const day = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const d = await (await fetch('/api/departments', { headers: H })).json(); const dept = d.find((x) => x.active).name; const r = await fetch('/api/work-journals', { method: 'POST', headers: H, body: JSON.stringify({ reportDate: day, department: dept, title: 'QA그룹웨어-이력글', content: '' }) }); return r.status + ' ' + dept })()"
+      ]
+    },
+    {
+      "name": "[H] 신규 → 수정 · 답글 [H] · 답글펼치기/접기",
+      "path": "/groupware/worklog",
+      "steps": [
+        "wait:800",
+        "click:검색(F8)",
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QA그룹웨어-이력글').click(); true",
+        "wait:400",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const js = await (await fetch('/api/work-journals', { headers: H })).json(); const j = js.find((x) => x.title === 'QA그룹웨어-이력글'); sessionStorage.setItem('qaWlHid', String(j.id)); return j.id })()",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === 'H').click(); true",
+        "wait:1200",
+        "expect:(() => { const h = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이력'); return !!h && h.innerText.includes('게시글번호 : ' + sessionStorage.getItem('qaWlHid')) && h.querySelectorAll('tbody tr').length === 1 && h.querySelector('tbody tr').innerText.includes('신규') })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이력').querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:300",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === '수정').click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog][aria-label=\"업무일지게시글작성\"] button')].some((b) => b.textContent.trim() === 'H')",
+        "js:(() => { const i = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"] input[aria-label=\"제목\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-이력글2'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:2000",
+        "expect:document.querySelector('[role=dialog][aria-label=\"조회\"]')?.innerText.includes('QA그룹웨어-이력글2')",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === 'H').click(); true",
+        "wait:1200",
+        "expect:(() => { const h = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이력'); const tr = h ? [...h.querySelectorAll('tbody tr')] : []; return tr.length === 2 && tr[0].innerText.includes('신규') && tr[1].innerText.includes('수정') && /^2/.test(tr[1].cells[0].textContent.trim()) })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이력').querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:300",
+        "click:답글(F8)",
+        "wait:400",
+        "js:(() => { const i = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"] input[aria-label=\"제목\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-이력답글'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:document.querySelector('[role=dialog][aria-label=\"조회\"]')?.innerText.includes('QA그룹웨어-이력답글') && document.querySelector('[role=dialog][aria-label=\"조회\"]').innerText.includes('업무보고일') && [...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].some((b) => b.textContent.trim() === '답글펼치기')",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].filter((b) => b.textContent.trim() === 'H')[1].click(); true",
+        "wait:1200",
+        "expect:(() => { const h = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이력'); return !!h && h.innerText.includes('게시글번호 : ' + sessionStorage.getItem('qaWlHid')) && h.querySelectorAll('tbody tr').length === 1 })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이력').querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:300",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === '답글펼치기').click(); true",
+        "wait:300",
+        "expect:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].some((b) => b.textContent.trim() === '답글접기') && [...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].filter((b) => b.textContent.trim() === 'H').length === 2",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === '답글접기').click(); true",
+        "wait:300",
+        "expect:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].some((b) => b.textContent.trim() === '답글펼치기') && [...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].filter((b) => b.textContent.trim() === 'H').length === 1 && document.querySelector('[role=dialog][aria-label=\"조회\"]').innerText.includes('QA그룹웨어-이력답글')",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const js = await (await fetch('/api/work-journals', { headers: H })).json(); const mine = js.filter((x) => x.title.startsWith('QA그룹웨어')).sort((a, b) => (b.parentId != null) - (a.parentId != null) || b.id - a.id); const out = []; for (const j of mine) out.push((await fetch('/api/work-journals/' + j.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}
