@@ -54,6 +54,12 @@ public class SalesOrderController {
         return salesOrderService.findUnsold(from, to);
     }
 
+    /** 주문서조회 [생성한전표] 의 '조회' — 이 주문에서 만든 출하지시서 · 판매 전표. */
+    @GetMapping("/{id}/generated")
+    public List<SalesOrderDtos.GeneratedSlipRow> generated(@PathVariable Long id) {
+        return salesOrderService.generatedSlips(id);
+    }
+
     @PostMapping
     public ResponseEntity<SalesOrderResponse> create(
             @Valid @RequestBody CreateSalesOrderRequest req,

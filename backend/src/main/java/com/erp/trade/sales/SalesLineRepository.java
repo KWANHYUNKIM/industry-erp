@@ -56,4 +56,11 @@ public interface SalesLineRepository extends JpaRepository<SalesLine, Long> {
 
     /** 이 수주를 근거로 만든 판매 라인이 있나. 수주 삭제 가능 여부를 본다. */
     boolean existsBySourceOrderId(Long sourceOrderId);
+
+    /**
+     * 수주에서 불러와 만든 판매 줄 — 주문서조회 [생성한전표] 창이 쓴다(전표일자 · 번호 차례).
+     */
+    @Query("select l from SalesLine l join fetch l.sales s join fetch l.item " +
+            "where l.sourceOrder.id = :orderId order by s.saleDate, s.id, l.id")
+    List<SalesLine> findGeneratedByOrder(@Param("orderId") Long orderId);
 }

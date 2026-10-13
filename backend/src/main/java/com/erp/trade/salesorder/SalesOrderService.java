@@ -371,6 +371,54 @@ public class SalesOrderService {
     }
 
     /**
+     * 주문서조회 [생성한전표] 창 — 이 주문에서 나간 출하지시서 · 판매 전표를 주문 줄마다 보인다.
+     *
+     * <p>잔량은 원본처럼 <b>주문수량 − 판매수량</b>이다. 판매 줄은 수주 헤더만 가리키므로 품목으로 맞추고,
+     * 같은 품목이 두 줄이면 위 줄부터 채운다(미판매현황과 같은 규칙). 출하지시는 주문 줄을 직접 가리킨다.
+     */
+    @Transactional(readOnly = true)
+    public List<SalesOrderDtos.GeneratedSlipRow> generatedSlips(Long id) {
+        SalesOrder order = salesOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id));
+        List<com.erp.trade.sales.SalesLine> sold = salesLineRepository.findGeneratedByOrder(id);
+        List<com.erp.trade.shipment.ShipmentLine> shipped = shipmentLineRepository.findGeneratedByOrder(id);
+        Map<Long, BigDecimal> soldPool = new HashMap<>();
+        for (com.erp.trade.sales.SalesLine l : sold) soldPool.merge(l.getItem().getId(), l.getQuantity(), BigDecimal::add);
+        java.util.Set<Long> salesShown = new java.util.HashSet<>();
+        List<SalesOrderDtos.GeneratedSlipRow> rows = new java.util.ArrayList<>();
+        for (SalesOrderLine line : order.getLines()) {
+            Item it = line.getItem();
+            BigDecimal pool = soldPool.getOrDefault(it.getId(), BigDecimal.ZERO);
+            BigDecimal used = pool.min(line.getQuantity());
+            soldPool.put(it.getId(), pool.subtract(used));
+            BigDecimal remaining = line.getQuantity().subtract(used);
+            List<String[]> slips = new java.util.ArrayList<>();
+            for (com.erp.trade.shipment.ShipmentLine sl : shipped) {
+                if (sl.getOrderLine() != null && sl.getOrderLine().getId().equals(line.getId())) {
+                    slips.add(new String[]{"출하지시서", String.valueOf(sl.getShipment().getShipDate()), sl.getShipment().getShipNo()});
+                }
+            }
+            /* 판매는 품목이 같은 첫 주문 줄에만 붙인다 — 두 줄에 같은 전표가 두 번 보이지 않게. */
+            if (salesShown.add(it.getId())) {
+                for (com.erp.trade.sales.SalesLine l : sold) {
+                    if (l.getItem().getId().equals(it.getId())) {
+                        slips.add(new String[]{"판매", String.valueOf(l.getSales().getSaleDate()), l.getSales().getDocNo()});
+                    }
+                }
+            }
+            if (slips.isEmpty()) {
+                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), it.getSpec(),
+                        line.getQuantity(), remaining, null, null, null));
+            }
+            for (String[] x : slips) {
+                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), it.getSpec(),
+                        line.getQuantity(), remaining, x[0], LocalDate.parse(x[1]), x[2]));
+            }
+        }
+        return rows;
+    }
+
+    /**
      * 수주 삭제.
      *
      * <p>뒤에 붙은 것이 하나라도 있으면 막는다. 출하·판매전표가 이 수주를 근거로 가리키고

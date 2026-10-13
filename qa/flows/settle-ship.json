@@ -10,9 +10,11 @@
     ] },
     { "name": "주문 등록(다음 화면에서 출하지시할 주문)", "path": "/sales/orders", "steps": [
       "click:신규(F2)", "click:매출처 선택", "pickrow:QA-CUST",
-      "click:품목 선택", "pickrow:QA-PROD",
-      "set:form tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#0|3",
-      "set:form tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#1|1000",
+      "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true", "pickrow:QA-PROD",
+      "set:[role=dialog] tbody input.text-right#0|3",
+      "set:[role=dialog] tbody input.text-right#1|1000",
+      "click:출하창고 선택",
+      "pickrow:QA-WH",
       "click:저장(F8)",
       "expect:/SN-[0-9]{8}-[0-9]{4} 수주 등록 완료/.test(document.body.innerText)",
       "js:sessionStorage.setItem('qaOrder', document.body.innerText.match(/SN-[0-9]{8}-[0-9]{4}(?= 수주 등록 완료)/)[0]); true"

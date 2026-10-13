@@ -15,13 +15,24 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
 import { dateText } from '../../utils/dateText'
+import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
-const STATUS_LABEL: Record<OrderStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소' }
-const STATUS_COLOR: Record<OrderStatus, string> = { RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
-const NEXT: Record<OrderStatus, OrderStatus | null> = { RECEIVED: 'IN_PROGRESS', IN_PROGRESS: 'COMPLETED', COMPLETED: null, CANCELED: null }
+/**
+ * 원본 진행상태는 <b>미확인 / 확인(진행중 · 완료)</b> 두 단계다(2026-10-13 [진행상태변경] 메뉴 실측:
+ * '▾미확인 › 미확인', '▾확인 › 진행중 · 완료'). 우리 접수(RECEIVED)가 원본 미확인 자리다. 취소는 원본에 없다(예전 자료만).
+ */
+const STATUS_LABEL: Record<OrderStatus, string> = { RECEIVED: '미확인', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소' }
+/** 위 탭 — 원본 '전체 · 결재중 · C-Portal · 미확인 · 확인 ▸ 진행중 – 완료'. 결재 · C-Portal 은 우리에게 그 경로가 없어 늘 비어 있다. */
+type Tab = 'ALL' | 'APPROVAL' | 'CPORTAL' | 'RECEIVED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED'
+const TAB_MATCH: Record<Tab, (s: OrderStatus) => boolean> = {
+  ALL: () => true, APPROVAL: () => false, CPORTAL: () => false, RECEIVED: (s) => s === 'RECEIVED',
+  CONFIRMED: (s) => s === 'IN_PROGRESS' || s === 'COMPLETED', IN_PROGRESS: (s) => s === 'IN_PROGRESS', COMPLETED: (s) => s === 'COMPLETED',
+}
+/** [생성한전표] → '조회' 창 한 줄(서버 GeneratedSlipRow). */
+interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
 
-interface OrderLine { itemId: number; itemName: string; spec?: string | null; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }
+interface OrderLine { itemId: number; itemCode?: string; itemName: string; spec?: string | null; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }
 interface SalesOrder {
   id: number; orderNo: string; partnerId: number; partnerName: string
   orderDate: string; dueDate: string | null; status: OrderStatus; statusName: string
@@ -45,8 +56,7 @@ const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
 /**
  * 오더관리(수주) — 원본 영업관리 &gt; 주문서 &gt; <b>주문서조회</b>(E040204) 자리. 2026-10-03 loginaa 실측(자료가 든 판):
  * 기간 기본 <b>최근30일(+1개월)</b>, 열 일자-No. · 거래처명 · 사원(담당)명 · 품목명 · 납기일자 · 주문금액합계 · 진행상태 · 생성한전표 · 인쇄,
- * 위 탭 전체 · 결재중 · C-Portal · 미확인 · 확인 · 진행중 · 완료. 우리 상태 탭은 접수 · 진행중 · 완료 · 취소다(결재 · 확인 단계가 없다).
- * 창고 · 프로젝트는 원본 목록에 없는 열이지만 수주에서 정한 값을 볼 데가 여기뿐이라 뒤에 남긴다.
+ * 위 탭 전체 · 결재중 · C-Portal · 미확인 · 확인 ▸ 진행중 – 완료. 창고 · 프로젝트는 [일자-No.] 수정 창에서 본다.
  */
 export default function SalesOrderPage() {
   const init = periodOf('최근30일(+1개월)')!
@@ -69,7 +79,15 @@ export default function SalesOrderPage() {
   /** 원본 목록 첫 칸의 체크 — [선택삭제] 가 이것을 지운다. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [keyword, setKeyword] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL')
+  const [tab, setTab] = useState<Tab>('ALL')
+  /** 수정 창의 빈 [출하창고] — 원본은 안내 없이 그 칸만 빨갛게 두르고 저장하지 않는다(2026-10-13 실측). */
+  const [whMissing, setWhMissing] = useState(false)
+  /** 하단 [진행상태변경 ▴] 메뉴 — 원본처럼 버튼 위로 뜬다. */
+  const [statusMenu, setStatusMenu] = useState<{ left: number; bottom: number } | null>(null)
+  /** [생성한전표] 의 '조회' 창. */
+  const [generated, setGenerated] = useState<{ order: SalesOrder; rows: GeneratedRow[] } | null>(null)
+  const [company, setCompany] = useState<DocParty | null>(null)
+  useEffect(() => { loadSupplierParty().then(setCompany) }, [])
 
   const [partnerId, setPartnerId] = useState('')
   const [orderDate, setOrderDate] = useState(today())
@@ -132,6 +150,7 @@ export default function SalesOrderPage() {
       .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) }))
     if (!partnerId) return setError('거래처를 선택하세요.')
     if (validLines.length === 0) return setError('품목·수량·단가를 1줄 이상 입력하세요.')
+    if (!fWarehouse) { setWhMissing(true); return }
     const body = {
       partnerId: Number(partnerId), dueDate: dueDate || undefined,
       warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
@@ -156,13 +175,13 @@ export default function SalesOrderPage() {
   }
 
   function closeForm() {
-    setShowForm(false); setEditId(null); setError(''); setOk('')
+    setShowForm(false); setEditId(null); setError(''); setOk(''); setWhMissing(false)
     setPartnerId(''); setOrderDate(today()); setDueDate(''); setTaxable(true); setRemark('')
     setFWarehouse(''); setFProject(''); setFEmployee(''); setLines([emptyLine()])
   }
 
   function openEdit(o: SalesOrder) {
-    setError(''); setOk('')
+    setError(''); setOk(''); setWhMissing(false)
     setEditId(o.id)
     setPartnerId(String(o.partnerId)); setOrderDate(o.orderDate); setDueDate(o.dueDate ?? '')
     setTaxable(o.vatAmount > 0 || o.supplyAmount === 0); setRemark(o.remark ?? '')
@@ -196,20 +215,74 @@ export default function SalesOrderPage() {
     if (fails.length) alert(fails.join('\n'))
   }
 
-  async function advance(o: SalesOrder) {
-    const next = NEXT[o.status]
-    if (!next) return
-    try { await api.patch(`/sales-orders/${o.id}/status`, { status: next }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+  /**
+   * 하단 [진행상태변경] — 버튼 위에 상태 메뉴를 띄운다. 원본은 안 고르고 누르면 '리스트에 선택된 자료가 없습니다.' 를 띄우지만
+   * 우리 셸은 고른 줄이 있어야 도는 버튼을 미리 잠근다(ui-check 1-s13). 문구는 잠금이 풀린 채 불릴 때를 위해 남긴다.
+   */
+  function openStatusMenu() {
+    if (checked.size === 0) return alert('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.')
+    const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === '진행상태변경')
+    const r = btn?.getBoundingClientRect()
+    setStatusMenu({ left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 })
   }
-  async function cancel(o: SalesOrder) {
-    if (!confirm(`${o.orderNo} 주문을 취소할까요?`)) return
-    try { await api.patch(`/sales-orders/${o.id}/status`, { status: 'CANCELED' }); load() }
+  async function changeStatus(status: OrderStatus) {
+    setStatusMenu(null)
+    const fails: string[] = []
+    for (const id of checked) {
+      try { await api.patch(`/sales-orders/${id}/status`, { status }) }
+      catch (err) { fails.push(extractErrorMessage(err)) }
+    }
+    setChecked(new Set())
+    load()
+    if (fails.length) alert(fails.join('\n'))
+  }
+
+  /**
+   * 주문수정 창의 [복사] — 원본은 같은 창이 '주문서입력' 으로 바뀌고 일자 · 납기일자가 오늘, 거래처 · 창고 · 품목 줄은 그대로다
+   * (2026-10-13 실측). 저장하면 새 주문서가 된다.
+   */
+  function copyEditing() {
+    setEditId(null); setOrderDate(today()); setDueDate(today()); setWhMissing(false); setError(''); setOk('')
+  }
+  /**
+   * 주문수정 창의 [이전] · [다음] — 원본은 목록 차례로 옮겨 다닌다. [다음]이 목록 위쪽(나중 전표), [이전]이 아래쪽이다
+   * (10/28 -1 에서 [다음] → 10/28 -2, [이전] → 10/26 -1). 끝에서 [다음]은 '다음에 표시할 전표가 없습니다.'.
+   */
+  function step(dir: -1 | 1) {
+    const i = shown.findIndex((o) => o.id === editId)
+    const target = i < 0 ? undefined : shown[i + dir]
+    if (!target) return alert(dir < 0 ? '다음에 표시할 전표가 없습니다.' : '이전에 표시할 전표가 없습니다.')
+    openEdit(target)
+  }
+
+  async function openGenerated(o: SalesOrder) {
+    try { setGenerated({ order: o, rows: (await api.get<GeneratedRow[]>(`/sales-orders/${o.id}/generated`)).data }) }
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  /** 줄의 [인쇄] — 원본 '주 문 서' 양식(수신 · 납기일자 · 일련번호 · 담당자 · 금액 한글 · 품목코드 · 품목명[규격] …). */
+  async function printOrder(o: SalesOrder) {
+    const p = partners.find((x) => x.id === o.partnerId)
+    await printDocuments([{
+      title: '주 문 서',
+      docNo: dateNo(o.orderDate, o.orderNo),
+      docDate: o.orderDate,
+      supplier: company ?? { label: '공급자', name: '(회사정보 미등록)' },
+      customer: {
+        label: '수신', name: o.partnerName,
+        bizRegNo: p?.bizRegNo, ceo: p?.ceoName, bizType: p?.bizType, bizItem: p?.bizItem, tel: p?.phone, address: p?.address,
+      },
+      extra: [{ label: '납기일자', value: dateText(o.dueDate) }, { label: '담당자', value: o.employeeName }],
+      remark: o.remark,
+      lines: o.lines.map((l) => ({
+        itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit,
+        quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount,
+      })),
+    }])
+  }
+
   const shownRows = orders
-    .filter((o) => statusFilter === 'ALL' || o.status === statusFilter)
+    .filter((o) => TAB_MATCH[tab](o.status))
     .filter((o) => !whCond || String(o.warehouseId) === whCond)
     .filter((o) => !projCond || String(o.projectId) === projCond)
     .filter((o) => !partnerCond || String(o.partnerId) === partnerCond)
@@ -241,9 +314,44 @@ export default function SalesOrderPage() {
       onSearchChange={setKeyword}
       newLabel="신규(F2)"
       onNew={() => { closeForm(); setShowForm(true) }}
-      actions={[{ label: '선택삭제', onClick: removeChecked, disabled: checked.size === 0 }, { label: 'Excel' }, { label: '인쇄' }]}
+      /* 원본 차례: 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드 · 다른전표생성 · 전자결재 · 선택삭제 · Excel · 이력조회 — 바깥 발송 · 결재는 뺀다. */
+      actions={[{ label: '진행상태변경', onClick: openStatusMenu, disabled: checked.size === 0 }, { label: '인쇄' },
+        { label: '선택삭제', onClick: removeChecked, disabled: checked.size === 0 }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-ec-hint">매출처로부터 받은 주문(수주) 관리 · 접수 → 진행중 → 완료. 실제 출고는 판매입력에서.</p>
+      {statusMenu && (
+        <>
+          <div className="ec-backdrop-clear" onClick={() => setStatusMenu(null)} />
+          <div className="ec-menu fixed" style={{ left: statusMenu.left, bottom: statusMenu.bottom }} role="menu" aria-label="진행상태변경">
+            <div className="px-[10px] pt-[4px] text-ec-label">▾ 미확인</div>
+            <button onClick={() => changeStatus('RECEIVED')}>미확인</button>
+            <div className="px-[10px] pt-[4px] text-ec-label">▾ 확인</div>
+            <button onClick={() => changeStatus('IN_PROGRESS')}>진행중</button>
+            <button onClick={() => changeStatus('COMPLETED')}>완료</button>
+          </div>
+        </>
+      )}
+
+      <Modal open={generated != null} title="생성한 전표" width={760} onClose={() => setGenerated(null)}>{generated && (
+        <div>
+          <p className="mb-[6px]">주문서조회 : {dateNo(generated.order.orderDate, generated.order.orderNo)}</p>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th><th className="text-right">잔량</th>
+              <th>생성한 전표</th><th>생성한 전표일자-No.</th>
+            </tr></thead>
+            <tbody>
+              {generated.rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
+                  <td className="text-right">{won(r.quantity)}</td><td className="text-right">{won(r.remaining)}</td>
+                  <td>{r.slipType ?? ''}</td><td>{r.slipDate && r.slipNo ? dateNo(r.slipDate, r.slipNo) : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-[8px]"><button type="button" className="ec-btn" onClick={() => setGenerated(null)}>닫기</button></div>
+        </div>
+      )}</Modal>
 
       <Modal open={showForm} title={editId != null ? '주문수정' : '주문서입력'} width={900} onClose={closeForm}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10 }}>
@@ -277,11 +385,13 @@ export default function SalesOrderPage() {
                   수주의 [창고]·[프로젝트]·[담당자]. 견적에서 전환하면 그 값이 따라오는데,
                   <b>수주를 직접 만들면 정할 데가 없어</b> 미출하현황의 그 조건들이 헛돌았다.
                 */}
-                <th style={th}>창고</th>
+                <th style={th}>출하창고</th>
                 <td>
-                  <CodePickerField label="창고" hideLabel width={170} emptyLabel="선택 안 함"
-                                   value={fWarehouse} onChange={setFWarehouse}
-                                   items={pickers.warehouses} />
+                  <div className={`inline-block${whMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={whMissing || undefined}>
+                    <CodePickerField label="출하창고" hideLabel width={170} emptyLabel="선택 안 함" placeholder="출하창고"
+                                     value={fWarehouse} onChange={(v) => { setFWarehouse(v); if (v) setWhMissing(false) }}
+                                     items={pickers.warehouses} />
+                  </div>
                 </td>
                 <th style={th}>프로젝트</th>
                 <td>
@@ -353,8 +463,14 @@ export default function SalesOrderPage() {
           <div className="mt-[8px] flex items-center gap-[8px]">
             <input className={inputCls} placeholder="비고" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ flex: 1, maxWidth: 400 }} />
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
-            {editId != null && <button type="button" className="ec-btn" onClick={removeEditing}>삭제</button>}
+            {/* 원본 주문수정 단추줄: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H */}
+            {editId != null && <>
+              <button type="button" className="ec-btn" onClick={copyEditing}>복사</button>
+              <button type="button" className="ec-btn" onClick={() => step(1)}>이전</button>
+              <button type="button" className="ec-btn" onClick={() => step(-1)}>다음</button>
+            </>}
             <button type="button" className="ec-btn" onClick={closeForm}>닫기</button>
+            {editId != null && <button type="button" className="ec-btn" onClick={removeEditing}>삭제</button>}
           </div>
           {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
           {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
@@ -389,13 +505,10 @@ export default function SalesOrderPage() {
         </EcCond>
       </ul>
 
-      {/* 상태 필터 */}
-      <div className="flex gap-[2px] mb-[8px]">
-        {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
-            padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ec-text)', fontWeight: statusFilter === s ? 700 : 400,
-          }}>{s === 'ALL' ? '전체' : STATUS_LABEL[s]} ({s === 'ALL' ? orders.length : orders.filter((o) => o.status === s).length})</button>
+      {/* 원본 제목 옆 알약: 전체 · 결재중 · C-Portal · 미확인 · 확인 ▸ 진행중 – 완료 */}
+      <div className="ec-pills mb-[8px]">
+        {([['ALL', '전체'], ['APPROVAL', '결재중'], ['CPORTAL', 'C-Portal'], ['RECEIVED', '미확인'], ['CONFIRMED', '확인 ▸'], ['IN_PROGRESS', '진행중'], ['COMPLETED', '완료']] as const).map(([k, label]) => (
+          <button key={k} type="button" className={`ec-pill no-ec${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
 
@@ -413,14 +526,13 @@ export default function SalesOrderPage() {
             <th className="w-[90px]">사원(담당)명</th><th>품목명(요약)</th><th>납기일자</th>
             <th className="text-right">주문금액합계</th>
             <th className="text-center">진행상태</th>
-            {/* 정할 수는 있는데 <b>목록에서 볼 수가 없으면</b> 반쪽이다 — 안 정한 수주는 빈칸이다. */}
-            <th className="w-[100px]">창고</th><th className="w-[110px]">프로젝트</th>
-            <th className="text-center">처리</th>
+            <th className="text-center">생성한전표</th>
+            <th className="text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => (
             <tr key={o.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
@@ -436,13 +548,9 @@ export default function SalesOrderPage() {
               <td>{o.lines[0]?.itemName}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td>{dateText(o.dueDate) || ''}</td>
               <td className="text-right">{won(o.totalAmount)}</td>
-              <td style={{ textAlign: 'center', color: STATUS_COLOR[o.status], fontWeight: 700 }}>{o.statusName}</td>
-              <td className="text-ec-label">{o.warehouseName ?? ''}</td>
-              <td className="text-ec-label">{o.projectName ?? ''}</td>
-              <td className="text-center whitespace-nowrap">
-                {NEXT[o.status] && <button className="no-ec" onClick={() => advance(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {STATUS_LABEL[NEXT[o.status]!]}</button>}
-                {o.status !== 'COMPLETED' && o.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
-              </td>
+              <td className="text-center text-ec-navy">{STATUS_LABEL[o.status]}</td>
+              <td className="text-center"><a className="cursor-pointer" onClick={() => openGenerated(o)}>조회</a></td>
+              <td className="text-center"><a className="cursor-pointer" onClick={() => void printOrder(o)}>인쇄</a></td>
             </tr>
           ))}
         </tbody>

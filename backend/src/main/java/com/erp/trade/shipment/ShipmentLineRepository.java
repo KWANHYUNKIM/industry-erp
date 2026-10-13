@@ -49,4 +49,9 @@ public interface ShipmentLineRepository extends JpaRepository<ShipmentLine, Long
     @Query("select sl.orderLine.id, sl.shipment.shipNo from ShipmentLine sl " +
             "where sl.shipment.status = :status order by sl.shipment.shipNo")
     List<Object[]> findShipNosByOrderLine(@Param("status") ShipmentStatus status);
+
+    /** 수주 줄에서 만든 출하지시 줄 — 주문서조회 [생성한전표] 창이 쓴다. */
+    @Query("select sl from ShipmentLine sl join fetch sl.shipment s " +
+            "where s.salesOrder.id = :orderId order by s.shipDate, s.id, sl.id")
+    List<ShipmentLine> findGeneratedByOrder(@Param("orderId") Long orderId);
 }

@@ -264,4 +264,14 @@ public final class SalesOrderDtos {
                     o.getLines().stream().map(OrderLineResponse::from).toList());
         }
     }
+
+    /**
+     * 주문서조회 [생성한전표] → '생성한 전표' 창 한 줄(원본 2026-10-13 실측 열: 품목코드 · 품목명 · 규격 · 수량 · 잔량 ·
+     * 생성한 전표 · 생성한 전표일자-No.). 한 주문 줄에서 전표가 여럿 나왔으면 전표마다 한 줄이고, 없으면 전표 칸이 빈 한 줄이다.
+     */
+    public record GeneratedSlipRow(
+            String itemCode, String itemName, String spec,
+            BigDecimal quantity, BigDecimal remaining,
+            String slipType, LocalDate slipDate, String slipNo
+    ) {}
 }

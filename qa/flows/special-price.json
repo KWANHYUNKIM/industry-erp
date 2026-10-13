@@ -14,7 +14,7 @@
         "wait:600",
         "click:거래처 코드도움",
         "pickrow:QA-CUST",
-        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA-PROD')); return tr ? tr.querySelectorAll('input[type=number]')[1].value : '' })() === '777'"
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA-PROD')); return tr ? tr.querySelectorAll('input.text-right')[1].value : '' })() === '777'"
       ]
     },
     {
@@ -27,7 +27,7 @@
         "wait:600",
         "clicklast:거래처 선택",
         "pickrow:QA-CUST",
-        "expect:document.querySelectorAll('tbody tr:has(button[title=\"품목 선택\"]) input[type=number]')[1]?.value === '777'"
+        "expect:document.querySelectorAll('tbody tr:has(button[title=\"품목 선택\"]) input.text-right')[1]?.value === '777'"
       ]
     },
     {
@@ -40,7 +40,7 @@
         "wait:600",
         "click:매출처 선택",
         "pickrow:QA-CUST",
-        "expect:document.querySelectorAll('[role=dialog] tbody input[type=number]')[1].value === '777'",
+        "expect:document.querySelectorAll('[role=dialog] tbody input.text-right')[1].value === '777'",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status })); true",
         "js:window.__api('DELETE', '/special-prices/' + sessionStorage.getItem('spId')).then((r) => r.status)",
         "js:window.__api('PUT', '/price-order-settings', { category: 'SALES', settings: JSON.parse(sessionStorage.getItem('poSaved')) }).then((r) => r.status)"

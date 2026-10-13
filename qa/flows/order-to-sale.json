@@ -10,9 +10,11 @@
         "pickrow:QA-CUST",
         "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
-        "set:[role=dialog] tbody input[type=number]#0|4",
-        "set:[role=dialog] tbody input[type=number]#1|1000",
+        "set:[role=dialog] tbody input.text-right#0|4",
+        "set:[role=dialog] tbody input.text-right#1|1000",
         "expect:document.querySelector('[role=dialog] tfoot').innerText.includes('합계금액 (부가세 포함)') && document.querySelector('[role=dialog] tfoot').innerText.includes('4,400')",
+        "click:출하창고 선택",
+        "pickrow:QA-WH",
         "click:저장(F8)",
         "expect:/SN-[0-9]{8}-[0-9]{4} 수주 등록 완료/.test(document.body.innerText)",
         "js:sessionStorage.setItem('o2sOrder', document.body.innerText.match(/SN-[0-9]{8}-[0-9]{4}(?= 수주 등록 완료)/)[0]); true"
