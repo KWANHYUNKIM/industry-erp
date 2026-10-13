@@ -4521,11 +4521,9 @@ async function scenarioConfirmTransition(f) {
   eq('확인일시가 덮어써지지 않는다',
     new Date(after.confirmedAt).getTime(), new Date(first.confirmedAt).getTime())
 
-  await rejects('확인된 전표는 삭제 불가', 'DELETE', `/sales/${sale.id}`, undefined, '확인된 전표는 삭제할 수 없습니다')
-
-  await must('POST', `/sales/${sale.id}/unconfirm`)
+  // 원본 loginaa(2026-10-14): 확인된 판매도 [선택삭제] · 수정 창 [삭제] 로 그대로 지워진다(확인취소 없이).
   await must('DELETE', `/sales/${sale.id}`)
-  eq('확인취소 후에는 지워진다',
+  eq('확인된 전표도 지워진다',
     (await must('GET', '/sales')).some((x) => x.id === sale.id), false)
 }
 

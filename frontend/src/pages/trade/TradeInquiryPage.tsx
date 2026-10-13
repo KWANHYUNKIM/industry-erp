@@ -235,14 +235,16 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   }
 
   /**
-   * 전표 삭제. 서버가 재고를 되돌리고 지운다. 회계반영·확인·세금계산서 발행 전표는 서버가 거부한다.
+   * 전표 삭제. 서버가 재고를 되돌리고 지운다. 회계반영·세금계산서 발행 전표는 서버가 거부한다(확인된 판매는 원본처럼 지운다).
    * 되돌릴 수 없는 조작이라 한 번 더 묻는다.
    */
   async function deleteDoc(d: NormalDoc) {
-    const ok = (await ecConfirm(
-      `${d.docNo} 전표를 삭제합니다.\n\n`
-      + `${isSales ? '출고' : '입고'}했던 재고가 되돌아갑니다 (품목 ${d.lines.length}건, 합계 ${won(d.totalAmount)}원).\n`
-      + '이 작업은 되돌릴 수 없습니다. 진행할까요?',
+    /* 원본 판매 수정 창 [삭제] — '알림' 창 "전표를 삭제하겠습니까?" 아래 줄 " - 판매", [확인] [취소](2026-10-14 loginaa 실측). */
+    const ok = (await ecConfirm(isSales
+      ? '전표를 삭제하겠습니까?\n - 판매'
+      : `${d.docNo} 전표를 삭제합니다.\n\n`
+        + `입고했던 재고가 되돌아갑니다 (품목 ${d.lines.length}건, 합계 ${won(d.totalAmount)}원).\n`
+        + '이 작업은 되돌릴 수 없습니다. 진행할까요?',
     ))
     if (!ok) return
     try {
@@ -366,7 +368,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   /**
    * 원본 하단 버튼줄의 [선택삭제]. 전표를 지우면 재고가 되돌아가고, 발주에서 입고전환된
    * 구매전표라면 발주서도 '발주확정' 으로 풀린다(백엔드가 처리한다).
-   * 지울 수 없는 전표(회계반영·세금계산서 발행·확인됨 등)는 서버가 사유를 준다 — 그대로 보여 준다.
+   * 지울 수 없는 전표(회계반영·세금계산서 발행 등)는 서버가 사유를 준다 — 그대로 보여 준다. 확인된 판매는 원본처럼 지워진다.
    */
   /**
    * 원본 하단 버튼줄의 <b>[회계반영]</b>. 고른 전표를 회계로 넘긴다.
@@ -401,7 +403,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   async function deleteSelected() {
     const ids = shown.filter((d) => selected.has(d.id)).map((d) => d.id)
     if (ids.length === 0) { setError('지울 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
-    if (!(await ecConfirm(`전표 ${ids.length}건을 지울까요? 재고도 함께 되돌아갑니다.`))) return
+    /* 원본 판매조회 [선택삭제] — "선택한 전표를 삭제 하겠습니까?" [확인] [취소](2026-10-14 loginaa 실측, 확인된 판매도 그대로 지워진다). */
+    if (!(await ecConfirm(isSales ? '선택한 전표를 삭제 하겠습니까?' : `전표 ${ids.length}건을 지울까요? 재고도 함께 되돌아갑니다.`))) return
     /*
      * 원본 판매조회는 회계반영된 판매를 지우면 '회계반영된 전표의 경우, 매출전표의 삭제 여부를 선택해주시기 바랍니다'
      * 창을 띄우고 [매출전표포함](기본 체크)으로 회계전표까지 같이 지운다(2026-10-06 loginaa 실측).
@@ -794,7 +797,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                       </button>
                       <span className="text-[11.5px] text-ec-hint">
                         삭제하면 {isSales ? '출고' : '입고'}분이 재고로 되돌아갑니다.
-                        회계반영·확인{isSales ? '' : ''}·세금계산서 발행 전표는 먼저 취소해야 합니다.
+                        회계반영{isSales ? '' : '·확인'}·세금계산서 발행 전표는 먼저 취소해야 합니다.
                       </span>
                     </div>
                     {d.remark && <div className="pt-[2px] px-[10px] pb-[8px] text-[12px] text-ec-label">비고: {d.remark}</div>}

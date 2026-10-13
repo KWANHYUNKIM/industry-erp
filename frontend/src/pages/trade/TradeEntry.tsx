@@ -260,7 +260,7 @@ const OPTIONAL_COLS = [
   /*
    * 원본 <b>판매입력II</b> 격자에는 [부가세] 다음에 <b>[합계]</b> 열이 있다(사본 실측:
    * 품목코드·품목명·규격·수량·단가·공급가액·부가세·<b>합계</b>·적요·금액조정항목명).
-   * 판매입력에는 없다 — 한 화면이 둘을 겸하므로 <b>켜고 끄는 열</b>로 둔다.
+   * 2026-10-14 다시 재 보니 판매입력에도 기본으로 보인다(구매입력에는 없다) — 판매는 켜고 시작한다.
    */
   { id: 'lineTotal', title: '합계', width: 100 },
   { id: 'mgmtItem', title: '관리항목', width: 90 },
@@ -346,10 +346,19 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
   const [cols, setCols] = useState<Record<OptionalColId, boolean>>({
     stockAll: false, stockWh: false, unit: false, priceVat: false,
     // 원본 판매입력 II 격자는 [부가세] 다음 [합계] 를 기본으로 보인다(2026-10-13 실측).
-    lineTotal: isAdjust,
+    // 원본 판매입력 격자도 [부가세] 다음 [합계] 를 기본으로 보인다(2026-10-14 실측 — 판매입력 II 와 같다). 구매입력은 없다.
+    lineTotal: mode === 'sales',
     mgmtItem: false, srcType: false, srcDate: false, srcNo: false, qcRequest: false,
   })
   const [colPickerOpen, setColPickerOpen] = useState(false)
+  /*
+   * 원본 판매입력 격자(2026-10-14 loginaa 실측, 보이는 열): 품목코드 · 품목명 · 규격 · 수량 · 시리얼/로트No. · 단가 · 공급가액 · 부가세 ·
+   * 새로운 항목 추가 · 합계. 구매입력: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 새로운 항목 추가
+   * (전체수량 · 창고수량 · 단위 · 단가(vat포함) · 관리항목 · 부대비용 … 은 양식에 깔려 있고 꺼져 있다).
+   * 그래서 판매는 시리얼/로트를 수량 뒤에 두고 부대비용(구매 쪽 값)은 그리지 않는다.
+   */
+  const lotAfterQty = mode === 'sales'
+  const showExtraCost = mode !== 'sales'
   /*
    * 원본 판매입력 [현금수금] — 화면을 떠나지 않고 '매출처로부터' 입금 창을 띄운다(2026-10-06 loginaa 실측):
    * 전표일자 오늘 · 입금계좌 000 현금 · 거래처 = 입력 중인 거래처 · 금액 = 전표 합계(1,101) · 수수료 0 · 적요.
@@ -789,7 +798,9 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
       if (field === 'itemId' && value) {
         const it = itemById.get(String(value))
         if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: basePriceOf(it) }
-        if (!next[idx].quantity) next[idx] = { ...next[idx], quantity: '1' }
+        // 원본 판매입력은 품목을 골라도 [수량] 이 빈칸이다(단가만 찬다, 공급가액 0 — 2026-10-14 실측) — 판매는 미리 1 을 넣지 않는다.
+        // 구매입력 격자는 다른 틀(ESG009M)이라 도구로 칸을 못 열어 못 쟀다 — 그때까지 예전처럼 1.
+        if (mode !== 'sales' && !next[idx].quantity) next[idx] = { ...next[idx], quantity: '1' }
         // 표준단가를 채운 뒤 특별단가가 있으면 그것으로 덮는다(서버가 순서를 판단한다).
         void applySpecialPrice(idx, String(value))
         if (idx === ls.length - 1) next.push(emptyLine())
@@ -797,6 +808,12 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
       return next
     })
   }
+  const lotCell = (l: LineInput, idx: number) => (
+    <td>
+      <input className="cell" value={l.lotNo} disabled={!l.itemId}
+             onChange={(e) => updateLine(idx, 'lotNo', e.target.value)} />
+    </td>
+  )
   function removeLine(idx: number) {
     setLines((ls) => (ls.length <= 3 ? ls.map((l, i) => (i === idx ? emptyLine() : l)) : ls.filter((_, i) => i !== idx)))
   }
@@ -1004,6 +1021,8 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
     extra: lines.reduce((s, l) => s + num(l.extraCost), 0),
     total: computed.reduce((s, c) => s + c.total, 0),
   }
+  /** 합계행의 전표 합계 칸 — 합계 열이 켜져 있으면 그 아래, 아니면 적요 칸 자리에 선다. */
+  const totalTd = <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
   /** 금액조정 할인을 나눈 값과 조정 후 합계(판매입력 II). 판매입력(I)에서는 늘 0 이라 net = totals. */
   const discount = splitDiscount(isAdjust ? discountTotal : 0, taxable)
   const net = { supply: totals.supply - discount.supply, vat: totals.vat - discount.vat, total: totals.total - discount.total }
@@ -1587,6 +1606,11 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
               )}
             </div>
           </li>
+          {/*
+            원본 판매입력 머리에는 [프로젝트] 가 없다(일자-No. · 거래처 · 담당자 · 출하창고 · 거래유형 · 통화 · 첨부), 구매입력에는 있다
+            (2026-10-14 loginaa 실측). 판매는 주문 · 수정에서 이어받은 값이 있을 때만 보인다 — 프로젝트별 손익이 그 값을 쓴다.
+          */}
+          {(mode !== 'sales' || projectId) && (
           <li>
             <div className="title">프로젝트</div>
             <div className="form">
@@ -1597,6 +1621,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
               />
             </div>
           </li>
+          )}
           <li>
             <div className="title">{cfg.docNoLabel}</div>
             <div className="form">
@@ -1880,19 +1905,21 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
               <col className="w-[100px]" />
               <col className="w-[200px]" />
               <col className="w-[110px]" />
-              <col className="w-[110px]" />
+              {!lotAfterQty && <col className="w-[110px]" />}
               {cols.stockAll && <col className="w-[70px]" />}
               {cols.stockWh && <col className="w-[70px]" />}
               {cols.unit && <col className="w-[50px]" />}
               <col className="w-[78px]" />
+              {lotAfterQty && <col className="w-[110px]" />}
               <col className="w-[96px]" />
               {cols.priceVat && <col className="w-[95px]" />}
               <col className="w-[110px]" />
               <col className="w-[96px]" />
-              <col className="w-[96px]" />
               {cols.lineTotal && <col className="w-[100px]" />}
+              {showExtraCost && <col className="w-[96px]" />}
               {cols.mgmtItem && <col className="w-[90px]" />}
               <col className="w-[130px]" />
+              {lineDefs.map((d) => <col key={d.fieldKey} className="w-[110px]" />)}
               {cols.srcType && <col className="w-[80px]" />}
               {cols.srcDate && <col className="w-[100px]" />}
               {cols.srcNo && <col className="w-[120px]" />}
@@ -1922,7 +1949,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
                 <th className="text-left">품목명</th>
                 <th className="text-left">규격</th>
                 {/* 원본 실측: [시리얼/로트]는 가운데, 금액 칸들은 오른쪽이다. 값은 이미 오른쪽인데 머리만 안 따라갔다. */}
-                <th className="text-center">시리얼/로트</th>
+                {!lotAfterQty && <th className="text-center">시리얼/로트</th>}
                 {cols.stockAll && <th>전체수량</th>}
                 {cols.stockWh && <th>창고수량</th>}
                 {cols.unit && <th>단위</th>}
@@ -1930,12 +1957,14 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
                 {/* 값은 이미 오른쪽인데 <b>머리만</b> 왼쪽이었다 — 삼항으로 적은 칸이라
                     이름으로 찾는 검사가 여태 이 칸을 아예 못 보고 있었다. */}
                 <th className="text-right">{mode === 'sales' ? '수량' : '기본수량'}</th>
+                {/* 원본 판매입력은 [수량] 다음이 [시리얼/로트No.] 다(2026-10-14 실측). */}
+                {lotAfterQty && <th className="text-center">시리얼/로트No.</th>}
                 <th className="text-right">단가</th>
                 {cols.priceVat && <th>단가(vat포함)</th>}
                 <th className="text-right">공급가액</th>
                 <th className="text-right">부가세</th>
                 {cols.lineTotal && <th className="text-right">합계</th>}
-                <th className="text-right">부대비용</th>
+                {showExtraCost && <th className="text-right">부대비용</th>}
                 {cols.mgmtItem && <th>관리항목</th>}
                 <th className="text-left">적요</th>
                 {/* 라인 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 표가 그대로다. */}
@@ -2010,10 +2039,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
                     <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">
                       {it?.spec ?? ''}
                     </td>
-                    <td>
-                      <input className="cell" value={l.lotNo} disabled={!l.itemId}
-                             onChange={(e) => updateLine(idx, 'lotNo', e.target.value)} />
-                    </td>
+                    {!lotAfterQty && lotCell(l, idx)}
                     {cols.stockAll && (
                       <td className="pad text-right text-ec-hint">{l.itemId ? won(stockAllOf(l.itemId)) : ''}</td>
                     )}
@@ -2025,6 +2051,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
                       <EcNumInput className="cell text-right"
                              value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} />
                     </td>
+                    {lotAfterQty && lotCell(l, idx)}
                     <td>
                       <EcNumInput className="cell text-right"
                              value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} />
@@ -2053,10 +2080,12 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
                         {l.itemId ? won(computed[idx].supply + computed[idx].vat) : ''}
                       </td>
                     )}
-                    <td>
-                      <EcNumInput className="cell text-right" disabled={!l.itemId}
-                             value={l.extraCost} onValue={(v) => updateLine(idx, 'extraCost', v)} />
-                    </td>
+                    {showExtraCost && (
+                      <td>
+                        <EcNumInput className="cell text-right" disabled={!l.itemId}
+                               value={l.extraCost} onValue={(v) => updateLine(idx, 'extraCost', v)} />
+                      </td>
+                    )}
                     {/* 관리항목은 품목 마스터에 붙는 값이라 라인에서는 읽기 전용이다(원본도 disabled). */}
                     {cols.mgmtItem && (
                       <td className="pad text-center text-ec-hint">
@@ -2125,25 +2154,30 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
             <tfoot>
               <tr>
                 <td colSpan={2} />
-                <td colSpan={4} className="pl-[6px]">합계 ({lineCount}건)</td>
+                <td colSpan={lotAfterQty ? 3 : 4} className="pl-[6px]">합계 ({lineCount}건)</td>
                 {cols.stockAll && <td />}
                 {cols.stockWh && <td />}
                 {cols.unit && <td />}
                 <td className="text-right">{won(totals.qty)}</td>
+                {lotAfterQty && <td />}
                 <td />
                 {cols.priceVat && <td />}
                 <td className="text-right">{won(totals.supply)}</td>
                 <td className="text-right">{won(totals.vat)}</td>
-                <td className="text-right">{won(totals.extra)}</td>
+                {cols.lineTotal && totalTd}
+                {showExtraCost && <td className="text-right">{won(totals.extra)}</td>}
                 {/*
                   합계행은 헤더와 칸 수가 정확히 같아야 한다. 선택 열을 켜면 그만큼 빈 칸을 끼워야
                   숫자가 제 열 아래에 선다. (관리항목은 부대비용과 적요 사이, 불러온 전표 3열은 적요 뒤다.)
                 */}
                 {cols.mgmtItem && <td />}
-                <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
+                {/* 합계 열이 켜져 있으면 합계는 그 아래, 아니면 예전처럼 적요 칸에 선다. */}
+                {cols.lineTotal ? <td /> : totalTd}
+                {lineDefs.map((d) => <td key={d.fieldKey} />)}
                 {cols.srcType && <td />}
                 {cols.srcDate && <td />}
                 {cols.srcNo && <td />}
+                {cols.qcRequest && <td />}
                 <td />
               </tr>
             </tfoot>

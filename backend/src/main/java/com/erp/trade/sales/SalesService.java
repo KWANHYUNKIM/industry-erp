@@ -354,7 +354,7 @@ public class SalesService {
     @Transactional(readOnly = true)
     public String editLockReason(Sales s) {
         try {
-            ensureEditable(s, "수정");
+            ensureEditable(s, "단가변경");
             return null;
         } catch (ApiException e) {
             return e.getMessage();
@@ -381,7 +381,7 @@ public class SalesService {
         java.util.Map<Long, String> out = new java.util.LinkedHashMap<>();
         for (Sales s : list) {
             try {
-                ensureEditable(s, "수정", withTaxInvoice.contains(s.getId()), fromMall.contains(s.getId()));
+                ensureEditable(s, "단가변경", withTaxInvoice.contains(s.getId()), fromMall.contains(s.getId()));
                 out.put(s.getId(), null);
             } catch (ApiException e) {
                 out.put(s.getId(), e.getMessage());
@@ -407,7 +407,12 @@ public class SalesService {
         if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
             throw ApiException.badRequest("전자결재 진행중인 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
         }
-        if (s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED) {
+        /*
+         * 원본 loginaa(2026-10-14 실측): 판매는 저장하면 바로 '확인' 탭에 들고, 확인된 판매도 판매조회 [선택삭제]
+         * ('선택한 전표를 삭제 하겠습니까?') · 수정 창 [삭제]('전표를 삭제하겠습니까? - 판매') · [저장(F8)] 이 그대로 된다.
+         * 확인이 막는 것은 판매단가일괄변경 같은 일괄 동작뿐이다 — 수정 · 삭제는 막지 않는다.
+         */
+        if (s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED && !"수정".equals(action) && !"삭제".equals(action)) {
             throw ApiException.badRequest("확인된 전표는 " + action + "할 수 없습니다. 확인취소를 먼저 하세요: " + s.getDocNo());
         }
         if (hasTaxInvoice) {
