@@ -52,6 +52,8 @@ public final class StandardAccounts {
             required("150", "제품", AccountDivision.ASSET, "재고자산"),
             required("153", "원재료", AccountDivision.ASSET, "재고자산"),
             required("162", "부재료", AccountDivision.ASSET, "재고자산"),
+            // 수입비용(회계 II) 서류징수시 전표가 쌓고 본계정대체가 비운다(ImportCostService) — 원본 1689 미착품.
+            required("168", "미착품", AccountDivision.ASSET, "재고자산"),
             required("203", "감가상각누계액", AccountDivision.ASSET, "유형자산"),   // 자산 차감계정
             of("206", "기계장치", AccountDivision.ASSET, "유형자산"),
             of("208", "차량운반구", AccountDivision.ASSET, "유형자산"),

@@ -879,6 +879,33 @@ public class JournalService {
     }
 
     /**
+     * 수입비용 전표(회계 II › 수입비용) → 분개. 줄은 수입비용 서비스가 종류별로 정해 넘긴다(ImportCostKind 주석).
+     * {@code existing} 이 있으면 그 전표의 줄만 새로 쓴다 — 원본 수정 창은 전표일자가 잠겨 번호가 그대로다.
+     */
+    @Transactional
+    public JournalEntry saveImportCost(JournalEntry existing, Long sourceId, LocalDate date, String desc,
+                                       com.erp.trade.partner.BusinessPartner partner, String username,
+                                       List<Posting> postings, Long departmentId, Long projectId) {
+        JournalEntry e;
+        if (existing == null) {
+            e = newEntry(JournalSourceType.IMPORT_COST, sourceId, date, desc, partner, username);
+        } else {
+            e = existing;
+            e.setDescription(desc);
+            e.setPartner(partner);
+            e.setUpdatedBy(username);
+            e.getLines().clear();
+        }
+        for (Posting p : postings) {
+            if (p.amount() == null || p.amount().signum() == 0) continue;
+            if (p.debit()) addDebitAccount(e, p.account(), p.amount(), desc);
+            else addCreditAccount(e, p.account(), p.amount(), desc);
+        }
+        e.stampDeptProject(departmentId, projectId);
+        return save(e);
+    }
+
+    /**
      * 업무전표가 들고 있는 분개를 그 전표와 함께 지운다. 카드사용 분개는 출처 id 없이(저장 전에) 만들어져
      * {@link #deleteBySource} 로는 못 찾는다(QA 56회차).
      */

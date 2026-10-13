@@ -27,6 +27,8 @@ public enum JournalSourceType {
     VAT_PURCHASE("매입전표 I"),
     /** 회계 I › FastEntry › 잔액조정입력 — 한쪽(차변 또는 대변)만 있는 전표다(원본 2026-10-14 실측, V396). */
     BALANCE_ADJUST("잔액조정"),
+    /** 회계 II › 수입비용 전표 여섯 가지(미착품) — 2026-10-14 원본 실측. */
+    IMPORT_COST("수입비용"),
     MANUAL("수동입력");
 
     private final String displayName;
