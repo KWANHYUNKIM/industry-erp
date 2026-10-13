@@ -48,6 +48,13 @@ public class BankCheckController {
         return service.deposit(id, req, principal.getUsername());
     }
 
+    /** 수령수표입금처리 [입금보고서작성] → 입금보고서 [저장] — 회계전표(입금보고서) + 고른 수표 감소 */
+    @PostMapping("/deposit-report")
+    public List<CheckResponse> depositReport(@Valid @RequestBody BankCheckDtos.DepositReportRequest req,
+                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return service.depositReport(req, principal.getUsername());
+    }
+
     /** 받은수표 부도 */
     @PostMapping("/{id}/dishonor")
     public CheckResponse dishonor(@PathVariable Long id, @RequestBody(required = false) SettleRequest req,

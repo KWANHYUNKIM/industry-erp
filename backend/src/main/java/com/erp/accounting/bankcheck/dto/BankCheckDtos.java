@@ -84,6 +84,24 @@ public final class BankCheckDtos {
             String remark
     ) {}
 
+    /**
+     * 원본 수령수표입금처리(E060602) [입금보고서작성] → 입금보고서 [저장] — 머리(일자 · 입금계좌 · 첨언내용) + 고른 수표마다 한 줄(적요명).
+     * 입금계좌를 비우고 cash 가 참이면 000 현금.
+     */
+    public record DepositReportRequest(
+            @NotNull(message = "일자를 입력하세요.") LocalDate date,
+            Long bankAccountId,
+            Boolean cash,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String description,
+            @jakarta.validation.constraints.NotEmpty(message = "저장할 내용이 없습니다.")
+            java.util.List<@jakarta.validation.Valid DepositReportLine> lines
+    ) {}
+
+    public record DepositReportLine(
+            @NotNull(message = "수표를 고르세요.") Long checkId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String memo
+    ) {}
+
     /** 수령(발행)수표조회 [선택삭제] — 고른 줄의 수표 id 를 감소 · 증가로 나눠 보낸다. */
     public record DeleteMovesRequest(java.util.List<Long> decreaseIds, java.util.List<Long> increaseIds) {}
 
@@ -99,13 +117,19 @@ public final class BankCheckDtos {
             /* 원본 수령수표증가 · 감소현황의 [일자-No.] — 받을 때 · 손을 떠날 때 회계전표 번호. 목록에서만 채운다. */
             String issueJournalNo, String settleJournalNo,
             /* 수표내역입력 전표 번호 — 원본 [일자] '2026/10/13 -5' 의 5. 늘린 전표 · 줄인 전표. */
-            Integer directInNo, Integer directOutNo
+            Integer directInNo, Integer directOutNo,
+            /* 입금보고서(수령수표입금처리)로 손을 떠난 수표 — 원본 수령수표조회 거래유형 '입금보고서', 그 감소 줄은 체크칸이 막힌다. */
+            boolean settledByVoucher
     ) {
         public static CheckResponse from(BankCheck c) {
-            return from(c, null, null);
+            return from(c, null, null, false);
         }
 
         public static CheckResponse from(BankCheck c, String issueJournalNo, String settleJournalNo) {
+            return from(c, issueJournalNo, settleJournalNo, false);
+        }
+
+        public static CheckResponse from(BankCheck c, String issueJournalNo, String settleJournalNo, boolean settledByVoucher) {
             return new CheckResponse(
                     c.getId(), c.getCheckNo(), c.getType(), c.getType().getDisplayName(),
                     c.getStatus(), c.getStatus().getDisplayName(),
@@ -116,7 +140,7 @@ public final class BankCheckDtos {
                     c.getBankAccount() != null
                             ? c.getBankAccount().getBankName() + " " + c.getBankAccount().getAccountNo() : null,
                     c.getSettledDate(), c.getRemark(), c.getCreatedBy(), c.getUpdatedBy(), c.isDirectEntry(), issueJournalNo, settleJournalNo,
-                    c.getDirectInNo(), c.getDirectOutNo());
+                    c.getDirectInNo(), c.getDirectOutNo(), settledByVoucher);
         }
     }
 }

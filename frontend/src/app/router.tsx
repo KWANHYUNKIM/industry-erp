@@ -143,6 +143,7 @@ const CheckHoldingPage = lazy(() => import('../pages/accounting/CheckHoldingPage
 const CheckFlowPage = lazy(() => import('../pages/accounting/CheckFlowPage'))
 const CheckLedgerPage = lazy(() => import('../pages/accounting/CheckLedgerPage'))
 const CheckListPage = lazy(() => import('../pages/accounting/CheckListPage'))
+const CheckDepositPage = lazy(() => import('../pages/accounting/CheckDepositPage'))
 const BondListPage = lazy(() => import('../pages/accounting/BondListPage'))
 const BondLedgerPage = lazy(() => import('../pages/accounting/BondLedgerPage'))
 const BondFlowPage = lazy(() => import('../pages/accounting/BondFlowPage'))
@@ -709,6 +710,7 @@ export default function AppRouter() {
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/non-cash" element={<NonCashPage />} />
         <Route path="/accounting/checks" element={<CheckPage />} />
+        <Route path="/accounting/checks-deposit" element={<CheckDepositPage />} />
         <Route path="/accounting/checks-list" element={<CheckListPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued-list" element={<CheckListPage type="ISSUED" />} />
         <Route path="/accounting/checks-ledger" element={<CheckLedgerPage type="RECEIVED" />} />

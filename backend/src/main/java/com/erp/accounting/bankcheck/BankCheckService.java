@@ -37,6 +37,9 @@ public class BankCheckService {
     private final JournalService journalService;
     private final JournalEntryRepository journalRepository;
     private final BankCardService bankCardService;
+    private final com.erp.accounting.fastvoucher.FastVoucherService fastVoucherService;
+    private final com.erp.accounting.fastvoucher.FastVoucherRepository fastVoucherRepository;
+    private final com.erp.accounting.account.AccountRepository accountRepository;
 
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager em;
@@ -69,10 +72,15 @@ public class BankCheckService {
         }
         java.util.List<Long> settleIds = checks.stream().map(BankCheck::getSettleJournalId).filter(java.util.Objects::nonNull).toList();
         java.util.Map<Long, String> settleNo = new java.util.HashMap<>();
-        for (JournalEntry j : journalRepository.findAllById(settleIds)) settleNo.put(j.getId(), j.getDocNo());
+        java.util.Set<Long> byVoucher = new java.util.HashSet<>();
+        for (JournalEntry j : journalRepository.findAllById(settleIds)) {
+            settleNo.put(j.getId(), j.getDocNo());
+            if (j.getSourceType() == JournalSourceType.VOUCHER) byVoucher.add(j.getId());
+        }
         return checks.stream()
                 .map((c) -> CheckResponse.from(c, issueNo.get(c.getId()),
-                        c.getSettleJournalId() != null ? settleNo.get(c.getSettleJournalId()) : null))
+                        c.getSettleJournalId() != null ? settleNo.get(c.getSettleJournalId()) : null,
+                        c.getSettleJournalId() != null && byVoucher.contains(c.getSettleJournalId())))
                 .toList();
     }
 
@@ -138,6 +146,58 @@ public class BankCheckService {
         bankCardService.recordExternal(account.getId(), true, c.getAmount(), date,
                 "수표 입금 " + c.getCheckNo(), entry, username);
         return CheckResponse.from(c);
+    }
+
+    /**
+     * 원본 수령수표입금처리(E060602) [입금보고서작성] → 입금보고서 [저장] (2026-10-13 loginaa 실측).
+     * QA2C701 70,000(수표만증가 · 수표계좌 기업은행-1122) → 입금계좌 외환은행-2211 → 입금보고서 한 줄
+     * [돈 들어온 계좌 5544332211 외환은행-2211 · 계정코드(대변) 1039 보통예금(수표계좌의 계정) · 거래처 1122334455 기업은행-1122 · 70,000 · 적요 QA회계2 · 추가정보 수령수표 QA2C701]
+     * → 회계전표 2026/10/13 -22, 수령수표조회에 감소 줄 '2026/10/13 -12 · 거래유형 입금보고서' (수표 전표 번호도 하나 받는다), 입금처리 목록에서 빠진다.
+     * 입금보고서를 지우면('전표를 삭제하겠습니까?') 감소 줄이 사라지고 수표는 다시 보유 — 그 되돌림은 회계전표가 지워질 때
+     * DB 트리거(bank_checks_release_settle_journal)가 한다. 입금보고서는 회계 I 전표라 그쪽 삭제 경로가 수표를 모르기 때문이다.
+     *
+     * <p>대변 계정은 분개로 받은 수표면 받을수표(104), 수표내역입력으로 넣은 수표면 그 수표계좌의 계정이다(원본은 수표계좌를 거래처 칸에 찍는다 —
+     * 우리 분개 줄 거래처는 수표의 거래처다).
+     */
+    @Transactional
+    public List<CheckResponse> depositReport(BankCheckDtos.DepositReportRequest req, String username) {
+        boolean cash = Boolean.TRUE.equals(req.cash()) || req.bankAccountId() == null;
+        List<BankCheck> checks = new java.util.ArrayList<>();
+        List<com.erp.accounting.fastvoucher.dto.FastVoucherDtos.LineInput> vLines = new java.util.ArrayList<>();
+        for (BankCheckDtos.DepositReportLine l : req.lines()) {
+            BankCheck c = check(l.checkId());
+            requireType(c, CheckType.RECEIVED, "받은수표만 입금할 수 있습니다");
+            requireHeld(c, "입금");
+            requireNotBeforeIssue(c, req.date(), "일자");
+            Long credit = c.isDirectEntry() && c.getBankAccount() != null && c.getBankAccount().getGlAccount() != null
+                    ? c.getBankAccount().getGlAccount().getId()
+                    : accountRepository.findByCode("104")
+                        .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: 104")).getId();
+            String memo = l.memo() == null || l.memo().isBlank() ? null : l.memo().trim();
+            vLines.add(new com.erp.accounting.fastvoucher.dto.FastVoucherDtos.LineInput(
+                    credit, c.getAmount(), memo, cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null,
+                    c.getPartner() != null ? c.getPartner().getId() : null, null, null));
+            checks.add(c);
+        }
+        var v = fastVoucherService.create(new com.erp.accounting.fastvoucher.dto.FastVoucherDtos.CreateVoucherRequest(
+                com.erp.accounting.fastvoucher.FastVoucherType.DEPOSIT_REPORT, req.date(), com.erp.accounting.PaymentMethod.CASH,
+                null, null, null, vLines, req.description() == null || req.description().isBlank() ? null : req.description().trim(),
+                null, null, null, null, null, null, null, null, null), username);
+        JournalEntry entry = fastVoucherRepository.findById(v.id()).map(com.erp.accounting.fastvoucher.FastVoucher::getJournalEntry)
+                .orElseThrow(() -> ApiException.notFound("입금보고서를 찾을 수 없습니다. id=" + v.id()));
+        int entryNo = nextEntryNo(CheckType.RECEIVED, req.date());
+        BankAccount into = cash ? null : bankAccount(req.bankAccountId());
+        List<CheckResponse> out = new java.util.ArrayList<>();
+        for (BankCheck c : checks) {
+            if (!c.isDirectEntry()) c.setBankAccount(into);
+            c.setStatus(CheckStatus.DEPOSITED);
+            c.setSettledDate(req.date());
+            c.setSettleJournalId(entry.getId());
+            c.setDirectOutNo(entryNo);
+            c.setUpdatedBy(username);
+            out.add(CheckResponse.from(c, null, entry.getDocNo(), true));
+        }
+        return out;
     }
 
     /** 받은수표 부도 — 현금은 움직이지 않고 채권으로 되돌린다 */
@@ -309,6 +369,11 @@ public class BankCheckService {
             BankCheck c = check(id);
             if (c.getStatus() == CheckStatus.HELD) {
                 throw ApiException.badRequest(c.getCheckNo() + " 은(는) 감소 내역이 없습니다.");
+            }
+            /* 원본: 입금보고서로 줄인 감소 줄은 체크칸이 막혀 있다 — 입금보고서(회계전표)를 지우면 함께 사라진다. */
+            if (c.getSettleJournalId() != null && journalRepository.findById(c.getSettleJournalId())
+                    .map((j) -> j.getSourceType() == JournalSourceType.VOUCHER).orElse(false)) {
+                throw ApiException.badRequest(c.getCheckNo() + " 은(는) 입금보고서로 감소한 수표입니다 — 입금보고서에서 삭제하세요.");
             }
             if (c.getSettleJournalId() != null) {
                 JournalEntry e = journalRepository.findById(c.getSettleJournalId()).orElse(null);

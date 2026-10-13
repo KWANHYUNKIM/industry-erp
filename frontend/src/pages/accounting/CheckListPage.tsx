@@ -82,7 +82,9 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   useEffect(() => { void load() }, [from, to, type])
 
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
-  const kindOf = (m: Move) => (m.c.directEntry ? (m.inc ? '수표만증가' : '수표만감소') : m.inc ? (received ? '수령' : '발행') : m.c.statusName)
+  /* 수령수표입금처리 [입금보고서작성] 으로 줄인 감소 줄은 거래유형 '입금보고서'(2026-10-13 실측) — 체크칸이 막히고 입금보고서를 지우면 사라진다. */
+  const byVoucher = (m: Move) => !m.inc && !!m.c.settledByVoucher
+  const kindOf = (m: Move) => (byVoucher(m) ? '입금보고서' : m.c.directEntry ? (m.inc ? '수표만증가' : '수표만감소') : m.inc ? (received ? '수령' : '발행') : m.c.statusName)
   /* 수표내역입력 전표 번호(원본 [일자] '2026/10/13 -5' 의 5) — 분개로 움직인 줄은 없다. */
   const entryNo = (m: Move) => (m.inc ? m.c.directInNo : m.c.directOutNo) ?? null
   const moves = useMemo(() => {
@@ -124,7 +126,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
     setVoucher({ date: m.date, increase: m.inc, entryNo: no, checks })
     setEntryOpen(true)
   }
-  const allPicked = moves.length > 0 && moves.every((m) => picked.has(m.key))
+  const allPicked = moves.some((m) => !byVoucher(m)) && moves.filter((m) => !byVoucher(m)).every((m) => picked.has(m.key))
 
   async function removePicked() {
     setConfirmDelete(false)
@@ -139,7 +141,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       setError(extractErrorMessage(e))
     }
   }
-  const kinds = received ? ['수령', '입금완료', '부도', '수표만증가', '수표만감소'] : ['발행', '결제완료', '수표만증가', '수표만감소']
+  const kinds = received ? ['수령', '입금완료', '부도', '수표만증가', '수표만감소', '입금보고서'] : ['발행', '결제완료', '수표만증가', '수표만감소']
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [moves.length])
 
@@ -157,7 +159,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') } },
         { label: '신규(F2)', onClick: () => { setVoucher(null); setEntryOpen(true) } },
-        { label: '선택삭제', selected: picked.size, onClick: () => setConfirmDelete(true) },
+        { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
         { label: 'Excel' },
       ]}
     >
@@ -241,13 +243,13 @@ export default function CheckListPage({ type }: { type: CheckType }) {
             return (
               <tr key={m.key}>
                 <td className="text-center">
-                  <input type="checkbox" aria-label={`${m.c.checkNo} ${m.inc ? incName : decName} 선택`} checked={picked.has(m.key)}
+                  <input type="checkbox" aria-label={`${m.c.checkNo} ${m.inc ? incName : decName} 선택`} checked={picked.has(m.key)} disabled={byVoucher(m)}
                          onChange={(e) => setPicked((s) => { const n = new Set(s); if (e.target.checked) n.add(m.key); else n.delete(m.key); return n })} />
                 </td>
                 <td className="text-center">
-                  {entryNo(m) != null
+                  {entryNo(m) != null && !byVoucher(m)
                     ? <a href="#" onClick={(e) => { e.preventDefault(); openVoucher(m) }}>{dateText(m.date)} -{entryNo(m)}</a>
-                    : dateText(m.date)}
+                    : entryNo(m) != null ? `${dateText(m.date)} -${entryNo(m)}` : dateText(m.date)}
                 </td>
                 <td>{m.c.checkNo}</td>
                 <td className="text-center">{m.inc ? '증가' : '감소'}</td>
