@@ -125,4 +125,11 @@ public class WorkPost extends BaseTimeEntity {
      */
     @Column(name = "meeting_links", length = 100)
     private String meetingLinks;
+
+    /**
+     * 업무관리 예시 게시판마다 다른 입력항목 — 이름:값 JSON 한 덩이({"차량번호":"12가3456","출고일자":"2026-10-14"}).
+     * 원본은 회사가 게시판마다 입력항목을 고른다('항목추가'). 서버는 내용을 보지 않고 그대로 담아 돌려준다. {@link PostBoard#extraFields()}.
+     */
+    @Column(name = "extra_fields", length = 2000)
+    private String extraFields;
 }

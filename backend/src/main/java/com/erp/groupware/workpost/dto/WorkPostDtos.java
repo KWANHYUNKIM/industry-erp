@@ -35,7 +35,9 @@ public final class WorkPostDtos {
             /** 통합회의록 [주 차 구분] 1 ~ 5. 다른 게시판은 무시한다. */
             Integer weekNo,
             /** 통합회의록 부서 칸(경영지원팀 · 구매팀 · 생산팀 · 영업팀 회의록)에 이을 팀별회의록 글 id, 칸 차례대로(빈 칸은 null). */
-            java.util.List<Long> meetingLinks
+            java.util.List<Long> meetingLinks,
+            /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 다른 게시판은 무시한다. */
+            @Size(max = 2000, message = "입력항목이 너무 깁니다.") String extraFields
     ) {}
 
     /**
@@ -62,7 +64,9 @@ public final class WorkPostDtos {
             /** 통합회의록 [주 차 구분]. 수정은 통째로 덮는다. */
             Integer weekNo,
             /** 통합회의록 부서 칸에 이은 팀별회의록 글 id(칸 차례대로, 빈 칸은 null). */
-            java.util.List<Long> meetingLinks
+            java.util.List<Long> meetingLinks,
+            /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 수정은 통째로 덮는다. */
+            @Size(max = 2000, message = "입력항목이 너무 깁니다.") String extraFields
     ) {}
 
     /** 원본 '조회자 현황'의 오른쪽 한 줄 — 이름 · 최초조회일시 · 최종조회일시. */
@@ -130,7 +134,9 @@ public final class WorkPostDtos {
             /** 통합회의록 [주 차 구분] 1 ~ 5(격자 [주 차] 는 'n주차'). */
             Integer weekNo,
             /** 통합회의록 부서 칸마다 이은 팀별회의록 글 id(칸 차례대로, 빈 칸은 null). 다른 게시판은 빈 목록. */
-            java.util.List<Long> meetingLinks
+            java.util.List<Long> meetingLinks,
+            /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 없으면 null. */
+            String extraFields
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
             var f = p.getAttachment();
@@ -150,7 +156,8 @@ public final class WorkPostDtos {
                             : java.util.Arrays.stream(p.getLabels().split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList(),
                     p.getStage(),
                     p.getWeekNo(),
-                    parseLinks(p.getMeetingLinks()));
+                    parseLinks(p.getMeetingLinks()),
+                    p.getExtraFields());
         }
 
         /** '12,,,15' → [12, null, null, 15]. 빈 글자 · null 이면 빈 목록. */

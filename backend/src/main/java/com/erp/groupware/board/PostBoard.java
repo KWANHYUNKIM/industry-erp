@@ -25,16 +25,56 @@ public enum PostBoard {
      * 공유정보 &gt; 회의록(예시) &gt; 통합회의록 (E200066, 2026-10-13 실측). 팀별회의록({@link #MEETING}) 글을 부서마다 한 칸씩 잇고
      * [주 차 구분]을 단다. 진행상태는 WORK 처럼 진행중 · 완료.
      */
-    MINUTES("통합회의록");
+    MINUTES("통합회의록"),
+    /*
+     * 업무관리 의 예시 게시판(2026-10-14 loginaa 실측). 원본은 회사가 '게시판 설정' 으로 만든 것이라 틀은 같고
+     * 격자 열 · 입력항목만 다르다 — 게시판마다 다른 입력항목은 {@link com.erp.groupware.workpost.WorkPost#getExtraFields()}.
+     */
+    /** 🔹 이카운트 AI 활용 예시 🔹 (E200188). 진행중 · 완료. */
+    AI_GUIDE("🔹 이카운트 AI 활용 예시 🔹"),
+    /** 칸반보드(건설업) › 🏗️ 현장공사일지 (E200176). 진행상태 자리 '공정 흐름' — 지반조사 · 측량 · 기초굴토 · 가설. */
+    SITE_LOG("🏗️ 현장공사일지"),
+    /** 칸반보드(건설업) › 📊 공사진행현황 (E200178). 진행중 · 완료. */
+    SITE_STATUS("📊 공사진행현황"),
+    /** 칸반보드(IT개발업) › 📅 개발업무일지 (E200174). 요구분석 · 기획 · 디자인 · 개발 · 테스트 · 디버깅 · 오픈(완료). */
+    DEV_LOG("📅 개발업무일지"),
+    /** 칸반보드(IT개발업) › 📈 개발진행현황 (E200186). 진행중 · 완료. */
+    DEV_STATUS("📈 개발진행현황"),
+    /** 계약관리 게시판(예시) › 🎧 상담 이력관리 (E200166). 진행상태 '기본' 하나. */
+    CONSULT("🎧 상담 이력관리"),
+    /** 계약관리 게시판(예시) › 🤝🏻 영업 방문관리 (E200168). '기본'. */
+    VISIT("🤝🏻 영업 방문관리"),
+    /** 계약관리 게시판(예시) › 📑 최종 계약관리 (E200170). '기본'. */
+    CONTRACT("📑 최종 계약관리"),
+    /** 계약관리 게시판(예시) › 🛠️ A/S 관리 (E200184). '기본', 입력항목 [수리요청일]. */
+    AS_CARE("🛠️ A/S 관리"),
+    /** 차량관리 게시판(예시) › 🚗 1. 차량 정보관리 (E200172). 진행중 · 완료, 입력항목 [출고일자] · [차량번호]. */
+    CAR_INFO("🚗 1. 차량 정보관리"),
+    /** 차량관리 게시판(예시) › 🚗 2. 차량 증빙관리 (E200180). 진행중 · 완료. */
+    CAR_DOC("🚗 2. 차량 증빙관리"),
+    /** 차량관리 게시판(예시) › 🚗 3. 차량 운행관리 (E200182). 진행중 · 완료. */
+    CAR_RUN("🚗 3. 차량 운행관리");
 
     /**
      * 게시글번호를 이 게시판 혼자 세는가. 2026-10-13 원본: 공지사항(…16)과 팀별회의록(…16)의 번호가 겹치고,
      * 통합게시판은 2 · 간판제작은 12 에서 멈춘다 — 새 게시판들은 각자 센다. WORK · 공지사항은 예전 실측(한 줄기)대로 둔다.
      */
-    public boolean ownNumbering() { return this == SHARED || this == MEETING || this == SIGN || this == MINUTES; }
+    public boolean ownNumbering() { return this != WORK && this != NOTICE; }
 
     /** 진행상태 이름을 회사가 정한 게시판인가 — 그 이름은 status(진행중/완료)가 아니라 stage 에 적는다. */
-    public boolean namedStages() { return this == SHARED || this == MEETING || this == SIGN; }
+    public boolean namedStages() {
+        return this == SHARED || this == MEETING || this == SIGN
+                || this == SITE_LOG || this == DEV_LOG || this == CONSULT || this == VISIT || this == CONTRACT || this == AS_CARE;
+    }
+
+    /**
+     * 내용(본문)을 비워도 저장되는가. 통합회의록(2026-10-13)과 업무관리 예시 게시판(2026-10-14 🚗 1. 차량 정보관리 —
+     * 제목만 넣고 [저장(F8)] → 저장됨)은 받는다. WORK · 공지사항 · 통합게시판 · 팀별회의록 · 간판제작은 예전 실측대로 막는다.
+     */
+    public boolean contentOptional() { return ordinal() >= MINUTES.ordinal(); }
+
+    /** 게시판마다 다른 입력항목(extra_fields)을 받는가 — 업무관리 예시 게시판. */
+    public boolean extraFields() { return ordinal() > MINUTES.ordinal(); }
 
     private final String displayName;
 

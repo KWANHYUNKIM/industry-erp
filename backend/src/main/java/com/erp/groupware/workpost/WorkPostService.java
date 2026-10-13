@@ -81,6 +81,7 @@ public class WorkPostService {
                 .completedAt(board.namedStages() ? java.time.LocalDateTime.now() : null)
                 .weekNo(board == PostBoard.MINUTES ? weekOf(req.weekNo()) : null)
                 .meetingLinks(board == PostBoard.MINUTES ? joinLinks(req.meetingLinks()) : null)
+                .extraFields(board.extraFields() ? blankToNull(req.extraFields()) : null)
                 .build();
         return WorkPostResponse.from(workPostRepository.save(post), displayName(writer));
     }
@@ -97,6 +98,7 @@ public class WorkPostService {
         post.setNotice(Boolean.TRUE.equals(req.notice()));
         post.setAttachment(attachmentOf(req.attachmentId()));
         if (post.getBoard().namedStages()) post.setStage(blankToNull(req.stage()));
+        if (post.getBoard().extraFields()) post.setExtraFields(blankToNull(req.extraFields()));
         if (post.getBoard() == PostBoard.MINUTES) {
             post.setWeekNo(weekOf(req.weekNo()));
             post.setMeetingLinks(joinLinks(req.meetingLinks()));
@@ -106,7 +108,7 @@ public class WorkPostService {
 
     /** 통합회의록은 내용 없이도 저장된다(원본 2026-10-13 — 부서 칸 · 주 차만 넣고 저장). 그 밖의 게시판은 막는다. */
     private static void requireContent(PostBoard board, String content) {
-        if (board != PostBoard.MINUTES && (content == null || content.isBlank())) throw ApiException.badRequest("내용을 입력하세요.");
+        if (!board.contentOptional() && (content == null || content.isBlank())) throw ApiException.badRequest("내용을 입력하세요.");
     }
 
     /** 원본 주차검색: 1 1주차 ~ 5 5주차. */
