@@ -19,7 +19,10 @@ const slash = (s: string) => s.replace(/-/g, '/')
  * <p>2026-10-03 loginaa 실측: 조건이 펼쳐진 현황 — 구분(라인별 · 달력형 · 사용자지정집계) · 기준일자(금월) · 부서 · 프로젝트 · 사원번호 ·
  * 수당항목. 결과 '근무현황' · 회사명 · 기간, 격자 일자-No. · 근무일자 · 사원번호 · 성명 · 수당항목 · 근무기록 · 프로젝트명,
  * 전표일자 차례(오래된 것이 위)로 날마다 '2026/09/02 계' 소계, 끝에 합계. 부서 · 사원번호 · 수당항목은 여러 개 고르는 코드도움.
- * 구분은 라인별만, 프로젝트 조건 · 프로젝트명 열 · 달력형 · 사용자지정집계 · 결재방표시는 없다(근무입력에 프로젝트 칸이 없다).
+ * 구분은 라인별만, 프로젝트 조건 · 달력형 · 사용자지정집계 · 결재방표시는 없다(근무입력에 프로젝트 칸이 없다).
+ * 2026-10-14 다시 잼: 격자는 출력물 값(머리 6px 3px 3px · 27.6 / 본문 3px · 24.1 · 선 1px), 일자-No. 가운데, 소계 · 합계줄은
+ * 회색(243) · 굵게 · 이름 칸 colSpan 5 가운데, 끝에 [프로젝트명] 열(근무 전표에 프로젝트가 없어 원본도 빈칸). 소계는 전표일자로 묶는다
+ * (10/14 전표의 근무일자가 다른 줄도 '2026/10/14 계' 에 든다). 같은 날 줄은 사원번호 내림차순(00002 나일당 → 00001 잠깐만).
  */
 export default function DailyWorkStatusPage() {
   const month = () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth(); return { from: periodOf('금월(~오늘)')!.from, to: new Date(y, m + 1, 0).toLocaleDateString('sv-SE') } }
@@ -82,7 +85,7 @@ export default function DailyWorkStatusPage() {
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <EcReportHead title="근무현황" period={reportPeriod(shown.from, shown.to)} />
-      <table ref={tableRef} className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left ec-report">
         <thead>
           <tr>
             <th>일자-No.</th>
@@ -91,34 +94,38 @@ export default function DailyWorkStatusPage() {
             <th>성명</th>
             <th>수당항목</th>
             <th className="text-right">근무기록</th>
+            <th>프로젝트명</th>
           </tr>
         </thead>
         <tbody>
           {list.length === 0 ? (
-            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : (
             <>
               {[...days.entries()].map(([d, ls]) => (
                 <Fragment key={d}>
                   {ls.map((r) => (
                     <tr key={r.id}>
-                      <td>{slash(r.slipDate)} -{r.slipNo}</td>
+                      <td className="text-center">{slash(r.slipDate)} -{r.slipNo}</td>
                       <td className="text-center">{slash(r.workDate)}</td>
                       <td>{r.workerCode}</td>
                       <td>{r.workerName}</td>
                       <td>{r.payItem}</td>
                       <td className="text-right">{Number(r.quantity)}</td>
+                      <td />
                     </tr>
                   ))}
-                  <tr className="font-bold">
-                    <td colSpan={5}>{slash(d)} 계</td>
+                  <tr className="ec-total">
+                    <td colSpan={5} className="text-center">{slash(d)} 계</td>
                     <td className="text-right">{qty(ls)}</td>
+                    <td />
                   </tr>
                 </Fragment>
               ))}
-              <tr className="font-bold">
-                <td colSpan={5}>합계</td>
+              <tr className="ec-total">
+                <td colSpan={5} className="text-center">합계</td>
                 <td className="text-right">{qty(list)}</td>
+                <td />
               </tr>
             </>
           )}
