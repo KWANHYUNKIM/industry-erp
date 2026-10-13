@@ -14,7 +14,7 @@ import java.math.RoundingMode;
  * 근사를 다듬기보다 국세청 표를 그대로 싣는다: resources/tax/simplified-withholding-2024.csv (646구간 × 가족 1~11명).
  *
  * <p>월급여액 1,000만 원 초과는 표 밖의 계산식(별표 2 맨 끝)을 따른다. 77만 원 미만은 0.
- * 공제대상가족은 본인 1명으로 본다(사원 마스터에 부양가족 칸이 없다) — 다른 값이면 급여명세에서 소득세를 손으로 고친다.
+ * 공제대상가족 · 자녀 · 적용방법(80/100/120%)은 사원등록 [기타설정](EmployeePayrollSetting)에서 온다 — 아래 4인자 메서드.
  * 국민연금(monthlyPension)은 표가 이미 반영하므로 쓰지 않는다.
  */
 @Component
@@ -81,6 +81,32 @@ public class WithholdingTaxCalculator {
             t = base.add(bd("31034600")).add(BigDecimal.valueOf(won - 87_000_000L).multiply(bd("0.45")));
         }
         return t.setScale(0, RoundingMode.DOWN);
+    }
+
+    /**
+     * 월 소득세 — 원본 사원등록 [기타설정] 을 반영한다(2026-10-13 loginaa 실측, 과세 4,114,000 · 가족 3명 표값 121,820):
+     * <ol>
+     *   <li>간이세액표[과세급여, 공제대상가족(본인 + 배우자 + 공제대상가족)]</li>
+     *   <li>− 8세 이상 20세 이하 자녀 공제(2025.2.28 개정 별표 2): 1명 20,830 · 2명 45,830 · 3명부터 45,830 + 초과 1명당 33,330
+     *       — 자녀 1명 → 100,990, 2명 → 75,990(실측). 3명 이상은 법령 값이고 원본에서 재지 않았다.</li>
+     *   <li>× 간이세액표 적용방법(80 · 100 · 120 %) — 자녀 2명 · 80 % → 60,790(= 75,990 × 0.8, 10원 미만 버림, 실측).</li>
+     * </ol>
+     * 음수면 0.
+     */
+    public BigDecimal monthlyIncomeTax(BigDecimal monthlyTaxableIncome, int family, int children, int scalePercent) {
+        BigDecimal t = monthlyIncomeTax(monthlyTaxableIncome, family).subtract(BigDecimal.valueOf(childDeduction(children)));
+        if (t.signum() <= 0) return BigDecimal.ZERO;
+        if (scalePercent != 100) {
+            t = t.multiply(BigDecimal.valueOf(scalePercent)).divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN);
+        }
+        return t.divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
+    }
+
+    /** 8세 이상 20세 이하 자녀 세액공제(월). */
+    static long childDeduction(int children) {
+        if (children <= 0) return 0;
+        if (children == 1) return 20_830;
+        return 45_830 + 33_330L * (children - 2);
     }
 
     /**

@@ -33,6 +33,7 @@ public class EmployeeService {
     private final EmployeeHrDetailRepository hrDetailRepository;
     /** 사원등록 [급여지급사항] — 사원을 지우면 같이 지운다(사원의 일부다). */
     private final com.erp.hr.payroll.EmployeePayItemRepository employeePayItemRepository;
+    private final com.erp.hr.payroll.EmployeePayrollSettingRepository employeePayrollSettingRepository;
 
     /** 재직 중인 사원 (급여·조직도용) */
     @Transactional(readOnly = true)
@@ -160,6 +161,7 @@ public class EmployeeService {
     public void delete(Long id) {
         Employee e = get(id);
         employeePayItemRepository.deleteByEmployeeId(id);
+        employeePayrollSettingRepository.deleteByEmployeeId(id);   // [기타설정] — 사원과 같이 간다
         employeeRepository.delete(e);
         employeeRepository.flush();   // FK 위반을 이 트랜잭션 안에서 터뜨린다
     }

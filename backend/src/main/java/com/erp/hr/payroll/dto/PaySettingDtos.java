@@ -183,4 +183,37 @@ public final class PaySettingDtos {
     ) {}
 
     public record EmployeePayItemResponse(Long payItemId, String payItemName, BigDecimal amount) {}
+    /**
+     * 원본 사원등록 [기타설정] — 4대보험 계산 여부 · 국민연금 기준소득월액 · 원천징수 공제대상가족 · 간이세액표 적용방법.
+     * 비운 칸은 처음 값(자동계산 · 가입 · 공제대상아님 · 0명 · 100%).
+     */
+    public record EmployeePayrollSettingRequest(
+            com.erp.hr.payroll.InsuranceCalc healthMode,
+            Boolean longTermCare,
+            com.erp.hr.payroll.InsuranceCalc pensionMode,
+            @PositiveOrZero(message = "기준소득월액은 0 이상이어야 합니다.") BigDecimal pensionBaseAmount,
+            com.erp.hr.payroll.InsuranceCalc employmentMode,
+            Boolean spouseDeduction,
+            @PositiveOrZero(message = "공제대상가족은 0 이상이어야 합니다.") Integer dependents,
+            @PositiveOrZero(message = "자녀수는 0 이상이어야 합니다.") Integer children,
+            Integer taxScale
+    ) {}
+
+    public record EmployeePayrollSettingResponse(
+            com.erp.hr.payroll.InsuranceCalc healthMode,
+            boolean longTermCare,
+            com.erp.hr.payroll.InsuranceCalc pensionMode,
+            BigDecimal pensionBaseAmount,
+            com.erp.hr.payroll.InsuranceCalc employmentMode,
+            boolean spouseDeduction,
+            int dependents,
+            int children,
+            int taxScale
+    ) {
+        public static EmployeePayrollSettingResponse from(com.erp.hr.payroll.EmployeePayrollSetting s) {
+            return new EmployeePayrollSettingResponse(s.getHealthMode(), s.isLongTermCare(), s.getPensionMode(),
+                    s.getPensionBaseAmount(), s.getEmploymentMode(), s.isSpouseDeduction(), s.getDependents(),
+                    s.getChildren(), s.getTaxScale());
+        }
+    }
 }

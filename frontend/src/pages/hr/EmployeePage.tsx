@@ -11,12 +11,16 @@ import type { EmployeeMaster, EmployeePayType, PayItem } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import EmployeeBulkChange from '../../features/employee/components/EmployeeBulkChange'
 import EmployeePayItemTables from '../../features/employee/components/EmployeePayItemTables'
+import EmployeePayrollSettingPanel, {
+  emptyPayrollSetting, payrollSettingBody, payrollSettingForm,
+  type PayrollSettingForm, type PayrollSettingResponse,
+} from '../../features/employee/components/EmployeePayrollSettingPanel'
 
 const inputCls = 'ec-input w-full'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 
-type FormTab = '기본' | '급여지급사항' | '추가정보'
+type FormTab = '기본' | '급여지급사항' | '추가정보' | '기타설정'
 
 /**
  * 관리 &gt; 급여관리 &gt; 기본사항등록 &gt; <b>사원등록</b> (원본 E090101, 화면 제목 '사원리스트').
@@ -33,8 +37,10 @@ type FormTab = '기본' | '급여지급사항' | '추가정보'
  * </ul>
  *
  * <p>원본 폼에 있으나 담을 자리가 없어 그리지 않은 것: 외국어성명 · 주민등록번호 · 세대주여부 · 입사구분 · 직책 ·
- * 여권번호 · 프로젝트 · UserPay비밀번호 · 급여통장 · 우편번호 · 사진 · 첨부, [사원정보] 탭(기본 탭과 같은 칸),
- * [기타설정] 탭(4대보험 · 공제대상가족 · 간이세액표 …).
+ * 여권번호 · 프로젝트 · UserPay비밀번호 · 급여통장 · 우편번호 · 사진 · 첨부, [사원정보] 탭(기본 탭과 같은 칸).
+ *
+ * <p>[기타설정] 은 4대보험 계산 여부 · 국민연금 기준소득월액 · 공제대상가족 · 간이세액표 적용방법
+ * (features/employee/components/EmployeePayrollSettingPanel). 저장하면 /pay-settings/employees/{id}/settings — 급여계산이 쓴다.
  *
  * <p>[급여지급사항] 은 기본급 + 고정수당 · 일급수당 · 시급수당 · 월정공제 항목마다 금액(features/employee/components/EmployeePayItemTables).
  * 저장하면 사원 저장 뒤 /pay-settings/employees/{id}/items 로 통째로 바꾼다 — 급여계산이 그룹 금액보다 이 금액을 먼저 쓴다.
@@ -53,6 +59,10 @@ export default function EmployeePage() {
   /** 원본 [급여지급사항] — 수당·공제 항목과 이 사원의 금액(payItemId → 입력값) */
   const [payItems, setPayItems] = useState<PayItem[]>([])
   const [payVals, setPayVals] = useState<Map<number, string>>(new Map())
+  /** 원본 [기타설정] */
+  const [paySetting, setPaySetting] = useState<PayrollSettingForm>(emptyPayrollSetting)
+  /** 원본 '자동계산' 을 고르면 뜨는 알림 창 */
+  const [notice, setNotice] = useState('')
 
   const empty = {
     code: '', name: '', departmentId: '', jobTitle: '',
@@ -82,7 +92,7 @@ export default function EmployeePage() {
     setTab('기본')
     setFormError('')
     setForm(base)
-    if (base === empty) setPayVals(new Map())
+    if (base === empty) { setPayVals(new Map()); setPaySetting(emptyPayrollSetting) }
     setShowForm(true)
     try {
       const r = await api.get<{ code: string }>('/employees/next-code')
@@ -108,6 +118,10 @@ export default function EmployeePage() {
     setPayVals(new Map())
     api.get<{ payItemId: number; amount: number }[]>(`/pay-settings/employees/${e.id}/items`)
       .then((r) => setPayVals(new Map(r.data.map((x) => [x.payItemId, String(Number(x.amount))]))))
+      .catch((err) => setFormError(extractErrorMessage(err)))
+    setPaySetting(emptyPayrollSetting)
+    api.get<PayrollSettingResponse>(`/pay-settings/employees/${e.id}/settings`)
+      .then((r) => setPaySetting(payrollSettingForm(r.data)))
       .catch((err) => setFormError(extractErrorMessage(err)))
     setShowForm(true)
   }
@@ -157,6 +171,7 @@ export default function EmployeePage() {
       }
       const cells = [...payVals.entries()].filter(([, v]) => v !== '').map(([payItemId, v]) => ({ payItemId, amount: Number(v) || 0 }))
       if (id) await api.put(`/pay-settings/employees/${id}/items`, cells)
+      if (id) await api.put(`/pay-settings/employees/${id}/settings`, payrollSettingBody(paySetting))
       setShowForm(false)
       load()
     } catch (err) {
@@ -302,7 +317,7 @@ export default function EmployeePage() {
         <form onSubmit={submit}>
           {/* 원본 폼 탭은 알약이다: 기본 · 사원정보 · 급여지급사항 · 추가정보 · 기타설정 (사원정보 · 기타설정은 위 주석) */}
           <div className="ec-pills mb-[8px]">
-            {(['기본', '급여지급사항', ...(editId ? ['추가정보'] : [])] as FormTab[]).map((t) => (
+            {(['기본', '급여지급사항', ...(editId ? ['추가정보'] : []), '기타설정'] as FormTab[]).map((t) => (
               <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
                       onClick={() => setTab(t)}>{t}</button>
             ))}
@@ -428,6 +443,16 @@ export default function EmployeePage() {
               Self-Customizing 에서 이름을 지어 정의한 칸이 여기 뜬다. 값은 행에 붙으므로 수정할 때만 있다. */}
           {tab === '추가정보' && editId && <CustomFieldsPanel entityType="EMPLOYEE" entityId={editId} />}
 
+          {tab === '기타설정' && (
+            <>
+              <ul className="ec-form mb-[10px]">
+                <Field label="사원번호"><span>{form.code}</span></Field>
+                <Field label="성명"><span>{form.name}</span></Field>
+              </ul>
+              <EmployeePayrollSettingPanel value={paySetting} onChange={setPaySetting} onNotice={setNotice} />
+            </>
+          )}
+
           <div className="flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             {editId && <button type="button" className="ec-btn" onClick={copyForm}>복사</button>}
@@ -439,6 +464,12 @@ export default function EmployeePage() {
             <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
           </div>
         </form>
+      )}</Modal>
+      <Modal error={error} open={!!notice} title="알림" width={460} onClose={() => setNotice('')}>{(
+        <>
+          <p className="whitespace-pre-line">{notice}</p>
+          <div className="mt-[12px]"><button type="button" className="ec-btn ec-btn-primary" onClick={() => setNotice('')}>확인</button></div>
+        </>
       )}</Modal>
 
       <table className="w-full text-left">

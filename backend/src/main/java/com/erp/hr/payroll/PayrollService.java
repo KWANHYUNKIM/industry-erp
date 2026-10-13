@@ -191,11 +191,19 @@ public class PayrollService {
                 .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
 
         java.time.YearMonth ym = java.time.YearMonth.parse(req.payMonth());
-        BigDecimal pension = round(SocialInsuranceRates.pensionBase(taxableIncome, ym)
+        // 원본 사원등록 [기타설정] — '안함' 이면 그 보험 줄이 없다(0 은 addAutoDeduction 이 넣지 않는다).
+        // 국민연금은 기준소득월액이 있으면 급여가 아니라 그 값에 요율(원본 실측: 급여가 바뀌어도 그대로).
+        EmployeePayrollSetting setting = paySettingService.payrollSetting(emp.getId());
+        BigDecimal pensionIncome = setting.getPensionBaseAmount() != null ? setting.getPensionBaseAmount() : taxableIncome;
+        BigDecimal pension = setting.getPensionMode() == InsuranceCalc.NONE ? BigDecimal.ZERO
+                : round(SocialInsuranceRates.pensionBase(pensionIncome, ym)
                 .multiply(SocialInsuranceRates.pension(ym)));        // 기준소득월액 상·하한 안에서
-        BigDecimal health = round(taxableIncome.multiply(SocialInsuranceRates.health(ym)));
-        BigDecimal care = round(health.multiply(SocialInsuranceRates.longTermCareOfHealth(ym)));   // 장기요양은 건강보험료 기준
-        BigDecimal employment = round(taxableIncome.multiply(SocialInsuranceRates.employment(ym)));
+        BigDecimal health = setting.getHealthMode() == InsuranceCalc.NONE ? BigDecimal.ZERO
+                : round(taxableIncome.multiply(SocialInsuranceRates.health(ym)));
+        BigDecimal care = !setting.isLongTermCare() ? BigDecimal.ZERO
+                : round(health.multiply(SocialInsuranceRates.longTermCareOfHealth(ym)));   // 장기요양은 건강보험료 기준
+        BigDecimal employment = setting.getEmploymentMode() == InsuranceCalc.NONE ? BigDecimal.ZERO
+                : round(taxableIncome.multiply(SocialInsuranceRates.employment(ym)));
 
         addAutoDeduction(p, "국민연금", pension);
         addAutoDeduction(p, "건강보험", health);
@@ -205,7 +213,8 @@ public class PayrollService {
         // 3) 원천징수. 손으로 넣은 소득세가 있으면 그 값을 그대로 두고 자동 계산하지 않는다
         //    (부양가족 반영 등 회사가 정한 세액을 서버가 덮어쓰면 안 된다).
         if (!hasDeduction(p, WithholdingService.INCOME_TAX)) {
-            BigDecimal incomeTax = taxCalculator.monthlyIncomeTax(taxableIncome, pension);
+            BigDecimal incomeTax = taxCalculator.monthlyIncomeTax(taxableIncome,
+                    setting.familyCount(), setting.getChildren(), setting.getTaxScale());
             addAutoDeduction(p, WithholdingService.INCOME_TAX, incomeTax);
         }
         if (!hasDeduction(p, WithholdingService.LOCAL_INCOME_TAX)) {

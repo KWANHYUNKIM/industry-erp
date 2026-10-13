@@ -30,6 +30,7 @@ public class PaySettingService {
     private final com.erp.hr.employee.EmployeeService employeeService;
     private final com.erp.common.DocumentNoGenerator documentNoGenerator;
     private final EmployeePayItemRepository employeePayItemRepository;
+    private final EmployeePayrollSettingRepository payrollSettingRepository;
 
     // ── 항목 ──────────────────────────────────────────────────────────
 
@@ -212,6 +213,42 @@ public class PaySettingService {
                     .employeeId(employeeId).payItem(item(in.payItemId())).amount(in.amount()).build());
         }
         return findEmployeePayItems(employeeId);
+    }
+
+    // ── 사원등록 [기타설정] ──────────────────────────────────────────
+
+    /** 급여계산용 · 화면용 — 행이 없으면 처음 값. */
+    @Transactional(readOnly = true)
+    public EmployeePayrollSetting payrollSetting(Long employeeId) {
+        return payrollSettingRepository.findByEmployeeId(employeeId)
+                .orElseGet(() -> EmployeePayrollSetting.defaults(employeeId));
+    }
+
+    @Transactional(readOnly = true)
+    public PaySettingDtos.EmployeePayrollSettingResponse findPayrollSetting(Long employeeId) {
+        return PaySettingDtos.EmployeePayrollSettingResponse.from(payrollSetting(employeeId));
+    }
+
+    @Transactional
+    public PaySettingDtos.EmployeePayrollSettingResponse savePayrollSetting(Long employeeId, PaySettingDtos.EmployeePayrollSettingRequest req) {
+        employeeService.findAllIncludingResigned().stream().filter(e -> e.id().equals(employeeId)).findFirst()
+                .orElseThrow(() -> ApiException.notFound("사원을 찾을 수 없습니다. id=" + employeeId));
+        int scale = req.taxScale() == null ? 100 : req.taxScale();
+        if (scale != 80 && scale != 100 && scale != 120) {
+            throw ApiException.badRequest("간이세액표 적용방법은 80 % · 100 % · 120 % 중 하나입니다.");
+        }
+        EmployeePayrollSetting s = payrollSettingRepository.findByEmployeeId(employeeId)
+                .orElseGet(() -> EmployeePayrollSetting.defaults(employeeId));
+        s.setHealthMode(req.healthMode() == null ? InsuranceCalc.AUTO : req.healthMode());
+        s.setLongTermCare(req.longTermCare() == null || req.longTermCare());
+        s.setPensionMode(req.pensionMode() == null ? InsuranceCalc.AUTO : req.pensionMode());
+        s.setPensionBaseAmount(req.pensionBaseAmount());
+        s.setEmploymentMode(req.employmentMode() == null ? InsuranceCalc.AUTO : req.employmentMode());
+        s.setSpouseDeduction(Boolean.TRUE.equals(req.spouseDeduction()));
+        s.setDependents(req.dependents() == null ? 0 : req.dependents());
+        s.setChildren(req.children() == null ? 0 : req.children());
+        s.setTaxScale(scale);
+        return PaySettingDtos.EmployeePayrollSettingResponse.from(payrollSettingRepository.save(s));
     }
 
     /** 급여계산용 — 이 사원이 [급여지급사항]에 넣어 둔 항목 id → 금액. */

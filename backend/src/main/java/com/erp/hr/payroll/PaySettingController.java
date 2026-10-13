@@ -58,6 +58,18 @@ public class PaySettingController {
         return service.replaceEmployeePayItems(employeeId, body);
     }
 
+    /** 원본 사원등록 [기타설정] — 4대보험 계산 여부 · 공제대상가족 · 간이세액표 적용방법. */
+    @GetMapping("/employees/{employeeId}/settings")
+    public PaySettingDtos.EmployeePayrollSettingResponse employeePayrollSetting(@PathVariable Long employeeId) {
+        return service.findPayrollSetting(employeeId);
+    }
+
+    @PutMapping("/employees/{employeeId}/settings")
+    public PaySettingDtos.EmployeePayrollSettingResponse saveEmployeePayrollSetting(
+            @PathVariable Long employeeId, @Valid @RequestBody PaySettingDtos.EmployeePayrollSettingRequest body) {
+        return service.savePayrollSetting(employeeId, body);
+    }
+
     /** 원본 수당/공제그룹등록 [사원 등록] — 적용사원 목록. */
     @GetMapping("/groups/{id}/employees")
     public List<PaySettingDtos.GroupEmployeeResponse> groupEmployees(@PathVariable Long id) {
