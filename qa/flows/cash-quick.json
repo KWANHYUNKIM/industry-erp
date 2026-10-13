@@ -31,12 +31,12 @@
       ]
     },
     {
-      "name": "카드매출대금회수 — 칸 차례 · 총금액 · 수수료는 막힌 칸",
+      "name": "카드매출대금회수 — 칸 차례 · 총금액만 막힌 칸(수수료는 고칠 수 있다, 원본 2026-10-14)",
       "path": "/accounting/card-sales-collection",
       "steps": [
         "wait:2500",
         "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|카드사|입금계좌|수수료율|통장입금액|수수료|총금액|적요|회계전표No.'",
-        "expect:document.querySelector('input[aria-label=\"수수료\"]').disabled && document.querySelector('input[aria-label=\"총금액\"]').disabled"
+        "expect:!document.querySelector('input[aria-label=\"수수료\"]').disabled && document.querySelector('input[aria-label=\"총금액\"]').disabled"
       ]
     }
   ]

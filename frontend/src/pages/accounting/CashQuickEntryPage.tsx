@@ -20,7 +20,8 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  * 2026-10-12 loginaa 실측: 영수증으로와 같은 한 장짜리 폼(칸만 다르다 — features/cashquick/kinds.ts), 단추
  * [저장(F8)] · [저장/전표(F7)] · [다시 작성] · [리스트]. 저장하면 머리 계좌(입금 · 출금계좌)는 남고 나머지가 비워진다.
  * 기타출금은 머리 계좌가 000 현금인데 수수료를 넣으면 '현금일경우 수수료를 입력할 수 없습니다.'
- * 카드매출대금회수는 카드사를 고르면 수수료율 · 입금계좌가 채워지고, 통장입금액 9,700 · 3% → 총금액 10,000 · 수수료 300(둘 다 막힌 칸).
+ * 카드매출대금회수는 카드사를 고르면 수수료율 · 입금계좌가 채워지고, 통장입금액 9,700 · 3% → 수수료 300 · 총금액 10,000(총금액만 막힌 칸,
+ * 수수료는 고칠 수 있다 — 2026-10-14 원본에서 400 으로 고치면 총금액 10,100).
  * 회계거래조회에서 전표번호를 누르면 일자가 막힌 같은 폼 + [삭제] '전표를 삭제하겠습니까? - 매출처로부터'.
  *
  * 회계 I › 비현금거래 셋(일반영수증 · 신용카드전표 · 기타, 2026-10-13 실측)도 같은 폼이다 — 머리 계좌 · 수수료가 없고,
@@ -151,6 +152,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     const i = issuers.find((x) => String(x.id) === v)
     if (!i) return
     setFeeRate(Number(i.feeRate ?? 0).toFixed(3))
+    if (amount) setCardAmount(amount, Number(i.feeRate ?? 0))
     const dep = (i.depositAccount ?? '').trim()
     if (dep) {
       const b = activeBanks.find((x) => x.code === dep || x.accountNo === dep || bankLabel(x) === dep || x.name === dep)
@@ -160,8 +162,15 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
 
   const amountNum = Number(amount) || 0
   const rateNum = Number(feeRate) || 0
-  const cardGross = grossOf(amountNum, rateNum)
-  const feeNum = has('issuer') ? Math.max(cardGross - amountNum, 0) : Number(fee) || 0
+  const feeNum = Number(fee) || 0
+  /* 원본 카드매출대금회수(2026-10-14 실측): 통장입금액 · 수수료율이 바뀌면 수수료를 다시 매기고(9,700 · 3% → 300),
+     수수료는 고칠 수 있으며 총금액 = 통장입금액 + 수수료(400 으로 고치면 10,100). */
+  const cardGross = amountNum + feeNum
+  function setCardAmount(v: string, rate = rateNum) {
+    setAmount(v)
+    const d = Number(v) || 0
+    setFee(d > 0 ? String(Math.max(grossOf(d, rate) - d, 0)) : '')
+  }
 
   async function save() {
     setError('')
@@ -249,16 +258,16 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
       case 'feeRate':
         return (
           <span className="inline-flex w-full items-center gap-[6px]">
-            <EcNumInput className="ec-input w-full text-right" aria-label={l} value={feeRate} onValue={setFeeRate} placeholder="0.000" />
+            {/* 원본은 막힌 칸 — 카드사를 고르면 카드사등록의 수수료율이 들어온다(2026-10-14 실측 readonly 0.000 → 3.000). */}
+            <input className="ec-input w-full text-right" aria-label={l} disabled value={feeRate || '0.000'} />
             <span>%</span>
           </span>
         )
       case 'amount':
-        return <EcNumInput className="ec-input w-full text-right" aria-label={l} value={amount} onValue={setAmount} placeholder="0" />
+        return <EcNumInput className="ec-input w-full text-right" aria-label={l} value={amount}
+          onValue={has('issuer') ? (v) => setCardAmount(v) : setAmount} placeholder="0" />
       case 'fee':
-        return has('issuer')
-          ? <input className="ec-input w-full text-right" aria-label={l} disabled value={feeNum.toLocaleString('ko-KR')} />
-          : <EcNumInput className="ec-input w-full text-right" aria-label={l} value={fee} onValue={setFee} placeholder="0" />
+        return <EcNumInput className="ec-input w-full text-right" aria-label={l} value={fee} onValue={setFee} placeholder="0" />
       case 'total':
         return <input className="ec-input w-full text-right" aria-label={l} disabled value={cardGross.toLocaleString('ko-KR')} />
     }
