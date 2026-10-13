@@ -324,6 +324,10 @@ const EmployeePayListPage = lazy(() => import('../pages/hr/EmployeePayListPage')
 const PayrollStatusPage = lazy(() => import('../pages/hr/PayrollStatusPage'))
 const WorkConfirmStatusPage = lazy(() => import('../pages/hr/WorkConfirmStatusPage'))
 const PayTransferStatusPage = lazy(() => import('../pages/hr/PayTransferStatusPage'))
+const InsuranceAcquirePage = lazy(() => import('../pages/hr/InsuranceAcquirePage'))
+const InsuranceLossPage = lazy(() => import('../pages/hr/InsuranceLossPage'))
+const InsuranceDependentPage = lazy(() => import('../pages/hr/InsuranceDependentPage'))
+const InsuranceReportListPage = lazy(() => import('../pages/hr/InsuranceReportListPage'))
 const HrCardPage = lazy(() => import('../pages/hr/HrCardPage'))
 const HrRecordPage = lazy(() => import('../pages/hr/HrRecordPage'))
 const AssignmentListPage = lazy(() => import('../pages/hr/AssignmentListPage'))
@@ -878,6 +882,10 @@ export default function AppRouter() {
         <Route path="/hr/payroll/status" element={<PayrollStatusPage />} />
         <Route path="/hr/payroll/work-confirms" element={<WorkConfirmStatusPage />} />
         <Route path="/hr/payroll/transfer-status" element={<PayTransferStatusPage />} />
+        <Route path="/hr/insurance/acquire" element={<InsuranceAcquirePage />} />
+        <Route path="/hr/insurance/loss" element={<InsuranceLossPage />} />
+        <Route path="/hr/insurance/dependent" element={<InsuranceDependentPage />} />
+        <Route path="/hr/insurance/reports" element={<InsuranceReportListPage />} />
         <Route path="/hr/cards" element={<HrCardPage />} />
         <Route path="/hr/performance" element={<EmployeePerformancePage />} />
         <Route path="/hr/pay-settings" element={<PaySettingPage />} />

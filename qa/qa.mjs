@@ -10722,6 +10722,7 @@ async function main() {
   await scenarioRollback(fixtures)
   await scenarioRoundTrip(fixtures)
   await scenarioHrCertificate()
+  await scenarioInsuranceReport()
   await scenarioDailyWorker()
   await scenarioAttendanceKind()
   await scenarioCommuteRule()
@@ -11338,6 +11339,40 @@ async function scenarioHrCertificate() {
   }
   await must('DELETE', `/hr/certificates/${c.id}`)
   eq('지운 증명서는 목록에 없다', (await must('GET', '/hr/certificates')).some((x) => x.id === c.id), 'false')
+}
+
+/**
+ * 관리 › 4대보험신고(원본 N001768 ~ N001771, 2026-10-14) — 사업장관리번호 11자리, 빈 사업장 저장은 '사업장명[기본값설정] 필수'
+ * (빈 칸마다 한 줄), 일자-No. 는 그날 다음 차례, [선택삭제] 는 삭제 표시만. 만든 사업장은 지운다(신고가 남아 있으면 못 지워 신고는 표시만 남김).
+ */
+async function scenarioInsuranceReport() {
+  section('■ 4대보험신고 — 사업장관리 · 취득신고 검증 · 번호 · 수정 · 선택삭제(표시)')
+  const emp = (await must('GET', '/employees'))[0]
+  const d = new Date()
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  await rejects('사업장관리번호가 11자리가 아니면 막는다', 'POST', '/hr/insurance/workplaces', { name: 'QA관리-사업장', manageNo: '123' }, '자릿수는 11입니다.')
+  const no = String(90000000000 + (Date.now() % 1000000000))
+  const wp = await must('POST', '/hr/insurance/workplaces', { name: 'QA관리-사업장', manageNo: no })
+  const wp2 = await must('PUT', `/hr/insurance/workplaces/${wp.id}`, { name: 'QA관리-사업장2', manageNo: '00000000000' })
+  eq('사업장 수정은 관리번호를 안 바꾼다', wp2.manageNo, no)
+  eq('사용중단', (await must('POST', `/hr/insurance/workplaces/${wp.id}/toggle`)).active, 'false')
+  await must('POST', `/hr/insurance/workplaces/${wp.id}/toggle`)
+  await rejects('빈 사업장으로 취득신고를 저장하면 막는다', 'POST', '/hr/insurance/reports',
+    { reportDate: today, kind: 'ACQUIRE', employeeId: emp.id }, '사업장명[기본값설정] 필수')
+  const body = { reportDate: today, kind: 'ACQUIRE', employeeId: emp.id, pensionWorkplaceId: wp.id, healthWorkplaceId: wp.id,
+    employmentWorkplaceId: wp.id, accidentWorkplaceId: wp.id, pensionApply: true, pensionDate: today }
+  const before = (await must('GET', `/hr/insurance/reports?from=${today}&to=${today}`)).map((r) => r.reportSeq)
+  const r = await must('POST', '/hr/insurance/reports', body)
+  eq('일자-No. 는 그날 다음 차례', r.reportSeq, Math.max(0, ...before) + 1)
+  eq('서식명', r.formName, '사업장가입자 자격취득 신고서')
+  const u = await must('PUT', `/hr/insurance/reports/${r.id}`, { ...body, healthApply: true, healthDate: today })
+  eq('고친 신청구분이 읽힌다', (await must('GET', `/hr/insurance/reports/${u.id}`)).healthApply, 'true')
+  await must('POST', '/hr/insurance/reports/delete', [r.id])
+  eq('선택삭제는 삭제 표시로 남는다', (await must('GET', `/hr/insurance/reports?from=${today}&to=${today}`)).find((x) => x.id === r.id)?.deleted, 'true')
+  await rejects('삭제된 신고는 못 고친다', 'PUT', `/hr/insurance/reports/${r.id}`, body, '삭제된 신고입니다.')
+  const wp3 = await must('POST', '/hr/insurance/workplaces', { name: 'QA관리-사업장3', manageNo: String(Number(no) + 1) })
+  await must('DELETE', `/hr/insurance/workplaces/${wp3.id}`)
+  eq('지운 사업장은 목록에 없다', (await must('GET', '/hr/insurance/workplaces')).some((x) => x.id === wp3.id), 'false')
 }
 
 /** 관리 › 일용근로 사원등록(원본 E020105) — 다음 번호 다섯 자리, 같은 번호 막기, 일근무 · 월정공제 저장, 삭제. */

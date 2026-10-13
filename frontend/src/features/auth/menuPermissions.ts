@@ -171,6 +171,7 @@ const RULES: Rule[] = [
   // 관리(인사/급여)
   ['/hr/payroll', 'PAYROLL'],
   ['/hr/pay-settings', 'PAYROLL'],
+  ['/hr/insurance', 'PAYROLL'],
   ['/hr/allowance-items', 'PAYROLL'],
   ['/hr/deduction-items', 'PAYROLL'],
   ['/hr/pay-groups', 'PAYROLL'],

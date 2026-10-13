@@ -744,6 +744,12 @@ const MENU: TopMenu[] = [
             { label: '근무조회', to: '/hr/work-list' },
           ] },
           { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '사원별급여조회', to: '/hr/payroll/by-employee' }, { label: '급여현황', to: '/hr/payroll/status' }, { label: '근무확정현황', to: '/hr/payroll/work-confirms' }, { label: '급여이체현황', to: '/hr/payroll/transfer-status' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
+          { label: '4대보험신고', children: [
+            { label: '4대보험취득신고입력', to: '/hr/insurance/acquire' },
+            { label: '4대보험상실신고입력', to: '/hr/insurance/loss' },
+            { label: '피부양자자격신고입력', to: '/hr/insurance/dependent' },
+            { label: '4대보험신고', to: '/hr/insurance/reports' },
+          ] },
         ],
       },
       {
