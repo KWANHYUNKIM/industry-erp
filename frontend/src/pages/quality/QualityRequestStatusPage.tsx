@@ -34,6 +34,11 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(247, 24
  * 열 [품목별 | 수량], 줄 '멸충대장골드 1.00' 다음 '<b>멸충대장골드 계</b> 1.00'(조건이 하나여도 묶음마다 계), 끝에 '총합계', 꼬리 [P.1].
  * 현황 줄은 요청의 <b>품목 줄마다</b> 하나다(요청이 줄을 들게 된 2026-10-04 부터).
  *
+ * <p>2026-10-13 집계조건 3~5 실측(담당자별 · 품목별 · 월별, 2024/01/01 ~ 2026/10/13): 조건 칸은 채운 수 + 2 개(최대 5).
+ * 줄 [정재원 | 인텔 코어 I7-3770K | 2026/05 | 20.00] 다음에 '2026/05 계'(이름 칸 셋을 묶음) — <b>마지막 조건까지 무리마다</b> 계,
+ * 깊은 것부터('2026/09 계' → '인텔 코어 I7-3770K 계' → … → '정재원 계' → '총합계'). 이름은 줄마다 다 적는다.
+ * 자료가 없으면 머리가 [집계기준항목 | 수량].
+ *
  * <p>2026-10-13 원본 [비교기간](사용안함 · 전년 · 전월 · 전주 · 전일동일기간, 현황 · 집계 둘 다) 실측 — 표가 <b>옆으로 두 벌</b>이 된다.
  * 머리 첫 줄에 두 구간('2026/10/01 ~ 2026/10/31' | '2026/09/01 ~ 2026/09/30'), 줄은 <b>같은 것끼리 한 줄</b>에 선다:
  * 현황은 같은 요청 품목 줄(10/01~31 vs 전주 9/24~10/24 에서 10/20 -1 줄이 양쪽에 나란히), 집계는 같은 집계 이름.
@@ -44,6 +49,11 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(247, 24
 /** 원본 집계조건 후보 중 요청이 값을 드는 것. 라인별 · 거래처그룹 · 품목그룹2/3 · 프로젝트그룹은 두지 않는다. */
 const AGG_KEYS = ['일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자별', '전표별', '품목별', '품목그룹1별', '프로젝트별'] as const
 type AggKey = (typeof AGG_KEYS)[number]
+/** 집계조건 칸은 다섯까지 — 채운 수 + 2 칸이 열린다(2026-10-13 실측: 처음 1 · 2, 1 을 고르면 3, 3 을 고르면 4 · 5). */
+const MAX_AGG = 5
+/** 기준일자 축의 굵기 — 뒤 조건이 앞 조건보다 굵으면 막는다(품질검사현황 · 이 화면 같은 집계조건 창). */
+const DATE_RANK: Partial<Record<AggKey, number>> = { 연별: 0, 반기별: 1, 분기별: 2, 월별: 3, 주차별: 4, 일별: 5 }
+const DATE_ORDER_MSG = '집계조건은 연별-반기별-분기별-월별-주차별-일별 순서로만 입력가능합니다.'
 export default function QualityRequestStatusPage() {
   const pickers = useCondPickers(['items', 'projects'])
   const init = periodOf('금월(~오늘)')!
@@ -56,8 +66,22 @@ export default function QualityRequestStatusPage() {
   const [loading, setLoading] = useState(true)
   /** 원본 [메뉴] — ◉현황 ○집계. */
   const [menu, setMenu] = useState<'현황' | '집계'>('현황')
-  const [agg1, setAgg1] = useState<AggKey | ''>('')
-  const [agg2, setAgg2] = useState<AggKey | ''>('')
+  /** 집계조건1 ~ 5 — 빈 칸에서 끊는다. */
+  const [aggs, setAggs] = useState<(AggKey | '')[]>(['', '', '', '', ''])
+  const aggCols = useMemo(() => {
+    const out: AggKey[] = []
+    for (const k of aggs) { if (!k) break; out.push(k) }
+    return out
+  }, [aggs])
+  const agg1 = aggCols[0] ?? ''
+  function setAgg(i: number, k: AggKey | '') {
+    const prevDates = aggs.slice(0, i).filter((x): x is AggKey => !!x && DATE_RANK[x] != null)
+    if (k && DATE_RANK[k] != null && prevDates.some((d) => (DATE_RANK[d] ?? 0) > (DATE_RANK[k] ?? 0))) {
+      window.alert(DATE_ORDER_MSG)
+      return
+    }
+    setAggs(aggs.map((x, j) => (j === i ? k : x)))
+  }
   const mgmt = useItemMgmt()
   const [error, setError] = useState('')
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
@@ -142,32 +166,40 @@ export default function QualityRequestStatusPage() {
       case '프로젝트별': return l.r.projectName ?? ''
     }
   }
-  /** ○집계 — 조건1(+조건2)로 묶어 수량을 더한다. 조건1 묶음마다 '… 계'(조건이 하나여도). 처음 나온 차례. */
-  const aggGroups = useMemo(() => {
-    if (!agg1) return []
-    /* [비교기간] 이면 같은 집계 이름끼리 한 줄 — 지금 구간(q) | 비교 구간(p). 한쪽에만 있으면 다른 쪽은 빈칸. */
-    const g1 = new Map<string, Map<string, { q: number | null; p: number | null }>>()
+  /**
+   * ○집계 — 고른 조건들로 묶어 수량을 더한다. 2026-10-13 원본 실측(담당자별 · 품목별 · 월별):
+   * 줄마다 이름을 모두 적고, <b>모든 조건 차례마다</b> 끝난 무리의 '… 계'를 깊은 것부터 단다 —
+   * [정재원 | 인텔… | 2026/05 | 20.00] → '2026/05 계' … '2026/09 계' → '인텔… 계' → … → '정재원 계' → '총합계'.
+   * (조건이 하나여도 묶음마다 계 — 2026-10-04 품목별 실측과 같은 규칙.) 차례는 처음 나온 차례(요청일 · 번호 순).
+   * [비교기간] 이면 같은 이름끼리 한 줄 — 지금 구간(q) | 비교 구간(p). 한쪽에만 있으면 다른 쪽은 빈칸.
+   */
+  const aggRows = useMemo(() => {
+    if (!aggCols.length) return []
+    const m = new Map<string, { ns: string[]; q: number | null; p: number | null; ord: number[] }>()
+    const seen = aggCols.map(() => new Map<string, number>())
     const add = (l: Line, side: 'q' | 'p') => {
-      const a = axis(agg1, l), b = agg2 ? axis(agg2, l) : ''
-      if (!g1.has(a)) g1.set(a, new Map())
-      const m = g1.get(a)!
-      const v = m.get(b) ?? { q: null, p: null }
+      const ns = aggCols.map((k) => axis(k, l))
+      const ord = ns.map((_, j) => {
+        const pre = ns.slice(0, j + 1).join('␟')
+        if (!seen[j].has(pre)) seen[j].set(pre, seen[j].size)
+        return seen[j].get(pre)!
+      })
+      const key = ns.join('␟')
+      const v = m.get(key) ?? { ns, q: null, p: null, ord }
       v[side] = (v[side] ?? 0) + l.qty
-      m.set(b, v)
+      m.set(key, v)
     }
     for (const l of lines) add(l, 'q')
     for (const l of cmpLines) add(l, 'p')
-    const sumOf = (xs: (number | null)[]) => (xs.some((x) => x != null) ? xs.reduce<number>((n, x) => n + (x ?? 0), 0) : null)
-    return [...g1.entries()].map(([n1, m]) => {
-      const rows = [...m.entries()].map(([n2, v]) => ({ n2, ...v }))
-      return { n1, rows, sum: sumOf(rows.map((x) => x.q)), psum: sumOf(rows.map((x) => x.p)) }
+    return [...m.values()].sort((a, b) => {
+      for (let j = 0; j < aggCols.length; j++) if (a.ord[j] !== b.ord[j]) return a.ord[j] - b.ord[j]
+      return 0
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, cmpLines, agg1, agg2])
-  const aggCols = [agg1, agg2].filter(Boolean) as AggKey[]
+  }, [lines, cmpLines, aggCols])
   const total = months.reduce((a, g) => a + g.sum, 0)
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '품질검사요청현황', [months.length, menu, agg1, agg2, aggGroups.length, compare])
+  useTableColumnCheck(tableRef, '품질검사요청현황', [months.length, menu, aggCols.join(','), aggRows.length, compare])
 
   const method = (r: QualityInspectionRequest) =>
     !r.inspectMethod ? '' : r.samplePercent != null ? `${r.inspectMethod}(${Number(r.samplePercent)}%)` : r.inspectMethod
@@ -178,7 +210,7 @@ export default function QualityRequestStatusPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시작성', onClick: () => { setFrom(init.from); setTo(init.to); setReqNo(''); setItem(''); setProject(''); setAgg1(''); setAgg2(''); setCompare('사용안함') } },
+        { label: '다시작성', onClick: () => { setFrom(init.from); setTo(init.to); setReqNo(''); setItem(''); setProject(''); setAggs(['', '', '', '', '']); setCompare('사용안함') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -199,16 +231,15 @@ export default function QualityRequestStatusPage() {
           <div>
           {menu === '현황' ? <span className="text-ec-label">라인별</span> : (
             <span className="inline-flex flex-wrap items-center gap-[6px]">
-              집계조건1
-              <select className="ec-input w-[120px]" value={agg1} onChange={(e) => setAgg1(e.target.value as AggKey | '')}>
-                <option value=""></option>
-                {AGG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
-              집계조건2
-              <select className="ec-input w-[120px]" value={agg2} onChange={(e) => setAgg2(e.target.value as AggKey | '')}>
-                <option value=""></option>
-                {AGG_KEYS.filter((k) => k !== agg1).map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
+              {Array.from({ length: Math.min(MAX_AGG, aggCols.length + 2) }, (_, i) => (
+                <span key={i} className="contents">
+                  집계조건{i + 1}
+                  <select className="ec-input w-[120px]" aria-label={`집계조건${i + 1}`} value={aggs[i]} onChange={(e) => setAgg(i, e.target.value as AggKey | '')}>
+                    <option value=""></option>
+                    {AGG_KEYS.filter((k) => k === aggs[i] || !aggs.includes(k)).map((k) => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </span>
+              ))}
             </span>
           )}
           {/* 원본 [구분] 아래 줄 [비교기간] — 현황 · 집계 둘 다(2026-10-13 실측). */}
@@ -248,47 +279,65 @@ export default function QualityRequestStatusPage() {
         ) : (
         <table ref={tableRef} className="w-full text-left">
           <thead>
-            {cmp && (
+            {cmp && aggRows.length > 0 && (
               <tr>
                 <th colSpan={aggCols.length + 1} className="text-center">{reportPeriod(from, to)}</th>
                 <th colSpan={aggCols.length + 1} className="text-center">{reportPeriod(cmp.from, cmp.to)}</th>
               </tr>
             )}
-            <tr>
-              {aggCols.map((k) => <th key={k}>{k}</th>)}
-              <th className="text-right">수량</th>
-              {cmp && aggCols.map((k) => <th key={`p-${k}`}>{k}</th>)}
-              {cmp && <th className="text-right">수량</th>}
-            </tr>
+            {aggRows.length === 0 ? (
+              /* 원본: 자료가 없으면 조건 이름 대신 [집계기준항목 | 수량](2026-10-13 실측). */
+              <tr><th>집계기준항목</th><th className="text-right">수량</th></tr>
+            ) : (
+              <tr>
+                {aggCols.map((k) => <th key={k}>{k}</th>)}
+                <th className="text-right">수량</th>
+                {cmp && aggCols.map((k) => <th key={`p-${k}`}>{k}</th>)}
+                {cmp && <th className="text-right">수량</th>}
+              </tr>
+            )}
           </thead>
           <tbody>
-            {aggGroups.length === 0 ? (
-              <tr><td colSpan={(aggCols.length + 1) * (cmp ? 2 : 1)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : aggGroups.flatMap((g) => [
-              ...g.rows.map((x, i) => (
-                <tr key={`${g.n1}␟${x.n2}`}>
-                  {/* 이름 칸은 머리처럼 aggCols 로 돈다 — 첫 칸은 묶음 이름(첫 줄만), 둘째 칸은 집계조건2 이름. */}
-                  {aggCols.map((k, j) => <td key={k}>{x.q == null ? '' : j === 0 ? (i === 0 ? g.n1 : '') : x.n2}</td>)}
+            {aggRows.length === 0 ? (
+              <tr><td colSpan={2} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : aggRows.flatMap((x, i) => {
+              const next = aggRows[i + 1]
+              /* 다음 줄과 처음 갈리는 조건 차례 — 그 차례부터 깊은 쪽 무리가 끝났다. */
+              let nd = 0
+              while (next && nd < aggCols.length && next.ns[nd] === x.ns[nd]) nd++
+              const out = [
+                <tr key={x.ns.join('␟')}>
+                  {aggCols.map((k, j) => <td key={k}>{x.q == null ? '' : x.ns[j]}</td>)}
                   <td className="text-right">{x.q != null ? qty2(x.q) : ''}</td>
-                  {cmp && aggCols.map((k, j) => <td key={`p-${k}`}>{x.p == null ? '' : j === 0 ? (i === 0 ? g.n1 : '') : x.n2}</td>)}
+                  {cmp && aggCols.map((k, j) => <td key={`p-${k}`}>{x.p == null ? '' : x.ns[j]}</td>)}
                   {cmp && <td className="text-right">{x.p != null ? qty2(x.p) : ''}</td>}
-                </tr>
-              )),
-              <tr key={`${g.n1}␟계`} className="ec-list-total">
-                {/* 원본은 이름이 빈 묶음(담당자 없는 요청)을 '[] 계' 로 적는다(2026-10-12 담당자별 실측). 비교 구간에만 있는 묶음도 '[] 계'. */}
-                <td colSpan={aggCols.length} className="text-center font-bold">{(g.sum != null && g.n1) || '[]'} 계</td>
-                <td className="text-right font-bold">{g.sum != null ? qty2(g.sum) : ''}</td>
-                {cmp && <td colSpan={aggCols.length}></td>}
-                {cmp && <td className="text-right font-bold">{g.psum != null ? qty2(g.psum) : ''}</td>}
-              </tr>,
-            ])}
+                </tr>,
+              ]
+              for (let L = aggCols.length - 1; L >= 0; L--) {
+                if (next && nd > L) continue
+                const pre = x.ns.slice(0, L + 1).join('␟')
+                const grp = aggRows.filter((y) => y.ns.slice(0, L + 1).join('␟') === pre)
+                const sumOf = (vs: (number | null)[]) => (vs.some((v) => v != null) ? vs.reduce<number>((n, v) => n + (v ?? 0), 0) : null)
+                const q = sumOf(grp.map((y) => y.q)), p = sumOf(grp.map((y) => y.p))
+                out.push(
+                  <tr key={`${pre}␟계${L}`} className="ec-list-total">
+                    {/* 이름이 빈 무리(담당자 없는 요청) · 비교 구간에만 있는 무리는 '[] 계'(2026-10-12 · 13 실측). */}
+                    <td colSpan={aggCols.length} className="text-center font-bold">{(q != null && x.ns[L]) || '[]'} 계</td>
+                    <td className="text-right font-bold">{q != null ? qty2(q) : ''}</td>
+                    {cmp && <td colSpan={aggCols.length}></td>}
+                    {cmp && <td className="text-right font-bold">{p != null ? qty2(p) : ''}</td>}
+                  </tr>,
+                )
+              }
+              return out
+            })}
           </tbody>
-          {aggGroups.length > 0 && (
+          {aggRows.length > 0 && (
             <tfoot><tr className="ec-total">
               <td colSpan={aggCols.length} className="text-center">총합계</td>
-              <td className="text-right">{qty2(aggGroups.reduce((n, g) => n + (g.sum ?? 0), 0))}</td>
+              <td className="text-right">{qty2(aggRows.reduce((n, x) => n + (x.q ?? 0), 0))}</td>
               {cmp && <td colSpan={aggCols.length}></td>}
-              {cmp && <td className="text-right">{qty2(aggGroups.reduce((n, g) => n + (g.psum ?? 0), 0))}</td>}
+              {cmp && <td className="text-right">{qty2(aggRows.reduce((n, x) => n + (x.p ?? 0), 0))}</td>}
             </tr></tfoot>
           )}
         </table>
