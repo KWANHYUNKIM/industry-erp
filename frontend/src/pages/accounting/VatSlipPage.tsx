@@ -10,6 +10,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { journalNeighbors } from '../../utils/journalNav'
 
 /* 원본 [부가세유형] 목록 글자 그대로(2026-10-13 loginaa 매출전표 I 실측 — 세무 (세금)계산서발행/수령과 같은 목록). */
 const SALES_TYPES = [
@@ -33,6 +34,19 @@ const today = () => new Date().toLocaleDateString('sv-SE')
 const E_INVOICE_KINDS = ['종이(세금)계산서', '전자(세금)계산서-신규', '기재사항착오정정', '공급가액변동', '환입', '계약의해제',
   '내국신용장개설', '착오에의한이중발행']
 const DEFAULT_E_KIND = '전자(세금)계산서-신규'
+/* 매출에서 [전자종류]가 붙는 유형 — 세금계산서 · 영세율 · 계산서 · 계산서(고정자산)에 붙고 카드매출 · 수출엔 없다(2026-10-13 실측).
+   세.계(고정자산)은 같은 무리로 본다. 매입은 아직 세금계산서만 쟀다. */
+const SALES_E_KIND_TYPES = new Set(['세금계산서', '영세율', '계산서', '계산서(고정자산)', '세.계(고정자산)'])
+const hasEKind = (sales: boolean, t: string) => (sales ? SALES_E_KIND_TYPES.has(t) : t === '세금계산서')
+/** 원본 [작업일시] '2026/10/06 오전 9:39:22'. */
+function workTime(iso?: string | null) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  const h = d.getHours()
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+const CONFIRM_LABEL: Record<string, string> = { CONFIRMED: '확인', UNCONFIRMED: '미확인', IN_APPROVAL: '결재중' }
 
 interface AccountOpt { id: number; code: string; name: string }
 
@@ -50,7 +64,8 @@ interface VatDetailDto {
     supplyAmount?: number | null; vatAmount?: number | null; note?: string | null }[] | null
 }
 type VatLine = JournalLine & { departmentId?: number | null; projectId?: number | null }
-type VatEntry = Omit<JournalEntry, 'lines'> & { lines: VatLine[]; vatType?: string | null; eInvoiceKind?: string | null; vatOmitted?: boolean; vatDetail?: VatDetailDto | null }
+type VatEntry = Omit<JournalEntry, 'lines'> & { lines: VatLine[]; vatType?: string | null; eInvoiceKind?: string | null; vatOmitted?: boolean; vatDetail?: VatDetailDto | null
+  updatedBy?: string | null; confirmStatus?: string | null }
 
 const blankItem = (itemDate = ''): DetailItem => ({ itemDate, name: '', spec: '', qty: '', unitPrice: '', supply: '', vat: '', note: '' })
 /* 원본 창은 네 줄로 열리고 첫 줄 월/일이 전표 일자다. */
@@ -74,11 +89,13 @@ const won = (n: number) => n.toLocaleString('ko-KR')
  * [적용(F8)]이 격자 합계를 공급가액 · 부가세로 옮긴다.
  *
  * <p>회계거래조회에서 전표번호를 누르면 <b>수정 창</b>(?journal=id) — 일자 · 번호는 막히고, [저장(F8)]하면 닫혀 목록으로
- * 돌아간다(공급가액 100,000 → 200,000 이면 목록 금액 220,000). 수정 창 버튼: 저장(F8) · 저장/전표(F7) · 복사 · 삭제 · 닫기.
+ * 돌아간다(공급가액 100,000 → 200,000 이면 목록 금액 220,000).
  * [저장/전표(F7)]는 저장하고 그 전표의 분개를 연다. [삭제] 확인 '전표를 삭제하겠습니까?' + '- 매출' / '- 매입전표 I'.
  *
- * <p>두지 않은 것: 연결거래 고르기(원본도 '없음'만 보였다) · [매출전표II로 변경] · [이전] · [다음] · [보내기] · [H] · [웹자료올리기] ·
- * 부가세유형 칸을 접어 두고 표지(전자(세금)계산서-신규 · 예정누락아님)만 보이는 원본의 접힌 모양 — 우리는 늘 펼쳐 둔다.
+ * <p>부가세유형 칸은 접혀 있다 — 유형 아래 표지(전자(세금)계산서-신규 · 예정누락아님)만 보이고 누르면 [전자종류] · [예정누락분]이 펼쳐진다.
+ * 수정 창 [이전] · [다음] · [H](전표이력보기)는 원본대로 둔다.
+ *
+ * <p>두지 않은 것: 연결거래 고르기(원본도 '없음'만 보였다) · [매출전표II로 변경](남의 전표라 눌러 보지 못했다) · [보내기] · [웹자료올리기].
  */
 export default function VatSlipPage({ sales }: { sales: boolean }) {
   const navigate = useNavigate()
@@ -106,6 +123,11 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
   const [detailOpen, setDetailOpen] = useState(false)
   const [draft, setDraft] = useState<DetailState>(blankDetail(today()))
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /** 원본 부가세유형 칸은 접혀 있다 — 유형 아래 표지(전자(세금)계산서-신규 · 예정누락아님)만 보이고 누르면 펼친다. */
+  const [vatOpen, setVatOpen] = useState(false)
+  /** [H] 전표이력보기 — 처음 넣은 사람 · 때와 마지막으로 고친 사람 · 때(V353 updated_by). */
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [loaded, setLoaded] = useState<VatEntry | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const title = editId ? (sales ? '매출전표 I(수정)' : '매입전표 I') : (sales ? '매출전표 I' : '매입전표 I')
@@ -130,6 +152,8 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
       const settleLine = lines.find((l) => (sales ? l.debit > 0 : l.credit > 0) && l.accountCode !== '831')
       const sum = (pred: (l: (typeof lines)[number]) => boolean, side: 'debit' | 'credit') =>
         lines.filter(pred).reduce((a, l) => a + l[side], 0)
+      setLoaded(e)
+      setVatOpen(false)
       setDate(e.entryDate)
       setSlipNo(e.docNo.replace(/^.*-0*/, ''))
       setDepartmentId(lines[0]?.departmentId ? String(lines[0].departmentId) : '')
@@ -237,7 +261,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
         projectId: projectId ? Number(projectId) : undefined, vatType, partnerId: Number(partnerId),
         supplyAmount: num(supply), vatAmount: num(vat), description: memo.trim() || undefined,
         accountId: Number(accountId), settleAccountId: Number(settleId), feeAmount: num(fee),
-        eInvoiceKind: vatType === '세금계산서' ? eKind : undefined, vatOmitted: omitted, vatDetail: detailBody(),
+        eInvoiceKind: hasEKind(sales, vatType) ? eKind : undefined, vatOmitted: omitted, vatDetail: detailBody(),
       }
       const { data } = editId
         ? await api.put<JournalEntry>(`/journals/vat-slip/${editId}`, body)
@@ -269,14 +293,30 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
     navigate(sales ? '/accounting/sales-slip' : '/accounting/purchase-slip')
   }
 
+  /* 원본 수정 창 버튼(2026-10-13 실측) — 매출: 저장 · 저장/전표 · 복사 · 매출전표II로 변경 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H,
+     매입: 저장 · 저장/전표 · 복사 · 매입전표II로 변경 · 삭제 · 닫기 · 보내기 · H. II로 변경 · 보내기는 아직 없다.
+     [이전]은 회계거래조회 목록의 아래 줄 전표(26/10/28-1 → 26/10/26-1 매입전표 I 창), [다음]은 윗줄. */
+  const nav = editId ? journalNeighbors(`${sales ? '/accounting/sales-slip' : '/accounting/purchase-slip'}?journal=${editId}`) : { prev: null, next: null }
   const actions = editId
-    ? [
-        { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
-        { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
-        { label: '복사', onClick: copy },
-        { label: '삭제', onClick: () => setConfirmDelete(true) },
-        { label: '닫기', onClick: () => navigate('/accounting/journals') },
-      ]
+    ? (sales
+      ? [
+          { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
+          { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
+          { label: '복사', onClick: copy },
+          { label: '이전', onClick: () => nav.prev && navigate(nav.prev), disabled: !nav.prev },
+          { label: '다음', onClick: () => nav.next && navigate(nav.next), disabled: !nav.next },
+          { label: '닫기', onClick: () => navigate('/accounting/journals') },
+          { label: '삭제', onClick: () => setConfirmDelete(true) },
+          { label: 'H', onClick: () => setHistoryOpen(true) },
+        ]
+      : [
+          { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
+          { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
+          { label: '복사', onClick: copy },
+          { label: '삭제', onClick: () => setConfirmDelete(true) },
+          { label: '닫기', onClick: () => navigate('/accounting/journals') },
+          { label: 'H', onClick: () => setHistoryOpen(true) },
+        ])
     : [
         { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
         { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving || detailOpen },
@@ -310,19 +350,31 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
               <select className="ec-input w-full" aria-label="부가세유형" value={vatType} onChange={(e) => onType(e.target.value)}>
                 {types.map((t) => <option key={t}>{t}</option>)}
               </select>
-              {vatType === '세금계산서' && (
-                <div className="flex items-center gap-[6px] mt-[4px]">
-                  <span className="ec-label-chip">전자종류</span>
-                  <select className="ec-input flex-1" aria-label="전자종류" value={eKind} onChange={(e) => setEKind(e.target.value)}>
-                    {E_INVOICE_KINDS.map((k) => <option key={k}>{k}</option>)}
-                  </select>
+              {/* 원본 표지 · 이름표: label-light — 바탕 막힘색(e9ecef) · 검정 12px · 여백 3.6/4.5/2.7 · 둥글기 10(실측). */}
+              {!vatOpen ? (
+                <div className="flex items-center gap-[2.7px] mt-[4px]" aria-label="부가세유형 펼치기">
+                  {hasEKind(sales, vatType) && (
+                    <span className="ec-label-chip bg-ec-disabled text-ec-ink cursor-pointer" onClick={() => setVatOpen(true)}>{eKind}</span>
+                  )}
+                  <span className="ec-label-chip bg-ec-disabled text-ec-ink cursor-pointer" onClick={() => setVatOpen(true)}>{omitted ? '예정누락' : '예정누락아님'}</span>
                 </div>
+              ) : (
+                <>
+                  {hasEKind(sales, vatType) && (
+                    <div className="flex items-center gap-[6px] mt-[4px]">
+                      <span className="ec-label-chip bg-ec-disabled text-ec-ink">전자종류</span>
+                      <select className="ec-input flex-1" aria-label="전자종류" value={eKind} onChange={(e) => setEKind(e.target.value)}>
+                        {E_INVOICE_KINDS.map((k) => <option key={k}>{k}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-[6px] mt-[4px]">
+                    <span className="ec-label-chip bg-ec-disabled text-ec-ink">예정누락분</span>
+                    <label><input type="radio" name="vat-omitted" checked={!omitted} onChange={() => setOmitted(false)} /> 예정누락아님</label>
+                    <label><input type="radio" name="vat-omitted" checked={omitted} onChange={() => setOmitted(true)} /> 예정누락</label>
+                  </div>
+                </>
               )}
-              <div className="flex items-center gap-[6px] mt-[4px]">
-                <span className="ec-label-chip">예정누락분</span>
-                <label><input type="radio" name="vat-omitted" checked={!omitted} onChange={() => setOmitted(false)} /> 예정누락아님</label>
-                <label><input type="radio" name="vat-omitted" checked={omitted} onChange={() => setOmitted(true)} /> 예정누락</label>
-              </div>
             </div>
           </EcCond>
           <EcCond label="거래처" span={2}>
@@ -412,6 +464,31 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
         <div className="flex gap-[5px] mt-[8px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={applyDetail}>적용(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setDetailOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      <Modal open={historyOpen} title="전표이력보기" width={780} error={error} onClose={() => setHistoryOpen(false)}>
+        <p className="mb-[6px]">전표번호 : {date.replace(/-/g, '/')} -{slipNo}</p>
+        <table className="w-full">
+          <thead><tr><th className="w-[34px]"></th><th className="text-center">작업자ID</th><th className="text-center">작업일시</th><th className="text-center">전표종류</th><th className="text-center">상태</th></tr></thead>
+          <tbody>
+            {loaded && [
+              { who: loaded.createdBy, at: loaded.createdAt, state: '신규' },
+              ...(loaded.updatedAt && loaded.createdAt && workTime(loaded.updatedAt) !== workTime(loaded.createdAt)
+                ? [{ who: loaded.updatedBy ?? loaded.createdBy, at: loaded.updatedAt, state: '수정' }] : []),
+            ].map((h, i) => (
+              <tr key={i}>
+                <td className="text-center">{i + 1}</td>
+                <td className="text-center text-ec-navy">{(h.who ?? '').toUpperCase()}</td>
+                <td className="text-center">{workTime(h.at)}</td>
+                <td className="text-center">{CONFIRM_LABEL[loaded.confirmStatus ?? ''] ?? ''}</td>
+                <td className="text-center">{h.state}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex gap-[5px] mt-[8px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => setHistoryOpen(false)}>닫기</button>
         </div>
       </Modal>
 

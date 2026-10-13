@@ -1,0 +1,37 @@
+{
+  "about": "매출전표 I 수정 창(원본 2026-10-13 loginaa 실측) — 부가세유형 칸이 접혀 표지(전자(세금)계산서-신규 · 예정누락아님)만 보이고 누르면 [전자종류] · [예정누락분]이 펼쳐진다. 계산서 · 영세율에도 전자종류가 붙는다(카드매출 · 수출엔 없다). 버튼 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · H. [이전]은 회계거래조회 목록의 아래 줄 전표, [다음]은 윗줄. [H] '전표이력보기' 전표번호 · 작업자ID(대문자) · 작업일시 · 전표종류(확인) · 상태(신규, 고치면 수정 줄). 매출전표 I 둘(계산서 'QA회계1-이전A' · 세금계산서 'QA회계1-이전B')을 API 로 넣고 목록에서 B 를 열어 본다. 만든 전표는 지운다.",
+  "shots": [
+    {
+      "name": "목록 → B 수정 창 → 표지 펼치기 · 이전 · H · 다음",
+      "path": "/accounting/journals",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const [pa,ac]=await Promise.all(['/partners','/accounts'].map((p)=>window.__api('GET',p)));const c=pa.body.find((x)=>x.code==='QA-CUST');const id=(code)=>ac.body.find((a)=>a.code===code).id;const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const mk=(vatType,vat,memo)=>window.__api('POST','/journals/vat-slip',{sales:true,entryDate:ymd,vatType,partnerId:c.id,supplyAmount:1000,vatAmount:vat,description:memo,accountId:id('404'),settleAccountId:id('108'),feeAmount:0,eInvoiceKind:'전자(세금)계산서-신규',vatOmitted:false});const a=(await mk('계산서',0,'QA회계1-이전A')).body;const b=(await mk('세금계산서',100,'QA회계1-이전B')).body;sessionStorage.setItem('nvA',a.id);sessionStorage.setItem('nvB',b.id);return a.docNo+' '+b.docNo})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:(()=>{const i=[...document.querySelectorAll('tbody tr')].findIndex((t)=>t.innerText.includes('QA회계1-이전B'));const j=[...document.querySelectorAll('tbody tr')].findIndex((t)=>t.innerText.includes('QA회계1-이전A'));return i+' '+j})()",
+        "js:(()=>{[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계1-이전B')).querySelector('a').click();return true})()",
+        "wait:1500",
+        "expect:location.search.includes('journal='+sessionStorage.getItem('nvB'))",
+        "expect:!document.querySelector('select[aria-label=\"전자종류\"]')&&[...document.querySelectorAll('.ec-label-chip')].map((x)=>x.innerText.trim()).join('|')==='전자(세금)계산서-신규|예정누락아님'",
+        "expect:[...document.querySelectorAll('button')].map((b)=>b.innerText.trim()).filter((t)=>['저장(F8)','저장/전표(F7)','복사','이전','다음','닫기','삭제','H'].includes(t)).join(' ')==='저장(F8) 저장/전표(F7) 복사 이전 다음 닫기 삭제 H'",
+        "js:(()=>{[...document.querySelectorAll('.ec-label-chip')].find((x)=>x.innerText.trim()==='예정누락아님').click();return true})()",
+        "wait:200",
+        "expect:!!document.querySelector('select[aria-label=\"전자종류\"]')&&document.body.innerText.includes('예정누락분')",
+        "click:H",
+        "wait:400",
+        "expect:(()=>{const dlg=[...document.querySelectorAll('[role=dialog]')].pop();const tr=dlg&&[...dlg.querySelectorAll('tbody tr')];return dlg.innerText.includes('전표이력보기')&&dlg.innerText.includes('전표번호 :')&&tr.length===1&&tr[0].cells[1].innerText.trim()==='ADMIN'&&tr[0].cells[3].innerText.trim()==='확인'&&tr[0].cells[4].innerText.trim()==='신규'&&/^\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d{1,2}:\\d{2}:\\d{2}$/.test(tr[0].cells[2].innerText.trim())})()",
+        "js:(()=>{const dlg=[...document.querySelectorAll('[role=dialog]')].pop();[...dlg.querySelectorAll('button')].find((b)=>b.innerText.trim()==='닫기').click();return true})()",
+        "wait:200",
+        "click:이전",
+        "wait:1500",
+        "expect:location.search.includes('journal='+sessionStorage.getItem('nvA'))&&document.querySelector('select[aria-label=\"부가세유형\"]').value==='계산서'",
+        "expect:[...document.querySelectorAll('.ec-label-chip')].map((x)=>x.innerText.trim()).join('|')==='전자(세금)계산서-신규|예정누락아님'",
+        "click:다음",
+        "wait:1500",
+        "expect:location.search.includes('journal='+sessionStorage.getItem('nvB'))",
+        "js:(async()=>{const a=await window.__api('DELETE','/journals/'+sessionStorage.getItem('nvA'));const b=await window.__api('DELETE','/journals/'+sessionStorage.getItem('nvB'));return a.status+' '+b.status})()"
+      ]
+    }
+  ]
+}

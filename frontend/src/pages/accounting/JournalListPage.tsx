@@ -27,6 +27,7 @@ import { CASH_QUICK_KINDS, VOUCHER_SCREEN_BY_TYPE_NAME } from '../../features/ca
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { lineInDeptProject } from '../../utils/deptProject'
+import { saveJournalNav } from '../../utils/journalNav'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 기본 기간 [6개월(+1개월)] — 2026-10-13 에 2026/04/01 ~ 2026/11/12 였다. */
@@ -98,6 +99,10 @@ export default function JournalListPage() {
      우리 수취/발행 분개 적요가 '받을어음 수취/발행 BN-…' 이다. 할인료 · 부도 전표 이름은 못 쟀다. */
   const noteLabel = (r: JournalEntry) => ((r.sourceType as string) === 'NOTE' && /^(받을어음|지급어음) 수취\/발행/.test(r.description ?? '')
     ? `${(r.description ?? '').split(' ')[0]}증가` : undefined)
+  /** 전표번호를 누르면 열리는 입력 화면 — 결의서 · 현금거래는 그 화면, 매출전표 I · 매입전표 I 은 그 수정 창. 나머지는 분개를 펼친다. */
+  const screenOf = (r: JournalEntry) => voucherType[r.id]
+    ? `${VOUCHER_SCREEN_BY_TYPE_NAME[voucherType[r.id]] ?? '/accounting/vouchers'}?journal=${r.id}`
+    : VAT_SLIP_SCREEN[r.sourceType] ? `${VAT_SLIP_SCREEN[r.sourceType]}?journal=${r.id}` : null
   const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? noteLabel(r) ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
   const rowBg = (r: JournalEntry) => (r.sourceType as string) === 'SALES' || (r.sourceType as string) === 'VAT_SALES' ? 'bg-[var(--ec-bg-sales-row)]'
@@ -363,8 +368,12 @@ export default function JournalListPage() {
                   {/* 원본: 전표번호를 누르면 그 전표의 입력 화면(지출결의서 · 입금보고서 …)이 열린다. 우리는 결의서만 열고 나머지는 분개를 펼친다. */}
                   <a className="text-ec-navy cursor-pointer" title={r.docNo}
                      onClick={(e) => {
-                       if (voucherType[r.id]) { e.stopPropagation(); navigate(`${VOUCHER_SCREEN_BY_TYPE_NAME[voucherType[r.id]] ?? '/accounting/vouchers'}?journal=${r.id}`) }
-                       else if (VAT_SLIP_SCREEN[r.sourceType]) { e.stopPropagation(); navigate(`${VAT_SLIP_SCREEN[r.sourceType]}?journal=${r.id}`) }
+                       const to = screenOf(r)
+                       if (!to) return
+                       e.stopPropagation()
+                       /* 매출전표 I 수정 창의 [이전] · [다음] 이 이 목록 차례대로 옮겨 간다(원본 — [이전]은 아래 줄 전표). */
+                       saveJournalNav(shown.map((x) => screenOf(x) ?? `/accounting/journals?entryId=${x.id}`))
+                       navigate(to)
                      }}>
                     {slipNo(r.docNo)}
                   </a>
