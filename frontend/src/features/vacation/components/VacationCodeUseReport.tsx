@@ -13,7 +13,7 @@ export interface CodeUseBlock {
 export default function VacationCodeUseReport({ blocks, companyName, vacationName }: {
   blocks: CodeUseBlock[]; companyName: string; vacationName: string
 }) {
-  const days = formatDays
+  const days = (n: number) => formatDays(n, 2)   // 2026-10-20 원본 실측 '[휴가] 16.00' — 두 자리
   return (
     <div>
       {blocks.map((b) => {

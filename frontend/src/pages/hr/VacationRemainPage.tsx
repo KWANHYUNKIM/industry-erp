@@ -58,7 +58,7 @@ export default function VacationRemainPage() {
    * 시간 단위 휴가가 0.125일(1시간)씩 쌓이므로 1자리로 줄이면 합이 안 맞는다 —
    * 실제로 서버가 1자리로 반올림하던 시절 사용 0.1 · 잔여 14.9 로 나와 더해도 15가 아니었다.
    */
-  const [decimals, setDecimals] = useState(3)
+  const [decimals, setDecimals] = useState(2)   // 2026-10-20 원본 실측 16.00 · 합계 377.73 — 두 자리
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   /** 기준연도. 서버는 진작 받고 있었는데 화면이 안 보내서 늘 올해로만 보였다. */
   const [year, setYear] = useState(new Date().getFullYear())
@@ -131,7 +131,8 @@ export default function VacationRemainPage() {
    * 대개 부서 단위로 한다.
    */
   const SUBTOTALS = ['부서', '휴가명'] as const
-  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('부서')
+  // 원본 출력물에는 소계 표가 없다(2026-10-20) — 고를 때만 아래에 소계 표를 붙인다(다시 누르면 끔).
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number] | null>(null)
 
   const byCode = codeRows !== null
   const shown = (byCode ? codeRows : rows).filter((r) => {
@@ -160,7 +161,7 @@ export default function VacationRemainPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
-          setEmp([]); setDept([]); setDecimals(3); setEmployment('ACTIVE'); setIncludeStopped(false); setStatuses(new Set(['APPROVED']))
+          setEmp([]); setDept([]); setDecimals(2); setSubtotal(null); setEmployment('ACTIVE'); setIncludeStopped(false); setStatuses(new Set(['APPROVED']))
           setYear(new Date().getFullYear())
         } },
         { label: '인쇄' },
@@ -234,18 +235,13 @@ export default function VacationRemainPage() {
           <div className="ec-pills">
             {SUBTOTALS.map((v) => (
               <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
-                      onClick={() => setSubtotal(v)}>{v}</button>
+                      onClick={() => setSubtotal(subtotal === v ? null : v)}>{v}</button>
             ))}
           </div>
         </EcCond>
       </ul>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        사원 <b className="text-ec-text">{shown.length}</b>명
-        <span className="my-0 mx-[6px] text-ec-off">|</span>
-        잔여 합계 <b className="text-ec-navy text-[14px]">{days(totals.remain)}</b>일
-      </div>
-
+      {/* 원본 출력물 머리는 화면 이름 · 회사명뿐이다 — '사원 N명 | 잔여 합계' 요약 줄은 뺐다(합계는 표 끝 줄, 2026-10-20). */}
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table className="w-full text-left">
         <thead>
@@ -273,22 +269,22 @@ export default function VacationRemainPage() {
               <td>{r.empCode ?? ''}</td>
               <td>{r.empName}{r.active ? '' : ' (퇴사)'}</td>
               <td className="text-right">{byCode && !r.totalDays ? '' : days(r.totalDays)}</td>
-              <td className="text-right">{byCode && !r.usedDays ? '' : days(r.usedDays)}</td>
+              <td className="text-right">{!r.usedDays ? '' : days(r.usedDays)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.remainingDays <= 0 ? 'var(--ec-danger)' : undefined }}>{days(r.remainingDays)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={5} className="text-right">합계 ({shown.length}명)</td>
+            <td colSpan={5}>합계</td>
             <td className="text-right">{days(totals.total)}</td>
-            <td className="text-right">{days(totals.used)}</td>
+            <td className="text-right">{totals.used ? days(totals.used) : ''}</td>
             <td className="text-right text-ec-navy">{days(totals.remain)}</td>
           </tr>
         </tfoot>
       </table>
 
-      {shown.length > 0 && (
+      {subtotal && shown.length > 0 && (
         <>
           <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
           <table className="w-full text-left">

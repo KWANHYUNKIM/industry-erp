@@ -73,10 +73,16 @@ export default function EmployeeCommuteAttendancePage() {
     }
   }
   useEffect(() => { search() }, [])
+  function reset() {
+    setRange(monthToToday()); setEmpCond([]); setDeptCond([]); setKindCond([]); setVkCond([]); setGroupCond([]); setRemarkCond('')
+    setPlace('all'); setDayKind('all'); setEmployment('a'); setStatuses(new Set(STATUSES)); setVacStatuses(new Set(['PENDING', 'APPROVED']))
+  }
 
   const days: string[] = []
   for (let d = new Date(`${shown.from}T00:00:00`); ymd(d) <= shown.to; d.setDate(d.getDate() + 1)) days.push(ymd(d))
   const vacName = (type: string) => kinds.find((k) => k.name === type)?.vacationKindName ?? ''
+  /** 근태내역 한 줄 — 원본 '2026연차/-/1.00': 휴가항목이 없으면 글자 그대로 '-'(빈 칸 표시가 아니라 원본 글자), 일수는 그날 몫. */
+  const attendanceLine = (v: Vacation) => `${v.type}/${vacName(v.type) || '-'}/${Math.min(1, Number(v.days)).toFixed(2)}`
 
   const rows = days.flatMap((date) => employees
     .filter((e) => employment === 'all' || (employment === 'a') === e.active)
@@ -112,7 +118,7 @@ export default function EmployeeCommuteAttendancePage() {
   )
 
   return (
-    <EcListShell title="출퇴근/근태현황(사원)" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
+    <EcListShell title="출퇴근/근태현황(사원)" searchable={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기간">
           <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
@@ -167,11 +173,13 @@ export default function EmployeeCommuteAttendancePage() {
           ))}
         </EcCond>
         <EcCond label="재직구분">{radios('eca-emp', employment, setEmployment, ['전체', '재직자', '퇴사자'])}</EcCond>
+        {/* 원본 판 아래 줄 [검색(F8)] 빠른선택 … [다시 작성] — 누르면 판이 접히고 머리에 Search(F3) (2026-10-20 실측) */}
+        <li className="flex flex-wrap items-center gap-[6px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
+          <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={range.from} onPick={setRange} />
+          <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>
+        </li>
       </ul>
-      <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
-        <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
-        <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={range.from} onPick={setRange} />
-      </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <div className="text-center font-bold mb-[2px]">출퇴근/근태현황(사원)</div>
       <div className="text-ec-hint mb-[4px]">{slashDate(shown.from)} ~ {slashDate(shown.to)}</div>
@@ -200,8 +208,9 @@ export default function EmployeeCommuteAttendancePage() {
                     <td>{koreanDateTime(r.c?.clockIn ?? null)}</td>
                     <td>{koreanDateTime(r.c?.clockOut ?? null)}</td>
                     <td className="text-right">{r.c?.workMinutes == null ? '' : (r.c.workMinutes / 60).toFixed(2)}</td>
-                    <td>{r.vs.map((v) => `${v.type}/${vacName(v.type)}/${Number(v.days).toFixed(2)}`).join(', ')}</td>
-                    <td>{[...r.vs.map((v) => v.reason ?? ''), r.c?.reason ?? ''].filter(Boolean).join(', ')}</td>
+                    {/* 원본: 근태 하나에 한 줄('2026연차/-/1.00' — 휴가항목이 없으면 '-', 그날 몫이라 여러 날 근태도 하루 1.00), 적요도 줄마다 */}
+                    <td className="whitespace-pre-line">{r.vs.map(attendanceLine).join('\n')}</td>
+                    <td className="whitespace-pre-line">{[...r.vs.map((v) => v.reason ?? ''), r.c?.reason ?? ''].filter(Boolean).join('\n')}</td>
                   </tr>
                 ))}
                 <tr className="font-bold">

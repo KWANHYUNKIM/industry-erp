@@ -49,8 +49,7 @@ interface SummaryRow {
 
 const mono = { fontFamily: 'monospace' as const }
 /** 원본은 0.50 · 0.13 처럼 소수 두 자리로 적는다(시간 단위 휴가가 0.125일씩 쌓인다). */
-/** 원본은 소수 셋째 자리까지 채워 찍는다. */
-const days = formatDays
+const days = (n: number) => formatDays(n, 2)   // 2026-10-20 원본 실측 16.00 — 두 자리
 function statusColor(s: VacationStatus) {
   if (s === 'APPROVED') return 'var(--ec-success)'
   if (s === 'REJECTED') return 'var(--ec-danger)'
@@ -159,7 +158,6 @@ export default function VacationUsePage() {
     if (!statuses.has(r.status as 'PENDING' | 'APPROVED')) return false
     return true
   })
-  const totalDays = shown.reduce((n, r) => n + r.days, 0)
 
   /**
    * 원본은 사원별로 묶어 <b>쓸 때마다 줄어드는 잔여</b>를 한 줄씩 보여 준다
@@ -231,12 +229,7 @@ export default function VacationUsePage() {
         </EcCond>
       </ul>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        휴가 <b className="text-ec-text">{shown.length}</b>건
-        <span className="my-0 mx-[6px] text-ec-off">|</span>
-        사용일수 합계 <b className="text-ec-navy text-[14px]">{totalDays.toLocaleString('ko-KR')}</b>일
-      </div>
-
+      {/* 원본 출력물에는 '휴가 N건 | 사용일수 합계' 요약 줄이 없다(2026-10-20) — 뺐다. */}
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {codeBlocks ? (
         <VacationCodeUseReport blocks={codeBlocks.filter((b) => (employment === 'ALL' || (employment === 'ACTIVE') === b.emp.active) && (emp.length === 0 || emp.includes(b.emp.name)))}
