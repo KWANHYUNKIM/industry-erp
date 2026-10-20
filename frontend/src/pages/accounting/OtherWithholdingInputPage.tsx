@@ -166,6 +166,8 @@ export default function OtherWithholdingInputPage() {
   function pickPayee(i: number, id: string) {
     const p = payees.find((x) => String(x.id) === id)
     setLine(i, { payeeId: id, ...(kind === 'BUSINESS' && p?.industryCode ? { incomeCode: p.industryCode, industryName: null } : {}) })
+    // 원본 이자배당: 소득자를 고르면 [계좌(발행)번호] 에 소득자등록의 계좌(증서)번호가 들어온다(2026-10-20 최이사 → 214124434124).
+    if (kind === 'INTEREST' && p?.accountNo) setInterest(i, { accountNo: p.accountNo })
   }
 
   function pickOtherCode(i: number, code: string) {

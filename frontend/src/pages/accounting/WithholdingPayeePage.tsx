@@ -36,6 +36,13 @@ const EMPTY: Form = {
   birthDate: '', accountCode: '', mobile: '', email: '', memo: '',
 }
 
+type TextKey = 'bizRegNo' | 'regNo' | 'tradeName' | 'name' | 'payeeKindCode' | 'industryCode' | 'mobile' | 'memo'
+type Cond = Record<TextKey, string> & { kind: string; resident: string; foreigner: string; realName: string }
+const EMPTY_COND: Cond = {
+  kind: 'ALL', resident: 'ALL', foreigner: 'ALL', realName: 'ALL',
+  bizRegNo: '', regNo: '', tradeName: '', name: '', payeeKindCode: '', industryCode: '', mobile: '', memo: '',
+}
+
 function toForm(p: WithholdingPayee): Form {
   return {
     id: p.id, kind: p.kind, bizRegNo: p.bizRegNo ?? '', regNo: p.regNo, tradeName: p.tradeName ?? '', name: p.name,
@@ -54,6 +61,11 @@ function toForm(p: WithholdingPayee): Form {
  * 주민(법인)등록번호(필수) · 상호 · 성명(대표자명)(필수) · 주소 · 영문명 · 사업장소재지 · 소득자구분코드 · 업종구분코드 ·
  * 은행명 · 계좌(증서)번호 · 기타구분(비거주자 · 외국인 · 비실명(이자/배당소득용) · 생년월일) · 계정코드 · 모바일 · Email · 적요.
  * 비운 필수칸은 '주민(법인)등록번호를 입력하세요.' 부터 막는다. [Excel] · [웹자료올리기] 는 두지 않았다.
+ *
+ * <p>Search(F3) 조건 판(2026-10-20 실측, 처음 접힘): 구분(전체 · 법인 · 개인) · 사업자등록번호 · 주민(법인)등록번호 · 상호 ·
+ * 성명(대표자명) · 소득자구분코드 · 업종구분코드 · 거주자 구분(전체 · 거주자 · 비거주자) · 내/외국인 구분(전체 · 내국인 · 외국인) ·
+ * 실명/비실명 구분(전체 · 실명 · 비실명) · 모바일 · 적요 — 라디오는 모두 '전체' 가 기본. [삭제/삭제취소] 는 고른 줄이 없어도 눌리고
+ * '리스트에 선택된 자료가 없습니다. …' 알림. 두지 않은 조건: 인식번호.
  */
 export default function WithholdingPayeePage() {
   const [rows, setRows] = useState<WithholdingPayee[]>([])
@@ -64,6 +76,7 @@ export default function WithholdingPayeePage() {
   const [formError, setFormError] = useState('')
   const [industries, setIndustries] = useState<WithholdingCodeItem[]>([])
   const [payeeKinds, setPayeeKinds] = useState<WithholdingCodeItem[]>([])
+  const [cond, setCond] = useState<Cond>(EMPTY_COND)
 
   function load() {
     setError('')
@@ -108,15 +121,54 @@ export default function WithholdingPayeePage() {
   }
 
   const q = search.trim()
-  const list = q ? rows.filter((r) => [r.name, r.tradeName, r.bizRegNo].some((v) => (v ?? '').includes(q))) : rows
+  const has = (v: string | null, w: string) => !w.trim() || (v ?? '').includes(w.trim())
+  const list = rows
+    .filter((r) => !q || [r.name, r.tradeName, r.bizRegNo].some((v) => (v ?? '').includes(q)))
+    .filter((r) => (cond.kind === 'ALL' || r.kind === cond.kind)
+      && (cond.resident === 'ALL' || r.nonResident === (cond.resident === 'NON'))
+      && (cond.foreigner === 'ALL' || r.foreigner === (cond.foreigner === 'FOREIGN'))
+      && (cond.realName === 'ALL' || r.nonRealName === (cond.realName === 'NON'))
+      && has(r.bizRegNo, cond.bizRegNo) && has(r.regNo, cond.regNo) && has(r.tradeName, cond.tradeName) && has(r.name, cond.name)
+      && has(r.payeeKindCode, cond.payeeKindCode) && has(r.industryCode, cond.industryCode) && has(r.mobile, cond.mobile)
+      && has(r.memo, cond.memo))
   const allPicked = list.length > 0 && list.every((r) => picked.has(r.id))
   const set = (patch: Partial<Form>) => form && setForm({ ...form, ...patch })
+  const radioCond = (label: string, key: 'kind' | 'resident' | 'foreigner' | 'realName', opts: [string, string][]) => (
+    <EcCond label={label}>
+      {opts.map(([v, l]) => (
+        <label key={v} className="inline-flex items-center gap-[3px] mr-[10px]">
+          <input type="radio" name={`payee-cond-${key}`} checked={cond[key] === v} onChange={() => setCond({ ...cond, [key]: v })} /> {l}
+        </label>
+      ))}
+    </EcCond>
+  )
+  const textCond = (label: string, key: TextKey) => (
+    <EcCond label={label}>
+      <input className="ec-input w-full" placeholder={label} value={cond[key]} onChange={(e) => setCond({ ...cond, [key]: e.target.value })} />
+    </EcCond>
+  )
 
   return (
     <EcListShell title="소득자등록" search={search} onSearchChange={setSearch} onSearch={load}
                  onNew={() => { setFormError(''); setForm({ ...EMPTY }) }}
-                 actions={[{ label: '삭제/삭제취소', onClick: toggleDeleted, disabled: picked.size === 0 }]}>
+                 onReset={() => setCond(EMPTY_COND)}
+                 actions={[{ label: '삭제/삭제취소', onClick: toggleDeleted, selected: picked.size }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      <ul className="ec-cond mb-[8px]">
+        {radioCond('구분', 'kind', [['ALL', '전체'], ['CORPORATE', '법인'], ['INDIVIDUAL', '개인']])}
+        {textCond('사업자등록번호', 'bizRegNo')}
+        {textCond('주민(법인)등록번호', 'regNo')}
+        {textCond('상호', 'tradeName')}
+        {textCond('성명(대표자명)', 'name')}
+        {textCond('소득자구분코드', 'payeeKindCode')}
+        {textCond('업종구분코드', 'industryCode')}
+        {radioCond('거주자 구분', 'resident', [['ALL', '전체'], ['RES', '거주자'], ['NON', '비거주자']])}
+        {radioCond('내/외국인 구분', 'foreigner', [['ALL', '전체'], ['LOCAL', '내국인'], ['FOREIGN', '외국인']])}
+        {radioCond('실명/비실명 구분', 'realName', [['ALL', '전체'], ['REAL', '실명'], ['NON', '비실명']])}
+        {textCond('모바일', 'mobile')}
+        {textCond('적요', 'memo')}
+      </ul>
 
       <table className="w-full">
         <thead>
