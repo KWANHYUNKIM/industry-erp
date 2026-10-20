@@ -186,6 +186,9 @@ export default function EcListShell({
   const collapse = collapseConditions ?? (hasConds && (searchable || searched))
   // 검색칸 없는 화면도 접힌 뒤에는 머리에 [Search(F3)] 가 생긴다(원본 A/S수리현황)
   const showSearch = searchable || (collapseConditions === undefined && searched)
+  // 검색칸 없이 접혀서 시작하는 화면(searchable={false} · collapseConditions): 머리에 [Search(F3)] 단추만 — 판을 편다
+  // (원본 일용근로 사원별급여조회 E020135, 2026-10-20 실측: 머리 Search(F3) · Option · 도움말, 입력칸 없음)
+  const searchButtonOnly = !showSearch && !searchable && collapseConditions === true
   const [condOpen, setCondOpen] = useState(false)
   const [barTop, setBarTop] = useState<number | null>(null)
   const [picks, setPicks] = useState<string[]>([])   // ▾ 기간 빠른선택 — 판 안의 .ec-btn-pick, 없으면 날짜칸 둘에 INQUIRY_PICKS
@@ -371,7 +374,7 @@ export default function EcListShell({
     // 신규 — 하단 좌측 버튼(모달 폼이 있으면 그걸 연다)
     F2: (onNew || renderForm) ? () => (renderForm ? setFormOpen(true) : onNew?.()) : undefined,
     // Search — 목록 낱말 추리기. 검색상자를 숨긴 화면(searchable={false})에는 없다.
-    F3: showSearch ? runSearch : undefined,
+    F3: showSearch || searchButtonOnly ? runSearch : undefined,
   }
 
   useEffect(() => {
@@ -407,6 +410,7 @@ export default function EcListShell({
             />
             <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
           </>}
+          {searchButtonOnly && <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>}
           {option && <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>}
           <button className="ec-btn m-hide" onClick={() => setHelpOpen(true)}>도움말</button>
           {/* 휴대폰: 한 줄에 못 둔 머리 도구(제목 · 도움말)는 ⌄ 로 펼친다(원본 btn-toolbar-more) */}

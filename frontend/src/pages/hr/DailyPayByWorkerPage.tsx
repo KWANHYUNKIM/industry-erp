@@ -9,6 +9,7 @@ import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../f
 import { ecConfirm } from '../../components/EcDialog'
 import Modal from '../../components/Modal'
 import DailyPayBulkEdit from '../../features/dailypay/components/DailyPayBulkEdit'
+import NumCheck from '../../features/bankcheck/components/NumCheck'
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 급여작업 &gt; <b>일용근로 사원별급여조회</b> (원본 E020135).
@@ -77,8 +78,8 @@ export default function DailyPayByWorkerPage() {
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.lineId))
 
   return (
-    <EcListShell title="일용근로 사원별급여조회" searchable={false}
-                 actions={[{ label: '선택삭제', onClick: deleteChecked, selected: checked.size }, { label: 'Excel' }]}>
+    <EcListShell title="일용근로 사원별급여조회" searchable={false} collapseConditions
+                 actions={[{ label: '인쇄' }, { label: '선택삭제', onClick: deleteChecked, selected: checked.size }, { label: 'Excel' }]}>
       <div className="ec-pills mb-[8px]"><button type="button" className="ec-pill active">전체</button></div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
@@ -121,13 +122,13 @@ export default function DailyPayByWorkerPage() {
         <thead>
           <tr>
             <th className="w-[34px] text-center">
-              <input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((r) => r.lineId)))} />
+              <NumCheck head no="" label="전체 선택" on={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((r) => r.lineId)))} />
             </th>
             <th className="text-center">귀속연월</th>
             <th>사원코드</th>
             <th>성명</th>
             <th className="text-right">지급총액</th>
-            <th>공제(전체)</th>
+            <th className="text-right">공제(전체)</th>
             <th className="text-right">공제총액</th>
             <th className="text-right">실지급액</th>
             <th className="text-center">인쇄</th>
@@ -136,13 +137,13 @@ export default function DailyPayByWorkerPage() {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r) => {
+          ) : shown.map((r, i) => {
             const ded = Number(r.incomeTax) + Number(r.localTax)
             return (
               <tr key={r.lineId}>
                 <td className="text-center">
-                  <input type="checkbox" checked={checked.has(r.lineId)}
-                         onChange={() => { const n = new Set(checked); if (n.has(r.lineId)) n.delete(r.lineId); else n.add(r.lineId); setChecked(n) }} />
+                  <NumCheck no={i + 1} label="선택" on={checked.has(r.lineId)}
+                            onChange={() => { const n = new Set(checked); if (n.has(r.lineId)) n.delete(r.lineId); else n.add(r.lineId); setChecked(n) }} />
                 </td>
                 <td className="text-center">
                   <a href="#" onClick={(e) => { e.preventDefault(); setEditLine(r) }}>{slashYm(r.payMonth)}</a>
@@ -164,7 +165,7 @@ export default function DailyPayByWorkerPage() {
       <DailyPayBulkEdit ledger={editLine ? { id: editLine.ledgerId, payMonth: editLine.payMonth, seq: editLine.seq, paidMonth: editLine.paidMonth } : null}
                         lineIds={editLine ? [editLine.lineId] : undefined} bizRegNo={company.bizRegNo}
                         onClose={() => setEditLine(null)} onSaved={() => { setEditLine(null); load() }} />
-      <Modal open={!!slip} title="급여명세서" width={760} onClose={() => setSlip(null)}>
+      <Modal error={error} open={!!slip} title="급여명세서" width={760} onClose={() => setSlip(null)}>
         {slip && (
           <div>
             <div className="text-center font-bold mb-[6px]">{slip.ledgerName}</div>
@@ -178,7 +179,7 @@ export default function DailyPayByWorkerPage() {
               </tbody>
             </table>
             <table className="ec-report w-full mb-[6px]">
-              <thead><tr><th>수당항목명</th><th>최종근무일</th><th>근무기록</th><th>금액</th><th>산출방법</th></tr></thead>
+              <thead><tr><th>수당항목명</th><th className="text-center">최종근무일</th><th className="text-right">근무기록</th><th className="text-right">금액</th><th>산출방법</th></tr></thead>
               <tbody>
                 <tr>
                   <td>일근무</td><td className="text-center">{slip.lastWorkDate?.replace(/-/g, '/') ?? ''}</td>
