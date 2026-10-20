@@ -75,8 +75,8 @@ export default function CorporateTaxChecklistPage() {
   }
 
   const years = [lastYear + 2, lastYear + 1, lastYear, lastYear - 1]
-  const memoLink = (section: number) => (
-    <button className="ec-link" onClick={() => setMemoSection(section)}>메모등록</button>
+  const memoLink = (section: number, className = '') => (
+    <button className={`ec-link ${className}`} onClick={() => setMemoSection(section)}>메모등록</button>
   )
   const payroll = data?.payroll ?? []
   const sum = (k: keyof CorporateTaxChecklist['payroll'][number]) => payroll.reduce((t, r) => t + Number(r[k]), 0)
@@ -107,12 +107,12 @@ export default function CorporateTaxChecklistPage() {
       </ul>
 
       {data && (
-        <div className="w-[750px] max-w-full">
+        <div className="w-[750px] max-w-full ec-report-tight">
           <div className="ec-report-title underline">{data.year}년 법인세 CHECK LIST</div>
 
-          <div className="flex justify-end gap-[12px] mb-[4px]"><span>{data.year}년</span>{memoLink(1)}</div>
-          <p className="mb-[4px]">1. 부가세신고서 내역</p>
-          <table className="w-full ec-report ec-report-head400 mb-[24px]">
+          <div className="flex justify-end gap-[12px] leading-[18px]"><span>{data.year}년</span>{memoLink(1)}</div>
+          <p className="leading-[18px] mb-[5px]">1. 부가세신고서 내역</p>
+          <table className="w-full ec-report ec-report-head400 mb-[28px]">
             <thead>
               <tr>
                 <th rowSpan={2} title="신고기간 마지막월이 표시됩니다">기준월</th>
@@ -153,8 +153,8 @@ export default function CorporateTaxChecklistPage() {
             )}
           </table>
 
-          <div className="flex justify-between mb-[4px]"><span>2. 손익계산서 매출계정 내역</span>{memoLink(2)}</div>
-          <table className="w-full ec-report ec-report-head400 mb-[24px]">
+          <div className="flex justify-between leading-[18px] mb-[5px]"><span>2. 손익계산서 매출계정 내역</span>{memoLink(2)}</div>
+          <table className="w-full ec-report ec-report-head400 mb-[28px]">
             <thead>
               <tr><th>기준월</th><th className="text-right">매출액</th><th className="text-right">분기만집계</th><th className="text-right">분기별집계</th><th className="text-right">반기별집계</th><th className="text-right">합계</th></tr>
             </thead>
@@ -172,8 +172,8 @@ export default function CorporateTaxChecklistPage() {
             </tbody>
           </table>
 
-          <div className="flex justify-between mb-[4px]"><span>3. 급여 및 원천세 내역</span>{memoLink(3)}</div>
-          <table className="w-full ec-report ec-report-head400 mb-[24px]">
+          <div className="flex justify-between leading-[18px] mb-[5px]"><span>3. 급여 및 원천세 내역</span>{memoLink(3)}</div>
+          <table className="w-full ec-report ec-report-head400 mb-[41px]">
             <thead>
               <tr>
                 <th rowSpan={2}>기준월</th><th rowSpan={2}>원천세<br />신고금액</th>
@@ -218,12 +218,24 @@ export default function CorporateTaxChecklistPage() {
             )}
           </table>
 
-          {CHECK_ITEMS.map((it) => (
-            <div key={it.no} className="mb-[6px]">
-              <div className="flex justify-between"><span>{it.label}</span>{memoLink(it.no)}</div>
-              {it.subs?.map((s) => <div key={s}>{s}</div>)}
-            </div>
-          ))}
+          {/* 원본은 4 ~ 15 를 선 없는 표 한 장으로 그린다 — 글 650 · 링크 100(오른쪽), 줄 23.1 · 세부 줄 24.1, 칸 여백 3px(2026-10-20 실측). */}
+          <table className="no-ec w-full table-fixed">
+            <colgroup><col className="w-[650px]" /><col className="w-[100px]" /></colgroup>
+            <tbody>
+              {CHECK_ITEMS.flatMap((it) => [
+                <tr key={it.no} className="h-[23.1px]">
+                  <td className="p-[3px] leading-[17.1px] text-left">{it.label}</td>
+                  <td className="p-[3px] leading-[17.1px] text-right">{memoLink(it.no, 'h-[17.1px] leading-[17.1px] align-top')}</td>
+                </tr>,
+                ...(it.subs ?? []).map((s) => (
+                  <tr key={s} className="h-[24.1px]">
+                    <td className="p-[3px] pl-[4px] text-left">{s}</td>
+                    <td className="p-[3px]" />
+                  </tr>
+                )),
+              ])}
+            </tbody>
+          </table>
           <EcReportFoot page={false} />
         </div>
       )}

@@ -427,6 +427,14 @@ main table,
 #root .ec-report-frame { width: max-content; max-width: 100%; }
 #root table.ec-report.ec-report-fixed { table-layout: fixed; width: auto !important; }
 #root .ec-report-foot { margin-top: 6px; white-space: pre; }
+/*
+ * 세무 › 법인세 출력물(법인세Checklist E030401 · 지출증빙현황 E030402) 틀 — 2026-10-20 loginaa 실측.
+ * 제목 36 높이 · 아래 5px, 줄(기간 · 소제목 · 꼬리) 18 높이, 표와 줄 사이 5px. 재고현황 틀(제목 34 · 아래 25)과 다르다.
+ * 지출증빙현황 합계줄은 굵지 않다(400) — ec-report-foot400. 법인세Checklist 합계줄은 700 그대로.
+ */
+#root .ec-report-tight .ec-report-title { line-height: 36px; margin-bottom: 5px; }
+#root .ec-report-tight .ec-report-foot { margin-top: 5px; line-height: 18px; }
+#root table.ec-report.ec-report-foot400 tfoot td { font-weight: 400; }
 /* 합계·누계 줄 — 굵게, 회색, 이름 칸은 가운데. */
 #root table.ec-report tfoot td,
 #root table.ec-report tbody tr.ec-total td {

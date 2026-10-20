@@ -82,31 +82,35 @@ export default function ExpenseEvidenceStatusPage() {
 
   return (
     <EcListShell title="지출증빙현황" onSearch={() => search()} collapseConditions={data !== null}
-                 actions={[{ label: '인쇄', primary: true }, { label: 'Excel' }, { label: '계정설정', onClick: () => setSettingOpen(true) }]}>
+                 optionMenu={[{ label: '계정설정', onClick: () => setSettingOpen(true) }]}
+                 actions={data ? [{ label: '인쇄', primary: true }, { label: 'Excel' }] : []}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준월">
-          <input type="month" className="ec-input w-[140px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <div className="flex items-center gap-[4px]">
+            <YmSelect value={range.from} onChange={(v) => setRange({ ...range, from: v })} label="시작" />
+            ~
+            <YmSelect value={range.to} onChange={(v) => setRange({ ...range, to: v })} label="끝" />
+          </div>
         </EcCond>
         <li className="full">
           <div className="form">
             <button className="ec-btn ec-btn-primary" onClick={() => search()}>검색(F8)</button>
+            {/* 원본: 빠른선택을 누르면 기간을 바꾸고 바로 찾는다(2026-10-20 금월 실측) */}
             {['금월', '전월', '이번기수', '직전기수'].map((l) => (
-              <button key={l} className="ec-btn" onClick={() => setRange(rangeOf(l, fiscalStart))}>{l}</button>
+              <button key={l} className="ec-btn ec-btn-pick" onClick={() => { const r = rangeOf(l, fiscalStart); setRange(r); void search(r) }}>{l}</button>
             ))}
-            <button className="ec-btn" onClick={() => setRange(rangeOf('직전기수', fiscalStart))}>다시 작성</button>
+            <button className="ec-btn ec-btn-pick" onClick={() => setRange(rangeOf('직전기수', fiscalStart))}>다시 작성</button>
           </div>
         </li>
       </ul>
 
       {data && (
-        <div className="w-[400px] max-w-full">
+        <div className="w-[400px] max-w-full ec-report-tight">
           <div className="ec-report-title underline">지출증빙현황</div>
-          <div className="text-right mb-[4px]">{periodText(data.from, data.to)}</div>
-          <table ref={tableRef} className="w-full ec-report ec-report-head400">
+          <div className="text-right leading-[18px] mb-[5px]">{periodText(data.from, data.to)}</div>
+          <table ref={tableRef} className="w-full ec-report ec-report-head400 ec-report-foot400">
             <thead>
               <tr><th>계정코드</th><th>계정명</th>{kinds.map((k) => <th key={k} className="text-right">{k}</th>)}<th className="text-right">합계</th></tr>
             </thead>
@@ -136,9 +140,27 @@ export default function ExpenseEvidenceStatusPage() {
         </div>
       )}
 
-      {settingOpen && <AccountSettingModal onClose={() => setSettingOpen(false)} onSaved={() => { setSettingOpen(false); if (data) void search() }} />}
+      {settingOpen && <AccountSettingModal onClose={() => setSettingOpen(false)} onSaved={() => { setSettingOpen(false); void search() }} />}
       {compare && data && <CompareModal range={{ from: data.from, to: data.to }} {...compare} onClose={() => setCompare(null)} />}
     </EcListShell>
+  )
+}
+
+/** 원본 [기준월] 한 쪽 — 연도 · 월 고르기 둘(원본 '2025' · '01' 단추). 값은 'YYYY-MM'. */
+function YmSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const y = Number(value.slice(0, 4)) || new Date().getFullYear()
+  const m = value.slice(5, 7) || '01'
+  const now = new Date().getFullYear()
+  const years = Array.from(new Set([now + 1, now, now - 1, now - 2, now - 3, y])).sort((a, b) => b - a)
+  return (
+    <>
+      <select className="ec-input w-[54.8px]" aria-label={`${label} 연도`} value={y} onChange={(e) => onChange(`${e.target.value}-${m}`)}>
+        {years.map((v) => <option key={v} value={v}>{v}</option>)}
+      </select>
+      <select className="ec-input w-[47.5px]" aria-label={`${label} 월`} value={m} onChange={(e) => onChange(`${y}-${e.target.value}`)}>
+        {Array.from({ length: 12 }, (_, i) => pad2(i + 1)).map((v) => <option key={v} value={v}>{v}</option>)}
+      </select>
+    </>
   )
 }
 

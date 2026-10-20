@@ -123,7 +123,7 @@ function restoreFields(el: HTMLElement, first: WeakMap<Element, string | boolean
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
   renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
-  signLine = false, collapseConditions, onReset, children,
+  signLine = false, collapseConditions, onReset, optionMenu, children,
 }: {
   title: string
   search?: string
@@ -169,6 +169,11 @@ export default function EcListShell({
    * 그것도 없으면 셸이 판의 칸(입력 · 선택 · 체크)을 처음 보았을 때의 값으로 되돌린다.
    */
   onReset?: () => void
+  /**
+   * [Option] 을 눌렀을 때 뜨는 줄. 주지 않으면 공용 셋(Excel 내려받기 · 인쇄 · 검색조건 초기화).
+   * 원본이 화면마다 다른 것을 띄우는 곳만 준다(지출증빙현황 E030402 — '계정설정' 하나, 2026-10-20 실측).
+   */
+  optionMenu?: { label: string; onClick: () => void }[]
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -420,11 +425,11 @@ export default function EcListShell({
             <>
               <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
               <div className="ec-menu">
-                {[
+                {(optionMenu?.map((m) => ({ label: m.label, run: async () => m.onClick() })) ?? [
                   { label: 'Excel 내려받기', run: doExcel },
                   { label: '인쇄', run: doPrint },
                   { label: '검색조건 초기화', run: async () => { setLocalSearch(''); filterRows('') } },
-                ].map((m) => (
+                ]).map((m) => (
                   <button key={m.label} onClick={() => { setOptionOpen(false); void m.run() }}>
                     {m.label}
                   </button>
