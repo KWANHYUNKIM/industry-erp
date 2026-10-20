@@ -126,12 +126,10 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   }
 
   /**
-   * 원본 판매단가일괄변경은 조건 판만 펴고 시작하고, [검색(F8)] 을 눌러야 격자가 나온다(2026-10-20 실측).
-   * 구매는 아직 재지 않아 예전처럼 열자마자 읽는다.
+   * 원본 판매단가일괄변경 · 구매단가일괄변경은 조건 판만 펴고 시작하고, [검색(F8)] 을 눌러야 격자가 나온다
+   * (판매 2026-10-20 실측, 구매 같은 날 재고1c 실측 — 저장 확인 창 · 말 없는 저장 · 합계줄 없음도 같다).
    */
-  const [searched, setSearched] = useState(!sale)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (mode === '전표단가' && !sale) loadLines() }, [mode])
+  const [searched, setSearched] = useState(false)
 
   const changed = useMemo(
     () => rows.filter((r) => {
@@ -144,20 +142,19 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   async function save() {
     setError(''); setMessage('')
     // 원본(판매, 2026-10-20 실측): 고친 칸 없이 [저장(F8)] → '알림' 창 '변경된정보가 없습니다.'
-    if (changed.length === 0) return sale ? void ecAlert('변경된정보가 없습니다.') : setError('바꾼 단가가 없습니다.')
+    if (changed.length === 0) return void ecAlert('변경된정보가 없습니다.')
     const locked = changed.filter((r) => !r.editable)
     if (locked.length > 0) {
       return setError(`고칠 수 없는 전표가 있습니다: ${locked.map((r) => r.docNo).join(', ')}`)
     }
     // 원본은 저장 전에 한 번 묻고(체크칸을 안 골라도 고친 줄 전부), 저장 뒤에는 말 없이 격자만 새 금액으로 바뀐다.
-    if (sale && !(await ecConfirm(BULK_SAVE_CONFIRM))) return
+    if (!(await ecConfirm(BULK_SAVE_CONFIRM))) return
     setSaving(true)
     try {
-      const res = await api.put<{ changedLines: number; changedSlips: number }>('/price-bulk/lines', {
+      await api.put<{ changedLines: number; changedSlips: number }>('/price-bulk/lines', {
         tradeType: trade,
         changes: changed.map((r) => ({ lineId: r.lineId, unitPrice: Number(edits[r.lineId]) })),
       })
-      if (!sale) setMessage(`${res.data.changedSlips}개 전표 ${res.data.changedLines}줄의 단가를 바꿨습니다. 공급가액·부가세도 다시 계산했습니다.`)
       await loadLines()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -166,9 +163,6 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
     }
   }
 
-  const total = useMemo(() => rows.reduce((a, r) => ({
-    qty: a.qty + r.quantity, supply: a.supply + r.supplyAmount, vat: a.vat + r.vatAmount,
-  }), { qty: 0, supply: 0, vat: 0 }), [rows])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [rows.length, mode])
@@ -176,24 +170,17 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   return (
     <EcListShell
       title={title}
-      /* 판매: 머리에 검색칸이 없는 현황형 — 판을 펴고 시작, 판 아래 [검색(F8)], 하단 버튼줄은 [저장(F8)] 하나(원본 실측). */
-      {...(sale ? { searchable: false, onSearch: () => { if (mode === '전표단가') void loadLines() } } : {})}
-      actions={sale
-        ? (mode !== '전표단가' ? []
+      /* 판매 · 구매: 머리에 검색칸이 없는 현황형 — 판을 펴고 시작, 판 아래 [검색(F8)], 하단 버튼줄은 [저장(F8)] 하나(원본 실측). */
+      searchable={false}
+      onSearch={() => { if (mode === '전표단가') void loadLines() }}
+      actions={(mode !== '전표단가' ? []
           : searched ? [{ label: saving ? '저장 중…' : '저장(F8)', onClick: save, primary: true }]
           /* 검색 전(판이 펴진 채): 원본 판 아래 [검색(F8)] · [다시 작성] */
           : [{ label: '검색(F8)', onClick: () => void loadLines(), primary: true },
              { label: '다시 작성', onClick: () => {
                setFrom(init.from); setTo(init.to); setPartnerId(''); setItemId(''); setWarehouseId('')
                setTaxType(''); setTradeKind(''); setStatus('ALL')
-             } }])
-        : mode === '전표단가'
-        ? [
-          { label: loading ? '조회 중…' : '검색(F8)', onClick: loadLines },
-          { label: saving ? '저장 중…' : `저장(F8)${changed.length ? ` (${changed.length})` : ''}`, onClick: save, primary: true },
-          { label: 'Excel' },
-        ]
-        : [{ label: 'Excel' }]}
+             } }])}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {message && <p style={{ background: '#e9f6ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
@@ -269,19 +256,17 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
       </EcStatusPanel>
 
       {mode === '전표단가'
-        ? (searched && <SlipGrid rows={rows} edits={edits} setEdits={setEdits} loading={loading} total={total} tableRef={tableRef} sale={sale} />)
+        ? (searched && <SlipGrid rows={rows} edits={edits} setEdits={setEdits} loading={loading} tableRef={tableRef} />)
         : <ItemPriceGrid sale={sale} />}
     </EcListShell>
   )
 }
 
-function SlipGrid({ rows, edits, setEdits, loading, total, tableRef, sale }: {
-  sale: boolean
+function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
   rows: SlipLineRow[]
   edits: Record<number, string>
   setEdits: (f: (prev: Record<number, string>) => Record<number, string>) => void
   loading: boolean
-  total: { qty: number; supply: number; vat: number }
   tableRef: React.RefObject<HTMLTableElement | null>
 }) {
   return (
@@ -318,7 +303,8 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef, sale }: {
               <td>{r.partnerName}</td>
               <td>{r.employeeName ?? ''}</td>
               <td>{r.warehouseName}</td>
-              <td>{r.taxTypeName}</td>
+              {/* 원본 격자 [거래유형] 글자는 '부가세율 적용' · '부가세율 미적용' 이다(2026-10-20 구매단가일괄변경 실측) — 조건 칸만 과세 · 면세. */}
+              <td>{r.taxTypeName === '과세' ? '부가세율 적용' : r.taxTypeName === '면세' ? '부가세율 미적용' : r.taxTypeName}</td>
               <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
@@ -341,18 +327,7 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef, sale }: {
           )
         })}
       </tbody>
-      {/* 원본 판매단가일괄변경 격자에는 합계줄이 없다(2026-10-20 실측). */}
-      {rows.length > 0 && !sale && (
-        <tfoot>
-          <tr>
-            <td colSpan={8} className="text-center font-bold">합계 ({rows.length}줄)</td>
-            <td className="text-right font-bold">{won(total.qty)}</td>
-            <td></td>
-            <td className="text-right font-bold">{won(total.supply)}</td>
-            <td className="text-right font-bold">{won(total.vat)}</td>
-          </tr>
-        </tfoot>
-      )}
+      {/* 원본 판매 · 구매단가일괄변경 격자에는 합계줄이 없다(2026-10-20 실측). */}
     </table>
   )
 }

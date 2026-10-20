@@ -125,21 +125,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
-  // 이번 세션에서 세금계산서를 발행한 전표 id (버튼 중복 클릭 방지)
-  const [taxIssued, setTaxIssued] = useState<Set<number>>(new Set())
-  /*
-   * 이미 세금계산서가 붙은 전표 → 그 계산서 번호. 예전엔 '발행됨' 표시가 이번 세션에서 누른 것만 기억해서
-   * 화면을 다시 열면 발행한 전표에도 [발행] 이 다시 서고, 누르면 409 "이미 발행된 전표" 가 떴다(29회차).
-   * 계산서 목록을 받아 근거전표 번호로 잇는다.
-   */
-  const [invoiceOf, setInvoiceOf] = useState<Map<string, string>>(new Map())
-  const [ok, setOk] = useState('')
-  function loadInvoices() {
-    api.get<{ invoiceNo: string; sourceDocNo: string | null }[]>('/tax-invoices',
-      { params: { type: isSales ? 'SALES' : 'PURCHASE', from: '2000-01-01', to: '2099-12-31' } })
-      .then((r) => setInvoiceOf(new Map(r.data.filter((t) => t.sourceDocNo).map((t) => [t.sourceDocNo as string, t.invoiceNo]))))
-      .catch(() => setInvoiceOf(new Map()))
-  }
   // 원본 목록의 [선택삭제] 대상. 전표 입력 그리드와 같이 **행번호 칸을 눌러** 고른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
   // 열을 더할 때 합계행(tfoot)을 같이 안 고치면 숫자가 엉뚱한 열 아래에 선다. 개발 모드에서 잡는다.
@@ -156,7 +141,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
 
   function load() {
     setError('')
-    loadInvoices()
     api.get<(SalesDoc | PurchaseDoc)[]>(cfg.url)
       .then((res) => setDocs(res.data.map((d) => ({
         id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseId: d.warehouseId, warehouseName: d.warehouseName, projectId: d.projectId ?? null,
@@ -249,18 +233,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       load()
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
-    }
-  }
-
-  async function issueTaxInvoice(d: NormalDoc) {
-    setError(''); setOk('')
-    try {
-      const res = await api.post<{ invoiceNo: string }>('/tax-invoices', { type: isSales ? 'SALES' : 'PURCHASE', sourceId: d.id })
-      setTaxIssued((s) => new Set(s).add(d.id))
-      setInvoiceOf((m) => new Map(m).set(d.docNo, res.data.invoiceNo))
-      setOk(`${d.docNo} → 세금계산서 ${res.data.invoiceNo} 작성 (${isSales ? '매출' : '매입'} 세금계산서 화면에서 진행단계 관리)`)
-    } catch (err) {
-      setError(extractErrorMessage(err))
     }
   }
 
@@ -407,7 +379,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     const ids = shown.filter((d) => selected.has(d.id)).map((d) => d.id)
     if (ids.length === 0) { setError('지울 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
     /* 원본 판매조회 [선택삭제] — "선택한 전표를 삭제 하겠습니까?" [확인] [취소](2026-10-14 loginaa 실측, 확인된 판매도 그대로 지워진다). */
-    if (!(await ecConfirm(isSales ? '선택한 전표를 삭제 하겠습니까?' : `전표 ${ids.length}건을 지울까요? 재고도 함께 되돌아갑니다.`))) return
+    // 원본 판매조회 · 구매조회 [선택삭제] 확인 글은 같다(구매 2026-10-20 재고1c 실측).
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     /*
      * 원본 판매조회는 회계반영된 판매를 지우면 '회계반영된 전표의 경우, 매출전표의 삭제 여부를 선택해주시기 바랍니다'
      * 창을 띄우고 [매출전표포함](기본 체크)으로 회계전표까지 같이 지운다(2026-10-06 loginaa 실측).
@@ -434,19 +407,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const tabCount = (t: SalesTab) =>
     docs.filter((d) => t === '전체' || d.confirmStatus === TAB_STATUS[t]).length
 
-  const totals = shown.reduce((a, d) => ({ supply: a.supply + d.supplyAmount, vat: a.vat + d.vatAmount, total: a.total + d.totalAmount }), { supply: 0, vat: 0, total: 0 })
-
-  // 판매조회는 확인상태·확인버튼 2컬럼 + 세금계산서 1컬럼, 구매조회는 세금계산서 1컬럼이 더 붙는다.
-  // 번호 + 전표번호·일자·거래처·품목명(요약)·거래유형·창고·공급가액·부가세·합계·담당·불러온전표·회계반영·세금계산서
-  // + 판매만 있는 확인상태·확인 2개
-  // 2026-10-20 판매조회는 원본 열(번호 · 일자-No. … 불러온전표 = 10)만 남겼다 — 공급가액 · 부가세 · 담당 · 확인상태 · 확인 · 세금계산서를 뺐다.
-  const colCount = isSales ? 10 : 15   // 구매: 원본 10 + 프로젝트명 + 공급가액 · 부가세 · 담당 · 세금계산서
-  /**
-   * 합계행 가운데 빈 칸 수 — 금액합계와 공급가액 사이의 열들
-   * (거래유형·창고·회계반영·인쇄·불러온전표, 구매는 앞에 프로젝트명이 하나 더).
-   * 앞 4칸 + 금액합계 1칸 + midSpan + 공급가액 + 부가세 = 7 + midSpan 이고, 나머지가 꼬리다.
+  /*
+   * 2026-10-20 원본 판매조회 · 구매조회 둘 다 열은 번호 · 일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 거래유형명 · 창고명 ·
+   * 회계반영여부 · 인쇄 · 불러온전표 열 개에서 끝나고 합계줄이 없다(구매조회는 같은 날 재고1c 실측 — 프로젝트명 · 공급가액 ·
+   * 부가세 · 담당 · 세금계산서 열과 합계줄을 뺐다. 세금계산서는 매입(세금)계산서 화면에서 만든다).
    */
-  const midSpan = isSales ? 5 : 6
+  const colCount = 10
 
   /**
    * 원본은 일자와 전표번호를 '2026/08/03 -1' 로 한 칸에 적는다(게시글의 '일자-No.'와 같은 규칙).
@@ -514,7 +480,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {ok && <p style={{ background: '#eaf6ee', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       {/*
         원본은 이 줄이 [상태 알약]…………[기간] 이다 — 왼쪽에 필터, 오른쪽 끝에 조회 기간.
@@ -668,8 +633,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <th>거래처명</th>
             <th>품목명(요약)</th>
             <th className="text-right">금액합계</th>
-            {/* 원본 구매조회에만 있는 열이다 — 판매조회에는 없다. 실측으로 확인했다. */}
-            {!isSales && <th>프로젝트명</th>}
             {/* 원본 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
             <th className="text-center">거래유형명</th>
             <th>창고명</th>
@@ -677,10 +640,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <th className="text-center">인쇄</th>
             {/* 이 전표가 어느 수주/발주에서 왔는지 */}
             <th className="text-center">불러온전표</th>
-            {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
-            {/* 원본 판매조회 열은 불러온전표에서 끝난다(2026-10-20 실측). 구매조회에만 아래 열을 더 둔다. */}
-            {!isSales && <><th className="text-right">공급가액</th><th className="text-right">부가세</th><th>담당</th>
-            <th className="text-center">세금계산서</th></>}
           </tr>
         </thead>
         <tbody>
@@ -712,7 +671,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                   {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
                 </td>
                 <td className="text-right">{won(d.totalAmount)}</td>
-                {!isSales && <td className="text-ec-label">{d.projectName ?? ''}</td>}
                 <td className="text-center">{tradeTypeOf(d)}</td>
                 <td>{d.warehouseName}</td>
                 <td className="text-center">
@@ -730,18 +688,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                     return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
                   })()}
                 </td>
-                {!isSales && <>
-                <td className="text-right">{won(d.supplyAmount)}</td>
-                <td className="text-right text-ec-hint">{won(d.vatAmount)}</td>
-                <td>{d.createdBy ?? ''}</td>
-                <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                  {taxIssued.has(d.id) || invoiceOf.has(d.docNo) ? (
-                    <span className="text-ec-success text-[11.5px]">{invoiceOf.get(d.docNo) ?? '발행됨'}</span>
-                  ) : (
-                    <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => issueTaxInvoice(d)}>발행</button>
-                  )}
-                </td>
-                </>}
               </tr>
               {openId === d.id && (
                 <tr className="no-ec">
@@ -760,7 +706,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                           <th>품목코드</th>
                           <th>품목명</th>
                           <th className="w-[110px]">규격</th>
-                          <th className="text-right">{isSales ? '수량' : '기본수량'}</th>
+                          <th className="text-right">수량</th>
                           <th className="text-right">단가</th>
                           <th className="text-right">공급가액</th>
                           <th className="text-right">부가세</th>
@@ -818,23 +764,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             </Fragment>
           ))}
         </tbody>
-        {/* 원본 판매조회에는 합계줄이 없다(2026-10-20 실측). 구매조회만 둔다. */}
-        {!isSales && <tfoot>
-          <tr className="font-bold bg-ec-page">
-            {/*
-              합계행은 머리글과 칸 수가 정확히 같아야 숫자가 제 열 아래에 선다.
-              앞 4칸(행머리·일자-No.·거래처·품목명) + 금액합계 + 5칸(거래유형·창고·회계반영·인쇄·불러온전표)
-              + 공급가액 + 부가세 + 나머지. 나머지는 colCount 에서 빼서 구한다 —
-              열을 늘릴 때 여기를 또 잊어도 어긋나지 않는다.
-            */}
-            <td colSpan={4} className="text-right">합계 ({shown.length}건)</td>
-            <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
-            <td colSpan={midSpan}></td>
-            <td className="text-right">{won(totals.supply)}</td>
-            <td className="text-right">{won(totals.vat)}</td>
-            <td colSpan={colCount - (7 + midSpan)}></td>
-          </tr>
-        </tfoot>}
+        {/* 원본 판매조회 · 구매조회에는 합계줄이 없다(2026-10-20 실측). */}
       </table>
     </EcListShell>
   )

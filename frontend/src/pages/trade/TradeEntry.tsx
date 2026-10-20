@@ -798,9 +798,8 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
       if (field === 'itemId' && value) {
         const it = itemById.get(String(value))
         if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: basePriceOf(it) }
-        // 원본 판매입력은 품목을 골라도 [수량] 이 빈칸이다(단가만 찬다, 공급가액 0 — 2026-10-14 실측) — 판매는 미리 1 을 넣지 않는다.
-        // 구매입력 격자는 다른 틀(ESG009M)이라 도구로 칸을 못 열어 못 쟀다 — 그때까지 예전처럼 1.
-        if (mode !== 'sales' && !next[idx].quantity) next[idx] = { ...next[idx], quantity: '1' }
+        // 원본 판매입력 · 구매입력 둘 다 품목을 골라도 [수량] 이 빈칸이다(단가만 찬다, 공급가액 0 —
+        // 판매 2026-10-14, 구매 2026-10-20 재고1c 실측: 품목 고름 → 수량 빈칸 · 단가 100(입고단가) · 0 · 0). 미리 1 을 넣지 않는다.
         // 표준단가를 채운 뒤 특별단가가 있으면 그것으로 덮는다(서버가 순서를 판단한다).
         void applySpecialPrice(idx, String(value))
         if (idx === ls.length - 1) next.push(emptyLine())
@@ -1957,10 +1956,10 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
                 {cols.stockAll && <th>전체수량</th>}
                 {cols.stockWh && <th>창고수량</th>}
                 {cols.unit && <th>단위</th>}
-                {/* 원본은 판매입력이 [수량], 구매입력이 [기본수량] 이다 — 같은 칸인데 이름이 다르다. */}
+                {/* 2026-10-20 원본 구매입력(E040303) 머리도 [수량] 이다(전엔 [기본수량] 으로 쟀다 — 지금 원본과 다르다). */}
                 {/* 값은 이미 오른쪽인데 <b>머리만</b> 왼쪽이었다 — 삼항으로 적은 칸이라
                     이름으로 찾는 검사가 여태 이 칸을 아예 못 보고 있었다. */}
-                <th className="text-right">{mode === 'sales' ? '수량' : '기본수량'}</th>
+                <th className="text-right">수량</th>
                 {/* 원본 판매입력은 [수량] 다음이 [시리얼/로트No.] 다(2026-10-14 실측). */}
                 {lotAfterQty && <th className="text-center">시리얼/로트No.</th>}
                 <th className="text-right">단가</th>
