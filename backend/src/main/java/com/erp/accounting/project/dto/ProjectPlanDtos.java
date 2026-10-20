@@ -52,7 +52,7 @@ public final class ProjectPlanDtos {
 
     /** 원본 '… 계획 입력' 창(알약 '내역'): 적요 · 금액 + 계획 기간의 달마다 칸. */
     public record ProjectPlanLineRequest(
-            @NotNull @Pattern(regexp = "0[1-4]", message = "항목코드를 확인하세요.") String itemCode,
+            @NotNull @Size(max = 2) @Pattern(regexp = "0[1-4]", message = "항목코드를 확인하세요.") String itemCode,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.") String remark,
             @PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount,
             @Valid List<MonthAmount> months

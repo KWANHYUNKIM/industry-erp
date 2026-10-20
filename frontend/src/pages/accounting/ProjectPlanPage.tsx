@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
@@ -152,14 +153,16 @@ export default function ProjectPlanPage() {
    * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
    */
   const [picked, setPicked] = useState<Set<number>>(new Set())
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '프로젝트계획 리스트', [shown.length, loading])
   const pick = (id: number) => setPicked((s) => {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
   })
 
   async function removeChecked() {
     const ids = [...picked]
-    /* 고른 줄이 없을 때는 셸이 원본 알림을 띄운다(actions selected). 확인 문구는 수정 창 [삭제] 와 같게 둔다(선택삭제 문구는 못 잼). */
-    if (!(await ecConfirm('삭제하겠습니까?'))) return
+    /* 고른 줄이 없을 때는 셸이 원본 알림을 띄운다(actions selected). 원본 확인 문구 '선택한 전표를 삭제 하겠습니까?' → 안내 없이 줄이 빠진다(2026-10-20 실측). */
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/project-plans/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())
@@ -256,7 +259,7 @@ export default function ProjectPlanPage() {
       <PlanLineListWindow plan={listOf?.plan ?? null} item={listOf?.item ?? null}
                           onClose={() => setListOf(null)} onChanged={() => void load()} />
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th className="w-[28px] text-center"></th>

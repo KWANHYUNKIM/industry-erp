@@ -64,7 +64,20 @@
         "wait:1500",
         "js:[...document.querySelectorAll('table.ec-report tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')).join(' / ')",
         "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); const c = sessionStorage.getItem('ppCode'); return rows[0] === c + '|수익|판매|2026.10|100,000||-100,000|' && rows[1] === '|||2026.11|200,000||-200,000|' && rows[2] === '|||2026.12||||' && rows[3] === '||[판매] 소계|300,000||-300,000|' && rows[4] === '|[수익] 소계|300,000||-300,000|' && rows[5] === '[' + c + '] 손익|300,000||-300,000|' && rows.length === 6 })()",
-        "expect:(() => { const th = getComputedStyle(document.querySelector('table.ec-report thead th')); const td = getComputedStyle(document.querySelector('table.ec-report tbody td')); return th.fontSize === '11px' && th.fontWeight === '400' && td.fontSize === '11px' })()"
+        "expect:(() => { const th = getComputedStyle(document.querySelector('table.ec-report thead th')); const td = getComputedStyle(document.querySelector('table.ec-report tbody td')); return th.fontSize === '11px' && th.fontWeight === '400' && td.fontSize === '11px' })()",
+        "expect:![...document.querySelectorAll('.ec-footer button')].some((b) => b.innerText.trim() === '검색(F8)')",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '천단위').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); return rows[0].endsWith('|2026.10|100||-100|') && rows[3] === '||[판매] 소계|300||-300|' && document.body.innerText.includes('단위: 원 (천단위)') })()",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '천단위').querySelector('input').click(); [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '집계기준 1').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:[...document.querySelectorAll('table.ec-report tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')).join(' / ')",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); const head = [...document.querySelectorAll('table.ec-report thead th')].map((c) => c.innerText.trim()).join('|'); return head === '프로젝트|계획구분|항목|집계기준 1|월별|예상금액|실적금액|차이금액|비율(%)' && rows[0].endsWith('|수익|판매||2026.10|100,000||-100,000|') && rows[3] === '|||[] 소계|300,000||-300,000|' && rows[4] === '||[판매] 소계|300,000||-300,000|' })()",
+        "click:금월(~오늘)",
+        "wait:300",
+        "expect:(() => { const v = [...document.querySelectorAll('input[type=month]')].map((x) => x.value); const d = new Date(); const now = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); return v[0] === now && v[1] === now })()"
       ]
     },
     {
@@ -92,6 +105,26 @@
         "click:검색(F8)",
         "wait:1500",
         "expect:document.querySelector('table.ec-report tbody').innerText.trim() === '등록된 데이터가 없습니다.'"
+      ]
+    },
+    {
+      "name": "등록 창 저장(F8) → 창 닫힘 · 0 줄 → [선택삭제] '선택한 전표를 삭제 하겠습니까?'",
+      "path": "/accounting/project-plan",
+      "steps": [
+        "js:window.__asked = []; window.confirm = (m) => { window.__asked.push(m); return true }; true",
+        "wait:1500",
+        "click:신규(F2)",
+        "wait:600",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"프로젝트 선택\"]').click(); true",
+        "pickrow:@ppCode",
+        "wait:400",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '저장(F8)').click(); true",
+        "wait:1500",
+        "expect:(() => { const c = sessionStorage.getItem('ppCode'); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.cells[2]?.innerText.trim() === c); return !document.querySelector('[role=dialog]') && !!r && [6, 7, 8, 9].every((i) => r.cells[i].innerText.trim() === '0') && r.cells[5].innerText.trim().endsWith('/12/31') })()",
+        "js:(() => { const c = sessionStorage.getItem('ppCode'); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.cells[2]?.innerText.trim() === c); r.cells[0].querySelector('input').click(); return true })()",
+        "click:선택삭제",
+        "wait:1500",
+        "expect:(() => { const c = sessionStorage.getItem('ppCode'); return ![...document.querySelectorAll('tbody tr')].some((x) => x.cells[2]?.innerText.trim() === c) })()"
       ]
     }
   ],

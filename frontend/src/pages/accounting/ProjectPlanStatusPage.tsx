@@ -16,6 +16,10 @@ interface Cell {
 }
 
 type Period = 'M' | 'Q' | 'H' | 'Y' | 'T'
+type Agg = 'item' | '1' | '2' | '3' | '4'
+const AGGS: { v: Agg; label: string }[] = [
+  { v: 'item', label: '항목별' }, { v: '1', label: '집계기준 1' }, { v: '2', label: '집계기준 2' }, { v: '3', label: '집계기준 3' }, { v: '4', label: '집계기준 4' },
+]
 const PERIODS: { v: Period; label: string }[] = [
   { v: 'M', label: '월별' }, { v: 'Q', label: '분기별' }, { v: 'H', label: '반기별' }, { v: 'Y', label: '연별' }, { v: 'T', label: '집계' },
 ]
@@ -69,7 +73,8 @@ const ZERO: Sum = { plan: 0, actual: 0 }
 export default function ProjectPlanStatusPage() {
   const pickers = useCondPickers(['projects'])
   const now = ymd(new Date()).slice(0, 7)
-  const back3 = (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return ymd(d).slice(0, 7) })()
+  const back3 = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 3); return ymd(d).slice(0, 7) })()
+  const prev = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return ymd(d).slice(0, 7) })()
   const [mode, setMode] = useState<'detail' | 'sum'>('detail')
   const [period, setPeriod] = useState<Period>('M')
   const [project, setProjectRaw] = useState('')
@@ -78,8 +83,12 @@ export default function ProjectPlanStatusPage() {
   const [from, setFrom] = useState(back3)
   const [to, setTo] = useState(now)
   const [withRate, setWithRate] = useState(true)
+  /* 원본 [집계기준] ○항목별 ○집계기준 1 ~ 4 · 기타 ☐결재방표시 ☐천단위(2026-10-20 실측). */
+  const [agg, setAgg] = useState<Agg>('item')
+  const [signLine, setSignLine] = useState(false)
+  const [thousand, setThousand] = useState(false)
   const [cells, setCells] = useState<Cell[]>([])
-  const [shown, setShown] = useState<{ mode: 'detail' | 'sum'; period: Period; from: string; to: string } | null>(null)
+  const [shown, setShown] = useState<{ mode: 'detail' | 'sum'; period: Period; from: string; to: string; agg: Agg; thousand: boolean } | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [missing, setMissing] = useState(false)
@@ -95,7 +104,7 @@ export default function ProjectPlanStatusPage() {
     try {
       const r = await api.get<Cell[]>('/project-plans/status', { params: { projectIds: ids.join(','), from, to } })
       setCells(r.data)
-      setShown({ mode, period: mode === 'sum' ? 'T' : period, from, to })
+      setShown({ mode, period: mode === 'sum' ? 'T' : period, from, to, agg, thousand })
     } catch (err) { setError(extractErrorMessage(err)); setCells([]) }
     finally { setLoading(false) }
   }
@@ -113,6 +122,11 @@ export default function ProjectPlanStatusPage() {
     const hit = periods.get(v)
     if (hit?.start) setFrom(hit.start.slice(0, 7))
     if (hit?.end) setTo(hit.end.slice(0, 7))
+  }
+
+  function reset() {
+    setMode('detail'); setPeriod('M'); setProjectRaw(''); setProjectsMulti([]); setFrom(back3); setTo(now)
+    setAgg('item'); setSignLine(false); setWithRate(true); setThousand(false); setMissing(false)
   }
 
   /* 프로젝트 → 항목 → 기간 → 합 */
@@ -133,16 +147,20 @@ export default function ProjectPlanStatusPage() {
   const isDetail = shown?.mode !== 'sum'
   const hasPeriod = isDetail && shown?.period !== 'T'
   const periodLabel = PERIODS.find((x) => x.v === shown?.period)?.label ?? '월별'
-  const keyCols = isDetail ? (hasPeriod ? 4 : 3) : 4
+  /* 집계기준 1 ~ 4 를 고르면 [항목] 뒤에 그 열이 선다 — 우리 계획 줄엔 집계기준 값이 없어 칸은 비어 있다(원본 계획도 '해당없음'). */
+  const aggCol = isDetail && !!shown && shown.agg !== 'item'
+  const keyCols = isDetail ? 3 + (aggCol ? 1 : 0) + (hasPeriod ? 1 : 0) : 4
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '프로젝트계획/실적현황', [cells.length, keyCols, withRate])
 
+  /* 천단위: 원본 20,000,000 → 20,000 · 단위 '원 (천단위)'(2026-10-20 실측). */
+  const unit = shown?.thousand ? 1000 : 1
   const amounts = (s: Sum) => (
     <>
-      <td className="text-right">{blankWon(s.plan)}</td>
-      <td className="text-right">{blankWon(s.actual)}</td>
+      <td className="text-right">{blankWon(s.plan / unit)}</td>
+      <td className="text-right">{blankWon(s.actual / unit)}</td>
       {/* 계획 기간 안인데 계획도 실적도 없는 달은 원본이 차이까지 비운다('2026.12 | | | |', 2026-10-14 실측). */}
-      <td className="text-right">{s.plan || s.actual ? won(s.actual - s.plan) : ''}</td>
+      <td className="text-right">{s.plan || s.actual ? won((s.actual - s.plan) / unit) : ''}</td>
       {withRate && <td className="text-right">{rate(s.actual, s.plan)}</td>}
     </>
   )
@@ -152,13 +170,17 @@ export default function ProjectPlanStatusPage() {
   const metaLines = shown ? [
     `기준일자: ${ymText(shown.from)} ~ ${ymText(shown.to)}`,
     ...(isDetail && first ? [`프로젝트기간: ${slashDate(first.start)} ~ ${slashDate(first.end)}`] : []),
-    '단위: 원',
+    shown.thousand ? '단위: 원 (천단위)' : '단위: 원',
   ] : []
 
   let total = ZERO
   const body: ReactNode[] = []
   view.forEach((pr, pi) => {
     let firstRowOfProject = true
+    /* 집계기준 열을 켜면 원본은 프로젝트의 마지막 항목 소계 앞에 '[] 소계'(빈 집계기준 값의 소계 — 항목을 가리지 않고 다 더한 것)를 낸다
+       (20240701A: 판매 20,000,000 · 구매 10,000,000 → 구매 기간 줄 다음 '[] 소계 30,000,000', 2026-10-20 실측). */
+    const lastItem = GROUPS.flatMap((g) => g.items).filter((i) => pr.items.has(i)).pop()
+    const allSum = [...pr.items.values()].flatMap((m) => [...m.values()]).reduce(add, ZERO)
     let revenue = ZERO
     let cost = ZERO
     for (const g of GROUPS) {
@@ -177,17 +199,27 @@ export default function ProjectPlanStatusPage() {
                 <td>{firstRowOfProject ? pr.name : ''}</td>
                 <td>{firstRowOfGroup ? g.name : ''}</td>
                 <td>{idx === 0 ? item : ''}</td>
+                {aggCol && <td></td>}
                 {hasPeriod && <td>{k}</td>}
                 {amounts(v)}
               </tr>,
             )
             firstRowOfProject = false; firstRowOfGroup = false
           })
-          if (hasPeriod) {
+          if (aggCol && item === lastItem) {
+            body.push(
+              <tr key={`${pi}-agg-sub`} className="ec-total">
+                <td></td><td></td><td></td>
+                <td colSpan={keyCols - 3} className="text-right">[] 소계</td>
+                {amounts(allSum)}
+              </tr>,
+            )
+          }
+          if (hasPeriod || aggCol) {
             body.push(
               <tr key={`${pi}-${item}-sub`} className="ec-total">
                 <td></td><td></td>
-                <td colSpan={2} className="text-right">[{item}] 소계</td>
+                <td colSpan={keyCols - 2} className="text-right">[{item}] 소계</td>
                 {amounts(itemSum)}
               </tr>,
             )
@@ -232,7 +264,9 @@ export default function ProjectPlanStatusPage() {
       title="프로젝트계획/실적현황"
       onSearch={load}
       searchable={false}
-      actions={[{ label: '검색(F8)', primary: true, onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
+      signLine={signLine}
+      /* 원본 하단은 [인쇄] [Excel] 둘 — [검색(F8)] 은 조건 판 아래 줄에 있다(2026-10-20 실측). */
+      actions={[{ label: '인쇄' }, { label: 'Excel' }]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
@@ -254,6 +288,14 @@ export default function ProjectPlanStatusPage() {
             </span>
           )}
         </EcCond>
+        {/* 원본 차례: 검색구분 · 집계기준 · 프로젝트 · 기준일자 · 기타(plans/재고2/E040636.md 4) */}
+        <EcCond label="집계기준" span="full">
+          {AGGS.map((x) => (
+            <label key={x.v} className="flex items-center gap-[3px] text-[12.5px] mr-[8px]">
+              <input type="radio" name="pps-agg" checked={agg === x.v} onChange={() => setAgg(x.v)} /> {x.label}
+            </label>
+          ))}
+        </EcCond>
         <EcCond label="프로젝트" pick span={2}>
           <span className={missing ? 'rounded-ec outline outline-1 outline-ec-danger' : undefined}>
           {mode === 'detail'
@@ -267,10 +309,26 @@ export default function ProjectPlanStatusPage() {
           <input type="month" className="ec-input w-[130px]" value={to} onChange={(e) => e.target.value && setTo(e.target.value)} />
         </EcCond>
         <EcCond label="기타">
-          <label className="flex items-center gap-[3px] text-[12.5px]">
+          <label className="flex items-center gap-[3px] text-[12.5px] mr-[8px]">
+            <input type="checkbox" checked={signLine} onChange={(e) => setSignLine(e.target.checked)} /> 결재방표시
+          </label>
+          <label className="flex items-center gap-[3px] text-[12.5px] mr-[8px]">
             <input type="checkbox" checked={withRate} onChange={(e) => setWithRate(e.target.checked)} /> 비율
           </label>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
+            <input type="checkbox" checked={thousand} onChange={(e) => setThousand(e.target.checked)} /> 천단위
+          </label>
         </EcCond>
+        {/* 원본 판 아래 줄: [검색(F8)] [금월(~오늘)] [전월] [3개월] [설정] [다시 작성] — 기간 단추는 기준일자만 바꾼다
+            (금월 2026/10 ~ 2026/10 · 전월 2026/09 ~ 2026/09 · 3개월 2026/07 ~ 2026/10, 2026-10-20 실측).
+            [설정] 은 원본에서 '권한없음 (프로젝트계획)' 창이 떠 못 쟀다. */}
+        <li className="flex gap-[4px] w-full">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void load()}>검색(F8)</button>
+          <button type="button" className="ec-btn ec-btn-pick" onClick={() => { setFrom(now); setTo(now) }}>금월(~오늘)</button>
+          <button type="button" className="ec-btn ec-btn-pick" onClick={() => { setFrom(prev); setTo(prev) }}>전월</button>
+          <button type="button" className="ec-btn ec-btn-pick" onClick={() => { setFrom(back3); setTo(now) }}>3개월</button>
+          <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>
+        </li>
       </ul>
 
       {shown && (
@@ -281,13 +339,14 @@ export default function ProjectPlanStatusPage() {
             sub={sub}
           />
           {/* 원본 격자는 이 화면만 작다(2026-10-14 실측): 머리 11px 400 · 본문 11px · 소계 · 손익 12px 700 — 같은 묶음 매출계획비교표는 12px. */}
-          <table ref={tableRef} className="ec-report ec-report-head400 w-full text-left [&_th]:text-[11px]! [&_td]:text-[11px]! [&_tr.ec-total_td]:text-[12px]!">
+          <table ref={tableRef} className="ec-report ec-report-head400 ec-report-11 w-full text-left">
             <thead>
               <tr>
                 <th>프로젝트</th>
                 {!isDetail && <th>프로젝트기간</th>}
                 <th>계획구분</th>
                 <th>{isDetail ? '항목' : '집계기준'}</th>
+                {aggCol && <th>{AGGS.find((x) => x.v === shown?.agg)?.label}</th>}
                 {hasPeriod && <th>{periodLabel}</th>}
                 <th className="text-right">예상금액</th>
                 <th className="text-right">실적금액</th>

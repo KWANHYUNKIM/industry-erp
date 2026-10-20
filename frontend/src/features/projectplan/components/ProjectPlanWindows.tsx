@@ -189,7 +189,9 @@ export function PlanHeadWindow({ open, planId, projects, onClose, onChanged, onO
         </tbody>
       </table>
       <div className="flex gap-[4px] mt-[8px]">
-        <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
+        {/* 원본 저장(F8)은 저장하고 창을 닫는다(안내 글 없음 — 목록에 '2026/10/20 | 2026/12/31 | 0 | 0 | 0 | 0', 2026-10-20 실측).
+            창이 [수정] 으로 남는 것은 저장 전에 항목 [등록] 을 눌러 확인했을 때뿐이다. */}
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save().then((h) => { if (h) onClose() })}>저장(F8)</button>
         {id && <button type="button" className="ec-btn" onClick={() => void remove()}>삭제</button>}
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
