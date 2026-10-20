@@ -156,7 +156,8 @@ export default function JournalListPage() {
         setVoucherType(Object.fromEntries(vs.map((v) => [v.journalEntryId!, v.typeName])))
         setVoucherIdOf(Object.fromEntries(vs.map((v) => [v.journalEntryId!, v.id])))
         setPayeeOf(Object.fromEntries(vs.filter((v) => v.payeeName).map((v) => [v.journalEntryId!, v.payeeName!])))
-        setCashQuickTotal(Object.fromEntries(vs.filter((v) => CASH_QUICK_KINDS.some((k) => k.type === v.type))
+        /* 영수증으로 [금액]은 거꾸로 수수료를 뺀 금액이다(원본 2026-10-20: 12,000 · 수수료 300 → 목록 12,000, 분개 12,300). */
+        setCashQuickTotal(Object.fromEntries(vs.filter((v) => v.type === 'RECEIPT_PAYMENT' || CASH_QUICK_KINDS.some((k) => k.type === v.type))
           .map((v) => [v.journalEntryId!, v.totalAmount])))
       })
       .catch(() => { setVoucherType({}); setVoucherIdOf({}); setPayeeOf({}); setCashQuickTotal({}) })

@@ -102,8 +102,11 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   function reset(keep = false) {
     if (!keep) { setDate(ymd(new Date())); setMain(''); setIssuerId(''); setFeeRate(''); setAccountId('') }
     /* 비현금거래는 원본처럼 저장 뒤에도 사원 · 카드 · 대변계정이 남는다. */
-    if (!keep || !nonCash) { setEmployeeId(''); setCardId(''); setCreditAccountId('') }
-    setCounter(''); setPartnerId(''); setPayee(''); setAmount(''); setFee(''); setMemo(''); setError('')
+    if (!keep || !nonCash) { setEmployeeId(''); setCreditAccountId('') }
+    /* 원본 2026-10-20: 법인카드대금결제는 저장 뒤 [카드]가, 계좌간이동은 [출금계좌]도 남는다(은행으로 [차입처]는 비워진다). */
+    if (!keep || !(nonCash || type === 'CARD_BILL_PAYMENT')) setCardId('')
+    if (!keep || type !== 'ACCOUNT_TRANSFER') setCounter('')
+    setPartnerId(''); setPayee(''); setAmount(''); setFee(''); setMemo(''); setError('')
     setDepartmentId(''); setProjectId('')
   }
 
