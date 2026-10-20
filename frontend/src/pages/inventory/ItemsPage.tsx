@@ -55,6 +55,9 @@ const emptyForm = {
   remark: '',
   vatRateSales: '10', vatRatePurchase: '10',
   subcontractPrice: '0', leadTimeDays: '0', minPurchaseUnit: '0',
+  /* [원가] 탭 — 원본 새 창: 표준노무시간 1 · 경비가중치 1 · 재료비표준원가 빈칸 · 나머지 셋 0(잠김). */
+  stdLaborHours: '1', expenseWeight: '1', materialStdCost: '',
+  expenseStdCost: '0', laborStdCost: '0', subcontractStdCost: '0',
   itemType: '', parentItemId: '',
   setItem: 'N', sharedItem: 'N', lotManaged: 'N',
   qcType: '', qcMethod: '전수', qcOnPurchase: 'N', qcOnProduction: 'N',
@@ -230,6 +233,12 @@ export default function ItemsPage() {
       vatRateSales: String(item.vatRateSales ?? 10),
       vatRatePurchase: String(item.vatRatePurchase ?? 10),
       subcontractPrice: String(item.subcontractPrice ?? 0),
+      stdLaborHours: String(item.stdLaborHours ?? 1),
+      expenseWeight: String(item.expenseWeight ?? 1),
+      materialStdCost: item.materialStdCost != null ? String(item.materialStdCost) : '',
+      expenseStdCost: String(item.expenseStdCost ?? 0),
+      laborStdCost: String(item.laborStdCost ?? 0),
+      subcontractStdCost: String(item.subcontractStdCost ?? 0),
       leadTimeDays: String(item.leadTimeDays ?? 0),
       minPurchaseUnit: String(item.minPurchaseUnit ?? 0),
       itemType: item.itemType ?? '',
@@ -307,6 +316,10 @@ export default function ItemsPage() {
       vatRateSales: Number(form.vatRateSales) || 0,
       vatRatePurchase: Number(form.vatRatePurchase) || 0,
       subcontractPrice: Number(form.subcontractPrice) || 0,
+      /* 원가 탭 세 칸은 늘 같이 보낸다 — 재료비표준원가 빈칸은 빈칸(null)으로 저장(원본 새 창 기본). */
+      stdLaborHours: form.stdLaborHours.trim() === '' ? 0 : Number(form.stdLaborHours) || 0,
+      expenseWeight: form.expenseWeight.trim() === '' ? 0 : Number(form.expenseWeight) || 0,
+      materialStdCost: form.materialStdCost.trim() === '' ? null : Number(form.materialStdCost) || 0,
       leadTimeDays: Number(form.leadTimeDays) || 0,
       minPurchaseUnit: Number(form.minPurchaseUnit) || 0,
       parentItemId: form.parentItemId ? Number(form.parentItemId) : null,
@@ -798,9 +811,30 @@ export default function ItemsPage() {
           {formTab === '원가' && (
             <div className={grid3}>
               {codeField}
-              {/* 원본 원가 탭의 표준노무시간 · 가중치 · 재료비/경비/노무비/외주비표준원가는 우리에게 값이 없다(남은 것). */}
+              {/*
+                원본 원가 탭(C000029, 2026-10-20 실측) 차례 그대로. 경비 · 노무비 · 외주비표준원가는 원본 창에서 잠긴 칸(0) —
+                원가 쪽이 채우는 값이라 여기서는 보기만 한다. 숫자는 오른쪽 정렬(원본 text-align right).
+              */}
               <Field label="외주비단가">
-                <input type="number" step="any" className={inputCls} value={form.subcontractPrice} onChange={(e) => set('subcontractPrice', e.target.value)} />
+                <input type="number" step="any" className={`${inputCls} text-right`} value={form.subcontractPrice} onChange={(e) => set('subcontractPrice', e.target.value)} />
+              </Field>
+              <Field label="표준노무시간(노무비가중치)">
+                <input type="number" step="any" className={`${inputCls} text-right`} value={form.stdLaborHours} onChange={(e) => set('stdLaborHours', e.target.value)} />
+              </Field>
+              <Field label="경비가중치">
+                <input type="number" step="any" className={`${inputCls} text-right`} value={form.expenseWeight} onChange={(e) => set('expenseWeight', e.target.value)} />
+              </Field>
+              <Field label="재료비표준원가">
+                <input type="number" step="any" className={`${inputCls} text-right`} value={form.materialStdCost} onChange={(e) => set('materialStdCost', e.target.value)} />
+              </Field>
+              <Field label="경비표준원가">
+                <input type="number" readOnly className={`${inputCls} text-right`} value={form.expenseStdCost} />
+              </Field>
+              <Field label="노무비표준원가">
+                <input type="number" readOnly className={`${inputCls} text-right`} value={form.laborStdCost} />
+              </Field>
+              <Field label="외주비표준원가">
+                <input type="number" readOnly className={`${inputCls} text-right`} value={form.subcontractStdCost} />
               </Field>
             </div>
           )}

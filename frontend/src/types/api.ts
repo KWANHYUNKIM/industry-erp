@@ -143,6 +143,13 @@ export interface Item {
   qcOnProduction: boolean
   autoProductionOnSales: boolean
   autoProductionOnTransfer: boolean
+  /** [원가] 탭(원본 C000029). 경비 · 노무비 · 외주비표준원가는 원본 창에서 잠긴 칸 — 보기만 한다. */
+  stdLaborHours: number
+  expenseWeight: number
+  materialStdCost: number | null
+  expenseStdCost: number
+  laborStdCost: number
+  subcontractStdCost: number
   /** 원본 조건 [최초작성일자]·[최종수정일자]. */
   createdDate: string | null
   updatedDate: string | null

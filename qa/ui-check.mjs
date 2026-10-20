@@ -7245,6 +7245,12 @@ console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
     'ManualTxRequest.quantity': '재고조정 줄은 수량이 음수다(원본 0 → 5 = 내역조회 수량 -5.00, 2026-10-14 실측) — 그 밖의 전표구분은 서비스가 0 초과를 본다(LotService.createManual · updateManual "수량은 0보다 커야 합니다.")',
     'UpdateLedgerRequest.openingQty': '음수 기초수량을 받는다 — 원본 원가계산내역이 장부대로 기초 -3 을 들고 있었다(E040802 440000, 2026-10-13 실측)',
     'AsLineRequest.quantity': '음수 · 0 은 화면이 "수량을 입력하세요." 로 0 만 막고 -1 은 그대로 받는다 — 원본 A/S접수입력이 수량 -1 을 저장했다(합계줄 -1, 2026-10-13 실측)',
+    'CreateItemRequest.stdLaborHours': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
+    'CreateItemRequest.expenseWeight': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
+    'CreateItemRequest.materialStdCost': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
+    'UpdateItemRequest.stdLaborHours': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
+    'UpdateItemRequest.expenseWeight': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
+    'UpdateItemRequest.materialStdCost': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
     'CreateSettlementRequest.amount': '음수는 되돌린 돈(수금 − = 매출처 환불, 지급 − = 매입처 환급)이라 받는다 — 0 만 서비스가 막는다(SettlementService.create, 27회차)',
   }
   const 숫자 = /(BigDecimal|Integer|Long|int|long|Double|double)\s+(\w+)$/

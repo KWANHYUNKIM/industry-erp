@@ -156,6 +156,9 @@ function resolveEntity(stem) {
  * 한 화면에서만 서버가 채우는 값은 여기 적는다.
  */
 const OWNED_HERE = new Map([
+  ['Item|expenseStdCost', '품목등록 [원가] 탭 경비표준원가 — 원본 창에서 잠긴 칸(0, 2026-10-20 C000029 실측). 원가 쪽이 채운다'],
+  ['Item|laborStdCost', '품목등록 [원가] 탭 노무비표준원가 — expenseStdCost 와 같다'],
+  ['Item|subcontractStdCost', '품목등록 [원가] 탭 외주비표준원가 — expenseStdCost 와 같다'],
   ['ProjectPlan|planRevenue', '프로젝트계획(E040636) 항목 01 판매 계획 줄 [금액] 의 합 — 계획 입력 창(POST · PUT /project-plans/…/lines)이 바꾸고 서버가 다시 적는다(원본 등록 창 판에는 금액 칸이 없다, 2026-10-14 실측)'],
   ['ProjectPlan|planPurchase', '항목 02 구매 계획 줄 [금액] 의 합 — planRevenue 와 같다'],
   ['ProjectPlan|planLabor', '항목 03 노무비 계획 줄 [금액] 의 합 — planRevenue 와 같다'],
