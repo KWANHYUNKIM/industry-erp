@@ -2,7 +2,6 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
-import { costOf } from '../../utils/costBasis'
 import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -39,13 +38,32 @@ const REPORT_TITLE: Record<Mode, string> = {
   품목별거래처별: '품목/거래처별이익현황', 거래처별품목별: '거래처/품목별이익현황',
 }
 
-interface CostRow { itemId: number; period: string; standardTotal: number }
+/**
+ * 원가생성/수정이 만든 원가계산내역 한 줄(GET /cost-periods/{id}/ledger).
+ * <b>원본 [원가] 단가는 그 기간 실제원가다</b>(2026-10-20 E040805 실측: A001 원가 단가 27,621 · 금액 5,109,899 =
+ * 185 × 27,621.07 — 실제원가현황 감소 단가). 우리는 표준원가(/costs standardTotal)를 쓰고 있어,
+ * 표준원가를 안 넣은 회사는 원가 · 이익이 전부 '—' 였다.
+ */
+interface CostLedgerRow {
+  itemId: number; openingQty: number; openingAmount: number; increaseQty: number; increaseAmount: number
+  decreaseQty: number; decreaseAmount: number
+}
+/** 감소(판매 출고 포함) 단가 — 감소가 없으면 (기초 + 증가) ÷ 수량. 금액이 0 이면 원가를 모른다(null). */
+function unitCostOf(r: CostLedgerRow): number | null {
+  const [amt, qty] = Number(r.decreaseQty) > 0
+    ? [Number(r.decreaseAmount), Number(r.decreaseQty)]
+    : [Number(r.openingAmount) + Number(r.increaseAmount), Number(r.openingQty) + Number(r.increaseQty)]
+  return qty > 0 && amt > 0 ? amt / qty : null
+}
 interface CostPeriod { id: number; startMonth: string; endMonth: string; methodName: string; latest: boolean }
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const num = (n: number) => n.toLocaleString()
 /** 원본 이익율은 정수 % 다(98% · -8%). */
 const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 100))
+/** 원본은 0 을 찍지 않는다 — 판매금액 0 인 줄(A003 수량 2)은 단가 · 금액 · 이익 · 이익율이 모두 빈칸. */
+const nz = (n: number | null) => (n == null || Math.round(n) === 0 ? '' : won(n))
+const rateText = (profit: number, revenue: number) => (revenue === 0 ? '' : `${rate(profit, revenue)}%`)
 const ymSlash = (ym: string) => ym.replace('-', '/')
 const periodText = (p: CostPeriod) => `${ymSlash(p.startMonth)} ~ ${ymSlash(p.endMonth)} (${p.methodName})`
 /** 그 달의 마지막 날 — 'YYYY-MM' → 'YYYY-MM-DD'. */
@@ -64,7 +82,7 @@ export default function MonthlyProfitPage() {
   const { untracked } = useItemFlags()
   const [signBox, setSignBox] = useState(false)
   const [sales, setSales] = useState<SalesDoc[]>([])
-  const [costs, setCosts] = useState<CostRow[]>([])
+  const [ledger, setLedger] = useState<CostLedgerRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -89,9 +107,9 @@ export default function MonthlyProfitPage() {
     setError('')
     Promise.all([
       api.get<SalesDoc[]>('/sales', { params: { from: `${p.startMonth}-01`, to: monthEnd(p.endMonth) } }),
-      api.get<CostRow[]>('/costs'),
+      api.get<{ rows: CostLedgerRow[] }>(`/cost-periods/${p.id}/ledger`),
     ])
-      .then(([s, c]) => { setSales(s.data); setCosts(c.data); setShown(p); setShownMode(mode) })
+      .then(([s, c]) => { setSales(s.data); setLedger(c.data.rows); setShown(p); setShownMode(mode) })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }
@@ -108,12 +126,8 @@ export default function MonthlyProfitPage() {
   }, [])
 
   /** 그 달의 생성 원가(단가). 원가 기간이 여러 달이면 판 달의 것을 쓴다. */
-  const costByItemPeriod = useMemo(
-    () => new Map(costs.map((c) => [`${c.itemId}:${c.period}`, c.standardTotal])), [costs])
-  const costPrice = (itemId: number, saleDate: string): number | null => costOf('월별원가', {
-    monthlyCost: costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null,
-    lastPurchasePrice: null, itemPurchasePrice: null,
-  })
+  const unitCost = useMemo(() => new Map(ledger.map((r) => [r.itemId, unitCostOf(r)])), [ledger])
+  const costPrice = (itemId: number): number | null => unitCost.get(itemId) ?? null
   const partnerCode = useMemo(
     () => new Map(pickers.partners.map((p) => [p.value, p.code ?? ''])), [pickers.partners])
 
@@ -145,8 +159,9 @@ export default function MonthlyProfitPage() {
       .filter((l) => !cond.itemGroup || mgmt.groupOf(l.itemId) === cond.itemGroup)
       .map((l) => {
         const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
-        const price = costPrice(l.itemId, d.saleDate)
-        const cost = price === null ? null : price * l.quantity
+        const price = costPrice(l.itemId)
+        /* 원가를 모르는 품목(원가계산내역에 금액이 없음)은 원본도 원가 칸을 비우고 이익 = 판매금액(이익율 100%) 이다(L004 실측). */
+        const cost = price === null ? 0 : price * l.quantity
         /** 판매부대비용 — 전표 합계에 안 들어가는 우리가 쓴 돈이다. 원본은 이익에서 뺀다. */
         const extraCost = Number(l.extraCost ?? 0)
         return {
@@ -155,11 +170,11 @@ export default function MonthlyProfitPage() {
           /** 열이 [품목명[규격]] 이다 — 원본은 이름 뒤 한 칸 띄우고 대괄호(울트라 스킨 [140ml]). */
           itemLabel: l.itemName + (l.spec ? ` [${l.spec}]` : ''),
           quantity: l.quantity, revenue, cost, extraCost,
-          profit: cost === null ? null : revenue - cost - extraCost,
+          profit: revenue - cost - extraCost,
         }
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sales, shown, cond, withVat, costByItemPeriod, partnerCode, withUntracked, mgmtCond])
+    [sales, shown, cond, withVat, unitCost, partnerCode, withUntracked, mgmtCond])
 
   const rows = useMemo(() => {
     const keyOf = (l: typeof lines[number]) =>
@@ -172,33 +187,28 @@ export default function MonthlyProfitPage() {
         : shownMode === '거래처별' ? [l.partnerCode, l.partnerName]
           : shownMode === '거래처별품목별' ? [l.partnerCode, l.partnerName, l.itemCode, l.itemLabel]
             : [l.itemCode, l.itemLabel, l.partnerCode, l.partnerName]
-    const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; extra: number }>()
+    const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number; profit: number; extra: number }>()
     lines.forEach((l) => {
       const k = keyOf(l)
       const g = m.get(k) ?? { key: k, label: labelOf(l), qty: 0, revenue: 0, cost: 0, profit: 0, extra: 0 }
       g.qty += l.quantity
       g.revenue += l.revenue
       g.extra += l.extraCost
-      // 한 줄이라도 원가를 모르면 그 묶음의 원가·이익은 알 수 없다.
-      if (l.cost === null || g.cost === null) { g.cost = null; g.profit = null }
-      else { g.cost += l.cost; g.profit = (g.profit ?? 0) + (l.profit ?? 0) }
+      g.cost += l.cost
+      g.profit += l.profit
       m.set(k, g)
     })
     /* 원본 차례는 앞머리 코드 순이다(A001 · B001 …, 1234567002 · 1234567004 …). */
     return [...m.values()].sort((a, b) => a.label.join('\u0000').localeCompare(b.label.join('\u0000')))
   }, [lines, shownMode])
 
-  const known = lines.filter((l) => l.cost !== null)
   const totals = {
     revenue: lines.reduce((n, l) => n + l.revenue, 0),
-    knownRevenue: known.reduce((n, l) => n + l.revenue, 0),
-    cost: known.reduce((n, l) => n + (l.cost ?? 0), 0),
-    profit: known.reduce((n, l) => n + (l.profit ?? 0), 0),
+    cost: lines.reduce((n, l) => n + l.cost, 0),
+    profit: lines.reduce((n, l) => n + l.profit, 0),
     extra: lines.reduce((n, l) => n + l.extraCost, 0),
     qty: lines.reduce((n, l) => n + l.quantity, 0),
   }
-  const unknownCost = lines.length - known.length
-  const allUnknown = lines.length > 0 && known.length === 0
 
   /** 구분마다 앞머리 칸이 다르다. 원본 실측 글자 그대로. */
   const HEADS: Record<Mode, string[]> = {
@@ -210,7 +220,7 @@ export default function MonthlyProfitPage() {
   const heads = HEADS[shownMode]
   const TAIL = 9
   const colCount = heads.length + TAIL
-  const per = (v: number | null, q: number) => (v === null || q === 0 ? null : Math.round(v / q))
+  const per = (v: number, q: number) => (q === 0 ? null : v / q)
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
   const tableRef = useRef<HTMLDivElement>(null)
@@ -351,12 +361,6 @@ export default function MonthlyProfitPage() {
         </EcCond>
       </ul>
 
-      {unknownCost > 0 && (
-        <p className="ec-alert ec-alert-info mb-[8px]">
-          <b>{num(unknownCost)}</b>개 라인의 원가가 이 기준월에 생성돼 있지 않습니다 — [원가생성/수정]에서 [생성]하세요.
-          그 줄의 원가 · 이익은 '—' 로 두고 합계에서도 뺐습니다.
-        </p>
-      )}
 
       {shown && <EcReportHead title={REPORT_TITLE[shownMode]} period={`${ymSlash(shown.startMonth)} ~ ${ymSlash(shown.endMonth)}`} />}
       <div ref={tableRef} className="overflow-x-auto">
@@ -389,14 +393,14 @@ export default function MonthlyProfitPage() {
               <tr key={r.key}>
                 {heads.map((h, hi) => <td key={h}>{r.label[hi]}</td>)}
                 <td className="text-right">{num(r.qty)}</td>
-                <td className="text-right">{per(r.revenue, r.qty) === null ? '' : won(per(r.revenue, r.qty) as number)}</td>
-                <td className="text-right">{won(r.revenue)}</td>
-                <td className="text-right">{per(r.cost, r.qty) === null ? '—' : won(per(r.cost, r.qty) as number)}</td>
-                <td className="text-right">{r.cost === null ? '—' : won(r.cost)}</td>
+                <td className="text-right">{nz(per(r.revenue, r.qty))}</td>
+                <td className="text-right">{nz(r.revenue)}</td>
+                <td className="text-right">{nz(per(r.cost, r.qty))}</td>
+                <td className="text-right">{nz(r.cost)}</td>
                 <td className="text-right">{r.extra === 0 ? '' : won(r.extra)}</td>
-                <td className="text-right">{per(r.profit, r.qty) === null ? '—' : won(per(r.profit, r.qty) as number)}</td>
-                <td className="text-right">{r.profit === null ? '—' : won(r.profit)}</td>
-                <td className="text-right">{r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}</td>
+                <td className="text-right">{nz(per(r.profit, r.qty))}</td>
+                <td className="text-right">{nz(r.profit)}</td>
+                <td className="text-right">{rateText(r.profit, r.revenue)}</td>
               </tr>
             ))}
           </tbody>
@@ -407,13 +411,13 @@ export default function MonthlyProfitPage() {
                 <td colSpan={heads.length} className="text-center font-bold bg-ec-page">합계</td>
                 <td className="text-right font-bold bg-ec-page">{num(totals.qty)}</td>
                 <td className="bg-ec-page"></td>
-                <td className="text-right font-bold bg-ec-page">{won(totals.revenue)}</td>
+                <td className="text-right font-bold bg-ec-page">{nz(totals.revenue)}</td>
                 <td className="bg-ec-page"></td>
-                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : won(totals.cost)}</td>
+                <td className="text-right font-bold bg-ec-page">{nz(totals.cost)}</td>
                 <td className="text-right font-bold bg-ec-page">{totals.extra === 0 ? '' : won(totals.extra)}</td>
                 <td className="bg-ec-page"></td>
-                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : won(totals.profit)}</td>
-                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}</td>
+                <td className="text-right font-bold bg-ec-page">{nz(totals.profit)}</td>
+                <td className="text-right font-bold bg-ec-page">{rateText(totals.profit, totals.revenue)}</td>
               </tr>
             </tfoot>
           )}

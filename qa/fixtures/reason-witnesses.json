@@ -189,14 +189,6 @@
   ],
   "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
- "차이분석|생산공정": {
-  "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
-  "absent": [
-   "process",
-   "Process"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
- },
  "발주서|발송여부": {
   "claim": "전표를 거래처에 내보내는 기능이 없다",
   "absent": [
@@ -2900,12 +2892,6 @@
   "claim": "이 화면의 행 자체가 프로젝트다 — 프로젝트로 프로젝트를 거를 수 없다",
   "present": [
    "api.get<Project[]>('/projects')"
-  ]
- },
- "차이분석|노무비/경비/외주비차이": {
-  "claim": "우리 이름은 [노무비·경비차이] 다 — 외주비를 따로 잡는 자료가 없어 그 말만 뺐다",
-  "present": [
-   "노무비·경비차이"
   ]
  },
  "Invoice / Packing List|Invoice 일자": {
