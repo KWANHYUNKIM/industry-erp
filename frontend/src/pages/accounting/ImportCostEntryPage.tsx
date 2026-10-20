@@ -8,6 +8,7 @@ import CodePickerField, { type CodeItem } from '../../components/CodePickerField
 import { EcCond } from '../../components/EcStatusPanel'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecAlert } from '../../components/EcDialog'
 import type { BankAccountRow, Partner } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { shortDateNo } from '../../utils/dateNo'
@@ -15,6 +16,8 @@ import {
   IMPORT_ENTRY, IMPORT_VOUCHER_LIST,
   type ImportCostItem, type ImportCostKind, type ImportCostVoucher, type ImportLot,
 } from '../../features/importcost/api'
+
+const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.'
 
 interface AccountOption { id: number; code: string; name: string }
 
@@ -125,17 +128,18 @@ export default function ImportCostEntryPage({ kind }: { kind: ImportCostKind }) 
   const itemItems: CodeItem[] = items.filter((i) => i.active || String(i.id) === costItemId).map((i) => ({ value: String(i.id), code: i.code, name: i.name }))
   const itemValue = costItemId || itemItems[0]?.value || ''
 
-  function pickLot(v: string) {
-    setLotId(v)
-    // 관리번호를 고르면 그 거래처(수출자)가 따라온다 — 관세사에지급 · 본계정대체는 아니다
-    const l = lots.find((x) => String(x.id) === v)
-    if (l && (kind === 'BILL_RECEIPT' || kind === 'TRADE_PAYMENT') && !partnerId) setPartnerId(String(l.partnerId))
-  }
+  // 원본(2026-10-20): 관리번호를 골라도 거래처는 따라오지 않는다
+  const pickLot = setLotId
 
   async function save(withJournal = false) {
     setError('')
     const missing = !lotId || (isPay && !settle) || (isTransfer && !settle)
     if (missing) { setInvalid(true); return }
+    // 원본(2026-10-20): 관리번호를 채우고 거래처를 비우면 칸이 아니라 창으로 막는다
+    if (!isTransfer && !partnerId) {
+      void ecAlert(`${BLOCKED_HEAD}\n\n거래처가 입력되지 않은 자료`)
+      return
+    }
     const body = {
       voucherDate: date, kind, lotId: Number(lotId),
       partnerId: partnerId ? Number(partnerId) : null,

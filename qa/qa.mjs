@@ -11659,21 +11659,27 @@ async function scenarioImportCost() {
   await rejects('관리번호 없이 저장하면 막는다', 'POST', '/import-costs/vouchers', { voucherDate: '2026-10-14', kind: 'BILL_RECEIPT', amount: 1 }, '관리번호')
   const day = '2026-10-14'
   const base = { voucherDate: day, lotId: lot.id, remark: 'QA회계2' }
+  // 원본 2026-10-20: 관리번호를 골라도 거래처는 안 따라오고, 비우면 '거래처가 입력되지 않은 자료'
+  await rejects('거래처 없이 저장하면 막는다', 'POST', '/import-costs/vouchers', { ...base, kind: 'BILL_RECEIPT', amount: 1 }, '거래처가 입력되지 않은 자료')
+  base.partnerId = partner.id
   const vs = []
   vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'BILL_RECEIPT', amount: 100000 }))
   vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'TAX_INVOICE', amount: 20000, vat: 2000, costItemId: items[0].id }))
   vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'GENERAL_RECEIPT', amount: 10000, costItemId: items[0].id }))
-  vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'TRADE_PAYMENT', amount: 100000, bankAccountId: bank.id }))
+  vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'TRADE_PAYMENT', amount: 100000, fee: 500, bankAccountId: bank.id }))
   vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'BROKER_PAYMENT', amount: 32000, bankAccountId: bank.id, partnerId: partner.id }))
   const lines = async (v) => (await must('GET', `/journals/${v.journalEntryId}`)).lines
     .map((l) => `${l.accountCode}:${Number(l.debit) || -Number(l.credit)}`).join(' ')
   eq('청구서 분개 차 미착품 / 대 외상매입금', await lines(vs[0]), '168:100000 251:-100000')
   eq('세금계산서 분개 차 미착품 공급가 · 부가세대급금 / 대 합계', await lines(vs[1]), '168:20000 135:2000 251:-22000')
   eq('관세사에지급 분개 차 외상매입금 / 대 계좌', await lines(vs[4]), `251:32000 ${bank.glAccountCode}:-32000`)
+  // 원본 2026-10-20 거래대금지급 500 · 수수료 50: 차 외상매입금 500 · 지급수수료(판) 50 / 대 보통예금 550, 전표검색 [금액] 550
+  eq('거래대금지급 수수료 분개 차 외상매입금 · 지급수수료 / 대 계좌 합', await lines(vs[3]), `251:100000 831:500 ${bank.glAccountCode}:-100500`)
+  eq('전표검색 금액 — 지급은 수수료 포함 · 계산서는 부가세 포함', `${Number(vs[3].total)} ${Number(vs[1].total)}`, '100500 22000')
   const row = async () => (await must('GET', `/import-costs/ledger?from=2026-10-01&to=2026-10-31&lotId=${lot.id}`)).rows[0]
   let r = await row()
   eq('대장 상품대금 · 직접설정가능 · 합계', `${r.goods} ${r.costs[items[0].id]} ${r.total}`, '100000 30000 130000')
-  eq('대장 거래대금지급 · 관세사에지급 · 최초대금지급일', `${r.tradePaid} ${r.brokerPaid} ${r.firstPaymentDate}`, `100000 32000 ${day}`)
+  eq('대장 거래대금지급(수수료 포함) · 관세사에지급 · 최초대금지급일', `${r.tradePaid} ${r.brokerPaid} ${r.firstPaymentDate}`, `100500 32000 ${day}`)
   const transfer = await must('POST', '/import-costs/vouchers', { ...base, kind: 'TRANSFER', amount: 130000, accountId: acc('153').id })
   eq('본계정대체 분개 차 원재료 / 대 미착품', await lines(transfer), '153:130000 168:-130000')
   r = await row()

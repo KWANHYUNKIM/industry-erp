@@ -168,8 +168,11 @@ public class ImportCostService {
         v.setAmount(nz(req.amount()));
         v.setVat(kind == ImportCostKind.TAX_INVOICE ? nz(req.vat()) : BigDecimal.ZERO);
         v.setFee(kind == ImportCostKind.TRANSFER ? BigDecimal.ZERO : nz(req.fee()));
-        v.setPartner(kind == ImportCostKind.TRANSFER ? null
-                : req.partnerId() != null ? partnerService.get(req.partnerId()) : v.getLot().getPartner());
+        // 원본(2026-10-20): 관리번호를 골라도 거래처는 안 따라오고, 빈 채 저장하면 '아래의 경우 처리가 불가능합니다.' 창에
+        // '거래처가 입력되지 않은 자료' — 본계정대체에는 거래처 칸이 없다
+        if (kind != ImportCostKind.TRANSFER && req.partnerId() == null)
+            throw ApiException.badRequest("거래처가 입력되지 않은 자료");
+        v.setPartner(kind == ImportCostKind.TRANSFER ? null : partnerService.get(req.partnerId()));
         v.setCostItem(kind == ImportCostKind.TAX_INVOICE || kind == ImportCostKind.GENERAL_RECEIPT
                 ? (req.costItemId() != null ? item(req.costItemId()) : null) : null);
         v.setDepartmentId(req.departmentId());
@@ -252,11 +255,12 @@ public class ImportCostService {
                         if (a.clearance == null || v.getVoucherDate().isAfter(a.clearance)) a.clearance = v.getVoucherDate();
                     }
                 }
+                // 원본 2026-10-20: 거래대금지급 500 + 수수료 50 → 대장 [거래대금지급] 550 (계좌에서 나간 돈)
                 case TRADE_PAYMENT -> {
                     if (a.firstPayment == null || v.getVoucherDate().isBefore(a.firstPayment)) a.firstPayment = v.getVoucherDate();
-                    if (!before) a.trade = a.trade.add(amt);
+                    if (!before) a.trade = a.trade.add(amt).add(v.getFee());
                 }
-                case BROKER_PAYMENT -> { if (!before) a.broker = a.broker.add(amt); }
+                case BROKER_PAYMENT -> { if (!before) a.broker = a.broker.add(amt).add(v.getFee()); }
             }
             a.touched = true;
         }
@@ -335,6 +339,15 @@ public class ImportCostService {
                 l.getFirstTradeDate(), l.getRemark(), l.isActive());
     }
 
+    /**
+     * 전표검색 [금액] — 원본 2026-10-20: 청구서 1,000 + 수수료 100 → 1,000(수수료 빼고), 거래대금지급 500 + 수수료 50 → 550,
+     * 세금계산서 공급가 20,000 + 부가세 2,000 → 22,000.
+     */
+    private static BigDecimal listAmount(ImportCostVoucher v) {
+        BigDecimal base = v.getAmount().add(v.getVat());
+        return v.getKind().isPayment() ? base.add(v.getFee()) : base;
+    }
+
     private static VoucherResponse toVoucher(ImportCostVoucher v) {
         BusinessPartner p = v.getPartner();
         Account a = v.getAccount();
@@ -344,7 +357,7 @@ public class ImportCostService {
                 v.getLot().getId(), v.getLot().getCode(), v.getLot().getName(),
                 p != null ? p.getId() : null, p != null ? p.getCode() : null, p != null ? p.getName() : null,
                 v.getCostItem() != null ? v.getCostItem().getId() : null, v.getCostItem() != null ? v.getCostItem().getName() : null,
-                v.getAmount(), v.getVat(), v.getFee(), v.getAmount().add(v.getVat()),
+                v.getAmount(), v.getVat(), v.getFee(), listAmount(v),
                 a != null ? a.getId() : null, a != null ? a.getCode() : null, a != null ? a.getName() : null,
                 b != null ? b.getId() : null, b != null ? (b.getCode() != null ? b.getCode() : b.getAccountNo()) : null,
                 b != null ? (b.getName() != null ? b.getName() : b.getBankName()) : null,
