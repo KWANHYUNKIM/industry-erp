@@ -76,6 +76,7 @@ const NoteFlowPage = lazy(() => import('../pages/accounting/NoteFlowPage'))
 const NoteLedgerPage = lazy(() => import('../pages/accounting/NoteLedgerPage'))
 const NoteListPage = lazy(() => import('../pages/accounting/NoteListPage'))
 const NoteEntryPage = lazy(() => import('../pages/accounting/NoteEntryPage'))
+const NoteBatchDecreasePage = lazy(() => import('../pages/accounting/NoteBatchDecreasePage'))
 const BudgetPage = lazy(() => import('../pages/accounting/BudgetPage'))
 const BudgetReportPage = lazy(() => import('../pages/accounting/BudgetReportPage'))
 const CashPlanPage = lazy(() => import('../pages/accounting/CashPlanPage'))
@@ -669,6 +670,8 @@ export default function AppRouter() {
         <Route path="/accounting/notes-increase" element={<NoteEntryPage key="increase" mode="increase" />} />
         <Route path="/accounting/notes-decrease" element={<NoteEntryPage key="decrease" mode="decrease" />} />
         <Route path="/accounting/notes-endorse" element={<NoteEntryPage key="endorse" mode="endorse" />} />
+        <Route path="/accounting/notes-batch-decrease" element={<NoteBatchDecreasePage key="recv" receivable />} />
+        <Route path="/accounting/notes-pay-batch-decrease" element={<NoteBatchDecreasePage key="pay" receivable={false} />} />
         <Route path="/accounting/notes-list" element={<NoteListPage type="RECEIVABLE" />} />
         <Route path="/accounting/notes-pay-list" element={<NoteListPage type="PAYABLE" />} />
         <Route path="/accounting/notes-ledger" element={<NoteLedgerPage type="RECEIVABLE" />} />

@@ -25,10 +25,16 @@ type Note = PromissoryNote & {
   closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null
   /** 받을어음감소(E010602) 한 장 전표 — 있으면 감소 줄 거래유형 '받을어음감소' · 일자를 누르면 감소 수정 창 */
   closeJournalEntryId?: number | null
+  /** 'VOUCHER' — 받을어음 · 지급어음일괄감소 [입금보고서작성] · [지출결의서작성] 으로 닫힘. 감소 줄 거래유형 '입금보고서' · '지출결의서'(결의서를 지우면 보유로). */
+  closeVia?: string | null
 }
 const recordDecreased = (n: Note) => (n.status as string) === 'RECORD_DECREASED'
 /** 받을어음거래처지급(E010603)으로 닫힌 어음 — 감소 줄 거래유형 '받을어음거래처지급', 일자를 누르면 거래처지급 수정 창. */
 const endorsed = (n: Note) => (n.status as string) === 'ENDORSED'
+const byVoucher = (n: Note) => n.closeVia === 'VOUCHER'
+/** 한 장 입력 · 결의서로 닫힌 감소 줄의 거래유형 */
+const closeKind = (n: Note, receivable: boolean) => byVoucher(n) ? (receivable ? '입금보고서' : '지출결의서')
+  : endorsed(n) ? '받을어음거래처지급' : receivable ? '받을어음감소' : '지급어음감소'
 /** 어음 한 장이 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(결제 · 할인 · 부도) 감소. */
 interface Move { key: string; date: string; inc: boolean; n: Note }
 /** 그 줄의 적요 · 부서 · 프로젝트 — 감소 줄은 감소 때 적은 값. */
@@ -116,7 +122,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
 
   const ofType = useMemo(() => notes.filter((n) => n.type === type), [notes, type])
   /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] 증가 '어음만증가' · 감소 '어음만감소'. */
-  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? (endorsed(m.n) ? '받을어음거래처지급' : receivable ? '받을어음감소' : '지급어음감소') : m.n.statusName)
+  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? closeKind(m.n, receivable) : m.n.statusName)
   /** 감소 줄 [일자] 가 여는 수정 창 — 거래처지급 · 받을어음감소 · 지급어음감소. */
   const editPathOf = (n: Note) => endorsed(n) ? 'notes-endorse' : receivable ? 'notes-decrease' : 'notes-pay-decrease'
   /** 원본 [일자] '2026/10/13-2' — 그날 넣은 어음 중 몇 번째(id 차례). 감소 줄은 날짜만. */
@@ -152,7 +158,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: String(id), name }))
   }, [ofType])
   const authors = useMemo(() => [...new Set(ofType.map((n) => n.createdBy).filter(Boolean) as string[])].sort(), [ofType])
-  const kinds = useMemo(() => [...new Set([receivable ? '받을어음증가' : '지급어음증가', '어음만증가', ...ofType.filter((n) => n.closedDate).map((n) => n.closeJournalEntryId ? (endorsed(n) ? '받을어음거래처지급' : receivable ? '받을어음감소' : '지급어음감소') : n.statusName)])], [ofType, receivable])
+  const kinds = useMemo(() => [...new Set([receivable ? '받을어음증가' : '지급어음증가', '어음만증가', ...ofType.filter((n) => n.closedDate).map((n) => n.closeJournalEntryId ? closeKind(n, receivable) : n.statusName)])], [ofType, receivable])
   /** 회계전표일자-No. — '2026/10/13 -3'. 증가는 출처(어음 · id), 감소는 닫힌 날 적요의 어음번호로 찾는다. */
   const journalOf = (m: Move) => {
     if (!m.inc && recordDecreased(m.n)) return ''
@@ -319,7 +325,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
                          return next
                        })} />
               </td>
-              <td>{!m.inc && m.n.closeJournalEntryId
+              <td>{!m.inc && m.n.closeJournalEntryId && !byVoucher(m.n)
                 ? <a className="ec-link" href={`/accounting/${editPathOf(m.n)}?id=${m.n.id}`} onClick={(e) => { e.preventDefault(); navigate(`/accounting/${editPathOf(m.n)}?id=${m.n.id}`) }}>{dayNo(m)}</a>
                 : dayNo(m)}</td>
               <td>{m.n.noteNo}</td>
