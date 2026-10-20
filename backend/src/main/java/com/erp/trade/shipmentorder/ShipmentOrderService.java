@@ -68,8 +68,11 @@ public class ShipmentOrderService {
 
     /** 미출하현황 — 진행중 지시서 줄 중 잔량이 남은 것. */
     @Transactional(readOnly = true)
-    public List<UnshippedLine> findUnshipped() {
-        List<ShipmentOrderLine> lines = repository.findOpenLines();
+    public List<UnshippedLine> findUnshipped(LocalDate from, LocalDate to) {
+        List<ShipmentOrderLine> lines = repository.findOpenLines().stream()
+                .filter(l -> from == null || !l.getShipmentOrder().getOrderDate().isBefore(from))
+                .filter(l -> to == null || !l.getShipmentOrder().getOrderDate().isAfter(to))
+                .toList();
         Map<Long, BigDecimal> shipped = shipmentService.shippedByShipmentOrderLines(
                 lines.stream().map(ShipmentOrderLine::getId).toList());
         List<UnshippedLine> out = new ArrayList<>();
@@ -79,10 +82,14 @@ public class ShipmentOrderService {
             ShipmentOrder o = l.getShipmentOrder();
             out.add(new UnshippedLine(o.getId(), o.getOrderNo(), o.getOrderDate(), l.getId(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(),
-                    l.getQuantity(), remain,
+                    l.getItem().getUnit(), l.getQuantity(), remain,
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                     o.getWarehouse() != null ? o.getWarehouse().getName() : null,
-                    o.getPartner().getId(), o.getPartner().getName(), o.getDueDate(), l.getRemark()));
+                    o.getPartner().getId(), o.getPartner().getName(),
+                    o.getProject() != null ? o.getProject().getId() : null,
+                    o.getEmployee() != null ? o.getEmployee().getName() : null,
+                    o.getContact(), o.getAddress(), o.getCreatedBy(), o.getStatus().getDisplayName(),
+                    o.getDueDate(), l.getRemark()));
         }
         return out;
     }

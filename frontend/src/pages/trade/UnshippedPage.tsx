@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
@@ -9,130 +8,78 @@ import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
-import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
- * 영업관리 > 미출하현황 (이카운트 E040228)
- * 접수·진행중 주문의 라인별 미출하 잔량 (백엔드 /sales-orders/unshipped 연동).
+ * 영업관리 > 미출하현황 (이카운트 E040228).
  *
- * 원본은 조회 조건 패널이 화면의 본체다: 기준일자 · 출하지시No. · 출하예정일 · 창고 · 프로젝트 ·
- * 관리항목 · 거래처 · 품목 · 담당자 · 거래처관리담당자 · 미출하수량(범위).
- * 우리 화면은 조건이 검색어 한 칸뿐이었다 — 미출하가 쌓이면 못 쓴다.
+ * <p><b>2026-10-20 출하지시서 잔량으로 옮겼다</b>(plans/재고1/E040221.md 1장). 원본의 미출하는
+ * '주문 대비 안 나간 수량' 이 아니라 <b>출하지시서 줄 수량 − 그 줄에 이어진 출하 수량</b>이다 —
+ * 주문 7 → 출하지시서 4 → 수정 5 → 미출하 5.00 → 출하 3 → 미출하 2.00(원본 실측).
+ * 그래서 백엔드 /shipment-orders/unshipped(진행중 지시서의 잔량 있는 줄)를 본다.
+ * 예전 줄 끝의 [출하지시](주문 줄에서 바로 출하를 만들던 우리 단추)는 원본에 없어 뺐다 —
+ * 지시서는 출하지시서입력에서, 출하는 출하입력에서 낸다.
  *
- * 창고·프로젝트·담당자·거래처관리담당자는 그 뒤로 만들었고, <b>[출하지시No.] 도 이번에 붙였다</b> —
- * 우리 출하는 출하지시(READY) → 출하완료(SHIPPED) 두 단계라, 미출하로 남아 있는 줄에도
- * 지시는 이미 나가 있을 수 있다. 그게 어느 지시인지 물을 수 있어야 "이 지시에 걸린 것들만"
- * 을 뽑는다. [관리항목]만 아직 없다.
- *
- * <p>원본 결과 열 실측(사본): 일자-No. · 품목명(규격) · 수량 · 미출하수량 · <b>창고명</b> ·
- * 거래처명 · <b>적요</b> · 출하예정일. 적요는 이제 싣는다 — 주문서에 적어 둔 말이
- * 미출하현황에서 사라지면, 왜 아직 안 나갔는지 적어 둬도 그 화면에서는 볼 수가 없다.
- *
- * <p><b>[창고명]도 이제 있다.</b> 예전에는 "주문서에 창고 칸이 없어서" 없다고 적어 뒀는데
- * <b>그 사이에 사실이 아니게 됐다</b> — 수주에 창고를 만들면서 응답도
- * <code>warehouseName</code> 을 싣고 있었고, 이 화면은 그 값으로 <b>거르기까지</b> 하고
- * 있었다. 거를 수는 있는데 볼 수는 없는 열이었던 셈이다.
- * 이유를 고쳐 쓸 것이 아니라 열을 낼 일이었다.
+ * <p>원본 결과 열: 일자-No. · 품목명(규격) · 수량 · 미출하수량 · 창고명 · 거래처명 · 적요 · 출하예정일.
+ * 원본 [구분] 은 품목별 · 라인별 둘이다.
  */
-/**
- * 원본 미출하현황의 [구분] 은 <b>품목별 · 라인별</b> 둘이다(원본 사본 실측).
- * 우리는 라인별 하나뿐이었다. 품목별은 같은 품목의 미출하수량을 주문서를 가로질러 모은다 —
- * "이 품목을 얼마나 더 내보내야 하나"를 보는 쪽이다.
- */
-/** 원본 [정렬기준] 의 후보. 표 머리로 정렬할 수 있는 열과 <b>같은 것들</b>이어야 한다. */
-const SORTS = ['없음', '일자-No.', '품목명(규격)', '거래처명', '출하예정일', '상태'] as const
+/** 원본 [정렬기준] 의 후보. 표 머리로 정렬할 수 있는 열과 같은 것들이어야 한다. */
+const SORTS = ['없음', '일자-No.', '품목명(규격)', '거래처명', '출하예정일'] as const
 
 type Mode = '품목별' | '라인별'
 const MODES = ['품목별', '라인별'] as const
 
 interface UnshippedLine {
-  orderId: number
+  shipmentOrderId: number
   orderNo: string
-  orderLineId: number
-  partnerId: number
-  partnerName: string
   orderDate: string
-  dueDate: string | null
-  status: 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
-  statusName: string
+  lineId: number
   itemId: number
   itemCode: string
   itemName: string
+  spec: string | null
   unit: string
-  /** 원본 조건의 [창고]·[프로젝트]·[담당자]. 수주에 이번에 만든 칸이다. */
+  quantity: number
+  unshippedQty: number
   warehouseId: number | null
   warehouseName: string | null
+  partnerId: number
+  partnerName: string
   projectId: number | null
-  projectName: string | null
   employeeName: string | null
-  orderQty: number
-  shippedQty: number
-  unshippedQty: number
-  /**
-   * 이 줄에 <b>이미 나가 있는 출하지시 전표번호</b>(READY). 여럿이면 쉼표로 이어 온다.
-   * 미출하로 남아 있어도 지시는 나가 있을 수 있다 — 원본 [출하지시No.] 가 그것이다.
-   */
-  shipNos: string | null
-  /** 적요. 원본 미출하현황의 열 — 주문서에 적어 둔 말이 여기서 사라지면 안 된다. */
-  remark: string | null
-  /** 규격 — 열에는 품목명 뒤에 붙여 그리면서 값을 따로 안 받아 거를 수가 없었다. */
-  spec: string | null
-  /** 작성자 — 수주 전표가 진작 들고 있는 값이다. */
+  contact: string | null
+  address: string | null
   createdBy: string | null
+  /** 지시서 진행상태 — 미출하에는 진행중 지시서만 온다. */
+  statusName: string
+  dueDate: string | null
+  remark: string | null
 }
 
-/**
- * 열 이름이 [품목명(규격)] 인데 이름만 찍고 있었다 — 응답은 규격을 진작 싣는다.
- * 이름이 같고 규격만 다른 품목이 나란히 서면 어느 줄이 어느 것인지 볼 길이 없었다.
- */
-const nameSpec = (r: { itemName: string; spec: string | null }) => r.itemName + (r.spec ? ` (${r.spec})` : '')
+const nameSpec = (r: { itemName: string; spec: string | null }) => r.itemName + (r.spec ? ` [${r.spec}]` : '')
+const qty = (n: number) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-const statusColor = (s: UnshippedLine['status']) => (s === 'IN_PROGRESS' ? '#b6791b' : '#1c6fb5')
+const EMPTY = { from: '', to: '', partner: '', item: '', shipNo: '',
+  dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '',
+  ordQtyFrom: '', ordQtyTo: '', spec: '', remark: '', author: '', contact: '', address: '', status: '전체' }
 
 export default function UnshippedPage() {
-  const navigate = useNavigate()
-  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects', 'employees'])
   const [rows, setRows] = useState<UnshippedLine[]>([])
   const [keyword, setKeyword] = useState('')
-  /** 원본 조건 판에 해당하는 값들. 고치면 바로 반영된다(원본도 그렇다). */
-  /*
-   * 원본 미출하현황 조건 차례: 구분 · 기준일자(영업주기) · 출하지시No. · <b>출하예정일</b> ·
-   * 창고 · 프로젝트 · 관리항목 · 거래처 · 품목 · 담당자 · <b>거래처관리담당자</b> · 미출하수량.
-   *
-   * <p>[출하예정일]은 <b>줄에 이미 실려 오는데</b>(납기일) 거를 수가 없었다 —
-   * "이번 주까지 나가야 할 미출하" 를 보려면 표를 눈으로 훑어야 했다.
-   * [거래처관리담당자]는 거래처 마스터가 든다 — "내가 맡은 거래처의 미출하" 를 못 봤다.
-   */
-  /*
-   * 2026-09-08 에 원본(E040228)의 조건 판을 <b>접힌 줄까지 펼쳐</b> 다시 쟀다.
-   * 사본에 열둘로 적혀 있던 것이 실제로는 스물다섯이다. 이 화면의 접힘 표시에는
-   * <code>collapsed</code> 클래스가 <b>붙지 않는다</b> — 줄 수를 세어 봐야 안다.
-   *
-   * <p>새로 만든 여섯: 오더관리번호(옛 [주문번호]를 원본 이름으로) · 수량 ·
-   * 규격 · 적요 · 진행상태 · 작성자.
-   */
-  const [cond, setCond] = useState({ from: '', to: '', partner: '', item: '', orderNo: '', shipNo: '',
-    dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '',
-    ordQtyFrom: '', ordQtyTo: '', spec: '', remark: '', author: '', status: '전체' })
+  const [cond, setCond] = useState(EMPTY)
   const [partnerMgrs, setPartnerMgrs] = useState<Map<string, string>>(new Map())
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  /** 라인별 출하지시 수량 입력값 (기본값: 미출하 잔량) */
-  const [shipQty, setShipQty] = useState<Record<number, string>>({})
-  const [busyLine, setBusyLine] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<UnshippedLine[]>('/sales-orders/unshipped', { params: { from: cond.from || undefined, to: cond.to || undefined } })
-      setRows(res.data)
-      setShipQty({})
+      const res = await api.get<UnshippedLine[]>('/shipment-orders/unshipped', { params: { from: cond.from || undefined, to: cond.to || undefined } })
+      setRows(res.data.map((r) => ({ ...r, quantity: Number(r.quantity), unshippedQty: Number(r.unshippedQty) })))
     } catch (err) {
       setError(extractErrorMessage(err))
       setRows([])
@@ -141,64 +88,25 @@ export default function UnshippedPage() {
     }
   }
 
-  /** 주문 라인에서 출하지시를 생성한다. 출하완료 처리는 출하 화면에서. */
-  async function ship(r: UnshippedLine) {
-    const raw = shipQty[r.orderLineId] ?? String(r.unshippedQty)
-    const qty = Number(raw)
-    if (!Number.isFinite(qty) || qty <= 0) {
-      setError('출하수량을 0보다 크게 입력하세요.')
-      return
-    }
-    if (qty > r.unshippedQty) {
-      setError(`출하수량이 미출하 잔량(${r.unshippedQty.toLocaleString()})을 초과합니다.`)
-      return
-    }
-
-    setBusyLine(r.orderLineId)
-    setError('')
-    setNotice('')
-    try {
-      const res = await api.post<{ shipNo: string }>(`/sales-orders/${r.orderId}/ship`, {
-        lines: [{ orderLineId: r.orderLineId, qty }],
-      })
-      setNotice(`출하지시 ${res.data.shipNo} 생성됨 · 출하지시서에서 출하완료 처리하면 미출하수량이 줄어듭니다.`)
-      await load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setBusyLine(null)
-    }
-  }
-
-  /* 기간을 서버로 보낸다 — 조건 판에 물어 놓고 전 기간을 받아 브라우저에서 걸렀다. */
   useEffect(() => {
     load()
   }, [cond.from, cond.to])
 
-  /* [거래처관리담당자]는 거래처 마스터가 든다 — 미출하 줄은 거래처 <b>이름만</b> 들고 온다. */
+  /* [거래처관리담당자]는 거래처 마스터가 든다 — 미출하 줄은 거래처 이름만 들고 온다. */
   useEffect(() => {
     api.get<{ name: string; manager: string | null }[]>('/partners')
       .then((r) => setPartnerMgrs(new Map(r.data.map((p) => [p.name, p.manager ?? '']))))
       .catch(() => {})
   }, [])
 
-  /**
-   * 원본 [관리항목]. 품목 마스터에 붙는 값이라 응답에는 없다 — 품목 마스터를 받아
-   * 줄의 itemId 로 잇는다. 이 화면은 <b>줄이 곧 품목</b>이라 전표를 훑을 것도 없다.
-   */
+  /** 원본 [관리항목] — 품목 마스터에 붙는 값이라 줄의 itemId 로 잇는다. */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
 
   const shownRows = rows.filter(
     (r) => !keyword || r.partnerName.includes(keyword) || r.orderNo.includes(keyword) || r.itemName.includes(keyword),
   )
-    /*
-     * <b>기준일자는 주문일이고, 출하예정일은 납기일이다.</b>
-     *
-     * <p>예전에는 [기준일자]를 <b>납기일로 읽었다</b> — 원본의 [출하예정일]이 우리에게 없어서
-     * "언제까지 나가야 하는데 안 나갔나" 를 물을 길이 그것뿐이었기 때문이다.
-     * 이제 [출하예정일]을 따로 만들었으니 그 절충이 필요 없다. 둘 다 제 뜻으로 돌린다.
-     */
+    /* 기준일자는 지시서 일자, 출하예정일은 지시서의 출하예정일이다. */
     .filter((r) => !cond.from || r.orderDate >= cond.from)
     .filter((r) => !cond.to || r.orderDate <= cond.to)
     .filter((r) => !cond.dueFrom || (r.dueDate ?? '') >= cond.dueFrom)
@@ -210,60 +118,65 @@ export default function UnshippedPage() {
     .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
     .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !mgmtCond || mgmt.nameOf(r.itemId) === mgmtCond)
-    .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
-    .filter((r) => !cond.ordQtyFrom || r.orderQty >= Number(cond.ordQtyFrom))
-    .filter((r) => !cond.ordQtyTo || r.orderQty <= Number(cond.ordQtyTo))
+    .filter((r) => !cond.ordQtyFrom || r.quantity >= Number(cond.ordQtyFrom))
+    .filter((r) => !cond.ordQtyTo || r.quantity <= Number(cond.ordQtyTo))
     .filter((r) => !cond.spec || (r.spec ?? '').includes(cond.spec))
     .filter((r) => !cond.remark || (r.remark ?? '').includes(cond.remark))
     .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
+    .filter((r) => !cond.contact || (r.contact ?? '').includes(cond.contact))
+    .filter((r) => !cond.address || (r.address ?? '').includes(cond.address))
     .filter((r) => cond.status === '전체' || r.statusName === cond.status)
-    // 원본 [출하지시No.] — 그 지시에 걸린 줄만. 지시가 안 나간 줄은 값이 없어 걸리지 않는다.
-    .filter((r) => !cond.shipNo || (r.shipNos ?? '').includes(cond.shipNo))
+    // 원본 [출하지시No.] — 화면에 찍히는 '2026/10/20 -3' 이나 전표번호 일부 어느 쪽이든.
+    .filter((r) => !cond.shipNo || r.orderNo.includes(cond.shipNo) || dateNo(r.orderDate, r.orderNo).includes(cond.shipNo))
     .filter((r) => !cond.qtyFrom || r.unshippedQty >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.unshippedQty <= Number(cond.qtyTo))
 
-  /*
-   * 다섯 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다.
-   * 수량 두 칸은 원본에도 표시가 없어 그대로 뒀다.
-   * [일자-No.] 는 화면에 찍히는 대로 '일자 번호' 를 이어 붙여 견준다 — 일자가 같은 건은
-   * 번호 차례로 선다.
-   */
   const sort = useTableSort(shownRows, {
     '일자-No.': (r) => `${r.orderDate} ${r.orderNo}`,
     '품목명(규격)': (r) => nameSpec(r),
     거래처명: (r) => r.partnerName,
     출하예정일: (r) => r.dueDate,
-    상태: (r) => r.statusName,
   })
   const shown = sort.sorted
   const [mode, setMode] = useState<Mode>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
 
-  /** 품목별 — 주문서를 가로질러 같은 품목을 모은다. */
+  /** 품목별 — 지시서를 가로질러 같은 품목을 모은다. */
   const byItem = useMemo(() => {
     const m = new Map<number, {
       itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
-      orderQty: number; unshippedQty: number; orderCount: number
+      quantity: number; unshippedQty: number
     }>()
     for (const r of shown) {
       const cur = m.get(r.itemId)
       if (!cur) {
         m.set(r.itemId, {
           itemId: r.itemId, itemCode: r.itemCode, itemName: r.itemName, spec: r.spec, unit: r.unit,
-          orderQty: r.orderQty, unshippedQty: r.unshippedQty, orderCount: 1,
+          quantity: r.quantity, unshippedQty: r.unshippedQty,
         })
       } else {
-        cur.orderQty += r.orderQty
+        cur.quantity += r.quantity
         cur.unshippedQty += r.unshippedQty
-        cur.orderCount += 1
       }
     }
     return [...m.values()].sort((a, b) => b.unshippedQty - a.unshippedQty)
   }, [shown])
 
+  const totalQty = useMemo(() => shown.reduce((s, r) => s + r.quantity, 0), [shown])
   const totalUnshipped = useMemo(() => shown.reduce((s, r) => s + r.unshippedQty, 0), [shown])
 
-  /* 원본 [데이터 보기형식] · [그래프로 보기]. 미출하는 '어느 품목이 밀렸나' 를 보는 화면이다. */
+  /** 라인별 격자 — 달마다 'YYYY/MM 계' 줄을 끼운다(영업관리현황 화면들과 같은 꼴). */
+  const byMonth = useMemo(() => {
+    const out: { month: string; rows: UnshippedLine[]; quantity: number; unshippedQty: number }[] = []
+    for (const r of shown) {
+      const month = r.orderDate.slice(0, 7).replace('-', '/')
+      let g = out[out.length - 1]
+      if (!g || g.month !== month) { g = { month, rows: [], quantity: 0, unshippedQty: 0 }; out.push(g) }
+      g.rows.push(r); g.quantity += r.quantity; g.unshippedQty += r.unshippedQty
+    }
+    return out
+  }, [shown])
+
   const chartRows = useMemo(() =>
     mode === '품목별'
       ? byItem.map((r) => ({ label: nameSpec(r), value: r.unshippedQty }))
@@ -271,9 +184,8 @@ export default function UnshippedPage() {
     [mode, byItem, shown])
 
   const reset = () => {
-    setCond({ from: '', to: '', partner: '', item: '', orderNo: '', shipNo: '',
-      dueFrom: '', dueTo: '', warehouse: '', project: '', employee: '', partnerMgr: '', qtyFrom: '', qtyTo: '',
-      ordQtyFrom: '', ordQtyTo: '', spec: '', remark: '', author: '', status: '전체' })
+    setCond(EMPTY)
+    setMgmtCond('')
     setKeyword('')
   }
 
@@ -296,16 +208,10 @@ export default function UnshippedPage() {
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
-        /* 원본 이 화면의 기준일자 이름은 <b>[기준일자(영업주기)]</b> 다(사본 실측). */
         dateLabel="기준일자(영업주기)"
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         view={view} onViewChange={setView}
       >
-        {/*
-          원본 차례는 기준일자 <b>바로 다음</b>이 [출하지시No.] 다(사본 실측).
-          우리 [주문번호]와 다른 것이다 — 주문은 받은 것이고 출하지시는 내보내라고 낸 것이다.
-          코드도움이 아니라 번호 일부를 치는 text 칸이다(원본도 그렇다).
-        */}
         <EcCond label="출하지시No.">
           <input className="ec-input" placeholder="출하지시No. 일부" value={cond.shipNo}
                  onChange={(e) => setC({ shipNo: e.target.value })} style={{ width: 220 }} />
@@ -327,7 +233,6 @@ export default function UnshippedPage() {
                            value={cond.project} onChange={(v) => setC({ project: v })}
                            items={pickers.projects} />
         </EcCond>
-        {/* 원본 차례: [프로젝트] 다음, [거래처] 앞이다(사본 실측). */}
         <EcCond label="관리항목" pick>
           <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
                            value={mgmtCond} onChange={setMgmtCond}
@@ -349,8 +254,6 @@ export default function UnshippedPage() {
                            items={pickers.employees} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
-          {/* 후보는 <b>실제로 거래처를 맡은 사람들</b>에서 뽑는다 — 아무 거래처도 안 맡은
-              사원을 고를 수 있게 두면 골라도 아무것도 안 나온다. */}
           <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
                            value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
                            items={[...new Set(partnerMgrs.values())].filter(Boolean).sort()
@@ -363,27 +266,20 @@ export default function UnshippedPage() {
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 100 }} />
         </EcCond>
-        {/*
-          원본 차례(2026-09-08 실측, 접힌 줄을 펼쳐 스물다섯): … 미출하수량 ·
-          <b>오더관리번호 · (연락처 · 주소) · 적요 · 수량 · 규격 · 진행상태 · 작성자</b> ·
-          (최종수정자 · 제목) · 적용양식 · 정렬기준 · 데이터 보기형식.
-
-          <p>[주문번호]라는 이름으로 두고 있던 칸이 원본에서는 <b>[오더관리번호]</b>다.
-          출하현황·출하조회에서 같은 이름의 칸이 근거 수주의 전표번호를 가리키는 것을
-          이미 확인했고, 여기서는 줄 자신이 그 수주다.
-        */}
-        {/* 원본에서 이 칸은 <b>코드도움</b>이다(btn-code-search + form-control-code 실측). */}
-        <EcCond label="오더관리번호" pick>
-          <CodePickerField label="오더관리번호" hideLabel width={180} emptyLabel="전체"
-                           value={cond.orderNo} onChange={(v) => setC({ orderNo: v })}
-                           items={[...new Set(rows.map((r) => r.orderNo))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+        {/* 원본 차례: 미출하수량 · 오더관리번호 · 연락처 · 주소 · 적요 · 수량 · 규격 · 진행상태 · 작성자. 연락처 · 주소는 지시서가 든다. */}
+        <EcCond label="연락처">
+          <input className="ec-input" value={cond.contact}
+                 onChange={(e) => setC({ contact: e.target.value })} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="주소">
+          <input className="ec-input" value={cond.address}
+                 onChange={(e) => setC({ address: e.target.value })} style={{ width: 240 }} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={cond.remark}
                  onChange={(e) => setC({ remark: e.target.value })} style={{ width: 200 }} />
         </EcCond>
-        {/* 원본 [수량] — 미출하가 아니라 <b>주문수량</b> 이다. 둘을 따로 묻는다. */}
+        {/* 원본 [수량] — 미출하가 아니라 지시서 줄 수량이다. */}
         <EcCond label="수량">
           <input className="ec-input" type="number" value={cond.ordQtyFrom}
                  onChange={(e) => setC({ ordQtyFrom: e.target.value })} style={{ width: 100 }} />
@@ -395,12 +291,6 @@ export default function UnshippedPage() {
           <ItemSuggestInput field="spec" value={cond.spec}
                             onChange={(v) => setC({ spec: v })} width={140} />
         </EcCond>
-        {/*
-          원본 [진행상태]는 전표의 <b>결재 단계</b>(결재중·미확인·확인)를 고르는 칸이다.
-          우리 수주에는 그 단계가 없고 <b>수주 진행</b>(접수·진행중)이 있다 — 축이 다르므로
-          후보를 지어내지 않고 <b>지금 목록에 실제로 있는 상태</b>에서 뽑는다.
-          미출하현황은 열려 있는 주문만 보므로 완료·취소는 여기 오지 않는다.
-        */}
         <EcCond label="진행상태">
           <div className="ec-pills">
             {['전체', ...new Set(rows.map((r) => r.statusName))].map((k) => (
@@ -416,11 +306,6 @@ export default function UnshippedPage() {
                            items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
-        {/*
-          원본 [정렬기준] — 조건 판에서 무엇으로 세울지 고른다. 우리는 표 머리로만 정렬할 수
-          있었는데, <b>머리를 눌러 봐야 어느 열이 정렬 가능한지 미리 알 수가 없다.</b>
-          고르면 머리의 ▲▼ 도 같이 움직인다 — 둘이 따로 놀면 조건과 표가 어긋난다.
-        */}
         <EcCond label="정렬기준">
           <div className="ec-pills">
             {SORTS.map((k) => (
@@ -432,19 +317,7 @@ export default function UnshippedPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        미출하 라인 <b className="text-ec-navy text-[14px]">{shown.length}</b>건
-        <span className="my-0 mx-[6px] text-ec-off">|</span>
-        미출하수량 합계 <b className="text-ec-danger text-[14px]">{totalUnshipped.toLocaleString()}</b>
-      </div>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {notice && (
-        <p className="bg-ec-blue-wash text-ec-navy border border-ec-info-line border-solid py-[6px] px-[10px] text-[12.5px] rounded-[3px] mb-[8px] flex items-center">
-          {notice}
-          <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => navigate('/sales/shipment-order')}>출하지시서로 이동</button>
-        </p>
-      )}
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="미출하 잔량이 없습니다." />
@@ -452,50 +325,40 @@ export default function UnshippedPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th className="w-[34px]"></th>
               <th className="w-[130px]">품목코드</th>
               <th>품목명(규격)</th>
-              <th className="w-[90px] text-right">주문건수</th>
               <th className="w-[110px] text-right">수량</th>
               <th className="w-[110px] text-right">미출하수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : byItem.map((g, i) => (
+              <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : byItem.map((g) => (
               <tr key={g.itemId}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.itemCode}</td>
                 <td>{nameSpec(g)}</td>
-                <td className="text-right text-ec-hint">{g.orderCount.toLocaleString()}</td>
-                <td className="text-right">{g.orderQty.toLocaleString()} {g.unit}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: g.unshippedQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
-                  {g.unshippedQty.toLocaleString()}
-                </td>
+                <td className="text-right">{qty(g.quantity)}</td>
+                <td className="text-right">{qty(g.unshippedQty)}</td>
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr className="font-bold bg-ec-page">
-              <td colSpan={3} className="text-right">합계 ({byItem.length}품목)</td>
-              <td className="text-right">{byItem.reduce((a, g) => a + g.orderCount, 0).toLocaleString()}</td>
-              <td className="text-right">{byItem.reduce((a, g) => a + g.orderQty, 0).toLocaleString()}</td>
-              <td className="text-right text-ec-danger">{totalUnshipped.toLocaleString()}</td>
-            </tr>
-          </tfoot>
+          {byItem.length > 0 && (
+            <tfoot>
+              <tr className="ec-list-total">
+                <td colSpan={2} className="text-center font-bold">총합계</td>
+                <td className="text-right font-bold">{qty(totalQty)}</td>
+                <td className="text-right font-bold">{qty(totalUnshipped)}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
-            {/* 칸 순서·이름은 원본 미출하현황 격자 그대로:
-                일자-No. · 품목명(규격) · 수량 · 미출하수량 · 창고명 · 거래처명 · 적요 · 출하예정일.
-                창고명·적요도 이제 싣는다 — 둘 다 응답에 진작 있었다.
-                맨 끝 [출하지시] 는 우리 화면의 것이다 — 여기서 바로 출하지시서를 낸다. */}
-            <th className="w-[34px]"></th>
             <th className="w-[170px] cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
             <th className="cursor-pointer" onClick={() => sort.toggle('품목명(규격)')}>품목명(규격) {sort.mark('품목명(규격)')}</th>
             <th className="w-[90px] text-right">수량</th>
@@ -503,51 +366,46 @@ export default function UnshippedPage() {
             <th className="w-[110px]">창고명</th>
             <th className="cursor-pointer" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
             <th className="w-[150px]">적요</th>
-            {/* 원본은 [출하예정일]을 <b>가운데</b>로 찍는다(2026-09-09 실측). */}
+            {/* 원본은 [출하예정일]을 가운데로 찍는다(2026-09-09 실측). */}
             <th className="w-[100px] text-center cursor-pointer" onClick={() => sort.toggle('출하예정일')}>출하예정일 {sort.mark('출하예정일')}</th>
-            <th className="w-[80px] text-center cursor-pointer" onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
-            <th className="w-[150px] text-right">출하지시</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={`${r.orderId}-${r.itemId}-${i}`}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{dateNo(r.orderDate, r.orderNo)}</td>
-              <td>[{r.itemCode}] {nameSpec(r)}</td>
-              <td className="text-right">{r.orderQty.toLocaleString()} {r.unit}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{r.unshippedQty.toLocaleString()}</td>
-              <td>{r.warehouseName ?? ''}</td>
-              <td>{r.partnerName}</td>
-              <td className="text-ec-hint">{r.remark ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', textAlign: 'center', color: r.dueDate ? 'var(--ec-text)' : 'var(--ec-text-hint)' }}>{dateText(r.dueDate) || ''}</td>
-              <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
-              <td className="text-center whitespace-nowrap">
-                <input
-                  className="ec-input"
-                  type="number"
-                  min={0}
-                  max={r.unshippedQty}
-                  style={{ width: 66, textAlign: 'right' }}
-                  value={shipQty[r.orderLineId] ?? String(r.unshippedQty)}
-                  onChange={(e) => setShipQty((p) => ({ ...p, [r.orderLineId]: e.target.value }))}
-                />
-                <button
-                  className="ec-btn ec-btn-primary"
-                  style={{ marginLeft: 4 }}
-                  disabled={busyLine === r.orderLineId || r.unshippedQty <= 0}
-                  onClick={() => ship(r)}
-                >
-                  {busyLine === r.orderLineId ? '처리중…' : '출하지시'}
-                </button>
-              </td>
-            </tr>
-          ))}
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : byMonth.flatMap((g) => [
+            ...g.rows.map((r) => (
+              <tr key={r.lineId}>
+                <td>{dateNo(r.orderDate, r.orderNo)}</td>
+                <td>{nameSpec(r)}</td>
+                <td className="text-right">{qty(r.quantity)}</td>
+                <td className="text-right">{qty(r.unshippedQty)}</td>
+                <td>{r.warehouseName ?? ''}</td>
+                <td>{r.partnerName}</td>
+                <td>{r.remark ?? ''}</td>
+                <td className="text-center">{r.dueDate ? r.dueDate.replace(/-/g, '/') : ''}</td>
+              </tr>
+            )),
+            <tr key={`m-${g.month}`} className="ec-list-total">
+              <td colSpan={2} className="text-center font-bold">{g.month} 계</td>
+              <td className="text-right font-bold">{qty(g.quantity)}</td>
+              <td className="text-right font-bold">{qty(g.unshippedQty)}</td>
+              <td colSpan={4}></td>
+            </tr>,
+          ])}
         </tbody>
+        {shown.length > 0 && (
+          <tfoot>
+            <tr className="ec-list-total">
+              <td colSpan={2} className="text-center font-bold">총합계</td>
+              <td className="text-right font-bold">{qty(totalQty)}</td>
+              <td className="text-right font-bold">{qty(totalUnshipped)}</td>
+              <td colSpan={4}></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
       )}
     </EcListShell>

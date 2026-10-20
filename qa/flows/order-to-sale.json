@@ -22,14 +22,11 @@
       ]
     },
     {
-      "name": "미출하현황 — 3개만 출하지시",
-      "path": "/sales/unshipped",
+      "name": "주문에 이어 3개 출하(API — 미출하현황의 [출하지시] 단추는 2026-10-20 원본대로 뺐다)",
+      "path": "/sales/shipment-inquiry",
       "steps": [
-        "expect:document.body.innerText.includes(sessionStorage.getItem('o2sOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))",
-        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))); const el = tr.querySelector('input[type=number]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '3'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
-        "js:[...[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))).querySelectorAll('button')].find((b) => b.textContent.trim() === '출하지시').click(); true",
-        "expect:/출하지시 SH-[0-9]{8}-[0-9]{4} 생성됨/.test(document.body.innerText)",
-        "js:sessionStorage.setItem('o2sShip', document.body.innerText.match(/SH-[0-9]{8}-[0-9]{4}(?= 생성됨)/)[0]); true"
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).find((x) => x.orderNo === sessionStorage.getItem('o2sOrder')); const s = await (await fetch('/api/sales-orders/' + o.id + '/ship', { method: 'POST', headers: H, body: JSON.stringify({ lines: [{ orderLineId: o.lines[0].lineId, qty: 3 }] }) })).json(); sessionStorage.setItem('o2sShip', s.shipNo); return true })()",
+        "expect:/^SH-[0-9]{8}-[0-9]{4}$/.test(sessionStorage.getItem('o2sShip') || '')"
       ]
     },
     {

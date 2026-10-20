@@ -33,8 +33,10 @@ public class ShipmentOrderController {
     }
 
     @GetMapping("/unshipped")
-    public List<UnshippedLine> unshipped() {
-        return service.findUnshipped();
+    public List<UnshippedLine> unshipped(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.findUnshipped(from, to);
     }
 
     @GetMapping("/{id}")

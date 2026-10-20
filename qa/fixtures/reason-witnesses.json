@@ -1134,6 +1134,14 @@
   "file": "trade/PartnersPage.tsx"
  },
  "출하조회|최종수정자": {
+ "미출하현황|오더관리번호": {
+  "claim": "출하지시서에 오더 참조 칸이 없다",
+  "absent": [
+   "salesOrder",
+   "orderManage"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/shipmentorder/ShipmentOrder.java"
+ },
   "claim": "누가 고쳤는지는 안 남긴다 — 고친 때(updatedAt)만 남는다",
   "in": "backend/src/main/java/com/erp/trade/shipment",
   "absent": [
@@ -1297,22 +1305,6 @@
    "salesOrder"
   ],
   "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
- },
- "미출하현황|연락처": {
-  "claim": "수주에 배송지 칸이 없다 — 연락처·주소는 출하지시서가 든다",
-  "absent": [
-   "contact",
-   "address"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrder.java"
- },
- "미출하현황|주소": {
-  "claim": "수주(SalesOrder)에 배송지 칸이 없다 — 연락처·주소는 출하지시서가 든다. 미출하에는 아직 지시가 안 난 줄도 섞여 있어 붙일 데가 없다 — 수주에 배송지 칸이 없다",
-  "absent": [
-   "contact",
-   "address"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrder.java"
  },
  "판매구매집계표|외화종류": {
   "claim": "판매·구매 전표에 통화 칸이 없다 — 원화 하나로 본다",
@@ -3964,14 +3956,6 @@
   ],
   "in": "backend/src/main/java/com/erp/inventory/item/ItemGroup.java"
  },
- "출하지시서조회|결재중": {
-  "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",
-  "absent": [
-   "confirmStatus",
-   "ApprovalDocument"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
- },
  "출하현황|정렬기준": {
   "claim": "[구분]이 내역·집계로 그 축을 고른다",
   "present": [
@@ -3994,14 +3978,6 @@
   ]
  },
  "출하지시서조회|미확인": {
-  "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",
-  "absent": [
-   "confirmStatus",
-   "ApprovalDocument"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
- },
- "출하지시서조회|확인": {
   "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",
   "absent": [
    "confirmStatus",

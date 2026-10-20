@@ -1,33 +1,49 @@
 {
-  "about": "수금 입력, 주문 → 미출하현황에서 출하지시. node qa/shot.mjs qa/flows/settle-ship.json — 만든 전표는 끝에 지운다.",
+  "about": "수금 입력, 주문 → 출하지시서 → 미출하현황. node qa/shot.mjs qa/flows/settle-ship.json — 만든 전표는 끝에 지운다. 2026-10-20 미출하현황이 원본처럼 출하지시서 잔량을 보게 되어 줄 끝 [출하지시] 단추가 없어졌다(plans/재고1/E040221.md).",
   "shots": [
-    { "name": "수금 입력 — 거래처를 코드도움으로 골라 저장하면 번호와 함께 '저장 완료'", "path": "/sales/settlement", "steps": [
-      "click:거래처 * 선택", "pickrow:QA-CUST",
-      "set:form input[type=number]|12345",
-      "click:저장(F8)",
-      "expect:/RC-[0-9]{8}-[0-9]{4} 저장 완료/.test(document.body.innerText)",
-      "apidel:/settlements|RC-[0-9]{8}-[0-9]{4}|docNo"
-    ] },
-    { "name": "주문 등록(다음 화면에서 출하지시할 주문)", "path": "/sales/orders", "steps": [
-      "click:신규(F2)", "click:매출처 선택", "pickrow:QA-CUST",
-      "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true", "pickrow:QA-PROD",
-      "set:[role=dialog] tbody input.text-right#0|3",
-      "set:[role=dialog] tbody input.text-right#1|1000",
-      "click:출하창고 선택",
-      "pickrow:QA-WH",
-      "click:저장(F8)",
-      "wait:1500",
-      "expect:!document.querySelector('[role=dialog]')",
-      "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSO', o.orderNo); return o.orderNo })()",
-      "js:sessionStorage.setItem('qaOrder', (sessionStorage.getItem('__lastSO') || '').match(/SN-[0-9]{8}-[0-9]{4}/)[0]); true"
-    ] },
-    { "name": "미출하현황 — 방금 주문이 보이고, [출하지시] 를 누르면 출하지시서가 생긴다", "path": "/sales/unshipped", "steps": [
-      "expect:document.body.innerText.includes(sessionStorage.getItem('qaOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))",
-      "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '출하지시') b.click() }); true",
-      "expect:/출하지시 SH-[0-9]{8}-[0-9]{4} 생성됨/.test(document.body.innerText)",
-      "js:sessionStorage.setItem('qaShip', document.body.innerText.match(/SH-[0-9]{8}-[0-9]{4}(?= 생성됨)/)[0]); true",
-      "apidel:/shipments|@qaShip|shipNo",
-      "apidel:/sales-orders|@qaOrder|orderNo"
-    ] }
+    {
+      "name": "수금 입력 — 거래처를 코드도움으로 골라 저장하면 번호와 함께 '저장 완료'",
+      "path": "/sales/settlement",
+      "steps": [
+        "click:거래처 * 선택",
+        "pickrow:QA-CUST",
+        "set:form input[type=number]|12345",
+        "click:저장(F8)",
+        "expect:/RC-[0-9]{8}-[0-9]{4} 저장 완료/.test(document.body.innerText)",
+        "apidel:/settlements|RC-[0-9]{8}-[0-9]{4}|docNo"
+      ]
+    },
+    {
+      "name": "주문 등록(다음 화면에서 출하지시서를 낼 주문)",
+      "path": "/sales/orders",
+      "steps": [
+        "click:신규(F2)",
+        "click:매출처 선택",
+        "pickrow:QA-CUST",
+        "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:[role=dialog] tbody input.text-right#0|3",
+        "set:[role=dialog] tbody input.text-right#1|1000",
+        "click:출하창고 선택",
+        "pickrow:QA-WH",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSO', o.orderNo); return o.orderNo })()",
+        "js:sessionStorage.setItem('qaOrder', (sessionStorage.getItem('__lastSO') || '').match(/SN-[0-9]{8}-[0-9]{4}/)[0]); true"
+      ]
+    },
+    {
+      "name": "미출하현황 — 주문으로 낸 출하지시서 3(API — 입력 창은 shipment-order 흐름이 본다)이 미출하 3.00 으로 보인다, 줄 끝 [출하지시] 단추는 없다",
+      "path": "/sales/unshipped",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const g = async (p) => (await fetch('/api' + p, { headers: H })).json(); const pt = (await g('/partners')).find((p) => p.code === 'QA-CUST'); const it = (await g('/items')).find((i) => i.code === 'QA-PROD'); const wh = (await g('/warehouses')).find((w) => w.code === 'QA-WH'); const s = await (await fetch('/api/shipment-orders', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: pt.id, warehouseId: wh.id, remark: 'QA재고1 미출하', lines: [{ itemId: it.id, quantity: 3 }] }) })).json(); sessionStorage.setItem('qaSI', s.orderNo); sessionStorage.setItem('qaSIRow', s.orderNo.replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')); return true })()",
+        "click:검색(F8)",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0] && tr.cells[0].innerText.trim() === sessionStorage.getItem('qaSIRow')); return tr && tr.cells[2].innerText.trim() === '3.00' && tr.cells[3].innerText.trim() === '3.00' })()",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '출하지시')",
+        "apidel:/shipment-orders|@qaSI|orderNo",
+        "apidel:/sales-orders|@qaOrder|orderNo"
+      ]
+    }
   ]
 }

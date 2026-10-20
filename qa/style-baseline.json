@@ -1170,8 +1170,8 @@
   "palette": 0
  },
  "pages/trade/UnshippedPage.tsx": {
-  "inline": 15,
-  "color": 2,
+  "inline": 10,
+  "color": 0,
   "palette": 0
  },
  "pages/trade/UnsoldStatusPage.tsx": {

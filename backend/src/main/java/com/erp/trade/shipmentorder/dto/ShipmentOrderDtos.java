@@ -92,9 +92,10 @@ public final class ShipmentOrderDtos {
     /** 미출하현황(원본 E040228) 한 줄 — 일자-No. · 품목명(규격) · 수량 · 미출하수량 · 창고명 · 거래처명 · 출하예정일. */
     public record UnshippedLine(
             Long shipmentOrderId, String orderNo, LocalDate orderDate, Long lineId,
-            Long itemId, String itemCode, String itemName, String spec,
+            Long itemId, String itemCode, String itemName, String spec, String unit,
             BigDecimal quantity, BigDecimal unshippedQty,
             Long warehouseId, String warehouseName, Long partnerId, String partnerName,
-            LocalDate dueDate, String remark
+            Long projectId, String employeeName, String contact, String address, String createdBy,
+            String statusName, LocalDate dueDate, String remark
     ) {}
 }

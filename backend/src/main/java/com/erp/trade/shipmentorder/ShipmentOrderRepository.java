@@ -24,7 +24,7 @@ public interface ShipmentOrderRepository extends JpaRepository<ShipmentOrder, Lo
 
     /** 미출하현황 — 진행중 지시서의 줄. */
     @Query("select l from ShipmentOrderLine l join fetch l.shipmentOrder o join fetch o.partner " +
-            "left join fetch o.warehouse join fetch l.item " +
+            "left join fetch o.warehouse left join fetch o.employee left join fetch o.project join fetch l.item " +
             "where o.status = com.erp.trade.shipmentorder.ShipmentOrderStatus.IN_PROGRESS " +
             "order by o.orderDate, o.id, l.id")
     List<ShipmentOrderLine> findOpenLines();
