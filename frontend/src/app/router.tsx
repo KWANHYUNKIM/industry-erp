@@ -92,6 +92,7 @@ const VoucherPrintListPage = lazy(() => import('../pages/accounting/VoucherPrint
 const DayMonthSheetPage = lazy(() => import('../pages/accounting/DayMonthSheetPage'))
 const AccountPartnerLedgerPage = lazy(() => import('../pages/accounting/AccountPartnerLedgerPage'))
 const PartnerAccountLedgerPage = lazy(() => import('../pages/accounting/PartnerAccountLedgerPage'))
+const PartnerBookPage = lazy(() => import('../pages/accounting/PartnerBookPage'))
 const AccountRemarkLedgerPage = lazy(() => import('../pages/accounting/AccountRemarkLedgerPage'))
 const AccountFlowPage = lazy(() => import('../pages/accounting/AccountFlowPage'))
 const VatBookPage = lazy(() => import('../pages/accounting/VatBookPage'))
@@ -707,6 +708,9 @@ export default function AppRouter() {
         <Route path="/accounting/day-month-sheet" element={<DayMonthSheetPage />} />
         <Route path="/accounting/account-partner-ledger" element={<AccountPartnerLedgerPage />} />
         <Route path="/accounting/partner-account-ledger" element={<PartnerAccountLedgerPage />} />
+        {/* 회계 I 장부 › 거래처관리대장 I · II(E010833 · E010842) — 회계 전표로 그린다(재고1 /sales/partner-ledger 와 따로) */}
+        <Route path="/accounting/partner-book-1" element={<PartnerBookPage kind="I" />} />
+        <Route path="/accounting/partner-book-2" element={<PartnerBookPage kind="II" />} />
         <Route path="/accounting/account-remark-ledger" element={<AccountRemarkLedgerPage />} />
         <Route path="/accounting/account-flow" element={<AccountFlowPage />} />
         <Route path="/accounting/vat-book" element={<VatBookPage />} />

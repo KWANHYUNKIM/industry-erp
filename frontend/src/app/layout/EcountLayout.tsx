@@ -673,19 +673,20 @@ const MENU: TopMenu[] = [
           {
             label: '장부',
             children: [
-              { label: '현금출납장', to: '/accounting/cash-book' },
-              { label: '분개장', to: '/accounting/journal-book' },
-              { label: '일/월계표', to: '/accounting/day-month-sheet' },
+              /* 원본 출력물 › 장부 13(2026-10-20 실측) 차례 — 외화장부(아홉째)는 화면이 아직 없다. 시산표 · 원가명세서 · 계정명세서는 주요재무제표 묶음으로.
+                 아래 다섯은 원본 출력물 › 기타 것 — 기타 묶음이 생기면 거기로 옮긴다(그때까지 메뉴에서 안 사라지게 여기 둔다). */
               { label: '계정별원장', to: '/accounting/ledger-book' },
               { label: '계정별거래처별원장', to: '/accounting/account-partner-ledger' },
               { label: '거래처별계정별원장', to: '/accounting/partner-account-ledger' },
               { label: '계정별적요별원장', to: '/accounting/account-remark-ledger' },
               { label: '계정증감내역', to: '/accounting/account-flow' },
               { label: '매입/매출장', to: '/accounting/vat-book' },
+              { label: '분개장', to: '/accounting/journal-book' },
+              { label: '현금출납장', to: '/accounting/cash-book' },
+              { label: '일/월계표', to: '/accounting/day-month-sheet' },
               { label: '거래처거래내역조회', to: '/accounting/partner-tx-list' },
-              { label: '합계잔액시산표', to: '/accounting/trial-balance' },
-              { label: '원가명세서', to: '/accounting/cost-statement' },
-              { label: '계정명세서', to: '/accounting/account-detail' },
+              { label: '거래처관리대장 I', to: '/accounting/partner-book-1' },
+              { label: '거래처관리대장 II', to: '/accounting/partner-book-2' },
               { label: '회계거래현황', to: '/accounting/journal-status' },
               { label: '매출(세금)계산서현황', to: '/accounting/sales-tax-journal' },
               { label: '매입(세금)계산서현황', to: '/accounting/purchase-tax-journal' },
@@ -695,8 +696,7 @@ const MENU: TopMenu[] = [
           },
           {
             /* 원본 출력물 › 주요재무제표(2026-10-20 실측) 차례 — 재무상태표 · 손익계산서 · 원가명세서 · 계정명세서 · 합계잔액시산표 ·
-               현금흐름표 · 이익잉여금처분계산서 · 수입지출명세서. 뒤 셋은 화면이 아직 없다(plans/회계1 남은 것).
-               원가명세서 · 계정명세서 · 합계잔액시산표는 장부 묶음에도 아직 있다 — 장부 차례를 맞출 때 거기서 뺀다. */
+               현금흐름표 · 이익잉여금처분계산서 · 수입지출명세서. 뒤 셋은 화면이 아직 없다(plans/회계1 남은 것). */
             label: '주요재무제표',
             children: [
               { label: '재무상태표', to: '/accounting/balance-sheet' },
