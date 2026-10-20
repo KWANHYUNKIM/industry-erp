@@ -2,6 +2,7 @@ package com.erp.accounting.vatreturn;
 
 import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnDocResponse;
 import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnDocSummary;
+import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnHistoryRow;
 import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnRequest;
 import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnResponse;
 import com.erp.common.ApiException;
@@ -24,6 +25,7 @@ public class VatReturnService {
 
     private final VatReturnRepository repository;
     private final VatReturnDocRepository docRepository;
+    private final VatReturnHistoryRepository historyRepository;
 
     /** [신고서등] 창에서 저장하는 서류 — 신고서 · 첨부서류 1 · 2 · 6 · 15. */
     private static final Set<String> DOC_CODES = Set.of("RETURN", "SALES_INVOICE", "PURCHASE_INVOICE", "CARD_SALES", "CARD_RECEIPT");
@@ -38,7 +40,7 @@ public class VatReturnService {
     }
 
     @Transactional
-    public VatReturnResponse create(VatReturnRequest req) {
+    public VatReturnResponse create(VatReturnRequest req, String username) {
         int from, to;
         Integer omittedFrom = null, omittedTo = null;
         if (req.returnKind() == VatReturnKind.MONTHLY) {
@@ -62,11 +64,13 @@ public class VatReturnService {
                 .reportDate(req.reportDate()).dueDate(req.dueDate())
                 .taxAgent(req.taxAgent()).closure(req.closure())
                 .build();
-        return VatReturnResponse.from(repository.save(v));
+        VatReturn saved = repository.save(v);
+        record(saved, username, VatReturnHistory.INFO, "신규");
+        return VatReturnResponse.from(saved);
     }
 
     @Transactional
-    public VatReturnResponse update(Long id, VatReturnRequest req) {
+    public VatReturnResponse update(Long id, VatReturnRequest req, String username) {
         VatReturn v = repository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("부가가치세 신고서를 찾을 수 없습니다. id=" + id));
         v.setFilingType(req.filingType());
@@ -74,6 +78,7 @@ public class VatReturnService {
         v.setDueDate(req.dueDate());
         v.setTaxAgent(req.taxAgent());
         v.setClosure(req.closure());
+        record(v, username, VatReturnHistory.INFO, "수정");
         return VatReturnResponse.from(v);
     }
 
@@ -98,15 +103,30 @@ public class VatReturnService {
 
     /** [조회](처음) · [새로불러오기] · 신고서 '다시 작성' — 화면이 센 숫자를 그 서류로 저장하고 만든 때를 지금으로. */
     @Transactional
-    public VatReturnDocResponse writeDoc(Long id, String docCode, String data) {
+    public VatReturnDocResponse writeDoc(Long id, String docCode, String data, String username) {
         if (!DOC_CODES.contains(docCode)) throw ApiException.badRequest("알 수 없는 서류입니다. " + docCode);
         VatReturn v = repository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("부가가치세 신고서를 찾을 수 없습니다. id=" + id));
-        VatReturnDoc d = docRepository.findByVatReturnIdAndDocCode(id, docCode)
-                .orElseGet(() -> VatReturnDoc.builder().vatReturn(v).docCode(docCode).build());
+        var found = docRepository.findByVatReturnIdAndDocCode(id, docCode);
+        /* 원본 [새로불러오기] 는 이력에 같은 서류가 '삭제' 다음 '신규' 로 남는다(2026-10-20 실측). */
+        if (found.isPresent()) record(v, username, docCode, "삭제");
+        record(v, username, docCode, "신규");
+        VatReturnDoc d = found.orElseGet(() -> VatReturnDoc.builder().vatReturn(v).docCode(docCode).build());
         d.setData(data);
         d.setWrittenAt(LocalDateTime.now());
         VatReturnDoc saved = docRepository.save(d);
         return new VatReturnDocResponse(saved.getDocCode(), saved.getData(), saved.getWrittenAt());
+    }
+
+    /** 목록 [이력] — 원본 '부가세신고서 이력보기'. 오래된 것부터. */
+    @Transactional(readOnly = true)
+    public List<VatReturnHistoryRow> history(Long id) {
+        return historyRepository.findByVatReturnIdOrderByChangedAtAscIdAsc(id).stream()
+                .map(h -> new VatReturnHistoryRow(h.getChangedBy(), h.getChangedAt(), h.getDocCode(), h.getAction())).toList();
+    }
+
+    private void record(VatReturn v, String username, String docCode, String action) {
+        historyRepository.save(VatReturnHistory.builder().vatReturn(v).changedAt(LocalDateTime.now())
+                .changedBy(username).docCode(docCode).action(action).build());
     }
 }

@@ -5,9 +5,12 @@ import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnDocResponse;
 import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnDocSummary;
 import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnRequest;
 import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnResponse;
+import com.erp.accounting.vatreturn.dto.VatReturnDtos.VatReturnHistoryRow;
+import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,13 +29,14 @@ public class VatReturnController {
     }
 
     @PostMapping
-    public VatReturnResponse create(@Valid @RequestBody VatReturnRequest req) {
-        return service.create(req);
+    public VatReturnResponse create(@Valid @RequestBody VatReturnRequest req, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.create(req, nameOf(principal));
     }
 
     @PutMapping("/{id}")
-    public VatReturnResponse update(@PathVariable Long id, @Valid @RequestBody VatReturnRequest req) {
-        return service.update(id, req);
+    public VatReturnResponse update(@PathVariable Long id, @Valid @RequestBody VatReturnRequest req,
+                                    @AuthenticationPrincipal UserPrincipal principal) {
+        return service.update(id, req, nameOf(principal));
     }
 
     @PostMapping("/delete")
@@ -55,7 +59,18 @@ public class VatReturnController {
 
     @PutMapping("/{id}/docs/{docCode}")
     public VatReturnDocResponse writeDoc(@PathVariable Long id, @PathVariable String docCode,
-                                         @Valid @RequestBody VatReturnDocRequest req) {
-        return service.writeDoc(id, docCode, req.data());
+                                         @Valid @RequestBody VatReturnDocRequest req,
+                                         @AuthenticationPrincipal UserPrincipal principal) {
+        return service.writeDoc(id, docCode, req.data(), nameOf(principal));
+    }
+
+    /** 목록 [이력] — 원본 '부가세신고서 이력보기'(작업자ID · 작업일시 · 신고서종류 · 행위). */
+    @GetMapping("/{id}/history")
+    public List<VatReturnHistoryRow> history(@PathVariable Long id) {
+        return service.history(id);
+    }
+
+    private static String nameOf(UserPrincipal principal) {
+        return principal == null ? null : principal.getUsername();
     }
 }

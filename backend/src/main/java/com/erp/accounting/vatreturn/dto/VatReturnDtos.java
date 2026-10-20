@@ -57,4 +57,7 @@ public final class VatReturnDtos {
     public record VatReturnDocResponse(String docCode, String data, LocalDateTime writtenAt) {}
 
     public record VatReturnDocRequest(@NotNull(message = "서류 내용이 없습니다.") String data) {}
+
+    /** [이력] 한 줄 — docCode 는 INFO(신고서 정보) · RETURN · SALES_INVOICE …, action 은 신규 · 수정 · 삭제. */
+    public record VatReturnHistoryRow(String changedBy, LocalDateTime changedAt, String docCode, String action) {}
 }
