@@ -7,6 +7,11 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Partner, Item, Warehouse } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
+
+/** 원본 판매단가일괄변경 [저장(F8)] 확인 창 글(2026-10-20 E040224 실측, 줄바꿈 그대로). */
+const BULK_SAVE_CONFIRM = '일괄수정에서는 아래의 사항을 확인바랍니다.\n\n1. 여신한도 및 기간이 체크되지 않습니다.\n'
+  + '2. 부대비용 및 전/후잔 자동변경이 되지 않습니다.\n\n변경된 자료는 복원이 불가합니다.\n변경하겠습니까?'
 
 /**
  * 판매·구매 단가일괄변경.
@@ -99,7 +104,7 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   }, [])
 
   async function loadLines() {
-    setLoading(true); setError(''); setMessage('')
+    setLoading(true); setError(''); setMessage(''); setSearched(true)
     try {
       const res = await api.get<SlipLineRow[]>('/price-bulk/lines', {
         params: {
@@ -120,7 +125,13 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
     }
   }
 
-  useEffect(() => { if (mode === '전표단가') loadLines() }, [mode])
+  /**
+   * 원본 판매단가일괄변경은 조건 판만 펴고 시작하고, [검색(F8)] 을 눌러야 격자가 나온다(2026-10-20 실측).
+   * 구매는 아직 재지 않아 예전처럼 열자마자 읽는다.
+   */
+  const [searched, setSearched] = useState(!sale)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (mode === '전표단가' && !sale) loadLines() }, [mode])
 
   const changed = useMemo(
     () => rows.filter((r) => {
@@ -132,18 +143,21 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
 
   async function save() {
     setError(''); setMessage('')
-    if (changed.length === 0) return setError('바꾼 단가가 없습니다.')
+    // 원본(판매, 2026-10-20 실측): 고친 칸 없이 [저장(F8)] → '알림' 창 '변경된정보가 없습니다.'
+    if (changed.length === 0) return sale ? void ecAlert('변경된정보가 없습니다.') : setError('바꾼 단가가 없습니다.')
     const locked = changed.filter((r) => !r.editable)
     if (locked.length > 0) {
       return setError(`고칠 수 없는 전표가 있습니다: ${locked.map((r) => r.docNo).join(', ')}`)
     }
+    // 원본은 저장 전에 한 번 묻고(체크칸을 안 골라도 고친 줄 전부), 저장 뒤에는 말 없이 격자만 새 금액으로 바뀐다.
+    if (sale && !(await ecConfirm(BULK_SAVE_CONFIRM))) return
     setSaving(true)
     try {
       const res = await api.put<{ changedLines: number; changedSlips: number }>('/price-bulk/lines', {
         tradeType: trade,
         changes: changed.map((r) => ({ lineId: r.lineId, unitPrice: Number(edits[r.lineId]) })),
       })
-      setMessage(`${res.data.changedSlips}개 전표 ${res.data.changedLines}줄의 단가를 바꿨습니다. 공급가액·부가세도 다시 계산했습니다.`)
+      if (!sale) setMessage(`${res.data.changedSlips}개 전표 ${res.data.changedLines}줄의 단가를 바꿨습니다. 공급가액·부가세도 다시 계산했습니다.`)
       await loadLines()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -162,7 +176,18 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   return (
     <EcListShell
       title={title}
-      actions={mode === '전표단가'
+      /* 판매: 머리에 검색칸이 없는 현황형 — 판을 펴고 시작, 판 아래 [검색(F8)], 하단 버튼줄은 [저장(F8)] 하나(원본 실측). */
+      {...(sale ? { searchable: false, onSearch: () => { if (mode === '전표단가') void loadLines() } } : {})}
+      actions={sale
+        ? (mode !== '전표단가' ? []
+          : searched ? [{ label: saving ? '저장 중…' : '저장(F8)', onClick: save, primary: true }]
+          /* 검색 전(판이 펴진 채): 원본 판 아래 [검색(F8)] · [다시 작성] */
+          : [{ label: '검색(F8)', onClick: () => void loadLines(), primary: true },
+             { label: '다시 작성', onClick: () => {
+               setFrom(init.from); setTo(init.to); setPartnerId(''); setItemId(''); setWarehouseId('')
+               setTaxType(''); setTradeKind(''); setStatus('ALL')
+             } }])
+        : mode === '전표단가'
         ? [
           { label: loading ? '조회 중…' : '검색(F8)', onClick: loadLines },
           { label: saving ? '저장 중…' : `저장(F8)${changed.length ? ` (${changed.length})` : ''}`, onClick: save, primary: true },
@@ -244,13 +269,14 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
       </EcStatusPanel>
 
       {mode === '전표단가'
-        ? <SlipGrid rows={rows} edits={edits} setEdits={setEdits} loading={loading} total={total} tableRef={tableRef} />
+        ? (searched && <SlipGrid rows={rows} edits={edits} setEdits={setEdits} loading={loading} total={total} tableRef={tableRef} sale={sale} />)
         : <ItemPriceGrid sale={sale} />}
     </EcListShell>
   )
 }
 
-function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
+function SlipGrid({ rows, edits, setEdits, loading, total, tableRef, sale }: {
+  sale: boolean
   rows: SlipLineRow[]
   edits: Record<number, string>
   setEdits: (f: (prev: Record<number, string>) => Record<number, string>) => void
@@ -287,7 +313,8 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
           const dirty = next !== r.unitPrice
           return (
             <tr key={r.lineId} style={dirty ? { background: '#fffbe6' } : undefined}>
-              <td className="text-center">{r.slipDate.replace(/-/g, '/')} {r.docNo}</td>
+              {/* 원본 일자-No. '2026/10/20 -10' — 전표번호 끝 일련번호만 붙인다(판매조회와 같은 규칙). */}
+              <td className="text-center">{r.slipDate.replace(/-/g, '/')} -{Number(r.docNo.split('-').pop()) || r.docNo}</td>
               <td>{r.partnerName}</td>
               <td>{r.employeeName ?? ''}</td>
               <td>{r.warehouseName}</td>
@@ -314,7 +341,8 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
           )
         })}
       </tbody>
-      {rows.length > 0 && (
+      {/* 원본 판매단가일괄변경 격자에는 합계줄이 없다(2026-10-20 실측). */}
+      {rows.length > 0 && !sale && (
         <tfoot>
           <tr>
             <td colSpan={8} className="text-center font-bold">합계 ({rows.length}줄)</td>
