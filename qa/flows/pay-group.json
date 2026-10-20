@@ -5,6 +5,7 @@
       "name": "그룹 저장 → 적용사원 50% → 급여명세에 식대 절반",
       "path": "/hr/pay-groups",
       "steps": [
+        "allowapi:409: /api/pay-settings/groups/",
         "click:신규(F2)",
         "wait:600",
         "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
