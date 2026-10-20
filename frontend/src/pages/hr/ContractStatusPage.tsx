@@ -7,6 +7,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ContractStatus, EmploymentContract } from '../../types/api'
 import { ymd } from '../../utils/periods'
+import { ecConfirm } from '../../components/EcDialog'
 
 type Pill = '전체' | '진행중' | '취소' | '완료'
 /** 원본 진행상태 — 우리 발송 = 진행중, 해지 = 취소, 서명완료 = 완료. 작성(발송 전)은 이 현황에 없다. */
@@ -26,7 +27,8 @@ const threeMonths = () => { const d = new Date(); return { from: ymd(new Date(d.
  * 원본은 [요청]한 계약만 여기 뜬다 — 우리는 발송 · 서명완료 · 해지 계약(작성은 근로계약서진행단계에만).
  * 계약서명은 '계약번호 사원명 근로계약서', 만료일은 계약 종료일, 구분명은 정규직 · 계약직 · 일용직.
  * 원본 [요청]은 사원에게 메일 · 문자로 서명을 청한다(바깥 발송이라 원본에서 누르지 않았다) — 우리 발송은 상태만 바꾼다.
- * 요청기능(요청취소 · 재요청) · 선택삭제는 근로계약서진행단계에서 한다.
+ * 요청기능 열(요청취소 · 재요청)은 원본처럼 두되 우리는 바깥 요청이 없어 늘 흐린 글자(원본 진행단계의 비활성 text-muted 꼴).
+ * [선택삭제]는 체크한 계약을 지운다 — 서명 · 해지된 계약은 서버가 막는다(2026-10-20 관리2 실측: 원본 체크칸 · 요청기능 · 선택삭제).
  * 조건 판은 접혀 있고 [Search(F3)]로 편다 — 기준일자(요청일) · 계약서명. 최초작성자 · 최종수정자는 계약에 작성자를 담지 않아 없다.
  */
 export default function ContractStatusPage() {
@@ -36,11 +38,25 @@ export default function ContractStatusPage() {
   const [nameCond, setNameCond] = useState('')
   const [rows, setRows] = useState<EmploymentContract[]>([])
   const [error, setError] = useState('')
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const tableRef = useRef<HTMLTableElement>(null)
 
-  useEffect(() => {
+  const load = () => {
     api.get<EmploymentContract[]>('/employment-contracts').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
-  }, [])
+  }
+  useEffect(load, [])
+
+  async function deleteChecked() {
+    if (checked.size === 0 || !(await ecConfirm('삭제하겠습니까?'))) return
+    setError('')
+    try {
+      for (const id of checked) await api.delete(`/employment-contracts/${id}`)
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+    setChecked(new Set())
+    load()
+  }
 
   const shown = rows
     .filter((r) => r.status !== 'DRAFT' && r.sentAt)
@@ -51,7 +67,7 @@ export default function ContractStatusPage() {
   useTableColumnCheck(tableRef, '근로계약현황', [shown.length])
 
   return (
-    <EcListShell title="근로계약현황" searchable={false} collapseConditions actions={[{ label: 'Excel' }]}>
+    <EcListShell title="근로계약현황" searchable={false} collapseConditions actions={[{ label: '선택삭제', onClick: deleteChecked, selected: checked.size }, { label: 'Excel' }]}>
       <div className="ec-pills mb-[8px]">
         {(['전체', '진행중', '취소', '완료'] as const).map((p) => (
           <button key={p} type="button" className={`ec-pill${pill === p ? ' active' : ''}`} onClick={() => setPill(p)}>{p}</button>
@@ -74,25 +90,35 @@ export default function ContractStatusPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
+            <th className="w-[34px] text-center">
+              <input type="checkbox" checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={(e) => setChecked(e.target.checked ? new Set(shown.map((r) => r.id)) : new Set())} />
+            </th>
             <th className="text-center">요청일시</th>
             <th>계약서명</th>
             <th className="text-center">진행상태</th>
             <th className="text-center">최종수정일자</th>
             <th className="text-center">만료일</th>
+            <th className="text-center">요청기능</th>
             <th className="text-center">문서</th>
             <th>구분명</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
+              <td className="text-center">
+                <input type="checkbox" checked={checked.has(r.id)}
+                       onChange={(e) => { const n = new Set(checked); if (e.target.checked) n.add(r.id); else n.delete(r.id); setChecked(n) }} />
+              </td>
               <td className="text-center">{dt(r.sentAt)}</td>
               <td>{r.contractNo} {r.employeeName} 근로계약서</td>
               <td className="text-center">{STATUS_NAME[r.status] ?? r.statusName}</td>
               <td className="text-center">{dt(r.updatedAt)}</td>
               <td className="text-center">{r.endDate ? slash(r.endDate) : ''}</td>
+              <td className="text-center text-ec-hint">요청취소 재요청</td>
               <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); nav('/hr/contracts') }}>보기</a></td>
               <td>{r.typeName}</td>
             </tr>

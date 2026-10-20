@@ -46,6 +46,8 @@ export default function PayGroupListPage() {
   const [formError, setFormError] = useState('')
   /** 원본은 그룹명이 비면 문구 없이 그 칸만 빨갛게 둔다. */
   const [nameBad, setNameBad] = useState(false)
+  /** 적용사원등록 — 지급률을 비운 줄 */
+  const [rateBad, setRateBad] = useState<Set<number>>(new Set())
   const [editId, setEditId] = useState<number | null>(null)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
@@ -106,6 +108,7 @@ export default function PayGroupListPage() {
 
   async function openEmployees(g: PayGroup) {
     setEmpError('')
+    setRateBad(new Set())
     setEmpGroup(g)
     try {
       const r = await api.get<PayGroupEmployee[]>(`/pay-settings/groups/${g.id}/employees`)
@@ -118,10 +121,26 @@ export default function PayGroupListPage() {
 
   async function saveEmployees() {
     if (!empGroup) return
+    // 원본: 사원만 넣고 지급률을 비운 채 저장 → 그 칸만 빨갛고 '데이터를 입력하기 바랍니다', 저장 안 됨(2026-10-20 실측)
+    const bad = new Set(empRows.flatMap((r, i) => (r.employeeId && r.rate === '' ? [i] : [])))
+    setRateBad(bad)
+    if (bad.size > 0) return
     const body = empRows.filter((r) => r.employeeId)
       .map((r) => ({ employeeId: Number(r.employeeId), rate: r.rate === '' ? null : Number(r.rate) }))
     try {
       await api.put(`/pay-settings/groups/${empGroup.id}/employees`, body)
+      setEmpGroup(null)
+      load()
+    } catch (e) {
+      setEmpError(extractErrorMessage(e))
+    }
+  }
+
+  /** 원본 적용사원등록 창 [삭제] — 이 그룹의 적용사원을 모두 뺀다(2026-10-20 실측, 확인 문구 같음). */
+  async function clearEmployees() {
+    if (!empGroup || !(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?'))) return
+    try {
+      await api.put(`/pay-settings/groups/${empGroup.id}/employees`, [])
       setEmpGroup(null)
       load()
     } catch (e) {
@@ -259,7 +278,8 @@ export default function PayGroupListPage() {
               <td><a href="#" onClick={(e) => { e.preventDefault(); openEdit(g) }}>{g.name}</a></td>
               <td className="text-center">
                 <a href="#" onClick={(e) => { e.preventDefault(); openEmployees(g) }}>
-                  {g.employeeCount > 0 ? `${g.employeeCount}명` : '등록'}
+                  {/* 원본은 적용사원을 넣은 뒤에도 늘 '등록'(2026-10-20 실측) — 사람 수는 링크 풀이로만 */}
+                  <span title={g.employeeCount > 0 ? `${g.employeeCount}명` : undefined}>등록</span>
                 </a>
               </td>
             </tr>
@@ -337,9 +357,11 @@ export default function PayGroupListPage() {
                     </td>
                     <td>{e?.name ?? ''}</td>
                     <td>{e?.department ?? ''}</td>
-                    <td>
-                      <input className="ec-input w-full text-right" inputMode="decimal" value={r.rate} placeholder={e ? '100' : ''}
+                    <td className={rateBad.has(i) ? 'ec-invalid' : undefined}>
+                      <input className="ec-input w-full text-right" inputMode="decimal" value={r.rate}
+                             aria-invalid={rateBad.has(i)} title={rateBad.has(i) ? '데이터를 입력하기 바랍니다' : undefined}
                              onChange={(ev) => set({ rate: ev.target.value.replace(/[^0-9.]/g, '') })} />
+                      {rateBad.has(i) && <div className="text-ec-danger text-right">데이터를 입력하기 바랍니다</div>}
                     </td>
                   </tr>
                 )
@@ -350,6 +372,10 @@ export default function PayGroupListPage() {
             <button type="button" className="ec-btn ec-btn-primary" onClick={saveEmployees}>저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => empGroup && openEmployees(empGroup)}>다시 작성</button>
             <button type="button" className="ec-btn" onClick={() => setEmpGroup(null)}>닫기</button>
+            {/* 원본: 적용사원이 있는 그룹은 지워지지 않아(해당 항목을 사용 중인 자료가 있어 …) 이 [삭제]로 사원을 먼저 뺀다 */}
+            {empGroup && empGroup.employeeCount > 0 && (
+              <button type="button" className="ec-btn" onClick={clearEmployees}>삭제</button>
+            )}
           </div>
         </>
       )}</Modal>

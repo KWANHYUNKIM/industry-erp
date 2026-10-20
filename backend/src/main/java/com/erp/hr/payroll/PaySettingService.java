@@ -169,9 +169,14 @@ public class PaySettingService {
 
     @Transactional
     public void deleteGroup(Long id) {
-        // 원본 [삭제]: '한번 지워진 자료는 복구될 수 없습니다.' — 적용사원 연결도 함께 지운다
-        groupEmployeeRepository.deleteByGroup_Id(id);
-        groupRepository.delete(group(id));
+        // 원본 [삭제]: '한번 지워진 자료는 복구될 수 없습니다.' — 적용사원이 남아 있으면 지우지 않는다
+        // (2026-10-20 관리2 실측: '해당 항목을 사용 중인 자료가 있어 삭제할 수 없습니다. 자료를 먼저 삭제 바랍니다.'
+        //  적용사원등록 창의 [삭제]로 사원을 먼저 빼야 그룹이 지워진다)
+        PayGroup g = group(id);
+        if (!groupEmployeeRepository.findByGroupWithEmployee(id).isEmpty()) {
+            throw ApiException.conflict("해당 항목을 사용 중인 자료가 있어 삭제할 수 없습니다. 자료를 먼저 삭제 바랍니다.");
+        }
+        groupRepository.delete(g);
     }
 
     /** 원본 [적용사원등록] 창이 여는 목록. */
