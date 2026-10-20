@@ -34,6 +34,36 @@ function defaultPeriod(kind: 'yearBack' | 'lastYear') {
   return { from: ymd(back), to: ymd(d) }
 }
 
+/** 조건 판 [유형] · [입력경로] 체크칸(2026-10-20 통합게시판 실측 — 처음 값 본문만 / 다섯 다). '전체' 는 나머지를 한꺼번에 켜고 끈다. */
+const COND_KINDS = ['전체', '본문', '답글']
+const COND_PATHS = ['전체', '웹(ERP)', '자료올리기', '기타', 'OAPI']
+type CondExtra = { kinds: string[]; doneFrom: string; doneTo: string; title: string; content: string; user: string; no: string
+  del: '전체' | '미삭제' | '삭제'; paths: string[] }
+const EMPTY_COND: CondExtra = { kinds: ['본문'], doneFrom: '', doneTo: '', title: '', content: '', user: '', no: '', del: '미삭제', paths: [...COND_PATHS] }
+
+function toggleAll(cur: string[], v: string, on: boolean, all: string[]) {
+  if (v === '전체') return on ? [...all] : []
+  const next = on ? [...cur, v] : cur.filter((x) => x !== v && x !== '전체')
+  return on && all.slice(1).every((x) => next.includes(x)) ? [...all] : next
+}
+
+/**
+ * 조건 판 거르기. 우리 글은 모두 본문(답글 없음) · 웹(ERP) 입력이고, 지운 글은 남지 않는다 —
+ * 그래서 [답글] 만 · [웹(ERP)] 끔 · 삭제구분 [삭제] 면 빈 목록(원본 삭제 = '등록된 데이터가 없습니다.' 와 같다).
+ */
+function passCond(r: WorkPost, c: CondExtra) {
+  if (!c.kinds.includes('본문')) return false
+  if (!c.paths.includes('웹(ERP)')) return false
+  if (c.del === '삭제') return false
+  const done = r.completedAt?.slice(0, 10) ?? ''
+  if ((c.doneFrom || c.doneTo) && (!done || (c.doneFrom && done < c.doneFrom) || (c.doneTo && done > c.doneTo))) return false
+  if (c.title && !r.title.includes(c.title)) return false
+  if (c.content && !(r.content ?? '').replace(/<[^>]*>/g, '').includes(c.content)) return false
+  if (c.user && !(r.writerName ?? '').includes(c.user) && !r.writer.includes(c.user)) return false
+  if (c.no && String(r.postNo) !== c.no) return false
+  return true
+}
+
 /** 전달자 · 참조자 칸에 든 이름들. 서버에는 ', ' 로 이어 한 글자열로 간다(전체 = null). */
 const splitNames = (v: string | null | undefined) => (v ?? '').split(',').map((x) => x.trim()).filter(Boolean)
 
@@ -302,17 +332,19 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [period, setPeriod] = useState(() => defaultPeriod(cfg.period))
   const { from, to } = period
   const [condOpen, setCondOpen] = useState(false)
-  const [cond, setCond] = useState({ from: period.from, to: period.to, title: '' })
-  const [titleFilter, setTitleFilter] = useState('')
+  const [cond, setCond] = useState(() => ({ from: period.from, to: period.to, ...EMPTY_COND }))
+  /** [검색(F8)] 을 눌러 목록에 건 조건(게시일 빼고). */
+  const [applied, setApplied] = useState<CondExtra>(EMPTY_COND)
   useEffect(() => {
     const p = defaultPeriod(BOARD_CFG[board].period)
     setPeriod(p)
-    setCond({ ...p, title: '' })
-    setTitleFilter('')
+    setCond({ ...p, ...EMPTY_COND })
+    setApplied(EMPTY_COND)
   }, [board])
   function applyCond() {
     setPeriod({ from: cond.from, to: cond.to })
-    setTitleFilter(cond.title.trim())
+    const { from: _f, to: _t, ...extra } = cond
+    setApplied({ ...extra, title: extra.title.trim(), content: extra.content.trim(), user: extra.user.trim(), no: extra.no.trim() })
     setCondOpen(false)
     void load()
   }
@@ -630,7 +662,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     .filter((r) => r.postDate >= from && r.postDate <= to)
     .filter((r) => tab === '전체' || statusOf(r) === tab)
     .filter(passLabel)
-    .filter((r) => !titleFilter || r.title.includes(titleFilter))
+    .filter((r) => passCond(r, applied))
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? r.writer).includes(keyword))
   /*
    * 원본(2026-10-03 같은 글 넷을 넣어 견줌): 번호 붙은 줄은 공지 여부와 상관없이 <b>새 글부터</b>(15 · 14 · 13 · 12),
@@ -833,7 +865,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 
       {/*
         원본 조건 판(2026-10-13 통합게시판 실측): 메뉴 · 게시일 · 유형 · 완료일 · 제목 · 내용1 · 사용자 · 게시글번호 · 삭제구분 · 기타 ·
-        입력경로 · 적용양식, 아래 [검색(F8)] + 기간 빠른선택. 우리는 게시일 · 제목만 건다(나머지는 받쳐 줄 자료가 없다).
+        입력경로 · 적용양식, 아래 [검색(F8)] + 기간 빠른선택.
+        2026-10-20 다시 잼(통합게시판 E200076): 게시일 · 유형(☐전체 ☑본문 ☐답글) · 완료일(빈칸) · 제목 · 내용1(여러 줄) · 사용자 · 게시글번호 ·
+        삭제구분(○전체 ●미삭제 ○삭제) · 기타(☐수정일자순(정렬)) · 입력경로(☑전체 ☑웹(ERP) ☑자료올리기 ☑기타 ☑OAPI), 빠른선택 금년 · 전년 · 전년+금년.
+        원본 [삭제] 로 걸면 전년+금년에도 '등록된 데이터가 없습니다.'(지운 글이 남지 않는다) — 우리도 지운 글은 남지 않으니 빈 목록.
+        우리 글은 답글이 없고(본문만) 모두 웹(ERP)에서 들어온다. [수정일자순(정렬)] · [적용양식] · 메뉴(조회/현황/집계)는 아직 없다.
       */}
       {condOpen && (
         <div className="ec-cond mb-[8px]">
@@ -847,6 +883,25 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </div>
             </li>
             <li className="wide">
+              <div className="title">유형</div>
+              <div className="form gap-[8px]">
+                {COND_KINDS.map((k) => (
+                  <label key={k} className="inline-flex items-center gap-[3px]">
+                    <input type="checkbox" checked={cond.kinds.includes(k)}
+                           onChange={(e) => setCond((c) => ({ ...c, kinds: toggleAll(c.kinds, k, e.target.checked, COND_KINDS) }))} />{k}
+                  </label>
+                ))}
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">완료일</div>
+              <div className="form gap-[4px]">
+                <input type="date" className="ec-input w-[140px]" value={cond.doneFrom} onChange={(e) => setCond((c) => ({ ...c, doneFrom: e.target.value }))} />
+                ~
+                <input type="date" className="ec-input w-[140px]" value={cond.doneTo} onChange={(e) => setCond((c) => ({ ...c, doneTo: e.target.value }))} />
+              </div>
+            </li>
+            <li className="wide">
               <div className="title">제목</div>
               <div className="form">
                 <input className="ec-input w-full" placeholder="제목" value={cond.title}
@@ -854,12 +909,57 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                        onKeyDown={(e) => { if (e.key === 'Enter') applyCond() }} />
               </div>
             </li>
+            <li className="wide">
+              <div className="title">내용1</div>
+              <div className="form">
+                <textarea className="ec-input w-full" placeholder="내용1" rows={2} value={cond.content}
+                          onChange={(e) => setCond((c) => ({ ...c, content: e.target.value }))} />
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">사용자</div>
+              <div className="form">
+                <input className="ec-input w-full" placeholder="사용자" value={cond.user}
+                       onChange={(e) => setCond((c) => ({ ...c, user: e.target.value }))}
+                       onKeyDown={(e) => { if (e.key === 'Enter') applyCond() }} />
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">게시글번호</div>
+              <div className="form">
+                <input className="ec-input w-full" placeholder="게시글번호" value={cond.no}
+                       onChange={(e) => setCond((c) => ({ ...c, no: e.target.value }))}
+                       onKeyDown={(e) => { if (e.key === 'Enter') applyCond() }} />
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">삭제구분</div>
+              <div className="form gap-[8px]">
+                {(['전체', '미삭제', '삭제'] as const).map((d) => (
+                  <label key={d} className="inline-flex items-center gap-[3px]">
+                    <input type="radio" name="work-cond-del" checked={cond.del === d}
+                           onChange={() => setCond((c) => ({ ...c, del: d }))} />{d}
+                  </label>
+                ))}
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">입력경로</div>
+              <div className="form gap-[8px]">
+                {COND_PATHS.map((p) => (
+                  <label key={p} className="inline-flex items-center gap-[3px]">
+                    <input type="checkbox" checked={cond.paths.includes(p)}
+                           onChange={(e) => setCond((c) => ({ ...c, paths: toggleAll(c.paths, p, e.target.checked, COND_PATHS) }))} />{p}
+                  </label>
+                ))}
+              </div>
+            </li>
           </ul>
           <div className="flex flex-wrap gap-[4px] mt-[8px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={applyCond}>검색(F8)</button>
             <EcPeriodPicks labels={BOARD_PICKS} currentFrom={cond.from}
                            onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
-            <button type="button" className="ec-btn" onClick={() => setCond({ ...defaultPeriod(cfg.period), title: '' })}>다시작성</button>
+            <button type="button" className="ec-btn" onClick={() => setCond({ ...defaultPeriod(cfg.period), ...EMPTY_COND })}>다시작성</button>
           </div>
         </div>
       )}
