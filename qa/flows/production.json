@@ -2,17 +2,19 @@
   "about": "생산 화면 회귀 시험. node qa/shot.mjs qa/flows/production.json — 만든 전표는 끝에 지운다.",
   "shots": [
     {
-      "name": "작업지시서입력 — 품목·생산공장을 코드도움으로 골라 저장하면 번호와 함께 '등록 완료'(원본처럼 여러 품목 한 전표)",
+      "name": "작업지시서입력 — 품목코드를 쳐서 Enter 로 줄을 채우고 생산공장을 골라 저장하면 원본처럼 말 없이 빈 입력으로 돌아가고, 지시는 생긴다",
       "path": "/production/work-order-entry",
       "steps": [
-        "click:품목 선택",
-        "pickrow:QA-PROD",
+        "js:const i=document.querySelector(\"table.ec-grid-input input[aria-label='품목']\");i.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'QA-PROD');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));true",
+        "expect:document.querySelector(\"table.ec-grid-input input[aria-label='품목']\").value==='QA-PROD'",
         "click:생산공장 선택",
         "pickrow:QA-WH",
         "set:table.ec-grid-input input[type=number]#0|5",
         "click:저장(F8)",
-        "expect:/WO-[0-9]{8}-[0-9]{4} 작업지시 등록 완료 · 1줄/.test(document.body.innerText)",
-        "apidel:/work-orders|WO-[0-9]{8}-[0-9]{4}|orderNo"
+        "expect:!document.querySelector(\"table.ec-grid-input input[aria-label='품목']\").value && !/작업지시 등록 완료/.test(document.body.innerText)",
+        "js:fetch('/api/work-orders',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const w=d.filter((x)=>x.productCode==='QA-PROD').sort((a,b)=>b.id-a.id)[0];sessionStorage.setItem('qaWO',w?w.orderNo:'');return true})",
+        "expect:/WO-[0-9]{8}-[0-9]{4}/.test(sessionStorage.getItem('qaWO'))",
+        "apidel:/work-orders|@qaWO|orderNo"
       ]
     },
     {
@@ -34,12 +36,12 @@
         "pickrow:QA-WH",
         "set:table.ec-grid-input input[type=number]#0|2",
         "click:저장(F8)",
-        "expect:/WO-[0-9]{8}-[0-9]{4} 작업지시 등록 완료/.test(document.body.innerText)",
-        "js:sessionStorage.setItem('qaWO', document.body.innerText.match(/WO-[0-9]{8}-[0-9]{4}(?= 작업지시 등록 완료)/)[0]); true"
+        "js:fetch('/api/work-orders',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const w=d.filter((x)=>x.productCode==='QA-PROD').sort((a,b)=>b.id-a.id)[0];sessionStorage.setItem('qaWO',w?w.orderNo:'');return true})",
+        "expect:/WO-[0-9]{8}-[0-9]{4}/.test(sessionStorage.getItem('qaWO'))"
       ]
     },
     {
-      "name": "생산 흐름 ② 생산입고 I — 머리(생산된공장·받는창고)를 고르고 [작업지시서]→[잔량적용]으로 지시를 불러와 저장하면 번호와 함께 '저장되었습니다', 완제품 재고가 2 는다",
+      "name": "생산 흐름 ② 생산입고 I — 머리(생산된공장·받는창고)를 고르고 [작업지시서]→[잔량적용]으로 지시를 불러와 저장하면 원본처럼 말 없이 빈 입력으로 돌아가고, 완제품 재고가 2 는다",
       "path": "/production/receipt-bom",
       "steps": [
         "click:생산된공장 코드도움",
@@ -51,8 +53,9 @@
         "click:잔량적용",
         "expect:[...document.querySelectorAll('table td')].some((td)=>td.innerText.includes(sessionStorage.getItem('qaWO')))",
         "click:저장(F8)",
-        "expect:/저장되었습니다\\. PR-[0-9]{8}-[0-9]{4} · 1줄 · 수량 2/.test(document.body.innerText)",
-        "js:sessionStorage.setItem('qaProd', document.body.innerText.match(/PR-[0-9]{8}-[0-9]{4}/)[0]); true",
+        "expect:!/저장되었습니다/.test(document.body.innerText)",
+        "js:fetch('/api/productions',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const p=d.find((x)=>x.workOrderNo===sessionStorage.getItem('qaWO'));sessionStorage.setItem('qaProd',p?p.prodNo:'');return true})",
+        "expect:/PR-[0-9]{8}-[0-9]{4}/.test(sessionStorage.getItem('qaProd'))",
         "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaStock1',String(x?x.quantity:0));return true})",
         "expect:Number(sessionStorage.getItem('qaStock1')) - Number(sessionStorage.getItem('qaStock0')) === 2",
         "apidel:/productions|@qaProd|prodNo",

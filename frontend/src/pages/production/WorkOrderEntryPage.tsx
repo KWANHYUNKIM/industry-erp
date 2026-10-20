@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
+import GridCode from '../../components/GridCode'
+import GridFindButton from '../../components/GridFindButton'
 import EcDateField from '../../components/EcDateField'
 import EcSlipShell from '../../components/EcSlipShell'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -210,11 +212,11 @@ export default function WorkOrderEntryPage() {
     }
     setSaving(true)
     try {
-      const r = editNo
-        ? await api.put<WorkOrder[]>(`/work-orders/slips/${encodeURIComponent(editNo)}`, body)
-        : await api.post<WorkOrder[]>('/work-orders/slips', body)
+      await (editNo
+        ? api.put<WorkOrder[]>(`/work-orders/slips/${encodeURIComponent(editNo)}`, body)
+        : api.post<WorkOrder[]>('/work-orders/slips', body))
+      // 원본은 저장하면 아무 말 없이 빈 입력으로 돌아간다(2026-10-20 실측). 번호는 작업지시서조회에서 본다.
       reset()
-      setOk(`${r.data[0]?.orderNo ?? ''} 작업지시 ${editNo ? '수정' : '등록'} 완료 · ${r.data.length}줄 · 수량 ${won(r.data.reduce((n, w) => n + Number(w.plannedQty), 0))}`)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -233,7 +235,8 @@ export default function WorkOrderEntryPage() {
   }
 
   const gridRef = useRef<HTMLDivElement>(null)
-  useTableColumnCheck(gridRef, '작업지시서입력', [lines.length])
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(gridRef, '작업지시서입력', [lines.length, stocks])
 
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -313,6 +316,7 @@ export default function WorkOrderEntryPage() {
         </ul>
 
         <div className="ec-toolbar" style={{ marginTop: 10 }}>
+          <GridFindButton tableRef={tableRef} />
           <button type="button" className="ec-btn ec-btn-sm" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setError(''); setOrderOpen(true) }}>주문</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSlipLoadOpen(true)}>전표불러오기</button>
@@ -321,7 +325,7 @@ export default function WorkOrderEntryPage() {
         </div>
 
         <div ref={gridRef} className="overflow-x-auto">
-          <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: 1100 }}>
+          <table ref={tableRef} className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: stocks != null ? 1000 : 800 }}>
             <colgroup>
               <col className="w-[30px]" />
               <col className="w-[120px]" />
@@ -329,9 +333,7 @@ export default function WorkOrderEntryPage() {
               <col className="w-[140px]" />
               <col className="w-[100px]" />
               <col className="w-[200px]" />
-              <col className="w-[100px]" />
-              <col className="w-[100px]" />
-              <col className="w-[100px]" />
+              {stocks != null && <><col className="w-[100px]" /><col className="w-[100px]" /></>}
             </colgroup>
             <thead>
               <tr>
@@ -341,9 +343,8 @@ export default function WorkOrderEntryPage() {
                 <th className="text-left">규격</th>
                 <th className="text-right">수량</th>
                 <th className="text-left">생산공장</th>
-                <th className="text-right">기생산</th>
-                <th className="text-right">전체수량</th>
-                <th className="text-right">창고수량</th>
+                {/* 원본 격자에는 없는 열 — [재고불러오기]를 눌렀을 때만 재고를 보인다. */}
+                {stocks != null && <><th className="text-right">전체수량</th><th className="text-right">창고수량</th></>}
               </tr>
             </thead>
             <tbody>
@@ -352,7 +353,11 @@ export default function WorkOrderEntryPage() {
                 return (
                   <tr key={l.key}>
                     <td className="text-center bg-ec-stripe text-ec-hint">{idx + 1}</td>
-                    <td className="pad text-ec-label overflow-hidden whitespace-nowrap">{it?.code ?? ''}</td>
+                    <td className="pad">
+                      {/* 원본처럼 코드를 쳐서 Enter — 한 건이면 바로 줄이 채워지고, 여러 건 · 없음이면 그 글자로 품목 창이 뜬다. */}
+                      <GridCode title="품목" codeHead="품목코드" nameHead="품목명" items={itemPicks}
+                                value={l.productId} onPick={(v) => setLine(l.key, { productId: v })} />
+                    </td>
                     <td className="pad">
                       <CodePickerField label="품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                        value={l.productId} onChange={(v) => setLine(l.key, { productId: v })} items={itemPicks} />
@@ -366,9 +371,10 @@ export default function WorkOrderEntryPage() {
                       <CodePickerField label="생산공장" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                        value={l.warehouseId} onChange={(v) => setLine(l.key, { warehouseId: v })} items={factoryPicks} />
                     </td>
-                    <td className="pad text-right text-ec-hint">{l.produced > 0 ? won(l.produced) : ''}</td>
-                    <td className="pad text-right text-ec-label">{stockAll(l.productId) == null ? '' : won(stockAll(l.productId)!)}</td>
-                    <td className="pad text-right text-ec-label">{stockAt(l.productId, l.warehouseId) == null ? '' : won(stockAt(l.productId, l.warehouseId)!)}</td>
+                    {stocks != null && <>
+                      <td className="pad text-right text-ec-label">{stockAll(l.productId) == null ? '' : won(stockAll(l.productId)!)}</td>
+                      <td className="pad text-right text-ec-label">{stockAt(l.productId, l.warehouseId) == null ? '' : won(stockAt(l.productId, l.warehouseId)!)}</td>
+                    </>}
                   </tr>
                 )
               })}
@@ -377,7 +383,7 @@ export default function WorkOrderEntryPage() {
               <tr>
                 <td colSpan={4} />
                 <td className="text-right font-bold">{won(filled.reduce((n, l) => n + num(l.qty), 0))}</td>
-                <td colSpan={4} />
+                <td colSpan={stocks != null ? 3 : 1} />
               </tr>
             </tfoot>
           </table>

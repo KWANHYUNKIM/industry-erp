@@ -415,13 +415,11 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     }
     setSaving(true)
     try {
-      const r = editNo
-        ? await api.put<Production[]>(`/productions/slips/${encodeURIComponent(editNo)}`, body)
-        : await api.post<Production[]>('/productions/slips', body)
-      const no = r.data[0]?.prodNo ?? ''
-      const total = r.data.reduce((n, p) => n + Number(p.producedQty), 0)
+      await (editNo
+        ? api.put<Production[]>(`/productions/slips/${encodeURIComponent(editNo)}`, body)
+        : api.post<Production[]>('/productions/slips', body))
+      // 원본 생산입고 I 은 저장하면 아무 말 없이 빈 입력으로 돌아간다(2026-10-20 실측). 번호는 생산입고조회에서 본다.
       reset()
-      setOk(`${editNo ? '수정' : '저장'}되었습니다. ${no} · ${r.data.length}줄 · 수량 ${won(total)}`)
       api.get<WorkOrder[]>('/work-orders').then((x) => setOrders(x.data)).catch(() => {})
     } catch (err) {
       setError(extractErrorMessage(err))

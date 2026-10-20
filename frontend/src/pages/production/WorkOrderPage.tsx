@@ -424,7 +424,8 @@ export default function WorkOrderPage() {
                 <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
                 <td>{o.warehouseName}</td>
                 <td className="text-right">{o.plannedQty.toLocaleString()} {o.productUnit}</td>
-                <td className="text-right">{o.producedQty.toLocaleString()}</td>
+                {/* 원본은 아직 생산하지 않은 지시의 [생산수량]을 빈칸으로 둔다(0 이 아니다, 2026-10-20 실측). */}
+                <td className="text-right">{Number(o.producedQty) ? o.producedQty.toLocaleString() : ''}</td>
                 <td className="text-right font-semibold">{o.remainingQty.toLocaleString()}</td>
                 <td className="text-center"><span style={{ color: statusColor(o.status), fontWeight: 600 }}>{o.statusName}</span></td>
                 {LINKS.map((l) => (
