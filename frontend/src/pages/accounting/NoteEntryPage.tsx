@@ -43,8 +43,8 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   /** 어음번호를 코드도움으로 고르는 화면(감소 · 거래처지급) */
   const picksNote = dec || endorse
   const title = dec ? '받을어음감소' : endorse ? '받을어음결제-받을어음거래처결제' : '받을어음증가'
-  /** 원본 삭제 확인 '전표를 삭제하겠습니까? - …' 의 꼬리 */
-  const kindName = dec ? '받을어음감소' : endorse ? '받을어음거래처지급' : '받을어음증가'
+  /** 원본 삭제 확인 '전표를 삭제하겠습니까? - …' 의 꼬리 — 거래처지급 수정 창도 '- 받을어음감소'(2026-10-20 실측). */
+  const kindName = dec || endorse ? '받을어음감소' : '받을어음증가'
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const editId = picksNote ? Number(params.get('id')) || null : null
