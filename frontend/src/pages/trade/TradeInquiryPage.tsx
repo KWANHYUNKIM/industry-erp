@@ -37,6 +37,8 @@ interface NormalDoc {
   // 라인은 공용 타입을 그대로 쓴다 — 여기서 좁게 다시 적어 두면 백엔드가 필드를 늘려도 화면이 못 본다
   // (실제로 lotNo·부대비용·불러온전표가 늘었는데 이 화면만 모르고 있었다).
   lines: TradeLine[]
+  /** 판매입력 II [금액조정] 의 할인(감소). 머리 금액은 이미 뺀 값이다 — 명세서에는 '할인' 줄로 따로 보인다. */
+  discountSupply?: number; discountVat?: number
 }
 
 // 판매조회 탭 (이카운트). '결재중'은 전자결재 진행중, '확인/미확인'은 확인상태.
@@ -164,6 +166,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         employeeName: d.employeeName,
         confirmStatus: (d as SalesDoc).confirmStatus,
         confirmStatusName: (d as SalesDoc).confirmStatusName,
+        discountSupply: Number((d as SalesDoc).discountSupply ?? 0), discountVat: Number((d as SalesDoc).discountVat ?? 0),
         accountingReflected: d.accountingReflected,
         projectName: d.projectName,
         // 라인은 그대로 넘긴다. 필드를 골라 담으면 백엔드가 늘린 것을 화면이 못 본다.
@@ -285,7 +288,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       customer: isSales ? partnerParty : ourParty,
       extra: [{ label: '창고', value: d.warehouseName }, { label: '담당', value: d.employeeName }, { label: '작성', value: d.createdBy }],
       remark: d.remark,
-      lines: d.lines,
+      /*
+       * 판매입력 II 의 할인은 원본 거래명세서에 품목 아래 '할인' 줄(수량 1.00 · 공급가액 -1,000 · 부가세 -100)로 찍힌다
+       * (2026-10-13 E040253 실측). 줄만 더하면 명세서 합계가 머리 금액(할인 뺀 값)과 같아진다 — 전에는 할인 전 금액이 찍혔다.
+       */
+      lines: d.discountSupply || d.discountVat
+        ? [...d.lines, { itemName: '할인', quantity: 1, unitPrice: -(d.discountSupply ?? 0),
+            supplyAmount: -(d.discountSupply ?? 0), vatAmount: -(d.discountVat ?? 0) }]
+        : d.lines,
       footNote: isSales ? '위와 같이 거래하였음을 확인합니다.' : undefined,
     }])
   }

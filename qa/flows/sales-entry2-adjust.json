@@ -33,6 +33,19 @@
       ]
     },
     {
+      "name": "판매조회 거래명세서 인쇄 — 품목 아래 '할인' 줄(1 · -1,000 · -100), 공급가액 9,000 · 부가세 900(원본 E040253 거래명세서 실측)",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:window.open = () => { const f = document.createElement('iframe'); f.id = 'pf'; f.style.cssText = 'position:fixed;left:0;top:0;width:1100px;height:900px;z-index:99999;background:#fff;border:0'; document.body.appendChild(f); const w = f.contentWindow; w.print = () => {}; return w }; true",
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).find((x) => String(x.id) === sessionStorage.getItem('adjSaleId')); const label = s.saleDate.replace(/-/g, '/') + ' -' + Number(s.docNo.split('-').pop()); [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(label) && t.innerText.includes('9,900')).click(); return label })()",
+        "wait:600",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '거래명세서 인쇄').click(); true",
+        "wait:2500",
+        "expect:(() => { const t = document.getElementById('pf')?.contentDocument?.body?.innerText ?? ''; return /할인\\s+1\\s+-1,000\\s+-1,000\\s+-100/.test(t) && /9,000/.test(t) && /900/.test(t) })()"
+      ]
+    },
+    {
       "name": "판매입력(I) ?edit= 로 열면 판매입력 II 로 넘어간다 · 서버 값 · 회계반영 분개 9,900 / 9,000 · 900 · 뒷정리",
       "path": "/sales/sell",
       "steps": [
