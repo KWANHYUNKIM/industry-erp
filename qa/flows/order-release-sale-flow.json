@@ -2,10 +2,16 @@
   "about": "주문서 묶음 흐름(원본 E040204 · E040230 · E040212 2026-10-14 실측) — 주문 QAJ1P · QAJ1-Z12 3 × 300 = 990(납기일자 오늘, 저장하면 말 없이 닫힘) → 출고처리 2 → 미처리 잔량 1.00 → 처리 탭 판매 [입력] → 판매입력 2 × 300 = 600 · 60 · 660 → 처리 판매 칸 '일자-N' → 미판매현황 '3.00 · 1.00 · 300 · 30' → 출고처리된 주문 삭제는 '알림' 창 '주문출고처리된 내역' 으로 막힘 → 판매 삭제(판매 칸 '입력') → 처리취소 → 주문 삭제. 판매할 재고 2 는 처음에 구매(API)로 넣고 끝에 지운다. node qa/shot.mjs qa/flows/order-release-sale-flow.json",
   "shots": [
     {
+      "name": "준비 — QAJ1P · QAJ1-Z12 (없으면 만든다) · 재고 2 구매(API). 화면이 마스터를 다시 읽게 따로 연다",
+      "path": "/sales/orders",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); let p = (await g('/api/partners')).find((x) => x.code === 'QAJ1P'); if (!p) p = await (await fetch('/api/partners', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAJ1P', name: 'QA재고1-거래처', type: 'BOTH' }) })).json(); let it = (await g('/api/items')).find((x) => x.code === 'QAJ1-Z12'); if (!it) it = await (await fetch('/api/items', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAJ1-Z12', name: 'QA재고1-특가', category: 'MERCHANDISE', unitPrice: 0, safetyStock: 0 }) })).json(); const wh = (await g('/api/warehouses')).find((x) => x.code === 'WH-01'); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const r = await (await fetch('/api/purchases', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, warehouseId: wh.id, purchaseDate: d, taxable: true, remark: 'QA재고1 주문흐름 재고', lines: [{ itemId: it.id, quantity: 2, unitPrice: 200 }] }) })).json(); sessionStorage.setItem('ofl', JSON.stringify({ purchaseId: r.id, today: d })); return r.purchaseNo })()"
+      ]
+    },
+    {
       "name": "주문서입력 — 납기일자 오늘, 3 × 300 = 990, 저장하면 말 없이 닫힌다",
       "path": "/sales/orders",
       "steps": [
-        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const p = (await g('/api/partners')).find((x) => x.code === 'QAJ1P'); const it = (await g('/api/items')).find((x) => x.code === 'QAJ1-Z12'); const wh = (await g('/api/warehouses')).find((x) => x.code === 'WH-01'); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const r = await (await fetch('/api/purchases', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, warehouseId: wh.id, purchaseDate: d, taxable: true, remark: 'QA재고1 주문흐름 재고', lines: [{ itemId: it.id, quantity: 2, unitPrice: 200 }] }) })).json(); sessionStorage.setItem('ofl', JSON.stringify({ purchaseId: r.id, today: d })); return r.purchaseNo })()",
         "click:신규(F2)",
         "wait:500",
         "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ofl')); return [...document.querySelectorAll('[role=dialog] input[type=date]')].filter((i) => i.value === S.today).length === 2 })()",
