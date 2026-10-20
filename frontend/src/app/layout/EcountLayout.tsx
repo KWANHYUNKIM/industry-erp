@@ -674,8 +674,7 @@ const MENU: TopMenu[] = [
           {
             label: '장부',
             children: [
-              /* 원본 출력물 › 장부 13(2026-10-20 실측) 차례 — 외화장부(아홉째)는 화면이 아직 없다. 시산표 · 원가명세서 · 계정명세서는 주요재무제표 묶음으로.
-                 아래 다섯은 원본 출력물 › 기타 것 — 기타 묶음이 생기면 거기로 옮긴다(그때까지 메뉴에서 안 사라지게 여기 둔다). */
+              /* 원본 출력물 › 장부 13(2026-10-20 실측) 차례 — 외화장부(아홉째)는 화면이 아직 없다. 시산표 · 원가명세서 · 계정명세서는 주요재무제표 묶음으로. */
               { label: '계정별원장', to: '/accounting/ledger-book' },
               { label: '계정별거래처별원장', to: '/accounting/account-partner-ledger' },
               { label: '거래처별계정별원장', to: '/accounting/partner-account-ledger' },
@@ -688,11 +687,6 @@ const MENU: TopMenu[] = [
               { label: '거래처거래내역조회', to: '/accounting/partner-tx-list' },
               { label: '거래처관리대장 I', to: '/accounting/partner-book-1' },
               { label: '거래처관리대장 II', to: '/accounting/partner-book-2' },
-              { label: '회계거래현황', to: '/accounting/journal-status' },
-              { label: '매출(세금)계산서현황', to: '/accounting/sales-tax-journal' },
-              { label: '매입(세금)계산서현황', to: '/accounting/purchase-tax-journal' },
-              { label: '거래이력조회(회계)', to: '/accounting/journal-history' },
-              { label: '지출결의서이체리스트', to: '/accounting/transfer-list' },
             ],
           },
           {
@@ -705,6 +699,21 @@ const MENU: TopMenu[] = [
               { label: '원가명세서', to: '/accounting/cost-statement' },
               { label: '계정명세서', to: '/accounting/account-detail' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
+            ],
+          },
+          {
+            /* 원본 출력물 › 기타(E010847 … E010705, 2026-10-20 실측) 차례. 전표인쇄 · 거래처중심입력은 회계거래관리 · 재고 쪽 화면을 같이 건다. */
+            label: '기타',
+            children: [
+              { label: '회계거래현황', to: '/accounting/journal-status' },
+              { label: '전표인쇄', to: '/accounting/journal-print' },
+              { label: '매출(세금)계산서현황', to: '/accounting/sales-tax-journal' },
+              { label: '매입(세금)계산서현황', to: '/accounting/purchase-tax-journal' },
+              { label: '지출결의서이체리스트', to: '/accounting/transfer-list' },
+              { label: '회계 vs. 재고 비교', to: '/accounting/accounting-vs-stock' },
+              { label: '거래처중심입력', to: '/sales/partner-entry' },
+              { label: '거래이력조회(회계)', to: '/accounting/journal-history' },
+              { label: '잔액재집계', to: '/accounting/balance-recalc' },
             ],
           },
         ],

@@ -116,6 +116,8 @@ const VatMediaFilePage = lazy(() => import('../pages/accounting/VatMediaFilePage
 const TaxCertificatePage = lazy(() => import('../pages/accounting/TaxCertificatePage'))
 const JournalHistoryPage = lazy(() => import('../pages/accounting/JournalHistoryPage'))
 const TransferListPage = lazy(() => import('../pages/accounting/TransferListPage'))
+const AccountingVsStockPage = lazy(() => import('../pages/accounting/AccountingVsStockPage'))
+const BalanceRecalcPage = lazy(() => import('../pages/accounting/BalanceRecalcPage'))
 const FundDailyPage = lazy(() => import('../pages/accounting/FundDailyPage'))
 const CashFlowListPage = lazy(() => import('../pages/accounting/CashFlowListPage'))
 const FundStatusPage = lazy(() => import('../pages/accounting/FundStatusPage'))
@@ -742,6 +744,8 @@ export default function AppRouter() {
         <Route path="/accounting/purchase-tax-journal" element={<TaxInvoiceJournalPage side="매입" />} />
         <Route path="/accounting/journal-history" element={<JournalHistoryPage />} />
         <Route path="/accounting/transfer-list" element={<TransferListPage />} />
+        <Route path="/accounting/accounting-vs-stock" element={<AccountingVsStockPage />} />
+        <Route path="/accounting/balance-recalc" element={<BalanceRecalcPage />} />
         <Route path="/accounting/fund-daily" element={<FundDailyPage />} />
         <Route path="/accounting/fund-flow" element={<FundDailyPage variant="flow" />} />
         <Route path="/accounting/cash-flow" element={<CashFlowListPage />} />
