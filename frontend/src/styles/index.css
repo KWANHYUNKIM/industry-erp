@@ -1262,4 +1262,14 @@ th.ec-empty {
 .ec-kanban-option { position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center;
   width: 39.7px; height: 20.4px; background: var(--ec-kanban-option); border-bottom: var(--ec-hair) solid var(--ec-line-soft);
   border-left: var(--ec-hair) solid var(--ec-line-soft); border-radius: 0 var(--ec-radius-panel); }
+/* 종이 세금계산서(공급자 · 공급받는자 보관용) — 선 · 글자 색은 --tf 하나로 바꾼다. 원본 1px 선 · 12px Dotum · 제목 24px 700. */
+.ec-taxform { --tf: var(--ec-taxform-red); width: 590px; margin: 0 auto 18px; color: var(--tf); font-size: 12px; }
+.ec-taxform.buyer { --tf: var(--ec-taxform-blue); }
+.ec-taxform table { width: 100%; border-collapse: collapse; border: 1px solid var(--tf); table-layout: fixed; }
+.ec-taxform th, .ec-taxform td { border: 1px solid var(--tf); padding: 2px; height: 24px; background: transparent; color: var(--tf);
+  font-weight: 400; text-align: center; font-size: 12px; }
+.ec-taxform td.v { color: var(--ec-ink); text-align: left; }
+.ec-taxform td.n { color: var(--ec-ink); text-align: right; }
+.ec-taxform td.c { color: var(--ec-ink); }
+.ec-taxform .tf-title { font-size: 24px; font-weight: 700; letter-spacing: 6px; }
 } /* @layer components */
