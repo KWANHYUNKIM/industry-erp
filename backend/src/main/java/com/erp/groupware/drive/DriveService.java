@@ -334,12 +334,12 @@ public class DriveService {
         /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
         stored.setOwnerCode("GROUPWARE");
         String root = "SHARED".equals(driveKey) ? "Shared Drive" : "My Drive";
-        if (parent != null) documentRepository.touch(parent.getId(), java.time.LocalDateTime.now());
         if (same != null) {
             Long oldFileId = same.getFile() != null ? same.getFile().getId() : null;
             same.setFile(stored);
             same.setSizeBytes(stored.getSizeBytes());
             documentRepository.saveAndFlush(same);
+            if (parent != null) documentRepository.touch(parent.getId(), same.getUpdatedAt());
             if (oldFileId != null) fileStorage.delete(oldFileId);
             historyRepository.save(DriveHistory.builder()
                     .document(same).action("파일업로드").name(same.getName()).sizeBytes(same.getSizeBytes())
@@ -357,6 +357,7 @@ public class DriveService {
                 .parent(parent)
                 .build();
         documentRepository.save(doc);
+        if (parent != null) documentRepository.touch(parent.getId(), doc.getUpdatedAt());   // 폴더 줄 = 올린 시각
         historyRepository.save(DriveHistory.builder()
                 .document(doc).action("파일업로드").name(doc.getName()).sizeBytes(doc.getSizeBytes())
                 .actor(uploader).ip(ip)
