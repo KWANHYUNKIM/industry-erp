@@ -8,6 +8,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import type { TrialBalance } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
+import EcEmptyRow from '../../components/ui/EcEmptyRow'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const BOLD: React.CSSProperties = { fontWeight: 700 }
@@ -186,7 +187,10 @@ export default function MonthlyCostPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={months.length + 2} className="ec-empty">불러오는 중…</td></tr>
+            <EcEmptyRow colSpan={months.length + 2} loading />
+          ) : lines.length === 0 && months.every((ym) => !data[ym]?.wipOpen && !data[ym]?.wipClose) ? (
+            /* 원본(2026-10-20 E010824): 원가 계정 · 재공품이 하나도 없으면 계산 줄 없이 이 한 줄. */
+            <EcEmptyRow colSpan={months.length + 2} />
           ) : (
             <>
               {(['재료비', '노무비', '경비'] as Bucket[]).map((b) => {

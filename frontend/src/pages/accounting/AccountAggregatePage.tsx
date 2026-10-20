@@ -21,7 +21,8 @@ const CODE_LABEL: Partial<Record<Axis, string>> = { 계정: '계정코드', 거�
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface PartnerOpt { id: number; code: string; name: string; manager: string | null }
-interface Cell { carry: number; d: number; c: number }
+/** carry · net 은 계정 성격 쪽 부호(차변 성격 = 차 − 대, 대변 성격 = 대 − 차) — 원본 2026-10-20 실측. */
+interface Cell { carry: number; d: number; c: number; net: number }
 interface Line { name: string; code: string; cell: Cell }
 
 /**
@@ -31,8 +32,8 @@ interface Line { name: string; code: string; cell: Cell }
  * 기타(가로보기 · 비율표시 · 코드포함)) · 기준일자(구간, 기본 <b>최근30일</b>, 빠른선택 금일 … 전월 · 금년 · 전년 · 종료일 · 최근30일) ·
  * 부서 · 프로젝트 · 계정 · 거래처 · 거래처관리담당자 · 기타([결재방표시]).
  *
- * <p>기본 판은 계정마다 한 줄 — 계정 · 이월잔액 · 차변 · 대변 · 금액, 끝 [합계](굵게 · 회색). 금액 = 이월잔액 + 차변 − 대변 으로 계정 구분과
- * 상관없이 차변 쪽 부호다(원본에서 외상매입금 −518,824,300). 계정 코드 차례. 수익 · 비용 계정의 이월잔액은 기수 첫날부터만 쌓는다
+ * <p>기본 판은 계정마다 한 줄 — 계정 · 이월잔액 · 차변 · 대변 · 금액, 끝 [합계](굵게 · 회색). 이월잔액 · 금액은 계정 성격 쪽 부호다
+ * — 차변 성격은 차 − 대, 부채 · 자본 · 수익은 대 − 차(2026-10-20 실측: 잡이익 대 50,000 → 금액 50,000, 외상매입금 이월 6,490,700 + 대 − 차 = −491,424,300). 계정 코드 차례. 수익 · 비용 계정의 이월잔액은 기수 첫날부터만 쌓는다
  * — 지난 기수 손익은 이익잉여금으로 넘어가므로(원본 ↗ 새 창이라 직접 재지 못했고 회계 원칙을 따랐다).
  * 우리는 집계조건1 · 2(계정 · 거래처 · 거래유형 · 월별 · 일별)와 [코드포함] · [비율표시](금액 비율)를 만든다.
  * 집계조건3 · 집계대상 · 비교기간 · 가로보기는 원본에서 고르는 판을 못 재 두지 않았다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
@@ -50,6 +51,8 @@ export default function AccountAggregatePage() {
   const [partners, setPartners] = useState<PartnerOpt[]>([])
   /* 손익 계정(수익 · 비용) 코드와 기수 시작월 — 손익의 이월잔액은 기수 첫날부터만 쌓는다. */
   const [plCodes, setPlCodes] = useState<Set<string>>(new Set())
+  /* 대변 성격 계정(부채 · 자본 · 수익) — 이월 · 금액을 대 − 차 로 낸다. */
+  const [creditCodes, setCreditCodes] = useState<Set<string>>(new Set())
   const [fiscalStart, setFiscalStart] = useState<number | null>(null)
   const [partner, setPartner] = useState('')
   const [manager, setManager] = useState('')
@@ -66,8 +69,11 @@ export default function AccountAggregatePage() {
   useEffect(() => {
     api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
     api.get<{ code: string; division: string }[]>('/accounts')
-      .then((r) => setPlCodes(new Set(r.data.filter((a) => a.division === 'REVENUE' || a.division === 'EXPENSE').map((a) => a.code))))
-      .catch(() => setPlCodes(new Set()))
+      .then((r) => {
+        setPlCodes(new Set(r.data.filter((a) => a.division === 'REVENUE' || a.division === 'EXPENSE').map((a) => a.code)))
+        setCreditCodes(new Set(r.data.filter((a) => a.division === 'LIABILITY' || a.division === 'EQUITY' || a.division === 'REVENUE').map((a) => a.code)))
+      })
+      .catch(() => { setPlCodes(new Set()); setCreditCodes(new Set()) })
     api.get<{ fiscalStart?: string } | null>('/preferences')
       .then((r) => { const m = Number(r.data?.fiscalStart); if (m >= 1 && m <= 12) setFiscalStart(m) })
       .catch(() => setFiscalStart(null))
@@ -114,23 +120,26 @@ export default function AccountAggregatePage() {
         if (before && (axis1 === '월별' || axis1 === '일별')) continue
         /*
          * 지난 기수의 손익은 결산으로 이익잉여금에 넘어갔다 — 계정으로 묶을 때 수익 · 비용 계정의 이월잔액에 넣지 않고
-         * [미처분이익잉여금] 줄의 이월로 옮긴다(우리 계정표에 그 계정이 없어 이름만 둔다). 그래야 이월 합계가 0 으로 맞는다.
+         * 자본 자리 [당기순이익] 줄의 이월로 옮긴다(원본 이름 · 자리, 우리 계정표에 그 계정이 없어 이름만 둔다).
          * 설정(기수 시작월)을 모르면 옮기지 않는다.
          */
         const closed = before && axis1 === '계정' && !!fyStart && e.entryDate < fyStart && plCodes.has(l.accountCode)
         if (closed && account) continue
-        const [n1, c1] = closed ? ['미처분이익잉여금', ''] : keyOf(axis1, e, l)
-        if (!m.has(n1)) m.set(n1, { name: n1, code: c1, cell: { carry: 0, d: 0, c: 0 }, subs: new Map() })
+        /* 원본은 지난 기수 손익을 자본 자리의 [당기순이익] 줄 이월로 보인다(2026-10-20 실측, 이익이면 +). */
+        const [n1, c1] = closed ? ['당기순이익', '3'] : keyOf(axis1, e, l)
+        if (!m.has(n1)) m.set(n1, { name: n1, code: c1, cell: { carry: 0, d: 0, c: 0, net: 0 }, subs: new Map() })
         const g = m.get(n1)!
+        const sign = closed || creditCodes.has(l.accountCode) ? -1 : 1
         const add = (cell: Cell) => {
-          if (before) cell.carry += Number(l.debit) - Number(l.credit)
-          else { cell.d += Number(l.debit); cell.c += Number(l.credit) }
+          const v = sign * (Number(l.debit) - Number(l.credit))
+          if (before) cell.carry += v
+          else { cell.d += Number(l.debit); cell.c += Number(l.credit); cell.net += v }
         }
         add(g.cell)
         if (axis2) {
           if (before && (axis2 === '월별' || axis2 === '일별')) continue
           const [n2, c2] = keyOf(axis2, e, l)
-          if (!g.subs.has(n2)) g.subs.set(n2, { name: n2, code: c2, cell: { carry: 0, d: 0, c: 0 } })
+          if (!g.subs.has(n2)) g.subs.set(n2, { name: n2, code: c2, cell: { carry: 0, d: 0, c: 0, net: 0 } })
           add(g.subs.get(n2)!.cell)
         }
       }
@@ -140,10 +149,11 @@ export default function AccountAggregatePage() {
       .map((g) => ({ ...g, subs: [...g.subs.values()].filter((s) => nz(s.cell)).sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name, 'ko')) }))
       .sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name, 'ko'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, axis1, axis2, account, partner, manager, from, pById, fyStart, plCodes])
+  }, [entries, axis1, axis2, account, partner, manager, from, pById, fyStart, plCodes, creditCodes])
 
-  const amt = (c: Cell) => c.carry + c.d - c.c
-  const total = groups.reduce((s, g) => ({ carry: s.carry + g.cell.carry, d: s.d + g.cell.d, c: s.c + g.cell.c }), { carry: 0, d: 0, c: 0 })
+  /* 금액 = 이월 + 기간 순액(계정 성격 쪽). 합계는 그 부호 그대로 더한다 — 원본 합계 이월 6,673,464,028 · 금액 5,757,154,028(차 · 대 합계는 같다). */
+  const amt = (c: Cell) => c.carry + c.net
+  const total = groups.reduce((s, g) => ({ carry: s.carry + g.cell.carry, d: s.d + g.cell.d, c: s.c + g.cell.c, net: s.net + g.cell.net }), { carry: 0, d: 0, c: 0, net: 0 })
   const pct = (c: Cell) => { const t = amt(total); return t === 0 ? '' : `${((amt(c) / t) * 100).toFixed(2)}%` }
   const accounts = useMemo(() => [...new Set(entries.flatMap((e) => e.lines.map((l) => l.accountName)))].sort(), [entries])
   const managers = useMemo(() => [...new Set(partners.map((p) => p.manager).filter((v): v is string => !!v))].sort(), [partners])
