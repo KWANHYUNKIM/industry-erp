@@ -100,4 +100,12 @@ public class PromissoryNote extends BaseTimeEntity {
 
     @Column(name = "close_project_id")
     private Long closeProjectId;
+
+    /**
+     * 받을어음감소(E010602)가 만든 한 장 전표 — 차) 입금계좌 금액 · 이자비용 수수료 / 대) 받을어음 총금액(2026-10-20 loginaa 실측).
+     * 감소를 지우면 이 전표를 지우고 계좌 입금을 되돌린다. 예전 [만기결제] · [할인]으로 닫힌 어음은 비어 있다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "close_journal_entry_id")
+    private com.erp.accounting.journal.JournalEntry closeJournalEntry;
 }

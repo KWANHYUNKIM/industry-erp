@@ -45,6 +45,7 @@ public class PromissoryNoteService {
     private final AccountRepository accountRepository;
     private final JournalService journalService;
     private final BankCardService bankCardService;
+    private final com.erp.accounting.bankcard.BankAccountRepository bankAccountRepository;
     private final DocumentNoGenerator docNoGenerator;
 
     /** 한 번에 내려보낼 어음 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
@@ -174,6 +175,70 @@ public class PromissoryNoteService {
         n.setCloseRemark(null);
         n.setCloseDepartmentId(null);
         n.setCloseProjectId(null);
+        return NoteResponse.from(n);
+    }
+
+    /**
+     * 받을어음감소(E010602) — 어음번호로 찾은 보유 받을어음을 입금계좌로 받는다. 수수료가 있으면 이자비용으로.
+     * 2026-10-20 loginaa 실측: QA1-N1 총 100,000 · 금액 99,000 · 수수료 1,000 · 기업은행-1122 →
+     * 회계거래조회 '26/10/20-26 | 받을어음감소 | 100,000 | QA회계1', 전표 차) 보통예금 99,000 · 이자비용 1,000 / 대) 받을어음 100,000.
+     * 원본은 총금액이 어음 금액과 달라도 받는다(199,000 저장됨) — 우리는 어음 한 장이 줄 하나라 같아야 한다.
+     */
+    @Transactional
+    public NoteResponse decrease(PromissoryNoteDtos.DecreaseRequest req, String username) {
+        String no = req.noteNo().trim();
+        PromissoryNote n = noteRepository.findByNoteNo(no)
+                .filter(x -> x.getType() == NoteType.RECEIVABLE)
+                .orElseThrow(() -> ApiException.badRequest("어음번호를 찾을 수 없습니다: " + no));
+        n = held(n.getId(), "감소");
+        LocalDate date = req.date() != null ? req.date() : LocalDate.now();
+        requireNotBeforeIssue(n, date, "감소일");
+        BigDecimal fee = req.fee() != null ? req.fee() : BigDecimal.ZERO;
+        BigDecimal total = req.amount().add(fee);
+        if (total.compareTo(n.getAmount()) != 0) {
+            throw ApiException.badRequest(String.format("총금액(%s)이 어음 %s 의 금액(%s)과 다릅니다.",
+                    total.stripTrailingZeros().toPlainString(), n.getNoteNo(), n.getAmount().stripTrailingZeros().toPlainString()));
+        }
+        com.erp.accounting.bankcard.BankAccount bank = bankAccountRepository.findById(req.bankAccountId())
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + req.bankAccountId()));
+        if (bank.getGlAccount() == null) {
+            throw ApiException.badRequest("입금계좌 " + bank.getName() + " 에 [계정]이 없습니다 — 계좌등록에서 정하세요.");
+        }
+        String remark = req.remark() == null || req.remark().isBlank() ? null : req.remark().trim();
+        var entry = journalService.createFromNoteDecrease(n, bank.getGlAccount(), req.amount(), fee, date, remark,
+                req.departmentId(), req.projectId(), username);
+        if (req.amount().signum() > 0) {
+            bankCardService.recordExternal(bank.getId(), true, req.amount(), date,
+                    "받을어음감소 " + n.getNoteNo(), entry, username);
+        }
+        n.setStatus(NoteStatus.SETTLED);
+        n.setClosedDate(date);
+        n.setDiscountFee(fee.signum() > 0 ? fee : null);
+        n.setCloseRemark(remark);
+        n.setCloseDepartmentId(req.departmentId());
+        n.setCloseProjectId(req.projectId());
+        n.setCloseJournalEntry(entry);
+        return NoteResponse.from(n);
+    }
+
+    /** 받을어음감소 지우기 — 원본 '전표를 삭제하겠습니까? - 받을어음감소' 뒤 어음이 다시 보유로(받을어음조회 감소 줄이 빠진다). */
+    @Transactional
+    public NoteResponse cancelDecrease(Long id, String username) {
+        PromissoryNote n = noteRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("어음을 찾을 수 없습니다. id=" + id));
+        var entry = n.getCloseJournalEntry();
+        if (n.getStatus() != NoteStatus.SETTLED || entry == null) {
+            throw ApiException.conflict(n.getNoteNo() + " 은(는) 받을어음감소로 닫힌 어음이 아닙니다.");
+        }
+        n.setCloseJournalEntry(null);
+        n.setStatus(NoteStatus.HELD);
+        n.setClosedDate(null);
+        n.setDiscountFee(null);
+        n.setCloseRemark(null);
+        n.setCloseDepartmentId(null);
+        n.setCloseProjectId(null);
+        bankCardService.reverseExternal(entry, "받을어음감소 삭제 " + n.getNoteNo(), username);
+        journalService.deleteEntry(entry);
         return NoteResponse.from(n);
     }
 

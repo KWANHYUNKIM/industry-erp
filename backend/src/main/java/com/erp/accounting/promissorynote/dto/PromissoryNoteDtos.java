@@ -51,6 +51,21 @@ public final class PromissoryNoteDtos {
             Long projectId
     ) {}
 
+    /**
+     * 받을어음감소(E010602) 한 장 — 원본 칸 [전표일자 · 부서 · 프로젝트 · 입금계좌 · 어음번호 · 총금액 · 금액 · 수수료 · 적요].
+     * 총금액 = 금액 + 수수료 = 그 어음 금액. 빈 입금계좌 · 어음번호는 원본처럼 화면이 칸을 빨갛게 막는다.
+     */
+    public record DecreaseRequest(
+            @NotNull(message = "어음번호: 자료를 입력 바랍니다.") @Size(max = 30, message = "어음번호는 30자까지 넣을 수 있습니다.") String noteNo,
+            @NotNull(message = "입금계좌: 자료를 입력 바랍니다.") Long bankAccountId,
+            LocalDate date,
+            @NotNull(message = "금액: 자료를 입력 바랍니다.") @PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount,
+            @PositiveOrZero(message = "수수료는 0 이상이어야 합니다.") BigDecimal fee,
+            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.") String remark,
+            Long departmentId,
+            Long projectId
+    ) {}
+
     /** 만기결제. 예금계좌를 지정하지 않으면 보통예금(103)으로 분개한다. */
     public record SettleRequest(
             Long bankAccountId,
@@ -82,7 +97,9 @@ public final class PromissoryNoteDtos {
             /** [내역만등록] 감소 줄의 적요 · 부서 · 프로젝트 */
             String closeRemark,
             Long closeDepartmentId,
-            Long closeProjectId
+            Long closeProjectId,
+            /** 받을어음감소(E010602)로 닫혔으면 그 한 장 전표 id — 있으면 감소를 지울 수 있다 */
+            Long closeJournalEntryId
     ) {
         public static NoteResponse from(PromissoryNote n) {
             return new NoteResponse(
@@ -94,7 +111,8 @@ public final class PromissoryNoteDtos {
                     n.getClosedDate(), n.getDiscountFee(),
                     n.getBankName(), n.getRemark(), n.getCreatedBy(), n.isRecordOnly(),
                     n.getDepartmentId(), n.getProjectId(),
-                    n.getCloseRemark(), n.getCloseDepartmentId(), n.getCloseProjectId());
+                    n.getCloseRemark(), n.getCloseDepartmentId(), n.getCloseProjectId(),
+                    n.getCloseJournalEntry() == null ? null : n.getCloseJournalEntry().getId());
         }
     }
 

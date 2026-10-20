@@ -72,6 +72,19 @@ public class PromissoryNoteController {
     }
 
     /** 삭제 — 보유 중인 어음만 */
+    /** 받을어음감소(E010602) 한 장 — 분개 차) 입금계좌 · 이자비용 / 대) 받을어음 */
+    @PostMapping("/decrease")
+    public NoteResponse decrease(@Valid @RequestBody com.erp.accounting.promissorynote.dto.PromissoryNoteDtos.DecreaseRequest req,
+                                 @AuthenticationPrincipal UserPrincipal principal) {
+        return service.decrease(req, principal.getUsername());
+    }
+
+    /** 받을어음감소 지우기(원본 '전표를 삭제하겠습니까? - 받을어음감소') — 전표를 지우고 입금을 되돌려 어음을 보유로 */
+    @DeleteMapping("/{id}/decrease")
+    public NoteResponse cancelDecrease(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.cancelDecrease(id, principal.getUsername());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);

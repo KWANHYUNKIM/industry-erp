@@ -574,6 +574,25 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 받을어음감소(E010602) → 한 장. 2026-10-20 loginaa 실측(QA1-N1 총 100,000 · 금액 99,000 · 수수료 1,000 · 기업은행-1122):
+     * 차) 보통예금(입금계좌의 계정) 99,000 · 이자비용 1,000 / 대) 받을어음 100,000. 전표 적요 = 화면 [적요].
+     * 계좌 잔액은 호출부가 {@code BankCardService.recordExternal} 로 이 전표에 묶어 움직인다.
+     */
+    @Transactional
+    public JournalEntry createFromNoteDecrease(com.erp.accounting.promissorynote.PromissoryNote n, Account bankGl,
+                                               BigDecimal deposit, BigDecimal fee, LocalDate date, String remark,
+                                               Long departmentId, Long projectId, String createdBy) {
+        String desc = remark != null && !remark.isBlank() ? remark.trim() : null;
+        JournalEntry e = newEntry(JournalSourceType.NOTE, null, date, desc, n.getPartner(), createdBy);
+        String lineDesc = (desc != null ? desc : "") + "(No." + n.getNoteNo() + ")";
+        if (isPositive(deposit)) addDebitAccount(e, bankGl, deposit, desc);
+        if (isPositive(fee)) addDebit(e, "951", fee, desc);
+        addCredit(e, "110", nz(deposit).add(nz(fee)), lineDesc);
+        e.stampDeptProject(departmentId, projectId);
+        return save(e);
+    }
+
     /** 어음 처리 단계 중 현금이 오가지 않는 것들. */
     public enum NoteEvent {
         ISSUE("수취/발행"), DISCOUNT_FEE("할인료"), DISHONOR("부도");
