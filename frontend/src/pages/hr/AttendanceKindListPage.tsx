@@ -24,7 +24,7 @@ const TYPES: [KindType, string][] = [['BASIC', '기본'], ['VACATION', '휴가']
  * <ul>
  *   <li>격자 근태코드 · 근태명칭 · 근태그룹 · 근태유형 · 사용 · 적요(근태코드 차례). 버튼 신규(F2) · 사용중단/재사용 ▲(사용중단 · 삭제 · 재사용) · Excel.</li>
  *   <li>[신규(F2)] '근태항목등록' 창: 근태코드(다음 번호 30013 미리 채움) · 근태명칭 · 근태그룹 · 근태유형(기본 · 휴가 · 출/퇴근) ·
- *       계산단위(일 · 시간) · 적요. 저장하면 안내 없이 목록에 붙는다. 삭제는 '삭제하시겠습니까?'.</li>
+ *       계산단위(일 · 시간) · 적요. 저장하면 안내 없이 목록에 붙는다. 삭제는 '삭제하겠습니까?'(2026-10-20 실측).</li>
  *   <li>근태유형 '출/퇴근'(2026-10-13 실측)이면 계산단위 칸이 사라지고 '출/퇴근반영기준' 코드도움이 생긴다 — 계산단위는 그 기준을 따른다.
  *       근태입력 [출/퇴근 ▲ › 사원기준] 의 근태코드 코드도움은 이 유형의 항목만 띄운다.</li>
  * </ul>
@@ -101,7 +101,7 @@ export default function AttendanceKindListPage() {
   /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
   async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
-    if (op === '삭제' && !(await ecConfirm('삭제하시겠습니까?'))) return
+    if (op === '삭제' && !(await ecConfirm('삭제하겠습니까?'))) return
     try {
       for (const k of rows.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/hr/attendance-kinds/${k.id}`)
