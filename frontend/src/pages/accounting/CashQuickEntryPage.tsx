@@ -280,14 +280,18 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     <form onSubmit={(e) => { e.preventDefault(); void save() }}>
       <EcSlipShell
         title={kind.title}
+        /* 원본 2026-10-20(일반영수증 E010501): [저장/전표(F7)]은 [저장(F8)]과 같다 — 저장하고 칸을 비울 뿐, 전표 창은 뜨지 않는다.
+           회계거래조회에서 연 수정 창의 단추는 [저장(F8)] · [저장/전표(F7)] · [복사] · [삭제] · [닫기]. */
         actions={editing ? [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+          { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving },
           /* 원본 [복사]: 같은 값으로 새 전표 입력이 된다 — 일자가 다시 열리고 번호가 없어진다(영수증으로 2026-10-13 실측). */
           { label: '복사', onClick: copyAsNew },
           { label: '삭제', onClick: () => setConfirmDelete(true) },
-          { label: '리스트', onClick: () => navigate('/accounting/journals') },
+          { label: '닫기', onClick: () => navigate('/accounting/journals') },
         ] : [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+          { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving },
           { label: '다시 작성', onClick: () => reset() },
           { label: '리스트', onClick: () => navigate('/accounting/journals') },
         ]}>

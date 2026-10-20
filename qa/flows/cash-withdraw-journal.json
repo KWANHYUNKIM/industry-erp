@@ -32,7 +32,7 @@
         "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 매입처로')).querySelector('a').click(); true",
         "wait:2500",
         "expect:location.pathname === '/accounting/purchase-payment' && document.querySelector('input[aria-label=\"금액\"]').value === '11,000'",
-        "expect:['저장(F8)', '복사', '삭제', '리스트'].every((t) => [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === t))",
+        "expect:['저장(F8)', '저장/전표(F7)', '복사', '삭제', '닫기'].every((t) => [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === t))",
         "set:input[aria-label=\"금액\"]|22000",
         "click:저장(F8)",
         "wait:2500",
