@@ -150,6 +150,7 @@ const RULES: Rule[] = [
   ['/accounting/fixed-asset-slips', 'FIXED_ASSET'],
   ['/accounting/budget', 'FINANCE'],
   ['/accounting/contracts', 'FINANCE'],
+  ['/accounting/e-contracts', 'FINANCE'],
   ['/accounting/contract-items', 'FINANCE'],
   ['/accounting/billing-contracts/new', 'FINANCE'],
   ['/accounting/billing-contracts', 'FINANCE'],

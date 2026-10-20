@@ -1203,6 +1203,9 @@ export interface BusinessContract {
   /** 오늘 기준 만료까지 남은 일수 */
   daysToExpiry: number
   createdBy: string | null
+  /** 전자계약 &gt; 계약서진행단계 [일자] · 계약서현황 [최종수정일자] */
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 // ===== 현금거래 세분류 (계좌간이동 · 법인카드 대금결제) =====

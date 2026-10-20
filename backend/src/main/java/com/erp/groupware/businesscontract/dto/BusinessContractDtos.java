@@ -55,7 +55,9 @@ public final class BusinessContractDtos {
             LocalDate terminatedDate, String terminationReason,
             /** 오늘 기준 만료까지 남은 일수 (해지·만료된 계약은 음수/0) */
             long daysToExpiry,
-            String createdBy
+            String createdBy,
+            /** 전자계약 &gt; 계약서진행단계의 [일자] · 계약서현황의 [최종수정일자] */
+            LocalDateTime createdAt, LocalDateTime updatedAt
     ) {
         public static ContractResponse from(BusinessContract c, LocalDate today) {
             return new ContractResponse(
@@ -69,7 +71,8 @@ public final class BusinessContractDtos {
                     c.getSignerName(), c.getSignedAt(), c.getAgreement(),
                     c.getTerminatedDate(), c.getTerminationReason(),
                     ChronoUnit.DAYS.between(today, c.getEndDate()),
-                    c.getCreatedBy());
+                    c.getCreatedBy(),
+                    c.getCreatedAt(), c.getUpdatedAt());
         }
     }
 }

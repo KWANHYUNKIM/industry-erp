@@ -11,6 +11,7 @@
   "pages/groupware/AttendancePage.tsx": "출/퇴근기록부(ID) 는 <b>달력 한 달</b>을 넘겨 보는 화면이라 기간 조건이 없다 — 잣대에 걸린 것은 EcPeriodPicks 에서 <b>ymd 하나</b>만 가져다 써서다. 누른 날의 기록 창도 같은 rows 를 본다."
  },
  "기간이 안 걸리는 자리": {
+  "pages/accounting/EContractStatusPage.tsx  /contracts": "계약서현황(E061102)의 [기준일자]는 <b>요청일시</b>다 — /contracts 의 from·to 는 <b>계약 시작일</b>로 거르므로 이 자리에 걸 수 없다. 화면이 요청일로 거른다(근로계약현황 E061104 와 같은 엔진, 2026-10-20).",
   "pages/trade/ShipmentOrderPage.tsx  /sales-orders": "화면은 출하지시서의 [기준일자]를 <b>묻지만</b> 이 자리는 입력 창의 <b>[전표불러오기] 주문서</b> 후보다 — 원본 출하지시서입력(E040220)은 지시서 조회 기간과 상관없이 주문서를 고르게 한다(2026-10-20). 지시서 기간으로 거르면 지난달 주문을 이번 달에 지시할 수 없다.",
   "pages/inventory/StockAnalysisPage.tsx  /sales-orders/unsold": "화면은 기간을 <b>묻지만</b>(재고 [기준일]), 이 자리에 걸 기간이 아니다. 재고잔량분석표의 [미판매] 열은 <b>아직 열려 있는 수주 잔량 전부</b>다 — 2026-09-09 에 원본 미판매현황(E040212)과 수치까지 맞춰 확인했다. 그런데 /sales-orders/unsold 의 from·to 는 <b>수주일</b>로 거른다(SalesOrderService.openOrders). 기준일 하루를 보내면 <b>그날 받은 주문만</b> 남아 열이 거의 비어 버린다. 기준일은 이미 /stock?asOf= 로 제 자리에 가 있다.",
   "pages/quality/AsRepairListPage.tsx  /as-requests": "화면은 수리의 [기준일자]를 <b>묻지만</b> 이 자리는 입력 창의 <b>[A/S접수] 불러오기</b> 후보다 — 원본 A/S수리입력(E040605)은 접수일과 상관없이 아직 이을 접수를 고르게 한다(2026-10-03). 수리 기준일자로 거르면 지난달 접수를 이번 달에 고칠 수 없다.",

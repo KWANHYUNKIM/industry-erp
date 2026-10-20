@@ -105,6 +105,19 @@ public class BusinessContractService {
         return ContractResponse.from(c, LocalDate.now());
     }
 
+    /**
+     * 삭제 — 전자계약 &gt; 계약서진행단계 · 계약서현황의 [선택삭제].
+     * 작성 · 서명요청 중인 계약만 지운다. 서명된 계약은 기록이라 지우지 않고 해지한다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        BusinessContract c = contract(id);
+        if (c.getStatus() == BusinessContractStatus.SIGNED || c.getStatus() == BusinessContractStatus.TERMINATED) {
+            throw ApiException.conflict("서명 · 해지된 계약은 삭제할 수 없습니다: " + c.getContractNo());
+        }
+        contractRepository.delete(c);
+    }
+
     private void requireStatus(BusinessContract c, BusinessContractStatus expected, String action) {
         if (c.getStatus() != expected) {
             throw ApiException.conflict(action + "할 수 없는 상태입니다: " + c.getContractNo()

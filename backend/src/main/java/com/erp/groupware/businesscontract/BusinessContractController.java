@@ -52,6 +52,12 @@ public class BusinessContractController {
         return service.sign(id, req);
     }
 
+    /** 전자계약 [선택삭제] — 작성 · 서명요청 중인 계약만 */
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        service.delete(id);
+    }
+
     @PostMapping("/{id}/terminate")
     public ContractResponse terminate(@PathVariable Long id, @Valid @RequestBody TerminateRequest req) {
         return service.terminate(id, req);

@@ -254,12 +254,16 @@ export default function ContractPage() {
   )
 }
 
-function ContractForm({ partners, onError, onSaved }: {
+/** 전자계약 &gt; 계약서진행단계(EContractProgressPage)의 신규(F2) · [복사]도 이 폼을 쓴다 — 복사는 initial 로 원본 계약을 채운다. */
+export function ContractForm({ partners, onError, onSaved, initial }: {
   partners: Partner[]; onError: (m: string) => void; onSaved: (c: BusinessContract) => void
+  initial?: BusinessContract
 }) {
   const [form, setForm] = useState({
-    title: '', type: 'SALES' as BusinessContractType, partnerId: '',
-    startDate: today(), endDate: '', amount: '', paymentTerms: '', content: '',
+    title: initial?.title ?? '', type: (initial?.type ?? 'SALES') as BusinessContractType,
+    partnerId: initial ? String(initial.partnerId) : '',
+    startDate: initial?.startDate ?? today(), endDate: initial?.endDate ?? '',
+    amount: initial ? String(initial.amount) : '', paymentTerms: initial?.paymentTerms ?? '', content: initial?.content ?? '',
   })
   const [saving, setSaving] = useState(false)
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
