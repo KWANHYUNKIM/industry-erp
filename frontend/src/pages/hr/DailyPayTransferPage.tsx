@@ -13,7 +13,7 @@ import { lastDay, monthRange, won, type DailyReportLine } from '../../features/d
  *
  * <p>2026-10-03 loginaa 실측: 조건 귀속연월(금월 2026/10 ~ 2026/10) · 지급연월(사용) · 급여대장 · 이체은행 · 정렬/소계기준,
  * 빠른선택 전월 · 금년 · 전년 · 금월 · 금년(~오늘). 결과 '급여이체현황' · 회사명 · 기간, 격자 급여통장 은행코드 · 급여통장 은행명 ·
- * 계좌번호 · 예금주 · 실지급액(줄마다, 합계 없음). 은행 정보는 일용근로 사원등록 [급여통장]에서 온다(비면 빈칸 — 원본도 그랬다).
+ * 계좌번호 · 예금주 · 실지급액(줄마다, 합계 없음, 사원코드 순 — 2026-10-20 재측). 격자는 출력물 격자(머리 700 · 28.1 · 6px 3px 3px / 본문 24.1 · 3px). 은행 정보는 일용근로 사원등록 [급여통장]에서 온다(비면 빈칸 — 원본도 그랬다).
  * 지급연월([사용]) · 급여대장 · 이체은행은 여러 개 고르는 코드도움. 일용 사원은 은행 이름만 들고 있어 은행코드는 원본 은행코드표
  * (utils/bankCodes)에서 이름으로 찾아 찍는다(표에 없는 이름이면 빈칸). 정렬/소계기준은 없다.
  */
@@ -81,7 +81,7 @@ export default function DailyPayTransferPage() {
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <EcReportHead title="급여이체현황" period={reportPeriod(`${shown.from}-01`, lastDay(shown.to))} />
-      <table ref={tableRef} className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left ec-report">
         <thead>
           <tr>
             <th>급여통장 은행코드</th>
