@@ -52,13 +52,19 @@ interface Agg {
   saleCount: number   // 거래처별=전표수, 품목별=라인수
   saleQty: number
   saleSupply: number
+  saleVat: number
   buyCount: number
   buyQty: number
   buySupply: number
+  buyVat: number
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const emptyAgg = (key: string, name: string): Agg => ({ key, name, saleCount: 0, saleQty: 0, saleSupply: 0, buyCount: 0, buyQty: 0, buySupply: 0 })
+/** 원본 판매구매집계표의 수량은 소수 둘째 자리까지 찍힌다('1.00' · 2026-10-20 실측). */
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/** 원본 축 이름 열은 '품목명[규격]' 이다. */
+const itemLabel = (name: string, spec: string | null) => spec ? `${name}[${spec}]` : name
+const emptyAgg = (key: string, name: string): Agg => ({ key, name, saleCount: 0, saleQty: 0, saleSupply: 0, saleVat: 0, buyCount: 0, buyQty: 0, buySupply: 0, buyVat: 0 })
 
 const initP = periodOf('금월(~오늘)')!
 
@@ -181,7 +187,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!docHasItem(d.lines)) continue
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
-        a.saleCount += 1; a.saleSupply += d.supplyAmount
+        a.saleCount += 1; a.saleSupply += d.supplyAmount; a.saleVat += d.vatAmount
         a.saleQty += d.lines.reduce((x, l) => x + l.quantity, 0)
       }
       for (const d of purchases) {
@@ -197,7 +203,7 @@ export default function SalesPurchaseSummaryPage() {
         if (!docHasItem(d.lines)) continue
         if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
         const a = bump(`P${d.partnerId}`, d.partnerName)
-        a.buyCount += 1; a.buySupply += d.supplyAmount
+        a.buyCount += 1; a.buySupply += d.supplyAmount; a.buyVat += d.vatAmount
         a.buyQty += d.lines.reduce((x, l) => x + l.quantity, 0)
       }
     } else {
@@ -216,8 +222,8 @@ export default function SalesPurchaseSummaryPage() {
           if (itemCond && String(l.itemId) !== itemCond) continue
           if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
           if (!lineHit(l)) continue
-          const a = bump(`I${l.itemId}`, l.itemName)
-          a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount
+          const a = bump(`I${l.itemId}`, itemLabel(l.itemName, l.spec))
+          a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount; a.saleVat += l.vatAmount
         }
       }
       for (const d of purchases) {
@@ -235,21 +241,22 @@ export default function SalesPurchaseSummaryPage() {
           if (itemCond && String(l.itemId) !== itemCond) continue
           if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
           if (!lineHit(l)) continue
-          const a = bump(`I${l.itemId}`, l.itemName)
-          a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount
+          const a = bump(`I${l.itemId}`, itemLabel(l.itemName, l.spec))
+          a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount; a.buyVat += l.vatAmount
         }
       }
     }
     const kw = keyword.trim()
     return [...m.values()]
       .filter((a) => !kw || a.name.includes(kw))
-      .sort((a, b) => (b.saleSupply + b.buySupply) - (a.saleSupply + a.buySupply))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond,
       partnerGroupCond, partnerMgrCond, categoryCond, itemGroupCond, taxTypeCond, mgmtCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
-    saleSupply: s.saleSupply + r.saleSupply, buySupply: s.buySupply + r.buySupply,
-  }), { saleSupply: 0, buySupply: 0 }), [rows])
+    saleQty: s.saleQty + r.saleQty, saleSupply: s.saleSupply + r.saleSupply, saleVat: s.saleVat + r.saleVat,
+    buyQty: s.buyQty + r.buyQty, buySupply: s.buySupply + r.buySupply, buyVat: s.buyVat + r.buyVat,
+  }), { saleQty: 0, saleSupply: 0, saleVat: 0, buyQty: 0, buySupply: 0, buyVat: 0 }), [rows])
 
   const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }
 
@@ -261,8 +268,6 @@ export default function SalesPurchaseSummaryPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-ec-hint">기간 내 판매·매입을 거래처별 또는 품목별로 집계. 순액 = 매출공급가 − 매입공급가.</p>
-
       <div style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         {/* 원본 첫째 조건은 [기준일자]다 — 우리는 [기간]이라 적고 있었다(2026-09-08 실측). */}
         <div className="flex items-center">
@@ -372,57 +377,63 @@ export default function SalesPurchaseSummaryPage() {
             <option value="">전체</option><option>과세</option><option>면세</option>
           </select>
         </div>
-        <div className="ml-auto text-[12.5px] text-ec-label">
-          매출계 <b className="text-ec-blue text-[14px]">{won(totals.saleSupply)}</b>
-          <span className="my-0 mx-[6px] text-ec-off">|</span>
-          매입계 <b style={{ color: '#a5561b', fontSize: 14 }}>{won(totals.buySupply)}</b>
-          <span className="my-0 mx-[6px] text-ec-off">|</span>
-          순액 <b style={{ color: (totals.saleSupply - totals.buySupply) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{won(totals.saleSupply - totals.buySupply)}</b>
-        </div>
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
+      {/*
+        원본 격자(2026-10-20 실측, 집계조건1 = 품목명[규격]): 머리 두 줄 — [축 │ 판매 │ 구매] 아래
+        [수량 · 판매금액 · 부가세 · 합계 │ 수량 · 구매금액 · 부가세 · 합계], 끝에 '합계' 줄. 건수 · 순액 열은 없다.
+      */}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            <th>{groupBy === 'partner' ? '거래처' : '품목'}</th>
-            <th className="text-right">{groupBy === 'partner' ? '매출건수' : '매출수량'}</th>
-            <th className="text-right">매출공급가</th>
-            <th className="text-right">{groupBy === 'partner' ? '매입건수' : '매입수량'}</th>
-            <th className="text-right">매입공급가</th>
-            <th className="text-right">순액</th>
+            <th rowSpan={2}>{groupBy === 'partner' ? '거래처명' : '품목명[규격]'}</th>
+            <th colSpan={4} className="text-center">판매</th>
+            <th colSpan={4} className="text-center">구매</th>
+          </tr>
+          <tr>
+            <th className="text-right">수량</th>
+            <th className="text-right">판매금액</th>
+            <th className="text-right">부가세</th>
+            <th className="text-right">합계</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">구매금액</th>
+            <th className="text-right">부가세</th>
+            <th className="text-right">합계</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((r, i) => {
-            const net = r.saleSupply - r.buySupply
-            return (
-              <tr key={r.key}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{r.name}</td>
-                <td className="text-right text-ec-label">{groupBy === 'partner' ? won(r.saleCount) : won(r.saleQty)}</td>
-                <td className="text-right font-semibold text-ec-blue">{won(r.saleSupply)}</td>
-                <td className="text-right text-ec-label">{groupBy === 'partner' ? won(r.buyCount) : won(r.buyQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{won(r.buySupply)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(net)}</td>
-              </tr>
-            )
-          })}
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : rows.map((r) => (
+            <tr key={r.key}>
+              <td>{r.name}</td>
+              <td className="text-right">{qty2(r.saleQty)}</td>
+              <td className="text-right">{won(r.saleSupply)}</td>
+              <td className="text-right">{won(r.saleVat)}</td>
+              <td className="text-right">{won(r.saleSupply + r.saleVat)}</td>
+              <td className="text-right">{qty2(r.buyQty)}</td>
+              <td className="text-right">{won(r.buySupply)}</td>
+              <td className="text-right">{won(r.buyVat)}</td>
+              <td className="text-right">{won(r.buySupply + r.buyVat)}</td>
+            </tr>
+          ))}
         </tbody>
         {rows.length > 0 && (
           <tfoot>
             <tr className="font-bold bg-ec-page">
-              <td colSpan={3} className="text-right">합계</td>
-              <td className="text-right text-ec-blue">{won(totals.saleSupply)}</td>
-              <td></td>
-              <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totals.buySupply)}</td>
-              <td style={{ textAlign: 'right', color: (totals.saleSupply - totals.buySupply) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(totals.saleSupply - totals.buySupply)}</td>
+              <td>합계</td>
+              <td className="text-right">{qty2(totals.saleQty)}</td>
+              <td className="text-right">{won(totals.saleSupply)}</td>
+              <td className="text-right">{won(totals.saleVat)}</td>
+              <td className="text-right">{won(totals.saleSupply + totals.saleVat)}</td>
+              <td className="text-right">{qty2(totals.buyQty)}</td>
+              <td className="text-right">{won(totals.buySupply)}</td>
+              <td className="text-right">{won(totals.buyVat)}</td>
+              <td className="text-right">{won(totals.buySupply + totals.buyVat)}</td>
             </tr>
           </tfoot>
         )}

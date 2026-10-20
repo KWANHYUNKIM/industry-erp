@@ -377,11 +377,13 @@ const MENU: TopMenu[] = [
           {
             label: '기타',
             children: [
-              /* 원본 출력물 › 기타(2026-10-20 실측) 차례. 거래처관리대장 II 는 화면이 아직 없다(plans/재고1 남은 것). */
+              /* 원본 출력물 › 기타(2026-10-20 실측) 차례. 거래처관리대장 I · II 는 원본 메뉴 링크가 회계 I 장부와
+                 같은 화면(E010833 · E010842)을 가리킨다 — 그래서 회계1 의 /accounting/partner-book-1 · 2 로 잇는다. */
               { label: '일별재고현황', to: '/inventory/daily-stock' },
               { label: '일별이익현황', to: '/accounting/daily-profit' },
               { label: '채권/채무현황', to: '/sales/ar-ap-status' },
-              { label: '거래처관리대장 I', to: '/sales/partner-ledger' },
+              { label: '거래처관리대장 I', to: '/accounting/partner-book-1' },
+              { label: '거래처관리대장 II', to: '/accounting/partner-book-2' },
               { label: '판매구매집계표', to: '/sales/sales-purchase-summary' },
               { label: '집계표', to: '/sales/pivot-summary' },
               { label: '단가변동표', to: '/sales/price-movement' },
