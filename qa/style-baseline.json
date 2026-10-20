@@ -605,8 +605,8 @@
   "palette": 0
  },
  "pages/inventory/CurrentStockPage.tsx": {
-  "inline": 9,
-  "color": 4,
+  "inline": 5,
+  "color": 1,
   "palette": 0
  },
  "pages/inventory/DailyReportPage.tsx": {
@@ -655,8 +655,8 @@
   "palette": 0
  },
  "pages/inventory/StockMovementPage.tsx": {
-  "inline": 7,
-  "color": 4,
+  "inline": 4,
+  "color": 2,
   "palette": 0
  },
  "pages/inventory/StockMoveStatusPage.tsx": {

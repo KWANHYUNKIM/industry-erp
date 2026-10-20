@@ -9,6 +9,8 @@ export interface BucketTx {
   quantityChange: number
   /** 수불 줄 적요 — '창고이동 TR-…' 처럼 시작해 재고변동표가 창고이동을 가릴 때 쓴다. */
   note?: string | null
+  /** 수불 유형 — 'ADJUST'(조정)는 원본처럼 늘 출고 칸에 부호를 뒤집어 든다(아래). */
+  type?: string
 }
 
 export interface StockBucket {
@@ -22,7 +24,9 @@ export function stockBuckets(openingTotal: number, txs: BucketTx[], by: '일별'
   for (const t of txs) {
     const k = bucketOf(t.transactionDate)
     const b = map.get(k) ?? { inQty: 0, outQty: 0, count: 0 }
-    if (t.quantityChange >= 0) b.inQty += t.quantityChange
+    /* 조정은 출고 칸에 부호를 뒤집어 넣는다(2026-10-20 원본 재고변동표 실측: +10 → 출고 -10). */
+    if (t.type === 'ADJUST') b.outQty += -t.quantityChange
+    else if (t.quantityChange >= 0) b.inQty += t.quantityChange
     else b.outQty += -t.quantityChange
     b.count += 1
     map.set(k, b)

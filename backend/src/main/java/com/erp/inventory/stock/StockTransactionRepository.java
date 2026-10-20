@@ -81,9 +81,16 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
      * 재고변동표 — 품목별 기간 입고·출고 합계. 반환: [itemId, inQty, outQty].
      * warehouseId가 null이면 전 창고 합산. 날짜는 서비스에서 항상 non-null로 넘긴다(42P18 회피).
      */
+    /*
+     * <b>조정은 늘 [출고수량] 칸에 부호를 뒤집어 든다</b>(2026-10-20 loginaa 재고변동표 E040719 실측 —
+     * 간편재고조정 +10 이 입고 빈칸 · 출고 -10.00 으로 나온다. 재고수불부도 같다). 줄이는 조정은
+     * 원래도 출고 칸이라 달라지지 않고, 늘리는 조정만 입고 → 출고(음수)로 옮겨 간다. 기말은 같다.
+     */
     @Query("select t.item.id, " +
-            "coalesce(sum(case when t.quantityChange > 0 then t.quantityChange else 0 end), 0), " +
-            "coalesce(sum(case when t.quantityChange < 0 then -t.quantityChange else 0 end), 0) " +
+            "coalesce(sum(case when t.type <> com.erp.inventory.stock.StockTransactionType.ADJUST " +
+            "and t.quantityChange > 0 then t.quantityChange else 0 end), 0), " +
+            "coalesce(sum(case when t.type = com.erp.inventory.stock.StockTransactionType.ADJUST then -t.quantityChange " +
+            "when t.quantityChange < 0 then -t.quantityChange else 0 end), 0) " +
             "from StockTransaction t " +
             "where t.transactionDate >= :from and t.transactionDate <= :to " +
             "and (:warehouseId is null or t.warehouse.id = :warehouseId) " +

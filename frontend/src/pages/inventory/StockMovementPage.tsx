@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
@@ -391,10 +392,13 @@ export default function StockMovementPage() {
           )}
         </table>
       ) : (
-      <table className="w-full text-left">
+      <div className="overflow-x-auto"><div className="ec-report-frame">
+      <EcReportHead title="재고변동표" period={reportPeriod(from, to)} />
+      <table className="text-left ec-report">
         <thead>
           <tr>
             {/*
+              2026-10-20 다시 잼: 출력물 격자(회사명 · 기간 머리)에 번호 칸 · [단위] 열이 없다 — 둘 다 뺐다.
               <b>재고변동표(E040719) [구분]=집계·종 2026-09-09 원본 격자 실측</b> —
               [품목코드 · 품목명 · <b>규격</b> · <b>전일재고</b> · <b>입고수량</b> ·
               <b>출고수량</b> · <b>재고수량</b>] (맨 뒤에 품목코드를 한 번 더 찍는다 —
@@ -405,50 +409,49 @@ export default function StockMovementPage() {
               [재고수량] 이었다), (2) <b>[규격] 열이 없었다</b>.
               [단위]는 우리가 더 두는 열이다.
             */}
-            <th className="w-[34px]"></th>
             <th>품목코드</th>
             <th>품목명</th>
-            <th className="w-[110px]">규격</th>
-            <th className="text-center w-[50px]">단위</th>
-            <th className="text-right">전일재고</th>
-            <th className="text-right">입고수량</th>
-            <th className="text-right">출고수량</th>
-            <th className="text-right">재고수량</th>
+            <th>규격</th>
+            <th>전일재고</th>
+            <th>입고수량</th>
+            <th>출고수량</th>
+            <th>재고수량</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">
-              {rows.length === 0 ? '해당 기간의 재고 변동이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
+            <tr><td colSpan={7} className="text-center text-ec-ink">
+              등록된 데이터가 없습니다.
             </td></tr>
-          ) : shown.map((r, i) => (
+          ) : shown.map((r) => (
             <tr key={r.itemId}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
-              <td className="text-ec-label">{specOf(r.itemId)}</td>
-              <td className="text-center text-ec-hint">{r.unit}</td>
-              <td className="text-right text-ec-label">{num(r.opening)}</td>
-              <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : 'var(--ec-text-off)', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : ''}</td>
-              <td style={{ textAlign: 'right', color: r.outQty ? '#a5561b' : 'var(--ec-text-off)', fontWeight: r.outQty ? 600 : 400 }}>{r.outQty ? num(r.outQty) : ''}</td>
-              <td className="text-right font-bold">{num(r.closing)}</td>
+              <td>{specOf(r.itemId)}</td>
+              {/* 원본은 수량을 검정 · 보통 굵기로, 0 인 칸은 비운다. */}
+              <td className="text-right">{r.opening ? num(r.opening) : ''}</td>
+              <td className="text-right">{r.inQty ? num(r.inQty) : ''}</td>
+              <td className="text-right">{r.outQty ? num(r.outQty) : ''}</td>
+              <td className="text-right">{num(r.closing)}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr className="font-bold bg-ec-page">
-              <td colSpan={5} className="text-right">합계</td>
+            <tr>
+              <td colSpan={3} className="text-center">합계</td>
               <td className="text-right">{num(totals.opening)}</td>
-              <td className="text-right text-ec-blue">{num(totals.inQty)}</td>
-              <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.outQty)}</td>
+              <td className="text-right">{num(totals.inQty)}</td>
+              <td className="text-right">{num(totals.outQty)}</td>
               <td className="text-right">{num(totals.closing)}</td>
             </tr>
           </tfoot>
         )}
       </table>
+      <EcReportFoot />
+      </div></div>
       )}
     </EcListShell>
   )

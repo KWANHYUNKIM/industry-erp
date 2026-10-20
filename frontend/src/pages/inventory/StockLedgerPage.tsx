@@ -177,6 +177,12 @@ export default function StockLedgerPage() {
   const [itemGroup, setItemGroup] = useState('')
   const [byItemName, setByItemName] = useState(false)
   const [excludeNoTx, setExcludeNoTx] = useState(false)
+  /**
+   * 원본 [기타] <b>[생산불출/창고이동포함]</b> — 꺼진 채 열린다. 꺼져 있고 <b>전 창고</b>로 볼 때는 창고이동 줄이
+   * 나오지 않는다(2026-10-20 loginaa E040702 · 재고변동표 E040719 실측 — 한 창고에서 빠지고 다른 창고로 드니
+   * 회사 전체로는 순 0 이다). 창고를 고르면 그 창고의 출고 · 입고로 보인다.
+   */
+  const [withTransfers, setWithTransfers] = useState(false)
 
   const reset = () => {
     setFilters({ from: initP.from, to: initP.to, itemId: '', warehouseId: '', rollUp: false })
@@ -265,6 +271,7 @@ export default function StockLedgerPage() {
       if (kw && !r.itemName.includes(kw) && !r.warehouseName.includes(kw) && !(r.note ?? '').includes(kw)) return false
       // 원본 '거래내역없는품목제외' — 변동량이 0 인 행은 원장을 지저분하게만 한다.
       if (excludeNoTx && r.quantityChange === 0) return false
+      if (!withTransfers && !filters.warehouseId && (r.note ?? '').startsWith('창고이동')) return false
       /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
       if (!withUntracked && untracked.has(r.itemId)) return false
       if (!withInactive && inactive.has(r.itemId)) return false
@@ -276,13 +283,14 @@ export default function StockLedgerPage() {
     return byItemName
       ? [...out].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
       : out
-  }, [rows, typeFilter, keyword, excludeNoTx, withUntracked, withInactive, byItemName, untracked, inactive,
+  }, [rows, typeFilter, keyword, excludeNoTx, withTransfers, filters.warehouseId, withUntracked, withInactive, byItemName, untracked, inactive,
     category, itemGroup, categoryOf, groupOf])
 
   const summary = useMemo(() => {
     let inQty = 0, outQty = 0
     for (const r of shown) {
-      if (r.quantityChange >= 0) inQty += r.quantityChange
+      if (r.type === 'ADJUST') outQty += -r.quantityChange
+      else if (r.quantityChange >= 0) inQty += r.quantityChange
       else outQty += -r.quantityChange
     }
     // 기초/기말은 (품목,창고) 모두 특정 + 유형필터 없음일 때만 표시 (잔량 누계가 유효)
@@ -360,8 +368,8 @@ export default function StockLedgerPage() {
           </label>
         </EcCond>
         {/*
-          원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 하나 —
-          [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
+          원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). [생산불출/창고이동포함]은 2026-10-20 에
+          적요의 '창고이동' 머리로 가린다(생산불출은 아직 못 가린다).
         */}
         {/* 원본 차례: [대표품목으로 합산] 다음이 [단가표시], 그다음이 [기타] 다. */}
         <EcCond label="단가표시">
@@ -396,6 +404,10 @@ export default function StockLedgerPage() {
             <label className="text-[12px]">
               <input type="checkbox" checked={withInactive}
                      onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+            </label>
+            <label className="text-[12px]">
+              <input type="checkbox" checked={withTransfers}
+                     onChange={(e) => setWithTransfers(e.target.checked)} /> 생산불출/창고이동포함
             </label>
             <label className="text-[12px]">
               <input type="checkbox" checked={excludeNoTx}
@@ -561,8 +573,13 @@ export default function StockLedgerPage() {
               if (monthly && i > 0 && shown[i - 1].transactionDate.slice(0, 7) !== ym) {
                 pushMonth(shown[i - 1].transactionDate.slice(0, 7))
               }
-              const inQ = r.quantityChange >= 0 ? r.quantityChange : 0
-              const outQ = r.quantityChange < 0 ? -r.quantityChange : 0
+              /*
+               * <b>조정은 늘 [출고수량] 칸에 부호를 뒤집어</b> 든다(원본 E040702 실측 — 간편재고조정 +10 → 출고 -10,
+               * 실사 -1 → 출고 1). 거래처명 칸은 [조정].
+               */
+              const adj = r.type === 'ADJUST'
+              const inQ = !adj && r.quantityChange >= 0 ? r.quantityChange : 0
+              const outQ = adj ? -r.quantityChange : r.quantityChange < 0 ? -r.quantityChange : 0
               mIn += inQ; mOut += outQ; mLastId = r.id
               /*
                * 원본 [단가표시]가 고른 단가로 [단가]·[금액]을 낸다. 품목 마스터에 그 단가를
@@ -586,7 +603,7 @@ export default function StockLedgerPage() {
                   </td>
                   <td>{r.itemName}</td>
                   <td>{r.warehouseName}</td>
-                  <td>{partnerOf(r.note)}</td>
+                  <td>{adj ? '[조정]' : partnerOf(r.note)}</td>
                   <td>{r.note ?? ''}</td>
                   <td className="text-right">{inQ ? num(inQ) : ''}</td>
                   <td className="text-right">{outQ ? num(outQ) : ''}</td>

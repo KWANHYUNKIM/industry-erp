@@ -10,7 +10,6 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
-import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 재고 > 재고현황 (이카운트 E040701)
@@ -84,8 +83,8 @@ export default function CurrentStockPage() {
    * 원본 조건 <b>[정렬/소계기준]</b>(조건 판의 마지막 줄). 이 표는 품목 × 창고 줄이라
    * 창고가 여럿이면 같은 품목이 흩어진다. 무엇으로 묶어 볼지 고르게 한다.
    */
-  const SUBTOTALS = ['품목', '창고'] as const
-  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('품목')
+  const SUBTOTALS = ['품목코드', '품목명'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('품목코드')
 
   function load() {
     setLoading(true)
@@ -139,22 +138,40 @@ export default function CurrentStockPage() {
     .filter((r) => cond.withInactive || !inactive.has(r.itemId))
     .filter((r) => !cond.category || categoryOf(r.itemId) === cond.category)
     .filter((r) => !cond.itemGroup || groupOf(r.itemId) === cond.itemGroup)
-    .filter((r) => !cond.belowSafetyOnly || r.belowSafety)
     .filter((r) => !cond.warehouse || r.warehouseName === cond.warehouse)
     .filter((r) => !cond.item || String(r.itemId) === cond.item)
-    .filter((r) => !cond.qtyFrom || r.quantity >= Number(cond.qtyFrom))
-    .filter((r) => !cond.qtyTo || r.quantity <= Number(cond.qtyTo))
 
-  /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
-  const sort = useTableSort(shownRows, {
+  /*
+   * <b>품목 하나 = 한 줄</b>(2026-10-20 원본 E040701 실측). 원본은 창고를 합쳐 [총재고수량] 한 칸으로 보이고,
+   * 창고별로 펴는 것은 창고별재고현황(E040711) 몫이다. 우리는 품목 × 창고 줄에 [창고]·[안전재고]·[상태]
+   * 열까지 붙여 다른 화면 꼴이었다. [창고] 조건은 합치기 전에 걸어 그 창고만의 재고를 합친다.
+   */
+  const priceOf = useMemo(() => new Map(items.map((it) => [it.id, it.purchasePrice ?? 0])), [items])
+  const perItem = useMemo(() => {
+    const m = new Map<number, { itemId: number; itemCode: string; itemName: string; spec: string | null;
+      quantity: number; safetyStock: number }>()
+    for (const r of shownRows) {
+      const cur = m.get(r.itemId) ?? { itemId: r.itemId, itemCode: r.itemCode, itemName: r.itemName,
+        spec: r.spec, quantity: 0, safetyStock: 0 }
+      cur.quantity += r.quantity
+      cur.safetyStock = Math.max(cur.safetyStock, r.safetyStock ?? 0)
+      m.set(r.itemId, cur)
+    }
+    return [...m.values()]
+      .map((r) => ({ ...r, belowSafety: r.safetyStock > 0 && r.quantity < r.safetyStock }))
+      .filter((r) => !cond.belowSafetyOnly || r.belowSafety)
+      .filter((r) => !cond.qtyFrom || r.quantity >= Number(cond.qtyFrom))
+      .filter((r) => !cond.qtyTo || r.quantity <= Number(cond.qtyTo))
+  }, [shownRows, cond.belowSafetyOnly, cond.qtyFrom, cond.qtyTo])
+
+  const sort = useTableSort(perItem, {
     품목코드: (r) => r.itemCode,
     품목명: (r) => r.itemName,
-    창고: (r) => r.warehouseName,
-  })
+  }, { key: subtotal === '품목명' ? '품목명' : '품목코드', dir: 'asc' })
   const shown = sort.sorted
 
-  const belowCount = rows.filter((r) => r.belowSafety).length
   const totalQty = shown.reduce((s, r) => s + r.quantity, 0)
+  const totalAmt = shown.reduce((s, r) => s + r.quantity * (priceOf.get(r.itemId) ?? 0), 0)
   const reset = () => setCond({ date: today, warehouse: '', item: '', category: '', itemGroup: '',
     withUntracked: false, withInactive: true, belowSafetyOnly: false, qtyFrom: '', qtyTo: '' })
 
@@ -241,21 +258,6 @@ export default function CurrentStockPage() {
         </p>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 12.5, color: '#5a6472' }}>
-        <span>품목 × 창고 현재고</span>
-        <span className="ml-auto">
-          건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
-          <span className="my-0 mx-[8px] text-ec-off">|</span>
-          수량 <b className="text-ec-text text-[14px]">{totalQty.toLocaleString()}</b>
-          {belowCount > 0 && (
-            <>
-              <span className="my-0 mx-[8px] text-ec-off">|</span>
-              안전재고 미달 <b className="text-ec-danger text-[14px]">{belowCount}</b>건
-            </>
-          )}
-        </span>
-      </div>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <div className="overflow-x-auto">
@@ -276,108 +278,59 @@ export default function CurrentStockPage() {
             없다 — 글자가 들어갈 만큼만 좁게 둔다.
           */}
           <colgroup>
-            <col className="w-[34px]" /><col className="w-[200px]" /><col className="w-[450px]" />
-            <col className="w-[120px]" />
-            <col className="w-[100px]" /><col className="w-[80px]" /><col className="w-[50px]" />
+            <col className="w-[200px]" /><col className="w-[450px]" />
+            <col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[120px]" />
           </colgroup>
           <thead>
             <tr>
-              <th></th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
               {/*
-                <b>재고현황(E040701) 2026-09-09 원본 격자 실측</b> — 열이 <b>셋</b>뿐이다:
-                [품목코드 · 품목명[규격] · 재고수량] (아래 합계행 하나).
-                우리는 (1) 품목명과 규격을 <b>두 칸</b>으로 갈라 두었고 — 원본은 규격을
-                품목명 뒤 대괄호에 붙인다, (2) 수량 칸을 [현재고]라 불렀다 — 원본은
-                <b>[재고수량]</b> 이고 조건 이름도 그것이다(조건 [재고수량] ~ 범위).
-                [창고]·[안전재고]·[상태]는 원본 이 화면에 없는 우리 열이다 —
-                원본은 품목 하나를 <b>한 줄</b>로 합치고, 창고별로 펴는 것은
-                <b>창고별재고현황(E040711)</b> 이라는 다른 화면이다. 우리는 창고별로 펴므로
-                그 열을 남긴다(합치는 축은 [대표품목으로 합산] 과 함께 아직 못 만들었다).
+                2026-10-20 원본 E040701 실측 머리: 품목코드 · 품명 및 규격 · 총재고수량 · 입고단가 · 금액 · 이미지.
+                입고단가는 품목등록의 입고단가, 금액 = 총재고수량 × 입고단가. [이미지] 열은 우리 품목에 그림이 없어 뺀다.
               */}
-              <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품목명[규격] {sort.mark('품목명')}</th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('창고')}>창고 {sort.mark('창고')}</th>
-              <th className="text-right">재고수량</th>
-              <th className="text-right">안전재고</th>
-              <th className="text-center">상태</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목코드')}>품목코드</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품명 및 규격</th>
+              <th>총재고수량</th>
+              <th>입고단가</th>
+              <th>금액</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
+              <tr><td colSpan={5} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : (
-              shown.map((r, idx) => (
-                <tr key={`${r.itemId}-${r.warehouseId}`} style={r.belowSafety ? { background: '#fdf1f3' } : undefined}>
-                  <td className="text-center text-ec-hint">{idx + 1}</td>
-                  <td>{r.itemCode}</td>
-                  {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
-                  <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-                  <td>{r.warehouseName}</td>
-                  <td style={{ textAlign: 'right', color: r.belowSafety ? 'var(--ec-danger)' : undefined }}>
-                    {r.quantity.toLocaleString()}
-                  </td>
-                  <td className="text-right text-ec-hint">{r.safetyStock.toLocaleString()}</td>
-                  <td className="text-center">
-                    {r.belowSafety
-                      ? <span className="text-ec-danger font-bold">부족</span>
-                      : <span style={{ color: '#2f8401' }}>정상</span>}
-                  </td>
-                </tr>
-              ))
+              shown.map((r) => {
+                const price = priceOf.get(r.itemId) ?? 0
+                return (
+                  <tr key={r.itemId}>
+                    <td>{r.itemCode}</td>
+                    {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
+                    <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                    {/* 안전재고설정미만표시를 켜면 미달 수량을 빨갛게 — 원본도 수량 칸에 표시한다. */}
+                    <td className={`text-right${cond.belowSafetyOnly && r.belowSafety ? ' text-ec-danger' : ''}`}>
+                      {r.quantity.toLocaleString()}
+                    </td>
+                    <td className="text-right">{price.toLocaleString()}</td>
+                    <td className="text-right">{(r.quantity * price).toLocaleString()}</td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
           {shown.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={4} className="text-center">합계</td>
+                <td colSpan={2} className="text-center">합계</td>
                 <td className="text-right">{totalQty.toLocaleString()}</td>
-                <td colSpan={2}></td>
+                <td></td>
+                <td className="text-right">{totalAmt.toLocaleString()}</td>
               </tr>
             </tfoot>
           )}
         </table>
         <EcReportFoot />
         </div>
-
-        {/*
-          원본 [정렬/소계기준]으로 묶은 소계. 표를 다시 그리지 않고 <b>아래에 덧붙인다</b> —
-          줄 사이에 끼우면 머리를 눌러 정렬했을 때 소계가 엉뚱한 데로 따라간다
-          (생산입고/소모현황 I 과 같은 규칙).
-        */}
-        {shown.length > 0 && (() => {
-          const groups = subtotalBy(
-            shown,
-            (r) => (subtotal === '창고' ? r.warehouseName : r.itemName),
-            { qty: (r) => r.quantity, safety: (r) => r.safetyStock ?? 0 },
-          )
-          return (
-            <>
-              <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
-              <table className="w-full text-left">
-                <thead><tr>
-                  <th>{subtotal}</th>
-                  <th className="w-[90px] text-right">건수</th>
-                  <th className="w-[150px] text-right">재고수량</th>
-                  <th className="w-[150px] text-right">안전재고</th>
-                </tr></thead>
-                <tbody>
-                  {groups.map((g) => (
-                    <tr key={g.label}>
-                      <td className="font-semibold">{g.label}</td>
-                      <td className="text-right">{g.count}</td>
-                      <td className="text-right">{g.sums.qty.toLocaleString()}</td>
-                      <td className="text-right text-ec-hint">
-                        {g.sums.safety.toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )
-        })()}
       </div>
     </EcListShell>
   )
