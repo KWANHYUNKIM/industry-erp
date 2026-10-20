@@ -269,11 +269,16 @@ const MENU: TopMenu[] = [
           { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
         ],
       },
-      { label: '기타이동', nodes: [{ label: '기타이동', to: '/inventory/transfer' },
+      /* 원본 기타이동 탭(2026-10-20 loginaa 실측): 창고이동 · 자가사용 · 불량처리 · 재고조정 · 기타이동현황 다섯 묶음.
+         창고이동조회 · 입력은 아직 기타이동 화면(창고이동 탭 · 등록 창)이 맡는다 — 원본은 여러 줄 전표 · 수정이 되는 별도 화면. */
+      { label: '기타이동', nodes: [
+        { label: '창고이동', children: [{ label: '창고이동조회', to: '/inventory/transfer' }, { label: '창고이동입력', to: '/inventory/transfer?new=1' }, { label: '창고이동현황', to: '/inventory/transfer-status' }] },
         /* 원본 기타이동 탭의 [자가사용] 묶음 — 조회 · 입력 · 현황(2026-10-12 실측). 입력은 예전엔 기타이동 화면의 탭 속 창뿐이었다. */
         { label: '자가사용', children: [{ label: '자가사용조회', to: '/inventory/self-use' }, { label: '자가사용입력', to: '/inventory/self-use-input' }, { label: '자가사용현황', to: '/inventory/self-use-status' }] },
         { label: '불량처리', children: [{ label: '불량처리조회', to: '/inventory/defect' }, { label: '불량처리입력', to: '/inventory/defect-input' }, { label: '불량처리현황', to: '/inventory/defect-status' }] },
-        { label: '재고실사', to: '/inventory/stocktake' }, { label: '재고실사조회', to: '/inventory/stocktake-list' }, { label: '단계별재고조정', to: '/inventory/staged-adjustment' }, { label: '재고조정진행단계', to: '/inventory/staged-progress' }] },
+        /* 원본 [재고조정] 묶음 차례. 단계별재고실사 · 단계별재고조정은 원본처럼 재고조정진행단계의 버튼으로 연다. */
+        { label: '재고조정', children: [{ label: '재고조정진행단계', to: '/inventory/staged-progress' }, { label: '재고실사조회', to: '/inventory/stocktake-list' }, { label: '재고조정조회', to: '/inventory/adjust-list' }, { label: '재고실사현황', to: '/inventory/stocktake-status' }, { label: '재고조정현황', to: '/inventory/adjust-status' }] },
+        { label: '기타이동현황', children: [{ label: '대체사용현황', to: '/inventory/substitute-status' }, { label: '폐기현황', to: '/inventory/disposal-status' }, { label: '불량률파악보고서', to: '/quality/defect-report' }] }] },
       { label: '쇼핑몰관리', nodes: [{ label: '쇼핑몰등록', to: '/sales/mall-accounts' }, { label: '쇼핑몰관리', to: '/sales/mall' }, { label: '쇼핑몰품목코드연결', to: '/sales/mall-item-mappings' }] },
       {
         // 원본 출력물 탭은 커뮤니케이션센터·증빙센터 + 재고현황·영업관리현황·구매관리현황 묶음이다.
