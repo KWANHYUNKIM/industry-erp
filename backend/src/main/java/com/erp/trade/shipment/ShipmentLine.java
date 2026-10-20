@@ -34,6 +34,14 @@ public class ShipmentLine {
     @JoinColumn(name = "order_line_id")
     private SalesOrderLine orderLine;
 
+    /**
+     * 근거 출하지시서 줄. 원본 출하입력 [출하지시] 로 이어 만든 출하 — 미출하 잔량이 이 줄들의 합만큼 준다.
+     * 출하지시서를 지우면 비워진다(원본은 출하가 이어진 지시서도 지워지고 출하는 남는다).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipment_order_line_id")
+    private com.erp.trade.shipmentorder.ShipmentOrderLine shipmentOrderLine;
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal quantity;
 

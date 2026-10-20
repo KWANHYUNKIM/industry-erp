@@ -74,7 +74,7 @@ public final class MenuPermissionCatalog {
                 "/api/management-items", "/api/lots");
         put(m, "PARTNER", "/api/partners", "/api/partner-groups", "/api/business-cards",
                 "/api/crm-activities");
-        put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/sales-plans", "/api/quotations", "/api/shipments",
+        put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/sales-plans", "/api/quotations", "/api/shipments", "/api/shipment-orders",
                 "/api/price-bulk", "/api/special-prices", "/api/order-types", "/api/order-stages",
                 "/api/price-order-settings", "/api/settlements", "/api/custom-fields/values",
                 "/api/order-releases");

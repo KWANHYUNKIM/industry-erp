@@ -279,6 +279,63 @@ public class ShipmentService {
         shipmentRepository.delete(shipment);
     }
 
+    /** 출하지시서 줄별 이미 이어진 출하 수량(출하지시 · 출하완료). 미출하 잔량 = 지시 수량 - 이 값. */
+    @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> shippedByShipmentOrderLines(java.util.Collection<Long> lineIds) {
+        Map<Long, BigDecimal> map = new HashMap<>();
+        if (lineIds == null || lineIds.isEmpty()) return map;
+        for (Object[] row : shipmentLineRepository.sumQuantityByShipmentOrderLine(lineIds, COMMITTED)) {
+            map.put((Long) row[0], (BigDecimal) row[1]);
+        }
+        return map;
+    }
+
+    /**
+     * 출하지시서에 이어 출하를 만든다(원본 출하입력 [출하지시] › 잔량적용). 잔량 검증은 부르는 쪽(출하지시서)이 한다.
+     * 출하는 곧바로 출하완료다 — 원본에서 출하 전표 자체가 '나간 것' 이다. 재고는 움직이지 않는다(판매가 움직인다).
+     */
+    @Transactional
+    public ShipmentResponse createFromShipmentOrder(com.erp.trade.shipmentorder.ShipmentOrder so,
+                                                    Map<com.erp.trade.shipmentorder.ShipmentOrderLine, BigDecimal> qtyByLine,
+                                                    LocalDate shipDate, String username) {
+        LocalDate date = shipDate != null ? shipDate : LocalDate.now();
+        Shipment shipment = Shipment.builder()
+                .shipNo(generateShipNo(date))
+                .partner(so.getPartner())
+                .shipDate(date)
+                .dueDate(so.getDueDate() != null ? so.getDueDate() : date)
+                .warehouse(so.getWarehouse())
+                .employee(so.getEmployee())
+                .project(so.getProject())
+                .contact(so.getContact())
+                .postalCode(so.getPostalCode())
+                .address(so.getAddress())
+                .status(ShipmentStatus.SHIPPED)
+                .remark(so.getRemark())
+                .createdBy(username)
+                .build();
+        BigDecimal totalQty = BigDecimal.ZERO;
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        for (var e : qtyByLine.entrySet()) {
+            Item item = e.getKey().getItem();
+            BigDecimal price = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
+            BigDecimal amount = e.getValue().multiply(price);
+            shipment.addLine(ShipmentLine.builder()
+                    .item(item)
+                    .shipmentOrderLine(e.getKey())
+                    .quantity(e.getValue())
+                    .unitPrice(price)
+                    .amount(amount)
+                    .remark(e.getKey().getRemark())
+                    .build());
+            totalQty = totalQty.add(e.getValue());
+            totalAmount = totalAmount.add(amount);
+        }
+        shipment.setTotalQuantity(totalQty);
+        shipment.setTotalAmount(totalAmount);
+        return ShipmentResponse.from(shipmentRepository.save(shipment));
+    }
+
     private String generateShipNo(LocalDate date) {
         return docNoGenerator.next("SH-", "shipments", "ship_no", "ship_date", date);
     }

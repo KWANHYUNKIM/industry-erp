@@ -54,4 +54,11 @@ public interface ShipmentLineRepository extends JpaRepository<ShipmentLine, Long
     @Query("select sl from ShipmentLine sl join fetch sl.shipment s " +
             "where s.salesOrder.id = :orderId order by s.shipDate, s.id, sl.id")
     List<ShipmentLine> findGeneratedByOrder(@Param("orderId") Long orderId);
+
+    /** 출하지시서 줄별 이어진 출하 수량 — 미출하 잔량. 반환 [shipmentOrderLineId, sum(quantity)]. 취소된 출하는 안 센다. */
+    @Query("select sl.shipmentOrderLine.id, coalesce(sum(sl.quantity), 0) from ShipmentLine sl " +
+            "where sl.shipmentOrderLine.id in :lineIds and sl.shipment.status in :statuses " +
+            "group by sl.shipmentOrderLine.id")
+    List<Object[]> sumQuantityByShipmentOrderLine(@Param("lineIds") Collection<Long> lineIds,
+                                                  @Param("statuses") Collection<ShipmentStatus> statuses);
 }
