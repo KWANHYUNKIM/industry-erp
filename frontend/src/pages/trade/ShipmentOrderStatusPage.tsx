@@ -40,6 +40,13 @@ interface ShipLine {
   remark: string | null
 }
 
+/** 출하지시서 응답(/shipment-orders) — 필요한 칸만. */
+interface ShipmentOrderRow extends Omit<Shipment, 'shipNo' | 'shipDate' | 'salesOrderNo' | 'status'> {
+  orderNo: string
+  orderDate: string
+  status: 'IN_PROGRESS' | 'COMPLETED'
+}
+
 interface Shipment {
   id: number
   shipNo: string
@@ -114,8 +121,15 @@ export default function ShipmentOrderStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Shipment[]>('/shipments', { params: { from: from || undefined, to: to || undefined } })
-      setRows(res.data)
+      /*
+       * 2026-10-20 출하지시서를 출하와 다른 전표로 갈랐다(plans/재고1/E040221.md) — 이 화면은 출하지시서(/shipment-orders)를 본다.
+       * 옛 줄 모양(shipNo · shipDate · READY/SHIPPED)으로 옮겨 담아 아래 조건 · 격자는 그대로 쓴다. 진행중 → READY 자리, 완료 → SHIPPED 자리.
+       */
+      const res = await api.get<ShipmentOrderRow[]>('/shipment-orders', { params: { from: from || undefined, to: to || undefined } })
+      setRows(res.data.map((o) => ({
+        ...o, shipNo: o.orderNo, shipDate: o.orderDate, salesOrderNo: null,
+        status: o.status === 'COMPLETED' ? 'SHIPPED' : 'READY',
+      })))
       setError('')
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -296,10 +310,10 @@ export default function ShipmentOrderStatusPage() {
         </EcCond>
         <EcCond label="진행상태">
           <div className="ec-pills">
-            {(['ALL', 'READY', 'SHIPPED', 'CANCELED'] as const).map((s) => (
+            {(['ALL', 'READY', 'SHIPPED'] as const).map((s) => (
               <button key={s} type="button" className={'ec-pill no-ec' + (statusFilter === s ? ' active' : '')}
                       onClick={() => setStatusFilter(s)}>
-                {s === 'ALL' ? '전체' : s === 'READY' ? '출하지시' : s === 'SHIPPED' ? '출하완료' : '취소'}
+                {s === 'ALL' ? '전체' : s === 'READY' ? '진행중' : '완료'}
               </button>
             ))}
           </div>
