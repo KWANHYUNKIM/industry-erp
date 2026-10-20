@@ -15,7 +15,7 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  * 회계 I › 어음거래 › 받을어음 의 한 장 입력 둘 — 2026-10-20 loginaa 실측.
  *
  * <b>받을어음증가</b>(C000014): 전표일자 · 회계전표No. · 부서 · 프로젝트 · 거래처 · 어음번호 · 만기일자(기본 오늘) · 금액 · 적요,
- * 단추 [저장(F8)] · [저장/전표(F7)] · [다시 작성]. 빈 저장은 거래처 · 어음번호 칸이 막는다. 저장하면 칸이 다 비고 같은 화면에 남는다.
+ * 단추 [저장(F8)] · [저장/전표(F7)] · [다시 작성]. 빈 저장은 거래처 · 어음번호 칸이 막는다. 저장하면 안내 없이 칸이 다 비고 같은 화면에 남는다.
  * 전표 '26/10/20-25 | 받을어음증가 | 100,000 | QA회계1' = 차) 받을어음 / 대) 외상매출금.
  *
  * <b>받을어음감소</b>(E010602): 전표일자 · 회계전표No. · 부서 · 프로젝트 · 입금계좌 · 어음번호 · 총금액 · 금액 · 수수료 · 적요.
@@ -56,7 +56,6 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   const [fee, setFee] = useState('')
   const [remark, setRemark] = useState('')
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -86,15 +85,15 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     setProject(n.closeProjectId ? String(n.closeProjectId) : '')
   }, [editId, notes])
 
-  /* 수정 창의 입금계좌 — 그 감소 전표의 차변 예금 계정에 묶인 계좌. 목록에서 다시 받기 어려워 입금계좌 이름으로 찾는다. */
+  /* 수정 창의 입금계좌 — 그 감소 전표에 묶인 계좌 입금 줄(그날 입출금 중 같은 전표). 수수료만으로 닫은 감소는 입금이 없어 비운다. */
   useEffect(() => {
-    if (!editing?.closeJournalEntryId || bankId || banks.length === 0) return
-    api.get<{ lines: { accountCode: string; debit: number }[] }>(`/journals/${editing.closeJournalEntryId}`).then((r) => {
-      const code = r.data.lines?.find((l) => Number(l.debit) > 0)?.accountCode
-      const b = banks.find((x) => x.glAccountCode === code && x.active !== false)
-      if (b) setBankId(String(b.id))
+    if (!editing?.closeJournalEntryId || !editing.closedDate || bankId) return
+    api.get<{ rows: { bankAccountId: number; journalEntryId: number | null }[] }>('/bank-cards/transactions',
+      { params: { from: editing.closedDate, to: editing.closedDate, all: true } }).then((r) => {
+      const t = r.data.rows.find((x) => x.journalEntryId === editing.closeJournalEntryId)
+      if (t) setBankId(String(t.bankAccountId))
     }).catch(() => {})
-  }, [editing, banks, bankId])
+  }, [editing, bankId])
 
   const partnerItems: CodeItem[] = useMemo(() => partners.filter((p) => p.type !== 'SUPPLIER')
     .map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [partners])
@@ -123,7 +122,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   }
 
   async function save(): Promise<boolean> {
-    setError(''); setNotice('')
+    setError('')
     if (dec) {
       if (!bankId) { setError('입금계좌: 자료를 입력 바랍니다.'); return false }
       if (!noteNo.trim()) { setError('어음번호: 자료를 입력 바랍니다.'); return false }
@@ -156,7 +155,6 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
         })
         reset()
       }
-      setNotice('저장되었습니다.')
       return true
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -193,7 +191,6 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
           { label: '다시 작성', onClick: () => reset() },
         ]}>
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-        {notice && !error && <p className="ec-alert ec-alert-info mb-[8px]">{notice}</p>}
         <ul className="ec-form mb-[8px]">
           <EcCond label="전표일자" span={2}>
             <EcDateField value={date} onChange={setDate} disabled={!!editing} />
