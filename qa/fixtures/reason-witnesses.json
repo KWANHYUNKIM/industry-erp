@@ -2447,21 +2447,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/quotation/QuotationLine.java"
  },
- "미구매현황|수량": {
-  "claim": "우리 발주는 통째로 구매로 넘어간다 - 부분 입고를 남기지 않는다",
-  "absent": [
-   "receivedQuantity",
-   "convertedQuantity"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
- },
- "미구매현황|품목별납기일자": {
-  "claim": "납기를 줄에 안 적는다 - 전표 단위다",
-  "absent": [
-   "dueDate"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
- },
  "채권/채무현황|청구금액": {
   "claim": "수금이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
   "absent": [

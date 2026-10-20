@@ -5,7 +5,6 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
-import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
@@ -34,12 +33,14 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  * 미주문·미판매에서 잇달아 나온 것과 같은 꼴이라, 이번에는 그 말을 믿지 않고 형을 다시 봤다.
  */
 
-/** 미구매 = 아직 입고전환/취소되지 않은 발주 단계 */
-const OPEN_STATUS: PurchaseOrderStatus[] = ['REQUESTED', 'PLANNED', 'PRICED', 'ORDERED']
-const STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: 'var(--ec-text-hint)', PLANNED: 'var(--ec-text-hint)', PRICED: 'var(--ec-warn)', ORDERED: 'var(--ec-blue)',
-  RECEIVED: 'var(--ec-success)', CANCELLED: 'var(--ec-text-off)',
-}
+/**
+ * 미구매 = <b>발주서</b>(발주확정)의 남은 수량. 원본 미구매현황은 발주서만 본다 — 발주요청 · 발주계획은 다른 전표라
+ * 여기 안 든다(2026-10-20 실측: 요청 10 · 계획 6 · 발주서 6 → 구매 4 에서 미구매는 발주서 한 줄 6.00 · 2.00 뿐).
+ * 우리는 한 장이 상태로 지나가므로 발주확정(ORDERED)만 센다 — 예전엔 요청 · 계획 · 단가확정까지 미구매로 셌다.
+ */
+const OPEN_STATUS: PurchaseOrderStatus[] = ['ORDERED']
+/** 원본 수량 칸 — '6.00' 처럼 소수 둘째 자리까지. */
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 interface Row {
   key: string
@@ -59,6 +60,8 @@ interface Row {
   status: PurchaseOrderStatus
   statusName: string
   itemName: string
+  /** 원본 [수량] — 발주서 줄 수량 그대로. 아래 qty 가 남은 [미구매수량]. */
+  orderQty: number
   qty: number
   unitPrice: number
   supply: number
@@ -174,6 +177,7 @@ export default function UnpurchasedStatusPage() {
           status: o.status,
           statusName: o.statusName,
           itemName: l.itemName,
+          orderQty: Number(l.quantity),
           qty: rest,
           unitPrice: l.unitPrice,
           supply: Math.round(l.supplyAmount * ratio),
@@ -279,20 +283,20 @@ export default function UnpurchasedStatusPage() {
 
   const lineRows = useMemo(() => {
     type Line = { kind: 'line'; key: string; no: number; r: Row }
-    type Sub = { kind: 'subtotal'; key: string; month: string; qty: number; supply: number; vat: number }
+    type Sub = { kind: 'subtotal'; key: string; month: string; orderQty: number; qty: number; supply: number; vat: number }
     const out: (Line | Sub)[] = []
     let month = ''
     let no = 0
-    let qty = 0, supply = 0, vat = 0
+    let orderQty = 0, qty = 0, supply = 0, vat = 0
     const flush = () => {
-      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, qty, supply, vat })
-      qty = 0; supply = 0; vat = 0
+      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, orderQty, qty, supply, vat })
+      orderQty = 0; qty = 0; supply = 0; vat = 0
     }
     for (const r of sort.sorted) {
       const m = r.date.slice(0, 7).replace('-', '/')
       if (m !== month) { flush(); month = m }
       out.push({ kind: 'line', key: r.key, no: ++no, r })
-      qty += r.qty; supply += r.supply; vat += r.vat
+      orderQty += r.orderQty; qty += r.qty; supply += r.supply; vat += r.vat
     }
     flush()
     return out
@@ -332,7 +336,7 @@ export default function UnpurchasedStatusPage() {
           </button>
         )}
         <span className="text-[11.5px] text-ec-hint ml-auto">
-          미입고(발주요청·계획·단가확정·발주확정) 발주 기준
+          발주서(발주확정) 기준
         </span>
       </div>
 
@@ -408,26 +412,19 @@ export default function UnpurchasedStatusPage() {
       ) : (
       <table className="w-full text-left">
         {/*
-          원본 격자(2026-09-09 E040307 실측):
-          <b>일자-No. · 품목명(규격) · 수량 · 미구매수량 · 품목별납기일자 · 거래처명 ·
-          적요 · 미구매부가세</b>.
-          우리는 (1) 일자와 번호를 두 칸으로 갈랐고, (2) 규격을 들고 있으면서 안 붙였고,
-          (3) <b>[적요] 열이 없었고</b>, (4) 거래처를 앞쪽에 [매입처] 라 두었고,
-          (5) 부가세를 그냥 [부가세] 라 불러 <b>그게 미구매분인 것</b>이 이름에 안 드러났다.
-          납기·창고·담당자·상태·단가·공급가액은 원본에 없지만 우리가 더 두는 열이다.
+          원본 격자(2026-09-09 · 10-20 E040307 실측) 여덟 열 그대로:
+          <b>일자-No. · 품목명(규격) · 수량 · 미구매수량 · 품목별납기일자 · 거래처명 · 적요 · 미구매부가세</b>.
+          번호 칸이 없고, 규격은 '배추 [국내산]' 처럼 대괄호, 수량은 '6.00'. 달이 바뀌는 자리에 'YYYY/MM  계',
+          끝에 '총합계'(둘 다 앞 두 칸을 묶는다). 예전 우리는 납기 · 창고 · 담당자 · 상태 · 단가 · 공급가액을 더 두고
+          [수량](발주 줄 수량)이 없어 6 중 2 가 남았는지를 못 봤다.
         */}
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
             <th className="cursor-pointer text-center" onClick={() => sort.toggle('발주일자')}>일자-No. {sort.mark('발주일자')}</th>
-            <th>납기</th>
-            <th>창고</th>
-            <th>담당자</th>
-            <th className="text-center">상태</th>
             <th>품목명(규격)</th>
+            <th className="text-right">수량</th>
             <th className="text-right">미구매수량</th>
-            <th className="text-right">단가</th>
-            <th className="text-right">공급가액</th>
+            <th className="text-center">품목별납기일자</th>
             <th>거래처명</th>
             <th>적요</th>
             <th className="text-right">미구매부가세</th>
@@ -435,50 +432,37 @@ export default function UnpurchasedStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
           ) : lineRows.length === 0 ? (
-            <tr><td colSpan={13} className="text-center text-ec-hint p-[20px]">
-              {rows.length === 0 ? '미구매(미입고) 발주가 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
-            </td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : lineRows.map((x) => x.kind === 'subtotal' ? (
-            <tr key={x.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
-              <td colSpan={7} className="text-right">{x.month} 계</td>
-              <td className="text-right">{x.qty.toLocaleString()}</td>
-              <td></td>
-              <td className="text-right">{x.supply.toLocaleString()}</td>
-              <td colSpan={2}></td>
+            <tr key={x.key} className="font-bold bg-ec-page">
+              <td colSpan={2} className="text-right">{x.month}  계</td>
+              <td className="text-right">{qty2(x.orderQty)}</td>
+              <td className="text-right">{qty2(x.qty)}</td>
+              <td colSpan={3}></td>
               <td className="text-right">{x.vat.toLocaleString()}</td>
             </tr>
           ) : (
             <tr key={x.key}>
-              <td className="text-center text-ec-hint">{x.no}</td>
-              {/* 원본은 일자와 번호를 한 칸에 적는다. */}
               <td className="text-center">{dateNo(x.r.date, x.r.orderNo)}</td>
-              <td style={{ fontFamily: 'monospace', color: x.r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(x.r.dueDate) || ''}</td>
-              <td style={{ color: x.r.warehouse ? undefined : 'var(--ec-text-off)' }}>{x.r.warehouse || ''}</td>
-              <td style={{ color: x.r.employee ? undefined : 'var(--ec-text-off)' }}>{x.r.employee || ''}</td>
-              <td className="text-center">
-                <span style={{ color: STATUS_COLOR[x.r.status], fontWeight: 600, fontSize: 12 }}>{x.r.statusName}</span>
-              </td>
-              {/* 원본은 규격을 품목명 뒤 괄호에 붙인다 - 우리는 들고 있으면서 안 찍고 있었다. */}
-              <td>{x.r.itemName}{x.r.spec ? ' (' + x.r.spec + ')' : ''}</td>
-              <td className="text-right font-semibold text-ec-warn">{x.r.qty.toLocaleString()}</td>
-              <td className="text-right">{x.r.unitPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{x.r.supply.toLocaleString()}</td>
+              <td>{x.r.itemName}{x.r.spec ? ` [${x.r.spec}]` : ''}</td>
+              <td className="text-right">{qty2(x.r.orderQty)}</td>
+              <td className="text-right">{qty2(x.r.qty)}</td>
+              <td className="text-center">{x.r.dueDate ? x.r.dueDate.replace(/-/g, '/') : ''}</td>
               <td>{x.r.partner}</td>
-              <td className="text-ec-label">{x.r.remark ?? ''}</td>
-              <td className="text-right text-ec-hint">{x.r.vat.toLocaleString()}</td>
+              <td>{x.r.remark ?? ''}</td>
+              <td className="text-right">{x.r.vat.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={7} className="text-right">총합계 ({shown.length}줄)</td>
-            <td className="text-right">{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
-            <td></td>
-            <td className="text-right">{shown.reduce((a, x) => a + x.supply, 0).toLocaleString()}</td>
-            <td colSpan={2}></td>
+            <td colSpan={2} className="text-right">총합계</td>
+            <td className="text-right">{qty2(shown.reduce((a, x) => a + x.orderQty, 0))}</td>
+            <td className="text-right">{qty2(shown.reduce((a, x) => a + x.qty, 0))}</td>
+            <td colSpan={3}></td>
             <td className="text-right">{shown.reduce((a, x) => a + x.vat, 0).toLocaleString()}</td>
           </tr>
         </tfoot>

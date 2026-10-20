@@ -869,7 +869,11 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
           itemId: number; itemCode: string; itemName: string; unit: string
           orderQty: number; boughtQty: number; restQty: number; unitPrice: number
         }[]>('/purchase-orders/unpurchased')
-        r.data.forEach((l) => rows.push({
+        /*
+         * 원본 [발주] 검색창은 <b>발주서</b>만 띄운다 — 발주요청 · 발주계획은 다른 전표다(2026-10-20 실측).
+         * 우리는 한 장이 상태로 지나가므로 발주확정만. 예전엔 요청 · 계획 · 단가확정 단계도 떠서 발주서 전에 구매가 됐다.
+         */
+        r.data.filter((l) => l.statusName === '발주확정').forEach((l) => rows.push({
           key: `${l.orderId}-${l.orderLineId}`, orderId: l.orderId, docType: '발주서',
           docNo: l.orderNo, date: l.orderDate,
           partnerId: l.partnerId, partnerName: l.partnerName, statusName: l.statusName,

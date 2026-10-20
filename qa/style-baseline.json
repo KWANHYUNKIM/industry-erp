@@ -1165,8 +1165,8 @@
   "palette": 0
  },
  "pages/trade/UnpurchasedStatusPage.tsx": {
-  "inline": 79,
-  "color": 4,
+  "inline": 73,
+  "color": 2,
   "palette": 0
  },
  "pages/trade/UnshippedPage.tsx": {

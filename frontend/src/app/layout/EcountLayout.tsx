@@ -194,8 +194,10 @@ const MENU: TopMenu[] = [
           {
             label: '발주서',
             children: [
-              { label: '발주서', to: '/sales/purchase-orders' },
+              { label: '발주서조회', to: '/sales/purchase-orders' },
               { label: '발주서현황', to: '/sales/purchase-order-status' },
+              /* 원본 발주서 묶음 넷째(2026-10-20 실측: 발주서조회 · 발주서입력 · 발주서현황 · 미구매현황). 출력물에도 있다. */
+              { label: '미구매현황', to: '/sales/unpurchased' },
             ],
           },
           {

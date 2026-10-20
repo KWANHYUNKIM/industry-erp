@@ -339,7 +339,7 @@ export default function PurchaseOrderPage() {
 
   return (
     <EcListShell
-      title="발주서"
+      title="발주서조회"
       /*
        * 원본 [신규(F2)] 는 <b>아래 단추줄 맨 앞</b>이다. 우리 것은 표 위에 따로 떠 있고
        * 이름도 [+ 발주요청(F2)] 이었다 — 화면마다 새로 만드는 단추가 다른 자리에 있으면
