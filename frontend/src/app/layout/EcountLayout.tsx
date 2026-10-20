@@ -689,10 +689,16 @@ const MENU: TopMenu[] = [
             ],
           },
           {
-            label: '재무제표',
+            /* 원본 출력물 › 주요재무제표(2026-10-20 실측) 차례 — 재무상태표 · 손익계산서 · 원가명세서 · 계정명세서 · 합계잔액시산표 ·
+               현금흐름표 · 이익잉여금처분계산서 · 수입지출명세서. 뒤 셋은 화면이 아직 없다(plans/회계1 남은 것).
+               원가명세서 · 계정명세서 · 합계잔액시산표는 장부 묶음에도 아직 있다 — 장부 차례를 맞출 때 거기서 뺀다. */
+            label: '주요재무제표',
             children: [
               { label: '재무상태표', to: '/accounting/balance-sheet' },
               { label: '손익계산서', to: '/accounting/income-statement' },
+              { label: '원가명세서', to: '/accounting/cost-statement' },
+              { label: '계정명세서', to: '/accounting/account-detail' },
+              { label: '합계잔액시산표', to: '/accounting/trial-balance' },
             ],
           },
         ],

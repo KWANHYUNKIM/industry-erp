@@ -195,9 +195,12 @@ export default function BalanceSheetPage() {
   const head = (suffix?: string) => (
     <>
       <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">재무상태표</h3>
+      {/* 원본 머리(2026-10-20 실측): 제목 아래 가운데 '제 17기 2026/10/31 현재' · 비교 '제 16기 2025/12/31 현재', 왼쪽 회사명 · 오른쪽 '단위 : 원'. 우리는 기수 번호를 들지 않아 날짜만. */}
+      <p className="text-center text-[12px] m-0">{monthEnd(month).replace(/-/g, '/')} 현재</p>
+      {compareAsOf && <p className="text-center text-[12px] m-0">{compareAsOf.replace(/-/g, '/')} 현재</p>}
       <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}{suffix ? ` / ${suffix}` : ''}</span>
-        <span>{month.replace('-', '/')} 현재{thousand ? ' (단위 : 천원)' : ''}</span>
+        <span>단위 : {thousand ? '천원' : '원'}</span>
       </div>
     </>
   )

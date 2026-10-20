@@ -181,9 +181,12 @@ export default function CostStatementPage() {
   const head = (suffix?: string) => (
     <>
       <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">원가명세서</h3>
+      {/* 원본 머리(2026-10-20 실측): 제목 아래 가운데 '제 17기 2026/01/01 부터 2026/10/31 까지' · 비교 기간 한 줄 더, 왼쪽 회사명 · 오른쪽 '단위 : 원'. 우리는 기수 번호를 들지 않아 날짜만. */}
+      <p className="text-center text-[12px] m-0">{from.replace(/-/g, '/')} 부터 {to.replace(/-/g, '/')} 까지</p>
+      {cmpRange && <p className="text-center text-[12px] m-0">{cmpRange.from.replace(/-/g, '/')} 부터 {cmpRange.to.replace(/-/g, '/')} 까지</p>}
       <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}{suffix ? ` / ${suffix}` : ''}</span>
-        <span>{fromYm.replace('-', '/')} ~ {toYm.replace('-', '/')}{thousand ? ' (단위 : 천원)' : ''}</span>
+        <span>단위 : {thousand ? '천원' : '원'}</span>
       </div>
     </>
   )

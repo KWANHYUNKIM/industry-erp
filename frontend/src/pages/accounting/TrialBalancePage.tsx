@@ -32,7 +32,8 @@ interface Line { id: number; code: string; name: string; division: AccountDivisi
  * 부서 · 프로젝트 · 기타([결재방표시] · [천단위] · [잔액0포함] · [전표발생계정] 꺼짐 · [결산후] 켜짐).
  * [결산후]는 결산 분개를 넣고 볼지 고르는 칸인데 우리는 결산 분개를 따로 두지 않아(JournalSourceType 에 결산이 없다) 두지 않았다.
  *
- * <p>열은 다섯 — 기말잔액(차변) · 기말금액(차변) · 계정명 · 기말금액(대변) · 기말잔액(대변). 기말금액은 기간 안 차 · 대 합,
+ * <p>열은 다섯 — 기말잔액(차변) · 기말금액(차변) · 계정명 · 기말금액(대변) · 기말잔액(대변). 기말금액은 재무상태표 계정이면 누계 차 · 대 합
+ * (원본 기본양식(누계) — 기말잔액 = 기말금액 차 − 대), 손익 계정이면 기간 안 차 · 대 합이고 기간 앞 손익은 미처분이익잉여금 한 줄로 넘긴다.
  * 기말잔액은 처음부터 기간 끝까지 쌓은 잔액을 계정의 제 쪽(자산 → 차변, 부채 · 자본 → 대변)에 부호째 찍는다.
  * 원본은 유동자산 &gt; 당좌자산 &gt; 현금및현금성자산 &gt; 보통예금처럼 여러 층으로 묶고 매출총이익 · 영업이익 같은 계산 줄을 끼운다.
  * 우리 계정은 구분(자산 …)과 세부분류(유동자산 · 매출채권 …) 한 층만 들어 <b>세부분류 묶음 한 층</b>만 세우고, 계산 줄은 아직 없다.
@@ -95,20 +96,31 @@ export default function TrialBalancePage() {
       const p = pBy.get(id), c = cBy.get(id), a = accById.get(id)
       const division = (p ?? c)?.division ?? a?.division
       if (!division) continue
-      const pd = Number(p?.debit ?? 0), pc = Number(p?.credit ?? 0)
+      const isBS = isBalanceSheet(division)
       const cd = Number(c?.debit ?? 0), cc = Number(c?.credit ?? 0)
-      const bal = isBalanceSheet(division) ? (debitNormal(division) ? cd - cc : cc - cd) : 0
-      if (usedOnly && pd === 0 && pc === 0) continue
+      /* 원본 기본양식(누계) — 재무상태표 계정의 기말금액은 처음부터 기간 끝까지 쌓은 차 · 대(그래서 기말잔액 = 기말금액 차 − 대),
+         손익 계정은 기간 안 것만(지난 기간 손익은 아래 미처분이익잉여금 한 줄로 넘어간다). */
+      const pd = isBS ? cd : Number(p?.debit ?? 0), pc = isBS ? cc : Number(p?.credit ?? 0)
+      const bal = isBS ? (debitNormal(division) ? cd - cc : cc - cd) : 0
+      if (usedOnly && Number(p?.debit ?? 0) === 0 && Number(p?.credit ?? 0) === 0) continue
       if (!withZero && pd === 0 && pc === 0 && bal === 0) continue
       lines.push({ id, code: (p ?? c)?.accountCode ?? a?.code ?? '', name: (p ?? c)?.accountName ?? a?.name ?? '', division,
         group: a?.detailCategory ?? '', pd, pc, bal })
     }
+    /* 손익의 제자리 — 기간 앞 손익은 미처분이익잉여금(금액 · 잔액 대변), 기간 손익은 당기순이익(잔액 대변)으로 자본 아래에 둔다.
+       원본도 3. 자본 &gt; 이익잉여금 &gt; 미처분이익잉여금 · 당기순이익 줄이 있어 차 · 대 잔액 합계가 맞는다. */
+    const plNet = (tb: TrialBalance) => tb.rows.filter((r) => !isBalanceSheet(r.division))
+      .reduce((t, r) => t + Number(r.credit) - Number(r.debit), 0)
+    const cur = plNet(period), prior = plNet(cumul) - cur
+    if (prior !== 0 || withZero) lines.push({ id: -1, code: '~1', name: '미처분이익잉여금', division: 'EQUITY', group: '이익잉여금', pd: 0, pc: prior, bal: prior })
+    if (cur !== 0 || withZero) lines.push({ id: -2, code: '~2', name: '당기순이익', division: 'EQUITY', group: '이익잉여금', pd: 0, pc: 0, bal: cur })
     lines.sort((x, y) => DIV_ORDER.indexOf(x.division) - DIV_ORDER.indexOf(y.division) || x.code.localeCompare(y.code))
+    /* 같은 세부분류는 코드가 흩어져 있어도 한 묶음으로 — 예전에는 유동자산이 두 번 섰다(현금 · 예금 뒤 가지급금). */
     const out: { key: string; name: string; division: AccountDivision; lines: Line[] }[] = []
     for (const l of lines) {
       const key = `${l.division}|${l.group}`
-      const last = out[out.length - 1]
-      if (last && last.key === key) last.lines.push(l)
+      const g = out.find((x) => x.key === key)
+      if (g) g.lines.push(l)
       else out.push({ key, name: l.group, division: l.division, lines: [l] })
     }
     return out
