@@ -62,7 +62,10 @@ stop_server() {
 }
 
 start_from() {   # $1 = 폴더
-  (cd "$1" && nohup ./mvnw -o -q spring-boot:run -Dspring-boot.run.arguments=--spring.flyway.out-of-order=true > $LOG 2>&1 < /dev/null &) ; disown 2>/dev/null || true
+  # 메모리 상한 — 띄우기만 하는 maven 부모가 0.9GB, 앱이 기본 상한(물리 메모리 1/4 = 4GB)까지 자라는 것을 막는다(2026-10-21, 16GB 기계에 작업자 여럿)
+  (cd "$1" && MAVEN_OPTS="-Xmx256m -XX:+UseSerialGC" nohup ./mvnw -o -q spring-boot:run \
+     -Dspring-boot.run.arguments=--spring.flyway.out-of-order=true \
+     "-Dspring-boot.run.jvmArguments=-Xmx1g -XX:+UseSerialGC -XX:MaxMetaspaceSize=320m" > $LOG 2>&1 < /dev/null &) ; disown 2>/dev/null || true
   for _ in $(seq 1 36); do sleep 5; up && return 0; done
   return 1
 }
