@@ -1129,11 +1129,6 @@
   "color": 2,
   "palette": 0
  },
- "pages/trade/ShipmentOrderPage.tsx": {
-  "inline": 40,
-  "color": 3,
-  "palette": 0
- },
  "pages/trade/ShipmentOrderStatusPage.tsx": {
   "inline": 4,
   "color": 0,

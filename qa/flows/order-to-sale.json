@@ -33,12 +33,11 @@
       ]
     },
     {
-      "name": "출하지시서 — 출하완료(이제 출하 3, 미출하 1)",
-      "path": "/sales/shipment-order",
+      "name": "출하 — (출하지시서는 2026-10-20 다른 전표로 갈라 출하 상태는 API 로) 출하완료(이제 출하 3, 미출하 1)",
+      "path": "/sales/shipment-inquiry",
       "steps": [
-        "expect:document.body.innerText.includes(sessionStorage.getItem('o2sShip'))",
-        "js:[...[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sShip'))).querySelectorAll('button')].find((b) => b.textContent.trim() === '→ 출하완료').click(); true",
-        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sShip'))); return tr && ![...tr.querySelectorAll('button')].some((b) => b.textContent.trim() === '→ 출하완료') })()"
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const s = (await (await fetch('/api/shipments', { headers: H })).json()).find((x) => x.shipNo === sessionStorage.getItem('o2sShip')); await fetch('/api/shipments/' + s.id + '/status', { method: 'PATCH', headers: H, body: JSON.stringify({ status: 'SHIPPED' }) }); return true })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; return (await (await fetch('/api/shipments', { headers: H })).json()).find((x) => x.shipNo === sessionStorage.getItem('o2sShip')).status === 'SHIPPED' })()"
       ]
     },
     {

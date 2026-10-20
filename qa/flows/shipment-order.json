@@ -1,0 +1,65 @@
+{
+  "about": "출하지시서(E040221 · E040220, 2026-10-20 원본 흐름 plans/재고1/E040221.md 1장): 주문 7 → 출하지시서입력 [전표불러오기] 주문서 적용 → 4 로 저장(말 없이 닫힘) → 5 로 수정 → 미출하 5 → 출하 3 → 미출하 2 → 지시서 삭제(출하는 남는다). node qa/shot.mjs qa/flows/shipment-order.json — 만든 주문 · 출하는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "주문 7 (API — 주문서입력은 주문서 묶음이 본다)",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const g = async (p) => (await fetch('/api' + p, { headers: H })).json(); const pt = (await g('/partners')).find((p) => p.code === 'QA-CUST'); const it = (await g('/items')).find((i) => i.code === 'QA-PROD'); const wh = (await g('/warehouses')).find((w) => w.code === 'QA-WH'); const o = await (await fetch('/api/sales-orders', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: pt.id, warehouseId: wh.id, remark: 'QA재고1 출하지시', lines: [{ itemId: it.id, quantity: 7, unitPrice: 300 }] }) })).json(); sessionStorage.setItem('soOrder', o.orderNo); sessionStorage.setItem('soOrderNo', o.orderNo.replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')); return true })()",
+        "expect:!!sessionStorage.getItem('soOrderNo')"
+      ]
+    },
+    {
+      "name": "출하지시서입력 — 줄 없이 저장하면 알림, [전표불러오기] 주문서 적용 → 7, 4 로 고쳐 저장하면 말 없이 닫히고 목록 4.00",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "click:신규(F2)",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('출하지시서입력') && !document.querySelector('[role=dialog]').innerText.includes('단가')",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '확인').pop().click(); true",
+        "click:전표불러오기",
+        "js:(() => { const tr = [...document.querySelectorAll('[role=dialog] tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soOrderNo'))); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "click:적용(F8)",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody input[type=number]')].some((el) => el.value === '7')",
+        "js:(() => { const el = [...document.querySelectorAll('[role=dialog] tbody input[type=number]')].find((x) => x.value === '7'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '4'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/shipment-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('soId', String(s.id)); sessionStorage.setItem('soNo', s.orderNo.replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')); return true })()",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soNo'))); return tr && tr.innerText.includes('4.00') && tr.innerText.includes('진행중') })()"
+      ]
+    },
+    {
+      "name": "수정 — 일자-No. 링크 → 출하지시서입력(수정), 5 로 저장 → 5.00 · 미출하 5",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soNo')).click(); true",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('출하지시서입력(수정)')",
+        "js:(() => { const el = [...document.querySelectorAll('[role=dialog] tbody input[type=number]')].find((x) => x.value === '4'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '5'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soNo'))); return tr && tr.innerText.includes('5.00') })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 5 })()"
+      ]
+    },
+    {
+      "name": "출하 3(API — 출하입력은 출하 묶음이 맞춘다) → 미출하 2, 지시서는 진행중 그대로 → 지시서 삭제(막지 않음, 출하는 남는다)",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const s = await (await fetch('/api/shipment-orders/' + sessionStorage.getItem('soId'), { headers: H })).json(); const sh = await (await fetch('/api/shipment-orders/' + s.id + '/ship', { method: 'POST', headers: H, body: JSON.stringify({ lines: [{ lineId: s.lines[0].id, quantity: 3 }] }) })).json(); sessionStorage.setItem('soShip', sh.shipNo); return true })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 2 })()",
+        "js:location.reload(); true",
+        "wait:1500",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soNo'))); return tr && tr.innerText.includes('진행중') })()",
+        "js:window.confirm = () => true; [...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soNo')).click(); true",
+        "click:삭제",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('soNo')))",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; return (await (await fetch('/api/shipments', { headers: H })).json()).some((x) => x.shipNo === sessionStorage.getItem('soShip')) })()",
+        "apidel:/shipments|@soShip|shipNo",
+        "apidel:/sales-orders|@soOrder|orderNo"
+      ]
+    }
+  ]
+}
