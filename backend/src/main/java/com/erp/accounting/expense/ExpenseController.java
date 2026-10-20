@@ -41,6 +41,26 @@ public class ExpenseController {
         return expenseService.update(id, req);
     }
 
+    /** 비용내역입력(E060812) 전표 한 장 — 머리 + 줄 여럿 */
+    @PostMapping("/slip")
+    public List<ExpenseResponse> createSlip(@Valid @RequestBody ExpenseDtos.SlipRequest req,
+                                            @AuthenticationPrincipal UserPrincipal principal) {
+        return expenseService.createSlip(req, principal.getUsername());
+    }
+
+    /** 비용내역수정 창 — {id} 는 그 전표의 아무 줄 */
+    @PutMapping("/{id}/slip")
+    public List<ExpenseResponse> updateSlip(@PathVariable Long id, @Valid @RequestBody ExpenseDtos.SlipRequest req) {
+        return expenseService.updateSlip(id, req);
+    }
+
+    /** 비용통제 — 저장 전에 화면이 묻는다(한도 · 사용인원). editingId 는 고치는 전표(그 금액은 누적에서 뺀다). */
+    @PostMapping("/slip/control-check")
+    public List<ExpenseDtos.ControlViolation> controlCheck(@RequestBody ExpenseDtos.SlipRequest req,
+                                                           @RequestParam(required = false) Long editingId) {
+        return expenseService.checkControl(req, editingId);
+    }
+
     /** 전표별회계반영(비용) E060814 [가지급금정산서작성] → [저장] */
     @PostMapping("/settle")
     public com.erp.accounting.fastvoucher.dto.FastVoucherDtos.VoucherResponse settle(

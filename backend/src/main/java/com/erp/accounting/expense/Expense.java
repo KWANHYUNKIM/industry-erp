@@ -120,4 +120,39 @@ public class Expense extends BaseTimeEntity {
     /** 전표별회계반영(E060814)이 만든 가지급금정산서(회계전표) id. 비용내역을 지우면 그 전표도 지운다. */
     @Column(name = "settled_journal_id")
     private Long settledJournalId;
+
+    /**
+     * 비용내역 전표 한 장의 번호 — 원본은 한 전표('2026/10/20 -2')에 줄이 여럿이다(2026-10-20 실측, 두 줄 20,000 + 15,000 →
+     * 조회 한 줄 '교통비(국내-자차) 외 1건 · 35,000'). 같은 값을 가진 행이 한 전표의 줄이다. 비면 이 행 하나가 전표다(옛 지출).
+     */
+    @Column(name = "slip_doc_no", length = 30)
+    private String slipDocNo;
+
+    /** 전표 안 줄 차례(1부터) */
+    @Column(name = "line_no")
+    private Integer lineNo;
+
+    /** 줄 [배부액] · [금액1] · [금액2] — 원본 수정 창에서 금액1 · 금액2 는 0 으로 보인다. */
+    @Column(name = "alloc_amount", precision = 18, scale = 2)
+    private BigDecimal allocAmount;
+
+    @Column(name = "amount1", precision = 18, scale = 2)
+    private BigDecimal amount1;
+
+    @Column(name = "amount2", precision = 18, scale = 2)
+    private BigDecimal amount2;
+
+    /** 줄 [적요1] · [적요2] · [적요3] */
+    @Column(name = "memo1", length = 200)
+    private String memo1;
+
+    @Column(name = "memo2", length = 200)
+    private String memo2;
+
+    @Column(name = "memo3", length = 200)
+    private String memo3;
+
+    /** 머리 [출금계좌](bank_accounts) — 회사비용 전표. id 만 든다(원본: 회계반영 뒤 이 칸이 없어진다). */
+    @Column(name = "bank_account_id")
+    private Long bankAccountId;
 }

@@ -58,6 +58,45 @@ public final class ExpenseDtos {
 
     public record SettleLine(@NotNull Long expenseId, String employeeName) {}
 
+    /**
+     * 비용내역입력(E060812) 전표 한 장 = 머리 + 줄 여럿. 원본(2026-10-20 실측): 두 줄 20,000 + 15,000 을 한 번에 저장하면
+     * 전표 하나 '2026/10/20 -2' 가 되고, 전표별회계반영에서 그 한 장이 가지급금정산서 한 장이 된다.
+     */
+    public record SlipRequest(
+            LocalDate expenseDate,
+            Long expenseGroupId,
+            ExpensePayType payType,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String remarks,
+            /** 머리 [출금계좌] */
+            Long bankAccountId,
+            @jakarta.validation.constraints.NotEmpty(message = "비용코드를 입력 바랍니다.")
+            java.util.List<@jakarta.validation.Valid SlipLine> lines,
+            /** 비용통제 알림 '한도금액이 초과되었습니다. 전표를 저장하겠습니까?' 에 [확인] 했으면 true */
+            Boolean confirmOverLimit
+    ) {}
+
+    public record SlipLine(
+            LocalDate useDate,
+            @NotNull(message = "비용코드를 입력 바랍니다.") Long expenseItemId,
+            @NotNull(message = "사원: 자료를 입력 바랍니다.") Long employeeId,
+            @Size(max = 200) String partnerName,
+            @NotNull(message = "사용금액을 입력 바랍니다.") @Positive(message = "사용금액은 0보다 커야 합니다.") BigDecimal amount,
+            @Size(max = 300) String content,
+            @Size(max = 50) String department,
+            Long projectId,
+            BigDecimal allocAmount, BigDecimal amount1, BigDecimal amount2,
+            @Size(max = 200) String memo1, @Size(max = 200) String memo2, @Size(max = 200) String memo3
+    ) {}
+
+    /**
+     * 비용통제 창 한 줄 — 원본 '1.비용' 표 [비용코드 · 비용명 · 사용인원 · 사용자] (사용인원 체크) 또는 한도 체크.
+     * 사원 이름은 화면이 사원 목록에서 붙인다(accounting 은 hr 엔티티를 새로 참조하지 않는다).
+     */
+    public record ControlViolation(String kind, String itemCode, String itemName,
+                                   java.util.List<Long> allowedEmployeeIds, Long employeeId,
+                                   BigDecimal limitAmount, BigDecimal usedAmount, boolean block) {}
+
     public record ExpenseResponse(
             Long id,
             /** 비용 전표번호. 원본 비용내역현황의 [일자-No.] 가 이 값이다. */
@@ -89,7 +128,12 @@ public final class ExpenseDtos {
             /** 가지급금정산서(회계전표) id — 전표별회계반영이 채운다. null 이면 회계 반영 전. */
             Long settledJournalId,
             /** 계정코드 — 전표별회계반영 창 [계정코드(차변)] */
-            String accountCode
+            String accountCode,
+            /** 전표 번호(같은 값 = 한 전표의 줄) · 줄 차례 */
+            String slipDocNo, Integer lineNo,
+            BigDecimal allocAmount, BigDecimal amount1, BigDecimal amount2,
+            String memo1, String memo2, String memo3,
+            Long bankAccountId
     ) {
         public static ExpenseResponse from(Expense e) {
             String group = e.getAccount().getDetailCategory();
@@ -119,7 +163,12 @@ public final class ExpenseDtos {
                     e.getExpenseGroup() != null ? e.getExpenseGroup().getCode() : null,
                     e.getExpenseGroup() != null ? e.getExpenseGroup().getName() : null,
                     e.getSettledJournalId(),
-                    e.getAccount().getCode());
+                    e.getAccount().getCode(),
+                    e.getSlipDocNo() != null ? e.getSlipDocNo() : e.getDocNo(),
+                    e.getLineNo() != null ? e.getLineNo() : 1,
+                    e.getAllocAmount(), e.getAmount1(), e.getAmount2(),
+                    e.getMemo1(), e.getMemo2(), e.getMemo3(),
+                    e.getBankAccountId());
         }
     }
 }

@@ -42,4 +42,17 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "where e.expenseDate between :from and :to")
     java.math.BigDecimal sumVat(@org.springframework.data.repository.query.Param("from") java.time.LocalDate from,
                                 @org.springframework.data.repository.query.Param("to") java.time.LocalDate to);
+
+    /** 비용내역 전표 한 장의 줄들(같은 slip_doc_no, 옛 지출은 doc_no 하나) — 줄 차례대로. */
+    @Query("select e from Expense e join fetch e.account left join fetch e.expenseItem " +
+            "where e.slipDocNo = :no or (e.slipDocNo is null and e.docNo = :no) order by e.lineNo, e.id")
+    List<Expense> findSlip(@Param("no") String slipDocNo);
+
+    /** 비용통제 — 그 비용코드로 기간 안에 이미 쓴 금액(사원을 주면 그 사원만, 고치는 전표는 뺀다). */
+    @Query("select coalesce(sum(e.amount), 0) from Expense e where e.expenseItem.id = :item " +
+            "and coalesce(e.useDate, e.expenseDate) between :from and :to " +
+            "and (:emp = 0 or e.employeeId = :emp) " +   // 0 = 사원 가리지 않음(null 은 PostgreSQL 이 형을 못 정한다)
+            "and coalesce(e.slipDocNo, e.docNo) <> :exclude")
+    BigDecimal sumUsed(@Param("item") Long itemId, @Param("from") LocalDate from, @Param("to") LocalDate to,
+                       @Param("emp") Long employeeId, @Param("exclude") String excludeSlip);
 }
