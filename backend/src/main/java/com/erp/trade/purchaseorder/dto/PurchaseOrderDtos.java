@@ -29,7 +29,9 @@ public final class PurchaseOrderDtos {
             /** 라인 거래처(선택). 미지정 시 헤더 매입처 기준. */
             Long partnerId,
             @Size(max = 200, message = "비고는 200자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /** 베껴 온 앞 전표의 줄(발주계획 ← 발주요청 줄, 발주서 ← 발주계획 줄). 비우면 직접 넣은 줄. */
+            Long sourceLineId
     ) {}
 
     public record CreatePurchaseOrderRequest(
@@ -51,7 +53,12 @@ public final class PurchaseOrderDtos {
              * 원본 메뉴 <b>발주계획입력</b>(E040316)에서 넣은 것 — 요청을 거치지 않고 바로 [발주계획] 단계로 만든다.
              * 비우면 예전처럼 발주요청(REQUESTED)이다.
              */
-            Boolean plan
+            Boolean plan,
+            /**
+             * 원본 <b>발주서입력</b> — 발주계획조회 [다른전표생성 › 발주서 › 1장라인별] 이 띄우는 창. 바로 발주서(발주확정)로 만든다.
+             * 계획 · 요청은 그대로 두고 새 전표가 된다(원본 실측: 계획은 진행중 그대로).
+             */
+            Boolean order
     ) {}
 
     /**
@@ -106,7 +113,9 @@ public final class PurchaseOrderDtos {
             /** 발주계획 [종결여부] — 이 줄을 종결했나. */
             boolean planClosed,
             /** [수량조정] 창의 [입력수량] · [최종계산일자]. */
-            BigDecimal inputQuantity, LocalDate planCalcDate
+            BigDecimal inputQuantity, LocalDate planCalcDate,
+            /** 베껴 온 앞 전표의 줄 · 그 전표 번호 · 일자(원본 줄 열 [발주요청] · [No]). */
+            Long sourceLineId, String sourceOrderNo, LocalDate sourceOrderDate
     ) {
         public static OrderLineResponse from(PurchaseOrderLine l) {
             return new OrderLineResponse(
@@ -120,7 +129,8 @@ public final class PurchaseOrderDtos {
                     l.getPartner() != null ? l.getPartner().getName() : null,
                     l.getRemark(),
                     l.isPlanClosed(),
-                    l.getInputQuantity() != null ? l.getInputQuantity() : l.getQuantity(), l.getPlanCalcDate());
+                    l.getInputQuantity() != null ? l.getInputQuantity() : l.getQuantity(), l.getPlanCalcDate(),
+                    l.getSourceLineId(), l.getSourceOrderNo(), l.getSourceOrderDate());
         }
     }
 

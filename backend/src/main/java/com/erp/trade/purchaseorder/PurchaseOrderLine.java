@@ -72,6 +72,20 @@ public class PurchaseOrderLine {
     @Column(name = "plan_calc_date")
     private java.time.LocalDate planCalcDate;
 
+    /**
+     * 이 줄을 베껴 온 앞 전표의 줄 — 원본은 발주요청 → 발주계획 → 발주서를 <b>다른 전표</b>로 두고 [불러오기]로 줄을 베낀다
+     * (E040315 2026-10-20 실측). 앞 전표는 상태가 바뀌지 않는다. 앞 전표를 지우면 연결만 끊기고(ON DELETE SET NULL)
+     * 출처 일자 · No. 글자는 남는다 — 원본 줄 열 [발주요청] · [No] / [발주계획] · [No.].
+     */
+    @Column(name = "source_line_id")
+    private Long sourceLineId;
+
+    @Column(name = "source_order_no", length = 30)
+    private String sourceOrderNo;
+
+    @Column(name = "source_order_date")
+    private java.time.LocalDate sourceOrderDate;
+
     @Column(name = "line_no", nullable = false)
     @Builder.Default
     private Integer lineNo = 1;

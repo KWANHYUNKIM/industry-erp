@@ -57,6 +57,7 @@ public class PurchaseOrderService {
     private final WarehouseService warehouseService;
     private final PurchaseService purchaseService;
     private final PurchaseLineRepository purchaseLineRepository;
+    private final PurchaseOrderLineRepository orderLineRepository;
     private final DocumentNoGenerator docNoGenerator;
 
     /**
@@ -197,8 +198,12 @@ public class PurchaseOrderService {
                 .warehouse(warehouse)
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .currency(currency)
-                /* 발주계획입력(E040316)에서 넣은 것은 요청을 거치지 않고 바로 계획이다. */
-                .status(Boolean.TRUE.equals(req.plan()) ? PurchaseOrderStatus.PLANNED : PurchaseOrderStatus.REQUESTED)
+                /*
+                 * 발주요청 · 발주계획 · 발주서는 <b>다른 전표</b>다(원본 E040315 실측) — 다음 전표는 앞 전표를 베껴 새로 만들고
+                 * 앞 전표의 상태는 그대로 둔다. 발주계획입력(E040316)은 계획, 발주서입력은 바로 발주확정(구매 [발주] 잔량적용 대상).
+                 */
+                .status(Boolean.TRUE.equals(req.order()) ? PurchaseOrderStatus.ORDERED
+                        : Boolean.TRUE.equals(req.plan()) ? PurchaseOrderStatus.PLANNED : PurchaseOrderStatus.REQUESTED)
                 .taxable(req.taxable() == null || req.taxable())
                 .remark(req.remark())
                 .createdBy(username)
@@ -211,10 +216,12 @@ public class PurchaseOrderService {
             BusinessPartner linePartner = lr.partnerId() == null ? null
                     : TradeMasters.requireUsable(partnerRepository.findById(lr.partnerId())
                             .orElseThrow(() -> ApiException.notFound("라인 거래처를 찾을 수 없습니다. id=" + lr.partnerId())));
-            po.addLine(PurchaseOrderLine.builder()
+            PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
-                    .build());
+                    .build();
+            linkSource(line, lr.sourceLineId());
+            po.addLine(line);
         }
         recalculate(po);
 
@@ -260,10 +267,12 @@ public class PurchaseOrderService {
             BusinessPartner linePartner = lr.partnerId() == null ? null
                     : TradeMasters.requireUsable(partnerRepository.findById(lr.partnerId())
                             .orElseThrow(() -> ApiException.notFound("라인 거래처를 찾을 수 없습니다. id=" + lr.partnerId())));
-            po.addLine(PurchaseOrderLine.builder()
+            PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
-                    .build());
+                    .build();
+            linkSource(line, lr.sourceLineId());
+            po.addLine(line);
         }
         recalculate(po);
         po.setUpdatedBy(username);
@@ -424,6 +433,19 @@ public class PurchaseOrderService {
         }
         po.setConvertedPurchaseId(purchase.id());
         return purchase;
+    }
+
+    /**
+     * 베껴 온 앞 전표 줄을 단다 — 원본 줄 열 [발주요청] · [No] 처럼 그 전표 일자 · 번호를 글자로 남겨, 앞 전표를 지워도 보인다.
+     * 앞 전표는 건드리지 않는다(원본: 계획이 생겨도 요청은 진행중 · 수량 그대로, 같은 요청을 몇 번이고 베낀다).
+     */
+    private void linkSource(PurchaseOrderLine line, Long sourceLineId) {
+        if (sourceLineId == null) return;
+        PurchaseOrderLine src = orderLineRepository.findWithOrderById(sourceLineId)
+                .orElseThrow(() -> ApiException.notFound("불러온 전표의 줄을 찾을 수 없습니다. id=" + sourceLineId));
+        line.setSourceLineId(src.getId());
+        line.setSourceOrderNo(src.getPurchaseOrder().getOrderNo());
+        line.setSourceOrderDate(src.getPurchaseOrder().getOrderDate());
     }
 
     private void recalculate(PurchaseOrder po) {
