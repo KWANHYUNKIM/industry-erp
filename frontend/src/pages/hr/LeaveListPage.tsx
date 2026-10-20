@@ -11,12 +11,13 @@ import { printDocuments } from '../../utils/printDocument'
 import { formatDays } from '../../utils/dayCount'
 import { vacationFetchRange } from '../../utils/vacationFetchRange'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { periodOf } from '../../utils/periods'
 
 /**
  * 관리 > 근태관리 > 근태조회.
  *
  * <p>원본 열 실측(사본): <b>근태번호</b> · 근태일자 · 사원명 · 근태코드 · 근태수 · 휴가명 · 적요.
- * 탭은 전체 · 결재중 · 확인 · 이력이고, 버튼은 신규(F2) · 선택삭제 · 인쇄다.
+ * 탭은 전체 · 결재중 · 확인 · 이력이고, 버튼은 신규(F2) · 메신저 · 인쇄 · 선택삭제 · Excel · 이력조회다(2026-10-20).
  * 즉 여기서 보는 것은 출퇴근이 아니라 <b>연차·반차 같은 근태 기록</b>이다.
  *
  * <p>우리 근태조회는 <b>출퇴근 시각</b> 목록이었다. 출퇴근은 원본에서도 따로
@@ -46,12 +47,16 @@ interface Row {
   statusName: string
 }
 
-/** 원본 탭. '이력' 은 반려까지 다 보는 자리라 우리 반려를 그쪽에 둔다. */
+/** 원본 탭(qa/fixtures/ecount-screen-tabs.json: 전체 · 결재중 · UserPay · 확인 · 이력 — UserPay 는 회사가 만든 진행상태). '이력' 은 반려까지 다 보는 자리라 우리 반려를 그쪽에 둔다. */
 const TABS = ['전체', '결재중', '확인', '이력'] as const
 type Tab = typeof TABS[number]
 
-/** 원본은 소수 셋째 자리까지 채워 찍는다 — 자리수가 맞아야 세로로 견줄 수 있다. */
-const days = formatDays
+/** 원본 근태조회 [근태수] 는 소수 둘째 자리까지 채운다(2026-10-20 실측 '1.00'). */
+const days = (n: number) => formatDays(n, 2)
+
+/** 원본 근태조회 조건 판의 ▾ 기간 빠른선택(2026-10-20 실측) — 처음 값은 맨 끝 [최근30일(+1개월)](오늘 -30 ~ +30일). */
+const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월', '금년', '전년', '종료일', '최근30일(+1개월)'] as const
+const DEFAULT_RANGE = periodOf('최근30일(+1개월)')
 
 export default function LeaveListPage() {
   /** 원본 근태조회의 [신규(F2)] — 근태입력 화면을 연다. */
@@ -108,8 +113,8 @@ export default function LeaveListPage() {
    */
   const [dayCond, setDayCond] = useState('')
   /** 원본 조건 [기준일자] — 신청한 기간으로 좁힌다([근태일자]와 다른 것이다). */
-  const [fromCond, setFromCond] = useState('')
-  const [toCond, setToCond] = useState('')
+  const [fromCond, setFromCond] = useState(DEFAULT_RANGE?.from ?? '')
+  const [toCond, setToCond] = useState(DEFAULT_RANGE?.to ?? '')
   const [checked, setChecked] = useState<Set<number>>(new Set())
 
   async function load() {
@@ -177,8 +182,6 @@ export default function LeaveListPage() {
     return true
   }), [rows, emp, type, vkCond, groupCond, kindMaster, tab, dept, deptGroup, inGroup, reasonCond, dayCond, fromCond, toCond])
 
-  const total = shown.reduce((n, r) => n + r.days, 0)
-
   async function changeStatus(r: Row, status: Status) {
     try {
       await api.put(`/hr/vacations/${r.id}/status`, { status })
@@ -189,8 +192,7 @@ export default function LeaveListPage() {
   }
 
   async function removeChecked() {
-    if (checked.size === 0) return setError('지울 근태를 고르세요.')
-    if (!(await ecConfirm(`${checked.size}건을 삭제할까요?`))) return
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     setError('')
     try {
       for (const id of checked) await api.delete(`/hr/vacations/${id}`)
@@ -211,10 +213,8 @@ export default function LeaveListPage() {
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="근태조회"
-      searchable={false}
       onNew={() => navigate('/hr/leave-input')}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
         /*
          * 원본 근태조회의 [메신저]. 예전에는 '사내 메신저가 없다' 고 적고 뺐는데
          * <b>메신저는 진작 있었다</b>(앱바 💬). 근태를 보다 그 사람에게 바로 물으려면
@@ -225,7 +225,7 @@ export default function LeaveListPage() {
         { label: '메신저', onClick: () => openAppBarPanel('messenger') },
         // 원본 차례: 신규(F2) · 메신저 · 인쇄 · 선택삭제 · Excel (사본 실측)
         { label: '인쇄' },
-        { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
+        { label: '선택삭제', selected: checked.size, onClick: removeChecked },
         { label: 'Excel' },
       ]}
     >
@@ -251,6 +251,10 @@ export default function LeaveListPage() {
           <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={toCond}
                  onChange={(e) => setToCond(e.target.value)} style={{ width: 140 }} />
+          {PICKS.map((l) => (
+            <button key={l} type="button" className="ec-btn-pick"
+                    onClick={() => { const r = periodOf(l); if (r) { setFromCond(r.from); setToCond(r.to) } }}>{l}</button>
+          ))}
         </EcCond>
         {/*
           원본 차례는 <b>기준일자 · 근태일자 · 사원 · 부서 · 부서계층그룹 …</b> 이다
@@ -299,12 +303,6 @@ export default function LeaveListPage() {
                  onChange={(e) => setReasonCond(e.target.value)} style={{ width: 180 }} />
         </EcCond>
       </ul>
-
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        {shown.length}건
-        <span className="my-0 mx-[6px] text-ec-off">|</span>
-        근태수 합계 <b className="text-ec-navy text-[14px]">{days(total)}</b>
-      </div>
 
       <div className="overflow-x-auto">
         <table className="ec-grid w-full text-left">

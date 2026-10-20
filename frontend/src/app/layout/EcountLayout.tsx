@@ -899,12 +899,10 @@ const MENU: TopMenu[] = [
               { label: '근태입력', to: '/hr/leave-input' },
               { label: '근태조회', to: '/hr/leave-list' },
               { label: '근태현황', to: '/hr/attendance-kind-status' },
-              { label: '지각현황', to: '/hr/attendance-late' },
-              { label: '일별근무시간', to: '/hr/daily-hours' },
-              { label: '출퇴근/근태/일정 통합현황', to: '/hr/work-integrated' },
+              // 원본 근태 묶음은 셋뿐이다(2026-10-20 사이트맵). 지각현황 · 일별근무시간 · 통합현황은 메뉴에서만 뺐다 — 라우트는 그대로.
             ],
           },
-          { label: '출/퇴근(사원)', children: [{ label: '출/퇴근반영기준', to: '/hr/commute-rules' }, { label: '출/퇴근기록부(사원)', to: '/hr/employee-commutes' }, { label: '출/퇴근현황(사원)', to: '/hr/employee-commutes/status' }, { label: '지각현황(사원)', to: '/hr/employee-commutes/late' }, { label: '출퇴근/근태현황(사원)', to: '/hr/employee-commutes/attendance' }, { label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
+          { label: '출/퇴근(사원)', children: [{ label: '출/퇴근반영기준', to: '/hr/commute-rules' }, { label: '출/퇴근기록부(사원)', to: '/hr/employee-commutes' }, { label: '출/퇴근현황(사원)', to: '/hr/employee-commutes/status' }, { label: '지각현황(사원)', to: '/hr/employee-commutes/late' }, { label: '출퇴근/근태현황(사원)', to: '/hr/employee-commutes/attendance' }] },
           {
             label: '출력물',
             children: [

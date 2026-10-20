@@ -183,10 +183,9 @@ export default function CommuteRuleListPage() {
   return (
     <EcListShell
       title="출/퇴근반영기준"
-      searchable={false}
       onNew={() => { setEditId(null); setForm(blankForm()); setFormError(''); setOpen(true) }}
       actions={[
-        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v), disabled: checked.size === 0 },
+        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v), selected: checked.size },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
         { label: 'Excel' },
       ]}

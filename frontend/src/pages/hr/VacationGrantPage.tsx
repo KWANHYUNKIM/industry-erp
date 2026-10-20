@@ -113,7 +113,7 @@ export default function VacationGrantPage() {
   const sum = (k: 'carryOverDays' | 'currentDays') => lines.reduce((s, l) => s + (l.employeeId ? num(l[k]) : 0), 0)
 
   return (
-    <EcListShell title="사원별휴가일수조회" searchable={false}
+    <EcListShell title="사원별휴가일수조회"
                  actions={[{ label: '선택삭제', onClick: deleteChecked, selected: checked.size }, { label: 'Excel' }]}>
       <div className="ec-pills mb-[8px]"><button type="button" className="ec-pill active">전체</button></div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}

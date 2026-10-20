@@ -5,7 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import { formatDays } from '../../utils/dayCount'
 import { useDeptGroups } from '../../utils/deptGroups'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -73,7 +73,10 @@ const EMPLOYMENTS = [['ACTIVE', '재직자'], ['RESIGNED', '퇴사자'], ['ALL',
 const SUBTOTALS = ['없음', '부서', '근태항목', '사원'] as const
 
 /** 원본 [근태] 열은 일수다 — 소수 셋째 자리까지 채워 찍는다(사본 값 1.250). */
-const days = formatDays
+/** 원본 근태현황 [근태] 는 소수 둘째 자리까지 채운다(2026-10-20 실측 '1.00' · 합계 '5.00'). */
+const days = (n: number) => formatDays(n, 2)
+/** 원본 근태현황 ▾ 기간 빠른선택(2026-10-20 실측) — 현황 묶음의 [전월+금월] 대신 금년 · 전년 · 종료일. */
+const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '금년', '전년', '종료일'] as const
 
 export default function AttendanceKindStatusPage() {
   /*
@@ -194,12 +197,6 @@ export default function AttendanceKindStatusPage() {
 
   const totalDays = shown.reduce((n, r) => n + r.days, 0)
 
-  /** 근태종류별 소계 — 원본 합계줄이 하는 일을 조금 더 쓸모 있게. */
-  const byKind = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const r of shown) m.set(r.type, (m.get(r.type) ?? 0) + r.days)
-    return [...m.entries()].sort((a, b) => b[1] - a[1])
-  }, [shown])
 
   return (
     <EcListShell
@@ -216,7 +213,7 @@ export default function AttendanceKindStatusPage() {
       <EcStatusPanel
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
-        picks={STATUS_PICKS}
+        picks={PICKS}
         dateLabel="기준일자"
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
@@ -294,8 +291,8 @@ export default function AttendanceKindStatusPage() {
         </EcCond>
         {/*
           원본 차례: <b>[재직구분] 다음이 [양식]·[정렬/소계기준]·[근태일자]</b> 다
-          (2026-09-09 실측). 근태조회는 [근태일자]가 <b>맨 앞 [기준일자] 바로 뒤</b>인데
-          이 화면은 뒤쪽이다 — 두 화면이 서로 다르다.
+          (2026-09-09 실측, qa/fixtures/ecount-form-fields.json). 2026-10-20 에 연 원본은 조건이 적게 보이는 판이라
+          [근태일자]가 [기준일자] 바로 뒤에 있었다 — 판 설정(새로운 항목 추가)에 따라 다르다. 실측 표를 따른다.
         */}
         <EcCond label="근태일자">
           <input type="date" className="ec-input" value={dayCond}
@@ -308,17 +305,6 @@ export default function AttendanceKindStatusPage() {
           </label>
         </EcCond>
       </EcStatusPanel>
-
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        근태 <b className="text-ec-text">{shown.length}</b>건
-        <span className="my-0 mx-[6px] text-ec-off">|</span>
-        합계 <b className="text-ec-navy text-[14px]">{days(totalDays)}</b>일
-        {byKind.length > 0 && (
-          <span className="ml-[10px] text-ec-hint">
-            {byKind.map(([k, v]) => `${k} ${days(v)}일`).join(' · ')}
-          </span>
-        )}
-      </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
@@ -372,7 +358,7 @@ export default function AttendanceKindStatusPage() {
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={8} className="text-right">합계 ({shown.length}건)</td>
+            <td colSpan={8} className="text-right">합계</td>
             <td className="text-right text-ec-navy">{days(totalDays)}</td>
             <td colSpan={2}></td>
           </tr>
