@@ -359,6 +359,15 @@ main table,
 #root table.ec-report.ec-report-head400 thead th {
   font-weight: 400 !important;
 }
+/* 글자 11px 출력물 — 프로젝트계획/실적현황(E040637)은 머리 · 본문 11px, 소계 · 손익 줄만 12px 이다(2026-10-14 실측).
+   화면 코드의 [&_th]:text-[11px]! 는 위 #root … !important 를 못 이겨 12px 로 남았다. */
+#root table.ec-report.ec-report-11 thead th,
+#root table.ec-report.ec-report-11 tbody td {
+  font-size: 11px !important;
+}
+#root table.ec-report.ec-report-11 tbody tr.ec-total td {
+  font-size: 12px !important;
+}
 #root table.ec-report tbody td,
 #root table.ec-report tfoot td {
   padding: 3px !important;
