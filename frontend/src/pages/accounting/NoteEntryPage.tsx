@@ -22,9 +22,14 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  * 어음번호를 고르면 거래처명 · 총금액(어음 금액)이 들어온다. 빈 저장은 입금계좌 · 어음번호가 막는다. 저장하면 입금계좌만 남는다.
  * 전표 '26/10/20-26 | 받을어음감소 | 100,000' = 차) 보통예금(입금계좌) 99,000 · 이자비용 1,000 / 대) 받을어음 100,000.
  * 받을어음조회에서 감소 일자를 누르면 일자가 막힌 수정 창 — [저장(F8)] · [저장/전표(F7)] · [삭제] '전표를 삭제하겠습니까? - 받을어음감소' · [닫기].
+ *
+ * <b>받을어음거래처지급</b>(E010603, 화면 제목 '받을어음결제-받을어음거래처결제'): 전표일자 · 회계전표No. · 부서 · 프로젝트 · 거래처 ·
+ * 어음번호 · 총금액(막힘) · 지급금액 · 적요. 어음번호를 고르면 어음 거래처명 · 총금액 · 지급금액이 어음 금액으로 들어온다.
+ * 빈 저장은 거래처 · 어음번호가 막는다. 저장하면 칸이 다 빈다. 전표 '26/10/20-32 | 받을어음거래처지급 | 100,000' =
+ * 차) 외상매입금(거래처) / 대) 받을어음(어음 거래처, 적요 '(No.QA1-N2,2026/10/20 )'). 받을어음조회 감소 줄 일자 → 같은 수정 창.
  */
 
-type Note = PromissoryNote & { closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null; closeJournalEntryId?: number | null }
+type Note = PromissoryNote & { closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null; closeJournalEntryId?: number | null; closePartnerId?: number | null }
 
 function bankLabel(b: BankAccountRow) {
   if (b.name) return b.name
@@ -32,12 +37,17 @@ function bankLabel(b: BankAccountRow) {
   return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
 }
 
-export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' }) {
+export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' | 'endorse' }) {
   const dec = mode === 'decrease'
-  const title = dec ? '받을어음감소' : '받을어음증가'
+  const endorse = mode === 'endorse'
+  /** 어음번호를 코드도움으로 고르는 화면(감소 · 거래처지급) */
+  const picksNote = dec || endorse
+  const title = dec ? '받을어음감소' : endorse ? '받을어음결제-받을어음거래처결제' : '받을어음증가'
+  /** 원본 삭제 확인 '전표를 삭제하겠습니까? - …' 의 꼬리 */
+  const kindName = dec ? '받을어음감소' : endorse ? '받을어음거래처지급' : '받을어음증가'
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const editId = dec ? Number(params.get('id')) || null : null
+  const editId = picksNote ? Number(params.get('id')) || null : null
   const deptProject = useDeptProjectItems()
   const [partners, setPartners] = useState<Partner[]>([])
   const [banks, setBanks] = useState<BankAccountRow[]>([])
@@ -60,7 +70,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   function loadNotes() {
-    if (!dec) return
+    if (!picksNote) return
     api.get<NoteSummary>('/notes').then((r) => setNotes(r.data.notes as Note[])).catch(() => {})
   }
   useEffect(() => {
@@ -68,7 +78,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     else api.get<Partner[]>('/partners').then((r) => setPartners(r.data)).catch(() => {})
     loadNotes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dec])
+  }, [mode])
 
   /* 받을어음조회 감소 일자에서 연 수정 창 — 그 감소의 값을 채운다. */
   useEffect(() => {
@@ -80,6 +90,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     setNoteNo(n.noteNo)
     const f = Number(n.discountFee ?? 0)
     setTotal(String(n.amount)); setFee(f ? String(f) : ''); setAmount(String(Number(n.amount) - f))
+    setPartnerId(n.closePartnerId ? String(n.closePartnerId) : '')
     setRemark(n.closeRemark ?? '')
     setDept(n.closeDepartmentId ? String(n.closeDepartmentId) : '')
     setProject(n.closeProjectId ? String(n.closeProjectId) : '')
@@ -87,7 +98,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
 
   /* 수정 창의 입금계좌 — 그 감소 전표에 묶인 계좌 입금 줄(그날 입출금 중 같은 전표). 수수료만으로 닫은 감소는 입금이 없어 비운다. */
   useEffect(() => {
-    if (!editing?.closeJournalEntryId || !editing.closedDate || bankId) return
+    if (!dec || !editing?.closeJournalEntryId || !editing.closedDate || bankId) return
     api.get<{ rows: { bankAccountId: number; journalEntryId: number | null }[] }>('/bank-cards/transactions',
       { params: { from: editing.closedDate, to: editing.closedDate, all: true } }).then((r) => {
       const t = r.data.rows.find((x) => x.journalEntryId === editing.closeJournalEntryId)
@@ -95,8 +106,9 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     }).catch(() => {})
   }, [editing, bankId])
 
-  const partnerItems: CodeItem[] = useMemo(() => partners.filter((p) => p.type !== 'SUPPLIER')
-    .map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [partners])
+  /* 증가는 매출처, 거래처지급은 어음을 넘겨 줄 매입처 쪽 — 원본 코드도움은 둘 다 거래처 전체. */
+  const partnerItems: CodeItem[] = useMemo(() => partners.filter((p) => endorse || p.type !== 'SUPPLIER')
+    .map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [partners, endorse])
   const bankItems: CodeItem[] = useMemo(() => banks.filter((b) => b.active !== false)
     .map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankLabel(b) })), [banks])
   /* 어음번호 코드도움 — 보유 중인 받을어음(수정 창은 그 어음도). 고르면 거래처명이 옆에 붙는다. */
@@ -129,7 +141,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     } else {
       if (!partnerId) { setError('거래처: 자료를 입력 바랍니다.'); return false }
       if (!noteNo.trim()) { setError('어음번호: 자료를 입력 바랍니다.'); return false }
-      if (!(Number(amount) > 0)) { setError('금액: 자료를 입력 바랍니다.'); return false }
+      if (!(Number(amount) > 0)) { setError(`${endorse ? '지급금액' : '금액'}: 자료를 입력 바랍니다.`); return false }
     }
     setSaving(true)
     try {
@@ -146,6 +158,20 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
         }
         await api.post('/notes/decrease', body)
         reset(true)
+        loadNotes()
+      } else if (endorse) {
+        const body = {
+          noteNo: noteNo.trim(), partnerId: Number(partnerId), date, amount: Number(amount),
+          remark: remark.trim() || undefined,
+          departmentId: dept ? Number(dept) : undefined, projectId: project ? Number(project) : undefined,
+        }
+        if (editing) {
+          await api.put(`/notes/${editing.id}/endorse`, body)
+          navigate('/accounting/notes-list')
+          return true
+        }
+        await api.post('/notes/endorse', body)
+        reset()
         loadNotes()
       } else {
         await api.post('/notes', {
@@ -168,7 +194,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     if (!editing) return
     setConfirmDelete(false)
     try {
-      await api.delete(`/notes/${editing.id}/decrease`)
+      await api.delete(`/notes/${editing.id}/${endorse ? 'endorse' : 'decrease'}`)
       navigate('/accounting/notes-list')
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -222,6 +248,21 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
                 <EcNumInput className="ec-input w-full text-right" aria-label="수수료" value={fee} onValue={changeFee} placeholder="0" />
               </EcCond>
             </>
+          ) : endorse ? (
+            <>
+              <EcCond label="거래처" span={2}>
+                <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} />
+              </EcCond>
+              <EcCond label="어음번호" span={2}>
+                <CodePickerField label="어음번호" hideLabel pair fill emptyLabel="" value={noteNo} onChange={pickNote} items={noteItems} />
+              </EcCond>
+              <EcCond label="총금액" span={2}>
+                <input className="ec-input w-full text-right" aria-label="총금액" disabled value={total ? Number(total).toLocaleString('ko-KR') : '0'} />
+              </EcCond>
+              <EcCond label="지급금액" span={2}>
+                <EcNumInput className="ec-input w-full text-right" aria-label="지급금액" value={amount} onValue={setAmount} placeholder="0" />
+              </EcCond>
+            </>
           ) : (
             <>
               <EcCond label="거래처" span={2}>
@@ -245,7 +286,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
       </EcSlipShell>
 
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
-        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {title}</p>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {kindName}</p>
         <div className="flex gap-[5px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void remove()}>확인</button>
           <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>

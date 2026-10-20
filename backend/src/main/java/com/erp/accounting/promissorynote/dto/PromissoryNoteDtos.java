@@ -66,6 +66,20 @@ public final class PromissoryNoteDtos {
             Long projectId
     ) {}
 
+    /**
+     * 받을어음거래처지급(E010603) 한 장 — 원본 칸 [전표일자 · 부서 · 프로젝트 · 거래처 · 어음번호 · 총금액(막힘) · 지급금액 · 적요].
+     * 어음번호를 고르면 총금액 · 지급금액이 어음 금액으로 들어온다.
+     */
+    public record EndorseRequest(
+            @NotNull(message = "어음번호: 자료를 입력 바랍니다.") @Size(max = 30, message = "어음번호는 30자까지 넣을 수 있습니다.") String noteNo,
+            @NotNull(message = "거래처: 자료를 입력 바랍니다.") Long partnerId,
+            LocalDate date,
+            @NotNull(message = "지급금액: 자료를 입력 바랍니다.") @Positive(message = "지급금액은 0보다 커야 합니다.") BigDecimal amount,
+            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.") String remark,
+            Long departmentId,
+            Long projectId
+    ) {}
+
     /** 만기결제. 예금계좌를 지정하지 않으면 보통예금(103)으로 분개한다. */
     public record SettleRequest(
             Long bankAccountId,
@@ -99,7 +113,10 @@ public final class PromissoryNoteDtos {
             Long closeDepartmentId,
             Long closeProjectId,
             /** 받을어음감소(E010602)로 닫혔으면 그 한 장 전표 id — 있으면 감소를 지울 수 있다 */
-            Long closeJournalEntryId
+            Long closeJournalEntryId,
+            /** 받을어음거래처지급으로 어음을 받은 거래처 */
+            Long closePartnerId,
+            String closePartnerName
     ) {
         public static NoteResponse from(PromissoryNote n) {
             return new NoteResponse(
@@ -112,7 +129,9 @@ public final class PromissoryNoteDtos {
                     n.getBankName(), n.getRemark(), n.getCreatedBy(), n.isRecordOnly(),
                     n.getDepartmentId(), n.getProjectId(),
                     n.getCloseRemark(), n.getCloseDepartmentId(), n.getCloseProjectId(),
-                    n.getCloseJournalEntry() == null ? null : n.getCloseJournalEntry().getId());
+                    n.getCloseJournalEntry() == null ? null : n.getCloseJournalEntry().getId(),
+                    n.getClosePartner() == null ? null : n.getClosePartner().getId(),
+                    n.getClosePartner() == null ? null : n.getClosePartner().getName());
         }
     }
 

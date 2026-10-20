@@ -27,6 +27,8 @@ type Note = PromissoryNote & {
   closeJournalEntryId?: number | null
 }
 const recordDecreased = (n: Note) => (n.status as string) === 'RECORD_DECREASED'
+/** 받을어음거래처지급(E010603)으로 닫힌 어음 — 감소 줄 거래유형 '받을어음거래처지급', 일자를 누르면 거래처지급 수정 창. */
+const endorsed = (n: Note) => (n.status as string) === 'ENDORSED'
 /** 어음 한 장이 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(결제 · 할인 · 부도) 감소. */
 interface Move { key: string; date: string; inc: boolean; n: Note }
 /** 그 줄의 적요 · 부서 · 프로젝트 — 감소 줄은 감소 때 적은 값. */
@@ -114,7 +116,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
 
   const ofType = useMemo(() => notes.filter((n) => n.type === type), [notes, type])
   /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] 증가 '어음만증가' · 감소 '어음만감소'. */
-  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? '받을어음감소' : m.n.statusName)
+  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? (endorsed(m.n) ? '받을어음거래처지급' : '받을어음감소') : m.n.statusName)
   /** 원본 [일자] '2026/10/13-2' — 그날 넣은 어음 중 몇 번째(id 차례). 감소 줄은 날짜만. */
   const dayNo = (m: Move) => {
     if (!m.inc) return dateText(m.date)
@@ -148,7 +150,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: String(id), name }))
   }, [ofType])
   const authors = useMemo(() => [...new Set(ofType.map((n) => n.createdBy).filter(Boolean) as string[])].sort(), [ofType])
-  const kinds = useMemo(() => [...new Set([receivable ? '받을어음증가' : '지급어음증가', '어음만증가', ...ofType.filter((n) => n.closedDate).map((n) => n.statusName)])], [ofType, receivable])
+  const kinds = useMemo(() => [...new Set([receivable ? '받을어음증가' : '지급어음증가', '어음만증가', ...ofType.filter((n) => n.closedDate).map((n) => n.closeJournalEntryId ? (endorsed(n) ? '받을어음거래처지급' : '받을어음감소') : n.statusName)])], [ofType, receivable])
   /** 회계전표일자-No. — '2026/10/13 -3'. 증가는 출처(어음 · id), 감소는 닫힌 날 적요의 어음번호로 찾는다. */
   const journalOf = (m: Move) => {
     if (!m.inc && recordDecreased(m.n)) return ''
@@ -316,7 +318,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
                        })} />
               </td>
               <td>{!m.inc && m.n.closeJournalEntryId
-                ? <a className="ec-link" href={`/accounting/notes-decrease?id=${m.n.id}`} onClick={(e) => { e.preventDefault(); navigate(`/accounting/notes-decrease?id=${m.n.id}`) }}>{dayNo(m)}</a>
+                ? <a className="ec-link" href={`/accounting/${endorsed(m.n) ? 'notes-endorse' : 'notes-decrease'}?id=${m.n.id}`} onClick={(e) => { e.preventDefault(); navigate(`/accounting/${endorsed(m.n) ? 'notes-endorse' : 'notes-decrease'}?id=${m.n.id}`) }}>{dayNo(m)}</a>
                 : dayNo(m)}</td>
               <td>{m.n.noteNo}</td>
               <td>{m.inc ? '증가' : '감소'}</td>

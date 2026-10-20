@@ -7,7 +7,9 @@ public enum NoteStatus {
     DISCOUNTED("할인"),
     DISHONORED("부도"),
     /** 원본 [내역만등록] 전표구분 [감소] — 분개 없이 내역만 닫는다(받을어음조회 거래유형 '어음만감소', 2026-10-13 실측). */
-    RECORD_DECREASED("어음만감소");
+    RECORD_DECREASED("어음만감소"),
+    /** 받을어음거래처지급(E010603) — 어음을 거래처에 넘겨(배서) 외상매입금을 갚았다. 받을어음조회 거래유형 '받을어음거래처지급'. */
+    ENDORSED("거래처지급");
 
     private final String displayName;
 

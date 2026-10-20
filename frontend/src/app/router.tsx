@@ -643,8 +643,9 @@ export default function AppRouter() {
         <Route path="/accounting/corporate-tax/expense-evidence" element={<ExpenseEvidenceStatusPage />} />
         <Route path="/accounting/corporate-tax" element={<CorporateTaxPage />} />
         <Route path="/accounting/notes" element={<PromissoryNotePage />} />
-        <Route path="/accounting/notes-increase" element={<NoteEntryPage mode="increase" />} />
-        <Route path="/accounting/notes-decrease" element={<NoteEntryPage mode="decrease" />} />
+        <Route path="/accounting/notes-increase" element={<NoteEntryPage key="increase" mode="increase" />} />
+        <Route path="/accounting/notes-decrease" element={<NoteEntryPage key="decrease" mode="decrease" />} />
+        <Route path="/accounting/notes-endorse" element={<NoteEntryPage key="endorse" mode="endorse" />} />
         <Route path="/accounting/notes-list" element={<NoteListPage type="RECEIVABLE" />} />
         <Route path="/accounting/notes-pay-list" element={<NoteListPage type="PAYABLE" />} />
         <Route path="/accounting/notes-ledger" element={<NoteLedgerPage type="RECEIVABLE" />} />

@@ -26,7 +26,20 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
  * 이월 줄은 같은 판인 수령수표거래내역(실측)처럼 '이월잔액'(잔액 칸에만 값)으로 둔다. 묶음 끝에 '소계' 한 줄을 둔다.
  */
 /** 어음의 부서 · 프로젝트(공용 타입 PromissoryNote 에는 아직 없다). */
-type DP = { departmentId?: number | null; projectId?: number | null }
+type DP = { departmentId?: number | null; projectId?: number | null
+  closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null }
+/**
+ * 그 줄의 적요 · 부서 · 프로젝트 — 감소 줄은 감소(거래처지급 · 받을어음감소 · 내역만등록 감소) 때 적은 값.
+ * 2026-10-20 원본: QA1-N2 거래처지급 적요를 'QA회계1수정' 으로 고치면 감소 줄 적요가 그 값, 증가 줄은 'QA회계1' 그대로.
+ */
+const nameOf = (items: { value: string; name: string }[], id: number | null | undefined) =>
+  (id == null ? '' : items.find((x) => x.value === String(id))?.name ?? '')
+const lineOf = (n: PromissoryNote, dec: boolean) => {
+  const d = n as PromissoryNote & DP
+  const own = dec && (d.closeRemark != null || d.closeDepartmentId != null || d.closeProjectId != null)
+  return own ? { remark: d.closeRemark ?? '', dept: d.closeDepartmentId, project: d.closeProjectId }
+    : { remark: n.remark ?? '', dept: d.departmentId, project: d.projectId }
+}
 
 export default function NoteLedgerPage({ type }: { type: NoteType }) {
   const title = type === 'RECEIVABLE' ? '받을어음거래내역' : '지급어음거래내역'
@@ -149,6 +162,8 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
             <th>어음번호</th>
             <th>거래처명</th>
             <th>계정명</th>
+            <th>부서명</th>
+            <th>프로젝트명</th>
             <th>적요</th>
             <th className="text-right">증가금액</th>
             <th className="text-right">감소금액</th>
@@ -157,13 +172,13 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
             ...(g.opening !== 0 ? [
               <tr key={`${g.key}-open`}>
-                <td colSpan={8}>이월잔액</td>
+                <td colSpan={10}>이월잔액</td>
                 <td className="text-right">{Math.round(g.opening).toLocaleString('ko-KR')}</td>
               </tr>,
             ] : []),
@@ -174,14 +189,17 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
                 <td>{l.note.noteNo}</td>
                 <td>{l.note.partnerName}</td>
                 <td>{account}</td>
-                <td>{l.note.remark ?? ''}</td>
+                <td>{nameOf(deptProject.departments, lineOf(l.note, l.dec > 0).dept)}</td>
+                <td>{nameOf(deptProject.projects, lineOf(l.note, l.dec > 0).project)}</td>
+                <td>{lineOf(l.note, l.dec > 0).remark}</td>
                 <td className="text-right">{won(l.inc)}</td>
                 <td className="text-right">{won(l.dec)}</td>
                 <td className="text-right">{Math.round(l.bal).toLocaleString('ko-KR')}</td>
               </tr>
             )),
             <tr key={`${g.key}-sub`} style={{ fontWeight: 700, background: '#f7f7f7' }}>
-              <td colSpan={6} className="text-right">{g.key} 소계</td>
+              {/* 원본 '받을어음 / QA(00018) 계'(거래처코드까지) */}
+              <td colSpan={8} className="text-right">{account} / {g.key} 계</td>
               <td className="text-right">{won(g.inc)}</td>
               <td className="text-right">{won(g.dec)}</td>
               <td className="text-right">{Math.round(g.bal).toLocaleString('ko-KR')}</td>
@@ -190,7 +208,7 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={6} className="text-right">합계</td>
+            <td colSpan={8} className="text-right">누계</td>
             <td className="text-right">{won(total.inc)}</td>
             <td className="text-right">{won(total.dec)}</td>
             <td className="text-right">{Math.round(total.bal).toLocaleString('ko-KR')}</td>

@@ -546,11 +546,12 @@ const MENU: TopMenu[] = [
         label: '어음거래',
         nodes: [
           /* 원본 회계 I › 어음거래(2026-10-20 loginaa): 받을어음 9 · 지급어음 8. 받을어음증가 · 감소는 한 장 입력(C000014 · E010602).
-             거래처지급 · 일괄감소 · 지급어음증가/감소/일괄감소는 아직 없어 어음등록(수취/발행) 한 화면이 지급어음 쪽을 맡는다. */
+             거래처지급(E010603)도 한 장 입력. 일괄감소 · 지급어음증가/감소/일괄감소는 아직 없어 어음등록(수취/발행) 한 화면이 지급어음 쪽을 맡는다. */
           { label: '받을어음', children: [
             { label: '받을어음증가', to: '/accounting/notes-increase' }, { label: '받을어음감소', to: '/accounting/notes-decrease' },
             { label: '받을어음조회', to: '/accounting/notes-list' }, { label: '받을어음거래내역', to: '/accounting/notes-ledger' },
             { label: '받을어음증가현황', to: '/accounting/notes-in' }, { label: '받을어음감소현황', to: '/accounting/notes-out' },
+            { label: '받을어음거래처지급', to: '/accounting/notes-endorse' },
             { label: '보유어음현황', to: '/accounting/notes-held' },
           ] },
           { label: '지급어음', children: [

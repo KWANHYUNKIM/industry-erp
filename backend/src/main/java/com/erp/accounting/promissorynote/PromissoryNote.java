@@ -108,4 +108,9 @@ public class PromissoryNote extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "close_journal_entry_id")
     private com.erp.accounting.journal.JournalEntry closeJournalEntry;
+
+    /** 받을어음거래처지급(E010603)으로 어음을 받은 거래처 — 그 전표의 외상매입금 줄 거래처. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "close_partner_id")
+    private com.erp.trade.partner.BusinessPartner closePartner;
 }

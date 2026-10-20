@@ -249,6 +249,67 @@ public class PromissoryNoteService {
         return NoteResponse.from(n);
     }
 
+    /**
+     * 받을어음거래처지급(E010603) — 보유 받을어음을 거래처에 넘겨(배서) 외상매입금을 갚는다.
+     * 2026-10-20 loginaa 실측: QA1-N2 100,000 → 거래처 QA · 지급금액 100,000 → 받을어음조회 감소 줄 거래유형 '받을어음거래처지급',
+     * 전표 '26/10/20-32 | 받을어음거래처지급 | 100,000' = 차) 외상매입금(QA) / 대) 받을어음(QA).
+     * 원본은 지급금액을 어음 금액과 달리 적어도 받는다 — 우리는 어음 한 장이 줄 하나라 같아야 한다(감소와 같은 규칙).
+     */
+    @Transactional
+    public NoteResponse endorse(PromissoryNoteDtos.EndorseRequest req, String username) {
+        String no = req.noteNo().trim();
+        PromissoryNote n = noteRepository.findByNoteNo(no)
+                .filter(x -> x.getType() == NoteType.RECEIVABLE)
+                .orElseThrow(() -> ApiException.badRequest("어음번호를 찾을 수 없습니다: " + no));
+        n = held(n.getId(), "거래처지급");
+        LocalDate date = req.date() != null ? req.date() : LocalDate.now();
+        requireNotBeforeIssue(n, date, "지급일");
+        if (req.amount().compareTo(n.getAmount()) != 0) {
+            throw ApiException.badRequest(String.format("지급금액(%s)이 어음 %s 의 금액(%s)과 다릅니다.",
+                    req.amount().stripTrailingZeros().toPlainString(), n.getNoteNo(), n.getAmount().stripTrailingZeros().toPlainString()));
+        }
+        BusinessPartner payee = partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        String remark = req.remark() == null || req.remark().isBlank() ? null : req.remark().trim();
+        var entry = journalService.createFromNoteEndorse(n, payee, req.amount(), date, remark,
+                req.departmentId(), req.projectId(), username);
+        n.setStatus(NoteStatus.ENDORSED);
+        n.setClosedDate(date);
+        n.setClosePartner(payee);
+        n.setCloseRemark(remark);
+        n.setCloseDepartmentId(req.departmentId());
+        n.setCloseProjectId(req.projectId());
+        n.setCloseJournalEntry(entry);
+        return NoteResponse.from(n);
+    }
+
+    /** 거래처지급 수정 창 [저장(F8)] — 지우고 다시 넣는 것을 한 트랜잭션으로. */
+    @Transactional
+    public NoteResponse updateEndorse(Long id, PromissoryNoteDtos.EndorseRequest req, String username) {
+        cancelEndorse(id);
+        return endorse(req, username);
+    }
+
+    /** 거래처지급 지우기(원본 '전표를 삭제하겠습니까? - 받을어음거래처지급') — 전표를 지우고 어음을 보유로. */
+    @Transactional
+    public NoteResponse cancelEndorse(Long id) {
+        PromissoryNote n = noteRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("어음을 찾을 수 없습니다. id=" + id));
+        var entry = n.getCloseJournalEntry();
+        if (n.getStatus() != NoteStatus.ENDORSED || entry == null) {
+            throw ApiException.conflict(n.getNoteNo() + " 은(는) 거래처지급으로 닫힌 어음이 아닙니다.");
+        }
+        n.setCloseJournalEntry(null);
+        n.setClosePartner(null);
+        n.setStatus(NoteStatus.HELD);
+        n.setClosedDate(null);
+        n.setCloseRemark(null);
+        n.setCloseDepartmentId(null);
+        n.setCloseProjectId(null);
+        journalService.deleteEntry(entry);
+        return NoteResponse.from(n);
+    }
+
     /** 만기결제: 받을어음이면 계좌 입금, 지급어음이면 계좌 출금. 어음이 예금으로 정리된다. */
     @Transactional
     public NoteResponse settle(Long id, SettleRequest req, String username) {

@@ -93,6 +93,26 @@ public class PromissoryNoteController {
         return service.cancelDecrease(id, principal.getUsername());
     }
 
+    /** 받을어음거래처지급(E010603) 한 장 — 분개 차) 외상매입금 / 대) 받을어음 */
+    @PostMapping("/endorse")
+    public NoteResponse endorse(@Valid @RequestBody PromissoryNoteDtos.EndorseRequest req,
+                                @AuthenticationPrincipal UserPrincipal principal) {
+        return service.endorse(req, principal.getUsername());
+    }
+
+    /** 거래처지급 수정 창 [저장(F8)] */
+    @PutMapping("/{id}/endorse")
+    public NoteResponse updateEndorse(@PathVariable Long id, @Valid @RequestBody PromissoryNoteDtos.EndorseRequest req,
+                                      @AuthenticationPrincipal UserPrincipal principal) {
+        return service.updateEndorse(id, req, principal.getUsername());
+    }
+
+    /** 거래처지급 지우기 — 전표를 지우고 어음을 보유로 */
+    @DeleteMapping("/{id}/endorse")
+    public NoteResponse cancelEndorse(@PathVariable Long id) {
+        return service.cancelEndorse(id);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);

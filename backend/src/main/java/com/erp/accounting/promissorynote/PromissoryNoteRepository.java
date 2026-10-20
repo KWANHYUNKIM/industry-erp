@@ -11,7 +11,7 @@ public interface PromissoryNoteRepository extends JpaRepository<PromissoryNote, 
 
     java.util.Optional<PromissoryNote> findByNoteNo(String noteNo);
 
-    @Query("select n from PromissoryNote n join fetch n.partner " +
+    @Query("select n from PromissoryNote n join fetch n.partner left join fetch n.closePartner " +
            "where n.issueDate >= :from and n.issueDate <= :to " +
            "order by n.dueDate asc, n.id desc")
     List<PromissoryNote> findAllWithPartner(@org.springframework.data.repository.query.Param("from") java.time.LocalDate from,

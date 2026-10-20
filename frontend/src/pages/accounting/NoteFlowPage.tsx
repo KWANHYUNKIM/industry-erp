@@ -74,7 +74,8 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
   /** 감소 쪽에서 [내역만등록] 감소로 닫힌 어음은 감소 줄의 값, 그 밖은 어음(증가) 값. */
   const dpOf = (n: PromissoryNote) => {
     const d = n as PromissoryNote & DP
-    const own = flow !== '증가' && (n.status as string) === 'RECORD_DECREASED'
+    /* 받을어음감소 · 거래처지급 한 장도 감소 줄 자기 적요(2026-10-20 원본 감소현황 QA1-N2 적요 'QA회계1수정' = 거래처지급 때 고친 값). */
+    const own = flow !== '증가' && ((n.status as string) === 'RECORD_DECREASED' || d.closeRemark != null || d.closeDepartmentId != null || d.closeProjectId != null)
     return own ? { dept: d.closeDepartmentId, project: d.closeProjectId, remark: d.closeRemark }
       : { dept: d.departmentId, project: d.projectId, remark: n.remark }
   }

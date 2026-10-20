@@ -129,6 +129,7 @@ const RULES: Rule[] = [
   ['/accounting/notes', 'BANK'],
   ['/accounting/notes-increase', 'BANK'],
   ['/accounting/notes-decrease', 'BANK'],
+  ['/accounting/notes-endorse', 'BANK'],
   ['/accounting/notes-ledger', 'BANK'],
   ['/accounting/notes-in', 'BANK'],
   ['/accounting/notes-out', 'BANK'],

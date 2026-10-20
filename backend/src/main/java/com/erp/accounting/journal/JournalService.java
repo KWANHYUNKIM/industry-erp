@@ -593,6 +593,28 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 받을어음거래처지급(E010603, 배서) → 한 장. 2026-10-20 loginaa 실측(QA1-N2 100,000 → 거래처 QA):
+     * 차) 외상매입금(받는 거래처) 100,000 / 대) 받을어음(어음 거래처) 100,000,
+     * 받을어음 줄 적요 '적요(No.QA1-N2,2026/10/20 )' — 어음번호 · 만기일자.
+     */
+    @Transactional
+    public JournalEntry createFromNoteEndorse(com.erp.accounting.promissorynote.PromissoryNote n,
+                                              com.erp.trade.partner.BusinessPartner payee, BigDecimal amount,
+                                              LocalDate date, String remark, Long departmentId, Long projectId,
+                                              String createdBy) {
+        String desc = remark != null && !remark.isBlank() ? remark.trim() : null;
+        JournalEntry e = newEntry(JournalSourceType.NOTE, null, date, desc, payee, createdBy);
+        String lineDesc = (desc != null ? desc : "") + "(No." + n.getNoteNo() + ","
+                + n.getDueDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd")) + " )";
+        e.addLine(JournalLine.builder().account(account("251")).debit(amount).credit(BigDecimal.ZERO)
+                .description(desc).partner(payee).build());
+        e.addLine(JournalLine.builder().account(account("110")).debit(BigDecimal.ZERO).credit(amount)
+                .description(lineDesc).partner(n.getPartner()).build());
+        e.stampDeptProject(departmentId, projectId);
+        return save(e);
+    }
+
     /** 어음 처리 단계 중 현금이 오가지 않는 것들. */
     public enum NoteEvent {
         ISSUE("수취/발행"), DISCOUNT_FEE("할인료"), DISHONOR("부도");

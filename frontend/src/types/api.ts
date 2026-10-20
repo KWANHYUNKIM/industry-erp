@@ -2356,7 +2356,7 @@ export interface WithholdingReceipt {
 // ===== 어음거래 =====
 
 export type NoteType = 'RECEIVABLE' | 'PAYABLE'
-export type NoteStatus = 'HELD' | 'SETTLED' | 'DISCOUNTED' | 'DISHONORED'
+export type NoteStatus = 'HELD' | 'SETTLED' | 'DISCOUNTED' | 'DISHONORED' | 'RECORD_DECREASED' | 'ENDORSED'
 
 export interface PromissoryNote {
   id: number
