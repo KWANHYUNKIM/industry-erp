@@ -25,6 +25,13 @@ mkdir $L 2>/dev/null || { echo "재기동 잠금을 남이 쥐고 있다: $(cat 
 echo "$WHO $(date +%T) restart-backend.sh $(git rev-parse --short HEAD)" > $L/owner
 trap 'rm -rf $L' EXIT
 
+# 내 커밋이 이미 지금 서버에 들어 있으면(남이 내 커밋 뒤에 재기동했다) 다시 내리지 않는다 — 작업자가 많을 때 재기동이 몇 분마다 겹쳐 모두가 502 를 맞았다
+H=$(git rev-parse HEAD)
+if [ -f $RUN/.head ] && git merge-base --is-ancestor "$H" "$(cat $RUN/.head)" 2>/dev/null; then
+  echo "UP — 이미 반영됨: 지금 서버($(git rev-parse --short "$(cat $RUN/.head)"))가 HEAD $(git rev-parse --short "$H") 를 담고 있다. 재기동 안 함"
+  exit 0
+fi
+
 up() { [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -X POST http://localhost:8081/api/auth/login \
   -H 'Content-Type: application/json' -d '{}')" != "000" ]; }
 
@@ -62,7 +69,8 @@ start_from() {   # $1 = 폴더
 
 # 1) HEAD 를 꺼내 컴파일 — 실패하면 서버는 건드리지 않는다
 rm -rf $NEW && mkdir -p $NEW
-git archive HEAD backend | tar -x -C $NEW --strip-components=1
+git archive "$H" backend | tar -x -C $NEW --strip-components=1
+echo "$H" > $NEW/.head
 if ! (cd $NEW && ./mvnw -o -q compile) > /tmp/erp-backend-compile.log 2>&1; then
   echo "HEAD $(git rev-parse --short HEAD) 컴파일 실패 — 서버는 그대로 둔다:"
   grep -E '^\[ERROR\].*\.java' /tmp/erp-backend-compile.log | head -5
