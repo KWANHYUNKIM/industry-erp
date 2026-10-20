@@ -1,0 +1,79 @@
+{
+  "about": "매출 · 매입(세금)계산서조회(세무)(원본 E030203 · E030204) · 현황(세무)(E030212 · E030213) — 2026-10-20 원본 숫자 그대로: (세금)계산서발행/수령에서 매출 100,000 · 매입 50,000 을 넣으면 조회(세무) 에 '… 100,000 · 10,000 · 110,000 · 세무 · 인쇄' (매입은 [인쇄] 열 없이 '50,000 · 5,000 · 55,000 · 세무'), 일자-번호를 누르면 그 계산서 창이 떠 200,000(→ 20,000) 으로 고치면 조회 줄 · 현황(세무) [YYYY/MM  계] 에 220,000, 줄 [인쇄] 는 '청구서' 창, 창의 [삭제] '전표를 삭제하겠습니까?' 로 지우면 줄이 빠진다. 현황(세무) 는 [검색(F8)] 전에는 격자가 없다.",
+  "shots": [
+    {
+      "name": "매출(세금)계산서조회(세무) — 세무 줄 · 인쇄 · 고치기",
+      "path": "/accounting/vat/sales-tax-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const p=(await window.__api('GET','/partners')).body.find((x)=>x.code==='BOTH-001');const d=new Date().toLocaleDateString('sv-SE');const a=await window.__api('POST','/tax-vouchers',{side:'SALES',entryDate:d,vatType:'세금계산서',partnerId:p.id,supplyAmount:100000,vatAmount:10000,remark:'QA세무-E030203'});const b=await window.__api('POST','/tax-vouchers',{side:'PURCHASE',entryDate:d,vatType:'세금계산서',partnerId:p.id,supplyAmount:50000,vatAmount:5000,remark:'QA세무-E030203'});sessionStorage.setItem('tlS',a.body.entryNo);sessionStorage.setItem('tlP',b.body.entryNo);sessionStorage.setItem('tlName',p.name);return a.status+' '+b.status})()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기|인쇄'",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlS')) && /100,000\\s+10,000\\s+110,000\\s+세무\\s+인쇄/.test(t.innerText))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlS')) && t.innerText.includes('세무')).querySelectorAll('button.ec-link')[1].click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('청구서') && d.innerText.includes('공급받는자 보관용'))",
+        "clicklast:닫기",
+        "wait:300",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlS')) && t.innerText.includes('세무')).querySelector('button.ec-link').click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('매출(세금)계산서발행')) && [...document.querySelectorAll('[role=dialog] input[type=date]')].some((i) => i.disabled)",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelector('input.text-right'); el.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '200000'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlS')) && /200,000\\s+20,000\\s+220,000\\s+세무/.test(t.innerText))"
+      ]
+    },
+    {
+      "name": "매입(세금)계산서조회(세무) — 인쇄 열 없음 · 세무 줄",
+      "path": "/accounting/vat/purchase-tax-list",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlP')) && /50,000\\s+5,000\\s+55,000\\s+세무$/.test(t.innerText.trim()))"
+      ]
+    },
+    {
+      "name": "매출(세금)계산서현황(세무) — 검색 전 격자 없음 · 고친 220,000",
+      "path": "/accounting/vat/sales-tax-status",
+      "steps": [
+        "wait:2000",
+        "expect:!document.querySelector('table')",
+        "js:[...document.querySelectorAll('.ec-cond button')].find((b) => b.textContent.trim() === '검색(F8)').click(); true",
+        "wait:2000",
+        "expect:document.querySelector('.ec-report-title')?.innerText === '매출청구서현황'",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlS')) && /200,000\\s+20,000\\s+220,000\\s+세무/.test(t.innerText))"
+      ]
+    },
+    {
+      "name": "매입(세금)계산서현황(세무) — 매입청구서현황 · 55,000",
+      "path": "/accounting/vat/purchase-tax-status",
+      "steps": [
+        "wait:2000",
+        "expect:!document.querySelector('table') && !document.body.innerText.includes('최근30일')",
+        "js:[...document.querySelectorAll('.ec-cond button')].find((b) => b.textContent.trim() === '검색(F8)').click(); true",
+        "wait:2000",
+        "expect:document.querySelector('.ec-report-title')?.innerText === '매입청구서현황' && [...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlP')) && /50,000\\s+5,000\\s+55,000\\s+세무/.test(t.innerText))"
+      ]
+    },
+    {
+      "name": "매출(세금)계산서조회(세무) — 창에서 삭제",
+      "path": "/accounting/vat/sales-tax-list",
+      "steps": [
+        "wait:2500",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlS')) && t.innerText.includes('세무')).querySelector('button.ec-link').click(); true",
+        "wait:500",
+        "clicklast:삭제",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(' -' + sessionStorage.getItem('tlS')) && t.innerText.includes('세무'))"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const y=new Date().getFullYear();const vs=await (await fetch('/api/tax-vouchers?from='+y+'-01-01&to='+y+'-12-31',{headers:h})).json();const left=vs.filter((v)=>(v.remark||'').includes('QA세무-E030203'));for(const v of left)await fetch('/api/tax-vouchers/'+v.id,{method:'DELETE',headers:h});return left.length?'시험 계산서 '+left.length+'건 지움':true})()"
+  ]
+}

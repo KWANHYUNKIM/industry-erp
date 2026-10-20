@@ -6,7 +6,8 @@ import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { INQUIRY_PICKS, NOTE_FLOW_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { AS_PICKS, INQUIRY_PICKS, NOTE_FLOW_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { EcReportFoot, EcReportHead } from '../../components/EcReportFrame'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
@@ -42,6 +43,11 @@ interface TaxVoucher { id: number; entryDate: string; entryNo: number; vatType: 
  * 같고(조건 · 상태 기본 확인) 제목에 '(세무)' 가 붙고 기간 빠른선택에 직전분기 · 직전반기 · 최근30일이 붙는다(2026-10-04 실측).
  * (세금)계산서발행/수령에서 쓴 분개 없는 계산서도 [내역보기] '세무' 줄로 싣는다 — 원본 '2026/10/12 -4 (주)구로 123,000 12,300 135,300 세무'
  * (2026-10-12 실측). 회계 I 판에는 싣지 않는다(그쪽은 아직 재지 않았다).
+ *
+ * <p>2026-10-20 다시 잼(세무 판만): 조건 판을 펼친 채 격자 없이 열리고 판 아래 [검색(F8)] · 기간 빠른선택 · [다시 작성] 을 누르면
+ * 판이 접히며 격자가 나온다(하단은 [인쇄] · [Excel] 만). 빠른선택은 매출 … 직전분기 · 직전반기 · 종료일 · 최근30일, 매입은 최근30일 없이.
+ * 격자는 출력물 꼴 — 제목 '매출청구서현황' · '매입청구서현황' 24px, '회사명 : …' · '2026/09/20  ~ 2026/10/20', table-layout fixed
+ * 120 · 160 · 100 · 90 · 110 · 140, 머리 700 · 28.1, 본문 3px · 24.1, [YYYY/MM  계] · [합계] 칸마다 회색 243 · 굵게, 끝 [P.1] · 출력한 때.
  */
 export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu?: '세무' }) {
   const { companyName } = useAuth()
@@ -66,6 +72,10 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const tax = menu === '세무'
+  /* 세무 판은 [검색(F8)] 을 누르기 전에는 격자를 그리지 않는다(원본 E030212 · E030213). */
+  const [searched, setSearched] = useState(!tax)
+  const [shown, setShown] = useState({ from: init.from, to: init.to })
 
   useEffect(() => {
     api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
@@ -83,6 +93,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
       ])
       setEntries(r.data.rows)
       setVouchers(v)
+      setShown({ from, to })
       setTruncated(r.data.truncated)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -91,7 +102,9 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to])
+  useEffect(() => { if (!tax) void load() }, [from, to])
+  const search = () => { setSearched(true); void load() }
+  const reset = () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setDocNo(''); setPartner(''); setManager(''); setTaxOnly(false); setKind(''); setStatus('확인') }
 
   const pById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners])
   const rows = useMemo(() => {
@@ -134,9 +147,9 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
     <EcListShell
       title={title}
       searchable={false}
-      actions={[
+      actions={tax ? [{ label: '인쇄' }, { label: 'Excel' }] : [
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setDocNo(''); setPartner(''); setManager(''); setTaxOnly(false); setKind(''); setStatus('확인') } },
+        { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -147,9 +160,11 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
           <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span className="ml-[6px]">
-            <EcPeriodPicks labels={menu === '세무' ? SALES_TAX_STOCK_PICKS : side === '매출' ? NOTE_FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
-          </span>
+          {!tax && (
+            <span className="ml-[6px]">
+              <EcPeriodPicks labels={side === '매출' ? NOTE_FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+            </span>
+          )}
         </EcCond>
         <EcCond label="회계전표No.">
           <input className="ec-input" value={docNo} onChange={(e) => setDocNo(e.target.value)} style={{ width: 180 }} />
@@ -188,15 +203,34 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
             </label>
           ))}
         </EcCond>
+        {tax && (
+          <li className="full">
+            <button className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
+            <EcPeriodPicks labels={side === '매출' ? SALES_TAX_STOCK_PICKS : AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+            <button className="ec-btn ec-btn-pick" onClick={reset}>다시 작성</button>
+          </li>
+        )}
       </ul>
 
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {searched && (
+      <div className={tax ? 'ec-report-frame' : undefined}>
+      {tax ? (
+        <EcReportHead title={side === '매출' ? '매출청구서현황' : '매입청구서현황'} period={`${slash(shown.from)}  ~ ${slash(shown.to)}`} />
+      ) : (<>
       <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">{side === '매출' ? '매출(세금)계산서현황' : '매입(세금)계산서현황'}</h3>
       <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
         <span>{slash(from)} ~ {slash(to)}</span>
       </div>
-      <table ref={tableRef} className="w-full text-left">
+      </>)}
+      <table ref={tableRef} className={tax ? 'text-left ec-report ec-report-fixed' : 'w-full text-left'}>
+        {tax && (
+          <colgroup>
+            <col className="w-[120px]" /><col className="w-[160px]" /><col className="w-[100px]" />
+            <col className="w-[90px]" /><col className="w-[110px]" /><col className="w-[140px]" />
+          </colgroup>
+        )}
         <thead>
           <tr>
             <th className="text-center">일자-No.</th>
@@ -229,7 +263,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
                         <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>{r.source === '거래명세서' ? '내역보기 거래명세서' : r.source}</td>
                       </tr>
                     ))}
-                    <tr style={SUB_ROW}>
+                    <tr className={tax ? 'ec-total' : undefined} style={tax ? undefined : SUB_ROW}>
                       <td colSpan={2} className="text-center">{slash(mo)}  계</td>
                       <td className="text-right">{won(s.s)}</td>
                       <td className="text-right">{won(s.v)}</td>
@@ -239,7 +273,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
                   </Fragment>
                 )
               })}
-              <tr style={SUB_ROW}>
+              <tr className={tax ? 'ec-total' : undefined} style={tax ? undefined : SUB_ROW}>
                 <td colSpan={2} className="text-center">합계</td>
                 <td className="text-right">{won(total.s)}</td>
                 <td className="text-right">{won(total.v)}</td>
@@ -250,6 +284,9 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
           )}
         </tbody>
       </table>
+      {tax && <EcReportFoot />}
+      </div>
+      )}
     </EcListShell>
   )
 }
