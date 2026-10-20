@@ -8,6 +8,7 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
+import { useAuth } from '../../features/auth/AuthContext'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 여섯 칸 묶음. */
@@ -61,12 +62,17 @@ export default function TransferListPage() {
     api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
   }, [])
 
+  const { companyName } = useAuth()
+  /* 원본은 [검색(F8)] 전에 격자 · 머리를 그리지 않는다(2026-10-20 실측) — 조건 판만. */
+  const [searched, setSearched] = useState(false)
+  const [shown, setShown] = useState({ from: init.from, to: init.to })
   async function load() {
     setLoading(true)
     setError('')
     try {
       const r = await api.get<JournalList>('/journals', { params: { from, to, all: true } })
       setEntries(r.data.rows)
+      setShown({ from, to })
       setTruncated(r.data.truncated)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -74,8 +80,7 @@ export default function TransferListPage() {
       setLoading(false)
     }
   }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to])
+  const search = () => { setSearched(true); void load() }
 
   const pById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners])
   const outAccounts = useMemo(() => [...new Set(entries.flatMap((e) => e.lines.filter((l) => OUT_CODES.includes(l.accountCode)).map((l) => l.accountName)))].sort(), [entries])
@@ -121,7 +126,7 @@ export default function TransferListPage() {
       title="지출결의서이체리스트"
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '검색(F8)', primary: true, onClick: search },
         { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setUnit('건별'); setFrom(init.from); setTo(init.to); setDocNo(''); setOutAccount(''); setStatus('확인') } },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -175,7 +180,12 @@ export default function TransferListPage() {
       </ul>
 
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {searched && (<>
       <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">지출결의서이체리스트</h3>
+      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+        <span>회사명 : {companyName ?? ''}</span>
+        <span>{slash(shown.from)} ~ {slash(shown.to)}</span>
+      </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -227,6 +237,7 @@ export default function TransferListPage() {
           )}
         </tbody>
       </table>
+      </>)}
     </EcListShell>
   )
 }

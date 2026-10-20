@@ -6,7 +6,7 @@ import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { AS_PICKS, INQUIRY_PICKS, NOTE_FLOW_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { AS_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcReportFoot, EcReportHead } from '../../components/EcReportFrame'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
@@ -49,7 +49,12 @@ interface TaxVoucher { id: number; entryDate: string; entryNo: number; vatType: 
  * 격자는 출력물 꼴 — 제목 '매출청구서현황' · '매입청구서현황' 24px, '회사명 : …' · '2026/09/20  ~ 2026/10/20', table-layout fixed
  * 120 · 160 · 100 · 90 · 110 · 140, 머리 700 · 28.1, 본문 3px · 24.1, [YYYY/MM  계] · [합계] 칸마다 회색 243 · 굵게, 끝 [P.1] · 출력한 때.
  */
-export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu?: '세무' }) {
+/** 매출 → 매입으로 옮길 때 같은 컴포넌트가 재사용돼 기간 · 검색 상태가 따라오던 것 — 쪽마다 새로 그린다. */
+export default function TaxInvoiceJournalPage(props: { side: Side; menu?: '세무' }) {
+  return <TaxInvoiceJournal key={`${props.side}-${props.menu ?? ''}`} {...props} />
+}
+
+function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
   const { companyName } = useAuth()
   const init = side === '매출' ? periodOf('최근30일')! : periodOf('금월(~오늘)')!
   const title = (side === '매출' ? '매출(세금)계산서현황' : '매입(세금)계산서현황') + (menu === '세무' ? '(세무)' : '')
@@ -74,7 +79,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
   const [error, setError] = useState('')
   const tax = menu === '세무'
   /* 세무 판은 [검색(F8)] 을 누르기 전에는 격자를 그리지 않는다(원본 E030212 · E030213). */
-  const [searched, setSearched] = useState(!tax)
+  const [searched, setSearched] = useState(false)
   const [shown, setShown] = useState({ from: init.from, to: init.to })
 
   useEffect(() => {
@@ -101,8 +106,6 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
       setLoading(false)
     }
   }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!tax) void load() }, [from, to])
   const search = () => { setSearched(true); void load() }
   const reset = () => { setDept(''); setProject(''); setFrom(init.from); setTo(init.to); setDocNo(''); setPartner(''); setManager(''); setTaxOnly(false); setKind(''); setStatus('확인') }
 
@@ -148,7 +151,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
       title={title}
       searchable={false}
       actions={tax ? [{ label: '인쇄' }, { label: 'Excel' }] : [
-        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '검색(F8)', primary: true, onClick: search },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -162,7 +165,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
           {!tax && (
             <span className="ml-[6px]">
-              <EcPeriodPicks labels={side === '매출' ? NOTE_FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+              <EcPeriodPicks labels={side === '매출' ? SALES_TAX_STOCK_PICKS : AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
             </span>
           )}
         </EcCond>
@@ -218,10 +221,10 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
       {tax ? (
         <EcReportHead title={side === '매출' ? '매출청구서현황' : '매입청구서현황'} period={`${slash(shown.from)}  ~ ${slash(shown.to)}`} />
       ) : (<>
-      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">{side === '매출' ? '매출(세금)계산서현황' : '매입(세금)계산서현황'}</h3>
+      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">{side === '매출' ? '매출청구서현황' : '매입청구서현황'}</h3>
       <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
-        <span>{slash(from)} ~ {slash(to)}</span>
+        <span>{slash(shown.from)} ~ {slash(shown.to)}</span>
       </div>
       </>)}
       <table ref={tableRef} className={tax ? 'text-left ec-report ec-report-fixed' : 'w-full text-left'}>

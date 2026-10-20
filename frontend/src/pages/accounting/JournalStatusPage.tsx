@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -9,11 +9,14 @@ import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
+import { dateNo } from '../../utils/dateNo'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
+/** 원본 [거래유형] — 부가세 전표만 '매출전표 I(매출)' · '매입전표 I(매입)' 처럼 쪽을 붙인다(2026-10-20 실측). 거래이력조회는 붙이지 않는다. */
+const kindOf = (name: string) => { const m = /^(매출|매입)전표 (I|II)$/.exec(name); return m ? `${name}(${m[1]})` : name }
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 type Unit = '일별' | '월별' | '전표별' | '거래처별'
@@ -52,6 +55,9 @@ export default function JournalStatusPage() {
   const entries = useMemo(() => scopeEntries(allEntries, dept, project, true), [allEntries, dept, project])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
+  /* 원본은 [검색(F8)] 전에 격자 · 머리를 그리지 않는다(2026-10-20 실측) — 조건 판만. */
+  const [searched, setSearched] = useState(false)
+  const [shown, setShown] = useState({ from: init.from, to: init.to })
   const [error, setError] = useState('')
 
   async function load() {
@@ -60,6 +66,7 @@ export default function JournalStatusPage() {
     try {
       const r = await api.get<JournalList>('/journals', { params: { from, to, all: true } })
       setEntries(r.data.rows)
+      setShown({ from, to })
       setTruncated(r.data.truncated)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -67,14 +74,13 @@ export default function JournalStatusPage() {
       setLoading(false)
     }
   }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to])
+  const search = () => { setSearched(true); void load() }
 
   const picked = useMemo(() => entries
     .filter((e) => !docNo || e.docNo.includes(docNo))
     .filter((e) => !partner || (e.partnerName ?? '') === partner)
     .filter((e) => !account || e.lines.some((l) => l.accountName === account))
-    .filter((e) => !kind || e.sourceTypeName === kind)
+    .filter((e) => !kind || kindOf(e.sourceTypeName) === kind)
     .filter((e) => amtFrom === '' || Number(e.totalDebit) >= Number(amtFrom))
     .filter((e) => amtTo === '' || Number(e.totalDebit) <= Number(amtTo))
     .filter((e) => !remark || (e.description ?? '').includes(remark) || e.lines.some((l) => (l.description ?? '').includes(remark)))
@@ -84,7 +90,7 @@ export default function JournalStatusPage() {
   const rows = useMemo(() => {
     const textOf = (e: JournalEntry) => e.description ?? e.lines.find((l) => l.description)?.description ?? ''
     if (unit === '전표별') {
-      return picked.map((e): Row => ({ key: String(e.id), label: `${slash(e.entryDate)} -${e.docNo}`, kind: e.sourceTypeName,
+      return picked.map((e): Row => ({ key: String(e.id), label: dateNo(e.entryDate, e.docNo), kind: kindOf(e.sourceTypeName),
         amount: Number(e.totalDebit), partner: e.partnerName ?? '', text: textOf(e), month: e.entryDate.slice(0, 7) }))
     }
     const keyOf = (e: JournalEntry) => unit === '일별' ? e.entryDate : unit === '월별' ? e.entryDate.slice(0, 7) : (e.partnerName ?? '')
@@ -101,7 +107,7 @@ export default function JournalStatusPage() {
   const total = rows.reduce((s, r) => s + r.amount, 0)
   const partners = useMemo(() => [...new Set(entries.map((e) => e.partnerName).filter(Boolean) as string[])].sort(), [entries])
   const accounts = useMemo(() => [...new Set(entries.flatMap((e) => e.lines.map((l) => l.accountName)))].sort(), [entries])
-  const kinds = useMemo(() => [...new Set(entries.map((e) => e.sourceTypeName))].sort(), [entries])
+  const kinds = useMemo(() => [...new Set(entries.map((e) => kindOf(e.sourceTypeName)))].sort(), [entries])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '회계거래현황', [rows.length, unit])
@@ -117,7 +123,7 @@ export default function JournalStatusPage() {
       title="회계거래현황"
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '검색(F8)', primary: true, onClick: search },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -178,10 +184,11 @@ export default function JournalStatusPage() {
       </ul>
 
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {searched && (<>
       <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">전표현황</h3>
       <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
-        <span>{slash(from)} ~ {slash(to)}</span>
+        <span>{slash(shown.from)} ~ {slash(shown.to)}</span>
       </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -234,6 +241,7 @@ export default function JournalStatusPage() {
           )}
         </tbody>
       </table>
+      </>)}
     </EcListShell>
   )
 }
