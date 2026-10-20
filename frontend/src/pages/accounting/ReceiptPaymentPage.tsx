@@ -5,6 +5,7 @@ import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
 import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
+import { useRequired } from '../../utils/useRequired'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -51,6 +52,7 @@ export default function ReceiptPaymentPage() {
   const [fee, setFee] = useState('')
   const [memo, setMemo] = useState('')
   const [error, setError] = useState('')
+  const req = useRequired()
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -63,7 +65,7 @@ export default function ReceiptPaymentPage() {
   /** 원본 [다시 작성]: 전부 비운다. 저장 뒤에는 전표일자 · 출금계좌 · 계정이 남는다(keep, 2026-10-13 실측). */
   function reset(keep = false) {
     if (!keep) { setDate(ymd(new Date())); setSettle(''); setAccountId('') }
-    setPayee(''); setAmount(''); setFee(''); setMemo(''); setError('')
+    setPayee(''); setAmount(''); setFee(''); setMemo(''); setError(''); req.reset()
     setDepartmentId(''); setProjectId('')
   }
 
@@ -94,9 +96,8 @@ export default function ReceiptPaymentPage() {
 
   async function save() {
     setError('')
-    if (!settle) return setError('출금계좌: 자료를 입력 바랍니다.')
-    if (!accountId) return setError('계정: 자료를 입력 바랍니다.')
-    if (!(Number(amount) > 0)) return setError('금액: 자료를 입력 바랍니다.')
+    /* 원본 has-error: 빈 필수칸은 글 알림 없이 칸만 빨간 테두리(공용-디자인-정리 A). */
+    if (!req.check({ settle: !!settle, account: !!accountId, amount: Number(amount) > 0 })) return
     const body = {
       type: 'RECEIPT_PAYMENT',
       voucherDate: date,
@@ -177,17 +178,17 @@ export default function ReceiptPaymentPage() {
           </EcCond>
           <EcCond label="출금계좌" span={2}>
             <CodePickerField label="출금계좌" hideLabel pair fill emptyLabel="(없음)" value={settle}
-                             onChange={(v) => setSettle(v)} items={settleItems} />
+                             onChange={(v) => setSettle(v)} items={settleItems} invalid={req.on('settle', !!settle)} />
           </EcCond>
           <EcCond label="계정" span={2}>
             <CodePickerField label="계정" hideLabel pair fill emptyLabel="(없음)" value={accountId}
-                             onChange={(v) => setAccountId(v)} items={accountItems} />
+                             onChange={(v) => setAccountId(v)} items={accountItems} invalid={req.on('account', !!accountId)} />
           </EcCond>
           <EcCond label="거래처명" span={2}>
             <input className="ec-input w-full" placeholder="거래처명" maxLength={100} value={payee} onChange={(e) => setPayee(e.target.value)} />
           </EcCond>
           <EcCond label="금액" span={2}>
-            <EcNumInput className="ec-input w-full text-right" aria-label="금액" value={amount} onValue={setAmount} placeholder="0" />
+            <div className={`w-full ${req.cls('amount', Number(amount) > 0)}`}><EcNumInput className="ec-input w-full text-right" aria-label="금액" value={amount} onValue={setAmount} placeholder="0" /></div>
           </EcCond>
           <EcCond label="수수료" span={2}>
             <EcNumInput className="ec-input w-full text-right" aria-label="수수료" value={fee} onValue={setFee} placeholder="0" />

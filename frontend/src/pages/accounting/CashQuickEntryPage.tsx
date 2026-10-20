@@ -5,6 +5,7 @@ import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
 import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
+import { useRequired } from '../../utils/useRequired'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -80,6 +81,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   const [fee, setFee] = useState('')
   const [memo, setMemo] = useState('')
   const [error, setError] = useState('')
+  const req = useRequired()
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -106,7 +108,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     /* 원본 2026-10-20: 법인카드대금결제는 저장 뒤 [카드]가, 계좌간이동은 [출금계좌]도 남는다(은행으로 [차입처]는 비워진다). */
     if (!keep || !(nonCash || type === 'CARD_BILL_PAYMENT')) setCardId('')
     if (!keep || type !== 'ACCOUNT_TRANSFER') setCounter('')
-    setPartnerId(''); setPayee(''); setAmount(''); setFee(''); setMemo(''); setError('')
+    setPartnerId(''); setPayee(''); setAmount(''); setFee(''); setMemo(''); setError(''); req.reset()
     setDepartmentId(''); setProjectId('')
   }
 
@@ -175,14 +177,26 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     setFee(d > 0 ? String(Math.max(grossOf(d, rate) - d, 0)) : '')
   }
 
+  /** 필수칸이 찼나 — 저장 검증과 빨간 테두리가 같이 쓴다. 필수 아닌 칸은 늘 참. */
+  function filled(f: CashQuickField): boolean {
+    switch (f) {
+      case 'main': return !!main
+      case 'counter': return !!counter
+      case 'partner': return !!partnerId
+      case 'employee': return !!employeeId
+      case 'card': return !!cardId
+      case 'issuer': return !!issuerId
+      case 'account': return !!accountId
+      case 'creditAccount': return !!creditAccountId
+      case 'amount': return amountNum > 0
+      default: return true
+    }
+  }
+
   async function save() {
     setError('')
-    for (const [f, l] of kind.fields) {
-      const empty = (f === 'main' && !main) || (f === 'counter' && !counter) || (f === 'partner' && !partnerId)
-        || (f === 'employee' && !employeeId) || (f === 'card' && !cardId) || (f === 'issuer' && !issuerId)
-        || (f === 'account' && !accountId) || (f === 'creditAccount' && !creditAccountId) || (f === 'amount' && !(amountNum > 0))
-      if (empty) return setError(`${l}: 자료를 입력 바랍니다.`)
-    }
+    /* 원본 has-error: 빈 필수칸은 글 알림 없이 칸만 빨간 테두리(공용-디자인-정리 A). */
+    if (!req.check(Object.fromEntries(kind.fields.map(([f]) => [f, filled(f)])))) return
     if (type === 'OTHER_WITHDRAW' && main === '000' && feeNum > 0) return setError('현금일경우 수수료를 입력할 수 없습니다.')
     const body = {
       type,
@@ -241,21 +255,21 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   function field(f: CashQuickField, l: string) {
     switch (f) {
       case 'main':
-        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={main} onChange={(v) => setMain(v)} items={mainItems} />
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" invalid={req.on(f, filled(f))} value={main} onChange={(v) => setMain(v)} items={mainItems} />
       case 'counter':
-        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={counter} onChange={(v) => setCounter(v)} items={counterItems} />
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" invalid={req.on(f, filled(f))} value={counter} onChange={(v) => setCounter(v)} items={counterItems} />
       case 'partner':
-        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={partnerId} onChange={(v) => setPartnerId(v)} items={partnerItems} />
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" invalid={req.on(f, filled(f))} value={partnerId} onChange={(v) => setPartnerId(v)} items={partnerItems} />
       case 'employee':
-        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={employeeId} onChange={(v) => setEmployeeId(v)} items={employeeItems} />
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" invalid={req.on(f, filled(f))} value={employeeId} onChange={(v) => setEmployeeId(v)} items={employeeItems} />
       case 'card':
-        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={cardId} onChange={(v) => setCardId(v)} items={cardItems} />
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" invalid={req.on(f, filled(f))} value={cardId} onChange={(v) => setCardId(v)} items={cardItems} />
       case 'issuer':
-        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={issuerId} onChange={(v) => pickIssuer(v)} items={issuerItems} />
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" invalid={req.on(f, filled(f))} value={issuerId} onChange={(v) => pickIssuer(v)} items={issuerItems} />
       case 'account':
-        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={accountId} onChange={(v) => setAccountId(v)} items={accountItems} />
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" invalid={req.on(f, filled(f))} value={accountId} onChange={(v) => setAccountId(v)} items={accountItems} />
       case 'creditAccount':
-        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={creditAccountId} onChange={(v) => setCreditAccountId(v)} items={accountItems} />
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" invalid={req.on(f, filled(f))} value={creditAccountId} onChange={(v) => setCreditAccountId(v)} items={accountItems} />
       case 'payee':
         return <input className="ec-input w-full" aria-label={l} placeholder={l} maxLength={100} value={payee} onChange={(e) => setPayee(e.target.value)} />
       case 'feeRate':
@@ -267,8 +281,8 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
           </span>
         )
       case 'amount':
-        return <EcNumInput className="ec-input w-full text-right" aria-label={l} value={amount}
-          onValue={has('issuer') ? (v) => setCardAmount(v) : setAmount} placeholder="0" />
+        return <div className={`w-full ${req.cls(f, filled(f))}`}><EcNumInput className="ec-input w-full text-right" aria-label={l} value={amount}
+          onValue={has('issuer') ? (v) => setCardAmount(v) : setAmount} placeholder="0" /></div>
       case 'fee':
         return <EcNumInput className="ec-input w-full text-right" aria-label={l} value={fee} onValue={setFee} placeholder="0" />
       case 'total':

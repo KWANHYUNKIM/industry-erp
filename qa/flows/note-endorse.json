@@ -12,7 +12,7 @@
         "expect:['저장(F8)', '저장/전표(F7)', '다시 작성'].every((t) => [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === t)) && document.body.innerText.includes('받을어음결제-받을어음거래처결제')",
         "click:저장(F8)",
         "wait:400",
-        "expect:(document.querySelector('.ec-alert')?.textContent ?? '').includes('거래처: 자료를 입력 바랍니다.')",
+        "expect:!document.querySelector('.ec-alert') && !!document.querySelector('input[placeholder=\"거래처\"]')?.closest('.ec-invalid')",
         "js:(async () => { const S = (sel, v) => { const el = document.querySelector(sel); Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return el }; const E = (sel) => document.querySelector(sel).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); S('input[placeholder=\"거래처\"]', 'QAAC1E'); E('input[placeholder=\"거래처\"]'); await new Promise((r) => setTimeout(r, 300)); S('input[placeholder=\"어음번호\"]', 'QA1-END'); E('input[placeholder=\"어음번호\"]'); return true })()",
         "wait:400",
         "expect:document.querySelector('input[aria-label=\"총금액\"]').value === '100,000' && document.querySelector('input[aria-label=\"지급금액\"]').value === '100,000'",

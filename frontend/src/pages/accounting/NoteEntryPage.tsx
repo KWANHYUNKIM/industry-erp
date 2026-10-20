@@ -5,6 +5,7 @@ import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
 import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
+import { useRequired } from '../../utils/useRequired'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -78,6 +79,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   const [fee, setFee] = useState('')
   const [remark, setRemark] = useState('')
   const [error, setError] = useState('')
+  const req = useRequired()
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -142,19 +144,14 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   function reset(keepHead = false) {
     if (!keepHead) setBankId('')
     setPartnerId(''); setNoteNo(''); setDueDate(ymd(new Date())); setTotal(''); setAmount(''); setFee(''); setRemark('')
-    setDept(''); setProject(''); setError('')
+    setDept(''); setProject(''); setError(''); req.reset()
   }
 
   async function save(): Promise<boolean> {
     setError('')
-    if (dec) {
-      if (!bankId) { setError(`${bankLabelText}: 자료를 입력 바랍니다.`); return false }
-      if (!noteNo.trim()) { setError('어음번호: 자료를 입력 바랍니다.'); return false }
-    } else {
-      if (!partnerId) { setError('거래처: 자료를 입력 바랍니다.'); return false }
-      if (!noteNo.trim()) { setError('어음번호: 자료를 입력 바랍니다.'); return false }
-      if (!(Number(amount) > 0)) { setError(`${endorse ? '지급금액' : '금액'}: 자료를 입력 바랍니다.`); return false }
-    }
+    /* 원본 has-error: 빈 필수칸은 글 알림 없이 칸만 빨간 테두리(공용-디자인-정리 A). */
+    if (!req.check(dec ? { bank: !!bankId, noteNo: !!noteNo.trim() }
+      : { partner: !!partnerId, noteNo: !!noteNo.trim(), amount: Number(amount) > 0 })) return false
     setSaving(true)
     try {
       if (dec) {
@@ -245,10 +242,10 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
           {dec ? (
             <>
               <EcCond label={bankLabelText} span={2}>
-                <CodePickerField label={bankLabelText} hideLabel pair fill emptyLabel="" value={bankId} onChange={setBankId} items={bankItems} />
+                <CodePickerField label={bankLabelText} hideLabel pair fill emptyLabel="" value={bankId} onChange={setBankId} items={bankItems} invalid={req.on('bank', !!bankId)} />
               </EcCond>
               <EcCond label="어음번호" span={2}>
-                <CodePickerField label="어음번호" hideLabel pair fill emptyLabel="" value={noteNo} onChange={pickNote} items={noteItems} />
+                <CodePickerField label="어음번호" hideLabel pair fill emptyLabel="" value={noteNo} onChange={pickNote} items={noteItems} invalid={req.on('noteNo', !!noteNo.trim())} />
               </EcCond>
               {!payable && (
                 <EcCond label="총금액" span={2}>
@@ -267,31 +264,31 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
           ) : endorse ? (
             <>
               <EcCond label="거래처" span={2}>
-                <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} />
+                <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} invalid={req.on('partner', !!partnerId)} />
               </EcCond>
               <EcCond label="어음번호" span={2}>
-                <CodePickerField label="어음번호" hideLabel pair fill emptyLabel="" value={noteNo} onChange={pickNote} items={noteItems} />
+                <CodePickerField label="어음번호" hideLabel pair fill emptyLabel="" value={noteNo} onChange={pickNote} items={noteItems} invalid={req.on('noteNo', !!noteNo.trim())} />
               </EcCond>
               <EcCond label="총금액" span={2}>
                 <input className="ec-input w-full text-right" aria-label="총금액" disabled value={total ? Number(total).toLocaleString('ko-KR') : '0'} />
               </EcCond>
               <EcCond label="지급금액" span={2}>
-                <EcNumInput className="ec-input w-full text-right" aria-label="지급금액" value={amount} onValue={setAmount} placeholder="0" />
+                <div className={`w-full ${req.cls('amount', Number(amount) > 0)}`}><EcNumInput className="ec-input w-full text-right" aria-label="지급금액" value={amount} onValue={setAmount} placeholder="0" /></div>
               </EcCond>
             </>
           ) : (
             <>
               <EcCond label="거래처" span={2}>
-                <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} />
+                <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} invalid={req.on('partner', !!partnerId)} />
               </EcCond>
               <EcCond label="어음번호" span={2}>
-                <input className="ec-input w-full" placeholder="어음번호" aria-label="어음번호" maxLength={30} value={noteNo} onChange={(e) => setNoteNo(e.target.value)} />
+                <div className={`w-full ${req.cls('noteNo', !!noteNo.trim())}`}><input className="ec-input w-full" placeholder="어음번호" aria-label="어음번호" maxLength={30} value={noteNo} onChange={(e) => setNoteNo(e.target.value)} /></div>
               </EcCond>
               <EcCond label="만기일자" span={2}>
                 <EcDateField value={dueDate} onChange={setDueDate} />
               </EcCond>
               <EcCond label="금액" span={2}>
-                <EcNumInput className="ec-input w-full text-right" aria-label="금액" value={amount} onValue={setAmount} placeholder="0" />
+                <div className={`w-full ${req.cls('amount', Number(amount) > 0)}`}><EcNumInput className="ec-input w-full text-right" aria-label="금액" value={amount} onValue={setAmount} placeholder="0" /></div>
               </EcCond>
             </>
           )}

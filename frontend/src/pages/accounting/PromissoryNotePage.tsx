@@ -5,6 +5,7 @@ import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote }
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import CodePickerField from '../../components/CodePickerField'
+import { useRequired } from '../../utils/useRequired'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -249,6 +250,7 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
   const [dept, setDept] = useState('')
   const [project, setProject] = useState('')
   const deptProject = useDeptProjectItems()
+  const req = useRequired()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -256,14 +258,13 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
   const partnerItems = useMemo(() => candidates.map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [candidates])
 
   function reset() {
-    setPartnerId(''); setIssueDate(today()); setNoteNo(''); setDueDate(today()); setAmount(''); setRemark(''); setDept(''); setProject(''); setError('')
+    setPartnerId(''); setIssueDate(today()); setNoteNo(''); setDueDate(today()); setAmount(''); setRemark(''); setDept(''); setProject(''); setError(''); req.reset()
   }
 
   async function save(thenSlip: boolean) {
     setError('')
-    if (!partnerId) return setError('거래처: 자료를 입력 바랍니다.')
-    if (!dueDate) return setError('만기일자: 자료를 입력 바랍니다.')
-    if (!(Number(amount) > 0)) return setError('금액: 자료를 입력 바랍니다.')
+    /* 원본 has-error: 빈 필수칸은 글 알림 없이 칸만 빨간 테두리(공용-디자인-정리 A). */
+    if (!req.check({ partner: !!partnerId, dueDate: !!dueDate, amount: Number(amount) > 0 })) return
     setSaving(true)
     try {
       const res = await api.post<PromissoryNote>('/notes', {
@@ -307,16 +308,16 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
           <CodePickerField label="프로젝트" hideLabel pair fill emptyLabel="" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="거래처" span={2}>
-          <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} />
+          <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} invalid={req.on('partner', !!partnerId)} />
         </EcCond>
         <EcCond label="어음번호" span={2}>
           <input className="ec-input w-full" placeholder="어음번호" aria-label="어음번호" maxLength={30} value={noteNo} onChange={(e) => setNoteNo(e.target.value)} />
         </EcCond>
         <EcCond label="만기일자" span={2}>
-          <input type="date" className="ec-input w-[150px]" aria-label="만기일자" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <span className={`inline-block ${req.cls('dueDate', !!dueDate)}`}><input type="date" className="ec-input w-[150px]" aria-label="만기일자" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></span>
         </EcCond>
         <EcCond label="금액" span={2}>
-          <input type="number" className="ec-input w-full text-right" aria-label="금액" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <div className={`w-full ${req.cls('amount', Number(amount) > 0)}`}><input type="number" className="ec-input w-full text-right" aria-label="금액" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
         </EcCond>
         <EcCond label="적요" span={2}>
           <input className="ec-input w-full" placeholder="적요" aria-label="적요" maxLength={300} value={remark} onChange={(e) => setRemark(e.target.value)} />

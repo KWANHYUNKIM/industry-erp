@@ -47,8 +47,10 @@ export default function CodePickerField({
    * 안 고르면 전체라는 뜻은 [전체] 지우기 항목(emptyLabel)이 말해 준다.
    */
   label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
-  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain, hideNew, showCode,
+  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain, hideNew, showCode, invalid,
 }: {
+  /** 빈 필수칸 — 칸 줄을 원본 has-error 빨간 테두리(`.ec-invalid`)로 두른다. 보통 useRequired 훅의 on(키, 채워졌나). */
+  invalid?: boolean
   /** 고른 뒤 칸에 이름 대신 코드를 적는다(원본 기타원천세입력 업종구분코드 940909 · 소득코드 62 — 이름은 옆 열이 보인다). */
   showCode?: boolean
   /** 코드도움 창의 격자 열(대상마다 다르다 — CodeSearchModal). 없으면 항목 모양을 보고 고른다. */
@@ -165,7 +167,7 @@ export default function CodePickerField({
 
       {pair ? (
         /* 전표 코드칸: [코드][🔍][명칭][×] — 원본 .control > .form-control-code */
-        <div className="ec-code">
+        <div className={invalid ? 'ec-code ec-invalid' : 'ec-code'}>
           <input
             className="ec-input code"
             disabled={disabled}
@@ -204,7 +206,7 @@ export default function CodePickerField({
           )}
         </div>
       ) : (
-      <div style={{ display: 'flex', width: fill ? '100%' : undefined }}>
+      <div className={invalid ? 'ec-invalid' : undefined} style={{ display: 'flex', width: fill ? '100%' : undefined }}>
         <input
           className="ec-input ec-pick-input"
           readOnly
