@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecConfirm, requireSelection } from '../../components/EcDialog'
 import type { PayeeKind, WithholdingCodeItem, WithholdingPayee } from '../../types/api'
 
 type Form = {
@@ -66,6 +67,11 @@ function toForm(p: WithholdingPayee): Form {
  * 성명(대표자명) · 소득자구분코드 · 업종구분코드 · 거주자 구분(전체 · 거주자 · 비거주자) · 내/외국인 구분(전체 · 내국인 · 외국인) ·
  * 실명/비실명 구분(전체 · 실명 · 비실명) · 모바일 · 적요 — 라디오는 모두 '전체' 가 기본. [삭제/삭제취소] 는 고른 줄이 없어도 눌리고
  * '리스트에 선택된 자료가 없습니다. …' 알림. 두지 않은 조건: 인식번호.
+ *
+ * <p>[삭제/삭제취소 ▴](2026-10-20 실측): 영구삭제 · 임시삭제 · 삭제취소. 임시삭제 · 삭제취소는 확인 창 없이 바로 —
+ * 임시삭제한 줄은 목록에 남고 칸이 분홍(rgb(255,235,235)), 삭제취소하면 흰 줄. 영구삭제는 '삭제하시겠습니까?' 확인 뒤,
+ * 기타원천세가 가리키는 소득자면 '삭제불가소득자' 창([삭제가 불가능한 소득자] 주민(법인)등록번호 · 소득자명 · 소득구분 · [닫기]).
+ * 원본은 버튼 하나가 펼침이고 우리는 [삭제/삭제취소](임시삭제 ↔ 삭제취소 뒤집기) + ▴ 묶음이다.
  */
 export default function WithholdingPayeePage() {
   const [rows, setRows] = useState<WithholdingPayee[]>([])
@@ -77,10 +83,11 @@ export default function WithholdingPayeePage() {
   const [industries, setIndustries] = useState<WithholdingCodeItem[]>([])
   const [payeeKinds, setPayeeKinds] = useState<WithholdingCodeItem[]>([])
   const [cond, setCond] = useState<Cond>(EMPTY_COND)
+  const [blocked, setBlocked] = useState<{ regNoFront: string; name: string; incomeTypeName: string }[] | null>(null)
 
   function load() {
     setError('')
-    api.get<WithholdingPayee[]>('/withholding-payees')
+    api.get<WithholdingPayee[]>('/withholding-payees', { params: { includeDeleted: true } })
       .then((r) => { setRows(r.data); setPicked(new Set()) })
       .catch((e) => { setRows([]); setError(extractErrorMessage(e)) })
   }
@@ -120,6 +127,30 @@ export default function WithholdingPayeePage() {
     }
   }
 
+  /** ▴ [임시삭제] · [삭제취소] — 확인 창 없이 바로(원본). */
+  async function setDeleted(deleted: boolean) {
+    if (!requireSelection(picked.size)) return
+    try {
+      await api.post('/withholding-payees/set-deleted', [...picked], { params: { deleted } })
+      load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  /** ▴ [영구삭제] — '삭제하시겠습니까?' 확인 뒤. 기타원천세가 가리키면 '삭제불가소득자' 창. */
+  async function deletePermanently() {
+    if (!requireSelection(picked.size)) return
+    if (!(await ecConfirm('삭제하시겠습니까?'))) return
+    try {
+      const r = await api.post<{ regNoFront: string; name: string; incomeTypeName: string }[]>('/withholding-payees/delete', [...picked])
+      if (r.data.length) setBlocked(r.data)
+      load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
   const q = search.trim()
   const has = (v: string | null, w: string) => !w.trim() || (v ?? '').includes(w.trim())
   const list = rows
@@ -152,7 +183,11 @@ export default function WithholdingPayeePage() {
     <EcListShell title="소득자등록" search={search} onSearchChange={setSearch} onSearch={load}
                  onNew={() => { setFormError(''); setForm({ ...EMPTY }) }}
                  onReset={() => setCond(EMPTY_COND)}
-                 actions={[{ label: '삭제/삭제취소', onClick: toggleDeleted, selected: picked.size }]}>
+                 actions={[{ label: '삭제/삭제취소', onClick: toggleDeleted, selected: picked.size, menu: [
+                   { label: '영구삭제', onClick: deletePermanently },
+                   { label: '임시삭제', onClick: () => setDeleted(true) },
+                   { label: '삭제취소', onClick: () => setDeleted(false) },
+                 ] }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
@@ -188,7 +223,7 @@ export default function WithholdingPayeePage() {
           {list.length === 0 ? (
             <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : list.map((r, i) => (
-            <tr key={r.id}>
+            <tr key={r.id} className={r.deleted ? '[&>td]:bg-[var(--ec-bg-row-off)]' : undefined}>
               <td className="whitespace-nowrap text-center">
                 <input type="checkbox" aria-label={`${r.name} 선택`} checked={picked.has(r.id)}
                        onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n })} />
@@ -203,6 +238,21 @@ export default function WithholdingPayeePage() {
           ))}
         </tbody>
       </table>
+
+      {blocked && (
+        <Modal open title="삭제불가소득자" width={520} onClose={() => setBlocked(null)}>
+          <p>선택한 소득자를 삭제할 수 없습니다.</p>
+          <p className="mb-[8px]">다음 사항을 확인 바랍니다.</p>
+          <p className="mb-[4px]">[삭제가 불가능한 소득자]</p>
+          <table className="w-full">
+            <thead><tr><th>주민(법인)등록번호</th><th>소득자명</th><th>소득구분</th></tr></thead>
+            <tbody>
+              {blocked.map((b, i) => <tr key={i}><td>{b.regNoFront}</td><td>{b.name}</td><td>{b.incomeTypeName}</td></tr>)}
+            </tbody>
+          </table>
+          <div className="mt-[10px] text-center"><button className="ec-btn" onClick={() => setBlocked(null)}>닫기</button></div>
+        </Modal>
+      )}
 
       {form && (
         <Modal open error={formError} title="소득자등록" width={640} onClose={() => setForm(null)}>

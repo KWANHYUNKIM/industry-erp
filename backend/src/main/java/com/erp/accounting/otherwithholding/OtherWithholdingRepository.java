@@ -29,6 +29,10 @@ public interface OtherWithholdingRepository extends JpaRepository<OtherWithholdi
             + "where w.payDate = :payDate and w.slipSeq = :slipSeq order by w.lineNo")
     List<OtherWithholding> findSlip(@Param("payDate") LocalDate payDate, @Param("slipSeq") int slipSeq);
 
+    /** 소득자등록 [영구삭제] 막힘 — 그 소득자 또는 같은 주민(법인)등록번호를 가리키는 지급 줄. */
+    @Query("select w from OtherWithholding w left join w.payee p where p.id = :payeeId or w.payeeRegNo = :regNo order by w.payDate, w.id")
+    List<OtherWithholding> findUsing(@Param("payeeId") Long payeeId, @Param("regNo") String regNo);
+
     @Query("select coalesce(max(w.slipSeq), 0) from OtherWithholding w where w.payDate = :payDate")
     int maxSlipSeq(@Param("payDate") LocalDate payDate);
 }

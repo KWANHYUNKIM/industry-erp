@@ -36,6 +36,9 @@ public final class WithholdingPayeeDtos {
             @Size(max = 500) String memo
     ) {}
 
+    /** 소득자등록 [영구삭제] 가 막힌 소득자 — 원본 '삭제불가소득자' 창 한 줄(주민(법인)등록번호 앞 7자리 · 소득자명 · 소득구분). */
+    public record BlockedPayee(String regNoFront, String name, String incomeTypeName) {}
+
     public record PayeeResponse(Long id, PayeeKind kind, String kindName, String bizRegNo, String regNo, String regNoFront,
                                 String tradeName, String name, String address, String englishName, String bizAddress,
                                 String payeeKindCode, String industryCode, String industryName, String bankName, String accountNo,

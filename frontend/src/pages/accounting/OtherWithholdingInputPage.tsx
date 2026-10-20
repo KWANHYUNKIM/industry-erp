@@ -50,8 +50,9 @@ const EXPENSE_RATES = ['0', '60', '70', '80', '90']
 /** 원본 비거주자 필요경비율 선택지 — 0 · 70 · 80(소득코드 기본값 40 · 41 · 61 → 0, 42 · 62 → 80). */
 const NR_EXPENSE_RATES = ['0', '70', '80']
 
+/** 세율 처음 값 — 사업 3 · 기타 0, 이자배당 · 비거주자는 빈칸(원본 2026-10-20: 이자배당 빈칸 그대로 저장하면 세액 0 · 실지급 = 지급액). */
 const blankLine = (kind: Kind): Line => ({
-  payeeId: '', incomeCode: '', grossAmount: '', expenseRate: '', taxRate: kind === 'BUSINESS' ? '3' : kind === 'OTHER' ? '0' : kind === 'NON_RESIDENT' ? '' : '14', description: '',
+  payeeId: '', incomeCode: '', grossAmount: '', expenseRate: '', taxRate: kind === 'BUSINESS' ? '3' : kind === 'OTHER' ? '0' : '', description: '',
   interest: { ...EMPTY_INTEREST },
 })
 const won = (n: number) => (n ? Math.trunc(n).toLocaleString('ko-KR') : '')
@@ -78,7 +79,8 @@ function calc(l: Line, kind: Kind) {
  * 기타소득 [소득자 · 구분 · 소득코드 · 지급액 · 필요경비율 · 필요경비 · 소득금액 · 세율 · 소득세 · 지방소득세 · 합계 · 실지급액 · 적요].
  * 소득자를 고르면 사업소득은 그 소득자의 업종구분코드가, 기타소득은 소득코드를 고르면 원본이 채우는 필요경비율 · 세율이 들어간다
  * (76 강연료 등 → 60% · 20%, 64 → 90% · 20%, 62 처럼 원본도 '====' 로 두는 코드는 사람이 고른다).
- * 아래 [저장(F8) · 다시 작성 · 리스트]. 지급총액이 빈 줄에서 막는 문구는 원본 그대로 '지급총액을 입력바랍니다.'.
+ * 아래 [저장(F8) · 다시 작성 · 리스트]. 막는 문구는 원본 차례 그대로 '소득자를 선택 바랍니다.' → (이자배당) '소득코드를 선택 바랍니다.'
+ * → '지급총액을 입력바랍니다.'. 이자배당 세율은 빈칸으로 시작하고 빈 채로 저장하면 세액 0 이다(원본 2026-10-20).
  *
  * 코드칸(업종구분코드 · 소득코드 · 과세구분코드 …)은 고르면 이름이 아니라 코드를 찍는다(원본 940909 · 62 · O · 13).
  * 저장하면 말 없이 격자를 비운다(원본도 안내 없음). 수정 창은 지급일자 · 소득구분이 잠기고 [저장(F8) · 닫기 · 삭제].
@@ -199,7 +201,10 @@ export default function OtherWithholdingInputPage() {
   async function save() {
     setError('')
     const filled = lines.filter((l) => l.payeeId || l.grossAmount || l.incomeCode || l.description)
-    if (filled.length === 0 || filled.some((l) => !(Number(l.grossAmount) > 0))) return setError('지급총액을 입력바랍니다.')
+    // 원본 차례(2026-10-20): 소득자 → (이자배당) 소득코드 → 지급총액. 빈 격자도 '소득자를 선택 바랍니다.'
+    if (filled.length === 0 || filled.some((l) => !l.payeeId)) return setError('소득자를 선택 바랍니다.')
+    if (kind === 'INTEREST' && filled.some((l) => !l.incomeCode)) return setError('소득코드를 선택 바랍니다.')
+    if (filled.some((l) => !(Number(l.grossAmount) > 0))) return setError('지급총액을 입력바랍니다.')
     // 기타소득은 '====' 그대로 저장된다(경비 0, 원본 2026-10-14 소득코드 62) — 비거주자만 고르게 한다
     if (kind === 'NON_RESIDENT' && filled.some((l) => l.expenseRate === '')) return setError('필요경비율을 선택바랍니다.')
     if (kind === 'NON_RESIDENT' && filled.some((l) => l.taxRate === '')) return setError('세율을 입력바랍니다.')

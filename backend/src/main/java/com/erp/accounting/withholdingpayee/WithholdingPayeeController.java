@@ -46,6 +46,19 @@ public class WithholdingPayeeController {
         return ResponseEntity.noContent().build();
     }
 
+    /** [임시삭제] · [삭제취소] */
+    @PostMapping("/set-deleted")
+    public ResponseEntity<Void> setDeleted(@RequestParam boolean deleted, @RequestBody List<Long> ids) {
+        service.setDeleted(ids, deleted);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** [영구삭제] — 막힌 소득자가 있으면 그 목록(원본 '삭제불가소득자' 창), 없으면 빈 목록. */
+    @PostMapping("/delete")
+    public List<com.erp.accounting.withholdingpayee.dto.WithholdingPayeeDtos.BlockedPayee> delete(@RequestBody List<Long> ids) {
+        return service.deletePermanently(ids);
+    }
+
     /**
      * 코드도움 — kind: industry(업종구분코드) · payee-kind(소득자구분코드) · other-income(기타소득 소득코드) ·
      * interest-income(이자배당 소득코드) · taxation(과세구분) · special(조세특례) · product(금융상품).
