@@ -1,5 +1,5 @@
 {
-  "about": "회계2 비용관리 흐름(plans/회계2/비용관리.md 6장, 2026-10-20 원본 실측) — 비용내역입력(E060812) 비용코드 · 사원 30,000 회사비용 저장 → 회계전표 없음 → 비용내역조회 [전표번호] 창에서 40,000 · 개인비용으로 수정 → 전표별회계반영(E060814) [가지급금정산서작성] → 차 여비교통비 40,000 / 대 가지급금 40,000 → 비용내역 삭제 → 정산서도 사라짐. 사원 빈칸 저장은 사원 칸 빨간 테두리. 비용 마스터는 API 로 만들고 끝에 지운다.",
+  "about": "회계2 비용관리 흐름(plans/회계2/비용관리.md 6장, 2026-10-20 원본 실측) — 비용내역입력(E060812) 비용코드 · 사원 30,000 회사비용 저장 → 회계전표 없음 → 비용내역조회 [전표번호] 창에서 40,000 · 개인비용으로 수정 → 전표별회계반영(E060814) [가지급금정산서작성] → 차 여비교통비 40,000 / 대 가지급금 40,000 → 비용내역 삭제 → 정산서도 사라짐. 사원 빈칸 저장은 사원 칸 빨간 테두리. 비용 마스터는 API 로 만들고 끝에 지운다. 3바퀴(2026-10-20 원본 실측): 개인비용 두 줄 20,000 + 15,000 을 한 번에 저장하면 전표 한 장('2026/10/20 -2') — 조회 한 줄 '… 외 1건 · 35,000', 전표별회계반영 한 줄 → 가지급금정산서 한 장(차 여비교통비 20,000 · 15,000 / 대 가지급금 35,000). 둘째 줄 빈 사용일자는 빨간 테두리. 통제(인원통제 사용 · 사용인원 없음 · 한도 30,000)에 걸리면 '한도금액이 초과되었습니다. 전표를 저장하겠습니까?' → 확인 뒤 저장. 삭제는 두 줄 · 정산서 함께.",
   "shots": [
     {
       "name": "비용 마스터 준비",
@@ -73,9 +73,84 @@
         "allowapi:404: /api/journals/",
         "expect:(async () => (await __api('GET', '/journals/' + sessionStorage.getItem('qaExJ'))).status === 404)()"
       ]
+    },
+    {
+      "name": "두 줄 전표 준비 — 통제유형(매월 · 인원통제 · 경고) · 비용(한도 30,000)",
+      "path": "/accounting/expense-items",
+      "steps": [
+        "wait:800",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async () => { const a = (await __api('GET', '/accounts')).body.find((x) => x.code === '812'); const t = await __api('POST', '/expense-control-types', { code: 'QAF-T2', name: 'QA회계2-흐름통제', periodType: 'MONTHLY', personControl: true, limitType: 'PERSONAL_SAME', noticeType: 'WARN' }); sessionStorage.setItem('qaExCt', String(t.body.id)); const r = await __api('POST', '/expense-items', { code: 'QAF-E2', name: 'QA회계2-흐름교통비2', accountId: a.id, controlTypeId: t.body.id, limitAmount: 30000, employeeIds: [] }); sessionStorage.setItem('qaExItem2', String(r.body.id)); return t.status === 200 && r.status === 200 })()"
+      ]
+    },
+    {
+      "name": "비용내역입력 두 줄 — 둘째 줄 사용일자 빨간 테두리 → 한도 알림 → 전표 한 장",
+      "path": "/accounting/expense",
+      "steps": [
+        "wait:1200",
+        "js:window.__qaMsgs = []; window.confirm = (m) => { window.__qaMsgs.push(m); return true }; true",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '개인비용').querySelector('input').click(); true",
+        "set:tbody input[aria-label=비용검색]#0|QAF-E2",
+        "js:document.querySelectorAll('tbody input[aria-label=비용검색]')[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true",
+        "set:tbody input[aria-label=사원검색]#0|EMP-0001",
+        "js:document.querySelectorAll('tbody input[aria-label=사원검색]')[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true",
+        "set:tbody input[aria-label=사용금액]#0|20000",
+        "set:tbody input[aria-label=적요]#0|QA회계2 흐름A",
+        "set:tbody input[aria-label=비용검색]#1|QAF-E2",
+        "js:document.querySelectorAll('tbody input[aria-label=비용검색]')[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true",
+        "set:tbody input[aria-label=사원검색]#1|EMP-0001",
+        "js:document.querySelectorAll('tbody input[aria-label=사원검색]')[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true",
+        "set:tbody input[aria-label=사용금액]#1|15000",
+        "set:tbody input[aria-label=적요]#1|QA회계2 흐름B",
+        "click:저장(F8)",
+        "wait:500",
+        "expect:document.querySelectorAll('tbody tr')[1].cells[1].className.includes('outline-ec-danger')",
+        "js:(() => { const el = document.querySelectorAll('tbody input[aria-label=사용일자]')[1]; const d = new Date(); const v = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:300",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:window.__qaMsgs.some((m) => m.startsWith('한도금액이 초과되었습니다. 전표를 저장하겠습니까?'))",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:(async () => { const xs = (await __api('GET', '/expenses')).body.filter((e) => (e.content || '').startsWith('QA회계2 흐름') && e.expenseItemCode === 'QAF-E2'); if (xs.length !== 2) return false; sessionStorage.setItem('qaExSlip', String(xs.find((x) => x.lineNo === 1).id)); return xs[0].slipDocNo === xs[1].slipDocNo && xs.map((x) => x.amount).sort().join() === '15000,20000' && xs.every((x) => x.payType === 'PERSONAL' && x.settledJournalId === null) })()"
+      ]
+    },
+    {
+      "name": "비용내역조회 — 두 줄 전표가 한 줄 '외 1건 · 35,000'",
+      "path": "/accounting/expense-list",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA회계2-흐름교통비2 외 1건') && r.innerText.includes('35,000'))"
+      ]
+    },
+    {
+      "name": "전표별회계반영 — 한 줄 → 가지급금정산서 한 장(차 20,000 · 15,000 / 대 가지급금 35,000)",
+      "path": "/accounting/expense-settle",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((r) => r.innerText.includes('QA회계2-흐름교통비2')).length === 1",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA회계2-흐름교통비2')).querySelector('input[type=checkbox]').click(); true",
+        "click:가지급금정산서작성",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].length === 2",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
+        "wait:1500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:(async () => { const xs = (await __api('GET', '/expenses')).body.filter((e) => e.expenseItemCode === 'QAF-E2'); const j = xs[0].settledJournalId; if (!j || xs.some((x) => x.settledJournalId !== j)) return false; sessionStorage.setItem('qaExJ2', String(j)); const e = (await __api('GET', '/journals/' + j)).body; const dr = e.lines.filter((z) => z.accountCode === '812').map((z) => z.debit).sort().join(); const cr = e.lines.filter((z) => z.accountCode === '134').reduce((s, z) => s + z.credit, 0); return dr === '15000,20000' && cr === 35000 })()"
+      ]
+    },
+    {
+      "name": "두 줄 전표 삭제 → 두 줄 · 정산서 함께",
+      "path": "/accounting/expense-list",
+      "steps": [
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:(async () => { const r = await __api('DELETE', '/expenses/' + sessionStorage.getItem('qaExSlip')); sessionStorage.removeItem('qaExSlip'); const left = (await __api('GET', '/expenses')).body.filter((e) => e.expenseItemCode === 'QAF-E2'); return r.status === 204 && left.length === 0 })()",
+        "allowapi:404: /api/journals/",
+        "expect:(async () => (await __api('GET', '/journals/' + sessionStorage.getItem('qaExJ2'))).status === 404)()"
+      ]
     }
   ],
   "finally": [
-    "js:(async () => { const h = {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}; const id = sessionStorage.getItem('qaExId'); if (id) await fetch('/api/expenses/' + id, { method: 'DELETE', headers: h }); const it = sessionStorage.getItem('qaExItem'); if (it) await fetch('/api/expense-items/delete', { method: 'POST', headers: h, body: JSON.stringify([Number(it)]) }); return true })()"
+    "js:(async () => { const h = {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}; for (const k of ['qaExId', 'qaExSlip']) { const id = sessionStorage.getItem(k); if (id) await fetch('/api/expenses/' + id, { method: 'DELETE', headers: h }) } for (const k of ['qaExItem', 'qaExItem2']) { const it = sessionStorage.getItem(k); if (it) await fetch('/api/expense-items/delete', { method: 'POST', headers: h, body: JSON.stringify([Number(it)]) }) } const ct = sessionStorage.getItem('qaExCt'); if (ct) await fetch('/api/expense-control-types/delete', { method: 'POST', headers: h, body: JSON.stringify([Number(ct)]) }); return true })()"
   ]
 }

@@ -9,7 +9,9 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import { useCondPickers } from '../../utils/useCondPickers'
 import Modal from '../../components/Modal'
 import ExpenseSlipForm from '../../features/expense/ExpenseSlipForm'
-import { slipNo, type ExpenseRow } from '../../features/expense/types'
+import { groupSlips, slipNo, type ExpenseRow } from '../../features/expense/types'
+import NumCheck from '../../features/bankcheck/components/NumCheck'
+import { ecConfirm } from '../../components/EcDialog'
 import type { EmployeeMaster } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -56,7 +58,8 @@ export default function ExpenseListPage() {
   const [rows, setRows] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [editing, setEditing] = useState<Expense | null>(null)
+  const [editing, setEditing] = useState<Expense[] | null>(null)
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   useEffect(() => { api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => undefined) }, [])
   const userName = (r: Expense) => (r.employeeId ? employees.find((e) => e.id === r.employeeId)?.name ?? '' : r.createdBy ?? '')
@@ -90,11 +93,25 @@ export default function ExpenseListPage() {
     .filter((r) => !payType || r.payType === payType)
     .sort((a, b) => (a.expenseDate > b.expenseDate ? -1 : a.expenseDate < b.expenseDate ? 1 : b.docNo.localeCompare(a.docNo))),
   [rows, employees, from, to, useUse, useFrom, useTo, group, account, user, partner, dept, project, reflected, remark, note, payType])
+  /* 원본(2026-10-20): 두 줄 전표 = 한 줄 '2026/10/20 -2 · 교통비(국내-자차) 외 1건 · 고준희 외 1건 · 35,000'. */
+  const slips = useMemo(() => groupSlips(shown), [shown])
+  const more = (name: string, g: Expense[]) => (g.length > 1 && name ? `${name} 외 ${g.length - 1}건` : name)
+  const pickedSlips = slips.filter((g) => checked.has(g[0].id))
+  async function removeChecked() {
+    if (!(await ecConfirm('선택한 전표를 삭제하겠습니까?'))) return
+    try {
+      for (const g of pickedSlips) await api.delete(`/expenses/${g[0].id}`)
+      setChecked(new Set())
+      await load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
   const groups = useMemo(() => [...new Set(rows.map(groupName).filter(Boolean))].sort(), [rows])
   const accounts = useMemo(() => [...new Set(rows.map(itemName))].sort(), [rows])
   const users = useMemo(() => [...new Set(rows.map(userName).filter(Boolean))].sort(), [rows, employees])
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '비용내역조회', [shown.length])
+  useTableColumnCheck(tableRef, '비용내역조회', [slips.length])
 
   const allOn = Object.values(reflected).every(Boolean)
   return (
@@ -107,6 +124,8 @@ export default function ExpenseListPage() {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setGroup(''); setAccount(''); setUser(''); setPartner(''); setDept(''); setProject(''); setReflected({ 미청구: true, '미확인(회계)': true, '확인(회계)': true }); setRemark(''); setNote(''); setPayType(''); setUseUse(false) } },
         { label: '신규(F2)', onClick: () => navigate('/accounting/expense') },
+        { label: '인쇄', onClick: () => window.print() },
+        { label: '선택삭제', onClick: () => void removeChecked(), selected: pickedSlips.length },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -173,7 +192,10 @@ export default function ExpenseListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
+            <th className="w-[40px] text-center">
+              <NumCheck no="" head label="전체선택" on={slips.length > 0 && pickedSlips.length === slips.length}
+                        onChange={(v) => setChecked(v ? new Set(slips.map((g) => g[0].id)) : new Set())} />
+            </th>
             <th className="text-center">전표번호</th>
             <th>비용그룹명</th>
             <th>비용명</th>
@@ -186,21 +208,24 @@ export default function ExpenseListPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          ) : slips.length === 0 ? (
             <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : slips.map((g, i) => { const r = g[0]; return (
             <tr key={r.id}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center"><button type="button" className="ec-link" onClick={() => setEditing(r)}>{slipNo(r)}</button></td>
+              <td className="text-center">
+                <NumCheck no={i + 1} label={`${slipNo(r)} 선택`} on={checked.has(r.id)}
+                          onChange={(v) => setChecked((c) => { const s = new Set(c); if (v) s.add(r.id); else s.delete(r.id); return s })} />
+              </td>
+              <td className="text-center"><button type="button" className="ec-link" onClick={() => setEditing(g)}>{slipNo(r)}</button></td>
               <td>{groupName(r)}</td>
-              <td>{itemName(r)}</td>
-              <td>{userName(r)}</td>
-              <td className="text-right">{won(Number(r.amount))}</td>
+              <td>{more(itemName(r), g)}</td>
+              <td>{more(userName(r), g)}</td>
+              <td className="text-right">{won(g.reduce((s, x) => s + Number(x.amount), 0))}</td>
               {/* 원본은 가지급금정산서로 반영한 뒤에도 빈칸이었다(2026-10-20 실측). 옛 지출은 저장 즉시 분개라 확인(회계). */}
               <td className="text-center">{r.expenseItemId ? '' : '확인(회계)'}</td>
               <td className="text-center">인쇄</td>
             </tr>
-          ))}
+          ) })}
         </tbody>
       </table>
       <Modal error={error} open={!!editing} title="비용내역수정" width={1200} onClose={() => setEditing(null)}>{(

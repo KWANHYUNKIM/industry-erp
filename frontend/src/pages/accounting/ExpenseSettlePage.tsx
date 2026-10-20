@@ -8,7 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { ecAlert, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import NumCheck from '../../features/bankcheck/components/NumCheck'
-import { slipNo, type ExpenseRow } from '../../features/expense/types'
+import { groupSlips, slipNo, type ExpenseRow } from '../../features/expense/types'
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { EmployeeMaster } from '../../types/api'
 
@@ -72,7 +72,9 @@ export default function ExpenseSettlePage() {
     .sort((a, b) => (a.expenseDate === b.expenseDate ? a.docNo.localeCompare(b.docNo) : a.expenseDate < b.expenseDate ? -1 : 1)),
   [rows, from, to, group, item, emp, partner, dept, project, payType])
   const total = shown.reduce((s, r) => s + Number(r.amount), 0)
-  const picked = shown.filter((r) => checked.has(r.id))
+  /* 원본(2026-10-20): 두 줄 전표도 한 줄 '2026/10/20 -2 · 개인비용 · 교통비(국내-자차) · 고준희 · 35,000' — 비용명 · 사용자는 첫 줄 것. */
+  const slips = useMemo(() => groupSlips(shown), [shown])
+  const picked = slips.filter((g) => checked.has(g[0].id)).flat()
   const uniq = (xs: [string, string, string][]) => [...new Map(xs.map((x) => [x[0], x])).values()].map(([value, code, name]) => ({ value, code, name }))
 
   async function openSettle() {
@@ -145,8 +147,8 @@ export default function ExpenseSettlePage() {
         <thead>
           <tr>
             <th className="w-[40px] text-center">
-              <NumCheck no="" head label="전체선택" on={shown.length > 0 && picked.length === shown.length}
-                        onChange={(v) => setChecked(v ? new Set(shown.map((r) => r.id)) : new Set())} />
+              <NumCheck no="" head label="전체선택" on={slips.length > 0 && slips.every((g) => checked.has(g[0].id))}
+                        onChange={(v) => setChecked(v ? new Set(slips.map((g) => g[0].id)) : new Set())} />
             </th>
             <th>전표번호</th>
             <th>결제구분</th>
@@ -158,9 +160,9 @@ export default function ExpenseSettlePage() {
           </tr>
         </thead>
         <tbody>
-          {shown.length === 0 ? (
+          {slips.length === 0 ? (
             <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, n) => (
+          ) : slips.map((g, n) => { const r = g[0]; return (
             <tr key={r.id}>
               <td className="text-center">
                 <NumCheck no={n + 1} label={`${slipNo(r)} 선택`} on={checked.has(r.id)}
@@ -171,10 +173,10 @@ export default function ExpenseSettlePage() {
               <td>{r.expenseGroupName ?? ''}</td>
               <td>{r.expenseItemName ?? ''}</td>
               <td>{empName(r.employeeId)}</td>
-              <td className="text-right">{won(Number(r.amount))}</td>
+              <td className="text-right">{won(g.reduce((s, x) => s + Number(x.amount), 0))}</td>
               <td></td>
             </tr>
-          ))}
+          ) })}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
