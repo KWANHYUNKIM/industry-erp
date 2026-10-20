@@ -114,6 +114,11 @@
   "color": 0,
   "palette": 0
  },
+ "features/taxvoucher/components/TaxInvoicePaper.tsx": {
+  "inline": 0,
+  "color": 2,
+  "palette": 0
+ },
  "pages/accounting/AccountDetailPage.tsx": {
   "inline": 4,
   "color": 2,

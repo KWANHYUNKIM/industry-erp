@@ -7,9 +7,13 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecConfirm } from '../../components/EcDialog'
+import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { loadSupplierParty, type DocParty } from '../../utils/printDocument'
+import TaxInvoicePaper, { type PaperParty } from '../../features/taxvoucher/components/TaxInvoicePaper'
 
 type Side = 'SALES' | 'PURCHASE'
-interface PartnerOpt { id: number; code: string; name: string }
+interface PartnerOpt { id: number; code: string; name: string; bizRegNo?: string | null; ceoName?: string | null; address?: string | null; bizType?: string | null; bizItem?: string | null }
 interface Voucher {
   id: number; side: Side; sideName: string; entryDate: string; entryNo: number; vatType: string
   partnerId: number; partnerCode: string; partnerName: string
@@ -48,8 +52,12 @@ const vatOf = (type: string, supply: string) => (TAXED.has(type) ? String(Math.r
  * <p>회계전표와 따로 도는 부가세 신고용 자료다 — 원본에서 저장해도 분개장에 줄이 생기지 않았고, 매출(세금)계산서조회(세무)에
  * [내역보기] '세무' 로만 떴다(우리도 TaxInvoiceListPage 가 그렇게 싣는다).
  *
- * <p>두지 않은 것: 부서코드 · 프로젝트코드 칸, 매출 창의 [세부내역](품목 줄 · 청구/영수 · 현금/수표/어음/외상), [저장/청구서인쇄],
- * 줄의 [인쇄] 열, 조건의 세무신고거래처코드 · 거래처관리담당자 · 최종수정자 — 대조 보드 '남은 것'.
+ * <p>2026-10-20 다시 잼: 목록 끝 [인쇄] 열 → '청구서' 창(종이 세금계산서 공급자 · 공급받는자 보관용 두 장), 매출 창은 비고 칸 없이
+ * [세부내역](세금계산서내역등록 창 안의 비고) · [저장/청구서인쇄], [매출(세금)계산서 ▴ 매입(세금)계산서] 붙은 버튼,
+ * 빈 거래처는 문구 없이 빨간 테두리, 삭제는 '알림' 창 '전표를 삭제하겠습니까?'.
+ *
+ * <p>두지 않은 것: 부서코드 · 프로젝트코드 칸, [세부내역] 창의 일련번호 · 청구/영수 · 현금/수표/어음/외상 · 품목 줄,
+ * 청구서 창의 [종이세금계산서 ▾] · [표시설정] · [하단메모/공급자이미지] · [Email], 조건의 세무신고거래처코드 · 거래처관리담당자 · 최종수정자 — 대조 보드 '남은 것'.
  */
 export default function TaxVoucherPage() {
   const year = new Date().getFullYear()
@@ -65,7 +73,10 @@ export default function TaxVoucherPage() {
   const [error, setError] = useState('')
   const [form, setForm] = useState<Form | null>(null)
   const [formError, setFormError] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [paper, setPaper] = useState<Voucher | null>(null)
+  const [company, setCompany] = useState<DocParty | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const paperRef = useRef<HTMLDivElement>(null)
 
   async function load() {
     setError('')
@@ -81,6 +92,7 @@ export default function TaxVoucherPage() {
   useEffect(() => { void load() }, [])
   useEffect(() => {
     api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
+    void loadSupplierParty().then(setCompany)
   }, [])
 
   const list = useMemo(() => rows.filter((r) =>
@@ -93,26 +105,27 @@ export default function TaxVoucherPage() {
   const allPicked = list.length > 0 && list.every((r) => picked.has(r.id))
 
   const open = (side: Side) => {
-    setFormError(''); setConfirmDelete(false)
+    setFormError(''); setDetailOpen(false)
     setForm({ side, entryDate: today(), vatType: '세금계산서', partnerId: '', supply: '0', vat: '0', remark: '' })
   }
   const openRow = (r: Voucher) => {
-    setFormError(''); setConfirmDelete(false)
+    setFormError(''); setDetailOpen(false)
     setForm({ id: r.id, side: r.side, entryDate: r.entryDate, vatType: r.vatType, partnerId: String(r.partnerId),
       supply: String(r.supplyAmount), vat: String(r.vatAmount), remark: r.remark ?? '' })
   }
   const set = (patch: Partial<Form>) => form && setForm({ ...form, ...patch })
 
-  async function save() {
+  /** 원본은 빈 거래처 칸을 빨간 테두리로만 막는다(문구 없음). */
+  async function save(thenPrint = false) {
     if (!form) return
-    if (!form.partnerId) { setFormError('거래처를 입력 바랍니다.'); return }
+    if (!form.partnerId) { setFormError('__partner'); return }
     const body = { side: form.side, entryDate: form.entryDate, vatType: form.vatType, partnerId: Number(form.partnerId),
       supplyAmount: Number(form.supply) || 0, vatAmount: Number(form.vat) || 0, remark: form.remark }
     try {
-      if (form.id) await api.put(`/tax-vouchers/${form.id}`, body)
-      else await api.post('/tax-vouchers', body)
+      const saved = form.id ? await api.put<Voucher>(`/tax-vouchers/${form.id}`, body) : await api.post<Voucher>('/tax-vouchers', body)
       setForm(null)
       await load()
+      if (thenPrint && saved.data?.id) setPaper(saved.data)
     } catch (e) {
       setFormError(extractErrorMessage(e))
     }
@@ -120,6 +133,7 @@ export default function TaxVoucherPage() {
 
   async function remove() {
     if (!form?.id) return
+    if (!(await ecConfirm('전표를 삭제하겠습니까?'))) return
     try {
       await api.delete(`/tax-vouchers/${form.id}`)
       setForm(null)
@@ -133,10 +147,26 @@ export default function TaxVoucherPage() {
   const formTitle = form?.side === 'PURCHASE' ? '매입(세금)계산서수령' : '매출(세금)계산서발행'
   const partnerItems = partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))
 
+  /** 매출은 우리 회사가 공급자, 매입은 거래처가 공급자다. */
+  const parties = (v: Voucher): [PaperParty, PaperParty] => {
+    const p = partners.find((x) => x.id === v.partnerId)
+    const them: PaperParty = { bizRegNo: p?.bizRegNo, name: p?.name ?? v.partnerName, ceo: p?.ceoName, address: p?.address, bizType: p?.bizType, bizItem: p?.bizItem }
+    const us: PaperParty = { bizRegNo: company?.bizRegNo, name: company?.name, ceo: company?.ceo, address: company?.address, bizType: company?.bizType, bizItem: company?.bizItem }
+    return v.side === 'SALES' ? [us, them] : [them, us]
+  }
+  const printPaper = () => {
+    const el = paperRef.current
+    const win = el && openPrintWindow()
+    if (!el || !win) return
+    const styles = [...document.querySelectorAll('style, link[rel="stylesheet"]')].map((n) => n.outerHTML).join('')
+    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>청구서</title>${styles}</head><body>${el.innerHTML}</body></html>`)
+  }
+
   return (
     <EcListShell title="(세금)계산서발행/수령" onSearch={load} collapseConditions
-                 newLabel="매출(세금)계산서" onNew={() => open('SALES')}
-                 actions={[{ label: '매입(세금)계산서', onClick: () => open('PURCHASE') }, { label: '인쇄' }, { label: 'Excel' }]}>
+                 actions={[{ label: '매출(세금)계산서', primary: true, onClick: () => open('SALES'),
+                             menu: [{ label: '매입(세금)계산서', onClick: () => open('PURCHASE') }] },
+                           { label: '인쇄' }, { label: 'Excel' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
@@ -190,11 +220,12 @@ export default function TaxVoucherPage() {
             <th className="text-right">공급가액</th>
             <th className="text-right">부가세</th>
             <th className="text-right">합계</th>
+            <th className="text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {list.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : list.map((r, i) => (
             <tr key={r.id}>
               <td className="whitespace-nowrap text-center">
@@ -212,13 +243,14 @@ export default function TaxVoucherPage() {
               <td className="text-right">{won(r.supplyAmount)}</td>
               <td className="text-right">{won(r.vatAmount)}</td>
               <td className="text-right">{won(r.totalAmount)}</td>
+              <td className="text-center"><button className="ec-link" onClick={() => setPaper(r)}>인쇄</button></td>
             </tr>
           ))}
         </tbody>
       </table>
 
       {form && (
-        <Modal open error={formError} title={formTitle} width={780} onClose={() => setForm(null)}>
+        <Modal open error={formError === '__partner' ? '' : formError} title={formTitle} width={780} onClose={() => setForm(null)}>
           <ul className="ec-form [&>li>.title]:basis-[100px]">
             <EcCond label="전표일자" span={2}>
               <input type="date" className="ec-input w-[150px]" value={form.entryDate} disabled={!!form.id}
@@ -232,8 +264,10 @@ export default function TaxVoucherPage() {
               </select>
             </EcCond>
             <EcCond label="거래처" span={2}>
+              <div className={`w-full${formError === '__partner' ? ' ec-invalid' : ''}`}>
               <CodePickerField label="거래처" hideLabel fill pair emptyLabel="(선택 안 함)" value={form.partnerId}
-                               onChange={(v) => set({ partnerId: v })} items={partnerItems} />
+                               onChange={(v) => { set({ partnerId: v }); setFormError('') }} items={partnerItems} />
+              </div>
             </EcCond>
             <EcCond label="공급가액" span={2}>
               <EcNumInput className="ec-input w-full text-right" value={form.supply}
@@ -242,23 +276,50 @@ export default function TaxVoucherPage() {
             <EcCond label="부가세" span={2}>
               <EcNumInput className="ec-input w-full text-right" value={form.vat} onValue={(v) => set({ vat: v })} />
             </EcCond>
+            {form.side === 'PURCHASE' ? (
+              <EcCond label="비고" span={2}>
+                <input className="ec-input w-full" placeholder="비고" value={form.remark} onChange={(e) => set({ remark: e.target.value })} />
+              </EcCond>
+            ) : (
+              /* 원본 매출 창에는 비고 칸이 없고 [세부내역](세금계산서내역등록) 창 안에 있다. */
+              <EcCond label="세부내역" span={2}>
+                <button className="ec-link" onClick={() => setDetailOpen(true)}>세부내역</button>
+              </EcCond>
+            )}
+          </ul>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
+            {form.side === 'SALES' && <button className="ec-btn" onClick={() => void save(true)}>저장/청구서인쇄</button>}
+            {form.id
+              ? <button className="ec-btn" onClick={() => void remove()}>삭제</button>
+              : <button className="ec-btn" onClick={() => open(form.side)}>다시 작성</button>}
+            <button className="ec-btn" onClick={() => setForm(null)}>닫기</button>
+          </div>
+        </Modal>
+      )}
+
+      {form && detailOpen && (
+        <Modal open error={formError === '__partner' ? '' : formError} title="세금계산서내역등록" width={780} onClose={() => setDetailOpen(false)}>
+          <ul className="ec-form [&>li>.title]:basis-[100px]">
             <EcCond label="비고" span={2}>
               <input className="ec-input w-full" placeholder="비고" value={form.remark} onChange={(e) => set({ remark: e.target.value })} />
             </EcCond>
           </ul>
-          {confirmDelete && (
-            <div className="ec-alert mt-[8px] flex items-center gap-[6px]">
-              전표를 삭제하겠습니까?
-              <button className="ec-btn ec-btn-primary" onClick={remove}>확인</button>
-              <button className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
-            </div>
-          )}
           <div className="flex gap-[6px] mt-[12px]">
-            <button className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button>
-            {form.id
-              ? <button className="ec-btn" onClick={() => setConfirmDelete(true)}>삭제</button>
-              : <button className="ec-btn" onClick={() => open(form.side)}>다시 작성</button>}
-            <button className="ec-btn" onClick={() => setForm(null)}>닫기</button>
+            <button className="ec-btn ec-btn-primary" onClick={() => setDetailOpen(false)}>적용(F8)</button>
+            <button className="ec-btn" onClick={() => setDetailOpen(false)}>닫기</button>
+          </div>
+        </Modal>
+      )}
+
+      {paper && (
+        <Modal open error={error} title="청구서" width={660} onClose={() => setPaper(null)}>
+          <div ref={paperRef}>
+            <TaxInvoicePaper v={paper} supplier={parties(paper)[0]} buyer={parties(paper)[1]} />
+          </div>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button className="ec-btn ec-btn-primary" onClick={printPaper}>인쇄</button>
+            <button className="ec-btn" onClick={() => setPaper(null)}>닫기</button>
           </div>
         </Modal>
       )}
