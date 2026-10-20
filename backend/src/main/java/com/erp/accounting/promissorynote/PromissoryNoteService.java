@@ -221,6 +221,13 @@ public class PromissoryNoteService {
         return NoteResponse.from(n);
     }
 
+    /** 받을어음감소 수정(원본 수정 창 [저장(F8)] — 같은 전표를 고쳐 쓴다). 지우고 다시 넣는 것을 한 트랜잭션으로. */
+    @Transactional
+    public NoteResponse updateDecrease(Long id, PromissoryNoteDtos.DecreaseRequest req, String username) {
+        cancelDecrease(id, username);
+        return decrease(req, username);
+    }
+
     /** 받을어음감소 지우기 — 원본 '전표를 삭제하겠습니까? - 받을어음감소' 뒤 어음이 다시 보유로(받을어음조회 감소 줄이 빠진다). */
     @Transactional
     public NoteResponse cancelDecrease(Long id, String username) {

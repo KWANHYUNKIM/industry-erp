@@ -79,6 +79,14 @@ public class PromissoryNoteController {
         return service.decrease(req, principal.getUsername());
     }
 
+    /** 받을어음감소 수정 창 [저장(F8)] */
+    @PutMapping("/{id}/decrease")
+    public NoteResponse updateDecrease(@PathVariable Long id,
+                                       @Valid @RequestBody com.erp.accounting.promissorynote.dto.PromissoryNoteDtos.DecreaseRequest req,
+                                       @AuthenticationPrincipal UserPrincipal principal) {
+        return service.updateDecrease(id, req, principal.getUsername());
+    }
+
     /** 받을어음감소 지우기(원본 '전표를 삭제하겠습니까? - 받을어음감소') — 전표를 지우고 입금을 되돌려 어음을 보유로 */
     @DeleteMapping("/{id}/decrease")
     public NoteResponse cancelDecrease(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
