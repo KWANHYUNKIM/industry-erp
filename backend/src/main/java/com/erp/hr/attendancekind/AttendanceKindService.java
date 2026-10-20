@@ -95,7 +95,7 @@ public class AttendanceKindService {
 
     @Transactional(readOnly = true)
     public List<VacationKindResponse> findVacations() {
-        return vacationRepository.findAllByOrderByPeriodFromDescCodeDesc().stream().map(VacationKindResponse::from).toList();
+        return vacationRepository.findAllByOrderByPeriodFromDescCodeAsc().stream().map(VacationKindResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
@@ -143,7 +143,7 @@ public class AttendanceKindService {
     public List<GrantSummary> grantSummaries() {
         java.util.Map<Long, Long> counts = new java.util.HashMap<>();
         for (Object[] r : grantRepository.countByKind()) counts.put((Long) r[0], (Long) r[1]);
-        return vacationRepository.findAllByOrderByPeriodFromDescCodeDesc().stream()
+        return vacationRepository.findAllByOrderByPeriodFromDescCodeAsc().stream()
                 .map(v -> new GrantSummary(v.getId(), v.getCode(), v.getName(), v.getPeriodFrom(), v.getPeriodTo(),
                         counts.getOrDefault(v.getId(), 0L)))
                 .toList();

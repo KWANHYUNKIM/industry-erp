@@ -19,10 +19,10 @@ const slash = (s: string) => s.replace(/-/g, '/')
  *
  * <p>2026-10-03 loginaa 에서 등록 · 삭제해 본 그대로:
  * <ul>
- *   <li>격자 휴가코드 · 휴가명 · 사용기간(2026/01/01 ~ 2026/12/31) · 사용, 사용기간이 늦은 것이 위.
+ *   <li>격자 휴가코드 · 휴가명 · 사용기간(2026/01/01 ~ 2026/12/31) · 사용, 사용기간이 늦은 것이 위 · 같은 기간은 휴가코드 차례.
  *       버튼 신규(F2) · 사용중단/재사용 ▲(사용중단 · 삭제 · 재사용) · Excel.</li>
  *   <li>[신규(F2)] '휴가항목등록' 창: 휴가코드(다음 번호 20195 미리 채움) · 휴가명 · 기간(올해 1/1 ~ 12/31) ·
- *       이월 잔여일수 자동계산(사용 · 사용안함 — 기본 사용안함) · 적요. 저장하면 안내 없이 목록 맨 위. 삭제는 '삭제하시겠습니까?'.</li>
+ *       이월 잔여일수 자동계산(사용 · 사용안함 — 기본 사용안함) · 적요. 저장하면 안내 없이 목록에 든다(사용기간 늦은 것 위 · 같은 기간은 휴가코드 차례 — 2026-10-20 20195 · 20196 실측). 삭제는 '삭제하겠습니까?'(2026-10-20).</li>
  * </ul>
  * 근태항목등록에서 근태유형이 '휴가' 인 항목이 이 휴가코드를 가리킨다(가리키는 휴가항목은 서버가 삭제를 막는다).
  * 이월 잔여일수 자동계산은 값만 담는다 — 휴가잔여일수현황이 아직 이 항목 단위로 셈하지 않는다.
@@ -36,6 +36,10 @@ export default function VacationKindListPage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
+  /** 휴가명을 비운 채 저장 — 원본처럼 문구 없이 그 칸만 빨간 테두리(.has-error, 2026-10-20 실측) */
+  const [nameInvalid, setNameInvalid] = useState(false)
+  /** 원본 '삭제불가코드' 창 — [삭제가 불가능한 휴가코드] 코드 · 코드명 · 자료 · 건수, [사용중단] [닫기] */
+  const [blocked, setBlocked] = useState<{ id: number; code: string; name: string; source: string; count: number }[] | null>(null)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<Form>(blankForm())
   const tableRef = useRef<HTMLTableElement>(null)
@@ -56,20 +60,21 @@ export default function VacationKindListPage() {
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.id))
 
   async function openNew() {
-    setEditId(null); setForm(blankForm()); setFormError(''); setOpen(true)
+    setEditId(null); setForm(blankForm()); setFormError(''); setNameInvalid(false); setOpen(true)
     try {
       const r = await api.get<{ code: string }>('/hr/vacation-kinds/next-code')
       setForm((f) => (f.code ? f : { ...f, code: r.data.code }))
     } catch { /* 비우면 서버가 매긴다 */ }
   }
   function openEdit(v: Vacation) {
-    setEditId(v.id); setFormError('')
+    setEditId(v.id); setFormError(''); setNameInvalid(false)
     setForm({ code: v.code, name: v.name, periodFrom: v.periodFrom, periodTo: v.periodTo, carryOver: v.carryOver, carryFromId: v.carryFromId ? String(v.carryFromId) : '', remark: v.remark ?? '' })
     setOpen(true)
   }
 
   async function save() {
-    if (!form.name.trim()) { setFormError('휴가명을 입력 바랍니다.'); return }
+    setNameInvalid(!form.name.trim())
+    if (!form.name.trim()) return
     const body = { ...form, code: form.code.trim() || null, carryFromId: form.carryOver && form.carryFromId ? Number(form.carryFromId) : null }
     try {
       if (editId) await api.put(`/hr/vacation-kinds/${editId}`, { ...body, active: rows.find((r) => r.id === editId)?.active ?? true })
@@ -84,9 +89,21 @@ export default function VacationKindListPage() {
   /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
   async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
-    if (op === '삭제' && !(await ecConfirm('삭제하시겠습니까?'))) return
+    if (op === '삭제' && !(await ecConfirm('삭제하겠습니까?'))) return
+    let targets = rows.filter((x) => ids.has(x.id))
+    if (op === '삭제') {
+      // 원본: 근태항목이 가리키는 휴가코드는 지우지 않고 '삭제불가코드' 창에 코드 · 코드명 · 자료 · 건수를 띄운다(2026-10-20 실측).
+      try {
+        const kinds = (await api.get<{ vacationKindId: number | null }[]>('/hr/attendance-kinds')).data
+        const stuck = targets.map((v) => ({ v, count: kinds.filter((k) => k.vacationKindId === v.id).length })).filter((x) => x.count > 0)
+        if (stuck.length) {
+          setBlocked(stuck.map((x) => ({ id: x.v.id, code: x.v.code, name: x.v.name, source: '근태항목등록', count: x.count })))
+          targets = targets.filter((v) => !stuck.some((x) => x.v.id === v.id))
+        }
+      } catch { /* 못 읽으면 서버가 막는다 */ }
+    }
     try {
-      for (const v of rows.filter((x) => ids.has(x.id))) {
+      for (const v of targets) {
         if (op === '삭제') await api.delete(`/hr/vacation-kinds/${v.id}`)
         else await api.put(`/hr/vacation-kinds/${v.id}`, {
           code: v.code, name: v.name, periodFrom: v.periodFrom, periodTo: v.periodTo, carryOver: v.carryOver, carryFromId: v.carryFromId, remark: v.remark, active: op === '재사용',
@@ -153,6 +170,27 @@ export default function VacationKindListPage() {
         </tbody>
       </table>
 
+      {blocked && (
+        <Modal open title="삭제불가코드" width={670} onClose={() => setBlocked(null)}>
+          <p>선택한 휴가코드을(를) 삭제할 수 없습니다.</p>
+          <p>다음 사항을 확인 바랍니다.</p>
+          <p className="mb-[8px]">해당 코드의 사용중단을 원하는 경우, 사용중단 버튼을 클릭하시기 바랍니다.</p>
+          <p className="mb-[4px]">[삭제가 불가능한 휴가코드]</p>
+          <table className="w-full">
+            <thead><tr><th></th><th>코드</th><th>코드명</th><th>자료</th><th>건수</th></tr></thead>
+            <tbody>
+              {blocked.map((b, i) => (
+                <tr key={b.id}><td className="text-center">{i + 1}</td><td>{b.code}</td><td>{b.name}</td><td>{b.source}</td><td className="text-right">{b.count}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-[10px] text-center">
+            <button className="ec-btn ec-btn-primary" onClick={() => { const ids = new Set(blocked.map((b) => b.id)); setBlocked(null); applyToChecked('사용중단', ids) }}>사용중단</button>{' '}
+            <button className="ec-btn" onClick={() => setBlocked(null)}>닫기</button>
+          </div>
+        </Modal>
+      )}
+
       <Modal error={formError} open={open} title="휴가항목등록" width={720} onClose={() => setOpen(false)}>
         <ul className="ec-form">
           <li className="wide">
@@ -163,7 +201,7 @@ export default function VacationKindListPage() {
           </li>
           <li className="wide">
             <span className="title">휴가명</span>
-            <div className="form"><input className="ec-input w-full" placeholder="휴가명" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className={`form ${nameInvalid ? 'ec-invalid' : ''}`}><input className="ec-input w-full" placeholder="휴가명" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
           </li>
           <li className="wide">
             <span className="title">기간</span>

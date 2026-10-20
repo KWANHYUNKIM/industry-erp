@@ -29,7 +29,7 @@ const TYPES: [KindType, string][] = [['BASIC', '기본'], ['VACATION', '휴가']
  *       근태입력 [출/퇴근 ▲ › 사원기준] 의 근태코드 코드도움은 이 유형의 항목만 띄운다.</li>
  * </ul>
  * 근태입력의 [근태항목]이 이 목록(사용 중인 것)에서 고른다. 근태유형이 '휴가' 면 원본처럼 [휴가코드](휴가항목등록)가 나타나고
- * 비면 '휴가코드를 입력 바랍니다.' 로 막힌다. 연차에서 빼는 것은 여전히 이름이 연차 · 반차인 항목이다. 근태그룹은 원본처럼 코드도움(근태그룹검색 · [신규] 근태그룹등록 — AttendanceGroupField)이고 그룹 이름을 담는다.
+ * 비면 저장이 막힌다 — 원본처럼 문구 없이 그 칸만 빨간 테두리(근태명칭도 같다, 2026-10-20 실측). 연차에서 빼는 것은 여전히 이름이 연차 · 반차인 항목이다. 근태그룹은 원본처럼 코드도움(근태그룹검색 · [신규] 근태그룹등록 — AttendanceGroupField)이고 그룹 이름을 담는다.
  */
 export default function AttendanceKindListPage() {
   const [rows, setRows] = useState<Kind[]>([])
@@ -41,6 +41,8 @@ export default function AttendanceKindListPage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
+  /** 비운 채 저장한 필수칸 — 원본처럼 문구 없이 그 칸만 빨간 테두리(.has-error, 2026-10-20 실측) */
+  const [invalid, setInvalid] = useState<Set<string>>(new Set())
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<Form>(blankForm())
   const [rules, setRules] = useState<CommuteRule[]>([])
@@ -65,22 +67,25 @@ export default function AttendanceKindListPage() {
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.id))
 
   async function openNew() {
-    setEditId(null); setForm(blankForm()); setFormError(''); setOpen(true)
+    setEditId(null); setForm(blankForm()); setFormError(''); setInvalid(new Set()); setOpen(true)
     try {
       const r = await api.get<{ code: string }>('/hr/attendance-kinds/next-code')
       setForm((f) => (f.code ? f : { ...f, code: r.data.code }))
     } catch { /* 비우면 서버가 매긴다 */ }
   }
   function openEdit(k: Kind) {
-    setEditId(k.id); setFormError('')
+    setEditId(k.id); setFormError(''); setInvalid(new Set())
     setForm({ code: k.code, name: k.name, kindGroup: k.kindGroup ?? '', type: k.type, vacationKindId: k.vacationKindId ? String(k.vacationKindId) : '', commuteRuleId: k.commuteRuleId ? String(k.commuteRuleId) : '', hourUnit: k.hourUnit, remark: k.remark ?? '' })
     setOpen(true)
   }
 
   async function save() {
-    if (!form.name.trim()) { setFormError('근태명칭을 입력 바랍니다.'); return }
-    if (form.type === 'VACATION' && !form.vacationKindId) { setFormError('휴가코드를 입력 바랍니다.'); return }
-    if (form.type === 'COMMUTE' && !form.commuteRuleId) { setFormError('출/퇴근반영기준을 입력 바랍니다.'); return }
+    const bad = new Set<string>()
+    if (!form.name.trim()) bad.add('name')
+    if (form.type === 'VACATION' && !form.vacationKindId) bad.add('vacation')
+    if (form.type === 'COMMUTE' && !form.commuteRuleId) bad.add('commute')
+    setInvalid(bad)
+    if (bad.size) return
     const body = { ...form, code: form.code.trim() || null, vacationKindId: form.type === 'VACATION' ? Number(form.vacationKindId) : null,
       commuteRuleId: form.type === 'COMMUTE' ? Number(form.commuteRuleId) : null }
     try {
@@ -179,7 +184,7 @@ export default function AttendanceKindListPage() {
           </li>
           <li className="wide">
             <span className="title">근태명칭</span>
-            <div className="form"><input className="ec-input w-full" placeholder="근태명칭" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className={`form ${invalid.has('name') ? 'ec-invalid' : ''}`}><input className="ec-input w-full" placeholder="근태명칭" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
           </li>
           <li className="wide">
             <span className="title">근태그룹</span>
@@ -198,7 +203,7 @@ export default function AttendanceKindListPage() {
           {form.type === 'VACATION' && (
             <li className="wide">
               <span className="title">휴가코드</span>
-              <div className="form">
+              <div className={`form ${invalid.has('vacation') ? 'ec-invalid' : ''}`}>
                 <CodePickerField label="휴가코드" hideLabel fill placeholder="휴가코드" emptyLabel="선택 해제"
                                  value={form.vacationKindId} onChange={(v) => setForm({ ...form, vacationKindId: v })}
                                  items={vacations.filter((x) => x.active).map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
@@ -208,7 +213,7 @@ export default function AttendanceKindListPage() {
           {form.type === 'COMMUTE' && (
             <li className="wide">
               <span className="title">출/퇴근반영기준</span>
-              <div className="form">
+              <div className={`form ${invalid.has('commute') ? 'ec-invalid' : ''}`}>
                 <CodePickerField label="출/퇴근반영기준" hideLabel fill placeholder="출/퇴근반영기준" emptyLabel="선택 해제"
                                  value={form.commuteRuleId} onChange={(v) => setForm({ ...form, commuteRuleId: v })}
                                  items={rules.filter((x) => x.active).map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
