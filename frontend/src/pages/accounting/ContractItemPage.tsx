@@ -8,6 +8,10 @@ import type { CodeItem } from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { won, type BillingCycle, type ContractItemRow, type ProductLink } from '../../features/billingcontract/types'
 import ProductLinkModal, { SetTag, type ProductOption } from '../../features/billingcontract/ProductLinkModal'
+import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
+import { EcHistoryModal } from '../../components/EcHistory'
+import { ecConfirm, requireSelection } from '../../components/EcDialog'
 
 interface Form {
   id: number | null; code: string; name: string; unitPrice: string; vatIncluded: boolean; billingCycle: BillingCycle; salesAccountId: string
@@ -15,6 +19,9 @@ interface Form {
 }
 const blank = (): Form => ({ id: null, code: '', name: '', unitPrice: '0', vatIncluded: false, billingCycle: 'ONCE', salesAccountId: '', products: [] })
 const productTotal = (ps: ProductLink[]) => ps.reduce((s, p) => s + Number(p.supplyAmount ?? 0), 0)
+/** 조건 판 — 원본 Search(F3): 계약항목코드 · 계약항목명 · 단가 ~ · 청구주기(전체) · 매출계정 · 사용구분(사용 기본). */
+interface Cond { code: string; name: string; priceFrom: string; priceTo: string; cycle: 'ALL' | BillingCycle; accountId: string; use: 'ALL' | 'Y' | 'N' }
+const blankCond = (): Cond => ({ code: '', name: '', priceFrom: '', priceTo: '', cycle: 'ALL', accountId: '', use: 'Y' })
 
 /**
  * 회계 II › 계약관리 › <b>계약항목등록</b>(E060901 계약항목리스트) — 2026-10-13 loginaa 실측.
@@ -35,6 +42,11 @@ export default function ContractItemPage() {
   const [error, setError] = useState('')
   const [products, setProducts] = useState<ProductOption[]>([])
   const [linkOpen, setLinkOpen] = useState(false)
+  const [cond, setCond] = useState<Cond>(blankCond)
+  const [applied, setApplied] = useState<Cond>(blankCond)
+  const [quick, setQuick] = useState('')
+  const [historyId, setHistoryId] = useState<number | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '계약항목리스트', [rows.length])
 
@@ -69,14 +81,37 @@ export default function ContractItemPage() {
       await load()
     } catch (e) { setError(extractErrorMessage(e)) }
   }
-  async function toggleActive() {
-    const chosen = rows.filter((r) => picked.has(r.id))
+  async function toggleActive(ids = rows.filter((r) => picked.has(r.id)).map((r) => r.id)) {
+    const chosen = rows.filter((r) => ids.includes(r.id))
     if (!chosen.length) return
     try {
       await api.post('/contract-items/active', { ids: chosen.map((r) => r.id), active: !chosen[0].active })
       await load()
     } catch (e) { setError(extractErrorMessage(e)) }
   }
+  /** 목록 [사용중단/재사용] 펼침 — 원본은 사용중단 · 삭제 · 재사용 셋, 삭제는 '삭제하겠습니까?' 확인 뒤 지우고 목록만 다시 읽는다. */
+  async function apply(op: '사용중단' | '삭제' | '재사용') {
+    setMenuOpen(false)
+    const ids = shown.filter((r) => picked.has(r.id)).map((r) => r.id)
+    if (!requireSelection(ids.length)) return
+    try {
+      if (op === '삭제') {
+        if (!(await ecConfirm('삭제하겠습니까?'))) return
+        for (const id of ids) await api.delete(`/contract-items/${id}`)
+      } else {
+        await api.post('/contract-items/active', { ids, active: op === '재사용' })
+      }
+      await load()
+    } catch (e) { setError(extractErrorMessage(e)) }
+  }
+  const has =(v: string | null | undefined, q: string) => !q || (v ?? '').toLowerCase().includes(q.toLowerCase())
+  const shown = rows.filter((r) => has(r.code, applied.code) && has(r.name, applied.name)
+    && (!applied.priceFrom || Number(r.unitPrice) >= Number(applied.priceFrom))
+    && (!applied.priceTo || Number(r.unitPrice) <= Number(applied.priceTo))
+    && (applied.cycle === 'ALL' || r.billingCycle === applied.cycle)
+    && (!applied.accountId || String(r.salesAccountId) === applied.accountId)
+    && (applied.use === 'ALL' || (applied.use === 'Y') === r.active)
+    && (!quick || has(r.code, quick) || has(r.name, quick)))
   const edit = (r: ContractItemRow) => { setInvalid(new Set()); setForm({ id: r.id, code: r.code, name: r.name, unitPrice: String(Number(r.unitPrice)),
     vatIncluded: r.vatIncluded, billingCycle: r.billingCycle, salesAccountId: r.salesAccountId != null ? String(r.salesAccountId) : '',
     products: r.products ?? [] }) }
@@ -85,20 +120,57 @@ export default function ContractItemPage() {
   return (
     <EcListShell
       title="계약항목리스트"
-      searchable={false}
+      search={quick}
+      onSearchChange={setQuick}
+      onSearch={() => setApplied(cond)}
+      onReset={() => setCond(blankCond())}
       actions={[
         { label: '신규(F2)', primary: true, onClick: () => { setInvalid(new Set()); setForm(blank()) } },
-        { label: '사용중단/재사용', disabled: picked.size === 0, onClick: () => void toggleActive() },
+        { label: '사용중단/재사용', onClick: () => setMenuOpen((v) => !v) },
         { label: 'Excel' },
       ]}
     >
+      <ul className="ec-cond">
+        <EcCond label="계약항목코드"><input className="ec-input w-full" aria-label="조건 계약항목코드" value={cond.code} onChange={(e) => setCond({ ...cond, code: e.target.value })} /></EcCond>
+        <EcCond label="계약항목명"><input className="ec-input w-full" aria-label="조건 계약항목명" value={cond.name} onChange={(e) => setCond({ ...cond, name: e.target.value })} /></EcCond>
+        <EcCond label="단가">
+          <span className="flex items-center gap-[4px]">
+            <EcNumInput className="ec-input w-full text-right" aria-label="단가 부터" value={cond.priceFrom} onValue={(v) => setCond({ ...cond, priceFrom: v })} />~
+            <EcNumInput className="ec-input w-full text-right" aria-label="단가 까지" value={cond.priceTo} onValue={(v) => setCond({ ...cond, priceTo: v })} />
+          </span>
+        </EcCond>
+        <EcCond label="청구주기">
+          {([['ALL', '전체'], ['ONCE', '1회'], ['PERIODIC', '주기적']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]"><input type="radio" name="ci-cycle" checked={cond.cycle === v} onChange={() => setCond({ ...cond, cycle: v })} /> {l}</label>
+          ))}
+        </EcCond>
+        <EcCond label="매출계정" pick>
+          <CodePickerField label="매출계정" hideLabel fill placeholder="매출계정" value={cond.accountId} items={accounts}
+                           onChange={(v) => setCond({ ...cond, accountId: v })} />
+        </EcCond>
+        <EcCond label="사용구분">
+          {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]"><input type="radio" name="ci-use" checked={cond.use === v} onChange={() => setCond({ ...cond, use: v })} /> {l}</label>
+          ))}
+        </EcCond>
+      </ul>
+      {menuOpen && (
+        <>
+          <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
+          <div className="ec-menu fixed top-auto right-auto bottom-[44px] left-[300px] mobile:left-[16px]">
+            {(['사용중단', '삭제', '재사용'] as const).map((op) => (
+              <button key={op} type="button" onClick={() => void apply(op)}>{op}</button>
+            ))}
+          </div>
+        </>
+      )}
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table ref={tableRef} className="w-full">
         <thead>
           <tr>
             <th className="w-[34px]">
-              <input type="checkbox" aria-label="전체 선택" checked={rows.length > 0 && picked.size === rows.length}
-                     onChange={(e) => setPicked(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())} />
+              <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((r) => picked.has(r.id))}
+                     onChange={(e) => setPicked(e.target.checked ? new Set(shown.map((r) => r.id)) : new Set())} />
             </th>
             <th>계약항목코드</th>
             <th>계약항목명</th>
@@ -110,9 +182,9 @@ export default function ContractItemPage() {
           </tr>
         </thead>
         <tbody>
-          {rows.length === 0 ? (
+          {shown.length === 0 ? (
             <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((r) => (
+          ) : shown.map((r) => (
             <tr key={r.id}>
               <td className="text-center">
                 <input type="checkbox" aria-label={`${r.code} 선택`} checked={picked.has(r.id)}
@@ -130,15 +202,17 @@ export default function ContractItemPage() {
         </tbody>
       </table>
 
-      <Modal open={!!form} title="계약항목등록" width={780} error={error} onClose={() => setForm(null)}>
+      <Modal open={!!form} title={form?.id ? '계약항목수정' : '계약항목등록'} width={780} error={error} onClose={() => setForm(null)}>
         {form && (
           <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void save() } }}>
-            <h3 className="text-[14px] font-bold mb-[8px]">계약항목등록</h3>
+            <h3 className="text-[14px] font-bold mb-[8px]">{form.id ? '계약항목수정' : '계약항목등록'}</h3>
             <ul className="ec-cond mb-[8px] grid grid-cols-1 gap-[6px]">
               <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">계약항목코드</span>
-                <input className={`ec-input flex-1${bad('code')}`} aria-label="계약항목코드" maxLength={5} value={form.code}
-                       aria-invalid={invalid.has('code')} onChange={(e) => set({ code: e.target.value })} />
+                {/* 원본 수정 창은 코드가 글자로만 보인다(바꿀 수 없음) */}
+                {form.id ? <span className="flex-1">{form.code}</span> : (
+                  <input className={`ec-input flex-1${bad('code')}`} aria-label="계약항목코드" maxLength={5} value={form.code}
+                         aria-invalid={invalid.has('code')} onChange={(e) => set({ code: e.target.value })} />)}
               </li>
               <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">계약항목명</span>
@@ -154,10 +228,12 @@ export default function ContractItemPage() {
               </li>
               <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">품목별단가</span>
-                <span className="flex-1 flex flex-col items-start gap-[4px]">
-                  {form.products.length > 0 && <span className="ec-input w-full text-right bg-ec-disabled">{won(productTotal(form.products))}</span>}
-                  <SetTag set={form.products.length > 0} label="설정" onClick={() => setLinkOpen(true)} />
-                </span>
+                {/* 원본: 막힌 칸(합계, 처음 0) · VAT포함(막힘) · [설정] 한 줄 */}
+                <input className="ec-input flex-1 text-right" aria-label="품목별단가" disabled value={won(productTotal(form.products))} />
+                <label className="inline-flex items-center gap-[3px]">
+                  <input type="checkbox" disabled checked={false} readOnly /> VAT포함
+                </label>
+                <SetTag set={form.products.length > 0} label="설정" onClick={() => setLinkOpen(true)} />
               </li>
               <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">청구주기</span>
@@ -179,11 +255,14 @@ export default function ContractItemPage() {
             <div className="flex gap-[5px]">
               <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
               <button type="button" className="ec-btn" onClick={() => setForm(form.id ? form : blank())}>다시 작성</button>
+              {form.id && <button type="button" className="ec-btn" onClick={() => { const id = form.id as number; setForm(null); void toggleActive([id]) }}>사용중단/재사용</button>}
               <button type="button" className="ec-btn" onClick={() => setForm(null)}>닫기</button>
+              {form.id && <button type="button" className="ec-btn" onClick={() => setHistoryId(form.id)}>H</button>}
             </div>
           </div>
         )}
       </Modal>
+      {historyId != null && <EcHistoryModal url={`/contract-items/${historyId}/history`} onClose={() => setHistoryId(null)} />}
       <ProductLinkModal open={linkOpen} value={form?.products ?? []} products={products} onClose={() => setLinkOpen(false)}
         onApply={(ps) => { set({ products: ps }); setLinkOpen(false) }} />
     </EcListShell>

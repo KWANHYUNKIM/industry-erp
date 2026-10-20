@@ -20,6 +20,10 @@ public class ContractItemService {
     private final ContractItemRepository repository;
     private final AccountService accountService;
     private final com.erp.inventory.item.ItemService itemService;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    /** [H] 이력 대상 이름(change_history.target). */
+    static final String HISTORY = "CONTRACT_ITEM";
 
     @Transactional(readOnly = true)
     public List<ContractItemResponse> findAll() {
@@ -34,7 +38,9 @@ public class ContractItemService {
         }
         ContractItem i = ContractItem.builder().code(code).active(true).build();
         apply(i, req);
-        return ContractItemResponse.from(repository.save(i));
+        ContractItem saved = repository.save(i);
+        changeHistory.record(HISTORY, saved.getId(), com.erp.common.history.ChangeHistoryService.CREATED);
+        return ContractItemResponse.from(saved);
     }
 
     @Transactional
@@ -46,13 +52,26 @@ public class ContractItemService {
         }
         i.setCode(code);
         apply(i, req);
+        changeHistory.record(HISTORY, i.getId(), com.erp.common.history.ChangeHistoryService.UPDATED);
         return ContractItemResponse.from(i);
     }
 
     /** 원본 [사용중단/재사용]. */
     @Transactional
     public void setActive(List<Long> ids, boolean active) {
-        for (Long id : ids) get(id).setActive(active);
+        for (Long id : ids) {
+            ContractItem i = get(id);
+            boolean was = i.isActive();
+            i.setActive(active);
+            if (was != active) changeHistory.recordUpdate(HISTORY, id, was, active);
+        }
+    }
+
+    /** 수정 창 [H] '이력' — 이 표를 만들기 전 자료는 만든 때로 '신규' 한 줄. */
+    @Transactional(readOnly = true)
+    public java.util.List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(Long id) {
+        ContractItem i = get(id);
+        return changeHistory.list(HISTORY, id, null, i.getCreatedAt());
     }
 
     @Transactional

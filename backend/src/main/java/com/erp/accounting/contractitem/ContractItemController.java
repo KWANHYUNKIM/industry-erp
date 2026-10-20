@@ -38,6 +38,12 @@ public class ContractItemController {
         service.setActive(req.ids(), req.active());
     }
 
+    /** 수정 창 [H] */
+    @GetMapping("/{id}/history")
+    public List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(@PathVariable Long id) {
+        return service.history(id);
+    }
+
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         service.delete(id);
