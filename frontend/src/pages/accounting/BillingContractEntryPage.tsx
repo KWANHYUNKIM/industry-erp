@@ -38,7 +38,7 @@ function actedAt(iso: string) {
  * [상세] → 품목연결설정 창(계약항목 00007 이면 D001 · D002 를 미리 보여 줌). [적용(F8)]해야 줄에 붙고 [상세]가 주황 글자가 된다 —
  * 붙인 줄의 청구자료만 회계/판매일괄반영 [판매반영]에 나온다(원본 도움말 '계약입력 시, 입력한 계약항목의 상세-품목연결설정을 해야합니다.').
  * 버튼: 저장(F8) · 다시 작성 · 리스트. 저장하면 안내 없이 새 빈 판(다음 계약코드)으로 바뀐다. 청구종료일 · 청구단위가 비면 칸을 빨갛게 막는다.
- * 원본의 [저장/전표(F7)] · 첨부 · 담당자 · 부서는 아직 두지 않는다.
+ * 원본의 [저장/전표(F7)] · 첨부는 아직 두지 않는다(담당자 · 부서는 2026-10-20 더함 — 원본 담당자 처음 값은 로그인 사원).
  *
  * <p>계약조회 [계약번호] 로 열면 <b>계약수정</b>(2026-10-13 실측): 계약일자 뒤에 ' -2'(그날 번호), 버튼 저장(F8) · 복사 · 닫기 · 삭제 · H.
  * [복사] → 계약입력: 계약일자 오늘 · 계약코드 다음 번호 · 계약명 비움, 나머지 머리와 줄은 그대로.
@@ -61,11 +61,15 @@ export default function BillingContractEntryPage() {
   const [billEnd, setBillEnd] = useState('')
   const [vatType, setVatType] = useState('세금계산서')
   const [foreignCurrency, setForeignCurrency] = useState(false)
+  const [employeeId, setEmployeeId] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
   const [projectId, setProjectId] = useState('')
   const [remark, setRemark] = useState('')
   const [lines, setLines] = useState<Line[]>([blankLine(), blankLine(), blankLine()])
   const [partners, setPartners] = useState<CodeItem[]>([])
   const [projects, setProjects] = useState<CodeItem[]>([])
+  const [employees, setEmployees] = useState<CodeItem[]>([])
+  const [departments, setDepartments] = useState<CodeItem[]>([])
   const [items, setItems] = useState<ContractItemRow[]>([])
   const [units, setUnits] = useState<BillingUnitRow[]>([])
   const [monthsFor, setMonthsFor] = useState<number | null>(null)
@@ -77,7 +81,7 @@ export default function BillingContractEntryPage() {
 
   async function reset() {
     setContractDate(ymd(new Date())); setPartnerId(''); setName(''); setBillStart(ymd(new Date())); setBillEnd('')
-    setVatType('세금계산서'); setForeignCurrency(false); setProjectId(''); setRemark(''); setInvalid(new Set())
+    setVatType('세금계산서'); setForeignCurrency(false); setEmployeeId(''); setDepartmentId(''); setProjectId(''); setRemark(''); setInvalid(new Set())
     setLines([blankLine(), blankLine(), blankLine()])
     try { setCode((await api.get<{ code: string }>('/billing-contracts/next-code')).data.code) } catch { setCode('') }
   }
@@ -91,6 +95,10 @@ export default function BillingContractEntryPage() {
         setItems(it.data.filter((x) => x.active)); setUnits(u.data)
       })
       .catch((e) => setError(extractErrorMessage(e)))
+    api.get<{ id: number; code: string; name: string }[]>('/employees')
+      .then((r) => setEmployees(r.data.map((x) => ({ value: String(x.id), code: x.code, name: x.name })))).catch(() => setEmployees([]))
+    api.get<{ id: number; code: string; name: string }[]>('/departments')
+      .then((r) => setDepartments(r.data.map((x) => ({ value: String(x.id), code: x.code, name: x.name })))).catch(() => setDepartments([]))
     api.get<ProductOption[]>('/items').then((r) => setProducts(r.data)).catch(() => setProducts([]))
     const sourceId = editId ?? copyId
     if (!sourceId) { setLoaded(null); void reset(); return }
@@ -105,6 +113,7 @@ export default function BillingContractEntryPage() {
       }
       setPartnerId(String(c.partnerId))
       setBillStart(c.billStart); setBillEnd(c.billEnd); setVatType(c.vatType); setForeignCurrency(c.foreignCurrency)
+      setEmployeeId(c.employeeId != null ? String(c.employeeId) : ''); setDepartmentId(c.departmentId != null ? String(c.departmentId) : '')
       setProjectId(c.projectId != null ? String(c.projectId) : ''); setRemark(c.remark ?? '')
       const ls = c.lines.map((l) => ({ itemId: String(l.itemId), billMonths: l.billMonths, quantity: String(Number(l.quantity)),
         unitPrice: String(Number(l.unitPrice)), supplyAmount: String(Number(l.supplyAmount)), vatAmount: String(Number(l.vatAmount)),
@@ -142,7 +151,7 @@ export default function BillingContractEntryPage() {
     setInvalid(bad)
     if (bad.size) return
     const body = { contractDate, partnerId: Number(partnerId), code, name: name || null, billStart, billEnd, vatType, foreignCurrency,
-      employeeId: null, departmentId: null, projectId: projectId ? Number(projectId) : null, remark: remark || null,
+      employeeId: employeeId ? Number(employeeId) : null, departmentId: departmentId ? Number(departmentId) : null, projectId: projectId ? Number(projectId) : null, remark: remark || null,
       lines: filled.map(({ l }) => ({ itemId: Number(l.itemId), billMonths: l.billMonths, quantity: Number(l.quantity) || 0,
         unitPrice: Number(l.unitPrice) || 0, supplyAmount: Number(l.supplyAmount) || 0, vatAmount: Number(l.vatAmount) || 0,
         billingUnitId: Number(l.billingUnitId), remark: l.remark || null, products: l.products })) }
@@ -199,6 +208,8 @@ export default function BillingContractEntryPage() {
             {VAT_TYPES.map((v) => <option key={v}>{v}</option>)}</select>)}
           {row('통화', <select className="ec-input flex-1" aria-label="통화" value={foreignCurrency ? 'F' : 'D'} onChange={(e) => setForeignCurrency(e.target.value === 'F')}>
             <option value="D">내자</option><option value="F">외자</option></select>)}
+          {row('담당자', <span className="flex-1"><GridCode title="담당자검색" codeHead="사원번호" nameHead="사원명" items={employees} value={employeeId} onPick={setEmployeeId} /></span>)}
+          {row('부서', <span className="flex-1"><GridCode title="부서검색" codeHead="부서코드" nameHead="부서명" items={departments} value={departmentId} onPick={setDepartmentId} /></span>)}
           {row('프로젝트', <span className="flex-1"><GridCode title="프로젝트검색" codeHead="프로젝트코드" nameHead="프로젝트명" items={projects} value={projectId} onPick={setProjectId} /></span>)}
           {row('적요', <input className="ec-input flex-1" aria-label="적요" maxLength={200} value={remark} onChange={(e) => setRemark(e.target.value)} />)}
         </ul>

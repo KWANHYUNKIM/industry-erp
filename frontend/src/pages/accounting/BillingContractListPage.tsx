@@ -16,7 +16,9 @@ import { VAT_TYPES, won, type BillingContractRow } from '../../features/billingc
  * <p>조건: 계약일자(최근30일(+1개월)) · 거래처 · 담당자 · 계약항목 · 계약 · 부가세유형 · 청구단위 · 내·외자구분(전체 · 내자 · 외자) · 부서 · 프로젝트.
  * 열: 계약번호(계약일자-No. 링크) · 계약명 · 청구시작일 · 청구종료일 · 거래처 · 항목 · 금액(공급가액 + 부가세) · 유형(부가세유형) · 인쇄.
  * 버튼: 신규(F2) · Email · 인쇄 · 선택삭제 · Excel. 최근 계약이 위.
- * 담당자 · 부서 조건, Email · 인쇄는 아직 두지 않는다. [선택삭제] 확인 문구는 원본에서 아직 못 쟀다(수표조회와 같은 글을 쓴다). [항목] 은 첫 줄 항목명(줄이 여럿인 계약은 원본에서 아직 못 쟀다).
+ * 머리: Search(F3) 빠른 검색칸 — 조건 판은 접혀서 시작한다(2026-10-20 실측, plans/공용.md 규칙 3).
+ * [선택삭제] 확인 '선택한 전표를 삭제 하겠습니까?'(2026-10-20 실측).
+ * 담당자 · 부서 조건, 진행상태 알약(전체 · 확인 · 진행중 · 완료), 줄 [인쇄] 열, Email · 인쇄는 아직 두지 않는다. [항목] 은 첫 줄 항목명(줄이 여럿인 계약은 원본에서 아직 못 쟀다).
  */
 export default function BillingContractListPage() {
   const nav = useNavigate()
@@ -30,6 +32,7 @@ export default function BillingContractListPage() {
   const [unit, setUnit] = useState('')
   const [currency, setCurrency] = useState<'' | 'D' | 'F'>('')
   const [project, setProject] = useState('')
+  const [quick, setQuick] = useState('')
   const [rows, setRows] = useState<BillingContractRow[]>([])
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -66,6 +69,7 @@ export default function BillingContractListPage() {
     .filter((r) => !unit || r.lines.some((l) => String(l.billingUnitId) === unit))
     .filter((r) => !currency || r.foreignCurrency === (currency === 'F'))
     .filter((r) => !project || String(r.projectId) === project)
+    .filter((r) => !quick.trim() || [r.code, r.name ?? '', r.partnerName].some((v) => v.includes(quick.trim())))
 
   async function remove() {
     setConfirmDelete(false)
@@ -73,10 +77,10 @@ export default function BillingContractListPage() {
   }
 
   return (
-    <EcListShell title="계약조회" searchable={false} actions={[
-      { label: '검색(F8)', primary: true, onClick: () => void load() },
-      { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setPartner(''); setItem(''); setContract(''); setVatType(''); setUnit(''); setCurrency(''); setProject('') } },
-      { label: '신규(F2)', onClick: () => nav('/accounting/billing-contracts/new') },
+    <EcListShell title="계약조회" search={quick} onSearchChange={setQuick} onSearch={() => void load()}
+      onNew={() => nav('/accounting/billing-contracts/new')}
+      onReset={() => { setFrom(init.from); setTo(init.to); setPartner(''); setItem(''); setContract(''); setVatType(''); setUnit(''); setCurrency(''); setProject('') }}
+      actions={[
       { label: '선택삭제', selected: picked.size, onClick: () => setConfirmDelete(true) },
       { label: 'Excel' },
     ]}>
