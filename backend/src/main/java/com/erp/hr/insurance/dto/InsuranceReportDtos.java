@@ -4,12 +4,13 @@ import com.erp.hr.insurance.InsuranceReport;
 import com.erp.hr.insurance.InsuranceReportKind;
 import com.erp.hr.insurance.InsuranceWorkplace;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
 public class InsuranceReportDtos {
 
-    public record WorkplaceRequest(String name, String manageNo, String phone) {}
+    public record WorkplaceRequest(@Size(max = 100) String name, @Size(max = 11) String manageNo, @Size(max = 30) String phone) {}
 
     public record WorkplaceResponse(Long id, String name, String manageNo, String phone, boolean active) {
         public static WorkplaceResponse from(InsuranceWorkplace w) {
@@ -27,7 +28,7 @@ public class InsuranceReportDtos {
             boolean healthApply, LocalDate healthDate,
             boolean employmentApply, LocalDate employmentDate,
             boolean accidentApply, LocalDate accidentDate,
-            String phone, String detail, String dependents) {}
+            @Size(max = 30) String phone, String detail, String dependents) {}
 
     public record ReportResponse(
             Long id, LocalDate reportDate, Integer reportSeq, InsuranceReportKind kind, String formName,

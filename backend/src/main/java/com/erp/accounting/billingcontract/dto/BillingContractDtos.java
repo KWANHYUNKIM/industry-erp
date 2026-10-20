@@ -25,7 +25,7 @@ public final class BillingContractDtos {
             @Size(max = 100) String name,
             @NotNull(message = "청구시작일을 입력하세요.") LocalDate billStart,
             @NotNull(message = "청구종료일을 입력하세요.") LocalDate billEnd,
-            @NotBlank(message = "부가세유형을 선택하세요.") String vatType,
+            @NotBlank(message = "부가세유형을 선택하세요.") @Size(max = 30) String vatType,
             boolean foreignCurrency,
             Long employeeId,
             Long departmentId,

@@ -71,12 +71,12 @@ public final class SpecialPriceDtos {
     public record SaveItemGroupPriceRequest(
             @NotNull(message = "특별단가그룹코드를 입력 바랍니다.") Long groupId,
             @NotNull(message = "품목그룹을 입력 바랍니다.") Long itemGroupId,
-            String priceBasis,
+            @Size(max = 20) String priceBasis,
             @DecimalMin(value = "-100", message = "조정_비율은 -100 이상이어야 합니다.")
             @DecimalMax(value = "10000", message = "조정_비율은 10000 이하여야 합니다.")
             BigDecimal adjustRate,
-            String roundUnit,
-            String roundMode
+            @Size(max = 20) String roundUnit,
+            @Size(max = 10) String roundMode
     ) {}
 
     public record ItemGroupPriceResponse(

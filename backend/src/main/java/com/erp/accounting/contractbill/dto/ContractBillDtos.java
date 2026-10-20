@@ -21,7 +21,7 @@ public final class ContractBillDtos {
     /** 청구자료생성 — [일괄생성] 은 한 장, [거래처별생성] 은 거래처마다 한 장(byPartner). */
     public record CreateBillRequest(
             @NotNull(message = "일자를 입력하세요.") LocalDate billDate,
-            @NotBlank String vatType,
+            @NotBlank @Size(max = 30) String vatType,
             boolean byPartner,
             @NotEmpty(message = "청구할 계약을 [계약] 으로 불러오세요.") List<@Valid BillLine> lines
     ) {}

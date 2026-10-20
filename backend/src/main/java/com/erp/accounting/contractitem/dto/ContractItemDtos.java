@@ -4,6 +4,7 @@ import com.erp.accounting.contractitem.BillingCycle;
 import com.erp.accounting.contractitem.ContractItem;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -14,7 +15,7 @@ public final class ContractItemDtos {
     public record SaveContractItemRequest(
             @NotBlank(message = "계약항목코드를 입력하세요.") @Size(max = 5, message = "계약항목코드는 5자까지 넣을 수 있습니다.") String code,
             @NotBlank(message = "계약항목명을 입력하세요.") @Size(max = 100) String name,
-            BigDecimal unitPrice,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             boolean vatIncluded,
             @NotNull BillingCycle billingCycle,
             Long salesAccountId,
