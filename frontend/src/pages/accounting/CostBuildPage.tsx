@@ -7,6 +7,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import ProcessExpenseModal from './ProcessExpenseModal'
 import CostChecklistModal, { type CostChecklistKind } from './CostChecklistModal'
 import CostLedgerModal, { type CostLedgerMode } from './CostLedgerModal'
+import CostPrecheckModal from './CostPrecheckModal'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
@@ -40,6 +41,9 @@ interface Period {
 const METHODS = [['TOTAL_AVERAGE', '총평균법'], ['FIFO', '선입선출법'], ['LAST_PURCHASE', '최종매입원가법']] as const
 const BASES = [['ITEM', '품목등록'], ['ACTUAL', '실외주비']] as const
 const ym = (m: string) => m.replace('-', '/')
+const NL = String.fromCharCode(10)
+/** 지나간 줄의 [사전작업] · [원가계산](회색 = 꺼진 쪽번호 색) · [원가현황] · [기타](파랑) 알약 — 원본 span 20.3 높이 · 둥글기 10 · 여백 3.6 4.5 2.7 · 12px 흰 글자. */
+const BADGE = 'block w-full border-0 rounded-[10px] pt-[3.6px] px-[4.5px] pb-[2.7px] text-[12px] leading-[14px] text-white text-center'
 const nextMonth = (m: string) => { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
 
 
@@ -59,7 +63,10 @@ export default function CostBuildPage() {
   }
   const [reg, setReg] = useState(blankReg())
   /** 사전작업(노무비/경비등록)을 여는 기준년월. 실제원가 계산이 이 달을 본다. */
-  const [expensePeriod, setExpensePeriod] = useState<string | null>(null)
+  const [expensePeriod, setExpensePeriod] = useState<{ period: string; end: string; readOnly: boolean } | null>(null)
+  /** 원가계산 [생성] — 원본은 먼저 '원가생성' 대상 창(◉전체 ○선택공정 · 적용(F8) · 닫기)을 띄운다. */
+  const [genTarget, setGenTarget] = useState<Period | null>(null)
+  const [genScope, setGenScope] = useState<'all' | 'process'>('all')
   /** 원가현황 [수량비교] · [전월금액비교] · 기타 [이력] 창. */
   const [checklist, setChecklist] = useState<{ id: number; kind: CostChecklistKind } | null>(null)
   /** 원가계산 [수정] · [기말금액재계산] — 대상 창 → 원가계산내역. */
@@ -91,10 +98,33 @@ export default function CostBuildPage() {
   async function run(p: Period, what: 'standard' | 'generate') {
     setError(''); setOk('')
     try {
-      const r = await api.post<{ months: number; rows: number }>(`/cost-periods/${p.id}/${what}`)
-      setOk(`요청된 [${ym(p.startMonth)} ~${ym(p.endMonth)} ${what === 'standard' ? '표준원가생성' : '원가생성'}] 작업이 완료되었습니다. (${r.data.rows}건)`)
+      await api.post<{ months: number; rows: number }>(`/cost-periods/${p.id}/${what}`)
+      setOk(`요청된 [${ym(p.startMonth)} ~${ym(p.endMonth)} ${what === 'standard' ? '표준원가생성' : '원가생성'}] 작업이 완료되었습니다.`)
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
+  }
+  /**
+   * '원가생성' 창 [적용(F8)] — 원본(2026-10-20): '알림 · 생성처리를 하겠습니까? / 기존에 수정된 내역이 있다면 수정내역이 모두 사라지고
+   * 새롭게 계산됩니다. / 생성 후에는 이전으로 복구되지 않습니다.' [확인] → '[원가생성] 작업이 요청되었습니다.' → 끝나면
+   * '요청된 [2026/11 ~2026/11 원가생성] 작업이 완료되었습니다.' 우리 계산은 공정별로 나눠 하지 않아 [선택공정] 은 아직 못 한다.
+   */
+  /** 사전작업 [표준원가생성] — 원본(2026-10-20) 확인 창 문구 그대로, [확인] 하면 '[표준원가생성] 작업이 요청되었습니다.' */
+  async function runStandard(p: Period) {
+    if (!(await ecConfirm(['기존에 생성된 내역이 있다면 생성내역이 모두 사라지고 새롭게 계산됩니다.', '표준원가는 재고1 > 기초등록 > 품목등록 > 원가 탭에서 입력할 수 있습니다.', '표준원가를 생성하겠습니까?'].join(NL)))) return
+    setOk('[표준원가생성] 작업이 요청되었습니다.')
+    await run(p, 'standard')
+  }
+  async function applyGenerate() {
+    const p = genTarget
+    if (!p) return
+    if (genScope === 'process') {
+      void ecAlert('선택공정 원가생성은 아직 지원하지 않습니다.' + NL + NL + '대상을 전체로 바꿔 다시 시도 바랍니다.')
+      return
+    }
+    if (!(await ecConfirm(['생성처리를 하겠습니까?', '기존에 수정된 내역이 있다면 수정내역이 모두 사라지고 새롭게 계산됩니다.', '생성 후에는 이전으로 복구되지 않습니다.'].join(NL)))) return
+    setGenTarget(null)
+    setOk('[원가생성] 작업이 요청되었습니다.')
+    await run(p, 'generate')
   }
   async function removePeriod(p: Period) {
     if (!(await ecConfirm('삭제한 데이터는 복구되지 않습니다.\n\n삭제하겠습니까?'))) return
@@ -114,11 +144,11 @@ export default function CostBuildPage() {
     <div><button type="button" className="ec-link" disabled={!onClick} onClick={onClick}>{label}</button></div>
   )
   /** 지나간 줄의 파란 [원가현황] · [기타] — 누르면 아래로 펼친다(원본 실측). */
-  const dropdown = (p: Period, label: string, picks: [string, () => void][]) => {
+  const dropdown = (p: Period, label: string, picks: [string, () => void][], gray = false) => {
     const key = `${p.id}:${label}`
     return (
       <span className="relative block">
-        <button type="button" className="ec-btn ec-btn-primary w-full" onClick={() => setMenu(menu === key ? null : key)}>{label}</button>
+        <button type="button" className={`${BADGE} ${gray ? 'bg-ec-hint' : 'bg-ec-blue'} cursor-pointer`} onClick={() => setMenu(menu === key ? null : key)}>{label}</button>
         {menu === key && (
           <>
             <div className="ec-backdrop-clear" onClick={() => setMenu(null)} />
@@ -132,13 +162,15 @@ export default function CostBuildPage() {
   }
 
   return (
-    <EcListShell title="원가생성/수정">
+    // 원본 머리는 제목 · 도움말뿐이다(Search(F3) · Option 없음, 2026-10-20 실측).
+    <EcListShell title="원가생성/수정" searchable={false} option={false}>
       {expensePeriod && (
-        <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
+        <ProcessExpenseModal period={expensePeriod.period} endMonth={expensePeriod.end} readOnly={expensePeriod.readOnly}
+                             onClose={() => setExpensePeriod(null)} />
       )}
       {checklist && <CostChecklistModal periodId={checklist.id} kind={checklist.kind} onClose={() => setChecklist(null)} />}
       {ledger && <CostLedgerModal periodId={ledger.id} mode={ledger.mode} onClose={() => setLedger(null)} />}
-      {error && !regOpen && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {error && !regOpen && !genTarget && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <table className="w-full">
@@ -161,11 +193,11 @@ export default function CostBuildPage() {
               {p.latest ? (
                 <>
                   <td className="text-center">
-                    {link('노무비/경비등록', () => setExpensePeriod(p.startMonth))}
-                    {link('표준원가생성', () => void run(p, 'standard'))}
+                    {link('노무비/경비등록', () => setExpensePeriod({ period: p.startMonth, end: p.endMonth, readOnly: false }))}
+                    {link('표준원가생성', () => void runStandard(p))}
                   </td>
                   <td className="text-center">
-                    {link('생성', () => void run(p, 'generate'))}
+                    {link('생성', () => { setError(''); setGenScope('all'); setGenTarget(p) })}
                     {p.generated && link('수정', () => { setError(''); setLedger({ id: p.id, mode: 'edit' }) })}
                     {p.generated && link('기말금액재계산', () => { setError(''); setLedger({ id: p.id, mode: 'recalc' }) })}
                   </td>
@@ -182,8 +214,11 @@ export default function CostBuildPage() {
                 </>
               ) : (
                 <>
-                  <td><button type="button" className="ec-btn w-full" disabled>사전작업</button></td>
-                  <td><button type="button" className="ec-btn w-full" disabled>원가계산</button></td>
+                  {/* 원본 지나간 줄 [사전작업] 은 [노무비/경비조회] 하나를 펼친다(2026-10-20 실측). */}
+                  <td>{dropdown(p, '사전작업', [
+                    ['노무비/경비조회', () => setExpensePeriod({ period: p.startMonth, end: p.endMonth, readOnly: true })],
+                  ], true)}</td>
+                  <td><span className={`${BADGE} bg-ec-hint`}>원가계산</span></td>
                   <td>{dropdown(p, '원가현황', [
                     ['조회', () => navigate('/accounting/actual-cost')],
                     ['수량비교', () => setChecklist({ id: p.id, kind: 'qty' })],
@@ -238,20 +273,28 @@ export default function CostBuildPage() {
         </div>
       )}</Modal>
 
-      <Modal error={null} open={checkOpen} title="원가생성전 점검사항" onClose={() => setCheckOpen(false)}>{(
-        <div className="text-[12.5px] leading-[1.9] text-ec-label">
-          표준원가는 <b>그 기준월의 자료로 한 번에</b> 만듭니다. 아래가 안 갖춰져 있으면
-          원가가 0 이거나 일부 품목만 생깁니다.
-          <ol className="mt-[10px] ml-[20px] list-decimal">
-            <li>완제품에 <b>BOM</b>이 있어야 합니다 — 자재비는 BOM 을 펼쳐 계산합니다.</li>
-            <li>자재의 <b>구매단가</b>가 있어야 합니다(품목등록 또는 그 달의 매입 전표).</li>
-            <li>노무비·경비는 [노무비/경비등록]에서 그 기준월로 넣어 둡니다 —
-                안 넣으면 재료비만으로 원가가 잡힙니다.</li>
-            <li>이미 만든 기준월을 다시 만들면 <b>그 달 값이 덮어써집니다.</b></li>
-          </ol>
-          <div className="mt-[10px]"><button type="button" className="ec-btn" onClick={() => setCheckOpen(false)}>닫기</button></div>
+      <Modal open={genTarget != null} title="원가생성" width={760} error={genTarget ? error : ''} onClose={() => setGenTarget(null)}>{(
+        <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void applyGenerate() } }}>
+          <div className="font-bold mb-[8px]">원가생성</div>
+          <div className="ec-form grid grid-cols-[110px_1fr] gap-y-[6px] items-center">
+            <span className="text-ec-label">대상</span>
+            <div className="flex gap-[10px]">
+              <label className="inline-flex items-center gap-[3px]">
+                <input type="radio" name="cost-gen-scope" checked={genScope === 'all'} onChange={() => setGenScope('all')} /> 전체
+              </label>
+              <label className="inline-flex items-center gap-[3px]">
+                <input type="radio" name="cost-gen-scope" checked={genScope === 'process'} onChange={() => setGenScope('process')} /> 선택공정
+              </label>
+            </div>
+          </div>
+          <div className="flex gap-[4px] mt-[10px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void applyGenerate()}>적용(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setGenTarget(null)}>닫기</button>
+          </div>
         </div>
       )}</Modal>
+
+      {checkOpen && <CostPrecheckModal onClose={() => setCheckOpen(false)} />}
     </EcListShell>
   )
 }

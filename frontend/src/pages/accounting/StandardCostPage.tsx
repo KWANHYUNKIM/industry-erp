@@ -66,6 +66,9 @@ function processMapOf(bors: BorRow[]) {
  * [새로고침] 이 더 있었다 — 원본에 없어 뺐다(재료비 · 노무비 · 경비는 원가생성/수정의 [수정] 창이 보여 준다).
  * 원가 기간이 여러 달이면 우리 원가는 달마다 서므로 <b>품목마다 마지막 달</b>의 것을 한 줄로 낸다.
  */
+/** 원본은 단가 0 을 빈칸으로 찍는다(단가0포함 · 표준원가를 안 넣은 품목 35줄 · 소계 · 합계 모두 빈칸, 2026-10-20 실측). */
+const blank0 = (v: number) => (v === 0 ? '' : v.toLocaleString('ko-KR'))
+
 interface Cost {
   id: number
   itemId: number
@@ -237,7 +240,8 @@ export default function StandardCostPage() {
         </EcCond>
       </ul>
       {shownPeriod && <EcReportHead title="표준원가현황" period={costPeriodRange(shownPeriod)} />}
-      <table className="w-full text-left">
+      {/* 원본 격자는 출력물 격자다(머리 27.1 · 본문 24.1, 2026-10-20 실측) — 소계 '원재료 계' · '합계' 줄은 700 · 회색. */}
+      <table className="ec-report w-full text-left">
         <thead>
           <tr>
             <th className="w-[90px]">품목코드</th>
@@ -259,22 +263,22 @@ export default function StandardCostPage() {
               <td>{o.row.itemName}{specOf(o.row.itemId) ? ` [${specOf(o.row.itemId)}]` : ''}</td>
               <td>{catOf.get(o.row.itemId) ?? ''}</td>
               <td>{processOf(o.row.itemId)}</td>
-              <td className="text-right">{o.row.standardTotal.toLocaleString('ko-KR')}</td>
+              <td className="text-right">{blank0(o.row.standardTotal)}</td>
             </tr>
           ) : (
-            <tr key={o.key} className="font-bold bg-ec-stripe">
+            <tr key={o.key} className="ec-total">
               <td colSpan={4} className="text-center">{o.label} 계</td>
               <td className="text-right">
-                {showsItem(sortCfg, 'sub', '단가') ? o.list.reduce((s, r) => s + r.standardTotal, 0).toLocaleString('ko-KR') : ''}
+                {showsItem(sortCfg, 'sub', '단가') ? blank0(o.list.reduce((s, r) => s + r.standardTotal, 0)) : ''}
               </td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && sortCfg.total && (
           <tfoot>
-            <tr className="font-bold bg-ec-disabled">
+            <tr>
               <td colSpan={4} className="text-center">합계</td>
-              <td className="text-right">{showsItem(sortCfg, 'total', '단가') ? total.toLocaleString('ko-KR') : ''}</td>
+              <td className="text-right">{showsItem(sortCfg, 'total', '단가') ? blank0(total) : ''}</td>
             </tr>
           </tfoot>
         )}
