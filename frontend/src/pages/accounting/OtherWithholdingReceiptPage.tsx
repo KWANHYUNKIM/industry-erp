@@ -8,6 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingReceiptPayee } from '../../types/api'
 import type { Company } from './SimplePaymentPage'
 import { ymd } from '../../utils/periods'
+import InterestDividendSheet from '../../features/otherwithholding/components/InterestDividendSheet'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 const KINDS: { value: Kind; label: string }[] = [
@@ -46,7 +47,9 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  *
  * [조회구분 건별]은 지급 줄마다 [… · 귀속연월 · 지급일자 · …], 지급일자 차례.
  *
- * <p>두지 않은 것: [Email] · 비거주자사업기타소득 · 작성방법 안내문. 이자배당은 원본 서식 대신 지급 줄 표만 그린다.
+ * 이자배당은 [별지 제23호서식(1)] 이자 · 배당소득 원천징수영수증/지급명세서 겸용 서식(InterestDividendSheet, 2026-10-20 실측).
+ *
+ * <p>두지 않은 것: [Email] · 작성방법 안내문.
  */
 export default function OtherWithholdingReceiptPage() {
   const year = new Date().getFullYear()
@@ -186,7 +189,9 @@ export default function OtherWithholdingReceiptPage() {
       {viewing && (
         <Modal open title={title} width={900} error={error} onClose={() => setViewing(null)}>
           <div ref={sheetRef}>
-            <ReceiptSheet kind={shownKind} payee={viewing} company={company} year={from.slice(0, 4)} submitDate={submitDate} forIssuer={forIssuer} />
+            {shownKind === 'INTEREST'
+              ? <InterestDividendSheet payee={viewing} company={company} use={forIssuer ? 'issuer' : 'payee'} date={submitDate} />
+              : <ReceiptSheet kind={shownKind} payee={viewing} company={company} year={from.slice(0, 4)} submitDate={submitDate} forIssuer={forIssuer} />}
           </div>
           <div className="flex gap-[6px] mt-[12px]">
             <button className="ec-btn ec-btn-primary" onClick={print}>인쇄</button>

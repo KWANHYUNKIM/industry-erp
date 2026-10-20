@@ -4,8 +4,10 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { WithholdingPaymentStatement } from '../../types/api'
+import type { WithholdingPaymentStatement, WithholdingReceiptPayee } from '../../types/api'
 import type { Company } from './SimplePaymentPage'
+import InterestDividendSheet from '../../features/otherwithholding/components/InterestDividendSheet'
+import { ymd } from '../../utils/periods'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 const KINDS: { value: Kind; label: string }[] = [
@@ -29,13 +31,16 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  * 한 줄. 사업소득은 '소득자별 연간소득 내용 합계' · '소액부징수 연간 합계' 줄이 먼저 선다. 소득자 없는 줄은 빠진다.
  * 원본 2026 사업소득 2명 · 3건 · 3,230,939 · 96,910 · 9,680 · 106,590 / 기타소득 3명 · 4건 · 12,968,552 · 5,520,755 · 1,104,130 · 110,400.
  *
- * <p>두지 않은 것: 귀속연도 [사용] 끄기 · 지급연월 조건 · 비거주자사업기타소득 · 관리번호. 이자배당은 원본 서식 대신 같은 표로 그린다.
+ * 이자배당은 소득자마다 [별지 제23호서식(1)] 한 장 — [V]이자 · 배당소득 지급명세서 · [V]발행자 보고용, 끝 '장 귀하'(2026-10-20 실측).
+ *
+ * <p>두지 않은 것: 귀속연도 [사용] 끄기 · 지급연월 조건 · 관리번호.
  */
 export default function OtherWithholdingStatementPage() {
   const thisYear = new Date().getFullYear()
   const [year, setYear] = useState(thisYear)
   const [kind, setKind] = useState<Kind>('BUSINESS')
   const [sheet, setSheet] = useState<{ kind: Kind; data: WithholdingPaymentStatement } | null>(null)
+  const [interest, setInterest] = useState<WithholdingReceiptPayee[] | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
   const [error, setError] = useState('')
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -47,10 +52,15 @@ export default function OtherWithholdingStatementPage() {
   async function search() {
     setError('')
     try {
+      if (kind === 'INTEREST') {
+        const { data } = await api.get<WithholdingReceiptPayee[]>('/other-withholdings/receipts', { params: { kind, from: `${year}-01`, to: `${year}-12` } })
+        setInterest(data); setSheet(null)
+        return
+      }
       const { data } = await api.get<WithholdingPaymentStatement>('/other-withholdings/payment-statement', { params: { kind, year } })
-      setSheet({ kind, data })
+      setSheet({ kind, data }); setInterest(null)
     } catch (e) {
-      setSheet(null); setError(extractErrorMessage(e))
+      setSheet(null); setInterest(null); setError(extractErrorMessage(e))
     }
   }
 
@@ -63,7 +73,7 @@ export default function OtherWithholdingStatementPage() {
 
   return (
     <EcListShell title="기타원천-지급명세서(보고용)" onSearch={search} option={false}
-                 actions={sheet ? [{ label: '인쇄', primary: true, onClick: print }] : []}>
+                 actions={sheet || interest?.length ? [{ label: '인쇄', primary: true, onClick: print }] : []}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
@@ -94,6 +104,17 @@ export default function OtherWithholdingStatementPage() {
       {sheet && (
         <div ref={sheetRef}>
           <StatementSheet kind={sheet.kind} s={sheet.data} company={company} />
+        </div>
+      )}
+      {interest && (
+        <div ref={sheetRef}>
+          {interest.length === 0
+            ? <p className="ec-empty">등록된 데이터가 없습니다.</p>
+            : interest.map((p, i) => (
+              <div key={p.payeeId ?? i} className="mb-[24px]">
+                <InterestDividendSheet payee={p} company={company} use="report" date={ymd(new Date())} />
+              </div>
+            ))}
         </div>
       )}
     </EcListShell>

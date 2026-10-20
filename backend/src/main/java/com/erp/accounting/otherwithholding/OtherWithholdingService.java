@@ -406,16 +406,18 @@ public class OtherWithholdingService {
             List<OtherWithholdingDtos.ReceiptLine> rl = lines.stream().map(w -> new OtherWithholdingDtos.ReceiptLine(
                     w.getPayDate(), w.getAttributionMonth(), w.getIncomeCode(), w.getGrossAmount(), w.getExpenseAmount(),
                     w.getTaxableAmount(), w.getTaxRate(), w.getIncomeTax(), w.getLocalIncomeTax(),
-                    w.getIncomeTax().add(w.getLocalIncomeTax()))).toList();
+                    w.getIncomeTax().add(w.getLocalIncomeTax()),
+                    w.getAccountNo(), w.isTrustIncome(), w.getTaxationCode(), w.getSpecialCode(), w.getProductCode(),
+                    w.getSecurityCode(), w.getBondInterestCode(), w.getPeriodFrom(), w.getPeriodTo(), w.getInterestRate())).toList();
             BigDecimal gross = sumOf(lines, OtherWithholding::getGrossAmount);
             BigDecimal tax = sumOf(lines, OtherWithholding::getIncomeTax).add(sumOf(lines, OtherWithholding::getLocalIncomeTax));
             List<String> codes = lines.stream().map(OtherWithholding::getIncomeCode).filter(java.util.Objects::nonNull).distinct().toList();
             out.add(p == null
                     ? new OtherWithholdingDtos.ReceiptPayee(null, null, "", null, null, null, null, false, codes.isEmpty() ? null : codes.get(0),
-                            codes, gross, tax, rl)
+                            codes, gross, tax, rl, null, false)
                     : new OtherWithholdingDtos.ReceiptPayee(p.getId(), p.getRegNo(), p.getName(), p.getTradeName(), p.getBizRegNo(),
                             p.getAddress(), p.getBizAddress(), p.isForeigner(), codes.isEmpty() ? p.getIndustryCode() : codes.get(codes.size() - 1),
-                            codes, gross, tax, rl));
+                            codes, gross, tax, rl, p.getPayeeKindCode(), p.isNonResident()));
         });
         out.sort(java.util.Comparator.comparing(OtherWithholdingDtos.ReceiptPayee::name));
         return out;

@@ -3531,6 +3531,17 @@ export interface WithholdingReceiptLine {
   incomeTax: number
   localIncomeTax: number
   taxTotal: number
+  /** 이자 · 배당 서식 [별지 제23호서식(1)] 칸 */
+  accountNo: string | null
+  trustIncome: boolean
+  taxationCode: string | null
+  specialCode: string | null
+  productCode: string | null
+  securityCode: string | null
+  bondInterestCode: string | null
+  periodFrom: string | null
+  periodTo: string | null
+  interestRate: number | null
 }
 
 export interface WithholdingReceiptPayee {
@@ -3547,6 +3558,9 @@ export interface WithholdingReceiptPayee {
   grossAmount: number
   taxTotal: number
   lines: WithholdingReceiptLine[]
+  /** 이자 · 배당 서식 ⑧ 소득자구분코드 · ⑩ 거주구분 */
+  payeeKindCode: string | null
+  nonResident: boolean
 }
 
 /** 기타원천세 지급명세서(보고용) — 소득자별 연간집계표 */

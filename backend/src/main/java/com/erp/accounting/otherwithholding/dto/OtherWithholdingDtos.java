@@ -169,7 +169,12 @@ public class OtherWithholdingDtos {
     /** 영수증 한 줄 — 지급 연월일 · 귀속연월 · 지급(총)액 · 필요경비 · 소득금액 · 세율(%) · 소득세 · 지방소득세 · 계. */
     public record ReceiptLine(LocalDate payDate, String attributionMonth, String incomeCode, BigDecimal grossAmount,
                               BigDecimal expenseAmount, BigDecimal taxableAmount, BigDecimal taxRate,
-                              BigDecimal incomeTax, BigDecimal localIncomeTax, BigDecimal taxTotal) {}
+                              BigDecimal incomeTax, BigDecimal localIncomeTax, BigDecimal taxTotal,
+                              // 이자 · 배당 서식 [별지 제23호서식(1)] 칸 — ⑫ 계좌번호 · ⑬ 신탁이익 · ⑯ 과세구분 · ⑱ 조세특례 · ⑲ 금융상품 ·
+                              // ⑳ 유가증권 표준코드 · ㉑ 채권이자구분 · ㉒ 지급대상기간 · ㉓ 이자율등
+                              String accountNo, boolean trustIncome, String taxationCode, String specialCode, String productCode,
+                              String securityCode, String bondInterestCode, LocalDate periodFrom, LocalDate periodTo,
+                              BigDecimal interestRate) {}
 
     /**
      * 소득자 한 사람의 영수증 — 목록 [주민(법인)등록번호 · 소득자명 · 지급총액 · 세액합계] 과 서식 칸(상호 · 사업장소재지 · 성명 ·
@@ -177,7 +182,9 @@ public class OtherWithholdingDtos {
      */
     public record ReceiptPayee(Long payeeId, String regNo, String name, String tradeName, String bizRegNo, String address,
                                String bizAddress, boolean foreigner, String industryCode, List<String> incomeCodes,
-                               BigDecimal grossAmount, BigDecimal taxTotal, List<ReceiptLine> lines) {}
+                               BigDecimal grossAmount, BigDecimal taxTotal, List<ReceiptLine> lines,
+                               // 이자 · 배당 서식 ⑧ 소득자구분코드(원본 '111') · ⑩ 거주구분
+                               String payeeKindCode, boolean nonResident) {}
 
     // ── 원본 지급명세서(보고용) E030319 ─────────────────────────────────────────────
 
