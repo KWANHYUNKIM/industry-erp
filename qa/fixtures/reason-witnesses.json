@@ -189,14 +189,6 @@
   ],
   "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
- "실제원가현황|생산공정": {
-  "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
-  "absent": [
-   "process",
-   "Process"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
- },
  "차이분석|생산공정": {
   "claim": "우리 원가에 공정별 값이 없다 — 공정 단위로 쌓지 않는다",
   "absent": [

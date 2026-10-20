@@ -91,17 +91,6 @@ const processMapOf = (bors: BorRow[]) => {
   return (id: number) => m.get(id)?.name ?? ''
 }
 
-interface MovementRow {
-  itemId: number
-  itemCode: string
-  itemName: string
-  unit: string
-  opening: number
-  inQty: number
-  outQty: number
-  closing: number
-}
-
 interface LedgerRow {
   id: number
   itemId: number
@@ -118,8 +107,24 @@ interface LedgerRow {
   note: string | null
 }
 
+/**
+ * 원가생성/수정이 만든 원가계산내역 한 줄(GET /cost-periods/{id}/ledger).
+ * 원본 원가집계표는 <b>원가생성 결과</b>를 보여 준다(2026-10-20 실측 E040804: 2026/11 을 새로 생성하면
+ * 기초 = 2026/10 기말, 증가 · 감소 빈칸, 누계 기초 546,009.00 · 49,886,444,621 = 기말). 우리는 재고 수불에
+ * 마지막 입고단가를 곱해 따로 셈하고 있었다 — 원가생성/수정에서 고친 단가가 이 화면에 안 왔다.
+ */
+interface CostLedgerRow {
+  itemId: number; itemCode: string; itemName: string; spec: string | null; category: string | null; processName: string | null
+  openingQty: number; openingAmount: number; increaseQty: number; increaseAmount: number
+  decreaseQty: number; decreaseAmount: number; closingQty: number; closingAmount: number
+}
+
 const num = (n: number) => n.toLocaleString('ko-KR')
 const won = (n: number | null) => (n == null ? '-' : Math.round(n).toLocaleString('ko-KR'))
+/** 원본 원가집계표는 0 을 찍지 않는다(증가 · 감소가 없는 달은 빈칸). */
+const nz = (n: number | null) => (n == null || n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
+/** 원본 [누계] 줄의 수량은 소수 둘째 자리까지 찍힌다('546,009.00'). */
+const qty2 = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 /**
  * 묶음별 단가 — 원본 실제원가현황은 [기초|증가|감소|기말] 넷 다 <b>수량·단가·금액</b>을 낸다.
  * 단가는 따로 저장하는 값이 아니라 <b>금액 ÷ 수량</b>이다. 수량이 0이면 빈칸으로 둔다 —
@@ -179,7 +184,6 @@ export default function ActualCostPage() {
   // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
   const [itemCond, setItemCond] = useState('')
   const [withInactive, setWithInactive] = useState(true)
-  const [movement, setMovement] = useState<MovementRow[]>([])
   const [ledger, setLedger] = useState<LedgerRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
@@ -188,6 +192,11 @@ export default function ActualCostPage() {
   const processOf = useMemo(() => processMapOf(bors), [bors])
   const [costs, setCosts] = useState<CostRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
+  const [costLedger, setCostLedger] = useState<CostLedgerRow[]>([])
+  /** 원본은 [검색(F8)] 을 누르기 전에는 표를 그리지 않는다(조건 판만 펼쳐져 있다). */
+  const [shown, setShown] = useState(false)
+  /** 원본 [생산공정] 조건 — 품목의 생산공정명으로 거른다. */
+  const [processCond, setProcessCond] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { inactive, untracked } = useItemFlags()
@@ -206,8 +215,7 @@ export default function ActualCostPage() {
     setError('')
     const { from, to } = rangeOf()
     try {
-      const [mv, it, pu, ex, cs, pr, br] = await Promise.all([
-        api.get<MovementRow[]>('/stock/movement', { params: { from, to } }),
+      const [it, pu, ex, cs, pr, br] = await Promise.all([
         api.get<Item[]>('/items'),
       /*
        * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 품목별 평가단가 지도
@@ -225,7 +233,9 @@ export default function ActualCostPage() {
         /* 원가집계표 넷째 칸 [생산공정명] — 품목이 어느 공정에서 만들어지는가(위 주석). */
         api.get<BorRow[]>('/bor'),
       ])
-      setMovement(mv.data)
+      /* 원가집계표 — 원가생성/수정의 결과. 생성 전 기간이면 줄이 없다. */
+      const lg = cp ? await api.get<{ rows: CostLedgerRow[] }>(`/cost-periods/${cp.id}/ledger`) : null
+      setCostLedger(lg?.data.rows ?? [])
       setItems(it.data)
       setLastPrices(pu.data)
       setExpenses(ex.data); setCosts(cs.data); setProductions(pr.data); setBors(br.data)
@@ -277,23 +287,24 @@ export default function ActualCostPage() {
     if (categoryCond && (categoryOf.get(itemId) ?? '') !== categoryCond) return false
     if (itemGroupCond && mgmt.groupOf(itemId) !== itemGroupCond) return false
     if (itemCond && String(itemId) !== itemCond) return false
+    if (processCond && processOf(itemId) !== processCond) return false
     if (!keyword) return true
     return code.includes(keyword) || name.includes(keyword)
   }
 
-  const summary = useMemo(() => movement
+  /* 원가집계표 줄 = 원가생성 결과(위 CostLedgerRow). 단가는 금액 ÷ 수량, 기말단가도 같다. */
+  const summary = useMemo(() => costLedger
     .filter((r) => hit(r.itemCode, r.itemName, r.itemId))
-    .map((r) => {
-      const price = priceOf.get(r.itemId) ?? null
-      const amt = (q: number) => (price == null ? null : q * price)
-      return {
-        ...r, price, categoryName: categoryOf.get(r.itemId) ?? '',
-        openAmt: amt(r.opening), inAmt: amt(r.inQty), outAmt: amt(r.outQty), closeAmt: amt(r.closing),
-      }
-    })
+    .map((r) => ({
+      itemId: r.itemId, itemCode: r.itemCode, itemName: r.itemName,
+      opening: Number(r.openingQty), inQty: Number(r.increaseQty), outQty: Number(r.decreaseQty), closing: Number(r.closingQty),
+      openAmt: Number(r.openingAmount), inAmt: Number(r.increaseAmount), outAmt: Number(r.decreaseAmount), closeAmt: Number(r.closingAmount),
+      price: Number(r.closingQty) === 0 ? null : Number(r.closingAmount) / Number(r.closingQty),
+      categoryName: r.category ?? categoryOf.get(r.itemId) ?? '',
+    }))
     .sort((a, b) => a.itemCode.localeCompare(b.itemCode)),
-  [movement, priceOf, categoryOf, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
-    categoryCond, itemGroupCond, mgmt.groupOptions])
+  [costLedger, categoryOf, keyword, itemCond, processCond, withInactive, inactive, withUntracked, untracked,
+    categoryCond, itemGroupCond, mgmt.groupOptions, bors])
 
   /**
    * 원본 원가집계표의 <b>품목구분별 소계</b>(원재료 계 · 부재료 계 · … · 누계).
@@ -346,7 +357,7 @@ export default function ActualCostPage() {
    * <b>수불부 줄은 그 보기를 눌렀을 때 받는다.</b> 다섯 보기 중 [증가내역]·[감소내역]만
    * 이 줄을 쓰는데, 화면을 열자마자 전 기간 줄을 통째로 받고 있었다
    * (2026-09-10 실측 <b>14,190KB</b> · 화면 합계 14,284KB). 기본 보기인 [원가집계표] 는
-   * 그 줄을 한 번도 안 쓴다 — /stock/movement 가 낸 합으로 그린다.
+   * 그 줄을 한 번도 안 쓴다 — 원가생성 결과(/cost-periods/{id}/ledger)로 그린다.
    *
    * <p>받을 때는 <b>여전히 all:true</b> 다. 이 표는 줄을 합산해 실제원가를 내므로
    * 앞부분만 받으면 합계가 조용히 틀린다 — 느린 것보다 나쁘다.
@@ -416,6 +427,32 @@ export default function ActualCostPage() {
     after: allocAfter.reduce((n, r) => n + r.amount, 0),
   }), [allocBefore, allocAfter, mode])
 
+  /** [노무비배부액] · [경비배부액] 표 — 공정마다(노무비/경비등록 총액 + 그 공정에서 만드는 품목). */
+  const allocLabel = mode === '경비배부액' ? '경비' : '노무비'
+  const allocRows = useMemo(() => {
+    const byProc = new Map<string, number>()
+    for (const e of allocBefore) {
+      const v = mode === '경비배부액' ? e.overheadCost : e.laborCost
+      byProc.set(e.processName, (byProc.get(e.processName) ?? 0) + v)
+    }
+    const after = new Map(allocAfter.map((r) => [r.itemId, r]))
+    const itemsOf = new Map<string, { itemId: number; itemCode: string; itemName: string; qty: number; amount: number }[]>()
+    for (const b of bors) {
+      if (processOf(b.productId) !== b.processName) continue
+      const it = items.find((x) => x.id === b.productId)
+      if (!it || !hit(it.code, it.name, it.id)) continue
+      const a = after.get(it.id)
+      const list = itemsOf.get(b.processName) ?? []
+      if (!list.some((x) => x.itemId === it.id)) list.push({ itemId: it.id, itemCode: it.code, itemName: it.name, qty: a?.qty ?? 0, amount: a?.amount ?? 0 })
+      itemsOf.set(b.processName, list)
+    }
+    const procs = [...new Set([...itemsOf.keys(), ...[...byProc.entries()].filter(([, v]) => v !== 0).map(([k]) => k)])]
+    return procs.sort().map((process) => ({
+      process, total: byProc.get(process) ?? 0,
+      items: (itemsOf.get(process) ?? []).sort((x, y) => x.itemCode.localeCompare(y.itemCode)),
+    }))
+  }, [allocBefore, allocAfter, bors, items, mode, processOf, keyword, itemCond, processCond, withInactive, withUntracked])
+
   /** 묶음의 수량 · 금액 합 — 소계 줄과 누계 줄이 같은 규칙으로 더한다. */
   function sumOf(list: typeof summary) {
     return list.reduce((a, r) => ({
@@ -429,26 +466,28 @@ export default function ActualCostPage() {
   return (
     <EcListShell
       title="실제원가현황"
-      search={keyword}
-      onSearchChange={setKeyword}
-      onSearch={load}
+      /* 원본 머리에 빠른 검색칸이 없다(2026-10-20 실측: 처음 Option · 도움말, 검색한 뒤 Search(F3) · Option · 도움말) —
+         조건 판이 펼쳐진 채 시작하고 [검색(F8)] 을 누르면 접히며 표가 선다. */
+      searchable={false}
+      onSearch={() => { setShown(true); load() }}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '검색(F8)', primary: true, onClick: () => { setShown(true); load() } },
         /* 처음 연 판으로 — 사용중단품목포함은 켜짐이 기본이다(위 실측). 예전엔 꺼 버리고 품목구분 · 품목그룹1 · 수량관리제외는 남겼다. */
-        { label: '다시 작성', onClick: () => { setPeriodId(firstPeriod ? String(firstPeriod.id) : ''); setKeyword(''); setItemCond(''); setWithInactive(true); setCategoryCond(''); setItemGroupCond(''); setWithUntracked(false) } },
+        { label: '다시 작성', onClick: () => { setPeriodId(firstPeriod ? String(firstPeriod.id) : ''); setKeyword(''); setItemCond(''); setWithInactive(true); setCategoryCond(''); setItemGroupCond(''); setWithUntracked(false); setProcessCond('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
       signLine={signBox}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        {/* 원본 [구분] 은 알약이 아니라 라디오 줄이다(2026-10-20 실측). [수율차이] 는 만들지 않았다(공정별 투입 · 산출이 없다). */}
         <EcCond label="구분">
-          <div className="ec-pills">
-            {MODES.map((m) => (
-              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
-                      onClick={() => setMode(m)}>{m}</button>
-            ))}
-          </div>
+          {MODES.map((m) => (
+            <label key={m} className="text-[12.5px] flex items-center gap-[4px]">
+              <input type="radio" name="actual-cost-mode" checked={mode === m} onChange={() => setMode(m)} />
+              {m}
+            </label>
+          ))}
         </EcCond>
         <EcCond label="기준월" pick>
           <CodePickerField label="기준월" hideLabel width={260} placeholder="기준월"
@@ -480,6 +519,12 @@ export default function ActualCostPage() {
             {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </EcCond>
+        <EcCond label="생산공정" pick>
+          <select className="ec-input w-[200px]" value={processCond} onChange={(e) => setProcessCond(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(bors.map((b) => b.processName))].sort().map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </EcCond>
         {/* 원본 [기타] 차례(2026-10-13 실측): 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함. 예전엔 결재방표시가 따로 한 줄이었다. */}
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">
@@ -503,130 +548,94 @@ export default function ActualCostPage() {
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {ALLOC.has(mode) ? (
+      {!shown ? null : ALLOC.has(mode) ? (
         <div className="overflow-x-auto">
           {/*
-            <b>배부 전</b> — 노무비/경비등록에 적힌 그 달 공정·창고별 총액.
-            창고를 안 정한 줄은 원본과 같이 <b>전사 공통</b>이다(빈칸으로 둔다).
+            원본 [노무비배부액] · [경비배부액] 은 표 하나다(2026-10-20 실측, 2026/11 조립 노무비 1,000):
+            품목코드 · 품목명[규격] · 생산공정명 · 생산수량 · 노무비가중치 · 적수 · 공정적수 · 노무비 · 금액.
+            줄은 공정에서 만드는 품목마다, [노무비] 칸에 그 공정의 총액(1,000)이 줄마다 서고, 그 달 생산이 없으면
+            생산수량 · 금액은 빈칸이다. 공정마다 '조립 적수 계', 맨 아래 '[누계]'. 예전에는 배부 전 · 배부 후 표 둘이었다.
+            가중치(표준 작업시간)는 우리 BOR 에 없어 빈칸 — 배부는 CostService.calcActual 이 하고 금액은 그 단가 × 생산수량이다.
           */}
-          <h3 className="text-[13px] font-bold mt-0 mx-0 mb-[6px]">
-            배부 전 — 노무비/경비등록 ({period})
-          </h3>
-          <table className="ec-grid w-full text-left" style={{ marginBottom: 14 }}>
+          <table className="ec-report w-full text-left">
             <thead>
               <tr>
-                <th className="w-[34px]"></th>
-                <th>생산공정명</th>
-                <th className="w-[160px]">창고명</th>
-                <th className="w-[160px] text-right">{mode === '경비배부액' ? '경비' : '노무비'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allocBefore.length === 0 ? (
-                <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-              ) : allocBefore.map((e, i) => (
-                <tr key={e.id}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
-                  <td>{e.processName}</td>
-                  <td style={{ color: e.warehouseName ? undefined : 'var(--ec-text-hint)' }}>{e.warehouseName ?? '(전사 공통)'}</td>
-                  <td className="text-right">{won(mode === '경비배부액' ? e.overheadCost : e.laborCost)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="font-bold bg-ec-page">
-                <td colSpan={3} className="text-right">누계</td>
-                <td className="text-right">{won(allocTotals.before)}</td>
-              </tr>
-            </tfoot>
-          </table>
-
-          {/*
-            <b>배부 후</b> — 그 총액을 표준 작업시간 비율로 품목에 나눈 결과다
-            (CostService.calcActual 이 그렇게 넣는다). 단위당 값을 그 달 생산수량에
-            곱해 되돌린다.
-          */}
-          <h3 className="text-[13px] font-bold mt-0 mx-0 mb-[6px]">배부 후 — 품목별</h3>
-          <table className="ec-grid w-full text-left">
-            <thead>
-              <tr>
-                <th className="w-[34px]"></th>
                 <th>품목코드</th>
-                <th>품목명</th>
-                <th className="w-[120px] text-right">생산수량</th>
-                <th className="w-[140px] text-right">단위당</th>
-                <th className="w-[160px] text-right">배부액</th>
+                <th>품목명[규격]</th>
+                <th>생산공정명</th>
+                <th className="text-right">생산수량</th>
+                <th className="text-right">{allocLabel}가중치</th>
+                <th className="text-right">적수</th>
+                <th className="text-right">공정적수</th>
+                <th className="text-right">{allocLabel}</th>
+                <th className="text-right">금액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
-              ) : allocAfter.length === 0 ? (
-                <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-              ) : allocAfter.map((r, i) => (
-                <tr key={r.itemId}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
-                  <td>{r.itemCode}</td>
-                  <td>{r.itemName}</td>
-                  <td className="text-right">{num(r.qty)}</td>
-                  <td className="text-right">{won(r.unit)}</td>
-                  <td className="text-right font-semibold text-ec-navy">{won(r.amount)}</td>
-                </tr>
-              ))}
+                <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+              ) : allocRows.length === 0 ? (
+                <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : allocRows.map((g) => [
+                ...g.items.map((r) => (
+                  <tr key={`${g.process}-${r.itemId}`}>
+                    <td>{r.itemCode}</td>
+                    <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
+                    <td>{g.process}</td>
+                    <td className="text-right">{nz(r.qty)}</td>
+                    <td className="text-right" /><td className="text-right" /><td className="text-right" />
+                    <td className="text-right">{nz(g.total)}</td>
+                    <td className="text-right">{nz(r.amount)}</td>
+                  </tr>
+                )),
+                /* 품목이 없는 공정(우리 BOR 이 비어 있을 때)도 총액이 사라지지 않게 공정 줄을 하나 둔다. */
+                ...(g.items.length === 0 ? [(
+                  <tr key={`${g.process}-only`}>
+                    <td /><td />
+                    <td>{g.process}</td>
+                    <td /><td /><td /><td />
+                    <td className="text-right">{nz(g.total)}</td>
+                    <td />
+                  </tr>
+                )] : []),
+                <tr key={`${g.process}-sum`} className="ec-total">
+                  <td colSpan={3} className="text-center">{g.process} 적수 계</td>
+                  <td /><td /><td /><td /><td />
+                  <td className="text-right">{nz(g.items.reduce((n, r) => n + r.amount, 0))}</td>
+                </tr>,
+              ])}
             </tbody>
-            <tfoot>
-              <tr className="font-bold bg-ec-page">
-                <td colSpan={5} className="text-right">누계 ({allocAfter.length}품목)</td>
-                <td className="text-right text-ec-navy">{won(allocTotals.after)}</td>
-              </tr>
-            </tfoot>
+            {allocRows.length > 0 && (
+              <tfoot>
+                <tr className="ec-total [&>td]:bg-ec-disabled!">
+                  <td colSpan={3} className="text-center">[누계]</td>
+                  <td /><td /><td /><td /><td />
+                  <td className="text-right">{nz(allocTotals.after)}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
-          {/*
-            <b>위아래가 다를 수 있다.</b> 그 달 생산이 없는 공정의 총액은 어디에도 안 붙는다 —
-            없는 근거로 아무 품목에나 얹지 않기 때문이다(CostService 주석). 그 차이를 숨기지
-            않고 적는다. 숨기면 "왜 노무비가 모자라지" 를 이 화면에서 못 찾는다.
-          */}
-          {Math.round(allocTotals.before) !== Math.round(allocTotals.after) && (
-            <p className="text-[12.5px] text-ec-warn mt-[8px]">
-              ※ 배부 전 {won(allocTotals.before)} · 배부 후 {won(allocTotals.after)} —
-              차이 <b>{won(allocTotals.before - allocTotals.after)}</b> 는 그 달 생산이 없어
-              붙일 품목이 없던 공정의 몫입니다.
-            </p>
-          )}
         </div>
       ) : mode === '원가집계표' ? (
         <div ref={gridRef} className="overflow-x-auto">
-          <table className="ec-grid w-full text-left">
+          <table className="ec-report w-full text-left">
             <thead>
               <tr>
-                {/* 원본 원가집계표는 줄 번호 칸이 없다(2026-10-13 실측 16칸). */}
-                <th>품목코드</th>
-                {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다(2026-09-09 실측). */}
-                <th>품목명[규격]</th>
-                {/* 원본 원가집계표의 [품목구분]. 이 값으로 소계를 낸다. */}
-                <th className="w-[80px]">품목구분</th>
-                {/* 원본 넷째 칸. BOR 이 없는 품목(사 오는 원재료)은 빈칸이다 — 원본도 그렇다. */}
-                <th className="w-[100px]">생산공정명</th>
-                {/*
-                  2026-09-09 원본 실측(E040804). 원본은 <b>머리가 두 줄</b>이라
-                  [기초|증가|감소|기말] 아래에 <b>수량·단가·금액</b> 이 각각 달린다.
-                  우리는 네 묶음 중 <b>기말에만 단가</b>를 두고 나머지 셋은 수량·금액만
-                  두고 있었다 — 그러면 "기초 단가가 얼마였는데 증가분이 얼마에 들어와
-                  기말이 이렇게 됐다" 를 화면에서 읽을 수 없다. 셋을 마저 낸다.
-                  [단가]도 <b>[기말단가]</b> 로 고쳐 네 묶음 이름을 나란히 맞췄다.
-                */}
-                <th className="text-right">기초수량</th>
-                <th className="text-right">기초단가</th>
-                <th className="text-right">기초금액</th>
-                <th className="text-right">증가수량</th>
-                <th className="text-right">증가단가</th>
-                <th className="text-right">증가금액</th>
-                <th className="text-right">감소수량</th>
-                <th className="text-right">감소단가</th>
-                <th className="text-right">감소금액</th>
-                <th className="text-right">기말수량</th>
-                <th className="text-right">기말단가</th>
-                <th className="text-right">기말금액</th>
+                {/* 원본 머리는 두 줄이다(2026-10-20 실측): 앞 넷은 두 줄을 묶고, [기초|증가|감소|기말] 아래에 수량 · 단가 · 금액. 줄 번호 칸 없음. */}
+                <th rowSpan={2}>품목코드</th>
+                <th rowSpan={2}>품목명[규격]</th>
+                <th rowSpan={2} className="w-[80px]">품목구분</th>
+                <th rowSpan={2} className="w-[100px]">생산공정명</th>
+                <th colSpan={3}>기초</th>
+                <th colSpan={3}>증가</th>
+                <th colSpan={3}>감소</th>
+                <th colSpan={3}>기말</th>
+              </tr>
+              <tr>
+                <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">금액</th>
+                <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">금액</th>
+                <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">금액</th>
+                <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">금액</th>
               </tr>
             </thead>
             <tbody>
@@ -643,32 +652,33 @@ export default function ActualCostPage() {
                   <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
                   <td>{r.categoryName}</td>
                   <td>{processOf(r.itemId)}</td>
-                  <td className="text-right">{num(r.opening)}</td>
+                  {/* 원본은 0 을 빈칸으로 둔다(증가 · 감소가 없는 달). */}
+                  <td className="text-right">{nz(r.opening)}</td>
                   <td className="text-right">{unitOf(r.openAmt, r.opening)}</td>
-                  <td className="text-right">{won(r.openAmt)}</td>
-                  <td className="text-right">{num(r.inQty)}</td>
+                  <td className="text-right">{nz(r.openAmt)}</td>
+                  <td className="text-right">{nz(r.inQty)}</td>
                   <td className="text-right">{unitOf(r.inAmt, r.inQty)}</td>
-                  <td className="text-right">{won(r.inAmt)}</td>
-                  <td className="text-right">{num(r.outQty)}</td>
+                  <td className="text-right">{nz(r.inAmt)}</td>
+                  <td className="text-right">{nz(r.outQty)}</td>
                   <td className="text-right">{unitOf(r.outAmt, r.outQty)}</td>
-                  <td className="text-right">{won(r.outAmt)}</td>
+                  <td className="text-right">{nz(r.outAmt)}</td>
                   {/* 기말수량이 음수면 그 자체가 문제다. 0으로 감추면 아무도 못 본다. */}
-                  <td className={`text-right${r.closing < 0 ? ' text-ec-danger' : ''}`}>{num(r.closing)}</td>
-                  <td className={`text-right${r.price == null ? ' text-ec-off' : ''}`}>{won(r.price)}</td>
-                  <td className="text-right">{won(r.closeAmt)}</td>
+                  <td className={`text-right${r.closing < 0 ? ' text-ec-danger' : ''}`}>{nz(r.closing)}</td>
+                  <td className="text-right">{r.price == null ? '' : nz(r.price)}</td>
+                  <td className="text-right">{nz(r.closeAmt)}</td>
                 </tr>
                   )
                 }
                 /* 원본 소계 줄: '원재료 계' — 이름은 네 칸을 묶어 가운데, 수량 · 금액만(표시항목 직접설정), 회색(#f3f3f3) 굵게. */
                 const t = sumOf(o.list)
                 const val: Record<string, string> = {
-                  기초수량: num(t.openQty), 기초단가: unitOf(t.open, t.openQty), 기초금액: won(t.open),
-                  증가수량: num(t.inQty), 증가단가: unitOf(t.in, t.inQty), 증가금액: won(t.in),
-                  감소수량: num(t.outQty), 감소단가: unitOf(t.out, t.outQty), 감소금액: won(t.out),
-                  기말수량: num(t.closeQty), 기말단가: unitOf(t.close, t.closeQty), 기말금액: won(t.close),
+                  기초수량: nz(t.openQty), 기초단가: unitOf(t.open, t.openQty), 기초금액: nz(t.open),
+                  증가수량: nz(t.inQty), 증가단가: unitOf(t.in, t.inQty), 증가금액: nz(t.in),
+                  감소수량: nz(t.outQty), 감소단가: unitOf(t.out, t.outQty), 감소금액: nz(t.out),
+                  기말수량: nz(t.closeQty), 기말단가: unitOf(t.close, t.closeQty), 기말금액: nz(t.close),
                 }
                 return (
-                  <tr key={o.key} className="font-bold bg-ec-stripe">
+                  <tr key={o.key} className="ec-total">
                     <td colSpan={4} className="text-center">{o.label} 계</td>
                     {ITEM_COLS.map((c) => <td key={c} className="text-right">{showsItem(sortCfg, 'sub', c) ? val[c] : ''}</td>)}
                   </tr>
@@ -678,20 +688,18 @@ export default function ActualCostPage() {
             {summary.length > 0 && (
               <tfoot>
                 {/* 원본은 맨 아래를 '합계' 가 아니라 [누계] 라고 적는다 — 이름 네 칸 가운데, #e9ecef 굵게, 수량 · 금액. */}
-                <tr className="font-bold bg-ec-disabled">
+                <tr className="ec-total [&>td]:bg-ec-disabled!">
                   <td colSpan={4} className="text-center">누계</td>
-                  <td className="text-right">{num(totals.openQty)}</td><td />
-                  <td className="text-right">{won(totals.open)}</td>
-                  <td className="text-right">{num(totals.inQty)}</td><td />
-                  <td className="text-right">{won(totals.in)}</td>
-                  <td className="text-right">{num(totals.outQty)}</td><td />
-                  <td className="text-right">{won(totals.out)}</td>
-                  <td className="text-right">{num(totals.closeQty)}</td><td />
+                  {/* 원본 [누계] 수량은 '546,009.00' — 소수 둘째 자리까지. 금액은 정수. 0 은 빈칸. */}
+                  <td className="text-right">{qty2(totals.openQty)}</td><td />
+                  <td className="text-right">{nz(totals.open)}</td>
+                  <td className="text-right">{qty2(totals.inQty)}</td><td />
+                  <td className="text-right">{nz(totals.in)}</td>
+                  <td className="text-right">{qty2(totals.outQty)}</td><td />
+                  <td className="text-right">{nz(totals.out)}</td>
+                  <td className="text-right">{qty2(totals.closeQty)}</td><td />
                   <td className="text-right">
-                    {won(totals.close)}
-                    {totals.unknown > 0 && (
-                      <span title={`단가를 모르는 품목 ${totals.unknown}건은 금액에서 뺐습니다.`} className="text-ec-warn"> *</span>
-                    )}
+                    {nz(totals.close)}
                   </td>
                 </tr>
               </tfoot>
