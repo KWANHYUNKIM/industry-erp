@@ -4,6 +4,7 @@ import com.erp.hr.dailypayitem.DailyPayItem;
 import com.erp.hr.dailypayitem.DailyPayItemKind;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -28,7 +29,7 @@ public class DailyPayItemDtos {
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String name,
             @NotNull(message = "데이터를 입력하기 바랍니다.") Integer sortOrder,
             @Size(max = 20) String payMethod,
-            BigDecimal rate,
+            @PositiveOrZero(message = "배율은 0 이상이어야 합니다.") BigDecimal rate,
             @Size(max = 20) String taxType,
             Boolean active
     ) {}

@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 일용근로 수당등록 · 공제등록(E020136 · E020137) — 원본 열 차례 그대로: 계산식 뒤 산출방법 · 공통숫자항목 · 공통문자항목(수당 2 · 3, 공제 1 · 2 · 3). 기본 항목 02 일근무 · 01 소득세 · 02 지방소득세.",
+  "about": "관리 > 일용근로 수당등록 · 공제등록(E020136 · E020137) — 원본 열 차례 그대로: 계산식 뒤 산출방법 · 공통숫자항목 · 공통문자항목(수당 2 · 3, 공제 1 · 2 · 3). 기본 항목 02 일근무 · 01 소득세 · 02 지방소득세. 관리 > 일용근로 수당등록(E020136) · 공제등록(E020137) — 2026-10-20 원본 그대로: 빈 줄에 코드 · 이름만 넣고 [저장(F8)] → '데이터를 입력하기 바랍니다.' + 표시순서 칸 빨강, 표시순서까지 넣으면 안내 없이 저장되고 계산식이 이름으로 찬다(수당 R( 이름(급여지급사항) * 이름(근무기록확정) , 0 ) · 과세구분 전액과세), 이름을 고치면 계산식이 따라 바뀌고, 번호 칸을 골라 [사용중단/재사용] › 삭제 → 사라진다.",
   "shots": [
     {
       "name": "수당리스트 열",
@@ -16,7 +16,34 @@
       "steps": [
         "wait:1000",
         "expect:[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim()).filter(Boolean).join(',')==='공제항목코드,공제항목명,표시순서,계산식,산출방법,공통숫자항목1,공통숫자항목2,공통숫자항목3,공통문자항목1,공통문자항목2,공통문자항목3'",
-        "expect:document.querySelectorAll('table tbody tr').length===2"
+        "expect:[...document.querySelectorAll('table tbody tr')].map(r=>r.cells[2].querySelector('input')?.value).slice(0,2).join(',')==='소득세,지방소득세' && document.querySelectorAll('table tbody tr').length===5"
+      ]
+    },
+    {
+      "name": "일용 수당 빈 줄 등록 → 표시순서 검증 → 이름 수정 → 삭제",
+      "path": "/hr/daily-allowance-items",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "wait:800",
+        "set:input[aria-label='2행 코드']|QZ",
+        "set:input[aria-label='2행 항목명']|QA관리-야간",
+        "clicklast:저장(F8)",
+        "wait:500",
+        "expect:document.querySelector('.ec-alert')?.innerText.trim()==='데이터를 입력하기 바랍니다.' && !!document.querySelector('td.ec-invalid input[aria-label=\"2행 표시순서\"]')",
+        "set:input[aria-label='2행 표시순서']|2",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')][1].innerText.includes('R( QA관리-야간(급여지급사항) * QA관리-야간(근무기록확정) , 0 )') && [...document.querySelectorAll('table tbody tr')][1].innerText.includes('전액과세')",
+        "set:input[aria-label='2행 항목명']|QA관리-심야",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')][1].innerText.includes('R( QA관리-심야(급여지급사항) * QA관리-심야(근무기록확정) , 0 )')",
+        "js:document.querySelector('input[aria-label=\"2행 고르기\"]').click();true",
+        "clicklast:사용중단/재사용",
+        "js:[...document.querySelectorAll('.ec-menu button')].find(b=>b.innerText.trim()==='삭제').click();true",
+        "wait:400",
+        "wait:1200",
+        "expect:!document.querySelector('table tbody').innerText.includes('QA관리-심야')"
       ]
     }
   ]

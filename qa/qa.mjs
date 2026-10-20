@@ -10843,6 +10843,7 @@ async function main() {
   await scenarioHrCertificate()
   await scenarioInsuranceReport()
   await scenarioDailyWorker()
+  await scenarioDailyPayItems()
   await scenarioAttendanceKind()
   await scenarioCommuteRule()
   await scenarioEmployeeCommute()
@@ -11495,6 +11496,26 @@ async function scenarioInsuranceReport() {
   const wp3 = await must('POST', '/hr/insurance/workplaces', { name: 'QA관리-사업장3', manageNo: String(Number(no) + 1) })
   await must('DELETE', `/hr/insurance/workplaces/${wp3.id}`)
   eq('지운 사업장은 목록에 없다', (await must('GET', '/hr/insurance/workplaces')).some((x) => x.id === wp3.id), 'false')
+}
+
+/** 관리 › 일용근로 수당등록(E020136) · 공제등록(E020137) — 계산식은 이름으로 자동, 코드는 막힘, 기본 항목은 못 지움. */
+async function scenarioDailyPayItems() {
+  section('■ 일용근로 수당 · 공제 항목 — 등록 · 계산식 · 수정 · 삭제 · 기본 항목 지키기')
+  const items = await must('GET', '/hr/daily-pay-items?kind=ALLOWANCE')
+  eq('기본 수당 02 일근무', items.filter((x) => x.builtin).map((x) => `${x.code} ${x.name}`).join(','), '02 일근무')
+  const a = await must('POST', '/hr/daily-pay-items', { kind: 'ALLOWANCE', code: 'QZ', name: 'QA관리-야간', sortOrder: 2 })
+  eq('수당 기본 지급유형 · 과세구분', `${a.payMethod} ${a.taxType}`, '변동(일) 전액과세')
+  eq('수당 계산식은 이름으로', a.formula, 'R( QA관리-야간(급여지급사항) * QA관리-야간(근무기록확정) , 0 )')
+  await rejects('같은 코드는 막는다', 'POST', '/hr/daily-pay-items', { kind: 'ALLOWANCE', code: 'QZ', name: 'QA관리-중복', sortOrder: 3 }, '이미 등록된 코드')
+  await rejects('표시순서를 비우면 막는다', 'POST', '/hr/daily-pay-items', { kind: 'ALLOWANCE', code: 'QY', name: 'QA관리-빈순서' }, '데이터를 입력하기 바랍니다')
+  const u = await must('PUT', `/hr/daily-pay-items/${a.id}`, { kind: 'ALLOWANCE', code: 'XX', name: 'QA관리-심야', sortOrder: 2, payMethod: '변동(일)', taxType: '전액과세' })
+  eq('이름을 고치면 계산식이 따라온다 · 코드는 그대로', `${u.code} ${u.formula}`, 'QZ R( QA관리-심야(급여지급사항) * QA관리-심야(근무기록확정) , 0 )')
+  await must('DELETE', `/hr/daily-pay-items/${a.id}`)
+  eq('지운 수당은 목록에 없다', (await must('GET', '/hr/daily-pay-items?kind=ALLOWANCE&includeInactive=true')).some((x) => x.id === a.id), 'false')
+  const ded = await must('GET', '/hr/daily-pay-items?kind=DEDUCTION')
+  const tax = ded.find((x) => x.code === '01')
+  eq('공제 계산식', tax.formula, 'R( 소득세(급여지급사항) , 0 )')
+  await rejects('기본 공제는 지우지 못한다', 'DELETE', `/hr/daily-pay-items/${tax.id}`, undefined, '삭제할 수 없습니다')
 }
 
 /** 관리 › 일용근로 사원등록(원본 E020105) — 다음 번호 다섯 자리, 같은 번호 막기, 일근무 · 월정공제 저장, 삭제. */
