@@ -6,6 +6,7 @@ import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcRep
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
+import { SortTh, sortRows, type SortState } from '../../features/dailypay/components/SortTh'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
 
 type Mode = '라인별' | '급여대장별부서별' | '급여대장별부서별라인별' | '사용자지정집계'
@@ -67,6 +68,7 @@ export default function DailyPayStatusPage() {
   const [rows, setRows] = useState<DailyReportLine[]>([])
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
+  const [sort, setSort] = useState<SortState | null>(null)
 
   function search() {
     setError('')
@@ -161,23 +163,33 @@ export default function DailyPayStatusPage() {
         ))}
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      <EcReportHead title={mode === '사용자지정집계' ? '일용근로 급여현황' : '급여현황'} period={reportPeriod(`${shown.from}-01`, lastDay(shown.to))} />
       {mode === '사용자지정집계' ? (
+        <>
+        <EcReportHead title="일용근로 급여현황" period={reportPeriod(`${shown.from}-01`, lastDay(shown.to))} />
         <CustomAggregateTable name="일용근로 급여현황" dims={AGG_DIMS} targets={aggTargets} records={aggRecords} agg={agg} />
+        </>
       ) : (
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full text-left">
+        <div className="ec-report-frame">
+        <EcReportHead title="급여현황" period={reportPeriod(`${shown.from}-01`, lastDay(shown.to))} />
+        {/* 출력물 격자 — 원본 E020753 (2026-10-20 실측): table-layout fixed 900 = 99 + 100 × 8, 머리 700 · 6px 3px 3px · 선 1px,
+            본문 3px · 24.1 · 줄무늬 없음. 전에는 목록 격자(머리 34.3 · 9px 2.7px 7.2px)로 그렸다. */}
+        <table ref={tableRef} className="text-left ec-report ec-report-fixed">
+          <colgroup>
+            <col className="w-[99px]" />
+            {Array.from({ length: 8 }, (_, i) => <col key={i} className="w-[100px]" />)}
+          </colgroup>
           <thead>
             <tr>
-              <th>귀속연월-NO</th>
-              <th>급여대장명</th>
-              <th className="text-center">최종근무일</th>
-              <th>부서명</th>
-              <th>프로젝트명</th>
-              <th>성명</th>
-              <th className="text-right">지급총액</th>
-              <th className="text-right">공제총액</th>
-              <th className="text-right">실지급액</th>
+              <SortTh label="귀속연월-NO" k="no" wrap sort={sort} onSort={setSort} />
+              <SortTh label="급여대장명" k="ledger" sort={sort} onSort={setSort} />
+              <SortTh label="최종근무일" k="last" sort={sort} onSort={setSort} />
+              <SortTh label="부서명" k="dept" sort={sort} onSort={setSort} />
+              <SortTh label="프로젝트명" k="project" sort={sort} onSort={setSort} />
+              <SortTh label="성명" k="name" sort={sort} onSort={setSort} />
+              <SortTh label="지급총액" k="gross" sort={sort} onSort={setSort} />
+              <SortTh label="공제총액" k="ded" sort={sort} onSort={setSort} />
+              <SortTh label="실지급액" k="net" sort={sort} onSort={setSort} />
             </tr>
           </thead>
           <tbody>
@@ -201,9 +213,12 @@ export default function DailyPayStatusPage() {
                       : ls
                   return (
                     <Fragment key={ls[0].ledgerId}>
-                      {lines.map((r) => (
+                      {sortRows(lines, sort, (r, k) => ({
+                        no: r.seq, ledger: r.ledgerName, last: r.lastWorkDate, dept: r.department, project: '', name: r.workerName,
+                        gross: Number(r.grossPay), ded: Number(r.incomeTax) + Number(r.localTax), net: Number(r.netPay),
+                      } as Record<string, string | number | null>)[k]).map((r) => (
                         <tr key={r.lineId}>
-                          <td>{ym} -{r.seq}</td>
+                          <td className="text-center">{ym} -{r.seq}</td>
                           <td>{r.ledgerName}</td>
                           <td className="text-center">{r.lastWorkDate?.replace(/-/g, '/') ?? ''}</td>
                           <td>{r.department}</td>
@@ -214,8 +229,8 @@ export default function DailyPayStatusPage() {
                           <td className="text-right">{net(r.netPay)}</td>
                         </tr>
                       ))}
-                      <tr className="font-bold">
-                        <td colSpan={6}>{mode === '급여대장별부서별' ? `${ym} 계` : `${ym}-${ls[0].seq} 계`}</td>
+                      <tr className="ec-total">
+                        <td colSpan={6} className="text-center">{mode === '급여대장별부서별' ? `${ym} 계` : `${ym}-${ls[0].seq} 계`}</td>
                         <td className="text-right">{won(s.gross)}</td>
                         <td className="text-right">{s.ded ? won(s.ded) : ''}</td>
                         <td className="text-right">{net(s.net)}</td>
@@ -223,8 +238,8 @@ export default function DailyPayStatusPage() {
                     </Fragment>
                   )
                 })}
-                <tr className="font-bold">
-                  <td colSpan={6}>합계</td>
+                <tr className="ec-total">
+                  <td colSpan={6} className="text-center">합계</td>
                   <td className="text-right">{won(total.gross)}</td>
                   <td className="text-right">{total.ded ? won(total.ded) : ''}</td>
                   <td className="text-right">{won2(total.net)}</td>
@@ -233,6 +248,7 @@ export default function DailyPayStatusPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
       )}
       <EcReportFoot />

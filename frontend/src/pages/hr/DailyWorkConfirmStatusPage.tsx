@@ -1,10 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { lastDay, monthRange, slashYm } from '../../features/dailypay/report'
+import { SortTh, sortRows, type SortState } from '../../features/dailypay/components/SortTh'
 
 interface Row { payMonth: string; seq: number; paidMonth: string; payDate: string | null; workerId: number; workerCode: string; workerName: string; departmentId: number | null; payItem: string; days: number }
 
@@ -36,6 +38,7 @@ export default function DailyWorkConfirmStatusPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
+  const [sort, setSort] = useState<SortState | null>(null)
 
   function search() {
     setError('')
@@ -106,15 +109,21 @@ export default function DailyWorkConfirmStatusPage() {
         ))}
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      <div className="text-center font-bold mb-[2px]">근무기록확정현황</div>
-      <div className="text-ec-hint mb-[4px]">{shown.from.replace('-', '/')}/01 ~ {lastDay(shown.to).replace(/-/g, '/')}</div>
-      <table ref={tableRef} className="w-full text-left">
+      <div className="overflow-x-auto">
+      <div className="ec-report-frame">
+      <EcReportHead title="근무기록확정현황" period={reportPeriod(`${shown.from}-01`, lastDay(shown.to))} />
+      {/* 출력물 격자 — 원본 E020754 (2026-10-20 실측): table-layout fixed 99 / 150 / 150 / 100, 머리 700 · 6px 3px 3px · 선 1px,
+          본문 3px · 24.1. 전에는 목록 격자로 그렸다. */}
+      <table ref={tableRef} className="text-left ec-report ec-report-fixed">
+        <colgroup>
+          <col className="w-[99px]" /><col className="w-[150px]" /><col className="w-[150px]" /><col className="w-[100px]" />
+        </colgroup>
         <thead>
           <tr>
-            <th>귀속연월-NO</th>
-            <th>성명</th>
-            <th>수당항목명</th>
-            <th className="text-right">근무기록</th>
+            <SortTh label="귀속연월-NO" k="no" wrap sort={sort} onSort={setSort} />
+            <SortTh label="성명" k="name" sort={sort} onSort={setSort} />
+            <SortTh label="수당항목명" k="item" sort={sort} onSort={setSort} />
+            <SortTh label="근무기록" k="days" sort={sort} onSort={setSort} />
           </tr>
         </thead>
         <tbody>
@@ -124,28 +133,31 @@ export default function DailyWorkConfirmStatusPage() {
             <>
               {[...months.entries()].map(([m, ls]) => (
                 <Fragment key={m}>
-                  {ls.map((r, i) => (
+                  {sortRows(ls, sort, (r, k) => (k === 'no' ? r.seq : k === 'name' ? r.workerName : k === 'item' ? r.payItem : Number(r.days))).map((r, i) => (
                     <tr key={`${m}-${i}`}>
-                      <td>{slashYm(r.payMonth)} -{r.seq}</td>
+                      <td className="text-center">{slashYm(r.payMonth)} -{r.seq}</td>
                       <td>{r.workerName}</td>
                       <td>{r.payItem}</td>
                       <td className="text-right">{Number(r.days)}</td>
                     </tr>
                   ))}
-                  <tr className="font-bold">
-                    <td colSpan={3}>{slashYm(m)} 계</td>
+                  <tr className="ec-total">
+                    <td colSpan={3} className="text-center">{slashYm(m)} 계</td>
                     <td className="text-right">{ls.reduce((s, r) => s + Number(r.days), 0)}</td>
                   </tr>
                 </Fragment>
               ))}
-              <tr className="font-bold">
-                <td colSpan={3}>합계</td>
+              <tr className="ec-total">
+                <td colSpan={3} className="text-center">합계</td>
                 <td className="text-right">{total}</td>
               </tr>
             </>
           )}
         </tbody>
       </table>
+      <EcReportFoot />
+      </div>
+      </div>
     </EcListShell>
   )
 }
