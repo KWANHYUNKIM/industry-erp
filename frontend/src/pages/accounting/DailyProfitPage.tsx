@@ -414,7 +414,8 @@ export default function DailyProfitPage() {
   const TAIL = 9
   /** 합계행의 단가도 <b>합계금액 ÷ 합계수량</b>이다 — 줄 단가의 평균이 아니다. */
   const totalQty = rows.reduce((n, r) => n + r.qty, 0)
-  const colCount = 1 + heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + TAIL
+  /* 2026-10-20 원본(재고1 출력물 › 기타) 격자에 번호 열이 없다 — 품목코드부터 */
+  const colCount = heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + TAIL
   /** 수량으로 나눈 단가. 수량이 없으면 <b>0 이 아니라 모른다</b>(null). */
   const per = (amount: number | null, qty: number) =>
     (amount === null || qty === 0 ? null : amount / qty)
@@ -621,7 +622,6 @@ export default function DailyProfitPage() {
               앞머리 칸은 [구분]에 따라 갈려 <code>HEADS</code> 가 든다.
             */}
             <tr>
-              <th rowSpan={2} className="w-[40px]"></th>
               {heads.map((h) => <th key={h} rowSpan={2}>{h}</th>)}
               {(mode === '일자별' || mode === '거래처별') && <th rowSpan={2} className="text-right w-[70px]">건수</th>}
               <th colSpan={3} className="text-center">판매</th>
@@ -645,11 +645,10 @@ export default function DailyProfitPage() {
               <tr><td colSpan={colCount} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
               <tr><td colSpan={colCount} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-            ) : rows.map((r, i) => {
+            ) : rows.map((r) => {
               const color = r.profit === null ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : r.profit < 0 ? 'var(--ec-danger)' : undefined
               return (
                 <tr key={r.key}>
-                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   {heads.map((h, hi) => (
                     <td key={h} style={hi === 0 && (mode === '품목별' || mode === '품목별거래처별') ? { fontFamily: 'monospace' } : undefined}>
                       {[r.c1, r.c2, r.c3, r.c4][hi]}

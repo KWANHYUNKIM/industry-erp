@@ -95,11 +95,11 @@ export default function DailyStockPage() {
   /** 원본 [기타]의 결재방표시. 켜면 출력물에 결재란을 찍는다. 기본은 꺼짐. */
   const [signBox, setSignBox] = useState(false)
   /*
-   * 원본 [정렬/소계기준]. 이 화면은 품목×창고 줄이라 묶을 축이 여럿 있다 —
-   * 다른 현황처럼 [구분]이 축을 대신 골라 주지 않으므로 예외로 미루지 않고 만든다.
+   * 원본 [정렬/소계기준]. 2026-10-20 원본 격자가 <b>품목 한 줄</b>(창고는 조건으로만 좁힌다)이라
+   * 창고 · 품목 축은 뺐다 — 품목마다 한 줄이면 품목 소계는 격자 그 자체다.
    */
-  const SUBTOTALS = ['창고', '품목구분', '품목그룹1', '품목'] as const
-  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('창고')
+  const SUBTOTALS = ['품목구분', '품목그룹1'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('품목구분')
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function load() {
@@ -162,13 +162,23 @@ export default function DailyStockPage() {
 
   const catOf = useMemo(() => new Map(items.map((i) => [i.id, i.categoryName])), [items])
 
-  const shown = stock
+  const shownByItem = stock
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
     .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => withInactive || !inactive.has(r.itemId))
     .filter((r) => withUntracked || !untracked.has(r.itemId))
     .filter((r) => !cond.category || (catOf.get(r.itemId) ?? '') === cond.category)
     .filter((r) => !cond.itemGroup || mgmt.groupOf(r.itemId) === cond.itemGroup)
+    /*
+     * 2026-10-20 원본(loginaa) 실측: 격자는 <b>품목 한 줄</b>(품목코드 · 품목명[규격] · 재고수량 ·
+     * 재고단가 · 재고금액 + 합계) — 창고는 조건으로만 좁힌다. 창고별 줄을 품목으로 모은다.
+     */
+    .reduce((m, r) => {
+      const prev = m.get(r.itemId)
+      m.set(r.itemId, prev ? { ...prev, quantity: prev.quantity + r.quantity } : { ...r })
+      return m
+    }, new Map<number, StockRow>())
+  const shown = [...shownByItem.values()]
     .filter((r) => r.quantity !== 0)
     .map((r) => {
       const price = priceOf(r.itemId)
@@ -177,14 +187,13 @@ export default function DailyStockPage() {
 
   const totalQty = shown.reduce((n, r) => n + r.quantity, 0)
   const totalAmount = shown.reduce((n, r) => n + (r.amount ?? 0), 0)
-  const missing = shown.filter((r) => r.price === null).length
 
   /* [다시 작성]은 기본값으로 되돌린다 — 체크 셋도 실측한 기본값 그대로다. */
   const reset = () => {
     setBasis('선입선출(판매)')
     setCond({ date: periodOf('금일')!.to, warehouseId: '', item: '', category: '', itemGroup: '' })
     setWithInactive(true); setWithUntracked(false); setSignBox(false)
-    setSubtotal('창고')
+    setSubtotal('품목구분')
   }
 
   return (
@@ -275,25 +284,10 @@ export default function DailyStockPage() {
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        건수 <b className="text-ec-text">{num(shown.length)}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        수량 <b className="text-ec-text text-[14px]">{num(totalQty)}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        재고금액({basis}) <b className="text-ec-blue text-[14px]">{won(totalAmount)}</b>
-        {missing > 0 && (
-          <>
-            <span className="my-0 mx-[8px] text-ec-off">|</span>
-            단가없음 <b className="text-ec-danger text-[14px]">{num(missing)}</b>건
-          </>
-        )}
-      </div>
-
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <colgroup>
-            <col className="w-[4%]" /><col className="w-[14%]" /><col />
-            <col className="w-[15%]" />
+            <col className="w-[16%]" /><col />
             <col className="w-[12%]" /><col className="w-[12%]" /><col className="w-[14%]" />
           </colgroup>
           {/*
@@ -302,14 +296,12 @@ export default function DailyStockPage() {
             우리는 [품목명]과 [규격정보]를 두 칸으로 나눠 두었는데 원본은 <b>한 칸</b>이고,
             [단가]의 원본 이름은 <b>[재고단가]</b> 다 — 이 화면에는 판매단가·구매단가도
             있을 수 있어 그냥 [단가]로 두면 어느 단가인지 알 수 없다.
-            [창고]는 우리 것이라 그대로 둔다(원본은 조건으로만 좁힌다).
+            2026-10-20 다시 재니 원본은 품목 한 줄이라 번호 · [창고] 열과 위 요약줄을 뺐다.
           */}
           <thead>
             <tr>
-              <th></th>
               <th>품목코드</th>
               <th>품목명[규격]</th>
-              <th>창고</th>
               <th className="text-right">재고수량</th>
               <th className="text-right">재고단가</th>
               <th className="text-right">재고금액</th>
@@ -317,17 +309,15 @@ export default function DailyStockPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
+              <tr><td colSpan={5} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
-              <tr key={`${r.itemId}-${r.warehouseId}`}>
-                <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+              <tr><td colSpan={5} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+            ) : shown.map((r) => (
+              <tr key={r.itemId}>
                 <td>{r.itemCode}</td>
                 <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-                <td>{r.warehouseName}</td>
                 <td className="text-right font-semibold">
-                  {num(r.quantity)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
+                  {num(r.quantity)}
                 </td>
                 <td style={{ textAlign: 'right', color: r.price === null ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
                   {r.price === null ? '단가없음' : won(r.price)}
@@ -341,7 +331,7 @@ export default function DailyStockPage() {
           {shown.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={4} className="text-right font-bold bg-ec-page">합계</td>
+                <td colSpan={2} className="text-center font-bold bg-ec-page">합계</td>
                 <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
                 <td className="bg-ec-page"></td>
                 <td className="text-right font-bold bg-ec-page text-ec-blue">{won(totalAmount)}</td>
@@ -355,8 +345,7 @@ export default function DailyStockPage() {
         const groups = subtotalBy(shown,
           (r) => (subtotal === '품목구분' ? (catOf.get(r.itemId) ?? null)
             : subtotal === '품목그룹1' ? mgmt.groupOf(r.itemId)
-              : subtotal === '품목' ? r.itemName
-                : r.warehouseName),
+            : null),
           { qty: (r) => r.quantity, amount: (r) => r.amount ?? 0 })
         return (
           <>
