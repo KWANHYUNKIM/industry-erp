@@ -594,6 +594,26 @@ public class JournalService {
     }
 
     /**
+     * 지급어음감소(E010605) → 한 장. 2026-10-20 loginaa 실측(QA1-P1 100,000 · 기업은행-1122):
+     * 차) 지급어음(어음 거래처, 적요 '적요(No.QA1-P1,2026/10/20 )') 100,000 / 대) 보통예금(출금계좌의 계정) 100,000.
+     * 계좌 잔액은 호출부가 {@code BankCardService.recordExternal} 로 이 전표에 묶어 움직인다.
+     */
+    @Transactional
+    public JournalEntry createFromPayableNoteDecrease(com.erp.accounting.promissorynote.PromissoryNote n, Account bankGl,
+                                                      BigDecimal amount, LocalDate date, String remark,
+                                                      Long departmentId, Long projectId, String createdBy) {
+        String desc = remark != null && !remark.isBlank() ? remark.trim() : null;
+        JournalEntry e = newEntry(JournalSourceType.NOTE, null, date, desc, n.getPartner(), createdBy);
+        String lineDesc = (desc != null ? desc : "") + "(No." + n.getNoteNo() + ","
+                + n.getDueDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd")) + " )";
+        e.addLine(JournalLine.builder().account(account("252")).debit(amount).credit(BigDecimal.ZERO)
+                .description(lineDesc).partner(n.getPartner()).build());
+        addCreditAccount(e, bankGl, amount, desc);
+        e.stampDeptProject(departmentId, projectId);
+        return save(e);
+    }
+
+    /**
      * 받을어음거래처지급(E010603, 배서) → 한 장. 2026-10-20 loginaa 실측(QA1-N2 100,000 → 거래처 QA):
      * 차) 외상매입금(받는 거래처) 100,000 / 대) 받을어음(어음 거래처) 100,000,
      * 받을어음 줄 적요 '적요(No.QA1-N2,2026/10/20 )' — 어음번호 · 만기일자.

@@ -188,11 +188,11 @@ public class PromissoryNoteService {
     public NoteResponse decrease(PromissoryNoteDtos.DecreaseRequest req, String username) {
         String no = req.noteNo().trim();
         PromissoryNote n = noteRepository.findByNoteNo(no)
-                .filter(x -> x.getType() == NoteType.RECEIVABLE)
                 .orElseThrow(() -> ApiException.badRequest("어음번호를 찾을 수 없습니다: " + no));
         n = held(n.getId(), "감소");
         LocalDate date = req.date() != null ? req.date() : LocalDate.now();
         requireNotBeforeIssue(n, date, "감소일");
+        if (!n.getType().isReceivable()) return decreasePayable(n, req, date, username);
         BigDecimal fee = req.fee() != null ? req.fee() : BigDecimal.ZERO;
         BigDecimal total = req.amount().add(fee);
         if (total.compareTo(n.getAmount()) != 0) {
@@ -221,6 +221,35 @@ public class PromissoryNoteService {
         return NoteResponse.from(n);
     }
 
+    /**
+     * 지급어음감소(E010605) — 보유(미지급) 지급어음을 출금계좌에서 갚는다. 칸은 출금계좌 · 어음번호 · 금액 · 적요(수수료 없음).
+     * 2026-10-20 loginaa 실측: QA1-P1 100,000 · 기업은행-1122 → 지급어음조회 감소 줄 거래유형 '지급어음감소',
+     * 전표 '26/10/20-37 | 지급어음감소 | 100,000' = 차) 지급어음(어음 거래처, 적요 'QA회계1(No.QA1-P1,2026/10/20 )') / 대) 보통예금(기업은행-1122).
+     */
+    private NoteResponse decreasePayable(PromissoryNote n, PromissoryNoteDtos.DecreaseRequest req, LocalDate date, String username) {
+        if (req.amount().compareTo(n.getAmount()) != 0) {
+            throw ApiException.badRequest(String.format("금액(%s)이 어음 %s 의 금액(%s)과 다릅니다.",
+                    req.amount().stripTrailingZeros().toPlainString(), n.getNoteNo(), n.getAmount().stripTrailingZeros().toPlainString()));
+        }
+        com.erp.accounting.bankcard.BankAccount bank = bankAccountRepository.findById(req.bankAccountId())
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + req.bankAccountId()));
+        if (bank.getGlAccount() == null) {
+            throw ApiException.badRequest("출금계좌 " + bank.getName() + " 에 [계정]이 없습니다 — 계좌등록에서 정하세요.");
+        }
+        String remark = req.remark() == null || req.remark().isBlank() ? null : req.remark().trim();
+        var entry = journalService.createFromPayableNoteDecrease(n, bank.getGlAccount(), req.amount(), date, remark,
+                req.departmentId(), req.projectId(), username);
+        bankCardService.recordExternal(bank.getId(), false, req.amount(), date, "지급어음감소 " + n.getNoteNo(), entry, username);
+        n.setStatus(NoteStatus.SETTLED);
+        n.setClosedDate(date);
+        n.setDiscountFee(null);
+        n.setCloseRemark(remark);
+        n.setCloseDepartmentId(req.departmentId());
+        n.setCloseProjectId(req.projectId());
+        n.setCloseJournalEntry(entry);
+        return NoteResponse.from(n);
+    }
+
     /** 받을어음감소 수정(원본 수정 창 [저장(F8)] — 같은 전표를 고쳐 쓴다). 지우고 다시 넣는 것을 한 트랜잭션으로. */
     @Transactional
     public NoteResponse updateDecrease(Long id, PromissoryNoteDtos.DecreaseRequest req, String username) {
@@ -235,7 +264,7 @@ public class PromissoryNoteService {
                 .orElseThrow(() -> ApiException.notFound("어음을 찾을 수 없습니다. id=" + id));
         var entry = n.getCloseJournalEntry();
         if (n.getStatus() != NoteStatus.SETTLED || entry == null) {
-            throw ApiException.conflict(n.getNoteNo() + " 은(는) 받을어음감소로 닫힌 어음이 아닙니다.");
+            throw ApiException.conflict(n.getNoteNo() + " 은(는) 어음감소로 닫힌 어음이 아닙니다.");
         }
         n.setCloseJournalEntry(null);
         n.setStatus(NoteStatus.HELD);
@@ -244,7 +273,7 @@ public class PromissoryNoteService {
         n.setCloseRemark(null);
         n.setCloseDepartmentId(null);
         n.setCloseProjectId(null);
-        bankCardService.reverseExternal(entry, "받을어음감소 삭제 " + n.getNoteNo(), username);
+        bankCardService.reverseExternal(entry, n.getType().getDisplayName() + "감소 삭제 " + n.getNoteNo(), username);
         journalService.deleteEntry(entry);
         return NoteResponse.from(n);
     }

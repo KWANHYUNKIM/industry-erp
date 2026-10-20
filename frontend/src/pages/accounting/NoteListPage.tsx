@@ -116,7 +116,9 @@ export default function NoteListPage({ type }: { type: NoteType }) {
 
   const ofType = useMemo(() => notes.filter((n) => n.type === type), [notes, type])
   /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] 증가 '어음만증가' · 감소 '어음만감소'. */
-  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? (endorsed(m.n) ? '받을어음거래처지급' : '받을어음감소') : m.n.statusName)
+  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? (endorsed(m.n) ? '받을어음거래처지급' : receivable ? '받을어음감소' : '지급어음감소') : m.n.statusName)
+  /** 감소 줄 [일자] 가 여는 수정 창 — 거래처지급 · 받을어음감소 · 지급어음감소. */
+  const editPathOf = (n: Note) => endorsed(n) ? 'notes-endorse' : receivable ? 'notes-decrease' : 'notes-pay-decrease'
   /** 원본 [일자] '2026/10/13-2' — 그날 넣은 어음 중 몇 번째(id 차례). 감소 줄은 날짜만. */
   const dayNo = (m: Move) => {
     if (!m.inc) return dateText(m.date)
@@ -150,7 +152,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: String(id), name }))
   }, [ofType])
   const authors = useMemo(() => [...new Set(ofType.map((n) => n.createdBy).filter(Boolean) as string[])].sort(), [ofType])
-  const kinds = useMemo(() => [...new Set([receivable ? '받을어음증가' : '지급어음증가', '어음만증가', ...ofType.filter((n) => n.closedDate).map((n) => n.closeJournalEntryId ? (endorsed(n) ? '받을어음거래처지급' : '받을어음감소') : n.statusName)])], [ofType, receivable])
+  const kinds = useMemo(() => [...new Set([receivable ? '받을어음증가' : '지급어음증가', '어음만증가', ...ofType.filter((n) => n.closedDate).map((n) => n.closeJournalEntryId ? (endorsed(n) ? '받을어음거래처지급' : receivable ? '받을어음감소' : '지급어음감소') : n.statusName)])], [ofType, receivable])
   /** 회계전표일자-No. — '2026/10/13 -3'. 증가는 출처(어음 · id), 감소는 닫힌 날 적요의 어음번호로 찾는다. */
   const journalOf = (m: Move) => {
     if (!m.inc && recordDecreased(m.n)) return ''
@@ -219,7 +221,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseDue(false); setNoteNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setDept(''); setProject(''); setRemark(''); setAuthor('') } },
-        { label: receivable ? '받을어음증가' : '지급어음증가', onClick: () => navigate(receivable ? '/accounting/notes-increase' : '/accounting/notes') },
+        { label: receivable ? '받을어음증가' : '지급어음증가', onClick: () => navigate(receivable ? '/accounting/notes-increase' : '/accounting/notes-pay-increase') },
         { label: '내역만등록', onClick: () => { setRecError(''); setRecDate(ymd(new Date())); setRecDec(false); setRecOpen(true) } },
         { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => setConfirmDelete(true), disabled: checked.size === 0 },
         { label: 'Excel' },
@@ -318,7 +320,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
                        })} />
               </td>
               <td>{!m.inc && m.n.closeJournalEntryId
-                ? <a className="ec-link" href={`/accounting/${endorsed(m.n) ? 'notes-endorse' : 'notes-decrease'}?id=${m.n.id}`} onClick={(e) => { e.preventDefault(); navigate(`/accounting/${endorsed(m.n) ? 'notes-endorse' : 'notes-decrease'}?id=${m.n.id}`) }}>{dayNo(m)}</a>
+                ? <a className="ec-link" href={`/accounting/${editPathOf(m.n)}?id=${m.n.id}`} onClick={(e) => { e.preventDefault(); navigate(`/accounting/${editPathOf(m.n)}?id=${m.n.id}`) }}>{dayNo(m)}</a>
                 : dayNo(m)}</td>
               <td>{m.n.noteNo}</td>
               <td>{m.inc ? '증가' : '감소'}</td>

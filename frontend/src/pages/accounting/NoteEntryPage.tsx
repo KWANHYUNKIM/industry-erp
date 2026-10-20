@@ -27,6 +27,12 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  * 어음번호 · 총금액(막힘) · 지급금액 · 적요. 어음번호를 고르면 어음 거래처명 · 총금액 · 지급금액이 어음 금액으로 들어온다.
  * 빈 저장은 거래처 · 어음번호가 막는다. 저장하면 칸이 다 빈다. 전표 '26/10/20-32 | 받을어음거래처지급 | 100,000' =
  * 차) 외상매입금(거래처) / 대) 받을어음(어음 거래처, 적요 '(No.QA1-N2,2026/10/20 )'). 받을어음조회 감소 줄 일자 → 같은 수정 창.
+ *
+ * <b>지급어음증가</b>(E010604) · <b>지급어음감소</b>(E010605) — 2026-10-20 실측. 증가는 받을어음증가와 같은 칸
+ * (QA1-P1 100,000 → 칸이 다 빈다, 전표 '26/10/20-36 | 지급어음증가' = 차) 외상매입금 / 대) 지급어음).
+ * 감소는 전표일자 · 회계전표No. · 부서 · 프로젝트 · <b>출금계좌</b> · 어음번호 · 금액 · 적요(총금액 · 수수료 없음). 어음번호를 고르면
+ * 거래처명 · 금액이 들어오고, 저장하면 출금계좌만 남는다. 전표 '26/10/20-37 | 지급어음감소' = 차) 지급어음 / 대) 보통예금.
+ * 지급어음조회 감소 줄 일자 → 수정 창, 삭제 확인은 원본도 '- 받을어음감소'(증가는 '- 지급어음증가').
  */
 
 type Note = PromissoryNote & { closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null; closeJournalEntryId?: number | null; closePartnerId?: number | null }
@@ -37,12 +43,18 @@ function bankLabel(b: BankAccountRow) {
   return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
 }
 
-export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' | 'endorse' }) {
-  const dec = mode === 'decrease'
+export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' | 'endorse' | 'pay-increase' | 'pay-decrease' }) {
+  /** 지급어음 쪽(E010604 · E010605) */
+  const payable = mode === 'pay-increase' || mode === 'pay-decrease'
+  const noteType = payable ? 'PAYABLE' : 'RECEIVABLE'
+  const dec = mode === 'decrease' || mode === 'pay-decrease'
   const endorse = mode === 'endorse'
   /** 어음번호를 코드도움으로 고르는 화면(감소 · 거래처지급) */
   const picksNote = dec || endorse
-  const title = dec ? '받을어음감소' : endorse ? '받을어음결제-받을어음거래처결제' : '받을어음증가'
+  const title = mode === 'pay-increase' ? '지급어음증가' : mode === 'pay-decrease' ? '지급어음감소'
+    : dec ? '받을어음감소' : endorse ? '받을어음결제-받을어음거래처결제' : '받을어음증가'
+  const listPath = payable ? '/accounting/notes-pay-list' : '/accounting/notes-list'
+  const bankLabelText = payable ? '출금계좌' : '입금계좌'
   /** 원본 삭제 확인 '전표를 삭제하겠습니까? - …' 의 꼬리 — 거래처지급 수정 창도 '- 받을어음감소'(2026-10-20 실측). */
   const kindName = dec || endorse ? '받을어음감소' : '받을어음증가'
   const navigate = useNavigate()
@@ -106,14 +118,14 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     }).catch(() => {})
   }, [editing, bankId])
 
-  /* 증가는 매출처, 거래처지급은 어음을 넘겨 줄 매입처 쪽 — 원본 코드도움은 둘 다 거래처 전체. */
-  const partnerItems: CodeItem[] = useMemo(() => partners.filter((p) => endorse || p.type !== 'SUPPLIER')
-    .map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [partners, endorse])
+  /* 받을어음증가는 매출처, 거래처지급 · 지급어음증가는 매입처 쪽 — 원본 코드도움은 다 거래처 전체. */
+  const partnerItems: CodeItem[] = useMemo(() => partners.filter((p) => endorse || payable || p.type !== 'SUPPLIER')
+    .map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [partners, endorse, payable])
   const bankItems: CodeItem[] = useMemo(() => banks.filter((b) => b.active !== false)
     .map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankLabel(b) })), [banks])
   /* 어음번호 코드도움 — 보유 중인 받을어음(수정 창은 그 어음도). 고르면 거래처명이 옆에 붙는다. */
   const noteItems: CodeItem[] = useMemo(() => notes
-    .filter((n) => n.type === 'RECEIVABLE' && (n.status === 'HELD' || n.id === editId))
+    .filter((n) => n.type === noteType && (n.status === 'HELD' || n.id === editId))
     .map((n) => ({ value: n.noteNo, code: n.noteNo, name: n.partnerName })), [notes, editId])
 
   function pickNote(v: string) {
@@ -136,7 +148,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   async function save(): Promise<boolean> {
     setError('')
     if (dec) {
-      if (!bankId) { setError('입금계좌: 자료를 입력 바랍니다.'); return false }
+      if (!bankId) { setError(`${bankLabelText}: 자료를 입력 바랍니다.`); return false }
       if (!noteNo.trim()) { setError('어음번호: 자료를 입력 바랍니다.'); return false }
     } else {
       if (!partnerId) { setError('거래처: 자료를 입력 바랍니다.'); return false }
@@ -153,7 +165,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
         }
         if (editing) {
           await api.put(`/notes/${editing.id}/decrease`, body)
-          navigate('/accounting/notes-list')
+          navigate(listPath)
           return true
         }
         await api.post('/notes/decrease', body)
@@ -167,7 +179,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
         }
         if (editing) {
           await api.put(`/notes/${editing.id}/endorse`, body)
-          navigate('/accounting/notes-list')
+          navigate(listPath)
           return true
         }
         await api.post('/notes/endorse', body)
@@ -175,7 +187,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
         loadNotes()
       } else {
         await api.post('/notes', {
-          type: 'RECEIVABLE', partnerId: Number(partnerId), issueDate: date, dueDate,
+          type: noteType, partnerId: Number(partnerId), issueDate: date, dueDate,
           amount: Number(amount), remark: remark.trim() || undefined, noteNo: noteNo.trim(),
           departmentId: dept ? Number(dept) : undefined, projectId: project ? Number(project) : undefined,
         })
@@ -195,7 +207,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     setConfirmDelete(false)
     try {
       await api.delete(`/notes/${editing.id}/${endorse ? 'endorse' : 'decrease'}`)
-      navigate('/accounting/notes-list')
+      navigate(listPath)
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -210,7 +222,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
           { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving },
           { label: '삭제', onClick: () => setConfirmDelete(true) },
-          { label: '닫기', onClick: () => navigate('/accounting/notes-list') },
+          { label: '닫기', onClick: () => navigate(listPath) },
         ] : [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
           { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving },
@@ -232,21 +244,25 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
           </EcCond>
           {dec ? (
             <>
-              <EcCond label="입금계좌" span={2}>
-                <CodePickerField label="입금계좌" hideLabel pair fill emptyLabel="" value={bankId} onChange={setBankId} items={bankItems} />
+              <EcCond label={bankLabelText} span={2}>
+                <CodePickerField label={bankLabelText} hideLabel pair fill emptyLabel="" value={bankId} onChange={setBankId} items={bankItems} />
               </EcCond>
               <EcCond label="어음번호" span={2}>
                 <CodePickerField label="어음번호" hideLabel pair fill emptyLabel="" value={noteNo} onChange={pickNote} items={noteItems} />
               </EcCond>
-              <EcCond label="총금액" span={2}>
-                <input className="ec-input w-full text-right" aria-label="총금액" disabled value={total ? Number(total).toLocaleString('ko-KR') : '0'} />
-              </EcCond>
+              {!payable && (
+                <EcCond label="총금액" span={2}>
+                  <input className="ec-input w-full text-right" aria-label="총금액" disabled value={total ? Number(total).toLocaleString('ko-KR') : '0'} />
+                </EcCond>
+              )}
               <EcCond label="금액" span={2}>
-                <EcNumInput className="ec-input w-full text-right" aria-label="금액" value={amount} onValue={changeAmount} placeholder="0" />
+                <EcNumInput className="ec-input w-full text-right" aria-label="금액" value={amount} onValue={payable ? setAmount : changeAmount} placeholder="0" />
               </EcCond>
-              <EcCond label="수수료" span={2}>
-                <EcNumInput className="ec-input w-full text-right" aria-label="수수료" value={fee} onValue={changeFee} placeholder="0" />
-              </EcCond>
+              {!payable && (
+                <EcCond label="수수료" span={2}>
+                  <EcNumInput className="ec-input w-full text-right" aria-label="수수료" value={fee} onValue={changeFee} placeholder="0" />
+                </EcCond>
+              )}
             </>
           ) : endorse ? (
             <>

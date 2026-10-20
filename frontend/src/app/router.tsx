@@ -662,6 +662,8 @@ export default function AppRouter() {
         <Route path="/accounting/budget/status" element={<BudgetReportPage variant="status" />} />
         <Route path="/accounting/budget/compare" element={<BudgetReportPage variant="compare" />} />
         <Route path="/accounting/budget/control-ledger" element={<BudgetReportPage variant="controlLedger" />} />
+        <Route path="/accounting/notes-pay-increase" element={<NoteEntryPage key="pay-increase" mode="pay-increase" />} />
+        <Route path="/accounting/notes-pay-decrease" element={<NoteEntryPage key="pay-decrease" mode="pay-decrease" />} />
         <Route path="/accounting/budget/ledger" element={<BudgetReportPage variant="ledger" />} />
         <Route path="/accounting/budget/control-compare" element={<BudgetReportPage variant="controlCompare" />} />
         <Route path="/accounting/cash-plan" element={<CashPlanPage />} />
