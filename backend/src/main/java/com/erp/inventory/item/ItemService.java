@@ -78,6 +78,7 @@ public class ItemService {
                 req.lotManaged(), req.qcType(), req.qcMethod(),
                 req.qcOnPurchase(), req.qcOnProduction(),
                 req.autoProductionOnSales(), req.autoProductionOnTransfer());
+        applyCost(item, req.stdLaborHours(), req.expenseWeight(), req.materialStdCost());
         Item saved = itemRepository.save(item);
         changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
         return ItemResponse.from(saved);
@@ -110,6 +111,7 @@ public class ItemService {
                 req.lotManaged(), req.qcType(), req.qcMethod(),
                 req.qcOnPurchase(), req.qcOnProduction(),
                 req.autoProductionOnSales(), req.autoProductionOnTransfer());
+        applyCost(item, req.stdLaborHours(), req.expenseWeight(), req.materialStdCost());
         if (req.active() != null) {
             item.setActive(req.active());
         }
@@ -180,6 +182,18 @@ public class ItemService {
         if (groupId == null) return null;
         return itemGroupRepository.findById(groupId)
                 .orElseThrow(() -> ApiException.badRequest("품목그룹을 찾을 수 없습니다. id=" + groupId));
+    }
+
+    /**
+     * [원가] 탭 세 칸(원본 C000029). 원가 탭을 아는 호출(품목등록 화면)은 세 칸을 늘 같이 보내고,
+     * 그때는 재료비표준원가 빈칸(null)도 빈칸으로 저장한다(원본 새 창 기본이 빈칸).
+     * 표준노무시간을 안 보낸 호출(품목별단가 등 원가 탭을 모르는 것)은 세 칸을 그대로 둔다 — 새 품목은 엔티티 기본값(1 · 1 · 빈칸).
+     */
+    private void applyCost(Item item, BigDecimal stdLaborHours, BigDecimal expenseWeight, BigDecimal materialStdCost) {
+        if (stdLaborHours == null) return;
+        item.setStdLaborHours(stdLaborHours);
+        item.setExpenseWeight(expenseWeight != null ? expenseWeight : BigDecimal.ONE);
+        item.setMaterialStdCost(materialStdCost);
     }
 
     /**

@@ -89,7 +89,15 @@ public final class ItemDtos {
             Boolean qcOnPurchase,
             Boolean qcOnProduction,
             Boolean autoProductionOnSales,
-            Boolean autoProductionOnTransfer
+            Boolean autoProductionOnTransfer,
+            /*
+             * [원가] 탭(원본 C000029). 화면은 세 칸을 늘 같이 보낸다(재료비표준원가 빈칸 = null). 표준노무시간을
+             * 안 보내면 세 칸을 그대로 둔다 — 원가 탭을 모르는 호출이 값을 지우지 않게(ItemService.applyCost).
+             * 원본은 음수도 말 없이 저장한다(2026-10-20 실측).
+             */
+            BigDecimal stdLaborHours,
+            BigDecimal expenseWeight,
+            BigDecimal materialStdCost
     ) {}
 
     public record UpdateItemRequest(
@@ -162,6 +170,14 @@ public final class ItemDtos {
             Boolean qcOnProduction,
             Boolean autoProductionOnSales,
             Boolean autoProductionOnTransfer,
+            /*
+             * [원가] 탭(원본 C000029). 화면은 세 칸을 늘 같이 보낸다(재료비표준원가 빈칸 = null). 표준노무시간을
+             * 안 보내면 세 칸을 그대로 둔다 — 원가 탭을 모르는 호출이 값을 지우지 않게(ItemService.applyCost).
+             * 원본은 음수도 말 없이 저장한다(2026-10-20 실측).
+             */
+            BigDecimal stdLaborHours,
+            BigDecimal expenseWeight,
+            BigDecimal materialStdCost,
             Boolean active
     ) {}
 
@@ -212,6 +228,9 @@ public final class ItemDtos {
             boolean lotManaged, String qcType, String qcMethod,
             boolean qcOnPurchase, boolean qcOnProduction,
             boolean autoProductionOnSales, boolean autoProductionOnTransfer,
+            /** [원가] 탭. 경비 · 노무비 · 외주비표준원가는 원본 창에서 잠긴 칸이라 보기만 한다. */
+            BigDecimal stdLaborHours, BigDecimal expenseWeight, BigDecimal materialStdCost,
+            BigDecimal expenseStdCost, BigDecimal laborStdCost, BigDecimal subcontractStdCost,
             /** 원본 조건 [최초작성일자]·[최종수정일자]. BaseTimeEntity 가 진작 들고 있다. */
             java.time.LocalDate createdDate, java.time.LocalDate updatedDate
     ) {
@@ -249,6 +268,8 @@ public final class ItemDtos {
                     item.isLotManaged(), item.getQcType(), item.getQcMethod(),
                     item.isQcOnPurchase(), item.isQcOnProduction(),
                     item.isAutoProductionOnSales(), item.isAutoProductionOnTransfer(),
+                    item.getStdLaborHours(), item.getExpenseWeight(), item.getMaterialStdCost(),
+                    item.getExpenseStdCost(), item.getLaborStdCost(), item.getSubcontractStdCost(),
                     item.getCreatedAt() != null ? item.getCreatedAt().toLocalDate() : null,
                     item.getUpdatedAt() != null ? item.getUpdatedAt().toLocalDate() : null
             );

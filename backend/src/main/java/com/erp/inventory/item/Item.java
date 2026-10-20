@@ -213,6 +213,39 @@ public class Item extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal subcontractPrice = BigDecimal.ZERO;
 
+    /*
+     * 원본 품목등록 <b>[원가]</b> 탭(C000029, 2026-10-20 실측). 표준원가현황(E040808)은 원가생성/수정의
+     * [표준원가생성] 이 이 값을 옮겨 보여 준다 — '표준원가는 재고1 > 기초등록 > 품목등록 > 원가 탭에서 입력할 수 있습니다.'
+     */
+    /** [표준노무시간(노무비가중치)] — 새 품목 1. 노무비를 품목에 나눌 때의 무게. */
+    @Column(name = "std_labor_hours", nullable = false, precision = 15, scale = 4)
+    @Builder.Default
+    private BigDecimal stdLaborHours = BigDecimal.ONE;
+
+    /** [경비가중치] — 새 품목 1. 경비를 품목에 나눌 때의 무게. */
+    @Column(name = "expense_weight", nullable = false, precision = 15, scale = 4)
+    @Builder.Default
+    private BigDecimal expenseWeight = BigDecimal.ONE;
+
+    /** [재료비표준원가] — 원본 새 창은 빈칸(null). 사람이 넣는다. */
+    @Column(name = "material_std_cost", precision = 18, scale = 2)
+    private BigDecimal materialStdCost;
+
+    /** [경비표준원가] — 원본 창에서 잠긴 칸(0). 사람이 못 넣고 원가 쪽이 채운다. */
+    @Column(name = "expense_std_cost", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal expenseStdCost = BigDecimal.ZERO;
+
+    /** [노무비표준원가] — 잠긴 칸(0), 경비표준원가와 같다. */
+    @Column(name = "labor_std_cost", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal laborStdCost = BigDecimal.ZERO;
+
+    /** [외주비표준원가] — 잠긴 칸(0), 경비표준원가와 같다. */
+    @Column(name = "subcontract_std_cost", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal subcontractStdCost = BigDecimal.ZERO;
+
     /**
      * 원본 <b>[조달기간]</b> (일). 주문하고 물건이 오기까지 걸리는 날수 —
      * 발주계획이 <b>언제 넣어야 하나</b>를 이 값으로 거꾸로 센다.
