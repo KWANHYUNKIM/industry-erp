@@ -1,8 +1,8 @@
 {
-  "about": "영업 한 바퀴를 화면으로 — 견적 작성 → [다른전표생성] › 주문서 → 주문에 이어 출하(API) → 출하지시서에서 출하완료 → 주문이 완료로. node qa/shot.mjs qa/flows/sales-cycle.json — 만든 전표는 끝에 지운다. 견적 목록은 번호를 원본처럼 '2026/10/01 -5' 로 적는다(견적서조회 E040202 2026-10-14 실측 — 저장 뒤 말 없음, [생성한전표] '조회' 에 주문서 번호).",
+  "about": "영업 한 바퀴를 화면으로 — 견적 작성 → [다른전표생성] › 주문서 › 1장라인별(주문서입력 창 저장) → 주문에 이어 출하(API) → 출하지시서에서 출하완료 → 주문이 완료로. node qa/shot.mjs qa/flows/sales-cycle.json — 만든 전표는 끝에 지운다. 견적 목록은 번호를 원본처럼 '2026/10/01 -5' 로 적는다(견적서조회 E040202 2026-10-14 실측 — 저장 뒤 말 없음, [생성한전표] '조회' 에 주문서 번호).",
   "shots": [
     {
-      "name": "견적서입력 → 말 없이 목록에 한 줄, [진행상태] 진행중 · 고른 줄 [다른전표생성] › 주문서 → [생성한전표] 에 주문서 번호",
+      "name": "견적서입력 → 말 없이 목록에 한 줄, [진행상태] 진행중 · 고른 줄 [다른전표생성] › 주문서 1장라인별 → 주문서입력 창(출하창고 골라 저장, 말 없이 닫힘)",
       "path": "/sales/quotations",
       "steps": [
         "click:신규(F2)",
@@ -19,8 +19,22 @@
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow')))",
         "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow'))).querySelector('input[type=checkbox]').click(); true",
         "click:다른전표생성",
-        "js:window.confirm = () => false; [...document.querySelectorAll('[role=menu] button')].find((b) => b.textContent.trim() === '주문서').click(); true",
-        "js:new Promise((ok) => setTimeout(ok, 1500)).then(() => fetch('/api/quotations',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})).then((r)=>r.json()).then((d)=>{const q=d.find((x)=>x.quoteNo===sessionStorage.getItem('qaQuote'));return fetch('/api/sales-orders',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((o)=>{sessionStorage.setItem('qaOrder',o.find((x)=>x.id===q.convertedOrderId).orderNo);return true})})",
+        "js:[...document.querySelectorAll('[role=menu] button')].find((b) => b.textContent.trim() === '1장라인별').click(); true",
+        "wait:1500",
+        "expect:document.querySelector('[role=dialog]') && location.pathname === '/sales/orders'",
+        "click:출하창고 선택",
+        "pickrow:QA-WH",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:new Promise((ok) => setTimeout(ok, 500)).then(() => fetch('/api/quotations',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})).then((r)=>r.json()).then((d)=>{const q=d.find((x)=>x.quoteNo===sessionStorage.getItem('qaQuote'));return fetch('/api/sales-orders',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((o)=>{sessionStorage.setItem('qaOrder',o.find((x)=>x.id===q.convertedOrderId).orderNo);return true})})",
+        "expect:!!sessionStorage.getItem('qaOrder')"
+      ]
+    },
+    {
+      "name": "견적서조회 — [생성한전표] '조회' 에 주문서 번호",
+      "path": "/sales/quotations",
+      "steps": [
         "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow'))).querySelectorAll('a').forEach((a) => { if (a.textContent.trim() === '조회') a.click() }); true",
         "expect:document.querySelector('.ec-modal') && document.querySelector('.ec-modal').innerText.includes(sessionStorage.getItem('qaOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))"
       ]

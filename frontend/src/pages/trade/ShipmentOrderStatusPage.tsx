@@ -6,7 +6,7 @@ import { INQUIRY_PICKS, periodOf, type ComparePeriod } from '../../components/Ec
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 
@@ -82,6 +82,8 @@ interface Shipment {
 type Mode = '내역' | '집계'
 const MODES = ['내역', '집계'] as const
 const num = (n: number) => n.toLocaleString('ko-KR')
+/** 원본 수량 칸 — '4.00' 소수 둘(2026-10-20 E040222 실측). */
+const qty = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export default function ShipmentOrderStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -98,7 +100,9 @@ export default function ShipmentOrderStatusPage() {
   const [view, setView] = useState<'표' | '그래프'>('표')
 
   const [shipNo, setShipNo] = useState('')
-  const [dueDate, setDueDate] = useState('')
+  /** 원본 [출하예정일] 은 빈 두 칸(~)이다(2026-10-20 실측). */
+  const [dueFrom, setDueFrom] = useState('')
+  const [dueTo, setDueTo] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [partner, setPartner] = useState('')
   /** 원본 출하지시서현황 조건의 [프로젝트]. */
@@ -146,7 +150,7 @@ export default function ShipmentOrderStatusPage() {
   function reset() {
     const p = periodOf('금월(~오늘)')!
     setFrom(p.from); setTo(p.to); setCompare('사용안함'); setMode('내역'); setView('표')
-    setShipNo(''); setDueDate(''); setWarehouse(''); setPartner(''); setProject(''); setItem('')
+    setShipNo(''); setDueFrom(''); setDueTo(''); setWarehouse(''); setPartner(''); setProject(''); setItem('')
     setOrderNoCond(''); setSpecCond(''); setEmpCond(''); setPmgrCond('')
     setRemarkCond(''); setAuthorCond(''); setStatusFilter('ALL')
   }
@@ -163,7 +167,8 @@ export default function ShipmentOrderStatusPage() {
     if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
     if (r.shipDate < from || r.shipDate > to) return false
     if (shipNo && !r.shipNo.includes(shipNo)) return false
-    if (dueDate && (r.dueDate ?? '') !== dueDate) return false
+    if (dueFrom && (r.dueDate ?? '') < dueFrom) return false
+    if (dueTo && (r.dueDate ?? '') > dueTo) return false
     if (warehouse && String(r.warehouseId) !== warehouse) return false
     if (partner && String(r.partnerId) !== partner) return false
     if (project && String(r.projectId) !== project) return false
@@ -177,13 +182,28 @@ export default function ShipmentOrderStatusPage() {
     if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }), [rows, from, to, shipNo, dueDate, warehouse, partner, project, item, mgmtCond, mgmt.options,
+  }), [rows, from, to, shipNo, dueFrom, dueTo, warehouse, partner, project, item, mgmtCond, mgmt.options,
        orderNoCond, specCond, empCond, pmgrCond, remarkCond, authorCond, statusFilter, pmgr.options])
 
   /** 라인별 — 원본 결과 격자의 단위다. */
   const lines = useMemo(
-    () => shown.flatMap((r) => r.lines.map((l) => ({ key: r.id + '-' + l.itemId, r, l }))),
+    () => [...shown]
+      /* 원본은 일자 <b>오름차순</b>이다(2026-10-20 실측). 같은 날은 번호 차례. */
+      .sort((a, b) => a.shipDate.localeCompare(b.shipDate) || a.shipNo.localeCompare(b.shipNo))
+      .flatMap((r) => r.lines.map((l, i) => ({ key: r.id + '-' + i, r, l }))),
     [shown])
+
+  /** 원본 라인별 격자 — 달마다 'YYYY/MM 계' 줄을 끼운다(lines 가 이미 일자 오름차순). */
+  const byMonth = useMemo(() => {
+    const out: { month: string; rows: typeof lines; qty: number }[] = []
+    for (const x of lines) {
+      const month = x.r.shipDate.slice(0, 7).replace('-', '/')
+      let g = out[out.length - 1]
+      if (!g || g.month !== month) { g = { month, rows: [], qty: 0 }; out.push(g) }
+      g.rows.push(x); g.qty += Number(x.l.quantity)
+    }
+    return out
+  }, [lines])
 
   /** 집계 — 품목 단위로 지시수량을 모은다. */
   const byItem = useMemo(() => {
@@ -215,7 +235,7 @@ export default function ShipmentOrderStatusPage() {
     [mode, byItem, shown])
 
   /** 품목명(규격) — 규격이 없으면 괄호를 붙이지 않는다. 빈 괄호는 자료가 없다는 뜻이 아니다. */
-  const itemLabel = (l: ShipLine) => (l.spec ? l.itemName + '(' + l.spec + ')' : l.itemName)
+  const itemLabel = (l: ShipLine) => (l.spec ? l.itemName + ' [' + l.spec + ']' : l.itemName)
 
   return (
     <EcListShell
@@ -248,8 +268,11 @@ export default function ShipmentOrderStatusPage() {
                  onChange={(e) => setShipNo(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="출하예정일">
-          <input type="date" className="ec-input" value={dueDate}
-                 onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
+          <input type="date" className="ec-input" value={dueFrom}
+                 onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
+          <span className="text-ec-label">~</span>
+          <input type="date" className="ec-input" value={dueTo}
+                 onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
@@ -330,12 +353,6 @@ export default function ShipmentOrderStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        지시 <b className="text-ec-text">{shown.length}</b>건
-        <span className="my-0 mx-[6px] text-ec-off">|</span>
-        지시수량 <b className="text-ec-warn text-[14px]">{num(totalQty)}</b>
-      </div>
-
       {error && (
         <p className="ec-alert ec-alert-danger mb-[8px]">
           {error}
@@ -381,52 +398,51 @@ export default function ShipmentOrderStatusPage() {
         <table className="w-full text-left">
           <thead>
             {/*
-              원본 격자(2026-09-09 E040222 실측):
-              <b>일자-No. · 품목명(규격) · 수량 · 창고명 · 거래처명 · 연락처 · 적요</b>.
-              원본은 일자와 번호를 한 칸에 적는다 - 우리는 번호만 두고 일자를 안 두어
-              <b>언제 낸 지시인지 이 표에서 볼 수 없었다.</b>
-              [출하예정일]은 원본에 없지만 우리가 더 두는 열이다.
+              원본 격자(2026-10-20 E040222 실측, 라인별):
+              <b>일자-No. 85 · 품목명(규격) 213 · 수량 107 · 창고명 128 · 거래처명 128 · 연락처 192</b> (+ 새로운 항목 추가).
+              번호 칸 · 출하예정일 · 적요 열은 없다. 일자 오름차순, 달마다 'YYYY/MM 계' · 맨 끝 '총합계'(수량 '3,618.00').
             */}
             <tr>
-              <th className="w-[34px]"></th>
-              <th className="w-[190px] text-center">일자-No.</th>
-              <th className="w-[110px]">출하예정일</th>
-              <th>품목명(규격)</th>
-              <th className="w-[110px] text-right">수량</th>
-              <th className="w-[130px]">창고명</th>
-              <th className="w-[150px]">거래처명</th>
-              <th className="w-[130px]">연락처</th>
-              <th>적요</th>
+              <th className="w-[85px]">일자-No.</th>
+              <th className="w-[213px]">품목명(규격)</th>
+              <th className="w-[107px] text-right">수량</th>
+              <th className="w-[128px]">창고명</th>
+              <th className="w-[128px]">거래처명</th>
+              <th className="w-[192px]">연락처</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
             ) : lines.length === 0 ? (
-              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : lines.map(({ key, r, l }, i) => (
-              <tr key={key}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td className="text-center">{dateText(r.shipDate)} {r.shipNo}</td>
-                <td>{dateText(r.dueDate) || ''}</td>
-                <td>{itemLabel(l)}</td>
-                <td className="text-right font-semibold">{num(l.quantity)} {l.unit}</td>
-                <td>{r.warehouseName ?? ''}</td>
-                <td>{r.partnerName}</td>
-                <td style={{ color: r.contact ? undefined : 'var(--ec-text-off)' }}>{r.contact ?? ''}</td>
-                <td className="text-ec-hint">{l.remark ?? r.remark ?? ''}</td>
-              </tr>
-            ))}
+              <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : byMonth.flatMap((g) => [
+              ...g.rows.map(({ key, r, l }) => (
+                <tr key={key}>
+                  <td className="whitespace-nowrap">{dateNo(r.shipDate, r.shipNo)}</td>
+                  <td>{itemLabel(l)}</td>
+                  <td className="text-right">{qty(l.quantity)}</td>
+                  <td>{r.warehouseName ?? ''}</td>
+                  <td>{r.partnerName}</td>
+                  <td>{r.contact ?? ''}</td>
+                </tr>
+              )),
+              <tr key={`m-${g.month}`} className="ec-list-total">
+                <td colSpan={2} className="text-center font-bold">{g.month} 계</td>
+                <td className="text-right font-bold">{qty(g.qty)}</td>
+                <td colSpan={3}></td>
+              </tr>,
+            ])}
           </tbody>
-          <tfoot>
-            <tr className="font-bold bg-ec-page">
-              <td colSpan={4} className="text-right">합계 ({lines.length}줄)</td>
-              <td className="text-right text-ec-warn">
-                {num(lines.reduce((n, x) => n + x.l.quantity, 0))}
-              </td>
-              <td colSpan={4}></td>
-            </tr>
-          </tfoot>
+          {lines.length > 0 && (
+            <tfoot>
+              <tr className="ec-list-total">
+                <td colSpan={2} className="text-center font-bold">총합계</td>
+                <td className="text-right font-bold">{qty(lines.reduce((n, x) => n + Number(x.l.quantity), 0))}</td>
+                <td colSpan={3}></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       )}
     </EcListShell>

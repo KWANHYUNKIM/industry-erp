@@ -34,6 +34,7 @@
       "name": "수정 — 일자-No. 링크 → 출하지시서입력(수정), 5 로 저장 → 5.00 · 미출하 5",
       "path": "/sales/shipment-order",
       "steps": [
+        "expect:document.querySelectorAll('tbody a').length > 0",
         "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soNo')).click(); true",
         "expect:document.querySelector('[role=dialog]').innerText.includes('출하지시서입력(수정)')",
         "js:(() => { const el = [...document.querySelectorAll('[role=dialog] tbody input[type=number]')].find((x) => x.value === '4'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '5'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
@@ -44,12 +45,44 @@
       ]
     },
     {
-      "name": "출하 3(API — 출하입력은 출하 묶음이 맞춘다) → 미출하 2, 지시서는 진행중 그대로 → 지시서 삭제(막지 않음, 출하는 남는다)",
+      "name": "미출하현황 화면 — 그 지시서 줄 수량 5.00 · 미출하 5.00",
+      "path": "/sales/unshipped",
+      "steps": [
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0] && tr.cells[0].innerText.trim() === sessionStorage.getItem('soNo')); return tr && tr.cells[2].innerText.trim() === '5.00' && tr.cells[3].innerText.trim() === '5.00' })()",
+        "expect:[...document.querySelectorAll('tfoot tr')].some((tr) => tr.innerText.includes('총합계'))"
+      ]
+    },
+    {
+      "name": "출하 3(API — 출하입력은 출하 묶음이 맞춘다) → 미출하 2",
       "path": "/sales/shipment-order",
       "steps": [
+        "expect:document.querySelectorAll('tbody a').length > 0",
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const s = await (await fetch('/api/shipment-orders/' + sessionStorage.getItem('soId'), { headers: H })).json(); const sh = await (await fetch('/api/shipment-orders/' + s.id + '/ship', { method: 'POST', headers: H, body: JSON.stringify({ lines: [{ lineId: s.lines[0].id, quantity: 3 }] }) })).json(); sessionStorage.setItem('soShip', sh.shipNo); return true })()",
-        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 2 })()",
-        "js:location.reload(); true",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 2 })()"
+      ]
+    },
+    {
+      "name": "미출하현황 화면 — 그 지시서 줄 수량 5.00 · 미출하 2.00 (출하 3 뒤)",
+      "path": "/sales/unshipped",
+      "steps": [
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0] && tr.cells[0].innerText.trim() === sessionStorage.getItem('soNo')); return tr && tr.cells[2].innerText.trim() === '5.00' && tr.cells[3].innerText.trim() === '2.00' })()",
+        "expect:[...document.querySelectorAll('tfoot tr')].some((tr) => tr.innerText.includes('총합계'))"
+      ]
+    },
+    {
+      "name": "출하지시서현황 — 그 지시서 줄 5.00(출하가 이어져도 지시 수량 그대로), 월 계 · 총합계 줄",
+      "path": "/sales/shipment-order-status",
+      "steps": [
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0] && tr.cells[0].innerText.trim() === sessionStorage.getItem('soNo')); return tr && tr.cells[2].innerText.trim() === '5.00' })()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => / 계$/.test(tr.cells[0] ? tr.cells[0].innerText.trim() : ''))",
+        "expect:[...document.querySelectorAll('tfoot tr')].some((tr) => tr.innerText.includes('총합계'))"
+      ]
+    },
+    {
+      "name": "지시서는 진행중 그대로 → 지시서 삭제(막지 않음, 출하는 남는다)",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "expect:document.querySelectorAll('tbody a').length > 0",
         "wait:1500",
         "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soNo'))); return tr && tr.innerText.includes('진행중') })()",
         "js:window.confirm = () => true; [...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soNo')).click(); true",
