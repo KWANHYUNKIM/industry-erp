@@ -5,6 +5,7 @@ import com.erp.trade.partner.BusinessPartner;
 import com.erp.auth.user.User;
 import com.erp.groupware.workjournal.dto.WorkJournalDtos.CreateWorkJournalRequest;
 import com.erp.groupware.workjournal.dto.WorkJournalDtos.WorkJournalResponse;
+import com.erp.groupware.workjournal.dto.WorkJournalDtos.WorkJournalViewersResponse;
 import com.erp.trade.partner.BusinessPartnerRepository;
 import com.erp.auth.user.UserRepository;
 import com.erp.inventory.project.ProjectService;
@@ -31,6 +32,7 @@ public class WorkJournalService {
     // 프로젝트는 inventory 가 소유한다. 리포지토리를 직접 주입하지 않고 그 모듈의 서비스를 거친다.
     private final ProjectService projectService;
     private final ChangeHistoryService changeHistoryService;
+    private final WorkJournalViewRepository viewRepository;
 
     @Transactional(readOnly = true)
     public List<WorkJournalResponse> findAll() {
@@ -96,6 +98,53 @@ public class WorkJournalService {
         WorkJournal j = workJournalRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("업무일지를 찾을 수 없습니다. id=" + id));
         return changeHistoryService.list(WORK_JOURNAL_HISTORY, id, j.getAuthor().getUsername(), j.getCreatedAt());
+    }
+
+    /**
+     * '조회' 창을 열 때 — 조회 기록을 남긴다(처음이면 최초 · 최종 둘 다, 다시 열면 최종만).
+     * 원본(2026-10-20 실측): 글쓴이 자신이 연 것은 조회자에 오르지 않는다.
+     */
+    @Transactional
+    public void markViewed(Long id, String username) {
+        WorkJournal j = workJournalRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("업무일지를 찾을 수 없습니다. id=" + id));
+        if (j.getAuthor().getUsername().equals(username)) return;
+        var now = java.time.LocalDateTime.now();
+        viewRepository.findByJournalIdAndUsername(id, username).ifPresentOrElse(
+                v -> v.setLastViewedAt(now),
+                () -> viewRepository.save(WorkJournalView.builder()
+                        .journalId(id).username(username).firstViewedAt(now).lastViewedAt(now).build()));
+    }
+
+    /**
+     * 원본 [R] '조회자 현황'(2026-10-20 E070304 실측) — [미조회자] 는 글쓴이와 조회자를 뺀 회사 사용자 전부
+     * (이름 차례, 한글 이름 먼저 · 영문 'demo · ecount · sykim' 뒤), [조회자] 는 처음 본 차례.
+     */
+    @Transactional(readOnly = true)
+    public WorkJournalViewersResponse viewers(Long id) {
+        WorkJournal j = workJournalRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("업무일지를 찾을 수 없습니다. id=" + id));
+        var views = viewRepository.findByJournalIdOrderByFirstViewedAtAsc(id);
+        var users = userRepository.findAll();
+        java.util.Map<String, String> nameOf = new java.util.HashMap<>();
+        for (User u : users) nameOf.put(u.getUsername(), u.getName());
+        var seen = new java.util.HashSet<String>();
+        for (var v : views) seen.add(v.getUsername());
+        String author = j.getAuthor().getUsername();
+        java.util.Comparator<String> hangulFirst = java.util.Comparator
+                .comparing((String n) -> n.isEmpty() || n.charAt(0) < 0xAC00 || n.charAt(0) > 0xD7A3)
+                .thenComparing(String.CASE_INSENSITIVE_ORDER);
+        List<String> notViewed = users.stream()
+                .filter(User::isEnabled)
+                .filter(u -> !u.getUsername().equals(author) && !seen.contains(u.getUsername()))
+                .map(User::getName)
+                .sorted(hangulFirst)
+                .toList();
+        List<WorkJournalViewersResponse.Viewer> viewed = views.stream()
+                .map(v -> new WorkJournalViewersResponse.Viewer(
+                        nameOf.getOrDefault(v.getUsername(), v.getUsername()), v.getFirstViewedAt(), v.getLastViewedAt()))
+                .toList();
+        return new WorkJournalViewersResponse(notViewed, viewed);
     }
 
     /** 원본 '조회' 창의 [삭제] — '게시글을 삭제하면 복구할 수 없습니다.' 를 묻고 지운다. */

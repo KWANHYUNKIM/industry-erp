@@ -43,6 +43,13 @@ public class ApprovalController {
         return ResponseEntity.ok(approvalService.create(req, principal.getUsername()));
     }
 
+    /** 임시저장(기안중) 문서 고치기 — 같은 번호로 다시 임시저장하거나 그 자리에서 상신한다. */
+    @PutMapping("/{id}")
+    public ApprovalResponse updateDraft(@PathVariable Long id, @Valid @RequestBody CreateApprovalRequest req,
+                                        @AuthenticationPrincipal UserPrincipal principal) {
+        return approvalService.updateDraft(id, req, principal.getUsername());
+    }
+
     /** 임시저장(기안중) 문서를 상신한다. */
     @PostMapping("/{id}/submit")
     public ApprovalResponse submit(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {

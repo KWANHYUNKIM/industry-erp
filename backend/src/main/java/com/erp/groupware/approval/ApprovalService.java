@@ -121,6 +121,8 @@ public class ApprovalService {
         LocalDate draftDate = req.draftDate() != null ? req.draftDate() : LocalDate.now();
 
         List<Long> approverIds = req.approverIds() == null ? List.of() : req.approverIds();
+        String title = req.title() == null ? "" : req.title().trim();
+        if (!req.temporary() && title.isEmpty()) throw ApiException.badRequest("제목을 입력하세요.");
         if (!req.temporary() && approverIds.isEmpty()) {
             throw ApiException.badRequest("결재자를 1명 이상 지정하세요. 결재선 없이 보관하려면 임시저장을 쓰세요.");
         }
@@ -134,7 +136,7 @@ public class ApprovalService {
                 .docNo(buildDocNo(draftDate, seq))
                 .draftNo(draftDate.format(DRAFT_NO_DATE) + "-" + seq)
                 .formTemplate(template)
-                .title(req.title())
+                .title(title)
                 .content(req.content() != null ? req.content() : "")
                 .formData(req.formData() != null ? req.formData() : Map.of())
                 .drafter(drafter)
@@ -170,6 +172,60 @@ public class ApprovalService {
         return ApprovalResponse.from(saved);
     }
 
+    /**
+     * 임시저장(기안중) 문서 고치기 — 원본 E070105(2026-10-14 실측): 기안중 줄 [기안일자] 링크로 같은 작성 창이 열리고,
+     * 고쳐 다시 임시저장하면 <b>같은 번호</b> 그대로다. [저장/결재(F7)] 면 그 자리에서 상신한다.
+     * 양식 · 기안일자(번호가 딸려 있다)는 바꾸지 않는다.
+     */
+    @Transactional
+    public ApprovalResponse updateDraft(Long docId, CreateApprovalRequest req, String username) {
+        ApprovalDocument doc = getDocument(docId);
+        if (doc.isDeleted() || doc.getStatus() != ApprovalStatus.DRAFTING) {
+            throw ApiException.badRequest("기안중인 문서만 고칠 수 있습니다.");
+        }
+        if (!doc.getDrafter().getUsername().equals(username)) {
+            throw ApiException.badRequest("기안자만 고칠 수 있습니다.");
+        }
+        List<Long> approverIds = req.approverIds() == null ? List.of() : req.approverIds();
+        String title = req.title() == null ? "" : req.title().trim();
+        if (!req.temporary() && title.isEmpty()) throw ApiException.badRequest("제목을 입력하세요.");
+        if (!req.temporary() && approverIds.isEmpty()) {
+            throw ApiException.badRequest("결재자를 1명 이상 지정하세요. 결재선 없이 보관하려면 임시저장을 쓰세요.");
+        }
+        doc.setTitle(title);
+        doc.setContent(req.content() != null ? req.content() : "");
+        doc.setFormData(req.formData() != null ? req.formData() : Map.of());
+        doc.setDepartment(req.department());
+        doc.setProject(resolveProject(req.projectId()));
+        doc.setReference(req.reference());
+        doc.setCategory(req.category());
+        doc.setPrintFormat(req.printFormat());
+        doc.setLabelText(req.labelText());
+        doc.setAttachment(req.attachmentId() == null ? null : findStoredFile(req.attachmentId()));
+        // 결재선 · 참조 · 공유는 통째로 다시 잡는다 — 지운 줄을 먼저 내보내야 같은 차례 번호로 다시 넣을 수 있다.
+        doc.getLines().clear();
+        doc.getParticipants().clear();
+        approvalRepository.saveAndFlush(doc);
+        int step = 1;
+        for (Long approverId : approverIds) {
+            doc.addLine(ApprovalLine.builder()
+                    .stepOrder(step++)
+                    .approver(findUser(approverId, "결재자"))
+                    .status(ApprovalLineStatus.PENDING)
+                    .build());
+        }
+        addParticipants(doc, req.referenceUserIds(), ApprovalParticipantRole.REFERENCE);
+        addParticipants(doc, req.shareUserIds(), ApprovalParticipantRole.SHARE);
+        if (!req.temporary()) {
+            doc.setStatus(ApprovalStatus.IN_PROGRESS);
+            doc.setCurrentStep(1);
+            linkedSales(doc).forEach(Sales::markInApproval);
+            approvalRepository.saveAndFlush(doc);
+            notifyCurrentApprover(doc);
+        }
+        return ApprovalResponse.from(doc);
+    }
+
     private void addParticipants(ApprovalDocument doc, List<Long> userIds, ApprovalParticipantRole role) {
         if (userIds == null) return;
         userIds.stream().distinct().forEach(uid -> doc.addParticipant(ApprovalParticipant.builder()
@@ -190,6 +246,10 @@ public class ApprovalService {
         }
         if (doc.getLines().isEmpty()) {
             throw ApiException.badRequest("결재선이 비어 있습니다.");
+        }
+        // 제목 없이 임시저장한 문서(원본은 받는다)는 상신할 때 묻는다.
+        if (doc.getTitle() == null || doc.getTitle().isBlank()) {
+            throw ApiException.badRequest("제목을 입력하세요.");
         }
         doc.setStatus(ApprovalStatus.IN_PROGRESS);
         doc.setCurrentStep(1);

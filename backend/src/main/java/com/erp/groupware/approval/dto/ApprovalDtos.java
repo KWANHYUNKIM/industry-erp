@@ -27,7 +27,8 @@ public final class ApprovalDtos {
             Long formTemplateId,
             String formType,
             @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
-            @NotBlank(message = "제목을 입력하세요.") String title,
+            /** 임시저장은 제목 없이도 받는다(원본 2026-10-14) — 상신만 서비스가 묻는다. */
+            String title,
             String content,
             Map<String, Object> formData,
             LocalDate draftDate,
@@ -163,6 +164,12 @@ public final class ApprovalDtos {
             java.time.LocalDateTime lastActedAt = lastLine
                     .map(com.erp.groupware.approval.ApprovalLine::getActedAt)
                     .orElseGet(d::getCreatedAt);
+            // 원본 기안서통합관리 [삭제] 알약의 작업자 · 작업일시는 지운 사람 · 지운 때다(2026-10-14 실측 '2026/10/14 오전 0:02:16').
+            // 지우는 것은 기안자만 할 수 있다(ApprovalService.delete).
+            if (d.isDeleted() && d.getDeletedAt() != null) {
+                lastActorName = d.getDrafter().getName();
+                lastActedAt = d.getDeletedAt();
+            }
             return new ApprovalResponse(
                     d.getId(), d.getDocNo(), d.getDraftNo(),
                     d.getFormTemplate().getId(),

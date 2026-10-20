@@ -1,5 +1,5 @@
 {
-  "about": "업무일지 [H] '이력' · [답글펼치기](원본 E070304, 2026-10-14 실측) — 원글을 API 로 넣고 → 조회 창 [H] '게시글번호 : 번호' · '1 … 신규' → [수정] 으로 제목 고쳐 저장 → [H] 에 '2 … 수정' → [답글(F8)] 로 답글 → 답글 카드 [H] 머리도 원글 번호 → [답글펼치기] → [답글접기] 로만 바뀌고 본문 그대로 → [답글접기] → 답글 카드 머리 줄만. 끝에 지운다. node qa/shot.mjs qa/flows/worklog-history.json",
+  "about": "업무일지 [H] '이력' · [답글펼치기](원본 E070304, 2026-10-14 실측) — 원글을 API 로 넣고 → 조회 창 [H] '게시글번호 : 번호' · '1 … 신규' → [수정] 으로 제목 고쳐 저장 → [H] 에 '2 … 수정' → [답글(F8)] 로 답글 → 답글 카드 [H] 머리도 원글 번호 → [답글펼치기] → [답글접기] 로만 바뀌고 본문 그대로 → [답글접기] → 답글 카드 머리 줄만. → [R] '조회자 현황'(미조회자에 글쓴이 없음 · 조회자 빈 줄 하나) · [금년] 검색은 '검색된 일자가 255일을 초과했습니다.'(2026-10-20). 끝에 지운다. node qa/shot.mjs qa/flows/worklog-history.json",
   "shots": [
     {
       "name": "준비 — 원글 하나",
@@ -52,7 +52,23 @@
         "js:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === '답글접기').click(); true",
         "wait:300",
         "expect:[...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].some((b) => b.textContent.trim() === '답글펼치기') && [...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].filter((b) => b.textContent.trim() === 'H').length === 1 && document.querySelector('[role=dialog][aria-label=\"조회\"]').innerText.includes('QA그룹웨어-이력답글')",
+        "js:/* 원본 [R] '조회자 현황'(2026-10-20 실측) — 글쓴이 자신이 연 것은 조회자에 안 오른다 */ [...document.querySelector('[role=dialog][aria-label=\"조회\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === 'R').click(); true",
+        "wait:1200",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const j = (await (await fetch('/api/work-journals', { headers: H })).json()).find((x) => x.title === 'QA그룹웨어-이력글2'); const h = document.querySelector('[role=dialog][aria-label=\"조회자 현황\"]'); if (!h || !j) return false; const t = h.querySelectorAll('table'); const names = [...t[0].querySelectorAll('tbody td')].map((x) => x.innerText.trim()); return h.innerText.includes('미조회자') && h.innerText.includes('최초조회일시') && h.innerText.includes('최종조회일시') && names.length > 0 && !names.includes(j.authorName) && t[1].querySelectorAll('tbody tr').length === 1 && t[1].querySelector('tbody td').innerText.trim() === '' })()",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"조회자 현황\"]').querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
+        "wait:300",
         "click:닫기"
+      ]
+    },
+    {
+      "name": "업무보고일 255일 넘으면 알림",
+      "path": "/groupware/worklog",
+      "steps": [
+        "wait:800",
+        "click:금년",
+        "click:검색(F8)",
+        "wait:500",
+        "expect:document.body.innerText.includes('검색된 일자가 255일을 초과했습니다.') && document.body.innerText.includes('검색조건을 재설정해주시기 바랍니다.')"
       ]
     },
     {

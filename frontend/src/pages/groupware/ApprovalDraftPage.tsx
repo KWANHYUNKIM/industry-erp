@@ -10,6 +10,7 @@ import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import { ecConfirm } from '../../components/EcDialog'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
 import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
@@ -37,7 +38,10 @@ function initialFormData(t: ApprovalFormTemplate): Record<string, unknown> {
 export default function ApprovalDraftPage() {
   const navigate = useNavigate()
   // 기안서통합관리의 '기안서복사'가 원본 문서를 넘겨준다.
-  const copyFrom = (useLocation().state as { copyFrom?: ApprovalDoc } | null)?.copyFrom ?? null
+  const navState = useLocation().state as { copyFrom?: ApprovalDoc; editOf?: ApprovalDoc } | null
+  const copyFrom = navState?.copyFrom ?? null
+  /** 내결재관리 기안중 줄 [기안일자] 로 연 임시저장 문서 — 같은 창에서 고쳐 같은 번호로 다시 저장한다(원본 E070105). */
+  const editOf = navState?.editOf ?? null
   const [members, setMembers] = useState<MemberOption[]>([])
   const [templates, setTemplates] = useState<(ApprovalFormTemplate & WithGroup)[]>([])
   /** 원본 [구분] 코드도움의 후보 — '구분검색'(01 지출결의서 · 02 휴가신청서 …). */
@@ -129,6 +133,25 @@ export default function ApprovalDraftPage() {
       .get<(ApprovalFormTemplate & WithGroup)[]>('/approval-form-templates', { params: { forDraft: true } })
       .then((r) => {
         setTemplates(r.data)
+        if (editOf) {
+          const e = r.data.find((x) => x.id === editOf.formTemplateId)
+          if (!e) return
+          setSelected(e)
+          const extra = editOf as { category?: string | null; printFormat?: string | null }
+          setCategory(extra.category ?? e.groupName ?? '')
+          setTitle(editOf.title)
+          setDraftDate(editOf.draftDate)
+          setDepartment(editOf.department ?? '')
+          setBody(editOf.content ?? '')
+          setFormData({ ...initialFormData(e), ...(editOf.formData ?? {}) })
+          setPrintFormat(extra.printFormat ?? '기안No.')
+          setLabelText(editOf.labelText ?? '')
+          setAttachment(editOf.attachmentId ? { id: editOf.attachmentId, name: editOf.attachmentName ?? '' } : null)
+          setApproverIds([...editOf.lines].sort((a, b) => a.stepOrder - b.stepOrder).map((l) => l.approverId))
+          setReferenceIds(editOf.participants.filter((p) => p.role === 'REFERENCE').map((p) => p.userId))
+          setShareIds(editOf.participants.filter((p) => p.role === 'SHARE').map((p) => p.userId))
+          return
+        }
         if (!copyFrom) return
         // 복사: 양식·제목·본문·입력값을 그대로 가져오되 결재선과 일자는 새로 잡는다.
         const t = r.data.find((x) => x.id === copyFrom.formTemplateId)
@@ -199,9 +222,19 @@ export default function ApprovalDraftPage() {
     }
   }
 
+  async function removeDraft() {
+    if (!editOf) return
+    if (!(await ecConfirm('기안서를 삭제하겠습니까?\n삭제된 기안서는 복구되지 않습니다.'))) return
+    try {
+      await api.delete(`/approvals/${editOf.id}`)
+      navigate('/groupware/approval/my')
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+
   async function save(temporary: boolean) {
     setError('')
-    if (!title.trim()) return setError('제목을 입력하세요.')
+    // 원본(2026-10-14): 임시저장은 제목 없이도 받는다 — 목록에 제목 빈 '2026/10/14-1' 줄이 생긴다. 상신만 제목을 묻는다.
+    if (!temporary && !title.trim()) return setError('제목을 입력하세요.')
     if (!temporary && approverIds.length === 0) {
       return setError('결재자를 1명 이상 지정하세요. 결재선 없이 보관하려면 임시저장을 쓰세요.')
     }
@@ -210,7 +243,7 @@ export default function ApprovalDraftPage() {
     }
     setSaving(true)
     try {
-      const res = await api.post<ApprovalDoc>('/approvals', {
+      const body0 = {
         formTemplateId: selected!.id,
         title,
         content: body,
@@ -225,12 +258,13 @@ export default function ApprovalDraftPage() {
         referenceUserIds: referenceIds,
         shareUserIds: shareIds,
         temporary,
-      })
-      /* 곧바로 목록으로 넘어가 이 화면의 안내는 못 본다 — 번호는 목록 화면이 받아 띄운다(창을 띄우지 않는다). */
-      const d = res.data
-      navigate('/groupware/approval/my', { state: { notice: temporary
-        ? `${d.docNo} 기안서 임시저장 완료 · ${d.title}`
-        : `${d.docNo} 기안서 상신 완료 · ${d.title} · 결재자 ${approverIds.length}명` } })
+      }
+      const res = editOf
+        ? await api.put<ApprovalDoc>(`/approvals/${editOf.id}`, body0)
+        : await api.post<ApprovalDoc>('/approvals', body0)
+      /* 원본(2026-10-14)은 저장하면 안내 없이 창만 닫히고 목록(내결재관리)에 줄이 생긴다 — 'AP-…' 번호 안내는 원본에 없다. */
+      void res
+      navigate('/groupware/approval/my')
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -567,6 +601,8 @@ export default function ApprovalDraftPage() {
                 {/* 원본 푸터: 저장/결재(F7)▴ · 임시저장/미리보기 · 양식샘플보기 · My도장/서명 · 닫기 */}
                 <button className="ec-btn ec-btn-primary" onClick={() => void save(false)} disabled={saving}>{saving ? '처리 중…' : '저장/결재(F7)'}</button>
                 <button className="ec-btn" onClick={() => void save(true)} disabled={saving}>임시저장/미리보기</button>
+                {/* 원본: 임시저장 문서를 다시 연 창에는 [삭제] 가 더 있다(2026-10-14 E070105 실측 — [H] 는 이력 표가 없어 두지 않음) */}
+                {editOf && <button className="ec-btn" onClick={() => void removeDraft()} disabled={saving}>삭제</button>}
                 <button
                   className="ec-btn"
                   title="이 양식이 어떤 항목을 요구하는지 미리 봅니다."

@@ -14,8 +14,8 @@
         "expect:document.querySelector('[role=dialog]')?.innerText.includes('필수 항목을 입력하세요: 시행 일자')",
         "setnear:시행 일자|2026-10-01",
         "click:저장/결재",
-        "expect:/AP-[0-9]{8}-[0-9]{4} 기안서 상신 완료/.test(document.body.innerText)",
-        "js:sessionStorage.setItem('qaAp', document.body.innerText.match(/AP-[0-9]{8}-[0-9]{4}(?= 기안서 상신 완료)/)[0]); true"
+        "expect:location.pathname === '/groupware/approval/my' && !/AP-[0-9]{8}-[0-9]{4} 기안서/.test(document.body.innerText)",
+        "js:/* 원본은 저장 안내(AP-… 번호)가 없다 — 지울 때 제목으로 찾는다 */ sessionStorage.setItem('qaAp', 'QA 15회차 결재 시험'); true"
       ]
     },
     {
@@ -37,7 +37,7 @@
       "name": "뒷정리(기안자)",
       "path": "/groupware/approval/my",
       "steps": [
-        "apidel:/approvals|@qaAp|docNo"
+        "apidel:/approvals|@qaAp|title"
       ]
     }
   ]

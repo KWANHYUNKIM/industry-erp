@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public final class WorkJournalDtos {
 
@@ -49,5 +50,10 @@ public final class WorkJournalDtos {
                     j.getProject() != null ? j.getProject().getName() : null,
                     j.getTitle(), j.getContent(), j.getCreatedAt(), j.getParentId());
         }
+    }
+
+    /** 원본 [R] '조회자 현황' — 왼쪽 [미조회자] 이름, 오른쪽 [조회자] 이름 · 최초조회일시 · 최종조회일시. */
+    public record WorkJournalViewersResponse(List<String> notViewed, List<Viewer> viewed) {
+        public record Viewer(String name, java.time.LocalDateTime firstViewedAt, java.time.LocalDateTime lastViewedAt) {}
     }
 }

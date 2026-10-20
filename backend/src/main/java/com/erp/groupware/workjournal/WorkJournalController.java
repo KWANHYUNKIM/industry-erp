@@ -47,6 +47,19 @@ public class WorkJournalController {
         return workJournalService.history(id);
     }
 
+    /** '조회' 창을 열 때 — 조회 기록(글쓴이 자신은 적지 않는다) */
+    @PostMapping("/{id}/views")
+    public ResponseEntity<Void> markViewed(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        workJournalService.markViewed(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 원본 [R] '조회자 현황' */
+    @GetMapping("/{id}/viewers")
+    public WorkJournalDtos.WorkJournalViewersResponse viewers(@PathVariable Long id) {
+        return workJournalService.viewers(id);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         workJournalService.delete(id, principal.getUsername());

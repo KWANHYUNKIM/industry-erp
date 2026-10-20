@@ -23,6 +23,12 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
  * '지운 문서'를 마지막 칸으로 본다. 우리는 둘 다 '삭제'로 두고 있었다.
  */
 const COMMON_TABS = ['전체', '기안중', '진행중', '반려', '결재'] as const
+/** 원본 작업일시 꼴 — '2026/10/14 오전 0:02:16' */
+const actedText = (iso: string) => {
+  const d = new Date(iso)
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${p2(d.getMonth() + 1)}/${p2(d.getDate())} ${d.toLocaleTimeString('ko-KR')}`
+}
 const TABS_MINE = [...COMMON_TABS, '수신참조'] as const
 const TABS_ALL = [...COMMON_TABS, '삭제'] as const
 type Tab = (typeof TABS_MINE)[number] | (typeof TABS_ALL)[number]
@@ -102,7 +108,13 @@ export default function ApprovalListPage({
    *   내결재관리     — 기안일자 · 제목 · 기안자 · 결재자 · 진행상태 · 결재 · 기안서복사 · 연결전표 · 첨부
    */
   const isAll = scope === 'all'
-  const colCount = isAll ? 14 : 10
+  /*
+   * 원본 기안서통합관리 [삭제] 알약만 열이 다르다(2026-10-20 E070108 실측):
+   *   다른 알약 — 기안일자 · 제목 · ERP전표(건) · 구분 · 기안자 · 결재자 · 진행상태 · 결재 · 기안서복사 · 조회 · 연결전표
+   *   [삭제]    — 기안일자 · 제목 · 구분 · 기안자 · 결재자 · 결재 · 작업자 · 작업일시(지운 때)
+   */
+  const delView = isAll && tab === '삭제'
+  const colCount = delView ? 9 : isAll ? 12 : 10
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   /** 기안서 작성 화면이 넘겨준 저장 결과(번호). 넘어오자마자 보여 줄 자리가 여기뿐이다. */
@@ -508,24 +520,19 @@ export default function ApprovalListPage({
               </th>
               <th className="cursor-pointer" onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
               <th>제목</th>
-              {isAll && <th className="text-center">ERP전표(건)</th>}
+              {isAll && !delView && <th className="text-center">ERP전표(건)</th>}
               {isAll && <th className="cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>}
               <th className="cursor-pointer" onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
               <th>결재자</th>
-              <th className="text-center">진행상태</th>
+              {!delView && <th className="text-center">진행상태</th>}
               <th className="text-center">결재</th>
-              <th className="text-center">기안서복사</th>
-              {isAll && <th className="text-center">조회</th>}
-              <th>연결전표</th>
+              {!delView && <th className="text-center">기안서복사</th>}
+              {isAll && !delView && <th className="text-center">조회</th>}
+              {!delView && <th>연결전표</th>}
               {!isAll && <th className="text-center">첨부</th>}
-              {/*
-                원본 기안서통합관리에서 이 둘은 <b>맨 마지막 두 열</b>이다(대조표 실측).
-                주석에는 그렇게 적어 두고 정작 [결재자] 바로 뒤에 세워 두어,
-                원본을 쓰던 사람이 오른쪽 끝에서 찾던 값이 가운데에 있었다.
-                내결재관리(mine)에는 원본에도 없다 — 그래서 scope 로 가른다.
-              */}
-              {scope === 'all' && <th className="w-[90px]">작업자</th>}
-              {scope === 'all' && <th className="w-[150px]">작업일시</th>}
+              {/* 작업자 · 작업일시는 통합관리 [삭제] 알약의 맨 마지막 두 열뿐이다(2026-10-20 실측 — 다른 알약 · 내결재관리에는 없다). */}
+              {delView && <th className="w-[90px]">작업자</th>}
+              {delView && <th className="w-[150px]">작업일시</th>}
             </tr>
           </thead>
           <tbody>
@@ -548,43 +555,47 @@ export default function ApprovalListPage({
                 >
                   {i + 1}
                 </td>
-                <td className="whitespace-nowrap">{r.draftNo}</td>
+                <td className="whitespace-nowrap">
+                  {/* 원본: 기안중(임시저장) 줄의 [기안일자] 는 링크 — 같은 작성 창이 [삭제] 와 함께 열려 고쳐 다시 저장한다(같은 번호). */}
+                  {r.status === 'DRAFTING' && !r.deleted
+                    ? <a onClick={() => navigate('/groupware/approval/draft', { state: { editOf: r } })} className="text-ec-navy cursor-pointer">{r.draftNo}</a>
+                    : r.draftNo}
+                </td>
                 <td><a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a></td>
-                {isAll && <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>}
+                {isAll && !delView && <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>}
                 {/* 원본 [구분]은 기안서의 구분(휴가신청서 · 지출결의서)이다 — 구분 없는 문서(비품 구매 신청서)는 빈칸. 양식 이름은 칸 풍선으로. */}
                 {isAll && <td title={r.formTypeName}>{catOf(r)}</td>}
                 <td>{r.drafterName}</td>
                 <td>{r.currentApproverName ?? ''}</td>
+                {!delView && (
                 <td className="text-center">
                   {r.deleted
                     ? <span className="text-ec-hint">삭제</span>
                     : <span style={{ color: statusColor(r.status) }}>{STATUS_LABEL[r.status]}</span>}
                 </td>
+                )}
                 <td className="text-center">
                   {/* 원본 기안서통합관리의 [결재] 칸은 줄마다 '보기'(문서를 열어 거기서 결재한다), [조회]는 빈칸. 내결재관리는 그 자리에서 승인 · 반려. */}
                   {/* 원본 내결재관리도 [결재] 칸은 '보기' — 문서를 열어 그 안의 [승인][반려]로 결재한다. 아직 올리지 않은 내 기안만 [상신]. */}
                   {/* 기안중(임시저장) 줄도 원본은 '보기' — 상신은 문서를 열어 [저장/결재(F7)] 로 한다(2026-10-14 E070105 실측). */}
                   <a onClick={() => setDetail(r)} className="text-ec-navy cursor-pointer">보기</a>
                 </td>
-                <td className="text-center">
+                {!delView && <td className="text-center">
                   {/* 원본은 기안중(임시저장) 줄의 [기안서복사] 가 빈칸이다. */}
                   {r.status !== 'DRAFTING' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => copy(r)}>복사</button>}
-                </td>
-                {isAll && <td className="text-center" />}
-                <td className="whitespace-nowrap">
+                </td>}
+                {isAll && !delView && <td className="text-center" />}
+                {!delView && <td className="whitespace-nowrap">
                   {r.vouchers.map((v) => (
                     <span key={v.id} className="inline-block mr-[4px] py-[1px] px-[6px] rounded-[10px] text-[11px] bg-ec-blue-wash text-ec-navy">
                       {VOUCHER_LABEL[v.voucherType] ?? v.voucherType} {v.voucherNo}
                     </span>
                   ))}
-                </td>
+                </td>}
                 {!isAll && <td className="text-center" title={r.attachmentName ?? undefined}>{r.attachmentId ? '📎' : ''}</td>}
-                {scope === 'all' && <td>{r.lastActorName ?? ''}</td>}
-                {scope === 'all' && (
-                  <td className="text-[11.5px] text-ec-label">
-                    {r.lastActedAt ? r.lastActedAt.replace('T', ' ').slice(0, 16) : ''}
-                  </td>
-                )}
+                {delView && <td>{r.lastActorName ?? ''}</td>}
+                {/* 원본 작업일시 '2026/10/14 오전 0:02:16' — 지운 때(서버가 지운 문서는 lastActedAt 에 deletedAt 을 싣는다) */}
+                {delView && <td>{r.lastActedAt ? actedText(r.lastActedAt) : ''}</td>}
               </tr>
             )})}
           </tbody>

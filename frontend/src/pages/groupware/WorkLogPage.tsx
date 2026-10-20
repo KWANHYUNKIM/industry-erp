@@ -13,7 +13,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { inactiveDeptNames, showsJournal, type DeptRow } from '../../utils/inactiveDept'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const WORKLOG_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '종료일', '최근3일+7일'] as const
 
@@ -29,6 +29,12 @@ const stampText = (iso: string | null) => {
   const d = new Date(iso)
   return `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${d.toLocaleTimeString('ko-KR')}`
 }
+/** 원본 [R] '조회자 현황' 응답 */
+type Viewers = { notViewed: string[]; viewed: { name: string; firstViewedAt: string; lastViewedAt: string }[] }
+/** 원본: 업무보고일 기간이 255일을 넘으면 검색하지 않고 알린다(2026-10-20 실측 — [금년]). */
+const MAX_DAYS = 255
+const spanDays = (from: string, to: string) =>
+  Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86400000) + 1
 /** from ~ to 의 날짜(요일 조건이 있으면 그 요일만). 너무 긴 기간은 1년으로 자른다. */
 function daysOf(from: string, to: string, onlyDow: string): string[] {
   if (!from || !to || from > to) return []
@@ -72,8 +78,12 @@ const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerNam
  * 저장할 때마다 1 GUEST … 신규 · 2 … 수정). 하단 [답글펼치기] 는 처음엔 답글 본문이 펼쳐진 채이고 누르면 [답글접기] 로만 바뀌며,
  * [답글접기] 를 누르면 답글 카드가 머리 줄(↳ 번호 · 제목 · 작성자 · 시각)만 남는다(원본 실측 차례 그대로).
  *
- * <p>두지 않은 것: 조회 창의 R('조회자 현황' — 미조회자 이름 · 조회자 이름 · 최초조회일시 · 최종조회일시, 조회 기록 표가 없다),
- * 답글 · 수정 창의 [본문보기], 입력 창의 첨부 · 서식 편집기.
+ * <p><b>2026-10-20 [R] · 255일.</b> 조회 창 하단 [답변][인쇄][닫기][R][답글펼치기] — [R] 은 '조회자 현황' 창(화면 폭의 절반):
+ * 왼쪽 '미조회자' 이름 격자(글쓴이 빼고 회사 사용자 전부, 한글 이름 먼저), 오른쪽 '조회자' 이름 · 최초조회일시 · 최종조회일시
+ * (아무도 안 봤으면 빈 줄 하나), 하단 [닫기]. 글쓴이 자신이 열어 본 것은 조회자에 오르지 않는다.
+ * 업무보고일 기간이 255일을 넘으면 '검색된 일자가 255일을 초과했습니다. / 검색조건을 재설정해주시기 바랍니다.' 만 띄운다.
+ *
+ * <p>두지 않은 것: 답글 · 수정 창의 [본문보기], 입력 창의 첨부 · 서식 편집기.
  * 원본은 조회 창에서 지운 뒤 격자를 다시 읽지 않아 지운 제목이 [검색] 전까지 남는데, 우리는 바로 다시 읽는다.
  */
 export default function WorkLogPage() {
@@ -106,6 +116,8 @@ export default function WorkLogPage() {
   const [replyFold, setReplyFold] = useState<'init' | 'open' | 'closed'>('init')
   /** [H] '이력' 창을 띄울 글 */
   const [historyOf, setHistoryOf] = useState<WorkJournal | null>(null)
+  /** [R] '조회자 현황' */
+  const [viewers, setViewers] = useState<Viewers | null>(null)
   /** 답글 창이면 원글 id — 저장할 때 parentId 로 보낸다. */
   const [replyTo, setReplyTo] = useState<number | null>(null)
   /** 저장을 눌렀는데 비어 있던 필수칸 — 원본은 문구 없이 그 칸만 빨갛게 두른다(부서 · 제목). */
@@ -121,6 +133,9 @@ export default function WorkLogPage() {
 
   async function search() {
     setError('')
+    if (cond.from && cond.to && spanDays(cond.from, cond.to) > MAX_DAYS) {
+      return void ecAlert(`검색된 일자가 ${MAX_DAYS}일을 초과했습니다.\n검색조건을 재설정해주시기 바랍니다.`)
+    }
     try {
       const r = await api.get<WorkJournal[]>('/work-journals', { params: { from: cond.from || undefined, to: cond.to || undefined } })
       setRows(r.data)
@@ -176,6 +191,16 @@ export default function WorkLogPage() {
       cur = p
     }
     return cur.id
+  }
+  /** 제목을 눌러 '조회' 창을 연다 — 조회 기록을 남긴다(글쓴이 자신은 서버가 뺀다). */
+  function openView(r: WorkJournal) {
+    setViewing(r)
+    api.post(`/work-journals/${r.id}/views`).catch(() => { /* 기록을 못 남겨도 창은 연다 */ })
+  }
+  async function openViewers(r: WorkJournal) {
+    try {
+      setViewers((await api.get<Viewers>(`/work-journals/${r.id}/viewers`)).data)
+    } catch (err) { setError(extractErrorMessage(err)) }
   }
   const fill = (r: WorkJournal): Form => ({
     reportDate: r.reportDate, department: r.department ?? '', partnerName: r.partnerName ?? '',
@@ -383,7 +408,7 @@ export default function WorkLogPage() {
                         <Fragment key={d}>
                           <td className="w-[150px] text-center">
                             {r && (
-                              <button type="button" onClick={() => setViewing(r)}
+                              <button type="button" onClick={() => openView(r)}
                                       className="no-ec block w-full bg-transparent border-0 p-0 cursor-pointer text-center text-ec-navy truncate">
                                 {r.title}
                               </button>
@@ -436,6 +461,7 @@ export default function WorkLogPage() {
               <button type="button" className="ec-btn ec-btn-primary" onClick={() => openReply(viewing)}>답변</button>
               <button type="button" className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
               <button type="button" className="ec-btn" onClick={() => { setViewing(null); setReplyFold('init') }}>닫기</button>
+              <button type="button" className="ec-btn" onClick={() => void openViewers(viewing)}>R</button>
               <button type="button" className="ec-btn"
                       onClick={() => setReplyFold((f) => (f === 'open' ? 'closed' : 'open'))}>{replyFold === 'open' ? '답글접기' : '답글펼치기'}</button>
             </div>
@@ -480,6 +506,47 @@ export default function WorkLogPage() {
             <button type="button" className="ec-btn" onClick={() => setHistoryOf(r)}>H</button>
           </> : null })()}
         </div>
+      </Modal>
+
+      {/* 원본 [R] '조회자 현황' — 왼쪽 미조회자(160) · 오른쪽 조회자(480), 하단 [닫기] */}
+      <Modal error={error} open={!!viewers} title="조회자 현황" width={Math.round(window.innerWidth / 2)} onClose={() => setViewers(null)}>
+        {viewers && (
+          <>
+            <div className="flex flex-wrap items-start gap-[12px]">
+              <div className="w-[160px]">
+                <div className="mb-[4px]">미조회자</div>
+                <table className="w-full">
+                  <thead><tr><th className="text-center">이름</th></tr></thead>
+                  <tbody>
+                    {viewers.notViewed.length === 0
+                      ? <tr><td className="text-center">&nbsp;</td></tr>
+                      : viewers.notViewed.map((n, i) => <tr key={`${n}-${i}`}><td className="text-center">{n}</td></tr>)}
+                  </tbody>
+                </table>
+              </div>
+              <div className="w-[480px]">
+                <div className="mb-[4px]">조회자</div>
+                <table className="w-full">
+                  <thead><tr><th className="text-center">이름</th><th className="text-center">최초조회일시</th><th className="text-center">최종조회일시</th></tr></thead>
+                  <tbody>
+                    {viewers.viewed.length === 0
+                      ? <tr><td className="text-center">&nbsp;</td><td className="text-center" /><td className="text-center" /></tr>
+                      : viewers.viewed.map((v, i) => (
+                        <tr key={`${v.name}-${i}`}>
+                          <td className="text-center">{v.name}</td>
+                          <td className="text-center">{stampText(v.firstViewedAt)}</td>
+                          <td className="text-center">{stampText(v.lastViewedAt)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="flex gap-[6px] mt-[10px]">
+              <button type="button" className="ec-btn" onClick={() => setViewers(null)}>닫기</button>
+            </div>
+          </>
+        )}
       </Modal>
 
       {historyOf && (

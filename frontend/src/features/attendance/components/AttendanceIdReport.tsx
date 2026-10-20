@@ -38,6 +38,8 @@ const PICKS: Record<AttendanceIdKind, readonly string[]> = {
 /** 표준근무시간(분) — 09:00 ~ 18:00 에서 점심 한 시간을 뺀 것. */
 export const STANDARD_MINUTES = 480
 const EARLY_LEAVE = '18:00'
+const ATT_KINDS = ['전체', '정상근무', '지각', '조기퇴근', '결근'] as const
+const STATES = ['전체', '결재중', 'UserPay', '확인'] as const
 
 const hours = (m: number) => (m / 60).toFixed(2)
 const hm = (t: string | null) => (t ? t.slice(0, 5) : '')
@@ -65,13 +67,18 @@ export default function AttendanceIdReport({ kind }: { kind: AttendanceIdKind })
   const [to, setTo] = useState(() => ymd(new Date()))
   const [empName, setEmpName] = useState('')
   const [dept, setDept] = useState('')
-  const [inOut, setInOut] = useState('전체')
+  /* 원본(2026-10-20 실측) 처음 값: 출/퇴근현황(ID) 내/외근구분 ◉내근, 통합현황 ◉전체 · 근태구분 ☑ 다섯 · 근무구분 ◉업무일 · 상태 ☑ 넷 */
+  const inOutInit = kind === 'status' ? '내근' : '전체'
+  const [inOut, setInOut] = useState(inOutInit)
   const [allDates, setAllDates] = useState(false)
-  const [attKind, setAttKind] = useState('전체')
-  const [dayKind, setDayKind] = useState('전체')
+  const [attKinds, setAttKinds] = useState<Set<string>>(() => new Set(ATT_KINDS))
+  const [dayKind, setDayKind] = useState('업무일')
   const [project, setProject] = useState('')
+  const [attItem, setAttItem] = useState('')
   const [leaveItem, setLeaveItem] = useState('')
+  const [attGroup, setAttGroup] = useState('')
   const [remark, setRemark] = useState('')
+  const [states, setStates] = useState<Set<string>>(() => new Set(STATES))
   const [lines, setLines] = useState<Line[]>([])
   const [shown, setShown] = useState({ from, to })
 
@@ -82,8 +89,9 @@ export default function AttendanceIdReport({ kind }: { kind: AttendanceIdKind })
   useEffect(() => { api.get<UserOpt[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
 
   function reset() {
-    setFrom(monthStart()); setTo(ymd(new Date())); setEmpName(''); setDept(''); setInOut('전체'); setAllDates(false)
-    setAttKind('전체'); setDayKind('전체'); setProject(''); setLeaveItem(''); setRemark('')
+    setFrom(monthStart()); setTo(ymd(new Date())); setEmpName(''); setDept(''); setInOut(inOutInit); setAllDates(false)
+    setAttKinds(new Set(ATT_KINDS)); setDayKind('업무일'); setProject(''); setAttItem(''); setLeaveItem(''); setAttGroup(''); setRemark('')
+    setStates(new Set(STATES))
   }
 
   const has = (v: string | null | undefined, q: string) => !q.trim() || (v ?? '').includes(q.trim())
@@ -119,7 +127,8 @@ export default function AttendanceIdReport({ kind }: { kind: AttendanceIdKind })
             const evs = ev.filter((e) => e.eventDate === d && e.owner === u.name && has(e.projectName, project))
             if (project.trim() && evs.length === 0) continue
             const state = !a?.clockIn ? (holiday ? '' : '결근') : a.late ? '지각' : a.clockOut && hm(a.clockOut) < EARLY_LEAVE ? '조기퇴근' : '정상근무'
-            if (attKind !== '전체' && state !== attKind) continue
+            if (!attKinds.has('전체') && !attKinds.has(state)) continue
+            if (attItem.trim() && !leave.includes(attItem.trim())) continue
             if (leaveItem.trim() && !leave.includes(leaveItem.trim())) continue
             if (remark.trim() && !has(a?.note, remark)) continue
             out.push({ key: `${d}|${u.username}`, date: d, name: u.name, att: a, leave, events: evs.map((e) => e.title).join(', ') })
@@ -158,13 +167,35 @@ export default function AttendanceIdReport({ kind }: { kind: AttendanceIdKind })
   const numericFrom = kind === 'daily' ? 2 : kind === 'status' ? 4 : kind === 'integrated' ? 4 : 99
   const numericTo = kind === 'integrated' ? 4 : 99
 
-  const sel = (label: string, value: string, set: (v: string) => void, opts: string[]) => (
+  /** 원본 라디오 줄(◉전체 ◯내근 ◯외근) */
+  const radios = (label: string, value: string, set: (v: string) => void, opts: string[]) => (
     <li key={label}>
       <div className="title">{label}</div>
-      <div className="form">
-        <select className="ec-input w-[140px]" aria-label={label} value={value} onChange={(e) => set(e.target.value)}>
-          {opts.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
+      <div className="form flex-wrap gap-x-[12px]" role="radiogroup" aria-label={label}>
+        {opts.map((o) => (
+          <label key={o} className="inline-flex items-center gap-[4px] cursor-pointer">
+            <input type="radio" name={`${kind}-${label}`} checked={value === o} onChange={() => set(o)} />{o}
+          </label>
+        ))}
+      </div>
+    </li>
+  )
+  /** 원본 체크칸 줄 — 처음엔 모두 켜짐, [전체] 는 나머지를 같이 켜고 끈다. */
+  const checks = (label: string, value: Set<string>, set: (v: Set<string>) => void, opts: readonly string[]) => (
+    <li key={label}>
+      <div className="title">{label}</div>
+      <div className="form flex-wrap gap-x-[12px]" aria-label={label}>
+        {opts.map((o) => (
+          <label key={o} className="inline-flex items-center gap-[4px] cursor-pointer">
+            <input type="checkbox" checked={value.has(o)} onChange={(e) => {
+              const n = new Set(value)
+              if (o === '전체') { if (e.target.checked) opts.forEach((x) => n.add(x)); else n.clear() }
+              else { if (e.target.checked) n.add(o); else { n.delete(o); n.delete('전체') } }
+              if (opts.slice(1).every((x) => n.has(x))) n.add('전체')
+              set(n)
+            }} />{o}
+          </label>
+        ))}
       </div>
     </li>
   )
@@ -189,10 +220,10 @@ export default function AttendanceIdReport({ kind }: { kind: AttendanceIdKind })
       text('부서', dept, setDept),
     ]
     if (kind === 'status') {
-      list.push(sel('내/외근구분', inOut, setInOut, ['전체', '내근', '외근', '기타']))
+      list.push(radios('내/외근구분', inOut, setInOut, ['전체', '내근', '외근']))
       list.push(
-        <li key="모든날짜검색">
-          <div className="title">모든날짜검색</div>
+        <li key="기타">
+          <div className="title">기타</div>
           <div className="form">
             <label className="inline-flex items-center gap-[4px] cursor-pointer">
               <input type="checkbox" aria-label="모든날짜검색" checked={allDates} onChange={(e) => setAllDates(e.target.checked)} />모든날짜검색
@@ -201,16 +232,20 @@ export default function AttendanceIdReport({ kind }: { kind: AttendanceIdKind })
         </li>)
     }
     if (kind === 'integrated') {
-      list.push(sel('내/외근구분', inOut, setInOut, ['전체', '내근', '외근']))
-      list.push(sel('근태구분', attKind, setAttKind, ['전체', '정상근무', '지각', '조기퇴근', '결근']))
-      list.push(sel('근무구분', dayKind, setDayKind, ['전체', '업무일', '휴일']))
+      list.push(radios('내/외근구분', inOut, setInOut, ['전체', '내근', '외근']))
+      list.push(checks('근태구분', attKinds, setAttKinds, ATT_KINDS))
+      list.push(radios('근무구분', dayKind, setDayKind, ['전체', '업무일', '휴일']))
       list.push(text('프로젝트', project, setProject))
+      list.push(text('근태항목', attItem, setAttItem))
       list.push(text('휴가항목', leaveItem, setLeaveItem))
+      // 근태그룹 · 상태(결재중 · UserPay · 확인)는 원본 칸 그대로 두되, 우리 출퇴근 기록에는 그 값이 없어 거르지 않는다.
+      list.push(text('근태그룹', attGroup, setAttGroup))
       list.push(text('적요', remark, setRemark))
+      list.push(checks('상태', states, setStates, STATES))
     }
     return list
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, from, to, empName, dept, inOut, allDates, attKind, dayKind, project, leaveItem, remark])
+  }, [kind, from, to, empName, dept, inOut, allDates, attKinds, dayKind, project, attItem, leaveItem, attGroup, remark, states])
 
   const heads = HEADS[kind]
   return (
