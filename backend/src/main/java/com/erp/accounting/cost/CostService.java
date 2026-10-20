@@ -51,6 +51,7 @@ public class CostService {
     private final ProcessExpenseRepository processExpenseRepository;
     private final ProductionRepository productionRepository;
     private final PurchaseRepository purchaseRepository;
+    private final com.erp.inventory.item.ItemService itemService;
 
     @Transactional(readOnly = true)
     public List<CostResponse> findAll(String period) {
@@ -134,6 +135,11 @@ public class CostService {
             if (!item.isActive()) continue;
             if (itemCostRepository.existsByItemIdAndPeriod(item.getId(), p)) continue;
 
+            // 품목등록 [원가] 탭에 재료비표준원가를 넣은 품목은 그 값을 쓴다(원본 E040808 은 이 값을 옮긴다).
+            if (item.getMaterialStdCost() != null) {
+                itemCostRepository.save(fromItemMaster(item, p));
+                continue;
+            }
             BigDecimal mat = standardMaterialCost(item, bomOf.get(item.getId()), unitCost);
             if (mat == null) continue;   // 자재 단가를 하나도 모르면 지어내지 않는다
 
@@ -183,6 +189,69 @@ public class CostService {
             created.add(CostResponse.from(itemCostRepository.save(c)));
         }
         return created;
+    }
+
+    /**
+     * 원가생성/수정 [표준원가생성] — 원본 E040802 · E040808(2026-10-20 loginaa 실측).
+     *
+     * <p>확인 창: '기존에 생성된 내역이 있다면 생성내역이 모두 사라지고 새롭게 계산됩니다. / 표준원가는 재고1 &gt; 기초등록 &gt;
+     * 품목등록 &gt; 원가 탭에서 입력할 수 있습니다.' 그대로 — 표준원가 = <b>품목등록 원가 탭 값</b>
+     * (재료비표준원가 · 노무비표준원가 · 경비표준원가), 다시 만들면 <b>덮어쓴다</b>.
+     * 실측: 밀키스(L003, 상품) 재료비표준원가 500 → 표준원가현황 단가 500, 그 세트(L006 밀키스 1box = 12개) 6,000(= 12 × 500).
+     * 재고가 한 번도 움직이지 않은 새 품목(재료비표준원가 500)은 단가0포함을 켜도 줄이 없었다 — 그래서
+     * 줄은 그 기간에 재고 기록이 있는 품목({@code itemIds})에만 만든다. 세트 품목은 BOM 구성품 표준원가 × 수량의 합이다.
+     */
+    @Transactional
+    public List<CostResponse> buildStandard(String period, java.util.Collection<Long> itemIds) {
+        String p = period.trim();
+        Map<Long, List<BomLineResponse>> bomOf = new HashMap<>();
+        for (BomResponse b : bomService.findAll()) {
+            if (b.active() && (b.defaultVersion() || !bomOf.containsKey(b.productId()))) bomOf.put(b.productId(), b.lines());
+        }
+        Map<Long, ItemCost> existing = new HashMap<>();
+        for (ItemCost c : itemCostRepository.findRangeWithItem(p, p)) existing.put(c.getItem().getId(), c);
+
+        List<CostResponse> out = new ArrayList<>();
+        for (Long id : itemIds) {
+            Item item = itemService.get(id);
+            BigDecimal[] std = masterStandard(item, bomOf);
+            ItemCost c = existing.get(id);
+            if (c == null) {
+                c = ItemCost.builder().item(item).period(p).build();
+            }
+            c.setMaterialCost(std[0]);
+            c.setLaborCost(std[1]);
+            c.setOverheadCost(std[2]);
+            out.add(CostResponse.from(itemCostRepository.save(c)));
+        }
+        return out;
+    }
+
+    /** 품목 원가 탭의 [재료비 · 노무비 · 경비] 표준원가. 세트 품목은 BOM 구성품의 것 × 수량을 더한다. */
+    private BigDecimal[] masterStandard(Item item, Map<Long, List<BomLineResponse>> bomOf) {
+        List<BomLineResponse> lines = item.isSetItem() ? bomOf.get(item.getId()) : null;
+        if (lines == null || lines.isEmpty()) {
+            return new BigDecimal[]{scale(nz(item.getMaterialStdCost())), scale(nz(item.getLaborStdCost())),
+                    scale(nz(item.getExpenseStdCost()))};
+        }
+        BigDecimal[] sum = {BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO};
+        for (BomLineResponse l : lines) {
+            Item comp = itemService.get(l.componentId());
+            BigDecimal q = nz(l.quantity());
+            sum[0] = sum[0].add(nz(comp.getMaterialStdCost()).multiply(q));
+            sum[1] = sum[1].add(nz(comp.getLaborStdCost()).multiply(q));
+            sum[2] = sum[2].add(nz(comp.getExpenseStdCost()).multiply(q));
+        }
+        return new BigDecimal[]{scale(sum[0]), scale(sum[1]), scale(sum[2])};
+    }
+
+    /** 품목 원가 탭 값으로 만든 표준 = 실제(실적이 들어오면 원가계산 [생성] 이 실제를 다시 낸다). */
+    private ItemCost fromItemMaster(Item item, String period) {
+        BigDecimal[] std = masterStandard(item, java.util.Collections.emptyMap());
+        return ItemCost.builder().item(item).period(period)
+                .materialCost(std[0]).laborCost(std[1]).overheadCost(std[2])
+                .actualMaterial(std[0]).actualLabor(std[1]).actualOverhead(std[2])
+                .build();
     }
 
     /**

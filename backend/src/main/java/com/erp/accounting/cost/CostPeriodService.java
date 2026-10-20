@@ -32,6 +32,7 @@ public class CostPeriodService {
     private final CostLedgerRepository ledgerRepository;
     private final com.erp.production.bor.BorService borService;
     private final jakarta.persistence.EntityManager entityManager;
+    private final com.erp.accounting.processexpense.ProcessExpenseService processExpenseService;
 
     @Transactional(readOnly = true)
     public List<CostPeriodResponse> findAll() {
@@ -68,10 +69,17 @@ public class CostPeriodService {
         if (p.getMethod() == CostMethod.FIFO) {
             throw ApiException.badRequest("선입선출법은 입고분별 잔량(입고 레이어)을 남기지 않아 계산할 수 없습니다. 총평균법이나 최종매입원가법으로 기간을 다시 만드세요.");
         }
-        String basis = p.getMethod() == CostMethod.TOTAL_AVERAGE ? "WEIGHTED_AVG" : "LAST_PURCHASE";
+        // 원본: 표준원가 = 품목등록 원가 탭 값, 다시 만들면 덮어쓴다. 줄은 그 달 재고 기록이 있는 품목에만(2026-10-20 실측).
         int rows = 0;
         List<String> months = months(p);
-        for (String m : months) rows += costService.build(m, basis).size();
+        for (String m : months) {
+            YearMonth ym = YearMonth.parse(m);
+            List<Long> ids = new ArrayList<>();
+            for (var r : stockService.movement(ym.atDay(1), ym.atEndOfMonth(), null, false)) {
+                if (nz(r.opening()).signum() != 0 || nz(r.inQty()).signum() != 0 || nz(r.outQty()).signum() != 0) ids.add(r.itemId());
+            }
+            rows += costService.buildStandard(m, ids).size();
+        }
         return new CostRunResult(months.size(), rows);
     }
 
@@ -188,11 +196,12 @@ public class CostPeriodService {
         return rows;
     }
 
-    /** 원가현황 [삭제] — 기간과 그 기간에 잡은 원가를 함께 지운다. */
+    /** 원가현황 [삭제] — 기간과 그 기간에 잡은 원가 · 노무비/경비 줄을 함께 지운다(원본: 기간을 지우면 그 기간 자료가 다 사라진다). */
     @Transactional
     public void delete(Long id) {
         CostPeriod p = latest(id);
         ledgerRepository.deleteByPeriodId(p.getId());
+        processExpenseService.deleteByPeriodRange(p.getStartMonth(), p.getEndMonth());
         itemCostRepository.deleteByPeriodRange(p.getStartMonth(), p.getEndMonth());
         periodRepository.delete(p);
     }

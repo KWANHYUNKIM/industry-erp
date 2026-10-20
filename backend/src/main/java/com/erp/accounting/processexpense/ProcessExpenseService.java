@@ -61,6 +61,12 @@ public class ProcessExpenseService {
         return ProcessExpenseResponse.from(e);
     }
 
+    /** 원가생성/수정 기간 [삭제] — 원본처럼 그 기간(시작월 ~ 종료월)의 노무비/경비 줄도 같이 사라진다. */
+    @Transactional
+    public int deleteByPeriodRange(String fromMonth, String toMonth) {
+        return repository.deleteByPeriodRange(fromMonth, toMonth);
+    }
+
     @Transactional
     public void delete(Long id) {
         repository.delete(get(id));

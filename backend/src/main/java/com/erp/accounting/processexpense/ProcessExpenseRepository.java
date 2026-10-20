@@ -15,6 +15,11 @@ public interface ProcessExpenseRepository extends JpaRepository<ProcessExpense, 
             + "where e.period = :period")
     List<ProcessExpense> findByPeriodWithRefs(String period);
 
+    /** 원가 기간 삭제 — 그 기간 달들의 노무비/경비 줄을 함께 지운다(기준년월이 yyyy-MM 이라 문자열 범위가 달 범위다). */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("delete from ProcessExpense e where e.period >= :from and e.period <= :to")
+    int deleteByPeriodRange(String from, String to);
+
     boolean existsByPeriodAndProcess_IdAndWarehouse_Id(String period, Long processId, Long warehouseId);
 
     boolean existsByPeriodAndProcess_IdAndWarehouseIsNull(String period, Long processId);
