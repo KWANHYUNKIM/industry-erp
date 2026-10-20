@@ -575,6 +575,12 @@ export default function AppRouter() {
         <Route path="/sales/export" element={<ExportPage />} />
         <Route path="/sales/export-status" element={<ExportStatusPage />} />
         <Route path="/sales/mall" element={<MallPage />} />
+        <Route path="/sales/mall/confirm" element={<MallPage mode="confirm" />} />
+        <Route path="/sales/mall/ship" element={<MallPage mode="ship" />} />
+        <Route path="/sales/mall/cancel" element={<MallPage mode="cancel" />} />
+        <Route path="/sales/mall/return" element={<MallPage mode="return" />} />
+        <Route path="/sales/mall/exchange" element={<MallPage mode="exchange" />} />
+        <Route path="/sales/mall/erp-send" element={<MallPage mode="erp" />} />
         <Route path="/sales/mall-item-mappings" element={<MallItemMappingPage />} />
         <Route path="/sales/mall-accounts" element={<MallAccountPage />} />
         <Route path="/sales/condition-search" element={<ConditionSearchPage />} />

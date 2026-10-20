@@ -279,7 +279,10 @@ const MENU: TopMenu[] = [
         /* 원본 [재고조정] 묶음 차례. 단계별재고실사 · 단계별재고조정은 원본처럼 재고조정진행단계의 버튼으로 연다. */
         { label: '재고조정', children: [{ label: '재고조정진행단계', to: '/inventory/staged-progress' }, { label: '재고실사조회', to: '/inventory/stocktake-list' }, { label: '재고조정조회', to: '/inventory/adjust-list' }, { label: '재고실사현황', to: '/inventory/stocktake-status' }, { label: '재고조정현황', to: '/inventory/adjust-status' }] },
         { label: '기타이동현황', children: [{ label: '대체사용현황', to: '/inventory/substitute-status' }, { label: '폐기현황', to: '/inventory/disposal-status' }, { label: '불량률파악보고서', to: '/quality/defect-report' }] }] },
-      { label: '쇼핑몰관리', nodes: [{ label: '쇼핑몰등록', to: '/sales/mall-accounts' }, { label: '쇼핑몰관리', to: '/sales/mall' }, { label: '쇼핑몰품목코드연결', to: '/sales/mall-item-mappings' }] },
+      /* 원본 쇼핑몰관리 탭 = [기초등록] 쇼핑몰등록 · 쇼핑몰품목코드연결 + [주문관리] 일곱 화면(2026-10-20 실측). */
+      { label: '쇼핑몰관리', nodes: [
+        { label: '기초등록', children: [{ label: '쇼핑몰등록', to: '/sales/mall-accounts' }, { label: '쇼핑몰품목코드연결', to: '/sales/mall-item-mappings' }] },
+        { label: '주문관리', children: [{ label: '주문관리진행단계', to: '/sales/mall' }, { label: '주문확인처리', to: '/sales/mall/confirm' }, { label: '배송처리', to: '/sales/mall/ship' }, { label: '취소처리', to: '/sales/mall/cancel' }, { label: '반품처리', to: '/sales/mall/return' }, { label: '교환처리', to: '/sales/mall/exchange' }, { label: 'ERP전송', to: '/sales/mall/erp-send' }] }] },
       {
         // 원본 출력물 탭은 커뮤니케이션센터·증빙센터 + 재고현황·영업관리현황·구매관리현황 묶음이다.
         // 우리가 영업관리·구매관리·재고관리에 흩어 두었던 '현황' 화면들이 원본에서는 전부 여기 모인다.
