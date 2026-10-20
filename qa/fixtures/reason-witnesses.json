@@ -2003,7 +2003,9 @@
  "근태조회|프로젝트": {
   "claim": "출퇴근·휴가 어느 쪽에도 프로젝트를 적는 칸이 없다",
   "absent": [
-   "Project"
+   "projectId",
+   "projectName",
+   "Project project"
   ],
   "in": "backend/src/main/java/com/erp/hr"
  },
@@ -2108,7 +2110,9 @@
  "휴가사용실적현황|프로젝트": {
   "claim": "휴가에 프로젝트를 달지 않는다",
   "absent": [
-   "Project"
+   "projectId",
+   "projectName",
+   "Project project"
   ],
   "in": "backend/src/main/java/com/erp/hr"
  },
@@ -3150,7 +3154,9 @@
  "근태현황|프로젝트": {
   "claim": "출퇴근·휴가 어느 쪽에도 프로젝트를 적는 칸이 없다(위 [근태조회|프로젝트] 과 같은 사실이다)",
   "absent": [
-   "Project"
+   "projectId",
+   "projectName",
+   "Project project"
   ],
   "in": "backend/src/main/java/com/erp/hr"
  },
@@ -3174,7 +3180,9 @@
  "휴가잔여일수현황|프로젝트": {
   "claim": "휴가에 프로젝트를 달지 않는다(위 [휴가사용실적현황|프로젝트] 과 같은 사실이다)",
   "absent": [
-   "Project"
+   "projectId",
+   "projectName",
+   "Project project"
   ],
   "in": "backend/src/main/java/com/erp/hr"
  },
