@@ -87,6 +87,8 @@ const JournalListPage = lazy(() => import('../pages/accounting/JournalListPage')
 const AccountLedgerPage = lazy(() => import('../pages/accounting/AccountLedgerPage'))
 const CashBookPage = lazy(() => import('../pages/accounting/CashBookPage'))
 const JournalBookPage = lazy(() => import('../pages/accounting/JournalBookPage'))
+const JournalPrintPage = lazy(() => import('../pages/accounting/JournalPrintPage'))
+const VoucherPrintListPage = lazy(() => import('../pages/accounting/VoucherPrintListPage'))
 const DayMonthSheetPage = lazy(() => import('../pages/accounting/DayMonthSheetPage'))
 const AccountPartnerLedgerPage = lazy(() => import('../pages/accounting/AccountPartnerLedgerPage'))
 const PartnerAccountLedgerPage = lazy(() => import('../pages/accounting/PartnerAccountLedgerPage'))
@@ -670,6 +672,13 @@ export default function AppRouter() {
         <Route path="/accounting/fund-plans/yearly" element={<FundForecastPage variant="yearly" />} />
         <Route path="/accounting/accounts" element={<AccountsPage />} />
         <Route path="/accounting/journals" element={<JournalListPage />} />
+        {/* 회계 I › 회계거래관리(2026-10-20 loginaa): 전표인쇄 E010702 · 매출 · 매입(세금)계산서조회 · 지출결의서 · 입금보고서 · 가지급금정산서인쇄 */}
+        <Route path="/accounting/journal-print" element={<JournalPrintPage />} />
+        <Route path="/accounting/sales-tax-list" element={<TaxInvoiceListPage key="s" side="매출" title="매출(세금)계산서조회" />} />
+        <Route path="/accounting/purchase-tax-list" element={<TaxInvoiceListPage key="p" side="매입" title="매입청구서조회" />} />
+        <Route path="/accounting/voucher-print/expense" element={<VoucherPrintListPage key="e" kind="EXPENSE_REPORT" />} />
+        <Route path="/accounting/voucher-print/deposit" element={<VoucherPrintListPage key="d" kind="DEPOSIT_REPORT" />} />
+        <Route path="/accounting/voucher-print/advance" element={<VoucherPrintListPage key="a" kind="ADVANCE_SETTLEMENT" />} />
         <Route path="/accounting/ledger-book" element={<AccountLedgerPage />} />
         <Route path="/accounting/cash-book" element={<CashBookPage />} />
         <Route path="/accounting/journal-book" element={<JournalBookPage />} />

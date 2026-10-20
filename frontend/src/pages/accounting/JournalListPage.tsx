@@ -28,6 +28,10 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { lineInDeptProject } from '../../utils/deptProject'
 import { saveJournalNav } from '../../utils/journalNav'
+import { ecAlert } from '../../components/EcDialog'
+import type { FastVoucher } from '../../types/api'
+import SlipPrintModal from '../../features/journalprint/SlipPrintModal'
+import { journalSlipHtml, loadSlipHeader, voucherSlipHtml, VOUCHER_ONLY_MESSAGE } from '../../features/journalprint/slipPrint'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 기본 기간 [6개월(+1개월)] — 2026-10-13 에 2026/04/01 ~ 2026/11/12 였다. */
@@ -128,6 +132,21 @@ export default function JournalListPage() {
   const [openId, setOpenId] = useState<number | null>(wanted)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /** 원본 [전표] · [결의서] 열의 '인쇄' — 그 전표 · 결의서 서식을 창으로 미리 본다. */
+  const [printing, setPrinting] = useState<{ title: string; html: string } | null>(null)
+  async function printSlip(r: JournalEntry) {
+    const h = await loadSlipHeader()
+    setPrinting({ title: typeLabel(r), html: journalSlipHtml([r], h.company, h.sign) })
+  }
+  async function printVoucher(r: JournalEntry) {
+    const vid = voucherIdOf[r.id]
+    /* 영수증으로 · 현금거래 간편전표도 결의서 표에 있지만 원본 결의서 인쇄는 지출결의서 · 입금보고서 · 가지급금정산서만. */
+    if (!vid || !['지출결의서', '입금보고서', '가지급금정산서'].includes(voucherType[r.id])) { await ecAlert(VOUCHER_ONLY_MESSAGE); return }
+    try {
+      const [v, h] = await Promise.all([api.get<FastVoucher>(`/vouchers/${vid}`), loadSlipHeader()])
+      setPrinting({ title: v.data.typeName, html: voucherSlipHtml([v.data], h.company) })
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
 
   /** 조건에 걸린 전체 전표 수와, 잘라서 받았는지. 원본 [오천건이상조회] 자리를 위한 값이다. */
   const [totalRows, setTotalRows] = useState(0)
@@ -236,7 +255,6 @@ export default function JournalListPage() {
     }
   }
 
-  const total = shown.reduce((a, r) => a + amountOf(r), 0)
   const reset = () => {
     const p = defaultPeriod(); setFrom(p.from); setTo(p.to); setKeyword('')
     setDocCond(''); setWorkCond([]); setPartnerCond(''); setAccountCond(''); setDeptCond(''); setProjectCond(''); setAmountFrom(''); setAmountTo(''); setMemoCond(''); setAuthorCond(''); setEditorCond(''); setByUpdated(false)
@@ -328,14 +346,13 @@ export default function JournalListPage() {
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {/*
-        잘라서 받았으면 <b>반드시 말한다.</b> 이 화면은 아래에 차변·대변 합계를 찍는데,
-        그 합계는 <b>지금 보고 있는 줄</b>을 더한 값이다. 잘린 줄 알려 주지 않으면
-        사람은 그 숫자를 기간 전체의 합으로 읽는다 — 틀린 숫자를 맞다고 믿게 된다.
+        잘라서 받았으면 <b>반드시 말한다.</b> 검색창 · 조건은 <b>지금 받아 온 줄</b> 안에서만 거른다.
+        잘린 줄 알려 주지 않으면 못 찾은 전표를 '없다' 로 읽는다. (원본 격자에는 합계 줄이 없다 — 2026-10-20 실측, 뺐다.)
       */}
       {truncated && (
         <p style={{ background: 'var(--ec-warn-bg)', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
           모두 {totalRows.toLocaleString('ko-KR')}장 중 앞 {rows.length.toLocaleString('ko-KR')}장만 보고 있습니다 —
-          아래 합계도, 위 검색창도 이 {rows.length.toLocaleString('ko-KR')}장 안에서만 셉니다.
+          위 검색창도 이 {rows.length.toLocaleString('ko-KR')}장 안에서만 셉니다.
           기간을 좁히거나, 그대로 다 보려면 [오천건이상조회]를 누르세요.
         </p>
       )}
@@ -352,11 +369,13 @@ export default function JournalListPage() {
             {/* 원본 회계거래조회 격자(2026-10-12 실측): 전표번호 · 거래유형 · 금액 · 거래처명 · 적요. 일자는 전표번호(26/10/12-2)가 든다. */}
             <th>전표번호</th><th>거래유형</th>
             <th className="text-right">금액</th><th>거래처명</th><th>적요</th>
+            {/* 원본 끝 두 열(2026-10-20 실측) — 줄마다 '인쇄'. 결의서가 아닌 전표의 [결의서]는 알림만. */}
+            <th className="text-center w-[60px]">전표</th><th className="text-center w-[60px]">결의서</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={7} className="text-center text-ec-hint p-[20px]">조회된 회계전표가 없습니다. (판매/구매 화면에서 회계반영하면 생성됩니다)</td></tr>
+            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">조회된 회계전표가 없습니다. (판매/구매 화면에서 회계반영하면 생성됩니다)</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.id}>
               <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} className={`cursor-pointer ${rowBg(r)}`}>
@@ -387,10 +406,16 @@ export default function JournalListPage() {
                 <td className="text-right">{won(amountOf(r))}</td>
                 <td>{r.partnerName ?? payeeOf[r.id] ?? ''}</td>
                 <td>{r.description}</td>
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <a className="text-ec-navy cursor-pointer" onClick={() => void printSlip(r)}>인쇄</a>
+                </td>
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <a className="text-ec-navy cursor-pointer" onClick={() => void printVoucher(r)}>인쇄</a>
+                </td>
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">
-                  <td colSpan={7} className="p-0 bg-ec-page">
+                  <td colSpan={9} className="p-0 bg-ec-page">
                     <table className="w-full text-left my-[4px] mx-0">
                       <thead>
                         <tr><th className="w-[34px]"></th><th>계정코드</th><th>계정과목</th><th>적요</th><th className="text-right">차변</th><th className="text-right">대변</th></tr>
@@ -414,15 +439,9 @@ export default function JournalListPage() {
             </Fragment>
           ))}
         </tbody>
-        <tfoot>
-          <tr className="font-bold bg-ec-page">
-            <td colSpan={4} className="text-right">합계 ({shown.length}건)</td>
-            <td className="text-right">{won(total)}</td>
-            <td colSpan={2}></td>
-          </tr>
-        </tfoot>
       </table>
 
+      <SlipPrintModal title={printing?.title ?? ''} html={printing?.html ?? null} onClose={() => setPrinting(null)} />
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
         <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- 회계거래조회</p>
         <div className="flex gap-[5px]">

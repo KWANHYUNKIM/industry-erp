@@ -39,9 +39,10 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
  * <p>두지 않은 것: [Email](바깥 전송) · [대화방] · [인쇄] · [확인취소] · [선택삭제] · [Excel] — 확인취소 · 선택삭제는 원본에서 남의 자료를
  * 지워 보지 않고는 잴 수 없었다.
  */
-export default function TaxInvoiceListPage({ side }: { side: Side }) {
+/** title — 회계 I › 회계거래관리 의 같은 화면은 제목만 '매출(세금)계산서조회'(2026-10-20 실측, 격자 · 단추 같음). */
+export default function TaxInvoiceListPage({ side, title: titleProp }: { side: Side; title?: string }) {
   const init = periodOf('최근30일(+1개월)')!
-  const title = side === '매출' ? '매출(세금)계산서조회(세무)' : '매입청구서조회'
+  const title = titleProp ?? (side === '매출' ? '매출(세금)계산서조회(세무)' : '매입청구서조회')
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [status, setStatus] = useState<Status>('확인')

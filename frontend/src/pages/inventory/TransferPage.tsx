@@ -61,10 +61,7 @@ export default function TransferPage() {
   const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  /* 메뉴 [창고이동입력] 은 ?new=1 로 연다 — 원본은 입력이 따로 있는 화면이라 등록 창을 바로 띄운다. */
-  const [showForm, setShowForm] = useState(() => params.get('new') === '1')
-  /* 같은 화면에서 메뉴를 다시 누르면 다시 그려지지 않는다 — 주소의 new 가 바뀔 때도 연다. */
-  useEffect(() => { if (params.get('new') === '1') { setTab('창고이동'); setShowForm(true) } }, [params])
+  const [showForm, setShowForm] = useState(false)
 
   /*
    * 창고이동은 <b>지울 자리가 아예 없었다.</b> 판매·구매·자재불출은 줄마다 [삭제]가 있는데
