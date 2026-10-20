@@ -30,6 +30,9 @@ const num = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDi
  * [구분] ○집계는 A/S 판(AsAggregateTable) — 원본 품목 집계: [품목명[규격] | 수량 | 공급가액] Cookie SET 수입과자 [20개입] 4,200.00 · 50,400,
  * Chocolate Chunk 수입쿠키 [10개입] 2,400.00 · 192,000, 합계 6,600.00 · 242,400(공급가액은 소수 없음).
  */
+/** 원본이 품목명 뒤에 규격을 ' [규격]' 으로 붙인다(2026-10-20 실측: Cookie SET 수입과자 [20개입]). 규격이 없으면 이름만. */
+const withSpec = (name: string, spec?: string | null) => (spec ? `${name} [${spec}]` : name)
+
 export default function ExportStatusPage() {
   const pickers = useCondPickers(['partners', 'items'])
   const init = periodOf('금월(~오늘)')!
@@ -201,8 +204,12 @@ export default function ExportStatusPage() {
             ...g.xs.map(({ r, l }) => (
               <tr key={`${r.id}-${l.id}`}>
                 <td className="text-center">{reportDate(r.voucherDate)} -{seqOf.get(r.id)}</td>
-                <td>{l.itemName}</td>
-                <td>{l.description || l.itemName}</td>
+                {/*
+                  원본 열 이름 그대로 [품목명[규격]] — 규격이 있으면 'Cookie SET 수입과자 [20개입]' 처럼 붙인다.
+                  [Description of Goods] 는 적은 것만 찍고, 안 적었으면 비운다(품목명으로 메우지 않는다) — 2026-10-20 E040907 실측.
+                */}
+                <td>{withSpec(l.itemName, pickers.items.find((x) => x.value === String(l.itemId))?.sub)}</td>
+                <td>{l.description ?? ''}</td>
                 <td className="text-right">{num(l.quantity)}</td>
                 <td className="text-right">{num(l.unitPrice)}</td>
                 <td className="text-right">{num(l.amount)}</td>

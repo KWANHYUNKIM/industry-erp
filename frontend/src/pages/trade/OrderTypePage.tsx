@@ -127,6 +127,8 @@ export default function OrderTypePage() {
     try {
       // 빈 칸은 빼고 앞에서부터 순서대로 보낸다 — 가운데를 비워도 순번이 밀리지 않는다.
       const stageIds = stepIds.filter(Boolean).map(Number)
+      /* 원본은 [처리단계1] 을 비우고 저장하면 그 칸을 붉게 막는다(2026-10-20 실측) — 단계 없는 유형은 없다. */
+      if (stageIds.length === 0) { setError('1단계를 고르세요.'); return }
       /* 담당자도 <b>같은 차례</b>로 추린다 — 빈 단계를 뺀 뒤의 자리에 맞춰야 짝이 안 어긋난다. */
       const stageCharges = stepIds
         .map((v, i) => (v ? (stepCharges[i] || null) : null))
@@ -151,36 +153,44 @@ export default function OrderTypePage() {
     }
   }
 
-  async function remove(t: OrderType) {
-    if (!(await ecConfirm(`오더유형 '${t.name}'을(를) 삭제할까요?`))) return
-    try {
-      await api.delete(`/order-types/${t.id}`)
-      load()
-    } catch (err) {
-      void ecAlert(extractErrorMessage(err))
-    }
+  /**
+   * 원본 오더관리유형리스트의 [사용중단/재사용 ▴] — 펼침이 <b>사용중단 · 삭제 · 재사용</b> 셋이다(2026-10-20 E040901 실측).
+   * 지우기 전 확인 글도 원본 그대로 "삭제하겠습니까?" 다.
+   */
+  async function removeChecked() {
+    const targets = shown.filter((r) => checked.has(r.id))
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
+    setError('')
+    const results = await Promise.allSettled(targets.map((r) => api.delete(`/order-types/${r.id}`)))
+    const failed = results.filter((x) => x.status === 'rejected')
+    setChecked(new Set())
+    await load()
+    if (failed.length > 0) void ecAlert(extractErrorMessage((failed[0] as PromiseRejectedResult).reason))
   }
 
   /**
-   * 원본 오더관리유형리스트의 [사용중단/재사용]. 고른 유형을 한 번에 세운다.
+   * 원본 [사용중단] · [재사용]. 고른 유형을 한 번에 세운다.
    *
-   * <p>단계(stageIds)까지 함께 보낸다 — 수정은 <b>통째로 갈아 끼우므로</b> 빼고 보내면
-   * 그 유형의 [1단계]~[10단계]가 사용중단 한 번에 사라진다.
+   * <p>단계(stageIds)와 <b>단계별 담당자(stageCharges)</b>까지 함께 보낸다 — 수정은 단계를 <b>통째로 갈아 끼우므로</b>
+   * 빼고 보내면 그 유형의 [1단계]~[10단계]나 담당자가 사용중단 한 번에 사라진다
+   * (2026-10-20 실측: 담당자를 적은 유형을 사용중단하면 담당자가 비었다).
    */
-  async function toggleActive() {
+  async function setActive(active: boolean) {
     const targets = shown.filter((r) => checked.has(r.id))
-    if (targets.length === 0) { setError('사용중단하거나 되살릴 유형을 고르세요.'); return }
-    const reviving = targets.every((r) => !r.active)
     setError('')
-    const results = await Promise.allSettled(targets.map((r) => api.put(`/order-types/${r.id}`, {
-      name: r.name, description: r.description,
-      stageIds: [...r.steps].sort((a, b) => a.seq - b.seq).map((st) => st.stageId),
-      useInInput: r.useInInput, procMenu: r.procMenu ?? '', manager: r.manager, active: reviving,
-    })))
+    const results = await Promise.allSettled(targets.map((r) => {
+      const steps = [...r.steps].sort((a, b) => a.seq - b.seq)
+      return api.put(`/order-types/${r.id}`, {
+        name: r.name, description: r.description,
+        stageIds: steps.map((st) => st.stageId),
+        stageCharges: steps.map((st) => st.charge),
+        useInInput: r.useInInput, procMenu: r.procMenu ?? '', manager: r.manager, active,
+      })
+    }))
     const failed = results.filter((x) => x.status === 'rejected').length
     setChecked(new Set())
     await load()
-    if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
+    if (failed > 0) setError(`${targets.length - failed}건 ${active ? '재사용' : '사용중단'}, ${failed}건 실패.`)
   }
 
   const shown = rows
@@ -199,9 +209,13 @@ export default function OrderTypePage() {
       onSearchChange={setKeyword}
       onSearch={load}
       onNew={showForm ? () => setShowForm(false) : openCreate}
-      actions={[{ label: '새로고침', onClick: load },
-                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
-                { label: 'Excel' }]}
+      /* 원본 하단은 [신규(F2)] · [사용중단/재사용 ▴] 둘뿐이다 — 펼침이 사용중단 · 삭제 · 재사용(2026-10-20 실측). */
+      actions={[{ label: '사용중단/재사용', selected: checked.size,
+                  /* 버튼 자체는 고른 것이 모두 중단이면 되살리고, 아니면 세운다. */
+                  onClick: () => setActive(rows.filter((r) => checked.has(r.id)).every((r) => !r.active)),
+                  menu: [{ label: '사용중단', onClick: () => { if (checked.size) void setActive(false); else void ecAlert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.') } },
+                         { label: '삭제', onClick: () => { if (checked.size) void removeChecked(); else void ecAlert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.') } },
+                         { label: '재사용', onClick: () => { if (checked.size) void setActive(true); else void ecAlert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.') } }] }]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
@@ -336,9 +350,7 @@ export default function OrderTypePage() {
             ))}
             <th rowSpan={2} className="w-[80px] text-center">사용구분</th>
             <th rowSpan={2} className="w-[110px] text-center">입력메뉴에서 사용</th>
-            {/* 안 정한 유형은 '어느 화면에서나' 다 — 빈칸으로 두면 안 정한 것과 못 쓰는 것이 같아 보인다. */}
-            <th rowSpan={2} className="w-[130px]">처리메뉴</th>
-            <th rowSpan={2} className="w-[90px]">관리</th>
+            {/* 원본 격자는 [입력메뉴에서 사용] 에서 끝난다 — [처리메뉴] · [관리] 열은 없다(2026-10-20 실측). 고치기는 코드 · 이름을 눌러, 지우기는 [사용중단/재사용 ▴ 삭제]. */}
           </tr>
           {/*
             원본 머리는 <b>두 줄</b>이다 — 단계 열 아래에 [담당자] 가 한 줄 더 붙는다
@@ -353,9 +365,9 @@ export default function OrderTypePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={17} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={17} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td className="text-center">
@@ -391,17 +403,9 @@ export default function OrderTypePage() {
                   </td>
                 )
               })}
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{r.active ? '사용' : '미사용'}</td>
-              <td style={{ textAlign: 'center', color: r.useInInput ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
-                {r.useInInput ? 'YES' : 'NO'}
-              </td>
-              <td style={{ color: r.procMenu ? undefined : 'var(--ec-text-hint)', fontSize: 11.5 }}>
-                {r.procMenu ? (FLAT_MENU.find((m) => m.to === r.procMenu)?.label ?? r.procMenu) : '어느 화면에서나'}
-              </td>
-              <td>
-                <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-              </td>
+              {/* 원본은 사용 중이면 [사용구분] 에 'Yes', [입력메뉴에서 사용] 은 켠 것만 'Yes' 를 적고 끈 것은 비운다(2026-10-20 실측). */}
+              <td style={{ textAlign: 'center', color: r.active ? undefined : 'var(--ec-text-hint)' }}>{r.active ? 'Yes' : 'No'}</td>
+              <td style={{ textAlign: 'center' }}>{r.useInInput ? 'Yes' : ''}</td>
             </tr>
           ))}
         </tbody>

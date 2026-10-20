@@ -44,6 +44,9 @@ const initP = periodOf('최근30일(+1개월)')!
  * Sailing on or about · 통화 · 중량단위 · Remarks, 품목 격자 [품목코드 · 품목명 · 수량 · 단위 · 단가 · 금액 · Mark&amp;Number of PKGS ·
  * Description of Goods · Net Weight · Gross Weight · Measurement]. Voucher Date 를 누르면 같은 창이 수정으로 열린다.
  */
+/** 원본이 품목명 뒤에 규격을 ' [규격]' 으로 붙인다(2026-10-20 실측: Cookie SET 수입과자 [20개입]). 규격이 없으면 이름만. */
+const withSpec = (name: string, spec?: string | null) => (spec ? `${name} [${spec}]` : name)
+
 export default function ExportPage() {
   const [pFrom, setPFrom] = useState(initP.from)
   const [pTo, setPTo] = useState(initP.to)
@@ -118,7 +121,7 @@ export default function ExportPage() {
   }
   async function removePicked() {
     if (picked.length === 0) { setError('선택된 자료가 없습니다.'); return }
-    if (!(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다. 선택한 항목을 삭제 하겠습니까?'))) return
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?') /* 원본 선택삭제 확인 글(2026-10-20 C000652 실측) */)) return
     try {
       for (const id of picked) await api.delete(`/exports/${id}`)
       setNotice('삭제되었습니다.'); load()
@@ -227,7 +230,7 @@ export default function ExportPage() {
                 <button type="button" className="ec-link" onClick={() => setEditing(e)}>{voucherText(e)}</button>
               </td>
               <td>{e.buyerName}</td>
-              <td>{e.lines[0]?.itemName ?? ''}{e.lines.length > 1 ? ` 외 ${e.lines.length - 1}건` : ''}</td>
+              <td>{e.lines[0] ? withSpec(e.lines[0].itemName, items.find((it) => it.id === e.lines[0].itemId)?.spec) : ''}{e.lines.length > 1 ? ` 외 ${e.lines.length - 1}건` : ''}</td>
               <td>{e.invoiceNo}</td>
               <td className="text-center">{e.invoiceDate.replace(/-/g, '/')}</td>
               <td>{e.currencyId == null ? '' : currencyName(e.currencyId) || e.currencyCode}</td>
@@ -241,7 +244,8 @@ export default function ExportPage() {
       {/* 원본 아래 버튼줄 — 신규(F2) · 진행상태변경 · 선택삭제 · 매핑조회 · Excel. Email · 보내기는 바깥으로 보내는 일이라 두지 않는다. */}
       <div className="flex flex-wrap gap-[6px] mt-[8px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => setEditing('new')}>신규(F2)</button>
-        <button type="button" className="ec-btn" disabled={picked.length === 0} onClick={() => void toggleConfirm()}>진행상태변경</button>
+        {/* 고른 줄 버튼은 잠그지 않는다 — 0 줄이면 원본 알림을 띄운다(CLAUDE.md 10.1). */}
+        <button type="button" className="ec-btn" onClick={() => { if (requireSelection(picked.length)) void toggleConfirm() }}>진행상태변경</button>
         <button type="button" className="ec-btn" onClick={() => { if (requireSelection(picked.length)) void removePicked() }}>선택삭제</button>
         <button type="button" className="ec-btn" onClick={() => setMappingOpen(true)}>매핑조회</button>
       </div>
