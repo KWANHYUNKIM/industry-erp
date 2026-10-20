@@ -1,0 +1,28 @@
+{
+  "about": "회계 II › 계약입력 — 청구예정월을 안 고른 줄은 [등록] 칸이 빨갛게 되고 저장되지 않는다(2026-10-20 loginaa 실측: 원본 계약입력은 청구예정월 · 청구종료일 없이 [저장(F8)] 하면 두 칸이 빨갛고 그대로 남는다. 우리는 청구예정월 없이 저장됐다). 항목은 API 로 만들고 끝에 지운다.",
+  "shots": [
+    {
+      "name": "계약입력 청구예정월 필수",
+      "path": "/accounting/contract-items",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const c='M'+String(Date.now()).slice(-4);const r=await window.__api('POST','/contract-items',{code:c,name:'QA회계2-월필수',unitPrice:40000,vatIncluded:false,billingCycle:'PERIODIC'});sessionStorage.setItem('ciCode',c);sessionStorage.setItem('ciId',r.body.id);return r.status})()"
+      ]
+    },
+    {
+      "name": "청구예정월 없이 저장",
+      "path": "/accounting/billing-contracts/new",
+      "steps": [
+        "wait:1500",
+        "js:(()=>{const el=document.querySelector('[aria-label=\"계약항목검색\"]');el.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,sessionStorage.getItem('ciCode'));el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()",
+        "wait:800",
+        "expect:!!document.querySelector('[aria-label=\"1줄 청구예정월\"]')",
+        "clicklast:저장(F8)",
+        "wait:500",
+        "expect:document.querySelector('[aria-label=\"1줄 청구예정월\"]').closest('td').getAttribute('aria-invalid')==='true'",
+        "expect:location.pathname==='/accounting/billing-contracts/new'",
+        "js:(async()=>{const r=await fetch('/api/contract-items/'+sessionStorage.getItem('ciId'),{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});return r.status})()"
+      ]
+    }
+  ]
+}

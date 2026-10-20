@@ -146,7 +146,8 @@ export default function BillingContractEntryPage() {
     const bad = new Set<string>()
     if (!partnerId) bad.add('partner')
     if (!billEnd) bad.add('billEnd')
-    filled.forEach(({ l, i }) => { if (!l.billingUnitId) bad.add(`unit${i}`) })
+    // 원본: 청구예정월을 안 고른 줄은 [등록] 칸이 빨갛게 되고 저장이 안 된다(2026-10-20 loginaa 실측)
+    filled.forEach(({ l, i }) => { if (!l.billingUnitId) bad.add(`unit${i}`); if (!l.billMonths) bad.add(`months${i}`) })
     if (!filled.length) bad.add('line0')
     setInvalid(bad)
     if (bad.size) return
@@ -237,7 +238,7 @@ export default function BillingContractEntryPage() {
                   <td className="pad text-center text-ec-hint">{i + 1}</td>
                   <td className={`pad${bad(`line${i}`)}`}><GridCode title="계약항목검색" codeHead="계약항목코드" nameHead="계약항목명" items={itemCodes} value={l.itemId} onPick={(v) => pickItem(i, v)} /></td>
                   <td className="pad">{items.find((x) => String(x.id) === l.itemId)?.name ?? ''}</td>
-                  <td className="pad text-center">
+                  <td className={`pad text-center${bad(`months${i}`)}`} aria-invalid={invalid.has(`months${i}`)}>
                     {l.itemId && <a href="#" aria-label={`${i + 1}줄 청구예정월`} className={l.billMonths ? 'text-ec-warn font-bold' : 'ec-link'}
                       onClick={(e) => { e.preventDefault(); setMonthsFor(i); setMonthPick(new Set(l.billMonths ? l.billMonths.split(',') : [])) }}>등록</a>}
                   </td>
