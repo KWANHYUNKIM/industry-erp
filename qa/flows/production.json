@@ -526,11 +526,11 @@
       ]
     },
     {
-      "name": "매출(세금)계산서조회(재고) — 같은 전표의 목록: 열 '일자 - 번호 · 거래처명 · 공급가액 · 부가세 · 합 계 · 내역보기', 달 소계 · 합계줄이 없다",
+      "name": "매출(세금)계산서조회(재고) — 같은 전표의 목록: 맨 앞 고르기 칸 뒤 열 '일자 - 번호 · 거래처명 · 공급가액 · 부가세 · 합 계 · 내역보기', 달 소계 · 합계줄이 없다",
       "path": "/sales/sales-tax-list",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&!document.querySelector('table tfoot')&&![...document.querySelectorAll('tbody tr')].some((t)=>/ 계$/.test(t.cells[0]?.innerText.trim()||''))})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).filter(Boolean).join('|');return h==='일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&!document.querySelector('table tfoot')&&![...document.querySelectorAll('tbody tr')].some((t)=>/ 계$/.test(t.cells[0]?.innerText.trim()||''))})()"
       ]
     },
     {
@@ -538,7 +538,7 @@
       "path": "/production/purchase-tax-list",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&!document.querySelector('table tfoot')})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).filter(Boolean).join('|');return h==='일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&!document.querySelector('table tfoot')})()"
       ]
     },
     {

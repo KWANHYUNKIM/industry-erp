@@ -64,8 +64,10 @@ export default function AccountLedgerPage() {
       .catch(() => setFiscalStart(null))
   }, [])
 
-  /* 이월잔액을 내려고 처음부터 기간 끝까지 받는다. */
+  /* 이월잔액을 내려고 처음부터 기간 끝까지 받는다. 기간 두 칸을 잇달아 바꾸면 읽기가 둘 뜬다 — 늦게 온 옛 응답이 새 것을 덮지 않게 마지막 것만 쓴다. */
+  const seq = useRef(0)
   async function load() {
+    const my = ++seq.current
     setLoading(true)
     setError('')
     try {
@@ -74,15 +76,16 @@ export default function AccountLedgerPage() {
         api.get<{ rows: BankTxn[] }>('/bank-cards/transactions', { params: { all: true, from: '1900-01-01', to } }).catch(() => ({ data: { rows: [] as BankTxn[] } })),
         api.get<BankAccount[]>('/bank-cards/accounts').catch(() => ({ data: [] as BankAccount[] })),
       ])
+      if (my !== seq.current) return
       const acc = new Map(a.data.map((x) => [x.id, x]))
       setBookOf(new Map(t.data.rows.filter((x) => x.journalEntryId != null && acc.has(x.bankAccountId))
         .map((x) => [x.journalEntryId!, bankLabel(acc.get(x.bankAccountId)!)])))
       setEntries(r.data.rows)
       setTruncated(r.data.truncated)
     } catch (e) {
-      setError(extractErrorMessage(e))
+      if (my === seq.current) setError(extractErrorMessage(e))
     } finally {
-      setLoading(false)
+      if (my === seq.current) setLoading(false)
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
