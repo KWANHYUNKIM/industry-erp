@@ -2998,14 +2998,13 @@ async function scenarioPaySetting() {
 
   // ── 세율/세액등록(4대보험 요율) — 아무도 안 쓰는 2099년에 정했다가 되돌린다(실제 급여 연도는 건드리지 않는다)
   {
-    const R = '/pay-settings/insurance-rates/2099'
-    await must('DELETE', R)
-    const legal = await must('GET', R)
+    await must('DELETE', '/pay-settings/insurance-rates/2099')
+    const legal = await must('GET', '/pay-settings/insurance-rates/2099')
     eq('정한 줄이 없으면 법정 요율', legal.custom, false)
-    const saved = await must('PUT', R, { pensionRate: 0.05, healthRate: 0.04, longTermCareRate: 0.1, employmentRate: 0.01 })
+    const saved = await must('PUT', '/pay-settings/insurance-rates/2099', { pensionRate: 0.05, healthRate: 0.04, longTermCareRate: 0.1, employmentRate: 0.01 })
     eq('정한 요율이 그 해 요율이 된다', [saved.custom, Number(saved.pensionRate), Number(saved.employmentRate)], [true, 0.05, 0.01])
-    await rejects('요율이 1 을 넘으면 거부', 'PUT', R, { pensionRate: 2, healthRate: 0.04, longTermCareRate: 0.1, employmentRate: 0.01 })
-    const reset = await must('DELETE', R)
+    await rejects('요율이 1 을 넘으면 거부', 'PUT', '/pay-settings/insurance-rates/2099', { pensionRate: 2, healthRate: 0.04, longTermCareRate: 0.1, employmentRate: 0.01 })
+    const reset = await must('DELETE', '/pay-settings/insurance-rates/2099')
     eq('되돌리면 다시 법정 요율', [reset.custom, Number(reset.pensionRate)], [false, Number(legal.pensionRate)])
   }
 
