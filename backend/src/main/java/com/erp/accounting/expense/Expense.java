@@ -99,4 +99,25 @@ public class Expense extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")
     private Project project;
+
+    /**
+     * 원본 비용내역입력 줄의 [비용코드](비용 마스터, E060809). 비면 옛 지출 등록(계정을 바로 고른 것)이다 —
+     * 그 자료는 계정만 있어 비용 마스터로 옮길 수 없다(V413).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "expense_item_id")
+    private com.erp.accounting.expenseitem.ExpenseItem expenseItem;
+
+    /** 줄의 [사원](필수) — 사원 id 만 든다(accounting 은 hr 엔티티를 새로 참조하지 않는다, CLAUDE.md 4.1). */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
+    /** 머리의 [비용그룹] */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "expense_group_id")
+    private com.erp.accounting.expensegroup.ExpenseGroup expenseGroup;
+
+    /** 전표별회계반영(E060814)이 만든 가지급금정산서(회계전표) id. 비용내역을 지우면 그 전표도 지운다. */
+    @Column(name = "settled_journal_id")
+    private Long settledJournalId;
 }
