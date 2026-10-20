@@ -1155,8 +1155,8 @@
   "palette": 0
  },
  "pages/trade/TradeInquiryPage.tsx": {
-  "inline": 16,
-  "color": 5,
+  "inline": 15,
+  "color": 4,
   "palette": 0
  },
  "pages/trade/UnorderedStatusPage.tsx": {
