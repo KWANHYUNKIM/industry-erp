@@ -32,15 +32,19 @@
       ]
     },
     {
-      "name": "판매조회 — 미반영 · [확인] → 확인된 판매 [선택삭제] '선택한 전표를 삭제 하겠습니까?' 로 지워진다",
+      "name": "판매조회 — 미반영 · [진행상태변경 ▴ › 확인](묻지 않음) → 확인 탭 → 확인된 판매 [선택삭제] '선택한 전표를 삭제 하겠습니까?' 로 지워진다",
       "path": "/sales/sales-list",
       "steps": [
         "wait:2000",
         "js:(() => { const S = JSON.parse(sessionStorage.getItem('scd')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-특가')); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; return !!window.__row() })()",
         "expect:window.__row().innerText.includes('660') && window.__row().innerText.includes('미반영')",
-        "js:(() => { [...window.__row().querySelectorAll('button')].find((b) => b.textContent.trim() === '확인').click(); return true })()",
+        "js:(() => { window.__row().cells[0].click(); document.querySelector('[aria-label=\"진행상태변경 더보기\"]').click(); return true })()",
+        "wait:300",
+        "js:(() => { [...document.querySelectorAll('.ec-btn-group button')].find((b) => b.textContent.trim() === '확인').click(); return true })()",
         "wait:1500",
-        "expect:[...window.__row().querySelectorAll('button')].some((b) => b.textContent.trim() === '확인취소')",
+        "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim().startsWith('확인')).click(); return true })()",
+        "wait:500",
+        "expect:!!window.__row() && ![...window.__row().cells].some((c) => /^(확인|확인취소|발행)$/.test(c.textContent.trim()))",
         "js:(() => { window.__row().cells[0].click(); return true })()",
         "click:선택삭제",
         "wait:2000",

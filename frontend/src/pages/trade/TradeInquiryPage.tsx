@@ -11,7 +11,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
@@ -47,8 +47,6 @@ const TAB_STATUS: Record<Exclude<SalesTab, '전체'>, SalesConfirmStatus> = {
   미확인: 'UNCONFIRMED',
   확인: 'CONFIRMED',
 }
-const confirmColor = (s?: SalesConfirmStatus) =>
-  s === 'CONFIRMED' ? 'var(--ec-success)' : s === 'IN_APPROVAL' ? 'var(--ec-blue)' : 'var(--ec-text-hint)'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 /*
@@ -185,15 +183,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg.url, cfg.dateKey])
 
-  async function confirmAct(d: NormalDoc, kind: 'confirm' | 'unconfirm') {
-    try {
-      await api.post(`/sales/${d.id}/${kind}`)
-      load()
-    } catch (err) {
-      void ecAlert(extractErrorMessage(err))
-    }
-  }
-
   /**
    * 진행상태변경 — 원본 판매조회·구매조회 버튼이다. 고른 전표의 <b>확인상태</b>를 한 번에 바꾼다.
    *
@@ -202,11 +191,15 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * <p>고른 것이 섞여 있으면 <b>전부 확인</b>으로 맞춘다. 하나씩 뒤집으면 한 번 눌렀을 때
    * 결과가 뭔지 알 수 없다. 확인은 판매전표에만 있다 — 구매에는 확인상태가 없다.
    */
-  async function confirmSelected() {
-    const targets = shown.filter((d) => selected.has(d.id))
-    if (targets.length === 0) return ecAlert('진행상태를 바꿀 전표를 고르세요.')
-    const kind = targets.every((d) => d.confirmStatus === 'CONFIRMED') ? 'unconfirm' : 'confirm'
-    if (!(await ecConfirm(`${targets.length}건을 ${kind === 'confirm' ? '확인' : '확인해제'}할까요?`))) return
+  async function confirmSelected(want?: 'confirm' | 'unconfirm') {
+    const picked = shown.filter((d) => selected.has(d.id))
+    // 원본(2026-10-20 E040206 실측): 고른 줄 없이 [진행상태변경 ▴ › 확인] → 화면 안 알림 "리스트에 선택된 자료가 없습니다. …"
+    if (picked.length === 0) return ecAlert(NO_SELECTION_MESSAGE)
+    const kind = want ?? (picked.every((d) => d.confirmStatus === 'CONFIRMED') ? 'unconfirm' : 'confirm')
+    // 펼침에서 고른 상태와 이미 같은 전표는 건너뛴다(서버는 같은 상태로 바꾸기를 거절한다).
+    const targets = picked.filter((d) => (kind === 'confirm') !== (d.confirmStatus === 'CONFIRMED'))
+    if (targets.length === 0) { setSelected(new Set()); return }
+    // 원본은 펼침에서 고르면 묻지 않고 바로 바꾼다(2026-10-20 실측 — 묻는 창 없이 결과/알림만).
     try {
       for (const d of targets) await api.post(`/sales/${d.id}/${kind}`)
       setSelected(new Set())
@@ -436,7 +429,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   // 판매조회는 확인상태·확인버튼 2컬럼 + 세금계산서 1컬럼, 구매조회는 세금계산서 1컬럼이 더 붙는다.
   // 번호 + 전표번호·일자·거래처·품목명(요약)·거래유형·창고·공급가액·부가세·합계·담당·불러온전표·회계반영·세금계산서
   // + 판매만 있는 확인상태·확인 2개
-  const colCount = 14 + (isSales ? 2 : 1)   // 판매: 확인상태·확인 / 구매: 프로젝트명
+  // 2026-10-20 판매조회는 원본 열(번호 · 일자-No. … 불러온전표 = 10)만 남겼다 — 공급가액 · 부가세 · 담당 · 확인상태 · 확인 · 세금계산서를 뺐다.
+  const colCount = isSales ? 10 : 15   // 구매: 원본 10 + 프로젝트명 + 공급가액 · 부가세 · 담당 · 세금계산서
   /**
    * 합계행 가운데 빈 칸 수 — 금액합계와 공급가액 사이의 열들
    * (거래유형·창고·회계반영·인쇄·불러온전표, 구매는 앞에 프로젝트명이 하나 더).
@@ -481,8 +475,20 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
        * 보내기·바코드·이력조회는 받쳐 줄 것이 없어 만들지 않는다 —
        * 눌러도 아무 일 없는 버튼은 있는 것만 못하다. [신규(F2)] 는 위 onNew 가 이미 맡는다.
        */
-      actions={[
-        ...(isSales ? [{ label: `진행상태변경${selected.size ? ` (${selected.size})` : ''}`, onClick: () => void confirmSelected() }] : []),
+      actions={isSales ? [
+        /*
+         * 원본 판매조회 하단(2026-10-20 실측): 신규(F2) · Email · 진행상태변경 ▴(미확인 · 확인) · 보내기 · 인쇄 · 바코드(품목) ·
+         * 전자결재 · 선택삭제 · Excel(표시형식) · 이력조회. Email · 보내기 · 바코드 · 전자결재 · 이력조회는 받쳐 줄 것이 없어 두지 않는다.
+         * [회계반영] · [거래내역보기(판매)] 는 원본 판매조회에 없다(회계반영은 판매일괄회계반영 화면).
+         */
+        { label: '진행상태변경', onClick: () => void confirmSelected(), selected: selected.size, menu: [
+          { label: '미확인', onClick: () => void confirmSelected('unconfirm') },
+          { label: '확인', onClick: () => void confirmSelected('confirm') },
+        ] },
+        { label: '인쇄' },
+        { label: '선택삭제', onClick: () => void deleteSelected(), selected: selected.size },
+        { label: 'Excel' },
+      ] : [
         /* 원본 버튼줄 차례: … 선택삭제 앞이 <b>[회계반영]</b> 이다. */
         { label: `회계반영${selected.size ? ` (${selected.size})` : ''}`,
           onClick: () => void reflectSelected(), disabled: selected.size === 0 },
@@ -662,9 +668,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             {/* 이 전표가 어느 수주/발주에서 왔는지 */}
             <th className="text-center">불러온전표</th>
             {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
-            <th className="text-right">공급가액</th><th className="text-right">부가세</th><th>담당</th>
-            {isSales && <><th className="text-center">확인상태</th><th className="text-center">확인</th></>}
-            <th className="text-center">세금계산서</th>
+            {/* 원본 판매조회 열은 불러온전표에서 끝난다(2026-10-20 실측). 구매조회에만 아래 열을 더 둔다. */}
+            {!isSales && <><th className="text-right">공급가액</th><th className="text-right">부가세</th><th>담당</th>
+            <th className="text-center">세금계산서</th></>}
           </tr>
         </thead>
         <tbody>
@@ -714,25 +720,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                     return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
                   })()}
                 </td>
+                {!isSales && <>
                 <td className="text-right">{won(d.supplyAmount)}</td>
                 <td className="text-right text-ec-hint">{won(d.vatAmount)}</td>
                 <td>{d.createdBy ?? ''}</td>
-                {isSales && (
-                  <>
-                    <td style={{ textAlign: 'center', color: confirmColor(d.confirmStatus), fontWeight: 600 }} onClick={(e) => e.stopPropagation()}>
-                      {d.confirmStatusName ?? '미확인'}
-                    </td>
-                    <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                      {d.confirmStatus === 'CONFIRMED' ? (
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => confirmAct(d, 'unconfirm')}>확인취소</button>
-                      ) : d.confirmStatus === 'IN_APPROVAL' ? (
-                        <span className="text-ec-off">—</span>
-                      ) : (
-                        <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => confirmAct(d, 'confirm')}>확인</button>
-                      )}
-                    </td>
-                  </>
-                )}
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
                   {taxIssued.has(d.id) || invoiceOf.has(d.docNo) ? (
                     <span className="text-ec-success text-[11.5px]">{invoiceOf.get(d.docNo) ?? '발행됨'}</span>
@@ -740,6 +731,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => issueTaxInvoice(d)}>발행</button>
                   )}
                 </td>
+                </>}
               </tr>
               {openId === d.id && (
                 <tr className="no-ec">
@@ -816,7 +808,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             </Fragment>
           ))}
         </tbody>
-        <tfoot>
+        {/* 원본 판매조회에는 합계줄이 없다(2026-10-20 실측). 구매조회만 둔다. */}
+        {!isSales && <tfoot>
           <tr className="font-bold bg-ec-page">
             {/*
               합계행은 머리글과 칸 수가 정확히 같아야 숫자가 제 열 아래에 선다.
@@ -831,7 +824,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <td className="text-right">{won(totals.vat)}</td>
             <td colSpan={colCount - (7 + midSpan)}></td>
           </tr>
-        </tfoot>
+        </tfoot>}
       </table>
     </EcListShell>
   )
