@@ -91,7 +91,7 @@ function duplicates(rows: SlipRow[]): SlipRow[] {
  * 5. 자금현황표상 마이너스인 계정 [계정명 · 거래처명 · 잔액](자금현황표와 같은 차변 − 대변 잔액, 조회 끝날까지),
  * 6. 중복거래 확인대상 자료 매출 · 매입 [일자 · 거래처명 · 공급가액 · 부가세 · 합계].
  *
- * <p>두지 않은 것: 예정누락분포함 · 부서 · 프로젝트 · 번호오류사업자포함 조건(회계전표에 부서 · 프로젝트가 없다), [설정] · [다시 작성].
+ * <p>두지 않은 것: 예정누락분포함 · 부서 · 프로젝트 · 번호오류사업자포함 조건(회계전표에 부서 · 프로젝트가 없다), [설정].
  * 우리 지출결의서 · 가지급금정산서는 부가세 칸이 없어 2 · 3 은 늘 빈 칸이다.
  */
 export default function VatChecklistPage() {
@@ -182,50 +182,55 @@ export default function VatChecklistPage() {
           <li className="full">
             <div className="form">
               <button className="ec-btn ec-btn-primary" onClick={() => void search()}>검색(F8)</button>
+              {/* 원본은 빠른선택을 누르면 그 기간으로 바로 검색한다(2026-10-20 금월(~오늘) 실측 — 판이 접히고 결과가 뜬다). */}
               <EcPeriodPicks labels={PICKS} currentFrom={`${fromYm}-01`}
-                             onPick={(r) => { setFromYm(r.from.slice(0, 7)); setToYm(r.to.slice(0, 7)) }} />
+                             onPick={(r) => {
+                               const f = r.from.slice(0, 7), t = r.to.slice(0, 7)
+                               setFromYm(f); setToYm(t); void search(f, t)
+                             }} />
+              <button className="ec-btn" onClick={() => { setFromYm(init.from.slice(0, 7)); setToYm(init.to.slice(0, 7)) }}>다시 작성</button>
             </div>
           </li>
         </ul>
       )}
 
       {sheet && (
-        <div className="max-w-[900px]">
+        <div>
           <div className="ec-report-head">
             <div className="ec-report-title">부가세Checklist</div>
             <div className="ec-report-meta"><span>회사명 : {company}</span><span /></div>
           </div>
 
           <div className="ec-report-meta"><span>1. 매출액비교</span><span>{sheet.from.replace('-', '/')} ~{sheet.to.replace('-', '/')}</span></div>
-          <CheckTable title="1. 매출액비교" head={['기간', '부가세매출액', '손익계산서매출액']} right={[1, 2]}
+          <CheckTable title="1. 매출액비교" head={['기간', '부가세매출액', '손익계산서매출액']} right={[1, 2]} cols={[249, 250, 250]}
                       rows={[[`${ymLabel(sheet.from)} ~ ${ymLabel(sheet.to)}`, won(sheet.vatSales), won(sheet.plSales)]]} />
 
           <p className="mt-[12px] mb-[4px]">2.지출결의서중 부가세가 등록된 상황</p>
-          <CheckTable title="2. 지출결의서" head={['계정코드', '계정명', '금액', '수수료', '부가세']} right={[2, 3, 4]}
+          <CheckTable title="2. 지출결의서" head={['계정코드', '계정명', '금액', '수수료', '부가세']} right={[2, 3, 4]} cols={[99, 260, 130, 130, 130]}
                       rows={sheet.expense.map((r) => [r.code, r.name, won(r.amount), '', won(r.vat)])} />
 
           <p className="mt-[12px] mb-[4px]">3.가지급금정산서중 부가세가 등록된 상황</p>
-          <CheckTable title="3. 가지급금정산서" head={['계정코드', '계정명', '금액', '수수료', '부가세']} right={[2, 3, 4]}
+          <CheckTable title="3. 가지급금정산서" head={['계정코드', '계정명', '금액', '수수료', '부가세']} right={[2, 3, 4]} cols={[99, 260, 130, 130, 130]}
                       rows={sheet.advance.map((r) => [r.code, r.name, won(r.amount), '', won(r.vat)])} />
 
           <p className="mt-[12px] mb-[4px]">4.이카운트 매출 매입과 맞는지 확인</p>
           <p className="mb-[4px]">{ECOUNT}가 {company}에게 발행한 세금계산서</p>
-          <CheckTable title="4. 이카운트 발행" head={['일자', '거래처명', '금액', '수수료', '적요']} right={[2, 3]}
+          <CheckTable title="4. 이카운트 발행" head={['일자', '거래처명', '금액', '수수료', '적요']} right={[2, 3]} cols={[99, 240, 140, 140, 130]}
                       rows={sheet.fromEcount.map((r) => [reportDate(r.date), r.partner, won(r.supply), won(r.vat), r.description])} />
           <p className="mt-[8px] mb-[4px]">{company}이(가) {ECOUNT}로 입력한 세금계산서</p>
-          <CheckTable title="4. 이카운트 입력" head={['일자', '거래처명', '금액', '수수료', '적요']} right={[2, 3]}
+          <CheckTable title="4. 이카운트 입력" head={['일자', '거래처명', '금액', '수수료', '적요']} right={[2, 3]} cols={[99, 240, 140, 140, 130]}
                       rows={sheet.toEcount.map((r) => [reportDate(r.date), r.partner, won(r.supply), won(r.vat), r.description])} />
 
           <p className="mt-[12px] mb-[4px]">5.자금현황표상 마이너스인 계정</p>
-          <CheckTable title="5. 자금현황표" head={['계정명', '거래처명', '잔액']} right={[2]}
+          <CheckTable title="5. 자금현황표" head={['계정명', '거래처명', '잔액']} right={[2]} cols={[249, 250, 250]}
                       rows={sheet.negatives.map((r) => [r.account, r.partner, Math.round(r.balance).toLocaleString('ko-KR')])} />
 
           <p className="mt-[12px] mb-[4px]">6.중복거래 확인대상 자료</p>
           <p className="mb-[4px]">매출</p>
-          <CheckTable title="6. 중복 매출" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]}
+          <CheckTable title="6. 중복 매출" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]} cols={[99, 290, 120, 120, 120]}
                       rows={sheet.dupSales.map((r) => [reportDate(r.date), r.partner, won(r.supply), num(r.vat), won(r.supply + r.vat)])} />
           <p className="mt-[8px] mb-[4px]">매입</p>
-          <CheckTable title="6. 중복 매입" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]}
+          <CheckTable title="6. 중복 매입" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]} cols={[99, 290, 120, 120, 120]}
                       rows={sheet.dupPurchases.map((r) => [reportDate(r.date), r.partner, won(r.supply), num(r.vat), won(r.supply + r.vat)])} />
 
           <EcReportFoot page={false} />
@@ -235,12 +240,18 @@ export default function VatChecklistPage() {
   )
 }
 
-function CheckTable({ title, head, rows, right }: { title: string; head: string[]; rows: string[][]; right: number[] }) {
+/**
+ * 원본 격자는 출력물 꼴이 아니라 조회 격자 꼴이다(2026-10-20 실측): 머리 400 · 9px 2.7px 7.2px · 34.7, 본문 5.4px 2.7px · 28.9,
+ * 표 폭은 본문 틀 전부(table-layout fixed)이고 열 폭은 colgroup 비율 — 1 · 5 는 249/250/250, 2 · 3 은 99/260/130/130/130,
+ * 4 는 99/240/140/140/130, 6 은 99/290/120/120/120.
+ */
+function CheckTable({ title, head, rows, right, cols }: { title: string; head: string[]; rows: string[][]; right: number[]; cols: number[] }) {
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [rows.length])
   const align = (i: number) => (right.includes(i) ? 'text-right' : undefined)
   return (
-    <table ref={tableRef} className="w-full ec-report">
+    <table ref={tableRef} className="w-full table-fixed ec-report-head400">
+      <colgroup>{cols.map((w, i) => <col key={i} width={w} />)}</colgroup>
       <thead>
         <tr>{head.map((h, i) => <th key={h} className={align(i)}>{h}</th>)}</tr>
       </thead>
