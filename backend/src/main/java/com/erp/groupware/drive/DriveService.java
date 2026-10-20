@@ -303,19 +303,49 @@ public class DriveService {
         return upload(file, drive, parentId, uploader, null);
     }
 
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader, String ip) {
+        return upload(file, drive, parentId, uploader, ip, false);
+    }
+
     /**
      * 원본(2026-10-14 loginaa My Drive 에 QA 파일 하나 올려 잼): [버전/이력] 에 행위 '파일업로드' · 크기 '0KB' · 작업자 'GUEST' ·
      * 위치 <b>'My Drive'</b> 한 줄. 폴더 [생성] 은 맨 위면 위치가 빈칸인데 파일 올리기는 드라이브 이름이 찍힌다.
-     * 폴더 안에 올렸을 때의 위치는 못 쟀다 — 폴더 이력과 같은 '/폴더' 꼴로 둔다.
+     * <p>2026-10-20 다시 잼: 폴더 안에 올리면 위치가 <b>'My Drive/QA그룹웨어-폴더'</b>(드라이브 이름 + 폴더 길)이고, 그 폴더 줄의
+     * 최종수정일자가 올린 시각으로 바뀐다. 같은 곳에 같은 이름의 파일이 있으면 '동일한 이름의 파일이 존재합니다. 덮어 씌우겠습니까?'
+     * 를 묻고 [확인] 이면 <b>같은 줄</b>의 파일 · 크기 · 최종수정일자만 바뀌고 이력에 '파일업로드' 줄이 하나 더 생긴다
+     * ([버전관리] 창이 그 줄들을 판 차례로 보여 준다). 묻는 것은 화면이 하므로, overwrite 없이 겹치면 409.
      */
     @Transactional
-    public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader, String ip) {
+    public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader, String ip, boolean overwrite) {
         DriveDocument parent = parentId != null ? getDoc(parentId) : null;
         if (parent != null && !parent.isFolder()) throw ApiException.badRequest("폴더 안에만 올릴 수 있습니다.");
         if (parent != null) drive = parent.getDrive();
+        String driveKey = "SHARED".equalsIgnoreCase(drive) ? "SHARED" : "MY";
+        String orig = file.getOriginalFilename() != null ? file.getOriginalFilename().replace('\\', '/') : "";
+        String name = orig.substring(orig.lastIndexOf('/') + 1);   // 저장소가 붙이는 이름(FileStorageService.safeName)과 같게
+        DriveDocument same = documentRepository.findAllOrdered().stream()
+                .filter(d -> !d.isFolder() && !d.isTrashed() && driveKey.equalsIgnoreCase(d.getDrive()))
+                .filter(d -> java.util.Objects.equals(d.getParent() != null ? d.getParent().getId() : null, parentId))
+                .filter(d -> d.getName().equals(name))
+                .findFirst().orElse(null);
+        if (same != null && !overwrite) throw ApiException.conflict("동일한 이름의 파일이 존재합니다.");
         StoredFile stored = fileStorage.store(file, uploader);
         /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
         stored.setOwnerCode("GROUPWARE");
+        String root = "SHARED".equals(driveKey) ? "Shared Drive" : "My Drive";
+        if (parent != null) documentRepository.touch(parent.getId(), java.time.LocalDateTime.now());
+        if (same != null) {
+            Long oldFileId = same.getFile() != null ? same.getFile().getId() : null;
+            same.setFile(stored);
+            same.setSizeBytes(stored.getSizeBytes());
+            documentRepository.saveAndFlush(same);
+            if (oldFileId != null) fileStorage.delete(oldFileId);
+            historyRepository.save(DriveHistory.builder()
+                    .document(same).action("파일업로드").name(same.getName()).sizeBytes(same.getSizeBytes())
+                    .actor(uploader).ip(ip).location(root + folderPath(parent)).build());
+            return DocumentResponse.from(same);
+        }
         DriveDocument doc = DriveDocument.builder()
                 .name(stored.getName())
                 .drive("SHARED".equalsIgnoreCase(drive) ? "SHARED" : "MY")
@@ -330,7 +360,7 @@ public class DriveService {
         historyRepository.save(DriveHistory.builder()
                 .document(doc).action("파일업로드").name(doc.getName()).sizeBytes(doc.getSizeBytes())
                 .actor(uploader).ip(ip)
-                .location(parent != null ? folderPath(parent) : ("SHARED".equals(doc.getDrive()) ? "Shared Drive" : "My Drive"))
+                .location(root + folderPath(parent))
                 .build());
         return DocumentResponse.from(doc);
     }

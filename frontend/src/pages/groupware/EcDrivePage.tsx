@@ -9,6 +9,7 @@ import Modal from '../../components/Modal'
 import DriveFolderTree, { type DrivePlace } from '../../features/drive/components/DriveFolderTree'
 import DriveFolderPicker from '../../features/drive/components/DriveFolderPicker'
 import DriveHistoryModal from '../../features/drive/components/DriveHistoryModal'
+import DriveVersionModal, { DriveLinksModal } from '../../features/drive/components/DriveVersionModal'
 import DriveDetailModal from '../../features/drive/components/DriveDetailModal'
 import { driveSize, driveStamp } from '../../features/drive/driveFormat'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
@@ -101,6 +102,10 @@ export default function EcDrivePage() {
   const [history, setHistory] = useState<{ docId: number | null; drive: 'MY' | 'SHARED' } | null>(null)
   /** [상세보기] 창 */
   const [detailId, setDetailId] = useState<number | null>(null)
+  /** 파일 ⋮ [버전관리] 창 */
+  const [versionId, setVersionId] = useState<number | null>(null)
+  /** 파일 ⋮ [연결내역보기] 창 */
+  const [linksOpen, setLinksOpen] = useState(false)
   const [treeOpen, setTreeOpen] = useState(true)
   /** '새 폴더' 창 — 어느 드라이브 · 어느 폴더 안에 만드나. */
   const [newFolder, setNewFolder] = useState<{ drive: string; parentId: number | null } | null>(null)
@@ -174,19 +179,39 @@ export default function EcDrivePage() {
   const trail: DriveDocument[] = []
   for (let f = folder ? treeFolders.find((t) => t.id === folder.id) ?? folder : null; f; f = f.parentId != null ? treeFolders.find((t) => t.id === f!.parentId) ?? null : null) trail.unshift(f)
 
+  /**
+   * 파일 하나를 올린다. 같은 곳에 같은 이름의 파일이 있으면 서버가 409 — 원본처럼 덮어 쓸지 묻고(2026-10-20 실측 문구),
+   * 한 번 답하면 '※ 이후 충돌하는 모든 파일들도 동일하게 적용' 되므로 같은 묶음의 다음 겹침은 다시 묻지 않는다.
+   */
+  async function sendFile(file: File, drive: string, parentId: number | null | undefined, ask: { overwrite?: boolean }) {
+    const post = (overwrite: boolean) => {
+      const fd = new FormData()
+      fd.append('file', file)
+      return api.post('/drive-documents/upload', fd, { params: { drive, parentId: parentId ?? undefined, overwrite: overwrite || undefined } })
+    }
+    try {
+      await post(false)
+    } catch (err) {
+      if ((err as { response?: { status?: number } }).response?.status !== 409) throw err
+      if (ask.overwrite === undefined) {
+        ask.overwrite = await ecConfirm('동일한 이름의 파일이 존재합니다.\n덮어 씌우겠습니까?\n※ 이후 충돌하는 모든 파일들도 동일하게 적용 됩니다.')
+      }
+      if (ask.overwrite) await post(true)
+    }
+  }
+
   /** 실제 파일 업로드 — 이름·크기는 서버가 올린 파일에서 가져온다. 폴더 안이면 그 폴더에. */
-  async function uploadFile(file: File) {
-    const fd = new FormData()
-    fd.append('file', file)
+  async function uploadFiles(files: File[]) {
     const drive = sel === 'shared' ? 'SHARED' : 'MY'
+    const ask: { overwrite?: boolean } = {}
     setUploading(true)
     try {
-      await api.post('/drive-documents/upload', fd, { params: { drive, parentId: inDrive && folder ? folder.id : undefined } })
-      void load()
+      for (const f of files) await sendFile(f, drive, inDrive && folder ? folder.id : undefined, ask)
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
     } finally {
       setUploading(false)
+      void load()
     }
   }
 
@@ -274,6 +299,7 @@ export default function EcDrivePage() {
   async function uploadDir(files: FileList) {
     const drive = sel === 'shared' ? 'SHARED' : 'MY'
     const made = new Map<string, number | null>([['', inDrive && folder ? folder.id : null]])
+    const ask: { overwrite?: boolean } = {}
     setUploading(true)
     try {
       for (const f of Array.from(files)) {
@@ -287,9 +313,7 @@ export default function EcDrivePage() {
           }
           path = next
         }
-        const fd = new FormData()
-        fd.append('file', f)
-        await api.post('/drive-documents/upload', fd, { params: { drive, parentId: made.get(path) ?? undefined } })
+        await sendFile(f, drive, made.get(path), ask)
       }
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
@@ -307,7 +331,7 @@ export default function EcDrivePage() {
   /**
    * 원본 ⋮ — 폴더도 파일도 같은 차례. 파일은 [이름변경] 다음에 [다운로드] 가 끼인다(2026-10-14 파일 하나 올려 잼:
    * 이동 · 복사 · 중요문서함에 추가 · 이름변경 · 다운로드 · 버전관리 · 휴지통으로이동 · 버전/이력 · 상세보기 · 연결내역보기).
-   * 버전관리 · 연결내역보기는 받쳐 줄 자료(파일 판 · 전표 첨부 연결)가 없어 두지 않는다.
+   * 버전관리 · 연결내역보기는 파일에만 있다(2026-10-20 실측 — 폴더 ⋮ 는 상세보기로 끝난다).
    */
   const commonMenu = (d: DriveDocument): MenuItem[] => [
     { label: '이동', run: () => setTransfer({ mode: 'move', doc: d }) },
@@ -317,8 +341,10 @@ export default function EcDrivePage() {
       : { label: '중요문서함에 추가', run: () => void patch(d, { important: true }) },
     { label: '이름변경', run: () => openRename(d) },
     ...(!d.folder && d.fileId ? [{ label: '다운로드', run: () => void download(d) }] : []),
+    ...(!d.folder ? [{ label: '버전관리', run: () => setVersionId(d.id) }] : []),
     { label: '휴지통으로이동', run: () => toTrash(d) },
     ...tailMenu(d),
+    ...(!d.folder ? [{ label: '연결내역보기', run: () => setLinksOpen(true) }] : []),
   ]
 
   /** 나무의 폴더 우클릭 — ⋮ 에서 [중요문서함에 추가]만 빠진다(2026-10-13 실측). */
@@ -420,7 +446,7 @@ export default function EcDrivePage() {
             <input ref={fileInput} type="file" className="hidden"
                    onChange={(e) => {
                      const f = e.target.files?.[0]
-                     if (f) void uploadFile(f)
+                     if (f) void uploadFiles([f])
                      e.target.value = ''
                    }} />
             {/* 원본 [File▲] › Folder — 폴더 올리기 */}
@@ -435,7 +461,7 @@ export default function EcDrivePage() {
             <EcFileDrop
               multiple busy={uploading} disabled={uploading || !inDrive}
               hint={`여기에 파일 놓기 (${folder ? folder.name : sel === 'shared' ? '공유드라이브' : '내드라이브'})`}
-              onFiles={(fs) => { for (const f of fs) void uploadFile(f) }}
+              onFiles={(fs) => void uploadFiles(Array.from(fs))}
             />
           </div>
 
@@ -550,6 +576,8 @@ export default function EcDrivePage() {
 
       {history && <DriveHistoryModal docId={history.docId} drive={history.drive} onClose={() => setHistory(null)} />}
       {detailId != null && <DriveDetailModal docId={detailId} onClose={() => setDetailId(null)} />}
+      {versionId != null && <DriveVersionModal docId={versionId} onClose={() => setVersionId(null)} />}
+      {linksOpen && <DriveLinksModal onClose={() => setLinksOpen(false)} />}
 
       {/* 원본 '새 폴더' 창 */}
       <Modal error={folderErr} open={!!newFolder} title="새 폴더" width={640} onClose={() => setNewFolder(null)}>
