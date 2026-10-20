@@ -336,10 +336,11 @@ const MENU: TopMenu[] = [
               { label: '채무현황', to: '/sales/payable-status' },
               { label: '거래처관리대장1(채무)', to: '/sales/partner-ledger-payable' },
               { label: '지급현황', to: '/sales/payment' },
-              { label: '미지급현황', to: '/sales/payable' },
               { label: '구매할인현황', to: '/sales/purchase-discount' },
               { label: '회계미반영현황 (구매)', to: '/sales/accounting-reflection?kind=purchase&view=unposted' },
-              { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+              // 원본 출력물 › 구매관리현황 14개(2026-10-20 재고1h 실측) — 미지급현황 · 외주비할인현황은 여기 없고 세금계산서 둘이 있다.
+              { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' },
+              { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
               { label: '월별채무증감내역', to: '/sales/monthly-ap' },
             ],
           },
