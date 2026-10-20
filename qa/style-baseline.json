@@ -1125,8 +1125,8 @@
   "palette": 0
  },
  "pages/trade/ShipmentInquiryPage.tsx": {
-  "inline": 12,
-  "color": 2,
+  "inline": 9,
+  "color": 0,
   "palette": 0
  },
  "pages/trade/ShipmentOrderStatusPage.tsx": {

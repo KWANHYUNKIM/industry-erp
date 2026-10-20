@@ -33,7 +33,6 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
  * [관리항목]만 여전히 없다 — 그건 품목 마스터에 붙는 값이라 출하 전표에는 없다.
  */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
-const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 
 /** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
 interface ShipLine { itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; unitPrice: number; amount: number }
@@ -73,6 +72,8 @@ type SendTab = (typeof SEND_TABS)[number]
 const TAB_STATUS: Record<Exclude<SendTab, '전체'>, ShipStatus> = { 미발송: 'READY', 발송: 'SHIPPED', 취소: 'CANCELED' }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
+/** 원본 수량합계는 소수 둘('3.00'). */
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /**
  * 원본 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 종이로 찍는다.
@@ -244,7 +245,6 @@ export default function ShipmentInquiryPage() {
   const shown = sort.sorted
 
   const tabCount = (t: SendTab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
-  const totals = useMemo(() => shown.reduce((a, r) => ({ qty: a.qty + r.totalQuantity, amount: a.amount + r.totalAmount }), { qty: 0, amount: 0 }), [shown])
 
   return (
     <EcListShell title="출하조회" search={keyword} onSearchChange={setKeyword} onSearch={load} /*
@@ -386,34 +386,32 @@ export default function ShipmentInquiryPage() {
               <b>[인쇄]는 줄마다 두는 원본 열이다</b> — 화면 위 [인쇄] 하나로 갈음하고
               있었는데, 그건 "지금 보고 있는 목록" 을 찍는 버튼이라 <b>한 건을 집어
               찍을 수가 없었다.</b> 이번에 줄마다 달았다.
-              [근거주문]·[출하금액]·[발송여부]·[담당]은 우리 열이다.
+              2026-10-20 다시 잼(재고1 출하 바퀴): 원본 열은 ☐ · 일자-No. 141 · 창고명 127 · 품목명(요약) 380 ·
+              수량합계 146('3.00') · 거래처명 127 · 인쇄 112 일곱뿐이고 <b>합계줄이 없다</b> — 우리가 더 두던
+              [근거주문]·[출하금액]·[발송여부]·[담당] 열과 합계줄을 뺐다.
             */}
-            <th className="cursor-pointer" onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th><th className="w-[130px]">근거주문</th><th>창고명</th><th>품목명(요약)</th>
-            <th className="text-right">수량합계</th><th className="text-right">출하금액</th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
-            <th className="text-center">발송여부</th><th>담당</th>
-            <th className="w-[60px] text-center">인쇄</th>
+            <th className="cursor-pointer w-[141px] text-center" onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th>
+            <th className="w-[127px]">창고명</th><th className="w-[380px]">품목명(요약)</th>
+            <th className="w-[146px] text-right">수량합계</th>
+            <th className="cursor-pointer w-[127px]" onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
+            <th className="w-[112px] text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.id}>
               <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} className="cursor-pointer">
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <td className="text-ec-blue font-semibold">{openId === r.id ? '▾ ' : '▸ '}{dateText(r.shipDate)} {r.shipNo}</td>
-                <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: r.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>{r.salesOrderNo ?? '직접등록'}</td>
-                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
-                <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
-                <td className="text-right">{won(r.totalQuantity)}</td>
-                <td className="text-right font-semibold text-ec-blue">{won(r.totalAmount)}</td>
+                <td className="text-center text-ec-blue">{dateText(r.shipDate)} {r.shipNo}</td>
+                <td>{r.warehouseName ?? ''}</td>
+                <td>{r.lines[0]?.itemName}{r.lines[0]?.spec ? ` [${r.lines[0].spec}]` : ''}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
+                <td className="text-right">{qty2(r.totalQuantity)}</td>
                 <td>{r.partnerName}</td>
-                <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
-                <td>{r.employeeName ?? ''}</td>
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
                   <button className="no-ec" onClick={() => printShipment(r, company)}
                           style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
@@ -421,7 +419,7 @@ export default function ShipmentInquiryPage() {
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">
-                  <td colSpan={11} className="p-0 bg-ec-page">
+                  <td colSpan={7} className="p-0 bg-ec-page">
                     <table className="w-full text-left my-[4px] mx-0">
                       <thead>
                         <tr><th className="w-[34px]"></th><th>품목코드</th><th>품목명</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">금액</th></tr>
@@ -446,14 +444,6 @@ export default function ShipmentInquiryPage() {
             </Fragment>
           ))}
         </tbody>
-        <tfoot>
-          <tr className="font-bold bg-ec-page">
-            <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
-            <td className="text-right">{won(totals.qty)}</td>
-            <td className="text-right text-ec-blue">{won(totals.amount)}</td>
-            <td colSpan={4}></td>
-          </tr>
-        </tfoot>
       </table>
     </EcListShell>
   )
