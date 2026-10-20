@@ -12,8 +12,7 @@ import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
-/** 원본 [계정 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
-const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
+/* 원본 [계정 계] · [합계] 줄(2026-10-03 실측): 바탕 회색 243 · 굵게 — 출력물 합계줄 토큰 --ec-report-stripe 로 그린다. */
 const slash = (d: string) => d.replace(/-/g, '/')
 /** 자금 계정 — 현금 · 당좌예금 · 보통예금(StandardAccounts). */
 const FUND_CODES = ['101', '102', '103']
@@ -23,9 +22,11 @@ const FLOW_PICKS = [...SETTLE_PICKS, '최근30일'] as const
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface Book { label: string; no: string; carry: number; inc: number; dec: number }
 interface Fund { code: string; name: string; carry: number; inc: number; dec: number; books: Map<string, Book> }
-interface BankTxn { journalEntryId: number | null; bankAccountId: number }
+interface BankTxn { journalEntryId: number | null; bankAccountId: number; deposit: boolean }
 interface BankAccount { id: number; name: string | null; bankName: string | null; accountNo: string | null }
 interface Move { key: string; date: string; counter: string; partner: string; text: string; amount: number }
+/** 원본 [계좌간이동] 표 한 줄 — 자금 계정끼리만 오간 전표(이동계좌 'A → B'). */
+interface Xfer { key: string; date: string; route: string; text: string; amount: number }
 
 /**
  * 회계 I &gt; 경영자료 &gt; <b>자금일보</b>(E010830) — 2026-10-03 loginaa 실측(자료가 든 판, 전월).
@@ -57,7 +58,8 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
   const deptProject = useDeptProjectItems()
   const entries = useMemo(() => scopeEntries(allEntries, dept, project), [allEntries, dept, project])
   /* 회계전표 → 그 전표를 만든 통장. 원본은 예금 계정을 통장(거래처명 자리)마다 가른다. */
-  const [bookOf, setBookOf] = useState<Map<number, { id: number; label: string; no: string }>>(new Map())
+  /* 키는 `전표id:d`(입금 통장) · `전표id:c`(출금 통장) — 계좌간이동 한 장에 통장이 둘 붙는다. */
+  const [bookOf, setBookOf] = useState<Map<string, { id: number; label: string; no: string }>>(new Map())
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -74,7 +76,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
       ])
       const acc = new Map(a.data.map((x) => [x.id, x]))
       setBookOf(new Map(t.data.rows.filter((x) => x.journalEntryId != null && acc.has(x.bankAccountId))
-        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { id: b.id, label: bankLabel(b), no: b.accountNo ?? '' }] })))
+        .map((x) => { const b = acc.get(x.bankAccountId)!; return [`${x.journalEntryId}:${x.deposit ? 'd' : 'c'}`, { id: b.id, label: bankLabel(b), no: b.accountNo ?? '' }] })))
       setEntries(r.data.rows)
       setTruncated(r.data.truncated)
     } catch (e) {
@@ -86,41 +88,63 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to])
 
-  const { funds, incs, decs } = useMemo(() => {
+  const { funds, incs, decs, xfers } = useMemo(() => {
     const fm = new Map<string, Fund>()
-    const incs: Move[] = [], decs: Move[] = []
+    const incs: Move[] = [], decs: Move[] = [], xfers: Xfer[] = []
     const sorted = [...entries].sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo)))
     for (const e of sorted) {
+      /* 원본(2026-10-20 실측): 자금 계정끼리만 오간 전표(계좌간이동)는 [자금 현황] 증가 · 감소에는 들고,
+         [자금의 증가] · [자금의 감소] 대신 끝의 [계좌간이동] 표에 '출금통장 → 입금통장' 한 줄로 나온다. */
+      const isXfer = e.lines.every((o) => FUND_CODES.includes(o.accountCode))
+        && e.lines.some((o) => Number(o.debit)) && e.lines.some((o) => Number(o.credit))
+      const bookFor = (l: JournalEntry['lines'][number]) => {
+        if (l.accountCode === '101') return undefined
+        const [a, b] = Number(l.debit) ? ['d', 'c'] : ['c', 'd']
+        return bookOf.get(`${e.id}:${a}`) ?? bookOf.get(`${e.id}:${b}`)
+      }
       for (const l of e.lines) {
         if (!FUND_CODES.includes(l.accountCode)) continue
         if (!fm.has(l.accountCode)) fm.set(l.accountCode, { code: l.accountCode, name: l.accountName, carry: 0, inc: 0, dec: 0, books: new Map() })
         const f = fm.get(l.accountCode)!
-        /* 현금은 통장이 없다. 예금 줄은 그 전표를 만든 통장으로, 통장 없이 잡힌 분개는 '[ ]' 줄로. */
-        const bk = l.accountCode === '101' ? undefined : bookOf.get(e.id)
+        /* 현금은 통장이 없어 거래처명이 빈칸(원본). 예금 줄은 그 전표를 만든 통장으로, 통장 없이 잡힌 분개는 '[ ]' 줄로. */
+        const cash = l.accountCode === '101'
+        const bk = bookFor(l)
         /* 통장 번호로 묶는다 — 끝 네 자리가 같은 두 통장(이름이 같게 보이는 통장)이 한 줄로 합쳐지지 않게. */
-        const key = bk ? `#${bk.id}` : '[ ]'
-        if (!f.books.has(key)) f.books.set(key, { label: bk ? bk.label : '[ ]', no: bk ? bk.no : '[ ]', carry: 0, inc: 0, dec: 0 })
+        const key = cash ? '' : bk ? `#${bk.id}` : '[ ]'
+        if (!f.books.has(key)) f.books.set(key, { label: cash ? '' : bk ? bk.label : '[ ]', no: cash ? '' : bk ? bk.no : '[ ]', carry: 0, inc: 0, dec: 0 })
         const b = f.books.get(key)!
         const d = Number(l.debit), c = Number(l.credit)
         if (e.entryDate < from) { f.carry += d - c; b.carry += d - c; continue }
         f.inc += d; f.dec += c; b.inc += d; b.dec += c
+        if (isXfer) continue
         const others = [...new Set(e.lines.filter((o) => o !== l && !FUND_CODES.includes(o.accountCode)).map((o) => o.accountName))]
         const counter = others.length === 0 ? '' : others.length === 1 ? others[0] : `${others[0]} 외 ${others.length - 1}`
         const m = { key: `${e.id}-${l.id}`, date: e.entryDate, counter, partner: e.partnerName ?? '', text: l.description ?? e.description ?? '' }
         if (d) incs.push({ ...m, amount: d })
         if (c) decs.push({ ...m, amount: c })
       }
+      if (isXfer && e.entryDate >= from) {
+        const name = (l: JournalEntry['lines'][number]) => bookFor(l)?.label ?? l.accountName
+        const outL = e.lines.find((o) => Number(o.credit))!
+        const inL = e.lines.find((o) => Number(o.debit))!
+        xfers.push({
+          key: String(e.id), date: e.entryDate, route: `${name(outL)} → ${name(inL)}`,
+          text: inL.description ?? e.description ?? '', amount: e.lines.reduce((s, o) => s + Number(o.debit), 0),
+        })
+      }
     }
-    return { funds: [...fm.values()].filter((f) => f.carry || f.inc || f.dec).sort((a, b) => a.code.localeCompare(b.code)), incs, decs }
+    return { funds: [...fm.values()].filter((f) => f.carry || f.inc || f.dec).sort((a, b) => a.code.localeCompare(b.code)), incs, decs, xfers }
   }, [entries, from, bookOf])
   const tot = funds.reduce((s, f) => ({ carry: s.carry + f.carry, inc: s.inc + f.inc, dec: s.dec + f.dec }), { carry: 0, inc: 0, dec: 0 })
 
   const tableRef = useRef<HTMLTableElement>(null)
   const incRef = useRef<HTMLTableElement>(null)
   const decRef = useRef<HTMLTableElement>(null)
+  const xferRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [funds.length])
   useTableColumnCheck(incRef, title, [incs.length])
   useTableColumnCheck(decRef, title, [decs.length])
+  useTableColumnCheck(xferRef, title, [xfers.length])
 
   const section = (t: string) => (
     <div className="flex justify-between text-[12.5px] font-bold mt-[14px] mx-0 mb-[4px]">
@@ -136,13 +160,11 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
         <th>상대거래처명</th>
         <th>적요</th>
         <th className="text-right">금액</th>
-        {!flow && <th>거래처코드</th>}
       </tr>
     </thead>
   )
   const moveBody = (ms: Move[]) => (
     <tbody>
-      {ms.length === 0 && <tr><td colSpan={flow ? 5 : 6} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>}
       {ms.map((m, i) => (
         <tr key={m.key}>
           <td className="text-center">{!flow && i > 0 && ms[i - 1].date === m.date ? '' : slash(m.date)}</td>
@@ -150,13 +172,11 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
           <td>{m.partner}</td>
           <td>{m.text}</td>
           <td className="text-right">{won(m.amount)}</td>
-          {!flow && <td></td>}
         </tr>
       ))}
-      <tr style={SUB_ROW}>
+      <tr className="font-bold bg-[var(--ec-report-stripe)]">
         <td colSpan={4} className="text-center">합계</td>
         <td className="text-right">{won(ms.reduce((s, m) => s + m.amount, 0))}</td>
-        {!flow && <td></td>}
       </tr>
     </tbody>
   )
@@ -209,54 +229,80 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
                     <th className="text-right">증가[외화]</th>
                     <th className="text-right">감소[외화]</th>
                     <th className="text-right">금일잔액[외화]</th>
-                    <th>계정코드</th>
-                    <th>거래처코드</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {funds.length === 0 && <tr><td colSpan={8} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>}
+                  {funds.length === 0 && <tr><td colSpan={6} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>}
                   {funds.map((f) => (
                     <Fragment key={f.code}>
-                      {[...f.books.values()].filter((b) => b.carry || b.inc || b.dec).sort((x, y) => (x.label === '[ ]' ? -1 : y.label === '[ ]' ? 1 : x.label.localeCompare(y.label, 'ko') || x.no.localeCompare(y.no))).map((b) => (
+                      {/* 계정명은 계정의 첫 줄에만(원본). */}
+                      {[...f.books.values()].filter((b) => b.carry || b.inc || b.dec).sort((x, y) => (x.label === '[ ]' ? -1 : y.label === '[ ]' ? 1 : x.label.localeCompare(y.label, 'ko') || x.no.localeCompare(y.no))).map((b, bi) => (
                         <tr key={b.no + b.label}>
-                          <td>{f.name}</td>
+                          <td>{bi === 0 ? f.name : ''}</td>
                           <td>{b.label}</td>
                           <td className="text-right">{won(b.carry)}</td>
                           <td className="text-right">{won(b.inc)}</td>
                           <td className="text-right">{won(b.dec)}</td>
                           <td className="text-right">{won(b.carry + b.inc - b.dec)}</td>
-                          <td>{f.code}</td>
-                          <td>{b.no}</td>
                         </tr>
                       ))}
-                      <tr style={SUB_ROW}>
+                      <tr className="font-bold bg-[var(--ec-report-stripe)]">
                         <td colSpan={2} className="text-center">{f.name} 계</td>
                         <td className="text-right">{won(f.carry)}</td>
                         <td className="text-right">{won(f.inc)}</td>
                         <td className="text-right">{won(f.dec)}</td>
                         <td className="text-right">{won(f.carry + f.inc - f.dec)}</td>
-                        <td></td>
-                        <td></td>
                       </tr>
                     </Fragment>
                   ))}
-                  <tr style={SUB_ROW}>
+                  <tr className="font-bold bg-[var(--ec-report-stripe)]">
                     <td colSpan={2} className="text-center">합계</td>
                     <td className="text-right">{won(tot.carry)}</td>
                     <td className="text-right">{won(tot.inc)}</td>
                     <td className="text-right">{won(tot.dec)}</td>
                     <td className="text-right">{won(tot.carry + tot.inc - tot.dec)}</td>
-                    <td></td>
-                    <td></td>
                   </tr>
                 </tbody>
               </table>
             </>
           )}
-          {section(flow ? '1 . 자금의 증가' : '2 . 자금의 증가')}
-          <table ref={incRef} className="w-full text-left">{moveHead}{moveBody(incs)}</table>
-          {section(flow ? '2 . 자금의 감소' : '3 . 자금의 감소')}
-          <table ref={decRef} className="w-full text-left">{moveHead}{moveBody(decs)}</table>
+          {/* 원본(2026-10-20): 자료가 없는 표는 제목째 빠지고 번호는 그대로(일보 2 · 3 · 4 / 증감내역 1 · 2 · 3). */}
+          {incs.length > 0 && <>
+            {section(flow ? '1 . 자금의 증가' : '2 . 자금의 증가')}
+            <table ref={incRef} className="w-full text-left">{moveHead}{moveBody(incs)}</table>
+          </>}
+          {decs.length > 0 && <>
+            {section(flow ? '2 . 자금의 감소' : '3 . 자금의 감소')}
+            <table ref={decRef} className="w-full text-left">{moveHead}{moveBody(decs)}</table>
+          </>}
+          {xfers.length > 0 && <>
+            {section(flow ? '3 . 계좌간이동' : '4 . 계좌간이동')}
+            <table ref={xferRef} className="w-full text-left">
+              <thead>
+                <tr>
+                  <th className="text-center">일자</th>
+                  <th>이동계좌</th>
+                  <th>적요</th>
+                  <th className="text-right">금액</th>
+                </tr>
+              </thead>
+              <tbody>
+                {xfers.map((x, i) => (
+                  <tr key={x.key}>
+                    <td className="text-center">{!flow && i > 0 && xfers[i - 1].date === x.date ? '' : slash(x.date)}</td>
+                    <td>{x.route}</td>
+                    <td>{x.text}</td>
+                    <td className="text-right">{won(x.amount)}</td>
+                  </tr>
+                ))}
+                <tr className="font-bold bg-[var(--ec-report-stripe)]">
+                  <td colSpan={3} className="text-center">합계</td>
+                  <td className="text-right">{won(xfers.reduce((s, x) => s + x.amount, 0))}</td>
+                </tr>
+              </tbody>
+            </table>
+          </>}
+          {flow && incs.length + decs.length + xfers.length === 0 && <p className="ec-empty">등록된 데이터가 없습니다.</p>}
         </>
       )}
     </EcListShell>
