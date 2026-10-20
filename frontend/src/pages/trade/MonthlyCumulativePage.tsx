@@ -5,7 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { periodOf, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
@@ -57,18 +57,11 @@ interface TransferRow {
   itemId: number; itemName: string; itemCategoryName: string | null
 }
 
-interface MonthRow {
-  month: number
-  sale: number; saleCum: number
-  buy: number; buyCum: number
-  profit: number; profitCum: number
-}
-
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisYear = () => Number(ymd(new Date()).slice(0, 4))
+/** 원본 수량은 소수 둘째 자리까지('3,179.00' · 2026-10-20 실측). */
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export default function MonthlyCumulativePage() {
-  const [year, setYear] = useState<number>(thisYear())
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
@@ -116,11 +109,9 @@ export default function MonthlyCumulativePage() {
        * <p>아래 달별 표는 고른 <b>해 전체</b>를 열두 달로 펴므로, 창을 그 해까지 넓힌다.
        * 사람이 기간을 지난해로 잡아도 [기간 누계]가 서도록 min·max 로 감싼다.
        */
-      const yearFrom = `${year}-01-01`, yearTo = `${year}-12-31`
       const period = {
-        from: [from, to.slice(0, 8) + '01', to.slice(0, 4) + '-01-01', yearFrom]
-          .filter(Boolean).sort()[0],
-        to: [to, yearTo].filter(Boolean).sort().slice(-1)[0],
+        from: [from, to.slice(0, 8) + '01', to.slice(0, 4) + '-01-01'].filter(Boolean).sort()[0],
+        to,
       }
       const [s, b, pr, tr] = await Promise.all([
         api.get<SalesDoc[]>('/sales', { params: period }),
@@ -135,7 +126,7 @@ export default function MonthlyCumulativePage() {
   }
   /* 창을 정하는 값이 바뀌면 그 창으로 다시 받는다. */
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [year, from, to])
+  useEffect(() => { load() }, [from, to])
 
   /**
    * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
@@ -189,12 +180,13 @@ export default function MonthlyCumulativePage() {
   const cumRows = useMemo(() => {
     const monthFrom = to.slice(0, 8) + '01'
     const yearFrom = to.slice(0, 4) + '-01-01'
-    const spans: { name: string; from: string; to: string }[] = [
-      { name: '기간 누계', from, to },
-      { name: '월 누계', from: monthFrom, to },
-      { name: '년 누계', from: yearFrom, to },
+    /* 원본 [기간] 칸 글자(2026-10-20 실측): '2026/10/01 ~2026/10/20' · '2026/10' · '2026/'. */
+    const slash = (d: string) => d.replace(/-/g, '/')
+    const spans: { name: string; from: string; to: string; label: string }[] = [
+      { name: '기간 누계', from, to, label: `${slash(from)} ~${slash(to)}` },
+      { name: '월 누계', from: monthFrom, to, label: slash(to.slice(0, 7)) },
+      { name: '년 누계', from: yearFrom, to, label: `${to.slice(0, 4)}/` },
     ]
-    const dash = (a: string, b: string) => `${a.replace(/-/g, '/')}~${b.replace(/-/g, '/')}`
     const sum = (docs: { date: string; supply: number; vat: number; qty: number }[], a: string, b: string) => {
       let qty = 0, supply = 0, vat = 0
       for (const d of docs) {
@@ -245,36 +237,13 @@ export default function MonthlyCumulativePage() {
       hasAmount: name === '판매현황' || name === '구매현황',
       lines: spans.map((sp) => ({
         gubun: sp.name,
-        period: dash(sp.from, sp.to),
+        period: sp.label,
         ...sum(docs as { date: string; supply: number; vat: number; qty: number }[], sp.from, sp.to),
       })),
     }))
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [sales, purchases, productions, transfers,
     from, to, warehouse, partner, project, item, partnerGroup, category, itemGroup, mgmtCond])
-
-  const rows = useMemo<MonthRow[]>(() => {
-    const saleByM = new Array(13).fill(0)
-    const buyByM = new Array(13).fill(0)
-    for (const d of sales) {
-      if (d.saleDate.slice(0, 4) !== String(year)) continue
-      if (!keepDoc(d)) continue
-      saleByM[Number(d.saleDate.slice(5, 7))] += d.supplyAmount
-    }
-    for (const d of purchases) {
-      if (d.purchaseDate.slice(0, 4) !== String(year)) continue
-      if (!keepDoc(d)) continue
-      buyByM[Number(d.purchaseDate.slice(5, 7))] += d.supplyAmount
-    }
-    const out: MonthRow[] = []
-    let saleCum = 0, buyCum = 0, profitCum = 0
-    for (let m = 1; m <= 12; m++) {
-      const sale = saleByM[m], buy = buyByM[m], profit = sale - buy
-      saleCum += sale; buyCum += buy; profitCum += profit
-      out.push({ month: m, sale, saleCum, buy, buyCum, profit, profitCum })
-    }
-    return out
-  }, [sales, purchases, year, warehouse, partner, project, item, partnerGroup, category, itemGroup, mgmtCond])
 
   /*
    * [표시방법]이 <b>횡</b>이면 열이 열두 달 + 연간으로 바뀐다 — 정적으로는 못 세는 표라
@@ -283,8 +252,6 @@ export default function MonthlyCumulativePage() {
   const tableRef = useRef<HTMLDivElement>(null)
   useTableColumnCheck(tableRef, '현황누계표', [layout])
 
-  const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
-  const yTotal = rows.length ? rows[rows.length - 1] : null
 
   return (
     <EcListShell
@@ -292,8 +259,6 @@ export default function MonthlyCumulativePage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
       signLine={signBox}
     >
-      <p className="mb-2 text-xs text-ec-hint">월별 당월·누계 매출·매입·이익(추정). 이익 = 매출공급가 − 매입공급가(원가매칭 아님).</p>
-
       <div className="flex items-center gap-[8px] mb-[10px]">
         {/*
           원본 [구분] 안의 <b>표시방법</b> — 종(월이 행) · 횡(월이 열). 기본은 종이다.
@@ -319,10 +284,6 @@ export default function MonthlyCumulativePage() {
           <input className="ec-input" type="date" style={{ width: 140 }} value={to}
                  onChange={(e) => setTo(e.target.value)} />
         </span>
-        <span className="text-[12.5px] text-ec-text font-semibold">연도</span>
-        <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
-          {years.map((y) => <option key={y} value={y}>{y}년</option>)}
-        </select>
         {/* 원본 조건 차례: 창고 · 거래처 · 품목 · 프로젝트 */}
         <CodePickerField label="창고" width={150} emptyLabel="전체"
                          value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
@@ -358,13 +319,6 @@ export default function MonthlyCumulativePage() {
         <label className="flex items-center gap-[3px] text-[12.5px]">
           <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />결재방표시
         </label>
-        {yTotal && (
-          <span className="ml-auto text-[12.5px] text-ec-label">
-            연매출 <b className="text-ec-blue text-[14px]">{won(yTotal.saleCum)}</b>
-            <span className="my-0 mx-[6px] text-ec-off">|</span>
-            연이익 <b style={{ color: yTotal.profitCum >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{won(yTotal.profitCum)}</b>
-          </span>
-        )}
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -381,7 +335,40 @@ export default function MonthlyCumulativePage() {
         뒤 둘은 전표에 <b>금액 칸이 아예 없어</b> 수량만 차고 금액 칸은 <b>비운다</b>
         (0 을 찍으면 "값이 0 원" 으로 읽힌다 — 값이 없는 것과 다르다).
       */}
-      <table className="w-full text-left mb-[14px]">
+      {layout === '횡' ? (
+      /* 원본 [횡](2026-10-20 실측): 머리 두 줄 — [구분] 아래 범위 셋(기간 · 그 달 · 그 해)이 각각 수량 · 공급가액 · 부가세 · 합계(금액). 현황이 한 줄. */
+      <div ref={tableRef} className="overflow-x-auto">
+        <table className="w-full text-left min-w-[900px]">
+          <thead>
+            <tr>
+              <th rowSpan={2} className="min-w-[110px]">구분</th>
+              {(cumRows[0]?.lines ?? []).map((l) => (
+                <th key={l.gubun} colSpan={4} className="text-center">{l.period}</th>
+              ))}
+            </tr>
+            <tr>
+              {(cumRows[0]?.lines ?? []).map((l) => ['수량', '공급가액', '부가세', '합계(금액)'].map((h) => (
+                <th key={l.gubun + h} className="text-right">{h}</th>
+              )))}
+            </tr>
+          </thead>
+          <tbody>
+            {cumRows.map((g) => (
+              <tr key={g.name}>
+                <td className="font-bold">{g.name}</td>
+                {g.lines.map((l) => [
+                  <td key={l.gubun + 'q'} className="text-right">{l.qty ? qty2(l.qty) : ''}</td>,
+                  <td key={l.gubun + 's'} className="text-right">{g.hasAmount && l.supply ? won(l.supply) : ''}</td>,
+                  <td key={l.gubun + 'v'} className="text-right">{g.hasAmount && l.vat ? won(l.vat) : ''}</td>,
+                  <td key={l.gubun + 't'} className="text-right">{g.hasAmount ? won(l.supply + l.vat) : ''}</td>,
+                ])}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      ) : (
+      <table className="w-full text-left ">
         <thead>
           <tr>
             <th className="w-[110px]"></th>
@@ -394,14 +381,16 @@ export default function MonthlyCumulativePage() {
           </tr>
         </thead>
         <tbody>
-          {cumRows.map((g) => g.lines.map((l, i) => (
+          {loading ? (
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
+          ) : cumRows.map((g) => g.lines.map((l, i) => (
             <tr key={g.name + l.gubun}>
               {i === 0 && (
                 <td rowSpan={3} className="font-bold bg-ec-page align-middle">{g.name}</td>
               )}
               <td>{l.gubun}</td>
               <td className="text-ec-label">{l.period}</td>
-              <td className="text-right">{l.qty ? won(l.qty) : ''}</td>
+              <td className="text-right">{l.qty ? qty2(l.qty) : ''}</td>
               <td className="text-right">{g.hasAmount ? (l.supply ? won(l.supply) : '') : ''}</td>
               <td className="text-right text-ec-hint">{g.hasAmount ? (l.vat ? won(l.vat) : '') : ''}</td>
               <td className="text-right font-bold text-ec-blue">
@@ -410,81 +399,6 @@ export default function MonthlyCumulativePage() {
             </tr>
           )))}
         </tbody>
-      </table>
-
-      {layout === '횡' ? (
-      <div ref={tableRef} className="overflow-x-auto">
-        <table className="w-full text-left min-w-[900px]">
-          <thead>
-            <tr>
-              <th className="sticky left-0 bg-ec-page min-w-[110px]">구분</th>
-              {rows.map((r) => <th key={r.month} className="text-right whitespace-nowrap">{r.month}월</th>)}
-              <th className="text-right text-ec-blue">연간</th>
-            </tr>
-          </thead>
-          <tbody>
-            {([
-              ['당월매출', (r: MonthRow) => r.sale, yTotal ? yTotal.saleCum : 0],
-              ['누계매출', (r: MonthRow) => r.saleCum, yTotal ? yTotal.saleCum : 0],
-              ['당월매입', (r: MonthRow) => r.buy, yTotal ? yTotal.buyCum : 0],
-              ['누계매입', (r: MonthRow) => r.buyCum, yTotal ? yTotal.buyCum : 0],
-              ['당월이익', (r: MonthRow) => r.profit, yTotal ? yTotal.profitCum : 0],
-              ['누계이익', (r: MonthRow) => r.profitCum, yTotal ? yTotal.profitCum : 0],
-            ] as [string, (r: MonthRow) => number, number][]).map(([name, of, total]) => (
-              <tr key={name}>
-                <td className="sticky left-0 bg-white font-semibold">{name}</td>
-                {rows.map((r) => (
-                  <td key={r.month} style={{ textAlign: 'right', color: of(r) ? undefined : 'var(--ec-text-off)' }}>
-                    {of(r) ? won(of(r)) : ''}
-                  </td>
-                ))}
-                <td className="text-right font-bold text-ec-blue">{won(total)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      ) : (
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th className="w-[60px]">월</th>
-            <th className="text-right">당월매출</th>
-            <th className="text-right">누계매출</th>
-            <th className="text-right">당월매입</th>
-            <th className="text-right">누계매입</th>
-            <th className="text-right">당월이익</th>
-            <th className="text-right">누계이익</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
-          ) : rows.map((r) => (
-            <tr key={r.month}>
-              <td className="font-semibold">{r.month}월</td>
-              <td style={{ textAlign: 'right', color: r.sale ? undefined : 'var(--ec-text-off)' }}>{r.sale ? won(r.sale) : ''}</td>
-              <td className="text-right font-semibold text-ec-blue">{won(r.saleCum)}</td>
-              <td style={{ textAlign: 'right', color: r.buy ? undefined : 'var(--ec-text-off)' }}>{r.buy ? won(r.buy) : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{won(r.buyCum)}</td>
-              <td style={{ textAlign: 'right', color: r.profit === 0 ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.profit ? won(r.profit) : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: r.profitCum >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(r.profitCum)}</td>
-            </tr>
-          ))}
-        </tbody>
-        {yTotal && (
-          <tfoot>
-            <tr className="font-bold bg-ec-page">
-              <td>연간</td>
-              <td className="text-right">{won(yTotal.saleCum)}</td>
-              <td></td>
-              <td className="text-right">{won(yTotal.buyCum)}</td>
-              <td></td>
-              <td style={{ textAlign: 'right', color: yTotal.profitCum >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(yTotal.profitCum)}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        )}
       </table>
       )}
     </EcListShell>

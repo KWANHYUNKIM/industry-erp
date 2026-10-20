@@ -9,12 +9,12 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../utils/periods'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 영업관리 > 집계표 (이카운트 E040710)
- * 거래처(또는 품목) × 12개월 매출/매입 금액 피벗 표. 행별·월별 합계 포함.
+ * 집계조건(거래처 · 품목) 한 축 × 수량 · 공급가액 · 부가세 · 합계, 끝에 합계 줄(원본 E040710 꼴).
  * 데이터는 GET /api/sales / /purchases 집계(백엔드 무변경).
  *
  * <p>2026-09-08 에 원본을 열어 조건 판을 재니 <b>마흔둘</b>이다 — 사본에는 열하나뿐이었다.
@@ -29,7 +29,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  *   <li><b>[관리항목]은 원본 조건 판에 없다.</b> 사본을 보고 우리가 만들어 둔 것이라 뺀다 —
  *       원본에 없는 조건을 두면 대조표가 거짓이 된다.
  *   <li>기간 칸의 원본 이름은 <b>[기준일자]</b> 이고 기본은 <b>전월+금월</b> 이다.
- *       우리 표는 <b>한 해 × 12개월</b> 피벗이라 기간을 연 단위로만 고른다 — 이름만 원본에 맞춘다.
+ *       2026-10-20: 기간은 원본처럼 [기준일자] 시작~끝(기본 전월+금월)으로 고른다(예전엔 한 해 × 12개월 피벗).
  * </ul>
  *
  * <p>이번에 만든 것: 담당자 · 거래처그룹1 · 거래처관리담당자 · 품목구분 · 품목그룹1 · 적요.
@@ -57,15 +57,18 @@ interface PivotRow {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisYear = () => Number(ymd(new Date()).slice(0, 4))
-const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
+/** 원본 [기준일자] 기본값은 전월+금월(2026-10-20 실측). */
+const initP = periodOf('전월+금월')!
+/** 원본 집계표의 수량은 소수 둘째 자리까지 찍힌다('2.00' · 2026-10-20 실측). */
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /*
  * 원본의 숫자 범위 조건 다섯 — 수량 · 단가 · 공급가액 · 부가세 · 부대비용.
  * 다섯 다 라인이 이미 싣는 값이다(부대비용은 TradeLine.extraCost).
  */
 
 export default function PivotSummaryPage() {
-  const [year, setYear] = useState<number>(thisYear())
+  const [from, setFrom] = useState(initP.from)
+  const [to, setTo] = useState(initP.to)
   const [mode, setMode] = useState<Mode>('판매')
   const [groupBy, setGroupBy] = useState<GroupBy>('partner')
   const [sales, setSales] = useState<SalesDoc[]>([])
@@ -128,7 +131,7 @@ export default function PivotSummaryPage() {
        * 서버에는 아무것도 안 보내는 꼴이었다. 이 표에는 <b>이월도 누계도 없다</b>
        * (거래처원장·월별채권채무와 다르다) — 그 해 전표만 있으면 숫자가 같다.
        */
-      const period = { from: `${year}-01-01`, to: `${year}-12-31` }
+      const period = { from, to }
       const [s, b] = await Promise.all([
         api.get<SalesDoc[]>('/sales', { params: period }),
         api.get<PurchaseDoc[]>('/purchases', { params: period }),
@@ -137,9 +140,9 @@ export default function PivotSummaryPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  /* 해를 바꾸면 그 해로 다시 받는다. */
+  /* 처음 한 번 받는다. 기간을 바꾸면 [검색]으로 다시 받는다(원본 F8 과 같다). */
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [year])
+  useEffect(() => { load() }, [])
 
   /**
    * 원본 [관리항목]. 품목 마스터에 붙는 값이라 전표 응답에는 없다 —
@@ -180,7 +183,7 @@ export default function PivotSummaryPage() {
       confirmStatusName: 'confirmStatusName' in d ? d.confirmStatusName : null,
       createdBy: d.createdBy,
     })
-    const inYear = (date: string) => date.slice(0, 4) === String(year)
+    const inYear = (date: string) => date.slice(0, 10) >= from && date.slice(0, 10) <= to
     const saleDocs = sales.filter((d) => inYear(d.saleDate)).map((d) => flat(d, d.saleDate))
     const buyDocs = purchases.filter((d) => inYear(d.purchaseDate)).map((d) => flat(d, d.purchaseDate))
     /* 원본 [메뉴구분]의 <b>판매구매</b> — 두 전표를 한 표에 함께 더한다. */
@@ -224,15 +227,15 @@ export default function PivotSummaryPage() {
         for (const l of d.lines) {
           if (itemCond && String(l.itemId) !== itemCond) continue
           if (!lineHit(l)) continue
-          const r = bump(`I${l.itemId}`, l.itemName)
+          const r = bump(`I${l.itemId}`, l.spec ? `${l.itemName}[${l.spec}]` : l.itemName)
           r.months[m] += l.supplyAmount; r.total += l.supplyAmount
           r.qty += l.quantity; r.supply += l.supplyAmount; r.vat += l.vatAmount ?? 0
         }
       }
     }
     const kw = keyword.trim()
-    return [...map.values()].filter((r) => !kw || r.name.includes(kw)).sort((a, b) => b.total - a.total)
-  }, [sales, purchases, mode, groupBy, year, keyword, partnerCond, itemCond, projectCond, warehouseCond, taxCond, kindCond,
+    return [...map.values()].filter((r) => !kw || r.name.includes(kw)).sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }))
+  }, [sales, purchases, mode, groupBy, from, to, keyword, partnerCond, itemCond, projectCond, warehouseCond, taxCond, kindCond,
       empCond, partnerGroupCond, partnerMgrCond, categoryCond, itemGroupCond, remarkCond,
       specCond, statusCond, authorCond, range])
 
@@ -246,7 +249,6 @@ export default function PivotSummaryPage() {
     return { months: t, grand, qty, supply, vat }
   }, [rows])
 
-  const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
   const cell: React.CSSProperties = { textAlign: 'right', fontSize: 11.5, padding: '4px 6px', whiteSpace: 'nowrap' }
 
 
@@ -262,12 +264,10 @@ export default function PivotSummaryPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-ec-hint">거래처/품목 × 월 매출·매입 금액 피벗. 공급가액 기준, 금액 큰 행 순.</p>
-
       <div className="flex items-center gap-[12px] mb-[10px] flex-wrap">
         {/*
           원본 첫 조건은 [메뉴구분], 둘째가 [구분](집계조건), 셋째가 [기준일자]다.
-          우리 표는 한 해 × 12개월 피벗이라 기간을 <b>연 단위</b>로만 고른다 —
+          2026-10-20 부터 기간은 원본처럼 시작~끝 날짜다(기본 전월+금월).
           이름표만 원본대로 [기준일자]라 붙인다(원본 기본값은 전월+금월).
         */}
         <span className="text-[12.5px] text-ec-label">메뉴구분</span>
@@ -280,9 +280,9 @@ export default function PivotSummaryPage() {
           ))}
         </div>
         <span className="text-[12.5px] text-ec-label">기준일자</span>
-        <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
-          {years.map((y) => <option key={y} value={y}>{y}년</option>)}
-        </select>
+        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
+        <span className="text-ec-hint">~</span>
+        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
         <div className="flex gap-[2px]">
           {(['partner', 'item'] as const).map((g) => (
             <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{
@@ -411,7 +411,6 @@ export default function PivotSummaryPage() {
                     onClick={() => setView(v)}>{v}</button>
           ))}
         </div>
-        <span className="ml-auto text-[12.5px] text-ec-label">총계 <b className="text-ec-blue text-[14px]">{won(colTotals.grand)}</b></span>
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -421,7 +420,7 @@ export default function PivotSummaryPage() {
                     rows={rows.map((r) => ({ label: r.name, value: r.total }))} />
       ) : (
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full text-left min-w-[900px]">
+        <table ref={tableRef} className="w-full text-left min-w-[600px]">
           <thead>
             <tr>
               {/*
@@ -429,34 +428,27 @@ export default function PivotSummaryPage() {
                 (실측 때는 [담당자])이고, 그다음이 <b>수량 · 공급가액 · 부가세 · 합계</b> 넷이다.
                 아래에 합계행이 붙는다. 축은 사람이 고르지만 <b>재는 값 넷은 고정</b>이라
                 대조표에 그 넷을 적었다(판매구매집계표·매출계획비교표와 달리 여기는 잴 수 있다).
-                <b>우리 표는 축 × 열두 달</b>이다 — 달마다 금액을 편다. 그건 원본에 없는
-                우리 것이라 <b>뒤로 물리고</b>, 원본이 재는 값 넷을 축 바로 뒤에 세운다.
-                우리 [합계]는 열두 달 공급가액의 합이라 <b>원본 [합계](공급가액+부가세)와
-                다른 값</b>이다 — 이름이 겹치므로 우리 쪽은 [연간합계]라 부른다.
+                2026-10-20: 우리 표에 있던 <b>열두 달 칸 · [연간합계]는 원본에 없어 뺐다</b>(원본은 축 + 넷 + 합계 줄 · 축 코드순).
               */}
-              <th className="sticky left-0 bg-ec-page min-w-[140px]">{groupBy === 'partner' ? '거래처' : '품목'}</th>
+              <th className="sticky left-0 bg-ec-page min-w-[140px]">{groupBy === 'partner' ? '거래처' : '품목명[규격]'}</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>수량</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>공급가액</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>부가세</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>합계</th>
-              {MONTHS.map((m) => <th key={m} style={{ ...cell, fontWeight: 700 }}>{m}월</th>)}
-              <th style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>연간합계</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={18} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={18} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r) => (
               <tr key={r.key}>
                 <td className="sticky left-0 bg-white font-semibold">{r.name}</td>
-                <td style={{ ...cell, textAlign: 'right' }}>{r.qty ? won(r.qty) : ''}</td>
+                <td style={{ ...cell, textAlign: 'right' }}>{r.qty ? qty2(r.qty) : ''}</td>
                 <td style={{ ...cell, textAlign: 'right' }}>{r.supply ? won(r.supply) : ''}</td>
                 <td style={{ ...cell, textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.vat ? won(r.vat) : ''}</td>
                 <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.supply + r.vat)}</td>
-                {r.months.map((v, i) => <td key={i} style={{ ...cell, color: v ? 'var(--ec-text)' : '#d0d5db' }}>{v ? won(v) : ''}</td>)}
-                <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.total)}</td>
               </tr>
             ))}
           </tbody>
@@ -464,12 +456,10 @@ export default function PivotSummaryPage() {
             <tfoot>
               <tr className="font-bold bg-ec-page">
                 <td className="sticky left-0 bg-ec-page">합계</td>
-                <td style={cell}>{won(colTotals.qty)}</td>
+                <td style={cell}>{qty2(colTotals.qty)}</td>
                 <td style={cell}>{won(colTotals.supply)}</td>
                 <td style={cell}>{won(colTotals.vat)}</td>
                 <td style={{ ...cell, color: 'var(--ec-blue)' }}>{won(colTotals.supply + colTotals.vat)}</td>
-                {colTotals.months.map((v, i) => <td key={i} style={cell}>{v ? won(v) : ''}</td>)}
-                <td style={{ ...cell, color: 'var(--ec-blue)' }}>{won(colTotals.grand)}</td>
               </tr>
             </tfoot>
           )}

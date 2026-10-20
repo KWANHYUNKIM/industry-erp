@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { stockCostMapFromLast, sumStockValue } from '../../utils/stockValue'
-import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
 /**
@@ -227,7 +227,6 @@ export default function ExecutiveReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sales, purchases, stocks, items, balances, unsold, openPo, saleDisc, buyDisc, adjusts, from, to])
 
-  const margin = report.saleAmt > 0 ? (report.grossProfit / report.saleAmt) * 100 : 0
 
   /*
    * 2026-09-08 에 원본(<b>E040704</b>)을 열어 재니 조건은 <b>둘</b>이다 —
@@ -253,7 +252,7 @@ export default function ExecutiveReportPage() {
       <EcStatusPanel
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
-        picks={INQUIRY_FULL_PICKS}
+        picks={INQUIRY_PICKS}
         dateLabel="기준일자"
       >
         <EcCond label="기타">
@@ -264,27 +263,19 @@ export default function ExecutiveReportPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        매출 <b className="text-ec-text">{report.saleCount}</b>건
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        매입 <b className="text-ec-text">{report.buyCount}</b>건
-      </div>
 
       {/*
         매출총이익을 (기간 매출 − 기간 매입)으로 잡는다. 일별·월별이익현황에서 이 계산을
         고쳤지만 여기는 그대로 뒀다 — 화면이 '추정치'라고 말하고 있고, 경영자보고서는
         기간 현금흐름에 가까운 요약이라서다. 정확한 이익은 일별이익현황(원가 기준 선택)을 본다.
       */}
-      <p className="mb-2 text-xs text-ec-hint">
-        기간 매출·매입·이익과 재고자산·채권/채무 종합. 매출총이익은 (기간 매출−기간 매입) 추정치.
-        재고자산은 <b>취득원가</b>(실제 입고단가 → 없으면 품목 구매단가)로 평가합니다.
-        {report.stockUnknown > 0 && (
-          <span className="text-ec-danger">
-            {' '}※ 평가단가를 못 찾은 재고 <b>{report.stockUnknown}</b>칸은 재고자산에서 빠져 있습니다
-            (품목등록의 구매단가를 정하거나 입고 이력이 있어야 합니다).
-          </span>
-        )}
-      </p>
+      {/* 2026-10-20: 원본은 조건 판 아래 격자 하나뿐이다 — 머리말 · KPI 카드 · 상위5 표는 원본에 없어 뺐다. 평가단가 없는 재고 경고만 남긴다. */}
+      {report.stockUnknown > 0 && (
+        <p className="mb-2 text-xs text-ec-danger">
+          ※ 평가단가를 못 찾은 재고 <b>{report.stockUnknown}</b>칸은 재고자산에서 빠져 있습니다
+          (품목등록의 구매단가를 정하거나 입고 이력이 있어야 합니다).
+        </p>
+      )}
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
@@ -292,16 +283,6 @@ export default function ExecutiveReportPage() {
         <p className="text-center text-ec-hint p-[30px]">불러오는 중…</p>
       ) : (
         <>
-          {/* KPI 카드 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 16 }}>
-            <Kpi label="매출액 (기간)" value={won(report.saleAmt)} color="var(--ec-blue)" />
-            <Kpi label="매입액 (기간)" value={won(report.buyAmt)} color="#a5561b" />
-            <Kpi label="매출총이익 (추정)" value={won(report.grossProfit)} sub={`이익률 ${margin.toFixed(1)}%`} color={report.grossProfit >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)'} />
-            <Kpi label="재고자산 (현재)" value={won(report.stockValue)} color="var(--ec-text)" />
-            <Kpi label="총 채권 (받을 돈)" value={won(report.receivable)} color="#1c6b32" />
-            <Kpi label="총 채무 (줄 돈)" value={won(report.payable)} color="var(--ec-danger)" />
-          </div>
-
           {/*
             <b>경영자보고서(E040704) 2026-09-09 원본 격자 실측</b>(자료 19줄) —
             열은 <b>[구분 · 기준일자 · 금액]</b> 셋뿐이고, 줄이 열아홉이다:
@@ -412,46 +393,9 @@ export default function ExecutiveReportPage() {
             </tbody>
           </table>
 
-          {/* TOP5 3열 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-            <TopTable title="매출 상위 거래처" rows={report.topSale} color="var(--ec-blue)" />
-            <TopTable title="매입 상위 거래처" rows={report.topBuy} color="#a5561b" />
-            <TopTable title="재고금액 상위 품목" rows={report.topStock} color="var(--ec-text)" />
-          </div>
         </>
       )}
     </EcListShell>
   )
 }
 
-function Kpi({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
-  return (
-    <div className="border border-ec-line border-solid rounded-[4px] bg-white py-[12px] px-[14px]">
-      <div className="text-[12px] text-ec-hint mb-[6px]">{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
-      {sub && <div className="text-[11.5px] text-ec-hint mt-[2px]">{sub}</div>}
-    </div>
-  )
-}
-
-function TopTable({ title, rows, color }: { title: string; rows: { key: string; name: string; amount: number }[]; color: string }) {
-  const max = rows.length ? rows[0].amount : 0
-  return (
-    <div className="border border-ec-line border-solid rounded-[4px] bg-white py-[10px] px-[12px]">
-      <div className="text-[13px] font-bold text-ec-text mb-[8px]">{title}</div>
-      {rows.length === 0 ? (
-        <div className="text-[12px] text-ec-hint py-[10px] px-0 text-center">자료 없음</div>
-      ) : rows.map((r, i) => (
-        <div key={r.key} className="mb-[7px]">
-          <div className="flex justify-between text-[12.5px] mb-[2px]">
-            <span className="text-ec-text"><b className="text-ec-hint mr-[5px]">{i + 1}</b>{r.name}</span>
-            <b style={{ color }}>{won(r.amount)}</b>
-          </div>
-          <div className="h-[4px] bg-ec-line-soft rounded-[2px]">
-            <div style={{ height: '100%', width: `${max > 0 ? (r.amount / max) * 100 : 0}%`, background: color, borderRadius: 2 }} />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}

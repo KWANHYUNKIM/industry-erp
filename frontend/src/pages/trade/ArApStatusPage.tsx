@@ -8,7 +8,7 @@ import { subtotalBy } from '../../utils/subtotalBy'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../types/api'
-import EcPeriodPicks, { periodOf, BALANCE_PICKS } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { periodOf, BALANCE_PICKS, STOCK_PICKS } from '../../components/EcPeriodPicks'
 import type { LedgerBasis } from '../../utils/partnerRollup'
 
 /**
@@ -206,7 +206,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
 
   const showR = mode !== 'PAYABLE'
   const showP = mode !== 'RECEIVABLE'
-  const cols = 4 + (showR ? 1 : 0) + (showP ? 1 : 0) + (mode === 'BOTH' ? 1 : 0)
+  const cols = 2 + (showR ? 1 : 0) + (showP ? 1 : 0) + (mode === 'BOTH' ? 1 : 0)
 
 
   useTableColumnCheck(tableRef, '채권·채무현황', [loading])
@@ -242,7 +242,8 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           우리는 원본에 없는 [전월말일]·[당월말일]을 손으로 만들어 두고 나머지 다섯을 빼먹었었다.
           한 날짜짜리 화면이라 고른 구간의 <b>끝날</b>만 받는다.
         */}
-        <EcPeriodPicks labels={BALANCE_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
+        {/* 2026-10-20 원본 채권/채무현황(E040703) 빠른선택은 금일 · 전일 둘뿐이다. */}
+        <EcPeriodPicks labels={screen === 'AR_AP' ? STOCK_PICKS : BALANCE_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
         {/* 이카운트 원본은 거래처·거래처그룹·관리담당자가 드롭다운이 아니라 코드도움 팝업(code.openpopup)이다 */}
         <CodePickerField label="거래처" value={partnerCode} width={150}
                          onChange={(v, item) => { setPartnerCode(v); setKeyword(item ? item.name : '') }}
@@ -320,31 +321,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         </div>
       </div>
 
-      <div className="flex gap-[10px] mb-[10px]">
-        {showR && (
-          <div className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[160px]">
-            <div className="text-[11.5px] text-ec-hint">채권 합계 ({asOf} 기준)</div>
-            <div className="text-[18px] font-bold text-ec-navy">{won(total.receivable)}</div>
-          </div>
-        )}
-        {showP && (
-          <div className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[160px]">
-            <div className="text-[11.5px] text-ec-hint">채무 합계 ({asOf} 기준)</div>
-            <div className="text-[18px] font-bold text-ec-warn">{won(total.payable)}</div>
-          </div>
-        )}
-        {mode === 'BOTH' && (
-          <div className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[160px]">
-            <div className="text-[11.5px] text-ec-hint">순채권(채권−채무)</div>
-            <div className="text-[18px] font-bold">{won(total.receivable - total.payable)}</div>
-          </div>
-        )}
-        <div className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[110px]">
-          <div className="text-[11.5px] text-ec-hint">거래처</div>
-          <div className="text-[18px] font-bold">{shown.length}</div>
-        </div>
-      </div>
-
+      {/* 2026-10-20: 격자 위 합계 카드(채권 합계 · 채무 합계 · 순채권 · 거래처 수)는 원본 세 화면 어디에도 없어 뺐다 — 합계는 격자 끝 [합계] 줄에 있다. */}
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
       ) : (
@@ -370,11 +347,9 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           파란 굵은 이름은 우리가 덧칠한 것이었다.
         */}
         <thead><tr>
-          <th className="w-[34px]"></th>
+          {/* 2026-10-20: 원본에 없는 번호 · 거래처그룹 · 관리담당자 열을 뺐다(원본 다섯 열 = 106 + 291 + 107 × 3 = 718px). */}
           <th style={{ width: fixedFrame ? 106 : 110 }}>거래처코드</th>
           <th style={fixedFrame ? { width: 291 } : undefined}>거래처명</th>
-          <th style={{ width: fixedFrame ? 110 : 130 }}>거래처그룹</th>
-          <th style={{ width: fixedFrame ? 90 : 100 }}>관리담당자</th>
           {/*
             원본 <b>채권현황(E040721)·채무현황(E040722)</b>의 금액 열 이름은 [채권]·[채무]가
             아니라 <b>[합계]</b> 다(2026-09-09 실측: 거래처코드 · 거래처명 · 청구금액 ·
@@ -396,20 +371,17 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={cols + 2} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={cols} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={cols + 2} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={cols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r) => (
             <tr key={r.partnerId}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.code}</td>
               {/* 원본은 거래처명을 눌러 그 거래처를 연다(사본 실측). */}
               <td>
                 <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'inherit' }}>{r.name}</Link>
                 {!r.active && <span className="text-ec-danger text-[11px] ml-[4px]">(사용중단)</span>}
               </td>
-              <td className="text-ec-label">{r.partnerGroupName ?? ''}</td>
-              <td className="text-ec-label">{r.manager ?? ''}</td>
               {showR && <td className="text-right">{won(r.receivable)}</td>}
               {showP && <td className="text-right">{won(r.payable)}</td>}
               {mode === 'BOTH' && (
@@ -421,7 +393,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={5} className="text-center">합계</td>
+              <td colSpan={2} className="text-center">합계</td>
               {showR && <td className="text-right">{won(total.receivable)}</td>}
               {showP && <td className="text-right">{won(total.payable)}</td>}
               {mode === 'BOTH' && (
