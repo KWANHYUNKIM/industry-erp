@@ -182,6 +182,7 @@ const ImportCostItemPage = lazy(() => import('../pages/accounting/ImportCostItem
 const ExpenseControlTypePage = lazy(() => import('../pages/accounting/ExpenseControlTypePage'))
 const ExpenseItemPage = lazy(() => import('../pages/accounting/ExpenseItemPage'))
 const ExpenseGroupPage = lazy(() => import('../pages/accounting/ExpenseGroupPage'))
+const ExpenseSettlePage = lazy(() => import('../pages/accounting/ExpenseSettlePage'))
 const ImportCostEntryPage = lazy(() => import('../pages/accounting/ImportCostEntryPage'))
 const ImportCostVoucherListPage = lazy(() => import('../pages/accounting/ImportCostVoucherListPage'))
 const ImportCostLedgerPage = lazy(() => import('../pages/accounting/ImportCostLedgerPage'))
@@ -814,6 +815,7 @@ export default function AppRouter() {
         <Route path="/accounting/expense-control-types" element={<ExpenseControlTypePage />} />
         <Route path="/accounting/expense-items" element={<ExpenseItemPage />} />
         <Route path="/accounting/expense-groups" element={<ExpenseGroupPage />} />
+        <Route path="/accounting/expense-settle" element={<ExpenseSettlePage />} />
         <Route path="/accounting/income" element={<IncomePage />} />
         {/* 회계 II › 수입비용(輸入 — 미착품, 원본 E060201 ~ E060210). /accounting/income(收入 등록)은 메뉴에서만 뺐다 — 사용자 결정 대기 */}
         <Route path="/accounting/import-cost/lots" element={<ImportLotPage />} />

@@ -113,7 +113,7 @@ export default function ExpenseGroupPage() {
             <th>기간</th>
             <th>인원통제</th>
             <th>한도구분</th>
-            <th>한도금액</th>
+            <th className="text-right">한도금액</th>
             <th>사용</th>
           </tr>
         </thead>

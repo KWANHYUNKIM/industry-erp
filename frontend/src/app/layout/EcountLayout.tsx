@@ -791,6 +791,7 @@ const MENU: TopMenu[] = [
           { label: '비용내역', children: [
             { label: '비용내역입력', to: '/accounting/expense' },
             { label: '비용내역조회', to: '/accounting/expense-list' },
+            { label: '전표별회계반영(비용)', to: '/accounting/expense-settle' },
           ] },
           { label: '비용현황', children: [{ label: '비용내역현황', to: '/accounting/expense-detail' }] },
         ],

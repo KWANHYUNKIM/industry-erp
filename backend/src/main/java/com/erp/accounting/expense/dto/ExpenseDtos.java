@@ -15,7 +15,8 @@ public final class ExpenseDtos {
     private ExpenseDtos() {}
 
     public record CreateExpenseRequest(
-            @NotNull(message = "계정과목을 선택하세요.") Long accountId,
+            /** 옛 지출 등록(계정을 바로 고름). 비용코드(expenseItemId)를 주면 비워도 된다 — 계정은 비용 마스터의 것. */
+            Long accountId,
             LocalDate expenseDate,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String content,
@@ -35,8 +36,27 @@ public final class ExpenseDtos {
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String remarks,
             /** 원본 [결제구분] — 개인비용 · 회사비용. 비면 정하지 않은 것. */
-            ExpensePayType payType
+            ExpensePayType payType,
+            /** 원본 비용내역입력 줄 [비용코드](E060812). 주면 저장 때 분개하지 않는다(전표별회계반영 E060814 에서 가지급금정산서로). */
+            Long expenseItemId,
+            /** 줄 [사원] — 비용코드가 있으면 필수. */
+            Long employeeId,
+            /** 머리 [비용그룹] */
+            Long expenseGroupId
     ) {}
+
+    /**
+     * 전표별회계반영(비용) E060814 [가지급금정산서작성] → 창 [저장(F8)]. 개인비용 전표만 받는다.
+     * 줄의 정산자 이름은 화면이 사원 목록에서 붙여 보낸다(accounting 은 hr 엔티티를 새로 참조하지 않는다).
+     */
+    public record SettleRequest(
+            @jakarta.validation.constraints.NotEmpty(message = "리스트에 선택된 자료가 없습니다.") java.util.List<SettleLine> lines,
+            LocalDate voucherDate,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String description
+    ) {}
+
+    public record SettleLine(@NotNull Long expenseId, String employeeName) {}
 
     public record ExpenseResponse(
             Long id,
@@ -61,7 +81,15 @@ public final class ExpenseDtos {
             /** 원본 [사용일자] — 전표에 없으면 기준일자. */
             LocalDate useDate,
             String remarks,
-            ExpensePayType payType, String payTypeName
+            ExpensePayType payType, String payTypeName,
+            /** 비용 마스터(비용코드 · 비용명) — 옛 지출은 null */
+            Long expenseItemId, String expenseItemCode, String expenseItemName,
+            Long employeeId,
+            Long expenseGroupId, String expenseGroupCode, String expenseGroupName,
+            /** 가지급금정산서(회계전표) id — 전표별회계반영이 채운다. null 이면 회계 반영 전. */
+            Long settledJournalId,
+            /** 계정코드 — 전표별회계반영 창 [계정코드(차변)] */
+            String accountCode
     ) {
         public static ExpenseResponse from(Expense e) {
             String group = e.getAccount().getDetailCategory();
@@ -82,7 +110,16 @@ public final class ExpenseDtos {
                     e.getCreatedBy(),
                     e.getUseDate() != null ? e.getUseDate() : e.getExpenseDate(),
                     e.getRemarks(),
-                    e.getPayType(), e.getPayType() != null ? e.getPayType().getDisplayName() : null);
+                    e.getPayType(), e.getPayType() != null ? e.getPayType().getDisplayName() : null,
+                    e.getExpenseItem() != null ? e.getExpenseItem().getId() : null,
+                    e.getExpenseItem() != null ? e.getExpenseItem().getCode() : null,
+                    e.getExpenseItem() != null ? e.getExpenseItem().getName() : null,
+                    e.getEmployeeId(),
+                    e.getExpenseGroup() != null ? e.getExpenseGroup().getId() : null,
+                    e.getExpenseGroup() != null ? e.getExpenseGroup().getCode() : null,
+                    e.getExpenseGroup() != null ? e.getExpenseGroup().getName() : null,
+                    e.getSettledJournalId(),
+                    e.getAccount().getCode());
         }
     }
 }

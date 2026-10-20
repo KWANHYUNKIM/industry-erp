@@ -31,9 +31,27 @@ public class ExpenseController {
         return ResponseEntity.ok(expenseService.create(req, principal.getUsername()));
     }
 
+    @GetMapping("/{id}")
+    public ExpenseResponse get(@PathVariable Long id) {
+        return expenseService.get(id);
+    }
+
+    @PutMapping("/{id}")
+    public ExpenseResponse update(@PathVariable Long id, @Valid @RequestBody CreateExpenseRequest req) {
+        return expenseService.update(id, req);
+    }
+
+    /** 전표별회계반영(비용) E060814 [가지급금정산서작성] → [저장] */
+    @PostMapping("/settle")
+    public com.erp.accounting.fastvoucher.dto.FastVoucherDtos.VoucherResponse settle(
+            @Valid @RequestBody ExpenseDtos.SettleRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return expenseService.settle(req, principal.getUsername());
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        expenseService.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        expenseService.delete(id, principal.getUsername());
         return ResponseEntity.noContent().build();
     }
 }

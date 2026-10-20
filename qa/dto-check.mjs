@@ -163,6 +163,7 @@ const OWNED_HERE = new Map([
   ['ProjectPlan|planPurchase', '항목 02 구매 계획 줄 [금액] 의 합 — planRevenue 와 같다'],
   ['ProjectPlan|planLabor', '항목 03 노무비 계획 줄 [금액] 의 합 — planRevenue 와 같다'],
   ['ProjectPlan|planExpense', '항목 04 경비 계획 줄 [금액] 의 합 — planRevenue 와 같다'],
+  ['Expense|settledJournalId', '전표별회계반영(비용) E060814 [가지급금정산서작성] → POST /expenses/settle 이 만든 가지급금정산서 회계전표 — 비용내역 등록 · 수정 창에는 칸이 없다(2026-10-20 실측, plans/회계2/비용관리.md 4장)'],
   ['Lot|useYn', '시리얼/로트No.등록 목록 · 수정 창 [사용중단/재사용] 전용 자리(POST /lots/use)에서 정한다 — 원본 생성 · 수정 창에는 사용구분 칸이 없다(2026-10-13 실측, plans/재고2/E040617.md)'],
   ['Bill|salesCreated', '청구예정자료의 판매생성여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다(2026-10-13 실측)'],
   ['Bill|accountingReflected', '청구예정자료의 회계반영여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다'],

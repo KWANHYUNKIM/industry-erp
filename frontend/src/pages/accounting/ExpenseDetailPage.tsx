@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { slipNo, type ExpenseRow } from '../../features/expense/types'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
@@ -111,8 +112,16 @@ export default function ExpenseDetailPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<Expense[]>('/expenses')
-      setRows(res.data)
+      const [res, emps] = await Promise.all([
+        api.get<(Expense & ExpenseRow)[]>('/expenses'),
+        api.get<{ id: number; name: string }[]>('/employees').catch(() => ({ data: [] as { id: number; name: string }[] })),
+      ])
+      /* 비용코드로 넣은 전표(비용내역입력 E060812)는 비용명 · 비용그룹명 · 사원 이름, 번호는 원본 꼴 '2026/10/20 -1'.
+         옛 지출은 계정 · 계정 세부분류 · 작성자 그대로. */
+      setRows(res.data.map((r) => (r.expenseItemId ? {
+        ...r, docNo: slipNo(r), accountName: r.expenseItemName ?? r.accountName, accountGroupName: r.expenseGroupName,
+        createdBy: emps.data.find((e) => e.id === r.employeeId)?.name ?? null, department: null,
+      } : r)))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -252,7 +261,6 @@ export default function ExpenseDetailPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
             <th className="text-center w-[170px]">일자-No.</th>
             <th className="w-[110px]">비용그룹명</th>
             <th className="w-[130px]">비용명</th>
@@ -260,17 +268,15 @@ export default function ExpenseDetailPage() {
             <th className="w-[120px] text-right">사용금액</th>
             <th className="w-[100px]">사용일자</th>
             <th>적요</th>
-            <th className="w-[110px]">거래처</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r) => (
             <tr key={r.id}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="text-center">{r.docNo}</td>
               <td className="text-ec-label">{r.accountGroupName ?? ''}</td>
               <td>{r.accountName}</td>
@@ -282,16 +288,15 @@ export default function ExpenseDetailPage() {
               <td className="text-right font-semibold">{r.amount.toLocaleString('ko-KR')}</td>
               <td>{r.useDate.replace(/-/g, '/')}</td>
               <td>{r.content ?? ''}</td>
-              <td>{r.partnerName ?? ''}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr className="bg-ec-page font-bold">
-              <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
-              <td className="text-right text-ec-navy">{total.toLocaleString('ko-KR')}</td>
-              <td colSpan={3}></td>
+              <td colSpan={4} className="text-center">합계</td>
+              <td className="text-right">{total.toLocaleString('ko-KR')}</td>
+              <td colSpan={2}></td>
             </tr>
           </tfoot>
         )}

@@ -10,7 +10,8 @@ import java.util.List;
 
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 
-    @Query("select e from Expense e join fetch e.account order by e.expenseDate desc, e.id desc")
+    @Query("select e from Expense e join fetch e.account left join fetch e.expenseItem left join fetch e.expenseGroup " +
+            "order by e.expenseDate desc, e.id desc")
     List<Expense> findAllWithAccount();
 
     /** 수입비용현황: 기간 내 지출 (계정 포함) */

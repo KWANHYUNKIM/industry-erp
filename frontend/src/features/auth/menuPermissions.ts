@@ -160,6 +160,7 @@ const RULES: Rule[] = [
   ['/accounting/expense-items', 'FINANCE'],
   ['/accounting/expense-groups', 'FINANCE'],
   ['/accounting/expense-list', 'FINANCE'],
+  ['/accounting/expense-settle', 'FINANCE'],
   ['/accounting/expense-detail', 'FINANCE'],
   ['/accounting/withholding', 'TAX'],
   ['/accounting/other-withholding', 'TAX'],

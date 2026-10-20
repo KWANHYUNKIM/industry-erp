@@ -7,16 +7,17 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import Modal from '../../components/Modal'
+import ExpenseSlipForm from '../../features/expense/ExpenseSlipForm'
+import { slipNo, type ExpenseRow } from '../../features/expense/types'
+import type { EmployeeMaster } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
-interface Expense {
-  id: number; docNo: string; expenseDate: string; accountName: string; accountGroupName: string | null
-  content: string | null; partnerId: number | null; partnerName: string | null; amount: number
-  department: string | null; projectId: number | null; projectName: string | null; createdBy: string | null
-  useDate: string; remarks: string | null; payType: 'PERSONAL' | 'COMPANY' | null
-}
+type Expense = ExpenseRow
+/** 비용코드로 넣은 전표는 비용명 · 비용그룹명 · 사원(2026-10-20 비용내역입력 E060812), 옛 지출은 계정 · 계정 세부분류 · 작성자. */
+const itemName = (r: Expense) => r.expenseItemName ?? r.accountName
+const groupName = (r: Expense) => (r.expenseItemId ? r.expenseGroupName : r.accountGroupName) ?? ''
 
 /**
  * 회계 II &gt; 비용관리 &gt; 비용내역 &gt; <b>비용내역조회</b>(E060813) — 2026-10-03 loginaa 실측(빈 판).
@@ -55,6 +56,10 @@ export default function ExpenseListPage() {
   const [rows, setRows] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [editing, setEditing] = useState<Expense | null>(null)
+  const [employees, setEmployees] = useState<EmployeeMaster[]>([])
+  useEffect(() => { api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => undefined) }, [])
+  const userName = (r: Expense) => (r.employeeId ? employees.find((e) => e.id === r.employeeId)?.name ?? '' : r.createdBy ?? '')
 
   async function load() {
     setLoading(true)
@@ -73,9 +78,9 @@ export default function ExpenseListPage() {
   const shown = useMemo(() => rows
     .filter((r) => r.expenseDate >= from && r.expenseDate <= to)
     .filter((r) => !useUse || (r.useDate >= useFrom && r.useDate <= useTo))
-    .filter((r) => !group || (r.accountGroupName ?? '') === group)
-    .filter((r) => !account || r.accountName === account)
-    .filter((r) => !user || (r.createdBy ?? '') === user)
+    .filter((r) => !group || groupName(r) === group)
+    .filter((r) => !account || itemName(r) === account)
+    .filter((r) => !user || userName(r) === user)
     .filter((r) => !partner || String(r.partnerId) === partner)
     .filter((r) => !dept || (r.department ?? '').includes(dept))
     .filter((r) => !project || String(r.projectId) === project)
@@ -84,10 +89,10 @@ export default function ExpenseListPage() {
     .filter((r) => !note || (r.remarks ?? '').includes(note))
     .filter((r) => !payType || r.payType === payType)
     .sort((a, b) => (a.expenseDate > b.expenseDate ? -1 : a.expenseDate < b.expenseDate ? 1 : b.docNo.localeCompare(a.docNo))),
-  [rows, from, to, useUse, useFrom, useTo, group, account, user, partner, dept, project, reflected, remark, note, payType])
-  const groups = useMemo(() => [...new Set(rows.map((r) => r.accountGroupName).filter(Boolean) as string[])].sort(), [rows])
-  const accounts = useMemo(() => [...new Set(rows.map((r) => r.accountName))].sort(), [rows])
-  const users = useMemo(() => [...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort(), [rows])
+  [rows, employees, from, to, useUse, useFrom, useTo, group, account, user, partner, dept, project, reflected, remark, note, payType])
+  const groups = useMemo(() => [...new Set(rows.map(groupName).filter(Boolean))].sort(), [rows])
+  const accounts = useMemo(() => [...new Set(rows.map(itemName))].sort(), [rows])
+  const users = useMemo(() => [...new Set(rows.map(userName).filter(Boolean))].sort(), [rows, employees])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '비용내역조회', [shown.length])
 
@@ -175,26 +180,32 @@ export default function ExpenseListPage() {
             <th>사용자</th>
             <th className="text-right">사용금액</th>
             <th className="text-center">회계반영여부</th>
+            <th className="text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{dateText(r.expenseDate)} {r.docNo}</td>
-              <td>{r.accountGroupName ?? ''}</td>
-              <td>{r.accountName}</td>
-              <td>{r.createdBy ?? ''}</td>
+              <td className="text-center"><button type="button" className="ec-link" onClick={() => setEditing(r)}>{slipNo(r)}</button></td>
+              <td>{groupName(r)}</td>
+              <td>{itemName(r)}</td>
+              <td>{userName(r)}</td>
               <td className="text-right">{won(Number(r.amount))}</td>
-              <td className="text-center">확인(회계)</td>
+              {/* 원본은 가지급금정산서로 반영한 뒤에도 빈칸이었다(2026-10-20 실측). 옛 지출은 저장 즉시 분개라 확인(회계). */}
+              <td className="text-center">{r.expenseItemId ? '' : '확인(회계)'}</td>
+              <td className="text-center">인쇄</td>
             </tr>
           ))}
         </tbody>
       </table>
+      <Modal error={error} open={!!editing} title="비용내역수정" width={1200} onClose={() => setEditing(null)}>{(
+        <ExpenseSlipForm edit={editing} onSaved={() => { void load() }} onClose={() => setEditing(null)} />
+      )}</Modal>
     </EcListShell>
   )
 }
