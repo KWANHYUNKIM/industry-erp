@@ -129,7 +129,7 @@ export default function ImportLotPage() {
                 <NumCheck no={i + 1} label={`${l.code} 선택`} on={checked.has(l.id)}
                           onChange={(v) => setChecked((s) => { const n = new Set(s); if (v) n.add(l.id); else n.delete(l.id); return n })} />
               </td>
-              <td><a href="#" onClick={(e) => { e.preventDefault(); openEdit(l) }}>{l.code}</a></td>
+              <td><button type="button" className="ec-link" onClick={() => openEdit(l)}>{l.code}</button></td>
               <td>{l.name}</td>
               <td>{l.partnerName}</td>
               <td>{l.firstTradeDate ? l.firstTradeDate.replace(/-/g, '/') : ''}</td>

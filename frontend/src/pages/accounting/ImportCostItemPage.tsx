@@ -102,7 +102,7 @@ export default function ImportCostItemPage() {
                 <NumCheck no={n + 1} label={`${i.code} 선택`} on={checked.has(i.id)}
                           onChange={(v) => setChecked((s) => { const n = new Set(s); if (v) n.add(i.id); else n.delete(i.id); return n })} />
               </td>
-              <td><a href="#" onClick={(e) => { e.preventDefault(); openEdit(i) }}>{i.code}</a></td>
+              <td><button type="button" className="ec-link" onClick={() => openEdit(i)}>{i.code}</button></td>
               <td>{i.name}</td>
               <td>{i.sortOrder}</td>
               <td>{i.active ? 'Yes' : 'No'}</td>

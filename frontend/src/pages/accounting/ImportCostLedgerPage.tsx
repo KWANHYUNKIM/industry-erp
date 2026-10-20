@@ -109,7 +109,8 @@ export default function ImportCostLedgerPage() {
             ) : rows.map((r) => (
               <tr key={r.lotId}>
                 <td>{r.lotCode}</td><td>{r.lotName}</td><td>{r.partnerName}</td>
-                <td className="text-right">{money(r.carry)}</td>
+                {/* 원본 2026-10-20: 이월잔액만은 0 도 '0' 으로 찍는다 */}
+                <td className="text-right">{money(r.carry) || '0'}</td>
                 <td className="text-right">{money(r.goods)}</td>
                 <td className="text-right"></td><td></td>
                 {items.map((i) => <td key={i.id} className="text-right">{money(r.costs[String(i.id)])}</td>)}
