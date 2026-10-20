@@ -32,7 +32,9 @@ if (cmd === 'save') {
   const router = readFileSync(new URL('../frontend/src/app/router.tsx', import.meta.url), 'utf8')
   const routes = [...new Set([...router.matchAll(/path="([^"]+)"/g)].map((m) => m[1]))]
     .filter((r) => !r.includes(':') && !r.includes('*') && r !== '/login' && r.startsWith(prefix))
-  if (!prefix) routes.unshift('/')
+    // ROUTES=/a,/b — 몇 화면만(mobile-check 와 같은 방식). 공용 부품 하나를 쓰는 화면만 골라 뜰 때.
+    .filter((r) => !process.env.ROUTES || process.env.ROUTES.split(',').includes(r))
+  if (!prefix && !process.env.ROUTES) routes.unshift('/')
   mkdirSync(a, { recursive: true })
   // 처음 로그인부터 못 하면(남이 백엔드를 재기동하는 중 — ECONNREFUSED) 스택 대신 한 줄로 알리고 실패로 끝낸다.
   // 예전에는 node 스택만 찍고 끝나 '0 화면' 인지 알아보기 어려웠다(2026-10-14 공용 4차).

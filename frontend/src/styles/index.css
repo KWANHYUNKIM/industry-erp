@@ -283,6 +283,16 @@ main table,
   margin: 0;
   vertical-align: middle;
 }
+/* 격자 머리 정렬 표시(useTableSort().mark()) — 원본 품목 C000029 2026-10-21 실측: 정렬 되는 열마다 글자 옆
+   span.fa-caret-down 14×14 · 400 · inline-block, 표시 가운데가 글자 가운데보다 2px 위 → 머리 35.33(표시 없는 판매조회 34.97).
+   우리 ▼ 글자를 14px 상자에 넣고 1px 올리면 같은 자리 · 같은 머리 높이가 된다(맑은 고딕 기준으로 잼). */
+.ec-sort-mark {
+  display: inline-block;
+  font-size: var(--ec-sort-mark-size);
+  line-height: var(--ec-sort-mark-size);
+  font-weight: 400;
+  vertical-align: var(--ec-sort-mark-shift);
+}
 /*
  * 조회 목록 본문 — 2026-09-21 구매조회 실측(줄마다 읽음):
  * 줄무늬는 <b>한 줄 건너</b> (249,249,249), 본문 칸에는 <b>세로선이 없고</b> 아래 선 1px 만 있다
