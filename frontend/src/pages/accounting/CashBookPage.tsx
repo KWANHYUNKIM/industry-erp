@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
@@ -6,9 +6,12 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { AccountLedger, LedgerRow } from '../../types/api'
+import { useAuth } from '../../features/auth/AuthContext'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 
+/** 원본 [YYYY/MM 계] · [합계] 줄: 바탕 rgb(243,243,243) · 굵게. */
+const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
 interface AccountOpt { id: number; code: string; name: string }
@@ -24,10 +27,11 @@ const DEPOSITS = ['102', '103']
  *
  * <p>현금(101) 계정의 원장이다. [예금포함]을 켜면 당좌 · 보통예금까지 한 장부로 합쳐 날짜 차례로 잔액을 다시 쌓는다.
  * 상대계정명은 같은 전표의 다른 줄 계정(둘 이상이면 '첫 계정 외 n'), 상대거래처명은 전표의 거래처다.
- * 잔액은 기간 첫날부터 쌓는다(계정별원장과 같다 — 전기이월 줄은 원본 판이 비어 모양을 못 쟀다).
+ * 첫 줄 [이월잔액](기간 첫날 전 잔고, 0 이면 없음 — 줄 모양은 계정별원장을 따랐다, 원본은 이월이 0 인 판만 잼), 달마다 [YYYY/MM 계], 끝 [합계](차변 = 이월 + 차변).
  * 부서 · 프로젝트는 회계전표가 들지 않는다.
  */
 export default function CashBookPage() {
+  const { companyName } = useAuth()
   /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
   const [dept, setDept] = useState('')
   const [project, setProject] = useState('')
@@ -53,7 +57,8 @@ export default function CashBookPage() {
     setLoading(true)
     setError('')
     try {
-      const rs = await Promise.all(ids.map((accountId) => api.get<AccountLedger>('/journals/ledger', { params: { ...dp, accountId, from, to } })))
+      /* 이월잔액을 내려고 처음부터 끝날까지 받는다(계정별거래처별원장과 같다). */
+      const rs = await Promise.all(ids.map((accountId) => api.get<AccountLedger>('/journals/ledger', { params: { ...dp, accountId, from: '1900-01-01', to } })))
       setLedgers(rs.map((r) => r.data))
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -65,17 +70,23 @@ export default function CashBookPage() {
   useEffect(() => { if (accounts.length) void load() }, [dept, project, accounts, from, to, withDeposit])
 
   /* 여러 계정을 합칠 때는 날짜 · 전표번호 차례로 다시 늘어놓고 잔액(차변 − 대변)을 새로 쌓는다. */
-  const rows = useMemo(() => {
+  const { carry, rows } = useMemo(() => {
     const all: LedgerRow[] = ledgers.flatMap((l) => l.rows)
     all.sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo)))
     let bal = 0
-    return all.map((r, i) => {
-      bal += Number(r.debit) - Number(r.credit)
-      return { key: `${r.docNo}-${i}`, r, bal }
-    })
-  }, [ledgers])
+    for (const r of all) if (r.entryDate < from) bal += Number(r.debit) - Number(r.credit)
+    const carry = bal
+    return {
+      carry,
+      rows: all.filter((r) => r.entryDate >= from).map((r, i) => {
+        bal += Number(r.debit) - Number(r.credit)
+        return { key: `${r.docNo}-${i}`, r, bal }
+      }),
+    }
+  }, [ledgers, from])
   const totalDebit = rows.reduce((s, x) => s + Number(x.r.debit), 0)
   const totalCredit = rows.reduce((s, x) => s + Number(x.r.credit), 0)
+  const months = [...new Set(rows.map((x) => x.r.entryDate.slice(0, 7)))]
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '현금출납장', [rows.length])
 
@@ -113,6 +124,10 @@ export default function CashBookPage() {
         </EcCond>
       </ul>
 
+      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+        <span>회사명 : {companyName ?? ''}</span>
+        <span>{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</span>
+      </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -128,27 +143,53 @@ export default function CashBookPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
-          ) : rows.length === 0 ? (
+          ) : rows.length === 0 && carry === 0 ? (
             <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map(({ key, r, bal }) => (
-            <tr key={key}>
-              <td className="text-center">{dateNo(r.entryDate, r.docNo)}</td>
-              <td>{r.counterAccountName ?? ''}</td>
-              <td>{r.partnerName ?? ''}</td>
-              <td>{r.description ?? ''}</td>
-              <td className="text-right">{won(Number(r.debit))}</td>
-              <td className="text-right">{won(Number(r.credit))}</td>
-              <td className="text-right">{Math.round(bal).toLocaleString('ko-KR')}</td>
-            </tr>
-          ))}
+          ) : (
+            <>
+              {carry !== 0 && (
+                <tr className="font-bold">
+                  <td colSpan={4} className="text-center">이월잔액</td>
+                  <td className="text-right">{won(carry)}</td>
+                  <td></td>
+                  <td className="text-right">{won(carry)}</td>
+                </tr>
+              )}
+              {months.map((mo) => {
+                const ms = rows.filter((x) => x.r.entryDate.startsWith(mo))
+                return (
+                  <Fragment key={mo}>
+                    {ms.map(({ key, r, bal }) => (
+                      <tr key={key}>
+                        <td className="text-center">{dateNo(r.entryDate, r.docNo)}</td>
+                        <td>{r.counterAccountName ?? ''}</td>
+                        <td>{r.partnerName ?? ''}</td>
+                        <td>{r.description ?? ''}</td>
+                        <td className="text-right">{won(Number(r.debit))}</td>
+                        <td className="text-right">{won(Number(r.credit))}</td>
+                        <td className="text-right">{Math.round(bal).toLocaleString('ko-KR')}</td>
+                      </tr>
+                    ))}
+                    <tr style={SUB_ROW}>
+                      <td colSpan={4} className="text-center">{mo.replace('-', '/')} 계</td>
+                      <td className="text-right">{won(ms.reduce((s, x) => s + Number(x.r.debit), 0))}</td>
+                      <td className="text-right">{won(ms.reduce((s, x) => s + Number(x.r.credit), 0))}</td>
+                      <td></td>
+                    </tr>
+                  </Fragment>
+                )
+              })}
+            </>
+          )}
         </tbody>
-        {rows.length > 0 && (
+        {(rows.length > 0 || carry !== 0) && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
-              <td colSpan={4}>합계</td>
-              <td className="text-right">{won(totalDebit)}</td>
+            {/* 원본(2026-10-20 실측): '2026/10 계 | 5,000 | | ' · '합계 | 5,000 | | 5,000' — 합계 차변 = 이월 + 차변(계정별원장과 같다). */}
+            <tr style={SUB_ROW}>
+              <td colSpan={4} className="text-center">합계</td>
+              <td className="text-right">{won(carry + totalDebit)}</td>
               <td className="text-right">{won(totalCredit)}</td>
-              <td className="text-right">{Math.round(totalDebit - totalCredit).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{Math.round(carry + totalDebit - totalCredit).toLocaleString('ko-KR')}</td>
             </tr>
           </tfoot>
         )}

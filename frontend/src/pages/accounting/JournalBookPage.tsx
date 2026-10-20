@@ -6,12 +6,13 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { JournalEntry } from '../../types/api'
+import { shortDateNo } from '../../utils/dateNo'
+import { useAuth } from '../../features/auth/AuthContext'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 전표번호 모양 — 연도 두 자리 '26/09/17-1-1'(일자 - 전표 - 줄, 2026-10-03 실측). 우리 전표번호는 일련번호가 아니라 문서번호라 그대로 붙인다. */
-const yy = (d: string) => `${d.slice(2, 4)}/${d.slice(5, 7)}/${d.slice(8, 10)}`
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 
@@ -26,6 +27,7 @@ interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: bool
  * 부서 · 프로젝트 · 채권/채무(어음) No. 는 회계전표가 들지 않는다.
  */
 export default function JournalBookPage() {
+  const { companyName } = useAuth()
   const init = periodOf('최근30일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -79,7 +81,7 @@ export default function JournalBookPage() {
         if (amtTo !== '' && amt > Number(amtTo)) continue
         const text = l.description ?? e.description ?? ''
         if (remark && !text.includes(remark)) continue
-        out.push({ key: `${e.id}-${l.id}`, no: `${yy(e.entryDate)} ${e.docNo}-${l.lineNo}`, account: l.accountName, partner: e.partnerName ?? '',
+        out.push({ key: `${e.id}-${l.id}`, no: `${shortDateNo(e.entryDate, e.docNo)}-${l.lineNo}`, account: l.accountName, partner: (l.partnerId != null ? l.partnerName : e.partnerName) ?? '',
           debit: Number(l.debit), credit: Number(l.credit), remark: text })
       }
     }
@@ -150,6 +152,11 @@ export default function JournalBookPage() {
       </ul>
 
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {/* 원본 머리(2026-10-20 실측): '회사명 : (주)…' 와 '2026/10/20 ~ 2026/10/20'. 전표번호는 '26/10/20-49-1'(일자-그날 번호-줄). */}
+      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+        <span>회사명 : {companyName ?? ''}</span>
+        <span>{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</span>
+      </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>

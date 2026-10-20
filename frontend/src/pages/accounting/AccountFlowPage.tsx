@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { ecAlert } from '../../components/EcDialog'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { ACCOUNT_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -55,7 +56,8 @@ export default function AccountFlowPage() {
   }, [])
 
   async function load() {
-    if (!account) { setError('검색창에 계정코드를 입력하고 검색 바랍니다.'); return }
+    /* 원본은 알림 창 — '검색창에 계정코드를 입력하고 검색 바랍니다.' [확인]. */
+    if (!account) { void ecAlert('검색창에 계정코드를 입력하고 검색 바랍니다.'); return }
     setLoading(true)
     setError('')
     try {
@@ -80,10 +82,13 @@ export default function AccountFlowPage() {
     if (!entries) return { up, down }
     const sorted = [...entries].sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo)))
     for (const e of sorted) {
-      if (partner && String(e.partnerId) !== partner) continue
       for (const l of [...e.lines].sort((a, b) => a.lineNo - b.lineNo)) {
         if (String(l.accountId) !== account) continue
-        const base = { date: e.entryDate, no: e.docNo, text: l.description ?? e.description ?? '', partnerId: e.partnerId, partner: e.partnerName ?? '' }
+        /* 원본(2026-10-20 실측): 거래처는 그 분개 줄의 것(매출처로부터 전표의 현금 줄엔 없다), 빈 적요는 '[ ]'. */
+        const pid = l.partnerId ?? e.partnerId ?? null
+        if (partner && String(pid) !== partner) continue
+        const base = { date: e.entryDate, no: e.docNo, text: l.description || e.description || '[ ]', partnerId: pid,
+                       partner: (l.partnerId != null ? l.partnerName : e.partnerName) ?? '' }
         const d = Number(l.debit), c = Number(l.credit)
         if (d) (debitSide ? up : down).push({ ...base, key: `${l.id}d`, amount: d })
         if (c) (debitSide ? down : up).push({ ...base, key: `${l.id}c`, amount: c })

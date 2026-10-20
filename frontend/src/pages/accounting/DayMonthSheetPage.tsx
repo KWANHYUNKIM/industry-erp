@@ -9,6 +9,7 @@ import type { AccountLedger, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
+import { useAuth } from '../../features/auth/AuthContext'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [월계] · [금일/전일] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -38,6 +39,7 @@ const addDays = (d: string, n: number) => {
  * [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다(현금 이월도 그 줄만).
  */
 export default function DayMonthSheetPage() {
+  const { companyName } = useAuth()
   const [mode, setMode] = useState<'월계표' | '일계표'>('월계표')
   const initM = periodOf('전월')!
   const [from, setFrom] = useState(initM.from)
@@ -152,6 +154,11 @@ export default function DayMonthSheetPage() {
       </ul>
 
       <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">{mode}</h3>
+      {/* 원본 머리(2026-10-20 실측): '회사명 : (주)… ' 한 줄과 '2026/10/20 ~ 2026/10/20'. */}
+      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+        <span>회사명 : {companyName ?? ''}</span>
+        <span>{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</span>
+      </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>

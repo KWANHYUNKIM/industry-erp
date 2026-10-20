@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { dateNo } from '../../utils/dateNo'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -137,7 +138,7 @@ export default function PartnerTxListPage() {
                     const r = g.rows[0]
                     return (
                       <tr key={g.key}>
-                        <td className="text-ec-blue">{unit === '건별' ? `${slash(r.date)} -${r.no}` : slash(g.key)}</td>
+                        <td className="text-ec-blue">{unit === '건별' ? dateNo(r.date, r.no) : slash(g.key)}</td>
                         <td>{unit === '건별' ? r.text : ''}</td>
                         <td className="text-right">{won(x.d)}</td>
                         <td className="text-right">{won(x.c)}</td>

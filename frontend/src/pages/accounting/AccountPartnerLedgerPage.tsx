@@ -33,7 +33,7 @@ interface Block { key: number; code: string; name: string; carry: number; rows: 
  *
  * <p>건별은 거래처마다 표 하나 — 머리 "회사명 : … / 계정 / 거래처코드(거래처명)" 와 기간, 열 일자-No. · 적요 · 차변금액 · 대변금액 · 잔액.
  * 첫 줄 [이월잔액](두 칸 묶음, 차변 칸에 부호째), 잔액은 그날 마지막 줄에만 찍고, 달마다 [YYYY/MM 계], 끝에 [합계](차변 = 이월 + 차변).
- * 꼬리에 [P.n]. 거래처별집계는 한 표 — 거래처코드 · 거래처명 · 이월잔액 · 차변 · 대변 · 잔액, 거래처명 차례, 끝 [합계](두 칸 묶음).
+ * 꼬리에 [P.n]. 거래처별집계는 한 표 — 거래처코드 · 거래처명 · 이월잔액 · 차변 · 대변 · 잔액, 끝 [합계](두 칸 묶음). 거래처는 코드 차례.
  * 원본은 외상매출금도 잔액을 차변 − 대변으로 찍었다 — 부채 · 자본 · 수익 계정은 대변 − 차변으로 쌓는다(계정별원장과 같은 방향).
  *
  * <p>일별 · 월별은 원본 판을 못 쟀다 — 건별 표에서 하루 · 한 달을 한 줄로 묶어 찍는다.
@@ -119,7 +119,8 @@ export default function AccountPartnerLedgerPage() {
     }
     return [...m.values()]
       .filter((b) => b.rows.length > 0 || (!hideIdle && b.carry !== 0))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+      /* 원본은 거래처코드 차례(2026-10-20 실측 00007 · 00018 · 1113388888 · 1234567002 …). 코드 없는 자료는 끝에. */
+      .sort((a, b) => (a.key === NONE ? 1 : 0) - (b.key === NONE ? 1 : 0) || a.code.localeCompare(b.code))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ledger, pById, byParent, noCodeOnly, withInactive, partner, manager, withCarry, hideIdle, from, plCut])
 
@@ -176,8 +177,9 @@ export default function AccountPartnerLedgerPage() {
             {b.carry !== 0 && (
               <tr className="font-bold">
                 <td colSpan={2} className="text-center">이월잔액</td>
-                <td className="text-right">{won(b.carry)}</td>
-                <td></td>
+                {/* 원본: 대변 계정(부가세예수금 …)의 이월은 대변 칸에 — 2026-10-20 실측 '이월잔액 | | 252,000 | 252,000'. */}
+                <td className="text-right">{debitSide ? won(b.carry) : ''}</td>
+                <td className="text-right">{debitSide ? '' : won(b.carry)}</td>
                 <td className="text-right">{won(b.carry)}</td>
               </tr>
             )}
@@ -213,8 +215,8 @@ export default function AccountPartnerLedgerPage() {
             })}
             <tr style={SUB_ROW}>
               <td colSpan={2} className="text-center">합계</td>
-              <td className="text-right">{won(b.carry + s.d)}</td>
-              <td className="text-right">{won(s.c)}</td>
+              <td className="text-right">{won(debitSide ? b.carry + s.d : s.d)}</td>
+              <td className="text-right">{won(debitSide ? s.c : b.carry + s.c)}</td>
               <td className="text-right">{won(net(b.carry, s.d, s.c))}</td>
             </tr>
           </tbody>

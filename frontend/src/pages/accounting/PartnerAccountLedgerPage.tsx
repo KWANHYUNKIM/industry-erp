@@ -176,8 +176,9 @@ export default function PartnerAccountLedgerPage() {
             {b.carry !== 0 && (
               <tr className="font-bold">
                 <td colSpan={2} className="text-center">이월잔액</td>
-                <td className="text-right">{won(b.carry)}</td>
-                <td></td>
+                {/* 원본: 대변 계정(부가세예수금 …)의 이월은 대변 칸에 — 2026-10-20 실측 '이월잔액 | | 252,000 | 252,000'. */}
+                <td className="text-right">{b.debitSide ? won(b.carry) : ''}</td>
+                <td className="text-right">{b.debitSide ? '' : won(b.carry)}</td>
                 <td className="text-right">{won(b.carry)}</td>
               </tr>
             )}
@@ -213,8 +214,8 @@ export default function PartnerAccountLedgerPage() {
             })}
             <tr style={SUB_ROW}>
               <td colSpan={2} className="text-center">합계</td>
-              <td className="text-right">{won(b.carry + s.d)}</td>
-              <td className="text-right">{won(s.c)}</td>
+              <td className="text-right">{won(b.debitSide ? b.carry + s.d : s.d)}</td>
+              <td className="text-right">{won(b.debitSide ? s.c : b.carry + s.c)}</td>
               <td className="text-right">{won(net(b, s.d, s.c))}</td>
             </tr>
           </tbody>

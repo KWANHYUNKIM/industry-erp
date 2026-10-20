@@ -165,8 +165,8 @@
   "palette": 0
  },
  "pages/accounting/CashBookPage.tsx": {
-  "inline": 4,
-  "color": 1,
+  "inline": 5,
+  "color": 2,
   "palette": 0
  },
  "pages/accounting/CashDetailPage.tsx": {
