@@ -1,0 +1,259 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import EcSlipShell from '../../components/EcSlipShell'
+import EcDateField from '../../components/EcDateField'
+import EcNumInput from '../../components/EcNumInput'
+import Modal from '../../components/Modal'
+import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
+import { api, extractErrorMessage } from '../../api/client'
+import { ymd } from '../../components/EcPeriodPicks'
+import type { BankAccountRow, NoteSummary, Partner, PromissoryNote } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+
+/**
+ * 회계 I › 어음거래 › 받을어음 의 한 장 입력 둘 — 2026-10-20 loginaa 실측.
+ *
+ * <b>받을어음증가</b>(C000014): 전표일자 · 회계전표No. · 부서 · 프로젝트 · 거래처 · 어음번호 · 만기일자(기본 오늘) · 금액 · 적요,
+ * 단추 [저장(F8)] · [저장/전표(F7)] · [다시 작성]. 빈 저장은 거래처 · 어음번호 칸이 막는다. 저장하면 칸이 다 비고 같은 화면에 남는다.
+ * 전표 '26/10/20-25 | 받을어음증가 | 100,000 | QA회계1' = 차) 받을어음 / 대) 외상매출금.
+ *
+ * <b>받을어음감소</b>(E010602): 전표일자 · 회계전표No. · 부서 · 프로젝트 · 입금계좌 · 어음번호 · 총금액 · 금액 · 수수료 · 적요.
+ * 어음번호를 고르면 거래처명 · 총금액(어음 금액)이 들어온다. 빈 저장은 입금계좌 · 어음번호가 막는다. 저장하면 입금계좌만 남는다.
+ * 전표 '26/10/20-26 | 받을어음감소 | 100,000' = 차) 보통예금(입금계좌) 99,000 · 이자비용 1,000 / 대) 받을어음 100,000.
+ * 받을어음조회에서 감소 일자를 누르면 일자가 막힌 수정 창 — [저장(F8)] · [저장/전표(F7)] · [삭제] '전표를 삭제하겠습니까? - 받을어음감소' · [닫기].
+ */
+
+type Note = PromissoryNote & { closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null; closeJournalEntryId?: number | null }
+
+function bankLabel(b: BankAccountRow) {
+  if (b.name) return b.name
+  const digits = (b.accountNo ?? '').replace(/\D/g, '')
+  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
+}
+
+export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' }) {
+  const dec = mode === 'decrease'
+  const title = dec ? '받을어음감소' : '받을어음증가'
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const editId = dec ? Number(params.get('id')) || null : null
+  const deptProject = useDeptProjectItems()
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [banks, setBanks] = useState<BankAccountRow[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
+  const [editing, setEditing] = useState<Note | null>(null)
+
+  const [date, setDate] = useState(ymd(new Date()))
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const [partnerId, setPartnerId] = useState('')
+  const [bankId, setBankId] = useState('')
+  const [noteNo, setNoteNo] = useState('')
+  const [dueDate, setDueDate] = useState(ymd(new Date()))
+  const [total, setTotal] = useState('')
+  const [amount, setAmount] = useState('')
+  const [fee, setFee] = useState('')
+  const [remark, setRemark] = useState('')
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  function loadNotes() {
+    if (!dec) return
+    api.get<NoteSummary>('/notes').then((r) => setNotes(r.data.notes as Note[])).catch(() => {})
+  }
+  useEffect(() => {
+    if (dec) api.get<BankAccountRow[]>('/bank-cards/accounts').then((r) => setBanks(r.data)).catch(() => {})
+    else api.get<Partner[]>('/partners').then((r) => setPartners(r.data)).catch(() => {})
+    loadNotes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dec])
+
+  /* 받을어음조회 감소 일자에서 연 수정 창 — 그 감소의 값을 채운다. */
+  useEffect(() => {
+    if (!editId) { setEditing(null); return }
+    const n = notes.find((x) => x.id === editId)
+    if (!n) return
+    setEditing(n)
+    setDate(n.closedDate ?? ymd(new Date()))
+    setNoteNo(n.noteNo)
+    const f = Number(n.discountFee ?? 0)
+    setTotal(String(n.amount)); setFee(f ? String(f) : ''); setAmount(String(Number(n.amount) - f))
+    setRemark(n.closeRemark ?? '')
+    setDept(n.closeDepartmentId ? String(n.closeDepartmentId) : '')
+    setProject(n.closeProjectId ? String(n.closeProjectId) : '')
+  }, [editId, notes])
+
+  /* 수정 창의 입금계좌 — 그 감소 전표의 차변 예금 계정에 묶인 계좌. 목록에서 다시 받기 어려워 입금계좌 이름으로 찾는다. */
+  useEffect(() => {
+    if (!editing?.closeJournalEntryId || bankId || banks.length === 0) return
+    api.get<{ lines: { accountCode: string; debit: number }[] }>(`/journals/${editing.closeJournalEntryId}`).then((r) => {
+      const code = r.data.lines?.find((l) => Number(l.debit) > 0)?.accountCode
+      const b = banks.find((x) => x.glAccountCode === code && x.active !== false)
+      if (b) setBankId(String(b.id))
+    }).catch(() => {})
+  }, [editing, banks, bankId])
+
+  const partnerItems: CodeItem[] = useMemo(() => partners.filter((p) => p.type !== 'SUPPLIER')
+    .map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [partners])
+  const bankItems: CodeItem[] = useMemo(() => banks.filter((b) => b.active !== false)
+    .map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankLabel(b) })), [banks])
+  /* 어음번호 코드도움 — 보유 중인 받을어음(수정 창은 그 어음도). 고르면 거래처명이 옆에 붙는다. */
+  const noteItems: CodeItem[] = useMemo(() => notes
+    .filter((n) => n.type === 'RECEIVABLE' && (n.status === 'HELD' || n.id === editId))
+    .map((n) => ({ value: n.noteNo, code: n.noteNo, name: n.partnerName })), [notes, editId])
+
+  function pickNote(v: string) {
+    setNoteNo(v)
+    const n = notes.find((x) => x.noteNo === v)
+    if (!n) return
+    const f = Number(fee) || 0
+    setTotal(String(n.amount)); setAmount(String(Math.max(Number(n.amount) - f, 0)))
+  }
+  /* 총금액 = 금액 + 수수료. 수수료를 바꾸면 금액이, 금액을 바꾸면 수수료가 따라간다. */
+  function changeFee(v: string) { setFee(v); if (total) setAmount(String(Math.max((Number(total) || 0) - (Number(v) || 0), 0))) }
+  function changeAmount(v: string) { setAmount(v); if (total) setFee(String(Math.max((Number(total) || 0) - (Number(v) || 0), 0))) }
+
+  function reset(keepHead = false) {
+    if (!keepHead) setBankId('')
+    setPartnerId(''); setNoteNo(''); setDueDate(ymd(new Date())); setTotal(''); setAmount(''); setFee(''); setRemark('')
+    setDept(''); setProject(''); setError('')
+  }
+
+  async function save(): Promise<boolean> {
+    setError(''); setNotice('')
+    if (dec) {
+      if (!bankId) { setError('입금계좌: 자료를 입력 바랍니다.'); return false }
+      if (!noteNo.trim()) { setError('어음번호: 자료를 입력 바랍니다.'); return false }
+    } else {
+      if (!partnerId) { setError('거래처: 자료를 입력 바랍니다.'); return false }
+      if (!noteNo.trim()) { setError('어음번호: 자료를 입력 바랍니다.'); return false }
+      if (!(Number(amount) > 0)) { setError('금액: 자료를 입력 바랍니다.'); return false }
+    }
+    setSaving(true)
+    try {
+      if (dec) {
+        const body = {
+          noteNo: noteNo.trim(), bankAccountId: Number(bankId), date,
+          amount: Number(amount) || 0, fee: Number(fee) || 0, remark: remark.trim() || undefined,
+          departmentId: dept ? Number(dept) : undefined, projectId: project ? Number(project) : undefined,
+        }
+        if (editing) {
+          await api.put(`/notes/${editing.id}/decrease`, body)
+          navigate('/accounting/notes-list')
+          return true
+        }
+        await api.post('/notes/decrease', body)
+        reset(true)
+        loadNotes()
+      } else {
+        await api.post('/notes', {
+          type: 'RECEIVABLE', partnerId: Number(partnerId), issueDate: date, dueDate,
+          amount: Number(amount), remark: remark.trim() || undefined, noteNo: noteNo.trim(),
+          departmentId: dept ? Number(dept) : undefined, projectId: project ? Number(project) : undefined,
+        })
+        reset()
+      }
+      setNotice('저장되었습니다.')
+      return true
+    } catch (e) {
+      setError(extractErrorMessage(e))
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function remove() {
+    if (!editing) return
+    setConfirmDelete(false)
+    try {
+      await api.delete(`/notes/${editing.id}/decrease`)
+      navigate('/accounting/notes-list')
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); void save() }}>
+      <EcSlipShell
+        title={title}
+        /* 원본: [저장/전표(F7)] 은 [저장(F8)] 과 같다(전표 창이 안 뜬다 — 2026-10-20 감소 수정 창에서 눌러 봄). */
+        actions={editing ? [
+          { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+          { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving },
+          { label: '삭제', onClick: () => setConfirmDelete(true) },
+          { label: '닫기', onClick: () => navigate('/accounting/notes-list') },
+        ] : [
+          { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+          { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving },
+          { label: '다시 작성', onClick: () => reset() },
+        ]}>
+        {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+        {notice && !error && <p className="ec-alert ec-alert-info mb-[8px]">{notice}</p>}
+        <ul className="ec-form mb-[8px]">
+          <EcCond label="전표일자" span={2}>
+            <EcDateField value={date} onChange={setDate} disabled={!!editing} />
+          </EcCond>
+          <EcCond label="회계전표No." span={2}>
+            <input className="ec-input w-full" placeholder="회계전표No." disabled value="" />
+          </EcCond>
+          <EcCond label="부서" span={2}>
+            <CodePickerField label="부서" hideLabel pair fill emptyLabel="" value={dept} onChange={setDept} items={deptProject.departments} />
+          </EcCond>
+          <EcCond label="프로젝트" span={2}>
+            <CodePickerField label="프로젝트" hideLabel pair fill emptyLabel="" value={project} onChange={setProject} items={deptProject.projects} />
+          </EcCond>
+          {dec ? (
+            <>
+              <EcCond label="입금계좌" span={2}>
+                <CodePickerField label="입금계좌" hideLabel pair fill emptyLabel="" value={bankId} onChange={setBankId} items={bankItems} />
+              </EcCond>
+              <EcCond label="어음번호" span={2}>
+                <CodePickerField label="어음번호" hideLabel pair fill emptyLabel="" value={noteNo} onChange={pickNote} items={noteItems} />
+              </EcCond>
+              <EcCond label="총금액" span={2}>
+                <input className="ec-input w-full text-right" aria-label="총금액" disabled value={total ? Number(total).toLocaleString('ko-KR') : '0'} />
+              </EcCond>
+              <EcCond label="금액" span={2}>
+                <EcNumInput className="ec-input w-full text-right" aria-label="금액" value={amount} onValue={changeAmount} placeholder="0" />
+              </EcCond>
+              <EcCond label="수수료" span={2}>
+                <EcNumInput className="ec-input w-full text-right" aria-label="수수료" value={fee} onValue={changeFee} placeholder="0" />
+              </EcCond>
+            </>
+          ) : (
+            <>
+              <EcCond label="거래처" span={2}>
+                <CodePickerField label="거래처" hideLabel pair fill emptyLabel="" value={partnerId} onChange={setPartnerId} items={partnerItems} />
+              </EcCond>
+              <EcCond label="어음번호" span={2}>
+                <input className="ec-input w-full" placeholder="어음번호" aria-label="어음번호" maxLength={30} value={noteNo} onChange={(e) => setNoteNo(e.target.value)} />
+              </EcCond>
+              <EcCond label="만기일자" span={2}>
+                <EcDateField value={dueDate} onChange={setDueDate} />
+              </EcCond>
+              <EcCond label="금액" span={2}>
+                <EcNumInput className="ec-input w-full text-right" aria-label="금액" value={amount} onValue={setAmount} placeholder="0" />
+              </EcCond>
+            </>
+          )}
+          <EcCond label="적요" span={2}>
+            <input className="ec-input w-full" placeholder="적요" aria-label="적요" maxLength={300} value={remark} onChange={(e) => setRemark(e.target.value)} />
+          </EcCond>
+        </ul>
+      </EcSlipShell>
+
+      <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {title}</p>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void remove()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      </Modal>
+    </form>
+  )
+}

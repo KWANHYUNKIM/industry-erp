@@ -23,6 +23,8 @@ type Note = PromissoryNote & {
   recordOnly?: boolean; departmentId?: number | null; projectId?: number | null
   /** [내역만등록] 감소 줄의 자기 적요 · 부서 · 프로젝트(V361) — 원본 감소 줄은 증가 쪽이 아니라 이 값을 찍는다. */
   closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null
+  /** 받을어음감소(E010602) 한 장 전표 — 있으면 감소 줄 거래유형 '받을어음감소' · 일자를 누르면 감소 수정 창 */
+  closeJournalEntryId?: number | null
 }
 const recordDecreased = (n: Note) => (n.status as string) === 'RECORD_DECREASED'
 /** 어음 한 장이 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(결제 · 할인 · 부도) 감소. */
@@ -112,7 +114,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
 
   const ofType = useMemo(() => notes.filter((n) => n.type === type), [notes, type])
   /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] 증가 '어음만증가' · 감소 '어음만감소'. */
-  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.statusName)
+  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? '받을어음감소' : m.n.statusName)
   /** 원본 [일자] '2026/10/13-2' — 그날 넣은 어음 중 몇 번째(id 차례). 감소 줄은 날짜만. */
   const dayNo = (m: Move) => {
     if (!m.inc) return dateText(m.date)
@@ -152,6 +154,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     if (!m.inc && recordDecreased(m.n)) return ''
     const j = m.inc
       ? journals.find((x) => x.sourceType === 'NOTE' && x.sourceId === m.n.id)
+      : m.n.closeJournalEntryId ? journals.find((x) => x.id === m.n.closeJournalEntryId)
       : journals.find((x) => x.entryDate === m.date && (x.description ?? '').includes(m.n.noteNo))
     return j ? dateNo(j.entryDate, j.docNo) : ''
   }
@@ -214,7 +217,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseDue(false); setNoteNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setDept(''); setProject(''); setRemark(''); setAuthor('') } },
-        { label: receivable ? '받을어음증가' : '지급어음증가', onClick: () => navigate('/accounting/notes') },
+        { label: receivable ? '받을어음증가' : '지급어음증가', onClick: () => navigate(receivable ? '/accounting/notes-increase' : '/accounting/notes') },
         { label: '내역만등록', onClick: () => { setRecError(''); setRecDate(ymd(new Date())); setRecDec(false); setRecOpen(true) } },
         { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => setConfirmDelete(true), disabled: checked.size === 0 },
         { label: 'Excel' },
@@ -312,7 +315,9 @@ export default function NoteListPage({ type }: { type: NoteType }) {
                          return next
                        })} />
               </td>
-              <td>{dayNo(m)}</td>
+              <td>{!m.inc && m.n.closeJournalEntryId
+                ? <a className="ec-link" href={`/accounting/notes-decrease?id=${m.n.id}`} onClick={(e) => { e.preventDefault(); navigate(`/accounting/notes-decrease?id=${m.n.id}`) }}>{dayNo(m)}</a>
+                : dayNo(m)}</td>
               <td>{m.n.noteNo}</td>
               <td>{m.inc ? '증가' : '감소'}</td>
               <td>{m.n.partnerName}</td>

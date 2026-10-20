@@ -545,18 +545,20 @@ const MENU: TopMenu[] = [
       {
         label: '어음거래',
         nodes: [
-          { label: '어음등록(수취/발행)', to: '/accounting/notes' },
-          /* 원본 어음거래 > 받을어음 · 지급어음 끝의 현황 둘(E010626 · E010634). 예전엔 [어음현황]이 어음등록을 한 번 더 가리켰다. */
-          { label: '받을어음조회', to: '/accounting/notes-list' },
-          { label: '받을어음거래내역', to: '/accounting/notes-ledger' },
-          { label: '받을어음증가현황', to: '/accounting/notes-in' },
-          { label: '받을어음감소현황', to: '/accounting/notes-out' },
-          { label: '보유어음현황', to: '/accounting/notes-held' },
-          { label: '지급어음조회', to: '/accounting/notes-pay-list' },
-          { label: '지급어음거래내역', to: '/accounting/notes-pay-ledger' },
-          { label: '지급어음증가현황', to: '/accounting/notes-pay-in' },
-          { label: '지급어음감소현황', to: '/accounting/notes-pay-out' },
-          { label: '미지급어음현황', to: '/accounting/notes-unpaid' },
+          /* 원본 회계 I › 어음거래(2026-10-20 loginaa): 받을어음 9 · 지급어음 8. 받을어음증가 · 감소는 한 장 입력(C000014 · E010602).
+             거래처지급 · 일괄감소 · 지급어음증가/감소/일괄감소는 아직 없어 어음등록(수취/발행) 한 화면이 지급어음 쪽을 맡는다. */
+          { label: '받을어음', children: [
+            { label: '받을어음증가', to: '/accounting/notes-increase' }, { label: '받을어음감소', to: '/accounting/notes-decrease' },
+            { label: '받을어음조회', to: '/accounting/notes-list' }, { label: '받을어음거래내역', to: '/accounting/notes-ledger' },
+            { label: '받을어음증가현황', to: '/accounting/notes-in' }, { label: '받을어음감소현황', to: '/accounting/notes-out' },
+            { label: '보유어음현황', to: '/accounting/notes-held' },
+          ] },
+          { label: '지급어음', children: [
+            { label: '어음등록(수취/발행)', to: '/accounting/notes' },
+            { label: '지급어음조회', to: '/accounting/notes-pay-list' }, { label: '지급어음거래내역', to: '/accounting/notes-pay-ledger' },
+            { label: '지급어음증가현황', to: '/accounting/notes-pay-in' }, { label: '지급어음감소현황', to: '/accounting/notes-pay-out' },
+            { label: '미지급어음현황', to: '/accounting/notes-unpaid' },
+          ] },
         ],
       },
       {
