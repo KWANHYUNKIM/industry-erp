@@ -21,7 +21,7 @@ import { exportTableToXlsx } from '../../utils/excel'
  */
 
 type Board = 'MULTI_INPUT' | 'SALES_CONTRACT' | 'BOND_COLLECT' | 'MONTHLY_ATTENDANCE'
-type Master = 'emp' | 'dept' | 'route' | 'partner' | 'partnerCode'
+type Master = 'emp' | 'dept' | 'route' | 'partner' | 'partnerCode' | 'contract'
 type Fields = Record<string, string>
 
 /** 입력 격자 한 칸. code 칸은 고르면 nameKey 칸에 이름을 채운다(돋보기 없음 — 치고 칸을 떠나면 채워짐). */
@@ -94,10 +94,10 @@ const BOARDS: Record<string, BoardCfg> = {
       { key: 'empName', head: '영업자', width: 75, kind: 'name' },
       { key: 'bizNo', head: '사업자번호', width: 122, kind: 'code', master: 'partner', nameKey: 'partnerName' },
       { key: 'partnerName', head: '거래처', width: 126, kind: 'name' },
-      // 원본 [계약코드] 는 코드 칸('계약여부검색' 창: 코드 · 항목명 · 적요 — loginaa 에 등록된 항목 없음, 안 맞는 코드는 지워짐),
-      // [계약여부] 는 그 이름 칸(글자를 그대로 쳐도 저장된다 — '계약'). 항목이 없어 우리는 둘 다 글자 칸으로 둔다.
-      { key: 'contractCode', head: '계약코드', width: 41, kind: 'text' },
-      { key: 'contractName', head: '계약여부', width: 60, kind: 'text' },
+      // 원본 [계약코드] 는 코드 칸('계약여부검색' 창: 코드 · 항목명 · 적요 — 2026-10-20 실측 10 계약 · 20 보류 · 30 실패 · 40 진행,
+      // '1' 처럼 하나만 맞으면 창 없이 바로 채움), 고르면 [계약여부] 에 항목명. [계약여부] 는 글자를 그대로 쳐도 저장된다('계약').
+      { key: 'contractCode', head: '계약코드', width: 41, kind: 'code', master: 'contract', nameKey: 'contractName' },
+      { key: 'contractName', head: '계약여부', width: 60, kind: 'name' },
       { key: 'qty', head: '수량', width: 53, kind: 'num' },
       { key: 'price', head: '단가', width: 99, kind: 'num', init: '0' },
       // 원본은 금액을 저절로 매기지 않는다(수량 2 · 단가 1,000 → 금액 빈칸).
@@ -238,12 +238,20 @@ const ROUTES: CodeItem[] = [
   { value: '2', code: '2', name: '오프라인판매' },
   { value: '3', code: '3', name: '증정' },
 ]
+/** 영업자별 계약상황 [계약코드] — 원본 '계약여부검색' 항목(2026-10-20 loginaa 실측). */
+const CONTRACTS: CodeItem[] = [
+  { value: '10', code: '10', name: '계약' },
+  { value: '20', code: '20', name: '보류' },
+  { value: '30', code: '30', name: '실패' },
+  { value: '40', code: '40', name: '진행' },
+]
 const MASTER_TITLE: Record<Master, [string, string, string]> = {
   emp: ['사원검색', '사원코드', '사원명'],
   dept: ['부서검색', '부서코드', '부서명'],
   route: ['판매경로검색', '코드', '항목명'],
   partner: ['거래처검색', '사업자번호', '거래처명'],
   partnerCode: ['거래처검색', '거래처코드', '거래처명'],
+  contract: ['계약여부검색', '코드', '항목명'],
 }
 
 export default function MultiSlipPage() {
@@ -264,7 +272,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   const [condOpen, setCondOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [stageMenu, setStageMenu] = useState(false)
-  const [masters, setMasters] = useState<Record<Master, CodeItem[]>>({ emp: [], dept: [], route: ROUTES, partner: [], partnerCode: [] })
+  const [masters, setMasters] = useState<Record<Master, CodeItem[]>>({ emp: [], dept: [], route: ROUTES, partner: [], partnerCode: [], contract: CONTRACTS })
 
   // 입력 창
   const [open, setOpen] = useState(false)

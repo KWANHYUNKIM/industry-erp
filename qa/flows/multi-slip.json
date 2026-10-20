@@ -2,6 +2,15 @@
   "about": "그룹웨어 › 다목적관리 다목적 전표 넷(원본 2026-10-14 loginaa 실측 — plans/그룹웨어/E200276.md). 빈 저장 → 알림 표 '그리드(표)에 최소 1줄 이상 입력되어야 합니다.' → 신규(첫 코드 칸을 치고 Enter 면 이름이 채워짐) → 안내 없이 닫히고 목록 맨 위 '일자-순번' → 수정 → [진행상태변경 ▲ 완료] → [진행중] 에서 빠지고 [완료] 에만 → 수정 창 [삭제] '전표를 삭제하겠습니까? - <화면 이름>' → 빠짐. 영업 · 채권 · 월근태는 기본 기간이 전년이라 [Search(F3)] [금년] [검색(F8)] 로 본다. 채권 1,000 · 300 → 300.00 · 700.00 · 30.00(목록 '30'), 월근태 22 · 2 · 170 · 0 → 20 · 170 · 180 · -10 · -5.56 · 21.43 / 200 · 10 → 190 · 10 · 5.56 · 35.71. 영업 금액은 저절로 안 매김. node qa/shot.mjs qa/flows/multi-slip.json",
   "shots": [
     {
+      "name": "준비 — QA 부서 QAGW-H1 · 사원 QAGW-E1 (없으면 만든다, 끝에 지운다)",
+      "path": "/groupware/multi-input",
+      "steps": [
+        "wait:600",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ds = await (await fetch('/api/departments', { headers: H })).json(); let d = ds.find((y) => y.code === 'QAGW-H1'); if (!d) d = await (await fetch('/api/departments', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-H1', name: 'QA그룹웨어-부서장시험', sortOrder: 99 }) })).json(); const es = await (await fetch('/api/employees', { headers: H })).json(); if (!es.find((y) => y.code === 'QAGW-E1')) await fetch('/api/employees', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-E1', name: 'QA그룹웨어-사원1', departmentId: d.id, jobTitle: '사원' }) }); sessionStorage.setItem('gwMadeFixture', '1'); return true })()",
+        "wait:300"
+      ]
+    },
+    {
       "name": "다목적 게시판 입력항목은 — 빈 저장 알림 → 신규 → 목록 맨 위 → 수정 → 진행상태변경 완료 → 완료 알약 → 삭제",
       "path": "/groupware/multi-input",
       "steps": [
@@ -15,7 +24,7 @@
         "click:저장(F8)",
         "wait:400",
         "expect:[...document.querySelectorAll('[role=dialog]')].some((x) => x.innerText.includes('그리드(표)에 최소 1줄 이상 입력되어야 합니다.') && x.innerText.includes('아래의 경우 처리가 불가능합니다.'))",
-        "clicklast:닫기",
+        "js:(() => { const a = [...document.querySelectorAll('[role=dialog]')].find((d) => d.innerText.includes('아래의 경우 처리가 불가능합니다.')); [...a.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); return true })()",
         "wait:300",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"사원검색\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"QAGW-E1\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "wait:300",
@@ -70,11 +79,14 @@
         "click:저장(F8)",
         "wait:400",
         "expect:[...document.querySelectorAll('[role=dialog]')].some((x) => x.innerText.includes('그리드(표)에 최소 1줄 이상 입력되어야 합니다.') && x.innerText.includes('아래의 경우 처리가 불가능합니다.'))",
-        "clicklast:닫기",
+        "js:(() => { const a = [...document.querySelectorAll('[role=dialog]')].find((d) => d.innerText.includes('아래의 경우 처리가 불가능합니다.')); [...a.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); return true })()",
         "wait:300",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"사원검색\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"QAGW-E1\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "wait:300",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"계약여부\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"\\uacc4\\uc57d\"); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"계약여부검색\"]')[0]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '1'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:200",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.querySelectorAll('tbody [aria-label=\"계약여부검색\"]')[0].value === '10' && d.querySelectorAll('tbody [aria-label=\"계약여부\"]')[0].value === '계약' })()",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"수량\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"2\"); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"단가\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"1000\"); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
         "expect:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody [aria-label=\"금액\"]')[0].value === ''",
@@ -127,7 +139,7 @@
         "click:저장(F8)",
         "wait:400",
         "expect:[...document.querySelectorAll('[role=dialog]')].some((x) => x.innerText.includes('그리드(표)에 최소 1줄 이상 입력되어야 합니다.') && x.innerText.includes('아래의 경우 처리가 불가능합니다.'))",
-        "clicklast:닫기",
+        "js:(() => { const a = [...document.querySelectorAll('[role=dialog]')].find((d) => d.innerText.includes('아래의 경우 처리가 불가능합니다.')); [...a.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); return true })()",
         "wait:300",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"사원검색\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"QAGW-E1\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "wait:300",
@@ -184,7 +196,7 @@
         "click:저장(F8)",
         "wait:400",
         "expect:[...document.querySelectorAll('[role=dialog]')].some((x) => x.innerText.includes('그리드(표)에 최소 1줄 이상 입력되어야 합니다.') && x.innerText.includes('아래의 경우 처리가 불가능합니다.'))",
-        "clicklast:닫기",
+        "js:(() => { const a = [...document.querySelectorAll('[role=dialog]')].find((d) => d.innerText.includes('아래의 경우 처리가 불가능합니다.')); [...a.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); return true })()",
         "wait:300",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"부서검색\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"QAGW-H1\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "wait:300",
@@ -230,5 +242,8 @@
         "expect:!document.querySelector('#multi-slip-list').innerText.includes('QA그룹웨어')"
       ]
     }
+  ],
+  "finally": [
+    "js:(async () => { if (!sessionStorage.getItem('gwMadeFixture')) return 'skip'; const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const out = []; const e = await (await fetch('/api/employees', { headers: H })).json(); const x = e.find((y) => y.code === 'QAGW-E1'); if (x) out.push((await fetch('/api/employees/' + x.id, { method: 'DELETE', headers: H })).status); const d = await (await fetch('/api/departments', { headers: H })).json(); const y = d.find((z) => z.code === 'QAGW-H1'); if (y) out.push((await fetch('/api/departments/' + y.id, { method: 'DELETE', headers: H })).status); return out.join(',') })()"
   ]
 }
