@@ -440,7 +440,7 @@ export default function SpecialPricePage() {
       )}</Modal>
 
       {/* 원본 [공지] — 있는 특별단가그룹코드로 신규 저장(2026-10-14 실측). 자료 칸은 '특별단가그룹 등록'. */}
-      <Modal open={dupGroup != null} title="공지" width={480} onClose={() => setDupGroup(null)}>{dupGroup && (
+      <Modal error={error} open={dupGroup != null} title="공지" width={480} onClose={() => setDupGroup(null)}>{dupGroup && (
         <div className="p-[4px]">
           <p className="mt-0 mb-[8px] text-[12.5px]">이미 등록된 코드입니다.</p>
           <table className="w-full">

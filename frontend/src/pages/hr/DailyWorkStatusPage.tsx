@@ -88,7 +88,7 @@ export default function DailyWorkStatusPage() {
       <table ref={tableRef} className="w-full text-left ec-report">
         <thead>
           <tr>
-            <th>일자-No.</th>
+            <th className="text-center">일자-No.</th>
             <th className="text-center">근무일자</th>
             <th>사원번호</th>
             <th>성명</th>

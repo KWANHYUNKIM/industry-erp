@@ -166,7 +166,7 @@ export default function EmployeePayListPage() {
                 <input type="checkbox" checked={allChecked}
                        onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((p) => p.id)))} />
               </th>
-              <th>귀속연월</th>
+              <th className="text-center">귀속연월</th>
               <th>급여구분</th>
               <th>사원코드</th>
               <th>사원명</th>

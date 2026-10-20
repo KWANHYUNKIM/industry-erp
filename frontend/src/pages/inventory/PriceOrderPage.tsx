@@ -109,8 +109,8 @@ export default function PriceOrderPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th className="w-[46.6%] text-center font-normal">기능</th>
-              <th className="w-[10.7%] text-center font-normal">적용순서</th>
+              <th className="w-[46.6%] text-left font-normal">기능</th>
+              <th className="w-[10.7%] text-right font-normal">적용순서</th>
               <th className="w-[29.3%] text-center font-normal">사용구분</th>
               <th className="w-[13.3%] text-center font-normal">상세설정</th>
             </tr>

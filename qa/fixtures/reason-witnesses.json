@@ -54,13 +54,6 @@
   ],
   "in": "backend"
  },
- "공용품관리|라벨변경": {
-  "claim": "여러 건의 라벨을 한꺼번에 바꾸는 기능이 없다",
-  "absent": [
-   "bulkLabel"
-  ],
-  "in": "both"
- },
  "SW개발일정관리|공용메일설정": {
   "claim": "사내 공용메일 설정 화면이 없다",
   "absent": [
@@ -68,14 +61,6 @@
    "shared-mail"
   ],
   "in": "both"
- },
- "공지사항|업무지원AI": {
-  "claim": "업무지원 AI 를 붙이지 않았다",
-  "absent": [
-   "AssistantService",
-   "/api/assistant"
-  ],
-  "in": "backend"
  },
  "작업내역조회|바코드(품목)": {
   "claim": "바코드를 찍지 않는다",
@@ -111,13 +96,6 @@
   ],
   "in": "frontend/src/pages/trade/ShipmentInquiryPage.tsx"
  },
- "근태입력|출/퇴근": {
-  "claim": "출퇴근 시각은 [출/퇴근기록부(ID)]가 맡는다",
-  "present": [
-   "출근"
-  ],
-  "file": "hr/AttendanceInputPage.tsx"
- },
  "매출계획|금액": {
   "claim": "계획금액과 실적금액을 나란히 낸다 — 이름 없는 [금액] 한 칸으로는 못 가린다",
   "present": [
@@ -144,12 +122,6 @@
    "label: '닫기'"
   ],
   "in": "frontend/src/pages/production/WoEfficiencyPage.tsx"
- },
- "공용품관리|라벨": {
-  "claim": "우리 [라벨]은 표의 열이다",
-  "present": [
-   "라벨"
-  ]
  },
  "설문조사조회|저장": {
   "claim": "그 격자와 [저장]은 설문조사입력에 있다",

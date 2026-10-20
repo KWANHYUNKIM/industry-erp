@@ -102,7 +102,7 @@ export default function PrintSignLinePage() {
           {open[li] && (
             <table className="w-full">
               <thead>
-                <tr><th className="w-[15%]"></th><th>명칭</th><th className="w-[22%]">가로크기(px)</th><th className="w-[22%]">글자크기(px)</th></tr>
+                <tr><th className="w-[15%]"></th><th>명칭</th><th className="w-[22%] text-right">가로크기(px)</th><th className="w-[22%]">글자크기(px)</th></tr>
               </thead>
               <tbody>
                 <tr>
@@ -130,7 +130,7 @@ export default function PrintSignLinePage() {
       ))}
 
       {historyOpen && <EcHistoryModal url={`/change-history?target=PRINT_SIGN_${module}&id=0`} last onClose={() => setHistoryOpen(false)} />}
-      <Modal open={preview} title="결재라인 미리보기" onClose={() => setPreview(false)} width={760}>
+      <Modal open={preview} title="결재라인 미리보기" error={error} onClose={() => setPreview(false)} width={760}>
         {lines.map((l) => (
           <div key={l.lineNo} className="mb-[12px]">
             <div className="font-bold mb-[4px]">결재라인 {l.lineNo}</div>

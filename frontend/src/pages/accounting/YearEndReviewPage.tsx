@@ -1,8 +1,9 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { yearEndApi, type Settlement } from '../../features/yearend/api'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 type Emp = { id: number; code: string; name: string; department?: string | null; hireDate?: string | null; resignDate?: string | null }
 type Company = { name?: string; bizRegNo?: string }
@@ -122,8 +123,10 @@ function ReviewOne({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
     ['총급여', '배우자', '부녀자', '주택임차', '신용카드등', '고용유지', '', '연금계좌', '기부금', '외국납부', '', '세액감면', '차감소득', '차감지방소득', '차감농어촌'],
   ]
   const lead = [['사번'], ['성명'], ['부양', '경', '장'], ['부녀', '한', '자']]
+  const ref = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(ref, '연말정산검토표 I', [list.length])
   return (
-    <table className="w-full ec-report ec-report-head400">
+    <table ref={ref} className="w-full ec-report ec-report-head400">
       <thead>
         <tr><th colSpan={4}>기본사항</th><th colSpan={6}>소득공제</th><th colSpan={4}>세액공제</th><th colSpan={4}>계산내역</th></tr>
         {head.map((line, i) => (
@@ -190,8 +193,10 @@ function ReviewTwo({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
     return { empId, a, b: 0, c, d, e: ee, target, f, g, diff: target - (f + g) }
   })
   const sum = (k: 'a' | 'b' | 'c' | 'd' | 'e' | 'target' | 'f' | 'g' | 'diff') => lines.reduce((t, l) => t + l[k], 0)
+  const ref = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(ref, '연말정산검토표 II', [lines.length])
   return (
-    <table className="w-full ec-report ec-report-head400">
+    <table ref={ref} className="w-full ec-report ec-report-head400">
       <thead>
         <tr>
           <th rowSpan={2}>사원번호</th><th rowSpan={2}>성명</th><th rowSpan={2}>입사일자</th><th rowSpan={2}>퇴사일자</th>
@@ -216,7 +221,9 @@ function ReviewTwo({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
       <tfoot>
         <tr>
           <td colSpan={4} className="text-center">합계</td>
-          {(['a', 'b', 'c', 'd', 'e', 'target', 'f', 'g', 'diff'] as const).map((k) => <td key={k} className="text-right">{num(sum(k))}</td>)}
+          <td className="text-right">{num(sum('a'))}</td><td className="text-right">{num(sum('b'))}</td><td className="text-right">{num(sum('c'))}</td>
+          <td className="text-right">{num(sum('d'))}</td><td className="text-right">{num(sum('e'))}</td><td className="text-right">{num(sum('target'))}</td>
+          <td className="text-right">{num(sum('f'))}</td><td className="text-right">{num(sum('g'))}</td><td className="text-right">{num(sum('diff'))}</td>
         </tr>
       </tfoot>
     </table>

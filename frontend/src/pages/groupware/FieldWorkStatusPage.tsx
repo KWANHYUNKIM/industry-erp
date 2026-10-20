@@ -331,7 +331,7 @@ export default function FieldWorkStatusPage() {
           <table ref={tableRef} className="w-full text-left">
             <thead>
               <tr>
-                <th>일자</th><th>{basic ? '부서명' : '차량종류'}</th><th>사용자명</th><th>{basic ? '사용목적명' : '사용목적'}</th>
+                <th>일자</th><th>{basic ? '부서명' : '차량종류'}</th><th className={basic ? 'text-right' : ''}>사용자명</th><th>{basic ? '사용목적명' : '사용목적'}</th>
                 <th className="text-right">주행전 계기판거리</th><th className="text-right">주행후 계기판거리</th>
                 <th className="text-right">운행거리</th>{tailHeads.map((h) => <th key={h}>{h}</th>)}
               </tr>

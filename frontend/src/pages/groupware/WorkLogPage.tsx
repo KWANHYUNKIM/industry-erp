@@ -276,10 +276,18 @@ export default function WorkLogPage() {
   const projectItems = projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))
   /**
    * 원본 [거래처] 는 조건 · 작성 창 둘 다 코드도움('거래처검색' — 기본 · 거래처정보 · 여신단가 · 부가정보 탭, 2026-10-14 실측).
-   * 일지는 거래처 이름을 적어 두므로 값은 이름이다. 옛 일지의 손으로 친 이름도 칸에 보이게 한 줄 더한다.
+   * 일지는 거래처 이름을 적어 두지만, 코드도움은 이름이 겹치는 거래처를 가르도록 id 를 담는다 —
+   * 칸에 넣을 때 이름 → id(idOfPartner), 고른 값을 적을 때 id → 이름(nameOfPartner)으로 바꾼다.
+   * 옛 일지의 손으로 친 이름(거래처 목록에 없는 이름)도 칸에 보이게 한 줄 더한다.
    */
-  const partnerItemsFor = (v: string) => {
-    const items = partnerCodeItems(partners).map((p) => ({ ...p, value: p.name }))
+  const idOfPartner = (name: string) => {
+    const p = partners.find((x) => x.name === name)
+    return p ? String(p.id) : name
+  }
+  const nameOfPartner = (v: string) => partners.find((x) => String(x.id) === v)?.name ?? v
+  const partnerItemsFor = (name: string) => {
+    const items = partnerCodeItems(partners)
+    const v = idOfPartner(name)
     return v && !items.some((i) => i.value === v) ? [...items, { value: v, code: '', name: v }] : items
   }
 
@@ -318,7 +326,7 @@ export default function WorkLogPage() {
             </li>
             <li className="wide">
               <div className="title">거래처</div>
-              <div className="form"><CodePickerField label="거래처" hideLabel fill value={cond.partnerName} onChange={(v) => setC('partnerName', v)} items={partnerItemsFor(cond.partnerName)} /></div>
+              <div className="form"><CodePickerField label="거래처" hideLabel fill value={idOfPartner(cond.partnerName)} onChange={(v) => setC('partnerName', nameOfPartner(v))} items={partnerItemsFor(cond.partnerName)} /></div>
             </li>
             <li className="wide">
               <div className="title">제목</div>
@@ -450,7 +458,7 @@ export default function WorkLogPage() {
           </li>
           <li>
             <div className="title">거래처</div>
-            <div className="form"><CodePickerField label="거래처" hideLabel fill value={form.partnerName} onChange={(v) => setF('partnerName', v)} items={partnerItemsFor(form.partnerName)} /></div>
+            <div className="form"><CodePickerField label="거래처" hideLabel fill value={idOfPartner(form.partnerName)} onChange={(v) => setF('partnerName', nameOfPartner(v))} items={partnerItemsFor(form.partnerName)} /></div>
           </li>
           <li>
             <div className="title">프로젝트</div>

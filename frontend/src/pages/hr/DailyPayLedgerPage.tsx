@@ -351,7 +351,7 @@ export default function DailyPayLedgerPage() {
         </div>
       </Modal>
 
-      <Modal open={loadAsk} title="일별근무기록불러오기" width={760} onClose={() => setLoadAsk(false)}>
+      <Modal error={error} open={loadAsk} title="일별근무기록불러오기" width={760} onClose={() => setLoadAsk(false)}>
         <b className="block mb-[12px]">일별근무기록불러오기</b>
         <p className="text-ec-danger mb-[6px]">⊙ 입력한 근무기록이 나타나지 않는 경우</p>
         <table className="w-full text-left">

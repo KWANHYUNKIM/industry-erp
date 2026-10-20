@@ -305,7 +305,7 @@ export default function CollectSourcePage() {
         </div>
       </Modal>
 
-      <Modal open={confirmFor !== null} title={CONFIRM_TITLE} onClose={() => setConfirmFor(null)} width={460}>
+      <Modal open={confirmFor !== null} title={CONFIRM_TITLE} error={error} onClose={() => setConfirmFor(null)} width={460}>
         <p className="min-h-[120px]">삭제하겠습니까?</p>
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" autoFocus onClick={() => {
