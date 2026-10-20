@@ -583,7 +583,8 @@ main table,
 /* 헤더 항목 폼 (.wrapper-form: li > .title + .form) */
 /* 원본 판매입력의 헤더 폼은 **격자가 아니다** — 흰 바탕에 라벨 텍스트 + 입력칸이
    2열로 놓일 뿐이고, 셀 테두리도 라벨 배경도 없다. 우리는 회색 라벨칸 + 격자선이었다.
-   라벨 실측: 12px · color #62677e · padding 3px 3px 3px 10px · height 24 · 배경 투명. */
+   라벨 실측: 12px · color #62677e · 배경 투명. 줄 36.1 · 여백 2.7 2.7 2.7 9 는 tokens.css(2026-10-21 판매입력 · 일반전표 · 기타출금 같음).
+   이름표 폭 92 는 우리 값 — 원본은 폼마다 120 · 119 · 154 로 달라 화면별이다. */
 .ec-form {
   display: grid;
   /* 원본은 화면이 아무리 넓어도 **2열**이다(좌: 일자·담당자·거래유형·프로젝트 /
@@ -601,13 +602,13 @@ main table,
 .ec-form > li {
   display: flex;
   align-items: center;
-  min-height: 34px;
+  min-height: var(--ec-form-row-h);
 }
 .ec-form > li > .title {
   flex: 0 0 92px;
   display: flex;
   align-items: center;
-  padding: 3px 3px 3px 10px;
+  padding: var(--ec-form-label-pad);
   font-size: 12px;
   font-weight: 400;
   color: var(--ec-label);
