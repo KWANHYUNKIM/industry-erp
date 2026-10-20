@@ -40,7 +40,9 @@ public final class WorkPostDtos {
             @Size(max = 2000, message = "입력항목이 너무 깁니다.") String extraFields,
             /** 간판제작 [프로젝트] · [칸반연결](진행현황 칸반 글 id). 다른 게시판은 무시한다. */
             @Size(max = 100, message = "프로젝트는 100자까지 넣을 수 있습니다.") String project,
-            Long kanbanPostId
+            Long kanbanPostId,
+            /** 간판제작 입력 창 [완료일시](원본 처음 값 = 지금, 2026-10-20 실측). 비우면 저장한 때. 다른 게시판은 무시한다. */
+            LocalDateTime completedAt
     ) {}
 
     /**
@@ -72,7 +74,9 @@ public final class WorkPostDtos {
             @Size(max = 2000, message = "입력항목이 너무 깁니다.") String extraFields,
             /** 간판제작 [프로젝트] · [칸반연결](진행현황 칸반 글 id). 다른 게시판은 무시한다. */
             @Size(max = 100, message = "프로젝트는 100자까지 넣을 수 있습니다.") String project,
-            Long kanbanPostId
+            Long kanbanPostId,
+            /** 간판제작 입력 창 [완료일시](원본 처음 값 = 지금, 2026-10-20 실측). 비우면 저장한 때. 다른 게시판은 무시한다. */
+            LocalDateTime completedAt
     ) {}
 
     /** 원본 '조회자 현황'의 오른쪽 한 줄 — 이름 · 최초조회일시 · 최종조회일시. */

@@ -17,6 +17,7 @@ import EcFileDrop from '../../components/EcFileDrop'
 import { dateText } from '../../utils/dateText'
 import { requireSelection } from '../../components/EcDialog'
 import EcKanban, { type KanbanCard, type KanbanTone } from '../../components/EcKanban'
+import GridCode from '../../components/GridCode'
 
 const today = () => ymd(new Date())
 
@@ -92,10 +93,14 @@ type Form = {
   extra: Record<string, string>
   /** 간판제작 [프로젝트] · [칸반연결](📅 프로젝트 진행현황 칸반 글 id). */
   project: string; kanbanPostId: number | null
+  /** 간판제작 [완료일시] 'YYYY-MM-DDTHH:mm'(원본 처음 값 = 지금). */
+  done: string
 }
+/** 지금 시각 'YYYY-MM-DDTHH:mm'(로컬). */
+const nowLocal = () => { const d = new Date(); return `${ymd(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 const emptyForm = (stage = ''): Form => ({
   title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage, weekNo: null, links: [null, null, null, null], extra: {},
-  project: '', kanbanPostId: null, ccAll: false, status: 'IN_PROGRESS',
+  project: '', kanbanPostId: null, ccAll: false, status: 'IN_PROGRESS', done: nowLocal(),
 })
 
 export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 'MINUTES'
@@ -318,6 +323,12 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [kanbanPosts, setKanbanPosts] = useState<WorkPost[]>([])
   const [signPosts, setSignPosts] = useState<WorkPost[]>([])
   const [signLabels, setSignLabels] = useState<BoardLabel[]>([])
+  /** 간판제작 [프로젝트] 코드도움의 프로젝트 마스터. */
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
+  useEffect(() => {
+    if (board !== 'SIGN') return
+    api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => setProjects([]))
+  }, [board])
   /** View 칸반 판에서 고른 카드 · [카드접기]. */
   const [boardPick, setBoardPick] = useState<Set<number>>(new Set())
   const [cardsFolded, setCardsFolded] = useState(false)
@@ -444,6 +455,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       links: MINUTE_TEAMS.map((_, i) => r.meetingLinks?.[i] ?? null),
       extra: parseExtra(r.extraFields),
       project: r.project ?? '', kanbanPostId: r.kanbanPostId ?? null,
+      done: r.completedAt ? r.completedAt.slice(0, 16) : '',
     })
     setAttachment(r.attachmentId ? { id: r.attachmentId, name: r.attachmentName ?? '첨부' } : null)
     setError('')
@@ -526,6 +538,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         : null,
       project: board === 'SIGN' ? form.project.trim() || null : null,
       kanbanPostId: board === 'SIGN' ? form.kanbanPostId : null,
+      completedAt: board === 'SIGN' && form.done ? `${form.done}:00` : null,
     }
     try {
       if (editId != null) {
@@ -1123,6 +1136,41 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             </li>
           )}
           {/*
+            원본 간판제작 입력 창(2026-10-20 실측) 차례: 진행상태 · 프로젝트 · 라벨 · 칸반연결 · 완료일시 · 전달자 · 참조자 · 권한 · 비밀번호 · 제목 · 첨부.
+            [프로젝트] 는 '프로젝트검색' 코드도움(프로젝트코드 · 프로젝트명 — 프로젝트 마스터), [완료일시] 는 처음 값이 지금(년 / 월 / 일 오후 시 : 분).
+            📅 프로젝트 진행현황 칸반 글의 판에 이 글이 [프로젝트] 열의 카드로 뜬다.
+          */}
+          {board === 'SIGN' && (
+            <>
+              <li>
+                <div className="title">프로젝트</div>
+                <div className="form">
+                  <GridCode title="프로젝트검색" codeHead="프로젝트코드" nameHead="프로젝트명" showName
+                            items={[...projects.map((x) => ({ value: x.name, code: x.code, name: x.name })),
+                              ...(form.project && !projects.some((x) => x.name === form.project) ? [{ value: form.project, code: '', name: form.project }] : [])]}
+                            value={form.project} onPick={(v) => set('project', v)} />
+                </div>
+              </li>
+              <li>
+                <div className="title">칸반연결</div>
+                <div className="form">
+                  <select className="ec-input w-full" aria-label="칸반연결" value={form.kanbanPostId ?? ''}
+                          onChange={(e) => set('kanbanPostId', e.target.value ? Number(e.target.value) : null)}>
+                    <option value="">(연결 안 함)</option>
+                    {kanbanPosts.map((k) => <option key={k.id} value={k.id}>{k.postNo} {k.title}</option>)}
+                  </select>
+                </div>
+              </li>
+              <li>
+                <div className="title">완료일시</div>
+                <div className="form">
+                  <input type="datetime-local" className="ec-input w-[200px]" aria-label="완료일시" value={form.done}
+                         onChange={(e) => set('done', e.target.value)} />
+                </div>
+              </li>
+            </>
+          )}
+          {/*
             원본 [전달자]: 글자 링크 '전체' 를 누르면 [전체][선택] 판, '선택' 이면 🔍 사용자검색 + 이름 칩.
             [참조자] 는 처음부터 '선택'. 원본은 전달자에게 알림을 보내지만 우리는 적어 두기만 한다.
           */}
@@ -1188,28 +1236,6 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           </li>
           {/* 원본 차례: 진행상태 · 권한 · 비밀번호 · 전달자 · 참조자 · 제목(+공지사항여부) · 첨부 (통합회의록은 제목이 맨 위 · 공지는 Y/N 줄) */}
           {!cfg.minutes && titleRow}
-          {/* 원본 간판제작 입력 창 [프로젝트] · [칸반연결] — 📅 프로젝트 진행현황 칸반 글의 판에 이 글이 [프로젝트] 열의 카드로 뜬다. */}
-          {board === 'SIGN' && (
-            <>
-              <li>
-                <div className="title">프로젝트</div>
-                <div className="form">
-                  <input className="ec-input w-full" placeholder="프로젝트" aria-label="프로젝트" value={form.project}
-                         onChange={(e) => set('project', e.target.value)} />
-                </div>
-              </li>
-              <li>
-                <div className="title">칸반연결</div>
-                <div className="form">
-                  <select className="ec-input w-full" aria-label="칸반연결" value={form.kanbanPostId ?? ''}
-                          onChange={(e) => set('kanbanPostId', e.target.value ? Number(e.target.value) : null)}>
-                    <option value="">(연결 안 함)</option>
-                    {kanbanPosts.map((k) => <option key={k.id} value={k.id}>{k.postNo} {k.title}</option>)}
-                  </select>
-                </div>
-              </li>
-            </>
-          )}
           {/* 게시판별 입력항목(원본 🚗 1. 차량 정보관리: 제목 아래 [출고일자] · [차량번호]). */}
           {cfg.extras?.map((x) => (
             <li key={x.name}>

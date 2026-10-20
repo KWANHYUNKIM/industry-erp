@@ -78,7 +78,7 @@ public class WorkPostService {
                  * 원본 통합게시판 · 간판제작 격자의 [완료일]은 저장한 날이 찍혀 있다(2026-10-13 글 1건 저장 → 2026/10/13).
                  * 진행상태가 회사가 정한 이름뿐이라 '완료로 바꾼 때' 가 따로 없다.
                  */
-                .completedAt(board.namedStages() ? java.time.LocalDateTime.now() : null)
+                .completedAt(board.namedStages() ? (board == PostBoard.SIGN && req.completedAt() != null ? req.completedAt() : java.time.LocalDateTime.now()) : null)
                 // 팀별회의록도 입력 창에 [주 차 구분](주차검색 1 ~ 5주차)이 있다(2026-10-13 · 10-14 실측).
                 .weekNo(board == PostBoard.MINUTES || board == PostBoard.MEETING ? weekOf(req.weekNo()) : null)
                 .meetingLinks(board == PostBoard.MINUTES ? joinLinks(req.meetingLinks()) : null)
@@ -105,6 +105,8 @@ public class WorkPostService {
         if (post.getBoard() == PostBoard.SIGN) {
             post.setProject(blankToNull(req.project()));
             post.setKanbanPost(kanbanOf(req.kanbanPostId()));
+            // 원본 간판제작 수정 창 [완료일시] — 고친 값이 격자 [완료일] 로 간다.
+            if (req.completedAt() != null) post.setCompletedAt(req.completedAt());
         }
         if (post.getBoard() == PostBoard.MEETING) post.setWeekNo(weekOf(req.weekNo()));
         if (post.getBoard() == PostBoard.MINUTES) {
