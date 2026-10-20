@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { ecAlert } from '../../components/EcDialog'
 import { InvoiceSummarySheet, loadVatSheet, type AccountOpt, type CompanyInfo, type Sheet } from './VatReturnPage'
 
 interface MediaRow {
@@ -40,7 +41,12 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  *
  * <p>합계표 숫자는 부가세신고서(일반)와 같은 계산(loadVatSheet)으로 그 기간의 회계전표 · (세금)계산서발행/수령에서 센다.
  *
- * <p>두지 않은 것: [전자파일 생성/목록](국세청 전산매체 파일 형식) · [PDF 생성/목록] · [이력] · [이전자료보기] ·
+ * <p>[이전자료보기](2026-10-20 실측): '전산매체 파일목록' 창 — 조건 [신고기간 2025 01 ~ 2026 01 · 세무신고사업장선택 · 기타(전체 ·
+ * 계산서합계표 · 세금계산서합계표) · 검색(F8)], 열 [☐ · 신고기간 · 예정누락 · 회사명 · 사업자등록번호 · 구분(합산 · 매입 · 매출) · 자료구분 ·
+ * 조회 · 받기 · 전자파일('K2201234(12).567')]. 원본의 옛 판 전산매체 파일 목록이라 우리에게는 자료가 없다(빈 목록).
+ *
+ * <p>두지 않은 것: [전자파일 생성/목록](국세청 전산매체 파일 형식) · [PDF 생성/목록] · [이력] — 열은 있고 누르면 그렇게 알린다
+ * (원본 목록이 비어 있어 누른 뒤를 재지 못했다) ·
  * 합계표 창의 [새로불러오기 · 자료비교 · 선택삭제] · 매출계산서 · 매입계산서(면세 계산서합계표 서식) — 우리에게 그 서식이 없다.
  * 사업장이 하나라 [세무신고사업장]은 고르지 않는다.
  */
@@ -57,6 +63,8 @@ export default function VatMediaFilePage() {
   const [summary, setSummary] = useState<MediaRow | null>(null)
   const [attach, setAttach] = useState<{ kind: Attach; sheet: Sheet } | null>(null)
   const [error, setError] = useState('')
+  /** [이전자료보기] '전산매체 파일목록' 창. */
+  const [older, setOlder] = useState(false)
 
   useEffect(() => {
     api.get<CompanyInfo | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null))
@@ -142,7 +150,8 @@ export default function VatMediaFilePage() {
 
   return (
     <EcListShell title="과세자료전산매체" option={false} onNew={openNew}
-                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), selected: picked.size }]}>
+                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), selected: picked.size },
+                   { label: '이전자료보기', onClick: () => setOlder(true) }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {confirmDelete && (
         <div className="ec-alert mb-[8px] flex items-center gap-[6px]">
@@ -155,21 +164,25 @@ export default function VatMediaFilePage() {
       <table className="w-full text-center">
         <thead>
           <tr>
-            <th className="w-[34px]">
+            <th className="w-[25px]">
               <input type="checkbox" aria-label="전체 선택" checked={allPicked}
                      onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map((r) => r.id)))} />
             </th>
-            <th>신고기간</th>
-            <th>예정누락</th>
-            <th>회사명</th>
-            <th>사업자등록번호</th>
-            <th>자료구분</th>
-            <th>합계표</th>
+            {/* 원본 2026-10-20 열 폭 25 · 130 · 80 · 200 · 110 · 130 · 100 × 4 */}
+            <th className="w-[130px]">신고기간</th>
+            <th className="w-[80px]">예정누락</th>
+            <th className="w-[200px]">회사명</th>
+            <th className="w-[110px]">사업자등록번호</th>
+            <th className="w-[130px]">자료구분</th>
+            <th className="w-[100px]">합계표</th>
+            <th className="w-[100px]">전자파일</th>
+            <th className="w-[100px]">PDF</th>
+            <th className="w-[100px]">이력</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.id}>
               <td className="whitespace-nowrap">
@@ -183,10 +196,59 @@ export default function VatMediaFilePage() {
               <td>{company?.bizRegNo ?? ''}</td>
               <td>{r.kindName}</td>
               <td><button className="ec-link" onClick={() => setSummary(r)}>조회</button></td>
+              <td><button className="ec-link" onClick={() => void ecAlert('전산매체 파일은 이 시스템에서 만들지 않습니다.')}>생성목록</button></td>
+              <td><button className="ec-link" onClick={() => void ecAlert('PDF 는 [합계표 › 조회] 의 [인쇄] 로 냅니다.')}>생성목록</button></td>
+              <td><button className="ec-link" onClick={() => void ecAlert('전산매체 이력은 아직 남기지 않습니다.')}>이력</button></td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {older && (
+        <Modal open error={error} title="전산매체 파일목록" width={825} onClose={() => setOlder(false)}>
+          <ul className="ec-form mb-[6px]">
+            <EcCond label="신고기간" span={2}>
+              <span className="inline-flex items-center gap-[4px]">
+                <select className="ec-input w-[80px]" aria-label="시작연도" defaultValue={thisYear - 1}>
+                  {[thisYear, thisYear - 1].map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select className="ec-input w-[60px]" aria-label="시작월" defaultValue={1}>{MONTHS.map((m) => <option key={m} value={m}>{pad(m)}</option>)}</select>
+                ~
+                <select className="ec-input w-[80px]" aria-label="끝연도" defaultValue={thisYear}>
+                  {[thisYear, thisYear - 1].map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select className="ec-input w-[60px]" aria-label="끝월" defaultValue={1}>{MONTHS.map((m) => <option key={m} value={m}>{pad(m)}</option>)}</select>
+              </span>
+            </EcCond>
+            <EcCond label="세무신고사업장선택" span={2}>
+              <select className="ec-input w-full" disabled><option>{[company?.name, company?.bizRegNo].filter(Boolean).join(' ')}</option></select>
+            </EcCond>
+            <EcCond label="기타" span={2}>
+              <select className="ec-input w-[160px]" aria-label="기타">
+                {['전체', '계산서합계표', '세금계산서합계표'].map((k) => <option key={k}>{k}</option>)}
+              </select>
+            </EcCond>
+          </ul>
+          <div className="flex gap-[6px] mb-[6px]"><button className="ec-btn ec-btn-primary">검색(F8)</button></div>
+          <table className="w-full text-center">
+            <thead>
+              <tr>
+                <th className="w-[24px]"><input type="checkbox" aria-label="전체 선택" disabled /></th>
+                <th className="w-[100px]">신고기간</th><th className="w-[70px]">예정누락</th><th className="w-[140px]">회사명</th>
+                <th className="w-[100px]">사업자등록번호</th><th className="w-[40px]">구분</th><th className="w-[120px]">자료구분</th>
+                <th className="w-[50px]">조회</th><th className="w-[40px]">받기</th><th className="w-[120px]">전자파일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* 원본 옛 판에서 만든 전산매체 파일 목록 — 우리에게는 옛 판 자료가 없다. */}
+              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            </tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button className="ec-btn" onClick={() => setOlder(false)}>닫기</button>
+          </div>
+        </Modal>
+      )}
 
       {form && (
         <Modal open error={formError} title="전산매체 파일생성" width={780} onClose={() => setForm(null)}>

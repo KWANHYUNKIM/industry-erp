@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import type { JournalEntry } from '../../types/api'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
@@ -26,6 +27,10 @@ const DOC_TITLE: Record<DocCode, string> = {
 }
 interface DocSummary { docCode: DocCode; writtenAt: string }
 interface DocStored { docCode: DocCode; data: string; writtenAt: string }
+/** 목록 [이력] 한 줄 — 서버 vat_return_histories. docCode INFO 는 신고서 정보. */
+interface HistoryRow { changedBy: string | null; changedAt: string; docCode: DocCode | 'INFO'; action: string }
+/** 원본 '전자파일 첨부서류 확인리스트' 한 줄 — 순번 · 첨부서류명 · 전자파일 생성전 확인사항. */
+interface FileCheck { no: number; name: string; note: string }
 /** [신고서등] 창을 열 때 찍어 둔 서류 상태 — 만든 때와 자료가 있나. */
 interface DocShown { at: string; filled: boolean }
 
@@ -237,7 +242,11 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
  * <p>신고서 목록은 원본처럼 [신규(F2)] 로 만들고 신고기간을 눌러 고치고 [선택삭제] 로 지운다(2026-10-12). 귀속연도는 지난해 ~ 올해,
  * 그보다 앞선 해는 부가세신고서 PDF 다운로드(E030216, VatReturnPdfPage)에 선다.
  *
- * <p>두지 않은 것: 이력 · 자료비교 · 나머지 첨부서류 31종 · 휴폐업조회(홈택스) · 영수증서 · 전자파일 · PDF ·
+ * <p>목록 열은 원본 10개(2026-10-20): [이력] 은 '부가세신고서 이력보기'(서버 vat_return_histories), [전자파일 › 생성목록] 은
+ * '전자파일 첨부서류 확인리스트'([강제생성 · 재검증 · 닫기] — 파일은 만들지 않는다), [PDF › 생성목록] 은 'PDF를 생성하시겠습니까?' 뒤 인쇄 창.
+ * [신규(F2)] 저장은 원본처럼 매출 · 매입세금계산서 · 신고서를 그 자리에서 만든다(이력에 셋 다 '신규').
+ *
+ * <p>두지 않은 것: 자료비교 · 나머지 첨부서류 31종 · 휴폐업조회(홈택스) · 영수증서(납부서) · Option(세무신고설정 · 부가세제한월) · [부가세전자신고매뉴얼] ·
  * [자료입력](칸 손으로 고치기) · 예정신고누락분 · 그 밖의 공제 · 공제받지 못할 · 가산세 명세(모두 0 으로 그린다).
  */
 export default function VatReturnPage() {
@@ -266,6 +275,12 @@ export default function VatReturnPage() {
   const [view, setView] = useState<{ code: DocCode; sheet: Sheet } | null>(null)
   /** 원본 '알림' 창 — 글줄과 [확인] · [취소]. */
   const [ask, setAsk] = useState<{ lines: string[]; yes: () => void; no?: () => void } | null>(null)
+  /** 목록 [이력] 창 — 원본 '부가세신고서 이력보기'. */
+  const [history, setHistory] = useState<{ v: VatReturnRow; rows: HistoryRow[] } | null>(null)
+  /** 목록 [전자파일 › 생성목록] 창 — 원본 '전자파일 첨부서류 확인리스트'. */
+  const [fileCheck, setFileCheck] = useState<{ v: VatReturnRow; rows: FileCheck[] } | null>(null)
+  /** [PDF › 생성목록] 으로 인쇄할 신고서 — 그려진 뒤 그 DOM 을 인쇄 창에 옮긴다. */
+  const [pdf, setPdf] = useState<{ sheet: Sheet; win: Window } | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -346,6 +361,57 @@ export default function VatReturnPage() {
     setAsk({ lines: ['선택한 문서를 새로불러오시겠습니까?'], yes: () => void writeDoc(code) })
   }
 
+  async function openHistory(v: VatReturnRow) {
+    try {
+      const r = await api.get<HistoryRow[]>(`/vat-returns/${v.id}/history`)
+      setHistory({ v, rows: r.data })
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  /**
+   * 전자파일 생성 전 확인 — 지금은 신고서보다 늦게 만든 첨부서류만 본다(원본 2026-10-20 '0 · 부가가치세신고서 ·
+   * 부가세신고서 최종수정일 2026/10/20 (화) 오후 1:28:27 이후로 수정된 서류가 있습니다').
+   */
+  async function checkFile(v: VatReturnRow) {
+    try {
+      const r = await api.get<DocSummary[]>(`/vat-returns/${v.id}/docs`)
+      const at: Partial<Record<DocCode, string>> = Object.fromEntries(r.data.map((d) => [d.docCode, d.writtenAt]))
+      const ret = at.RETURN
+      const rows: FileCheck[] = []
+      if (ret && ATTACHMENTS.some(([, c]) => (at[c] ?? '') > ret)) {
+        rows.push({ no: 0, name: '부가가치세신고서', note: `부가세신고서 최종수정일 ${stamp(ret)} 이후로 수정된 서류가 있습니다` })
+      }
+      setFileCheck({ v, rows })
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  /** 목록 [PDF › 생성목록] — 원본 '알림 · PDF를 생성하시겠습니까?'. [확인] 이면 저장된 신고서를 인쇄 창으로(우리 PDF = 브라우저 인쇄). */
+  async function makePdf(v: VatReturnRow) {
+    if (!(await ecConfirm('PDF를 생성하시겠습니까?'))) return
+    const win = openPrintWindow()
+    if (!win) return
+    try {
+      const r = await api.get<DocStored | ''>(`/vat-returns/${v.id}/docs/RETURN`)
+      const sheet = r.data ? JSON.parse(r.data.data) as Sheet : await loadVatSheet(v, accounts)
+      setPdf({ sheet, win })
+    } catch (e) {
+      win.close()
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  useEffect(() => {
+    if (!pdf) return
+    const el = document.getElementById('vat-return-pdf')
+    if (el) fillAndPrint(pdf.win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${DOC_TITLE.RETURN}</title><style>${PRINT_CSS}</style></head>`
+      + `<body>${el.innerHTML}</body></html>`)
+    setPdf(null)
+  }, [pdf])
+
   function print() {
     const el = document.getElementById('vat-return-sheet')
     const w = openPrintWindow()
@@ -381,7 +447,14 @@ export default function VatReturnPage() {
       reportDate: form.reportDate, dueDate: form.dueDate, taxAgent: form.taxAgent, closure: form.closure }
     try {
       if (form.id) await api.put(`/vat-returns/${form.id}`, body)
-      else await api.post('/vat-returns', body)
+      else {
+        const r = await api.post<VatReturnRow>('/vat-returns', body)
+        /* 원본: [저장] 하면 매출 · 매입세금계산서와 신고서를 그 자리에서 만든다(2026-10-20 이력 — 저장 1초 안에 셋 다 '신규'). */
+        const sheet = await loadVatSheet(r.data, accounts)
+        for (const code of ['SALES_INVOICE', 'PURCHASE_INVOICE', 'RETURN'] as const) {
+          await api.put(`/vat-returns/${r.data.id}/docs/${code}`, { data: JSON.stringify(sheet) })
+        }
+      }
       setForm(null)
       await load()
     } catch (e) {
@@ -419,19 +492,25 @@ export default function VatReturnPage() {
       <table className="w-full mb-[12px]">
         <thead>
           <tr>
-            <th className="w-[34px] text-center">
+            <th className="w-[25px] text-center">
               <input type="checkbox" aria-label="전체 선택" checked={allPicked}
                      onChange={() => setPicked(allPicked ? new Set() : new Set(returns.map((r) => r.id)))} />
             </th>
-            <th className="text-center">신고기간</th>
-            <th className="text-center">예정누락<br />포함여부</th>
-            <th className="text-center">회사명</th>
-            <th className="text-center">신고서등</th>
+            <th className="w-[180px] text-center">신고기간</th>
+            <th className="w-[60px] text-center">예정누락<br />포함여부</th>
+            <th className="w-[200px] text-center">회사명</th>
+            {/* 원본 2026-10-20: 신고서등 · 휴폐업조회 · 영수증서 · 전자파일 · PDF · 이력 — 각 100 */}
+            <th className="w-[100px] text-center">신고서등</th>
+            <th className="w-[100px] text-center">휴폐업조회</th>
+            <th className="w-[100px] text-center">영수증서</th>
+            <th className="w-[100px] text-center">전자파일</th>
+            <th className="w-[100px] text-center">PDF</th>
+            <th className="w-[100px] text-center">이력</th>
           </tr>
         </thead>
         <tbody>
           {returns.length === 0 ? (
-            <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : returns.map((r, i) => (
             <tr key={r.id}>
               <td className="text-center whitespace-nowrap">
@@ -443,6 +522,12 @@ export default function VatReturnPage() {
               <td className="text-center">{r.includesOmitted ? 'YES' : 'NO'}</td>
               <td className="text-center">{company?.name ?? ''}</td>
               <td className="text-center"><button className="ec-link" onClick={() => void openWin(r)}>조회</button></td>
+              {/* 휴폐업조회 · 영수증서는 원본이 국세청 조회 · 인쇄 창이라 재지 못했다(plans/세무/E200928.md) — 누르면 그렇게 알린다. */}
+              <td className="text-center"><button className="ec-link" onClick={() => void ecAlert('휴폐업조회는 국세청 조회가 필요해 이 시스템에서는 할 수 없습니다.')}>조회</button></td>
+              <td className="text-center"><button className="ec-link" onClick={() => void ecAlert('영수증서(납부서) 인쇄는 아직 없습니다.')}>인쇄</button></td>
+              <td className="text-center"><button className="ec-link" onClick={() => void checkFile(r)}>생성목록</button></td>
+              <td className="text-center"><button className="ec-link" onClick={() => void makePdf(r)}>생성목록</button></td>
+              <td className="text-center"><button className="ec-link" onClick={() => void openHistory(r)}>이력</button></td>
             </tr>
           ))}
         </tbody>
@@ -498,6 +583,56 @@ export default function VatReturnPage() {
           <div className="flex gap-[6px] mt-[12px]">
             <button className="ec-btn" onClick={print}>인쇄</button>
             <button className="ec-btn" onClick={() => setView(null)}>닫기</button>
+          </div>
+        </Modal>
+      )}
+
+      {pdf && <div id="vat-return-pdf" className="hidden"><ReturnSheet s={pdf.sheet} c={company} /></div>}
+
+      {history && (
+        <Modal open error={error} title="부가세신고서 이력보기" width={673} onClose={() => setHistory(null)}>
+          <table className="w-full">
+            <thead>
+              <tr><th className="w-[31px]" /><th className="w-[82px] text-center">작업자ID</th><th className="w-[204px] text-center">작업일시</th>
+                <th className="w-[255px] text-center">신고서종류</th><th className="w-[82px] text-center">행위</th></tr>
+            </thead>
+            <tbody>
+              {history.rows.length === 0 ? (
+                <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : history.rows.map((h, i) => (
+                <tr key={i}>
+                  <td className="text-center">{i + 1}</td>
+                  <td className="text-center">{h.changedBy ?? ''}</td>
+                  <td className="text-center">{stamp(h.changedAt)}</td>
+                  <td>{h.docCode === 'INFO' ? `${history.v.periodName}-${company?.name ?? ''}` : DOC_TITLE[h.docCode] ?? h.docCode}</td>
+                  <td className="text-center">{h.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button className="ec-btn" onClick={() => setHistory(null)}>닫기</button>
+          </div>
+        </Modal>
+      )}
+
+      {fileCheck && (
+        <Modal open error={error} title="전자파일 첨부서류 확인리스트" width={673} onClose={() => setFileCheck(null)}>
+          <table className="w-full">
+            <thead><tr><th className="w-[50px] text-center">순번</th><th className="w-[200px]">부가세신고 첨부서류명</th><th>전자파일 생성전 확인사항</th></tr></thead>
+            <tbody>
+              {fileCheck.rows.length === 0 ? (
+                <tr><td colSpan={3} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : fileCheck.rows.map((f) => (
+                <tr key={f.no}><td className="text-center">{f.no}</td><td>{f.name}</td><td>{f.note}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[12px]">
+            {/* 전자파일(국세청 전자신고 파일)은 만들지 않는다 — 과세자료전산매체도 같다. */}
+            <button className="ec-btn ec-btn-primary" onClick={() => void ecAlert('전자신고 파일은 이 시스템에서 만들지 않습니다.')}>강제생성</button>
+            <button className="ec-btn" onClick={() => void checkFile(fileCheck.v)}>재검증</button>
+            <button className="ec-btn" onClick={() => setFileCheck(null)}>닫기</button>
           </div>
         </Modal>
       )}
