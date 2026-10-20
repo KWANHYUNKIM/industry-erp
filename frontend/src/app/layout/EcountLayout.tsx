@@ -468,7 +468,35 @@ const MENU: TopMenu[] = [
         ],
       },
       { label: '수출관리', nodes: [{ label: 'Invoice / Packing List', to: '/sales/export' }, { label: 'Invoice/Packing List Status', to: '/sales/export-status' }] },
-      { label: 'WMS', nodes: [{ label: 'WMS 로케이션', to: '/inventory/wms' }] },
+      {
+        // 원본 WMS 탭(2026-10-20 실측) — 창고관리는 우리 로케이션 화면, 나머지는 연동 화면 틀
+        label: 'WMS',
+        nodes: [
+          { label: 'WMS계정선택', to: '/inventory/wms/account' },
+          { label: '창고관리', to: '/inventory/wms' },
+          {
+            label: '입고관리',
+            children: [
+              { label: '입고예정', to: '/inventory/wms/inbound-plan' },
+              { label: '입고예정현황', to: '/inventory/wms/inbound-status' },
+              { label: '입고처리', to: '/inventory/wms/inbound-process' },
+              { label: 'ERP전표생성(입고)', to: '/inventory/wms/inbound-slip' },
+            ],
+          },
+          {
+            label: '출고관리',
+            children: [
+              { label: '출고예정', to: '/inventory/wms/outbound-plan' },
+              { label: '출고예정현황', to: '/inventory/wms/outbound-status' },
+              { label: '출고처리', to: '/inventory/wms/outbound-process' },
+              { label: 'ERP전표생성(출고)', to: '/inventory/wms/outbound-slip' },
+            ],
+          },
+          { label: 'WMS재고조정', to: '/inventory/wms/adjust' },
+          { label: 'WMS재고현황', to: '/inventory/wms/stock-status' },
+          { label: '재고이력관리', to: '/inventory/wms/history' },
+        ],
+      },
     ],
   },
   {

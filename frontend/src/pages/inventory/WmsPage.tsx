@@ -68,7 +68,7 @@ export default function WmsPage() {
   }
 
   return (
-    <EcListShell title="WMS 로케이션" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
+    <EcListShell title="창고관리" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div className="flex items-center gap-[6px] mb-[8px] flex-wrap">
         <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 160 }}>
           <option value="">전체 창고</option>

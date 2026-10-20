@@ -265,6 +265,7 @@ const AdjustListPage = lazy(() => import('../pages/inventory/AdjustListPage'))
 const StocktakeListPage = lazy(() => import('../pages/inventory/StocktakeListPage'))
 const StocktakePage = lazy(() => import('../pages/inventory/StocktakePage'))
 const WmsPage = lazy(() => import('../pages/inventory/WmsPage'))
+const WmsFramePage = lazy(() => import('../pages/inventory/WmsFramePage'))
 const ReportsPage = lazy(() => import('../pages/inventory/ReportsPage'))
 const EtcSystemPage = lazy(() => import('../pages/settings/EtcSystemPage'))
 const CommonCodePage = lazy(() => import('../pages/settings/CommonCodePage'))
@@ -483,6 +484,19 @@ export default function AppRouter() {
         <Route path="/inventory/transfer" element={<TransferPage />} />
         <Route path="/inventory/stocktake" element={<StocktakePage />} />
         <Route path="/inventory/wms" element={<WmsPage />} />
+        {/* WMS — 바깥 WMS 연동 화면들(틀만, WmsFramePage 머리말) */}
+        <Route path="/inventory/wms/account" element={<WmsFramePage kind="account" />} />
+        <Route path="/inventory/wms/inbound-plan" element={<WmsFramePage kind="inbound-plan" />} />
+        <Route path="/inventory/wms/inbound-status" element={<WmsFramePage kind="inbound-status" />} />
+        <Route path="/inventory/wms/inbound-process" element={<WmsFramePage kind="inbound-process" />} />
+        <Route path="/inventory/wms/inbound-slip" element={<WmsFramePage kind="inbound-slip" />} />
+        <Route path="/inventory/wms/outbound-plan" element={<WmsFramePage kind="outbound-plan" />} />
+        <Route path="/inventory/wms/outbound-status" element={<WmsFramePage kind="outbound-status" />} />
+        <Route path="/inventory/wms/outbound-process" element={<WmsFramePage kind="outbound-process" />} />
+        <Route path="/inventory/wms/outbound-slip" element={<WmsFramePage kind="outbound-slip" />} />
+        <Route path="/inventory/wms/adjust" element={<WmsFramePage kind="adjust" />} />
+        <Route path="/inventory/wms/stock-status" element={<WmsFramePage kind="stock-status" />} />
+        <Route path="/inventory/wms/history" element={<WmsFramePage kind="history" />} />
         <Route path="/inventory/reports" element={<ReportsPage />} />
 
         {/* 생산 */}
