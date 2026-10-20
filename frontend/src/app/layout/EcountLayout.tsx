@@ -691,7 +691,7 @@ const MENU: TopMenu[] = [
           },
           {
             /* 원본 출력물 › 주요재무제표(2026-10-20 실측) 차례 — 재무상태표 · 손익계산서 · 원가명세서 · 계정명세서 · 합계잔액시산표 ·
-               현금흐름표 · 이익잉여금처분계산서 · 수입지출명세서. 뒤 셋은 화면이 아직 없다(plans/회계1 남은 것). */
+               현금흐름표 · 이익잉여금처분계산서 · 수입지출명세서. */
             label: '주요재무제표',
             children: [
               { label: '재무상태표', to: '/accounting/balance-sheet' },
@@ -701,6 +701,9 @@ const MENU: TopMenu[] = [
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
             ],
           },
+              { label: '현금흐름표', to: '/accounting/cash-flow-statement' },
+              { label: '이익잉여금처분계산서', to: '/accounting/retained-earnings-statement' },
+              { label: '수입지출명세서', to: '/accounting/income-expense-statement' },
           {
             /* 원본 출력물 › 기타(E010847 … E010705, 2026-10-20 실측) 차례. 전표인쇄 · 거래처중심입력은 회계거래관리 · 재고 쪽 화면을 같이 건다. */
             label: '기타',

@@ -132,6 +132,9 @@ const ExpenseSlipSummaryPage = lazy(() => import('../pages/accounting/ExpenseSli
 const TrialBalancePage = lazy(() => import('../pages/accounting/TrialBalancePage'))
 const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage'))
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
+const CashFlowStatementPage = lazy(() => import('../pages/accounting/CashFlowStatementPage'))
+const RetainedEarningsStatementPage = lazy(() => import('../pages/accounting/RetainedEarningsStatementPage'))
+const IncomeExpenseStatementPage = lazy(() => import('../pages/accounting/IncomeExpenseStatementPage'))
 const TaxInvoicePage = lazy(() => import('../pages/accounting/TaxInvoicePage'))
 const JournalEntryPage = lazy(() => import('../pages/accounting/JournalEntryPage'))
 const AutoJournalListPage = lazy(() => import('../pages/accounting/AutoJournalListPage'))
@@ -765,6 +768,9 @@ export default function AppRouter() {
         <Route path="/accounting/expense-slip-summary" element={<ExpenseSlipSummaryPage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />
+        <Route path="/accounting/cash-flow-statement" element={<CashFlowStatementPage />} />
+        <Route path="/accounting/retained-earnings-statement" element={<RetainedEarningsStatementPage />} />
+        <Route path="/accounting/income-expense-statement" element={<IncomeExpenseStatementPage />} />
         <Route path="/accounting/tax-invoice-sales" element={<TaxInvoicePage type="SALES" />} />
         <Route path="/accounting/tax-invoice-purchase" element={<TaxInvoicePage type="PURCHASE" />} />
         <Route path="/accounting/journal-entry" element={<JournalEntryPage />} />
