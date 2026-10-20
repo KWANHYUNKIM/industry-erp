@@ -171,13 +171,13 @@ export default function VacationKindListPage() {
       </table>
 
       {blocked && (
-        <Modal open title="삭제불가코드" width={670} onClose={() => setBlocked(null)}>
+        <Modal open error={error} title="삭제불가코드" width={670} onClose={() => setBlocked(null)}>
           <p>선택한 휴가코드을(를) 삭제할 수 없습니다.</p>
           <p>다음 사항을 확인 바랍니다.</p>
           <p className="mb-[8px]">해당 코드의 사용중단을 원하는 경우, 사용중단 버튼을 클릭하시기 바랍니다.</p>
           <p className="mb-[4px]">[삭제가 불가능한 휴가코드]</p>
           <table className="w-full">
-            <thead><tr><th></th><th>코드</th><th>코드명</th><th>자료</th><th>건수</th></tr></thead>
+            <thead><tr><th></th><th>코드</th><th>코드명</th><th>자료</th><th className="text-right">건수</th></tr></thead>
             <tbody>
               {blocked.map((b, i) => (
                 <tr key={b.id}><td className="text-center">{i + 1}</td><td>{b.code}</td><td>{b.name}</td><td>{b.source}</td><td className="text-right">{b.count}</td></tr>

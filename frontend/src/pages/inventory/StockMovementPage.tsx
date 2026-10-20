@@ -412,10 +412,10 @@ export default function StockMovementPage() {
             <th>품목코드</th>
             <th>품목명</th>
             <th>규격</th>
-            <th>전일재고</th>
-            <th>입고수량</th>
-            <th>출고수량</th>
-            <th>재고수량</th>
+            <th className="text-right">전일재고</th>
+            <th className="text-right">입고수량</th>
+            <th className="text-right">출고수량</th>
+            <th className="text-right">재고수량</th>
           </tr>
         </thead>
         <tbody>

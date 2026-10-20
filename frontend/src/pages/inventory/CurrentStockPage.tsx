@@ -289,9 +289,9 @@ export default function CurrentStockPage() {
               */}
               <th className="cursor-pointer" onClick={() => sort.toggle('품목코드')}>품목코드</th>
               <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품명 및 규격</th>
-              <th>총재고수량</th>
-              <th>입고단가</th>
-              <th>금액</th>
+              <th className="text-right">총재고수량</th>
+              <th className="text-right">입고단가</th>
+              <th className="text-right">금액</th>
             </tr>
           </thead>
           <tbody>

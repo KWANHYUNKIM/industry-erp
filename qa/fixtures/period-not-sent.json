@@ -8,7 +8,8 @@
   "pages/hr/AttendanceInputPage.tsx": "날짜 칸은 <b>근태를 적는 폼의 [일자]</b>다 — 목록을 거르는 기간이 아니다.",
   "pages/production/ProductionResultPage.tsx": "날짜 칸은 <b>생산입고 I·II·III 전표의 [일자]</b>다 — 목록을 거르는 기간이 아니다.",
   "pages/production/RequirementCalcPage.tsx": "날짜 칸은 <b>소요량을 계산하는 [일자]</b>다 — 목록을 거르는 기간이 아니다(원본 소요량계산 머리).",
-  "pages/groupware/AttendancePage.tsx": "출/퇴근기록부(ID) 는 <b>달력 한 달</b>을 넘겨 보는 화면이라 기간 조건이 없다 — 잣대에 걸린 것은 EcPeriodPicks 에서 <b>ymd 하나</b>만 가져다 써서다. 누른 날의 기록 창도 같은 rows 를 본다."
+  "pages/groupware/AttendancePage.tsx": "출/퇴근기록부(ID) 는 <b>달력 한 달</b>을 넘겨 보는 화면이라 기간 조건이 없다 — 잣대에 걸린 것은 EcPeriodPicks 에서 <b>ymd 하나</b>만 가져다 써서다. 누른 날의 기록 창도 같은 rows 를 본다.",
+  "pages/accounting/NoteEntryPage.tsx": "날짜 칸은 <b>어음 한 장 입력의 [전표일자] · [만기일자]</b>다(ymd 로 오늘을 넣을 뿐) — 목록을 거르는 기간이 아니다. /notes 는 감소 · 거래처지급에서 고를 <b>어음번호 후보</b>라 기간과 상관없이 살아 있는 어음 전부가 필요하다(원본 받을어음감소 E010602 · 지급어음감소 E010605, 2026-10-20)."
  },
  "기간이 안 걸리는 자리": {
   "pages/accounting/EContractStatusPage.tsx  /contracts": "계약서현황(E061102)의 [기준일자]는 <b>요청일시</b>다 — /contracts 의 from·to 는 <b>계약 시작일</b>로 거르므로 이 자리에 걸 수 없다. 화면이 요청일로 거른다(근로계약현황 E061104 와 같은 엔진, 2026-10-20).",

@@ -240,7 +240,7 @@ export default function WithholdingPayeePage() {
       </table>
 
       {blocked && (
-        <Modal open title="삭제불가소득자" width={520} onClose={() => setBlocked(null)}>
+        <Modal open error={error} title="삭제불가소득자" width={520} onClose={() => setBlocked(null)}>
           <p>선택한 소득자를 삭제할 수 없습니다.</p>
           <p className="mb-[8px]">다음 사항을 확인 바랍니다.</p>
           <p className="mb-[4px]">[삭제가 불가능한 소득자]</p>

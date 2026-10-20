@@ -77,7 +77,7 @@ export default function IncomeExpenseStatementPage() {
           </tr>
         </thead>
         <tbody>
-          {searched && <tr><td colSpan={17} className="ec-empty" title={`${fromYm} ~ ${toYm}`}>등록된 데이터가 없습니다.</td></tr>}
+          {searched && <tr><td colSpan={17} className="ec-empty" title={`${fromYm} ~ ${toYm} · 부서 ${dept || '전체'} · 프로젝트 ${project || '전체'}`}>등록된 데이터가 없습니다.</td></tr>}
         </tbody>
       </table>
     </EcListShell>
