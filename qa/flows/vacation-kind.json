@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 휴가항목등록(E020702) — 원본처럼 [신규(F2)] 창에 다음 휴가코드 · 올해 1/1 ~ 12/31 · 이월 '사용안함' 이 미리 차 있고, 휴가명을 넣고 저장하면 목록에 붙는다. 근태항목등록에서 근태유형 '휴가' 를 고르면 [휴가코드]가 나타나고 비우면 막힌다. 시험 휴가항목은 ▲ › 삭제로 지운다.",
+  "about": "관리 > 휴가항목등록(E020702) — 원본처럼 [신규(F2)] 창에 다음 휴가코드 · 올해 1/1 ~ 12/31 · 이월 '사용안함' 이 미리 차 있고, 휴가명을 넣고 저장하면 목록에 붙는다. 근태항목등록에서 근태유형 '휴가' 를 고르면 [휴가코드]가 나타나고 비우면 원본처럼 문구 없이 그 칸만 빨간 테두리(.ec-invalid) · 창은 그대로. 시험 휴가항목은 ▲ › 삭제로 지운다.",
   "shots": [
     {
       "name": "휴가항목 신규 → 목록",
@@ -22,7 +22,7 @@
         "js:[...document.querySelectorAll('[role=dialog] input[name=ak-type]')].find(r=>r.parentElement.textContent.trim()==='휴가').click();true",
         "expect:document.querySelector('[role=dialog]').innerText.includes('휴가코드')",
         "clicklast:저장(F8)",
-        "expect:document.body.innerText.includes('휴가코드를 입력 바랍니다.')",
+        "expect:(()=>{const d=document.querySelector('[role=dialog]');if(!d)return false;const li=[...d.querySelectorAll('.title')].find(t=>t.textContent.trim()==='휴가코드');return !!li&&!!li.parentElement.querySelector('.ec-invalid')&&!document.body.innerText.includes('휴가코드를 입력 바랍니다.')})()",
         "clicklast:닫기"
       ]
     },
