@@ -6671,6 +6671,11 @@ console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
         for (const al of src.matchAll(new RegExp('(\\w+): typeof ' + escRe(base) + '\\b', 'g'))) {
           names.push(prop ? al[1] + '.' + prop : al[1])
         }
+        // [검색] 을 눌러야 걸리는 화면은 칸 값을 다른 상태로 통째 넘겨(setApplied(cond)) 그쪽으로 거른다 — 그 상태도 푼다
+        for (const st of src.matchAll(new RegExp('\\bset(\\w+)\\(\\s*' + escRe(base) + '\\s*\\)', 'g'))) {
+          const decl = src.match(new RegExp('const \\[\\s*(\\w+)\\s*,\\s*set' + escRe(st[1]) + '\\s*\\]'))
+          if (decl && decl[1] !== base) names.push(prop ? decl[1] + '.' + prop : decl[1])
+        }
         const uses = src.split(String.fromCharCode(10))
           .filter((l) => names.some((nm) => new RegExp(escRe(nm) + '\\b').test(l)))
           .filter((l) => !/useState|<EcCond|value=\{|checked=\{|setC\(|onChange|reset|다시 작성/.test(l))
