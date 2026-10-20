@@ -28,8 +28,22 @@ trap 'rm -rf $L' EXIT
 up() { [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -X POST http://localhost:8081/api/auth/login \
   -H 'Content-Type: application/json' -d '{}')" != "000" ]; }
 
+listen_pid() {   # 8081 을 듣는 프로세스 — 맥은 lsof, 윈도(Git Bash)는 netstat
+  if command -v lsof >/dev/null 2>&1; then lsof -nP -iTCP:8081 -sTCP:LISTEN -t 2>/dev/null | head -1
+  else netstat -ano 2>/dev/null | awk '$2 ~ /:8081$/ && $4 == "LISTENING" {print $5; exit}'; fi
+}
+
 stop_server() {
   local p pp
+  if ! command -v lsof >/dev/null 2>&1; then   # 윈도: java 를 나무째(부모 maven 포함) 내린다
+    p=$(listen_pid); [ -z "$p" ] && return 0
+    pp=$(powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=$p').ParentProcessId" 2>/dev/null | tr -d '\r ')
+    taskkill //PID "$p" //T //F >/dev/null 2>&1
+    if [ -n "$pp" ] && powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=$pp').CommandLine" 2>/dev/null | grep -q plexus-classworlds; then
+      taskkill //PID "$pp" //T //F >/dev/null 2>&1; fi
+    for _ in $(seq 1 30); do [ -z "$(listen_pid)" ] && return 0; sleep 1; done
+    return 0
+  fi
   p=$(lsof -nP -iTCP:8081 -sTCP:LISTEN -t 2>/dev/null | head -1)
   [ -z "$p" ] && return 0
   pp=$(ps -o ppid= -p "$p" | tr -d ' ')
@@ -41,7 +55,7 @@ stop_server() {
 }
 
 start_from() {   # $1 = 폴더
-  (cd "$1" && nohup ./mvnw -o -q spring-boot:run -Dspring-boot.run.arguments=--spring.flyway.out-of-order=true > $LOG 2>&1 &) ; disown 2>/dev/null || true
+  (cd "$1" && nohup ./mvnw -o -q spring-boot:run -Dspring-boot.run.arguments=--spring.flyway.out-of-order=true > $LOG 2>&1 < /dev/null &) ; disown 2>/dev/null || true
   for _ in $(seq 1 36); do sleep 5; up && return 0; done
   return 1
 }
