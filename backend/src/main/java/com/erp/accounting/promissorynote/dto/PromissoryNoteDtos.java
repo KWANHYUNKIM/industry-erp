@@ -80,6 +80,23 @@ public final class PromissoryNoteDtos {
             Long projectId
     ) {}
 
+    /**
+     * 받을어음일괄감소(E010621) [입금보고서작성] · 지급어음일괄감소(E010629) [지출결의서작성] → 결의서 [저장].
+     * 머리 계좌(돈 들어온 · 나간 계좌) 하나에 고른 어음마다 한 줄(금액 = 어음 금액).
+     */
+    public record VoucherReportRequest(
+            @NotNull(message = "일자: 자료를 입력 바랍니다.") LocalDate date,
+            Long bankAccountId,
+            Boolean cash,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String description,
+            @jakarta.validation.constraints.NotEmpty(message = "리스트에 선택된 자료가 없습니다.") @jakarta.validation.Valid List<VoucherReportLine> lines
+    ) {}
+
+    public record VoucherReportLine(
+            @NotNull Long noteId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String memo
+    ) {}
+
     /** 만기결제. 예금계좌를 지정하지 않으면 보통예금(103)으로 분개한다. */
     public record SettleRequest(
             Long bankAccountId,
@@ -116,7 +133,9 @@ public final class PromissoryNoteDtos {
             Long closeJournalEntryId,
             /** 받을어음거래처지급으로 어음을 받은 거래처 */
             Long closePartnerId,
-            String closePartnerName
+            String closePartnerName,
+            /** 받을어음일괄감소 [입금보고서작성] · 지급어음일괄감소 [지출결의서작성] 으로 닫혔으면 'VOUCHER' — 감소 줄 거래유형 '입금보고서' · '지출결의서' */
+            String closeVia
     ) {
         public static NoteResponse from(PromissoryNote n) {
             return new NoteResponse(
@@ -131,7 +150,10 @@ public final class PromissoryNoteDtos {
                     n.getCloseRemark(), n.getCloseDepartmentId(), n.getCloseProjectId(),
                     n.getCloseJournalEntry() == null ? null : n.getCloseJournalEntry().getId(),
                     n.getClosePartner() == null ? null : n.getClosePartner().getId(),
-                    n.getClosePartner() == null ? null : n.getClosePartner().getName());
+                    n.getClosePartner() == null ? null : n.getClosePartner().getName(),
+                    n.getCloseJournalEntry() != null
+                            && n.getCloseJournalEntry().getSourceType() == com.erp.accounting.journal.JournalSourceType.VOUCHER
+                            ? "VOUCHER" : null);
         }
     }
 

@@ -113,6 +113,20 @@ public class PromissoryNoteController {
         return service.cancelEndorse(id);
     }
 
+    /** 받을어음일괄감소 [입금보고서작성] → 입금보고서 [저장] — 회계전표(입금보고서) + 고른 어음 감소 */
+    @PostMapping("/deposit-report")
+    public java.util.List<NoteResponse> depositReport(@Valid @RequestBody PromissoryNoteDtos.VoucherReportRequest req,
+                                                      @AuthenticationPrincipal UserPrincipal principal) {
+        return service.voucherReport(NoteType.RECEIVABLE, req, principal.getUsername());
+    }
+
+    /** 지급어음일괄감소 [지출결의서작성] → 지출결의서 [저장] — 회계전표(지출결의서) + 고른 어음 감소 */
+    @PostMapping("/withdraw-report")
+    public java.util.List<NoteResponse> withdrawReport(@Valid @RequestBody PromissoryNoteDtos.VoucherReportRequest req,
+                                                       @AuthenticationPrincipal UserPrincipal principal) {
+        return service.voucherReport(NoteType.PAYABLE, req, principal.getUsername());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);

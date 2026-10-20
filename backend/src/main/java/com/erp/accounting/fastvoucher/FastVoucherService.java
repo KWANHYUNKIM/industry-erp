@@ -53,6 +53,8 @@ public class FastVoucherService {
     /* 채권감소등록 [입금보고서작성] · 수령수표입금처리 [입금보고서작성]으로 만든 입금보고서의 '추가정보'(채권 감소 · 수령수표) — 수정 검증용. */
     private final com.erp.accounting.bond.BondEntryRepository bondEntryRepository;
     private final com.erp.accounting.bankcheck.BankCheckRepository bankCheckRepository;
+    /* 받을어음 · 지급어음일괄감소 [입금보고서작성] · [지출결의서작성] 으로 닫힌 어음 — 수정 때 떼었다가 다시 건다(V420 트리거). */
+    private final com.erp.accounting.promissorynote.PromissoryNoteRepository noteRepository;
 
     @Transactional(readOnly = true)
     public List<VoucherResponse> findAll(FastVoucherType type) {
@@ -129,6 +131,9 @@ public class FastVoucherService {
         List<com.erp.accounting.bankcheck.BankCheck> checks = v.getJournalEntry() == null ? List.of()
                 : bankCheckRepository.findBySettleJournalId(v.getJournalEntry().getId());
         checks.forEach(c -> c.setSettleJournalId(null));
+        List<com.erp.accounting.promissorynote.PromissoryNote> notes = v.getJournalEntry() == null ? List.of()
+                : noteRepository.findByCloseJournalEntryId(v.getJournalEntry().getId());
+        notes.forEach(n -> n.setCloseJournalEntry(null));
         undo(v, username);
         v.getLines().clear();
         voucherRepository.flush();
@@ -138,6 +143,7 @@ public class FastVoucherService {
             Long journalId = v.getJournalEntry().getId();
             checks.forEach(c -> c.setSettleJournalId(journalId));
         }
+        notes.forEach(n -> n.setCloseJournalEntry(v.getJournalEntry()));
         return VoucherResponse.from(v);
     }
 

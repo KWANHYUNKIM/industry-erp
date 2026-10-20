@@ -47,6 +47,8 @@ public class PromissoryNoteService {
     private final BankCardService bankCardService;
     private final com.erp.accounting.bankcard.BankAccountRepository bankAccountRepository;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.accounting.fastvoucher.FastVoucherService fastVoucherService;
+    private final com.erp.accounting.fastvoucher.FastVoucherRepository fastVoucherRepository;
 
     /** 한 번에 내려보낼 어음 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
     public static final int LIST_PAGE_ROWS = 5000;
@@ -250,6 +252,58 @@ public class PromissoryNoteService {
         return NoteResponse.from(n);
     }
 
+    /**
+     * 받을어음일괄감소(E010621) [입금보고서작성] · 지급어음일괄감소(E010629) [지출결의서작성] → 결의서 [저장].
+     * 2026-10-20 loginaa 실측: 지급어음 QA1-P1 100,000 → 지출결의서작성 창(돈나간계좌번호 · 적요 · 묶음기준) → [적용] →
+     * 지출결의서 줄 [돈 나간 계좌 기업은행-1122 · 계정 지급어음 · 거래처 서강대학교 · 100,000 · 적요 · 추가정보 '지급어음 QA1-P1'].
+     * 저장하면 결의서 한 장(회계전표 차) 지급어음 / 대) 보통예금 — 받을어음은 차) 보통예금 / 대) 받을어음)이 생기고
+     * 고른 어음이 감소로 닫힌다. 결의서를 지우면 V420 트리거가 어음을 보유로 되돌린다(수령수표입금처리 V392 와 같은 길).
+     */
+    @Transactional
+    public List<NoteResponse> voucherReport(NoteType type, PromissoryNoteDtos.VoucherReportRequest req, String username) {
+        boolean receivable = type.isReceivable();
+        boolean cash = Boolean.TRUE.equals(req.cash()) || req.bankAccountId() == null;
+        Long account = accountRepository.findByCode(receivable ? ACC_NOTES_RECEIVABLE : ACC_NOTES_PAYABLE)
+                .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: " + (receivable ? ACC_NOTES_RECEIVABLE : ACC_NOTES_PAYABLE))).getId();
+        List<PromissoryNote> notes = new java.util.ArrayList<>();
+        List<String> memos = new java.util.ArrayList<>();
+        List<com.erp.accounting.fastvoucher.dto.FastVoucherDtos.LineInput> vLines = new java.util.ArrayList<>();
+        for (PromissoryNoteDtos.VoucherReportLine l : req.lines()) {
+            PromissoryNote n = held(l.noteId(), receivable ? "입금보고서" : "지출결의서");
+            if (n.getType() != type) {
+                throw ApiException.badRequest(n.getNoteNo() + " 은(는) " + type.getDisplayName() + "이 아닙니다.");
+            }
+            if (n.isRecordOnly()) {
+                throw ApiException.badRequest(n.getNoteNo() + " 은(는) [내역만등록] 어음입니다 — 어음만감소로 닫으세요.");
+            }
+            requireNotBeforeIssue(n, req.date(), "일자");
+            String memo = l.memo() == null || l.memo().isBlank() ? null : l.memo().trim();
+            vLines.add(new com.erp.accounting.fastvoucher.dto.FastVoucherDtos.LineInput(
+                    account, n.getAmount(), memo, cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null,
+                    n.getPartner().getId(), null, null));
+            notes.add(n);
+            memos.add(memo);
+        }
+        var v = fastVoucherService.create(new com.erp.accounting.fastvoucher.dto.FastVoucherDtos.CreateVoucherRequest(
+                receivable ? com.erp.accounting.fastvoucher.FastVoucherType.DEPOSIT_REPORT : com.erp.accounting.fastvoucher.FastVoucherType.EXPENSE_REPORT,
+                req.date(), com.erp.accounting.PaymentMethod.CASH,
+                null, null, null, vLines, req.description() == null || req.description().isBlank() ? null : req.description().trim(),
+                null, null, null, null, null, null, null, null, null), username);
+        var entry = fastVoucherRepository.findById(v.id()).map(com.erp.accounting.fastvoucher.FastVoucher::getJournalEntry)
+                .orElseThrow(() -> ApiException.notFound((receivable ? "입금보고서" : "지출결의서") + "를 찾을 수 없습니다. id=" + v.id()));
+        List<NoteResponse> out = new java.util.ArrayList<>();
+        for (int i = 0; i < notes.size(); i++) {
+            PromissoryNote n = notes.get(i);
+            n.setStatus(NoteStatus.SETTLED);
+            n.setClosedDate(req.date());
+            n.setDiscountFee(null);
+            n.setCloseRemark(memos.get(i));
+            n.setCloseJournalEntry(entry);
+            out.add(NoteResponse.from(n));
+        }
+        return out;
+    }
+
     /** 받을어음감소 수정(원본 수정 창 [저장(F8)] — 같은 전표를 고쳐 쓴다). 지우고 다시 넣는 것을 한 트랜잭션으로. */
     @Transactional
     public NoteResponse updateDecrease(Long id, PromissoryNoteDtos.DecreaseRequest req, String username) {
@@ -265,6 +319,10 @@ public class PromissoryNoteService {
         var entry = n.getCloseJournalEntry();
         if (n.getStatus() != NoteStatus.SETTLED || entry == null) {
             throw ApiException.conflict(n.getNoteNo() + " 은(는) 어음감소로 닫힌 어음이 아닙니다.");
+        }
+        if (entry.getSourceType() == com.erp.accounting.journal.JournalSourceType.VOUCHER) {
+            throw ApiException.conflict(n.getNoteNo() + " 은(는) " + (n.getType().isReceivable() ? "입금보고서" : "지출결의서")
+                    + "로 닫힌 어음입니다 — 그 " + (n.getType().isReceivable() ? "입금보고서" : "지출결의서") + "를 지우세요.");
         }
         n.setCloseJournalEntry(null);
         n.setStatus(NoteStatus.HELD);
