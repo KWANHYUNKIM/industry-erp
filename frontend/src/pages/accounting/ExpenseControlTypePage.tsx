@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import NumCheck from '../../features/bankcheck/components/NumCheck'
+import NumCheck from '../../components/NumCheck'
 import {
   activeMenuAction, LIMIT_TYPES, NOTICE_TYPES, PERIOD_TYPES,
   type ExpenseControlType, type ExpenseLimitType, type ExpenseNoticeType, type ExpensePeriodType,

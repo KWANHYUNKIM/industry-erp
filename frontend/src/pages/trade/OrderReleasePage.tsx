@@ -15,6 +15,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { releaseSlipHtml, type ReleaseSlip } from '../../utils/releaseSlipDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import NumCheck from '../../components/NumCheck'
 
 /**
  * 주문서출고처리(원본 E040230 · 재고 I › 영업관리 › 주문서). 2026-10-13 loginaa 직접 써 보며 잰 것:
@@ -77,17 +78,6 @@ const slash = (d: string | null) => (d ? d.replace(/-/g, '/') : '')
 /** 수량 칸 — 원본은 0 을 빈칸으로 그린다(수정 창에서 0 으로 저장한 건의 출고수량합계). */
 const qtyOrBlank = (n: number) => (n === 0 ? '' : qtyText(n))
 
-/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 안 고르면 흰 동그라미에 회색 번호, 고르면 파랑. */
-function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: (on: boolean) => void; label: string }) {
-  return (
-    <label className="relative inline-block align-middle cursor-pointer">
-      <input type="checkbox" aria-label={label} checked={on} onChange={(e) => onChange(e.target.checked)}
-        className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
-      <span className={`inline-block w-[18px] leading-[17px] text-center rounded-[6px] border-[length:var(--ec-hair)] ${
-        on ? 'bg-ec-blue border-ec-blue text-ec-panel' : 'bg-ec-panel border-ec-line text-ec-icon'}`}>{no}</span>
-    </label>
-  )
-}
 
 export default function OrderReleasePage() {
   const navigate = useNavigate()
@@ -323,7 +313,7 @@ export default function OrderReleasePage() {
           <thead>
             <tr>
               <th className="w-[48px] text-center">
-                <NumCheck no="" label="전체 선택" on={allChecked}
+                <NumCheck tone="line" hover={false} no="" label="전체 선택" on={allChecked}
                   onChange={(on) => shownPending.forEach((p) => toggle(p.orderLineId, on, p.remainQty))} />
               </th>
               <th className="cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
@@ -340,7 +330,7 @@ export default function OrderReleasePage() {
             {!loading && sort.sorted.map((p, i) => (
               <tr key={p.orderLineId}>
                 <td className="text-center">
-                  <NumCheck no={i + 1} label="선택" on={checked.has(p.orderLineId)}
+                  <NumCheck tone="line" hover={false} no={i + 1} label="선택" on={checked.has(p.orderLineId)}
                     onChange={(on) => toggle(p.orderLineId, on, p.remainQty)} />
                 </td>
                 <td><a className="cursor-pointer" onClick={() => navigate(`/sales/orders?edit=${p.orderId}`)}>{dateNo(p.orderDate, p.orderNo)}</a></td>
@@ -362,7 +352,7 @@ export default function OrderReleasePage() {
           <thead>
             <tr>
               <th className="w-[48px] text-center">
-                <NumCheck no="" label="전체 선택" on={allChecked} onChange={(on) => done.forEach((r) => toggle(r.id, on))} />
+                <NumCheck tone="line" hover={false} no="" label="전체 선택" on={allChecked} onChange={(on) => done.forEach((r) => toggle(r.id, on))} />
               </th>
               <th>일자-No.</th>
               <th>일자-No.</th>
@@ -378,7 +368,7 @@ export default function OrderReleasePage() {
             {!loading && done.map((r, i) => (
               <tr key={r.id}>
                 <td className="text-center">
-                  <NumCheck no={i + 1} label="선택" on={checked.has(r.id)} onChange={(on) => toggle(r.id, on)} />
+                  <NumCheck tone="line" hover={false} no={i + 1} label="선택" on={checked.has(r.id)} onChange={(on) => toggle(r.id, on)} />
                 </td>
                 <td><a className="cursor-pointer" onClick={() => void openEdit(r.id)}>{dateNo(r.releaseDate, r.releaseNo)}</a></td>
                 <td><a className="cursor-pointer" onClick={() => navigate(`/sales/orders?edit=${r.orderId}`)}>{dateNo(r.orderDate, r.orderNo)}</a></td>
@@ -448,7 +438,7 @@ export default function OrderReleasePage() {
             <tbody>
               {edit.lines.map((l, i) => (
                 <tr key={l.lineId}>
-                  <td className="text-center"><NumCheck no={i + 1} label="선택" on={false} onChange={() => {}} /></td>
+                  <td className="text-center"><NumCheck tone="line" hover={false} no={i + 1} label="선택" on={false} onChange={() => {}} /></td>
                   <td>{l.itemName}</td>
                   <td>{l.spec ?? ''}</td>
                   <td className="text-right">{l.addableQty.toLocaleString('ko-KR')}</td>

@@ -11,6 +11,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcHistoryButton from '../../components/EcHistory'
 import GroupMasterModal from '../../components/GroupMasterModal'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import NumCheck from '../../components/NumCheck'
 
 const inputCls = 'ec-input w-full'
 
@@ -54,20 +55,6 @@ const empty = {
  * 자주 쓰는 [기본]까지 스크롤해야 했다. 나머지 탭 항목은 원본을 열어 보지 못해
  * (탭을 누르기 전에는 DOM 에 없다) 우리 값을 뜻에 맞게 나눠 담았다.
  */
-/**
- * 원본 번호 칸(form-checkbox-numbered, 거래처리스트 E010101) — 번호가 곧 체크 칸이다.
- * 안 고르면 흰 바탕 회색 번호, 고르면 파랑. 머리 칸은 번호 없이 전체 선택(판매조회 · 주문서출고처리와 같은 모양).
- */
-function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
-  return (
-    <label className="relative inline-block align-middle cursor-pointer">
-      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
-             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
-      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
-        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
-    </label>
-  )
-}
 
 const FORM_TABS = ['기본', '거래처정보', '여신/단가', '부가정보'] as const
 type FormTab = typeof FORM_TABS[number]
@@ -838,7 +825,7 @@ export default function PartnersPage() {
           <thead>
             <tr>
               <th className="w-[34px] text-center">
-                <NumCheck no="" label="전체 선택"
+                <NumCheck tone="plain" no="" label="전체 선택"
                           on={shown.length > 0 && shown.every((x) => checked.has(x.id))}
                           onChange={() => setChecked(
                             shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
@@ -865,7 +852,7 @@ export default function PartnersPage() {
               shown.map((p, i) => (
                 <tr key={p.id} style={{ color: p.active ? undefined : 'var(--ec-text-hint)' }}>
                   <td className="text-center">
-                    <NumCheck no={i + 1} label="선택" on={checked.has(p.id)} onChange={() => setChecked((prev) => {
+                    <NumCheck tone="plain" no={i + 1} label="선택" on={checked.has(p.id)} onChange={() => setChecked((prev) => {
                       const next = new Set(prev)
                       if (next.has(p.id)) next.delete(p.id); else next.add(p.id)
                       return next

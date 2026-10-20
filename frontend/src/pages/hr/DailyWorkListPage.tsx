@@ -8,23 +8,13 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
+import NumCheck from '../../components/NumCheck'
 
 interface Line { id: number; lineNo: number; workDate: string; workerId: number; workerCode: string; workerName: string; payItem: string; quantity: number }
 interface Row extends Line { slipDate: string; slipNo: number }
 /** 근무조회 한 줄 = 전표 하나. 사원 '잠깐만 외 1건', 근무일자 · 수당항목 · 근무기록은 첫 줄 값(원본 E020751 2026-10-14). */
 interface SlipRow { slipDate: string; slipNo: number; first: Row; lines: Row[] }
 
-/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
-function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
-  return (
-    <label className="relative inline-flex align-middle cursor-pointer">
-      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
-             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
-      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
-        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
-    </label>
-  )
-}
 
 const monthToToday = () => {
   const d = new Date()
@@ -156,7 +146,7 @@ export default function DailyWorkListPage() {
         <thead>
           <tr>
             <th className="w-[34px] text-center">
-              <NumCheck no="" label="전체 선택" on={allChecked}
+              <NumCheck tone="plain" no="" label="전체 선택" on={allChecked}
                         onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map(keyOf)))} />
             </th>
             <th className="text-center">전표일자</th>
@@ -172,7 +162,7 @@ export default function DailyWorkListPage() {
           ) : shown.map((r, i) => (
             <tr key={keyOf(r)}>
               <td className="text-center">
-                <NumCheck no={i + 1} label="선택" on={checked.has(keyOf(r))}
+                <NumCheck tone="plain" no={i + 1} label="선택" on={checked.has(keyOf(r))}
                        onChange={() => {
                          const next = new Set(checked)
                          if (next.has(keyOf(r))) next.delete(keyOf(r)); else next.add(keyOf(r))

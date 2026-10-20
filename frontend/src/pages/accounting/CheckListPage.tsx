@@ -12,7 +12,7 @@ import { dateNo } from '../../utils/dateNo'
 import type { BankCheck, CheckType } from '../../types/api'
 import { useNavigate } from 'react-router-dom'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
-import NumCheck from '../../features/bankcheck/components/NumCheck'
+import NumCheck from '../../components/NumCheck'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 

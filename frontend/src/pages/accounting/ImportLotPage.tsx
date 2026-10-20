@@ -5,7 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcDateField from '../../components/EcDateField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import NumCheck from '../../features/bankcheck/components/NumCheck'
+import NumCheck from '../../components/NumCheck'
 import type { Partner } from '../../types/api'
 import type { ImportLot } from '../../features/importcost/api'
 

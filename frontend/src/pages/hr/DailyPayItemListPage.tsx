@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { ecConfirm } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import NumCheck from '../../components/NumCheck'
 
 type Kind = 'ALLOWANCE' | 'DEDUCTION'
 
@@ -53,16 +54,6 @@ const toRow = (i: Item): Row => ({
   rate: i.rate == null ? '' : String(i.rate), taxType: i.taxType ?? '', formula: i.formula, active: i.active, dirty: false,
 })
 
-/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. */
-function NumCheck({ no, on, onChange, label }: { no: number; on: boolean; onChange: () => void; label: string }) {
-  return (
-    <label className="relative inline-block align-middle cursor-pointer">
-      <input type="checkbox" aria-label={label} checked={on} onChange={onChange} className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
-      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
-        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon'}`}>{no}</span>
-    </label>
-  )
-}
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 기본사항 등록 &gt; <b>일용근로 수당등록</b>(원본 E020136 '일용근로 수당리스트') ·
@@ -208,7 +199,7 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Ki
             {rows.map((r, i) => (
               <tr key={r.id ?? `new-${i}`} className={r.active ? '' : 'text-ec-hint'}>
                 <td className="pad text-center">
-                  {r.id ? <NumCheck no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id!)} label={`${i + 1}행 고르기`} />
+                  {r.id ? <NumCheck tone="plain" hover={false} no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id!)} label={`${i + 1}행 고르기`} />
                     : <span className="text-ec-icon">{i + 1}</span>}
                 </td>
                 <td className={cell(i, 'code')}>{r.id ? <span className="block px-[5px]">{r.code}</span> : text(i, 'code', '코드')}</td>

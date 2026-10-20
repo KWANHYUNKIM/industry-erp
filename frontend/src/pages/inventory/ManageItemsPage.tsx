@@ -8,21 +8,11 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { ManagementItem } from '../../types/api'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import NumCheck from '../../components/NumCheck'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서 · 창고 · 프로젝트 리스트와 같은 글). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
 
-/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
-function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
-  return (
-    <label className="relative inline-block align-middle cursor-pointer">
-      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
-             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
-      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
-        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
-    </label>
-  )
-}
 
 /**
  * 재고 I › 기초등록 › <b>관리항목등록</b> (원본 E040104, 화면 제목 '관리항목리스트').
@@ -168,7 +158,7 @@ export default function ManageItemsPage() {
         <thead>
           <tr>
             <th className="w-[34px] text-center">
-              <NumCheck no="" label="전체 선택" on={allChecked}
+              <NumCheck tone="plain" no="" label="전체 선택" on={allChecked}
                         onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
             <th className="cursor-pointer" onClick={() => sort.toggle('관리항목코드')}>관리항목코드 {sort.mark('관리항목코드')}</th>
@@ -182,7 +172,7 @@ export default function ManageItemsPage() {
           ) : shown.map((r, i) => (
             <tr key={r.id} className={r.active ? undefined : 'text-ec-hint'}>
               <td className="text-center">
-                <NumCheck no={i + 1} label="선택" on={checked.has(r.id)}
+                <NumCheck tone="plain" no={i + 1} label="선택" on={checked.has(r.id)}
                           onChange={() => {
                             const next = new Set(checked)
                             if (next.has(r.id)) next.delete(r.id); else next.add(r.id)

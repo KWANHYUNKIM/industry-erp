@@ -10,7 +10,7 @@ import { EcHistoryModal } from '../../../components/EcHistory'
 import { useDeptProjectItems } from '../../cashquick/useDeptProject'
 import { dateText } from '../../../utils/dateText'
 import { requireSelection } from '../../../components/EcDialog'
-import NumCheck from './NumCheck'
+import NumCheck from '../../../components/NumCheck'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../../types/api'
 
 interface Line { id?: number; checkNo: string; amount: string; remark: string; departmentId: string; projectId: string }

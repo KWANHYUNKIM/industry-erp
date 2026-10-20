@@ -9,7 +9,7 @@ import EcPeriodPicks, { periodOf, QUOTATION_PICKS } from '../../components/EcPer
 import { fetchFundPlans, useFundPlanMasters } from '../../features/fundplan/api'
 import FundPlanModal from '../../features/fundplan/components/FundPlanModal'
 import { methodCell, won, type FundPlan } from '../../features/fundplan/types'
-import NumCheck from '../../features/bankcheck/components/NumCheck'
+import NumCheck from '../../components/NumCheck'
 
 /**
  * 회계 II › 자금계획 › <b>계획전표조회</b>(E020511) — 2026-10-12 loginaa 실측.

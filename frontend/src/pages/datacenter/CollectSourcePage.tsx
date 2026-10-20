@@ -6,6 +6,7 @@ import { MenuButton } from '../../components/EcSlipShell'
 import { api, extractErrorMessage } from '../../api/client'
 import { useShortcut } from '../../utils/useShortcut'
 import type { CollectData, CollectDocType } from '../../types/api'
+import NumCheck from '../../components/NumCheck'
 
 /**
  * 데이터센터 › 수집데이터등록 (이카운트 C001401)
@@ -45,20 +46,6 @@ function historyLine(r: CollectData | null): string {
   return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${ampm} ${h12}:${pad(d.getMinutes())}:${pad(d.getSeconds())} [${who}]`
 }
 
-/**
- * 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다(2026-10-13 실측: 18×17 · 둥글기 6 · 테두리 없음 ·
- * 흰 바탕에 --ec-icon 번호, 고르면 파랑). 머리 칸은 번호 없이 전체 선택.
- */
-function NumCheck({ no, on, disabled, onChange, label }: { no: number | ''; on: boolean; disabled?: boolean; onChange: () => void; label: string }) {
-  return (
-    <label className={`relative inline-block align-middle ${disabled ? '' : 'cursor-pointer'}`}>
-      <input type="checkbox" aria-label={label} checked={on} disabled={disabled} onChange={onChange}
-             className="absolute inset-0 m-0 opacity-0 cursor-pointer disabled:cursor-default" />
-      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
-        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon'}`}>{no}</span>
-    </label>
-  )
-}
 
 const CONFIRM_TITLE = '경고'
 
@@ -230,7 +217,7 @@ export default function CollectSourcePage() {
         <thead><tr>
           {/* 원본 열 폭(1640 격자 실측): 번호 44 · 나머지가 1 : 2.5 : 1 : 3.5 : 1 (177 · 444 · 177 · 621 · 177). */}
           <th className="w-[44px] text-center">
-            <NumCheck no="" label="전체 선택" on={allPicked} disabled={pickable.length === 0}
+            <NumCheck tone="plain" hover={false} no="" label="전체 선택" on={allPicked} disabled={pickable.length === 0}
                       onChange={() => setPicked(allPicked ? new Set() : new Set(pickable.map((r) => r.id)))} />
           </th>
           <th className="w-[10.8%]">데이터코드</th>
@@ -247,7 +234,7 @@ export default function CollectSourcePage() {
           ) : ordered.map((r, i) => (
             <tr key={r.id} className={picked.has(r.id) ? '[&>td]:bg-[var(--ec-bg-row-picked)]' : ''}>
               <td className="text-center">
-                <NumCheck no={i + 1} label="선택" disabled={r.builtIn} on={picked.has(r.id)} onChange={() => togglePick(r.id)} />
+                <NumCheck tone="plain" hover={false} no={i + 1} label="선택" disabled={r.builtIn} on={picked.has(r.id)} onChange={() => togglePick(r.id)} />
               </td>
               {/* 원본: 더한 줄만 코드 · 이름이 링크다(기본 줄은 열리지 않는다). */}
               <td>{r.builtIn ? '' : <a className="ec-link cursor-pointer" onClick={() => openEdit(r)}>{r.code}</a>}</td>

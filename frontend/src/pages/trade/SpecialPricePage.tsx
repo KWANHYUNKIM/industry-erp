@@ -9,6 +9,7 @@ import type {
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { EcCond } from '../../components/EcStatusPanel'
+import NumCheck from '../../components/NumCheck'
 
 /**
  * 재고 I › 기초등록 › 단가관리 › <b>특별단가등록</b> (원본 E040124, 화면 제목 '특별단가리스트').
@@ -49,16 +50,6 @@ function writeLastGroup(id: string) {
   try { localStorage.setItem(LAST_GROUP_KEY, id) } catch { /* 저장소가 막혀도 입력은 된다 */ }
 }
 
-/** 원본 번호 칸 — 번호가 곧 체크 칸이다. */
-function NumCheck({ no, on, onChange }: { no: number | ''; on: boolean; onChange: () => void }) {
-  return (
-    <label className="relative inline-block align-middle cursor-pointer">
-      <input type="checkbox" aria-label="선택" checked={on} onChange={onChange} className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
-      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
-        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
-    </label>
-  )
-}
 
 export default function SpecialPricePage() {
   const [pill, setPill] = useState<Pill>('특별단가그룹')
@@ -342,7 +333,7 @@ export default function SpecialPricePage() {
       {pill === '특별단가그룹' && (
         <table className="w-full text-left">
           <thead><tr>
-            <th className="w-[34px] text-center"><NumCheck no="" on={allChecked} onChange={toggleAll} /></th><th>특별단가그룹코드</th><th>특별단가그룹명</th>
+            <th className="w-[34px] text-center"><NumCheck tone="plain" no="" on={allChecked} onChange={toggleAll} /></th><th>특별단가그룹코드</th><th>특별단가그룹명</th>
             <th className="text-center">거래처설정</th><th className="text-center">창고설정</th>
             <th className="text-center">품목설정</th><th className="text-center">품목그룹설정</th>
           </tr></thead>
@@ -350,7 +341,7 @@ export default function SpecialPricePage() {
             {shownGroups.length === 0 ? <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               : shownGroups.map((g, i) => (
                 <tr key={g.id} className={g.active ? undefined : 'text-ec-hint'}>
-                  <td className="text-center"><NumCheck no={i + 1} on={checked.has(g.id)} onChange={() => toggle(g.id)} /></td>
+                  <td className="text-center"><NumCheck tone="plain" no={i + 1} on={checked.has(g.id)} onChange={() => toggle(g.id)} /></td>
                   <td><a href="#" onClick={(e) => { e.preventDefault(); setGForm({ open: true, id: g.id, code: g.code, name: g.name, bad: false, error: '' }) }}>{g.code}</a></td>
                   <td><a href="#" onClick={(e) => { e.preventDefault(); setGForm({ open: true, id: g.id, code: g.code, name: g.name, bad: false, error: '' }) }}>{g.name}</a></td>
                   <td className="text-center">{link(g.hasPartners, '거래처설정', () => openMember({ kind: 'partners', group: g }))}</td>
@@ -366,14 +357,14 @@ export default function SpecialPricePage() {
       {pill === '품목별' && (
         <table className="w-full text-left">
           <thead><tr>
-            <th className="w-[34px] text-center"><NumCheck no="" on={allChecked} onChange={toggleAll} /></th><th>품목코드</th><th>품목명[규격]</th><th>품목그룹명</th><th>특별단가그룹명</th>
+            <th className="w-[34px] text-center"><NumCheck tone="plain" no="" on={allChecked} onChange={toggleAll} /></th><th>품목코드</th><th>품목명[규격]</th><th>품목그룹명</th><th>특별단가그룹명</th>
             <th className="text-right">적용단가</th><th className="text-center">Vat포함여부</th>
           </tr></thead>
           <tbody>
             {shownPrices.length === 0 ? <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               : shownPrices.map((r, i) => (
                 <tr key={r.id} className={r.active ? undefined : 'text-ec-hint'}>
-                  <td className="text-center"><NumCheck no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id)} /></td>
+                  <td className="text-center"><NumCheck tone="plain" no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id)} /></td>
                   <td><a href="#" onClick={(e) => { e.preventDefault(); openItemForm(r) }}>{r.itemCode}</a></td>
                   <td>{itemLabel(r)}</td><td>{r.itemGroupName ?? ''}</td><td>{r.groupName}</td>
                   <td className="text-right">{won(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td>
@@ -386,13 +377,13 @@ export default function SpecialPricePage() {
       {pill === '품목그룹별' && (
         <table className="w-full text-left">
           <thead><tr>
-            <th className="w-[34px] text-center"><NumCheck no="" on={allChecked} onChange={toggleAll} /></th><th>품목그룹코드</th><th>품목그룹명</th><th>특별단가그룹명</th><th>품목그룹별 조정내역</th>
+            <th className="w-[34px] text-center"><NumCheck tone="plain" no="" on={allChecked} onChange={toggleAll} /></th><th>품목그룹코드</th><th>품목그룹명</th><th>특별단가그룹명</th><th>품목그룹별 조정내역</th>
           </tr></thead>
           <tbody>
             {shownIg.length === 0 ? <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               : shownIg.map((r, i) => (
                 <tr key={r.id} className={r.active ? undefined : 'text-ec-hint'}>
-                  <td className="text-center"><NumCheck no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id)} /></td>
+                  <td className="text-center"><NumCheck tone="plain" no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id)} /></td>
                   <td><a href="#" onClick={(e) => { e.preventDefault(); openIgForm(r) }}>{r.itemGroupCode}</a></td>
                   <td>{r.itemGroupName}</td><td>{r.groupName}</td><td>{r.adjustText}</td>
                 </tr>
@@ -522,7 +513,7 @@ export default function SpecialPricePage() {
               {members.length === 0 ? <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                 : members.map((m, i) => (
                   <tr key={`${m.tradeType}-${m.id}`}>
-                    <td className="text-center"><NumCheck no={i + 1} on={memberChecked.has(i)}
+                    <td className="text-center"><NumCheck tone="plain" no={i + 1} on={memberChecked.has(i)}
                       onChange={() => setMemberChecked((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })} /></td>
                     <td>{m.tradeTypeName}</td><td>{m.code}</td><td>{m.name}</td>
                   </tr>

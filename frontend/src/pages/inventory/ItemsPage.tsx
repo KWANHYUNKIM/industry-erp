@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { clearItemSuggestCache } from '../../features/item/api/itemSuggest'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import NumCheck from '../../components/NumCheck'
 
 const inputCls = 'ec-input w-full'
 
@@ -72,19 +73,6 @@ const emptyForm = {
 }
 type ItemForm = typeof emptyForm
 
-/**
- * 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다(거래처 · 창고 · 품목 리스트 같은 모양).
- */
-function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
-  return (
-    <label className="relative inline-block align-middle cursor-pointer">
-      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
-             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
-      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
-        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
-    </label>
-  )
-}
 
 /** 창의 칸 한 줄(이름표 + 입력). */
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
@@ -935,7 +923,7 @@ export default function ItemsPage() {
             {/* 원본 열(C000029 실측): 번호체크 · 품목코드 · 품목명 · 품목그룹 · 규격 · 바코드 · 입고단가 · 출고단가 · 품목구분 · 이미지. 머리 글자 700, 칸은 모두 가운데. */}
             <tr>
               <th className="w-[29px] text-center" data-export-skip="true">
-                <NumCheck no="" label="전체 선택"
+                <NumCheck tone="plain" no="" label="전체 선택"
                           on={shown.length > 0 && shown.every((it) => selected.has(it.id))}
                           onChange={() => setSelected(shown.length > 0 && shown.every((it) => selected.has(it.id)) ? new Set() : new Set(shown.map((it) => it.id)))} />
               </th>
@@ -959,7 +947,7 @@ export default function ItemsPage() {
               shown.map((it, idx) => (
                 <tr key={it.id} className={it.active ? undefined : 'text-ec-hint'}>
                   <td className="text-center">
-                    <NumCheck no={idx + 1} label="선택" on={selected.has(it.id)} onChange={() => toggle(it.id)} />
+                    <NumCheck tone="plain" no={idx + 1} label="선택" on={selected.has(it.id)} onChange={() => toggle(it.id)} />
                   </td>
                   {/* 원본은 코드 · 이름을 눌러 그 건을 연다(두 칸이 링크다). */}
                   <td className="text-center"><button type="button" className="ec-link" onClick={() => openEdit(it)}>{it.code}</button></td>

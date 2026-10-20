@@ -9,22 +9,11 @@ import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_STATUS_PICKS } from '../../features/bond/ledger'
 import { flatten, signed, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
 import { ecAlert } from '../../components/EcDialog'
+import NumCheck from '../../components/NumCheck'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서리스트 · 거래처리스트와 같은 글). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
 
-/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
-function NumCheck({ no, on, onChange, label, head = false }: { no: number | ''; on: boolean; onChange: () => void; label: string; head?: boolean }) {
-  // 머리 칸은 줄 상자 아래 여백 없이 18 — 원본 머리 34.7(2026-10-13 실측)
-  return (
-    <label className={`relative cursor-pointer ${head ? 'block mx-auto w-[18px] h-[18px]' : 'inline-block align-middle'}`}>
-      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
-             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
-      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
-        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
-    </label>
-  )
-}
 
 interface Row {
   id: string
@@ -139,7 +128,7 @@ export default function BondPartnerLedgerPrintPage({ side }: { side: BondSide })
         <thead>
           <tr>
             <th className="w-[40px] text-center">
-              <NumCheck no="" head on={allOn} label="전체 선택"
+              <NumCheck tone="plain" no="" head on={allOn} label="전체 선택"
                         onChange={() => setPicked(allOn ? new Set() : new Set(list.map((g) => g.id)))} />
             </th>
             <th>거래처코드</th>
@@ -158,7 +147,7 @@ export default function BondPartnerLedgerPrintPage({ side }: { side: BondSide })
           ) : list.map((g, i) => (
             <tr key={g.id}>
               <td className="text-center">
-                <NumCheck no={i + 1} on={picked.has(g.id)} label={`${g.name} 선택`}
+                <NumCheck tone="plain" no={i + 1} on={picked.has(g.id)} label={`${g.name} 선택`}
                           onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(g.id)) n.delete(g.id); else n.add(g.id); return n })} />
               </td>
               <td><button type="button" className="ec-link" onClick={() => open([g.id])}>{g.code}</button></td>

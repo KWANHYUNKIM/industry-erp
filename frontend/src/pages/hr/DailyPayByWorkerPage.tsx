@@ -9,7 +9,7 @@ import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../f
 import { ecConfirm } from '../../components/EcDialog'
 import Modal from '../../components/Modal'
 import DailyPayBulkEdit from '../../features/dailypay/components/DailyPayBulkEdit'
-import NumCheck from '../../features/bankcheck/components/NumCheck'
+import NumCheck from '../../components/NumCheck'
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 급여작업 &gt; <b>일용근로 사원별급여조회</b> (원본 E020135).

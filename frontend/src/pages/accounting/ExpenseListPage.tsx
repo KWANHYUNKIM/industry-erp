@@ -10,7 +10,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import Modal from '../../components/Modal'
 import ExpenseSlipForm from '../../features/expense/ExpenseSlipForm'
 import { groupSlips, slipNo, type ExpenseRow } from '../../features/expense/types'
-import NumCheck from '../../features/bankcheck/components/NumCheck'
+import NumCheck from '../../components/NumCheck'
 import { ecConfirm } from '../../components/EcDialog'
 import type { EmployeeMaster } from '../../types/api'
 

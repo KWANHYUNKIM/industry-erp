@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Modal from '../../../components/Modal'
 import { requireSelection } from '../../../components/EcDialog'
 import { compareValues, type SortValue } from '../../../utils/useTableSort'
-import NumCheck from './NumCheck'
+import NumCheck from '../../../components/NumCheck'
 
 /**
  * 수표관리 현황 출력물(수령 · 발행수표현황 E060604 · E060608, 증가 · 감소현황 E060609~12)의 <b>정렬/소계기준 [설정]</b> 과

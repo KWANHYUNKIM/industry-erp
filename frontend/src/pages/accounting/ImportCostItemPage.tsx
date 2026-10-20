@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import NumCheck from '../../features/bankcheck/components/NumCheck'
+import NumCheck from '../../components/NumCheck'
 import type { ImportCostItem } from '../../features/importcost/api'
 
 /**

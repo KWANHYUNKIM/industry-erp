@@ -4,7 +4,7 @@ import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import EcNumInput from '../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../api/client'
-import NumCheck from '../../features/bankcheck/components/NumCheck'
+import NumCheck from '../../components/NumCheck'
 import { activeMenuAction, type ExpenseControlType, type ExpenseItem } from '../../features/expensemaster/api'
 import type { Account, EmployeeMaster } from '../../types/api'
 
