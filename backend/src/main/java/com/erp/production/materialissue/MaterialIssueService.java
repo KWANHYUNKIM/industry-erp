@@ -26,6 +26,18 @@ import com.erp.production.materialissue.dto.MaterialIssueDtos;
 @RequiredArgsConstructor
 public class MaterialIssueService {
 
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    public static final String HISTORY_TARGET = "MATERIAL_ISSUE";
+
+    /** 거래이력조회(재고) 메뉴 '생산불출' 한 줄 — 전표(불출번호)의 첫 줄 행 id 가 열쇠. 담당자는 id 만 있어(hr 참조 금지) 빈칸. */
+    private void recordHistory(String action, List<MaterialIssue> rows) {
+        MaterialIssue first = rows.get(0);
+        changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("생산불출", first.getIssueDate(), first.getIssueNo(),
+                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), rows.size())));
+    }
+
     private final MaterialIssueRepository materialIssueRepository;
     /*
      * inventory 의 공개 service 를 거친다(CLAUDE.md 4.2). 리포지토리를 직접 잡으면
@@ -78,7 +90,9 @@ public class MaterialIssueService {
     public MaterialIssueResponse create(CreateMaterialIssueRequest req, String username) {
         LocalDate date = req.issueDate() != null ? req.issueDate() : LocalDate.now();
         /* 다른 전표와 같은 방식으로 센다 — count()+1 은 지운 번호를 다시 쓴다. */
-        return create(req, docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date), username);
+        MaterialIssueResponse out = create(req, docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date), username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, materialIssueRepository.findByIssueNo(out.issueNo()));
+        return out;
     }
 
     private MaterialIssueResponse create(CreateMaterialIssueRequest req, String issueNo, String username) {
@@ -161,6 +175,7 @@ public class MaterialIssueService {
                     line.workOrderId() != null ? line.workOrderId() : req.workOrderId(),
                     line.qty(), date, req.employeeId(), req.projectId(), line.note(), line.lotNo()), issueNo, username));
         }
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, materialIssueRepository.findByIssueNo(issueNo));
         return out;
     }
 
@@ -251,5 +266,9 @@ public class MaterialIssueService {
                     "생산불출취소 " + noteOf(mi), null);
         }
         materialIssueRepository.delete(mi);
+        materialIssueRepository.flush();
+        List<MaterialIssue> rest = materialIssueRepository.findByIssueNo(mi.getIssueNo());
+        if (rest.isEmpty()) recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(mi));
+        else recordHistory(com.erp.common.history.ChangeHistoryService.UPDATED, rest);
     }
 }

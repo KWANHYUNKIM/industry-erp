@@ -40,6 +40,21 @@ public class ShipmentService {
 
     private final ShipmentRepository shipmentRepository;
     private final ShipmentLineRepository shipmentLineRepository;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    public static final String HISTORY_TARGET = "SHIPMENT";
+
+    /** 거래이력조회(재고) 메뉴 '출하' 한 줄 — 전표상태는 출하 상태 글자. */
+    private void recordHistory(Shipment sh, String action) {
+        ShipmentLine first = sh.getLines().isEmpty() ? null : sh.getLines().get(0);
+        BusinessPartner p = sh.getPartner();
+        changeHistory.recordSlip(HISTORY_TARGET, sh.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot("출하", sh.getShipDate(), sh.getShipNo(),
+                p != null ? p.getCode() : null, p != null ? p.getName() : null,
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), sh.getLines().size()),
+                sh.getEmployee() != null ? sh.getEmployee().getCode() : null,
+                sh.getEmployee() != null ? sh.getEmployee().getName() : null,
+                sh.getStatus() != null ? sh.getStatus().getDisplayName() : null));
+    }
     private final SalesOrderRepository salesOrderRepository;
     private final SalesOrderService salesOrderService;
     private final BusinessPartnerRepository partnerRepository;
@@ -91,7 +106,9 @@ public class ShipmentService {
                 .build();
         applyHeader(shipment, req, shipDate);
         applyLines(shipment, req);
-        return ShipmentResponse.from(shipmentRepository.save(shipment));
+        Shipment savedOne = shipmentRepository.save(shipment);
+        recordHistory(savedOne, com.erp.common.history.ChangeHistoryService.CREATED);
+        return ShipmentResponse.from(savedOne);
     }
 
     /**
@@ -112,6 +129,7 @@ public class ShipmentService {
         applyLines(shipment, req);
         shipmentRepository.flush();
         if (shipment.getSalesOrder() != null) recalcOrderProgress(shipment.getSalesOrder());
+        recordHistory(shipment, com.erp.common.history.ChangeHistoryService.UPDATED);
         return ShipmentResponse.from(shipment);
     }
 
@@ -284,7 +302,9 @@ public class ShipmentService {
             order.setStatus(SalesOrderStatus.IN_PROGRESS);
         }
 
-        return ShipmentResponse.from(shipmentRepository.save(shipment));
+        Shipment savedOrderShip = shipmentRepository.save(shipment);
+        recordHistory(savedOrderShip, com.erp.common.history.ChangeHistoryService.CREATED);
+        return ShipmentResponse.from(savedOrderShip);
     }
 
     @Transactional
@@ -299,6 +319,7 @@ public class ShipmentService {
             shipmentRepository.flush();
             recalcOrderProgress(shipment.getSalesOrder());
         }
+        if (previous != status) recordHistory(shipment, com.erp.common.history.ChangeHistoryService.STATUS_CHANGED);
         return ShipmentResponse.from(shipment);
     }
 
@@ -338,6 +359,7 @@ public class ShipmentService {
     public void delete(Long id) {
         Shipment shipment = shipmentRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("출하를 찾을 수 없습니다. id=" + id));
+        recordHistory(shipment, com.erp.common.history.ChangeHistoryService.DELETED);
         shipmentRepository.delete(shipment);
     }
 
@@ -395,7 +417,9 @@ public class ShipmentService {
         }
         shipment.setTotalQuantity(totalQty);
         shipment.setTotalAmount(totalAmount);
-        return ShipmentResponse.from(shipmentRepository.save(shipment));
+        Shipment savedFromSo = shipmentRepository.save(shipment);
+        recordHistory(savedFromSo, com.erp.common.history.ChangeHistoryService.CREATED);
+        return ShipmentResponse.from(savedFromSo);
     }
 
     private String generateShipNo(LocalDate date) {

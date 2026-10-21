@@ -33,6 +33,17 @@ public class StockTransferService {
     private final WarehouseRepository warehouseRepository;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    public static final String HISTORY_TARGET = "STOCK_TRANSFER";
+
+    /** 거래이력조회(재고) 메뉴 '창고이동' 한 줄 — 전표(이동번호)의 첫 줄 행 id 가 대상이다. */
+    private void recordHistory(String action, List<StockTransfer> rows) {
+        StockTransfer first = rows.get(0);
+        changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("창고이동", first.getTransferDate(), first.getTransferNo(),
+                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), rows.size())));
+    }
 
     @Transactional(readOnly = true)
     public List<TransferResponse> findAll() {
@@ -90,7 +101,9 @@ public class StockTransferService {
                 .reason(req.reason())
                 .createdBy(username)
                 .build();
-        return TransferResponse.from(transferRepository.save(transfer));
+        StockTransfer savedOne = transferRepository.save(transfer);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, List.of(savedOne));
+        return TransferResponse.from(savedOne);
     }
 
     /**
@@ -120,6 +133,7 @@ public class StockTransferService {
         stockService.applyDelta(t.getItem(), t.getFromWarehouse(), t.getQuantity(),
                 StockTransactionType.INBOUND, null, t.getTransferDate(), note, username);
 
+        recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(t));
         transferRepository.delete(t);
     }
 
@@ -138,7 +152,9 @@ public class StockTransferService {
     @Transactional
     public List<TransferResponse> createSlip(TransferSlipRequest req, String username) {
         LocalDate date = req.transferDate() != null ? req.transferDate() : LocalDate.now();
-        return writeSlip(generateNo(date), date, req, username);
+        List<TransferResponse> out = writeSlip(generateNo(date), date, req, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, transferRepository.findSlip(out.get(0).transferNo()));
+        return out;
     }
 
     /**
@@ -152,7 +168,9 @@ public class StockTransferService {
         if (old.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
         withdraw(old.get(0));
         LocalDate date = req.transferDate() != null ? req.transferDate() : old.get(0).getTransferDate();
-        return writeSlip(transferNo, date, req, username, old);
+        List<TransferResponse> out = writeSlip(transferNo, date, req, username, old);
+        recordHistory(com.erp.common.history.ChangeHistoryService.UPDATED, transferRepository.findSlip(transferNo));
+        return out;
     }
 
     /** 창고이동 전표 삭제 — 줄마다 남긴 수불 줄을 거두고(잔량은 되돌림) 전표를 지운다. 원본도 삭제 뒤 수불부에 줄이 안 남는다. */
@@ -161,6 +179,7 @@ public class StockTransferService {
         List<StockTransfer> old = transferRepository.findSlip(transferNo);
         if (old.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
         withdraw(old.get(0));
+        recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, old);
         transferRepository.deleteAll(old);
     }
 

@@ -55,7 +55,12 @@ public class ChangeHistoryService {
      */
     public record SlipSnapshot(String menu, LocalDate docDate, String docNo,
                                String partnerCode, String partnerName, String itemSummary,
-                               String managerCode, String managerName, String docStatus) {}
+                               String managerCode, String managerName, String docStatus) {
+        /** 거래처 · 담당자 · 전표상태 없이 메뉴 · 전표일자/번호 · 품목(요약)만 있는 전표(재고 · 생산). */
+        public static SlipSnapshot of(String menu, LocalDate docDate, String docNo, String itemSummary) {
+            return new SlipSnapshot(menu, docDate, docNo, null, null, itemSummary, null, null, null);
+        }
+    }
 
     /** 원본 상태 변경 행위 글자(견적서 [진행상태변경] 실측 '상태변경'). */
     public static final String STATUS_CHANGED = "상태변경";
@@ -80,6 +85,17 @@ public class ChangeHistoryService {
                 .partnerCode(s.partnerCode()).partnerName(s.partnerName()).itemSummary(s.itemSummary())
                 .managerCode(s.managerCode()).managerName(s.managerName()).docStatus(s.docStatus())
                 .build());
+    }
+
+    /**
+     * 줄을 지웠다 다시 쓰는 전표(수정하면 행 id 가 바뀜)용 — 같은 전표번호로 먼저 적은 이력이 있으면 그 대상 id 를 이어 쓴다.
+     * 없으면 fallbackId. 그래야 수정 뒤에도 [H] 와 [최종이력만 검색] 이 한 전표로 묶인다.
+     */
+    @Transactional
+    public void recordSlipByNo(String target, Long fallbackId, String action, SlipSnapshot s) {
+        Long id = s.docNo() == null ? fallbackId
+                : repository.findFirstByTargetAndDocNoOrderByIdAsc(target, s.docNo()).map(ChangeHistory::getTargetId).orElse(fallbackId);
+        recordSlip(target, id, action, s);
     }
 
     /**

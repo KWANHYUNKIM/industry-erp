@@ -59,6 +59,30 @@ public class PurchaseOrderService {
     private final PurchaseLineRepository purchaseLineRepository;
     private final PurchaseOrderLineRepository orderLineRepository;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    public static final String HISTORY_TARGET = "PURCHASE_ORDER";
+
+    /**
+     * 거래이력조회(재고) — 발주서 한 엔티티가 상태로 세 메뉴다(원본 메뉴검색 '발주요청' · '단가요청' · '발주서').
+     * 발주요청 → 발주요청, 단가요청 · 단가확정 → 단가요청, 발주계획 · 발주확정 · 입고전환 · 취소 → 발주서.
+     * (발주계획은 원본 메뉴검색에 없음 — 어느 메뉴에 묶이는지 원본 재기 필요.)
+     */
+    private void recordHistory(PurchaseOrder po, String action, PurchaseOrderStatus status) {
+        String menu = switch (status) {
+            case REQUESTED -> "발주요청";
+            case PRICE_REQUESTED, PRICED -> "단가요청";
+            default -> "발주서";
+        };
+        PurchaseOrderLine first = po.getLines().isEmpty() ? null : po.getLines().get(0);
+        changeHistory.recordSlip(HISTORY_TARGET, po.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot(menu, po.getOrderDate(), po.getOrderNo(),
+                po.getPartner() != null ? po.getPartner().getCode() : null,
+                po.getPartner() != null ? po.getPartner().getName() : null,
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), po.getLines().size()),
+                po.getEmployee() != null ? po.getEmployee().getCode() : null,
+                po.getEmployee() != null ? po.getEmployee().getName() : null,
+                status.getDisplayName()));
+    }
 
     /**
      * 미구매 발주 줄 — 발주수량에서 이미 구매로 끊은 수량을 뺀 잔량이 남은 줄만.
@@ -303,6 +327,7 @@ public class PurchaseOrderService {
         }
         recalculate(po);
         po.setUpdatedBy(username);
+        recordHistory(po, com.erp.common.history.ChangeHistoryService.UPDATED, po.getStatus());
         return PurchaseOrderResponse.from(orderRepository.save(po));
     }
 
@@ -534,6 +559,7 @@ public class PurchaseOrderService {
             throw ApiException.conflict(
                     "입고된 구매전표가 있어 지울 수 없습니다. 먼저 구매전표를 지우세요: " + order.getOrderNo());
         }
+        recordHistory(order, com.erp.common.history.ChangeHistoryService.DELETED, order.getStatus());
         orderRepository.delete(order);
     }
 
@@ -551,6 +577,7 @@ public class PurchaseOrderService {
                        String username, String note) {
         /* 단계를 넘긴 사람도 [최종수정자] 다. */
         if (username != null) po.setUpdatedBy(username);
+        recordHistory(po, from == null ? com.erp.common.history.ChangeHistoryService.CREATED : com.erp.common.history.ChangeHistoryService.STATUS_CHANGED, to);
         historyRepository.save(com.erp.trade.purchaseorder.PurchaseOrderHistory.builder()
                 .order(po)
                 .changedAt(java.time.LocalDateTime.now())

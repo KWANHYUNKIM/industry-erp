@@ -38,6 +38,38 @@ public class StockAdjustmentService {
     private final DocumentNoGenerator docNoGenerator;
     private final StocktakeRepository stocktakeRepository;
     private final StockAdjustmentHistoryRepository historyRepository;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    /** 거래이력조회(재고) 대상 글자 — 조정 줄(자가사용 · 불량처리 · 간편재고조정)과 실사. */
+    public static final String HISTORY_TARGET = "STOCK_ADJUSTMENT";
+    public static final String STOCKTAKE_HISTORY_TARGET = "STOCKTAKE";
+
+    /** 거래이력조회 메뉴 글자 — 우리 유형 중 원본 메뉴검색에 없는 대체사용 · 폐기는 null(적지 않는다). */
+    private static String historyMenu(StockAdjustment a) {
+        return switch (a.getType()) {
+            case SELF_USE -> "자가사용";
+            case DEFECT -> "불량처리";
+            case ADJUST -> a.getReason() != null && a.getReason().startsWith("단계별조정 ") ? "단계별조정전표" : "간편조정전표";
+            default -> null;
+        };
+    }
+
+    /** 전표(번호) 한 장의 행위를 한 줄 — 대상 id 는 첫 줄 행. */
+    private void recordHistory(String action, List<StockAdjustment> rows) {
+        if (rows.isEmpty()) return;
+        StockAdjustment first = rows.get(0);
+        String menu = historyMenu(first);
+        if (menu == null) return;
+        changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of(menu, first.getAdjustDate(), first.getAdjustNo(),
+                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), rows.size())));
+    }
+
+    private void recordStocktake(String action, Stocktake t) {
+        changeHistory.recordSlip(STOCKTAKE_HISTORY_TARGET, t.getId(), action,
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("실사전표", t.getStocktakeDate(), t.getStocktakeNo(),
+                        com.erp.common.history.ChangeHistoryService.itemSummary(t.getItem().getName(), t.getItem().getSpec(), 1)));
+    }
 
     /**
      * 원본 [오천건이상조회] 와 같은 문턱. 이 위로는 눌러야 간다.
@@ -173,8 +205,9 @@ public class StockAdjustmentService {
                 .build();
         StockAdjustment saved = adjustmentRepository.save(adjustment);
         logHistory(saved, "신규", username);
+        if (simpleStocktake) recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, List.of(saved));
         if (simpleStocktake && req.type() == StockAdjustmentType.ADJUST) {
-            stocktakeRepository.save(Stocktake.builder()
+            Stocktake st = stocktakeRepository.save(Stocktake.builder()
                     .stocktakeNo(docNoGenerator.next("ST-", "stocktakes", "stocktake_no", "stocktake_date", date))
                     .stocktakeDate(date)
                     .warehouse(warehouse)
@@ -184,6 +217,7 @@ public class StockAdjustmentService {
                     .adjustment(saved)
                     .createdBy(username)
                     .build());
+            recordStocktake(com.erp.common.history.ChangeHistoryService.CREATED, st);
         }
         return AdjustmentResponse.from(saved);
     }
@@ -207,6 +241,7 @@ public class StockAdjustmentService {
         Stocktake s = stocktakeRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("재고실사를 찾을 수 없습니다. id=" + id));
         StockAdjustment a = s.getAdjustment();
+        recordStocktake(com.erp.common.history.ChangeHistoryService.DELETED, s);
         stocktakeRepository.delete(s);
         stocktakeRepository.flush();
         if (a != null) delete(a.getId(), username);
@@ -225,6 +260,7 @@ public class StockAdjustmentService {
                 .orElseThrow(() -> ApiException.notFound("재고조정을 찾을 수 없습니다. id=" + id));
         revert(a, username);
         logHistory(a, "삭제", username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(a));
         adjustmentRepository.delete(a);
     }
 
@@ -267,7 +303,9 @@ public class StockAdjustmentService {
     public StockAdjustmentDtos.SlipResponse createSlip(StockAdjustmentDtos.SlipRequest req, String username) {
         LocalDate date = req.date() != null ? req.date() : LocalDate.now();
         String adjustNo = docNoGenerator.next(req.type().getDocPrefix(), "stock_adjustments", "adjust_no", "adjust_date", date);
-        return writeSlip(adjustNo, date, req, username);
+        StockAdjustmentDtos.SlipResponse out = writeSlip(adjustNo, date, req, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, slipRows(adjustNo));
+        return out;
     }
 
     @Transactional(readOnly = true)
@@ -288,7 +326,9 @@ public class StockAdjustmentService {
         adjustmentRepository.deleteAll(old);
         /* Hibernate 는 flush 때 insert 를 delete 보다 먼저 보낸다 — 같은 (번호, 줄번호)로 다시 넣으면 유일 제약에 걸린다. */
         adjustmentRepository.flush();
-        return writeSlip(adjustNo, date, req, username);
+        StockAdjustmentDtos.SlipResponse out = writeSlip(adjustNo, date, req, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.UPDATED, slipRows(adjustNo));
+        return out;
     }
 
     /** 원본 자가사용수정의 [삭제] — '전표를 삭제하겠습니까?' 뒤 전표의 모든 줄을 지우고 재고를 되돌린다. */
@@ -296,6 +336,7 @@ public class StockAdjustmentService {
     public void deleteSlip(String adjustNo, String username) {
         List<StockAdjustment> rows = slipRows(adjustNo);
         withdrawSlip(rows, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, rows);
         adjustmentRepository.deleteAll(rows);
     }
 

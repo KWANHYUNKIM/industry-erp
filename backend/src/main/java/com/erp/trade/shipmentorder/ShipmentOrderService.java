@@ -51,6 +51,21 @@ public class ShipmentOrderService {
     private final ProjectService projectService;
     private final ShipmentService shipmentService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    public static final String HISTORY_TARGET = "SHIPMENT_ORDER";
+
+    /** 거래이력조회(재고) 메뉴 '출하지시서' 한 줄 — 전표상태는 진행상태 글자. */
+    private void recordHistory(ShipmentOrder o, String action) {
+        ShipmentOrderLine first = o.getLines().isEmpty() ? null : o.getLines().get(0);
+        BusinessPartner p = o.getPartner();
+        changeHistory.recordSlip(HISTORY_TARGET, o.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot("출하지시서", o.getOrderDate(), o.getOrderNo(),
+                p != null ? p.getCode() : null, p != null ? p.getName() : null,
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), o.getLines().size()),
+                o.getEmployee() != null ? o.getEmployee().getCode() : null,
+                o.getEmployee() != null ? o.getEmployee().getName() : null,
+                o.getStatus() != null ? o.getStatus().getDisplayName() : null));
+    }
 
     @Transactional(readOnly = true)
     public List<ShipmentOrderResponse> findAll(LocalDate from, LocalDate to) {
@@ -109,7 +124,9 @@ public class ShipmentOrderService {
                     .quantity(lr.quantity()).remark(lr.remark()).build());
         }
         o.setTotalQuantity(total(o));
-        return respond(repository.save(o));
+        ShipmentOrder savedOne = repository.save(o);
+        recordHistory(savedOne, com.erp.common.history.ChangeHistoryService.CREATED);
+        return respond(savedOne);
     }
 
     /** 수정 — 원본 '출하지시서입력(수정)' 창. 기존 줄은 id 로 맞춰 고친다(이어진 출하가 계속 그 줄을 가리킨다). */
@@ -139,6 +156,7 @@ public class ShipmentOrderService {
         added.forEach(o::addLine);
         o.setTotalQuantity(total(o));
         repository.flush();
+        recordHistory(o, com.erp.common.history.ChangeHistoryService.UPDATED);
         return respond(o);
     }
 
@@ -146,14 +164,18 @@ public class ShipmentOrderService {
     @Transactional
     public ShipmentOrderResponse updateStatus(Long id, ShipmentOrderStatus status) {
         ShipmentOrder o = load(id);
+        boolean changed = o.getStatus() != status;
         o.setStatus(status);
+        if (changed) recordHistory(o, com.erp.common.history.ChangeHistoryService.STATUS_CHANGED);
         return respond(o);
     }
 
     /** 삭제 — 원본은 출하가 이어져 있어도 막지 않는다. 출하 줄의 연결만 비워진다(DB ON DELETE SET NULL). */
     @Transactional
     public void delete(Long id) {
-        repository.delete(load(id));
+        ShipmentOrder o = load(id);
+        recordHistory(o, com.erp.common.history.ChangeHistoryService.DELETED);
+        repository.delete(o);
     }
 
     /** 출하지시서에 이어 출하를 만든다(원본 출하입력 [출하지시] › 잔량적용 → 수량 고쳐 저장). */

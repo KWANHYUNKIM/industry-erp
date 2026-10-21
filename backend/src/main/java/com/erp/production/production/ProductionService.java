@@ -33,6 +33,24 @@ import com.erp.production.production.dto.ProductionDtos;
 @RequiredArgsConstructor
 public class ProductionService {
 
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    public static final String HISTORY_TARGET = "PRODUCTION";
+
+    /** 거래이력조회(재고) 메뉴 — 원본 메뉴검색 '생산입고I' · '생산입고II' · '생산입고 III'(띄어쓰기도 원본 그대로). 담당자는 id 만 있어(hr 참조 금지) 빈칸. */
+    private void recordHistory(String action, List<Production> rows) {
+        if (rows.isEmpty()) return;
+        Production first = rows.get(0);
+        String menu = switch (first.getEntryType()) {
+            case I -> "생산입고I";
+            case II -> "생산입고II";
+            case III -> "생산입고 III";
+        };
+        changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of(menu, first.getProductionDate(), first.getProdNo(),
+                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getProduct().getName(), first.getProduct().getSpec(), rows.size())));
+    }
+
     private final ProductionRepository productionRepository;
     private final WorkOrderRepository workOrderRepository;
     private final BomRepository bomRepository;
@@ -137,7 +155,9 @@ public class ProductionService {
     @Transactional
     public List<ProductionResponse> createSlip(SaveProductionSlipRequest req, String username) {
         LocalDate date = req.productionDate() != null ? req.productionDate() : LocalDate.now();
-        return saveSlip(req, generateProdNo(date), date, username);
+        List<ProductionResponse> out = saveSlip(req, generateProdNo(date), date, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, productionRepository.findSlip(out.get(0).prodNo()));
+        return out;
     }
 
     /**
@@ -156,7 +176,9 @@ public class ProductionService {
         productionRepository.deleteAll(old);
         productionRepository.flush();
         String no = date.equals(oldDate) ? prodNo : generateProdNo(date);
-        return saveSlip(req, no, date, username);
+        List<ProductionResponse> out = saveSlip(req, no, date, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.UPDATED, productionRepository.findSlip(no));
+        return out;
     }
 
     /** 전표째 지운다. 원본 생산입고 전표의 [삭제]. */
@@ -165,6 +187,7 @@ public class ProductionService {
         List<Production> rows = productionRepository.findSlip(prodNo);
         if (rows.isEmpty()) throw ApiException.notFound("생산입고 전표를 찾을 수 없습니다: " + prodNo);
         for (Production p : rows) reverse(p, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, rows);
         productionRepository.deleteAll(rows);
     }
 
@@ -279,6 +302,7 @@ public class ProductionService {
                     req.fromWarehouseId(), req.warehouseId(), req.projectId(),
                     line.note(), line.laborMinutes(), req.employeeId(), line.materials()), username, prodNo, lineNo));
         }
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, productionRepository.findSlip(prodNo));
         return out;
     }
 
@@ -286,7 +310,10 @@ public class ProductionService {
     @Transactional
     public ProductionResponse create(CreateProductionRequest req, String username) {
         LocalDate date = req.productionDate() != null ? req.productionDate() : LocalDate.now();
-        return create(req, username, generateProdNo(date), 1);
+        String no = generateProdNo(date);
+        ProductionResponse out = create(req, username, no, 1);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, productionRepository.findSlip(no));
+        return out;
     }
 
     private ProductionResponse create(CreateProductionRequest req, String username, String prodNo, int lineNo) {
@@ -400,6 +427,10 @@ public class ProductionService {
                 .orElseThrow(() -> ApiException.notFound("생산실적을 찾을 수 없습니다. id=" + id));
         reverse(p, username);
         productionRepository.delete(p);
+        productionRepository.flush();
+        List<Production> rest = productionRepository.findSlip(p.getProdNo());
+        if (rest.isEmpty()) recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(p));
+        else recordHistory(com.erp.common.history.ChangeHistoryService.UPDATED, rest);
     }
 
     /**

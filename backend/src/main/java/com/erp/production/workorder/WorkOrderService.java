@@ -32,6 +32,17 @@ public class WorkOrderService {
     private final com.erp.common.FileStorageService fileStorageService;
     private final ProductionRepository productionRepository;
     private final ProductionPlanRepository planRepository;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    public static final String HISTORY_TARGET = "WORK_ORDER";
+
+    /** 거래이력조회(재고) 메뉴 '작업지시서' 한 줄 — 전표(지시번호)의 첫 줄 행 id 가 열쇠. 담당자는 id 만 있어(hr 참조 금지) 빈칸. */
+    private void recordHistory(String action, List<WorkOrder> rows) {
+        WorkOrder first = rows.get(0);
+        changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("작업지시서", first.getOrderDate(), first.getOrderNo(),
+                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getProduct().getName(), first.getProduct().getSpec(), rows.size())));
+    }
     /**
      * 납품처를 붙이려면 거래처를 읽어야 한다. trade 의 공개 service 를 거친다 —
      * 리포지토리를 직접 주입하면 그 모듈의 규칙을 우회하게 된다(CLAUDE.md 4.2).
@@ -86,6 +97,13 @@ public class WorkOrderService {
     public void delete(Long id) {
         WorkOrder wo = workOrderRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + id));
+        recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(wo));
+        removeRow(id);
+    }
+
+    private void removeRow(Long id) {
+        WorkOrder wo = workOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + id));
         ensureEditable(wo);
 
         long results = productionRepository.countByWorkOrder_Id(id);
@@ -124,7 +142,9 @@ public class WorkOrderService {
                 .createdBy(username)
                 .build();
 
-        return WorkOrderResponse.from(workOrderRepository.save(wo));
+        WorkOrder savedOne = workOrderRepository.save(wo);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, List.of(savedOne));
+        return WorkOrderResponse.from(savedOne);
     }
 
     /** 전표 하나의 줄들. 원본 작업지시서조회에서 번호를 눌러 여는 것. */
@@ -139,7 +159,9 @@ public class WorkOrderService {
     @Transactional
     public List<WorkOrderResponse> createSlip(ProductionDtos.SaveWorkOrderSlipRequest req, String username) {
         LocalDate orderDate = req.orderDate() != null ? req.orderDate() : LocalDate.now();
-        return saveSlip(req, generateOrderNo(orderDate), orderDate, List.of(), username);
+        List<WorkOrderResponse> out = saveSlip(req, generateOrderNo(orderDate), orderDate, List.of(), username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, workOrderRepository.findSlip(out.get(0).orderNo()));
+        return out;
     }
 
     /**
@@ -155,7 +177,9 @@ public class WorkOrderService {
         if (old.isEmpty()) throw ApiException.notFound("작업지시서를 찾을 수 없습니다: " + orderNo);
         old.forEach(WorkOrderService::ensureEditable);
         LocalDate orderDate = req.orderDate() != null ? req.orderDate() : old.get(0).getOrderDate();
-        return saveSlip(req, orderNo, orderDate, old, username);
+        List<WorkOrderResponse> out = saveSlip(req, orderNo, orderDate, old, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.UPDATED, workOrderRepository.findSlip(orderNo));
+        return out;
     }
 
     /** 원본 작업지시서조회 [진행상태변경]. 미확인 ↔ 확인만 사람이 바꾼다. 바꾼 전표 수를 준다. */
@@ -187,7 +211,8 @@ public class WorkOrderService {
     public void deleteSlip(String orderNo) {
         List<WorkOrder> rows = workOrderRepository.findSlip(orderNo);
         if (rows.isEmpty()) throw ApiException.notFound("작업지시서를 찾을 수 없습니다: " + orderNo);
-        for (WorkOrder wo : rows) delete(wo.getId());
+        recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, rows);
+        for (WorkOrder wo : rows) removeRow(wo.getId());
     }
 
     private List<WorkOrderResponse> saveSlip(ProductionDtos.SaveWorkOrderSlipRequest req, String orderNo,
