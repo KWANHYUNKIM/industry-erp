@@ -32,6 +32,7 @@ public final class SalesOrderDtos {
             Long projectId,
             Long employeeId,
             Boolean taxable,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String currencyCode,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
@@ -49,6 +50,7 @@ public final class SalesOrderDtos {
             Long projectId,
             Long employeeId,
             Boolean taxable,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String currencyCode,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
@@ -240,6 +242,7 @@ public final class SalesOrderDtos {
              */
             Long orderTypeId, String orderTypeName,
             Long stageId, String stageName,
+            String currencyCode,
             List<OrderLineResponse> lines
     ) {
         public static SalesOrderResponse from(SalesOrder o) {
@@ -261,6 +264,7 @@ public final class SalesOrderDtos {
                     o.getOrderType() != null ? o.getOrderType().getName() : null,
                     o.getStage() != null ? o.getStage().getId() : null,
                     o.getStage() != null ? o.getStage().getName() : null,
+                    o.getCurrencyCode(),
                     o.getLines().stream().map(OrderLineResponse::from).toList());
         }
     }

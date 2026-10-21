@@ -10,7 +10,7 @@ import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import type { Item, Partner, Quotation, QuotationStatus } from '../../types/api'
+import type { Currency, Item, Partner, Quotation, QuotationStatus } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -56,6 +56,13 @@ export default function QuotationPage() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string }[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
+  /** 다른전표생성 입력 창 [담당자] · [통화] 직접입력 후보. */
+  const [genEmps, setGenEmps] = useState<{ id: number; code: string; name: string }[]>([])
+  const [genCurrencies, setGenCurrencies] = useState<Currency[]>([])
+  useEffect(() => {
+    api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees').then((r) => setGenEmps(r.data.filter((e) => e.active !== false))).catch(() => setGenEmps([]))
+    api.get<Currency[]>('/currencies').then((r) => setGenCurrencies(r.data.filter((c) => c.active))).catch(() => setGenCurrencies([]))
+  }, [])
   const [tab, setTab] = useState<Tab>('ALL')
   /** 빠른 검색칸(Search(F3) 옆) — 거래처명 · 일자-No. */
   const [keyword, setKeyword] = useState('')
@@ -299,7 +306,8 @@ export default function QuotationPage() {
   const [genByItem, setGenByItem] = useState(false)
   /* 직접입력을 고른 칸만 값을 따로 받는다(원본: 라디오를 바꾸면 그 줄에 일자 · 코드도움 · 선택 칸이 나타난다). */
   const [genDirect, setGenDirect] = useState<Record<string, boolean>>({})
-  const [genVal, setGenVal] = useState<{ date: string; partner: string; wh: string; project: string; due: string }>({ date: '', partner: '', wh: '', project: '', due: '' })
+  /* 거래유형 · 통화 직접입력: 원본 select — 거래유형 '부가세율 적용'(기본) · '부가세율 미적용', 통화 '내자'(기본) · 외화등록 통화(2026-10-22 실측). */
+  const [genVal, setGenVal] = useState<{ date: string; partner: string; wh: string; project: string; due: string; emp: string; taxable: boolean; currency: string }>({ date: '', partner: '', wh: '', project: '', due: '', emp: '', taxable: true, currency: '' })
   const GEN_FIELDS = ['일자', '거래처', '담당자', '출하창고', '거래유형', '통화', '프로젝트', '납기일자', '새로운 항목 추가']
   async function convertPerSlip(byItem = false) {
     const todayStr = ymd(new Date())
@@ -316,7 +324,9 @@ export default function QuotationPage() {
             dueDate: genDirect['납기일자'] ? (genVal.due || undefined) : todayStr,
             warehouseId: genDirect['출하창고'] && genVal.wh ? Number(genVal.wh) : q.warehouseId ?? undefined,
             projectId: genDirect['프로젝트'] && genVal.project ? Number(genVal.project) : q.projectId ?? undefined,
-            taxable: q.vatAmount > 0,
+            employeeId: genDirect['담당자'] ? (genVal.emp ? Number(genVal.emp) : undefined) : undefined,
+            taxable: genDirect['거래유형'] ? genVal.taxable : q.vatAmount > 0,
+            currencyCode: genDirect['통화'] ? genVal.currency : undefined,
             lines: byItem
               /* 자료묶음기준 [품목별] — 같은 품목 줄을 한 줄로(수량 합 · 단가는 가중평균, 원본 2026-10-21: 포장재 3 × 500 + 1 × 700 → 4 · 공급가 2,200). */
               ? [...q.lines.reduce((m, l) => {
@@ -487,6 +497,18 @@ export default function QuotationPage() {
                   {genDirect[f] && f === '출하창고' && (
                     <CodePickerField label="출하창고" hideLabel width={200} emptyLabel="" value={genVal.wh} onChange={(v) => setGenVal((x) => ({ ...x, wh: v }))}
                                      items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />)}
+                  {genDirect[f] && f === '담당자' && (
+                    <CodePickerField label="담당자" hideLabel width={200} emptyLabel="" value={genVal.emp} onChange={(v) => setGenVal((x) => ({ ...x, emp: v }))}
+                                     items={genEmps.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />)}
+                  {genDirect[f] && f === '거래유형' && (
+                    <select className="ec-input w-[200px]" value={genVal.taxable ? 'Y' : 'N'} onChange={(e) => setGenVal((x) => ({ ...x, taxable: e.target.value === 'Y' }))}>
+                      <option value="Y">부가세율 적용</option><option value="N">부가세율 미적용</option>
+                    </select>)}
+                  {genDirect[f] && f === '통화' && (
+                    <select className="ec-input w-[200px]" value={genVal.currency} onChange={(e) => setGenVal((x) => ({ ...x, currency: e.target.value }))}>
+                      <option value="">내자</option>
+                      {genCurrencies.map((c) => <option key={c.id} value={c.code}>{c.name} [{c.code}]</option>)}
+                    </select>)}
                   {genDirect[f] && f === '프로젝트' && (
                     <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="" value={genVal.project} onChange={(v) => setGenVal((x) => ({ ...x, project: v }))}
                                      items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />)}

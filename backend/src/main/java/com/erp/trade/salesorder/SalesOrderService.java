@@ -206,6 +206,7 @@ public class SalesOrderService {
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
+                .currencyCode(req.currencyCode() == null || req.currencyCode().isBlank() ? null : req.currencyCode())
                 /* 원본은 저장하자마자 [진행상태] 가 '진행중' 이다(2026-10-13 실측 — 접수 단계가 없다). */
                 .status(SalesOrderStatus.IN_PROGRESS)
                 .remark(req.remark())
@@ -242,6 +243,8 @@ public class SalesOrderService {
         order.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         order.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
         order.setEmployee(req.employeeId() == null ? null : employeeService.get(req.employeeId()));
+        /* 수정 화면은 통화 칸이 없어 안 보낸다 — 보내지 않으면(null) 정해 둔 통화를 그대로 둔다. */
+        if (req.currencyCode() != null) order.setCurrencyCode(req.currencyCode().isBlank() ? null : req.currencyCode());
         order.setRemark(req.remark());
         order.getLines().clear();
         fillLines(order, req.lines(), req.taxable() == null || req.taxable());

@@ -363,6 +363,12 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     if (e.kind.startsWith('판매')) setEntryPopup({ mode: 'sales', id: Number(e.key.slice(1)) })
     else if (e.kind.startsWith('구매')) setEntryPopup({ mode: 'purchase', id: Number(e.key.slice(1)) })
   }
+  /*
+   * 수금 · 지급 줄의 일자-No. 링크(2026-10-22 실측, 거래처관리대장1 채권 · 채무): 대장 위에 회계 창이 뜬다 — 수금은 '입금보고서'(머리 일자 · 첨언내용 · 탭 찾기(F3) · 자금계획 ·
+   * 계좌입출금내역 · 결제대행사내역, 격자 돈 들어온 계좌 검색 · 돈 들어온 계좌명 · 계정코드(대변) · 계정코드명 · 거래처 검색 · 거래처명 · 금액 · 적요명 · 추가정보),
+   * 지급은 '지출결의서'(돈 나간 계좌 · 계정코드(차변), 탭에 카드매입내역 · 계정별잔액). 우리 수금 · 지급은 회계전표가 아니라 수금 전표라 있는 값(일자 · 거래처 · 금액 · 적요)만 채운다.
+   */
+  const [settlePopup, setSettlePopup] = useState<Entry | null>(null)
   const showDetail = group === '전표별+내역'
   const COLS = 8
 
@@ -453,7 +459,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                               <td>{dayOrMonth
                                 ? (group === '월별' ? r.entry.date.replace('-', '/') : dateText(r.entry.date))
                                 : (r.entry.kind === '수금' || r.entry.kind === '지급')
-                                  ? <>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</>
+                                  ? <a className="cursor-pointer" onClick={() => setSettlePopup(r.entry)}>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</a>
                                   : <a className="cursor-pointer" onClick={() => openEntry(r.entry)}>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</a>}</td>
                               <td>{dayOrMonth ? (group === '월별' ? '월계' : '일계')
                                 : <>{r.entry.kind.endsWith('반품') ? `${r.entry.kind} ` : ''}{r.entry.memo ?? ''}</>}</td>
@@ -701,6 +707,39 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
           </tr>
         </tfoot>
       </table>}
+      {settlePopup && (() => {
+        const receipt = settlePopup.kind === '수금'
+        const title = receipt ? '입금보고서' : '지출결의서'
+        const code = pickers.partners.find((x) => x.id === settlePopup.partnerId)?.code ?? ''
+        const tabs = receipt ? ['찾기(F3)', '자금계획', '계좌입출금내역', '결제대행사내역'] : ['찾기(F3)', '자금계획', '계좌입출금내역', '카드매입내역', '계정별잔액']
+        return (
+          <div className="ec-modal-back">
+            <div role="dialog" aria-modal="true" aria-label={title} className="ec-modal w-[max(960px,50vw)]">
+              <div className="ec-modal-bar">
+                <span className="name">{title}</span>
+                <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => setSettlePopup(null)}>✕</button>
+              </div>
+              <div className="ec-modal-body">
+                <div className="ec-page-head"><span className="ec-page-title">{title}</span></div>
+                <div className="mb-[8px] text-[12.5px]">일자 <b>{dateText(settlePopup.date)}</b></div>
+                <div className="mb-[8px] text-[12.5px]">첨언내용 {settlePopup.memo ?? ''}</div>
+                <div className="mb-[6px] flex gap-[14px] text-[12.5px] text-ec-hint">{tabs.map((t) => <span key={t}>{t}</span>)}</div>
+                <table className="w-full text-left">
+                  <thead><tr>
+                    <th>{receipt ? '돈 들어온 계좌 검색' : '돈 나간 계좌 검색'}</th><th>{receipt ? '돈 들어온 계좌명' : '돈 나간 계좌명'}</th>
+                    <th>{receipt ? '계정코드(대변)' : '계정코드(차변)'}</th><th>계정코드명</th><th>거래처 검색</th><th>거래처명</th><th className="text-right">금액</th><th>적요명</th><th>추가정보</th>
+                  </tr></thead>
+                  <tbody><tr>
+                    <td></td><td></td><td></td><td></td><td>{code}</td><td>{settlePopup.partnerName}</td>
+                    <td className="text-right">{won(settlePopup.decrease)}</td><td>{settlePopup.memo ?? ''}</td><td></td>
+                  </tr></tbody>
+                </table>
+                <div className="mt-[10px]"><button type="button" className="ec-btn" onClick={() => setSettlePopup(null)}>닫기</button></div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
       {entryPopup && (
         <div className="ec-modal-back">
           <div role="dialog" aria-modal="true" aria-label={entryPopup.mode === 'sales' ? '판매입력(수정)' : '구매입력(수정)'} className="ec-modal w-[max(960px,50vw)]">

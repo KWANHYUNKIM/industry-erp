@@ -67,6 +67,10 @@ public class SalesOrder extends BaseTimeEntity {
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
+    /** 원본 주문서의 [통화] — 내자(비어 있음) 또는 외화등록의 통화 코드. 다른전표생성 입력 창의 [통화] 직접입력이 정한다(2026-10-22 실측). */
+    @Column(name = "currency_code", length = 10)
+    private String currencyCode;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
