@@ -524,11 +524,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/hr/ContractPage.tsx": {
-  "inline": 22,
-  "color": 4,
-  "palette": 0
- },
  "pages/hr/DailyWagePage.tsx": {
   "inline": 16,
   "color": 4,

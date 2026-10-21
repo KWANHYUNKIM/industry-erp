@@ -2426,10 +2426,10 @@ export type ContractStatus = 'DRAFT' | 'SENT' | 'SIGNED' | 'TERMINATED'
 export interface EmploymentContract {
   id: number
   contractNo: string
-  employeeId: number
+  employeeId: number | null
   employeeCode: string
   employeeName: string
-  type: ContractType
+  type: ContractType | null
   typeName: string
   status: ContractStatus
   statusName: string
@@ -2449,6 +2449,18 @@ export interface EmploymentContract {
   /** 원본 근로계약현황 [요청일시] · [최종수정일자] */
   sentAt: string | null
   updatedAt: string | null
+  /** 원본 근로계약서진행단계 [최초작성일자] */
+  createdAt: string | null
+  /** 원본 계약서입력 — 계약서명 · 첨부(PDF) · 2차인증사용여부 · 구분 · 프로젝트, 수신정보입력 전달방식 */
+  contractName: string
+  attachmentFileId: number | null
+  attachmentName: string | null
+  attachmentSize: number | null
+  twoFactor: boolean
+  category: string
+  projectId: number | null
+  deliveryMethod: 'EMAIL' | 'SMS' | 'KAKAO' | 'DIRECT' | null
+  deliveryMethodName: string
 }
 
 // ===== 일용근로급여 =====
