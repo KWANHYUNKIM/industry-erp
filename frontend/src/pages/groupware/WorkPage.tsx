@@ -18,6 +18,12 @@ import { dateText } from '../../utils/dateText'
 import { requireSelection, ecConfirm } from '../../components/EcDialog'
 import EcKanban, { type KanbanCard, type KanbanTone } from '../../components/EcKanban'
 import GridCode from '../../components/GridCode'
+import { MenuButton } from '../../components/EcSlipShell'
+import EcRichEditor from '../../components/EcRichEditor'
+import EcRichBody from '../../components/EcRichBody'
+import EcDateTimeSelect from '../../components/EcDateTimeSelect'
+import CodePickerField from '../../components/CodePickerField'
+import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 
 const today = () => ymd(new Date())
 
@@ -59,7 +65,7 @@ function passCond(r: WorkPost, c: CondExtra) {
   const done = r.completedAt?.slice(0, 10) ?? ''
   if ((c.doneFrom || c.doneTo) && (!done || (c.doneFrom && done < c.doneFrom) || (c.doneTo && done > c.doneTo))) return false
   if (c.title && !r.title.includes(c.title)) return false
-  if (c.content && !(r.content ?? '').replace(/<[^>]*>/g, '').includes(c.content)) return false
+  if (c.content && !htmlToText(r.content ?? '').includes(c.content)) return false
   if (c.user && !(r.writerName ?? '').includes(c.user) && !r.writer.includes(c.user)) return false
   if (c.no && String(r.postNo) !== c.no) return false
   return true
@@ -114,7 +120,7 @@ export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 
  */
 type Col = 'no' | 'dateNo' | 'title' | 'writer' | 'forward' | 'stage' | 'postDate' | `x:${string}`
 /** 입력 창의 게시판별 입력항목. 원본 '항목추가' 로 회사가 고른 칸이다. */
-type Extra = { name: string; type: 'text' | 'date' }
+type Extra = { name: string; type: 'text' | 'date' | 'emp' }
 
 /**
  * 통합회의록(E200066, 2026-10-13 실측)의 부서 칸 — 격자 머리 '경영지원팀 회의록 · 구매팀 회의록 · 생산팀 회의록 · 영업팀 회의록',
@@ -200,7 +206,7 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   DEV_LOG: {
     ...SAMPLE, labels: true, stages: ['요구분석', '기획', '디자인', '개발', '테스트', '디버깅', '오픈(완료)'], defaultStage: '기획',
     cols: ['no', 'x:프로젝트|프로젝트명', 'title', 'writer', 'stage'],
-    extras: [{ name: '거래처', type: 'text' }, { name: '프로젝트', type: 'text' }, { name: '담당자', type: 'text' }, { name: '비고', type: 'text' }],
+    extras: [{ name: '거래처', type: 'text' }, { name: '프로젝트', type: 'text' }, { name: '담당자', type: 'emp' }, { name: '비고', type: 'text' }],
   },
   // 📈 개발진행현황 (E200186): 게시글번호 · 제목 · 전달자 · 일자 · 작성자명 · 진행상태, 알약 진행중 · 완료.
   DEV_STATUS: { ...SAMPLE, stages: null, labels: true, cols: ['no', 'title', 'forward', 'postDate', 'writer', 'stage'] },
@@ -234,7 +240,7 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
       tones: { '직접 test 해보세요': 'pink', 신규문의: 'yellow', 고객요청사항: 'yellow', '고객사 미팅': 'yellow', 견적: 'yellow', '계약-개발팀 인계': 'yellow', 진행안함: 'plain' },
       closed: ['진행안함'],
     },
-    extras: [{ name: '담당자', type: 'text' }], subField: '담당자',
+    extras: [{ name: '담당자', type: 'emp' }], subField: '담당자',
     template: '*고객정보*\n\n회사명:\n업종:\n담당자/직급:\n연락처:\n주소:\n기존 프로그램:\n니즈:\n\n영업 담당자는 담당자에 본인 이름을 걸어주시고, 진행중 라벨을 달아주세요.\n고객 리드 건 진행 상황은 답글 형태로 남겨주세요.',
   },
   /*
@@ -306,6 +312,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   /** 글에 붙일 파일. 원본 [웹자료올리기]·[여기에 파일 놓기]. */
   const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
+  /** [담당자] 사원검색 — 사원 마스터(코드 · 이름). */
+  const [employees, setEmployees] = useState<{ code: string; name: string }[]>([])
+  useEffect(() => {
+    if (cfg.extras?.some((x) => x.type === 'emp')) api.get<{ code: string; name: string }[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+  }, [cfg.extras])
   // 원본 하단의 [진행상태변경]·[선택삭제]는 고른 글에 한꺼번에 하는 동작이다.
   // 고르는 방식은 다른 목록과 같다 — 회색 행번호 칸을 누른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -526,7 +537,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     </li>
   )
 
-  async function submit() {
+  async function submit(after: 'close' | 'new' | 'keep' = 'close') {
     setError('')
     if (!form.title.trim()) return setError('제목을 입력하세요.')
     // 통합회의록은 내용 없이도 저장된다(원본 2026-10-13 — 부서 칸 · 주 차만 넣고 저장).
@@ -556,12 +567,17 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         let res = await api.put<WorkPost>(`/work-posts/${editId}`, common)
         // 통합회의록 [진행상태] — 저장 요청에는 칸이 없어 바뀌었을 때만 /status 로 맞춘다.
         if (cfg.minutes && res.data.status !== form.status) res = await api.patch<WorkPost>(`/work-posts/${editId}/status`, { status: form.status })
+        if (after === 'keep') { openEdit(res.data); load(); return }
+        if (after === 'new') { openNew(); load(); return }
         setShowForm(false)
         setEditId(null)
         setViewing(res.data)
       } else {
         const res = await api.post<WorkPost>('/work-posts', { ...common, board, postDate: form.postDate })
         if (cfg.minutes && form.status !== 'IN_PROGRESS') await api.patch(`/work-posts/${res.data.id}/status`, { status: form.status })
+        // 원본 [저장(F8)▲](2026-10-21 상담 이력관리 · 칸반보드 실측): 저장/신규 = 빈 새 창, 저장/내용유지 = 저장한 글의 수정 창.
+        if (after === 'keep') { openEdit(res.data); load(); return }
+        if (after === 'new') { openNew(); load(); return }
         setShowForm(false)
       }
       load()
@@ -678,7 +694,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 .meta{margin-bottom:12px}.body{white-space:pre-wrap;border-top:1px solid;padding-top:12px}</style></head>
 <body><h1>${escapeHtml(`${r.postNo} | ${r.title} | ${r.writerName ?? r.writer} | ${stampText(r.createdAt)}`)}</h1>
 <div class="meta">일자-No. ${escapeHtml(`${dateText(r.postDate)} -1`)}${r.attachmentName ? ` · 첨부 ${escapeHtml(r.attachmentName)}` : ''}</div>
-<div class="body">${escapeHtml(r.content)}</div></body></html>`)
+<div class="body">${isHtml(r.content) ? sanitizeHtml(r.content) : escapeHtml(r.content)}</div></body></html>`)
   }
 
   const shown = rows
@@ -1075,7 +1091,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                     {opened && (
                       <tr>
                         <td colSpan={colCount} className="bg-ec-page px-[14px] py-[10px]">
-                          <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[20px]">{r.content}</div>
+                          <EcRichBody content={r.content} className="text-[12px] text-ec-ink min-h-[20px]" />
                         </td>
                       </tr>
                     )}
@@ -1185,8 +1201,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               <li>
                 <div className="title">완료일시</div>
                 <div className="form">
-                  <input type="datetime-local" className="ec-input w-[200px]" aria-label="완료일시" value={form.done}
-                         onChange={(e) => set('done', e.target.value)} />
+                  <EcDateTimeSelect value={form.done} onChange={(v) => set('done', v)} />
                 </div>
               </li>
             </>
@@ -1262,8 +1277,16 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             <li key={x.name}>
               <div className="title">{x.name}</div>
               <div className="form">
-                <input className="ec-input w-full" type={x.type} placeholder={x.name} aria-label={x.name}
-                       value={form.extra[x.name] ?? ''} onChange={(e) => set('extra', { ...form.extra, [x.name]: e.target.value })} />
+                {x.type === 'emp' ? (
+                  /* 원본 입력 창 [담당자](2026-10-21 칸반보드 활용 예시 실측): 코드 · 🔍 · 이름 두 칸 — '사원검색'(사원코드 · 사원명)에서 고른다. */
+                  <CodePickerField label={x.name} hideLabel fill pair plain popupTitle="사원검색"
+                                   value={employees.find((e) => e.name === form.extra[x.name])?.code ?? ''}
+                                   onChange={(v) => set('extra', { ...form.extra, [x.name]: employees.find((e) => e.code === v)?.name ?? '' })}
+                                   items={employees.map((e) => ({ value: e.code, code: e.code, name: e.name }))} />
+                ) : (
+                  <input className="ec-input w-full" type={x.type} placeholder={x.name} aria-label={x.name}
+                         value={form.extra[x.name] ?? ''} onChange={(e) => set('extra', { ...form.extra, [x.name]: e.target.value })} />
+                )}
               </div>
             </li>
           ))}
@@ -1329,11 +1352,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             </li>
           )}
         </ul>
-        <textarea className="ec-input w-full h-[160px] py-[8px] resize-y" value={form.content}
-                  onChange={(e) => set('content', e.target.value)} />
+        <EcRichEditor value={form.content} onChange={(h) => set('content', h)} />
         <div className="flex gap-[6px] mt-[10px]">
           {/* 원본 신규: 저장(F8) · 다시 작성 · 리스트 · 닫기 / 수정: 저장(F8) · 리스트 · View · 닫기 · 삭제 */}
-          <button className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
+          <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up onMain={() => void submit()}
+                      items={[{ label: '저장/신규', onClick: () => void submit('new') }, { label: '저장/내용유지', onClick: () => void submit('keep') }]} />
           {editId == null && (
             <button className="ec-btn" onClick={() => { setForm(emptyForm()); setAttachment(null); setError('') }}>다시 작성</button>
           )}
@@ -1371,7 +1394,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                 </div>
               </li>
             </ul>
-            <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[120px] px-[12px]">{viewing.content}</div>
+            <EcRichBody content={viewing.content} className="text-[12px] text-ec-ink min-h-[120px] px-[12px]" />
             {/*
               원본 '📅 프로젝트 진행현황 칸반View' 본문 판(2026-10-13): 열 = 이 글에 [칸반연결] 한 간판제작 글의 [프로젝트] + 건수,
               줄 = 간판제작 진행상태, 카드 = 그 글(라벨 칩 + 제목). 판 아래 신규 ▲ · 선택삭제 · 카드접기 · 더보기(신규 ▲ 판은 못 잼 — 뺌).
@@ -1401,7 +1424,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                   {cardView && (
                     <div className="bg-ec-page rounded-ec px-[12px] py-[8px] mt-[6px] text-[12px] text-ec-ink">
                       <div className="font-bold mb-[4px]">{cardView.postNo} | {cardView.title} | {cardView.writerName ?? cardView.writer} | {cardView.stage ?? ''}</div>
-                      <div className="whitespace-pre-wrap">{cardView.content}</div>
+                      <EcRichBody content={cardView.content} />
                       <button type="button" className="ec-btn ec-btn-sm mt-[6px]" onClick={() => setCardView(null)}>닫기</button>
                     </div>
                   )}
@@ -1425,7 +1448,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                           {m ? (
                             <>
                               <div className="text-[14px] font-bold mb-[6px]">{m.title}</div>
-                              <div className="whitespace-pre-wrap">{m.content}</div>
+                              <EcRichBody content={m.content} />
                             </>
                           ) : <div className="ec-empty">등록된 데이터가 없습니다.</div>}
                         </div>

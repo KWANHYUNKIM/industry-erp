@@ -31,7 +31,7 @@
         "wait:200",
         "js:(() => { const m = document.querySelector('[role=dialog][aria-label=\"주차검색\"]'); [...m.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('3주차')).click(); return true })()",
         "wait:200",
-        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const i = d.querySelector('input[placeholder=\"제목\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-팀별주차'); i.dispatchEvent(new Event('input', { bubbles: true })); const c = [...d.querySelectorAll('textarea')].pop(); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(c, 'QA그룹웨어 팀별 주차'); c.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const i = d.querySelector('input[placeholder=\"제목\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-팀별주차'); i.dispatchEvent(new Event('input', { bubbles: true })); const c = d.querySelector('[role=textbox]'); c.innerHTML = 'QA그룹웨어 팀별 주차'; c.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
         "wait:200",
         "click:저장(F8)",
         "wait:2000",

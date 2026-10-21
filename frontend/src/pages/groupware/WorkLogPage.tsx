@@ -17,6 +17,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcRichEditor from '../../components/EcRichEditor'
 import EcFileDrop from '../../components/EcFileDrop'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
+import EcRichBody from '../../components/EcRichBody'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 
 const WORKLOG_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '종료일', '최근3일+7일'] as const
@@ -91,12 +92,6 @@ const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerNam
  * 수정 창에는 없다: [저장(F8)][닫기][삭제][H]). 원본 [요일] 칩은 지우면 일자 열이 날마다로 바뀐다(우리 [요일] 전체).
  * 원본은 조회 창에서 지운 뒤 격자를 다시 읽지 않아 지운 제목이 [검색] 전까지 남는데, 우리는 바로 다시 읽는다.
  */
-/** 일지 본문 — 서식 편집기가 만든 HTML 이면 그대로, 예전 글자 본문이면 줄바꿈만 살려 보인다. */
-function JournalBody({ content }: { content: string | null }) {
-  if (isHtml(content)) return <div className="mt-[6px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(content ?? '') }} />
-  return <div className="whitespace-pre-wrap mt-[6px]">{content ?? ''}</div>
-}
-
 export default function WorkLogPage() {
   const { user } = useAuth()
   const [rows, setRows] = useState<WorkJournal[]>([])
@@ -476,7 +471,7 @@ ${isHtml(r.content) ? `<div>${sanitizeHtml(r.content)}</div>` : `<pre>${escapeHt
                     <div>첨부 : <span className="text-ec-navy cursor-pointer" title={formatBytes(r.attachmentSize ?? 0)}
                                      onClick={() => void downloadStoredFile(r.attachmentId!, r.attachmentName ?? '첨부')}>{r.attachmentName}</span></div>
                   )}
-                  <JournalBody content={r.content} />
+                  <EcRichBody content={r.content} className="mt-[6px]" />
                 </div>
                 <div className="flex gap-[6px] px-[9px] pb-[9px]">
                   <button type="button" className="ec-btn" onClick={() => openReply(r)}>{depth === 0 ? '답글(F8)' : '답글'}</button>
@@ -545,7 +540,7 @@ ${isHtml(r.content) ? `<div>${sanitizeHtml(r.content)}</div>` : `<pre>${escapeHt
             <div className="flex flex-wrap items-baseline gap-[9px] py-[6px] px-[9px] bg-ec-page rounded-ec">
               <span>{rootId(o)}</span><b>{o.title}</b><span className="text-ec-navy">{o.authorName}</span><span>{stampText(o.createdAt)}</span>
             </div>
-            <div className="py-[9px] px-[9px] text-[12px] leading-[1.8]"><JournalBody content={o.content} /></div>
+            <div className="py-[9px] px-[9px] text-[12px] leading-[1.8]"><EcRichBody content={o.content} /></div>
           </div>) : null })()}
         <div className="flex gap-[6px] mt-[10px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>

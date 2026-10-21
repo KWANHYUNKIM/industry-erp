@@ -47,7 +47,8 @@ export default function GridCode({ title, codeHead, nameHead, subHead, items, va
     // 정확히 같은 코드가 있어도 다른 코드 · 이름에 함께 걸리면 고르지 않고 창 — 원본 일반전표 거래처 '00001'
     // → 00001 · 0000000000001 · SG00001 창(2026-10-21 실측, CodePickerField pair 와 같은 규칙).
     const hits = items.filter((x) => `${x.code ?? ''} ${x.name}`.toLowerCase().includes(low))
-    if (hits.length === 1) { onPick(hits[0].value); return }
+    // 원본(2026-10-21 채권회수 [담당자] AS05 Enter 실측): 하나만 맞아 채우면 빈 Enter 와 같은 칸으로 넘어간다(거래처를 건너뜀).
+    if (hits.length === 1) { onPick(hits[0].value); if (el && emptyEnterNext) goNext(el, emptyEnterNext); return }
     setQ(n)
     setOpen(true)
   }
