@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import GridFindButton from '../../../components/GridFindButton'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { Item, QualityInspectionRequest } from '../../../types/api'
@@ -33,7 +34,7 @@ const linesOf = (r: QualityInspectionRequest | null): LineForm[] => r
   ? [...r.lines.map((l) => ({ method: l.method as Method, itemId: String(l.itemId), extraQty: l.extraQty == null ? '' : String(Number(l.extraQty)), quantity: String(l.quantity) })), emptyLine()]
   : emptyLines()
 
-export default function QualityRequestForm({ editing, items, projects, active = true, slim = false, onSaved, onDeleted, extraButtons }: {
+export default function QualityRequestForm({ editing, items, projects, active = true, slim = false, onSaved, onDeleted, extraButtons, listTo }: {
   /** 고칠 요청 — 없으면 새 입력. */
   editing: QualityInspectionRequest | null
   items: Item[]
@@ -47,7 +48,10 @@ export default function QualityRequestForm({ editing, items, projects, active = 
   onDeleted?: () => void
   /** 단추줄 끝에 붙일 것(창은 [닫기], 입력 화면은 [리스트]). */
   extraButtons?: React.ReactNode
+  /** 원본 [리스트] — 저장(F8) · 저장/전표(F7) 뒤에 선다(단추 차례가 원본과 같아야 한다). */
+  listTo?: string
 }) {
+  const navigate = useNavigate()
   const [f, setF] = useState(() => headOf(editing))
   const [lines, setLines] = useState<LineForm[]>(() => linesOf(editing))
   const [formError, setFormError] = useState('')
@@ -189,6 +193,7 @@ export default function QualityRequestForm({ editing, items, projects, active = 
           ? <button className="ec-btn" onClick={() => void remove()}>삭제</button>
           : <button className="ec-btn" onClick={reset}>다시 작성</button>}
         {extraButtons}
+        {listTo && <button type="button" className="ec-btn" onClick={() => navigate(listTo)}>리스트</button>}
         {slim && <button type="button" className="ec-btn">웹자료올리기</button>}
       </div>
     </div>

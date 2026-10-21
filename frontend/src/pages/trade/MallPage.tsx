@@ -227,8 +227,8 @@ export default function MallPage({ mode = 'progress' }: { mode?: MallMode }) {
 
       {/* 원본: 진행단계만 단계별 알약(건수), 나머지 화면은 [전체] 하나. */}
       {mode === 'progress' ? (
-        /* 원본 score-box(2026-10-21 실측): 칸 64.6 × 40.9 · 둥글기 10 · 머리카락 테두리(고른 것 파랑 · 나머지 #dee2e6) ·
-           위 건수 14px 흰 바탕 h21 · 아래 이름 12px h18.9 회색(#e9ecef, 고른 것은 파랑 바탕 흰 글자) · 칸 사이 5.4 */
+        /* 원본 score-box(2026-10-21 실측): 칸 64.6 × 40.9 · 둥글기 10 · 머리카락 테두리(고른 것 파랑 · 나머지 hair 색) ·
+           위 건수 14px 흰 바탕 h21 · 아래 이름 12px h18.9 회색(연회색, 고른 것은 파랑 바탕 흰 글자) · 칸 사이 5.4 */
         <div className="flex gap-[5.4px] mb-[6px] flex-wrap">
           {(['전체' as const, ...STAGES]).map((t) => {
             const on = stage === t

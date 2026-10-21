@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcSlipShell from '../../components/EcSlipShell'
 import type { Item } from '../../types/api'
@@ -15,7 +14,6 @@ import QualityRequestScreen from '../../features/quality/components/QualityReque
  * 2026-10-21 실측으로 격자 도구줄(찾기 · 정렬 · My품목 · 전표 종류 · 재고불러오기 …) · [저장/전표(F7)] · [웹자료올리기] · '새로운 항목 추가' 열을 모양만 둔다.
  */
 export default function QualityRequestEntryPage() {
-  const navigate = useNavigate()
   const [items, setItems] = useState<Item[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [error, setError] = useState('')
@@ -31,7 +29,7 @@ export default function QualityRequestEntryPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <QualityRequestScreen editing={null} items={items} projects={projects} slim
                           onSaved={() => undefined}
-                          extraButtons={<button className="ec-btn" onClick={() => navigate('/quality/inspection-request')}>리스트</button>} />
+                          listTo="/quality/inspection-request" />
     </EcSlipShell>
   )
 }

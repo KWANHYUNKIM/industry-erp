@@ -290,15 +290,18 @@ export default function AttendanceKindStatusPage() {
           </div>
         </EcCond>
         {/*
-          원본 차례: <b>[재직구분] 다음이 [양식]·[정렬/소계기준]·[근태일자]</b> 다
+          원본 차례: <b>[재직구분] 다음이 [정렬/소계기준]·[근태일자]·[적용양식]·[양식구분]</b> 다
           (2026-09-09 실측, qa/fixtures/ecount-form-fields.json). 2026-10-20 에 연 원본은 조건이 적게 보이는 판이라
           [근태일자]가 [기준일자] 바로 뒤에 있었다 — 판 설정(새로운 항목 추가)에 따라 다르다. 실측 표를 따른다.
         */}
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="ec-btn ec-btn-sm">설정</button>
+        </EcCond>
         <EcCond label="근태일자">
           <input type="date" className="ec-input" value={dayCond}
                  onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
-        {/* 원본 [양식] 탭(2026-10-21 실측): 적용양식 [기본(수정불가)] · 양식구분 [결재방표시] · 정렬/소계기준 [설정]. */}
+        {/* 원본 [양식] 탭(2026-10-21 실측): 적용양식 [기본(수정불가)] · 양식구분 [결재방표시] */}
         <EcCond label="적용양식">
           <select className="ec-input w-[170px]" aria-label="적용양식" defaultValue="기본"><option value="기본">기본(수정불가)</option></select>
         </EcCond>
@@ -306,9 +309,6 @@ export default function AttendanceKindStatusPage() {
           <label className="inline-flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
           </label>
-        </EcCond>
-        <EcCond label="정렬/소계기준">
-          <button type="button" className="ec-btn ec-btn-sm">설정</button>
         </EcCond>
       </EcStatusPanel>
 

@@ -450,7 +450,7 @@ export default function QuotationPage() {
           const qty = (q: Quotation) => q.lines.reduce((n, l) => n + l.quantity, 0)
           return (
             <table className="w-full">
-              <thead><tr><th>일자</th><th>전표번호</th><th>수량</th><th>공급가액</th><th>부가세</th><th>합계</th></tr></thead>
+              <thead><tr><th>일자</th><th className="text-right">전표번호</th><th className="text-right">수량</th><th className="text-right">공급가액</th><th className="text-right">부가세</th><th className="text-right">합계</th></tr></thead>
               <tbody>
                 {sel.map((q) => (
                   <tr key={q.id}><td>{q.quoteDate.replace(/-/g, '/')}</td><td className="text-right">{Number(q.quoteNo.split('-').pop())}</td>

@@ -303,7 +303,7 @@ export default function SerialLotPage() {
         </div>
       </Modal>
 
-      <Modal open={genOpen} title="코드생성" width={520} onClose={() => setGenOpen(false)}>
+      <Modal open={genOpen} title="코드생성" width={520} error={error} onClose={() => setGenOpen(false)}>
         <div className="flex items-center gap-[6px]">
           <label>반복코드[3] <input className="ec-input w-[80px]" maxLength={3} aria-label="반복코드" value={genPrefix} onChange={(e) => setGenPrefix(e.target.value)} /></label>
           <label>기호1[1] <input className="ec-input w-[40px]" maxLength={1} aria-label="기호1" value={genSym} onChange={(e) => setGenSym(e.target.value)} /></label>

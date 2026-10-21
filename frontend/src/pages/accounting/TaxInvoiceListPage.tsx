@@ -121,7 +121,7 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
 
   return (
     <EcListShell title={title} onSearch={load} collapseConditions
-      actions={sales ? [{ label: 'Email', disabled: true }, { label: '대화방', disabled: true }, { label: '인쇄' }, { label: '확인취소', disabled: true }, { label: '선택삭제', disabled: true }, { label: 'Excel' }] : []}>
+      actions={sales ? [{ label: 'Email', disabled: true }, { label: '대화방', disabled: true }, { label: '인쇄' }, { label: '확인취소', disabled: true }, { label: '선택삭제', disabled: true, selected: picked.size }, { label: 'Excel' }] : []}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">

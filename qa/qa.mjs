@@ -5921,6 +5921,8 @@ async function scenarioSlipHistory(f) {
       .filter((r) => r.docNo === no).sort((a, b) => a.id - b.id)
   const acts = (rows) => rows.map((r) => r.action).join(',')
   await must('POST', '/stock/transactions', { itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 50 })
+  // 기초코드(거래처 · 품목) 이력 조회가 열린다 — 위 전표 이력과 컨트롤러가 다르다.
+  eq('기초코드 이력 조회가 목록을 돌려준다', Array.isArray(await must('GET', `/change-history/masters?from=${today}&to=${today}&menu=${encodeURIComponent('거래처등록')}&latestOnly=false`)), true)
 
   // 창고이동
   const tr = await must('POST', '/stock-transfers/slips', { transferDate: D, fromWarehouseId: f.warehouse.id, toWarehouseId: wh2.id,
