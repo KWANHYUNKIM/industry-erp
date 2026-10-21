@@ -52,6 +52,9 @@ export default function MonthlyCostPage() {
   /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
   const [dept, setDept] = useState('')
   const [project, setProject] = useState('')
+  /* 원본 [기타] 결재방표시 · 기초,당기,기말표시(둘 다 꺼짐으로 시작, 2026-10-20 실측). 기초,당기,기말표시가 무엇을 더 찍는지는 plans 에 값이 없어 칸만 둔다. */
+  const [signBox, setSignBox] = useState(false)
+  const [showFlow, setShowFlow] = useState(false)
   const deptProject = useDeptProjectItems()
   const dp = { departmentId: dept || undefined, projectId: project || undefined }
   const { companyName } = useAuth()
@@ -142,6 +145,7 @@ export default function MonthlyCostPage() {
     <EcListShell
       title="월별원가분석"
       searchable={false}
+      signLine={signBox}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setKind('5'); setFromYm(startYm(fiscalStart)); setToYm(thisYm) } },
@@ -172,6 +176,14 @@ export default function MonthlyCostPage() {
               <input type="radio" name="mc-kind" checked={kind === v} onChange={() => setKind(v)} /> {l}
             </label>
           ))}
+        </EcCond>
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+          </label>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+            <input type="checkbox" checked={showFlow} onChange={(e) => setShowFlow(e.target.checked)} /> 기초,당기,기말표시
+          </label>
         </EcCond>
       </ul>
 

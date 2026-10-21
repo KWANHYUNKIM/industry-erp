@@ -159,7 +159,7 @@ export default function AccountPartnerLedgerPage() {
     const s = sumOf(b.rows)
     return (
       <div key={b.key} className="mb-[18px]">
-        <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+        <div className="flex flex-col text-[12px] mt-0 mx-0 mb-[4px]">
           <span>회사명 : {companyName ?? ''} / {accountName} / {b.key === NONE ? '(거래처없음)' : `${b.code}(${b.name})`}</span>
           <span>{slash(from)} ~ {slash(to)}</span>
         </div>

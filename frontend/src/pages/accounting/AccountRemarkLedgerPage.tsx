@@ -102,7 +102,7 @@ export default function AccountRemarkLedgerPage() {
   useTableColumnCheck(tableRef, '계정별적요별원장', [rows.length, mode])
 
   const head = (extra: string) => (
-    <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+    <div className="flex flex-col text-[12px] mt-0 mx-0 mb-[4px]">
       <span>회사명 : {companyName ?? ''} / {accountName}{extra}</span>
       <span>{slash(from)} ~ {slash(to)}</span>
     </div>

@@ -158,7 +158,7 @@ export default function PartnerAccountLedgerPage() {
     const s = sumOf(b.rows)
     return (
       <div key={b.id} className="mb-[18px]">
-        <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+        <div className="flex flex-col text-[12px] mt-0 mx-0 mb-[4px]">
           <span>회사명 : {companyName ?? ''} / {chosen?.name ?? ''} / {b.code}({b.name})</span>
           <span>{slash(from)} ~ {slash(to)}</span>
         </div>
@@ -290,7 +290,7 @@ export default function PartnerAccountLedgerPage() {
           <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">거래처별계정별원장</h3>
           {mode === '계정별집계' ? (
             <>
-              <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+              <div className="flex flex-col text-[12px] mt-0 mx-0 mb-[4px]">
                 <span>회사명 : {companyName ?? ''} / {chosen?.name ?? ''}</span>
                 <span>{slash(from)} ~ {slash(to)}</span>
               </div>

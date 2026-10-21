@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import EcPrintedAt from '../../components/ui/EcPrintedAt'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { INCOME_STATEMENT_PICKS } from '../../components/EcPeriodPicks'
@@ -61,6 +62,7 @@ export default function IncomeStatementPage() {
   const [compare, setCompare] = useState<Compare>('직전기수')
   const [cmpFromYm, setCmpFromYm] = useState(startYm(1))
   const [cmpToYm, setCmpToYm] = useState(thisYm)
+  const [signBox, setSignBox] = useState(false)   // 원본 [기타] 결재방표시 — 꺼짐으로 시작
   const [thousand, setThousand] = useState(false)
   const [withZero, setWithZero] = useState(false)
   const [hideIdle, setHideIdle] = useState(false)
@@ -186,6 +188,7 @@ export default function IncomeStatementPage() {
     <EcListShell
       title="손익계산서"
       searchable={false}
+      signLine={signBox}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setDept(''); setProject(''); modes.reset(); setFromYm(startYm(fiscalStart)); setToYm(thisYm); setCompare('직전기수'); setThousand(false); setWithZero(false) } },
@@ -225,6 +228,9 @@ export default function IncomeStatementPage() {
           <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="기타">
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+          </label>
           {([['천단위', thousand, setThousand], ['잔액0포함', withZero, setWithZero], ['내역없는부서/프로젝트제외', hideIdle, setHideIdle]] as const).map(([l, v, set]) => (
             <label key={l} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {l}
@@ -253,6 +259,7 @@ export default function IncomeStatementPage() {
             lines={linesOf(groupIs(splitBase, g.key, from, to), splitCmp && cmpRange ? groupIs(splitCmp, g.key, cmpRange.from, cmpRange.to) : null)} />
         </div>
       ))}
+      {base && <EcPrintedAt />}
     </EcListShell>
   )
 }

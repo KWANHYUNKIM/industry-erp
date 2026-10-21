@@ -1,0 +1,17 @@
+{
+  "about": "회계 I › 출력물 조건과 머리 — plans/회계1.md 경영자료·장부·주요재무제표: 월별손익분석·월별원가분석 [기타] 결재방표시·기초,당기,기말표시(꺼짐), 재무상태표·손익계산서 [기타] 결재방표시 + 결과 아래 출력 시각 줄('2026/10/20 오후 11:15:58' 꼴), 장부 머리 '회사명' 줄과 기간이 두 줄.",
+  "shots": [
+    {"name": "월별손익분석 [기타]", "path": "/accounting/monthly-pnl", "steps": [
+      "wait:2500",
+      "expect:(() => { const t = [...document.querySelectorAll('.ec-cond li')].find((li) => li.querySelector('.title')?.innerText.trim() === '기타'); return !!t && /결재방표시/.test(t.innerText) && /기초,당기,기말표시/.test(t.innerText) && [...t.querySelectorAll('input')].every((i) => !i.checked) })()"]},
+    {"name": "월별원가분석 [기타]", "path": "/accounting/monthly-cost", "steps": [
+      "wait:2500",
+      "expect:(() => { const t = [...document.querySelectorAll('.ec-cond li')].find((li) => li.querySelector('.title')?.innerText.trim() === '기타'); return !!t && /결재방표시/.test(t.innerText) && /기초,당기,기말표시/.test(t.innerText) })()"]},
+    {"name": "재무상태표 · 손익계산서 — 결재방표시 + 출력 시각 줄", "path": "/accounting/balance-sheet", "steps": [
+      "wait:2500",
+      "expect:/결재방표시/.test(document.body.innerText) && /\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d{1,2}:\\d{2}:\\d{2}/.test(document.body.innerText)"]},
+    {"name": "분개장 머리 두 줄", "path": "/accounting/journal-book", "steps": [
+      "wait:2500",
+      "expect:(() => { const d = [...document.querySelectorAll('div.flex-col')].find((x) => /^회사명 :/.test(x.innerText.trim())); return !!d && d.children.length === 2 && /~/.test(d.children[1].innerText) })()"]}
+  ]
+}

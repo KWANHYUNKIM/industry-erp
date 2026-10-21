@@ -153,7 +153,7 @@ export default function JournalBookPage() {
 
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       {/* 원본 머리(2026-10-20 실측): '회사명 : (주)…' 와 '2026/10/20 ~ 2026/10/20'. 전표번호는 '26/10/20-49-1'(일자-그날 번호-줄). */}
-      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+      <div className="flex flex-col text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
         <span>{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</span>
       </div>

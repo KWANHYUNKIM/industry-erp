@@ -124,7 +124,7 @@ export default function CashBookPage() {
         </EcCond>
       </ul>
 
-      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+      <div className="flex flex-col text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
         <span>{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</span>
       </div>

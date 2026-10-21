@@ -150,7 +150,7 @@ export default function DayMonthSheetPage() {
 
       <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">{mode}</h3>
       {/* 원본 머리(2026-10-20 실측): '회사명 : (주)… ' 한 줄과 '2026/10/20 ~ 2026/10/20'. */}
-      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+      <div className="flex flex-col text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
         <span>{from === to ? from.replace(/-/g, '/') : `${from.replace(/-/g, '/')} ~ ${to.replace(/-/g, '/')}`}</span>
       </div>
