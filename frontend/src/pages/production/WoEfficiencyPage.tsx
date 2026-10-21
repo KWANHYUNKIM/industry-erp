@@ -398,8 +398,8 @@ export default function WoEfficiencyPage() {
         </EcCond>
         <EcCond label="진행상태">
           <div className="ec-pills">
-            {/* 문구는 응답의 statusName 그대로다 — '예정'이라 적었더니 늘 빈 화면이었다(실측으로 잡음). */}
-            {['전체', '계획', '진행중', '완료'].map((s2) => (
+            {/* 문구는 응답의 statusName 그대로다 — '예정'이라 적었더니 늘 빈 화면이었다(실측으로 잡음). 아직 만든 것 없는 지시(PLANNED)도 원본처럼 '진행중'이라 '계획' 알약은 없다(2026-10-22). */}
+            {['전체', '진행중', '완료'].map((s2) => (
               <button key={s2} type="button" className={`ec-pill no-ec${status === s2 ? ' active' : ''}`}
                       onClick={() => setStatus(s2)}>{s2}</button>
             ))}

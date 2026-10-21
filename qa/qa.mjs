@@ -824,7 +824,7 @@ async function scenarioProduction(f) {
 
   const reverted = (await must('GET', '/work-orders')).find((x) => x.id === wo.id)
   eq('작업지시 진척도 되돌아온다', Number(reverted.producedQty), 0)
-  eq('완료였던 작업지시가 계획으로 돌아온다', reverted.statusName, '계획')
+  eq('완료였던 작업지시가 진행중(만든 것 없음)으로 돌아온다', reverted.statusName, '진행중')
 
   eq('실적이 없어지면 작업지시도 지울 수 있다', (await call('DELETE', `/work-orders/${wo.id}`)).status, 204)
 

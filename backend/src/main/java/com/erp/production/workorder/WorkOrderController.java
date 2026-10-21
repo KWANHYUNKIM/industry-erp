@@ -69,6 +69,13 @@ public class WorkOrderController {
         return java.util.Map.of("changed", workOrderService.changeStatus(req.orderNos(), req.status()));
     }
 
+    /** 원본 [진행상태변경] › 진행상태 — 완료(종결) ↔ 진행중. 원본 2026-10-22 실측: 완료로 바꾸면 [진행중] 탭에서 빠진다. */
+    @PostMapping("/slips/progress")
+    public java.util.Map<String, Integer> changeProgress(
+            @Valid @RequestBody com.erp.production.production.dto.ProductionDtos.ChangeWorkOrderProgressRequest req) {
+        return java.util.Map.of("changed", workOrderService.changeProgress(req.orderNos(), req.completed()));
+    }
+
     /** 전표째 [삭제]. 생산실적이 있는 줄이 있으면 막는다. */
     @DeleteMapping("/slips/{orderNo}")
     public ResponseEntity<Void> deleteSlip(@PathVariable String orderNo) {

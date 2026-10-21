@@ -25,9 +25,10 @@ import { ecConfirm } from '../../components/EcDialog'
 /** 원본 탭 [전체 · 결재중 · 미확인 · 확인] — 진행상태. */
 const CONF_TABS = ['전체', '결재중', '미확인', '확인'] as const
 const CONF_OF: Record<string, string> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
-const TABS = ['전체', '대기', '진행중', '완료'] as const
+const TABS = ['전체', '진행중', '완료'] as const
 type Tab = typeof TABS[number]
-const TAB_STATUS: Record<string, string> = { 대기: 'PLANNED', 진행중: 'IN_PROGRESS', 완료: 'COMPLETED' }
+/** 원본 탭은 진행중 · 완료 둘뿐이다(2026-10-22 실측) — 우리 PLANNED(아직 만든 것 없음)도 진행중이다. */
+const TAB_STATUS: Record<string, string[]> = { 진행중: ['PLANNED', 'IN_PROGRESS'], 완료: ['COMPLETED'] }
 
 /**
  * 원본 작업지시서조회의 마지막 세 열은 그 지시의 현황으로 가는 <b>바로가기</b>다
@@ -98,6 +99,18 @@ export default function WorkOrderPage() {
   /** 고른 줄(번호 칸의 체크) — [진행상태변경] 이 이 전표들을 바꾼다. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [statusPick, setStatusPick] = useState(false)
+  /** 원본 [진행상태변경] › 진행상태 [진행중][완료] — 종결(완료)하거나 되살린다. */
+  async function changeProgress(completed: boolean) {
+    const nos = [...new Set(orders.filter((x) => checked.has(x.id)).map((x) => x.orderNo))]
+    if (nos.length === 0) { setError('바꿀 줄을 고르세요.'); return }
+    try {
+      await api.post('/work-orders/slips/progress', { orderNos: nos, completed })
+      setChecked(new Set()); setStatusPick(false); setError('')
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
   /** 원본 [진행상태변경] — 고른 작업지시서를 미확인 ↔ 확인. 확인한 지시서는 확인취소를 먼저 해야 고치거나 지울 수 있다. */
   async function changeStatus(status: 'CONFIRMED' | 'UNCONFIRMED') {
     const nos = [...new Set(orders.filter((x) => checked.has(x.id)).map((x) => x.orderNo))]
@@ -190,7 +203,7 @@ export default function WorkOrderPage() {
   const empName = (id: number | null) =>
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
-  const shown = orders.filter((o) => (tab === '전체' || o.status === TAB_STATUS[tab])
+  const shown = orders.filter((o) => (tab === '전체' || TAB_STATUS[tab].includes(o.status))
     && (confTab === '전체' || CONF_OF[confTab] === o.confirmStatus)
     && (!from || o.orderDate >= from) && (!to || o.orderDate <= to)
     && (!orderNoCond || o.orderNo.includes(orderNoCond))
@@ -242,6 +255,8 @@ export default function WorkOrderPage() {
           <span className="text-[12.5px]">고른 {checked.size}줄의 작업지시서를</span>
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void changeStatus('CONFIRMED')}>확인</button>
           <button type="button" className="ec-btn" onClick={() => void changeStatus('UNCONFIRMED')}>확인취소</button>
+          <button type="button" className="ec-btn" onClick={() => void changeProgress(false)}>진행중</button>
+          <button type="button" className="ec-btn" onClick={() => void changeProgress(true)}>완료</button>
           <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>취소</button>
         </div>
       )}

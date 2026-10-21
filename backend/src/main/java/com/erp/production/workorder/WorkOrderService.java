@@ -183,6 +183,23 @@ public class WorkOrderService {
         return out;
     }
 
+    /** 원본 [진행상태변경] › 진행상태 — 완료(종결) ↔ 진행중. 되살리면 생산한 것이 있으면 진행중, 없으면 처음 상태. */
+    @Transactional
+    public int changeProgress(List<String> orderNos, boolean completed) {
+        int changed = 0;
+        for (String no : orderNos) {
+            List<WorkOrder> rows = workOrderRepository.findSlip(no);
+            if (rows.isEmpty()) throw ApiException.notFound("작업지시서를 찾을 수 없습니다: " + no);
+            for (WorkOrder r : rows) {
+                WorkOrderStatus next = completed ? WorkOrderStatus.COMPLETED
+                        : (r.getProducedQty().signum() > 0
+                                ? WorkOrderStatus.IN_PROGRESS : WorkOrderStatus.PLANNED);
+                if (r.getStatus() != next) { r.setStatus(next); changed++; }
+            }
+        }
+        return changed;
+    }
+
     /** 원본 작업지시서조회 [진행상태변경]. 미확인 ↔ 확인만 사람이 바꾼다. 바꾼 전표 수를 준다. */
     @Transactional
     public int changeStatus(List<String> orderNos, com.erp.production.production.ProductionConfirmStatus status) {

@@ -67,6 +67,12 @@ public final class ProductionDtos {
     ) {}
 
     /** 원본 작업지시서조회 [진행상태변경]. */
+    /** 원본 [진행상태변경] › 진행상태 [진행중][완료] — 고른 작업지시서를 종결(완료)하거나 되살린다. */
+    public record ChangeWorkOrderProgressRequest(
+            @jakarta.validation.constraints.NotEmpty java.util.List<String> orderNos,
+            boolean completed
+    ) {}
+
     public record ChangeWorkOrderStatusRequest(
             @NotEmpty(message = "바꿀 전표를 고르세요.") List<String> orderNos,
             @NotNull(message = "바꿀 진행상태를 고르세요.") com.erp.production.production.ProductionConfirmStatus status
