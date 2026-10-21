@@ -68,10 +68,12 @@ export default function TransferPage() {
   const [showForm, setShowForm] = useState(() => params.get('new') === '1')
   /* 이동번호를 눌러 연 전표(원본 창고이동조회 → 창고이동수정 창). 없으면 새 전표다. */
   const [editSlip, setEditSlip] = useState<StockTransfer[] | null>(null)
+  /* 수정 창에서 [복사] 를 누르면 같은 창이 입력 창이 된다 — 제목도 창고이동입력. */
+  const [copying, setCopying] = useState(false)
   async function openSlip(no: string) {
     try {
       const r = await api.get<StockTransfer[]>(`/stock-transfers/slips/${encodeURIComponent(no)}`)
-      setTab('창고이동'); setEditSlip(r.data); setShowForm(true)
+      setTab('창고이동'); setEditSlip(r.data); setCopying(false); setShowForm(true)
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
     }
@@ -314,10 +316,10 @@ export default function TransferPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal error={error} open={showForm} title={tab === '창고이동' ? (editSlip ? '창고이동수정' : '창고이동입력') : '기타이동 등록'}
+      <Modal error={error} open={showForm} title={tab === '창고이동' ? (editSlip && !copying ? '창고이동수정' : '창고이동입력') : '기타이동 등록'}
              onClose={() => { setShowForm(false); setEditSlip(null) }}>{(tab === '창고이동'
         ? <TransferForm key={editSlip?.[0]?.transferNo ?? 'new'} slip={editSlip} onDelete={removeTransfer}
-                        onPrint={openPrint} onNav={(dir) => editSlip?.[0] && navSlip(editSlip[0].transferNo, dir)}
+                        onPrint={openPrint} onNav={(dir) => editSlip?.[0] && navSlip(editSlip[0].transferNo, dir)} onCopy={() => setCopying(true)}
                         onClose={() => { setShowForm(false); setEditSlip(null) }}
                         items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />
         : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />)}</Modal>
@@ -442,9 +444,9 @@ const blankLine = (): SlipLine => ({ itemId: '', quantity: '', reason: '' })
  * 줄: 품목코드 · 품목명 · 수량 · 적요 — 줄 수는 늘릴 수 있고 빈 줄은 저장하지 않는다.
  * 예전에는 품목 하나에 한 건이라, 다섯 품목을 옮기면 이동번호가 다섯 개 생겼다.
  */
-function TransferForm({ slip, onDelete, onPrint, onNav, onClose, items, warehouses, stock, projects, employees, onError, onSaved }: {
+function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, warehouses, stock, projects, employees, onError, onSaved }: {
   slip: StockTransfer[] | null; onDelete: (r: StockTransfer) => void
-  onPrint: (transferNo: string) => void; onNav: (dir: -1 | 1) => void; onClose: () => void
+  onPrint: (transferNo: string) => void; onNav: (dir: -1 | 1) => void; onCopy: () => void; onClose: () => void
   items: Item[]; warehouses: Warehouse[]; stock: StockRow[]
   projects: CodeRow[]; employees: CodeRow[]
   onError: (m: string) => void; onSaved: (msg: string) => void
@@ -453,6 +455,8 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onClose, items, warehous
   const [copied, setCopied] = useState(false)
   const head = copied ? undefined : slip?.[0]
   const [showHistory, setShowHistory] = useState(false)
+  /* 줄마다 고친 때가 다르다(안 바뀐 줄은 그대로) — 전표의 마지막 수정은 줄들 가운데 가장 늦은 것. */
+  const lastUpdated = (slip ?? []).map((r) => r.updatedAt ?? '').sort().pop() || null
   const [form, setForm] = useState({
     transferDate: head?.transferDate ?? today(),
     projectId: head?.projectId ? String(head.projectId) : '',
@@ -593,7 +597,7 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onClose, items, warehous
         <button className="ec-btn" onClick={() => submit(true)}>저장/전표(F7)</button>
         {head ? (
           <>
-            <button className="ec-btn" onClick={() => setCopied(true)}>복사</button>
+            <button className="ec-btn" onClick={() => { setCopied(true); onCopy() }}>복사</button>
             <button className="ec-btn" onClick={() => onNav(-1)}>이전</button>
             <button className="ec-btn" onClick={() => onNav(1)}>다음</button>
             <button className="ec-btn" onClick={onClose}>닫기</button>
@@ -617,7 +621,7 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onClose, items, warehous
             <tbody>
               {[
                 { at: head.createdAt, kind: '신규' },
-                ...(head.updatedAt && head.createdAt && head.updatedAt.slice(0, 19) !== head.createdAt.slice(0, 19) ? [{ at: head.updatedAt, kind: '수정' }] : []),
+                ...(lastUpdated && head.createdAt && lastUpdated.slice(0, 19) !== head.createdAt.slice(0, 19) ? [{ at: lastUpdated, kind: '수정' }] : []),
               ].map((h, i) => (
                 <tr key={i}>
                   <td className="text-center text-ec-hint">{i + 1}</td>
