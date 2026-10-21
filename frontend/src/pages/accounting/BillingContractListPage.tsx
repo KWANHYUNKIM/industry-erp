@@ -18,7 +18,8 @@ import { VAT_TYPES, won, type BillingContractRow } from '../../features/billingc
  * 버튼: 신규(F2) · Email · 인쇄 · 선택삭제 · Excel. 최근 계약이 위.
  * 머리: Search(F3) 빠른 검색칸 — 조건 판은 접혀서 시작한다(2026-10-20 실측, plans/공용.md 규칙 3).
  * [선택삭제] 확인 '선택한 전표를 삭제 하겠습니까?'(2026-10-20 실측).
- * 담당자 · 부서 조건, 진행상태 알약(전체 · 확인 · 진행중 · 완료), 줄 [인쇄] 열, Email · 인쇄는 아직 두지 않는다. [항목] 은 첫 줄 항목명(줄이 여럿인 계약은 원본에서 아직 못 쟀다).
+ * 진행상태 알약(전체 · 확인 · 진행중 · 완료, 2026-10-22 실측 — 진행중에는 [종결], 완료에는 [종결취소] 가 [선택삭제] 앞에 붙고 확인 창 없이 옮긴다, 확인 알약은 전체와 같은 줄).
+ * 담당자 · 부서 조건, 줄 [인쇄] 열(눌러 보면 인쇄라 못 잼), Email · 인쇄는 아직 두지 않는다. [항목] 은 첫 줄 항목명(줄이 여럿인 계약은 원본에서 아직 못 쟀다).
  */
 export default function BillingContractListPage() {
   const nav = useNavigate()
@@ -33,6 +34,8 @@ export default function BillingContractListPage() {
   const [currency, setCurrency] = useState<'' | 'D' | 'F'>('')
   const [project, setProject] = useState('')
   const [quick, setQuick] = useState('')
+  /** 진행상태 알약 — 원본(2026-10-22): 전체 · 확인 · 진행중 · 완료. 확인은 전체와 같은 줄(종결해도 그대로), 진행중 = 종결 안 한 것, 완료 = 종결한 것. */
+  const [stage, setStage] = useState<'ALL' | 'CONFIRM' | 'ONGOING' | 'DONE'>('ALL')
   const [rows, setRows] = useState<BillingContractRow[]>([])
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -62,6 +65,7 @@ export default function BillingContractListPage() {
   const units = useMemo(() => opts((r) => r.lines.filter((l) => l.billingUnitId != null).map((l) => [String(l.billingUnitId), l.billingUnitName ?? ''])), [rows])
   const projects = useMemo(() => opts((r) => (r.projectId != null ? [[String(r.projectId), r.projectName ?? '']] : [])), [rows])
   const shown = rows
+    .filter((r) => stage === 'ONGOING' ? !r.closed : stage === 'DONE' ? r.closed : true)
     .filter((r) => !partner || String(r.partnerId) === partner)
     .filter((r) => !item || r.lines.some((l) => String(l.itemId) === item))
     .filter((r) => !contract || String(r.id) === contract)
@@ -70,6 +74,10 @@ export default function BillingContractListPage() {
     .filter((r) => !currency || r.foreignCurrency === (currency === 'F'))
     .filter((r) => !project || String(r.projectId) === project)
     .filter((r) => !quick.trim() || [r.code, r.name ?? '', r.partnerName].some((v) => v.includes(quick.trim())))
+
+  async function close(closed: boolean) {
+    try { await api.post('/billing-contracts/close', { ids: [...picked], closed }); await load() } catch (e) { setError(extractErrorMessage(e)) }
+  }
 
   async function remove() {
     setConfirmDelete(false)
@@ -81,10 +89,17 @@ export default function BillingContractListPage() {
       onNew={() => nav('/accounting/billing-contracts/new')}
       onReset={() => { setFrom(init.from); setTo(init.to); setPartner(''); setItem(''); setContract(''); setVatType(''); setUnit(''); setCurrency(''); setProject('') }}
       actions={[
+      ...(stage === 'ONGOING' ? [{ label: '종결', selected: picked.size, onClick: () => void close(true) }]
+        : stage === 'DONE' ? [{ label: '종결취소', selected: picked.size, onClick: () => void close(false) }] : []),
       { label: '선택삭제', selected: picked.size, onClick: () => setConfirmDelete(true) },
       { label: 'Excel' },
     ]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="ec-pills mb-[8px]">
+        {([['ALL', '전체'], ['CONFIRM', '확인'], ['ONGOING', '진행중'], ['DONE', '완료']] as const).map(([k, n]) => (
+          <button key={k} type="button" className={`ec-pill no-ec${stage === k ? ' active' : ''}`} onClick={() => { setStage(k); setPicked(new Set()) }}>{n}</button>
+        ))}
+      </div>
       <ul className="ec-cond mb-[8px]">
         <EcCond label="계약일자">
           <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />

@@ -79,6 +79,11 @@ public class BillingContractController {
     }
 
     /** 계약조회 [선택삭제] */
+    @PostMapping("/close")
+    public void close(@RequestBody BillingContractDtos.CloseRequest req) {
+        service.close(req.ids(), req.closed());
+    }
+
     @PostMapping("/delete")
     public void delete(@RequestBody BillingContractDtos.DeleteRequest req) {
         service.delete(req.ids());

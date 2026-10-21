@@ -29,7 +29,7 @@ export interface BillingContractRow {
   partnerId: number; partnerCode: string; partnerName: string
   billStart: string; billEnd: string; vatType: string; foreignCurrency: boolean
   employeeId: number | null; departmentId: number | null; projectId: number | null; projectName: string | null
-  remark: string | null; totalAmount: number; lines: ContractLineRow[]
+  remark: string | null; totalAmount: number; lines: ContractLineRow[]; closed: boolean
   createdBy: string | null; createdAt: string | null; updatedBy: string | null; updatedAt: string | null
 }
 

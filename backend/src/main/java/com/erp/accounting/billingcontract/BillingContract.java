@@ -59,6 +59,10 @@ public class BillingContract extends BaseTimeEntity {
     @Column(name = "foreign_currency", nullable = false)
     private boolean foreignCurrency;
 
+    /** 종결(계약조회 [종결] · [종결취소]) — 완료 알약에 나온다. */
+    @Column(nullable = false)
+    private boolean closed;
+
     @Column(name = "employee_id")
     private Long employeeId;
 

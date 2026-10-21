@@ -69,7 +69,7 @@ public final class BillingContractDtos {
             Long partnerId, String partnerCode, String partnerName,
             LocalDate billStart, LocalDate billEnd, String vatType, boolean foreignCurrency,
             Long employeeId, Long departmentId, Long projectId, String projectName, String remark,
-            BigDecimal totalAmount, List<LineResponse> lines,
+            BigDecimal totalAmount, List<LineResponse> lines, boolean closed,
             String createdBy, LocalDateTime createdAt, String updatedBy, LocalDateTime updatedAt
     ) {
         public static ContractResponse from(BillingContract c, List<BillingContractLine> lines) {
@@ -79,7 +79,7 @@ public final class BillingContractDtos {
                     c.getBillStart(), c.getBillEnd(), c.getVatType(), c.isForeignCurrency(),
                     c.getEmployeeId(), c.getDepartmentId(),
                     c.getProject() != null ? c.getProject().getId() : null, c.getProject() != null ? c.getProject().getName() : null,
-                    c.getRemark(), total, lines.stream().map(LineResponse::from).toList(),
+                    c.getRemark(), total, lines.stream().map(LineResponse::from).toList(), c.isClosed(),
                     c.getCreatedBy(), c.getCreatedAt(), c.getUpdatedBy(), c.getUpdatedAt());
         }
     }
@@ -99,6 +99,9 @@ public final class BillingContractDtos {
     }
 
     public record DeleteRequest(List<Long> ids) {}
+
+    /** 계약조회 [종결](closed=true) · [종결취소](false). */
+    public record CloseRequest(List<Long> ids, boolean closed) {}
 
     /** 계약단가/수량일괄변경 · 계약현황 한 줄 — 계약 줄 하나. */
     public record PriceChangeLine(

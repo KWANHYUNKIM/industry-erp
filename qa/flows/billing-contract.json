@@ -29,7 +29,30 @@
       "path": "/accounting/billing-contracts",
       "steps": [
         "wait:1000",
-        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계2-정기계약'));return !!tr&&/\\d{4}\\/\\d{2}\\/\\d{2} -\\d+/.test(tr.cells[1].innerText)&&tr.cells[7].innerText.trim()==='22,000'&&tr.cells[8].innerText.trim()==='세금계산서'})()"
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계2-정기계약'));return !!tr&&/\\d{4}\\/\\d{2}\\/\\d{2} -\\d+/.test(tr.cells[1].innerText)&&tr.cells[7].innerText.trim()==='22,000'&&tr.cells[8].innerText.trim()==='세금계산서'})()",
+        "click:진행중",
+        "wait:300",
+        "expect:(()=>[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('QA회계2-정기계약')))()",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계2-정기계약'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "click:종결",
+        "wait:1200",
+        "expect:!(()=>[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('QA회계2-정기계약')))()",
+        "click:완료",
+        "wait:300",
+        "expect:(()=>[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('QA회계2-정기계약')))()",
+        "expect:[...document.querySelectorAll('button')].some((b)=>b.innerText.trim()==='종결취소')",
+        "click:확인",
+        "wait:300",
+        "expect:(()=>[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('QA회계2-정기계약')))()",
+        "click:완료",
+        "wait:300",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes('QA회계2-정기계약'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "click:종결취소",
+        "wait:1200",
+        "expect:!(()=>[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('QA회계2-정기계약')))()",
+        "click:진행중",
+        "wait:300",
+        "expect:(()=>[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes('QA회계2-정기계약')))()"
       ]
     },
     {

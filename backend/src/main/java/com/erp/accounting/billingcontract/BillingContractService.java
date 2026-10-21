@@ -126,6 +126,12 @@ public class BillingContractService {
         }
     }
 
+    /** 계약조회 [종결] · [종결취소] — 확인 없이 완료 알약으로 넘기고 되돌린다. */
+    @Transactional
+    public void close(List<Long> ids, boolean closed) {
+        for (Long id : ids) get(id).setClosed(closed);
+    }
+
     /** 계약조회 [선택삭제]. */
     @Transactional
     public void delete(List<Long> ids) {
