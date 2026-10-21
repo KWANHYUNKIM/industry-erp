@@ -1,6 +1,5 @@
 package com.erp.accounting.cardissuer;
 
-import com.erp.common.DocumentNoGenerator;
 import com.erp.accounting.cardissuer.dto.CardIssuerDtos.CardIssuerResponse;
 import com.erp.accounting.cardissuer.dto.CardIssuerDtos.CreateCardIssuerRequest;
 import com.erp.accounting.cardissuer.dto.CardIssuerDtos.UpdateCardIssuerRequest;
@@ -22,8 +21,8 @@ import java.util.List;
 public class CardIssuerService {
 
     private final AccountRepository accountRepository;
-    private final DocumentNoGenerator documentNoGenerator;
     private final CardIssuerRepository repository;
+    private final com.erp.accounting.paymentagency.PaymentAgencyRepository paymentAgencyRepository;
 
     @Transactional(readOnly = true)
     public List<CardIssuerResponse> findAll() {
@@ -85,7 +84,22 @@ public class CardIssuerService {
                 .orElseThrow(() -> ApiException.notFound("계정을 찾을 수 없습니다. id=" + id));
     }
 
+    /**
+     * 신규 창에 미리 채우는 다음 코드(2026-10-21 loginaa 카드사등록 실측: 00001 · 00002 뒤 신규 창 00022, 저장하면 다음 신규 00023,
+     * 지우면 다시 00022 — 지금 있는 숫자 코드 가운데 가장 큰 것 + 1, 다섯 자리). 원본은 카드사 · 결제대행사 · 거래처가 한 이름공간이라
+     * 00021 은 다른 쪽 코드다 — 우리는 카드사 · 결제대행사 코드를 같이 본다(거래처는 아직 따로).
+     */
+    @Transactional(readOnly = true)
+    public String nextCode() {
+        int max = java.util.stream.Stream.concat(
+                        repository.findAll().stream().map(CardIssuer::getCode),
+                        paymentAgencyRepository.findAll().stream().map(com.erp.accounting.paymentagency.PaymentAgency::getCode))
+                .filter(c -> c != null && c.matches("\\d{1,9}"))
+                .mapToInt(Integer::parseInt).max().orElse(0);
+        return String.format("%05d", max + 1);
+    }
+
     private String generateCode() {
-        return documentNoGenerator.nextMasterCode("CI", "card_issuers", "code", 3);
+        return nextCode();
     }
 }

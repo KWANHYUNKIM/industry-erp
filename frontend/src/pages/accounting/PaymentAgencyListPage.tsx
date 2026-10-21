@@ -7,6 +7,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, PaymentAgency } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import PgTransferModal from '../../features/paymentagency/components/PgTransferModal'
 
 interface AccountOption { id: number; code: string; name: string }
 
@@ -23,7 +24,8 @@ const REG_KINDS = ['사업자등록번호', '주민등록번호', '외국인']
  *   <li>신규 창 '결제대행사등록': 비우고 저장하면 <b>결제대행사코드 · 결제대행사명 · 계정</b>이 빨개진다(코드도 필수). 저장하면 안내 없이 닫힌다.</li>
  *   <li>코드를 누르면 '결제대행사수정' — 코드가 잠기고 [사용중단/재사용 ▲] 이 붙는다. 삭제는 '삭제하겠습니까?'.</li>
  * </ul>
- * 원본에만 있는 것: 결제대행사그룹1 · 2 · [이체정보] 열(은행 · 계좌번호 · 예금주 리스트) · 외화거래처의 통화 고르기 · 세무신고거래처의 검색입력 · 직접입력.
+ * [이체정보] 열 '등록' → 이체정보리스트(PgTransferModal, 2026-10-21 실측 — 등록해도 칸은 '등록' 그대로).
+ * 원본에만 있는 것: 결제대행사그룹1 · 2 · 외화거래처의 통화 고르기 · 세무신고거래처의 검색입력 · 직접입력.
  */
 export default function PaymentAgencyListPage() {
   const [rows, setRows] = useState<PaymentAgency[]>([])
@@ -48,6 +50,8 @@ export default function PaymentAgencyListPage() {
     postalCode: '', address: '', postalCode2: '', address2: '', taxReport: true, remark: '', active: true,
   }
   const [f, setF] = useState(blank)
+  /** [이체정보] 창을 연 결제대행사 */
+  const [transferOf, setTransferOf] = useState<number | null>(null)
   const set = <K extends keyof typeof blank>(k: K, v: (typeof blank)[K]) => setF((o) => ({ ...o, [k]: v }))
 
   function load() {
@@ -227,11 +231,12 @@ export default function PaymentAgencyListPage() {
             <th className="cursor-pointer" onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
             <th className="cursor-pointer w-[90px] text-center" onClick={() => sort.toggle('수수료율')}>수수료율 {sort.mark('수수료율')}</th>
             <th className="cursor-pointer w-[90px] text-center" onClick={() => sort.toggle('사용구분')}>사용구분 {sort.mark('사용구분')}</th>
+            <th className="w-[90px] text-center">이체정보</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((a) => (
             <tr key={a.id} className={a.active ? undefined : '[&>td]:bg-[var(--ec-bg-row-off)]'}>
               <td className="text-center">
@@ -249,10 +254,13 @@ export default function PaymentAgencyListPage() {
               <td>{a.searchKeyword ?? ''}</td>
               <td className="text-center">{a.feeRate != null ? `${Math.round(Number(a.feeRate))}%` : ''}</td>
               <td className="text-center">{a.active ? 'Yes' : 'No'}</td>
+              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setTransferOf(a.id) }}>등록</a></td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <PgTransferModal agencyId={transferOf} onClose={() => setTransferOf(null)} />
 
       <Modal error={formError} open={formOpen} title={f.id ? '결제대행사수정' : '결제대행사등록'} width={780} onClose={() => setFormOpen(false)}>{(
         <form onSubmit={save}>

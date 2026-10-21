@@ -93,4 +93,26 @@ public final class PaymentAgencyDtos {
                     p.getPostalCode(), p.getAddress(), p.getPostalCode2(), p.getAddress2());
         }
     }
+
+    /** [이체정보] 이체정보등록 · 이체정보수정 창. 원본 필수는 계좌번호 하나(빈 채 저장하면 그 칸만 빨간 테두리). */
+    public record SaveTransferRequest(
+            @Size(max = 10) String bankCode,
+            @Size(max = 50) String bankName,
+            @NotBlank(message = "계좌번호를 입력 바랍니다.") @Size(max = 50) String accountNo,
+            @Size(max = 50) String holder,
+            @Size(max = 100) String memo1,
+            @Size(max = 100) String memo2,
+            boolean isDefault
+    ) {}
+
+    public record TransferResponse(
+            Long id, Long paymentAgencyId, String bankCode, String bankName, String accountNo,
+            String holder, String memo1, String memo2, boolean isDefault
+    ) {
+        public static TransferResponse from(com.erp.accounting.paymentagency.PaymentAgencyTransfer t) {
+            return new TransferResponse(t.getId(), t.getPaymentAgency().getId(), t.getBankCode(), t.getBankName(),
+                    t.getAccountNo(), t.getHolder(), t.getMemo1(), t.getMemo2(), t.isDefaultTransfer());
+        }
+    }
 }
+

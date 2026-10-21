@@ -38,4 +38,28 @@ public class PaymentAgencyController {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    /** [이체정보] 이체정보리스트 · 등록 · 수정 · 삭제(원본 E010114 2026-10-21 실측). */
+    @GetMapping("/{id}/transfers")
+    public List<com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse> transfers(@PathVariable Long id) {
+        return service.transfers(id);
+    }
+
+    @PostMapping("/{id}/transfers")
+    public com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse addTransfer(
+            @PathVariable Long id, @Valid @RequestBody com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.SaveTransferRequest req) {
+        return service.addTransfer(id, req);
+    }
+
+    @PutMapping("/transfers/{transferId}")
+    public com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse updateTransfer(
+            @PathVariable Long transferId, @Valid @RequestBody com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.SaveTransferRequest req) {
+        return service.updateTransfer(transferId, req);
+    }
+
+    @DeleteMapping("/transfers/{transferId}")
+    public ResponseEntity<Void> deleteTransfer(@PathVariable Long transferId) {
+        service.deleteTransfer(transferId);
+        return ResponseEntity.noContent().build();
+    }
 }

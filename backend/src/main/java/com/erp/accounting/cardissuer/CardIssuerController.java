@@ -23,6 +23,12 @@ public class CardIssuerController {
         return service.findAll();
     }
 
+    /** 신규 창의 [카드사 코드] 처음 값 — 원본은 다음 번호를 미리 채운다(00022). */
+    @GetMapping("/next-code")
+    public java.util.Map<String, String> nextCode() {
+        return java.util.Map.of("code", service.nextCode());
+    }
+
     @PostMapping
     public ResponseEntity<CardIssuerResponse> create(@Valid @RequestBody CreateCardIssuerRequest req) {
         return ResponseEntity.ok(service.create(req));

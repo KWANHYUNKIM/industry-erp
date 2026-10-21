@@ -23,6 +23,7 @@ public class PaymentAgencyService {
     private final AccountRepository accountRepository;
     private final DocumentNoGenerator documentNoGenerator;
     private final PaymentAgencyRepository repository;
+    private final PaymentAgencyTransferRepository transferRepository;
 
     @Transactional(readOnly = true)
     public List<PaymentAgencyResponse> findAll() {
@@ -71,6 +72,55 @@ public class PaymentAgencyService {
     @Transactional
     public void delete(Long id) {
         repository.delete(get(id));
+    }
+
+    /** [이체정보] 이체정보리스트 — 등록한 차례대로. */
+    @Transactional(readOnly = true)
+    public List<com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse> transfers(Long agencyId) {
+        get(agencyId);
+        return transferRepository.findByPaymentAgencyIdOrderByIdAsc(agencyId).stream()
+                .map(com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse::from).toList();
+    }
+
+    @Transactional
+    public com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse addTransfer(
+            Long agencyId, com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.SaveTransferRequest req) {
+        PaymentAgencyTransfer t = PaymentAgencyTransfer.builder().paymentAgency(get(agencyId)).accountNo(req.accountNo().trim()).build();
+        fillTransfer(t, req);
+        return com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse.from(transferRepository.save(t));
+    }
+
+    @Transactional
+    public com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse updateTransfer(
+            Long transferId, com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.SaveTransferRequest req) {
+        PaymentAgencyTransfer t = transfer(transferId);
+        fillTransfer(t, req);
+        return com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.TransferResponse.from(t);
+    }
+
+    @Transactional
+    public void deleteTransfer(Long transferId) {
+        transferRepository.delete(transfer(transferId));
+    }
+
+    private PaymentAgencyTransfer transfer(Long id) {
+        return transferRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("이체정보를 찾을 수 없습니다. id=" + id));
+    }
+
+    /** 기본이체통장은 한 결제대행사에 하나 — 새로 기본으로 하면 다른 줄의 기본을 끈다. */
+    private void fillTransfer(PaymentAgencyTransfer t, com.erp.accounting.paymentagency.dto.PaymentAgencyDtos.SaveTransferRequest req) {
+        t.setBankCode(StringUtils.hasText(req.bankCode()) ? req.bankCode().trim() : null);
+        t.setBankName(StringUtils.hasText(req.bankName()) ? req.bankName().trim() : null);
+        t.setAccountNo(req.accountNo().trim());
+        t.setHolder(StringUtils.hasText(req.holder()) ? req.holder().trim() : null);
+        t.setMemo1(StringUtils.hasText(req.memo1()) ? req.memo1().trim() : null);
+        t.setMemo2(StringUtils.hasText(req.memo2()) ? req.memo2().trim() : null);
+        t.setDefaultTransfer(req.isDefault());
+        if (req.isDefault()) {
+            transferRepository.findByPaymentAgencyIdOrderByIdAsc(t.getPaymentAgency().getId()).stream()
+                    .filter(o -> o != t && !o.getId().equals(t.getId())).forEach(o -> o.setDefaultTransfer(false));
+        }
     }
 
     private PaymentAgency get(Long id) {

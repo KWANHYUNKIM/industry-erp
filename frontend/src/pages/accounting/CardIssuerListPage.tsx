@@ -54,6 +54,9 @@ export default function CardIssuerListPage() {
 
   function openNew() {
     setF(blank); setFormError(''); setInvalid(false); setEditMenu(false); setFormOpen(true)
+    /* 원본 신규 창은 [카드사 코드]에 다음 번호를 미리 채운다(2026-10-21 실측 00022 → 저장 뒤 00023). */
+    api.get<{ code: string }>('/card-issuers/next-code')
+      .then(({ data }) => setF((x) => (x.id == null && !x.code ? { ...x, code: data.code } : x))).catch(() => {})
   }
   function openEdit(c: CardIssuer) {
     setF({ id: c.id, code: c.code, name: c.name, bank: c.depositAccount ?? '', accountId: c.accountId != null ? String(c.accountId) : '',
