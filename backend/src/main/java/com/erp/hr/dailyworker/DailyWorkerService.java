@@ -109,6 +109,15 @@ public class DailyWorkerService {
         w.setDailyWage(req.dailyWage());
         w.setFixedIncomeTax(req.fixedIncomeTax());
         w.setFixedLocalTax(req.fixedLocalTax());
+        w.setPhone(blank(req.phone()));
+        w.setPassportNo(blank(req.passportNo()));
+        w.setProjectId(req.projectId());
+        w.setAttachmentFileId(req.attachmentFileId());
+        w.setText1(blank(req.text1())); w.setText2(blank(req.text2())); w.setText3(blank(req.text3()));
+        w.setNum1(req.num1()); w.setNum2(req.num2()); w.setNum3(req.num3());
+        w.setYn1(blank(req.yn1())); w.setYn2(blank(req.yn2())); w.setYn3(blank(req.yn3()));
+        w.setDate1(req.date1()); w.setDate2(req.date2()); w.setDate3(req.date3());
+        w.setCode1(blank(req.code1())); w.setCode2(blank(req.code2())); w.setCode3(blank(req.code3()));
     }
 
     /** [급여지급사항] 기본 밖 항목 — 보낸 목록으로 갈아 끼운다(0 · 빈칸은 두지 않는다). null 이면 그대로. */

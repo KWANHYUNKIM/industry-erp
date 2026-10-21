@@ -99,4 +99,34 @@ public class DailyWorker extends BaseTimeEntity {
 
     @Column(name = "fixed_local_tax", precision = 15, scale = 0)
     private BigDecimal fixedLocalTax;
+
+    /** 원본 [사원정보] 탭 [전화] · [여권번호] · [프로젝트](id 만 — hr 은 inventory 를 참조하지 않는다) · [첨부](stored_files id) */
+    @Column(length = 30)
+    private String phone;
+
+    @Column(name = "passport_no", length = 30)
+    private String passportNo;
+
+    @Column(name = "project_id")
+    private Long projectId;
+
+    @Column(name = "attachment_file_id")
+    private Long attachmentFileId;
+
+    /** 원본 [추가정보] 탭 고정 열다섯 칸: 문자 · 숫자 · Y/N · 일자 · 코드 형식 1~3 */
+    @Column(length = 100) private String text1;
+    @Column(length = 100) private String text2;
+    @Column(length = 100) private String text3;
+    @Column(precision = 18, scale = 2) private BigDecimal num1;
+    @Column(precision = 18, scale = 2) private BigDecimal num2;
+    @Column(precision = 18, scale = 2) private BigDecimal num3;
+    @Column(length = 1) private String yn1;
+    @Column(length = 1) private String yn2;
+    @Column(length = 1) private String yn3;
+    private LocalDate date1;
+    private LocalDate date2;
+    private LocalDate date3;
+    @Column(length = 50) private String code1;
+    @Column(length = 50) private String code2;
+    @Column(length = 50) private String code3;
 }

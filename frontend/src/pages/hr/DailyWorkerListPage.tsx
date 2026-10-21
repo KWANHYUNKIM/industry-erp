@@ -2,7 +2,6 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { BANK_CODES } from '../../utils/bankCodes'
-import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import Modal from '../../components/Modal'
 import BulkChangeModal, { type BulkDraft, type BulkField } from '../../components/BulkChangeModal'
 import { useTableSort } from '../../utils/useTableSort'
@@ -21,24 +20,36 @@ interface DailyWorker {
   bankName: string | null; accountNo: string | null; accountHolder: string | null; remark: string | null
   dailyWage: number | null; fixedIncomeTax: number | null; fixedLocalTax: number | null
   payAmounts?: { itemId: number; amount: number }[]
+  phone: string | null; passportNo: string | null; projectId: number | null; attachmentFileId: number | null
+  text1: string | null; text2: string | null; text3: string | null
+  num1: number | null; num2: number | null; num3: number | null
+  yn1: string | null; yn2: string | null; yn3: string | null
+  date1: string | null; date2: string | null; date3: string | null
+  code1: string | null; code2: string | null; code3: string | null
 }
+/** 원본 [추가정보] 탭의 고정 열다섯 칸(2026-10-22 실측: 문자 · 숫자 · Y/N · 일자 · 코드 형식 각 1~3) */
+const EXTRA_KEYS = ['text1', 'text2', 'text3', 'num1', 'num2', 'num3', 'yn1', 'yn2', 'yn3', 'date1', 'date2', 'date3', 'code1', 'code2', 'code3'] as const
+type ExtraKey = (typeof EXTRA_KEYS)[number]
+const EXTRA_LABEL: Record<string, string> = { text: '문자형식', num: '숫자형식', yn: 'Y/N형식', date: '일자형식', code: '코드형식' }
 /** 일용근로 수당등록 · 공제등록에서 더한 항목(기본 일근무 · 소득세 · 지방소득세 밖) — [급여지급사항] 표에 한 줄씩 생긴다. */
 interface PayItem { id: number; kind: 'ALLOWANCE' | 'DEDUCTION'; name: string; builtin: boolean; payMethod?: string | null }
 
-interface Form {
+type Form = {
   code: string; name: string; foreigner: boolean; nationality: string; departmentId: string; mobile: string; email: string
   hireDate: string; resignDate: string; zipcode: string; address: string
   employmentInsurance: boolean; pensionAuto: boolean; pensionBase: string; healthAuto: boolean; healthBase: string
   bankName: string; accountNo: string; accountHolder: string; remark: string
   dailyWage: string; fixedIncomeTax: string; fixedLocalTax: string
   payAmounts: Record<number, string>
-}
+  phone: string; passportNo: string; projectId: string; attachmentFileId: string; attachmentName: string
+} & Record<ExtraKey, string>
 const blankForm = (): Form => ({
   code: '', name: '', foreigner: false, nationality: '', departmentId: '', mobile: '', email: '',
   hireDate: ymd(new Date()), resignDate: '', zipcode: '', address: '',
   employmentInsurance: true, pensionAuto: false, pensionBase: '', healthAuto: false, healthBase: '',
   bankName: '', accountNo: '', accountHolder: '', remark: '', dailyWage: '', fixedIncomeTax: '', fixedLocalTax: '',
-  payAmounts: {},
+  payAmounts: {}, phone: '', passportNo: '', projectId: '', attachmentFileId: '', attachmentName: '',
+  ...(Object.fromEntries(EXTRA_KEYS.map((k) => [k, ''])) as Record<ExtraKey, string>),
 })
 const str = (v: unknown) => (v == null ? '' : String(v))
 const num = (s: string) => (s === '' ? null : Number(s.replace(/,/g, '')))
@@ -65,6 +76,7 @@ type Tab = '기본' | '사원정보' | '급여지급사항' | '추가정보' | '
 export default function DailyWorkerListPage() {
   const [rows, setRows] = useState<DailyWorker[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [error, setError] = useState('')
   const [quick, setQuick] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
@@ -79,6 +91,7 @@ export default function DailyWorkerListPage() {
   const [tab, setTab] = useState<Tab>('기본')
   const [payItems, setPayItems] = useState<PayItem[]>([])
   const tableRef = useRef<HTMLTableElement>(null)
+  const attachRef = useRef<HTMLInputElement>(null)
 
   function load() {
     setError('')
@@ -91,6 +104,7 @@ export default function DailyWorkerListPage() {
   }, [])
   useEffect(() => {
     load()
+    api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => setProjects([]))
     api.get<Department[]>('/departments').then((r) => setDepartments(r.data)).catch(() => setDepartments([]))
   }, [])
 
@@ -122,7 +136,10 @@ export default function DailyWorkerListPage() {
       bankName: str(w.bankName), accountNo: str(w.accountNo), accountHolder: str(w.accountHolder), remark: str(w.remark),
       dailyWage: str(w.dailyWage), fixedIncomeTax: str(w.fixedIncomeTax), fixedLocalTax: str(w.fixedLocalTax),
       payAmounts: Object.fromEntries((w.payAmounts ?? []).map((a) => [a.itemId, str(a.amount)])),
+      phone: str(w.phone), passportNo: str(w.passportNo), projectId: str(w.projectId), attachmentFileId: str(w.attachmentFileId), attachmentName: '',
+      ...(Object.fromEntries(EXTRA_KEYS.map((k) => [k, str(w[k])])) as Record<ExtraKey, string>),
     })
+    if (w.attachmentFileId) api.get<{ name: string }>(`/files/${w.attachmentFileId}/meta`).then((r) => set({ attachmentName: r.data.name })).catch(() => {})
     setOpen(true)
   }
 
@@ -139,6 +156,9 @@ export default function DailyWorkerListPage() {
       pensionBase: num(form.pensionBase), healthBase: num(form.healthBase),
       dailyWage: num(form.dailyWage), fixedIncomeTax: num(form.fixedIncomeTax), fixedLocalTax: num(form.fixedLocalTax),
       payAmounts: payItems.map((i) => ({ itemId: i.id, amount: num(form.payAmounts[i.id] ?? '') })),
+      projectId: form.projectId ? Number(form.projectId) : null,
+      attachmentFileId: form.attachmentFileId ? Number(form.attachmentFileId) : null,
+      ...Object.fromEntries(EXTRA_KEYS.map((k) => [k, k.startsWith('num') ? num(form[k]) : k.startsWith('date') ? form[k] || null : form[k] || null])),
     }
     try {
       const r = editId ? await api.put<DailyWorker>(`/hr/daily-workers/${editId}`, body) : await api.post<DailyWorker>('/hr/daily-workers', body)
@@ -229,6 +249,35 @@ export default function DailyWorkerListPage() {
                     <CodePickerField label="부서코드" hideLabel fill placeholder="부서코드" emptyLabel="선택 해제"
                                      value={form.departmentId} onChange={(v) => set({ departmentId: v })}
                                      items={departments.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))} />
+                  </div>
+                </li>
+    </Fragment>,
+    '프로젝트': <Fragment key="프로젝트">
+                <li>
+                  <span className="title">프로젝트</span>
+                  <div className="form">
+                    <CodePickerField label="프로젝트" hideLabel fill placeholder="프로젝트" emptyLabel="선택 해제"
+                                     value={form.projectId} onChange={(v) => set({ projectId: v })}
+                                     items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+                  </div>
+                </li>
+    </Fragment>,
+    '전화': text('전화', 'phone'),
+    '여권번호': text('여권번호', 'passportNo'),
+    '첨부': <Fragment key="첨부">
+                <li className="wide">
+                  <span className="title">첨부</span>
+                  <div className="form flex items-center gap-[6px]">
+                    {form.attachmentFileId && <span>{form.attachmentName || `파일 ${form.attachmentFileId}`}</span>}
+                    <button type="button" className="ec-btn ec-btn-sm" onClick={() => attachRef.current?.click()}>+</button>
+                    {form.attachmentFileId && <button type="button" className="ec-btn ec-btn-sm" onClick={() => set({ attachmentFileId: '', attachmentName: '' })}>삭제</button>}
+                    <input ref={attachRef} type="file" className="hidden" onChange={async (e) => {
+                      const f = e.target.files?.[0]; e.target.value = ''
+                      if (!f) return
+                      const fd = new FormData(); fd.append('file', f)
+                      try { const r = await api.post<{ id: number; name: string }>('/files', fd); set({ attachmentFileId: String(r.data.id), attachmentName: r.data.name }) }
+                      catch (err) { setFormError(extractErrorMessage(err)) }
+                    }} />
                   </div>
                 </li>
     </Fragment>,
@@ -388,12 +437,33 @@ export default function DailyWorkerListPage() {
         {tab === '기본' ? (
           <ul className="ec-form">{fields('사원번호', '성명', '외국인', '부서코드', '모바일', 'Email', '입사일자', '퇴사일자', '우편번호', '주소', '고용보험', '국민연금', '건강보험', '급여통장', '적요')}</ul>
         ) : tab === '사원정보' ? (
-          <ul className="ec-form">{fields('사원번호', '성명', '부서코드', '모바일', 'Email', '입사일자', '퇴사일자', '우편번호', '주소', '적요')}</ul>
+          <ul className="ec-form">{fields('사원번호', '성명', '부서코드', '프로젝트', '전화', '모바일', '여권번호', 'Email', '입사일자', '퇴사일자', '우편번호', '주소', '적요', '첨부')}</ul>
         ) : tab === '추가정보' ? (
           <>
             <ul className="ec-form mb-[8px]">{fields('사원번호', '성명')}</ul>
-            {/* 원본 [추가정보] 는 문자 · 숫자 · Y/N · 일자 · 코드 형식 칸 열다섯(2026-10-22 실측) — 우리는 Self-Customizing 사용자정의 칸이 값은 행에 붙으므로 수정할 때만 뜬다 */}
-            {editId && <CustomFieldsPanel entityType="DAILY_WORKER" entityId={editId} />}
+            <ul className="ec-form">
+              {(['text', 'num', 'yn', 'date', 'code'] as const).flatMap((t) => [1, 2, 3].map((n) => {
+                const k = `${t}${n}` as ExtraKey
+                return (
+                  <li key={k} className="wide">
+                    <span className="title">{EXTRA_LABEL[t]}{n}</span>
+                    <div className="form">
+                      {t === 'yn' ? (
+                        <span className="inline-flex gap-[12px]">
+                          {['Y', 'N'].map((v) => (
+                            <label key={v} className="inline-flex items-center gap-[4px]">
+                              <input type="radio" name={`dw-${k}`} checked={form[k] === v} onChange={() => set({ [k]: v } as Partial<Form>)} /> {v}
+                            </label>
+                          ))}
+                        </span>
+                      ) : t === 'date' ? <input type="date" className="ec-input w-[150px]" value={form[k]} onChange={(e) => set({ [k]: e.target.value } as Partial<Form>)} />
+                        : <input className={`ec-input w-full${t === 'num' ? ' text-right' : ''}`} inputMode={t === 'num' ? 'decimal' : undefined} value={form[k]}
+                                 onChange={(e) => set({ [k]: t === 'num' ? e.target.value.replace(/[^0-9.-]/g, '') : e.target.value } as Partial<Form>)} />}
+                    </div>
+                  </li>
+                )
+              }))}
+            </ul>
           </>
         ) : tab === '기타설정' ? (
           <ul className="ec-form">{fields('사원번호', '성명', '외국인', '고용보험', '국민연금', '급여통장', '건강보험')}</ul>

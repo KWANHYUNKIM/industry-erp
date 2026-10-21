@@ -36,6 +36,21 @@ public class DailyWorkerDtos {
             @PositiveOrZero(message = "일근무 금액은 0 이상이어야 합니다.") BigDecimal dailyWage,
             @PositiveOrZero(message = "소득세는 0 이상이어야 합니다.") BigDecimal fixedIncomeTax,
             @PositiveOrZero(message = "지방소득세는 0 이상이어야 합니다.") BigDecimal fixedLocalTax,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.") String phone,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.") String passportNo,
+            Long projectId,
+            Long attachmentFileId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text1,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text2,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text3,
+            BigDecimal num1, BigDecimal num2, BigDecimal num3,
+            @jakarta.validation.constraints.Pattern(regexp = "[YN]?", message = "Y/N 형식은 Y 또는 N 이어야 합니다.") String yn1,
+            @jakarta.validation.constraints.Pattern(regexp = "[YN]?", message = "Y/N 형식은 Y 또는 N 이어야 합니다.") String yn2,
+            @jakarta.validation.constraints.Pattern(regexp = "[YN]?", message = "Y/N 형식은 Y 또는 N 이어야 합니다.") String yn3,
+            LocalDate date1, LocalDate date2, LocalDate date3,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String code1,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String code2,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String code3,
             List<@jakarta.validation.Valid PayAmount> payAmounts
     ) {}
 
@@ -50,7 +65,11 @@ public class DailyWorkerDtos {
             boolean employmentInsurance, boolean pensionAuto, BigDecimal pensionBase,
             boolean healthAuto, BigDecimal healthBase,
             String bankName, String accountNo, String accountHolder, String remark,
-            BigDecimal dailyWage, BigDecimal fixedIncomeTax, BigDecimal fixedLocalTax, List<PayAmount> payAmounts
+            BigDecimal dailyWage, BigDecimal fixedIncomeTax, BigDecimal fixedLocalTax, List<PayAmount> payAmounts,
+            String phone, String passportNo, Long projectId, Long attachmentFileId,
+            String text1, String text2, String text3, BigDecimal num1, BigDecimal num2, BigDecimal num3,
+            String yn1, String yn2, String yn3, LocalDate date1, LocalDate date2, LocalDate date3,
+            String code1, String code2, String code3
     ) {
         public static DailyWorkerResponse from(DailyWorker w) {
             return from(w, List.of());
@@ -65,7 +84,11 @@ public class DailyWorkerDtos {
                     w.isEmploymentInsurance(), w.isPensionAuto(), w.getPensionBase(),
                     w.isHealthAuto(), w.getHealthBase(),
                     w.getBankName(), w.getAccountNo(), w.getAccountHolder(), w.getRemark(),
-                    w.getDailyWage(), w.getFixedIncomeTax(), w.getFixedLocalTax(), payAmounts);
+                    w.getDailyWage(), w.getFixedIncomeTax(), w.getFixedLocalTax(), payAmounts,
+                    w.getPhone(), w.getPassportNo(), w.getProjectId(), w.getAttachmentFileId(),
+                    w.getText1(), w.getText2(), w.getText3(), w.getNum1(), w.getNum2(), w.getNum3(),
+                    w.getYn1(), w.getYn2(), w.getYn3(), w.getDate1(), w.getDate2(), w.getDate3(),
+                    w.getCode1(), w.getCode2(), w.getCode3());
         }
     }
 
