@@ -4834,13 +4834,14 @@ async function scenarioNoUnboundedList() {
   }
 
   const 안받는것 = []
+  const 줄적은자리 = new Set()   // 200줄 이하라 판정을 못 한 자리 — 자료가 적을 뿐 고친 것이 아니다
   for (const p of [...paths].sort()) {
     if (기간받는자리.has(p)) continue
     const a = await call('GET', p)
     if (a.status !== 200) continue
     const la = Array.isArray(a.data) ? a.data
       : (a.data && typeof a.data === 'object' ? Object.values(a.data).find((v) => Array.isArray(v)) : null)
-    if (!Array.isArray(la) || la.length <= 200) continue
+    if (!Array.isArray(la) || la.length <= 200) { 줄적은자리.add(p); continue }
     const b = await call('GET', `${p}?from=2026-08-01&to=2026-08-05`)
     if (b.status !== 200) continue
     const lb = Array.isArray(b.data) ? b.data
@@ -4859,7 +4860,7 @@ async function scenarioNoUnboundedList() {
    */
   const TODO = Object.keys(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-period.json'), 'utf8')))
   const 늘었다 = 안받는것.filter((x) => !TODO.includes(x))
-  const 고쳤다 = TODO.filter((x) => !안받는것.includes(x))
+  const 고쳤다 = TODO.filter((x) => !안받는것.includes(x) && !줄적은자리.has(x))
   eq(`기간을 안 받는 목록이 늘지 않았다 (아직 ${TODO.length}자리 남음)`, 늘었다.join(' / ') || '없음', '없음')
   eq('고쳐 놓고 목록에 남겨 둔 자리가 없다', 고쳤다.join(' / ') || '없음', '없음')
 }
@@ -11094,7 +11095,8 @@ async function scenarioGhostId() {
   })
 
   /* 있는 방·없는 방을 갈라 주지 않기로 한 자리 — 까닭은 ChatService.mine 주석에 있다. */
-  const SKIP = [/^\/chat\//]
+  /* 번호가 아니라 연도·귀속월로 부르는 자리(보험요율 초기화 · 근무기록확정 삭제)와, 필수 꼬리표(?employeeIds= · ?workerIds=)를 요구해 400 이 먼저 나는 자리. */
+  const SKIP = [/^\/chat\//, /^\/pay-settings\/insurance-rates\//, /^\/work-records\/confirms\//, /\/direct-amounts$/]
   const GHOST = '99999999'
   const found = []
   for (const f of walk(SRC)) {
@@ -11573,8 +11575,11 @@ async function scenarioHrCertificate() {
   eq('고쳐도 발행번호는 그대로', u.issueNo, c.issueNo)
   eq('고친 종류가 읽힌다', (await must('GET', `/hr/certificates/${c.id}`)).kindName, '경력증명서')
   if (!emp.resignDate) {
-    await rejects('퇴사일 없는 사원의 퇴직증명서는 막는다', 'POST', '/hr/certificates',
-      { kind: 'RESIGNATION', employeeId: emp.id, purpose: 'QA-증명', issueDate: today }, '퇴사일이 없는 사원')
+    /* 원본은 퇴사일이 없는 재직 사원에게도 퇴직증명서를 저장한다(2026-10-14 실측) — 막지 않는다. */
+    const r = await must('POST', '/hr/certificates',
+      { kind: 'RESIGNATION', employeeId: emp.id, purpose: 'QA-증명', issueDate: today })
+    eq('퇴사일 없는 사원도 퇴직증명서가 저장된다(원본)', r.kind, 'RESIGNATION')
+    await must('DELETE', `/hr/certificates/${r.id}`)
   }
   await must('DELETE', `/hr/certificates/${c.id}`)
   eq('지운 증명서는 목록에 없다', (await must('GET', '/hr/certificates')).some((x) => x.id === c.id), 'false')
@@ -11658,7 +11663,8 @@ async function scenarioDailyWorker() {
   await rejects('근무입력에 쓰인 사원은 지울 수 없다', 'DELETE', `/hr/daily-workers/${w.id}`, undefined, '근무입력에 쓰인 사원')
   // 급여계산/대장 — 일근무 160,000 × 3 = 480,000 · 소득세 = 월정공제(비어 있으면 0, 원본 계산식 R( 소득세(급여지급사항) , 0 ))
   const ledger = await must('POST', '/hr/daily-pay-ledgers', { payMonth: '2091-11' })
-  eq('대장명칭 기본값', ledger.name, '2091/11 1차수 (급여)')
+  /* 차수는 그 달 대장 수 + 1 — 앞선 시험이 중도에 멈춰 남긴 대장이 있으면 2차수 이상이다. */
+  eq('대장명칭 기본값', /^2091\/11 \d+차수 \(급여\)$/.test(ledger.name), true)
   const loaded = await must('GET', `/hr/daily-pay-ledgers/${ledger.id}/work-confirms/load`)
   eq('[근무기록] 은 대상기간 밖 근무를 안 부른다', Number(loaded.find((r) => r.workerId === w.id)?.days ?? 0), 0)
   await must('PUT', `/hr/daily-pay-ledgers/${ledger.id}/work-confirms`, [{ workerId: w.id, days: 3 }])
@@ -11963,7 +11969,7 @@ async function scenarioEmployeeCommute() {
   await rejects('시간이 비면 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id }, '시간을 입력')
   const a = await must('POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T09:00:00', place: '사무실', outside: true })
   eq('그날 처음은 출근', `${a.clockIn}/${a.clockOut}/${a.outside}`, '2091-05-02T09:00:00/null/true')
-  await rejects('퇴근시간이 출근보다 앞서면 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T08:00:00' }, '퇴근시간이 출근시간보다')
+  await rejects('퇴근시간이 출근보다 앞서면 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T08:00:00' }, '오전 9:00 이후로 입력 바랍니다')
   const b = await must('POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T18:30:00' })
   eq('두 번째는 퇴근', b.clockOut, '2091-05-02T18:30:00')
   await rejects('세 번째는 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T19:00:00' }, '이미 퇴근한 사원')
@@ -12140,9 +12146,9 @@ async function scenarioAccountingSummary() {
   const near = (a, b, tol = 1) => Math.abs(Number(a) - Number(b)) <= tol
   eq('매출 합계 = 공급가액 + 부가세', near(vat.salesTotal, Number(vat.salesSupply) + Number(vat.salesVat)), true)
   eq('매입 합계 = 공급가액 + 부가세', near(vat.purchaseTotal, Number(vat.purchaseSupply) + Number(vat.purchaseVat)), true)
-  /* 납부세액은 <b>매출세액 − 매입세액</b> 이다. 매입세액은 구매 + 지출(47회차부터). 부호가 뒤집히면 낼 돈과 받을 돈이 바뀐다. */
+  /* 납부세액은 <b>매출세액 − 매입세액</b> 이다. 매입세액은 구매 + 지출(47회차부터) + 카드 사용. 부호가 뒤집히면 낼 돈과 받을 돈이 바뀐다. */
   eq('납부세액 = 매출세액 − 매입세액(구매 + 지출)',
-    near(vat.vatPayable, Number(vat.salesVat) - Number(vat.purchaseVat) - Number(vat.expenseVat ?? 0)), true)
+    near(vat.vatPayable, Number(vat.salesVat) - Number(vat.purchaseVat) - Number(vat.expenseVat ?? 0) - Number(vat.cardVat ?? 0)), true)
 
   const items = await must('GET', '/accounting/item-profit')
   eq('품목별 이익이 한 줄 이상 나온다', items.length > 0, true)
