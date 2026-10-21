@@ -39,7 +39,7 @@
         "js:__d(0,'2026-10-01');__d(1,'2026-10-21');true",
         "wait:2000",
         "expect:document.body.innerText.includes('(QA회계1-수량)')",
-        "expect:(c=>c&&c[0]==='2026/10/05'&&c[3]==='15.00'&&c[5]==='15.00')(__c((r=>r.innerText.includes('2026/10/05')&&r.innerText.includes('QA회계1'))))",
+        "expect:(c=>c&&c[0].startsWith('2026/10/05')&&c[3]==='15.00'&&c[5]==='15.00')(__c((r=>r.innerText.includes('2026/10/05')&&r.innerText.includes('QA회계1'))))",
         "expect:!document.body.innerText.includes('(QA회계1-출력물)')"
       ]
     },
@@ -94,7 +94,7 @@
         "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
         "js:__d(0,'2026-10-01');__d(1,'2026-10-21');true",
         "wait:2000",
-        "expect:(c=>c&&c[0]==='2026/10/21'&&c[4]==='15.00'&&c[5]==='')(__c((r=>r.innerText.includes('2026/10/21'))))"
+        "expect:(c=>c&&c[0].startsWith('2026/10/21')&&c[4]==='15.00'&&c[5]==='')(__c((r=>r.innerText.includes('2026/10/21'))))"
       ]
     },
     {

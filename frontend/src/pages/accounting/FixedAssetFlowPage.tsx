@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 증가 · 감소내역은 0 도 '0' 으로 찍는다(수량 · 감가상각충당금 · 매매가액, 2026-10-21 실측). */
@@ -39,6 +40,8 @@ const qtyOf = (a: { quantityManaged: boolean; quantity: number }) => (a.quantity
 export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소' }) {
   const inc = flow === '증가'
   const title = inc ? '고정자산증가내역' : '고정자산감소내역'
+  /* 출력물 머리의 제목은 감소만 '…내역서'(원본 2026-10-22 실측) */
+  const reportTitle = inc ? title : `${title}서`
   const init = periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -130,6 +133,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
         </EcCond>
       </ul>
 
+      <EcReportHead title={reportTitle} period={reportPeriod(from, to)} />
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -184,6 +188,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
           </tfoot>
         )}
       </table>
+      <EcReportFoot />
     </EcListShell>
   )
 }

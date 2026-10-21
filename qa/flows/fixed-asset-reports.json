@@ -26,7 +26,7 @@
    "steps": [
     "wait:800",
     "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-출력물'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-출력물')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-    "js:window.__calcRow=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.cells[0]&&r.cells[0].innerText.trim()==='99');window.__menu=async(btn,item)=>{[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===btn).click();await new Promise(r=>setTimeout(r,250));[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===item).click()};window.__closeTop=()=>{const b=[...document.querySelectorAll('.ec-modal button')].filter(x=>x.textContent.trim()==='닫기');b[b.length-1].click()};window.__dj=n=>{const r=[...document.querySelectorAll('.ec-modal tbody tr')].find(r=>r.innerText.includes(n));return r?[...r.cells].map(c=>c.innerText.trim()).join('|'):''};true",
+    "js:window.__calcRow=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.cells[0]&&r.cells[0].innerText.trim()==='99');window.__menu=async(btn,item)=>{const m=[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===btn);if(m){m.click();await new Promise(r=>setTimeout(r,250))}[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===item).click()};window.__closeTop=()=>{const b=[...document.querySelectorAll('.ec-modal button')].filter(x=>x.textContent.trim()==='닫기');b[b.length-1].click()};window.__dj=n=>{const r=[...document.querySelectorAll('.ec-modal tbody tr')].find(r=>r.innerText.includes(n));return r?[...r.cells].map(c=>c.innerText.trim()).join('|'):''};true",
     "click:신규(F2)",
     "wait:400",
     "js:__set(__q('fiscalTerm'),'99');__set(__q('periodFromYear'),'2026');__set(__q('periodFromMonth'),'10');__set(__q('periodToYear'),'2026');__set(__q('periodToMonth'),'10');true",
@@ -39,7 +39,17 @@
     "expect:document.body.innerText.includes('감가상각상세내역')&&(()=>{const s=__dj('QA회계1-출력물');return s.includes('2026/10/21|5|년|0|1||1,200,000|1,200,000||1,200,000|20,000|20,000|1,180,000')})()",
     "js:__closeTop();true",
     "wait:500",
-    "expect:!!__calcRow()&&__calcRow().innerText.includes('감가상각현황')"
+    "expect:!!__calcRow()&&__calcRow().innerText.includes('감가상각현황')",
+    "js:__menu('기타','전표생성');true",
+    "wait:1500",
+    "expect:document.body.innerText.includes('일반전표')&&(()=>{const m=[...document.querySelectorAll('.ec-modal')].pop();const t=m.innerText;return t.includes('4대')&&t.includes('3차')&&t.includes('감가상각비')&&t.includes('저장(F8)')})()",
+    "js:__closeTop();true",
+    "wait:500",
+    "js:__menu('기타','이력');true",
+    "wait:1500",
+    "expect:(()=>{const m=[...document.querySelectorAll('.ec-modal')].pop();const t=m.innerText;return t.includes('감가상각계산이력')&&t.includes('QA회계1-출력물')&&t.includes('고정자산대장에 반영')})()",
+    "js:__closeTop();true",
+    "wait:500"
    ],
    "finally": [
     "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const cs=(await (await fetch('/api/fixed-assets/calcs',{headers:h})).json()).filter(c=>c.fiscalTerm===99);for(const c of cs)await fetch('/api/fixed-assets/calcs/'+c.id,{method:'DELETE',headers:h});const cs=(await (await fetch('/api/fixed-assets/calcs',{headers:h})).json()).filter(c=>c.fiscalTerm===99);for(const c of cs)await fetch('/api/fixed-assets/calcs/'+c.id,{method:'DELETE',headers:h});const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-출력물');for(const x of a){if(x.status==='DISPOSED')await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()"
@@ -156,10 +166,10 @@
    "steps": [
     "wait:800",
     "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-출력물'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-출력물')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-    "js:window.__calcRow=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.cells[0]&&r.cells[0].innerText.trim()==='99');window.__menu=async(btn,item)=>{[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===btn).click();await new Promise(r=>setTimeout(r,250));[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===item).click()};window.__closeTop=()=>{const b=[...document.querySelectorAll('.ec-modal button')].filter(x=>x.textContent.trim()==='닫기');b[b.length-1].click()};window.__dj=n=>{const r=[...document.querySelectorAll('.ec-modal tbody tr')].find(r=>r.innerText.includes(n));return r?[...r.cells].map(c=>c.innerText.trim()).join('|'):''};true",
+    "js:window.__calcRow=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.cells[0]&&r.cells[0].innerText.trim()==='99');window.__menu=async(btn,item)=>{const m=[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===btn);if(m){m.click();await new Promise(r=>setTimeout(r,250))}[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===item).click()};window.__closeTop=()=>{const b=[...document.querySelectorAll('.ec-modal button')].filter(x=>x.textContent.trim()==='닫기');b[b.length-1].click()};window.__dj=n=>{const r=[...document.querySelectorAll('.ec-modal tbody tr')].find(r=>r.innerText.includes(n));return r?[...r.cells].map(c=>c.innerText.trim()).join('|'):''};true",
     "js:__menu('감가상각현황','반영내용삭제');true",
     "wait:2000",
-    "expect:!!__calcRow()&&[...__calcRow().querySelectorAll('button')].some(b=>b.textContent.trim()==='감가상각현황')",
+    "expect:!!__calcRow()&&[...__calcRow().querySelectorAll('button')].some(b=>b.textContent.trim()==='고정자산대장에반영')",
     "js:__menu('감가상각현황','삭제');true",
     "wait:2000",
     "expect:!__calcRow()"

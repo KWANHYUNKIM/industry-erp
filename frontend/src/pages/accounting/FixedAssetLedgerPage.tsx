@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { asOf as movesAsOf, type Move } from '../../features/fixedasset/movements'
+import { asOf as movesAsOf, movesOf, type Move } from '../../features/fixedasset/movements'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { PRICE_REQUEST_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcReportFrame'
+import Modal from '../../components/Modal'
+import { dateNo } from '../../utils/dateNo'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 소계 · 합계줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게 · 앞 네 칸(계정명 · 코드 · 이름 · 취득일자)을 묶는다. */
@@ -18,7 +21,7 @@ interface Asset {
   quantityManaged: boolean; quantity: number
   movements?: Move[]
 }
-interface Dep { assetId: number; depreciationDate: string; amount: number }
+interface Dep { assetId: number; depreciationDate: string; amount: number; calcId: number | null; journalDocNo: string | null }
 
 /**
  * 회계 I &gt; 고정자산 &gt; 고정자산관련출력물 &gt; <b>고정자산대장</b>(E010613) — 2026-10-03 loginaa 실측(자료가 든 판).
@@ -47,6 +50,8 @@ export default function FixedAssetLedgerPage() {
   const [deps, setDeps] = useState<Dep[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** [상세내역] [등록] — 그 자산의 고정자산내역리스트 창 */
+  const [detail, setDetail] = useState<Asset | null>(null)
 
   async function load() {
     setLoading(true)
@@ -146,6 +151,7 @@ export default function FixedAssetLedgerPage() {
         </EcCond>
       </ul>
 
+      <EcReportHead title="고정자산대장" period={reportDate(asOf)} />
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -180,7 +186,7 @@ export default function FixedAssetLedgerPage() {
                 <td>{a.remark ?? ''}</td>
                 <td className="text-center">{stateOf(a)}</td>
                 <td className="text-center">계산</td>
-                <td className="text-center"></td>
+                <td className="text-center"><button type="button" className="no-ec ec-link" onClick={() => setDetail(a)}>등록</button></td>
               </tr>
             )),
             <tr key={`sub-${g.name}`} style={SUB_ROW}>
@@ -204,6 +210,54 @@ export default function FixedAssetLedgerPage() {
           </tfoot>
         )}
       </table>
+      <EcReportFoot />
+      <Modal open={!!detail} title="고정자산내역리스트" width={780} onClose={() => setDetail(null)}>
+        {detail && <AssetSlips asset={detail} deps={deps.filter((d) => d.assetId === detail.id)} onClose={() => setDetail(null)} />}
+      </Modal>
     </EcListShell>
+  )
+}
+
+/**
+ * 대장 [상세내역 › 등록] 창 '고정자산내역리스트'(2026-10-22 실측) — 열 일자-No. · 전표유형 · 수량 · 취득원가 · 감가상각충당금 · 처분금액,
+ * 일자 내림차순. 감가상각은 묶음(감가상각계산) 한 번에 한 줄로(수량 빈칸 · 취득원가 0), 증가 · 감소는 전표마다 한 줄.
+ */
+function AssetSlips({ asset, deps, onClose }: { asset: Asset; deps: Dep[]; onClose: () => void }) {
+  interface R { key: string; date: string; no: string; type: string; qty: string; cost: number; accum: number; sold: number | null }
+  const rows: R[] = []
+  for (const m of movesOf(asset)) {
+    if (m.kind === 'INCREASE') {
+      rows.push({ key: `i${m.id}`, date: m.slipDate, no: m.journalDocNo ?? String(m.id), type: '자산증가',
+        qty: asset.quantityManaged ? qtyText(Number(m.quantity)) : '', cost: Number(m.amount), accum: 0, sold: null })
+    } else {
+      rows.push({ key: `o${m.id}`, date: m.slipDate, no: m.journalDocNo ?? String(m.id), type: m.disposalType === 'SCRAP' ? '폐기' : '매각',
+        qty: asset.quantityManaged ? qtyText(Number(m.quantity)) : '', cost: Number(m.amount), accum: Number(m.accumAmount), sold: Number(m.saleAmount) })
+    }
+  }
+  const byCalc = new Map<string, Dep[]>()
+  for (const d of deps) byCalc.set(d.calcId ? `c${d.calcId}` : `d${d.depreciationDate}`, [...(byCalc.get(d.calcId ? `c${d.calcId}` : `d${d.depreciationDate}`) ?? []), d])
+  for (const [k, ds] of byCalc) {
+    const last = ds.reduce((a, b) => (a.depreciationDate >= b.depreciationDate ? a : b))
+    rows.push({ key: k, date: last.depreciationDate, no: last.journalDocNo ?? (last.calcId ? String(last.calcId) : '1'), type: '감가상각', qty: '', cost: 0,
+      accum: ds.reduce((s, d) => s + Number(d.amount), 0), sold: null })
+  }
+  rows.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : y.no.localeCompare(x.no)))
+  return (
+    <div>
+      <table className="w-full text-center">
+        <thead><tr><th>일자-No.</th><th>전표유형</th><th className="text-right">수량</th><th className="text-right">취득원가</th><th className="text-right">감가상각충당금</th><th className="text-right">처분금액</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key}>
+              <td>{dateNo(r.date, r.no)}</td><td>{r.type}</td><td className="text-right">{r.qty}</td>
+              <td className="text-right">{Math.round(r.cost).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{Math.round(r.accum).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{r.sold === null ? '' : won(r.sold)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="mt-[8px]"><button className="ec-btn" onClick={onClose}>닫기</button></div>
+    </div>
   )
 }

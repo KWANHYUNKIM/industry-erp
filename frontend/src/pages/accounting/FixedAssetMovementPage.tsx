@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 소계 · 합계줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게 · 앞 다섯 칸(계정코드 … 취득일자)을 묶는다. */
@@ -39,6 +40,8 @@ const KEYS = ['openCost', 'openDep', 'incCost', 'incDep', 'decCost', 'decDep', '
 export default function FixedAssetMovementPage() {
   const init = periodOf('금월(~오늘)')!
   const [mode, setMode] = useState<Mode>('원가+충당금')
+  /* 원본 2026-10-22 실측: 구분 원가+충당금 '원가+충당금증감대장' · 취득원가 '취득원가 증감대장' · 감가상각충당금 '감가상각충당금 증감대장' */
+  const reportTitle = mode === '원가+충당금' ? '원가+충당금증감대장' : `${mode} 증감대장`
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [account, setAccount] = useState('')
@@ -162,6 +165,7 @@ export default function FixedAssetMovementPage() {
       </ul>
 
       <div className="overflow-x-auto">
+        <EcReportHead title={reportTitle} period={reportPeriod(from, to)} />
         <table ref={tableRef} className="w-full text-left whitespace-nowrap">
           <thead>
             <tr>
@@ -216,6 +220,7 @@ export default function FixedAssetMovementPage() {
             </tfoot>
           )}
         </table>
+        <EcReportFoot />
       </div>
     </EcListShell>
   )

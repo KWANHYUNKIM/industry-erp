@@ -6,7 +6,9 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
-import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
+import { EcReportHead, reportDate, reportPeriod } from '../../components/EcReportFrame'
+import { useAuth } from '../../features/auth/AuthContext'
+import { dateNo } from '../../utils/dateNo'
 
 interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountName: string
@@ -15,8 +17,13 @@ interface Asset {
   acquisitionCost: number; movements?: Move[]
 }
 type Mode = '일반' | '집계표'
-interface StockMove { key: string; date: string; text: string; inc: number; dec: number; end: number }
+interface StockMove { key: string; date: string; no: string; partner: string; text: string; inc: number; dec: number; end: number }
 
+/** 꼬리의 출력한 때 — '2026/10/22  오전 0:56:33'(날짜와 오전 · 오후 사이 두 칸, 원본 꼴) */
+const nowText = () => {
+  const d = new Date()
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}  ${d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`
+}
 const qty = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 
 /**
@@ -44,6 +51,7 @@ export default function FixedAssetStockPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { companyName } = useAuth()
 
   /* 기간 끝날까지 취득한 자산을 다 받는다 — 기초수량은 기간 앞에 취득한 자산이 만든다. */
   async function load() {
@@ -75,8 +83,8 @@ export default function FixedAssetStockPage() {
       let end = open
       for (const m of movesOf(a).filter((x) => x.slipDate >= from && x.slipDate <= to)) {
         const q = Number(m.quantity) || 0
-        if (m.kind === 'INCREASE') { end += q; moves.push({ key: `in${m.id}`, date: m.slipDate, text: m.remark ?? '', inc: q, dec: 0, end }) }
-        else { end -= q; moves.push({ key: `out${m.id}`, date: m.slipDate, text: '', inc: 0, dec: q, end }) }
+        if (m.kind === 'INCREASE') { end += q; moves.push({ key: `in${m.id}`, date: m.slipDate, no: m.journalDocNo ?? String(m.id), partner: m.partnerName ?? '', text: m.remark ?? '', inc: q, dec: 0, end }) }
+        else { end -= q; moves.push({ key: `out${m.id}`, date: m.slipDate, no: m.journalDocNo ?? String(m.id), partner: m.partnerName ?? '', text: m.remark ?? '', inc: 0, dec: q, end }) }
       }
       return { a, open, moves, inc: moves.reduce((s, m) => s + m.inc, 0), dec: moves.reduce((s, m) => s + m.dec, 0), end }
     }), [assets, from, to, account, asset])
@@ -127,7 +135,7 @@ export default function FixedAssetStockPage() {
         </EcCond>
       </ul>
 
-      <EcReportHead title="고정자산수불부" period={reportPeriod(from, to)} />
+      {mode === '집계표' && <EcReportHead title="고정자산수불부" period={reportPeriod(from, to)} />}
       {loading ? (
         <p className="p-5 text-center text-[var(--ec-text-hint)]">불러오는 중…</p>
       ) : mode === '집계표' ? (
@@ -170,47 +178,74 @@ export default function FixedAssetStockPage() {
         </table>
       ) : books.length === 0 ? (
         <p className="p-5 text-center text-[var(--ec-text-hint)]">등록된 데이터가 없습니다.</p>
-      ) : books.map((b) => (
-        <Fragment key={b.a.id}>
-          <p className="mt-3 mb-1 font-bold">{b.a.assetNo}({b.a.name})</p>
-          <table ref={tableRef} className="ec-report w-full text-left">
-            <thead>
-              <tr>
-                <th className="text-center">일자</th>
-                <th>거래처명</th>
-                <th>적요</th>
-                <th className="text-right">증가수량</th>
-                <th className="text-right">감소수량</th>
-                <th className="text-right">기말수량</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={3} className="text-center">전월이월</td>
-                <td className="text-right"></td>
-                <td className="text-right"></td>
-                <td className="text-right">{qty(b.open)}</td>
-              </tr>
-              {b.moves.map((m) => (
-                <tr key={m.key}>
-                  <td className="text-center">{m.date.replace(/-/g, '/')}</td>
-                  <td></td>
-                  <td>{m.text}</td>
-                  <td className="text-right">{qty(m.inc)}</td>
-                  <td className="text-right">{qty(m.dec)}</td>
-                  <td className="text-right">{qty(m.end)}</td>
-                </tr>
-              ))}
-              <tr className="ec-total">
-                <td colSpan={3} className="text-center">합계</td>
-                <td className="text-right">{qty(b.inc)}</td>
-                <td className="text-right">{qty(b.dec)}</td>
-                <td className="text-right"></td>
-              </tr>
-            </tbody>
-          </table>
-        </Fragment>
-      ))}
+      ) : (
+        <>
+          <div className="ec-report-head"><div className="ec-report-title">고정자산수불부</div></div>
+          {books.map((b, bi) => (
+            <Fragment key={b.a.id}>
+              {/* 원본(2026-10-22 실측): 자산마다 한 판 — 머리 '회사명 : … / B001(PC)' + 기간, 꼬리 [P.n] + 출력한 때 */}
+              <div className="ec-report-meta">
+                <span>회사명 : {companyName ?? ''} / {b.a.assetNo}({b.a.name})</span>
+                <span>{reportPeriod(from, to)}</span>
+              </div>
+              <table ref={bi === 0 ? tableRef : undefined} className="ec-report w-full text-left">
+                <thead>
+                  <tr>
+                    <th className="text-center">일자</th>
+                    <th>거래처명</th>
+                    <th>적요</th>
+                    <th className="text-right">증가수량</th>
+                    <th className="text-right">감소수량</th>
+                    <th className="text-right">기말수량</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {b.open > 0 && (
+                    <tr>
+                      <td colSpan={3} className="text-center">전월이월</td>
+                      <td className="text-right"></td>
+                      <td className="text-right"></td>
+                      <td className="text-right">{qty(b.open)}</td>
+                    </tr>
+                  )}
+                  {b.moves.flatMap((m, i) => {
+                    const same = b.moves.filter((x) => x.date === m.date)
+                    const lastOfDay = same[same.length - 1] === m
+                    return [
+                      <tr key={m.key}>
+                        <td className="text-center">{dateNo(m.date, m.no)}</td>
+                        <td>{m.partner}</td>
+                        <td>{m.text}</td>
+                        <td className="text-right">{qty(m.inc)}</td>
+                        <td className="text-right">{qty(m.dec)}</td>
+                        <td className="text-right">{qty(m.end)}</td>
+                      </tr>,
+                      ...(lastOfDay ? [(
+                        <tr key={`day${i}`} className="ec-total">
+                          <td colSpan={3} className="text-center">{reportDate(m.date)} 계</td>
+                          <td className="text-right">{qty(same.reduce((a, x) => a + x.inc, 0))}</td>
+                          <td className="text-right">{qty(same.reduce((a, x) => a + x.dec, 0))}</td>
+                          <td className="text-right"></td>
+                        </tr>
+                      )] : []),
+                    ]
+                  })}
+                  <tr className="ec-total">
+                    <td colSpan={3} className="text-center">합계</td>
+                    <td className="text-right">{qty(b.inc)}</td>
+                    <td className="text-right">{qty(b.dec)}</td>
+                    <td className="text-right"></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="ec-report-foot">
+                <span>[P.{bi + 1}]</span>
+                <span>{nowText()}</span>
+              </div>
+            </Fragment>
+          ))}
+        </>
+      )}
     </EcListShell>
   )
 }
