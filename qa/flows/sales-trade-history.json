@@ -37,6 +37,7 @@
       "path": "/sales/sales-list",
       "steps": [
         "wait:2000",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('sth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
         "js:(() => { const S = JSON.parse(sessionStorage.getItem('sth')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-특가')); window.__dlg = () => document.querySelector('[role=dialog][aria-label=\"판매입력(수정)\"]'); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; window.__row().querySelector('button.ec-link').click(); return true })()",
         "wait:1000",
         "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
@@ -69,11 +70,14 @@
         "expect:!!document.querySelector('.ec-invalid') && ![...document.querySelectorAll('th')].some((t) => t.textContent === '전표번호')",
         "click:메뉴 선택",
         "pickrow:판매",
+        "set:input[placeholder=\"작업자\"]|admin",
         "js:[...document.querySelectorAll('label')].find((l) => l.textContent.includes('최종이력만')).querySelector('input').click(); true",
         "click:검색(F8)",
         "wait:1500",
         "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent).join('|') === '작업일자|전표번호|행위|거래처코드|거래처명|품목명|담당자코드|담당자명|작업자|전표상태|이력'",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('sth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
         "expect:(() => { const S = JSON.parse(sessionStorage.getItem('sth')); const rs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P'); return rs.slice(0, 3).map((r) => r.cells[2].textContent).join('|') === '삭제|수정|신규' && rs.every((r) => r.cells[5].textContent.startsWith('QA재고1-') && r.cells[10].textContent === 'H') })()",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('sth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
         "js:(() => { const S = JSON.parse(sessionStorage.getItem('sth')); [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P').querySelector('a').click(); return true })()",
         "wait:1000",
         "expect:(() => { const d = document.querySelector('[role=dialog][aria-label=\"이력\"]'); const S = JSON.parse(sessionStorage.getItem('sth')); return d.innerText.includes('[' + S.label + ']') && [...d.querySelectorAll('tbody tr')].map((r) => r.cells[5].textContent).join('|') === '신규|수정|삭제' })()",
@@ -83,6 +87,7 @@
         "js:[...document.querySelectorAll('label')].find((l) => l.textContent.includes('최종이력만')).querySelector('input').click(); true",
         "click:검색(F8)",
         "wait:1500",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('sth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
         "expect:(() => { const S = JSON.parse(sessionStorage.getItem('sth')); const rs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P'); return rs.length >= 1 && rs.every((r) => r.cells[2].textContent === '삭제') })()"
       ]
     }

@@ -35,6 +35,13 @@ public class BomService {
         return bomRepository.findAllVersionsWithProduct().stream().map(BomResponse::from).toList();
     }
 
+    /** 거래이력조회 [구분] 기초코드 — BOM 버전의 제품 코드 · 이름({code, name}). 없으면 NotFound. */
+    @Transactional(readOnly = true)
+    public String[] productLabel(Long bomId) {
+        Bom b = getVersion(bomId);
+        return new String[] { b.getProduct().getCode(), b.getProduct().getName() };
+    }
+
     /** 버전 하나(id). 사용하는 쪽이 제품과 맞는지 본다. */
     @Transactional(readOnly = true)
     public Bom getVersion(Long bomId) {

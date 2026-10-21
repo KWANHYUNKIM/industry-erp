@@ -36,6 +36,7 @@
       "path": "/sales/purchase-list",
       "steps": [
         "wait:2000",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('pth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
         "js:(() => { const S = JSON.parse(sessionStorage.getItem('pth')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-특가')); window.__dlg = () => document.querySelector('[role=dialog][aria-label=\"구매입력(수정)\"]') || document.querySelector('[role=dialog]'); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; window.__row().querySelector('button.ec-link').click(); return true })()",
         "wait:1000",
         "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
@@ -62,9 +63,11 @@
         "wait:1500",
         "click:메뉴 선택",
         "pickrow:구매",
+        "set:input[placeholder=\"작업자\"]|admin",
         "js:[...document.querySelectorAll('label')].find((l) => l.textContent.includes('최종이력만')).querySelector('input').click(); true",
         "click:검색(F8)",
         "wait:1500",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('pth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
         "expect:(() => { const S = JSON.parse(sessionStorage.getItem('pth')); const rs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P'); return rs.slice(0, 3).map((r) => r.cells[2].textContent).join('|') === '삭제|수정|신규' && rs.every((r) => r.cells[4].textContent === 'QA재고1-거래처' && r.cells[5].textContent === 'QA재고1-특가' && r.cells[9].textContent === '확인' && r.cells[10].textContent === 'H') })()"
       ]
     }

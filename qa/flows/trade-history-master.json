@@ -8,7 +8,7 @@
         "wait:2500",
         "js:(() => { const r = [...document.querySelectorAll('input[type=radio]')].find((x) => x.closest('label')?.innerText.includes('기초코드')); r.click(); return true })()",
         "wait:400",
-        "click:메뉴 코드도움",
+        "click:메뉴 선택",
         "pickrow:품목등록",
         "wait:300",
         "clicklast:검색(F8)",

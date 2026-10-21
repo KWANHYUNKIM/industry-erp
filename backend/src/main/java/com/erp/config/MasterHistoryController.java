@@ -5,14 +5,12 @@ import com.erp.common.history.ChangeHistoryService;
 import com.erp.common.history.dto.ChangeHistoryDtos.MasterHistoryResponse;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.item.ItemService;
-import com.erp.production.bom.Bom;
 import com.erp.production.bom.BomService;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.trade.partner.PartnerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -54,7 +52,7 @@ public class MasterHistoryController {
         private final PartnerService partnerService;
         private final BomService bomService;
 
-        @Transactional(readOnly = true)
+        /* 바깥 트랜잭션을 두지 않는다 — 지운 자료 조회가 던지는 예외가 안쪽 service 트랜잭션을 rollback-only 로 만들어 전체가 500 이 된다. */
         public List<MasterHistoryResponse> search(LocalDate from, LocalDate to, List<String> menus, String worker,
                                                   List<String> actions, boolean latestOnly) {
             List<String> targets = (menus == null || menus.isEmpty() ? TARGET_OF_MENU.keySet().stream().toList() : menus).stream()
@@ -66,7 +64,7 @@ public class MasterHistoryController {
                     switch (h.getTarget()) {
                         case "ITEM" -> { Item i = itemService.get(h.getTargetId()); code = i.getCode(); name = i.getName(); }
                         case "PARTNER" -> { BusinessPartner p = partnerService.get(h.getTargetId()); code = p.getCode(); name = p.getName(); }
-                        case "BOM" -> { Bom b = bomService.getVersion(h.getTargetId()); code = b.getProduct().getCode(); name = b.getProduct().getName(); }
+                        case "BOM" -> { String[] l = bomService.productLabel(h.getTargetId()); code = l[0]; name = l[1]; }
                         default -> { }
                     }
                 } catch (RuntimeException ignored) { /* 지운 자료는 코드를 모른다 */ }
