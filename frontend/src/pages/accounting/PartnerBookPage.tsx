@@ -25,10 +25,12 @@ type Mode = '전표별' | '전표별+내역' | '일별' | '월별' | '회계전�
 const MODES: Mode[] = ['전표별', '전표별+내역', '일별', '월별', '회계전표별']
 
 /**
- * 채권 · 채무의 통제계정 — 외상매출금 · 외상매입금(LedgerService.AR_ACCOUNT · AP_ACCOUNT 와 같다).
- * 채권은 차변이 올리고 대변이 내린다. 채무는 반대.
+ * 채권 · 채무의 통제계정 — 계정등록 [관련업무] 가 '채권/채무' 인 계정(원본 E010107, 2026-10-21 실측:
+ * 1089 외상매출금은 잡히고 1209 미수금(관련업무 없음)은 거래처가 붙어도 안 잡힌다). 자산이면 채권, 부채면 채무.
+ * 채권은 차변이 올리고 대변이 내린다. 채무는 반대. 계정을 못 읽었으면 외상매출금 · 외상매입금.
  */
-const CONTROL: Record<Side, string> = { 채권: '108', 채무: '251' }
+interface AccountOpt { code: string; division: string; relatedWork: string }
+const FALLBACK_CONTROL: Record<Side, Set<string>> = { 채권: new Set(['108']), 채무: new Set(['251']) }
 /** 재고 문서(판매 · 구매 · 수금/지급)가 만든 회계전표 — 대장 II 의 [재고채권] 칸. 나머지는 [회계채권]. */
 const STOCK_SOURCES = new Set(['SALES', 'PURCHASE', 'SETTLEMENT'])
 
@@ -79,8 +81,15 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
   const [error, setError] = useState('')
   const seq = useRef(0)
 
+  const [control, setControl] = useState<Record<Side, Set<string>>>(FALLBACK_CONTROL)
+
   useEffect(() => {
     api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
+    api.get<AccountOpt[]>('/accounts').then((r) => {
+      if (!r.data.some((a) => a.relatedWork)) return   // 계정에 [관련업무] 가 없는 옛 서버 — 기본값 그대로
+      const of = (div: string) => new Set(r.data.filter((a) => a.relatedWork === 'RECEIVABLE_PAYABLE' && a.division === div).map((a) => a.code))
+      setControl({ 채권: of('ASSET'), 채무: of('LIABILITY') })
+    }).catch(() => setControl(FALLBACK_CONTROL))
   }, [])
 
   async function load() {
@@ -112,28 +121,33 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
     for (const side of sides) {
       const m = new Map<number, Block>()
       for (const e of sorted) {
-        let inc = 0, dec = 0, pid: number | null = null
+        /* 줄마다 거래처가 다를 수 있다(일반전표 줄 거래처) — 전표 한 장을 거래처별로 나눠 센다. */
+        const per = new Map<number, { inc: number; dec: number }>()
         for (const l of e.lines) {
-          if (l.accountCode !== CONTROL[side]) continue
+          if (!control[side].has(l.accountCode)) continue
           const d = Number(l.debit), c = Number(l.credit)
-          inc += side === '채권' ? d : c
-          dec += side === '채권' ? c : d
-          pid = l.partnerId ?? e.partnerId ?? null
+          const pid = l.partnerId ?? e.partnerId ?? null
+          if (pid == null && !noCode) continue
+          const key = pid == null ? 0 : keyOf(pid)
+          const v = per.get(key) ?? { inc: 0, dec: 0 }
+          v.inc += side === '채권' ? d : c
+          v.dec += side === '채권' ? c : d
+          per.set(key, v)
         }
-        if (inc === 0 && dec === 0) continue
-        if (pid == null && !noCode) continue
-        const key = pid == null ? 0 : keyOf(pid)
-        if (pick != null && key !== pick) continue
-        if (!m.has(key)) m.set(key, { side, partnerId: key, carry: 0, rows: [] })
-        const b = m.get(key)!
-        if (e.entryDate < from) b.carry += inc - dec
-        else b.rows.push({ date: e.entryDate, no: e.docNo, text: e.description ?? '', inc, dec, stock: STOCK_SOURCES.has(e.sourceType) })
+        for (const [key, { inc, dec }] of per) {
+          if (inc === 0 && dec === 0) continue
+          if (pick != null && key !== pick) continue
+          if (!m.has(key)) m.set(key, { side, partnerId: key, carry: 0, rows: [] })
+          const b = m.get(key)!
+          if (e.entryDate < from) b.carry += inc - dec
+          else b.rows.push({ date: e.entryDate, no: e.docNo, text: e.description ?? '', inc, dec, stock: STOCK_SOURCES.has(e.sourceType) })
+        }
       }
       out.push(...[...m.values()].filter((b) => b.rows.length > 0 || b.carry !== 0)
         .sort((a, b) => (byId.get(a.partnerId)?.code ?? '').localeCompare(byId.get(b.partnerId)?.code ?? '')))
     }
     return out
-  }, [entries, partner, sideCond, byParent, byId, noCode, from])
+  }, [entries, partner, sideCond, byParent, byId, noCode, from, control])
 
   const reset = () => {
     setSideCond('채권'); setMode('전표별+내역'); setFrom(init.from); setTo(init.to); setPartner(''); setByParent(true)

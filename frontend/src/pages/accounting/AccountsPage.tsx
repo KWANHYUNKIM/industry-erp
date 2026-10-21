@@ -9,6 +9,12 @@ type Division = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
 const DIV_LABEL: Record<Division, string> = { ASSET: '자산', LIABILITY: '부채', EQUITY: '자본', REVENUE: '수익', EXPENSE: '비용' }
 const DIV_COLOR: Record<Division, string> = { ASSET: '#1c6fb0', LIABILITY: 'var(--ec-warn)', EQUITY: '#7a5cc0', REVENUE: 'var(--ec-success)', EXPENSE: 'var(--ec-danger)' }
 const DIVISIONS: Division[] = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']
+/** 계정등록 [관련업무] — 원본 라디오 차례(E010107). 채권/채무 면 거래처관리대장 I · II 에 잡힌다. */
+type RelatedWork = 'NONE' | 'DEPOSIT' | 'BORROWING' | 'NOTE' | 'TANGIBLE_ASSET' | 'INTANGIBLE_ASSET' | 'RECEIVABLE_PAYABLE'
+const RELATED: [RelatedWork, string][] = [
+  ['NONE', '없음'], ['DEPOSIT', '예금'], ['BORROWING', '차입금'], ['NOTE', '어음'],
+  ['TANGIBLE_ASSET', '유형고정자산'], ['INTANGIBLE_ASSET', '무형고정자산'], ['RECEIVABLE_PAYABLE', '채권/채무'],
+]
 
 interface Account {
   id: number
@@ -18,6 +24,9 @@ interface Account {
   divisionName: string
   detailCategory: string | null
   active: boolean
+  relatedWork: RelatedWork
+  relatedWorkName: string
+  partnerAggregate: boolean
 }
 
 /** 회계 기초등록 > 계정과목등록 (실제 연동) */
@@ -28,7 +37,10 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ code: '', name: '', division: 'EXPENSE' as Division, detailCategory: '' })
+  const EMPTY = { code: '', name: '', division: 'EXPENSE' as Division, detailCategory: '', relatedWork: 'NONE' as RelatedWork, partnerAggregate: false }
+  const [form, setForm] = useState(EMPTY)
+  /** 계정코드를 누르면 그 계정 수정(원본 '계정등록' 창이 같은 칸으로 열린다). null 이면 신규. */
+  const [editId, setEditId] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
@@ -43,18 +55,29 @@ export default function AccountsPage() {
   }
   useEffect(() => { load() }, [])
 
-  function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
+  function set(k: keyof typeof form, v: string | boolean) { setForm((f) => ({ ...f, [k]: v })) }
+
+  function openNew() { setEditId(null); setForm(EMPTY); setError(''); setShowForm(true) }
+  function openEdit(a: Account) {
+    setEditId(a.id)
+    setForm({ code: a.code, name: a.name, division: a.division, detailCategory: a.detailCategory ?? '', relatedWork: a.relatedWork, partnerAggregate: a.partnerAggregate })
+    setError('')
+    setShowForm(true)
+  }
 
   async function submit() {
     setError('')
     if (!form.code.trim()) return setError('계정코드를 입력하세요.')
     if (!form.name.trim()) return setError('계정과목명을 입력하세요.')
     try {
-      await api.post('/accounts', {
-        code: form.code, name: form.name, division: form.division,
-        detailCategory: form.detailCategory || undefined,
-      })
-      setForm({ code: '', name: '', division: 'EXPENSE', detailCategory: '' })
+      const body = {
+        name: form.name, division: form.division, detailCategory: form.detailCategory || undefined,
+        relatedWork: form.relatedWork, partnerAggregate: form.partnerAggregate,
+      }
+      if (editId != null) await api.patch(`/accounts/${editId}`, body)
+      else await api.post('/accounts', { code: form.code, ...body })
+      setForm(EMPTY)
+      setEditId(null)
       setShowForm(false)
       load()
     } catch (err) {
@@ -92,17 +115,17 @@ export default function AccountsPage() {
       title="계정과목등록"
       search={keyword}
       onSearchChange={setKeyword}
-      onNew={() => setShowForm(true)}
+      onNew={openNew}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <Modal error={error} open={showForm} title="계정과목등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={editId != null ? '계정수정' : '계정과목등록'} onClose={() => setShowForm(false)}>{(
         <div className="border border-ec-line border-solid bg-white p-[14px] mb-[10px]">
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">계정과목 등록</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{editId != null ? '계정 수정' : '계정과목 등록'}</div>
           <div className="flex gap-[12px] flex-wrap items-end">
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">계정코드 *</div>
-              <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 100 }} placeholder="811" /></label>
+              <input className="ec-input" value={form.code} disabled={editId != null} onChange={(e) => set('code', e.target.value)} style={{ width: 100 }} placeholder="811" /></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">계정과목명 *</div>
               <input className="ec-input" value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 200 }} /></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">구분 *</div>
@@ -112,6 +135,17 @@ export default function AccountsPage() {
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">세부분류</div>
               <input className="ec-input" value={form.detailCategory} onChange={(e) => set('detailCategory', e.target.value)} style={{ width: 160 }} placeholder="판매관리비" /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
+          </div>
+          <div className="flex gap-[12px] flex-wrap items-center mt-[10px] text-[12.5px]">
+            <span className="text-ec-label w-[110px]">거래처별집계구분</span>
+            <label><input type="radio" name="partnerAggregate" checked={!form.partnerAggregate} onChange={() => set('partnerAggregate', false)} /> 없음</label>
+            <label><input type="radio" name="partnerAggregate" checked={form.partnerAggregate} onChange={() => set('partnerAggregate', true)} /> 거래처별</label>
+          </div>
+          <div className="flex gap-[12px] flex-wrap items-center mt-[6px] text-[12.5px]">
+            <span className="text-ec-label w-[110px]">관련업무</span>
+            {RELATED.map(([v, label]) => (
+              <label key={v}><input type="radio" name="relatedWork" checked={form.relatedWork === v} onChange={() => set('relatedWork', v)} /> {label}</label>
+            ))}
           </div>
         </div>
       )}</Modal>
@@ -134,21 +168,25 @@ export default function AccountsPage() {
             <th className="cursor-pointer" onClick={() => sort.toggle('계정과목명')}>계정과목명 {sort.mark('계정과목명')}</th>
             <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
             <th className="w-[140px]">세부분류</th>
+            <th className="w-[100px] text-center">거래처별집계</th>
+            <th className="w-[110px] text-center">관련업무</th>
             <th className="w-[100px] text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{r.code}</td>
+              <td><a className="cursor-pointer" onClick={() => openEdit(r)}>{r.code}</a></td>
               <td style={{ color: r.active ? undefined : '#b3b8bf' }}>{r.name}</td>
               <td style={{ textAlign: 'center', color: DIV_COLOR[r.division], fontWeight: 700 }}>{r.divisionName}</td>
               <td>{r.detailCategory ?? ''}</td>
+              <td className="text-center">{r.partnerAggregate ? '거래처별' : '없음'}</td>
+              <td className="text-center">{r.relatedWorkName}</td>
               <td className="text-center">
                 <button className="no-ec" onClick={() => toggleActive(r)} style={{
                   border: '1px solid var(--ec-border)', borderRadius: 3, cursor: 'pointer', fontSize: 11.5, padding: '2px 8px',
