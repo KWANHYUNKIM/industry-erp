@@ -6700,7 +6700,9 @@ console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
           .filter((l) => names.some((nm) => new RegExp(escRe(nm) + '\\b').test(l)))
           .filter((l) => !/useState|<EcCond|value=\{|checked=\{|setC\(|onChange|reset|다시 작성/.test(l))
         checked++
-        if (uses.length === 0) bad.push(`${f.split(sep).pop()}  조건 [${label}] 의 값이 어디에도 안 쓰인다`)
+        if (uses.length === 0 && !SHOWN_ONLY.has(`${f.split(sep).pop()}|${label}`)) {
+          bad.push(`${f.split(sep).pop()}  조건 [${label}] 의 값이 어디에도 안 쓰인다`)
+        }
       }
     }
   }
