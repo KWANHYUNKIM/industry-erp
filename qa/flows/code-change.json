@@ -1,0 +1,36 @@
+{
+  "about": "회계 I › 기초등록 › 각종코드변경(E010111) — 원본 2026-10-13 loginaa: 알약 계정 · 거래처 · 부서 · 프로젝트, 판 기준일자(오늘부터 2년 전 ~ 오늘) · 프로젝트 · 거래처 · 부서 · 변경 전/후 코드, 하단 [변경] · [다시 작성]. 우리: 전표가 없는 먼 미래 기간(2099)으로 좁혀 변경 → 0건 안내(남의 전표를 건드리지 않는다). 칸을 비우고 누르면 변경 전 코드를 요구한다. 전표가 실제로 바뀌는 흐름은 백엔드 qa.mjs 몫.",
+  "shots": [
+    {
+      "name": "각종코드변경 — 알약 · 기본 기간 · 빈 칸 안내 · 전표 없는 기간 0건",
+      "path": "/accounting/code-change",
+      "steps": [
+        "wait:2000",
+        "expect:/각종코드변경/.test(document.body.innerText) && ['계정','거래처','부서','프로젝트'].every((t) => [...document.querySelectorAll('.ec-pill')].some((p) => p.innerText.trim() === t)) && document.querySelector('.ec-pill.active').innerText.trim() === '계정'",
+        "expect:(() => { const a = document.querySelector('input[aria-label=시작일자]').value, b = document.querySelector('input[aria-label=종료일자]').value; return Number(b.slice(0, 4)) - Number(a.slice(0, 4)) === 2 && a.slice(5) === b.slice(5) })()",
+        "click:변경",
+        "wait:500",
+        "expect:/변경 전 코드를 입력하세요/.test(document.body.innerText)",
+        "click:확인",
+        "set:input[aria-label=시작일자]|2099-01-01",
+        "set:input[aria-label=종료일자]|2099-12-31",
+        "pick:변경 전 계정:108",
+        "pick:변경 후 계정:251",
+        "click:변경",
+        "wait:800",
+        "expect:/0건이 변경되었습니다/.test(document.body.innerText)",
+        "click:확인"
+      ]
+    },
+    {
+      "name": "부서 알약 — 부서 칸이 사라지고 변경 전/후도 부서",
+      "path": "/accounting/code-change",
+      "steps": [
+        "wait:2000",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.innerText.trim() === '부서').click()",
+        "wait:300",
+        "expect:!!document.querySelector('button[title=\"변경 전 부서 선택\"]') && !document.querySelector('button[title=\"부서 선택\"]') && !!document.querySelector('button[title=\"프로젝트 선택\"]')"
+      ]
+    }
+  ]
+}

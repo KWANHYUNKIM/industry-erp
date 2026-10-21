@@ -271,4 +271,14 @@ public final class JournalDtos {
             List<StatementRow> expenses, BigDecimal totalExpense,
             BigDecimal netIncome
     ) {}
+
+    /** 각종코드변경(E010111) — 알약 계정 · 거래처 · 부서 · 프로젝트. 0/null 인 조건은 끈다. */
+    public record CodeChangeRequest(
+            Kind kind,
+            java.time.LocalDate from, java.time.LocalDate to,
+            Long projectId, Long partnerId, Long departmentId,
+            Long beforeId, Long afterId
+    ) {
+        public enum Kind { ACCOUNT, PARTNER, DEPARTMENT, PROJECT }
+    }
 }

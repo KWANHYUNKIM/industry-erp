@@ -31,6 +31,13 @@ public class JournalController {
 
     private final JournalQueryService service;
     private final JournalService journalService;
+    private final JournalCodeChangeService codeChangeService;
+
+    /** 각종코드변경(E010111) [변경] — 바꾼 줄 수를 돌려준다. */
+    @PostMapping("/code-change")
+    public java.util.Map<String, Integer> codeChange(@Valid @RequestBody JournalDtos.CodeChangeRequest req) {
+        return java.util.Map.of("changed", codeChangeService.change(req));
+    }
 
     /** 일반전표 직접입력 */
     @PostMapping

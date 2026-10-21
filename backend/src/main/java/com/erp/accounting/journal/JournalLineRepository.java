@@ -145,4 +145,17 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
             "coalesce(sum(case when l.account.code <> '135' then l.debit else 0 end),0) " +
             "from JournalLine l where l.entry.id in :ids group by l.entry.id")
     List<Object[]> purchaseVatByEntry(@Param("ids") java.util.Collection<Long> ids);
+
+    /**
+     * 각종코드변경(E010111)이 바꿀 줄 — 기간 · 프로젝트 · 거래처 · 부서 · 계정으로 좁힌다. 0 이면 그 조건을 끈다.
+     * 거래처는 줄 거래처, 없으면 전표 거래처로 본다(채권거래처 집계와 같은 규칙).
+     */
+    @Query("select l from JournalLine l join fetch l.entry e left join e.partner ep left join l.partner lp " +
+            "where e.entryDate between :from and :to " +
+            "and (:acct = 0 or l.account.id = :acct) " +
+            "and (:partner = 0 or lp.id = :partner or (lp is null and ep.id = :partner)) " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj)")
+    List<JournalLine> findForCodeChange(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                        @Param("acct") long acct, @Param("partner") long partner,
+                                        @Param("dept") long dept, @Param("proj") long proj);
 }
