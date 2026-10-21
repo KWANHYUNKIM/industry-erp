@@ -53,8 +53,7 @@
         "click:선택삭제",
         "wait:2000",
         "expect:window.__msgs.includes('선택한 전표를 삭제 하겠습니까?') && !window.__row()",
-        "allowapi:404: /api/sales/",
-        "expect:(async () => { const S = JSON.parse(sessionStorage.getItem('b46')); return (await fetch('/api/sales/' + S.sB.id, { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).status === 404 })()"
+        "expect:(async () => { const S = JSON.parse(sessionStorage.getItem('b46')); return !(await (await fetch('/api/sales', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).json()).some((x) => x.id === S.sB.id) })()"
       ]
     },
     {
@@ -78,7 +77,7 @@
       "name": "판매 — C 번호가 B 번호를 다시 쓰지 않는다",
       "path": "/sales/sales-list",
       "steps": [
-        "js:JSON.parse(sessionStorage.getItem('b46'))",
+        "js:Object.entries(JSON.parse(sessionStorage.getItem('b46'))).map(([k, v]) => k + '=' + v.no).join(' ')",
         "expect:(() => { const seq = (no) => Number(no.split('-')[2]); const S = JSON.parse(sessionStorage.getItem('b46')); return seq(S.sB.no) > seq(S.sA.no) && seq(S.sC.no) > seq(S.sB.no) })()"
       ]
     },
@@ -162,7 +161,7 @@
       "name": "일반전표 — C 번호가 B 번호를 다시 쓰지 않는다 → A · C 지우기",
       "path": "/accounting/journals",
       "steps": [
-        "js:JSON.parse(sessionStorage.getItem('b46'))",
+        "js:Object.entries(JSON.parse(sessionStorage.getItem('b46'))).map(([k, v]) => k + '=' + v.no).join(' ')",
         "expect:(() => { const seq = (no) => Number(no.split('-')[2]); const S = JSON.parse(sessionStorage.getItem('b46')); return seq(S.jB.no) > seq(S.jA.no) && seq(S.jC.no) > seq(S.jB.no) })()",
         "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const S = JSON.parse(sessionStorage.getItem('b46')); const r = []; for (const k of ['sA', 'sC']) r.push((await fetch('/api/sales/' + S[k].id, { method: 'DELETE', headers: H })).ok); for (const k of ['jA', 'jC']) r.push((await fetch('/api/journals/' + S[k].id, { method: 'DELETE', headers: H })).ok); return r.every(Boolean) })()"
       ]
