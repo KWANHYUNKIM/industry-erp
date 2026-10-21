@@ -5,6 +5,7 @@ import com.erp.accounting.expensegroup.dto.ExpenseGroupDtos.ExpenseGroupResponse
 import com.erp.accounting.expensegroup.dto.ExpenseGroupDtos.SaveExpenseGroupRequest;
 import com.erp.accounting.expenseitem.ExpenseItemService;
 import com.erp.common.ApiException;
+import com.erp.common.history.ChangeHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,8 @@ import java.util.List;
 public class ExpenseGroupService {
 
     private final ExpenseGroupRepository repository;
+    private final ChangeHistoryService changeHistory;
+    private static final String HISTORY_TARGET = "EXPENSE_GROUP";
     private final ExpenseControlService controlService;
     private final ExpenseItemService itemService;
 
@@ -45,20 +48,29 @@ public class ExpenseGroupService {
         if (repository.existsByCode(code)) throw ApiException.conflict("이미 비용그룹등록에 존재하는 코드입니다.");
         ExpenseGroup g = ExpenseGroup.builder().code(code).build();
         apply(g, req);
-        return ExpenseGroupResponse.from(repository.save(g));
+        ExpenseGroup saved = repository.save(g);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
+        return ExpenseGroupResponse.from(saved);
     }
 
     @Transactional
     public ExpenseGroupResponse update(Long id, SaveExpenseGroupRequest req) {
         ExpenseGroup g = get(id);
+        boolean wasActive = g.isActive();
         apply(g, req);
         if (req.active() != null) g.setActive(req.active());
+        changeHistory.recordUpdate(HISTORY_TARGET, g.getId(), wasActive, g.isActive());
         return ExpenseGroupResponse.from(g);
     }
 
     @Transactional
     public void setActive(List<Long> ids, boolean active) {
-        for (Long id : ids) get(id).setActive(active);
+        for (Long id : ids) {
+            ExpenseGroup g = get(id);
+            boolean wasActive = g.isActive();
+            g.setActive(active);
+            changeHistory.recordUpdate(HISTORY_TARGET, id, wasActive, active);
+        }
     }
 
     @Transactional
@@ -68,6 +80,7 @@ public class ExpenseGroupService {
             try {
                 repository.delete(g);
                 repository.flush();
+                changeHistory.record(HISTORY_TARGET, g.getId(), ChangeHistoryService.DELETED);
             } catch (DataIntegrityViolationException e) {
                 throw ApiException.conflict("비용내역에서 쓰고 있는 비용그룹입니다. [" + g.getCode() + "]");
             }

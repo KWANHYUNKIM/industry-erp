@@ -89,12 +89,13 @@ export default function ImportCostEntryPage({ kind }: { kind: ImportCostKind }) 
     if (isDoc && !settle && !editId && payableId) setSettle(String(payableId))
   }, [isDoc, settle, editId, payableId])
 
-  /** keep = 저장 뒤: 관리번호 · 출금계좌(본계정대체는 구입자산)는 남긴다. */
+  /** keep = 저장 뒤: 관리번호 · 출금계좌(본계정대체는 구입자산)는 남긴다 — 청구서 · 본계정대체는 관리번호도 비운다. */
   function reset(keep = false) {
     if (!keep) {
       setDate(ymd(new Date())); setLotId(''); setSettle(isDoc && payableId ? String(payableId) : '')
       setDepartmentId(''); setProjectId('')
-    } else if (isTransfer) {
+    } else if (isTransfer || kind === 'BILL_RECEIPT') {
+      // 원본(2026-10-20 한 번 봄): 본계정대체 · 매입대금청구서수령은 저장 뒤 관리번호까지 비워진다(나머지는 남는다).
       setLotId('')
     }
     setPartnerId(''); setAmount(''); setVat(''); setFee(''); setRemark(''); setCostItemId(''); setVatType('세금계산서')

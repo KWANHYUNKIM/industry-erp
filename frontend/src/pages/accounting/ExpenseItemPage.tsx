@@ -5,6 +5,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcNumInput from '../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../api/client'
 import NumCheck from '../../components/NumCheck'
+import ActiveToggleButton from '../../features/expensemaster/ActiveToggleButton'
+import EcHistoryButton from '../../components/EcHistory'
 import { activeMenuAction, type ExpenseControlType, type ExpenseItem } from '../../features/expensemaster/api'
 import type { Account, EmployeeMaster } from '../../types/api'
 
@@ -27,9 +29,10 @@ interface Form {
   limitAmount: string
   employeeIds: string[]
   remark: string
+  active: boolean
 }
 
-const BLANK: Form = { id: null, code: '', name: '', accountId: '', controlTypeId: '', limitAmount: '0', employeeIds: [], remark: '' }
+const BLANK: Form = { id: null, code: '', name: '', accountId: '', controlTypeId: '', limitAmount: '0', employeeIds: [], remark: '', active: true }
 const won = (n: number | null) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 
 export default function ExpenseItemPage() {
@@ -63,7 +66,7 @@ export default function ExpenseItemPage() {
     setF({
       id: i.id, code: i.code, name: i.name, accountId: i.accountId ? String(i.accountId) : '',
       controlTypeId: i.controlTypeId ? String(i.controlTypeId) : '', limitAmount: i.limitAmount != null ? String(i.limitAmount) : '0',
-      employeeIds: i.employeeIds.map(String), remark: i.remark ?? '',
+      employeeIds: i.employeeIds.map(String), remark: i.remark ?? '', active: i.active,
     })
     setFormError(''); setInvalid(false); setOpen(true)
   }
@@ -220,7 +223,9 @@ export default function ExpenseItemPage() {
               const i = rows.find((r) => r.id === f.id)
               if (i) openEdit(i); else openNew()
             }}>다시 작성</button>
+            {f.id && <ActiveToggleButton base="/expense-items" id={f.id} active={f.active} onToggled={(a) => { setF({ ...f, active: a }); load() }} />}
             <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+            <EcHistoryButton target="EXPENSE_ITEM" id={f.id} />
           </div>
         </form>
       )}</Modal>

@@ -6,6 +6,7 @@ import EcDateField from '../../components/EcDateField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import NumCheck from '../../components/NumCheck'
+import { EcCond } from '../../components/EcStatusPanel'
 import type { Partner } from '../../types/api'
 import type { ImportLot } from '../../features/importcost/api'
 
@@ -31,6 +32,8 @@ export default function ImportLotPage() {
   const [error, setError] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [quick, setQuick] = useState('')
+  /* 원본 [Search(F3)] 조건: 관리번호코드 · 관리번호명 · 거래처 · 적요 · 사용구분(전체 · 사용 ● · 사용중단) — 처음엔 사용만 보인다. */
+  const [cond, setCond] = useState({ code: '', name: '', partner: '', remark: '', use: 'Y' as 'ALL' | 'Y' | 'N' })
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [invalid, setInvalid] = useState(false)
@@ -90,7 +93,11 @@ export default function ImportLotPage() {
   }
 
   const has = (v: string | null | undefined, q: string) => (v ?? '').includes(q)
-  const shown = rows.filter((l) => !quick || has(l.code, quick) || has(l.name, quick) || has(l.partnerName, quick))
+  const shown = rows
+    .filter((l) => cond.use === 'ALL' || (cond.use === 'Y') === l.active)
+    .filter((l) => (!cond.code || has(l.code, cond.code)) && (!cond.name || has(l.name, cond.name))
+      && (!cond.partner || String(l.partnerId) === cond.partner) && (!cond.remark || has(l.remark, cond.remark)))
+    .filter((l) => !quick || has(l.code, quick) || has(l.name, quick) || has(l.partnerName, quick))
   const allChecked = shown.length > 0 && shown.every((l) => checked.has(l.id))
   const partnerItems = partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))
 
@@ -100,12 +107,26 @@ export default function ImportLotPage() {
       search={quick}
       onSearchChange={setQuick}
       onSearch={() => undefined}
+      collapseConditions
       onNew={() => void openNew()}
       actions={[
         { label: '사용중단/재사용', onClick: () => void toggle([...checked]) },
         { label: 'Excel' },
       ]}
     >
+      <ul className="ec-cond">
+        <EcCond label="관리번호코드"><input className="ec-input w-full" placeholder="관리번호코드" value={cond.code} onChange={(e) => setCond({ ...cond, code: e.target.value })} /></EcCond>
+        <EcCond label="관리번호명"><input className="ec-input w-full" placeholder="관리번호명" value={cond.name} onChange={(e) => setCond({ ...cond, name: e.target.value })} /></EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel fill placeholder="거래처" value={cond.partner} items={partnerItems} onChange={(v) => setCond({ ...cond, partner: v })} />
+        </EcCond>
+        <EcCond label="적요"><input className="ec-input w-full" placeholder="적요" value={cond.remark} onChange={(e) => setCond({ ...cond, remark: e.target.value })} /></EcCond>
+        <EcCond label="사용구분">
+          {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]"><input type="radio" name="lot-use" checked={cond.use === v} onChange={() => setCond({ ...cond, use: v })} /> {l}</label>
+          ))}
+        </EcCond>
+      </ul>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table className="w-full text-left">
         <thead>

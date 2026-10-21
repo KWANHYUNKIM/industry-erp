@@ -4,6 +4,8 @@ import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import NumCheck from '../../components/NumCheck'
+import ActiveToggleButton from '../../features/expensemaster/ActiveToggleButton'
+import EcHistoryButton from '../../components/EcHistory'
 import { activeMenuAction, type ExpenseControlType, type ExpenseGroup, type ExpenseItem } from '../../features/expensemaster/api'
 
 /**
@@ -23,9 +25,10 @@ interface Form {
   itemIds: string[]
   addInput: boolean
   remark: string
+  active: boolean
 }
 
-const BLANK: Form = { id: null, code: '', name: '', controlTypeId: '', itemIds: [], addInput: false, remark: '' }
+const BLANK: Form = { id: null, code: '', name: '', controlTypeId: '', itemIds: [], addInput: false, remark: '', active: true }
 
 export default function ExpenseGroupPage() {
   const [rows, setRows] = useState<ExpenseGroup[]>([])
@@ -61,7 +64,7 @@ export default function ExpenseGroupPage() {
   function openEdit(g: ExpenseGroup) {
     setF({
       id: g.id, code: g.code, name: g.name, controlTypeId: g.controlTypeId ? String(g.controlTypeId) : '',
-      itemIds: g.items.map((i) => String(i.id)), addInput: g.addInput, remark: g.remark ?? '',
+      itemIds: g.items.map((i) => String(i.id)), addInput: g.addInput, remark: g.remark ?? '', active: g.active,
     })
     setFormError(''); setInvalid(false); setOpen(true)
   }
@@ -196,7 +199,9 @@ export default function ExpenseGroupPage() {
               const g = rows.find((r) => r.id === f.id)
               if (g) openEdit(g); else void openNew()
             }}>다시 작성</button>
+            {f.id && <ActiveToggleButton base="/expense-groups" id={f.id} active={f.active} onToggled={(a) => { setF({ ...f, active: a }); load() }} />}
             <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+            <EcHistoryButton target="EXPENSE_GROUP" id={f.id} />
           </div>
         </form>
       )}</Modal>
