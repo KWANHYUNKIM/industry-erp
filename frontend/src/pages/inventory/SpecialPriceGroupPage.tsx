@@ -38,6 +38,8 @@ export default function SpecialPriceGroupPage() {
   const [keyword, setKeyword] = useState('')
   const [cond, setCond] = useState({ partner: '', sales: '', purchase: '' })
   const [page, setPage] = useState(1)
+  /** Search(F3) 기타 [수정일자순(정렬)] — 켜면 최근에 고친 거래처가 먼저 */
+  const [byUpdated, setByUpdated] = useState(false)
 
   /* 수정 창 */
   const [edit, setEdit] = useState<Partner | null>(null)
@@ -96,8 +98,10 @@ export default function SpecialPriceGroupPage() {
     .filter((p) => !cond.partner || String(p.id) === cond.partner)
     .filter((p) => !cond.sales || p.salesPriceGroup === cond.sales)
     .filter((p) => !cond.purchase || p.purchasePriceGroup === cond.purchase)
-    // 원본 기본 차례 = 거래처명(글자 차례 — '!!! …' · '### …' · 'QA재고1-…' · 'QA회계2-…')
-    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    // 원본 기본 차례 = 거래처명(글자 차례 — '!!! …' · '### …' · 'QA재고1-…' · 'QA회계2-…'). [수정일자순(정렬)] 은 고친 날짜 늦은 것부터
+    .sort((a, b) => (byUpdated
+      ? (b.updatedDate ?? '').localeCompare(a.updatedDate ?? '')
+      : 0) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
   const sort = useTableSort(shownRows, {
     거래처코드: (p) => p.code,
@@ -109,7 +113,7 @@ export default function SpecialPriceGroupPage() {
   const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE))
   const cur = Math.min(page, pages)
   const shown = all.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE)
-  useEffect(() => { setPage(1) }, [keyword, cond])
+  useEffect(() => { setPage(1) }, [keyword, cond, byUpdated])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '거래처특별단가그룹', [shown.length])
@@ -121,10 +125,10 @@ export default function SpecialPriceGroupPage() {
       onSearchChange={setKeyword}
       onSearch={() => undefined}
       collapseConditions
-      onReset={() => setCond({ partner: '', sales: '', purchase: '' })}
+      onReset={() => { setCond({ partner: '', sales: '', purchase: '' }); setByUpdated(false) }}
       actions={[{ label: 'Excel' }]}
     >
-      {/* 원본 Search(F3) 조건: 거래처 · 영업단가그룹 · 구매단가그룹 (· 기타 수정일자순(정렬) — 아직 없음) */}
+      {/* 원본 Search(F3) 조건: 거래처 · 영업단가그룹 · 구매단가그룹 · 기타 수정일자순(정렬) · 양식 적용양식 기본(수정불가) */}
       <ul className="ec-cond">
         <EcCond label="거래처">
           <CodePickerField label="거래처" hideLabel fill placeholder="거래처" emptyLabel=""
@@ -137,6 +141,13 @@ export default function SpecialPriceGroupPage() {
         <EcCond label="구매단가그룹">
           <CodePickerField label="구매단가그룹" hideLabel fill placeholder="구매단가그룹" emptyLabel="" plain hideNew columns={groupCols}
                            value={cond.purchase} onChange={(v) => setCond({ ...cond, purchase: v })} items={groupItems} />
+        </EcCond>
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[3px]"><input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} /> 수정일자순(정렬)</label>
+        </EcCond>
+        <EcCond label="양식">
+          <span className="mr-[6px]">적용양식</span>
+          <select className="ec-input w-[200px]" aria-label="적용양식" disabled><option>기본(수정불가)</option></select>
         </EcCond>
       </ul>
 

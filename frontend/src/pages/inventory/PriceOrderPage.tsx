@@ -4,6 +4,7 @@ import type { PriceOrderLine } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
 import { ecAlert } from '../../components/EcDialog'
 import EcHistoryButton from '../../components/EcHistory'
+import Modal from '../../components/Modal'
 
 type Cat = 'SALES' | 'PURCHASE'
 const CAT_LABEL: Record<Cat, string> = { SALES: '영업관리', PURCHASE: '구매관리' }
@@ -34,7 +35,7 @@ const CAT_LABEL: Record<Cat, string> = { SALES: '영업관리', PURCHASE: '구�
 /**
  * [상세설정] 칸 — 2026-10-14 원본(E040126 영업 · E040125 구매) 실측: 일곱 줄 중 <b>[거래처조정률] 한 줄에만 '설정'</b>이 있고
  * 나머지 칸은 비어 있다. 원본 '설정' 은 '소수점처리설정(영업관리/구매관리)' 창(소수점단위 · 처리방법 반올림 · [적용(F8)] [닫기])을 띄운다 —
- * 우리에게 그 창이 없어 글자만 둔다(plans/재고1.md 남은 것). 예전엔 줄마다 등록 화면 링크를 달았다(원본에 없음).
+ * 창은 있고(2026-10-21) 소수점단위 값 목록 · 저장은 원본 재기 필요 — [적용] 은 닫기만 한다. 예전엔 줄마다 등록 화면 링크를 달았다(원본에 없음).
  */
 const DETAIL_SETTING = '거래처조정률'
 export default function PriceOrderPage() {
@@ -45,6 +46,7 @@ export default function PriceOrderPage() {
   const [saving, setSaving] = useState(false)
   /** 불러온(마지막 저장) 값 — 원본은 바꾼 것 없이 [저장] 하면 '수정된 내역이 없습니다.' 를 띄운다. */
   const [savedKey, setSavedKey] = useState('')
+  const [decimalOpen, setDecimalOpen] = useState(false)
   const keyOf = (ls: PriceOrderLine[]) => ls.map((l) => `${l.functionName}:${l.active}`).join('|')
 
   // 저장(F8) — 버튼 라벨이 약속한 단축키. 저장 중이면 안 먹는다.
@@ -132,7 +134,7 @@ export default function PriceOrderPage() {
                   </label>
                 </td>
                 <td className="text-center">
-                  {l.functionName === DETAIL_SETTING && <span className="ec-link">설정</span>}
+                  {l.functionName === DETAIL_SETTING && <button type="button" className="ec-link" onClick={() => setDecimalOpen(true)}>설정</button>}
                 </td>
               </tr>
             ))}
@@ -145,6 +147,24 @@ export default function PriceOrderPage() {
           <EcHistoryButton key={cat} target="PRICE_ORDER" id={cat === 'SALES' ? 1 : 2} last />
         </div>
       </div>
+
+      {/* 원본 '소수점처리설정(영업관리/구매관리)' — 소수점단위 · 처리방법 반올림 · [적용(F8)] [닫기] (2026-10-14 실측). 소수점단위 값 목록은 원본 재기 필요 */}
+      <Modal open={decimalOpen} title="소수점처리설정(영업관리/구매관리)" width={420} onClose={() => setDecimalOpen(false)}>
+        <div className="ec-form">
+          <div className="flex items-center gap-[10px] mb-[6px]">
+            <span className="w-[100px] text-ec-label">소수점단위</span>
+            <select className="ec-input flex-1" aria-label="소수점단위"><option>사용안함</option></select>
+          </div>
+          <div className="flex items-center gap-[10px]">
+            <span className="w-[100px] text-ec-label">처리방법</span>
+            <select className="ec-input flex-1" aria-label="처리방법"><option>반올림</option></select>
+          </div>
+        </div>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => setDecimalOpen(false)}>적용(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setDecimalOpen(false)}>닫기</button>
+        </div>
+      </Modal>
     </div>
   )
 }
