@@ -1,0 +1,29 @@
+{
+  "about": "거래처등록 [거래처정보] 탭(2026-10-22 원본 실측) — 한 줄 목록 · 세무신고거래처 ◉거래처코드동일 ○검색입력 ○직접입력(직접입력이면 다른 코드가 저장되고, 동일이면 비어 있다) · 통화 · 거래유형 ◉기본설정 ○직접입력. 만든 거래처는 지운다.",
+  "shots": [
+    {
+      "name": "거래처정보 탭 — 세무신고 직접입력 저장",
+      "path": "/sales/partners",
+      "steps": [
+        "js:fetch('/api/partners', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then(async (d) => { for (const x of d.filter((p) => p.code === 'QA-T468')) await fetch('/api/partners/' + x.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return true })",
+        "wait:2500",
+        "click:신규",
+        "wait:600",
+        "js:[...document.querySelectorAll('li.ec-tab')].find((t) => t.innerText.trim().startsWith('거래처정보')).click()",
+        "wait:300",
+        "expect:['세무신고거래처', '종사업장번호', '업종별구분', '통화', '출하대상거래처', '거래유형(영업)'].every((t) => document.body.innerText.includes(t)) && document.querySelectorAll('input[name=taxReportMode]').length === 3",
+        "setnear:거래처코드|QA-T468",
+        "setnear:상호(이름)|QA재고1 세무신고",
+        "js:document.querySelectorAll('input[name=taxReportMode]')[2].click()",
+        "wait:300",
+        "js:(() => { const r = document.querySelectorAll('input[name=taxReportMode]')[2]; const box = r.closest('div').parentElement.querySelector('input.ec-input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(box, 'QA-TAXCODE'); box.dispatchEvent(new Event('input', { bubbles: true })) })()",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:fetch('/api/partners', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => { const p = d.find((x) => x.code === 'QA-T468'); sessionStorage.setItem('qaTax', p ? String(p.taxReportCode) : 'none') })",
+        "wait:800",
+        "expect:sessionStorage.getItem('qaTax') === 'QA-TAXCODE'",
+        "apidel:/partners|QA-T468|code"
+      ]
+    }
+  ]
+}
