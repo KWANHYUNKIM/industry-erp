@@ -206,10 +206,11 @@
       ]
     },
     {
-      "name": "BOM(소요량)현황 — BOM 한 줄이 한 줄, 생산품목코드는 그 BOM 첫 줄에만 찍히고 기본 BOM 만 보인다",
+      "name": "BOM(소요량)현황 — [검색(F8)] 뒤에 출력물이 서고, BOM 한 줄이 한 줄, 생산품목코드는 그 BOM 줄 수만큼 합친 한 칸이고 기본 BOM 만 보인다",
       "path": "/production/bom-status",
       "steps": [
-        "expect:(async()=>{const b=await fetch('/api/boms?versions=all',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json());const want=b.filter((x)=>x.defaultVersion).reduce((n,x)=>n+x.lines.length,0);const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>t.cells.length===7);const firsts=rows.filter((t)=>t.cells[0].innerText.trim()!=='').length;return want>0&&rows.length===want&&firsts<=b.filter((x)=>x.defaultVersion).length})()"
+        "click:검색(F8)",
+        "expect:(async()=>{const b=await fetch('/api/boms?versions=all',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json());const want=b.filter((x)=>x.defaultVersion).reduce((n,x)=>n+x.lines.length,0);const rows=[...document.querySelectorAll('table.ec-report tbody tr')].filter((t)=>t.cells.length>=7);const firsts=rows.filter((t)=>t.cells.length===8).length;return want>0&&rows.length===want&&firsts<=b.filter((x)=>x.defaultVersion).length})()"
       ]
     },
     {
