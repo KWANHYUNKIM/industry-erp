@@ -239,3 +239,12 @@ test('fiscalYearStartOf — 기수 첫날, 시작월 앞 달이면 지난해', (
 test('전년+금년 은 작년 1월 1일부터 올해 12월 31일까지다 — 게시판 조건 판', () => {
   assert.deepEqual(periodOf('전년+금년', new Date(2026, 9, 13)), { from: '2025-01-01', to: '2026-12-31' })
 })
+
+test('종료일·종료월 — 시작을 현재 끝으로 옮긴다(원본 실측 2026-10-21)', () => {
+  const today = at(2026, 10, 21)
+  const cur = { from: '2026-09-21', to: '2026-11-20' }
+  assert.deepEqual(periodOf('종료일', today, undefined, cur), { from: '2026-11-20', to: '2026-11-20' })
+  assert.deepEqual(periodOf('종료월', today, undefined, cur), { from: '2026-11-20', to: '2026-11-20' })
+  // 현재 기간을 모르면 호출부가 from 을 채우도록 비워 둔다
+  assert.deepEqual(periodOf('종료일', today), { from: '', to: '2026-10-21' })
+})

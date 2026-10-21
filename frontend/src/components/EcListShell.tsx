@@ -243,8 +243,9 @@ export default function EcListShell({
     const own = [...el.querySelectorAll<HTMLButtonElement>('.ec-btn-pick')].find((b) => b.textContent?.trim() === label)
     if (own) own.click()
     else {
-      const r = periodOf(label)
       const dates = el.querySelectorAll<HTMLInputElement>('input[type="date"]')
+      const endNow = dates[1]?.value
+      const r = periodOf(label, new Date(), undefined, endNow ? { from: dates[0]?.value ?? endNow, to: endNow } : undefined)
       if (r && dates.length >= 2) {
         if (r.from) setFieldValue(dates[0], r.from)
         setFieldValue(dates[1], r.to)

@@ -47,8 +47,9 @@ export function fiscalYearStartOf(date: string, fiscalStart: number): string {
  *
  * @param fiscalStart 회계연도 시작월(1~12). '이번기수'·'직전기수' 를 계산할 때만 쓴다.
  *                    설정(Preference.fiscalStart)에서 온다 — 회사마다 다르므로 1월로 넘겨짚지 않는다.
+ * @param current     지금 화면의 기간. '종료일'·'종료월' 이 쓴다(없으면 from 이 빈 채로 to=오늘).
  */
-export function periodOf(label: string, today = new Date(), fiscalStart?: number): PeriodRange | null {
+export function periodOf(label: string, today = new Date(), fiscalStart?: number, current?: PeriodRange): PeriodRange | null {
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   switch (label) {
     case '금일':
@@ -200,15 +201,13 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
       }
     }
     /**
-     * 시작일은 그대로 두고 종료일만 오늘로 당긴다. 원본 버튼줄에 이 이름이 있다.
-     * 시작일을 모르므로 빈 문자열을 돌려주는데, 이걸 그대로 넣으면 시작일이 지워진다 —
-     * {@link EcPeriodPicks} 가 currentFrom 으로 채워서 넘긴다. 직접 부르는 곳은 주의할 것.
+     * 원본 실측(2026-10-21 근태조회 E020711 · 급여현황): 시작이 <b>현재 끝 날</b>으로 옮겨져 {끝, 끝} 이 되고 바로 검색된다
+     * (2026/09/21 ~ 2026/11/20 → 2026/11/20 ~ 2026/11/20). 현재 기간을 모르면 from 은 빈 채(호출부가 채운다)·to=오늘.
+     * '종료월' 도 같은 규칙이다(달로 고르는 화면).
      */
     case '종료일':
-      return { from: '', to: ymd(t) }
-    /* 달로 고르는 기간(인원현황 월별)의 '종료일' — 시작은 그대로, 끝을 이번 달(오늘)로. */
     case '종료월':
-      return { from: '', to: ymd(t) }
+      return current?.to ? { from: current.to, to: current.to } : { from: '', to: ymd(t) }
     default:
       return null
   }

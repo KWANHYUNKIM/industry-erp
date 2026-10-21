@@ -116,7 +116,7 @@ export default function DailyPayByWorkerPage() {
           {['전월', '전월+금월', '금년', '전년'].map((l) => (
             <button key={l} type="button" className="ec-btn ec-btn-pick" onClick={() => setRange(monthRange(l))}>{l}</button>
           ))}
-          <button type="button" className="ec-btn ec-btn-pick" onClick={() => setRange({ ...range, to: monthRange('금월').to })}>종료월</button>
+          <button type="button" className="ec-btn ec-btn-pick" onClick={() => setRange({ ...range, from: range.to })}>종료월</button>
           <button type="button" className="ec-btn ec-btn-pick" onClick={() => setRange(monthRange('금월'))}>금월</button>
         </li>
       </ul>

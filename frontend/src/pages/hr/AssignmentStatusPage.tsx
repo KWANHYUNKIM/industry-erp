@@ -60,8 +60,7 @@ export default function AssignmentStatusPage() {
           <div className="flex flex-wrap items-center gap-[6px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => search()}>검색(F8)</button>
             <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={(r) => setConds({ ...conds, range: r })} />
-            {/* 원본 [종료일](2026-10-21 실측): 시작을 끝 날로 — 2026/10/03 ~ 10/15 → 2026/10/15 ~ 10/15. 공용 periodOf('종료일') 은
-                '시작 그대로 · 끝을 오늘로' 라 이 화면은 따로 둔다. 뒤 [설정] 은 원본도 권한없음 창이라 두지 않는다. */}
+            {/* 원본 [종료일](2026-10-21 실측): 시작을 끝 날로 — 2026/10/03 ~ 10/15 → 2026/10/15 ~ 10/15. STATUS_PICKS 에 종료일이 없어 따로 둔다(공용 periodOf('종료일', …, current) 와 같은 규칙). 뒤 [설정] 은 원본도 권한없음 창이라 두지 않는다. */}
             <button type="button" className="ec-btn ec-btn-pick" onClick={() => { const r = { from: range.to, to: range.to }; setConds({ ...conds, range: r }); search(r) }}>종료일</button>
             <button type="button" className="ec-btn" onClick={() => { setConds(initialAssignmentConds); setEmployment('all') }}>다시 작성</button>
           </div>
