@@ -35,6 +35,8 @@ public class AccountService {
                 .name(req.name())
                 .division(req.division())
                 .detailCategory(req.detailCategory())
+                .relatedWork(req.relatedWork() != null ? req.relatedWork() : AccountRelatedWork.NONE)
+                .partnerAggregate(Boolean.TRUE.equals(req.partnerAggregate()))
                 .active(true)
                 .build();
         return AccountResponse.from(accountRepository.save(a));
@@ -68,6 +70,8 @@ public class AccountService {
         if (req.division() != null) a.setDivision(req.division());
         if (req.detailCategory() != null) a.setDetailCategory(req.detailCategory());
         if (req.active() != null) a.setActive(req.active());
+        if (req.relatedWork() != null) a.setRelatedWork(req.relatedWork());
+        if (req.partnerAggregate() != null) a.setPartnerAggregate(req.partnerAggregate());
         return AccountResponse.from(a);
     }
 }

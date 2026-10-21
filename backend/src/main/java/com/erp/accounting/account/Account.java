@@ -45,4 +45,15 @@ public class Account extends BaseTimeEntity {
     @Column(name = "evidence_report", nullable = false)
     @Builder.Default
     private boolean evidenceReport = false;
+
+    /** [관련업무] — 채권/채무 면 거래처관리대장 I · II 에 잡힌다(원본 1089 외상매출금 · 2519 외상매입금). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "related_work", nullable = false, length = 30)
+    @Builder.Default
+    private AccountRelatedWork relatedWork = AccountRelatedWork.NONE;
+
+    /** [거래처별집계구분] — true 면 '거래처별'(원본 미수금 · 외상매출금), false 면 '없음'. */
+    @Column(name = "partner_aggregate", nullable = false)
+    @Builder.Default
+    private boolean partnerAggregate = false;
 }

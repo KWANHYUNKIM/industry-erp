@@ -2,6 +2,7 @@ package com.erp.accounting.account.dto;
 
 import com.erp.accounting.account.Account;
 import com.erp.accounting.account.AccountDivision;
+import com.erp.accounting.account.AccountRelatedWork;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +18,9 @@ public final class AccountDtos {
             @NotBlank(message = "계정과목명을 입력하세요.") String name,
             @NotNull(message = "구분을 선택하세요.") AccountDivision division,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
-            String detailCategory
+            String detailCategory,
+            AccountRelatedWork relatedWork,
+            Boolean partnerAggregate
     ) {}
 
     public record UpdateAccountRequest(
@@ -26,19 +29,23 @@ public final class AccountDtos {
             AccountDivision division,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String detailCategory,
-            Boolean active
+            Boolean active,
+            AccountRelatedWork relatedWork,
+            Boolean partnerAggregate
     ) {}
 
     public record AccountResponse(
             Long id, String code, String name,
             AccountDivision division, String divisionName,
-            String detailCategory, boolean active
+            String detailCategory, boolean active,
+            AccountRelatedWork relatedWork, String relatedWorkName, boolean partnerAggregate
     ) {
         public static AccountResponse from(Account a) {
             return new AccountResponse(
                     a.getId(), a.getCode(), a.getName(),
                     a.getDivision(), a.getDivision().getDisplayName(),
-                    a.getDetailCategory(), a.isActive());
+                    a.getDetailCategory(), a.isActive(),
+                    a.getRelatedWork(), a.getRelatedWork().getDisplayName(), a.isPartnerAggregate());
         }
     }
 }

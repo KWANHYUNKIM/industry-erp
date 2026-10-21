@@ -105,6 +105,8 @@ public class DataInitializer implements CommandLineRunner {
         if (!accountRepository.existsByCode(code)) {
             accountRepository.save(Account.builder()
                     .code(code).name(name).division(division).detailCategory(detail).active(true)
+                    .relatedWork(StandardAccounts.relatedWorkOf(code))
+                    .partnerAggregate(StandardAccounts.partnerAggregateOf(code, name))
                     .build());
         }
     }

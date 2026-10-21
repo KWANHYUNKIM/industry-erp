@@ -91,6 +91,8 @@ public class TenantSeeder {
             accountRepository.save(Account.builder()
                     .code(a.code()).name(a.name()).division(a.division())
                     .detailCategory(a.detail()).active(true)
+                    .relatedWork(StandardAccounts.relatedWorkOf(a.code()))
+                    .partnerAggregate(StandardAccounts.partnerAggregateOf(a.code(), a.name()))
                     .build());
             added++;
         }

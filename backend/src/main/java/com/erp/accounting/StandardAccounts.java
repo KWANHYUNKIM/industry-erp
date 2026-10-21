@@ -1,6 +1,7 @@
 package com.erp.accounting;
 
 import com.erp.accounting.account.AccountDivision;
+import com.erp.accounting.account.AccountRelatedWork;
 
 import java.util.List;
 
@@ -94,4 +95,14 @@ public final class StandardAccounts {
             required("951", "이자비용", AccountDivision.EXPENSE, "영업외비용"),
             required("936", "매출채권처분손실", AccountDivision.EXPENSE, "영업외비용"),
             required("970", "유형자산처분손실", AccountDivision.EXPENSE, "영업외비용"));
+
+    /** 계정등록 [관련업무] 기본값 — 원본처럼 외상매출금 · 외상매입금만 '채권/채무'(V429 백필과 같다). */
+    public static AccountRelatedWork relatedWorkOf(String code) {
+        return "108".equals(code) || "251".equals(code) ? AccountRelatedWork.RECEIVABLE_PAYABLE : AccountRelatedWork.NONE;
+    }
+
+    /** 계정등록 [거래처별집계구분] 기본값 — 원본 외상매출금 · 미수금 … 은 '거래처별'(V429 백필과 같다). */
+    public static boolean partnerAggregateOf(String code, String name) {
+        return relatedWorkOf(code) == AccountRelatedWork.RECEIVABLE_PAYABLE || "미수금".equals(name) || "미지급금".equals(name);
+    }
 }
