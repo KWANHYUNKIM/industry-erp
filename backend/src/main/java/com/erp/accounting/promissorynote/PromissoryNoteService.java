@@ -142,6 +142,34 @@ public class PromissoryNoteService {
         return NoteResponse.from(n);
     }
 
+    /** 결의서가 늘리는 어음 한 줄. */
+    public record VoucherNoteLine(String noteNo, LocalDate dueDate, java.math.BigDecimal amount, Long partnerId,
+                                  Long departmentId, Long projectId, String remark) {}
+
+    /**
+     * 채권감소등록 [입금보고서작성] · 채무감소등록 [지출결의서작성] 수금(지급)형태 '어음'(2026-10-21 loginaa 실측) — 줄마다 어음 하나.
+     * 분개는 결의서가 이미 만들었으므로(차 받을어음 / 대 외상매출금) 어음은 내역만 든다. 결의서를 지우면 함께 사라진다.
+     */
+    @Transactional
+    public List<NoteResponse> createFromVoucher(NoteType type, LocalDate date, Long voucherId, List<VoucherNoteLine> lines, String username) {
+        var voucher = fastVoucherRepository.getReferenceById(voucherId);
+        java.util.List<NoteResponse> out = new java.util.ArrayList<>();
+        for (VoucherNoteLine l : lines) {
+            if (noteRepository.existsByNoteNo(l.noteNo())) throw ApiException.conflict("이미 있는 어음번호입니다: " + l.noteNo());
+            if (l.partnerId() == null) throw ApiException.badRequest("거래처를 입력 바랍니다.");
+            BusinessPartner partner = partnerRepository.findById(l.partnerId())
+                    .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + l.partnerId()));
+            PromissoryNote n = PromissoryNote.builder()
+                    .noteNo(l.noteNo()).recordOnly(true).type(type).partner(partner)
+                    .issueDate(date).dueDate(l.dueDate()).amount(l.amount()).status(NoteStatus.HELD)
+                    .remark(l.remark()).createdBy(username).departmentId(l.departmentId()).projectId(l.projectId())
+                    .sourceVoucher(voucher)
+                    .build();
+            out.add(NoteResponse.from(noteRepository.save(n)));
+        }
+        return out;
+    }
+
     /**
      * 받을어음증가 · 지급어음증가 수정 — 원본 받을어음조회 증가 줄 [일자] → 수정 창 [저장(F8)].
      * 2026-10-21 loginaa 실측: QA1-N9 123,000 → 125,000 저장하면 목록 금액이 바뀌고 회계전표No.(26/10/21 -26)는 그대로.

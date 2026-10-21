@@ -108,7 +108,9 @@ public final class BondDtos {
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String description,
             @NotEmpty(message = "저장할 내용이 없습니다.") List<@Valid DepositLine> lines,
             /** 전표 묶음기준 '거래처별/계정별' — 같은 계정 · 거래처 줄을 분개 한 줄로(채권 감소는 채권번호마다 그대로). */
-            Boolean groupByPartner
+            Boolean groupByPartner,
+            /** 수금(지급)형태 '어음'의 [계정코드](받을어음 · 지급어음) — 있으면 입금계좌 대신 이 계정, 줄마다 어음이 는다. */
+            Long noteAccountId
     ) {}
 
     public record DepositLine(
@@ -120,6 +122,9 @@ public final class BondDtos {
             Long projectId,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String memo,
             /** 수금(지급)형태 '수표' — 수표번호입력 창의 번호. 있으면 그 줄 금액만큼 수령(발행)수표가 하나 는다(2026-10-14 실측). */
-            @Size(max = 30, message = "수표번호는 30자까지 넣을 수 있습니다.") String checkNo
+            @Size(max = 30, message = "수표번호는 30자까지 넣을 수 있습니다.") String checkNo,
+            /** 수금(지급)형태 '어음' — 어음번호입력 창의 번호 · 만기일자(2026-10-21 실측). */
+            @Size(max = 30, message = "어음번호는 30자까지 넣을 수 있습니다.") String noteNo,
+            LocalDate noteDue
     ) {}
 }

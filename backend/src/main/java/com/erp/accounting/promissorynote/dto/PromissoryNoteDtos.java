@@ -135,7 +135,10 @@ public final class PromissoryNoteDtos {
             Long closePartnerId,
             String closePartnerName,
             /** 받을어음일괄감소 [입금보고서작성] · 지급어음일괄감소 [지출결의서작성] 으로 닫혔으면 'VOUCHER' — 감소 줄 거래유형 '입금보고서' · '지출결의서' */
-            String closeVia
+            String closeVia,
+            /** 'VOUCHER' — 채권(채무)감소등록 결의서로 는 어음. 증가 줄 거래유형 '입금보고서' · '지출결의서', 회계전표 = 그 결의서 전표. */
+            String issueVia,
+            Long issueJournalEntryId
     ) {
         public static NoteResponse from(PromissoryNote n) {
             return new NoteResponse(
@@ -153,7 +156,9 @@ public final class PromissoryNoteDtos {
                     n.getClosePartner() == null ? null : n.getClosePartner().getName(),
                     n.getCloseJournalEntry() != null
                             && n.getCloseJournalEntry().getSourceType() == com.erp.accounting.journal.JournalSourceType.VOUCHER
-                            ? "VOUCHER" : null);
+                            ? "VOUCHER" : null,
+                    n.getSourceVoucher() != null ? "VOUCHER" : null,
+                    n.getSourceVoucher() != null && n.getSourceVoucher().getJournalEntry() != null ? n.getSourceVoucher().getJournalEntry().getId() : null);
         }
     }
 

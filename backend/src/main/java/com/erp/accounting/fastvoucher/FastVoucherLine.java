@@ -81,6 +81,14 @@ public class FastVoucherLine {
     @Column(name = "vat_amount", precision = 18, scale = 2)
     private BigDecimal vatAmount;
 
+    /**
+     * 돈 들어온(나간) 쪽이 계좌가 아니라 계정인 줄 — 채권감소등록 수금형태 '어음'(2026-10-21 실측: '1109 받을어음').
+     * 있으면 이 계정이 결제 쪽 분개 계정이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "settle_account_id")
+    private Account settleAccount;
+
     /** 줄이 제 결제 계좌를 정했는지. false 는 옛 줄 — 머리 결제수단을 따른다. */
     @Column(nullable = false)
     @Builder.Default

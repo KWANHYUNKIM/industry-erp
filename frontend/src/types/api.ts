@@ -1363,6 +1363,10 @@ export interface VoucherLine {
   vatPartnerName?: string | null
   vatSupply?: number | null
   vatAmount?: number | null
+  /** 돈 들어온(나간) 쪽이 계정인 줄(수금형태 어음 — 1109 받을어음) */
+  settleAccountId?: number | null
+  settleAccountCode?: string | null
+  settleAccountName?: string | null
 }
 
 export interface FastVoucher {

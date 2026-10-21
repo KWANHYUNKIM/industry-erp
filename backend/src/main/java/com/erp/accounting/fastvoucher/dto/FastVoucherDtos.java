@@ -36,15 +36,17 @@ public final class FastVoucherDtos {
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String employeeName,
             /** 격자 [추가정보] — 부가세정보. 없으면 null. */
-            @jakarta.validation.Valid LineVat vat
+            @jakarta.validation.Valid LineVat vat,
+            /** 돈 들어온(나간) 쪽이 계정인 줄(수금형태 어음 — 받을어음). 있으면 계좌 · 현금 대신 이 계정. */
+            Long settleAccountId
     ) {
         public LineInput(Long accountId, BigDecimal amount, String description) {
-            this(accountId, amount, description, null, null, null, null, null, null);
+            this(accountId, amount, description, null, null, null, null, null, null, null);
         }
 
         public LineInput(Long accountId, BigDecimal amount, String description, Long bankAccountId, Boolean cash,
                          Long partnerId, Long employeeId, String employeeName) {
-            this(accountId, amount, description, bankAccountId, cash, partnerId, employeeId, employeeName, null);
+            this(accountId, amount, description, bankAccountId, cash, partnerId, employeeId, employeeName, null, null);
         }
     }
 
@@ -102,7 +104,9 @@ public final class FastVoucherDtos {
             Long employeeId, String employeeName,
             /** [추가정보] 부가세정보 — 없으면 vatType null. */
             String vatType, LocalDate vatDate, Long vatPartnerId, String vatPartnerCode, String vatPartnerName,
-            BigDecimal vatSupply, BigDecimal vatAmount
+            BigDecimal vatSupply, BigDecimal vatAmount,
+            /** 돈 들어온(나간) 쪽 계정(어음) — 없으면 null. */
+            Long settleAccountId, String settleAccountCode, String settleAccountName
     ) {}
 
     public record VoucherResponse(
@@ -158,7 +162,10 @@ public final class FastVoucherDtos {
                                     l.getVatPartner() != null ? l.getVatPartner().getId() : null,
                                     l.getVatPartner() != null ? l.getVatPartner().getCode() : null,
                                     l.getVatPartner() != null ? l.getVatPartner().getName() : null,
-                                    l.getVatSupply(), l.getVatAmount()))
+                                    l.getVatSupply(), l.getVatAmount(),
+                                    l.getSettleAccount() != null ? l.getSettleAccount().getId() : null,
+                                    l.getSettleAccount() != null ? l.getSettleAccount().getCode() : null,
+                                    l.getSettleAccount() != null ? l.getSettleAccount().getName() : null))
                             .toList(),
                     v.getPayeeName(), v.getFee(),
                     v.getCounterBankAccount() != null ? v.getCounterBankAccount().getId() : null,

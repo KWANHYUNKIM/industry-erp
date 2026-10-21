@@ -30,7 +30,7 @@ type Group = 'LINE' | 'PARTNER'
 type Produce = 'DIRECT' | 'START' | 'AUTO'
 
 interface Line { accountId: number; partnerId: number | null; bondNo: string; amount: string; memo: string
-  departmentId: number | null; projectId: number | null; checkNo?: string }
+  departmentId: number | null; projectId: number | null; checkNo?: string; noteNo?: string; noteDue?: string }
 
 /**
  * 원본 수표번호입력 [자동생성] 번호 — '26101403162966200001' = 연월일시분초(261014 031629) + 천분의 1초(662) + 줄 차례 5자리(00001).
@@ -70,7 +70,7 @@ function bankLabel(b: BankAccountRow) {
  * → [저장] 하면 회계전표 · 채권 감소와 함께 수령수표가 줄마다 하나 는다(수령수표조회 거래유형 '입금보고서'). 채무 쪽은 지출결의서 · 발행수표.
  * [시작번호입력] 의 [번호생성] 은 원본에서 못 쟀다 — 우리는 첫 줄 번호부터 1씩 늘려 채운다.
  *
- * <p>어음 · 기타계정 수금은 받을어음 추가정보 · 계정 코드도움으로 이어지는데 그 연결이 아직 없어 고를 수만 있고 [적용]에서 막는다.
+ * <p><b>어음</b>(2026-10-21 실측): 입금계좌 자리가 [계정코드](1109 받을어음) · 생성방식(직접입력이 처음) → 어음번호입력 창(+ 만기일자) → 입금보고서 돈 들어온 계좌 = 그 계정 · 추가정보 '채권 …, 받을어음 …' → 저장하면 줄마다 받을어음 증가(거래유형 입금보고서). 기타계정은 아직 막는다.
  */
 export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters, onClose, onSaved }: {
   side?: BondSide
@@ -92,6 +92,10 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
   const [settleErr, setSettleErr] = useState(false)
   const [note, setNote] = useState('')
   const [produce, setProduce] = useState<Produce>('AUTO')
+  /** 수금(지급)형태 '어음' 의 [계정코드](받을어음 · 지급어음 계정 id) — 원본은 입금계좌 자리에 계정 코드도움(1109 → 받을어음). */
+  const [noteAcc, setNoteAcc] = useState('')
+  /** 어음번호입력 창의 만기일자 — 줄마다(처음은 오늘). */
+  const [dues, setDues] = useState<string[]>([])
   /** 수표번호입력 창 — 줄마다 수표번호. null 이면 닫힘. */
   const [pending, setPending] = useState<Line[] | null>(null)
   const [checkNos, setCheckNos] = useState<string[] | null>(null)
@@ -107,7 +111,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
     if (!picks) return
     setCollect('CASH'); setSettle(''); setMemoMode('SAME'); setGroup('LINE'); setSettleErr(false); setNote('')
     setLines(null); setDate(ymd(new Date())); setMemo(''); setError('')
-    setProduce('AUTO'); setPending(null); setCheckNos(null); setCheckErr(new Set())
+    setProduce('AUTO'); setPending(null); setCheckNos(null); setCheckErr(new Set()); setNoteAcc(''); setDues([])
     api.get<BankAccountRow[]>('/bank-cards/accounts').then((r) => setBanks(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }, [picks])
 
@@ -122,21 +126,22 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
 
   function apply() {
     if (!picks) return
-    if (collect === 'NOTE' || collect === 'OTHER') {
-      setNote(`${collect === 'NOTE' ? '어음' : '기타계정'} ${t.kind}은 아직 지원하지 않습니다. 현금/예금 · 수표로 골라 주세요.`)
+    if (collect === 'OTHER') {
+      setNote(`기타계정 ${t.kind}은 아직 지원하지 않습니다. 현금/예금 · 어음 · 수표로 골라 주세요.`)
       return
     }
-    /* 수표는 돈 들어온(나간) 계좌가 수표계좌다 — 현금(000)으로는 수표를 둘 데가 없다. */
-    if (!settle || (collect === 'CHECK' && settle === '000')) { setSettleErr(true); return }
+    /* 어음은 입금계좌 대신 [계정코드](받을어음) — 비우면 그 칸이 빨갛다. 수표는 돈 들어온(나간) 계좌가 수표계좌다 — 현금(000)으로는 수표를 둘 데가 없다. */
+    if (collect === 'NOTE' ? !noteAcc : !settle || (collect === 'CHECK' && settle === '000')) { setSettleErr(true); return }
     const memoOf = (p: DepositPick) => (memoMode === 'SAME' ? p.memo ?? '' : memoMode === 'BONDNO' ? p.bondNo : '')
     let ls: Line[] = picks.map((p) => ({ accountId: p.accountId, partnerId: p.partnerId, bondNo: p.bondNo,
       amount: String(p.amount), memo: memoOf(p), departmentId: p.departmentId, projectId: p.projectId }))
     /* 거래처별/계정별: 같은 계정 · 거래처 줄을 금액 합으로 한 줄(원본 2026-10-21: QA1B1 10,000 · QA1B2 20,000 → 30,000 '채권 QA1B1 외').
        채권 감소는 채권번호마다 따로라 줄(lines)은 그대로 두고, 입금보고서 표 · 분개만 묶는다(shown · 서버 groupByPartner). */
     if (group === 'PARTNER') ls = [...ls].sort((a, b) => `${a.accountId}/${a.partnerId}`.localeCompare(`${b.accountId}/${b.partnerId}`))
-    if (collect === 'CHECK') {
+    if (collect === 'CHECK' || collect === 'NOTE') {
       setPending(ls)
       setCheckNos(produce === 'AUTO' ? autoCheckNos(ls.length) : ls.map(() => ''))
+      setDues(ls.map(() => date))
       setCheckErr(new Set())
       return
     }
@@ -160,7 +165,9 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
     if (!pending || !checkNos) return
     const bad = new Set(checkNos.map((v, i) => (v.trim() ? -1 : i)).filter((i) => i >= 0))
     if (bad.size > 0) { setCheckErr(bad); return }
-    setLines(pending.map((l, i) => ({ ...l, checkNo: checkNos[i].trim() })))
+    setLines(pending.map((l, i) => (collect === 'NOTE'
+      ? { ...l, noteNo: checkNos[i].trim(), noteDue: dues[i] || date }
+      : { ...l, checkNo: checkNos[i].trim() })))
   }
 
   async function save() {
@@ -172,11 +179,13 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
     try {
       await api.post('/bonds/deposit-report', {
         date,
-        bankAccountId: settle.startsWith('b') ? Number(settle.slice(1)) : undefined,
-        cash: settle === '000' || undefined,
+        bankAccountId: collect !== 'NOTE' && settle.startsWith('b') ? Number(settle.slice(1)) : undefined,
+        cash: (collect !== 'NOTE' && settle === '000') || undefined,
+        noteAccountId: collect === 'NOTE' ? Number(noteAcc) : undefined,
         description: memo.trim() || undefined,
         lines: lines.map((l) => ({ accountId: l.accountId, partnerId: l.partnerId, bondNo: l.bondNo, amount: Number(l.amount),
-          departmentId: l.departmentId, projectId: l.projectId, memo: l.memo.trim() || undefined, checkNo: l.checkNo || undefined })),
+          departmentId: l.departmentId, projectId: l.projectId, memo: l.memo.trim() || undefined, checkNo: l.checkNo || undefined,
+          noteNo: l.noteNo || undefined, noteDue: l.noteDue || undefined })),
         groupByPartner: group === 'PARTNER' || undefined,
       }, { params: { side } })
       onSaved()
@@ -218,17 +227,30 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
         <ul className="ec-form mb-[8px]">
           <EcCond label={t.form} span={2}>
             <span className="flex flex-col gap-[6px] w-full">
-              {radio('collect', collect, (v) => { setCollect(v); setNote('') },
+              {radio('collect', collect, (v) => { setCollect(v); setNote(''); setSettleErr(false); setProduce(v === 'NOTE' ? 'DIRECT' : 'AUTO') },
                 [['CASH', '현금/예금'], ['NOTE', '어음'], ['CHECK', '수표'], ['OTHER', '기타계정']])}
               <span className={`flex w-full items-center gap-[6px]${settleErr ? ' outline outline-1 outline-ec-danger rounded-ec' : ''}`}>
-                <span className="text-ec-label whitespace-nowrap">{t.settle}</span>
-                <span className="w-[160px]">
-                  <GridCode title="계좌검색" codeHead={t.settle} nameHead="계좌명" items={settleItems}
-                            value={settle} onPick={(v) => { setSettle(v); setSettleErr(false) }} />
-                </span>
-                <span className="flex-1">{settleName}</span>
+                {collect === 'NOTE' ? (
+                  <>
+                    <span className="text-ec-label whitespace-nowrap">계정코드</span>
+                    <span className="w-[160px]">
+                      <GridCode title="계정검색" codeHead="계정코드" nameHead="계정명" items={masters.accounts}
+                                value={noteAcc} onPick={(v) => { setNoteAcc(v); setSettleErr(false) }} />
+                    </span>
+                    <span className="flex-1">{masters.accounts.find((a) => a.value === noteAcc)?.name ?? ''}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-ec-label whitespace-nowrap">{t.settle}</span>
+                    <span className="w-[160px]">
+                      <GridCode title="계좌검색" codeHead={t.settle} nameHead="계좌명" items={settleItems}
+                                value={settle} onPick={(v) => { setSettle(v); setSettleErr(false) }} />
+                    </span>
+                    <span className="flex-1">{settleName}</span>
+                  </>
+                )}
               </span>
-              {collect === 'CHECK' && (
+              {(collect === 'CHECK' || collect === 'NOTE') && (
                 <span className="flex items-center gap-[6px]">
                   <span className="text-ec-label whitespace-nowrap">생성방식</span>
                   {radio('produce', produce, setProduce, [['DIRECT', '직접입력'], ['START', '시작번호입력'], ['AUTO', '자동생성']])}
@@ -250,7 +272,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
         </div>
       </Modal>
 
-      <Modal open={picks != null && checkNos != null && lines == null} title="수표번호입력" width={780} error={error} onClose={onClose}>
+      <Modal open={picks != null && checkNos != null && lines == null} title={collect === 'NOTE' ? '어음번호입력' : '수표번호입력'} width={780} error={error} onClose={onClose}>
         <div className="flex gap-[5px] mb-[6px]">
           <button type="button" className="ec-btn ec-btn-sm" onClick={generate}>번호생성</button>
         </div>
@@ -263,7 +285,8 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
               <th>부서</th>
               <th>프로젝트</th>
               <th>금액</th>
-              <th className="w-[200px]">수표번호</th>
+              <th className="w-[200px]">{collect === 'NOTE' ? '어음번호' : '수표번호'}</th>
+              {collect === 'NOTE' && <th className="w-[150px]">만기일자</th>}
             </tr>
           </thead>
           <tbody>
@@ -276,10 +299,14 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
                 <td>{l.projectId != null ? masters.projects?.find((p) => p.value === String(l.projectId))?.name ?? '' : ''}</td>
                 <td className="text-right">{won(Number(l.amount))}</td>
                 <td>
-                  <input className={`ec-input w-full${checkErr.has(i) ? ' outline outline-1 outline-ec-danger' : ''}`} aria-label={`${i + 1}줄 수표번호`}
+                  <input className={`ec-input w-full${checkErr.has(i) ? ' outline outline-1 outline-ec-danger' : ''}`} aria-label={`${i + 1}줄 ${collect === 'NOTE' ? '어음번호' : '수표번호'}`}
                          maxLength={30} value={checkNos?.[i] ?? ''}
                          onChange={(e) => { const v = e.target.value; setCheckNos((ns) => ns!.map((x, j) => (j === i ? v : x))); setCheckErr(new Set()) }} />
                 </td>
+                {collect === 'NOTE' && (
+                  <td><input type="date" className="ec-input w-full" aria-label={`${i + 1}줄 만기일자`} value={dues[i] ?? ''}
+                             onChange={(e) => { const v = e.target.value; setDues((ds) => ds.map((x, j) => (j === i ? v : x))) }} /></td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -320,8 +347,8 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
               {shown.map(({ l, i, count, amount }, n) => (
                 <tr key={i}>
                   <td className="text-center text-ec-hint">{n + 1}</td>
-                  <td>{settleCode}</td>
-                  <td>{settleName}</td>
+                  <td>{collect === 'NOTE' ? masters.accounts.find((a) => a.value === noteAcc)?.code ?? '' : settleCode}</td>
+                  <td>{collect === 'NOTE' ? masters.accounts.find((a) => a.value === noteAcc)?.name ?? '' : settleName}</td>
                   <td>{accName(l.accountId)?.code ?? ''}</td>
                   <td>{accName(l.accountId)?.name ?? ''}</td>
                   <td>{ptn(l.partnerId)?.code ?? ''}</td>
@@ -337,7 +364,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
                            onChange={(e) => setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, memo: e.target.value } : x)))} />
                   </td>
                   {/* 원본 '채권 150505053650291, 수령수표 26101403162966200001' */}
-                  <td className="text-ec-navy">{`${t.no.slice(0, 2)} ${l.bondNo}${count > 1 ? ' 외' : ''}`}{l.checkNo && count === 1 ? `, ${ar ? '수령수표' : '발행수표'} ${l.checkNo}` : ''}</td>
+                  <td className="text-ec-navy">{`${t.no.slice(0, 2)} ${l.bondNo}${count > 1 ? ' 외' : ''}`}{l.checkNo && count === 1 ? `, ${ar ? '수령수표' : '발행수표'} ${l.checkNo}` : ''}{l.noteNo && count === 1 ? `, ${ar ? '받을어음' : '지급어음'} ${l.noteNo}` : ''}</td>
                 </tr>
               ))}
             </tbody>

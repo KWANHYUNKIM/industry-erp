@@ -50,6 +50,7 @@ public class BondService {
     private final FastVoucherService fastVoucherService;
     private final FastVoucherRepository fastVoucherRepository;
     private final com.erp.accounting.bankcheck.BankCheckService bankCheckService;
+    private final com.erp.accounting.promissorynote.PromissoryNoteService promissoryNoteService;
 
     /** 원본 선택삭제가 연결된 장을 뺄 때 쓰는 사유 글자(2026-10-13 실측). */
     public static final String LINKED_REASON = "파생관계로 연결된 전표";
@@ -97,16 +98,21 @@ public class BondService {
         if (byCheck && req.lines().stream().anyMatch(l -> l.checkNo() == null || l.checkNo().isBlank())) {
             throw ApiException.badRequest("수표번호를 입력 바랍니다.");
         }
-        List<LineInput> vLines = req.lines().stream().map(l -> new LineInput(
-                l.accountId(), l.amount(), blankToNull(l.memo()),
-                cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null, l.partnerId(), null, null)).toList();
+        boolean byNote = req.noteAccountId() != null;
+        if (byNote && req.lines().stream().anyMatch(l -> l.noteNo() == null || l.noteNo().isBlank())) {
+            throw ApiException.badRequest("어음번호를 입력 바랍니다.");
+        }
+        List<LineInput> vLines = req.lines().stream().map(l -> byNote
+                ? new LineInput(l.accountId(), l.amount(), blankToNull(l.memo()), null, null, l.partnerId(), null, null, null, req.noteAccountId())
+                : new LineInput(l.accountId(), l.amount(), blankToNull(l.memo()),
+                    cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null, l.partnerId(), null, null)).toList();
         /* 전표 묶음기준 '거래처별/계정별'(원본 2026-10-21 실측): QA1B1 10,000 · QA1B2 20,000(김치좋아 1089) → 입금보고서 한 줄 30,000,
            적요는 첫 줄 것, 추가정보 '채권 QA1B1 외'. 채권 감소는 채권번호마다 그대로 남긴다. */
         if (Boolean.TRUE.equals(req.groupByPartner())) {
             java.util.Map<String, LineInput> merged = new java.util.LinkedHashMap<>();
             for (LineInput l : vLines) {
                 merged.merge(l.accountId() + ":" + l.partnerId(), l, (a, b) -> new LineInput(a.accountId(), a.amount().add(b.amount()),
-                        a.description(), a.bankAccountId(), a.cash(), a.partnerId(), null, null));
+                        a.description(), a.bankAccountId(), a.cash(), a.partnerId(), null, null, null, a.settleAccountId()));
             }
             vLines = List.copyOf(merged.values());
         }
@@ -122,6 +128,17 @@ public class BondService {
                 .build();
         e.replaceLines(toLines(req.lines().stream().map(BondService::toLineRequest).toList(), BondDirection.DECREASE));
         entryRepository.saveAndFlush(e);
+        /* 수금(지급)형태 '어음'(원본 2026-10-21): 입금보고서 줄마다 받을어음이 증가(받을어음조회 거래유형 '입금보고서' · 회계전표 = 그 입금보고서),
+           입금보고서를 지우면 어음도 사라진다(source_voucher_id ON DELETE CASCADE). 채무는 지출결의서 · 지급어음. */
+        if (byNote) {
+            promissoryNoteService.createFromVoucher(
+                    side == BondSide.RECEIVABLE ? com.erp.accounting.promissorynote.NoteType.RECEIVABLE : com.erp.accounting.promissorynote.NoteType.PAYABLE,
+                    req.date(), v.id(),
+                    req.lines().stream().map(l -> new com.erp.accounting.promissorynote.PromissoryNoteService.VoucherNoteLine(
+                            l.noteNo().trim(), l.noteDue() != null ? l.noteDue() : req.date(), l.amount(), l.partnerId(),
+                            l.departmentId(), l.projectId(), blankToNull(l.memo()))).toList(),
+                    username);
+        }
         /* 수금(지급)형태 '수표' — 원본은 같은 입금보고서(지출결의서)로 수령(발행)수표가 줄마다 하나 는다. 돈 들어온(나간) 계좌가 수표계좌다. */
         if (byCheck) {
             bankCheckService.createFromVoucher(

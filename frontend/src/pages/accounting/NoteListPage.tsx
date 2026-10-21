@@ -20,8 +20,7 @@ import { useRequired } from '../../utils/useRequired'
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 원본 [내역만등록]으로 넣은 어음은 분개가 없다(recordOnly). 감소로 닫으면 상태 RECORD_DECREASED('어음만감소'). */
-type Note = PromissoryNote & {
-  recordOnly?: boolean; departmentId?: number | null; projectId?: number | null
+type Note = PromissoryNote & { issueVia?: string | null; issueJournalEntryId?: number | null;   recordOnly?: boolean; departmentId?: number | null; projectId?: number | null
   /** [내역만등록] 감소 줄의 자기 적요 · 부서 · 프로젝트(V361) — 원본 감소 줄은 증가 쪽이 아니라 이 값을 찍는다. */
   closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null
   /** 받을어음감소(E010602) 한 장 전표 — 있으면 감소 줄 거래유형 '받을어음감소' · 일자를 누르면 감소 수정 창 */
@@ -124,7 +123,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
 
   const ofType = useMemo(() => notes.filter((n) => n.type === type), [notes, type])
   /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] 증가 '어음만증가' · 감소 '어음만감소'. */
-  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? closeKind(m.n, receivable) : m.n.statusName)
+  const kindOf = (m: Move) => (m.inc ? (m.n.issueVia === 'VOUCHER' ? (receivable ? '입금보고서' : '지출결의서') : m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? closeKind(m.n, receivable) : m.n.statusName)
   /** 감소 줄 [일자] 가 여는 수정 창 — 거래처지급 · 받을어음감소 · 지급어음감소. */
   /** 증가 줄 [일자] → 증가 수정 창(원본 2026-10-21 — 보유 중인 증가만, 내역만등록 줄은 체크해 지운다). */
   const incPath = receivable ? 'notes-increase' : 'notes-pay-increase'
@@ -167,7 +166,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   const journalOf = (m: Move) => {
     if (!m.inc && recordDecreased(m.n)) return ''
     const j = m.inc
-      ? journals.find((x) => x.sourceType === 'NOTE' && x.sourceId === m.n.id)
+      ? (m.n.issueJournalEntryId ? journals.find((x) => x.id === m.n.issueJournalEntryId) : journals.find((x) => x.sourceType === 'NOTE' && x.sourceId === m.n.id))
       : m.n.closeJournalEntryId ? journals.find((x) => x.id === m.n.closeJournalEntryId)
       : journals.find((x) => x.entryDate === m.date && (x.description ?? '').includes(m.n.noteNo))
     return j ? dateNo(j.entryDate, j.docNo) : ''

@@ -234,7 +234,7 @@ public class FastVoucherService {
         BigDecimal total = req.lines().stream().map(LineInput::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BankAccount bank = null;
-        boolean allOwn = req.lines().stream().allMatch(l -> Boolean.TRUE.equals(l.cash()) || l.bankAccountId() != null);
+        boolean allOwn = req.lines().stream().allMatch(l -> Boolean.TRUE.equals(l.cash()) || l.bankAccountId() != null || l.settleAccountId() != null);
         if (method == PaymentMethod.BANK && !allOwn) {
             if (req.bankAccountId() == null) {
                 throw ApiException.badRequest("계좌를 선택하세요.");
@@ -268,7 +268,7 @@ public class FastVoucherService {
 
         BusinessPartner headPartner = req.partnerId() != null ? partner(req.partnerId()) : null;
         for (LineInput in : req.lines()) {
-            boolean own = Boolean.TRUE.equals(in.cash()) || in.bankAccountId() != null;
+            boolean own = Boolean.TRUE.equals(in.cash()) || in.bankAccountId() != null || in.settleAccountId() != null;
             FastVoucherDtos.LineVat vat = in.vat();
             if (vat != null) {
                 // 원본 [추가정보]는 지출결의서 · 가지급금정산서의 매입 부가세다(입금보고서는 다른 것 — 못 잼).
@@ -294,6 +294,7 @@ public class FastVoucherService {
                     .vatPartner(vat != null ? partner(vat.partnerId()) : null)
                     .vatSupply(vat != null ? vat.supply() : null)
                     .vatAmount(vat != null ? (vat.vat() != null ? vat.vat() : BigDecimal.ZERO) : null)
+                    .settleAccount(in.settleAccountId() != null ? account(in.settleAccountId()) : null)
                     .build());
             if (headPartner == null && in.partnerId() != null) headPartner = v.getLines().get(v.getLines().size() - 1).getPartner();
         }
@@ -322,7 +323,8 @@ public class FastVoucherService {
 
         Account headSettlement = settlementAccount(v.getType(), method, bank);
         JournalEntry entry = journalService.createFromVoucher(v, headSettlement,
-                l -> l.isOwnSettlement() ? (l.getBankAccount() != null ? l.getBankAccount().getGlAccount() : account(CASH)) : headSettlement);
+                l -> l.isOwnSettlement() ? (l.getSettleAccount() != null ? l.getSettleAccount()
+                        : l.getBankAccount() != null ? l.getBankAccount().getGlAccount() : account(CASH)) : headSettlement);
         v.setJournalEntry(entry);
 
         // 계좌로 냈거나 받았으면 잔액과 입출금 내역도 움직인다(분개는 위에서 이미 만들었으므로 재생성하지 않는다).

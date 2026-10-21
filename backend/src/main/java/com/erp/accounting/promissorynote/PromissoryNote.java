@@ -109,6 +109,11 @@ public class PromissoryNote extends BaseTimeEntity {
     @JoinColumn(name = "close_journal_entry_id")
     private com.erp.accounting.journal.JournalEntry closeJournalEntry;
 
+    /** 채권감소등록 [입금보고서작성] 수금형태 '어음'으로 는 어음 — 그 입금보고서(지우면 어음도 사라진다, 2026-10-21 실측). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_voucher_id")
+    private com.erp.accounting.fastvoucher.FastVoucher sourceVoucher;
+
     /** 받을어음거래처지급(E010603)으로 어음을 받은 거래처 — 그 전표의 외상매입금 줄 거래처. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "close_partner_id")

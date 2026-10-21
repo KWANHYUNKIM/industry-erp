@@ -134,7 +134,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
       setDate(data.voucherDate)
       setMemo(data.description ?? '')
       const ls: Line[] = data.lines.map((l) => ({
-        settle: l.employeeId ? `e${l.employeeId}` : l.bankAccountId ? `b${l.bankAccountId}` : l.cash || data.method === 'CASH' ? '000'
+        settle: l.employeeId ? `e${l.employeeId}` : l.settleAccountId ? `a${l.settleAccountId}` : l.bankAccountId ? `b${l.bankAccountId}` : l.cash || data.method === 'CASH' ? '000'
           : data.bankAccountId ? `b${data.bankAccountId}` : '',
         accountId: String(l.accountId),
         partnerId: l.partnerId ? String(l.partnerId) : '',
@@ -154,7 +154,10 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
     : [
       ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
       { value: '000', code: '000', name: '현금' },
-    ], [advance, banks, employees])
+      /* 수금형태 '어음'으로 만든 결의서 — 돈 들어온 쪽이 계정(1109 받을어음)이라 그 계정도 고를 수 있게 둔다. */
+      ...[...new Map((editing?.lines ?? []).filter((l) => l.settleAccountId)
+        .map((l) => [l.settleAccountId!, { value: `a${l.settleAccountId}`, code: l.settleAccountCode ?? '', name: l.settleAccountName ?? '' }])).values()],
+    ], [advance, banks, employees, editing])
   const accountItems: CodeItem[] = useMemo(
     () => accounts.map((a) => ({ value: String(a.id), code: a.code, name: a.name })), [accounts])
   const partnerItems: CodeItem[] = useMemo(() => partnerCodeItems(partners), [partners])
@@ -211,6 +214,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
         cash: l.settle === '000' || undefined,
         bankAccountId: l.settle.startsWith('b') ? Number(l.settle.slice(1)) : undefined,
         employeeId: l.settle.startsWith('e') ? Number(l.settle.slice(1)) : undefined,
+        settleAccountId: l.settle.startsWith('a') ? Number(l.settle.slice(1)) : undefined,
         employeeName: l.settle.startsWith('e') ? settleItems.find((x) => x.value === l.settle)?.name : undefined,
         partnerId: l.partnerId ? Number(l.partnerId) : undefined,
         vat: l.vat ? { vatType: l.vat.vatType, vatDate: l.vat.vatDate || undefined, partnerId: Number(l.vat.partnerId),
