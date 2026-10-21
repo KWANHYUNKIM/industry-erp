@@ -796,13 +796,6 @@ const MENU: TopMenu[] = [
           { label: '채무증가현황', to: '/accounting/bonds/ap/increase' },
           { label: '채무감소현황', to: '/accounting/bonds/ap/decrease' },
           { label: '채무현황', to: '/accounting/bonds/ap/status' },
-      {
-        label: '전자계약',
-        nodes: [
-          { label: '계약서진행단계', to: '/accounting/e-contracts' },
-          { label: '계약서현황', to: '/accounting/e-contracts/status' },
-        ],
-      },
           { label: '거래처채무관리대장', to: '/accounting/bonds/ap/partner-ledger' },
           { label: '거래처채무집계관리대장', to: '/accounting/bonds/ap/partner-summary' },
           { label: '거래처채무관리대장인쇄', to: '/accounting/bonds/ap/partner-ledger-print' },
@@ -810,6 +803,13 @@ const MENU: TopMenu[] = [
           { label: '미지급현황(연령분석)', to: '/sales/payable' },
           { label: '지급현황', to: '/sales/payment' },
           { label: '수금/지급(정산)', to: '/sales/settlement' },
+        ],
+      },
+      {
+        label: '전자계약',
+        nodes: [
+          { label: '계약서진행단계', to: '/accounting/e-contracts' },
+          { label: '계약서현황', to: '/accounting/e-contracts/status' },
         ],
       },
       {
