@@ -447,7 +447,7 @@ export default function SpecialPricePage() {
       {/* 품목별특별단가등록 */}
       <Modal error={iForm.error} open={iForm.open} title="품목별특별단가등록" width={959} onClose={() => setIForm({ ...iForm, open: false })}>{(
         <form onSubmit={saveItemPrice}>
-          <ul className="ec-form">
+          <ul className="ec-form [&>li>.title]:basis-[154px]">
             <li className="wide"><span className="title">특별단가그룹코드</span><div className={`form ${iForm.bad && !iForm.groupId ? BAD_BOX : ''}`}>
               <CodePickerField label="특별단가그룹코드" hideLabel fill placeholder="특별단가그룹코드" disabled={!!iForm.id}
                                value={iForm.groupId} onChange={(v) => setIForm({ ...iForm, groupId: v })} items={groupItems} />

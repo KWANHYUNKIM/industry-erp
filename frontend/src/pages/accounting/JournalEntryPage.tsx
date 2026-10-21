@@ -286,7 +286,7 @@ export default function JournalEntryPage() {
             {confirmStatus === 'CONFIRMED' ? '확인취소' : '전표확인'}
           </button>, headSlot)}
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-        <ul className="ec-form mb-[8px]">
+        <ul className="ec-form mb-[8px] [&>li>.title]:basis-[119px]">
           <EcCond label="전표일자" span={2}>
             <div className="flex items-center gap-[4px]">
               <EcDateField value={entryDate} onChange={setEntryDate} disabled={!!editId} />

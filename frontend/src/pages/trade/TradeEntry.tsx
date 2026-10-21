@@ -1637,7 +1637,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         }
       >
         {/* ── 헤더 항목 폼 (원본 ul.wrapper-form) ───────────── */}
-        <ul className="ec-form">
+        {/* 이름표 폭은 원본이 화면마다 정한다 — 판매입력 E040205 는 120(실측 2026-10-21) */}
+        <ul className={`ec-form${mode === 'sales' && !adjust ? ' [&>li>.title]:basis-[120px]' : ''}`}>
           <li>
             <div className="title">일자</div>
             <div className="form"><EcDateField value={date} onChange={setDate} /></div>
