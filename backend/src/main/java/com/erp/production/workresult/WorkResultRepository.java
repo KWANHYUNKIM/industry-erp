@@ -17,4 +17,6 @@ public interface WorkResultRepository extends JpaRepository<WorkResult, Long> {
             "left join fetch wr.workItem " +
             "order by wr.workDate desc, wr.id desc")
     List<WorkResult> findAllWithRefs();
+
+    List<WorkResult> findByResultNoOrderByIdAsc(String resultNo);
 }

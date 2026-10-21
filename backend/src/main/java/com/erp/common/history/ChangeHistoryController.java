@@ -25,6 +25,12 @@ public class ChangeHistoryController {
         return service.list(target, id);
     }
 
+    /** 전표번호로 읽는 [H] — GET /api/change-history/by-no?target=STOCK_TRANSFER&docNo=TR-… */
+    @GetMapping("/by-no")
+    public List<ChangeHistoryResponse> byDocNo(@RequestParam String target, @RequestParam String docNo) {
+        return service.listByDocNo(target, docNo);
+    }
+
     /**
      * 거래이력조회(재고) E040716 — GET /api/change-history/slips?from=&to=&menu=판매&worker=&action=신규&latestOnly=true&byWorkTime=false.
      * menu · action 은 여러 번 줄 수 있다.

@@ -205,7 +205,7 @@ public class StockAdjustmentService {
                 .build();
         StockAdjustment saved = adjustmentRepository.save(adjustment);
         logHistory(saved, "신규", username);
-        if (simpleStocktake) recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, List.of(saved));
+        if (simpleStocktake || lineNo == 1) recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, List.of(saved));
         if (simpleStocktake && req.type() == StockAdjustmentType.ADJUST) {
             Stocktake st = stocktakeRepository.save(Stocktake.builder()
                     .stocktakeNo(docNoGenerator.next("ST-", "stocktakes", "stocktake_no", "stocktake_date", date))
@@ -260,8 +260,12 @@ public class StockAdjustmentService {
                 .orElseThrow(() -> ApiException.notFound("재고조정을 찾을 수 없습니다. id=" + id));
         revert(a, username);
         logHistory(a, "삭제", username);
-        recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(a));
         adjustmentRepository.delete(a);
+        adjustmentRepository.flush();
+        /* 단계별 반영은 한 장(번호)의 줄을 하나씩 지운다 — 마지막 줄이 지워질 때 전표 삭제 한 줄만 적는다. */
+        if (adjustmentRepository.findSlip(a.getAdjustNo()).isEmpty()) {
+            recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(a));
+        }
     }
 
     /**

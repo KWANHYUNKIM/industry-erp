@@ -36,6 +36,20 @@ public class WorkResultService {
     private final com.erp.inventory.item.ItemService itemService;
     private final com.erp.inventory.project.ProjectService projectService;
     private final com.erp.common.DocumentNoGenerator docNoGenerator;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    public static final String HISTORY_TARGET = "WORK_RESULT";
+
+    /** 거래이력조회(재고) 메뉴 '작업내역' — 결과번호 한 장. 품목은 작업품목, 없으면 작업지시의 생산품목. */
+    private void recordHistory(String action, List<WorkResult> rows) {
+        if (rows.isEmpty()) return;
+        WorkResult first = rows.get(0);
+        com.erp.inventory.item.Item it = first.getWorkItem() != null ? first.getWorkItem()
+                : first.getWorkOrder() != null ? first.getWorkOrder().getProduct() : null;
+        changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("작업내역", first.getWorkDate(), first.getResultNo(),
+                        it == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(it.getName(), it.getSpec(), rows.size())));
+    }
 
     @Transactional(readOnly = true)
     public List<WorkResultResponse> findAll() {
@@ -61,13 +75,17 @@ public class WorkResultService {
                     req.warehouseId(), line.worker(), line.goodQty(), line.defectQty(),
                     line.workTimeMin(), workDate, req.projectId(), line.note()), no, username));
         }
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, workResultRepository.findByResultNoOrderByIdAsc(no));
         return out;
     }
 
     @Transactional
     public WorkResultResponse create(CreateWorkResultRequest req, String username) {
         LocalDate d = req.workDate() != null ? req.workDate() : LocalDate.now();
-        return create(req, docNoGenerator.next("WR-", "work_results", "result_no", "work_date", d), username);
+        String no = docNoGenerator.next("WR-", "work_results", "result_no", "work_date", d);
+        WorkResultResponse out = create(req, no, username);
+        recordHistory(com.erp.common.history.ChangeHistoryService.CREATED, workResultRepository.findByResultNoOrderByIdAsc(no));
+        return out;
     }
 
     private WorkResultResponse create(CreateWorkResultRequest req, String resultNo, String username) {
@@ -138,6 +156,10 @@ public class WorkResultService {
         WorkResult wr = workResultRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("작업내역을 찾을 수 없습니다. id=" + id));
         workResultRepository.delete(wr);
+        workResultRepository.flush();
+        List<WorkResult> rest = workResultRepository.findByResultNoOrderByIdAsc(wr.getResultNo());
+        if (rest.isEmpty()) recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(wr));
+        else recordHistory(com.erp.common.history.ChangeHistoryService.UPDATED, rest);
     }
 
     /**

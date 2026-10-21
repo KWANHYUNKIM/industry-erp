@@ -149,6 +149,13 @@ public class ChangeHistoryService {
         return out;
     }
 
+    /** 전표번호로 [H] 를 연다 — 수정하면 행 id 가 바뀌는 전표(recordSlipByNo)는 열쇠가 첫 이력의 대상 id 다. 없으면 빈 목록. */
+    @Transactional(readOnly = true)
+    public List<ChangeHistoryResponse> listByDocNo(String target, String docNo) {
+        return repository.findFirstByTargetAndDocNoOrderByIdAsc(target, docNo)
+                .map(h -> list(target, h.getTargetId())).orElse(List.of());
+    }
+
     private static String currentUser() {
         Authentication a = SecurityContextHolder.getContext().getAuthentication();
         return a == null || !a.isAuthenticated() ? null : a.getName();
