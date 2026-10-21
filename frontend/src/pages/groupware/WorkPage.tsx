@@ -22,6 +22,7 @@ import { MenuButton } from '../../components/EcSlipShell'
 import EcRichEditor from '../../components/EcRichEditor'
 import EcRichBody from '../../components/EcRichBody'
 import EcDateTimeSelect from '../../components/EcDateTimeSelect'
+import EcDateTimeRange, { defaultRange } from '../../components/EcDateTimeRange'
 import CodePickerField from '../../components/CodePickerField'
 import { PostLinkField, SlipLinkField } from '../../features/workpost/components/LinkFields'
 import { slipHistoryTime } from '../../features/sliphistory/SlipHistoryModal'
@@ -126,10 +127,14 @@ type Col = 'no' | 'dateNo' | 'title' | 'writer' | 'forward' | 'stage' | 'postDat
  * 입력항목 종류. emp 사원검색 · vehicle 차량번호검색 · item 품목검색 · partner 거래처검색 · project 프로젝트검색(코드 🔍 이름 두 칸),
  * post 다른 게시판 글 잇기(board) · slip 판매 · 구매 · 견적서 전표 잇기(2026-10-22 loginaa 실측).
  */
-type Extra = { name: string; type: 'text' | 'date' | 'emp' | 'vehicle' | 'item' | 'partner' | 'project' | 'post' | 'slip'; board?: PostBoardCode; slip?: 'sales' | 'purchase' | 'quotation' }
+type Extra = { name: string; type: 'text' | 'date' | 'range' | 'emp' | 'vehicle' | 'item' | 'partner' | 'project' | 'post' | 'slip'; board?: PostBoardCode; slip?: 'sales' | 'purchase' | 'quotation' }
 /** 원본 차량번호검색 창의 차량(코드 001 ~ 005 · 항목명). */
 const VEHICLES = [['001', '458노4836'], ['002', '981부8492'], ['003', '188마6153'], ['004', '269라2544'], ['005', '356서1147']] as const
 /** 게시판 잇기 창 제목(이모지 + 게시판 이름 + '검색창'). */
+/** 게시판 잇기 창 [신규(F2)] · [리스트] 가 여는 그 게시판 화면(원본은 창 위에 창을 겹쳐 연다 — 우리는 새 탭). */
+const POST_BOARD_PATH: Partial<Record<PostBoardCode, string>> = {
+  CONSULT: '/groupware/consult-board', VISIT: '/groupware/visit-board', CAR_INFO: '/groupware/car-info', CAR_DOC: '/groupware/car-doc', SITE_STATUS: '/groupware/site-status',
+}
 const POST_BOARD_TITLE: Partial<Record<PostBoardCode, string>> = {
   CONSULT: '🎧 상담 이력관리', VISIT: '🤝🏻 영업 방문관리', CAR_INFO: '🚗 1. 차량 정보관리', CAR_DOC: '🚗 2. 차량 증빙관리', SITE_STATUS: '📊 공사진행현황',
 }
@@ -236,7 +241,7 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   // 🛠️ A/S 관리 (E200184): 게시글번호 · 수리요청일 · 제목 · 작성자명 · 전달자 · 진행상태, 알약 [전체][기본].
   AS_CARE: {
     ...SAMPLE, labels: true, stages: ['기본'], cols: ['no', 'x:수리요청일', 'title', 'writer', 'forward', 'stage'],
-    extras: [{ name: '수리요청일', type: 'date' }, { name: '품목', type: 'item' }, { name: '상담 이력', type: 'post', board: 'CONSULT' }, { name: '연관 매입 내역', type: 'slip', slip: 'purchase' }],
+    extras: [{ name: '수리요청일', type: 'date' }, { name: '날짜/시간', type: 'range' }, { name: '품목', type: 'item' }, { name: '상담 이력', type: 'post', board: 'CONSULT' }, { name: '연관 매입 내역', type: 'slip', slip: 'purchase' }],
   },
   // 🚗 1. 차량 정보관리 (E200172): 게시글번호 · 제목 · 차량번호 · 출고일자 · 작성자명 · 전달자 · 진행상태. 입력 창 제목 아래 [출고일자] · [차량번호].
   CAR_INFO: {
@@ -553,6 +558,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     setError('')
     setShowForm(true)
   }
+  /** 게시판 잇기 창 [신규(F2)] 가 새 탭으로 연 주소(?new=1)면 입력 창을 바로 연다. */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') === '1') openNew()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board])
 
   /** 원본 View 의 [수정] — 같은 입력 창을 '…입력(수정)' 으로 띄운다. */
   function openEdit(r: WorkPost) {
@@ -648,12 +658,12 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       attachmentId: attachment ? attachment.id : null,
       weekNo: cfg.minutes || cfg.weekPick ? form.weekNo : null,
       meetingLinks: cfg.minutes ? form.links : null,
-      extraFields: cfg.extras && Object.values(form.extra).some((v) => v.trim())
-        ? JSON.stringify(Object.fromEntries(cfg.extras.map((x) => [x.name, (form.extra[x.name] ?? '').trim()]).filter(([, v]) => v)))
+      extraFields: cfg.extras && (Object.values(form.extra).some((v) => v.trim()) || cfg.extras.some((x) => x.type === 'range'))
+        ? JSON.stringify(Object.fromEntries(cfg.extras.map((x) => [x.name, (form.extra[x.name] ?? '').trim() || (x.type === 'range' ? defaultRange() : '')]).filter(([, v]) => v)))
         : null,
       project: board === 'SIGN' ? form.project.trim() || null : null,
       kanbanPostId: board === 'SIGN' ? form.kanbanPostId : null,
-      completedAt: board === 'SIGN' && form.done ? `${form.done}:00` : null,
+      completedAt: (board === 'SIGN' || board === 'AS_CARE') && form.done ? `${form.done}:00` : null,
     }
     try {
       if (editId != null) {
@@ -1381,6 +1391,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             [프로젝트] 는 '프로젝트검색' 코드도움(프로젝트코드 · 프로젝트명 — 프로젝트 마스터), [완료일시] 는 처음 값이 지금(년 / 월 / 일 오후 시 : 분).
             📅 프로젝트 진행현황 칸반 글의 판에 이 글이 [프로젝트] 열의 카드로 뜬다.
           */}
+          {board === 'AS_CARE' && (
+            <li>
+              <div className="title">완료일시</div>
+              <div className="form">
+                <EcDateTimeSelect value={form.done} onChange={(v) => set('done', v)} />
+              </div>
+            </li>
+          )}
           {board === 'SIGN' && (
             <>
               <li>
@@ -1500,8 +1518,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                                        items={src.map((e) => ({ value: e.code, code: e.code, name: e.name }))} />
                     )
                   })()
+                ) : x.type === 'range' ? (
+                  <EcDateTimeRange label={x.name} value={form.extra[x.name] ?? ''} onChange={(v) => set('extra', { ...form.extra, [x.name]: v })} />
                 ) : x.type === 'post' ? (
-                  <PostLinkField label={x.name} board={x.board!} boardTitle={POST_BOARD_TITLE[x.board!] ?? ''}
+                  <PostLinkField label={x.name} board={x.board!} boardTitle={POST_BOARD_TITLE[x.board!] ?? ''} path={POST_BOARD_PATH[x.board!]}
                                  stages={BOARD_CFG[x.board!].stages} defaultStage={BOARD_CFG[x.board!].defaultStage} freePill={BOARD_CFG[x.board!].freePill}
                                  dateNo={!!BOARD_CFG[x.board!].cols?.includes('dateNo')}
                                  value={form.extra[x.name] ?? ''} onChange={(v) => set('extra', { ...form.extra, [x.name]: v })} />
@@ -1699,6 +1719,15 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               <button className="ec-btn" onClick={() => printPost(viewing)}>인쇄</button>
               <button className="ec-btn" onClick={() => setHistFor(viewing)}>H</button>
               <button className="ec-btn" onClick={() => setLastFor(viewing)}>최종이력</button>
+              {/* 원본 View 끝 [이전][다음](2026-10-22 실측): 목록 순서에서 아래 · 위 글로 옮겨 연다 — [이전] 은 아래(번호 작은) 글. 없으면 알림 '등록되지 않았거나 삭제된 게시글입니다.' 뒤 View 가 닫힌다. */}
+              {([['이전', 1], ['다음', -1]] as const).map(([name, step]) => (
+                <button key={name} className="ec-btn" onClick={() => {
+                  const i = numbered.findIndex((x) => x.id === viewing.id)
+                  const t = i < 0 ? undefined : numbered[i + step]
+                  if (t) openView(t)
+                  else { setViewing(null); void ecAlert('등록되지 않았거나 삭제된 게시글입니다.') }
+                }}>{name}</button>
+              ))}
             </div>
           </>
         )}

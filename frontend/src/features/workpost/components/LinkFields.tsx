@@ -29,8 +29,10 @@ interface PostRow {
  * 알약 [전체][그 게시판 진행상태…], 열 [적용] (일자-No.) 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회.
  * 고르면 칸에 그 글의 제목이 든다.
  */
-export function PostLinkField({ label, board, boardTitle, stages, defaultStage, freePill, dateNo, value, onChange }: {
+export function PostLinkField({ label, board, boardTitle, path, stages, defaultStage, freePill, dateNo, value, onChange }: {
   label: string; board: string; boardTitle: string
+  /** 그 게시판 화면 주소 — 하단 [신규(F2)] · [리스트] 가 새 탭으로 연다. */
+  path?: string
   /** 그 게시판 알약(없으면 진행중 · 완료). */
   stages: string[] | null; defaultStage?: string; freePill?: boolean; dateNo?: boolean
   value: string; onChange: (title: string) => void
@@ -85,6 +87,8 @@ export function PostLinkField({ label, board, boardTitle, stages, defaultStage, 
           </tbody>
         </table>
         <div className="flex gap-[6px] mt-[10px]">
+          <button type="button" className="ec-btn ec-btn-primary" disabled={!path} onClick={() => window.open(`${path}?new=1`, '_blank')}>신규(F2)</button>
+          <button type="button" className="ec-btn" disabled={!path} onClick={() => window.open(path, '_blank')}>리스트</button>
           <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>
       </Modal>
