@@ -1,0 +1,23 @@
+{
+  "about": "쇼핑몰 마무리13 — 진행단계 알약은 건수 위 · 이름 아래 두 줄, 쇼핑몰등록 [수집처] 는 라디오(쇼핑몰 · 통합관리솔루션). 자료를 만들지 않는다(보기만).",
+  "shots": [
+    {
+      "name": "진행단계 알약 두 줄",
+      "path": "/sales/mall",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const p=document.querySelector('.ec-pills .ec-pill');return p&&p.querySelectorAll('span.block').length===2&&p.innerText.trim().split('\\n').length===2})()"
+      ]
+    },
+    {
+      "name": "쇼핑몰등록 수집처 라디오",
+      "path": "/sales/mall-accounts",
+      "steps": [
+        "wait:2000",
+        "click:신규(F2)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('input[name=mallType]')].length===2 && !document.querySelector('select[value=MALL]')"
+      ]
+    }
+  ]
+}

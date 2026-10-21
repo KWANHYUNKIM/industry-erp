@@ -229,8 +229,9 @@ export default function MallPage({ mode = 'progress' }: { mode?: MallMode }) {
       <div className="ec-pills mb-[6px]">
         {(mode === 'progress' ? ['전체' as const, ...STAGES] : ['전체' as const]).map((t) => (
           <button key={t} type="button" onClick={() => setStage(t)}
-                  className={`ec-pill no-ec${stage === t ? ' active' : ''}`}>
-            {mode === 'progress' ? `${t} (${stageCount(t)})` : t}
+                  className={`ec-pill no-ec${stage === t ? ' active' : ''}${mode === 'progress' ? ' h-auto py-[2px] leading-[1.3]' : ''}`}>
+            {/* 원본 진행단계 알약은 건수 위 · 이름 아래 두 줄(2026-10-21 실측, 알약 높이 값은 원본 재기 필요) */}
+            {mode === 'progress' ? <><span className="block">{stageCount(t)}</span><span className="block">{t}</span></> : t}
           </button>
         ))}
       </div>

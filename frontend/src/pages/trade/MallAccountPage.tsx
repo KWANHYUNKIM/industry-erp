@@ -99,10 +99,14 @@ export default function MallAccountPage() {
               <input className={inputCls} value={rows.find((r) => r.id === editId)?.code ?? ''} disabled style={{ width: 90 }} /></label>}
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">쇼핑몰명 *</div>
               <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 180 }} placeholder="예: 스마트스토어" /></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">수집처 *</div>
-              <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 150 }}>
-                <option value="MALL">쇼핑몰</option><option value="SOLUTION">통합관리솔루션</option>
-              </select></label>
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">수집처 *</div>
+              <span className="flex items-center gap-[10px] h-[26px]">
+                {([['MALL', '쇼핑몰'], ['SOLUTION', '통합관리솔루션']] as const).map(([v, n]) => (
+                  <label key={v} className="inline-flex items-center gap-[3px]">
+                    <input type="radio" name="mallType" aria-label={n} checked={form.type === v} onChange={() => set('type', v)} />{n}
+                  </label>
+                ))}
+              </span></div>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">거래처</div>
               <CodePickerField label="판매전환 거래처" hideLabel width={200} emptyLabel="(미지정)" placeholder="(미지정)"
                                value={form.partnerId} onChange={(v) => set('partnerId', v)}

@@ -8,6 +8,8 @@ import CodePickerField from '../../components/CodePickerField'
 import GridCode from '../../components/GridCode'
 import GridFindButton from '../../components/GridFindButton'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcHistoryModal } from '../../components/EcHistory'
+import { matrixToXlsx } from '../../utils/excel'
 
 /** 원본 BOM등록 창이 더 보내 주는 값 — 생산수량 · 생산공정, 줄의 입력수량(생산수량 기준) · 생산공정 · 위치 · 적요(V427). */
 type BomLineX = BomLine & {
@@ -121,6 +123,8 @@ export default function BomPage() {
   /** 원본은 빈 칸을 글 없이 빨간 테두리 + 그 칸에 커서로만 알린다 — 생산수량 · 줄의 품목코드 · 수량. */
   const [bad, setBad] = useState<{ produceQty?: boolean; code?: number; qty?: number }>({})
   const [stopMenu, setStopMenu] = useState(false)
+  /** 수정 창 [H] — BomService.HISTORY_TARGET 'BOM'. */
+  const [historyOpen, setHistoryOpen] = useState(false)
   /** 원본 [전체단계보기] ↔ [1단계보기] — 켜면 [펼치기] · [접기] · '보기' 열이 생기고, 자기 BOM 이 있는 자재 아래에 그 BOM 줄이 들어선다. */
   const [fullLevel, setFullLevel] = useState(false)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
@@ -459,10 +463,22 @@ export default function BomPage() {
               )}
             </span>
           )}
+          {editing && (
+            <button type="button" className="ec-btn" onClick={() => void matrixToXlsx({
+              headers: ['품목코드', '품목명', '규격명', '단위', '수량', '생산공정', '위치', '적요'],
+              rows: lines.filter((l) => l.componentId).map((l) => {
+                const c = itemById.get(l.componentId)
+                return [c?.code ?? '', c?.name ?? '', c?.spec ?? '', c?.unit ?? '', Number(l.quantity) || 0,
+                  procs.find((x) => String(x.id) === l.processId)?.name ?? '', l.location, l.remark]
+              }),
+            }, `BOM_${editing.productCode}`)}>Excel</button>
+          )}
           <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+          {editing && <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>}
         </div>
         </div>
       </Modal>
+      {historyOpen && editing && <EcHistoryModal url={`/change-history?target=BOM&id=${editing.id}`} onClose={() => setHistoryOpen(false)} />}
 
       <Modal error={error} open={recalc != null} width={460} title="알림" onClose={() => setRecalc(null)}>
         {recalc && (
