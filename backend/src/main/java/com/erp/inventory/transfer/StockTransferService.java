@@ -150,7 +150,7 @@ public class StockTransferService {
     public List<TransferResponse> updateSlip(String transferNo, TransferSlipRequest req, String username) {
         List<StockTransfer> old = transferRepository.findSlip(transferNo);
         if (old.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
-        stockService.withdraw(noteOf(old.get(0)));
+        withdraw(old.get(0));
         LocalDate date = req.transferDate() != null ? req.transferDate() : old.get(0).getTransferDate();
         return writeSlip(transferNo, date, req, username, old);
     }
@@ -160,7 +160,7 @@ public class StockTransferService {
     public void deleteSlip(String transferNo, String username) {
         List<StockTransfer> old = transferRepository.findSlip(transferNo);
         if (old.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
-        stockService.withdraw(noteOf(old.get(0)));
+        withdraw(old.get(0));
         transferRepository.deleteAll(old);
     }
 
@@ -169,8 +169,14 @@ public class StockTransferService {
         return "창고이동 " + transferNo + " (" + from.getName() + "→" + to.getName() + ")";
     }
 
-    private static String noteOf(StockTransfer t) {
-        return noteOf(t.getTransferNo(), t.getFromWarehouse(), t.getToWarehouse());
+    /**
+     * 전표가 남긴 수불 줄을 거둔다. 줄 행은 그 줄의 재고 거래보다 조금 뒤에 저장되므로(같은 트랜잭션) 처음 쓴 때에서 몇 초 앞부터 본다.
+     * 최초작성일시가 없는 옛 행이면 같은 적요 전부다.
+     */
+    private void withdraw(StockTransfer head) {
+        java.time.LocalDateTime since = head.getCreatedAt() != null
+                ? head.getCreatedAt().minusSeconds(5) : java.time.LocalDateTime.of(1900, 1, 1, 0, 0);
+        stockService.withdraw(noteOf(head.getTransferNo(), head.getFromWarehouse(), head.getToWarehouse()), since);
     }
 
     private List<TransferResponse> writeSlip(String transferNo, LocalDate date, TransferSlipRequest req, String username) {

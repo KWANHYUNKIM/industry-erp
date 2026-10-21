@@ -215,6 +215,6 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
     int recalcBalanceApply(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
 
-    /** 전표 하나가 남긴 수불 줄(같은 적요) — {@link StockService#withdraw} 가 거둔다. id 차례. */
-    List<StockTransaction> findByNoteOrderByIdAsc(String note);
+    /** 전표 하나가 남긴 수불 줄(같은 적요 · 그 전표를 처음 쓴 뒤) — {@link StockService#withdraw} 가 거둔다. id 차례. */
+    List<StockTransaction> findByNoteAndCreatedAtGreaterThanEqualOrderByIdAsc(String note, java.time.LocalDateTime since);
 }

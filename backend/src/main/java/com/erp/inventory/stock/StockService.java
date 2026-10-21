@@ -311,10 +311,13 @@ public class StockService {
      * (2026-10-21 loginaa 실측: 밀키스 2 → 3 으로 고친 뒤 본사창고 수불부 '[이동] 본사창고 → 제2창고 · 출고 3' 한 줄).
      * 반대 거래를 쌓으면 같은 전표가 수불부에 세 줄(옮김 · 되돌림 · 다시 옮김)로 남는다.
      * 되돌린 잔량이 음수가 되면(이미 다른 데로 나간 재고) 막는다.
+     *
+     * <p>{@code since} 는 그 전표를 처음 쓴 때다. 지운 전표의 번호는 다시 쓰이므로(DocumentNoGenerator), 같은 적요라도
+     * 그 전에 남은 줄(예전 방식이 반대 거래와 함께 남긴 옛 전표의 줄)은 이 전표 것이 아니다.
      */
     @Transactional
-    public void withdraw(String note) {
-        for (StockTransaction tx : transactionRepository.findByNoteOrderByIdAsc(note)) {
+    public void withdraw(String note, java.time.LocalDateTime since) {
+        for (StockTransaction tx : transactionRepository.findByNoteAndCreatedAtGreaterThanEqualOrderByIdAsc(note, since)) {
             Stock stock = stockRepository.findForUpdate(tx.getItem().getId(), tx.getWarehouse().getId())
                     .orElseThrow(() -> ApiException.notFound("재고 잔량을 찾을 수 없습니다. (" + tx.getItem().getName() + ")"));
             BigDecimal newBalance = stock.getQuantity().subtract(tx.getQuantityChange());
