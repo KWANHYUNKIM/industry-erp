@@ -157,6 +157,7 @@
         "wait:2500",
         "js:window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감')&&r.innerText.includes('26/11/05'));true",
         "expect:!!__row()&&__row().innerText.includes('자산처분')",
+        "expect:__row().innerText.includes('고정자산감소')&&__row().innerText.includes('880,000')",
         "js:__row().querySelector('input[type=checkbox]').click();true",
         "wait:300",
         "click:선택삭제",

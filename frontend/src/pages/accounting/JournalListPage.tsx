@@ -53,7 +53,9 @@ function slipKey(r: { entryDate: string; docNo: string; id: number }) {
 }
 
 /** 원본 [거래유형] 이름 — 판매 회계반영은 '매출전표 I', 구매는 '매입전표 I', 직접 입력은 '일반전표'. */
-const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표', VAT_SALES: '매출전표 I', VAT_PURCHASE: '매입전표 I' }
+const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표', VAT_SALES: '매출전표 I', VAT_PURCHASE: '매입전표 I',
+  /* 원본 거래유형(2026-10-21 실측 plans/회계1/고정자산.md): 증가 · 감소 전표 이름 그대로 — [업무구분] 고정자산 조건도 이 이름으로 건다. */
+  ASSET_ACQUISITION: '고정자산증가', DISPOSAL: '고정자산감소' }
 /**
  * 원본 조건 [업무] 코드도움 '업무검색'(2026-10-13 loginaa 실측) — 전표를 넣은 화면. 고르면 그 화면의 [거래유형] 전표만 남는다
  * (업무 '매출' → 거래유형 '매출전표 I' 만, 판매 회계반영 전표도 매출전표 I 다). 묶음은 원본 나무의 2단.
@@ -107,7 +109,11 @@ export default function JournalListPage() {
   const [payeeOf, setPayeeOf] = useState<Record<number, string>>({})
   /** 현금거래(매출처로부터 · 은행차입으로 …)의 원본 [금액]은 금액+수수료다 — 은행차입으로 50,000 · 수수료 1,000 → 51,000(분개는 50,000). */
   const [cashQuickTotal, setCashQuickTotal] = useState<Record<number, number>>({})
-  const amountOf = (r: JournalEntry) => cashQuickTotal[r.id] ?? r.totalDebit
+  /* 원본 고정자산감소 [금액]은 매각액 + 부가세다(2026-10-21 실측: 500,000 + 50,000 → 550,000 · 800,000 + 80,000 → 880,000).
+     분개 차변 합에는 감가상각누계액 제거 · 처분손실이 섞이므로 처분대금 줄만 센다. 고정자산증가는 차변 합 = 공급가액 + 부가세 그대로. */
+  const disposalAmount = (r: JournalEntry) => (r.sourceType as string) === 'DISPOSAL'
+    ? r.lines.filter((l) => l.debit > 0 && l.description === '처분대금').reduce((s, l) => s + l.debit, 0) : undefined
+  const amountOf = (r: JournalEntry) => cashQuickTotal[r.id] ?? disposalAmount(r) ?? r.totalDebit
   /* 원본 거래유형: 받을어음증가 화면으로 넣은 어음의 전표는 '받을어음증가'(지급은 '지급어음증가') — 2026-10-13 실측.
      우리 수취/발행 분개 적요가 '받을어음 수취/발행 BN-…' 이다. 할인료 · 부도 전표 이름은 못 쟀다. */
   const noteLabel = (r: JournalEntry) => ((r.sourceType as string) === 'NOTE' && /^(받을어음|지급어음) 수취\/발행/.test(r.description ?? '')
