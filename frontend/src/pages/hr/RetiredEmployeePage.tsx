@@ -6,7 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import EcDateField from '../../components/EcDateField'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 
 interface Emp { id: number; code: string; name: string; department: string | null; hireDate: string | null; resignDate: string | null; resignReason?: string | null }
 interface Company { name: string | null; bizRegNo: string | null }
@@ -120,7 +120,7 @@ export default function RetiredEmployeePage() {
   }
   const CANCEL_MSG = '중도정산한 내역이 삭제 됩니다.\n삭제된 내역은 원상복구가 불가능합니다.\n삭제하겠습니까?'
   async function cancelRetire(ids: number[]) {
-    if (ids.length === 0) { void ecAlert('리스트에 선택된 자료가 없습니다.'); return }
+    if (ids.length === 0) { void ecAlert(NO_SELECTION_MESSAGE); return }
     if (!(await ecConfirm(CANCEL_MSG))) return
     try {
       await api.post('/employees/retirement/cancel', ids)

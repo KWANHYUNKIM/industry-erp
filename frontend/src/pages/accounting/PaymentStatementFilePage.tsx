@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { ErrTip } from '../../components/GridCode'
 import { EcCond } from '../../components/EcStatusPanel'
 import { historyTime, type HistoryRow } from '../../components/EcHistory'
 import { api, extractErrorMessage } from '../../api/client'
@@ -70,6 +71,7 @@ export default function PaymentStatementFilePage() {
   const [form, setForm] = useState<Form | null>(null)
   const [tagsOpen, setTagsOpen] = useState(false)
   const [formError, setFormError] = useState('')
+  const [tip, setTip] = useState<'dept' | 'name' | 'phone' | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [history, setHistory] = useState<PaymentStatementFile | null>(null)
@@ -85,13 +87,14 @@ export default function PaymentStatementFilePage() {
     api.get<Company | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null))
   }, [])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  function open(f: Form) { setFormError(''); setTagsOpen(false); setForm(f) }
+  function open(f: Form) { setFormError(''); setTip(null); setTagsOpen(false); setForm(f) }
 
   async function save() {
     if (!form) return
-    if (!form.managerDept.trim()) { setFormError('부서명을 입력바랍니다.'); return }
-    if (!form.managerName.trim()) { setFormError('성명을 입력바랍니다.'); return }
-    if (!form.managerPhone.trim()) { setFormError('전화번호를 입력바랍니다.'); return }
+    /* 원본: 글줄 알림 없이 그 칸만 빨간 테두리 + 말풍선(첫 빈 칸). 칸에 글자를 넣으면 사라진다. */
+    const miss = !form.managerDept.trim() ? 'dept' : !form.managerName.trim() ? 'name' : !form.managerPhone.trim() ? 'phone' : null
+    setTip(miss)
+    if (miss) return
     const id = form.id
     const body = {
       kind: form.kind, attrYear: form.attrYear, attrMonth: form.attrMonth, reportDate: form.reportDate,
@@ -246,16 +249,25 @@ export default function PaymentStatementFilePage() {
                      onChange={(e) => setForm({ ...form, reportDate: e.target.value })} />
             </EcCond>
             <EcCond label="담당자 부서명">
-              <input className="ec-input w-full" placeholder="담당자 부서명" value={form.managerDept}
-                     onChange={(e) => setForm({ ...form, managerDept: e.target.value })} />
+              <div className={`relative w-full ${tip === 'dept' && !form.managerDept.trim() ? 'ec-invalid' : ''}`}>
+                <input className="ec-input w-full" placeholder="담당자 부서명" value={form.managerDept}
+                       onChange={(e) => setForm({ ...form, managerDept: e.target.value })} />
+                {tip === 'dept' && !form.managerDept.trim() && <ErrTip msg="부서명을 입력바랍니다." />}
+              </div>
             </EcCond>
             <EcCond label="담당자 성명">
-              <input className="ec-input w-full" placeholder="담당자 성명" value={form.managerName}
-                     onChange={(e) => setForm({ ...form, managerName: e.target.value })} />
+              <div className={`relative w-full ${tip === 'name' && !form.managerName.trim() ? 'ec-invalid' : ''}`}>
+                <input className="ec-input w-full" placeholder="담당자 성명" value={form.managerName}
+                       onChange={(e) => setForm({ ...form, managerName: e.target.value })} />
+                {tip === 'name' && !form.managerName.trim() && <ErrTip msg="성명을 입력바랍니다." />}
+              </div>
             </EcCond>
             <EcCond label="담당자 전화번호">
-              <input className="ec-input w-full" placeholder="담당자 전화번호" value={form.managerPhone}
-                     onChange={(e) => setForm({ ...form, managerPhone: e.target.value })} />
+              <div className={`relative w-full ${tip === 'phone' && !form.managerPhone.trim() ? 'ec-invalid' : ''}`}>
+                <input className="ec-input w-full" placeholder="담당자 전화번호" value={form.managerPhone}
+                       onChange={(e) => setForm({ ...form, managerPhone: e.target.value })} />
+                {tip === 'phone' && !form.managerPhone.trim() && <ErrTip msg="전화번호를 입력바랍니다." />}
+              </div>
             </EcCond>
             <EcCond label="제출자">
               {radio<Submitter>('psf-submitter', form.submitter, (v) => setForm({ ...form, submitter: v }), [['DIRECT', '직접제출'], ['AGENT', '세무대리인']])}

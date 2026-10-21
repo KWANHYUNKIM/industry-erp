@@ -378,6 +378,19 @@ main table,
 #root table.ec-report.ec-report-11 tbody tr.ec-total td {
   font-size: 12px !important;
 }
+/* 서식 그대로의 출력물(소득자료제출집계표 E030508, 2026-10-14 실측): 검은 1px 줄 · 본문 줄 36 · 숫자 칸 오른쪽 여백 10.
+   표 폭 946 은 화면 쪽 max-w 로 둔다. 서식 표를 그리는 화면에만 ec-report-form 을 붙인다. */
+#root table.ec-report.ec-report-form thead th,
+#root table.ec-report.ec-report-form tbody th,
+#root table.ec-report.ec-report-form tbody td {
+  border-color: #000 !important;
+}
+#root table.ec-report.ec-report-form tbody td {
+  height: 36px;
+}
+#root table.ec-report.ec-report-form tbody td.text-right {
+  padding-right: 10px !important;
+}
 #root table.ec-report tbody td,
 #root table.ec-report tfoot td {
   padding: 3px !important;

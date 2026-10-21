@@ -108,10 +108,10 @@ export default function IncomeSubmissionPage() {
       </ul>
 
       {result && (
-        <div className="max-w-[900px]">
+        <div className="max-w-[946px]">
           <p>[원천징수사무처리규정 별지 제 12호 서식]</p>
           <div className="ec-report-title">소득자료제출집계표</div>
-          <table className="w-full ec-report ec-report-head400 mb-[12px]">
+          <table className="w-full ec-report ec-report-head400 ec-report-form mb-[12px]">
             <tbody>
               <tr>
                 <th rowSpan={3}>징　수<br />의무자</th>
@@ -123,7 +123,7 @@ export default function IncomeSubmissionPage() {
             </tbody>
           </table>
           <p className="text-center mb-[4px]">제　출　내　용</p>
-          <table className="w-full ec-report ec-report-head400 mb-[12px]">
+          <table className="w-full ec-report ec-report-head400 ec-report-form mb-[12px]">
             <thead>
               <tr>
                 <th rowSpan={2}>⑦ 귀속연도</th><th rowSpan={2}>⑧ 제출 연월일</th><th rowSpan={2}>⑨ 소득종류</th>
