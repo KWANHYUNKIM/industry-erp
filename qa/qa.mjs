@@ -1335,6 +1335,32 @@ async function scenarioSettings() {
   }
 }
 
+/** 보안설정 '동일 비밀번호 사용제한' — 최근 N개와 같은 비밀번호는 못 쓰고, 0 이면 제한 없다. */
+async function scenarioPasswordHistory() {
+  section('■ 보안설정 — 동일 비밀번호 사용제한')
+  const sp = await must('GET', '/security-policy')
+  const name = `${P.toLowerCase()}pwhist`
+  const old = (await must('GET', '/users')).find((u) => u.username === name)
+  if (old) await call('DELETE', `/users/${old.id}`)
+  try {
+    await must('PUT', '/security-policy', { ...sp, pwHistoryCount: 2 })
+    eq('정책 동일 비밀번호 사용제한이 저장된다', (await must('GET', '/security-policy')).pwHistoryCount, 2)
+    const u = await must('POST', '/users', { username: name, password: 'qa-hist-aaaa1', name: 'QA비번이력', roleNames: ['STAFF'] })
+    await rejects('지금 비밀번호와 같은 비밀번호로는 못 바꾼다', 'PUT', `/users/${u.id}`, { name: 'QA비번이력', password: 'qa-hist-aaaa1' }, '최근 사용한 2개')
+    await must('PUT', `/users/${u.id}`, { name: 'QA비번이력', password: 'qa-hist-bbbb2' })
+    await rejects('바로 앞 비밀번호도 못 쓴다', 'PUT', `/users/${u.id}`, { name: 'QA비번이력', password: 'qa-hist-aaaa1' }, '최근 사용한 2개')
+    await must('PUT', `/users/${u.id}`, { name: 'QA비번이력', password: 'qa-hist-cccc3' })
+    await must('PUT', `/users/${u.id}`, { name: 'QA비번이력', password: 'qa-hist-aaaa1' })   // 최근 2개(b, c) 밖이면 다시 쓸 수 있다
+    eq('N개 밖의 옛 비밀번호는 다시 쓸 수 있다', true, true)
+    await must('PUT', '/security-policy', { ...sp, pwHistoryCount: 0 })
+    await must('PUT', `/users/${u.id}`, { name: 'QA비번이력', password: 'qa-hist-aaaa1' })
+    eq('0 이면 제한 없다(같은 비밀번호도 저장)', true, true)
+    await must('DELETE', `/users/${u.id}`)
+  } finally {
+    await must('PUT', '/security-policy', sp)
+  }
+}
+
 /** 견적 → 발송 → 수주전환 (영업 흐름 시작점) */
 async function scenarioQuotation(f) {
   section('■ 시나리오 6. 견적서 → 진행상태변경 → 수주전환 → 수정')
@@ -10751,8 +10777,14 @@ async function main() {
     console.log('\n시드 완료.')
     return
   }
+  if (cmd === 'password-history') {
+    await scenarioPasswordHistory()
+    console.log(`\n통과 ${pass} / 실패 ${fail}`)
+    process.exit(fail ? 1 : 0)
+  }
   if (cmd === 'slip-history') {   // 거래이력조회(재고) 전표 이력만 빠르게
     await scenarioSlipHistory(fixtures)
+  await scenarioPasswordHistory()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
     process.exit(fail ? 1 : 0)
   }
