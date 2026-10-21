@@ -30,6 +30,13 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
             "order by p.purchaseDate desc, p.id desc")
     List<Purchase> findAllWithRefsAndLines();
 
+    /** 위와 같되 기간 안만(거래처관리대장 · 회계반영 목록의 기간 조회). */
+    @Query("select distinct p from Purchase p join fetch p.partner join fetch p.warehouse " +
+            "left join fetch p.lines l left join fetch l.item " +
+            "where p.purchaseDate between :from and :to " +
+            "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> findAllWithRefsAndLinesByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
     /** 기간 내 구매 전표 (이익현황 집계용) */
     List<Purchase> findByPurchaseDateBetween(LocalDate from, LocalDate to);
 

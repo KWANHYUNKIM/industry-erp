@@ -23,8 +23,11 @@ public class AccountingReflectionController {
     @GetMapping
     public List<SlipResponse> list(
             @RequestParam SlipKind kind,
-            @RequestParam(defaultValue = "false") boolean onlyUnreflected) {
-        return service.list(kind, onlyUnreflected);
+            @RequestParam(defaultValue = "false") boolean onlyUnreflected,
+            /* 기간 — 거래처관리대장처럼 기간 안 전표의 회계전표번호만 필요한 화면이 전 기간을 받지 않게. 없으면 전 기간. */
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return service.list(kind, onlyUnreflected, from, to);
     }
 
     /** 선택 전표 일괄 회계반영 (실제 분개 전표 생성) */

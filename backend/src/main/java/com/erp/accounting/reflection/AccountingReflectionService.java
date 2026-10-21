@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -72,12 +73,27 @@ public class AccountingReflectionService {
 
     @Transactional(readOnly = true)
     public List<SlipResponse> list(SlipKind kind, boolean onlyUnreflected) {
+        return list(kind, onlyUnreflected, null, null);
+    }
+
+    /**
+     * 기간을 주면 그 안의 전표만(from · to 중 비운 쪽은 끝까지). 거래처관리대장(채권)이 회계전표번호를 붙이려고
+     * 판매 전 기간 1.5MB · 구매 0.4MB 를 받아야 '불러오는 중' 을 껐다(2026-10-21 실측).
+     */
+    @Transactional(readOnly = true)
+    public List<SlipResponse> list(SlipKind kind, boolean onlyUnreflected, LocalDate from, LocalDate to) {
+        boolean ranged = from != null || to != null;
+        LocalDate f = from != null ? from : LocalDate.of(1900, 1, 1);
+        LocalDate t = to != null ? to : LocalDate.of(9999, 12, 31);
         List<SlipResponse> slips = switch (kind) {
-            case SALES -> salesRepository.findAllWithRefsAndLines().stream()
+            case SALES -> (ranged ? salesRepository.findAllWithRefsAndLinesByPeriod(f, t)
+                    : salesRepository.findAllWithRefsAndLines()).stream()
                     .map(SlipResponse::fromSales).toList();
-            case PURCHASE -> purchaseRepository.findAllWithRefsAndLines().stream()
+            case PURCHASE -> (ranged ? purchaseRepository.findAllWithRefsAndLinesByPeriod(f, t)
+                    : purchaseRepository.findAllWithRefsAndLines()).stream()
                     .map(SlipResponse::fromPurchase).toList();
             case SETTLEMENT -> settlementRepository.findAll().stream()
+                    .filter(s -> !ranged || (!s.getSettleDate().isBefore(f) && !s.getSettleDate().isAfter(t)))
                     .map(SlipResponse::fromSettlement).toList();
         };
         if (onlyUnreflected) {

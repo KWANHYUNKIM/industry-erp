@@ -49,7 +49,10 @@ type Mode = 'sales' | 'purchase'
  * '판매입력(수정)' 창이 목록 위에 뜬다 — 2026-10-21 loginaa 실측). 주소(?edit=)를 쓰지 않고 이 값으로 전표를 연다.
  */
 export interface TradeEntryPopup {
-  editId: number
+  /** 고칠 전표. null 이면 판매조회 [신규(F2)] 의 '판매입력' 창(원본 2026-10-21 실측 — 저장하면 말 없이 닫힌다). */
+  editId: number | null
+  /** 수정 창에서 [복사] 를 눌렀다 — 창 제목이 '판매입력(수정)' 에서 '판매입력' 으로 바뀐다. */
+  onCopy?: () => void
   /** 창을 닫는다. changed 면 목록을 다시 읽는다(저장 · 삭제 뒤). */
   onClose: (changed: boolean) => void
   /** [이전] · [다음] — 원본은 목록 한 줄 아래(이전) · 위(다음)로 옮기고, 끝이면 '다음 자료가 없습니다.' */
@@ -301,7 +304,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   // 판매조회에서 [수정]으로 들어오면 `?edit=<전표 id>` 가 붙는다 — 원본도 조회에서 전표번호를 누르면
   // 같은 입력 화면이 수정 모드로 열린다.
   const [searchParams, setSearchParams] = useSearchParams()
-  const editId = popup ? String(popup.editId) : searchParams.get('edit')
+  const editId = popup ? (popup.editId == null ? null : String(popup.editId)) : searchParams.get('edit')
   /** 거래처중심입력에서 넘어오면 거래처를 미리 골라 둔다(?partnerId=). */
   const presetPartnerId = popup ? null : searchParams.get('partnerId')
   /**
@@ -1360,8 +1363,14 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         }
       }
       setSavedDoc({ id: res.data.id, docNo: res.data.docNo })
-      // 원본 수정 창 [저장(F8)] — 말 없이 창이 닫히고 목록이 새 값으로 바뀐다(2026-10-21 E040206 실측).
-      if (popup) { popup.onClose(true); return }
+      // 원본 수정 창 · 신규 창 [저장(F8)] — 말 없이 창이 닫히고 목록이 새 값으로 바뀐다(2026-10-21 E040206 실측).
+      // [저장/전표(F7)] 이면 닫기 전에 전표를 찍는다(창 안에서도 원본은 저장 뒤 전표 인쇄).
+      if (popup) {
+        if (afterSaveRef.current === SLIP_PRINT_AFTER_SAVE) printSavedSlip(res.data)
+        afterSaveRef.current = null
+        popup.onClose(true)
+        return
+      }
       deleteTemp()
       if (fromReleaseId && !editing) {
         // 출고처리 건에 이 판매를 걸고 처리 탭으로 돌아간다 — 원본도 창이 닫히고 [판매] 칸에 일자-No. 가 찍힌다.
@@ -1383,17 +1392,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       const afterSaveTo = afterSaveRef.current
       afterSaveRef.current = null
       if (afterSaveTo === KEEP_AFTER_SAVE) { ensureDocs(); setSearchParams({ edit: String(res.data.id) }, { replace: true }) }
-      else if (afterSaveTo === SLIP_PRINT_AFTER_SAVE) {
-        const win = printWinRef.current
-        printWinRef.current = null
-        if (mode === 'sales') {
-          const d = res.data as SalesDoc
-          void loadSupplierParty().then((sup) =>
-            printDocuments([salesSlipDocument(d, partners.find((p) => p.id === d.partnerId), sup)], win))
-        } else {
-          void printDocuments([purchaseSlipDocument(res.data as PurchaseDoc)], win)
-        }
-      }
+      else if (afterSaveTo === SLIP_PRINT_AFTER_SAVE) printSavedSlip(res.data)
       else if (afterSaveTo) navigate(afterSaveTo)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -1452,6 +1451,19 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${won(num(cashForm.amount))}원${num(cashForm.fee) > 0 ? ` · 수수료 ${won(num(cashForm.fee))}원` : ''})`)
     } catch (err) {
       setCashMsg(extractErrorMessage(err))
+    }
+  }
+
+  /** [저장/전표(F7)] 로 저장한 전표를 미리 열어 둔 창에 찍는다. */
+  function printSavedSlip(saved: SalesDoc | PurchaseDoc) {
+    const win = printWinRef.current
+    printWinRef.current = null
+    if (mode === 'sales') {
+      const d = saved as SalesDoc
+      void loadSupplierParty().then((sup) =>
+        printDocuments([salesSlipDocument(d, partners.find((p) => p.id === d.partnerId), sup)], win))
+    } else {
+      void printDocuments([purchaseSlipDocument(saved as PurchaseDoc)], win)
     }
   }
 
@@ -1545,8 +1557,12 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
   const popupActions: SlipAction[] | null = !popup ? null : editing ? [
     { label: '저장(F8)', primary: true, submit: true },
     { label: '저장/전표(F7)', onClick: saveAndPrintSlip },
-    /* [복사] — 같은 내용을 새 전표로 쓴다(번호는 저장할 때 새로 받는다). */
-    { label: '복사', onClick: () => { copiedRef.current = true; setEditing(null) } },
+    /*
+     * [복사] — 원본(2026-10-21 E040206 실측, 유통회사 10/24 -1 포장김치 50 × 9,000): 창이 '판매입력' 신규 창으로 바뀌고
+     * 거래처 · 담당자 · 출하창고 · 품목줄은 그대로, 일자는 <b>오늘</b>, No. 는 비어 저장할 때 새로 받는다(10/21 -4).
+     * 아래 버튼줄도 신규 창 것(저장(F8) · 저장/전표(F7) · 다시 작성 · 현금수금 · 닫기 · 웹자료올리기)으로 바뀐다.
+     */
+    { label: '복사', onClick: () => { copiedRef.current = true; setEditing(null); setDate(today()); popup.onCopy?.() } },
     { label: '반품처리', onClick: popup.onReturn },
     ...(cashAction ? [{ ...cashAction, menu: undefined }] : []),
     { label: '이전', onClick: () => popup.onMove('prev') },
@@ -1557,10 +1573,23 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     { label: 'H', disabled: true, disabledReason: '전표 이력은 아직 없습니다.' },
     { label: '최종이력', disabled: true, disabledReason: '전표 이력은 아직 없습니다.' },
   ] : [
+    /*
+     * 신규 창(판매조회 [신규(F2)] · 수정 창 [복사] 뒤) — 원본 아래 버튼줄(2026-10-21 실측):
+     *   저장(F8) · 저장/전표(F7) · 다시 작성 · 현금수금 · 닫기 · 웹자료올리기.
+     */
     { label: '저장(F8)', primary: true, submit: true },
+    { label: '저장/전표(F7)', onClick: saveAndPrintSlip },
     { label: '다시 작성', onClick: () => { reset(false); setSavedDoc(null) } },
-    { label: '닫기', onClick: () => popup.onClose(false) },
+    ...(cashAction ? [{ ...cashAction, menu: undefined }] : []),
+    { label: '닫기', onClick: () => void closeNewPopup() },
+    { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
   ]
+  /** 원본 신규 창 [닫기] — 품목을 넣은 채면 '알림 / 작성한 내용이 저장되지 않았습니다. 페이지를 벗어나겠습니까?' [확인] [취소]. */
+  async function closeNewPopup() {
+    if (!popup) return
+    if (lines.some((l) => l.itemId) && !(await ecConfirm('작성한 내용이 저장되지 않았습니다. 페이지를 벗어나겠습니까?'))) return
+    popup.onClose(false)
+  }
 
   return (
     <form ref={formRef} onSubmit={submit}>

@@ -164,17 +164,24 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
          * <p><b>두 방식이 같은 값을 내는지 자료로 맞대어 봤다</b> — 2026-08-01 기준
          * 거래처 일곱에서 채권·채무 모두 <b>다른 것이 하나도 없었다</b>.
          */
-        api.get<SalesDoc[]>('/sales', { params: period }),
-        api.get<PurchaseDoc[]>('/purchases', { params: period }),
+        /*
+         * 채권 대장(fixedSide AR)은 구매 · 매입 회계반영을 안 쓰고, 채무 대장은 판매를 안 쓴다 — 받지 않는다.
+         * 회계반영 목록도 기간을 붙인다. 예전엔 판매 전 기간(1.5MB) · 구매(0.4MB)를 다 받아야 '불러오는 중' 이
+         * 꺼졌다(2026-10-21 실측, qa/flows/sales-return 이 붐빌 때 20초를 넘김).
+         */
+        fixedSide === 'AP' ? Promise.resolve({ data: [] as SalesDoc[] }) : api.get<SalesDoc[]>('/sales', { params: period }),
+        fixedSide === 'AR' ? Promise.resolve({ data: [] as PurchaseDoc[] }) : api.get<PurchaseDoc[]>('/purchases', { params: period }),
         api.get<Settlement[]>('/settlements', { params: period }).catch(() => ({ data: [] as Settlement[] })),
         api.get<{ partnerId: number; receivable: number; payable: number }[]>(
           '/ledger/partner-balances', { params: { asOf: dayBefore(from) } })
           .catch(() => ({ data: [] as { partnerId: number; receivable: number; payable: number }[] })),
         // 회계전표번호를 붙이려면 반영 목록이 필요하다. trade 는 accounting 을 참조할 수
         // 없어(순환) 전표 응답에 번호가 없다 — 화면이 두 쪽을 이어 붙인다.
-        api.get<Posted[]>('/accounting-reflection?kind=SALES').catch(() => ({ data: [] as Posted[] })),
-        api.get<Posted[]>('/accounting-reflection?kind=PURCHASE').catch(() => ({ data: [] as Posted[] })),
-        api.get<Posted[]>('/accounting-reflection?kind=SETTLEMENT').catch(() => ({ data: [] as Posted[] })),
+        fixedSide === 'AP' ? Promise.resolve({ data: [] as Posted[] })
+          : api.get<Posted[]>('/accounting-reflection', { params: { kind: 'SALES', ...period } }).catch(() => ({ data: [] as Posted[] })),
+        fixedSide === 'AR' ? Promise.resolve({ data: [] as Posted[] })
+          : api.get<Posted[]>('/accounting-reflection', { params: { kind: 'PURCHASE', ...period } }).catch(() => ({ data: [] as Posted[] })),
+        api.get<Posted[]>('/accounting-reflection', { params: { kind: 'SETTLEMENT', ...period } }).catch(() => ({ data: [] as Posted[] })),
         api.get<Partner[]>('/partners'),
       ])
       setSales(s.data); setPurchases(p.data); setSettlements(t.data)

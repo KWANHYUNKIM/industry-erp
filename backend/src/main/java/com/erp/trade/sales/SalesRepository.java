@@ -33,6 +33,13 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
             "order by s.saleDate desc, s.id desc")
     List<Sales> findAllWithRefsAndLines();
 
+    /** 위와 같되 기간 안만 — 거래처관리대장이 회계전표번호를 붙이려고 전 기간(1.5MB)을 받던 것을 줄인다. */
+    @Query("select distinct s from Sales s join fetch s.partner join fetch s.warehouse " +
+            "left join fetch s.lines l left join fetch l.item " +
+            "where s.saleDate between :from and :to " +
+            "order by s.saleDate desc, s.id desc")
+    List<Sales> findAllWithRefsAndLinesByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
     /** 기간 내 판매 전표 (이익현황 집계용) */
     List<Sales> findBySaleDateBetween(LocalDate from, LocalDate to);
 

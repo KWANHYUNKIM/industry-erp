@@ -127,6 +127,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [openId, setOpenId] = useState<number | null>(null)
   /** 목록 위에 뜬 '판매입력(수정)' 창의 전표 id(원본 E040206 — 일자-No. 를 누르면 뜬다). */
   const [popupId, setPopupId] = useState<number | null>(null)
+  /** 창이 떠 있나. popupId 가 null 인데 떠 있으면 [신규(F2)] 의 '판매입력' 창이다(원본 2026-10-21 실측). */
+  const [popupOpen, setPopupOpen] = useState(false)
+  /** 수정 창에서 [복사] 를 눌러 신규 창이 됐다 — 제목이 '판매입력' 으로 바뀐다. */
+  const [popupCopied, setPopupCopied] = useState(false)
   /** 받은 전표 응답 그대로 — 수정 창(TradeEntry)이 다시 받지 않고 이것으로 전표를 펼친다. */
   const [rawDocs, setRawDocs] = useState<(SalesDoc | PurchaseDoc)[]>([])
   // 원본 목록의 [선택삭제] 대상. 전표 입력 그리드와 같이 **행번호 칸을 눌러** 고른다.
@@ -207,7 +211,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * 입력 화면 주소(?edit=)로 여는 길은 그대로 남는다(다른 화면 · QA 흐름이 쓴다).
    */
   function editDoc(d: NormalDoc) {
-    setPopupId(d.id)
+    setPopupId(d.id); setPopupCopied(false); setPopupOpen(true)
+  }
+  /** [신규(F2)] — 원본 판매조회는 목록 위에 '판매입력' 창을 띄우고, 저장하면 말 없이 닫혀 목록에 새 전표가 선다(2026-10-21 실측). */
+  function newDoc() {
+    setPopupId(null); setPopupCopied(false); setPopupOpen(true)
   }
   /**
    * 창의 [이전] · [다음] — 원본은 일자-No. 차례로 바로 앞(더 옛) 전표가 [이전], 바로 뒤가 [다음] 이다
@@ -220,13 +228,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     const to = ordered[dir === 'prev' ? i - 1 : i + 1]
     if (i < 0 || !to) {
       await ecAlert(`${dir === 'prev' ? '이전' : '다음'} 자료가 없습니다.`)
-      setPopupId(null)
+      closePopup(false)
       return
     }
-    setPopupId(to.id)
+    setPopupId(to.id); setPopupCopied(false)
   }
+  const popupTitle = popupId != null && !popupCopied ? `${cfg.entryTitle}(수정)` : cfg.entryTitle
   function closePopup(changed: boolean) {
-    setPopupId(null)
+    setPopupId(null); setPopupOpen(false); setPopupCopied(false)
     if (changed) { setOpenId(null); load() }
   }
 
@@ -468,7 +477,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       title={cfg.title} search={keyword} onSearchChange={setKeyword}
       // 원본 목록의 하단 버튼줄은 [신규(F2)] 로 시작한다 — 조회에서 바로 입력 화면으로 간다.
       // 셸에는 이미 그 자리가 있었는데 이 화면이 onNew 를 안 넘겨 비어 있었다.
-      onNew={() => navigate(cfg.entryTo)}
+      onNew={() => (isSales ? newDoc() : navigate(cfg.entryTo))}
       /*
        * 원본 버튼 실측(사본 · 판매조회/구매조회):
        *   신규(F2) · 진행상태변경 · 보내기 · 바코드(품목) · 선택삭제 · 이력조회
@@ -793,21 +802,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         </tbody>
         {/* 원본 판매조회 · 구매조회에는 합계줄이 없다(2026-10-20 실측). */}
       </table>
-      {popupId != null && (
+      {popupOpen && (
         /* 원본 창은 바깥을 눌러도 닫히지 않는다 — 고치던 것이 날아가지 않게 [닫기] · ✕ 로만 닫는다. */
         <div className="ec-modal-back">
-          <div role="dialog" aria-modal="true" aria-label={`${cfg.entryTitle}(수정)`} className="ec-modal w-[max(960px,50vw)]">
+          <div role="dialog" aria-modal="true" aria-label={popupTitle} className="ec-modal w-[max(960px,50vw)]">
             <div className="ec-modal-bar">
-              <span className="name">{cfg.entryTitle}(수정)</span>
+              <span className="name">{popupTitle}</span>
               <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => closePopup(false)}>✕</button>
             </div>
             <div className="ec-modal-body">
-              <TradeEntry key={popupId} mode={isSales ? 'sales' : 'purchase'} popup={{
+              <TradeEntry key={popupId ?? 'new'} mode={isSales ? 'sales' : 'purchase'} popup={{
                 editId: popupId,
+                onCopy: () => setPopupCopied(true),
                 onClose: closePopup,
                 onMove: (dir) => void movePopup(dir),
                 docs: rawDocs,
-                onReturn: () => { const id = popupId; setPopupId(null); navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?returnFrom=${id}`) },
+                onReturn: () => { const id = popupId; closePopup(false); navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?returnFrom=${id}`) },
               }} />
             </div>
           </div>
