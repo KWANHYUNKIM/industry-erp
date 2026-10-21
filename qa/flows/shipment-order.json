@@ -1,5 +1,5 @@
 {
-  "about": "출하지시서(E040221 · E040220, 2026-10-20 원본 흐름 plans/재고1/E040221.md 1장): 주문 7 → 출하지시서입력 [전표불러오기] 주문서 적용 → 4 로 저장(말 없이 닫힘) → 5 로 수정 → 미출하 5 → 출하 3 → 미출하 2 → 지시서 삭제(출하는 남는다). node qa/shot.mjs qa/flows/shipment-order.json — 만든 주문 · 출하는 끝에 지운다.",
+  "about": "출하지시서(E040221 · E040220) · 출하(E040225 · E040226), 원본 흐름 plans/재고1/E040221.md · 재고1.md 출하 줄: 주문 7 → 출하지시서입력 [전표불러오기] 주문서 적용 → 4 로 저장(말 없이 닫힘) → 5 로 수정 → 미출하 5 → 출하입력 [출하지시] 잔량적용 5 → 3 저장(말 없이 빈 폼) → 미출하 2 → 출하 수정 2 → 미출하 3 → 출하 삭제 → 미출하 5 → 출하 3(API) → 지시서 삭제(출하는 남는다). node qa/shot.mjs qa/flows/shipment-order.json — 만든 주문 · 출하는 끝에 지운다.",
   "shots": [
     {
       "name": "주문 7 (API — 주문서입력은 주문서 묶음이 본다)",
@@ -53,11 +53,26 @@
       ]
     },
     {
-      "name": "출하 3(API — 출하입력은 출하 묶음이 맞춘다) → 미출하 2",
-      "path": "/sales/shipment-order",
+      "name": "출하입력(E040225 화면) — 줄 없이 저장하면 알림, [출하지시] › 지시서 체크 › 잔량적용(F8) → 잔량 5, 3 으로 저장하면 말 없이 빈 폼 → 미출하 2",
+      "path": "/sales/shipment-entry",
       "steps": [
-        "expect:document.querySelectorAll('tbody a').length > 0",
-        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const s = await (await fetch('/api/shipment-orders/' + sessionStorage.getItem('soId'), { headers: H })).json(); const sh = await (await fetch('/api/shipment-orders/' + s.id + '/ship', { method: 'POST', headers: H, body: JSON.stringify({ lines: [{ lineId: s.lines[0].id, quantity: 3 }] }) })).json(); sessionStorage.setItem('soShip', sh.shipNo); return true })()",
+        "expect:document.body.innerText.includes('출하입력') && !document.body.innerText.includes('출하예정일')",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('출하입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '확인').pop().click(); true",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '출하지시').click(); true",
+        "wait:800",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('출하지시서검색창')",
+        "js:(() => { const tr = [...document.querySelectorAll('[role=dialog] tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soNo'))); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "click:잔량적용(F8)",
+        "wait:800",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('tbody input[type=number]')].some((el) => el.value === '5')",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '출하지시')",
+        "js:(() => { const el = [...document.querySelectorAll('tbody input[type=number]')].find((x) => x.value === '5'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '3'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody input[type=number]')].some((el) => el.value) && [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '출하지시')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/shipments', { headers: H })).json()).sort((a, b) => b.id - a.id).find((x) => x.lines.some((l) => l.shipmentOrderLineId)); sessionStorage.setItem('soShip', s.shipNo); return s.status === 'SHIPPED' && Number(s.totalQuantity) === 3 })()",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 2 })()"
       ]
     },
@@ -76,6 +91,47 @@
         "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0] && tr.cells[0].innerText.trim() === sessionStorage.getItem('soNo')); return tr && tr.cells[2].innerText.trim() === '5.00' })()",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => / 계$/.test(tr.cells[0] ? tr.cells[0].innerText.trim() : ''))",
         "expect:[...document.querySelectorAll('tfoot tr')].some((tr) => tr.innerText.includes('총합계'))"
+      ]
+    },
+    {
+      "name": "출하조회(E040226) — 일자-No. 링크 → 출하입력(수정) 창, 2 로 저장하면 말 없이 닫히고 2.00 → 미출하 3",
+      "path": "/sales/shipment-inquiry",
+      "steps": [
+        "expect:[...document.querySelectorAll('.ec-tab')].map((t) => t.textContent.trim()).join(',') === '전체*,결재중,미확인,확인'",
+        "expect:[...document.querySelectorAll('tbody a')].some((a) => a.textContent.includes(sessionStorage.getItem('soShip')))",
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.includes(sessionStorage.getItem('soShip'))).click(); true",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('출하입력(수정)')",
+        "wait:500",
+        "js:(() => { const el = [...document.querySelectorAll('[role=dialog] tbody input[type=number]')].find((x) => x.value === '3'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '2'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soShip'))); return tr && tr.innerText.includes('2.00') })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 3 })()"
+      ]
+    },
+    {
+      "name": "출하 삭제 — 수정 창 [삭제] '전표를 삭제하겠습니까? - 출하' → 목록에서 사라지고 미출하 5 로 되돌아옴",
+      "path": "/sales/shipment-inquiry",
+      "steps": [
+        "expect:[...document.querySelectorAll('tbody a')].some((a) => a.textContent.includes(sessionStorage.getItem('soShip')))",
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.includes(sessionStorage.getItem('soShip'))).click(); true",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('출하입력(수정)')",
+        "click:삭제",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 출하')",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '확인').pop().click(); true",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('soShip')))",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 5 })()"
+      ]
+    },
+    {
+      "name": "출하 3(API) 다시 — 지시서 삭제가 이어진 출하를 남기는지 보려고 → 미출하 2",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "expect:document.querySelectorAll('tbody a').length > 0",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const s = await (await fetch('/api/shipment-orders/' + sessionStorage.getItem('soId'), { headers: H })).json(); const sh = await (await fetch('/api/shipment-orders/' + s.id + '/ship', { method: 'POST', headers: H, body: JSON.stringify({ lines: [{ lineId: s.lines[0].id, quantity: 3 }] }) })).json(); sessionStorage.setItem('soShip', sh.shipNo); return true })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 2 })()"
       ]
     },
     {
