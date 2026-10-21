@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo, useState } from 'react'
+import { qty2 } from '../../utils/qtyText'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
@@ -19,7 +20,7 @@ const INACTIVE_HEAD = 'rgb(173, 181, 189)'
 function QtyCell({ q }: { q: number }) {
   return (
     <td style={{ textAlign: 'right', background: q < 0 ? NEG_BG : undefined }}>
-      {q === 0 ? '' : q.toLocaleString()}
+      {q === 0 ? '' : qty2(q)}
     </td>
   )
 }
@@ -181,7 +182,7 @@ export default function WarehouseStockPage() {
     .filter((r) => cond.zeroWarehouse || r.qty !== 0)),
     [shownItems, shownWarehouses, qtyOf, cond.zeroWarehouse])
 
-  const num = (n: number) => n.toLocaleString()
+  const num = (n: number) => qty2(n)
   const reset = () => {
     setMode('횡')
     setCond({ date: today, warehouseId: '', item: '', zeroItem: false, zeroWarehouse: false, inactiveItem: true, inactiveWarehouse: true, withUntracked: false, safety: false, rollUp: false, category: '', itemGroup: '' })
@@ -310,9 +311,9 @@ export default function WarehouseStockPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        품목 <b className="text-ec-text">{num(shownItems.length)}</b>
+        품목 <b className="text-ec-text">{shownItems.length.toLocaleString()}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
-        창고 <b className="text-ec-text">{num(shownWarehouses.length)}</b>
+        창고 <b className="text-ec-text">{shownWarehouses.length.toLocaleString()}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
         재고수량 <b className="text-ec-blue text-[14px]">{num(grandTotal)}</b>
       </div>

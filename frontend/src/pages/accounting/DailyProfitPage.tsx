@@ -679,7 +679,9 @@ export default function DailyProfitPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={colCount - TAIL} className="text-right font-bold bg-ec-page">합계</td>
+                {/* 원본 합계 줄(2026-10-21 기록): '합계 │ (빈칸) │ 수량 …' — 앞머리 칸마다 한 칸씩, 첫 칸에만 글자. */}
+                {heads.map((h, hi) => <td key={h} className="font-bold bg-ec-page">{hi === 0 ? '합계' : ''}</td>)}
+                {(mode === '일자별' || mode === '거래처별') && <td className="bg-ec-page"></td>}
                 {/* 원본 합계 줄은 단가 칸을 비운다(2026-10-04 실측: 72 · · 1,885,292 · · 1,113,858 · 0 · · 771,434 · 41%). */}
                 <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
                 <td className="bg-ec-page"></td>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { qty2 } from '../../utils/qtyText'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
@@ -337,9 +338,9 @@ export default function StockMovementPage() {
         {mode === '집계' ? '품목' : mode === '일별' ? '일수' : '월수'}{' '}
         <b className="text-ec-text">{(mode === '집계' ? shown.length : shownBuckets.length).toLocaleString()}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
-        입고계 <b className="text-ec-blue text-[14px]">{num(totals.inQty)}</b>
+        입고계 <b className="text-ec-blue text-[14px]">{qty2(totals.inQty)}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
-        출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
+        출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{qty2(totals.outQty)}</b>
       </div>
 
       {mode !== '집계' ? (
@@ -370,10 +371,10 @@ export default function StockMovementPage() {
                 <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                 <td>{b.key.replace(/-/g, '/')}</td>
                 <td className="text-right text-ec-hint">{num(b.count)}</td>
-                <td className="text-right">{num(b.opening)}</td>
-                <td className="text-right text-ec-blue">{num(b.inQty)}</td>
-                <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(b.outQty)}</td>
-                <td className="text-right font-bold">{num(b.closing)}</td>
+                <td className="text-right">{qty2(b.opening)}</td>
+                <td className="text-right text-ec-blue">{qty2(b.inQty)}</td>
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>{qty2(b.outQty)}</td>
+                <td className="text-right font-bold">{qty2(b.closing)}</td>
               </tr>
             ))}
           </tbody>
@@ -381,11 +382,11 @@ export default function StockMovementPage() {
             <tfoot>
               <tr>
                 <td colSpan={3} className="text-right font-bold bg-ec-page">합계</td>
-                <td className="text-right font-bold bg-ec-page">{num(shownBuckets[0].opening)}</td>
-                <td className="text-right font-bold bg-ec-page">{num(totals.inQty)}</td>
-                <td className="text-right font-bold bg-ec-page">{num(totals.outQty)}</td>
+                <td className="text-right font-bold bg-ec-page">{qty2(shownBuckets[0].opening)}</td>
+                <td className="text-right font-bold bg-ec-page">{qty2(totals.inQty)}</td>
+                <td className="text-right font-bold bg-ec-page">{qty2(totals.outQty)}</td>
                 <td className="text-right font-bold bg-ec-page">
-                  {num(shownBuckets[shownBuckets.length - 1].closing)}
+                  {qty2(shownBuckets[shownBuckets.length - 1].closing)}
                 </td>
               </tr>
             </tfoot>
@@ -431,10 +432,10 @@ export default function StockMovementPage() {
               <td>{r.itemName}</td>
               <td>{specOf(r.itemId)}</td>
               {/* 원본은 수량을 검정 · 보통 굵기로, 0 인 칸은 비운다. */}
-              <td className="text-right">{r.opening ? num(r.opening) : ''}</td>
-              <td className="text-right">{r.inQty ? num(r.inQty) : ''}</td>
-              <td className="text-right">{r.outQty ? num(r.outQty) : ''}</td>
-              <td className="text-right">{num(r.closing)}</td>
+              <td className="text-right">{r.opening ? qty2(r.opening) : ''}</td>
+              <td className="text-right">{r.inQty ? qty2(r.inQty) : ''}</td>
+              <td className="text-right">{r.outQty ? qty2(r.outQty) : ''}</td>
+              <td className="text-right">{qty2(r.closing)}</td>
             </tr>
           ))}
         </tbody>
@@ -442,10 +443,10 @@ export default function StockMovementPage() {
           <tfoot>
             <tr>
               <td colSpan={3} className="text-center">합계</td>
-              <td className="text-right">{num(totals.opening)}</td>
-              <td className="text-right">{num(totals.inQty)}</td>
-              <td className="text-right">{num(totals.outQty)}</td>
-              <td className="text-right">{num(totals.closing)}</td>
+              <td className="text-right">{qty2(totals.opening)}</td>
+              <td className="text-right">{qty2(totals.inQty)}</td>
+              <td className="text-right">{qty2(totals.outQty)}</td>
+              <td className="text-right">{qty2(totals.closing)}</td>
             </tr>
           </tfoot>
         )}

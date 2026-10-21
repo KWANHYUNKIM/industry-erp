@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PurchaseDoc, SalesDoc } from '../../types/api'
+import type { Item, PurchaseDoc, SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -66,6 +66,8 @@ export default function MonthlyCumulativePage() {
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [transfers, setTransfers] = useState<TransferRow[]>([])
+  /* 생산입고 · 창고이동의 [합계(금액)] = 품목 입고단가 × 수량(원본 2026-10-21 실측: 900,000 · 295,000). */
+  const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   /*
@@ -113,14 +115,15 @@ export default function MonthlyCumulativePage() {
         from: [from, to.slice(0, 8) + '01', to.slice(0, 4) + '-01-01'].filter(Boolean).sort()[0],
         to,
       }
-      const [s, b, pr, tr] = await Promise.all([
+      const [s, b, pr, tr, it] = await Promise.all([
         api.get<SalesDoc[]>('/sales', { params: period }),
         api.get<PurchaseDoc[]>('/purchases', { params: period }),
         api.get<ProductionRow[]>('/productions', { params: period }),
         api.get<TransferRow[]>('/stock-transfers', { params: period }),
+        api.get<Item[]>('/items'),
       ])
       setSales(s.data); setPurchases(b.data)
-      setProductions(pr.data); setTransfers(tr.data)
+      setProductions(pr.data); setTransfers(tr.data); setItems(it.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
@@ -187,19 +190,20 @@ export default function MonthlyCumulativePage() {
       { name: '월 누계', from: monthFrom, to, label: slash(to.slice(0, 7)) },
       { name: '년 누계', from: yearFrom, to, label: `${to.slice(0, 4)}/` },
     ]
-    const sum = (docs: { date: string; supply: number; vat: number; qty: number }[], a: string, b: string) => {
-      let qty = 0, supply = 0, vat = 0
+    const sum = (docs: { date: string; supply: number; vat: number; qty: number; total?: number }[], a: string, b: string) => {
+      let qty = 0, supply = 0, vat = 0, stockTotal = 0
       for (const d of docs) {
         if (d.date < a || d.date > b) continue
-        qty += d.qty; supply += d.supply; vat += d.vat
+        qty += d.qty; supply += d.supply; vat += d.vat; stockTotal += d.total ?? 0
       }
-      return { qty, supply, vat }
+      return { qty, supply, vat, stockTotal }
     }
     /*
      * 전표에 거래처가 없는 덩어리(생산입고·창고이동)가 쓰는 규칙.
      * 위 <code>keepDoc</code> 과 <b>같은 조건을 같은 뜻으로</b> 건다 — 창고·프로젝트·
      * 품목·품목구분·품목그룹·관리항목. 거래처 조건이 걸려 있으면 아예 빠진다.
      */
+    const inPrice = (itemId: number) => items.find((i) => i.id === itemId)?.purchasePrice ?? 0
     const keepStock = (r: { warehouseId: number | null; projectId: number | null;
                             itemId: number; category: string | null }) =>
       !partner && !partnerGroup
@@ -222,7 +226,7 @@ export default function MonthlyCumulativePage() {
       ['생산입고현황', productions.filter((p2) => keepStock({
         warehouseId: p2.warehouseId, projectId: p2.projectId,
         itemId: p2.productId, category: p2.productCategoryName,
-      })).map((p2) => ({ date: p2.productionDate, supply: 0, vat: 0, qty: p2.producedQty }))],
+      })).map((p2) => ({ date: p2.productionDate, supply: 0, vat: 0, qty: p2.producedQty, total: p2.producedQty * inPrice(p2.productId) }))],
       /* 이동은 창고가 둘이다 — 나가는 쪽이든 들어오는 쪽이든 걸리면 센다. */
       ['창고이동현황', transfers.filter((t) => keepStock({
         warehouseId: t.fromWarehouseId, projectId: t.projectId,
@@ -230,7 +234,7 @@ export default function MonthlyCumulativePage() {
       }) || keepStock({
         warehouseId: t.toWarehouseId, projectId: t.projectId,
         itemId: t.itemId, category: t.itemCategoryName,
-      })).map((t) => ({ date: t.transferDate, supply: 0, vat: 0, qty: t.quantity }))],
+      })).map((t) => ({ date: t.transferDate, supply: 0, vat: 0, qty: t.quantity, total: t.quantity * inPrice(t.itemId) }))],
     ].map(([name, docs]) => ({
       name: name as string,
       /* 금액이 있는 덩어리인가. 없는 쪽은 금액 칸을 <b>비워</b> 그린다(0 이 아니다). */
@@ -238,12 +242,12 @@ export default function MonthlyCumulativePage() {
       lines: spans.map((sp) => ({
         gubun: sp.name,
         period: sp.label,
-        ...sum(docs as { date: string; supply: number; vat: number; qty: number }[], sp.from, sp.to),
+        ...sum(docs as { date: string; supply: number; vat: number; qty: number; total?: number }[], sp.from, sp.to),
       })),
     }))
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [sales, purchases, productions, transfers,
-    from, to, warehouse, partner, project, item, partnerGroup, category, itemGroup, mgmtCond])
+    from, to, items, warehouse, partner, project, item, partnerGroup, category, itemGroup, mgmtCond])
 
   /*
    * [표시방법]이 <b>횡</b>이면 열이 열두 달 + 연간으로 바뀐다 — 정적으로는 못 세는 표라
@@ -360,7 +364,7 @@ export default function MonthlyCumulativePage() {
                   <td key={l.gubun + 'q'} className="text-right">{l.qty ? qty2(l.qty) : ''}</td>,
                   <td key={l.gubun + 's'} className="text-right">{g.hasAmount && l.supply ? won(l.supply) : ''}</td>,
                   <td key={l.gubun + 'v'} className="text-right">{g.hasAmount && l.vat ? won(l.vat) : ''}</td>,
-                  <td key={l.gubun + 't'} className="text-right">{g.hasAmount ? won(l.supply + l.vat) : ''}</td>,
+                  <td key={l.gubun + 't'} className="text-right">{g.hasAmount ? won(l.supply + l.vat) : l.stockTotal ? won(l.stockTotal) : ''}</td>,
                 ])}
               </tr>
             ))}
@@ -394,7 +398,7 @@ export default function MonthlyCumulativePage() {
               <td className="text-right">{g.hasAmount ? (l.supply ? won(l.supply) : '') : ''}</td>
               <td className="text-right text-ec-hint">{g.hasAmount ? (l.vat ? won(l.vat) : '') : ''}</td>
               <td className="text-right font-bold text-ec-blue">
-                {g.hasAmount ? won(l.supply + l.vat) : ''}
+                {g.hasAmount ? won(l.supply + l.vat) : l.stockTotal ? won(l.stockTotal) : ''}
               </td>
             </tr>
           )))}

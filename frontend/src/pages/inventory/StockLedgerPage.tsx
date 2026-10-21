@@ -7,6 +7,7 @@ import type { Item, StockTransaction, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { dateText } from '../../utils/dateText'
+import { qty2 } from '../../utils/qtyText'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -445,15 +446,15 @@ export default function StockLedgerPage() {
         </div>
         <div className="ml-auto text-[12.5px] text-ec-label">
           {summary.singleScope && summary.opening != null && (
-            <>기초 <b className="text-ec-text text-[14px]">{num(summary.opening)}</b><span className="my-0 mx-[6px] text-ec-off">|</span></>
+            <>기초 <b className="text-ec-text text-[14px]">{qty2(summary.opening)}</b><span className="my-0 mx-[6px] text-ec-off">|</span></>
           )}
-          입고계 <b className="text-ec-blue text-[14px]">{num(summary.inQty)}</b>
+          입고계 <b className="text-ec-blue text-[14px]">{qty2(summary.inQty)}</b>
           <span className="my-0 mx-[6px] text-ec-off">|</span>
-          출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(summary.outQty)}</b>
+          출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{qty2(summary.outQty)}</b>
           <span className="my-0 mx-[6px] text-ec-off">|</span>
-          순증감 <b style={{ color: summary.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{summary.net > 0 ? '+' : ''}{num(summary.net)}</b>
+          순증감 <b style={{ color: summary.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{summary.net > 0 ? '+' : ''}{qty2(summary.net)}</b>
           {summary.singleScope && summary.closing != null && (
-            <><span className="my-0 mx-[6px] text-ec-off">|</span>기말 <b className="text-ec-navy text-[14px]">{num(summary.closing)}</b></>
+            <><span className="my-0 mx-[6px] text-ec-off">|</span>기말 <b className="text-ec-navy text-[14px]">{qty2(summary.closing)}</b></>
           )}
         </div>
       </div>
@@ -542,7 +543,7 @@ export default function StockLedgerPage() {
                     <span style={{ color: 'rgb(215, 62, 62)' }}>전일재고</span>
                   </td>
                   <td></td><td></td>
-                  <td className="text-right">{num(summary.opening)}</td>
+                  <td className="text-right">{qty2(summary.opening)}</td>
                   {showPrice && <td></td>}
                   {showPrice && <td></td>}
                 </tr>,
@@ -559,9 +560,9 @@ export default function StockLedgerPage() {
               out.push(
                 <tr key={`m-${ym}`} className="ec-total">
                   <td colSpan={7} className="text-center">{`${ym.replace('-', '/')}  계`}</td>
-                  <td className="text-right">{mIn ? num(mIn) : ''}</td>
-                  <td className="text-right">{mOut ? num(mOut) : ''}</td>
-                  <td className="text-right">{bal != null ? num(bal) : ''}</td>
+                  <td className="text-right">{mIn ? qty2(mIn) : ''}</td>
+                  <td className="text-right">{mOut ? qty2(mOut) : ''}</td>
+                  <td className="text-right">{bal != null ? qty2(bal) : ''}</td>
                   {showPrice && <td></td>}
                   {showPrice && <td></td>}
                 </tr>,
@@ -605,9 +606,9 @@ export default function StockLedgerPage() {
                   <td>{r.warehouseName}</td>
                   <td>{adj ? '[조정]' : partnerOf(r.note)}</td>
                   <td>{r.note ?? ''}</td>
-                  <td className="text-right">{inQ ? num(inQ) : ''}</td>
-                  <td className="text-right">{outQ ? num(outQ) : ''}</td>
-                  <td className="text-right">{bal != null ? num(bal) : ''}</td>
+                  <td className="text-right">{inQ ? qty2(inQ) : ''}</td>
+                  <td className="text-right">{outQ ? qty2(outQ) : ''}</td>
+                  <td className="text-right">{bal != null ? qty2(bal) : ''}</td>
                   {showPrice && (
                     <td className="text-right">{basePrice != null ? num(basePrice) : ''}</td>
                   )}
@@ -626,9 +627,9 @@ export default function StockLedgerPage() {
           <tfoot>
             <tr>
               <td colSpan={7} className="text-center">합계</td>
-              <td className="text-right">{summary.inQty ? num(summary.inQty) : ''}</td>
-              <td className="text-right">{summary.outQty ? num(summary.outQty) : ''}</td>
-              <td className="text-right">{summary.closing != null ? num(summary.closing) : ''}</td>
+              <td className="text-right">{summary.inQty ? qty2(summary.inQty) : ''}</td>
+              <td className="text-right">{summary.outQty ? qty2(summary.outQty) : ''}</td>
+              <td className="text-right">{summary.closing != null ? qty2(summary.closing) : ''}</td>
               {showPrice && <td></td>}
               {showPrice && <td></td>}
             </tr>

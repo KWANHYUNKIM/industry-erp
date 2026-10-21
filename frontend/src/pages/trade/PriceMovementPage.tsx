@@ -294,8 +294,9 @@ export default function PriceMovementPage() {
         })
       }
     }
-    /* 값이 언제 어떻게 움직였나를 보는 표라 <b>날짜순</b>이다 — 요약표는 변동폭순이다. */
-    return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    /* 원본은 품목 하나의 줄들을 묶고 그 끝에 [단가]의 평균 줄을 둔다 — 품목 코드순, 품목 안에서는 날짜 내림차순. */
+    return out.sort((a, b) => (a.itemCode < b.itemCode ? -1 : a.itemCode > b.itemCode ? 1
+      : a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   }, [gubun, sales, purchases, mode, from, to, keyword, warehouse, partner, itemCond,
       partnerGroup, partnerMgr, category, itemGroup, project, employee])
 
@@ -469,16 +470,14 @@ export default function PriceMovementPage() {
               단가 칸 이름은 아직 [단가] 하나다: 원본은 [단가구분] 기본이 <b>전체</b>라
               판매·구매 단가를 <b>나란히</b> 두는데 우리 [단가구분]에는 전체가 없다
               (pending-columns.json 에 적었다).
-              [거래처]·[단위]·[수량]은 우리 열이다.
+              [거래처]·[단위] 열은 원본에 없어 뺐다(2026-10-21). [수량]은 원본 [수량표시]를 켰을 때만 둔다.
             */}
             <th className="w-[34px]"></th>
             <th className="w-[110px]">품목코드</th>
             <th>품목명</th>
             <th className="w-[110px]">규격</th>
             <th className="w-[170px]">전표별</th>
-            <th>거래처</th>
-            <th className="w-[70px]">단위</th>
-            <th className="w-[90px] text-right">수량</th>
+            {showQty && <th className="w-[90px] text-right">수량</th>}
             {/*
               원본은 [단가구분] 기본이 [전체]라 <b>판매단가와 구매단가를 나란히</b> 둔다.
               (원본 머리에는 [단가기준]으로 고른 값이 괄호로 붙는다 — [판매단가(단순평균)].
@@ -491,10 +490,12 @@ export default function PriceMovementPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={showQty ? 8 : 7} className="ec-empty">불러오는 중…</td></tr>
           ) : lineRows.length === 0 ? (
-            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : lineRows.map((r, i) => (
+            <tr><td colSpan={showQty ? 8 : 7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : lineRows.flatMap((r, i) => {
+            const next = lineRows[i + 1]
+            const out = [
             <tr key={r.key}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.itemCode}</td>
@@ -502,17 +503,32 @@ export default function PriceMovementPage() {
               <td>{r.spec ?? ''}</td>
               {/* 원본은 일자와 전표번호를 한 칸에 적는다. */}
               <td>{dateText(r.date)} {r.no}</td>
-              <td>{r.partner}</td>
-              <td>{r.unit}</td>
-              <td className="text-right">{r.quantity.toLocaleString()}</td>
+              {showQty && <td className="text-right">{r.quantity.toLocaleString()}</td>}
               <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'SALE' ? undefined : 'var(--ec-text-off)' }}>
                 {r.kind === 'SALE' ? r.price.toLocaleString() : ''}
               </td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'PURCHASE' ? undefined : 'var(--ec-text-off)' }}>
                 {r.kind === 'PURCHASE' ? r.price.toLocaleString() : ''}
               </td>
-            </tr>
-          ))}
+            </tr>,
+            ]
+            /* 원본 [단가]의 평균 줄 — 품목 하나의 끝에, 판매단가·구매단가 각각의 단순평균(거래 없는 쪽은 빈칸). */
+            if (withAvg && (!next || next.itemCode !== r.itemCode)) {
+              const mean = (k: 'SALE' | 'PURCHASE') => {
+                const ps = lineRows.filter((x) => x.itemCode === r.itemCode && x.kind === k).map((x) => x.price)
+                return ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : null
+              }
+              const sAvg = mean('SALE'), bAvg = mean('PURCHASE')
+              out.push(
+                <tr key={`${r.key}-avg`} className="font-bold bg-ec-page">
+                  <td colSpan={showQty ? 6 : 5} className="text-center">[단가]의 평균</td>
+                  <td className="text-right">{sAvg != null ? won(sAvg) : ''}</td>
+                  <td className="text-right">{bAvg != null ? won(bAvg) : ''}</td>
+                </tr>,
+              )
+            }
+            return out
+          })}
         </tbody>
       </table>
       ) : (

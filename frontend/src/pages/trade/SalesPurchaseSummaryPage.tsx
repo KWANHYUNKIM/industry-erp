@@ -44,11 +44,25 @@ import { periodOf } from '../../components/EcPeriodPicks'
  * (조건 판은 눌러서 값을 고르는 <b>선택 팝업</b>이라 열지 않았다 — 저장을 건드릴 수 있다.)
  */
 
-type GroupBy = 'partner' | 'item'
+/**
+ * 원본 [집계조건1~3] 고르기(2026-10-21 기록: 기준일자 일별~연별 · 창고 · 거래유형 · 관리항목 · 거래처 · 거래처그룹1/2 ·
+ * 품목명[규격] · 품목그룹1~3 · 프로젝트 · 프로젝트그룹1/2). 우리 자료로 낼 수 있는 것만 둔다 — 그룹2/3 · 프로젝트그룹은 마스터가 없어 뺀다.
+ * 고른 축이 그대로 표의 앞머리 칸이 된다. 전부 사용안함이면 원본 문구를 낸다.
+ * [집계대상] · [비교기간] · [가로보기] · [비율표시] · [차이표시] 는 원본 격자 꼴을 재지 못해 아직 없다(원본 재기 필요).
+ */
+const AXES = ['사용안함', '기준일자(일별)', '기준일자(월별)', '기준일자(연별)', '창고', '거래유형', '관리항목',
+  '거래처', '거래처그룹1', '품목명[규격]', '품목그룹1', '프로젝트'] as const
+type Axis = typeof AXES[number]
+/** 품목에 붙는 축 — 하나라도 있으면 줄(라인) 단위로 더한다. 없으면 전표 합계 기준(거래처별 같은 기존 규칙). */
+const LINE_AXES: Axis[] = ['관리항목', '품목명[규격]', '품목그룹1']
+const AXIS_HEAD: Record<Axis, string> = {
+  '사용안함': '', '기준일자(일별)': '일자', '기준일자(월별)': '월', '기준일자(연별)': '연도', '창고': '창고', '거래유형': '거래유형',
+  '관리항목': '관리항목', '거래처': '거래처명', '거래처그룹1': '거래처그룹1', '품목명[규격]': '품목명[규격]', '품목그룹1': '품목그룹1', '프로젝트': '프로젝트',
+}
 
 interface Agg {
   key: string
-  name: string
+  names: string[]
   saleCount: number   // 거래처별=전표수, 품목별=라인수
   saleQty: number
   saleSupply: number
@@ -64,7 +78,7 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /** 원본 축 이름 열은 '품목명[규격]' 이다. */
 const itemLabel = (name: string, spec: string | null) => spec ? `${name}[${spec}]` : name
-const emptyAgg = (key: string, name: string): Agg => ({ key, name, saleCount: 0, saleQty: 0, saleSupply: 0, saleVat: 0, buyCount: 0, buyQty: 0, buySupply: 0, buyVat: 0 })
+const emptyAgg = (key: string, names: string[]): Agg => ({ key, names, saleCount: 0, saleQty: 0, saleSupply: 0, saleVat: 0, buyCount: 0, buyQty: 0, buySupply: 0, buyVat: 0 })
 
 const initP = periodOf('금월(~오늘)')!
 
@@ -105,7 +119,11 @@ export default function SalesPurchaseSummaryPage() {
   /* 열자마자 몇 해치를 한 표로 더했다 — 이번 달 장사가 어땠는지 알 수 없는 숫자다. */
   const [from, setFrom] = useState(initP.from)
   const [to, setTo] = useState(initP.to)
-  const [groupBy, setGroupBy] = useState<GroupBy>('partner')
+  const [axis1, setAxis1] = useState<Axis>('거래처')
+  const [axis2, setAxis2] = useState<Axis>('사용안함')
+  const [axis3, setAxis3] = useState<Axis>('사용안함')
+  const axes = [axis1, axis2, axis3].filter((a) => a !== '사용안함')
+  const lineLevel = axes.some((a) => LINE_AXES.includes(a))
   const [keyword, setKeyword] = useState('')
 
   async function load() {
@@ -168,89 +186,82 @@ export default function SalesPurchaseSummaryPage() {
 
   const rows = useMemo(() => {
     const m = new Map<string, Agg>()
-    const bump = (key: string, name: string): Agg => {
-      let a = m.get(key)
-      if (!a) { a = emptyAgg(key, name); m.set(key, a) }
-      return a
+    type Line = SalesDoc['lines'][number]
+    type AnyDoc = { partnerId: number; partnerName: string; projectId: number | null; projectName: string | null
+      warehouseId: number; warehouseName: string; employeeName: string | null; remark: string | null
+      taxable: boolean; tradeKindName: string; supplyAmount: number; vatAmount: number; lines: Line[] }
+    const add = (d: AnyDoc, date: string, side: 'sale' | 'buy') => {
+      if (!inPeriod(date)) return
+      if (!keepPartner(d.partnerId)) return
+      if (!keepProject(d.projectId)) return
+      if (!keepWarehouse(d.warehouseId)) return
+      if (!keepEmp(d.employeeName)) return
+      if (!keepRemark(d.remark)) return
+      if (!keepGroup(d.partnerName)) return
+      if (!keepMgr(d.partnerName)) return
+      if (!keepTax(d.taxable)) return
+      if (kindCond !== '전체' && d.tradeKindName !== kindCond) return
+      /* 축 하나의 값. 줄(라인)에 붙는 축은 line 이 있을 때만 쓴다. */
+      const valueOf = (ax: Axis, l?: Line): string => {
+        switch (ax) {
+          case '기준일자(일별)': return date.replace(/-/g, '/')
+          case '기준일자(월별)': return date.slice(0, 7).replace('-', '/')
+          case '기준일자(연별)': return date.slice(0, 4)
+          case '창고': return d.warehouseName
+          case '거래유형': return d.taxable ? '과세' : '면세'
+          case '거래처': return d.partnerName
+          case '거래처그룹1': return pgroup.groupOfName(d.partnerName) || '(미지정)'
+          case '프로젝트': return d.projectName ?? ''
+          case '관리항목': return l ? (mgmt.nameOf(l.itemId) || '') : ''
+          case '품목그룹1': return l ? (mgmt.groupOf(l.itemId) || '(미지정)') : ''
+          case '품목명[규격]': return l ? itemLabel(l.itemName, l.spec) : ''
+          default: return ''
+        }
+      }
+      const put = (l?: Line) => {
+        const names = axes.map((ax) => valueOf(ax, l))
+        const key = names.join('\u0001')
+        let a = m.get(key)
+        if (!a) { a = emptyAgg(key, names); m.set(key, a) }
+        if (l) {
+          if (side === 'sale') { a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount; a.saleVat += l.vatAmount }
+          else { a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount; a.buyVat += l.vatAmount }
+        } else {
+          const q = d.lines.reduce((x, ln) => x + ln.quantity, 0)
+          if (side === 'sale') { a.saleCount += 1; a.saleSupply += d.supplyAmount; a.saleVat += d.vatAmount; a.saleQty += q }
+          else { a.buyCount += 1; a.buySupply += d.supplyAmount; a.buyVat += d.vatAmount; a.buyQty += q }
+        }
+      }
+      if (lineLevel) {
+        for (const l of d.lines) {
+          if (itemCond && String(l.itemId) !== itemCond) continue
+          if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
+          if (!lineHit(l)) continue
+          put(l)
+        }
+      } else {
+        /* 전표 합계 기준 — 품목 조건은 '그 조건에 맞는 줄을 가진 전표'만 센다(옛 [거래처별] 규칙). */
+        if (itemCond && !d.lines.some((l) => String(l.itemId) === itemCond)) return
+        if (mgmtCond && !d.lines.some((l) => mgmt.nameOf(l.itemId) === mgmtCond)) return
+        if (!docHasItem(d.lines)) return
+        put()
+      }
     }
-    if (groupBy === 'partner') {
-      for (const d of sales) {
-        if (!inPeriod(d.saleDate)) continue
-        if (!keepPartner(d.partnerId)) continue
-        if (!keepProject(d.projectId)) continue
-        if (!keepWarehouse(d.warehouseId)) continue
-        if (!keepEmp(d.employeeName)) continue
-        if (!keepRemark(d.remark)) continue
-        if (!keepGroup(d.partnerName)) continue
-        if (!keepMgr(d.partnerName)) continue
-        if (!keepTax(d.taxable)) continue
-        if (!docHasItem(d.lines)) continue
-        if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
-        const a = bump(`P${d.partnerId}`, d.partnerName)
-        a.saleCount += 1; a.saleSupply += d.supplyAmount; a.saleVat += d.vatAmount
-        a.saleQty += d.lines.reduce((x, l) => x + l.quantity, 0)
-      }
-      for (const d of purchases) {
-        if (!inPeriod(d.purchaseDate)) continue
-        if (!keepPartner(d.partnerId)) continue
-        if (!keepProject(d.projectId)) continue
-        if (!keepWarehouse(d.warehouseId)) continue
-        if (!keepEmp(d.employeeName)) continue
-        if (!keepRemark(d.remark)) continue
-        if (!keepGroup(d.partnerName)) continue
-        if (!keepMgr(d.partnerName)) continue
-        if (!keepTax(d.taxable)) continue
-        if (!docHasItem(d.lines)) continue
-        if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
-        const a = bump(`P${d.partnerId}`, d.partnerName)
-        a.buyCount += 1; a.buySupply += d.supplyAmount; a.buyVat += d.vatAmount
-        a.buyQty += d.lines.reduce((x, l) => x + l.quantity, 0)
-      }
-    } else {
-      for (const d of sales) {
-        if (!inPeriod(d.saleDate)) continue
-        if (!keepPartner(d.partnerId)) continue
-        if (!keepProject(d.projectId)) continue
-        if (!keepWarehouse(d.warehouseId)) continue
-        if (!keepEmp(d.employeeName)) continue
-        if (!keepRemark(d.remark)) continue
-        if (!keepGroup(d.partnerName)) continue
-        if (!keepMgr(d.partnerName)) continue
-        if (!keepTax(d.taxable)) continue
-        if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
-        for (const l of d.lines) {
-          if (itemCond && String(l.itemId) !== itemCond) continue
-          if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
-          if (!lineHit(l)) continue
-          const a = bump(`I${l.itemId}`, itemLabel(l.itemName, l.spec))
-          a.saleCount += 1; a.saleQty += l.quantity; a.saleSupply += l.supplyAmount; a.saleVat += l.vatAmount
-        }
-      }
-      for (const d of purchases) {
-        if (!inPeriod(d.purchaseDate)) continue
-        if (!keepPartner(d.partnerId)) continue
-        if (!keepProject(d.projectId)) continue
-        if (!keepWarehouse(d.warehouseId)) continue
-        if (!keepEmp(d.employeeName)) continue
-        if (!keepRemark(d.remark)) continue
-        if (!keepGroup(d.partnerName)) continue
-        if (!keepMgr(d.partnerName)) continue
-        if (!keepTax(d.taxable)) continue
-        if (kindCond !== '전체' && d.tradeKindName !== kindCond) continue
-        for (const l of d.lines) {
-          if (itemCond && String(l.itemId) !== itemCond) continue
-          if (mgmtCond && mgmt.nameOf(l.itemId) !== mgmtCond) continue
-          if (!lineHit(l)) continue
-          const a = bump(`I${l.itemId}`, itemLabel(l.itemName, l.spec))
-          a.buyCount += 1; a.buyQty += l.quantity; a.buySupply += l.supplyAmount; a.buyVat += l.vatAmount
-        }
-      }
+    if (axes.length > 0) {
+      for (const d of sales) add(d as unknown as AnyDoc, d.saleDate, 'sale')
+      for (const d of purchases) add(d as unknown as AnyDoc, d.purchaseDate, 'buy')
     }
     const kw = keyword.trim()
     return [...m.values()]
-      .filter((a) => !kw || a.name.includes(kw))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [sales, purchases, groupBy, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond,
+      .filter((a) => !kw || a.names.join(' ').includes(kw))
+      .sort((x, y) => {
+        for (let i = 0; i < x.names.length; i++) {
+          const c = x.names[i].localeCompare(y.names[i], 'ko')
+          if (c) return c
+        }
+        return 0
+      })
+  }, [sales, purchases, axis1, axis2, axis3, from, to, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond,
       partnerGroupCond, partnerMgrCond, categoryCond, itemGroupCond, taxTypeCond, mgmtCond])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
@@ -281,17 +292,15 @@ export default function SalesPurchaseSummaryPage() {
           맨 뒤에 두고 있었다. 원본은 집계조건1~5 를 겹쳐 고르지만 우리 표는 축이 하나라
           거래처별·품목별 둘로 둔다.
         */}
-        <div className="flex items-center">
-          <span style={{ ...label, width: 66 }}>집계조건</span>
-          <div className="flex gap-[2px]">
-            {(['partner', 'item'] as const).map((g) => (
-              <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{
-                padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-                background: groupBy === g ? 'var(--ec-blue)' : '#fff', color: groupBy === g ? '#fff' : 'var(--ec-text)', fontWeight: groupBy === g ? 700 : 400,
-              }}>{g === 'partner' ? '거래처별' : '품목별'}</button>
-            ))}
+        {([['집계조건1', axis1, setAxis1], ['집계조건2', axis2, setAxis2], ['집계조건3', axis3, setAxis3]] as const).map(([lb, v, set]) => (
+          <div key={lb} className="flex items-center">
+            <span style={{ ...label, width: 66 }}>{lb}</span>
+            <select className="ec-input" value={v} style={{ width: 130 }}
+                    onChange={(e) => set(e.target.value as Axis)}>
+              {AXES.map((ax) => <option key={ax} value={ax}>{ax === '사용안함' ? 'none' : ax}</option>)}
+            </select>
           </div>
-        </div>
+        ))}
         {/* 원본 차례: 창고 · <b>프로젝트</b> · 담당자 · 거래처 … — 프로젝트가 거래처보다 앞이다. */}
         <div className="flex items-center">
           <span style={label}>창고</span>
@@ -388,7 +397,7 @@ export default function SalesPurchaseSummaryPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th rowSpan={2}>{groupBy === 'partner' ? '거래처명' : '품목명[규격]'}</th>
+            {axes.map((ax) => <th key={ax} rowSpan={2}>{AXIS_HEAD[ax]}</th>)}
             <th colSpan={4} className="text-center">판매</th>
             <th colSpan={4} className="text-center">구매</th>
           </tr>
@@ -405,12 +414,14 @@ export default function SalesPurchaseSummaryPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8 + axes.length} className="ec-empty">불러오는 중…</td></tr>
+          ) : axes.length === 0 ? (
+            <tr><td colSpan={9} className="ec-empty">집계조건은 1개 이상 선택해야 합니다</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8 + axes.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => (
             <tr key={r.key}>
-              <td>{r.name}</td>
+              {r.names.map((n, i) => <td key={i}>{n}</td>)}
               <td className="text-right">{qty2(r.saleQty)}</td>
               <td className="text-right">{won(r.saleSupply)}</td>
               <td className="text-right">{won(r.saleVat)}</td>
@@ -425,7 +436,7 @@ export default function SalesPurchaseSummaryPage() {
         {rows.length > 0 && (
           <tfoot>
             <tr className="font-bold bg-ec-page">
-              <td>합계</td>
+              <td colSpan={Math.max(axes.length, 1)}>합계</td>
               <td className="text-right">{qty2(totals.saleQty)}</td>
               <td className="text-right">{won(totals.saleSupply)}</td>
               <td className="text-right">{won(totals.saleVat)}</td>
