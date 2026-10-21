@@ -1790,6 +1790,8 @@ export interface WorkPost {
   viewCount: number
   /** 원본 View 머리줄의 작성 일시. */
   createdAt: string | null
+  /** 원본 조건 [수정일자순(정렬)] 의 기준. */
+  updatedAt?: string | null
   status: WorkPostStatus
   statusName: string
   /** 원본 [라벨] — 제목 앞 칩. */

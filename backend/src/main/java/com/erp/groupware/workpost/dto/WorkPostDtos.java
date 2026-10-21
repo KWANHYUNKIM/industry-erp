@@ -137,6 +137,7 @@ public final class WorkPostDtos {
             int viewCount,
             /** 원본 View 머리줄의 작성 일시 — '16 | 제목 | guest | 2026/10/03 (토) 오후 12:53:08'. */
             LocalDateTime createdAt,
+            LocalDateTime updatedAt,
             /** 원본 [라벨] 칩 */
             java.util.List<String> labels,
             /** 회사가 정한 진행상태 이름(SHARED · MEETING · SIGN). 그 게시판들은 statusName 도 이 이름이다. */
@@ -164,7 +165,7 @@ public final class WorkPostDtos {
                     f != null ? f.getId() : null,
                     f != null ? f.getName() : null,
                     f != null ? f.getSizeBytes() : null,
-                    p.getViewCount(), p.getCreatedAt(),
+                    p.getViewCount(), p.getCreatedAt(), p.getUpdatedAt(),
                     p.getLabels() == null || p.getLabels().isBlank() ? java.util.List.of()
                             : java.util.Arrays.stream(p.getLabels().split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList(),
                     p.getStage(),

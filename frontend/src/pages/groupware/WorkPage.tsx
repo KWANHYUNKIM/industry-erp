@@ -15,7 +15,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import EcFileDrop from '../../components/EcFileDrop'
 import { dateText } from '../../utils/dateText'
-import { requireSelection } from '../../components/EcDialog'
+import { requireSelection, ecConfirm } from '../../components/EcDialog'
 import EcKanban, { type KanbanCard, type KanbanTone } from '../../components/EcKanban'
 import GridCode from '../../components/GridCode'
 
@@ -39,8 +39,8 @@ function defaultPeriod(kind: 'yearBack' | 'lastYear') {
 const COND_KINDS = ['전체', '본문', '답글']
 const COND_PATHS = ['전체', '웹(ERP)', '자료올리기', '기타', 'OAPI']
 type CondExtra = { kinds: string[]; doneFrom: string; doneTo: string; title: string; content: string; user: string; no: string
-  del: '전체' | '미삭제' | '삭제'; paths: string[] }
-const EMPTY_COND: CondExtra = { kinds: ['본문'], doneFrom: '', doneTo: '', title: '', content: '', user: '', no: '', del: '미삭제', paths: [...COND_PATHS] }
+  del: '전체' | '미삭제' | '삭제'; paths: string[]; byUpdated: boolean }
+const EMPTY_COND: CondExtra = { kinds: ['본문'], doneFrom: '', doneTo: '', title: '', content: '', user: '', no: '', del: '미삭제', paths: [...COND_PATHS], byUpdated: false }
 
 function toggleAll(cur: string[], v: string, on: boolean, all: string[]) {
   if (v === '전체') return on ? [...all] : []
@@ -301,6 +301,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<Form>(emptyForm)
+  /** 입력 창에서 손댄 것이 있나 — [닫기] 가 '작성한 내용이 저장되지 않았습니다' 를 묻는 기준. */
+  const [formDirty, setFormDirty] = useState(false)
   /** 글에 붙일 파일. 원본 [웹자료올리기]·[여기에 파일 놓기]. */
   const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -433,7 +435,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       .catch(() => { /* 조회수는 곁다리다 — 실패해도 글은 보인다. */ })
   }
 
+  /** 원본 입력 창 [닫기] — 손댄 것이 있으면 먼저 묻는다(2026-10-13 통합게시판 실측 문구). */
+  async function closeForm() {
+    if (formDirty && !(await ecConfirm('작성한 내용이 저장되지 않았습니다. 페이지를 벗어나겠습니까?'))) return
+    setShowForm(false)
+  }
+
   function openNew() {
+    setFormDirty(false)
     setEditId(null)
     // 원본 통합회의록 입력 창은 제목에 오늘 날짜가 미리 들어 있다('2026/10/13 ').
     setForm({ ...emptyForm(), title: cfg.minutes ? `${dateText(today())} ` : '', content: cfg.template ?? '', ccAll: !!cfg.ccAll })
@@ -444,6 +453,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 
   /** 원본 View 의 [수정] — 같은 입력 창을 '…입력(수정)' 으로 띄운다. */
   function openEdit(r: WorkPost) {
+    setFormDirty(false)
     setViewing(null)
     setEditId(r.id)
     setForm({
@@ -482,7 +492,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     load()
   }
 
-  function set<K extends keyof Form>(k: K, v: Form[K]) { setForm((f) => ({ ...f, [k]: v })) }
+  function set<K extends keyof Form>(k: K, v: Form[K]) { setFormDirty(true); setForm((f) => ({ ...f, [k]: v })) }
 
   /** 파일을 먼저 올려 id 를 받고, 글을 저장할 때 그 id 를 붙인다(기안서와 같은 방식). */
   async function upload(file: File) {
@@ -684,8 +694,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
    */
   const newestFirst = (a: WorkPost, b: WorkPost) =>
     a.postDate !== b.postDate ? (a.postDate < b.postDate ? 1 : -1) : b.postNo - a.postNo
-  const numbered = [...shown].sort(newestFirst)
-  const pinned = shown.filter((r) => r.notice).sort(newestFirst)
+  /** 조건 [기타 ☑수정일자순(정렬)] — 마지막으로 고친 글부터. */
+  const byOrder = (a: WorkPost, b: WorkPost) =>
+    applied.byUpdated && (a.updatedAt ?? '') !== (b.updatedAt ?? '') ? ((a.updatedAt ?? '') < (b.updatedAt ?? '') ? 1 : -1) : newestFirst(a, b)
+  const numbered = [...shown].sort(byOrder)
+  const pinned = shown.filter((r) => r.notice).sort(byOrder)
   /** 게시판마다 [완료일] 열이 붙었다 빠졌다 한다 — 머리 · 본문 · 빈 줄 칸 수를 개발 모드에서 본다. */
   const gridRef = useRef<HTMLDivElement>(null)
   useTableColumnCheck(gridRef, `${board} 게시판`, [shown.length, opened, loading, board])
@@ -882,7 +895,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         2026-10-20 다시 잼(통합게시판 E200076): 게시일 · 유형(☐전체 ☑본문 ☐답글) · 완료일(빈칸) · 제목 · 내용1(여러 줄) · 사용자 · 게시글번호 ·
         삭제구분(○전체 ●미삭제 ○삭제) · 기타(☐수정일자순(정렬)) · 입력경로(☑전체 ☑웹(ERP) ☑자료올리기 ☑기타 ☑OAPI), 빠른선택 금년 · 전년 · 전년+금년.
         원본 [삭제] 로 걸면 전년+금년에도 '등록된 데이터가 없습니다.'(지운 글이 남지 않는다) — 우리도 지운 글은 남지 않으니 빈 목록.
-        우리 글은 답글이 없고(본문만) 모두 웹(ERP)에서 들어온다. [수정일자순(정렬)] · [적용양식] · 메뉴(조회/현황/집계)는 아직 없다.
+        우리 글은 답글이 없고(본문만) 모두 웹(ERP)에서 들어온다. [적용양식] · 메뉴(조회/현황/집계)는 아직 없다.
       */}
       {condOpen && (
         <div className="ec-cond mb-[8px]">
@@ -954,6 +967,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                            onChange={() => setCond((c) => ({ ...c, del: d }))} />{d}
                   </label>
                 ))}
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">기타</div>
+              <div className="form">
+                <label className="inline-flex items-center gap-[3px]">
+                  <input type="checkbox" checked={cond.byUpdated} onChange={(e) => setCond((c) => ({ ...c, byUpdated: e.target.checked }))} />수정일자순(정렬)
+                </label>
               </div>
             </li>
             <li className="wide">
@@ -1109,7 +1130,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 
       {/* 원본 '공지사항입력' / '공지사항입력(수정)' 창 — 항목이 한 줄에 하나씩 세로로 놓인다. */}
       <Modal error={error} open={showForm} title={`${title}입력${editId != null ? '(수정)' : ''}`}
-             onClose={() => setShowForm(false)} width={780}>
+             onClose={() => void closeForm()} width={780}>
         <ul className="ec-form mb-[10px]">
           {cfg.minutes && titleRow}
           {/* 원본 통합회의록 [진행상태] — 진행중 · 완료(처음 진행중). 원본 고르기의 '==' 는 두지 않았다. */}
@@ -1324,7 +1345,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               if (r) setViewing(r)
             }}>View</button>
           )}
-          <button className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+          <button className="ec-btn" onClick={() => void closeForm()}>닫기</button>
           {editId != null && <button className="ec-btn" onClick={() => removeOne(editId)}>삭제</button>}
         </div>
       </Modal>
