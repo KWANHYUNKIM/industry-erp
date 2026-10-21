@@ -9,6 +9,9 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
 import { useAuth } from '../../features/auth/AuthContext'
+import AggregateTable from '../../features/journalstatus/AggregateTable'
+import { AggregateConditions, useAggState, type AggSnapshot } from '../../features/journalstatus/useAggregate'
+import { TRANSFER_GROUPS, TRANSFER_TARGETS, buildTree, shiftPeriod, type AggEntry } from '../../utils/journalAggregate'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 여섯 칸 묶음. */
@@ -24,7 +27,7 @@ const SOURCES = ['EXPENSE', 'SETTLEMENT']
 type Unit = '건별' | '일별' | '월별' | '전표별' | '거래처별'
 const UNITS: Unit[] = ['건별', '일별', '월별', '전표별', '거래처별']
 type Status = '전체' | '결재중' | '미확인' | '확인'
-interface Row { key: string; date: string; text: string; partner: string; text1: string; bank: string; acct: string; amount: number }
+interface Row { key: string; date: string; text: string; partner: string; text1: string; bank: string; acct: string; amount: number; agg?: AggEntry }
 
 /**
  * 회계 I &gt; 출력물 &gt; 기타 &gt; <b>지출결의서이체리스트</b>(E010834) — 2026-10-03 loginaa 실측(자료가 든 판, 최근30일).
@@ -42,6 +45,10 @@ interface Row { key: string; date: string; text: string; partner: string; text1:
 export default function TransferListPage() {
   const init = periodOf('최근30일')!
   const [unit, setUnit] = useState<Unit>('건별')
+  /* 구분 ◉내역 ○집계(2026-10-22 실측) — 집계조건 · 집계대상(금액 · 외화금액 · 수수료) · 비교기간 · 기타. */
+  const agg = useAggState()
+  const [cmpAll, setCmpAll] = useState<JournalEntry[]>([])
+  const [aggShown, setAggShown] = useState<AggSnapshot | null>(null)
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [docNo, setDocNo] = useState('')
@@ -72,6 +79,11 @@ export default function TransferListPage() {
     try {
       const r = await api.get<JournalList>('/journals', { params: { from, to, all: true } })
       setEntries(r.data.rows)
+      if (agg.mode === '집계' && agg.compare !== '사용안함') {
+        const c = shiftPeriod(from, to, agg.compare)
+        setCmpAll((await api.get<JournalList>('/journals', { params: { from: c.from, to: c.to, all: true } })).data.rows)
+      } else setCmpAll([])
+      setAggShown(agg.mode === '집계' ? agg.snapshot(from, to) : null)
       setShown({ from, to })
       setTruncated(r.data.truncated)
     } catch (e) {
@@ -80,15 +92,23 @@ export default function TransferListPage() {
       setLoading(false)
     }
   }
-  const search = () => { setSearched(true); void load() }
+  const search = () => {
+    if (agg.mode === '집계' && !agg.check()) return
+    setSearched(true)
+    void load()
+  }
 
   const pById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners])
   const outAccounts = useMemo(() => [...new Set(entries.flatMap((e) => e.lines.filter((l) => OUT_CODES.includes(l.accountCode)).map((l) => l.accountName)))].sort(), [entries])
 
-  const base = useMemo(() => {
-    if (status === '결재중' || status === '미확인') return [] as Row[]
+  const nameCode = (items: { value: string; name: string; code?: string | null }[], id: number | null | undefined) => {
+    const it = id == null ? undefined : items.find((i) => i.value === String(id))
+    return { name: it?.name ?? '', code: it?.code ?? '' }
+  }
+  const rowsOf = (list: JournalEntry[]): Row[] => {
+    if (status === '결재중' || status === '미확인') return []
     const out: Row[] = []
-    const sorted = [...entries].sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo)))
+    const sorted = [...list].sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo)))
     for (const e of sorted) {
       if (!SOURCES.includes(e.sourceType)) continue
       if (docNo && !e.docNo.includes(docNo)) continue
@@ -96,12 +116,25 @@ export default function TransferListPage() {
       for (const l of e.lines) {
         if (!OUT_CODES.includes(l.accountCode) || Number(l.credit) === 0) continue
         if (outAccount && l.accountName !== outAccount) continue
+        const d = nameCode(deptProject.departments, l.departmentId)
+        const pr = nameCode(deptProject.projects, l.projectId)
         out.push({ key: `${e.id}-${l.id}`, date: e.entryDate, text: e.description ?? l.description ?? '', partner: e.partnerName ?? '',
-          text1: e.docNo, bank: p?.bankName ?? '', acct: p?.accountNo ?? '', amount: Number(l.credit) })
+          text1: e.docNo, bank: p?.bankName ?? '', acct: p?.accountNo ?? '', amount: Number(l.credit),
+          agg: { date: e.entryDate, partner: e.partnerName ?? '', partnerCode: l.partnerCode ?? '', dept: d.name, deptCode: d.code, project: pr.name, projectCode: pr.code,
+            account: l.accountName, accountCode: l.accountCode, vals: { 금액: Number(l.credit), 외화금액: Number(l.foreignAmount ?? 0), 수수료: 0 } } })
       }
     }
     return out
-  }, [entries, pById, docNo, outAccount, status])
+  }
+  const base = useMemo(() => rowsOf(entries),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [entries, pById, docNo, outAccount, status, deptProject])
+  const aggTree = useMemo(() => {
+    if (!aggShown) return null
+    const cmp = aggShown.compare === '사용안함' ? [] : [rowsOf(scopeEntries(cmpAll, dept, project)).map((r) => r.agg!)]
+    return buildTree([base.map((r) => r.agg!), ...cmp], aggShown.conds, aggShown.targets)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggShown, base, cmpAll])
 
   /* 건별 말고는 하루 · 한 달 · 전표 · 거래처를 한 줄로 묶는다. */
   const rows = useMemo(() => {
@@ -127,7 +160,7 @@ export default function TransferListPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: search },
-        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setUnit('건별'); setFrom(init.from); setTo(init.to); setDocNo(''); setOutAccount(''); setStatus('확인') } },
+        { label: '다시 작성', onClick: () => { agg.reset(); setDept(''); setProject(''); setUnit('건별'); setFrom(init.from); setTo(init.to); setDocNo(''); setOutAccount(''); setStatus('확인') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -136,17 +169,21 @@ export default function TransferListPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
-            <input type="radio" name="tl-kind" checked readOnly /> 내역
+            <input type="radio" name="tl-kind" checked={agg.mode === '내역'} onChange={() => agg.setMode('내역')} /> 내역
           </label>
-          <label title="원본의 ○집계 판 — 아직 만들지 않았다" className="inline-flex items-center gap-[3px] mr-[16px] text-[12.5px] text-ec-hint">
-            <input type="radio" name="tl-kind" disabled /> 집계
+          <label className="inline-flex items-center gap-[3px] mr-[16px] text-[12.5px]">
+            <input type="radio" name="tl-kind" checked={agg.mode === '집계'} onChange={() => agg.setMode('집계')} /> 집계
           </label>
-          {UNITS.map((v) => (
+          {agg.mode === '내역' && UNITS.map((v) => (
             <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="tl-unit" checked={unit === v} onChange={() => setUnit(v)} /> {v}
             </label>
           ))}
         </EcCond>
+        {agg.mode === '집계' && (
+          <AggregateConditions st={agg} groups={TRANSFER_GROUPS} targetList={TRANSFER_TARGETS} label={['집계조건1', '집계조건2', '집계조건3', '집계조건4']}
+            targetLabel="집계대상" compareLabel="비교기간" etcLabel="기타" />
+        )}
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
           <span className="my-0 mx-[4px]">~</span>
@@ -180,7 +217,18 @@ export default function TransferListPage() {
       </ul>
 
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
-      {searched && (<>
+      {searched && aggShown && aggTree && (<>
+        <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">지출결의서이체리스트</h3>
+        <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+          <span>회사명 : {companyName ?? ''}</span>
+          <span>{slash(shown.from)} ~ {slash(shown.to)}</span>
+        </div>
+        {loading ? <p className="ec-empty">불러오는 중…</p> : aggTree.children.length === 0
+          ? <p className="ec-empty">등록된 데이터가 없습니다.</p>
+          : <AggregateTable tree={aggTree} conds={aggShown.conds} targets={aggShown.targets} periodLabels={aggShown.periods}
+              horizontal={aggShown.horizontal} ratio={aggShown.ratio} withCode={aggShown.withCode} />}
+      </>)}
+      {searched && !aggShown && (<>
       <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">지출결의서이체리스트</h3>
       <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>

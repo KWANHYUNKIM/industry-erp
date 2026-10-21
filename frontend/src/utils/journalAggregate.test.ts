@@ -4,7 +4,7 @@ import { buildTree, percentOf, shiftPeriod, type AggEntry } from './journalAggre
 
 const e = (date: string, partner: string, code: string, supply: number, vat = 0): AggEntry => ({
   date, partner, partnerCode: code, dept: '', deptCode: '', project: '', projectCode: '',
-  supply, vat, fee: 0, withholding: 0, foreign: 0, total: supply + vat,
+  vals: { 공급가액: supply, 부가세: vat, 합계: supply + vat },
 })
 
 test('월별 + 거래처: 빈 거래처가 코드순 맨 앞, 합계는 공급가액 · 합계 따로', () => {

@@ -10,9 +10,9 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import { dateNo } from '../../utils/dateNo'
-import { ecAlert } from '../../components/EcDialog'
 import AggregateTable from '../../features/journalstatus/AggregateTable'
-import { AGG_GROUPS, COMPARES, TARGETS, buildTree, isDateKey, shiftPeriod, type AggCond, type AggEntry, type Compare, type Target } from '../../utils/journalAggregate'
+import { AggregateConditions, useAggState, type AggSnapshot } from '../../features/journalstatus/useAggregate'
+import { AGG_GROUPS, TARGETS, buildTree, shiftPeriod, type AggEntry } from '../../utils/journalAggregate'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
@@ -21,7 +21,6 @@ const slash = (d: string) => d.replace(/-/g, '/')
 /** 원본 [거래유형] — 부가세 전표만 '매출전표 I(매출)' · '매입전표 I(매입)' 처럼 쪽을 붙인다(2026-10-20 실측). 거래이력조회는 붙이지 않는다. */
 const kindOf = (name: string) => { const m = /^(매출|매입)전표 (I|II)$/.exec(name); return m ? `${name}(${m[1]})` : name }
 
-const COND_LABELS = ['집계조건1', '집계조건2', '집계조건3', '집계조건4']
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 type Unit = '일별' | '월별' | '전표별' | '거래처별'
 const UNITS: Unit[] = ['일별', '월별', '전표별', '거래처별']
@@ -43,17 +42,10 @@ export default function JournalStatusPage() {
   const init = periodOf('최근30일')!
   const [unit, setUnit] = useState<Unit>('전표별')
   /* 구분 ◉내역 ○집계 — 집계는 집계조건(최대 4) · 집계대상 · 비교기간 · 기타(가로보기 · 비율표시 · 코드포함). */
-  const [mode, setMode] = useState<'내역' | '집계'>('내역')
-  const [aggKeys, setAggKeys] = useState<string[]>(['', '', '', ''])
-  const [aggSort, setAggSort] = useState<string[]>(['', '', '', ''])
-  const [aggDesc, setAggDesc] = useState<boolean[]>([false, false, false, false])
-  const [targets, setTargets] = useState<Target[]>([])
-  const [compare, setCompare] = useState<Compare>('사용안함')
-  const [horizontal, setHorizontal] = useState(false)
-  const [ratio, setRatio] = useState(false)
-  const [withCode, setWithCode] = useState(false)
+  const agg = useAggState()
+  const mode = agg.mode
   const [cmpAll, setCmpAll] = useState<JournalEntry[]>([])
-  const [aggShown, setAggShown] = useState<{ conds: AggCond[]; targets: Target[]; compare: Compare; horizontal: boolean; ratio: boolean; withCode: boolean; periods: string[] } | null>(null)
+  const [aggShown, setAggShown] = useState<AggSnapshot | null>(null)
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [docNo, setDocNo] = useState('')
@@ -82,15 +74,12 @@ export default function JournalStatusPage() {
     try {
       const r = await api.get<JournalList>('/journals', { params: { from, to, all: true } })
       setEntries(r.data.rows)
-      if (mode === '집계' && compare !== '사용안함') {
-        const c = shiftPeriod(from, to, compare)
+      if (mode === '집계' && agg.compare !== '사용안함') {
+        const c = shiftPeriod(from, to, agg.compare)
         setCmpAll((await api.get<JournalList>('/journals', { params: { from: c.from, to: c.to, all: true } })).data.rows)
       } else setCmpAll([])
       setShown({ from, to })
-      setAggShown(mode === '집계' ? {
-        conds: aggConds(), targets, compare, horizontal, ratio, withCode,
-        periods: [`${slash(from)} ~ ${slash(to)}`, ...(compare !== '사용안함' ? (() => { const c = shiftPeriod(from, to, compare); return [`${slash(c.from)} ~ ${slash(c.to)}`] })() : [])],
-      } : null)
+      setAggShown(mode === '집계' ? agg.snapshot(from, to) : null)
       setTruncated(r.data.truncated)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -98,14 +87,8 @@ export default function JournalStatusPage() {
       setLoading(false)
     }
   }
-  const aggConds = (): AggCond[] => aggKeys.map((k, i) => ({ key: k, sort: aggSort[i] || (isDateKey(k) ? '시간순' : '코드순'), desc: aggDesc[i] })).filter((c) => c.key)
   const search = () => {
-    if (mode === '집계') {
-      const conds = aggConds()
-      /* 원본: 조건 · 대상을 안 정한 채 검색하면 표가 안 바뀐다. */
-      if (conds.length === 0 || targets.length === 0) return
-      if (compare !== '사용안함' && isDateKey(conds[0].key)) { void ecAlert('집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.'); return }
-    }
+    if (mode === '집계' && !agg.check()) return
     setSearched(true)
     void load()
   }
@@ -138,8 +121,10 @@ export default function JournalStatusPage() {
     return {
       date: e.entryDate, partner: e.partnerName ?? '', partnerCode: first?.partnerCode ?? '',
       dept: d.name, deptCode: d.code, project: pr.name, projectCode: pr.code,
-      supply: total - vat, vat, fee: 0, withholding: 0,
-      foreign: e.lines.filter((l) => Number(l.debit) > 0).reduce((t, l) => t + Number(l.foreignAmount ?? 0), 0), total,
+      vals: {
+        공급가액: total - vat, 부가세: vat, 수수료: 0, 원천징수: 0, '합계(수수료포함)': total, 합계: total,
+        외화금액: e.lines.filter((l) => Number(l.debit) > 0).reduce((t, l) => t + Number(l.foreignAmount ?? 0), 0), 외화차손익합계: 0,
+      },
     }
   }
   const aggTree = useMemo(() => {
@@ -175,6 +160,7 @@ export default function JournalStatusPage() {
   useTableColumnCheck(tableRef, '회계거래현황', [rows.length, unit])
 
   const reset = () => {
+    agg.reset()
     setDept(''); setProject('')
     setUnit('전표별'); setFrom(init.from); setTo(init.to); setDocNo(''); setPartner(''); setAccount(''); setKind('')
     setAmtFrom(''); setAmtTo(''); setRemark('')
@@ -195,10 +181,10 @@ export default function JournalStatusPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
-            <input type="radio" name="js-kind" checked={mode === '내역'} onChange={() => setMode('내역')} /> 내역
+            <input type="radio" name="js-kind" checked={mode === '내역'} onChange={() => agg.setMode('내역')} /> 내역
           </label>
           <label className="inline-flex items-center gap-[3px] mr-[16px] text-[12.5px]">
-            <input type="radio" name="js-kind" checked={mode === '집계'} onChange={() => setMode('집계')} /> 집계
+            <input type="radio" name="js-kind" checked={mode === '집계'} onChange={() => agg.setMode('집계')} /> 집계
           </label>
           {mode === '내역' && UNITS.map((v) => (
             <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
@@ -206,41 +192,10 @@ export default function JournalStatusPage() {
             </label>
           ))}
         </EcCond>
-        {mode === '집계' && (<>
-          {/* 칸은 정한 수 + 2 개까지(최대 4) — 원본: 하나 정하면 셋째 칸, 둘 정하면 넷째 칸이 나온다. */}
-          {[0, 1, 2, 3].slice(0, Math.min(4, aggKeys.filter(Boolean).length + 2)).map((i) => (
-            <EcCond key={i} label={['집계조건1', '집계조건2', '집계조건3', '집계조건4'][i]} pick>
-              <CodePickerField label={COND_LABELS[i]} hideLabel width={220} emptyLabel="" value={aggKeys[i]}
-                onChange={(v) => { setAggKeys(aggKeys.map((x, k) => (k === i ? v : x))); setAggSort(aggSort.map((x, k) => (k === i ? '' : x))) }}
-                items={AGG_GROUPS.flatMap((g) => g.items.filter((it) => it === aggKeys[i] || !aggKeys.includes(it)).map((it) => ({ value: it, name: it, sub: g.group })))} />
-              {aggKeys[i] && (<>
-                <select className="ec-input ml-[6px]" value={aggSort[i] || (isDateKey(aggKeys[i]) ? '시간순' : '코드순')} onChange={(e) => setAggSort(aggSort.map((x, k) => (k === i ? e.target.value : x)))}>
-                  {(isDateKey(aggKeys[i]) ? ['시간순', '시간역순'] : ['코드순', '코드역순', ...targets]).map((o) => <option key={o}>{o}</option>)}
-                </select>
-                <button type="button" className="ec-btn ec-btn-sm ml-[4px]" title={aggDesc[i] ? '내림차순' : '오름차순'} onClick={() => setAggDesc(aggDesc.map((x, k) => (k === i ? !x : x)))}>{aggDesc[i] ? '↓' : '↑'}</button>
-              </>)}
-            </EcCond>
-          ))}
-          <EcCond label="집계대상">
-            {TARGETS.map((t) => (
-              <label key={t} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
-                <input type="checkbox" checked={targets.includes(t)} onChange={(e) => setTargets(TARGETS.filter((x) => (x === t ? e.target.checked : targets.includes(x))))} /> {t}
-              </label>
-            ))}
-          </EcCond>
-          <EcCond label="비교기간">
-            {COMPARES.map((c) => (
-              <label key={c} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
-                <input type="radio" name="js-compare" checked={compare === c} onChange={() => setCompare(c)} /> {c}
-              </label>
-            ))}
-          </EcCond>
-          <EcCond label="기타">
-            <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]"><input type="checkbox" checked={horizontal} onChange={(e) => setHorizontal(e.target.checked)} /> 가로보기</label>
-            <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]"><input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시</label>
-            <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]"><input type="checkbox" checked={withCode} onChange={(e) => setWithCode(e.target.checked)} /> 코드포함</label>
-          </EcCond>
-        </>)}
+        {mode === '집계' && (
+          <AggregateConditions st={agg} groups={AGG_GROUPS} targetList={TARGETS} label={['집계조건1', '집계조건2', '집계조건3', '집계조건4']}
+            targetLabel="집계대상" compareLabel="비교기간" etcLabel="기타" />
+        )}
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
           <span className="my-0 mx-[4px]">~</span>

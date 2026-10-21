@@ -6,15 +6,22 @@
  * (전월 = 시작 · 끝을 한 달씩 앞으로). 비율은 전체 합 대비 정수 %(0 이면 빈칸). 코드포함은 이름 앞에 코드 칸.
  */
 export const DATE_KEYS = ['일별', '주차별', '월별', '분기별', '반기별', '연별'] as const
-export const AGG_GROUPS: { group: string; items: string[] }[] = [
+export interface AggGroupDef { group: string; items: string[] }
+export const AGG_GROUPS: AggGroupDef[] = [
   { group: '기준일자', items: [...DATE_KEYS] },
   { group: '회계 I', items: ['부서', '관리번호', '부가세유형'] },
   { group: '거래처', items: ['거래처', '거래처그룹1', '거래처그룹2'] },
   { group: '프로젝트', items: ['프로젝트', '프로젝트그룹1', '프로젝트그룹2'] },
 ]
+/** 회계거래현황의 집계대상(2026-10-22 실측). 지출결의서이체리스트는 금액 · 외화금액 · 수수료 셋이다. */
 export const TARGETS = ['공급가액', '부가세', '수수료', '원천징수', '합계(수수료포함)', '외화금액', '외화차손익합계', '합계'] as const
-export type Target = (typeof TARGETS)[number]
+export const TRANSFER_TARGETS = ['금액', '외화금액', '수수료'] as const
+export type Target = string
 export const isDateKey = (k: string) => (DATE_KEYS as readonly string[]).includes(k)
+/** 지출결의서이체리스트의 집계조건(2026-10-22 실측) — 일별 … 연별 · 계정 · 부서 · 거래처(+그룹) · 프로젝트(+그룹), 소제목 없이 한 줄씩. */
+export const TRANSFER_GROUPS: AggGroupDef[] = [
+  { group: '', items: [...DATE_KEYS, '계정', '부서', '거래처', '거래처그룹1', '거래처그룹2', '프로젝트', '프로젝트그룹1', '프로젝트그룹2'] },
+]
 export const COMPARES = ['사용안함', '전년동일기간', '전월동일기간', '전주동일기간', '전일동일기간'] as const
 export type Compare = (typeof COMPARES)[number]
 
@@ -24,9 +31,9 @@ export interface AggEntry {
   partner: string; partnerCode: string
   dept: string; deptCode: string
   project: string; projectCode: string
-  supply: number; vat: number; fee: number; withholding: number; foreign: number
-  /** 전표 금액(차변 합) */
-  total: number
+  account?: string; accountCode?: string
+  /** 집계대상 이름 → 값 */
+  vals: Record<string, number>
 }
 
 export interface AggCond { key: string; sort: string; desc: boolean }
@@ -56,29 +63,17 @@ export function dateLabel(key: string, d: string): string {
 function groupOf(key: string, e: AggEntry): { label: string; code: string } {
   if (isDateKey(key)) { const l = dateLabel(key, e.date); return { label: l, code: l } }
   if (key === '부서') return { label: e.dept, code: e.deptCode }
+  if (key === '계정') return { label: e.account ?? '', code: e.accountCode ?? '' }
   if (key === '프로젝트') return { label: e.project, code: e.projectCode }
   if (key === '거래처') return { label: e.partner, code: e.partnerCode }
   return { label: '', code: '' } // 관리번호 · 부가세유형 · 그룹 — 전표에 이 값이 아직 없다
-}
-
-export function targetValue(e: AggEntry, t: Target): number {
-  switch (t) {
-    case '공급가액': return e.supply
-    case '부가세': return e.vat
-    case '수수료': return e.fee
-    case '원천징수': return e.withholding
-    case '합계(수수료포함)': return e.total + e.fee
-    case '외화금액': return e.foreign
-    case '외화차손익합계': return 0
-    default: return e.total
-  }
 }
 
 /** 기간별 전표 목록 → 묶음 나무. periods[0] 이 조회 기간, 그 뒤는 비교기간. */
 export function buildTree(periods: AggEntry[][], conds: AggCond[], targets: Target[]): AggNode {
   const root: AggNode = { key: '', label: '', code: '', sums: periods.map(() => ({})), children: [] }
   const add = (n: AggNode, p: number, e: AggEntry) => {
-    for (const t of targets) n.sums[p][t] = (n.sums[p][t] ?? 0) + targetValue(e, t)
+    for (const t of targets) n.sums[p][t] = (n.sums[p][t] ?? 0) + (e.vals[t] ?? 0)
   }
   periods.forEach((es, p) => {
     for (const e of es) {
