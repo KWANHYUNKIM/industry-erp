@@ -80,8 +80,7 @@ public class FixedAssetService {
         return rows.stream().map(DepreciationResponse::from).toList();
     }
 
-    @Transactional
-    public AssetResponse create(CreateAssetRequest req, String username) {
+    private void validate(CreateAssetRequest req) {
         BigDecimal salvage = req.salvageValue() != null ? req.salvageValue() : BigDecimal.ZERO;
         if (salvage.compareTo(req.acquisitionCost()) >= 0) {
             throw ApiException.badRequest("잔존가액은 취득가액보다 작아야 합니다.");
@@ -90,6 +89,12 @@ public class FixedAssetService {
                 && (req.declineRate() == null || req.declineRate().signum() <= 0)) {
             throw ApiException.badRequest("정률법은 연 상각률(%)이 필요합니다.");
         }
+    }
+
+    @Transactional
+    public AssetResponse create(CreateAssetRequest req, String username) {
+        validate(req);
+        BigDecimal salvage = req.salvageValue() != null ? req.salvageValue() : BigDecimal.ZERO;
 
         FixedAsset asset = FixedAsset.builder()
                 .assetNo(docNoGenerator.next("FA-", "fixed_assets", "asset_no", "acquisition_date", req.acquisitionDate()))
@@ -106,7 +111,119 @@ public class FixedAssetService {
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
-        return AssetResponse.from(assetRepository.save(asset));
+        applyAccounts(asset, req);
+        FixedAsset saved = assetRepository.save(asset);
+        journalService.createFromAcquisition(saved);      // 원본 고정자산증가 전표 — 차) 자산 · 부가세 / 대) 출금
+        return AssetResponse.from(saved);
+    }
+
+    /**
+     * 고치기. 감가상각이 한 번이라도 잡혔으면 이름 · 적요 · 출금계정 · 부가세만 바뀐다 — 취득가 · 계정을 바꾸면 이미 만든
+     * 상각 분개와 누계액이 어긋난다(원본은 상각을 지운 뒤 고친다). 처분된 자산은 처분을 취소한 뒤 고친다.
+     */
+    @Transactional
+    public AssetResponse update(Long id, FixedAssetDtos.UpdateAssetRequest upd, String username) {
+        FixedAsset asset = find(id);
+        if (asset.getStatus() == AssetStatus.DISPOSED) {
+            throw ApiException.conflict("처분된 자산은 고칠 수 없습니다 — 처분을 취소한 뒤 고치세요: " + asset.getAssetNo());
+        }
+        CreateAssetRequest req = upd.asCreate();
+        if (depreciationRepository.existsByAssetId(id)) {
+            boolean same = asset.getAcquisitionCost().compareTo(req.acquisitionCost()) == 0
+                    && asset.getAcquisitionDate().equals(req.acquisitionDate())
+                    && asset.getAssetAccount().getId().equals(req.assetAccountId())
+                    && asset.getUsefulLifeYears().equals(req.usefulLifeYears())
+                    && asset.getMethod() == req.method()
+                    && asset.getSalvageValue().compareTo(req.salvageValue() != null ? req.salvageValue() : BigDecimal.ZERO) == 0
+                    && java.util.Objects.equals(idOf(asset.getAccumAccount()), req.accumAccountId())
+                    && java.util.Objects.equals(idOf(asset.getExpenseAccount()), req.expenseAccountId());
+            if (!same) {
+                throw ApiException.badRequest("감가상각이 잡힌 자산은 취득 내용 · 계정을 고칠 수 없습니다 — 상각을 마지막 달부터 취소한 뒤 고치세요: "
+                        + asset.getAssetNo());
+            }
+        }
+        validate(req);
+        asset.setName(req.name());
+        asset.setAssetAccount(assetAccount(req.assetAccountId()));
+        asset.setAcquisitionDate(req.acquisitionDate());
+        asset.setAcquisitionCost(req.acquisitionCost());
+        asset.setSalvageValue(req.salvageValue() != null ? req.salvageValue() : BigDecimal.ZERO);
+        asset.setUsefulLifeYears(req.usefulLifeYears());
+        asset.setMethod(req.method());
+        asset.setDeclineRate(req.method() == DepreciationMethod.DECLINING_BALANCE ? req.declineRate() : null);
+        asset.setRemark(req.remark());
+        applyAccounts(asset, req);
+        journalService.recreateFromAcquisition(asset);
+        return AssetResponse.from(asset);
+    }
+
+    /** 삭제 — 원본 고정자산코드 [삭제]. 상각 · 처분이 남아 있으면 먼저 취소해야 한다. 취득 분개도 같이 지운다. */
+    @Transactional
+    public void delete(Long id) {
+        FixedAsset asset = find(id);
+        if (asset.getStatus() == AssetStatus.DISPOSED) {
+            throw ApiException.conflict("처분된 자산은 삭제할 수 없습니다 — 처분을 먼저 취소하세요: " + asset.getAssetNo());
+        }
+        if (depreciationRepository.existsByAssetId(id)) {
+            throw ApiException.conflict("감가상각 내역이 있는 자산은 삭제할 수 없습니다 — 상각을 먼저 취소하세요: " + asset.getAssetNo());
+        }
+        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.ASSET_ACQUISITION, id);
+        assetRepository.delete(asset);
+    }
+
+    /**
+     * 감가상각 취소 — 원본 감가상각계산 [삭제](그 기간 묶음을 통째로). 그 달의 상각 행과 분개를 지우고 누계액을 되돌린다.
+     * 그 뒤 달 상각이 있는 자산이 하나라도 있으면 막는다(마지막 달부터). 처분된 자산도 막는다(처분 취소가 먼저).
+     */
+    @Transactional
+    public DepreciationRunResponse cancelDepreciation(String period) {
+        YearMonth ym = parsePeriod(period);
+        List<Depreciation> rows = depreciationRepository.findByPeriodForCancel(ym.toString());
+        if (rows.isEmpty()) {
+            throw ApiException.badRequest("생성된 감가상각내역이 없습니다. (" + ym + ")");
+        }
+        for (Depreciation d : rows) {
+            FixedAsset a = d.getAsset();
+            if (a.getStatus() == AssetStatus.DISPOSED) {
+                throw ApiException.conflict(a.getAssetNo() + " " + a.getName() + " 은(는) 처분된 자산입니다 — 처분을 먼저 취소하세요.");
+            }
+            List<String> later = depreciationRepository.findPeriodsByAssetId(a.getId()).stream()
+                    .filter((p) -> p.compareTo(ym.toString()) > 0).sorted().toList();
+            if (!later.isEmpty()) {
+                throw ApiException.badRequest(a.getAssetNo() + " " + a.getName() + " 은(는) 뒤 달 " + String.join(", ", later)
+                        + " 상각이 있습니다 — 마지막 달부터 취소하세요.");
+            }
+        }
+        BigDecimal total = BigDecimal.ZERO;
+        List<DepreciationResponse> done = new ArrayList<>();
+        for (Depreciation d : rows) {
+            FixedAsset a = d.getAsset();
+            a.setAccumulatedDepreciation(a.getAccumulatedDepreciation().subtract(d.getAmount()));
+            done.add(DepreciationResponse.from(d));
+            total = total.add(d.getAmount());
+            JournalEntry entry = d.getJournalEntry();
+            depreciationRepository.delete(d);          // 상각 행이 분개를 가리키므로 먼저 지운다
+            depreciationRepository.flush();
+            journalService.deleteEntry(entry);
+        }
+        return new DepreciationRunResponse(ym.toString(), done.size(), total, 0, done, List.of());
+    }
+
+    /** 처분 취소 — 원본 고정자산감소 전표 [삭제]. 처분 분개를 지우고 사용중으로 되돌린다. */
+    @Transactional
+    public AssetResponse cancelDisposal(Long id) {
+        FixedAsset asset = find(id);
+        if (asset.getStatus() != AssetStatus.DISPOSED) {
+            throw ApiException.badRequest("처분되지 않은 자산입니다: " + asset.getAssetNo());
+        }
+        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.DISPOSAL, id);
+        asset.setStatus(AssetStatus.IN_USE);
+        asset.setDisposalDate(null);
+        asset.setDisposalAmount(null);
+        asset.setDisposalType(null);
+        asset.setDisposalVat(null);
+        asset.setReceiptAccount(null);
+        return AssetResponse.from(asset);
     }
 
     /**
@@ -188,14 +305,49 @@ public class FixedAssetService {
                     YearMonth.parse(after.get(after.size() - 1)).atEndOfMonth()));
         }
 
+        DisposalType type = req.disposalType() != null ? req.disposalType() : DisposalType.SALE;
         asset.setStatus(AssetStatus.DISPOSED);
         asset.setDisposalDate(req.disposalDate());
-        asset.setDisposalAmount(req.disposalAmount());
+        asset.setDisposalType(type);
+        /* 폐기는 매각액 · 부가세가 없다(원본 ○폐기). */
+        asset.setDisposalAmount(type == DisposalType.SCRAP ? BigDecimal.ZERO : req.disposalAmount());
+        asset.setDisposalVat(type == DisposalType.SCRAP || req.disposalVat() == null ? BigDecimal.ZERO : req.disposalVat());
+        asset.setReceiptAccount(req.receiptAccountId() != null ? anyAccount(req.receiptAccountId()) : null);
         journalService.createFromDisposal(asset);
         return AssetResponse.from(asset);
     }
 
     // ── 내부 ──────────────────────────────────────────────────────────
+
+    private FixedAsset find(Long id) {
+        return assetRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("고정자산을 찾을 수 없습니다. id=" + id));
+    }
+
+    private static Long idOf(Account a) {
+        return a != null ? a.getId() : null;
+    }
+
+    /** 자산마다 고르는 계정 셋(원본 E010610 감가상각충당금 · 감가상각비, E010611 출금계좌)과 취득 부가세. */
+    private void applyAccounts(FixedAsset asset, CreateAssetRequest req) {
+        Account accum = req.accumAccountId() != null ? anyAccount(req.accumAccountId()) : null;
+        if (accum != null && !accum.getName().contains("누계") && !accum.getName().contains("충당")) {
+            throw ApiException.badRequest("감가상각충당금계정은 감가상각누계액 계정이어야 합니다: " + accum.getCode() + " " + accum.getName());
+        }
+        Account expense = req.expenseAccountId() != null ? anyAccount(req.expenseAccountId()) : null;
+        if (expense != null && expense.getDivision() != AccountDivision.EXPENSE) {
+            throw ApiException.badRequest("감가상각비계정은 비용 계정이어야 합니다: " + expense.getCode() + " " + expense.getName());
+        }
+        asset.setAccumAccount(accum);
+        asset.setExpenseAccount(expense);
+        asset.setPaymentAccount(req.paymentAccountId() != null ? anyAccount(req.paymentAccountId()) : null);
+        asset.setAcquisitionVat(req.acquisitionVat() != null ? req.acquisitionVat() : BigDecimal.ZERO);
+    }
+
+    private Account anyAccount(Long id) {
+        return accountRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + id));
+    }
 
     /** 취득한 달부터 이번 달 앞까지 상각 기록이 없는 달들. 열두 달을 넘으면 앞뒤만. */
     private String missingMonths(FixedAsset asset, YearMonth ym) {

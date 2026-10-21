@@ -10,6 +10,8 @@ public enum JournalSourceType {
     NOTE("어음"),
     DEPRECIATION("감가상각"),
     DISPOSAL("자산처분"),
+    /** 고정자산증가(취득) — 원본 E010611 증가 전표. 차) 자산 · 부가세대급금 / 대) 출금계정(V423). */
+    ASSET_ACQUISITION("자산취득"),
     VOUCHER("간편전표"),
     NONCASH("비현금거래"),
     CHECK("수표"),

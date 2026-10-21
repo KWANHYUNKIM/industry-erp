@@ -10,6 +10,12 @@ public interface DepreciationRepository extends JpaRepository<Depreciation, Long
 
     boolean existsByAssetIdAndPeriod(Long assetId, String period);
 
+    boolean existsByAssetId(Long assetId);
+
+    /** 상각 취소 — 그 달의 행(분개 · 자산까지). */
+    @Query("select d from Depreciation d join fetch d.asset left join fetch d.journalEntry where d.period = :period order by d.id")
+    List<Depreciation> findByPeriodForCancel(@Param("period") String period);
+
     /** 그 자산을 상각한 달들(yyyy-MM). 빠진 달을 찾는 데 쓴다. */
     @Query("select d.period from Depreciation d where d.asset.id = :assetId")
     List<String> findPeriodsByAssetId(@Param("assetId") Long assetId);

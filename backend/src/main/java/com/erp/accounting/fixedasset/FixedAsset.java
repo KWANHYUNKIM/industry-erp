@@ -37,6 +37,26 @@ public class FixedAsset extends BaseTimeEntity {
     @JoinColumn(name = "asset_account_id", nullable = false)
     private Account assetAccount;
 
+    /** 감가상각충당금(누계액) 계정 — 원본 자산마다 고른다. 비면 203 감가상각누계액. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "accum_account_id")
+    private Account accumAccount;
+
+    /** 감가상각비 계정 — 비면 818 감가상각비. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "expense_account_id")
+    private Account expenseAccount;
+
+    /** 취득(증가) 분개의 대변 — 원본 [출금계좌](기본 외상매입금). 예전 자산은 비어 있고 취득 분개가 없다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_account_id")
+    private Account paymentAccount;
+
+    /** 취득 부가세(부가세대급금). */
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal acquisitionVat = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private LocalDate acquisitionDate;
 
@@ -70,6 +90,19 @@ public class FixedAsset extends BaseTimeEntity {
 
     @Column(precision = 18, scale = 2)
     private BigDecimal disposalAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private DisposalType disposalType;
+
+    /** 매각 부가세(부가세예수금). */
+    @Column(precision = 18, scale = 2)
+    private BigDecimal disposalVat;
+
+    /** 감소 분개의 입금 계정 — 원본 [입금계좌](기본 외상매출금). 비면 101 현금. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receipt_account_id")
+    private Account receiptAccount;
 
     @Column(length = 200)
     private String remark;

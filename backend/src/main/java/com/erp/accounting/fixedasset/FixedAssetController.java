@@ -64,6 +64,29 @@ public class FixedAssetController {
         return service.findDepreciations(period, from, to);
     }
 
+    @PutMapping("/{id}")
+    public AssetResponse update(@PathVariable Long id, @Valid @RequestBody FixedAssetDtos.UpdateAssetRequest req,
+                                @AuthenticationPrincipal UserPrincipal principal) {
+        return service.update(id, req, principal.getUsername());
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        service.delete(id);
+    }
+
+    /** 귀속월(yyyy-MM) 감가상각 취소 — 상각 행 · 분개를 지우고 누계액을 되돌린다(마지막 달부터). */
+    @DeleteMapping("/depreciations")
+    public DepreciationRunResponse cancelDepreciation(@RequestParam String period) {
+        return service.cancelDepreciation(period);
+    }
+
+    /** 처분 취소 — 처분 분개를 지우고 사용중으로. */
+    @DeleteMapping("/{id}/dispose")
+    public AssetResponse cancelDisposal(@PathVariable Long id) {
+        return service.cancelDisposal(id);
+    }
+
     @PostMapping("/{id}/dispose")
     public AssetResponse dispose(@PathVariable Long id, @Valid @RequestBody DisposeRequest req,
                                  @AuthenticationPrincipal UserPrincipal principal) {

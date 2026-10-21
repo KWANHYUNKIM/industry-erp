@@ -665,9 +665,38 @@ public class JournalService {
         }
         JournalEntry e = newEntry(JournalSourceType.DEPRECIATION, d.getId(), d.getDepreciationDate(),
                 desc, null, d.getCreatedBy());
-        addDebit(e, "818", d.getAmount(), "감가상각비");
-        addCredit(e, "203", d.getAmount(), "감가상각누계액");
+        /* 자산마다 고른 계정(원본 E010610 감가상각비계정 · 감가상각충당금계정). 비었으면 예전처럼 818 / 203. */
+        if (asset.getExpenseAccount() != null) addDebitAccount(e, asset.getExpenseAccount(), d.getAmount(), "감가상각비");
+        else addDebit(e, "818", d.getAmount(), "감가상각비");
+        if (asset.getAccumAccount() != null) addCreditAccount(e, asset.getAccumAccount(), d.getAmount(), "감가상각누계액");
+        else addCredit(e, "203", d.getAmount(), "감가상각누계액");
         return save(e);
+    }
+
+    /**
+     * 고정자산증가(취득) → 분개. 원본 E010611: 차) 자산계정 공급가액 · 부가세대급금 부가세 / 대) 출금계좌 합계.
+     * 출금계정이 없는 예전 자산은 분개하지 않는다(null).
+     */
+    @Transactional
+    public JournalEntry createFromAcquisition(com.erp.accounting.fixedasset.FixedAsset asset) {
+        if (asset.getPaymentAccount() == null) return null;
+        BigDecimal cost = asset.getAcquisitionCost();
+        BigDecimal vat = asset.getAcquisitionVat() != null ? asset.getAcquisitionVat() : BigDecimal.ZERO;
+        String desc = "자산증가 " + asset.getAssetNo() + " " + asset.getName();
+        JournalEntry e = newEntry(JournalSourceType.ASSET_ACQUISITION, asset.getId(), asset.getAcquisitionDate(),
+                desc, null, asset.getCreatedBy());
+        addDebitAccount(e, asset.getAssetAccount(), cost, "자산증가");
+        if (isPositive(vat)) addDebit(e, "135", vat, "부가세대급금");
+        addCreditAccount(e, asset.getPaymentAccount(), cost.add(vat), "자산증가 대금");
+        return save(e);
+    }
+
+    /** 자산을 고친 뒤 취득 분개를 다시 만든다. 지운 것을 먼저 내보내야 (출처, id) 유니크에 안 걸린다. */
+    @Transactional
+    public JournalEntry recreateFromAcquisition(com.erp.accounting.fixedasset.FixedAsset asset) {
+        deleteBySource(JournalSourceType.ASSET_ACQUISITION, asset.getId());
+        entryRepository.flush();
+        return createFromAcquisition(asset);
     }
 
     /**
@@ -685,16 +714,23 @@ public class JournalService {
 
         JournalEntry e = newEntry(JournalSourceType.DISPOSAL, asset.getId(), asset.getDisposalDate(),
                 desc, null, asset.getCreatedBy());
+        /* 원본 E010612: 매각액 1,000,000 → 부가세 100,000 이 입금계좌 쪽에 더해지고 부가세예수금으로 선다. */
+        BigDecimal vat = asset.getDisposalVat() != null ? asset.getDisposalVat() : BigDecimal.ZERO;
         if (isPositive(accumulated)) {
-            addDebit(e, "203", accumulated, "감가상각누계액 제거");
+            if (asset.getAccumAccount() != null) addDebitAccount(e, asset.getAccumAccount(), accumulated, "감가상각누계액 제거");
+            else addDebit(e, "203", accumulated, "감가상각누계액 제거");
         }
-        if (isPositive(proceeds)) {
-            addDebit(e, "101", proceeds, "처분대금");
+        if (isPositive(proceeds.add(vat))) {
+            if (asset.getReceiptAccount() != null) addDebitAccount(e, asset.getReceiptAccount(), proceeds.add(vat), "처분대금");
+            else addDebit(e, "101", proceeds.add(vat), "처분대금");
         }
         if (gain.signum() < 0) {
             addDebit(e, "970", gain.negate(), "유형자산처분손실");
         }
         addCreditAccount(e, asset.getAssetAccount(), cost, "자산 제거");
+        if (isPositive(vat)) {
+            addCredit(e, "255", vat, "부가세예수금");
+        }
         if (gain.signum() > 0) {
             addCredit(e, "914", gain, "유형자산처분이익");
         }
