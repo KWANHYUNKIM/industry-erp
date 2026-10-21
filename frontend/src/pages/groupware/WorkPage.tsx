@@ -9,13 +9,13 @@ import { fetchLabels, type BoardLabel } from '../../features/board/labels'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost, WorkPostStatus } from '../../types/api'
-import EcPeriodPicks, { ymd, BOARD_PICKS } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { ymd, BOARD_PICKS, PROJECT_PICKS } from '../../components/EcPeriodPicks'
 import UserPickModal from '../../features/schedule/components/UserPickModal'
 import { useShortcut } from '../../utils/useShortcut'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import EcFileDrop from '../../components/EcFileDrop'
 import { dateText } from '../../utils/dateText'
-import { requireSelection, ecConfirm } from '../../components/EcDialog'
+import { requireSelection, ecConfirm, ecAlert } from '../../components/EcDialog'
 import EcKanban, { type KanbanCard, type KanbanTone } from '../../components/EcKanban'
 import GridCode from '../../components/GridCode'
 import { MenuButton } from '../../components/EcSlipShell'
@@ -24,6 +24,7 @@ import EcRichBody from '../../components/EcRichBody'
 import EcDateTimeSelect from '../../components/EcDateTimeSelect'
 import CodePickerField from '../../components/CodePickerField'
 import { PostLinkField, SlipLinkField } from '../../features/workpost/components/LinkFields'
+import { slipHistoryTime } from '../../features/sliphistory/SlipHistoryModal'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 
 const today = () => ymd(new Date())
@@ -172,6 +173,8 @@ type BoardCfg = {
    * tones = 열마다 카드 색, closed = 제목이 빨간 끝난 열. 알약 · 기간 글자가 없다.
    */
   kanban?: { order: string[]; tones: Record<string, KanbanTone>; closed: string[] }
+  /** 조건 판 맨 위 [메뉴] ○조회 ○현황 ○집계(통합게시판 E200076 실측). */
+  menuModes?: boolean
   /** 새 글 본문에 미리 채우는 양식. */
   template?: string
   /** 카드 아랫줄에 보일 입력항목 이름(칸반). */
@@ -183,7 +186,7 @@ const SAMPLE = { wide: false, period: 'lastYear', contentOptional: true } as con
 const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   WORK: { wide: false, stages: null, labels: true, period: 'yearBack' },
   NOTICE: { wide: false, stages: ['기본'], labels: true, period: 'yearBack' },
-  SHARED: { wide: true, stages: ['Default'], labels: false, period: 'lastYear' },
+  SHARED: { wide: true, stages: ['Default'], labels: false, period: 'lastYear', menuModes: true },
   /*
    * 팀별회의록 게시판(E200068, 2026-10-13 실측): 알약 [전체][경영지원팀][구매팀][생산팀][영업팀][항목을 자유롭게 추가 할 수 있습니다.],
    * 격자 머리 '부서구분', 입력 창 [부서구분] 의 처음 값이 '항목을 자유롭게 추가 할 수 있습니다.' 다. 기본 기간 전년.
@@ -385,12 +388,23 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   /** [검색(F8)] 을 눌러 목록에 건 조건(게시일 빼고). */
   const [applied, setApplied] = useState<CondExtra>(EMPTY_COND)
   useEffect(() => {
+    setMenu('조회'); setRepRan(false); setAgg(['', ''])
     const p = defaultPeriod(BOARD_CFG[board].period)
     setPeriod(p)
     setCond({ ...p, ...EMPTY_COND })
     setApplied(EMPTY_COND)
   }, [board])
+  /** 조건 판 [메뉴] — 조회(목록) · 현황 · 집계. 현황 · 집계는 [검색(F8)] 뒤에 표만 그린다(2026-10-22 실측). */
+  const [menu, setMenu] = useState<'조회' | '현황' | '집계'>('조회')
+  const [repRan, setRepRan] = useState(false)
+  /** 집계조건1 · 2(항목추가 창에서 고른 것) · 비교기간. */
+  const [agg, setAgg] = useState<[string, string]>(['', ''])
+  const [aggPick, setAggPick] = useState<0 | 1 | null>(null)
+  const [compare, setCompare] = useState('사용안함')
+  const rep = !!cfg.menuModes && menu !== '조회'
   function applyCond() {
+    if (rep && menu === '집계' && !agg[0] && !agg[1]) { void ecAlert('집계조건은 1개 이상 선택하여야 합니다.'); return }
+    setRepRan(rep)
     setPeriod({ from: cond.from, to: cond.to })
     const { from: _f, to: _t, ...extra } = cond
     setApplied({ ...extra, title: extra.title.trim(), content: extra.content.trim(), user: extra.user.trim(), no: extra.no.trim() })
@@ -477,7 +491,19 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     setShowForm(false)
   }
 
+  /** 원본 View 의 [복사](2026-10-22 공지사항 실측): 같은 글을 새 입력 창에 그대로 채운다(제목 · 본문 · 라벨 · 완료일시 …). 하단 [저장(F8)▲][리스트][View][닫기]. */
+  const [copyId, setCopyId] = useState<number | null>(null)
+  /** View 의 [H] 이력 창 · [최종이력] 창에 띄운 글. */
+  const [histFor, setHistFor] = useState<WorkPost | null>(null)
+  const [lastFor, setLastFor] = useState<WorkPost | null>(null)
+  function openCopy(r: WorkPost) {
+    openEdit(r)
+    setEditId(null)
+    setCopyId(r.id)
+    setAttachment(null)
+  }
   function openNew() {
+    setCopyId(null)
     setStatusBlank(false)
     setFormDirty(false)
     setEditId(null)
@@ -490,6 +516,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 
   /** 원본 View 의 [수정] — 같은 입력 창을 '…입력(수정)' 으로 띄운다. */
   function openEdit(r: WorkPost) {
+    setCopyId(null)
     setStatusBlank(false)
     setFormDirty(false)
     setViewing(null)
@@ -943,6 +970,44 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       {condOpen && (
         <div className="ec-cond mb-[8px]">
           <ul className="ec-form border-0">
+            {cfg.menuModes && (
+              <li className="wide">
+                <div className="title">메뉴</div>
+                <div className="form gap-[8px]">
+                  {(['조회', '현황', '집계'] as const).map((m) => (
+                    <label key={m} className="inline-flex items-center gap-[3px]">
+                      <input type="radio" name="work-cond-menu" checked={menu === m} onChange={() => { setMenu(m); setRepRan(false) }} />{m}
+                    </label>
+                  ))}
+                </div>
+              </li>
+            )}
+            {rep && (
+              <>
+                <li className="wide">
+                  <div className="title">구분</div>
+                  <div className="form gap-[6px] flex-wrap">
+                    {menu === '현황' ? (
+                      <select className="ec-input w-[260px]" aria-label="구분" defaultValue="전표별"><option>전표별</option></select>
+                    ) : ([0, 1] as const).map((i) => (
+                      <span key={i} className="inline-flex items-center gap-[4px] w-full">
+                        <span className="ec-pill no-ec">{`집계조건${i + 1}`}</span>
+                        <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" title={`집계조건${i + 1} 검색`} onClick={() => setAggPick(i)}>🔍</button>
+                        <input className="ec-input flex-1" readOnly placeholder="집계 항목선택" value={agg[i]} onClick={() => setAggPick(i)} />
+                      </span>
+                    ))}
+                    <span className="inline-flex items-center gap-[8px] w-full">
+                      <span className="ec-pill no-ec">비교기간</span>
+                      {['사용안함', '전년동일기간', '전월동일기간', '전주동일기간', '전일동일기간'].map((c) => (
+                        <label key={c} className="inline-flex items-center gap-[3px]">
+                          <input type="radio" name="work-cond-compare" checked={compare === c} onChange={() => setCompare(c)} />{c}
+                        </label>
+                      ))}
+                    </span>
+                  </div>
+                </li>
+              </>
+            )}
             <li className="wide">
               <div className="title">게시일</div>
               <div className="form gap-[4px]">
@@ -951,7 +1016,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                 <input type="date" className="ec-input w-[140px]" value={cond.to} onChange={(e) => setCond((c) => ({ ...c, to: e.target.value }))} />
               </div>
             </li>
-            <li className="wide">
+            {!rep && <li className="wide">
               <div className="title">유형</div>
               <div className="form gap-[8px]">
                 {COND_KINDS.map((k) => (
@@ -961,15 +1026,15 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                   </label>
                 ))}
               </div>
-            </li>
-            <li className="wide">
+            </li>}
+            {!rep && <li className="wide">
               <div className="title">완료일</div>
               <div className="form gap-[4px]">
                 <input type="date" className="ec-input w-[140px]" value={cond.doneFrom} onChange={(e) => setCond((c) => ({ ...c, doneFrom: e.target.value }))} />
                 ~
                 <input type="date" className="ec-input w-[140px]" value={cond.doneTo} onChange={(e) => setCond((c) => ({ ...c, doneTo: e.target.value }))} />
               </div>
-            </li>
+            </li>}
             <li className="wide">
               <div className="title">제목</div>
               <div className="form">
@@ -1001,7 +1066,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                        onKeyDown={(e) => { if (e.key === 'Enter') applyCond() }} />
               </div>
             </li>
-            <li className="wide">
+            {!rep && <li className="wide">
               <div className="title">삭제구분</div>
               <div className="form gap-[8px]">
                 {(['전체', '미삭제', '삭제'] as const).map((d) => (
@@ -1011,16 +1076,16 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                   </label>
                 ))}
               </div>
-            </li>
-            <li className="wide">
+            </li>}
+            {!rep && <li className="wide">
               <div className="title">기타</div>
               <div className="form">
                 <label className="inline-flex items-center gap-[3px]">
                   <input type="checkbox" checked={cond.byUpdated} onChange={(e) => setCond((c) => ({ ...c, byUpdated: e.target.checked }))} />수정일자순(정렬)
                 </label>
               </div>
-            </li>
-            <li className="wide">
+            </li>}
+            {!rep && <li className="wide">
               <div className="title">입력경로</div>
               <div className="form gap-[8px]">
                 {COND_PATHS.map((p) => (
@@ -1030,11 +1095,39 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                   </label>
                 ))}
               </div>
-            </li>
+            </li>}
+            {rep && (
+              <>
+                <li className="wide">
+                  <div className="title">진행상태</div>
+                  <div className="form"><input className="ec-input w-full" placeholder="진행상태" /></div>
+                </li>
+                <li className="wide">
+                  <div className="title">사용자지정</div>
+                  <div className="form"><button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy">설정</button></div>
+                </li>
+              </>
+            )}
+            {cfg.menuModes && (
+              <li className="wide">
+                <div className="title">적용양식</div>
+                <div className="form">
+                  <select className="ec-input w-full" aria-label="적용양식" defaultValue="">
+                    <option value="">{menu === '조회' ? '공유정보/업무관리 메뉴에서' : menu === '현황' ? '게시판현황' : '현황_집계'}</option>
+                  </select>
+                </div>
+              </li>
+            )}
+            {rep && (
+              <li className="wide">
+                <div className="title">정렬기준</div>
+                <div className="form"><button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy">설정</button></div>
+              </li>
+            )}
           </ul>
           <div className="flex flex-wrap gap-[4px] mt-[8px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={applyCond}>검색(F8)</button>
-            <EcPeriodPicks labels={BOARD_PICKS} currentFrom={cond.from}
+            <EcPeriodPicks labels={rep ? PROJECT_PICKS : BOARD_PICKS} currentFrom={cond.from}
                            onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
             <button type="button" className="ec-btn" onClick={() => setCond({ ...defaultPeriod(cfg.period), ...EMPTY_COND })}>다시작성</button>
           </div>
@@ -1045,9 +1138,37 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       {info && <p className="ec-alert mb-[8px]" onClick={() => setInfo('')}>{info}</p>}
 
       {/* 원본 목록 오른쪽 위의 조회 기간 */}
-      {!cfg.kanban && <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>}
+      {!cfg.kanban && !(rep && repRan) && <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>}
 
-      <div id="work-list" ref={gridRef} className="flex-1 min-h-0">
+      {/* 현황 · 집계 결과(통합게시판 E200076 실측): 현황 = 일자-No. · 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태, 집계 = 집계기준항목 · 제목 · 작성자명 · 전달자 · 진행상태. 아래 [인쇄 ▲][Excel(화면)]. */}
+      {rep && repRan && (
+        <div className="flex-1 min-h-0">
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                {menu === '현황' ? <><th className="w-[110px] text-center">일자-No.</th><th className="w-[90px] text-center">게시글번호</th></> : <th className="w-[150px] text-center">집계기준항목</th>}
+                <th className="text-center">제목</th><th className="w-[100px] text-center">작성자명</th><th className="w-[110px] text-center">전달자</th><th className="w-[110px] text-center">진행상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {numbered.length === 0 && <tr><td colSpan={menu === '현황' ? 6 : 5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
+              {numbered.map((r) => (
+                <tr key={r.id}>
+                  {menu === '현황' ? <><td className="text-center">{dateText(r.postDate)} -{r.postNo}</td><td className="text-center">{r.postNo}</td></>
+                    : <td>{agg[0] === '진행상태별' ? statusOf(r) : dateText(r.postDate)}</td>}
+                  <td>{r.title}</td><td>{r.writerName ?? r.writer}</td><td>{r.forwardTo ?? ''}</td><td>{statusOf(r)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
+            <button className="ec-btn" onClick={() => window.print()}>인쇄 ▲</button>
+            <button className="ec-btn" onClick={() => setInfo('Excel(화면)은 지원하지 않습니다(파일 내려받기).')}>Excel(화면)</button>
+          </div>
+        </div>
+      )}
+
+      <div id="work-list" ref={gridRef} className={`flex-1 min-h-0${rep && repRan ? ' hidden' : ''}`}>
         {cfg.kanban ? (
           <EcKanban
             columns={cfg.kanban.order.map((st) => ({ key: st, name: st, tone: cfg.kanban!.tones[st], closed: cfg.kanban!.closed.includes(st) }))}
@@ -1131,7 +1252,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         )}
       </div>
 
-      <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
+      <div className={`flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid${rep && repRan ? ' hidden' : ''}`}>
         {/*
           원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·라벨변경·라벨설정·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
           받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회는 아직 없다. 라벨설정은 [라벨] · [라벨변경]의 + (라벨조회 창).
@@ -1407,14 +1528,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           {/* 원본 신규: 저장(F8) · 다시 작성 · 리스트 · 닫기 / 수정: 저장(F8) · 리스트 · View · 닫기 · 삭제 */}
           <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up onMain={() => void submit()}
                       items={[{ label: '저장/신규', onClick: () => void submit('new') }, { label: '저장/내용유지', onClick: () => void submit('keep') }]} />
-          {editId == null && (
+          {editId == null && copyId == null && (
             <button className="ec-btn" onClick={() => { setForm(emptyForm()); setAttachment(null); setError('') }}>다시 작성</button>
           )}
           <button className="ec-btn" onClick={() => { setShowForm(false); setEditId(null) }}>리스트</button>
-          {editId != null && (
+          {(editId != null || copyId != null) && (
             <button className="ec-btn" onClick={() => {
-              const r = rows.find((x) => x.id === editId)
-              setShowForm(false); setEditId(null)
+              const r = rows.find((x) => x.id === (editId ?? copyId))
+              setShowForm(false); setEditId(null); setCopyId(null)
               if (r) setViewing(r)
             }}>View</button>
           )}
@@ -1509,19 +1630,85 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </div>
             )}
             <div className="flex gap-[6px] mt-[10px]">
+              <button className="ec-btn" onClick={() => openCopy(viewing)}>복사</button>
               <button className="ec-btn" onClick={() => openEdit(viewing)}>수정</button>
               <button className="ec-btn" onClick={() => removeOne(viewing.id)}>삭제</button>
               <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
               <button className="ec-btn" onClick={() => printPost(viewing)}>인쇄</button>
+              <button className="ec-btn" onClick={() => setHistFor(viewing)}>H</button>
+              <button className="ec-btn" onClick={() => setLastFor(viewing)}>최종이력</button>
             </div>
           </>
         )}
+      </Modal>
+
+      {/* 원본 View [H] '이력' 창(2026-10-22 공지사항 실측): 머리 '[20260709-14]'(게시일 + 번호) · 거래이력(작업자ID · 작업일시 · 전표상태 · 진행상태 · 행위) · 보안이력 · 발송이력. */}
+      <Modal error={error} open={!!histFor} title="이력" width={960} onClose={() => setHistFor(null)}>
+        {histFor && (() => {
+          const empty = (n: number) => <tr><td colSpan={n} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          const evs: { at: string; act: string }[] = []
+          if (histFor.createdAt) evs.push({ at: histFor.createdAt, act: '신규' })
+          if (histFor.updatedAt && histFor.updatedAt.slice(0, 19) !== (histFor.createdAt ?? '').slice(0, 19)) evs.push({ at: histFor.updatedAt, act: '수정' })
+          return (
+            <>
+              <div className="text-[12px] mb-[6px]">{`[${histFor.postDate.replace(/-/g, '')}-${histFor.postNo}]`}</div>
+              <div className="text-[13px] font-bold mb-[6px]">거래이력</div>
+              <table className="w-full">
+                <thead><tr><th className="w-[61px]" /><th>작업자ID</th><th>작업일시</th><th>전표상태</th><th>진행상태</th><th>행위</th></tr></thead>
+                <tbody>
+                  {evs.length === 0 && empty(6)}
+                  {evs.map((e, i) => (
+                    <tr key={i}>
+                      <td className="text-center">{i + 1}</td><td className="text-center text-ec-navy">{(histFor.writer ?? '').toUpperCase()}</td>
+                      <td className="text-center">{slipHistoryTime(e.at)}</td><td className="text-center">확인</td>
+                      <td className="text-center">{statusOf(histFor)}</td><td className="text-center">{e.act}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {['보안이력', '발송이력'].map((t) => (
+                <div key={t}>
+                  <div className="text-[13px] font-bold mt-[12px] mb-[6px]">{t}</div>
+                  <table className="w-full"><thead><tr><th className="w-[61px]" /><th>작업자ID</th><th>작업일시</th><th>행위</th></tr></thead><tbody>{empty(4)}</tbody></table>
+                </div>
+              ))}
+            </>
+          )
+        })()}
+        <div className="flex gap-[6px] mt-[10px]"><button type="button" className="ec-btn" onClick={() => setHistFor(null)}>닫기</button></div>
+      </Modal>
+
+      {/* 원본 View [최종이력] 창: 한 줄 '2026/07/09 (목) 오후 2:33:11 [작업자]' + [닫기]. */}
+      <Modal error={error} open={!!lastFor} title="최종이력" width={700} onClose={() => setLastFor(null)}>
+        {lastFor && (
+          <div className="text-center text-[12px] py-[4px]">
+            {slipHistoryTime(lastFor.updatedAt ?? lastFor.createdAt ?? `${lastFor.postDate}T00:00:00`)} [{(lastFor.writer ?? '').toUpperCase()}]
+          </div>
+        )}
+        <div className="flex gap-[6px] mt-[10px]"><button type="button" className="ec-btn" onClick={() => setLastFor(null)}>닫기</button></div>
       </Modal>
 
       {/*
         원본 '팀별회의록 게시판검색창'(2026-10-13): 부서구분 알약 [전체][경영지원팀]… — 처음은 [전체], 격자 맨 앞 '적용' 링크,
         게시글번호 · 제목 · 작성자명 · 전달자 · 부서구분 · 첨부 · 조회, 하단 신규(F2) · 리스트 · 닫기. 우리는 기간으로 거르지 않는다.
       */}
+      {/* 집계조건 🔍 '항목추가' 창(2026-10-22 실측): 게시판 › 상단-기본 [일별 주차별 월별 분기별 반기별 연별 진행상태별 전표별] · 품목 · 거래처 · 프로젝트 그룹별. */}
+      <Modal error={error} open={aggPick != null} title="항목추가" width={520} onClose={() => setAggPick(null)}>
+        <ul className="m-0 p-0 list-none text-[12px]">
+          {[['게시판 › 상단-기본', ['일별', '주차별', '월별', '분기별', '반기별', '연별', '진행상태별', '전표별']],
+            ['품목', ['품목그룹1별', '품목그룹2별', '품목그룹3별']], ['거래처', ['거래처그룹1별', '거래처그룹2별']]].map(([g, items]) => (
+            <li key={g as string} className="mb-[6px]">
+              <div className="font-bold mb-[2px]">{g as string}</div>
+              {(items as string[]).map((it) => (
+                <button key={it} type="button" className="no-ec block w-full text-left bg-transparent border-0 py-[3px] pl-[14px] cursor-pointer text-ec-navy"
+                        onClick={() => { const i = aggPick!; setAgg((a) => (i === 0 ? [it, a[1]] : [a[0], it])); setAggPick(null) }}>{it}</button>
+              ))}
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-[6px] mt-[10px]"><button type="button" className="ec-btn" onClick={() => setAggPick(null)}>닫기</button></div>
+      </Modal>
+
       <Modal error={error} open={linkPickFor != null} title="팀별회의록 게시판검색창" width={780} onClose={() => setLinkPickFor(null)}>
         <div className="ec-pills mb-[8px]">
           {['전체', ...(BOARD_CFG.MEETING.stages ?? [])].map((t) => (
