@@ -285,6 +285,38 @@ export default function QuotationPage() {
     navigate(`/sales/orders?fromQuotes=${ids.join(',')}`)
   }
 
+  /*
+   * 하단 [다른전표생성 ▴] › 주문서 › <b>전표라인별</b> — 원본 실측(2026-10-21): '다른전표생성 입력' 창(일자 · 거래처 · 담당자 · 출하창고 · 거래유형 · 통화 ·
+   * 프로젝트 · 납기일자 · 새로운 항목 추가 마다 ◉기본입력 ○직접입력, [저장(F8)] [닫기]) → 저장하면 고른 견적마다 주문서가 한 장씩 바로 생기고
+   * '알림 / 성공 : N건 / 실패 : M건 / [닫기]'. 같은 견적을 1장라인별로 다시 하면 막지 않고 줄이 빈 주문서입력 창이 뜬다.
+   */
+  const [lineWin, setLineWin] = useState(false)
+  const GEN_FIELDS = ['일자', '거래처', '담당자', '출하창고', '거래유형', '통화', '프로젝트', '납기일자', '새로운 항목 추가']
+  async function convertPerSlip() {
+    const todayStr = ymd(new Date())
+    const targets = shown.filter((q) => picked.has(q.id))
+    let ok = 0
+    let fail = 0
+    for (const q of targets) {
+      try {
+        await api.post('/quotations/convert', {
+          quotationIds: [q.id],
+          order: {
+            partnerId: q.partnerId, orderDate: todayStr, dueDate: todayStr,
+            warehouseId: q.warehouseId ?? undefined, projectId: q.projectId ?? undefined,
+            taxable: q.vatAmount > 0,
+            lines: q.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice })),
+          },
+        })
+        ok++
+      } catch { fail++ }
+    }
+    setLineWin(false)
+    setPicked(new Set())
+    load()
+    void ecAlert(`성공 : ${ok}건\n실패 : ${fail}건`)
+  }
+
   /** 하단 [진행상태변경] · [다른전표생성] — 버튼 위에 메뉴를 띄운다. 고른 줄이 없으면 셸이 먼저 알린다. */
   function openMenu(kind: 'status' | 'gen', label: string) {
     const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === label)
@@ -322,7 +354,8 @@ export default function QuotationPage() {
 
   async function removeChecked() {
     const ids = [...picked]
-    if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
+    /* 원본 견적서조회 [선택삭제] 확인(2026-10-21 실측): '전표를 삭제하겠습니까?' 아래 줄 '- 견적서조회' [확인] [취소]. */
+    if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 견적서조회'))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/quotations/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())
@@ -360,16 +393,36 @@ export default function QuotationPage() {
             </div>
           ) : (
             <div className="ec-menu fixed" style={{ left: menuAt.left, bottom: menuAt.bottom }} role="menu" aria-label="다른전표생성">
-              {/* 원본 '주문서 │ 1장라인별 · 전표라인별 · 직접설정' 한 줄. 전표라인별 · 직접설정은 아직 없다(plans/재고1.md 남은 것). */}
+              {/* 원본 '주문서 │ 1장라인별 · 전표라인별 · 직접설정' 한 줄. 직접설정은 아직 없다(plans/재고1.md 남은 것). */}
               <div className="flex items-center gap-[9px] px-[9px] py-[4.5px]">
                 <span>주문서</span>
                 <button className="ec-link" onClick={convertChecked}>1장라인별</button>
+                <button className="ec-link" onClick={() => { setMenuAt(null); setLineWin(true) }}>전표라인별</button>
               </div>
             </div>
           )}
         </>
       )}
 
+      <Modal open={lineWin} title="다른전표생성 입력" width={520} onClose={() => setLineWin(false)}>
+        <table className="w-full">
+          <tbody>
+            {GEN_FIELDS.map((f) => (
+              <tr key={f}>
+                <td className="w-[150px]">{f}</td>
+                <td>
+                  <label className="mr-[12px]"><input type="radio" name={`gen-${f}`} defaultChecked /> 기본입력</label>
+                  <label><input type="radio" name={`gen-${f}`} /> 직접입력</label>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex gap-[6px] mt-[10px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void convertPerSlip()}>저장(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setLineWin(false)}>닫기</button>
+        </div>
+      </Modal>
       <Modal open={generated != null} title="생성한 전표" width={760} onClose={() => setGenerated(null)}>{generated && (
         <div>
           <p className="mb-[6px]">견적서조회 : {dateNo(generated.quote)}</p>
