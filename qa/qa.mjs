@@ -2403,6 +2403,51 @@ async function scenarioNonCash() {
   }, '비용계정')
 }
 
+async function scenarioForeignLedger() {
+  section('■ 외화장부 — 전표 줄 외화 · 외화금액(V456)이 거래처별집계 · 건별로 모인다')
+  const accounts = await must('GET', '/accounts')
+  const ar = accounts.find((a) => a.code === '108')
+  const sales = accounts.find((a) => a.code === '404')
+  const partner = (await must('GET', '/partners'))[0]
+  const D = '2026-04-03'
+  const e = await must('POST', '/journals', {
+    entryDate: D, description: 'QA회계 외화',
+    lines: [
+      { accountId: ar.id, debit: 130000, partnerId: partner.id, currencyCode: 'QFX', foreignAmount: 100, description: 'QA회계 외화' },
+      { accountId: sales.id, credit: 130000, partnerId: partner.id },
+    ],
+  })
+  eq('저장한 줄에 외화 · 외화금액이 남는다', `${e.lines[0].currencyCode} ${Number(e.lines[0].foreignAmount)}`, 'QFX 100')
+  const sum = await must('GET', `/accounting/foreign-ledger?mode=PARTNER&from=${D}&to=${D}&currency=QFX`)
+  const row = sum.rows.find((r) => r.kind === 'LINE' && r.accountCode === '108')
+  eq('거래처별집계 — 외화 증가 100 · 잔액 100 · 원화 130,000', `${Number(row?.foreignDebit)} ${Number(row?.foreignBalance)} ${Number(row?.krwBalance)}`, '100 100 130000')
+  const det = await must('GET', `/accounting/foreign-ledger?mode=DETAIL&from=${D}&to=${D}&currency=QFX`)
+  eq('건별 — 이월 · 줄 · 계 · 합계', det.rows.map((r) => r.kind).join(','), 'CARRY,LINE,TOTAL,SUM')
+  const next = await must('GET', `/accounting/foreign-ledger?mode=DETAIL&from=2026-04-04&to=2026-04-30&currency=QFX`)
+  eq('다음 기간은 이월 100 으로 시작', Number(next.rows.find((r) => r.kind === 'CARRY')?.foreignBalance), 100)
+  await must('DELETE', `/journals/${e.id}`)
+  eq('지우면 빈 판', (await must('GET', `/accounting/foreign-ledger?mode=PARTNER&from=${D}&to=${D}&currency=QFX`)).rows.length, 0)
+}
+
+async function scenarioAccountRemarks() {
+  section('■ 계정등록 — 적요리스트 · 적요등록 · 표시순서 · 표시방법(V457)')
+  const acc = (await must('GET', '/accounts')).find((a) => a.code === '811') ?? (await must('GET', '/accounts'))[0]
+  const base = `/accounts/${acc.id}/remarks`
+  const before = (await must('GET', base)).length
+  const { code } = await must('GET', `/accounts/${acc.id}/remarks/next-code`)
+  await rejects('빈 적요명은 거부', 'POST', `/accounts/${acc.id}/remarks`, { code, name: '' }, '적요명을 입력합니다.')
+  const r = await must('POST', `/accounts/${acc.id}/remarks`, { code, name: 'QA회계적요' })
+  eq('다음 번호로 저장된다', r.code, code)
+  const u = await must('PUT', `/accounts/${acc.id}/remarks/${r.id}`, { name: 'QA회계적요2' })
+  eq('적요명 수정', u.name, 'QA회계적요2')
+  await must('DELETE', `/accounts/${acc.id}/remarks/${r.id}`)
+  eq('삭제 뒤 목록 수', (await must('GET', base)).length, before)
+  const p0 = acc.indentOrder
+  const p1 = await must('PATCH', `/accounts/${acc.id}`, { indentOrder: 2, showMethod1: true, displayOrder: 81105 })
+  eq('들여쓰기순서 · 표시방법1 · 표시순서 저장', `${p1.indentOrder} ${p1.showMethod1} ${p1.displayOrder}`, '2 true 81105')
+  await must('PATCH', `/accounts/${acc.id}`, { indentOrder: p0 ?? 0, showMethod1: false, displayOrder: acc.displayOrder ?? 8110 })
+}
+
 async function scenarioBudget() {
   section('■ 시나리오 15. 예산관리 · 자금계획 (계획 대비 실적)')
 
@@ -10879,6 +10924,8 @@ async function main() {
   await scenarioFastVoucher()
   await scenarioNonCash()
   await scenarioBudget()
+  await scenarioForeignLedger()
+  await scenarioAccountRemarks()
   await scenarioMail()
   await scenarioIncome()
   await scenarioExport(fixtures)

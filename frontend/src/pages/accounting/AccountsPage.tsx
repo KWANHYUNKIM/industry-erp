@@ -5,6 +5,9 @@ import Modal from '../../components/Modal'
 import NumCheck from '../../components/NumCheck'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ecAlert, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
+import AccountRemarkModal from '../../features/accountmaster/AccountRemarkModal'
+import AccountBulkChangeModal from '../../features/accountmaster/AccountBulkChangeModal'
+import AccountOrderModal from '../../features/accountmaster/AccountOrderModal'
 
 type Division = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
 type DebitCredit = 'DEBIT' | 'CREDIT'
@@ -45,7 +48,16 @@ interface Account {
   searchKeyword: string | null
   remark1: string | null
   remark2: string | null
+  /** [표시순서] · 표시방법 탭(V457) */
+  displayOrder: number | null
+  indentOrder: number
+  showMethod1: boolean
+  showMethod2: boolean
 }
+
+/** 신규 · 수정 창 탭(원본 '계정등록' 784 — 기본 · 코드정보 · 표시방법). 기본은 칸 전부, 코드정보는 평가구분 위까지, 표시방법은 평가구분부터. */
+const FORM_TABS = ['기본', '코드정보', '표시방법'] as const
+type FormTab = typeof FORM_TABS[number]
 
 interface Form {
   id: number | null
@@ -62,10 +74,14 @@ interface Form {
   relatedWork: RelatedWork
   remark1: string
   remark2: string
+  indentOrder: string
+  showMethod1: boolean
+  showMethod2: boolean
 }
 const BLANK: Form = {
   id: null, code: '', name: '', searchKeyword: '', debitCredit: 'DEBIT', groupAccount: false, kind: '자산', cashFlowKind: 'INCOME',
   parentId: '', partnerAggregate: false, evalKind: 'NONE', relatedWork: 'NONE', remark1: '', remark2: '',
+  indentOrder: '0', showMethod1: false, showMethod2: false,
 }
 
 function divisionOf(kind: Kind, dc: DebitCredit): Division {
@@ -96,6 +112,10 @@ export default function AccountsPage() {
   const [formError, setFormError] = useState('')
   const [invalid, setInvalid] = useState(false)
   const [f, setF] = useState<Form>(BLANK)
+  const [formTab, setFormTab] = useState<FormTab>('기본')
+  const [remarkOf, setRemarkOf] = useState<Account | null>(null)
+  const [bulk, setBulk] = useState<Account[] | null>(null)
+  const [orderOpen, setOrderOpen] = useState(false)
 
   function load() {
     api.get<Account[]>('/accounts').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
@@ -107,14 +127,16 @@ export default function AccountsPage() {
     const nums = rows.map((r) => Number(r.code)).filter((n) => Number.isFinite(n))
     return String((nums.length ? Math.max(...nums) : 0) + 1)
   }
-  function openNew() { setF({ ...BLANK, code: nextCode() }); setFormError(''); setInvalid(false); setOpen(true) }
+  function openNew() { setF({ ...BLANK, code: nextCode() }); setFormTab('기본'); setFormError(''); setInvalid(false); setOpen(true) }
   function openEdit(a: Account) {
     setF({
       id: a.id, code: a.code, name: a.name, searchKeyword: a.searchKeyword ?? '', debitCredit: a.debitCredit, groupAccount: a.groupAccount,
       kind: a.kindName, cashFlowKind: a.cashFlowKind, parentId: a.parentId ? String(a.parentId) : '',
       partnerAggregate: a.partnerAggregate, evalKind: a.evalKind, relatedWork: a.relatedWork,
       remark1: a.remark1 ?? '', remark2: a.remark2 ?? '',
+      indentOrder: String(a.indentOrder ?? 0), showMethod1: a.showMethod1, showMethod2: a.showMethod2,
     })
+    setFormTab('기본')
     setFormError(''); setInvalid(false); setOpen(true)
   }
 
@@ -126,6 +148,7 @@ export default function AccountsPage() {
       cashFlowKind: f.cashFlowKind, parentId: f.parentId ? Number(f.parentId) : f.id ? 0 : null,
       partnerAggregate: f.partnerAggregate, evalKind: f.evalKind, relatedWork: f.relatedWork,
       searchKeyword: f.searchKeyword, remark1: f.remark1, remark2: f.remark2,
+      indentOrder: Number(f.indentOrder) || 0, showMethod1: f.showMethod1, showMethod2: f.showMethod2,
     }
     try {
       if (f.id) await api.patch(`/accounts/${f.id}`, body)
@@ -191,6 +214,16 @@ export default function AccountsPage() {
       onNew={openNew}
       onReset={() => { setCond(COND0); setApplied(COND0) }}
       actions={[
+        {
+          label: '변경',
+          menu: [
+            { label: '선택변경', onClick: () => {
+              if (checked.size === 0) { void ecAlert('선택된 자료가 없습니다.\n변경할 자료를 체크한 후 다시 시도 바랍니다.'); return }
+              setBulk(tree.map((t) => t.a).filter((a) => checked.has(a.id)))
+            } },
+            { label: '표시순서변경', onClick: () => setOrderOpen(true) },
+          ],
+        },
         {
           label: '사용중단/재사용',
           menu: [{ label: '사용중단', onClick: () => void setActive(false) }, { label: '재사용', onClick: () => void setActive(true) }],
@@ -274,15 +307,26 @@ export default function AccountsPage() {
               <td>{a.kindName}</td>
               <td>{a.evalKindName}</td>
               <td>{a.groupAccount ? '' : a.active ? 'Yes' : 'No'}</td>
-              <td>{a.groupAccount ? '' : <button type="button" className="ec-link" onClick={() => openEdit(a)}>등록</button>}</td>
+              <td>{a.groupAccount ? '' : <button type="button" className="ec-link" onClick={() => setRemarkOf(a)}>등록</button>}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
       <Modal error={formError} open={open} title={f.id ? '계정수정' : '계정등록'} width={784} onClose={() => setOpen(false)}>{(
-        <form onSubmit={save}>
+        <form onSubmit={save} onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void save() } }}>
+          <ul className="ec-tabs mb-[10px]">
+            {FORM_TABS.map((t) => (
+              <li key={t} className={`ec-tab relative cursor-pointer${formTab === t ? ' active' : ''}`} onClick={() => setFormTab(t)}>{t}
+                {/* 원본: 빈 계정명으로 저장하면 탭 셋 다 빨간 '!'(2026-10-21 실측) */}
+                {invalid && !f.name.trim() && (
+                  <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
+                )}
+              </li>
+            ))}
+          </ul>
           <ul className="ec-form">
+            {formTab !== '표시방법' && <>
             <li className="wide"><span className="title">계정코드</span>
               <div className="form">{f.id ? <span>{f.code}</span> : (
                 <input className={`ec-input w-[160px] ${red(!f.code.trim())}`} aria-label="계정코드" maxLength={20} value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} />)}</div></li>
@@ -332,10 +376,23 @@ export default function AccountsPage() {
               <div className="form"><input className="ec-input w-full" aria-label="적요1" maxLength={100} value={f.remark1} onChange={(e) => setF({ ...f, remark1: e.target.value })} /></div></li>
             <li className="wide"><span className="title">적요2</span>
               <div className="form"><input className="ec-input w-full" aria-label="적요2" maxLength={100} value={f.remark2} onChange={(e) => setF({ ...f, remark2: e.target.value })} /></div></li>
+            </>}
+            {formTab !== '코드정보' && <>
             <li className="wide"><span className="title">평가구분</span>
               <div className="form flex gap-[12px]">
                 {EVALS.map(([v, l]) => <label key={v}><input type="radio" name="evalKind" checked={f.evalKind === v} onChange={() => setF({ ...f, evalKind: v })} /> {l}</label>)}
               </div></li>
+            <li className="wide"><span className="title">들여쓰기순서</span>
+              <div className="form"><input className="ec-input w-[80px] text-right" inputMode="numeric" aria-label="들여쓰기순서" value={f.indentOrder}
+                                           onChange={(e) => setF({ ...f, indentOrder: e.target.value.replace(/\D/g, '') })} /></div></li>
+            {([['showMethod1', '표시방법1'], ['showMethod2', '표시방법2']] as const).map(([k, l]) => (
+              <li key={k} className="wide"><span className="title">{l}</span>
+                <div className="form flex gap-[12px]">
+                  <label><input type="radio" name={k} checked={f[k]} onChange={() => setF({ ...f, [k]: true })} /> 표시</label>
+                  <label><input type="radio" name={k} checked={!f[k]} onChange={() => setF({ ...f, [k]: false })} /> 표시안함</label>
+                </div></li>
+            ))}
+            </>}
           </ul>
           <div className="flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
@@ -343,6 +400,9 @@ export default function AccountsPage() {
           </div>
         </form>
       )}</Modal>
+      <AccountRemarkModal account={remarkOf} onClose={() => setRemarkOf(null)} />
+      <AccountBulkChangeModal accounts={bulk} onClose={() => setBulk(null)} onSaved={load} />
+      <AccountOrderModal open={orderOpen} accounts={rows} onClose={() => setOrderOpen(false)} onSaved={load} />
     </EcListShell>
   )
 }

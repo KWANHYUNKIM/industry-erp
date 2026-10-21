@@ -49,6 +49,9 @@ export default function ExtraFieldTypePage() {
   const [accError, setAccError] = useState('')
   // 추가항목등록 창
   const [companyOpen, setCompanyOpen] = useState(false)
+  /** 숫자형 [설정] 창 — 원본 '설정'(2026-10-21 실측): 추가항목N(숫자형) · 표시형태 ◉기본설정 ○직접입력 · 소수점 / 소수점 0값 / 구분기호 각 [기본설정] · [적용(F8)] [닫기]. */
+  const [numSlot, setNumSlot] = useState<CompanySlot | null>(null)
+  const [numMode, setNumMode] = useState<'default' | 'custom'>('default')
   const [company, setCompany] = useState<CompanySlot[]>([])
 
   function load() {
@@ -307,7 +310,7 @@ export default function ExtraFieldTypePage() {
             <thead><tr><th>항목명</th><th className="w-[100px]">설정</th></tr></thead>
             <tbody>
               {company.map((s) => (
-                <tr key={s.no}><td>{s.name}({s.kind})</td><td>{s.setting ? <button type="button" className="ec-btn ec-btn-sm">{s.setting}</button> : ''}</td></tr>
+                <tr key={s.no}><td>{s.name}({s.kind})</td><td>{s.setting ? <button type="button" className="ec-btn ec-btn-sm" onClick={() => { if (s.setting === '설정') { setNumMode('default'); setNumSlot(s) } }}>{s.setting}</button> : ''}</td></tr>
               ))}
             </tbody>
           </table>
@@ -318,6 +321,33 @@ export default function ExtraFieldTypePage() {
           </div>
         </div>
       )}</Modal>
+
+      <Modal error={error} open={!!numSlot} title="설정" width={600} onClose={() => setNumSlot(null)}>
+        {numSlot && (
+          <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); setNumSlot(null) } }}>
+            <ul className="ec-form">
+              <li className="wide"><span className="title">{numSlot.name}({numSlot.kind})</span>
+                <div className="form flex gap-[12px]">
+                  <span>표시형태</span>
+                  <label><input type="radio" name="num-mode" checked={numMode === 'default'} onChange={() => setNumMode('default')} /> 기본설정</label>
+                  <label><input type="radio" name="num-mode" checked={numMode === 'custom'} onChange={() => setNumMode('custom')} /> 직접입력</label>
+                </div></li>
+            </ul>
+            <table className="w-full mt-[8px]">
+              <tbody>
+                {['소수점', '소수점 0값', '구분기호'].map((t) => (
+                  <tr key={t}><th className="w-[160px] text-left">{t}</th>
+                    <td><button type="button" className="ec-btn ec-btn-sm" disabled={numMode === 'default'}>기본설정</button></td></tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex gap-[6px] mt-[12px]">
+              <button type="button" className="ec-btn ec-btn-primary" onClick={() => setNumSlot(null)}>적용(F8)</button>
+              <button type="button" className="ec-btn" onClick={() => setNumSlot(null)}>닫기</button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </EcListShell>
   )
 }
