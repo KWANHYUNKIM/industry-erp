@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, Fragment } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -11,6 +11,9 @@ import { dateText } from '../../utils/dateText'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import Modal from '../../components/Modal'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { useShipmentEntry, type ShipmentRes } from '../../features/shipment/useShipmentEntry'
 
 /**
  * 영업 > 출하조회 (E040226) — 전표(출하) 단위 조회. 행 클릭 시 품목 상세 펼침.
@@ -32,46 +35,15 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
  * 값이 오는데 화면이 받아 두지 않아 못 거르고 있었을 뿐이다. 조건으로 걸었다.
  * [관리항목]만 여전히 없다 — 그건 품목 마스터에 붙는 값이라 출하 전표에는 없다.
  */
-type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
+type Shipment = ShipmentRes
 
-/** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
-interface ShipLine { itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; unitPrice: number; amount: number }
-interface Shipment {
-  id: number; shipNo: string; partnerId: number; partnerName: string; shipDate: string
-  salesOrderNo: string | null
-  /**
-   * 창고·프로젝트는 <b>응답에 이미 오고 있었는데</b> 이 화면이 받아 두지 않았다 —
-   * 원본 출하조회는 둘 다 조회 조건이다. 값이 오는데 못 거르고 있었던 셈이다.
-   */
-  warehouseId: number | null
-  warehouseName: string | null
-  projectId: number | null
-  projectName: string | null
-  /**
-   * 출하 <b>담당자</b>. 목록의 [담당] 칸이 이제까지 <code>createdBy</code>(전표를 친 계정)를
-   * 찍고 있었는데, 그건 <b>다른 사람</b>이다 — 출하지시서에 담당자를 따로 고르게 해 두고
-   * 목록에서는 그 값을 안 보여 주고 있었다. 응답에는 실려 오고 있었다.
-   */
-  employeeName: string | null
-  status: ShipStatus; statusName: string; totalQuantity: number; totalAmount: number
-  /**
-   * 배송지 연락처·주소. 원본 조건 [연락처]·[주소] 다. 여기에 '전표를 내보내는 기능이
-   * 없어 못 만든다' 고 적어 두었는데 <b>틀렸다</b> — 출하지시서입력이 받아서 저장하는
-   * 배송지고, 응답도 진작 싣고 있었다. 이 화면이 받아 두지 않았을 뿐이다.
-   */
-  contact: string | null; address: string | null
-  remark: string | null; createdBy: string | null
-  /** 원본 [최초작성일자]·[최종수정일시]. 이번에 응답에 실었다. */
-  createdAt: string | null; updatedAt: string | null
-  lines: ShipLine[]
-}
+/*
+ * 원본 출하조회 탭(2026-10-20 실측): 전체 · 결재중 · 미확인 · 확인. 우리 출하에는 전자결재 · 확인 기능이 없어
+ * 모두 '미확인' 이다(결재중 · 확인 탭은 빈다). 예전 [발송여부] 알약(미발송 · 발송 · 취소)은 원본에 없어 뺐다.
+ */
+const TABS = ['전체', '결재중', '미확인', '확인'] as const
+type Tab = (typeof TABS)[number]
 
-// 이카운트 출하조회 '발송여부' 필터 = 우리 상태로 매핑.
-const SEND_TABS = ['전체', '미발송', '발송', '취소'] as const
-type SendTab = (typeof SEND_TABS)[number]
-const TAB_STATUS: Record<Exclude<SendTab, '전체'>, ShipStatus> = { 미발송: 'READY', 발송: 'SHIPPED', 취소: 'CANCELED' }
-
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 수량합계는 소수 둘('3.00'). */
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -119,14 +91,17 @@ export default function ShipmentInquiryPage() {
    */
   const [from, setFrom] = useState(periodOf('금월(~오늘)')!.from)
   const [to, setTo] = useState(periodOf('금월(~오늘)')!.to)
-  const [tab, setTab] = useState<SendTab>('전체')
+  const [tab, setTab] = useState<Tab>('전체')
   const [shipNoCond, setShipNoCond] = useState('')
   const [warehouseCond, setWarehouseCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
   const [partnerCond, setPartnerCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
-  const [openId, setOpenId] = useState<number | null>(null)
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  /* 출하입력(수정) 창 — 원본 일자-No. 링크. */
+  const [editing, setEditing] = useState<Shipment | null>(null)
+  const entry = useShipmentEntry(editing)
   /* 인쇄물 머리의 공급자 칸. 회사정보를 한 번만 받아 둔다. */
   const [company, setCompany] = useState<DocParty | null>(null)
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
@@ -196,7 +171,7 @@ export default function ShipmentInquiryPage() {
   const [byUpdated, setByUpdated] = useState(false)
 
   const shownRows = useMemo(() => rows
-    .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter(() => tab === '전체' || tab === '미확인')
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.shipNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
     .filter((r) => !from || r.shipDate >= from)
     .filter((r) => !to || r.shipDate <= to)
@@ -244,7 +219,14 @@ export default function ShipmentInquiryPage() {
   })
   const shown = sort.sorted
 
-  const tabCount = (t: SendTab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
+  async function saveEdit() {
+    if (await entry.save()) { setEditing(null); load() }   // 원본: 말 없이 닫힌다
+  }
+  async function remove(ids: number[]) {
+    if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 출하'))) return
+    try { for (const id of ids) await api.delete(`/shipments/${id}`); setChecked(new Set()); setEditing(null); load() }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
+  }
 
   return (
     <EcListShell title="출하조회" search={keyword} onSearchChange={setKeyword} onSearch={load} /*
@@ -252,8 +234,13 @@ export default function ShipmentInquiryPage() {
         선택삭제·이력조회다. [신규(F2)] 자리가 비어 있었다 — 조회에서 "하나 더 넣자" 가 되면
         메뉴를 다시 뒤져야 했다. 우리 출하 등록은 출하지시서조회 화면이 겸한다.
       */
-      onNew={() => navigate('/sales/shipment-order')}
-      actions={[{ label: '검색(F8)', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
+      newLabel="신규(F2)"
+      onNew={() => navigate('/sales/shipment-entry')}
+      actions={[
+        { label: '인쇄', selected: checked.size, onClick: () => { shown.filter((r) => checked.has(r.id)).forEach((r) => void printShipment(r, company)) } },
+        { label: '선택삭제', selected: checked.size, onClick: () => void remove([...checked]) },
+        { label: 'Excel' },
+      ]}>
 
       {/* 원본 조건 차례: 기준일자 · 출하No. · 창고 · 프로젝트 · 거래처 · 품목 · 발송여부 */}
       {/* 기준일자는 조건 판 안 첫 줄이다 — 2회차 #12. 다른 현황 화면과 같이 빠른선택(금일·전월…)도 붙는다. */}
@@ -347,33 +334,21 @@ export default function ShipmentInquiryPage() {
           </label>
         </EcCond>
       </EcStatusPanel>
-      <div className="mb-[8px] text-[12.5px] text-ec-hint text-right">총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</div>
+      <div className="mb-[8px] text-[12.5px] text-ec-hint text-right">총 {shown.length}건</div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {/*
-        상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다.
-        원본은 이 줄에 <b>[발송여부]</b> 라는 이름표를 붙인다. 이름이 없으면 무엇을 고르는
-        알약인지 화면만 보고는 알 수 없다.
-      */}
-      <div className="flex items-center gap-[8px] mb-[6px]">
-        <span className="text-[12.5px] text-ec-label min-w-[62px]">발송여부</span>
-      <div className="ec-pills">
-        {SEND_TABS.map((t) => (
-          <button
-            key={t} type="button" onClick={() => setTab(t)}
-            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
-          >
-            {t} ({tabCount(t)})
-          </button>
-        ))}
-      </div>
-      </div>
+      <ul className="ec-tabs">
+        {TABS.map((t) => <li key={t} className={`ec-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}{t === '전체' ? '*' : ''}</li>)}
+      </ul>
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
+            <th className="w-[35px] text-center">
+              <input type="checkbox" checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={() => setChecked(shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)))} />
+            </th>
             {/*
               <b>출하조회(E040226) 2026-09-09 원본 격자 실측</b> — 열 여섯:
               [일자-No. · <b>창고명</b> · 품목명(요약) · 수량합계 · 거래처명 · <b>인쇄</b>].
@@ -402,49 +377,33 @@ export default function ShipmentInquiryPage() {
             <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <Fragment key={r.id}>
-              <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} className="cursor-pointer">
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <td className="text-center text-ec-blue">{dateText(r.shipDate)} {r.shipNo}</td>
-                <td>{r.warehouseName ?? ''}</td>
-                <td>{r.lines[0]?.itemName}{r.lines[0]?.spec ? ` [${r.lines[0].spec}]` : ''}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
-                <td className="text-right">{qty2(r.totalQuantity)}</td>
-                <td>{r.partnerName}</td>
-                <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                  <button className="no-ec" onClick={() => printShipment(r, company)}
-                          style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
-                </td>
-              </tr>
-              {openId === r.id && (
-                <tr className="no-ec">
-                  <td colSpan={7} className="p-0 bg-ec-page">
-                    <table className="w-full text-left my-[4px] mx-0">
-                      <thead>
-                        <tr><th className="w-[34px]"></th><th>품목코드</th><th>품목명</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">금액</th></tr>
-                      </thead>
-                      <tbody>
-                        {r.lines.map((l, li) => (
-                          <tr key={li}>
-                            <td className="text-center text-ec-hint">{li + 1}</td>
-                            <td>{l.itemCode}</td>
-                            <td>{l.itemName}</td>
-                            <td className="text-right">{won(l.quantity)} {l.unit}</td>
-                            <td className="text-right">{won(l.unitPrice)}</td>
-                            <td className="text-right font-semibold">{won(l.amount)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {r.remark && <div className="pt-[2px] px-[10px] pb-[8px] text-[12px] text-ec-label">비고: {r.remark}</div>}
-                  </td>
-                </tr>
-              )}
-            </Fragment>
+          ) : shown.map((r) => (
+            <tr key={r.id}>
+              <td className="text-center">
+                <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
+                  const next = new Set(prev); if (next.has(r.id)) next.delete(r.id); else next.add(r.id); return next
+                })} />
+              </td>
+              {/* 원본은 일자와 번호를 한 칸에 적고, 누르면 '출하입력(수정)' 창이 뜬다. */}
+              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setEditing(r) }}>{dateText(r.shipDate)} {r.shipNo}</a></td>
+              <td>{r.warehouseName ?? ''}</td>
+              <td>{r.lines[0]?.itemName}{r.lines[0]?.spec ? ` [${r.lines[0].spec}]` : ''}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
+              <td className="text-right">{qty2(r.totalQuantity)}</td>
+              <td>{r.partnerName}</td>
+              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); void printShipment(r, company) }}>인쇄</a></td>
+            </tr>
           ))}
         </tbody>
       </table>
+
+      <Modal open={editing != null} width={900} title="출하입력(수정)" onClose={() => setEditing(null)}>
+        {entry.form}
+        <div className="mt-[8px] flex gap-[4px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setEditing(null)}>닫기</button>
+          <button type="button" className="ec-btn" onClick={() => editing && void remove([editing.id])}>삭제</button>
+        </div>
+      </Modal>
     </EcListShell>
   )
 }

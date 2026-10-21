@@ -27,7 +27,11 @@ public final class ShipmentDtos {
             BigDecimal unitPrice,
             /** 줄 적요. 원본 출하지시서입력 그리드의 마지막 열. */
             @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /** 근거 출하지시서 줄 — 원본 출하입력 [출하지시] › 잔량적용으로 불러온 줄. 직접 친 줄은 null. */
+            Long shipmentOrderLineId,
+            /** 근거 주문 줄 — 수정 때 이어진 주문 줄을 그대로 둔다(그 출하의 근거 주문 줄만 받는다). */
+            Long orderLineId
     ) {}
 
     public record CreateShipmentRequest(
@@ -48,7 +52,12 @@ public final class ShipmentDtos {
             Long projectId,
             @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
-            @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<ShipLineRequest> lines
+            @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<ShipLineRequest> lines,
+            /**
+             * 상태. 비우면 출하지시(READY) — 주문 › 출하 · 쇼핑몰이 쓰던 그대로.
+             * 출하입력 화면(E040225)은 출하완료(SHIPPED)로 보낸다 — 원본 출하 전표는 '나간 것' 이다.
+             */
+            ShipmentStatus status
     ) {}
 
     public record UpdateStatusRequest(
@@ -63,14 +72,17 @@ public final class ShipmentDtos {
             /** 줄 적요. 원본 출하현황·출하지시서현황의 결과 열. */
             String remark,
             /** 근거 주문 라인. 직접 등록한 출하면 null. */
-            Long orderLineId
+            Long orderLineId,
+            /** 근거 출하지시서 줄. 출하입력 [출하지시] 로 이은 줄만. */
+            Long shipmentOrderLineId
     ) {
         static ShipLineResponse from(ShipmentLine l) {
             return new ShipLineResponse(
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
                     l.getItem().getUnit(), l.getItem().getSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getAmount(), l.getRemark(),
-                    l.getOrderLine() != null ? l.getOrderLine().getId() : null);
+                    l.getOrderLine() != null ? l.getOrderLine().getId() : null,
+                    l.getShipmentOrderLine() != null ? l.getShipmentOrderLine().getId() : null);
         }
     }
 

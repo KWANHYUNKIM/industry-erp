@@ -48,6 +48,7 @@ public class ShipmentService {
     private final EmployeeService employeeService;
     private final DocumentNoGenerator docNoGenerator;
     private final com.erp.inventory.project.ProjectService projectService;
+    private final com.erp.trade.shipmentorder.ShipmentOrderLineRepository shipmentOrderLineRepository;
 
     @Transactional(readOnly = true)
     public List<ShipmentResponse> findAll() {
@@ -82,45 +83,108 @@ public class ShipmentService {
 
     @Transactional
     public ShipmentResponse create(CreateShipmentRequest req, String username) {
+        LocalDate shipDate = req.shipDate() != null ? req.shipDate() : LocalDate.now();
+        Shipment shipment = Shipment.builder()
+                .shipNo(generateShipNo(shipDate))
+                .status(req.status() != null ? req.status() : ShipmentStatus.READY)
+                .createdBy(username)
+                .build();
+        applyHeader(shipment, req, shipDate);
+        applyLines(shipment, req);
+        return ShipmentResponse.from(shipmentRepository.save(shipment));
+    }
+
+    /**
+     * 출하 수정 — 원본 '출하입력(수정)' 창 저장(F8). 머리 · 줄을 통째로 바꾼다(번호는 그대로).
+     * 출하지시서 줄에 이은 줄은 잔량(지시 수량 - 다른 출하) 안에서만 바꿀 수 있다.
+     * 근거 주문이 있으면 주문 줄 출하수량 · 진행상태를 다시 센다.
+     */
+    @Transactional
+    public ShipmentResponse update(Long id, CreateShipmentRequest req) {
+        Shipment shipment = shipmentRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("출하를 찾을 수 없습니다. id=" + id));
+        LocalDate shipDate = req.shipDate() != null ? req.shipDate() : shipment.getShipDate();
+        applyHeader(shipment, req, shipDate);
+        if (req.status() != null) shipment.setStatus(req.status());
+        // 옛 줄을 먼저 지워야 잔량 계산에서 이 출하 자신이 빠진다.
+        shipment.getLines().clear();
+        shipmentRepository.flush();
+        applyLines(shipment, req);
+        shipmentRepository.flush();
+        if (shipment.getSalesOrder() != null) recalcOrderProgress(shipment.getSalesOrder());
+        return ShipmentResponse.from(shipment);
+    }
+
+    private void applyHeader(Shipment shipment, CreateShipmentRequest req, LocalDate shipDate) {
         BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         if (!partner.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처로는 출하할 수 없습니다: " + partner.getName());
         }
+        shipment.setPartner(partner);
+        shipment.setShipDate(shipDate);
+        // 출하예정일을 안 주면 출하일자로 본다 — 미출하현황이 그 값으로 거르므로
+        // 비워 두면 그 화면에서 통째로 빠진다.
+        shipment.setDueDate(req.dueDate() != null ? req.dueDate() : shipDate);
+        shipment.setWarehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null);
+        shipment.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
+        shipment.setContact(req.contact());
+        shipment.setPostalCode(req.postalCode());
+        // 배송지를 안 주면 거래처 주소를 기본으로 채운다. 대개 그리로 보내고,
+        // 다른 곳이면 사람이 고친다.
+        shipment.setAddress(req.address() != null && !req.address().isBlank()
+                ? req.address() : partner.getAddress());
+        shipment.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
+        shipment.setRemark(req.remark());
+    }
 
-        LocalDate shipDate = req.shipDate() != null ? req.shipDate() : LocalDate.now();
-
-        Shipment shipment = Shipment.builder()
-                .shipNo(generateShipNo(shipDate))
-                .partner(partner)
-                .shipDate(shipDate)
-                // 출하예정일을 안 주면 출하일자로 본다 — 미출하현황이 그 값으로 거르므로
-                // 비워 두면 그 화면에서 통째로 빠진다.
-                .dueDate(req.dueDate() != null ? req.dueDate() : shipDate)
-                .warehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null)
-                .employee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null)
-                .contact(req.contact())
-                .postalCode(req.postalCode())
-                // 배송지를 안 주면 거래처 주소를 기본으로 채운다. 대개 그리로 보내고,
-                // 다른 곳이면 사람이 고친다.
-                .address(req.address() != null && !req.address().isBlank()
-                        ? req.address() : partner.getAddress())
-                .status(ShipmentStatus.READY)
-                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
-                .remark(req.remark())
-                .createdBy(username)
-                .build();
-
+    private void applyLines(Shipment shipment, CreateShipmentRequest req) {
         BigDecimal totalQty = BigDecimal.ZERO;
         BigDecimal totalAmount = BigDecimal.ZERO;
 
+        // 출하지시서 줄별 이미 이어진 수량(이 출하의 옛 줄은 부르는 쪽이 먼저 지웠다)
+        List<Long> soLineIds = req.lines().stream().map(ShipLineRequest::shipmentOrderLineId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, BigDecimal> soShipped = shippedByShipmentOrderLines(soLineIds);
+        Map<Long, BigDecimal> soAsked = new HashMap<>();
+        SalesOrder order = shipment.getSalesOrder();
+        Map<Long, BigDecimal> orderCommitted = order != null ? sumByOrderLine(order.getId(), COMMITTED) : Map.of();
+        Map<Long, BigDecimal> orderAsked = new HashMap<>();
+
         for (ShipLineRequest lr : req.lines()) {
             Item item = itemService.getUsable(lr.itemId());
-            BigDecimal unitPrice = lr.unitPrice() != null ? lr.unitPrice() : item.getUnitPrice();
+            BigDecimal unitPrice = lr.unitPrice() != null ? lr.unitPrice()
+                    : (item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO);
             BigDecimal amount = lr.quantity().multiply(unitPrice);
+
+            com.erp.trade.shipmentorder.ShipmentOrderLine soLine = null;
+            if (lr.shipmentOrderLineId() != null) {
+                soLine = shipmentOrderLineRepository.findById(lr.shipmentOrderLineId())
+                        .orElseThrow(() -> ApiException.badRequest("출하지시서 줄을 찾을 수 없습니다. id=" + lr.shipmentOrderLineId()));
+                BigDecimal asked = soAsked.merge(soLine.getId(), lr.quantity(), BigDecimal::add);
+                BigDecimal remain = soLine.getQuantity().subtract(soShipped.getOrDefault(soLine.getId(), BigDecimal.ZERO));
+                if (asked.compareTo(remain) > 0) {
+                    throw ApiException.badRequest(String.format("출하수량이 잔량을 초과합니다. 품목=%s, 잔량=%s, 요청=%s",
+                            soLine.getItem().getName(), remain.stripTrailingZeros().toPlainString(),
+                            asked.stripTrailingZeros().toPlainString()));
+                }
+            }
+            SalesOrderLine orderLine = null;
+            if (lr.orderLineId() != null && order != null) {
+                orderLine = order.getLines().stream().filter(l -> l.getId().equals(lr.orderLineId())).findFirst()
+                        .orElseThrow(() -> ApiException.badRequest("주문 " + order.getOrderNo() + "의 라인이 아닙니다. orderLineId=" + lr.orderLineId()));
+                BigDecimal asked = orderAsked.merge(orderLine.getId(), lr.quantity(), BigDecimal::add);
+                BigDecimal remain = remaining(orderLine, orderCommitted);
+                if (asked.compareTo(remain) > 0) {
+                    throw ApiException.badRequest(String.format("출하수량이 잔량을 초과합니다. 품목=%s, 잔량=%s, 요청=%s",
+                            orderLine.getItem().getName(), remain.toPlainString(), asked.toPlainString()));
+                }
+            }
 
             shipment.addLine(ShipmentLine.builder()
                     .item(item)
+                    .orderLine(orderLine)
+                    .shipmentOrderLine(soLine)
                     .quantity(lr.quantity())
                     .unitPrice(unitPrice)
                     .amount(amount)
@@ -133,8 +197,6 @@ public class ShipmentService {
 
         shipment.setTotalQuantity(totalQty);
         shipment.setTotalAmount(totalAmount);
-
-        return ShipmentResponse.from(shipmentRepository.save(shipment));
     }
 
     /**

@@ -43,6 +43,12 @@ public class ShipmentController {
         return ResponseEntity.ok(shipmentService.create(req, principal.getUsername()));
     }
 
+    /** 출하 수정 — 원본 '출하입력(수정)' 창. 머리 · 줄을 통째로 바꾼다. */
+    @PutMapping("/{id}")
+    public ShipmentResponse update(@PathVariable Long id, @Valid @RequestBody CreateShipmentRequest req) {
+        return shipmentService.update(id, req);
+    }
+
     @PatchMapping("/{id}/status")
     public ShipmentResponse updateStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest req) {
         return shipmentService.updateStatus(id, req.status());

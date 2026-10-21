@@ -172,6 +172,7 @@ const MENU: TopMenu[] = [
             label: '출하',
             children: [
               { label: '출하조회', to: '/sales/shipment-inquiry' },
+              { label: '출하입력', to: '/sales/shipment-entry' },
             ],
           },
           { label: '특별단가등록', to: '/sales/special-price' },

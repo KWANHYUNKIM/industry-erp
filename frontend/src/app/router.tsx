@@ -330,6 +330,7 @@ const ShipmentOrderPage = lazy(() => import('../pages/trade/ShipmentOrderPage'))
 const ShipmentOrderStatusPage = lazy(() => import('../pages/trade/ShipmentOrderStatusPage'))
 const ShipmentPage = lazy(() => import('../pages/trade/ShipmentPage'))
 const ShipmentInquiryPage = lazy(() => import('../pages/trade/ShipmentInquiryPage'))
+const ShipmentEntryPage = lazy(() => import('../pages/trade/ShipmentEntryPage'))
 const PriceRequestProgressPage = lazy(() => import('../pages/trade/PriceRequestProgressPage'))
 const UnshippedPage = lazy(() => import('../pages/trade/UnshippedPage'))
 const UnsoldStatusPage = lazy(() => import('../pages/trade/UnsoldStatusPage'))
@@ -617,6 +618,7 @@ export default function AppRouter() {
         <Route path="/sales/shipment-order-status" element={<ShipmentOrderStatusPage />} />
         <Route path="/sales/shipment" element={<ShipmentPage />} />
         <Route path="/sales/shipment-inquiry" element={<ShipmentInquiryPage />} />
+        <Route path="/sales/shipment-entry" element={<ShipmentEntryPage />} />
         <Route path="/sales/unshipped" element={<UnshippedPage />} />
         <Route path="/sales/unsold" element={<UnsoldStatusPage />} />
         <Route path="/sales/collection" element={<CollectionPage />} />
