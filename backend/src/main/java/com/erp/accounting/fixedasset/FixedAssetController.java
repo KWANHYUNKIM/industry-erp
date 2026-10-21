@@ -88,6 +88,26 @@ public class FixedAssetController {
         return service.cancelDisposal(id);
     }
 
+    /** 고정자산증가 전표 더하기(같은 자산에 두 번째 증가). */
+    @PostMapping("/{id}/increases")
+    public AssetResponse addIncrease(@PathVariable Long id, @Valid @RequestBody FixedAssetDtos.IncreaseRequest req,
+                                     @AuthenticationPrincipal UserPrincipal principal) {
+        return service.addIncrease(id, req, principal.getUsername());
+    }
+
+    /** 고정자산감소 전표 — 일부 감소(수량). */
+    @PostMapping("/{id}/decreases")
+    public AssetResponse decrease(@PathVariable Long id, @Valid @RequestBody FixedAssetDtos.DecreaseRequest req,
+                                  @AuthenticationPrincipal UserPrincipal principal) {
+        return service.decrease(id, req, principal.getUsername());
+    }
+
+    /** 증가 · 감소 전표 한 장 지우기(그 회계전표도). 마지막 증가면 자산째 지워지고 빈 응답. */
+    @DeleteMapping("/movements/{movementId}")
+    public AssetResponse deleteMovement(@PathVariable Long movementId) {
+        return service.deleteMovement(movementId);
+    }
+
     @PostMapping("/{id}/dispose")
     public AssetResponse dispose(@PathVariable Long id, @Valid @RequestBody DisposeRequest req,
                                  @AuthenticationPrincipal UserPrincipal principal) {

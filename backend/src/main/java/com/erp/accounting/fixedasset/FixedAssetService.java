@@ -38,6 +38,7 @@ public class FixedAssetService {
 
     private final FixedAssetRepository assetRepository;
     private final DepreciationRepository depreciationRepository;
+    private final FixedAssetMovementRepository movementRepository;
     private final AccountRepository accountRepository;
     private final JournalService journalService;
     private final DocumentNoGenerator docNoGenerator;
@@ -55,9 +56,10 @@ public class FixedAssetService {
      */
     @Transactional(readOnly = true)
     public List<AssetResponse> findAll(java.time.LocalDate from, java.time.LocalDate to) {
-        return assetRepository.findAllWithAccount(
+        List<FixedAsset> assets = assetRepository.findAllWithAccount(
                 from != null ? from : java.time.LocalDate.of(1900, 1, 1),
-                to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(AssetResponse::from).toList();
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31));
+        return withMovements(assets);
     }
 
     @Transactional(readOnly = true)
@@ -115,8 +117,13 @@ public class FixedAssetService {
                 .build();
         applyAccounts(asset, req);
         FixedAsset saved = assetRepository.save(asset);
-        journalService.createFromAcquisition(saved);      // 원본 고정자산증가 전표 — 차) 자산 · 부가세 / 대) 출금
-        return AssetResponse.from(saved);
+        /* 원본 고정자산증가 전표 한 장 — 차) 자산 · 부가세 / 대) 출금 */
+        FixedAssetMovement inc = movementRepository.save(FixedAssetMovement.builder()
+                .asset(saved).kind(MovementKind.INCREASE).slipDate(saved.getAcquisitionDate())
+                .quantity(saved.getQuantity()).amount(saved.getAcquisitionCost()).vat(saved.getAcquisitionVat())
+                .account(saved.getPaymentAccount()).remark(saved.getRemark()).createdBy(username).build());
+        inc.setJournalEntry(journalService.createFromAssetIncrease(inc));
+        return response(saved);
     }
 
     /**
@@ -130,7 +137,8 @@ public class FixedAssetService {
             throw ApiException.conflict("처분된 자산은 고칠 수 없습니다 — 처분을 취소한 뒤 고치세요: " + asset.getAssetNo());
         }
         CreateAssetRequest req = upd.asCreate();
-        if (depreciationRepository.existsByAssetId(id)) {
+        List<FixedAssetMovement> moves = movementRepository.findByAssetId(id);
+        if (depreciationRepository.existsByAssetId(id) || moves.size() > 1) {
             boolean same = asset.getAcquisitionCost().compareTo(req.acquisitionCost()) == 0
                     && asset.getAcquisitionDate().equals(req.acquisitionDate())
                     && asset.getAssetAccount().getId().equals(req.assetAccountId())
@@ -140,7 +148,9 @@ public class FixedAssetService {
                     && java.util.Objects.equals(idOf(asset.getAccumAccount()), req.accumAccountId())
                     && java.util.Objects.equals(idOf(asset.getExpenseAccount()), req.expenseAccountId());
             if (!same) {
-                throw ApiException.badRequest("감가상각이 잡힌 자산은 취득 내용 · 계정을 고칠 수 없습니다 — 상각을 마지막 달부터 취소한 뒤 고치세요: "
+                throw ApiException.badRequest(moves.size() > 1
+                        ? "증가 · 감소 전표가 여러 장인 자산은 취득 내용을 여기서 고칠 수 없습니다 — 그 전표를 지우고 다시 넣으세요: " + asset.getAssetNo()
+                        : "감가상각이 잡힌 자산은 취득 내용 · 계정을 고칠 수 없습니다 — 상각을 마지막 달부터 취소한 뒤 고치세요: "
                         + asset.getAssetNo());
             }
         }
@@ -157,8 +167,25 @@ public class FixedAssetService {
         asset.setQuantityManaged(Boolean.TRUE.equals(req.quantityManaged()));
         asset.setQuantity(req.quantity() != null ? req.quantity() : BigDecimal.ONE);
         applyAccounts(asset, req);
-        journalService.recreateFromAcquisition(asset);
-        return AssetResponse.from(asset);
+        /* 증가 전표 한 장뿐이면 그 전표도 같이 고치고 분개를 다시 만든다(옛 분개를 먼저 지워야 (출처, id) 유니크에 안 걸린다). */
+        FixedAssetMovement inc = moves.isEmpty() ? null : moves.get(0);
+        if (inc == null) {
+            inc = movementRepository.save(FixedAssetMovement.builder().asset(asset).kind(MovementKind.INCREASE)
+                    .slipDate(asset.getAcquisitionDate()).quantity(asset.getQuantity()).amount(asset.getAcquisitionCost())
+                    .createdBy(username).build());
+        }
+        com.erp.accounting.journal.JournalEntry old = inc.getJournalEntry();
+        inc.setJournalEntry(null);
+        movementRepository.flush();
+        if (old != null) journalService.deleteEntryNow(old);
+        inc.setSlipDate(asset.getAcquisitionDate());
+        inc.setQuantity(asset.getQuantity());
+        inc.setAmount(asset.getAcquisitionCost());
+        inc.setVat(asset.getAcquisitionVat());
+        inc.setAccount(asset.getPaymentAccount());
+        inc.setRemark(asset.getRemark());
+        inc.setJournalEntry(journalService.createFromAssetIncrease(inc));
+        return response(asset);
     }
 
     /** 삭제 — 원본 고정자산코드 [삭제]. 상각 · 처분이 남아 있으면 먼저 취소해야 한다. 취득 분개도 같이 지운다. */
@@ -171,7 +198,10 @@ public class FixedAssetService {
         if (depreciationRepository.existsByAssetId(id)) {
             throw ApiException.conflict("감가상각 내역이 있는 자산은 삭제할 수 없습니다 — 상각을 먼저 취소하세요: " + asset.getAssetNo());
         }
-        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.ASSET_ACQUISITION, id);
+        if (asset.getDecreasedQuantity().signum() > 0 || asset.getDecreasedCost().signum() > 0) {
+            throw ApiException.conflict("감소 전표가 있는 자산은 삭제할 수 없습니다 — 감소를 먼저 취소하세요: " + asset.getAssetNo());
+        }
+        for (FixedAssetMovement m : movementRepository.findByAssetId(id)) removeMovement(m);
         assetRepository.delete(asset);
     }
 
@@ -215,21 +245,102 @@ public class FixedAssetService {
         return new DepreciationRunResponse(ym.toString(), done.size(), total, 0, done, List.of());
     }
 
-    /** 처분 취소 — 원본 고정자산감소 전표 [삭제]. 처분 분개를 지우고 사용중으로 되돌린다. */
+    /** 처분 취소 — 원본 고정자산감소 전표 [삭제]. 마지막 감소 전표와 그 분개를 지운다. */
     @Transactional
     public AssetResponse cancelDisposal(Long id) {
         FixedAsset asset = find(id);
-        if (asset.getStatus() != AssetStatus.DISPOSED) {
+        List<FixedAssetMovement> decs = movementRepository.findByAssetId(id).stream()
+                .filter((m) -> m.getKind() == MovementKind.DECREASE).toList();
+        if (decs.isEmpty()) {
             throw ApiException.badRequest("처분되지 않은 자산입니다: " + asset.getAssetNo());
         }
-        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.DISPOSAL, id);
-        asset.setStatus(AssetStatus.IN_USE);
-        asset.setDisposalDate(null);
-        asset.setDisposalAmount(null);
-        asset.setDisposalType(null);
-        asset.setDisposalVat(null);
-        asset.setReceiptAccount(null);
-        return AssetResponse.from(asset);
+        removeMovement(decs.get(decs.size() - 1));
+        recompute(asset);
+        return response(asset);
+    }
+
+    /**
+     * 증가 · 감소 전표 한 장 지우기(원본 고정자산증가/감소 창 [삭제]) — 그 회계전표도 같이 지운다.
+     * 증가 전표는 상각이 있으면 막는다. 증가가 하나 남은 자산이면 자산(코드)째 지운다.
+     */
+    @Transactional
+    public AssetResponse deleteMovement(Long movementId) {
+        FixedAssetMovement m = movementRepository.findById(movementId)
+                .orElseThrow(() -> ApiException.notFound("고정자산 전표를 찾을 수 없습니다. id=" + movementId));
+        FixedAsset asset = m.getAsset();
+        checkRemovable(m);
+        boolean lastIncrease = m.getKind() == MovementKind.INCREASE && movementRepository.findByAssetId(asset.getId()).size() == 1;
+        removeMovement(m);
+        if (lastIncrease) {
+            assetRepository.delete(asset);
+            return null;
+        }
+        recompute(asset);
+        return response(asset);
+    }
+
+    /** 회계거래조회에서 고정자산증가 · 감소 분개를 지울 때 — 고정자산 전표도 같이 지운다(원본). 분개는 JournalService 가 지운다. */
+    @org.springframework.context.event.EventListener
+    public void onJournalDeleting(com.erp.accounting.journal.JournalDeletingEvent ev) {
+        movementRepository.findByJournalEntryId(ev.entryId()).ifPresent((m) -> {
+            FixedAsset asset = m.getAsset();
+            checkRemovable(m);
+            boolean lastIncrease = m.getKind() == MovementKind.INCREASE && movementRepository.findByAssetId(asset.getId()).size() == 1;
+            m.setJournalEntry(null);
+            movementRepository.delete(m);
+            movementRepository.flush();
+            if (lastIncrease) assetRepository.delete(asset);
+            else recompute(asset);
+        });
+    }
+
+    /** 고정자산증가 전표 더하기 — 같은 자산코드에 두 번째 증가(원본 10/15 수량 5 · 500,000). */
+    @Transactional
+    public AssetResponse addIncrease(Long id, FixedAssetDtos.IncreaseRequest req, String username) {
+        FixedAsset asset = find(id);
+        if (asset.getStatus() == AssetStatus.DISPOSED) {
+            throw ApiException.conflict("처분된 자산입니다 — 처분을 취소한 뒤 증가하세요: " + asset.getAssetNo());
+        }
+        if (!asset.isQuantityManaged() && req.quantity().compareTo(BigDecimal.ONE) != 0) {
+            throw ApiException.badRequest("수량관리를 사용하지 않는 자산은 수량이 1입니다: " + asset.getAssetNo());
+        }
+        FixedAssetMovement m = movementRepository.save(FixedAssetMovement.builder()
+                .asset(asset).kind(MovementKind.INCREASE).slipDate(req.slipDate()).quantity(req.quantity())
+                .amount(req.amount()).vat(req.vat() != null ? req.vat() : BigDecimal.ZERO)
+                .account(req.accountId() != null ? anyAccount(req.accountId()) : asset.getPaymentAccount())
+                .remark(req.remark()).createdBy(username).build());
+        m.setJournalEntry(journalService.createFromAssetIncrease(m));
+        recompute(asset);
+        return response(asset);
+    }
+
+    /**
+     * 고정자산감소 전표 — 일부 감소(원본 E010612). 취득원가 몫 기본값은 원본 그대로 '증가 합계 단가 × 수량'
+     * (앞 감소를 빼지 않는다), 누계액 기본값은 0(원본은 상각을 반영한 뒤에도 손으로 넣는다).
+     * 처분손익 = 매각액 + 누계 − 취득원가 몫.
+     */
+    @Transactional
+    public AssetResponse decrease(Long id, FixedAssetDtos.DecreaseRequest req, String username) {
+        FixedAsset asset = find(id);
+        if (asset.getStatus() == AssetStatus.DISPOSED) {
+            throw ApiException.conflict("이미 처분된 자산입니다: " + asset.getAssetNo());
+        }
+        if (req.slipDate().isBefore(asset.getAcquisitionDate())) {
+            throw ApiException.badRequest("처분일이 취득일보다 빠를 수 없습니다.");
+        }
+        if (req.quantity().compareTo(asset.remainingQuantity()) > 0) {
+            throw ApiException.badRequest("감소수량이 잔량(" + asset.remainingQuantity().stripTrailingZeros().toPlainString() + ")보다 많습니다.");
+        }
+        checkNoLaterDepreciation(asset, req.slipDate());
+        BigDecimal cost = req.amount() != null ? req.amount()
+                : asset.getAcquisitionCost().multiply(req.quantity()).divide(asset.getQuantity(), 0, RoundingMode.HALF_UP);
+        DisposalType type = req.disposalType() != null ? req.disposalType() : DisposalType.SALE;
+        BigDecimal accum = req.accumAmount() != null ? req.accumAmount() : BigDecimal.ZERO;
+        BigDecimal sale = type == DisposalType.SCRAP || req.saleAmount() == null ? BigDecimal.ZERO : req.saleAmount();
+        BigDecimal vat = type == DisposalType.SCRAP || req.vat() == null ? BigDecimal.ZERO : req.vat();
+        saveDecrease(asset, req.slipDate(), req.quantity(), cost, accum, sale, vat, type,
+                req.accountId() != null ? anyAccount(req.accountId()) : null, req.remark(), username);
+        return response(asset);
     }
 
     /**
@@ -269,7 +380,7 @@ public class FixedAssetService {
                     .period(ym.toString())
                     .depreciationDate(lastDay)
                     .amount(amount)
-                    .accumulatedAfter(asset.getAccumulatedDepreciation())
+                    .accumulatedAfter(asset.remainingAccum())
                     .bookValueAfter(asset.bookValue())
                     .createdBy(username)
                     .build();
@@ -301,29 +412,96 @@ public class FixedAssetService {
          * 처분한 뒤의 달에 상각이 이미 잡혀 있으면 누계액이 부풀어 처분손익이 틀리고, 없는 자산의 감가상각비가
          * 남는다(QA 59회차 — 9월까지 상각한 자산을 7/15 처분일로 받아 줬다). 그 달들보다 뒤 날짜로 처분하게 한다.
          */
-        String disposalMonth = YearMonth.from(req.disposalDate()).toString();
+        checkNoLaterDepreciation(asset, req.disposalDate());
+
+        /* 통째 처분 — 남은 수량 · 취득가 · 누계를 한 장의 감소 전표로. */
+        DisposalType type = req.disposalType() != null ? req.disposalType() : DisposalType.SALE;
+        BigDecimal sale = type == DisposalType.SCRAP ? BigDecimal.ZERO : req.disposalAmount();
+        BigDecimal vat = type == DisposalType.SCRAP || req.disposalVat() == null ? BigDecimal.ZERO : req.disposalVat();
+        saveDecrease(asset, req.disposalDate(), asset.remainingQuantity(), asset.remainingCost(), asset.remainingAccum(),
+                sale, vat, type, req.receiptAccountId() != null ? anyAccount(req.receiptAccountId()) : null, asset.getRemark(), username);
+        return response(asset);
+    }
+
+    // ── 내부 ──────────────────────────────────────────────────────────
+
+    private void checkNoLaterDepreciation(FixedAsset asset, LocalDate date) {
+        String disposalMonth = YearMonth.from(date).toString();
         List<String> after = depreciationRepository.findPeriodsByAssetId(asset.getId()).stream()
                 .filter((p) -> p.compareTo(disposalMonth) > 0).sorted().toList();
         if (!after.isEmpty()) {
             throw ApiException.badRequest(String.format(
                     "%s 은(는) 처분일(%s) 뒤 달 %s 에 감가상각이 이미 잡혀 있습니다 — 처분일을 %s 이후로 하세요.",
-                    asset.getAssetNo(), req.disposalDate(), String.join(", ", after),
+                    asset.getAssetNo(), date, String.join(", ", after),
                     YearMonth.parse(after.get(after.size() - 1)).atEndOfMonth()));
         }
-
-        DisposalType type = req.disposalType() != null ? req.disposalType() : DisposalType.SALE;
-        asset.setStatus(AssetStatus.DISPOSED);
-        asset.setDisposalDate(req.disposalDate());
-        asset.setDisposalType(type);
-        /* 폐기는 매각액 · 부가세가 없다(원본 ○폐기). */
-        asset.setDisposalAmount(type == DisposalType.SCRAP ? BigDecimal.ZERO : req.disposalAmount());
-        asset.setDisposalVat(type == DisposalType.SCRAP || req.disposalVat() == null ? BigDecimal.ZERO : req.disposalVat());
-        asset.setReceiptAccount(req.receiptAccountId() != null ? anyAccount(req.receiptAccountId()) : null);
-        journalService.createFromDisposal(asset);
-        return AssetResponse.from(asset);
     }
 
-    // ── 내부 ──────────────────────────────────────────────────────────
+    private void saveDecrease(FixedAsset asset, LocalDate date, BigDecimal qty, BigDecimal cost, BigDecimal accum,
+                              BigDecimal sale, BigDecimal vat, DisposalType type, Account account, String remark, String username) {
+        FixedAssetMovement m = movementRepository.save(FixedAssetMovement.builder()
+                .asset(asset).kind(MovementKind.DECREASE).slipDate(date).quantity(qty).amount(cost).vat(vat)
+                .accumAmount(accum).saleAmount(sale).disposalType(type).gainLoss(sale.add(accum).subtract(cost))
+                .account(account).remark(remark).createdBy(username).build());
+        m.setJournalEntry(journalService.createFromAssetDecrease(m));
+        recompute(asset);
+    }
+
+    /** 증가 전표는 상각이 잡혀 있으면 못 지운다(상각 기준이 바뀐다). 감소 전표는 뒤 감소가 있어도 지울 수 있다. */
+    private void checkRemovable(FixedAssetMovement m) {
+        if (m.getKind() == MovementKind.INCREASE && depreciationRepository.existsByAssetId(m.getAsset().getId())) {
+            throw ApiException.conflict("감가상각 내역이 있는 자산의 증가 전표는 지울 수 없습니다 — 상각을 먼저 취소하세요: "
+                    + m.getAsset().getAssetNo());
+        }
+    }
+
+    private void removeMovement(FixedAssetMovement m) {
+        com.erp.accounting.journal.JournalEntry e = m.getJournalEntry();
+        movementRepository.delete(m);
+        movementRepository.flush();
+        if (e != null) journalService.deleteEntryNow(e);
+    }
+
+    /** 증가 · 감소 전표에서 자산의 합계를 다시 셈. 남은 수량이 0 이면 처분(원본: 대장에서 빠짐). */
+    private void recompute(FixedAsset asset) {
+        List<FixedAssetMovement> ms = movementRepository.findByAssetId(asset.getId());
+        List<FixedAssetMovement> incs = ms.stream().filter((m) -> m.getKind() == MovementKind.INCREASE).toList();
+        List<FixedAssetMovement> decs = ms.stream().filter((m) -> m.getKind() == MovementKind.DECREASE).toList();
+        if (!incs.isEmpty()) {
+            asset.setAcquisitionCost(sum(incs, FixedAssetMovement::getAmount));
+            asset.setQuantity(sum(incs, FixedAssetMovement::getQuantity));
+            asset.setAcquisitionDate(incs.stream().map(FixedAssetMovement::getSlipDate).min(LocalDate::compareTo).orElseThrow());
+            asset.setAcquisitionVat(incs.get(0).getVat());
+        }
+        asset.setDecreasedCost(sum(decs, FixedAssetMovement::getAmount));
+        asset.setDecreasedAccum(sum(decs, FixedAssetMovement::getAccumAmount));
+        asset.setDecreasedQuantity(sum(decs, FixedAssetMovement::getQuantity));
+        boolean gone = !decs.isEmpty() && asset.remainingQuantity().signum() <= 0;
+        FixedAssetMovement last = decs.isEmpty() ? null : decs.get(decs.size() - 1);
+        asset.setStatus(gone ? AssetStatus.DISPOSED : AssetStatus.IN_USE);
+        asset.setDisposalDate(gone ? last.getSlipDate() : null);
+        asset.setDisposalAmount(gone ? last.getSaleAmount() : null);
+        asset.setDisposalType(gone ? last.getDisposalType() : null);
+        asset.setDisposalVat(gone ? last.getVat() : null);
+        asset.setReceiptAccount(gone ? last.getAccount() : null);
+    }
+
+    private static BigDecimal sum(List<FixedAssetMovement> ms, java.util.function.Function<FixedAssetMovement, BigDecimal> f) {
+        return ms.stream().map(f).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private AssetResponse response(FixedAsset asset) {
+        return AssetResponse.from(asset, movementRepository.findByAssetId(asset.getId()));
+    }
+
+    private List<AssetResponse> withMovements(List<FixedAsset> assets) {
+        if (assets.isEmpty()) return List.of();
+        java.util.Map<Long, List<FixedAssetMovement>> by = new java.util.HashMap<>();
+        for (FixedAssetMovement m : movementRepository.findByAssetIds(assets.stream().map(FixedAsset::getId).toList())) {
+            by.computeIfAbsent(m.getAsset().getId(), (k) -> new ArrayList<>()).add(m);
+        }
+        return assets.stream().map((a) -> AssetResponse.from(a, by.getOrDefault(a.getId(), List.of()))).toList();
+    }
 
     private FixedAsset find(Long id) {
         return assetRepository.findById(id)
@@ -383,11 +561,11 @@ public class FixedAssetService {
             return BigDecimal.ZERO;
         }
         BigDecimal raw = switch (asset.getMethod()) {
-            case STRAIGHT_LINE -> asset.getAcquisitionCost().subtract(asset.getSalvageValue())
+            case STRAIGHT_LINE -> asset.remainingCost().subtract(asset.getSalvageValue())
                     .divide(BigDecimal.valueOf(asset.getUsefulLifeYears()).multiply(MONTHS_PER_YEAR),
                             0, RoundingMode.HALF_UP);
             case DECLINING_BALANCE -> decliningMonthly(
-                    asset.getAcquisitionCost().subtract(depreciationRepository.sumBefore(asset.getId(), fiscalYearStart)),
+                    asset.remainingCost().subtract(depreciationRepository.sumBefore(asset.getId(), fiscalYearStart)),
                     asset.getDeclineRate());
         };
         return raw.min(remaining);

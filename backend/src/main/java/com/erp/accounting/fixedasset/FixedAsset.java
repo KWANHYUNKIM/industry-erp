@@ -117,12 +117,40 @@ public class FixedAsset extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal quantity = BigDecimal.ONE;
 
+    /** 감소 전표들의 취득원가 몫 합 · 누계액 합 · 수량 합(fixed_asset_movements 에서 다시 셈). acquisitionCost · quantity ·
+     *  accumulatedDepreciation 은 증가 합 · 상각 합 그대로 들고 있다. */
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal decreasedCost = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal decreasedAccum = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal decreasedQuantity = BigDecimal.ZERO;
+
     @Column(length = 50)
     private String createdBy;
 
-    /** 장부가액 = 취득가액 - 감가상각누계액 */
+    /** 남은 취득가 = 증가 합 − 감소 취득원가 몫. 상각 기준이다. */
+    public BigDecimal remainingCost() {
+        return acquisitionCost.subtract(decreasedCost);
+    }
+
+    /** 남은 누계 = 상각 합 − 감소 누계 */
+    public BigDecimal remainingAccum() {
+        return accumulatedDepreciation.subtract(decreasedAccum);
+    }
+
+    public BigDecimal remainingQuantity() {
+        return quantity.subtract(decreasedQuantity);
+    }
+
+    /** 장부가액 = 남은 취득가 - 남은 누계 */
     public BigDecimal bookValue() {
-        return acquisitionCost.subtract(accumulatedDepreciation);
+        return remainingCost().subtract(remainingAccum());
     }
 
     /** 앞으로 더 상각할 수 있는 금액 (잔존가액 아래로는 내려가지 않는다) */

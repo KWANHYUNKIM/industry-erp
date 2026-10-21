@@ -63,6 +63,7 @@ public class JournalService {
     private final AccountService accountService;
     private final PartnerService partnerService;
     private final BankAccountRepository bankAccountRepository;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     /**
      * 일반전표(E010201) 저장. 사용자가 차/대변 라인을 입력하며, 차변합=대변합이어야 저장된다.
@@ -270,9 +271,18 @@ public class JournalService {
     public void deleteManual(Long id) {
         JournalEntry e = entryRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
+        /*
+         * 고정자산증가 · 감소 전표는 회계거래조회에서 지우면 고정자산 전표도 같이 지워진다(원본 2026-10-21 실측:
+         * 전표번호를 누르면 고정자산증가/감소 창이 열리고 [삭제] 가 두 곳에서 다 지운다). 자산 쪽이 이벤트를 듣고 먼저 지운다.
+         */
+        boolean assetSlip = e.getSourceType() == JournalSourceType.ASSET_ACQUISITION || e.getSourceType() == JournalSourceType.DISPOSAL;
         if (e.getSourceType() != JournalSourceType.MANUAL && e.getSourceType() != JournalSourceType.VAT_SALES
-                && e.getSourceType() != JournalSourceType.VAT_PURCHASE) {
+                && e.getSourceType() != JournalSourceType.VAT_PURCHASE && !assetSlip) {
             throw ApiException.badRequest("업무전표에서 생성된 회계전표는 회계반영 취소로만 삭제할 수 있습니다.");
+        }
+        if (assetSlip) {
+            eventPublisher.publishEvent(new JournalDeletingEvent(e.getId(), e.getSourceType(), e.getSourceId()));
+            if (!entryRepository.existsById(e.getId())) return;   // 자산 쪽이 분개까지 지웠다
         }
         entryRepository.delete(e);
     }
@@ -674,66 +684,49 @@ public class JournalService {
     }
 
     /**
-     * 고정자산증가(취득) → 분개. 원본 E010611: 차) 자산계정 공급가액 · 부가세대급금 부가세 / 대) 출금계좌 합계.
-     * 출금계정이 없는 예전 자산은 분개하지 않는다(null).
+     * 고정자산증가 전표 → 분개. 원본 E010611: 차) 자산계정 공급가액 · 부가세대급금 부가세 / 대) 출금계좌 합계.
+     * 출처는 증가 전표(자산 하나에 여러 장). 출금계정이 없는 예전 자산은 분개하지 않는다(null).
      */
     @Transactional
-    public JournalEntry createFromAcquisition(com.erp.accounting.fixedasset.FixedAsset asset) {
-        if (asset.getPaymentAccount() == null) return null;
-        BigDecimal cost = asset.getAcquisitionCost();
-        BigDecimal vat = asset.getAcquisitionVat() != null ? asset.getAcquisitionVat() : BigDecimal.ZERO;
+    public JournalEntry createFromAssetIncrease(com.erp.accounting.fixedasset.FixedAssetMovement m) {
+        if (m.getAccount() == null) return null;
+        com.erp.accounting.fixedasset.FixedAsset asset = m.getAsset();
+        BigDecimal cost = m.getAmount();
+        BigDecimal vat = m.getVat() != null ? m.getVat() : BigDecimal.ZERO;
         String desc = "자산증가 " + asset.getAssetNo() + " " + asset.getName();
-        JournalEntry e = newEntry(JournalSourceType.ASSET_ACQUISITION, asset.getId(), asset.getAcquisitionDate(),
-                desc, null, asset.getCreatedBy());
+        JournalEntry e = newEntry(JournalSourceType.ASSET_ACQUISITION, m.getId(), m.getSlipDate(), desc, null, m.getCreatedBy());
         addDebitAccount(e, asset.getAssetAccount(), cost, "자산증가");
         if (isPositive(vat)) addDebit(e, "135", vat, "부가세대급금");
-        addCreditAccount(e, asset.getPaymentAccount(), cost.add(vat), "자산증가 대금");
+        addCreditAccount(e, m.getAccount(), cost.add(vat), "자산증가 대금");
         return save(e);
     }
 
-    /** 자산을 고친 뒤 취득 분개를 다시 만든다. 지운 것을 먼저 내보내야 (출처, id) 유니크에 안 걸린다. */
-    @Transactional
-    public JournalEntry recreateFromAcquisition(com.erp.accounting.fixedasset.FixedAsset asset) {
-        deleteBySource(JournalSourceType.ASSET_ACQUISITION, asset.getId());
-        entryRepository.flush();
-        return createFromAcquisition(asset);
-    }
-
     /**
-     * 고정자산 처분 → 분개.
-     * 차)감가상각누계액·현금(처분가)·유형자산처분손실 / 대)자산계정·유형자산처분이익
-     * 처분손익 = 처분가액 - 장부가액.
+     * 고정자산감소 전표 → 분개. 차) 감가상각누계액 · 입금계좌(매각+부가세) · 처분손실 / 대) 자산계정(취득원가 몫) · 부가세예수금 · 처분이익.
+     * 처분손익 = 매각액 + 누계 − 취득원가 몫(원본 E010612).
      */
     @Transactional
-    public JournalEntry createFromDisposal(com.erp.accounting.fixedasset.FixedAsset asset) {
-        BigDecimal cost = asset.getAcquisitionCost();
-        BigDecimal accumulated = asset.getAccumulatedDepreciation();
-        BigDecimal proceeds = asset.getDisposalAmount();
-        BigDecimal gain = proceeds.subtract(cost.subtract(accumulated));   // 처분가 - 장부가
+    public JournalEntry createFromAssetDecrease(com.erp.accounting.fixedasset.FixedAssetMovement m) {
+        com.erp.accounting.fixedasset.FixedAsset asset = m.getAsset();
+        BigDecimal cost = m.getAmount();
+        BigDecimal accumulated = m.getAccumAmount();
+        BigDecimal proceeds = m.getSaleAmount();
+        BigDecimal gain = proceeds.add(accumulated).subtract(cost);
+        BigDecimal vat = m.getVat() != null ? m.getVat() : BigDecimal.ZERO;
         String desc = "자산처분 " + asset.getAssetNo() + " " + asset.getName();
-
-        JournalEntry e = newEntry(JournalSourceType.DISPOSAL, asset.getId(), asset.getDisposalDate(),
-                desc, null, asset.getCreatedBy());
-        /* 원본 E010612: 매각액 1,000,000 → 부가세 100,000 이 입금계좌 쪽에 더해지고 부가세예수금으로 선다. */
-        BigDecimal vat = asset.getDisposalVat() != null ? asset.getDisposalVat() : BigDecimal.ZERO;
+        JournalEntry e = newEntry(JournalSourceType.DISPOSAL, m.getId(), m.getSlipDate(), desc, null, m.getCreatedBy());
         if (isPositive(accumulated)) {
             if (asset.getAccumAccount() != null) addDebitAccount(e, asset.getAccumAccount(), accumulated, "감가상각누계액 제거");
             else addDebit(e, "203", accumulated, "감가상각누계액 제거");
         }
         if (isPositive(proceeds.add(vat))) {
-            if (asset.getReceiptAccount() != null) addDebitAccount(e, asset.getReceiptAccount(), proceeds.add(vat), "처분대금");
+            if (m.getAccount() != null) addDebitAccount(e, m.getAccount(), proceeds.add(vat), "처분대금");
             else addDebit(e, "101", proceeds.add(vat), "처분대금");
         }
-        if (gain.signum() < 0) {
-            addDebit(e, "970", gain.negate(), "유형자산처분손실");
-        }
+        if (gain.signum() < 0) addDebit(e, "970", gain.negate(), "유형자산처분손실");
         addCreditAccount(e, asset.getAssetAccount(), cost, "자산 제거");
-        if (isPositive(vat)) {
-            addCredit(e, "255", vat, "부가세예수금");
-        }
-        if (gain.signum() > 0) {
-            addCredit(e, "914", gain, "유형자산처분이익");
-        }
+        if (isPositive(vat)) addCredit(e, "255", vat, "부가세예수금");
+        if (gain.signum() > 0) addCredit(e, "914", gain, "유형자산처분이익");
         return save(e);
     }
 
@@ -1009,6 +1002,14 @@ public class JournalService {
     @Transactional
     public void deleteEntry(JournalEntry e) {
         if (e != null) entryRepository.delete(e);
+    }
+
+    /** 지우고 바로 내보낸다 — 같은 트랜잭션에서 같은 출처로 분개를 다시 만들 때 (출처, id) 유니크에 안 걸리게. */
+    @Transactional
+    public void deleteEntryNow(JournalEntry e) {
+        if (e == null) return;
+        entryRepository.delete(e);
+        entryRepository.flush();
     }
 
     /** 업무전표에 연결된 회계전표 — 고쳐 저장할 때 옛 전표번호를 다시 쓰려고 읽는다. */

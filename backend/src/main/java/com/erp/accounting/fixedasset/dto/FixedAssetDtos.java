@@ -5,6 +5,8 @@ import com.erp.accounting.fixedasset.FixedAsset;
 import com.erp.accounting.fixedasset.AssetStatus;
 import com.erp.accounting.fixedasset.DepreciationMethod;
 import com.erp.accounting.fixedasset.DisposalType;
+import com.erp.accounting.fixedasset.FixedAssetMovement;
+import com.erp.accounting.fixedasset.MovementKind;
 import com.erp.accounting.account.Account;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
@@ -107,12 +109,20 @@ public final class FixedAssetDtos {
             BigDecimal acquisitionVat,
             DisposalType disposalType, String disposalTypeName, BigDecimal disposalVat,
             Long receiptAccountId, String receiptAccountName,
-            boolean quantityManaged, BigDecimal quantity
+            boolean quantityManaged, BigDecimal quantity,
+            /** 감소 전표들의 합(취득원가 몫 · 누계 · 수량). 남은 취득가 = acquisitionCost − decreasedCost. */
+            BigDecimal decreasedCost, BigDecimal decreasedAccum, BigDecimal decreasedQuantity,
+            /** 증가 · 감소 전표(원본 고정자산전표조회 한 줄씩) — 출력물이 이것으로 기간 숫자를 낸다. */
+            List<MovementResponse> movements
     ) {
         private static Long idOf(Account a) { return a != null ? a.getId() : null; }
         private static String nameOf(Account a) { return a != null ? a.getName() : null; }
 
         public static AssetResponse from(FixedAsset a) {
+            return from(a, List.of());
+        }
+
+        public static AssetResponse from(FixedAsset a, List<FixedAssetMovement> ms) {
             return new AssetResponse(
                     a.getId(), a.getAssetNo(), a.getName(),
                     a.getAssetAccount().getId(), a.getAssetAccount().getCode(), a.getAssetAccount().getName(),
@@ -129,9 +139,53 @@ public final class FixedAssetDtos {
                     a.getDisposalType(), a.getDisposalType() != null ? a.getDisposalType().getDisplayName() : null,
                     a.getDisposalVat(),
                     idOf(a.getReceiptAccount()), nameOf(a.getReceiptAccount()),
-                    a.isQuantityManaged(), a.getQuantity());
+                    a.isQuantityManaged(), a.getQuantity(),
+                    a.getDecreasedCost(), a.getDecreasedAccum(), a.getDecreasedQuantity(),
+                    ms.stream().map(MovementResponse::from).toList());
         }
     }
+
+    public record MovementResponse(
+            Long id, MovementKind kind, String kindName, LocalDate slipDate, BigDecimal quantity,
+            BigDecimal amount, BigDecimal vat, BigDecimal accumAmount, BigDecimal saleAmount,
+            DisposalType disposalType, String disposalTypeName, BigDecimal gainLoss,
+            Long accountId, String accountName, Long journalEntryId, String journalDocNo, String remark
+    ) {
+        public static MovementResponse from(FixedAssetMovement m) {
+            return new MovementResponse(m.getId(), m.getKind(), m.getKind().getDisplayName(), m.getSlipDate(), m.getQuantity(),
+                    m.getAmount(), m.getVat(), m.getAccumAmount(), m.getSaleAmount(),
+                    m.getDisposalType(), m.getDisposalType() != null ? m.getDisposalType().getDisplayName() : null, m.getGainLoss(),
+                    m.getAccount() != null ? m.getAccount().getId() : null, m.getAccount() != null ? m.getAccount().getName() : null,
+                    m.getJournalEntry() != null ? m.getJournalEntry().getId() : null,
+                    m.getJournalEntry() != null ? m.getJournalEntry().getDocNo() : null, m.getRemark());
+        }
+    }
+
+    /** 고정자산증가 전표 더하기(원본 E010611 — 같은 자산코드로 두 번째 증가). */
+    public record IncreaseRequest(
+            @NotNull(message = "일자를 입력하세요.") LocalDate slipDate,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotNull(message = "공급가액을 입력하세요.") @Positive(message = "공급가액은 0보다 커야 합니다.") BigDecimal amount,
+            @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal vat,
+            /** 출금계좌. 비면 분개를 만들지 않는다. */
+            Long accountId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String remark
+    ) {}
+
+    /**
+     * 고정자산감소 전표(원본 E010612) — 일부 감소. 취득원가 몫을 비우면 '증가 합계 단가 × 수량', 누계는 비우면 0(원본은 손으로 넣는다).
+     */
+    public record DecreaseRequest(
+            @NotNull(message = "일자를 입력하세요.") LocalDate slipDate,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @PositiveOrZero(message = "취득원가는 0보다 작을 수 없습니다.") BigDecimal amount,
+            @PositiveOrZero(message = "감가상각누계액은 0보다 작을 수 없습니다.") BigDecimal accumAmount,
+            @PositiveOrZero(message = "매각액은 0보다 작을 수 없습니다.") BigDecimal saleAmount,
+            @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal vat,
+            DisposalType disposalType,
+            Long accountId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String remark
+    ) {}
 
     public record DepreciationResponse(
             Long id, Long assetId, String assetNo, String assetName,
