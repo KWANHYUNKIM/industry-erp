@@ -21,7 +21,7 @@
       "steps": [
         "js:(()=>{const ins=[...document.querySelectorAll('input[type=date]')];const d=sessionStorage.getItem('adDate');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;for(const i of ins.slice(0,2)){set.call(i,d);i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}))}return true})()",
         "wait:1500",
-        "expect:(()=>{const no=sessionStorage.getItem('adNo');const d=sessionStorage.getItem('adDate');const sd=d.slice(2).replace(/-/g,'/')+'-'+Number(no.split('-').pop());const ld=d.replace(/-/g,'/')+' -'+Number(no.split('-').pop());const s=JSON.parse(sessionStorage.getItem('ad'));const want=(s.q+2).toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2});const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===ld);return !!tr&&tr.cells[6].innerText.trim()===want&&tr.cells[7].innerText.trim()===ld})()"
+        "expect:(()=>{const no=sessionStorage.getItem('adNo');const d=sessionStorage.getItem('adDate');const sd=d.slice(2).replace(/-/g,'/')+'-'+Number(no.split('-').pop());const ld=d.replace(/-/g,'/')+' -'+Number(no.split('-').pop());const s=JSON.parse(sessionStorage.getItem('ad'));const want=(s.q+2).toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2});const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[7]&&t.cells[7].innerText.trim()===ld);return !!tr&&tr.cells[6].innerText.trim()===want})()"
       ]
     },
     {
