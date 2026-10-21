@@ -11,7 +11,7 @@
         "expect:/PR-\\d{8}-\\d{4}/.test(sessionStorage.getItem('qaVarProd'))",
         "js:location.href='/accounting/cost-build';true",
         "wait:2500",
-        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const L=()=>[...document.querySelectorAll('[role=dialog]')].pop();window.confirm=()=>true;sessionStorage.setItem('qaVarCp','1');B('신규(F2)').click();await W(600);B('저장(F8)',L()).click();await W(1500);B('닫기',L())?.click();await W(300);B('표준원가생성').click();await W(2000);B('생성').click();await W(600);B('적용(F8)',L()).click();await W(3000);return document.body.innerText.includes('원가생성] 작업이 완료되었습니다')})()",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const L=()=>[...document.querySelectorAll('[role=dialog]')].pop();window.confirm=()=>true;sessionStorage.setItem('qaVarCp','1');B('신규(F2)').click();await W(600);B('저장(F8)',L()).click();await W(1500);B('닫기',L())?.click();await W(300);B('표준원가생성').click();await W(2000);B('생성').click();await W(600);B('적용(F8)',L()).click();for(let i=0;i<10&&!document.body.innerText.includes('원가생성] 작업이 완료되었습니다');i++)await W(1000);return document.body.innerText.includes('원가생성] 작업이 완료되었습니다')})()",
         "expect:document.body.innerText.includes('원가생성] 작업이 완료되었습니다')",
         "js:location.href='/accounting/variance';true",
         "wait:3000",
