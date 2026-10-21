@@ -35,7 +35,7 @@ public final class PurchaseOrderDtos {
     ) {}
 
     public record CreatePurchaseOrderRequest(
-            @NotNull(message = "매입처를 선택하세요.") Long partnerId,
+            Long partnerId,
             LocalDate orderDate,
             LocalDate dueDate,
             /** 원본 단가요청진행단계의 [유효기간] — 회신받은 단가가 언제까지 유효한가. */
@@ -191,7 +191,7 @@ public final class PurchaseOrderDtos {
             return new PurchaseOrderResponse(
                     po.getId(), po.getOrderNo(), po.getOrderDate(), po.getDueDate(),
                     po.getPriceValidUntil(),
-                    po.getPartner().getId(), po.getPartner().getName(),
+                    po.getPartner() != null ? po.getPartner().getId() : null, po.getPartner() != null ? po.getPartner().getName() : null,
                     po.getEmployee() != null ? po.getEmployee().getId() : null,
                     po.getEmployee() != null ? po.getEmployee().getName() : null,
                     po.getWarehouse() != null ? po.getWarehouse().getId() : null,

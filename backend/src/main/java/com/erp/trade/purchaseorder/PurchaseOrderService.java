@@ -86,7 +86,7 @@ public class PurchaseOrderService {
                 if (rest.signum() <= 0) continue;
                 out.add(new PurchaseOrderDtos.UnpurchasedLineResponse(
                         po.getId(), po.getOrderNo(), l.getId(), po.getOrderDate(),
-                        po.getPartner().getId(), po.getPartner().getName(), po.getStatus().getDisplayName(),
+                        po.getPartner() != null ? po.getPartner().getId() : null, po.getPartner() != null ? po.getPartner().getName() : null, po.getStatus().getDisplayName(),
                         po.getWarehouse() != null ? po.getWarehouse().getId() : null,
                         po.getProject() != null ? po.getProject().getId() : null,
                         itemId, l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
@@ -187,14 +187,26 @@ public class PurchaseOrderService {
         };
     }
 
-    /** 발주요청 등록. 단가 미입력 라인은 품목 기준단가로 채운다. */
-    @Transactional
-    public PurchaseOrderResponse create(CreatePurchaseOrderRequest req, String username) {
-        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
+    /**
+     * 머리 거래처 — 발주요청 · 발주계획은 <b>비워도 된다</b>(원본 E040315 실측: 거래처 칸은 줄마다, 비워 두고 저장되고 조회 거래처도 빈칸).
+     * 발주서 · 단가요청은 거래처가 머리에 하나라 꼭 있어야 한다.
+     */
+    private BusinessPartner headPartner(Long partnerId, PurchaseOrderStatus kind) {
+        if (partnerId == null) {
+            if (kind == PurchaseOrderStatus.REQUESTED || kind == PurchaseOrderStatus.PLANNED) return null;
+            throw ApiException.badRequest("매입처를 선택하세요.");
+        }
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(partnerId)
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + partnerId)));
         if (!partner.getType().canBuy()) {
             throw ApiException.badRequest("매입처가 아닌 거래처에는 발주할 수 없습니다: " + partner.getName());
         }
+        return partner;
+    }
+
+    /** 발주요청 등록. 단가 미입력 라인은 품목 기준단가로 채운다. */
+    @Transactional
+    public PurchaseOrderResponse create(CreatePurchaseOrderRequest req, String username) {
         LocalDate orderDate = req.orderDate() != null ? req.orderDate() : LocalDate.now();
 
         Employee employee = req.employeeId() == null ? null : employeeRepository.findById(req.employeeId())
@@ -205,6 +217,7 @@ public class PurchaseOrderService {
         PurchaseOrderStatus kind = Boolean.TRUE.equals(req.priceRequest()) ? PurchaseOrderStatus.PRICE_REQUESTED
                 : Boolean.TRUE.equals(req.order()) ? PurchaseOrderStatus.ORDERED
                 : Boolean.TRUE.equals(req.plan()) ? PurchaseOrderStatus.PLANNED : PurchaseOrderStatus.REQUESTED;
+        BusinessPartner partner = headPartner(req.partnerId(), kind);
         PurchaseOrder po = PurchaseOrder.builder()
                 .orderNo(docNoGenerator.next(noPrefix(kind), "purchase_orders", "order_no", "order_date", orderDate))
                 .orderDate(orderDate)
@@ -261,11 +274,7 @@ public class PurchaseOrderService {
                 && po.getStatus() != PurchaseOrderStatus.PRICE_REQUESTED) {
             throw ApiException.badRequest("발주요청 · 발주계획 · 단가요청 상태에서만 고칠 수 있습니다. (현재: " + po.getStatus().getDisplayName() + ")");
         }
-        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
-        if (!partner.getType().canBuy()) {
-            throw ApiException.badRequest("매입처가 아닌 거래처에는 발주할 수 없습니다: " + partner.getName());
-        }
+        BusinessPartner partner = headPartner(req.partnerId(), po.getStatus());
         po.setPartner(partner);
         po.setDueDate(req.dueDate());
         po.setEmployee(req.employeeId() == null ? null : employeeRepository.findById(req.employeeId())
@@ -452,6 +461,7 @@ public class PurchaseOrderService {
             throw ApiException.badRequest("발주확정 상태의 발주서만 입고할 수 있습니다.");
         }
 
+        if (po.getPartner() == null) throw ApiException.badRequest("거래처가 없는 발주서는 입고할 수 없습니다.");
         List<PurchaseLineRequest> lines = po.getLines().stream()
                 // 입고전환으로 생긴 라인은 이 발주서가 근거전표다 — 구매입력에서 [불러온 전표]로 보인다.
                 .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null))

@@ -54,8 +54,8 @@ public class PurchaseOrder extends BaseTimeEntity {
     @Column(name = "price_valid_until")
     private LocalDate priceValidUntil;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "partner_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 
     /** 담당자 */
