@@ -8,7 +8,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { PARTNER_LEDGER_PICKS } from '../../utils/periods'
-import type { JournalEntry } from '../../types/api'
+import { useRequired } from '../../utils/useRequired'
+import type { JournalEntry, SalesDoc, PurchaseDoc, TradeLine } from '../../types/api'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -42,7 +43,7 @@ function BookTable({ title, mode, children }: { title: string; mode: string; chi
 }
 
 /** 원장 한 줄 — 회계전표 한 장의 통제계정 몫. */
-interface Row { date: string; no: string; text: string; inc: number; dec: number; stock: boolean }
+interface Row { date: string; no: string; text: string; inc: number; dec: number; stock: boolean; items?: { text: string; amount: number }[] }
 interface Block { side: Side; partnerId: number; carry: number; rows: Row[] }
 
 /**
@@ -80,6 +81,9 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const seq = useRef(0)
+  /** 대장 II 의 내역 줄 — 판매 · 구매 전표의 품목(원본: '품목명 [규격] /수량*단가', 금액은 부가세 포함). */
+  const [docLines, setDocLines] = useState<Map<string, TradeLine[]>>(new Map())
+  const req = useRequired()
 
   const [control, setControl] = useState<Record<Side, Set<string>>>(FALLBACK_CONTROL)
 
@@ -93,12 +97,25 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
   }, [])
 
   async function load() {
+    /* 원본 대장 II 는 [거래처] 필수 — 비면 칸이 빨개지고 조회하지 않는다(2026-10-22 실측). */
+    if (two && !req.check({ partner: partner !== '' })) return
     const my = ++seq.current
     setLoading(true)
     setError('')
     try {
       const r = await api.get<JournalList>('/journals', { params: { from: '1900-01-01', to, all: true } })
       if (my !== seq.current) return   // 늦게 온 옛 응답은 버린다
+      if (two) {
+        const [sd, pd] = await Promise.all([
+          api.get<SalesDoc[]>('/sales', { params: { from, to } }).then((x) => x.data).catch(() => [] as SalesDoc[]),
+          api.get<PurchaseDoc[]>('/purchases', { params: { from, to } }).then((x) => x.data).catch(() => [] as PurchaseDoc[]),
+        ])
+        if (my !== seq.current) return
+        const m = new Map<string, TradeLine[]>()
+        sd.forEach((d) => m.set(`SALES:${d.id}`, d.lines))
+        pd.forEach((d) => m.set(`PURCHASE:${d.id}`, d.lines))
+        setDocLines(m)
+      }
       setEntries(r.data.rows)
       setTruncated(r.data.truncated)
     } catch (e) {
@@ -140,18 +157,24 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
           if (!m.has(key)) m.set(key, { side, partnerId: key, carry: 0, rows: [] })
           const b = m.get(key)!
           if (e.entryDate < from) b.carry += inc - dec
-          else b.rows.push({ date: e.entryDate, no: e.docNo, text: e.description ?? '', inc, dec, stock: STOCK_SOURCES.has(e.sourceType) })
+          else b.rows.push({
+            date: e.entryDate, no: e.docNo, text: e.description ?? '', inc, dec, stock: STOCK_SOURCES.has(e.sourceType),
+            items: two ? (docLines.get(`${e.sourceType}:${e.sourceId}`) ?? []).map((l) => ({
+              text: `${l.itemName}${l.spec ? ` [${l.spec}]` : ''} /${Number(l.quantity).toLocaleString('ko-KR')}*${Number(l.unitPrice).toLocaleString('ko-KR')}`,
+              amount: Number(l.supplyAmount) + Number(l.vatAmount),
+            })) : undefined,
+          })
         }
       }
       out.push(...[...m.values()].filter((b) => b.rows.length > 0 || b.carry !== 0)
         .sort((a, b) => (byId.get(a.partnerId)?.code ?? '').localeCompare(byId.get(b.partnerId)?.code ?? '')))
     }
     return out
-  }, [entries, partner, sideCond, byParent, byId, noCode, from, control])
+  }, [entries, partner, sideCond, byParent, byId, noCode, from, control, docLines, two])
 
   const reset = () => {
     setSideCond('채권'); setMode('전표별+내역'); setFrom(init.from); setTo(init.to); setPartner(''); setByParent(true)
-    setNoCode(false); setSignLine(false); setFxOnly(false); setEntries(null)
+    setNoCode(false); setSignLine(false); setFxOnly(false); setEntries(null); req.reset()
   }
   const check = (label: string, v: boolean, set: (b: boolean) => void) => (
     <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
@@ -206,12 +229,24 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
     return (
       <div key={`${b.side}-${b.partnerId}`} className="mb-[18px]">
         <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
-          <span className="font-bold">{p?.code ? `${p.code} ` : ''}{name}{sideCond === '전체' ? ` (${b.side})` : ''}</span>
+          {(!two || sideCond === '전체') && <span className="font-bold">{p?.code ? `${p.code} ` : ''}{name}{sideCond === '전체' ? ` (${b.side})` : ''}</span>}
         </div>
         {!two && (
           <div className="text-[12px] mb-[4px] flex flex-wrap gap-x-[14px]">
             {headline(p).map((t) => <span key={t}>{t}</span>)}
           </div>
+        )}
+        {two && (
+          /* 원본 대장 II 머리(2026-10-22 실측): 사업자등록번호 · 대표자 / 여신한도 · 전화 / Email · Fax / 주 소 / 기타사항 */
+          <table className="w-full text-left mb-[6px]">
+            <tbody>
+              <tr><th className="w-[110px]">사업자등록번호</th><td>{p?.bizRegNo ?? ''}</td><th className="w-[70px]">대표자</th><td>{p?.ceoName ?? ''}</td></tr>
+              <tr><th>여신한도</th><td>{won(Number(p?.creditLimit ?? 0)) || '0'}</td><th>전화</th><td>{p?.phone ?? ''}{p?.mobile ? ` (${p.mobile})` : ''}</td></tr>
+              <tr><th>Email</th><td>{p?.email ?? ''}</td><th>Fax</th><td>{p?.fax ?? ''}</td></tr>
+              <tr><th>주 소</th><td colSpan={3}>{p?.address ?? ''}</td></tr>
+              <tr><th>기타사항</th><td colSpan={3}>{p?.remark ?? ''}</td></tr>
+            </tbody>
+          </table>
         )}
         <BookTable title={title} mode={mode}>
           <thead>
@@ -248,7 +283,8 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
           </thead>
           <tbody>
             <tr>
-              <td colSpan={cols - 1} className="text-center">이월잔액</td>
+              <td colSpan={two ? 2 : cols - 1} className="text-center">이월잔액</td>
+              {two && <><td></td><td></td><td></td><td></td></>}
               <td className="text-right">{won(b.carry)}</td>
             </tr>
             {months.map((mo) => {
@@ -261,7 +297,8 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
                     bal += x.inc - x.dec
                     const r = g.rows[0]
                     return (
-                      <tr key={g.key}>
+                      <Fragment key={g.key}>
+                      <tr>
                         <td className="text-ec-blue">{label(r, g.key)}</td>
                         <td>{mode === '일별' || mode === '월별' ? '' : r.text}</td>
                         {two ? (
@@ -279,6 +316,16 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
                         )}
                         <td className="text-right">{won(bal)}</td>
                       </tr>
+                      {two && mode !== '일별' && mode !== '월별' && g.rows.flatMap((gr) => gr.items ?? []).map((it, k) => (
+                        <tr key={`${g.key}i${k}`}>
+                          <td></td>
+                          <td>{it.text}</td>
+                          <td className="text-right">{r.stock && r.inc > 0 ? won(it.amount) : ''}</td>
+                          <td className="text-right">{r.stock && r.inc <= 0 ? won(it.amount) : ''}</td>
+                          <td></td><td></td><td></td>
+                        </tr>
+                      ))}
+                      </Fragment>
                     )
                   })}
                   <tr className="font-bold bg-ec-head">
@@ -343,7 +390,7 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
         </EcCond>
         {!two && <EcCond label="집계구분">{radios(`pb${kind}-mode`, MODES, mode, setMode)}</EcCond>}
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}
+          <CodePickerField label="거래처" hideLabel width={220} emptyLabel={two ? undefined : '전체'} invalid={two && req.on('partner', partner !== '')} value={partner} onChange={setPartner}
                            items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
         </EcCond>
         <EcCond label="대표거래처로 합산">
@@ -362,7 +409,7 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
         <p className="ec-empty">불러오는 중…</p>
       ) : !entries ? null : (
         <>
-          <EcReportHead title={title} period={reportPeriod(from, to)} />
+          <EcReportHead title={two && blocks.length > 0 ? `${byId.get(blocks[0].partnerId)?.name ?? ''} 관리대장` : title} period={reportPeriod(from, to)} />
           {fxOnly || blocks.length === 0 ? (
             <p className="ec-empty">등록된 데이터가 없습니다.</p>
           ) : blocks.map(blockTable)}
