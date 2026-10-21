@@ -1609,6 +1609,8 @@ export interface StockAdjustment {
   partnerId?: number | null
   /** 불량처리의 정상품목 줄(재고가 들어온 줄 — 품목대체 [정상품목] · 정상사용의 되돌아온 수량). */
   normal?: boolean
+  /** 줄을 쓴 때(전표를 고치면 다시 쓴다) — 자가사용수정 [H] 이력. */
+  createdAt?: string | null
 }
 
 /** 원본 자가사용입력(E040503) 전표 한 장 — 머리 + 줄. */

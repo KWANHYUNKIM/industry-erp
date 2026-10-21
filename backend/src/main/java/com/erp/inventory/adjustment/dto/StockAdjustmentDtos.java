@@ -64,7 +64,9 @@ public final class StockAdjustmentDtos {
              * 불량처리 전표의 <b>정상품목</b> 줄인가 — 재고가 <b>들어온</b> 줄이다(품목대체의 [정상품목] 격자,
              * 정상사용의 되돌아온 수량). 불량처리조회 · 불량처리현황 · 불량률은 이 줄을 빼고 센다.
              */
-            boolean normal
+            boolean normal,
+            /** 자가사용수정 [H] 이력의 작업일시 — 전표를 고치면 줄을 새로 쓰므로 마지막으로 쓴 때다. */
+            java.time.LocalDateTime createdAt
     ) {
         public static AdjustmentResponse from(StockAdjustment a) {
             return new AdjustmentResponse(
@@ -82,7 +84,8 @@ public final class StockAdjustmentDtos {
                     a.getReason(), a.getCreatedBy(),
                     a.getKind(), a.getHandling(),
                     a.getLineNo(), a.getPartnerId(),
-                    a.getType() == StockAdjustmentType.DEFECT && a.getQuantityChange().signum() > 0);
+                    a.getType() == StockAdjustmentType.DEFECT && a.getQuantityChange().signum() > 0,
+                    a.getCreatedAt());
         }
     }
 

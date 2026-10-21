@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from '../../components/Modal'
-import SelfUseInputPage from './SelfUseInputPage'
+import SelfUseInputPage, { SelfUsePrint } from './SelfUseInputPage'
 import { dateNo } from '../../utils/dateNo'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -10,7 +10,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, SELF_USE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import type { StockAdjustment } from '../../types/api'
+import type { StockAdjustment, StockAdjustmentSlip } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
 
 interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated: boolean }
@@ -25,8 +25,8 @@ interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated
  * <p>2026-10-12 다시 실측(입력 → 조회 → 수정 → 삭제): 조건은 <b>접혀</b> 있고 [Search(F3)] 로 편다(…조회 화면 공통).
  * 한 줄이 <b>전표 한 장</b>이다 — 품목이 여럿이면 '투광등 100W 외 1건', 수량은 줄 합. [일자-No.] 를 누르면 그 자리에
  * <b>자가사용수정</b> 창이 뜬다(일자 잠김 · [저장(F8) · 삭제 · 닫기]). 아래 [신규(F2)] 는 자가사용입력.
- * [발송여부]는 전표를 메일로 보내지 않아 없다. [인쇄] 열은 전표 한 장을 찍는 자리인데 자가사용 인쇄 양식이 없다.
- * 탭 [전체 · 결재중 · 미확인 · 확인] 은 결재 · 확인 단계가 없어 두지 않는다.
+ * [발송여부]는 전표를 메일로 보내지 않아 없다. 2026-10-21: [인쇄] 열 → 자가사용전표(SelfUsePrint), 탭 [전체 · 결재중 · 미확인 · 확인]
+ * (새 전표는 곧바로 확인 — 결재중 · 미확인은 비어 있다), 수정 창 버튼 아홉을 원본대로 두었다.
  *
  * <p><b>불량처리조회</b>(C000088) — 같은 날 실측. 조건: 기준일자(기본 최근30일(+1개월), 빠른선택에 [말일]이 없다) · 창고 · 프로젝트 ·
  * 품목코드 · 담당자 · 불량유형 · 처리방법(체크, 다 켜짐 — 원본 회사는 폐기 · 품목대체 · 정상사용) · 기타(수정일자순) · 최종수정자 · 발송여부.
@@ -47,6 +47,20 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
   const [keyword, setKeyword] = useState('')
   /** 자가사용수정 창 — 원본처럼 목록 위에 뜬다. */
   const [editNo, setEditNo] = useState<string | null>(null)
+  /*
+   * 원본 자가사용조회 머리 탭: 전체 · 결재중 · 미확인 · 확인(2026-10-21 실측). 저장한 전표는 곧바로 [확인] 이고
+   * 이 회사는 전표상태관리유형이 꺼져 있어 결재중 · 미확인은 늘 비어 있다(창고이동조회와 같다).
+   */
+  const [stTab, setStTab] = useState<'전체' | '결재중' | '미확인' | '확인'>('전체')
+  /* 목록 [인쇄] 열이 여는 자가사용전표. */
+  const [printSlip, setPrintSlip] = useState<StockAdjustmentSlip | null>(null)
+  async function openPrint(no: string) {
+    try {
+      setPrintSlip((await api.get<StockAdjustmentSlip>(`/stock-adjustments/slips/${encodeURIComponent(no)}`)).data)
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [item, setItem] = useState('')
   const [employee, setEmployee] = useState('')
@@ -188,6 +202,14 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
       </ul>
 
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">자료가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {selfUse && (
+        <div className="ec-pills mb-[6px]" role="tablist" aria-label="전표상태">
+          {(['전체', '결재중', '미확인', '확인'] as const).map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={stTab === t}
+                    className={`ec-pill${stTab === t ? ' active' : ''}`} onClick={() => setStTab(t)}>{t}</button>
+          ))}
+        </div>
+      )}
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -201,13 +223,14 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
             <th>품목</th>
             <th className="text-right">수량</th>
             {selfUse ? <th>담당자</th> : <th>처리방법</th>}
+            {selfUse && <th className="w-[54px] text-center">인쇄</th>}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={selfUse ? 7 : 6} className="ec-empty">불러오는 중…</td></tr>
-          ) : slips.length === 0 ? (
-            <tr><td colSpan={selfUse ? 7 : 6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={selfUse ? 8 : 6} className="ec-empty">불러오는 중…</td></tr>
+          ) : slips.length === 0 || (selfUse && (stTab === '결재중' || stTab === '미확인')) ? (
+            <tr><td colSpan={selfUse ? 8 : 6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : slips.map((ls) => {
             const r = ls[0]
             const qty = ls.reduce((s, x) => s + Math.abs(Number(x.quantityChange)), 0)
@@ -227,13 +250,30 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
                 {selfUse
                   ? <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
                   : <td>{r.handling ?? ''}</td>}
+                {selfUse && <td className="text-center"><a className="cursor-pointer" onClick={() => void openPrint(r.adjustNo)}>인쇄</a></td>}
               </tr>
             )
           })}
         </tbody>
       </table>
       <Modal open={editNo != null} title={selfUse ? '자가사용수정' : '불량처리수정'} width={1100} error={error} onClose={() => setEditNo(null)}>
-        {editNo && <SelfUseInputPage kind={kind} adjustNo={editNo} onDone={() => { setEditNo(null); void load() }} />}
+        {editNo && (
+          <SelfUseInputPage kind={kind} adjustNo={editNo} onDone={() => { setEditNo(null); void load() }}
+                            onNav={(dir) => {
+                              /* 목록은 새 전표가 위 — [이전](더 옛 전표)은 아래 줄, [다음](더 새 전표)은 위 줄. */
+                              const i = slips.findIndex((ls) => ls[0].adjustNo === editNo)
+                              const next = slips[i - dir]
+                              if (next) setEditNo(next[0].adjustNo)
+                            }} />
+        )}
+      </Modal>
+      <Modal open={!!printSlip} title="자가사용전표" onClose={() => setPrintSlip(null)}>
+        {printSlip && (
+          <SelfUsePrint slip={printSlip}
+                        partnerText={(id) => { const p = id != null ? pickers.partners.find((x) => x.value === String(id)) : undefined; return p ? `${p.name}(${p.code})` : '' }}
+                        whCode={pickers.warehouses.find((w) => w.value === String(printSlip.warehouseId))?.code ?? ''}
+                        onClose={() => setPrintSlip(null)} />
+        )}
       </Modal>
     </EcListShell>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
+import Modal from '../../components/Modal'
 import EcSlipShell from '../../components/EcSlipShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -47,9 +48,15 @@ const LABEL: Record<MoveKind, { name: string; list: string; warehouse: string; k
 /** 원본 불량처리입력 [처리방법] 후보 — 차례도 원본 그대로, 기본은 폐기. */
 const HANDLINGS = ['폐기', '품목대체', '정상사용'] as const
 
-export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }: { adjustNo?: string; onDone?: () => void; kind?: MoveKind } = {}) {
+export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF_USE' }: {
+  adjustNo?: string; onDone?: () => void; kind?: MoveKind
+  /** 수정 창 [이전] · [다음] — 목록이 일자 차례로 한 장 앞 · 뒤 전표를 연다. */
+  onNav?: (dir: -1 | 1) => void
+} = {}) {
   const navigate = useNavigate()
-  const editing = !!adjustNo
+  /* [복사] — 원본은 같은 머리 · 줄을 든 채 입력 창이 된다(저장하면 새 번호). */
+  const [copied, setCopied] = useState(false)
+  const editing = !!adjustNo && !copied
   const L = LABEL[kind]
   const selfUse = kind === 'SELF_USE'
   const [handling, setHandling] = useState<string>('폐기')
@@ -71,6 +78,10 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
   const [kinds, setKinds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  /* 수정 창에 연 전표 — [H] 이력이 쓴다. [저장/전표(F7)] 는 저장한 전표를 인쇄 창으로 연다. */
+  const [slip, setSlip] = useState<StockAdjustmentSlip | null>(null)
+  const [printSlip, setPrintSlip] = useState<StockAdjustmentSlip | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     api.get<{ name: string; codes: { name: string }[] }[]>('/codes')
@@ -80,8 +91,10 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
 
   useEffect(() => {
     if (!adjustNo) return
+    setCopied(false)
     api.get<StockAdjustmentSlip>(`/stock-adjustments/slips/${encodeURIComponent(adjustNo)}`)
       .then(({ data: s }) => {
+        setSlip(s)
         setDate(s.date)
         setPartnerId(s.partnerId != null ? String(s.partnerId) : '')
         setEmployeeId(s.employeeId != null ? String(s.employeeId) : '')
@@ -99,6 +112,11 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
   const itemById = useMemo(() => new Map(pickers.items.map((i) => [i.value, i])), [pickers.items])
   /* 담당자는 id 로 든다(inventory 는 hr 을 모른다) — 후보 값도 id 로 바꿔 준다. */
   const employeeItems = useMemo(() => pickers.employees.map((e) => ({ ...e, value: String(e.id) })), [pickers.employees])
+  /* 인쇄 [출고처] '거래처(코드)' — 원본 꼴(원본 거래처코드가 사업자번호라 '의료기기판매점(123-45-67012)'). */
+  const partnerText = (id: number | null) => {
+    const p = id != null ? pickers.partners.find((x) => x.value === String(id)) : undefined
+    return p ? `${p.name}${p.code ? `(${p.code})` : ''}` : ''
+  }
   const kindItems = useMemo(() => kinds.map((k) => ({ value: k, name: k })), [kinds])
 
   function setLine(i: number, patch: Partial<Line>) {
@@ -118,7 +136,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
     setError('')
   }
 
-  async function save() {
+  async function save(andPrint = false) {
     setError(''); setNotice('')
     if (!warehouseId) return setError(`${L.warehouse}를 입력하세요.`)
     const filled = lines.filter((l) => l.itemId || l.quantity)
@@ -141,8 +159,10 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
       const { data } = editing
         ? await api.put<StockAdjustmentSlip>(`/stock-adjustments/slips/${encodeURIComponent(adjustNo!)}`, body)
         : await api.post<StockAdjustmentSlip>('/stock-adjustments/slips', body)
-      if (editing) { onDone?.(); return }
-      setNotice(`${dateNo(data.date, data.adjustNo)} 저장되었습니다.`)
+      if (andPrint) setPrintSlip(data)
+      if (editing || copied) { if (!andPrint) onDone?.(); return }
+      /* 원본 자가사용입력은 저장하면 말 없이 일자 · 창고를 둔 채 격자만 비운다(2026-10-21 실측). 불량처리는 예전대로 알린다. */
+      if (!selfUse) setNotice(`${dateNo(data.date, data.adjustNo)} 저장되었습니다.`)
       reset()
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -150,7 +170,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
   }
 
   async function remove() {
-    if (!adjustNo || !(await ecConfirm('전표를 삭제하겠습니까?'))) return
+    if (!adjustNo || !(await ecConfirm(selfUse ? '전표를 삭제하겠습니까?\n- 자가' : '전표를 삭제하겠습니까?'))) return
     try {
       await api.delete(`/stock-adjustments/slips/${encodeURIComponent(adjustNo)}`)
       onDone?.()
@@ -169,12 +189,33 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
       title={`${L.name}${editing ? '수정' : '입력'}`}
       formTabs={[{ id: 'basic', label: `${L.name}입력` }]} activeFormTab="basic"
       actions={editing
-        ? [
-            { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
-            { label: '삭제', onClick: () => void remove() },
-            { label: '닫기', onClick: () => onDone?.() },
-          ]
-        : [
+        ? selfUse
+          /* 원본 자가사용수정 버튼 아홉(2026-10-21 실측) — 창고이동수정과 같다. */
+          ? [
+              { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
+              { label: '저장/전표(F7)', onClick: () => void save(true) },
+              { label: '복사', onClick: () => setCopied(true) },
+              { label: '이전', onClick: () => onNav?.(-1) },
+              { label: '다음', onClick: () => onNav?.(1) },
+              { label: '닫기', onClick: () => onDone?.() },
+              { label: '삭제', onClick: () => void remove() },
+              /* 바깥 연동(메일 · 메신저로 보내기) — 모양만. */
+              { label: '보내기' },
+              { label: 'H', onClick: () => setShowHistory(true) },
+            ]
+          : [
+              { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
+              { label: '삭제', onClick: () => void remove() },
+              { label: '닫기', onClick: () => onDone?.() },
+            ]
+        : selfUse
+          ? [
+              { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
+              { label: '저장/전표(F7)', onClick: () => void save(true) },
+              { label: '다시 작성', onClick: reset },
+              copied ? { label: '닫기', onClick: () => onDone?.() } : { label: '리스트', onClick: () => navigate(L.list) },
+            ]
+          : [
             { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
             { label: '다시 작성', onClick: reset },
             { label: '리스트', onClick: () => navigate(L.list) },
@@ -281,7 +322,80 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
             </tbody>
           </table>
         </div>
+        <Modal open={!!printSlip} title={`${L.name}전표`} onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }}>
+          {printSlip && (
+            <SelfUsePrint slip={printSlip} partnerText={partnerText}
+                          whCode={pickers.warehouses.find((w) => w.value === String(printSlip.warehouseId))?.code ?? ''}
+                          onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }} />
+          )}
+        </Modal>
+        {/* [H] — 원본 이력 창: 작업자ID · 작업일시 · 전표상태 · 진행상태 · 상태. 고치면 줄을 새로 쓰므로 작업일시는 마지막으로 쓴 때다. */}
+        <Modal open={showHistory && !!slip} title="이력" onClose={() => setShowHistory(false)}>
+          {slip && (
+            <table className="w-full text-left">
+              <thead><tr><th className="w-[34px]"></th><th>작업자ID</th><th>작업일시</th><th>전표상태</th><th>진행상태</th><th>상태</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td className="text-center text-ec-hint">1</td>
+                  <td>{slip.lines[0]?.createdBy ?? ''}</td>
+                  <td>{historyAt(slip.lines[0]?.createdAt)}</td>
+                  <td>확인</td><td>확인</td><td>신규</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </Modal>
       </div>
     </EcSlipShell>
+  )
+}
+
+/** 원본 이력 작업일시 꼴 '2026/10/21 오전 11:34:11'. */
+function historyAt(at?: string | null) {
+  if (!at) return ''
+  const d = new Date(at)
+  const h = d.getHours()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${h < 12 ? '오전' : '오후'} ${p(h % 12 || 12)}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+/**
+ * 자가사용전표 — 원본 목록 [인쇄] · 수정 창 [저장/전표(F7)] 의 '기본(수정불가)' 양식(2026-10-21 실측):
+ * 전표번호 · 출고창고 '이름(코드)' · DATE '2026. 10. 20' · 출고처 '거래처(사업자번호)',
+ * 순번 · 품목코드 · 품목명[규격] · 수량 · 적요, 감소수량 합 · 인수 인. 버튼 인쇄 · 닫기(Email · Excel 은 바깥 연동 · 파일이라 뺌).
+ */
+export function SelfUsePrint({ slip, partnerText, whCode, onClose }: {
+  slip: StockAdjustmentSlip; partnerText: (id: number | null) => string; whCode: string; onClose: () => void
+}) {
+  const fix2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const lines = slip.lines.filter((l) => !l.normal)
+  const total = lines.reduce((a, l) => a + Math.abs(Number(l.quantityChange)), 0)
+  return (
+    <div>
+      <div className="text-center font-bold text-[18px] mb-[8px]">자 가 사 용 전 표</div>
+      <table className="w-full text-left mb-[6px]">
+        <tbody>
+          <tr><th className="w-[90px]">전표번호</th><td>{dateNo(slip.date, slip.adjustNo)}</td><th className="w-[70px]">출고창고</th><td>{slip.warehouseName}({whCode})</td></tr>
+          <tr><th>DATE</th><td>{slip.date.replaceAll('-', '. ')}</td><th>출고처</th><td>{partnerText(slip.partnerId)}</td></tr>
+        </tbody>
+      </table>
+      <table className="w-full text-left">
+        <thead><tr><th className="w-[44px] text-center">순번</th><th className="w-[110px]">품목코드</th><th>품목명[규격]</th><th className="w-[90px] text-right">수량</th><th>적요</th></tr></thead>
+        <tbody>
+          {lines.map((l, i) => (
+            <tr key={l.id}>
+              <td className="text-center">{i + 1}</td><td>{l.itemCode}</td>
+              <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
+              <td className="text-right">{fix2(Math.abs(Number(l.quantityChange)))}</td><td>{l.reason ?? ''}</td>
+            </tr>
+          ))}
+          <tr><th colSpan={3} className="text-right">감소수량</th><td className="text-right font-semibold">{fix2(total)}</td><td>인수 <span className="ml-[24px]">인</span></td></tr>
+        </tbody>
+      </table>
+      <div className="flex gap-[4px] mt-[10px]">
+        <button className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
+        <button className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+    </div>
   )
 }

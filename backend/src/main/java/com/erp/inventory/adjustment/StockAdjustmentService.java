@@ -265,7 +265,7 @@ public class StockAdjustmentService {
     public StockAdjustmentDtos.SlipResponse updateSlip(String adjustNo, StockAdjustmentDtos.SlipRequest req, String username) {
         List<StockAdjustment> old = slipRows(adjustNo);
         LocalDate date = old.get(0).getAdjustDate();
-        old.forEach(a -> revert(a, username));
+        withdrawSlip(old, username);
         adjustmentRepository.deleteAll(old);
         /* Hibernate 는 flush 때 insert 를 delete 보다 먼저 보낸다 — 같은 (번호, 줄번호)로 다시 넣으면 유일 제약에 걸린다. */
         adjustmentRepository.flush();
@@ -276,7 +276,7 @@ public class StockAdjustmentService {
     @Transactional
     public void deleteSlip(String adjustNo, String username) {
         List<StockAdjustment> rows = slipRows(adjustNo);
-        rows.forEach(a -> revert(a, username));
+        withdrawSlip(rows, username);
         adjustmentRepository.deleteAll(rows);
     }
 
@@ -340,9 +340,7 @@ public class StockAdjustmentService {
             throw ApiException.badRequest(lineNo + "번째 줄: 수량은 0보다 커야 합니다.");
         }
         stockService.requireStockTracked(item);
-        String note = req.type().getDisplayName() + " " + adjustNo
-                + (req.handling() != null && !req.handling().isBlank() ? " - " + req.handling() : "")
-                + (line.reason() != null && !line.reason().isBlank() ? " (" + line.reason() + ")" : "");
+        String note = slipNote(req.type(), adjustNo, req.handling(), line.reason());
         StockTransaction tx = stockService.applyDelta(item, warehouse, inbound ? qty : qty.negate(),
                 inbound ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND, null, date, note, username);
         return adjustmentRepository.save(StockAdjustment.builder()
@@ -363,6 +361,38 @@ public class StockAdjustmentService {
                 .handling(req.handling())
                 .createdBy(username)
                 .build());
+    }
+
+    /** 자가사용 · 불량처리 전표 줄이 수불부에 남기는 적요 — 고치거나 지울 때 이것으로 그 줄을 찾아 거둔다. */
+    private static String slipNote(StockAdjustmentType type, String adjustNo, String handling, String reason) {
+        return type.getDisplayName() + " " + adjustNo
+                + (handling != null && !handling.isBlank() ? " - " + handling : "")
+                + (reason != null && !reason.isBlank() ? " (" + reason + ")" : "");
+    }
+
+    /**
+     * 자가사용 · 불량처리 전표를 고치거나 지울 때 그 전표의 수불 줄을 <b>거둔다</b>(StockService.withdraw).
+     *
+     * <p>원본 자가사용은 밀키스 2 → 3 으로 고치면 재고수불부에 '[자가] 출고 3' <b>한 줄</b>만 남고, 지우면 줄이 사라진다
+     * (2026-10-21 loginaa 실측). 예전엔 반대 거래를 쌓아 같은 전표가 출고 · 입고 · 출고 세 줄로 남았다.
+     * 줄 행은 재고 거래보다 조금 뒤에 저장되므로 처음 쓴 때에서 몇 초 앞부터 본다. 거둘 줄을 못 찾은
+     * 옛 자료(적요 꼴이 다른 것)는 예전처럼 반대 거래로 되돌린다 — 잔량이 어긋나지 않게.
+     */
+    private void withdrawSlip(List<StockAdjustment> rows, String username) {
+        java.util.Set<String> done = new java.util.HashSet<>();
+        for (StockAdjustment a : rows) {
+            String note = slipNote(a.getType(), a.getAdjustNo(), a.getHandling(), a.getReason());
+            if (done.contains(note)) {
+                continue;
+            }
+            java.time.LocalDateTime since = a.getCreatedAt() != null
+                    ? a.getCreatedAt().minusSeconds(5) : java.time.LocalDateTime.of(1900, 1, 1, 0, 0);
+            if (stockService.withdraw(note, since) > 0) {
+                done.add(note);
+            } else {
+                revert(a, username);
+            }
+        }
     }
 
     /** 한 줄이 바꾼 재고를 되돌린다(수불이력은 지우지 않고 반대 거래를 남긴다). */

@@ -316,7 +316,8 @@ public class StockService {
      * 그 전에 남은 줄(예전 방식이 반대 거래와 함께 남긴 옛 전표의 줄)은 이 전표 것이 아니다.
      */
     @Transactional
-    public void withdraw(String note, java.time.LocalDateTime since) {
+    public int withdraw(String note, java.time.LocalDateTime since) {
+        int n = 0;
         for (StockTransaction tx : transactionRepository.findByNoteAndCreatedAtGreaterThanEqualOrderByIdAsc(note, since)) {
             Stock stock = stockRepository.findForUpdate(tx.getItem().getId(), tx.getWarehouse().getId())
                     .orElseThrow(() -> ApiException.notFound("재고 잔량을 찾을 수 없습니다. (" + tx.getItem().getName() + ")"));
@@ -330,7 +331,9 @@ public class StockService {
             }
             stock.setQuantity(newBalance);
             transactionRepository.delete(tx);
+            n++;
         }
+        return n;
     }
 
     /**
