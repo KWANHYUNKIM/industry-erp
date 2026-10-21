@@ -43,7 +43,8 @@ export default function ExtraFieldTypePage() {
   const [accType, setAccType] = useState<TypeRow | null>(null)
   const [accRows, setAccRows] = useState<AccRow[]>([])
   const [accChecked, setAccChecked] = useState<Set<number>>(new Set())
-  const [accPick, setAccPick] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
+  const [addChecked, setAddChecked] = useState<Set<number>>(new Set())
   const [accError, setAccError] = useState('')
   // 추가항목등록 창
   const [companyOpen, setCompanyOpen] = useState(false)
@@ -96,14 +97,16 @@ export default function ExtraFieldTypePage() {
   const patchSlot = (no: number, p: Partial<SlotRow>) => setSlots((s) => s.map((x) => (x.no === no ? { ...x, ...p } : x)))
 
   async function openAccounts(t: TypeRow) {
-    setAccType(t); setAccError(''); setAccChecked(new Set()); setAccPick('')
+    setAccType(t); setAccError(''); setAccChecked(new Set()); setAddOpen(false)
     try { setAccRows((await api.get<AccRow[]>(`/extra-field-types/${t.id}/accounts`)).data) } catch (e) { setAccError(extractErrorMessage(e)) }
   }
-  async function addAccount() {
-    if (!accType || !accPick) return
+  /** 원본 [추가] → '계정추가' 창(2026-10-21 실측): ☐ · 계정코드 · 계정명 · 추가항목유형, [적용(F8)]이 고른 계정을 단다. */
+  async function addAccounts() {
+    if (!accType) return
+    if (addChecked.size === 0) { await ecAlert(NO_SELECTION_MESSAGE); return }
     try {
-      setAccRows((await api.post<AccRow[]>(`/extra-field-types/${accType.id}/accounts`, { accountIds: [Number(accPick)] })).data)
-      setAccPick(''); load()
+      setAccRows((await api.post<AccRow[]>(`/extra-field-types/${accType.id}/accounts`, { accountIds: [...addChecked] })).data)
+      setAddOpen(false); setAddChecked(new Set()); load()
     } catch (e) { setAccError(extractErrorMessage(e)) }
   }
   async function removeAccounts() {
@@ -191,7 +194,7 @@ export default function ExtraFieldTypePage() {
         </tbody>
       </table>
 
-      <Modal error={formError} open={open} title={f.id ? '추가항목유형수정' : '추가항목유형등록'} width={560} onClose={() => setOpen(false)}>{(
+      <Modal error={formError} open={open} title={f.id ? '추가항목유형수정' : '추가항목유형등록'} width={784} onClose={() => setOpen(false)}>{(
         <form onSubmit={save}>
           <ul className="ec-form">
             <li className="wide"><span className="title">추가항목유형코드</span>
@@ -208,7 +211,7 @@ export default function ExtraFieldTypePage() {
         </form>
       )}</Modal>
 
-      <Modal error={slotError} open={slotType != null} title="추가항목설정" width={720} onClose={() => setSlotType(null)}>{(
+      <Modal error={slotError} open={slotType != null} title="추가항목설정" width={790} onClose={() => setSlotType(null)}>{(
         <div>
           <table className="w-full">
             <thead><tr><th>항목명</th><th className="w-[90px] text-center">사용여부</th><th className="w-[90px] text-center">필수항목</th><th className="w-[200px]">기본값설정</th></tr></thead>
@@ -234,7 +237,7 @@ export default function ExtraFieldTypePage() {
         </div>
       )}</Modal>
 
-      <Modal error={accError} open={accType != null} title="계정설정" width={640} onClose={() => setAccType(null)}>{(
+      <Modal error={accError} open={accType != null} title="계정설정" width={784} onClose={() => setAccType(null)}>{(
         <div>
           <table className="w-full">
             <thead><tr>
@@ -254,18 +257,37 @@ export default function ExtraFieldTypePage() {
             </tbody>
           </table>
           <div className="flex gap-[6px] mt-[12px] items-center">
-            <select className="ec-input w-[240px]" aria-label="추가할 계정" value={accPick} onChange={(e) => setAccPick(e.target.value)}>
-              <option value="">계정 선택</option>
-              {accounts.filter((a) => a.active && !accRows.some((r) => r.accountId === a.id)).map((a) => <option key={a.id} value={a.id}>[{a.code}] {a.name}</option>)}
-            </select>
-            <button type="button" className="ec-btn" onClick={() => void addAccount()}>추가</button>
+            <button type="button" className="ec-btn" onClick={() => { setAddChecked(new Set()); setAddOpen(true) }}>추가</button>
             <button type="button" className="ec-btn" onClick={() => void removeAccounts()}>선택삭제</button>
             <button type="button" className="ec-btn" onClick={() => setAccType(null)}>닫기</button>
           </div>
         </div>
       )}</Modal>
 
-      <Modal error="" open={companyOpen} title="추가항목등록" width={560} onClose={() => setCompanyOpen(false)}>{(
+      <Modal error="" open={addOpen} title="계정추가" width={784} onClose={() => setAddOpen(false)}>{(
+        <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void addAccounts() } }}>
+          <table className="w-full">
+            <thead><tr>
+              <th className="w-[40px] text-center" />
+              <th>계정코드</th><th>계정명</th><th>추가항목유형</th></tr></thead>
+            <tbody>
+              {accounts.filter((a) => a.active && !accRows.some((r) => r.accountId === a.id)).map((a, n) => (
+                <tr key={a.id}>
+                  <td className="text-center"><NumCheck no={n + 1} label={`${a.code} 선택`} on={addChecked.has(a.id)}
+                    onChange={(v) => setAddChecked((s) => { const x = new Set(s); if (v) x.add(a.id); else x.delete(a.id); return x })} /></td>
+                  <td>{a.code}</td><td>{a.name}</td><td />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void addAccounts()}>적용(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setAddOpen(false)}>닫기</button>
+          </div>
+        </div>
+      )}</Modal>
+
+      <Modal error="" open={companyOpen} title="추가항목등록" width={784} onClose={() => setCompanyOpen(false)}>{(
         <div>
           <table className="w-full">
             <thead><tr><th>항목명</th><th className="w-[100px]">설정</th></tr></thead>

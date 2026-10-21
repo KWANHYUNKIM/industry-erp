@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Modal from '../../components/Modal'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -39,10 +40,23 @@ export default function CodeChangePage() {
   const itemsOf = (k: Kind): CodeItem[] => (k === 'ACCOUNT' ? accounts : k === 'PARTNER' ? partners : k === 'DEPARTMENT' ? dp.departments : dp.projects)
   const label = KINDS.find(([k]) => k === kind)?.[1] ?? ''
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }))
+  /** 빈 [변경] → 글 없이 변경 전 · 후 칸 빨간 테두리(원본 2026-10-21). */
+  const [invalid, setInvalid] = useState(false)
+  /** 확인 창의 보안 문구 — 원본은 무작위 여섯 글자를 그대로 쳐야 [확인]이 먹는다. */
+  const [phrase, setPhrase] = useState<string | null>(null)
+  const [typed, setTyped] = useState('')
+  const newPhrase = () => Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 55)]).join('')
 
   async function change() {
-    if (!f.before) { await ecAlert('변경 전 코드를 입력하세요.'); return }
-    if (!f.after) { await ecAlert('변경 후 코드를 입력하세요.'); return }
+    if (!f.before || !f.after) { setInvalid(true); return }
+    setInvalid(false)
+    if (f.before === f.after) { await ecAlert('변경 전과 후의 코드가 동일합니다.'); return }
+    setTyped(''); setPhrase(newPhrase())
+  }
+
+  async function confirmChange() {
+    if (typed !== phrase) return
+    setPhrase(null)
     try {
       const r = await api.post<{ changed: number }>('/journals/code-change', {
         kind, from: f.from, to: f.to,
@@ -74,7 +88,7 @@ export default function CodeChangePage() {
           <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input w-[145px]" aria-label="종료일자" value={f.to} onChange={(e) => set({ to: e.target.value })} />
         </EcCond>
-        {kind !== 'PROJECT' && (
+        {kind !== 'PROJECT' && kind !== 'PARTNER' && (
           <EcCond label="프로젝트" pick span={2}>
             <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={f.project} onChange={(v) => set({ project: v })} items={dp.projects} />
           </EcCond>
@@ -84,18 +98,39 @@ export default function CodeChangePage() {
             <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={f.partner} onChange={(v) => set({ partner: v })} items={partners} />
           </EcCond>
         )}
-        {kind !== 'DEPARTMENT' && (
+        {kind !== 'DEPARTMENT' && kind !== 'PARTNER' && (
           <EcCond label="부서" pick span={2}>
             <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={f.dept} onChange={(v) => set({ dept: v })} items={dp.departments} />
           </EcCond>
         )}
         <EcCond label="변경 전 코드" pick span={2}>
-          <CodePickerField label={`변경 전 ${label}`} hideLabel width={260} emptyLabel="선택" value={f.before} onChange={(v) => set({ before: v })} items={itemsOf(kind)} />
+          <div className={invalid && !f.before ? 'ec-invalid' : undefined}><CodePickerField label={`변경 전 ${label}`} hideLabel width={260} emptyLabel="선택" value={f.before} onChange={(v) => set({ before: v })} items={itemsOf(kind)} /></div>
         </EcCond>
         <EcCond label="변경 후 코드" pick span={2}>
-          <CodePickerField label={`변경 후 ${label}`} hideLabel width={260} emptyLabel="선택" value={f.after} onChange={(v) => set({ after: v })} items={itemsOf(kind)} />
+          <div className={invalid && !f.after ? 'ec-invalid' : undefined}><CodePickerField label={`변경 후 ${label}`} hideLabel width={260} emptyLabel="선택" value={f.after} onChange={(v) => set({ after: v })} items={itemsOf(kind)} /></div>
         </EcCond>
       </ul>
+
+      {/* 원본 확인 창(2026-10-21 실측, 784) — 되돌릴 수 없는 일이라 보안 문구를 쳐야 [확인]. */}
+      <Modal open={phrase != null} title="각종코드변경" width={784} error={null} onClose={() => setPhrase(null)}>
+        <p className="mb-[10px] leading-[1.6]">
+          코드변경 적용범위는 전체메뉴 입니다.<br />
+          선택한 조건(프로젝트/거래처/창고)이 없는 메뉴는<br />
+          조건을 제외하고 코드변경이 적용 됩니다.<br />
+          단, 재고조정/잔액조정 메뉴는 적용되지 않습니다.<br />
+          변경된 자료는 복원이 불가능합니다.<br />
+          코드변경 이후에는 재고 수량 및 잔액이 달라짐으로 확인이 필요합니다.
+        </p>
+        <div className="flex items-center gap-[6px] mb-[10px]">
+          <b className="tracking-[2px]">{phrase}</b>
+          <input className="ec-input w-[140px]" aria-label="보안 문구" value={typed} onChange={(e) => setTyped(e.target.value)} />
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setPhrase(newPhrase()); setTyped('') }}>문구새로고침</button>
+        </div>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void confirmChange()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setPhrase(null)}>닫기</button>
+        </div>
+      </Modal>
     </EcListShell>
   )
 }

@@ -10,13 +10,16 @@
         "expect:(() => { const a = document.querySelector('input[aria-label=시작일자]').value, b = document.querySelector('input[aria-label=종료일자]').value; return Number(b.slice(0, 4)) - Number(a.slice(0, 4)) === 2 && a.slice(5) === b.slice(5) })()",
         "js:[...document.querySelectorAll('button')].find((b) => b.offsetParent && b.innerText.trim() === '변경').click()",
         "wait:500",
-        "expect:/변경 전 코드를 입력하세요/.test(document.body.innerText)",
-        "js:[...document.querySelectorAll('.ec-btn-primary')].filter((b) => b.offsetParent && b.innerText.trim() === '확인').pop().click()",
+        "expect:document.querySelectorAll('.ec-invalid').length === 2 && !/입력하세요/.test(document.body.innerText)",
         "set:input[aria-label=시작일자]|2099-01-01",
         "set:input[aria-label=종료일자]|2099-12-31",
         "pick:변경 전 계정:108",
         "pick:변경 후 계정:251",
         "js:[...document.querySelectorAll('button')].find((b) => b.offsetParent && b.innerText.trim() === '변경').click()",
+        "wait:800",
+        "expect:document.body.innerText.includes('코드변경 적용범위는 전체메뉴 입니다.') && document.body.innerText.includes('변경된 자료는 복원이 불가능합니다.')",
+        "js:(() => { const b = [...document.querySelectorAll('b')].find((x) => /^[A-Za-z0-9]{6}$/.test(x.innerText.trim())); const i = document.querySelector('input[aria-label=\"보안 문구\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, b.innerText.trim()); i.dispatchEvent(new Event('input', { bubbles: true })); return i.value })()",
+        "js:[...document.querySelectorAll('.ec-btn-primary')].filter((b) => b.offsetParent && b.innerText.trim() === '확인').pop().click()",
         "wait:800",
         "expect:/0건이 변경되었습니다/.test(document.body.innerText)",
         "js:[...document.querySelectorAll('.ec-btn-primary')].filter((b) => b.offsetParent && b.innerText.trim() === '확인').pop().click()"
@@ -30,6 +33,22 @@
         "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.innerText.trim() === '부서').click()",
         "wait:300",
         "expect:!!document.querySelector('button[title=\"변경 전 부서 선택\"]') && !document.querySelector('button[title=\"부서 선택\"]') && !!document.querySelector('button[title=\"프로젝트 선택\"]')"
+      ]
+    },
+    {
+      "name": "같은 코드 → '변경 전과 후의 코드가 동일합니다.' · 거래처 알약은 기준일자 · 변경 전 · 후만",
+      "path": "/accounting/code-change",
+      "steps": [
+        "wait:2000",
+        "pick:변경 전 계정:108",
+        "pick:변경 후 계정:108",
+        "js:[...document.querySelectorAll('button')].find((b) => b.offsetParent && b.innerText.trim() === '변경').click()",
+        "wait:500",
+        "expect:document.body.innerText.includes('변경 전과 후의 코드가 동일합니다.')",
+        "js:[...document.querySelectorAll('.ec-btn-primary')].filter((b) => b.offsetParent && b.innerText.trim() === '확인').pop().click()",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.innerText.trim() === '거래처').click()",
+        "wait:300",
+        "expect:!document.querySelector('button[title=\"프로젝트 선택\"]') && !document.querySelector('button[title=\"부서 선택\"]') && !!document.querySelector('button[title=\"변경 전 거래처 선택\"]')"
       ]
     }
   ]

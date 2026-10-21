@@ -19,6 +19,10 @@ const RELATED: [RelatedWork, string][] = [
 /** 원본 [계정종류] — 자산 · 부채 · 자본 · 손익. 손익은 대차구분이 차변이면 비용, 대변이면 수익으로 쌓는다. */
 type Kind = '자산' | '부채' | '자본' | '손익'
 const KINDS: Kind[] = ['자산', '부채', '자본', '손익']
+/** 원본 [계정종류] 목록 전부(2026-10-21 실측) — 원가1~3 · 없음은 우리 계정 구분에 없어 고를 수만 없게 보인다(계정 체계 사용자 결정). */
+const KINDS_ALL = ['자산', '부채', '자본', '손익', '원가1', '원가2', '원가3', '없음']
+/** 원본 [계정속성] 목록(2026-10-21 실측). 우리는 전표입력 / 집계 둘만 든다 — 집계계정 셋은 집계(묶음), 자동대체계정은 전표입력으로 저장. */
+const ATTRS = ['전표입력계정', '집계계정(재무제표)', '집계계정(수입지출명세서)', '집계계정(전체)', '자동대체계정(손익)', '자동대체계정(원가1)', '자동대체계정(원가2)', '자동대체계정(원가3)']
 const EVALS: [EvalKind, string][] = [['NONE', '해당없음'], ['TARGET', '평가계정대상'], ['EVAL', '평가계정']]
 const CASHES: [CashFlowKind, string][] = [['INCOME', '수입'], ['EXPENSE', '지출'], ['DEPOSIT', '예금'], ['NONE', '없음']]
 
@@ -72,11 +76,11 @@ function divisionOf(kind: Kind, dc: DebitCredit): Division {
 }
 
 interface Cond {
-  code: string; name: string; dc: '' | DebitCredit; kinds: Set<Kind>; parent: string
+  code: string; name: string; keyword: string; dc: '' | DebitCredit; kinds: Set<Kind>; parent: string
   related: '' | RelatedWork; remark1: string; remark2: string; use: '' | 'Y' | 'N'; withParent: boolean
 }
 const COND0: Cond = {
-  code: '', name: '', dc: '', kinds: new Set(KINDS), parent: '', related: '', remark1: '', remark2: '', use: 'Y', withParent: true,
+  code: '', name: '', keyword: '', dc: '', kinds: new Set(KINDS), parent: '', related: '', remark1: '', remark2: '', use: 'Y', withParent: true,
 }
 
 /** 회계 I › 기초등록 › 계정등록(원본 E010107, 제목 '계정리스트') — plans/회계1/E010107.md */
@@ -145,7 +149,7 @@ export default function AccountsPage() {
     const parentCode = (r: Account) => (r.parentId ? byId.get(r.parentId)?.code ?? '' : '')
     const c = applied
     const hit = (r: Account) =>
-      (!c.code || r.code.includes(c.code)) && (!c.name || r.name.includes(c.name)) && (!c.dc || r.debitCredit === c.dc) &&
+      (!c.code || r.code.includes(c.code)) && (!c.name || r.name.includes(c.name)) && (!c.keyword || (r.searchKeyword ?? '').includes(c.keyword)) && (!c.dc || r.debitCredit === c.dc) &&
       c.kinds.has(r.kindName) && (!c.parent || parentCode(r).includes(c.parent)) && (!c.related || r.relatedWork === c.related) &&
       (!c.remark1 || (r.remark1 ?? '').includes(c.remark1)) && (!c.remark2 || (r.remark2 ?? '').includes(c.remark2)) &&
       (!c.use || (c.use === 'Y') === r.active) &&
@@ -198,16 +202,21 @@ export default function AccountsPage() {
       <ul className="ec-cond mb-[8px]">
         <EcCond label="계정코드"><input className="ec-input w-[140px]" aria-label="계정코드" value={cond.code} onChange={(e) => setCond({ ...cond, code: e.target.value })} /></EcCond>
         <EcCond label="계정명"><input className="ec-input w-[140px]" aria-label="계정명" value={cond.name} onChange={(e) => setCond({ ...cond, name: e.target.value })} /></EcCond>
+        <EcCond label="검색창내용"><input className="ec-input w-[140px]" aria-label="검색창내용" value={cond.keyword} onChange={(e) => setCond({ ...cond, keyword: e.target.value })} /></EcCond>
+        {/* 원본 조건 판(2026-10-21 실측): 대차구분 ◉전체 ○차변 ○대변 · 계정종류 ☐전체 ☑자산 … ☑원가3 ☐없음 · 사용구분 ○전체 ◉사용 ○사용중단. */}
         <EcCond label="대차구분">
-          <select className="ec-input w-[100px]" aria-label="대차구분" value={cond.dc} onChange={(e) => setCond({ ...cond, dc: e.target.value as Cond['dc'] })}>
-            <option value="">전체</option><option value="DEBIT">차변</option><option value="CREDIT">대변</option>
-          </select>
+          {([['', '전체'], ['DEBIT', '차변'], ['CREDIT', '대변']] as const).map(([v, l]) => (
+            <label key={l} className="mr-[8px]"><input type="radio" name="acct-dc" checked={cond.dc === v} onChange={() => setCond({ ...cond, dc: v })} /> {l}</label>
+          ))}
         </EcCond>
         <EcCond label="계정종류">
-          {KINDS.map((k) => (
-            <label key={k} className="mr-[8px]"><input type="checkbox" checked={cond.kinds.has(k)}
-              onChange={(e) => { const s = new Set(cond.kinds); if (e.target.checked) s.add(k); else s.delete(k); setCond({ ...cond, kinds: s }) }} /> {k}</label>
+          <label className="mr-[8px]"><input type="checkbox" checked={KINDS.every((k) => cond.kinds.has(k))}
+            onChange={(e) => setCond({ ...cond, kinds: e.target.checked ? new Set(KINDS) : new Set() })} /> 전체</label>
+          {KINDS_ALL.slice(0, 7).map((k) => (
+            <label key={k} className="mr-[8px]"><input type="checkbox" checked={(KINDS as string[]).includes(k) ? cond.kinds.has(k as Kind) : true} disabled={!(KINDS as string[]).includes(k)}
+              onChange={(e) => { const s = new Set(cond.kinds); if (e.target.checked) s.add(k as Kind); else s.delete(k as Kind); setCond({ ...cond, kinds: s }) }} /> {k}</label>
           ))}
+          <label className="mr-[8px]"><input type="checkbox" checked={false} disabled /> 없음</label>
         </EcCond>
         <EcCond label="상위계정"><input className="ec-input w-[140px]" aria-label="상위계정" value={cond.parent} onChange={(e) => setCond({ ...cond, parent: e.target.value })} /></EcCond>
         <EcCond label="관련업무">
@@ -218,9 +227,9 @@ export default function AccountsPage() {
         <EcCond label="적요1"><input className="ec-input w-[140px]" aria-label="적요1" value={cond.remark1} onChange={(e) => setCond({ ...cond, remark1: e.target.value })} /></EcCond>
         <EcCond label="적요2"><input className="ec-input w-[140px]" aria-label="적요2" value={cond.remark2} onChange={(e) => setCond({ ...cond, remark2: e.target.value })} /></EcCond>
         <EcCond label="사용구분">
-          <select className="ec-input w-[100px]" aria-label="사용구분" value={cond.use} onChange={(e) => setCond({ ...cond, use: e.target.value as Cond['use'] })}>
-            <option value="">전체</option><option value="Y">사용</option><option value="N">사용중단</option>
-          </select>
+          {([['', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
+            <label key={l} className="mr-[8px]"><input type="radio" name="acct-use" checked={cond.use === v} onChange={() => setCond({ ...cond, use: v })} /> {l}</label>
+          ))}
         </EcCond>
         <EcCond label="기타">
           <label><input type="checkbox" checked={cond.withParent} onChange={(e) => setCond({ ...cond, withParent: e.target.checked })} /> 상위계정포함검색</label>
@@ -271,7 +280,7 @@ export default function AccountsPage() {
         </tbody>
       </table>
 
-      <Modal error={formError} open={open} title={f.id ? '계정수정' : '계정등록'} width={760} onClose={() => setOpen(false)}>{(
+      <Modal error={formError} open={open} title={f.id ? '계정수정' : '계정등록'} width={784} onClose={() => setOpen(false)}>{(
         <form onSubmit={save}>
           <ul className="ec-form">
             <li className="wide"><span className="title">계정코드</span>
@@ -287,28 +296,28 @@ export default function AccountsPage() {
                 <label><input type="radio" name="dc" checked={f.debitCredit === 'CREDIT'} onChange={() => setF({ ...f, debitCredit: 'CREDIT' })} /> 대변</label>
               </div></li>
             <li className="wide"><span className="title">계정속성</span>
-              <div className="form flex gap-[8px]">
-                <select className="ec-input w-[140px]" aria-label="계정속성" value={f.groupAccount ? 'G' : 'E'} onChange={(e) => setF({ ...f, groupAccount: e.target.value === 'G' })}>
-                  <option value="E">전표입력계정</option><option value="G">묶음계정</option>
+              <div className="form">
+                <select className="ec-input w-[200px]" aria-label="계정속성" value={f.groupAccount ? ATTRS[1] : ATTRS[0]}
+                        onChange={(e) => setF({ ...f, groupAccount: e.target.value.startsWith('집계계정') })}>
+                  {ATTRS.map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
-                <select className="ec-input w-[100px]" aria-label="계정종류" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as Kind })}>
-                  {KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+              </div></li>
+            <li className="wide"><span className="title">계정종류</span>
+              <div className="form">
+                <select className="ec-input w-[120px]" aria-label="계정종류" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as Kind })}>
+                  {KINDS_ALL.map((k) => <option key={k} value={k} disabled={!(KINDS as string[]).includes(k)}>{k}</option>)}
                 </select>
               </div></li>
             <li className="wide"><span className="title">수입지출구분</span>
               <div className="form flex gap-[12px]">
                 {CASHES.map(([v, l]) => <label key={v}><input type="radio" name="cash" checked={f.cashFlowKind === v} onChange={() => setF({ ...f, cashFlowKind: v })} /> {l}</label>)}
               </div></li>
-            <li className="wide"><span className="title">상위계정</span>
+            <li className="wide"><span className="title">재무제표상위계정</span>
               <div className="form">
-                <select className="ec-input w-[260px]" aria-label="상위계정" value={f.parentId} onChange={(e) => setF({ ...f, parentId: e.target.value })}>
+                <select className="ec-input w-[260px]" aria-label="재무제표상위계정" value={f.parentId} onChange={(e) => setF({ ...f, parentId: e.target.value })}>
                   <option value="">없음</option>
                   {parentChoices.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
                 </select>
-              </div></li>
-            <li className="wide"><span className="title">평가구분</span>
-              <div className="form flex gap-[12px]">
-                {EVALS.map(([v, l]) => <label key={v}><input type="radio" name="evalKind" checked={f.evalKind === v} onChange={() => setF({ ...f, evalKind: v })} /> {l}</label>)}
               </div></li>
             <li className="wide"><span className="title">거래처별집계구분</span>
               <div className="form flex gap-[12px]">
@@ -323,6 +332,10 @@ export default function AccountsPage() {
               <div className="form"><input className="ec-input w-full" aria-label="적요1" maxLength={100} value={f.remark1} onChange={(e) => setF({ ...f, remark1: e.target.value })} /></div></li>
             <li className="wide"><span className="title">적요2</span>
               <div className="form"><input className="ec-input w-full" aria-label="적요2" maxLength={100} value={f.remark2} onChange={(e) => setF({ ...f, remark2: e.target.value })} /></div></li>
+            <li className="wide"><span className="title">평가구분</span>
+              <div className="form flex gap-[12px]">
+                {EVALS.map(([v, l]) => <label key={v}><input type="radio" name="evalKind" checked={f.evalKind === v} onChange={() => setF({ ...f, evalKind: v })} /> {l}</label>)}
+              </div></li>
           </ul>
           <div className="flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
