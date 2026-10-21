@@ -691,8 +691,16 @@ console.log('\n■ tbody 의 넓은 칸이 표 너비와 맞나')
         // 넓은 칸(3칸 이상)이 있는 줄만 본다 — 보통 빈 상태 문구나 소계 줄이다.
         if (!/colSpan=\{([3-9]|\d\d+)\}/.test(row)) continue
         if (hasConditionalCell(row) || hasMappedCell(row)) { skipped++; continue }
-        const width = countCells(row, 'td')
-        if (width === null || !width) continue
+        /*
+         * 줄 머리 th 칸도 센다 — 인쇄 양식의 합계 줄(th colSpan 3 '수량' + td 둘)이
+         * td 만 세어 '5칸인데 2칸' 으로 걸렸다(2026-10-21 창고이동전표 TransferPage).
+         * 펼친 줄 안에 표를 품은 줄은 정규식이 안쪽 표까지 먹으므로 안쪽 머리를 세지 않는다.
+         */
+        const tds = countCells(row, 'td')
+        const ths = /<(table|thead|tr)\b/.test(row) ? 0 : countCells(row, 'th')
+        if (tds === null || ths === null) continue
+        const width = tds + ths
+        if (!width) continue
         checked++
         if (width !== cols) {
           const line = src.slice(0, tm.index + rm.index).split('\n').length
