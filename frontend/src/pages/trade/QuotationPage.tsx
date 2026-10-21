@@ -291,8 +291,17 @@ export default function QuotationPage() {
    * '알림 / 성공 : N건 / 실패 : M건 / [닫기]'. 같은 견적을 1장라인별로 다시 하면 막지 않고 줄이 빈 주문서입력 창이 뜬다.
    */
   const [lineWin, setLineWin] = useState(false)
+  /* 직접설정 → '다른전표생성 설정' 창 → (집계면) '다른전표생성 집계' 창 → '다른전표생성 입력' 창 */
+  const [setWin, setSetWin] = useState(false)
+  const [aggWin, setAggWin] = useState(false)
+  const [genCriteria, setGenCriteria] = useState<'ONE' | 'SUM'>('ONE')
+  const [genGroup, setGenGroup] = useState<'LINE' | 'ITEM'>('LINE')
+  const [genByItem, setGenByItem] = useState(false)
+  /* 직접입력을 고른 칸만 값을 따로 받는다(원본: 라디오를 바꾸면 그 줄에 일자 · 코드도움 · 선택 칸이 나타난다). */
+  const [genDirect, setGenDirect] = useState<Record<string, boolean>>({})
+  const [genVal, setGenVal] = useState<{ date: string; partner: string; wh: string; project: string; due: string }>({ date: '', partner: '', wh: '', project: '', due: '' })
   const GEN_FIELDS = ['일자', '거래처', '담당자', '출하창고', '거래유형', '통화', '프로젝트', '납기일자', '새로운 항목 추가']
-  async function convertPerSlip() {
+  async function convertPerSlip(byItem = false) {
     const todayStr = ymd(new Date())
     const targets = shown.filter((q) => picked.has(q.id))
     let ok = 0
@@ -302,10 +311,21 @@ export default function QuotationPage() {
         await api.post('/quotations/convert', {
           quotationIds: [q.id],
           order: {
-            partnerId: q.partnerId, orderDate: todayStr, dueDate: todayStr,
-            warehouseId: q.warehouseId ?? undefined, projectId: q.projectId ?? undefined,
+            partnerId: genDirect['거래처'] && genVal.partner ? Number(genVal.partner) : q.partnerId,
+            orderDate: genDirect['일자'] && genVal.date ? genVal.date : todayStr,
+            dueDate: genDirect['납기일자'] ? (genVal.due || undefined) : todayStr,
+            warehouseId: genDirect['출하창고'] && genVal.wh ? Number(genVal.wh) : q.warehouseId ?? undefined,
+            projectId: genDirect['프로젝트'] && genVal.project ? Number(genVal.project) : q.projectId ?? undefined,
             taxable: q.vatAmount > 0,
-            lines: q.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice })),
+            lines: byItem
+              /* 자료묶음기준 [품목별] — 같은 품목 줄을 한 줄로(수량 합 · 단가는 가중평균, 원본 2026-10-21: 포장재 3 × 500 + 1 × 700 → 4 · 공급가 2,200). */
+              ? [...q.lines.reduce((m, l) => {
+                  const cur = m.get(l.itemId) ?? { itemId: l.itemId, quantity: 0, supply: 0 }
+                  cur.quantity += l.quantity; cur.supply += l.quantity * l.unitPrice
+                  return m.set(l.itemId, cur)
+                }, new Map<number, { itemId: number; quantity: number; supply: number }>()).values()]
+                  .map((v) => ({ itemId: v.itemId, quantity: v.quantity, unitPrice: v.supply / v.quantity }))
+              : q.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice })),
           },
         })
         ok++
@@ -393,17 +413,63 @@ export default function QuotationPage() {
             </div>
           ) : (
             <div className="ec-menu fixed" style={{ left: menuAt.left, bottom: menuAt.bottom }} role="menu" aria-label="다른전표생성">
-              {/* 원본 '주문서 │ 1장라인별 · 전표라인별 · 직접설정' 한 줄. 직접설정은 아직 없다(plans/재고1.md 남은 것). */}
+              {/* 원본 '주문서 │ 1장라인별 · 전표라인별 · 직접설정' 한 줄.  */}
               <div className="flex items-center gap-[9px] px-[9px] py-[4.5px]">
                 <span>주문서</span>
                 <button className="ec-link" onClick={convertChecked}>1장라인별</button>
-                <button className="ec-link" onClick={() => { setMenuAt(null); setLineWin(true) }}>전표라인별</button>
+                <button className="ec-link" onClick={() => { setMenuAt(null); setGenByItem(false); setLineWin(true) }}>전표라인별</button>
+                <button className="ec-link" onClick={() => { setMenuAt(null); setSetWin(true) }}>직접설정</button>
               </div>
             </div>
           )}
         </>
       )}
 
+      <Modal open={setWin} title="다른전표생성 설정" width={420} onClose={() => setSetWin(false)}>
+        <table className="w-full"><tbody>
+          <tr><td className="w-[120px]">일괄생성기준</td><td>
+            <label className="mr-[12px]"><input type="radio" name="gen-crit" checked={genCriteria === 'ONE'} onChange={() => setGenCriteria('ONE')} /> 1장</label>
+            <label><input type="radio" name="gen-crit" checked={genCriteria === 'SUM'} onChange={() => setGenCriteria('SUM')} /> 집계</label></td></tr>
+          <tr><td>자료묶음기준</td><td>
+            <label className="mr-[12px]"><input type="radio" name="gen-grp" checked={genGroup === 'LINE'} onChange={() => setGenGroup('LINE')} /> 라인별</label>
+            <label><input type="radio" name="gen-grp" checked={genGroup === 'ITEM'} onChange={() => setGenGroup('ITEM')} /> 품목별</label></td></tr>
+        </tbody></table>
+        <div className="flex gap-[6px] mt-[10px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => {
+            setSetWin(false)
+            if (genCriteria === 'ONE' && genGroup === 'LINE') { convertChecked(); return }
+            setGenByItem(genGroup === 'ITEM'); setAggWin(true)
+          }}>적용(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setSetWin(false)}>닫기</button>
+        </div>
+      </Modal>
+      <Modal open={aggWin} title="다른전표생성 집계" width={640} onClose={() => setAggWin(false)}>
+        {(() => {
+          const sel = shown.filter((q) => picked.has(q.id))
+          const sum = (f: (q: Quotation) => number) => sel.reduce((n, q) => n + f(q), 0)
+          const qty = (q: Quotation) => q.lines.reduce((n, l) => n + l.quantity, 0)
+          return (
+            <table className="w-full">
+              <thead><tr><th>일자</th><th>전표번호</th><th>수량</th><th>공급가액</th><th>부가세</th><th>합계</th></tr></thead>
+              <tbody>
+                {sel.map((q) => (
+                  <tr key={q.id}><td>{q.quoteDate.replace(/-/g, '/')}</td><td className="text-right">{Number(q.quoteNo.split('-').pop())}</td>
+                    <td className="text-right">{qty(q)}</td><td className="text-right">{q.supplyAmount.toLocaleString('ko-KR')}</td>
+                    <td className="text-right">{q.vatAmount.toLocaleString('ko-KR')}</td><td className="text-right">{q.totalAmount.toLocaleString('ko-KR')}</td></tr>
+                ))}
+                <tr className="font-bold"><td colSpan={2}></td><td className="text-right">{sum(qty)}</td>
+                  <td className="text-right">{sum((q) => q.supplyAmount).toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{sum((q) => q.vatAmount).toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{sum((q) => q.totalAmount).toLocaleString('ko-KR')}</td></tr>
+              </tbody>
+            </table>
+          )
+        })()}
+        <div className="flex gap-[6px] mt-[10px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => { setAggWin(false); setLineWin(true) }}>생성(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setAggWin(false)}>닫기</button>
+        </div>
+      </Modal>
       <Modal open={lineWin} title="다른전표생성 입력" width={520} onClose={() => setLineWin(false)}>
         <table className="w-full">
           <tbody>
@@ -411,15 +477,26 @@ export default function QuotationPage() {
               <tr key={f}>
                 <td className="w-[150px]">{f}</td>
                 <td>
-                  <label className="mr-[12px]"><input type="radio" name={`gen-${f}`} defaultChecked /> 기본입력</label>
-                  <label><input type="radio" name={`gen-${f}`} /> 직접입력</label>
+                  <label className="mr-[12px]"><input type="radio" name={`gen-${f}`} checked={!genDirect[f]} onChange={() => setGenDirect((d) => ({ ...d, [f]: false }))} /> 기본입력</label>
+                  <label className="mr-[12px]"><input type="radio" name={`gen-${f}`} checked={!!genDirect[f]} onChange={() => setGenDirect((d) => ({ ...d, [f]: true }))} /> 직접입력</label>
+                  {genDirect[f] && f === '일자' && <input type="date" className="ec-input" value={genVal.date} onChange={(e) => setGenVal((v) => ({ ...v, date: e.target.value }))} />}
+                  {genDirect[f] && f === '납기일자' && <input type="date" className="ec-input" value={genVal.due} onChange={(e) => setGenVal((v) => ({ ...v, due: e.target.value }))} />}
+                  {genDirect[f] && f === '거래처' && (
+                    <CodePickerField label="거래처" hideLabel width={200} emptyLabel="" value={genVal.partner} onChange={(v) => setGenVal((x) => ({ ...x, partner: v }))}
+                                     items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />)}
+                  {genDirect[f] && f === '출하창고' && (
+                    <CodePickerField label="출하창고" hideLabel width={200} emptyLabel="" value={genVal.wh} onChange={(v) => setGenVal((x) => ({ ...x, wh: v }))}
+                                     items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />)}
+                  {genDirect[f] && f === '프로젝트' && (
+                    <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="" value={genVal.project} onChange={(v) => setGenVal((x) => ({ ...x, project: v }))}
+                                     items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />)}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         <div className="flex gap-[6px] mt-[10px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void convertPerSlip()}>저장(F8)</button>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void convertPerSlip(genByItem)}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setLineWin(false)}>닫기</button>
         </div>
       </Modal>

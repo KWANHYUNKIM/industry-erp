@@ -246,7 +246,7 @@ export default function SalesOrderPage() {
   useEffect(() => {
     if (!quotesParam) return
     const ids = quotesParam.split(',').map(Number).filter((n) => n > 0)
-    api.get<{ id: number; partnerId: number; warehouseId: number | null; projectId: number | null; vatAmount: number
+    api.get<{ id: number; partnerId: number; warehouseId: number | null; projectId: number | null; vatAmount: number; convertedOrderId: number | null
       lines: { itemId: number; quantity: number; unitPrice: number }[] }[]>('/quotations')
       .then((r) => {
         const qs = ids.map((id) => r.data.find((q) => q.id === id)).filter((q) => q != null)
@@ -257,7 +257,8 @@ export default function SalesOrderPage() {
         setTaxable(first.vatAmount > 0)
         setFWarehouse(first.warehouseId ? String(first.warehouseId) : '')
         setFProject(first.projectId ? String(first.projectId) : '')
-        setLines([...qs.flatMap((q) => q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) }))), emptyLine()])
+        /* 원본(2026-10-21 실측): 이미 주문서를 만든 견적을 다시 하면 막지 않고 잔량 0 이라 줄이 빈 창이 뜬다. */
+        setLines([...qs.filter((q) => q.convertedOrderId == null).flatMap((q) => q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) }))), emptyLine()])
         setFromQuotes(qs.map((q) => q.id))
         setShowForm(true)
       })

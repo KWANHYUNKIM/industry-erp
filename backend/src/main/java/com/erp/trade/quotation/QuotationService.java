@@ -210,9 +210,7 @@ public class QuotationService {
     public SalesOrderResponse convertToOrder(List<Long> ids, CreateSalesOrderRequest req, String username) {
         List<Quotation> quotes = ids.stream().distinct().map(this::get).toList();
         for (Quotation q : quotes) {
-            if (q.getConvertedOrderId() != null) {
-                throw ApiException.conflict("이미 수주 전환된 견적서입니다: " + q.getQuoteNo());
-            }
+            // 원본은 이미 만든 견적을 다시 1장라인별로 해도 막지 않는다(2026-10-21 실측) — 새 주문서에 다시 건다.
             if (q.getStatus() == QuotationStatus.CANCELLED) {
                 throw ApiException.badRequest("취소된 견적서는 전환할 수 없습니다.");
             }

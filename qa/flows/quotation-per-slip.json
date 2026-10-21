@@ -31,6 +31,25 @@
       ]
     },
     {
+      "name": "직접설정 창 → 집계 · 품목별 → 집계 창",
+      "path": "/sales/quotations",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const t = JSON.parse(sessionStorage.getItem('qpl')); const n = String(Number(t.no.slice(-4))); const rows = [...document.querySelectorAll('tbody tr')].filter((x) => x.querySelector('input[type=checkbox]')); const r = rows.find((x) => new RegExp('-\\\\s?' + n + '\\\\b').test(x.innerText.split('\\n')[1] || x.innerText)) || rows[0]; r.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:300",
+        "click:다른전표생성",
+        "wait:400",
+        "click:직접설정",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('다른전표생성 설정') && d.innerText.includes('일괄생성기준') && d.innerText.includes('자료묶음기준'))",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.innerText.includes('다른전표생성 설정')); const rs = d.querySelectorAll('input[type=radio]'); rs[1].click(); rs[3].click(); return true })()",
+        "wait:300",
+        "clicklast:적용(F8)",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('다른전표생성 집계') && d.innerText.includes('공급가액') && d.innerText.includes('생성(F8)'))"
+      ]
+    },
+    {
       "name": "정리",
       "path": "/sales/quotations",
       "steps": [

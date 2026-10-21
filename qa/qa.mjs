@@ -1405,7 +1405,9 @@ async function scenarioQuotation(f) {
   eq('[생성한전표] 전환 뒤 주문서 번호', (await must('GET', `/quotations/${quote.id}/generated`))[0]?.slipNo, order.orderNo)
   eq('견적에 생성된 수주가 FK로 연결됨', converted.convertedOrderId, order.id)
 
-  await rejects('전환된 견적 재전환은 거부', 'POST', '/quotations/convert', quoteOrderBody(back, { warehouseId: f.warehouse.id }), '이미')
+  // 원본은 이미 만든 견적을 다시 1장라인별로 해도 막지 않는다(2026-10-21 실측) — 새 주문서에 다시 걸린다.
+  const again = await must('POST', '/quotations/convert', quoteOrderBody(back, { warehouseId: f.warehouse.id }))
+  eq('재전환은 막지 않고 새 수주에 걸린다', (await must('GET', '/quotations')).find((q) => q.id === quote.id).convertedOrderId, again.id)
 
   const dead = await must('POST', '/quotations', {
     partnerId: f.customer.id, quoteDate: '2026-07-14', taxable: true,
@@ -1416,6 +1418,7 @@ async function scenarioQuotation(f) {
 
   // 만든 문서는 치운다. 순서가 있다 — 수주를 먼저 지워야 견적의 전환이 풀린다.
   await must('DELETE', `/sales-orders/${order.id}`)
+  await must('DELETE', `/sales-orders/${again.id}`)
   await must('DELETE', `/quotations/${quote.id}`)
   await must('DELETE', `/quotations/${dead.id}`)
 
@@ -1438,8 +1441,9 @@ async function scenarioQuotation(f) {
   const linked = (await must('GET', '/quotations')).filter((q) => q.id === qa1.id || q.id === qa2.id)
   eq('1장라인별: 두 견적 모두 그 주문서에 걸린다', linked.map((q) => q.convertedOrderId).join(','), `${one.id},${one.id}`)
   eq('1장라인별: 견적 진행상태는 그대로', linked.map((q) => q.statusName).join(','), '진행중,진행중')
-  await rejects('1장라인별: 이미 만든 견적은 다시 못 만든다', 'POST', '/quotations/convert', { quotationIds: [qa1.id], order: {
-    partnerId: f.customer.id, warehouseId: f.warehouse.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1 }] } }, '이미')
+  const redo = await must('POST', '/quotations/convert', { quotationIds: [qa1.id], order: {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1 }] } })   // 원본은 막지 않는다
+  await must('DELETE', `/sales-orders/${redo.id}`)
   await must('DELETE', `/sales-orders/${one.id}`)
   const freed = (await must('GET', '/quotations')).filter((q) => q.id === qa1.id || q.id === qa2.id)
   eq('주문서를 지우면 두 견적의 생성한전표가 풀린다', freed.map((q) => q.convertedOrderId ?? '없음').join(','), '없음,없음')
