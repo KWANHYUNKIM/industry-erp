@@ -567,7 +567,12 @@ export default function PartnersPage() {
 
           {formTab === '거래처정보' && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {/* 원본은 상호(이름) 칸이 [기본] 에도 [거래처정보] 에도 있다 — 같은 칸(같은 값). 칸 자리는 못 재서 맨 앞에 둔다. */}
+            {/* 원본(2026-10-22 실측)은 거래처코드 · 상호(이름) 이 [기본] 에도 [거래처정보] 에도 맨 앞 두 칸이다 — 같은 칸(같은 값). */}
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">거래처코드 *</label>
+              <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)}
+                     disabled={editId != null} title={editId != null ? '전표가 코드로 묶여 있어 수정할 수 없습니다.' : undefined} />
+            </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">상호(이름) *</label>
               <input className={`${inputCls} ${invalid && !form.name.trim() ? 'border-[color:var(--ec-text-danger)]' : ''}`}
