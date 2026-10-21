@@ -246,7 +246,7 @@ public class QcTypeService {
         return toResponse(c);
     }
 
-    /** 코드는 못 바꾼다. 형식을 코드형식에서 바꾸면 상세항목이 쓸모없어지므로, 상세항목이 있으면 막는다. */
+    /** 코드는 바꿀 수 있다(원본 수정 창은 검사항목코드 칸이 열려 있다, 2026-10-21). 슬롯 · 결과는 id 로 묶여 있어 안전하다. 형식을 코드형식에서 바꾸면 상세항목이 쓸모없어지므로, 상세항목이 있으면 막는다. */
     @Transactional
     public CheckItemResponse updateCheckItem(Long id, SaveCheckItemRequest req) {
         QcCheckItem c = getCheckItem(id);
@@ -257,6 +257,13 @@ public class QcTypeService {
             if (typeRepository.existsByCheckItemId(id)) {
                 throw ApiException.badRequest("검사유형에 설정된 검사항목은 형식을 바꿀 수 없습니다.");
             }
+        }
+        String newCode = req.code() == null ? "" : req.code().trim();
+        if (!newCode.isEmpty() && !newCode.equals(c.getCode())) {
+            if (checkItemRepository.existsByCode(newCode)) {
+                throw ApiException.conflict("이미 사용중인 검사항목코드입니다: " + newCode);
+            }
+            c.setCode(newCode);
         }
         c.setName(req.name().trim());
         c.setFormat(req.format());

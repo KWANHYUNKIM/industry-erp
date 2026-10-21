@@ -305,10 +305,13 @@ function ExportForm({ initial, partners, currencies, items, mappings, onClose, o
    */
   function pickPartner(partnerId: string) {
     const m = mappings.find((x) => String(x.partnerId) === partnerId)
+    /* 통화(2026-10-21 원본 실측): 외화거래처(Bisket World · The Sweet Ecount)를 고르면 달러 [100], 내자 거래처((주)삼성)는 내자. 매핑 칸은 매핑이 있는 거래처만 찬다. */
+    const fx = partners.find((x) => String(x.id) === partnerId)?.foreignCurrency
+    const cur = !initial ? { currencyId: fx ? String((currencies.find((c) => c.name.includes('달러')) ?? currencies[0])?.id ?? '') : '' } : {}
     set(m && !initial ? {
-      partnerId, lcBank: s(m.lcBank), shipper: s(m.shipper), messrs: s(m.messrs), notifyParty: s(m.notifyParty),
+      ...cur, partnerId, lcBank: s(m.lcBank), shipper: s(m.shipper), messrs: s(m.messrs), notifyParty: s(m.notifyParty),
       portOfLoading: s(m.portOfLoading), destination: s(m.destination), carrier: s(m.carrier), weightUnit: s(m.weightUnit), remark: s(m.remark),
-    } : { partnerId })
+    } : { partnerId, ...cur })
   }
   /** 툴바 [판매] · [주문] 으로 띄운 검색창. */
   const [pick, setPick] = useState<'sales' | 'order' | null>(null)

@@ -568,7 +568,7 @@ export default function QualityTypePage() {
               {FORMATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <span className="text-ec-label">검사항목코드</span>
-            <input className="ec-input" aria-label="검사항목코드" value={checkForm.code} disabled={checkForm.id != null} onChange={(e) => setCheckForm({ ...checkForm, code: e.target.value })} />
+            <input className="ec-input" aria-label="검사항목코드" value={checkForm.code} onChange={(e) => setCheckForm({ ...checkForm, code: e.target.value })} />
             <span className="text-ec-label">검사항목명</span>
             <input className={`ec-input ${nameInvalid && !checkForm.name.trim() ? 'border-ec-danger' : ''}`} aria-label="검사항목명" placeholder="검사항목명" value={checkForm.name} onChange={(e) => setCheckForm({ ...checkForm, name: e.target.value })} />
             <span className="text-ec-label">필수입력항목</span>

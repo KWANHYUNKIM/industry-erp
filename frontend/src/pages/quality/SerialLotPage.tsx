@@ -356,10 +356,13 @@ export default function SerialLotPage() {
   function lotField() {
     return (
       <EcCond label="시리얼/로트No.">
-        {editing ? <span>{editing.lotNo}</span> : (
+        {editing ? <span>{editing.lotNo}</span> : (<div>
+          {/* 원본(2026-10-21 실측): 칸 위에 [생성개수] 입력, 칸 오른쪽 [Fn] ▸ 번호생성(코드생성 창: 반복코드[3] · 기호1[1] '_' · 일련번호[4] '****' · 적용(F8)) · 번호생성설정. 모양만. */}
+          <input className="ec-input w-[420px] mb-[3px] text-right" placeholder="생성개수" aria-label="생성개수" inputMode="numeric" />
           <textarea className={`ec-input w-[420px] h-[60px]${lotMissing ? ' border-ec-danger' : ''}`} placeholder="시리얼/로트No."
                     value={form.lotNos} onChange={(e) => { set('lotNos', e.target.value); setLotMissing(false) }} />
-        )}
+          <button type="button" className="ec-btn ec-btn-sm ml-[3px] italic align-top">Fn</button>
+        </div>)}
       </EcCond>
     )
   }
