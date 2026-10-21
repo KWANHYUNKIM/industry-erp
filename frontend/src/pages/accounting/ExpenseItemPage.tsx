@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../api/client'
 import NumCheck from '../../components/NumCheck'
@@ -28,11 +29,14 @@ interface Form {
   controlTypeId: string
   limitAmount: string
   employeeIds: string[]
+  controlFrom: string
+  controlTo: string
+  alertEmployeeIds: string[]
   remark: string
   active: boolean
 }
 
-const BLANK: Form = { id: null, code: '', name: '', accountId: '', controlTypeId: '', limitAmount: '0', employeeIds: [], remark: '', active: true }
+const BLANK: Form = { id: null, code: '', name: '', accountId: '', controlTypeId: '', limitAmount: '0', employeeIds: [], controlFrom: '', controlTo: '', alertEmployeeIds: [], remark: '', active: true }
 const won = (n: number | null) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 
 export default function ExpenseItemPage() {
@@ -66,7 +70,8 @@ export default function ExpenseItemPage() {
     setF({
       id: i.id, code: i.code, name: i.name, accountId: i.accountId ? String(i.accountId) : '',
       controlTypeId: i.controlTypeId ? String(i.controlTypeId) : '', limitAmount: i.limitAmount != null ? String(i.limitAmount) : '0',
-      employeeIds: i.employeeIds.map(String), remark: i.remark ?? '', active: i.active,
+      employeeIds: i.employeeIds.map(String), controlFrom: i.controlFrom ?? '', controlTo: i.controlTo ?? '',
+      alertEmployeeIds: i.alertEmployeeIds.map(String), remark: i.remark ?? '', active: i.active,
     })
     setFormError(''); setInvalid(false); setOpen(true)
   }
@@ -80,6 +85,8 @@ export default function ExpenseItemPage() {
       controlTypeId: f.controlTypeId ? Number(f.controlTypeId) : null,
       limitAmount: f.controlTypeId ? Number(f.limitAmount || 0) : null,
       employeeIds: f.controlTypeId ? f.employeeIds.map(Number) : [],
+      controlFrom: f.controlFrom || null, controlTo: f.controlTo || null,
+      alertEmployeeIds: f.controlTypeId ? f.alertEmployeeIds.map(Number) : [],
       remark: f.remark || null,
     }
     try {
@@ -140,7 +147,7 @@ export default function ExpenseItemPage() {
               <td>{i.name}</td>
               <td>{i.accountName}</td>
               <td>{i.controlTypeName}</td>
-              <td>{i.periodTypeName}</td>
+              <td>{i.controlFrom ? `${i.controlFrom.replaceAll('-', '/')} ~${(i.controlTo ?? i.controlFrom).replaceAll('-', '/')}` : i.periodTypeName}</td>
               <td>{i.personControlName}</td>
               <td>{i.limitTypeName}</td>
               <td className="text-right">{won(i.limitAmount)}</td>
@@ -181,7 +188,12 @@ export default function ExpenseItemPage() {
               <span className="title">통제유형</span>
               <div className="form">
                 <CodePickerField label="통제유형" hideLabel pair popupTitle="통제유형검색" emptyLabel="" value={f.controlTypeId}
-                                 onChange={(v) => setF({ ...f, controlTypeId: v })}
+                                 onChange={(v) => {
+                                   const t = controls.find((c) => String(c.id) === v)
+                                   const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+                                   setF({ ...f, controlTypeId: v, controlFrom: t?.periodType === 'DESIGNATED' ? f.controlFrom || today : '',
+                                     controlTo: t?.periodType === 'DESIGNATED' ? f.controlTo || today : '' })
+                                 }}
                                  items={controls.filter((c) => c.active || String(c.id) === f.controlTypeId)
                                    .map((c) => ({ value: String(c.id), code: c.code, name: c.name }))} />
               </div>
@@ -190,7 +202,15 @@ export default function ExpenseItemPage() {
               <>
                 <li className="wide">
                   <span className="title">통제기간</span>
-                  <div className="form"><span>{control.periodTypeName}</span></div>
+                  <div className="form">
+                    {control.periodType === 'DESIGNATED' ? (
+                      <span className="inline-flex items-center gap-[6px]">
+                        <EcDateField value={f.controlFrom} onChange={(v) => setF({ ...f, controlFrom: v })} />
+                        <span>~</span>
+                        <EcDateField value={f.controlTo} onChange={(v) => setF({ ...f, controlTo: v })} />
+                      </span>
+                    ) : <span>{control.periodTypeName}</span>}
+                  </div>
                 </li>
                 <li className="wide">
                   <span className="title">사용인원</span>
@@ -209,6 +229,16 @@ export default function ExpenseItemPage() {
                 </li>
               </>
             )}
+            {control && (
+              <li className="wide">
+                <span className="title">통제알림대상</span>
+                <div className="form">
+                  <CodePickerField label="통제알림대상" hideLabel multiple plain popupTitle="대상자선택" emptyLabel="" width={360}
+                                   values={f.alertEmployeeIds} onChangeMulti={(v) => setF({ ...f, alertEmployeeIds: v })}
+                                   items={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name }))} />
+                </div>
+              </li>
+            )}
             <li className="wide">
               <span className="title">적요</span>
               <div className="form">
@@ -223,9 +253,9 @@ export default function ExpenseItemPage() {
               const i = rows.find((r) => r.id === f.id)
               if (i) openEdit(i); else openNew()
             }}>다시 작성</button>
-            {f.id && <ActiveToggleButton base="/expense-items" id={f.id} active={f.active} onToggled={(a) => { setF({ ...f, active: a }); load() }} />}
+            {f.id && <ActiveToggleButton base="/expense-items" id={f.id} active={f.active} onToggled={(a) => { setF({ ...f, active: a }); load() }} onDeleted={() => { setOpen(false); load() }} />}
             <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
-            <EcHistoryButton target="EXPENSE_ITEM" id={f.id} />
+            <EcHistoryButton target="EXPENSE_ITEM" id={f.id} last />
           </div>
         </form>
       )}</Modal>

@@ -20,6 +20,7 @@ public final class ExpenseItemDtos {
                                       Long controlTypeId, String controlTypeCode, String controlTypeName,
                                       String periodTypeName, String personControlName, String limitTypeName,
                                       BigDecimal limitAmount, List<Long> employeeIds,
+                                      java.time.LocalDate controlFrom, java.time.LocalDate controlTo, List<Long> alertEmployeeIds,
                                       String remark, boolean active) {
         public static ExpenseItemResponse from(ExpenseItem i) {
             ExpenseControlType t = i.getControlType();
@@ -31,7 +32,8 @@ public final class ExpenseItemDtos {
                     t != null ? t.getPeriodType().getDisplayName() : null,
                     t != null && t.isPersonControl() ? "사용" : "사용안함",
                     t != null ? t.getLimitType().getDisplayName() : "총금액",
-                    i.getLimitAmount(), List.copyOf(i.getEmployeeIds()), i.getRemark(), i.isActive());
+                    i.getLimitAmount(), List.copyOf(i.getEmployeeIds()),
+                    i.getControlFrom(), i.getControlTo(), List.copyOf(i.getAlertEmployeeIds()), i.getRemark(), i.isActive());
         }
     }
 
@@ -39,5 +41,6 @@ public final class ExpenseItemDtos {
     public record SaveExpenseItemRequest(@NotBlank @Size(max = 20) String code, @NotBlank @Size(max = 100) String name,
                                          Long accountId, Long controlTypeId,
                                          @PositiveOrZero BigDecimal limitAmount, List<Long> employeeIds,
+                                         java.time.LocalDate controlFrom, java.time.LocalDate controlTo, List<Long> alertEmployeeIds,
                                          @Size(max = 500) String remark, Boolean active) {}
 }

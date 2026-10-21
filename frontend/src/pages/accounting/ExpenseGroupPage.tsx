@@ -199,7 +199,7 @@ export default function ExpenseGroupPage() {
               const g = rows.find((r) => r.id === f.id)
               if (g) openEdit(g); else void openNew()
             }}>다시 작성</button>
-            {f.id && <ActiveToggleButton base="/expense-groups" id={f.id} active={f.active} onToggled={(a) => { setF({ ...f, active: a }); load() }} />}
+            {f.id && <ActiveToggleButton base="/expense-groups" id={f.id} active={f.active} onToggled={(a) => { setF({ ...f, active: a }); load() }} onDeleted={() => { setOpen(false); load() }} />}
             <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
             <EcHistoryButton target="EXPENSE_GROUP" id={f.id} />
           </div>

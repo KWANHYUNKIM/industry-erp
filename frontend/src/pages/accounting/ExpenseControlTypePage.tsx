@@ -198,7 +198,7 @@ export default function ExpenseControlTypePage() {
               const t = rows.find((r) => r.id === f.id)
               if (t) openEdit(t); else openNew()
             }}>다시 작성</button>
-            {f.id && <ActiveToggleButton base="/expense-control-types" id={f.id} active={f.active} onToggled={(a) => { setF({ ...f, active: a }); load() }} />}
+            {f.id && <ActiveToggleButton base="/expense-control-types" id={f.id} active={f.active} onToggled={(a) => { setF({ ...f, active: a }); load() }} onDeleted={() => { setOpen(false); load() }} />}
             <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
             <EcHistoryButton target="EXPENSE_CONTROL_TYPE" id={f.id} />
           </div>

@@ -55,6 +55,21 @@ public class ExpenseItem extends BaseTimeEntity {
     @Builder.Default
     private Set<Long> employeeIds = new LinkedHashSet<>();
 
+    /** [통제기간] — 통제유형 기간이 '지정기간' 일 때만(처음은 오늘 ~ 오늘, 원본 2026-10-22). */
+    @Column(name = "control_from")
+    private java.time.LocalDate controlFrom;
+
+    @Column(name = "control_to")
+    private java.time.LocalDate controlTo;
+
+    /** [통제알림대상](대상자선택) — 사원 id 여럿 */
+    @ElementCollection
+    @CollectionTable(name = "expense_item_alert_targets", joinColumns = @JoinColumn(name = "expense_item_id"))
+    @Column(name = "employee_id")
+    @org.hibernate.annotations.BatchSize(size = 50)
+    @Builder.Default
+    private Set<Long> alertEmployeeIds = new LinkedHashSet<>();
+
     @Column(length = 500)
     private String remark;
 

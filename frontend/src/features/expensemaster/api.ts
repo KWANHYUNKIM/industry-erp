@@ -50,6 +50,10 @@ export interface ExpenseItem {
   limitTypeName: string
   limitAmount: number | null
   employeeIds: number[]
+  /** 통제유형 기간이 지정기간일 때의 통제기간(처음 오늘 ~ 오늘) · [통제알림대상] 사원 */
+  controlFrom: string | null
+  controlTo: string | null
+  alertEmployeeIds: number[]
   remark: string | null
   active: boolean
 }
@@ -83,6 +87,7 @@ export function activeMenuAction(base: string, picked: number[], toggleView: () 
   return {
     label: '사용중단/재사용',
     onClick: toggleView,
+    menuOnly: true,
     menu: [
       { label: '사용중단', onClick: () => void run(() => api.post(`${base}/active?active=false`, picked)) },
       { label: '삭제', onClick: () => void run(async () => { if (await ecConfirm('삭제하겠습니까?')) await api.post(`${base}/delete`, picked) }) },

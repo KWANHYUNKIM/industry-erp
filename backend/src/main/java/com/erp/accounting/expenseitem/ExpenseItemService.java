@@ -85,11 +85,18 @@ public class ExpenseItemService {
         i.setAccount(req.accountId() != null ? accountService.getUsable(req.accountId()) : null);
         i.setControlType(req.controlTypeId() != null ? controlService.get(req.controlTypeId()) : null);
         i.getEmployeeIds().clear();
+        i.getAlertEmployeeIds().clear();
         if (i.getControlType() != null) {
             i.setLimitAmount(req.limitAmount() != null ? req.limitAmount() : BigDecimal.ZERO);
             if (req.employeeIds() != null) i.getEmployeeIds().addAll(req.employeeIds());
+            if (req.alertEmployeeIds() != null) i.getAlertEmployeeIds().addAll(req.alertEmployeeIds());
+            boolean designated = i.getControlType().getPeriodType() == com.erp.accounting.expensecontrol.ExpensePeriodType.DESIGNATED;
+            i.setControlFrom(designated ? (req.controlFrom() != null ? req.controlFrom() : java.time.LocalDate.now()) : null);
+            i.setControlTo(designated ? (req.controlTo() != null ? req.controlTo() : java.time.LocalDate.now()) : null);
         } else {
             i.setLimitAmount(null);
+            i.setControlFrom(null);
+            i.setControlTo(null);
         }
         i.setRemark(req.remark());
     }

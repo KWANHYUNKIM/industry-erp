@@ -40,6 +40,8 @@ export interface BottomAction {
    * 펼침은 위로 열린다(버튼줄이 화면 바닥에 있다).
    */
   menu?: { label: string; onClick: () => void }[]
+  /** 버튼 전체가 펼침을 연다(원본 마스터 리스트 [사용중단/재사용 ▴] 2026-10-22 실측 — 글자를 눌러도 사용중단 · 삭제 · 재사용이 위로 펴진다). 없으면 글자는 onClick. */
+  menuOnly?: boolean
 }
 
 /** 하단 버튼 하나 — menu 가 있으면 붙은 묶음(.ec-btn-group + ▴). */
@@ -49,7 +51,7 @@ function FooterButton({ a }: { a: BottomAction }) {
   if (!a.menu?.length) return <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>
   return (
     <span className="ec-btn-group relative">
-      <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>
+      <button className={cls} onClick={a.menuOnly ? () => setOpen((v) => !v) : a.onClick} disabled={a.disabled}>{a.label}</button>
       <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} onClick={() => setOpen((v) => !v)}>▴</button>
       {open && (
         <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
