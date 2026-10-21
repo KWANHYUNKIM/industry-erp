@@ -202,9 +202,18 @@ public class ImportCostService {
             case BILL_RECEIPT, TAX_INVOICE, GENERAL_RECEIPT -> {
                 lines.add(new Posting(true, code(GOODS_IN_TRANSIT), amt));
                 if (vat.signum() != 0) lines.add(new Posting(true, code(VAT_RECEIVABLE), vat));
-                // 원본 청구서의 수수료 5,000 은 외상매입금엔 붙고 미착품(수입관리대장)엔 안 들어갔다 — 지급수수료로 둔다
-                if (fee.signum() != 0) lines.add(new Posting(true, code(FEE), fee));
-                lines.add(new Posting(false, v.getAccount(), amt.add(vat).add(fee)));
+                // 수수료는 지급수수료(차). 원본 2026-10-22 분개장: 청구서 · 세금계산서는 외상매입금(대)이 [금액(+부가세)] · [수수료] 두 줄,
+                // 일반영수증은 수수료까지 합친 한 줄(5,000 + 200 → 5,200)
+                if (v.getKind() == ImportCostKind.GENERAL_RECEIPT) {
+                    if (fee.signum() != 0) lines.add(new Posting(true, code(FEE), fee));
+                    lines.add(new Posting(false, v.getAccount(), amt.add(fee)));
+                } else {
+                    lines.add(new Posting(false, v.getAccount(), amt.add(vat)));
+                    if (fee.signum() != 0) {
+                        lines.add(new Posting(true, code(FEE), fee));
+                        lines.add(new Posting(false, v.getAccount(), fee));
+                    }
+                }
             }
             case TRADE_PAYMENT, BROKER_PAYMENT -> {
                 lines.add(new Posting(true, code(ACCOUNTS_PAYABLE), amt));
@@ -341,12 +350,12 @@ public class ImportCostService {
     }
 
     /**
-     * 전표검색 [금액] — 원본 2026-10-20: 청구서 1,000 + 수수료 100 → 1,000(수수료 빼고), 거래대금지급 500 + 수수료 50 → 550,
+     * 전표검색 [금액] — 원본 2026-10-20: 청구서 1,000 + 수수료 100 → 1,000(수수료 빼고), 거래대금지급 500 + 수수료 50 → 550, 일반영수증 5,000 + 수수료 200 → 5,200(2026-10-22),
      * 세금계산서 공급가 20,000 + 부가세 2,000 → 22,000.
      */
     private static BigDecimal listAmount(ImportCostVoucher v) {
         BigDecimal base = v.getAmount().add(v.getVat());
-        return v.getKind().isPayment() ? base.add(v.getFee()) : base;
+        return v.getKind().isPayment() || v.getKind() == ImportCostKind.GENERAL_RECEIPT ? base.add(v.getFee()) : base;
     }
 
     private static VoucherResponse toVoucher(ImportCostVoucher v) {

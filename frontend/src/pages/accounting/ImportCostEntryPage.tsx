@@ -21,6 +21,11 @@ const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.\n자세한 
 
 interface AccountOption { id: number; code: string; name: string }
 
+/** [부가세유형] ▾ 선택지 — 원본 (세금)계산서수령 2026-10-22 실측 19가지 그 차례 */
+const VAT_TYPES = ['세금계산서', '영세율', '계산서', '세금계산서(불공)', '세금계산서(수입)', '현금영수증', '카드매입', '세.계(고정-수입)',
+  '세.계(고정자산)', '영세율(수입)', '계산서(수입)', '세.계(고정-불공)', '계산서(고정자산)', '신용카드(고정자산)', '매입자발행세금계산서',
+  '현금영수증(고정자산)', '기타수입', '재활용', '기타매입']
+
 function bankLabel(b: BankAccountRow) {
   if (b.name) return b.name
   const digits = (b.accountNo ?? '').replace(/\D/g, '')
@@ -273,8 +278,7 @@ export default function ImportCostEntryPage({ kind }: { kind: ImportCostKind }) 
         <EcCond key="vt" label="부가세유형" span={2}>
           <span className="inline-flex items-center gap-[6px] w-full">
             <select className="ec-input w-[140px]" aria-label="부가세유형" value={vatType} onChange={(e) => setVatType(e.target.value)}>
-              <option value="세금계산서">세금계산서</option>
-              <option value="계산서">계산서</option>
+              {VAT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <span className="text-ec-label">전자(세금)계산서-신규 예정누락아님</span>
           </span>

@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcDateField from '../../components/EcDateField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
 import { EcCond } from '../../components/EcStatusPanel'
 import type { Partner } from '../../types/api'
@@ -75,16 +76,29 @@ export default function ImportLotPage() {
   }
 
   /** 원본 [사용중단/재사용] — 확인 창 없이 뒤집는다. */
-  async function toggle(ids: number[]) {
+  async function toggle(ids: number[], to?: boolean) {
     if (ids.length === 0) { setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
     try {
       for (const id of ids) {
         const l = rows.find((r) => r.id === id)
         if (!l) continue
         await api.put(`/import-costs/lots/${id}`, { name: l.name, partnerId: l.partnerId, firstTradeDate: l.firstTradeDate,
-          remark: l.remark, active: !l.active })
+          remark: l.remark, active: to ?? !l.active })
       }
       if (open && f.id) setF({ ...f, active: !f.active })
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+    setChecked(new Set())
+    load()
+  }
+
+  /** 원본 [사용중단/재사용 ▴] › 삭제 — 2026-10-22 실측: 알림 '삭제하겠습니까?' [확인] [취소], 사용중단 줄도 지운다. */
+  async function remove(ids: number[]) {
+    if (ids.length === 0) { setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
+    try {
+      for (const id of ids) await api.delete(`/import-costs/lots/${id}`)
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -110,7 +124,11 @@ export default function ImportLotPage() {
       collapseConditions
       onNew={() => void openNew()}
       actions={[
-        { label: '사용중단/재사용', onClick: () => void toggle([...checked]) },
+        { label: '사용중단/재사용', onClick: () => undefined, menu: [
+          { label: '사용중단', onClick: () => void toggle([...checked], false) },
+          { label: '삭제', onClick: () => void remove([...checked]) },
+          { label: '재사용', onClick: () => void toggle([...checked], true) },
+        ] },
         { label: 'Excel' },
       ]}
     >

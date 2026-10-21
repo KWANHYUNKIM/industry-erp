@@ -10828,6 +10828,11 @@ async function main() {
     console.log('\n시드 완료.')
     return
   }
+  if (cmd === 'importcost') {   // 수입비용(輸入)만 빠르게
+    await scenarioImportCost()
+    console.log(`\n통과 ${pass} / 실패 ${fail}`)
+    process.exit(fail ? 1 : 0)
+  }
   if (cmd === 'password-history') {
     await scenarioPasswordHistory()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
@@ -11938,6 +11943,14 @@ async function scenarioImportCost() {
   r = await row()
   eq('대체를 지우면 잔액 130,000 · 통관일 빈칸', `${r.transfer} ${r.balance} ${r.clearanceDate}`, '0 130000 null')
   eq('지운 전표의 회계전표도 사라진다', (await call('GET', `/journals/${transfer.journalEntryId}`)).ok, false)
+  // 원본 2026-10-22 분개장: 세금계산서 20,000 + 부가세 2,000 + 수수료 300 → 차 미착품 · 부가세대급금 / 대 외상매입금 22,000 · 차 지급수수료 / 대 외상매입금 300,
+  // 일반영수증 5,000 + 수수료 200 → 차 미착품 · 지급수수료 / 대 외상매입금 5,200(한 줄), 전표검색 금액 5,200 · 22,000
+  const feeTax = await must('POST', '/import-costs/vouchers', { ...base, kind: 'TAX_INVOICE', amount: 20000, vat: 2000, fee: 300, costItemId: items[0].id })
+  const feeRcpt = await must('POST', '/import-costs/vouchers', { ...base, kind: 'GENERAL_RECEIPT', amount: 5000, fee: 200, costItemId: items[0].id })
+  vs.push(feeTax, feeRcpt)
+  eq('세금계산서 수수료 분개 — 외상매입금 두 줄', await lines(feeTax), '168:20000 135:2000 251:-22000 831:300 251:-300')
+  eq('일반영수증 수수료 분개 — 외상매입금 한 줄 합', await lines(feeRcpt), '168:5000 831:200 251:-5200')
+  eq('전표검색 금액 — 영수증은 수수료 포함 · 계산서는 뺀다', `${Number(feeRcpt.total)} ${Number(feeTax.total)}`, '5200 22000')
   await rejects('전표가 쓰는 관리번호는 못 지운다', 'DELETE', `/import-costs/lots/${lot.id}`, undefined, '쓰고 있는')
   await must('POST', '/import-costs/vouchers/delete', { ids: vs.map((v) => v.id) })
   await must('DELETE', `/import-costs/lots/${lot.id}`)
