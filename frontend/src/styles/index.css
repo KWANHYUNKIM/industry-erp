@@ -30,6 +30,7 @@
   --color-ec-star: var(--ec-star);
   --color-ec-danger: var(--ec-danger);
   --color-ec-danger-bg: var(--ec-danger-bg);
+  --color-ec-cell-negative: var(--ec-bg-cell-negative);
   --color-ec-success: var(--ec-success);
   --color-ec-success-bg: var(--ec-success-bg);
   --color-ec-warn: var(--ec-warn);

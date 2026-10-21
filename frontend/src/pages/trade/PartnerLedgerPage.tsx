@@ -42,7 +42,7 @@ type Group = '전표별' | '전표별+내역' | '일별' | '월별' | '회계전
 const GROUPS = ['전표별', '전표별+내역', '일별', '월별', '회계전표별'] as const
 
 
-interface Line { itemCode: string; itemName: string; quantity: number; unitPrice: number; supplyAmount: number }
+interface Line { itemCode: string; itemName: string; spec?: string | null; quantity: number; unitPrice: number; supplyAmount: number; vatAmount?: number }
 interface SalesDoc { id: number; docNo: string; saleDate: string; partnerId: number; partnerName: string; totalAmount: number; returnSlip?: boolean; lines: Line[] }
 interface PurchaseDoc { id: number; docNo: string; purchaseDate: string; partnerId: number; partnerName: string; totalAmount: number; returnSlip?: boolean; lines: Line[] }
 interface Settlement { id: number; docNo: string; settleDate: string; partnerId: number; partnerName: string; type: 'RECEIPT' | 'PAYMENT'; amount: number; method?: string | null; note?: string | null }
@@ -302,6 +302,8 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
       const m = new Map<string, Entry>()
       for (const e of entries) {
         const k = keyOf(e)
+        /* 원본 거래처관리대장1(채권·채무) 회계전표별은 회계 전표가 있는 줄만 보인다(판매·구매는 회계 미반영이면 빠짐, 2026-10-21 실측). */
+        if (oneSided && group === '회계전표별' && k === UNPOSTED) continue
         const cur = m.get(k)
         if (!cur) {
           // 회계전표별은 <b>날짜가 아니라 전표번호</b>로 묶는다. 날짜 자리에 번호를 넣으면
@@ -394,12 +396,17 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     const ar = fixedSide === 'AR'
     const [incLabel, decLabel] = ar ? ['판매', '수금'] : ['구매', '지급']
     if (loading) return <table className="w-full text-left"><tbody><tr><td className="ec-empty">불러오는 중…</td></tr></tbody></table>
-    if (ledger.length === 0) return <table className="w-full text-left"><tbody><tr><td className="ec-empty">등록된 데이터가 없습니다.</td></tr></tbody></table>
     const ym = (d: string) => d.slice(0, 7)
+    /* 원본은 거래처를 골랐는데 자료가 없어도 머리표 · 열 머리를 그대로 두고 격자 안에 '등록된 데이터가 없습니다.' 를 둔다(2026-10-21 실측). */
+    const shown = ledger.length > 0 ? ledger
+      : partner ? [{ partnerId: Number(partner), name: (info(Number(partner))?.name ?? ""), opening: 0, entries: [], rows: [], increase: 0, decrease: 0, closing: 0 }] : []
+    if (shown.length === 0) return <table className="w-full text-left"><tbody><tr><td className="ec-empty">등록된 데이터가 없습니다.</td></tr></tbody></table>
+    const dayOrMonth = group === '일별' || group === '월별'
+    const money = (n: number) => (n ? won(n) : '')
     return (
       <>
-        {ledger.map((p) => {
-          const months = [...new Set(p.rows.map((r) => ym(r.entry.date)))]
+        {shown.map((p) => {
+          const months = dayOrMonth ? [] : [...new Set(p.rows.map((r) => ym(r.entry.date)))]
           return (
             <div key={p.partnerId} className="mb-[16px]">
               <div className="text-[14px] font-bold mb-[2px]">{p.name} 관리대장(거래명세서별)</div>
@@ -416,50 +423,60 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td></td><td>이월잔액</td><td></td><td></td>
-                    <td className="text-right">{won(p.opening)}</td>
-                  </tr>
-                  {months.map((m) => {
-                    const rows = p.rows.filter((r) => ym(r.entry.date) === m)
+                  {p.rows.length === 0 && p.opening === 0 && <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
+                  {(p.rows.length > 0 || p.opening !== 0) && (
+                    <tr className="font-bold">
+                      <td colSpan={2} className="text-center">이월잔액</td><td></td><td></td>
+                      <td className="text-right">{won(p.opening)}</td>
+                    </tr>
+                  )}
+                  {(dayOrMonth ? [''] : months).map((m) => {
+                    const rows = dayOrMonth ? p.rows : p.rows.filter((r) => ym(r.entry.date) === m)
                     const inc = rows.reduce((n, r) => n + r.entry.increase, 0)
                     const dec = rows.reduce((n, r) => n + r.entry.decrease, 0)
                     return (
-                      <Fragment key={m}>
+                      <Fragment key={m || 'all'}>
                         {rows.map((r) => (
                           <Fragment key={r.entry.key}>
-                            <tr>
-                              <td>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</td>
-                              <td>{r.entry.kind.endsWith('반품') ? `${r.entry.kind} ` : ''}{r.entry.memo ?? ''}</td>
+                            <tr className="bg-ec-page">
+                              <td>{dayOrMonth
+                                ? (group === '월별' ? r.entry.date.replace('-', '/') : dateText(r.entry.date))
+                                : <>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</>}</td>
+                              <td>{dayOrMonth ? (group === '월별' ? '월계' : '일계')
+                                : <>{r.entry.kind.endsWith('반품') ? `${r.entry.kind} ` : ''}{r.entry.memo ?? ''}</>}</td>
                               <td className="text-right">{r.entry.increase ? won(r.entry.increase) : ''}</td>
                               <td className="text-right">{r.entry.decrease ? won(r.entry.decrease) : ''}</td>
-                              <td className="text-right">{won(r.balance)}</td>
+                              <td className="text-right font-bold">{won(r.balance)}</td>
                             </tr>
                             {showDetail && r.entry.lines.map((l, li) => (
                               <tr key={`${r.entry.key}-${li}`}>
                                 <td></td>
-                                <td>{l.itemName} / {l.quantity.toLocaleString('ko-KR', { minimumFractionDigits: 2 })} * {won(l.unitPrice)}</td>
-                                <td className="text-right">{won(l.supplyAmount)}</td>
+                                <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''} / {l.quantity.toLocaleString('ko-KR', { minimumFractionDigits: 2 })} * {won(l.unitPrice)}</td>
+                                <td className="text-right bg-ec-cell-negative">{won(l.supplyAmount + (l.vatAmount ?? 0))}</td>
                                 <td></td><td></td>
                               </tr>
                             ))}
                           </Fragment>
                         ))}
-                        <tr className="bg-ec-page font-semibold">
-                          <td>{m.replace('-', '/')} 계</td><td></td>
-                          <td className="text-right">{won(inc)}</td>
-                          <td className="text-right">{won(dec)}</td>
-                          <td></td>
-                        </tr>
+                        {!dayOrMonth && (
+                          <tr className="bg-ec-page font-bold">
+                            <td colSpan={2} className="text-center">{m.replace('-', '/')} 계</td>
+                            <td className="text-right">{money(inc)}</td>
+                            <td className="text-right">{money(dec)}</td>
+                            <td></td>
+                          </tr>
+                        )}
                       </Fragment>
                     )
                   })}
-                  <tr className="bg-ec-page font-bold">
-                    <td>누계</td><td></td>
-                    <td className="text-right">{won(p.increase)}</td>
-                    <td className="text-right">{won(p.decrease)}</td>
-                    <td className="text-right">{won(p.closing)}</td>
-                  </tr>
+                  {(p.rows.length > 0 || p.opening !== 0) && (
+                    <tr className="bg-ec-page font-bold">
+                      <td colSpan={2} className="text-center">누계</td>
+                      <td className="text-right">{money(p.increase)}</td>
+                      <td className="text-right">{money(p.decrease)}</td>
+                      <td className="text-right">{won(p.closing)}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
