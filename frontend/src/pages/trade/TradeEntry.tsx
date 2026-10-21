@@ -25,6 +25,7 @@ import EcNumInput from '../../components/EcNumInput'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { ErrTip } from '../../components/GridCode'
+import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -422,6 +423,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
 
   // ── 팝업/알림 ──────────────────────────────────────────
   const [historyOpen, setHistoryOpen] = useState(false)
+  /** 수정 창 [H] · [최종이력] — 판매만 이력을 적는다(SalesService.HISTORY_TARGET 'SALES', 구매는 남은 것). */
+  const [slipHistory, setSlipHistory] = useState<'H' | 'last' | null>(null)
   const [stockOpen, setStockOpen] = useState(false)
   // 이익계산(원본 profitCalc). 원가는 회계 모듈이 소유하므로 화면에서 /costs 를 읽어 계산한다 —
   // trade → accounting 의존은 순환이라 백엔드에서 못 부른다(CLAUDE.md 4.1).
@@ -1539,7 +1542,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
   /*
    * 판매조회 위 수정 창의 아래 버튼줄(원본 E040206 '판매입력(수정)' 2026-10-21 실측):
    *   저장(F8) · 저장/전표(F7) · 복사 · 반품처리 · 현금수금 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H · 최종이력.
-   * 보내기(메일 · 팩스) · H · 최종이력(전표 이력)은 받쳐 줄 것이 없어 흐리게 둔다.
+   * 보내기(메일 · 팩스)는 받쳐 줄 것이 없어 흐리게 둔다. H · 최종이력은 판매만 전표 이력(거래이력조회(재고) 와 같은 줄)을 연다.
    */
   async function deleteInPopup() {
     if (!popup || !editing) return
@@ -1570,8 +1573,13 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     { label: '닫기', onClick: () => popup.onClose(false) },
     { label: '삭제', onClick: () => void deleteInPopup() },
     { label: '보내기', disabled: true, disabledReason: '메일 · 팩스 보내기는 아직 없습니다.' },
-    { label: 'H', disabled: true, disabledReason: '전표 이력은 아직 없습니다.' },
-    { label: '최종이력', disabled: true, disabledReason: '전표 이력은 아직 없습니다.' },
+    ...(mode === 'sales' ? [
+      { label: 'H', onClick: () => setSlipHistory('H') },
+      { label: '최종이력', onClick: () => setSlipHistory('last') },
+    ] : [
+      { label: 'H', disabled: true, disabledReason: '구매 전표 이력은 아직 없습니다.' },
+      { label: '최종이력', disabled: true, disabledReason: '구매 전표 이력은 아직 없습니다.' },
+    ]),
   ] : [
     /*
      * 신규 창(판매조회 [신규(F2)] · 수정 창 [복사] 뒤) — 원본 아래 버튼줄(2026-10-21 실측):
@@ -2410,6 +2418,13 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           </label>
         ))}
       </Modal>
+
+      {slipHistory === 'H' && editing && (
+        <SlipHistoryModal target="SALES" id={editing.id} withSections
+                          head={`[${date.replace(/-/g, '')}-${Number(editing.docNo.split('-').pop()) || editing.docNo}]`}
+                          onClose={() => setSlipHistory(null)} />
+      )}
+      {slipHistory === 'last' && editing && <SlipLastHistoryModal target="SALES" id={editing.id} onClose={() => setSlipHistory(null)} />}
 
       {/* ── 거래내역보기 ─────────────────────────────────── */}
       <Modal error={error} open={historyOpen} title={`거래내역보기 (${cfg.lineTab})`} width={720} onClose={() => setHistoryOpen(false)}>

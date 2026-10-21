@@ -1,343 +1,154 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Partner, PurchaseDoc, SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
-import { useTableSort } from '../../utils/useTableSort'
+import { EcCond } from '../../components/EcStatusPanel'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
-import { partnerCodeItems } from '../../utils/codeItems'
-import { dateText } from '../../utils/dateText'
-import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { usePartnerGroups } from '../../utils/partnerGroups'
+import { dateNo } from '../../utils/dateNo'
+import { SlipHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 
 /**
- * 영업관리 > 거래이력조회 = <b>전표이력조회</b> (E040716)
+ * 재고 I › 출력물 › 기타 › 거래이력조회(재고) (E040716) — 전표 <b>작업 이력</b>.
  *
- * <p>2026-09-08 에 원본을 열어 보니 <b>메뉴 이름과 화면 제목이 다르다</b> —
- * 사이트맵에는 [거래이력조회] 라 적혀 있는데 열면 제목이 <b>[전표이력조회]</b> 다.
- * 같은 화면이 맞다: 사본에 적힌 여덟(구분·작업시간·전표일자·메뉴·작업자·행위·기타·적용양식)이
- * 이 화면 <b>스물일곱</b>의 정확한 부분집합이다. 사본은 메뉴 이름 쪽을 적어 두었다.
- * 거래처를 중심으로 판매·구매 전표를 한 타임라인에 통합해 보는 화면.
- * 데이터는 GET /api/sales + GET /api/purchases 를 그대로 합쳐 쓴다(백엔드 무변경).
+ * <p>2026-10-21 loginaa 실측(판매 2026/10/21 -5 를 신규 → 수정 → 삭제 한 뒤):
+ * 조건 [구분] 전표★ · 기초코드 / [작업일자] 금월(~오늘) / [작업시간] 사용 / [전표일자] 사용안함 / [메뉴](필수 — 비우면 칸만 빨갛고
+ * 격자 없음, 코드도움 '메뉴검색' 견적서 … 품질검사) / [작업자] / [행위] / [기타] 최종이력만 검색★ · 수정순 / [적용양식] 기본(수정불가),
+ * 판 아래 [검색(F8)] 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · 설정 · 다시 작성. 검색하면 판이 접히고 아래 [Excel].
+ * 격자 작업일자 · 전표번호 · 행위 · 거래처코드 · 거래처명 · 품목명 · 담당자코드 · 담당자명 · 작업자 · 전표상태 · 이력(H).
+ * 차례는 전표번호 큰 것부터, 같은 전표는 늦은 작업부터. 최종이력만 검색이면 전표마다 마지막 작업 한 줄(지운 전표는 '삭제' 한 줄).
+ * 지운 전표도 그 때 거래처 · 품목이 그대로 보인다 — 서버가 행위 때 값을 박아 둔다(change_histories).
  *
- * 이카운트 원본은 수금·지급까지 포함한 채권/채무 잔액 원장이지만, 우리는 수금/지급 전표를
- * 이 뷰에 실을 정산 소스를 배선하지 않았으므로 <b>판매·구매 전표 이력</b>으로 한정한다
- * (값 없는 잔액 컬럼을 흉내내지 않는다). 잔액 대장은 거래처관리대장(PartnerLedgerPage)이 담당.
+ * <p>지금 이력을 적는 전표는 판매뿐이다(구매 · 재고 · 회계 · 일용은 plans/재고1.md 남은 것).
  */
 
-type Kind = 'SALE' | 'PURCHASE'
-const KIND_COLOR: Record<Kind, { bg: string; fg: string; label: string }> = {
-  SALE: { bg: '#eef4ff', fg: 'var(--ec-blue)', label: '판매' },
-  PURCHASE: { bg: '#fdf3ea', fg: '#a5561b', label: '구매' },
-}
+/** 원본 '메뉴검색' 창 목록 차례 그대로. */
+const MENUS = ['견적서', '주문서', '판매', '판매II', '출하지시서', '출하', '발주요청', '단가요청', '발주서', '구매', '작업지시서',
+  '생산불출', '작업내역', '생산입고I', '생산입고II', '생산입고 III', '창고이동', '자가사용', '불량처리', '실사전표', '단계별조정전표',
+  '간편조정전표', 'A/S접수', 'A/S수리', '매출계획', '품질검사요청', '품질검사']
+const ACTIONS = ['신규', '수정', '삭제']
 
 interface Row {
-  key: string
-  kind: Kind
-  date: string
-  docNo: string
-  partnerId: number
-  partnerName: string
-  warehouseName: string
-  itemSummary: string
-  qty: number
-  supply: number
-  vat: number
-  total: number
-  employeeName: string | null
-  /** 원본 조건 [품목코드]·[품목구분]·[품목그룹1] 이 보는 값. 줄이 여럿이면 하나라도 걸리면 남는다. */
-  itemIds: number[]
-  itemCodes: string[]
-  itemCategories: string[]
-  /** 원본 조건 [프로젝트]. 응답에 진작 오는데 이 화면이 안 받아 두고 있었다. */
-  projectName: string | null
-}
-
-const won = (n: number) => n.toLocaleString('ko-KR')
-
-function itemSummary(lines: { itemName: string }[]): string {
-  if (lines.length === 0) return '-'
-  return lines[0].itemName + (lines.length > 1 ? ` 외 ${lines.length - 1}건` : '')
+  id: number; target: string; targetId: number; workedAt: string; menu: string
+  docDate: string | null; docNo: string | null; action: string
+  partnerCode: string | null; partnerName: string | null; itemSummary: string | null
+  managerCode: string | null; managerName: string | null; worker: string | null; docStatus: string | null
 }
 
 export default function TradeHistoryPage() {
-  const [partners, setPartners] = useState<Partner[]>([])
-  const [rows, setRows] = useState<Row[]>([])
-  const [loading, setLoading] = useState(true)
+  const init = periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  const [menus, setMenus] = useState<string[]>([])
+  const [worker, setWorker] = useState('')
+  const [actions, setActions] = useState<string[]>([])
+  const [latestOnly, setLatestOnly] = useState(true)
+  const [byWorkTime, setByWorkTime] = useState(false)
+  const [menuInvalid, setMenuInvalid] = useState(false)
+  const [rows, setRows] = useState<Row[] | null>(null)
   const [error, setError] = useState('')
-
-  // 필터
-  const [partnerId, setPartnerId] = useState('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [kindFilter, setKindFilter] = useState<'ALL' | Kind>('ALL')
-  const [keyword, setKeyword] = useState('')
-  /*
-   * 2026-09-08 에 원본(E040716)을 열어 조건을 <b>전부</b> 쟀다 — <b>스물일곱</b>이다.
-   * 사본에는 여덟뿐이었다(열두 번째 같은 구멍).
-   */
-  const [partnerGroupCond, setPartnerGroupCond] = useState('')
-  const [itemCodeCond, setItemCodeCond] = useState('')
-  const [categoryCond, setCategoryCond] = useState('')
-  const [itemGroupCond, setItemGroupCond] = useState('')
-  const [whCond, setWhCond] = useState('')
-  const [projectCond, setProjectCond] = useState('')
-  const [empCond, setEmpCond] = useState('')
-  const [amountFrom, setAmountFrom] = useState('')
-  const [amountTo, setAmountTo] = useState('')
-  const mgmt = useItemMgmt()
-  const pgroups = usePartnerGroups()
+  const [history, setHistory] = useState<Row | null>(null)
 
   async function load() {
-    setLoading(true); setError('')
+    if (menus.length === 0) { setMenuInvalid(true); return }
+    setMenuInvalid(false)
+    setError('')
     try {
-      /*
-       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래 shown 에서
-       * <code>r.date &lt; from</code> 으로 걸렀다 — 화면은 [기간]을 묻고 서버에는
-       * 아무것도 안 보내는 꼴이었다. 두 자리가 <b>같은 창</b>을 보게 한다.
-       *
-       * <p>기본값은 안 만들었다 — 이 화면의 <b>원본 기간 기본값을 아직 안 쟀다</b>.
-       * 비워 두면 예전 그대로 전 기간이고, 사람이 좁히면 그만큼만 받는다.
-       */
-      const period: Record<string, string> = {}
-      if (from) period.from = from
-      if (to) period.to = to
-      const [p, s, b] = await Promise.all([
-        api.get<Partner[]>('/partners'),
-        api.get<SalesDoc[]>('/sales', { params: period }),
-        api.get<PurchaseDoc[]>('/purchases', { params: period }),
-      ])
-      setPartners(p.data)
-      const merged: Row[] = []
-      for (const d of s.data) {
-        merged.push({
-          key: `S-${d.id}`, kind: 'SALE', date: d.saleDate, docNo: d.docNo,
-          partnerId: d.partnerId, partnerName: d.partnerName, warehouseName: d.warehouseName,
-          itemSummary: itemSummary(d.lines), qty: d.lines.reduce((a, l) => a + l.quantity, 0),
-          supply: d.supplyAmount, vat: d.vatAmount, total: d.totalAmount, employeeName: d.employeeName,
-          itemIds: d.lines.map((l) => l.itemId), itemCodes: d.lines.map((l) => l.itemCode),
-          itemCategories: [...new Set(d.lines.map((l) => l.itemCategoryName).filter(Boolean) as string[])],
-          projectName: d.projectName ?? null,
-        })
-      }
-      for (const d of b.data) {
-        merged.push({
-          key: `P-${d.id}`, kind: 'PURCHASE', date: d.purchaseDate, docNo: d.docNo,
-          partnerId: d.partnerId, partnerName: d.partnerName, warehouseName: d.warehouseName,
-          itemSummary: itemSummary(d.lines), qty: d.lines.reduce((a, l) => a + l.quantity, 0),
-          supply: d.supplyAmount, vat: d.vatAmount, total: d.totalAmount, employeeName: d.employeeName,
-          itemIds: d.lines.map((l) => l.itemId), itemCodes: d.lines.map((l) => l.itemCode),
-          itemCategories: [...new Set(d.lines.map((l) => l.itemCategoryName).filter(Boolean) as string[])],
-          projectName: d.projectName ?? null,
-        })
-      }
-      setRows(merged)
-    } catch (err) { setError(extractErrorMessage(err)); setRows([]) }
-    finally { setLoading(false) }
+      const q = new URLSearchParams({ from, to, latestOnly: String(latestOnly), byWorkTime: String(byWorkTime) })
+      menus.forEach((m) => q.append('menu', m))
+      actions.forEach((a) => q.append('action', a))
+      if (worker.trim()) q.set('worker', worker.trim())
+      setRows((await api.get<Row[]>(`/change-history/slips?${q}`)).data)
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
   }
-  /* 기간을 바꾸면 그 기간으로 다시 받는다 — 안 그러면 서버 창과 화면 창이 어긋난다. */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [from, to])
 
-  const shown = useMemo(() => {
-    const kw = keyword.trim()
-    const pid = partnerId ? Number(partnerId) : null
-    return rows
-      .filter((r) => {
-        if (pid != null && r.partnerId !== pid) return false
-        if (from && r.date < from) return false
-        if (to && r.date > to) return false
-        if (kindFilter !== 'ALL' && r.kind !== kindFilter) return false
-        if (kw && !r.partnerName.includes(kw) && !r.itemSummary.includes(kw) && !r.docNo.includes(kw)) return false
-        if (partnerGroupCond && pgroups.groupOfName(r.partnerName) !== partnerGroupCond) return false
-        if (itemCodeCond && !r.itemCodes.some((c) => c.includes(itemCodeCond))) return false
-        if (categoryCond && !r.itemCategories.includes(categoryCond)) return false
-        if (itemGroupCond && !mgmt.groupHits(r.itemIds, itemGroupCond)) return false
-        if (whCond && !(r.warehouseName ?? '').includes(whCond)) return false
-        if (projectCond && (r.projectName ?? '') !== projectCond) return false
-        if (empCond && (r.employeeName ?? '') !== empCond) return false
-        if (amountFrom && r.total < Number(amountFrom)) return false
-        if (amountTo && r.total > Number(amountTo)) return false
-        return true
-      })
-      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.key < b.key ? 1 : -1))
-  /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [rows, partnerId, from, to, kindFilter, keyword, partnerGroupCond, pgroups.groupOptions,
-      itemCodeCond, categoryCond, itemGroupCond, mgmt.groupOptions, whCond, projectCond, empCond,
-      amountFrom, amountTo])
+  function reset() {
+    setFrom(init.from); setTo(init.to); setMenus([]); setWorker(''); setActions([])
+    setLatestOnly(true); setByWorkTime(false); setMenuInvalid(false); setRows(null)
+  }
 
-  const totals = useMemo(() => shown.reduce((s, r) => {
-    if (r.kind === 'SALE') { s.saleSupply += r.supply; s.saleTotal += r.total }
-    else { s.buySupply += r.supply; s.buyTotal += r.total }
-    return s
-  }, { saleSupply: 0, saleTotal: 0, buySupply: 0, buyTotal: 0 }), [shown])
-
-  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }
-  const saleCount = rows.filter((r) => r.kind === 'SALE').length
-  const buyCount = rows.filter((r) => r.kind === 'PURCHASE').length
-
-
-  /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
-  const sort = useTableSort(shown, {
-    일자: (r) => r.date,
-  })
+  const slipNo = (r: Row) => (r.docDate && r.docNo ? dateNo(r.docDate, r.docNo) : '')
 
   return (
     <EcListShell
       title="거래이력조회"
-      search={keyword}
-      onSearchChange={setKeyword}
-      onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      searchable={false}
+      /* 원본: 메뉴가 비면 판이 그대로(메뉴 칸만 빨강), 찾으면 접히고 머리에 [Search(F3)] */
+      collapseConditions={rows !== null}
+      onReset={reset}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: () => void load() },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-ec-hint">거래처 중심으로 판매·구매 전표를 시간순 통합. 채권/채무 잔액은 거래처관리대장 참조.</p>
-
-      {/* 원본 첫 조건이 <b>[구분]</b> 이다(2026-09-08 실측) — 조건 상자보다 앞에 둔다. */}
-      {/*
-        원본 거래이력조회 조건의 <b>[구분]</b>. 이 알약이 그 일을 하는데 <b>이름표가 없어</b>
-        무엇을 고르는 줄인지 화면만 보고는 알 수 없었다.
-      */}
-      <div className="flex items-center mb-[8px] gap-[8px] flex-wrap">
-        <span className="text-[12.5px] text-ec-label">구분</span>
-        <div className="flex gap-[2px]">
-          {(['ALL', 'SALE', 'PURCHASE'] as const).map((k) => (
-            <button key={k} onClick={() => setKindFilter(k)} className="no-ec" style={{
-              padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: kindFilter === k ? 'var(--ec-blue)' : '#fff', color: kindFilter === k ? '#fff' : 'var(--ec-text)', fontWeight: kindFilter === k ? 700 : 400,
-            }}>{k === 'ALL' ? '전체' : KIND_COLOR[k].label} ({k === 'ALL' ? rows.length : k === 'SALE' ? saleCount : buyCount})</button>
-          ))}
-        </div>
-        <div className="ml-auto text-[12.5px] text-ec-label">
-          판매 <b className="text-ec-blue text-[14px]">{won(totals.saleTotal)}</b>
-          <span className="my-0 mx-[6px] text-ec-off">|</span>
-          구매 <b style={{ color: '#a5561b', fontSize: 14 }}>{won(totals.buyTotal)}</b>
-          <span className="my-0 mx-[6px] text-ec-off">|</span>
-          순액 <b style={{ color: (totals.saleTotal - totals.buyTotal) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{won(totals.saleTotal - totals.buyTotal)}</b>
-        </div>
-      </div>
-
-      {/* 조회 조건 */}
-      <div style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
-        <div className="flex items-center">
-          {/* 원본 거래이력조회의 이름은 [기간]이 아니라 <b>[전표일자]</b> 다(사본 실측). */}
-          <span style={label}>전표일자</span>
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span className="my-0 mx-[6px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
-        </div>
-        <div className="flex items-center">
-          <span style={label}>거래처</span>
-          <CodePickerField label="거래처" hideLabel width={230} value={partnerId} onChange={setPartnerId}
-                           items={partnerCodeItems(partners)} />
-        </div>
-        {/*
-          원본 차례(2026-09-08 실측, 스물일곱): 구분 · (작업일자 · 작업시간) · 전표일자 ·
-          (메뉴) · 거래처 · <b>거래처그룹1</b> · (그룹2 · 계층) · <b>품목코드 · 품목구분 ·
-          품목그룹1</b> · (그룹2·3 · 계층) · <b>창고</b> · (창고계층) · <b>프로젝트</b> ·
-          (프로젝트그룹1·2) · <b>담당자 · 금액</b> · (작업자 · 행위 · 기타 · 양식) · 적용양식.
-        */}
-        <div className="flex items-center">
-          <span style={label}>거래처그룹1</span>
-          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
-                           value={partnerGroupCond} onChange={setPartnerGroupCond}
-                           items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
-        </div>
-        <div className="flex items-center">
-          <span style={label}>품목코드</span>
-          <input className="ec-input" value={itemCodeCond} onChange={(e) => setItemCodeCond(e.target.value)} style={{ width: 150 }} />
-        </div>
-        <div className="flex items-center">
-          <span style={label}>품목구분</span>
-          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
-                           value={categoryCond} onChange={setCategoryCond}
-                           items={[...new Set(rows.flatMap((r) => r.itemCategories))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </div>
-        <div className="flex items-center">
-          <span style={label}>품목그룹1</span>
-          <CodePickerField label="품목그룹1" hideLabel width={140} emptyLabel="전체"
-                           value={itemGroupCond} onChange={setItemGroupCond}
-                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
-        </div>
-        <div className="flex items-center">
-          <span style={label}>창고</span>
-          <CodePickerField label="창고" hideLabel width={150} emptyLabel="전체"
-                           value={whCond} onChange={setWhCond}
-                           items={[...new Set(rows.map((r) => r.warehouseName).filter(Boolean))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </div>
-        <div className="flex items-center">
-          <span style={label}>프로젝트</span>
-          <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
-                           value={projectCond} onChange={setProjectCond}
-                           items={[...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </div>
-        <div className="flex items-center">
-          <span style={label}>담당자</span>
-          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
-                           value={empCond} onChange={setEmpCond}
-                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </div>
-        <div className="flex items-center">
-          <span style={label}>금액</span>
-          <input type="number" className="ec-input text-right" placeholder="이상" value={amountFrom}
-                 onChange={(e) => setAmountFrom(e.target.value)} style={{ width: 120 }} />
-          <span className="my-0 mx-[6px] text-ec-hint">~</span>
-          <input type="number" className="ec-input text-right" placeholder="이하" value={amountTo}
-                 onChange={(e) => setAmountTo(e.target.value)} style={{ width: 120 }} />
-        </div>
-      </div>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="구분">
+          <label className="mr-[12px]"><input type="radio" checked readOnly /> 전표</label>
+          <label title="기초코드(품목 · 거래처 …) 작업 이력은 아직 없습니다."><input type="radio" disabled /> 기초코드</label>
+        </EcCond>
+        <EcCond label="작업일자">
+          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <span className="mx-[4px]">~</span>
+          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <span className="ml-[6px]">
+            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
+        <EcCond label="메뉴" pick>
+          <CodePickerField label="메뉴" hideLabel width={300} popupTitle="메뉴검색" hideNew plain invalid={menuInvalid} emptyLabel="메뉴"
+                           value={menus[0] ?? ''} onChange={(v) => { setMenus(v ? [v] : []); if (v) setMenuInvalid(false) }}
+                           items={MENUS.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        <EcCond label="작업자">
+          <input className="ec-input w-[300px]" placeholder="작업자" value={worker} onChange={(e) => setWorker(e.target.value)} />
+        </EcCond>
+        <EcCond label="행위" pick>
+          <CodePickerField label="행위" hideLabel width={300} popupTitle="행위검색" hideNew plain emptyLabel="행위"
+                           value={actions[0] ?? ''} onChange={(v) => setActions(v ? [v] : [])}
+                           items={ACTIONS.map((a) => ({ value: a, name: a }))} />
+        </EcCond>
+        <EcCond label="기타">
+          <label className="mr-[12px]"><input type="checkbox" checked={latestOnly} onChange={(e) => setLatestOnly(e.target.checked)} /> 최종이력만 검색</label>
+          <label><input type="checkbox" checked={byWorkTime} onChange={(e) => setByWorkTime(e.target.checked)} /> 수정순</label>
+        </EcCond>
+        <EcCond label="적용양식">
+          <select className="ec-input w-[300px]" disabled><option>기본(수정불가)</option></select>
+        </EcCond>
+      </ul>
 
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th className="w-[34px]"></th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
-            <th className="text-center w-[54px]">구분</th>
-            <th>전표번호</th>
-            <th>거래처</th>
-            <th>품목</th>
-            <th className="text-right">수량</th>
-            <th className="text-right">공급가액</th>
-            <th className="text-right">부가세</th>
-            <th className="text-right">합계</th>
-            <th>창고</th>
-            <th>담당자</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={12} className="text-center text-ec-hint p-[20px]">
-              {rows.length === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
-            </td></tr>
-          ) : sort.sorted.map((r, i) => {
-            const c = KIND_COLOR[r.kind]
-            return (
-              <tr key={r.key}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{dateText(r.date)}</td>
-                <td className="text-center">
-                  <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{c.label}</span>
-                </td>
-                <td>{r.docNo}</td>
-                <td>{r.partnerName}</td>
-                <td>{r.itemSummary}</td>
-                <td className="text-right">{won(r.qty)}</td>
-                <td className="text-right">{won(r.supply)}</td>
-                <td className="text-right text-ec-hint">{won(r.vat)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: c.fg }}>{won(r.total)}</td>
-                <td className="text-ec-label">{r.warehouseName}</td>
-                <td className="text-ec-label">{r.employeeName ?? ''}</td>
+      {rows && (
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="text-center">작업일자</th><th>전표번호</th><th className="text-center">행위</th><th>거래처코드</th><th>거래처명</th><th>품목명</th>
+              <th>담당자코드</th><th>담당자명</th><th className="text-center">작업자</th><th className="text-center">전표상태</th><th className="text-center">이력</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td className="text-center">{r.workedAt.slice(0, 10).replace(/-/g, '/')}</td>
+                <td>{slipNo(r)}</td>
+                <td className="text-center">{r.action}</td>
+                <td>{r.partnerCode ?? ''}</td>
+                <td>{r.partnerName ?? ''}</td>
+                <td>{r.itemSummary ?? ''}</td>
+                <td>{r.managerCode ?? ''}</td>
+                <td>{r.managerName ?? ''}</td>
+                <td className="text-center">{(r.worker ?? '').toUpperCase()}</td>
+                <td className="text-center">{r.docStatus ?? ''}</td>
+                <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setHistory(r) }}>H</a></td>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            ))}
+            {rows.length === 0 && <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
+          </tbody>
+        </table>
+      )}
+      {history && (
+        <SlipHistoryModal target={history.target} id={history.targetId} head={`[${slipNo(history)}]`} onClose={() => setHistory(null)} />
+      )}
     </EcListShell>
   )
 }

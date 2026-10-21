@@ -144,13 +144,6 @@
   ],
   "in": "backend"
  },
- "거래이력조회|메뉴": {
-  "claim": "우리 화면은 그 거래처의 거래 내역이라 감사 기록의 값이 없다",
-  "absent": [
-   "AuditLog"
-  ],
-  "in": "backend"
- },
  "일보|종류": {
   "claim": "이 화면이 합치는 매출·매입 전표에 그 갈래를 적는 칸이 없다",
   "absent": [
@@ -341,14 +334,6 @@
    "BusinessPlace"
   ],
   "in": "backend/src/main/java/com/erp/inventory/warehouse/Warehouse.java"
- },
- "거래이력조회|작업자": {
-  "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 기록이 없다",
-  "absent": [
-   "AuditLog",
-   "audit_log"
-  ],
-  "in": "backend"
  },
  "건설예정공정표|실제완료일": {
   "claim": "실제로 끝난 날을 적는 칸이 없다",
@@ -2156,23 +2141,7 @@
   ],
   "in": "backend/src/main/java/com/erp/production/process/ProductionProcess.java"
  },
- "거래이력조회|작업일자": {
-  "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 장부가 없다 — 우리 화면은 그 거래처의 거래 내역이다",
-  "absent": [
-   "AuditLog",
-   "ChangeLog"
-  ],
-  "in": "backend"
- },
  "거래이력조회|작업시간": {
-  "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 장부가 없다 — 우리 화면은 그 거래처의 거래 내역이다",
-  "absent": [
-   "AuditLog",
-   "ChangeLog"
-  ],
-  "in": "backend"
- },
- "거래이력조회|행위": {
   "claim": "누가 언제 무엇을 고쳤나를 남기는 감사 장부가 없다 — 우리 화면은 그 거래처의 거래 내역이다",
   "absent": [
    "AuditLog",
