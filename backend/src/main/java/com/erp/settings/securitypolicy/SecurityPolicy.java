@@ -46,6 +46,11 @@ public class SecurityPolicy extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private Boolean ipRestrict = false;
 
+    /** 동일 비밀번호 사용제한(회) — 최근 N개와 같은 비밀번호는 못 쓴다. 0 이면 제한 없음. 원본 보안설정 '동일 비밀번호 사용제한:5회' */
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "integer default 5")
+    private Integer pwHistoryCount = 5;
+
     /** 2단계 인증(OTP) 사용 */
     @Builder.Default
     @Column(nullable = false, columnDefinition = "boolean default false")

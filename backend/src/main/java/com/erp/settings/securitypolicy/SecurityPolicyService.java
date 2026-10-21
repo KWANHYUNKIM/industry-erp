@@ -28,6 +28,7 @@ public class SecurityPolicyService {
                 .orElseGet(() -> SecurityPolicy.builder().build());
 
         if (req.pwLength() != null) s.setPwLength(req.pwLength());
+        if (req.pwHistoryCount() != null) s.setPwHistoryCount(req.pwHistoryCount());
         if (req.pwCycleDays() != null) s.setPwCycleDays(req.pwCycleDays());
         if (req.loginFailLimit() != null) s.setLoginFailLimit(req.loginFailLimit());
         if (req.sessionTimeout() != null) s.setSessionTimeout(req.sessionTimeout());

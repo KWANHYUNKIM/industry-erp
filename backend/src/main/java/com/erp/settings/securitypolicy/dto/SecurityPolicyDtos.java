@@ -9,6 +9,8 @@ public final class SecurityPolicyDtos {
 
     public record SecurityPolicyRequest(
             Integer pwLength,
+            @PositiveOrZero(message = "동일 비밀번호 사용제한은 0 이상이어야 합니다.")
+            Integer pwHistoryCount,
             @PositiveOrZero(message = "비밀번호 변경주기는 0 이상이어야 합니다.")
             Integer pwCycleDays,
             Integer loginFailLimit,
@@ -20,6 +22,7 @@ public final class SecurityPolicyDtos {
     public record SecurityPolicyResponse(
             Long id,
             Integer pwLength,
+            Integer pwHistoryCount,
             Integer pwCycleDays,
             Integer loginFailLimit,
             Integer sessionTimeout,
@@ -29,7 +32,7 @@ public final class SecurityPolicyDtos {
         public static SecurityPolicyResponse from(SecurityPolicy s) {
             if (s == null) return null;
             return new SecurityPolicyResponse(
-                    s.getId(), s.getPwLength(), s.getPwCycleDays(), s.getLoginFailLimit(),
+                    s.getId(), s.getPwLength(), s.getPwHistoryCount(), s.getPwCycleDays(), s.getLoginFailLimit(),
                     s.getSessionTimeout(), s.getIpRestrict(), s.getTwoFactor());
         }
     }

@@ -30,6 +30,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecurityPolicyService securityPolicyService;
+    private final PasswordHistoryRepository passwordHistoryRepository;
     private final CompanyAccessService companyAccessService;
 
     @Transactional(readOnly = true)
@@ -66,7 +67,9 @@ public class UserService {
                 .roles(resolveRoles(request.roleNames()))
                 .build();
 
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        rememberPassword(saved);
+        return UserResponse.from(saved);
     }
 
     /** 사용여부만 바꾼다. 다른 필드는 건드리지 않는다. */
@@ -102,7 +105,9 @@ public class UserService {
         }
         if (StringUtils.hasText(request.password())) {
             requirePasswordPolicy(request.password());
+            requireNotRecentlyUsed(user, request.password());
             user.setPassword(passwordEncoder.encode(request.password()));
+            rememberPassword(user);
         }
         return UserResponse.from(user);
     }
@@ -111,6 +116,26 @@ public class UserService {
      * 보안정책의 비밀번호 최소 길이를 지킨다. 예전엔 Self-Customizing > 보안정책에서 길이를 바꿔도 아무 데서도
      * 쓰지 않아, 화면은 지키는 것처럼 보이는데 4자 비밀번호가 그대로 만들어졌다(QA 20회차).
      */
+    /**
+     * 보안설정 '동일 비밀번호 사용제한:N회' — 지금 비밀번호와 최근 N개(지금 것 포함)와 같으면 막는다. 0 이면 제한 없음.
+     * 해시끼리 견줄 수 없어(솔트) 후보 평문을 {@code matches} 로 하나씩 맞춘다.
+     */
+    private void requireNotRecentlyUsed(User user, String raw) {
+        Integer n = securityPolicyService.get().pwHistoryCount();
+        if (n == null || n <= 0) return;
+        boolean same = passwordEncoder.matches(raw, user.getPassword());
+        if (!same) {
+            for (PasswordHistory h : passwordHistoryRepository.findByUser_IdOrderByIdDesc(user.getId(), org.springframework.data.domain.PageRequest.of(0, n))) {
+                if (passwordEncoder.matches(raw, h.getPasswordHash())) { same = true; break; }
+            }
+        }
+        if (same) throw ApiException.badRequest("최근 사용한 " + n + "개의 비밀번호와 같은 비밀번호는 쓸 수 없습니다(보안정책).");
+    }
+
+    private void rememberPassword(User user) {
+        passwordHistoryRepository.save(PasswordHistory.builder().user(user).passwordHash(user.getPassword()).build());
+    }
+
     private void requirePasswordPolicy(String password) {
         Integer min = securityPolicyService.get().pwLength();
         if (min != null && password != null && password.length() < min) {
