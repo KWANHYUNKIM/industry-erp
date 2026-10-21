@@ -5,6 +5,7 @@ import com.erp.accounting.bankcard.BankAccountRepository;
 import com.erp.accounting.fundplan.dto.FundPlanDtos.FundPlanRequest;
 import com.erp.accounting.fundplan.dto.FundPlanDtos.FundPlanResponse;
 import com.erp.common.ApiException;
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.trade.partner.PartnerService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,10 @@ public class FundPlanService {
     private final AccountService accountService;
     private final PartnerService partnerService;
     private final ProjectService projectService;
+    private final ChangeHistoryService changeHistory;
+
+    /** 수정 창 [H] 이력의 대상 이름 — 한 번 정하면 바꾸지 않는다. */
+    public static final String HISTORY_TARGET = "FUND_PLAN";
 
     @Transactional(readOnly = true)
     public List<FundPlanResponse> find(LocalDate from, LocalDate to) {
@@ -44,19 +49,25 @@ public class FundPlanService {
     public FundPlanResponse create(FundPlanRequest req, String username) {
         FundPlan p = FundPlan.builder().createdBy(username).amount(BigDecimal.ZERO).build();
         apply(p, req, username);
-        return FundPlanResponse.from(repository.save(p));
+        FundPlan saved = repository.save(p);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
+        return FundPlanResponse.from(saved);
     }
 
     @Transactional
     public FundPlanResponse update(Long id, FundPlanRequest req, String username) {
         FundPlan p = load(id);
         apply(p, req, username);
+        changeHistory.record(HISTORY_TARGET, p.getId(), ChangeHistoryService.UPDATED);
         return FundPlanResponse.from(p);
     }
 
     @Transactional
     public void delete(List<Long> ids) {
-        for (Long id : ids) repository.delete(load(id));
+        for (Long id : ids) {
+            repository.delete(load(id));
+            changeHistory.record(HISTORY_TARGET, id, ChangeHistoryService.DELETED);
+        }
     }
 
     private FundPlan load(Long id) {

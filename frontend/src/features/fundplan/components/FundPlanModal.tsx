@@ -4,6 +4,7 @@ import Modal from '../../../components/Modal'
 import EcDateField from '../../../components/EcDateField'
 import EcNumInput from '../../../components/EcNumInput'
 import CodePickerField, { type CodeItem } from '../../../components/CodePickerField'
+import EcHistoryButton from '../../../components/EcHistory'
 import { EcCond } from '../../../components/EcStatusPanel'
 import { ymd } from '../../../components/EcPeriodPicks'
 import type { FundPlan, FundPlanDirection, FundPlanMethod } from '../types'
@@ -173,6 +174,7 @@ export default function FundPlanModal({ open, planId, masters, onClose, onSaved 
             ? <button type="button" className="ec-btn" onClick={() => setConfirmDelete(true)}>삭제</button>
             : <button type="button" className="ec-btn" onClick={() => setF(blank())}>다시 작성</button>}
           <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+          <EcHistoryButton target="FUND_PLAN" id={planId} />
         </div>
       </div>
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
