@@ -36,12 +36,12 @@ interface Line { accountId: number; partnerId: number | null; bondNo: string; am
  * 원본 수표번호입력 [자동생성] 번호 — '26101403162966200001' = 연월일시분초(261014 031629) + 천분의 1초(662) + 줄 차례 5자리(00001).
  * 2026-10-14 loginaa 두 번 잼(03:16:29 · 03:22:59).
  */
-/** 원본 [번호생성](2026-10-22 실측): 늘 전 줄을 자동번호로 덮는다 — 연월일시분초(12) + 밀리초(3) + 줄번호 5자리(둘째 줄부터 아니라 첫 줄이 00002). */
-function autoCheckNos(n: number) {
+/** 원본 [번호생성](2026-10-22 실측): 늘 전 줄을 자동번호로 덮는다 — 연월일시분초(12) + 밀리초(3) + 줄번호 5자리(첫 줄이 00002 — 처음 자동생성 창은 00001). */
+function autoCheckNos(n: number, first = 1) {
   const d = new Date()
   const p = (v: number, w = 2) => String(v).padStart(w, '0')
   const head = `${p(d.getFullYear() % 100)}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}${p(d.getMilliseconds(), 3)}`
-  return Array.from({ length: n }, (_, i) => `${head}${p(i + 2, 5)}`)
+  return Array.from({ length: n }, (_, i) => `${head}${p(i + first, 5)}`)
 }
 
 /** 원본 계좌검색의 [계좌명] — 등록한 이름이 없으면 '은행-끝 4자리'(기업은행-1122). */
@@ -69,7 +69,7 @@ function bankLabel(b: BankAccountRow) {
  * <b>수표번호입력</b> 창(거래처 · 계정 · 부서 · 프로젝트 · 금액 · 수표번호, [번호생성] · 적용(F8) · 취소 — 취소하면 두 창이 다 닫힌다,
  * 직접입력은 번호가 빈 채라 [적용] 이 넘어가지 않는다) → 입금보고서(돈 들어온 계좌 = 입금계좌 = 수표계좌 · 추가정보 '채권 …, 수령수표 …')
  * → [저장] 하면 회계전표 · 채권 감소와 함께 수령수표가 줄마다 하나 는다(수령수표조회 거래유형 '입금보고서'). 채무 쪽은 지출결의서 · 발행수표.
- * (2026-10-22 실측) [시작번호입력] 은 [시작번호] 칸이 생기고 첫 줄 = 적은 그대로 · 둘째 줄부터 +1 을 5자리로(100 → 100 · 00101). [번호생성] 은 생성방식과 상관없이 전 줄을 자동번호(연월일시분초 12 + 밀리초 3 + 줄번호 5자리, 첫 줄 00002)로 덮는다.
+ * (2026-10-22 실측) [시작번호입력] 은 [시작번호] 칸이 생기고 첫 줄 = 적은 그대로 · 둘째 줄부터 +1 을 5자리로(100 → 100 · 00101). [번호생성] 은 생성방식과 상관없이 전 줄을 자동번호(연월일시분초 12 + 밀리초 3 + 줄번호 5자리, [번호생성] 은 첫 줄 00002 · 처음 자동생성은 00001)로 덮는다.
  *
  * <p><b>어음</b>(2026-10-21 실측): 입금계좌 자리가 [계정코드](1109 받을어음) · 생성방식(직접입력이 처음) → 어음번호입력 창(+ 만기일자) → 입금보고서 돈 들어온 계좌 = 그 계정 · 추가정보 '채권 …, 받을어음 …' → 저장하면 줄마다 받을어음 증가(거래유형 입금보고서). 기타계정은 아직 막는다.
  */
@@ -156,7 +156,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
   /** 수표번호입력 [번호생성] — 원본은 생성방식과 상관없이 전 줄을 자동생성 번호로 덮는다(2026-10-22 실측). */
   function generate() {
     if (!checkNos) return
-    setCheckNos(autoCheckNos(checkNos.length))
+    setCheckNos(autoCheckNos(checkNos.length, 2))
     setCheckErr(new Set())
   }
 
