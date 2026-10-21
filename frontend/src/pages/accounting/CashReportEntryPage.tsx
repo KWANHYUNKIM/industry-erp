@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import EcSlipShell from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
@@ -81,6 +81,8 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   const conf = CONF[kind]
   const advance = kind === 'ADVANCE_SETTLEMENT'
   const navigate = useNavigate()
+  /* 집계(가지급금정산서집계 등)의 [일자-No.] 로 들어왔으면 저장 · 삭제 뒤 그 집계로 돌아간다(원본 — 창이 닫히고 집계가 다시 그려짐). */
+  const back = (useLocation().state as { back?: string } | null)?.back ?? '/accounting/journals'
   const [params] = useSearchParams()
   const editId = params.get('id')
   const journalId = params.get('journal')
@@ -200,7 +202,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
     try {
       if (editing) {
         await api.put(`/vouchers/${editing.id}`, body)
-        navigate('/accounting/journals')
+        navigate(back)
       } else {
         await api.post('/vouchers', body)
         /* 원본은 저장하면 빈 입력 화면으로 돌아간다. */
@@ -218,7 +220,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
     setConfirmDelete(false)
     try {
       await api.delete(`/vouchers/${editing.id}`)
-      navigate('/accounting/journals')
+      navigate(back)
     } catch (e) {
       setError(extractErrorMessage(e))
     }

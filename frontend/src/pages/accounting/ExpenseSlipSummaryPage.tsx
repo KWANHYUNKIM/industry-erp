@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
@@ -20,10 +21,10 @@ type Unit = '라인별' | '계좌별계정별집계' | '대상자별계정별집
 interface VoucherLine { id: number; accountName: string; amount: number; description: string | null; employeeName?: string | null }
 interface Voucher {
   id: number; voucherNo: string; voucherDate: string; methodName: string; bankAccountName: string | null
-  partnerName: string | null; journalDocNo: string | null; description: string | null; lines: VoucherLine[]
+  partnerName: string | null; journalEntryId: number | null; journalDocNo: string | null; description: string | null; lines: VoucherLine[]
 }
 interface VoucherList { rows: Voucher[]; totalRows: number; truncated: boolean }
-interface Row { key: string; date: string; no: string; bank: string; account: string; partner: string; text: string; amount: number; vat: number }
+interface Row { key: string; journalId: number | null; date: string; no: string; bank: string; account: string; partner: string; text: string; amount: number; vat: number }
 
 /**
  * 회계 I &gt; 경영자료 &gt; <b>지출결의서집계</b>(E010835) · <b>입금보고서집계</b>(E010836) · <b>가지급금정산서집계</b>(E010840)
@@ -41,6 +42,8 @@ interface Row { key: string; date: string; no: string; bank: string; account: st
  */
 export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Side }) {
   const title = TITLE[side]
+  const navigate = useNavigate()
+  const here = useLocation()
   const UNITS: Unit[] = ['라인별', side === '가지급금' ? '대상자별계정별집계' : '계좌별계정별집계', '계정별집계']
   const init = periodOf('최근30일')!
   const [unit, setUnit] = useState<Unit>('라인별')
@@ -81,7 +84,7 @@ export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Sid
         const bank = side === '가지급금' ? l.employeeName ?? '' : bankOf(v)
         if (outAccount && bank !== outAccount) continue
         if (account && l.accountName !== account) continue
-        out.push({ key: `${v.id}-${l.id}`, date: v.voucherDate, no, bank, account: l.accountName, partner: v.partnerName ?? '',
+        out.push({ key: `${v.id}-${l.id}`, journalId: v.journalEntryId, date: v.voucherDate, no, bank, account: l.accountName, partner: v.partnerName ?? '',
           text: l.description ?? v.description ?? '', amount: Number(l.amount), vat: 0 })
       }
     }
@@ -211,7 +214,10 @@ export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Sid
                   <Fragment key={mo}>
                     {ms.map((r) => (
                       <tr key={r.key}>
-                        <td className="text-[var(--ec-navy)]">{dateNo(r.date, r.no)}</td>
+                        {/* 원본(2026-10-21 E010840): [일자-No.] 를 누르면 그 정산서(결의서) 수정 창이 뜨고, 저장 · 삭제하면 닫히며 이 집계로 돌아온다. */}
+                        <td>{r.journalId
+                          ? <a className="text-ec-navy cursor-pointer" onClick={() => navigate(`/accounting/vouchers?journal=${r.journalId}`, { state: { back: here.pathname + here.search } })}>{dateNo(r.date, r.no)}</a>
+                          : <span className="text-[var(--ec-navy)]">{dateNo(r.date, r.no)}</span>}</td>
                         <td>{r.bank}</td>
                         <td>{r.account}</td>
                         <td>{r.partner}</td>
