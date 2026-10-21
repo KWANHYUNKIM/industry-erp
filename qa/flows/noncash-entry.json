@@ -33,7 +33,7 @@
         "wait:300",
         "js:(()=>{[...document.querySelectorAll('[role=dialog] tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()==='신용카드전표').click();return true})()",
         "wait:200",
-        "js:(()=>{const b=[...document.querySelectorAll('[role=dialog] button')].filter((x)=>x.innerText.trim()==='확인');b[b.length-1].click();return true})()",
+        "js:(()=>{const b=[...document.querySelectorAll('[role=dialog] button')].filter((x)=>['확인','적용(F8)'].includes(x.innerText.trim()));b[b.length-1].click();return true})()",
         "wait:500",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-비현금 카드')) && ![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-비현금 영수증'))",
         "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-비현금 카드')).querySelector('a').click(); true",
