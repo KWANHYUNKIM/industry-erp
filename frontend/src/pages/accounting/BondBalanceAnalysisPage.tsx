@@ -48,7 +48,7 @@ interface Row {
  *
  * <p>우리 거래처의 담당자는 이름 글자뿐이라 [담당자코드]는 사원 목록에서 같은 이름을 찾아 붙인다.
  * [미회수월수]는 남은 채권 중 가장 이른 발생월부터 센 달 수다 — 원본에서 12달 넘는 것('12 개월초과')만 봤고, 그 안쪽 글자 모양은 못 쟀다.
- * [대표거래처합산]은 대표거래처로 묶는 화면이 아직 없어 두지 않는다.
+ * [대표거래처합산] ◉거래처관계기준(처음) ○개별거래처기준(2026-10-22 실측) — 대표거래처로 묶는 관계 화면이 아직 없어 어느 쪽이든 결과는 같다.
  *
  * <p>2026-10-13 다시 잼: 격자는 출력물(.ec-report)이 아니라 <b>조회 목록 격자(table-list)</b> — 머리 700 · 33.8(두 줄 다 가운데),
  * 줄 28.4. '{담당} 계' · '총합계' 줄은 이름이 <b>네 칸</b>(담당자코드 ~ 거래처명)을 차지하고 700 · 바탕 247.
@@ -68,6 +68,8 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
   const [account, setAccount] = useState('')
   const [partner, setPartner] = useState('')
   const [all, setAll] = useState(false)
+  /** 대표거래처합산(원본 2026-10-22: 거래처관계기준이 처음) — 우리는 거래처 사이 관계(대표거래처)를 두지 않아 어느 쪽이든 개별 거래처 그대로다. */
+  const [rep, setRep] = useState<'REL' | 'EACH'>('REL')
   const [rows, setRows] = useState<BondRow[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [employees, setEmployees] = useState<{ code: string; name: string }[]>([])
@@ -190,6 +192,13 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
           <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> 전체잔액조회
           </label>
+        </EcCond>
+        <EcCond label="대표거래처합산">
+          {([['REL', '거래처관계기준'], ['EACH', '개별거래처기준']] as const).map(([v, n]) => (
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+              <input type="radio" name="rep-partner" checked={rep === v} onChange={() => setRep(v)} /> {n}
+            </label>
+          ))}
         </EcCond>
       </ul>
 
