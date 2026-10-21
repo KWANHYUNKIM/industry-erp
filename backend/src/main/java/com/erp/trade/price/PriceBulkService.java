@@ -103,7 +103,12 @@ public class PriceBulkService {
                             s.isTaxable() ? "과세" : "면세",
                             l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(), l.getItem().getUnit(),
                             l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
-                            lock == null, lock));
+                            lock == null, lock,
+                            s.getProject() != null ? s.getProject().getName() : null,
+                            l.getSourceOrder() != null ? l.getSourceOrder().getOrderDate() : null,
+                            l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
+                            l.getItem().getManagementItem() != null ? l.getItem().getManagementItem().getName() : null,
+                            l.getRemark(), l.getLotNo()));
                 }
             }
         } else {
@@ -126,7 +131,12 @@ public class PriceBulkService {
                             p.isTaxable() ? "과세" : "면세",
                             l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(), l.getItem().getUnit(),
                             l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
-                            lock == null, lock));
+                            lock == null, lock,
+                            p.getProject() != null ? p.getProject().getName() : null,
+                            l.getSourceOrder() != null ? l.getSourceOrder().getOrderDate() : null,
+                            l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
+                            l.getItem().getManagementItem() != null ? l.getItem().getManagementItem().getName() : null,
+                            l.getRemark(), l.getLotNo()));
                 }
             }
         }

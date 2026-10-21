@@ -88,7 +88,14 @@ public final class PriceBulkDtos {
             BigDecimal vatAmount,
             /** 확인된 전표는 단가를 못 고친다. 화면에서 미리 잠근다. */
             boolean editable,
-            String lockReason
+            String lockReason,
+            /* 원본 구매 · 판매단가일괄변경 27열(2026-10-21 실측) 중 우리에게 값이 있는 것 — 프로젝트명 · 불러온 전표일자 · 번호 · 관리항목명 · 적요 · 시리얼/로트No. */
+            String projectName,
+            java.time.LocalDate sourceDate,
+            String sourceNo,
+            String managementItemName,
+            String remark,
+            String lotNo
     ) {}
 
     public record SlipPriceChange(

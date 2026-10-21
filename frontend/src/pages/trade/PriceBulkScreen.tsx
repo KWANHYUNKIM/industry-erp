@@ -45,6 +45,12 @@ interface SlipLineRow {
   vatAmount: number
   editable: boolean
   lockReason: string | null
+  projectName: string | null
+  sourceDate: string | null
+  sourceNo: string | null
+  managementItemName: string | null
+  remark: string | null
+  lotNo: string | null
 }
 
 interface PriceBulkItem {
@@ -273,25 +279,41 @@ function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
     <table className="ec-grid w-full text-left" ref={tableRef}>
       <thead>
         <tr>
+          {/* 원본 27열(2026-10-21 구매단가일괄변경 실측) — 우리에게 없는 값(추가수량 · 단가(vat포함) · 금액1/2)은 0, 적요1~3 은 빈칸. */}
           <th className="text-center">일자-No.</th>
           <th>거래처명</th>
           <th>담당자명</th>
           <th>창고명</th>
           <th>거래유형</th>
+          <th>내.외자구분</th>
+          <th>프로젝트명</th>
+          <th className="text-center">불러온 전표일자</th>
+          <th className="text-center">번호</th>
           <th>품목코드</th>
           <th>품목명</th>
           <th>규격명</th>
+          <th className="text-right">추가수량</th>
           <th className="text-right">수량</th>
+          <th>단위</th>
           <th className="text-right">단가</th>
+          <th className="text-right">단가(vat포함)</th>
           <th className="text-right">공급가액</th>
           <th className="text-right">부가세</th>
+          <th>관리항목명</th>
+          <th>적요</th>
+          <th className="text-right">금액1</th>
+          <th className="text-right">금액2</th>
+          <th>적요1</th>
+          <th>적요2</th>
+          <th>적요3</th>
+          <th>시리얼/로트No.</th>
         </tr>
       </thead>
       <tbody>
         {loading ? (
-          <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
+          <tr><td colSpan={27} className="ec-empty">불러오는 중…</td></tr>
         ) : rows.length === 0 ? (
-          <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={27} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r) => {
           const v = edits[r.lineId]
           const next = v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : r.unitPrice
@@ -305,10 +327,18 @@ function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
               <td>{r.warehouseName}</td>
               {/* 원본 격자 [거래유형] 글자는 '부가세율 적용' · '부가세율 미적용' 이다(2026-10-20 구매단가일괄변경 실측) — 조건 칸만 과세 · 면세. */}
               <td>{r.taxTypeName === '과세' ? '부가세율 적용' : r.taxTypeName === '면세' ? '부가세율 미적용' : r.taxTypeName}</td>
+              {/* 원본 '내자' — 우리 판매 · 구매에는 외자(수입 · 수출) 구분이 없어 늘 내자다. */}
+              <td>내자</td>
+              <td>{r.projectName ?? ''}</td>
+              <td className="text-center">{r.sourceDate ? r.sourceDate.replace(/-/g, '/') : ''}</td>
+              {/* 원본 [번호] 는 불러온 전표의 일련번호 '3' 만 찍는다. */}
+              <td className="text-center">{r.sourceNo ? (Number(r.sourceNo.split('-').pop()) || r.sourceNo) : ''}</td>
               <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
+              <td className="text-right">0</td>
               <td className="text-right">{won(r.quantity)}</td>
+              <td>{r.unit ?? ''}</td>
               {/* 원본(2026-10-20 구매단가일괄변경 실측): 고친 칸 바탕은 (246,215,215) 연분홍 — 줄이 아니라 그 칸이다. */}
               <td className="text-right" style={dirty ? { background: 'rgb(246, 215, 215)' } : undefined}>
                 {r.editable ? (
@@ -322,8 +352,15 @@ function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
                 )}
               </td>
               {/* 저장 전 미리보기 — 서버가 부가세를 다시 배분하므로 부가세 열은 저장 뒤에 맞는다. */}
+              <td className="text-right">0</td>
               <td className="text-right">{won(Math.round(r.quantity * next))}</td>
               <td className="text-right text-ec-hint">{won(r.vatAmount)}</td>
+              <td>{r.managementItemName ?? ''}</td>
+              <td>{r.remark ?? ''}</td>
+              <td className="text-right">0</td>
+              <td className="text-right">0</td>
+              <td /><td /><td />
+              <td>{r.lotNo ?? ''}</td>
             </tr>
           )
         })}
