@@ -42,7 +42,9 @@ public final class JournalDtos {
             /** 원소마다 {@code @Valid} — 없으면 리스트 안쪽 제약이 통째로 무시된다. */
             List<@jakarta.validation.Valid ManualLineInput> lines,
             /** 머리 [첨언내용] */
-            @Size(max = 1000, message = "첨언내용은 1000자까지 넣을 수 있습니다.") String memo
+            @Size(max = 1000, message = "첨언내용은 1000자까지 넣을 수 있습니다.") String memo,
+            /** 머리 [회계전표No.] — 사용자가 적는 글자(전표번호와 따로, V444) */
+            @Size(max = 50, message = "회계전표No.는 50자까지 넣을 수 있습니다.") String acctDocNo
     ) {}
 
     /**
@@ -170,7 +172,9 @@ public final class JournalDtos {
             /** 회계거래조회 조건 [최종수정자](V353) */
             String updatedBy,
             /** 일반전표 [첨언내용] */
-            String memo
+            String memo,
+            /** 일반전표 [회계전표No.](V444) */
+            String acctDocNo
     ) {
         public static JournalEntryResponse from(JournalEntry e) {
             return new JournalEntryResponse(
@@ -184,7 +188,7 @@ public final class JournalDtos {
                     e.getConfirmStatus(), e.getVatType(),
                     e.getEInvoiceKind(), e.isVatOmitted(), readVatDetail(e.getVatDetail()),
                     e.getUpdatedBy() != null ? e.getUpdatedBy() : e.getCreatedBy(),
-                    e.getMemo());
+                    e.getMemo(), e.getAcctDocNo());
         }
     }
 

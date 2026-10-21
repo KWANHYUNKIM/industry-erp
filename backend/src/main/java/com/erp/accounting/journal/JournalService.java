@@ -126,6 +126,7 @@ public class JournalService {
         String desc = req.description() != null && !req.description().isBlank() ? req.description().trim() : firstMemo;
         e.setDescription(desc);
         e.setMemo(req.memo() != null && !req.memo().isBlank() ? req.memo().trim() : null);
+        e.setAcctDocNo(req.acctDocNo() != null && !req.acctDocNo().isBlank() ? req.acctDocNo().trim() : null);
         // 머리 거래처가 없으면 첫 줄 거래처를 전표 거래처로 — 회계거래조회 [거래처명] 이 이것을 찍는다.
         if (e.getPartner() == null) {
             e.getLines().stream().map(JournalLine::getPartner).filter(java.util.Objects::nonNull).findFirst().ifPresent(e::setPartner);

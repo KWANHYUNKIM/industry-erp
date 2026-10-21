@@ -88,6 +88,10 @@ public class JournalEntry extends BaseTimeEntity {
     @Column(name = "memo", length = 1000)
     private String memo;
 
+    /** 일반전표 머리의 [회계전표No.] — 사용자가 적는 글자, 전표번호(docNo)와 따로(원본 실측 2026-10-21, V444). */
+    @Column(name = "acct_doc_no", length = 50)
+    private String acctDocNo;
+
     @OneToMany(mappedBy = "entry", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineNo asc")
     @Builder.Default
