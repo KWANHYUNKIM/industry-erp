@@ -1,5 +1,5 @@
 {
-  "about": "차이분석(E040809) 재료비단가차이 · 소모수량차이 — 2026-10-21 원본 실측: 생산입고 II C001 포장김치 7(BOM 배추 1 · 고추가루 0.1 · 포장재 1) 소모 배추 8 · 고추가루 0.7 · 포장재 7 → 그 달 [표준원가생성] · [생성] 뒤 줄 = 생산품목 × 소모품목, 머리 2줄 [생산품목 · 소모품목 · 비교]. 재료비단가차이 차이 = 표준단가 − 실제단가, 차이금액 = 차이 × 표준소모수량(배추 −1,919.5 × 187 = −358,947) / 소모수량차이 차이 = 표준소모수량 − 실제소모수량, 차이금액 = 차이 × 실제단가(179 × 1,919.5 = 343,591). 실제단가 = 원가생성 결과 그 품목 감소 단가. 우리 자료로 같은 흐름: ITM-0002 AQD 센서모듈 7(BOM 판재 1 · 방청유 0.05) 소모 판재 8 · 방청유 0.35 → 수정 9 → 삭제. 원가 기간이 있으면 건드리지 않고 멈춘다(남의 자료).",
+  "about": "차이분석(E040809) 재료비단가차이 · 소모수량차이 — 2026-10-21 원본 실측: 생산입고 II C001 포장김치 7(BOM 배추 1 · 고추가루 0.1 · 포장재 1) 소모 배추 8 · 고추가루 0.7 · 포장재 7 → 그 달 [표준원가생성] · [생성] 뒤 줄 = 생산품목 × 소모품목, 머리 2줄 [생산품목 · 소모품목 · 비교]. 재료비단가차이 차이 = 표준단가 − 실제단가, 차이금액 = 차이 × 표준소모수량(배추 −1,919.5 × 187 = −358,947) / 소모수량차이 차이 = 표준소모수량 − 실제소모수량, 차이금액 = 차이 × 실제단가(179 × 1,919.5 = 343,591). 실제단가 = 원가생성 결과 그 품목 감소 단가. 우리 자료로 같은 흐름: ITM-0002 AQD 센서모듈 7(BOM 판재 1 · 방청유 0.05) 소모 판재 8 · 방청유 0.35 → 수정 9 → 삭제. 원가 기간이 있으면 건드리지 않고 멈춘다(남의 자료). 원가비교집계표(2026-10-21 4바퀴): 실제금액 = 그 달 생산입고 소모수량 × 원가생성 감소 단가 합(원본 C001 22,714 = 15,356 + 7,003 + 355), 실제단가 = 실제금액 ÷ 생산수량(121), 차이 = 표준 − 실제.",
   "shots": [
     {
       "name": "생산입고 II 소모를 BOM 과 다르게 → 원가생성 → 차이분석 두 갈래가 생산품목 × 소모품목 · 원본 식",
@@ -20,7 +20,9 @@
         "expect:window.__vb.head[1]==='품목코드 품목명[규격] 품목구분 생산공정명 생산수량 소모품코드 소모품명 표준소모수량 실제소모수량 차이 실제단가 차이금액'",
         "expect:(()=>{const r=window.__vb.rows.find((r)=>r[0]==='ITM-0002'&&r[5]==='ITM-0005');return r&&r[4]==='7'&&r[7]==='7'&&r[8]==='8'&&r[9]==='-1'})()",
         "expect:(()=>{const n=(s)=>Number(String(s).replace(/,/g,''));const r=window.__va.rows.find((r)=>r[0]==='ITM-0002'&&r[5]==='ITM-0005');return r&&r[7]===''&&n(r[8])>0&&n(r[9])===-n(r[8])&&r[10]==='7'&&Math.abs(n(r[11])-n(r[9])*7)<=7})()",
-        "expect:window.__va.rows.some((r)=>r[0]==='AQD 센서모듈 [온습도/암모니아] 계')&&window.__va.rows.some((r)=>r[0]==='합계')"
+        "expect:window.__va.rows.some((r)=>r[0]==='AQD 센서모듈 [온습도/암모니아] 계')&&window.__va.rows.some((r)=>r[0]==='합계')",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const cps=await (await fetch('/api/cost-periods',{headers:h})).json();const lg=await (await fetch('/api/cost-periods/'+cps[0].id+'/ledger',{headers:h})).json();const pr=await (await fetch('/api/productions',{headers:h})).json();const p=(pr.rows??pr).find((x)=>x.prodNo===sessionStorage.getItem('qaVarProd'));const price=(id)=>{const r=lg.rows.find((r)=>r.itemId===id);return r&&r.decreaseQty>0?r.decreaseAmount/r.decreaseQty:0};window.__cmpWant=Math.round(p.materials.reduce((n,m)=>n+m.quantity*price(m.componentId),0));window.__vc=await __our('원가비교집계표');return JSON.stringify([window.__cmpWant,window.__vc.rows.filter((r)=>r[0]==='ITM-0002')])})()",
+        "expect:(()=>{const n=(s)=>Number(String(s).replace(/,/g,''));const r=window.__vc.rows.find((r)=>r[0]==='ITM-0002');return r&&r[4]==='7'&&Math.abs(n(r[8])-window.__cmpWant)<=1&&n(r[7])===Math.round(n(r[8])/7)&&n(r[9])===-n(r[8])})()"
       ]
     }
   ],

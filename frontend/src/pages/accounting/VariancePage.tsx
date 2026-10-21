@@ -224,19 +224,46 @@ export default function VariancePage() {
    * 표준 · 실제가 비어도 줄은 선다). 우리는 원가 줄(/costs — 재고 기록이 있는 품목 전부)을 다 깔고 생산이 없으면 '—' 였다.
    * 품목구분 차례로 묶어 '<구분> 계' 와 '합계' 줄을 단다(원본 '제품 계' · '합계').
    */
+  /*
+   * 원본 실제금액 = <b>그 달 생산입고가 소모한 재료비</b>(소모수량 × 원가생성 결과 그 소모품목의 감소 단가),
+   * 실제단가 = 실제금액 ÷ 생산수량(2026-10-21 4바퀴 실측 — C001 7개 생산 · 배추 8 · 고추가루 0.7 · 포장재 7:
+   * 15,356 + 7,003 + 355 = 22,714, 단가 22,714 ÷ 187 = 121 / 수량만 9 로 고치면 금액은 22,714 그대로 · 단가 120).
+   * 우리는 원가 줄(/costs) 의 actualTotal × 수량이라 근거가 달랐다(ITM-0002 12,278).
+   * 노무비 · 경비 실제분은 원가 줄의 실제 노무비 · 경비 단가 × 수량을 더한다(원본은 그 달 배부가 0 이라 못 잼).
+   */
+  const ledgerPriceOf = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const r of ledger) {
+      const q = Number(r.decreaseQty)
+      if (q > 0 && Number(r.decreaseAmount) !== 0) m.set(r.itemId, Number(r.decreaseAmount) / q)
+    }
+    return m
+  }, [ledger])
+  const materialActualOf = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const pr of productions) {
+      const key = pr.productId + '|' + pr.productionDate.slice(0, 7)
+      const amt = (pr.materials ?? []).reduce((n, x) => n + x.quantity * (ledgerPriceOf.get(x.componentId) ?? 0), 0)
+      m.set(key, (m.get(key) ?? 0) + amt)
+    }
+    return m
+  }, [productions, ledgerPriceOf])
   const compareRows = costs
     .filter((r) => inPeriod(r.period))
     .filter((r) => hit(r.itemId, r.itemCode, r.itemName))
     .filter((r) => !processCond || processOf(r.itemId) === processCond)
     .map((r) => {
       const qty = producedOf.get(r.itemId + '|' + r.period) ?? 0
+      const actAmount = Math.round((materialActualOf.get(r.itemId + '|' + r.period) ?? 0) + (r.actualLabor + r.actualOverhead) * qty)
+      const stdAmount = r.standardTotal * qty
       return {
         ...r,
         producedQty: qty,
-        stdAmount: r.standardTotal * qty,
-        actAmount: r.actualTotal * qty,
+        stdAmount,
+        actUnit: qty > 0 ? actAmount / qty : 0,
+        actAmount,
         /* 원본 차이 = 표준 − 실제(2026-10-21 실측 C001 표준 빈칸 · 실제 22,714 → 차이 -22,714). */
-        diffAmount: (r.standardTotal - r.actualTotal) * qty,
+        diffAmount: stdAmount - actAmount,
       }
     })
     .filter((r) => r.producedQty > 0)
@@ -262,14 +289,7 @@ export default function VariancePage() {
    *   소모수량차이:   차이 = 표준소모수량 − 실제소모수량, 차이금액 = 차이 × 실제단가(179 × 1,919.5 = 343,591)
    * 우리는 매입 가중평균 vs 구매단가 · BOM 소모 vs 실적 자재 합계를 <b>자재별 한 줄</b>로 냈다 → 원본 꼴로 바꿨다.
    */
-  const ledgerPrice = useMemo(() => {
-    const m = new Map<number, number>()
-    for (const r of ledger) {
-      const q = Number(r.decreaseQty)
-      if (q > 0 && Number(r.decreaseAmount) !== 0) m.set(r.itemId, Number(r.decreaseAmount) / q)
-    }
-    return m
-  }, [ledger])
+  const ledgerPrice = ledgerPriceOf
   const stdPriceOf = (itemId: number) => {
     const c = costs.find((r) => r.itemId === itemId && inPeriod(r.period))
     return c && c.standardTotal > 0 ? c.standardTotal : null
@@ -459,7 +479,7 @@ export default function VariancePage() {
                         <td className="text-right">{nz(r.producedQty)}</td>
                         <td className="text-right">{nz(r.standardTotal)}</td>
                         <td className="text-right">{nz(r.stdAmount)}</td>
-                        <td className="text-right">{nz(r.actualTotal)}</td>
+                        <td className="text-right">{nz(r.actUnit)}</td>
                         <td className="text-right">{nz(r.actAmount)}</td>
                         <td className="text-right">{nz(r.diffAmount)}</td>
                       </tr>
