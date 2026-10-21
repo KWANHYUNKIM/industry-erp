@@ -107,7 +107,7 @@ public class StockAdjustmentService {
                 .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
 
         LocalDate date = req.adjustDate() != null ? req.adjustDate() : LocalDate.now();
-        String adjustNo = docNoGenerator.next("SA-", "stock_adjustments", "adjust_no", "adjust_date", date);
+        String adjustNo = docNoGenerator.next(req.type().getDocPrefix(), "stock_adjustments", "adjust_no", "adjust_date", date);
         String note = req.type().getDisplayName() + " " + adjustNo
                 + (req.reason() != null && !req.reason().isBlank() ? " (" + req.reason() + ")" : "");
 
@@ -247,7 +247,7 @@ public class StockAdjustmentService {
     @Transactional
     public StockAdjustmentDtos.SlipResponse createSlip(StockAdjustmentDtos.SlipRequest req, String username) {
         LocalDate date = req.date() != null ? req.date() : LocalDate.now();
-        String adjustNo = docNoGenerator.next("SA-", "stock_adjustments", "adjust_no", "adjust_date", date);
+        String adjustNo = docNoGenerator.next(req.type().getDocPrefix(), "stock_adjustments", "adjust_no", "adjust_date", date);
         return writeSlip(adjustNo, date, req, username);
     }
 

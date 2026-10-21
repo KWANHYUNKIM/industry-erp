@@ -6,16 +6,26 @@ package com.erp.inventory.adjustment;
  * ADJUST 는 실사수량과 현재고의 차이만큼 증감한다.
  */
 public enum StockAdjustmentType {
-    SELF_USE("자가사용"),
-    DEFECT("불량처리"),
-    SUBSTITUTE("대체사용"),
-    DISPOSAL("폐기"),
-    ADJUST("재고조정");
+    SELF_USE("자가사용", "SU-"),
+    DEFECT("불량처리", "DF-"),
+    SUBSTITUTE("대체사용", "SB-"),
+    DISPOSAL("폐기", "DP-"),
+    ADJUST("재고조정", "SA-");
 
     private final String displayName;
+    private final String docPrefix;
 
-    StockAdjustmentType(String displayName) {
+    StockAdjustmentType(String displayName, String docPrefix) {
         this.displayName = displayName;
+        this.docPrefix = docPrefix;
+    }
+
+    /**
+     * 전표번호 접두어 — 종류마다 따로 센다. 원본은 같은 날 자가사용 -2 를 넣은 뒤에도 첫 불량처리가 -1 이다
+     * (2026-10-21 loginaa 재고1 실측). 예전엔 모두 SA- 를 같이 써서 그날 첫 불량처리가 -2 가 됐다.
+     */
+    public String getDocPrefix() {
+        return docPrefix;
     }
 
     public String getDisplayName() {
