@@ -13,4 +13,7 @@ public interface StocktakeRepository extends JpaRepository<Stocktake, Long> {
     @Query("select s from Stocktake s join fetch s.item join fetch s.warehouse left join fetch s.adjustment "
            + "where s.stocktakeDate between :from and :to order by s.stocktakeDate desc, s.id desc")
     List<Stocktake> findByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 그 일자에 간편재고조정 실사가 있나 — 단계별재고실사 저장을 막는다(원본 '같은 일자로 입력된 간편재고조정이 있습니다.'). */
+    boolean existsByStocktakeDate(LocalDate stocktakeDate);
 }

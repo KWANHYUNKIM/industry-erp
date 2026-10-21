@@ -4,6 +4,8 @@ import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustRequest;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustResult;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.CreateStagedRequest;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.StagedResponse;
+import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.SlipRequest;
+import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.SlipResponse;
 import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,29 @@ public class StagedStockAdjustmentController {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
+    /** 단계별재고실사(E040650) 실사 전표 — 등록 · 열기 · 수정 · 삭제. */
+    @PostMapping("/slips")
+    public SlipResponse createSlip(@Valid @RequestBody SlipRequest req, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.createSlip(req, principal.getUsername());
+    }
+
+    @GetMapping("/slips/{slipNo}")
+    public SlipResponse getSlip(@PathVariable String slipNo) {
+        return service.getSlip(slipNo);
+    }
+
+    @PutMapping("/slips/{slipNo}")
+    public SlipResponse updateSlip(@PathVariable String slipNo, @Valid @RequestBody SlipRequest req,
+                                   @AuthenticationPrincipal UserPrincipal principal) {
+        return service.updateSlip(slipNo, req, principal.getUsername());
+    }
+
+    @DeleteMapping("/slips/{slipNo}")
+    public ResponseEntity<Void> deleteSlip(@PathVariable String slipNo, @AuthenticationPrincipal UserPrincipal principal) {
+        service.deleteSlip(slipNo, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/adjust")
     public BulkAdjustResult adjustAll(@Valid @RequestBody BulkAdjustRequest req, @AuthenticationPrincipal UserPrincipal principal) {
         return service.adjustAll(req, principal.getUsername());
@@ -54,8 +79,8 @@ public class StagedStockAdjustmentController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        service.delete(id, principal.getUsername());
         return ResponseEntity.noContent().build();
     }
 }

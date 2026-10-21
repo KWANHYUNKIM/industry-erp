@@ -8,6 +8,8 @@ import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustRequest;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustResult;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.CreateStagedRequest;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.StagedResponse;
+import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.SlipRequest;
+import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.SlipResponse;
 import com.erp.inventory.adjustment.dto.StockAdjustmentDtos.CreateAdjustmentRequest;
 import com.erp.inventory.item.ItemRepository;
 import com.erp.inventory.stock.StockService;
@@ -30,6 +32,11 @@ public class StagedStockAdjustmentService {
     private final StockService stockService;
     private final StockAdjustmentService stockAdjustmentService;
     private final DocumentNoGenerator docNoGenerator;
+    private final StockAdjustmentRepository adjustmentRepository;
+    private final StocktakeRepository stocktakeRepository;
+
+    /** 원본 단계별재고실사 저장 검증 문구(2026-10-21 실측) — 같은 일자에 간편재고조정이 있으면 창고와 상관없이 막는다. */
+    static final String SIMPLE_SAME_DAY = "같은 일자로 입력된 간편재고조정이 있습니다.";
 
     @Transactional(readOnly = true)
     public List<StagedResponse> findAll(StagedStatus status) {
@@ -68,8 +75,10 @@ public class StagedStockAdjustmentService {
          * 장부·차이 합계가 통째로 어긋난다. 재고조정(adjustTo)이 지난 날짜를 견주는 방식과 같다.
          */
         BigDecimal bookQty = stockService.quantityOn(item.getId(), warehouse.getId(), date);
+        String no = docNoGenerator.next("ST-", "staged_stock_adjustments", "slip_no", "request_date", date);
         StagedStockAdjustment staged = StagedStockAdjustment.builder()
-                .adjustNo(docNoGenerator.next("ST-", "staged_stock_adjustments", "adjust_no", "request_date", date))
+                .adjustNo(no)
+                .slipNo(no)
                 .requestDate(date)
                 .item(item)
                 .warehouse(warehouse)
@@ -87,7 +96,7 @@ public class StagedStockAdjustmentService {
     public StagedResponse apply(Long id, String username) {
         StagedStockAdjustment staged = get(id);
         requireRequested(staged);
-        stockAdjustmentService.createWithoutStocktake(new CreateAdjustmentRequest(
+        var made = stockAdjustmentService.createWithoutStocktake(new CreateAdjustmentRequest(
                 StockAdjustmentType.ADJUST,
                 staged.getItem().getId(),
                 staged.getWarehouse().getId(),
@@ -101,6 +110,7 @@ public class StagedStockAdjustmentService {
                 /* 재고조정에는 [불량유형]·[처리방법]이 없다 — 그 둘은 불량처리·자가사용 쪽 칸이다. */
                 null, null
         ), username);
+        staged.setAdjustment(adjustmentRepository.getReferenceById(made.id()));
         staged.setStatus(StagedStatus.APPLIED);
         staged.setHandler(username);
         return StagedResponse.from(staged);
@@ -149,7 +159,7 @@ public class StagedStockAdjustmentService {
     }
 
     private void applyOn(StagedStockAdjustment staged, LocalDate date, String reason, String username) {
-        stockAdjustmentService.createWithoutStocktake(new CreateAdjustmentRequest(
+        var made = stockAdjustmentService.createWithoutStocktake(new CreateAdjustmentRequest(
                 StockAdjustmentType.ADJUST,
                 staged.getItem().getId(),
                 staged.getWarehouse().getId(),
@@ -160,8 +170,99 @@ public class StagedStockAdjustmentService {
                 stagedReason("단계별조정 " + staged.getAdjustNo(), reason != null && !reason.isBlank() ? reason : staged.getReason()),
                 null, null
         ), username);
+        staged.setAdjustment(adjustmentRepository.getReferenceById(made.id()));
         staged.setStatus(StagedStatus.APPLIED);
         staged.setHandler(username);
+    }
+
+    /**
+     * 원본 단계별재고실사(E040650) [저장(F8)] — 실사 전표 한 장(2026-10-21 loginaa 실측).
+     * 같은 일자에 간편재고조정이 있으면 [재고조정] 체크 · 창고와 상관없이 막는다. [재고조정]이 켜져 있으면
+     * 그 일자의 재고를 실사수량에 맞추는 재고조정을 같이 만든다(포장김치 제2창고 311 → 실사 7: 재고조정 '단계별 · 304').
+     * 꺼져 있으면 실사만 남고(장부 · 차이 빈칸) 나중에 재고조정진행단계 [재고조정]으로 맞춘다.
+     */
+    @Transactional
+    public SlipResponse createSlip(SlipRequest req, String username) {
+        LocalDate date = req.date() != null ? req.date() : LocalDate.now();
+        requireNoSimpleOn(date);
+        String slipNo = docNoGenerator.next("ST-", "staged_stock_adjustments", "slip_no", "request_date", date);
+        return SlipResponse.of(writeSlip(slipNo, date, req, username));
+    }
+
+    @Transactional(readOnly = true)
+    public SlipResponse getSlip(String slipNo) {
+        return SlipResponse.of(slipRows(slipNo));
+    }
+
+    /**
+     * 원본 단계별실사수정 [저장(F8)] — 일자는 그대로(수정 창 일자가 잠긴다). 예전 조정을 지워 재고를 되돌리고
+     * 새로 쓴다: 실사 7 → 10 으로 고치니 재고조정조회의 26/10/20-1(304)이 사라지고 26/10/20-2(301)가 섰다.
+     */
+    @Transactional
+    public SlipResponse updateSlip(String slipNo, SlipRequest req, String username) {
+        List<StagedStockAdjustment> old = slipRows(slipNo);
+        LocalDate date = old.get(0).getRequestDate();
+        requireNoSimpleOn(date);
+        removeRows(old, username);
+        return SlipResponse.of(writeSlip(slipNo, date, req, username));
+    }
+
+    /** 원본 단계별실사수정 [삭제] — 실사와 그 재고조정을 같이 지운다(재고가 되돌아온다). */
+    @Transactional
+    public void deleteSlip(String slipNo, String username) {
+        removeRows(slipRows(slipNo), username);
+    }
+
+    private List<StagedStockAdjustment> writeSlip(String slipNo, LocalDate date, SlipRequest req, String username) {
+        Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
+                .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
+        List<StagedStockAdjustment> rows = new java.util.ArrayList<>();
+        int lineNo = 0;
+        for (var line : req.lines()) {
+            Item item = itemRepository.findById(line.itemId())
+                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + line.itemId()));
+            rows.add(stagedRepository.save(StagedStockAdjustment.builder()
+                    .adjustNo(slipNo + "-" + (++lineNo))
+                    .slipNo(slipNo)
+                    .requestDate(date)
+                    .item(item)
+                    .warehouse(warehouse)
+                    .bookQty(stockService.quantityOn(item.getId(), warehouse.getId(), date))
+                    .actualQty(line.actualQty())
+                    .reason(line.reason())
+                    .status(StagedStatus.REQUESTED)
+                    .requester(username)
+                    .build()));
+        }
+        if (req.adjust()) {
+            for (StagedStockAdjustment r : rows) {
+                if (stockService.quantityOn(r.getItem().getId(), r.getWarehouse().getId(), date).compareTo(r.getActualQty()) == 0) {
+                    r.setStatus(StagedStatus.APPLIED);
+                    r.setHandler(username);
+                    continue;
+                }
+                applyOn(r, date, null, username);
+            }
+        }
+        return rows;
+    }
+
+    /** 실사 줄을 지우고 그 줄로 맞춘 재고조정도 지운다(재고조정 삭제가 재고를 되돌린다). */
+    private void removeRows(List<StagedStockAdjustment> rows, String username) {
+        List<Long> adjustments = rows.stream().filter(r -> r.getAdjustment() != null).map(r -> r.getAdjustment().getId()).toList();
+        stagedRepository.deleteAll(rows);
+        stagedRepository.flush();
+        for (Long id : adjustments) stockAdjustmentService.delete(id, username);
+    }
+
+    private void requireNoSimpleOn(LocalDate date) {
+        if (stocktakeRepository.existsByStocktakeDate(date)) throw ApiException.badRequest(SIMPLE_SAME_DAY);
+    }
+
+    private List<StagedStockAdjustment> slipRows(String slipNo) {
+        List<StagedStockAdjustment> rows = stagedRepository.findSlip(slipNo);
+        if (rows.isEmpty()) throw ApiException.notFound("전표를 찾을 수 없습니다. " + slipNo);
+        return rows;
     }
 
     private static String stagedReason(String head, String reason) {
@@ -178,12 +279,13 @@ public class StagedStockAdjustmentService {
     }
 
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long id, String username) {
         StagedStockAdjustment staged = get(id);
-        if (staged.getStatus() == StagedStatus.APPLIED) {
+        /* 조정을 들고 있는 줄은 조정과 같이 지운다(재고가 되돌아온다). 예전에 반영해 조정을 모르는 줄만 막는다. */
+        if (staged.getStatus() == StagedStatus.APPLIED && staged.getAdjustment() == null) {
             throw ApiException.badRequest("이미 반영된 조정은 삭제할 수 없습니다.");
         }
-        stagedRepository.delete(staged);
+        removeRows(List.of(staged), username);
     }
 
     private void requireRequested(StagedStockAdjustment staged) {

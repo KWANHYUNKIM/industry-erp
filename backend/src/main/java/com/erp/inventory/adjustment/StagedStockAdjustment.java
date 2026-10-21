@@ -29,6 +29,13 @@ public class StagedStockAdjustment extends BaseTimeEntity {
     @Column(name = "adjust_no", nullable = false, unique = true, length = 30)
     private String adjustNo;
 
+    /**
+     * 실사 전표 번호 — 원본 단계별재고실사는 한 장(일자 · 창고)에 여러 줄을 담는다. 줄마다 이 번호를 같이 쓴다.
+     * 원본 [입력일자] '2026/10/20 -1' 의 끝 번호가 이 번호의 끝이다.
+     */
+    @Column(name = "slip_no", nullable = false, length = 30)
+    private String slipNo;
+
     @Column(name = "request_date", nullable = false)
     private LocalDate requestDate;
 
@@ -62,4 +69,9 @@ public class StagedStockAdjustment extends BaseTimeEntity {
 
     @Column(length = 50)
     private String handler;
+
+    /** 이 줄로 맞춘 재고조정 — 실사 전표의 [재고조정] 체크 · 재고조정진행단계 [재고조정]. 조정을 지우면 DB 가 비운다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "adjustment_id")
+    private StockAdjustment adjustment;
 }
