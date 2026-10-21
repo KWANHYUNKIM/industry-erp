@@ -10,6 +10,7 @@ import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountName: string
   acquisitionDate: string; status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null; remark: string | null
+  quantityManaged: boolean; quantity: number
 }
 type Mode = '일반' | '집계표'
 interface Move { key: string; date: string; text: string; inc: number; dec: number; end: number }
@@ -23,7 +24,7 @@ const qty = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR', { minimumFr
  * 부서 · 고정자산계정 · 고정자산 · 적용양식 · 양식구분([결재방표시]).
  *
  * <p>일반: 자산마다 한 판(머리에 'B001(PC)'), 열 일자 · 거래처명 · 적요 · 증가수량 · 감소수량 · 기말수량. 첫 줄 [전월이월](세 칸 묶음)에 기간 앞 수량,
- * 기간 안 취득은 증가 1 · 처분은 감소 1, 끝 [합계]는 증가 · 감소만 더한다. 원본이 자산 하나를 수량 1.00 으로 센다.
+ * 기간 안 취득은 증가 [수량] · 처분은 감소 [수량], 끝 [합계]는 증가 · 감소만 더한다. **수량관리 사용 자산만** 나온다(2026-10-21 실측 — 사용안함 자산은 아예 빠짐).
  * 집계표: 고정자산코드 · 고정자산명 · 기초수량 · 증가수량 · 감소수량 · 기말수량, 끝 [합계](두 칸 묶음).
  * 기간 동안 한 번이라도 가지고 있던 자산만 나온다. 거래처명은 자산 취득 · 처분에 거래처가 없어 비고, 적요는 취득 줄에 자산 적요를 쓴다.
  * 부서는 자산에 없다.
@@ -56,16 +57,18 @@ export default function FixedAssetStockPage() {
   useEffect(() => { void load() }, [from, to])
 
   const books = useMemo(() => assets
+    .filter((a) => a.quantityManaged)   // 원본: 수불부는 수량관리 사용 자산만(2026-10-21 실측)
     .filter((a) => a.acquisitionDate <= to && (!a.disposalDate || a.disposalDate >= from))
     .filter((a) => !account || String(a.assetAccountId) === account)
     .filter((a) => !asset || String(a.id) === asset)
     .sort((x, y) => x.assetNo.localeCompare(y.assetNo))
     .map((a) => {
-      const open = a.acquisitionDate < from ? 1 : 0
+      const q = Number(a.quantity) || 0
+      const open = a.acquisitionDate < from ? q : 0
       const moves: Move[] = []
       let end = open
-      if (a.acquisitionDate >= from) { end += 1; moves.push({ key: 'in', date: a.acquisitionDate, text: a.remark ?? '', inc: 1, dec: 0, end }) }
-      if (a.disposalDate && a.disposalDate <= to) { end -= 1; moves.push({ key: 'out', date: a.disposalDate, text: '', inc: 0, dec: 1, end }) }
+      if (a.acquisitionDate >= from) { end += q; moves.push({ key: 'in', date: a.acquisitionDate, text: a.remark ?? '', inc: q, dec: 0, end }) }
+      if (a.disposalDate && a.disposalDate <= to) { end -= q; moves.push({ key: 'out', date: a.disposalDate, text: '', inc: 0, dec: q, end }) }
       return { a, open, moves, inc: moves.reduce((s, m) => s + m.inc, 0), dec: moves.reduce((s, m) => s + m.dec, 0), end }
     }), [assets, from, to, account, asset])
   const sum = (k: 'open' | 'inc' | 'dec' | 'end') => books.reduce((s, b) => s + b[k], 0)

@@ -109,6 +109,8 @@ public class FixedAssetService {
                 .accumulatedDepreciation(BigDecimal.ZERO)
                 .status(AssetStatus.IN_USE)
                 .remark(req.remark())
+                .quantityManaged(Boolean.TRUE.equals(req.quantityManaged()))
+                .quantity(req.quantity() != null ? req.quantity() : BigDecimal.ONE)
                 .createdBy(username)
                 .build();
         applyAccounts(asset, req);
@@ -152,6 +154,8 @@ public class FixedAssetService {
         asset.setMethod(req.method());
         asset.setDeclineRate(req.method() == DepreciationMethod.DECLINING_BALANCE ? req.declineRate() : null);
         asset.setRemark(req.remark());
+        asset.setQuantityManaged(Boolean.TRUE.equals(req.quantityManaged()));
+        asset.setQuantity(req.quantity() != null ? req.quantity() : BigDecimal.ONE);
         applyAccounts(asset, req);
         journalService.recreateFromAcquisition(asset);
         return AssetResponse.from(asset);

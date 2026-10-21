@@ -14,6 +14,7 @@ interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountName: string
   acquisitionDate: string; acquisitionCost: number; salvageValue: number
   status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null; remark: string | null
+  quantityManaged: boolean; quantity: number
 }
 interface Dep { assetId: number; depreciationDate: string; amount: number }
 
@@ -27,10 +28,12 @@ interface Dep { assetId: number; depreciationDate: string; amount: number }
  *
  * <p>조회일자에 들고 있던 자산 — 그날까지 취득했고 그날 전에 처분하지 않은 것. 감가상각충당금은 그날까지 상각한 금액의 합이다.
  * 상태 '상각완료' 는 장부가가 잔존가치까지 내려간 것. 우리 자산은 모두 감가상각을 계산하므로 감가상각계산여부는 늘 '계산' 이다.
- * [수량]은 수량관리하는 자산만 1.00 을 찍는다(2026-10-21 실측 — QA회계1-출력물 수량관리 사용안함은 빈칸) — 우리 자산은 수량관리를 들지 않아 늘 빈칸.
+ * [수량]은 수량관리하는 자산만 1.00 을 찍는다(2026-10-21 실측 — QA회계1-출력물 수량관리 사용안함은 빈칸) — 계 · 합계는 수량관리 자산의 수량만 더한다.
  * [상세내역]은 원본이 자산마다 [등록] 링크(부가 내역 창)를 둔다 — 우리는 부가 내역이 없어 칸만 둔다. [부서]는 자산에 부서가 없어 두지 않았다.
  * 감가상각충당금은 상각일(그달 말일)까지 — 원본도 10/21 조회에는 10월 상각이 안 들어간다.
  */
+const qtyText = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 export default function FixedAssetLedgerPage() {
   const init = periodOf('금일')!
   const [asOf, setAsOf] = useState(init.to)
@@ -79,11 +82,11 @@ export default function FixedAssetLedgerPage() {
     for (const a of held) by.set(a.assetAccountName, [...(by.get(a.assetAccountName) ?? []), a])
     return [...by.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([name, rs]) => {
       rs.sort((x, y) => x.assetNo.localeCompare(y.assetNo))
-      return { name, rs, cost: rs.reduce((s, a) => s + Number(a.acquisitionCost), 0), accum: rs.reduce((s, a) => s + (accumOf.get(a.id) ?? 0), 0) }
+      return { name, rs, cost: rs.reduce((s, a) => s + Number(a.acquisitionCost), 0), qty: rs.reduce((s, a) => s + (a.quantityManaged ? Number(a.quantity) : 0), 0), accum: rs.reduce((s, a) => s + (accumOf.get(a.id) ?? 0), 0) }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assets, asOf, account, asset, calc, state, accumOf])
-  const total = groups.reduce((s, g) => ({ cost: s.cost + g.cost, accum: s.accum + g.accum }), { cost: 0, accum: 0 })
+  const total = groups.reduce((s, g) => ({ cost: s.cost + g.cost, qty: s.qty + g.qty, accum: s.accum + g.accum }), { cost: 0, qty: 0, accum: 0 })
   const accounts = useMemo(() => {
     const m = new Map<number, string>()
     assets.forEach((a) => m.set(a.assetAccountId, a.assetAccountName))
@@ -165,7 +168,7 @@ export default function FixedAssetLedgerPage() {
                 <td>{a.assetNo}</td>
                 <td>{a.name}</td>
                 <td className="text-center">{a.acquisitionDate.replace(/-/g, '/')}</td>
-                <td className="text-right"></td>
+                <td className="text-right">{a.quantityManaged ? qtyText(Number(a.quantity)) : ''}</td>
                 <td className="text-right">{won(Number(a.acquisitionCost))}</td>
                 <td className="text-right">{won(accumOf.get(a.id) ?? 0)}</td>
                 <td>{a.remark ?? ''}</td>
@@ -176,7 +179,7 @@ export default function FixedAssetLedgerPage() {
             )),
             <tr key={`sub-${g.name}`} style={SUB_ROW}>
               <td colSpan={4}>{g.name} 계</td>
-              <td></td>
+              <td className="text-right">{g.qty ? qtyText(g.qty) : ''}</td>
               <td className="text-right">{won(g.cost)}</td>
               <td className="text-right">{won(g.accum)}</td>
               <td></td><td></td><td></td><td></td>
@@ -187,7 +190,7 @@ export default function FixedAssetLedgerPage() {
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={4}>합계</td>
-              <td></td>
+              <td className="text-right">{total.qty ? qtyText(total.qty) : ''}</td>
               <td className="text-right">{won(total.cost)}</td>
               <td className="text-right">{won(total.accum)}</td>
               <td></td><td></td><td></td><td></td>

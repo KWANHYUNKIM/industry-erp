@@ -1420,6 +1420,9 @@ export interface FixedAsset {
   disposalVat: number | null
   receiptAccountId: number | null
   receiptAccountName: string | null
+  /** 원본 E010610 [수량관리] 사용 — 수불부 · 대장 [수량] 은 사용 자산만 */
+  quantityManaged: boolean
+  quantity: number
 }
 
 export interface DepreciationRow {

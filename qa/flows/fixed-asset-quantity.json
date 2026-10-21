@@ -1,0 +1,114 @@
+{
+  "about": "회계 I › 고정자산 수량관리(원본 E010610 [수량관리] ○사용 ◉사용안함, 2026-10-21 실측): 사용 자산만 수불부에 나오고 대장 [수량] 15.00 · 증가 · 감소내역 [수량] 15. QA회계1-수량 수량 15 · 1,500,000 등록 → 대장 · 수불부 · 증가내역 → 매각 800,000(부가세 80,000) → 감소내역 · 수불부 감소 15.00 → 처분취소 → 삭제. 일부 감소(수량 비례)는 plans/회계1/고정자산.md 설계대로 다음 바퀴.",
+  "shots": [
+    {
+      "name": "등록 — 수량관리 사용 · 수량 15",
+      "path": "/accounting/fixed-assets",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-수량');for(const x of a){if(x.status==='DISPOSED')await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()",
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "click:자산등록(F2)",
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "wait:500",
+        "js:__set(__q('name'),'QA회계1-수량');const s=__q('assetAccountId');__set(s,[...s.options].find(o=>o.text.startsWith('212 ')).value);__set(__q('acquisitionDate'),'2026-10-05');__set(__q('acquisitionCost'),'1500000');__set(__q('remark'),'QA회계1');true",
+        "js:document.querySelectorAll('input[name=quantityManaged]')[0].click();true",
+        "wait:300",
+        "expect:!!__q('quantity')&&__q('quantity').value==='1'",
+        "js:__set(__q('quantity'),'15');true",
+        "wait:200",
+        "clicklast:등록",
+        "wait:2500",
+        "expect:document.body.innerText.includes('자산을 등록했습니다.')&&!!__row()"
+      ]
+    },
+    {
+      "name": "대장 — 수량 15.00 · 계 15.00",
+      "path": "/accounting/fixed-asset-ledger",
+      "steps": [
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "js:__d(0,'2026-10-21');true",
+        "wait:2000",
+        "expect:(c=>c&&c[3]==='2026/10/05'&&c[4]==='15.00'&&c[5]==='1,500,000')(__c())"
+      ]
+    },
+    {
+      "name": "수불부 — 수량관리 자산만 · 증가 15.00",
+      "path": "/accounting/fixed-asset-stock",
+      "steps": [
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "js:__d(0,'2026-10-01');__d(1,'2026-10-21');true",
+        "wait:2000",
+        "expect:document.body.innerText.includes('(QA회계1-수량)')",
+        "expect:(c=>c&&c[0]==='2026/10/05'&&c[3]==='15.00'&&c[5]==='15.00')(__c((r=>r.innerText.includes('2026/10/05')&&r.innerText.includes('QA회계1'))))",
+        "expect:!document.body.innerText.includes('(QA회계1-출력물)')"
+      ]
+    },
+    {
+      "name": "증가내역 — 수량 15",
+      "path": "/accounting/fixed-asset-in",
+      "steps": [
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "js:__d(0,'2026-10-01');__d(1,'2026-10-21');true",
+        "wait:2000",
+        "expect:(c=>c&&c[4]==='2026/10/05'&&c[5]==='15'&&c[6]==='1,500,000')(__c())"
+      ]
+    },
+    {
+      "name": "감소(매각 800,000) → 감소내역 수량 15 · 수불부 감소 15.00",
+      "path": "/accounting/fixed-assets",
+      "steps": [
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "wait:500",
+        "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분').click();true",
+        "wait:500",
+        "js:__set(__q('disposalDate'),'2026-10-21');__set(__q('disposalAmount'),'800000');true",
+        "wait:200",
+        "expect:__q('disposalVat').value==='80000'",
+        "clicklast:저장",
+        "wait:2500",
+        "expect:document.body.innerText.includes('처분했습니다.')"
+      ]
+    },
+    {
+      "name": "감소내역 — 수량 15",
+      "path": "/accounting/fixed-asset-out",
+      "steps": [
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "js:__d(0,'2026-10-01');__d(1,'2026-10-21');true",
+        "wait:2000",
+        "expect:(c=>c&&c[4]==='2026/10/21'&&c[5]==='15'&&c[6]==='1,500,000'&&c[8]==='800,000')(__c())"
+      ]
+    },
+    {
+      "name": "수불부 — 감소 15.00",
+      "path": "/accounting/fixed-asset-stock",
+      "steps": [
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "js:__d(0,'2026-10-01');__d(1,'2026-10-21');true",
+        "wait:2000",
+        "expect:(c=>c&&c[0]==='2026/10/21'&&c[4]==='15.00'&&c[5]==='')(__c((r=>r.innerText.includes('2026/10/21'))))"
+      ]
+    },
+    {
+      "name": "처분취소 → 삭제",
+      "path": "/accounting/fixed-assets",
+      "steps": [
+        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수량'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-수량')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+        "wait:500",
+        "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분취소').click();true",
+        "wait:800",
+        "js:(document.querySelector('.ec-dialog button.ec-btn-primary')||{click(){}}).click();true",
+        "wait:2000",
+        "expect:document.body.innerText.includes('처분을 취소했습니다.')",
+        "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='삭제').click();true",
+        "wait:800",
+        "js:(document.querySelector('.ec-dialog button.ec-btn-primary')||{click(){}}).click();true",
+        "wait:2000",
+        "expect:document.body.innerText.includes('삭제했습니다.')&&!__row()"
+      ],
+      "finally": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-수량');for(const x of a){if(x.status==='DISPOSED')await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()"
+      ]
+    }
+  ]
+}

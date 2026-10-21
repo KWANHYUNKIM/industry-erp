@@ -338,12 +338,14 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
     expenseAccountId: asset.expenseAccountId ? String(asset.expenseAccountId) : '',
     paymentAccountId: asset.paymentAccountId ? String(asset.paymentAccountId) : '',
     acquisitionVat: String(asset.acquisitionVat ?? 0),
+    quantityManaged: asset.quantityManaged ? 'Y' : 'N', quantity: String(asset.quantity ?? 1),
   } : {
     name: '', assetAccountId: '', acquisitionDate: today(), acquisitionCost: '',
     salvageValue: '', usefulLifeYears: '5', method: 'STRAIGHT_LINE' as DepreciationMethod,
     declineRate: '', remark: '',
     accumAccountId: String(byCode(accounts, '203') ?? ''), expenseAccountId: String(byCode(accounts, '818') ?? ''),
     paymentAccountId: String(byCode(accounts, '251') ?? ''), acquisitionVat: '',
+    quantityManaged: 'N', quantity: '1',
   })
   /* 부가세는 공급가액의 10% 로 채워지고, 손으로 고치면 그 값을 쓴다(원본 증가 전표). */
   const [vatTouched, setVatTouched] = useState(!!asset)
@@ -365,6 +367,7 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
     if (!form.expenseAccountId) return onError('감가상각비계정을 선택하세요.')
     if (cost <= 0) return onError('취득가액을 입력하세요.')
     if (years <= 0) return onError('내용연수를 입력하세요.')
+    if (form.quantityManaged === 'Y' && !(Number(form.quantity) > 0)) return onError('수량을 입력하세요.')
     if (form.method === 'DECLINING_BALANCE' && !(Number(form.declineRate) > 0)) {
       return onError('정률법은 연 상각률(%)이 필요합니다.')
     }
@@ -382,6 +385,8 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
       expenseAccountId: Number(form.expenseAccountId),
       paymentAccountId: form.paymentAccountId ? Number(form.paymentAccountId) : undefined,
       acquisitionVat: vat,
+      quantityManaged: form.quantityManaged === 'Y',
+      quantity: form.quantityManaged === 'Y' ? Number(form.quantity) : 1,
     }
     try {
       if (asset) await api.put(`/fixed-assets/${asset.id}`, body)
@@ -453,6 +458,17 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
         <div className="text-[12.5px] pb-[5px] text-ec-navy font-bold">
           월 상각액 ≈ {won(monthly)}
         </div>
+        <Field label="수량관리">
+          <span className="flex gap-[8px] items-center h-[26px]">
+            <label><input type="radio" name="quantityManaged" checked={form.quantityManaged === 'Y'} onChange={() => set('quantityManaged', 'Y')} /> 사용</label>
+            <label><input type="radio" name="quantityManaged" checked={form.quantityManaged === 'N'} onChange={() => set('quantityManaged', 'N')} /> 사용안함</label>
+          </span>
+        </Field>
+        {form.quantityManaged === 'Y' && (
+          <Field label="수량 *">
+            <input className="ec-input w-[80px] text-right" name="quantity" type="number" step="any" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} />
+          </Field>
+        )}
         <Field label="적요">
           <input className="ec-input w-[150px]" name="remark" value={form.remark} onChange={(e) => set('remark', e.target.value)} />
         </Field>

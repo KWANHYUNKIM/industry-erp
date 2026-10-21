@@ -107,6 +107,16 @@ public class FixedAsset extends BaseTimeEntity {
     @Column(length = 200)
     private String remark;
 
+    /** 원본 E010610 [수량관리] ○사용 ◉사용안함 — 사용 자산만 수불부 · 대장 [수량] 에 나온다. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean quantityManaged = false;
+
+    /** 증가 전표의 [수량](원본 E010611). 수량관리 안 하는 자산은 1. */
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal quantity = BigDecimal.ONE;
+
     @Column(length = 50)
     private String createdBy;
 

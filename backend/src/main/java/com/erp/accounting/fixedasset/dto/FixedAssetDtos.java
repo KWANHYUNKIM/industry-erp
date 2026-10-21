@@ -38,7 +38,11 @@ public final class FixedAssetDtos {
             Long expenseAccountId,
             /** 증가 전표의 출금계좌(원본 E010611, 기본 외상매입금). 비면 취득 분개를 만들지 않는다. */
             Long paymentAccountId,
-            @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal acquisitionVat
+            @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal acquisitionVat,
+            /** 원본 [수량관리] 사용 — 비면 사용안함. */
+            Boolean quantityManaged,
+            /** 증가 [수량]. 비면 1. */
+            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity
     ) {}
 
     /** 고치기 — 등록과 같은 칸. 감가상각이 잡힌 뒤로는 이름 · 적요만 바뀐다(서비스가 막는다). */
@@ -57,12 +61,16 @@ public final class FixedAssetDtos {
             Long accumAccountId,
             Long expenseAccountId,
             Long paymentAccountId,
-            @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal acquisitionVat
+            @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal acquisitionVat,
+            /** 원본 [수량관리] 사용 — 비면 사용안함. */
+            Boolean quantityManaged,
+            /** 증가 [수량]. 비면 1. */
+            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity
     ) {
         public CreateAssetRequest asCreate() {
             return new CreateAssetRequest(name, assetAccountId, acquisitionDate, acquisitionCost, salvageValue,
                     usefulLifeYears, method, declineRate, remark, accumAccountId, expenseAccountId,
-                    paymentAccountId, acquisitionVat);
+                    paymentAccountId, acquisitionVat, quantityManaged, quantity);
         }
     }
 
@@ -98,7 +106,8 @@ public final class FixedAssetDtos {
             Long paymentAccountId, String paymentAccountName,
             BigDecimal acquisitionVat,
             DisposalType disposalType, String disposalTypeName, BigDecimal disposalVat,
-            Long receiptAccountId, String receiptAccountName
+            Long receiptAccountId, String receiptAccountName,
+            boolean quantityManaged, BigDecimal quantity
     ) {
         private static Long idOf(Account a) { return a != null ? a.getId() : null; }
         private static String nameOf(Account a) { return a != null ? a.getName() : null; }
@@ -119,7 +128,8 @@ public final class FixedAssetDtos {
                     a.getAcquisitionVat(),
                     a.getDisposalType(), a.getDisposalType() != null ? a.getDisposalType().getDisplayName() : null,
                     a.getDisposalVat(),
-                    idOf(a.getReceiptAccount()), nameOf(a.getReceiptAccount()));
+                    idOf(a.getReceiptAccount()), nameOf(a.getReceiptAccount()),
+                    a.isQuantityManaged(), a.getQuantity());
         }
     }
 

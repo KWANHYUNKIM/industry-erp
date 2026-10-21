@@ -16,6 +16,7 @@ interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountCode: string; assetAccountName: string
   acquisitionDate: string; acquisitionCost: number; accumulatedDepreciation: number
   status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null; disposalAmount: number | null; remark: string | null
+  quantityManaged: boolean; quantity: number
 }
 
 /**
@@ -25,10 +26,13 @@ interface Asset {
  * 증가 열: 계정코드 · 계정명 · 자산코드 · 자산명 · 취득일자 · 수량 · 취득원가 · 적요 — 기간 안에 취득한 자산.
  * 감소 열: 계정코드 · 계정명 · 자산코드 · 자산명 · 감소일자 · 수량 · 취득원가 · 감가상각충당금 · 매매가액 — 기간 안에 처분한 자산.
  * 2026-10-21 자료로 다시 잼(QA회계1-출력물 1,200,000 증가 → 600,000 감소): 계정마다 '<b>계정코드 계</b>'(예 '2074 계') · 합계, 앞 다섯 칸을 묶음.
- * [수량]은 수량관리 안 하는 자산이면 0 — 우리 자산은 수량을 들지 않아 늘 0. 감소의 감가상각충당금 · 매매가액도 0 을 '0' 으로 찍는다.
+ * [수량]은 수량관리 안 하는 자산이면 0, 사용 자산은 [수량](원본 감소내역 6 · 9 · 계 15). 감소의 감가상각충당금 · 매매가액도 0 을 '0' 으로 찍는다.
  *
  * <p>[부서]는 자산에 부서가 없어 두지 않았다. 감소의 감가상각충당금은 처분 때까지 쌓인 값이다.
  */
+/** 수량관리 사용 자산만 [수량], 아니면 0(원본 2026-10-21). */
+const qtyOf = (a: { quantityManaged: boolean; quantity: number }) => (a.quantityManaged ? Number(a.quantity) : 0)
+
 export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소' }) {
   const inc = flow === '증가'
   const title = inc ? '고정자산증가내역' : '고정자산감소내역'
@@ -71,13 +75,14 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
       return {
         code, name: rs[0].assetAccountName, rs,
         cost: rs.reduce((s, a) => s + Number(a.acquisitionCost), 0),
+        qty: rs.reduce((s, a) => s + qtyOf(a), 0),
         accum: rs.reduce((s, a) => s + Number(a.accumulatedDepreciation), 0),
         sold: rs.reduce((s, a) => s + Number(a.disposalAmount ?? 0), 0),
       }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assets, flow, from, to, account, asset])
-  const total = groups.reduce((s, g) => ({ cost: s.cost + g.cost, accum: s.accum + g.accum, sold: s.sold + g.sold }), { cost: 0, accum: 0, sold: 0 })
+  const total = groups.reduce((s, g) => ({ cost: s.cost + g.cost, qty: s.qty + g.qty, accum: s.accum + g.accum, sold: s.sold + g.sold }), { cost: 0, qty: 0, accum: 0, sold: 0 })
   const accounts = useMemo(() => {
     const m = new Map<number, string>()
     assets.forEach((a) => m.set(a.assetAccountId, a.assetAccountName))
@@ -144,7 +149,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
                 <td>{a.assetNo}</td>
                 <td>{a.name}</td>
                 <td className="text-center">{dayOf(a).replace(/-/g, '/')}</td>
-                <td className="text-right">0</td>
+                <td className="text-right">{won0(qtyOf(a))}</td>
                 <td className="text-right">{won(Number(a.acquisitionCost))}</td>
                 {inc ? <td>{a.remark ?? ''}</td> : <td className="text-right">{won0(Number(a.accumulatedDepreciation))}</td>}
                 {!inc && <td className="text-right">{won0(Number(a.disposalAmount ?? 0))}</td>}
@@ -152,7 +157,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
             )),
             <tr key={`sub-${g.code}`} style={SUB_ROW}>
               <td colSpan={5}>{g.code} 계</td>
-              <td className="text-right">0</td>
+              <td className="text-right">{won0(g.qty)}</td>
               <td className="text-right">{won(g.cost)}</td>
               {inc ? <td></td> : <td className="text-right">{won0(g.accum)}</td>}
               {!inc && <td className="text-right">{won0(g.sold)}</td>}
@@ -163,7 +168,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={5}>합계</td>
-              <td className="text-right">0</td>
+              <td className="text-right">{won0(total.qty)}</td>
               <td className="text-right">{won(total.cost)}</td>
               {inc ? <td></td> : <td className="text-right">{won0(total.accum)}</td>}
               {!inc && <td className="text-right">{won0(total.sold)}</td>}
