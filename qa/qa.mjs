@@ -3024,7 +3024,7 @@ async function scenarioPaySetting() {
     { name: `${P}중복그룹`, lines: [{ payItemId: meal.id }, { payItemId: meal.id }] }, '두 번')
 
   // ── 그룹을 적용한 급여계산: 비과세 수당은 4대보험 기준에서 빠진다
-  const employees = await must('GET', '/employees')
+  const employees = (await must('GET', '/employees')).filter((e) => !String(e.code).startsWith('QA세무'))   // 중도정산 시나리오의 사원에 확정 명세를 달면 지워지지 않는다
   const emp = employees[0]
 
   // 다른 흐름이 만든 명세를 건드리지 않도록, 명세가 아직 없는 (사원, 귀속월) 자리를 골라 쓴다.
@@ -3115,8 +3115,9 @@ async function scenarioPaySetting() {
   const entry = await must('GET', `/journals/${transfer.journalEntryId}`)
   eq('이체 분개 차변은 급여(801) 지급총액',
     Number(entry.lines.find((l) => l.accountCode === '801').debit), Number(transfer.totalPay))
+  /* 새 사원은 4대보험이 '안함' 이라 공제가 0 일 수 있다 — 그러면 예수금 줄이 없는 것이 맞다. */
   eq('공제합계는 예수금(254)으로 남음',
-    Number(entry.lines.find((l) => l.accountCode === '254').credit), Number(transfer.totalDeduction))
+    Number(entry.lines.find((l) => l.accountCode === '254')?.credit ?? 0), Number(transfer.totalDeduction))
   eq('이체 분개가 대차평형', Number(entry.totalDebit), Number(entry.totalCredit))
 
   await rejects('같은 명세를 두 번 이체할 수 없음', 'POST', '/pay-settings/transfers',
@@ -3232,7 +3233,7 @@ async function scenarioGroupwareShared() {
 async function scenarioPerformance(f) {
   section('■ 시나리오 25. 담당자별 실적 (전표 담당 사원 기준)')
 
-  const employees = await must('GET', '/employees')
+  const employees = (await must('GET', '/employees')).filter((e) => !String(e.code).startsWith('QA세무'))   // 중도정산 시나리오의 사원에 확정 명세를 달면 지워지지 않는다
   if (employees.length === 0) {
     console.log('  ⏭  사원 마스터가 비어 있어 건너뜁니다.')
     return
@@ -11570,7 +11571,8 @@ async function scenarioHrCertificate() {
   const maxSeq = Math.max(0, ...(await must('GET', '/hr/certificates'))
     .filter((x) => x.issueNo.startsWith(`${year}-`)).map((x) => Number(x.issueNo.split('-')[1])))
   const c = await must('POST', '/hr/certificates', { kind: 'EMPLOYMENT', employeeId: emp.id, purpose: 'QA-증명', issueDate: today })
-  eq('발행번호는 그해 다음 차례', c.issueNo, `${year}-${maxSeq + 1}`)
+  /* 지운 번호는 다시 쓰지 않는다(원본) — 앞선 실행이 만들었다 지운 것만큼 건너뛸 수 있어 '목록 끝 + 1' 이상이면 된다. */
+  eq('발행번호는 그해 다음 차례', Number(c.issueNo.split('-')[1]) > maxSeq && c.issueNo.startsWith(`${year}-`), true)
   const u = await must('PUT', `/hr/certificates/${c.id}`, { kind: 'CAREER', employeeId: emp.id, purpose: 'QA-증명2', issueDate: today })
   eq('고쳐도 발행번호는 그대로', u.issueNo, c.issueNo)
   eq('고친 종류가 읽힌다', (await must('GET', `/hr/certificates/${c.id}`)).kindName, '경력증명서')
@@ -11915,13 +11917,16 @@ async function scenarioYearEndSettlement() {
 async function scenarioMidTermSettlement() {
   section('■ 중도정산 — 퇴직처리 · 대상자 · 원천징수연월 · 계산처리 · 퇴사 거두면 같이 삭제')
   const Y = 2026
+  let taxCode = 'QA세무01'
   // 대상 사원은 시나리오가 만들고 끝에 지운다(예전에는 있던 QA세무01 을 전제했는데 지워져 통째로 멈췄다).
   // 지난 실행이 중간에 멈춰 남은 것이 있으면 먼저 거두고 지운다.
-  for (const old of (await must('GET', '/employees/all')).filter((e) => e.code === 'QA세무01')) {
+  for (const old of (await must('GET', '/employees/all')).filter((e) => e.code === 'QA세무01' || e.code === 'QA세무02')) {
     if (old.active === false) await must('POST', '/employees/retirement/cancel', [old.id])
-    await must('DELETE', `/employees/${old.id}`)
+    /* 예전 실행에서 급여시나리오가 이 사원에게 확정 명세를 달아 놓았으면 지워지지 않는다(409) — 그대로 두고 다른 코드를 쓴다. */
+    const gone = await call('DELETE', `/employees/${old.id}`)
+    if (!gone.ok) taxCode = 'QA세무02'
   }
-  const emp = await must('POST', '/employees', { code: 'QA세무01', name: 'QA세무-퇴직', hireDate: `${Y}-01-02`, baseSalary: 0 })
+  const emp = await must('POST', '/employees', { code: taxCode, name: 'QA세무-퇴직', hireDate: `${Y}-01-02`, baseSalary: 0 })
   try {
   // 퇴직처리는 입사일자 · 퇴사사유를 그대로 넣고, 퇴사를 거두면 재직으로 돌아온다 — 따로 되돌릴 것이 없다
   for (const x of await must('GET', `/tax-settlements?year=${Y}&kind=MID_TERM`)) if (x.employeeId === emp.id) await must('POST', '/tax-settlements/delete', [x.id])
@@ -12121,6 +12126,7 @@ async function scenarioReversedPeriod() {
     const rows = [...wideText.matchAll(/\[[^\[\]]*\]/g)].map((m) => m[0])
     if (rows.length > 0 && rows.every((r) => r === '[]')) continue
     if (wideText === '[]' || wideText === '{}') continue
+    if (p === '/import-costs/ledger' && (wide.data?.rows ?? []).length === 0) continue   // 항목 목록만 있고 줄이 없으면 견줄 것이 없다
     const rev = await call('GET', `${p}?from=2099-12-31&to=2000-01-01`)
     if (rev.status === 400) continue        // 거꾸로라고 딱 잘라 말하는 자리는 옳다
     compared += 1
@@ -12200,7 +12206,12 @@ function checkDeadAssertions() {
   }
   // 자기 자신은 뺀다 — 이 단언은 검사가 끝난 <b>뒤에</b> 담기므로 늘 안 돈 것으로 보인다.
   const SELF = '모든 단언이 이번 실행에서 실제로 돌았다'
-  const dead = [...declared].filter((d) => d !== SELF && !ranLabels.has(d)).sort()
+  /* 이 환경에 없을 수 있어 안 도는 것이 정상인 단언 — 테넌트 회사(0002)가 없는 DB 에서는 격리 시나리오가 건너뛰고,
+     단가일괄변경의 '잠긴 전표' 는 개발 자료에 잠긴 줄이 있을 때만 돈다. */
+  const ENV_OPTIONAL = new Set(['토큰이 없으면 401', '테넌트 회사정보에 상호가 있다', '테넌트에도 코드가 찾아 쓰는 계정과목이 있다',
+    '본사와 테넌트가 서로 다른 품목 목록을 본다', '본사 품목이 테넌트에 섞여 보이지 않는다', '본사 판매전표가 테넌트에 섞여 보이지 않는다',
+    '잠긴 전표는 단가도 못 고친다'])
+  const dead = [...declared].filter((d) => d !== SELF && !ENV_OPTIONAL.has(d) && !ranLabels.has(d)).sort()
 
   section('■ 한 번도 재 보지 않은 단언')
   eq('모든 단언이 이번 실행에서 실제로 돌았다',
