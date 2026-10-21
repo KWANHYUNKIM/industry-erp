@@ -4,6 +4,8 @@ import com.erp.trade.TradeMasters;
 import com.erp.trade.VatAllocator;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.history.ChangeHistoryService;
+import com.erp.common.history.ChangeHistoryService.SlipSnapshot;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.inventory.item.Item;
 import com.erp.trade.purchaseorder.PurchaseOrderLine;
@@ -60,6 +62,7 @@ public class PurchaseService {
     private final StockService stockService;
     private final LotService lotService;
     private final DocumentNoGenerator docNoGenerator;
+    private final ChangeHistoryService changeHistory;
     // 수정·삭제를 막아야 하는 후속 문서(같은 trade 모듈이라 직접 조회한다)
     private final TaxInvoiceRepository taxInvoiceRepository;
     // 명세 라인의 근거전표(발주서). 같은 trade 모듈이라 리포지토리를 직접 쓴다.
@@ -183,6 +186,7 @@ public class PurchaseService {
         Purchase saved = purchaseRepository.save(purchase);
         syncLots(saved);
         refreshOrders(sourceOrders(saved), username);
+        changeHistory.recordSlip(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED, snapshot(saved));
         return PurchaseResponse.from(saved);
     }
 
@@ -212,7 +216,26 @@ public class PurchaseService {
         syncLots(purchase);
         touchedOrders.addAll(sourceOrders(purchase));
         refreshOrders(touchedOrders, username);
+        changeHistory.recordSlip(HISTORY_TARGET, purchase.getId(), ChangeHistoryService.UPDATED, snapshot(purchase));
         return PurchaseResponse.from(purchase);
+    }
+
+    /** [H] · 거래이력조회의 대상 글자 — 화면 SlipHistoryModal target 과 같다. */
+    public static final String HISTORY_TARGET = "PURCHASE";
+
+    /**
+     * 행위 때의 전표 모습 — 원본 거래이력조회 '구매' 한 줄(2026-10-21 실측: 거래처코드 · 거래처명 · '포장재 [30cm*40cm]' ·
+     * 담당자코드 · 담당자명 · 전표상태 '확인'). 우리 구매에는 확인 단계가 없고 원본 구매는 저장하면 바로 '확인' 이라 '확인' 으로 적는다.
+     */
+    private static SlipSnapshot snapshot(Purchase p) {
+        Item first = p.getLines().isEmpty() ? null : p.getLines().get(0).getItem();
+        return new SlipSnapshot("구매", p.getPurchaseDate(), p.getDocNo(),
+                p.getPartner() != null ? p.getPartner().getCode() : null,
+                p.getPartner() != null ? p.getPartner().getName() : null,
+                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), first.getSpec(), p.getLines().size()),
+                p.getEmployee() != null ? p.getEmployee().getCode() : null,
+                p.getEmployee() != null ? p.getEmployee().getName() : null,
+                "확인");
     }
 
     /** 구매전표 삭제. 입고분을 되돌린 뒤 지운다. */
@@ -221,6 +244,7 @@ public class PurchaseService {
         Purchase purchase = getPurchase(id);
         ensureEditable(purchase, "삭제");
 
+        changeHistory.recordSlip(HISTORY_TARGET, purchase.getId(), ChangeHistoryService.DELETED, snapshot(purchase));
         revertStock(purchase, "구매삭제 원복", username);
         lotService.removeDocument(LOT_DOC_TYPE, purchase.getId());
         Set<PurchaseOrder> touchedOrders = sourceOrders(purchase);

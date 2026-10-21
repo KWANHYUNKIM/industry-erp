@@ -57,6 +57,19 @@ public class ChangeHistoryService {
                                String partnerCode, String partnerName, String itemSummary,
                                String managerCode, String managerName, String docStatus) {}
 
+    /** 원본 상태 변경 행위 글자(견적서 [진행상태변경] 실측 '상태변경'). */
+    public static final String STATUS_CHANGED = "상태변경";
+
+    /**
+     * 거래이력조회 [품목명] 칸 — 조회 화면 [품목명(요약)] 과 같은 꼴 '포장재 [30cm*40cm] 외 1건'.
+     * common 은 Item 을 모르므로 첫 줄 품목명 · 규격과 줄 수를 받는다(줄이 없으면 null).
+     */
+    public static String itemSummary(String firstName, String firstSpec, int lineCount) {
+        if (lineCount <= 0 || firstName == null) return null;
+        String s = firstName + (firstSpec == null || firstSpec.isBlank() ? "" : " [" + firstSpec + "]");
+        return lineCount > 1 ? s + " 외 " + (lineCount - 1) + "건" : s;
+    }
+
     /** 전표 등록 · 수정 · 삭제를 한 줄 적는다 — 같은 줄이 그 전표 [H] 에도 뜬다(target · targetId 가 같다). */
     @Transactional
     public void recordSlip(String target, Long targetId, String action, SlipSnapshot s) {

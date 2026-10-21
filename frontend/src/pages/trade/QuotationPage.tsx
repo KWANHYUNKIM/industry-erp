@@ -19,6 +19,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { lineSupply } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -667,6 +668,8 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
   const [validUntil, setValidUntil] = useState(init().validUntil)
   const [lines, setLines] = useState<LineForm[]>(init().lines)
   const [saving, setSaving] = useState(false)
+  /** 수정 창 [H] · [최종이력] — QuotationService.HISTORY_TARGET 'QUOTATION'. */
+  const [slipHistory, setSlipHistory] = useState<'H' | 'last' | null>(null)
   const [error, setError] = useState('')
   const [partnerMissing, setPartnerMissing] = useState(false)
 
@@ -825,8 +828,17 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
           <button className="ec-btn" onClick={reset}>다시 작성</button>
           <button className="ec-btn" onClick={onClose}>{editing ? '닫기' : '리스트'}</button>
           {editing && <button className="ec-btn" onClick={() => void removeThis()}>삭제</button>}
+          {editing && <button className="ec-btn" onClick={() => setSlipHistory('H')}>H</button>}
+          {editing && <button className="ec-btn" onClick={() => setSlipHistory('last')}>최종이력</button>}
         </div>
       </div>
+      {/* 원본 견적서 [H](2026-10-21 실측): 판매와 같은 꼴 — 머리 '[20261021-4]', 전표상태 '확인' · 진행상태 '진행중' · 행위, 보안 · 발송이력 */}
+      {slipHistory === 'H' && editing && (
+        <SlipHistoryModal target="QUOTATION" id={editing.id} withSections confirmLabel="확인"
+                          head={`[${editing.quoteDate.replace(/-/g, '')}-${Number(editing.quoteNo.split('-').pop()) || editing.quoteNo}]`}
+                          onClose={() => setSlipHistory(null)} />
+      )}
+      {slipHistory === 'last' && editing && <SlipLastHistoryModal target="QUOTATION" id={editing.id} onClose={() => setSlipHistory(null)} />}
     </Modal>
   )
 }

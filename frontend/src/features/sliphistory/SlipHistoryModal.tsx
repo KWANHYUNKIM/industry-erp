@@ -21,8 +21,11 @@ export function slipHistoryTime(iso: string): string {
  *   + '보안이력' · '발송이력'(작업자ID · 작업일시 · 행위, 우리는 늘 '등록된 데이터가 없습니다.') + [닫기].
  * - 거래이력조회(재고) [H]: 머리 '[2026/10/21 -5]', 격자 [No.][작업자ID][작업일시][전표상태][진행상태][상태] + [닫기].
  */
-export function SlipHistoryModal({ target, id, head, withSections, onClose }: {
-  target: string; id: number; head: string; withSections?: boolean; onClose: () => void
+export function SlipHistoryModal({ target, id, head, withSections, confirmLabel, onClose }: {
+  target: string; id: number; head: string; withSections?: boolean
+  /** 전표상태 칸을 이 글자로 — 견적서 · 주문서는 서버 docStatus 가 진행상태라 [전표상태] 는 '확인'(원본 견적서 [H] 실측). */
+  confirmLabel?: string
+  onClose: () => void
 }) {
   const [rows, setRows] = useState<SlipHistoryRow[]>([])
   const [error, setError] = useState('')
@@ -48,7 +51,7 @@ export function SlipHistoryModal({ target, id, head, withSections, onClose }: {
               <td className="text-center">{r.seq}</td>
               <td className="text-center text-ec-navy">{(r.worker ?? '').toUpperCase()}</td>
               <td className="text-center">{withSections ? slipHistoryTime(r.workedAt) : historyTime(r.workedAt)}</td>
-              <td className="text-center">{r.docStatus ?? ''}</td>
+              <td className="text-center">{confirmLabel ?? r.docStatus ?? ''}</td>
               <td className="text-center">{r.docStatus ?? ''}</td>
               <td className="text-center">{r.action}</td>
             </tr>

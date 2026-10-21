@@ -423,7 +423,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
 
   // ── 팝업/알림 ──────────────────────────────────────────
   const [historyOpen, setHistoryOpen] = useState(false)
-  /** 수정 창 [H] · [최종이력] — 판매만 이력을 적는다(SalesService.HISTORY_TARGET 'SALES', 구매는 남은 것). */
+  /** 수정 창 [H] · [최종이력] — 판매 'SALES' · 구매 'PURCHASE'(각 서비스 HISTORY_TARGET), 구매는 [H] 만. */
   const [slipHistory, setSlipHistory] = useState<'H' | 'last' | null>(null)
   const [stockOpen, setStockOpen] = useState(false)
   // 이익계산(원본 profitCalc). 원가는 회계 모듈이 소유하므로 화면에서 /costs 를 읽어 계산한다 —
@@ -1573,13 +1573,9 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     { label: '닫기', onClick: () => popup.onClose(false) },
     { label: '삭제', onClick: () => void deleteInPopup() },
     { label: '보내기', disabled: true, disabledReason: '메일 · 팩스 보내기는 아직 없습니다.' },
-    ...(mode === 'sales' ? [
-      { label: 'H', onClick: () => setSlipHistory('H') },
-      { label: '최종이력', onClick: () => setSlipHistory('last') },
-    ] : [
-      { label: 'H', disabled: true, disabledReason: '구매 전표 이력은 아직 없습니다.' },
-      { label: '최종이력', disabled: true, disabledReason: '구매 전표 이력은 아직 없습니다.' },
-    ]),
+    // 원본 구매 수정 창은 [H] 하나뿐 — [최종이력] 이 없다(2026-10-21 loginaa 구매 2026/10/21 -4 실측).
+    { label: 'H', onClick: () => setSlipHistory('H') },
+    ...(mode === 'sales' ? [{ label: '최종이력', onClick: () => setSlipHistory('last') }] : []),
   ] : [
     /*
      * 신규 창(판매조회 [신규(F2)] · 수정 창 [복사] 뒤) — 원본 아래 버튼줄(2026-10-21 실측):
@@ -2419,11 +2415,16 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         ))}
       </Modal>
 
-      {slipHistory === 'H' && editing && (
+      {slipHistory === 'H' && editing && (mode === 'sales' ? (
         <SlipHistoryModal target="SALES" id={editing.id} withSections
                           head={`[${date.replace(/-/g, '')}-${Number(editing.docNo.split('-').pop()) || editing.docNo}]`}
                           onClose={() => setSlipHistory(null)} />
-      )}
+      ) : (
+        // 원본 구매 [H] 는 거래이력조회 [H] 꼴 — 머리 '[2026/10/21 -4]', 요일 없음, 마지막 열 '상태', 보안 · 발송이력 없음
+        <SlipHistoryModal target="PURCHASE" id={editing.id}
+                          head={`[${date.replace(/-/g, '/')} -${Number(editing.docNo.split('-').pop()) || editing.docNo}]`}
+                          onClose={() => setSlipHistory(null)} />
+      ))}
       {slipHistory === 'last' && editing && <SlipLastHistoryModal target="SALES" id={editing.id} onClose={() => setSlipHistory(null)} />}
 
       {/* ── 거래내역보기 ─────────────────────────────────── */}

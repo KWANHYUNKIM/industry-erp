@@ -7,6 +7,8 @@ import com.erp.hr.employee.EmployeeService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.warehouse.WarehouseService;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.history.ChangeHistoryService;
+import com.erp.common.history.ChangeHistoryService.SlipSnapshot;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.inventory.item.Item;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.CreateSalesOrderRequest;
@@ -60,6 +62,7 @@ public class SalesOrderService {
     private final ShipmentLineRepository shipmentLineRepository;
     private final com.erp.trade.orderrelease.OrderReleaseRepository orderReleaseRepository;
     private final DocumentNoGenerator docNoGenerator;
+    private final ChangeHistoryService changeHistory;
     private final OrderTypeRepository orderTypeRepository;
     private final OrderStageRepository orderStageRepository;
     private final OrderTypeStepRepository orderTypeStepRepository;
@@ -210,7 +213,9 @@ public class SalesOrderService {
                 .build();
 
         fillLines(order, req.lines(), taxable);
-        return SalesOrderResponse.from(salesOrderRepository.save(order));
+        SalesOrder saved = salesOrderRepository.save(order);
+        changeHistory.recordSlip(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED, snapshot(saved));
+        return SalesOrderResponse.from(saved);
     }
 
     /**
@@ -241,7 +246,23 @@ public class SalesOrderService {
         order.getLines().clear();
         fillLines(order, req.lines(), req.taxable() == null || req.taxable());
         refreshProgress(order);
+        changeHistory.recordSlip(HISTORY_TARGET, order.getId(), ChangeHistoryService.UPDATED, snapshot(order));
         return SalesOrderResponse.from(order);
+    }
+
+    /** [H] · 거래이력조회(재고) 메뉴 '주문서' 의 대상 글자. */
+    public static final String HISTORY_TARGET = "SALES_ORDER";
+
+    /** 행위 때 주문서 모습 — 전표상태는 진행상태 글자(원본 견적서 · 주문서 줄 '진행중' · '완료'). */
+    private static SlipSnapshot snapshot(SalesOrder o) {
+        Item first = o.getLines().isEmpty() ? null : o.getLines().get(0).getItem();
+        return new SlipSnapshot("주문서", o.getOrderDate(), o.getOrderNo(),
+                o.getPartner() != null ? o.getPartner().getCode() : null,
+                o.getPartner() != null ? o.getPartner().getName() : null,
+                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), first.getSpec(), o.getLines().size()),
+                o.getEmployee() != null ? o.getEmployee().getCode() : null,
+                o.getEmployee() != null ? o.getEmployee().getName() : null,
+                o.getStatus() != null ? o.getStatus().getDisplayName() : null);
     }
 
     private void fillLines(SalesOrder order, List<OrderLineRequest> reqLines, boolean taxable) {
@@ -373,7 +394,9 @@ public class SalesOrderService {
     public SalesOrderResponse updateStatus(Long id, SalesOrderStatus status) {
         SalesOrder order = salesOrderRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id));
+        boolean changed = order.getStatus() != status;
         order.setStatus(status);
+        if (changed) changeHistory.recordSlip(HISTORY_TARGET, order.getId(), ChangeHistoryService.STATUS_CHANGED, snapshot(order));
         return SalesOrderResponse.from(order);
     }
 
@@ -462,6 +485,7 @@ public class SalesOrderService {
         //
         // 진행상태는 건드리지 않는다 — 원본은 주문서를 만들어도 견적의 진행상태가 그대로다(사람이 [진행상태변경] 으로 옮긴다).
         quotationRepository.findAllByConvertedOrderId(id).forEach(q -> q.setConvertedOrderId(null));
+        changeHistory.recordSlip(HISTORY_TARGET, order.getId(), ChangeHistoryService.DELETED, snapshot(order));
         salesOrderRepository.delete(order);
     }
 

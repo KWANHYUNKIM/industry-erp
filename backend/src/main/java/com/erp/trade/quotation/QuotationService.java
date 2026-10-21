@@ -5,6 +5,8 @@ import com.erp.trade.TradeMasters;
 import com.erp.trade.salesorder.SalesOrderService;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.history.ChangeHistoryService;
+import com.erp.common.history.ChangeHistoryService.SlipSnapshot;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.inventory.item.Item;
 import com.erp.trade.quotation.dto.QuotationDtos.CreateQuotationRequest;
@@ -42,6 +44,7 @@ public class QuotationService {
     private final ProjectService projectService;
     private final SalesOrderService salesOrderService;
     private final DocumentNoGenerator docNoGenerator;
+    private final ChangeHistoryService changeHistory;
 
     @Transactional(readOnly = true)
     public List<QuotationResponse> findAll() {
@@ -89,7 +92,9 @@ public class QuotationService {
                 .build();
 
         fillLines(q, req.lines(), taxable);
-        return QuotationResponse.from(quotationRepository.save(q));
+        Quotation saved = quotationRepository.save(q);
+        changeHistory.recordSlip(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED, snapshot(saved));
+        return QuotationResponse.from(saved);
     }
 
     /**
@@ -113,7 +118,25 @@ public class QuotationService {
         q.setRemark(req.remark());
         q.getLines().clear();
         fillLines(q, req.lines(), req.taxable() == null || req.taxable());
+        changeHistory.recordSlip(HISTORY_TARGET, q.getId(), ChangeHistoryService.UPDATED, snapshot(q));
         return QuotationResponse.from(q);
+    }
+
+    /** [H] · 거래이력조회(재고) 메뉴 '견적서' 의 대상 글자. */
+    public static final String HISTORY_TARGET = "QUOTATION";
+
+    /**
+     * 행위 때 견적서 모습 — 원본 거래이력조회 '견적서' 줄(2026-10-21 실측: 행위 신규 · 수정 · 상태변경 …, 전표상태 '진행중' · '완료').
+     * 우리 견적에는 담당자가 없어 빈칸.
+     */
+    private static SlipSnapshot snapshot(Quotation q) {
+        Item first = q.getLines().isEmpty() ? null : q.getLines().get(0).getItem();
+        return new SlipSnapshot("견적서", q.getQuoteDate(), q.getQuoteNo(),
+                q.getPartner() != null ? q.getPartner().getCode() : null,
+                q.getPartner() != null ? q.getPartner().getName() : null,
+                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), first.getSpec(), q.getLines().size()),
+                null, null,
+                q.getStatus() != null ? q.getStatus().getDisplayName() : null);
     }
 
     private void fillLines(Quotation q, List<QuoteLineRequest> lines, boolean taxable) {
@@ -146,7 +169,9 @@ public class QuotationService {
             throw ApiException.badRequest("진행상태는 미확인 · 진행중 · 완료 중에서 고릅니다.");
         }
         Quotation q = get(id);
+        boolean changed = q.getStatus() != status;
         q.setStatus(status);
+        if (changed) changeHistory.recordSlip(HISTORY_TARGET, q.getId(), ChangeHistoryService.STATUS_CHANGED, snapshot(q));
         return QuotationResponse.from(q);
     }
 
@@ -213,6 +238,7 @@ public class QuotationService {
             throw ApiException.conflict(
                     "수주로 전환된 견적서는 지울 수 없습니다. 먼저 수주를 지우세요: " + q.getQuoteNo());
         }
+        changeHistory.recordSlip(HISTORY_TARGET, q.getId(), ChangeHistoryService.DELETED, snapshot(q));
         quotationRepository.delete(q);
     }
 

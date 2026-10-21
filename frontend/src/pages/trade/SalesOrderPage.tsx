@@ -18,6 +18,7 @@ import EcNumInput from '../../components/EcNumInput'
 import { dateText } from '../../utils/dateText'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { SlipHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 /**
@@ -84,6 +85,8 @@ export default function SalesOrderPage() {
   const [showForm, setShowForm] = useState(false)
   /** 주문수정 — 원본은 [일자-No.] 를 누르면 같은 입력 창이 '주문수정' 으로 뜬다(2026-10-13 실측). */
   const [editId, setEditId] = useState<number | null>(null)
+  /** 수정 창 [H] — SalesOrderService.HISTORY_TARGET 'SALES_ORDER'(원본 주문수정은 [H] 하나, [최종이력] 없음). */
+  const [slipHistoryOpen, setSlipHistoryOpen] = useState(false)
   /** 원본 목록 첫 칸의 체크 — [선택삭제] 가 이것을 지운다. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [keyword, setKeyword] = useState('')
@@ -587,11 +590,20 @@ export default function SalesOrderPage() {
             </>}
             <button type="button" className="ec-btn" onClick={closeForm}>닫기</button>
             {editId != null && <button type="button" className="ec-btn" onClick={removeEditing}>삭제</button>}
+            {editId != null && <button type="button" className="ec-btn" onClick={() => setSlipHistoryOpen(true)}>H</button>}
           </div>
           {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
           {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
         </form>
       )}</Modal>
+
+      {/* 원본 주문서 [H](2026-10-21 실측): 머리 '[2026/10/28 -2]', 전표상태 '확인' · 진행상태 · 상태, 보안 · 발송이력 없음 */}
+      {slipHistoryOpen && editId != null && (() => {
+        const o = orders.find((x) => x.id === editId)
+        return <SlipHistoryModal target="SALES_ORDER" id={editId} confirmLabel="확인"
+                                 head={o ? `[${o.orderDate.replace(/-/g, '/')} -${Number(o.orderNo.split('-').pop()) || o.orderNo}]` : ''}
+                                 onClose={() => setSlipHistoryOpen(false)} />
+      })()}
 
       <Modal open={blocked != null} title="알림" width={630} error={error} onClose={() => setBlocked(null)}>{blocked && (
         <div>
