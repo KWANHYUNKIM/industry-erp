@@ -26,6 +26,117 @@ public class EmploymentContractService {
     private final EmployeeService employeeService;
     private final DepartmentService departmentService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.common.FileStorageService fileStorage;
+
+    /**
+     * 원본 계약서입력 [저장(F8)] — 계약서명 · 첨부(PDF). 일자는 오늘, 진행단계는 '수신정보입력'(작성).
+     * 받는 사원은 [수신정보입력]에서 고른다.
+     */
+    @Transactional
+    public ContractResponse createDocument(EmploymentContractDtos.DocumentRequest req, String username) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        EmploymentContract c = EmploymentContract.builder()
+                .contractNo(docNoGenerator.next("EC-", "employment_contracts", "contract_no", "start_date", today))
+                .status(ContractStatus.DRAFT)
+                .startDate(today)
+                .createdBy(username)
+                .build();
+        applyDocument(c, req);
+        return ContractResponse.from(contractRepository.save(c));
+    }
+
+    /** 계약서명 링크로 연 계약서입력 창의 [저장(F8)]. 요청한 계약서는 바꿀 수 없다. */
+    @Transactional
+    public ContractResponse updateDocument(Long id, EmploymentContractDtos.DocumentRequest req) {
+        EmploymentContract c = get(id);
+        requireDraft(c);
+        applyDocument(c, req);
+        return ContractResponse.from(c);
+    }
+
+    private void applyDocument(EmploymentContract c, EmploymentContractDtos.DocumentRequest req) {
+        com.erp.common.StoredFile file = fileStorage.meta(req.attachmentFileId());
+        String name = file.getName() != null ? file.getName().toLowerCase() : "";
+        if (!name.endsWith(".pdf")) {
+            throw ApiException.badRequest("PDF 파일만 첨부할 수 있습니다.");
+        }
+        fileStorage.claim(file.getId(), "HR");
+        c.setContractName(req.contractName().trim());
+        c.setAttachment(file);
+        c.setTwoFactor(req.twoFactor());
+        c.setCategory(blankToNull(req.category()));
+        c.setDepartment(req.departmentId() != null ? departmentService.get(req.departmentId()) : null);
+        c.setProjectId(req.projectId());
+        c.setRemark(blankToNull(req.remark()));
+    }
+
+    /** 원본 [복사] — 계약서명만 새로 받고 첨부 · 2차인증 · 구분 · 부서 · 프로젝트 · 전달메시지를 옮긴다. 수신정보는 옮기지 않는다. */
+    @Transactional
+    public ContractResponse copy(Long id, EmploymentContractDtos.CopyRequest req, String username) {
+        EmploymentContract src = get(id);
+        java.time.LocalDate today = java.time.LocalDate.now();
+        EmploymentContract c = EmploymentContract.builder()
+                .contractNo(docNoGenerator.next("EC-", "employment_contracts", "contract_no", "start_date", today))
+                .status(ContractStatus.DRAFT)
+                .startDate(today)
+                .contractName(req.contractName().trim())
+                .attachment(src.getAttachment())
+                .twoFactor(src.isTwoFactor())
+                .category(src.getCategory())
+                .department(src.getDepartment())
+                .projectId(src.getProjectId())
+                .remark(src.getRemark())
+                .createdBy(username)
+                .build();
+        return ContractResponse.from(contractRepository.save(c));
+    }
+
+    /** 원본 [수신정보입력] [저장(F8)] — 계약참여자1(사원) · 전달방식. */
+    @Transactional
+    public ContractResponse setRecipient(Long id, EmploymentContractDtos.RecipientRequest req) {
+        EmploymentContract c = get(id);
+        requireDraft(c);
+        Employee e = employeeService.get(req.employeeId());
+        if (!e.isActive()) {
+            throw ApiException.badRequest("퇴사한 사원과는 근로계약을 맺을 수 없습니다: " + e.getName());
+        }
+        c.setEmployee(e);
+        c.setDeliveryMethod(req.deliveryMethod());
+        return ContractResponse.from(c);
+    }
+
+    /** 요청취소 — 진행중(발송) → 취소. 원본 근로계약현황 진행상태 '취소'. */
+    @Transactional
+    public ContractResponse cancelRequest(Long id) {
+        EmploymentContract c = get(id);
+        if (c.getStatus() != ContractStatus.SENT) {
+            throw ApiException.conflict("진행중인 계약서만 요청취소할 수 있습니다. 현재: " + c.getStatus().getDisplayName());
+        }
+        c.setStatus(ContractStatus.TERMINATED);
+        return ContractResponse.from(c);
+    }
+
+    /** 재요청 — 요청취소한 계약서를 다시 진행중으로. */
+    @Transactional
+    public ContractResponse reRequest(Long id) {
+        EmploymentContract c = get(id);
+        if (c.getStatus() != ContractStatus.TERMINATED || c.getSignedAt() != null) {
+            throw ApiException.conflict("요청취소한 계약서만 재요청할 수 있습니다.");
+        }
+        c.setStatus(ContractStatus.SENT);
+        c.setSentAt(LocalDateTime.now());
+        return ContractResponse.from(c);
+    }
+
+    private static void requireDraft(EmploymentContract c) {
+        if (c.getStatus() != ContractStatus.DRAFT) {
+            throw ApiException.conflict("요청한 계약서는 수정할 수 없습니다. 현재: " + c.getStatus().getDisplayName());
+        }
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
 
     @Transactional(readOnly = true)
     public List<ContractResponse> findAll() {
@@ -82,6 +193,9 @@ public class EmploymentContractService {
         if (c.getStatus() != ContractStatus.DRAFT) {
             throw ApiException.conflict("작성 상태의 계약만 발송할 수 있습니다. 현재: " + c.getStatus().getDisplayName());
         }
+        if (c.getEmployee() == null) {
+            throw ApiException.badRequest("수신정보를 먼저 입력하기 바랍니다.");
+        }
         c.setStatus(ContractStatus.SENT);
         c.setSentAt(java.time.LocalDateTime.now());
         return ContractResponse.from(c);
@@ -94,6 +208,9 @@ public class EmploymentContractService {
     @Transactional
     public ContractResponse sign(Long id, SignContractRequest req) {
         EmploymentContract c = get(id);
+        if (c.getEmployee() == null) {
+            throw ApiException.badRequest("수신정보를 먼저 입력하기 바랍니다.");
+        }
         if (c.getStatus() != ContractStatus.SENT) {
             throw ApiException.conflict("발송된 계약만 서명할 수 있습니다. 현재: " + c.getStatus().getDisplayName());
         }
@@ -126,7 +243,9 @@ public class EmploymentContractService {
     @Transactional
     public void delete(Long id) {
         EmploymentContract c = get(id);
-        if (c.getStatus() == ContractStatus.SIGNED || c.getStatus() == ContractStatus.TERMINATED) {
+        // 요청취소한(서명 전) 계약서는 지울 수 있다. 서명했던 계약은 기록으로 남는다.
+        if (c.getStatus() == ContractStatus.SIGNED
+                || (c.getStatus() == ContractStatus.TERMINATED && c.getSignedAt() != null)) {
             throw ApiException.conflict("서명된 계약은 삭제할 수 없습니다. 해지 처리하세요.");
         }
         contractRepository.delete(c);

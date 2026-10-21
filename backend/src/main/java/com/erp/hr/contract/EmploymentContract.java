@@ -31,13 +31,42 @@ public class EmploymentContract extends BaseTimeEntity {
     @Column(name = "contract_no", nullable = false, unique = true, length = 30)
     private String contractNo;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    /** 계약참여자1 — 원본은 계약서를 만든 뒤 [수신정보입력]에서 사원을 고른다. 고르기 전에는 비어 있다. */
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
+    /** 예전 구조화 계약의 유형. 계약서입력 모델(첨부 PDF)로 만든 계약은 비어 있다. */
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private ContractType type;
+
+    /** 원본 계약서입력 [계약서명] */
+    @Column(name = "contract_name", length = 100)
+    private String contractName;
+
+    /** 원본 계약서입력 [첨부] — PDF 필수. 공용 파일 저장(stored_files)에 올린 파일. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachment_file_id")
+    private com.erp.common.StoredFile attachment;
+
+    /** 원본 [2차인증사용여부] */
+    @Column(name = "two_factor", nullable = false)
+    @Builder.Default
+    private boolean twoFactor = false;
+
+    /** 원본 [구분] — 격자 [구분명] */
+    @Column(length = 50)
+    private String category;
+
+    /** 원본 [프로젝트]. hr 은 inventory 를 참조하지 않으므로 id 만 든다(CLAUDE.md 4.1). */
+    @Column(name = "project_id")
+    private Long projectId;
+
+    /** 수신정보입력 [전달방식] */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_method", length = 20)
+    private DeliveryMethod deliveryMethod;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

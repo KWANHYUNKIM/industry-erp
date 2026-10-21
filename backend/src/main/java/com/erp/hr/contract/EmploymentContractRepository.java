@@ -9,8 +9,8 @@ import java.util.List;
 
 public interface EmploymentContractRepository extends JpaRepository<EmploymentContract, Long> {
 
-    @Query("select c from EmploymentContract c join fetch c.employee left join fetch c.department "
-            + "order by c.startDate desc, c.id desc")
+    @Query("select c from EmploymentContract c left join fetch c.employee left join fetch c.department "
+            + "left join fetch c.attachment order by c.startDate desc, c.id desc")
     List<EmploymentContract> findAllWithRefs();
 
     /**

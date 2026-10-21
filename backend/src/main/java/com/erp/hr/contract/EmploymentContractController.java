@@ -32,6 +32,39 @@ public class EmploymentContractController {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
+    /** 원본 계약서입력 [저장(F8)] — 계약서명 · 첨부(PDF) */
+    @PostMapping("/documents")
+    public ContractResponse createDocument(@Valid @RequestBody EmploymentContractDtos.DocumentRequest req,
+                                           @AuthenticationPrincipal UserPrincipal principal) {
+        return service.createDocument(req, principal.getUsername());
+    }
+
+    @PutMapping("/{id}/document")
+    public ContractResponse updateDocument(@PathVariable Long id, @Valid @RequestBody EmploymentContractDtos.DocumentRequest req) {
+        return service.updateDocument(id, req);
+    }
+
+    @PostMapping("/{id}/copy")
+    public ContractResponse copy(@PathVariable Long id, @Valid @RequestBody EmploymentContractDtos.CopyRequest req,
+                                 @AuthenticationPrincipal UserPrincipal principal) {
+        return service.copy(id, req, principal.getUsername());
+    }
+
+    @PutMapping("/{id}/recipient")
+    public ContractResponse recipient(@PathVariable Long id, @Valid @RequestBody EmploymentContractDtos.RecipientRequest req) {
+        return service.setRecipient(id, req);
+    }
+
+    @PostMapping("/{id}/cancel-request")
+    public ContractResponse cancelRequest(@PathVariable Long id) {
+        return service.cancelRequest(id);
+    }
+
+    @PostMapping("/{id}/re-request")
+    public ContractResponse reRequest(@PathVariable Long id) {
+        return service.reRequest(id);
+    }
+
     @PostMapping("/{id}/send")
     public ContractResponse send(@PathVariable Long id) {
         return service.send(id);
