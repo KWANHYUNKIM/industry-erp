@@ -11,7 +11,7 @@ import { useDeptGroups } from '../../utils/deptGroups'
 import { printDocuments } from '../../utils/printDocument'
 import { formatDays } from '../../utils/dayCount'
 import { vacationFetchRange } from '../../utils/vacationFetchRange'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecConfirm } from '../../components/EcDialog'
 import { periodOf } from '../../utils/periods'
 
 /**
@@ -185,15 +185,6 @@ export default function LeaveListPage() {
     return true
   }), [rows, emp, type, vkCond, groupCond, kindMaster, tab, dept, deptGroup, inGroup, reasonCond, dayCond, fromCond, toCond])
 
-  async function changeStatus(r: Row, status: Status) {
-    try {
-      await api.put(`/hr/vacations/${r.id}/status`, { status })
-      load()
-    } catch (err) {
-      void ecAlert(extractErrorMessage(err))
-    }
-  }
-
   /*
    * 원본 [근태번호] 를 누르면 그 근태의 수정 창(근태입력)이 뜬다 — 근태일자 · 사원 · 근태 · 근태(일/시간) · 적요를 고쳐 [저장(F8)].
    * 우리는 지금까지 고칠 길이 없어 지우고 다시 넣어야 했다(번호가 바뀐다).
@@ -337,7 +328,6 @@ export default function LeaveListPage() {
               <th className="w-[34px]"></th>
               {/* 원본(2026-10-04 실측) 근태번호는 '2026/10/29 -1'(근태일자 -번호) 꼴이고 사원번호 열은 없다. */}
               <th className="w-[150px]">근태번호</th>
-              <th className="text-center w-[190px]">근태일자</th>
               <th className="w-[110px]">사원명</th>
               <th className="w-[100px]">근태코드</th>
               <th className="w-[100px] text-right">근태수</th>
@@ -350,17 +340,15 @@ export default function LeaveListPage() {
               */}
               <th className="text-center w-[120px]">휴가명</th>
               <th className="text-center">적요</th>
-              <th className="w-[80px] text-center">진행상태</th>
-              <th className="w-[100px] text-center">결재</th>
               {/* 원본 근태조회의 마지막 열 [인쇄] — 그 한 건을 근태 전표로 찍는다. */}
               <th className="w-[60px] text-center">인쇄</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td className="text-center">
@@ -372,26 +360,12 @@ export default function LeaveListPage() {
                     {leaveNo(r.docNo, r.startDate)}
                   </button>
                 </td>
-                <td className="text-center">
-                  {r.startDate === r.endDate ? slashDay(r.startDate) : `${slashDay(r.startDate)} ~ ${slashDay(r.endDate)}`}
-                </td>
                 <td>{r.empName}</td>
                 <td>{r.type}</td>
                 <td className="text-right">{days(r.days)}</td>
                 {/* 휴가명 — 그 근태항목이 [휴가코드]로 가리키는 휴가항목(원본: 휴가코드가 없는 근태항목이면 빈칸) */}
                 <td className="text-center">{vkMaster.find((v) => v.id === kindMaster.find((k) => k.name === r.type)?.vacationKindId)?.name ?? ''}</td>
                 <td className="text-center">{r.reason ?? ''}</td>
-                <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'APPROVED' ? 'var(--ec-success)' : r.status === 'REJECTED' ? 'var(--ec-danger)' : 'var(--ec-warn)' }}>
-                  {r.statusName}
-                </td>
-                <td className="text-center">
-                  {r.status === 'PENDING' && (
-                    <>
-                      <button onClick={() => changeStatus(r, 'APPROVED')} style={{ color: 'var(--ec-success)', marginRight: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>확인</button>
-                      <button onClick={() => changeStatus(r, 'REJECTED')} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>반려</button>
-                    </>
-                  )}
-                </td>
                 <td className="text-center">
                   <button onClick={() => printOne(r)}
                           style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
@@ -443,4 +417,3 @@ export default function LeaveListPage() {
   )
 }
 
-const slashDay = (d: string) => d.replace(/-/g, '/')

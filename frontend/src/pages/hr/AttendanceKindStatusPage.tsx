@@ -314,7 +314,6 @@ export default function AttendanceKindStatusPage() {
             <th className="w-[34px]"></th>
             {/* 원본 실측: 왼쪽. */}
             <th className="w-[110px]">전표일자</th>
-            <th className="text-center w-[190px]">근태일자</th>
             <th className="w-[150px]">부서명</th>
             <th className="w-[90px]">직급</th>
             <th className="w-[110px]">사원번호</th>
@@ -322,15 +321,15 @@ export default function AttendanceKindStatusPage() {
             <th className="w-[120px]">근태종류</th>
             {/* 원본은 이 표에서 [근태]를 가장 넓게 둔다(180 · 나머지 100~120) — 읽으라는 값이다. */}
             <th className="w-[180px] text-right">근태</th>
+            <th className="text-center w-[190px]">적요(근태기간)</th>
             <th>적요</th>
-            <th className="w-[90px] text-center">상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
@@ -339,26 +338,20 @@ export default function AttendanceKindStatusPage() {
                 <Link to={`/hr/leave-list?emp=${encodeURIComponent(r.empName)}`}
                       style={{ color: 'var(--ec-blue)' }}>{leaveNo(r.docNo, r.startDate)}</Link>
               </td>
-              <td className="text-center">
-                {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
-              </td>
               <td>{r.department ?? ''}</td>
               <td style={{ color: r.jobTitle ? undefined : 'var(--ec-text-off)' }}>{r.jobTitle ?? ''}</td>
               <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : 'var(--ec-text-off)' }}>{r.empCode ?? ''}</td>
               <td>{r.empName}</td>
               <td>{r.type}</td>
               <td className="text-right font-semibold">{days(r.days)}</td>
+              <td className="text-center">{r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}</td>
               <td style={{ color: r.reason ? undefined : 'var(--ec-text-off)' }}>{r.reason ?? ''}</td>
-              <td style={{
-                textAlign: 'center', fontWeight: 700,
-                color: r.status === 'APPROVED' ? 'var(--ec-success)' : r.status === 'PENDING' ? 'var(--ec-warn)' : 'var(--ec-danger)',
-              }}>{r.statusName}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={8} className="text-right">합계</td>
+            <td colSpan={7} className="text-right">합계</td>
             <td className="text-right text-ec-navy">{days(totalDays)}</td>
             <td colSpan={2}></td>
           </tr>

@@ -146,11 +146,11 @@ export default function AttendanceKindListPage() {
             <th className="w-[34px] text-center">
               <input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('근태코드')}>근태코드 {sort.mark('근태코드')}</th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('근태명칭')}>근태명칭 {sort.mark('근태명칭')}</th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('근태그룹')}>근태그룹 {sort.mark('근태그룹')}</th>
-            <th className="text-center cursor-pointer" onClick={() => sort.toggle('근태유형')}>근태유형 {sort.mark('근태유형')}</th>
-            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('근태코드')}>근태코드</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('근태명칭')}>근태명칭</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('근태그룹')}>근태그룹</th>
+            <th className="text-center cursor-pointer" onClick={() => sort.toggle('근태유형')}>근태유형</th>
+            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용</th>
             <th>적요</th>
           </tr>
         </thead>

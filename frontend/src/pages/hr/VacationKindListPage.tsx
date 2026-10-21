@@ -146,10 +146,10 @@ export default function VacationKindListPage() {
             <th className="w-[34px] text-center">
               <input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('휴가코드')}>휴가코드 {sort.mark('휴가코드')}</th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('휴가명')}>휴가명 {sort.mark('휴가명')}</th>
-            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용기간')}>사용기간 {sort.mark('사용기간')}</th>
-            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('휴가코드')}>휴가코드</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('휴가명')}>휴가명</th>
+            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용기간')}>사용기간</th>
+            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용</th>
           </tr>
         </thead>
         <tbody>
