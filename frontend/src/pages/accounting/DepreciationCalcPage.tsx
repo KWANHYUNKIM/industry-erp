@@ -173,6 +173,10 @@ export default function DepreciationCalcPage() {
     )
   }
 
+  const Link = ({ label, run }: { label: string; run: () => void }) => (
+    <button type="button" className="no-ec ec-link block mx-auto" onClick={run}>{label}</button>
+  )
+
   return (
     <EcListShell
       title="감가상각계산"
@@ -198,33 +202,41 @@ export default function DepreciationCalcPage() {
               <td>{c.fiscalTerm}</td>
               <td>{ym(c.periodFrom)} ~ {ym(c.periodTo)}</td>
               <td>{c.itemCount}</td>
-              <td>
-                {c.reflected
-                  ? <Menu id={`c${c.id}`} label="계산/수정" items={[{ label: '수정', run: () => void editTargets(c) }]} />
-                  : <Menu id={`c${c.id}`} label="계산처리" primary items={[
-                    { label: '전체계산', run: () => void calculate(c) },
-                    { label: '개별계산', run: () => void individual(c) },
-                    { label: '수정', run: () => void editTargets(c) },
-                  ]} />}
-              </td>
-              <td>
-                {c.reflected
-                  ? <Menu id={`s${c.id}`} label="감가상각현황" primary items={[
-                    { label: '조회', run: () => void showDetail(c) },
-                    { label: '반영내용삭제', run: () => void unreflect(c) },
-                  ]} />
-                  : <Menu id={`s${c.id}`} label="감가상각현황" primary items={[
-                    { label: '조회', run: () => void showDetail(c) },
-                    { label: '고정자산대장에반영', run: () => void calculate(c) },
-                    { label: '삭제', run: () => void remove(c) },
-                  ]} />}
-              </td>
-              <td>
-                <Menu id={`g${c.id}`} label="기타" primary items={[
-                  { label: '전표생성', run: () => void showSlip(c) },
-                  { label: '이력', run: () => void showHistory(c) },
-                ]} />
-              </td>
+              {c.reflected ? (
+                <>
+                  <td><Menu id={`c${c.id}`} label="계산/수정" items={[{ label: '수정', run: () => void editTargets(c) }]} /></td>
+                  <td>
+                    <Menu id={`s${c.id}`} label="감가상각현황" primary items={[
+                      { label: '조회', run: () => void showDetail(c) },
+                      { label: '반영내용삭제', run: () => void unreflect(c) },
+                    ]} />
+                  </td>
+                  <td>
+                    <Menu id={`g${c.id}`} label="기타" primary items={[
+                      { label: '전표생성', run: () => void showSlip(c) },
+                      { label: '이력', run: () => void showHistory(c) },
+                    ]} />
+                  </td>
+                </>
+              ) : (
+                /* 반영내용삭제 뒤(원본 2026-10-22): 단추가 글자 링크로 풀려 세로로 선다 */
+                <>
+                  <td>
+                    <Link label="전체계산" run={() => void calculate(c)} />
+                    <Link label="개별계산" run={() => void individual(c)} />
+                    <Link label="수정" run={() => void editTargets(c)} />
+                  </td>
+                  <td>
+                    <Link label="조회" run={() => void showDetail(c)} />
+                    <Link label="고정자산대장에반영" run={() => void calculate(c)} />
+                    <Link label="삭제" run={() => void remove(c)} />
+                  </td>
+                  <td>
+                    <Link label="전표생성" run={() => void showSlip(c)} />
+                    <Link label="이력" run={() => void showHistory(c)} />
+                  </td>
+                </>
+              )}
               <td className="text-right">{Math.round(c.totalAmount).toLocaleString('ko-KR')}</td>
             </tr>
           ))}
