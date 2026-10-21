@@ -126,7 +126,7 @@ function ReviewOne({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
   const ref = useRef<HTMLTableElement>(null)
   useTableColumnCheck(ref, '연말정산검토표 I', [list.length])
   return (
-    <table ref={ref} className="w-full ec-report ec-report-head400">
+    <table ref={ref} className="w-full ec-report ec-report-head400 ec-report-11">
       <thead>
         <tr><th colSpan={4}>기본사항</th><th colSpan={6}>소득공제</th><th colSpan={4}>세액공제</th><th colSpan={4}>계산내역</th></tr>
         {head.map((line, i) => (
@@ -196,7 +196,7 @@ function ReviewTwo({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
   const ref = useRef<HTMLTableElement>(null)
   useTableColumnCheck(ref, '연말정산검토표 II', [lines.length])
   return (
-    <table ref={ref} className="w-full ec-report ec-report-head400">
+    <table ref={ref} className="w-full ec-report ec-report-head400 ec-report-11">
       <thead>
         <tr>
           <th rowSpan={2}>사원번호</th><th rowSpan={2}>성명</th><th rowSpan={2}>입사일자</th><th rowSpan={2}>퇴사일자</th>

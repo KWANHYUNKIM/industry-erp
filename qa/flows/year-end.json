@@ -1,8 +1,23 @@
 {
-  "about": "연말정산등록/수정(E030109) — 사례 C(plans/세무/연말정산.md 4장): QA세무-퇴직(QA세무01) 대상자추가 → 정산공제항목 입력에서 종(전)근무지 총급여 6천만 · 국민연금 2,700,000 · 기납부 3,000,000/300,000 · 보장성 1,200,000 · 의료비 5,000,000 → [저장/계산처리] → 결정 3,937,500 · 차감 937,500 → 원천징수영수증 · 분납 숫자 → 선택삭제. 원본 숫자와 같다.",
+  "about": "연말정산등록/수정(E030109) — 사례 C(plans/세무/연말정산.md 4장): 사원등록에서 QA세무-퇴직(QA세무01)을 만들고 대상자추가 → 정산공제항목 입력에서 종(전)근무지 총급여 6천만 · 국민연금 2,700,000 · 기납부 3,000,000/300,000 · 보장성 1,200,000 · 의료비 5,000,000 → [저장/계산처리] → 결정 3,937,500 · 차감 937,500 → 원천징수영수증 · 분납 숫자 → 연말정산검토표 I · II(결정 3,937,500 · 종전 60,000,000, 머리 11px) → 선택삭제. 원본 숫자와 같다. 끝에 사원도 지운다.",
   "shots": [
     {
-      "name": "대상자추가 → 공제 입력 → 계산처리 → 영수증 · 분납 → 선택삭제",
+      "name": "사원등록 — QA세무01 QA세무-퇴직(정산 대상자, 끝에 지움)",
+      "path": "/hr/employees",
+      "steps": [
+        "wait:1000",
+        "click:신규(F2)",
+        "wait:1500",
+        "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
+        "set:[role=dialog] input.ec-input|QA세무01",
+        "set:[role=dialog] input[placeholder=성명]|QA세무-퇴직",
+        "clicklast:저장(F8)",
+        "wait:1000",
+        "expect:!document.querySelector('[role=dialog]') && document.querySelector('table').innerText.includes('QA세무-퇴직')"
+      ]
+    },
+    {
+      "name": "대상자추가 → 공제 입력 → 계산처리 → 영수증 · 분납",
       "path": "/accounting/withholding/year-end",
       "steps": [
         "wait:1200",
@@ -82,7 +97,36 @@
         "wait:800",
         "expect:(() => { const t = document.querySelector('[role=dialog]').innerText.replace(/\\s+/g, ' '); return t.includes('납부합계 937,500 93,750') })()",
         "clicklast:닫기",
-        "wait:500",
+        "wait:500"
+      ]
+    },
+    {
+      "name": "연말정산검토표 I — 사례 C 숫자 · 머리 11px(원본 E030111 getComputedStyle 11px)",
+      "path": "/accounting/withholding/year-end-review-1",
+      "steps": [
+        "wait:1200",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(() => { const t = document.querySelector('table.ec-report').innerText.replace(/\\s+/g, ' '); return t.includes('QA세무-퇴직') && t.includes('3,937,500') && t.includes('393,750') && t.includes('43,050,000') && t.includes('5,197,500') && t.includes('937,500') })()",
+        "expect:[...document.querySelectorAll('table.ec-report thead th')].every((t) => getComputedStyle(t).fontSize === '11px')"
+      ]
+    },
+    {
+      "name": "연말정산검토표 II — 종(전) 60,000,000 · 머리 11px(원본 E030112 11px)",
+      "path": "/accounting/withholding/year-end-review-2",
+      "steps": [
+        "wait:1200",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:document.querySelector('table.ec-report').innerText.includes('60,000,000')",
+        "expect:[...document.querySelectorAll('table.ec-report thead th')].every((t) => getComputedStyle(t).fontSize === '11px')"
+      ]
+    },
+    {
+      "name": "선택삭제 → 목록에서 빠짐",
+      "path": "/accounting/withholding/year-end",
+      "steps": [
+        "wait:1200",
         "js:document.querySelector('input[aria-label=\"QA세무-퇴직 선택\"]').click(); true",
         "click:선택삭제",
         "wait:500",
@@ -90,6 +134,14 @@
         "clicklast:확인",
         "wait:1200",
         "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA세무-퇴직'))"
+      ]
+    },
+    {
+      "name": "뒷정리 — 사원 QA세무-퇴직 지움",
+      "path": "/hr/employees",
+      "steps": [
+        "wait:1200",
+        "apidel:/employees|QA세무-퇴직|name"
       ]
     }
   ]
