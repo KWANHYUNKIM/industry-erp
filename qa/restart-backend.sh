@@ -27,7 +27,7 @@ trap 'rm -rf $L' EXIT
 
 # 내 커밋이 이미 지금 서버에 들어 있으면(남이 내 커밋 뒤에 재기동했다) 다시 내리지 않는다 — 작업자가 많을 때 재기동이 몇 분마다 겹쳐 모두가 502 를 맞았다
 H=$(git rev-parse HEAD)
-if [ -f $RUN/.head ] && git merge-base --is-ancestor "$H" "$(cat $RUN/.head)" 2>/dev/null; then
+if [ -z "${FORCE:-}" ] && [ -f $RUN/.head ] && git merge-base --is-ancestor "$H" "$(cat $RUN/.head)" 2>/dev/null; then
   echo "UP — 이미 반영됨: 지금 서버($(git rev-parse --short "$(cat $RUN/.head)"))가 HEAD $(git rev-parse --short "$H") 를 담고 있다. 재기동 안 함"
   exit 0
 fi
@@ -63,9 +63,11 @@ stop_server() {
 
 start_from() {   # $1 = 폴더
   # 메모리 상한 — 띄우기만 하는 maven 부모가 0.9GB, 앱이 기본 상한(물리 메모리 1/4 = 4GB)까지 자라는 것을 막는다(2026-10-21, 16GB 기계에 작업자 여럿)
+  # 앱 1g 는 작업자 8명이 동시에 조회하자 OutOfMemoryError(Java heap space)로 응답이 멈췄다(2026-10-21 16:4x) → 1536m
+  # 멈춘 서버는 HEAD 가 같아도 내려야 하므로 FORCE=1 bash qa/restart-backend.sh <이름표> 로 '이미 반영됨' 건너뛰기를 끈다
   (cd "$1" && MAVEN_OPTS="-Xmx256m -XX:+UseSerialGC" nohup ./mvnw -o -q spring-boot:run \
      -Dspring-boot.run.arguments=--spring.flyway.out-of-order=true \
-     "-Dspring-boot.run.jvmArguments=-Xmx1g -XX:+UseSerialGC -XX:MaxMetaspaceSize=320m" > $LOG 2>&1 < /dev/null &) ; disown 2>/dev/null || true
+     "-Dspring-boot.run.jvmArguments=-Xmx1536m -XX:+UseSerialGC -XX:MaxMetaspaceSize=320m -XX:+ExitOnOutOfMemoryError" > $LOG 2>&1 < /dev/null &) ; disown 2>/dev/null || true
   for _ in $(seq 1 36); do sleep 5; up && return 0; done
   return 1
 }
