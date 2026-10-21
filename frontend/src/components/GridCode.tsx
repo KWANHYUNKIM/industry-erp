@@ -14,6 +14,7 @@ export function ErrTip({ msg }: { msg: string }) {
 /**
  * 입력 격자의 코드칸 — 원본 '계정코드' · '거래처' 열. 코드를 쳐서 Enter 하면 코드 · 이름에 걸리는 것이 한 건일 때 바로 고르고,
  * 여러 건 · 없음이면 그 글자로 검색 창을 연다(채권내역입력 계정 '108' → 1089 외상매출금 한 건이라 바로 고름, 2026-10-12 실측).
+ * 코드가 정확히 같아도 다른 것에 함께 걸리면 창이다(일반전표 거래처 '00001', 2026-10-21).
  * F2 · 빈 칸 Enter 도 창을 연다. 이름은 옆 열이 그린다.
  * (회계 I 지출결의서 · 입금보고서 화면 안의 같은 칸을 공용으로 꺼낸 것이다.)
  */
@@ -32,8 +33,9 @@ export default function GridCode({ title, codeHead, nameHead, items, value, onPi
     setTyped(null)
     if (!n) { setQ(''); setOpen(true); return }
     const low = n.toLowerCase()
-    const exact = items.filter((x) => (x.code ?? '').toLowerCase() === low)
-    const hits = exact.length === 1 ? exact : items.filter((x) => `${x.code ?? ''} ${x.name}`.toLowerCase().includes(low))
+    // 정확히 같은 코드가 있어도 다른 코드 · 이름에 함께 걸리면 고르지 않고 창 — 원본 일반전표 거래처 '00001'
+    // → 00001 · 0000000000001 · SG00001 창(2026-10-21 실측, CodePickerField pair 와 같은 규칙).
+    const hits = items.filter((x) => `${x.code ?? ''} ${x.name}`.toLowerCase().includes(low))
     if (hits.length === 1) { onPick(hits[0].value); return }
     setQ(n)
     setOpen(true)
