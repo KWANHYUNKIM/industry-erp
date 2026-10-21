@@ -1,0 +1,30 @@
+{
+  "about": "차이분석(E040809) 재료비단가차이 · 소모수량차이 — 2026-10-21 원본 실측: 생산입고 II C001 포장김치 7(BOM 배추 1 · 고추가루 0.1 · 포장재 1) 소모 배추 8 · 고추가루 0.7 · 포장재 7 → 그 달 [표준원가생성] · [생성] 뒤 줄 = 생산품목 × 소모품목, 머리 2줄 [생산품목 · 소모품목 · 비교]. 재료비단가차이 차이 = 표준단가 − 실제단가, 차이금액 = 차이 × 표준소모수량(배추 −1,919.5 × 187 = −358,947) / 소모수량차이 차이 = 표준소모수량 − 실제소모수량, 차이금액 = 차이 × 실제단가(179 × 1,919.5 = 343,591). 실제단가 = 원가생성 결과 그 품목 감소 단가. 우리 자료로 같은 흐름: ITM-0002 AQD 센서모듈 7(BOM 판재 1 · 방청유 0.05) 소모 판재 8 · 방청유 0.35 → 수정 9 → 삭제. 원가 기간이 있으면 건드리지 않고 멈춘다(남의 자료).",
+  "shots": [
+    {
+      "name": "생산입고 II 소모를 BOM 과 다르게 → 원가생성 → 차이분석 두 갈래가 생산품목 × 소모품목 · 원본 식",
+      "path": "/production/receipt-manual",
+      "steps": [
+        "wait:1500",
+        "expect:fetch('/api/cost-periods',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>d.length===0)",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const btn=(l)=>[...document.querySelectorAll('button')].find((e)=>e.offsetParent&&(e.getAttribute('aria-label')===l||e.title===l));const pick=async(t)=>{const tr=[...document.querySelectorAll('[role=dialog] tbody tr')].find((r)=>r.innerText.replace(/\\s+/g,' ').includes(t));(tr.querySelector('a,button')||tr).click();await W(800)};const set=(el,v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}))};btn('생산된공장 코드도움').click();await W(1200);await pick('WH-01 본사창고');btn('받는창고 코드도움').click();await W(1200);await pick('WH-01 본사창고');btn('생산품목 선택').click();await W(1500);await pick('ITM-0002 AQD');await W(400);let tds=document.querySelector('table tbody tr').querySelectorAll('td');set(tds[6].querySelector('input'),'7');set(tds[10].querySelector('input'),'QA재고2');await W(300);[...document.querySelectorAll('button')].find((b)=>b.offsetParent&&b.innerText.trim()==='BOM풀기').click();await W(1500);tds=document.querySelector('table tbody tr').querySelectorAll('td');set(tds[5].querySelector('input'),'8');set(tds[6].querySelector('input'),'QA재고2');await W(300);[...document.querySelectorAll('button')].find((b)=>b.offsetParent&&b.innerText.trim()==='저장(F8)').click();await W(2500);const d=await (await fetch('/api/productions',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})).json();const p=(d.rows??d).find((x)=>x.note==='QA재고2'&&x.producedQty===7);sessionStorage.setItem('qaVarProd',p?p.prodNo:'');return p?p.prodNo+' '+p.materials.map((m)=>m.componentCode+':'+m.quantity).join(','):'none'})()",
+        "expect:/PR-\\d{8}-\\d{4}/.test(sessionStorage.getItem('qaVarProd'))",
+        "js:location.href='/accounting/cost-build';true",
+        "wait:2500",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const L=()=>[...document.querySelectorAll('[role=dialog]')].pop();window.confirm=()=>true;sessionStorage.setItem('qaVarCp','1');B('신규(F2)').click();await W(600);B('저장(F8)',L()).click();await W(1500);B('닫기',L())?.click();await W(300);B('표준원가생성').click();await W(2000);B('생성').click();await W(600);B('적용(F8)',L()).click();await W(3000);return document.body.innerText.includes('원가생성] 작업이 완료되었습니다')})()",
+        "expect:document.body.innerText.includes('원가생성] 작업이 완료되었습니다')",
+        "js:location.href='/accounting/variance';true",
+        "wait:3000",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));window.__our=async(m)=>{let p=[...document.querySelectorAll('button')].find((b)=>b.innerText.trim()===m&&b.offsetParent);if(!p){[...document.querySelectorAll('button')].find((b)=>/Search\\(F3\\)/.test(b.innerText)&&b.offsetParent)?.click();await W(600);p=[...document.querySelectorAll('button')].find((b)=>b.innerText.trim()===m)}p.click();await W(400);const s=[...document.querySelectorAll('button')].find((b)=>b.innerText.trim()==='검색(F8)'&&b.offsetParent);s&&s.click();await W(1500);const t=document.querySelector('table');return {head:[...t.querySelectorAll('thead tr')].map((r)=>r.innerText.replace(/\\s+/g,' ').trim()),rows:[...t.querySelectorAll('tbody tr')].map((r)=>[...r.children].map((c)=>c.innerText.trim()))}};const a=await __our('재료비단가차이');const b=await __our('소모수량차이');window.__va=a;window.__vb=b;return JSON.stringify([a.head,a.rows.filter((r)=>r[0]==='ITM-0002'),b.rows.filter((r)=>r[0]==='ITM-0002')])})()",
+        "expect:window.__va.head[0]==='생산품목 소모품목 비교'&&window.__va.head[1]==='품목코드 품목명[규격] 품목구분 생산공정명 생산수량 소모품코드 소모품명 표준단가 실제단가 차이 표준소모수량 차이금액'",
+        "expect:window.__vb.head[1]==='품목코드 품목명[규격] 품목구분 생산공정명 생산수량 소모품코드 소모품명 표준소모수량 실제소모수량 차이 실제단가 차이금액'",
+        "expect:(()=>{const r=window.__vb.rows.find((r)=>r[0]==='ITM-0002'&&r[5]==='ITM-0005');return r&&r[4]==='7'&&r[7]==='7'&&r[8]==='8'&&r[9]==='-1'})()",
+        "expect:(()=>{const n=(s)=>Number(String(s).replace(/,/g,''));const r=window.__va.rows.find((r)=>r[0]==='ITM-0002'&&r[5]==='ITM-0005');return r&&r[7]===''&&n(r[8])>0&&n(r[9])===-n(r[8])&&r[10]==='7'&&Math.abs(n(r[11])-n(r[9])*7)<=7})()",
+        "expect:window.__va.rows.some((r)=>r[0]==='AQD 센서모듈 [온습도/암모니아] 계')&&window.__va.rows.some((r)=>r[0]==='합계')"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const no=sessionStorage.getItem('qaVarProd');if(no){const d=await (await fetch('/api/productions',{headers:h})).json();const p=(d.rows??d).find((x)=>x.prodNo===no);if(p)await fetch('/api/productions/'+p.id,{method:'DELETE',headers:h})}if(sessionStorage.getItem('qaVarCp')){const cps=await (await fetch('/api/cost-periods',{headers:h})).json();for(const c of cps.filter((c)=>c.startMonth===new Date().toISOString().slice(0,7)))await fetch('/api/cost-periods/'+c.id,{method:'DELETE',headers:h})}sessionStorage.removeItem('qaVarProd');sessionStorage.removeItem('qaVarCp');return true})()"
+  ]
+}

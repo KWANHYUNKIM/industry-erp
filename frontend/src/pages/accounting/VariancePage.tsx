@@ -1,13 +1,10 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { stockCostMapFromLast } from '../../utils/stockValue'
-import { materialDiff, type BomLine } from '../../utils/woEfficiency'
-import { priceVariance, qtyVariance, weightedAvgPrice } from '../../utils/costVariance'
-import type { Item, PurchaseDoc } from '../../types/api'
+import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useCostPeriods, costPeriodText, inCostPeriod } from '../../utils/costPeriods'
@@ -62,8 +59,7 @@ function processMapOf(bors: BorRow[]) {
  * '원가차이분석' 이었다). 총액만 보면 차이가 났다는 것만 알 뿐 <b>왜</b>인지를 모른다 —
  * 비싸게 산 것인지, 많이 쓴 것인지가 갈려야 손 쓸 곳이 정해진다.
  *
- * <p>부호 약속은 회계 관례대로 <b>양수 = 불리</b>(원가가 늘었다). 규칙은 utils/costVariance 에
- * 못 박아 뒀다.
+ * <p>부호는 원본대로 <b>차이 = 표준 − 실제</b>(2026-10-21 실측 — 실제가 비싸거나 많이 쓰면 음수).
  *
  * <p>원본의 '노무비/경비/외주비차이' 에서 <b>외주비는 뺐다.</b> 외주비를 따로 잡는 자료가
  * 우리에겐 없다(외주는 구매전표로 들어온다). 이름에 넣어 두면 늘 0 인 칸이 생겨,
@@ -99,12 +95,17 @@ interface ProductionRow {
   materials: { componentId: number; componentCode: string; componentName: string; quantity: number }[]
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
-const won = (n: number | null) => (n == null ? '기준 없음' : Math.round(n).toLocaleString('ko-KR'))
 /** 원가비교집계표 · 노무비/경비/외주비차이 출력물은 0 · 모름을 찍지 않는다(2026-10-20 원본 실측 — 표준원가가 없는 품목은 단가 · 금액 칸이 빈칸). */
 const nz = (n: number | null | undefined) => (n == null || Math.round(n) === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
-/** 불리(원가 증가)는 붉게, 유리는 푸르게. 못 재면 회색. */
-const varColor = (n: number | null) => (n == null ? 'var(--ec-text-off)' : n > 0 ? 'var(--ec-danger)' : n < 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)')
+/** 재료비단가차이 · 소모수량차이는 0.5 를 0 에서 먼 쪽으로 올린다(원본 −1,919.5 → '-1,920', −358,946.5 → '-358,947'). */
+const nzr = (n: number | null | undefined) => {
+  if (n == null) return ''
+  const r = Math.sign(n) * Math.round(Math.abs(n))
+  return r === 0 ? '' : r.toLocaleString('ko-KR')
+}
+
+/** 원가생성/수정이 만든 원가계산내역 한 줄(GET /cost-periods/{id}/ledger) — 감소 단가가 실제단가다. */
+interface CostLedgerRow { itemId: number; decreaseQty: number; decreaseAmount: number }
 
 export default function VariancePage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -119,9 +120,8 @@ export default function VariancePage() {
   const [items, setItems] = useState<Item[]>([])
   const [bors, setBors] = useState<BorRow[]>([])
   const processOf = useMemo(() => processMapOf(bors), [bors])
-  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
-  /* 평가단가 지도만 쓰는 자리. 전표는 아래 purchases 가 따로 든다(가중평균단가·수량차이). */
-  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
+  /* 원가생성/수정이 만든 그 기간 원가계산내역 — 소모품목 실제단가(감소 단가)가 여기서 나온다. */
+  const [ledger, setLedger] = useState<CostLedgerRow[]>([])
   const [boms, setBoms] = useState<BomRow[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [keyword, setKeyword] = useState('')
@@ -157,34 +157,31 @@ export default function VariancePage() {
   /** 원본 [생산공정] — 그 품목이 만들어지는 공정(BOR 첫 작업, 위 processMapOf). */
   const [processCond, setProcessCond] = useState('')
 
+  /* 기준월이 정해지기 전(빈 값) 부른 것이 늦게 오면 원가계산내역을 비워 버린다 — 마지막 부른 것만 받는다. */
+  const loadSeq = useRef(0)
   async function load() {
+    const seq = ++loadSeq.current
     setLoading(true)
     setError('')
     try {
-      const [c, i, br, p, lp, b, pr] = await Promise.all([
+      const [c, i, br, b, pr, lg] = await Promise.all([
         api.get<Cost[]>('/costs'),
         api.get<Item[]>('/items'),
         api.get<BorRow[]>('/bor'),
-        /* 가중평균단가·수량차이 금액이 이 전표들을 줄 단위로 훑는다 — 여기는 못 줄인다. */
-        api.get<PurchaseDoc[]>('/purchases'),
-        /*
-         * <b>평가단가 지도는 마지막 입고단가만 있으면 된다.</b> 여태 위 전표 목록을 그대로
-         * 접어 만들었는데, 그 규칙이 <b>목록 차례에 기대고</b> 있었다(같은 날이면 id 가
-         * 작은 쪽이 이겼다). 서버가 품목당 한 줄로 내고 규칙도 그 자리에 적혀 있다.
-         */
-        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         api.get<BomRow[]>('/boms'),
         api.get<ProductionRow[]>('/productions'),
+        periodId ? api.get<{ rows: CostLedgerRow[] }>(`/cost-periods/${periodId}/ledger`) : Promise.resolve(null),
       ])
+      if (seq !== loadSeq.current) return
       setCosts(c.data); setItems(i.data); setBors(br.data)
-      setPurchases(p.data); setLastPrices(lp.data); setBoms(b.data); setProductions(pr.data)
+      setBoms(b.data); setProductions(pr.data); setLedger(lg?.data.rows ?? [])
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
-      setLoading(false)
+      if (seq === loadSeq.current) setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [periodId])
 
   const inPeriod = (yyyymm: string) => !cp || inCostPeriod(cp, yyyymm)
   const catOf = useMemo(() => new Map(items.map((i) => [i.id, i.categoryName])), [items])
@@ -197,21 +194,6 @@ export default function VariancePage() {
     if (!keyword) return true
     return code.includes(keyword) || name.includes(keyword)
   }
-
-  /** 기준단가. 품목의 구매단가다 — 0 이면 "안 정했다" 는 뜻이라 차이를 재지 않는다. */
-  const stdPriceOf = useMemo(() => {
-    const m = new Map(items.map((i) => [i.id, i.purchasePrice]))
-    return (id: number) => {
-      const v = m.get(id)
-      return v != null && v > 0 ? v : null
-    }
-  }, [items])
-
-  /** 기준단가가 없을 때 수량차이 금액을 매길 대체 단가 — 재고자산평가와 같은 규칙. */
-  const evalPriceOf = useMemo(
-    () => stockCostMapFromLast(items, lastPrices),
-    [items, purchases],
-  )
 
   const nameOf = useMemo(() => new Map(items.map((i) => [i.id, { code: i.code, name: i.name }])), [items])
 
@@ -249,7 +231,8 @@ export default function VariancePage() {
         producedQty: qty,
         stdAmount: r.standardTotal * qty,
         actAmount: r.actualTotal * qty,
-        diffAmount: r.variance * qty,
+        /* 원본 차이 = 표준 − 실제(2026-10-21 실측 C001 표준 빈칸 · 실제 22,714 → 차이 -22,714). */
+        diffAmount: (r.standardTotal - r.actualTotal) * qty,
       }
     })
     .filter((r) => r.producedQty > 0)
@@ -264,55 +247,73 @@ export default function VariancePage() {
     return [...m.entries()]
   }
 
-  // ── 재료비단가차이: 그 기간 실제 매입 가중평균 vs 품목 기준단가
-  const priceRows = useMemo(() => {
-    const byItem = new Map<number, { quantity: number; unitPrice: number }[]>()
-    for (const d of purchases) {
-      if (!inPeriod(d.purchaseDate.slice(0, 7))) continue
-      for (const l of d.lines ?? []) {
-        const cur = byItem.get(l.itemId) ?? []
-        cur.push({ quantity: l.quantity, unitPrice: l.unitPrice })
-        byItem.set(l.itemId, cur)
-      }
+  /*
+   * ── 재료비단가차이 · 소모수량차이 (2026-10-21 원본 E040809 실측 — 생산입고 II C001 포장김치 7, 소모 배추 8 · 고추가루 0.7 · 포장재 7,
+   * 그 달 [표준원가생성] · [생성] 뒤). 줄은 <b>그 기간에 생산한 품목 × 소모품목</b>(BOM 줄 + 실제로 소모한 품목)이고
+   * 생산품목마다 '<품목명[규격]> 계', 끝에 '<구분> 계' · '합계'.
+   *   표준소모수량 = BOM 소요량 × 그 기간 생산수량(187 = 1 × 187, 고추가루 0.1 × 187 = 18.7 → '19')
+   *   실제소모수량 = 그 기간 생산입고의 소모 줄 합(8)
+   *   표준단가 = 소모품목의 표준원가(원가 줄 표준 합계), 실제단가 = 원가생성 결과 그 품목 감소 단가(22,714 = 8 × 1,919.5 + …)
+   *   재료비단가차이: 차이 = 표준단가 − 실제단가, 차이금액 = 차이 × 표준소모수량(−1,919.5 × 187 = −358,947)
+   *   소모수량차이:   차이 = 표준소모수량 − 실제소모수량, 차이금액 = 차이 × 실제단가(179 × 1,919.5 = 343,591)
+   * 우리는 매입 가중평균 vs 구매단가 · BOM 소모 vs 실적 자재 합계를 <b>자재별 한 줄</b>로 냈다 → 원본 꼴로 바꿨다.
+   */
+  const ledgerPrice = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const r of ledger) {
+      const q = Number(r.decreaseQty)
+      if (q > 0 && Number(r.decreaseAmount) !== 0) m.set(r.itemId, Number(r.decreaseAmount) / q)
     }
-    return [...byItem.entries()]
-      .map(([itemId, lines]) => {
-        const info = nameOf.get(itemId) ?? { code: String(itemId), name: '(삭제된 품목)' }
-        const qty = lines.reduce((n, l) => n + l.quantity, 0)
-        const v = priceVariance(stdPriceOf(itemId), weightedAvgPrice(lines), qty)
-        return { itemId, ...info, ...v }
-      })
-      .filter((r) => hit(r.itemId, r.code, r.name))
-      .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0))
-  }, [purchases, cp, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
-      categoryCond, itemGroupCond, nameOf, stdPriceOf])
-
-  // ── 소모수량차이: BOM 표준소모 vs 실제 투입 (자재별 집계)
-  const qtyRows = useMemo(() => {
-    const bomOf = new Map<number, BomLine[]>(boms.map((b) => [b.productId, b.lines]))
-    const agg = new Map<number, { stdQty: number; actualQty: number }>()
+    return m
+  }, [ledger])
+  const stdPriceOf = (itemId: number) => {
+    const c = costs.find((r) => r.itemId === itemId && inPeriod(r.period))
+    return c && c.standardTotal > 0 ? c.standardTotal : null
+  }
+  const matGroups = useMemo(() => {
+    const bomOf = new Map(boms.map((b) => [b.productId, b.lines]))
+    const prods = new Map<number, { qty: number; actual: Map<number, number> }>()
     for (const p of productions) {
       if (!inPeriod(p.productionDate.slice(0, 7))) continue
-      const rows = materialDiff(bomOf.get(p.productId) ?? [], p.materials ?? [], p.producedQty, () => 1)
-      for (const r of rows) {
-        const cur = agg.get(r.componentId) ?? { stdQty: 0, actualQty: 0 }
-        cur.stdQty += r.stdQty
-        cur.actualQty += r.actualQty
-        agg.set(r.componentId, cur)
-      }
+      const cur = prods.get(p.productId) ?? { qty: 0, actual: new Map<number, number>() }
+      cur.qty += p.producedQty
+      for (const m of p.materials ?? []) cur.actual.set(m.componentId, (cur.actual.get(m.componentId) ?? 0) + m.quantity)
+      prods.set(p.productId, cur)
     }
-    return [...agg.entries()]
-      .filter(([, v]) => v.stdQty !== 0 || v.actualQty !== 0)
-      .map(([itemId, v]) => {
-        const info = nameOf.get(itemId) ?? { code: String(itemId), name: '(삭제된 품목)' }
-        // 기준단가가 있으면 그것으로, 없으면 평가단가로 금액을 매긴다.
-        const price = stdPriceOf(itemId) ?? evalPriceOf.get(itemId) ?? null
-        return { itemId, ...info, price, ...qtyVariance(v.stdQty, v.actualQty, price) }
+    return [...prods.entries()]
+      .map(([productId, v]) => {
+        const info = nameOf.get(productId) ?? { code: String(productId), name: '(삭제된 품목)' }
+        const ids = [...new Set([...(bomOf.get(productId) ?? []).map((l) => l.componentId), ...v.actual.keys()])]
+        const lines = ids.map((componentId) => {
+          const bomQty = (bomOf.get(productId) ?? []).filter((l) => l.componentId === componentId).reduce((n, l) => n + l.quantity, 0)
+          const stdQty = bomQty * v.qty
+          const actQty = v.actual.get(componentId) ?? 0
+          const stdPrice = stdPriceOf(componentId)
+          const actPrice = ledgerPrice.get(componentId) ?? null
+          const priceDiff = (stdPrice ?? 0) - (actPrice ?? 0)
+          const qtyDiff = stdQty - actQty
+          return {
+            componentId, ...(nameOf.get(componentId) ?? { code: String(componentId), name: '(삭제된 품목)' }),
+            stdQty, actQty, stdPrice, actPrice, priceDiff, qtyDiff,
+            priceAmount: priceDiff * stdQty,
+            qtyAmount: qtyDiff * (actPrice ?? 0),
+          }
+        })
+        return { productId, ...info, producedQty: v.qty, lines }
       })
-      .filter((r) => hit(r.itemId, r.code, r.name))
-      .sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0) || Math.abs(b.diffQty) - Math.abs(a.diffQty))
-  }, [productions, boms, cp, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
-      categoryCond, itemGroupCond, nameOf, stdPriceOf, evalPriceOf])
+      .filter((g) => hit(g.productId, g.code, g.name))
+      .filter((g) => !processCond || processOf(g.productId) === processCond)
+      .sort((a, b) => (categoryOf(a.productId) || '').localeCompare(categoryOf(b.productId) || '') || a.code.localeCompare(b.code))
+  }, [productions, boms, costs, ledgerPrice, cp, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
+      categoryCond, itemGroupCond, processCond, nameOf])
+  const byCategoryGroups = () => {
+    const m = new Map<string, typeof matGroups>()
+    for (const g of matGroups) {
+      const k = categoryOf(g.productId) || ''
+      m.set(k, [...(m.get(k) ?? []), g])
+    }
+    return [...m.entries()]
+  }
 
   /*
    * ── 노무비/경비/외주비차이. 원본(2026-10-20 실측)은 생산 품목마다 [노무비 · 경비 · 외주비] 세 줄 +
@@ -328,9 +329,7 @@ export default function VariancePage() {
     ] as const).map(([kind, std, act]) => ({ kind, std, act, diff: act - std, diffAmount: (act - std) * r.producedQty })),
   }))
 
-  const totalOf = (arr: (number | null)[]) => arr.reduce<number>((n, v) => n + (v ?? 0), 0)
-
-  return (
+    return (
     <EcListShell
       title="차이분석"
       search={keyword}
@@ -484,93 +483,104 @@ export default function VariancePage() {
             )}
           </tbody>
         </table>
-      ) : mode === '재료비단가차이' ? (
-        <table className="ec-grid w-full text-left">
+      ) : mode === '재료비단가차이' || mode === '소모수량차이' ? (
+        <table className="w-full text-left">
           <thead>
+            {/* 2026-10-21 원본 실측: 머리 2줄 — [생산품목 · 소모품목 · 비교] 아래 열. */}
             <tr>
-              <th className="w-[34px]"></th>
+              <th colSpan={5} className="text-center">생산품목</th>
+              <th colSpan={2} className="text-center">소모품목</th>
+              <th colSpan={5} className="text-center">비교</th>
+            </tr>
+            <tr>
               <th className="w-[90px]">품목코드</th>
-              <th>품목명</th>
-              <th className="text-right">기준단가</th>
-              <th className="text-right">실제매입단가</th>
-              <th className="text-right">단가차이</th>
-              <th className="text-right">매입수량</th>
+              <th>품목명[규격]</th>
+              <th className="w-[80px]">품목구분</th>
+              <th className="w-[90px]">생산공정명</th>
+              <th className="text-right">생산수량</th>
+              <th className="w-[90px]">소모품코드</th>
+              <th>소모품명</th>
+              {mode === '재료비단가차이' ? (
+                <>
+                  <th className="text-right">표준단가</th>
+                  <th className="text-right">실제단가</th>
+                  <th className="text-right">차이</th>
+                  <th className="text-right">표준소모수량</th>
+                </>
+              ) : (
+                <>
+                  <th className="text-right">표준소모수량</th>
+                  <th className="text-right">실제소모수량</th>
+                  <th className="text-right">차이</th>
+                  <th className="text-right">실제단가</th>
+                </>
+              )}
               <th className="text-right">차이금액</th>
             </tr>
           </thead>
           <tbody>
-            {priceRows.length === 0 ? (
-              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : priceRows.map((r, i) => (
-              <tr key={r.itemId}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{r.code}</td>
-                <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: r.stdPrice == null ? 'var(--ec-text-off)' : undefined }}>{won(r.stdPrice)}</td>
-                <td className="text-right">{won(r.actualPrice)}</td>
-                <td style={{ textAlign: 'right', color: varColor(r.stdPrice == null || r.actualPrice == null ? null : r.actualPrice - r.stdPrice) }}>
-                  {r.stdPrice == null || r.actualPrice == null ? '-' : num(Math.round(r.actualPrice - r.stdPrice))}
-                </td>
-                <td className="text-right">{num(r.qty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: varColor(r.amount) }}>{won(r.amount)}</td>
-              </tr>
-            ))}
+            {matGroups.length === 0 ? (
+              <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : (
+              <>
+                {byCategoryGroups().map(([cat, gs]) => {
+                  const amt = (g: (typeof matGroups)[number]) =>
+                    g.lines.reduce((n, l) => n + (mode === '재료비단가차이' ? l.priceAmount : l.qtyAmount), 0)
+                  return (
+                    <Fragment key={cat}>
+                      {gs.map((g) => {
+                        const label = g.name + (specOf(g.productId) ? ` [${specOf(g.productId)}]` : '')
+                        return (
+                          <Fragment key={g.productId}>
+                            {g.lines.map((l) => (
+                              <tr key={l.componentId}>
+                                <td>{g.code}</td>
+                                <td>{label}</td>
+                                <td>{categoryOf(g.productId)}</td>
+                                <td>{processOf(g.productId)}</td>
+                                <td className="text-right">{nzr(g.producedQty)}</td>
+                                <td>{l.code}</td>
+                                <td>{l.name}{specOf(l.componentId) ? ` [${specOf(l.componentId)}]` : ''}</td>
+                                {mode === '재료비단가차이' ? (
+                                  <>
+                                    <td className="text-right">{nzr(l.stdPrice)}</td>
+                                    <td className="text-right">{nzr(l.actPrice)}</td>
+                                    <td className="text-right">{nzr(l.priceDiff)}</td>
+                                    <td className="text-right">{nzr(l.stdQty)}</td>
+                                    <td className="text-right">{nzr(l.priceAmount)}</td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="text-right">{nzr(l.stdQty)}</td>
+                                    <td className="text-right">{nzr(l.actQty)}</td>
+                                    <td className="text-right">{nzr(l.qtyDiff)}</td>
+                                    <td className="text-right">{nzr(l.actPrice)}</td>
+                                    <td className="text-right">{nzr(l.qtyAmount)}</td>
+                                  </>
+                                )}
+                              </tr>
+                            ))}
+                            <tr className="font-bold bg-ec-page">
+                              <td colSpan={11}>{label} 계</td>
+                              <td className="text-right">{nzr(amt(g))}</td>
+                            </tr>
+                          </Fragment>
+                        )
+                      })}
+                      <tr className="font-bold bg-ec-page">
+                        <td colSpan={11}>{cat} 계</td>
+                        <td className="text-right">{nzr(gs.reduce((n, g) => n + amt(g), 0))}</td>
+                      </tr>
+                    </Fragment>
+                  )
+                })}
+                <tr className="font-bold bg-ec-page">
+                  <td colSpan={11}>합계</td>
+                  <td className="text-right">{nzr(matGroups.reduce((n, g) => n + g.lines.reduce((m, l) => m + (mode === '재료비단가차이' ? l.priceAmount : l.qtyAmount), 0), 0))}</td>
+                </tr>
+              </>
+            )}
           </tbody>
-          {priceRows.length > 0 && (
-            <tfoot>
-              <tr className="font-bold bg-ec-page">
-                <td colSpan={7} className="text-right">합계 ({priceRows.length}품목 · 기준 없는 {priceRows.filter((r) => r.amount == null).length}품목 제외)</td>
-                <td style={{ textAlign: 'right', color: varColor(totalOf(priceRows.map((r) => r.amount))) }}>
-                  {num(Math.round(totalOf(priceRows.map((r) => r.amount))))}
-                </td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      ) : mode === '소모수량차이' ? (
-        <table className="ec-grid w-full text-left">
-          <thead>
-            <tr>
-              <th className="w-[34px]"></th>
-              <th className="w-[90px]">품목코드</th>
-              <th>품목명</th>
-              <th className="text-right">표준소모수량</th>
-              <th className="text-right">실제소모수량</th>
-              <th className="text-right">수량차이</th>
-              <th className="text-right">단가</th>
-              <th className="text-right">차이금액</th>
-            </tr>
-          </thead>
-          <tbody>
-            {qtyRows.length === 0 ? (
-              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : qtyRows.map((r, i) => (
-              <tr key={r.itemId}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{r.code}</td>
-                <td>{r.name}</td>
-                <td className="text-right text-ec-label">{num(r.stdQty)}</td>
-                <td className="text-right">{num(r.actualQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: varColor(r.diffQty) }}>{num(r.diffQty)}</td>
-                <td style={{ textAlign: 'right', color: r.price == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{won(r.price)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: varColor(r.amount) }}>{won(r.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-          {qtyRows.length > 0 && (
-            <tfoot>
-              <tr className="font-bold bg-ec-page">
-                <td colSpan={5} className="text-right">합계 ({qtyRows.length}품목)</td>
-                <td style={{ textAlign: 'right', color: varColor(qtyRows.reduce((n, r) => n + r.diffQty, 0)) }}>
-                  {num(Math.round(qtyRows.reduce((n, r) => n + r.diffQty, 0) * 1000) / 1000)}
-                </td>
-                <td></td>
-                <td style={{ textAlign: 'right', color: varColor(totalOf(qtyRows.map((r) => r.amount))) }}>
-                  {num(Math.round(totalOf(qtyRows.map((r) => r.amount))))}
-                </td>
-              </tr>
-            </tfoot>
-          )}
         </table>
       ) : (
         <table className="w-full text-left">
