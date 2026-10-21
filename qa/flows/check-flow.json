@@ -32,7 +32,7 @@
       "path": "/accounting/checks-issued-in",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return document.body.innerText.includes('발행수표계좌')&&h==='일자-No.|수표번호|거래처명|계정명|거래유형|적요|금액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.replace('▾','').trim()).join('|');return document.body.innerText.includes('발행수표계좌')&&h==='일자-No.|수표번호|거래처명|계정명|거래유형|적요|금액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))})()"
       ]
     },
     {
@@ -40,7 +40,7 @@
       "path": "/accounting/checks-ledger",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const no=sessionStorage.getItem('ckNo');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(no));if(rows.length<3)return false;const kinds=rows.filter((t)=>t.cells.length===10).map((t)=>t.cells[1].innerText.trim());const last=rows.filter((t)=>t.cells.length===10).slice(-1)[0];const sub=rows.find((t)=>/계$/.test(t.cells[0].innerText.trim()));return kinds.join(',')==='증가,감소'&&last.cells[9].innerText.trim()==='0'&&!!sub})()"
+        "expect:(()=>{const no=sessionStorage.getItem('ckNo');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(no));if(rows.length<3)return false;const kinds=rows.filter((t)=>t.cells.length===12).map((t)=>t.cells[1].innerText.trim());const last=rows.filter((t)=>t.cells.length===12).slice(-1)[0];const sub=rows.find((t)=>/계$/.test(t.cells[0].innerText.trim()));return kinds.join(',')==='증가,감소'&&['0',''].includes(last.cells[11].innerText.trim())&&!!sub})()"
       ]
     },
     {
@@ -48,7 +48,7 @@
       "path": "/accounting/checks-issued-ledger",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|증감구분|수표번호|발행수표계좌코드|거래처명|계정명|적요|증가금액|감소금액|잔액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|증감구분|수표번호|발행수표계좌코드|거래처명|계정명|부서명|프로젝트명|적요|증가금액|감소금액|잔액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))})()"
       ]
     },
     {

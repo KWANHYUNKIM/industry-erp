@@ -9,7 +9,7 @@
         "js:(async()=>{const acc=(await window.__api('GET','/accounts')).body.find((a)=>/^8\\d\\d$/.test(a.code));const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/expenses',{accountId:acc.id,expenseDate:today,content:'QA 비용내역조회',amount:12345});sessionStorage.setItem('exId',r.body&&r.body.id);sessionStorage.setItem('exNo',r.body&&r.body.docNo);return r.status})()",
         "click:검색(F8)",
         "wait:1500",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('exNo')));return h==='|전표번호|비용그룹명|비용명|사용자|사용금액|회계반영여부'&&!!tr&&tr.cells[5].innerText.trim()==='12,345'&&tr.cells[6].innerText.trim()==='확인(회계)'})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('exNo')));return h==='|전표번호|비용그룹명|비용명|사용자|사용금액|회계반영여부|인쇄'&&!!tr&&tr.cells[5].innerText.trim()==='12,345'&&tr.cells[6].innerText.trim()==='확인(회계)'})()",
         "js:(async()=>(await window.__api('DELETE','/expenses/'+sessionStorage.getItem('exId'))).status)()"
       ]
     }
