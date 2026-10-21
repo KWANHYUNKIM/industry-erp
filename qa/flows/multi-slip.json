@@ -1,5 +1,5 @@
 {
-  "about": "그룹웨어 › 다목적관리 다목적 전표 넷(원본 2026-10-14 loginaa 실측 — plans/그룹웨어/E200276.md). 빈 저장 → 알림 표 '그리드(표)에 최소 1줄 이상 입력되어야 합니다.' → 신규(첫 코드 칸을 치고 Enter 면 이름이 채워짐) → 안내 없이 닫히고 목록 맨 위 '일자-순번' → 수정 → [진행상태변경 ▲ 완료] → [진행중] 에서 빠지고 [완료] 에만 → 수정 창 [삭제] '전표를 삭제하겠습니까? - <화면 이름>' → 빠짐. 영업 · 채권 · 월근태는 기본 기간이 전년이라 [Search(F3)] [금년] [검색(F8)] 로 본다. 채권 1,000 · 300 → 300.00 · 700.00 · 30.00(목록 '30'), 월근태 22 · 2 · 170 · 0 → 20 · 170 · 180 · -10 · -5.56 · 21.43 / 200 · 10 → 190 · 10 · 5.56 · 35.71. 영업 금액은 저절로 안 매김. node qa/shot.mjs qa/flows/multi-slip.json",
+  "about": "그룹웨어 › 다목적관리 다목적 전표 넷(원본 2026-10-14 loginaa 실측 — plans/그룹웨어/E200276.md). 빈 저장 → 알림 표 '그리드(표)에 최소 1줄 이상 입력되어야 합니다.' → 신규(첫 코드 칸을 치고 Enter 면 이름이 채워짐) → 안내 없이 닫히고 목록 맨 위 '일자-순번' → 수정 → [진행상태변경 ▲ 완료] → [진행중] 에서 빠지고 [완료] 에만 → 수정 창 [삭제] '전표를 삭제하겠습니까? - <화면 이름>' → 빠짐. 영업 · 채권 · 월근태는 기본 기간이 전년이라 [Search(F3)] [금년] [검색(F8)] 로 본다. 채권 1,000 · 300 → 300.00 · 700.00 · 30.00(목록 '30'), 월근태 22 · 2 · 170 · 0 → 20 · 170 · 180 · -10 · -5.56 · 21.43 / 200 · 10 → 190 · 10 · 5.56 · 35.71. 영업 금액은 저절로 안 매김. node qa/shot.mjs qa/flows/multi-slip.json 2026-10-21: 월근태 [이름] 은 원본 '사원검색' 창(사원번호 · 사원명 · 부서명) · 목록 '휴일근무 청구시간' 0 은 빈칸.",
   "shots": [
     {
       "name": "준비 — QA 부서 QAGW-H1 · 사원 QAGW-E1 (없으면 만든다, 끝에 지운다)",
@@ -198,6 +198,11 @@
         "expect:[...document.querySelectorAll('[role=dialog]')].some((x) => x.innerText.includes('그리드(표)에 최소 1줄 이상 입력되어야 합니다.') && x.innerText.includes('아래의 경우 처리가 불가능합니다.'))",
         "js:(() => { const a = [...document.querySelectorAll('[role=dialog]')].find((d) => d.innerText.includes('아래의 경우 처리가 불가능합니다.')); [...a.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); return true })()",
         "wait:300",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); d.querySelectorAll('tbody [aria-label=\"사원검색\"]')[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true })); return true })()",
+        "wait:400",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog]')].pop(); return m.innerText.startsWith('사원검색') && [...m.querySelectorAll('thead th')].map((t) => t.innerText.trim()).filter(Boolean).join('|') === '사원번호|사원명|부서명' && [...m.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QAGW-E1') && r.innerText.includes('QA그룹웨어-부서장시험')) })()",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog]')].pop(); [...m.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); return true })()",
+        "wait:300",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"부서검색\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"QAGW-H1\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "wait:300",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"사원검색\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"QAGW-E1\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
@@ -221,10 +226,12 @@
         "wait:600",
         "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('월근태입력(수정)')",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"휴가일수\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"1\"); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"청구한근무시간\"]')[0]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, \"0\"); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
         "expect:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('tbody [aria-label=\"근무일수\"]').value === '21'",
         "click:저장(F8)",
         "wait:1200",
         "expect:[...document.querySelector('#multi-slip-list tbody tr').cells].map((c) => c.innerText.trim())[5] === '1'",
+        "expect:[...document.querySelector('#multi-slip-list tbody tr').cells].map((c) => c.innerText.trim())[7] === ''",
         "js:document.querySelector('#multi-slip-list tbody tr').cells[0].click(); true",
         "click:진행상태변경",
         "js:[...document.querySelectorAll('[role=menuitem]')].find((b) => b.textContent.trim() === '완료').click(); true",

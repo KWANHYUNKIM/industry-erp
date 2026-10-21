@@ -21,7 +21,7 @@ import { exportTableToXlsx } from '../../utils/excel'
  */
 
 type Board = 'MULTI_INPUT' | 'SALES_CONTRACT' | 'BOND_COLLECT' | 'MONTHLY_ATTENDANCE'
-type Master = 'emp' | 'dept' | 'route' | 'partner' | 'partnerCode' | 'contract'
+type Master = 'emp' | 'staff' | 'dept' | 'route' | 'partner' | 'partnerCode' | 'contract'
 type Fields = Record<string, string>
 
 /** 입력 격자 한 칸. code 칸은 고르면 nameKey 칸에 이름을 채운다(돋보기 없음 — 치고 칸을 떠나면 채워짐). */
@@ -145,7 +145,7 @@ const BOARDS: Record<string, BoardCfg> = {
     cols: [
       { key: 'deptCode', head: '부서', width: 70, kind: 'code', master: 'dept', nameKey: 'deptName' },
       { key: 'deptName', head: '부서', width: 70, kind: 'name' },
-      { key: 'empCode', head: '이름', width: 60, kind: 'code', master: 'emp', nameKey: 'empName' },
+      { key: 'empCode', head: '이름', width: 60, kind: 'code', master: 'staff', nameKey: 'empName' },
       { key: 'empName', head: '이름', width: 60, kind: 'name' },
       { key: 'availDays', head: '근무가능일수', width: 80, kind: 'num' },
       { key: 'vacationDays', head: '휴가일수', width: 60, kind: 'num' },
@@ -171,7 +171,8 @@ const BOARDS: Record<string, BoardCfg> = {
       { head: '휴가일수', width: 85, cell: (f) => f.vacationDays ?? '', align: 'right' },
       // 원본 목록 '지각횟수' = 입력 [무단결근(횟수)](2026-10-14 실측: 지각 이전 1 · 이후 4 · 무단결근 3 → '3').
       { head: '지각횟수', width: 81, cell: (f) => f.absent ?? '', align: 'right' },
-      { head: '휴일근무 청구시간', width: 135, cell: (f) => f.claimedHours ?? '', align: 'right' },
+      // 원본은 청구한근무시간 0(처음 값) 을 목록에 빈칸으로 둔다(2026-10-20 저장 '… | 22 | 2 | | | …', 수정 5 → '5').
+      { head: '휴일근무 청구시간', width: 135, cell: (f) => (Number(f.claimedHours || 0) === 0 ? '' : f.claimedHours), align: 'right' },
       { head: '비고', width: 700, cell: (f) => f.note ?? '', pre: true },
     ],
   },
@@ -245,8 +246,10 @@ const CONTRACTS: CodeItem[] = [
   { value: '30', code: '30', name: '실패' },
   { value: '40', code: '40', name: '진행' },
 ]
-const MASTER_TITLE: Record<Master, [string, string, string]> = {
+const MASTER_TITLE: Record<Master, [string, string, string, string?]> = {
   emp: ['사원검색', '사원코드', '사원명'],
+  /** 월근태 [이름] — 원본은 인사 사원 '사원검색' 창(사원번호 · 사원명 · 부서명, 2026-10-20 loginaa 실측). */
+  staff: ['사원검색', '사원번호', '사원명', '부서명'],
   dept: ['부서검색', '부서코드', '부서명'],
   route: ['판매경로검색', '코드', '항목명'],
   partner: ['거래처검색', '사업자번호', '거래처명'],
@@ -272,7 +275,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   const [condOpen, setCondOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [stageMenu, setStageMenu] = useState(false)
-  const [masters, setMasters] = useState<Record<Master, CodeItem[]>>({ emp: [], dept: [], route: ROUTES, partner: [], partnerCode: [], contract: CONTRACTS })
+  const [masters, setMasters] = useState<Record<Master, CodeItem[]>>({ emp: [], staff: [], dept: [], route: ROUTES, partner: [], partnerCode: [], contract: CONTRACTS })
 
   // 입력 창
   const [open, setOpen] = useState(false)
@@ -298,8 +301,10 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   useEffect(() => { void load() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const need = new Set(cfg.cols.map((c) => c.master).filter(Boolean))
-    if (need.has('emp')) api.get<{ code: string; name: string }[]>('/employees')
-      .then((r) => setMasters((m) => ({ ...m, emp: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })) }))).catch(() => {})
+    if (need.has('emp') || need.has('staff')) api.get<{ code: string; name: string; department: string | null }[]>('/employees')
+      .then((r) => setMasters((m) => ({ ...m,
+        emp: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })),
+        staff: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name, sub: x.department ?? '' })) }))).catch(() => {})
     if (need.has('dept')) api.get<{ code: string; name: string }[]>('/departments')
       .then((r) => setMasters((m) => ({ ...m, dept: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })) }))).catch(() => {})
     if (need.has('partner') || need.has('partnerCode')) api.get<{ code: string; name: string; bizRegNo: string | null }[]>('/partners')
@@ -432,8 +437,8 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   function inputCell(i: number, c: InCol, l: Fields) {
     const v = l[c.key] ?? ''
     if (c.kind === 'code') {
-      const [title, codeHead, nameHead] = MASTER_TITLE[c.master!]
-      return <GridCode title={title} codeHead={codeHead} nameHead={nameHead} items={masters[c.master!]} value={v}
+      const [title, codeHead, nameHead, subHead] = MASTER_TITLE[c.master!]
+      return <GridCode title={title} codeHead={codeHead} nameHead={nameHead} subHead={subHead} items={masters[c.master!]} value={v}
                        showName={c.showName} onPick={(x) => pickCode(i, c, x)} />
     }
     if (c.kind === 'calc') return <input className="ec-input w-full text-right" aria-label={c.head} value={v} readOnly disabled />

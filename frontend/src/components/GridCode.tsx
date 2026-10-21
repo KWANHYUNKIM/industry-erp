@@ -18,8 +18,10 @@ export function ErrTip({ msg }: { msg: string }) {
  * F2 · 빈 칸 Enter 도 창을 연다. 이름은 옆 열이 그린다.
  * (회계 I 지출결의서 · 입금보고서 화면 안의 같은 칸을 공용으로 꺼낸 것이다.)
  */
-export default function GridCode({ title, codeHead, nameHead, items, value, onPick, err, showName = false }: {
+export default function GridCode({ title, codeHead, nameHead, subHead, items, value, onPick, err, showName = false }: {
   title: string; codeHead: string; nameHead: string; items: CodeItem[]
+  /** 창에 셋째 열(item.sub)을 더한다 — 원본 월근태 '사원검색' 창의 [부서명]. 없으면 두 열 그대로. */
+  subHead?: string
   value: string; onPick: (v: string) => void; err?: string | null
   /** 고른 뒤 칸에 코드 대신 이름을 보인다 — 원본 수표내역입력 줄의 [부서] '개발팀' · [프로젝트] '20210801A Project'(이름 열이 따로 없다). */
   showName?: boolean
@@ -58,7 +60,11 @@ export default function GridCode({ title, codeHead, nameHead, items, value, onPi
         label={nameHead.replace(/명$/, '')}
         title={title}
         items={items}
-        columns={[
+        columns={subHead ? [
+          { head: codeHead, width: 311, cell: (x) => x.code ?? '', link: true },
+          { head: nameHead, width: 311, cell: (x) => x.name, link: true },
+          { head: subHead, width: 310, cell: (x) => x.sub ?? '' },
+        ] : [
           { head: codeHead, width: 466, cell: (x) => x.code ?? '', link: true },
           { head: nameHead, width: 466, cell: (x) => x.name, link: true },
         ]}
