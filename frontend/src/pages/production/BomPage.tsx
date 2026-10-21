@@ -1,21 +1,43 @@
-import { useEffect, useMemo, useState, type FormEvent, useRef} from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Bom, Item } from '../../types/api'
+import type { Bom, BomLine, Item } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import GridCode from '../../components/GridCode'
+import GridFindButton from '../../components/GridFindButton'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
-const inputCls = 'ec-input'
+/** 원본 BOM등록 창이 더 보내 주는 값 — 생산수량 · 생산공정, 줄의 입력수량(생산수량 기준) · 생산공정 · 위치 · 적요(V427). */
+type BomLineX = BomLine & {
+  componentSpec: string | null; inputQty: number | null; processId: number | null; processName: string | null
+  location: string | null; remark: string | null
+}
+type BomX = Omit<Bom, 'lines'> & { lines: BomLineX[]; produceQty: number | null; processId: number | null; processName: string | null }
+interface Proc { id: number; code: string; name: string; active: boolean }
 
-interface LineInput { componentId: string; quantity: string }
-const emptyLine = (): LineInput => ({ componentId: '', quantity: '' })
-/** 원본 BOM(소요량)조회 탭 — 우리 품목 구분에 있는 것만(세트 · 다공정품목은 없다). */
-const CAT_TABS: { label: string; v: string | null }[] = [
-  { label: '전체', v: null }, { label: '제품', v: 'FINISHED' }, { label: '반제품', v: 'SEMI_FINISHED' },
-  { label: '원재료', v: 'RAW_MATERIAL' }, { label: '부재료', v: 'SUB_MATERIAL' },
+interface LineInput { key: number; componentId: string; quantity: string; processId: string; location: string; remark: string }
+let lineKey = 0
+const emptyLine = (): LineInput => ({ key: ++lineKey, componentId: '', quantity: '', processId: '', location: '', remark: '' })
+/** 원본 격자는 빈 줄을 늘 몇 줄 더 둔다(새 창 3줄 · 자재 2줄짜리 수정 창 5줄, 2026-10-21 실측). */
+const withBlanks = (ls: LineInput[]) => {
+  const filled = ls.filter((l) => l.componentId)
+  return [...filled, ...Array.from({ length: 3 }, emptyLine)]
+}
+const num = (v: number | null | undefined) => (v == null ? '' : String(Number(v)))
+
+/** 원본 BOM(소요량)조회 탭(2026-10-21 실측 전체 · 제품 · 반제품 · 세트 · 원재료 · 부재료 · 다공정품목). 다공정품목은 우리 품목에 없다. */
+const CAT_TABS: { label: string; test: ((it: Item) => boolean) | null }[] = [
+  { label: '전체', test: null },
+  { label: '제품', test: (it) => it.category === 'FINISHED' },
+  { label: '반제품', test: (it) => it.category === 'SEMI_FINISHED' },
+  { label: '세트', test: (it) => it.setItem },
+  { label: '원재료', test: (it) => it.category === 'RAW_MATERIAL' },
+  { label: '부재료', test: (it) => it.category === 'SUB_MATERIAL' },
 ]
+/** 원본 [BOM등록] 칸은 제품 · 반제품(· 세트)에만 선다 — 원재료 A004 줄은 비어 있다(실측). */
+const canHaveBom = (it: Item) => it.category === 'FINISHED' || it.category === 'SEMI_FINISHED' || it.setItem
 
 /** 원본 BOM 정전개·역전개 한 줄. */
 interface TreeRow {
@@ -23,13 +45,30 @@ interface TreeRow {
   qty: number; totalQty: number; versionName: string | null; hasChildren: boolean
 }
 
+/** 원본 목록 칸의 [조회 ▾] 같은 작은 펼침 단추. */
+function MenuButton({ label, items }: { label: string; items: { label: string; run: () => void }[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="relative inline-block" onMouseLeave={() => setOpen(false)}>
+      <button type="button" className="ec-btn ec-btn-sm" onClick={() => setOpen((v) => !v)}>{label} ▾</button>
+      {open && (
+        <span className="absolute right-0 top-full z-20 flex flex-col min-w-[96px] bg-white border border-ec-line rounded-ec py-[3px] text-left">
+          {items.map((m) => (
+            <button key={m.label} type="button" className="no-ec ec-link px-[9px] py-[3px] text-left text-[12px] whitespace-nowrap"
+                    onClick={() => { setOpen(false); m.run() }}>{m.label}</button>
+          ))}
+        </span>
+      )}
+    </span>
+  )
+}
+
 export default function BomPage() {
-  const [boms, setBoms] = useState<Bom[]>([])
+  const [boms, setBoms] = useState<BomX[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [procs, setProcs] = useState<Proc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 22회차). */
-  const [ok, setOk] = useState('')
   /**
    * 원본 BOM(소요량)조회 [조회] → <b>정전개 · 역전개 · 원재료리스트</b>.
    * 정전개는 제품에서 아래로 들여쓴 줄(반제품은 각자의 기본 BOM), 역전개는 이 품목을 쓰는 제품들을 위로,
@@ -37,22 +76,22 @@ export default function BomPage() {
    */
   const [tree, setTree] = useState<{ title: string; kind: 'F' | 'R' | 'L'; rows: TreeRow[] } | null>(null)
   const [folded, setFolded] = useState<Set<number>>(new Set())
-  async function openTree(b: Bom, kind: 'F' | 'R' | 'L') {
+  async function openTree(it: Item, b: BomX | null, kind: 'F' | 'R' | 'L') {
     setError('')
     try {
       let rows: TreeRow[]
-      if (kind === 'F') {
+      if (kind === 'F' && b) {
         rows = (await api.get<TreeRow[]>('/boms/tree', { params: { productId: b.productId, bomId: b.id } })).data
       } else if (kind === 'R') {
-        rows = (await api.get<TreeRow[]>('/boms/where-used', { params: { itemId: b.productId } })).data
-      } else {
+        rows = (await api.get<TreeRow[]>('/boms/where-used', { params: { itemId: it.id } })).data
+      } else if (b) {
         const r = await api.get<{ componentId: number; componentCode: string; componentName: string; componentSpec: string | null; unit: string; quantity: number }[]>(
           '/productions/bom-preview', { params: { productId: b.productId, qty: 1, level: 'ALL', bomId: b.id } })
         rows = r.data.map((m) => ({ level: 1, itemId: m.componentId, itemCode: m.componentCode, itemName: m.componentName,
           spec: m.componentSpec, unit: m.unit, qty: m.quantity, totalQty: m.quantity, versionName: null, hasChildren: false }))
-      }
+      } else return
       setFolded(new Set())
-      setTree({ title: `${kind === 'F' ? '정전개' : kind === 'R' ? '역전개' : '원재료리스트'} — ${b.productCode} ${b.productName} [${b.versionName}]`, kind, rows })
+      setTree({ title: `${kind === 'F' ? '정전개' : kind === 'R' ? '역전개' : '원재료리스트'} — ${it.code} ${it.name}${b ? ` [${b.versionName}]` : ''}`, kind, rows })
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -68,20 +107,40 @@ export default function BomPage() {
     })
     return out
   }
+
+  /* ── 원본 'BOM등록' / 'BOM수정' 창(2026-10-21 실측) ── */
   const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<BomX | null>(null)
   const [productId, setProductId] = useState('')
+  const [processId, setProcessId] = useState('')
   const [remark, setRemark] = useState('')
-  /** 원본 [BOM버전] — 같은 제품·같은 이름이면 그 버전을 고친다. 비우면 '기본'. */
   const [versionName, setVersionName] = useState('기본')
   const [makeDefault, setMakeDefault] = useState(false)
-  const [lines, setLines] = useState<LineInput[]>([emptyLine()])
+  const [produceQty, setProduceQty] = useState('1')
+  const [lines, setLines] = useState<LineInput[]>(withBlanks([]))
+  /** 원본은 빈 칸을 글 없이 빨간 테두리 + 그 칸에 커서로만 알린다 — 생산수량 · 줄의 품목코드 · 수량. */
+  const [bad, setBad] = useState<{ produceQty?: boolean; code?: number; qty?: number }>({})
+  const [stopMenu, setStopMenu] = useState(false)
+  const gridRef = useRef<HTMLTableElement>(null)
+  const formRef = useRef<HTMLDivElement>(null)
+  /* 원본처럼 빨간 칸으로 커서를 옮긴다. */
+  useEffect(() => {
+    if (bad.produceQty == null && bad.code == null && bad.qty == null) return
+    formRef.current?.querySelector<HTMLInputElement>('.ec-invalid input')?.focus()
+  }, [bad])
+
+  /* 원본 [다중버전] → '품목별BOM(소요량)조회' 창: 버전 목록 · [사용중단포함] · 신규(F2) · 닫기. */
+  const [versionsOf, setVersionsOf] = useState<Item | null>(null)
+  const [withStopped, setWithStopped] = useState(false)
 
   async function load() {
     setLoading(true)
     try {
-      const [b, i] = await Promise.all([api.get<Bom[]>('/boms', { params: { versions: 'all' } }), api.get<Item[]>('/items')])
+      const [b, i, p] = await Promise.all([api.get<BomX[]>('/boms', { params: { versions: 'all' } }), api.get<Item[]>('/items'),
+        api.get<Proc[]>('/processes')])
       setBoms(b.data)
       setItems(i.data)
+      setProcs(p.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -93,45 +152,70 @@ export default function BomPage() {
     load()
   }, [])
 
-  function openNew() {
-    setProductId('')
+  const versionsFor = (pid: number) => boms.filter((b) => b.productId === pid).sort((a, b) => a.id - b.id)
+
+  function openNew(it: Item) {
+    const vs = versionsFor(it.id)
+    setEditing(null)
+    setProductId(String(it.id))
+    setProcessId('')
     setRemark('')
-    setVersionName('기본')
-    setMakeDefault(false)
-    setLines([emptyLine()])
+    // 원본: 첫 BOM 은 '기본', 다음 버전은 번호(D-FX-0260 의 둘째 버전 '2').
+    setVersionName(vs.length === 0 ? '기본' : String(vs.length + 1))
+    setMakeDefault(vs.length === 0)
+    setProduceQty('1')
+    setLines(withBlanks([]))
+    setBad({}); setError(''); setStopMenu(false)
     setShowForm(true)
   }
 
-  function openNewFor(itemId: number) {
-    openNew()
-    setProductId(String(itemId))
-  }
-
-  function editBom(b: Bom) {
+  function editBom(b: BomX) {
+    setEditing(b)
     setProductId(String(b.productId))
+    setProcessId(b.processId ? String(b.processId) : '')
     setRemark(b.remark ?? '')
     setVersionName(b.versionName ?? '기본')
     setMakeDefault(b.defaultVersion)
-    setLines(b.lines.map((l) => ({ componentId: String(l.componentId), quantity: String(l.quantity) })))
+    setProduceQty(num(b.produceQty ?? 1))
+    setLines(withBlanks(b.lines.map((l) => ({ key: ++lineKey, componentId: String(l.componentId),
+      quantity: num(l.inputQty ?? l.quantity), processId: l.processId ? String(l.processId) : '', location: l.location ?? '', remark: l.remark ?? '' }))))
+    setBad({}); setError(''); setStopMenu(false)
     setShowForm(true)
   }
 
-  function updateLine(idx: number, field: keyof LineInput, value: string) {
-    setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l)))
+  /** 원본 [BOM등록 ▾] 기본버전 — 기본 BOM 이 있으면 그 수정 창, 없으면 새 창. */
+  function openDefault(it: Item) {
+    const vs = versionsFor(it.id)
+    const b = vs.find((v) => v.defaultVersion) ?? vs[0]
+    if (b) editBom(b); else openNew(it)
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setError(''); setOk('')
-    const validLines = lines
-      .filter((l) => l.componentId && Number(l.quantity) > 0)
-      .map((l) => ({ componentId: Number(l.componentId), quantity: Number(l.quantity) }))
-    if (!productId) return setError('제품을 선택하세요.')
-    if (validLines.length === 0) return setError('자재를 1개 이상 입력하세요.')
+  function updateLine(idx: number, patch: Partial<LineInput>) {
+    setLines((ls) => {
+      const next = ls.map((l, i) => (i === idx ? { ...l, ...patch } : l))
+      // 끝 줄에 품목을 넣으면 빈 줄을 하나 더(원본 격자처럼 늘 빈 줄이 남는다).
+      if (patch.componentId && idx === ls.length - 1) next.push(emptyLine())
+      return next
+    })
+    setBad({})
+  }
+
+  async function submit() {
+    setError('')
+    const pq = Number(produceQty)
+    if (!produceQty.trim() || !(pq > 0)) { setBad({ produceQty: true }); return }
+    const filled = lines.map((l, i) => ({ l, i })).filter(({ l }) => l.componentId)
+    if (filled.length === 0) { setBad({ code: 0 }); return }
+    const noQty = filled.find(({ l }) => !(Number(l.quantity) > 0))
+    if (noQty) { setBad({ qty: noQty.i }); return }
     try {
-      const res = await api.post<{ productCode: string; productName: string }>('/boms', { productId: Number(productId), remark: remark || undefined, lines: validLines,
-        versionName: versionName.trim() || '기본', defaultVersion: makeDefault })
-      setOk(`[${res.data.productCode}] ${res.data.productName} BOM 저장 — 자재 ${validLines.length}종`)
+      await api.post('/boms', {
+        productId: Number(productId), remark: remark || undefined, versionName: versionName.trim() || '기본', defaultVersion: makeDefault,
+        produceQty: pq, processId: processId ? Number(processId) : null,
+        lines: filled.map(({ l }) => ({ componentId: Number(l.componentId), quantity: Number(l.quantity),
+          processId: l.processId ? Number(l.processId) : null, location: l.location || null, remark: l.remark || null })),
+      })
+      // 원본: 저장하면 말 없이 창이 닫히고 목록 [원재료갯수] 가 바뀐다.
       setShowForm(false)
       load()
     } catch (err) {
@@ -139,10 +223,23 @@ export default function BomPage() {
     }
   }
 
-  async function remove(b: Bom) {
-    if (!(await ecConfirm(`'${b.productName}' BOM을 삭제할까요?`))) return
+  async function setActive(b: BomX, active: boolean) {
+    setStopMenu(false)
+    try {
+      await api.patch(`/boms/${b.id}/active`, null, { params: { active } })
+      setShowForm(false)
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  async function remove(b: BomX) {
+    setStopMenu(false)
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     try {
       await api.delete(`/boms/${b.id}`)
+      setShowForm(false)
       load()
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
@@ -153,17 +250,20 @@ export default function BomPage() {
   const itemCodes = items.filter((it) => it.active !== false || String(it.id) === productId
       || lines.some((l) => l.componentId === String(it.id)))
     .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))
-
+  const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
+  const procCodes = procs.filter((p) => p.active || String(p.id) === processId || lines.some((l) => l.processId === String(p.id)))
+    .map((p) => ({ value: String(p.id), code: p.code, name: p.name }))
+  const product = itemById.get(productId)
 
   /* 품목 한 줄 — 기본 BOM(없으면 첫 버전)을 붙인다. BOM 있는 품목이 먼저, 그다음 품목코드 차례(원본 실측). */
   const [catTab, setCatTab] = useState<string>('전체')
   const itemRows = useMemo(() => {
-    const bomOf = new Map<number, Bom>()
+    const bomOf = new Map<number, BomX>()
     for (const b of boms) if (!bomOf.has(b.productId) || b.defaultVersion) bomOf.set(b.productId, b)
-    const cat = CAT_TABS.find((t) => t.label === catTab)?.v
+    const test = CAT_TABS.find((t) => t.label === catTab)?.test
     return items
       .filter((it) => it.active !== false)
-      .filter((it) => !cat || it.category === cat)
+      .filter((it) => !test || test(it))
       .map((it) => ({ it, bom: bomOf.get(it.id) ?? null }))
       .sort((a, b) => (a.bom ? 0 : 1) - (b.bom ? 0 : 1) || a.it.code.localeCompare(b.it.code))
   }, [items, boms, catTab])
@@ -172,88 +272,176 @@ export default function BomPage() {
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, 'BOM(소요량)조회', [itemRows.length])
 
+  const versionRows = versionsOf ? versionsFor(versionsOf.id).filter((b) => withStopped || b.active) : []
+
   return (
     <EcListShell
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="BOM(소요량)조회"
-      onNew={showForm ? () => setShowForm(false) : openNew}
       actions={[{ label: 'Excel' }]}
     >
-      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
-      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
+      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <Modal error={error} open={showForm} title="BOM(자재명세서) 등록" onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">BOM 등록 / 수정</div>
-          <table className="w-full text-left mb-[10px] max-w-[720px]">
+      <Modal error={error} open={showForm} width={980} title={editing ? 'BOM수정' : 'BOM등록'} onClose={() => setShowForm(false)}>
+        <div ref={formRef}>
+        <div className="ec-form mb-[8px]">
+          <table className="w-full text-left">
             <tbody>
               <tr>
-                <th className="bg-ec-page font-bold w-[120px]">제품(생산 대상) *</th>
+                <th className="w-[110px]">생산품목</th>
+                <td><input className="ec-input w-full" readOnly value={product ? `${product.code} ${product.name}${product.spec ? ` [${product.spec}]` : ''}` : ''} aria-label="생산품목" /></td>
+                <th className="w-[110px]">생산공정</th>
                 <td>
-                  {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
-                  <CodePickerField label="제품" hideLabel width={240} placeholder="제품" emptyLabel="선택 해제"
-                                   value={productId} onChange={setProductId} items={itemCodes} />
+                  <CodePickerField label="생산공정" hideLabel fill placeholder="생산공정" emptyLabel="선택 해제"
+                                   value={processId} onChange={setProcessId} items={procCodes} />
                 </td>
-                <th className="bg-ec-page font-bold w-[60px]">비고</th>
-                <td><input className={inputCls} value={remark} onChange={(e) => setRemark(e.target.value)} style={{ minWidth: 200 }} /></td>
               </tr>
               <tr>
-                {/* 원본 품목별BOM조회 [BOM버전] · [기본BOM]. 같은 이름이면 그 버전을 고치고, 새 이름이면 버전이 하나 는다. */}
-                <th className="bg-ec-page font-bold">BOM버전</th>
-                <td><input className={inputCls} value={versionName} onChange={(e) => setVersionName(e.target.value)} style={{ width: 160 }} /></td>
-                <th className="bg-ec-page font-bold">기본BOM</th>
+                <th>BOM버전</th>
                 <td>
-                  <label className="flex items-center gap-[4px] text-[12.5px]">
-                    <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} />
-                    이 버전을 기본으로(생산·불출·원가가 버전을 안 고르면 기본을 쓴다)
-                  </label>
+                  <span className="flex items-center gap-[6px]">
+                    {/* 같은 제품 · 같은 이름이면 그 버전을 고친다 — 수정 창에서는 이름을 못 바꾼다(바꾸면 새 버전이 된다). */}
+                    <input className="ec-input w-[200px]" aria-label="BOM버전" value={versionName} readOnly={!!editing}
+                           onChange={(e) => setVersionName(e.target.value)} />
+                    <label className="flex items-center gap-[3px] text-[12px]">
+                      <input type="checkbox" checked={makeDefault} disabled={editing?.defaultVersion}
+                             onChange={(e) => setMakeDefault(e.target.checked)} />기본
+                    </label>
+                  </span>
+                </td>
+                <th>생산수량</th>
+                <td>
+                  <span className={`block${bad.produceQty ? ' ec-invalid' : ''}`}>
+                    <input className="ec-input w-full text-right" aria-label="생산수량" inputMode="decimal" value={produceQty}
+                           onChange={(e) => { setProduceQty(e.target.value); setBad({}) }} />
+                  </span>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
 
-          <div className="text-[12.5px] font-bold text-ec-label mt-[6px] mx-0 mb-[4px]">구성 자재 (제품 1단위당 소요량)</div>
-          <table ref={tableRef} className="w-full text-left max-w-[720px]">
+        <div className="flex gap-[4px] mb-[4px]">
+          <GridFindButton tableRef={gridRef} />
+          <button type="button" className="ec-btn ec-btn-sm"
+                  onClick={() => setLines((ls) => withBlanks([...ls].sort((a, b) =>
+                    (itemById.get(a.componentId)?.code ?? '').localeCompare(itemById.get(b.componentId)?.code ?? ''))))}>정렬</button>
+        </div>
+        <div className="max-h-[50vh] overflow-y-auto">
+          <table ref={gridRef} className="w-full text-left">
             <thead>
-              <tr><th>자재</th><th className="w-[150px] text-right">소요량</th><th className="w-[40px]"></th></tr>
+              <tr>
+                <th className="w-[32px] text-center"></th>
+                <th className="w-[130px]">품목코드</th>
+                <th>품목명</th>
+                <th className="w-[100px]">규격명</th>
+                <th className="w-[50px]">단위</th>
+                <th className="w-[90px] text-right">수량</th>
+                <th className="w-[130px]">생산공정</th>
+                <th className="w-[90px]">위치</th>
+                <th className="w-[120px]">적요</th>
+              </tr>
             </thead>
             <tbody>
-              {lines.map((l, idx) => (
-                <tr key={idx}>
-                  <td>
-                    <CodePickerField label="자재" hideLabel fill placeholder="자재" emptyLabel="선택 해제"
-                                     value={l.componentId} onChange={(v) => updateLine(idx, 'componentId', v)}
-                                     items={itemCodes.filter((c) => c.value !== productId)} />
-                  </td>
-                  <td><input type="number" step="any" className={inputCls} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></td>
-                  <td className="text-center">
-                    <button type="button" onClick={() => setLines((ls) => ls.length === 1 ? ls : ls.filter((_, i) => i !== idx))} className="no-ec" style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}>✕</button>
-                  </td>
-                </tr>
-              ))}
+              {lines.map((l, idx) => {
+                const c = itemById.get(l.componentId)
+                return (
+                  <tr key={l.key}>
+                    <td className="text-center">{idx + 1}</td>
+                    <td className={bad.code === idx ? 'ec-invalid' : undefined}>
+                      <GridCode title="품목" codeHead="품목코드" nameHead="품목명"
+                                items={itemCodes.filter((x) => x.value !== productId)}
+                                value={l.componentId} onPick={(v) => updateLine(idx, { componentId: v })} />
+                    </td>
+                    <td>{c?.name ?? ''}</td>
+                    <td>{c?.spec ?? ''}</td>
+                    <td>{c?.unit ?? ''}</td>
+                    <td className={bad.qty === idx ? 'ec-invalid' : undefined}>
+                      <input className="ec-input w-full text-right" aria-label="수량" inputMode="decimal" value={l.quantity} onChange={(e) => updateLine(idx, { quantity: e.target.value })} />
+                    </td>
+                    <td>
+                      <CodePickerField label="생산공정" hideLabel fill placeholder="" emptyLabel="선택 해제"
+                                       value={l.processId} onChange={(v) => updateLine(idx, { processId: v })} items={procCodes} />
+                    </td>
+                    <td><input className="ec-input w-full" aria-label="위치" value={l.location} onChange={(e) => updateLine(idx, { location: e.target.value })} /></td>
+                    <td><input className="ec-input w-full" aria-label="적요" value={l.remark} onChange={(e) => updateLine(idx, { remark: e.target.value })} /></td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
-          <button type="button" onClick={() => setLines((ls) => [...ls, emptyLine()])} className="ec-btn" style={{ marginTop: 6 }}>+ 자재 추가</button>
+        </div>
 
-          <div className="mt-[12px] flex justify-end">
-            <button type="submit" className="ec-btn ec-btn-primary">저장</button>
-          </div>
-        </form>
-      )}</Modal>
+        {/* 원본 아래 줄: 저장(F8) · 전체단계보기 · (수정 창만) 사용중단/재사용 ▲ › 사용중단|재사용 · 삭제 · Excel · 닫기 */}
+        <div className="mt-[10px] flex gap-[4px] items-center">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
+          {editing && (
+            <span className="relative inline-block">
+              <button type="button" className="ec-btn" onClick={() => setStopMenu((v) => !v)}>사용중단/재사용 ▲</button>
+              {stopMenu && (
+                <span className="absolute left-0 bottom-full z-20 flex flex-col min-w-[110px] bg-white border border-ec-line rounded-ec py-[3px]">
+                  <button type="button" className="no-ec ec-link px-[9px] py-[3px] text-left text-[12px]"
+                          onClick={() => void setActive(editing, !editing.active)}>{editing.active ? '사용중단' : '재사용'}</button>
+                  <button type="button" className="no-ec ec-link px-[9px] py-[3px] text-left text-[12px]"
+                          onClick={() => void remove(editing)}>삭제</button>
+                </span>
+              )}
+            </span>
+          )}
+          <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+        </div>
+        </div>
+      </Modal>
+
+      <Modal open={versionsOf != null && !showForm} width={760} title="품목별BOM(소요량)조회" onClose={() => setVersionsOf(null)}>
+        {versionsOf && (
+          <>
+            <div className="flex justify-end mb-[6px]">
+              <button type="button" className={`ec-btn ec-btn-sm${withStopped ? ' ec-btn-primary' : ''}`}
+                      onClick={() => setWithStopped((v) => !v)}>사용중단포함</button>
+            </div>
+            <table className="w-full text-left">
+              <thead>
+                <tr>
+                  <th className="w-[70px]">BOM번호</th><th className="w-[90px]">BOM버전</th><th className="w-[110px]">품목코드</th>
+                  <th>품목명[규격]</th><th className="w-[70px] text-right">원재료 수</th><th className="w-[70px] text-center">기타</th>
+                  <th className="w-[70px] text-center">기본BOM</th>
+                </tr>
+              </thead>
+              <tbody>
+                {versionRows.length === 0 ? (
+                  <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                ) : versionRows.map((b) => (
+                  <tr key={b.id}>
+                    <td><button type="button" className="no-ec ec-link" onClick={() => editBom(b)}>{versionsFor(b.productId).indexOf(b) + 1}</button></td>
+                    <td>{b.versionName}</td>
+                    <td>{versionsOf.code}</td>
+                    <td>{versionsOf.name}{versionsOf.spec ? ` [${versionsOf.spec}]` : ''}</td>
+                    <td className="text-right">{b.lines.length}</td>
+                    <td className="text-center"><button type="button" className="no-ec ec-link" onClick={() => void openTree(versionsOf, b, 'F')}>조회</button></td>
+                    <td className="text-center">{b.defaultVersion ? '기본' : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-[10px] flex gap-[4px]">
+              <button type="button" className="ec-btn ec-btn-primary" onClick={() => openNew(versionsOf)}>신규(F2)</button>
+              <button type="button" className="ec-btn" onClick={() => setVersionsOf(null)}>닫기</button>
+            </div>
+          </>
+        )}
+      </Modal>
 
       {/*
-        원본 <b>BOM(소요량)조회</b>(E040401, 2026-10-03 실측)는 <b>품목 한 줄</b>이다 — BOM 이 있든 없든 품목이 다 서고,
+        원본 <b>BOM(소요량)조회</b>(E040401, 2026-10-21 실측)는 <b>품목 한 줄</b>이다 — BOM 이 있든 없든 품목이 다 서고,
         위 탭 전체 · 제품 · 반제품 · 세트 · 원재료 · 부재료 · 다공정품목으로 가른다. 열은 품목코드 · 품목명[규격] · 생산공정명 ·
-        원재료갯수 · 파일관리 · BOM등록 · 조회. BOM 이 있는 품목이 먼저 선다. 세트 · 다공정품목은 우리 품목 구분에 없고
-        파일관리는 품목에 파일을 붙이지 않아 그 탭 · 열을 두지 않았다. 원재료갯수는 기본 BOM 의 자재 줄 수다.
+        원재료갯수 · 파일관리 · BOM등록 · 조회. [BOM등록] 은 제품 · 반제품에만 서고 [조회 ▾] 기본버전 · 다중버전,
+        [조회] 는 BOM 있는 품목이면 정전개 · 역전개 · 원재료리스트, 없으면 역전개만. 다공정품목 · 파일관리는 우리 품목에 없다.
       */}
-      <div className="flex gap-[2px] mt-[12px] mx-0 mb-[8px]">
+      <div className="ec-pills mt-[12px] mb-[8px]">
         {CAT_TABS.map((t) => (
-          <button key={t.label} onClick={() => setCatTab(t.label)} className="no-ec" style={{
-            padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: catTab === t.label ? 'var(--ec-blue)' : '#fff', color: catTab === t.label ? '#fff' : 'var(--ec-text)', fontWeight: catTab === t.label ? 700 : 400,
-          }}>{t.label}</button>
+          <button key={t.label} type="button" onClick={() => setCatTab(t.label)} className={`ec-pill${catTab === t.label ? ' active' : ''}`}>{t.label}</button>
         ))}
       </div>
       <table ref={tableRef} className="w-full text-left">
@@ -263,8 +451,8 @@ export default function BomPage() {
             <th>품목명[규격]</th>
             <th className="w-[110px]">생산공정명</th>
             <th className="w-[90px] text-right">원재료갯수</th>
-            <th className="w-[80px] text-center">BOM등록</th>
-            <th className="w-[260px] text-center">조회</th>
+            <th className="w-[90px] text-center">BOM등록</th>
+            <th className="w-[90px] text-center">조회</th>
           </tr>
         </thead>
         <tbody>
@@ -276,18 +464,22 @@ export default function BomPage() {
             <tr key={it.id}>
               <td>{it.code}</td>
               <td>{it.name}{it.spec ? ` [${it.spec}]` : ''}</td>
-              <td>{(it as { processName?: string | null }).processName ?? ''}</td>
+              <td>{bom?.processName ?? (it as { processName?: string | null }).processName ?? ''}</td>
               <td className="text-right">{bom ? bom.lines.length.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
               <td className="text-center">
-                <button onClick={() => (bom ? editBom(bom) : openNewFor(it.id))} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>{bom ? '수정' : '등록'}</button>
+                {canHaveBom(it) || bom ? (
+                  <MenuButton label="조회" items={[
+                    { label: '기본버전', run: () => openDefault(it) },
+                    { label: '다중버전', run: () => { setWithStopped(false); setVersionsOf(it) } },
+                  ]} />
+                ) : null}
               </td>
               <td className="text-center whitespace-nowrap">
-                {bom ? (<>
-                  <button onClick={() => void openTree(bom, 'F')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>정전개</button>
-                  <button onClick={() => void openTree(bom, 'R')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>역전개</button>
-                  <button onClick={() => void openTree(bom, 'L')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>원재료리스트</button>
-                  <button onClick={() => remove(bom)} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-                </>) : null}
+                <MenuButton label="조회" items={bom ? [
+                  { label: '정전개', run: () => void openTree(it, bom, 'F') },
+                  { label: '역전개', run: () => void openTree(it, bom, 'R') },
+                  { label: '원재료리스트', run: () => void openTree(it, bom, 'L') },
+                ] : [{ label: '역전개', run: () => void openTree(it, null, 'R') }]} />
               </td>
             </tr>
           ))}
@@ -321,7 +513,7 @@ export default function BomPage() {
                     <tr key={i}>
                       <td style={{ paddingLeft: 8 + r.level * 18 }}>
                         {r.hasChildren && r.level > 0 && tree.kind !== 'L' ? (
-                          <button type="button" className="no-ec" style={{ border: 0, background: 'none', cursor: 'pointer', width: 14, padding: 0 }}
+                          <button type="button" className="no-ec inline-block w-[14px] p-0"
                                   onClick={() => setFolded((f) => { const n = new Set(f); if (n.has(i)) n.delete(i); else n.add(i); return n })}>
                             {folded.has(i) ? '+' : '−'}
                           </button>

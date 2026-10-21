@@ -710,8 +710,8 @@
   "palette": 0
  },
  "pages/production/BomPage.tsx": {
-  "inline": 14,
-  "color": 4,
+  "inline": 1,
+  "color": 0,
   "palette": 0
  },
  "pages/production/BomStatusPage.tsx": {
