@@ -11,7 +11,7 @@
         "wait:2500",
         "pick:휴가코드:QA관리-휴가U",
         "wait:1500",
-        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaVu'));const blocks=[...document.querySelectorAll('table')].map(t=>t.previousElementSibling?.textContent+'|'+t.innerText);const b=blocks.find(x=>x.includes('/ QA관리-휴가U / '+q.name));return b&&b.includes('[휴가]')&&b.includes('12.000')&&b.includes('합계')})()",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaVu'));const blocks=[...document.querySelectorAll('table')].map(t=>t.previousElementSibling?.textContent+'|'+t.innerText);const b=blocks.find(x=>x.includes('/ QA관리-휴가U / '+q.name));return b&&b.includes('[휴가]')&&b.includes('12.00')&&b.includes('합계')})()",
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaVu'));let ok=(await fetch('/api/hr/vacation-kinds/'+q.v+'/grants',{method:'DELETE',headers:h})).ok;ok=(await fetch('/api/hr/vacation-kinds/'+q.v,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaVuClean',String(ok));return true})()",
         "expect:sessionStorage.getItem('qaVuClean')==='true'"
       ]

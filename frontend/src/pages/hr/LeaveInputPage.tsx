@@ -27,15 +27,18 @@ import { ecConfirm } from '../../components/EcDialog'
  *
  * <p>원본처럼 <b>여러 줄을 한 번에</b> 넣는다. 한 줄씩 저장하게 하면 월초에 열 명 연차를
  * 넣을 때 열 번 저장해야 한다.
+ *
+ * <p><b>사원 기준</b>(2026-10-21) — 원본 [사원] 칸은 사원등록의 사원 코드도움이다. 예전엔 로그인 계정을 골라
+ * 계정이 없는 사원은 근태를 넣을 수 없었다. 원본 격자는 근태일자 하나(종료일자 없음) · 사원 · 근태 · 휴가 · 근태(일/시간)이고,
+ * 결재 없이 저장하면 곧바로 근태현황 · 휴가잔여에 잡힌다 — 그래서 승인(확인)으로 넣는다.
  */
-interface UserRow { id: number; name: string; department: string | null; employeeId: number | null }
 interface CommuteKind { id: number; code: string; name: string; type: string; active: boolean }
 interface ReflectLine { workDate: string; employeeId: number; employeeName: string; kindId: number; kindName: string; amount: number; note: string | null }
 const monthStart = () => { const d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), 1)) }
 
 interface LineInput {
   key: number
-  userId: string
+  employeeId: string
   type: string
   startDate: string
   endDate: string
@@ -50,13 +53,14 @@ const ANNUAL_TYPES = ['연차', '반차']
 
 let nextKey = 1
 const emptyLine = (date: string): LineInput => ({
-  key: nextKey++, userId: '', type: '연차', startDate: date, endDate: date, days: '1', reason: '',
+  key: nextKey++, employeeId: '', type: '연차', startDate: date, endDate: date, days: '1', reason: '',
 })
 
 export default function LeaveInputPage() {
   /** 원본 [리스트] — 넣은 근태를 보러 근태조회로 간다. */
   const navigate = useNavigate()
-  const [users, setUsers] = useState<UserRow[]>([])
+  /** 원본 [사원] 코드도움 — 사원등록의 재직 사원 */
+  const [users, setUsers] = useState<EmployeeMaster[]>([])
   const [baseDate, setBaseDate] = useState(ymd(new Date()))
   const [lines, setLines] = useState<LineInput[]>([])
   const [error, setError] = useState('')
@@ -67,7 +71,7 @@ export default function LeaveInputPage() {
   const [kindVacation, setKindVacation] = useState<Record<string, { name: string; from: string; to: string } | null>>({})
 
   useEffect(() => {
-    api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {})
+    api.get<EmployeeMaster[]>('/employees/all').then((r) => setUsers(r.data.filter((e) => e.active))).catch(() => {})
     Promise.all([
       api.get<{ name: string; active: boolean; vacationKindId: number | null }[]>('/hr/attendance-kinds'),
       api.get<{ id: number; name: string; periodFrom: string; periodTo: string }[]>('/hr/vacation-kinds'),
@@ -88,7 +92,7 @@ export default function LeaveInputPage() {
   /** 근태일자를 바꾸면 아직 손대지 않은 줄의 일자도 따라간다 — 대개 같은 날을 넣는다. */
   function changeBaseDate(v: string) {
     setBaseDate(v)
-    setLines((prev) => prev.map((l) => (l.userId ? l : { ...l, startDate: v, endDate: v })))
+    setLines((prev) => prev.map((l) => (l.employeeId ? l : { ...l, startDate: v, endDate: v })))
   }
 
   /*
@@ -117,7 +121,7 @@ export default function LeaveInputPage() {
     setCmOpen(true)
   }
 
-  /** [적용(F8)] — 셈한 줄을 격자에 깐다. 사원에 이어진 계정이 없으면 근태를 넣을 수 없어 따로 알린다. */
+  /** [적용(F8)] — 셈한 줄을 격자에 깐다(사원 기준이라 계정이 없어도 넣는다). */
   async function applyCommute() {
     setCmError('')
     try {
@@ -125,20 +129,18 @@ export default function LeaveInputPage() {
         from: cm.from, to: cm.to, mode: cm.mode,
         kindIds: cm.kinds.join(',') || undefined, employeeIds: cm.emps.join(',') || undefined, departmentIds: cm.depts.join(',') || undefined,
       } })
-      const userOf = (empId: number) => users.find((u) => u.employeeId === empId)
-      const made = r.data.filter((x) => userOf(x.employeeId)).map((x) => ({
-        ...emptyLine(x.workDate), userId: String(userOf(x.employeeId)!.id), type: x.kindName, days: String(x.amount),
+      const made = r.data.map((x) => ({
+        ...emptyLine(x.workDate), employeeId: String(x.employeeId), type: x.kindName, days: String(x.amount),
         /* 원본 일별 줄의 적요 '출근: 10:30 / 퇴근: 16:20' — 기간별은 빈칸 */
         reason: x.note ?? '',
       }))
-      const missing = [...new Set(r.data.filter((x) => !userOf(x.employeeId)).map((x) => x.employeeName))]
       setLines((prev) => {
-        const kept = prev.filter((l) => l.userId)
-        const blanks = prev.filter((l) => !l.userId)
+        const kept = prev.filter((l) => l.employeeId)
+        const blanks = prev.filter((l) => !l.employeeId)
         return [...kept, ...made, ...blanks.slice(0, Math.max(0, 3 - kept.length - made.length))]
       })
       setCmOpen(false)
-      setError(missing.length ? `계정이 이어지지 않은 사원은 넣지 못했습니다: ${missing.join(', ')}` : '')
+      setError('')
     } catch (e) {
       setCmError(extractErrorMessage(e))
     }
@@ -155,10 +157,10 @@ export default function LeaveInputPage() {
     setError('')
     setLines((prev) => {
       /* 아직 사원을 안 고른 빈 줄은 <b>덮어 쓴다</b> — 처음 세 줄이 빈 채로 남지 않게. */
-      const blanks = prev.filter((l) => !l.userId)
-      const kept = prev.filter((l) => l.userId)
+      const blanks = prev.filter((l) => !l.employeeId)
+      const kept = prev.filter((l) => l.employeeId)
       const made = [...bulkUsers].map((id) => ({
-        ...emptyLine(from), userId: String(id), type: bulkForm.type,
+        ...emptyLine(from), employeeId: String(id), type: bulkForm.type,
         startDate: from, endDate: to, days: bulkForm.days || '1', reason: bulkForm.reason,
       }))
       return [...kept, ...made, ...blanks.slice(0, Math.max(0, 3 - kept.length - made.length))]
@@ -169,7 +171,7 @@ export default function LeaveInputPage() {
 
   async function save() {
     setError(''); setOk('')
-    const valid = lines.filter((l) => l.userId && Number(l.days) > 0)
+    const valid = lines.filter((l) => l.employeeId && Number(l.days) > 0)
     if (valid.length === 0) return setError('사원과 근태(일)를 1줄 이상 입력하세요.')
     // 원본: 근태의 휴가코드 사용기간이 근태일자를 안 품으면 묻는다(출력물에서 안 보이게 되므로)
     const outside = valid.map((l) => kindVacation[l.type]).filter((v, i) => v && (valid[i].startDate < v.from || valid[i].startDate > v.to))
@@ -185,12 +187,14 @@ export default function LeaveInputPage() {
     try {
       for (const l of valid) {
         const res = await api.post<{ docNo: string }>('/hr/vacations', {
-          userId: Number(l.userId),
+          employeeId: Number(l.employeeId),
           type: l.type,
           startDate: l.startDate,
-          endDate: l.endDate || l.startDate,
+          endDate: l.endDate && l.endDate >= l.startDate ? l.endDate : l.startDate,
           days: Number(l.days),
           reason: l.reason || null,
+          /* 원본 근태입력은 결재가 없다 — 저장하면 곧바로 근태현황 · 휴가잔여에 잡힌다 */
+          status: 'APPROVED',
         })
         done += 1
         nos.push(res.data.docNo)
@@ -352,7 +356,6 @@ export default function LeaveInputPage() {
             <tr>
               <th className="w-[34px]"></th>
               <th className="w-[130px]">근태일자</th>
-              <th className="w-[130px]">종료일자</th>
               <th className="w-[180px]">사원</th>
               <th className="w-[120px]">근태</th>
               {/*
@@ -372,18 +375,15 @@ export default function LeaveInputPage() {
               <tr key={l.key}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>
+                  {/* 원본은 근태일자 하나 — 여러 날은 줄을 나눠 넣는다(근태일괄입력의 기간은 그대로 한 줄로 간다) */}
                   <input className="ec-input" type="date" value={l.startDate}
-                         onChange={(e) => setLine(l.key, { startDate: e.target.value })} />
+                         onChange={(e) => setLine(l.key, { startDate: e.target.value, endDate: e.target.value })} />
                 </td>
                 <td>
-                  <input className="ec-input" type="date" value={l.endDate}
-                         onChange={(e) => setLine(l.key, { endDate: e.target.value })} />
-                </td>
-                <td>
-                  {/* 드롭다운이었다 — 근태입력처럼 코드도움으로(원본도 사원 칸은 코드도움이다). QA 17회차 */}
+                  {/* 원본 [사원] — 사원등록의 사원 코드도움(사원번호 · 사원명) */}
                   <CodePickerField label="사원" hideLabel fill placeholder="사원" emptyLabel="선택 해제"
-                                   value={l.userId} onChange={(v) => setLine(l.key, { userId: v })}
-                                   items={users.map((u) => ({ value: String(u.id), name: u.name, sub: u.department }))} />
+                                   value={l.employeeId} onChange={(v) => setLine(l.key, { employeeId: v })}
+                                   items={users.map((u) => ({ value: String(u.id), code: u.code, name: u.name, sub: u.department }))} />
                 </td>
                 <td>
                   <select className="ec-input" value={l.type}

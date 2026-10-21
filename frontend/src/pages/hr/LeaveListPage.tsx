@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import Modal from '../../components/Modal'
 import { openAppBarPanel } from '../../components/AppBarPanel'
 import { EcCond } from '../../components/EcStatusPanel'
 import { leaveNo } from '../../utils/leaveNo'
@@ -33,6 +34,8 @@ interface Row {
   docNo: string
   /** 전표일자 — 이 근태를 올린 날. */
   docDate: string
+  /** 근태의 사원(사원 기준 — 수정 창이 이것으로 고른다). 옛 자료처럼 계정에 사원이 안 이어져 있으면 null. */
+  employeeId: number | null
   empName: string
   /** 사원번호. 계정이 사원과 안 이어져 있으면 null. */
   empCode: string | null
@@ -191,6 +194,29 @@ export default function LeaveListPage() {
     }
   }
 
+  /*
+   * 원본 [근태번호] 를 누르면 그 근태의 수정 창(근태입력)이 뜬다 — 근태일자 · 사원 · 근태 · 근태(일/시간) · 적요를 고쳐 [저장(F8)].
+   * 우리는 지금까지 고칠 길이 없어 지우고 다시 넣어야 했다(번호가 바뀐다).
+   */
+  const [edit, setEdit] = useState<{ id: number; startDate: string; endDate: string; employeeId: string; type: string; days: string; reason: string } | null>(null)
+  const [editError, setEditError] = useState('')
+  async function saveEdit() {
+    if (!edit) return
+    setEditError('')
+    try {
+      await api.put(`/hr/vacations/${edit.id}`, {
+        employeeId: edit.employeeId ? Number(edit.employeeId) : null,
+        type: edit.type, startDate: edit.startDate,
+        endDate: edit.endDate && edit.endDate >= edit.startDate ? edit.endDate : edit.startDate,
+        days: Number(edit.days), reason: edit.reason || null,
+      })
+      setEdit(null)
+      load()
+    } catch (err) {
+      setEditError(extractErrorMessage(err))
+    }
+  }
+
   async function removeChecked() {
     if (!(await ecConfirm('삭제하겠습니까?'))) return
     setError('')
@@ -340,7 +366,12 @@ export default function LeaveListPage() {
                 <td className="text-center">
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
-                <td>{leaveNo(r.docNo, r.startDate)}</td>
+                <td>
+                  <button type="button" className="ec-link"
+                          onClick={() => { setEditError(''); setEdit({ id: r.id, startDate: r.startDate, endDate: r.endDate, employeeId: r.employeeId ? String(r.employeeId) : '', type: r.type, days: String(Number(r.days)), reason: r.reason ?? '' }) }}>
+                    {leaveNo(r.docNo, r.startDate)}
+                  </button>
+                </td>
                 <td className="text-center">
                   {r.startDate === r.endDate ? slashDay(r.startDate) : `${slashDay(r.startDate)} ~ ${slashDay(r.endDate)}`}
                 </td>
@@ -370,6 +401,44 @@ export default function LeaveListPage() {
           </tbody>
         </table>
       </div>
+      <Modal open={!!edit} title="근태입력" error={editError} onClose={() => setEdit(null)}>
+        {edit && (
+          <>
+            <ul className="ec-form">
+              <li className="wide"><span className="title">근태일자</span>
+                {/* 우리 근태는 기간(시작 ~ 끝) 한 줄이라 끝 날짜도 고친다 — 근태(일)는 기간 안이어야 한다 */}
+                <div className="form flex items-center gap-[6px]">
+                  <input type="date" className="ec-input w-[150px]" value={edit.startDate}
+                         onChange={(e) => setEdit({ ...edit, startDate: e.target.value, endDate: edit.endDate < e.target.value ? e.target.value : edit.endDate })} /> ~
+                  <input type="date" className="ec-input w-[150px]" value={edit.endDate}
+                         onChange={(e) => setEdit({ ...edit, endDate: e.target.value })} />
+                </div></li>
+              <li className="wide"><span className="title">사원</span>
+                <div className="form">
+                  <CodePickerField label="사원" hideLabel fill placeholder="사원" value={edit.employeeId}
+                                   onChange={(v) => setEdit({ ...edit, employeeId: v })}
+                                   items={empList.map((e) => ({ value: String(e.id), code: e.code, name: e.name, sub: e.department }))} />
+                </div></li>
+              <li className="wide"><span className="title">근태</span>
+                <div className="form">
+                  <select className="ec-input w-[150px]" value={edit.type} onChange={(e) => setEdit({ ...edit, type: e.target.value })}>
+                    {[...new Set([edit.type, ...kindMaster.map((k) => k.name)])].map((n) => <option key={n}>{n}</option>)}
+                  </select>
+                </div></li>
+              <li className="wide"><span className="title">근태(일/시간)</span>
+                <div className="form"><input type="number" step="0.001" className="ec-input w-[100px] text-right" value={edit.days}
+                                             onChange={(e) => setEdit({ ...edit, days: e.target.value })} /></div></li>
+              <li className="wide"><span className="title">적요</span>
+                <div className="form"><input className="ec-input w-full" value={edit.reason}
+                                             onChange={(e) => setEdit({ ...edit, reason: e.target.value })} /></div></li>
+            </ul>
+            <div className="flex gap-[6px] mt-[12px]">
+              <button type="button" className="ec-btn ec-btn-primary" onClick={saveEdit}>저장(F8)</button>
+              <button type="button" className="ec-btn" onClick={() => setEdit(null)}>닫기</button>
+            </div>
+          </>
+        )}
+      </Modal>
     </EcListShell>
   )
 }
