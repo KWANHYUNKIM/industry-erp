@@ -104,7 +104,7 @@ export default function ExecutiveReportPage() {
          * <b>기준일자 끝 시점</b>의 잔액을 받는다. 여태 시점을 안 넘겨 늘 '지금' 잔액이
          * 나왔다 — 지난달을 조회해도 이번 달 수금까지 반영된 숫자가 카드에 떴다.
          */
-        api.get<PartnerBalance[]>('/ledger/partner-balances', { params: { asOf: to } }),
+        api.get<PartnerBalance[]>('/ledger/partner-balances', { params: { asOf: to, unbilledFrom: yearBefore(to) } }),
         /*
          * 아래 다섯은 <b>다른 화면이 이미 보고 있던 자리</b>다 —
          * 미판매현황 · 미입고현황 · 판매할인현황 · 구매할인현황 · 재고조정/자가사용현황.
@@ -159,6 +159,8 @@ export default function ExecutiveReportPage() {
     const stockValue = stockEval.value
     const receivable = balances.reduce((a, b) => a + b.receivable, 0)
     const payable = balances.reduce((a, b) => a + b.payable, 0)
+    const unbilledSales = balances.reduce((a, b) => a + b.unbilledReceivable, 0)
+    const unbilledBuy = balances.reduce((a, b) => a + b.unbilledPayable, 0)
 
     const top = (byKey: Map<string, NameAmt>): NameAmt[] =>
       [...byKey.values()].sort((a, b) => b.amount - a.amount).slice(0, 5)
@@ -218,7 +220,7 @@ export default function ExecutiveReportPage() {
     const selfUseAmt = adjAmt(['SELF_USE'])
 
     return {
-      saleAmt, buyAmt, grossProfit: saleAmt - buyAmt, stockValue, stockUnknown: stockEval.unknown, receivable, payable,
+      saleAmt, buyAmt, grossProfit: saleAmt - buyAmt, stockValue, stockUnknown: stockEval.unknown, receivable, payable, unbilledSales, unbilledBuy,
       unsoldAmt, unreceivedAmt, saleDiscAmt, buyDiscAmt, adjustAmt, selfUseAmt,
       stockByCat: [...stockByCat.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ko')),
       saleCount: salesP.length, buyCount: buyP.length,
@@ -383,13 +385,17 @@ export default function ExecutiveReportPage() {
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
                 <td className="text-right">{won(report.selfUseAmt)}</td>
               </tr>
-              {/*
-                <b>[미청구액 (판매)]·[미청구액 (구매)] 두 줄은 아직 못 만든다.</b>
-                채권현황(거래처별채권)에 같은 이름의 칸이 있는데 <b>거기도 비어 있다</b> —
-                수금이 <b>어느 청구를 갚은 것인지</b>가 우리 자료에 없어서 잔액을
-                청구분·미청구분으로 가를 수가 없다. 이유는 그 화면 머리말에 적어 두었다.
-                지어내지 않고 줄을 안 그린다.
-              */}
+              {/* 미청구액 = 기준일−1년 ~ 기준일 사이 세금계산서를 안 끊은(안 받은) 판매(구매) 합계, 부가세 포함(2026-10-20 실측 규칙). */}
+              <tr>
+                <td>미청구액 (판매)</td>
+                <td className="text-ec-label">{dot(yearBefore(to))} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.unbilledSales)}</td>
+              </tr>
+              <tr>
+                <td>미청구액 (구매)</td>
+                <td className="text-ec-label">{dot(yearBefore(to))} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.unbilledBuy)}</td>
+              </tr>
             </tbody>
           </table>
 

@@ -1,0 +1,108 @@
+{
+  "about": "재고1 채권 · 채무 현황 [청구금액] · [미청구금액](2026-10-20 원본 실측 규칙) — QA 거래처에 구매 1,100(세금계산서 없음) · 판매 A 660(세금계산서 발행) · 판매 B 330(없음) · 수금 500 을 넣고 채권현황 · 채권/채무현황 · 채무현황 · 경영자보고서 미청구액의 청구 · 미청구 · 합계를 본다: 채권 청구 160 · 미청구 330 · 합계 490, 채무 0 · 1,100 · 1,100. 판매는 판매입력 화면, 세금계산서 발행 · 수금은 입력 화면이 없거나 길어 API. 끝에 만든 것을 다 지운다.",
+  "shots": [
+    {
+      "name": "준비 — QA 거래처 · 품목, 구매 10 × 100 (재고 · 채무 1,100, 세금계산서 없음)",
+      "path": "/sales/sell",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const sum = async (k) => (await g('/api/ledger/partner-balances?asOf=' + today + '&unbilledFrom=' + new Date(new Date(today).setFullYear(new Date(today).getFullYear() - 1)).toISOString().slice(0, 10))).reduce((a, r) => a + r[k], 0); const base = { ar: await sum('unbilledReceivable'), ap: await sum('unbilledPayable') };\n let p = (await g('/api/partners')).find((x) => x.code === 'QAB7P'); if (!p) p = await (await fetch('/api/partners', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAB7P', name: 'QA재고1-미청구', type: 'BOTH' }) })).json();\n let it = (await g('/api/items')).find((x) => x.code === 'QAB7-Z'); if (!it) it = await (await fetch('/api/items', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAB7-Z', name: 'QA미청구-품목', category: 'MERCHANDISE', unitPrice: 0, safetyStock: 0 }) })).json();\n const wh = (await g('/api/warehouses')).find((x) => x.code === 'WH-01');\n const r = await (await fetch('/api/purchases', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, warehouseId: wh.id, purchaseDate: today, taxable: true, remark: 'QA재고1 미청구 재고', lines: [{ itemId: it.id, quantity: 10, unitPrice: 100 }] }) })).json();\n sessionStorage.setItem('b7', JSON.stringify({ purchaseId: r.id, partnerId: p.id, itemId: it.id, base })); return r.id })()",
+        "expect:!!JSON.parse(sessionStorage.getItem('b7')).purchaseId"
+      ]
+    },
+    {
+      "name": "판매입력 화면으로 판매 A (2 × 300 = 660) 저장",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QAB7P",
+        "click:출하창고 코드도움",
+        "pickrow:WH-01",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QAB7-Z",
+        "wait:500",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|300",
+        "set:input[placeholder=\"전표 적요\"]|QA재고1 미청구A",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; const S = JSON.parse(sessionStorage.getItem('b7')); (S.sales = S.sales || []).push({ id: s.id, total: s.totalAmount }); sessionStorage.setItem('b7', JSON.stringify(S)); return s.totalAmount })()",
+        "expect:JSON.parse(sessionStorage.getItem('b7')).sales[0].total === 660"
+      ]
+    },
+    {
+      "name": "판매입력 화면으로 판매 B (3 × 100 = 330) 저장",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QAB7P",
+        "click:출하창고 코드도움",
+        "pickrow:WH-01",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QAB7-Z",
+        "wait:500",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|3",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|100",
+        "set:input[placeholder=\"전표 적요\"]|QA재고1 미청구B",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; const S = JSON.parse(sessionStorage.getItem('b7')); (S.sales = S.sales || []).push({ id: s.id, total: s.totalAmount }); sessionStorage.setItem('b7', JSON.stringify(S)); return s.totalAmount })()",
+        "expect:JSON.parse(sessionStorage.getItem('b7')).sales[1].total === 330"
+      ]
+    },
+    {
+      "name": "A 에만 세금계산서 발행(우리 앱 안 처리, 국세청 전송 없음 — 판매조회에 발행 단추가 없어 API) · 수금 500 (정산 API)",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const S = JSON.parse(sessionStorage.getItem('b7')); const t = await fetch('/api/tax-invoices', { method: 'POST', headers: H, body: JSON.stringify({ type: 'SALES', sourceId: S.sales[0].id, issueDate: today, remark: 'QA재고1 미청구' }) }); const st = await fetch('/api/settlements', { method: 'POST', headers: H, body: JSON.stringify({ type: 'RECEIPT', partnerId: S.partnerId, amount: 500, method: 'CASH', settleDate: today, note: 'QA재고1 미청구' }) }); const sj = await st.json(); const tj = await t.json(); S.taxId = tj.id; S.settleId = sj.id; sessionStorage.setItem('b7', JSON.stringify(S)); return t.status + ' ' + st.status })()",
+        "expect:!!JSON.parse(sessionStorage.getItem('b7')).taxId && !!JSON.parse(sessionStorage.getItem('b7')).settleId"
+      ]
+    },
+    {
+      "name": "채권현황 — 청구 160(= 합계 490 − 미청구 330) · 미청구 330(B 만) · 합계 490(660+330−수금 500)",
+      "path": "/sales/receivable-status",
+      "steps": [
+        "wait:2500",
+        "js:window.__r = () => [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0] && t.cells[0].innerText.trim() === 'QAB7P'); window.__n = (c) => Number(window.__r().cells[c].innerText.replace(/,/g, '').trim()); true",
+        "expect:!!window.__r()",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).slice(2, 5).join('|') === '청구금액|미청구금액|합계'",
+        "expect:window.__n(2) === 160 && window.__n(3) === 330 && window.__n(4) === 490",
+        "expect:window.__n(2) + window.__n(3) === window.__n(4)"
+      ]
+    },
+    {
+      "name": "채권/채무현황 [구분] 채권(기본) — 같은 꼴 · 같은 숫자",
+      "path": "/sales/ar-ap-status",
+      "steps": [
+        "wait:2500",
+        "js:window.__r = () => [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0] && t.cells[0].innerText.trim() === 'QAB7P'); window.__n = (c) => Number(window.__r().cells[c].innerText.replace(/,/g, '').trim()); true",
+        "expect:!!window.__r()",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).slice(2, 5).join('|') === '청구금액|미청구금액|합계'",
+        "expect:window.__n(2) === 160 && window.__n(3) === 330 && window.__n(4) === 490"
+      ]
+    },
+    {
+      "name": "채무현황 — 구매 1,100 은 세금계산서 없음: 청구 0 · 미청구 1,100 · 합계 1,100",
+      "path": "/sales/payable-status",
+      "steps": [
+        "wait:2500",
+        "js:window.__r = () => [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0] && t.cells[0].innerText.trim() === 'QAB7P'); window.__n = (c) => Number(window.__r().cells[c].innerText.replace(/,/g, '').trim()); true",
+        "expect:!!window.__r()",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).slice(2, 5).join('|') === '청구금액|미청구금액|합계'",
+        "expect:window.__n(2) === 0 && window.__n(3) === 1100 && window.__n(4) === 1100"
+      ]
+    },
+    {
+      "name": "경영자보고서 — 미청구액 (판매) +330 · (구매) +1,100 (준비 전 합계 대비, 기준일−1년 ~ 기준일)",
+      "path": "/inventory/executive-report",
+      "steps": [
+        "wait:3000",
+        "js:window.__v = (l) => { const t = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[0] && r.cells[0].innerText.trim() === l); return t ? Number(t.cells[t.cells.length - 1].innerText.replace(/,/g, '').trim()) : NaN }; true",
+        "expect:window.__v('미청구액 (판매)') - JSON.parse(sessionStorage.getItem('b7')).base.ar === 330",
+        "expect:window.__v('미청구액 (구매)') - JSON.parse(sessionStorage.getItem('b7')).base.ap === 1100"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const S = JSON.parse(sessionStorage.getItem('b7') || '{}'); const del = (u) => fetch(u, { method: 'DELETE', headers: H }); if (S.taxId) await del('/api/tax-invoices/' + S.taxId); if (S.settleId) await del('/api/settlements/' + S.settleId); for (const s of S.sales || []) await del('/api/sales/' + s.id); if (S.purchaseId) await del('/api/purchases/' + S.purchaseId); if (S.partnerId) await del('/api/partners/' + S.partnerId); if (S.itemId) await del('/api/items/' + S.itemId); sessionStorage.removeItem('b7'); return true })()"
+  ]
+}

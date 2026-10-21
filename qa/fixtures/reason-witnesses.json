@@ -2325,42 +2325,6 @@
   ],
   "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
  },
- "채권현황|청구금액": {
-  "claim": "수금이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
-  "absent": [
-   "sales",
-   "taxInvoice",
-   "invoiceId"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
- },
- "채권현황|미청구금액": {
-  "claim": "수금이 어느 청구를 갚은 것인지 Settlement 가 안 든다 — 순액을 청구분·미청구분으로 가를 배분 규칙이 없다 — 정산 전표에 청구 연결이 없다",
-  "absent": [
-   "sales",
-   "taxInvoice",
-   "invoiceId"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
- },
- "채무현황|청구금액": {
-  "claim": "지급이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
-  "absent": [
-   "purchase",
-   "taxInvoice",
-   "invoiceId"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
- },
- "채무현황|미청구금액": {
-  "claim": "수금이 어느 청구를 갚은 것인지 Settlement 가 안 든다 — 순액을 청구분·미청구분으로 가를 배분 규칙이 없다 — 정산 전표에 청구 연결이 없다",
-  "absent": [
-   "purchase",
-   "taxInvoice",
-   "invoiceId"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
- },
  "미주문현황|수량": {
   "claim": "우리 견적은 통째로 수주 전환된다 - 부분 전환을 남기지 않는다",
   "absent": [
@@ -2368,24 +2332,6 @@
    "convertedQuantity"
   ],
   "in": "backend/src/main/java/com/erp/trade/quotation/QuotationLine.java"
- },
- "채권/채무현황|청구금액": {
-  "claim": "수금이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
-  "absent": [
-   "sales",
-   "taxInvoice",
-   "invoiceId"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
- },
- "채권/채무현황|미청구금액": {
-  "claim": "수금이 어느 청구를 갚은 것인지 Settlement 가 안 든다 — 순액을 청구분·미청구분으로 가를 배분 규칙이 없다 — 정산 전표에 청구 연결이 없다",
-  "absent": [
-   "sales",
-   "taxInvoice",
-   "invoiceId"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
  },
  "발주계획현황|진행상태": {
   "claim": "우리 표는 위 카드로 고른 한 상태만 편다",

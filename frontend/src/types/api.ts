@@ -426,6 +426,9 @@ export interface PartnerBalance {
   /** 잔액 가운데 회계전표가 외상매출금·외상매입금을 직접 움직인 몫(어음·수표·외주비 회계반영 …). */
   receivableJournal: number
   payableJournal: number
+  /** 세금계산서를 안 끊은(안 받은) 판매(구매) 합계 — 원본 채권현황 · 채무현황 [미청구금액] */
+  unbilledReceivable: number
+  unbilledPayable: number
 }
 
 // ===== 생산관리 =====

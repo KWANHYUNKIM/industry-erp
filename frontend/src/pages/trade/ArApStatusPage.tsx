@@ -28,10 +28,9 @@ import type { LedgerBasis } from '../../utils/partnerRollup'
  * <p><b>2026-09-09 채권현황(E040721) 원본 실측</b> — 조건은 <b>열둘</b>이고(대조표의 열셋은
  * [기타]와 [대표거래처로 합산]의 라디오 두 알을 펴 놓은 것이었다), 격자는
  * <b>거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계</b> 다.
- * <b>[청구금액]·[미청구금액]은 아직 못 만든다</b> — 세금계산서가 어느 판매에 붙었는지는 알지만
- * (TaxInvoice.sales), 우리 채권은 <b>수금을 뺀 순액</b>이고 <code>Settlement</code> 에는
- * 그 수금이 <b>어느 청구를 갚은 것인지</b>가 없다. 순액을 청구분·미청구분으로 가르려면
- * 그 배분 규칙을 지어내야 한다.
+ * <b>[청구금액]·[미청구금액]</b>(2026-10-21 만듦) — 2026-10-20 실측 규칙: 미청구 = 세금계산서를 안 끊은 판매 합계
+ * (부가세 포함), 합계 = 채권 잔액, 청구 = 합계 − 미청구(수금은 늘 청구 칸에서 빠진다 → 음수 가능).
+ * 서버가 partner-balances 에 unbilledReceivable · unbilledPayable 로 싣는다. [채권/채무] 구분의 두 줄 머리는 아직 안 만들었다.
  *
  * <p><b>2026-09-09 자료 줄을 읽어 두 칸의 관계를 알아냈다.</b>
  * <code>청구금액 + 미청구금액 = 합계</code> 이고, 그 합계가 곧 <b>채권 잔액</b>이다
@@ -150,8 +149,9 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
     for (const r of rows) {
       if (r.parentId == null) continue
       const 머리 = 대표.get(r.parentId)
-        ?? { ...r, partnerId: r.parentId, code: '', name: r.parentName ?? '(대표 미등록)', receivable: 0, payable: 0 }
-      대표.set(r.parentId, { ...머리, receivable: 머리.receivable + r.receivable, payable: 머리.payable + r.payable })
+        ?? { ...r, partnerId: r.parentId, code: '', name: r.parentName ?? '(대표 미등록)', receivable: 0, payable: 0, unbilledReceivable: 0, unbilledPayable: 0 }
+      대표.set(r.parentId, { ...머리, receivable: 머리.receivable + r.receivable, payable: 머리.payable + r.payable,
+        unbilledReceivable: 머리.unbilledReceivable + r.unbilledReceivable, unbilledPayable: 머리.unbilledPayable + r.unbilledPayable })
     }
     return [...대표.values()]
   }, [rows, rollUp])
@@ -169,8 +169,9 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
   }), [rolled, includeInactive, group, manager, keyword, hideZero, mode])
 
   const total = useMemo(() => shown.reduce(
-    (a, r) => ({ receivable: a.receivable + r.receivable, payable: a.payable + r.payable }),
-    { receivable: 0, payable: 0 }), [shown])
+    (a, r) => ({ receivable: a.receivable + r.receivable, payable: a.payable + r.payable,
+      unbilledR: a.unbilledR + r.unbilledReceivable, unbilledP: a.unbilledP + r.unbilledPayable }),
+    { receivable: 0, payable: 0, unbilledR: 0, unbilledP: 0 }), [shown])
 
   /*
    * 원본 [정렬/소계기준]. 우리는 <b>거래처그룹으로만</b> 묶었는데, 받을 돈을 나눠 맡는
@@ -206,7 +207,14 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
 
   const showR = mode !== 'PAYABLE'
   const showP = mode !== 'RECEIVABLE'
-  const cols = 2 + (showR ? 1 : 0) + (showP ? 1 : 0) + (mode === 'BOTH' ? 1 : 0)
+  const cols = 5
+  /*
+   * 원본 채권현황 · 채무현황 · 채권/채무현황(채권·채무 구분)의 <b>[청구금액] · [미청구금액] · [합계]</b>
+   * (2026-10-20 실측 규칙). 미청구 = 세금계산서 안 끊은(안 받은) 전표 합계(부가세 포함),
+   * 합계 = 잔액, 청구 = 합계 − 미청구 — 수금은 늘 청구 칸에서 빠져 음수가 될 수 있다.
+   */
+  const unbilledOf = (r: PartnerBalance) => (mode === 'PAYABLE' ? r.unbilledPayable : r.unbilledReceivable)
+  const totalOf = (r: PartnerBalance) => (mode === 'PAYABLE' ? r.payable : r.receivable)
 
 
   useTableColumnCheck(tableRef, '채권·채무현황', [loading])
@@ -364,7 +372,9 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
             우리는 청구·미청구를 못 가르므로(아래 예외) 한 쪽에 한 칸씩만 두는데,
             마지막 칸 이름을 <b>[순액]</b> 이라 잘못 적고 있었다 — 원본은 <b>[차액]</b> 이다.
           */}
-          {mode !== 'BOTH' && <th style={{ width: fixedFrame ? 107 : 130, textAlign: 'right' }}>합계</th>}
+          {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>청구금액</th>}
+          {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>미청구금액</th>}
+          {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>합계</th>}
           {mode === 'BOTH' && <th className="w-[130px] text-right">채권</th>}
           {mode === 'BOTH' && <th className="w-[130px] text-right">채무</th>}
           {mode === 'BOTH' && <th className="w-[130px] text-right">차액</th>}
@@ -382,6 +392,8 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
                 <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'inherit' }}>{r.name}</Link>
                 {!r.active && <span className="text-ec-danger text-[11px] ml-[4px]">(사용중단)</span>}
               </td>
+              {mode !== 'BOTH' && <td className="text-right">{won(totalOf(r) - unbilledOf(r))}</td>}
+              {mode !== 'BOTH' && <td className="text-right">{won(unbilledOf(r))}</td>}
               {showR && <td className="text-right">{won(r.receivable)}</td>}
               {showP && <td className="text-right">{won(r.payable)}</td>}
               {mode === 'BOTH' && (
@@ -394,6 +406,8 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           <tfoot>
             <tr>
               <td colSpan={2} className="text-center">합계</td>
+              {mode !== 'BOTH' && <td className="text-right">{won((mode === 'PAYABLE' ? total.payable - total.unbilledP : total.receivable - total.unbilledR))}</td>}
+              {mode !== 'BOTH' && <td className="text-right">{won(mode === 'PAYABLE' ? total.unbilledP : total.unbilledR)}</td>}
               {showR && <td className="text-right">{won(total.receivable)}</td>}
               {showP && <td className="text-right">{won(total.payable)}</td>}
               {mode === 'BOTH' && (
