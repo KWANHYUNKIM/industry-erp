@@ -1295,6 +1295,11 @@ th.ec-empty {
 .ec-kanban-option { position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center;
   width: 39.7px; height: 20.4px; background: var(--ec-kanban-option); border-bottom: var(--ec-hair) solid var(--ec-line-soft);
   border-left: var(--ec-hair) solid var(--ec-line-soft); border-radius: 0 var(--ec-radius-panel); }
+.ec-kanban-more { margin-left: 3px; padding: 0 2px; border: 0; background: transparent; color: var(--ec-hint); cursor: pointer; line-height: 1; }
+.ec-kanban-menu { position: absolute; top: 20.4px; right: 0; z-index: 5; margin: 0; padding: 4px 0; list-style: none; min-width: 70px;
+  background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius); }
+.ec-kanban-menu button { display: block; width: 100%; padding: 4px 12px; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; }
+.ec-kanban-menu button:hover { background: var(--ec-blue-wash); }
 /* 종이 세금계산서(공급자 · 공급받는자 보관용) — 선 · 글자 색은 --tf 하나로 바꾼다. 원본 1px 선 · 12px Dotum · 제목 24px 700. */
 .ec-taxform { --tf: var(--ec-taxform-red); width: 590px; margin: 0 auto 18px; color: var(--tf); font-size: 12px; }
 .ec-taxform.buyer { --tf: var(--ec-taxform-blue); }

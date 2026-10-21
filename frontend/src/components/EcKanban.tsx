@@ -30,7 +30,7 @@ export type KanbanCard = {
 }
 
 export default function EcKanban({
-  columns, lanes, cards, selected, onToggle, onOpen, onMove, hideSub = false,
+  columns, lanes, cards, selected, onToggle, onOpen, onMove, onDelete, hideSub = false,
 }: {
   columns: KanbanColumn[]
   lanes?: KanbanLane[]
@@ -40,11 +40,16 @@ export default function EcKanban({
   onToggle: (ids: number[], on: boolean) => void
   onOpen: (card: KanbanCard) => void
   onMove?: (card: KanbanCard, col: string, lane?: string) => void
+  /** 카드 ⋮ 의 [삭제] — 원본(칸반보드 활용 예시 2026-10-21 실측): ⋮ → 접기 · 삭제, 삭제는 알림 '삭제하겠습니까?' 로 묻는다(묻는 일은 부모). */
+  onDelete?: (card: KanbanCard) => void
   /** 원본 [카드접기] — 아랫줄을 접는다. */
   hideSub?: boolean
 }) {
   const [dragId, setDragId] = useState<number | null>(null)
   const [over, setOver] = useState<string | null>(null)
+  /** ⋮ 메뉴가 열린 카드 · [접기] 한 카드(아랫줄을 접는다). */
+  const [menuFor, setMenuFor] = useState<number | null>(null)
+  const [folded, setFolded] = useState<Set<number>>(new Set())
   const rows = lanes ?? [{ key: '', name: '' }]
   const inCol = (c: string) => cards.filter((x) => x.col === c)
 
@@ -75,11 +80,21 @@ export default function EcKanban({
               {!!c.replies && <span className="ec-kanban-reply">[{c.replies}]</span>}
               {c.isNew && <span className="ec-kanban-new">N</span>}
             </div>
-            {!hideSub && c.sub != null && c.sub !== '' && <div className="ec-kanban-line">{c.sub}</div>}
+            {!hideSub && !folded.has(c.id) && c.sub != null && c.sub !== '' && <div className="ec-kanban-line">{c.sub}</div>}
             <span className="ec-kanban-option">
               <input type="checkbox" aria-label={`${c.title} 선택`} checked={selected.has(c.id)}
                      onChange={(e) => onToggle([c.id], e.target.checked)} />
+              <button type="button" className="ec-kanban-more no-ec" aria-label={`${c.title} 더보기`} title="더보기"
+                      onClick={() => setMenuFor((m) => (m === c.id ? null : c.id))}>⋮</button>
             </span>
+            {menuFor === c.id && (
+              <ul role="menu" className="ec-kanban-menu">
+                <li><button type="button" role="menuitem" className="no-ec"
+                            onClick={() => { setFolded((f) => { const n = new Set(f); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n }); setMenuFor(null) }}>
+                  {folded.has(c.id) ? '펼치기' : '접기'}</button></li>
+                <li><button type="button" role="menuitem" className="no-ec" onClick={() => { setMenuFor(null); onDelete?.(c) }}>삭제</button></li>
+              </ul>
+            )}
           </div>
         ))}
       </td>

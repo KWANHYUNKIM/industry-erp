@@ -1176,7 +1176,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             selected={selected}
             onToggle={(ids, on) => setSelected((p) => { const n = new Set(p); ids.forEach((id) => (on ? n.add(id) : n.delete(id))); return n })}
             onOpen={(c) => { const r = rows.find((x) => x.id === c.id); if (r) openView(r) }}
-            onMove={(c, col) => void moveStage(c.id, col)} />
+            onMove={(c, col) => void moveStage(c.id, col)}
+            onDelete={(c) => removeOne(c.id)} />
         ) : (
         <table className="w-full text-left">
           <thead>
@@ -1585,12 +1586,17 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                       selected={boardPick} hideSub={cardsFolded}
                       onToggle={(ids, on) => setBoardPick((p) => { const n = new Set(p); ids.forEach((id) => (on ? n.add(id) : n.delete(id))); return n })}
                       onOpen={(c) => setCardView(signPosts.find((x) => x.id === c.id) ?? null)}
-                      onMove={(c, _col, lane) => { if (lane && lane !== c.lane) void moveStage(c.id, lane) }} />
+                      onMove={(c, _col, lane) => { if (lane && lane !== c.lane) void moveStage(c.id, lane) }}
+                      onDelete={(c) => setConfirmIds([c.id])} />
                   )}
+                  {/* 원본 View 판 아래(2026-10-22 실측): [신규 ▲](🛠️간판제작 프로젝트관리) [선택삭제] [카드접기] [더보기](알림 '더이상 표시할 데이터가 없습니다.') */}
                   <div className="flex gap-[6px] mt-[6px]">
+                    <MenuButton label="신규" className="ec-btn ec-btn-sm" up
+                                items={[{ label: '🛠️간판제작 프로젝트관리', onClick: () => window.open('/groupware/sign-board', '_blank') }]} />
                     <button type="button" className="ec-btn ec-btn-sm"
                             onClick={() => { if (requireSelection(boardPick.size)) setConfirmIds([...boardPick]) }}>선택삭제</button>
                     <button type="button" className="ec-btn ec-btn-sm" onClick={() => setCardsFolded((v) => !v)}>{cardsFolded ? '카드펼치기' : '카드접기'}</button>
+                    <button type="button" className="ec-btn ec-btn-sm" onClick={() => void ecAlert('더이상 표시할 데이터가 없습니다.')}>더보기</button>
                   </div>
                   {cardView && (
                     <div className="bg-ec-page rounded-ec px-[12px] py-[8px] mt-[6px] text-[12px] text-ec-ink">
@@ -1630,6 +1636,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </div>
             )}
             <div className="flex gap-[6px] mt-[10px]">
+              {/* 원본 View 맨 앞 [적용양식 ▾]: 칸반 글은 '칸반연결', 그 밖은 '기본(수정불가)'(2026-10-22 실측) — 메뉴 ✓ 현재 양식 · 기본(수정불가) · 신규양식추가. */}
+              <MenuButton label={board === 'PROJECT_KANBAN' ? '칸반연결' : '기본(수정불가)'} className="ec-btn" up
+                          items={[...(board === 'PROJECT_KANBAN' ? [{ label: '✓ 칸반연결' }, { label: '기본(수정불가)' }] : [{ label: '✓ 기본(수정불가)' }]),
+                            { label: '신규양식추가', onClick: () => setInfo('신규양식추가는 지원하지 않습니다(양식 하나).') }]} />
               <button className="ec-btn" onClick={() => openCopy(viewing)}>복사</button>
               <button className="ec-btn" onClick={() => openEdit(viewing)}>수정</button>
               <button className="ec-btn" onClick={() => removeOne(viewing.id)}>삭제</button>
