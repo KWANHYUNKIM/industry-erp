@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
+import GridCode from '../../components/GridCode'
 import EcSlipShell from '../../components/EcSlipShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -298,8 +299,9 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                       {' '}{i + 1}
                     </td>
                     <td>
-                      <CodePickerField label="품목코드" hideLabel fill value={l.itemId}
-                                       onChange={(v) => setLine(i, { itemId: v })} items={pickers.items} />
+                      {/* 원본처럼 코드를 쳐서 Enter — 한 건이면 줄이 채워지고, 여럿이면 품목검색 창(2026-10-21 실측). */}
+                      <GridCode title="품목검색" codeHead="품목코드" nameHead="품목명" items={pickers.items}
+                                value={l.itemId} onPick={(v) => setLine(i, { itemId: v })} />
                     </td>
                     <td>{it?.name ?? ''}</td>
                     <td>{it?.sub ?? ''}</td>
@@ -322,7 +324,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
             </tbody>
           </table>
         </div>
-        <Modal open={!!printSlip} title={`${L.name}전표`} onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }}>
+        <Modal open={!!printSlip} title={`${L.name}전표`} error={error} onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }}>
           {printSlip && (
             <SelfUsePrint slip={printSlip} partnerText={partnerText}
                           whCode={pickers.warehouses.find((w) => w.value === String(printSlip.warehouseId))?.code ?? ''}
@@ -330,7 +332,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
           )}
         </Modal>
         {/* [H] — 원본 이력 창: 작업자ID · 작업일시 · 전표상태 · 진행상태 · 상태. 고치면 줄을 새로 쓰므로 작업일시는 마지막으로 쓴 때다. */}
-        <Modal open={showHistory && !!slip} title="이력" onClose={() => setShowHistory(false)}>
+        <Modal open={showHistory && !!slip} title="이력" error={error} onClose={() => setShowHistory(false)}>
           {slip && (
             <table className="w-full text-left">
               <thead><tr><th className="w-[34px]"></th><th>작업자ID</th><th>작업일시</th><th>전표상태</th><th>진행상태</th><th>상태</th></tr></thead>
@@ -389,7 +391,7 @@ export function SelfUsePrint({ slip, partnerText, whCode, onClose }: {
               <td className="text-right">{fix2(Math.abs(Number(l.quantityChange)))}</td><td>{l.reason ?? ''}</td>
             </tr>
           ))}
-          <tr><th colSpan={3} className="text-right">감소수량</th><td className="text-right font-semibold">{fix2(total)}</td><td>인수 <span className="ml-[24px]">인</span></td></tr>
+          <tr><td colSpan={3} className="text-right font-semibold">감소수량</td><td className="text-right font-semibold">{fix2(total)}</td><td>인수 <span className="ml-[24px]">인</span></td></tr>
         </tbody>
       </table>
       <div className="flex gap-[4px] mt-[10px]">

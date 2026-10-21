@@ -11,7 +11,7 @@
         "wait:400",
         "click:검색(F8)",
         "wait:1500",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('suNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===dn);return h==='|입력일자|거래처|창고|품목|수량|담당자'&&!!tr&&tr.cells[5].innerText.trim()==='1'})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('suNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===dn);return h==='|입력일자|거래처|창고|품목|수량|담당자|인쇄'&&!!tr&&tr.cells[5].innerText.trim()==='1'})()",
         "js:(async()=>(await window.__api('DELETE','/stock-adjustments/'+sessionStorage.getItem('suId'))).status)()"
       ]
     },

@@ -267,7 +267,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
                             }} />
         )}
       </Modal>
-      <Modal open={!!printSlip} title="자가사용전표" onClose={() => setPrintSlip(null)}>
+      <Modal open={!!printSlip} title="자가사용전표" error={error} onClose={() => setPrintSlip(null)}>
         {printSlip && (
           <SelfUsePrint slip={printSlip}
                         partnerText={(id) => { const p = id != null ? pickers.partners.find((x) => x.value === String(id)) : undefined; return p ? `${p.name}(${p.code})` : '' }}
