@@ -1518,6 +1518,8 @@ export interface BankAccountRow {
   searchText: string | null
   transferRemark1: string | null
   transferRemark2: string | null
+  /** 조건 [수정일자순(정렬)] */
+  updatedAt?: string | null
 }
 
 export interface CreditCardRow {

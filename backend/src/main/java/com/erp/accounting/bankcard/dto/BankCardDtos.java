@@ -60,7 +60,9 @@ public final class BankCardDtos {
             /** 원본 [외화통장환종]. 안 정한 통장은 null — 원화다. */
             Long currencyId, String currencyCode, String currencyName,
             BigDecimal balance, boolean active, String remark,
-            String searchText, String transferRemark1, String transferRemark2
+            String searchText, String transferRemark1, String transferRemark2,
+            /** 조건 [기타 ☑수정일자순(정렬)] — 고친 차례(최근이 위, 2026-10-21 원본 실측). */
+            java.time.LocalDateTime updatedAt
     ) {
         public static BankAccountResponse from(BankAccount b) {
             return new BankAccountResponse(
@@ -71,7 +73,7 @@ public final class BankCardDtos {
                     b.getCurrency() != null ? b.getCurrency().getCode() : null,
                     b.getCurrency() != null ? b.getCurrency().getName() : null,
                     b.getBalance(), b.isActive(), b.getRemark(),
-                    b.getSearchText(), b.getTransferRemark1(), b.getTransferRemark2());
+                    b.getSearchText(), b.getTransferRemark1(), b.getTransferRemark2(), b.getUpdatedAt());
         }
     }
 

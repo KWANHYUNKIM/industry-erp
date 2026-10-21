@@ -7,8 +7,11 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, Currency } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import { BANK_CODES } from '../../utils/bankCodes'
 
 interface AccountOption { id: number; code: string; name: string; division?: string }
+/** 은행명 코드도움 — 값은 은행 이름(계좌에 이름을 든다). */
+const BANK_ITEMS = BANK_CODES.map(([code, name]) => ({ value: name, code, name }))
 
 /**
  * 회계 I &gt; 기초등록 &gt; <b>계좌등록</b> (원본 E010104, 화면 제목 '계좌리스트') — 2026-10-13 loginaa 에서 등록 · 수정 · 이체정보 · 삭제해 본 그대로.
@@ -35,7 +38,7 @@ export default function BankAccountListPage() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   /* 조회 조건 — 받아 둔 줄을 그 자리에서 거른다 */
-  const [cond, setCond] = useState({ code: '', name: '', glId: '', searchText: '', remark: '', currencyId: '', use: 'Y' as 'ALL' | 'Y' | 'N' })
+  const [cond, setCond] = useState({ code: '', name: '', glId: '', searchText: '', remark: '', currencyId: '', use: 'Y' as 'ALL' | 'Y' | 'N', byUpdated: false })
 
   /* 신규 · 수정 창 */
   const [formOpen, setFormOpen] = useState(false)
@@ -159,7 +162,8 @@ export default function BankAccountListPage() {
       && has(b.remark, cond.remark) && (!cond.glId || String(b.glAccountId) === cond.glId)
       && (!cond.currencyId || String(b.currencyId) === cond.currencyId))
     .filter((b) => !quick || has(codeOf(b), quick) || has(nameOf(b), quick) || has(b.searchText, quick))
-    .sort((a, b) => codeOf(a).localeCompare(codeOf(b)))
+    /* 기타 ☑수정일자순(정렬) — 고친 차례로 최근이 위(2026-10-21 원본: 5544332211 · 1122334455 · 000), 끄면 계좌코드순. */
+    .sort((a, b) => (cond.byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : codeOf(a).localeCompare(codeOf(b))))
   const sort = useTableSort(shownRows, {
     계좌코드: codeOf,
     계좌명: nameOf,
@@ -204,6 +208,9 @@ export default function BankAccountListPage() {
           {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
             <label key={v} className="mr-[10px]"><input type="radio" name="bank-use" checked={cond.use === v} onChange={() => setCond({ ...cond, use: v })} /> {l}</label>
           ))}
+        </EcCond>
+        <EcCond label="기타">
+          <label><input type="checkbox" aria-label="수정일자순(정렬)" checked={cond.byUpdated} onChange={(e) => setCond({ ...cond, byUpdated: e.target.checked })} /> 수정일자순(정렬)</label>
         </EcCond>
       </ul>
 
@@ -335,8 +342,11 @@ export default function BankAccountListPage() {
             <li className="wide">
               <span className="title">은행명</span>
               <div className="form">
-                <input className={`ec-input w-full ${tError && !t.bankName.trim() ? 'border-ec-danger' : ''}`} aria-label="은행명" placeholder="은행명" autoFocus
-                       value={t.bankName} onChange={(e) => setT({ ...t, bankName: e.target.value })} />
+                {/* 원본 은행명은 은행코드 코드도움(003 → 기업은행, 2026-10-21 실측) — 계좌에는 은행 이름을 든다. */}
+                <div className={`w-full${tError && !t.bankName.trim() ? ' ec-invalid' : ''}`}>
+                  <CodePickerField label="은행명" hideLabel pair fill placeholder="은행명" value={t.bankName} items={BANK_ITEMS}
+                                   onChange={(v) => setT({ ...t, bankName: v })} />
+                </div>
               </div>
             </li>
             <li className="wide">

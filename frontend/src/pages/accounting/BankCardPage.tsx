@@ -875,21 +875,21 @@ function CardUsageForm({ cards, glAccounts, onError, onSaved }: {
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const supply = Number(form.supplyAmount) || 0
-  const vat = form.vatAmount === '' ? Math.round(supply * 0.1) : Number(form.vatAmount) || 0
 
   async function submit() {
     onError('')
     if (!form.cardId) return onError('카드를 선택하세요.')
     if (!form.merchant) return onError('가맹점을 입력하세요.')
     if (!form.expenseAccountId) return onError('비용계정을 선택하세요.')
-    if (supply <= 0) return onError('공급가액을 입력하세요.')
+    if (supply <= 0) return onError('금액을 입력하세요.')
     try {
       await api.post('/bank-cards/usages', {
         cardId: Number(form.cardId),
         merchant: form.merchant,
         expenseAccountId: Number(form.expenseAccountId),
         supplyAmount: supply,
-        vatAmount: form.vatAmount === '' ? undefined : Number(form.vatAmount),
+        /* 원본 신용카드전표(E010504)에는 부가세 칸이 없다 — 차) 비용 11,000 / 대) 미지급금 11,000(2026-10-21 다시 확인). */
+        vatAmount: 0,
         usageDate: form.usageDate,
         description: form.description || undefined,
       })
@@ -901,7 +901,7 @@ function CardUsageForm({ cards, glAccounts, onError, onSaved }: {
 
   return (
     <Panel title="카드사용 등록" submitLabel="등록" onSubmit={submit}
-      hint="※ 차)비용계정·부가세대급금 / 대)미지급금으로 분개됩니다. 부가세를 비우면 공급가액의 10%로 계산합니다.">
+      hint="※ 차)비용계정 / 대)미지급금으로 분개됩니다.">
       <Field label="사용일">
         <input className="ec-input" type="date" value={form.usageDate} onChange={(e) => set('usageDate', e.target.value)} style={{ width: 140 }} />
       </Field>
@@ -920,15 +920,9 @@ function CardUsageForm({ cards, glAccounts, onError, onSaved }: {
           {expenses.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
         </select>
       </Field>
-      <Field label="공급가액 *">
+      <Field label="금액 *">
         <input className="ec-input" type="number" step="any" value={form.supplyAmount} onChange={(e) => set('supplyAmount', e.target.value)} style={{ width: 110, textAlign: 'right' }} />
       </Field>
-      <Field label="부가세">
-        <input className="ec-input" type="number" step="any" value={form.vatAmount} onChange={(e) => set('vatAmount', e.target.value)} style={{ width: 100, textAlign: 'right' }} placeholder={String(Math.round(supply * 0.1))} />
-      </Field>
-      <div className="text-[12.5px] pb-[5px] text-ec-navy font-bold">
-        합계 {won(supply + vat)}
-      </div>
       <Field label="적요">
         <input className="ec-input" value={form.description} onChange={(e) => set('description', e.target.value)} style={{ width: 150 }} />
       </Field>
