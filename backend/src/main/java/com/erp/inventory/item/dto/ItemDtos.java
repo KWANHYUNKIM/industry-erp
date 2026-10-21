@@ -189,6 +189,19 @@ public final class ItemDtos {
             java.util.List<@PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal> gradePrices
     ) {}
 
+    /** 리스트 [삭제] — 체크한 품목들. */
+    public record DeleteItemsRequest(
+            @jakarta.validation.constraints.NotEmpty(message = "리스트에 선택된 자료가 없습니다.") java.util.List<Long> ids
+    ) {}
+
+    /**
+     * 원본 '삭제불가코드' 창의 한 줄(코드 · 코드명 · 자료). 지워진 품목은 여기 없다.
+     * deleted 는 함께 고른 것 중 실제로 지운 수.
+     */
+    public record UndeletableItem(Long id, String code, String name, String data) {}
+
+    public record DeleteItemsResponse(int deleted, java.util.List<UndeletableItem> undeletable) {}
+
     public record ItemResponse(
             Long id,
             String code,

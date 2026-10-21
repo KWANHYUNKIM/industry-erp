@@ -43,6 +43,11 @@ const ZERO_GRADES = GRADE_LABELS.map(() => '0')
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(거래처 · 창고 · 품목 리스트 같은 글, C000029 [바코드] 실측). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
+/** '삭제불가코드' 창 [사용중단] 을 체크 없이 — 원본은 두 줄 사이에 빈 줄이 있다(2026-10-21 실측). */
+const NO_PICK_BLOCKED = '리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'
+
+/** 서버가 돌려준 지울 수 없는 품목 — 원본 '삭제불가코드' 창의 코드 · 코드명 · 자료. */
+type Undeletable = { id: number; code: string; name: string; data: string }
 
 /*
  * 새 창의 기본값 — 원본 신규(F2) 그대로: 단위 빈칸 · 품목구분 상품 · 세트여부 사용안함 · 재고수량관리 사용 ·
@@ -405,16 +410,36 @@ export default function ItemsPage() {
   /**
    * 원본은 줄마다 [삭제] 가 없다 — 체크한 줄을 [사용중단/재사용 ▴] 펼침의 [삭제] 로 지운다.
    * 확인 창 '삭제하겠습니까?', 지운 뒤에는 말 없이 목록만 다시 그린다(C000029 실측).
+   * 전표 · 자료가 걸린 품목은 서버가 지우지 않고 돌려준다 → 원본 '삭제불가코드' 창(2026-10-21 실측).
    */
   async function removeSelected() {
     if (selected.size === 0) { void ecAlert(NO_PICK); return }
     if (!(await ecConfirm('삭제하겠습니까?'))) return
-    const ids = Array.from(selected)
-    const results = await Promise.allSettled(ids.map((id) => api.delete(`/items/${id}`)))
-    const failed = results.filter((r) => r.status === 'rejected')
-    setSelected(new Set())
-    await load()
-    if (failed.length > 0) void ecAlert(extractErrorMessage((failed[0] as PromiseRejectedResult).reason))
+    await removeIds(Array.from(selected))
+  }
+
+  async function removeIds(ids: number[]) {
+    try {
+      const { data } = await api.post<{ deleted: number; undeletable: Undeletable[] }>('/items/delete', { ids })
+      setSelected(new Set())
+      await load()
+      if (data.undeletable.length > 0) { setBlockedPick(new Set()); setBlocked(data.undeletable) }
+      return data.undeletable.length === 0
+    } catch (err) {
+      void ecAlert(extractErrorMessage(err))
+      return false
+    }
+  }
+
+  /** '삭제불가코드' 창 [사용중단] — 창 안에서 체크한 줄만. 확인 글 · 알림 원본 그대로. */
+  const [blocked, setBlocked] = useState<Undeletable[] | null>(null)
+  const [blockedPick, setBlockedPick] = useState<Set<number>>(new Set())
+  async function stopBlocked() {
+    const targets = items.filter((it) => blockedPick.has(it.id))
+    if (targets.length === 0) { void ecAlert(NO_PICK_BLOCKED); return }
+    if (!(await ecConfirm('선택한 코드를 사용중단 하겠습니까?'))) return
+    setBlocked(null)
+    await setActive(targets, false)
   }
 
   /** 수정 창 [사용중단/재사용] — 열어 둔 품목 하나를 뒤집고 창을 닫는다. */
@@ -425,17 +450,13 @@ export default function ItemsPage() {
     await setActive([it], active ?? !it.active)
   }
 
-  /** 수정 창 펼침 [삭제] — 확인 글도 '삭제하겠습니까?'(C000029 실측). */
+  /** 수정 창 펼침 [삭제] — 확인 글도 '삭제하겠습니까?'(C000029 실측). 걸린 자료가 있으면 리스트와 같은 '삭제불가코드' 창. */
   async function removeOne() {
     if (editId == null) return
     if (!(await ecConfirm('삭제하겠습니까?'))) return
-    try {
-      await api.delete(`/items/${editId}`)
-      closeForm()
-      load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
+    const id = editId
+    closeForm()
+    await removeIds([id])
   }
 
   /** 원본 [바코드] — 고른 품목의 '바코드(품목)' 창(수량 · 품목코드 · 품목명 · 규격 · 바코드). */
@@ -901,6 +922,39 @@ export default function ItemsPage() {
             <EcHistoryButton target="ITEM" id={editId} />
           </div>
         </form>
+      )}</Modal>
+
+      {/* 원본 '삭제불가코드' — 전표 · 자료가 걸린 품목을 [삭제](C000029, 2026-10-21 실측: 간편재고조정 한 건 → 자료 '재고조정'). */}
+      <Modal open={blocked != null} title="삭제불가코드" width={640} onClose={() => setBlocked(null)}>{blocked && (
+        <div className="p-[4px]">
+          <p className="mt-0 mb-[8px] text-[14px] font-bold">삭제불가코드</p>
+          <p className="m-0">선택한 품목코드을(를) 삭제할 수 없습니다.</p>
+          <p className="m-0">다음 사항을 확인 바랍니다.</p>
+          <p className="m-0">해당 코드의 사용중단을 원하는 경우, 사용중단 버튼을 클릭하시기 바랍니다.</p>
+          <p className="mt-0 mb-[4px] font-bold">[삭제가 불가능한 품목코드]</p>
+          <table className="w-full">
+            <thead><tr>
+              <th className="w-[29px] text-center">
+                <NumCheck tone="plain" no="" label="전체 선택" on={blocked.every((b) => blockedPick.has(b.id))}
+                          onChange={() => setBlockedPick(blocked.every((b) => blockedPick.has(b.id)) ? new Set() : new Set(blocked.map((b) => b.id)))} />
+              </th>
+              <th className="text-center">코드</th><th className="text-center">코드명</th><th className="text-center">자료</th>
+            </tr></thead>
+            <tbody>{blocked.map((b, i) => (
+              <tr key={b.id}>
+                <td className="text-center">
+                  <NumCheck tone="plain" no={i + 1} label="선택" on={blockedPick.has(b.id)}
+                            onChange={() => setBlockedPick((s) => { const n = new Set(s); n.has(b.id) ? n.delete(b.id) : n.add(b.id); return n })} />
+                </td>
+                <td>{b.code}</td><td>{b.name}</td><td className="text-ec-navy">{b.data}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+          <div className="mt-[12px] flex gap-[4px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void stopBlocked()}>사용중단</button>
+            <button type="button" className="ec-btn" onClick={() => setBlocked(null)}>닫기</button>
+          </div>
+        </div>
       )}</Modal>
 
       {/* 원본 [공지] — 같은 품목코드로 신규 저장(C000029 실측). */}

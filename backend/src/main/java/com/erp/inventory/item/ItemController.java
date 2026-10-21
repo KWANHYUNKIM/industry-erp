@@ -53,6 +53,12 @@ public class ItemController {
         return itemService.updatePrices(id, req);
     }
 
+    /** 리스트 [사용중단/재사용 ▴] › [삭제] — 걸린 자료가 있는 품목은 지우지 않고 돌려준다(원본 '삭제불가코드' 창). */
+    @PostMapping("/delete")
+    public ItemDtos.DeleteItemsResponse deleteAll(@Valid @RequestBody ItemDtos.DeleteItemsRequest req) {
+        return itemService.deleteAll(req.ids());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         itemService.delete(id);

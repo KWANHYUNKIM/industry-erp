@@ -26,6 +26,8 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final ItemGroupRepository itemGroupRepository;
     private final StoredFileRepository storedFileRepository;
+    /** [삭제] 전에 품목을 쓰는 자료를 찾는다(원본 '삭제불가코드' 창). */
+    private final ItemUsageRepository itemUsageRepository;
     // 같은 inventory 모듈이지만 리포지토리가 아니라 공개 service 를 거친다 — CLAUDE.md 4.2
     private final ManagementItemService managementItemService;
     /** 수정 창 [H] 이력(원본 품목등록 수정 창 끝 버튼). 대상 이름은 한 번 정하면 바꾸지 않는다. */
@@ -134,9 +136,36 @@ public class ItemService {
         return ItemResponse.from(item);
     }
 
+    /**
+     * 원본 품목등록 [삭제](C000029, 2026-10-21 실측): 전표 · 자료가 걸린 품목은 지우지 않고
+     * '삭제불가코드' 창에 코드 · 코드명 · 자료를 띄운다(거기서 [사용중단] 으로 돌린다). 안 걸린 것만 말 없이 지운다.
+     */
+    @Transactional
+    public ItemDtos.DeleteItemsResponse deleteAll(List<Long> ids) {
+        List<Item> items = ids.stream().distinct().map(this::getItem).toList();
+        java.util.Map<Long, java.util.Set<String>> usages = itemUsageRepository.findUsages(items.stream().map(Item::getId).toList());
+        List<ItemDtos.UndeletableItem> blocked = new java.util.ArrayList<>();
+        int deleted = 0;
+        for (Item item : items) {
+            java.util.Set<String> used = usages.get(item.getId());
+            if (used != null) {
+                blocked.add(new ItemDtos.UndeletableItem(item.getId(), item.getCode(), item.getName(), String.join(", ", used)));
+                continue;
+            }
+            itemRepository.delete(item);
+            changeHistory.record(HISTORY_TARGET, item.getId(), ChangeHistoryService.DELETED);
+            deleted++;
+        }
+        return new ItemDtos.DeleteItemsResponse(deleted, blocked);
+    }
+
     @Transactional
     public void delete(Long id) {
         Item item = getItem(id);
+        if (!itemUsageRepository.findUsages(List.of(id)).isEmpty()) {
+            // 원본 '삭제불가코드' 창 첫 줄 그대로.
+            throw ApiException.conflict("선택한 품목코드을(를) 삭제할 수 없습니다.");
+        }
         itemRepository.delete(item);
         changeHistory.record(HISTORY_TARGET, id, ChangeHistoryService.DELETED);
     }
