@@ -15,6 +15,8 @@
       "path": "/accounting/bonds/ar/decrease-entry",
       "steps": [
         "wait:1200",
+        "js:document.querySelector('button[aria-label=\"입금보고서작성 더보기\"]').click(); true",
+        "wait:200",
         "click:채권만감소",
         "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다.')",
         "clicklast:확인",
@@ -22,6 +24,8 @@
         "wait:300",
         "expect:document.querySelector(`input[aria-label=\"${sessionStorage.getItem('bno')} 선택\"]`).checked",
         "js:(() => { const el = document.querySelector(`input[aria-label=\"${sessionStorage.getItem('bno')} 감소금액\"]`); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '20000'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:document.querySelector('button[aria-label=\"입금보고서작성 더보기\"]').click(); true",
+        "wait:200",
         "click:채권만감소",
         "wait:600",
         "expect:document.querySelector('[role=dialog] select[aria-label=\"증감구분\"]').value === 'DECREASE' && document.querySelector('input[aria-label=\"1줄 채권번호\"]').value === sessionStorage.getItem('bno') && document.querySelector('input[aria-label=\"1줄 금액\"]').value === '20,000'",
