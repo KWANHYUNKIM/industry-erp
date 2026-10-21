@@ -23,6 +23,10 @@ public class BomService {
      * 이미 들어가 있던 줄도 다시 저장할 때 걸린다 — 그 자리에서 자재를 바꾸라는 뜻이다.
      */
     private final ItemService itemService;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    /** BOM 수정 창 [H] — 원본 이력 창(작업자ID · 작업일시 · 상태 신규/수정/사용중단/재사용/삭제). */
+    public static final String HISTORY_TARGET = "BOM";
     private final com.erp.production.process.ProcessService processService;
 
     /** 모든 버전(줄마다 [BOM버전] 을 고르는 화면이 쓴다). */
@@ -81,7 +85,10 @@ public class BomService {
                     .location(blankToNull(lr.location())).remark(blankToNull(lr.remark())).build());
         });
 
-        return BomResponse.from(bomRepository.save(bom));
+        boolean created = bom.getId() == null;
+        Bom saved = bomRepository.save(bom);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), created ? com.erp.common.history.ChangeHistoryService.CREATED : com.erp.common.history.ChangeHistoryService.UPDATED);
+        return BomResponse.from(saved);
     }
 
     private static String blankToNull(String s) { return s == null || s.isBlank() ? null : s.trim(); }
@@ -96,7 +103,9 @@ public class BomService {
         if (!active && bom.isDefaultVersion()) {
             throw ApiException.badRequest("기본BOM 은 사용중단할 수 없습니다. 다른 버전을 기본으로 한 뒤 사용중단하세요.");
         }
+        boolean changed = bom.isActive() != active;
         bom.setActive(active);
+        if (changed) changeHistory.record(HISTORY_TARGET, bom.getId(), active ? com.erp.common.history.ChangeHistoryService.REUSED : com.erp.common.history.ChangeHistoryService.STOPPED);
         return BomResponse.from(bom);
     }
 
@@ -107,6 +116,7 @@ public class BomService {
         /* 기본을 지우면 남은 버전 중 하나가 기본이 된다 — 제품에 BOM 이 남아 있는데 기본이 없으면 생산이 막힌다. */
         boolean wasDefault = bom.isDefaultVersion();
         Long productId = bom.getProduct().getId();
+        changeHistory.record(HISTORY_TARGET, bom.getId(), com.erp.common.history.ChangeHistoryService.DELETED);
         bomRepository.delete(bom);
         bomRepository.flush();
         if (wasDefault) {
