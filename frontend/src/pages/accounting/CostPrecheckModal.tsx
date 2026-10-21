@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import Modal from '../../components/Modal'
+import { ecAlert } from '../../components/EcDialog'
 import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
 import { matrixToXlsx } from '../../utils/excel'
 
@@ -21,7 +22,7 @@ import { matrixToXlsx } from '../../utils/excel'
  * 6 세트품목인데 제품 · 상품이 아니다.
  * 원본 조건 판(기준년월 · 검색(F8))은 없다 — 기준년월이 무엇을 거르는지 못 재 두었다(plans/재고2.md). [Excel] 은 항목 · 품목을 한 표로 내려받는다(원본 파일 꼴은 못 잼).
  */
-interface Item { id: number; code: string; name: string; spec: string | null; category: string; active: boolean; subcontractPrice: number | null; setItem: boolean }
+interface Item { id: number; code: string; name: string; spec: string | null; category: string; active: boolean; subcontractPrice: number | null; stdLaborHours: number | null; expenseWeight: number | null; setItem: boolean }
 interface Bom { productId: number; active: boolean; lines: { componentId: number }[] }
 interface Bor { productId: number; processName: string; seq: number; active?: boolean }
 interface Row { code: string; name: string; process?: string }
@@ -39,11 +40,21 @@ const TITLES = [
   '6. 세트품목은 제품과 상품만 등록 되어있는지 확인. (기초등록 > 품목등록)',
 ]
 
+const CHECKS = TITLES
+
+/**
+ * 첫 단계 — 체크리스트(원본 2026-10-22 실측: 제목 · ⓘ '정확한 계산을 위해서는 다음 사항들을 확인 후 원가생성 바랍니다.' ·
+ * [체크리스트] 표(번호 동그라미 + 항목 글) · 아래 [조회] [닫기]). [조회] 를 누르면 출력물이 열리고 아래 줄이
+ * [인쇄 ▴(PDF · 미리보기 · 프린트문제해결)] [Excel] [닫기] 로 바뀐다.
+ */
 export default function CostPrecheckModal({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState<'list' | 'result'>('list')
+  const [printMenu, setPrintMenu] = useState(false)
   const [sections, setSections] = useState<Row[][] | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (step !== 'result') return
     Promise.all([api.get<Item[]>('/items'), api.get<Bom[]>('/boms'), api.get<Bor[]>('/bor')])
       .then(([i, b, r]) => {
         const items = i.data.filter((x) => x.active !== false)
@@ -65,17 +76,38 @@ export default function CostPrecheckModal({ onClose }: { onClose: () => void }) 
         setSections([
           made.filter((x) => !first.has(x.id)).map((x) => row(x)),
           made.filter((x) => !bomProducts.has(x.id)).map((x) => row(x)),
-          made.filter((x) => !x.subcontractPrice).map((x) => row(x)),
+          /* 원본 3번(2026-10-22 실측, 포장김치 C001): 외주비단가 · 표준노무시간(노무비가중치) · 경비가중치 셋이 모두 0 이 아니어야 빠진다 — 하나라도 0 이면 올라온다. */
+          made.filter((x) => !x.subcontractPrice || !x.stdLaborHours || !x.expenseWeight).map((x) => row(x)),
           [...s4.values()].sort((x, y) => x.code.localeCompare(y.code)),
           items.filter((x) => ['RAW_MATERIAL', 'SUB_MATERIAL'].includes(x.category) && bomProducts.has(x.id)).map((x) => row(x)),
           items.filter((x) => x.setItem && !['FINISHED', 'MERCHANDISE'].includes(x.category)).map((x) => row(x)),
         ])
       })
       .catch((err) => setError(extractErrorMessage(err)))
-  }, [])
+  }, [step])
 
   return (
-    <Modal open title="원가생성전 점검사항" width={700} error={error} onClose={onClose}>{(
+    <Modal open title="원가생성전 점검사항" width={700} error={error} onClose={onClose}>{step === 'list' ? (
+      <div>
+        <h3 className="text-[15px] font-bold mt-0 mb-[10px]">원가생성전 점검사항</h3>
+        <p className="mt-0 mb-[8px] text-[12px]"><span aria-hidden="true">ⓘ </span>정확한 계산을 위해서는 다음 사항들을 확인 후 원가생성 바랍니다.</p>
+        <table className="w-full text-left">
+          <thead><tr><th className="w-[34px]" /><th>체크리스트</th></tr></thead>
+          <tbody>
+            {CHECKS.map((t, i) => (
+              <tr key={t}>
+                <td className="text-center"><span className="inline-block w-[16px] h-[16px] leading-[16px] rounded-full bg-ec-blue text-white text-[11px] text-center">{i + 1}</span></td>
+                <td>{t}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex gap-[4px] mt-[8px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => setStep('result')}>조회</button>
+          <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    ) : (
       <div>
         <EcReportHead title="원가생성전 점검사항" period={today()} />
         {sections && sections.map((rows, k) => (
@@ -104,7 +136,17 @@ export default function CostPrecheckModal({ onClose }: { onClose: () => void }) 
         ))}
         <EcReportFoot page={false} />
         <div className="flex gap-[4px] mt-[8px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
+          <span className="ec-btn-group relative">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="인쇄 메뉴" onClick={() => setPrintMenu((v) => !v)}>▴</button>
+            {printMenu && (
+              <div className="ec-menu absolute bottom-full left-0 mb-[2px] min-w-[110px]">
+                <button type="button" onClick={() => { setPrintMenu(false); window.print() }}>PDF</button>
+                <button type="button" onClick={() => { setPrintMenu(false); window.print() }}>미리보기</button>
+                <button type="button" onClick={() => { setPrintMenu(false); void ecAlert('프린트가 안 되면 브라우저의 인쇄 설정을 확인하세요.') }}>프린트문제해결</button>
+              </div>
+            )}
+          </span>
           <button type="button" className="ec-btn" disabled={!sections} onClick={() => void matrixToXlsx({
             headers: ['점검사항', '품목코드', '품목명[규격]', '생산공정명'],
             rows: (sections ?? []).flatMap((rows, k) => rows.map((r) => [TITLES[k], r.code, r.name, r.process ?? ''])),
