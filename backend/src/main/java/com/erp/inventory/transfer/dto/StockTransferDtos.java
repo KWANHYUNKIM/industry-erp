@@ -2,6 +2,8 @@ package com.erp.inventory.transfer.dto;
 
 import com.erp.inventory.transfer.StockTransfer;
 import com.erp.inventory.item.ItemCategory;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -9,6 +11,7 @@ import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public final class StockTransferDtos {
 
@@ -27,8 +30,28 @@ public final class StockTransferDtos {
             String reason
     ) {}
 
+    /**
+     * 창고이동 전표 한 장(원본 창고이동입력 E040501): 머리(일자 · 담당자 · 보내는창고 · 받는창고 · 프로젝트) + 줄(품목 · 수량 · 적요).
+     * 등록 · 수정이 같은 모양을 쓴다 — 수정은 줄을 통째로 바꾼다.
+     */
+    public record TransferSlipRequest(
+            LocalDate transferDate,
+            @NotNull(message = "보내는창고를 선택하세요.") Long fromWarehouseId,
+            @NotNull(message = "받는창고를 선택하세요.") Long toWarehouseId,
+            Long projectId,
+            Long employeeId,
+            @NotEmpty(message = "품목을 한 줄 이상 입력하세요.") List<@Valid TransferLineRequest> lines
+    ) {}
+
+    public record TransferLineRequest(
+            @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
+            String reason
+    ) {}
+
     public record TransferResponse(
-            Long id, String transferNo, LocalDate transferDate,
+            Long id, String transferNo, Integer lineNo, LocalDate transferDate,
             Long itemId, String itemCode, String itemName, String unit,
             /** 원본 격자 열이 [품목명(규격명)] 이다. 품목 마스터의 값이라 실어 주기만 한다. */
             String spec,
@@ -47,7 +70,7 @@ public final class StockTransferDtos {
     ) {
         public static TransferResponse from(StockTransfer t) {
             return new TransferResponse(
-                    t.getId(), t.getTransferNo(), t.getTransferDate(),
+                    t.getId(), t.getTransferNo(), t.getLineNo(), t.getTransferDate(),
                     t.getItem().getId(), t.getItem().getCode(), t.getItem().getName(), t.getItem().getUnit(),
                     t.getItem().getSpec(),
                     t.getItem().getCategory(),

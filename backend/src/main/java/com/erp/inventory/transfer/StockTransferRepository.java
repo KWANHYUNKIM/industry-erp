@@ -23,4 +23,10 @@ public interface StockTransferRepository extends JpaRepository<StockTransfer, Lo
             "where t.transferDate between :from and :to " +
             "order by t.transferDate desc, t.id desc")
     List<StockTransfer> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 전표 한 장의 줄들(줄 차례대로). */
+    @Query("select t from StockTransfer t " +
+            "join fetch t.item join fetch t.fromWarehouse join fetch t.toWarehouse " +
+            "where t.transferNo = :no order by t.lineNo, t.id")
+    List<StockTransfer> findSlip(@Param("no") String transferNo);
 }

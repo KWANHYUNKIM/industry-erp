@@ -15,7 +15,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.erp.inventory.transfer.dto.StockTransferDtos.TransferLineRequest;
+import com.erp.inventory.transfer.dto.StockTransferDtos.TransferSlipRequest;
+
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import com.erp.inventory.transfer.dto.StockTransferDtos;
 
@@ -75,6 +79,7 @@ public class StockTransferService {
 
         StockTransfer transfer = StockTransfer.builder()
                 .transferNo(transferNo)
+                .lineNo(1)
                 .transferDate(date)
                 .item(item)
                 .fromWarehouse(from)
@@ -116,6 +121,93 @@ public class StockTransferService {
                 StockTransactionType.INBOUND, null, t.getTransferDate(), note, username);
 
         transferRepository.delete(t);
+    }
+
+    /** 창고이동 전표 한 장(줄들). */
+    @Transactional(readOnly = true)
+    public List<TransferResponse> findSlip(String transferNo) {
+        List<StockTransfer> lines = transferRepository.findSlip(transferNo);
+        if (lines.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
+        return lines.stream().map(TransferResponse::from).toList();
+    }
+
+    /**
+     * 창고이동 전표 등록(원본 창고이동입력 E040501) — 머리 하나에 품목 여러 줄.
+     * 줄마다 보내는창고에서 빼고 받는창고에 더한다. 한 줄이라도 재고가 모자라면 전표 전체가 롤백된다.
+     */
+    @Transactional
+    public List<TransferResponse> createSlip(TransferSlipRequest req, String username) {
+        LocalDate date = req.transferDate() != null ? req.transferDate() : LocalDate.now();
+        return writeSlip(generateNo(date), date, req, username);
+    }
+
+    /**
+     * 창고이동 전표 수정(원본 창고이동조회에서 이동번호를 눌러 고친 뒤 [저장(F8)]).
+     * 옛 줄이 옮긴 재고를 되돌리고(수불에 '창고이동수정' 반대 거래), 새 줄로 다시 옮긴다. 이동번호는 그대로 둔다.
+     */
+    @Transactional
+    public List<TransferResponse> updateSlip(String transferNo, TransferSlipRequest req, String username) {
+        List<StockTransfer> old = transferRepository.findSlip(transferNo);
+        if (old.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
+        for (StockTransfer t : old) revert(t, "창고이동수정 ", username);
+        transferRepository.deleteAll(old);
+        transferRepository.flush(); // 같은 (이동번호, 줄번호) 를 다시 넣기 전에 지운다
+        LocalDate date = req.transferDate() != null ? req.transferDate() : old.get(0).getTransferDate();
+        return writeSlip(transferNo, date, req, username);
+    }
+
+    /** 창고이동 전표 삭제 — 줄마다 옮긴 재고를 되돌린다(줄 하나 지우기 delete(id) 와 같은 방식). */
+    @Transactional
+    public void deleteSlip(String transferNo, String username) {
+        List<StockTransfer> old = transferRepository.findSlip(transferNo);
+        if (old.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
+        for (StockTransfer t : old) revert(t, "창고이동취소 ", username);
+        transferRepository.deleteAll(old);
+    }
+
+    private List<TransferResponse> writeSlip(String transferNo, LocalDate date, TransferSlipRequest req, String username) {
+        if (req.fromWarehouseId().equals(req.toWarehouseId())) {
+            throw ApiException.badRequest("보내는창고와 받는창고가 같을 수 없습니다.");
+        }
+        Warehouse from = warehouseRepository.findById(req.fromWarehouseId())
+                .orElseThrow(() -> ApiException.notFound("보내는창고를 찾을 수 없습니다. id=" + req.fromWarehouseId()));
+        Warehouse to = warehouseRepository.findById(req.toWarehouseId())
+                .orElseThrow(() -> ApiException.notFound("받는창고를 찾을 수 없습니다. id=" + req.toWarehouseId()));
+        var project = req.projectId() == null ? null : projectService.get(req.projectId());
+        String note = "창고이동 " + transferNo + " (" + from.getName() + "→" + to.getName() + ")";
+
+        List<StockTransfer> saved = new ArrayList<>();
+        int lineNo = 0;
+        for (TransferLineRequest line : req.lines()) {
+            Item item = itemRepository.findById(line.itemId())
+                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + line.itemId()));
+            stockService.applyDelta(item, from, line.quantity().negate(), StockTransactionType.OUTBOUND, null, date, note, username);
+            stockService.applyDelta(item, to, line.quantity(), StockTransactionType.INBOUND, null, date, note, username);
+            saved.add(transferRepository.save(StockTransfer.builder()
+                    .transferNo(transferNo)
+                    .lineNo(++lineNo)
+                    .transferDate(date)
+                    .item(item)
+                    .fromWarehouse(from)
+                    .toWarehouse(to)
+                    .quantity(line.quantity())
+                    .project(project)
+                    .employeeId(req.employeeId())
+                    .reason(line.reason())
+                    .createdBy(username)
+                    .build()));
+        }
+        return saved.stream().map(TransferResponse::from).toList();
+    }
+
+    /** 한 줄이 옮긴 재고를 되돌린다: 받는창고에서 빼고 보내는창고로 돌린다. */
+    private void revert(StockTransfer t, String prefix, String username) {
+        String note = prefix + t.getTransferNo()
+                + " (" + t.getFromWarehouse().getName() + "→" + t.getToWarehouse().getName() + ")";
+        stockService.applyDelta(t.getItem(), t.getToWarehouse(), t.getQuantity().negate(),
+                StockTransactionType.OUTBOUND, null, t.getTransferDate(), note, username);
+        stockService.applyDelta(t.getItem(), t.getFromWarehouse(), t.getQuantity(),
+                StockTransactionType.INBOUND, null, t.getTransferDate(), note, username);
     }
 
     private String generateNo(LocalDate date) {

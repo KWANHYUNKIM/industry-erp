@@ -27,9 +27,16 @@ public class StockTransfer extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 이동번호 (예: TR-20260707-0001) */
-    @Column(nullable = false, unique = true, length = 30)
+    /**
+     * 이동번호 (예: TR-20260707-0001). <b>전표 번호</b>다 — 원본 창고이동은 전표 한 장에 품목 여러 줄이라
+     * 같은 전표의 줄들이 이 번호를 나눠 든다(V426, 이동번호 + 줄번호가 한 줄).
+     */
+    @Column(nullable = false, length = 30)
     private String transferNo;
+
+    /** 전표 안 줄 차례(1부터). 일자 · 창고 · 프로젝트 · 담당자는 전표 머리라 줄마다 같은 값을 든다. */
+    @Column(name = "line_no", nullable = false)
+    private Integer lineNo;
 
     @Column(nullable = false)
     private LocalDate transferDate;
