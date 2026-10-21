@@ -135,9 +135,10 @@ const BOARDS: Record<string, BoardCfg> = {
       { head: '1차회수액', cell: (f) => fmt(f.c1), align: 'right' },
       { head: '2차회수액', cell: (f) => fmt(f.c2), align: 'right' },
       { head: '3차회수액', cell: (f) => fmt(f.c3), align: 'right' },
-      { head: '총회수액', cell: (f) => fmt(f.total), align: 'right' },
+      // 원본 목록은 0 을 빈칸으로(2026-10-21: 목표 1,000 만 친 줄 → 총회수액 · 회수율 빈칸, 미달 1,000)
+      { head: '총회수액', cell: (f) => (num(f.total) === 0 ? '' : fmt(f.total)), align: 'right' },
       { head: '미달금액', cell: (f) => fmt(f.shortfall), align: 'right' },
-      { head: '회수율(%)', cell: (f) => rate1(f.rate), align: 'right' },
+      { head: '회수율(%)', cell: (f) => (num(f.rate) === 0 ? '' : rate1(f.rate)), align: 'right' },
     ],
   },
   '/groupware/monthly-attendance': {
@@ -181,6 +182,18 @@ const BOARDS: Record<string, BoardCfg> = {
 /** 원본 첫 코드 칸(담당자 · 사번 · 부서) — 이 칸이 빈 줄은 '입력된 줄' 이 아니다. 서버 MultiSlipBoard#firstCodeKey 와 같다. */
 const FIRST_KEY: Record<Board, string> = {
   MULTI_INPUT: 'managerCode', SALES_CONTRACT: 'empCode', BOND_COLLECT: 'managerCode', MONTHLY_ATTENDANCE: 'deptCode',
+}
+
+/** 원본이 '입력된 줄' 로 치는 줄인가 — 서버 MultiSlipBoard#isEntered 와 같다(2026-10-21 loginaa 실측).
+ *  채권회수: [거래처] 만 고른 줄은 빈 줄, 담당자 없이 [거래처] + [목표금액] 은 줄 · 월근태: [이름] 만 넣은 줄도 줄. */
+function isEntered(board: Board, l: Fields): boolean {
+  const has = (k: string) => String(l[k] ?? '').trim() !== ''
+  if (board === 'BOND_COLLECT') return ['managerCode', 'target', 'c1', 'c2', 'c3'].some(has)
+  if (board === 'MONTHLY_ATTENDANCE') {
+    return ['deptCode', 'empCode', 'availDays', 'vacationDays', 'totalHours', 'lateBefore', 'lateAfter', 'absent', 'note'].some(has)
+      || num(l.claimedHours) !== 0
+  }
+  return has(FIRST_KEY[board])
 }
 
 /** 계산 칸 — 서버(MultiSlipService#recompute)와 같은 식. 창에서는 소수 둘째 자리. */
@@ -360,9 +373,9 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   }
 
   async function save() {
-    const first = FIRST_KEY[cfg.board]
-    const filled = lines.filter((l) => (l[first] ?? '').trim())
-    if (filled.length === 0) { setEmptyAlert(true); return }
+    const filled = lines.filter((l) => isEntered(cfg.board, l))
+    // 원본 월근태는 빈 창도 저장한다(빈 전표 — 서버가 빈 줄 하나로 받는다)
+    if (filled.length === 0 && cfg.board !== 'MONTHLY_ATTENDANCE') { setEmptyAlert(true); return }
     setSaving(true)
     try {
       const body = { board: cfg.board, slipDate: date, lines: filled }

@@ -29,4 +29,22 @@ public enum MultiSlipBoard {
     public String getDisplayName() { return displayName; }
 
     public String firstCodeKey() { return firstCodeKey; }
+
+    /** 원본이 '입력된 줄' 로 치는 줄인가. 화면 MultiSlipPage#isEntered 와 같다(2026-10-21 실측). */
+    public boolean isEntered(java.util.Map<String, Object> line) {
+        return switch (this) {
+            // 채권회수: [거래처] 만 고른 줄은 빈 줄, 담당자 없이 [거래처] + [목표금액] 은 줄
+            case BOND_COLLECT -> has(line, "managerCode") || has(line, "target") || has(line, "c1") || has(line, "c2") || has(line, "c3");
+            // 월근태: [부서] 없이 [이름] 만 넣은 줄도 줄. 친 칸이 하나라도 있으면 줄(청구한근무시간은 처음 값 0 이라 0 이 아닐 때만)
+            case MONTHLY_ATTENDANCE -> java.util.stream.Stream.of("deptCode", "empCode", "availDays", "vacationDays", "totalHours",
+                    "lateBefore", "lateAfter", "absent", "note").anyMatch(k -> has(line, k))
+                    || (has(line, "claimedHours") && !line.get("claimedHours").toString().trim().matches("0+(\\.0*)?"));
+            default -> has(line, firstCodeKey);
+        };
+    }
+
+    private static boolean has(java.util.Map<String, Object> line, String key) {
+        Object v = line.get(key);
+        return v != null && !v.toString().isBlank();
+    }
 }

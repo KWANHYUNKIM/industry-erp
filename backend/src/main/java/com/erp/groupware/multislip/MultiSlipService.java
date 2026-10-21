@@ -98,20 +98,27 @@ public class MultiSlipService {
         }
     }
 
-    /** 첫 코드 칸이 빈 줄은 버린다(원본은 수량 · 단가 · 비고만 친 줄을 줄로 치지 않는다). 남는 줄이 없으면 원본 알림. */
+    /**
+     * 입력된 줄만 남긴다. 남는 줄이 없으면 원본 알림 — 단 월근태는 원본이 빈 채로도 저장한다(빈 줄 하나).
+     * 2026-10-21 loginaa 실측: 채권회수는 [거래처] 만 고른 줄은 '최소 1줄' 알림, [거래처] + [목표금액] 은 담당자 없이 저장 ·
+     * 월근태는 빈 창 [저장] 이 빈 전표로, [이름] 만 넣은 줄도 저장(계산 칸 0 이 줄을 채운다).
+     */
     private List<Map<String, Object>> filledLines(MultiSlipBoard board, List<Map<String, Object>> raw) {
         List<Map<String, Object>> out = new ArrayList<>();
         if (raw != null) {
             for (Map<String, Object> r : raw) {
-                if (r == null) continue;
-                Object code = r.get(board.firstCodeKey());
-                if (code == null || code.toString().isBlank()) continue;
+                if (r == null || !board.isEntered(r)) continue;
                 Map<String, Object> f = new HashMap<>(r);
                 recompute(board, f);
                 out.add(f);
             }
         }
-        if (out.isEmpty()) throw ApiException.badRequest(EMPTY_GRID);
+        if (out.isEmpty()) {
+            if (board != MultiSlipBoard.MONTHLY_ATTENDANCE) throw ApiException.badRequest(EMPTY_GRID);
+            Map<String, Object> blank = new HashMap<>();
+            recompute(board, blank);
+            out.add(blank);
+        }
         return out;
     }
 
