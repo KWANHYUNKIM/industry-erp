@@ -510,7 +510,7 @@
   "palette": 0
  },
  "pages/hr/AttendanceKindStatusPage.tsx": {
-  "inline": 8,
+  "inline": 7,
   "color": 0,
   "palette": 0
  },
@@ -555,7 +555,7 @@
   "palette": 0
  },
  "pages/hr/LeaveListPage.tsx": {
-  "inline": 11,
+  "inline": 8,
   "color": 0,
   "palette": 0
  },
@@ -950,7 +950,7 @@
   "palette": 0
  },
  "pages/trade/MallAccountPage.tsx": {
-  "inline": 6,
+  "inline": 5,
   "color": 1,
   "palette": 0
  },
