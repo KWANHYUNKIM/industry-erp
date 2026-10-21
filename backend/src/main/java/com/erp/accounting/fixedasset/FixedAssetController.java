@@ -77,8 +77,9 @@ public class FixedAssetController {
 
     /** 귀속월(yyyy-MM) 감가상각 취소 — 상각 행 · 분개를 지우고 누계액을 되돌린다(마지막 달부터). */
     @DeleteMapping("/depreciations")
-    public DepreciationRunResponse cancelDepreciation(@RequestParam String period) {
-        return service.cancelDepreciation(period);
+    public DepreciationRunResponse cancelDepreciation(@RequestParam String period,
+                                                      @RequestParam(required = false) Long assetId) {
+        return service.cancelDepreciation(period, assetId);
     }
 
     /** 처분 취소 — 처분 분개를 지우고 사용중으로. */

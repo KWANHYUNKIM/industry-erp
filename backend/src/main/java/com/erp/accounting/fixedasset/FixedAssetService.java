@@ -176,9 +176,11 @@ public class FixedAssetService {
      * 그 뒤 달 상각이 있는 자산이 하나라도 있으면 막는다(마지막 달부터). 처분된 자산도 막는다(처분 취소가 먼저).
      */
     @Transactional
-    public DepreciationRunResponse cancelDepreciation(String period) {
+    public DepreciationRunResponse cancelDepreciation(String period, Long assetId) {
         YearMonth ym = parsePeriod(period);
-        List<Depreciation> rows = depreciationRepository.findByPeriodForCancel(ym.toString());
+        /* assetId 를 주면 그 자산의 그 달만(목록 줄의 [취소]) — 남의 자산 상각까지 묶여 막히지 않게. */
+        List<Depreciation> rows = depreciationRepository.findByPeriodForCancel(ym.toString()).stream()
+                .filter((d) -> assetId == null || d.getAsset().getId().equals(assetId)).toList();
         if (rows.isEmpty()) {
             throw ApiException.badRequest("생성된 감가상각내역이 없습니다. (" + ym + ")");
         }
