@@ -19,6 +19,7 @@ public class OrderTypeService {
     private final OrderTypeRepository orderTypeRepository;
     private final OrderTypeStepRepository stepRepository;
     private final OrderStageRepository stageRepository;
+    private final OrderNumberRepository orderNumberRepository;
 
     /** 원본 유형리스트의 열이 [1단계]~[10단계] 라 10 이 상한이다. */
     private static final int MAX_STEPS = 10;
@@ -76,6 +77,10 @@ public class OrderTypeService {
     @Transactional
     public void delete(Long id) {
         OrderType t = getOrderType(id);
+        /* 오더관리번호가 이 유형을 물고 있으면 지울 수 없다(order_numbers FK). 원본 문구는 못 잼 — 사용중단을 권한다. */
+        if (orderNumberRepository.existsByOrderType_Id(id)) {
+            throw ApiException.conflict("오더관리번호에서 쓰고 있는 유형은 삭제할 수 없습니다. 사용중단하세요.");
+        }
         stepRepository.deleteByOrderType_Id(id);
         orderTypeRepository.delete(t);
     }

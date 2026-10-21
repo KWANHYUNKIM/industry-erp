@@ -979,11 +979,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/trade/OrderStagePage.tsx": {
-  "inline": 13,
-  "color": 3,
-  "palette": 0
- },
  "pages/trade/OrderTypePage.tsx": {
   "inline": 13,
   "color": 2,
