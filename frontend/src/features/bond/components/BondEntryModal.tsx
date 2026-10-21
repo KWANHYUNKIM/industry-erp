@@ -5,6 +5,7 @@ import EcDateField from '../../../components/EcDateField'
 import EcNumInput from '../../../components/EcNumInput'
 import GridCode, { ErrTip } from '../../../components/GridCode'
 import { ymd } from '../../../components/EcPeriodPicks'
+import { ecAlert } from '../../../components/EcDialog'
 import type { BondMasters } from '../api'
 import { newBondNo, sideWord, won, type BondDirection, type BondEntry, type BondSide } from '../types'
 
@@ -122,7 +123,11 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
 
   async function save() {
     if (busy) return
-    if (used.length === 0) return setCellErr({ row: 0, col: 'account', msg: '계정코드를 입력 바랍니다.' })
+    /* 원본(2026-10-21 채무내역입력): 한 줄도 없이 저장 → 칸 풍선이 아니라 '처리 불가' 창 [구분 전표일자 · 메뉴 · 사유]. */
+    if (used.length === 0) {
+      void ecAlert(`아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n${date.replace(/-/g, '')} ${word}내역입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
+      return
+    }
     for (const { l, i } of used) {
       if (!l.accountId) return setCellErr({ row: i, col: 'account', msg: '계정코드를 입력 바랍니다.' })
       if (!l.bondNo.trim()) return setCellErr({ row: i, col: 'bondNo', msg: '유효키항목 필수입력' })
@@ -290,8 +295,9 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
         </div>
       </div>
 
+      {/* 원본 수정 창 [삭제](2026-10-21 실측): '- 채무내역' · '- 채권내역'. 목록 [선택삭제] 는 '- 채무조회'. */}
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
-        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {word}조회</p>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {word}내역</p>
         <div className="flex gap-[5px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void remove()}>확인</button>
           <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>

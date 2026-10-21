@@ -96,6 +96,10 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} value={partner} onChange={setPartner} items={masters.partners} />
         </EcCond>
+        {/* 원본 조건 판 [적용양식] — 양식은 '현황_집계' 하나(2026-10-21 채무현황 실측). [정렬기준 설정] 은 아직 없다. */}
+        <EcCond label="적용양식">
+          <select className="ec-input w-[220px]" aria-label="적용양식" value="현황_집계" onChange={() => {}}><option>현황_집계</option></select>
+        </EcCond>
       </ul>
 
       {/* 조회 목록 격자(table-list) — 출력물(.ec-report)이 아니다. 머리 굵게 · 계 줄 247(2026-10-13 실측) */}
