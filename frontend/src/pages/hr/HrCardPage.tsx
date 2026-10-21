@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { useTableSort } from '../../utils/useTableSort'
@@ -8,7 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
-import EcHistoryButton from '../../components/EcHistory'
+import HrCardWindow from '../../features/hrcard/components/HrCardWindow'
 
 type Category = 'EDUCATION' | 'CAREER' | 'LICENSE' | 'FAMILY' | 'LANGUAGE' | 'REWARD' | 'TRAINING' | 'TRIP' | 'MEMO' | 'WORK_STATUS' | 'GUARANTOR'
 type DateKey = 'fromDate' | 'toDate' | 'date3' | 'date4'
@@ -120,22 +119,30 @@ const blank = (): Row => ({
  * 신상정보 · 기타설정 탭, 인쇄 · SMS · 선택삭제 · 웹자료올리기 · 이력조회는 아직 없다.
  */
 export default function HrCardPage() {
-  const nav = useNavigate()
   const [rows, setRows] = useState<EmployeeMaster[]>([])
   const [error, setError] = useState('')
   const [quick, setQuick] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
 
   const [card, setCard] = useState<EmployeeMaster | null>(null)
+  const [isNew, setIsNew] = useState(false)
+  const [depts, setDepts] = useState<{ id: number; code?: string | null; name: string }[]>([])
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [detail, setDetail] = useState<{ cat: typeof CATEGORIES[number]; rows: Row[] } | null>(null)
   const [detailError, setDetailError] = useState('')
 
+  function load() {
+    return api.get<EmployeeMaster[]>('/employees/all').then((r) => { setRows(r.data); return r.data }).catch((e) => { setError(extractErrorMessage(e)); return [] as EmployeeMaster[] })
+  }
   useEffect(() => {
-    api.get<EmployeeMaster[]>('/employees/all').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    void load()
+    api.get<{ id: number; code?: string | null; name: string }[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+    api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => setProjects([]))
   }, [])
 
   async function openCard(e: EmployeeMaster) {
+    setIsNew(false)
     setCard(e)
     try { setCounts((await api.get<Record<string, number>>(`/employees/${e.id}/hr-details`)).data) } catch { setCounts({}) }
   }
@@ -188,7 +195,7 @@ export default function HrCardPage() {
 
   return (
     <EcListShell title="인사카드등록" search={quick} onSearchChange={setQuick} onSearch={() => undefined}
-                 onNew={() => nav('/hr/employees')} actions={[{ label: 'Excel' }]}>
+                 onNew={() => { setCard(null); setIsNew(true) }} actions={[{ label: 'Excel' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -219,28 +226,19 @@ export default function HrCardPage() {
         </tbody>
       </table>
 
-      <Modal error={detail ? null : detailError} open={!!card} title="인사카드등록" width={640} onClose={() => setCard(null)}>{(
-        <>
-          <div className="ec-pills mb-[8px]"><span className="ec-pill active">인사자료</span></div>
-          <ul className="ec-form">
-            <li><span className="title">사원번호</span><div className="form">{card?.code}</div></li>
-            <li><span className="title">성명</span><div className="form">{card?.name}</div></li>
-            {CATEGORIES.map((c) => (
-              <li key={c.key} className="wide">
-                <span className="title">{c.label}</span>
-                <div className="form">
-                  <button type="button" className={`ec-btn ec-btn-sm${counts[c.key] ? ' ec-btn-primary' : ''}`} onClick={() => openDetail(c)}>입력</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div className="flex gap-[6px] mt-[12px]">
-            <button type="button" className="ec-btn" onClick={() => setCard(null)}>닫기</button>
-            {/* 원본 인사카드 창 끝 [H] — 사원등록 [H] 와 같은 사원 이력(2026-10-14 실측) */}
-            <EcHistoryButton target="EMPLOYEE" id={card?.id} numbered head={`사원코드: ${card?.code ?? ''}`} />
-          </div>
-        </>
-      )}</Modal>
+      <HrCardWindow
+        card={card} isNew={isNew} departments={depts} projects={projects}
+        onClose={() => { setCard(null); setIsNew(false) }}
+        onSaved={() => void load()}
+        onReopen={async (id) => { const list = await load(); const e = list.find((x) => x.id === id); if (e) void openCard(e) }}
+        hrTab={CATEGORIES.map((c) => (
+          <li key={c.key} className="wide">
+            <span className="title">{c.label}</span>
+            <div className="form">
+              <button type="button" className={`ec-btn ec-btn-sm${counts[c.key] ? ' ec-btn-primary' : ''}`} onClick={() => openDetail(c)}>입력</button>
+            </div>
+          </li>
+        ))} />
 
       <Modal error={detailError} open={!!detail} title={detail?.cat.label ?? ''} width={980} onClose={() => setDetail(null)}>{(
         detail && (
