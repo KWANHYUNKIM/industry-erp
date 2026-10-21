@@ -20,7 +20,9 @@ public final class MultiSlipDtos {
     public record SaveMultiSlipRequest(
             @NotNull MultiSlipBoard board,
             @NotNull LocalDate slipDate,
-            List<Map<String, Object>> lines
+            List<Map<String, Object>> lines,
+            /** 첨부 파일(POST /files 의 id) — 고칠 때 안 보내면 뗀다. */
+            Long attachmentId
     ) {}
 
     /** 원본 [진행상태변경 ▾ 진행중 · 완료] — 고른 전표 여럿. */
@@ -43,12 +45,15 @@ public final class MultiSlipDtos {
             MultiSlipStatus status,
             String statusName,
             LocalDateTime createdAt,
-            List<MultiSlipLineResponse> lines
+            List<MultiSlipLineResponse> lines,
+            Long attachmentId, String attachmentName
     ) {
         public static MultiSlipResponse from(MultiSlip s) {
             return new MultiSlipResponse(s.getId(), s.getBoard(), s.getSlipDate(), s.getSlipNo(), s.getStatus(),
                     s.getStatus().getDisplayName(), s.getCreatedAt(),
-                    s.getLines().stream().map(MultiSlipLineResponse::from).toList());
+                    s.getLines().stream().map(MultiSlipLineResponse::from).toList(),
+                    s.getAttachment() != null ? s.getAttachment().getId() : null,
+                    s.getAttachment() != null ? s.getAttachment().getName() : null);
         }
     }
 }

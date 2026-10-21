@@ -2,6 +2,7 @@ package com.erp.groupware.multislip;
 
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.groupware.multislip.dto.MultiSlipDtos.ChangeMultiSlipStatusRequest;
 import com.erp.groupware.multislip.dto.MultiSlipDtos.MultiSlipResponse;
 import com.erp.groupware.multislip.dto.MultiSlipDtos.SaveMultiSlipRequest;
@@ -31,6 +32,23 @@ public class MultiSlipService {
 
     private final MultiSlipRepository multiSlipRepository;
     private final DocumentNoGenerator docNo;
+    private final ChangeHistoryService changeHistory;
+    private final com.erp.common.StoredFileRepository storedFileRepository;
+
+    private com.erp.common.StoredFile attachmentOf(Long id) {
+        if (id == null) return null;
+        var f = storedFileRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));
+        if (f.getOwnerCode() == null) f.setOwnerCode("GROUPWARE");
+        return f;
+    }
+    /** [H] 이력 대상 글자(change_histories.target). */
+    public static final String HISTORY_TARGET = "MULTI_SLIP";
+
+    private ChangeHistoryService.SlipSnapshot snapshot(MultiSlip s) {
+        return ChangeHistoryService.SlipSnapshot.withStatus(s.getBoard().getDisplayName(), s.getSlipDate(),
+                s.getSlipDate().toString().replace("-", "") + "-" + s.getSlipNo(), null, s.getStatus().getDisplayName());
+    }
 
     @Transactional(readOnly = true)
     public List<MultiSlipResponse> findAll(MultiSlipBoard board) {
@@ -49,9 +67,12 @@ public class MultiSlipService {
                 .board(req.board())
                 .slipDate(req.slipDate())
                 .slipNo(nextNo(req.board(), req.slipDate()))
+                .attachment(attachmentOf(req.attachmentId()))
                 .build();
         putLines(slip, lines);
-        return MultiSlipResponse.from(multiSlipRepository.save(slip));
+        MultiSlip saved = multiSlipRepository.save(slip);
+        changeHistory.recordSlip(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED, snapshot(saved));
+        return MultiSlipResponse.from(saved);
     }
 
     /** 수정 — 줄을 통째로 바꾼다. 작성일은 처음 저장 시각 그대로(원본 같음). 일자를 바꾸면 그 날의 다음 순번. */
@@ -63,16 +84,21 @@ public class MultiSlipService {
             slip.setSlipNo(nextNo(slip.getBoard(), req.slipDate()));
             slip.setSlipDate(req.slipDate());
         }
+        slip.setAttachment(attachmentOf(req.attachmentId()));
         slip.getLines().clear();
         multiSlipRepository.flush();
         putLines(slip, lines);
+        changeHistory.recordSlip(HISTORY_TARGET, slip.getId(), ChangeHistoryService.UPDATED, snapshot(slip));
         return MultiSlipResponse.from(slip);
     }
 
     @Transactional
     public List<MultiSlipResponse> changeStatus(ChangeMultiSlipStatusRequest req) {
         List<MultiSlip> slips = multiSlipRepository.findAllById(req.ids());
-        slips.forEach(s -> s.setStatus(req.status()));
+        slips.forEach(s -> {
+            s.setStatus(req.status());
+            changeHistory.recordSlip(HISTORY_TARGET, s.getId(), ChangeHistoryService.STATUS_CHANGED, snapshot(s));
+        });
         return slips.stream().map(MultiSlipResponse::from).toList();
     }
 

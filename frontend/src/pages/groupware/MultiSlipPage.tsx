@@ -9,6 +9,9 @@ import { ecConfirm, requireSelection } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateText } from '../../utils/dateText'
 import { useShortcut } from '../../utils/useShortcut'
+import { MenuButton } from '../../components/EcSlipShell'
+import EcFileDrop from '../../components/EcFileDrop'
+import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import { exportTableToXlsx } from '../../utils/excel'
 
 /**
@@ -224,6 +227,8 @@ interface Slip {
   status: 'IN_PROGRESS' | 'DONE'
   statusName: string
   createdAt: string | null
+  attachmentId?: number | null
+  attachmentName?: string | null
   lines: { lineNo: number; fields: Record<string, unknown> }[]
 }
 
@@ -293,6 +298,12 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   // 입력 창
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Slip | null>(null)
+  /** 원본 수정 창 [복사] — 같은 줄을 채운 새 입력 창('월근태입력', 하단 [저장(F8)▴][리스트][닫기]). */
+  const [copied, setCopied] = useState(false)
+  const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [histOf, setHistOf] = useState<Slip | null>(null)
+  const [lastOf, setLastOf] = useState<Slip | null>(null)
   const [date, setDate] = useState(ymd(new Date()))
   const [lines, setLines] = useState<Fields[]>([])
   const [dirty, setDirty] = useState(false)
@@ -336,6 +347,8 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
 
   function openNew() {
     setEditing(null)
+    setCopied(false)
+    setAttachment(null)
     setDate(ymd(new Date()))
     setLines(blankLines(cfg.rows))
     setDirty(false)
@@ -346,12 +359,34 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
 
   function openEdit(s: Slip) {
     setEditing(s)
+    setCopied(false)
+    setAttachment(s.attachmentId ? { id: s.attachmentId, name: s.attachmentName ?? '첨부' } : null)
     setDate(s.slipDate)
     // 원본 수정 창은 내용 줄 + 빈 줄
     setLines([...s.lines.map((l) => ({ ...blankLine(), ...toFields(l.fields) })), blankLine()])
     setDirty(false)
     setError('')
     setOpen(true)
+  }
+
+  /** 원본 [복사] — 지금 줄을 그대로 둔 새 입력 창(일자는 오늘). */
+  function copyOne() {
+    setEditing(null)
+    setCopied(true)
+    setAttachment(null)
+    setDate(ymd(new Date()))
+    setDirty(false)
+    setError('')
+  }
+  async function upload(file: File) {
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await api.post<{ id: number; name: string }>('/files', fd)
+      setAttachment({ id: r.data.id, name: r.data.name })
+      setDirty(true)
+    } catch (e) { setError(extractErrorMessage(e)) } finally { setUploading(false) }
   }
 
   async function close() {
@@ -372,17 +407,20 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
     setLines((ls) => [...ls.slice(0, i), blankLine(), ...ls.slice(i)])
   }
 
-  async function save() {
+  async function save(after: 'close' | 'new' | 'keep' = 'close') {
     const filled = lines.filter((l) => isEntered(cfg.board, l))
     // 원본 월근태는 빈 창도 저장한다(빈 전표 — 서버가 빈 줄 하나로 받는다)
     if (filled.length === 0 && cfg.board !== 'MONTHLY_ATTENDANCE') { setEmptyAlert(true); return }
     setSaving(true)
     try {
-      const body = { board: cfg.board, slipDate: date, lines: filled }
-      if (editing) await api.put(`/multi-slips/${editing.id}`, body)
-      else await api.post('/multi-slips', body)
-      // 원본: 안내 없이 창이 닫히고 목록 맨 위에 새 줄
-      setOpen(false)
+      const body = { board: cfg.board, slipDate: date, lines: filled, attachmentId: attachment?.id }
+      const saved = editing
+        ? (await api.put<Slip>(`/multi-slips/${editing.id}`, body)).data
+        : (await api.post<Slip>('/multi-slips', body)).data
+      // 원본: 안내 없이 창이 닫히고 목록 맨 위에 새 줄. [저장(F8)▴] 의 저장/신규는 빈 새 창, 저장/내용유지는 저장한 전표의 수정 창.
+      if (after === 'new') openNew()
+      else if (after === 'keep') openEdit(saved)
+      else setOpen(false)
       void load()
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -604,7 +642,16 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
           {cfg.board === 'SALES_CONTRACT' && (
             <li className="wide">
               <div className="title">첨부</div>
-              <div className="form text-ec-hint">여기에 파일 놓기</div>
+              <div className="form">
+                <EcFileDrop busy={uploading} disabled={uploading} hint="+" onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
+                  {attachment && (
+                    <span className="text-[12px] text-ec-navy">
+                      {attachment.name}
+                      <span onClick={() => { setAttachment(null); setDirty(true) }} className="cursor-pointer ml-[6px] font-bold">×</span>
+                    </span>
+                  )}
+                </EcFileDrop>
+              </div>
             </li>
           )}
         </ul>
@@ -662,24 +709,23 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
         <div className="flex flex-wrap gap-[6px] mt-[10px]">
           {editing ? (
             <>
-              <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={() => void save()}>저장(F8)</button>
-              <button type="button" className="ec-btn">복사</button>
+              <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up disabled={saving} onMain={() => void save()}
+                          items={[{ label: '저장/신규', onClick: () => void save('new') }, { label: '저장/내용유지', onClick: () => void save('keep') }]} />
+              <button type="button" className="ec-btn" onClick={copyOne}>복사</button>
               <button type="button" className="ec-btn" onClick={() => void close()}>리스트</button>
               <button type="button" className="ec-btn" onClick={() => void close()}>닫기</button>
               <button type="button" className="ec-btn" onClick={() => void remove()}>삭제</button>
-              <button type="button" className="ec-btn">H</button>
-              <button type="button" className="ec-btn">최종이력</button>
+              <button type="button" className="ec-btn" onClick={() => editing && setHistOf(editing)}>H</button>
+              <button type="button" className="ec-btn" onClick={() => editing && setLastOf(editing)}>최종이력</button>
             </>
           ) : (
             <>
-              <span className="ec-btn-group">
-                <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={() => void save()}>저장(F8)</button>
-                <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기">▴</button>
-              </span>
-              <button type="button" className="ec-btn" onClick={() => { setLines(blankLines(cfg.rows)); setDirty(false) }}>다시 작성</button>
+              <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up disabled={saving} onMain={() => void save()}
+                          items={[{ label: '저장/신규', onClick: () => void save('new') }, { label: '저장/내용유지', onClick: () => void save('keep') }]} />
+              {!copied && <button type="button" className="ec-btn" onClick={() => { setLines(blankLines(cfg.rows)); setDirty(false) }}>다시 작성</button>}
               <button type="button" className="ec-btn" onClick={() => void close()}>리스트</button>
               <button type="button" className="ec-btn" onClick={() => void close()}>닫기</button>
-              <button type="button" className="ec-btn">웹자료올리기</button>
+              {!copied && <button type="button" className="ec-btn">웹자료올리기</button>}
             </>
           )}
         </div>
@@ -706,6 +752,13 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
           <button type="button" className="ec-btn" onClick={() => setEmptyAlert(false)}>닫기</button>
         </div>
       </Modal>
+
+      {/* 수정 창 [H] · [최종이력] — 원본 월근태 실측(2026-10-21): 이력 머리 '[20261021-n]' · 거래이력 전표상태 '확인' · 진행상태 · 행위 신규/수정 */}
+      {histOf && (
+        <SlipHistoryModal target="MULTI_SLIP" id={histOf.id} withSections confirmLabel="확인"
+                          head={`[${histOf.slipDate.replace(/-/g, '')}-${histOf.slipNo}]`} onClose={() => setHistOf(null)} />
+      )}
+      {lastOf && <SlipLastHistoryModal target="MULTI_SLIP" id={lastOf.id} onClose={() => setLastOf(null)} />}
     </div>
   )
 }

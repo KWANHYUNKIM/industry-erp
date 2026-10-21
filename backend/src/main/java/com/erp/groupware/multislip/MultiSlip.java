@@ -40,6 +40,11 @@ public class MultiSlip extends BaseTimeEntity {
     @Builder.Default
     private MultiSlipStatus status = MultiSlipStatus.IN_PROGRESS;
 
+    /** 영업자별 계약상황 입력 창 [첨부](2026-10-21 실측). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachment_id")
+    private com.erp.common.StoredFile attachment;
+
     @OneToMany(mappedBy = "slip", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineNo asc")
     @Builder.Default

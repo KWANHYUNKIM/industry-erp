@@ -1,0 +1,44 @@
+{
+  "about": "다목적 전표 입력 창 [저장(F8)▴] 저장/신규 · 저장/내용유지 · 수정 창 [복사](새 입력 창 — 저장▴ 리스트 닫기) · [H] 이력(거래이력 · 보안이력 · 발송이력) · [최종이력] (원본 월근태 E200275, 2026-10-21 실측). 월근태는 빈 저장도 전표라 빈 창으로 만든다. node qa/shot.mjs qa/flows/multi-slip-menu.json",
+  "shots": [
+    {
+      "name": "월근태 — 저장/내용유지 → 수정 창 → H · 최종이력 · 복사 → 삭제",
+      "path": "/groupware/monthly-attendance",
+      "steps": [
+        "wait:900",
+        "js:window.confirm = () => true; true",
+        "click:Search(F3)",
+        "click:금년",
+        "click:검색(F8)",
+        "wait:300",
+        "click:신규(F2)",
+        "wait:500",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label*=\"부가기능\"]').click(); true",
+        "wait:200",
+        "click:저장/내용유지",
+        "wait:1200",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog]')].pop(); const bs = [...m.querySelectorAll('button')].map((b) => b.textContent.trim()); return m.innerText.includes('월근태입력(수정)') && ['복사','리스트','닫기','삭제','H','최종이력'].every((t) => bs.includes(t)) })()",
+        "click:H",
+        "wait:600",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog]')].pop(); return m.innerText.includes('거래이력') && m.innerText.includes('보안이력') && m.innerText.includes('발송이력') && m.innerText.includes('신규') && m.innerText.includes('확인') && m.innerText.includes('진행중') })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
+        "wait:300",
+        "click:최종이력",
+        "wait:600",
+        "expect:/^\\d{4}\\/\\d{2}\\/\\d{2} \\([일월화수목금토]\\) /.test([...document.querySelectorAll('[role=dialog]')].pop().innerText.split('\\n').map((x) => x.trim()).filter(Boolean)[1] ?? '')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
+        "wait:300",
+        "click:복사",
+        "wait:600",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog]')].pop(); const bs = [...m.querySelectorAll('button')].map((b) => b.textContent.trim()); return m.innerText.includes('월근태입력') && !m.innerText.includes('(수정)') && bs.includes('리스트') && bs.includes('닫기') && !bs.includes('다시 작성') && !bs.includes('삭제') })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
+        "wait:500",
+        "js:document.querySelector('#multi-slip-list tbody .ec-link').click(); true",
+        "wait:600",
+        "click:삭제",
+        "wait:1000",
+        "expect:!document.querySelector('#multi-slip-list').innerText.includes('QA그룹웨어')"
+      ]
+    }
+  ]
+}

@@ -17,7 +17,7 @@
         "wait:1000",
         "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QA그룹웨어-서식일지').click(); true",
         "wait:400",
-        "expect:!!document.querySelector('[role=dialog][aria-label=\"조회\"] b')&&document.querySelector('[role=dialog][aria-label=\"조회\"] b').textContent==='굵은글 QA'",
+        "expect:[...document.querySelectorAll('[role=dialog][aria-label=\"조회\"] b')].some((b) => b.textContent === '굵은글 QA')",
         "click:답글(F8)",
         "wait:400",
         "expect:(() => { const f = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"]'); return !!f && !!f.querySelector('[role=textbox]') && f.innerText.includes('첨부') && f.innerText.includes('본문보기') && !f.querySelector('[aria-label=\"원글\"]') })()",
