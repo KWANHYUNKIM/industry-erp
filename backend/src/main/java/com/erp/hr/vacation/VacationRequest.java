@@ -24,9 +24,18 @@ public class VacationRequest extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    /**
+     * 근태를 올린 계정. 전자결재 휴가신청서처럼 계정에서 들어온 근태만 든다 — 근태입력은 사원 기준이라
+     * 계정이 없는 사원의 근태는 비어 있다(V424).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
+
+    /** 근태의 사원 — 원본 근태입력(E020710)은 사원(사원번호 · 사원명 · 부서) 기준이다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private com.erp.hr.employee.Employee employee;
 
 
     /**

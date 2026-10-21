@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface VacationRepository extends JpaRepository<VacationRequest, Long> {
 
-    @Query("select v from VacationRequest v join fetch v.user " +
+    @Query("select v from VacationRequest v left join fetch v.user left join fetch v.employee e left join fetch e.department " +
             "where v.startDate between :from and :to " +
             "order by v.startDate desc, v.id desc")
     List<VacationRequest> findByStartDateBetweenWithUser(@Param("from") LocalDate from,

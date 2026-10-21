@@ -139,6 +139,8 @@ public final class HrDtos {
             String docNo,
             /** 전표일자 — 이 근태를 올린 날. 근태일자와 다르다(미리 올릴 수 있다). */
             LocalDate docDate,
+            /** 사원 id — 근태입력(사원 기준)의 사원 칸 · 수정 창이 이것으로 고른다. */
+            Long employeeId,
             String empName,
             /** 사원번호. 계정이 사원과 안 이어져 있으면 null. */
             String empCode,
@@ -164,28 +166,32 @@ public final class HrDtos {
 
         /** {@code emp} 는 계정에 이어진 사원. 안 이어져 있으면 null 을 넘긴다. */
         public static VacationRow from(VacationRequest v, com.erp.hr.employee.Employee emp) {
+            User u = v.getUser();
             return new VacationRow(
                     v.getId(),
                     v.getDocNo(),
                     v.getCreatedAt() != null ? v.getCreatedAt().toLocalDate() : v.getStartDate(),
-                    v.getUser().getName(),
+                    emp != null ? emp.getId() : null,
+                    emp != null ? emp.getName() : u != null ? u.getName() : null,
                     emp != null ? emp.getCode() : null,
                     emp != null ? emp.getJobTitle() : null,
                     emp != null && emp.getDepartment() != null
                             ? emp.getDepartment().getName()
-                            : v.getUser().getDepartment(),
+                            : u != null ? u.getDepartment() : null,
                     v.getType(),
                     v.getStartDate(),
                     v.getEndDate(),
                     v.getDays(),
                     v.getReason(),
-                    v.getUser().isEnabled(),
+                    emp != null ? emp.isActive() : u != null && u.isEnabled(),
                     v.getStatus(),
                     v.getStatus().getDisplayName());
         }
     }
 
     public record CreateVacationRequest(
+            /** 사원(원본 근태입력 기준). 있으면 userId · username 보다 먼저 본다. */
+            Long employeeId,
             Long userId,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String username,
@@ -195,7 +201,9 @@ public final class HrDtos {
             @NotNull(message = "종료일을 입력하세요.") LocalDate endDate,
             @NotNull(message = "사용일수를 입력하세요.") BigDecimal days,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String reason
+            String reason,
+            /** 안 주면 등록은 대기 · 수정은 그대로. */
+            VacationStatus status
     ) {}
 
     public record UpdateVacationStatusRequest(

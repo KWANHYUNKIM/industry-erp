@@ -48,6 +48,7 @@ public class HrService {
     private final VacationRepository vacationRepository;
     private final UserRepository userRepository;
     private final com.erp.hr.employee.EmployeeRepository employeeRepository;
+    private final com.erp.hr.employee.EmployeeService employeeService;
 
     /**
      * 계정에 이어진 사원. 안 이어져 있거나 그 사원이 지워졌으면 null.
@@ -56,6 +57,7 @@ public class HrService {
      * 이름·직급·사원번호를 붙이는 일은 이쪽이 맡는다.
      */
     private com.erp.hr.employee.Employee employeeOf(User user) {
+        if (user == null) return null;
         Long id = user.getEmployeeId();
         return id == null ? null : employeeRepository.findById(id).orElse(null);
     }
@@ -153,13 +155,67 @@ public class HrService {
                 ? new LocalDate[]{from != null ? from : LocalDate.of(1900, 1, 1), to != null ? to : LocalDate.of(9999, 12, 31)}
                 : yearRange(year);
         return vacationRepository.findByStartDateBetweenWithUser(range[0], range[1]).stream()
-                .map(v -> VacationRow.from(v, employeeOf(v.getUser())))
+                .map(v -> VacationRow.from(v, employeeOf(v)))
                 .toList();
     }
 
+    /** 근태의 사원 — 사원 칸이 있으면 그 사원, 옛 자료처럼 계정만 있으면 계정에 이어진 사원. */
+    private com.erp.hr.employee.Employee employeeOf(VacationRequest v) {
+        return v.getEmployee() != null ? v.getEmployee() : employeeOf(v.getUser());
+    }
+
+    /**
+     * 근태 등록. 원본 근태입력(E020710)처럼 <b>사원</b>(employeeId)으로 넣는다.
+     * 옛 호출(계정 userId · username)도 받는다 — 그때는 계정에 이어진 사원을 단다.
+     */
     @Transactional
     public VacationRow createVacation(CreateVacationRequest req) {
-        User user = resolveUser(req.userId(), req.username());
+        User user = null;
+        com.erp.hr.employee.Employee emp;
+        if (req.employeeId() != null) {
+            emp = employeeService.get(req.employeeId());
+        } else {
+            user = resolveUser(req.userId(), req.username());
+            emp = employeeOf(user);
+        }
+        validatePeriod(req);
+        VacationRequest v = VacationRequest.builder()
+                .user(user)
+                .employee(emp)
+                // 채번은 DocumentNoGenerator 로만 한다(count()+1 은 삭제·동시성에서 겹친다).
+                .docNo(docNoGenerator.next("AT-", "vacation_requests", "doc_no", "start_date", req.startDate()))
+                .type(req.type())
+                .startDate(req.startDate())
+                .endDate(req.endDate())
+                .days(req.days())
+                .reason(req.reason())
+                .status(req.status() != null ? req.status() : VacationStatus.PENDING)
+                .build();
+        VacationRequest saved = vacationRepository.save(v);
+        return VacationRow.from(saved, employeeOf(saved));
+    }
+
+    /**
+     * 근태 수정 — 원본 근태조회의 근태번호를 눌러 여는 수정 창. 사원 · 근태 · 기간 · 일수 · 적요를 바꾼다(번호는 그대로).
+     */
+    @Transactional
+    public VacationRow updateVacation(Long id, CreateVacationRequest req) {
+        VacationRequest v = vacationRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("근태를 찾을 수 없습니다. id=" + id));
+        if (req.employeeId() != null) {
+            v.setEmployee(employeeService.get(req.employeeId()));
+        }
+        validatePeriod(req);
+        v.setType(req.type());
+        v.setStartDate(req.startDate());
+        v.setEndDate(req.endDate());
+        v.setDays(req.days());
+        v.setReason(req.reason());
+        if (req.status() != null) v.setStatus(req.status());
+        return VacationRow.from(v, employeeOf(v));
+    }
+
+    private void validatePeriod(CreateVacationRequest req) {
         if (req.endDate().isBefore(req.startDate())) {
             throw ApiException.badRequest("종료일이 시작일보다 빠를 수 없습니다.");
         }
@@ -177,19 +233,6 @@ public class HrService {
                     "사용일수가 기간보다 많습니다. " + req.startDate() + "~" + req.endDate()
                             + " 은 " + span + "일인데 " + req.days().stripTrailingZeros().toPlainString() + "일을 넣었습니다.");
         }
-        VacationRequest v = VacationRequest.builder()
-                .user(user)
-                // 채번은 DocumentNoGenerator 로만 한다(count()+1 은 삭제·동시성에서 겹친다).
-                .docNo(docNoGenerator.next("AT-", "vacation_requests", "doc_no", "start_date", req.startDate()))
-                .type(req.type())
-                .startDate(req.startDate())
-                .endDate(req.endDate())
-                .days(req.days())
-                .reason(req.reason())
-                .status(VacationStatus.PENDING)
-                .build();
-        VacationRequest saved = vacationRepository.save(v);
-        return VacationRow.from(saved, employeeOf(saved.getUser()));
     }
 
     /**
@@ -230,6 +273,7 @@ public class HrService {
                 .orElseThrow(() -> ApiException.notFound("기안자를 찾을 수 없습니다. id=" + userId));
         vacationRepository.save(VacationRequest.builder()
                 .user(user)
+                .employee(employeeOf(user))
                 .docNo(docNoGenerator.next("AT-", "vacation_requests", "doc_no", "start_date", from.toLocalDate()))
                 .type(type)
                 .startDate(from.toLocalDate())
@@ -260,7 +304,7 @@ public class HrService {
         VacationRequest v = vacationRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("휴가 신청을 찾을 수 없습니다. id=" + id));
         v.setStatus(status);
-        return VacationRow.from(v, employeeOf(v.getUser()));
+        return VacationRow.from(v, employeeOf(v));
     }
 
     @Transactional(readOnly = true)
@@ -278,7 +322,7 @@ public class HrService {
              * 연차 잔여에서 빠지는 것은 <b>연차·반차</b>뿐이다. 병가·경조·공가·기타까지 빼서
              * 경조휴가 3일을 쓰면 연차가 3일 줄었다(QA 61회차).
              */
-            if (v.getStatus() == VacationStatus.APPROVED && DEDUCTS_ANNUAL.contains(v.getType())) {
+            if (v.getUser() != null && v.getStatus() == VacationStatus.APPROVED && DEDUCTS_ANNUAL.contains(v.getType())) {
                 usedByUser.merge(v.getUser().getId(),
                         v.getDays() == null ? BigDecimal.ZERO : v.getDays(),
                         BigDecimal::add);

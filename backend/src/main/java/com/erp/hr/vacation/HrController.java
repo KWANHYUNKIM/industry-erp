@@ -81,6 +81,11 @@ public class HrController {
         return ResponseEntity.ok(hrService.createVacation(req));
     }
 
+    @PutMapping("/vacations/{id}")
+    public VacationRow updateVacation(@PathVariable Long id, @Valid @RequestBody CreateVacationRequest req) {
+        return hrService.updateVacation(id, req);
+    }
+
     @PutMapping("/vacations/{id}/status")
     public VacationRow updateVacationStatus(@PathVariable Long id,
                                             @Valid @RequestBody UpdateVacationStatusRequest req) {
