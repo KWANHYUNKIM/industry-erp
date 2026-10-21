@@ -625,8 +625,8 @@
   "palette": 0
  },
  "pages/inventory/StockLedgerPage.tsx": {
-  "inline": 9,
-  "color": 13,
+  "inline": 8,
+  "color": 7,
   "palette": 0
  },
  "pages/inventory/StockMoveListPage.tsx": {
