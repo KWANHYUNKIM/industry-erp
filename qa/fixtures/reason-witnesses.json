@@ -320,10 +320,9 @@
   "in": "backend/src/main/java/com/erp/trade/shipment/ShipmentLine.java"
  },
  "구매단가일괄변경|프로젝트": {
-  "claim": "단가는 품목·거래처에 붙지 프로젝트에 붙지 않는다",
-  "absent": [
-   "project",
-   "Project"
+  "claim": "프로젝트는 전표의 열(projectName)로만 찍고 프로젝트로 거르는 요청 변수는 없다(PriceBulkDtos 의 projectName 은 표시용)",
+  "present": [
+   "projectName"
   ],
   "in": "backend/src/main/java/com/erp/trade/price/dto/PriceBulkDtos.java"
  },
@@ -2971,10 +2970,9 @@
   "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "판매단가일괄변경|프로젝트": {
-  "claim": "단가는 품목·거래처에 붙지 프로젝트에 붙지 않는다(위 [구매단가일괄변경|프로젝트] 과 같은 사실이다)",
-  "absent": [
-   "project",
-   "Project"
+  "claim": "프로젝트는 전표의 열(projectName)로만 찍고 프로젝트로 거르는 요청 변수는 없다(PriceBulkDtos 의 projectName 은 표시용, 구매단가일괄변경과 같다)",
+  "present": [
+   "projectName"
   ],
   "in": "backend/src/main/java/com/erp/trade/price/dto/PriceBulkDtos.java"
  },
@@ -3774,9 +3772,9 @@
   "in": "backend/src/main/java/com/erp/inventory/item/ItemGroup.java"
  },
  "출하현황|정렬기준": {
-  "claim": "[구분]이 내역·집계로 그 축을 고른다",
+  "claim": "[메뉴]가 현황·집계로 그 축을 고른다",
   "present": [
-   "내역",
+   "현황",
    "집계"
   ]
  },
