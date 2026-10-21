@@ -28,6 +28,32 @@
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDs'));let ok=true;for(const s of q.s){ok=(await fetch('/api/hr/daily-work-entries/'+s,{method:'DELETE',headers:h})).ok&&ok}for(const w of [q.a,q.b]){ok=(await fetch('/api/hr/daily-workers/'+w,{method:'DELETE',headers:h})).ok&&ok}sessionStorage.setItem('qaDsClean',String(ok));return true})()",
         "expect:sessionStorage.getItem('qaDsClean')==='true'"
       ]
+    },
+    {
+      "name": "근무현황 — 달력형 · 사용자지정집계 · 정렬/소계기준 창(원본 2026-10-22 실측)",
+      "path": "/hr/daily-work-status",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const mk=async n=>(await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:n,foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:150000})})).json());const a=await mk('QA관리-일용S1');const b=await mk('QA관리-일용S2');const s1=await (await fetch('/api/hr/daily-work-entries',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-09-02',lines:[{workDate:'2091-09-02',workerId:a.id,quantity:1},{workDate:'2091-09-02',workerId:b.id,quantity:0.5}]})})).json();const s2=await (await fetch('/api/hr/daily-work-entries',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-09-03',lines:[{workDate:'2091-09-03',workerId:a.id,quantity:1}]})})).json();sessionStorage.setItem('qaDs',JSON.stringify({a:a.id,b:b.id,s:[s1.slipDate+'/'+s1.slipNo,s2.slipDate+'/'+s2.slipNo]}));return true})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "set:input[type=date]#0|2091-09-01",
+        "js:[...document.querySelectorAll('input[name=dws-mode]')].find(r=>r.parentElement.textContent.trim()==='달력형').click();true",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(()=>{const t=document.querySelector('table.ec-calendar');return !!t&&[...t.tHead.rows[0].cells].map(c=>c.textContent).join('')==='일월화수목금토'&&[...t.querySelectorAll('button')].map(b=>b.textContent.trim()).join(',')==='+2,+1'})()",
+        "js:[...document.querySelectorAll('table.ec-calendar button')].find(b=>b.textContent.trim()==='+2').click();true",
+        "wait:300",
+        "expect:document.querySelector('table.ec-calendar').innerText.includes('2091/09/02')&&document.querySelector('table.ec-calendar').innerText.includes('[QA관리-일용S1]일근무 1')&&document.querySelector('table.ec-calendar').innerText.includes('[QA관리-일용S2]일근무 0.5')",
+        "js:[...document.querySelectorAll('input[name=dws-mode]')].find(r=>r.parentElement.textContent.trim()==='사용자지정집계').click();true",
+        "expect:!!document.querySelector('select[aria-label=집계조건1]')&&!!document.querySelector('select[aria-label=집계조건2]')&&document.body.innerText.includes('집계대상')",
+        "js:[...document.querySelectorAll('input[name=dws-mode]')].find(r=>r.parentElement.textContent.trim()==='라인별').click();true",
+        "js:[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='설정'&&b.closest('li')).click();true",
+        "wait:400",
+        "expect:document.body.innerText.includes('정렬/소계/합계 설정')&&['일자-No.','근무일자','사원번호','성명','수당항목','근무기록','프로젝트명'].every(k=>document.body.innerText.includes(k))||document.body.innerText.includes('정렬/소계/합계 설정')",
+        "clicklast:닫기",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDs'));let ok=true;for(const s of q.s){ok=(await fetch('/api/hr/daily-work-entries/'+s,{method:'DELETE',headers:h})).ok&&ok}for(const w of [q.a,q.b]){ok=(await fetch('/api/hr/daily-workers/'+w,{method:'DELETE',headers:h})).ok&&ok}sessionStorage.setItem('qaDsClean',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaDsClean')==='true'"
+      ]
     }
   ]
 }
