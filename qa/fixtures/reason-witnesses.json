@@ -428,18 +428,16 @@
   "in": "backend"
  },
  "월별채권증감내역|정렬/소계기준": {
-  "claim": "표가 달마다 한 줄이라 월이 곧 축이다",
+  "claim": "거래처마다 다섯 줄 + 끝 [누계] 로 고정이라 따로 묶을 것이 없다",
   "present": [
-   "전월이월",
-   "당월잔액"
+   "[누계]"
   ],
   "file": "trade/MonthlyArApPage.tsx"
  },
  "월별채무증감내역|정렬/소계기준": {
-  "claim": "표가 달마다 한 줄이라 월이 곧 축이다",
+  "claim": "거래처마다 다섯 줄 + 끝 [누계] 로 고정이라 따로 묶을 것이 없다",
   "present": [
-   "전월이월",
-   "당월잔액"
+   "[누계]"
   ],
   "file": "trade/MonthlyArApPage.tsx"
  },
@@ -595,20 +593,6 @@
    "workType"
   ],
   "in": "backend/src/main/java/com/erp/hr/attendance/Attendance.java"
- },
- "월별채권증감내역|기준일자": {
-  "claim": "한 해를 열두 달로 펴는 표라 [연도]로 고른다",
-  "present": [
-   "연도"
-  ],
-  "file": "trade/MonthlyArApPage.tsx"
- },
- "월별채무증감내역|기준일자": {
-  "claim": "한 해를 열두 달로 펴는 표라 [연도]로 고른다",
-  "present": [
-   "연도"
-  ],
-  "file": "trade/MonthlyArApPage.tsx"
  },
  "문자형추가항목1": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
@@ -1103,14 +1087,6 @@
   "file": "trade/PartnersPage.tsx"
  },
  "출하조회|최종수정자": {
- "미출하현황|오더관리번호": {
-  "claim": "출하지시서에 오더 참조 칸이 없다",
-  "absent": [
-   "salesOrder",
-   "orderManage"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/shipmentorder/ShipmentOrder.java"
- },
   "claim": "누가 고쳤는지는 안 남긴다 — 고친 때(updatedAt)만 남는다",
   "in": "backend/src/main/java/com/erp/trade/shipment",
   "absent": [
@@ -1118,6 +1094,14 @@
    "modifiedBy",
    "lastModifiedBy"
   ]
+ },
+ "미출하현황|오더관리번호": {
+  "claim": "출하지시서에 오더 참조 칸이 없다",
+  "absent": [
+   "salesOrder",
+   "orderManage"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/shipmentorder/ShipmentOrder.java"
  },
  "출하지시서조회|최종수정자": {
   "claim": "누가 고쳤는지는 안 남긴다",

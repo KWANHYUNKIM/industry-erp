@@ -17,20 +17,31 @@ export interface ArApOpening { name: string; receivable: number; payable: number
 
 export type ArApMode = 'AR' | 'AP'
 
-export interface MonthRow { month: number; opening: number; increase: number; decrease: number; closing: number }
+/** 'YYYY-MM' 두 개 사이(양끝 포함)의 달 목록. 거꾸로면 빈 목록. */
+export function monthsBetween(from: string, to: string): string[] {
+  const out: string[] = []
+  let y = Number(from.slice(0, 4)), m = Number(from.slice(5, 7))
+  const ey = Number(to.slice(0, 4)), em = Number(to.slice(5, 7))
+  while (y < ey || (y === ey && m <= em)) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`)
+    if (++m > 12) { m = 1; y++ }
+  }
+  return out
+}
+
+export interface MonthRow { month: number /* 기간 안 차례(0부터) */; opening: number; increase: number; decrease: number; closing: number }
 
 export interface PartnerYearRow {
   code: string
   name: string
   opening: number
-  /** 1..12 을 쓴다(0 은 비운다). */
+  /** 기간의 달 차례대로(0 번째 = 기간 첫 달). */
   inc: number[]
   dec: number[]
   closing: number
 }
 
-const yearOf = (d: string) => Number(d.slice(0, 4))
-const monthOf = (d: string) => Number(d.slice(5, 7))
+const ymOf = (d: string) => d.slice(0, 7)
 const openingOf = (b: ArApOpening, mode: ArApMode) => (mode === 'AR' ? b.receivable : b.payable)
 
 /**
@@ -39,16 +50,17 @@ const openingOf = (b: ArApOpening, mode: ArApMode) => (mode === 'AR' ? b.receiva
  */
 export function monthRows(
   inc: readonly ArApDoc[], dec: readonly ArApDoc[], openings: readonly ArApOpening[],
-  mine: (name: string) => boolean, mode: ArApMode, year: number,
+  mine: (name: string) => boolean, mode: ArApMode, months: readonly string[],
 ): MonthRow[] {
   const opening = openings.filter((b) => mine(b.name)).reduce((n, b) => n + openingOf(b, mode), 0)
-  const up = new Array(13).fill(0)
-  const down = new Array(13).fill(0)
-  for (const d of inc) if (yearOf(d.date) === year) up[monthOf(d.date)] += d.amt
-  for (const d of dec) if (yearOf(d.date) === year) down[monthOf(d.date)] += d.amt
+  const idx = new Map(months.map((m, i) => [m, i]))
+  const up = new Array(months.length).fill(0)
+  const down = new Array(months.length).fill(0)
+  for (const d of inc) { const i = idx.get(ymOf(d.date)); if (i !== undefined) up[i] += d.amt }
+  for (const d of dec) { const i = idx.get(ymOf(d.date)); if (i !== undefined) down[i] += d.amt }
   const out: MonthRow[] = []
   let carry = opening
-  for (let m = 1; m <= 12; m++) {
+  for (let m = 0; m < months.length; m++) {
     const closing = carry + up[m] - down[m]
     out.push({ month: m, opening: carry, increase: up[m], decrease: down[m], closing })
     carry = closing
@@ -63,14 +75,14 @@ export function monthRows(
  */
 export function partnerYearRows(
   inc: readonly ArApDoc[], dec: readonly ArApDoc[], openings: readonly ArApOpening[],
-  mine: (name: string) => boolean, mode: ArApMode, year: number,
+  mine: (name: string) => boolean, mode: ArApMode, months: readonly string[],
   codeOf: (name: string) => string = () => '',
 ): PartnerYearRow[] {
   const m = new Map<string, PartnerYearRow>()
   const seat = (name: string) => {
     let r = m.get(name)
     if (!r) {
-      r = { code: codeOf(name), name, opening: 0, inc: new Array(13).fill(0), dec: new Array(13).fill(0), closing: 0 }
+      r = { code: codeOf(name), name, opening: 0, inc: new Array(months.length).fill(0), dec: new Array(months.length).fill(0), closing: 0 }
       m.set(name, r)
     }
     return r
@@ -80,12 +92,13 @@ export function partnerYearRows(
     const amt = openingOf(b, mode)
     if (amt) seat(b.name).opening += amt
   }
-  for (const d of inc) if (yearOf(d.date) === year) seat(d.name).inc[monthOf(d.date)] += d.amt
-  for (const d of dec) if (yearOf(d.date) === year) seat(d.name).dec[monthOf(d.date)] += d.amt
+  const idx = new Map(months.map((m, i) => [m, i]))
+  for (const d of inc) { const i = idx.get(ymOf(d.date)); if (i !== undefined) seat(d.name).inc[i] += d.amt }
+  for (const d of dec) { const i = idx.get(ymOf(d.date)); if (i !== undefined) seat(d.name).dec[i] += d.amt }
   const out = [...m.values()]
   for (const r of out) {
     r.closing = r.opening
-    for (let i = 1; i <= 12; i++) r.closing += r.inc[i] - r.dec[i]
+    for (let i = 0; i < months.length; i++) r.closing += r.inc[i] - r.dec[i]
   }
   return out.filter((r) => r.opening !== 0 || r.closing !== 0 || r.inc.some(Boolean) || r.dec.some(Boolean))
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))

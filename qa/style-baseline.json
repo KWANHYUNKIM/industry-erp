@@ -965,8 +965,8 @@
   "palette": 0
  },
  "pages/trade/MonthlyArApPage.tsx": {
-  "inline": 8,
-  "color": 5,
+  "inline": 3,
+  "color": 2,
   "palette": 0
  },
  "pages/trade/MonthlyCumulativePage.tsx": {
