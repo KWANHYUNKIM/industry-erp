@@ -281,6 +281,7 @@ public class FixedAssetService {
 
     /** 회계거래조회에서 고정자산증가 · 감소 분개를 지울 때 — 고정자산 전표도 같이 지운다(원본). 분개는 JournalService 가 지운다. */
     @org.springframework.context.event.EventListener
+    @Transactional
     public void onJournalDeleting(com.erp.accounting.journal.JournalDeletingEvent ev) {
         movementRepository.findByJournalEntryId(ev.entryId()).ifPresent((m) -> {
             FixedAsset asset = m.getAsset();

@@ -97,7 +97,7 @@ public final class MenuPermissionCatalog {
         put(m, "PROJECT", "/api/projects", "/api/project-plans");
         // 회계
         put(m, "ACCOUNTING", "/api/accounting", "/api/accounting-reflection", "/api/journals",
-                "/api/vouchers", "/api/accounts", "/api/ledger", "/api/evidence-attachments");
+                "/api/vouchers", "/api/accounts", "/api/ledger", "/api/evidence-attachments", "/api/statement-sheets");
         put(m, "TAX_INVOICE", "/api/tax-invoices");
         put(m, "BANK", "/api/bank-cards", "/api/cash-details", "/api/checks", "/api/non-cash", "/api/notes",
                 "/api/card-issuers", "/api/payment-agencies");
@@ -105,20 +105,22 @@ public final class MenuPermissionCatalog {
         put(m, "FINANCE", "/api/budget-plans", "/api/contracts", "/api/incomes", "/api/expenses",
                 "/api/expense-control-types", "/api/expense-items", "/api/expense-groups",
                 "/api/cash-plans", "/api/bonds", "/api/fund-plans",
-                "/api/contract-items", "/api/billing-contracts", "/api/contract-bills");
+                "/api/contract-items", "/api/billing-contracts", "/api/contract-bills", "/api/import-costs");
         put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax",
                 "/api/medical-device-reports", "/api/vat-returns", "/api/vat-media-files", "/api/vat-invoice-marks",
-                "/api/expense-evidence", "/api/withholding-payees");
+                "/api/expense-evidence", "/api/withholding-payees",
+                "/api/payment-statement-files", "/api/simple-payment-statements", "/api/tax-settlements", "/api/tax-vouchers");
         // 관리
-        put(m, "PAYROLL", "/api/payslips", "/api/pay-settings", "/api/daily-works");
+        put(m, "PAYROLL", "/api/payslips", "/api/pay-settings", "/api/daily-works", "/api/pay-ledgers", "/api/retirement-pays");
         put(m, "HR", "/api/employees", "/api/hr", "/api/attendances", "/api/employment-contracts",
-                "/api/departments");
+                "/api/departments", "/api/work-records");
         // 그룹웨어
         put(m, "GROUPWARE", "/api/approvals", "/api/approval-settings", "/api/approval-form-templates",
                 "/api/work-journals", "/api/board", "/api/notices", "/api/surveys",
                 "/api/drive-documents", "/api/mails", "/api/spam-rules", "/api/short-messages", "/api/schedule-events",
                 "/api/chat",
-                "/api/field-works", "/api/field-vehicles", "/api/multi-slips");
+                "/api/field-works", "/api/field-vehicles", "/api/multi-slips",
+                "/api/schedule-categories", "/api/schedule-labels", "/api/work-post-labels");
         // 설정
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
                 "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields",
