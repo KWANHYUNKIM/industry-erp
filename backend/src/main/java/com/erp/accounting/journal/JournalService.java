@@ -1011,6 +1011,12 @@ public class JournalService {
         if (e != null) entryRepository.delete(e);
     }
 
+    /** 업무전표에 연결된 회계전표 — 고쳐 저장할 때 옛 전표번호를 다시 쓰려고 읽는다. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<JournalEntry> findBySource(JournalSourceType type, Long sourceId) {
+        return entryRepository.findBySourceTypeAndSourceId(type, sourceId);
+    }
+
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
     @Transactional
     public void deleteBySource(JournalSourceType type, Long sourceId) {

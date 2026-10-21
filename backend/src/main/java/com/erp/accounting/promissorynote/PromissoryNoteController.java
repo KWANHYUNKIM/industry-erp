@@ -45,6 +45,15 @@ public class PromissoryNoteController {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
+    /** 받을어음증가 · 지급어음증가 수정(원본 조회 증가 줄 [일자] → 수정 창). */
+    @PutMapping("/{id}")
+    public ResponseEntity<NoteResponse> updateIssue(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateNoteRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(service.updateIssue(id, req, principal.getUsername()));
+    }
+
     /** 만기결제 (계좌 입출금 + 분개) */
     @PostMapping("/{id}/settle")
     public NoteResponse settle(@PathVariable Long id, @RequestBody SettleRequest req,

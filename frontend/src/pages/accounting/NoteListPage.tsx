@@ -15,6 +15,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { useRequired } from '../../utils/useRequired'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -91,6 +92,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   const [recDec, setRecDec] = useState(false)
   const [recLines, setRecLines] = useState<RecLine[]>([blankLine(), blankLine(), blankLine()])
   const [recError, setRecError] = useState('')
+  const req = useRequired()
   const recName = receivable ? '받을어음내역입력' : '지급어음내역입력'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -124,6 +126,8 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] 증가 '어음만증가' · 감소 '어음만감소'. */
   const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.closeJournalEntryId ? closeKind(m.n, receivable) : m.n.statusName)
   /** 감소 줄 [일자] 가 여는 수정 창 — 거래처지급 · 받을어음감소 · 지급어음감소. */
+  /** 증가 줄 [일자] → 증가 수정 창(원본 2026-10-21 — 보유 중인 증가만, 내역만등록 줄은 체크해 지운다). */
+  const incPath = receivable ? 'notes-increase' : 'notes-pay-increase'
   const editPathOf = (n: Note) => endorsed(n) ? 'notes-endorse' : receivable ? 'notes-decrease' : 'notes-pay-decrease'
   /** 원본 [일자] '2026/10/13-2' — 그날 넣은 어음 중 몇 번째(id 차례). 감소 줄은 날짜만. */
   const dayNo = (m: Move) => {
@@ -175,11 +179,17 @@ export default function NoteListPage({ type }: { type: NoteType }) {
 
   async function saveRecord() {
     setRecError('')
-    if (!recPartner) { setRecError('거래처코드: 자료를 입력 바랍니다.'); return }
-    const lines = recLines.filter((l) => l.noteNo.trim() || Number(l.amount) > 0)
-    if (lines.length === 0) { setRecError('자료를 입력 바랍니다.'); return }
-    if (lines.some((l) => !(Number(l.amount) > 0))) { setRecError('금액: 자료를 입력 바랍니다.'); return }
-    if (recDec && lines.some((l) => !l.noteNo.trim())) { setRecError('어음번호: 자료를 입력 바랍니다.'); return }
+    /* 원본(2026-10-21 받을어음조회 [내역만등록] 실측): 빈 저장은 글 없이 거래처코드 · 계정코드 · 첫 줄 어음번호 · 금액 칸만
+       빨간 테두리(말풍선 글 없음). 줄을 하나라도 적었으면 그 줄의 빈 금액(감소면 어음번호도)만 두른다. */
+    const used = recLines.map((_, i) => i).filter((i) => recLines[i].noteNo.trim() || Number(recLines[i].amount) > 0)
+    const rows = used.length ? used : [0]
+    const need: Record<string, boolean> = { partner: !!recPartner }
+    for (const i of rows) {
+      if (recDec || !used.length) need[`no${i}`] = !!recLines[i].noteNo.trim()
+      need[`amt${i}`] = Number(recLines[i].amount) > 0
+    }
+    if (!req.check(need)) return
+    const lines = used.map((i) => recLines[i])
     try {
       for (const l of lines) {
         if (recDec) await api.post('/notes/record-decrease', { type, noteNo: l.noteNo.trim(), date: recDate, remark: l.remark.trim() || undefined,
@@ -228,7 +238,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseDue(false); setNoteNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setDept(''); setProject(''); setRemark(''); setAuthor('') } },
         { label: receivable ? '받을어음증가' : '지급어음증가', onClick: () => navigate(receivable ? '/accounting/notes-increase' : '/accounting/notes-pay-increase') },
-        { label: '내역만등록', onClick: () => { setRecError(''); setRecDate(ymd(new Date())); setRecDec(false); setRecOpen(true) } },
+        { label: '내역만등록', onClick: () => { setRecError(''); req.reset(); setRecDate(ymd(new Date())); setRecDec(false); setRecOpen(true) } },
         { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => setConfirmDelete(true), disabled: checked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -325,7 +335,9 @@ export default function NoteListPage({ type }: { type: NoteType }) {
                          return next
                        })} />
               </td>
-              <td>{!m.inc && m.n.closeJournalEntryId && !byVoucher(m.n)
+              <td>{m.inc && !m.n.recordOnly && m.n.status === 'HELD'
+                ? <a className="ec-link" href={`/accounting/${incPath}?id=${m.n.id}`} onClick={(e) => { e.preventDefault(); navigate(`/accounting/${incPath}?id=${m.n.id}`) }}>{dayNo(m)}</a>
+                : !m.inc && m.n.closeJournalEntryId && !byVoucher(m.n)
                 ? <a className="ec-link" href={`/accounting/${editPathOf(m.n)}?id=${m.n.id}`} onClick={(e) => { e.preventDefault(); navigate(`/accounting/${editPathOf(m.n)}?id=${m.n.id}`) }}>{dayNo(m)}</a>
                 : dayNo(m)}</td>
               <td>{m.n.noteNo}</td>
@@ -360,7 +372,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
             <option>증가</option><option>감소</option>
           </select>
           <span>거래처코드</span>
-          <CodePickerField label="거래처코드" hideLabel fill emptyLabel="(없음)" value={recPartner} onChange={setRecPartner} items={pickers.partners} />
+          <CodePickerField label="거래처코드" hideLabel fill emptyLabel="(없음)" invalid={req.on('partner', !!recPartner)} value={recPartner} onChange={setRecPartner} items={pickers.partners} />
           <span>계정코드</span>
           <input className="ec-input w-full" aria-label="계정코드" disabled value={receivable ? '110 받을어음' : '252 지급어음'} />
         </div>
@@ -372,10 +384,10 @@ export default function NoteListPage({ type }: { type: NoteType }) {
             {recLines.map((l, i) => (
               <tr key={i}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td><input className="ec-input w-full" aria-label={`어음번호${i + 1}`} maxLength={30} value={l.noteNo}
-                           onChange={(e) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, noteNo: e.target.value } : x)))} /></td>
-                <td><EcNumInput className="ec-input w-full text-right" aria-label={`금액${i + 1}`} value={l.amount}
-                                onValue={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, amount: v } : x)))} /></td>
+                <td><div className={req.cls(`no${i}`, !!l.noteNo.trim())}><input className="ec-input w-full" aria-label={`어음번호${i + 1}`} maxLength={30} value={l.noteNo}
+                           onChange={(e) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, noteNo: e.target.value } : x)))} /></div></td>
+                <td><div className={req.cls(`amt${i}`, Number(l.amount) > 0)}><EcNumInput className="ec-input w-full text-right" aria-label={`금액${i + 1}`} value={l.amount}
+                                onValue={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, amount: v } : x)))} /></div></td>
                 {!recDec && <td className="text-center"><EcDateField value={l.dueDate}
                                 onChange={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, dueDate: v } : x)))} /></td>}
                 <td><CodePickerField label={`부서${i + 1}`} hideLabel fill emptyLabel="" value={l.dept} items={deptProject.departments}
@@ -397,7 +409,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         </table>
         <div className="flex gap-[5px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveRecord()}>저장(F8)</button>
-          <button type="button" className="ec-btn" onClick={() => { setRecPartner(''); setRecLines([blankLine(), blankLine(), blankLine()]); setRecError('') }}>다시 작성</button>
+          <button type="button" className="ec-btn" onClick={() => { setRecPartner(''); setRecLines([blankLine(), blankLine(), blankLine()]); setRecError(''); req.reset() }}>다시 작성</button>
           <button type="button" className="ec-btn" onClick={() => setRecOpen(false)}>닫기</button>
         </div>
       </Modal>

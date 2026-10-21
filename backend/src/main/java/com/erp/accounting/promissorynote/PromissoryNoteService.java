@@ -143,6 +143,42 @@ public class PromissoryNoteService {
     }
 
     /**
+     * 받을어음증가 · 지급어음증가 수정 — 원본 받을어음조회 증가 줄 [일자] → 수정 창 [저장(F8)].
+     * 2026-10-21 loginaa 실측: QA1-N9 123,000 → 125,000 저장하면 목록 금액이 바뀌고 회계전표No.(26/10/21 -26)는 그대로.
+     * 보유 중인 어음만 고친다(감소 · 결제가 붙은 어음은 그쪽을 먼저 지운다). 분개는 지우고 다시 만들되 같은 날이면 옛 번호를 다시 쓴다.
+     */
+    @Transactional
+    public NoteResponse updateIssue(Long id, CreateNoteRequest req, String username) {
+        PromissoryNote n = held(id, "수정");
+        BusinessPartner partner = partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        if (req.dueDate().isBefore(n.getIssueDate())) {
+            throw ApiException.badRequest("만기일이 발행일보다 빠를 수 없습니다.");
+        }
+        String typedNo = req.noteNo() != null && !req.noteNo().isBlank() ? req.noteNo().trim() : null;
+        if (typedNo != null && !typedNo.equals(n.getNoteNo())) {
+            if (noteRepository.existsByNoteNo(typedNo)) throw ApiException.conflict("이미 있는 어음번호입니다: " + typedNo);
+            n.setNoteNo(typedNo);
+        }
+        n.setPartner(partner);
+        n.setDueDate(req.dueDate());
+        n.setAmount(req.amount());
+        n.setRemark(req.remark());
+        n.setDepartmentId(req.departmentId());
+        n.setProjectId(req.projectId());
+        if (!n.isRecordOnly()) {
+            var old = journalService.findBySource(com.erp.accounting.journal.JournalSourceType.NOTE, id).orElse(null);
+            String oldDocNo = old == null ? null : old.getDocNo();
+            java.time.LocalDate oldDate = old == null ? null : old.getEntryDate();
+            journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.NOTE, id);
+            noteRepository.flush();   // 옛 분개 delete 를 먼저 내보내야 같은 번호를 다시 쓸 수 있다(unique)
+            var renewed = journalService.createFromNote(n, NoteEvent.ISSUE);
+            if (oldDocNo != null && renewed != null && renewed.getEntryDate().equals(oldDate)) renewed.setDocNo(oldDocNo);
+        }
+        return NoteResponse.from(n);
+    }
+
+    /**
      * 원본 [내역만등록] 전표구분 [감소] — 어음번호로 찾은 보유 어음을 분개 없이 닫는다(거래유형 '어음만감소').
      * 2026-10-13 loginaa 실측: QA1-N3 증가(어음만증가) 뒤 감소 → 받을어음조회 [2026/10/13-4 · QA1-N3 · 감소 · … · 어음만감소 · (빈칸)].
      * 원본은 없는 어음번호도 받지만(QA1-N9 감소가 만기일자 빈칸으로 저장됨) 우리는 어음 한 장이 줄 하나라 있는 어음만 닫는다.

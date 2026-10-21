@@ -36,7 +36,7 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  * 지급어음조회 감소 줄 일자 → 수정 창, 삭제 확인은 원본도 '- 받을어음감소'(증가는 '- 지급어음증가').
  */
 
-type Note = PromissoryNote & { closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null; closeJournalEntryId?: number | null; closePartnerId?: number | null }
+type Note = PromissoryNote & { departmentId?: number | null; projectId?: number | null; recordOnly?: boolean; closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null; closeJournalEntryId?: number | null; closePartnerId?: number | null }
 
 function bankLabel(b: BankAccountRow) {
   if (b.name) return b.name
@@ -57,10 +57,11 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   const listPath = payable ? '/accounting/notes-pay-list' : '/accounting/notes-list'
   const bankLabelText = payable ? '출금계좌' : '입금계좌'
   /** 원본 삭제 확인 '전표를 삭제하겠습니까? - …' 의 꼬리 — 거래처지급 수정 창도 '- 받을어음감소'(2026-10-20 실측). */
-  const kindName = dec || endorse ? '받을어음감소' : '받을어음증가'
+  const kindName = dec || endorse ? '받을어음감소' : title
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const editId = picksNote ? Number(params.get('id')) || null : null
+  /* 증가도 받을어음조회 증가 줄 [일자] 로 수정 창을 연다(원본 2026-10-21 실측 — 일자 · 거래처명 막힘, 저장(F8) · 저장/전표(F7) · 복사 · 삭제 · 닫기). */
+  const editId = Number(params.get('id')) || null
   const deptProject = useDeptProjectItems()
   const [partners, setPartners] = useState<Partner[]>([])
   const [banks, setBanks] = useState<BankAccountRow[]>([])
@@ -84,7 +85,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   function loadNotes() {
-    if (!picksNote) return
+    if (!picksNote && !editId) return
     api.get<NoteSummary>('/notes').then((r) => setNotes(r.data.notes as Note[])).catch(() => {})
   }
   useEffect(() => {
@@ -100,6 +101,12 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     const n = notes.find((x) => x.id === editId)
     if (!n) return
     setEditing(n)
+    if (!picksNote) {
+      setDate(n.issueDate); setPartnerId(String(n.partnerId)); setNoteNo(n.noteNo); setDueDate(n.dueDate)
+      setAmount(String(n.amount)); setRemark(n.remark ?? '')
+      setDept(n.departmentId ? String(n.departmentId) : ''); setProject(n.projectId ? String(n.projectId) : '')
+      return
+    }
     setDate(n.closedDate ?? ymd(new Date()))
     setNoteNo(n.noteNo)
     const f = Number(n.discountFee ?? 0)
@@ -150,8 +157,11 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   async function save(): Promise<boolean> {
     setError('')
     /* 원본 has-error: 빈 필수칸은 글 알림 없이 칸만 빨간 테두리(공용-디자인-정리 A). */
+    /* 원본(2026-10-21 받을어음증가 · 지급어음증가 실측)은 두 번에 나눠 두른다 — 먼저 거래처 · 어음번호만,
+       그 둘이 차 있을 때 [금액] 0 이면 금액 칸만(말풍선 글 없음, 수정 창도 같다). */
     if (!req.check(dec ? { bank: !!bankId, noteNo: !!noteNo.trim() }
-      : { partner: !!partnerId, noteNo: !!noteNo.trim(), amount: Number(amount) > 0 })) return false
+      : { partner: !!partnerId, noteNo: !!noteNo.trim() })) return false
+    if (!dec && !req.check({ amount: Number(amount) > 0 })) return false
     setSaving(true)
     try {
       if (dec) {
@@ -183,11 +193,17 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
         reset()
         loadNotes()
       } else {
-        await api.post('/notes', {
+        const body = {
           type: noteType, partnerId: Number(partnerId), issueDate: date, dueDate,
           amount: Number(amount), remark: remark.trim() || undefined, noteNo: noteNo.trim(),
           departmentId: dept ? Number(dept) : undefined, projectId: project ? Number(project) : undefined,
-        })
+        }
+        if (editing) {
+          await api.put(`/notes/${editing.id}`, body)
+          navigate(listPath)
+          return true
+        }
+        await api.post('/notes', body)
         reset()
       }
       return true
@@ -203,7 +219,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
     if (!editing) return
     setConfirmDelete(false)
     try {
-      await api.delete(`/notes/${editing.id}/${endorse ? 'endorse' : 'decrease'}`)
+      await api.delete(picksNote ? `/notes/${editing.id}/${endorse ? 'endorse' : 'decrease'}` : `/notes/${editing.id}`)
       navigate(listPath)
     } catch (e) {
       setError(extractErrorMessage(e))
