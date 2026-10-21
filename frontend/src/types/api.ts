@@ -1297,6 +1297,8 @@ export interface BankCheck {
   issuedByVoucher?: boolean
   /** 그 입금보고서(지출결의서)의 회계전표 id — 증가 줄 [일자-No.] · [회계전표일자-No.] 가 그 전표(수정)를 연다. */
   issueJournalId?: number | null
+  /** 감소 줄의 적요 — 비면 증가 적요(remark)를 그대로(원본 [수표만감소] '증가적요동일', 2026-10-21). */
+  outRemark?: string | null
 }
 
 // ===== 비현금거래 (대체전표) =====

@@ -92,6 +92,8 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   useEffect(() => { void load() }, [from, to, flow, type])
 
   const dayOf = (c: BankCheck) => (flow === '증가' ? c.issueDate : c.settledDate ?? '')
+  /** 감소현황은 감소 줄의 적요(비면 증가 적요 — 원본 [수표만감소] '증가적요동일'). */
+  const remarkOf = (c: BankCheck) => (flow === '감소' ? c.outRemark ?? c.remark : c.remark)
   /* 수표내역입력으로 넣은 움직임은 그 전표 자체 번호(원본 '2026/10/13 -5'), 분개로 움직인 것은 회계전표 번호. */
   const entryNoOf = (c: BankCheck) => (flow === '증가' ? c.directInNo : c.directOutNo) ?? null
   const noOf = (c: BankCheck) => {
@@ -117,7 +119,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     .filter((c) => !dept || String(c.departmentId ?? '') === dept)
     .filter((c) => !project || String(c.projectId ?? '') === project)
     .filter((c) => !checkNo || c.checkNo.includes(checkNo))
-    .filter((c) => !remark || (c.remark ?? '').includes(remark))
+    .filter((c) => !remark || (remarkOf(c) ?? '').includes(remark))
     .filter((c) => !author || (c.createdBy ?? '') === author)
     .filter((c) => !editor || (c.updatedBy ?? '') === editor)
     .filter((c) => !kind || kindOf(c) === kind)
@@ -139,7 +141,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     거래처명: (c) => (partnerOf(c) == null ? '' : `${codeOf(partnerOf(c))}\u0000${partnerOf(c)}`),
     계정명: (c) => accountOf(c),
     거래유형: (c) => kindOf(c),
-    적요: (c) => c.remark ?? '',
+    적요: (c) => remarkOf(c) ?? '',
     금액: (c) => Number(c.amount),
   }
   const { groups, subKey } = arrange(shown, setup, getters, (c) => Number(c.amount), headSort)
@@ -249,7 +251,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
                 <td>{byVoucher(c) ? '' : c.partnerName ?? ''}</td>
                 <td>{accountOf(c)}</td>
                 <td>{kindOf(c)}</td>
-                <td>{c.remark ?? ''}</td>
+                <td>{remarkOf(c) ?? ''}</td>
                 <td className="text-right">{won(Number(c.amount))}</td>
               </tr>
             )),

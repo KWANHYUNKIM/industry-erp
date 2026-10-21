@@ -132,7 +132,9 @@ public final class BankCheckDtos {
             /* 채권감소등록 [입금보고서작성] 수금형태 '수표'(채무감소 지급형태 '수표')로 늘어난 수표 — 원본 수표조회 증가 줄 거래유형 '입금보고서' · '지출결의서',
                체크칸 막힘, [일자-No.] · [회계전표일자-No.] 가 그 전표(수정)를 연다(2026-10-14 실측). */
             boolean issuedByVoucher,
-            Long issueJournalId
+            Long issueJournalId,
+            /* 감소 줄의 적요 — 비면 증가 적요(remark)를 그대로(원본 [수표만감소] '증가적요동일'). */
+            String outRemark
     ) {
         public static CheckResponse from(BankCheck c) {
             return from(c, null, null, false);
@@ -159,7 +161,8 @@ public final class BankCheckDtos {
                     c.getProject() != null ? c.getProject().getName() : null,
                     c.getSourceVoucher() != null,
                     c.getSourceVoucher() != null && c.getSourceVoucher().getJournalEntry() != null
-                            ? c.getSourceVoucher().getJournalEntry().getId() : null);
+                            ? c.getSourceVoucher().getJournalEntry().getId() : null,
+                    c.getOutRemark());
         }
     }
 }

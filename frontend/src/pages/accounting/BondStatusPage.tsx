@@ -5,6 +5,7 @@ import { extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
+import { ecAlert } from '../../components/EcDialog'
 import EcPeriodPicks, { ymd } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_STATUS_PICKS, byPartnerName, openBonds, type OpenBond } from '../../features/bond/ledger'
@@ -96,9 +97,16 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} value={partner} onChange={setPartner} items={masters.partners} />
         </EcCond>
-        {/* 원본 조건 판 [적용양식] — 양식은 '현황_집계' 하나(2026-10-21 채무현황 실측). [정렬기준 설정] 은 아직 없다. */}
+        {/* 원본 조건 판 [적용양식] — 양식은 '현황_집계' 하나(2026-10-21 채무현황 실측). */}
         <EcCond label="적용양식">
           <select className="ec-input w-[220px]" aria-label="적용양식" value="현황_집계" onChange={() => {}}><option>현황_집계</option></select>
+        </EcCond>
+        {/* 원본 [정렬기준] 줄 — [설정] 은 회사 마스터만 여는 창이라 loginaa 데모 계정에선 이 '권한없음' 창만 떴다
+            (2026-10-21 채무현황 · 채권현황 둘 다 실측, 창 안 칸은 못 잼). 우리도 같은 글을 띄운다. */}
+        <EcCond label="정렬기준">
+          <button type="button" className="ec-btn ec-btn-sm"
+                  onClick={() => void ecAlert(`권한없음 (${word}내역)
+업무 권한이 없습니다. 서비스를 이용하려면 회사 마스터에게 문의 바랍니다.`)}>설정</button>
         </EcCond>
       </ul>
 

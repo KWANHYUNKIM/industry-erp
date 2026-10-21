@@ -338,7 +338,7 @@ public class BankCheckService {
                         .build();
                 out.add(CheckResponse.from(checkRepository.save(c)));
             } else {
-                out.add(CheckResponse.from(decreaseDirect(req.type(), no, req.date(), entryNo, username)));
+                out.add(CheckResponse.from(decreaseDirect(req.type(), no, req.date(), entryNo, line.remark(), username)));
             }
         }
         changeHistory.record(historyTarget(req.type(), req.increase()), historyId(req.date(), entryNo), com.erp.common.history.ChangeHistoryService.CREATED);
@@ -379,8 +379,15 @@ public class BankCheckService {
         for (BankCheckDtos.DirectEditLine l : req.lines()) {
             String no = l.checkNo().trim();
             if (!req.increase()) {
-                out.add(CheckResponse.from(l.id() != null ? check(l.id())
-                        : decreaseDirect(req.type(), no, req.date(), req.entryNo(), username)));
+                BankCheck d;
+                if (l.id() != null) {
+                    d = check(l.id());
+                    d.setOutRemark(blankToNull(l.remark()));
+                    d.setUpdatedBy(username);
+                } else {
+                    d = decreaseDirect(req.type(), no, req.date(), req.entryNo(), l.remark(), username);
+                }
+                out.add(CheckResponse.from(d));
                 continue;
             }
             BankCheck c;
@@ -416,7 +423,7 @@ public class BankCheckService {
     }
 
     /** 수표내역입력 감소 한 줄 — 같은 번호의 보유 수표를 손을 떠난 것으로(받은수표는 입금완료, 발행수표는 결제완료 자리). */
-    private BankCheck decreaseDirect(CheckType type, String no, LocalDate date, int entryNo, String username) {
+    private BankCheck decreaseDirect(CheckType type, String no, LocalDate date, int entryNo, String remark, String username) {
         BankCheck c = checkRepository.findByCheckNo(no)
                 .orElseThrow(() -> ApiException.notFound("수표를 찾을 수 없습니다: " + no));
         requireType(c, type, (type == CheckType.RECEIVED ? "수령" : "발행") + "수표만 줄일 수 있습니다");
@@ -428,8 +435,13 @@ public class BankCheckService {
         c.setStatus(type == CheckType.RECEIVED ? CheckStatus.DEPOSITED : CheckStatus.PAID);
         c.setSettledDate(date);
         c.setDirectOutNo(entryNo);
+        c.setOutRemark(blankToNull(remark));
         c.setUpdatedBy(username);
         return c;
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 
     /**
@@ -492,6 +504,7 @@ public class BankCheckService {
             c.setSettledDate(null);
             c.setSettleJournalId(null);
             c.setDirectOutNo(null);
+            c.setOutRemark(null);
             c.setUpdatedBy(username);
         }
         for (Long id : inc) {

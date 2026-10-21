@@ -72,6 +72,13 @@ public class BankCheck extends BaseTimeEntity {
     private String remark;
 
     /**
+     * 감소 줄의 적요 — 원본 수령수표입금처리 · 발행수표출금처리 펼침 [수표만감소] 창의 적요 '증가적요동일 · 수표번호 · 직접입력'
+     * (2026-10-21 loginaa 실측). 비면 증가 적요({@link #remark})를 그대로 보인다(증가적요동일). 수표내역입력 감소 줄의 적요도 여기.
+     */
+    @Column(name = "out_remark", length = 200)
+    private String outRemark;
+
+    /**
      * 원본 수령(발행)수표내역입력 줄의 [부서] — 수표거래내역 [부서명], 조회 · 현황 조건 [부서](2026-10-14 loginaa 실측 '개발팀').
      * hr 를 참조하지 않으려 id 만 든다(CLAUDE.md 4.1 — accounting → hr 는 부채 간선). 이름은 화면이 부서 목록에서 붙인다.
      */

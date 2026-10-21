@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
 import EcDateField from '../../../components/EcDateField'
@@ -6,6 +6,7 @@ import EcNumInput from '../../../components/EcNumInput'
 import GridCode, { ErrTip } from '../../../components/GridCode'
 import { ymd } from '../../../components/EcPeriodPicks'
 import { ecAlert } from '../../../components/EcDialog'
+import GridFindButton from '../../../components/GridFindButton'
 import type { BondMasters } from '../api'
 import { newBondNo, sideWord, won, type BondDirection, type BondEntry, type BondSide } from '../types'
 
@@ -33,7 +34,11 @@ const blank = (date: string): Line => ({
  * 계정 '108' 처럼 코드를 쳐서 Enter 하면 한 건일 때 바로 고른다(1089 외상매출금).
  *
  * <p>수정 창(줄의 [일자-No.] 를 누름): 제목 '…(수정)', 전표일자 · 증감구분은 글자로만 보이고 못 바꾼다.
- * 버튼줄 저장(F8) · 닫기 · 삭제. 원본의 [웹자료올리기] · [H] · [최종이력] 과 [Fn ▸ 중복확인] 은 두지 않았다(엑셀 업로드 · 이력 기능이 없다).
+ * 버튼줄 저장(F8) · 닫기 · 삭제. 원본의 [H] · [최종이력] 과 [Fn ▸ 중복확인] 은 두지 않았다(이력 기능이 없다).
+ *
+ * <p>신규 창 머리 오른쪽 [Option] · [도움말], 격자 위 [찾기(F3)], 버튼줄 끝 [웹자료올리기](2026-10-21 채무내역입력 실측).
+ * Option 은 원본 업무설정 · 기능설정 · 입력화면설정 · 조건양식설정 · …(OLD) — 회사 설정 화면이라 우리는 이름만 보인다.
+ * 찾기(F3) 는 공용 GridFindButton(격자에서 글자 찾기). 웹자료올리기는 엑셀 업로드 창이라 모양만 둔다.
  */
 /** 채권감소등록 [채권만감소] 가 고른 채권으로 채워 여는 감소 창의 줄. */
 export interface BondPrefillLine {
@@ -68,6 +73,9 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
   const [fnRow, setFnRow] = useState<number | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [optionOpen, setOptionOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const gridRef = useRef<HTMLTableElement>(null)
 
   function reset() {
     setDate(today); setDirection('INCREASE'); setLines([blank(today), blank(today), blank(today)])
@@ -174,7 +182,23 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
   return (
     <Modal open={open} title={title} width={1100} error={error} onClose={onClose}>
       <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void save() } }}>
-        <h3 className="text-[14px] font-bold mb-[8px]">{title}</h3>
+        <div className="flex items-center mb-[8px]">
+          <h3 className="text-[14px] font-bold m-0">{title}</h3>
+          <span className="ml-auto relative flex gap-[3px]">
+            <button type="button" className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
+            <button type="button" className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
+            {optionOpen && (
+              <>
+                <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
+                <div className="ec-menu">
+                  {['업무설정', '기능설정', '입력화면설정', '조건양식설정', `${word}내역입력(OLD)`].map((m) => (
+                    <button key={m} type="button" onClick={() => setOptionOpen(false)}>{m}</button>
+                  ))}
+                </div>
+              </>
+            )}
+          </span>
+        </div>
         {/* 조건 판(.ec-cond)이 아니라 입력 판이다 — .ec-cond 로 두면 채권조회의 접힌 조건 판 규칙에 같이 숨는다. */}
         <ul className="ec-form mb-[8px] mobile:grid-cols-1">
           <li>
@@ -201,8 +225,9 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
           </li>
         </ul>
 
+        <div className="mb-[4px]"><GridFindButton tableRef={gridRef} /></div>
         <div className="overflow-x-auto">
-          <table className="ec-grid-input no-ec table-fixed min-w-[1000px] [&_tbody_tr]:h-[30px]">
+          <table ref={gridRef} className="ec-grid-input no-ec table-fixed min-w-[1000px] [&_tbody_tr]:h-[30px]">
             <thead>
               <tr>
                 <th className="w-[34px]" />
@@ -292,9 +317,17 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
           {!editing && <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>}
           <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
           {editing && <button type="button" className="ec-btn" onClick={() => setConfirmDelete(true)}>삭제</button>}
+          {!editing && <button type="button" className="ec-btn">웹자료올리기</button>}
         </div>
       </div>
 
+      <Modal open={helpOpen} title={`${title} · 도움말`} width={420} onClose={() => setHelpOpen(false)}>
+        <ul className="pl-[16px] m-0 leading-[1.7]">
+          <li><b>찾기(F3)</b> — 격자에서 적은 글자가 든 다음 줄로 갑니다.</li>
+          <li><b>증감구분</b> — 증가는 {word}이 생기고, 감소는 {word}번호의 잔액을 줄입니다.</li>
+          <li><b>{word}번호</b> — 필수입니다. 칸 끝 [Fn] 의 [코드생성]으로 만듭니다.</li>
+        </ul>
+      </Modal>
       {/* 원본 수정 창 [삭제](2026-10-21 실측): '- 채무내역' · '- 채권내역'. 목록 [선택삭제] 는 '- 채무조회'. */}
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
         <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {word}내역</p>

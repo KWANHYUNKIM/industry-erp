@@ -115,7 +115,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       .filter((m) => !dept || String(m.c.departmentId ?? '') === dept)
       .filter((m) => !project || String(m.c.projectId ?? '') === project)
       .filter((m) => !bankAccount || (m.c.bankAccountName ?? '') === bankAccount)
-      .filter((m) => !remark || (m.c.remark ?? '').includes(remark))
+      .filter((m) => !remark || ((m.inc ? m.c.remark : m.c.outRemark ?? m.c.remark) ?? '').includes(remark))
       .filter((m) => !author || (m.c.createdBy ?? '') === author)
       .filter((m) => !editor || (m.c.updatedBy ?? '') === editor)
       // 원본은 최근 줄이 위 — 같은 날이면 전표 번호가 큰(나중) 것, 번호가 없으면 나중에 생긴 움직임(감소)이 위.
@@ -277,7 +277,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
                 <td>{m.inc ? '증가' : '감소'}</td>
                 <td>{byVoucher(m) && !m.inc ? '' : m.c.partnerName ?? ''}</td>
                 <td className="text-right">{won(Number(m.c.amount))}</td>
-                <td>{m.c.remark ?? ''}</td>
+                <td>{(m.inc ? m.c.remark : m.c.outRemark ?? m.c.remark) ?? ''}</td>
                 {!received && <td className="text-ec-navy">인쇄</td>}
                 <td>{kindOf(m)}</td>
                 {/* 원본 '2026/10/13 -12' — 우리 GL 번호의 끝 일련번호만 */}

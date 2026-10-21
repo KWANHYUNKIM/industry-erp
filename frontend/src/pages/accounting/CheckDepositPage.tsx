@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import CheckOnlyDecreaseModal from '../../features/bankcheck/components/CheckOnlyDecreaseModal'
 import CheckDepositReportModal, { bankLabel, type CheckDepositPick } from '../../features/bankcheck/components/CheckDepositReportModal'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -18,7 +19,8 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * 계정명은 수표내역입력으로 넣은 수표면 수표계좌의 계정(보통예금), 분개로 받은 수표면 받을수표.
  *
  * <p>하단 [입금보고서작성 ▴] — 아무것도 안 고르면 '리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.',
- * 고르면 CheckDepositReportModal(입금보고서작성 → 입금보고서 → 저장). 펼침 [수표만감소] 는 아직 없다(plans/회계2.md 남은 것).
+ * 고르면 CheckDepositReportModal(입금보고서작성 → 입금보고서 → 저장). 펼침 ▴ [수표만감소] 는 CheckOnlyDecreaseModal(회계전표 없이 수표만 줄임,
+ * 2026-10-21 실측 — 빈 선택이면 같은 알림).
  *
  * <p><b>발행수표출금처리</b>(E060606, type="ISSUED") 는 같은 틀이다(2026-10-14 실측): 열 [발행수표계좌명](나머지 같음 — [수령일자]도 그대로),
  * 계정명은 수표계좌의 계정, 하단 [지출결의서작성 ▴](펼침 [수표만감소]) → 지출결의서작성 → 지출결의서 → 저장.
@@ -34,6 +36,7 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [alert, setAlert] = useState(false)
   const [deposit, setDeposit] = useState<CheckDepositPick[] | null>(null)
+  const [onlyDecrease, setOnlyDecrease] = useState<BankCheck[] | null>(null)
 
   async function load() {
     setLoading(true)
@@ -84,10 +87,17 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
     setDeposit(chosen.map((c) => ({ check: c, accountCode: accountOf(c).code, accountName: accountOf(c).name, partnerCode: partnerCode(c.partnerId) })))
   }
 
+  function checkOnlyDecrease() {
+    const chosen = held.filter((c) => picked.has(c.id))
+    if (chosen.length === 0) { setAlert(true); return }
+    setOnlyDecrease(chosen)
+  }
+
   return (
     <EcListShell
       title={title}
-      actions={[{ label: received ? '입금보고서작성' : '지출결의서작성', primary: true, onClick: depositReport }]}
+      actions={[{ label: received ? '입금보고서작성' : '지출결의서작성', primary: true, onClick: depositReport,
+                  menu: [{ label: '수표만감소', onClick: checkOnlyDecrease }] }]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table ref={tableRef} className="w-full text-left">
@@ -154,6 +164,7 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
         <p className="mb-[12px]">리스트에 선택된 자료가 없습니다.<br /><br />체크박스에 체크한 후 다시 시도 바랍니다.</p>
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => setAlert(false)}>확인</button>
       </Modal>
+      <CheckOnlyDecreaseModal type={type} checks={onlyDecrease} onClose={() => setOnlyDecrease(null)} onSaved={() => void load()} />
       <CheckDepositReportModal type={type} picks={deposit} onClose={() => setDeposit(null)} onSaved={() => void load()} />
     </EcListShell>
   )

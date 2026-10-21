@@ -76,7 +76,7 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
       setDate(voucher.date); setIncrease(voucher.increase)
       setPartnerId(first?.partnerId != null ? String(first.partnerId) : ''); setAccountId(first?.bankAccountId != null ? String(first.bankAccountId) : '')
       setLines(pad3(voucher.checks.map((c) => ({
-        id: c.id, checkNo: c.checkNo, amount: String(Number(c.amount)), remark: c.remark ?? '',
+        id: c.id, checkNo: c.checkNo, amount: String(Number(c.amount)), remark: (voucher.increase ? c.remark : c.outRemark ?? c.remark) ?? '',
         departmentId: c.departmentId != null ? String(c.departmentId) : '', projectId: c.projectId != null ? String(c.projectId) : '',
       }))))
       return

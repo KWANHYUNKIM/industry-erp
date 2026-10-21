@@ -191,7 +191,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
                 <td>{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')}</td>
                 <td>{deptName(g.c.departmentId)}</td>
                 <td>{g.c.projectName ?? ''}</td>
-                <td>{g.c.remark ?? ''}</td>
+                <td>{(l.dec ? g.c.outRemark ?? g.c.remark : g.c.remark) ?? ''}</td>
                 <td className="text-right">{won(l.inc)}</td>
                 <td className="text-right">{won(l.dec)}</td>
                 {/* 원본은 잔액 0 을 빈칸으로 그린다(발행수표거래내역 감소 줄) */}
