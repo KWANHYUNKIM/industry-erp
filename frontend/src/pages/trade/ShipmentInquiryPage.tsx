@@ -13,6 +13,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import Modal from '../../components/Modal'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { useShipmentEntry, type ShipmentRes } from '../../features/shipment/useShipmentEntry'
 
 /**
@@ -101,6 +102,7 @@ export default function ShipmentInquiryPage() {
   const [checked, setChecked] = useState<Set<number>>(new Set())
   /* 출하입력(수정) 창 — 원본 일자-No. 링크. */
   const [editing, setEditing] = useState<Shipment | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const entry = useShipmentEntry(editing)
   /* 인쇄물 머리의 공급자 칸. 회사정보를 한 번만 받아 둔다. */
   const [company, setCompany] = useState<DocParty | null>(null)
@@ -402,8 +404,10 @@ export default function ShipmentInquiryPage() {
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setEditing(null)}>닫기</button>
           <button type="button" className="ec-btn" onClick={() => editing && void remove([editing.id])}>삭제</button>
+          <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>
         </div>
       </Modal>
+      {historyOpen && editing && <SlipHistoryModal target="SHIPMENT" id={editing.id} head={slipHeadLabel(editing.shipDate, editing.shipNo)} onClose={() => setHistoryOpen(false)} />}
     </EcListShell>
   )
 }

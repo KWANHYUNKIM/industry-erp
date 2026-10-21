@@ -14,6 +14,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { downloadStoredFile } from '../../utils/fileDownload'
 import type { Item, Warehouse, WorkOrder } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 
 /**
  * 재고 I &gt; 생산/외주 &gt; <b>작업지시서입력</b>.
@@ -41,6 +42,7 @@ export default function WorkOrderEntryPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const editNo = params.get('no')
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -246,7 +248,7 @@ export default function WorkOrderEntryPage() {
           { label: saving ? '저장 중…' : '저장(F8)', primary: true, submit: true, disabled: saving },
           { label: '다시 작성', onClick: reset },
           { label: '리스트', onClick: () => navigate('/production/work-orders') },
-          ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }] : []),
+          ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }, { label: 'H', onClick: () => setHistoryOpen(true) }] : []),
         ]}
         help={
           <ul className="pl-[18px] m-0">
@@ -392,6 +394,7 @@ export default function WorkOrderEntryPage() {
         {error && <p className="ec-alert ec-alert-danger my-[8px] mx-0">{error}</p>}
         {ok && <p className="ec-alert ec-alert-success my-[8px] mx-0">{ok}</p>}
       </EcSlipShell>
+      {historyOpen && editNo && <SlipHistoryModal target="WORK_ORDER" docNo={editNo} head={slipHeadLabel(date, editNo)} onClose={() => setHistoryOpen(false)} />}
       <SlipLoadModal open={slipLoadOpen} onClose={() => setSlipLoadOpen(false)} onApply={applyLoadedSlips} />
       <SalesOrderPickModal open={orderOpen} onClose={() => setOrderOpen(false)} onApply={applyOrders} />
     </form>

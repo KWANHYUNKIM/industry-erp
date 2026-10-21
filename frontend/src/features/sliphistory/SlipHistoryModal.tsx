@@ -6,6 +6,12 @@ import { historyTime, type HistoryRow } from '../../components/EcHistory'
 /** 전표 [H] 한 줄 — 서버 ChangeHistoryResponse(docStatus 는 그 때 전표상태). */
 export type SlipHistoryRow = HistoryRow & { docStatus: string | null }
 
+/** 수정 창 [H] 머리 — 원본 '[2026/10/28 -2]'(일자 + 번호의 끝 숫자). */
+export function slipHeadLabel(date: string, no: string): string {
+  const n = Number(no.split('-').pop())
+  return `[${date.replace(/-/g, '/')} -${Number.isFinite(n) && n > 0 ? n : no}]`
+}
+
 const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 
 /** '2026/10/21 (수) 오후 1:48:24' — 원본 판매 수정 창 [H] 작업일시 꼴(요일이 붙는다). */
@@ -21,8 +27,10 @@ export function slipHistoryTime(iso: string): string {
  *   + '보안이력' · '발송이력'(작업자ID · 작업일시 · 행위, 우리는 늘 '등록된 데이터가 없습니다.') + [닫기].
  * - 거래이력조회(재고) [H]: 머리 '[2026/10/21 -5]', 격자 [No.][작업자ID][작업일시][전표상태][진행상태][상태] + [닫기].
  */
-export function SlipHistoryModal({ target, id, head, withSections, confirmLabel, onClose }: {
-  target: string; id: number; head: string; withSections?: boolean
+export function SlipHistoryModal({ target, id, docNo, head, withSections, confirmLabel, onClose }: {
+  target: string; id?: number; head: string; withSections?: boolean
+  /** 수정하면 행 id 가 바뀌는 전표(창고이동 · 조정 · 작업지시서 · 생산불출 · 생산입고)는 전표번호로 연다. */
+  docNo?: string
   /** 전표상태 칸을 이 글자로 — 견적서 · 주문서는 서버 docStatus 가 진행상태라 [전표상태] 는 '확인'(원본 견적서 [H] 실측). */
   confirmLabel?: string
   onClose: () => void
@@ -30,9 +38,12 @@ export function SlipHistoryModal({ target, id, head, withSections, confirmLabel,
   const [rows, setRows] = useState<SlipHistoryRow[]>([])
   const [error, setError] = useState('')
   useEffect(() => {
-    api.get<SlipHistoryRow[]>(`/change-history?target=${encodeURIComponent(target)}&id=${id}`)
+    const url = docNo != null
+      ? `/change-history/by-no?target=${encodeURIComponent(target)}&docNo=${encodeURIComponent(docNo)}`
+      : `/change-history?target=${encodeURIComponent(target)}&id=${id}`
+    api.get<SlipHistoryRow[]>(url)
       .then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
-  }, [target, id])
+  }, [target, id, docNo])
   const empty = (cols: number) => <tr><td colSpan={cols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
   return (
     <Modal open title="이력" width={960} onClose={onClose} error={error}>

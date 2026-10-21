@@ -15,6 +15,7 @@ import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item, Production, ProductionEntryType, ProductionMaterial, Warehouse, WorkOrder } from '../../types/api'
 import { subcontractCost, subcontractVat } from '../../utils/subcontractCost'
 import { ecConfirm } from '../../components/EcDialog'
+import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 
 /**
  * 원본(이카운트) <b>생산입고 I · II · III</b> 입력 화면. 셋은 뼈대가 같고 소모를 정하는 법만 다르다.
@@ -101,6 +102,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const editNo = params.get('no')
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -697,7 +699,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           { label: saving ? '저장 중…' : '저장(F8)', primary: true, submit: true, disabled: saving },
           { label: '다시 작성', onClick: reset },
           { label: '리스트', onClick: () => navigate('/production/receipt-inquiry') },
-          ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }] : []),
+          ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }, { label: 'H', onClick: () => setHistoryOpen(true) }] : []),
         ]}
         help={
           <ul className="pl-[18px] m-0">
@@ -810,6 +812,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         {error && <p className="ec-alert ec-alert-danger my-[8px] mx-0">{error}</p>}
         {ok && <p className="ec-alert ec-alert-success my-[8px] mx-0">{ok}</p>}
       </EcSlipShell>
+      {historyOpen && editNo && <SlipHistoryModal target="PRODUCTION" docNo={editNo} head={slipHeadLabel(date, editNo)} onClose={() => setHistoryOpen(false)} />}
 
       <Modal open={woOpen} title="작업지시서조회" error={error} width={900} onClose={() => setWoOpen(false)}>
         <div className="max-h-[55vh] overflow-y-auto">

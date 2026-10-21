@@ -11,6 +11,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateNo } from '../../utils/dateNo'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 
@@ -118,6 +119,7 @@ export default function ShipmentOrderPage() {
 
   /* 입력 창 */
   const [editing, setEditing] = useState<ShipmentOrder | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [head, setHead] = useState<Head>(emptyHead)
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
@@ -441,8 +443,10 @@ export default function ShipmentOrderPage() {
           {!editing && <button type="button" className="ec-btn" onClick={() => { setHead(emptyHead()); setLines([emptyLine()]) }}>다시 작성</button>}
           <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
           {editing && <button type="button" className="ec-btn" onClick={() => remove(editing)}>삭제</button>}
+          {editing && <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>}
         </div>
       </Modal>
+      {historyOpen && editing && <SlipHistoryModal target="SHIPMENT_ORDER" id={editing.id} head={slipHeadLabel(editing.orderDate, editing.orderNo)} onClose={() => setHistoryOpen(false)} />}
 
       <Modal open={loadOpen} error={error} width={760} title="주문서검색창" onClose={() => setLoadOpen(false)}>
         <table className="w-full text-left">

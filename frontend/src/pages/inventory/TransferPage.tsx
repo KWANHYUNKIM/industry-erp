@@ -17,6 +17,7 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import EcBarChart from '../../components/EcBarChart'
 import NumCheck from '../../components/NumCheck'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 
@@ -492,8 +493,6 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
   const [copied, setCopied] = useState(false)
   const head = copied ? undefined : slip?.[0]
   const [showHistory, setShowHistory] = useState(false)
-  /* 줄마다 고친 때가 다르다(안 바뀐 줄은 그대로) — 전표의 마지막 수정은 줄들 가운데 가장 늦은 것. */
-  const lastUpdated = (slip ?? []).map((r) => r.updatedAt ?? '').sort().pop() || null
   const [form, setForm] = useState({
     transferDate: head?.transferDate ?? today(),
     projectId: head?.projectId ? String(head.projectId) : '',
@@ -663,38 +662,13 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
           </>
         )}
       </div>
-      {/* [H] — 원본 이력 창: 작업자ID · 작업일시 · 전표상태 · 진행상태 · 상태(신규 · 수정). */}
-      <Modal open={showHistory && !!head} title="이력" onClose={() => setShowHistory(false)}>
-        {head && (
-          <table className="w-full text-left">
-            <thead><tr><th className="w-[34px]"></th><th>작업자ID</th><th>작업일시</th><th>전표상태</th><th>진행상태</th><th>상태</th></tr></thead>
-            <tbody>
-              {[
-                { at: head.createdAt, kind: '신규' },
-                ...(lastUpdated && head.createdAt && lastUpdated.slice(0, 19) !== head.createdAt.slice(0, 19) ? [{ at: lastUpdated, kind: '수정' }] : []),
-              ].map((h, i) => (
-                <tr key={i}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
-                  <td>{head.createdBy ?? ''}</td>
-                  <td>{historyAt(h.at)}</td>
-                  <td>확인</td><td>확인</td><td>{h.kind}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Modal>
+      {/* [H] — 서버가 적은 작업 이력(StockTransferService.HISTORY_TARGET, 전표번호로 연다). */}
+      {showHistory && head && (
+        <SlipHistoryModal target="STOCK_TRANSFER" docNo={head.transferNo} head={slipHeadLabel(head.transferDate, head.transferNo)}
+                          onClose={() => setShowHistory(false)} />
+      )}
     </div>
   )
-}
-
-/** 원본 이력 작업일시 꼴 '2026/10/21 오전 11:34:11'. */
-function historyAt(at?: string | null) {
-  if (!at) return ''
-  const d = new Date(at)
-  const h = d.getHours()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${h < 12 ? '오전' : '오후'} ${p(h % 12 || 12)}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 /**

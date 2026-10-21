@@ -8,6 +8,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
 import { dateNo } from '../../utils/dateNo'
+import { SlipHistoryModal, slipHeadLabel } from '../sliphistory/SlipHistoryModal'
 import { printDocuments } from '../../utils/printDocument'
 import { openPrintWindow } from '../../utils/print'
 import type { Currency, Item, MyItem, Partner, PurchaseOrder, PurchaseOrderLine, StockRow } from '../../types/api'
@@ -116,6 +117,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
   }, [])
 
   const isEdit = editing != null && editing.id > 0
+  const [historyOpen, setHistoryOpen] = useState(false)
   const docName = priceRequest ? '단가요청' : order ? '발주서' : plan ? '발주계획' : '발주요청'
   /** 거래처가 머리에 하나인 전표(발주서 · 단가요청) — 줄 거래처 열 · [합계] 열이 없다. */
   const headParty = order || priceRequest
@@ -511,11 +513,13 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
           <button type="button" className="ec-btn" onClick={() => onStep?.(-1)}>다음</button>
           <button type="button" className="ec-btn" onClick={() => onClose?.()}>닫기</button>
           <button type="button" className="ec-btn" onClick={remove}>삭제</button>
+          <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>
         </> : <>
           <button type="button" className="ec-btn" onClick={() => reset()}>다시 작성</button>
           <button type="button" className="ec-btn" onClick={() => onClose?.()}>닫기</button>
         </>}
       </div>
+      {historyOpen && isEdit && <SlipHistoryModal target="PURCHASE_ORDER" id={editing!.id} head={slipHeadLabel(editing!.orderDate, editing!.orderNo)} onClose={() => setHistoryOpen(false)} />}
     </Modal>
   )
 }

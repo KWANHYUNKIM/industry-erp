@@ -12,6 +12,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import type { StockAdjustmentSlip } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { useRequired } from '../../utils/useRequired'
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
@@ -349,34 +350,14 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                           onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }} />
           )}
         </Modal>
-        {/* [H] — 원본 이력 창: 작업자ID · 작업일시 · 전표상태 · 진행상태 · 상태. 고치면 줄을 새로 쓰므로 작업일시는 마지막으로 쓴 때다. */}
-        <Modal open={showHistory && !!slip} title="이력" error={error} onClose={() => setShowHistory(false)}>
-          {slip && (
-            <table className="w-full text-left">
-              <thead><tr><th className="w-[34px]"></th><th>작업자ID</th><th>작업일시</th><th>전표상태</th><th>진행상태</th><th>상태</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td className="text-center text-ec-hint">1</td>
-                  <td>{slip.lines[0]?.createdBy ?? ''}</td>
-                  <td>{historyAt(slip.lines[0]?.createdAt)}</td>
-                  <td>확인</td><td>확인</td><td>신규</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-        </Modal>
+        {/* [H] — 서버가 적은 작업 이력(StockAdjustmentService.HISTORY_TARGET, 전표번호로 연다). */}
+        {showHistory && slip && adjustNo && (
+          <SlipHistoryModal target="STOCK_ADJUSTMENT" docNo={adjustNo} head={slipHeadLabel(date, adjustNo)}
+                            onClose={() => setShowHistory(false)} />
+        )}
       </div>
     </EcSlipShell>
   )
-}
-
-/** 원본 이력 작업일시 꼴 '2026/10/21 오전 11:34:11'. */
-function historyAt(at?: string | null) {
-  if (!at) return ''
-  const d = new Date(at)
-  const h = d.getHours()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${h < 12 ? '오전' : '오후'} ${p(h % 12 || 12)}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 /**
