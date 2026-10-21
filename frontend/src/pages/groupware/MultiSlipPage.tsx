@@ -452,7 +452,8 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
     if (c.kind === 'code') {
       const [title, codeHead, nameHead, subHead] = MASTER_TITLE[c.master!]
       return <GridCode title={title} codeHead={codeHead} nameHead={nameHead} subHead={subHead} items={masters[c.master!]} value={v}
-                       showName={c.showName} onPick={(x) => pickCode(i, c, x)} />
+                       showName={c.showName} onPick={(x) => pickCode(i, c, x)}
+                       emptyEnterNext={c.key === 'contractCode' ? 1 : cfg.board === 'BOND_COLLECT' && c.key === 'managerCode' ? 2 : undefined} />
     }
     if (c.kind === 'calc') return <input className="ec-input w-full text-right" aria-label={c.head} value={v} readOnly disabled />
     if (c.kind === 'memo') return <textarea className="ec-input w-full h-[26px] resize-y" aria-label={c.head} value={v} onChange={(e) => setCell(i, c.key, e.target.value)} />

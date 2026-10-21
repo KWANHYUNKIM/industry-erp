@@ -18,21 +18,30 @@ export function ErrTip({ msg }: { msg: string }) {
  * F2 · 빈 칸 Enter 도 창을 연다. 이름은 옆 열이 그린다.
  * (회계 I 지출결의서 · 입금보고서 화면 안의 같은 칸을 공용으로 꺼낸 것이다.)
  */
-export default function GridCode({ title, codeHead, nameHead, subHead, items, value, onPick, err, showName = false }: {
+export default function GridCode({ title, codeHead, nameHead, subHead, items, value, onPick, err, showName = false, emptyEnterNext }: {
   title: string; codeHead: string; nameHead: string; items: CodeItem[]
   /** 창에 셋째 열(item.sub)을 더한다 — 원본 월근태 '사원검색' 창의 [부서명]. 없으면 두 열 그대로. */
   subHead?: string
   value: string; onPick: (v: string) => void; err?: string | null
   /** 고른 뒤 칸에 코드 대신 이름을 보인다 — 원본 수표내역입력 줄의 [부서] '개발팀' · [프로젝트] '20210801A Project'(이름 열이 따로 없다). */
   showName?: boolean
+  /** 빈 칸 Enter 가 창을 열지 않고 다음 칸으로 간다 — 값은 건너뛸 칸 수 + 1(1 = 바로 다음 칸). 원본 영업자별 계약상황 [계약코드] ·
+   *  채권회수 상황판 [담당자](거래처를 건너뛰고 목표금액으로, 2026-10-21 실측). 없으면 창을 연다. */
+  emptyEnterNext?: number
 }) {
   const selected = items.find((x) => x.value === value) ?? null
   const [typed, setTyped] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
-  function submit() {
+  function goNext(el: HTMLElement, steps: number) {
+    const scope = el.closest('table') ?? document
+    const all = Array.from(scope.querySelectorAll<HTMLElement>('input:not([disabled]):not([readonly]):not([type=checkbox]), textarea:not([disabled]):not([readonly])'))
+    all[all.indexOf(el) + steps]?.focus()
+  }
+  function submit(el?: HTMLElement) {
     const n = (typed ?? '').trim()
     setTyped(null)
+    if (!n && emptyEnterNext && el) { goNext(el, emptyEnterNext); return }
     if (!n) { setQ(''); setOpen(true); return }
     const low = n.toLowerCase()
     // 정확히 같은 코드가 있어도 다른 코드 · 이름에 함께 걸리면 고르지 않고 창 — 원본 일반전표 거래처 '00001'
@@ -50,7 +59,7 @@ export default function GridCode({ title, codeHead, nameHead, subHead, items, va
              value={typed ?? (showName ? selected?.name : selected?.code) ?? ''}
              onChange={(e) => { setTyped(e.target.value); if (!e.target.value) onPick('') }}
              onKeyDown={(e) => {
-               if (e.key === 'Enter') { e.preventDefault(); submit() }
+               if (e.key === 'Enter') { e.preventDefault(); submit(e.currentTarget) }
                if (e.key === 'F2') { e.preventDefault(); setQ(''); setOpen(true) }
              }}
              onBlur={() => { if (typed) submit(); else setTyped(null) }} />
