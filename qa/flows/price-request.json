@@ -1,5 +1,5 @@
 {
-  "about": "단가요청은 따로 된 전표다(원본 단가요청입력 E040321 · 조회 E040322 · 진행단계 E040323, 2026-10-21 loginaa 실측) — 단가요청입력 10 × 100(요청단가) 저장은 말 없이 비움 → 단가요청조회 '진행중' · 1,100, 번호를 눌러 단가요청입력(수정)에서 12 로 고침 = 1,320 → 진행단계 [수취단가확인] 90 → 수취금액 1,080, [단가확정] 85 → 확정금액 1,020 → 단가요청조회 [다른전표생성 › 발주서] 창에 확정단가 85 · [단가요청] 날짜 · No. 가 실려 저장 = 발주서 12 × 85 = 1,122(단가요청은 진행중 그대로, [생성한 전표] '조회' 에 발주번호) → 발주서를 지우고 단가요청 [선택삭제] '선택한 전표를 삭제 하겠습니까?'.",
+  "about": "단가요청은 따로 된 전표다(원본 단가요청입력 E040321 · 조회 E040322 · 진행단계 E040323 · 발주서입력 E040301, 2026-10-21 loginaa 실측) — 단가요청입력 10 × 100 저장은 말 없이 비움 → 단가요청조회 '진행중' · 1,100, 번호를 눌러 12 로 고침 = 1,320 → 진행단계 [수취단가확인] → 단가요청비교현황 창 '수취단가 직접입력' → 단가요청수정 창 단가 90 저장 → 수취금액 칸 90(원본은 단가를 찍는다) → [단가확정] → 동그라미로 수취단가를 골라 [단가확정/저장(F8)] → 확정금액 90 → 발주서입력 툴바 [단가요청] → 단가요청조회 창(단가 = 확정단가 90) 적용 → 12 × 90 = 1,080 · 108 · [단가요청] · [No.] 열, 저장 = 발주서 1,188(번호 PR- · 단가요청 PQ- 따로 셈) → 발주서조회 발주번호 'YY/MM/DD-N' · 인쇄 열 '인쇄' 하나 → 단가요청 [생성한 전표] '조회' → 발주서를 지우고 단가요청 [선택삭제].",
   "shots": [
     {
       "name": "단가요청입력 — 머리 거래처 · 유효기간, 줄 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세. 10 × 100 저장하면 말 없이 비우고 단가요청(PRICE_REQUESTED) 한 장",
@@ -41,42 +41,65 @@
       ]
     },
     {
-      "name": "단가요청진행단계 — 열 단가요청번호 · 품목명 · 진행단계 · 거래처명 · 수취금액 · 확정금액. [수취단가확인] 90 → 수취금액 1,080, [단가확정] 85 → 확정금액 1,020",
+      "name": "단가요청진행단계 — [수취단가확인] → 단가요청비교현황 · '수취단가 직접입력' → 단가요청수정 90 → 수취금액 90, [단가확정] → 동그라미로 수취단가 골라 [단가확정/저장(F8)] → 확정금액 90",
       "path": "/sales/price-request-progress",
       "steps": [
         "wait:1200",
         "expect:[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim().replace(/\\s*[▲▼]$/,'')).join('|').startsWith('|단가요청번호|품목명|진행단계|거래처명|수취금액|확정금액')",
         "js:[...[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo')).querySelectorAll('button')].find((b)=>b.textContent.trim()==='수취단가확인').click(); true",
         "wait:600",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return d.innerText.startsWith('단가요청비교현황')&&d.innerText.includes('수취단가 직접입력')&&d.innerText.includes('요청단가')&&[...d.querySelectorAll('button')].some((b)=>b.textContent.trim()==='확정단가선택/수정')})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('a')].find((a)=>a.textContent.trim()==='수취단가 직접입력').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.startsWith('단가요청수정')&&![...document.querySelectorAll('[role=dialog]')].pop().querySelector('tbody input.text-right').value",
         "set:[role=dialog] tbody input.text-right#0|90",
         "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='저장(F8)').click(); true",
         "wait:1500",
-        "expect:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo')).cells[5].innerText.trim()==='1,080'",
+        "expect:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo')).cells[5].innerText.trim()==='90'",
         "js:[...[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo')).querySelectorAll('button')].find((b)=>b.textContent.trim()==='단가확정').click(); true",
         "wait:600",
-        "set:[role=dialog] tbody input.text-right#0|85",
-        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='저장(F8)').click(); true",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return d.innerText.startsWith('단가요청비교현황')&&d.querySelectorAll('tbody input[type=radio]').length===2&&d.querySelector('tbody input[aria-label=\"요청단가\"]').checked})()",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('tbody input[aria-label=\"수취단가\"]').click(); true",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='단가확정/저장(F8)').click(); true",
         "wait:1500",
-        "expect:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo')).cells[6].innerText.trim()==='1,020'"
+        "expect:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo')).cells[6].innerText.trim()==='90'"
       ]
     },
     {
-      "name": "단가요청조회 [다른전표생성 › 발주서] — 발주서입력 창에 확정단가 85 · [단가요청] 날짜 · No., 입고창고를 골라 저장 = 발주서 1,122. 단가요청은 진행중 그대로, [생성한 전표] '조회' 에 발주번호",
-      "path": "/sales/price-requests",
+      "name": "발주서입력 [단가요청] — 단가요청조회 창(단가요청번호 · 거래처명 · 담당자명 · 품목 · 유효기간 · 단가=확정 90) 적용 → 12 × 90 = 1,080, 입고창고 골라 저장 = 발주서 1,188(PR- 번호, 단가요청은 진행중 그대로)",
+      "path": "/sales/purchase-order-input",
       "steps": [
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "wait:1200",
-        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo')).querySelector('input[type=checkbox]').click(); true",
-        "click:다른전표생성",
+        "js:[...document.querySelectorAll('.ec-toolbar button')].find((b)=>b.textContent.trim()==='단가요청').click(); true",
         "wait:800",
-        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const c=[...d.querySelector('tbody tr').cells].map((x)=>x.querySelector('input')?x.querySelector('input').value:x.innerText.trim());return d.innerText.startsWith('발주서입력')&&h==='|품목코드|품목명|규격|수량|단가|공급가액|부가세|단가요청|No.'&&c[4]==='12'&&c[5]==='85'&&c[6]==='1,020'})()",
-        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[placeholder=\"창고\"]').click(); true",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return d.innerText.startsWith('단가요청조회')&&h==='|단가요청번호|거래처명|담당자명|품목|유효기간|단가'})()",
+        "js:(()=>{const t=[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo'));return t.cells[6].innerText.trim()==='90'&&(t.querySelector('input[type=checkbox]').click(),true)})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='적용(F8)').click(); true",
+        "wait:800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim());const c=[...document.querySelector('table tbody tr').cells].map((x)=>x.querySelector('input')?x.querySelector('input').value:x.innerText.trim());return h.includes('단가요청')&&c.includes('12')&&c.includes('90')&&c.includes('1,080')})()",
+        "expect:![...document.querySelectorAll('.ec-toolbar button')].some((b)=>b.textContent.trim()==='단가요청')",
+        "js:document.querySelector('input[placeholder=\"창고\"]').click(); true",
         "pickrow:QA-WH",
-        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='저장(F8)').click(); true",
+        "click:저장(F8)",
         "wait:1500",
-        "js:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const pr=all.find((x)=>String(x.id)===sessionStorage.getItem('prId'));const po=all.find((x)=>x.status==='ORDERED'&&x.lines.some((l)=>l.sourceLineId===pr.lines[0].id));sessionStorage.setItem('prPoId',po?po.id:'');return po&&po.id})()",
-        "expect:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const po=all.find((x)=>String(x.id)===sessionStorage.getItem('prPoId'));const pr=all.find((x)=>String(x.id)===sessionStorage.getItem('prId'));return po&&Number(po.totalAmount)===1122&&Number(po.lines[0].unitPrice)===85&&pr.status==='PRICE_REQUESTED'})()",
-        "wait:800",
+        "js:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const pr=all.find((x)=>String(x.id)===sessionStorage.getItem('prId'));const po=all.find((x)=>x.status==='ORDERED'&&x.lines.some((l)=>l.sourceLineId===pr.lines[0].id));sessionStorage.setItem('prPoId',po?po.id:'');sessionStorage.setItem('prPoNo',po?po.orderDate.slice(2).replace(/-/g,'/')+'-'+Number(po.orderNo.split('-').pop()):'');return po&&po.orderNo})()",
+        "expect:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const po=all.find((x)=>String(x.id)===sessionStorage.getItem('prPoId'));const pr=all.find((x)=>String(x.id)===sessionStorage.getItem('prId'));return po&&Number(po.totalAmount)===1188&&Number(po.lines[0].unitPrice)===90&&po.orderNo.startsWith('PR-')&&pr.orderNo.startsWith('PQ-')&&pr.status==='PRICE_REQUESTED'})()"
+      ]
+    },
+    {
+      "name": "발주서조회 — 발주번호 'YY/MM/DD-N' 꼴, [인쇄] 열은 '인쇄' 하나(옛 단가확정 · 발주확정 · 입고전환 · 취소 · 삭제 단추 없음). 단가요청조회 [생성한 전표] '조회'",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "wait:1500",
+        "expect:(()=>{const t=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('prPoNo'));return !!t&&t.cells[10].innerText.trim()==='인쇄'&&t.cells[10].querySelectorAll('button').length===0})()"
+      ]
+    },
+    {
+      "name": "단가요청조회 — [생성한 전표] '조회' 에 발주서",
+      "path": "/sales/price-requests",
+      "steps": [
+        "wait:1500",
         "expect:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prNo')).cells[6].innerText.trim()==='조회'"
       ]
     },

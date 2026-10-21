@@ -65,7 +65,7 @@
       "steps": [
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "wait:1500",
-        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo')).querySelector('input[type=checkbox]').click(); true",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo')&&t.innerText.includes('660')).querySelector('input[type=checkbox]').click(); true",
         "js:[...document.querySelectorAll('.ec-footer button')].find((b)=>b.textContent.trim()==='다른전표생성').click(); true",
         "wait:300",
         "expect:[...document.querySelectorAll('[role=menu]')].pop().innerText.replace(/\\n/g,',')==='▾ 발주서,거래처별납기일자별라인별,거래처별납기일자별품목별,1장라인별,1장품목별,직접설정'",
@@ -76,8 +76,8 @@
         "wait:1800",
         "js:(async()=>{const r=(await window.__api('GET','/purchase-orders?status=ORDERED')).body.sort((a,b)=>b.id-a.id)[0];sessionStorage.setItem('spPoId',r.id);sessionStorage.setItem('spPoNo',r.orderDate.replace(/-/g,'/')+' -'+Number(r.orderNo.split('-').pop()));return r.id})()",
         "expect:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const o=all.find((x)=>String(x.id)===sessionStorage.getItem('spPoId'));const p=all.find((x)=>String(x.id)===sessionStorage.getItem('spPlanId'));return Number(o.totalAmount)===660&&o.lines[0].sourceLineId===p.lines[0].id&&p.status==='PLANNED'&&!p.lines[0].planClosed})()",
-        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo'))",
-        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo')).cells[12].querySelector('a').click(); true",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo')&&t.innerText.includes('660'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo')&&t.innerText.includes('660')).cells[12].querySelector('a').click(); true",
         "wait:400",
         "expect:[...document.querySelectorAll('table')].find((t)=>t.innerText.includes('발주번호')).innerText.includes(sessionStorage.getItem('spPoNo'))",
         "clicklast:닫기"
