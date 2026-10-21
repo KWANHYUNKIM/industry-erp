@@ -19,6 +19,8 @@ import com.erp.hr.dailyworker.dto.DailyPayDtos.LineItem;
 import com.erp.hr.dailypayitem.DailyPayItem;
 import com.erp.hr.dailypayitem.DailyPayItemKind;
 import com.erp.hr.dailypayitem.DailyPayItemRepository;
+import com.erp.hr.dailypayitem.DailyPayFormula;
+import com.erp.hr.dailypayitem.DailyPayItemService;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -61,6 +63,7 @@ public class DailyPayService {
     private final DailyPayLineItemRepository lineItemRepository;
     private final DailyWorkerPayAmountRepository payAmountRepository;
     private final DailyPayItemRepository payItemRepository;
+    private final DailyPayItemService payItemService;
 
     @Transactional(readOnly = true)
     public List<LedgerResponse> findLedgers() {
@@ -238,6 +241,11 @@ public class DailyPayService {
                 rates.computeIfAbsent(a.getWorker().getId(), k -> new HashMap<>()).put(a.getItem().getId(), a.getAmount());
             }
         }
+        // 계산식리스트에서 직접 더한 적용시점 계산식 — 대장 귀속연월 이하의 가장 늦은 것(원본 2026-10-21: 2026/10 ~ 'QA관리-수당(급여지급사항)'
+        // 을 더하자 2026/10 대장 수당이 내역 1,000 × 근무기록 3 = 3,000 이 아니라 1,000).
+        Map<Long, String> custom = new HashMap<>();
+        for (DailyPayItem a : allowances) payItemService.customFormula(a.getId(), l.getPayMonth()).ifPresent(f -> custom.put(a.getId(), f));
+        List<DailyPayItem> allAllowances = custom.isEmpty() ? List.of() : payItemRepository.findByKindOrderBySortOrderAscCodeAsc(DailyPayItemKind.ALLOWANCE);
         int done = 0, skipped = 0;
         for (DailyWorker w : workers.values()) {
             BigDecimal d = days.getOrDefault(w.getId(), BigDecimal.ZERO);
@@ -252,7 +260,9 @@ public class DailyPayService {
                 BigDecimal q = ci != null ? ci.days() : null;
                 // 원본 2026-10-21(QA관리-지급: 고정 내역 10,000 · 시간 3,000 × 4 · 지급률 2,000 × 5 · 직접입력 근무입력 금액 15,000)
                 // → 대장 10,000 · 12,000 · 100 · 15,000. 지급률은 근무기록이 % 다(2,000 × 5 % = 100).
-                BigDecimal amt = switch (a.getPayMethod() == null ? "" : a.getPayMethod()) {
+                BigDecimal amt = custom.containsKey(a.getId())
+                        ? formulaAmount(custom.get(a.getId()), allAllowances, rate, rec, wage, d, ci, a)
+                        : switch (a.getPayMethod() == null ? "" : a.getPayMethod()) {
                     case "고정" -> r;
                     case "변동(직접입력)" -> ci != null && ci.amount() != null ? ci.amount() : BigDecimal.ZERO;
                     case "변동(지급률)" -> r.multiply(q != null ? q : BigDecimal.ZERO).movePointLeft(2).setScale(0, RoundingMode.HALF_UP);
@@ -281,6 +291,19 @@ public class DailyPayService {
             done++;
         }
         return new CalculateResponse(done, skipped);
+    }
+
+    /** 직접 등록한 계산식으로 한 사원 · 한 수당을 셈한다 — 원 단위 반올림. */
+    private static BigDecimal formulaAmount(String formula, List<DailyPayItem> allowances, Map<Long, BigDecimal> rate,
+                                            Map<Long, ConfirmItem> rec, BigDecimal wage, BigDecimal days, ConfirmItem ci, DailyPayItem a) {
+        Map<Long, BigDecimal> qty = new HashMap<>();
+        rec.forEach((k, v) -> { if (v.days() != null) qty.put(k, v.days()); });
+        try {
+            return DailyPayFormula.evaluate(formula, DailyPayItemService.variables(allowances, rate, qty, wage, days,
+                    ci != null && ci.amount() != null ? ci.amount() : BigDecimal.ZERO, a.getRate())).setScale(0, RoundingMode.HALF_UP);
+        } catch (IllegalArgumentException e) {
+            throw ApiException.badRequest(a.getName() + " 계산식을 셈할 수 없습니다: " + e.getMessage());
+        }
     }
 
     /** [사전작업] 금액직접입력 목록 — 사원마다 손으로 정한 수당총액(일근무) · 공제총액(일용근로 공제는 직접입력 칸이 없어 0). */
