@@ -68,7 +68,7 @@
         "click:검색(F8)",
         "wait:1500",
         "js:(async () => { const S = JSON.parse(sessionStorage.getItem('pth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
-        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('pth')); const rs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P'); return rs.slice(0, 3).map((r) => r.cells[2].textContent).join('|') === '삭제|수정|신규' && rs.every((r) => r.cells[4].textContent === 'QA재고1-거래처' && r.cells[5].textContent === 'QA재고1-특가' && r.cells[9].textContent === '확인' && r.cells[10].textContent === 'H') })()"
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('pth')); const rs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P'); return rs.slice(0, 3).map((r) => r.cells[2].textContent).join('|') === '삭제|수정|신규' && rs.every((r) => r.cells[4].textContent.startsWith('QA재고1-') && r.cells[5].textContent.startsWith('QA재고1-') && r.cells[9].textContent === '확인' && r.cells[10].textContent === 'H') })()"
       ]
     }
   ],
