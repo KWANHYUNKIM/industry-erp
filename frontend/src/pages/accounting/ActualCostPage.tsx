@@ -210,7 +210,8 @@ export default function ActualCostPage() {
   const [withUntracked, setWithUntracked] = useState(false)
 
   async function load() {
-    if (!period) return
+    // 원가 기간이 하나도 없으면 찾을 것이 없다 — '불러오는 중…' 에 멈춰 있던 것(2026-10-21), 빈 표로 끝낸다
+    if (!period) { setCostLedger([]); setLoading(false); return }
     setLoading(true)
     setError('')
     const { from, to } = rangeOf()
