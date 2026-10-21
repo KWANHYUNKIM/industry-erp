@@ -167,7 +167,9 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
       setMemo(e.description && e.description !== e.partnerName ? e.description : '')
       setAccountId(mainLine ? String(mainLine.accountId) : '')
       setSettleId(settleLine ? String(settleLine.accountId) : '')
-      const d = e.vatDetail
+      /* 서버는 [세부내역] 창을 안 연 전표에도 장 적요(bookMemo)만 든 빈 묶음을 둔다 — 창 칸이 하나라도 있어야 창 자료다. */
+      const v = e.vatDetail
+      const d = v && (v.items?.length || v.serialNo || v.receipt || v.note || v.cash || v.check || v.bill || v.credit) ? v : null
       setDetail(d ? {
         serialNo: d.serialNo ?? '', receipt: d.receipt === '영수' ? '영수' : '청구', note: d.note ?? '',
         cash: str(d.cash), check: str(d.check), bill: str(d.bill), credit: str(d.credit),

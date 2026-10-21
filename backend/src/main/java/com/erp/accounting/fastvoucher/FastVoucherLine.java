@@ -61,6 +61,26 @@ public class FastVoucherLine {
     @Column(name = "employee_name", length = 100)
     private String employeeName;
 
+    /**
+     * 격자 [추가정보] › 부가세정보(2026-10-21 loginaa 지출결의서 실측) — 부가세유형(세금계산서 …) · 발생일자 · 거래처 · 공급가액 · 부가세.
+     * 있으면 분개가 차) 줄 계정 공급가액 · 부가세대급금 부가세 로 갈라지고 매입장에 선다. 없으면 vatType null.
+     */
+    @Column(name = "vat_type", length = 30)
+    private String vatType;
+
+    @Column(name = "vat_date")
+    private java.time.LocalDate vatDate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vat_partner_id")
+    private com.erp.trade.partner.BusinessPartner vatPartner;
+
+    @Column(name = "vat_supply", precision = 18, scale = 2)
+    private BigDecimal vatSupply;
+
+    @Column(name = "vat_amount", precision = 18, scale = 2)
+    private BigDecimal vatAmount;
+
     /** 줄이 제 결제 계좌를 정했는지. false 는 옛 줄 — 머리 결제수단을 따른다. */
     @Column(nullable = false)
     @Builder.Default

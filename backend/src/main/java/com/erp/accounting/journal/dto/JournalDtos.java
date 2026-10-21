@@ -83,8 +83,18 @@ public final class JournalDtos {
             @Size(max = 10) String receipt,
             @Size(max = 300, message = "비고는 300자까지입니다.") String note,
             BigDecimal cash, BigDecimal check, BigDecimal bill, BigDecimal credit,
-            @Size(max = 100, message = "세부내역은 100줄까지입니다.") List<@jakarta.validation.Valid VatDetailItem> items
-    ) {}
+            @Size(max = 100, message = "세부내역은 100줄까지입니다.") List<@jakarta.validation.Valid VatDetailItem> items,
+            /**
+             * 매입/매출장 [세부내역]에 서는 적요 — 처음 저장할 때의 적요를 붙잡아 둔다(서버가 매긴다, 화면이 보낸 값은 버린다).
+             * 2026-10-21 loginaa: 적요 없이 저장한 매출전표 I 에 수정 창에서 적요를 넣어도 장은 빈칸, 'QA회계1 세부B' 로 저장한 뒤
+             * '세부C' 로 고쳐도 장은 세부B. 빈 글자 = 처음에 비어 있었다, null = 이 칸이 생기기 전 전표(그땐 지금 적요를 쓴다).
+             */
+            @Size(max = 200) String bookMemo
+    ) {
+        public VatDetail withBookMemo(String memo) {
+            return new VatDetail(serialNo, receipt, note, cash, check, bill, credit, items, memo);
+        }
+    }
 
     public record VatDetailItem(
             LocalDate itemDate,

@@ -109,8 +109,12 @@ export default function VatBookPage() {
     /* 일련은 거르기 전 — 조건으로 줄을 좁혀도 그 줄의 번호는 그대로다. */
     const keep = new Set<Row>()
     for (const e of sorted) {
-      const p = e.partnerId != null ? pById.get(e.partnerId) : undefined
-      const shown = !(partner && String(e.partnerId) !== partner) && !(docNo && !e.docNo.includes(docNo))
+      /* 결의서 [추가정보] 부가세는 거래처를 전표가 아니라 부가세 줄에 든다(원본 회계거래조회 거래처명 빈칸 · 매입장엔 그 거래처). */
+      const vl = e.partnerId == null ? e.lines.find((l) => (l.accountCode === '135' || l.accountCode === '255') && l.partnerId != null) : undefined
+      const ePid = e.partnerId ?? vl?.partnerId ?? null
+      const ePname = e.partnerName ?? vl?.partnerName ?? ''
+      const p = ePid != null ? pById.get(ePid) : undefined
+      const shown = !(partner && String(ePid) !== partner) && !(docNo && !e.docNo.includes(docNo))
         && !(editor && (editorOf(e) ?? '') !== editor) && !(taxOnly && !p?.taxReport)
         && !(regKind !== '전체' && (p?.regNoKind ?? '사업자등록번호') !== regKind)
       for (const side of ['매출', '매입'] as Side[]) {
@@ -125,10 +129,11 @@ export default function VatBookPage() {
         if (!amt) continue
         const { supply, vat } = amt
         /* 유형명 · 전자구분 — 매출전표 I · 매입전표 I(V353)와 판매 회계반영이 든 부가세유형 · 전자종류로(없으면 세금계산서 · 신규). */
-        const ve = e as JournalEntry & { vatType?: string | null; eInvoiceKind?: string | null; vatDetail?: { items?: { name?: string | null }[] | null } | null }
+        const ve = e as JournalEntry & { vatType?: string | null; eInvoiceKind?: string | null; vatDetail?: { items?: { name?: string | null }[] | null; bookMemo?: string | null } | null }
         const row: Row = { key: `${e.id}${side}`, side, date: e.entryDate, no: 0, ord: e.id, kindName: ve.vatType?.trim() || KIND_NAME,
-          eKind: eKindShort(side === '매출', ve.vatType, ve.eInvoiceKind), partnerId: e.partnerId, partner: e.partnerName ?? '',
-          text: vatDetailSummary(ve.vatDetail?.items) || (e.description ?? ''), supply, vat }
+          eKind: eKindShort(side === '매출', ve.vatType, ve.eInvoiceKind), partnerId: ePid, partner: ePname,
+          /* 품명이 없으면 처음 저장 때의 적요(bookMemo — 2026-10-21 원본: 고친 적요는 장에 안 따라온다), 그 칸이 없는 옛 전표는 지금 적요. */
+          text: vatDetailSummary(ve.vatDetail?.items) || (ve.vatDetail?.bookMemo ?? e.description ?? ''), supply, vat }
         out.push(row)
         if (shown) keep.add(row)
       }
@@ -176,7 +181,8 @@ export default function VatBookPage() {
             <th>유형명</th>
             <th>전자구분</th>
             <th>거래처명</th>
-            <th>세부내역</th>
+            {/* 원본 매입 표의 머리는 [적요](2026-10-21 loginaa 매입 금일) — 매입전표 I 에는 [세부내역] 창이 없다. */}
+            <th>{side === '매입' ? '적요' : '세부내역'}</th>
             <th className="text-right">{side}공급가액</th>
             <th className="text-right">{side}부가세</th>
           </tr>

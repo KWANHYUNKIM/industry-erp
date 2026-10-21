@@ -1355,6 +1355,14 @@ export interface VoucherLine {
   /** 가지급금정산서 [정산자] 사원 · [정산대상자명]. */
   employeeId: number | null
   employeeName: string | null
+  /** [추가정보] 부가세정보 — 없으면 vatType null(지출결의서 · 가지급금정산서). */
+  vatType?: string | null
+  vatDate?: string | null
+  vatPartnerId?: number | null
+  vatPartnerCode?: string | null
+  vatPartnerName?: string | null
+  vatSupply?: number | null
+  vatAmount?: number | null
 }
 
 export interface FastVoucher {

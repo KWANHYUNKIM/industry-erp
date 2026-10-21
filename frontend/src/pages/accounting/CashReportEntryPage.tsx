@@ -10,7 +10,10 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
 import SlipGridTools, { type SlipTool } from '../../features/fastentry/components/SlipGridTools'
-import type { BankAccountRow, FastVoucher, Partner } from '../../types/api'
+import VoucherVatModal, { type LineVat, vatCellText } from '../../features/fastentry/components/VoucherVatModal'
+import SlipPrintModal from '../../features/journalprint/SlipPrintModal'
+import { journalSlipHtml, loadSlipHeader } from '../../features/journalprint/slipPrint'
+import type { BankAccountRow, FastVoucher, JournalEntry, Partner } from '../../types/api'
 
 /**
  * 회계 I › 현금거래 › 현금예금출금 [지출결의서](E010408) · 현금예금입금 [입금보고서](E010403).
@@ -24,6 +27,12 @@ import type { BankAccountRow, FastVoucher, Partner } from '../../types/api'
  * - 분개: 지출 차) 줄 계정 / 대) 그 줄의 계좌 계정 — 26/10/12-2 복리후생비(판) 15,000 / 현금 15,000, 둘 다 적요 'QA회계1 식대'.
  * - 빈 채로 저장 → 계정칸에 '계정코드를 입력 바랍니다.', 계정만 있고 계좌가 없으면 계좌칸에 '자료를 입력 바랍니다.'
  * - 수정: 일자는 막힌다. 삭제: '전표를 삭제하겠습니까?' → 분개도 같이 사라진다.
+ * - [저장/전표(F7)](2026-10-21 실측): 저장하고 '일반전표' 창(전표 서식 · [인쇄] [닫기])을 띄운다 — 신규는 뒤가 빈 입력 화면,
+ *   수정은 창을 닫으면 목록으로.
+ * - 격자 끝 [추가정보](2026-10-21 실측): 지출결의서 · 가지급금정산서는 [입력] → '추가정보입력'(VoucherVatModal) 부가세정보.
+ *   적용하면 칸이 '[세금계산서] 10,909 / 1,091', 줄 금액 = 공급가액 + 부가세, 분개는 차) 줄 계정 공급가액 · 부가세대급금 부가세.
+ *   부가세가 든 줄의 [금액]을 누르면 그 창이 뜬다. 입금보고서는 계좌 없는 줄의 [입력]에 '계좌번호를 먼저 선택 바랍니다.'
+ *   (계좌가 있으면 원본도 창이 안 떴다 — 무엇을 받는지 못 잼).
  *
  * FastEntry [가지급금정산서](E010505)도 같은 틀이다(2026-10-12 실측) — 첫 열이 계좌 대신 [정산자 검색](사원검색 창) ·
  * [정산대상자명], 사원을 고르면 계정칸에 8109 복리후생비(판). 분개는 차) 줄 계정 / 대) 가지급금(정산자별로 묶음) —
@@ -42,9 +51,11 @@ interface Line {
   partnerId: string
   amount: string
   description: string
+  /** [추가정보] 부가세정보 — 없으면 null */
+  vat: LineVat | null
 }
 
-const blank = (): Line => ({ settle: '', accountId: '', partnerId: '', amount: '', description: '' })
+const blank = (): Line => ({ settle: '', accountId: '', partnerId: '', amount: '', description: '', vat: null })
 const START_ROWS = 3
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -75,7 +86,7 @@ function bankLabel(b: BankAccountRow) {
   return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
 }
 
-type CellErr = { row: number; col: 'settle' | 'account' | 'amount'; msg: string }
+type CellErr = { row: number; col: 'settle' | 'account' | 'amount' | 'extra'; msg: string }
 
 export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   const conf = CONF[kind]
@@ -99,6 +110,10 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /** [추가정보] 창을 연 줄 */
+  const [vatRow, setVatRow] = useState<number | null>(null)
+  /** [저장/전표(F7)] 뒤 '일반전표' 창 */
+  const [slip, setSlip] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -125,6 +140,8 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
         partnerId: l.partnerId ? String(l.partnerId) : '',
         amount: String(l.amount),
         description: l.description ?? '',
+        vat: l.vatType ? { vatType: l.vatType, vatDate: l.vatDate ?? data.voucherDate, partnerId: l.vatPartnerId ? String(l.vatPartnerId) : '',
+          supply: String(l.vatSupply ?? 0), vat: String(l.vatAmount ?? 0) } : null,
       }))
       while (ls.length < START_ROWS) ls.push(blank())
       setLines(ls)
@@ -172,7 +189,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
     setLine(i, patch)
   }
 
-  async function save() {
+  async function save(thenSlip = false) {
     setError('')
     const used = lines.map((l, i) => ({ l, i }))
       .filter(({ l }) => l.settle || l.accountId || l.partnerId || l.amount || l.description)
@@ -196,15 +213,23 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
         employeeId: l.settle.startsWith('e') ? Number(l.settle.slice(1)) : undefined,
         employeeName: l.settle.startsWith('e') ? settleItems.find((x) => x.value === l.settle)?.name : undefined,
         partnerId: l.partnerId ? Number(l.partnerId) : undefined,
+        vat: l.vat ? { vatType: l.vat.vatType, vatDate: l.vat.vatDate || undefined, partnerId: Number(l.vat.partnerId),
+          supply: Number(l.vat.supply) || 0, vat: Number(l.vat.vat) || 0 } : undefined,
       })),
     }
     setSaving(true)
     try {
-      if (editing) {
-        await api.put(`/vouchers/${editing.id}`, body)
+      const { data } = editing
+        ? await api.put<FastVoucher>(`/vouchers/${editing.id}`, body)
+        : await api.post<FastVoucher>('/vouchers', body)
+      if (thenSlip && data.journalEntryId) {
+        /* 원본 [저장/전표(F7)]: 저장한 전표를 '일반전표' 창으로 — 수정 창은 닫힌 채(창을 닫으면 목록). */
+        const [{ data: je }, h] = await Promise.all([api.get<JournalEntry>(`/journals/${data.journalEntryId}`), loadSlipHeader()])
+        if (!editing) reset()
+        setSlip(journalSlipHtml([je], h.company, h.sign))
+      } else if (editing) {
         navigate(back)
       } else {
-        await api.post('/vouchers', body)
         /* 원본은 저장하면 빈 입력 화면으로 돌아간다. */
         reset()
       }
@@ -235,10 +260,12 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
         formTabs={[{ id: 'main', label: conf.title }]} activeFormTab="main"
         actions={editing ? [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+          { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving },
           { label: '삭제', onClick: () => setConfirmDelete(true) },
           { label: '리스트', onClick: () => navigate('/accounting/journals') },
         ] : [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+          { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving },
           { label: '다시 작성', onClick: reset },
           { label: '리스트', onClick: () => navigate('/accounting/journals') },
         ]}>
@@ -265,6 +292,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
             <colgroup>
               <col className="w-[42px]" /><col className="w-[208px]" /><col className="w-[206px]" /><col className="w-[198px]" />
               <col className="w-[151px]" /><col className="w-[178px]" /><col className="w-[151px]" /><col className="w-[167px]" /><col />
+              <col className="w-[60px]" />
             </colgroup>
             <thead>
               <tr>
@@ -277,6 +305,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                 <th>거래처명</th>
                 <th>금액</th>
                 <th>적요명</th>
+                <th>추가정보</th>
               </tr>
             </thead>
             <tbody>
@@ -299,13 +328,29 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                   </td>
                   <td className="pad">{partnerItems.find((x) => x.value === l.partnerId)?.name ?? ''}</td>
                   <td className="pad relative">
-                    <EcNumInput className={`ec-input w-full text-right border-transparent focus:border-ec-line-focus${errAt(i, 'amount') ? ' outline outline-1 outline-ec-danger' : ''}`}
-                                aria-label={`${i + 1}줄 금액`} value={l.amount} onValue={(v) => setLine(i, { amount: v })} />
+                    {l.vat
+                      ? <input className="ec-input w-full text-right border-transparent cursor-pointer" readOnly aria-label={`${i + 1}줄 금액`}
+                               value={won(Number(l.amount) || 0)} onClick={() => setVatRow(i)} />
+                      : <EcNumInput className={`ec-input w-full text-right border-transparent focus:border-ec-line-focus${errAt(i, 'amount') ? ' outline outline-1 outline-ec-danger' : ''}`}
+                                aria-label={`${i + 1}줄 금액`} value={l.amount} onValue={(v) => setLine(i, { amount: v })} />}
                     {errAt(i, 'amount') && <ErrTip msg={errAt(i, 'amount')!} />}
                   </td>
                   <td className="pad">
                     <input className="ec-input w-full border-transparent focus:border-ec-line-focus" aria-label={`${i + 1}줄 적요명`} maxLength={200}
                            value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
+                  </td>
+                  <td className="pad relative text-center">
+                    <a href="#" role="button" aria-label={`${i + 1}줄 추가정보`}
+                       className={l.vat ? 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline' : 'text-ec-navy'}
+                       onClick={(e) => {
+                         e.preventDefault()
+                         if (kind === 'DEPOSIT_REPORT') {
+                           if (!l.settle) setCellErr({ row: i, col: 'extra', msg: '계좌번호를 먼저 선택 바랍니다.' })
+                           return
+                         }
+                         setVatRow(i)
+                       }}>{l.vat ? vatCellText(l.vat) : '입력'}</a>
+                    {errAt(i, 'extra') && <ErrTip msg={errAt(i, 'extra')!} />}
                   </td>
                 </tr>
               ))}
@@ -315,11 +360,19 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                 <td colSpan={7} />
                 <td className="text-right">{won(total)}</td>
                 <td />
+                <td />
               </tr>
             </tfoot>
           </table>
         </div>
       </EcSlipShell>
+
+      <VoucherVatModal open={vatRow != null} amount={vatRow != null ? Number(lines[vatRow]?.amount) || 0 : 0} date={date}
+                       value={vatRow != null ? lines[vatRow]?.vat ?? null : null} partners={partnerItems}
+                       onApply={(v) => { if (vatRow != null) setLine(vatRow, { vat: v, amount: String((Number(v.supply) || 0) + (Number(v.vat) || 0)) }); setVatRow(null) }}
+                       onRemove={() => { if (vatRow != null) setLine(vatRow, { vat: null }); setVatRow(null) }}
+                       onClose={() => setVatRow(null)} />
+      <SlipPrintModal title="일반전표" html={slip} onClose={() => { setSlip(null); if (editing) navigate(back) }} />
 
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
         <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {conf.title}</p>

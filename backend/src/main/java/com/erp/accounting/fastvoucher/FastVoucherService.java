@@ -269,6 +269,17 @@ public class FastVoucherService {
         BusinessPartner headPartner = req.partnerId() != null ? partner(req.partnerId()) : null;
         for (LineInput in : req.lines()) {
             boolean own = Boolean.TRUE.equals(in.cash()) || in.bankAccountId() != null;
+            FastVoucherDtos.LineVat vat = in.vat();
+            if (vat != null) {
+                // 원본 [추가정보]는 지출결의서 · 가지급금정산서의 매입 부가세다(입금보고서는 다른 것 — 못 잼).
+                if (v.getType() != FastVoucherType.EXPENSE_REPORT && v.getType() != FastVoucherType.ADVANCE_SETTLEMENT) {
+                    throw ApiException.badRequest("이 전표에는 부가세 추가정보를 넣을 수 없습니다.");
+                }
+                // 원본은 적용하면 줄 금액이 공급가액 + 부가세가 된다 — 어긋나면 받지 않는다.
+                if (vat.supply().add(vat.vat() != null ? vat.vat() : BigDecimal.ZERO).compareTo(in.amount()) != 0) {
+                    throw ApiException.badRequest("금액과 추가정보의 합계액이 일치하지 않은 분개가 있습니다.");
+                }
+            }
             v.addLine(FastVoucherLine.builder()
                     .account(account(in.accountId()))
                     .amount(in.amount())
@@ -278,6 +289,11 @@ public class FastVoucherService {
                     .partner(in.partnerId() != null ? partner(in.partnerId()) : null)
                     .employeeId(perEmployee ? in.employeeId() : null)
                     .employeeName(perEmployee && in.employeeName() != null ? in.employeeName().trim() : null)
+                    .vatType(vat != null ? vat.vatType().trim() : null)
+                    .vatDate(vat != null ? (vat.vatDate() != null ? vat.vatDate() : v.getVoucherDate()) : null)
+                    .vatPartner(vat != null ? partner(vat.partnerId()) : null)
+                    .vatSupply(vat != null ? vat.supply() : null)
+                    .vatAmount(vat != null ? (vat.vat() != null ? vat.vat() : BigDecimal.ZERO) : null)
                     .build());
             if (headPartner == null && in.partnerId() != null) headPartner = v.getLines().get(v.getLines().size() - 1).getPartner();
         }

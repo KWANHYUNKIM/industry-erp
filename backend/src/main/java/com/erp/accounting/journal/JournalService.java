@@ -240,6 +240,15 @@ public class JournalService {
         // 전표 적요는 적은 그대로 — 비우면 회계거래조회 적요도 빈칸이다(2026-10-14 원본 26/10/14-12). 줄 적요만 거래처명으로 채운다.
         String memo = req.description() != null && !req.description().isBlank() ? req.description().trim() : null;
         String desc = memo != null ? memo : partner.getName();
+        /* 장 [세부내역]의 적요는 처음 저장 때 것 — 고쳐도 따라가지 않는다(JournalDtos.VatDetail.bookMemo). 옛 전표는 고치기 전 적요로. */
+        String bookMemo;
+        if (e.getId() == null) {
+            bookMemo = memo != null ? memo : "";
+        } else {
+            var prev = com.erp.accounting.journal.dto.JournalDtos.readVatDetail(e.getVatDetail());
+            bookMemo = prev != null && prev.bookMemo() != null ? prev.bookMemo()
+                    : e.getDescription() != null ? e.getDescription() : "";
+        }
         e.setDescription(memo);
         e.setPartner(partner);
         String vatType = req.vatType().trim();
@@ -248,7 +257,9 @@ public class JournalService {
         // 어느 유형에 붙는지는 화면이 정해 보낸다(VatSlipPage hasEKind). 예전엔 세금계산서가 아니면 버려 영세율의 '종이' 가 사라졌다.
         e.setEInvoiceKind(req.eInvoiceKind() != null && !req.eInvoiceKind().isBlank() ? req.eInvoiceKind().trim() : null);
         e.setVatOmitted(Boolean.TRUE.equals(req.vatOmitted()));
-        e.setVatDetail(sales ? com.erp.accounting.journal.dto.JournalDtos.writeVatDetail(req.vatDetail()) : null);
+        var detail = req.vatDetail() != null ? req.vatDetail()
+                : new com.erp.accounting.journal.dto.JournalDtos.VatDetail(null, null, null, null, null, null, null, null, null);
+        e.setVatDetail(sales ? com.erp.accounting.journal.dto.JournalDtos.writeVatDetail(detail.withBookMemo(bookMemo)) : null);
         Account main = account(req.accountId());
         Account settle = account(req.settleAccountId());
         if (sales) {
@@ -760,7 +771,7 @@ public class JournalService {
 
         switch (v.getType()) {
             case EXPENSE_REPORT, RECEIPT_PAYMENT -> {
-                v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+                v.getLines().forEach(l -> addVoucherDebit(e, l));
                 settlementGroups(v, settlementOf).forEach((acc, g) -> addCreditAccount(e, acc, g.amount, g.desc));
             }
             case DEPOSIT_REPORT -> {
@@ -768,7 +779,7 @@ public class JournalService {
                 v.getLines().forEach(l -> addCreditAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
             }
             case ADVANCE_SETTLEMENT -> {
-                v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+                v.getLines().forEach(l -> addVoucherDebit(e, l));
                 if (v.getAdvanceAmount() == null) {
                     // 원본(2026-10-12 loginaa 26/10/12-17): 차) 복리후생비(판) 9,000 [QA회계1 가지급정산] /
                     // 대) 가지급금 9,000 [고준희 · QA회계1 가지급정산] — 대변은 정산자별로 묶고 적요는 그 첫 줄 적요.
@@ -791,8 +802,28 @@ public class JournalService {
                 addCredit(e, "134", v.getAdvanceAmount(), "가지급금 정산");
             }
         }
+        /* [추가정보] 부가세가 든 줄이 있으면 전표가 매입장에 선다 — 유형은 첫 부가세 줄의 것(전자종류는 기본 '전자(세금)계산서-신규'). */
+        v.getLines().stream().map(com.erp.accounting.fastvoucher.FastVoucherLine::getVatType)
+                .filter(java.util.Objects::nonNull).findFirst().ifPresent(e::setVatType);
         e.stampDeptProject(v.getDepartmentId(), v.getProjectId());
         return save(e);
+    }
+
+    /**
+     * 결의서 차변 줄. [추가정보] 부가세가 있으면 차) 줄 계정 공급가액 · 부가세대급금 부가세 로 가른다
+     * (2026-10-21 loginaa 26/10/21-30: 복리후생비(판) 10,909 · 부가세대급금 1,091 / 현금 12,000, 적요는 셋 다 줄 적요).
+     * 부가세 거래처는 부가세대급금 줄에만 단다 — 원본 회계거래조회 [거래처명]은 빈칸인데 매입장엔 그 거래처가 선다.
+     */
+    private void addVoucherDebit(JournalEntry e, com.erp.accounting.fastvoucher.FastVoucherLine l) {
+        if (l.getVatType() == null) {
+            addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l));
+            return;
+        }
+        addDebitAccount(e, l.getAccount(), l.getVatSupply(), lineDesc(l));
+        if (nz(l.getVatAmount()).signum() != 0) {
+            addDebit(e, "135", l.getVatAmount(), lineDesc(l));
+            e.getLines().get(e.getLines().size() - 1).setPartner(l.getVatPartner());
+        }
     }
 
     /** 현금거래 한 장짜리 분개의 한 줄 — 차변이면 {@code debit}. 금액이 0 이면 줄을 만들지 않는다. */

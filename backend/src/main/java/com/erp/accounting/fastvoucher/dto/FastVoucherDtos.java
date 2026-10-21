@@ -34,12 +34,31 @@ public final class FastVoucherDtos {
             /** 가지급금정산서 [정산자] 사원 — 이름은 employeeName 으로 함께 보낸다. */
             Long employeeId,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
-            String employeeName
+            String employeeName,
+            /** 격자 [추가정보] — 부가세정보. 없으면 null. */
+            @jakarta.validation.Valid LineVat vat
     ) {
         public LineInput(Long accountId, BigDecimal amount, String description) {
-            this(accountId, amount, description, null, null, null, null, null);
+            this(accountId, amount, description, null, null, null, null, null, null);
+        }
+
+        public LineInput(Long accountId, BigDecimal amount, String description, Long bankAccountId, Boolean cash,
+                         Long partnerId, Long employeeId, String employeeName) {
+            this(accountId, amount, description, bankAccountId, cash, partnerId, employeeId, employeeName, null);
         }
     }
+
+    /**
+     * 결의서 줄의 [추가정보] › 부가세정보(2026-10-21 loginaa 지출결의서 E010408 · 가지급금정산서 E010505 실측) —
+     * 부가세유형(매입종류) · 발생일자 · 거래처 · 공급가액 · 부가세. 적용하면 줄 금액 = 공급가액 + 부가세.
+     */
+    public record LineVat(
+            @NotNull(message = "부가세유형을 선택 바랍니다.") @Size(max = 30) String vatType,
+            LocalDate vatDate,
+            @NotNull(message = "거래처를 입력 바랍니다.") Long partnerId,
+            @NotNull(message = "공급가액을 입력 바랍니다.") BigDecimal supply,
+            BigDecimal vat
+    ) {}
 
     public record CreateVoucherRequest(
             @NotNull(message = "전표 종류를 선택하세요.") FastVoucherType type,
@@ -80,7 +99,10 @@ public final class FastVoucherDtos {
             Long bankAccountId, Boolean cash, Long partnerId,
             String bankAccountCode, String bankAccountName, String partnerCode, String partnerName,
             /** 가지급금정산서 [정산자] · [정산대상자명]. */
-            Long employeeId, String employeeName
+            Long employeeId, String employeeName,
+            /** [추가정보] 부가세정보 — 없으면 vatType null. */
+            String vatType, LocalDate vatDate, Long vatPartnerId, String vatPartnerCode, String vatPartnerName,
+            BigDecimal vatSupply, BigDecimal vatAmount
     ) {}
 
     public record VoucherResponse(
@@ -131,7 +153,12 @@ public final class FastVoucherDtos {
                                     l.getBankAccount() != null ? bankName(l.getBankAccount()) : (l.isOwnSettlement() ? "현금" : null),
                                     l.getPartner() != null ? l.getPartner().getCode() : null,
                                     l.getPartner() != null ? l.getPartner().getName() : null,
-                                    l.getEmployeeId(), l.getEmployeeName()))
+                                    l.getEmployeeId(), l.getEmployeeName(),
+                                    l.getVatType(), l.getVatDate(),
+                                    l.getVatPartner() != null ? l.getVatPartner().getId() : null,
+                                    l.getVatPartner() != null ? l.getVatPartner().getCode() : null,
+                                    l.getVatPartner() != null ? l.getVatPartner().getName() : null,
+                                    l.getVatSupply(), l.getVatAmount()))
                             .toList(),
                     v.getPayeeName(), v.getFee(),
                     v.getCounterBankAccount() != null ? v.getCounterBankAccount().getId() : null,
