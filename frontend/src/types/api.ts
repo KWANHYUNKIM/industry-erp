@@ -1571,6 +1571,10 @@ export interface StagedAdjustment {
   statusName: string
   requester: string | null
   handler: string | null
+  /** 실사 전표 번호(줄들이 같이 쓴다) · 이 줄로 맞춘 재고조정(없으면 null). */
+  slipNo: string
+  adjustmentNo: string | null
+  adjustmentDate: string | null
 }
 
 export interface StockAdjustment {

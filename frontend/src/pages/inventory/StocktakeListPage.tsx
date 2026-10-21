@@ -101,9 +101,10 @@ export default function StocktakeListPage() {
     }
     for (const s of staged) {
       const slip = slipOf.get(s.adjustNo)
-      out.push({ key: `s${s.id}`, id: s.id, sort: '단계별', date: s.requestDate, no: s.adjustNo, warehouseId: s.warehouseId, warehouseName: s.warehouseName,
+      /* 입력일자 번호는 실사 전표 번호(줄들이 같이 쓴다) — 원본 '2026/10/20 -1'. 조정전표는 그 줄로 맞춘 재고조정. */
+      out.push({ key: `s${s.id}`, id: s.id, sort: '단계별', date: s.requestDate, no: s.slipNo ?? s.adjustNo, warehouseId: s.warehouseId, warehouseName: s.warehouseName,
         person: s.requester ?? '', itemId: s.itemId, itemName: s.itemName, spec: null, qty: Number(s.actualQty),
-        slip: slip ? dateNo(slip.adjustDate, slip.adjustNo) : '' })
+        slip: s.adjustmentNo && s.adjustmentDate ? dateNo(s.adjustmentDate, s.adjustmentNo) : slip ? dateNo(slip.adjustDate, slip.adjustNo) : '' })
     }
     return out
       .filter((l) => l.date >= from && l.date <= to)
@@ -212,7 +213,10 @@ export default function StocktakeListPage() {
                 {' '}{i + 1}
               </td>
               <td className="text-center">{l.sort}</td>
-              <td className="text-center">{dateNo(l.date, l.no)}</td>
+              {/* 원본 단계별 줄의 입력일자를 누르면 단계별실사수정 창이 열린다(2026-10-21 실측). */}
+              <td className="text-center">{l.sort === '단계별'
+                ? <a className="cursor-pointer" onClick={() => navigate(`/inventory/stocktake?slip=${encodeURIComponent(l.no)}`)}>{dateNo(l.date, l.no)}</a>
+                : dateNo(l.date, l.no)}</td>
               <td>{l.warehouseName}</td>
               <td>{l.person}</td>
               <td>{l.itemName}{l.spec ? `[${l.spec}]` : ''}</td>

@@ -1,209 +1,169 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
-import type { StockRow, Warehouse } from '../../types/api'
+import type { Item, StagedAdjustment, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
- * 재고 I > 기타이동 > 재고실사 (이카운트 E040612 단계별재고실사)
- * 창고를 골라 장부수량을 불러오고, 품목별 실사수량을 입력해 **차이만큼 재고조정(ADJUST)** 을 일괄 생성한다.
+ * 재고 I &gt; 기타이동 &gt; 재고조정 &gt; 재고조정진행단계 [단계별재고실사](E040650) — 2026-10-21 loginaa 실측.
  *
- * 백엔드 무변경 — 기존 것만 조합한다:
- *   GET /api/stock                → 창고별 장부수량(StockRow)
- *   POST /api/stock-adjustments   → { type:'ADJUST', itemId, warehouseId, actualQty } 로 실사수량에 맞춰 조정
- *     (StockAdjustmentService 가 ADJUST 를 stockService.adjustTo(actualQty) 로 처리 → 차이만큼 증감)
- * 생성된 조정 내역은 기타이동 화면의 '재고조정' 탭에서 확인된다.
+ * <p>실사 전표 한 장: 일자 · 창고 · 격자(품목코드 · 품목명 · 규격 · 단위 · 수량) · 아래 [재고조정] 체크 · 저장(F8) · 다시 작성 · 닫기.
+ * [재고조정]을 켜고 저장하면 그 일자 재고를 실사수량에 맞춘다(포장김치 제2창고 311 → 실사 7: 재고조정조회 '단계별 · 26/10/20-1 · 304').
+ * 끄고 저장하면 아래 확인 뒤 실사만 남는다(재고조정진행단계 장부 · 차이 빈칸). 같은 일자에 간편재고조정이 있으면 창고 · 체크와 상관없이
+ * '같은 일자로 입력된 간편재고조정이 있습니다.' 로 막는다(서버가 같은 글로 막는다).
  *
- * 원본 Search 패널은 창고·담당자뿐. 담당자는 조정에 별도 필드가 없어(작성자로만 남음) 제외한다.
+ * <p>재고실사조회에서 입력일자를 누르면 ?slip= 로 열려 <b>단계별실사수정</b> — 일자는 잠기고 [삭제]가 있다.
+ * 수정하면 예전 조정을 지우고 새로 맞춘다(7 → 10: 조정 -1 지우고 -2 · 301), 삭제하면 실사와 조정이 같이 지워진다.
  */
-const today = () => ymd(new Date())
-const num = (n: number) => n.toLocaleString('ko-KR')
+const NO_ADJUST_CONFIRM = '현재 [재고조정]에 체크되어 있지 않으며\n\n이 경우, 실사입력한 수량이 재고장부에 반영되지 않습니다.\n\n'
+  + '단, 필요한 경우에는 실사전표만 먼저 저장한 후에 조정전표를 별도로 생성할 수 있습니다.\n\n이대로 진행하시겠습니까?'
+export const STOCKTAKE_DONE = '요청된 [단계별재고실사] 작업이 완료되었습니다.'
 
-interface CountRow extends StockRow {
-  counted: string          // 실사수량 입력값(문자열; 빈값 = 미실사)
-}
+interface Line { itemId: string; qty: string }
+interface Slip { slipNo: string; date: string; warehouseId: number; warehouseName: string; adjusted: boolean; lines: StagedAdjustment[] }
+const blank = (): Line => ({ itemId: '', qty: '' })
+const blankLines = () => [blank(), blank(), blank()]
 
 export default function StocktakePage() {
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const slipNo = params.get('slip')
+  const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [warehouseId, setWarehouseId] = useState<number | ''>('')
-  const [rows, setRows] = useState<CountRow[]>([])
-  const [keyword, setKeyword] = useState('')
-  const [diffOnly, setDiffOnly] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [date, setDate] = useState(ymd(new Date()))
+  const [warehouseId, setWarehouseId] = useState('')
+  const [lines, setLines] = useState<Line[]>(blankLines)
+  const [adjust, setAdjust] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
 
   useEffect(() => {
-    api.get<Warehouse[]>('/warehouses')
-      .then((r) => {
-        setWarehouses(r.data)
-        if (r.data.length > 0) setWarehouseId(r.data[0].id)
-      })
-      .catch((e) => setError(extractErrorMessage(e)))
-      .finally(() => setLoading(false))
+    Promise.all([api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses')])
+      .then(([i, w]) => { setItems(i.data); setWarehouses(w.data) })
+      .catch((e) => void ecAlert(extractErrorMessage(e)))
   }, [])
+  useEffect(() => {
+    if (!slipNo) return
+    api.get<Slip>(`/staged-adjustments/slips/${encodeURIComponent(slipNo)}`)
+      .then((r) => {
+        setDate(r.data.date)
+        setWarehouseId(String(r.data.warehouseId))
+        setAdjust(r.data.adjusted)
+        const ls = r.data.lines.map((l) => ({ itemId: String(l.itemId), qty: String(Number(l.actualQty)) }))
+        setLines([...ls, ...Array.from({ length: Math.max(1, 3 - ls.length) }, blank)])
+      })
+      .catch((e) => void ecAlert(extractErrorMessage(e)))
+  }, [slipNo])
 
-  // 창고를 고르면 그 창고의 장부수량을 불러와 실사표 초기화
-  async function loadStock(wid: number) {
-    setLoading(true); setError(''); setOk('')
-    try {
-      const res = await api.get<StockRow[]>('/stock')
-      setRows(res.data.filter((s) => s.warehouseId === wid).map((s) => ({ ...s, counted: '' })))
-    } catch (e) {
-      setError(extractErrorMessage(e))
-    } finally {
-      setLoading(false)
+  const itemOf = (id: string) => items.find((x) => String(x.id) === id)
+  const total = useMemo(() => lines.reduce((s, l) => s + (Number(l.qty) || 0), 0), [lines])
+  const setLine = (i: number, k: keyof Line, v: string) => setLines((ls) => {
+    const n = ls.map((l, j) => (j === i ? { ...l, [k]: v } : l))
+    return i === n.length - 1 && v ? [...n, blank()] : n
+  })
+  const reset = () => { setDate(ymd(new Date())); setWarehouseId(''); setLines(blankLines()); setAdjust(false) }
+  const close = () => navigate('/inventory/staged-progress')
+
+  async function save() {
+    if (saving) return
+    if (!warehouseId) return void ecAlert('창고를 입력하세요.')
+    const filled = lines.filter((l) => l.itemId || l.qty)
+    if (filled.length === 0) return void ecAlert('품목을 입력하세요.')
+    for (const [i, l] of filled.entries()) {
+      if (!l.itemId) return void ecAlert(`${i + 1}번째 줄 품목을 입력하세요.`)
+      if (l.qty === '' || Number(l.qty) < 0) return void ecAlert(`${i + 1}번째 줄 수량을 입력하세요.`)
     }
-  }
-
-  useEffect(() => { if (warehouseId !== '') loadStock(warehouseId) }, [warehouseId])
-
-  const setCount = (itemId: number, v: string) =>
-    setRows((rs) => rs.map((r) => (r.itemId === itemId ? { ...r, counted: v } : r)))
-
-  const diffOf = (r: CountRow): number | null =>
-    r.counted.trim() === '' ? null : Number(r.counted) - r.quantity
-
-  const shown = useMemo(() => {
-    const kw = keyword.trim()
-    return rows.filter((r) => {
-      if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
-      if (diffOnly) { const d = diffOf(r); if (d === null || d === 0) return false }
-      return true
-    })
-  }, [rows, keyword, diffOnly])
-
-  // 실사수량이 입력되고 장부와 다른 행 = 조정 대상
-  const targets = useMemo(
-    () => rows.filter((r) => { const d = diffOf(r); return d !== null && d !== 0 && !Number.isNaN(d) }),
-    [rows],
-  )
-  const countedCount = useMemo(() => rows.filter((r) => r.counted.trim() !== '').length, [rows])
-
-  async function apply() {
-    if (warehouseId === '') return
-    if (targets.length === 0) { setError('차이가 있는 실사수량이 없습니다.'); return }
-    setSaving(true); setError(''); setOk('')
-    /* 조정 전표 번호는 서버가 매긴다 — 받아 두었다가 안내에 붙인다 */
-    const nos: string[] = []
+    if (!adjust && !(await ecConfirm(NO_ADJUST_CONFIRM))) return
+    const body = { date, warehouseId: Number(warehouseId), adjust,
+      lines: filled.map((l) => ({ itemId: Number(l.itemId), actualQty: Number(l.qty) })) }
+    setSaving(true)
     try {
-      const date = today()
-      for (const r of targets) {
-        const res = await api.post<{ adjustNo: string }>('/stock-adjustments', {
-          type: 'ADJUST',
-          itemId: r.itemId,
-          warehouseId,
-          actualQty: Number(r.counted),
-          adjustDate: date,
-          reason: `재고실사 (${date})`,
-        })
-        nos.push(res.data.adjustNo)
-      }
-      await loadStock(warehouseId)      // 반영 후 장부수량 재조회(=실사수량으로 맞춰짐)
-      // loadStock 이 ok 를 지우므로 그 뒤에 남긴다
-      const range = nos.length > 1 ? `${nos[0]} ~ ${nos[nos.length - 1]}` : nos[0]
-      setOk(`${range} 실사 조정 반영 완료 · ${nos.length}개 품목`)
+      if (slipNo) await api.put(`/staged-adjustments/slips/${encodeURIComponent(slipNo)}`, body)
+      else await api.post('/staged-adjustments/slips', body)
+      navigate('/inventory/staged-progress', { state: { notice: STOCKTAKE_DONE } })
     } catch (e) {
-      setError(extractErrorMessage(e) + (nos.length > 0 ? ` — 앞서 ${nos.length}건은 이미 반영됨(${nos.join(', ')})` : ''))
+      void ecAlert(extractErrorMessage(e))
     } finally {
       setSaving(false)
     }
   }
 
-  return (
-    <EcListShell
-      title="재고실사"
-      search={keyword}
-      onSearchChange={setKeyword}
-      actions={[{ label: '새로고침', onClick: () => warehouseId !== '' && loadStock(warehouseId) }, { label: 'Excel' }]}
-    >
-      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eafaef', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+  async function remove() {
+    if (!slipNo || !(await ecConfirm('전표를 삭제하겠습니까?\n- 단계별재고실사'))) return
+    try {
+      await api.delete(`/staged-adjustments/slips/${encodeURIComponent(slipNo)}`)
+      navigate('/inventory/staged-progress', { state: { notice: STOCKTAKE_DONE } })
+    } catch (e) {
+      void ecAlert(extractErrorMessage(e))
+    }
+  }
 
-      {/* 실사 대상 선택 */}
-      <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
-        <span className="text-[12.5px] text-ec-text font-semibold">실사창고</span>
-        <select
-          className="ec-input"
-          value={warehouseId}
-          onChange={(e) => setWarehouseId(e.target.value === '' ? '' : Number(e.target.value))}
-          style={{ width: 200 }}
-        >
-          {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-        </select>
-        <label className="text-[12.5px] text-ec-text flex items-center gap-[5px] cursor-pointer ml-[8px]">
-          <input type="checkbox" checked={diffOnly} onChange={(e) => setDiffOnly(e.target.checked)} />
-          차이만 보기
-        </label>
-        <div className="ml-auto flex items-center gap-[12px]">
-          <span className="text-[12.5px] text-ec-label">
-            실사 입력 <b className="text-ec-text">{countedCount}</b>
-            <span className="my-0 mx-[6px] text-ec-off">|</span>
-            차이 <b style={{ color: targets.length > 0 ? 'var(--ec-warn)' : 'var(--ec-text)' }}>{targets.length}</b>
-          </span>
-          <button
-            className="ec-btn ec-btn-primary"
-            disabled={saving || targets.length === 0}
-            onClick={apply}
-            style={{ opacity: saving || targets.length === 0 ? 0.5 : 1 }}
-          >
-            {saving ? '반영 중…' : `실사 조정 반영 (${targets.length})`}
-          </button>
+  return (
+    <EcListShell title={slipNo ? '단계별실사수정' : '단계별재고실사'} searchable={false} actions={[]}>
+      <div className="ec-form mb-[8px]">
+        <div className="flex gap-[12px] flex-wrap items-center">
+          <label className="flex items-center gap-[6px]">
+            <span className="w-[60px]">일자</span>
+            <input className="ec-input" type="date" aria-label="일자" value={date} disabled={Boolean(slipNo)}
+                   onChange={(e) => setDate(e.target.value)} />
+          </label>
+          <label className="flex items-center gap-[6px]">
+            <span className="w-[60px]">창고</span>
+            <CodePickerField pair label="창고" hideLabel width={220} placeholder="창고" emptyLabel="선택 해제"
+                             value={warehouseId} onChange={(v) => setWarehouseId(v)}
+                             items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
+          </label>
         </div>
       </div>
-
       <table className="w-full text-left">
         <thead>
           <tr>
             <th className="w-[34px]"></th>
-            <th>품목코드</th>
+            <th className="w-[240px]">품목코드</th>
             <th>품목명</th>
             <th>규격</th>
             <th className="text-center">단위</th>
-            <th className="text-right">장부수량</th>
-            <th className="text-right w-[120px]">실사수량</th>
-            <th className="text-right">차이</th>
+            <th className="w-[110px] text-right">수량</th>
           </tr>
         </thead>
         <tbody>
-          {loading ? (
-            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={8} className="text-center text-ec-hint p-[20px]">
-              {rows.length === 0 ? '이 창고에 재고 품목이 없습니다.' : '조건에 맞는 품목이 없습니다.'}
-            </td></tr>
-          ) : shown.map((r, i) => {
-            const d = diffOf(r)
+          {lines.map((l, i) => {
+            const it = itemOf(l.itemId)
             return (
-              <tr key={r.itemId}>
+              <tr key={i} data-line={i + 1}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{r.itemCode}</td>
-                <td>{r.itemName}</td>
-                <td style={{ color: r.spec ? undefined : 'var(--ec-text-off)' }}>{r.spec || ''}</td>
-                <td className="text-center text-ec-hint">{r.unit}</td>
-                <td className="text-right">{num(r.quantity)}</td>
-                <td className="text-right">
-                  <input
-                    className="ec-input"
-                    type="number"
-                    value={r.counted}
-                    onChange={(e) => setCount(r.itemId, e.target.value)}
-                    placeholder="—"
-                    style={{ width: 100, textAlign: 'right' }}
-                  />
+                <td>
+                  <CodePickerField pair label="품목" hideLabel width={220} placeholder="품목코드" emptyLabel="선택 해제"
+                                   value={l.itemId} onChange={(v) => setLine(i, 'itemId', v)}
+                                   items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, alias: x.searchKeyword, sub: x.spec }))} />
                 </td>
-                <td style={{
-                  textAlign: 'right', fontWeight: d ? 700 : 400,
-                  color: d === null ? 'var(--ec-text-off)' : d === 0 ? 'var(--ec-text-hint)' : d > 0 ? '#1c6b32' : 'var(--ec-danger)',
-                }}>
-                  {d === null ? '—' : d > 0 ? `+${num(d)}` : num(d)}
+                <td>{it?.name ?? ''}</td>
+                <td>{it?.spec ?? ''}</td>
+                <td className="text-center">{it?.unit ?? ''}</td>
+                <td>
+                  <input className="ec-input text-right w-[100px]" type="number" step="any" aria-label={`${i + 1}번째 줄 수량`}
+                         value={l.qty} onChange={(e) => setLine(i, 'qty', e.target.value)} />
                 </td>
               </tr>
             )
           })}
+          <tr>
+            <td colSpan={5}></td>
+            <td className="text-right font-semibold">{total.toLocaleString('ko-KR')}</td>
+          </tr>
         </tbody>
       </table>
+      <label className="flex items-center gap-[5px] mt-[10px] cursor-pointer">
+        <input type="checkbox" aria-label="재고조정" checked={adjust} onChange={(e) => setAdjust(e.target.checked)} /> 재고조정
+      </label>
+      <div className="flex gap-[4px] mt-[8px]">
+        <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={() => void save()}>저장(F8)</button>
+        {!slipNo && <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>}
+        <button type="button" className="ec-btn" onClick={close}>닫기</button>
+        {slipNo && <button type="button" className="ec-btn" onClick={() => void remove()}>삭제</button>}
+      </div>
     </EcListShell>
   )
 }

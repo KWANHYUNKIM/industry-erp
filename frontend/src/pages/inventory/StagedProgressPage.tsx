@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import SimpleAdjustDialog from '../../features/stockadjust/components/SimpleAdjustDialog'
 import StagedAdjustDialog from '../../features/stockadjust/components/StagedAdjustDialog'
 import EcListShell from '../../components/EcListShell'
@@ -49,7 +49,9 @@ export default function StagedProgressPage() {
   const [simpleOpen, setSimpleOpen] = useState(false)
   /* 원본 [재고조정] — 단계별재고조정 창(StagedAdjustDialog). */
   const [stagedOpen, setStagedOpen] = useState(false)
-  const [notice, setNotice] = useState('')
+  /* 단계별재고실사 저장 뒤 돌아오면 원본 알림 '요청된 [단계별재고실사] 작업이 완료되었습니다.' 를 띄운다. */
+  const location = useLocation()
+  const [notice, setNotice] = useState((location.state as { notice?: string } | null)?.notice ?? '')
   /* [실사] 알약을 누른 줄 — 그 아래 [조회 · 현황] 이 뜬다. */
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -91,8 +93,12 @@ export default function StagedProgressPage() {
   const rows = useMemo<Row[]>(() => [
     ...staged.map((r) => ({ key: `s${r.id}`, date: r.requestDate, no: r.adjustNo, person: r.requester ?? '', itemId: r.itemId,
       itemName: r.itemName, warehouseId: r.warehouseId, warehouseName: r.warehouseName,
-      /* 원본은 단계별 실사 줄의 [장부수량] · [차이]를 비운다(2026-10-13 실측 네 줄 모두 빈칸 — 실사수량만 찍는다). */
-      book: 0, actual: Number(r.actualQty), diff: 0, applied: r.status === 'APPLIED' })),
+      /*
+       * 원본은 조정 안 한 실사 줄의 [장부수량] · [차이]를 비운다(2026-10-13 실측). [재고조정]을 켜고 저장한 실사는
+       * 장부 · 실사 · 차이를 찍는다(2026-10-21 실측: 포장김치 제2창고 311 · 7 · -304).
+       */
+      book: r.adjustmentNo ? Number(r.bookQty) : 0, actual: Number(r.actualQty),
+      diff: r.adjustmentNo ? Number(r.actualQty) - Number(r.bookQty) : 0, applied: r.status === 'APPLIED' })),
     ...quick.map((a) => ({ key: `a${a.id}`, date: a.adjustDate, no: a.adjustNo,
       person: a.employeeId != null ? empName.get(a.employeeId) ?? '' : '', itemId: a.itemId, itemName: a.itemName,
       warehouseId: a.warehouseId, warehouseName: a.warehouseName,
