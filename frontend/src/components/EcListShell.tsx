@@ -44,6 +44,23 @@ export interface BottomAction {
   menuOnly?: boolean
 }
 
+/** 조건 판 아래 줄의 [양식 ⌄] — ✓ 지금 양식 · 기본(수정불가)(빨간 글자) · 신규양식추가(원본 이익관리 현황 2026-10-22 실측). 메뉴는 위로 펴진다. */
+function FormPill({ current, up = false }: { current: string; up?: boolean }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="relative">
+      <button type="button" className="ec-btn ec-btn-sm" aria-label="양식" onClick={() => setOpen((v) => !v)}>{current} ⌄</button>
+      {open && (
+        <div className={`ec-menu ${up ? 'absolute bottom-full left-0 mb-[2px] min-w-[120px]' : 'ec-search-picks'}`}>
+          <button type="button" className="font-bold" onClick={() => setOpen(false)}>✓ {current}</button>
+          <button type="button" className="text-ec-danger" onClick={() => { setOpen(false); void ecAlert('양식은 하나만 지원합니다.') }}>기본(수정불가)</button>
+          <button type="button" className="font-bold" onClick={() => { setOpen(false); void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') }}>신규양식추가</button>
+        </div>
+      )}
+    </span>
+  )
+}
+
 /** 하단 버튼 하나 — menu 가 있으면 붙은 묶음(.ec-btn-group + ▴). */
 function FooterButton({ a }: { a: BottomAction }) {
   const [open, setOpen] = useState(false)
@@ -125,7 +142,7 @@ function restoreFields(el: HTMLElement, first: WeakMap<Element, string | boolean
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
   renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
-  signLine = false, searchBtn = false, collapseConditions, onReset, optionMenu, children,
+  signLine = false, searchBtn = false, collapseConditions, onReset, optionMenu, formMenu, children,
 }: {
   title: string
   search?: string
@@ -178,6 +195,11 @@ export default function EcListShell({
    * 원본이 화면마다 다른 것을 띄우는 곳만 준다(지출증빙현황 E030402 — '계정설정' 하나, 2026-10-20 실측).
    */
   optionMenu?: { label: string; onClick: () => void }[]
+  /**
+   * 조건 판 아래 줄 맨 앞의 [양식 ⌄](원본 이익관리 · 현황 화면 2026-10-22 실측: ✓ 지금 양식 · 기본(수정불가)(빨간 글자) · 신규양식추가).
+   * 양식 디자이너는 두지 않아 고르기만 하고 안내한다.
+   */
+  formMenu?: { current: string }
   children: ReactNode
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -461,6 +483,7 @@ export default function EcListShell({
         {/* 원본 조건 판 아래 줄: [검색(F8)│▾ 기간 빠른선택] [다시작성] — [닫기] 는 없다(Search(F3) · Esc 로 닫는다) */}
         {condOpen && barTop !== null && (
           <div className="ec-search-bar" style={{ top: barTop }}>
+            {formMenu && <FormPill current={formMenu.current} />}
             <span className="ec-btn-group relative">
               <button className="ec-btn ec-btn-primary ec-btn-sm" onClick={searchConds}>검색(F8)</button>
               {picks.length > 0 && (
@@ -492,6 +515,7 @@ export default function EcListShell({
       {/* 하단 버튼줄 — 원본처럼 격자 바로 아래. 버튼이 하나도 없으면 빈 띠로 보이므로 아예 그리지 않는다. */}
       <div ref={toolbarRef} className={`ec-footer${moreOpen ? ' open' : ''}`} style={hasBottom ? undefined : { display: 'none' }}>
         <div className="ec-footer-btns">
+        {formMenu && !collapse && <FormPill current={formMenu.current} up />}
         {(onNew || renderForm) && (
           <button
             className="ec-btn ec-btn-primary"

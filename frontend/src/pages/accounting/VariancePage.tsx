@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
-import { EcCond } from '../../components/EcStatusPanel'
+import { EcCond, EcCondTabs } from '../../components/EcStatusPanel'
+import { ecAlert } from '../../components/EcDialog'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import type { Item } from '../../types/api'
@@ -9,6 +10,12 @@ import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useCostPeriods, costPeriodText, inCostPeriod } from '../../utils/costPeriods'
+
+/** 원본 [Option] (이익관리 현황 3화면 2026-10-22 실측) — 검색항목설정 · 양식설정 ▸(✓ 기본(수정불가) · ✓ 현재 양식 · 신규양식추가). 양식 · 검색항목 디자이너는 두지 않는다. */
+const OPTION_MENU = [
+  { label: '검색항목설정', onClick: () => void ecAlert('검색항목설정은 지원하지 않습니다.') },
+  { label: '양식설정', onClick: () => void ecAlert('양식설정은 지원하지 않습니다(양식 하나).') },
+]
 
 /**
  * 품목 → <b>생산공정명</b>. 원본 원가 화면 셋이 이 칸을 둔다.
@@ -358,6 +365,8 @@ export default function VariancePage() {
     return (
     <EcListShell
       title="차이분석"
+      formMenu={{ current: mode }}
+      optionMenu={OPTION_MENU}
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
@@ -382,6 +391,7 @@ export default function VariancePage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCondTabs />
         <EcCond label="구분">
           <div className="ec-pills">
             {MODES.map((m) => (

@@ -706,6 +706,28 @@ main table,
   /* 위 두 칸 규칙(:has 안의 선택자가 더 구체적)에 지지 않게 — 일자 줄은 두 칸 조건도 함께 맞는다. */
   grid-column: 1 / -1 !important;
 }
+/* 조건 판 맨 위 탭 [기본][전체][+] (원본 이익관리 현황 2026-10-22) */
+.ec-cond > li.ec-cond-tabs {
+  gap: 0;
+  min-height: 0;
+  margin: 0 0 4px 0;
+  padding-left: 10px;
+  border-bottom: var(--ec-hair) solid var(--ec-line);
+}
+.ec-cond-tabs > button {
+  background: transparent;
+  border: 0;
+  border-bottom: 1.5px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 9.9px 11.7px;
+  color: var(--ec-pill-text);
+}
+.ec-cond-tabs > button.on {
+  border-bottom-color: var(--ec-blue);
+  color: var(--ec-blue);
+  font-weight: 700;
+}
 /* 칸이 모자라면 버튼줄도 칸 밖으로 나가지 말고 칸 안에서 접힌다. */
 .ec-cond .ec-pills {
   flex-wrap: wrap;

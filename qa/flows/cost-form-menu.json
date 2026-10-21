@@ -1,0 +1,35 @@
+{
+  "about": "이익관리 현황 3화면(실제원가현황 · 차이분석 · 월별이익현황) — 2026-10-22 원본 실측: 조건 판 맨 위 탭 [기본][전체][+], 머리 [Option] = 검색항목설정 · 양식설정, 검색하면 판 아래 줄 맨 앞에 [양식 ⌄](✓ 지금 양식 · 기본(수정불가) · 신규양식추가).",
+  "shots": [
+    {
+      "name": "실제원가현황 · 차이분석 · 월별이익현황 탭 · Option · 양식 ⌄",
+      "path": "/accounting/monthly-profit",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('.ec-cond-tabs button')].map((b) => b.innerText.trim()).join(',') === '기본,전체,+'",
+        "click:Option",
+        "expect:['검색항목설정', '양식설정'].every((t) => [...document.querySelectorAll('.ec-menu button')].some((b) => b.innerText.trim() === t))",
+        "js:document.body.click()",
+        "expect:document.querySelector('button[aria-label=\"양식\"]').innerText.includes('품목별이익현황')",
+        "js:document.querySelector('button[aria-label=\"양식\"]').click()",
+        "expect:['✓ 품목별이익현황', '기본(수정불가)', '신규양식추가'].every((t) => [...document.querySelectorAll('.ec-menu button')].some((b) => b.innerText.trim() === t))"
+      ]
+    },
+    {
+      "name": "실제원가현황 탭",
+      "path": "/accounting/actual-cost",
+      "steps": [
+        "wait:800",
+        "expect:document.querySelectorAll('.ec-cond-tabs button').length === 3"
+      ]
+    },
+    {
+      "name": "차이분석 탭",
+      "path": "/accounting/variance",
+      "steps": [
+        "wait:800",
+        "expect:document.querySelectorAll('.ec-cond-tabs button').length === 3"
+      ]
+    }
+  ]
+}

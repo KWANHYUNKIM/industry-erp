@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { ecAlert } from './EcDialog'
 import EcPeriodPicks, {
   COMPARE_PERIODS, INQUIRY_PICKS, comparePeriodOf, type ComparePeriod, type PeriodRange,
 } from './EcPeriodPicks'
@@ -33,6 +34,22 @@ export function EcCond({ label, pick, span, children }: {
     <li className={cls || undefined}>
       <div className="title">{label}</div>
       <div className="form">{children}</div>
+    </li>
+  )
+}
+
+/**
+ * 조건 판 맨 위 탭 [기본] [전체] [+] — 원본 이익관리 현황(실제원가현황 · 차이분석 · 월별이익현황, 2026-10-22 실측)은
+ * [전체] 가 [기본] 과 같은 칸을 보인다. [+] 는 My탭(개인 탭)이라 두지 않고 안내만 한다. `.ec-cond` 의 첫 칸으로 둔다.
+ */
+export function EcCondTabs() {
+  const [tab, setTab] = useState<'기본' | '전체'>('기본')
+  return (
+    <li className="full ec-cond-tabs" aria-label="조건 탭">
+      {(['기본', '전체'] as const).map((t) => (
+        <button key={t} type="button" className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>
+      ))}
+      <button type="button" onClick={() => void ecAlert('My탭은 지원하지 않습니다.')}>+</button>
     </li>
   )
 }

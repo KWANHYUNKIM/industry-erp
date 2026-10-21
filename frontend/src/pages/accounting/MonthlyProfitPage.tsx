@@ -4,13 +4,20 @@ import type { SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { EcCond } from '../../components/EcStatusPanel'
+import { EcCond, EcCondTabs } from '../../components/EcStatusPanel'
+import { ecAlert } from '../../components/EcDialog'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+
+/** 원본 [Option] (이익관리 현황 3화면 2026-10-22 실측) — 검색항목설정 · 양식설정 ▸(✓ 기본(수정불가) · ✓ 현재 양식 · 신규양식추가). 양식 · 검색항목 디자이너는 두지 않는다. */
+const OPTION_MENU = [
+  { label: '검색항목설정', onClick: () => void ecAlert('검색항목설정은 지원하지 않습니다.') },
+  { label: '양식설정', onClick: () => void ecAlert('양식설정은 지원하지 않습니다(양식 하나).') },
+]
 
 /**
  * 이익관리 > 월별이익현황(E040805)
@@ -237,6 +244,8 @@ export default function MonthlyProfitPage() {
   return (
     <EcListShell
       title="월별이익현황"
+      formMenu={{ current: REPORT_TITLE[mode] }}
+      optionMenu={OPTION_MENU}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: () => load() },
@@ -249,6 +258,7 @@ export default function MonthlyProfitPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[10px]">
+        <EcCondTabs />
         <EcCond label="구분">
           <div className="ec-pills">
             {MODES.map((m) => (

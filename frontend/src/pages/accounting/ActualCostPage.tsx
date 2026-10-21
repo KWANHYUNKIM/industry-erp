@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
-import { EcCond } from '../../components/EcStatusPanel'
+import { EcCond, EcCondTabs } from '../../components/EcStatusPanel'
+import { ecAlert } from '../../components/EcDialog'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { stockCostMapFromLast } from '../../utils/stockValue'
@@ -13,6 +14,12 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCostPeriods, costPeriodText, inCostPeriod } from '../../utils/costPeriods'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+
+/** 원본 [Option] (이익관리 현황 3화면 2026-10-22 실측) — 검색항목설정 · 양식설정 ▸(✓ 기본(수정불가) · ✓ 현재 양식 · 신규양식추가). 양식 · 검색항목 디자이너는 두지 않는다. */
+const OPTION_MENU = [
+  { label: '검색항목설정', onClick: () => void ecAlert('검색항목설정은 지원하지 않습니다.') },
+  { label: '양식설정', onClick: () => void ecAlert('양식설정은 지원하지 않습니다(양식 하나).') },
+]
 
 /**
  * 회계 > 실제원가현황.
@@ -163,6 +170,10 @@ export default function ActualCostPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['items'])
   /* 원본 격자는 [품목명[규격]] 한 칸이다 — 규격은 줄에 없어 품목 마스터에서 잇는다. */
+  const weightOf = (itemId: number) => {
+    const it = items.find((x) => x.id === itemId) as (Item & { stdLaborHours?: number | null; expenseWeight?: number | null }) | undefined
+    return (mode === '경비배부액' ? it?.expenseWeight : it?.stdLaborHours) ?? 0
+  }
   const specOf = (itemId: number) => items.find((x) => x.id === itemId)?.spec ?? ''
   /*
    * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
@@ -467,6 +478,8 @@ export default function ActualCostPage() {
   return (
     <EcListShell
       title="실제원가현황"
+      formMenu={{ current: mode }}
+      optionMenu={OPTION_MENU}
       /* 원본 머리에 빠른 검색칸이 없다(2026-10-20 실측: 처음 Option · 도움말, 검색한 뒤 Search(F3) · Option · 도움말) —
          조건 판이 펼쳐진 채 시작하고 [검색(F8)] 을 누르면 접히며 표가 선다. */
       searchable={false}
@@ -481,6 +494,7 @@ export default function ActualCostPage() {
       signLine={signBox}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCondTabs />
         {/* 원본 [구분] 은 알약이 아니라 라디오 줄이다(2026-10-20 실측). [수율차이] 는 만들지 않았다(공정별 투입 · 산출이 없다). */}
         <EcCond label="구분">
           {MODES.map((m) => (
@@ -556,7 +570,7 @@ export default function ActualCostPage() {
             품목코드 · 품목명[규격] · 생산공정명 · 생산수량 · 노무비가중치 · 적수 · 공정적수 · 노무비 · 금액.
             줄은 공정에서 만드는 품목마다, [노무비] 칸에 그 공정의 총액(1,000)이 줄마다 서고, 그 달 생산이 없으면
             생산수량 · 금액은 빈칸이다. 공정마다 '조립 적수 계', 맨 아래 '[누계]'. 예전에는 배부 전 · 배부 후 표 둘이었다.
-            가중치(표준 작업시간)는 우리 BOR 에 없어 빈칸 — 배부는 CostService.calcActual 이 하고 금액은 그 단가 × 생산수량이다.
+            가중치는 품목등록 원가 탭의 표준노무시간 · 경비가중치, 적수 = 생산수량 × 가중치(2026-10-21 실측). 배부는 CostService.calcActual 이 하고 금액은 그 단가 × 생산수량이다.
           */}
           <table className="ec-report w-full text-left">
             <thead>
@@ -584,7 +598,10 @@ export default function ActualCostPage() {
                     <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
                     <td>{g.process}</td>
                     <td className="text-right">{nz(r.qty)}</td>
-                    <td className="text-right" /><td className="text-right" /><td className="text-right" />
+                    {/* 원본(2026-10-21 실측): 적수 = 생산수량 × 품목 가중치(노무비 = 표준노무시간, 경비 = 경비가중치), 공정적수 = 그 공정 적수의 합. 가중치 0 · 생산 없음은 빈칸. */}
+                    <td className="text-right">{nz(weightOf(r.itemId))}</td>
+                    <td className="text-right">{nz(r.qty * weightOf(r.itemId))}</td>
+                    <td className="text-right">{nz(g.items.reduce((n, x) => n + x.qty * weightOf(x.itemId), 0))}</td>
                     <td className="text-right">{nz(g.total)}</td>
                     <td className="text-right">{nz(r.amount)}</td>
                   </tr>
