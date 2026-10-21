@@ -39,6 +39,7 @@ export default function DailyWorkStatusPage() {
   }, [])
   const [rows, setRows] = useState<Line[]>([])
   const [error, setError] = useState('')
+  const [signBox, setSignBox] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
 
   function search() {
@@ -59,7 +60,7 @@ export default function DailyWorkStatusPage() {
   const qty = (ls: Line[]) => ls.reduce((s, r) => s + Number(r.quantity), 0)
 
   return (
-    <EcListShell title="일용근로 근무현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
+    <EcListShell title="일용근로 근무현황" searchable={false} collapseConditions={false} signLine={signBox} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
           <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
@@ -78,10 +79,20 @@ export default function DailyWorkStatusPage() {
           <CodePickerField label="수당항목" hideLabel fill multiple placeholder="수당항목" values={itemCond} onChangeMulti={(v) => setItemCond(v)}
                            items={[{ value: '일근무', code: '02', name: '일근무' }]} />
         </EcCond>
+        {/* 원본 끝 두 칸(2026-10-21 실측): 기타 [결재방표시] · 정렬/소계기준 [설정]. */}
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[4px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+          </label>
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="ec-btn ec-btn-sm">설정</button>
+        </EcCond>
       </ul>
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
         <EcPeriodPicks labels={PICKS} currentFrom={range.from} onPick={setRange} />
+        <button type="button" className="ec-btn" onClick={() => { setDeptCond([]); setEmpCond([]); setItemCond([]); setSignBox(false) }}>다시 작성</button>
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <EcReportHead title="근무현황" period={reportPeriod(shown.from, shown.to)} />

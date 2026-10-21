@@ -27,10 +27,10 @@ export default function AssignmentStatusPage() {
   const [searched, setSearched] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
 
-  function search() {
+  function search(r = range) {
     setError('')
-    api.get<AssignmentLine[]>('/employees/assignment-slips', { params: { from: range.from, to: range.to } })
-      .then((r) => { setLines(r.data); setShownRange(range); setSearched(true) }).catch((e) => setError(extractErrorMessage(e)))
+    api.get<AssignmentLine[]>('/employees/assignment-slips', { params: { from: r.from, to: r.to } })
+      .then((x) => { setLines(x.data); setShownRange(r); setSearched(true) }).catch((e) => setError(extractErrorMessage(e)))
   }
 
   const shown = lines.filter((l) => matchAssignment(conds, l)
@@ -48,14 +48,21 @@ export default function AssignmentStatusPage() {
             </label>
           ))}
         </EcCond>
+        {/* 원본 [양식] 탭(2026-10-21 실측): 양식 · 적용양식 · 정렬/소계기준 — 모양만. */}
+        <EcCond label="적용양식">
+          <select className="ec-input w-[170px]" aria-label="적용양식" defaultValue="기본"><option value="기본">기본(수정불가)</option></select>
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="ec-btn ec-btn-sm">설정</button>
+        </EcCond>
         {/* 원본 조건 판 끝 줄 [검색(F8)] 금일 … 설정 [다시 작성] — 판 안이라 누르면 셸이 판을 접는다 */}
         <li className="wide">
           <div className="flex flex-wrap items-center gap-[6px]">
-            <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => search()}>검색(F8)</button>
             <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={(r) => setConds({ ...conds, range: r })} />
             {/* 원본 [종료일](2026-10-21 실측): 시작을 끝 날로 — 2026/10/03 ~ 10/15 → 2026/10/15 ~ 10/15. 공용 periodOf('종료일') 은
                 '시작 그대로 · 끝을 오늘로' 라 이 화면은 따로 둔다. 뒤 [설정] 은 원본도 권한없음 창이라 두지 않는다. */}
-            <button type="button" className="ec-btn ec-btn-pick" onClick={() => setConds({ ...conds, range: { from: range.to, to: range.to } })}>종료일</button>
+            <button type="button" className="ec-btn ec-btn-pick" onClick={() => { const r = { from: range.to, to: range.to }; setConds({ ...conds, range: r }); search(r) }}>종료일</button>
             <button type="button" className="ec-btn" onClick={() => { setConds(initialAssignmentConds); setEmployment('all') }}>다시 작성</button>
           </div>
         </li>

@@ -298,11 +298,17 @@ export default function AttendanceKindStatusPage() {
           <input type="date" className="ec-input" value={dayCond}
                  onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
-        <EcCond label="결재방표시">
-          <label className="text-[12.5px] flex items-center gap-[4px]">
-            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
-            인쇄물에 결재란(도장칸)을 찍는다
+        {/* 원본 [양식] 탭(2026-10-21 실측): 적용양식 [기본(수정불가)] · 양식구분 [결재방표시] · 정렬/소계기준 [설정]. */}
+        <EcCond label="적용양식">
+          <select className="ec-input w-[170px]" aria-label="적용양식" defaultValue="기본"><option value="기본">기본(수정불가)</option></select>
+        </EcCond>
+        <EcCond label="양식구분">
+          <label className="inline-flex items-center gap-[4px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
           </label>
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="ec-btn ec-btn-sm">설정</button>
         </EcCond>
       </EcStatusPanel>
 

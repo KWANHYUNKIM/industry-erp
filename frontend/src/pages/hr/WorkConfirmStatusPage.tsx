@@ -48,13 +48,14 @@ export default function WorkConfirmStatusPage() {
   const [payDate, setPayDate] = useState({ from: `${range.from}-01`, to: `${range.to}-28` })
   const [empCond, setEmpCond] = useState<string[]>([])
   const [itemCond, setItemCond] = useState<string[]>([])
+  const [signBox, setSignBox] = useState(false)
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '근무확정현황', [rows.length])
 
-  function search() {
+  function search(r = range) {
     setError('')
-    api.get<ConfirmRow[]>('/work-records/confirms', { params: { from: range.from, to: range.to } }).then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<ConfirmRow[]>('/work-records/confirms', { params: { from: r.from, to: r.to } }).then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
   useEffect(() => {
     search()
@@ -79,7 +80,7 @@ export default function WorkConfirmStatusPage() {
   const total = shown.reduce((s, r) => s + Number(r.quantity), 0)
 
   return (
-    <EcListShell title="근무확정현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
+    <EcListShell title="근무확정현황" searchable={false} collapseConditions={false} signLine={signBox} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준월">
@@ -123,14 +124,24 @@ export default function WorkConfirmStatusPage() {
           <CodePickerField label="수당항목" hideLabel fill multiple placeholder="수당항목" values={itemCond} onChangeMulti={(v) => setItemCond(v)}
                            items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
+        {/* 원본 끝 두 칸(2026-10-21 실측): 기타 [결재방표시] · 정렬/소계기준 [설정]. */}
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[4px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+          </label>
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="ec-btn ec-btn-sm">설정</button>
+        </EcCond>
       </ul>
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
-        <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => search()}>검색(F8)</button>
         {['금월', '전월', '전월+금월', '금년', '전년'].map((l) => (
-          <button key={l} type="button" className="ec-btn" onClick={() => setRange(pick(l))}>{l}</button>
+          <button key={l} type="button" className="ec-btn" onClick={() => { const r = pick(l); setRange(r); search(r) }}>{l}</button>
         ))}
-        {/* 원본 끝 단추 [종료월] — 시작은 그대로 두고 끝을 이번 달로 */}
-        <button type="button" className="ec-btn" onClick={() => setRange({ ...range, to: pick('금월').to })}>종료월</button>
+        {/* 원본 끝 단추 [종료월](2026-10-21 재측정, 급여현황과 같다) — 시작을 끝 달로 옮기고 바로 찾는다. */}
+        <button type="button" className="ec-btn" onClick={() => { const r = { from: range.to, to: range.to }; setRange(r); search(r) }}>종료월</button>
+        <button type="button" className="ec-btn" onClick={() => { const r = pick('전월+금월'); setRange(r); setDeptCond([]); setEmpCond([]); setItemCond([]); setSignBox(false); search(r) }}>다시 작성</button>
       </div>
       {/* 원본 격자는 출력물 값(머리 700 · 6px 3px 3px · 선 1px · 본문 3px · 24.1 · 계/합계 회색 243 가운데) — 2026-10-13 실측. 출력물 머리(24px 제목)는 없다 */}
       <table ref={tableRef} className="ec-report w-full text-left">
