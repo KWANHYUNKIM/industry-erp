@@ -11,6 +11,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
+import TradeEntry from './TradeEntry'
 
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
@@ -56,9 +57,9 @@ const won = (n: number) => n.toLocaleString('ko-KR')
  * 원본은 사는 쪽이든 파는 쪽이든 <b>같은 이름</b>이다. 그래서 화면별 라벨을 없앤다.
  * (열 구성도 확인했다 — 판매조회는 구매조회에서 [프로젝트명] 하나가 빠진 것이다.)
  */
-const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'purchaseDate'; accent: string; entryTo: string }> = {
-  sales: { title: '판매조회', url: '/sales', dateKey: 'saleDate', accent: 'var(--ec-blue)', entryTo: '/sales/sell' },
-  purchase: { title: '구매조회', url: '/purchases', dateKey: 'purchaseDate', accent: '#a5561b', entryTo: '/sales/buy' },
+const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'purchaseDate'; accent: string; entryTo: string; entryTitle: string }> = {
+  sales: { title: '판매조회', url: '/sales', dateKey: 'saleDate', accent: 'var(--ec-blue)', entryTo: '/sales/sell', entryTitle: '판매입력' },
+  purchase: { title: '구매조회', url: '/purchases', dateKey: 'purchaseDate', accent: '#a5561b', entryTo: '/sales/buy', entryTitle: '구매입력' },
 }
 
 export default function TradeInquiryPage({ mode }: { mode: Mode }) {
@@ -124,6 +125,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
+  /** 목록 위에 뜬 '판매입력(수정)' 창의 전표 id(원본 E040206 — 일자-No. 를 누르면 뜬다). */
+  const [popupId, setPopupId] = useState<number | null>(null)
+  /** 받은 전표 응답 그대로 — 수정 창(TradeEntry)이 다시 받지 않고 이것으로 전표를 펼친다. */
+  const [rawDocs, setRawDocs] = useState<(SalesDoc | PurchaseDoc)[]>([])
   // 원본 목록의 [선택삭제] 대상. 전표 입력 그리드와 같이 **행번호 칸을 눌러** 고른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
   // 열을 더할 때 합계행(tfoot)을 같이 안 고치면 숫자가 엉뚱한 열 아래에 선다. 개발 모드에서 잡는다.
@@ -141,6 +146,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   function load() {
     setError('')
     api.get<(SalesDoc | PurchaseDoc)[]>(cfg.url)
+      .then((res) => { setRawDocs(res.data); return res })
       .then((res) => setDocs(res.data.map((d) => ({
         id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseId: d.warehouseId, warehouseName: d.warehouseName, projectId: d.projectId ?? null,
         date: (d as never)[cfg.dateKey] as string,
@@ -195,9 +201,33 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     }
   }
 
-  /** 전표 수정 — 입력 화면을 수정 모드로 연다. 원본도 조회에서 전표번호를 누르면 입력 팝업이 뜬다. */
+  /**
+   * 전표 수정 — 원본처럼 <b>목록 위에 '판매입력(수정)' 창</b>을 띄운다(2026-10-21 loginaa E040206 실측: 창 폭은 화면의 절반,
+   * 아래 버튼줄 저장(F8) · 저장/전표(F7) · 복사 · 반품처리 · 현금수금 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H · 최종이력).
+   * 입력 화면 주소(?edit=)로 여는 길은 그대로 남는다(다른 화면 · QA 흐름이 쓴다).
+   */
   function editDoc(d: NormalDoc) {
-    navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?edit=${d.id}`)
+    setPopupId(d.id)
+  }
+  /**
+   * 창의 [이전] · [다음] — 원본은 일자-No. 차례로 바로 앞(더 옛) 전표가 [이전], 바로 뒤가 [다음] 이다
+   * (목록 정렬과 상관없다). 가장 새 전표에서 [다음] 이면 '알림 / 다음 자료가 없습니다.' 를 띄우고,
+   * [확인] 하면 창도 닫힌다(2026-10-21 실측). 지금 걸러 보이는 전표 안에서만 옮긴다.
+   */
+  async function movePopup(dir: 'prev' | 'next') {
+    const ordered = [...shown].sort((a, b) => a.date.localeCompare(b.date) || a.docNo.localeCompare(b.docNo))
+    const i = ordered.findIndex((d) => d.id === popupId)
+    const to = ordered[dir === 'prev' ? i - 1 : i + 1]
+    if (i < 0 || !to) {
+      await ecAlert(`${dir === 'prev' ? '이전' : '다음'} 자료가 없습니다.`)
+      setPopupId(null)
+      return
+    }
+    setPopupId(to.id)
+  }
+  function closePopup(changed: boolean) {
+    setPopupId(null)
+    if (changed) { setOpenId(null); load() }
   }
 
   /**
@@ -659,7 +689,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 </td>
                 {/* 원본: 일자-No 는 링크 색 (25,53,140) · 보통 굵기 · 본문 글꼴이다(2026-09-21 구매조회 실측). */}
                 <td style={{ color: 'rgb(25, 53, 140)' }}>
-                  {openId === d.id ? '▾ ' : '▸ '}{dateNo(d)}
+                  {openId === d.id ? '▾ ' : '▸ '}
+                  {/* 원본: 일자-No. 링크를 누르면 목록 위에 수정 창이 뜬다. 줄의 다른 곳을 누르면 품목이 펼쳐진다. */}
+                  <button type="button" className="ec-link" onClick={(e) => { e.stopPropagation(); editDoc(d) }}>{dateNo(d)}</button>
                 </td>
                 <td>{d.partnerName}</td>
                 <td>
@@ -761,6 +793,26 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         </tbody>
         {/* 원본 판매조회 · 구매조회에는 합계줄이 없다(2026-10-20 실측). */}
       </table>
+      {popupId != null && (
+        /* 원본 창은 바깥을 눌러도 닫히지 않는다 — 고치던 것이 날아가지 않게 [닫기] · ✕ 로만 닫는다. */
+        <div className="ec-modal-back">
+          <div role="dialog" aria-modal="true" aria-label={`${cfg.entryTitle}(수정)`} className="ec-modal w-[max(960px,50vw)]">
+            <div className="ec-modal-bar">
+              <span className="name">{cfg.entryTitle}(수정)</span>
+              <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => closePopup(false)}>✕</button>
+            </div>
+            <div className="ec-modal-body">
+              <TradeEntry key={popupId} mode={isSales ? 'sales' : 'purchase'} popup={{
+                editId: popupId,
+                onClose: closePopup,
+                onMove: (dir) => void movePopup(dir),
+                docs: rawDocs,
+                onReturn: () => { const id = popupId; setPopupId(null); navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?returnFrom=${id}`) },
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
     </EcListShell>
   )
 }

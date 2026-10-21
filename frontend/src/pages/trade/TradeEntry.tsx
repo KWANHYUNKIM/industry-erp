@@ -23,7 +23,7 @@ import { dateText } from '../../utils/dateText'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
-import { ecAlert } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { ErrTip } from '../../components/GridCode'
 
 /**
@@ -43,6 +43,22 @@ import { ErrTip } from '../../components/GridCode'
  */
 
 type Mode = 'sales' | 'purchase'
+
+/**
+ * 판매조회 · 구매조회 위에 뜨는 <b>수정 창</b>으로 쓸 때 넘긴다(원본 E040206 에서 일자-No. 를 누르면
+ * '판매입력(수정)' 창이 목록 위에 뜬다 — 2026-10-21 loginaa 실측). 주소(?edit=)를 쓰지 않고 이 값으로 전표를 연다.
+ */
+export interface TradeEntryPopup {
+  editId: number
+  /** 창을 닫는다. changed 면 목록을 다시 읽는다(저장 · 삭제 뒤). */
+  onClose: (changed: boolean) => void
+  /** [이전] · [다음] — 원본은 목록 한 줄 아래(이전) · 위(다음)로 옮기고, 끝이면 '다음 자료가 없습니다.' */
+  onMove: (dir: 'prev' | 'next') => void
+  /** [반품처리] — 그 전표를 근거로 반품 입력을 연다. */
+  onReturn: () => void
+  /** 조회 화면이 이미 받아 둔 전표 목록(응답 그대로). 창을 열 때마다 2MB 넘는 목록을 다시 받지 않는다. */
+  docs: (SalesDoc | PurchaseDoc)[]
+}
 
 interface LineInput {
   itemId: string
@@ -278,26 +294,26 @@ type OptionalColId = typeof OPTIONAL_COLS[number]['id']
  * `adjust` — <b>판매입력 II</b>(원본 E040253 · ESD066M). 판매입력과 같은 전표지만 격자 아래에 <b>금액조정</b> 표가 있고
  * 툴바 [금액조정] 창에서 <b>할인 감소(-)</b> 를 넣는다(2026-10-13 loginaa 실측). 할인은 전표 머리 금액에서 빠진다.
  */
-export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjust?: boolean }) {
+export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode; adjust?: boolean; popup?: TradeEntryPopup }) {
   const cfg = adjust && mode === 'sales' ? { ...CFG.sales, title: '판매입력 II' } : CFG[mode]
   const isAdjust = adjust && mode === 'sales'
   const navigate = useNavigate()
   // 판매조회에서 [수정]으로 들어오면 `?edit=<전표 id>` 가 붙는다 — 원본도 조회에서 전표번호를 누르면
   // 같은 입력 화면이 수정 모드로 열린다.
   const [searchParams, setSearchParams] = useSearchParams()
-  const editId = searchParams.get('edit')
+  const editId = popup ? String(popup.editId) : searchParams.get('edit')
   /** 거래처중심입력에서 넘어오면 거래처를 미리 골라 둔다(?partnerId=). */
-  const presetPartnerId = searchParams.get('partnerId')
+  const presetPartnerId = popup ? null : searchParams.get('partnerId')
   /**
    * 조회의 <b>[반품처리]</b> 에서 넘어온 근거 전표(?returnFrom=). 그 전표를 <b>베껴서</b>
    * 거래구분을 반품으로 두고 연다 — 수정이 아니다. 원 전표는 손대지 않는다.
    */
-  const returnFromId = searchParams.get('returnFrom')
+  const returnFromId = popup ? null : searchParams.get('returnFrom')
   /**
    * 주문서출고처리 '처리' 탭 [판매] '입력' 에서 넘어온 출고처리 건(?fromRelease=). 원본은 판매입력 창이 그 건의
    * 거래처 · 출하창고 · 품목 · 수량(주문 단가)으로 차서 뜨고, 저장하면 처리 탭 [판매] 칸이 그 판매 일자-No. 로 바뀐다(2026-10-13 실측).
    */
-  const fromReleaseId = mode === 'sales' ? searchParams.get('fromRelease') : null
+  const fromReleaseId = mode === 'sales' && !popup ? searchParams.get('fromRelease') : null
   const releaseIds = (fromReleaseId ?? '').split(',').filter(Boolean)
   const releaseLoaded = useRef(false)
 
@@ -307,7 +323,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
   const [items, setItems] = useState<Item[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
-  const [docs, setDocs] = useState<(SalesDoc | PurchaseDoc)[]>([])
+  const [docs, setDocs] = useState<(SalesDoc | PurchaseDoc)[]>(popup?.docs ?? [])
   const [stocks, setStocks] = useState<StockRow[]>([])
   const [customDefs, setCustomDefs] = useState<CustomFieldDef[]>([])
   /** 라인 추가항목 정의. entityType 은 전표 것 뒤에 _LINE 을 붙인다(SALES_LINE / PURCHASE_LINE). */
@@ -426,6 +442,8 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
   const [savedDoc, setSavedDoc] = useState<{ id: number; docNo: string } | null>(null)
   /** 수정 중인 전표. 있으면 저장이 POST 가 아니라 PUT 이 된다. */
   const [editing, setEditing] = useState<{ id: number; docNo: string } | null>(null)
+  /** 수정 창 [복사] 를 누른 뒤 — 같은 내용을 새 전표로 쓴다. 불러오기 효과가 그 전표를 다시 펼치지 않게 막는다. */
+  const copiedRef = useRef(false)
   const [verifyResult, setVerifyResult] = useState<string[] | null>(null)
   const [error, setError] = useState('')
   /** 품목은 골랐는데 수량이 빈 줄 — 원본은 그 [수량] 칸 위에 '유효키항목 필수입력' 말풍선(2026-10-21 E040205 실측). */
@@ -476,7 +494,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
    */
   const docsAsked = useRef(false)
   const ensureDocs = () => {
-    if (docsAsked.current) return
+    if (docsAsked.current || popup) return
     docsAsked.current = true
     void loadDocs()
   }
@@ -575,7 +593,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
   }, [fromReleaseId])
 
   useEffect(() => {
-    if (!editId || editing || docs.length === 0) return
+    if (!editId || editing || docs.length === 0 || copiedRef.current) return
     const d = docs.find((x) => String(x.id) === editId)
     if (!d) return
     // 금액조정(할인)이 든 전표는 판매입력 II 전표다 — 원본도 판매조회에서 그 전표를 열면 [판매입력 II(수정)] 창이 뜬다.
@@ -1196,6 +1214,8 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
   const snapRef = useRef(snapshot)
   snapRef.current = snapshot
   useEffect(() => {
+    /* 수정 창은 임시저장하지 않는다 — 그 자리는 새 전표를 쓰던 내용이다(덮으면 쓰던 것이 사라진다). */
+    if (popup) return
     const t = window.setInterval(() => {
       const s = snapRef.current()
       if (s.includes('"itemId":"')) {   // 뭔가 입력된 상태에서만
@@ -1340,6 +1360,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         }
       }
       setSavedDoc({ id: res.data.id, docNo: res.data.docNo })
+      // 원본 수정 창 [저장(F8)] — 말 없이 창이 닫히고 목록이 새 값으로 바뀐다(2026-10-21 E040206 실측).
+      if (popup) { popup.onClose(true); return }
       deleteTemp()
       if (fromReleaseId && !editing) {
         // 출고처리 건에 이 판매를 걸고 처리 탭으로 돌아간다 — 원본도 창이 닫히고 [판매] 칸에 일자-No. 가 찍힌다.
@@ -1502,10 +1524,48 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
   ]
 
+  /*
+   * 판매조회 위 수정 창의 아래 버튼줄(원본 E040206 '판매입력(수정)' 2026-10-21 실측):
+   *   저장(F8) · 저장/전표(F7) · 복사 · 반품처리 · 현금수금 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H · 최종이력.
+   * 보내기(메일 · 팩스) · H · 최종이력(전표 이력)은 받쳐 줄 것이 없어 흐리게 둔다.
+   */
+  async function deleteInPopup() {
+    if (!popup || !editing) return
+    // 원본 '알림' 창: "전표를 삭제하겠습니까?" 아래 줄 " - 판매" · [확인] [취소] → 확인하면 창이 닫히고 목록에서 사라진다.
+    if (!(await ecConfirm(`전표를 삭제하겠습니까?
+ - ${mode === 'sales' ? '판매' : '구매'}`))) return
+    try {
+      await api.delete(`${cfg.endpoint}/${editing.id}`)
+      popup.onClose(true)
+    } catch (err) {
+      void ecAlert(extractErrorMessage(err))
+    }
+  }
+  const cashAction = footerActions.find((a) => a.label === cfg.cashLabel)
+  const popupActions: SlipAction[] | null = !popup ? null : editing ? [
+    { label: '저장(F8)', primary: true, submit: true },
+    { label: '저장/전표(F7)', onClick: saveAndPrintSlip },
+    /* [복사] — 같은 내용을 새 전표로 쓴다(번호는 저장할 때 새로 받는다). */
+    { label: '복사', onClick: () => { copiedRef.current = true; setEditing(null) } },
+    { label: '반품처리', onClick: popup.onReturn },
+    ...(cashAction ? [{ ...cashAction, menu: undefined }] : []),
+    { label: '이전', onClick: () => popup.onMove('prev') },
+    { label: '다음', onClick: () => popup.onMove('next') },
+    { label: '닫기', onClick: () => popup.onClose(false) },
+    { label: '삭제', onClick: () => void deleteInPopup() },
+    { label: '보내기', disabled: true, disabledReason: '메일 · 팩스 보내기는 아직 없습니다.' },
+    { label: 'H', disabled: true, disabledReason: '전표 이력은 아직 없습니다.' },
+    { label: '최종이력', disabled: true, disabledReason: '전표 이력은 아직 없습니다.' },
+  ] : [
+    { label: '저장(F8)', primary: true, submit: true },
+    { label: '다시 작성', onClick: () => { reset(false); setSavedDoc(null) } },
+    { label: '닫기', onClick: () => popup.onClose(false) },
+  ]
+
   return (
     <form ref={formRef} onSubmit={submit}>
       <EcSlipShell
-        title={editing ? `${cfg.title} — ${editing.docNo} 수정` : cfg.title}
+        title={popup ? (editing ? `${cfg.title}(수정)` : cfg.title) : editing ? `${cfg.title} — ${editing.docNo} 수정` : cfg.title}
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
         activeFormTab="main"
         /*
@@ -1519,7 +1579,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           onSelect: () => navigate(t.to),
         })) : []}
         onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
-        tempSave={hasTemp ? { onApply: applyTemp, onDelete: deleteTemp } : null}
+        tempSave={hasTemp && !popup ? { onApply: applyTemp, onDelete: deleteTemp } : null}
         savedAt={savedAt}
         options={[
           { label: showExtra ? '추가항목 접기' : '추가항목 펼치기', onClick: () => setShowExtra((v) => !v) },
@@ -1528,7 +1588,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           { label: '인쇄', onClick: doPrint },
           { label: '입력값 초기화', onClick: () => reset(false) },
         ]}
-        actions={footerActions}
+        actions={popupActions ?? footerActions}
         help={
           <ul className="pl-[16px] m-0">
             <li>이 화면은 이카운트 <b>판매입력(ESD006M)</b> 구조를 따릅니다 — 헤더 항목 폼 · 금액조정 합계 · 명세 그리드 · 하단 버튼줄.</li>
