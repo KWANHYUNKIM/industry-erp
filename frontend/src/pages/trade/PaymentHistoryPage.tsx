@@ -128,7 +128,10 @@ export default function PaymentHistoryPage() {
   async function load(): Promise<SettlementRow[]> {
     setLoading(true)
     try {
-      const res = await api.get<SettlementRow[]>('/accounting-reflection?kind=SETTLEMENT')
+      // 고른 [전표일자] 를 서버에도 보낸다 — 전 기간을 받아 화면에서만 자르던 것(비운 쪽은 끝까지).
+      const res = await api.get<SettlementRow[]>('/accounting-reflection', {
+        params: { kind: 'SETTLEMENT', from: cond.from || undefined, to: cond.to || undefined },
+      })
       const list = [...res.data].sort((a, b) =>
         (a.slipDate < b.slipDate ? 1 : a.slipDate > b.slipDate ? -1 : b.id - a.id))
       setRows(list)
@@ -142,7 +145,8 @@ export default function PaymentHistoryPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  // 기간을 바꾸면 그 기간을 다시 받는다(예전엔 전 기간을 한 번 받아 화면에서 바로 잘랐다)
+  useEffect(() => { load() }, [cond.from, cond.to])
 
   const shown = rows
     .filter((r) => tab === '전체' || (tab === '미반영' ? !r.reflected : r.reflected))
