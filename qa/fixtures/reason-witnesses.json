@@ -4569,14 +4569,6 @@
   ],
   "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
  },
- "경영요약보고서|기타": {
-  "claim": "결재 칸을 그리지 않는다",
-  "absent": [
-   "approvalBox",
-   "결재란"
-  ],
-  "in": "frontend/src/pages/accounting/ManagementSummaryPage.tsx"
- },
  "회계집계표|기타": {
   "claim": "결재 칸을 그리지 않는다",
   "absent": [

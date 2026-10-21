@@ -52,12 +52,16 @@ interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string
  * <p>(세금)계산서발행/수령(E030202)에서 쓴 계산서도 한 줄씩 들어간다 — 분개는 없지만 원본 매출장에
  * '2026/10/12 -4 · 세금계산서 · (주)구로 · 123,000 · 12,300' 으로 떴다(2026-10-12 실측). 유형명은 그 계산서의 부가세유형.
  */
-export default function VatBookPage() {
+/** 경영요약보고서(E010821)가 [매출장] · [매입장] 을 이어 그릴 때 쓰는 끼움 모드 — 조건 판 · 머리 없이 'N. 매입장' 제목 + 표만, 자료가 없으면 아무것도 안 그린다. */
+export interface VatEmbed { from: string; to: string; side: '매출' | '매입'; startNo: number; onCount: (n: number) => void }
+
+export default function VatBookPage({ embed }: { embed?: VatEmbed } = {}) {
   const { companyName } = useAuth()
   const init = periodOf('전월')!
-  const [mode, setMode] = useState<Mode>('매출')
-  const [from, setFrom] = useState(init.from)
-  const [to, setTo] = useState(init.to)
+  const [mode, setMode] = useState<Mode>(embed?.side ?? '매출')
+  const [from, setFrom] = useState(embed?.from ?? init.from)
+  const [to, setTo] = useState(embed?.to ?? init.to)
+  useEffect(() => { if (embed) { setFrom(embed.from); setTo(embed.to) } }, [embed?.from, embed?.to]) // eslint-disable-line react-hooks/exhaustive-deps
   const [partners, setPartners] = useState<PartnerOpt[]>([])
   const [partner, setPartner] = useState('')
   const [kind, setKind] = useState('')
@@ -338,6 +342,22 @@ export default function VatBookPage() {
           ))}
         </tbody>
       </table>
+    )
+  }
+
+  const embedCount = embed ? rows.filter((r) => r.side === embed.side).length > 0 ? 1 : 0 : 0
+  const onCount = embed?.onCount
+  useEffect(() => { if (!loading) onCount?.(embedCount) }, [loading, embedCount, onCount])
+  if (embed) {
+    if (loading || embedCount === 0) return null
+    return (
+      <>
+        <div data-ms-head className="flex justify-between text-[12.5px] font-bold mt-[14px] mx-0 mb-[4px]">
+          <span>{embed.startNo}. {embed.side}장</span>
+          <span className="font-normal">{slash(from)} ~ {slash(to)}</span>
+        </div>
+        {ledger(embed.side)}
+      </>
     )
   }
 

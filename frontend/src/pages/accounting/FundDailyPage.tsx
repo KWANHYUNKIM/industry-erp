@@ -44,13 +44,17 @@ interface Xfer { key: string; date: string; route: string; text: string; amount:
  * <p><b>자금증감내역</b>(E010815, variant="flow") — 같은 날 실측. 자금일보의 증가 · 감소 두 표만 있다(번호가 <b>1 . 자금의 증가 · 2 . 자금의 감소</b>로
  * 당겨진다). 기본 기간 <b>최근30일</b>(빠른선택 … 이번기수 · 직전기수 · 종료일 · 최근30일), 일자는 줄마다 찍고 거래처코드 열이 없다.
  */
-export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily' | 'flow' }) {
+/** 경영요약보고서(E010821)가 [자금증감내역] 표들을 이어 그릴 때 쓰는 끼움 모드 — 조건 판 · 머리 없이 표만, 번호는 startNo 부터 '3. 자금의 증가'. */
+export interface FundEmbed { from: string; to: string; startNo: number; onCount: (n: number) => void }
+
+export default function FundDailyPage({ variant = 'daily', embed }: { variant?: 'daily' | 'flow'; embed?: FundEmbed }) {
   const flow = variant === 'flow'
   const title = flow ? '자금증감내역' : '자금일보'
   const { companyName } = useAuth()
   const init = flow ? periodOf('최근30일')! : periodOf('금일')!
-  const [from, setFrom] = useState(init.from)
-  const [to, setTo] = useState(init.to)
+  const [from, setFrom] = useState(embed?.from ?? init.from)
+  const [to, setTo] = useState(embed?.to ?? init.to)
+  useEffect(() => { if (embed) { setFrom(embed.from); setTo(embed.to) } }, [embed?.from, embed?.to]) // eslint-disable-line react-hooks/exhaustive-deps
   const [allEntries, setEntries] = useState<JournalEntry[]>([])
   /* 원본 조건 [부서] · [프로젝트] — 회계전표 줄의 것(V343)으로 좁힌다. */
   const [dept, setDept] = useState('')
@@ -158,7 +162,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
   useTableColumnCheck(xferRef, title, [xfers.length])
 
   const section = (t: string) => (
-    <div className="flex justify-between text-[12.5px] font-bold mt-[14px] mx-0 mb-[4px]">
+    <div data-ms-head className="flex justify-between text-[12.5px] font-bold mt-[14px] mx-0 mb-[4px]">
       <span>{t}</span>
       <span className="font-normal">{slash(from)} ~ {slash(to)}</span>
     </div>
@@ -191,6 +195,57 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
       </tr>
     </tbody>
   )
+
+  const nTables = (incs.length > 0 ? 1 : 0) + (decs.length > 0 ? 1 : 0) + (xfers.length > 0 ? 1 : 0)
+  const onCount = embed?.onCount
+  useEffect(() => { if (!loading) onCount?.(nTables) }, [loading, nTables, onCount])
+  const titleNo = (kind: 'inc' | 'dec' | 'xfer', plain: string) => {
+    if (!embed) return plain
+    const idx = kind === 'inc' ? 0 : kind === 'dec' ? (incs.length > 0 ? 1 : 0) : (incs.length > 0 ? 1 : 0) + (decs.length > 0 ? 1 : 0)
+    return `${embed.startNo + idx}. ${kind === 'inc' ? '자금의 증가' : kind === 'dec' ? '자금의 감소' : '계좌간이동'}`
+  }
+
+  const movesBlock = (
+    <>
+      {/* 원본(2026-10-20): 자료가 없는 표는 제목째 빠지고 번호는 그대로(일보 2 · 3 · 4 / 증감내역 1 · 2 · 3). */}
+      {incs.length > 0 && <>
+        {section(titleNo('inc', flow ? '1 . 자금의 증가' : '2 . 자금의 증가'))}
+        <table ref={incRef} className="w-full text-left">{moveHead}{moveBody(incs)}</table>
+      </>}
+      {decs.length > 0 && <>
+        {section(titleNo('dec', flow ? '2 . 자금의 감소' : '3 . 자금의 감소'))}
+        <table ref={decRef} className="w-full text-left">{moveHead}{moveBody(decs)}</table>
+      </>}
+      {xfers.length > 0 && <>
+        {section(titleNo('xfer', flow ? '3 . 계좌간이동' : '4 . 계좌간이동'))}
+        <table ref={xferRef} className="w-full text-left">
+          <thead>
+            <tr>
+              <th className="text-center">일자</th>
+              <th>이동계좌</th>
+              <th>적요</th>
+              <th className="text-right">금액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {xfers.map((x, i) => (
+              <tr key={x.key}>
+                <td className="text-center">{!flow && i > 0 && xfers[i - 1].date === x.date ? '' : slash(x.date)}</td>
+                <td>{x.route}</td>
+                <td>{x.text}</td>
+                <td className="text-right">{won(x.amount)}</td>
+              </tr>
+            ))}
+            <tr className="font-bold bg-[var(--ec-report-stripe)]">
+              <td colSpan={3} className="text-center">합계</td>
+              <td className="text-right">{won(xfers.reduce((s, x) => s + x.amount, 0))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </>}
+    </>
+  )
+  if (embed) return loading ? null : movesBlock
 
   return (
     <EcListShell
@@ -277,42 +332,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
               </table>
             </>
           )}
-          {/* 원본(2026-10-20): 자료가 없는 표는 제목째 빠지고 번호는 그대로(일보 2 · 3 · 4 / 증감내역 1 · 2 · 3). */}
-          {incs.length > 0 && <>
-            {section(flow ? '1 . 자금의 증가' : '2 . 자금의 증가')}
-            <table ref={incRef} className="w-full text-left">{moveHead}{moveBody(incs)}</table>
-          </>}
-          {decs.length > 0 && <>
-            {section(flow ? '2 . 자금의 감소' : '3 . 자금의 감소')}
-            <table ref={decRef} className="w-full text-left">{moveHead}{moveBody(decs)}</table>
-          </>}
-          {xfers.length > 0 && <>
-            {section(flow ? '3 . 계좌간이동' : '4 . 계좌간이동')}
-            <table ref={xferRef} className="w-full text-left">
-              <thead>
-                <tr>
-                  <th className="text-center">일자</th>
-                  <th>이동계좌</th>
-                  <th>적요</th>
-                  <th className="text-right">금액</th>
-                </tr>
-              </thead>
-              <tbody>
-                {xfers.map((x, i) => (
-                  <tr key={x.key}>
-                    <td className="text-center">{!flow && i > 0 && xfers[i - 1].date === x.date ? '' : slash(x.date)}</td>
-                    <td>{x.route}</td>
-                    <td>{x.text}</td>
-                    <td className="text-right">{won(x.amount)}</td>
-                  </tr>
-                ))}
-                <tr className="font-bold bg-[var(--ec-report-stripe)]">
-                  <td colSpan={3} className="text-center">합계</td>
-                  <td className="text-right">{won(xfers.reduce((s, x) => s + x.amount, 0))}</td>
-                </tr>
-              </tbody>
-            </table>
-          </>}
+          {movesBlock}
           {flow && incs.length + decs.length + xfers.length === 0 && <p className="ec-empty">등록된 데이터가 없습니다.</p>}
         </>
       )}
