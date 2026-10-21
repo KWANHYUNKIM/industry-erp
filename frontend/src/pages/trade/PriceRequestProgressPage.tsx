@@ -16,9 +16,9 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 /**
  * 구매관리 > 단가요청진행단계 (이카운트 E040323) — 2026-10-21 loginaa 실측.
  * 단가요청은 이제 <b>따로 된 전표</b>(PRICE_REQUESTED)다. 원본 열: 단가요청번호 · 품목명 · 진행단계 · 거래처명 · 수취금액 · 확정금액 · 이력.
- * 진행단계는 두 칸 <b>[수취단가확인] → [단가확정]</b> — 누르면 줄마다 수취단가 · 확정단가를 적는 창이 뜬다(PATCH /price-steps).
- * 확정단가는 단가요청조회 [다른전표생성 › 발주서] 로 베낄 때 발주서 단가가 된다.
- * (원본 진행단계 칸을 눌러 뜨는 창은 합성 클릭으로 열리지 않아 못 쟀다 — 창 모양은 우리 것.)
+ * 진행단계는 두 칸 <b>[수취단가확인] → [단가확정]</b> — 누르면 단가요청비교현황 창(PriceCompareModal, PATCH /price-steps).
+ * 확정단가는 발주서입력 [단가요청] 으로 베낄 때 발주서 단가가 된다(원본 확정 90 → 발주서 10 × 90 = 900 · 990).
+ * 수취금액 · 확정금액 칸은 원본이 <b>단가</b>를 찍는다(10 × 90 인데 90 — 한 줄짜리만 잼, 여러 줄은 단가 합으로 둔다).
  */
 type Step = 'received' | 'confirmed'
 const STEP_LABEL: Record<Step, string> = { received: '수취단가확인', confirmed: '단가확정' }
@@ -30,7 +30,7 @@ const stepDone = (r: PurchaseOrder, s: Step) => r.lines.length > 0
   && r.lines.every((l) => (s === 'received' ? l.receivedPrice : l.confirmedPrice) != null)
 const stepAmount = (r: PurchaseOrder, s: Step) => r.lines.reduce((a, l) => {
   const p = s === 'received' ? l.receivedPrice : l.confirmedPrice
-  return a + (p == null ? 0 : Number(l.quantity) * Number(p))
+  return a + (p == null ? 0 : Number(p))
 }, 0)
 
 /** 원본 [이력] 한 줄 — 언제 어느 단계로 넘어갔나. */
@@ -42,45 +42,131 @@ interface HistoryRow {
   note: string | null
 }
 
-/** [수취단가확인] · [단가확정] 창 — 줄마다 그 단가, 머리 [유효기간]. 단가확정은 비어 있으면 수취단가로 시작한다. */
-function PriceStepModal({ order, step, onClose, onSaved }: { order: PurchaseOrder; step: Step; onClose: () => void; onSaved: () => void }) {
-  const [prices, setPrices] = useState<string[]>(() => order.lines.map((l) => {
-    const v = step === 'received' ? (l.receivedPrice ?? l.unitPrice) : (l.confirmedPrice ?? l.receivedPrice ?? l.unitPrice)
-    return v == null ? '' : String(Number(v))
-  }))
-  const [valid, setValid] = useState(order.priceValidUntil ?? '')
+/**
+ * 진행단계 칸을 누르면 뜨는 <b>단가요청비교현황</b> 창 — 원본 E040323 2026-10-21 loginaa 실측(computer 클릭으로 열어 잼).
+ *
+ * <p>열: 품목코드 · 품목명 · 규격 · 수량 · 공급가액 · <b>요청단가</b> · <b>거래처명</b>(그 밑에 '수취단가 직접입력'). 단추 확정단가선택/수정 · 인쇄 · Excel · 닫기.
+ * '수취단가 직접입력' 은 <b>단가요청수정</b> 창(입력 화면과 같은 꼴, 단가 칸이 비어 있음)을 띄워 수취단가를 적는다 — 원본 10 × 90 저장 → 비교현황 90.
+ * [확정단가선택/수정] 을 누르면 단가 칸마다 동그라미가 생긴다(처음엔 요청단가) — <b>확정단가는 적는 것이 아니라 요청 · 수취 중에서 고른다</b>.
+ * 단추가 [단가확정/저장(F8)] 로 바뀌고, 저장하면 창이 닫히며 진행단계 두 칸이 끝남으로 바뀐다. 원본 칸의 '수정' 작은 메뉴는 건너뛴다.
+ */
+function PriceCompareModal({ order, selecting, onClose, onSaved }: { order: PurchaseOrder; selecting: boolean; onClose: () => void; onSaved: () => void }) {
+  const [select, setSelect] = useState(selecting)
+  const [editOpen, setEditOpen] = useState(false)
+  /** 줄마다 확정단가로 고른 칸 — 'req' 요청단가 · 'recv' 수취단가. 이미 확정했으면 그 값과 같은 칸. */
+  const [pick, setPick] = useState<('req' | 'recv')[]>(() => order.lines.map((l) =>
+    l.confirmedPrice != null && l.receivedPrice != null && Number(l.confirmedPrice) === Number(l.receivedPrice)
+      && Number(l.confirmedPrice) !== Number(l.unitPrice) ? 'recv' : 'req'))
+  const [error, setError] = useState('')
+  async function confirmSave() {
+    setError('')
+    try {
+      await api.patch(`/purchase-orders/${order.id}/price-steps`, {
+        priceValidUntil: order.priceValidUntil ?? null,
+        lines: order.lines.map((l, i) => ({
+          lineId: l.id,
+          confirmedPrice: Number(pick[i] === 'recv' && l.receivedPrice != null ? l.receivedPrice : l.unitPrice),
+        })),
+      })
+      onSaved()
+    } catch (e) { setError(extractErrorMessage(e)) }
+  }
+  const supply = (l: PurchaseOrder['lines'][number]) => Number(l.quantity) * Number(l.unitPrice)
+  const radio = (i: number, v: 'req' | 'recv') => select && (
+    <input type="radio" className="mr-[6px]" aria-label={v === 'req' ? '요청단가' : '수취단가'} checked={pick[i] === v}
+           disabled={v === 'recv' && order.lines[i].receivedPrice == null}
+           onChange={() => setPick((p) => p.map((x, k) => (k === i ? v : x)))} />
+  )
+  const all = (v: 'req' | 'recv') => select && (
+    <input type="radio" className="mr-[6px]" aria-label={v === 'req' ? '요청단가 전체' : '수취단가 전체'} checked={pick.every((x) => x === v)}
+           onChange={() => setPick(order.lines.map((l) => (v === 'recv' && l.receivedPrice == null ? 'req' : v)))} />
+  )
+  return (
+    <Modal open title="단가요청비교현황" width={860} onClose={onClose} error={error}>
+      <div className="text-center text-[16px] font-bold underline mb-[6px]">단가요청비교현황</div>
+      <div className="flex justify-between text-[12px] mb-[4px]">
+        <span>{dateNo(order.orderDate, order.orderNo)}</span>
+        <span>유효기간 : {order.priceValidUntil ? order.priceValidUntil.replace(/-/g, '/') : ''}</span>
+      </div>
+      <table className="w-full text-left">
+        <thead>
+          <tr>
+            <th rowSpan={2}>품목코드</th><th rowSpan={2}>품목명</th><th rowSpan={2}>규격</th>
+            <th rowSpan={2} className="text-right">수량</th><th rowSpan={2} className="text-right">공급가액</th>
+            <th rowSpan={2} className="text-center">{all('req')}요청단가</th>
+            <th className="text-center">{all('recv')}{order.partnerName}</th>
+          </tr>
+          <tr>
+            <th className="text-center"><a className="cursor-pointer" onClick={() => setEditOpen(true)}>수취단가 직접입력</a></th>
+          </tr>
+        </thead>
+        <tbody>
+          {order.lines.map((l, i) => (
+            <tr key={l.id}>
+              <td>{l.itemCode}</td><td>{l.itemName}</td><td>{l.spec ?? ''}</td>
+              <td className="text-right">{won(Number(l.quantity))}</td>
+              <td className="text-right">{won(supply(l))}</td>
+              <td className="text-right">{radio(i, 'req')}{won(Number(l.unitPrice))}</td>
+              <td className="text-right">{radio(i, 'recv')}{l.receivedPrice == null ? '' : won(Number(l.receivedPrice))}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={4} className="text-center">계</td>
+            <td className="text-right">{won(order.lines.reduce((a, l) => a + supply(l), 0))}</td>
+            <td></td><td></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div className="flex gap-[4px] mt-[10px]">
+        {select
+          ? <button type="button" className="ec-btn ec-btn-primary" onClick={() => void confirmSave()}>단가확정/저장(F8)</button>
+          : <button type="button" className="ec-btn ec-btn-primary" onClick={() => setSelect(true)}>확정단가선택/수정</button>}
+        <button type="button" className="ec-btn" onClick={() => window.print()}>인쇄</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+      {editOpen && <ReceivedPriceModal order={order} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); onSaved() }} />}
+    </Modal>
+  )
+}
+
+/** '수취단가 직접입력' → <b>단가요청수정</b> 창 — 원본은 입력 화면 꼴(품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세)에 단가가 빈 채로 열린다. */
+function ReceivedPriceModal({ order, onClose, onSaved }: { order: PurchaseOrder; onClose: () => void; onSaved: () => void }) {
+  const [prices, setPrices] = useState<string[]>(() => order.lines.map((l) => (l.receivedPrice == null ? '' : String(Number(l.receivedPrice)))))
   const [error, setError] = useState('')
   async function save() {
     setError('')
     try {
       await api.patch(`/purchase-orders/${order.id}/price-steps`, {
-        priceValidUntil: valid || null,
-        lines: order.lines.map((l, i) => ({ lineId: l.id, [step === 'received' ? 'receivedPrice' : 'confirmedPrice']: prices[i] === '' ? null : Number(prices[i]) })),
+        priceValidUntil: order.priceValidUntil ?? null,
+        lines: order.lines.map((l, i) => ({ lineId: l.id, receivedPrice: prices[i] === '' ? null : Number(prices[i]) })),
       })
       onSaved()
     } catch (e) { setError(extractErrorMessage(e)) }
   }
+  const amt = (i: number) => Number(order.lines[i].quantity) * Number(prices[i] || 0)
   return (
-    <Modal open title={STEP_LABEL[step]} width={720} onClose={onClose} error={error}>
-      <div className="flex items-center gap-[6px] mb-[8px]">
-        <span className="w-[93px] text-ec-label">유효기간</span>
-        <input type="date" className="ec-input w-[145px]" value={valid} onChange={(e) => setValid(e.target.value)} />
+    <Modal open title="단가요청수정" width={760} onClose={onClose} error={error}>
+      <div className="flex flex-wrap gap-x-[24px] gap-y-[4px] mb-[8px] text-[12px]">
+        <span><span className="text-ec-label mr-[8px]">일자</span>{dateNo(order.orderDate, order.orderNo)}</span>
+        <span><span className="text-ec-label mr-[8px]">거래처</span>{order.partnerName}</span>
+        <span><span className="text-ec-label mr-[8px]">유효기간</span>{order.priceValidUntil ? order.priceValidUntil.replace(/-/g, '/') : ''}</span>
       </div>
       <table className="w-full text-left">
         <thead><tr>
-          <th>품목코드</th><th>품목명</th><th className="text-right">수량</th><th className="text-right">요청단가</th>
-          {step === 'confirmed' && <th className="text-right">수취단가</th>}
-          <th className="text-right w-[130px]">{step === 'received' ? '수취단가' : '확정단가'}</th>
+          <th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th>
+          <th className="text-right w-[120px]">단가</th><th className="text-right">공급가액</th><th className="text-right">부가세</th>
         </tr></thead>
         <tbody>
           {order.lines.map((l, i) => (
             <tr key={l.id}>
-              <td>{l.itemCode}</td><td>{l.itemName}</td>
+              <td>{l.itemCode}</td><td>{l.itemName}</td><td>{l.spec ?? ''}</td>
               <td className="text-right">{won(Number(l.quantity))}</td>
-              <td className="text-right">{won(Number(l.unitPrice))}</td>
-              {step === 'confirmed' && <td className="text-right">{l.receivedPrice == null ? '' : won(Number(l.receivedPrice))}</td>}
               <td><EcNumInput className="ec-input w-full text-right" value={prices[i]}
                               onValue={(v) => setPrices((p) => p.map((x, k) => (k === i ? v : x)))} /></td>
+              <td className="text-right">{won(amt(i))}</td>
+              <td className="text-right">{won(Math.round(amt(i) / 10))}</td>
             </tr>
           ))}
         </tbody>
@@ -358,7 +444,7 @@ export default function PriceRequestProgressPage() {
           ]).flat()}
         </tbody>
       </table>
-      {stepOpen && <PriceStepModal order={stepOpen.order} step={stepOpen.step} onClose={() => setStepOpen(null)}
+      {stepOpen && <PriceCompareModal order={stepOpen.order} selecting={stepOpen.step === 'confirmed'} onClose={() => setStepOpen(null)}
                                    onSaved={() => { setStepOpen(null); void load() }} />}
     </EcListShell>
   )

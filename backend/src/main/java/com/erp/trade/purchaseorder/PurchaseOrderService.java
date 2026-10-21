@@ -173,6 +173,20 @@ public class PurchaseOrderService {
         return v != null ? v : BigDecimal.ZERO;
     }
 
+    /**
+     * 전표 종류마다 <b>번호를 따로</b> 센다(원본 2026-10-21 loginaa 실측) — 같은 날 단가요청 '2026/10/21 -2' 를 두고 발주서를 쓰면
+     * 발주서는 '26/10/21-1' 이다. 발주요청 '26/10/12-2' · 발주계획 '2026/10/11 -1' 도 각자 센다. 한 표에 같이 들어 있어서
+     * 접두어로 번호 공간을 가른다(DocumentNoGenerator 가 접두어 + 날짜마다 최댓값 + 1). 발주서는 옛 'PR-' 를 그대로 쓴다.
+     */
+    static String noPrefix(PurchaseOrderStatus kind) {
+        return switch (kind) {
+            case REQUESTED -> "RQ-";
+            case PLANNED -> "PL-";
+            case PRICE_REQUESTED -> "PQ-";
+            default -> "PR-";
+        };
+    }
+
     /** 발주요청 등록. 단가 미입력 라인은 품목 기준단가로 채운다. */
     @Transactional
     public PurchaseOrderResponse create(CreatePurchaseOrderRequest req, String username) {
@@ -188,8 +202,11 @@ public class PurchaseOrderService {
         Warehouse warehouse = req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId());
         String currency = (req.currency() == null || req.currency().isBlank()) ? "KRW" : req.currency().trim();
 
+        PurchaseOrderStatus kind = Boolean.TRUE.equals(req.priceRequest()) ? PurchaseOrderStatus.PRICE_REQUESTED
+                : Boolean.TRUE.equals(req.order()) ? PurchaseOrderStatus.ORDERED
+                : Boolean.TRUE.equals(req.plan()) ? PurchaseOrderStatus.PLANNED : PurchaseOrderStatus.REQUESTED;
         PurchaseOrder po = PurchaseOrder.builder()
-                .orderNo(docNoGenerator.next("PR-", "purchase_orders", "order_no", "order_date", orderDate))
+                .orderNo(docNoGenerator.next(noPrefix(kind), "purchase_orders", "order_no", "order_date", orderDate))
                 .orderDate(orderDate)
                 .dueDate(req.dueDate())
                 .priceValidUntil(req.priceValidUntil())
@@ -202,9 +219,7 @@ public class PurchaseOrderService {
                  * 발주요청 · 발주계획 · 발주서는 <b>다른 전표</b>다(원본 E040315 실측) — 다음 전표는 앞 전표를 베껴 새로 만들고
                  * 앞 전표의 상태는 그대로 둔다. 발주계획입력(E040316)은 계획, 발주서입력은 바로 발주확정(구매 [발주] 잔량적용 대상).
                  */
-                .status(Boolean.TRUE.equals(req.priceRequest()) ? PurchaseOrderStatus.PRICE_REQUESTED
-                        : Boolean.TRUE.equals(req.order()) ? PurchaseOrderStatus.ORDERED
-                        : Boolean.TRUE.equals(req.plan()) ? PurchaseOrderStatus.PLANNED : PurchaseOrderStatus.REQUESTED)
+                .status(kind)
                 .taxable(req.taxable() == null || req.taxable())
                 .remark(req.remark())
                 .createdBy(username)

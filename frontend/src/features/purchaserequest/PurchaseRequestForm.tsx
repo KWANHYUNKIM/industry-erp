@@ -14,6 +14,7 @@ import type { Currency, Item, MyItem, Partner, PurchaseOrder, PurchaseOrderLine,
 import { purchaseRequestDocument } from './purchaseRequestDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import RequestPickModal from './RequestPickModal'
+import PriceRequestPickModal from './PriceRequestPickModal'
 
 /** 서버 줄 응답은 줄 거래처도 싣는다(OrderLineResponse.partnerId · partnerName) — 공용 타입에 없어 여기서만 넓힌다. */
 type RequestLine = PurchaseOrderLine & {
@@ -120,7 +121,10 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
   const headParty = order || priceRequest
   const [validUntil, setValidUntil] = useState(editing?.priceValidUntil ?? today())
   /** 줄 출처 열 이름 — 계획은 [발주요청] · [No], 발주서는 [발주계획] · [No.]. */
-  const srcHead = seed?.srcHead ?? (order ? ['발주계획', 'No.'] : plan ? ['발주요청', 'No'] : null)
+  /** 발주서입력 [단가요청] 으로 베꼈으면 줄 출처 열도 [단가요청] · [No.] 다. */
+  const [priceSrc, setPriceSrc] = useState(false)
+  const [pricePickOpen, setPricePickOpen] = useState(false)
+  const srcHead = seed?.srcHead ?? (order && priceSrc ? ['단가요청', 'No.'] : order ? ['발주계획', 'No.'] : plan ? ['발주요청', 'No'] : null)
   const [orderDate, setOrderDate] = useState(editing?.orderDate ?? today())
   const [dueDate, setDueDate] = useState(editing?.dueDate ?? today())
   const [employeeId, setEmployeeId] = useState(editing?.employeeId ? String(editing.employeeId) : '')
@@ -308,7 +312,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
   const reset = (keepWarehouse = false) => {
     setOrderDate(today()); setDueDate(today()); setEmployeeId(''); if (!keepWarehouse) setWarehouseId(''); setProjectId('')
     setCurrency('KRW'); setTaxable(true); setWhMissing(false); setLines(Array.from({ length: MIN_ROWS }, emptyLine)); setError('')
-    setApplied(false); setHeadPartnerId(''); setValidUntil(today())
+    setApplied(false); setPriceSrc(false); setHeadPartnerId(''); setValidUntil(today())
   }
 
   const body = (
@@ -382,6 +386,8 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
         <button type="button" className="ec-btn ec-btn-sm" {...notYet('소요량계산 창은 아직 없습니다.')}>소요</button>
         <button type="button" className="ec-btn ec-btn-sm" {...notYet('주문서검색창은 아직 없습니다.')}>주문</button>
         {plan && !applied && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setPickOpen(true)}>발주요청</button>}
+        {/* 원본 발주서입력 툴바: … 주문 · 계획 · 단가요청 · 전표불러오기 — [단가요청] 은 확정단가를 실어 줄을 채운다(2026-10-21 실측). */}
+        {order && !applied && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setPricePickOpen(true)}>단가요청</button>}
         {!applied && <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표불러오기 메뉴 창은 아직 없습니다.')}>전표불러오기</button>}
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadStocks()}>재고불러오기</button>
         {plan && <button type="button" className="ec-btn ec-btn-sm" {...notYet('품목별안전재고 불러오기는 아직 없습니다.')}>품목별안전재고</button>}
@@ -455,6 +461,14 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
           </tr>
         </tfoot>
       </table>
+      {pricePickOpen && (
+        <PriceRequestPickModal onClose={() => setPricePickOpen(false)}
+          onApply={(picked) => {
+            setPricePickOpen(false); setApplied(true); setPriceSrc(true)
+            addLines(picked.map((x) => copyLine(x.order, x.line)))
+            if (!headPartnerId) setHeadPartnerId(String(picked[0].order.partnerId))
+          }} />
+      )}
       {pickOpen && (
         <RequestPickModal onClose={() => setPickOpen(false)}
           onApply={(picked) => {

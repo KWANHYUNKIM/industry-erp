@@ -20,8 +20,8 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
-import { dateNo } from '../../utils/dateNo'
+import { ecConfirm } from '../../components/EcDialog'
+import { shortDateNo } from '../../utils/dateNo'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -137,7 +137,6 @@ export default function PurchaseOrderPage() {
   const pmgr = usePartnerManagers(partners)
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [pricing, setPricing] = useState<PurchaseOrder | null>(null)
   const [company, setCompany] = useState<DocParty | null>(null)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
@@ -249,47 +248,6 @@ export default function PurchaseOrderPage() {
     }])
   }
 
-  async function plan(po: PurchaseOrder) {
-    const dueDate = window.prompt(`${po.orderNo} 납기 요청일 (YYYY-MM-DD)`, po.dueDate ?? today())
-    if (dueDate === null) return
-    try { await api.post(`/purchase-orders/${po.id}/plan`, { dueDate: dueDate || null }); flash(`${po.orderNo} 발주계획 확정`); load() }
-    catch (err) { void ecAlert(extractErrorMessage(err)) }
-  }
-
-  async function confirm(po: PurchaseOrder) {
-    try { await api.post(`/purchase-orders/${po.id}/confirm`); flash(`${po.orderNo} 발주확정 — 매입처로 발주`); load() }
-    catch (err) { void ecAlert(extractErrorMessage(err)) }
-  }
-
-  async function cancel(po: PurchaseOrder) {
-    if (!(await ecConfirm(`${po.orderNo}을(를) 취소할까요?`))) return
-    try { await api.post(`/purchase-orders/${po.id}/cancel`); load() }
-    catch (err) { void ecAlert(extractErrorMessage(err)) }
-  }
-
-  async function remove(po: PurchaseOrder) {
-    if (!(await ecConfirm(`${po.orderNo}을(를) 삭제할까요? 되돌릴 수 없습니다.`))) return
-    try { await api.delete(`/purchase-orders/${po.id}`); load() }
-    catch (err) { void ecAlert(extractErrorMessage(err)) }
-  }
-
-  async function receive(po: PurchaseOrder) {
-    if (warehouses.length === 0) return ecAlert('입고할 창고가 없습니다. 창고를 먼저 등록하세요.')
-    const wh = warehouses[0]
-    const picked = window.prompt(
-      `입고 창고를 선택하세요.\n${warehouses.map((w) => `${w.id}: ${w.name}`).join('\n')}`,
-      String(wh.id),
-    )
-    if (picked === null) return
-    const warehouseId = Number(picked)
-    if (!warehouses.some((w) => w.id === warehouseId)) return ecAlert('창고 번호가 올바르지 않습니다.')
-    try {
-      const r = await api.post(`/purchase-orders/${po.id}/receive`, { warehouseId, purchaseDate: today() })
-      flash(`구매전표 ${r.data.docNo} 생성 — 재고 입고 완료`)
-      load()
-      if ((await ecConfirm('생성된 구매전표를 확인할까요?'))) navigate('/sales/purchase-list')
-    } catch (err) { void ecAlert(extractErrorMessage(err)) }
-  }
 
 
   /*
@@ -526,7 +484,7 @@ export default function PurchaseOrderPage() {
                 </td>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td className="text-center text-ec-blue font-semibold">
-                  {openId === po.id ? '▾ ' : '▸ '}{dateNo(po.orderDate, po.orderNo)}
+                  {shortDateNo(po.orderDate, po.orderNo)}
                 </td>
                 <td>{po.partnerName}</td>
                 <td style={{ color: po.employeeName ? undefined : 'var(--ec-text-off)' }}>{po.employeeName ?? ''}</td>
@@ -546,15 +504,9 @@ export default function PurchaseOrderPage() {
                   <a className="cursor-pointer" title={po.statusName}>조회</a>
                 </td>
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                  <div className="inline-flex gap-[3px]">
-                    <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => printOrder(po)}>인쇄</button>
-                    {po.status === 'REQUESTED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => plan(po)}>발주계획</button>}
-                    {(po.status === 'PLANNED' || po.status === 'PRICED') && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setPricing(po)}>단가확정</button>}
-                    {po.status === 'PRICED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => confirm(po)}>발주확정</button>}
-                    {po.status === 'ORDERED' && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => receive(po)}>입고전환</button>}
-                    {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => cancel(po)}>취소</button>}
-                    <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(po)}>삭제</button>
-                  </div>
+                  {/* 원본 [인쇄] 열은 '인쇄' 한 칸뿐(2026-10-21 실측). 옛 단추(발주계획 · 단가확정 · 발주확정 · 입고전환 · 취소 · 삭제)는
+                      원본 자리로 갔다 — 단가는 단가요청진행단계, 입고는 구매입력 [발주], 지우기는 [선택삭제]. */}
+                  <a className="cursor-pointer" onClick={() => void printOrder(po)}>인쇄</a>
                 </td>
                 <td>{po.projectName ?? ''}</td>
               </tr>
@@ -630,92 +582,10 @@ export default function PurchaseOrderPage() {
       </table>
 
       {showForm && <PurchaseOrderForm items={items} partners={partners} employees={employees} warehouses={warehouses} projects={projects} currencies={currencies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}
-      {pricing && <PriceForm order={pricing} onClose={() => setPricing(null)} onSaved={() => { setPricing(null); flash('단가를 확정했습니다.'); load() }} />}
     </EcListShell>
   )
 }
 
-/** 단가요청 회신 반영: 매입처가 준 단가를 라인별로 확정한다. */
-function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose: () => void; onSaved: () => void }) {
-  const [prices, setPrices] = useState<Record<number, string>>(
-    Object.fromEntries(order.lines.map((l) => [l.id, String(l.unitPrice)])),
-  )
-  /*
-   * 매입처는 단가와 함께 <b>언제까지 유효한지</b>를 준다. 여기서 안 받으면 그 값은
-   * 어디서도 들어올 데가 없다 — 원본 단가요청진행단계의 [유효기간] 이 늘 빈칸이 된다.
-   * 안 적어도 된다(유효기간을 안 다는 거래처도 있다).
-   */
-  const [validUntil, setValidUntil] = useState(order.priceValidUntil ?? '')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  // 서버(PurchaseOrderService.recalculate)처럼 줄마다 원 단위로 반올림한 뒤 더한다.
-  const lineSupplies = order.lines.map((l) => lineSupply(l.quantity, Number(prices[l.id]) || 0))
-  const supply = lineSupplies.reduce((a, b) => a + b, 0)
-  const vat = order.taxable ? lineSupplies.reduce((a, s) => a + roundWon(s * 0.1), 0) : 0
-
-  async function save() {
-    setError('')
-    const lines = order.lines.map((l) => ({ lineId: l.id, unitPrice: Number(prices[l.id]) || 0 }))
-    if (lines.some((l) => l.unitPrice <= 0)) return setError('모든 라인의 단가를 0보다 크게 입력하세요.')
-    setSaving(true)
-    try {
-      await api.post(`/purchase-orders/${order.id}/prices`,
-        { lines, priceValidUntil: validUntil || undefined })
-      onSaved()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 640, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
-          <span className="font-extrabold text-ec-navy">단가확정 — {order.orderNo} ({order.partnerName})</span>
-          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
-        </div>
-        <div className="p-[16px]">
-          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-          <table className="w-full text-left">
-            <thead><tr><th className="w-[34px]"></th><th>품목</th><th className="text-right">수량</th><th className="w-[120px] text-right">확정단가</th><th className="text-right">공급가액</th></tr></thead>
-            <tbody>
-              {order.lines.map((l) => (
-                <tr key={l.id}>
-                  <td className="text-center text-ec-hint">{l.lineNo}</td>
-                  <td>{l.itemCode} {l.itemName}</td>
-                  <td className="text-right">{won(l.quantity)} {l.unit}</td>
-                  <td>
-                    <EcNumInput className="ec-input w-full text-right" value={String(prices[l.id] ?? '')}
-                      onValue={(v) => setPrices((p) => ({ ...p, [l.id]: v }))} />
-                  </td>
-                  <td className="text-right">{won(lineSupply(l.quantity, Number(prices[l.id]) || 0))}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="font-bold bg-ec-page">
-                <td colSpan={3} className="text-right">공급가액 / 부가세 / 합계</td>
-                <td colSpan={2} className="text-right">{won(supply)} / {won(vat)} / <span className="text-ec-navy">{won(supply + vat)}</span></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid items-center">
-          <label className="text-[12.5px] text-ec-label flex items-center gap-[5px]">
-            유효기간
-            <input type="date" className="ec-input" value={validUntil}
-                   onChange={(e) => setValidUntil(e.target.value)} style={{ width: 145 }} />
-          </label>
-          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '단가확정(F8)'}</button>
-          <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function PurchaseOrderForm({ items, partners, employees, warehouses, projects, currencies, onClose, onSaved }: {
   items: Item[]; partners: Partner[]; employees: EmployeeMaster[]; warehouses: Warehouse[]

@@ -31,7 +31,7 @@ public class PurchaseOrder extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 발주번호 (예: PR-20260714-0001). 구매전표(PO-)와 접두어가 다르다. */
+    /** 전표번호 — 종류마다 따로 센다: 발주요청 RQ- · 발주계획 PL- · 단가요청 PQ- · 발주서 PR-(예: PR-20260714-0001). 구매전표는 PO-. */
     @Column(name = "order_no", nullable = false, unique = true, length = 30)
     private String orderNo;
 

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import PurchaseRequestForm, { copyLine, type PurchaseLineSeed } from '../../features/purchaserequest/PurchaseRequestForm'
+import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestForm'
 import { ecConfirm } from '../../components/EcDialog'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { dateNo } from '../../utils/dateNo'
+import { dateNo, shortDateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -32,7 +32,7 @@ type Tab = '전체' | '진행중' | '완료'
  * 위 탭 전체 · 미확인 · 확인 · 진행중 · 완료.
  *
  * <p>단가요청은 <b>따로 된 전표</b>(PRICE_REQUESTED)다 — 단가요청입력(E040321)으로 쓰고, 진행단계에서 수취단가 · 확정단가를 적고,
- * [다른전표생성 › 발주서] 로 확정단가를 실은 발주서입력 창을 띄운다(줄에 출처). 원본 2026-10-21 실측: 저장하면 진행중, [선택삭제] '선택한 전표를 삭제 하겠습니까?'.
+ * 발주서입력 툴바 [단가요청] 으로 확정단가를 실어 발주서를 쓴다(줄에 출처 — 원본 2026-10-21 실측, 이 화면에는 [다른전표생성] 이 없다). 원본 2026-10-21 실측: 저장하면 진행중, [선택삭제] '선택한 전표를 삭제 하겠습니까?'.
  * [생성한 전표] '조회' 는 이 단가요청 줄을 베낀 발주서 번호. Email 발송 · 인쇄 열과 [발송여부]는 메일을 안 보내 없다. 확인 단계가 없어 미확인 · 확인 탭도 없다.
  */
 export default function PriceRequestListPage() {
@@ -57,7 +57,6 @@ export default function PriceRequestListPage() {
   const navigate = useNavigate()
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [form, setForm] = useState<{ key: number; order: PurchaseOrder } | null>(null)
-  const [orderSeed, setOrderSeed] = useState<{ key: number; lines: PurchaseLineSeed[]; warehouseId: number | null; srcHead: [string, string] } | null>(null)
   const [madeOf, setMadeOf] = useState<PurchaseOrder | null>(null)
 
   async function load() {
@@ -94,12 +93,6 @@ export default function PriceRequestListPage() {
     const ids = new Set(pr.lines.map((l) => l.id))
     return orders.filter((x) => !isPriceRequest(x.status) && x.lines.some((l) => ids.has((l as typeof l & SrcLine).sourceLineId ?? -1)))
   }
-  /** [다른전표생성 › 발주서] — 고른 단가요청 줄을 확정단가로 한 장의 '발주서입력' 창에 베낀다(줄 열 [단가요청] · [No.]). 단가요청은 그대로다. */
-  function makeOrder() {
-    const lines: PurchaseLineSeed[] = []
-    for (const o of shown) if (checked.has(o.id)) for (const l of o.lines) lines.push(copyLine(o, l))
-    if (lines.length > 0) setOrderSeed({ key: Date.now(), lines, warehouseId: null, srcHead: ['단가요청', 'No.'] })
-  }
   async function removeChecked() {
     if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     try {
@@ -120,7 +113,6 @@ export default function PriceRequestListPage() {
       actions={[
         /* 원본 단추줄(2026-10-21 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 선택삭제 · Excel · 이력조회 — 메일 · 보내기 · 인쇄 · 바코드는 없다. */
         { label: '신규(F2)', primary: true, onClick: () => navigate('/sales/price-request-input') },
-        { label: '다른전표생성 › 발주서', selected: checked.size, onClick: makeOrder },
         { label: '선택삭제', selected: checked.size, onClick: () => void removeChecked() },
         { label: '검색(F8)', onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setValidOpt('사용안함'); setValidFrom(''); setValidTo(''); setDomestic('전체'); setPartner(''); setItem(''); setProject(''); setEmployee(''); setPartnerMgr('') } },
@@ -225,17 +217,12 @@ export default function PriceRequestListPage() {
           onSaved={() => { setForm(null); void load() }}
           onDeleted={() => { setForm(null); void load() }} />
       )}
-      {orderSeed && (
-        <PurchaseRequestForm key={orderSeed.key} editing={null} order seed={orderSeed}
-          onClose={() => setOrderSeed(null)}
-          onSaved={() => { setOrderSeed(null); setChecked(new Set()); void load() }} />
-      )}
       {madeOf && (
         <Modal open title="발주서번호확인" width={420} error={error} onClose={() => setMadeOf(null)}>
           <table className="w-full text-left">
             <thead><tr><th>No.</th><th>발주번호</th></tr></thead>
             <tbody>{madeFrom(madeOf).map((x) => (
-              <tr key={x.id}><td>{dateNo(madeOf.orderDate, madeOf.orderNo)}</td><td>{dateNo(x.orderDate, x.orderNo)}</td></tr>
+              <tr key={x.id}><td>{dateNo(madeOf.orderDate, madeOf.orderNo)}</td><td>{shortDateNo(x.orderDate, x.orderNo)}</td></tr>
             ))}</tbody>
           </table>
         </Modal>
