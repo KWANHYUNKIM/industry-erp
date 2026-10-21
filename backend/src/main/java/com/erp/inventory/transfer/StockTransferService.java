@@ -143,29 +143,43 @@ public class StockTransferService {
 
     /**
      * 창고이동 전표 수정(원본 창고이동조회에서 이동번호를 눌러 고친 뒤 [저장(F8)]).
-     * 옛 줄이 옮긴 재고를 되돌리고(수불에 '창고이동수정' 반대 거래), 새 줄로 다시 옮긴다. 이동번호는 그대로 둔다.
+     * 옛 줄이 남긴 수불 줄을 거두고(잔량은 되돌림) 새 줄로 다시 옮긴다 — 원본처럼 수불부에는 고친 수량 한 줄만 남는다.
+     * 이동번호 · 줄 행은 그대로 고쳐 써서 최초작성일시가 남는다(수정 창 [H] 이력의 '신규').
      */
     @Transactional
     public List<TransferResponse> updateSlip(String transferNo, TransferSlipRequest req, String username) {
         List<StockTransfer> old = transferRepository.findSlip(transferNo);
         if (old.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
-        for (StockTransfer t : old) revert(t, "창고이동수정 ", username);
-        transferRepository.deleteAll(old);
-        transferRepository.flush(); // 같은 (이동번호, 줄번호) 를 다시 넣기 전에 지운다
+        stockService.withdraw(noteOf(old.get(0)));
         LocalDate date = req.transferDate() != null ? req.transferDate() : old.get(0).getTransferDate();
-        return writeSlip(transferNo, date, req, username);
+        return writeSlip(transferNo, date, req, username, old);
     }
 
-    /** 창고이동 전표 삭제 — 줄마다 옮긴 재고를 되돌린다(줄 하나 지우기 delete(id) 와 같은 방식). */
+    /** 창고이동 전표 삭제 — 줄마다 남긴 수불 줄을 거두고(잔량은 되돌림) 전표를 지운다. 원본도 삭제 뒤 수불부에 줄이 안 남는다. */
     @Transactional
     public void deleteSlip(String transferNo, String username) {
         List<StockTransfer> old = transferRepository.findSlip(transferNo);
         if (old.isEmpty()) throw ApiException.notFound("창고이동을 찾을 수 없습니다. 이동번호=" + transferNo);
-        for (StockTransfer t : old) revert(t, "창고이동취소 ", username);
+        stockService.withdraw(noteOf(old.get(0)));
         transferRepository.deleteAll(old);
     }
 
+    /** 전표가 수불에 남기는 적요 — 전표의 줄들이 같은 적요를 나눠 든다(거둘 때 이것으로 찾는다). */
+    private static String noteOf(String transferNo, Warehouse from, Warehouse to) {
+        return "창고이동 " + transferNo + " (" + from.getName() + "→" + to.getName() + ")";
+    }
+
+    private static String noteOf(StockTransfer t) {
+        return noteOf(t.getTransferNo(), t.getFromWarehouse(), t.getToWarehouse());
+    }
+
     private List<TransferResponse> writeSlip(String transferNo, LocalDate date, TransferSlipRequest req, String username) {
+        return writeSlip(transferNo, date, req, username, List.of());
+    }
+
+    /** 줄을 쓴다. reuse 가 있으면(수정) 그 행을 차례로 고쳐 쓰고, 남는 옛 행은 지운다. */
+    private List<TransferResponse> writeSlip(String transferNo, LocalDate date, TransferSlipRequest req, String username,
+                                             List<StockTransfer> reuse) {
         if (req.fromWarehouseId().equals(req.toWarehouseId())) {
             throw ApiException.badRequest("보내는창고와 받는창고가 같을 수 없습니다.");
         }
@@ -174,7 +188,7 @@ public class StockTransferService {
         Warehouse to = warehouseRepository.findById(req.toWarehouseId())
                 .orElseThrow(() -> ApiException.notFound("받는창고를 찾을 수 없습니다. id=" + req.toWarehouseId()));
         var project = req.projectId() == null ? null : projectService.get(req.projectId());
-        String note = "창고이동 " + transferNo + " (" + from.getName() + "→" + to.getName() + ")";
+        String note = noteOf(transferNo, from, to);
 
         List<StockTransfer> saved = new ArrayList<>();
         int lineNo = 0;
@@ -183,6 +197,19 @@ public class StockTransferService {
                     .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + line.itemId()));
             stockService.applyDelta(item, from, line.quantity().negate(), StockTransactionType.OUTBOUND, null, date, note, username);
             stockService.applyDelta(item, to, line.quantity(), StockTransactionType.INBOUND, null, date, note, username);
+            if (lineNo < reuse.size()) {
+                StockTransfer t = reuse.get(lineNo++);
+                t.setTransferDate(date);
+                t.setItem(item);
+                t.setFromWarehouse(from);
+                t.setToWarehouse(to);
+                t.setQuantity(line.quantity());
+                t.setProject(project);
+                t.setEmployeeId(req.employeeId());
+                t.setReason(line.reason());
+                saved.add(t);
+                continue;
+            }
             saved.add(transferRepository.save(StockTransfer.builder()
                     .transferNo(transferNo)
                     .lineNo(++lineNo)
@@ -197,17 +224,9 @@ public class StockTransferService {
                     .createdBy(username)
                     .build()));
         }
+        if (reuse.size() > lineNo) transferRepository.deleteAll(reuse.subList(lineNo, reuse.size()));
+        transferRepository.flush();
         return saved.stream().map(TransferResponse::from).toList();
-    }
-
-    /** 한 줄이 옮긴 재고를 되돌린다: 받는창고에서 빼고 보내는창고로 돌린다. */
-    private void revert(StockTransfer t, String prefix, String username) {
-        String note = prefix + t.getTransferNo()
-                + " (" + t.getFromWarehouse().getName() + "→" + t.getToWarehouse().getName() + ")";
-        stockService.applyDelta(t.getItem(), t.getToWarehouse(), t.getQuantity().negate(),
-                StockTransactionType.OUTBOUND, null, t.getTransferDate(), note, username);
-        stockService.applyDelta(t.getItem(), t.getFromWarehouse(), t.getQuantity(),
-                StockTransactionType.INBOUND, null, t.getTransferDate(), note, username);
     }
 
     private String generateNo(LocalDate date) {

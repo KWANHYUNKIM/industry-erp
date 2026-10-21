@@ -5,7 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer as TransferRow, Warehouse } from '../../types/api'
 
 /** 창고이동 한 줄. 같은 이동번호의 줄들이 전표 한 장이다(서버 V426) — lineNo 는 전표 안 줄 차례. */
-type StockTransfer = TransferRow & { lineNo?: number }
+type StockTransfer = TransferRow & { lineNo?: number; createdAt?: string | null; updatedAt?: string | null }
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -75,6 +75,31 @@ export default function TransferPage() {
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
     }
+  }
+  /*
+   * 원본 창고이동조회 머리 탭: 전체 · 결재중 · 미확인 · 확인(2026-10-21 loginaa 실측). 저장한 전표는 곧바로 [확인] 이고,
+   * 이 회사는 전표상태관리유형 설정이 꺼져 있어 [확인취소] 가 막힌다 — 그래서 결재중 · 미확인은 늘 비어 있다.
+   */
+  const [stTab, setStTab] = useState<'전체' | '결재중' | '미확인' | '확인'>('전체')
+  /* 목록 [인쇄] 열 · 수정 창 [저장/전표(F7)] 이 여는 창고이동전표(원본 '기본(수정불가)' 양식). */
+  const [printSlip, setPrintSlip] = useState<StockTransfer[] | null>(null)
+  async function openPrint(no: string) {
+    try {
+      setPrintSlip((await api.get<StockTransfer[]>(`/stock-transfers/slips/${encodeURIComponent(no)}`)).data)
+    } catch (err) {
+      void ecAlert(extractErrorMessage(err))
+    }
+  }
+  /*
+   * 수정 창 [이전] · [다음] — 원본은 일자 · 번호 차례로 한 장 앞(이전 = 더 옛 전표) · 뒤(다음 = 더 새 전표)를 연다
+   * (실측: 10/21 -3 에서 [다음] → 10/22 -1, [이전] → 10/21 -1). 지금 받아 둔 기간 안에서 움직인다.
+   */
+  function navSlip(no: string, dir: -1 | 1) {
+    const nos = [...new Map(transfers.map((r) => [r.transferNo, r])).values()]
+      .sort((a, b) => a.transferDate.localeCompare(b.transferDate) || a.transferNo.localeCompare(b.transferNo))
+      .map((r) => r.transferNo)
+    const next = nos[nos.indexOf(no) + dir]
+    if (next) void openSlip(next)
   }
   /* 같은 화면에서 메뉴를 다시 누르면 다시 그려지지 않는다 — 주소의 new 가 바뀔 때도 연다. */
   useEffect(() => { if (params.get('new') === '1') { setTab('창고이동'); setShowForm(true) } }, [params])
@@ -292,8 +317,23 @@ export default function TransferPage() {
       <Modal error={error} open={showForm} title={tab === '창고이동' ? (editSlip ? '창고이동수정' : '창고이동입력') : '기타이동 등록'}
              onClose={() => { setShowForm(false); setEditSlip(null) }}>{(tab === '창고이동'
         ? <TransferForm key={editSlip?.[0]?.transferNo ?? 'new'} slip={editSlip} onDelete={removeTransfer}
+                        onPrint={openPrint} onNav={(dir) => editSlip?.[0] && navSlip(editSlip[0].transferNo, dir)}
+                        onClose={() => { setShowForm(false); setEditSlip(null) }}
                         items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />
         : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />)}</Modal>
+
+      <Modal open={!!printSlip} title="창고이동" onClose={() => setPrintSlip(null)}>
+        {printSlip && <SlipPrint slip={printSlip} warehouses={warehouses} items={items} onClose={() => setPrintSlip(null)} />}
+      </Modal>
+
+      {tab === '창고이동' && view === '표' && (
+        <div className="ec-pills mb-[6px]" role="tablist" aria-label="전표상태">
+          {(['전체', '결재중', '미확인', '확인'] as const).map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={stTab === t}
+                    className={`ec-pill no-ec${stTab === t ? ' active' : ''}`} onClick={() => setStTab(t)}>{t}</button>
+          ))}
+        </div>
+      )}
 
       {view === '그래프' ? (
         <EcBarChart unit="" emptyText="조회된 이동 내역이 없습니다."
@@ -321,13 +361,13 @@ export default function TransferPage() {
               <th className="w-[120px]">받는창고명</th>
               <th className="cursor-pointer" onClick={() => transferSort.toggle('품목명')}>품목 {transferSort.mark('품목명')}</th>
               <th className="w-[90px] text-right">수량</th>
-              <th className="w-[54px]"></th>
+              <th className="w-[54px] text-center">인쇄</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
-            ) : shownSlips.length === 0 ? (
+            ) : shownSlips.length === 0 || stTab === '결재중' || stTab === '미확인' ? (
               <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : transferSort.sorted.map((r, i) => (
               <tr key={r.transferNo}>
@@ -337,9 +377,7 @@ export default function TransferPage() {
                 <td>{r.toWarehouseName}</td>
                 <td>{r.itemName}</td>
                 <td className="text-right">{num(r.quantity)}</td>
-                <td className="text-center">
-                  <button onClick={() => removeTransfer(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-                </td>
+                <td className="text-center"><a className="cursor-pointer" onClick={() => openPrint(r.transferNo)}>인쇄</a></td>
               </tr>
             ))}
           </tbody>
@@ -404,13 +442,17 @@ const blankLine = (): SlipLine => ({ itemId: '', quantity: '', reason: '' })
  * 줄: 품목코드 · 품목명 · 수량 · 적요 — 줄 수는 늘릴 수 있고 빈 줄은 저장하지 않는다.
  * 예전에는 품목 하나에 한 건이라, 다섯 품목을 옮기면 이동번호가 다섯 개 생겼다.
  */
-function TransferForm({ slip, onDelete, items, warehouses, stock, projects, employees, onError, onSaved }: {
+function TransferForm({ slip, onDelete, onPrint, onNav, onClose, items, warehouses, stock, projects, employees, onError, onSaved }: {
   slip: StockTransfer[] | null; onDelete: (r: StockTransfer) => void
+  onPrint: (transferNo: string) => void; onNav: (dir: -1 | 1) => void; onClose: () => void
   items: Item[]; warehouses: Warehouse[]; stock: StockRow[]
   projects: CodeRow[]; employees: CodeRow[]
   onError: (m: string) => void; onSaved: (msg: string) => void
 }) {
-  const head = slip?.[0]
+  /* [복사] — 원본은 같은 머리 · 줄을 든 채 입력 창(저장 · 저장/전표 · 다시 작성 · 닫기)으로 바뀐다. 저장하면 새 번호다. */
+  const [copied, setCopied] = useState(false)
+  const head = copied ? undefined : slip?.[0]
+  const [showHistory, setShowHistory] = useState(false)
   const [form, setForm] = useState({
     transferDate: head?.transferDate ?? today(),
     projectId: head?.projectId ? String(head.projectId) : '',
@@ -431,7 +473,12 @@ function TransferForm({ slip, onDelete, items, warehouses, stock, projects, empl
   const total = filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
   const whItems = warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))
 
-  async function submit() {
+  function reset() {
+    setForm({ transferDate: today(), projectId: '', employeeId: '', fromWarehouseId: form.fromWarehouseId, toWarehouseId: form.toWarehouseId })
+    setLines(Array.from({ length: 5 }, blankLine))
+  }
+
+  async function submit(andPrint = false) {
     onError('')
     if (!form.fromWarehouseId) return onError('보내는창고를 선택하세요.')
     if (!form.toWarehouseId) return onError('받는창고를 선택하세요.')
@@ -454,6 +501,7 @@ function TransferForm({ slip, onDelete, items, warehouses, stock, projects, empl
         ? await api.put<StockTransfer[]>(`/stock-transfers/slips/${encodeURIComponent(head.transferNo)}`, body)
         : await api.post<StockTransfer[]>('/stock-transfers/slips', body)
       const r = res.data[0]
+      if (andPrint) onPrint(r.transferNo)
       onSaved(`${slipNoText(r.transferDate, r.transferNo)} ${head ? '수정' : '저장'} 완료 · ${r.fromWarehouseName} → ${r.toWarehouseName} · ${res.data.length}건 수량 ${num(total)}`)
     } catch (err) {
       onError(extractErrorMessage(err))
@@ -462,6 +510,13 @@ function TransferForm({ slip, onDelete, items, warehouses, stock, projects, empl
 
   return (
     <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      {head && (
+        <div className="flex justify-end mb-[6px]">
+          {/* 원본 창고이동수정 창 머리 오른쪽. 이 회사는 전표상태관리유형 설정으로 막혀 원본도 이 글만 띄운다(2026-10-21 실측). */}
+          <button type="button" className="ec-btn ec-btn-sm"
+                  onClick={() => void ecAlert('권한이 없습니다. 마스터에게 문의 바랍니다. - 창고이동\n(전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다. ※ Self-Customizing > 환경설정 > 기능설정 > [공통]탭 > 전표상태관리유형)')}>확인취소</button>
+        </div>
+      )}
       <div className="flex gap-[12px] flex-wrap items-end mb-[10px]">
         <Field label="일자">
           <input className="ec-input" type="date" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} style={{ width: 140 }} />
@@ -532,9 +587,99 @@ function TransferForm({ slip, onDelete, items, warehouses, stock, projects, empl
           </tr>
         </tbody>
       </table>
+      {/* 원본 버튼 줄 — 수정: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H / 입력: 저장(F8) · 저장/전표(F7) · 다시 작성 · 닫기 */}
+      <div className="flex gap-[4px] mt-[10px] flex-wrap">
+        <button className="ec-btn ec-btn-primary" onClick={() => submit()}>저장(F8)</button>
+        <button className="ec-btn" onClick={() => submit(true)}>저장/전표(F7)</button>
+        {head ? (
+          <>
+            <button className="ec-btn" onClick={() => setCopied(true)}>복사</button>
+            <button className="ec-btn" onClick={() => onNav(-1)}>이전</button>
+            <button className="ec-btn" onClick={() => onNav(1)}>다음</button>
+            <button className="ec-btn" onClick={onClose}>닫기</button>
+            <button className="ec-btn" onClick={() => onDelete(head)}>삭제</button>
+            {/* 바깥 연동(메일 · 메신저로 보내기) — 모양만. */}
+            <button className="ec-btn" title="보내기 — 바깥 연동은 아직 없습니다">보내기</button>
+            <button className="ec-btn" onClick={() => setShowHistory(true)}>H</button>
+          </>
+        ) : (
+          <>
+            <button className="ec-btn" onClick={reset}>다시 작성</button>
+            <button className="ec-btn" onClick={onClose}>닫기</button>
+          </>
+        )}
+      </div>
+      {/* [H] — 원본 이력 창: 작업자ID · 작업일시 · 전표상태 · 진행상태 · 상태(신규 · 수정). */}
+      <Modal open={showHistory && !!head} title="이력" onClose={() => setShowHistory(false)}>
+        {head && (
+          <table className="w-full text-left">
+            <thead><tr><th className="w-[34px]"></th><th>작업자ID</th><th>작업일시</th><th>전표상태</th><th>진행상태</th><th>상태</th></tr></thead>
+            <tbody>
+              {[
+                { at: head.createdAt, kind: '신규' },
+                ...(head.updatedAt && head.createdAt && head.updatedAt.slice(0, 19) !== head.createdAt.slice(0, 19) ? [{ at: head.updatedAt, kind: '수정' }] : []),
+              ].map((h, i) => (
+                <tr key={i}>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{head.createdBy ?? ''}</td>
+                  <td>{historyAt(h.at)}</td>
+                  <td>확인</td><td>확인</td><td>{h.kind}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+/** 원본 이력 작업일시 꼴 '2026/10/21 오전 11:34:11'. */
+function historyAt(at?: string | null) {
+  if (!at) return ''
+  const d = new Date(at)
+  const h = d.getHours()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${h < 12 ? '오전' : '오후'} ${p(h % 12 || 12)}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+/**
+ * 창고이동전표(원본 [인쇄] · [저장/전표(F7)] 의 '기본(수정불가)' 양식): 전표번호 · [1 / 1] · 출고처 · DATE · 입고처,
+ * 순번 · 품목코드 · 품목명[규격명] · 수량 · 적요, 수량 합 · 인수 인. 버튼 인쇄 · 닫기(Email · Excel 은 바깥 연동 · 파일이라 뺌).
+ */
+function SlipPrint({ slip, warehouses, items, onClose }: { slip: StockTransfer[]; warehouses: Warehouse[]; items: Item[]; onClose: () => void }) {
+  const h = slip[0]
+  const whText = (id: number, name: string) => `${name}(${warehouses.find((w) => w.id === id)?.code ?? ''})`
+  const total = slip.reduce((a, r) => a + Number(r.quantity), 0)
+  const fix2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return (
+    <div>
+      <div className="text-center font-bold text-[18px] mb-[8px]">창고이동전표</div>
+      <table className="w-full text-left mb-[6px]">
+        <tbody>
+          <tr><th className="w-[90px]">전표번호</th><td>{slipNoText(h.transferDate, h.transferNo)} [ 1 / 1 ]</td><th className="w-[70px]">DATE</th><td>{h.transferDate.replaceAll('-', '. ')}</td></tr>
+          <tr><th>출고처</th><td>{whText(h.fromWarehouseId, h.fromWarehouseName)}</td><th>입고처</th><td>{whText(h.toWarehouseId, h.toWarehouseName)}</td></tr>
+        </tbody>
+      </table>
+      <table className="w-full text-left">
+        <thead><tr><th className="w-[44px] text-center">순번</th><th className="w-[110px]">품목코드</th><th>품목명[규격명]</th><th className="w-[90px] text-right">수량</th><th>적요</th></tr></thead>
+        <tbody>
+          {slip.map((r, i) => {
+            const spec = items.find((x) => x.id === r.itemId)?.spec
+            return (
+              <tr key={r.id}>
+                <td className="text-center">{i + 1}</td><td>{r.itemCode}</td>
+                <td>{r.itemName}{spec ? ` [${spec}]` : ''}</td>
+                <td className="text-right">{fix2(Number(r.quantity))}</td><td>{r.reason ?? ''}</td>
+              </tr>
+            )
+          })}
+          <tr><th colSpan={3} className="text-right">수량</th><td className="text-right font-semibold">{fix2(total)}</td><td>인수 <span className="ml-[24px]">인</span></td></tr>
+        </tbody>
+      </table>
       <div className="flex gap-[4px] mt-[10px]">
-        <button className="ec-btn ec-btn-primary" onClick={submit}>저장(F8)</button>
-        {head && <button className="ec-btn" onClick={() => onDelete(head)}>삭제</button>}
+        <button className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
+        <button className="ec-btn" onClick={onClose}>닫기</button>
       </div>
     </div>
   )

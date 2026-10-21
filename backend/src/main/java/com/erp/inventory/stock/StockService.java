@@ -305,6 +305,32 @@ public class StockService {
     }
 
     /**
+     * 전표가 남긴 수불 줄을 <b>거둔다</b> — 잔량을 되돌리고 그 줄을 지운다.
+     *
+     * <p>원본 창고이동은 전표를 고치면 재고수불부의 줄이 <b>고쳐진 수량 한 줄</b>로 남고, 지우면 줄이 사라진다
+     * (2026-10-21 loginaa 실측: 밀키스 2 → 3 으로 고친 뒤 본사창고 수불부 '[이동] 본사창고 → 제2창고 · 출고 3' 한 줄).
+     * 반대 거래를 쌓으면 같은 전표가 수불부에 세 줄(옮김 · 되돌림 · 다시 옮김)로 남는다.
+     * 되돌린 잔량이 음수가 되면(이미 다른 데로 나간 재고) 막는다.
+     */
+    @Transactional
+    public void withdraw(String note) {
+        for (StockTransaction tx : transactionRepository.findByNoteOrderByIdAsc(note)) {
+            Stock stock = stockRepository.findForUpdate(tx.getItem().getId(), tx.getWarehouse().getId())
+                    .orElseThrow(() -> ApiException.notFound("재고 잔량을 찾을 수 없습니다. (" + tx.getItem().getName() + ")"));
+            BigDecimal newBalance = stock.getQuantity().subtract(tx.getQuantityChange());
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+                throw ApiException.badRequest(String.format(
+                        "재고가 부족합니다. 현재고 %s, 요청 %s (%s)",
+                        stock.getQuantity().stripTrailingZeros().toPlainString(),
+                        tx.getQuantityChange().abs().stripTrailingZeros().toPlainString(),
+                        tx.getItem().getName()));
+            }
+            stock.setQuantity(newBalance);
+            transactionRepository.delete(tx);
+        }
+    }
+
+    /**
      * 재고를 잡지 않는 품목이면 거절한다.
      *
      * <p>조용히 건너뛰지 않는 이유는, 이 자리들(재고조정·실사·재고이동·재고전표 직접입력)이
