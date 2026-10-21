@@ -529,6 +529,7 @@ const MENU: TopMenu[] = [
           { label: '카드사등록', to: '/accounting/card-issuers' },
           { label: '결제대행사등록', to: '/accounting/payment-agencies' },
           /* 원본 사이트맵 차례: … 결제대행사등록 · 추가항목유형등록 · 사원(담당)등록 · 계정등록(E010107) · 각종코드변경 · 외화등록 */
+          { label: '추가항목유형등록', to: '/accounting/extra-field-types' },
           { label: '계정등록', to: '/accounting/accounts' },
           { label: '외화등록', to: '/settings/currencies' },
         ],

@@ -107,6 +107,7 @@ const RULES: Rule[] = [
   ['/accounting/bank-accounts', 'BANK'],
   ['/accounting/card-issuers', 'BANK'],
   ['/accounting/payment-agencies', 'BANK'],
+  ['/accounting/extra-field-types', 'ACCOUNTING'],
   ['/accounting/cash-details', 'BANK'],
   ['/accounting/cash-deposit', 'BANK'],
   ['/accounting/cash-withdraw', 'BANK'],
