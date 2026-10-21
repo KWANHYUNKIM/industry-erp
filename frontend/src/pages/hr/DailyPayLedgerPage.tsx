@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
@@ -535,13 +535,15 @@ export default function DailyPayLedgerPage() {
                   원본(2026-10-21 QA관리-지급: 일근무 · 고정 · 시간 · 지급률 · 직접입력): 수당 칸은 두 개씩 한 줄에 놓이고 넘치면 다음 줄로 —
                   머리 '성명 | 최종근무일 | 일근무 | QA관리-고정 | 지급총액 | 공제(전체) | 공제총액 | 실지급액' / 'QA관리-시간 | QA관리-률' /
                   'QA관리-직접 |' / '주민등록번호'. 사원 줄 · 총합계 줄도 같은 줄 수(총합계 수당 칸은 금액만).
+                  수당 하나는 <b>한 칸</b>이다(2026-10-21 다시 잼 — 칸 안에 table-virtual 로 일수 '3' · 금액 '1,000' 이 나란히,
+                  일수 칸은 글자 폭 · 금액 칸이 나머지, 둘 사이 세로선 1px(머리카락 색) · 여백 3px). 전에는 두 칸으로 그렸다.
                 */}
                 <thead>
                   {slotRows.map((pair, k) => (
                     <tr key={k}>
                       {k === 0 && <th rowSpan={slotRows.length}>성명</th>}
                       {k === 0 && <th rowSpan={slotRows.length + 1}>최종근무일</th>}
-                      {pair.map((sl, m) => <th key={m} colSpan={2}>{sl ? sl.name : ''}</th>)}
+                      {pair.map((sl, m) => <th key={m}>{sl ? sl.name : ''}</th>)}
                       {k === 0 && <th rowSpan={slotRows.length + 1}>지급총액</th>}
                       {taxCol && <th>{k === 0 ? '공제(전체)' : ''}</th>}
                       {k === 0 && dedCols.map((c) => <th key={c.itemId} rowSpan={slotRows.length}>{c.name}</th>)}
@@ -551,28 +553,35 @@ export default function DailyPayLedgerPage() {
                   ))}
                   <tr>
                     <th>주민등록번호</th>
-                    <th></th><th></th><th></th><th></th>
+                    <th></th><th></th>
                     {taxCol && <th></th>}
                     {dedCols.map((c) => <th key={c.itemId}></th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {view.lines.length === 0 ? (
-                    <tr><td colSpan={9 + dedCols.length + (taxCol ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                    <tr><td colSpan={7 + dedCols.length + (taxCol ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                   ) : view.lines.flatMap((l) => {
                     const ded = Number(l.deductionTotal ?? Number(l.incomeTax) + Number(l.localTax))
                     const taxText = (k: number) => (k === 0 ? (Number(l.incomeTax) ? won(l.incomeTax) : '') : k === 1 ? (Number(l.localTax) ? won(l.localTax) : '') : '')
+                    /** 수당 한 칸 = 일수 | 금액(원본 table-virtual). */
+                    const pairCell = (key: string, q: string, a: ReactNode, extra?: ReactNode, title?: string) => (
+                      <td key={key} className="relative text-right" title={title}>
+                        {extra}
+                        <div className="flex">
+                          <span className="px-[3px]">{q}</span>
+                          <span className="flex-1 px-[3px] border-l border-solid border-ec-line">{a}</span>
+                        </div>
+                      </td>
+                    )
                     const slotCells = (sl: Slot | null, key: string) => {
-                      if (!sl) return [<td key={`${key}-q`}></td>, <td key={`${key}-a`}></td>]
-                      if (sl.itemId == null) return [
-                        <td key={`${key}-q`} className="text-right">{Number(l.days) || ''}</td>,
-                        <td key={`${key}-a`} className="relative text-right" title={l.direct ? '금액직접입력' : undefined}>
-                          {l.direct && <i aria-hidden className="absolute left-0 top-0 border-t-[6px] border-r-[6px] border-t-ec-danger border-r-transparent" />}
-                          {Number(l.dayPay ?? l.grossPay) || l.direct ? won(l.dayPay ?? l.grossPay) : ''}
-                        </td>]
+                      if (!sl) return [<td key={key}></td>]
+                      if (sl.itemId == null) return [pairCell(key, Number(l.days) ? String(Number(l.days)) : '',
+                        Number(l.dayPay ?? l.grossPay) || l.direct ? won(l.dayPay ?? l.grossPay) : '',
+                        l.direct ? <i aria-hidden className="absolute left-0 top-0 border-t-[6px] border-r-[6px] border-t-ec-danger border-r-transparent" /> : undefined,
+                        l.direct ? '금액직접입력' : undefined)]
                       const it = itemOf(l, sl.itemId)
-                      return [<td key={`${key}-q`} className="text-right">{it?.quantity != null ? Number(it.quantity) : ''}</td>,
-                        <td key={`${key}-a`} className="text-right">{it ? won(it.amount) : ''}</td>]
+                      return [pairCell(key, it?.quantity != null ? String(Number(it.quantity)) : '', it ? won(it.amount) : '')]
                     }
                     return [
                       ...slotRows.map((pair, k) => (
@@ -589,7 +598,7 @@ export default function DailyPayLedgerPage() {
                       )),
                       <tr key={`${l.id}-b`}>
                         <td></td>
-                        <td></td><td></td><td></td><td></td>
+                        <td></td><td></td>
                         {taxCol && <td className="text-right">{taxText(slotRows.length)}</td>}
                       </tr>,
                     ]
@@ -597,8 +606,7 @@ export default function DailyPayLedgerPage() {
                   {slotRows.map((pair, k) => (
                     <tr key={`sum-${k}`} className="font-bold">
                       {k === 0 && <td colSpan={2} rowSpan={slotRows.length + 1} className="text-center">총합계</td>}
-                      {pair.flatMap((sl, m) => [<td key={`${m}-q`}></td>,
-                        <td key={`${m}-a`} className="text-right">{!sl ? '' : sl.itemId == null ? won(totals.dayPay) : won(itemSum(sl.itemId, (i) => Number(i.amount)))}</td>])}
+                      {pair.map((sl, m) => <td key={m} className="text-right">{!sl ? '' : sl.itemId == null ? won(totals.dayPay) : won(itemSum(sl.itemId, (i) => Number(i.amount)))}</td>)}
                       {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(totals.gross)}</td>}
                       {taxCol && <td className="text-right">{k === 0 && totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>}
                       {k === 0 && dedCols.map((c) => <td key={c.itemId} rowSpan={slotRows.length + 1} className="text-right">{won(itemSum(c.itemId, (i) => Number(i.amount)))}</td>)}
@@ -607,7 +615,7 @@ export default function DailyPayLedgerPage() {
                     </tr>
                   ))}
                   <tr className="font-bold">
-                    <td></td><td></td><td></td><td></td>
+                    <td></td><td></td>
                     {taxCol && <td></td>}
                   </tr>
                 </tbody>

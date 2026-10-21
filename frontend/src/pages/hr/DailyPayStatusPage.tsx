@@ -89,9 +89,12 @@ export default function DailyPayStatusPage() {
   }), { gross: 0, ded: 0, net: 0 })
   const total = sum(list)
 
+  /* 수당등록에서 더한 수당도 '수당금액(전체)' 열 — 전에는 일근무 하나에 지급총액을 통째로 실었다(2026-10-21) */
+  const allowItems = (r: DailyReportLine) => (r.items ?? []).filter((i) => i.kind === 'ALLOWANCE')
+  const allowNames = [...new Map(list.flatMap(allowItems).sort((a, b) => a.sortOrder - b.sortOrder).map((i) => [i.itemId, i.name])).values()]
   const deductCols = (['소득세', '지방소득세'] as const).filter((c) => list.some((r) => Number(c === '소득세' ? r.incomeTax : r.localTax)))
   const aggTargets: AggTarget[] = [
-    { key: 'allow', label: '수당금액(전체)', cols: ['일근무'] }, { key: 'gross', label: '지급총액' },
+    { key: 'allow', label: '수당금액(전체)', cols: ['일근무', ...allowNames] }, { key: 'gross', label: '지급총액' },
     { key: 'deduct', label: '공제금액(전체)', cols: deductCols }, { key: 'deductTotal', label: '공제총액' },
     { key: 'net', label: '실지급액' }, { key: 'days', label: '총근무일수', format: days2 },
   ]
@@ -108,7 +111,8 @@ export default function DailyPayStatusPage() {
         payKind: { code: String(r.seq).padStart(5, '0'), name: `${r.seq}차수` },
       },
       values: {
-        일근무: Number(r.grossPay), 지급총액: Number(r.grossPay), 소득세: Number(r.incomeTax), 지방소득세: Number(r.localTax),
+        일근무: Number(r.grossPay) - allowItems(r).reduce((t, i) => t + Number(i.amount), 0), 지급총액: Number(r.grossPay),
+        ...Object.fromEntries(allowNames.map((n) => [n, allowItems(r).filter((i) => i.name === n).reduce((t, i) => t + Number(i.amount), 0)])), 소득세: Number(r.incomeTax), 지방소득세: Number(r.localTax),
         공제총액: dedTotal(r), 실지급액: Number(r.netPay), 총근무일수: Number(r.days),
       },
     }

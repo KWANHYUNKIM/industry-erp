@@ -4,6 +4,7 @@ import { ecConfirm } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import NumCheck from '../../components/NumCheck'
+import DailyPayFormulaDialogs, { type FormulaItem } from '../../features/dailypay/components/DailyPayFormulaDialogs'
 
 type Kind = 'ALLOWANCE' | 'DEDUCTION'
 
@@ -31,6 +32,9 @@ interface Row {
   rate: string
   taxType: string
   formula: string | null
+  /** 저장된 지급유형 — 고치면 계산식 칸이 '설정' 으로 빈다(원본 2026-10-21) */
+  savedPayMethod: string
+  builtin: boolean
   active: boolean
   dirty: boolean
 }
@@ -47,11 +51,12 @@ const REQUIRED = '데이터를 입력하기 바랍니다.'
 const CELL = 'w-full h-[25.1px] border-0 bg-transparent px-[5px] outline-none'
 
 const blank = (): Row => ({
-  code: '', name: '', sortOrder: '', payMethod: '변동(일)', rate: '', taxType: '', formula: null, active: true, dirty: false,
+  code: '', name: '', sortOrder: '', payMethod: '변동(일)', rate: '', taxType: '', formula: null, savedPayMethod: '변동(일)', builtin: false, active: true, dirty: false,
 })
 const toRow = (i: Item): Row => ({
   id: i.id, code: i.code, name: i.name, sortOrder: String(i.sortOrder), payMethod: i.payMethod ?? '변동(일)',
-  rate: i.rate == null ? '' : String(i.rate), taxType: i.taxType ?? '', formula: i.formula, active: i.active, dirty: false,
+  rate: i.rate == null ? '' : String(i.rate), taxType: i.taxType ?? '', formula: i.formula, savedPayMethod: i.payMethod ?? '변동(일)',
+  builtin: i.builtin, active: i.active, dirty: false,
 })
 
 
@@ -85,6 +90,7 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Ki
   const [invalid, setInvalid] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [formulaFor, setFormulaFor] = useState<FormulaItem | null>(null)
 
   const load = useCallback(async () => {
     const { data } = await api.get<Item[]>('/hr/daily-pay-items', { params: { kind, includeInactive } })
@@ -105,7 +111,7 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Ki
     }))
   }
 
-  async function save() {
+  async function save(): Promise<Item[] | null> {
     const targets = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.dirty && (r.id || r.code.trim() || r.name.trim()))
     const bad = new Set<string>()
     for (const { r, i } of targets) {
@@ -114,7 +120,7 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Ki
       if (!r.sortOrder.trim() || Number.isNaN(Number(r.sortOrder))) bad.add(`${i}:sortOrder`)
     }
     setInvalid(bad)
-    if (bad.size) { setError(REQUIRED); return }
+    if (bad.size) { setError(REQUIRED); return null }
     setError('')
     try {
       for (const { r } of targets) {
@@ -127,9 +133,33 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Ki
         else await api.post('/hr/daily-pay-items', body)
       }
       await load()
+      return (await api.get<Item[]>('/hr/daily-pay-items', { params: { kind, includeInactive: true } })).data
     } catch (e) {
       setError(extractErrorMessage(e))
+      return null
     }
+  }
+
+  /**
+   * 계산식 칸의 [설정] — 원본 2026-10-21: 저장 안 한 줄이면 '계산식 등록시 수당항목이 자동 저장됩니다. 계속 진행하겠습니까?'
+   * → 확인하면 바뀐 줄을 모두 저장하고 '계산식리스트' 창. 저장된 줄은 바로 창이 뜬다.
+   */
+  async function openFormula(i: number) {
+    const r = rows[i]
+    if (r.dirty || !r.id) {
+      if (!(await ecConfirm('계산식 등록시 수당항목이 자동 저장됩니다.\n계속 진행하겠습니까?'))) return
+      const saved = await save()
+      const hit = saved?.find((x) => x.code === r.code.trim())
+      if (hit) setFormulaFor({ id: hit.id, code: hit.code, name: hit.name, builtin: hit.builtin })
+      return
+    }
+    setFormulaFor({ id: r.id, code: r.code, name: r.name, builtin: r.builtin })
+  }
+
+  /** 저장 전 칸 — 지급유형을 바꾸면 '설정'(직접입력은 '근무기록확정(금액)'), 원본 2026-10-21. */
+  const formulaText = (r: Row) => {
+    if (!r.id || r.payMethod !== r.savedPayMethod) return allowance && r.payMethod === '변동(직접입력)' ? '근무기록확정(금액)' : '설정'
+    return r.formula ?? '설정'
   }
 
   async function apply(op: '사용중단' | '삭제' | '재사용') {
@@ -179,6 +209,11 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Ki
         </>
       )}
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {formulaFor && (
+        <DailyPayFormulaDialogs item={formulaFor} kindLabel={allowance ? '수당' : '공제'}
+                                allowanceNames={rows.filter((x) => x.id && allowance).map((x) => x.name)}
+                                onClose={() => setFormulaFor(null)} onChanged={() => void load()} />
+      )}
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left">
           <thead>
@@ -215,7 +250,11 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Ki
                 {allowance && <td className="text-right">{text(i, 'rate', '배율', true)}</td>}
                 {allowance && <td className="pad"></td>}
                 {allowance && <td className="pad">{r.taxType}</td>}
-                <td className="pad whitespace-nowrap">{r.formula ?? <span className="text-ec-navy">설정</span>}</td>
+                <td className="pad whitespace-nowrap">
+                  {r.id || r.code.trim() || r.name.trim()
+                    ? <button type="button" className="ec-link" aria-label={`${i + 1}행 계산식`} onClick={() => void openFormula(i)}>{formulaText(r)}</button>
+                    : <span className="text-ec-navy">설정</span>}
+                </td>
                 {extra.map((h) => <td key={h} className="pad"></td>)}
               </tr>
             ))}

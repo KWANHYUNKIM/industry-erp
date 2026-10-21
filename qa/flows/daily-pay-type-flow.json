@@ -119,8 +119,8 @@
         "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2092/12 1차수'));[...tr.querySelectorAll('a')].find(a=>a.textContent==='전체계산').click();return true})()",
         "clicklast:확인",
         "wait:1500",
-        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return [...d.querySelectorAll('thead tr')].map(r=>[...r.cells].map(c=>c.innerText.trim()).join(',')).join(' / ')==='성명,최종근무일,일근무,QA관리-고정,지급총액,공제(전체),공제총액,실지급액 / QA관리-시간,QA관리-률, / QA관리-직접,, / 주민등록번호,,,,,'})()",
-        "expect:((n)=>{const r=[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')];const i=r.findIndex(x=>x.cells[0]?.innerText.trim()===n);return r.slice(i,i+4).map(x=>[...x.cells].map(c=>c.innerText.trim()).join('|')).join(' / ')})('QA관리-지급')==='QA관리-지급|||||10,000|37,100|||37,100 / 4|12,000|5|100| / 2|15,000||| / |||||'",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return [...d.querySelectorAll('thead tr')].map(r=>[...r.cells].map(c=>c.innerText.trim()).join(',')).join(' / ')==='성명,최종근무일,일근무,QA관리-고정,지급총액,공제(전체),공제총액,실지급액 / QA관리-시간,QA관리-률, / QA관리-직접,, / 주민등록번호,,,'})()",
+        "expect:((n)=>{const r=[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')];const i=r.findIndex(x=>x.cells[0]?.innerText.trim()===n);return r.slice(i,i+4).map(x=>[...x.cells].map(c=>c.innerText.trim().replace(/\\s+/g,' ')).join('|')).join(' / ')})('QA관리-지급')==='QA관리-지급|||10,000|37,100|||37,100 / 4 12,000|5 100| / 2 15,000|| / |||'",
         "clicklast:닫기"
       ]
     },

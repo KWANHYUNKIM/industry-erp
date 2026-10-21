@@ -86,7 +86,7 @@
         "clicklast:확인",
         "wait:1500",
         "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelector('thead tr').cells].map(c=>c.innerText.trim()).join(',');return h==='성명,최종근무일,일근무,QA관리-야간,지급총액,QA관리-보험,공제총액,실지급액'})()",
-        "expect:(()=>{const r=((n)=>[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find(r=>r.cells[0]?.innerText.trim()===n))('QA관리-야근');return [...r.cells].map(c=>c.innerText.trim()).join('|')==='QA관리-야근||||3|60,000|60,000|5,000|5,000|55,000'})()",
+        "expect:(()=>{const r=((n)=>[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find(r=>r.cells[0]?.innerText.trim()===n))('QA관리-야근');return [...r.cells].map(c=>c.innerText.trim().replace(/\\s+/g,' ')).join('|')==='QA관리-야근|||3 60,000|60,000|5,000|5,000|55,000'})()",
         "clicklast:닫기"
       ]
     },
