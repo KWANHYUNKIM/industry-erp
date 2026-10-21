@@ -34,12 +34,14 @@ const num = (s: string) => Number(s) || 0
 const more = (name: string, n: number) => (n > 1 ? `${name} 외 ${n - 1}건` : name)
 
 /** 줄 묶음 → 격자 한 줄(거래처). [일부반영] 은 고른 줄만으로 다시 만든다. */
-function groupOf(ls: BillLineView[]): Group {
+/** 외화금액 · 환율 처음 값 — 원본 회계반영 '0.0000', 판매반영 '0.00'(plans/회계2.md 계약관리 흐름 ④ · 2026-10-13 실측). */
+function groupOf(ls: BillLineView[], kind: 'acct' | 'sales' = 'acct'): Group {
+  const zero = kind === 'acct' ? '0.0000' : '0.00'
   const trade = ls.reduce((s, l) => s + Number(l.supplyAmount), 0)
   const vat = ls.reduce((s, l) => s + Number(l.vatAmount), 0)
   return {
     partnerId: ls[0].partnerId, partnerCode: ls[0].partnerCode, partnerName: ls[0].partnerName, foreignCurrency: ls[0].foreignCurrency,
-    lines: ls, trade, adjust: '0', foreign: '0', rate: '0', supply: String(trade), vat: String(vat),
+    lines: ls, trade, adjust: '0', foreign: zero, rate: zero, supply: String(trade), vat: String(vat),
     accountId: ls[0].salesAccountId != null ? String(ls[0].salesAccountId) : '', memo: more(ls[0].itemName, ls.length),
   }
 }
@@ -122,9 +124,9 @@ export default function ContractReflectPage() {
   useEffect(() => {
     const m = new Map<number, BillLineView[]>()
     shown.forEach((r) => m.set(r.partnerId, [...(m.get(r.partnerId) ?? []), r]))
-    setGroups([...m.values()].map(groupOf))
+    setGroups([...m.values()].map((ls) => groupOf(ls, kind)))
     setPicked(new Set())
-  }, [shown])
+  }, [shown, kind])
 
   const setGroup = (i: number, patch: Partial<Group>) => setGroups((gs) => gs.map((g, j) => {
     if (j !== i) return g
@@ -365,7 +367,7 @@ export default function ContractReflectPage() {
           <EcReportFoot />
           <div className="flex gap-[5px] mt-[8px]">
             {kind === 'acct' && <button type="button" className="ec-btn ec-btn-primary" disabled={partial && linePick.size === 0} onClick={() => {
-              const g = partial ? groupOf(detail.lines.filter((l) => linePick.has(l.lineId))) : detail
+              const g = partial ? groupOf(detail.lines.filter((l) => linePick.has(l.lineId)), 'acct') : detail
               setDetail(null); setPartial(false); startReflect([g])
             }}>매출전표 I</button>}
             {kind === 'sales' && <>
@@ -375,7 +377,7 @@ export default function ContractReflectPage() {
               <button type="button" className="ec-btn ec-btn-primary" onClick={() => {
                 const ls = detail.lines.filter((l) => linePick.has(l.lineId))
                 if (ls.length === 0) { setNotice('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'); return }
-                setDetail(null); startSales([groupOf(ls)])
+                setDetail(null); startSales([groupOf(ls, 'sales')])
               }}>판매전표 발행</button>
             </>}
             <button type="button" className="ec-btn" onClick={() => { setDetail(null); setPartial(false) }}>닫기</button>

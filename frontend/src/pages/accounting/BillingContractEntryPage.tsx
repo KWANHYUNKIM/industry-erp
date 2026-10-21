@@ -7,6 +7,7 @@ import GridCode from '../../components/GridCode'
 import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/CodePickerField'
+import { useAuth } from '../../features/auth/AuthContext'
 import { ymd } from '../../utils/periods'
 import type { Partner } from '../../types/api'
 import { VAT_TYPES, won, type BillingContractRow, type BillingUnitRow, type ContractItemRow, type ProductLink } from '../../features/billingcontract/types'
@@ -47,6 +48,7 @@ function actedAt(iso: string) {
  */
 export default function BillingContractEntryPage() {
   const nav = useNavigate()
+  const { user } = useAuth()
   const [params] = useSearchParams()
   const editId = params.get('id')
   const copyId = params.get('copy')
@@ -81,7 +83,7 @@ export default function BillingContractEntryPage() {
 
   async function reset() {
     setContractDate(ymd(new Date())); setPartnerId(''); setName(''); setBillStart(ymd(new Date())); setBillEnd('')
-    setVatType('세금계산서'); setForeignCurrency(false); setEmployeeId(''); setDepartmentId(''); setProjectId(''); setRemark(''); setInvalid(new Set())
+    setVatType('세금계산서'); setForeignCurrency(false); setEmployeeId(user?.employeeId != null ? String(user.employeeId) : ''); setDepartmentId(''); setProjectId(''); setRemark(''); setInvalid(new Set())
     setLines([blankLine(), blankLine(), blankLine()])
     try { setCode((await api.get<{ code: string }>('/billing-contracts/next-code')).data.code) } catch { setCode('') }
   }
