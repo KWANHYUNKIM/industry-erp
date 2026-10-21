@@ -27,7 +27,9 @@ interface Dep { assetId: number; depreciationDate: string; amount: number }
  *
  * <p>조회일자에 들고 있던 자산 — 그날까지 취득했고 그날 전에 처분하지 않은 것. 감가상각충당금은 그날까지 상각한 금액의 합이다.
  * 상태 '상각완료' 는 장부가가 잔존가치까지 내려간 것. 우리 자산은 모두 감가상각을 계산하므로 감가상각계산여부는 늘 '계산' 이다.
- * [수량]은 자산이 수량을 들지 않아, [부서]는 자산에 부서가 없어 두지 않았다.
+ * [수량]은 수량관리하는 자산만 1.00 을 찍는다(2026-10-21 실측 — QA회계1-출력물 수량관리 사용안함은 빈칸) — 우리 자산은 수량관리를 들지 않아 늘 빈칸.
+ * [상세내역]은 원본이 자산마다 [등록] 링크(부가 내역 창)를 둔다 — 우리는 부가 내역이 없어 칸만 둔다. [부서]는 자산에 부서가 없어 두지 않았다.
+ * 감가상각충당금은 상각일(그달 말일)까지 — 원본도 10/21 조회에는 10월 상각이 안 들어간다.
  */
 export default function FixedAssetLedgerPage() {
   const init = periodOf('금일')!
@@ -142,18 +144,20 @@ export default function FixedAssetLedgerPage() {
             <th>고정자산코드</th>
             <th>고정자산명</th>
             <th className="text-center">취득일자</th>
+            <th className="text-right">수량</th>
             <th className="text-right">취득원가</th>
             <th className="text-right">감가상각충당금</th>
             <th>적요</th>
             <th className="text-center">상태</th>
             <th className="text-center">감가상각계산여부</th>
+            <th className="text-center">상세내역</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
             ...g.rs.map((a) => (
               <tr key={a.id}>
@@ -161,18 +165,21 @@ export default function FixedAssetLedgerPage() {
                 <td>{a.assetNo}</td>
                 <td>{a.name}</td>
                 <td className="text-center">{a.acquisitionDate.replace(/-/g, '/')}</td>
+                <td className="text-right"></td>
                 <td className="text-right">{won(Number(a.acquisitionCost))}</td>
                 <td className="text-right">{won(accumOf.get(a.id) ?? 0)}</td>
                 <td>{a.remark ?? ''}</td>
                 <td className="text-center">{stateOf(a)}</td>
                 <td className="text-center">계산</td>
+                <td className="text-center"></td>
               </tr>
             )),
             <tr key={`sub-${g.name}`} style={SUB_ROW}>
               <td colSpan={4}>{g.name} 계</td>
+              <td></td>
               <td className="text-right">{won(g.cost)}</td>
               <td className="text-right">{won(g.accum)}</td>
-              <td colSpan={3}></td>
+              <td></td><td></td><td></td><td></td>
             </tr>,
           ])}
         </tbody>
@@ -180,9 +187,10 @@ export default function FixedAssetLedgerPage() {
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={4}>합계</td>
+              <td></td>
               <td className="text-right">{won(total.cost)}</td>
               <td className="text-right">{won(total.accum)}</td>
-              <td colSpan={3}></td>
+              <td></td><td></td><td></td><td></td>
             </tr>
           </tfoot>
         )}

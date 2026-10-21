@@ -7,6 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
+/** 원본 증가 · 감소내역은 0 도 '0' 으로 찍는다(수량 · 감가상각충당금 · 매매가액, 2026-10-21 실측). */
+const won0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 고정자산 출력물의 소계 · 합계줄 모양(고정자산대장 실측): 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 
@@ -22,9 +24,10 @@ interface Asset {
  * <p>두 화면 조건이 같다: 기준일자(구간, 기본 <b>금월(~오늘)</b>, 빠른선택 … 전월 · 이번기수 · 직전기수 · 종료일) · 부서 · 고정자산계정 · 고정자산.
  * 증가 열: 계정코드 · 계정명 · 자산코드 · 자산명 · 취득일자 · 수량 · 취득원가 · 적요 — 기간 안에 취득한 자산.
  * 감소 열: 계정코드 · 계정명 · 자산코드 · 자산명 · 감소일자 · 수량 · 취득원가 · 감가상각충당금 · 매매가액 — 기간 안에 처분한 자산.
- * 원본 판이 비어 소계 · 합계줄 모양은 고정자산대장(같은 출력물 묶음)에서 잰 것을 따른다 — 계정마다 '계정명 계' · 합계.
+ * 2026-10-21 자료로 다시 잼(QA회계1-출력물 1,200,000 증가 → 600,000 감소): 계정마다 '<b>계정코드 계</b>'(예 '2074 계') · 합계, 앞 다섯 칸을 묶음.
+ * [수량]은 수량관리 안 하는 자산이면 0 — 우리 자산은 수량을 들지 않아 늘 0. 감소의 감가상각충당금 · 매매가액도 0 을 '0' 으로 찍는다.
  *
- * <p>[수량]은 자산이 수량을 들지 않아, [부서]는 자산에 부서가 없어 두지 않았다. 감소의 감가상각충당금은 처분 때까지 쌓인 값이다.
+ * <p>[부서]는 자산에 부서가 없어 두지 않았다. 감소의 감가상각충당금은 처분 때까지 쌓인 값이다.
  */
 export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소' }) {
   const inc = flow === '증가'
@@ -80,7 +83,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
     assets.forEach((a) => m.set(a.assetAccountId, a.assetAccountName))
     return [...m.entries()].map(([id, name]) => ({ value: String(id), name }))
   }, [assets])
-  const cols = inc ? 7 : 8
+  const cols = inc ? 8 : 9
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [groups.length, flow])
 
@@ -122,6 +125,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
             <th>자산코드</th>
             <th>자산명</th>
             <th className="text-center">{inc ? '취득일자' : '감소일자'}</th>
+            <th className="text-right">수량</th>
             <th className="text-right">취득원가</th>
             {inc ? <th>적요</th> : <th className="text-right">감가상각충당금</th>}
             {!inc && <th className="text-right">매매가액</th>}
@@ -140,16 +144,18 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
                 <td>{a.assetNo}</td>
                 <td>{a.name}</td>
                 <td className="text-center">{dayOf(a).replace(/-/g, '/')}</td>
+                <td className="text-right">0</td>
                 <td className="text-right">{won(Number(a.acquisitionCost))}</td>
-                {inc ? <td>{a.remark ?? ''}</td> : <td className="text-right">{won(Number(a.accumulatedDepreciation))}</td>}
-                {!inc && <td className="text-right">{won(Number(a.disposalAmount ?? 0))}</td>}
+                {inc ? <td>{a.remark ?? ''}</td> : <td className="text-right">{won0(Number(a.accumulatedDepreciation))}</td>}
+                {!inc && <td className="text-right">{won0(Number(a.disposalAmount ?? 0))}</td>}
               </tr>
             )),
             <tr key={`sub-${g.code}`} style={SUB_ROW}>
-              <td colSpan={5}>{g.name} 계</td>
+              <td colSpan={5}>{g.code} 계</td>
+              <td className="text-right">0</td>
               <td className="text-right">{won(g.cost)}</td>
-              {inc ? <td></td> : <td className="text-right">{won(g.accum)}</td>}
-              {!inc && <td className="text-right">{won(g.sold)}</td>}
+              {inc ? <td></td> : <td className="text-right">{won0(g.accum)}</td>}
+              {!inc && <td className="text-right">{won0(g.sold)}</td>}
             </tr>,
           ])}
         </tbody>
@@ -157,9 +163,10 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={5}>합계</td>
+              <td className="text-right">0</td>
               <td className="text-right">{won(total.cost)}</td>
-              {inc ? <td></td> : <td className="text-right">{won(total.accum)}</td>}
-              {!inc && <td className="text-right">{won(total.sold)}</td>}
+              {inc ? <td></td> : <td className="text-right">{won0(total.accum)}</td>}
+              {!inc && <td className="text-right">{won0(total.sold)}</td>}
             </tr>
           </tfoot>
         )}

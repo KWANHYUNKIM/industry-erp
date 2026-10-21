@@ -200,7 +200,7 @@ export default function FixedAssetMovementPage() {
               )),
               <tr key={`sub-${g.code}`} style={SUB_ROW}>
                 <td colSpan={5}>{g.code} 계</td>
-                <td colSpan={3}></td>
+                <td></td><td></td><td></td>
                 {money(g.tot)}
               </tr>,
             ])}
@@ -209,7 +209,7 @@ export default function FixedAssetMovementPage() {
             <tfoot>
               <tr style={SUB_ROW}>
                 <td colSpan={5}>합계</td>
-                <td colSpan={3}></td>
+                <td></td><td></td><td></td>
                 {money(grand)}
               </tr>
             </tfoot>
