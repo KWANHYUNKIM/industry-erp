@@ -8,6 +8,9 @@ import { ecAlert } from '../../../components/EcDialog'
 export interface DailyPayLineRow {
   id: number; workerId: number; workerCode: string; workerName: string; days: number; dailyWage: number | null
   grossPay: number; incomeTax: number; localTax: number; netPay: number; direct: boolean
+  /** 일근무 금액 · 공제총액 · 일근무 밖 항목(2026-10-21 — 수당등록 · 공제등록에서 더한 것) */
+  dayPay?: number; deductionTotal?: number
+  items?: { itemId: number; kind: 'ALLOWANCE' | 'DEDUCTION'; code: string; name: string; sortOrder: number; quantity: number | null; amount: number }[]
 }
 interface Ledger { id: number; payMonth: string; seq: number; paidMonth: string }
 type Field = 'days' | 'grossPay' | 'incomeTax' | 'localTax'

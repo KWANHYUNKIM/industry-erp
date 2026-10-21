@@ -6,6 +6,17 @@ export interface DailyReportLine {
   confirmed: boolean; workerId: number; workerCode: string; workerName: string; department: string
   lastWorkDate: string | null; days: number; grossPay: number; incomeTax: number; localTax: number; netPay: number
   bankName: string | null; accountNo: string | null; accountHolder: string | null
+  /** 공제총액(소득세 + 지방소득세 + 공제등록에서 더한 항목) · 일근무 밖 항목(2026-10-21) */
+  deductionTotal?: number
+  items?: { itemId: number; kind: 'ALLOWANCE' | 'DEDUCTION'; code: string; name: string; sortOrder: number; quantity: number | null; amount: number }[]
+}
+/** 줄의 공제총액 — 서버 값이 없던 옛 응답이면 소득세 + 지방소득세. */
+export const dedTotal = (r: DailyReportLine) => Number(r.deductionTotal ?? Number(r.incomeTax) + Number(r.localTax))
+/** 줄들에 나온 공제 항목(공제등록에서 더한 것) — 표시순서대로 열이 된다(원본 사원별급여조회 2026-10-21 '지급총액 | QA관리-보험 | 공제총액'). */
+export function deductionColumns(rows: DailyReportLine[]) {
+  const seen = new Map<number, { itemId: number; name: string; sortOrder: number; code: string }>()
+  for (const r of rows) for (const i of r.items ?? []) if (i.kind === 'DEDUCTION' && !seen.has(i.itemId)) seen.set(i.itemId, i)
+  return [...seen.values()].sort((a, b) => a.sortOrder - b.sortOrder || (a.code < b.code ? -1 : 1))
 }
 
 export const won = (n: number) => Number(n).toLocaleString('ko-KR')

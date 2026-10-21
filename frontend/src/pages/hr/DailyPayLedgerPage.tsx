@@ -14,8 +14,21 @@ interface Ledger {
   periodFrom: string; periodTo: string; confirmed: boolean; workConfirmCount: number; headcount: number; grossTotal: number
   directAmountCount: number
 }
-interface ConfirmRow { workerId: number; workerCode: string; workerName: string; lastWorkDate: string | null; department: string; days: number; amount: number; workDays: number | null }
+interface ConfirmRow {
+  workerId: number; workerCode: string; workerName: string; lastWorkDate: string | null; department: string; days: number; amount: number; workDays: number | null
+  items: { itemId: number; days: number }[]
+}
+/** 일용근로 수당등록에서 더한 변동 수당 — 근무기록확정 창에 열 하나씩(원본 2026-10-21 '일근무 | QA관리-야간 | 근로일수'). */
+interface PayItem { id: number; name: string; payMethod: string | null; builtin: boolean }
 type Line = DailyPayLineRow
+type LineItem = NonNullable<Line['items']>[number]
+/** 대장 줄들에 나온 항목(수당 · 공제) — 표시순서대로 열이 된다. */
+function itemColumns(lines: Line[], kind: 'ALLOWANCE' | 'DEDUCTION') {
+  const seen = new Map<number, LineItem>()
+  for (const l of lines) for (const i of l.items ?? []) if (i.kind === kind && !seen.has(i.itemId)) seen.set(i.itemId, i)
+  return [...seen.values()].sort((a, b) => a.sortOrder - b.sortOrder || (a.code < b.code ? -1 : 1))
+}
+const itemOf = (l: Line, id: number) => (l.items ?? []).find((i) => i.itemId === id)
 
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const slash = (s: string) => s.replace(/-/g, '/')
@@ -66,6 +79,13 @@ export default function DailyPayLedgerPage() {
   const [form, setForm] = useState(blankForm())
   const [confirmFor, setConfirmFor] = useState<Ledger | null>(null)
   const [cells, setCells] = useState<ConfirmRow[]>([])
+  const [confirmItems, setConfirmItems] = useState<PayItem[]>([])
+  useEffect(() => {
+    api.get<PayItem[]>('/hr/daily-pay-items', { params: { kind: 'ALLOWANCE' } })
+      .then((r) => setConfirmItems(r.data.filter((i) => !i.builtin && i.payMethod !== '고정')))
+      .catch(() => setConfirmItems([]))
+  }, [])
+  const cellDays = (c: ConfirmRow, id: number) => c.items?.find((x) => x.itemId === id)?.days ?? 0
   /** 근로일수 칸 — 고치는 동안만 친 글자, 아니면 '1.00' 꼴(원본) */
   const [wdFocus, setWdFocus] = useState<number | null>(null)
   const [confirmError, setConfirmError] = useState('')
@@ -122,7 +142,7 @@ export default function DailyPayLedgerPage() {
   async function saveConfirm() {
     if (!confirmFor) return
     try {
-      await api.put(`/hr/daily-pay-ledgers/${confirmFor.id}/work-confirms`, cells.map((c) => ({ workerId: c.workerId, days: c.days, workDays: c.workDays })))
+      await api.put(`/hr/daily-pay-ledgers/${confirmFor.id}/work-confirms`, cells.map((c) => ({ workerId: c.workerId, days: c.days, workDays: c.workDays, items: c.items ?? [] })))
       setConfirmFor(null)
       load()
     } catch (e) {
@@ -192,7 +212,13 @@ export default function DailyPayLedgerPage() {
   const totals = view ? view.lines.reduce((s, l) => ({
     days: s.days + Number(l.days), gross: s.gross + Number(l.grossPay), tax: s.tax + Number(l.incomeTax),
     local: s.local + Number(l.localTax), net: s.net + Number(l.netPay),
-  }), { days: 0, gross: 0, tax: 0, local: 0, net: 0 }) : null
+    dayPay: s.dayPay + Number(l.dayPay ?? l.grossPay), ded: s.ded + Number(l.deductionTotal ?? Number(l.incomeTax) + Number(l.localTax)),
+  }), { days: 0, gross: 0, tax: 0, local: 0, net: 0, dayPay: 0, ded: 0 }) : null
+  const allowCols = view ? itemColumns(view.lines, 'ALLOWANCE') : []
+  const dedCols = view ? itemColumns(view.lines, 'DEDUCTION') : []
+  /** 소득세 · 지방소득세 칸('공제(전체)') — 더한 공제만 있고 세금이 모두 0 이면 원본처럼 그 항목 열만 둔다(2026-10-21). */
+  const taxCol = !!totals && (dedCols.length === 0 || totals.tax + totals.local !== 0)
+  const itemSum = (id: number, f: (i: LineItem) => number) => (view?.lines ?? []).reduce((s, l) => s + (itemOf(l, id) ? f(itemOf(l, id)!) : 0), 0)
 
   return (
     <EcListShell title="일용근로 급여계산/대장" searchable={false}
@@ -308,12 +334,13 @@ export default function DailyPayLedgerPage() {
               <th>부서명</th>
               <th>프로젝트</th>
               <th className="w-[120px] text-right">일근무</th>
+              {confirmItems.map((it) => <th key={it.id} className="w-[120px] text-right">{it.name}</th>)}
               <th className="w-[120px] text-right">근로일수</th>
             </tr>
           </thead>
           <tbody>
             {cells.length === 0 ? (
-              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7 + confirmItems.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : cells.map((c, i) => (
               <tr key={c.workerId}>
                 <td>{c.workerCode}</td>
@@ -330,6 +357,17 @@ export default function DailyPayLedgerPage() {
                            setCells(cells.map((x, j) => (j === i ? { ...x, days, workDays: days || null } : x)))
                          }} />
                 </td>
+                {confirmItems.map((it) => (
+                  <td key={it.id}>
+                    <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${c.workerName} ${it.name}`}
+                           value={cellDays(c, it.id) ? String(cellDays(c, it.id)) : ''}
+                           onChange={(e) => {
+                             const d = Number(e.target.value.replace(/[^0-9.]/g, '')) || 0
+                             setCells(cells.map((x, j) => (j === i
+                               ? { ...x, items: [...(x.items ?? []).filter((y) => y.itemId !== it.id), ...(d ? [{ itemId: it.id, days: d }] : [])] } : x)))
+                           }} />
+                  </td>
+                ))}
                 <td>
                   <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${c.workerName} 근로일수`}
                          value={c.workDays == null ? '' : wdFocus === c.workerId ? String(c.workDays) : Number(c.workDays).toFixed(2)}
@@ -458,8 +496,10 @@ export default function DailyPayLedgerPage() {
                     <th>성명</th>
                     <th rowSpan={2}>최종근무일</th>
                     <th colSpan={2}>일근무</th>
+                    {allowCols.map((c) => <th key={c.itemId} colSpan={2}>{c.name}</th>)}
                     <th rowSpan={2}>지급총액</th>
-                    <th>공제(전체)</th>
+                    {taxCol && <th>공제(전체)</th>}
+                    {dedCols.map((c) => <th key={c.itemId}>{c.name}</th>)}
                     <th rowSpan={2}>공제총액</th>
                     <th rowSpan={2}>실지급액</th>
                   </tr>
@@ -467,12 +507,14 @@ export default function DailyPayLedgerPage() {
                     <th>주민등록번호</th>
                     <th></th>
                     <th></th>
-                    <th></th>
+                    {allowCols.flatMap((c) => [<th key={`${c.itemId}-q`}></th>, <th key={`${c.itemId}-a`}></th>])}
+                    {taxCol && <th></th>}
+                    {dedCols.map((c) => <th key={c.itemId}></th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {view.lines.length === 0 ? (
-                    <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                    <tr><td colSpan={7 + allowCols.length * 2 + dedCols.length + (taxCol ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                   ) : view.lines.flatMap((l) => [
                     <tr key={`${l.id}-a`}>
                       <td>{l.workerName}</td>
@@ -480,27 +522,37 @@ export default function DailyPayLedgerPage() {
                       <td className="text-right">{Number(l.days)}</td>
                       <td className="relative text-right" title={l.direct ? '금액직접입력' : undefined}>
                         {l.direct && <i aria-hidden className="absolute left-0 top-0 border-t-[6px] border-r-[6px] border-t-ec-danger border-r-transparent" />}
-                        {won(l.grossPay)}
+                        {won(l.dayPay ?? l.grossPay)}
                       </td>
+                      {allowCols.flatMap((c) => {
+                        const it = itemOf(l, c.itemId)
+                        return [<td key={`${c.itemId}-q`} className="text-right">{it?.quantity != null ? Number(it.quantity) : ''}</td>,
+                          <td key={`${c.itemId}-a`} className="text-right">{it ? won(it.amount) : ''}</td>]
+                      })}
                       <td rowSpan={2} className="text-right">{won(l.grossPay)}</td>
-                      <td className="text-right">{Number(l.incomeTax) ? won(l.incomeTax) : ''}</td>
-                      <td rowSpan={2} className="text-right">{Number(l.incomeTax) + Number(l.localTax) ? won(Number(l.incomeTax) + Number(l.localTax)) : ''}</td>
+                      {taxCol && <td className="text-right">{Number(l.incomeTax) ? won(l.incomeTax) : ''}</td>}
+                      {dedCols.map((c) => <td key={c.itemId} rowSpan={2} className="text-right">{itemOf(l, c.itemId) ? won(itemOf(l, c.itemId)!.amount) : ''}</td>)}
+                      <td rowSpan={2} className="text-right">{Number(l.deductionTotal ?? Number(l.incomeTax) + Number(l.localTax)) ? won(Number(l.deductionTotal ?? Number(l.incomeTax) + Number(l.localTax))) : ''}</td>
                       <td rowSpan={2} className="text-right">{won(l.netPay)}</td>
                     </tr>,
                     <tr key={`${l.id}-b`}>
                       <td></td>
                       <td></td>
                       <td></td>
-                      <td className="text-right">{Number(l.localTax) ? won(l.localTax) : ''}</td>
+                      {allowCols.flatMap((c) => [<td key={`${c.itemId}-q`}></td>, <td key={`${c.itemId}-a`}></td>])}
+                      {taxCol && <td className="text-right">{Number(l.localTax) ? won(l.localTax) : ''}</td>}
                     </tr>,
                   ])}
                   <tr className="font-bold">
                     <td colSpan={2} className="text-center">총합계</td>
                     <td className="text-right">{totals.days || ''}</td>
+                    <td className="text-right">{won(totals.dayPay)}</td>
+                    {allowCols.flatMap((c) => [<td key={`${c.itemId}-q`} className="text-right">{itemSum(c.itemId, (i) => Number(i.quantity ?? 0)) || ''}</td>,
+                      <td key={`${c.itemId}-a`} className="text-right">{won(itemSum(c.itemId, (i) => Number(i.amount)))}</td>])}
                     <td className="text-right">{won(totals.gross)}</td>
-                    <td className="text-right">{won(totals.gross)}</td>
-                    <td className="text-right">{totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>
-                    <td className="text-right">{totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>
+                    {taxCol && <td className="text-right">{totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>}
+                    {dedCols.map((c) => <td key={c.itemId} className="text-right">{won(itemSum(c.itemId, (i) => Number(i.amount)))}</td>)}
+                    <td className="text-right">{totals.ded ? won(totals.ded) : ''}</td>
                     <td className="text-right">{won(totals.net)}</td>
                   </tr>
                 </tbody>

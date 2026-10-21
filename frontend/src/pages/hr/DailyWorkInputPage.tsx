@@ -13,11 +13,11 @@ import { ecConfirm } from '../../components/EcDialog'
 interface Worker { id: number; code: string; name: string; dailyWage: number | null }
 /** item: 수당항목('02' 일근무 — 원본도 사원을 골라도 비어 있고 따로 고른다). autoAmt: 금액이 일근무 × 근무기록으로 채워진 값(저장하지 않는다). */
 interface Row { workDate: string; workerId: string; item: string; quantity: string; amount: string; autoAmt: boolean }
-interface SlipLine { workDate: string; workerId: number; quantity: number; amount: number | null }
+interface SlipLine { workDate: string; workerId: number; payItemId: number | null; quantity: number; amount: number | null }
+/** 일용근로 수당등록의 수당(기본 02 일근무 + 더한 항목). 2026-10-21 원본: 더한 수당(QA관리-야간)도 근무입력 수당항목에서 고른다. */
+interface PayItem { id: number; code: string; name: string; payMethod: string | null; builtin: boolean }
 interface Slip { slipDate: string; slipNo: number; lines: SlipLine[] }
 const blank = (): Row => ({ workDate: '', workerId: '', item: '', quantity: '', amount: '', autoAmt: false })
-/** 일용근로 수당리스트의 항목(원본 기본 02 일근무 하나). */
-const ITEMS = [{ value: '02', code: '02', name: '일근무' }]
 const BLANK_ROWS = 3
 
 /**
@@ -48,11 +48,16 @@ export default function DailyWorkInputPage() {
   const [error, setError] = useState('')
   /** 저장을 눌렀는데 빈 필수칸(근무일자 · 수당항목)이 있었다 — 원본은 문구 없이 그 칸 테두리만 빨강. */
   const [missing, setMissing] = useState(false)
+  const [payItems, setPayItems] = useState<PayItem[]>([])
+  const items = payItems.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))
+  const dayItem = payItems.find((p) => p.builtin)
+  const itemOf = (v: string) => payItems.find((p) => String(p.id) === v)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '일용근로 근무입력', [rows.length])
 
   useEffect(() => {
     api.get<Worker[]>('/hr/daily-workers').then((r) => setWorkers(r.data)).catch(() => setWorkers([]))
+    api.get<PayItem[]>('/hr/daily-pay-items', { params: { kind: 'ALLOWANCE' } }).then((r) => setPayItems(r.data)).catch(() => setPayItems([]))
   }, [])
 
   function reset() {
@@ -61,21 +66,21 @@ export default function DailyWorkInputPage() {
     if (!editDate || !editNo) { setRows(Array.from({ length: BLANK_ROWS }, blank)); return }
     api.get<Slip>(`/hr/daily-work-entries/${editDate}/${editNo}`).then((r) => {
       const got = r.data.lines.map((l) => ({
-        workDate: l.workDate, workerId: String(l.workerId), item: '02', quantity: String(l.quantity),
+        workDate: l.workDate, workerId: String(l.workerId), item: String(l.payItemId ?? dayItem?.id ?? ''), quantity: String(l.quantity),
         amount: l.amount == null ? '' : String(l.amount), autoAmt: false,
       }))
       setRows([...got, ...Array.from({ length: Math.max(1, BLANK_ROWS - got.length) }, blank)])
     }).catch((e) => setError(extractErrorMessage(e)))
   }
-  useEffect(() => { reset() }, [editDate, editNo])
+  useEffect(() => { reset() }, [editDate, editNo, dayItem?.id])
 
   function edit(i: number, patch: Partial<Row>) {
     setRows((rs) => {
       const next = rs.map((r, j) => {
         if (j !== i) return r
         const n = { ...r, ...patch }
-        // 원본: 근무기록을 넣으면 금액 = 일근무 × 근무기록(직접 넣은 금액은 그대로)
-        if ('quantity' in patch && (n.amount === '' || n.autoAmt)) {
+        // 원본: 근무기록을 넣으면 금액 = 일근무 × 근무기록(직접 넣은 금액은 그대로). 더한 수당(QA관리-야간)은 채우지 않는다(2026-10-21).
+        if ('quantity' in patch && (n.amount === '' || n.autoAmt) && itemOf(n.item)?.builtin) {
           const wage = workers.find((w) => String(w.id) === n.workerId)?.dailyWage
           const q = Number(n.quantity)
           if (wage != null && q > 0) { n.amount = String(Math.round(wage * q)); n.autoAmt = true }
@@ -100,7 +105,7 @@ export default function DailyWorkInputPage() {
     }
     const body = {
       slipDate,
-      lines: filled.map((r) => ({ workDate: r.workDate, workerId: Number(r.workerId), quantity: Number(r.quantity), amount: r.amount === '' || r.autoAmt ? null : Number(r.amount) })),
+      lines: filled.map((r) => ({ workDate: r.workDate, workerId: Number(r.workerId), payItemId: Number(r.item), quantity: Number(r.quantity), amount: r.amount === '' || r.autoAmt ? null : Number(r.amount) })),
     }
     try {
       if (editDate && editNo) {
@@ -162,10 +167,10 @@ export default function DailyWorkInputPage() {
       </div>
       <ConditionLoadModal open={loadOpen} onClose={() => setLoadOpen(false)}
                           people={workers.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))}
-                          items={[{ value: '02', code: '02', name: '일근무' }]}
+                          items={items}
                           onApply={(lines) => {
                             setRows((rs) => [...rs.filter((r) => r.workerId || r.workDate || r.quantity || r.amount),
-                              ...lines.map((l) => ({ workDate: l.workDate, workerId: l.who, item: '02', quantity: l.quantity, amount: '', autoAmt: false })), blank()])
+                              ...lines.map((l) => ({ workDate: l.workDate, workerId: l.who, item: l.item, quantity: l.quantity, amount: '', autoAmt: false })), blank()])
                             setLoadOpen(false)
                           }} />
       <GridSortModal open={sortOpen} error={error} keys={['근무일자', '사원', '수당항목'] as const} initial={['사원', '수당항목']} rows={rows}
@@ -203,10 +208,10 @@ export default function DailyWorkInputPage() {
                 <td>
                   <div className={badItem ? 'border border-ec-danger rounded-ec' : ''} aria-invalid={badItem}>
                     <CodePickerField label="수당항목" hideLabel fill placeholder="수당항목" emptyLabel="선택 해제"
-                                     value={r.item} onChange={(v) => edit(i, { item: v })} items={ITEMS} />
+                                     value={r.item} onChange={(v) => edit(i, { item: v })} items={items} />
                   </div>
                 </td>
-                <td className="text-center">{r.item ? '변동(일)' : ''}</td>
+                <td className="text-center">{r.item ? itemOf(r.item)?.payMethod ?? '변동(일)' : ''}</td>
                 <td>
                   <input className="ec-input w-full text-right" inputMode="decimal" value={r.quantity}
                          onChange={(e) => edit(i, { quantity: e.target.value.replace(/[^0-9.]/g, '') })} />

@@ -5,7 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
+import { dedTotal, lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
 import { SortTh, sortRows, type SortState } from '../../features/dailypay/components/SortTh'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
 
@@ -85,7 +85,7 @@ export default function DailyPayStatusPage() {
   const groups = new Map<number, DailyReportLine[]>()
   for (const r of [...list].sort((a, b) => a.payMonth.localeCompare(b.payMonth) || a.seq - b.seq || byName(a, b))) groups.set(r.ledgerId, [...(groups.get(r.ledgerId) ?? []), r])
   const sum = (ls: DailyReportLine[]) => ls.reduce((s, r) => ({
-    gross: s.gross + Number(r.grossPay), ded: s.ded + Number(r.incomeTax) + Number(r.localTax), net: s.net + Number(r.netPay),
+    gross: s.gross + Number(r.grossPay), ded: s.ded + dedTotal(r), net: s.net + Number(r.netPay),
   }), { gross: 0, ded: 0, net: 0 })
   const total = sum(list)
 
@@ -109,7 +109,7 @@ export default function DailyPayStatusPage() {
       },
       values: {
         일근무: Number(r.grossPay), 지급총액: Number(r.grossPay), 소득세: Number(r.incomeTax), 지방소득세: Number(r.localTax),
-        공제총액: Number(r.incomeTax) + Number(r.localTax), 실지급액: Number(r.netPay), 총근무일수: Number(r.days),
+        공제총액: dedTotal(r), 실지급액: Number(r.netPay), 총근무일수: Number(r.days),
       },
     }
   })
@@ -215,7 +215,7 @@ export default function DailyPayStatusPage() {
                     <Fragment key={ls[0].ledgerId}>
                       {sortRows(lines, sort, (r, k) => ({
                         no: r.seq, ledger: r.ledgerName, last: r.lastWorkDate, dept: r.department, project: '', name: r.workerName,
-                        gross: Number(r.grossPay), ded: Number(r.incomeTax) + Number(r.localTax), net: Number(r.netPay),
+                        gross: Number(r.grossPay), ded: dedTotal(r), net: Number(r.netPay),
                       } as Record<string, string | number | null>)[k]).map((r) => (
                         <tr key={r.lineId}>
                           <td className="text-center">{ym} -{r.seq}</td>
@@ -225,7 +225,7 @@ export default function DailyPayStatusPage() {
                           <td></td>
                           <td>{r.workerName}</td>
                           <td className="text-right">{won(r.grossPay)}</td>
-                          <td className="text-right">{Number(r.incomeTax) + Number(r.localTax) ? won(Number(r.incomeTax) + Number(r.localTax)) : ''}</td>
+                          <td className="text-right">{dedTotal(r) ? won(dedTotal(r)) : ''}</td>
                           <td className="text-right">{net(r.netPay)}</td>
                         </tr>
                       ))}

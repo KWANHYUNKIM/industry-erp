@@ -5,7 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
+import { dedTotal, deductionColumns, lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
 import { ecConfirm } from '../../components/EcDialog'
 import Modal from '../../components/Modal'
 import DailyPayBulkEdit from '../../features/dailypay/components/DailyPayBulkEdit'
@@ -76,6 +76,9 @@ export default function DailyPayByWorkerPage() {
   }
 
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.lineId))
+  const dedCols = deductionColumns(shown)
+  /** 소득세 · 지방소득세 칸 — 더한 공제만 있고 세금이 모두 0 이면 원본처럼 그 항목 열만(2026-10-21). */
+  const taxCol = dedCols.length === 0 || shown.some((r) => Number(r.incomeTax) + Number(r.localTax) !== 0)
 
   return (
     <EcListShell title="일용근로 사원별급여조회" searchable={false} collapseConditions
@@ -128,7 +131,8 @@ export default function DailyPayByWorkerPage() {
             <th>사원코드</th>
             <th>성명</th>
             <th className="text-right">지급총액</th>
-            <th className="text-right">공제(전체)</th>
+            {taxCol && <th className="text-right">공제(전체)</th>}
+            {dedCols.map((c) => <th key={c.itemId} className="text-right">{c.name}</th>)}
             <th className="text-right">공제총액</th>
             <th className="text-right">실지급액</th>
             <th className="text-center">인쇄</th>
@@ -136,9 +140,10 @@ export default function DailyPayByWorkerPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8 + dedCols.length + (taxCol ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => {
-            const ded = Number(r.incomeTax) + Number(r.localTax)
+            const tax = Number(r.incomeTax) + Number(r.localTax)
+            const ded = dedTotal(r)
             return (
               <tr key={r.lineId}>
                 <td className="text-center">
@@ -151,7 +156,11 @@ export default function DailyPayByWorkerPage() {
                 <td>{r.workerCode}</td>
                 <td>{r.workerName}</td>
                 <td className="text-right">{won(r.grossPay)}</td>
-                <td className="text-right">{ded ? `소득세 ${won(r.incomeTax)} · 지방소득세 ${won(r.localTax)}` : ''}</td>
+                {taxCol && <td className="text-right">{tax ? `소득세 ${won(r.incomeTax)} · 지방소득세 ${won(r.localTax)}` : ''}</td>}
+                {dedCols.map((c) => {
+                  const it = (r.items ?? []).find((x) => x.itemId === c.itemId)
+                  return <td key={c.itemId} className="text-right">{it ? won(it.amount) : ''}</td>
+                })}
                 <td className="text-right">{ded ? won(ded) : ''}</td>
                 <td className="text-right">{won(r.netPay)}</td>
                 <td className="text-center">

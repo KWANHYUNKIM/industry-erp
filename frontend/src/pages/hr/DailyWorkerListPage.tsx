@@ -19,7 +19,10 @@ interface DailyWorker {
   healthAuto: boolean; healthBase: number | null
   bankName: string | null; accountNo: string | null; accountHolder: string | null; remark: string | null
   dailyWage: number | null; fixedIncomeTax: number | null; fixedLocalTax: number | null
+  payAmounts?: { itemId: number; amount: number }[]
 }
+/** 일용근로 수당등록 · 공제등록에서 더한 항목(기본 일근무 · 소득세 · 지방소득세 밖) — [급여지급사항] 표에 한 줄씩 생긴다. */
+interface PayItem { id: number; kind: 'ALLOWANCE' | 'DEDUCTION'; name: string; builtin: boolean }
 
 interface Form {
   code: string; name: string; foreigner: boolean; nationality: string; departmentId: string; mobile: string; email: string
@@ -27,12 +30,14 @@ interface Form {
   employmentInsurance: boolean; pensionAuto: boolean; pensionBase: string; healthAuto: boolean; healthBase: string
   bankName: string; accountNo: string; accountHolder: string; remark: string
   dailyWage: string; fixedIncomeTax: string; fixedLocalTax: string
+  payAmounts: Record<number, string>
 }
 const blankForm = (): Form => ({
   code: '', name: '', foreigner: false, nationality: '', departmentId: '', mobile: '', email: '',
   hireDate: ymd(new Date()), resignDate: '', zipcode: '', address: '',
   employmentInsurance: true, pensionAuto: false, pensionBase: '', healthAuto: false, healthBase: '',
   bankName: '', accountNo: '', accountHolder: '', remark: '', dailyWage: '', fixedIncomeTax: '', fixedLocalTax: '',
+  payAmounts: {},
 })
 const str = (v: unknown) => (v == null ? '' : String(v))
 const num = (s: string) => (s === '' ? null : Number(s.replace(/,/g, '')))
@@ -71,12 +76,18 @@ export default function DailyWorkerListPage() {
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<Form>(blankForm())
   const [tab, setTab] = useState<Tab>('기본')
+  const [payItems, setPayItems] = useState<PayItem[]>([])
   const tableRef = useRef<HTMLTableElement>(null)
 
   function load() {
     setError('')
     api.get<DailyWorker[]>('/hr/daily-workers').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
+  useEffect(() => {
+    Promise.all(['ALLOWANCE', 'DEDUCTION'].map((kind) => api.get<PayItem[]>('/hr/daily-pay-items', { params: { kind } })))
+      .then(([a, d]) => setPayItems([...a.data, ...d.data].filter((i) => !i.builtin)))
+      .catch(() => setPayItems([]))
+  }, [])
   useEffect(() => {
     load()
     api.get<Department[]>('/departments').then((r) => setDepartments(r.data)).catch(() => setDepartments([]))
@@ -109,6 +120,7 @@ export default function DailyWorkerListPage() {
       pensionAuto: w.pensionAuto, pensionBase: str(w.pensionBase), healthAuto: w.healthAuto, healthBase: str(w.healthBase),
       bankName: str(w.bankName), accountNo: str(w.accountNo), accountHolder: str(w.accountHolder), remark: str(w.remark),
       dailyWage: str(w.dailyWage), fixedIncomeTax: str(w.fixedIncomeTax), fixedLocalTax: str(w.fixedLocalTax),
+      payAmounts: Object.fromEntries((w.payAmounts ?? []).map((a) => [a.itemId, str(a.amount)])),
     })
     setOpen(true)
   }
@@ -125,6 +137,7 @@ export default function DailyWorkerListPage() {
       hireDate: form.hireDate || null, resignDate: form.resignDate || null,
       pensionBase: num(form.pensionBase), healthBase: num(form.healthBase),
       dailyWage: num(form.dailyWage), fixedIncomeTax: num(form.fixedIncomeTax), fixedLocalTax: num(form.fixedLocalTax),
+      payAmounts: payItems.map((i) => ({ itemId: i.id, amount: num(form.payAmounts[i.id] ?? '') })),
     }
     try {
       const r = editId ? await api.put<DailyWorker>(`/hr/daily-workers/${editId}`, body) : await api.post<DailyWorker>('/hr/daily-workers', body)
@@ -170,6 +183,12 @@ export default function DailyWorkerListPage() {
   const money = (key: 'pensionBase' | 'healthBase' | 'dailyWage' | 'fixedIncomeTax' | 'fixedLocalTax', placeholder = '') => (
     <input className="ec-input w-full text-right" inputMode="numeric" placeholder={placeholder} value={won(form[key])}
            onChange={(e) => set({ [key]: e.target.value.replace(/[^0-9]/g, '') } as Partial<Form>)} />
+  )
+
+  const itemMoney = (i: PayItem) => (
+    <input className="ec-input w-full text-right" inputMode="numeric" aria-label={`${i.name} ${i.kind === 'ALLOWANCE' ? '내역' : '금액'}`}
+           value={won(form.payAmounts[i.id] ?? '')}
+           onChange={(e) => set({ payAmounts: { ...form.payAmounts, [i.id]: e.target.value.replace(/[^0-9]/g, '') } })} />
   )
 
   return (
@@ -348,7 +367,10 @@ export default function DailyWorkerListPage() {
             <p className="font-bold mb-[4px]">&gt; 일급수당</p>
             <table className="w-full mb-[8px]">
               <thead><tr><th>수당항목명</th><th className="w-[260px]">내역</th></tr></thead>
-              <tbody><tr><td>일근무</td><td>{money('dailyWage')}</td></tr></tbody>
+              <tbody>
+                <tr><td>일근무</td><td>{money('dailyWage')}</td></tr>
+                {payItems.filter((i) => i.kind === 'ALLOWANCE').map((i) => <tr key={i.id}><td>{i.name}</td><td>{itemMoney(i)}</td></tr>)}
+              </tbody>
             </table>
             <p className="font-bold mb-[4px]">&gt; 월정공제</p>
             <table className="w-full">
@@ -356,6 +378,7 @@ export default function DailyWorkerListPage() {
               <tbody>
                 <tr><td>소득세</td><td>{money('fixedIncomeTax')}</td></tr>
                 <tr><td>지방소득세</td><td>{money('fixedLocalTax')}</td></tr>
+                {payItems.filter((i) => i.kind === 'DEDUCTION').map((i) => <tr key={i.id}><td>{i.name}</td><td>{itemMoney(i)}</td></tr>)}
               </tbody>
             </table>
           </>
