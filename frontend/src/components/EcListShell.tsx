@@ -125,7 +125,7 @@ function restoreFields(el: HTMLElement, first: WeakMap<Element, string | boolean
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
   renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
-  signLine = false, collapseConditions, onReset, optionMenu, children,
+  signLine = false, searchBtn = false, collapseConditions, onReset, optionMenu, children,
 }: {
   title: string
   search?: string
@@ -155,6 +155,8 @@ export default function EcListShell({
    * 끌 방법도 없었다. 화면에 조건을 다는 것보다 이 한 줄이 먼저다.
    */
   signLine?: boolean
+  /** 검색칸 없이 펼친 조건 판으로 시작하되 머리에 처음부터 [Search(F3)] 단추가 있는 화면(원본 거래이력조회(회계) E010712, 2026-10-22 실측). */
+  searchBtn?: boolean
   /**
    * 조회 조건을 접어 두고 [Search(F3)] 로 펼친다. 조건은 화면 안의 <code>.ec-cond</code> 나
    * <code>.ec-search-conds</code> 를 그대로 쓴다(화면은 고칠 것이 없다).
@@ -195,7 +197,7 @@ export default function EcListShell({
   const showSearch = searchable || (collapseConditions === undefined && searched)
   // 검색칸 없이 접혀서 시작하는 화면(searchable={false} · collapseConditions): 머리에 [Search(F3)] 단추만 — 판을 편다
   // (원본 일용근로 사원별급여조회 E020135, 2026-10-20 실측: 머리 Search(F3) · Option · 도움말, 입력칸 없음)
-  const searchButtonOnly = !showSearch && !searchable && collapseConditions === true
+  const searchButtonOnly = !showSearch && !searchable && (collapseConditions === true || searchBtn)
   const [condOpen, setCondOpen] = useState(false)
   const [barTop, setBarTop] = useState<number | null>(null)
   const [picks, setPicks] = useState<string[]>([])   // ▾ 기간 빠른선택 — 판 안의 .ec-btn-pick, 없으면 날짜칸 둘에 INQUIRY_PICKS

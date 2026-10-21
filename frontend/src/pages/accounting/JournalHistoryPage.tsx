@@ -135,6 +135,7 @@ export default function JournalHistoryPage() {
     <EcListShell
       title="거래이력조회(회계)"
       searchable={false}
+      searchBtn
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: reset },
