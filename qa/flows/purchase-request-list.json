@@ -86,14 +86,14 @@
       ]
     },
     {
-      "name": "단가요청조회 — 계획 → 단가 반영(유효기간 오늘)한 발주서가 '진행중' 줄로, 유효기간이 찍혀 뜬다, 끝나면 지운다",
+      "name": "단가요청조회 — 단가요청(따로 된 전표, 2026-10-21 · 유효기간 오늘)이 '진행중' 줄로, 유효기간이 찍혀 뜬다, 끝나면 지운다",
       "path": "/sales/price-requests",
       "steps": [
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
-        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const ps=(await window.__api('GET','/partners')).body;const p=ps.find((x)=>x.type==='SUPPLIER'||x.type==='BOTH')||ps[0];const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const a=await window.__api('POST','/purchase-orders',{partnerId:p.id,orderDate:today,lines:[{itemId:it.id,quantity:2,unitPrice:1000}]});await window.__api('POST','/purchase-orders/'+a.body.id+'/plan',{dueDate:today});const pr=await window.__api('POST','/purchase-orders/'+a.body.id+'/prices',{lines:[{lineId:a.body.lines[0].id,unitPrice:1500}],priceValidUntil:today});sessionStorage.setItem('pqId',a.body.id);sessionStorage.setItem('pqNo',a.body.orderNo);sessionStorage.setItem('pqDay',today.replace(/-/g,'/'));return a.status+'/'+pr.status})()",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const ps=(await window.__api('GET','/partners')).body;const p=ps.find((x)=>x.type==='SUPPLIER'||x.type==='BOTH')||ps[0];const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const a=await window.__api('POST','/purchase-orders',{partnerId:p.id,orderDate:today,priceRequest:true,priceValidUntil:today,lines:[{itemId:it.id,quantity:2,unitPrice:1000}]});const pr=a;sessionStorage.setItem('pqId',a.body.id);sessionStorage.setItem('pqNo',a.body.orderNo);sessionStorage.setItem('pqDay',today.replace(/-/g,'/'));return a.status+'/'+pr.status})()",
         "click:검색(F8)",
         "wait:1500",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('pqNo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')));return h==='|번호|품목명|금액(합계)|유효기간|진행상태'&&!!tr&&tr.cells[5].innerText.trim()==='진행중'&&tr.cells[4].innerText.trim()===sessionStorage.getItem('pqDay')})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('pqNo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')));return h==='|번호|품목명|금액(합계)|유효기간|진행상태|생성한 전표'&&!!tr&&tr.cells[5].innerText.trim()==='진행중'&&tr.cells[4].innerText.trim()===sessionStorage.getItem('pqDay')})()",
         "js:(async()=>(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('pqId'))).status)()"
       ]
     },
