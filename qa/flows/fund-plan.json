@@ -1,5 +1,5 @@
 {
-  "about": "회계 II 계획전표조회(E020511) — [신규(F2)] 계획전표입력 창에 출금 · 예금(현금) · 금액 30,000 · 적요를 넣고 저장하면 목록에 '출금 · 자금 · 30,000' 한 줄. [발생일자]를 눌러 계획전표수정 창에서 40,000 으로 고치고, 체크 → [선택삭제] → '전표를 삭제하겠습니까?' 확인으로 지운다. 원본 2026-10-12 실측과 같다.",
+  "about": "회계 II 계획전표조회(E020511) — [신규(F2)] 계획전표입력 창에 출금 · 예금(현금) · 금액 30,000 · 적요를 넣고 저장하면 목록에 '출금 · 자금 · 30,000' 한 줄. [발생일자]를 눌러 계획전표수정 창에서 40,000 으로 고치고, 체크 → [선택삭제] → '전표를 삭제하겠습니까?' 확인으로 지운다. 원본 2026-10-12 실측과 같다. 수정 창 끝 [H] 이력 창에 신규 · 수정 두 줄(2026-10-21 묶음 33).",
   "shots": [
     {
       "name": "신규 → 저장 → 수정 → 선택삭제",
@@ -23,6 +23,15 @@
         "click:저장(F8)",
         "wait:1200",
         "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('fpmemo')) && t.innerText.includes('40,000'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('fpmemo'))).querySelector('button.ec-link').click(); true",
+        "wait:800",
+        "click:H",
+        "wait:800",
+        "expect:(() => { const t = [...document.querySelectorAll('[role=dialog]')].map((x) => x.innerText).join('|'); return t.includes('이력') && t.includes('신규') && t.includes('수정') })()",
+        "js:[...document.querySelectorAll('[role=dialog] button')].filter((b) => b.innerText.trim() === '닫기').forEach((b) => b.click()); true",
+        "wait:500",
+        "js:[...document.querySelectorAll('[role=dialog] button')].filter((b) => b.innerText.trim() === '닫기').forEach((b) => b.click()); true",
+        "wait:500",
         "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('fpmemo'))).querySelector('input[type=checkbox]').click(); true",
         "wait:300",
         "click:선택삭제",
