@@ -19,7 +19,7 @@ const TITLE: Record<SignModule, string> = {
   MANAGEMENT: '인쇄용결재라인등록(관리)',
 }
 /** 원본 글자크기 선택상자 */
-const FONTS = [9, 10, 11, 12, 13, 14]
+const FONTS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 
 function moduleOf(path: string): SignModule {
   if (path.startsWith('/hr')) return 'MANAGEMENT'

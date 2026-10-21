@@ -434,7 +434,7 @@ public class FastVoucherService {
         Account a = main != null ? main.getGlAccount() : account(CASH);
         Account other = switch (t) {
             case SALES_COLLECTION -> account(RECEIVABLE);
-            case CARD_SALES_COLLECTION -> account(OTHER_RECEIVABLE);
+            case CARD_SALES_COLLECTION -> issuer != null && issuer.getAccount() != null ? issuer.getAccount() : account(OTHER_RECEIVABLE); // 원본: 카드사 [계정] 을 바꾸면 대변 자리가 그 계정(2026-10-22 외상매출금 1089 로 실측)
             case TEMP_DEPOSIT, TEMP_WITHDRAW -> account(ADVANCE);
             case PURCHASE_PAYMENT -> account("251");
             case CARD_BILL_PAYMENT -> account(PAYABLE);

@@ -1,0 +1,13 @@
+{
+  "about": "회계 I › 기초등록 › 카드사등록 [계정] → 현금거래 › 카드매출대금회수의 대변이 그 계정(원본 2026-10-22 실측: 계정 외상매출금 1089 로 저장 → 계정별원장 1089 대변 10,000 · 거래처 카드사명). 미수금(120)이 아닌 카드사 계정에 대변. 시험 카드사 · 전표는 지운다.",
+  "shots": [
+    {
+      "name": "카드사 계정 108 → 대변 108 +10,000 · 120 변화 없음",
+      "path": "/accounting/card-sales-collection",
+      "steps": [
+        "wait:2500",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });\nconst day = new Date().toISOString().slice(0,10); const ymd=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})();\nconst tb = async () => { const r = await A('GET', '/journals/trial-balance?from=' + ymd + '&to=' + ymd); const m = {}; for (const x of r.rows) m[x.accountCode] = Number(x.credit); return m };\nconst accs = await A('GET', '/accounts'); const flat = []; const walk = (l) => (l || []).forEach((a) => { flat.push(a); walk(a.children) }); walk(accs);\nconst ar = flat.find((a) => a.code === '108'); const ban = (await A('GET', '/bank-accounts'))[0];\nconst iss = await A('POST', '/card-issuers', { code: 'QA1D', name: 'QA회계1-카드사계정', feeRate: 0, accountId: ar.id });\nconst b0 = await tb();\nconst v = await A('POST', '/vouchers', { type: 'CARD_SALES_COLLECTION', voucherDate: ymd, method: 'BANK', bankAccountId: ban.id, cardIssuerId: iss.id, feeRate: 0, lines: [{ amount: 10000 }] });\nconst b1 = await tb(); await A('DELETE', '/vouchers/' + v.id); await A('DELETE', '/card-issuers/' + iss.id);\nreturn (b1['108'] || 0) - (b0['108'] || 0) === 10000 && (b1['120'] || 0) === (b0['120'] || 0) })()"
+      ]
+    }
+  ]
+}
