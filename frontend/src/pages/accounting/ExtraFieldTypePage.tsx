@@ -44,6 +44,7 @@ export default function ExtraFieldTypePage() {
   const [accRows, setAccRows] = useState<AccRow[]>([])
   const [accChecked, setAccChecked] = useState<Set<number>>(new Set())
   const [addOpen, setAddOpen] = useState(false)
+  const [saveMenu, setSaveMenu] = useState(false)
   const [addChecked, setAddChecked] = useState<Set<number>>(new Set())
   const [accError, setAccError] = useState('')
   // 추가항목등록 창
@@ -68,14 +69,18 @@ export default function ExtraFieldTypePage() {
   function openNew() { setF({ id: null, code: nextCode(), name: '' }); setFormError(''); setInvalid(false); setOpen(true) }
   function openEdit(t: TypeRow) { setF({ id: t.id, code: t.code, name: t.name }); setFormError(''); setInvalid(false); setOpen(true) }
 
-  async function save(ev?: React.FormEvent) {
+  /** 원본 [저장(F8) ▲](2026-10-21 실측) — 저장/내용유지 · 저장/신규. 그냥 저장은 창을 닫는다. */
+  async function save(ev?: React.FormEvent, after: 'close' | 'keep' | 'new' = 'close') {
     ev?.preventDefault()
+    setSaveMenu(false)
     if (!f.code.trim() || !f.name.trim()) { setInvalid(true); setFormError(''); return }
     try {
       const body = { code: f.code.trim(), name: f.name.trim() }
       if (f.id) await api.put(`/extra-field-types/${f.id}`, body)
       else await api.post('/extra-field-types', body)
-      setOpen(false)
+      const next = /^\d+$/.test(f.code.trim()) ? String(Number(f.code.trim()) + 1).padStart(f.code.trim().length, '0') : ''
+      if (after === 'close') setOpen(false)
+      else setF({ id: null, code: next, name: after === 'keep' ? f.name : '' })
       load()
     } catch (e) {
       setFormError(extractErrorMessage(e))
@@ -204,7 +209,16 @@ export default function ExtraFieldTypePage() {
               <div className="form"><input className={`ec-input w-full ${red(!f.name.trim())}`} aria-label="추가항목유형명" maxLength={100} autoFocus value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div></li>
           </ul>
           <div className="flex gap-[6px] mt-[12px]">
-            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            <span className="ec-btn-group relative">
+              <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+              <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장(F8) 더보기" onClick={() => setSaveMenu((v) => !v)}>▴</button>
+              {saveMenu && (
+                <span className="ec-menu absolute bottom-full left-0 mb-[2px] z-[41]">
+                  <button type="button" onClick={() => void save(undefined, 'keep')}>저장/내용유지</button>
+                  <button type="button" onClick={() => void save(undefined, 'new')}>저장/신규</button>
+                </span>
+              )}
+            </span>
             <button type="button" className="ec-btn" onClick={() => setF(f.id ? { ...f, name: rows.find((r) => r.id === f.id)?.name ?? '' } : { id: null, code: nextCode(), name: '' })}>다시 작성</button>
             <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
           </div>
