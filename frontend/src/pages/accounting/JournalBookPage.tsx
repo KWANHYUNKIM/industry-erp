@@ -30,6 +30,8 @@ export default function JournalBookPage() {
   const { companyName } = useAuth()
   const init = periodOf('최근30일')!
   const [from, setFrom] = useState(init.from)
+  /** 원본 조건 [양식구분 ☐결재방표시](2026-10-21 실측) — 켜면 출력물 머리에 결재 칸. */
+  const [signBox, setSignBox] = useState(false)
   const [to, setTo] = useState(init.to)
   const [docNo, setDocNo] = useState('')
   const [partner, setPartner] = useState('')
@@ -96,6 +98,7 @@ export default function JournalBookPage() {
 
   return (
     <EcListShell
+      signLine={signBox}
       title="분개장"
       searchable={false}
       actions={[
@@ -147,6 +150,11 @@ export default function JournalBookPage() {
         <EcCond label="기타">
           <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={unbalancedOnly} onChange={(e) => setUnbalancedOnly(e.target.checked)} /> 차/대다른것만보기
+          </label>
+        </EcCond>
+        <EcCond label="양식구분">
+          <label className="inline-flex items-center gap-[3px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
           </label>
         </EcCond>
       </ul>

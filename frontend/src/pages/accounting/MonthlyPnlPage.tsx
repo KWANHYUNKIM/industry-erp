@@ -41,13 +41,13 @@ const GROUPS: [string, IncomeBucket][] = [
  *
  * <p>손익계산서와 같은 번호 줄(1. 매출 … 12. 당기순이익)을 달마다 한 열씩 — 계정명 · YYYY년 M월 … · 집계. 묶음 · 계산 줄이 굵다.
  * 계정을 묶음에 넣는 가름은 손익계산서와 같은 utils/incomeBuckets 를 쓴다. 원본은 끝에 숨은 열(0 · 계정코드)이 둘 더 있는데 화면에 안 보여 두지 않았다.
- * [기초,당기,기말표시]는 원가 계정 쪽 표시라 손익계산서처럼 아직 없고, 결재방표시는 우리 인쇄가 결재 칸을 그리지 않는다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
+ * [기초,당기,기말표시]는 매출원가 계정마다 기초재고액 · 당기매입액 · 기말재고액 세 줄(2026-10-21 실측), 결재방표시는 우리 인쇄가 결재 칸을 그리지 않는다. [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function MonthlyPnlPage() {
   /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
   const [dept, setDept] = useState('')
   const [project, setProject] = useState('')
-  /* 원본 [기타] 결재방표시 · 기초,당기,기말표시(둘 다 꺼짐으로 시작, 2026-10-20 실측). 기초,당기,기말표시가 무엇을 더 찍는지는 plans 에 값이 없어 칸만 둔다. */
+  /* 원본 [기타] 결재방표시 · 기초,당기,기말표시(둘 다 꺼짐으로 시작, 2026-10-20 실측). 기초,당기,기말표시는 매출원가 계정 아래 세 줄. */
   const [signBox, setSignBox] = useState(false)
   const [showFlow, setShowFlow] = useState(false)
   const deptProject = useDeptProjectItems()
@@ -110,9 +110,9 @@ export default function MonthlyPnlPage() {
   useTableColumnCheck(tableRef, '월별손익분석', [months.length, lines.length])
 
   const label = (ym: string) => `${ym.slice(0, 4)}년 ${Number(ym.slice(5))}월`
-  const row = (name: string, cell: (ym?: string) => number, bold: boolean, key: string) => (
+  const row = (name: string, cell: (ym?: string) => number, bold: boolean, key: string, sub = false) => (
     <tr key={key} style={bold ? BOLD : undefined}>
-      <td>{name}</td>
+      <td className={sub ? 'pl-[30px]' : undefined}>{name}</td>
       {months.map((ym) => <td key={ym} className="text-right">{won(cell(ym))}</td>)}
       <td className="text-right">{won(cell())}</td>
     </tr>
@@ -194,7 +194,23 @@ export default function MonthlyPnlPage() {
     return (
       <Fragment key={b}>
         {row(name, (ym) => sumOf(b, ym), true, `g${b}`)}
-        {ls.map((l) => row(l.name, (ym) => (ym ? l.byMonth[ym] ?? 0 : Object.values(l.byMonth).reduce((t, v) => t + v, 0)), false, l.code))}
+        {ls.map((l) => {
+          const amt = (ym?: string) => (ym ? l.byMonth[ym] ?? 0 : Object.values(l.byMonth).reduce((t, v) => t + v, 0))
+          /* [기초,당기,기말표시](원본 2026-10-21 실측): 매출원가 계정 줄 아래 들여쓰기 30px 세 줄 — 기초재고액 · 당기매입액(= 그 계정 금액) · 기말재고액.
+             재고 계정이 원가에 걸려 있지 않은 이 회사는 기초 · 기말이 빈칸이다(우리도 같다). */
+          return (
+            <Fragment key={l.code}>
+              {row(l.name, amt, false, l.code)}
+              {showFlow && b === 'COGS' && (
+                <>
+                  {row('기초재고액', () => 0, false, `${l.code}:open`, true)}
+                  {row('당기매입액', amt, false, `${l.code}:buy`, true)}
+                  {row('기말재고액', () => 0, false, `${l.code}:close`, true)}
+                </>
+              )}
+            </Fragment>
+          )
+        })}
       </Fragment>
     )
   }

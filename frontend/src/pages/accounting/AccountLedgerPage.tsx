@@ -50,6 +50,8 @@ export default function AccountLedgerPage() {
   const [project, setProject] = useState('')
   const deptProject = useDeptProjectItems()
   const [withCarry, setWithCarry] = useState(true)
+  /** 원본 조건 [양식구분 ☐결재방표시](2026-10-21 실측) — 켜면 출력물 머리에 결재 칸. */
+  const [signBox, setSignBox] = useState(false)
   const [fiscalStart, setFiscalStart] = useState<number | null>(null)
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [bookOf, setBookOf] = useState<Map<number, string>>(new Map())
@@ -203,6 +205,7 @@ export default function AccountLedgerPage() {
 
   return (
     <EcListShell
+      signLine={signBox}
       title="계정별원장"
       searchable={false}
       actions={[
@@ -245,6 +248,11 @@ export default function AccountLedgerPage() {
         <EcCond label="기타">
           <label className="mr-2.5 inline-flex items-center gap-[3px]">
             <input type="checkbox" checked={withCarry} onChange={(e) => setWithCarry(e.target.checked)} /> 전월이월포함
+          </label>
+        </EcCond>
+        <EcCond label="양식구분">
+          <label className="inline-flex items-center gap-[3px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
           </label>
         </EcCond>
       </ul>

@@ -21,10 +21,10 @@ const monthEnd = (ym: string) => {
 }
 const thisMonth = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}` }
 
-type Compare = '직전기수' | '전기동일기간' | '직접입력' | '선택안함'
-const COMPARES: Compare[] = ['직전기수', '전기동일기간', '직접입력', '선택안함']
+type Compare = '직전기수' | '전기동일기간' | '당기누계' | '직접입력' | '선택안함'
+const COMPARES: Compare[] = ['직전기수', '전기동일기간', '당기누계', '직접입력', '선택안함']
 
-interface AccountOpt { code: string; detailCategory: string | null }
+interface AccountOpt { code: string; detailCategory: string | null; debitCredit?: 'DEBIT' | 'CREDIT'; active?: boolean }
 /** 재무제표의 한 칸 묶음 — 원본의 "1) 유동자산 &gt; (1) 당좌자산" 같은 두 층. */
 interface Sub { label: string; rows: StatementRow[] }
 interface Part { label: string; subs: Sub[] }
@@ -90,6 +90,10 @@ export default function BalanceSheetPage() {
   const [signBox, setSignBox] = useState(false)   // 원본 [기타] 결재방표시 — 꺼짐으로 시작
   const [thousand, setThousand] = useState(false)
   const [withZero, setWithZero] = useState(false)
+  /** [전표발생계정] — 표시명 묶음 없이 잔액이 있는 계정만(원본 2026-10-21: 차변 계정은 첫 금액 칸, 대변 계정은 둘째 칸, 비교 칸 빈칸). */
+  const [onlyPosted, setOnlyPosted] = useState(false)
+  /** [사용중단/삭제포함] — 잔액0포함으로 세울 때 사용중단 계정도(원본 이 회사엔 줄 차이 없음). */
+  const [withStopped, setWithStopped] = useState(false)
   const [hideIdle, setHideIdle] = useState(false)
   const [accounts, setAccounts] = useState<(AccountOpt & { name: string; division: string })[]>([])
   const [base, setBase] = useState<BalanceSheet | null>(null)
@@ -112,6 +116,8 @@ export default function BalanceSheetPage() {
     if (compare === '선택안함') return null
     if (compare === '전기동일기간') return monthEnd(`${y - 1}-${String(m).padStart(2, '0')}`)
     if (compare === '직접입력') return monthEnd(compareMonth)
+    /* 당기누계 — 재무상태표는 누계라 비교 칸이 기준과 같은 날(원본 머리 '제 17기 2026/10/31 현재' 두 줄). */
+    if (compare === '당기누계') return monthEnd(month)
     const startYear = m >= fiscalStart ? y : y - 1
     const d = new Date(startYear, fiscalStart - 1, 0)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -134,7 +140,7 @@ export default function BalanceSheetPage() {
   const catOf = useMemo(() => new Map(accounts.map((a) => [a.code, a.detailCategory ?? ''])), [accounts])
   /** [잔액0포함]이면 잔액이 없는 재무상태표 계정도 0 으로 세운다. */
   const pad = (rows: StatementRow[], division: string) => withZero
-    ? [...rows, ...accounts.filter((a) => a.division === division && !rows.some((r) => r.accountCode === a.code))
+    ? [...rows, ...accounts.filter((a) => a.division === division && (withStopped || a.active !== false) && !rows.some((r) => r.accountCode === a.code))
         .map((a) => ({ accountCode: a.code, accountName: a.name, division: a.division, amount: 0 }) as StatementRow)]
     : rows
 
@@ -180,8 +186,22 @@ export default function BalanceSheetPage() {
       [null, cs ? (tot(cs, 'L') ?? 0) + (tot(cs, 'E') ?? 0) : null], true)
     return out
   }
+  /** [전표발생계정] 판 — 계정 줄만, 대차구분으로 칸을 가르고 끝에 (당기순이익) · 합계. */
+  const postedLines = (bs: BalanceSheet): SLine[] => {
+    const dcOf = new Map(accounts.map((a) => [a.code, a.debitCredit]))
+    const rows = [...bs.assets, ...bs.liabilities, ...bs.equity].filter((r) => Number(r.amount) !== 0)
+      .sort((a, b) => a.accountCode.localeCompare(b.accountCode))
+    const out: SLine[] = rows.map((r) => {
+      const credit = (dcOf.get(r.accountCode) ?? (r.division === 'ASSET' ? 'DEBIT' : 'CREDIT')) === 'CREDIT'
+      return { key: `a:${r.accountCode}`, label: r.accountName, left: credit ? [null, Number(r.amount)] : [Number(r.amount), null], right: [null, null], bold: false }
+    })
+    out.push({ key: 'ni', label: '(당기순이익)', left: [null, Number(bs.netIncome)], right: [null, null], bold: false })
+    const sum = (k: 0 | 1) => out.reduce((t, l) => t + (l.left[k] ?? 0), 0)
+    out.push({ key: 'sum', label: '합계', left: [sum(0), sum(1)], right: [null, null], bold: true })
+    return out
+  }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const mainLines = useMemo(() => (base ? linesOf(base, cmp) : []), [base, cmp, catOf, withZero, accounts])
+  const mainLines = useMemo(() => (base ? (onlyPosted ? postedLines(base) : linesOf(base, cmp)) : []), [base, cmp, catOf, withZero, withStopped, onlyPosted, accounts])
   const groups = useMemo(() => {
     if (!modes.by || !splitBase) return []
     const items = modes.by === 'department' ? deptProject.departments : deptProject.projects
@@ -244,7 +264,8 @@ export default function BalanceSheetPage() {
           <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
           </label>
-          {([['천단위', thousand, setThousand], ['잔액0포함', withZero, setWithZero], ['내역없는부서/프로젝트제외', hideIdle, setHideIdle]] as const).map(([l, v, set]) => (
+          {([['천단위', thousand, setThousand], ['잔액0포함', withZero, setWithZero], ['내역없는부서/프로젝트제외', hideIdle, setHideIdle],
+            ['전표발생계정', onlyPosted, setOnlyPosted], ['사용중단/삭제포함', withStopped, setWithStopped]] as const).map(([l, v, set]) => (
             <label key={l} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {l}
             </label>
