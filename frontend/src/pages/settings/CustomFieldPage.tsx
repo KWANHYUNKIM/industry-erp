@@ -49,6 +49,7 @@ const ENTITY_TYPES = [
   { key: 'ITEM', label: '품목등록' },
   { key: 'PARTNER', label: '거래처등록' },
   { key: 'EMPLOYEE', label: '사원등록' },
+  { key: 'DAILY_WORKER', label: '일용근로 사원등록' },
 ]
 const emptyForm = { fieldKey: '', label: '', fieldType: 'TEXT' as CustomFieldType, options: '', required: false, sortOrder: '0' }
 

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { BANK_CODES } from '../../utils/bankCodes'
+import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import Modal from '../../components/Modal'
 import BulkChangeModal, { type BulkDraft, type BulkField } from '../../components/BulkChangeModal'
 import { useTableSort } from '../../utils/useTableSort'
@@ -42,7 +43,7 @@ const blankForm = (): Form => ({
 const str = (v: unknown) => (v == null ? '' : String(v))
 const num = (s: string) => (s === '' ? null : Number(s.replace(/,/g, '')))
 const won = (s: string) => (s === '' ? '' : Number(s).toLocaleString('ko-KR'))
-type Tab = '기본' | '급여지급사항'
+type Tab = '기본' | '사원정보' | '급여지급사항' | '추가정보' | '기타설정'
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 기본사항 등록 &gt; <b>일용근로 사원등록</b> (원본 E020105, 화면 제목 '일용근로 사원리스트').
@@ -191,6 +192,132 @@ export default function DailyWorkerListPage() {
            onChange={(e) => set({ payAmounts: { ...form.payAmounts, [i.id]: e.target.value.replace(/[^0-9]/g, '') } })} />
   )
 
+  /** 사원등록 창 칸 하나씩 — 탭마다 골라 쓴다(원본 2026-10-22 실측: 기본 = 전부, 사원정보 · 기타설정 = 갈래별). */
+  const F: Record<string, ReactNode> = {
+    '사원번호': <Fragment key="사원번호">
+                <li className="wide">
+                  <span className="title">사원번호</span>
+                  <div className="form">
+                    {editId ? <span>{form.code}</span> : <input className="ec-input w-full" value={form.code} onChange={(e) => set({ code: e.target.value })} />}
+                  </div>
+                </li>
+    </Fragment>,
+    '성명': <Fragment key="성명">
+                <li className="wide">
+                  <span className="title">성명</span>
+                  <div className="form">
+                    <input className={`ec-input w-full ${nameBad && !form.name.trim() ? 'border-ec-danger' : ''}`} aria-invalid={nameBad && !form.name.trim()}
+                           placeholder="성명" value={form.name} onChange={(e) => set({ name: e.target.value })} />
+                  </div>
+                </li>
+    </Fragment>,
+    '외국인': <Fragment key="외국인">
+                <li>
+                  <span className="title">외국인</span>
+                  <div className="form flex items-center gap-[6px]">
+                    <label className="inline-flex items-center gap-[4px]">
+                      <input type="checkbox" checked={form.foreigner} onChange={(e) => set({ foreigner: e.target.checked })} /> 외국인
+                    </label>
+                    <input className="ec-input flex-1" placeholder="국적" disabled={!form.foreigner} value={form.nationality} onChange={(e) => set({ nationality: e.target.value })} />
+                  </div>
+                </li>
+    </Fragment>,
+    '부서코드': <Fragment key="부서코드">
+                <li>
+                  <span className="title">부서코드</span>
+                  <div className="form">
+                    <CodePickerField label="부서코드" hideLabel fill placeholder="부서코드" emptyLabel="선택 해제"
+                                     value={form.departmentId} onChange={(v) => set({ departmentId: v })}
+                                     items={departments.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))} />
+                  </div>
+                </li>
+    </Fragment>,
+    '모바일': text('모바일', 'mobile'),
+    'Email': text('Email', 'email'),
+    '입사일자': <Fragment key="입사일자">
+                <li>
+                  <span className="title">입사일자</span>
+                  <div className="form"><input type="date" className="ec-input w-[150px]" value={form.hireDate} onChange={(e) => set({ hireDate: e.target.value })} /></div>
+                </li>
+    </Fragment>,
+    '퇴사일자': <Fragment key="퇴사일자">
+                <li>
+                  <span className="title">퇴사일자</span>
+                  <div className="form"><input type="date" className="ec-input w-[150px]" value={form.resignDate} onChange={(e) => set({ resignDate: e.target.value })} /></div>
+                </li>
+    </Fragment>,
+    '우편번호': text('우편번호', 'zipcode', true),
+    '주소': <Fragment key="주소">
+                <li className="wide">
+                  <span className="title">주소</span>
+                  <div className="form"><textarea className="ec-input w-full h-[48px]" placeholder="주소" value={form.address} onChange={(e) => set({ address: e.target.value })} /></div>
+                </li>
+    </Fragment>,
+    '고용보험': <Fragment key="고용보험">
+                <li className="wide">
+                  <span className="title">고용보험</span>
+                  <div className="form flex items-center gap-[12px]">
+                    {([[true, '대상'], [false, '대상아님']] as const).map(([v, l]) => (
+                      <label key={l} className="inline-flex items-center gap-[4px]">
+                        <input type="radio" name="dw-ei" checked={form.employmentInsurance === v} onChange={() => set({ employmentInsurance: v })} /> {l}
+                      </label>
+                    ))}
+                  </div>
+                </li>
+    </Fragment>,
+    '국민연금': <Fragment key="국민연금">
+                <li className="wide">
+                  <span className="title">국민연금</span>
+                  <div className="form">
+                    <div className="flex items-center gap-[12px] mb-[4px]">
+                      {([[false, '기준소득월액기준'], [true, '자동계산']] as const).map(([v, l]) => (
+                        <label key={l} className="inline-flex items-center gap-[4px]">
+                          <input type="radio" name="dw-np" checked={form.pensionAuto === v} onChange={() => set({ pensionAuto: v })} /> {l}
+                        </label>
+                      ))}
+                    </div>
+                    {!form.pensionAuto && money('pensionBase', '기준소득월액')}
+                  </div>
+                </li>
+    </Fragment>,
+    '건강보험': <Fragment key="건강보험">
+                <li className="wide">
+                  <span className="title">건강보험</span>
+                  <div className="form">
+                    <div className="flex items-center gap-[12px] mb-[4px]">
+                      {([[false, '보수월액기준'], [true, '자동계산']] as const).map(([v, l]) => (
+                        <label key={l} className="inline-flex items-center gap-[4px]">
+                          <input type="radio" name="dw-hi" checked={form.healthAuto === v} onChange={() => set({ healthAuto: v })} /> {l}
+                        </label>
+                      ))}
+                    </div>
+                    {!form.healthAuto && money('healthBase', '보수월액')}
+                  </div>
+                </li>
+    </Fragment>,
+    '급여통장': <Fragment key="급여통장">
+                <li className="wide">
+                  <span className="title">급여통장</span>
+                  <div className="form flex flex-col gap-[4px]">
+                    {/* 원본 은행은 은행코드 코드도움 — 일용 사원은 은행 이름만 들고 있어 이름을 담는다(예전 글자 값도 후보에 남긴다) */}
+                    <CodePickerField label="은행" hideLabel fill placeholder="은행" emptyLabel="선택 해제"
+                                     value={form.bankName} onChange={(v) => set({ bankName: v })}
+                                     items={[...BANK_CODES.map(([code, name]) => ({ value: name, code, name })),
+                                       ...(form.bankName && !BANK_CODES.some(([, n]) => n === form.bankName) ? [{ value: form.bankName, name: form.bankName }] : [])]} />
+                    <input className="ec-input w-full" placeholder="계좌번호" value={form.accountNo} onChange={(e) => set({ accountNo: e.target.value })} />
+                    <input className="ec-input w-full" placeholder="예금주" value={form.accountHolder} onChange={(e) => set({ accountHolder: e.target.value })} />
+                  </div>
+                </li>
+    </Fragment>,
+    '적요': <Fragment key="적요">
+                <li className="wide">
+                  <span className="title">적요</span>
+                  <div className="form"><textarea className="ec-input w-full h-[48px]" placeholder="적요" value={form.remark} onChange={(e) => set({ remark: e.target.value })} /></div>
+                </li>
+    </Fragment>,
+  }
+  const fields = (...ns: string[]) => ns.map((n) => F[n])
+
   return (
     <EcListShell
       title="일용근로 사원리스트"
@@ -254,110 +381,22 @@ export default function DailyWorkerListPage() {
       )}
       <Modal error={formError} open={open} title="사원등록" width={820} onClose={() => setOpen(false)}>
         <div className="ec-pills mb-[8px]">
-          {(['기본', '급여지급사항'] as const).map((t) => (
+          {(['기본', '사원정보', '급여지급사항', '추가정보', '기타설정'] as const).map((t) => (
             <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
           ))}
         </div>
         {tab === '기본' ? (
-          <ul className="ec-form">
-            <li className="wide">
-              <span className="title">사원번호</span>
-              <div className="form">
-                {editId ? <span>{form.code}</span> : <input className="ec-input w-full" value={form.code} onChange={(e) => set({ code: e.target.value })} />}
-              </div>
-            </li>
-            <li className="wide">
-              <span className="title">성명</span>
-              <div className="form">
-                <input className={`ec-input w-full ${nameBad && !form.name.trim() ? 'border-ec-danger' : ''}`} aria-invalid={nameBad && !form.name.trim()}
-                       placeholder="성명" value={form.name} onChange={(e) => set({ name: e.target.value })} />
-              </div>
-            </li>
-            <li>
-              <span className="title">외국인</span>
-              <div className="form flex items-center gap-[6px]">
-                <label className="inline-flex items-center gap-[4px]">
-                  <input type="checkbox" checked={form.foreigner} onChange={(e) => set({ foreigner: e.target.checked })} /> 외국인
-                </label>
-                <input className="ec-input flex-1" placeholder="국적" disabled={!form.foreigner} value={form.nationality} onChange={(e) => set({ nationality: e.target.value })} />
-              </div>
-            </li>
-            <li>
-              <span className="title">부서코드</span>
-              <div className="form">
-                <CodePickerField label="부서코드" hideLabel fill placeholder="부서코드" emptyLabel="선택 해제"
-                                 value={form.departmentId} onChange={(v) => set({ departmentId: v })}
-                                 items={departments.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))} />
-              </div>
-            </li>
-            {text('모바일', 'mobile')}
-            {text('Email', 'email')}
-            <li>
-              <span className="title">입사일자</span>
-              <div className="form"><input type="date" className="ec-input w-[150px]" value={form.hireDate} onChange={(e) => set({ hireDate: e.target.value })} /></div>
-            </li>
-            <li>
-              <span className="title">퇴사일자</span>
-              <div className="form"><input type="date" className="ec-input w-[150px]" value={form.resignDate} onChange={(e) => set({ resignDate: e.target.value })} /></div>
-            </li>
-            {text('우편번호', 'zipcode', true)}
-            <li className="wide">
-              <span className="title">주소</span>
-              <div className="form"><textarea className="ec-input w-full h-[48px]" placeholder="주소" value={form.address} onChange={(e) => set({ address: e.target.value })} /></div>
-            </li>
-            <li className="wide">
-              <span className="title">고용보험</span>
-              <div className="form flex items-center gap-[12px]">
-                {([[true, '대상'], [false, '대상아님']] as const).map(([v, l]) => (
-                  <label key={l} className="inline-flex items-center gap-[4px]">
-                    <input type="radio" name="dw-ei" checked={form.employmentInsurance === v} onChange={() => set({ employmentInsurance: v })} /> {l}
-                  </label>
-                ))}
-              </div>
-            </li>
-            <li className="wide">
-              <span className="title">국민연금</span>
-              <div className="form">
-                <div className="flex items-center gap-[12px] mb-[4px]">
-                  {([[false, '기준소득월액기준'], [true, '자동계산']] as const).map(([v, l]) => (
-                    <label key={l} className="inline-flex items-center gap-[4px]">
-                      <input type="radio" name="dw-np" checked={form.pensionAuto === v} onChange={() => set({ pensionAuto: v })} /> {l}
-                    </label>
-                  ))}
-                </div>
-                {!form.pensionAuto && money('pensionBase', '기준소득월액')}
-              </div>
-            </li>
-            <li className="wide">
-              <span className="title">건강보험</span>
-              <div className="form">
-                <div className="flex items-center gap-[12px] mb-[4px]">
-                  {([[false, '보수월액기준'], [true, '자동계산']] as const).map(([v, l]) => (
-                    <label key={l} className="inline-flex items-center gap-[4px]">
-                      <input type="radio" name="dw-hi" checked={form.healthAuto === v} onChange={() => set({ healthAuto: v })} /> {l}
-                    </label>
-                  ))}
-                </div>
-                {!form.healthAuto && money('healthBase', '보수월액')}
-              </div>
-            </li>
-            <li className="wide">
-              <span className="title">급여통장</span>
-              <div className="form flex flex-col gap-[4px]">
-                {/* 원본 은행은 은행코드 코드도움 — 일용 사원은 은행 이름만 들고 있어 이름을 담는다(예전 글자 값도 후보에 남긴다) */}
-                <CodePickerField label="은행" hideLabel fill placeholder="은행" emptyLabel="선택 해제"
-                                 value={form.bankName} onChange={(v) => set({ bankName: v })}
-                                 items={[...BANK_CODES.map(([code, name]) => ({ value: name, code, name })),
-                                   ...(form.bankName && !BANK_CODES.some(([, n]) => n === form.bankName) ? [{ value: form.bankName, name: form.bankName }] : [])]} />
-                <input className="ec-input w-full" placeholder="계좌번호" value={form.accountNo} onChange={(e) => set({ accountNo: e.target.value })} />
-                <input className="ec-input w-full" placeholder="예금주" value={form.accountHolder} onChange={(e) => set({ accountHolder: e.target.value })} />
-              </div>
-            </li>
-            <li className="wide">
-              <span className="title">적요</span>
-              <div className="form"><textarea className="ec-input w-full h-[48px]" placeholder="적요" value={form.remark} onChange={(e) => set({ remark: e.target.value })} /></div>
-            </li>
-          </ul>
+          <ul className="ec-form">{fields('사원번호', '성명', '외국인', '부서코드', '모바일', 'Email', '입사일자', '퇴사일자', '우편번호', '주소', '고용보험', '국민연금', '건강보험', '급여통장', '적요')}</ul>
+        ) : tab === '사원정보' ? (
+          <ul className="ec-form">{fields('사원번호', '성명', '부서코드', '모바일', 'Email', '입사일자', '퇴사일자', '우편번호', '주소', '적요')}</ul>
+        ) : tab === '추가정보' ? (
+          <>
+            <ul className="ec-form mb-[8px]">{fields('사원번호', '성명')}</ul>
+            {/* 원본 [추가정보] 는 문자 · 숫자 · Y/N · 일자 · 코드 형식 칸 열다섯(2026-10-22 실측) — 우리는 Self-Customizing 사용자정의 칸이 값은 행에 붙으므로 수정할 때만 뜬다 */}
+            {editId && <CustomFieldsPanel entityType="DAILY_WORKER" entityId={editId} />}
+          </>
+        ) : tab === '기타설정' ? (
+          <ul className="ec-form">{fields('사원번호', '성명', '외국인', '고용보험', '국민연금', '급여통장', '건강보험')}</ul>
         ) : (
           <>
             <ul className="ec-form mb-[8px]">
