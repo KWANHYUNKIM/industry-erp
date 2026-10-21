@@ -106,6 +106,8 @@ export default function EcStatusPanel({
   /** 화면마다 다른 조건들 — `EcCond` 로 감싼다. */
   children?: ReactNode
 }) {
+  /* [메뉴 현황|집계] 위 줄 + [구분] 아래 줄 틀(판매 · 구매 · 출하 · 주문서 현황)은 비교기간이 알약이다. */
+  const asPills = modeLabel === '메뉴' && compareLabel === '구분'
   const prev = compare ? comparePeriodOf(from, to, compare) : null
   /** 원본은 기준일자 옆에 마지막으로 누른 빠른선택 이름을 적어 둔다(예: '금월(~오늘)'). */
   const [pickedLabel, setPickedLabel] = useState('')
@@ -125,11 +127,34 @@ export default function EcStatusPanel({
               </button>
             ))}
           </div>
-          {modeExtra}
+          {!asPills && modeExtra}
         </EcCond>
       )}
 
-      {compare && onCompareChange && (
+      {compare && onCompareChange && asPills && (
+        /* 원본 판매현황 · 출하현황(2026-10-22 실측): [구분] 줄 안에 선택상자(라인별 …)가 위, 그 아래 줄에 '비교기간' 꼬리표 + 알약. */
+        <EcCond label={compareLabel}>
+          <div className="flex flex-col items-start gap-[5px]">
+            {modeExtra}
+            <div className="flex items-center gap-[5px]">
+              <span className="inline-flex items-center h-[18px] px-[6px] rounded-[4px] bg-ec-page text-ec-label text-[11px]">비교기간</span>
+              <div className="ec-pills">
+                {COMPARE_PERIODS.map((c) => (
+                  <button key={c} type="button" className={`ec-pill no-ec${compare === c ? ' active' : ''}`}
+                          onClick={() => onCompareChange(c)}>{c}</button>
+                ))}
+              </div>
+              {prev && (
+                <span className="text-[11.5px] text-ec-label">
+                  비교 대상 {prev.from.replace(/-/g, '/')} ~ {prev.to.replace(/-/g, '/')}
+                </span>
+              )}
+            </div>
+          </div>
+        </EcCond>
+      )}
+
+      {compare && onCompareChange && !asPills && (
         <EcCond label={compareLabel}>
           <select
             className="ec-input"

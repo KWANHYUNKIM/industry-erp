@@ -277,8 +277,7 @@ export default function ShipmentPage() {
         compare={compare} onCompareChange={setCompare}
         modeLabel="메뉴" compareLabel="구분"
         modeExtra={mode === '현황' ? (
-          <label className="inline-flex items-center gap-[6px] ml-[12px]">
-            <span className="text-ec-label">구분</span>
+          <label className="inline-flex items-center gap-[6px]">
             <select className="ec-input w-[130px]" aria-label="구분" value={lineKind}
                     onChange={(e) => setLineKind(e.target.value as LineKind)}>
               {LINE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}

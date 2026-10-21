@@ -26,6 +26,10 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 type Mode = '현황' | '집계'
 const MODES = ['현황', '집계'] as const
 
+/** 원본 [구분] 드롭다운(2026-10-22 실측) — 현황 메뉴에서 줄을 무엇으로 묶어 보일지. */
+const LINE_KINDS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '거래처별', '담당자별'] as const
+type LineKind = (typeof LINE_KINDS)[number]
+
 interface Row {
   key: string
   date: string
@@ -118,6 +122,7 @@ export default function PurchaseStatusPage() {
    * 우리가 '현황' 이라 부르던 것이 원본의 '라인별'이고, '내역'(전표 단위)이 없었다.
    */
   const [mode, setMode] = useState<Mode>('현황')
+  const [lineKind, setLineKind] = useState<LineKind>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
   const [group2, setGroup2] = useState<GroupKey | ''>('')
@@ -264,7 +269,34 @@ export default function PurchaseStatusPage() {
    * 2026-10-20 loginaa 실측: [라인별] 은 <b>소계 · 총합계가 없는</b> 일자 내림차순 줄이다
    * (9-09 기록의 '월 소계' 는 오늘 원본에 없다). shown 이 이미 줄 단위 · 내림차순이다.
    */
-  const lineRows = shown
+  /*
+   * 원본 [구분] 여덟 갈래(2026-10-22 구매현황 실측 — 일별 확인): 같은 일곱 열에 묶는 키만 다르다(판매현황과 같은 규칙, 소계 · 총합계 줄만 없다).
+   * 묶인 줄은 첫 줄의 일자-No. · 거래처 · 적요 · 품목을 찍고 수량 · 금액은 더하며 단가는 줄 단가의 평균이다.
+   */
+  const lineRows = useMemo(() => {
+    if (lineKind === '라인별') return shown
+    const itemOf = (r: typeof shown[number]) => r.itemName + (r.spec ? ` [${r.spec}]` : '')
+    const keyOf = (r: typeof shown[number]): string => {
+      const ym = r.date.slice(0, 7)
+      switch (lineKind) {
+        case '일별': return r.date
+        case '월별': return ym
+        case '전표별': return dateNo(r.date, r.docNo)
+        case '품목별': return `${ym}|${r.itemId}|${itemOf(r)}`
+        case '전표별품목별': return `${dateNo(r.date, r.docNo)}|${r.itemId}|${itemOf(r)}`
+        case '거래처별': return `${ym}|${r.partner}`
+        default: return `${ym}|${r.employeeName ?? ''}`
+      }
+    }
+    const groups = new Map<string, { first: typeof shown[number]; n: number; qty: number; price: number; supply: number }>()
+    for (const r of shown) {
+      const k = keyOf(r)
+      const g = groups.get(k) ?? { first: r, n: 0, qty: 0, price: 0, supply: 0 }
+      g.n += 1; g.qty += r.qty; g.price += r.unitPrice; g.supply += r.supply
+      groups.set(k, g)
+    }
+    return [...groups].map(([k, g]) => ({ ...g.first, key: `g|${k}`, qty: g.qty, unitPrice: Math.round(g.price / g.n), supply: g.supply }))
+  }, [shown, lineKind])
 
   /**
    * 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 다시 합친다.
@@ -317,10 +349,10 @@ export default function PurchaseStatusPage() {
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeLabel="메뉴" compareLabel="구분"
         modeExtra={mode === '현황' ? (
-          <label className="inline-flex items-center gap-[6px] ml-[12px]">
-            <span className="text-ec-label">구분</span>
-            <select className="ec-input w-[130px]" aria-label="구분" defaultValue="라인별">
-              <option value="라인별">라인별</option>
+          <label className="inline-flex items-center gap-[6px]">
+            <select className="ec-input w-[130px]" aria-label="구분" value={lineKind}
+                    onChange={(e) => setLineKind(e.target.value as LineKind)}>
+              {LINE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
           </label>
         ) : undefined}
