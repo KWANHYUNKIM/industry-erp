@@ -148,6 +148,37 @@ export default function SpecialPricePage() {
     } catch (err) { setIForm({ ...iForm, error: extractErrorMessage(err) }) }
   }
 
+  // ── 품목그룹별 [변경] 격자 창(원본 2026-10-22 실측: 머리 [필드 ▾][값][적용] 일괄변경 → 저장(F8) '저장 하겠습니까?') ──
+  type BulkRow = { id: number; code: string; name: string; groupName: string; priceBasis: string; adjustRate: string; roundUnit: string; roundMode: string; active: boolean; dirty: Set<string> }
+  const BULK_FIELDS = ['단가기준', '비율', '단위처리', '반올림구분', '사용구분'] as const
+  const [bulk, setBulk] = useState<{ open: boolean; rows: BulkRow[]; field: typeof BULK_FIELDS[number]; value: string; error: string }>({ open: false, rows: [], field: '단가기준', value: '', error: '' })
+  function openBulk(rows: SpecialPriceItemGroup[]) {
+    setBulk({ open: true, field: '단가기준', value: options.priceBases[0] ?? '', error: '', rows: rows.map((r) => ({
+      id: r.id, code: r.itemGroupCode, name: r.itemGroupName, groupName: r.groupName, priceBasis: r.priceBasis, adjustRate: String(r.adjustRate ?? ''),
+      roundUnit: r.roundUnit, roundMode: r.roundMode, active: r.active, dirty: new Set<string>() })) })
+  }
+  function bulkChoices(f: typeof BULK_FIELDS[number]): string[] | null {
+    return f === '단가기준' ? options.priceBases : f === '단위처리' ? options.roundUnits : f === '반올림구분' ? options.roundModes : f === '사용구분' ? ['사용', '사용중단'] : null
+  }
+  function bulkSet(r: BulkRow, f: typeof BULK_FIELDS[number], v: string): BulkRow {
+    const dirty = new Set(r.dirty); dirty.add(f)
+    return f === '단가기준' ? { ...r, priceBasis: v, dirty } : f === '비율' ? { ...r, adjustRate: v, dirty } : f === '단위처리' ? { ...r, roundUnit: v, dirty }
+      : f === '반올림구분' ? { ...r, roundMode: v, dirty } : { ...r, active: v === '사용', dirty }
+  }
+  function bulkApply() { setBulk((b) => ({ ...b, rows: b.rows.map((r) => bulkSet(r, b.field, b.value)) })) }
+  async function saveBulk() {
+    if (!(await ecConfirm('저장 하겠습니까?'))) return
+    try {
+      for (const r of bulk.rows) {
+        const src = igPrices.find((x) => x.id === r.id); if (!src) continue
+        await api.put(`/special-prices/item-groups/${r.id}`, { groupId: src.groupId, itemGroupId: src.itemGroupId, priceBasis: r.priceBasis,
+          adjustRate: Number(r.adjustRate || 0), roundUnit: r.roundUnit, roundMode: r.roundMode })
+        if (r.active !== src.active) await api.patch(`/special-prices/item-groups/${r.id}/active`, null, { params: { active: r.active } })
+      }
+      setBulk((b) => ({ ...b, open: false })); setChecked(new Set()); void load()
+    } catch (err) { setBulk((b) => ({ ...b, error: extractErrorMessage(err) })) }
+  }
+
   // ── 품목그룹별 창 ──
   const emptyIgForm = { open: false, id: null as number | null, groupId: '', itemGroupId: '', priceBasis: '출고단가', adjustRate: '',
     roundUnit: '소수6자리미만', roundMode: '반올림', bad: false, error: '' }
@@ -258,7 +289,7 @@ export default function SpecialPricePage() {
 
   const actions = [
     ...(pill === '특별단가그룹' ? [] : [
-      { label: '변경', onClick: () => { if (pill === '품목별') { const r = firstPicked(shownPrices); if (r) openItemForm(r) } else { const r = shownIg.find((x) => checked.has(x.id)); if (r) openIgForm(r); else void ecAlert(CHANGE_NO_PICK) } } },
+      { label: '변경', onClick: () => { if (pill === '품목별') { const r = firstPicked(shownPrices); if (r) openItemForm(r) } else { const rs = shownIg.filter((x) => checked.has(x.id)); if (rs.length) openBulk(rs); else void ecAlert(CHANGE_NO_PICK) } } },
       { label: '복사', onClick: () => { if (pill === '품목별') { const r = firstPicked(shownPrices); if (r) openItemForm(r, true) } else { const r = firstPicked(shownIg); if (r) openIgForm(r, true) } } },
     ]),
     { label: '사용중단/재사용', onClick: () => setMenuOpen((v) => !v) },
@@ -468,6 +499,44 @@ export default function SpecialPricePage() {
       )}</Modal>
 
       {/* 품목그룹추가 */}
+      <Modal error={bulk.error} open={bulk.open} title="변경" width={959} onClose={() => setBulk({ ...bulk, open: false })}>{(
+        <div>
+          <div className="flex justify-end gap-[6px] mb-[6px]">
+            <select className="ec-input" value={bulk.field} onChange={(e) => { const f = e.target.value as typeof BULK_FIELDS[number]; setBulk({ ...bulk, field: f, value: bulkChoices(f)?.[0] ?? '' }) }}>
+              {BULK_FIELDS.map((f) => <option key={f}>{f}</option>)}
+            </select>
+            {bulkChoices(bulk.field)
+              ? <select className="ec-input" value={bulk.value} onChange={(e) => setBulk({ ...bulk, value: e.target.value })}>{bulkChoices(bulk.field)!.map((o) => <option key={o}>{o}</option>)}</select>
+              : <input className="ec-input text-right" value={bulk.value} onChange={(e) => setBulk({ ...bulk, value: e.target.value.replace(/[^0-9-]/g, '') })} />}
+            <button type="button" className="ec-btn ec-btn-sm" onClick={bulkApply}>적용</button>
+          </div>
+          <table>
+            <thead><tr><th className="w-[34px]" /><th>품목그룹코드</th><th>품목그룹명</th><th>특별단가그룹명</th><th>단가기준</th><th>비율</th><th>단위처리</th><th>반올림구분</th><th>사용구분</th></tr></thead>
+            <tbody>
+              {bulk.rows.map((r, i) => {
+                const mark = (f: string) => (r.dirty.has(f) ? 'bg-[var(--ec-danger-bg)]' : '')
+                const upd = (f: typeof BULK_FIELDS[number], v: string) => setBulk((b) => ({ ...b, rows: b.rows.map((x) => (x.id === r.id ? bulkSet(x, f, v) : x)) }))
+                return (
+                  <tr key={r.id}>
+                    <td className="text-center"><NumCheck tone="plain" no={i + 1} on onChange={() => undefined} /></td>
+                    <td>{r.code}</td><td>{r.name}</td><td>{r.groupName}</td>
+                    <td className={mark('단가기준')}><select className="ec-input w-full" value={r.priceBasis} onChange={(e) => upd('단가기준', e.target.value)}>{options.priceBases.map((o) => <option key={o}>{o}</option>)}</select></td>
+                    <td className={mark('비율')}><input className="ec-input w-full text-right" value={r.adjustRate} onChange={(e) => upd('비율', e.target.value.replace(/[^0-9-]/g, ''))} /></td>
+                    <td className={mark('단위처리')}><select className="ec-input w-full" value={r.roundUnit} onChange={(e) => upd('단위처리', e.target.value)}>{options.roundUnits.map((o) => <option key={o}>{o}</option>)}</select></td>
+                    <td className={mark('반올림구분')}><select className="ec-input w-full" value={r.roundMode} onChange={(e) => upd('반올림구분', e.target.value)}>{options.roundModes.map((o) => <option key={o}>{o}</option>)}</select></td>
+                    <td className={mark('사용구분')}><select className="ec-input w-full" value={r.active ? '사용' : '사용중단'} onChange={(e) => upd('사용구분', e.target.value)}><option>사용</option><option>사용중단</option></select></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          <div className="mt-[9px] flex gap-[6px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveBulk()}>저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setBulk({ ...bulk, open: false })}>닫기</button>
+          </div>
+        </div>
+      )}</Modal>
+
       <Modal error={gpForm.error} open={gpForm.open} title={gpForm.id ? '품목그룹수정' : '품목그룹추가'} width={959} onClose={() => setGpForm({ ...gpForm, open: false })}>{(
         <form onSubmit={saveIgPrice}>
           <ul className="ec-form">

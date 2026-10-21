@@ -275,9 +275,9 @@ public class SpecialPriceService {
     }
 
     static String adjustText(SpecialPriceItemGroup g) {
+        // 원본 2026-10-22 실측: '출고단가/-10/소수6자리미만/반올림' (부호 · % · 괄호 없이 슬래시로 잇는다)
         String rate = g.getAdjustRate().stripTrailingZeros().toPlainString();
-        if (g.getAdjustRate().signum() >= 0) rate = "+" + rate;
-        return g.getPriceBasis() + " " + rate + "% (" + g.getRoundUnit() + " " + g.getRoundMode() + ")";
+        return g.getPriceBasis() + "/" + rate + "/" + g.getRoundUnit() + "/" + g.getRoundMode();
     }
 
     /** 단가기준 × (100 + 조정_비율) / 100 을 조정_단위처리로. */

@@ -1,0 +1,40 @@
+{
+  "about": "특별단가등록(E040124) 품목그룹별 [변경] — 고른 것 없으면 '선택된 자료가 없습니다.' / 고르면 격자 창(머리 [필드▾][값][적용] 일괄변경 → 저장(F8) '저장 하겠습니까?' 확인 → 목록 조정내역 '출고단가/-10/소수6자리미만/반올림', 원본 2026-10-22). 그룹 · 품목그룹 줄은 API 로 만들고 지운다.",
+  "shots": [
+    {
+      "name": "품목그룹별 변경 격자 창 → 비율 -10 적용 → 저장 확인 → 조정내역",
+      "path": "/sales/special-price",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async () => { const old = (await window.__api('GET', '/special-prices/groups')).body.find((g) => g.code === 'QA-BULK'); if (old) await window.__api('DELETE', '/special-prices/groups/' + old.id); const g = (await window.__api('POST', '/special-prices/groups', { code: 'QA-BULK', name: 'QA 일괄변경' })).body; let ig = (await window.__api('GET', '/item-groups')).body.find((x) => x.code === 'QA-BULKIG'); if (!ig) ig = (await window.__api('POST', '/item-groups', { code: 'QA-BULKIG', name: 'QA 일괄품목그룹' })).body; sessionStorage.setItem('bulkIg', String(ig.id)); const r = await window.__api('POST', '/special-prices/item-groups', { groupId: g.id, itemGroupId: ig.id, priceBasis: '출고단가', adjustRate: 5, roundUnit: '소수6자리미만', roundMode: '반올림' }); sessionStorage.setItem('bulkGroup', String(g.id)); return r.status })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '품목그룹별').click(); true",
+        "wait:600",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '변경').click(); true",
+        "wait:500",
+        "expect:/선택된 자료가 없습니다/.test(document.body.innerText)",
+        "clicklast:확인",
+        "wait:300",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA 일괄변경')).querySelector('input[type=checkbox]').click(); true",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '변경').click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog] th')].some((t) => t.textContent.trim() === '반올림구분')",
+        "js:(() => { const d = document.querySelector('[role=dialog]'); const s = d.querySelector('select'); const set = (el, v) => { const proto = el.tagName === 'SELECT' ? HTMLSelectElement : HTMLInputElement; Object.getOwnPropertyDescriptor(proto.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; set(s, '비율'); return true })()",
+        "wait:200",
+        "js:(() => { const d = document.querySelector('[role=dialog]'); const i = d.querySelector('input.text-right'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '-10'); i.dispatchEvent(new Event('input', { bubbles: true })); [...d.querySelectorAll('button')].find((b) => b.textContent.trim() === '적용').click(); return true })()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody input.text-right')].some((i) => i.value === '-10')",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:/저장 하겠습니까\\?/.test(document.body.innerText)",
+        "clicklast:확인",
+        "wait:2000",
+        "expect:![...document.querySelectorAll('[role=dialog]')].some((d) => /반올림구분/.test(d.textContent))",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('출고단가/-10/소수6자리미만/반올림'))",
+        "js:window.__api('DELETE', '/special-prices/groups/' + sessionStorage.getItem('bulkGroup')).then(() => window.__api('DELETE', '/item-groups/' + sessionStorage.getItem('bulkIg'))).then((r) => r.status)"
+      ]
+    }
+  ]
+}
