@@ -1162,11 +1162,19 @@ console.log('\n■ 형제 메뉴는 같은 종류인가')
     groups.set(k, cur)
   }
 
+  /*
+   * 갈려도 맞는 무리 — 이유와 함께. 저장 여부는 <b>파일</b>로 재는데 한 파일이 원본 둘을 겸하면 틀리게 잰다.
+   */
+  const MIXED_OK = {
+    '회계미반영현황': '(판매) · (구매) 메뉴는 AccountingReflectionPage 의 ?view=unposted 로 열리는데 그 파일이 판매 · 구매 일괄회계반영(저장)도 겸해서 저장O 로 잰다 — 미반영현황 화면 자체는 출력물이다. (계약) 은 회계 II 계약관리 › 회계반영의 출력물(E060908, 버튼 인쇄 · Excel — plans/회계2.md 2026-10-13 실측)이라 저장이 없는 게 맞다',
+  }
   const mixed = []
   let families = 0
+  for (const k of Object.keys(MIXED_OK)) if (!groups.has(k)) mixed.push(k + ' — 예외로 적어 뒀는데 그런 형제 무리가 없다. 예외를 지우세요')
   for (const [k, ms] of groups) {
     if (ms.length < 2) continue
     families++
+    if (MIXED_OK[k]) continue
     if (new Set(ms.map((x) => x.saves)).size > 1) {
       mixed.push(k + ' — ' + ms.map((x) => x.label + (x.saves ? '(저장O)' : '(저장X)')).join(' · '))
     }
@@ -8096,13 +8104,20 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
      * 가리키는 파일이 없으면 읽을 글이 없어 '없음' 이 저절로 참이 된다 — 패키지를 옮겼을 때
      * 이렇게 54건이 조용히 통과했다(그중 셋은 옮기기 전부터 경로가 틀려 있었다).
      */
-    if (w.in && !['backend', 'frontend', 'both'].includes(w.in) && !existsSync(w.in)) {
-      stale.push(`[${key}] — 증거 자리 ${w.in} 가 없다. 파일을 옮겼으면 경로를 고치세요`)
+    /*
+     * 자리는 여럿이어도 된다(배열) — '출퇴근·휴가에 프로젝트가 없다' 를 hr 통째로 재다가
+     * 근로계약서에 프로젝트 칸이 생기자(2026-10-21 C061103 원본 계약서입력) 근태와 무관한데 걸렸다.
+     * 주장이 닿는 기능 폴더만 적는다.
+     */
+    const ins = Array.isArray(w.in) ? w.in : [w.in]
+    const missing = ins.filter((p) => p && !['backend', 'frontend', 'both'].includes(p) && !existsSync(p))
+    if (missing.length) {
+      stale.push(`[${key}] — 증거 자리 ${missing.join(', ')} 가 없다. 파일을 옮겼으면 경로를 고치세요`)
       continue
     }
     for (const name of w.absent ?? []) {
       checked++
-      if (treeText(w.in).includes(name)) {
+      if (ins.some((p) => treeText(p).includes(name))) {
         stale.push(`[${key}] — "${w.claim}" 라고 적어 뒀는데 코드에 <${name}> 가 생겼다. 다시 재 보세요`)
       }
     }

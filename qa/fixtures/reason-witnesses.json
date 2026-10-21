@@ -1975,7 +1975,13 @@
    "projectName",
    "Project project"
   ],
-  "in": "backend/src/main/java/com/erp/hr"
+  "in": [
+   "backend/src/main/java/com/erp/hr/attendance",
+   "backend/src/main/java/com/erp/hr/attendancekind",
+   "backend/src/main/java/com/erp/hr/employeecommute",
+   "backend/src/main/java/com/erp/hr/vacation",
+   "backend/src/main/java/com/erp/hr/workrecord"
+  ]
  },
  "생산입고조회|전자결재": {
   "claim": "생산 전표를 결재에 올리지 않는다",
@@ -2068,7 +2074,10 @@
    "projectName",
    "Project project"
   ],
-  "in": "backend/src/main/java/com/erp/hr"
+  "in": [
+   "backend/src/main/java/com/erp/hr/vacation",
+   "backend/src/main/java/com/erp/hr/attendancekind"
+  ]
  },
  "판매조회|발송여부": {
   "claim": "전표를 보냈는지(메일·팩스)를 기록하지 않는다",
@@ -3039,7 +3048,13 @@
    "projectName",
    "Project project"
   ],
-  "in": "backend/src/main/java/com/erp/hr"
+  "in": [
+   "backend/src/main/java/com/erp/hr/attendance",
+   "backend/src/main/java/com/erp/hr/attendancekind",
+   "backend/src/main/java/com/erp/hr/employeecommute",
+   "backend/src/main/java/com/erp/hr/vacation",
+   "backend/src/main/java/com/erp/hr/workrecord"
+  ]
  },
  "발주서조회|발송여부": {
   "claim": "전표를 거래처에 내보내는 기능이 없다(위 [발주서|발송여부] 과 같은 사실이다)",
@@ -3065,7 +3080,10 @@
    "projectName",
    "Project project"
   ],
-  "in": "backend/src/main/java/com/erp/hr"
+  "in": [
+   "backend/src/main/java/com/erp/hr/vacation",
+   "backend/src/main/java/com/erp/hr/attendancekind"
+  ]
  },
  "SW개발일정관리|게시일": {
   "claim": "프로젝트는 게시글이 아니라 올린 날이 없다(위 [건설예정공정표|게시일] 과 같은 사실이다)",
