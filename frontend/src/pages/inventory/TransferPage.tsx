@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer, Warehouse } from '../../types/api'
+import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer as TransferRow, Warehouse } from '../../types/api'
+
+/** 창고이동 한 줄. 같은 이동번호의 줄들이 전표 한 장이다(서버 V426) — lineNo 는 전표 안 줄 차례. */
+type StockTransfer = TransferRow & { lineNo?: number }
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -63,6 +66,16 @@ export default function TransferPage() {
   const [error, setError] = useState('')
   /* 메뉴 [창고이동입력] 은 ?new=1 로 연다 — 원본은 입력이 따로 있는 화면이라 등록 창을 바로 띄운다. */
   const [showForm, setShowForm] = useState(() => params.get('new') === '1')
+  /* 이동번호를 눌러 연 전표(원본 창고이동조회 → 창고이동수정 창). 없으면 새 전표다. */
+  const [editSlip, setEditSlip] = useState<StockTransfer[] | null>(null)
+  async function openSlip(no: string) {
+    try {
+      const r = await api.get<StockTransfer[]>(`/stock-transfers/slips/${encodeURIComponent(no)}`)
+      setTab('창고이동'); setEditSlip(r.data); setShowForm(true)
+    } catch (err) {
+      void ecAlert(extractErrorMessage(err))
+    }
+  }
   /* 같은 화면에서 메뉴를 다시 누르면 다시 그려지지 않는다 — 주소의 new 가 바뀔 때도 연다. */
   useEffect(() => { if (params.get('new') === '1') { setTab('창고이동'); setShowForm(true) } }, [params])
 
@@ -72,9 +85,12 @@ export default function TransferPage() {
    * 그러면 창고이동조회에 있지도 않은 이동이 두 줄 남는다. 서버가 옮겼던 재고를 되돌린다.
    */
   async function removeTransfer(r: StockTransfer) {
-    if (!(await ecConfirm(`창고이동 '${r.transferNo}' 을(를) 삭제할까요? 옮겼던 재고도 되돌아갑니다.`))) return
+    /* 원본 창고이동수정 창 [삭제] 의 확인 글 그대로 — 전표 한 장(줄 전부)을 지운다. */
+    if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 창고이동'))) return
     try {
-      await api.delete(`/stock-transfers/${r.id}`)
+      await api.delete(`/stock-transfers/slips/${encodeURIComponent(r.transferNo)}`)
+      setShowForm(false); setEditSlip(null)
+      setOk(`${slipNoText(r.transferDate, r.transferNo)} 삭제 — 옮겼던 재고를 되돌렸습니다.`)
       load()
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
@@ -125,6 +141,7 @@ export default function TransferPage() {
   function switchTab(t: Tab) {
     setTab(t)
     setShowForm(false)
+    setEditSlip(null)
     setError('')
   }
 
@@ -132,6 +149,7 @@ export default function TransferPage() {
   const [ok, setOk] = useState('')
   async function saved(msg: string) {
     setShowForm(false)
+    setEditSlip(null)
     setError('')
     setOk(msg)
     await load()
@@ -162,6 +180,25 @@ export default function TransferPage() {
     .filter((r) => !empCond || empName(r.employeeId) === empCond)
     .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond))
     .filter((r) => !keyword || r.itemName.includes(keyword) || (r.reason ?? '').includes(keyword))
+  /*
+   * 원본 창고이동조회는 <b>전표 한 장 = 한 줄</b>이다: 이동번호(일자 -No.) · 보내는창고명 · 받는창고명 ·
+   * 품목('첫 품목 외 n건') · 수량(줄 합). 서버는 줄마다 주므로 이동번호로 묶는다(조건은 줄에 걸고, 걸린 줄이 있는 전표를 보인다).
+   */
+  const shownSlips = (() => {
+    const m = new Map<string, { first: StockTransfer; count: number; qty: number }>()
+    for (const r of shownTransfers) {
+      const cur = m.get(r.transferNo)
+      if (!cur) m.set(r.transferNo, { first: r, count: 1, qty: Number(r.quantity) })
+      else {
+        cur.count += 1; cur.qty += Number(r.quantity)
+        if ((r.lineNo ?? 1) < (cur.first.lineNo ?? 1)) cur.first = r
+      }
+    }
+    return [...m.values()].map(({ first, count, qty }) => ({
+      ...first, quantity: qty,
+      itemName: count > 1 ? `${first.itemName} 외 ${count - 1}건` : first.itemName,
+    }))
+  })()
   const shownAdjustments = adjustments.filter((r) =>
     tab !== '창고이동' && r.type === TAB_TYPE[tab] &&
     (!from || r.adjustDate >= from) && (!to || r.adjustDate <= to) &&
@@ -176,7 +213,7 @@ export default function TransferPage() {
    * 탭에 따라 다른 표가 서므로 <b>정렬 상태도 표마다 따로</b> 든다 — 하나로 묶으면
    * 창고이동에서 고른 차례가 재고조정 탭으로 넘어가 엉뚱한 열에 붙는다.
    */
-  const transferSort = useTableSort(shownTransfers, {
+  const transferSort = useTableSort(shownSlips, {
     일자: (r) => r.transferDate,
     품목명: (r) => r.itemName,
   })
@@ -185,7 +222,7 @@ export default function TransferPage() {
     품목명: (r) => r.itemName,
   })
 
-  const count = (t: Tab) => (t === '창고이동' ? transfers.length : adjustments.filter((r) => r.type === TAB_TYPE[t]).length)
+  const count = (t: Tab) => (t === '창고이동' ? new Set(transfers.map((r) => r.transferNo)).size : adjustments.filter((r) => r.type === TAB_TYPE[t]).length)
 
   return (
     <EcListShell
@@ -193,7 +230,7 @@ export default function TransferPage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : `${tab} 등록(F2)`}
-      onNew={() => setShowForm(true)}
+      onNew={() => { setEditSlip(null); setShowForm(true) }}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
       <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
@@ -252,8 +289,10 @@ export default function TransferPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal error={error} open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
-        ? <TransferForm items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />
+      <Modal error={error} open={showForm} title={tab === '창고이동' ? (editSlip ? '창고이동수정' : '창고이동입력') : '기타이동 등록'}
+             onClose={() => { setShowForm(false); setEditSlip(null) }}>{(tab === '창고이동'
+        ? <TransferForm key={editSlip?.[0]?.transferNo ?? 'new'} slip={editSlip} onDelete={removeTransfer}
+                        items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />
         : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />)}</Modal>
 
       {view === '그래프' ? (
@@ -277,31 +316,27 @@ export default function TransferPage() {
           <thead>
             <tr>
               <th className="w-[34px]"></th>
-              <th className="w-[130px]">이동번호</th>
-              <th className="w-[100px] cursor-pointer" onClick={() => transferSort.toggle('일자')}>일자 {transferSort.mark('일자')}</th>
-              <th className="cursor-pointer" onClick={() => transferSort.toggle('품목명')}>품목명 {transferSort.mark('품목명')}</th>
-              <th className="w-[120px]">출고창고</th>
-              <th className="w-[120px]">입고창고</th>
+              <th className="w-[130px] cursor-pointer" onClick={() => transferSort.toggle('일자')}>이동번호 {transferSort.mark('일자')}</th>
+              <th className="w-[120px]">보내는창고명</th>
+              <th className="w-[120px]">받는창고명</th>
+              <th className="cursor-pointer" onClick={() => transferSort.toggle('품목명')}>품목 {transferSort.mark('품목명')}</th>
               <th className="w-[90px] text-right">수량</th>
-              <th>사유</th>
               <th className="w-[54px]"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
-            ) : shownTransfers.length === 0 ? (
-              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
+            ) : shownSlips.length === 0 ? (
+              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : transferSort.sorted.map((r, i) => (
-              <tr key={r.id}>
+              <tr key={r.transferNo}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{r.transferNo}</td>
-                <td>{dateText(r.transferDate)}</td>
-                <td>{r.itemName}</td>
+                <td><a className="cursor-pointer" title={r.transferNo} onClick={() => openSlip(r.transferNo)}>{slipNoText(r.transferDate, r.transferNo)}</a></td>
                 <td>{r.fromWarehouseName}</td>
-                <td className="text-ec-blue">{r.toWarehouseName}</td>
-                <td className="text-right font-semibold">{num(r.quantity)} {r.unit}</td>
-                <td className="text-ec-label">{r.reason ?? ''}</td>
+                <td>{r.toWarehouseName}</td>
+                <td>{r.itemName}</td>
+                <td className="text-right">{num(r.quantity)}</td>
                 <td className="text-center">
                   <button onClick={() => removeTransfer(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
@@ -355,38 +390,71 @@ export default function TransferPage() {
   )
 }
 
-function TransferForm({ items, warehouses, stock, projects, employees, onError, onSaved }: {
+/** 원본 이동번호 꼴 '2026/10/21 -2' — 우리 이동번호 TR-20261021-0002 의 날짜와 일련번호. */
+function slipNoText(date: string, no: string) {
+  const seq = Number(no.split('-')[2] ?? '')
+  return `${date.replaceAll('-', '/')} -${Number.isFinite(seq) && seq > 0 ? seq : no}`
+}
+
+interface SlipLine { itemId: string; quantity: string; reason: string }
+const blankLine = (): SlipLine => ({ itemId: '', quantity: '', reason: '' })
+
+/**
+ * 창고이동입력 / 창고이동수정 (원본 E040501). 머리: 일자 · 담당자 · 보내는창고 · 받는창고 · 프로젝트,
+ * 줄: 품목코드 · 품목명 · 수량 · 적요 — 줄 수는 늘릴 수 있고 빈 줄은 저장하지 않는다.
+ * 예전에는 품목 하나에 한 건이라, 다섯 품목을 옮기면 이동번호가 다섯 개 생겼다.
+ */
+function TransferForm({ slip, onDelete, items, warehouses, stock, projects, employees, onError, onSaved }: {
+  slip: StockTransfer[] | null; onDelete: (r: StockTransfer) => void
   items: Item[]; warehouses: Warehouse[]; stock: StockRow[]
   projects: CodeRow[]; employees: CodeRow[]
   onError: (m: string) => void; onSaved: (msg: string) => void
 }) {
+  const head = slip?.[0]
   const [form, setForm] = useState({
-    transferDate: today(), itemId: '', quantity: '', reason: '',
-    /* 원본 조건의 [프로젝트]·[담당자]. 여태 어디로·누가 옮겼는지를 [사유]에 손으로 적었다. */
-    projectId: '', employeeId: '',
-    fromWarehouseId: warehouses[0] ? String(warehouses[0].id) : '',
-    toWarehouseId: warehouses[1] ? String(warehouses[1].id) : warehouses[0] ? String(warehouses[0].id) : '',
+    transferDate: head?.transferDate ?? today(),
+    projectId: head?.projectId ? String(head.projectId) : '',
+    employeeId: head?.employeeId ? String(head.employeeId) : '',
+    fromWarehouseId: head ? String(head.fromWarehouseId) : '',
+    toWarehouseId: head ? String(head.toWarehouseId) : '',
+  })
+  const [lines, setLines] = useState<SlipLine[]>(() => {
+    const ls = (slip ?? []).map((r) => ({ itemId: String(r.itemId), quantity: String(r.quantity), reason: r.reason ?? '' }))
+    while (ls.length < 5) ls.push(blankLine())
+    return ls
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
+  const setLine = (i: number, k: keyof SlipLine, v: string) =>
+    setLines((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)))
+  const itemOf = (id: string) => items.find((it) => String(it.id) === id)
+  const filled = lines.filter((l) => l.itemId || l.quantity)
+  const total = filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
+  const whItems = warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))
 
   async function submit() {
     onError('')
-    if (!form.itemId) return onError('품목을 선택하세요.')
-    if (form.fromWarehouseId === form.toWarehouseId) return onError('출고창고와 입고창고가 같을 수 없습니다.')
-    if (!form.quantity || Number(form.quantity) <= 0) return onError('이동수량을 입력하세요.')
+    if (!form.fromWarehouseId) return onError('보내는창고를 선택하세요.')
+    if (!form.toWarehouseId) return onError('받는창고를 선택하세요.')
+    if (form.fromWarehouseId === form.toWarehouseId) return onError('보내는창고와 받는창고가 같을 수 없습니다.')
+    if (filled.length === 0) return onError('품목을 한 줄 이상 입력하세요.')
+    for (const [i, l] of filled.entries()) {
+      if (!l.itemId) return onError(`${i + 1}번째 줄 품목을 선택하세요.`)
+      if (!l.quantity || Number(l.quantity) <= 0) return onError(`${i + 1}번째 줄 수량을 입력하세요.`)
+    }
+    const body = {
+      transferDate: form.transferDate,
+      fromWarehouseId: Number(form.fromWarehouseId),
+      toWarehouseId: Number(form.toWarehouseId),
+      projectId: form.projectId ? Number(form.projectId) : undefined,
+      employeeId: form.employeeId ? Number(form.employeeId) : undefined,
+      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), reason: l.reason || undefined })),
+    }
     try {
-      const res = await api.post<{ transferNo: string; itemName: string; quantity: number; fromWarehouseName: string; toWarehouseName: string }>('/stock-transfers', {
-        itemId: Number(form.itemId),
-        fromWarehouseId: Number(form.fromWarehouseId),
-        toWarehouseId: Number(form.toWarehouseId),
-        quantity: Number(form.quantity),
-        transferDate: form.transferDate,
-        projectId: form.projectId ? Number(form.projectId) : undefined,
-        employeeId: form.employeeId ? Number(form.employeeId) : undefined,
-        reason: form.reason || undefined,
-      })
-      const r = res.data
-      onSaved(`${r.transferNo} 이동 완료 · ${r.itemName} ${Number(r.quantity).toLocaleString()} (${r.fromWarehouseName} → ${r.toWarehouseName})`)
+      const res = head
+        ? await api.put<StockTransfer[]>(`/stock-transfers/slips/${encodeURIComponent(head.transferNo)}`, body)
+        : await api.post<StockTransfer[]>('/stock-transfers/slips', body)
+      const r = res.data[0]
+      onSaved(`${slipNoText(r.transferDate, r.transferNo)} ${head ? '수정' : '저장'} 완료 · ${r.fromWarehouseName} → ${r.toWarehouseName} · ${res.data.length}건 수량 ${num(total)}`)
     } catch (err) {
       onError(extractErrorMessage(err))
     }
@@ -394,59 +462,80 @@ function TransferForm({ items, warehouses, stock, projects, employees, onError, 
 
   return (
     <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
-      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">창고 간 이동 등록</div>
-      <div className="flex gap-[12px] flex-wrap items-end">
+      <div className="flex gap-[12px] flex-wrap items-end mb-[10px]">
         <Field label="일자">
           <input className="ec-input" type="date" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} style={{ width: 140 }} />
         </Field>
-        <Field label="품목 *">
-          <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
-                           value={form.itemId} onChange={(v) => set('itemId', v)}
-                           items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
-        </Field>
-        <Field label="출고창고 *">
-          <select className="ec-input" value={form.fromWarehouseId} onChange={(e) => set('fromWarehouseId', e.target.value)} style={{ width: 150 }}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-        </Field>
-        <span className="text-[16px] text-ec-blue pb-[4px]">→</span>
-        <Field label="입고창고 *">
-          <select className="ec-input" value={form.toWarehouseId} onChange={(e) => set('toWarehouseId', e.target.value)} style={{ width: 150 }}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-        </Field>
-        <Field label="수량 *">
-          <input className="ec-input" type="number" step="any" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} style={{ width: 90 }} />
-        </Field>
-        {/*
-          출고창고에 지금 몇 개 있는지. 예전엔 안 보여서 넉넉한지 모른 채 넣고 "재고가 부족" 거절을 받아야 알았다(32회차).
-          조정 창은 진작 [현재 재고] 를 보여 준다 — 같은 값을 쓴다.
-        */}
-        {form.itemId && form.fromWarehouseId && (() => {
-          const have = stock.find((x) => x.itemId === Number(form.itemId) && x.warehouseId === Number(form.fromWarehouseId))?.quantity ?? 0
-          const short = form.quantity !== '' && Number(form.quantity) > have
-          return (
-            <span style={{ fontSize: 12, paddingBottom: 6, color: short ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
-              출고창고 재고 <b>{have.toLocaleString()}</b>{short ? ' — 부족' : ''}
-            </span>
-          )
-        })()}
-        <Field label="프로젝트">
-          <CodePickerField label="프로젝트" hideLabel width={160} placeholder="선택 안 함" emptyLabel="선택 해제"
-                           value={form.projectId} onChange={(v) => set('projectId', v)}
-                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-        </Field>
         <Field label="담당자">
-          <CodePickerField label="담당자" hideLabel width={150} placeholder="선택 안 함" emptyLabel="선택 해제"
+          <CodePickerField label="담당자" hideLabel width={150} placeholder="담당자" emptyLabel="선택 해제"
                            value={form.employeeId} onChange={(v) => set('employeeId', v)}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </Field>
-        <Field label="사유">
-          <input className="ec-input" value={form.reason} onChange={(e) => set('reason', e.target.value)} style={{ width: 200 }} />
+        <Field label="보내는창고">
+          <CodePickerField pair label="보내는창고" hideLabel width={170} placeholder="보내는창고" emptyLabel="선택 해제"
+                           value={form.fromWarehouseId} onChange={(v) => set('fromWarehouseId', v)} items={whItems} />
         </Field>
-        <button className="ec-btn ec-btn-primary" onClick={submit}>이동처리</button>
+        <Field label="받는창고">
+          <CodePickerField pair label="받는창고" hideLabel width={170} placeholder="받는창고" emptyLabel="선택 해제"
+                           value={form.toWarehouseId} onChange={(v) => set('toWarehouseId', v)} items={whItems} />
+        </Field>
+        <Field label="프로젝트">
+          <CodePickerField label="프로젝트" hideLabel width={160} placeholder="프로젝트" emptyLabel="선택 해제"
+                           value={form.projectId} onChange={(v) => set('projectId', v)}
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </Field>
       </div>
-      <div className="mt-[8px] text-[11.5px] text-ec-hint">※ 출고창고 재고가 부족하면 이동이 거절됩니다(출고·입고 동시 처리).</div>
+      <table className="w-full text-left">
+        <thead>
+          <tr>
+            <th className="w-[34px]"></th>
+            <th className="w-[240px]">품목코드</th>
+            <th>품목명</th>
+            <th className="w-[100px] text-right">수량</th>
+            <th className="w-[110px] text-right">보내는창고 재고</th>
+            <th>적요</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((l, i) => {
+            const it = itemOf(l.itemId)
+            const have = l.itemId && form.fromWarehouseId
+              ? stock.find((x) => x.itemId === Number(l.itemId) && x.warehouseId === Number(form.fromWarehouseId))?.quantity ?? 0
+              : null
+            return (
+              <tr key={i} data-line={i + 1}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>
+                  <CodePickerField pair label="품목" hideLabel width={220} placeholder="품목코드" emptyLabel="선택 해제"
+                                   value={l.itemId} onChange={(v) => setLine(i, 'itemId', v)}
+                                   items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, alias: x.searchKeyword, sub: x.spec }))} />
+                </td>
+                <td>{it ? `${it.name}${it.spec ? ` [${it.spec}]` : ''}` : ''}</td>
+                <td>
+                  <input className="ec-input text-right" type="number" step="any" aria-label={`${i + 1}번째 줄 수량`}
+                         value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} style={{ width: 90 }} />
+                </td>
+                <td className="text-right text-ec-hint">{have === null ? '' : num(have)}</td>
+                <td>
+                  <input className="ec-input" aria-label={`${i + 1}번째 줄 적요`} value={l.reason}
+                         onChange={(e) => setLine(i, 'reason', e.target.value)} style={{ width: '100%' }} />
+                </td>
+              </tr>
+            )
+          })}
+          <tr>
+            <td colSpan={3} className="text-ec-hint">
+              <button type="button" className="ec-btn ec-btn-sm" onClick={() => setLines((ls) => [...ls, blankLine()])}>줄 추가</button>
+            </td>
+            <td className="text-right font-semibold">{num(total)}</td>
+            <td colSpan={2}></td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="flex gap-[4px] mt-[10px]">
+        <button className="ec-btn ec-btn-primary" onClick={submit}>저장(F8)</button>
+        {head && <button className="ec-btn" onClick={() => onDelete(head)}>삭제</button>}
+      </div>
     </div>
   )
 }
