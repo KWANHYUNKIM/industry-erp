@@ -40,7 +40,9 @@ public final class ContractBillDtos {
             Long id, Long contractLineId, String itemCode, String itemName, String contractCode, String contractName,
             Long partnerId, String partnerName, String billMonth,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
-            String billingUnitCode, String billingUnitName, String remark, Long journalEntryId
+            String billingUnitCode, String billingUnitName, String remark, Long journalEntryId,
+            /** 회계반영 연결이 남았나 — 반영 전표를 회계 쪽에서 지웠어도 [회계전표삭제] 전까지 true(2026-10-21 실측). */
+            boolean accountingLinked
     ) {
         public static BillLineResponse from(ContractBillLine l) {
             BillingContractLine cl = l.getContractLine();
@@ -49,7 +51,8 @@ public final class ContractBillDtos {
                     cl.getContract().getPartner().getId(), cl.getContract().getPartner().getName(), l.getBillMonth(),
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     cl.getBillingUnit() != null ? cl.getBillingUnit().getCode() : null,
-                    cl.getBillingUnit() != null ? cl.getBillingUnit().getName() : null, l.getRemark(), l.getJournalEntryId());
+                    cl.getBillingUnit() != null ? cl.getBillingUnit().getName() : null, l.getRemark(), l.getJournalEntryId(),
+                    l.isAccountingLinked());
         }
     }
 
@@ -60,7 +63,7 @@ public final class ContractBillDtos {
         public static BillResponse from(ContractBill b, List<ContractBillLine> lines) {
             BigDecimal total = lines.stream().map((l) -> l.getSupplyAmount().add(l.getVatAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
             return new BillResponse(b.getId(), b.getBillDate(), b.getDocNo(), b.getVatType(),
-                    !lines.isEmpty() && lines.stream().allMatch((l) -> l.getJournalEntryId() != null), b.isSalesCreated(), total, lines.stream().map(BillLineResponse::from).toList());
+                    !lines.isEmpty() && lines.stream().allMatch(ContractBillLine::isAccountingLinked), b.isSalesCreated(), total, lines.stream().map(BillLineResponse::from).toList());
         }
     }
 

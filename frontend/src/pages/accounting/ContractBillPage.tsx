@@ -56,7 +56,7 @@ export default function ContractBillPage() {
   const [foundPick, setFoundPick] = useState<Set<number>>(new Set())
   const [confirm, setConfirm] = useState<'delete' | 'pickedDelete' | 'unreflect' | null>(null)
   // [회계전표삭제] → 회계전표번호보기
-  const [links, setLinks] = useState<{ billId: number; billDate: string; billDocNo: number; journalEntryId: number; entryDate: string | null; entryNo: number | null }[] | null>(null)
+  const [links, setLinks] = useState<{ billId: number; billDate: string; billDocNo: number; journalEntryId: number | null; entryDate: string | null; entryNo: number | null }[] | null>(null)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '청구예정자료리스트', [rows.length])
 
@@ -240,7 +240,7 @@ export default function ContractBillPage() {
             <button type="button" className="ec-btn ec-btn-primary" disabled={!lines.length} onClick={() => void create(false)}>일괄생성</button>
             <button type="button" className="ec-btn" disabled={!lines.length} onClick={() => void create(true)}>거래처별생성</button>
             <button type="button" className="ec-btn" onClick={() => setOpen(null)}>닫기</button>
-          </> : openRow?.lines.some((l) => l.journalEntryId != null) ? <>
+          </> : openRow?.lines.some((l) => l.accountingLinked) ? <>
             <button type="button" className="ec-btn" onClick={() => setOpen(null)}>닫기</button>
             <button type="button" className="ec-btn" onClick={() => void openLinks()}>회계전표삭제</button>
             <button type="button" className="ec-btn" onClick={() => setConfirm('delete')}>삭제</button>
@@ -309,7 +309,7 @@ export default function ContractBillPage() {
           <thead><tr><th className="text-center">청구예정자료</th><th className="text-center">회계전표</th></tr></thead>
           <tbody>
             {(links ?? []).map((l) => (
-              <tr key={`${l.billId}-${l.journalEntryId}`}>
+              <tr key={`${l.billId}-${l.entryDate}-${l.entryNo}`}>
                 <td className="text-center">{l.billDate.replace(/-/g, '')}-{l.billDocNo}</td>
                 <td className="text-center">{l.entryDate ? `${dateText(l.entryDate)}-${l.entryNo ?? ''}` : ''}</td>
               </tr>

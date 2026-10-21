@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /** 청구자료 줄 — 계약 줄 하나의 한 달 몫. 수량 · 단가 · 공급가액 · 부가세 · 적요는 생성 창에서 고칠 수 있다. */
 @Entity
@@ -58,8 +59,30 @@ public class ContractBillLine {
     @Column(name = "sales_id")
     private Long salesId;
 
+    /**
+     * 반영한 매출전표 I 의 일자 · 번호('2026/10/21-16'). 전표를 회계 쪽에서 지워도 남는다(V432, 2026-10-21 실측) —
+     * 원본은 그래도 회계반영여부 ✓ · 일괄반영 격자에서 빠짐 · 삭제 막힘이고, [회계전표삭제] 를 해야 풀린다.
+     */
+    @Column(name = "reflected_entry_date")
+    private LocalDate reflectedEntryDate;
+
+    @Column(name = "reflected_entry_no")
+    private Integer reflectedEntryNo;
+
+    /** 회계/판매일괄반영으로 회계반영됐다(전표가 지워졌어도 [회계전표삭제] 전까지는 그렇다). */
+    public boolean isAccountingLinked() {
+        return journalEntryId != null || reflectedEntryDate != null;
+    }
+
     /** 회계반영이든 판매반영이든 한 번 반영되면 두 격자 모두에서 빠진다(원본 실측). */
     public boolean isReflected() {
-        return journalEntryId != null || salesId != null;
+        return isAccountingLinked() || salesId != null;
+    }
+
+    /** [회계전표삭제] — 반영 연결을 푼다. */
+    public void clearAccountingLink() {
+        journalEntryId = null;
+        reflectedEntryDate = null;
+        reflectedEntryNo = null;
     }
 }

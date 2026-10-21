@@ -45,6 +45,8 @@ export interface BillLineRow {
   partnerId: number; partnerName: string; billMonth: string
   quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number
   billingUnitCode: string | null; billingUnitName: string | null; remark: string | null; journalEntryId: number | null
+  /** 회계반영 연결이 남았나 — 반영 전표를 회계 쪽에서 지웠어도 [회계전표삭제] 전까지 true. */
+  accountingLinked: boolean
 }
 
 export interface ContractBillRow {

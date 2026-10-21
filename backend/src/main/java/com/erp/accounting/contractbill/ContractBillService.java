@@ -97,13 +97,20 @@ public class ContractBillService {
         return findOne(id);
     }
 
+    /**
+     * [선택삭제] · 청구자료수정 [삭제]. 회계반영된 자료(반영 전표를 회계 쪽에서 지웠어도 [회계전표삭제] 전까지)는 원본 문구로 막는다
+     * (2026-10-21 실측: '선택한 청구리스트 중 일부는 삭제가 불가능합니다. … [삭제가 불가능한 청구리스트] 1. 일괄반영한 내역 2026/10/21 -1').
+     */
     @Transactional
     public void delete(List<Long> ids) {
-        for (Long id : ids) {
-            ContractBill b = get(id);
-            requireOpen(b);
-            repository.delete(b);
+        List<ContractBill> bills = ids.stream().map(this::get).toList();
+        List<String> blocked = bills.stream().filter((b) -> !isOpen(b))
+                .map((b) -> b.getBillDate().toString().replace('-', '/') + " -" + b.getDocNo()).toList();
+        if (!blocked.isEmpty()) {
+            throw ApiException.badRequest("선택한 청구리스트 중 일부는 삭제가 불가능합니다.\n다음 사항을 확인 바랍니다.\n\n"
+                    + "[삭제가 불가능한 청구리스트]\n1. 일괄반영한 내역\n" + String.join("\n", blocked));
         }
+        repository.deleteAll(bills);
     }
 
     /**
@@ -151,7 +158,11 @@ public class ContractBillService {
         JournalEntry je = journalService.createVatSlip(new VatSlipRequest(true, req.entryDate(), req.departmentId(), req.projectId(),
                 req.vatType(), req.partnerId(), req.supplyAmount(), req.vatAmount() != null ? req.vatAmount() : BigDecimal.ZERO, desc,
                 req.accountId(), req.settleAccountId(), null, req.eInvoiceKind(), req.vatOmitted(), null), username);
-        for (ContractBillLine l : ls) l.setJournalEntryId(je.getId());
+        for (ContractBillLine l : ls) {
+            l.setJournalEntryId(je.getId());
+            l.setReflectedEntryDate(je.getEntryDate());
+            l.setReflectedEntryNo(entryNo(je.getDocNo()));
+        }
         return je.getId();
     }
 
@@ -218,43 +229,51 @@ public class ContractBillService {
     }
 
     /**
-     * 청구자료수정 [회계전표삭제] → '회계전표번호보기' 창(2026-10-13 실측) — ● 연결회계전표내역: 청구예정자료 '20261013-3' · 회계전표 '2026/10/13-10'.
-     * 이 청구자료의 줄이 든 전표마다, 그 전표에 묶인 청구자료를 모두 보인다.
+     * 청구자료수정 [회계전표삭제] → '회계전표번호보기' 창(2026-10-13 · 10-21 실측) — ● 연결회계전표내역: 청구예정자료 '20261021-1' · 회계전표 '2026/10/21-16'.
+     * 이 청구자료의 줄이 든 전표마다, 그 전표에 묶인 청구자료를 모두 보인다. 전표를 회계 쪽에서 지웠어도 반영한 번호 그대로 보인다.
      */
     @Transactional(readOnly = true)
     public List<ContractBillDtos.JournalLink> journalLinks(Long billId) {
-        ContractBill b = get(billId);
-        List<Long> jids = b.getLines().stream().map(ContractBillLine::getJournalEntryId).filter((j) -> j != null).distinct().toList();
-        if (jids.isEmpty()) return List.of();
-        Map<Long, JournalEntry> entries = journalRepository.findAllById(jids).stream().collect(Collectors.toMap(JournalEntry::getId, Function.identity()));
-        List<BillJournal> out = new ArrayList<>();
-        for (ContractBillLine l : repository.findReflectedLines()) {
-            if (!jids.contains(l.getJournalEntryId())) continue;
-            out.add(new BillJournal(l.getBill(), l.getJournalEntryId()));
+        List<LinkKey> keys = linkKeys(get(billId));
+        if (keys.isEmpty()) return List.of();
+        List<ContractBillDtos.JournalLink> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (ContractBillLine l : repository.findAccountingLinkedLines()) {
+            LinkKey k = LinkKey.of(l);
+            if (!keys.contains(k) || !seen.add(l.getBill().getId() + "@" + k)) continue;
+            out.add(new ContractBillDtos.JournalLink(l.getBill().getId(), l.getBill().getBillDate(), l.getBill().getDocNo(),
+                    l.getJournalEntryId(), k.date(), k.no()));
         }
-        return out.stream().distinct().map((h) -> {
-            JournalEntry e = entries.get(h.journalId());
-            return new ContractBillDtos.JournalLink(h.bill().getId(), h.bill().getBillDate(), h.bill().getDocNo(), h.journalId(),
-                    e != null ? e.getEntryDate() : null, e != null ? entryNo(e.getDocNo()) : null);
-        }).toList();
+        return out;
     }
 
-    private record BillJournal(ContractBill bill, Long journalId) {}
+    /** 반영 연결 하나 — 반영한 매출전표 I 의 일자 · 번호(전표가 지워져도 남는다). */
+    private record LinkKey(LocalDate date, Integer no) {
+        static LinkKey of(ContractBillLine l) { return new LinkKey(l.getReflectedEntryDate(), l.getReflectedEntryNo()); }
+    }
+
+    private static List<LinkKey> linkKeys(ContractBill b) {
+        return b.getLines().stream().filter(ContractBillLine::isAccountingLinked).map(LinkKey::of).distinct().toList();
+    }
 
     /**
-     * '회계전표번호보기' [삭제] → '삭제하겠습니까?' [확인] — 연결된 매출전표를 지우고, 그 전표에 묶인 청구자료(다른 청구생성번호까지)를
+     * '회계전표번호보기' [삭제] → '삭제하겠습니까?' [확인] — 연결된 매출전표를(아직 있으면) 지우고, 그 전표에 묶인 청구자료(다른 청구생성번호까지)를
      * 미반영으로 되돌린다(원본 안내: "[삭제]를 할 경우, 연결된 다른 청구생성번호 역시 회계반영이 취소됩니다.").
-     * 그 뒤 청구자료수정 창은 다시 [저장(F8)] · 닫기 · 삭제 다.
+     * 전표를 회계 쪽에서 먼저 지운 경우에도 이것으로 연결이 풀린다(2026-10-21 실측). 그 뒤 청구자료수정 창은 다시 [저장(F8)] · 닫기 · 삭제 다.
      */
     @Transactional
     public void unreflect(Long billId) {
         ContractBill b = get(billId);
-        List<Long> jids = b.getLines().stream().map(ContractBillLine::getJournalEntryId).filter((j) -> j != null).distinct().toList();
-        if (jids.isEmpty()) throw ApiException.badRequest("회계반영된 청구자료가 아닙니다.");
-        for (Long jid : jids) {
-            repository.clearJournal(jid);
-            if (journalRepository.existsById(jid)) journalService.deleteManual(jid);
+        List<LinkKey> keys = linkKeys(b);
+        if (keys.isEmpty()) throw ApiException.badRequest("회계반영된 청구자료가 아닙니다.");
+        java.util.Set<Long> jids = new java.util.LinkedHashSet<>();
+        for (ContractBillLine l : repository.findAccountingLinkedLines()) {
+            if (!keys.contains(LinkKey.of(l))) continue;
+            if (l.getJournalEntryId() != null) jids.add(l.getJournalEntryId());
+            l.clearAccountingLink();
         }
+        repository.flush();
+        for (Long jid : jids) if (journalRepository.existsById(jid)) journalService.deleteManual(jid);
     }
 
     private static int nz(Integer v) { return v != null ? v : 0; }
@@ -266,8 +285,12 @@ public class ContractBillService {
         try { return Integer.valueOf(docNo.substring(dash + 1)); } catch (NumberFormatException ex) { return null; }
     }
 
+    private static boolean isOpen(ContractBill b) {
+        return b.getLines().stream().noneMatch(ContractBillLine::isReflected) && !b.isSalesCreated();
+    }
+
     private static void requireOpen(ContractBill b) {
-        if (b.getLines().stream().anyMatch(ContractBillLine::isReflected) || b.isSalesCreated()) {
+        if (!isOpen(b)) {
             throw ApiException.badRequest("회계반영 · 판매생성된 청구자료는 고치거나 지울 수 없습니다.");
         }
     }
