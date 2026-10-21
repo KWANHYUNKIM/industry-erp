@@ -6,6 +6,7 @@ import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useCostPeriods, costPeriodText, inCostPeriod } from '../../utils/costPeriods'
 
@@ -159,6 +160,9 @@ export default function VariancePage() {
 
   /* 기준월이 정해지기 전(빈 값) 부른 것이 늦게 오면 원가계산내역을 비워 버린다 — 마지막 부른 것만 받는다. */
   const loadSeq = useRef(0)
+  /* 세 보기(원가비교집계표 · 재료비단가차이/소모수량차이 · 그 밖)가 표를 갈아 끼우고 머리가 2줄이라 정적 검사가 못 센다 — 그려진 표를 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '차이분석', [mode, loading, costs, ledger, boms, productions])
   async function load() {
     const seq = ++loadSeq.current
     setLoading(true)
@@ -419,7 +423,7 @@ export default function VariancePage() {
       {loading ? (
         <p className="ec-empty">불러오는 중…</p>
       ) : mode === '원가비교집계표' ? (
-        <table className="w-full text-left">
+        <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
               {/*
@@ -484,7 +488,7 @@ export default function VariancePage() {
           </tbody>
         </table>
       ) : mode === '재료비단가차이' || mode === '소모수량차이' ? (
-        <table className="w-full text-left">
+        <table ref={tableRef} className="w-full text-left">
           <thead>
             {/* 2026-10-21 원본 실측: 머리 2줄 — [생산품목 · 소모품목 · 비교] 아래 열. */}
             <tr>
@@ -583,7 +587,7 @@ export default function VariancePage() {
           </tbody>
         </table>
       ) : (
-        <table className="w-full text-left">
+        <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
               {/* 2026-10-20 원본 실측 열 그대로. */}
