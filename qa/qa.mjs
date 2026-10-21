@@ -4940,11 +4940,10 @@ async function scenarioStockRecalc(f) {
    * 재 보니 1줄 24ms · 10줄 45ms · 200줄 762ms 로 <b>줄당 3.5ms</b> 언저리에서 평평했다.
    * 그 성질을 못 박는다 — 곱해지기 시작하면 여기서 걸린다.
    */
-  await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 5000,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
-  })
+  // 입고 300 — 실사 맞춤은 오늘 이후 날짜 전표를 빼고 비교해, 앞날짜 전표가 남아 있으면 현재고가 모자랄 수 있다
+  await must('POST', '/stock/transactions', { itemId: f.product.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 300 })
   const 긴전표 = {
-    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-30', taxable: true,
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: new Date().toISOString().slice(0, 10), taxable: true,
     lines: Array.from({ length: 200 }, () => ({ itemId: f.product.id, quantity: 1, unitPrice: 1000 })),
   }
   const t2 = Date.now()
