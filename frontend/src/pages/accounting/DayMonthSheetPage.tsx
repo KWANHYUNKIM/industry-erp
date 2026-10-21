@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { cashSplit } from '../../utils/cashSplit'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -33,9 +32,12 @@ const addDays = (d: string, n: number) => {
  * 기타(결재방표시). 열: 차변합계 · 차변대체 · 차변현금(출금) · 계정명 · 대변현금(입금) · 대변대체 · 대변합계. 계정마다 한 줄,
  * 끝에 [월계](일계표면 [일계]) · [금일/전일] · [합계] 줄(바탕 rgb(243,243,243) · 굵게).
  *
- * <p>현금(101)이 든 전표에서 현금 반대편 줄에 현금 금액만큼이 '현금'(출금 · 입금)이고, 넘치는 몫과 나머지는 모두 '대체'다
- * (현금 열 합 = 현금 계정의 대 · 차 합). 현금 계정 자신은 줄로 세우지 않는다.
- * [금일/전일]은 현금 잔고다 — 차변 쪽에 기간 끝 잔고, 대변 쪽에 기간 첫날 전 잔고. [합계] = [월계] + [금일/전일](그래서 차 · 대가 맞는다).
+ * <p>2026-10-21 원본 실측(재집계 후 조회, 일반전표 1출 · 2입 · 대체 세 장): 원본은 전표 줄을 <b>모두 '대체'</b> 칸에 둔다
+ * (2입 잡이익 11,000 도 대변대체). 현금 · 출금 칸은 계정 줄에서 늘 빈칸이다. 현금 계정(101) 자신도 한 줄로 서되(차변대체 = 현금 차변 합,
+ * 대변대체 = 현금 대변 합) [일계] · [월계] 합에서는 뺀다. 그래서 [일계] 차 · 대는 현금이 오간 만큼 어긋나고,
+ * [금일/전일](차변 = 기간 끝 현금 잔고 · 대변 = 기간 첫날 전 잔고, 현금 칸과 합계 칸에)을 더한 [합계]에서 맞는다.
+ * 예전(2026-10-03)엔 교과서대로 현금 반대편 줄을 현금 칸에 나눴다 — 원본과 달랐다.
+ * 머리 날짜는 하루면 '2026/10/21' 하나, 구간이면 '2026/10/01 ~ 2026/10/21'.
  * [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다(현금 이월도 그 줄만).
  */
 export default function DayMonthSheetPage() {
@@ -87,24 +89,17 @@ export default function DayMonthSheetPage() {
       if (!by.has(code)) by.set(code, { code, name, dCash: 0, dTrans: 0, cCash: 0, cTrans: 0 })
       return by.get(code)!
     }
+    /* 원본: 모든 줄이 '대체' — 현금 계정 줄도 대체 칸에 찍고 합에서는 뺀다(위 설명). */
     for (const e of entries) {
-      const cash = e.lines.filter((l) => l.accountCode === CASH)
-      const cashDebit = cash.reduce((s, l) => s + Number(l.debit), 0)
-      const cashCredit = cash.reduce((s, l) => s + Number(l.credit), 0)
-      cashIn += cashDebit
-      cashOut += cashCredit
-      /* 현금 반대편 줄에 현금 금액만큼만 '현금'을 주고 넘치는 몫은 '대체' — utils/cashSplit. */
-      const parts = cashSplit(e.lines, CASH)
-      e.lines.forEach((l, i) => {
-        if (l.accountCode === CASH) return
+      for (const l of e.lines) {
         const row = get(l.accountCode, l.accountName)
-        const x = parts[i]
-        row.dCash += x.dCash; row.dTrans += x.dTrans; row.cCash += x.cCash; row.cTrans += x.cTrans
-      })
+        row.dTrans += Number(l.debit); row.cTrans += Number(l.credit)
+        if (l.accountCode === CASH) { cashIn += Number(l.debit); cashOut += Number(l.credit) }
+      }
     }
     return { lines: [...by.values()].sort((a, b) => a.code.localeCompare(b.code)), cashIn, cashOut }
   }, [entries])
-  const sum = lines.reduce((s, l) => ({ dCash: s.dCash + l.dCash, dTrans: s.dTrans + l.dTrans, cCash: s.cCash + l.cCash, cTrans: s.cTrans + l.cTrans }),
+  const sum = lines.filter((l) => l.code !== CASH).reduce((s, l) => ({ dCash: s.dCash + l.dCash, dTrans: s.dTrans + l.dTrans, cCash: s.cCash + l.cCash, cTrans: s.cTrans + l.cTrans }),
     { dCash: 0, dTrans: 0, cCash: 0, cTrans: 0 })
   const closeCash = openCash + cashIn - cashOut
   const tableRef = useRef<HTMLTableElement>(null)
@@ -157,7 +152,7 @@ export default function DayMonthSheetPage() {
       {/* 원본 머리(2026-10-20 실측): '회사명 : (주)… ' 한 줄과 '2026/10/20 ~ 2026/10/20'. */}
       <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
-        <span>{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</span>
+        <span>{from === to ? from.replace(/-/g, '/') : `${from.replace(/-/g, '/')} ~ ${to.replace(/-/g, '/')}`}</span>
       </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
