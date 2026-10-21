@@ -6,6 +6,11 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import type { JournalEntry } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import CodePickerField from '../../components/CodePickerField'
+import EcPeriodPicks from '../../components/EcPeriodPicks'
+import { STATUS_PICKS } from '../../utils/periods'
+import { scopeEntries } from '../../utils/deptProject'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 
 type DocKind = 'PAPER' | 'ELECTRONIC' | 'MODIFY_ERROR' | 'MODIFY_AMOUNT' | 'MODIFY_RETURN' | 'MODIFY_CANCEL' | 'MODIFY_LC' | 'MODIFY_DUPLICATE'
 type Progress = 'NONE' | 'LATE' | 'ELSEWHERE'
@@ -47,8 +52,10 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
  * [기한후발행] → '기한후 발행', [기한내발행으로변경] → '발행 안됨', [타발행] → '타발행'(종이(세금)계산서면 변경불가전표).
  * 확인 창 문구는 원본 그대로.
  *
- * <p>두지 않은 것: [전자로변환](원본에서 눌러도 줄이 바뀌지 않아 무엇을 하는지 잴 수 없었다) · 세무신고거래처코드 · 거래처관리담당자 ·
- * 부서 · 프로젝트 · 예정누락(◉정상 ○예정누락) · 세무신고거래처순 · 최초작성자 · 최종수정자 조건.
+ * <p>조건 기준일자 옆 빠른선택(금일 … 전월 · <b>전월+금월</b>) · 세무신고거래처코드(전표 거래처) · 부서 · 프로젝트(전표 줄의 것) · 최초작성자(2026-10-21 마무리 묶음 25).
+ *
+ * <p>두지 않은 것: [전자로변환](원본에서 눌러도 줄이 바뀌지 않아 무엇을 하는지 잴 수 없었다) · 거래처관리담당자 ·
+ * 예정누락(◉정상 ○예정누락 — 전표에 칸이 없다) · 세무신고거래처순 · 최종수정자 조건.
  */
 export default function VatMarkChangePage() {
   const today = new Date()
@@ -63,6 +70,12 @@ export default function VatMarkChangePage() {
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [newKind, setNewKind] = useState<DocKind>('PAPER')
   const [error, setError] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const [author, setAuthor] = useState('')
+  const [partnerOpts, setPartnerOpts] = useState<{ id: number; code: string | null; name: string }[]>([])
+  const deptProject = useDeptProjectItems()
 
   async function load() {
     setError('')
@@ -80,11 +93,15 @@ export default function VatMarkChangePage() {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [])
+  useEffect(() => { api.get<{ id: number; code: string | null; name: string }[]>('/partners').then((r) => setPartnerOpts(r.data)).catch(() => setPartnerOpts([])) }, [])
+  const authors = useMemo(() => [...new Set(entries.map((e) => e.createdBy).filter(Boolean) as string[])].sort(), [entries])
 
   const rows = useMemo(() => {
     const out: Row[] = []
     const sides: VatSide[] = sideCond === '전체' ? ['매출', '매입'] : [sideCond]
-    for (const e of entries) {
+    for (const e of scopeEntries(entries, dept, project, true)) {
+      if (partnerCond && String(e.partnerId ?? '') !== partnerCond) continue
+      if (author && (e.createdBy ?? '') !== author) continue
       for (const side of sides) {
         const amt = vatSlipAmounts(e.lines, side)
         if (!amt) continue
@@ -105,7 +122,7 @@ export default function VatMarkChangePage() {
       if (order === '구분순' && a.side !== b.side) return a.side === '매출' ? -1 : 1
       return byDate(a, b)
     })
-  }, [entries, marks, sideCond, docCond, progressCond, order])
+  }, [entries, marks, sideCond, docCond, progressCond, order, dept, project, partnerCond, author])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '각종구분값변경', [rows.length])
@@ -147,6 +164,22 @@ export default function VatMarkChangePage() {
           <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
           ~
           <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <span className="ml-[6px]">
+            <EcPeriodPicks labels={STATUS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
+        <EcCond label="세무신고거래처코드" pick>
+          <CodePickerField label="세무신고거래처코드" hideLabel width={220} emptyLabel="전체" value={partnerCond} onChange={setPartnerCond}
+                           items={partnerOpts.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체" value={author} onChange={setAuthor} items={authors.map((a) => ({ value: a, name: a }))} />
         </EcCond>
         <EcCond label="매출/매입 구분">
           {(['매출', '매입', '전체'] as SideCond[]).map((s) => (
