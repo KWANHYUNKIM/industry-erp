@@ -246,32 +246,6 @@ export default function SalesStatusPage() {
    * 그건 다른 화면이다 — 여기서는 줄을 그대로 편다(<code>shown</code> 이 이미 줄 단위다).
    */
 
-  /** 라인별 말고 다른 [구분] — 묶는 키가 같은 줄을 한 줄로 더한다(수량 · 공급가액 · 부가세). */
-  const kindRows = useMemo(() => {
-    if (lineKind === '라인별') return []
-    const keyOf = (r: Row): string[] => {
-      const ym = r.date.slice(0, 7).replace('-', '/')
-      switch (lineKind) {
-        case '일별': return [r.date.replace(/-/g, '/')]
-        case '월별': return [ym]
-        case '전표별': return [dateNo(r.date, r.docNo)]
-        case '품목별': return [r.itemName + (r.spec ? ` [${r.spec}]` : '')]
-        case '전표별품목별': return [dateNo(r.date, r.docNo), r.itemName + (r.spec ? ` [${r.spec}]` : '')]
-        case '거래처별': return [r.partner]
-        default: return [r.employeeName ?? '']
-      }
-    }
-    const m = new Map<string, { keys: string[]; qty: number; supply: number; vat: number }>()
-    for (const r of shown) {
-      const keys = keyOf(r)
-      const id = keys.join('\u0001')
-      const g = m.get(id) ?? { keys, qty: 0, supply: 0, vat: 0 }
-      g.qty += r.qty; g.supply += r.supply; g.vat += r.vat
-      m.set(id, g)
-    }
-    return [...m.values()].sort((a, b) => a.keys.join('|').localeCompare(b.keys.join('|')))
-  }, [shown, lineKind])
-
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ supply: s.supply + r.supply, vat: s.vat + r.vat }),
     { supply: 0, vat: 0 },
@@ -311,35 +285,58 @@ export default function SalesStatusPage() {
    */
   const sort = useTableSort(shown, { 일자: (r) => r.date }, { key: '일자', dir: 'asc' })
 
+  /*
+   * 원본 [구분] 여덟 갈래(2026-10-21 loginaa 실측)는 <b>모두 같은 8열</b>(일자-No. · 거래처명 · 품목명(규격) · 수량 ·
+   * 단가 · 공급가액 · 부가세 · 합계)에 'YYYY/MM 계' · 총합계를 끼운다 — 묶는 키만 다르다.
+   *   일별 = 날짜 · 월별 = 월 · 라인별 = 줄 · 전표별 = 전표 · 품목별 = 월 × 품목 · 전표별품목별 = 전표 × 품목 ·
+   *   거래처별 = 월 × 거래처 · 담당자별 = 월 × 담당자.
+   * 묶인 줄은 <b>첫 줄</b>의 일자-No. · 거래처명 · 품목명을 찍고(09/16 일별 '-8' = 그날 첫 전표), 수량 · 공급가액 · 부가세는 더하고,
+   * 단가는 줄 단가의 <b>평균</b>(09/10 코카 · 사이다 · … 15 → 3,500, 담당자별 30,000 · 88,000 → 59,000)이다.
+   * 월 계 · 총합계의 단가는 보이는 줄 단가를 더한다(일별 총합계 8,104,424 ≠ 라인별 24,071,400).
+   * 차례는 일자순으로 처음 나온 자리(품목별 09/03 스킨 · 로션 · 09/04 자문료 …).
+   */
   const lineRows = useMemo(() => {
-    type Row =
-      | { kind: 'line'; key: string; no: number; r: typeof shown[number] }
+    type Line = typeof shown[number]
+    type Out =
+      | { kind: 'line'; key: string; r: Line }
       | { kind: 'subtotal'; key: string; month: string; qty: number; price: number; supply: number; vat: number }
-    const sorted = sort.sorted
-    const out: Row[] = []
-    let month = ''
-    let no = 0
-    let qty = 0
-    let price = 0
-    let supply = 0
-    let vat = 0
-    const flush = () => {
-      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, qty, price, supply, vat })
-      qty = 0; price = 0; supply = 0; vat = 0
+    const itemOf = (r: Line) => r.itemName + (r.spec ? ` [${r.spec}]` : '')
+    const keyOf = (r: Line, ym: string): string => {
+      switch (lineKind) {
+        case '일별': return r.date
+        case '월별': return ym
+        case '라인별': return r.key
+        case '전표별': return dateNo(r.date, r.docNo)
+        case '품목별': return `${ym}|${r.itemId}|${itemOf(r)}`
+        case '전표별품목별': return `${dateNo(r.date, r.docNo)}|${r.itemId}|${itemOf(r)}`
+        case '거래처별': return `${ym}|${r.partner}`
+        default: return `${ym}|${r.employeeName ?? ''}`
+      }
     }
-    for (const r of sorted) {
-      const m = r.date.slice(0, 7).replace('-', '/')
-      if (m !== month) { flush(); month = m }
-      out.push({ kind: 'line', key: r.key, no: ++no, r })
-      qty += r.qty
-      /* 원본 소계줄은 <b>단가 칸도 더해 찍는다</b>(2026-09-09 실측) - 우리도 그대로 둔다. */
-      price += r.unitPrice
-      supply += r.supply
-      vat += r.vat
+    /* 달마다 묶음을 처음 나온 차례로 모은다 — 월 계는 그 달 묶음 뒤에 온다. */
+    const months: { month: string; groups: Map<string, { first: Line; n: number; qty: number; price: number; supply: number; vat: number }> }[] = []
+    for (const r of sort.sorted) {
+      const ym = r.date.slice(0, 7).replace('-', '/')
+      let m = months[months.length - 1]
+      if (!m || m.month !== ym) { m = { month: ym, groups: new Map() }; months.push(m) }
+      const k = keyOf(r, ym)
+      const g = m.groups.get(k) ?? { first: r, n: 0, qty: 0, price: 0, supply: 0, vat: 0 }
+      g.n += 1; g.qty += r.qty; g.price += r.unitPrice; g.supply += r.supply; g.vat += r.vat
+      m.groups.set(k, g)
     }
-    flush()
+    const out: Out[] = []
+    for (const m of months) {
+      let qty = 0, price = 0, supply = 0, vat = 0
+      for (const [k, g] of m.groups) {
+        const unitPrice = Math.round(g.price / g.n)
+        out.push({ kind: 'line', key: `${m.month}|${k}`, r: { ...g.first, qty: g.qty, unitPrice, supply: g.supply, vat: g.vat } })
+        /* 원본 소계줄은 <b>단가 칸도 더해 찍는다</b>(2026-09-09 실측) - 우리도 그대로 둔다. */
+        qty += g.qty; price += unitPrice; supply += g.supply; vat += g.vat
+      }
+      out.push({ kind: 'subtotal', key: `sub-${m.month}`, month: m.month, qty, price, supply, vat })
+    }
     return out
-  }, [shown, sort.sorted])
+  }, [sort.sorted, lineKind])
 
   /**
    * 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 다시 합친다.
@@ -635,45 +632,6 @@ export default function SalesStatusPage() {
             </tr>
           </tfoot>
         </table>
-      ) : lineKind !== '라인별' ? (
-        <div className="ec-report-frame">
-          <EcReportHead title="판매현황" period={reportPeriod(from, to)} />
-          <table className="w-full text-left ec-report ec-report-head400">
-            <thead>
-              <tr>
-                <th>{lineKind === '전표별품목별' ? '일자-No.' : lineKind.replace('별', '')}</th>
-                {lineKind === '전표별품목별' && <th>품목명(규격)</th>}
-                <th className="text-right">수량</th><th className="text-right">공급가액</th>
-                <th className="text-right">부가세</th><th className="text-right">합계</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={5} className="text-center">불러오는 중…</td></tr>
-              ) : kindRows.length === 0 ? (
-                <tr><td colSpan={5} className="text-center">등록된 데이터가 없습니다.</td></tr>
-              ) : kindRows.map((g) => (
-                <tr key={g.keys.join('|')}>
-                  <td>{g.keys[0]}</td>
-                  {lineKind === '전표별품목별' && <td>{g.keys[1]}</td>}
-                  <td className="text-right">{g.qty.toLocaleString()}</td>
-                  <td className="text-right">{g.supply.toLocaleString()}</td>
-                  <td className="text-right">{g.vat.toLocaleString()}</td>
-                  <td className="text-right">{(g.supply + g.vat).toLocaleString()}</td>
-                </tr>
-              ))}
-              {!loading && kindRows.length > 0 && (
-                <tr className="ec-list-total">
-                  <td colSpan={lineKind === '전표별품목별' ? 2 : 1} className="text-center font-bold">총합계</td>
-                  <td className="text-right font-bold">{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
-                  <td className="text-right font-bold">{totals.supply.toLocaleString()}</td>
-                  <td className="text-right font-bold">{totals.vat.toLocaleString()}</td>
-                  <td className="text-right font-bold">{(totals.supply + totals.vat).toLocaleString()}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       ) : (
         /*
           2026-10-20 loginaa 실측(라인별, 검색 뒤): 격자는 <b>출력물 모양</b>이다 — 위에 '판매현황' 24px 700 가운데 ·
@@ -737,7 +695,7 @@ export default function SalesStatusPage() {
                   <td colSpan={3} className="text-center font-bold">총합계</td>
                   <td className="text-right font-bold">{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
                   {/* 원본 [총합계]도 월 계처럼 단가를 더해 찍는다(2026-10-20: 9,964 · 22,381,400 · 1,049,650,000 …). */}
-                  <td className="text-right font-bold">{shown.reduce((a, x) => a + x.unitPrice, 0).toLocaleString()}</td>
+                  <td className="text-right font-bold">{lineRows.reduce((a, x) => a + (x.kind === 'line' ? x.r.unitPrice : 0), 0).toLocaleString()}</td>
                   <td className="text-right font-bold">{totals.supply.toLocaleString()}</td>
                   <td className="text-right font-bold">{totals.vat.toLocaleString()}</td>
                   <td className="text-right font-bold">{(totals.supply + totals.vat).toLocaleString()}</td>
