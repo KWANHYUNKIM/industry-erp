@@ -10,13 +10,13 @@ import { useShortcut } from '../../utils/useShortcut'
  * <p>원본은 기능설정과 같은 틀이다 — [공통] 알약 · '접속관리'(접속제한설정 · 로그인관리 · 다중로그인) ·
  * '활동이력관리'(IP이력 · 로그인이력감시) · '보안설정' 판. 저장은 마스터만 된다.
  *
- * <p>우리 정책 중 <b>실제로 지키는 것은 최소 비밀번호 길이 하나</b>다(auth/user/UserService.requirePasswordPolicy —
+ * <p>우리 정책 중 <b>실제로 지키는 것은 최소 비밀번호 길이와 동일 비밀번호 사용제한(최근 N개, password_histories)</b>이다(auth/user/UserService.requirePasswordPolicy —
  * 사용자 등록·비밀번호 변경). 변경주기 · 실패 잠금 · 세션 자동종료 · IP 제한 · 2단계 인증은 저장만 되고 아무 데서도
  * 안 써서 싣지 않는다. 옛 화면 아래의 '접속 이력' 표는 지어낸 표본 넉 줄이었다(접속 기록을 남기는 곳이 없다) — 뺐다.
  */
 const TABS = ['공통'] as const
 
-interface Policy { pwLength: number }
+interface Policy { pwLength: number; pwHistoryCount: number }
 
 export default function SecurityPage() {
   const [policy, setPolicy] = useState<Policy | null>(null)
@@ -25,7 +25,7 @@ export default function SecurityPage() {
 
   useEffect(() => {
     api.get<Policy | null>('/security-policy')
-      .then((r) => setPolicy({ pwLength: r.data?.pwLength ?? 8 }))
+      .then((r) => setPolicy({ pwLength: r.data?.pwLength ?? 8, pwHistoryCount: r.data?.pwHistoryCount ?? 5 }))
       .catch((err) => setError(extractErrorMessage(err)))
   }, [])
 
@@ -33,7 +33,7 @@ export default function SecurityPage() {
     공통: [{
       title: '접속관리',
       groups: [{ title: '로그인관리', rows: [
-        { label: '비밀번호설정', value: `최소 길이:${policy?.pwLength ?? ''}자`, editable: true },
+        { label: '비밀번호설정', value: policy ? `최소 길이:${policy.pwLength}자 / 동일 비밀번호 사용제한:${policy.pwHistoryCount}회` : '', editable: true },
       ] }],
     }],
   }
@@ -56,17 +56,20 @@ function EditDialog({ policy, error, onError, onClose, onSaved }: {
   onError: (m: string) => void; onClose: () => void; onSaved: (p: Policy) => void
 }) {
   const [len, setLen] = useState(String(policy.pwLength))
+  const [hist, setHist] = useState(String(policy.pwHistoryCount))
   const [saving, setSaving] = useState(false)
 
   async function save() {
     if (saving) return
     const n = Number(len)
     if (!Number.isInteger(n) || n < 1) { onError('비밀번호 최소 길이를 올바르게 입력하세요.'); return }
+    const h = Number(hist)
+    if (!Number.isInteger(h) || h < 0) { onError('동일 비밀번호 사용제한을 올바르게 입력하세요.'); return }
     setSaving(true); onError('')
     try {
       // 다른 정책 칸은 보내지 않는다 — 서버가 null 은 그대로 둔다.
-      const r = await api.put<Policy>('/security-policy', { pwLength: n })
-      onSaved({ pwLength: r.data.pwLength })
+      const r = await api.put<Policy>('/security-policy', { pwLength: n, pwHistoryCount: h })
+      onSaved({ pwLength: r.data.pwLength, pwHistoryCount: r.data.pwHistoryCount })
     } catch (err) {
       onError(extractErrorMessage(err))
     } finally {
@@ -82,6 +85,10 @@ function EditDialog({ policy, error, onError, onClose, onSaved }: {
         <div className="pl-[13px] mb-[6px]">사용자 등록·비밀번호 변경 때 비밀번호가 이 길이보다 짧으면 저장하지 않습니다.</div>
         <div className="pl-[13px]">
           최소 길이 <input className="ec-input w-[60px] text-right" value={len} onChange={(e) => setLen(e.target.value)} /> 자
+        </div>
+        <div className="pl-[13px] mt-[6px]">
+          동일 비밀번호 사용제한 <input className="ec-input w-[60px] text-right" aria-label="동일 비밀번호 사용제한" value={hist} onChange={(e) => setHist(e.target.value)} /> 회
+          <span className="ml-[6px] text-ec-hint">(최근 N개와 같은 비밀번호는 못 씀 · 0 이면 제한 없음)</span>
         </div>
       </div>
       <div className="ec-slip-footer">
