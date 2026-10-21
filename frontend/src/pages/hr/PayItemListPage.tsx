@@ -79,7 +79,7 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
   const tableRef = useRef<HTMLTableElement>(null)
   const [formulas, setFormulas] = useState<PayItemFormula[]>([])
   const [formulaItem, setFormulaItem] = useState<Row | null>(null)
-  /* 원본 공제리스트 Option › 세율/세액등록 — Option 메뉴(EcListShell)에 칸을 더할 수 없어 버튼줄 끝에 둔다 */
+  /* 원본 공제리스트 Option › 세율/세액등록 */
   const [rateOpen, setRateOpen] = useState(false)
   const loadFormulas = () => {
     api.get<PayItemFormula[]>('/pay-settings/formulas').then((r) => setFormulas(r.data)).catch(() => setFormulas([]))
@@ -177,11 +177,18 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
     <EcListShell
       title={`${word}리스트`}
       searchable={false}
+      /* 원본 공제항목등록 [Option] 안(2026-10-14 실측): 입력화면설정 · 계산항목설정 · 세율/세액등록 · 수당/공제구분설정.
+         세율/세액등록만 우리 창이 있고, 나머지는 회사 설정 화면이라 이름만 보인다(채권 입력 Option 과 같은 방식). */
+      optionMenu={isAllowance ? undefined : [
+        { label: '입력화면설정', onClick: () => {} },
+        { label: '계산항목설정', onClick: () => {} },
+        { label: '세율/세액등록', onClick: () => setRateOpen(true) },
+        { label: '수당/공제구분설정', onClick: () => {} },
+      ]}
       actions={[
         { label: '저장(F8)', onClick: save, primary: true },
         { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v) },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
-        ...(isAllowance ? [] : [{ label: '세율/세액등록', onClick: () => setRateOpen(true) }]),
         { label: 'H', onClick: () => setHistoryOpen(true) },
       ]}
     >

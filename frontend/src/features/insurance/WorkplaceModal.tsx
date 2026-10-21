@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import type { InsuranceWorkplace } from './types'
 
 /**
@@ -17,6 +17,8 @@ export default function WorkplaceModal({ onClose, startNew }: { onClose: () => v
   const [form, setForm] = useState({ name: '', manageNo: '', phone: '' })
   const [error, setError] = useState<string | null>(null)
   const [menu, setMenu] = useState(false)
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [listMenu, setListMenu] = useState(false)
 
   const load = () => api.get<InsuranceWorkplace[]>('/hr/insurance/workplaces').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   useEffect(() => {
@@ -48,6 +50,27 @@ export default function WorkplaceModal({ onClose, startNew }: { onClose: () => v
   async function toggle() {
     if (!edit || edit === 'new') return
     try { await api.post(`/hr/insurance/workplaces/${edit.id}/toggle`); setEdit(null); load() } catch (e) { setError(extractErrorMessage(e)) }
+  }
+
+  /** 조회 창 [사용중단/재사용 ▲] 펼침 — 고른 줄에 사용중단 · 삭제 · 재사용(원본 2026-10-14 실측) */
+  async function applyToChecked(op: '사용중단' | '삭제' | '재사용') {
+    setListMenu(false)
+    const targets = rows.filter((w) => checked.has(w.id))
+    if (targets.length === 0) {
+      void ecAlert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
+      return
+    }
+    if (op === '삭제' && !(await ecConfirm('삭제하겠습니까?'))) return
+    try {
+      for (const w of targets) {
+        if (op === '삭제') await api.delete(`/hr/insurance/workplaces/${w.id}`)
+        else if ((op === '사용중단') === w.active) await api.post(`/hr/insurance/workplaces/${w.id}/toggle`)
+      }
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+    setChecked(new Set())
+    load()
   }
 
   async function remove() {
@@ -92,13 +115,20 @@ export default function WorkplaceModal({ onClose, startNew }: { onClose: () => v
     <Modal open title="사업장관리조회" onClose={onClose} width={960} error={error}>
       <table className="ec-list-grid mb-[8px]">
         <thead>
-          <tr><th className="w-[40px]" /><th>사업장명</th><th>사업장관리번호</th><th>사업장전화번호</th><th>사업자등록번호</th></tr>
+          <tr><th className="w-[40px]">
+            <input type="checkbox" checked={rows.length > 0 && rows.every((w) => checked.has(w.id))}
+                   onChange={(e) => setChecked(new Set(e.target.checked ? rows.map((w) => w.id) : []))} />
+          </th><th>사업장명</th><th>사업장관리번호</th><th>사업장전화번호</th><th>사업자등록번호</th></tr>
         </thead>
         <tbody>
           {rows.length === 0 && <tr><td colSpan={5} className="text-center">등록된 데이터가 없습니다.</td></tr>}
           {rows.map((w, i) => (
             <tr key={w.id} className={w.active ? undefined : 'text-ec-hint'}>
-              <td className="text-center">{i + 1}</td>
+              <td className="text-center">
+                <input type="checkbox" checked={checked.has(w.id)}
+                       onChange={(e) => setChecked((p) => { const n = new Set(p); if (e.target.checked) n.add(w.id); else n.delete(w.id); return n })} />
+                <span className="ml-[4px]">{i + 1}</span>
+              </td>
               <td><a className="cursor-pointer" onClick={() => open(w)}>{w.name}</a></td>
               <td><a className="cursor-pointer" onClick={() => open(w)}>{w.manageNo}</a></td>
               <td>{w.phone}</td>
@@ -109,6 +139,16 @@ export default function WorkplaceModal({ onClose, startNew }: { onClose: () => v
       </table>
       <div className="flex gap-[6px]">
         <button className="ec-btn" onClick={() => open('new')}>신규(F2)</button>
+        <span className="relative">
+          <button className="ec-btn" onClick={() => setListMenu((v) => !v)}>사용중단/재사용 ▲</button>
+          {listMenu && (
+            <div className="ec-menu absolute bottom-[28px] left-0">
+              {(['사용중단', '삭제', '재사용'] as const).map((op) => (
+                <button key={op} type="button" onClick={() => applyToChecked(op)}>{op}</button>
+              ))}
+            </div>
+          )}
+        </span>
         <button className="ec-btn" onClick={onClose}>닫기</button>
       </div>
     </Modal>

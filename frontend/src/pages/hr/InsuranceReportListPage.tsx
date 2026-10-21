@@ -7,6 +7,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { ecConfirm } from '../../components/EcDialog'
 import type { EmployeeMaster } from '../../types/api'
+import { insuranceEmployeeColumns } from '../../features/insurance/employeeColumns'
 import WorkplaceModal from '../../features/insurance/WorkplaceModal'
 import { INSURANCE_FORM_NAMES, INSURANCE_INPUT_PATHS, type InsuranceKind, type InsuranceReport } from '../../features/insurance/types'
 
@@ -103,6 +104,7 @@ export default function InsuranceReportListPage() {
         <EcCond label="사원" span={2}>
           <CodePickerField label="사원" hideLabel fill plain placeholder="사원" value={employeeId}
                            items={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name }))}
+                           columns={insuranceEmployeeColumns(employees)}
                            onChange={(v) => setEmployeeId(v)} />
         </EcCond>
         <EcCond label="서식명" span="full">

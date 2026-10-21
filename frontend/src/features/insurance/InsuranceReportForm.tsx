@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import { insuranceEmployeeColumns } from './employeeColumns'
 import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
 import type { CodeColumn } from '../../components/CodeSearchModal'
 import { api, extractErrorMessage } from '../../api/client'
@@ -260,7 +261,7 @@ export default function InsuranceReportForm({ kind }: { kind: InsuranceKind }) {
         <li>
           <span className="title">사원</span>
           <div className="form">
-            <CodePickerField label="사원" hideLabel fill pair plain placeholder="사원" value={form.employeeId} items={empItems}
+            <CodePickerField label="사원" hideLabel fill pair plain placeholder="사원" value={form.employeeId} items={empItems} columns={insuranceEmployeeColumns(employees)}
                              onChange={(v) => setForm((p) => ({ ...p, employeeId: v }))} />
           </div>
         </li>
