@@ -270,32 +270,39 @@ export default function PurchaseStatusPage() {
    * (9-09 기록의 '월 소계' 는 오늘 원본에 없다). shown 이 이미 줄 단위 · 내림차순이다.
    */
   /*
-   * 원본 [구분] 여덟 갈래(2026-10-22 구매현황 실측 — 일별 확인): 같은 일곱 열에 묶는 키만 다르다(판매현황과 같은 규칙, 소계 · 총합계 줄만 없다).
-   * 묶인 줄은 첫 줄의 일자-No. · 거래처 · 적요 · 품목을 찍고 수량 · 금액은 더하며 단가는 줄 단가의 평균이다.
+   * 원본 [구분] 여덟 갈래(2026-10-22 구매현황 실측 · 둘째 바퀴): 같은 일곱 열에 묶는 키만 다르다(소계 · 총합계 줄은 없다).
+   * 묶인 줄은 <b>가장 이른 줄</b>의 일자-No. · 거래처 · 적요 · 품목을 찍고(월별 10월 = 2026/10/01 -1 — 10/19 가 아니다) 수량 · 금액은 더하며
+   * 단가는 줄 단가의 평균이다(전표 셋 줄 10,000 · 1,900 · 50 → 3,983). 품목별 · 거래처별 · 담당자별은 <b>기간 전체</b>로 묶는다(달마다 나누지 않는다 —
+   * 9월+10월 거래처별 13줄). 묶음은 가장 이른 줄의 일자 · 번호가 늦은 것부터 늘어선다.
    */
   const lineRows = useMemo(() => {
     if (lineKind === '라인별') return shown
     const itemOf = (r: typeof shown[number]) => r.itemName + (r.spec ? ` [${r.spec}]` : '')
+    const seq = (docNo: string) => Number(docNo.split('-').pop()) || 0
     const keyOf = (r: typeof shown[number]): string => {
-      const ym = r.date.slice(0, 7)
       switch (lineKind) {
         case '일별': return r.date
-        case '월별': return ym
+        case '월별': return r.date.slice(0, 7)
         case '전표별': return dateNo(r.date, r.docNo)
-        case '품목별': return `${ym}|${r.itemId}|${itemOf(r)}`
+        case '품목별': return `${r.itemId}|${itemOf(r)}`
         case '전표별품목별': return `${dateNo(r.date, r.docNo)}|${r.itemId}|${itemOf(r)}`
-        case '거래처별': return `${ym}|${r.partner}`
-        default: return `${ym}|${r.employeeName ?? ''}`
+        case '거래처별': return `${r.partnerId}`
+        default: return `${r.employeeName ?? ''}`
       }
     }
-    const groups = new Map<string, { first: typeof shown[number]; n: number; qty: number; price: number; supply: number }>()
-    for (const r of shown) {
+    /* shown 은 일자 내림차순(같은 날은 들어온 차례) — 가장 이른 줄을 첫 줄로 삼으려 일자 · 번호 오름차순으로 한 번 뒤집는다. */
+    const asc = shown.map((r, i) => ({ r, i })).sort((x, y) =>
+      x.r.date !== y.r.date ? (x.r.date < y.r.date ? -1 : 1) : (seq(x.r.docNo) - seq(y.r.docNo)) || x.i - y.i)
+    const groups = new Map<string, { first: typeof shown[number]; order: number; n: number; qty: number; price: number; supply: number }>()
+    asc.forEach(({ r }, order) => {
       const k = keyOf(r)
-      const g = groups.get(k) ?? { first: r, n: 0, qty: 0, price: 0, supply: 0 }
+      const g = groups.get(k) ?? { first: r, order, n: 0, qty: 0, price: 0, supply: 0 }
       g.n += 1; g.qty += r.qty; g.price += r.unitPrice; g.supply += r.supply
       groups.set(k, g)
-    }
-    return [...groups].map(([k, g]) => ({ ...g.first, key: `g|${k}`, qty: g.qty, unitPrice: Math.round(g.price / g.n), supply: g.supply }))
+    })
+    return [...groups].sort(([, x], [, y]) => x.first.date !== y.first.date ? (x.first.date < y.first.date ? 1 : -1)
+      : (seq(y.first.docNo) - seq(x.first.docNo)) || x.order - y.order)
+      .map(([k, g]) => ({ ...g.first, key: `g|${k}`, qty: g.qty, unitPrice: Math.round(g.price / g.n), supply: g.supply }))
   }, [shown, lineKind])
 
   /**
