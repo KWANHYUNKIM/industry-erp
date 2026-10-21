@@ -57,6 +57,15 @@ public class FixedAsset extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal acquisitionVat = BigDecimal.ZERO;
 
+    /** 첫 증가 전표의 수수료(지급수수료(판)) · 거래처. */
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal acquisitionFee = BigDecimal.ZERO;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private com.erp.trade.partner.BusinessPartner partner;
+
     @Column(nullable = false)
     private LocalDate acquisitionDate;
 

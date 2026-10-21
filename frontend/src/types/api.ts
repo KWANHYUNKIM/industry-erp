@@ -1448,6 +1448,10 @@ export interface FixedAsset {
   decreasedCost: number
   decreasedAccum: number
   decreasedQuantity: number
+  /** 첫 증가 전표의 수수료(지급수수료(판)) · 거래처 */
+  acquisitionFee?: number
+  partnerId?: number | null
+  partnerName?: string | null
   /** 증가 · 감소 전표(원본 고정자산전표조회 한 줄씩) */
   movements: FixedAssetMovement[]
 }

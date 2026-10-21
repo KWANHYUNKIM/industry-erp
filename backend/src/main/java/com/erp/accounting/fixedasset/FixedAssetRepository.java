@@ -9,7 +9,7 @@ public interface FixedAssetRepository extends JpaRepository<FixedAsset, Long> {
 
     @Query("select a from FixedAsset a join fetch a.assetAccount " +
            "left join fetch a.accumAccount left join fetch a.expenseAccount " +
-           "left join fetch a.paymentAccount left join fetch a.receiptAccount " +
+           "left join fetch a.paymentAccount left join fetch a.receiptAccount left join fetch a.partner " +
            "where a.acquisitionDate >= :from and a.acquisitionDate <= :to " +
            "order by a.acquisitionDate desc, a.id desc")
     List<FixedAsset> findAllWithAccount(@org.springframework.data.repository.query.Param("from") java.time.LocalDate from,

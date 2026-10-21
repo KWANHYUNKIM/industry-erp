@@ -42,6 +42,7 @@ public class FixedAssetService {
     private final AccountRepository accountRepository;
     private final JournalService journalService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.trade.partner.PartnerService partnerService;
     /* accounting → settings 는 허용된 방향이다(CLAUDE.md 4.1). 회계연도 시작월(환경설정)을 읽는다. */
     private final com.erp.settings.preference.PreferenceService preferenceService;
 
@@ -113,6 +114,8 @@ public class FixedAssetService {
                 .remark(req.remark())
                 .quantityManaged(Boolean.TRUE.equals(req.quantityManaged()))
                 .quantity(req.quantity() != null ? req.quantity() : BigDecimal.ONE)
+                .acquisitionFee(req.acquisitionFee() != null ? req.acquisitionFee() : BigDecimal.ZERO)
+                .partner(partnerOf(req.partnerId()))
                 .createdBy(username)
                 .build();
         applyAccounts(asset, req);
@@ -121,6 +124,7 @@ public class FixedAssetService {
         FixedAssetMovement inc = movementRepository.save(FixedAssetMovement.builder()
                 .asset(saved).kind(MovementKind.INCREASE).slipDate(saved.getAcquisitionDate())
                 .quantity(saved.getQuantity()).amount(saved.getAcquisitionCost()).vat(saved.getAcquisitionVat())
+                .fee(saved.getAcquisitionFee()).partner(saved.getPartner())
                 .account(saved.getPaymentAccount()).remark(saved.getRemark()).createdBy(username).build());
         inc.setJournalEntry(journalService.createFromAssetIncrease(inc));
         return response(saved);
@@ -166,6 +170,8 @@ public class FixedAssetService {
         asset.setRemark(req.remark());
         asset.setQuantityManaged(Boolean.TRUE.equals(req.quantityManaged()));
         asset.setQuantity(req.quantity() != null ? req.quantity() : BigDecimal.ONE);
+        asset.setAcquisitionFee(req.acquisitionFee() != null ? req.acquisitionFee() : BigDecimal.ZERO);
+        asset.setPartner(partnerOf(req.partnerId()));
         applyAccounts(asset, req);
         /* 증가 전표 한 장뿐이면 그 전표도 같이 고치고 분개를 다시 만든다(옛 분개를 먼저 지워야 (출처, id) 유니크에 안 걸린다). */
         FixedAssetMovement inc = moves.isEmpty() ? null : moves.get(0);
@@ -183,6 +189,8 @@ public class FixedAssetService {
         inc.setAmount(asset.getAcquisitionCost());
         inc.setVat(asset.getAcquisitionVat());
         inc.setAccount(asset.getPaymentAccount());
+        inc.setFee(asset.getAcquisitionFee());
+        inc.setPartner(asset.getPartner());
         inc.setRemark(asset.getRemark());
         inc.setJournalEntry(journalService.createFromAssetIncrease(inc));
         return response(asset);
@@ -309,6 +317,7 @@ public class FixedAssetService {
                 .asset(asset).kind(MovementKind.INCREASE).slipDate(req.slipDate()).quantity(req.quantity())
                 .amount(req.amount()).vat(req.vat() != null ? req.vat() : BigDecimal.ZERO)
                 .account(req.accountId() != null ? anyAccount(req.accountId()) : asset.getPaymentAccount())
+                .fee(req.fee() != null ? req.fee() : BigDecimal.ZERO).partner(partnerOf(req.partnerId()))
                 .remark(req.remark()).createdBy(username).build());
         m.setJournalEntry(journalService.createFromAssetIncrease(m));
         recompute(asset);
@@ -340,7 +349,9 @@ public class FixedAssetService {
         BigDecimal sale = type == DisposalType.SCRAP || req.saleAmount() == null ? BigDecimal.ZERO : req.saleAmount();
         BigDecimal vat = type == DisposalType.SCRAP || req.vat() == null ? BigDecimal.ZERO : req.vat();
         saveDecrease(asset, req.slipDate(), req.quantity(), cost, accum, sale, vat, type,
-                req.accountId() != null ? anyAccount(req.accountId()) : null, req.remark(), username);
+                req.accountId() != null ? anyAccount(req.accountId()) : null, req.remark(), username,
+                req.fee() != null ? req.fee() : BigDecimal.ZERO, partnerOf(req.partnerId()),
+                req.gainLossAccountId() != null ? anyAccount(req.gainLossAccountId()) : null);
         return response(asset);
     }
 
@@ -420,7 +431,9 @@ public class FixedAssetService {
         BigDecimal sale = type == DisposalType.SCRAP ? BigDecimal.ZERO : req.disposalAmount();
         BigDecimal vat = type == DisposalType.SCRAP || req.disposalVat() == null ? BigDecimal.ZERO : req.disposalVat();
         saveDecrease(asset, req.disposalDate(), asset.remainingQuantity(), asset.remainingCost(), asset.remainingAccum(),
-                sale, vat, type, req.receiptAccountId() != null ? anyAccount(req.receiptAccountId()) : null, asset.getRemark(), username);
+                sale, vat, type, req.receiptAccountId() != null ? anyAccount(req.receiptAccountId()) : null, asset.getRemark(), username,
+                req.fee() != null ? req.fee() : BigDecimal.ZERO, partnerOf(req.partnerId()),
+                req.gainLossAccountId() != null ? anyAccount(req.gainLossAccountId()) : null);
         return response(asset);
     }
 
@@ -439,11 +452,13 @@ public class FixedAssetService {
     }
 
     private void saveDecrease(FixedAsset asset, LocalDate date, BigDecimal qty, BigDecimal cost, BigDecimal accum,
-                              BigDecimal sale, BigDecimal vat, DisposalType type, Account account, String remark, String username) {
+                              BigDecimal sale, BigDecimal vat, DisposalType type, Account account, String remark, String username,
+                              BigDecimal fee, com.erp.trade.partner.BusinessPartner partner, Account gainLossAccount) {
         FixedAssetMovement m = movementRepository.save(FixedAssetMovement.builder()
                 .asset(asset).kind(MovementKind.DECREASE).slipDate(date).quantity(qty).amount(cost).vat(vat)
                 .accumAmount(accum).saleAmount(sale).disposalType(type).gainLoss(sale.add(accum).subtract(cost))
-                .account(account).remark(remark).createdBy(username).build());
+                .account(account).fee(fee).partner(partner).gainLossAccount(gainLossAccount)
+                .remark(remark).createdBy(username).build());
         m.setJournalEntry(journalService.createFromAssetDecrease(m));
         recompute(asset);
     }
@@ -489,6 +504,10 @@ public class FixedAssetService {
 
     private static BigDecimal sum(List<FixedAssetMovement> ms, java.util.function.Function<FixedAssetMovement, BigDecimal> f) {
         return ms.stream().map(f).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private com.erp.trade.partner.BusinessPartner partnerOf(Long id) {
+        return id == null ? null : partnerService.get(id);
     }
 
     private AssetResponse response(FixedAsset asset) {

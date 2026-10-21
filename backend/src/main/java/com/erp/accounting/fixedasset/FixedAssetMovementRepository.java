@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface FixedAssetMovementRepository extends JpaRepository<FixedAssetMovement, Long> {
 
-    @Query("select m from FixedAssetMovement m left join fetch m.journalEntry left join fetch m.account " +
+    @Query("select m from FixedAssetMovement m left join fetch m.journalEntry left join fetch m.account left join fetch m.gainLossAccount left join fetch m.partner " +
            "where m.asset.id in :ids order by m.slipDate, m.id")
     List<FixedAssetMovement> findByAssetIds(@Param("ids") Collection<Long> ids);
 

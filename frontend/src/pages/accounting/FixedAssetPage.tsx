@@ -350,14 +350,16 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
     paymentAccountId: asset.paymentAccountId ? String(asset.paymentAccountId) : '',
     acquisitionVat: String(asset.acquisitionVat ?? 0),
     quantityManaged: asset.quantityManaged ? 'Y' : 'N', quantity: String(asset.quantity ?? 1),
+    acquisitionFee: asset.acquisitionFee ? String(asset.acquisitionFee) : '', partnerId: asset.partnerId ? String(asset.partnerId) : '',
   } : {
     name: '', assetAccountId: '', acquisitionDate: today(), acquisitionCost: '',
     salvageValue: '', usefulLifeYears: '5', method: 'STRAIGHT_LINE' as DepreciationMethod,
     declineRate: '', remark: '',
     accumAccountId: String(byCode(accounts, '203') ?? ''), expenseAccountId: String(byCode(accounts, '818') ?? ''),
     paymentAccountId: String(byCode(accounts, '251') ?? ''), acquisitionVat: '',
-    quantityManaged: 'N', quantity: '1',
+    quantityManaged: 'N', quantity: '1', acquisitionFee: '', partnerId: '',
   })
+  const partners = usePartners()
   /* 부가세는 공급가액의 10% 로 채워지고, 손으로 고치면 그 값을 쓴다(원본 증가 전표). */
   const [vatTouched, setVatTouched] = useState(!!asset)
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
@@ -398,6 +400,8 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
       acquisitionVat: vat,
       quantityManaged: form.quantityManaged === 'Y',
       quantity: form.quantityManaged === 'Y' ? Number(form.quantity) : 1,
+      acquisitionFee: Number(form.acquisitionFee) || 0,
+      partnerId: form.partnerId ? Number(form.partnerId) : undefined,
     }
     try {
       if (asset) await api.put(`/fixed-assets/${asset.id}`, body)
@@ -442,6 +446,12 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
         <Field label="부가세">
           <input className="ec-input w-[110px] text-right" name="acquisitionVat" type="number" step="any" value={vatTouched ? form.acquisitionVat : String(vat)}
                  onChange={(e) => { setVatTouched(true); set('acquisitionVat', e.target.value) }} />
+        </Field>
+        <Field label="수수료">
+          <input className="ec-input w-[100px] text-right" name="acquisitionFee" type="number" step="any" value={form.acquisitionFee} onChange={(e) => set('acquisitionFee', e.target.value)} />
+        </Field>
+        <Field label="거래처">
+          <PartnerSelect value={form.partnerId} onChange={(v) => set('partnerId', v)} partners={partners} />
         </Field>
         <Field label="출금계좌">
           <select className="ec-input w-[160px]" name="paymentAccountId" value={form.paymentAccountId} onChange={(e) => set('paymentAccountId', e.target.value)}>
@@ -505,6 +515,11 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
   const [amount, setAmount] = useState('')
   const [vatText, setVatText] = useState<string | null>(null)
   const [receipt, setReceipt] = useState(String(byCode(accounts, '108') ?? ''))
+  const [feeText, setFeeText] = useState('')
+  const [partnerId, setPartnerId] = useState(asset.partnerId ? String(asset.partnerId) : '')
+  /* 원본 [처분손익계정] 은 필수 — 비면 '처분이익 또는 처분손실 관련 계정을 입력 바랍니다.' */
+  const [gainAccount, setGainAccount] = useState('')
+  const partners = usePartners()
   /*
    * 수량관리 자산은 일부 감소(원본 E010612 2026-10-21 실측): 수량 · 잔량은 증가 합(앞 감소를 빼지 않는다),
    * 취득원가 = 증가 합계 단가 × 수량, 감가상각누계액은 0 으로 시작해 손으로 넣는다. 처분손익 = 매각액 + 누계 − 취득원가.
@@ -522,17 +537,19 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
   async function submit() {
     onError('')
     if (type === 'SALE' && amt < 0) return onError('매각액이 올바르지 않습니다.')
+    if (!gainAccount) return onError('처분이익 또는 처분손실 관련 계정을 입력 바랍니다.')
+    const extra = { fee: Number(feeText) || 0, partnerId: partnerId ? Number(partnerId) : undefined, gainLossAccountId: Number(gainAccount) }
     try {
       if (partial) {
         if (qty <= 0) return onError('수량을 입력하세요.')
         await api.post(`/fixed-assets/${asset.id}/decreases`, {
           slipDate: date, quantity: qty, amount: cost, accumAmount: accum, saleAmount: amt, vat, disposalType: type,
-          accountId: receipt ? Number(receipt) : undefined,
+          accountId: receipt ? Number(receipt) : undefined, ...extra,
         })
       } else {
         await api.post(`/fixed-assets/${asset.id}/dispose`, {
           disposalDate: date, disposalAmount: amt, disposalType: type, disposalVat: vat,
-          receiptAccountId: receipt ? Number(receipt) : undefined,
+          receiptAccountId: receipt ? Number(receipt) : undefined, ...extra,
         })
       }
       onSaved(gain === 0 ? '처분했습니다(처분손익 없음).'
@@ -577,8 +594,20 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
           <input className="ec-input w-[110px] text-right" name="disposalVat" type="number" step="any" value={String(vat)}
                  disabled={type === 'SCRAP'} onChange={(e) => setVatText(e.target.value)} />
         </Field>
+        <Field label="수수료">
+          <input className="ec-input w-[100px] text-right" name="disposalFee" type="number" step="any" value={feeText} onChange={(e) => setFeeText(e.target.value)} />
+        </Field>
         <Field label="처분이익또는처분손실">
           <input className="ec-input w-[130px] text-right" name="gain" value={won(gain)} disabled />
+        </Field>
+        <Field label="처분손익계정 *">
+          <select className="ec-input w-[170px]" name="gainLossAccountId" value={gainAccount} onChange={(e) => setGainAccount(e.target.value)}>
+            <option value="">선택하세요</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+          </select>
+        </Field>
+        <Field label="거래처">
+          <PartnerSelect value={partnerId} onChange={setPartnerId} partners={partners} />
         </Field>
         <Field label="입금계좌">
           <select className="ec-input w-[160px]" name="receiptAccountId" value={receipt} onChange={(e) => setReceipt(e.target.value)}>
@@ -601,6 +630,9 @@ function IncreaseForm({ asset, accounts, onError, onSaved }: {
   const [amount, setAmount] = useState('')
   const [vatText, setVatText] = useState<string | null>(null)
   const [pay, setPay] = useState(String(asset.paymentAccountId ?? byCode(accounts, '251') ?? ''))
+  const [feeText, setFeeText] = useState('')
+  const [partnerId, setPartnerId] = useState(asset.partnerId ? String(asset.partnerId) : '')
+  const partners = usePartners()
   const amt = Number(amount) || 0
   const vat = vatText !== null ? (Number(vatText) || 0) : Math.floor(amt / 10)
 
@@ -611,6 +643,7 @@ function IncreaseForm({ asset, accounts, onError, onSaved }: {
     try {
       await api.post(`/fixed-assets/${asset.id}/increases`, {
         slipDate: date, quantity: Number(qtyText), amount: amt, vat, accountId: pay ? Number(pay) : undefined,
+        fee: Number(feeText) || 0, partnerId: partnerId ? Number(partnerId) : undefined,
       })
       onSaved('증가 전표를 저장했습니다.')
     } catch (err) {
@@ -634,6 +667,12 @@ function IncreaseForm({ asset, accounts, onError, onSaved }: {
         <Field label="부가세">
           <input className="ec-input w-[110px] text-right" name="vat" type="number" step="any" value={String(vat)} onChange={(e) => setVatText(e.target.value)} />
         </Field>
+        <Field label="수수료">
+          <input className="ec-input w-[100px] text-right" name="fee" type="number" step="any" value={feeText} onChange={(e) => setFeeText(e.target.value)} />
+        </Field>
+        <Field label="거래처">
+          <PartnerSelect value={partnerId} onChange={setPartnerId} partners={partners} />
+        </Field>
         <Field label="출금계좌">
           <select className="ec-input w-[160px]" name="paymentAccountId" value={pay} onChange={(e) => setPay(e.target.value)}>
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
@@ -642,6 +681,23 @@ function IncreaseForm({ asset, accounts, onError, onSaved }: {
         <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
       </div>
     </div>
+  )
+}
+
+interface PartnerOpt { id: number; code: string; name: string }
+/** 증가 · 감소 전표의 [거래처] 고르기 목록(원본 고정자산증가 · 감소 전표의 거래처). */
+function usePartners() {
+  const [partners, setPartners] = useState<PartnerOpt[]>([])
+  useEffect(() => { api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([])) }, [])
+  return partners
+}
+
+function PartnerSelect({ value, onChange, partners }: { value: string; onChange: (v: string) => void; partners: PartnerOpt[] }) {
+  return (
+    <select className="ec-input w-[160px]" name="partnerId" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">(없음)</option>
+      {partners.map((p) => <option key={p.id} value={p.id}>{p.code} {p.name}</option>)}
+    </select>
   )
 }
 

@@ -29,7 +29,7 @@
         "wait:500",
         "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분').click();true",
         "wait:500",
-        "js:__set(__q('disposalDate'),'2026-10-31');__set(__q('disposalAmount'),'1000000');true",
+        "js:__set(__q('disposalDate'),'2026-10-31');__set(__q('disposalAmount'),'1000000');const g=__q('gainLossAccountId');__set(g,[...g.options].find(o=>o.text.startsWith('970 ')).value);true",
         "wait:200",
         "expect:__q('accumulatedDepreciation').value==='20,000'&&__q('disposalVat').value==='100000'&&__q('gain').value==='-180,000'&&__q('receiptAccountId').selectedOptions[0].text.startsWith('108')",
         "clicklast:저장",

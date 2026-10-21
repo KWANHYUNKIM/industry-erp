@@ -61,7 +61,7 @@
         "wait:500",
         "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분').click();true",
         "wait:500",
-        "js:__set(__q('disposalDate'),'2026-10-21');__set(__q('disposalAmount'),'800000');true",
+        "js:__set(__q('disposalDate'),'2026-10-21');__set(__q('disposalAmount'),'800000');const g=__q('gainLossAccountId');__set(g,[...g.options].find(o=>o.text.startsWith('970 ')).value);true",
         "wait:200",
         "expect:__q('disposalVat').value==='80000'",
         "clicklast:저장",

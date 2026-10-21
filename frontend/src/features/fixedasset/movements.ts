@@ -15,6 +15,14 @@ export interface Move {
   saleAmount: number
   disposalType: 'SALE' | 'SCRAP' | null
   remark: string | null
+  /** 수수료(지급수수료(판)) · 거래처 · 처분손익계정(감소) */
+  fee?: number
+  partnerId?: number | null
+  partnerName?: string | null
+  gainLossAccountId?: number | null
+  gainLossAccountName?: string | null
+  gainLoss?: number
+  journalDocNo?: string | null
 }
 
 export interface AssetMoves {

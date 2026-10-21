@@ -708,17 +708,25 @@ public class JournalService {
         com.erp.accounting.fixedasset.FixedAsset asset = m.getAsset();
         BigDecimal cost = m.getAmount();
         BigDecimal vat = m.getVat() != null ? m.getVat() : BigDecimal.ZERO;
-        String desc = "자산증가 " + asset.getAssetNo() + " " + asset.getName();
-        JournalEntry e = newEntry(JournalSourceType.ASSET_ACQUISITION, m.getId(), m.getSlipDate(), desc, null, m.getCreatedBy());
-        addDebitAccount(e, asset.getAssetAccount(), cost, "자산증가");
-        if (isPositive(vat)) addDebit(e, "135", vat, "부가세대급금");
-        addCreditAccount(e, m.getAccount(), cost.add(vat), "자산증가 대금");
+        BigDecimal fee = m.getFee() != null ? m.getFee() : BigDecimal.ZERO;
+        String remark = m.getRemark() != null && !m.getRemark().isBlank() ? m.getRemark() : "자산증가";
+        com.erp.trade.partner.BusinessPartner p = m.getPartner();
+        JournalEntry e = newEntry(JournalSourceType.ASSET_ACQUISITION, m.getId(), m.getSlipDate(),
+                m.getRemark() != null && !m.getRemark().isBlank() ? m.getRemark() : "자산증가 " + asset.getAssetNo() + " " + asset.getName(),
+                p, m.getCreatedBy());
+        /* 원본 2026-10-22 전표: 차) 비품 · 부가세대급금 · 지급수수료(판) / 대) 출금계좌 공급가액 + 부가세 + 수수료. 0 인 줄은 없다. */
+        addPartnerLine(e, asset.getAssetAccount(), cost, true, remark, p);
+        if (isPositive(vat)) addPartnerLine(e, account("135"), vat, true, remark, p);
+        if (isPositive(fee)) addPartnerLine(e, account("831"), fee, true, remark, p);
+        addPartnerLine(e, m.getAccount(), cost.add(vat).add(fee), false, remark, p);
         return save(e);
     }
 
     /**
-     * 고정자산감소 전표 → 분개. 차) 감가상각누계액 · 입금계좌(매각+부가세) · 처분손실 / 대) 자산계정(취득원가 몫) · 부가세예수금 · 처분이익.
-     * 처분손익 = 매각액 + 누계 − 취득원가 몫(원본 E010612).
+     * 고정자산감소 전표 → 분개. 원본 E010612(2026-10-22 실측) 줄 차례 —
+     * 차) 입금계좌(매각 + 부가세 − 수수료) · 지급수수료(판) / 대) 자산계정(매각액) · 부가세예수금 · 자산계정(취득원가 − 매각액, '취득원가상계:')
+     * / 차) 감가상각누계액('감가상각누계액상계:') · 처분손실 또는 대) 처분이익('매각 손실 : ' · '매각 이익 : ', 처분손익계정).
+     * 처분손익 = 매각액 + 누계 − 취득원가 몫. 0 인 줄은 없다.
      */
     @Transactional
     public JournalEntry createFromAssetDecrease(com.erp.accounting.fixedasset.FixedAssetMovement m) {
@@ -728,21 +736,42 @@ public class JournalService {
         BigDecimal proceeds = m.getSaleAmount();
         BigDecimal gain = proceeds.add(accumulated).subtract(cost);
         BigDecimal vat = m.getVat() != null ? m.getVat() : BigDecimal.ZERO;
-        String desc = "자산처분 " + asset.getAssetNo() + " " + asset.getName();
-        JournalEntry e = newEntry(JournalSourceType.DISPOSAL, m.getId(), m.getSlipDate(), desc, null, m.getCreatedBy());
+        BigDecimal fee = m.getFee() != null ? m.getFee() : BigDecimal.ZERO;
+        String r = m.getRemark() != null && !m.getRemark().isBlank() ? m.getRemark() : "";
+        String remark = r.isEmpty() ? "자산감소" : r;
+        com.erp.trade.partner.BusinessPartner p = m.getPartner();
+        JournalEntry e = newEntry(JournalSourceType.DISPOSAL, m.getId(), m.getSlipDate(),
+                r.isEmpty() ? "자산처분 " + asset.getAssetNo() + " " + asset.getName() : r, p, m.getCreatedBy());
+        Account receipt = m.getAccount() != null ? m.getAccount() : account("101");
+        BigDecimal receiptAmount = proceeds.add(vat).subtract(fee);
+        if (receiptAmount.signum() != 0) addPartnerLine(e, receipt, receiptAmount, true, remark, p);
+        if (isPositive(fee)) addPartnerLine(e, account("831"), fee, true, remark, p);
+        if (isPositive(proceeds)) addPartnerLine(e, asset.getAssetAccount(), proceeds, false, remark, p);
+        if (isPositive(vat)) addPartnerLine(e, account("255"), vat, false, remark, p);
+        BigDecimal offset = cost.subtract(proceeds);
+        if (offset.signum() != 0) addPartnerLine(e, asset.getAssetAccount(), offset, false, "취득원가상계:" + r, null);
         if (isPositive(accumulated)) {
-            if (asset.getAccumAccount() != null) addDebitAccount(e, asset.getAccumAccount(), accumulated, "감가상각누계액 제거");
-            else addDebit(e, "203", accumulated, "감가상각누계액 제거");
+            addPartnerLine(e, asset.getAccumAccount() != null ? asset.getAccumAccount() : account("203"),
+                    accumulated, true, "감가상각누계액상계:" + r, null);
         }
-        if (isPositive(proceeds.add(vat))) {
-            if (m.getAccount() != null) addDebitAccount(e, m.getAccount(), proceeds.add(vat), "처분대금");
-            else addDebit(e, "101", proceeds.add(vat), "처분대금");
+        if (gain.signum() < 0) {
+            addPartnerLine(e, m.getGainLossAccount() != null ? m.getGainLossAccount() : account("970"),
+                    gain.negate(), true, "매각 손실 : " + r, null);
+        } else if (gain.signum() > 0) {
+            addPartnerLine(e, m.getGainLossAccount() != null ? m.getGainLossAccount() : account("914"),
+                    gain, false, "매각 이익 : " + r, null);
         }
-        if (gain.signum() < 0) addDebit(e, "970", gain.negate(), "유형자산처분손실");
-        addCreditAccount(e, asset.getAssetAccount(), cost, "자산 제거");
-        if (isPositive(vat)) addCredit(e, "255", vat, "부가세예수금");
-        if (gain.signum() > 0) addCredit(e, "914", gain, "유형자산처분이익");
         return save(e);
+    }
+
+    /** 거래처를 줄에 붙여 적는다(원본 고정자산 전표는 줄마다 거래처 · 적요가 찍힌다). 음수는 반대편의 양수로. */
+    private void addPartnerLine(JournalEntry e, Account account, BigDecimal amount, boolean debit, String desc,
+                                com.erp.trade.partner.BusinessPartner partner) {
+        boolean d = amount.signum() < 0 ? !debit : debit;
+        BigDecimal v = amount.abs();
+        e.addLine(JournalLine.builder().account(account)
+                .debit(d ? v : BigDecimal.ZERO).credit(d ? BigDecimal.ZERO : v)
+                .description(desc).partner(partner).build());
     }
 
     /**

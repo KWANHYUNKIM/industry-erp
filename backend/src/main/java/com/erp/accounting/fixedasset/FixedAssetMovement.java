@@ -69,6 +69,21 @@ public class FixedAssetMovement extends BaseTimeEntity {
     @JoinColumn(name = "account_id")
     private Account account;
 
+    /** 수수료(원본 E010611 · E010612) — 취득원가에 안 들어가고 지급수수료(판)로 간다. */
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal fee = BigDecimal.ZERO;
+
+    /** 감소의 [처분손익계정](원본 필수 — 비면 '처분이익 또는 처분손실 관련 계정을 입력 바랍니다.'). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "gain_loss_account_id")
+    private Account gainLossAccount;
+
+    /** 거래처(원본 증가 · 감소 전표의 [거래처]) — 분개 줄에 붙는다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private com.erp.trade.partner.BusinessPartner partner;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "journal_entry_id")
     private JournalEntry journalEntry;

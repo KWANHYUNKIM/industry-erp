@@ -44,7 +44,10 @@ public final class FixedAssetDtos {
             /** 원본 [수량관리] 사용 — 비면 사용안함. */
             Boolean quantityManaged,
             /** 증가 [수량]. 비면 1. */
-            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity
+            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            /** 증가 전표의 [수수료](지급수수료(판)) · [거래처]. */
+            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal acquisitionFee,
+            Long partnerId
     ) {}
 
     /** 고치기 — 등록과 같은 칸. 감가상각이 잡힌 뒤로는 이름 · 적요만 바뀐다(서비스가 막는다). */
@@ -67,12 +70,14 @@ public final class FixedAssetDtos {
             /** 원본 [수량관리] 사용 — 비면 사용안함. */
             Boolean quantityManaged,
             /** 증가 [수량]. 비면 1. */
-            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity
+            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal acquisitionFee,
+            Long partnerId
     ) {
         public CreateAssetRequest asCreate() {
             return new CreateAssetRequest(name, assetAccountId, acquisitionDate, acquisitionCost, salvageValue,
                     usefulLifeYears, method, declineRate, remark, accumAccountId, expenseAccountId,
-                    paymentAccountId, acquisitionVat, quantityManaged, quantity);
+                    paymentAccountId, acquisitionVat, quantityManaged, quantity, acquisitionFee, partnerId);
         }
     }
 
@@ -85,7 +90,11 @@ public final class FixedAssetDtos {
             /** 매각 부가세(부가세예수금). 비면 0. */
             @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal disposalVat,
             /** 입금계좌(원본 기본 외상매출금). 비면 101 현금. */
-            Long receiptAccountId
+            Long receiptAccountId,
+            /** 수수료(지급수수료(판)) · 거래처 · 처분손익계정(원본 필수, API 는 비면 970 · 914). */
+            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal fee,
+            Long partnerId,
+            Long gainLossAccountId
     ) {}
 
     /** 특정 월(yyyy-MM)의 감가상각을 일괄 처리 */
@@ -112,6 +121,7 @@ public final class FixedAssetDtos {
             boolean quantityManaged, BigDecimal quantity,
             /** 감소 전표들의 합(취득원가 몫 · 누계 · 수량). 남은 취득가 = acquisitionCost − decreasedCost. */
             BigDecimal decreasedCost, BigDecimal decreasedAccum, BigDecimal decreasedQuantity,
+            BigDecimal acquisitionFee, Long partnerId, String partnerName,
             /** 증가 · 감소 전표(원본 고정자산전표조회 한 줄씩) — 출력물이 이것으로 기간 숫자를 낸다. */
             List<MovementResponse> movements
     ) {
@@ -141,6 +151,8 @@ public final class FixedAssetDtos {
                     idOf(a.getReceiptAccount()), nameOf(a.getReceiptAccount()),
                     a.isQuantityManaged(), a.getQuantity(),
                     a.getDecreasedCost(), a.getDecreasedAccum(), a.getDecreasedQuantity(),
+                    a.getAcquisitionFee(), a.getPartner() != null ? a.getPartner().getId() : null,
+                    a.getPartner() != null ? a.getPartner().getName() : null,
                     ms.stream().map(MovementResponse::from).toList());
         }
     }
@@ -149,7 +161,8 @@ public final class FixedAssetDtos {
             Long id, MovementKind kind, String kindName, LocalDate slipDate, BigDecimal quantity,
             BigDecimal amount, BigDecimal vat, BigDecimal accumAmount, BigDecimal saleAmount,
             DisposalType disposalType, String disposalTypeName, BigDecimal gainLoss,
-            Long accountId, String accountName, Long journalEntryId, String journalDocNo, String remark
+            Long accountId, String accountName, Long journalEntryId, String journalDocNo, String remark,
+            BigDecimal fee, Long gainLossAccountId, String gainLossAccountName, Long partnerId, String partnerName
     ) {
         public static MovementResponse from(FixedAssetMovement m) {
             return new MovementResponse(m.getId(), m.getKind(), m.getKind().getDisplayName(), m.getSlipDate(), m.getQuantity(),
@@ -157,7 +170,11 @@ public final class FixedAssetDtos {
                     m.getDisposalType(), m.getDisposalType() != null ? m.getDisposalType().getDisplayName() : null, m.getGainLoss(),
                     m.getAccount() != null ? m.getAccount().getId() : null, m.getAccount() != null ? m.getAccount().getName() : null,
                     m.getJournalEntry() != null ? m.getJournalEntry().getId() : null,
-                    m.getJournalEntry() != null ? m.getJournalEntry().getDocNo() : null, m.getRemark());
+                    m.getJournalEntry() != null ? m.getJournalEntry().getDocNo() : null, m.getRemark(),
+                    m.getFee(), m.getGainLossAccount() != null ? m.getGainLossAccount().getId() : null,
+                    m.getGainLossAccount() != null ? m.getGainLossAccount().getName() : null,
+                    m.getPartner() != null ? m.getPartner().getId() : null,
+                    m.getPartner() != null ? m.getPartner().getName() : null);
         }
     }
 
@@ -169,7 +186,9 @@ public final class FixedAssetDtos {
             @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal vat,
             /** 출금계좌. 비면 분개를 만들지 않는다. */
             Long accountId,
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String remark
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String remark,
+            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal fee,
+            Long partnerId
     ) {}
 
     /**
@@ -184,7 +203,11 @@ public final class FixedAssetDtos {
             @PositiveOrZero(message = "부가세는 0보다 작을 수 없습니다.") BigDecimal vat,
             DisposalType disposalType,
             Long accountId,
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String remark
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String remark,
+            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal fee,
+            Long partnerId,
+            /** 처분손익계정 — 원본 필수. API 는 비면 970 · 914. */
+            Long gainLossAccountId
     ) {}
 
     public record DepreciationResponse(
