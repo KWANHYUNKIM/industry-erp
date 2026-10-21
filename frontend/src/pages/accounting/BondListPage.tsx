@@ -10,6 +10,7 @@ import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { QUOTATION_PICKS } from '../../utils/periods'
 import { dateNo as journalDateNo } from '../../utils/dateNo'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
+import NumCheck from '../../components/NumCheck'
 import BondEntryModal from '../../features/bond/components/BondEntryModal'
 import { dateNo, flatten, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
 
@@ -196,8 +197,8 @@ export default function BondListPage({ side }: { side: BondSide }) {
         <thead>
           <tr>
             <th className="w-[30px] text-center">
-              <input type="checkbox" aria-label="전체선택" checked={allPicked}
-                     onChange={(e) => setPicked(e.target.checked ? new Set(entryIds) : new Set())} />
+              <NumCheck no="" head label="전체선택" on={allPicked}
+                        onChange={(v) => setPicked(v ? new Set(entryIds) : new Set())} />
             </th>
             <th className="text-center">일자-No.</th>
             <th>{word}번호</th>
@@ -215,11 +216,11 @@ export default function BondListPage({ side }: { side: BondSide }) {
             <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r) => (
+          ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td className="text-center">
-                <input type="checkbox" aria-label={`${dateNo(r)} 선택`} checked={picked.has(r.entryId)}
-                       onChange={(e) => setPicked((s) => { const n = new Set(s); if (e.target.checked) n.add(r.entryId); else n.delete(r.entryId); return n })} />
+                <NumCheck no={i + 1} label={`${dateNo(r)} 선택`} on={picked.has(r.entryId)}
+                          onChange={(v) => setPicked((s) => { const n = new Set(s); if (v) n.add(r.entryId); else n.delete(r.entryId); return n })} />
               </td>
               <td className="text-center">
                 <button type="button" className="ec-link"

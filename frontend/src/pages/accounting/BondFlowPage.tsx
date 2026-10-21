@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { extractErrorMessage } from '../../api/client'
+import { ecAlert } from '../../components/EcDialog'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -19,8 +20,11 @@ import { dateNo, flatten, sideWord, won, type BondDirection, type BondRow, type 
  * 여백 9px 2.7px 7.2px / 5.4px 2.7px). 계 · 총합계 줄은 굵게 · 바탕 247 · 이름 가운데 — 거래내역(.ec-report, 243)과 다르다.
  * 증가 50,000(김치좋아) → 증가현황 한 줄 50,000 · 김치좋아 계 50,000 · 총합계 50,000. 감소 20,000 → 감소현황 같은 꼴로 20,000.
  *
- * <p>[구분]은 '내역'만 둔다 — 집계 · 라인별 · [비교기간] · 그래프로 보기는 원본에서 펼친 모양을 아직 못 쟀다.
+ * <p>[구분] 내역 · 집계(집계조건1 · 2 — 원본 21항목 중 일별 · 발생월별 · 거래처별 · 계정별 · 프로젝트별만). 비우면 '집계 조건은 1개 이상 선택하셔야 합니다.'
+ * 라인별 · [비교기간] · 그래프로 보기는 원본에서 펼친 모양을 아직 못 쟀다.
  */
+const AGG_OPTIONS = ['일별', '발생월별', '거래처별', '계정별', '프로젝트별']
+
 export default function BondFlowPage({ side, direction }: { side: BondSide; direction: BondDirection }) {
   const word = sideWord(side)
   const inc = direction === 'INCREASE'
@@ -37,6 +41,10 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
   const [account, setAccount] = useState('')
   const [bondNo, setBondNo] = useState('')
   const [memo, setMemo] = useState('')
+  const [mode, setMode] = useState<'내역' | '집계'>('내역')
+  const [agg1, setAgg1] = useState('')
+  const [agg2, setAgg2] = useState('')
+  const [aggOn, setAggOn] = useState(false)
   const [rows, setRows] = useState<BondRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -77,24 +85,78 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
     }
     return [...m.entries()]
   }, [rows, direction, inc, from, to, dueFrom, dueTo, partner, dept, project, account, bondNo, memo])
+  const aggMode = mode === '집계'
+  /** 집계조건 → 줄의 묶음 열쇠(이름). 21항목 중 우리 자료로 셀 수 있는 것만 — 나머지는 원본 재기 필요. */
+  const keyOf = (c: string, r: BondRow): string => {
+    switch (c) {
+      case '일별': return r.entryDate.replaceAll('-', '/')
+      case '발생월별': return r.entryDate.slice(0, 7).replaceAll('-', '/')
+      case '거래처별': return r.partnerName ?? ''
+      case '계정별': return r.accountName
+      case '프로젝트별': return r.projectName ?? ''
+      default: return ''
+    }
+  }
+  const aggGroups = useMemo(() => {
+    if (!aggMode || !aggOn) return []
+    const flat = groups.flatMap(([, g]) => g.rows)
+    const m = new Map<string, { k1: string; k2: string; row: BondRow; amount: number }>()
+    for (const r of flat) {
+      const k1 = keyOf(agg1, r); const k2 = agg2 ? keyOf(agg2, r) : ''
+      const key = `${k1}\u0000${k2}`
+      const g = m.get(key)
+      if (g) g.amount += Number(r.amount); else m.set(key, { k1, k2, row: r, amount: Number(r.amount) })
+    }
+    const by = new Map<string, { k1: string; items: { k2: string; row: BondRow; amount: number }[]; total: number }>()
+    for (const v of m.values()) {
+      const g = by.get(v.k1) ?? { k1: v.k1, items: [], total: 0 }
+      g.items.push(v); g.total += v.amount; by.set(v.k1, g)
+    }
+    return [...by.values()].sort((a, b) => a.k1.localeCompare(b.k1, 'ko'))
+  }, [groups, aggMode, aggOn, agg1, agg2])
+  const aggCols = 1 + (agg2 ? 1 : 0) + 1 + (inc ? 1 : 0) + 1
   const total = groups.reduce((a, [, g]) => a + g.total, 0)
   const cols = inc ? 7 : 6
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, title, [groups.length])
+  useTableColumnCheck(tableRef, title, [groups.length, aggMode, aggOn, agg2])
+  function search() {
+    if (aggMode && !agg1) { void ecAlert('집계 조건은 1개 이상 선택하셔야 합니다.'); return }
+    setAggOn(aggMode)
+    void load()
+  }
 
   return (
     <EcListShell
       title={title}
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시작성', onClick: () => { setFrom(init.from); setTo(init.to); setDueFrom(''); setDueTo(''); setPartner(''); setDept(''); setProject(''); setAccount(''); setBondNo(''); setMemo('') } },
+        { label: '검색(F8)', primary: true, onClick: search },
+        { label: '다시작성', onClick: () => { setFrom(init.from); setTo(init.to); setDueFrom(''); setDueTo(''); setPartner(''); setDept(''); setProject(''); setAccount(''); setBondNo(''); setMemo(''); setMode('내역'); setAgg1(''); setAgg2(''); setAggOn(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
+        <EcCond label="구분">
+          <select className="ec-input w-[120px]" aria-label="구분" value={mode} onChange={(e) => { setMode(e.target.value as '내역' | '집계'); setAggOn(false) }}>
+            <option>내역</option><option>집계</option>
+          </select>
+        </EcCond>
+        {aggMode && (
+          <EcCond label="집계조건1">
+            <select className="ec-input w-[160px]" aria-label="집계조건1" value={agg1} onChange={(e) => { setAgg1(e.target.value); setAggOn(false) }}>
+              <option value=""></option>{AGG_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </EcCond>
+        )}
+        {aggMode && agg1 && (
+          <EcCond label="집계조건2">
+            <select className="ec-input w-[160px]" aria-label="집계조건2" value={agg2} onChange={(e) => { setAgg2(e.target.value); setAggOn(false) }}>
+              <option value=""></option>{AGG_OPTIONS.filter((o) => o !== agg1).map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </EcCond>
+        )}
         <EcCond label="기준일자">
           <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
           <span className="my-0 mx-[4px]">~</span>
@@ -132,6 +194,46 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
 
       <table ref={tableRef} className="ec-head700 w-full text-left">
         {/* 현황 머리는 굵다(원본 700, .ec-head700) — 조회 화면 머리(400)와 다르다 */}
+        {aggMode ? (<>
+        <thead>
+          <tr>
+            <th>{agg1 ? `${agg1}` : '집계'}</th>
+            {agg2 && <th>{agg2}</th>}
+            <th>적요</th>
+            {inc && <th>{word} 만기일자</th>}
+            <th className="text-right">금액</th>
+          </tr>
+        </thead>
+        <tbody>
+          {!aggOn ? (
+            <tr><td colSpan={aggCols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : aggGroups.length === 0 ? (
+            <tr><td colSpan={aggCols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : aggGroups.flatMap((g) => [
+            ...g.items.map((it, i) => (
+              <tr key={`${g.k1}-${it.k2}-${i}`}>
+                <td>{g.k1}</td>
+                {agg2 && <td>{it.k2}</td>}
+                <td>{it.row.memo ?? ''}</td>
+                {inc && <td>{it.row.dueDate ? it.row.dueDate.replaceAll('-', '/') : ''}</td>}
+                <td className="text-right">{won(it.amount)}</td>
+              </tr>
+            )),
+            <tr key={`${g.k1}-s`} className="ec-list-total">
+              <td colSpan={aggCols - 1} className="text-center !font-bold">{g.k1} 계</td>
+              <td className="text-right !font-bold">{won(g.total)}</td>
+            </tr>,
+          ])}
+        </tbody>
+        {aggOn && aggGroups.length > 0 && (
+          <tfoot>
+            <tr className="ec-list-total">
+              <td colSpan={aggCols - 1} className="text-center !font-bold">총합계</td>
+              <td className="text-right !font-bold">{won(total)}</td>
+            </tr>
+          </tfoot>
+        )}
+        </>) : (<>
         <thead>
           <tr>
             <th>일자-No.</th>
@@ -174,6 +276,7 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
             </tr>
           </tfoot>
         )}
+        </>)}
       </table>
     </EcListShell>
   )
