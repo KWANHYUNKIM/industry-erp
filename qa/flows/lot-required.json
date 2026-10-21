@@ -10,7 +10,7 @@
         "js:document.querySelectorAll('input[placeholder=\"품목 선택\"]')[0].click(); true",
         "pickrow:QA-LOTITEM",
         "wait:500",
-        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA로트품목') || [...t.querySelectorAll('input')].some((i) => (i.value || '').includes('QA로트품목'))); const ins = tr.querySelectorAll('input[type=number]'); const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(ins[0], '1'); ins[0].dispatchEvent(new Event('input', { bubbles: true })); return ins.length })()",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
         "wait:300",
         "click:저장",
         "wait:600",
