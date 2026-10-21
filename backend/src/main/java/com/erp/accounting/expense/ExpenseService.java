@@ -142,6 +142,15 @@ public class ExpenseService {
         return v;
     }
 
+    /**
+     * 전표 여럿 일괄 생성 — 원본(2026-10-21 loginaa): 사원 둘(고준희 30,000 · 김기현 20,000) 비용 전표 두 장을 함께 골라 [확인] →
+     * 가지급금정산서 두 장(각 차 여비교통비(판) / 대 가지급금(그 사원)). 한 장이라도 막히면 전부 되돌린다.
+     */
+    @Transactional
+    public List<FastVoucherDtos.VoucherResponse> settleBatch(ExpenseDtos.BatchSettleRequest req, String username) {
+        return req.slips().stream().map(s -> settle(s, username)).toList();
+    }
+
     // ── 비용내역입력 전표 한 장(머리 + 줄 여럿) ─────────────────────────────────────────────
 
     /**

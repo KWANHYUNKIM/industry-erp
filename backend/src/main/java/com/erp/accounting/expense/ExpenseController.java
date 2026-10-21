@@ -69,6 +69,14 @@ public class ExpenseController {
         return expenseService.settle(req, principal.getUsername());
     }
 
+    /** 전표별회계반영(비용) 여러 전표 [가지급금정산서작성] → '전표 일괄 생성을 진행하겠습니까?' [확인] — 전표 한 장마다 정산서 한 장 */
+    @PostMapping("/settle-batch")
+    public List<com.erp.accounting.fastvoucher.dto.FastVoucherDtos.VoucherResponse> settleBatch(
+            @Valid @RequestBody ExpenseDtos.BatchSettleRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return expenseService.settleBatch(req, principal.getUsername());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         expenseService.delete(id, principal.getUsername());

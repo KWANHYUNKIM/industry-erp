@@ -6,7 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
-import { ecAlert, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
 import { groupSlips, slipNo, type ExpenseRow } from '../../features/expense/types'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -21,6 +21,8 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * 결과: 회계 반영이 안 된 비용내역만 — 전표번호 · 결제구분 · 비용그룹 · 비용명 · 사용자 · 사용금액 · 회계No., 합계줄.
  * [가지급금정산서작성]: 회사비용 줄이 있으면 '결제구분이 개인비용인 전표를 선택 바랍니다.', 개인비용이면 '가지급금정산서' 창
  * (일자 · 첨언내용 · 정산자 · 계정코드(차변) · 금액 · 적요명) → [저장] → 회계 I 가지급금정산서 전표(차 비용 계정 / 대 가지급금).
+ * 전표를 둘 이상 고르면(2026-10-21 실측) 창 없이 '전표 일괄 생성을 진행하겠습니까?' → 전표 한 장마다 정산서 한 장.
+ * 그 정산서를 회계 I 에서 지우면 비용 전표가 이 목록에 다시 나온다(정산취소 — settled_journal_id ON DELETE SET NULL).
  */
 export default function ExpenseSettlePage() {
   const navigate = useNavigate()
@@ -74,12 +76,29 @@ export default function ExpenseSettlePage() {
   const total = shown.reduce((s, r) => s + Number(r.amount), 0)
   /* 원본(2026-10-20): 두 줄 전표도 한 줄 '2026/10/20 -2 · 개인비용 · 교통비(국내-자차) · 고준희 · 35,000' — 비용명 · 사용자는 첫 줄 것. */
   const slips = useMemo(() => groupSlips(shown), [shown])
-  const picked = slips.filter((g) => checked.has(g[0].id)).flat()
+  const pickedSlips = slips.filter((g) => checked.has(g[0].id))
+  const picked = pickedSlips.flat()
   const uniq = (xs: [string, string, string][]) => [...new Map(xs.map((x) => [x[0], x])).values()].map(([value, code, name]) => ({ value, code, name }))
 
   async function openSettle() {
     if (picked.length === 0) { await ecAlert(NO_SELECTION_MESSAGE); return }
     if (picked.some((r) => r.payType !== 'PERSONAL')) { await ecAlert('결제구분이 개인비용인 전표를 선택 바랍니다.'); return }
+    /* 원본(2026-10-21): 전표를 둘 이상 고르면 창 없이 확인만 묻고 전표 한 장마다 가지급금정산서 한 장(사원별로 따로). */
+    if (pickedSlips.length > 1) {
+      if (!(await ecConfirm('전표 일괄 생성을 진행하겠습니까?'))) return
+      try {
+        await api.post('/expenses/settle-batch', {
+          slips: pickedSlips.map((g) => ({
+            voucherDate: ymd(new Date()),
+            lines: g.map((r) => ({ expenseId: r.id, employeeName: empName(r.employeeId) })),
+          })),
+        })
+        await load()
+      } catch (e) {
+        await ecAlert(extractErrorMessage(e))
+      }
+      return
+    }
     setVDate(ymd(new Date())); setMemo(''); setFormError(''); setOpen(true)
   }
 

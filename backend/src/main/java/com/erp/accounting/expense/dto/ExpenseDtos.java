@@ -59,6 +59,15 @@ public final class ExpenseDtos {
     public record SettleLine(@NotNull Long expenseId, String employeeName) {}
 
     /**
+     * 전표별회계반영(비용) 에서 전표를 둘 이상 골랐을 때 — 원본(2026-10-21 loginaa)은 창 없이 '전표 일괄 생성을 진행하겠습니까?' [확인] 으로
+     * <b>비용 전표 한 장마다 가지급금정산서 한 장</b>(고준희 30,000 → 26/10/21-8 · 김기현 20,000 → 26/10/21-7).
+     */
+    public record BatchSettleRequest(
+            @jakarta.validation.constraints.NotEmpty(message = "리스트에 선택된 자료가 없습니다.")
+            java.util.List<@jakarta.validation.Valid SettleRequest> slips
+    ) {}
+
+    /**
      * 비용내역입력(E060812) 전표 한 장 = 머리 + 줄 여럿. 원본(2026-10-20 실측): 두 줄 20,000 + 15,000 을 한 번에 저장하면
      * 전표 하나 '2026/10/20 -2' 가 되고, 전표별회계반영에서 그 한 장이 가지급금정산서 한 장이 된다.
      */
