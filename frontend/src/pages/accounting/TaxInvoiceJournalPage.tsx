@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useTableSort } from '../../utils/useTableSort'
 import { vatSlipAmounts } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -140,7 +141,12 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
     out.sort((a, b) => a.date.localeCompare(b.date))
     return kind ? out.filter((r) => r.kindName === kind) : out
   }, [entries, vouchers, pById, docNo, partner, manager, taxOnly, kind, status, side])
-  const months = [...new Set(rows.map((r) => r.date.slice(0, 7)))]
+  /* 원본 머리 다섯 칸(일자-No. · 거래처명 · 공급가액 · 부가세 · 합계)은 글자 링크 + ▼ 정렬. 월 소계가 있어 달 순서는 늘 날짜순. */
+  const sort = useTableSort(rows, {
+    date: (r) => r.date + r.no, partner: (r) => r.partner, supply: (r) => r.supply, vat: (r) => r.vat, total: (r) => r.supply + r.vat,
+  })
+  const sortedRows = sort.sorted
+  const months = [...new Set(rows.map((r) => r.date.slice(0, 7)))].sort()
   const sum = (rs: Row[]) => rs.reduce((s, r) => ({ s: s.s + r.supply, v: s.v + r.vat }), { s: 0, v: 0 })
   const total = sum(rows)
   const managers = useMemo(() => [...new Set(partners.map((p) => p.manager).filter((v): v is string => !!v))].sort(), [partners])
@@ -238,11 +244,19 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
         )}
         <thead>
           <tr>
-            <th className="text-center">일자-No.</th>
-            <th>거래처명</th>
-            <th className="text-right">공급가액</th>
-            <th className="text-right">{side}부가세</th>
-            <th className="text-right">{side}합계</th>
+            {tax ? (<>
+              <th className="text-center"><a className="cursor-pointer" onClick={() => sort.toggle('date')}>일자-No.</a>{sort.mark('date')}</th>
+              <th><a className="cursor-pointer" onClick={() => sort.toggle('partner')}>거래처명</a>{sort.mark('partner')}</th>
+              <th className="text-right"><a className="cursor-pointer" onClick={() => sort.toggle('supply')}>공급가액</a>{sort.mark('supply')}</th>
+              <th className="text-right"><a className="cursor-pointer" onClick={() => sort.toggle('vat')}>{side}부가세</a>{sort.mark('vat')}</th>
+              <th className="text-right"><a className="cursor-pointer" onClick={() => sort.toggle('total')}>{side}합계</a>{sort.mark('total')}</th>
+            </>) : (<>
+              <th className="text-center">일자-No.</th>
+              <th>거래처명</th>
+              <th className="text-right">공급가액</th>
+              <th className="text-right">{side}부가세</th>
+              <th className="text-right">{side}합계</th>
+            </>)}
             <th className="text-center">내역보기</th>
           </tr>
         </thead>
@@ -254,7 +268,7 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
           ) : (
             <>
               {months.map((mo) => {
-                const ms = rows.filter((r) => r.date.slice(0, 7) === mo)
+                const ms = sortedRows.filter((r) => r.date.slice(0, 7) === mo)
                 const s = sum(ms)
                 return (
                   <Fragment key={mo}>

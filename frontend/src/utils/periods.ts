@@ -390,6 +390,9 @@ export const WORK_PROCESS_PICKS = [...BASE_PICKS, '최근30일(+1개월)', '종�
 export const JOURNAL_INQUIRY_PICKS = [...BASE_PICKS, '이번기수', '직전기수', '종료일', '최근30일(+1개월)',
   '최근40일(+1개월)', '차월', '금년', '6개월(+1개월)', '차주'] as const
 
+/** 재고변동표(E040719) — [전월] 다음에 [전월+금월], 맨 끝이 [종료일] (2026-10-22 원본 실측; 미주문현황은 반대 차례). */
+export const STOCK_MOVEMENT_PICKS = [...BASE_PICKS, '전월+금월', '종료일'] as const
+
 /** 미주문현황(E040211) — 둘 다 붙는다 */
 export const INQUIRY_FULL_PICKS = [...BASE_PICKS, '종료일', '전월+금월'] as const
 

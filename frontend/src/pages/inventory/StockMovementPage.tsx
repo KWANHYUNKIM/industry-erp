@@ -6,7 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { STOCK_MOVEMENT_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
@@ -239,7 +239,7 @@ export default function StockMovementPage() {
       <EcStatusPanel
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
-        picks={INQUIRY_FULL_PICKS}
+        picks={STOCK_MOVEMENT_PICKS}
       >
         <EcCond label="구분">
           <div className="ec-pills">

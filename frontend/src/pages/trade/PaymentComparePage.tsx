@@ -259,7 +259,7 @@ export default function PaymentComparePage() {
       <div className="overflow-x-auto">
         <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total}
                   hint="기간을 좁혀 보세요." />
-        <table className="ec-grid w-[1315px] min-w-[1315px] table-fixed">
+        <table className="text-left ec-report ec-report-fixed">
           {/* 첫 머리 줄이 묶음 칸(colSpan)이라 table-fixed 는 둘째 줄 폭을 안 본다 — 열 폭은 colgroup 으로 */}
           <colgroup>
             <col className="w-[160px]" /><col className="w-[120px]" /><col className="w-[80px]" />
@@ -267,7 +267,8 @@ export default function PaymentComparePage() {
             {Array.from({ length: 8 }, (_, i) => <col key={i} className="w-[100px]" />)}
           </colgroup>
           <thead>
-            <tr>
+            {/* 원본 묶음 머리 줄은 높이 44 고정, 아랫줄 27.14(출력물 머리) */}
+            <tr className="h-[44px]">
               <th colSpan={5} className="text-center">결제내역</th>
               <th colSpan={5} className="text-center">판매전표II</th>
               <th colSpan={3} className="text-center">차이</th>
