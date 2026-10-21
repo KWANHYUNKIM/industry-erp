@@ -1,15 +1,20 @@
 package com.erp.common.history;
 
 import com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse;
+import com.erp.common.history.dto.ChangeHistoryDtos.SlipHistoryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 공용 [H] '이력' — 마스터 · 자료 서비스가 저장할 때 {@link #record} 로 한 줄씩 적고, 창이 열리면 차례대로 돌려준다.
@@ -44,6 +49,55 @@ public class ChangeHistoryService {
         record(target, targetId, wasActive == isActive ? UPDATED : isActive ? REUSED : STOPPED);
     }
 
+    /**
+     * 전표 한 장의 행위 때 모습 — 거래이력조회(재고) E040716 한 줄의 칸들. 각 모듈 서비스가 자기 전표에서 만들어 넘긴다
+     * (common 은 Sales · Purchase 를 모른다). 지운 전표도 원본은 그 때 거래처 · 품목을 보여 주므로 글자로 박아 둔다.
+     */
+    public record SlipSnapshot(String menu, LocalDate docDate, String docNo,
+                               String partnerCode, String partnerName, String itemSummary,
+                               String managerCode, String managerName, String docStatus) {}
+
+    /** 전표 등록 · 수정 · 삭제를 한 줄 적는다 — 같은 줄이 그 전표 [H] 에도 뜬다(target · targetId 가 같다). */
+    @Transactional
+    public void recordSlip(String target, Long targetId, String action, SlipSnapshot s) {
+        repository.save(ChangeHistory.builder()
+                .target(target).targetId(targetId).action(action)
+                .worker(currentUser()).workedAt(LocalDateTime.now())
+                .menu(s.menu()).docDate(s.docDate()).docNo(s.docNo())
+                .partnerCode(s.partnerCode()).partnerName(s.partnerName()).itemSummary(s.itemSummary())
+                .managerCode(s.managerCode()).managerName(s.managerName()).docStatus(s.docStatus())
+                .build());
+    }
+
+    /**
+     * 거래이력조회(재고) — 작업일자 기간(끝 날 포함) · 메뉴 · 작업자 · 행위로 고른다.
+     * 원본 차례(2026-10-21 실측): 전표번호(일자 · 번호) 큰 것부터, 같은 전표 안은 늦게 한 작업부터.
+     * [수정순] 이면 작업일시 늦은 것부터. [최종이력만 검색] 이면 전표마다 마지막 작업 한 줄.
+     */
+    @Transactional(readOnly = true)
+    public List<SlipHistoryResponse> searchSlips(LocalDate from, LocalDate to, List<String> menus, String worker,
+                                                 List<String> actions, boolean latestOnly, boolean byWorkTime) {
+        List<ChangeHistory> rows = new ArrayList<>(repository.findSlips(from.atStartOfDay(), to.plusDays(1).atStartOfDay()));
+        Comparator<ChangeHistory> byWork = Comparator.comparing(ChangeHistory::getWorkedAt).thenComparing(ChangeHistory::getId);
+        Comparator<ChangeHistory> bySlip = Comparator.comparing(ChangeHistory::getDocDate, Comparator.nullsFirst(Comparator.<LocalDate>naturalOrder()))
+                .thenComparing(ChangeHistory::getDocNo, Comparator.nullsFirst(Comparator.<String>naturalOrder()));
+        Comparator<ChangeHistory> order = byWorkTime ? byWork.reversed() : bySlip.reversed().thenComparing(byWork.reversed());
+        rows.sort(byWork.reversed());
+        Set<String> seen = new HashSet<>();
+        List<ChangeHistory> kept = new ArrayList<>();
+        for (ChangeHistory h : rows) {
+            if (menus != null && !menus.isEmpty() && !menus.contains(h.getMenu())) continue;
+            if (worker != null && !worker.isBlank() && (h.getWorker() == null || !h.getWorker().equalsIgnoreCase(worker.trim()))) continue;
+            if (latestOnly && !seen.add(h.getTarget() + ":" + h.getTargetId())) continue;
+            if (actions != null && !actions.isEmpty() && !actions.contains(h.getAction())) continue;
+            kept.add(h);
+        }
+        kept.sort(order);
+        return kept.stream().map(h -> new SlipHistoryResponse(h.getId(), h.getTarget(), h.getTargetId(), h.getWorkedAt(),
+                h.getMenu(), h.getDocDate(), h.getDocNo(), h.getAction(), h.getPartnerCode(), h.getPartnerName(),
+                h.getItemSummary(), h.getManagerCode(), h.getManagerName(), h.getWorker(), h.getDocStatus())).toList();
+    }
+
     /** 적어 둔 줄만 — 오래된 것부터(원본 No. 1 이 처음 작업). */
     @Transactional(readOnly = true)
     public List<ChangeHistoryResponse> list(String target, Long targetId) {
@@ -60,9 +114,9 @@ public class ChangeHistoryService {
     public List<ChangeHistoryResponse> list(String target, Long targetId, String createdBy, LocalDateTime createdAt) {
         List<ChangeHistoryResponse> out = new ArrayList<>();
         for (ChangeHistory h : repository.findByTargetAndTargetIdOrderByWorkedAtAscIdAsc(target, targetId)) {
-            out.add(new ChangeHistoryResponse(out.size() + 1, h.getWorker(), h.getWorkedAt(), h.getAction()));
+            out.add(new ChangeHistoryResponse(out.size() + 1, h.getWorker(), h.getWorkedAt(), h.getAction(), h.getDocStatus()));
         }
-        if (out.isEmpty() && createdAt != null) out.add(new ChangeHistoryResponse(1, createdBy, createdAt, CREATED));
+        if (out.isEmpty() && createdAt != null) out.add(new ChangeHistoryResponse(1, createdBy, createdAt, CREATED, null));
         return out;
     }
 

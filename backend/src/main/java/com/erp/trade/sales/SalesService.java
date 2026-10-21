@@ -4,6 +4,8 @@ import com.erp.trade.TradeMasters;
 import com.erp.trade.VatAllocator;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.history.ChangeHistoryService;
+import com.erp.common.history.ChangeHistoryService.SlipSnapshot;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.inventory.item.Item;
 import com.erp.trade.salesorder.SalesOrder;
@@ -67,6 +69,8 @@ public class SalesService {
     private final SalesOrderService salesOrderService;
     private final SalesLineRepository salesLineRepository;
     private final MallOrderRepository mallOrderRepository;
+    // 거래이력조회(재고) E040716 · 수정 창 [H] — 등록 · 수정 · 삭제를 한 줄씩 적는다(common 은 trade 를 모르니 칸은 여기서 채운다).
+    private final ChangeHistoryService changeHistory;
 
     /** 판매전표 확인 처리. 결재중인 전표는 결재로만 확인된다. */
     @Transactional
@@ -198,6 +202,7 @@ public class SalesService {
         Sales saved = salesRepository.save(sales);
         syncLots(saved);
         refreshOrders(sourceOrders(saved));
+        changeHistory.recordSlip(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED, snapshot(saved));
         return SalesResponse.from(saved);
     }
 
@@ -230,7 +235,31 @@ public class SalesService {
         syncLots(sales);
         touchedOrders.addAll(sourceOrders(sales));
         refreshOrders(touchedOrders);
+        changeHistory.recordSlip(HISTORY_TARGET, sales.getId(), ChangeHistoryService.UPDATED, snapshot(sales));
         return SalesResponse.from(sales);
+    }
+
+    /** [H] · 거래이력조회의 대상 글자 — 화면 EcHistoryButton target 과 같다. */
+    public static final String HISTORY_TARGET = "SALES";
+
+    /**
+     * 행위 때의 전표 모습 — 원본 거래이력조회 한 줄(거래처코드 · 거래처명 · 품목명(요약) · 담당자코드 · 담당자명 · 전표상태).
+     * 품목명은 판매조회 [품목명(요약)] 과 같은 꼴 '포장재 [30cm*40cm] 외 1건'.
+     */
+    private static SlipSnapshot snapshot(Sales s) {
+        String items = null;
+        if (!s.getLines().isEmpty()) {
+            Item first = s.getLines().get(0).getItem();
+            items = first.getName() + (first.getSpec() == null || first.getSpec().isBlank() ? "" : " [" + first.getSpec() + "]");
+            if (s.getLines().size() > 1) items += " 외 " + (s.getLines().size() - 1) + "건";
+        }
+        return new SlipSnapshot("판매", s.getSaleDate(), s.getDocNo(),
+                s.getPartner() != null ? s.getPartner().getCode() : null,
+                s.getPartner() != null ? s.getPartner().getName() : null,
+                items,
+                s.getEmployee() != null ? s.getEmployee().getCode() : null,
+                s.getEmployee() != null ? s.getEmployee().getName() : null,
+                s.getConfirmStatus() != null ? s.getConfirmStatus().getDisplayName() : null);
     }
 
     /** 원본 시리얼/로트No.내역조회의 [전표구분]. */
@@ -251,6 +280,7 @@ public class SalesService {
         Sales sales = getSales(id);
         ensureEditable(sales, "삭제");
 
+        changeHistory.recordSlip(HISTORY_TARGET, sales.getId(), ChangeHistoryService.DELETED, snapshot(sales));
         revertStock(sales, "판매삭제 원복", username);
         lotService.removeDocument(LOT_DOC_TYPE, sales.getId());
         Set<SalesOrder> touchedOrders = sourceOrders(sales);

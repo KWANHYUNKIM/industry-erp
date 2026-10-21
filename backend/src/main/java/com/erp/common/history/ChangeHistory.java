@@ -3,6 +3,7 @@ package com.erp.common.history;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -40,4 +41,36 @@ public class ChangeHistory {
 
     @Column(name = "worked_at", nullable = false)
     private LocalDateTime workedAt;
+
+    // ── 전표 이력만(거래이력조회 E040716) — 행위 때의 값을 글자로 박아 둔다. 마스터 [H] 줄은 비어 있다. ──
+
+    /** 원본 [메뉴] 글자 — 판매 · 구매 …(전표가 아니면 null). */
+    @Column(length = 30)
+    private String menu;
+
+    @Column(name = "doc_date")
+    private LocalDate docDate;
+
+    @Column(name = "doc_no", length = 40)
+    private String docNo;
+
+    @Column(name = "partner_code", length = 50)
+    private String partnerCode;
+
+    @Column(name = "partner_name", length = 200)
+    private String partnerName;
+
+    /** '포장재 [30cm*40cm] 외 1건' */
+    @Column(name = "item_summary", length = 300)
+    private String itemSummary;
+
+    @Column(name = "manager_code", length = 50)
+    private String managerCode;
+
+    @Column(name = "manager_name", length = 100)
+    private String managerName;
+
+    /** 원본 [전표상태] — 확인 · 미확인. */
+    @Column(name = "doc_status", length = 20)
+    private String docStatus;
 }
