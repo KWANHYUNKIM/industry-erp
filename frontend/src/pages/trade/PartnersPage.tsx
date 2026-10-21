@@ -501,8 +501,8 @@ export default function PartnersPage() {
             {FORM_TABS.map((t) => (
               <li key={t} className={`ec-tab relative${formTab === t ? ' active' : ''}`}
                   onClick={() => setFormTab(t)} style={{ cursor: 'pointer' }}>{t}
-                {/* 원본: 빈 필수칸이 있는 탭 오른쪽 위의 빨간 동그라미 '!'(16×16, 위 -6.3px). 상호는 [기본] 에 있다. */}
-                {t === '기본' && invalid && !form.name.trim() && (
+                {/* 원본: 빈 필수칸이 있는 탭 오른쪽 위의 빨간 동그라미 '!'(16×16, 위 -6.3px). 상호가 [기본] · [거래처정보] 두 탭에 있어 둘 다 붙는다(plans 재고1 거래처등록 ⑥). */}
+                {(t === '기본' || t === '거래처정보') && invalid && !form.name.trim() && (
                   <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
                 )}
               </li>
@@ -551,6 +551,13 @@ export default function PartnersPage() {
 
           {formTab === '거래처정보' && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {/* 원본은 상호(이름) 칸이 [기본] 에도 [거래처정보] 에도 있다 — 같은 칸(같은 값). 칸 자리는 못 재서 맨 앞에 둔다. */}
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">상호(이름) *</label>
+              <input className={`${inputCls} ${invalid && !form.name.trim() ? 'border-[color:var(--ec-text-danger)]' : ''}`}
+                     aria-invalid={invalid && !form.name.trim()} placeholder="상호(이름)"
+                     value={form.name} onChange={(e) => set('name', e.target.value)} />
+            </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">구분 *</label>
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)}>

@@ -36,7 +36,7 @@ export default function ManageItemsPage() {
   const [error, setError] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [quick, setQuick] = useState('')
-  const [cond, setCond] = useState<{ code: string; name: string; use: 'ALL' | 'Y' | 'N' }>({ code: '', name: '', use: 'Y' })
+  const [cond, setCond] = useState<{ code: string; name: string; use: 'ALL' | 'Y' | 'N'; byUpdated: boolean }>({ code: '', name: '', use: 'Y', byUpdated: false })
   /** 마지막 [저장] 이 관리항목명이 비어 막혔는가 — 원본은 글 없이 그 칸만 빨갛다. */
   const [invalid, setInvalid] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
@@ -109,7 +109,8 @@ export default function ManageItemsPage() {
     .filter((r) => cond.use === 'ALL' || (cond.use === 'Y') === r.active)
     .filter((r) => !quick || r.code.includes(quick) || r.name.includes(quick))
     .filter((r) => r.code.includes(cond.code.trim()) && r.name.includes(cond.name.trim()))
-    .sort((a, b) => a.code.localeCompare(b.code))
+    // 원본 기타 [수정일자순(정렬)] — 켜면 나중에 고친 것이 위
+    .sort((a, b) => (cond.byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : a.code.localeCompare(b.code)))
   const sort = useTableSort(shownRows, {
     관리항목코드: (r) => r.code,
     관리항목명: (r) => r.name,
@@ -141,6 +142,7 @@ export default function ManageItemsPage() {
             <label key={v} className="mr-[10px]"><input type="radio" name="mitem-use" checked={cond.use === v} onChange={() => setCond({ ...cond, use: v })} /> {l}</label>
           ))}
         </EcCond>
+        <EcCond label="기타"><label className="flex items-center gap-[4px]"><input type="checkbox" checked={cond.byUpdated} onChange={(e) => setCond({ ...cond, byUpdated: e.target.checked })} /> 수정일자순(정렬)</label></EcCond>
       </ul>
       {menuOpen && (
         <>

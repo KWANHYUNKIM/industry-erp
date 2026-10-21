@@ -26,10 +26,12 @@ public final class ManagementItemDtos {
     ) {}
 
     public record ManagementItemResponse(
-            Long id, String code, String name, String description, boolean active
+            Long id, String code, String name, String description, boolean active,
+            /** 조회 조건 [수정일자순(정렬)] 의 축 — 마지막으로 고친 때. */
+            java.time.LocalDateTime updatedAt
     ) {
         public static ManagementItemResponse from(ManagementItem m) {
-            return new ManagementItemResponse(m.getId(), m.getCode(), m.getName(), m.getDescription(), m.isActive());
+            return new ManagementItemResponse(m.getId(), m.getCode(), m.getName(), m.getDescription(), m.isActive(), m.getUpdatedAt());
         }
     }
 }

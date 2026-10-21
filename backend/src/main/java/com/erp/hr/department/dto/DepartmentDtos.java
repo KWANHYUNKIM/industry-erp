@@ -42,14 +42,16 @@ public class DepartmentDtos {
             /** 부서장 사원 id — 조직도등록 [부서장] 열. 정하는 곳은 PUT …/{id}/head · PUT …/heads 다. */
             Long headEmployeeId,
             /** 조직도등록 Fn › 미포함 — 정하는 곳은 PUT …/{id}/org 다. */
-            boolean orgExcluded
+            boolean orgExcluded,
+            /** 조회 조건 [수정일자순(정렬)] 의 축 — 마지막으로 고친 때. */
+            java.time.LocalDateTime updatedAt
     ) {
         public static DepartmentResponse from(Department d, long employeeCount) {
             return new DepartmentResponse(
                     d.getId(), d.getCode(), d.getName(),
                     d.getParent() != null ? d.getParent().getId() : null,
                     d.getParent() != null ? d.getParent().getName() : null,
-                    d.getSortOrder(), d.isActive(), employeeCount, d.getHeadEmployeeId(), d.isOrgExcluded());
+                    d.getSortOrder(), d.isActive(), employeeCount, d.getHeadEmployeeId(), d.isOrgExcluded(), d.getUpdatedAt());
         }
     }
 

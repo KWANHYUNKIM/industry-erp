@@ -814,6 +814,8 @@ export interface ManagementItem {
   name: string
   description: string | null
   active: boolean
+  /** 조회 조건 [수정일자순(정렬)] 의 축 */
+  updatedAt?: string | null
 }
 
 /**
@@ -2268,6 +2270,8 @@ export interface WithholdingRow {
   employeeCode: string
   employeeName: string
   grossPay: number
+  /** 조회 조건 [수정일자순(정렬)] 의 축 */
+  updatedAt?: string | null
   incomeTax: number
   localIncomeTax: number
   totalWithheld: number
