@@ -1,0 +1,33 @@
+{
+  "about": "회계 I › 기초등록 › 계정등록(E010107) [관련업무] · [거래처별집계구분] — 원본 2026-10-21 loginaa: 1089 외상매출금 = 거래처별 · 채권/채무, 1209 미수금 = 거래처별 · 없음. 일반전표 차) 외상매출금(한성전자) 33,000 / 대) 미수금(김치좋아) 33,000 → 거래처관리대장 I 한성전자에만 '-2 | QA회계1 줄거래처 | 33,000 | | 33,000'(미수금은 관련업무가 없어 안 잡힘). 우리: 계정코드를 눌러 계정수정 창에서 120 미수금을 채권/채무로 바꾸면 목록에 '채권/채무', 되돌리면 '없음'.",
+  "shots": [
+    {
+      "name": "계정 목록 — 108 · 251 거래처별 · 채권/채무, 120 미수금 거래처별 · 없음",
+      "path": "/accounting/accounts",
+      "steps": [
+        "wait:2500",
+        "expect:/거래처별 채권\\/채무/.test(((re) => [...document.querySelectorAll('tbody tr')].map((r) => r.innerText.replace(/\\s+/g, ' ')).find((s) => re.test(s)) ?? '')(/ 108 외상매출금/)) && /거래처별 채권\\/채무/.test(((re) => [...document.querySelectorAll('tbody tr')].map((r) => r.innerText.replace(/\\s+/g, ' ')).find((s) => re.test(s)) ?? '')(/ 251 외상매입금/)) && /거래처별 없음/.test(((re) => [...document.querySelectorAll('tbody tr')].map((r) => r.innerText.replace(/\\s+/g, ' ')).find((s) => re.test(s)) ?? '')(/ 120 미수금/))"
+      ]
+    },
+    {
+      "name": "120 미수금 계정수정 → 채권/채무 저장 → 목록 반영 → 없음으로 되돌림",
+      "path": "/accounting/accounts",
+      "steps": [
+        "wait:2500",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => / 120 미수금/.test(r.innerText.replace(/\\s+/g, ' '))).querySelector('a').click()",
+        "wait:500",
+        "expect:[...document.querySelectorAll('input[name=relatedWork]')].find((r) => r.checked)?.parentElement.innerText.trim() === '없음'",
+        "js:[...document.querySelectorAll('input[name=relatedWork]')].find((r) => r.parentElement.innerText.trim() === '채권/채무').click()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.offsetParent && b.innerText.trim() === '저장').pop().click()",
+        "wait:1500",
+        "expect:/거래처별 채권\\/채무/.test(((re) => [...document.querySelectorAll('tbody tr')].map((r) => r.innerText.replace(/\\s+/g, ' ')).find((s) => re.test(s)) ?? '')(/ 120 미수금/))",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => / 120 미수금/.test(r.innerText.replace(/\\s+/g, ' '))).querySelector('a').click()",
+        "wait:500",
+        "js:[...document.querySelectorAll('input[name=relatedWork]')].find((r) => r.parentElement.innerText.trim() === '없음').click()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.offsetParent && b.innerText.trim() === '저장').pop().click()",
+        "wait:1500",
+        "expect:/거래처별 없음/.test(((re) => [...document.querySelectorAll('tbody tr')].map((r) => r.innerText.replace(/\\s+/g, ' ')).find((s) => re.test(s)) ?? '')(/ 120 미수금/))"
+      ]
+    }
+  ]
+}
