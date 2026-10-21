@@ -151,7 +151,8 @@ export default function AccountLedgerPage() {
     let bal = b.carry
     return (
       <Fragment key={b.id}>
-        <p className="mt-3 mb-1 font-bold">{b.code}({b.name})</p>
+        {/* 원본(2026-10-22 실측): 계정마다 머리 '회사명 : … / 1089(외상매출금)' + 기간. */}
+        <EcReportHead title="계정별원장" period={reportPeriod(from, to)} sub={`${b.code}(${b.name})`} />
         <table ref={tableRef} className="ec-report w-full text-left">
           <thead>
             <tr>
@@ -312,7 +313,7 @@ export default function AccountLedgerPage() {
       </ul>
 
       {truncated && <p className="ec-error">전표가 많아 앞부분만 받았습니다.</p>}
-      <EcReportHead title="계정별원장" period={reportPeriod(from, to)} />
+      {(loading || books.length === 0 || mode === '계정별집계') && <EcReportHead title="계정별원장" period={reportPeriod(from, to)} />}
       {loading ? (
         <p className="p-5 text-center text-[var(--ec-text-hint)]">불러오는 중…</p>
       ) : books.length === 0 ? (

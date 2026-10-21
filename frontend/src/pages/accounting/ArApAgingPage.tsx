@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
-import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
@@ -43,7 +43,6 @@ const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)
  * 원본 줄 차례는 기준을 못 재 잔액 큰 순으로 둔다. 결재방표시는 우리 인쇄가 결재 칸을 그리지 않고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
  */
 export default function ArApAgingPage() {
-  const { companyName } = useAuth()
   const [asOf, setAsOf] = useState(ymd(new Date()))
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
   const [account, setAccount] = useState('')
@@ -192,12 +191,8 @@ export default function ArApAgingPage() {
         <p className="text-center text-ec-hint p-[20px]">계정을 선택하고 검색하세요.</p>
       ) : (
         <>
-          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[4px]">채권/채무회수기간표</h3>
-          <div className="flex justify-between text-[12px]">
-            <span>회사명 : {companyName ?? ''}</span>
-            <span>{slash(asOf)}</span>
-          </div>
-          <div className="text-[12.5px] font-bold my-[4px] mx-0">{acc?.name ?? ''}</div>
+          {/* 원본(2026-10-22 실측): 머리 '회사명 : … / 외상매출금' 한 줄(계정명은 ' / ' 로 붙는다) · 표 아래 [P.1] 과 출력한 때. */}
+          <EcReportHead title="채권/채무회수기간표" period={slash(asOf)} sub={acc?.name ?? ''} />
           <table ref={tableRef} className="w-full text-left">
             <thead>
               <tr>
@@ -224,6 +219,7 @@ export default function ArApAgingPage() {
               </tr>
             </tbody>
           </table>
+          <EcReportFoot />
         </>
       )}
     </EcListShell>

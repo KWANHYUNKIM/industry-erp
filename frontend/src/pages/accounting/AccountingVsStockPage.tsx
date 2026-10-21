@@ -101,6 +101,8 @@ export default function AccountingVsStockPage() {
       })).data
       const acct: AcctRow[] = []
       for (const e of journals) {
+        /* 원본(2026-10-22 실측): 일반전표(손으로 넣은 MANUAL)는 같은 거래처 · 계정이어도 회계 쪽에 오르지 않는다 — 매출 · 매입 전표만. */
+        if (e.sourceType === 'MANUAL') continue
         for (const l of e.lines) {
           if (String(l.accountId) !== aAccount) continue
           const pid = l.partnerId ?? e.partnerId
