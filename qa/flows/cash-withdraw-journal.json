@@ -24,11 +24,12 @@
       ]
     },
     {
-      "name": "회계거래조회 [금액] 11,500 → 전표번호 → 수정 창(일자 막힘) → 금액 22,000 저장 → 251 +22,000 · 103 대 +22,500",
+      "name": "회계거래조회 [금액] 11,500 → 전표번호 → 수정 창(일자 막힘) → 금액 22,000 저장 → 251 +22,000 · 103 대 +22,500 · 고쳐도 전표번호 그대로(원본 26/10/21-10 21,500 → 30,500 번호 그대로)",
       "path": "/accounting/journals",
       "steps": [
         "wait:3000",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-흐름 매입처로') && tr.innerText.includes('매입처로') && tr.innerText.includes('11,500'))",
+        "js:sessionStorage.setItem('ppNo', [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 매입처로')).querySelector('a').innerText.trim()); true",
         "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 매입처로')).querySelector('a').click(); true",
         "wait:2500",
         "expect:location.pathname === '/accounting/purchase-payment' && document.querySelector('input[aria-label=\"금액\"]').value === '11,000'",
@@ -37,6 +38,8 @@
         "click:저장(F8)",
         "wait:2500",
         "expect:location.pathname === '/accounting/journals'",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 매입처로')).querySelector('a').innerText.trim() === sessionStorage.getItem('ppNo')",
         "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"103\":[0,22500],\"251\":[22000,0],\"831\":[500,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
       ]
     },
@@ -139,12 +142,13 @@
       ]
     },
     {
-      "name": "일시적으로(출금) 사원 EMP-0001 · 15,000 → 134 가지급금 차 +15,000 · 103 대 +15,000",
+      "name": "일시적으로(출금) 사원 EMP-0001 · 15,000 → 134 가지급금 차 +15,000 · 103 대 +15,000 · 화면 제목 '일시적으로'(원본 E010410 — 괄호 없음, 삭제 확인도 '- 일시적으로')",
       "path": "/accounting/temp-withdraw",
       "steps": [
         "wait:2500",
         "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; sessionStorage.setItem('tb0', JSON.stringify(m)); return true })()",
         "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|출금계좌|사원|금액|수수료|적요|회계전표No.'",
+        "expect:[...document.querySelectorAll('span.name')].some((s) => s.innerText.trim() === '일시적으로')",
         "set:input[placeholder=\"출금계좌\"]|QA-110-999-000001",
         "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "wait:300",

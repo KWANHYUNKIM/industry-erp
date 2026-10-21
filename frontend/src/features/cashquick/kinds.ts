@@ -43,7 +43,8 @@ export const CASH_QUICK_KINDS: CashQuickKind[] = [
     fields: [['main', '출금계좌'], ['card', '카드'], ['amount', '금액'], ['fee', '수수료']] },
   { type: 'ACCOUNT_TRANSFER', title: '계좌간이동', typeName: '계좌간이동', path: '/accounting/account-transfer',
     fields: [['main', '입금계좌'], ['counter', '출금계좌'], ['amount', '금액'], ['fee', '수수료']] },
-  { type: 'TEMP_WITHDRAW', title: '일시적으로(출금)', typeName: '출금-일시적으로', path: '/accounting/temp-withdraw',
+  /* 원본(2026-10-21 E010410): 메뉴는 '일시적으로(출금)' 이지만 화면 제목 · 삭제 확인('- 일시적으로')은 괄호 없이 '일시적으로'. */
+  { type: 'TEMP_WITHDRAW', title: '일시적으로', typeName: '출금-일시적으로', path: '/accounting/temp-withdraw',
     fields: [['main', '출금계좌'], ['employee', '사원'], ['amount', '금액'], ['fee', '수수료']] },
   { type: 'LOAN_REPAYMENT', title: '은행으로', typeName: '은행으로', path: '/accounting/loan-repayment',
     fields: [['main', '출금계좌'], ['counter', '차입처'], ['amount', '원금상환액'], ['fee', '이자금액']] },
