@@ -6,7 +6,7 @@
       "path": "/sales/mall",
       "steps": [
         "wait:2500",
-        "expect:(()=>{const p=document.querySelector('.ec-pills .ec-pill');return p&&p.querySelectorAll('span.block').length===2&&p.innerText.trim().split('\\n').length===2})()"
+        "expect:(()=>{const p=document.querySelector('button.score-box');const r=p&&p.getBoundingClientRect();return p&&p.querySelectorAll('span.block').length===2&&Math.abs(r.width-64.6)<1&&Math.abs(r.height-40.9)<1})()"
       ]
     },
     {

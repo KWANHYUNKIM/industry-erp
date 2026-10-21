@@ -60,9 +60,12 @@ public class StockAdjustmentService {
         StockAdjustment first = rows.get(0);
         String menu = historyMenu(first);
         if (menu == null) return;
+        // 원본 실측(2026-10-21): 자가사용 · 불량처리는 전표상태 '확인', 간편 · 단계별조정은 빈칸
+        String summary = com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), rows.size());
+        boolean confirmed = menu.equals("자가사용") || menu.equals("불량처리");
         changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
-                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of(menu, first.getAdjustDate(), first.getAdjustNo(),
-                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), rows.size())));
+                confirmed ? com.erp.common.history.ChangeHistoryService.SlipSnapshot.confirmed(menu, first.getAdjustDate(), first.getAdjustNo(), summary)
+                        : com.erp.common.history.ChangeHistoryService.SlipSnapshot.of(menu, first.getAdjustDate(), first.getAdjustNo(), summary));
     }
 
     private void recordStocktake(String action, Stocktake t) {

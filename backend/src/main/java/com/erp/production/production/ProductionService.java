@@ -47,7 +47,7 @@ public class ProductionService {
             case III -> "생산입고 III";
         };
         changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
-                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of(menu, first.getProductionDate(), first.getProdNo(),
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.confirmed(menu, first.getProductionDate(), first.getProdNo(),
                         com.erp.common.history.ChangeHistoryService.itemSummary(first.getProduct().getName(), first.getProduct().getSpec(), rows.size())));
     }
 

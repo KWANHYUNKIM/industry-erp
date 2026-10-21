@@ -478,7 +478,7 @@ export default function BomPage() {
         </div>
         </div>
       </Modal>
-      {historyOpen && editing && <EcHistoryModal url={`/change-history?target=BOM&id=${editing.id}`} onClose={() => setHistoryOpen(false)} />}
+      {historyOpen && editing && <EcHistoryModal url={`/change-history?target=BOM&id=${editing.id}`} head={`[${editing.productCode} : ${editing.productName}]`} onClose={() => setHistoryOpen(false)} />}
 
       <Modal error={error} open={recalc != null} width={460} title="알림" onClose={() => setRecalc(null)}>
         {recalc && (

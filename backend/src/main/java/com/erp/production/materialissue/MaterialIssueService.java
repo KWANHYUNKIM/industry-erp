@@ -34,7 +34,7 @@ public class MaterialIssueService {
     private void recordHistory(String action, List<MaterialIssue> rows) {
         MaterialIssue first = rows.get(0);
         changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
-                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("생산불출", first.getIssueDate(), first.getIssueNo(),
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.confirmed("생산불출", first.getIssueDate(), first.getIssueNo(),
                         com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), rows.size())));
     }
 

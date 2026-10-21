@@ -40,8 +40,9 @@ public class WorkOrderService {
     private void recordHistory(String action, List<WorkOrder> rows) {
         WorkOrder first = rows.get(0);
         changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
-                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("작업지시서", first.getOrderDate(), first.getOrderNo(),
-                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getProduct().getName(), first.getProduct().getSpec(), rows.size())));
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.withStatus("작업지시서", first.getOrderDate(), first.getOrderNo(),
+                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getProduct().getName(), first.getProduct().getSpec(), rows.size()),
+                        first.getStatus() == WorkOrderStatus.COMPLETED ? "완료" : "진행중"));
     }
     /**
      * 납품처를 붙이려면 거래처를 읽어야 한다. trade 의 공개 service 를 거친다 —

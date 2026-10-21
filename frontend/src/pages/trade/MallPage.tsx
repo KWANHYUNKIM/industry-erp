@@ -226,15 +226,27 @@ export default function MallPage({ mode = 'progress' }: { mode?: MallMode }) {
       {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {/* 원본: 진행단계만 단계별 알약(건수), 나머지 화면은 [전체] 하나. */}
-      <div className="ec-pills mb-[6px]">
-        {(mode === 'progress' ? ['전체' as const, ...STAGES] : ['전체' as const]).map((t) => (
-          <button key={t} type="button" onClick={() => setStage(t)}
-                  className={`ec-pill no-ec${stage === t ? ' active' : ''}${mode === 'progress' ? ' h-auto py-[2px] leading-[1.3]' : ''}`}>
-            {/* 원본 진행단계 알약은 건수 위 · 이름 아래 두 줄(2026-10-21 실측, 알약 높이 값은 원본 재기 필요) */}
-            {mode === 'progress' ? <><span className="block">{stageCount(t)}</span><span className="block">{t}</span></> : t}
-          </button>
-        ))}
-      </div>
+      {mode === 'progress' ? (
+        /* 원본 score-box(2026-10-21 실측): 칸 64.6 × 40.9 · 둥글기 10 · 머리카락 테두리(고른 것 파랑 · 나머지 #dee2e6) ·
+           위 건수 14px 흰 바탕 h21 · 아래 이름 12px h18.9 회색(#e9ecef, 고른 것은 파랑 바탕 흰 글자) · 칸 사이 5.4 */
+        <div className="flex gap-[5.4px] mb-[6px] flex-wrap">
+          {(['전체' as const, ...STAGES]).map((t) => {
+            const on = stage === t
+            return (
+              <button key={t} type="button" onClick={() => setStage(t)}
+                      className={`no-ec score-box flex flex-col w-[64.6px] h-[40.9px] p-0 overflow-hidden rounded-[10px] border-[0.5px] bg-transparent cursor-pointer ${on ? 'border-ec-blue' : 'border-ec-line'}`}>
+                <span className={`block w-full h-[21px] leading-[21px] text-[14px] bg-white ${on ? 'text-ec-blue' : 'text-black'}`}>{stageCount(t)}</span>
+                <span className={`block w-full h-[18.9px] leading-[18px] text-[12px] ${on ? 'bg-ec-blue text-white' : 'bg-ec-line-soft text-black'}`}>{t}</span>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="ec-pills mb-[6px]">
+          <button type="button" onClick={() => setStage('전체')}
+                  className={`ec-pill no-ec${stage === '전체' ? ' active' : ''}`}>전체</button>
+        </div>
+      )}
 
       <table ref={tableRef} className="w-full text-left">
         <thead>

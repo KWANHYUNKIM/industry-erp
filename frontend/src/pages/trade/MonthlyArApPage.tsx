@@ -35,6 +35,28 @@ const thisMonth = () => ymd(new Date()).slice(0, 7)
 /** 너무 긴 기간은 열이 화면을 덮는다 — 원본처럼 열은 달 수만큼 서되 상한을 둔다. */
 const MAX_MONTHS = 24
 
+/**
+ * [미회수액] 달별 값 — 원본 월별채권증감내역 실측(2026-10-21, 2026/08~2026/10 · 거래처 32곳):
+ * 앞 달 말 잔액이 양수면 그 묵은 채권은 수금이 먼저 깎고(오래된 것부터) 남은 것을 뺀다 → 그 달 잔액 − 남은 묵은 채권.
+ * 이 값이 양수인 달만 적고(묵은 채권만 남았거나 0 이면 빈칸), 마지막 달은 잔액이 음수여도 그 잔액을 그대로 적는다.
+ * 앞선 달의 음수 잔액은 적지 않는다. [누계] 줄은 거래처 값의 합. 채무 쪽은 아직 못 쟀다(빈칸).
+ */
+function unpaidByMonth(opening: number, inc: number[], dec: number[]): number[] {
+  const out: number[] = []
+  let prev = opening
+  inc.forEach((_, i) => {
+    const bal = prev + inc[i] - dec[i]
+    const old = Math.max(prev, 0)
+    const rest = old - Math.min(dec[i], old)
+    let u = bal - rest
+    if (i === inc.length - 1 && bal < 0) u = bal
+    else if (u <= 0) u = 0
+    out.push(u)
+    prev = bal
+  })
+  return out
+}
+
 export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: Mode }) {
   /* 원본 [기준일자] 년/월 ~ 년/월 — 'YYYY-MM'. */
   const [fromYm, setFromYm] = useState<string>(thisMonth())
@@ -194,7 +216,8 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
     const running: number[] = []
     let bal = opening
     months.forEach((_, i) => { bal += inc[i] - dec[i]; running[i] = bal })
-    return { inc, dec, opening, running, closing: bal,
+    const unpaid = months.map((_, i) => byPartner.reduce((n, r) => n + unpaidByMonth(r.opening, r.inc, r.dec)[i], 0))
+    return { inc, dec, opening, running, unpaid, closing: bal,
       sumInc: inc.reduce((n, v) => n + v, 0), sumDec: dec.reduce((n, v) => n + v, 0) }
   }, [byPartner, months])
 
@@ -258,8 +281,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         <p>2026-10-21 묶음9: 조건을 [기준일자] 년/월 ~ 년/월 로 바꿔 고른 달만 열이 되게 하고,
         거래처마다 <b>다섯 줄</b>(매출 · 수금 · 기타할인등차액 · 잔액 · 미회수액)과 끝의 [누계] 다섯 줄을 그린다.
         <b>[기타할인등차액]</b>: 우리 정산은 수금·지급 두 갈래뿐이라 담을 자리가 없어 칸은 늘 빈다.
-        <b>[미회수액]</b>: 규칙을 못 다 쟀다(plans 재고1 월별채권증감내역 — 묶음 36 에서 잰다). 값을 지어내지
-        않으려고 줄만 두고 비워 둔다.</p>
+        <b>[미회수액]</b>: 2026-10-21 원본 실측으로 채웠다(unpaidByMonth). 채무는 아직 빈칸.</p>
       */}
       <div className="overflow-x-auto" ref={tableRef}>
       {/*
@@ -307,6 +329,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
             months.forEach((_, i) => { bal += r.inc[i] - r.dec[i]; running[i] = bal })
             /* 원본은 거래처 덩어리마다 번갈아 회색이다(경지양돈 덩어리가 rgb(243,243,243)). */
             const stripe = ri % 2 === 1 ? 'ec-stripe' : undefined
+            const unpaid = mode === 'AP' ? months.map(() => 0) : unpaidByMonth(r.opening, r.inc, r.dec)
             const blank = (key: string) => (
               <tr key={`${r.name}-${key}`} className={stripe}>
                 <td>{key === 'etc' ? '기타할인등차액' : '미회수액'}</td>
@@ -343,7 +366,12 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
                 ))}
                 <td className="text-right">{r.closing ? won(r.closing) : ''}</td>
               </tr>,
-              blank('unpaid'),
+              <tr key={`${r.name}-unpaid`} className={stripe}>
+                <td>미회수액</td>
+                <td className="text-right" />
+                {months.map((ym, i) => <td key={ym} className="text-right">{unpaid[i] ? won(unpaid[i]) : ''}</td>)}
+                <td className="text-right" />
+              </tr>,
             ]
           }),
           /* 끝 [누계] — colspan 2 · rowspan 5, 거래처 전체를 줄별로 더한 다섯 줄. */
@@ -375,7 +403,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
           <tr key="total-unpaid">
             <td>미회수액</td>
             <td className="text-right" />
-            {months.map((ym) => <td key={ym} className="text-right" />)}
+            {months.map((ym, i) => <td key={ym} className="text-right">{mode !== 'AP' && total.unpaid[i] ? won(total.unpaid[i]) : ''}</td>)}
             <td className="text-right" />
           </tr>]}
         </tbody>

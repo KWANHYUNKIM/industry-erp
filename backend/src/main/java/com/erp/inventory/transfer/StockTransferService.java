@@ -41,7 +41,7 @@ public class StockTransferService {
     private void recordHistory(String action, List<StockTransfer> rows) {
         StockTransfer first = rows.get(0);
         changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
-                com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("창고이동", first.getTransferDate(), first.getTransferNo(),
+                com.erp.common.history.ChangeHistoryService.SlipSnapshot.confirmed("창고이동", first.getTransferDate(), first.getTransferNo(),
                         com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), rows.size())));
     }
 

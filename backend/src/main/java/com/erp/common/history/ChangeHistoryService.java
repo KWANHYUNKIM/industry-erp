@@ -60,6 +60,15 @@ public class ChangeHistoryService {
         public static SlipSnapshot of(String menu, LocalDate docDate, String docNo, String itemSummary) {
             return new SlipSnapshot(menu, docDate, docNo, null, null, itemSummary, null, null, null);
         }
+
+        /** 전표상태 '확인' 이 늘 찍히는 재고 · 생산 전표(원본 2026-10-21 실측: 창고이동 · 자가사용 · 불량처리 · 생산불출 · 생산입고). 실사 · 조정 전표는 칸이 빈다. */
+        public static SlipSnapshot confirmed(String menu, LocalDate docDate, String docNo, String itemSummary) {
+            return new SlipSnapshot(menu, docDate, docNo, null, null, itemSummary, null, null, "확인");
+        }
+
+        public static SlipSnapshot withStatus(String menu, LocalDate docDate, String docNo, String itemSummary, String status) {
+            return new SlipSnapshot(menu, docDate, docNo, null, null, itemSummary, null, null, status);
+        }
     }
 
     /** 원본 상태 변경 행위 글자(견적서 [진행상태변경] 실측 '상태변경'). */
