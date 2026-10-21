@@ -1,0 +1,64 @@
+{
+  "about": "재고 I > 기초등록 > 품목등록(C000029) 삭제 정책 — 2026-10-21 원본 실측: 거래 없는 품목은 [사용중단/재사용 ▴] › [삭제] → '삭제하겠습니까?' → 말 없이 사라진다. 간편재고조정 한 건이 걸린 품목은(우리 흐름은 지울 수 있는 주문서 한 건으로 건다 — 재고조정은 지워도 수불이력이 남아 품목을 못 지운다) '삭제불가코드' 창(선택한 품목코드을(를) 삭제할 수 없습니다. … [삭제가 불가능한 품목코드] 코드 · 코드명 · 자료 '재고조정', [사용중단] · [닫기]). 창에서 체크 없이 [사용중단] → '리스트에 선택된 자료가 없습니다.(빈 줄)체크박스에 …', 체크 후 → '선택한 코드를 사용중단 하겠습니까?' → 말 없이 닫히고 사용중단.",
+  "shots": [
+    {
+      "name": "품목 둘 등록(화면) · 하나에 주문서 걸기",
+      "path": "/inventory/items",
+      "steps": [
+        "wait:1200",
+        "js:(() => { const s = Date.now().toString().slice(-5); sessionStorage.setItem('idel', JSON.stringify({ a: 'QAJ1DA' + s, b: 'QAJ1DB' + s })); return true })()",
+        "click:신규(F2)",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('idel')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const [code, name] = [...d.querySelectorAll('input')].filter((i) => i.type === 'text' && !i.readOnly); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(code, S.a); set(name, 'QA재고1-삭제시험'); return true })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "click:신규(F2)",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('idel')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const [code, name] = [...d.querySelectorAll('input')].filter((i) => i.type === 'text' && !i.readOnly); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(code, S.b); set(name, 'QA재고1-삭제막힘'); return true })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('idel')); const t = document.querySelector('tbody').innerText; return t.includes(S.a) && t.includes(S.b) })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const S = JSON.parse(sessionStorage.getItem('idel')); const [it, wh, pa] = await Promise.all([A('GET', '/items'), A('GET', '/warehouses'), A('GET', '/partners')]); const b = it.find((x) => x.code === S.b); const d = new Date().toISOString().slice(0, 10); const r = await A('POST', '/sales-orders', { partnerId: pa.find((x) => x.type === 'CUSTOMER' || x.type === 'BOTH').id, orderDate: d, dueDate: d, warehouseId: wh[0].id, taxable: true, remark: 'QA재고1', lines: [{ itemId: b.id, quantity: 1, unitPrice: 1000 }] }); S.so = r.id; S.bid = b.id; S.aid = it.find((x) => x.code === S.a).id; sessionStorage.setItem('idel', JSON.stringify(S)); return !!r.id })()"
+      ]
+    },
+    {
+      "name": "둘 다 골라 [삭제] — 거래 없는 것만 지워지고 '삭제불가코드' 창",
+      "path": "/inventory/items",
+      "steps": [
+        "allowapi:404: /api/items/",
+        "wait:1200",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('idel')); for (const c of [S.a, S.b]) [...document.querySelectorAll('tbody tr')].find((r) => [...r.cells].some((td) => td.innerText.trim() === c)).querySelector('input[type=checkbox]').click(); return true })()",
+        "js:(document.querySelector(\"button[aria-label='사용중단/재사용 더보기']\").click(), true)",
+        "js:([...document.querySelectorAll('button, a, li')].filter((b) => b.offsetParent && b.textContent.trim() === '삭제').pop().click(), true)",
+        "expect:[...document.querySelectorAll('[role=alertdialog]')].some((d) => d.innerText.includes('삭제하겠습니까?'))",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.innerText.includes('[삭제가 불가능한 품목코드]')); return !!d && d.innerText.includes('선택한 품목코드을(를) 삭제할 수 없습니다.') && d.innerText.includes('해당 코드의 사용중단을 원하는 경우, 사용중단 버튼을 클릭하시기 바랍니다.') && [...d.querySelectorAll('thead th')].map((t) => t.innerText.trim()).filter(Boolean).join(',') === '코드,코드명,자료' })()",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('idel')); const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.innerText.includes('[삭제가 불가능한 품목코드]')); const row = d.querySelector('tbody tr').innerText; return row.includes(S.b) && row.includes('주문서') && !d.innerText.includes(S.a) })()",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('idel')); const t = document.querySelector('.ec-list-grid tbody, table tbody').innerText; return !t.includes(S.a) })()"
+      ]
+    },
+    {
+      "name": "창 [사용중단] — 체크 없이 알림, 체크 후 확인 → 사용중단",
+      "path": "/inventory/items",
+      "steps": [
+        "allowapi:404: /api/items/",
+        "wait:1200",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('idel')); [...document.querySelectorAll('tbody tr')].find((r) => [...r.cells].some((td) => td.innerText.trim() === S.b)).querySelector('input[type=checkbox]').click(); return true })()",
+        "js:(document.querySelector(\"button[aria-label='사용중단/재사용 더보기']\").click(), true)",
+        "js:([...document.querySelectorAll('button, a, li')].filter((b) => b.offsetParent && b.textContent.trim() === '삭제').pop().click(), true)",
+        "clicklast:확인",
+        "wait:1200",
+        "js:([...[...document.querySelectorAll('[role=dialog]')].find((x) => x.innerText.includes('[삭제가 불가능한 품목코드]')).querySelectorAll('button')].find((b) => b.textContent.trim() === '사용중단').click(), true)",
+        "expect:[...document.querySelectorAll('[role=alertdialog]')].some((d) => d.innerText.includes('리스트에 선택된 자료가 없습니다.\\n\\n체크박스에 체크한 후 다시 시도 바랍니다.'))",
+        "clicklast:확인",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.innerText.includes('[삭제가 불가능한 품목코드]')); d.querySelector('tbody input[type=checkbox]').click(); return true })()",
+        "js:([...[...document.querySelectorAll('[role=dialog]')].find((x) => x.innerText.includes('[삭제가 불가능한 품목코드]')).querySelectorAll('button')].find((b) => b.textContent.trim() === '사용중단').click(), true)",
+        "expect:[...document.querySelectorAll('[role=alertdialog]')].some((d) => d.innerText.includes('선택한 코드를 사용중단 하겠습니까?'))",
+        "clicklast:확인",
+        "wait:1500",
+        "expect:(async () => { const S = JSON.parse(sessionStorage.getItem('idel')); const it = await (await fetch('/api/items/' + S.bid, { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).json(); return it.active === false && ![...document.querySelectorAll('[role=dialog]')].some((d) => d.offsetParent) })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('idel')); const r = await fetch('/api/items/' + S.aid, { headers: H }); return r.status === 404 })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('idel')); await fetch('/api/sales-orders/' + S.so, { method: 'DELETE', headers: H }); const r = await fetch('/api/items/' + S.bid, { method: 'DELETE', headers: H }); return r.status === 204 || r.status === 200 })()"
+      ]
+    }
+  ]
+}
