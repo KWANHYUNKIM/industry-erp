@@ -1050,8 +1050,8 @@
   "palette": 0
  },
  "pages/trade/PurchaseStatusPage.tsx": {
-  "inline": 32,
-  "color": 5,
+  "inline": 14,
+  "color": 2,
   "palette": 0
  },
  "pages/trade/QuotationPage.tsx": {

@@ -1,8 +1,8 @@
 import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
+import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { PurchaseDoc } from '../../types/api'
 import { STATUS_PICKS, comparePeriodOf, fetchWindow, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -19,8 +19,12 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
  * 원본 [내역]이 이미 줄 단위이고 <b>월 소계까지 끼운다</b>(2026-09-09 실측). 우리 [내역]에
  * 그 둘을 다 넣으면 [라인별]과 같은 표가 되므로 갈래를 없앤다 - 판매현황과 같다.
  */
-type Mode = '내역' | '집계'
-const MODES = ['내역', '집계'] as const
+/*
+ * 2026-10-20 loginaa 실측: 맨 위 줄은 [메뉴] ◉현황 ○집계 이고, 그 아래 [구분] 줄에 '라인별 ▾' 와 비교기간이 같이 있다(판매현황과 같다).
+ * 우리가 '내역' 이라 부르던 것이 원본의 [메뉴] 현황이다. [구분] 의 다른 갈래(일별 · 월별 …)는 구매현황에서 아직 못 쟀다.
+ */
+type Mode = '현황' | '집계'
+const MODES = ['현황', '집계'] as const
 
 interface Row {
   key: string
@@ -103,13 +107,6 @@ const EMPTY_FILTERS: Filters = {
   remark: '', author: '',
 }
 
-/*
- * 원본 구매현황 소계·총합계 칸(2026-09-23 실측) — <b>700</b>, 배경은 공용 ec-list-total 의 회색 (247,247,247).
- * ec-list-total 은 판매현황 [총합계]에서 잰 400 이라 굵기만 칸에서 덮는다.
- */
-const SUM_CELL = { fontWeight: 700 } as const
-const SUM_NUM = { fontWeight: 700, textAlign: 'right' } as const
-
 export default function PurchaseStatusPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
@@ -120,7 +117,7 @@ export default function PurchaseStatusPage() {
    * 원본 구매현황의 [구분] 도 판매현황과 같이 <b>내역 · 집계 · 라인별</b> 세 가지다(사본 실측).
    * 우리가 '현황' 이라 부르던 것이 원본의 '라인별'이고, '내역'(전표 단위)이 없었다.
    */
-  const [mode, setMode] = useState<Mode>('내역')
+  const [mode, setMode] = useState<Mode>('현황')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
   const [group2, setGroup2] = useState<GroupKey | ''>('')
@@ -263,55 +260,11 @@ export default function PurchaseStatusPage() {
   }, [mode, grouped, shown])
 
 
-  /**
-   * [라인별] 을 원본 모양으로 — 줄 사이에 <b>월별 소계</b>를 끼우고 끝에 총합계를 둔다.
-   *
-   * <p>원본 구매현황의 결과는 일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 부가세 ·
-   * <b>합계</b> · 거래처명 이고, 월이 바뀌는 자리마다 '2026/06 계' 가 들어간 뒤
-   * 맨 끝에 '총합계' 가 온다. 우리는 [합계] 열도 소계도 없어서 "이번 달 얼마 샀나" 를
-   * 눈으로 세야 했다.
-   *
-   * <p>소계를 화면에서 따로 계산하지 않고 목록을 만들면서 같이 넣는다 —
-   * 두 벌로 세면 한쪽만 조건이 바뀌었을 때 소계와 줄이 어긋난다.
-   */
   /*
-   * [일자] 머리에 ▼ 를 그려 놓고 <b>눌러도 아무 일이 없었다.</b> 이 표는 실은 늘
-   * 일자 오름차순으로 세워져 있었다 — 표시가 '고를 수 있다' 고 말하는데 고를 수가 없었다.
-   *
-   * <p>이 표는 달이 바뀌는 자리에 <b>월 소계 줄을 끼워 넣는다.</b> 그래서 정렬을
-   * <b>풀 수는 없다</b> — 날짜로 묶여 있지 않으면 소계가 엉킨다. 오름/내림만 오간다.
+   * 2026-10-20 loginaa 실측: [라인별] 은 <b>소계 · 총합계가 없는</b> 일자 내림차순 줄이다
+   * (9-09 기록의 '월 소계' 는 오늘 원본에 없다). shown 이 이미 줄 단위 · 내림차순이다.
    */
-  const sort = useTableSort(shown, { 일자: (r) => r.date }, { key: '일자', dir: 'asc' })
-
-  const lineRows = useMemo(() => {
-    type Row =
-      | { kind: 'line'; key: string; no: number; r: typeof shown[number] }
-      | { kind: 'subtotal'; key: string; month: string; qty: number; price: number; supply: number; vat: number }
-    const sorted = sort.sorted
-    const out: Row[] = []
-    let month = ''
-    let no = 0
-    let qty = 0
-    let price = 0
-    let supply = 0
-    let vat = 0
-    const flush = () => {
-      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, qty, price, supply, vat })
-      qty = 0; price = 0; supply = 0; vat = 0
-    }
-    for (const r of sorted) {
-      const m = r.date.slice(0, 7).replace('-', '/')
-      if (m !== month) { flush(); month = m }
-      out.push({ kind: 'line', key: r.key, no: ++no, r })
-      qty += r.qty
-      /* 원본 소계줄은 <b>단가 칸도 더해 찍는다</b>(2026-09-09 실측) - 우리도 그대로 둔다. */
-      price += r.unitPrice
-      supply += r.supply
-      vat += r.vat
-    }
-    flush()
-    return out
-  }, [shown, sort.sorted])
+  const lineRows = shown
 
   /**
    * 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 다시 합친다.
@@ -332,7 +285,7 @@ export default function PurchaseStatusPage() {
   }, [rows, prevRange, filters, keyword])
 
   const reset = () => {
-    setFilters(EMPTY_FILTERS); setMode('내역'); setCompare('사용안함'); setKeyword('')
+    setFilters(EMPTY_FILTERS); setMode('현황'); setCompare('사용안함'); setKeyword('')
     // 집계조건도 조건이다. 안 되돌리면 '거래처별'로 바꿔 둔 채 다시 작성해도 그대로 남는다.
     setGroup1('품목별'); setGroup2('')
   }
@@ -354,6 +307,7 @@ export default function PurchaseStatusPage() {
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel(화면)' },
+        { label: 'Email', disabled: true },   // 바깥 발송 — 누르지 않는다
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -361,6 +315,15 @@ export default function PurchaseStatusPage() {
       {/* 조건 판은 현황 화면 공용이다(EcStatusPanel). 원본도 접히지 않고 펼쳐져 있다. */}
       <EcStatusPanel
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        modeLabel="메뉴" compareLabel="구분"
+        modeExtra={mode === '현황' ? (
+          <label className="inline-flex items-center gap-[6px] ml-[12px]">
+            <span className="text-ec-label">구분</span>
+            <select className="ec-input w-[130px]" aria-label="구분" defaultValue="라인별">
+              <option value="라인별">라인별</option>
+            </select>
+          </label>
+        ) : undefined}
         view={view} onViewChange={setView}
         compare={compare} onCompareChange={setCompare}
         from={filters.dateFrom} to={filters.dateTo}
@@ -513,13 +476,6 @@ export default function PurchaseStatusPage() {
         </div>
       )}
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
-      </div>
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 구매가 없습니다." />
       ) : mode === '집계' ? (
@@ -566,101 +522,47 @@ export default function PurchaseStatusPage() {
           </tfoot>
         </table>
       ) : (
-        <table className="w-full text-left ec-list-grid" style={{ tableLayout: 'fixed' }}>
-          {/*
-            <b>구매현황(E040305) [현황·라인별] 격자 — 2026-09-23 원본 getComputedStyle 실측</b>(기간 2026/08/01 ~ 09/23, 45줄).
-            출력물(.ec-report) 꼴이 아니라 <b>조회 목록 꼴</b>이다 — 회사명·기간 머리글도 [P.1] 꼬리도 없다.
-              머리  12px · <b>700</b> · 검정 · 배경 (247,248,249) · 10px 3px 8px · 36px · 가운데 · 윗선 (155,176,190)
-              본문  12px · 400 · <b>전부 검정</b> · 6px 3px · 30px · 줄간격 17.14 · <b>세로선 없음</b>(아래 1px (222,226,230))
-              줄무늬 <b>한 줄 건너</b> (249,249,249) — 소계줄까지 세어 번갈아 간다(소계 뒤 첫 줄은 투명)
-              일자-No 링크 색 (25,53,140) · 보통 굵기 · 본문 글꼴, 글자 '2026/08/04 -1'
-              소계 '2026/08  계'·맨 끝 '총합계' — <b>700</b> · 칸마다 회색 (247,247,247) · 이름은 일자-No+품목명
-                    <b>두 칸을 합쳐 가운데</b> · <b>단가 칸도 더해 찍는다</b> · 거래처명 칸은 비운다
-              숫자  천 단위 쉼표. 이 기간에 0·음수가 없어 그 모양은 못 쟀다.
-            우리는 번호 칸(원본에 없다)을 두고, 소계를 오른쪽 정렬·푸른 회색으로, 총합계에 줄 수를 붙이고
-            단가 합을 비웠으며, 일자-No 를 고정폭 글꼴로, 단가·부가세를 회색·합계를 굵은 초록으로 칠했었다.
-            [창고명]은 원본에 없지만 우리가 더 두는 것이라 맨 뒤에 붙인다(잴 원본이 없어 폭은 글자 들어갈 만큼).
-          */}
-          {/*
-            열 폭 — 원본 <b>table-layout:fixed</b>, 폭 2266px 표에서 302 / 435 / 245 / 275 / 275 / 245 / 260 / 230
-            (일자-No · 품목명(규격) · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 거래처명). 원본은 화면 폭에 맞춰
-            이 비율로 늘고 준다 — 고정 표에서 남는 폭은 열 폭 비율대로 나뉘므로 잰 값을 그대로 둔다.
-          */}
-          <colgroup>
-            <col className="w-[302px]" /><col className="w-[435px]" /><col className="w-[245px]" />
-            <col className="w-[275px]" /><col className="w-[275px]" /><col className="w-[245px]" />
-            <col className="w-[260px]" /><col className="w-[230px]" /><col className="w-[110px]" />
-          </colgroup>
-          <thead>
-            {/*
-              원본 열 차례(2026-09-09 실측, 09-23 다시 확인): 일자-No. · 품목명(규격) · 수량 · <b>단가</b> ·
-              공급가액 · 부가세 · 합계 · <b>거래처명</b>. 우리는 그 자리를 [매입처] 라 부르고
-              둘째 칸에 두고 있었다 - 원본은 <b>맨 뒤</b>이고 이름도 [거래처명] 이다.
-            */}
-            {/* 머리 글자는 공용 격자가 모두 가운데로 덮는다(원본도 가운데). 인라인 정렬은 칸 정렬을 적어 두는 자리 — ui-check 가 읽는다. */}
-            <tr>
-              <th className="text-center">일자-No.</th>
-              <th>품목명(규격)</th>
-              <th className="text-right">수량</th>
-              <th className="text-right">단가</th>
-              <th className="text-right">공급가액</th>
-              <th className="text-right">부가세</th>
-              <th className="text-right">합계</th>
-              <th>거래처명</th>
-              <th>창고명</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/*
-              원본은 <b>달이 바뀌는 자리에 '2026/08  계'</b> 를 끼우고 맨 끝에 <b>'총합계'</b> 를
-              둔다(2026-09-09 실측 - 판매현황과 같다). 소계는 목록을 만들면서 같이 넣는다.
-              총합계도 원본은 본문의 마지막 줄이다(tfoot 이 아니다) — 그래서 본문처럼 세로선이 없다.
-            */}
-            {loading ? (
-              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
-            /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
-            ) : lineRows.length === 0 ? (
-              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : (
-              <>
-                {lineRows.map((x, i) => x.kind === 'subtotal' ? (
-                  <tr key={x.key} className="ec-list-total">
-                    <td colSpan={2} style={{ ...SUM_CELL, textAlign: 'center', whiteSpace: 'pre' }}>{x.month}  계</td>
-                    <td style={SUM_NUM}>{x.qty.toLocaleString()}</td>
-                    <td style={SUM_NUM}>{x.price.toLocaleString()}</td>
-                    <td style={SUM_NUM}>{x.supply.toLocaleString()}</td>
-                    <td style={SUM_NUM}>{x.vat.toLocaleString()}</td>
-                    <td style={SUM_NUM}>{(x.supply + x.vat).toLocaleString()}</td>
-                    <td colSpan={2} style={SUM_CELL}></td>
-                  </tr>
-                ) : (
-                  <tr key={x.key} className={i % 2 ? 'ec-list-alt' : undefined}>
-                    <td style={{ textAlign: 'center', color: 'rgb(25, 53, 140)' }}>{dateNo(x.r.date, x.r.docNo)}</td>
-                    {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 - 없는 품목은 이름만 찍는다. */}
-                    <td>{x.r.itemName}{x.r.spec ? ` [${x.r.spec}]` : ''}</td>
-                    <td className="text-right">{x.r.qty.toLocaleString()}</td>
-                    <td className="text-right">{x.r.unitPrice.toLocaleString()}</td>
-                    <td className="text-right">{x.r.supply.toLocaleString()}</td>
-                    <td className="text-right">{x.r.vat.toLocaleString()}</td>
-                    <td className="text-right">{(x.r.supply + x.r.vat).toLocaleString()}</td>
-                    <td>{x.r.partner}</td>
-                    <td>{x.r.warehouse}</td>
-                  </tr>
-                ))}
-                <tr className="ec-list-total">
-                  <td colSpan={2} style={{ ...SUM_CELL, textAlign: 'center' }}>총합계</td>
-                  <td style={SUM_NUM}>{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
-                  {/* 원본 총합계는 단가 칸도 더해 찍는다(2026-09-23 실측 6,158,332) — 소계줄과 같다. */}
-                  <td style={SUM_NUM}>{shown.reduce((a, x) => a + x.unitPrice, 0).toLocaleString()}</td>
-                  <td style={SUM_NUM}>{totals.supply.toLocaleString()}</td>
-                  <td style={SUM_NUM}>{totals.vat.toLocaleString()}</td>
-                  <td style={SUM_NUM}>{(totals.supply + totals.vat).toLocaleString()}</td>
-                  <td colSpan={2} style={SUM_CELL}></td>
+        /*
+          2026-10-20 loginaa 실측(구매현황 라인별, 검색 뒤): 판매현황처럼 <b>출력물 모양</b>이다 — 위에 '구매현황' · '회사명 : …' · 기간(기본 전월+금월),
+          열 일곱이 아니라 <b>일곱</b>: 일자-No. · 거래처명 · 적요 · 품목명(규격) · 수량 · 단가 · <b>금액(=공급가액)</b>.
+          일자 <b>내림차순</b> · 소계 · 총합계 줄 없음. 부가세 · 합계 · 창고명 열은 원본에 없다(9-09 · 9-23 기록의 아홉 열은 지금 원본과 다르다).
+          열 폭은 판매현황 출력물(머리 400 · 28.1, 본문 25.1)을 따른다 — 구매현황 자체의 폭은 못 쟀다(원본 재기 필요).
+        */
+        <div className="ec-report-frame">
+          <EcReportHead title="구매현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
+          <table className="w-full text-left table-fixed ec-report ec-report-head400 [&_thead_th]:h-[28.14px] [&_tbody_td]:h-[25.14px]">
+            <thead>
+              <tr>
+                {/* 머리의 정렬 클래스는 칸 정렬을 적어 두는 것이다(ui-check 가 읽는다) — 보이는 머리는 .ec-report 가 가운데로 덮는다. */}
+                <th className="text-center">일자-No.</th>
+                <th>거래처명</th>
+                <th>적요</th>
+                <th>품목명(규격)</th>
+                <th className="text-right">수량</th>
+                <th className="text-right">단가</th>
+                <th className="text-right">금액</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} className="text-center">불러오는 중…</td></tr>
+              ) : lineRows.length === 0 ? (
+                <tr><td colSpan={7} className="text-center">등록된 데이터가 없습니다.</td></tr>
+              ) : lineRows.map((r) => (
+                <tr key={r.key}>
+                  <td className="text-center"><span className="ec-link">{dateNo(r.date, r.docNo)}</span></td>
+                  <td>{r.partner}</td>
+                  <td>{r.remark ?? ''}</td>
+                  {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 없는 품목은 이름만 찍는다. */}
+                  <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                  <td className="text-right">{r.qty.toLocaleString()}</td>
+                  <td className="text-right">{r.unitPrice.toLocaleString()}</td>
+                  <td className="text-right">{r.supply.toLocaleString()}</td>
                 </tr>
-              </>
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </EcListShell>
   )

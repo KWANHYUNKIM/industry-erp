@@ -297,7 +297,7 @@ function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
           const next = v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : r.unitPrice
           const dirty = next !== r.unitPrice
           return (
-            <tr key={r.lineId} style={dirty ? { background: '#fffbe6' } : undefined}>
+            <tr key={r.lineId}>
               {/* 원본 일자-No. '2026/10/20 -10' — 전표번호 끝 일련번호만 붙인다(판매조회와 같은 규칙). */}
               <td className="text-center">{r.slipDate.replace(/-/g, '/')} -{Number(r.docNo.split('-').pop()) || r.docNo}</td>
               <td>{r.partnerName}</td>
@@ -309,7 +309,8 @@ function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
               <td className="text-right">{won(r.quantity)}</td>
-              <td className="text-right">
+              {/* 원본(2026-10-20 구매단가일괄변경 실측): 고친 칸 바탕은 (246,215,215) 연분홍 — 줄이 아니라 그 칸이다. */}
+              <td className="text-right" style={dirty ? { background: 'rgb(246, 215, 215)' } : undefined}>
                 {r.editable ? (
                   <input
                     className="ec-input" type="number" style={{ width: 100, textAlign: 'right' }}
