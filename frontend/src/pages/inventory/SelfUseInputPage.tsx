@@ -12,6 +12,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import type { StockAdjustmentSlip } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import { useRequired } from '../../utils/useRequired'
 
 type Line = { itemId: string; quantity: string; kind: string }
 type Grid = 'defect' | 'normal'
@@ -78,6 +79,8 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [kinds, setKinds] = useState<string[]>([])
   const [error, setError] = useState('')
+  /* 빈 저장 — 원본은 글 없이 필수칸만 빨간 테두리(재고1 plans 자가사용 ② · 불량처리 ①: 창고 · 첫 품목코드 칸, 2026-10-21 실측). */
+  const req = useRequired()
   const [notice, setNotice] = useState('')
   /* 수정 창에 연 전표 — [H] 이력이 쓴다. [저장/전표(F7)] 는 저장한 전표를 인쇄 창으로 연다. */
   const [slip, setSlip] = useState<StockAdjustmentSlip | null>(null)
@@ -135,15 +138,18 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
     setGrid('defect')
     setPicked(new Set())
     setError('')
+    req.reset()
   }
 
   async function save(andPrint = false) {
     setError(''); setNotice('')
-    if (!warehouseId) return setError(`${L.warehouse}를 입력하세요.`)
     const filled = lines.filter((l) => l.itemId || l.quantity)
     const filledNormal = substitute ? normals.filter((l) => l.itemId || l.quantity) : []
-    if (filled.length === 0 || [...filled, ...filledNormal].some((l) => !l.itemId)) return setError('품목을 입력하세요.')
-    if ([...filled, ...filledNormal].some((l) => !(Number(l.quantity) > 0))) return setError('수량을 입력하세요.')
+    const need: Record<string, boolean> = { warehouse: !!warehouseId }
+    if (filled.length === 0) need.item0 = false
+    lines.forEach((l, i) => { if (l.itemId || l.quantity) { need[`item${i}`] = !!l.itemId; need[`qty${i}`] = Number(l.quantity) > 0 } })
+    normals.forEach((l, i) => { if (substitute && (l.itemId || l.quantity)) { need[`nitem${i}`] = !!l.itemId; need[`nqty${i}`] = Number(l.quantity) > 0 } })
+    if (!req.check(need)) return
     const body = {
       type: kind, date,
       partnerId: selfUse && partnerId ? Number(partnerId) : null,
@@ -230,7 +236,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
           </EcCond>
           <EcCond label={L.warehouse} pick>
             <CodePickerField label={L.warehouse} hideLabel fill pair placeholder={L.warehouse} value={warehouseId}
-                             onChange={setWarehouseId} items={pickers.warehouses} />
+                             onChange={setWarehouseId} items={pickers.warehouses} invalid={req.on('warehouse', !!warehouseId)} />
           </EcCond>
           {!selfUse && (
             <EcCond label="처리방법">
@@ -278,6 +284,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
             <tbody>
               {rows.map((l, i) => {
                 const it = itemById.get(l.itemId)
+                const pre = showNormal ? 'n' : ''
                 return (
                   <tr key={i}>
                     <td className="text-center whitespace-nowrap">
@@ -287,14 +294,18 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                     </td>
                     <td>
                       {/* 원본처럼 코드를 쳐서 Enter — 한 건이면 줄이 채워지고, 여럿이면 품목검색 창(2026-10-21 실측). */}
-                      <GridCode title="품목검색" codeHead="품목코드" nameHead="품목명" items={pickers.items}
-                                value={l.itemId} onPick={(v) => setLine(i, { itemId: v })} />
+                      <div className={req.cls(`${pre}item${i}`, !!l.itemId)}>
+                        <GridCode title="품목검색" codeHead="품목코드" nameHead="품목명" items={pickers.items}
+                                  value={l.itemId} onPick={(v) => setLine(i, { itemId: v })} />
+                      </div>
                     </td>
                     <td>{it?.name ?? ''}</td>
                     <td>{it?.sub ?? ''}</td>
                     <td>
-                      <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${i + 1}줄 수량`}
-                             value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value.replace(/[^\d.]/g, '') })} />
+                      <div className={req.cls(`${pre}qty${i}`, Number(l.quantity) > 0)}>
+                        <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${i + 1}줄 수량`}
+                               value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value.replace(/[^\d.]/g, '') })} />
+                      </div>
                     </td>
                     <td>
                       <CodePickerField label={L.kind} hideLabel fill value={l.kind}

@@ -2,14 +2,14 @@
   "about": "자가사용입력(E040503) · 자가사용조회의 자가사용수정 창 — 2026-10-12 원본 실측. 창고 없이 저장하면 막히고, 두 줄 전표(API)는 조회에 '품목 외 1건' · 수량 합 한 줄로 뜬다. [일자-No.] 를 누르면 수정 창(일자 잠김)이 뜨고 [삭제]로 지우면 두 품목 재고가 되돌아온다.",
   "shots": [
     {
-      "name": "자가사용입력 — 격자 [품목코드 · 품목명 · 규격 · 수량 · 사용유형], 창고 없이 저장하면 '창고를 입력하세요.'",
+      "name": "자가사용입력 — 격자 [품목코드 · 품목명 · 규격 · 수량 · 사용유형], 창고 없이 저장하면 글 없이 창고 · 첫 품목코드 칸만 빨간 테두리(원본 has-error)",
       "path": "/inventory/self-use-input",
       "steps": [
         "wait:800",
         "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|품목코드|품목명|규격|수량|사용유형'",
         "click:저장(F8)",
         "wait:400",
-        "expect:document.body.innerText.includes('창고를 입력하세요.')"
+        "expect:!document.body.innerText.includes('입력하세요')&&document.querySelectorAll('.ec-invalid').length===2&&!!document.querySelector('.ec-invalid input[placeholder=\"창고\"]')"
       ]
     },
     {
@@ -56,7 +56,7 @@
         "expect:document.querySelector('select').value==='폐기'&&[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|품목코드|품목명|규격|수량|불량유형'&&document.body.innerText.includes('발견창고')",
         "click:저장(F8)",
         "wait:400",
-        "expect:document.body.innerText.includes('발견창고를 입력하세요.')",
+        "expect:!document.body.innerText.includes('입력하세요')&&document.querySelectorAll('.ec-invalid').length===2&&!!document.querySelector('.ec-invalid input[placeholder=\"발견창고\"]')",
         "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=10);sessionStorage.setItem('df',JSON.stringify({wh:st.warehouseId,it:st.itemId,q:Number(st.quantity)}));const r=await window.__api('POST','/stock-adjustments/slips',{type:'DEFECT',warehouseId:st.warehouseId,handling:'폐기',lines:[{itemId:st.itemId,quantity:2,kind:'QA재고1'}]});sessionStorage.setItem('dfNo',r.body&&r.body.adjustNo);const s2=(await window.__api('GET','/stock')).body.find((x)=>x.itemId===st.itemId&&x.warehouseId===st.warehouseId);window.__dec=Number(s2.quantity)===Number(st.quantity)-2&&r.body.handling==='폐기';return r.status})()",
         "wait:600",
         "expect:window.__dec===true"
