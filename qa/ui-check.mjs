@@ -4210,9 +4210,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     /* <b>채권/채무잔액분석표(E010823)</b> — 2026-10-03 원본 실측(ArApBalancePage). */
     /* <b>채권/채무회수기간표(E010822)</b> — 2026-10-03 원본 실측(ArApAgingPage). */
     /* <b>월별원가분석(E010824)</b> — 2026-10-03 원본 실측(MonthlyCostPage). */
-    ['월별원가분석|기타', '[결재방표시](우리 인쇄는 결재 칸을 그리지 않는다) · [기초,당기,기말표시](아직 없다) 둘이다 — 월별손익분석과 같은 사실'],
     /* <b>월별손익분석(E010819)</b> — 2026-10-03 원본 실측(MonthlyPnlPage). */
-    ['월별손익분석|기타', '[결재방표시](우리 인쇄는 결재 칸을 그리지 않는다) · [기초,당기,기말표시](원가 계정 쪽 표시, 손익계산서처럼 아직 없다) 둘이다'],
     /* <b>자금증감내역(E010815)</b> — 2026-10-03 원본 실측(FundDailyPage variant=flow). */
     ['자금증감내역|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
     /* <b>자금현황표(E010804)</b> — 2026-10-03 원본 실측(FundStatusPage). */
@@ -6685,6 +6683,8 @@ console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
   /** 원본도 칸만 있고 아무것도 거르지 않는 조건 — 실측 근거와 함께만 적는다. */
   const SHOWN_ONLY = new Map([
     ['WithholdingConfirmPage.tsx|신고일자', '원본 원천징수이행상황신고서확인(E030102) [신고일자] 는 기본 오늘이고 거르지 않는다 — 09/13 으로 바꿔도 세 줄 그대로(2026-10-13 loginaa 실측, b70530c7)'],
+    ['MonthlyPnlPage.tsx|기타', '원본 월별손익분석(E010819) [기타] 결재방표시 · 기초,당기,기말표시는 칸만 있고 값을 쓰지 않는다 — 우리 인쇄는 결재 칸을 그리지 않고, 기초,당기,기말표시가 더 찍는 것은 plans 에 값이 없다(2026-10-20 실측, 꺼짐으로 시작)'],
+    ['MonthlyCostPage.tsx|기타', '월별손익분석과 같은 사실 — 원본 월별원가분석(E010824) [기타] 도 칸만 둔다'],
   ])
   const bad = []
   let checked = 0
@@ -6711,6 +6711,12 @@ console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
         for (const st of src.matchAll(new RegExp('\\bset(\\w+)\\(\\s*' + escRe(base) + '\\s*\\)', 'g'))) {
           const decl = src.match(new RegExp('const \\[\\s*(\\w+)\\s*,\\s*set' + escRe(st[1]) + '\\s*\\]'))
           if (decl && decl[1] !== base) names.push(prop ? decl[1] + '.' + prop : decl[1])
+          // 넘겨 받은 상태를 다시 별칭으로 푸는 꼴(const c = applied) 도 같은 칸이다
+          if (decl && decl[1] !== base) {
+            for (const al2 of src.matchAll(new RegExp('const (\\w+) = ' + escRe(decl[1]) + '\\b', 'g'))) {
+              names.push(prop ? al2[1] + '.' + prop : al2[1])
+            }
+          }
         }
         const uses = src.split(String.fromCharCode(10))
           .filter((l) => names.some((nm) => new RegExp(escRe(nm) + '\\b').test(l)))

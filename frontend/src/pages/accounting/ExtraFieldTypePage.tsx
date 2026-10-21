@@ -211,7 +211,7 @@ export default function ExtraFieldTypePage() {
       <Modal error={slotError} open={slotType != null} title="추가항목설정" width={720} onClose={() => setSlotType(null)}>{(
         <div>
           <table className="w-full">
-            <thead><tr><th>항목명</th><th className="w-[90px]">사용여부</th><th className="w-[90px]">필수항목</th><th className="w-[200px]">기본값설정</th></tr></thead>
+            <thead><tr><th>항목명</th><th className="w-[90px] text-center">사용여부</th><th className="w-[90px] text-center">필수항목</th><th className="w-[200px]">기본값설정</th></tr></thead>
             <tbody>
               {slots.map((s) => (
                 <tr key={s.no}>
@@ -242,7 +242,7 @@ export default function ExtraFieldTypePage() {
                 <NumCheck no="" head label="전체선택" on={accRows.length > 0 && accRows.every((r) => accChecked.has(r.id))}
                           onChange={(v) => setAccChecked(v ? new Set(accRows.map((r) => r.id)) : new Set())} />
               </th>
-              <th>계정코드 ▼</th><th>계정명 ▼</th></tr></thead>
+              <th>계정코드</th><th>계정명</th></tr></thead>
             <tbody>
               {accRows.length === 0 ? <tr><td colSpan={3} className="ec-empty">등록된 데이터가 없습니다.</td></tr> : accRows.map((r, n) => (
                 <tr key={r.id}>
