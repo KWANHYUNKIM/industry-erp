@@ -286,6 +286,10 @@ export interface Partner {
   parentName: string | null
   /* 원본 거래처등록 폼의 나머지 칸들. */
   foreignCurrency: boolean
+  /** 원본 [세무신고거래처] — 다른 코드로 묶어 신고할 때 그 코드. 비면 '거래처코드동일'. */
+  taxReportCode: string | null
+  /** 원본 [통화] — 외화등록 통화 코드. 비면 내자. */
+  currencyCode: string | null
   salesTaxType: string | null
   purchaseTaxType: string | null
   creditDays: number | null

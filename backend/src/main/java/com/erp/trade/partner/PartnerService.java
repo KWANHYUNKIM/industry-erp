@@ -92,7 +92,9 @@ public class PartnerService {
                 .address(req.address())
                 .partnerGroup(groupOf(req.partnerGroupId()))
                 .parent(parentOf(req.parentId(), null))
-                .foreignCurrency(Boolean.TRUE.equals(req.foreignCurrency()))
+                .foreignCurrency(Boolean.TRUE.equals(req.foreignCurrency()) || emptyToNull(req.currencyCode()) != null)
+                .taxReportCode(emptyToNull(req.taxReportCode()))
+                .currencyCode(emptyToNull(req.currencyCode()))
                 .salesTaxType(oneOfOrNull(req.salesTaxType(), TAX_TYPES, "거래유형(영업)"))
                 .purchaseTaxType(oneOfOrNull(req.purchaseTaxType(), TAX_TYPES, "거래유형(구매)"))
                 .creditDays(req.creditDays() != null ? req.creditDays() : 0)
@@ -143,7 +145,9 @@ public class PartnerService {
         p.setAddress(req.address());
         p.setPartnerGroup(groupOf(req.partnerGroupId()));
         p.setParent(parentOf(req.parentId(), p));
-        p.setForeignCurrency(Boolean.TRUE.equals(req.foreignCurrency()));
+        p.setForeignCurrency(Boolean.TRUE.equals(req.foreignCurrency()) || emptyToNull(req.currencyCode()) != null);
+        p.setTaxReportCode(emptyToNull(req.taxReportCode()));
+        p.setCurrencyCode(emptyToNull(req.currencyCode()));
         p.setSalesTaxType(oneOfOrNull(req.salesTaxType(), TAX_TYPES, "거래유형(영업)"));
         p.setPurchaseTaxType(oneOfOrNull(req.purchaseTaxType(), TAX_TYPES, "거래유형(구매)"));
         p.setCreditDays(req.creditDays() != null ? req.creditDays() : 0);

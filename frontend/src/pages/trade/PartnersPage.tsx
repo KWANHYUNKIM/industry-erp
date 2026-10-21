@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CodeOption, GroupMaster, Partner } from '../../types/api'
+import type { CodeOption, Currency, GroupMaster, Partner } from '../../types/api'
 import { useSearchParams } from 'react-router-dom'
 import { useTableSort } from '../../utils/useTableSort'
 import EcListShell from '../../components/EcListShell'
@@ -38,6 +38,8 @@ const empty = {
    * (업종별구분 <code>ddlSgubun</code> 은 따로 있다).
    */
   foreignCurrency: 'N', salesTaxType: '', purchaseTaxType: '',
+  /* 원본 [세무신고거래처] ◉거래처코드동일 ○검색입력 ○직접입력 — 동일이면 코드를 비운다. [통화] 비면 내자. */
+  taxReportMode: 'SAME', taxReportCode: '', currencyCode: '',
   creditDays: '0', settleDueDay: '0', arNoManaged: 'N', apNoManaged: 'N',
   taxReport: true, shipmentTarget: true,
   /**
@@ -64,6 +66,8 @@ export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [types, setTypes] = useState<CodeOption[]>([])
   const [partnerGroups, setPartnerGroups] = useState<GroupMaster[]>([])
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  useEffect(() => { api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data.filter((c) => c.active))).catch(() => setCurrencies([])) }, [])
   const [loading, setLoading] = useState(true)
   const [checked, setChecked] = useState<Set<number>>(new Set())
   /**
@@ -245,6 +249,8 @@ export default function PartnersPage() {
       partnerGroupId: p.partnerGroupId != null ? String(p.partnerGroupId) : '',
       parentId: p.parentId != null ? String(p.parentId) : '',
       foreignCurrency: p.foreignCurrency ? 'Y' : 'N',
+      taxReportMode: p.taxReportCode && p.taxReportCode !== p.code ? 'DIRECT' : 'SAME',
+      taxReportCode: p.taxReportCode ?? '', currencyCode: p.currencyCode ?? '',
       salesTaxType: p.salesTaxType ?? '', purchaseTaxType: p.purchaseTaxType ?? '',
       creditDays: String(p.creditDays ?? 0), settleDueDay: String(p.settleDueDay ?? 0),
       arNoManaged: p.arNoManaged ? 'Y' : 'N', apNoManaged: p.apNoManaged ? 'Y' : 'N',
@@ -266,7 +272,9 @@ export default function PartnersPage() {
       ...form,
       partnerGroupId: form.partnerGroupId ? Number(form.partnerGroupId) : null,
       parentId: form.parentId ? Number(form.parentId) : null,
-      foreignCurrency: form.foreignCurrency === 'Y',
+      foreignCurrency: form.foreignCurrency === 'Y' || !!form.currencyCode,
+      taxReportCode: form.taxReportMode === 'SAME' ? null : (form.taxReportCode.trim() || null),
+      currencyCode: form.currencyCode || null,
       salesTaxType: form.salesTaxType || null,
       purchaseTaxType: form.purchaseTaxType || null,
       creditDays: Number(form.creditDays) || 0,
@@ -316,7 +324,7 @@ export default function PartnersPage() {
     taxReport: x.taxReport, shipmentTarget: x.shipmentTarget,
     parentId: x.parentId, partnerGroupId: x.partnerGroupId, active: x.active,
     /* 통째로 덮어쓰므로 새 칸도 되돌려 보낸다 — 빠뜨리면 일괄변경 한 번에 조용히 지워진다. */
-    foreignCurrency: x.foreignCurrency, salesTaxType: x.salesTaxType,
+    foreignCurrency: x.foreignCurrency, taxReportCode: x.taxReportCode, currencyCode: x.currencyCode, salesTaxType: x.salesTaxType,
     purchaseTaxType: x.purchaseTaxType, creditDays: x.creditDays,
     settleDueDay: x.settleDueDay, arNoManaged: x.arNoManaged, apNoManaged: x.apNoManaged,
     ...patch,
@@ -566,8 +574,10 @@ export default function PartnersPage() {
           )}
 
           {formTab === '거래처정보' && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {/* 원본(2026-10-22 실측)은 거래처코드 · 상호(이름) 이 [기본] 에도 [거래처정보] 에도 맨 앞 두 칸이다 — 같은 칸(같은 값). */}
+          /* 원본(2026-10-22 실측)은 이 탭이 한 줄 목록이다: 거래처코드 · 상호(이름) · 거래처코드구분 · 세무신고거래처 · 종사업장번호 · 대표자명 · 업태 · 종목 · 전화 · Fax · Email · 모바일 ·
+             주소1 우편번호 · 주소1 · 주소2 우편번호 · 주소2 · 검색창내용 · 업종별구분 · 통화 · 거래처그룹1 · 홈페이지 · 적요 · 출하대상거래처 · 거래유형(영업) · 거래유형(구매).
+             [기본] 과 같은 칸은 같은 값이다. 아래 '우리 칸'은 원본이 다른 탭에 두거나 우리만 가진 것이다. */
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="mb-1 block text-sm text-ec-label">거래처코드 *</label>
               <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)}
@@ -579,20 +589,164 @@ export default function PartnersPage() {
                      aria-invalid={invalid && !form.name.trim()} placeholder="상호(이름)"
                      value={form.name} onChange={(e) => set('name', e.target.value)} />
             </div>
+            {/* 원본 [거래처코드구분] 세 갈래 — 등록번호 자릿수가 여기서 갈린다(사업자 10 · 주민 13). 세금계산서에 그대로 찍혀 서버가 막는다. */}
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">거래처코드구분</label>
+              <div className="flex flex-wrap gap-x-[14px] gap-y-[4px]">
+                {([['사업자등록번호', '사업자등록번호'], ['주민등록번호', '비사업자(내국인)'], ['외국인', '비사업자(외국인)']] as const).map(([v, t]) => (
+                  <label key={v} className="inline-flex items-center gap-[4px] text-[12.5px]">
+                    <input type="radio" name="regNoKind" checked={form.regNoKind === v} onChange={() => set('regNoKind', v)} />{t}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {/* 원본 [세무신고거래처] ◉거래처코드동일 ○검색입력 ○직접입력 — 세금계산서 · 세무신고를 다른 코드로 묶을 때 그 코드. 동일이면 자기 코드가 보인다. */}
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">세무신고거래처</label>
+              <div className="flex flex-wrap gap-x-[14px] gap-y-[4px] mb-[4px]">
+                {([['SAME', '거래처코드동일'], ['SEARCH', '검색입력'], ['DIRECT', '직접입력']] as const).map(([v, t]) => (
+                  <label key={v} className="inline-flex items-center gap-[4px] text-[12.5px]">
+                    <input type="radio" name="taxReportMode" checked={form.taxReportMode === v}
+                           onChange={() => setForm((f) => ({ ...f, taxReportMode: v, taxReportCode: v === 'SAME' ? '' : f.taxReportCode }))} />{t}
+                  </label>
+                ))}
+              </div>
+              {form.taxReportMode === 'SAME' && <input className={inputCls} value={form.code} readOnly />}
+              {form.taxReportMode === 'SEARCH' && (
+                <CodePickerField label="세무신고거래처" hideLabel placeholder="거래처 검색" emptyLabel="선택 해제"
+                                 value={form.taxReportCode} onChange={(v) => set('taxReportCode', v)}
+                                 items={partners.map((x) => ({ value: x.code, code: x.code, name: x.name }))} />
+              )}
+              {form.taxReportMode === 'DIRECT' && (
+                <input className={inputCls} value={form.taxReportCode} maxLength={30} onChange={(e) => set('taxReportCode', e.target.value)} />
+              )}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">종사업장번호</label>
+              <input className={inputCls} value={form.subBizNo} onChange={(e) => set('subBizNo', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">대표자명</label>
+              <input className={inputCls} value={form.ceoName} onChange={(e) => set('ceoName', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">업태</label>
+              <input className={inputCls} value={form.bizType} onChange={(e) => set('bizType', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">종목</label>
+              <input className={inputCls} value={form.bizItem} onChange={(e) => set('bizItem', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">전화</label>
+              <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">Fax</label>
+              <input className={inputCls} value={form.fax} onChange={(e) => set('fax', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">Email</label>
+              <input className={inputCls} value={form.email} onChange={(e) => set('email', e.target.value)}
+                     placeholder="세금계산서·거래명세서를 보낼 곳" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">모바일</label>
+              <input className={inputCls} value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">주소1 우편번호</label>
+              <input className={inputCls} value={form.postalCode} onChange={(e) => set('postalCode', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">주소1</label>
+              <textarea className={`${inputCls} h-[56px]`} value={form.address} onChange={(e) => set('address', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">주소2 우편번호</label>
+              <input className={inputCls} value={form.postalCode2} onChange={(e) => set('postalCode2', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">주소2</label>
+              <textarea className={`${inputCls} h-[56px]`} value={form.address2} onChange={(e) => set('address2', e.target.value)}
+                        placeholder="배송지 등 주소1과 다른 곳" />
+            </div>
+            {/* 원본 거래처검색 조건의 [검색창내용] — 사람들이 실제로 부르는 이름. 코드도움이 이 값도 같이 본다. */}
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">검색창내용</label>
+              <input className={inputCls} value={form.searchKeyword}
+                     onChange={(e) => set('searchKeyword', e.target.value)}
+                     placeholder="약칭·영문명·옛 상호 등 (코드도움에서 이 값으로도 찾습니다)" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">업종별구분</label>
+              <div className="flex gap-[14px]">
+                {['일반', '관세사'].map((k) => (
+                  <label key={k} className="inline-flex items-center gap-[4px] text-[12.5px]">
+                    <input type="radio" name="industryKind" checked={form.industryKind === k} onChange={() => set('industryKind', k)} />{k}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {/* 원본 [통화]: 내자 · 외화등록의 통화('달러 [100]'). 통화를 고르면 [외화거래처] 도 켜진다. */}
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">통화</label>
+              <select className={inputCls} value={form.currencyCode} onChange={(e) => set('currencyCode', e.target.value)}>
+                <option value="">내자</option>
+                {currencies.map((c) => <option key={c.id} value={c.code}>{c.name} [{c.code}]</option>)}
+              </select>
+            </div>
+            {/* 거래처그룹1. 채권/채무현황의 그룹 소계와 조건검색의 '그룹 전체'가 이 값을 본다(그룹2 는 우리 마스터가 없다). */}
+            <div>
+              <CodePickerField
+                label="거래처그룹1" placeholder="거래처그룹 선택" emptyLabel="선택 해제"
+                value={form.partnerGroupId} onChange={(v) => set('partnerGroupId', v)}
+                items={partnerGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">홈페이지</label>
+              <input className={inputCls} value={form.homepage} onChange={(e) => set('homepage', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">적요</label>
+              <textarea className={`${inputCls} h-[56px]`} value={form.remark} onChange={(e) => set('remark', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">출하대상거래처</label>
+              <div className="flex gap-[14px]">
+                {([[true, '사용'], [false, '사용안함']] as const).map(([v, t]) => (
+                  <label key={t} className="inline-flex items-center gap-[4px] text-[12.5px]">
+                    <input type="radio" name="shipmentTarget" checked={form.shipmentTarget === v}
+                           onChange={() => setForm((f) => ({ ...f, shipmentTarget: v }))} />{t}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {/* 원본 [거래유형(영업)] · [거래유형(구매)]: ◉기본설정 ○직접입력 — 직접입력이면 이 거래처의 기본 과세 구분을 고른다. */}
+            {([['salesTaxType', '거래유형(영업)'], ['purchaseTaxType', '거래유형(구매)']] as const).map(([key, label]) => (
+              <div key={key}>
+                <label className="mb-1 block text-sm text-ec-label">{label}</label>
+                <div className="flex flex-wrap items-center gap-[14px]">
+                  {([['', '기본설정'], ['과세', '직접입력']] as const).map(([v, t]) => (
+                    <label key={t} className="inline-flex items-center gap-[4px] text-[12.5px]">
+                      <input type="radio" name={key} checked={v === '' ? !form[key] : !!form[key]}
+                             onChange={() => set(key, v)} />{t}
+                    </label>
+                  ))}
+                  {form[key] && (
+                    <select className="ec-input w-[100px]" value={form[key]} onChange={(e) => set(key, e.target.value)}>
+                      <option value="과세">과세</option><option value="면세">면세</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+            ))}
+            {/* 우리 칸 — 원본은 다른 탭([기본] · [여신/단가])에 두거나 우리만 가진 값이다. */}
             <div>
               <label className="mb-1 block text-sm text-ec-label">구분 *</label>
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)}>
                 {types.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
-              </select>
-            </div>
-            {/*
-              원본 [거래처코드구분]. 그냥 두는 값이 아니다 — 등록번호 자릿수가 여기서 갈린다
-              (사업자 10 · 주민 13). 세금계산서에 그대로 찍히는 값이라 서버가 막는다.
-            */}
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">거래처코드구분</label>
-              <select className={inputCls} value={form.regNoKind} onChange={(e) => set('regNoKind', e.target.value)}>
-                {['사업자등록번호', '주민등록번호', '외국인'].map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </div>
             <div>
@@ -602,34 +756,10 @@ export default function PartnersPage() {
                        : form.regNoKind === '외국인' ? '형식 검사 없음' : '숫자 10자리'} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-ec-label">종사업장번호</label>
-              <input className={inputCls} value={form.subBizNo} onChange={(e) => set('subBizNo', e.target.value)} />
-            </div>
-            <div>
               <label className="mb-1 block text-sm text-ec-label">담당자</label>
               <input className={inputCls} value={form.manager} onChange={(e) => set('manager', e.target.value)} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">모바일</label>
-              <input className={inputCls} value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
-            </div>
-            {/*
-              거래처그룹. 채권/채무현황의 그룹 소계와 조건검색의 '그룹 전체'가 이 값을 본다.
-              원본 이름은 [거래처그룹1] 이다 — 우리는 그룹이 하나라 '2' 에 해당하는 칸이 없다
-              (품목의 [품목그룹1명] 과 같은 관계).
-            */}
-            <div>
-              <CodePickerField
-                label="거래처그룹1" placeholder="거래처그룹 선택" emptyLabel="선택 해제"
-                value={form.partnerGroupId} onChange={(v) => set('partnerGroupId', v)}
-                items={partnerGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
-              />
-            </div>
-            {/*
-              원본 거래처리스트 하단의 [관계설정]. 지점·사업장별로 거래처코드를 따로 쓰는 회사를
-              하나로 묶는다 — 거래처관리대장의 [대표거래처로 합산]이 이 값을 본다.
-              자기 자신과 이미 남의 종속인 거래처는 서버가 거절한다(두 단계까지).
-            */}
+            {/* 원본 거래처리스트 하단의 [관계설정] — 거래처관리대장의 [대표거래처로 합산]이 이 값을 본다(두 단계까지). */}
             <div>
               <CodePickerField
                 label="대표거래처코드" placeholder="대표거래처 선택" emptyLabel="선택 해제"
@@ -638,87 +768,18 @@ export default function PartnersPage() {
                   .map((x) => ({ value: String(x.id), code: x.code, name: x.name }))}
               />
             </div>
-            {/* 원본 거래처관리대장 I 머리말이 찍는 값들 — 우리에겐 적을 자리가 없었다. */}
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">Email</label>
-              <input className={inputCls} value={form.email} onChange={(e) => set('email', e.target.value)}
-                     placeholder="세금계산서·거래명세서를 보낼 곳" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">Fax</label>
-              <input className={inputCls} value={form.fax} onChange={(e) => set('fax', e.target.value)} />
-            </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">여신한도</label>
               <input className={inputCls} type="number" value={form.creditLimit}
                      onChange={(e) => set('creditLimit', e.target.value)} style={{ textAlign: 'right' }} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">업종별구분</label>
-              <select className={inputCls} value={form.industryKind} onChange={(e) => set('industryKind', e.target.value)}>
-                {['일반', '관세사', '외화거래처'].map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
-            </div>
-            {/*
-              원본 의료기기공급내역보고의 [공급형태]. 전표마다 고르는 것이 아니라
-              <b>그 거래처가 어떤 곳인지</b>라서 거래처에 붙는다. 보고 서식이 요구하는
-              항목이라 여기서 안 정하면 내보낸 보고파일의 그 칸이 빈다.
-            */}
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">외화거래처</label>
-              <select className={inputCls} value={form.foreignCurrency} onChange={(e) => set('foreignCurrency', e.target.value)}>
-                <option value="N">원화</option><option value="Y">외화</option>
-              </select>
-            </div>
+            {/* 원본 의료기기공급내역보고의 [공급형태] — 보고 서식이 요구하는 항목이라 여기서 안 정하면 내보낸 파일의 그 칸이 빈다. */}
             <div>
               <label className="mb-1 block text-sm text-ec-label">공급형태</label>
               <select className={inputCls} value={form.udiSupplyShape}
                       onChange={(e) => set('udiSupplyShape', e.target.value)}>
                 <option value="">(미지정)</option>
                 {['제조, 수입, 판매', '의료기관', '약국개설자, 의약품도매상', '견본품, 기부용, 군납용'].map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">주소2 우편번호</label>
-              <input className={inputCls} value={form.postalCode2} onChange={(e) => set('postalCode2', e.target.value)} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-ec-label">주소2</label>
-              <input className={inputCls} value={form.address2} onChange={(e) => set('address2', e.target.value)}
-                     placeholder="배송지 등 주소1과 다른 곳" />
-            </div>
-            {/*
-              원본 거래처검색 조건의 [검색창내용]. 공식 상호 말고 사람들이 실제로 부르는
-              이름을 적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
-            */}
-            <div className="sm:col-span-3">
-              <label className="mb-1 block text-sm text-ec-label">검색창내용</label>
-              <input className={inputCls} value={form.searchKeyword}
-                     onChange={(e) => set('searchKeyword', e.target.value)}
-                     placeholder="약칭·영문명·옛 상호 등 (코드도움에서 이 값으로도 찾습니다)" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">홈페이지</label>
-              <input className={inputCls} value={form.homepage} onChange={(e) => set('homepage', e.target.value)} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-ec-label">적요</label>
-              <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">세무신고거래처</label>
-              <select className={inputCls} value={form.taxReport ? 'Y' : 'N'}
-                      onChange={(e) => setForm((f) => ({ ...f, taxReport: e.target.value === 'Y' }))}>
-                <option value="Y">대상</option>
-                <option value="N">제외</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">출하대상거래처</label>
-              <select className={inputCls} value={form.shipmentTarget ? 'Y' : 'N'}
-                      onChange={(e) => setForm((f) => ({ ...f, shipmentTarget: e.target.value === 'Y' }))}>
-                <option value="Y">대상</option>
-                <option value="N">제외</option>
               </select>
             </div>
             <div>
@@ -777,22 +838,6 @@ export default function PartnersPage() {
               <label className="mb-1 block text-sm text-ec-label">채무번호관리</label>
               <select className={inputCls} value={form.apNoManaged} onChange={(e) => set('apNoManaged', e.target.value)}>
                 <option value="N">관리안함</option><option value="Y">관리함</option>
-              </select>
-            </div>
-            {/*
-              원본 <b>[거래유형(영업)]·[거래유형(구매)]</b>. 이 거래처와 팔고 살 때의 기본
-              과세 구분이다 — 면세 사업자와 거래하면서 매번 과세로 끊으면 세금계산서가 통째로 틀린다.
-            */}
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">거래유형(영업)</label>
-              <select className={inputCls} value={form.salesTaxType} onChange={(e) => set('salesTaxType', e.target.value)}>
-                <option value="">안 정함</option><option value="과세">과세</option><option value="면세">면세</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">거래유형(구매)</label>
-              <select className={inputCls} value={form.purchaseTaxType} onChange={(e) => set('purchaseTaxType', e.target.value)}>
-                <option value="">안 정함</option><option value="과세">과세</option><option value="면세">면세</option>
               </select>
             </div>
           </div>

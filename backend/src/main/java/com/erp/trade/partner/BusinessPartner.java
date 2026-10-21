@@ -205,6 +205,17 @@ public class BusinessPartner extends BaseTimeEntity {
     private boolean foreignCurrency = false;
 
     /**
+     * 원본 <b>[세무신고거래처]</b>(2026-10-22 실측) — ◉거래처코드동일 ○검색입력 ○직접입력. 세금계산서 · 세무신고를 이 거래처가 아니라
+     * <b>다른 코드로 묶어</b> 신고할 때 그 코드. 비어 있으면 '거래처코드동일'(자기 코드).
+     */
+    @Column(name = "tax_report_code", length = 30)
+    private String taxReportCode;
+
+    /** 원본 [통화] — 내자(비어 있음) 또는 외화등록의 통화 코드('달러 [100]' 의 100). 정하면 [외화거래처] 도 켜진다. */
+    @Column(name = "currency_code", length = 10)
+    private String currencyCode;
+
+    /**
      * 원본 <b>[거래유형(영업)]</b>·<b>[거래유형(구매)]</b>. 이 거래처와 팔고 살 때의
      * <b>기본</b> 과세 구분이다 — 전표를 열 때마다 고르지 않게 한다.
      * 면세 사업자와 거래하면서 매번 과세로 끊으면 세금계산서가 통째로 틀린다.

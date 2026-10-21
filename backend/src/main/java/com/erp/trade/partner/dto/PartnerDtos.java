@@ -107,6 +107,8 @@ public final class PartnerDtos {
             Long partnerGroupId,
             /* 원본 거래처등록 폼의 나머지 칸들. */
             Boolean foreignCurrency,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.") String taxReportCode,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String currencyCode,
             @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String salesTaxType,
             @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String purchaseTaxType,
             @PositiveOrZero(message = "여신기간은 0 이상이어야 합니다.") Integer creditDays,
@@ -206,6 +208,8 @@ public final class PartnerDtos {
             Boolean active,
             /* 원본 거래처등록 폼의 나머지 칸들. */
             Boolean foreignCurrency,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.") String taxReportCode,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String currencyCode,
             @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String salesTaxType,
             @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String purchaseTaxType,
             @PositiveOrZero(message = "여신기간은 0 이상이어야 합니다.") Integer creditDays,
@@ -279,7 +283,8 @@ public final class PartnerDtos {
             /* 원본 거래처등록 폼의 나머지 칸들. */
             boolean foreignCurrency, String salesTaxType, String purchaseTaxType,
             Integer creditDays, Integer settleDueDay,
-            boolean arNoManaged, boolean apNoManaged
+            boolean arNoManaged, boolean apNoManaged,
+            String taxReportCode, String currencyCode
     ) {
         public static PartnerResponse from(BusinessPartner p) {
             return new PartnerResponse(
@@ -302,7 +307,8 @@ public final class PartnerDtos {
                     p.getUpdatedAt() != null ? p.getUpdatedAt().toLocalDate() : null,
                     p.isForeignCurrency(), p.getSalesTaxType(), p.getPurchaseTaxType(),
                     p.getCreditDays(), p.getSettleDueDay(),
-                    p.isArNoManaged(), p.isApNoManaged());
+                    p.isArNoManaged(), p.isApNoManaged(),
+                    p.getTaxReportCode(), p.getCurrencyCode());
         }
     }
 }
