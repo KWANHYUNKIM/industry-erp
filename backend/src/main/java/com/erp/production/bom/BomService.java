@@ -23,6 +23,7 @@ public class BomService {
      * 이미 들어가 있던 줄도 다시 저장할 때 걸린다 — 그 자리에서 자재를 바꾸라는 뜻이다.
      */
     private final ItemService itemService;
+    private final com.erp.production.process.ProcessService processService;
 
     /** 모든 버전(줄마다 [BOM버전] 을 고르는 화면이 쓴다). */
     @Transactional(readOnly = true)
@@ -62,6 +63,10 @@ public class BomService {
         bom.setDefaultVersion(makeDefault);
         bom.setRemark(req.remark());
         bom.setActive(true);
+        // 원본 [생산수량] — 줄 수량은 이만큼을 만드는 데 드는 양. 생산 · 원가는 1단위당(수량 ÷ 생산수량)을 쓴다.
+        java.math.BigDecimal produceQty = req.produceQty() == null ? java.math.BigDecimal.ONE : req.produceQty();
+        bom.setProduceQty(produceQty);
+        bom.setProcess(req.processId() == null ? null : processService.getUsable(req.processId()));
         bom.clearLines();
 
         req.lines().forEach(lr -> {
@@ -69,10 +74,30 @@ public class BomService {
                 throw ApiException.badRequest("제품 자신을 자재로 넣을 수 없습니다.");
             }
             Item component = itemService.getUsable(lr.componentId());
-            bom.addLine(BomLine.builder().component(component).quantity(lr.quantity()).build());
+            java.math.BigDecimal perUnit = lr.quantity().divide(produceQty, 4, java.math.RoundingMode.HALF_UP);
+            if (perUnit.signum() <= 0) throw ApiException.badRequest("소요량이 너무 작습니다(생산수량 1개당 0.0001 이상): " + component.getCode());
+            bom.addLine(BomLine.builder().component(component).quantity(perUnit).inputQty(lr.quantity())
+                    .process(lr.processId() == null ? null : processService.getUsable(lr.processId()))
+                    .location(blankToNull(lr.location())).remark(blankToNull(lr.remark())).build());
         });
 
         return BomResponse.from(bomRepository.save(bom));
+    }
+
+    private static String blankToNull(String s) { return s == null || s.isBlank() ? null : s.trim(); }
+
+    /**
+     * 원본 BOM수정 [사용중단/재사용 ▲] › 사용중단 · 재사용. 사용중단한 버전은 품목별BOM조회에서 [사용중단포함] 을 켜야 보인다.
+     * 기본 BOM 은 생산 · 불출 · 원가가 그대로 쓰므로 멈추지 않는다(다른 버전을 기본으로 한 뒤 멈춘다).
+     */
+    @Transactional
+    public BomResponse setActive(Long id, boolean active) {
+        Bom bom = getVersion(id);
+        if (!active && bom.isDefaultVersion()) {
+            throw ApiException.badRequest("기본BOM 은 사용중단할 수 없습니다. 다른 버전을 기본으로 한 뒤 사용중단하세요.");
+        }
+        bom.setActive(active);
+        return BomResponse.from(bom);
     }
 
     @Transactional

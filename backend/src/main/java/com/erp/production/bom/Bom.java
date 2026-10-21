@@ -44,6 +44,16 @@ public class Bom extends BaseTimeEntity {
     @Column(length = 300)
     private String remark;
 
+    /** 원본 BOM등록 [생산수량] — 줄의 수량은 이만큼을 만드는 데 드는 양이다(V427). */
+    @Column(name = "produce_qty", nullable = false, precision = 18, scale = 4)
+    @Builder.Default
+    private java.math.BigDecimal produceQty = java.math.BigDecimal.ONE;
+
+    /** 원본 BOM등록 [생산공정]. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "process_id")
+    private com.erp.production.process.ProductionProcess process;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

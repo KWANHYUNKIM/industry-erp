@@ -43,6 +43,12 @@ public class BomController {
         return ResponseEntity.ok(bomService.save(req));
     }
 
+    /** 원본 [사용중단/재사용 ▲] › 사용중단 · 재사용. */
+    @PatchMapping("/{id}/active")
+    public BomResponse setActive(@PathVariable Long id, @RequestParam boolean active) {
+        return bomService.setActive(id, active);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         bomService.delete(id);

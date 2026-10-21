@@ -119,6 +119,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
             bom.addLine(BomLine.builder()
                     .component((Item) l[0])
                     .quantity(new BigDecimal((String) l[1]))
+                    .inputQty(new BigDecimal((String) l[1]))
                     .build());
         }
         bomRepository.save(bom);
