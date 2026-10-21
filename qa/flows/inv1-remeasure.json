@@ -51,6 +51,24 @@
         "wait:800",
         "expect:[...document.querySelectorAll('table thead th')].some(t=>t.textContent==='연락처')"
       ]
+    },
+    {
+      "name": "창고이동 입력 도구줄 · 재고실사조회 버튼",
+      "path": "/inventory/transfer",
+      "steps": [
+        "wait:1000",
+        "js:const b=[...document.querySelectorAll('button')].find(b=>/등록\\(F2\\)$/.test(b.textContent.trim())); if(b) b.click(); !!b",
+        "wait:500",
+        "expect:[...document.querySelectorAll('.ec-toolbar button')].map(b=>b.textContent.trim()).join(',').includes('My품목,주문,구매,생산,발주요청,재고불러오기')"
+      ]
+    },
+    {
+      "name": "재고실사조회 버튼",
+      "path": "/inventory/stocktake-list",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='이력조회')"
+      ]
     }
   ]
 }

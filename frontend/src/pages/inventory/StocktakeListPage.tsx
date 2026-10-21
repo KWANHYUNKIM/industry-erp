@@ -147,11 +147,12 @@ export default function StocktakeListPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setSort('전체'); setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson('') } },
-        /* 원본 버튼줄 — 재고조정조회와 같은 두 갈래(2026-10-12 실측). */
+        /* 원본 버튼줄(2026-10-21 실측): 간편재고조정 · 단계별재고실사 · 선택삭제 · Excel · 이력조회 — 이력조회는 모양만. */
         { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
         { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
         { label: '선택삭제', onClick: () => void removePicked(), selected: picked.size },
         { label: 'Excel' },
+        { label: '이력조회' },
       ]}
     >
       <SimpleAdjustDialog open={simpleOpen} onClose={() => setSimpleOpen(false)} onDone={() => void load()} />

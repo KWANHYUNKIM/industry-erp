@@ -587,7 +587,8 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
                            items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </Field>
       </div>
-      <EcGridToolbar tableRef={tableRef} onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
+      {/* 원본 창고이동입력 도구줄(2026-10-21 실측): 찾기(F3) · 정렬 · My품목 · 주문 · 구매 · 생산 · 발주요청 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기 */}
+      <EcGridToolbar tableRef={tableRef} slipKinds={['주문', '구매', '생산', '발주요청']} onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
         <MyItemsNote note={myItems.note} />
       </EcGridToolbar>
       <table ref={tableRef} className="w-full text-left">
