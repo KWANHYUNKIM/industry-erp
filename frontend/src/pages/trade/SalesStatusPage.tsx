@@ -26,6 +26,9 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
  */
 type Mode = '현황' | '집계'
 const MODES = ['현황', '집계'] as const
+/** 원본 [구분] 드롭다운(2026-10-20 실측 · plans 재고1:82) — 현황 메뉴에서 줄을 무엇으로 묶어 보일지. */
+const LINE_KINDS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '거래처별', '담당자별'] as const
+type LineKind = (typeof LINE_KINDS)[number]
 
 interface Row {
   key: string
@@ -122,6 +125,7 @@ export default function SalesStatusPage() {
    * 그 모습을 보여 준다: 일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 창고명.
    */
   const [mode, setMode] = useState<Mode>('현황')
+  const [lineKind, setLineKind] = useState<LineKind>('라인별')
   /** 원본은 [거래구분] 아래 조건을 회색 띠(10.8px) 밑에 접어 둔다 — 띠를 누르면 펼친다(2026-10-20 실측). */
   const [more, setMore] = useState(false)
   /** 원본 숨은 조건 [진행상태] — 전체 · 결재중 · 미확인 · 확인. 판매 confirmStatus(IN_APPROVAL · UNCONFIRMED · CONFIRMED)로 거른다. */
@@ -241,6 +245,32 @@ export default function SalesStatusPage() {
    * 접는 방식은 <b>판매조회(E040206)</b> 의 [품목명(요약)] 칸을 보고 옮긴 것인데,
    * 그건 다른 화면이다 — 여기서는 줄을 그대로 편다(<code>shown</code> 이 이미 줄 단위다).
    */
+
+  /** 라인별 말고 다른 [구분] — 묶는 키가 같은 줄을 한 줄로 더한다(수량 · 공급가액 · 부가세). */
+  const kindRows = useMemo(() => {
+    if (lineKind === '라인별') return []
+    const keyOf = (r: Row): string[] => {
+      const ym = r.date.slice(0, 7).replace('-', '/')
+      switch (lineKind) {
+        case '일별': return [r.date.replace(/-/g, '/')]
+        case '월별': return [ym]
+        case '전표별': return [dateNo(r.date, r.docNo)]
+        case '품목별': return [r.itemName + (r.spec ? ` [${r.spec}]` : '')]
+        case '전표별품목별': return [dateNo(r.date, r.docNo), r.itemName + (r.spec ? ` [${r.spec}]` : '')]
+        case '거래처별': return [r.partner]
+        default: return [r.employeeName ?? '']
+      }
+    }
+    const m = new Map<string, { keys: string[]; qty: number; supply: number; vat: number }>()
+    for (const r of shown) {
+      const keys = keyOf(r)
+      const id = keys.join('')
+      const g = m.get(id) ?? { keys, qty: 0, supply: 0, vat: 0 }
+      g.qty += r.qty; g.supply += r.supply; g.vat += r.vat
+      m.set(id, g)
+    }
+    return [...m.values()].sort((a, b) => a.keys.join('|').localeCompare(b.keys.join('|')))
+  }, [shown, lineKind])
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ supply: s.supply + r.supply, vat: s.vat + r.vat }),
@@ -379,6 +409,15 @@ export default function SalesStatusPage() {
         modeLabel="메뉴" compareLabel="구분" dateLabel="일자"
         view={view} onViewChange={setView}
         compare={compare} onCompareChange={setCompare}
+        modeExtra={mode === '현황' ? (
+          <label className="inline-flex items-center gap-[6px] ml-[12px]">
+            <span className="text-ec-label">구분</span>
+            <select className="ec-input w-[130px]" aria-label="구분" value={lineKind}
+                    onChange={(e) => setLineKind(e.target.value as LineKind)}>
+              {LINE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </label>
+        ) : undefined}
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
@@ -596,6 +635,45 @@ export default function SalesStatusPage() {
             </tr>
           </tfoot>
         </table>
+      ) : lineKind !== '라인별' ? (
+        <div className="ec-report-frame">
+          <EcReportHead title="판매현황" period={reportPeriod(from, to)} />
+          <table className="w-full text-left ec-report ec-report-head400">
+            <thead>
+              <tr>
+                <th>{lineKind === '전표별품목별' ? '일자-No.' : lineKind.replace('별', '')}</th>
+                {lineKind === '전표별품목별' && <th>품목명(규격)</th>}
+                <th className="text-right">수량</th><th className="text-right">공급가액</th>
+                <th className="text-right">부가세</th><th className="text-right">합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} className="text-center">불러오는 중…</td></tr>
+              ) : kindRows.length === 0 ? (
+                <tr><td colSpan={5} className="text-center">등록된 데이터가 없습니다.</td></tr>
+              ) : kindRows.map((g) => (
+                <tr key={g.keys.join('|')}>
+                  <td>{g.keys[0]}</td>
+                  {lineKind === '전표별품목별' && <td>{g.keys[1]}</td>}
+                  <td className="text-right">{g.qty.toLocaleString()}</td>
+                  <td className="text-right">{g.supply.toLocaleString()}</td>
+                  <td className="text-right">{g.vat.toLocaleString()}</td>
+                  <td className="text-right">{(g.supply + g.vat).toLocaleString()}</td>
+                </tr>
+              ))}
+              {!loading && kindRows.length > 0 && (
+                <tr className="ec-list-total">
+                  <td colSpan={lineKind === '전표별품목별' ? 2 : 1} className="text-center font-bold">총합계</td>
+                  <td className="text-right font-bold">{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
+                  <td className="text-right font-bold">{totals.supply.toLocaleString()}</td>
+                  <td className="text-right font-bold">{totals.vat.toLocaleString()}</td>
+                  <td className="text-right font-bold">{(totals.supply + totals.vat).toLocaleString()}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       ) : (
         /*
           2026-10-20 loginaa 실측(라인별, 검색 뒤): 격자는 <b>출력물 모양</b>이다 — 위에 '판매현황' 24px 700 가운데 ·

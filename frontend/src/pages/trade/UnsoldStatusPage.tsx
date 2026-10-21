@@ -76,7 +76,17 @@ const qty = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 
  * 원본 미판매현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
  * 우리는 기간을 비워 두어 주문이 쌓일수록 열자마자 몇 해치가 쏟아졌다.
  */
-const init = periodOf('금월(~오늘)')!
+const init = (() => { const t = periodOf('금월(~오늘)')!.to; return { from: t, to: t } })()
+/**
+ * 2026-10-20 실측(plans 재고1:75): 원본 [기준일자(영업주기)] 는 날짜 하나(오늘)이고, 그 날짜까지 1년 치(2025/11 ~ 2026/10)가 나온다.
+ * 기준일 달의 1일에서 11개월 앞 1일 ~ 기준일.
+ */
+function windowOf(date: string): { from: string; to: string } {
+  const [y, m] = date.split('-').map(Number)
+  const d = new Date(y, m - 1 - 11, 1)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return { from: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`, to: date }
+}
 
 export default function UnsoldStatusPage() {
   const navigate = useNavigate()
@@ -109,7 +119,7 @@ export default function UnsoldStatusPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<UnsoldLine[]>('/sales-orders/unsold', { params: { from: cond.from || undefined, to: cond.to || undefined } })
+      const res = await api.get<UnsoldLine[]>('/sales-orders/unsold', { params: { from: windowOf(cond.to).from, to: cond.to } })
       setRows(res.data)
       setSearched(true)
     } catch (err) {
@@ -130,8 +140,7 @@ export default function UnsoldStatusPage() {
      * 예전엔 여기서 납기일로 한 번 더 걸러 <b>두 축의 교집합</b>만 남았다 — 지난달에 받아
      * 이번 달이 납기인 주문(서버가 뺌)도, 이번 달에 받아 다음 달이 납기인 주문(화면이 뺌)도 사라졌다.
      */
-    .filter((r) => !cond.from || r.orderDate >= cond.from)
-    .filter((r) => !cond.to || r.orderDate <= cond.to)
+    .filter((r) => !cond.to || (r.orderDate >= windowOf(cond.to).from && r.orderDate <= cond.to))
     .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
     .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
@@ -219,8 +228,8 @@ export default function UnsoldStatusPage() {
       ]}
     >
       <EcStatusPanel
-        from={cond.from} to={cond.to}
-        onPeriod={(r) => setC({ from: r.from, to: r.to })}
+        from={cond.to} to={cond.to} single
+        onPeriod={(r) => setC({ from: r.to, to: r.to })}
         dateLabel="기준일자(영업주기)"
         view={view} onViewChange={setView}
         picks={INQUIRY_FULL_PICKS}

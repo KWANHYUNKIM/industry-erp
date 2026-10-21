@@ -190,6 +190,7 @@ export default function SalesOrderStatusPage() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const setF = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
   const [mode, setMode] = useState<'현황' | '집계'>('현황')
+  const [more, setMore] = useState(false)
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   /**
    * 원본 [데이터 보기형식] — 조건 판의 <b>맨 끝</b>이다(2026-09-08 실측).
@@ -384,6 +385,14 @@ export default function SalesOrderStatusPage() {
                            value={filters.item} onChange={(v) => setF({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="정렬기준">
+          <label className="text-[12px]">
+            <input type="checkbox" checked={filters.sortByDoc}
+                   onChange={(e) => setF({ sortByDoc: e.target.checked })} /> 주문번호순 (기본: 일자순)
+          </label>
+        </EcCond>
+        {/* 원본 조건은 위 열둘뿐이다(plans 재고1:75) — 우리만 있던 조건은 회색 띠 밑에 접어 둔다. */}
+        {more && (<>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
                            value={filters.employee} onChange={(v) => setF({ employee: v })}
@@ -475,12 +484,9 @@ export default function SalesOrderStatusPage() {
               .map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </EcCond>
-        <EcCond label="정렬기준">
-          <label className="text-[12px]">
-            <input type="checkbox" checked={filters.sortByDoc}
-                   onChange={(e) => setF({ sortByDoc: e.target.checked })} /> 주문번호순 (기본: 일자순)
-          </label>
-        </EcCond>
+        </>)}
+        <li className="full h-[10.8px] !min-h-0 !p-0 bg-ec-disabled cursor-pointer" role="button" aria-label="조건 더보기"
+            onClick={() => setMore((v) => !v)} />
       </EcStatusPanel>
 
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">

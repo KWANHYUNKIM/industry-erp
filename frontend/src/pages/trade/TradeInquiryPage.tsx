@@ -710,7 +710,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 <td className="text-center">{tradeTypeOf(d)}</td>
                 <td>{d.warehouseName}</td>
                 <td className="text-center">
-                  {d.accountingReflected ? '반영' : '미반영'}
+                  {/* 2026-10-20 원본 구매조회 [회계반영여부] 는 반영 전에 빈칸이다(판매조회는 '미반영' 글자 — 그대로). */}
+                  {d.accountingReflected ? '반영' : isSales ? '미반영' : ''}
                 </td>
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
                   {/* 원본 [인쇄]는 버튼이 아니라 링크 글자다. */}
@@ -720,8 +721,17 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                   {/* 한 전표의 라인들이 서로 다른 근거전표에서 올 수 있다 — 중복을 없애고 요약한다 */}
                   {(() => {
                     const nos = [...new Set(d.lines.map((l) => l.sourceDocNo).filter(Boolean))] as string[]
-                    if (nos.length === 0) return ''
-                    return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
+                    if (isSales) {
+                      if (nos.length === 0) return ''
+                      return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
+                    }
+                    /* 2026-10-20 원본 구매조회 [불러온전표] 는 줄마다 '조회' 링크다(눌렀을 때 창은 못 쟀다 — 원본 재기 필요). */
+                    return (
+                      <button type="button" className="ec-link"
+                              onClick={(e) => { e.stopPropagation(); void ecAlert(nos.length ? `불러온 전표: ${nos.join(', ')}` : '불러온 전표가 없습니다.') }}>
+                        조회
+                      </button>
+                    )
                   })()}
                 </td>
               </tr>
@@ -811,6 +821,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
               <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => closePopup(false)}>✕</button>
             </div>
             <div className="ec-modal-body">
+              {/* 원본 판매입력(수정) 머리 오른쪽 [확인취소] — 이 회사는 전표상태관리유형이 꺼져 있어 원본도 이 알림만 띄운다(plans 재고1:80). */}
+              {isSales && popupId != null && !popupCopied && (
+                <div className="flex justify-end mb-[6px]">
+                  <button type="button" className="ec-btn ec-btn-sm"
+                          onClick={() => void ecAlert('전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.')}>확인취소</button>
+                </div>
+              )}
               <TradeEntry key={popupId ?? 'new'} mode={isSales ? 'sales' : 'purchase'} popup={{
                 editId: popupId,
                 onCopy: () => setPopupCopied(true),

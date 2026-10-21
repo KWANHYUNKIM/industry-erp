@@ -79,8 +79,8 @@ interface Shipment {
  * 우리 [내역]만 지시서로 접고 있어서 줄을 보려고 갈래를 하나 더 만들어 둔 것이다
  * (판매·구매·생산불출·작업내역·출하현황에 이어 <b>여섯 번째</b> 같은 꼴). 갈래를 없앤다.
  */
-type Mode = '내역' | '집계'
-const MODES = ['내역', '집계'] as const
+type Mode = '현황' | '집계'
+const MODES = ['현황', '집계'] as const
 const num = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 수량 칸 — '4.00' 소수 둘(2026-10-20 E040222 실측). */
 const qty = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -96,9 +96,10 @@ export default function ShipmentOrderStatusPage() {
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
-  const [mode, setMode] = useState<Mode>('내역')
+  const [mode, setMode] = useState<Mode>('현황')
   const [view, setView] = useState<'표' | '그래프'>('표')
 
+  const [more, setMore] = useState(false)
   const [shipNo, setShipNo] = useState('')
   /** 원본 [출하예정일] 은 빈 두 칸(~)이다(2026-10-20 실측). */
   const [dueFrom, setDueFrom] = useState('')
@@ -149,7 +150,7 @@ export default function ShipmentOrderStatusPage() {
 
   function reset() {
     const p = periodOf('금월(~오늘)')!
-    setFrom(p.from); setTo(p.to); setCompare('사용안함'); setMode('내역'); setView('표')
+    setFrom(p.from); setTo(p.to); setCompare('사용안함'); setMode('현황'); setView('표')
     setShipNo(''); setDueFrom(''); setDueTo(''); setWarehouse(''); setPartner(''); setProject(''); setItem('')
     setOrderNoCond(''); setSpecCond(''); setEmpCond(''); setPmgrCond('')
     setRemarkCond(''); setAuthorCond(''); setStatusFilter('ALL')
@@ -261,6 +262,7 @@ export default function ShipmentOrderStatusPage() {
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         compare={compare} onCompareChange={setCompare}
         view={view} onViewChange={setView}
+        modeLabel="메뉴" compareLabel="구분"
         dateLabel="일자"
       >
         <EcCond label="출하지시No.">
@@ -296,7 +298,7 @@ export default function ShipmentOrderStatusPage() {
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>
-        <EcCond label="품목" pick>
+        <EcCond label="품목코드" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
@@ -308,6 +310,8 @@ export default function ShipmentOrderStatusPage() {
           출하현황과 달리 [시리얼/로트No.]·[연락처]·[주소]가 없다 — 그쪽은 나간 물건을
           좇는 화면이고 여기는 지시를 보는 화면이다.
         */}
+        {/* 원본 조건은 품목코드까지(plans 재고1:84) — 그 뒤 우리 조건은 회색 띠 밑에 접어 둔다. */}
+        {more && (<>
         <EcCond label="오더관리번호" pick>
           <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
                            value={orderNoCond} onChange={setOrderNoCond}
@@ -351,6 +355,9 @@ export default function ShipmentOrderStatusPage() {
                            items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
+        </>)}
+        <li className="full h-[10.8px] !min-h-0 !p-0 bg-ec-disabled cursor-pointer" role="button" aria-label="조건 더보기"
+            onClick={() => setMore((v) => !v)} />
       </EcStatusPanel>
 
       {error && (
