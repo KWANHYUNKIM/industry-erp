@@ -12,6 +12,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { dateText } from '../../utils/dateText'
 import { useRequired } from '../../utils/useRequired'
+import TradeEntry from './TradeEntry'
+import { ecAlert } from '../../components/EcDialog'
 
 /**
  * 영업 > 거래처관리대장 — 거래처별로 <b>기간 동안의 오고 감</b>을 본다.
@@ -352,6 +354,15 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     { opening: 0, increase: 0, decrease: 0, closing: 0 },
   ), [ledger])
 
+  /*
+   * 원본 거래처관리대장1 의 일자-No. 링크(2026-10-21 실측): 누르면 대장 위에 그 전표의 수정 창('판매입력(수정)' · '구매입력(수정)')이
+   * 판매조회 · 구매조회와 같은 모양으로 뜬다 — 새 창이 아니라 같은 화면 위의 창이다.
+   */
+  const [entryPopup, setEntryPopup] = useState<{ mode: 'sales' | 'purchase'; id: number } | null>(null)
+  const openEntry = (e: Entry) => {
+    if (e.kind.startsWith('판매')) setEntryPopup({ mode: 'sales', id: Number(e.key.slice(1)) })
+    else if (e.kind.startsWith('구매')) setEntryPopup({ mode: 'purchase', id: Number(e.key.slice(1)) })
+  }
   const showDetail = group === '전표별+내역'
   const COLS = 8
 
@@ -441,7 +452,9 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                             <tr className="bg-ec-page">
                               <td>{dayOrMonth
                                 ? (group === '월별' ? r.entry.date.replace('-', '/') : dateText(r.entry.date))
-                                : <>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</>}</td>
+                                : (r.entry.kind === '수금' || r.entry.kind === '지급')
+                                  ? <>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</>
+                                  : <a className="cursor-pointer" onClick={() => openEntry(r.entry)}>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</a>}</td>
                               <td>{dayOrMonth ? (group === '월별' ? '월계' : '일계')
                                 : <>{r.entry.kind.endsWith('반품') ? `${r.entry.kind} ` : ''}{r.entry.memo ?? ''}</>}</td>
                               <td className="text-right">{r.entry.increase ? won(r.entry.increase) : ''}</td>
@@ -688,6 +701,26 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
           </tr>
         </tfoot>
       </table>}
+      {entryPopup && (
+        <div className="ec-modal-back">
+          <div role="dialog" aria-modal="true" aria-label={entryPopup.mode === 'sales' ? '판매입력(수정)' : '구매입력(수정)'} className="ec-modal w-[max(960px,50vw)]">
+            <div className="ec-modal-bar">
+              <span className="name">{entryPopup.mode === 'sales' ? '판매입력(수정)' : '구매입력(수정)'}</span>
+              <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => setEntryPopup(null)}>✕</button>
+            </div>
+            <div className="ec-modal-body">
+              <TradeEntry key={`${entryPopup.mode}-${entryPopup.id}`} mode={entryPopup.mode} popup={{
+                editId: entryPopup.id,
+                onCopy: () => {},
+                onClose: (changed) => { setEntryPopup(null); if (changed) void load() },
+                onMove: () => { void ecAlert('다음 자료가 없습니다.') },
+                onReturn: () => { setEntryPopup(null) },
+                docs: [],
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
     </EcListShell>
   )
 }
