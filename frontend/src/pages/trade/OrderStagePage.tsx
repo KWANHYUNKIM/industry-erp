@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
+import type { CodeColumn } from '../../components/CodeSearchModal'
 import Modal from '../../components/Modal'
 import EditStateMenu, { type StateOp } from '../../components/EditStateMenu'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -37,6 +39,12 @@ interface OrderNo {
 
 interface Step { seq: number; stageId: number; stageName: string }
 interface OrderType { id: number; code: string; name: string; steps: Step[]; active: boolean }
+
+/** 원본 '오더관리유형검색' 창 열 — 유형코드 · 유형명(2026-10-21 실측). */
+const TYPE_COLUMNS: CodeColumn[] = [
+  { head: '유형코드', width: 120, cell: (i) => i.code, link: true },
+  { head: '유형명', cell: (i) => i.name, link: true },
+]
 
 interface Form {
   name: string
@@ -240,10 +248,10 @@ export default function OrderStagePage() {
           </div>
         </EcCond>
         <EcCond label="오더관리유형" pick>
-          <select className="ec-input w-[160px]" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-            <option>전체</option>
-            {types.map((t) => <option key={t.id}>{t.name}</option>)}
-          </select>
+          {/* 원본 조건 · 등록 창 둘 다 코드도움 '오더관리유형검색'(유형코드 · 유형명, 2026-10-21 실측) */}
+          <CodePickerField label="오더관리유형" hideLabel width={160} value={typeFilter === '전체' ? '' : typeFilter}
+                           onChange={(v) => setTypeFilter(v || '전체')} columns={TYPE_COLUMNS}
+                           items={types.map((t) => ({ value: t.name, code: t.code, name: t.name }))} />
         </EcCond>
         <EcCond label="오더관리번호">
           <input className="ec-input w-[160px]" value={orderNoCond} onChange={(e) => setOrderNoCond(e.target.value)} />
@@ -349,12 +357,11 @@ export default function OrderStagePage() {
             </span>
             <label>오더관리유형</label>
             <span className={invalid.has('orderTypeId') ? 'ec-invalid' : ''}>
-              <select className="ec-input w-full" aria-label="오더관리유형" value={form.orderTypeId}
-                      disabled={!!editId} onChange={set('orderTypeId')}>
-                <option value=""></option>
-                {types.filter((t) => t.active || String(t.id) === form.orderTypeId)
-                  .map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              <CodePickerField label="오더관리유형" hideLabel fill emptyLabel="" value={form.orderTypeId} disabled={!!editId}
+                               onChange={(v) => set('orderTypeId')({ target: { value: v } })}
+                               columns={TYPE_COLUMNS}
+                               items={types.filter((t) => t.active || String(t.id) === form.orderTypeId)
+                                 .map((t) => ({ value: String(t.id), code: t.code, name: t.name }))} />
             </span>
             <label>생성일자</label>
             <input type="date" className="ec-input w-[150px]" value={form.createdDate} onChange={set('createdDate')} />

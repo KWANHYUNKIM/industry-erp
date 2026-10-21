@@ -48,6 +48,28 @@
         "expect:qaStock().then((d) => { const a = JSON.parse(sessionStorage.getItem('ts0')); return JSON.stringify([qaQ(d,'QA-MAT','본사창고'), qaQ(d,'ITM-0005','본사창고'), qaQ(d,'QA-MAT','QA창고2'), qaQ(d,'ITM-0005','QA창고2')]) === JSON.stringify(a) })",
         "expect:qaRev(sessionStorage.getItem('tsNo')).then((n) => n === Number(sessionStorage.getItem('tsRev')))"
       ]
+    },
+    {
+      "name": "창고이동조회 [선택삭제] — 고른 것 없이 누르면 원본 알림, 한 장 고르면 '선택한 전표를 삭제 하겠습니까?' → [확인] 뒤 안내 없이 목록에서 빠지고 재고가 돌아온다(원본 E040502 2026-10-21 실측)",
+      "path": "/inventory/transfer",
+      "steps": [
+        "js:window.qaQ = (d, code, wh) => { const x = d.find((r) => r.itemCode === code && r.warehouseName === wh); return x ? Number(x.quantity) : 0 }; window.qaStock = () => fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()); qaStock().then((d)=>{ sessionStorage.setItem('ts0', JSON.stringify([qaQ(d,'QA-MAT','본사창고'), qaQ(d,'ITM-0005','본사창고'), qaQ(d,'QA-MAT','QA창고2'), qaQ(d,'ITM-0005','QA창고2')])); return true })",
+        "click:창고이동 등록",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const d = () => [...document.querySelectorAll('[role=dialog]')].pop(); const code = async (n, v) => { const el = d().querySelectorAll('input.ec-input.code')[n]; el.focus(); set(el, v); await W(150); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await W(300) }; await code(0, 'WH-01'); await code(1, 'QA-WH2'); await code(2, 'QA-MAT'); for (const n of [1]) { set(d().querySelector(`input[aria-label=\"${n}번째 줄 수량\"]`), '2'); set(d().querySelector(`input[aria-label=\"${n}번째 줄 적요\"]`), 'QA재고1') } await W(300); return true })()",
+        "click:저장(F8)",
+        "expect:/[0-9]{4}\\/[0-9]{2}\\/[0-9]{2} -[0-9]+ 저장 완료 · 본사창고 → QA창고2 · 1건 수량 2/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('tsNo2', document.body.innerText.match(/([0-9]{4}\\/[0-9]{2}\\/[0-9]{2} -[0-9]+) 저장 완료/)[1]); true",
+        "click:선택삭제",
+        "expect:[...document.querySelectorAll('[role=alertdialog]')].some((d) => d.innerText.includes('리스트에 선택된 자료가 없습니다.') && d.innerText.includes('체크박스에 체크한 후 다시 시도 바랍니다.'))",
+        "clicklast:확인",
+        "js:([...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].innerText.trim() === sessionStorage.getItem('tsNo2')).querySelector('input[type=checkbox]').click(), true)",
+        "click:선택삭제",
+        "expect:[...document.querySelectorAll('[role=alertdialog]')].some((d) => d.innerText.includes('선택한 전표를 삭제 하겠습니까?'))",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.cells[1] && r.cells[1].innerText.trim() === sessionStorage.getItem('tsNo2')) && !/저장 완료/.test(document.body.innerText)",
+        "expect:qaStock().then((d) => { const a = JSON.parse(sessionStorage.getItem('ts0')); return JSON.stringify([qaQ(d,'QA-MAT','본사창고'), qaQ(d,'ITM-0005','본사창고'), qaQ(d,'QA-MAT','QA창고2'), qaQ(d,'ITM-0005','QA창고2')]) === JSON.stringify(a) })"
+      ]
     }
   ]
 }

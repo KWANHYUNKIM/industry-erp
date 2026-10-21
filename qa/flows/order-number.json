@@ -6,7 +6,7 @@
       "path": "/sales/order-stages",
       "steps": [
         "wait:1200",
-        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const st = await A('GET', '/order-stages'); const s = Date.now().toString().slice(-5); const t = await A('POST', '/order-types', { code: 'QA2O' + s, name: 'QA재고2-유형' + s, stageIds: [st[0].id] }); sessionStorage.setItem('ono', JSON.stringify({ tid: t.id, tname: t.name, stage: st[0].name, s })); return !!t.id })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const st = await A('GET', '/order-stages'); const s = Date.now().toString().slice(-5); const t = await A('POST', '/order-types', { code: 'QA2O' + s, name: 'QA재고2-유형' + s, stageIds: [st[0].id] }); sessionStorage.setItem('ono', JSON.stringify({ tid: t.id, tname: t.name, stage: st[0].name, s })); sessionStorage.setItem('ocode', t.code); return !!t.id })()",
         "wait:200"
       ]
     },
@@ -21,7 +21,9 @@
         "click:저장(F8)",
         "wait:400",
         "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.querySelectorAll('.ec-invalid').length === 2 })()",
-        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; set(d.querySelector('input[placeholder=오더관리명]'), 'QA재고2-오더' + S.s); set(d.querySelector('select[aria-label=오더관리유형]'), String(S.tid)); set(d.querySelector('input[placeholder=적요1]'), 'QA재고2'); return true })()",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; set(d.querySelector('input[placeholder=오더관리명]'), 'QA재고2-오더' + S.s); set(d.querySelector('input[placeholder=적요1]'), 'QA재고2'); return true })()",
+        "js:([...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"오더관리유형 선택\"]').click(), true)",
+        "pickrow:@ocode",
         "click:저장(F8)",
         "wait:1200",
         "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-오더' + S.s)); return !!r && r.innerText.includes(S.tname) && r.innerText.includes(S.stage + ' (0)') && r.innerText.includes('보기') && ![...document.querySelectorAll('[role=dialog]')].length })()"
@@ -34,7 +36,7 @@
         "wait:1200",
         "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-오더' + S.s)).querySelector('a').click(); return true })()",
         "wait:500",
-        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.querySelector('select[aria-label=오더관리유형]').disabled })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.querySelector('button[title=\"오더관리유형 선택\"]').disabled })()",
         "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelector('input[placeholder=오더관리명]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'QA재고2-오더수정' + S.s); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
         "click:저장(F8)",
         "wait:1200",

@@ -15,6 +15,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
+import NumCheck from '../../components/NumCheck'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
@@ -83,6 +84,8 @@ export default function TransferPage() {
    * 이 회사는 전표상태관리유형 설정이 꺼져 있어 [확인취소] 가 막힌다 — 그래서 결재중 · 미확인은 늘 비어 있다.
    */
   const [stTab, setStTab] = useState<'전체' | '결재중' | '미확인' | '확인'>('전체')
+  /** 원본 창고이동조회 번호 칸 = 체크 칸 — [선택삭제] 가 지울 전표(이동번호). */
+  const [picked, setPicked] = useState<Set<string>>(new Set())
   /* 목록 [인쇄] 열 · 수정 창 [저장/전표(F7)] 이 여는 창고이동전표(원본 '기본(수정불가)' 양식). */
   const [printSlip, setPrintSlip] = useState<StockTransfer[] | null>(null)
   async function openPrint(no: string) {
@@ -122,6 +125,21 @@ export default function TransferPage() {
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
     }
+  }
+
+  /*
+   * 원본 창고이동조회 [선택삭제](E040502, 2026-10-21 실측: QA 이동 한 장을 체크 → 확인 글 '선택한 전표를 삭제 하겠습니까?'
+   * → [확인] 뒤 안내 없이 목록만 다시 그린다). 고른 것이 없으면 셸이 원본 알림을 띄운다(selected).
+   */
+  async function removePicked() {
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
+    try {
+      for (const no of picked) await api.delete(`/stock-transfers/slips/${encodeURIComponent(no)}`)
+    } catch (err) {
+      void ecAlert(extractErrorMessage(err))
+    }
+    setPicked(new Set()); setOk('')
+    load()
   }
 
   /** 재고조정·폐기 등도 지울 자리가 없었다(QA 10회차) — 창고이동과 같이 서버가 바뀐 재고를 되돌린다. */
@@ -258,7 +276,11 @@ export default function TransferPage() {
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : `${tab} 등록(F2)`}
       onNew={() => { setEditSlip(null); setShowForm(true) }}
-      actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
+      actions={[
+        { label: '새로고침', onClick: load }, { label: '인쇄' },
+        ...(tab === '창고이동' ? [{ label: '선택삭제', selected: picked.size, onClick: () => void removePicked() }] : []),
+        { label: 'Excel' },
+      ]}
     >
       <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
@@ -357,7 +379,10 @@ export default function TransferPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th className="w-[34px]"></th>
+              <th className="w-[34px]">
+                <NumCheck head no="" label="전체 선택" on={transferSort.sorted.length > 0 && transferSort.sorted.every((r) => picked.has(r.transferNo))}
+                          onChange={(v) => setPicked(v ? new Set(transferSort.sorted.map((r) => r.transferNo)) : new Set())} />
+              </th>
               <th className="w-[130px] cursor-pointer" onClick={() => transferSort.toggle('일자')}>이동번호 {transferSort.mark('일자')}</th>
               <th className="w-[120px]">보내는창고명</th>
               <th className="w-[120px]">받는창고명</th>
@@ -373,7 +398,10 @@ export default function TransferPage() {
               <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : transferSort.sorted.map((r, i) => (
               <tr key={r.transferNo}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">
+                  <NumCheck no={i + 1} on={picked.has(r.transferNo)}
+                            onChange={() => setPicked((s) => { const n = new Set(s); n.has(r.transferNo) ? n.delete(r.transferNo) : n.add(r.transferNo); return n })} />
+                </td>
                 <td><a className="cursor-pointer" title={r.transferNo} onClick={() => openSlip(r.transferNo)}>{slipNoText(r.transferDate, r.transferNo)}</a></td>
                 <td>{r.fromWarehouseName}</td>
                 <td>{r.toWarehouseName}</td>

@@ -938,7 +938,8 @@ export default function ItemsPage() {
                 <NumCheck tone="plain" no="" label="전체 선택" on={blocked.every((b) => blockedPick.has(b.id))}
                           onChange={() => setBlockedPick(blocked.every((b) => blockedPick.has(b.id)) ? new Set() : new Set(blocked.map((b) => b.id)))} />
               </th>
-              <th className="text-center">코드</th><th className="text-center">코드명</th><th className="text-center">자료</th>
+              {/* 원본 창 머리 가운데 · 칸 왼쪽(2026-10-21 A001 실측 — th center · td start). 머리 가운데는 전역 thead th 규칙이 준다. */}
+              <th>코드</th><th>코드명</th><th>자료</th>
             </tr></thead>
             <tbody>{blocked.map((b, i) => (
               <tr key={b.id}>
