@@ -1,5 +1,5 @@
 {
-  "about": "재고1 출력물 › 일보(E040708, 2026-10-22 원본 실측) — [종류] 필수(비우고 [검색(F8)] → 빨간 칸, 표 없음) · 고르면 번호 붙은 '1. 판매현황' 표 · 판매 표 '품명 및 규격' 머리와 '합계' 줄 · 수금 표 '거래처명 · 금액 · 적요'. 조회만 한다.",
+  "about": "재고1 출력물 › 일보(E040708, 2026-10-22 원본 실측) — [종류] 필수(비우고 [검색(F8)] → 빨간 칸, 표 없음) · 고르면 번호 붙은 '1. 판매현황' 표 · 판매 표 '품명 및 규격' 머리와 '합계' 줄 · 수금 표 '거래처명 · 금액 · 적요'. 조회만 한다. 2026-10-22 나머지 종류(주문서 · 출하지시서 · 출하 · 발주서 · 작업지시서 · 자가사용 · 재고조정) 표 머리 · 결재방표시 · 부서 머리.",
   "shots": [
     {
       "name": "종류 비움 → 빨간 칸 → 판매 · 수금 고름 → 표",
@@ -19,6 +19,27 @@
         "expect:/1\\. 판매현황/.test(document.body.innerText) && /2\\. 수금현황/.test(document.body.innerText)",
         "expect:[...document.querySelectorAll('th')].some((t) => t.innerText.trim() === '품명 및 규격') && [...document.querySelectorAll('th')].some((t) => t.innerText.trim() === '판매처이름')",
         "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.cells[0] && r.cells[0].innerText.trim() === '합계')"
+      ]
+    },
+    {
+      "name": "나머지 종류 고름 → 번호 표와 열 머리",
+      "path": "/inventory/daily-report",
+      "steps": [
+        "wait:2000",
+        "click:종류 선택",
+        "pickrow:주문서",
+        "pickrow:출하지시서",
+        "pickrow:출하",
+        "pickrow:발주서",
+        "pickrow:작업지시서",
+        "pickrow:자가사용",
+        "pickrow:재고조정",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim().startsWith('적용')).pop().click(); true",
+        "wait:400",
+        "click:검색(F8)",
+        "wait:3500",
+        "expect:['1. 주문서현황','2. 출하지시서현황','3. 출하현황','4. 발주서현황','5. 작업지시서현황','6. 자가사용현황','7. 재고조정현황'].every((t) => document.body.innerText.includes(t))",
+        "expect:[...document.querySelectorAll('th')].some((t) => t.innerText.trim() === '품목별납기일자') && [...document.querySelectorAll('th')].some((t) => t.innerText.trim() === '장부수량') && [...document.querySelectorAll('th')].some((t) => t.innerText.trim() === '담당자명')"
       ]
     }
   ]
