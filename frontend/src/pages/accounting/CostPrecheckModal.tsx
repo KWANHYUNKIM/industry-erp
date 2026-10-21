@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import Modal from '../../components/Modal'
 import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
+import { matrixToXlsx } from '../../utils/excel'
 
 /**
  * 원가생성/수정(E040802) [원가생성전 점검사항] — 2026-10-20 loginaa 실측.
@@ -18,7 +19,7 @@ import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
  * 4 BOM 의 소모품(제품 · 반제품)이 생산품보다 뒤 공정(BOR 첫 공정 순번이 더 큼)이다.
  * 5 원재료 · 부재료가 BOM 의 생산품으로 등록돼 있다.
  * 6 세트품목인데 제품 · 상품이 아니다.
- * 원본 조건 판(기준년월 · 검색(F8))과 [Excel] 은 없다.
+ * 원본 조건 판(기준년월 · 검색(F8))은 없다 — 기준년월이 무엇을 거르는지 못 재 두었다(plans/재고2.md). [Excel] 은 항목 · 품목을 한 표로 내려받는다(원본 파일 꼴은 못 잼).
  */
 interface Item { id: number; code: string; name: string; spec: string | null; category: string; active: boolean; subcontractPrice: number | null; setItem: boolean }
 interface Bom { productId: number; active: boolean; lines: { componentId: number }[] }
@@ -104,6 +105,10 @@ export default function CostPrecheckModal({ onClose }: { onClose: () => void }) 
         <EcReportFoot page={false} />
         <div className="flex gap-[4px] mt-[8px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
+          <button type="button" className="ec-btn" disabled={!sections} onClick={() => void matrixToXlsx({
+            headers: ['점검사항', '품목코드', '품목명[규격]', '생산공정명'],
+            rows: (sections ?? []).flatMap((rows, k) => rows.map((r) => [TITLES[k], r.code, r.name, r.process ?? ''])),
+          }, '원가생성전 점검사항')}>Excel</button>
           <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
         </div>
       </div>

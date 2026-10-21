@@ -127,18 +127,18 @@ export default function ProcessExpenseModal({ period, endMonth, readOnly = false
                     <tr key={l.key}>
                       <td>{l.processName}</td><td>{l.warehouseCode}</td><td>{l.warehouseName}</td>
                       <td className="text-right">{readOnly ? l.labor : (
-                        <input className="ec-input w-full text-right h-[18px] py-0" aria-label={`${l.processName} ${l.warehouseCode} 노무비`} value={l.labor}
+                        <input className="ec-input w-full text-right h-[17.55px] py-0" aria-label={`${l.processName} ${l.warehouseCode} 노무비`} value={l.labor}
                                onChange={(e) => setLine(l.key, 'labor', e.target.value)} onFocus={(e) => e.target.select()}
                                onBlur={(e) => setLine(l.key, 'labor', won(num(e.target.value)))} />
                       )}</td>
                       <td className="text-right">{readOnly ? l.overhead : (
-                        <input className="ec-input w-full text-right h-[18px] py-0" aria-label={`${l.processName} ${l.warehouseCode} 경비`} value={l.overhead}
+                        <input className="ec-input w-full text-right h-[17.55px] py-0" aria-label={`${l.processName} ${l.warehouseCode} 경비`} value={l.overhead}
                                onChange={(e) => setLine(l.key, 'overhead', e.target.value)} onFocus={(e) => e.target.select()}
                                onBlur={(e) => setLine(l.key, 'overhead', won(num(e.target.value)))} />
                       )}</td>
                     </tr>
                   ))}
-                  <tr className="font-bold bg-ec-stripe">
+                  <tr className="font-bold bg-ec-stripe h-[29.7px]">
                     <td colSpan={3} className="text-center">{g.name} 계</td>
                     <td className="text-right">{won(s.lab)}</td><td className="text-right">{won(s.oh)}</td>
                   </tr>
@@ -146,7 +146,7 @@ export default function ProcessExpenseModal({ period, endMonth, readOnly = false
               )
             })}
             {!loading && groups.length > 0 && (
-              <tr className="font-bold bg-ec-stripe">
+              <tr className="font-bold bg-ec-stripe h-[29.7px]">
                 <td colSpan={3} className="text-center">합계</td>
                 <td className="text-right">{won(total.lab)}</td><td className="text-right">{won(total.oh)}</td>
               </tr>
