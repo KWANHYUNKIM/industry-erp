@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import QuickSearchSettingModal from '../../components/QuickSearchSettingModal'
-import { EcCond } from '../../components/EcStatusPanel'
+import { EcCond, EcCondTabs } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingLedgerEmployee } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -66,11 +66,13 @@ export default function WithholdingLedgerPage() {
   const toggle = (id: number) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   return (
-    <EcListShell title="원천징수부" onSearch={() => search()} actions={[{ label: 'Email', disabled: true }, { label: '인쇄' }]}>
+    <EcListShell title="원천징수부" searchable={false} collapseConditions={false} onSearch={() => search()} actions={[{ label: 'Email', disabled: true }, { label: '인쇄' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <QuickSearchSettingModal open={quickOpen} target="기준연월" onClose={() => setQuickOpen(false)} />
 
       <ul className="ec-cond mb-[8px]">
+        {/* 원본(2026-10-22 실측): 판 맨 위 탭 [기본] [전체] [+], 처음엔 판이 펼쳐져 있고 [검색(F8)] 을 누르면 접히며 머리에 [Search(F3)] 가 남는다 */}
+        <EcCondTabs />
         <EcCond label="기준연월">
           <input type="month" className="ec-input w-[150px]" value={month} onChange={(e) => setMonth(e.target.value)} />
         </EcCond>
