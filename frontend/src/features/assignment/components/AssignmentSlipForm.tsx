@@ -126,6 +126,21 @@ export default function AssignmentSlipForm({
     })
   }
 
+  /** 사원검색 창에서 여러 명을 골라 [적용(F8)] — 고른 줄부터 아래로 한 명씩 채운다(원본 2026-10-22: 둘을 골라 첫 · 둘째 줄이 채워지고 셋째 줄은 빈 채). */
+  function pickMany(start: number, ids: string[]) {
+    setRows((rs) => {
+      const next = [...rs]
+      ids.forEach((id, k) => {
+        const idx = start + k
+        while (next.length <= idx) next.push(blank())
+        const e = employees.find((x) => String(x.id) === id)
+        next[idx] = { ...next[idx], employeeId: id, assignDate: next[idx].assignDate || slipDate, jobTitle: e?.jobTitle ?? '', departmentId: e?.departmentId ? String(e.departmentId) : '' }
+      })
+      return next[next.length - 1].employeeId ? [...next, blank()] : next
+    })
+    setPrev((p) => ({ ...p, ...Object.fromEntries(ids.map((id, k) => { const e = employees.find((x) => String(x.id) === id); return [start + k, { jobTitle: e?.jobTitle ?? '', department: e?.department ?? '' }] })) }))
+  }
+
   const filled = rows.filter((r) => r.employeeId)
 
   function askSave() {
@@ -214,9 +229,10 @@ export default function AssignmentSlipForm({
                   <td><input type="date" className="ec-input w-full" value={r.assignDate} onChange={(e) => edit(i, { assignDate: e.target.value })} /></td>
                   <td>
                     <CodePickerField label="사번" hideLabel fill placeholder="사번" emptyLabel="선택 해제"
-                                     popupTitle="사원검색" columns={EMPLOYEE_COLUMNS}
+                                     popupTitle="사원검색" columns={EMPLOYEE_COLUMNS} employeeSearch
                                      value={r.employeeId} onChange={(v) => pickEmployee(i, v)}
-                                     items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.department }))} />
+                                     onPickMany={(its) => pickMany(i, its.map((x) => x.value))}
+                                     items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.department, hireDate: x.hireDate, resignDate: x.resignDate, stopped: !!x.resignDate && x.resignDate <= ymd(new Date()) }))} />
                   </td>
                   <td>{emp?.name ?? ''}</td>
                   <td>

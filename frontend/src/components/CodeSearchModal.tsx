@@ -100,7 +100,7 @@ export function defaultCodeColumns(label: string, items: CodeItem[], kinds?: Map
 
 export default function CodeSearchModal({
   open, label, title, items, columns, value, onPick, onClose, emptyLabel,
-  multiple, picked = [], onToggle, onClearAll, onApply, initialQuery = '', onNew, plain, hideNew,
+  multiple, picked = [], onToggle, onClearAll, onApply, initialQuery = '', onNew, plain, hideNew, employeeSearch, onApplyMany,
 }: {
   open: boolean
   /** 대상 이름(거래처 · 창고 …). 창 제목 기본값은 `${label}검색`. */
@@ -125,6 +125,9 @@ export default function CodeSearchModal({
   plain?: boolean
   /** [신규(F2)] 가 없는 창(거래처특별단가그룹수정의 단가그룹 코드도움 — 하단 [닫기] 하나, E040120 실측). */
   hideNew?: boolean
+  /** 사원검색 꼴(인사발령입력 2026-10-22 실측) — [퇴사자포함] · Search(F3) 조건 판 · 체크칸 + 번호 · [적용(F8)] 여러 개 고름. */
+  employeeSearch?: boolean
+  onApplyMany?: (items: CodeItem[]) => void
 }) {
   const [q, setQ] = useState(initialQuery)
   const [withStopped, setWithStopped] = useState(false)
@@ -132,6 +135,13 @@ export default function CodeSearchModal({
   const [optionOpen, setOptionOpen] = useState(false)
   const [kinds, setKinds] = useState<Map<string, string>>()
   const searchRef = useRef<HTMLInputElement>(null)
+  // 사원검색 조건 판 — [기본] 탭만 거른다(다른 탭의 칸은 모양만: 우리 사원 자료에 없는 값)
+  const EMP_COND0 = { code: '', name: '', dept: '', project: '', hireOn: false, hireFrom: '', hireTo: '', resignOn: false, resignFrom: '', resignTo: '', status: '재직자' as '전체' | '재직자' | '퇴사자' }
+  const [panel, setPanel] = useState(false)
+  const [panelTab, setPanelTab] = useState('기본')
+  const [draft, setDraft] = useState(EMP_COND0)
+  const [cond, setCond] = useState<typeof EMP_COND0 | null>(null)
+  const [many, setMany] = useState<string[]>([])
   useEffect(() => { if (open) setQ(initialQuery) }, [open, initialQuery])
   const wantsKinds = open && !columns && /창고/.test(label)
   useEffect(() => {
@@ -144,13 +154,24 @@ export default function CodeSearchModal({
   const cols = columns ?? defaultCodeColumns(label, items, kinds)
   const route = registerRouteOf(label)
   // 사원검색은 사용중단이 없는 꼴 — [사용중단포함] · [Option] 이 없다
-  const bare = plain ?? route === '/hr/employees'
+  const bare = !employeeSearch && (plain ?? route === '/hr/employees')
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    return items.filter((i) => (withStopped || !i.stopped) && (!needle ||
-      `${i.code ?? ''} ${i.name} ${i.sub ?? ''} ${i.alias ?? ''} ${i.extra ?? ''}`.toLowerCase().includes(needle)))
-  }, [items, q, withStopped])
-  useEffect(() => { setPage(1) }, [q, withStopped, open])
+    return items.filter((i) => {
+      if (employeeSearch && cond) {
+        const c = cond
+        if (c.status === '재직자' ? i.stopped : c.status === '퇴사자' ? !i.stopped : false) return false
+        if (c.code && !(i.code ?? '').toLowerCase().includes(c.code.toLowerCase())) return false
+        if (c.name && !i.name.includes(c.name)) return false
+        if (c.dept && !(i.sub ?? '').includes(c.dept)) return false
+        if (c.hireOn && ((c.hireFrom && (i.hireDate ?? '') < c.hireFrom) || (c.hireTo && (i.hireDate ?? '9999') > c.hireTo))) return false
+        if (c.resignOn && ((c.resignFrom && (i.resignDate ?? '') < c.resignFrom) || (c.resignTo && (i.resignDate ?? '9999') > c.resignTo))) return false
+      } else if (!withStopped && i.stopped) return false
+      return !needle || `${i.code ?? ''} ${i.name} ${i.sub ?? ''} ${i.alias ?? ''} ${i.extra ?? ''}`.toLowerCase().includes(needle)
+    })
+  }, [items, q, withStopped, cond, employeeSearch])
+  useEffect(() => { setPage(1) }, [q, withStopped, open, cond])
+  useEffect(() => { if (open) { setMany([]); setPanel(false); setCond(null); setDraft(EMP_COND0); setPanelTab('기본') } }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
   const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
   const cur = Math.min(page, pages)
   const rows = shown.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE)
@@ -166,12 +187,15 @@ export default function CodeSearchModal({
       if (e.key === 'F2' && !hideNew) { e.preventDefault(); runNew() }
       if (e.key === 'F3') { e.preventDefault(); searchRef.current?.focus() }
       if (e.key === 'F8' && multiple) { e.preventDefault(); onApply?.() }
+      if (e.key === 'F8' && employeeSearch) { e.preventDefault(); if (panel) applyCond(); else applyMany() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const span = cols.length + (multiple ? 1 : 0)
+  const applyCond = () => { setCond(draft); setPanel(false) }
+  const applyMany = () => { const its = items.filter((i) => many.includes(i.value)); if (its.length) onApplyMany?.(its); else onClose() }
+  const span = cols.length + (multiple || employeeSearch ? 1 : 0)
   // #root 끝에 띄운다(격자 규칙이 `#root table` 이라 body 로는 못 뺀다) — 입력 격자 칸(🔍) 안에 그려지면 `.ec-grid-input tbody tr { height: 41px }` · `td { padding: 0 }` 같은
   // 바깥 격자 규칙이 창 안 격자에도 걸려 머리 41 · 줄 41 이 됐다(품목검색, 2026-10-14). React 이벤트는 그대로 부모로 간다.
   if (!open) return null
@@ -190,11 +214,11 @@ export default function CodeSearchModal({
             {cur < pages && <button type="button" aria-label="끝" onClick={() => setPage(pages)}>»</button>}
           </nav>
         )}
-        {!bare && (
+        {!bare && !(employeeSearch && panel) && (
           <button type="button" className={`ec-btn${withStopped ? ' ec-btn-primary' : ''}`} aria-pressed={withStopped}
-                  onClick={() => setWithStopped((v) => !v)}>사용중단포함</button>
+                  onClick={() => { setWithStopped((v) => !v); if (employeeSearch) setCond(null) }}>{employeeSearch ? '퇴사자포함' : '사용중단포함'}</button>
         )}
-        <input
+        {!(employeeSearch && panel) && <input
           ref={searchRef}
           className="ec-input w-[180px]"
           autoFocus
@@ -203,9 +227,9 @@ export default function CodeSearchModal({
           placeholder="입력 후 [Enter]"
           onChange={(e) => setQ(e.target.value)}
           // <form> 안에 놓이면 Enter 가 바깥 폼을 제출해 버린다 — 막는다
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (!multiple && shown.length === 1) onPick(shown[0]) } }}
-        />
-        <button type="button" className="ec-btn ec-btn-primary" onClick={() => searchRef.current?.focus()}>Search(F3)</button>
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (!multiple && !employeeSearch && shown.length === 1) onPick(shown[0]) } }}
+        />}
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => { if (employeeSearch) { setPanel((v) => !v); return } searchRef.current?.focus() }}>Search(F3)</button>
         {!bare && (
           <div className="relative">
             <button type="button" className="ec-btn" aria-expanded={optionOpen} onClick={() => setOptionOpen((v) => !v)}>Option</button>
@@ -222,14 +246,64 @@ export default function CodeSearchModal({
         )}
       </div>
 
+      {employeeSearch && panel && (
+        <div className="ec-cond mb-[9px]">
+          <div className="ec-pills mb-[8px]">
+            {['기본', '사원정보', '추가정보', '신상정보', '인사자료', '기타설정'].map((t) => (
+              <button key={t} type="button" className={`ec-pill no-ec${panelTab === t ? ' active' : ''}`} onClick={() => setPanelTab(t)}>{t}</button>
+            ))}
+          </div>
+          {panelTab === '기본' ? (
+            <ul className="ec-form">
+              {([['사원번호', 'code'], ['성명', 'name'], ['부서', 'dept'], ['프로젝트', 'project']] as const).map(([l, k]) => (
+                <li key={k}><span className="title">{l}</span>
+                  <div className="form"><input className="ec-input w-full" aria-label={l} value={draft[k]} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })}
+                                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyCond() } }} /></div></li>
+              ))}
+              {([['입사일자', 'hire'], ['퇴사일자', 'resign']] as const).map(([l, k]) => (
+                <li key={k}><span className="title">{l}</span>
+                  <div className="form flex items-center gap-[6px]">
+                    {draft[`${k}On` as 'hireOn'] && <>
+                      <input type="date" className="ec-input w-[130px]" aria-label={`${l} 시작`} value={draft[`${k}From` as 'hireFrom']} onChange={(e) => setDraft({ ...draft, [`${k}From`]: e.target.value })} />~
+                      <input type="date" className="ec-input w-[130px]" aria-label={`${l} 끝`} value={draft[`${k}To` as 'hireTo']} onChange={(e) => setDraft({ ...draft, [`${k}To`]: e.target.value })} />
+                    </>}
+                    <label className="inline-flex items-center gap-[4px]"><input type="checkbox" checked={draft[`${k}On` as 'hireOn']} onChange={(e) => setDraft({ ...draft, [`${k}On`]: e.target.checked })} />사용</label>
+                  </div></li>
+              ))}
+              <li><span className="title">재직구분</span>
+                <div className="form flex items-center gap-[12px]">
+                  {(['전체', '재직자', '퇴사자'] as const).map((v) => (
+                    <label key={v} className="inline-flex items-center gap-[4px]"><input type="radio" name="emp-status" checked={draft.status === v} onChange={() => setDraft({ ...draft, status: v })} />{v}</label>
+                  ))}
+                </div></li>
+            </ul>
+          ) : (
+            // 다른 탭의 칸은 원본 이름표만 — 우리 사원 자료에 없는 값이라 거르지 않는다(2026-10-22 실측: 사원정보 · 추가정보 · 기타설정)
+            <ul className="ec-form">
+              {(({
+                '사원정보': ['사원번호', '성명', '생년월일', '부서', '프로젝트', '직위/직급', '직책', '전화', '모바일', 'Email', '입사구분', '퇴사사유', '적요'],
+                '추가정보': ['숫자형식1', '코드형식1'],
+                '기타설정': ['영문성명', '제2외국어성명', '주민등록번호', '주소', '급여통장(은행코드)'],
+              } as Record<string, string[]>)[panelTab] ?? []).map((l) => (
+                <li key={l}><span className="title">{l}</span><div className="form"><input className="ec-input w-full" aria-label={l} disabled={l === '주민등록번호'} /></div></li>
+              ))}
+            </ul>
+          )}
+          <div className="flex gap-[6px] mt-[8px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={applyCond}>검색(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setDraft(EMP_COND0)}>다시 작성</button>
+          </div>
+        </div>
+      )}
+
       <div className="max-h-[360px] overflow-y-auto">
         <table className="w-full text-left ec-head700">
           <colgroup>
-            {multiple && <col width={34} />}
+            {(multiple || employeeSearch) && <col width={employeeSearch ? 52 : 34} />}
             {cols.map((c, n) => <col key={n} width={c.width} />)}
           </colgroup>
           <thead className="[&_th]:h-[var(--ec-th-h-sort)]"><tr>
-            {multiple && <th></th>}
+            {(multiple || employeeSearch) && <th></th>}
             {cols.map((c, n) => <th key={n}>{c.head}</th>)}
           </tr></thead>
           <tbody>
@@ -241,12 +315,13 @@ export default function CodeSearchModal({
             )}
             {shown.length === 0 ? (
               <tr><td colSpan={span} className="ec-empty">조회 결과가 없습니다.</td></tr>
-            ) : rows.map((i) => {
-              const on = multiple ? picked.includes(i.value) : i.value === value
+            ) : rows.map((i, n) => {
+              const on = employeeSearch ? many.includes(i.value) : multiple ? picked.includes(i.value) : i.value === value
               return (
-                <tr key={i.value} onClick={() => (multiple ? onToggle?.(i) : onPick(i))}
+                <tr key={i.value} onClick={() => (employeeSearch ? setMany(on ? many.filter((v) => v !== i.value) : [...many, i.value]) : multiple ? onToggle?.(i) : onPick(i))}
                     className={`cursor-pointer${on ? ' bg-[var(--ec-blue-light)]' : ''}`}>
                   {multiple && <td className="text-center"><input type="checkbox" readOnly checked={on} /></td>}
+                  {employeeSearch && <td className="text-center whitespace-nowrap"><input type="checkbox" readOnly checked={on} /> {(cur - 1) * PAGE_SIZE + n + 1}</td>}
                   {cols.map((c, n) => <td key={n} className={c.link ? 'text-ec-navy' : undefined}>{c.cell(i)}</td>)}
                 </tr>
               )
@@ -260,8 +335,10 @@ export default function CodeSearchModal({
           <button type="button" className="ec-btn ec-btn-primary" onClick={onApply}>적용(F8)</button>
           <button type="button" className="ec-btn" onClick={onClearAll}>전체 해제</button>
         </>}
-        {!hideNew && <button type="button" className="ec-btn" onClick={runNew} title={route || onNew ? undefined : '등록 화면이 없는 대상입니다'}>신규(F2)</button>}
+        {employeeSearch && <button type="button" className="ec-btn ec-btn-primary" onClick={applyMany}>적용(F8)</button>}
+        {!hideNew && !employeeSearch && <button type="button" className="ec-btn" onClick={runNew} title={route || onNew ? undefined : '등록 화면이 없는 대상입니다'}>신규(F2)</button>}
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+        {employeeSearch && <span className="ml-[8px] text-[12px] text-ec-label">키보드 활용 TIP <span className="text-ec-navy">상세보기</span></span>}
         {multiple && picked.length > 0 && (
           <span className="ml-auto text-[12px] text-ec-label">선택 <b className="text-ec-blue">{picked.length}</b>건</span>
         )}

@@ -37,6 +37,9 @@ export interface CodeItem {
   extra?: string | null
   /** 사용중단된 것 — 창에서 [사용중단포함] 을 켜야 보인다. */
   stopped?: boolean
+  /** 사원검색 조건 판([기본] 탭)이 거르는 값 — 입사일 · 퇴사일(yyyy-mm-dd). */
+  hireDate?: string | null
+  resignDate?: string | null
 }
 
 export default function CodePickerField({
@@ -48,6 +51,7 @@ export default function CodePickerField({
    */
   label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
   hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain, hideNew, showCode, invalid,
+  employeeSearch, onPickMany,
 }: {
   /** 빈 필수칸 — 칸 줄을 원본 has-error 빨간 테두리(`.ec-invalid`)로 두른다. 보통 useRequired 훅의 on(키, 채워졌나). */
   invalid?: boolean
@@ -87,6 +91,12 @@ export default function CodePickerField({
   multiple?: boolean
   values?: string[]
   onChangeMulti?: (values: string[], items: CodeItem[]) => void
+  /**
+   * 사원검색 창 꼴(인사발령입력 사번 2026-10-22 실측): [퇴사자포함] · 빠른검색칸 · Search(F3)(조건 판) · Option, 격자 체크칸 + 번호,
+   * [적용(F8)] 로 여러 사원을 한꺼번에 고른다. 적용하면 고른 항목들이 onPickMany 로 간다(칸 자체는 단일 값).
+   */
+  employeeSearch?: boolean
+  onPickMany?: (items: CodeItem[]) => void
 }) {
   const [open, rawSetOpen] = useState(false)
   /*
@@ -261,6 +271,8 @@ export default function CodePickerField({
         onNew={onNew}
         plain={plain}
         hideNew={hideNew}
+        employeeSearch={employeeSearch}
+        onApplyMany={(its) => { onPickMany?.(its); setOpen(false); setQ('') }}
       />
     </div>
   )
