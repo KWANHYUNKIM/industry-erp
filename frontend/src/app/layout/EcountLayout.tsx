@@ -682,7 +682,7 @@ const MENU: TopMenu[] = [
           {
             label: '장부',
             children: [
-              /* 원본 출력물 › 장부 13(2026-10-20 실측) 차례 — 외화장부(아홉째)는 화면이 아직 없다. 시산표 · 원가명세서 · 계정명세서는 주요재무제표 묶음으로. */
+              /* 원본 출력물 › 장부 13(2026-10-20 실측) 차례. 시산표 · 원가명세서 · 계정명세서는 주요재무제표 묶음으로. */
               { label: '계정별원장', to: '/accounting/ledger-book' },
               { label: '계정별거래처별원장', to: '/accounting/account-partner-ledger' },
               { label: '거래처별계정별원장', to: '/accounting/partner-account-ledger' },
@@ -692,6 +692,7 @@ const MENU: TopMenu[] = [
               { label: '분개장', to: '/accounting/journal-book' },
               { label: '현금출납장', to: '/accounting/cash-book' },
               { label: '일/월계표', to: '/accounting/day-month-sheet' },
+              { label: '외화장부', to: '/accounting/foreign-ledger' },
               { label: '거래처거래내역조회', to: '/accounting/partner-tx-list' },
               { label: '거래처관리대장 I', to: '/accounting/partner-book-1' },
               { label: '거래처관리대장 II', to: '/accounting/partner-book-2' },

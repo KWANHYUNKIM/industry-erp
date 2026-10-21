@@ -1888,6 +1888,9 @@ export interface JournalLine {
   partnerId?: number | null
   partnerCode?: string | null
   partnerName?: string | null
+  /** 줄 [외화] · [외화금액](V456) — 외화장부가 읽는다 */
+  currencyCode?: string | null
+  foreignAmount?: number | null
 }
 
 export interface JournalEntry {

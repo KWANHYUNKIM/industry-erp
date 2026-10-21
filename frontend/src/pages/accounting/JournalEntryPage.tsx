@@ -25,12 +25,12 @@ interface Account { id: number; code: string; name: string }
 type Side = '1' | '2' | '3' | '4'
 /** 1출 · 2입 줄은 금액 칸 하나가 차 · 대 양쪽이다. */
 const isDebitIn = (s: Side) => s === '1' || s === '3'
-interface Row { side: Side; accountId: string; partnerId: string; debit: string; credit: string; description: string; departmentId: string }
+interface Row { side: Side; accountId: string; partnerId: string; debit: string; credit: string; description: string; departmentId: string; currencyCode: string; foreignAmount: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const num = (v: string) => Number(String(v).replace(/,/g, '')) || 0
 const today = () => ymd(new Date())
-const emptyRow = (side: Side = '3'): Row => ({ side, accountId: '', partnerId: '', debit: '', credit: '', description: '', departmentId: '' })
+const emptyRow = (side: Side = '3'): Row => ({ side, accountId: '', partnerId: '', debit: '', credit: '', description: '', departmentId: '', currencyCode: '', foreignAmount: '' })
 const blankRows = () => [emptyRow(), emptyRow(), emptyRow()]
 const TEMP_KEY = 'temp-journal-entry'
 const CONFIRM_LABEL: Record<string, string> = { IN_APPROVAL: '결재중', UNCONFIRMED: '미확인', CONFIRMED: '확인' }
@@ -73,6 +73,12 @@ export default function JournalEntryPage() {
   const [params] = useSearchParams()
   const editId = Number(params.get('journal')) || null
   const pickers = useCondPickers(['partners'])
+  // 줄 [외화] — 외화등록(Self › 외화등록)의 쓰는 외화
+  const [currencies, setCurrencies] = useState<{ code: string; name: string; active?: boolean }[]>([])
+  useEffect(() => {
+    api.get<{ code: string; name: string; active?: boolean }[]>('/currencies')
+      .then((r) => setCurrencies(r.data.filter((c) => c.active !== false))).catch(() => {})
+  }, [])
   const deptProject = useDeptProjectItems()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [entryDate, setEntryDate] = useState(today())
@@ -111,6 +117,7 @@ export default function JournalEntryPage() {
         side: l.debit > 0 ? '3' : '4', accountId: String(l.accountId), partnerId: l.partnerId ? String(l.partnerId) : '',
         debit: l.debit > 0 ? String(l.debit) : '', credit: l.credit > 0 ? String(l.credit) : '',
         description: l.description ?? '', departmentId: l.departmentId ? String(l.departmentId) : '',
+        currencyCode: l.currencyCode ?? '', foreignAmount: l.foreignAmount != null ? String(l.foreignAmount) : '',
       }))
       setRows([...rs, emptyRow(), emptyRow()])
     }).catch((err) => setError(extractErrorMessage(err)))
@@ -186,10 +193,13 @@ export default function JournalEntryPage() {
             description: r.description.trim() || undefined,
             partnerId: r.partnerId ? Number(r.partnerId) : undefined,
             departmentId: r.departmentId ? Number(r.departmentId) : undefined,
+            // 외화장부(V456) — 외화를 고른 줄만 외화금액을 싣는다
+            currencyCode: r.currencyCode || undefined,
+            foreignAmount: r.currencyCode && r.foreignAmount ? Number(r.foreignAmount) : undefined,
           }
           if (r.side === '3' || r.side === '4') return [line]
           // 1출 → 대 현금 · 2입 → 차 현금 (원본: 줄 하나로 넣어도 현금 원장에 상대 금액이 선다)
-          const cash = { ...line, accountId: Number(cashId), partnerId: undefined, debit: line.credit, credit: line.debit }
+          const cash = { ...line, accountId: Number(cashId), partnerId: undefined, currencyCode: undefined, foreignAmount: undefined, debit: line.credit, credit: line.debit }
           return [line, cash]
         }),
       }
@@ -319,6 +329,7 @@ export default function JournalEntryPage() {
               <th className="text-center w-[150px]">차변</th><th className="text-center w-[150px]">대변</th>
               <th className="text-center w-[90px]">적요코드</th><th className="text-center">적요</th>
               <th className="text-center w-[70px]">추가정보</th><th className="text-center w-[130px]">부서</th>
+              <th className="text-center w-[90px]">외화</th><th className="text-center w-[120px]">외화금액</th>
             </tr>
           </thead>
           <tbody>
@@ -371,6 +382,17 @@ export default function JournalEntryPage() {
                   <CodePickerField label="부서" hideLabel fill emptyLabel="(없음)" value={r.departmentId}
                                    onChange={(v) => setRow(i, { departmentId: v })} items={deptProject.departments} />
                 </td>
+                <td>
+                  <select className="ec-input w-full" aria-label={`${i + 1}줄 외화`} value={r.currencyCode}
+                          onChange={(e) => setRow(i, { currencyCode: e.target.value, foreignAmount: e.target.value ? r.foreignAmount : '' })}>
+                    <option value=""></option>
+                    {currencies.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 외화금액`} disabled={!r.currencyCode}
+                              value={r.foreignAmount} onValue={(v) => setRow(i, { foreignAmount: v })} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -381,7 +403,7 @@ export default function JournalEntryPage() {
               <td className="text-right">{won(totalCredit)}</td>
               <td></td>
               <td className="text-right">{diff ? won(diff) : ''}</td>
-              <td colSpan={2}></td>
+              <td colSpan={4}></td>
             </tr>
           </tfoot>
         </table>
