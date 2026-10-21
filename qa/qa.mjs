@@ -11793,8 +11793,14 @@ async function scenarioYearEndSettlement() {
 async function scenarioMidTermSettlement() {
   section('■ 중도정산 — 퇴직처리 · 대상자 · 원천징수연월 · 계산처리 · 퇴사 거두면 같이 삭제')
   const Y = 2026
-  const emp = (await must('GET', '/employees/all')).find((e) => e.code === 'QA세무01')
-  if (!emp) { eq('QA세무01 사원이 있다', false, true); return }
+  // 대상 사원은 시나리오가 만들고 끝에 지운다(예전에는 있던 QA세무01 을 전제했는데 지워져 통째로 멈췄다).
+  // 지난 실행이 중간에 멈춰 남은 것이 있으면 먼저 거두고 지운다.
+  for (const old of (await must('GET', '/employees/all')).filter((e) => e.code === 'QA세무01')) {
+    if (old.active === false) await must('POST', '/employees/retirement/cancel', [old.id])
+    await must('DELETE', `/employees/${old.id}`)
+  }
+  const emp = await must('POST', '/employees', { code: 'QA세무01', name: 'QA세무-퇴직', hireDate: `${Y}-01-02`, baseSalary: 0 })
+  try {
   // 퇴직처리는 입사일자 · 퇴사사유를 그대로 넣고, 퇴사를 거두면 재직으로 돌아온다 — 따로 되돌릴 것이 없다
   for (const x of await must('GET', `/tax-settlements?year=${Y}&kind=MID_TERM`)) if (x.employeeId === emp.id) await must('POST', '/tax-settlements/delete', [x.id])
   eq('재직이면 중도정산 후보가 아니다', (await must('GET', `/tax-settlements/candidates?year=${Y}&kind=MID_TERM`)).some((c) => c.employeeId === emp.id), false)
@@ -11816,6 +11822,9 @@ async function scenarioMidTermSettlement() {
   eq('퇴사를 거두면 중도정산도 사라진다(원본 "중도정산한 내역이 삭제 됩니다.")',
     (await must('GET', `/tax-settlements?year=${Y}&kind=MID_TERM`)).some((x) => x.employeeId === emp.id), false)
   eq('사원은 재직으로 돌아온다', (await must('GET', '/employees/all')).find((e) => e.id === emp.id)?.active, true)
+  } finally {
+    await must('DELETE', `/employees/${emp.id}`)
+  }
 }
 
 async function scenarioCommuteRule() {
