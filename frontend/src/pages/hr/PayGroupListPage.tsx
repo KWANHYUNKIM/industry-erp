@@ -244,31 +244,61 @@ export default function PayGroupListPage() {
     setWebRows(next)
     return true
   }
-  /** 저장 — 줄마다 그룹(코드 · 이름) · 사원(사원번호 · 이름) · 지급률. 그룹의 기존 적용사원에 더하거나 지급률을 바꾼다. */
+  /** 원본(2026-10-22 실측): 줄마다 검사해 사유를 [결과] 칸과 '구분 사유' 창에 보인다. 한 줄이라도 틀리면 아무것도 저장하지 않는다. 이미 든 사원은 추가가 아니라 오류. */
+  const [webResults, setWebResults] = useState<string[]>([])
+  const [webReasons, setWebReasons] = useState<{ row: number; text: string }[] | null>(null)
   async function saveWeb() {
     setWebError('')
-    const lines = webRows.filter((r) => r.some((v) => v))
+    const lines = webRows.map((r, i) => ({ r, i })).filter(({ r }) => r.some((v) => v))
+    if (lines.length === 0) return
+    const existing = new Map<number, Set<number>>()
+    const reasons = new Map<number, string[]>()
     const plan = new Map<number, Map<number, number | null>>()
-    for (const [g, e, r] of lines) {
-      const grp = groups.find((x) => x.code === g || x.name === g)
-      const emp = employees.find((x) => x.code === e || x.name === e)
-      if (!grp || !emp) { setWebError('수당/공제그룹 · 사원이 등록되어 있지 않습니다.'); return }
-      if (!plan.has(grp.id)) plan.set(grp.id, new Map())
-      plan.get(grp.id)!.set(emp.id, r === '' ? null : Number(r))
-    }
+    const seen = new Set<string>()
     try {
+      for (const { r: [g, e, rate], i } of lines) {
+        const why: string[] = []
+        const grp = groups.find((x) => x.code === g)
+        const emp = employees.find((x) => x.code === e)
+        if (!grp) why.push(`수당/공제그룹(미등록코드[${g}])`)
+        if (!emp) why.push(`사원(미등록코드[${e}])`, '사원(허용되지 않은 부서가 포함된 경우)')
+        else if (grp) {
+          if (!existing.has(grp.id)) {
+            const cur = await api.get<PayGroupEmployee[]>(`/pay-settings/groups/${grp.id}/employees`)
+            existing.set(grp.id, new Set(cur.data.map((a) => a.employeeId)))
+          }
+          if (existing.get(grp.id)!.has(emp.id) || seen.has(`${grp.id}-${emp.id}`)) why.push('사원(이미 존재하는 코드 입니다.\n다른 코드를 입력 바랍니다.)')
+          seen.add(`${grp.id}-${emp.id}`)
+        }
+        if (rate === '') why.push('지급률(%)(필수)')
+        else if (!/^-?\d+(\.\d+)?$/.test(rate)) why.push('지급률(%)(형식)', '지급률(%)(자릿수)')
+        if (why.length) reasons.set(i, why)
+        else {
+          if (!plan.has(grp!.id)) plan.set(grp!.id, new Map())
+          plan.get(grp!.id)!.set(emp!.id, Number(rate))
+        }
+      }
+      if (reasons.size > 0) {
+        setWebResults(webRows.map((_, i) => (reasons.has(i) ? `[${lines.findIndex((l) => l.i === i)}] ${reasons.get(i)!.join(', ')}` : '')))
+        setWebReasons([...reasons].map(([i, w]) => ({ row: i + 1, text: w.join(', ') })))
+        return
+      }
       for (const [gid, add] of plan) {
-        const cur = await api.get<PayGroupEmployee[]>(`/pay-settings/groups/${gid}/employees`)
-        const merged = new Map<number, number | null>(cur.data.map((a) => [a.employeeId, Number(a.rate)]))
+        const cur = existing.get(gid)
+        const prev = cur ? (await api.get<PayGroupEmployee[]>(`/pay-settings/groups/${gid}/employees`)).data : []
+        const merged = new Map<number, number | null>(prev.map((a) => [a.employeeId, Number(a.rate)]))
         for (const [k, v] of add) merged.set(k, v)
         await api.put(`/pay-settings/groups/${gid}/employees`, [...merged].map(([employeeId, rate]) => ({ employeeId, rate })))
       }
-      setWebOpen(false); setWebRows(Array.from({ length: 3 }, () => ['', '', '']))
-      if (empGroup) await openEmployees(empGroup)
+      setWebResults(webRows.map((_, i) => (lines.some((l) => l.i === i) ? `[${lines.findIndex((l) => l.i === i)}] OK` : '')))
       load()
     } catch (e) {
       setWebError(extractErrorMessage(e))
     }
+  }
+  function closeWeb() {
+    setWebOpen(false); setWebResults([]); setWebRows(Array.from({ length: 3 }, () => ['', '', '']))
+    if (empGroup) void openEmployees(empGroup)
   }
 
   const allowRef = useRef<HTMLTableElement>(null)
@@ -510,7 +540,7 @@ export default function PayGroupListPage() {
           </div>
         </>
       )}</Modal>
-      <Modal error={webError} open={webOpen} title="웹자료올리기" width={620} onClose={() => setWebOpen(false)}>{(
+      <Modal error={webError} open={webOpen} title="웹자료올리기" width={620} onClose={closeWeb}>{(
         <>
           <div className="ec-pills mb-[6px]"><span className="ec-pill active">적용사원등록</span></div>
           <div className="flex gap-[10px] mb-[4px]">
@@ -520,7 +550,7 @@ export default function PayGroupListPage() {
           <p className="mb-[6px]">엑셀서식내려받기로 다운로드한 엑셀에 항목에 맞춰 내용을 기입한 후 아래 표에 붙여넣어 주시기 바랍니다.</p>
           <table className="w-full">
             <thead>
-              <tr><th className="w-[50px] text-center">No.</th><th>수당/공제그룹</th><th>사원</th><th className="text-right">지급률(%)</th></tr>
+              <tr><th className="w-[50px] text-center">No.</th><th>수당/공제그룹</th><th>사원</th><th className="text-right">지급률(%)</th><th>결과</th></tr>
             </thead>
             <tbody>
               {webRows.map((r, i) => (
@@ -533,15 +563,25 @@ export default function PayGroupListPage() {
                              onChange={(e) => setWebRows(webRows.map((x, j) => (j === i ? x.map((v, k) => (k === c ? e.target.value : v)) : x)))} />
                     </td>
                   ))}
+                  <td className="whitespace-pre-line">{webResults[i] ?? ''}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="flex gap-[6px] mt-[12px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={saveWeb}>저장(F8)</button>
-            <button type="button" className="ec-btn" onClick={() => setWebRows(Array.from({ length: 3 }, () => ['', '', '']))}>다시 작성</button>
-            <button type="button" className="ec-btn" onClick={() => setWebOpen(false)}>닫기</button>
+            <button type="button" className="ec-btn" onClick={() => { setWebResults([]); setWebRows(Array.from({ length: 3 }, () => ['', '', ''])) }}>다시 작성</button>
+            <button type="button" className="ec-btn" onClick={closeWeb}>닫기</button>
           </div>
+        </>
+      )}</Modal>
+      <Modal open={webReasons != null} title="웹자료올리기" width={520} onClose={() => setWebReasons(null)}>{(
+        <>
+          <table className="w-full">
+            <thead><tr><th className="w-[70px]">구분</th><th>사유</th></tr></thead>
+            <tbody>{(webReasons ?? []).map((w) => <tr key={w.row}><td>{w.row}행</td><td className="whitespace-pre-line">{w.text}</td></tr>)}</tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[12px]"><button type="button" className="ec-btn" onClick={() => setWebReasons(null)}>닫기</button></div>
         </>
       )}</Modal>
     </EcListShell>
