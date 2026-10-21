@@ -120,7 +120,10 @@ public class JournalService {
                     .account(account(in.accountId())).debit(debit).credit(credit)
                     .description(in.description())
                     .partner(resolvePartner(in.partnerId()))
-                    .departmentId(in.departmentId()).projectId(in.projectId()).build());
+                    .departmentId(in.departmentId()).projectId(in.projectId())
+                    .currencyCode(in.currencyCode() != null && !in.currencyCode().isBlank() ? in.currencyCode().trim() : null)
+                    .foreignAmount(in.currencyCode() != null && !in.currencyCode().isBlank() ? in.foreignAmount() : null)
+                    .build());
         }
         // 원본 일반전표에는 머리 적요가 없다 — 회계거래조회 [적요]는 첫 줄 적요다.
         String desc = req.description() != null && !req.description().isBlank() ? req.description().trim() : firstMemo;

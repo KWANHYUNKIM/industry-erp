@@ -28,7 +28,10 @@ public final class JournalDtos {
             Long departmentId,
             Long projectId,
             /** 줄의 [거래처](원본 일반전표 격자 거래처코드 · 거래처명) — 비우면 전표 거래처를 따른다. */
-            Long partnerId
+            Long partnerId,
+            /** 줄의 [외화] · [외화금액] — 외화장부가 읽는다(둘 다 비면 원화 줄). */
+            String currencyCode,
+            BigDecimal foreignAmount
     ) {}
 
     /**
@@ -139,7 +142,8 @@ public final class JournalDtos {
             BigDecimal debit, BigDecimal credit, String description,
             Long departmentId, Long projectId,
             /** 줄 거래처(V390 journal_lines.partner_id) — 없으면 null(전표 거래처는 머리 partnerId). */
-            Long partnerId, String partnerCode, String partnerName
+            Long partnerId, String partnerCode, String partnerName,
+            String currencyCode, BigDecimal foreignAmount
     ) {
         public static JournalLineResponse from(JournalLine l) {
             var p = l.getPartner();
@@ -148,7 +152,8 @@ public final class JournalDtos {
                     l.getAccount().getId(), l.getAccount().getCode(), l.getAccount().getName(),
                     l.getDebit(), l.getCredit(), l.getDescription(),
                     l.getDepartmentId(), l.getProjectId(),
-                    p != null ? p.getId() : null, p != null ? p.getCode() : null, p != null ? p.getName() : null);
+                    p != null ? p.getId() : null, p != null ? p.getCode() : null, p != null ? p.getName() : null,
+                    l.getCurrencyCode(), l.getForeignAmount());
         }
     }
 

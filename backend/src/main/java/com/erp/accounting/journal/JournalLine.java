@@ -72,6 +72,14 @@ public class JournalLine {
     @Column(name = "adjust_actual", precision = 18, scale = 2)
     private BigDecimal adjustActual;
 
+    /** 줄의 [외화] 코드(settings 외화등록 code) — 외화장부(V456)가 읽는다. 원화 줄은 비어 있다. */
+    @Column(name = "currency_code", length = 10)
+    private String currencyCode;
+
+    /** 줄의 [외화금액] — 차변 줄이면 외화 차변, 대변 줄이면 외화 대변. */
+    @Column(name = "foreign_amount", precision = 18, scale = 4)
+    private BigDecimal foreignAmount;
+
     /** 줄 거래처, 없으면 전표 거래처. */
     public BusinessPartner effectivePartner() {
         return partner != null ? partner : (entry != null ? entry.getPartner() : null);

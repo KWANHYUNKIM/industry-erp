@@ -19,6 +19,14 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
                                              @Param("from") LocalDate from,
                                              @Param("to") LocalDate to);
 
+    /** 외화장부(V456): 외화 코드가 든 줄 — {@code to} 까지(이월 계산 때문에 시작일은 자르지 않는다). */
+    @Query("select l from JournalLine l " +
+            "join fetch l.entry e left join fetch e.partner left join fetch l.partner " +
+            "join fetch l.account " +
+            "where l.currencyCode is not null and e.entryDate <= :to " +
+            "order by e.entryDate asc, e.id asc, l.lineNo asc")
+    List<JournalLine> findForeignUntil(@Param("to") LocalDate to);
+
     /**
      * 계정별원장 · 현금출납장의 [부서] · [프로젝트] 조건(V343). 0 이면 그 조건을 끈다 —
      * null 로 끄면 PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
