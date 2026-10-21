@@ -13,6 +13,9 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 const BLANK_LINES = 3
 
 interface LineRow { payItemId: string; amount: string }
+/** 그룹 창 [정렬] → '정렬기준' 창(2026-10-22 원본 실측): [정렬기준] 구분 · 항목코드 · 선택 세 칸 + 정렬방법 오름차순/내림차순, [적용] [닫기]. */
+const SORT_COLS = ['구분', '항목코드', '항목명', '표시순서', '단위', '내역'] as const
+type SortCol = (typeof SORT_COLS)[number]
 interface EmpRow { employeeId: string; rate: string }
 
 /** 원본은 내역 빈칸에 0 이 들어 있다(2026-10-21 plans 관리:43). */
@@ -31,8 +34,8 @@ const blankEmps = (n = BLANK_LINES): EmpRow[] => Array.from({ length: n }, () =>
  *       이 그룹의 수당 · 공제를 지급률만큼 받는다(서버 PayrollService).</li>
  *   <li>[사용중단/재사용 ▲] 은 사용중단 · 삭제 · 재사용. 삭제는 '한번 지워진 자료는 복구될 수 없습니다.' 를 묻는다.</li>
  * </ul>
- * 격자 [찾기(F3)] 는 그룹 창 수당 · 공제 격자와 적용사원등록 창 격자 위에 있다(2026-10-21 원본 실측). 그룹 창 [정렬] · 적용사원등록 창
- * [웹자료올리기] · [Option] 은 아직 없다(원본 적용사원등록 창에는 [H] · [정렬] 이 없다).
+ * 격자 [찾기(F3)] 는 그룹 창 수당 · 공제 격자와 적용사원등록 창 격자 위에 있다(2026-10-21 원본 실측). 그룹 창 [정렬](정렬기준 창)과 적용사원등록 창
+ * [Option](입력화면설정) · [웹자료올리기](붙여넣는 표 그룹 · 사원 · 지급률)는 2026-10-22 원본 실측대로 있다(적용사원등록 창에는 [H] · [정렬] 이 없다).
  */
 export default function PayGroupListPage() {
   const [groups, setGroups] = useState<PayGroup[]>([])
@@ -190,6 +193,84 @@ export default function PayGroupListPage() {
   useTableColumnCheck(tableRef, '수당/공제그룹등록', [shown.length])
   const allChecked = shown.length > 0 && shown.every((g) => checked.has(g.id))
 
+  /** 열린 정렬기준 창이 어느 격자 것인가 · 고른 기준 셋 · 방향. 처음은 구분 · 항목코드 · 선택(원본). */
+  const [sortFor, setSortFor] = useState<PayslipLineKind | null>(null)
+  const [sortKeys, setSortKeys] = useState<(SortCol | '')[]>(['구분', '항목코드', ''])
+  const [sortDesc, setSortDesc] = useState(false)
+  function applySort() {
+    if (!sortFor) return
+    const rows = sortFor === 'ALLOWANCE' ? allowances : deductions
+    const setRows = sortFor === 'ALLOWANCE' ? setAllowances : setDeductions
+    const val = (r: LineRow, k: SortCol): string | number => {
+      const it = items.find((x) => String(x.id) === r.payItemId)
+      switch (k) {
+        case '구분': return it?.kindName ?? ''
+        case '항목코드': return it?.code ?? ''
+        case '항목명': return it?.name ?? ''
+        case '표시순서': return it?.sortOrder ?? 0
+        case '단위': return it ? '금액' : ''
+        case '내역': return Number(r.amount || 0)
+      }
+    }
+    const filled = rows.filter((r) => r.payItemId)
+    const blanks = rows.filter((r) => !r.payItemId)
+    filled.sort((a, b) => {
+      for (const k of sortKeys) {
+        if (!k) continue
+        const x = val(a, k), y = val(b, k)
+        if (x === y) continue
+        const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ko', { numeric: true })
+        return sortDesc ? -c : c
+      }
+      return 0
+    })
+    setRows([...filled, ...blanks])
+    setSortFor(null)
+  }
+
+  /** 적용사원등록 창 머리 [Option](입력화면설정) · [웹자료올리기] — 붙여넣는 표(그룹 · 사원 · 지급률). */
+  const [empOption, setEmpOption] = useState(false)
+  const [webOpen, setWebOpen] = useState(false)
+  const [webRows, setWebRows] = useState<string[][]>(() => Array.from({ length: 3 }, () => ['', '', '']))
+  const [webError, setWebError] = useState('')
+  function pasteWeb(at: number, col: number, text: string) {
+    const lines = text.replace(/\r/g, '').split('\n').filter((l, i, a) => l !== '' || i < a.length - 1)
+    if (lines.length === 1 && !lines[0].includes('\t')) return false
+    const next = webRows.map((r) => [...r])
+    lines.forEach((line, k) => {
+      while (next.length <= at + k) next.push(['', '', ''])
+      line.split('\t').forEach((v, c) => { if (col + c < 3) next[at + k][col + c] = v.trim() })
+    })
+    setWebRows(next)
+    return true
+  }
+  /** 저장 — 줄마다 그룹(코드 · 이름) · 사원(사원번호 · 이름) · 지급률. 그룹의 기존 적용사원에 더하거나 지급률을 바꾼다. */
+  async function saveWeb() {
+    setWebError('')
+    const lines = webRows.filter((r) => r.some((v) => v))
+    const plan = new Map<number, Map<number, number | null>>()
+    for (const [g, e, r] of lines) {
+      const grp = groups.find((x) => x.code === g || x.name === g)
+      const emp = employees.find((x) => x.code === e || x.name === e)
+      if (!grp || !emp) { setWebError('수당/공제그룹 · 사원이 등록되어 있지 않습니다.'); return }
+      if (!plan.has(grp.id)) plan.set(grp.id, new Map())
+      plan.get(grp.id)!.set(emp.id, r === '' ? null : Number(r))
+    }
+    try {
+      for (const [gid, add] of plan) {
+        const cur = await api.get<PayGroupEmployee[]>(`/pay-settings/groups/${gid}/employees`)
+        const merged = new Map<number, number | null>(cur.data.map((a) => [a.employeeId, Number(a.rate)]))
+        for (const [k, v] of add) merged.set(k, v)
+        await api.put(`/pay-settings/groups/${gid}/employees`, [...merged].map(([employeeId, rate]) => ({ employeeId, rate })))
+      }
+      setWebOpen(false); setWebRows(Array.from({ length: 3 }, () => ['', '', '']))
+      if (empGroup) await openEmployees(empGroup)
+      load()
+    } catch (e) {
+      setWebError(extractErrorMessage(e))
+    }
+  }
+
   const allowRef = useRef<HTMLTableElement>(null)
   const deductRef = useRef<HTMLTableElement>(null)
   const empRef = useRef<HTMLTableElement>(null)
@@ -312,10 +393,10 @@ export default function PayGroupListPage() {
             </li>
           </ul>
           <div className="ec-pills mb-[6px]"><span className="ec-pill active">수당</span></div>
-          <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={allowRef} /></div>
+          <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={allowRef} /><button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortFor('ALLOWANCE')}>정렬</button></div>
           {lineGrid('ALLOWANCE', allowances, setAllowances)}
           <div className="ec-pills mb-[6px]"><span className="ec-pill active">공제</span></div>
-          <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={deductRef} /></div>
+          <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={deductRef} /><button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortFor('DEDUCTION')}>정렬</button></div>
           {lineGrid('DEDUCTION', deductions, setDeductions)}
           <div className="flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
@@ -331,6 +412,17 @@ export default function PayGroupListPage() {
 
       <Modal error={empError} open={!!empGroup} title="적용사원등록" width={720} onClose={() => setEmpGroup(null)}>{(
         <>
+          <div className="flex justify-end relative mb-[4px]">
+            <button type="button" className="ec-btn" onClick={() => setEmpOption((v) => !v)}>Option</button>
+            {empOption && (
+              <>
+                <div className="ec-backdrop-clear" onClick={() => setEmpOption(false)} />
+                <div className="ec-menu absolute right-0 top-[30px]">
+                  <button type="button" onClick={() => setEmpOption(false)}>입력화면설정</button>
+                </div>
+              </>
+            )}
+          </div>
           <ul className="ec-form mb-[10px]">
             <li><span className="title">수당/공제그룹코드</span><div className="form">{empGroup?.code}</div></li>
             <li><span className="title">수당/공제그룹명</span><div className="form">{empGroup?.name}</div></li>
@@ -380,11 +472,75 @@ export default function PayGroupListPage() {
           <div className="flex gap-[6px] mt-[12px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={saveEmployees}>저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => empGroup && openEmployees(empGroup)}>다시 작성</button>
+            <button type="button" className="ec-btn" onClick={() => { setWebError(''); setWebOpen(true) }}>웹자료올리기</button>
             <button type="button" className="ec-btn" onClick={() => setEmpGroup(null)}>닫기</button>
             {/* 원본: 적용사원이 있는 그룹은 지워지지 않아(해당 항목을 사용 중인 자료가 있어 …) 이 [삭제]로 사원을 먼저 뺀다 */}
             {empGroup && empGroup.employeeCount > 0 && (
               <button type="button" className="ec-btn" onClick={clearEmployees}>삭제</button>
             )}
+          </div>
+        </>
+      )}</Modal>
+      <Modal open={sortFor != null} title="정렬기준" width={620} onClose={() => setSortFor(null)}>{(
+        <>
+          <ul className="ec-form mb-[10px]">
+            <li>
+              <span className="title">정렬기준</span>
+              <div className="form flex gap-[6px]">
+                {sortKeys.map((k, i) => (
+                  <select key={i} className="ec-input flex-1" aria-label={`정렬기준${i + 1}`} value={k}
+                          onChange={(e) => setSortKeys(sortKeys.map((x, j) => (j === i ? (e.target.value as SortCol | '') : x)))}>
+                    {i > 0 && <option value="">선택</option>}
+                    {SORT_COLS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ))}
+              </div>
+            </li>
+            <li>
+              <span className="title">정렬방법</span>
+              <div className="form">
+                <label className="mr-[10px]"><input type="radio" name="pg-sort-dir" checked={!sortDesc} onChange={() => setSortDesc(false)} /> 오름차순</label>
+                <label><input type="radio" name="pg-sort-dir" checked={sortDesc} onChange={() => setSortDesc(true)} /> 내림차순</label>
+              </div>
+            </li>
+          </ul>
+          <div className="flex gap-[6px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={applySort}>적용</button>
+            <button type="button" className="ec-btn" onClick={() => setSortFor(null)}>닫기</button>
+          </div>
+        </>
+      )}</Modal>
+      <Modal error={webError} open={webOpen} title="웹자료올리기" width={620} onClose={() => setWebOpen(false)}>{(
+        <>
+          <div className="ec-pills mb-[6px]"><span className="ec-pill active">적용사원등록</span></div>
+          <div className="flex gap-[10px] mb-[4px]">
+            <button type="button" className="ec-btn ec-btn-sm">엑셀서식내려받기</button>
+            <button type="button" className="ec-btn ec-btn-sm">자료올리기 항목추가</button>
+          </div>
+          <p className="mb-[6px]">엑셀서식내려받기로 다운로드한 엑셀에 항목에 맞춰 내용을 기입한 후 아래 표에 붙여넣어 주시기 바랍니다.</p>
+          <table className="w-full">
+            <thead>
+              <tr><th className="w-[50px] text-center">No.</th><th>수당/공제그룹</th><th>사원</th><th className="text-right">지급률(%)</th></tr>
+            </thead>
+            <tbody>
+              {webRows.map((r, i) => (
+                <tr key={i}>
+                  <td className="text-center">{i + 1}</td>
+                  {[0, 1, 2].map((c) => (
+                    <td key={c}>
+                      <input className={'ec-input w-full' + (c === 2 ? ' text-right' : '')} value={r[c]}
+                             onPaste={(e) => { if (pasteWeb(i, c, e.clipboardData.getData('text'))) e.preventDefault() }}
+                             onChange={(e) => setWebRows(webRows.map((x, j) => (j === i ? x.map((v, k) => (k === c ? e.target.value : v)) : x)))} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={saveWeb}>저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setWebRows(Array.from({ length: 3 }, () => ['', '', '']))}>다시 작성</button>
+            <button type="button" className="ec-btn" onClick={() => setWebOpen(false)}>닫기</button>
           </div>
         </>
       )}</Modal>
