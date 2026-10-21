@@ -29,7 +29,8 @@
         "expect:[...document.querySelectorAll('tr')].some((tr) => /조정 후 합계\\s+9,000\\s+900\\s+9,900/.test(tr.innerText))",
         "click:수정저장(F8)",
         "wait:1500",
-        "expect:/SO-[0-9]{8}-[0-9]{4} 수정 완료 [(]합계 9,900원[)]/.test(document.body.innerText)"
+        "expect:!/(저장|수정) 완료/.test(document.body.innerText)",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).find((x) => String(x.id) === sessionStorage.getItem('adjSaleId')); return Number(s.totalAmount) === 9900 })()"
       ]
     },
     {

@@ -23,6 +23,8 @@ import { dateText } from '../../utils/dateText'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
+import { ecAlert } from '../../components/EcDialog'
+import { ErrTip } from '../../components/GridCode'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -426,7 +428,8 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
   const [editing, setEditing] = useState<{ id: number; docNo: string } | null>(null)
   const [verifyResult, setVerifyResult] = useState<string[] | null>(null)
   const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
+  /** 품목은 골랐는데 수량이 빈 줄 — 원본은 그 [수량] 칸 위에 '유효키항목 필수입력' 말풍선(2026-10-21 E040205 실측). */
+  const [qtyErr, setQtyErr] = useState<number | null>(null)
   const [notice, setNotice] = useState('')
   const [savedAt, setSavedAt] = useState('')
   const [hasTemp, setHasTemp] = useState(false)
@@ -1209,7 +1212,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
     setDiscountTotal(0)
     setRemark('')
     setCustomValues({})
-    setOk(''); setError('')
+    setQtyErr(null); setError('')
     if (!keepHeader) { setPartnerId(''); setProjectId(''); setEmployeeId('') }
   }
 
@@ -1225,7 +1228,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
 
   async function submitInner(e: FormEvent) {
     e.preventDefault()
-    setError(''); setOk('')
+    setError(''); setQtyErr(null)
     // 요청에 실을 줄과 그 줄의 원본(추가항목 값이 붙어 있다)을 같은 순서로 들고 간다.
     const keptLines = lines.filter((l) => l.itemId && num(l.quantity) > 0 && num(l.unitPrice) > 0)
     const validLines = keptLines
@@ -1240,8 +1243,21 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
         supplyAmount: overriddenSupply(l) ?? undefined,
         vatAmount: computed[lines.indexOf(l)]?.typedVat ?? undefined,
       }))
+    /*
+     * 원본 차례(2026-10-21 E040205 실측): 빈 격자 → '알림' 창, 품목만 고른 줄 → 그 [수량] 칸 말풍선.
+     * 원본은 거래처가 비어도 저장된다 — 우리 전표는 거래처가 필수라(스키마) 그 검사는 뒤에 남긴다.
+     */
+    const noQty = lines.findIndex((l) => l.itemId && !(num(l.quantity) > 0))
+    if (noQty >= 0) return setQtyErr(noQty)
+    if (validLines.length === 0) {
+      void ecAlert(`아래의 경우 처리가 불가능합니다.
+자세한 내용은 아래의 사항을 참고하시기 바랍니다.
+아래 사항을 수정 후 다시 진행하시기 바랍니다.
+
+${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
+      return
+    }
     if (!partnerId) return setError(`${cfg.partnerLabel}를 선택하세요.`)
-    if (validLines.length === 0) return setError('품목·수량·단가를 1줄 이상 입력하세요.')
     /* 로트관리 품목은 로트No. 가 있어야 한다 — 서버도 거절한다(QA 62회차). 저장 전에 어느 줄인지 알려 준다. */
     const noLot = keptLines.find((l) => !l.lotNo.trim() && items.find((i) => String(i.id) === l.itemId)?.lotManaged)
     if (noLot) {
@@ -1337,10 +1353,9 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
         setEditing(null)
         setSearchParams({}, { replace: true })
       }
+      // 원본 판매입력 · 구매입력은 저장하면 말 없이 빈 칸으로 돌아간다(2026-10-21 E040205 · 10-20 E040303 실측).
+      // 번호는 판매조회 · 구매조회에서 본다 — QA 흐름도 안내 글 대신 API 로 번호를 찾는다.
       reset(true)
-      // 완료 안내는 reset <b>뒤에</b> 띄운다 — reset 이 setOk('') 로 지워서, 저장하고 나면 화면이 말없이
-      // 비기만 했다(어느 번호로 저장됐는지 볼 길이 없었다. QA 9회차, 화면으로 판매를 넣어 보다 발견).
-      setOk(`${res.data.docNo} ${editing ? '수정' : '저장'} 완료 (합계 ${won(res.data.totalAmount)}원)`)
       /* 목록을 아직 안 받았으면 저장했다고 새로 받을 까닭이 없다 — 볼 자리가 안 열려 있다. */
       if (docsAsked.current) void loadDocs()
       const afterSaveTo = afterSaveRef.current
@@ -2050,9 +2065,10 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
                       <td className="pad text-right text-ec-hint">{l.itemId ? won(stockWhOf(l.itemId)) : ''}</td>
                     )}
                     {cols.unit && <td className="pad text-center text-ec-label">{it?.unit ?? ''}</td>}
-                    <td>
+                    <td className="relative">
                       <EcNumInput className="cell text-right"
-                             value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} />
+                             value={l.quantity} onValue={(v) => { if (qtyErr === idx) setQtyErr(null); updateLine(idx, 'quantity', v) }} />
+                      {qtyErr === idx && <ErrTip msg="유효키항목 필수입력" />}
                     </td>
                     {lotAfterQty && lotCell(l, idx)}
                     <td>
@@ -2233,7 +2249,6 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
         )}
 
         {error && <p className="ec-alert ec-alert-danger mt-[10px]">{error}</p>}
-        {ok && <p className="ec-alert ec-alert-success mt-[10px]">{ok}</p>}
 
         {/*
           원본 전표 입력 화면에는 "최근 전표" 목록이 없다 — 헤더폼 → 툴바 → 그리드 → 합계행 → 푸터가 전부다.

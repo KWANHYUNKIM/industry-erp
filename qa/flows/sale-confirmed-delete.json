@@ -27,8 +27,10 @@
         "set:input[placeholder=\"전표 적요\"]|QA재고1 판매확인삭제",
         "expect:/2\\s+600\\s+60\\s+660/.test(document.querySelector('table.ec-grid-input tfoot').innerText)",
         "click:저장(F8)",
-        "expect:/SO-[0-9]{8}-[0-9]{4} 저장 완료/.test(document.body.innerText)",
-        "js:(() => { const no = document.body.innerText.match(/SO-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); const S = JSON.parse(sessionStorage.getItem('scd')); S.label = `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`; sessionStorage.setItem('scd', JSON.stringify(S)); return S.label })()"
+        "wait:1500",
+        "expect:!/(저장|수정) 완료/.test(document.body.innerText)",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSale', s.docNo); return s.docNo })()",
+        "js:(() => { const no = sessionStorage.getItem('__lastSale').match(/SO-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); const S = JSON.parse(sessionStorage.getItem('scd')); S.label = `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`; sessionStorage.setItem('scd', JSON.stringify(S)); return S.label })()"
       ]
     },
     {
