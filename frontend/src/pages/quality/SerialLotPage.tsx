@@ -57,6 +57,11 @@ export default function SerialLotPage() {
   const [form, setForm] = useState(emptyForm)
   const [lotMissing, setLotMissing] = useState(false)
   const [formError, setFormError] = useState('')
+  /* 원본 [Fn] ▸ 번호생성(2026-10-21 실측): 생성개수 N + 코드생성 창(반복코드[3] · 기호1[1] '_' · 일련번호[4]) → 'QA2_0001' 꼴 N 줄. */
+  const [genCount, setGenCount] = useState('')
+  const [genOpen, setGenOpen] = useState(false)
+  const [genPrefix, setGenPrefix] = useState('')
+  const [genSym, setGenSym] = useState('_')
   /* 원본 삭제가 막히면 뜨는 '알림' 창 — [코드 | 코드명 | 자료] 표(2026-10-13 실측: 'QA재고2-L01 | | 구매: 20261013-0'). */
   const [blocked, setBlocked] = useState<{ code: string; data: string[] } | null>(null)
   const [bulkOpen, setBulkOpen] = useState(false)
@@ -298,6 +303,23 @@ export default function SerialLotPage() {
         </div>
       </Modal>
 
+      <Modal open={genOpen} title="코드생성" width={520} onClose={() => setGenOpen(false)}>
+        <div className="flex items-center gap-[6px]">
+          <label>반복코드[3] <input className="ec-input w-[80px]" maxLength={3} aria-label="반복코드" value={genPrefix} onChange={(e) => setGenPrefix(e.target.value)} /></label>
+          <label>기호1[1] <input className="ec-input w-[40px]" maxLength={1} aria-label="기호1" value={genSym} onChange={(e) => setGenSym(e.target.value)} /></label>
+          <label>일련번호[4] <input className="ec-input w-[70px]" readOnly value="****" aria-label="일련번호" /></label>
+        </div>
+        <div className="mt-[8px] flex gap-[4px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => {
+            if (genPrefix.length !== 3) return setFormError('자릿수가 맞지 않습니다.')
+            const n = Math.min(Number(genCount || 1), 500)
+            set('lotNos', Array.from({ length: n }, (_, i) => `${genPrefix}${genSym}${String(i + 1).padStart(4, '0')}`).join('\n'))
+            setGenOpen(false)
+          }}>적용(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setGenOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
       <Modal open={blocked != null} title="알림" width={520} error={error} onClose={() => setBlocked(null)}>
         <p className="m-0 leading-[18px]">처리가 불가능한 코드입니다.<br />다음 사항을 확인 바랍니다.</p>
         <p className="mt-[9px] mb-[6px] font-bold">[처리가 불가능한 코드]</p>
@@ -358,10 +380,10 @@ export default function SerialLotPage() {
       <EcCond label="시리얼/로트No.">
         {editing ? <span>{editing.lotNo}</span> : (<div>
           {/* 원본(2026-10-21 실측): 칸 위에 [생성개수] 입력, 칸 오른쪽 [Fn] ▸ 번호생성(코드생성 창: 반복코드[3] · 기호1[1] '_' · 일련번호[4] '****' · 적용(F8)) · 번호생성설정. 모양만. */}
-          <input className="ec-input w-[420px] mb-[3px] text-right" placeholder="생성개수" aria-label="생성개수" inputMode="numeric" />
+          <input className="ec-input w-[420px] mb-[3px] text-right" placeholder="생성개수" aria-label="생성개수" inputMode="numeric" value={genCount} onChange={(e) => setGenCount(e.target.value.replace(/\D/g, ''))} />
           <textarea className={`ec-input w-[420px] h-[60px]${lotMissing ? ' border-ec-danger' : ''}`} placeholder="시리얼/로트No."
                     value={form.lotNos} onChange={(e) => { set('lotNos', e.target.value); setLotMissing(false) }} />
-          <button type="button" className="ec-btn ec-btn-sm ml-[3px] italic align-top">Fn</button>
+          <button type="button" className="ec-btn ec-btn-sm ml-[3px] italic align-top" onClick={() => setGenOpen(true)}>Fn</button>
         </div>)}
       </EcCond>
     )

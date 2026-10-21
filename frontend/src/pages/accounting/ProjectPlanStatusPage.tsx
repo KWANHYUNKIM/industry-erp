@@ -40,7 +40,8 @@ function periodKey(month: string, p: Period) {
   return ''
 }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
+/* 천단위 반올림(2026-10-21 원본 실측): 1,500 → 2 · 2,500 → 3 · -500 → -1 — 0 에서 먼 쪽으로 반올림(자바스크립트 Math.round 는 -0.5 를 -0 으로 만든다). */
+const won = (n: number) => (n < 0 ? -Math.round(-n) : Math.round(n)).toLocaleString('ko-KR')
 /* 실적이 없으면 원본은 실적 · 비율 칸을 비운다(0 을 찍지 않는다). 차이는 늘 찍는다(= 실적 − 예상). */
 const blankWon = (n: number) => (n ? won(n) : '')
 const rate = (actual: number, plan: number) =>
