@@ -5941,6 +5941,13 @@ async function scenarioSlipHistory(f) {
   await must('DELETE', `/productions/slips/${prNo}`)
   eq('이력: 생산입고I 신규 · 수정 · 삭제', acts(await rowsOf('생산입고I', prNo)), '신규,수정,삭제')
 
+  // 작업내역(생산실적) + 전표번호로 여는 [H]
+  const wr = await must('POST', '/work-results', { process: `${P}이력공정`, worker: 'QA', goodQty: 1, defectQty: 0, workTimeMin: 1, workDate: D })
+  await must('DELETE', `/work-results/${wr.id}`)
+  eq('이력: 작업내역 신규 · 삭제', acts(await rowsOf('작업내역', wr.resultNo)), '신규,삭제')
+  const byNo = await must('GET', `/change-history/by-no?target=WORK_RESULT&docNo=${encodeURIComponent(wr.resultNo)}`)
+  eq('[H] 를 전표번호로 연다(by-no)', byNo.map((r) => r.action).join(','), '신규,삭제')
+
   // 발주요청 · 단가요청 · 발주서
   const poBody = (extra) => ({ partnerId: f.supplier.id, orderDate: D, warehouseId: f.warehouse.id,
     lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 500 }], ...extra })
