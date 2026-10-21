@@ -5,7 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
-import type { BankAccountRow, PaymentAgency } from '../../types/api'
+import type { BankAccountRow, Currency, PaymentAgency } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
 import PgTransferModal from '../../features/paymentagency/components/PgTransferModal'
 
@@ -46,10 +46,13 @@ export default function PaymentAgencyListPage() {
   const [editMenu, setEditMenu] = useState(false)
   const blank = {
     id: null as number | null, code: '', name: '', regNoKind: '사업자등록번호', ceoName: '', phone: '', email: '',
-    bizType: '', bizItem: '', manager: '', foreignCurrency: false, accountId: '', bank: '', feeRate: '', searchText: '',
+    bizType: '', bizItem: '', manager: '', foreignCurrency: false, currencyId: '', accountId: '', bank: '', feeRate: '', searchText: '',
     postalCode: '', address: '', postalCode2: '', address2: '', taxReport: true, remark: '', active: true,
   }
   const [f, setF] = useState(blank)
+  /** 외화거래처 선택 목록 = 외화등록의 통화(원본 '달러 [100] · 엔화 [400]') */
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  useEffect(() => { api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data.filter((c) => c.active))).catch(() => {}) }, [])
   /** [이체정보] 창을 연 결제대행사 */
   const [transferOf, setTransferOf] = useState<number | null>(null)
   const set = <K extends keyof typeof blank>(k: K, v: (typeof blank)[K]) => setF((o) => ({ ...o, [k]: v }))
@@ -71,7 +74,7 @@ export default function PaymentAgencyListPage() {
   function openEdit(a: PaymentAgency) {
     setF({
       id: a.id, code: a.code, name: a.name, regNoKind: a.regNoKind || '사업자등록번호', ceoName: a.ceoName ?? '', phone: a.phone ?? '',
-      email: a.email ?? '', bizType: a.bizType ?? '', bizItem: a.bizItem ?? '', manager: a.manager ?? '', foreignCurrency: a.foreignCurrency,
+      email: a.email ?? '', bizType: a.bizType ?? '', bizItem: a.bizItem ?? '', manager: a.manager ?? '', foreignCurrency: a.foreignCurrency, currencyId: a.currencyId != null ? String(a.currencyId) : '',
       accountId: a.accountId != null ? String(a.accountId) : '', bank: a.depositAccount ?? '', feeRate: a.feeRate != null ? String(a.feeRate) : '',
       searchText: a.searchKeyword ?? '', postalCode: a.postalCode ?? '', address: a.address ?? '', postalCode2: a.postalCode2 ?? '',
       address2: a.address2 ?? '', taxReport: a.taxReport, remark: a.remark ?? '', active: a.active,
@@ -84,7 +87,7 @@ export default function PaymentAgencyListPage() {
     return {
       name: a.name, ceoName: a.ceoName, phone: a.phone, email: a.email, remark: a.remark, accountId: a.accountId,
       depositAccount: a.depositAccount, searchKeyword: a.searchKeyword, feeRate: a.feeRate, regNoKind: a.regNoKind,
-      foreignCurrency: a.foreignCurrency, bizType: a.bizType, bizItem: a.bizItem, manager: a.manager, taxReport: a.taxReport,
+      foreignCurrency: a.foreignCurrency, currencyId: a.currencyId, bizType: a.bizType, bizItem: a.bizItem, manager: a.manager, taxReport: a.taxReport,
       postalCode: a.postalCode, address: a.address, postalCode2: a.postalCode2, address2: a.address2, active: a.active,
     }
   }
@@ -96,7 +99,7 @@ export default function PaymentAgencyListPage() {
     const body = {
       name: f.name.trim(), ceoName: opt(f.ceoName), phone: opt(f.phone), email: opt(f.email), remark: opt(f.remark),
       accountId: Number(f.accountId), depositAccount: opt(f.bank), searchKeyword: opt(f.searchText),
-      feeRate: f.feeRate ? Number(f.feeRate) : 0, regNoKind: f.regNoKind, foreignCurrency: f.foreignCurrency,
+      feeRate: f.feeRate ? Number(f.feeRate) : 0, regNoKind: f.regNoKind, foreignCurrency: !!f.currencyId, currencyId: f.currencyId ? Number(f.currencyId) : null,
       bizType: opt(f.bizType), bizItem: opt(f.bizItem), manager: opt(f.manager), taxReport: f.taxReport,
       postalCode: opt(f.postalCode), address: opt(f.address), postalCode2: opt(f.postalCode2), address2: opt(f.address2),
     }
@@ -297,8 +300,9 @@ export default function PaymentAgencyListPage() {
             <li className="wide">
               <span className="title">외화거래처</span>
               <div className="form">
-                <select className="ec-input w-full" aria-label="외화거래처" value={f.foreignCurrency ? 'Y' : 'N'} onChange={(e) => set('foreignCurrency', e.target.value === 'Y')}>
-                  <option value="N">내자</option><option value="Y">외화</option>
+                <select className="ec-input w-full" aria-label="외화거래처" value={f.currencyId} onChange={(e) => setF((o) => ({ ...o, currencyId: e.target.value, foreignCurrency: !!e.target.value }))}>
+                  <option value="">내자</option>
+                  {currencies.map((c) => <option key={c.id} value={c.id}>{c.name} [{c.code}]</option>)}
                 </select>
               </div>
             </li>

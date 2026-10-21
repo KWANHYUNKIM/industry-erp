@@ -31,6 +31,8 @@ public final class PaymentAgencyDtos {
             @DecimalMax(value = "100", message = "수수료율은 0~100 입니다.") java.math.BigDecimal feeRate,
             @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String regNoKind,
             Boolean foreignCurrency,
+            /** 외화거래처로 고른 통화(외화등록). 없으면 내자. */
+            Long currencyId,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String bizType,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String bizItem,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String manager,
@@ -60,6 +62,8 @@ public final class PaymentAgencyDtos {
             @DecimalMax(value = "100", message = "수수료율은 0~100 입니다.") java.math.BigDecimal feeRate,
             @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String regNoKind,
             Boolean foreignCurrency,
+            /** 외화거래처로 고른 통화(외화등록). 없으면 내자. */
+            Long currencyId,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String bizType,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String bizItem,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String manager,
@@ -78,6 +82,7 @@ public final class PaymentAgencyDtos {
             Long accountId, String accountName,
             String depositAccount, String searchKeyword,
             java.math.BigDecimal feeRate, String regNoKind, boolean foreignCurrency,
+            Long currencyId, String currencyName,
             String bizType, String bizItem, String manager, boolean taxReport,
             String postalCode, String address, String postalCode2, String address2
     ) {
@@ -89,6 +94,8 @@ public final class PaymentAgencyDtos {
                     p.getAccount() != null ? p.getAccount().getName() : null,
                     p.getDepositAccount(), p.getSearchKeyword(),
                     p.getFeeRate(), p.getRegNoKind(), p.isForeignCurrency(),
+                    p.getCurrency() != null ? p.getCurrency().getId() : null,
+                    p.getCurrency() != null ? p.getCurrency().getName() : null,
                     p.getBizType(), p.getBizItem(), p.getManager(), p.isTaxReport(),
                     p.getPostalCode(), p.getAddress(), p.getPostalCode2(), p.getAddress2());
         }

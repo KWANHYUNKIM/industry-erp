@@ -21,6 +21,7 @@ import java.util.List;
 public class PaymentAgencyService {
 
     private final AccountRepository accountRepository;
+    private final com.erp.settings.currency.CurrencyService currencyService;
     private final DocumentNoGenerator documentNoGenerator;
     private final PaymentAgencyRepository repository;
     private final PaymentAgencyTransferRepository transferRepository;
@@ -47,7 +48,7 @@ public class PaymentAgencyService {
                 .active(true)
                 .build();
         apply(p, req.accountId(), req.depositAccount(), req.searchKeyword(), req.feeRate(),
-                req.regNoKind(), req.foreignCurrency(), req.bizType(), req.bizItem(), req.manager(),
+                req.regNoKind(), req.foreignCurrency(), req.currencyId(), req.bizType(), req.bizItem(), req.manager(),
                 req.taxReport(), req.postalCode(), req.address(), req.postalCode2(), req.address2());
         return PaymentAgencyResponse.from(repository.save(p));
     }
@@ -61,7 +62,7 @@ public class PaymentAgencyService {
         p.setEmail(req.email());
         p.setRemark(req.remark());
         apply(p, req.accountId(), req.depositAccount(), req.searchKeyword(), req.feeRate(),
-                req.regNoKind(), req.foreignCurrency(), req.bizType(), req.bizItem(), req.manager(),
+                req.regNoKind(), req.foreignCurrency(), req.currencyId(), req.bizType(), req.bizItem(), req.manager(),
                 req.taxReport(), req.postalCode(), req.address(), req.postalCode2(), req.address2());
         if (req.active() != null) {
             p.setActive(req.active());
@@ -146,7 +147,7 @@ public class PaymentAgencyService {
      * null 을 그대로 넣으면 저장할 때 터진다.
      */
     private void apply(PaymentAgency p, Long accountId, String depositAccount, String searchKeyword,
-                       java.math.BigDecimal feeRate, String regNoKind, Boolean foreignCurrency,
+                       java.math.BigDecimal feeRate, String regNoKind, Boolean foreignCurrency, Long currencyId,
                        String bizType, String bizItem, String manager, Boolean taxReport,
                        String postalCode, String address, String postalCode2, String address2) {
         p.setAccount(account(accountId));
@@ -154,7 +155,8 @@ public class PaymentAgencyService {
         p.setSearchKeyword(searchKeyword);
         p.setFeeRate(feeRate != null ? feeRate : java.math.BigDecimal.ZERO);
         p.setRegNoKind(StringUtils.hasText(regNoKind) ? regNoKind : "사업자등록번호");
-        p.setForeignCurrency(Boolean.TRUE.equals(foreignCurrency));
+        p.setCurrency(currencyId != null ? currencyService.get(currencyId) : null);
+        p.setForeignCurrency(p.getCurrency() != null || Boolean.TRUE.equals(foreignCurrency));
         p.setBizType(bizType);
         p.setBizItem(bizItem);
         p.setManager(manager);

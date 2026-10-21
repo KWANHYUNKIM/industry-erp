@@ -993,6 +993,9 @@ export interface PaymentAgency {
   regNoKind: string
   /** 원본 [외화거래처]. #281 에 [업종별구분]으로 잘못 만들었던 칸을 깃발로 바로잡았다. */
   foreignCurrency: boolean
+  /** 외화거래처로 고른 통화(외화등록). 내자면 null. */
+  currencyId: number | null
+  currencyName: string | null
   bizType: string | null
   bizItem: string | null
   manager: string | null

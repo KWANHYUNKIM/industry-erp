@@ -86,6 +86,11 @@ public class PaymentAgency extends BaseTimeEntity {
     @Builder.Default
     private boolean foreignCurrency = false;
 
+    /** 원본 [외화거래처] 선택 값 — 내자(비움) 또는 외화등록의 통화(달러 [100] · 엔화 [400] …). 고르면 foreignCurrency 도 참. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "currency_id")
+    private com.erp.settings.currency.Currency currency;
+
     /** 원본 <b>[업태]</b>·<b>[종목]</b>. 세금계산서에 찍힌다. */
     @Column(name = "biz_type", length = 100)
     private String bizType;
