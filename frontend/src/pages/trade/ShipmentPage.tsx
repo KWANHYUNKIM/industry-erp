@@ -6,7 +6,7 @@ import { INQUIRY_PICKS, comparePeriodOf, fetchWindow, periodOf, type ComparePeri
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 
@@ -39,12 +39,6 @@ type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
  */
 type Mode = '내역' | '집계'
 const MODES = ['내역', '집계'] as const
-
-const STATUS_COLOR: Record<ShipStatus, string> = {
-  READY: 'var(--ec-warn)',
-  SHIPPED: 'var(--ec-success)',
-  CANCELED: 'var(--ec-text-hint)',
-}
 
 interface ShipLine {
   itemId: number
@@ -90,6 +84,8 @@ interface Shipment {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
+/** 원본 수량 칸 — '3.00' 소수 둘(2026-10-21 E040227 실측). */
+const qty = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export default function ShipmentPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -215,11 +211,25 @@ export default function ShipmentPage() {
       : shown.map((r) => ({ label: `${r.partnerName}`, value: r.totalAmount })),
     [mode, byPartner, shown])
 
-  /** 라인별 — 품목 라인마다 한 줄. */
+  /** 라인별 — 품목 라인마다 한 줄. 원본은 일자 <b>오름차순</b>(2026-10-21 E040227 실측), 같은 날은 번호 차례. */
   const lines = useMemo(
-    () => shown.flatMap((r) => r.lines.map((l) => ({ key: `${r.id}-${l.itemId}`, r, l }))),
+    () => [...shown]
+      .sort((a, b) => a.shipDate.localeCompare(b.shipDate) || a.shipNo.localeCompare(b.shipNo))
+      .flatMap((r) => r.lines.map((l, i) => ({ key: `${r.id}-${i}`, r, l }))),
     [shown],
   )
+
+  /** 원본 라인별 격자 — 달마다 'YYYY/MM 계' 줄을 끼운다(lines 가 이미 일자 오름차순). */
+  const byMonth = useMemo(() => {
+    const out: { month: string; rows: typeof lines; qty: number }[] = []
+    for (const x of lines) {
+      const month = x.r.shipDate.slice(0, 7).replace('-', '/')
+      let g = out[out.length - 1]
+      if (!g || g.month !== month) { g = { month, rows: [], qty: 0 }; out.push(g) }
+      g.rows.push(x); g.qty += Number(x.l.quantity)
+    }
+    return out
+  }, [lines])
 
   return (
     <EcListShell
@@ -330,19 +340,13 @@ export default function ShipmentPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        출하 <b className="text-ec-text">{shown.length}</b>건
-        <span className="my-0 mx-[6px] text-ec-off">|</span>
-        출하수량 <b className="text-ec-navy text-[14px]">{won(totals.qty)}</b>
-        <span className="my-0 mx-[6px] text-ec-off">|</span>
-        출하금액 <b className="text-ec-blue text-[14px]">{won(totals.amount)}</b>
-        {prevTotals && prevRange && (
-          <span className="ml-[10px] text-ec-hint">
-            비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
-            {' '}{prevTotals.count}건 · 수량 {won(prevTotals.qty)} · 금액 {won(prevTotals.amount)}
-          </span>
-        )}
-      </div>
+      {/* 원본은 격자 위 건수 · 수량 · 금액 줄이 없다(2026-10-21 실측) — 비교기간을 걸었을 때만 그 합계를 적는다. */}
+      {prevTotals && prevRange && (
+        <div className="mb-[8px] text-[12.5px] text-ec-hint text-right">
+          비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
+          {' '}{prevTotals.count}건 · 수량 {won(prevTotals.qty)} · 금액 {won(prevTotals.amount)}
+        </div>
+      )}
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
@@ -387,48 +391,51 @@ export default function ShipmentPage() {
         <table className="w-full text-left">
           <thead>
             {/*
-              원본 격자(2026-09-09 E040227 실측):
-              <b>일자-No. · 품목명(규격) · 수량 · 창고명 · 거래처명 · 적요</b>.
-              단가·금액·상태는 원본에 없지만 우리가 더 두는 열이다.
+              원본 격자(2026-10-21 E040227 실측, 라인별 — 출하지시서현황과 같은 꼴):
+              <b>일자-No. 85 · 품목명(규격) 213 · 수량 107 · 창고명 128 · 거래처명 128 · 연락처 192</b> (+ 새로운 항목 추가).
+              번호 칸 · 단가 · 금액 · 적요 · 상태 열은 없다. 일자 오름차순, 달마다 'YYYY/MM 계' · 맨 끝 '총합계'(수량 '1,860.00').
             */}
             <tr>
-              <th className="w-[34px]"></th>
-              <th className="w-[190px] text-center">일자-No.</th>
-              <th>품목명(규격)</th>
-              <th className="w-[100px] text-right">수량</th>
-              <th className="w-[110px] text-right">단가</th>
-              <th className="w-[130px] text-right">금액</th>
-              <th className="w-[120px]">창고명</th>
-              <th>거래처명</th>
-              <th className="w-[150px]">적요</th>
-              <th className="w-[90px] text-center">상태</th>
+              <th className="w-[85px]">일자-No.</th>
+              <th className="w-[213px]">품목명(규격)</th>
+              <th className="w-[107px] text-right">수량</th>
+              <th className="w-[128px]">창고명</th>
+              <th className="w-[128px]">거래처명</th>
+              <th className="w-[192px]">연락처</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
             ) : lines.length === 0 ? (
-              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : lines.map((x, i) => (
-              <tr key={x.key}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td className="text-center">{dateText(x.r.shipDate)} {x.r.shipNo}</td>
-                {/*
-                  원본 열 이름이 [품목명(규격)] 이라 규격을 괄호에 붙인다. 품목코드는
-                  이 칸에서 빠진다 — 원본도 여기에 코드를 안 적는다(조건 판의 [품목] 코드도움에서 고른다).
-                */}
-                <td>{x.l.itemName}{x.l.spec ? ' (' + x.l.spec + ')' : ''}</td>
-                <td className="text-right">{won(x.l.quantity)} {x.l.unit}</td>
-                <td className="text-right">{won(x.l.unitPrice)}</td>
-                <td className="text-right font-semibold text-ec-blue">{won(x.l.amount)}</td>
-                <td style={{ color: x.r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{x.r.warehouseName ?? ''}</td>
-                <td>{x.r.partnerName}</td>
-                {/* 줄 적요가 없으면 전표 적요를 보여 준다 — 원본도 한 칸이다. */}
-                <td className="text-ec-hint">{x.l.remark || x.r.remark || ''}</td>
-                <td style={{ textAlign: 'center', color: STATUS_COLOR[x.r.status], fontWeight: 700 }}>{x.r.statusName}</td>
-              </tr>
-            ))}
+              <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : byMonth.flatMap((g) => [
+              ...g.rows.map(({ key, r, l }) => (
+                <tr key={key}>
+                  <td className="whitespace-nowrap">{dateNo(r.shipDate, r.shipNo)}</td>
+                  <td>{l.spec ? l.itemName + ' [' + l.spec + ']' : l.itemName}</td>
+                  <td className="text-right">{qty(l.quantity)}</td>
+                  <td>{r.warehouseName ?? ''}</td>
+                  <td>{r.partnerName}</td>
+                  <td>{r.contact ?? ''}</td>
+                </tr>
+              )),
+              <tr key={'m-' + g.month} className="ec-list-total">
+                <td colSpan={2} className="text-center font-bold">{g.month} 계</td>
+                <td className="text-right font-bold">{qty(g.qty)}</td>
+                <td colSpan={3}></td>
+              </tr>,
+            ])}
           </tbody>
+          {lines.length > 0 && (
+            <tfoot>
+              <tr className="ec-list-total">
+                <td colSpan={2} className="text-center font-bold">총합계</td>
+                <td className="text-right font-bold">{qty(lines.reduce((n, x) => n + Number(x.l.quantity), 0))}</td>
+                <td colSpan={3}></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       )}
     </EcListShell>
