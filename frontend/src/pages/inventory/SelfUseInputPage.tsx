@@ -352,7 +352,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
         </Modal>
         {/* [H] — 서버가 적은 작업 이력(StockAdjustmentService.HISTORY_TARGET, 전표번호로 연다). */}
         {showHistory && slip && adjustNo && (
-          <SlipHistoryModal target="STOCK_ADJUSTMENT" lastUpdate docNo={adjustNo} head={slipHeadLabel(date, adjustNo)}
+          <SlipHistoryModal target="STOCK_ADJUSTMENT" docNo={adjustNo} head={slipHeadLabel(date, adjustNo)}
                             onClose={() => setShowHistory(false)} />
         )}
       </div>

@@ -394,7 +394,7 @@ export default function WorkOrderEntryPage() {
         {error && <p className="ec-alert ec-alert-danger my-[8px] mx-0">{error}</p>}
         {ok && <p className="ec-alert ec-alert-success my-[8px] mx-0">{ok}</p>}
       </EcSlipShell>
-      {historyOpen && editNo && <SlipHistoryModal target="WORK_ORDER" docNo={editNo} head={slipHeadLabel(date, editNo)} onClose={() => setHistoryOpen(false)} />}
+      {historyOpen && editNo && <SlipHistoryModal target="WORK_ORDER" confirmLabel="확인" docNo={editNo} head={slipHeadLabel(date, editNo)} onClose={() => setHistoryOpen(false)} />}
       <SlipLoadModal open={slipLoadOpen} onClose={() => setSlipLoadOpen(false)} onApply={applyLoadedSlips} />
       <SalesOrderPickModal open={orderOpen} onClose={() => setOrderOpen(false)} onApply={applyOrders} />
     </form>
