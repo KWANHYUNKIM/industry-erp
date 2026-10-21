@@ -1256,7 +1256,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     e.preventDefault()
     setError(''); setQtyErr(null)
     // 요청에 실을 줄과 그 줄의 원본(추가항목 값이 붙어 있다)을 같은 순서로 들고 간다.
-    const keptLines = lines.filter((l) => l.itemId && num(l.quantity) > 0 && num(l.unitPrice) > 0)
+    // 원본 판매입력은 단가 0 인 줄도 저장한다(2026-10-21 실측, 합계 칸은 빈칸). 구매는 아직 못 재서 단가 > 0 을 그대로 요구한다.
+    const keptLines = lines.filter((l) => l.itemId && num(l.quantity) > 0 && (mode === 'sales' ? num(l.unitPrice) >= 0 : num(l.unitPrice) > 0))
     const validLines = keptLines
       .map((l) => ({
         itemId: Number(l.itemId),

@@ -24,7 +24,7 @@ public final class SalesDtos {
     public record SalesLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice,
+            @NotNull(message = "단가를 입력하세요.") @PositiveOrZero(message = "단가를 입력하세요.") BigDecimal unitPrice,
             @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
             String remark,
             /** 시리얼/로트 번호 (선택) */

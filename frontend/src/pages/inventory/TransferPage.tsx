@@ -664,7 +664,7 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
       </div>
       {/* [H] — 서버가 적은 작업 이력(StockTransferService.HISTORY_TARGET, 전표번호로 연다). */}
       {showHistory && head && (
-        <SlipHistoryModal target="STOCK_TRANSFER" docNo={head.transferNo} head={slipHeadLabel(head.transferDate, head.transferNo)}
+        <SlipHistoryModal target="STOCK_TRANSFER" lastUpdate docNo={head.transferNo} head={slipHeadLabel(head.transferDate, head.transferNo)}
                           onClose={() => setShowHistory(false)} />
       )}
     </div>

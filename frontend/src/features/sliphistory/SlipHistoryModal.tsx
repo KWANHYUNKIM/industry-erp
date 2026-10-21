@@ -27,8 +27,10 @@ export function slipHistoryTime(iso: string): string {
  *   + '보안이력' · '발송이력'(작업자ID · 작업일시 · 행위, 우리는 늘 '등록된 데이터가 없습니다.') + [닫기].
  * - 거래이력조회(재고) [H]: 머리 '[2026/10/21 -5]', 격자 [No.][작업자ID][작업일시][전표상태][진행상태][상태] + [닫기].
  */
-export function SlipHistoryModal({ target, id, docNo, head, withSections, confirmLabel, onClose }: {
+export function SlipHistoryModal({ target, id, docNo, head, withSections, lastUpdate, confirmLabel, onClose }: {
   target: string; id?: number; head: string; withSections?: boolean
+  /** 재고 · 생산 수정 창 [H] — 격자 아래 '최종Update : … [작업자]' 한 줄(거래이력조회의 [H] 에는 없다). */
+  lastUpdate?: boolean
   /** 수정하면 행 id 가 바뀌는 전표(창고이동 · 조정 · 작업지시서 · 생산불출 · 생산입고)는 전표번호로 연다. */
   docNo?: string
   /** 전표상태 칸을 이 글자로 — 견적서 · 주문서는 서버 docStatus 가 진행상태라 [전표상태] 는 '확인'(원본 견적서 [H] 실측). */
@@ -79,6 +81,10 @@ export function SlipHistoryModal({ target, id, docNo, head, withSections, confir
           </table>
         </div>
       ))}
+      {/* 원본 창고이동 · 자가사용 · 불량처리 수정 창 [H](2026-10-21 실측): 격자 아래 '최종Update : 2026/09/25 오후 11:02:36 [ECOUNTSYS]' 한 줄. */}
+      {lastUpdate && rows.length > 0 && (
+        <div className="text-[12px] mt-[6px]">최종Update : {historyTime(rows[rows.length - 1].workedAt)} [{(rows[rows.length - 1].worker ?? '').toUpperCase()}]</div>
+      )}
       <div className="flex gap-[6px] mt-[10px]">
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
