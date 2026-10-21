@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { movesOf, type Move } from '../../features/fixedasset/movements'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -17,6 +18,8 @@ interface Asset {
   acquisitionDate: string; acquisitionCost: number; accumulatedDepreciation: number
   status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null; disposalAmount: number | null; remark: string | null
   quantityManaged: boolean; quantity: number
+  movements?: Move[]
+  rowKey?: string
 }
 
 /**
@@ -63,8 +66,13 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
 
   const dayOf = (a: Asset) => (inc ? a.acquisitionDate : a.disposalDate ?? '')
   const groups = useMemo(() => {
-    const rows = assets
-      .filter((a) => inc || a.status === 'DISPOSED')
+    /* 전표마다 한 줄(원본 감소내역 2026/10/31 6 · 600,000 · 0 · 500,000 / 2026/11/05 9 · 900,000 · 25,000 · 800,000) */
+    const rows: Asset[] = assets
+      .flatMap((a) => movesOf(a).filter((m) => m.kind === (inc ? 'INCREASE' : 'DECREASE')).map((m) => ({
+        ...a, rowKey: `${a.id}-${m.id}`, acquisitionDate: m.slipDate, disposalDate: m.slipDate,
+        acquisitionCost: Number(m.amount), quantity: Number(m.quantity), accumulatedDepreciation: Number(m.accumAmount),
+        disposalAmount: Number(m.saleAmount), remark: m.remark ?? a.remark,
+      })))
       .filter((a) => { const d = dayOf(a); return !!d && d >= from && d <= to })
       .filter((a) => !account || String(a.assetAccountId) === account)
       .filter((a) => !asset || String(a.id) === asset)
@@ -143,7 +151,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
             <tr><td colSpan={cols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
             ...g.rs.map((a) => (
-              <tr key={a.id}>
+              <tr key={a.rowKey ?? a.id}>
                 <td>{a.assetAccountCode}</td>
                 <td>{a.assetAccountName}</td>
                 <td>{a.assetNo}</td>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { sumMoves, type Move } from '../../features/fixedasset/movements'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -14,6 +15,7 @@ interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountCode: string; assetAccountName: string
   acquisitionDate: string; acquisitionCost: number; usefulLifeYears: number; method: string; declineRate: number | null
   accumulatedDepreciation: number; status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null
+  disposalAmount?: number | null; remark: string | null; quantity?: number; movements?: Move[]
 }
 interface Dep { assetId: number; depreciationDate: string; amount: number }
 type Mode = '원가+충당금' | '취득원가' | '감가상각충당금'
@@ -74,17 +76,16 @@ export default function FixedAssetMovementPage() {
       if (account && String(a.assetAccountId) !== account) continue
       if (asset && String(a.id) !== asset) continue
       if (a.acquisitionDate > to) continue
-      const disposedBefore = a.status === 'DISPOSED' && !!a.disposalDate && a.disposalDate < from
-      if (disposedBefore) continue
-      const cost = Number(a.acquisitionCost)
-      const held = a.acquisitionDate < from
-      const openCost = held ? cost : 0
-      const openDep = held ? sum(a.id, (d) => d.depreciationDate < from) : 0
-      const incCost = held ? 0 : cost
+      /* 증가 · 감소 전표로 센다(원본 증감대장 10월: 증가 1,500,000 · 감소 600,000 · 기말 900,000 · 충당금 25,000) */
+      const before = sumMoves(a, (m) => m.slipDate < from)
+      const within = sumMoves(a, (m) => m.slipDate >= from && m.slipDate <= to)
+      if (before.incCost - before.decCost <= 0 && within.incCost === 0 && within.decCost === 0) continue
+      const openCost = before.incCost - before.decCost
+      const openDep = sum(a.id, (d) => d.depreciationDate < from) - before.decAccum
+      const incCost = within.incCost
       const incDep = sum(a.id, (d) => d.depreciationDate >= from && d.depreciationDate <= to)
-      const out = a.status === 'DISPOSED' && !!a.disposalDate && a.disposalDate >= from && a.disposalDate <= to
-      const decCost = out ? cost : 0
-      const decDep = out ? openDep + incDep : 0
+      const decCost = within.decCost
+      const decDep = within.decAccum
       lines.push({ a, openCost, openDep, incCost, incDep, decCost, decDep, endCost: openCost + incCost - decCost, endDep: openDep + incDep - decDep })
     }
     const by = new Map<string, Line[]>()

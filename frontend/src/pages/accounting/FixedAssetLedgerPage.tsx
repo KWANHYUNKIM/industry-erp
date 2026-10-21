@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { asOf as movesAsOf, type Move } from '../../features/fixedasset/movements'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -15,6 +16,7 @@ interface Asset {
   acquisitionDate: string; acquisitionCost: number; salvageValue: number
   status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null; remark: string | null
   quantityManaged: boolean; quantity: number
+  movements?: Move[]
 }
 interface Dep { assetId: number; depreciationDate: string; amount: number }
 
@@ -68,12 +70,16 @@ export default function FixedAssetLedgerPage() {
   const accumOf = useMemo(() => {
     const m = new Map<number, number>()
     for (const d of deps) if (d.depreciationDate <= asOf) m.set(d.assetId, (m.get(d.assetId) ?? 0) + Number(d.amount))
+    /* 감소 전표의 누계(원본은 손으로 넣는다 — 0 이면 대장 충당금이 그대로다: 10/31 일부 감소 뒤 9.00 · 900,000 · 25,000) */
+    for (const a of assets) { const dec = movesAsOf(a, asOf).decAccum; if (dec) m.set(a.id, (m.get(a.id) ?? 0) - dec) }
     return m
-  }, [deps, asOf])
+  }, [deps, asOf, assets])
   const stateOf = (a: Asset) => (Number(a.acquisitionCost) - (accumOf.get(a.id) ?? 0) <= Number(a.salvageValue) ? '상각완료' : '보유')
   const groups = useMemo(() => {
+    /* 그날까지의 증가 − 감소로 남은 수량 · 취득가(원본: 남은 것이 없으면 줄이 빠진다) */
     const held = assets
-      .filter((a) => a.acquisitionDate <= asOf && !(a.status === 'DISPOSED' && a.disposalDate && a.disposalDate <= asOf))
+      .filter((a) => movesAsOf(a, asOf).held)
+      .map((a) => { const v = movesAsOf(a, asOf); return { ...a, acquisitionCost: v.cost, quantity: v.qty } })
       .filter((a) => !account || String(a.assetAccountId) === account)
       .filter((a) => !asset || String(a.id) === asset)
       .filter(() => calc !== '계산안함')

@@ -1424,7 +1424,36 @@ export interface FixedAsset {
   receiptAccountName: string | null
   /** 원본 E010610 [수량관리] 사용 — 수불부 · 대장 [수량] 은 사용 자산만 */
   quantityManaged: boolean
+  /** 증가 수량 합(감소를 빼지 않는다) — 남은 수량 = quantity − decreasedQuantity */
   quantity: number
+  /** 감소 전표들의 합 — 남은 취득가 = acquisitionCost − decreasedCost */
+  decreasedCost: number
+  decreasedAccum: number
+  decreasedQuantity: number
+  /** 증가 · 감소 전표(원본 고정자산전표조회 한 줄씩) */
+  movements: FixedAssetMovement[]
+}
+
+/** 고정자산증가(E010611) · 감소(E010612) 전표 한 장 — 자산 하나에 여러 장, 각각 회계전표 한 장 */
+export interface FixedAssetMovement {
+  id: number
+  kind: 'INCREASE' | 'DECREASE'
+  kindName: string
+  slipDate: string
+  quantity: number
+  /** 증가 = 공급가액, 감소 = 취득원가 몫 */
+  amount: number
+  vat: number
+  accumAmount: number
+  saleAmount: number
+  disposalType: 'SALE' | 'SCRAP' | null
+  disposalTypeName: string | null
+  gainLoss: number
+  accountId: number | null
+  accountName: string | null
+  journalEntryId: number | null
+  journalDocNo: string | null
+  remark: string | null
 }
 
 export interface DepreciationRow {
@@ -2241,6 +2270,8 @@ export interface Department {
   employeeCount: number
   /** 부서장 사원 id — 조직도등록 [부서장] 열 · [부서장지정] · [부서장설정] */
   headEmployeeId: number | null
+  /** 조회 조건 [수정일자순(정렬)] 의 축 */
+  updatedAt?: string | null
 }
 
 // ===== 인사관리 (발령이력) =====
@@ -2270,8 +2301,6 @@ export interface WithholdingRow {
   employeeCode: string
   employeeName: string
   grossPay: number
-  /** 조회 조건 [수정일자순(정렬)] 의 축 */
-  updatedAt?: string | null
   incomeTax: number
   localIncomeTax: number
   totalWithheld: number

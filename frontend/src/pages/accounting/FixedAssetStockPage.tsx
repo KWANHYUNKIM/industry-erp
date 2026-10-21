@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { asOf as movesAsOf, movesOf, type Move } from '../../features/fixedasset/movements'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -11,9 +12,10 @@ interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountName: string
   acquisitionDate: string; status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null; remark: string | null
   quantityManaged: boolean; quantity: number
+  acquisitionCost: number; movements?: Move[]
 }
 type Mode = '일반' | '집계표'
-interface Move { key: string; date: string; text: string; inc: number; dec: number; end: number }
+interface StockMove { key: string; date: string; text: string; inc: number; dec: number; end: number }
 
 const qty = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 
@@ -29,6 +31,9 @@ const qty = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR', { minimumFr
  * 기간 동안 한 번이라도 가지고 있던 자산만 나온다. 거래처명은 자산 취득 · 처분에 거래처가 없어 비고, 적요는 취득 줄에 자산 적요를 쓴다.
  * 부서는 자산에 없다.
  */
+/** from 의 하루 앞(yyyy-mm-dd) — 전월이월 수량은 그날까지 남은 것 */
+const prevDay = (d: string) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() - 1); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}` }
+
 export default function FixedAssetStockPage() {
   const init = periodOf('금월(~오늘)')!
   const [mode, setMode] = useState<Mode>('일반')
@@ -58,17 +63,21 @@ export default function FixedAssetStockPage() {
 
   const books = useMemo(() => assets
     .filter((a) => a.quantityManaged)   // 원본: 수불부는 수량관리 사용 자산만(2026-10-21 실측)
-    .filter((a) => a.acquisitionDate <= to && (!a.disposalDate || a.disposalDate >= from))
+    /* 기간 앞에 남은 것이 있거나 기간 안에 전표가 있는 자산 */
+    .filter((a) => movesOf(a).some((m) => m.slipDate >= from && m.slipDate <= to) || movesAsOf(a, prevDay(from)).qty > 0)
     .filter((a) => !account || String(a.assetAccountId) === account)
     .filter((a) => !asset || String(a.id) === asset)
     .sort((x, y) => x.assetNo.localeCompare(y.assetNo))
     .map((a) => {
-      const q = Number(a.quantity) || 0
-      const open = a.acquisitionDate < from ? q : 0
-      const moves: Move[] = []
+      /* 증가 · 감소 전표마다 한 줄(원본 10/05 10.00 → 10/15 5.00 · 기말 15.00 → 10/31 감소 6.00 · 기말 9.00) */
+      const open = movesAsOf(a, prevDay(from)).qty
+      const moves: StockMove[] = []
       let end = open
-      if (a.acquisitionDate >= from) { end += q; moves.push({ key: 'in', date: a.acquisitionDate, text: a.remark ?? '', inc: q, dec: 0, end }) }
-      if (a.disposalDate && a.disposalDate <= to) { end -= q; moves.push({ key: 'out', date: a.disposalDate, text: '', inc: 0, dec: q, end }) }
+      for (const m of movesOf(a).filter((x) => x.slipDate >= from && x.slipDate <= to)) {
+        const q = Number(m.quantity) || 0
+        if (m.kind === 'INCREASE') { end += q; moves.push({ key: `in${m.id}`, date: m.slipDate, text: m.remark ?? '', inc: q, dec: 0, end }) }
+        else { end -= q; moves.push({ key: `out${m.id}`, date: m.slipDate, text: '', inc: 0, dec: q, end }) }
+      }
       return { a, open, moves, inc: moves.reduce((s, m) => s + m.inc, 0), dec: moves.reduce((s, m) => s + m.dec, 0), end }
     }), [assets, from, to, account, asset])
   const sum = (k: 'open' | 'inc' | 'dec' | 'end') => books.reduce((s, b) => s + b[k], 0)

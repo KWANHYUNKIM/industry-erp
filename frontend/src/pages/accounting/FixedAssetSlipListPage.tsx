@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { movesOf, type Move } from '../../features/fixedasset/movements'
 import { useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -14,6 +15,7 @@ interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountName: string
   acquisitionDate: string; acquisitionCost: number; accumulatedDepreciation: number
   status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null; disposalAmount: number | null; remark: string | null
+  quantity?: number; movements?: Move[]
 }
 interface Dep { id: number; assetId: number; depreciationDate: string; amount: number; journalDocNo: string | null; period: string }
 type Kind = '자산증가' | '매각' | '폐기' | '감가상각'
@@ -66,11 +68,15 @@ export default function FixedAssetSlipListPage() {
     const byId = new Map(assets.map((a) => [a.id, a]))
     const out: Row[] = []
     for (const a of assets) {
-      out.push({ key: `a${a.id}`, date: a.acquisitionDate, no: a.assetNo, kind: '자산증가', a, cost: Number(a.acquisitionCost), dep: 0, sold: 0, remark: a.remark ?? '' })
-      if (a.status === 'DISPOSED' && a.disposalDate) {
-        const sold = Number(a.disposalAmount ?? 0)
-        out.push({ key: `x${a.id}`, date: a.disposalDate, no: a.assetNo, kind: sold > 0 ? '매각' : '폐기', a,
-          cost: Number(a.acquisitionCost), dep: Number(a.accumulatedDepreciation), sold, remark: a.remark ?? '' })
+      /* 증가 · 감소 전표마다 한 줄(원본: 자산 하나에 10/05 증가 · 10/15 증가 · 10/31 매각 · 11/05 매각) */
+      for (const m of movesOf(a)) {
+        if (m.kind === 'INCREASE') {
+          out.push({ key: `a${m.id}`, date: m.slipDate, no: a.assetNo, kind: '자산증가', a, cost: Number(m.amount), dep: 0, sold: 0, remark: m.remark ?? a.remark ?? '' })
+        } else {
+          const sold = Number(m.saleAmount)
+          out.push({ key: `x${m.id}`, date: m.slipDate, no: a.assetNo, kind: m.disposalType === 'SCRAP' || sold <= 0 ? '폐기' : '매각', a,
+            cost: Number(m.amount), dep: Number(m.accumAmount), sold, remark: m.remark ?? a.remark ?? '' })
+        }
       }
     }
     for (const d of deps) {

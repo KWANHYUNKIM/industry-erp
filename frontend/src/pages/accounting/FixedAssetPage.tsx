@@ -52,6 +52,8 @@ export default function FixedAssetPage() {
   const [editing, setEditing] = useState<FixedAsset | null>(null)
   /** 감소(처분) 창 — 원본 E010612. */
   const [disposing, setDisposing] = useState<FixedAsset | null>(null)
+  /** 같은 자산에 증가 전표 더하기(원본 E010611 — 10/15 수량 5 · 500,000) */
+  const [increasing, setIncreasing] = useState<FixedAsset | null>(null)
   const [period, setPeriod] = useState(thisMonth())
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3500) }
@@ -193,6 +195,10 @@ export default function FixedAssetPage() {
         <AssetForm key={editing?.id ?? 'new'} asset={editing} accounts={accounts} onError={setError}
                    onSaved={() => { const wasEdit = !!editing; setShowForm(false); setEditing(null); flash(wasEdit ? '자산을 고쳤습니다.' : '자산을 등록했습니다.'); load() }} />
       )}</Modal>
+      <Modal error={error} open={!!increasing} title="고정자산증가" onClose={() => setIncreasing(null)}>{(
+        increasing && <IncreaseForm key={increasing.id} asset={increasing} accounts={accounts} onError={setError}
+                                    onSaved={(m) => { setIncreasing(null); flash(m); load() }} />
+      )}</Modal>
       <Modal error={error} open={!!disposing} title="고정자산감소" onClose={() => setDisposing(null)}>{(
         disposing && <DisposeForm key={disposing.id} asset={disposing} accounts={accounts} onError={setError}
                                   onSaved={(m) => { setDisposing(null); flash(m); load() }} />
@@ -200,14 +206,15 @@ export default function FixedAssetPage() {
 
       {loading ? <p className="ec-empty">불러오는 중…</p>
         : tab === '자산목록' ? <AssetTable rows={assets} onDispose={(a) => { setError(''); setDisposing(a) }}
+                                                   onIncrease={(a) => { setError(''); setIncreasing(a) }}
                                                    onEdit={(a) => { setError(''); setEditing(a) }} onDelete={remove} onCancelDispose={cancelDisposal} />
         : <DepreciationTable rows={shownDeps} period={period} onCancel={cancelDepreciation} />}
     </EcListShell>
   )
 }
 
-function AssetTable({ rows, onDispose, onEdit, onDelete, onCancelDispose }: {
-  rows: FixedAsset[]; onDispose: (a: FixedAsset) => void; onEdit: (a: FixedAsset) => void
+function AssetTable({ rows, onDispose, onIncrease, onEdit, onDelete, onCancelDispose }: {
+  rows: FixedAsset[]; onDispose: (a: FixedAsset) => void; onIncrease: (a: FixedAsset) => void; onEdit: (a: FixedAsset) => void
   onDelete: (a: FixedAsset) => void; onCancelDispose: (a: FixedAsset) => void
 }) {
   return (
@@ -238,12 +245,13 @@ function AssetTable({ rows, onDispose, onEdit, onDelete, onCancelDispose }: {
             <td className="font-semibold"><a className="cursor-pointer" onClick={() => onEdit(a)}>{a.name}</a></td>
             <td className="text-ec-label">{a.assetAccountName}</td>
             <td>{dateText(a.acquisitionDate)}</td>
-            <td className="text-right">{won(a.acquisitionCost)}</td>
+            {/* 사용중이면 남은 취득가 · 남은 누계(감소 전표를 뺀 것), 처분됐으면 증가 합 그대로 */}
+            <td className="text-right">{won(a.status === 'DISPOSED' ? a.acquisitionCost : a.acquisitionCost - (a.decreasedCost ?? 0))}</td>
             <td className="text-center text-ec-label">
               {a.methodName}{a.declineRate ? ` ${a.declineRate}%` : ''}
             </td>
             <td className="text-center">{a.usefulLifeYears}년</td>
-            <td className="text-right text-ec-danger">{won(a.accumulatedDepreciation)}</td>
+            <td className="text-right text-ec-danger">{won(a.status === 'DISPOSED' ? a.accumulatedDepreciation : a.accumulatedDepreciation - (a.decreasedAccum ?? 0))}</td>
             <td className="text-right font-bold">{won(a.bookValue)}</td>
             <td style={{ textAlign: 'center', color: a.status === 'IN_USE' ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
               {a.statusName}{a.status === 'DISPOSED' && a.disposalDate ? ` (${a.disposalDate})` : ''}
@@ -251,8 +259,11 @@ function AssetTable({ rows, onDispose, onEdit, onDelete, onCancelDispose }: {
             <td className="text-center whitespace-nowrap">
               {a.status === 'IN_USE' ? (<>
                 <button className="ec-btn ec-btn-sm" onClick={() => onEdit(a)}>수정</button>{' '}
+                {a.quantityManaged && <><button className="ec-btn ec-btn-sm" onClick={() => onIncrease(a)}>증가</button>{' '}</>}
                 <button className="ec-btn ec-btn-sm" onClick={() => onDispose(a)}>처분</button>{' '}
-                <button className="ec-btn ec-btn-sm" onClick={() => onDelete(a)}>삭제</button>
+                {(a.decreasedQuantity ?? 0) > 0
+                  ? <button className="ec-btn ec-btn-sm" onClick={() => onCancelDispose(a)}>처분취소</button>
+                  : <button className="ec-btn ec-btn-sm" onClick={() => onDelete(a)}>삭제</button>}
               </>) : (
                 <button className="ec-btn ec-btn-sm" onClick={() => onCancelDispose(a)}>처분취소</button>
               )}
@@ -494,18 +505,36 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
   const [amount, setAmount] = useState('')
   const [vatText, setVatText] = useState<string | null>(null)
   const [receipt, setReceipt] = useState(String(byCode(accounts, '108') ?? ''))
+  /*
+   * 수량관리 자산은 일부 감소(원본 E010612 2026-10-21 실측): 수량 · 잔량은 증가 합(앞 감소를 빼지 않는다),
+   * 취득원가 = 증가 합계 단가 × 수량, 감가상각누계액은 0 으로 시작해 손으로 넣는다. 처분손익 = 매각액 + 누계 − 취득원가.
+   */
+  const partial = asset.quantityManaged
+  const [qtyText, setQtyText] = useState(String(Number(asset.quantity)))
+  const [accumText, setAccumText] = useState('0')
+  const qty = Number(qtyText) || 0
+  const cost = partial ? Math.round(Number(asset.acquisitionCost) * qty / (Number(asset.quantity) || 1)) : asset.acquisitionCost
+  const accum = partial ? (Number(accumText) || 0) : asset.accumulatedDepreciation
   const amt = type === 'SCRAP' ? 0 : (Number(amount) || 0)
   const vat = type === 'SCRAP' ? 0 : vatText !== null ? (Number(vatText) || 0) : Math.floor(amt / 10)
-  const gain = amt - (asset.acquisitionCost - asset.accumulatedDepreciation)
+  const gain = amt + accum - cost
 
   async function submit() {
     onError('')
     if (type === 'SALE' && amt < 0) return onError('매각액이 올바르지 않습니다.')
     try {
-      await api.post(`/fixed-assets/${asset.id}/dispose`, {
-        disposalDate: date, disposalAmount: amt, disposalType: type, disposalVat: vat,
-        receiptAccountId: receipt ? Number(receipt) : undefined,
-      })
+      if (partial) {
+        if (qty <= 0) return onError('수량을 입력하세요.')
+        await api.post(`/fixed-assets/${asset.id}/decreases`, {
+          slipDate: date, quantity: qty, amount: cost, accumAmount: accum, saleAmount: amt, vat, disposalType: type,
+          accountId: receipt ? Number(receipt) : undefined,
+        })
+      } else {
+        await api.post(`/fixed-assets/${asset.id}/dispose`, {
+          disposalDate: date, disposalAmount: amt, disposalType: type, disposalVat: vat,
+          receiptAccountId: receipt ? Number(receipt) : undefined,
+        })
+      }
       onSaved(gain === 0 ? '처분했습니다(처분손익 없음).'
         : gain > 0 ? `처분했습니다. 처분이익 ${won(gain)}원` : `처분했습니다. 처분손실 ${won(-gain)}원`)
     } catch (err) {
@@ -524,11 +553,21 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
           <label><input type="radio" name="disposalType" checked={type === 'SALE'} onChange={() => setType('SALE')} /> 매각</label>
           <label><input type="radio" name="disposalType" checked={type === 'SCRAP'} onChange={() => setType('SCRAP')} /> 폐기</label>
         </div>
+        {partial && <>
+          <Field label="수량">
+            <input className="ec-input w-[80px] text-right" name="quantity" type="number" step="any" value={qtyText} onChange={(e) => setQtyText(e.target.value)} />
+          </Field>
+          <Field label="잔량">
+            <input className="ec-input w-[80px] text-right" name="remainQuantity" value={String(Number(asset.quantity))} disabled />
+          </Field>
+        </>}
         <Field label="취득원가">
-          <input className="ec-input w-[120px] text-right" name="acquisitionCost" value={won(asset.acquisitionCost)} disabled />
+          <input className="ec-input w-[120px] text-right" name="acquisitionCost" value={won(cost)} disabled />
         </Field>
         <Field label="감가상각누계액">
-          <input className="ec-input w-[120px] text-right" name="accumulatedDepreciation" value={won(asset.accumulatedDepreciation)} disabled />
+          {partial
+            ? <input className="ec-input w-[120px] text-right" name="accumulatedDepreciation" type="number" step="any" value={accumText} onChange={(e) => setAccumText(e.target.value)} />
+            : <input className="ec-input w-[120px] text-right" name="accumulatedDepreciation" value={won(asset.accumulatedDepreciation)} disabled />}
         </Field>
         <Field label="공급가액(매각액)">
           <input className="ec-input w-[120px] text-right" name="disposalAmount" type="number" step="any" value={type === 'SCRAP' ? '0' : amount}
@@ -544,6 +583,59 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
         <Field label="입금계좌">
           <select className="ec-input w-[160px]" name="receiptAccountId" value={receipt} onChange={(e) => setReceipt(e.target.value)}>
             <option value="">101 현금</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+          </select>
+        </Field>
+        <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
+      </div>
+    </div>
+  )
+}
+
+/** 고정자산증가 — 같은 자산코드에 증가 전표 한 장 더(원본 E010611). 부가세는 공급가액의 10% 자동. */
+function IncreaseForm({ asset, accounts, onError, onSaved }: {
+  asset: FixedAsset; accounts: AccountOption[]; onError: (m: string) => void; onSaved: (msg: string) => void
+}) {
+  const [date, setDate] = useState(today())
+  const [qtyText, setQtyText] = useState('1')
+  const [amount, setAmount] = useState('')
+  const [vatText, setVatText] = useState<string | null>(null)
+  const [pay, setPay] = useState(String(asset.paymentAccountId ?? byCode(accounts, '251') ?? ''))
+  const amt = Number(amount) || 0
+  const vat = vatText !== null ? (Number(vatText) || 0) : Math.floor(amt / 10)
+
+  async function submit() {
+    onError('')
+    if (!(Number(qtyText) > 0)) return onError('수량을 입력하세요.')
+    if (!(amt > 0)) return onError('공급가액을 입력하세요.')
+    try {
+      await api.post(`/fixed-assets/${asset.id}/increases`, {
+        slipDate: date, quantity: Number(qtyText), amount: amt, vat, accountId: pay ? Number(pay) : undefined,
+      })
+      onSaved('증가 전표를 저장했습니다.')
+    } catch (err) {
+      onError(extractErrorMessage(err))
+    }
+  }
+
+  return (
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{asset.assetNo} {asset.name}</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
+        <Field label="전표일자">
+          <input className="ec-input w-[140px]" name="slipDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="수량">
+          <input className="ec-input w-[80px] text-right" name="quantity" type="number" step="any" value={qtyText} onChange={(e) => setQtyText(e.target.value)} />
+        </Field>
+        <Field label="공급가액">
+          <input className="ec-input w-[120px] text-right" name="amount" type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </Field>
+        <Field label="부가세">
+          <input className="ec-input w-[110px] text-right" name="vat" type="number" step="any" value={String(vat)} onChange={(e) => setVatText(e.target.value)} />
+        </Field>
+        <Field label="출금계좌">
+          <select className="ec-input w-[160px]" name="paymentAccountId" value={pay} onChange={(e) => setPay(e.target.value)}>
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
           </select>
         </Field>
