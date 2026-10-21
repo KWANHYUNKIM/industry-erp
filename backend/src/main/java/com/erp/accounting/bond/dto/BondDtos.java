@@ -106,7 +106,9 @@ public final class BondDtos {
             Long bankAccountId,
             Boolean cash,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String description,
-            @NotEmpty(message = "저장할 내용이 없습니다.") List<@Valid DepositLine> lines
+            @NotEmpty(message = "저장할 내용이 없습니다.") List<@Valid DepositLine> lines,
+            /** 전표 묶음기준 '거래처별/계정별' — 같은 계정 · 거래처 줄을 분개 한 줄로(채권 감소는 채권번호마다 그대로). */
+            Boolean groupByPartner
     ) {}
 
     public record DepositLine(

@@ -225,7 +225,7 @@ export default function BondListPage({ side }: { side: BondSide }) {
               <td className="text-center">
                 <button type="button" className="ec-link"
                         onClick={() => (r.journalEntryId != null
-                          ? navigate(`/accounting/vouchers?journal=${r.journalEntryId}`)
+                          ? navigate(`/accounting/vouchers?journal=${r.journalEntryId}`, { state: { back: window.location.pathname + window.location.search } })
                           : setModal({ open: true, id: r.entryId }))}>{dateNo(r)}</button>
               </td>
               <td>{r.bondNo}</td>
@@ -236,7 +236,7 @@ export default function BondListPage({ side }: { side: BondSide }) {
               <td>{r.memo ?? ''}</td>
               <td>{r.sourceName}</td>
               <td>{r.journalDate && r.journalDocNo && (
-                <button type="button" className="ec-link" onClick={() => navigate(`/accounting/vouchers?journal=${r.journalEntryId}`)}>
+                <button type="button" className="ec-link" onClick={() => navigate(`/accounting/vouchers?journal=${r.journalEntryId}`, { state: { back: window.location.pathname + window.location.search } })}>
                   {journalDateNo(r.journalDate, r.journalDocNo)}
                 </button>
               )}</td>

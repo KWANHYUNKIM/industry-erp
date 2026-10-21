@@ -131,8 +131,8 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
     const memoOf = (p: DepositPick) => (memoMode === 'SAME' ? p.memo ?? '' : memoMode === 'BONDNO' ? p.bondNo : '')
     let ls: Line[] = picks.map((p) => ({ accountId: p.accountId, partnerId: p.partnerId, bondNo: p.bondNo,
       amount: String(p.amount), memo: memoOf(p), departmentId: p.departmentId, projectId: p.projectId }))
-    /* 거래처별/계정별: 같은 계정 · 거래처 줄을 금액 합으로 한 줄씩 — 채권번호가 여럿이면 줄마다 따로 감소해야 해서 원본도 분개만 묶는다.
-       우리는 채권 감소가 줄마다 채권번호를 들어야 하므로 줄은 그대로 두고 화면 표시만 원본 라인별과 같게 한다. */
+    /* 거래처별/계정별: 같은 계정 · 거래처 줄을 금액 합으로 한 줄(원본 2026-10-21: QA1B1 10,000 · QA1B2 20,000 → 30,000 '채권 QA1B1 외').
+       채권 감소는 채권번호마다 따로라 줄(lines)은 그대로 두고, 입금보고서 표 · 분개만 묶는다(shown · 서버 groupByPartner). */
     if (group === 'PARTNER') ls = [...ls].sort((a, b) => `${a.accountId}/${a.partnerId}`.localeCompare(`${b.accountId}/${b.partnerId}`))
     if (collect === 'CHECK') {
       setPending(ls)
@@ -177,6 +177,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
         description: memo.trim() || undefined,
         lines: lines.map((l) => ({ accountId: l.accountId, partnerId: l.partnerId, bondNo: l.bondNo, amount: Number(l.amount),
           departmentId: l.departmentId, projectId: l.projectId, memo: l.memo.trim() || undefined, checkNo: l.checkNo || undefined })),
+        groupByPartner: group === 'PARTNER' || undefined,
       }, { params: { side } })
       onSaved()
       onClose()
@@ -198,6 +199,18 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
   )
 
   const total = (lines ?? []).reduce((s, l) => s + (Number(l.amount) || 0), 0)
+  /** 입금보고서 표의 줄 — 거래처별/계정별이면 계정 · 거래처로 묶은 줄(금액 합 · 첫 적요 · '채권 첫번호 외'). i 는 lines 의 첫 줄 자리. */
+  const shown = useMemo(() => {
+    const ls = (lines ?? []).map((l, i) => ({ l, i, count: 1, amount: Number(l.amount) || 0 }))
+    if (group !== 'PARTNER') return ls
+    const m = new Map<string, (typeof ls)[number]>()
+    for (const x of ls) {
+      const k = `${x.l.accountId}/${x.l.partnerId}`
+      const g = m.get(k)
+      if (g) { g.count += 1; g.amount += x.amount } else m.set(k, { ...x })
+    }
+    return [...m.values()]
+  }, [lines, group])
 
   return (
     <>
@@ -304,9 +317,9 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
               </tr>
             </thead>
             <tbody>
-              {(lines ?? []).map((l, i) => (
+              {shown.map(({ l, i, count, amount }, n) => (
                 <tr key={i}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td className="text-center text-ec-hint">{n + 1}</td>
                   <td>{settleCode}</td>
                   <td>{settleName}</td>
                   <td>{accName(l.accountId)?.code ?? ''}</td>
@@ -314,15 +327,17 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
                   <td>{ptn(l.partnerId)?.code ?? ''}</td>
                   <td>{ptn(l.partnerId)?.name ?? ''}</td>
                   <td>
-                    <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 금액`} value={l.amount}
-                                onValue={(v) => setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, amount: v } : x)))} />
+                    {count > 1
+                      ? <span className="block text-right">{won(amount)}</span>
+                      : <EcNumInput className="ec-input w-full text-right" aria-label={`${n + 1}줄 금액`} value={l.amount}
+                                    onValue={(v) => setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, amount: v } : x)))} />}
                   </td>
                   <td>
-                    <input className="ec-input w-full" aria-label={`${i + 1}줄 적요명`} maxLength={200} value={l.memo}
+                    <input className="ec-input w-full" aria-label={`${n + 1}줄 적요명`} maxLength={200} value={l.memo}
                            onChange={(e) => setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, memo: e.target.value } : x)))} />
                   </td>
                   {/* 원본 '채권 150505053650291, 수령수표 26101403162966200001' */}
-                  <td className="text-ec-navy">{`${t.no.slice(0, 2)} ${l.bondNo}`}{l.checkNo ? `, ${ar ? '수령수표' : '발행수표'} ${l.checkNo}` : ''}</td>
+                  <td className="text-ec-navy">{`${t.no.slice(0, 2)} ${l.bondNo}${count > 1 ? ' 외' : ''}`}{l.checkNo && count === 1 ? `, ${ar ? '수령수표' : '발행수표'} ${l.checkNo}` : ''}</td>
                 </tr>
               ))}
             </tbody>

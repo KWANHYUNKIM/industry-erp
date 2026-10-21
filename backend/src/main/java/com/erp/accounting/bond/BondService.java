@@ -100,6 +100,16 @@ public class BondService {
         List<LineInput> vLines = req.lines().stream().map(l -> new LineInput(
                 l.accountId(), l.amount(), blankToNull(l.memo()),
                 cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null, l.partnerId(), null, null)).toList();
+        /* 전표 묶음기준 '거래처별/계정별'(원본 2026-10-21 실측): QA1B1 10,000 · QA1B2 20,000(김치좋아 1089) → 입금보고서 한 줄 30,000,
+           적요는 첫 줄 것, 추가정보 '채권 QA1B1 외'. 채권 감소는 채권번호마다 그대로 남긴다. */
+        if (Boolean.TRUE.equals(req.groupByPartner())) {
+            java.util.Map<String, LineInput> merged = new java.util.LinkedHashMap<>();
+            for (LineInput l : vLines) {
+                merged.merge(l.accountId() + ":" + l.partnerId(), l, (a, b) -> new LineInput(a.accountId(), a.amount().add(b.amount()),
+                        a.description(), a.bankAccountId(), a.cash(), a.partnerId(), null, null));
+            }
+            vLines = List.copyOf(merged.values());
+        }
         VoucherResponse v = fastVoucherService.create(new CreateVoucherRequest(
                 type, req.date(), PaymentMethod.CASH, null, null, null, vLines,
                 blankToNull(req.description()), null, null, null, null, null, null, null, null, null), username);

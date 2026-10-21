@@ -20,10 +20,17 @@ import { dateNo, flatten, sideWord, won, type BondDirection, type BondRow, type 
  * 여백 9px 2.7px 7.2px / 5.4px 2.7px). 계 · 총합계 줄은 굵게 · 바탕 247 · 이름 가운데 — 거래내역(.ec-report, 243)과 다르다.
  * 증가 50,000(김치좋아) → 증가현황 한 줄 50,000 · 김치좋아 계 50,000 · 총합계 50,000. 감소 20,000 → 감소현황 같은 꼴로 20,000.
  *
- * <p>[구분] 내역 · 집계(집계조건1 · 2 — 원본 21항목 중 일별 · 발생월별 · 거래처별 · 계정별 · 프로젝트별만). 비우면 '집계 조건은 1개 이상 선택하셔야 합니다.'
+ * <p>[구분] 내역 · 집계(집계조건1 · 2 — 원본 21항목 다. 입금계좌별 · 거래처그룹 · 프로젝트그룹은 줄에 값이 없어 한 묶음(빈 이름)). 비우면 '집계 조건은 1개 이상 선택하셔야 합니다.'
  * 라인별 · [비교기간] · 그래프로 보기는 원본에서 펼친 모양을 아직 못 쟀다.
  */
-const AGG_OPTIONS = ['일별', '발생월별', '거래처별', '계정별', '프로젝트별']
+/** 원본 집계조건 [항목추가] 창 나무(2026-10-21 loginaa 채권증가현황 실측) — 채권내역 › 상단-기본 · 하단-기본 · 거래처 · 프로젝트 · 채권번호, 21항목. */
+const AGG_TREE: [string, string[]][] = [
+  ['상단-기본', ['일별', '주차별', '월별', '분기별', '반기별', '연별', '전표별', '진행상태별']],
+  ['하단-기본', ['채권번호별', '거래처별', '입금계좌별', '계정별', '부서별', '프로젝트별', '라인별']],
+  ['거래처', ['거래처그룹1별', '거래처그룹2별']],
+  ['프로젝트', ['프로젝트그룹1별', '프로젝트그룹2별']],
+  ['채권번호', ['만기월별', '발생월별']],
+]
 
 export default function BondFlowPage({ side, direction }: { side: BondSide; direction: BondDirection }) {
   const word = sideWord(side)
@@ -88,9 +95,22 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
   const aggMode = mode === '집계'
   /** 집계조건 → 줄의 묶음 열쇠(이름). 21항목 중 우리 자료로 셀 수 있는 것만 — 나머지는 원본 재기 필요. */
   const keyOf = (c: string, r: BondRow): string => {
+    const d = r.entryDate
+    const y = d.slice(0, 4), m = Number(d.slice(5, 7))
     switch (c) {
-      case '일별': return r.entryDate.replaceAll('-', '/')
-      case '발생월별': return r.entryDate.slice(0, 7).replaceAll('-', '/')
+      case '일별': return d.replaceAll('-', '/')
+      case '주차별': { const t = new Date(`${d}T00:00:00`); const first = new Date(t.getFullYear(), 0, 1); return `${y}년 ${Math.ceil(((t.getTime() - first.getTime()) / 86400000 + first.getDay() + 1) / 7)}주차` }
+      case '월별': return d.slice(0, 7).replaceAll('-', '/')
+      case '분기별': return `${y}/${Math.ceil(m / 3)}분기`
+      case '반기별': return `${y}/${m <= 6 ? '상반기' : '하반기'}`
+      case '연별': return y
+      case '전표별': return dateNo(r)
+      case '진행상태별': return r.direction === 'INCREASE' ? '증가' : '감소'
+      case '채권번호별': return r.bondNo
+      case '부서별': return masters.departments.find((x) => x.value === String(r.departmentId))?.name ?? ''
+      case '라인별': return `${dateNo(r)} ${r.lineNo}`
+      case '만기월별': return r.dueDate ? r.dueDate.slice(0, 7).replaceAll('-', '/') : ''
+      case '발생월별': return d.slice(0, 7).replaceAll('-', '/')
       case '거래처별': return r.partnerName ?? ''
       case '계정별': return r.accountName
       case '프로젝트별': return r.projectName ?? ''
@@ -146,14 +166,14 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
         {aggMode && (
           <EcCond label="집계조건1">
             <select className="ec-input w-[160px]" aria-label="집계조건1" value={agg1} onChange={(e) => { setAgg1(e.target.value); setAggOn(false) }}>
-              <option value=""></option>{AGG_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+              <option value=""></option>{AGG_TREE.map(([g, os]) => <optgroup key={g} label={g}>{os.map((o) => <option key={o}>{o}</option>)}</optgroup>)}
             </select>
           </EcCond>
         )}
         {aggMode && agg1 && (
           <EcCond label="집계조건2">
             <select className="ec-input w-[160px]" aria-label="집계조건2" value={agg2} onChange={(e) => { setAgg2(e.target.value); setAggOn(false) }}>
-              <option value=""></option>{AGG_OPTIONS.filter((o) => o !== agg1).map((o) => <option key={o}>{o}</option>)}
+              <option value=""></option>{AGG_TREE.map(([g, os]) => <optgroup key={g} label={g}>{os.filter((o) => o !== agg1).map((o) => <option key={o}>{o}</option>)}</optgroup>)}
             </select>
           </EcCond>
         )}
