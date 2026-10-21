@@ -12,6 +12,7 @@ import EcHistoryButton from '../../components/EcHistory'
 import GroupMasterModal from '../../components/GroupMasterModal'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
+import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
 
 const inputCls = 'ec-input w-full'
 
@@ -169,6 +170,7 @@ export default function PartnersPage() {
   const [form, setForm] = useState({ ...empty })
   const [groupOpen, setGroupOpen] = useState(false)  // 계층그룹 모달
   const [webOpen, setWebOpen] = useState(false)      // 웹자료올리기 모달
+  const [unusedOpen, setUnusedOpen] = useState(false) // 미사용코드조회 창
   const [webFile, setWebFile] = useState<{ name: string; total: number; head: string[] } | null>(null)
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -444,16 +446,30 @@ export default function PartnersPage() {
           if (checked.size === 0) { void ecAlert(NO_PICK); return }
           setError(''); setBulkValue(''); setBulkOpen(true)
         } },
-        /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회(기준일자 동안 전표가 없는 거래처)는 아직 없다 — 전표 쓰임을 모으는 API 가 없다(plans/재고1.md 남은 것). */
+        /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회 = 기준일자 동안 전표가 없는 거래처(GET /partners/unused). */
         { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive, menu: [
           { label: '사용중단', onClick: () => setActiveChecked(false) },
           { label: '삭제', onClick: removeChecked },
+          { label: '미사용코드조회', onClick: () => setUnusedOpen(true) },
           { label: '재사용', onClick: () => setActiveChecked(true) },
         ] },
         { label: 'Excel' },
         { label: '웹자료올리기', onClick: () => setWebOpen(true) },
       ]}
     >
+      <UnusedCodeModal open={unusedOpen} title="미사용코드조회" codeLabel="거래처코드" nameLabel="거래처명" endpoint="/partners/unused"
+                       rows={partners}
+                       columns={[
+                         { head: '거래처코드', cell: (p) => p.code }, { head: '거래처명', cell: (p) => p.name },
+                         { head: '대표자명', cell: (p) => p.ceoName ?? '' }, { head: '전화번호', cell: (p) => p.phone ?? '' },
+                         { head: 'Email', cell: (p) => p.email ?? '' }, { head: '주소', cell: (p) => p.address ?? '' },
+                         { head: '적요', cell: (p) => p.remark ?? '' }, { head: '사용구분', cell: (p) => (p.active ? 'YES' : 'NO') },
+                       ]}
+                       onStop={async (targets) => {
+                         for (const x of targets) await api.put(`/partners/${x.id}`, wholePartner(x, { active: false }))
+                         load()
+                       }}
+                       onClose={() => setUnusedOpen(false)} />
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
       <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[8px]">

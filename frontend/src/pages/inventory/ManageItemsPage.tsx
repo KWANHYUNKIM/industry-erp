@@ -9,6 +9,7 @@ import type { ManagementItem } from '../../types/api'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
+import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서 · 창고 · 프로젝트 리스트와 같은 글). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
@@ -48,6 +49,7 @@ export default function ManageItemsPage() {
   const [name, setName] = useState('')
   const [editMenu, setEditMenu] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [unusedOpen, setUnusedOpen] = useState(false) // 미사용코드조회 창
 
   function load() {
     setError('')
@@ -148,12 +150,24 @@ export default function ManageItemsPage() {
         <>
           <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
           <div className="ec-menu fixed top-auto right-auto bottom-[44px] left-[300px] mobile:left-[16px]">
-            {(['사용중단', '삭제', '재사용'] as const).map((op) => (
-              <button key={op} type="button" onClick={() => apply([...checked], op)}>{op}</button>
+            {(['사용중단', '삭제', '미사용코드조회', '재사용'] as const).map((op) => (
+              <button key={op} type="button"
+                      onClick={() => (op === '미사용코드조회' ? (setMenuOpen(false), setUnusedOpen(true)) : apply([...checked], op))}>{op}</button>
             ))}
           </div>
         </>
       )}
+      <UnusedCodeModal open={unusedOpen} title="미사용코드조회" codeLabel="관리항목코드" nameLabel="관리항목명" endpoint="/management-items/unused"
+                       rows={rows}
+                       columns={[
+                         { head: '관리항목코드', cell: (r) => r.code }, { head: '관리항목명', cell: (r) => r.name },
+                         { head: '사용', cell: (r) => (r.active ? 'Yes' : 'No') },
+                       ]}
+                       onStop={async (targets) => {
+                         for (const r of targets) await api.put(`/management-items/${r.id}`, { name: r.name, description: r.description ?? undefined, active: false })
+                         load()
+                       }}
+                       onClose={() => setUnusedOpen(false)} />
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table ref={tableRef} className="w-full text-left">

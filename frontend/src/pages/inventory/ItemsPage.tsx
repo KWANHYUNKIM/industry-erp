@@ -17,6 +17,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { clearItemSuggestCache } from '../../features/item/api/itemSuggest'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
+import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
 
 const inputCls = 'ec-input w-full'
 
@@ -465,6 +466,7 @@ export default function ItemsPage() {
   const [relationOpen, setRelationOpen] = useState(false)
 
   const [webOpen, setWebOpen] = useState(false)  // 웹자료올리기 안내 모달
+  const [unusedOpen, setUnusedOpen] = useState(false) // 미사용코드조회 창
   // 업로드 파일 클라이언트 미리보기(행수/헤더). 실제 서버 반영은 백엔드 미연동
   const [webFile, setWebFile] = useState<{ name: string; total: number; head: string[] } | null>(null)
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -609,15 +611,28 @@ export default function ItemsPage() {
                   if (first == null) { void ecAlert(NO_PICK); return }
                   navigate(`/inventory/staged-adjustment?item=${first}`)
                 } },
-                /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회는 전표 쓰임을 모으는 API 가 없어 남은 것(거래처와 같다). */
+                /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회 = 기준일자 동안 전표가 없는 품목(GET /items/unused). */
                 { label: '사용중단/재사용', onClick: toggleActive, menu: [
                   { label: '사용중단', onClick: () => setActiveChecked(false) },
                   { label: '삭제', onClick: removeSelected },
+                  { label: '미사용코드조회', onClick: () => setUnusedOpen(true) },
                   { label: '재사용', onClick: () => setActiveChecked(true) },
                 ] },
                 { label: 'Excel' },
                 { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
+      <UnusedCodeModal open={unusedOpen} title="미사용코드조회" codeLabel="품목코드" nameLabel="품목명" endpoint="/items/unused"
+                       rows={items}
+                       columns={[
+                         { head: '품목코드', cell: (it) => it.code }, { head: '품목명', cell: (it) => it.name },
+                         { head: '품목그룹', cell: (it) => it.itemGroupName ?? '' }, { head: '규격', cell: (it) => it.spec ?? '' },
+                         { head: '바코드', cell: (it) => it.barcode ?? '' },
+                         { head: '입고단가', cell: (it) => (it.purchasePrice ?? 0).toLocaleString('ko-KR') },
+                         { head: '출고단가', cell: (it) => it.unitPrice.toLocaleString('ko-KR') },
+                         { head: '품목구분', cell: (it) => `[${it.categoryName}]` },
+                       ]}
+                       onStop={(targets) => setActive(targets, false)}
+                       onClose={() => setUnusedOpen(false)} />
       {error && !showForm && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
       <ul className="ec-cond">
