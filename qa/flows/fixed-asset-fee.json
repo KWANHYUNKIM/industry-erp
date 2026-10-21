@@ -1,5 +1,5 @@
 {
- "about": "회계 I › 고정자산증가 · 감소의 [수수료] · [거래처] · [처분손익계정](원본 E010611 · E010612, 2026-10-22 실측): QA회계1-수수료 1,000,000 + 수수료 2,000 + 거래처 서강대학교 등록 → 분개 차) 비품 1,000,000 · 부가세대급금 100,000 · 지급수수료 2,000 / 대) 외상매입금 1,102,000 → 처분(매각 500,000 · 수수료 3,000, 처분손익계정 비면 '처분이익 또는 처분손실 관련 계정을 입력 바랍니다.') → 분개 차) 외상매출금 547,000 · 지급수수료 3,000 / 대) 비품 500,000 · 부가세예수금 50,000 · 비품 500,000(취득원가상계) / 차) 처분손실 500,000. 끝에 지운다.",
+ "about": "회계 I › 고정자산증가 · 감소의 [수수료] · [거래처] · [처분손익계정](원본 E010611 · E010612, 2026-10-22 실측): QA회계1-수수료 1,000,000 + 수수료 2,000 + 거래처(첫 거래처) 등록 → 분개 차) 비품 1,000,000 · 부가세대급금 100,000 · 지급수수료 2,000 / 대) 외상매입금 1,102,000 → 처분(매각 500,000 · 수수료 3,000, 처분손익계정 비면 '처분이익 또는 처분손실 관련 계정을 입력 바랍니다.') → 분개 차) 외상매출금 547,000 · 지급수수료 3,000 / 대) 비품 500,000 · 부가세예수금 50,000 · 비품 500,000(취득원가상계) / 차) 처분손실 500,000. 끝에 지운다.",
  "shots": [
   {
    "name": "증가 · 감소 수수료 · 거래처 · 처분손익계정",
@@ -10,14 +10,18 @@
     "click:자산등록(F2)",
     "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-수수료'));window.__api=async u=>(await fetch('/api'+u,{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})).json();window.__lines=async()=>{const a=(await __api('/fixed-assets')).find(x=>x.name==='QA회계1-수수료');const out=[];for(const m of a.movements){const j=await __api('/journals/'+m.journalEntryId);out.push(m.kind+'#'+j.lines.map(l=>l.accountCode+(l.debit>0?'D'+l.debit:'C'+l.credit)+'['+(l.partnerName||'')+'|'+l.description+']').join(','))}return out};true",
     "wait:500",
-    "js:__set(__q('name'),'QA회계1-수수료');const s=__q('assetAccountId');__set(s,[...s.options].find(o=>o.text.startsWith('212 ')).value);__set(__q('acquisitionDate'),'2026-10-05');__set(__q('acquisitionCost'),'1000000');__set(__q('acquisitionFee'),'2000');const p=__q('partnerId');const o=[...p.options].find(o=>o.text.includes('서강대학교'));if(o)__set(p,o.value);__set(__q('remark'),'QA회계1');true",
+    "js:__set(__q('name'),'QA회계1-수수료');const s=__q('assetAccountId');__set(s,[...s.options].find(o=>o.text.startsWith('212 ')).value);__set(__q('acquisitionDate'),'2026-10-05');__set(__q('acquisitionCost'),'1000000');__set(__q('acquisitionFee'),'2000');__set(__q('remark'),'QA회계1');true",
+    "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const p=(await (await fetch('/api/partners',{headers:h})).json())[0];sessionStorage.setItem('qaPc',p.code);window.__pn=p.name;return true})()",
+    "js:document.querySelector('button[title=\"거래처 선택\"]').click();true",
+    "wait:600",
+    "pickrow:@qaPc",
     "wait:300",
     "clicklast:등록",
     "wait:2500",
     "expect:document.body.innerText.includes('자산을 등록했습니다.')&&!!__row()",
     "js:window.__r=null;__lines().then(r=>window.__r=r);true",
     "wait:1500",
-    "expect:(r=>r&&r.length===1&&r[0].startsWith('INCREASE#212D1000000')&&r[0].includes('135D100000')&&r[0].includes('831D2000')&&r[0].includes('251C1102000')&&r[0].includes('서강대학교|QA회계1'))(window.__r)",
+    "expect:(r=>r&&r.length===1&&r[0].startsWith('INCREASE#212D1000000')&&r[0].includes('135D100000')&&r[0].includes('831D2000')&&r[0].includes('251C1102000')&&r[0].includes(window.__pn+'|QA회계1'))(window.__r)",
     "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분').click();true",
     "wait:500",
     "js:__set(__q('disposalDate'),'2026-10-31');__set(__q('disposalAmount'),'500000');__set(__q('disposalFee'),'3000');true",

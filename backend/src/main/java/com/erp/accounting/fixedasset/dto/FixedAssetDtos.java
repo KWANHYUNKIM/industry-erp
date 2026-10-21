@@ -214,7 +214,9 @@ public final class FixedAssetDtos {
             Long id, Long assetId, String assetNo, String assetName,
             String period, LocalDate depreciationDate,
             BigDecimal amount, BigDecimal accumulatedAfter, BigDecimal bookValueAfter,
-            Long journalEntryId, String journalDocNo, String createdBy
+            Long journalEntryId, String journalDocNo, String createdBy,
+            /** 감가상각계산 묶음에서 나온 상각이면 그 묶음(대장 [상세내역]이 묶음마다 한 줄로 합친다). */
+            Long calcId
     ) {
         public static DepreciationResponse from(Depreciation d) {
             return new DepreciationResponse(
@@ -223,7 +225,7 @@ public final class FixedAssetDtos {
                     d.getAmount(), d.getAccumulatedAfter(), d.getBookValueAfter(),
                     d.getJournalEntry() != null ? d.getJournalEntry().getId() : null,
                     d.getJournalEntry() != null ? d.getJournalEntry().getDocNo() : null,
-                    d.getCreatedBy());
+                    d.getCreatedBy(), d.getCalc() != null ? d.getCalc().getId() : null);
         }
     }
 
@@ -237,4 +239,34 @@ public final class FixedAssetDtos {
              */
             List<String> gaps
     ) {}
+
+    // ── 감가상각계산 묶음(원본 E010616, 2026-10-22 실측) ───────────────────────────────────
+
+    public record CalcRequest(
+            @NotNull(message = "회계기수를 입력하세요.") @Positive(message = "회계기수는 1 이상이어야 합니다.") Integer fiscalTerm,
+            @NotBlank(message = "감가상각기간(yyyy-MM)을 입력하세요.") @Size(max = 7) String periodFrom,
+            @NotBlank(message = "감가상각기간(yyyy-MM)을 입력하세요.") @Size(max = 7) String periodTo
+    ) {}
+
+    /** 목록 한 줄 — 회계기수 · 감가상각기간 · 건수 · 감가상각총액. assetSummary 는 반영돼 있을 때 '사옥 외 3건'. */
+    public record CalcResponse(
+            Long id, Integer fiscalTerm, String periodFrom, String periodTo, int itemCount, BigDecimal totalAmount,
+            boolean reflected, int excludedMonths, String assetSummary
+    ) {}
+
+    /** 감가상각상세내역 한 줄(자산 하나) — 고정자산계정 · 코드 · 이름 · 취득일 · 내용연수 · 상각월수 · 기초 · 증감 · 기말 · 전기말 누계 · 전기말 미상각 · 당기상각비 · 당기말 누계 · 미상각잔액 */
+    public record CalcDetailLine(
+            String assetAccountCode, String assetAccountName, String assetNo, String name, LocalDate acquisitionDate,
+            Integer usefulLifeYears, int months, BigDecimal openCost, BigDecimal change, BigDecimal closeCost,
+            BigDecimal priorAccum, BigDecimal priorUnpaid, BigDecimal amount, BigDecimal closeAccum, BigDecimal unpaid
+    ) {}
+
+    /** 전표생성이 여는 일반전표 초안 — 계정마다 대) 감가상각누계액 / 차) 감가상각비. */
+    public record SlipDraftLine(String division, Long accountId, String accountCode, String accountName,
+                                BigDecimal debit, BigDecimal credit) {}
+
+    public record SlipDraft(LocalDate entryDate, List<SlipDraftLine> lines, BigDecimal totalDebit, BigDecimal totalCredit) {}
+
+    /** 이력 — 고정자산 · 작업자 · 작업일시 · 상태 */
+    public record CalcHistoryRow(String assetNo, String name, String workedBy, java.time.LocalDateTime workedAt, String status) {}
 }

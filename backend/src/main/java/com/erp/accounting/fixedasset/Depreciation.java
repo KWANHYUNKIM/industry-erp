@@ -53,6 +53,11 @@ public class Depreciation extends BaseTimeEntity {
     @JoinColumn(name = "journal_entry_id")
     private JournalEntry journalEntry;
 
+    /** 감가상각계산 묶음(원본 E010616)에서 나온 행이면 그 묶음. 이 행은 분개를 만들지 않는다(전표생성이 따로). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "calc_id")
+    private DepreciationCalc calc;
+
     @Column(length = 50)
     private String createdBy;
 }

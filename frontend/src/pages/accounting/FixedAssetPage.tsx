@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import type { DepreciationMethod, DepreciationRow, DepreciationRun, FixedAsset } from '../../types/api'
+import CodePickerField from '../../components/CodePickerField'
+import type { DepreciationMethod, FixedAsset } from '../../types/api'
 import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const today = () => ymd(new Date())
-const thisMonth = () => ymd(new Date()).slice(0, 7)
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
@@ -18,9 +18,6 @@ interface AccountOption {
   division: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
   detailCategory: string | null
 }
-
-const TABS = ['자산목록', '감가상각'] as const
-type Tab = (typeof TABS)[number]
 
 /**
  * 회계 I > 고정자산 — 취득 등록 · 월별 감가상각 · 처분.
@@ -40,9 +37,7 @@ export default function FixedAssetPage() {
    */
   const [pFrom, setPFrom] = useState('')
   const [pTo, setPTo] = useState('')
-  const [tab, setTab] = useState<Tab>('자산목록')
   const [assets, setAssets] = useState<FixedAsset[]>([])
-  const [deps, setDeps] = useState<DepreciationRow[]>([])
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -54,20 +49,17 @@ export default function FixedAssetPage() {
   const [disposing, setDisposing] = useState<FixedAsset | null>(null)
   /** 같은 자산에 증가 전표 더하기(원본 E010611 — 10/15 수량 5 · 500,000) */
   const [increasing, setIncreasing] = useState<FixedAsset | null>(null)
-  const [period, setPeriod] = useState(thisMonth())
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3500) }
 
   async function load() {
     setLoading(true)
     try {
-      const [a, d, acc] = await Promise.all([
+      const [a, acc] = await Promise.all([
         api.get<FixedAsset[]>('/fixed-assets', { params: { from: pFrom || undefined, to: pTo || undefined } }),
-        api.get<DepreciationRow[]>('/fixed-assets/depreciations', { params: { from: pFrom || undefined, to: pTo || undefined } }),
         api.get<AccountOption[]>('/accounts'),
       ])
       setAssets(a.data)
-      setDeps(d.data)
       setAccounts(acc.data)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -77,36 +69,6 @@ export default function FixedAssetPage() {
   }
 
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
-
-  async function runDepreciation() {
-    setError('')
-    if (!/^\d{4}-\d{2}$/.test(period)) return setError('귀속월을 yyyy-MM 형식으로 입력하세요.')
-    try {
-      const { data } = await api.post<DepreciationRun>('/fixed-assets/depreciate', { period })
-      flash(data.assetCount === 0
-        ? `${data.period} 상각 대상이 없습니다 (건너뜀 ${data.skippedCount}건 — 이미 상각했거나 상각 완료).`
-        : `${data.period} 감가상각 ${data.assetCount}건 · 총 ${won(data.totalAmount)}원 (건너뜀 ${data.skippedCount}건)`
-          + (data.gaps?.length ? ` ⚠ 앞 달 상각이 빠져 있습니다 — ${data.gaps.join(' / ')}. 빠진 달부터 차례로 돌리세요.` : ''))
-      await load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
-  }
-
-  /** 감가상각 취소 — 그 귀속월 상각 행 · 분개를 지우고 누계액을 되돌린다(원본 감가상각계산 [삭제], 마지막 달부터). */
-  async function cancelDepreciation(row?: DepreciationRow) {
-    setError('')
-    const p = row ? row.period : period
-    if (!/^\d{4}-\d{2}$/.test(p)) return setError('귀속월을 yyyy-MM 형식으로 입력하세요.')
-    if (!(await ecConfirm(`${p} 감가상각${row ? ` (${row.assetName})` : ''}을 취소합니다. 상각 분개도 함께 삭제됩니다. 삭제하겠습니까?`))) return
-    try {
-      const { data } = await api.delete<DepreciationRun>('/fixed-assets/depreciations', { params: { period: p, assetId: row?.assetId } })
-      flash(`${data.period} 감가상각 ${data.assetCount}건 · ${won(data.totalAmount)}원을 취소했습니다.`)
-      await load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
-  }
 
   async function remove(asset: FixedAsset) {
     if (!(await ecConfirm(`${asset.name} 을(를) 삭제하겠습니까? 취득 전표도 함께 삭제됩니다.`))) return
@@ -133,7 +95,6 @@ export default function FixedAssetPage() {
   const inUse = assets.filter((a) => a.status === 'IN_USE')
   const totalCost = inUse.reduce((s, a) => s + a.acquisitionCost, 0)
   const totalBook = inUse.reduce((s, a) => s + a.bookValue, 0)
-  const shownDeps = useMemo(() => deps.filter((d) => !period || d.period === period), [deps, period])
 
   return (
     <EcListShell
@@ -142,17 +103,8 @@ export default function FixedAssetPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => { setTab(t); setShowForm(false); setError('') }} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
-            fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t} ({t === '자산목록' ? assets.length : deps.length})</button>
-        ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
-          사용중 {inUse.length}건 · 취득가액 {won(totalCost)} · 장부가액 <b className="text-ec-navy">{won(totalBook)}</b>
-        </span>
+      <div className="text-right mb-[8px] text-[12px] text-ec-label">
+        사용중 {inUse.length}건 · 취득가액 {won(totalCost)} · 장부가액 <b className="text-ec-navy">{won(totalBook)}</b>
       </div>
       {/*
         화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다.
@@ -175,22 +127,7 @@ export default function FixedAssetPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      {tab === '감가상각' && (
-        <div className="flex items-end gap-[10px] border border-ec-line border-solid bg-white p-[12px] mb-[8px]">
-          <label className="text-[12.5px]">
-            <div className="text-ec-label mb-[3px]">귀속월</div>
-            <input className="ec-input" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 140 }} />
-          </label>
-          <button className="ec-btn ec-btn-primary" onClick={runDepreciation}>감가상각 실행</button>
-          <button className="ec-btn" onClick={() => cancelDepreciation()}>감가상각 취소</button>
-          <span className="text-[11.5px] text-ec-hint pb-[5px]">
-            ※ 사용중 자산 전체를 상각하고 차)감가상각비 / 대)감가상각누계액 분개를 자산마다 고른 계정으로 만듭니다.
-            같은 달을 다시 실행해도 이중 상각되지 않습니다. 취소는 마지막 달부터 합니다.
-          </span>
-        </div>
-      )}
-
-      <Modal error={error} open={(showForm || !!editing) && tab === '자산목록'} title={editing ? '고정자산 수정' : '고정자산 등록'}
+      <Modal error={error} open={showForm || !!editing} title={editing ? '고정자산 수정' : '고정자산 등록'}
              onClose={() => { setShowForm(false); setEditing(null) }}>{(
         <AssetForm key={editing?.id ?? 'new'} asset={editing} accounts={accounts} onError={setError}
                    onSaved={() => { const wasEdit = !!editing; setShowForm(false); setEditing(null); flash(wasEdit ? '자산을 고쳤습니다.' : '자산을 등록했습니다.'); load() }} />
@@ -205,10 +142,9 @@ export default function FixedAssetPage() {
       )}</Modal>
 
       {loading ? <p className="ec-empty">불러오는 중…</p>
-        : tab === '자산목록' ? <AssetTable rows={assets} onDispose={(a) => { setError(''); setDisposing(a) }}
+        : <AssetTable rows={assets} onDispose={(a) => { setError(''); setDisposing(a) }}
                                                    onIncrease={(a) => { setError(''); setIncreasing(a) }}
-                                                   onEdit={(a) => { setError(''); setEditing(a) }} onDelete={remove} onCancelDispose={cancelDisposal} />
-        : <DepreciationTable rows={shownDeps} period={period} onCancel={cancelDepreciation} />}
+                                                   onEdit={(a) => { setError(''); setEditing(a) }} onDelete={remove} onCancelDispose={cancelDisposal} />}
     </EcListShell>
   )
 }
@@ -271,55 +207,6 @@ function AssetTable({ rows, onDispose, onIncrease, onEdit, onDelete, onCancelDis
           </tr>
         ))}
       </tbody>
-    </table>
-  )
-}
-
-function DepreciationTable({ rows, period, onCancel }: { rows: DepreciationRow[]; period: string; onCancel: (r: DepreciationRow) => void }) {
-  const total = rows.reduce((s, r) => s + r.amount, 0)
-  return (
-    <table className="w-full text-left">
-      <thead>
-        <tr>
-          <th className="w-[34px]"></th>
-          <th className="w-[90px]">귀속월</th>
-          <th className="w-[130px]">자산번호</th>
-          <th>자산명</th>
-          <th className="w-[100px]">상각일</th>
-          <th className="w-[110px] text-right">상각액</th>
-          <th className="w-[120px] text-right">상각 후 누계</th>
-          <th className="w-[120px] text-right">상각 후 장부가</th>
-          <th className="w-[140px]">회계전표</th>
-          <th className="w-[60px] text-center">취소</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.length === 0 ? (
-          <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-        ) : rows.map((r, i) => (
-          <tr key={r.id}>
-            <td className="text-center text-ec-hint">{i + 1}</td>
-            <td>{r.period}</td>
-            <td>{r.assetNo}</td>
-            <td>{r.assetName}</td>
-            <td>{dateText(r.depreciationDate)}</td>
-            <td className="text-right font-bold text-ec-danger">{won(r.amount)}</td>
-            <td className="text-right text-ec-hint">{won(r.accumulatedAfter)}</td>
-            <td className="text-right">{won(r.bookValueAfter)}</td>
-            <td className="text-ec-blue">{r.journalDocNo ?? ''}</td>
-            <td className="text-center"><button className="ec-btn ec-btn-sm" onClick={() => onCancel(r)}>취소</button></td>
-          </tr>
-        ))}
-      </tbody>
-      {rows.length > 0 && (
-        <tfoot>
-          <tr className="font-bold bg-ec-page">
-            <td colSpan={5} className="text-right">{period} 상각 합계</td>
-            <td className="text-right">{won(total)}</td>
-            <td colSpan={4}></td>
-          </tr>
-        </tfoot>
-      )}
     </table>
   )
 }
@@ -694,10 +581,8 @@ function usePartners() {
 
 function PartnerSelect({ value, onChange, partners }: { value: string; onChange: (v: string) => void; partners: PartnerOpt[] }) {
   return (
-    <select className="ec-input w-[160px]" name="partnerId" value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">(없음)</option>
-      {partners.map((p) => <option key={p.id} value={p.id}>{p.code} {p.name}</option>)}
-    </select>
+    <CodePickerField label="거래처" hideLabel width={160} emptyLabel="(없음)" value={value} onChange={onChange}
+                     items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
   )
 }
 

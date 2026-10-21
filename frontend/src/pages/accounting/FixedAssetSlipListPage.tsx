@@ -10,17 +10,21 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
+/** 수량관리 자산만 [수량](원본 대장과 같은 규칙) */
+const qtyOf = (a: { quantityManaged?: boolean }, m: Move) => (a.quantityManaged ? String(Number(m.quantity)) : '')
 
 interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountName: string
   acquisitionDate: string; acquisitionCost: number; accumulatedDepreciation: number
   status: 'IN_USE' | 'DISPOSED'; disposalDate: string | null; disposalAmount: number | null; remark: string | null
-  quantity?: number; movements?: Move[]
+  quantity?: number; quantityManaged?: boolean; movements?: Move[]
 }
-interface Dep { id: number; assetId: number; depreciationDate: string; amount: number; journalDocNo: string | null; period: string }
+interface Dep { id: number; assetId: number; depreciationDate: string; amount: number; journalDocNo: string | null; period: string; calcId: number | null }
+/** 감가상각계산 묶음(원본 E010616) — 반영된 묶음 한 번이 고정자산전표 한 줄('사옥 외 3건'). */
+interface Calc { id: number; periodTo: string; totalAmount: number; reflected: boolean; excludedMonths: number; assetSummary: string | null }
 type Kind = '자산증가' | '매각' | '폐기' | '감가상각'
 const KINDS: Kind[] = ['자산증가', '매각', '폐기', '감가상각']
-interface Row { key: string; date: string; no: string; kind: Kind; a: Asset; cost: number; dep: number; sold: number; remark: string }
+interface Row { key: string; date: string; no: string; kind: Kind; a: Asset; name: string; qty: string; cost: number; dep: number; sold: number; remark: string }
 
 /**
  * 회계 I &gt; 고정자산 &gt; <b>고정자산전표조회</b>(E010619) — 2026-10-03 loginaa 실측(빈 판).
@@ -42,6 +46,7 @@ export default function FixedAssetSlipListPage() {
   const [kinds, setKinds] = useState<Record<Kind, boolean>>({ 자산증가: true, 매각: true, 폐기: true, 감가상각: true })
   const [assets, setAssets] = useState<Asset[]>([])
   const [deps, setDeps] = useState<Dep[]>([])
+  const [calcs, setCalcs] = useState<Calc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -49,12 +54,14 @@ export default function FixedAssetSlipListPage() {
     setLoading(true)
     setError('')
     try {
-      const [a, d] = await Promise.all([
+      const [a, d, c] = await Promise.all([
         api.get<Asset[]>('/fixed-assets', { params: { to } }),
         api.get<Dep[]>('/fixed-assets/depreciations', { params: { from, to } }),
+        api.get<Calc[]>('/fixed-assets/calcs'),
       ])
       setAssets(a.data)
-      setDeps(d.data)
+      setDeps(d.data.filter((x) => !x.calcId))
+      setCalcs(c.data.filter((x) => x.reflected))
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -71,10 +78,10 @@ export default function FixedAssetSlipListPage() {
       /* 증가 · 감소 전표마다 한 줄(원본: 자산 하나에 10/05 증가 · 10/15 증가 · 10/31 매각 · 11/05 매각) */
       for (const m of movesOf(a)) {
         if (m.kind === 'INCREASE') {
-          out.push({ key: `a${m.id}`, date: m.slipDate, no: a.assetNo, kind: '자산증가', a, cost: Number(m.amount), dep: 0, sold: 0, remark: m.remark ?? a.remark ?? '' })
+          out.push({ key: `a${m.id}`, date: m.slipDate, no: m.journalDocNo ?? a.assetNo, kind: '자산증가', a, name: a.name, qty: qtyOf(a, m), cost: Number(m.amount), dep: 0, sold: 0, remark: m.remark ?? a.remark ?? '' })
         } else {
           const sold = Number(m.saleAmount)
-          out.push({ key: `x${m.id}`, date: m.slipDate, no: a.assetNo, kind: m.disposalType === 'SCRAP' || sold <= 0 ? '폐기' : '매각', a,
+          out.push({ key: `x${m.id}`, date: m.slipDate, no: m.journalDocNo ?? a.assetNo, kind: m.disposalType === 'SCRAP' || sold <= 0 ? '폐기' : '매각', a, name: a.name, qty: qtyOf(a, m),
             cost: Number(m.amount), dep: Number(m.accumAmount), sold, remark: m.remark ?? a.remark ?? '' })
         }
       }
@@ -82,7 +89,15 @@ export default function FixedAssetSlipListPage() {
     for (const d of deps) {
       const a = byId.get(d.assetId)
       if (!a) continue
-      out.push({ key: `d${d.id}`, date: d.depreciationDate, no: d.journalDocNo ?? '', kind: '감가상각', a, cost: 0, dep: Number(d.amount), sold: 0, remark: `${d.period} 감가상각` })
+      out.push({ key: `d${d.id}`, date: d.depreciationDate, no: d.journalDocNo ?? '', kind: '감가상각', a, name: a.name, qty: '', cost: 0, dep: Number(d.amount), sold: 0, remark: `${d.period} 감가상각` })
+    }
+    /* 감가상각계산 묶음 한 번 = 한 줄: '사옥 외 3건' · 충당금 합 · 적요 '제외월수 : 9'(원본 2026-10-22 실측) */
+    for (const c of calcs) {
+      const end = `${c.periodTo}-${String(new Date(Number(c.periodTo.slice(0, 4)), Number(c.periodTo.slice(5, 7)), 0).getDate()).padStart(2, '0')}`
+      const first = assets[0]
+      if (!first) continue
+      out.push({ key: `c${c.id}`, date: end, no: String(c.id), kind: '감가상각', a: first, name: c.assetSummary ?? '', qty: '', cost: 0, dep: Number(c.totalAmount), sold: 0,
+        remark: c.excludedMonths > 0 ? `제외월수 : ${c.excludedMonths}` : '' })
     }
     return out
       .filter((r) => r.date >= from && r.date <= to)
@@ -90,7 +105,7 @@ export default function FixedAssetSlipListPage() {
       .filter((r) => !account || String(r.a.assetAccountId) === account)
       .filter((r) => !asset || String(r.a.id) === asset)
       .sort((x, y) => (x.date > y.date ? -1 : x.date < y.date ? 1 : y.no.localeCompare(x.no)))
-  }, [assets, deps, from, to, kinds, account, asset])
+  }, [assets, deps, calcs, from, to, kinds, account, asset])
   const accounts = useMemo(() => {
     const m = new Map<number, string>()
     assets.forEach((a) => m.set(a.assetAccountId, a.assetAccountName))
@@ -149,6 +164,7 @@ export default function FixedAssetSlipListPage() {
             <th className="text-center">일자-No.</th>
             <th className="text-center">구분</th>
             <th>자산계정명</th>
+            <th className="text-right">수량</th>
             <th className="text-right">원가</th>
             <th className="text-right">감가상각충당금</th>
             <th className="text-right">처분금액</th>
@@ -157,15 +173,16 @@ export default function FixedAssetSlipListPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.key}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="text-center">{dateNo(r.date, r.no)}</td>
               <td className="text-center">{r.kind}</td>
-              <td>{r.a.assetAccountName}</td>
+              <td>{r.name}</td>
+              <td className="text-right">{r.qty}</td>
               <td className="text-right">{won(r.cost)}</td>
               <td className="text-right">{won(r.dep)}</td>
               <td className="text-right">{won(r.sold)}</td>

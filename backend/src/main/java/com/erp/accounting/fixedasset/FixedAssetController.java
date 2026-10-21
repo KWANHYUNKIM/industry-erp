@@ -113,4 +113,54 @@ public class FixedAssetController {
                                  @AuthenticationPrincipal UserPrincipal principal) {
         return service.dispose(id, req, principal.getUsername());
     }
+
+    // ── 감가상각계산 묶음(원본 E010616) ────────────────────────────────────────
+
+    private final DepreciationCalcService calcService;
+
+    @GetMapping("/calcs")
+    public List<FixedAssetDtos.CalcResponse> calcs() {
+        return calcService.findAll();
+    }
+
+    @PostMapping("/calcs")
+    public FixedAssetDtos.CalcResponse createCalc(@Valid @RequestBody FixedAssetDtos.CalcRequest req,
+                                                  @AuthenticationPrincipal UserPrincipal principal) {
+        return calcService.create(req, principal.getUsername());
+    }
+
+    /** [전체계산] · [고정자산대장에반영] */
+    @PostMapping("/calcs/{id}/calculate")
+    public FixedAssetDtos.CalcResponse calculate(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return calcService.calculate(id, principal.getUsername());
+    }
+
+    /** [반영내용삭제] */
+    @DeleteMapping("/calcs/{id}/reflect")
+    public FixedAssetDtos.CalcResponse unreflect(@PathVariable Long id) {
+        return calcService.unreflect(id);
+    }
+
+    @DeleteMapping("/calcs/{id}")
+    public void deleteCalc(@PathVariable Long id) {
+        calcService.delete(id);
+    }
+
+    /** [조회] — 감가상각상세내역 */
+    @GetMapping("/calcs/{id}/detail")
+    public List<FixedAssetDtos.CalcDetailLine> calcDetail(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return calcService.detail(id, principal.getUsername());
+    }
+
+    /** 기타 [전표생성] — 일반전표 초안 */
+    @GetMapping("/calcs/{id}/slip")
+    public FixedAssetDtos.SlipDraft calcSlip(@PathVariable Long id) {
+        return calcService.slipDraft(id);
+    }
+
+    /** 기타 [이력] */
+    @GetMapping("/calcs/{id}/history")
+    public List<FixedAssetDtos.CalcHistoryRow> calcHistory(@PathVariable Long id) {
+        return calcService.history(id);
+    }
 }

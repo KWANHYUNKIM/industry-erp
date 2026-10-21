@@ -155,6 +155,7 @@ const FixedAssetFlowPage = lazy(() => import('../pages/accounting/FixedAssetFlow
 const FixedAssetStockPage = lazy(() => import('../pages/accounting/FixedAssetStockPage'))
 const FixedAssetMovementPage = lazy(() => import('../pages/accounting/FixedAssetMovementPage'))
 const FixedAssetSlipListPage = lazy(() => import('../pages/accounting/FixedAssetSlipListPage'))
+const DepreciationCalcPage = lazy(() => import('../pages/accounting/DepreciationCalcPage'))
 const FastVoucherPage = lazy(() => import('../pages/accounting/FastVoucherPage'))
 const ReceiptPaymentPage = lazy(() => import('../pages/accounting/ReceiptPaymentPage'))
 const CashQuickEntryPage = lazy(() => import('../pages/accounting/CashQuickEntryPage'))
@@ -806,6 +807,7 @@ export default function AppRouter() {
         <Route path="/accounting/fixed-asset-stock" element={<FixedAssetStockPage />} />
         <Route path="/accounting/fixed-asset-movement" element={<FixedAssetMovementPage />} />
         <Route path="/accounting/fixed-asset-slips" element={<FixedAssetSlipListPage />} />
+        <Route path="/accounting/depreciation-calc" element={<DepreciationCalcPage />} />
         <Route path="/accounting/cash-deposit" element={<CashTxnPage mode="deposit" />} />
         <Route path="/accounting/cash-withdraw" element={<CashTxnPage mode="withdraw" />} />
         {/* 원본 현금예금출금 › 영수증으로(E010402) — 출금계좌 · 계정 · 거래처명 · 금액 · 수수료 한 장. */}

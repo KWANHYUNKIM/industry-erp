@@ -1,201 +1,221 @@
 {
-  "about": "회계 I › 고정자산 증가 · 감소 여러 장(원본 2026-10-21 loginaa 실측 순서): QA회계1-증감 수량관리 10/05 10개 1,000,000 → 10/15 증가 5개 500,000 → 10월 상각 25,000 → 10/31 매각 6개 500,000(부가세 50,000 · 손익 −100,000) → 대장 9.00 · 900,000 · 25,000 · 수불부 · 증감대장 → 11/05 매각 9개 누계 25,000 · 800,000(손익 −75,000) → 대장에서 빠짐 · 감소내역 전표마다 한 줄 → 정리.",
-  "shots": [
-    {
-      "name": "등록 — 수량관리 사용 · 10/05 수량 10 · 1,000,000",
-      "path": "/accounting/fixed-assets",
-      "steps": [
-        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-증감');for(const x of a){for(const m of (x.movements||[]).filter(m=>m.kind==='DECREASE'))await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/depreciations?period=2026-10&assetId='+x.id,{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()",
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "click:자산등록(F2)",
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:500",
-        "js:__set(__q('name'),'QA회계1-증감');const s=__q('assetAccountId');__set(s,[...s.options].find(o=>o.text.startsWith('212 ')).value);__set(__q('acquisitionDate'),'2026-10-05');__set(__q('acquisitionCost'),'1000000');__set(__q('remark'),'QA회계1');true",
-        "js:document.querySelectorAll('input[name=quantityManaged]')[0].click();true",
-        "wait:300",
-        "js:__set(__q('quantity'),'10');true",
-        "wait:200",
-        "expect:__q('acquisitionVat').value==='100000'",
-        "clicklast:등록",
-        "wait:2500",
-        "expect:document.body.innerText.includes('자산을 등록했습니다.')&&!!__row()"
-      ]
-    },
-    {
-      "name": "증가 10/15 · 수량 5 · 500,000 (부가세 50,000 자동)",
-      "path": "/accounting/fixed-assets",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:800",
-        "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='증가').click();true",
-        "wait:500",
-        "js:__set(__q('slipDate'),'2026-10-15');__set(__q('quantity'),'5');__set(__q('amount'),'500000');true",
-        "wait:200",
-        "expect:__q('vat').value==='50000'",
-        "clicklast:저장",
-        "wait:2500",
-        "expect:document.body.innerText.includes('증가 전표를 저장했습니다.')&&__j(__row()).includes('|2026/10/05|1,500,000|')"
-      ]
-    },
-    {
-      "name": "감가상각 2026-10 → 25,000 (1,500,000 ÷ 60)",
-      "path": "/accounting/fixed-assets",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:800",
-        "click:감가상각 (",
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:500",
-        "js:__set(document.querySelector('input[type=month]'),'2026-10');true",
-        "click:감가상각 실행",
-        "wait:3000",
-        "expect:__j(__row()).includes('2026-10|')&&__j(__row()).includes('|25,000|25,000|1,475,000|')"
-      ]
-    },
-    {
-      "name": "감소 10/31 · 매각 · 수량 6 → 취득원가 600,000 · 부가세 50,000 · 손익 −100,000",
-      "path": "/accounting/fixed-assets",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:800",
-        "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분').click();true",
-        "wait:500",
-        "expect:__q('quantity').value==='15'&&__q('remainQuantity').value==='15'&&__q('acquisitionCost').value==='1,500,000'&&__q('accumulatedDepreciation').value==='0'",
-        "js:__set(__q('disposalDate'),'2026-10-31');__set(__q('quantity'),'6');__set(__q('disposalAmount'),'500000');const g=__q('gainLossAccountId');__set(g,[...g.options].find(o=>o.text.startsWith('970 ')).value);true",
-        "wait:300",
-        "expect:__q('acquisitionCost').value==='600,000'&&__q('disposalVat').value==='50000'&&__q('gain').value==='-100,000'",
-        "clicklast:저장",
-        "wait:2500",
-        "expect:document.body.innerText.includes('처분했습니다. 처분손실 100,000원')&&__j(__row()).includes('|900,000|')&&__j(__row()).includes('사용중')"
-      ]
-    },
-    {
-      "name": "대장 10/31 — 9.00 · 900,000 · 25,000",
-      "path": "/accounting/fixed-asset-ledger",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "js:__d(0,'2026-10-31');true",
-        "wait:2000",
-        "expect:(c=>c&&c[3]==='2026/10/05'&&c[4]==='9.00'&&c[5]==='900,000'&&c[6]==='25,000')(__c())"
-      ]
-    },
-    {
-      "name": "수불부 10월 — 10.00 → 5.00 · 15.00 → 감소 6.00 · 9.00",
-      "path": "/accounting/fixed-asset-stock",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "js:__d(0,'2026-10-01');__d(1,'2026-10-31');true",
-        "wait:2000",
-        "expect:(c=>c&&c[3]==='10.00'&&c[5]==='10.00')(__c((r=>r.innerText.includes('2026/10/05'))))",
-        "expect:(c=>c&&c[3]==='5.00'&&c[5]==='15.00')(__c((r=>r.innerText.includes('2026/10/15'))))",
-        "expect:(c=>c&&c[4]==='6.00'&&c[5]==='9.00')(__c((r=>r.innerText.includes('2026/10/31'))))"
-      ]
-    },
-    {
-      "name": "증감대장 10월 — 증가 1,500,000 · 상각 25,000 · 감소 600,000 · 기말 900,000 · 25,000",
-      "path": "/accounting/fixed-asset-movement",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "js:__d(0,'2026-10-01');__d(1,'2026-10-31');true",
-        "wait:2000",
-        "expect:__j([...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'))).includes('1,500,000|25,000|600,000||900,000|25,000|875,000')"
-      ]
-    },
-    {
-      "name": "감소 11/05 · 수량 9 · 누계 25,000 · 매각 800,000 → 손익 −75,000",
-      "path": "/accounting/fixed-assets",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:800",
-        "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분').click();true",
-        "wait:500",
-        "expect:__q('remainQuantity').value==='15'",
-        "js:__set(__q('disposalDate'),'2026-11-05');__set(__q('quantity'),'9');__set(__q('accumulatedDepreciation'),'25000');__set(__q('disposalAmount'),'800000');const g=__q('gainLossAccountId');__set(g,[...g.options].find(o=>o.text.startsWith('970 ')).value);true",
-        "wait:300",
-        "expect:__q('acquisitionCost').value==='900,000'&&__q('disposalVat').value==='80000'&&__q('gain').value==='-75,000'",
-        "clicklast:저장",
-        "wait:2500",
-        "expect:document.body.innerText.includes('처분했습니다. 처분손실 75,000원')&&__row().innerText.includes('처분 (2026-11-05)')"
-      ]
-    },
-    {
-      "name": "대장 11/30 — 줄이 빠짐 · 감소내역 계 15 · 1,500,000 · 25,000 · 1,300,000",
-      "path": "/accounting/fixed-asset-ledger",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "js:__d(0,'2026-11-30');true",
-        "wait:2000",
-        "expect:!__c()"
-      ]
-    },
-    {
-      "name": "감소내역 10/01~11/30 — 전표마다 한 줄",
-      "path": "/accounting/fixed-asset-out",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "js:__d(0,'2026-10-01');__d(1,'2026-11-30');true",
-        "wait:2000",
-        "expect:(c=>c&&c[5]==='6'&&c[6]==='600,000'&&c[7]==='0'&&c[8]==='500,000')(__c((r=>r.innerText.includes('QA회계1-증감')&&r.innerText.includes('2026/10/31'))))",
-        "expect:(c=>c&&c[5]==='9'&&c[6]==='900,000'&&c[7]==='25,000'&&c[8]==='800,000')(__c((r=>r.innerText.includes('QA회계1-증감')&&r.innerText.includes('2026/11/05'))))"
-      ]
-    },
-    {
-      "name": "전표조회 — 증가 둘 · 매각 둘 · 감가상각",
-      "path": "/accounting/fixed-asset-slips",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "js:__d(0,'2026-10-01');__d(1,'2026-11-30');true",
-        "wait:2000",
-        "expect:[...document.querySelectorAll('tbody tr')].filter(r=>/2026\\/(10|11)\\/\\d\\d/.test(r.innerText)&&(r.innerText.includes('1,000,000')||r.innerText.includes('500,000')&&r.innerText.includes('자산증가')||r.innerText.includes('600,000')||r.innerText.includes('900,000'))).length>=4"
-      ]
-    },
-    {
-      "name": "회계거래조회에서 11/05 감소 분개 [선택삭제] → 고정자산 전표도 사라지고 자산은 9개로",
-      "path": "/accounting/journals",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:2500",
-        "js:window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감')&&r.innerText.includes('26/11/05'));true",
-        "expect:!!__row()&&__row().innerText.includes('자산처분')",
-        "expect:__row().innerText.includes('고정자산감소')&&__row().innerText.includes('880,000')",
-        "js:__row().querySelector('input[type=checkbox]').click();true",
-        "wait:300",
-        "click:선택삭제",
-        "wait:500",
-        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
-        "js:[...document.querySelectorAll('p')].find(e=>e.innerText.includes('전표를 삭제하겠습니까?')).parentElement.querySelector('button.ec-btn-primary').click();true",
-        "wait:2500",
-        "expect:!__row()"
-      ]
-    },
-    {
-      "name": "자산 — 감소 하나만 남음(9 · 900,000 사용중)",
-      "path": "/accounting/fixed-assets",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:2500",
-        "expect:__j(__row()).includes('|900,000|')&&__j(__row()).includes('사용중')"
-      ]
-    },
-    {
-      "name": "정리 — 처분취소 둘 → 상각취소 → 삭제(증가 전표 · 분개 같이)",
-      "path": "/accounting/fixed-assets",
-      "steps": [
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "wait:800",
-        "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분취소').click();true",
-        "wait:2500",
-        "expect:document.body.innerText.includes('처분을 취소했습니다.')&&__j(__row()).includes('|1,500,000|')",
-        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-증감');for(const x of a){for(const m of (x.movements||[]).filter(m=>m.kind==='DECREASE'))await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/depreciations?period=2026-10&assetId='+x.id,{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()",
-        "wait:1500",
-        "js:location.reload();true",
-        "wait:2500",
-        "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
-        "expect:!__row()"
-      ],
-      "finally": [
-        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-증감');for(const x of a){for(const m of (x.movements||[]).filter(m=>m.kind==='DECREASE'))await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/depreciations?period=2026-10&assetId='+x.id,{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()"
-      ]
-    }
-  ]
+ "about": "회계 I › 고정자산 증가 · 감소 여러 장(원본 2026-10-21 loginaa 실측 순서): QA회계1-증감 수량관리 10/05 10개 1,000,000 → 10/15 증가 5개 500,000 → 10월 상각 25,000 → 10/31 매각 6개 500,000(부가세 50,000 · 손익 −100,000) → 대장 9.00 · 900,000 · 25,000 · 수불부 · 증감대장 → 11/05 매각 9개 누계 25,000 · 800,000(손익 −75,000) → 대장에서 빠짐 · 감소내역 전표마다 한 줄 → 정리.",
+ "shots": [
+  {
+   "name": "등록 — 수량관리 사용 · 10/05 수량 10 · 1,000,000",
+   "path": "/accounting/fixed-assets",
+   "steps": [
+    "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const cs=(await (await fetch('/api/fixed-assets/calcs',{headers:h})).json()).filter(c=>c.fiscalTerm===99);for(const c of cs)await fetch('/api/fixed-assets/calcs/'+c.id,{method:'DELETE',headers:h});const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-증감');for(const x of a){for(const m of (x.movements||[]).filter(m=>m.kind==='DECREASE'))await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()",
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "click:자산등록(F2)",
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "wait:500",
+    "js:__set(__q('name'),'QA회계1-증감');const s=__q('assetAccountId');__set(s,[...s.options].find(o=>o.text.startsWith('212 ')).value);__set(__q('acquisitionDate'),'2026-10-05');__set(__q('acquisitionCost'),'1000000');__set(__q('remark'),'QA회계1');true",
+    "js:document.querySelectorAll('input[name=quantityManaged]')[0].click();true",
+    "wait:300",
+    "js:__set(__q('quantity'),'10');true",
+    "wait:200",
+    "expect:__q('acquisitionVat').value==='100000'",
+    "clicklast:등록",
+    "wait:2500",
+    "expect:document.body.innerText.includes('자산을 등록했습니다.')&&!!__row()"
+   ],
+   "finally": []
+  },
+  {
+   "name": "증가 10/15 · 수량 5 · 500,000 (부가세 50,000 자동)",
+   "path": "/accounting/fixed-assets",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "wait:800",
+    "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='증가').click();true",
+    "wait:500",
+    "js:__set(__q('slipDate'),'2026-10-15');__set(__q('quantity'),'5');__set(__q('amount'),'500000');true",
+    "wait:200",
+    "expect:__q('vat').value==='50000'",
+    "clicklast:저장",
+    "wait:2500",
+    "expect:document.body.innerText.includes('증가 전표를 저장했습니다.')&&__j(__row()).includes('|2026/10/05|1,500,000|')"
+   ],
+   "finally": []
+  },
+  {
+   "name": "감가상각 2026-10 → 25,000 (1,500,000 ÷ 60)",
+   "path": "/accounting/depreciation-calc",
+   "steps": [
+    "wait:800",
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "js:window.__calcRow=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.cells[0]&&r.cells[0].innerText.trim()==='99');window.__menu=async(btn,item)=>{[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===btn).click();await new Promise(r=>setTimeout(r,250));[...__calcRow().querySelectorAll('button')].find(b=>b.textContent.trim()===item).click()};window.__closeTop=()=>{const b=[...document.querySelectorAll('.ec-modal button')].filter(x=>x.textContent.trim()==='닫기');b[b.length-1].click()};window.__dj=n=>{const r=[...document.querySelectorAll('.ec-modal tbody tr')].find(r=>r.innerText.includes(n));return r?[...r.cells].map(c=>c.innerText.trim()).join('|'):''};true",
+    "click:신규(F2)",
+    "wait:400",
+    "js:__set(__q('fiscalTerm'),'99');__set(__q('periodFromYear'),'2026');__set(__q('periodFromMonth'),'10');__set(__q('periodToYear'),'2026');__set(__q('periodToMonth'),'10');true",
+    "wait:200",
+    "click:저장(F8)",
+    "wait:1500",
+    "expect:!!__calcRow()&&__calcRow().innerText.includes('2026/10 ~ 2026/10')",
+    "js:__menu('계산처리','전체계산');true",
+    "wait:3500",
+    "expect:document.body.innerText.includes('감가상각상세내역')&&(()=>{const s=__dj('QA회계1-증감');return s.includes('2026/10/05|5|년|0|1||1,500,000|1,500,000||1,500,000|25,000|25,000|1,475,000')})()",
+    "js:__closeTop();true",
+    "wait:500",
+    "expect:!!__calcRow()&&__calcRow().innerText.includes('감가상각현황')"
+   ],
+   "finally": []
+  },
+  {
+   "name": "감소 10/31 · 매각 · 수량 6 → 취득원가 600,000 · 부가세 50,000 · 손익 −100,000",
+   "path": "/accounting/fixed-assets",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "wait:800",
+    "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분').click();true",
+    "wait:500",
+    "expect:__q('quantity').value==='15'&&__q('remainQuantity').value==='15'&&__q('acquisitionCost').value==='1,500,000'&&__q('accumulatedDepreciation').value==='0'",
+    "js:__set(__q('disposalDate'),'2026-10-31');__set(__q('quantity'),'6');__set(__q('disposalAmount'),'500000');const g=__q('gainLossAccountId');__set(g,[...g.options].find(o=>o.text.startsWith('970 ')).value);true",
+    "wait:300",
+    "expect:__q('acquisitionCost').value==='600,000'&&__q('disposalVat').value==='50000'&&__q('gain').value==='-100,000'",
+    "clicklast:저장",
+    "wait:2500",
+    "expect:document.body.innerText.includes('처분했습니다. 처분손실 100,000원')&&__j(__row()).includes('|900,000|')&&__j(__row()).includes('사용중')"
+   ],
+   "finally": []
+  },
+  {
+   "name": "대장 10/31 — 9.00 · 900,000 · 25,000",
+   "path": "/accounting/fixed-asset-ledger",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "js:__d(0,'2026-10-31');true",
+    "wait:2000",
+    "expect:(c=>c&&c[3]==='2026/10/05'&&c[4]==='9.00'&&c[5]==='900,000'&&c[6]==='25,000')(__c())"
+   ],
+   "finally": []
+  },
+  {
+   "name": "수불부 10월 — 10.00 → 5.00 · 15.00 → 감소 6.00 · 9.00",
+   "path": "/accounting/fixed-asset-stock",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "js:__d(0,'2026-10-01');__d(1,'2026-10-31');true",
+    "wait:2000",
+    "expect:(c=>c&&c[3]==='10.00'&&c[5]==='10.00')(__c((r=>r.innerText.includes('2026/10/05'))))",
+    "expect:(c=>c&&c[3]==='5.00'&&c[5]==='15.00')(__c((r=>r.innerText.includes('2026/10/15'))))",
+    "expect:(c=>c&&c[4]==='6.00'&&c[5]==='9.00')(__c((r=>r.innerText.includes('2026/10/31'))))"
+   ],
+   "finally": []
+  },
+  {
+   "name": "증감대장 10월 — 증가 1,500,000 · 상각 25,000 · 감소 600,000 · 기말 900,000 · 25,000",
+   "path": "/accounting/fixed-asset-movement",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "js:__d(0,'2026-10-01');__d(1,'2026-10-31');true",
+    "wait:2000",
+    "expect:__j([...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'))).includes('1,500,000|25,000|600,000||900,000|25,000|875,000')"
+   ],
+   "finally": []
+  },
+  {
+   "name": "감소 11/05 · 수량 9 · 누계 25,000 · 매각 800,000 → 손익 −75,000",
+   "path": "/accounting/fixed-assets",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "wait:800",
+    "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분').click();true",
+    "wait:500",
+    "expect:__q('remainQuantity').value==='15'",
+    "js:__set(__q('disposalDate'),'2026-11-05');__set(__q('quantity'),'9');__set(__q('accumulatedDepreciation'),'25000');__set(__q('disposalAmount'),'800000');const g=__q('gainLossAccountId');__set(g,[...g.options].find(o=>o.text.startsWith('970 ')).value);true",
+    "wait:300",
+    "expect:__q('acquisitionCost').value==='900,000'&&__q('disposalVat').value==='80000'&&__q('gain').value==='-75,000'",
+    "clicklast:저장",
+    "wait:2500",
+    "expect:document.body.innerText.includes('처분했습니다. 처분손실 75,000원')&&__row().innerText.includes('처분 (2026-11-05)')"
+   ],
+   "finally": []
+  },
+  {
+   "name": "대장 11/30 — 줄이 빠짐 · 감소내역 계 15 · 1,500,000 · 25,000 · 1,300,000",
+   "path": "/accounting/fixed-asset-ledger",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "js:__d(0,'2026-11-30');true",
+    "wait:2000",
+    "expect:!__c()"
+   ],
+   "finally": []
+  },
+  {
+   "name": "감소내역 10/01~11/30 — 전표마다 한 줄",
+   "path": "/accounting/fixed-asset-out",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "js:__d(0,'2026-10-01');__d(1,'2026-11-30');true",
+    "wait:2000",
+    "expect:(c=>c&&c[5]==='6'&&c[6]==='600,000'&&c[7]==='0'&&c[8]==='500,000')(__c((r=>r.innerText.includes('QA회계1-증감')&&r.innerText.includes('2026/10/31'))))",
+    "expect:(c=>c&&c[5]==='9'&&c[6]==='900,000'&&c[7]==='25,000'&&c[8]==='800,000')(__c((r=>r.innerText.includes('QA회계1-증감')&&r.innerText.includes('2026/11/05'))))"
+   ],
+   "finally": []
+  },
+  {
+   "name": "전표조회 — 증가 둘 · 매각 둘 · 감가상각",
+   "path": "/accounting/fixed-asset-slips",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "js:__d(0,'2026-10-01');__d(1,'2026-11-30');true",
+    "wait:2000",
+    "expect:[...document.querySelectorAll('tbody tr')].filter(r=>/2026\\/(10|11)\\/\\d\\d/.test(r.innerText)&&(r.innerText.includes('1,000,000')||r.innerText.includes('500,000')&&r.innerText.includes('자산증가')||r.innerText.includes('600,000')||r.innerText.includes('900,000'))).length>=4"
+   ],
+   "finally": []
+  },
+  {
+   "name": "회계거래조회에서 11/05 감소 분개 [선택삭제] → 고정자산 전표도 사라지고 자산은 9개로",
+   "path": "/accounting/journals",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "wait:2500",
+    "js:window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감')&&r.innerText.includes('26/11/05'));true",
+    "expect:!!__row()&&__row().innerText.includes('자산처분')",
+    "expect:__row().innerText.includes('고정자산감소')&&__row().innerText.includes('880,000')",
+    "js:__row().querySelector('input[type=checkbox]').click();true",
+    "wait:300",
+    "click:선택삭제",
+    "wait:500",
+    "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+    "js:[...document.querySelectorAll('p')].find(e=>e.innerText.includes('전표를 삭제하겠습니까?')).parentElement.querySelector('button.ec-btn-primary').click();true",
+    "wait:2500",
+    "expect:!__row()"
+   ],
+   "finally": []
+  },
+  {
+   "name": "자산 — 감소 하나만 남음(9 · 900,000 사용중)",
+   "path": "/accounting/fixed-assets",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "wait:2500",
+    "expect:__j(__row()).includes('|900,000|')&&__j(__row()).includes('사용중')"
+   ],
+   "finally": []
+  },
+  {
+   "name": "정리 — 처분취소 둘 → 상각취소 → 삭제(증가 전표 · 분개 같이)",
+   "path": "/accounting/fixed-assets",
+   "steps": [
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "wait:800",
+    "js:[...__row().querySelectorAll('button')].find(b=>b.textContent==='처분취소').click();true",
+    "wait:2500",
+    "expect:document.body.innerText.includes('처분을 취소했습니다.')&&__j(__row()).includes('|1,500,000|')",
+    "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const cs=(await (await fetch('/api/fixed-assets/calcs',{headers:h})).json()).filter(c=>c.fiscalTerm===99);for(const c of cs)await fetch('/api/fixed-assets/calcs/'+c.id,{method:'DELETE',headers:h});const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-증감');for(const x of a){for(const m of (x.movements||[]).filter(m=>m.kind==='DECREASE'))await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()",
+    "wait:1500",
+    "js:location.reload();true",
+    "wait:2500",
+    "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-증감'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-증감')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__j=(r)=>r?[...r.cells].map(c=>c.innerText.trim()).join('|'):'';window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
+    "expect:!__row()"
+   ],
+   "finally": [
+    "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const cs=(await (await fetch('/api/fixed-assets/calcs',{headers:h})).json()).filter(c=>c.fiscalTerm===99);for(const c of cs)await fetch('/api/fixed-assets/calcs/'+c.id,{method:'DELETE',headers:h});const a=(await (await fetch('/api/fixed-assets',{headers:h})).json()).filter(x=>x.name==='QA회계1-증감');for(const x of a){for(const m of (x.movements||[]).filter(m=>m.kind==='DECREASE'))await fetch('/api/fixed-assets/'+x.id+'/dispose',{method:'DELETE',headers:h});await fetch('/api/fixed-assets/'+x.id,{method:'DELETE',headers:h})}return a.length})()"
+   ]
+  }
+ ]
 }

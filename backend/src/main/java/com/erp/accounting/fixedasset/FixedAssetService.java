@@ -228,6 +228,10 @@ public class FixedAssetService {
         }
         for (Depreciation d : rows) {
             FixedAsset a = d.getAsset();
+            if (d.getCalc() != null) {
+                throw ApiException.conflict(a.getAssetNo() + " " + a.getName() + " " + d.getPeriod()
+                        + " 상각은 감가상각계산에서 반영한 것입니다 — 감가상각계산의 [반영내용삭제]로 지우세요.");
+            }
             if (a.getStatus() == AssetStatus.DISPOSED) {
                 throw ApiException.conflict(a.getAssetNo() + " " + a.getName() + " 은(는) 처분된 자산입니다 — 처분을 먼저 취소하세요.");
             }
@@ -362,7 +366,15 @@ public class FixedAssetService {
      */
     @Transactional
     public DepreciationRunResponse depreciate(String period, String username) {
-        YearMonth ym = parsePeriod(period);
+        return depreciateMonth(parsePeriod(period), username, null);
+    }
+
+    /**
+     * 한 달 상각. {@code calc} 가 있으면 감가상각계산 묶음(원본 E010616)이 부른 것이라 분개를 만들지 않는다 —
+     * 분개는 [전표생성]이 일반전표 창으로 따로 만든다.
+     */
+    @Transactional
+    public DepreciationRunResponse depreciateMonth(YearMonth ym, String username, DepreciationCalc calc) {
         LocalDate lastDay = ym.atEndOfMonth();
 
         List<DepreciationResponse> done = new ArrayList<>();
@@ -394,6 +406,7 @@ public class FixedAssetService {
                     .amount(amount)
                     .accumulatedAfter(asset.remainingAccum())
                     .bookValueAfter(asset.bookValue())
+                    .calc(calc)
                     .createdBy(username)
                     .build();
 
@@ -401,8 +414,10 @@ public class FixedAssetService {
             if (!missing.isEmpty()) gaps.add(asset.getName() + ": " + missing);
 
             Depreciation saved = depreciationRepository.save(d);   // 분개의 출처가 이 행이라 먼저 저장
-            JournalEntry entry = journalService.createFromDepreciation(saved);
-            saved.setJournalEntry(entry);
+            if (calc == null) {
+                JournalEntry entry = journalService.createFromDepreciation(saved);
+                saved.setJournalEntry(entry);
+            }
             done.add(DepreciationResponse.from(saved));
             total = total.add(amount);
         }
