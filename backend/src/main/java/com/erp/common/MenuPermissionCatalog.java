@@ -97,7 +97,7 @@ public final class MenuPermissionCatalog {
         put(m, "PROJECT", "/api/projects", "/api/project-plans");
         // 회계
         put(m, "ACCOUNTING", "/api/accounting", "/api/accounting-reflection", "/api/journals",
-                "/api/vouchers", "/api/accounts", "/api/ledger", "/api/evidence-attachments", "/api/statement-sheets");
+                "/api/vouchers", "/api/accounts", "/api/extra-field-types", "/api/ledger", "/api/evidence-attachments", "/api/statement-sheets");
         put(m, "TAX_INVOICE", "/api/tax-invoices");
         put(m, "BANK", "/api/bank-cards", "/api/cash-details", "/api/checks", "/api/non-cash", "/api/notes",
                 "/api/card-issuers", "/api/payment-agencies");
