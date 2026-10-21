@@ -7,11 +7,9 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
-import { printDocuments } from '../../utils/printDocument'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 > 창고이동현황 (이카운트 E040505)
@@ -28,6 +26,8 @@ import { ecConfirm } from '../../components/EcDialog'
  */
 interface Transfer {
   id: number
+  /** 전표 안 줄 차례(V426). */
+  lineNo?: number
   transferNo: string
   transferDate: string
   /** 원본 조건의 [프로젝트]·[담당자]. 담당자는 id 만 온다 — 이름은 화면이 붙인다. */
@@ -55,35 +55,6 @@ interface Transfer {
 }
 
 const num = (n: number) => n.toLocaleString()
-
-/**
- * 원본 창고이동조회의 마지막 열 <b>[인쇄]</b> — 그 한 건을 이동증으로 찍는다.
- *
- * <p>금액 칸은 안 그린다. 창고이동은 <b>사내 이동</b>이라 금액이 없다 —
- * 0 으로 채워 그리면 "0원짜리 거래" 로 읽힌다. 공급자/공급받는자 칸도 없다(상대가 없다).
- * 생산불출증과 같은 규칙이다.
- */
-async function printTransfer(r: Transfer) {
-  await printDocuments([{
-    title: '창고이동증',
-    docNo: r.transferNo,
-    docDate: r.transferDate,
-    hideAmounts: true,
-    hideParties: true,
-    supplier: { label: '', name: '' },
-    customer: { label: '', name: '' },
-    extra: [
-      { label: '보내는창고', value: r.fromWarehouseName },
-      { label: '받는창고', value: r.toWarehouseName },
-      { label: '프로젝트', value: r.projectName },
-    ],
-    remark: r.reason,
-    lines: [{
-      itemCode: r.itemCode, itemName: r.itemName, unit: r.unit,
-      quantity: r.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
-    }],
-  }])
-}
 
 export default function TransferStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -250,26 +221,22 @@ export default function TransferStatusPage() {
   }
 
   /*
-   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다.
-   *
-   * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
-   * 중간에 끊으면 무엇이 지워졌는지 사람이 알 수 없다.
+   * 원본 내역은 <b>일자 차례</b>로 줄을 놓고 날마다 'YYYY/MM/DD 계' 줄, 끝에 합계를 붙인다(2026-10-21 loginaa E040505 실측:
+   * 일자-No. · 출고창고명 · 입고창고명 · 품목명[규격] · 수량 · 금액(수량*입고단가) · 적요). 체크 · 번호 · 인쇄 열과
+   * [선택삭제] 는 원본 현황에 없다(전표 한 장의 줄 하나만 지우면 전표가 깨진다 — 지우기는 창고이동조회에서).
    */
-  const [picked, setPicked] = useState<Set<number>>(new Set())
-  const pick = (id: number) => setPicked((s) => {
-    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
-  })
-
-  async function removeChecked() {
-    const ids = [...picked]
-    if (ids.length === 0) { setError('삭제할 창고이동을(를) 고르세요.'); return }
-    if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
-    const results = await Promise.allSettled(ids.map((id) => api.delete(`/stock-transfers/${id}`)))
-    const failed = results.filter((r) => r.status === 'rejected').length
-    setPicked(new Set())
-    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 다른 전표가 물고 있을 수 있습니다).` : '')
-    load()
-  }
+  const byDay = (() => {
+    const list = byUpdated ? shown : [...shown].sort((a, b) =>
+      a.transferDate.localeCompare(b.transferDate) || a.transferNo.localeCompare(b.transferNo) || (a.lineNo ?? 0) - (b.lineNo ?? 0))
+    const days: { day: string; rows: Transfer[] }[] = []
+    for (const r of list) {
+      const last = days[days.length - 1]
+      if (last && last.day === r.transferDate) last.rows.push(r)
+      else days.push({ day: r.transferDate, rows: [r] })
+    }
+    return days
+  })()
+  const amountText = (n: number | null) => (n == null || n === 0 ? '' : num(n))
 
   return (
     <EcListShell
@@ -278,9 +245,8 @@ export default function TransferStatusPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: reset },
-        /* 원본 차례: 인쇄 · 선택삭제 · Excel (사본 실측) */
+        /* 원본 차례: 인쇄 · Excel (2026-10-21 실측 — 선택삭제 없음) */
         { label: '인쇄' },
-        { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
         { label: 'Excel' },
       ]}
     >
@@ -396,78 +362,53 @@ export default function TransferStatusPage() {
         ) : mode === '내역' ? (
           <table className="w-full text-left">
             <colgroup>
-              <col className="w-[4%]" /><col className="w-[14%]" /><col className="w-[10%]" />
-              <col /><col className="w-[13%]" /><col className="w-[13%]" />
-              <col className="w-[10%]" /><col className="w-[14%]" />
+              <col className="w-[12%]" /><col className="w-[11%]" /><col className="w-[11%]" />
+              <col /><col className="w-[9%]" /><col className="w-[14%]" /><col className="w-[18%]" />
             </colgroup>
             <thead>
               <tr>
-                <th className="w-[28px]"></th>
-                <th></th>
-                {/*
-                  원본 창고이동조회의 열은 <b>일자-No. · 보내는창고명 · 받는창고명 ·
-                  품목명[규격명] · 수량</b> 이다(사본 실측). 우리는 다섯 칸이 다 다른
-                  이름이었고, 일자와 번호도 둘로 나눠 두었다. 생산불출조회는 이미
-                  [보내는창고명]·[받는공장명]을 쓰고 있어 <b>우리끼리도 어긋나</b> 있었다.
-                */}
-                {/*
-                  2026-09-09 원본(E040505) 격자 실측 — 이름 셋이 달랐다.
-                  원본은 <b>출고창고명 · 입고창고명 · 품목명[규격]</b> 이다
-                  (생산불출현황도 같은 이름을 쓴다 — 폐기현황만 [규격명] 이었다).
-                  <b>[금액(수량*입고단가)]은 이제 만든다.</b> 예전에 "창고이동에 단가를 안 매긴다"
-                  고 적어 두었는데, 그 칸은 이름이 계산식 그대로다 — 전표의 거래 금액이 아니라
-                  <b>그 품목을 얼마에 사 왔는지</b>로 수량을 환산한 값이다. 이동전표에 단가가
-                  없다는 것은 이 칸을 못 만드는 이유가 아니었다.
-                */}
+                {/* 2026-09-09 · 2026-10-21 원본(E040505) 격자 실측 — 출고창고명 · 입고창고명 · 품목명[규격] · 금액(수량*입고단가). */}
                 <th>일자-No.</th>
                 <th>출고창고명</th>
                 <th>입고창고명</th>
                 <th>품목명[규격]</th>
                 <th className="text-right">수량</th>
-                <th className="w-[130px] text-right">금액(수량*입고단가)</th>
+                <th className="text-right">금액(수량*입고단가)</th>
                 <th>적요</th>
-                {/* 원본 창고이동조회의 마지막 열 [인쇄] — 그 한 건을 이동증으로 찍는다. */}
-                <th className="w-[60px] text-center">인쇄</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} className="text-center text-ec-ink">불러오는 중…</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={10} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-              ) : shown.map((r, i) => (
-                <tr key={r.id}>
-                  <td className="text-center bg-ec-stripe">
-                    <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
-                  </td>
-                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
-                  <td>
-                    {dateNo(r.transferDate, r.transferNo)}
-                  </td>
-                  <td style={{ color: '#a5561b' }}>{r.fromWarehouseName}</td>
-                  <td className="text-ec-blue">{r.toWarehouseName}</td>
-                  <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''} <span className="text-[11px] text-ec-hint">{r.itemCode}</span></td>
-                  <td className="text-right font-bold">
-                    {num(r.quantity)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
-                  </td>
-                  <td className="text-right text-ec-label">
-                    {amountOf(r.itemId, r.quantity) == null ? '' : num(amountOf(r.itemId, r.quantity)!)}
-                  </td>
-                  <td className="text-ec-label">{r.reason ?? ''}</td>
-                  <td className="text-center">
-                    <button onClick={() => printTransfer(r)}
-                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
-                  </td>
-                </tr>
-              ))}
+                <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+              ) : byDay.map(({ day, rows: dayRows }) => [
+                ...dayRows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{dateNo(r.transferDate, r.transferNo)}</td>
+                    <td>{r.fromWarehouseName}</td>
+                    <td>{r.toWarehouseName}</td>
+                    <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                    <td className="text-right">{num(r.quantity)}</td>
+                    <td className="text-right">{amountText(amountOf(r.itemId, r.quantity))}</td>
+                    <td>{r.reason ?? ''}</td>
+                  </tr>
+                )),
+                <tr key={`sum-${day}`} className="bg-ec-page">
+                  <td colSpan={4} className="font-bold">{day.replaceAll('-', '/')} 계</td>
+                  <td className="text-right font-bold">{num(dayRows.reduce((n, r) => n + r.quantity, 0))}</td>
+                  <td className="text-right font-bold">{amountText(dayRows.reduce((n, r) => n + (amountOf(r.itemId, r.quantity) ?? 0), 0))}</td>
+                  <td></td>
+                </tr>,
+              ])}
             </tbody>
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} className="text-right font-bold bg-ec-page">합계</td>
-                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totalQty)}</td>
-                  <td className="text-right font-bold bg-ec-page">{num(totalAmount)}</td>
-                  <td colSpan={2} className="bg-ec-page"></td>
+                  <td colSpan={4} className="font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
+                  <td className="text-right font-bold bg-ec-page">{amountText(totalAmount)}</td>
+                  <td className="bg-ec-page"></td>
                 </tr>
               </tfoot>
             )}

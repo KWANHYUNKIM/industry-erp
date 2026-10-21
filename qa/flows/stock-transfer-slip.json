@@ -1,8 +1,8 @@
 {
-  "about": "창고이동 여러 줄 전표(원본 창고이동입력 E040501 · 창고이동조회 E040502). node qa/shot.mjs qa/flows/stock-transfer-slip.json — 두 줄 저장 → 이동번호 눌러 한 줄 수량 수정 → 삭제, 재고가 그때마다 맞게 움직이고 끝에 처음으로 돌아온다.",
+  "about": "창고이동 여러 줄 전표(원본 창고이동입력 E040501 · 창고이동조회 E040502). node qa/shot.mjs qa/flows/stock-transfer-slip.json — 두 줄 저장 → 조회 탭(전체 · 결재중 · 미확인 · 확인) · [인쇄] 열 → 이동번호 눌러 [확인취소] 안내 · [H] 이력 → 한 줄 수량 수정(수불부에 반대 거래가 안 쌓인다) → 삭제, 재고가 그때마다 맞게 움직이고 끝에 처음으로 돌아온다.",
   "shots": [
     {
-      "name": "창고이동 전표 — 본사창고 → QA창고2 로 두 품목 2개씩 저장하면 목록 한 줄('외 1건', 수량 4), 둘째 줄을 3 으로 고치면 수량 5, [삭제] 하면 재고가 돌아온다",
+      "name": "창고이동 전표 — 본사창고 → QA창고2 로 두 품목 2개씩 저장하면 목록 한 줄('외 1건', 수량 4) · [확인] 탭 · [인쇄] 전표, 수정 창 [확인취소] 는 권한 안내, 둘째 줄을 3 으로 고치면 수량 5(수불부에 되돌림 줄이 안 생긴다), [삭제] 하면 재고가 돌아온다",
       "path": "/inventory/transfer",
       "steps": [
         "js:window.qaQ = (d, code, wh) => { const x = d.find((r) => r.itemCode === code && r.warehouseName === wh); return x ? Number(x.quantity) : 0 }; window.qaStock = () => fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()); qaStock().then((d)=>{ sessionStorage.setItem('ts0', JSON.stringify([qaQ(d,'QA-MAT','본사창고'), qaQ(d,'ITM-0005','본사창고'), qaQ(d,'QA-MAT','QA창고2'), qaQ(d,'ITM-0005','QA창고2')])); return true })",
@@ -11,14 +11,33 @@
         "click:저장(F8)",
         "expect:/[0-9]{4}\\/[0-9]{2}\\/[0-9]{2} -[0-9]+ 저장 완료 · 본사창고 → QA창고2 · 2건 수량 4/.test(document.body.innerText)",
         "js:sessionStorage.setItem('tsNo', document.body.innerText.match(/([0-9]{4}\\/[0-9]{2}\\/[0-9]{2} -[0-9]+) 저장 완료/)[1]); true",
+        "window.qaRev = async (no) => { const H={headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}; const it=(await fetch('/api/items',H).then(r=>r.json())).find(i=>i.code==='ITM-0005').id; const wh=(await fetch('/api/warehouses',H).then(r=>r.json())).find(w=>w.name==='본사창고').id; const l=await fetch('/api/stock/ledger?itemId='+it+'&warehouseId='+wh,H).then(r=>r.json()); const tr='TR-'+no.slice(0,10).replaceAll('/','')+'-'+String(no.split('-')[1]).padStart(4,'0'); return (l.rows||[]).filter(r=>(r.note||'').startsWith('창고이동수정 '+tr)||(r.note||'').startsWith('창고이동취소 '+tr)).length }; true",
+        "js:qaRev(sessionStorage.getItem('tsNo')).then((n)=>{ sessionStorage.setItem('tsRev', String(n)); return true })",
+        "js:[...document.querySelectorAll('[role=tab]')].find((b)=>b.textContent.trim()==='미확인').click(); true",
+        "expect:/등록된 데이터가 없습니다/.test(document.querySelector('tbody').innerText)",
+        "js:[...document.querySelectorAll('[role=tab]')].find((b)=>b.textContent.trim()==='확인').click(); true",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('tsNo')))",
+        "js:[...document.querySelectorAll('[role=tab]')].find((b)=>b.textContent.trim()==='전체').click(); true",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('tsNo'))).querySelectorAll('a')[1].click(); true",
+        "wait:800",
+        "expect:/창고이동전표[\\s\\S]*출고처[\\s\\S]*본사창고\\(WH-01\\)[\\s\\S]*입고처[\\s\\S]*QA창고2\\(QA-WH2\\)[\\s\\S]*수량[\\s\\S]*4\\.00/.test([...document.querySelectorAll('[role=dialog]')].pop().innerText)",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('tsNo')) && tr.innerText.includes('QA원자재 외 1건') && /\\b4\\b/.test(tr.innerText))",
         "expect:qaStock().then((d) => { const a = JSON.parse(sessionStorage.getItem('ts0')); return qaQ(d,'QA-MAT','본사창고') === a[0] - 2 && qaQ(d,'ITM-0005','본사창고') === a[1] - 2 && qaQ(d,'QA-MAT','QA창고2') === a[2] + 2 && qaQ(d,'ITM-0005','QA창고2') === a[3] + 2 })",
         "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('tsNo')).click(); true",
         "wait:800",
         "expect:/창고이동수정/.test([...document.querySelectorAll('[role=dialog]')].pop().innerText)",
+        "expect:['저장(F8)','저장/전표(F7)','복사','이전','다음','닫기','삭제','보내기','H'].every((t) => [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].some((b) => b.textContent.trim() === t))",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '확인취소').click(); true",
+        "expect:/권한이 없습니다\\. 마스터에게 문의 바랍니다\\. - 창고이동/.test(document.body.innerText)",
+        "clicklast:확인",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === 'H').click(); true",
+        "expect:/작업자ID[\\s\\S]*작업일시[\\s\\S]*신규/.test([...document.querySelectorAll('[role=dialog]')].pop().innerText)",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button').click(); true",
         "set:[role=dialog] input[aria-label=\"2번째 줄 수량\"]|3",
         "click:저장(F8)",
         "expect:/수정 완료 · 본사창고 → QA창고2 · 2건 수량 5/.test(document.body.innerText)",
+        "expect:qaRev(sessionStorage.getItem('tsNo')).then((n) => n === Number(sessionStorage.getItem('tsRev')))",
         "expect:qaStock().then((d) => { const a = JSON.parse(sessionStorage.getItem('ts0')); return qaQ(d,'QA-MAT','본사창고') === a[0] - 2 && qaQ(d,'ITM-0005','본사창고') === a[1] - 3 && qaQ(d,'ITM-0005','QA창고2') === a[3] + 3 })",
         "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('tsNo')).click(); true",
         "wait:800",
@@ -26,7 +45,8 @@
         "expect:/전표를 삭제하겠습니까\\?/.test(document.body.innerText)",
         "clicklast:확인",
         "expect:/삭제 — 옮겼던 재고를 되돌렸습니다/.test(document.body.innerText)",
-        "expect:qaStock().then((d) => { const a = JSON.parse(sessionStorage.getItem('ts0')); return JSON.stringify([qaQ(d,'QA-MAT','본사창고'), qaQ(d,'ITM-0005','본사창고'), qaQ(d,'QA-MAT','QA창고2'), qaQ(d,'ITM-0005','QA창고2')]) === JSON.stringify(a) })"
+        "expect:qaStock().then((d) => { const a = JSON.parse(sessionStorage.getItem('ts0')); return JSON.stringify([qaQ(d,'QA-MAT','본사창고'), qaQ(d,'ITM-0005','본사창고'), qaQ(d,'QA-MAT','QA창고2'), qaQ(d,'ITM-0005','QA창고2')]) === JSON.stringify(a) })",
+        "expect:qaRev(sessionStorage.getItem('tsNo')).then((n) => n === Number(sessionStorage.getItem('tsRev')))"
       ]
     }
   ]

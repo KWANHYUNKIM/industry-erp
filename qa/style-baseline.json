@@ -675,8 +675,8 @@
   "palette": 0
  },
  "pages/inventory/TransferStatusPage.tsx": {
-  "inline": 10,
-  "color": 2,
+  "inline": 8,
+  "color": 1,
   "palette": 0
  },
  "pages/inventory/WarehousesPage.tsx": {
