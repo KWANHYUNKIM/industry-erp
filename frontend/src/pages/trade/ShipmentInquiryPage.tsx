@@ -396,7 +396,7 @@ export default function ShipmentInquiryPage() {
         </tbody>
       </table>
 
-      <Modal open={editing != null} width={900} title="출하입력(수정)" onClose={() => setEditing(null)}>
+      <Modal open={editing != null} width={900} title="출하입력(수정)" onClose={() => setEditing(null)} error={error}>
         {entry.form}
         <div className="mt-[8px] flex gap-[4px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장(F8)</button>

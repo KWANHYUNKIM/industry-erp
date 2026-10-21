@@ -6616,11 +6616,20 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
   for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
     const src = readFileSync(f, 'utf8')
     if (!/const \[error, setError\]/.test(src)) continue
-    for (const m of src.matchAll(/<Modal\b[^>]*>/g)) {
+    /*
+     * 화살표를 지우고 여는 태그를 잡는다 — onClose={() => …} 의 '>' 에서 끊겨 그 뒤 error={formError} 를
+     * 못 보던 것(2026-10-21 오더관리번호등록). noArrow 는 길이를 그대로 두므로 자리는 src 와 같다.
+     */
+    for (const m of noArrow(src).matchAll(/<Modal\b[^>]*>/g)) {
       checked++
       const end = src.indexOf('</Modal>', m.index)
       const body = src.slice(m.index, end > 0 ? end : undefined)
       if (/\berror=\{/.test(m[0]) || /\{\s*error\s*&&/.test(body)) continue
+      /*
+       * 보기만 하는 창(인쇄 미리보기 · 삭제불가 안내 · 상세내역)은 오류를 낼 일이 없다 — 칸도, 오류를 넘기는
+       * 자리(onError · setError · onSaved · 저장)도 없으면 건너뛴다.
+       */
+      if (!/<(input|select|textarea)\b|<Ec\w*(Input|Select|Picker|Code)|onError|setError|onSaved|onSubmit|save\w*\(/i.test(body)) continue
       // 그 창이 들어 있는 함수에 error 가 없으면(결과 보기 창 같은 하위 컴포넌트) 볼 것이 없다
       const fnStart = src.lastIndexOf('function ', m.index)
       if (fnStart >= 0 && !/\berror\b/.test(src.slice(fnStart, m.index))) continue
