@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
@@ -8,6 +8,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { periodOf } from '../../components/EcPeriodPicks'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 영업관리 > 판매구매집계표 (이카운트 E040725)
@@ -123,6 +124,8 @@ export default function SalesPurchaseSummaryPage() {
   const [axis2, setAxis2] = useState<Axis>('사용안함')
   const [axis3, setAxis3] = useState<Axis>('사용안함')
   const axes = [axis1, axis2, axis3].filter((a) => a !== '사용안함')
+  const needAxis = axes.length === 0
+  const tableRef = useRef<HTMLTableElement>(null)
   const lineLevel = axes.some((a) => LINE_AXES.includes(a))
   const [keyword, setKeyword] = useState('')
 
@@ -268,6 +271,7 @@ export default function SalesPurchaseSummaryPage() {
     saleQty: s.saleQty + r.saleQty, saleSupply: s.saleSupply + r.saleSupply, saleVat: s.saleVat + r.saleVat,
     buyQty: s.buyQty + r.buyQty, buySupply: s.buySupply + r.buySupply, buyVat: s.buyVat + r.buyVat,
   }), { saleQty: 0, saleSupply: 0, saleVat: 0, buyQty: 0, buySupply: 0, buyVat: 0 }), [rows])
+  useTableColumnCheck(tableRef, '판매구매집계표', [axes.join(','), rows.length, loading])
 
   const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }
 
@@ -394,7 +398,7 @@ export default function SalesPurchaseSummaryPage() {
         원본 격자(2026-10-20 실측, 집계조건1 = 품목명[규격]): 머리 두 줄 — [축 │ 판매 │ 구매] 아래
         [수량 · 판매금액 · 부가세 · 합계 │ 수량 · 구매금액 · 부가세 · 합계], 끝에 '합계' 줄. 건수 · 순액 열은 없다.
       */}
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             {axes.map((ax) => <th key={ax} rowSpan={2}>{AXIS_HEAD[ax]}</th>)}
@@ -415,7 +419,7 @@ export default function SalesPurchaseSummaryPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={8 + axes.length} className="ec-empty">불러오는 중…</td></tr>
-          ) : axes.length === 0 ? (
+          ) : needAxis ? (
             <tr><td colSpan={9} className="ec-empty">집계조건은 1개 이상 선택해야 합니다</td></tr>
           ) : rows.length === 0 ? (
             <tr><td colSpan={8 + axes.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>

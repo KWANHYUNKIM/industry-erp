@@ -283,7 +283,7 @@ export default function TransferPage() {
         { label: '새로고침', onClick: load },
         /* 원본 창고이동조회 버튼줄(2026-10-21 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 전자결재 · 선택삭제 · Excel · 이력조회.
            바깥 연동 · 단계가 없는 전표라 Email · 진행상태변경 · 보내기 · 바코드(품목) · 전자결재 · 이력조회 는 모양만. */
-        ...(tab === '창고이동' ? [{ label: 'Email' }, { label: '진행상태변경' }, { label: '보내기' }] : []),
+        ...(tab === '창고이동' ? [{ label: 'Email' }, { label: '진행상태변경', selected: picked.size }, { label: '보내기' }] : []),
         { label: '인쇄' },
         ...(tab === '창고이동' ? [{ label: '바코드(품목)' }, { label: '전자결재' },
           { label: '선택삭제', selected: picked.size, onClick: () => void removePicked() }] : []),

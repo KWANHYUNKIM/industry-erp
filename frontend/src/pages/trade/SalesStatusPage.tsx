@@ -264,7 +264,7 @@ export default function SalesStatusPage() {
     const m = new Map<string, { keys: string[]; qty: number; supply: number; vat: number }>()
     for (const r of shown) {
       const keys = keyOf(r)
-      const id = keys.join('')
+      const id = keys.join('\u0001')
       const g = m.get(id) ?? { keys, qty: 0, supply: 0, vat: 0 }
       g.qty += r.qty; g.supply += r.supply; g.vat += r.vat
       m.set(id, g)

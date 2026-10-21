@@ -149,7 +149,7 @@ export default function PriceOrderPage() {
       </div>
 
       {/* 원본 '소수점처리설정(영업관리/구매관리)' — 소수점단위 · 처리방법 반올림 · [적용(F8)] [닫기] (2026-10-14 실측). 소수점단위 값 목록은 원본 재기 필요 */}
-      <Modal open={decimalOpen} title="소수점처리설정(영업관리/구매관리)" width={420} onClose={() => setDecimalOpen(false)}>
+      <Modal open={decimalOpen} title="소수점처리설정(영업관리/구매관리)" width={420} error={error} onClose={() => setDecimalOpen(false)}>
         <div className="ec-form">
           <div className="flex items-center gap-[10px] mb-[6px]">
             <span className="w-[100px] text-ec-label">소수점단위</span>
