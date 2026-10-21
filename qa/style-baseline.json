@@ -1076,7 +1076,7 @@
  },
  "pages/trade/SalesPurchaseSummaryPage.tsx": {
   "inline": 24,
-  "color": 2,
+  "color": 0,
   "palette": 0
  },
  "pages/trade/SalesStatusPage.tsx": {
