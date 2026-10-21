@@ -376,13 +376,14 @@ public class CostService {
      *
      * <ul>
      *   <li>실제재료비 = 그 달 그 품목 생산에 <b>정말 투입한 자재 금액</b> ÷ 생산수량</li>
-     *   <li>실제노무비·경비 = 노무비/경비등록의 공정별 총액을 <b>표준 작업시간 비율</b>로
+     *   <li>실제노무비·경비 = 노무비/경비등록의 공정별 총액을 <b>적수(생산수량 × 품목 가중치) 비율</b>로
      *       배부한 뒤 ÷ 생산수량</li>
      * </ul>
      *
-     * <p>배부 기준이 표준시간인 이유: 그 달 실제 작업시간은 작업내역이 있는 작업지시에만
-     * 있어서, 작업내역을 안 적은 생산은 배부에서 통째로 빠진다. 그러면 남은 품목이 경비를
-     * 다 뒤집어쓴다. BOR × 생산수량은 생산한 모든 품목에 있다.
+     * <p>가중치는 품목등록 원가 탭의 [표준노무시간(노무비가중치)] · [경비가중치] 다. 원본(2026-10-21 실측
+     * 실제원가현황 노무비배부액 · 경비배부액): C001 포장 180 × 가중치 1 = 적수 180, 공정적수 180, 포장 노무비 700 ·
+     * 경비 350 → 금액 700 · 350. 가중치가 0 이면 적수 0 이라 배부되지 않는다(가중치 0 일 때 노무비를 넣고 생성해도
+     * 줄이 빈칸이었다). 공정 소속은 BOR 의 공정으로 본다.
      *
      * <p>그 달 생산이 없으면 배부율을 낼 수 없다 — 그 공정 경비는 어디에도 안 붙는다.
      * 없는 근거로 아무 품목에나 얹지 않는다.
@@ -418,13 +419,19 @@ public class CostService {
             laborByProcess.merge(e.getProcess().getId(), e.getLaborCost(), BigDecimal::add);
             overheadByProcess.merge(e.getProcess().getId(), e.getOverheadCost(), BigDecimal::add);
         }
-        Map<Long, Map<Long, BigDecimal>> hoursOf = new HashMap<>();   // 품목 → 공정 → 1개당 시간
-        Map<Long, BigDecimal> totalHoursByProcess = new HashMap<>();
+        Map<Long, java.util.Set<Long>> processesOf = new HashMap<>();   // 품목 → 그 품목이 거치는 공정(BOR)
+        Map<Long, BigDecimal[]> weightOf = new HashMap<>();             // 품목 → {노무비가중치, 경비가중치}
+        Map<Long, BigDecimal> laborBaseByProcess = new HashMap<>();     // 공정적수(노무비)
+        Map<Long, BigDecimal> overheadBaseByProcess = new HashMap<>();  // 공정적수(경비)
         for (Map.Entry<Long, BigDecimal> e : producedQty.entrySet()) {
-            Map<Long, BigDecimal> perProcess = borService.hoursPerUnitByProcess(e.getKey());
-            hoursOf.put(e.getKey(), perProcess);
-            for (Map.Entry<Long, BigDecimal> h : perProcess.entrySet()) {
-                totalHoursByProcess.merge(h.getKey(), h.getValue().multiply(e.getValue()), BigDecimal::add);
+            java.util.Set<Long> procs = borService.hoursPerUnitByProcess(e.getKey()).keySet();
+            processesOf.put(e.getKey(), procs);
+            Item it = getItem(e.getKey());
+            BigDecimal[] w = {nz(it.getStdLaborHours()), nz(it.getExpenseWeight())};
+            weightOf.put(e.getKey(), w);
+            for (Long proc : procs) {
+                laborBaseByProcess.merge(proc, e.getValue().multiply(w[0]), BigDecimal::add);
+                overheadBaseByProcess.merge(proc, e.getValue().multiply(w[1]), BigDecimal::add);
             }
         }
 
@@ -451,14 +458,18 @@ public class CostService {
             BigDecimal lab = BigDecimal.ZERO;
             BigDecimal oh = BigDecimal.ZERO;
             boolean allocated = false;   // 이 품목 공정 중 노무비/경비등록이 있는 것이 하나라도 있나
-            for (Map.Entry<Long, BigDecimal> h : hoursOf.getOrDefault(itemId, Map.of()).entrySet()) {
-                BigDecimal total = totalHoursByProcess.get(h.getKey());
-                if (total == null || total.signum() == 0) continue;
-                if (!laborByProcess.containsKey(h.getKey())) continue;
+            BigDecimal[] w = weightOf.get(itemId);
+            for (Long proc : processesOf.getOrDefault(itemId, java.util.Set.of())) {
+                if (!laborByProcess.containsKey(proc)) continue;
                 allocated = true;
-                BigDecimal share = h.getValue().multiply(qty).divide(total, 8, RoundingMode.HALF_UP);
-                lab = lab.add(laborByProcess.get(h.getKey()).multiply(share));
-                oh = oh.add(overheadByProcess.getOrDefault(h.getKey(), BigDecimal.ZERO).multiply(share));
+                BigDecimal lb = laborBaseByProcess.get(proc);
+                if (lb != null && lb.signum() > 0) {   // 적수 / 공정적수
+                    lab = lab.add(laborByProcess.get(proc).multiply(qty.multiply(w[0])).divide(lb, 8, RoundingMode.HALF_UP));
+                }
+                BigDecimal ob = overheadBaseByProcess.get(proc);
+                if (ob != null && ob.signum() > 0) {
+                    oh = oh.add(overheadByProcess.getOrDefault(proc, BigDecimal.ZERO).multiply(qty.multiply(w[1])).divide(ob, 8, RoundingMode.HALF_UP));
+                }
             }
 
             if (allocated) {
@@ -468,6 +479,21 @@ public class CostService {
             updated.add(CostResponse.from(cost));
         }
         return updated;
+    }
+
+    /** 원가계산내역 [생산입고] 금액 근거 — 그 달(yyyy-MM) 생산품목 → 소모품목 → 소모수량(생산입고 [소모] 줄). */
+    @Transactional(readOnly = true)
+    public Map<Long, Map<Long, BigDecimal>> consumedByProduct(String period) {
+        Map<Long, Map<Long, BigDecimal>> out = new HashMap<>();
+        for (Production pr : productionRepository.findAll()) {
+            if (!period.equals(pr.getProductionDate().toString().substring(0, 7))) continue;
+            for (ProductionMaterial m : pr.getMaterials()) {
+                if (m.getQuantity() == null) continue;
+                out.computeIfAbsent(pr.getProduct().getId(), k -> new HashMap<>())
+                        .merge(m.getComponent().getId(), m.getQuantity(), BigDecimal::add);
+            }
+        }
+        return out;
     }
 
     /** 원가계산내역 [생산입고] — 그 달(yyyy-MM) 품목별 생산수량. */

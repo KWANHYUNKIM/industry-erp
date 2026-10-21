@@ -250,6 +250,7 @@ public class CostPeriodService {
             standard.put(c.getItem().getId(), c.standardTotal());
         }
 
+        java.util.Map<Long, CostLedger> built = new java.util.LinkedHashMap<>();
         for (var r : stockService.movement(from, to, null, false)) {
             java.math.BigDecimal[] b = bought.get(r.itemId());
             java.math.BigDecimal[] mk = made.get(r.itemId());
@@ -271,8 +272,47 @@ public class CostPeriodService {
             l.setAdjustQty(nz(r.inQty()).subtract(l.getPurchaseQty()).subtract(l.getProductionQty()));
             l.setDecreaseQty(nz(r.outQty()));
             l.recalcTotalAverage();
-            ledgerRepository.save(l);
+            built.put(r.itemId(), l);
         }
+
+        /*
+         * 생산입고 금액 = 그 기간 생산입고에서 소모한 수량 × 소모 품목의 총평균 단가 합(원본 2026-10-21 실측:
+         * C001 7 생산에 배추 8 · 고추가루 0.7 · 포장재 7 소모 → 증가 1,920,000 + 22,714 = 1,942,714,
+         * 22,714 = 8 × 1,919.5 + 0.7 × 10,004.28 + 7 × 50.72). 반제품이 다른 생산에 들어가면 단가가 서로 물리므로
+         * 몇 번 되풀이해 맞춘다. 소모 기록이 없는 생산은 원가 줄 실제재료비 단가 × 수량을 그대로 둔다.
+         */
+        java.util.Map<Long, java.util.Map<Long, java.math.BigDecimal>> consumed = new java.util.HashMap<>();
+        for (String m : months(p)) {
+            costService.consumedByProduct(m).forEach((prod, comps) -> {
+                var acc = consumed.computeIfAbsent(prod, k -> new java.util.HashMap<>());
+                comps.forEach((c, q) -> acc.merge(c, q, java.math.BigDecimal::add));
+            });
+        }
+        for (int pass = 0; pass < 5 && !consumed.isEmpty(); pass++) {
+            boolean changed = false;
+            for (var e : consumed.entrySet()) {
+                CostLedger l = built.get(e.getKey());
+                if (l == null) continue;
+                java.math.BigDecimal amt = java.math.BigDecimal.ZERO;
+                for (var c : e.getValue().entrySet()) {
+                    CostLedger cl = built.get(c.getKey());
+                    if (cl == null) continue;
+                    java.math.BigDecimal q = cl.getOpeningQty().add(cl.increaseQty());
+                    if (q.signum() <= 0) continue;
+                    java.math.BigDecimal unit = cl.getOpeningAmount().add(cl.increaseAmount())
+                            .divide(q, 8, java.math.RoundingMode.HALF_UP);
+                    amt = amt.add(c.getValue().multiply(unit));
+                }
+                amt = won(amt);
+                if (amt.compareTo(l.getProductionAmount()) != 0) {
+                    l.setProductionAmount(amt);
+                    l.recalcTotalAverage();
+                    changed = true;
+                }
+            }
+            if (!changed) break;
+        }
+        ledgerRepository.saveAll(built.values());
     }
 
     private com.erp.inventory.item.Item itemRef(Long itemId) {

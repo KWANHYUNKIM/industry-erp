@@ -343,6 +343,8 @@ export default function VariancePage() {
    * ── 노무비/경비/외주비차이. 원본(2026-10-20 실측)은 생산 품목마다 [노무비 · 경비 · 외주비] 세 줄 +
    * '<품목명[규격]> 계' 줄, 끝에 '<구분> 계' · '합계'. 열은 [구분 · 표준단가 · 실제단가 · 차이 · 생산수량 · 차이금액].
    * 외주비는 우리 원가 줄에 칸이 없어 단가가 빈칸이다(원본 회사 자료도 빈칸이었다).
+   * 차이 = 표준 − 실제, 차이금액 = 차이 × 생산수량(2026-10-21 원본 실측: C001 포장 180 에 노무비 700 · 경비 350 배부 →
+   * 노무비 실제단가 4 · 차이 -4 · 차이금액 -700, 경비 2 · -2 · -350, 계 -1,050).
    */
   const laborRows = compareRows.map((r) => ({
     ...r,
@@ -350,7 +352,7 @@ export default function VariancePage() {
       ['노무비', r.laborCost, r.actualLabor],
       ['경비', r.overheadCost, r.actualOverhead],
       ['외주비', 0, 0],
-    ] as const).map(([kind, std, act]) => ({ kind, std, act, diff: act - std, diffAmount: (act - std) * r.producedQty })),
+    ] as const).map(([kind, std, act]) => ({ kind, std, act, diff: std - act, diffAmount: (std - act) * r.producedQty })),
   }))
 
     return (
