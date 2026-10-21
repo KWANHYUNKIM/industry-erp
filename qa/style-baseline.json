@@ -254,11 +254,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/accounting/ExpensePage.tsx": {
-  "inline": 12,
-  "color": 1,
-  "palette": 0
- },
  "pages/accounting/FixedAssetFlowPage.tsx": {
   "inline": 5,
   "color": 2,
@@ -669,18 +664,13 @@
   "color": 0,
   "palette": 0
  },
- "pages/inventory/StocktakePage.tsx": {
-  "inline": 7,
-  "color": 2,
-  "palette": 0
- },
  "pages/inventory/StocktakeStatusPage.tsx": {
   "inline": 10,
   "color": 4,
   "palette": 0
  },
  "pages/inventory/TransferPage.tsx": {
-  "inline": 18,
+  "inline": 17,
   "color": 1,
   "palette": 0
  },
@@ -710,13 +700,13 @@
   "palette": 0
  },
  "pages/production/BomPage.tsx": {
-  "inline": 1,
+  "inline": 2,
   "color": 0,
   "palette": 0
  },
  "pages/production/BomStatusPage.tsx": {
-  "inline": 2,
-  "color": 1,
+  "inline": 1,
+  "color": 0,
   "palette": 0
  },
  "pages/production/BorPage.tsx": {
