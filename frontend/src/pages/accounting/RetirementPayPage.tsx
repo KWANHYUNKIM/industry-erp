@@ -59,6 +59,8 @@ export default function RetirementPayPage() {
   const [emps, setEmps] = useState<Emp[]>([])
   const [form, setForm] = useState<Form | null>(null)
   const [calc, setCalc] = useState<RetirementPayCalculation | null>(null)
+  const [company, setCompany] = useState<{ name?: string; bizRegNo?: string } | null>(null)
+  useEffect(() => { api.get<{ name?: string; bizRegNo?: string } | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null)) }, [])
   const [formError, setFormError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState('')
@@ -323,41 +325,92 @@ export default function RetirementPayPage() {
                 </tbody>
               </table>
 
-              <table className="w-full ec-report">
+              {/* 원본 영수증 꼴(2026-10-21 실측, 기존 줄 열어 구조만): ① 퇴직급여현황 ② 근속연수 ③ 과세표준계산 ④ 퇴직소득세액계산 ⑤ 이연퇴직소득세액계산 ⑥ 납부명세.
+                  중간지급 · 세액공제 · 기납부 · 연금계좌 · 이연 · 납부명세 칸은 입력칸으로 두되 값을 서버에 담지는 않는다(우리 퇴직금계산 응답에 칸이 없음). */}
+              <table className="w-full ec-report receipt-table mb-[6px]">
+                <thead>
+                  <tr><th rowSpan={1} colSpan={2}>근무처구분</th><th>중간지급 등</th><th>최종</th><th>정산</th></tr>
+                </thead>
                 <tbody>
-                  <tr>
-                    <th className="w-[300px]">(15)퇴 직 급 여</th>
-                    <td><input className="ec-input w-[160px] text-right" value={form.retirementPay}
+                  <tr><th rowSpan={6} className="w-[28px]">퇴직급여현황</th><th className="text-left w-[160px]">(13)근 무 처 명</th>
+                    <td><input className="ec-input w-full" aria-label="중간지급 근무처명" /></td><td>{company?.name ?? ''}</td><td className="bg-ec-page"></td></tr>
+                  <tr><th className="text-left">(14)사업자등록번호</th>
+                    <td><input className="ec-input w-[44px]" aria-label="중간지급 사업자번호 앞" />-<input className="ec-input w-[34px]" aria-label="중간지급 사업자번호 중간" />-<input className="ec-input w-[54px]" aria-label="중간지급 사업자번호 끝" /></td>
+                    <td>{(company?.bizRegNo ?? '').replace(/(\d{3})(\d{2})(\d{5})/, '$1 - $2 - $3')}</td><td className="bg-ec-page"></td></tr>
+                  <tr><th className="text-left">(15)퇴 직 급 여</th>
+                    <td><input className="ec-input w-full text-right" aria-label="중간지급 퇴직급여" /></td>
+                    <td className="text-right"><input className="ec-input w-[160px] text-right" aria-label="최종 퇴직급여" value={form.retirementPay}
                                onChange={(e) => set({ retirementPay: e.target.value })}
                                onKeyDown={(e) => { if (e.key === 'Enter') recalc(form, true) }}
                                onBlur={() => recalc(form, true)} /></td>
-                  </tr>
-                  <tr>
-                    <th>(16)비과세 퇴직급여</th>
-                    <td><input className="ec-input w-[160px] text-right" value={form.nonTaxable}
-                               onChange={(e) => set({ nonTaxable: e.target.value })} onBlur={() => recalc(form, true)} /></td>
-                  </tr>
-                  <tr><th>근속월수 · (27)근속연수</th><td>{calc.serviceMonths} · {calc.serviceYears}</td></tr>
-                  <tr><th>(28)퇴직소득 ((17))</th><td className="text-right">{won(calc.tax.income)}</td></tr>
-                  <tr><th>(29)근속연수공제</th><td className="text-right">{won(calc.tax.serviceDeduction)}</td></tr>
-                  <tr><th>(30)환산급여 [((28)-(29))×12배/정산근속연수]</th><td className="text-right">{won(calc.tax.converted)}</td></tr>
-                  <tr><th>(31)환산급여별공제</th><td className="text-right">{won(calc.tax.convertedDeduction)}</td></tr>
-                  <tr><th>(32)퇴직소득과세표준 ((30)-(31))</th><td className="text-right">{won(calc.tax.taxBase)}</td></tr>
-                  <tr><th>(33)환산산출세액 ((32)×세율)</th><td className="text-right">{won(calc.tax.convertedTax)}</td></tr>
-                  <tr><th>(34)퇴직소득 산출세액 ((33)×정산근속연수/12배)</th><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
-                  {/* 원본 영수증 꼴 칸(2026-10-21 실측): (35)세액공제 · (36)기납부(또는 기과세이연) 세액 · (37)(38)신고대상세액 · 연금계좌 입금내역 (39)(40) · (44)이연퇴직소득세 · (45)기납부원천징수세액.
-                      우리는 세액공제 · 이연 · 기납부 · 연금계좌를 받지 않아 0 으로 둔다(값 입력 창은 안 만듦). */}
-                  <tr><th>(35)세액공제</th><td className="text-right">0</td></tr>
-                  <tr><th>(36)기납부(또는 기과세이연) 세액</th><td className="text-right">0</td></tr>
-                  <tr><th>(37)신고대상세액 ((34)-(35)-(36))</th><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
-                  <tr><th>(38)신고대상세액 ((37))</th><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
-                  <tr><th>연금계좌 입금내역 (40)퇴직급여 ((17)) · (39)계좌입금금액</th><td className="text-right">{won(calc.tax.income)} · 0</td></tr>
-                  <tr><th>(44)이연퇴직소득세 · (45)기납부원천징수세액</th><td className="text-right">0 · 0</td></tr>
-                  {/* (43)신고대상세액 — 10원 버리기 전(원본 73,550 · 7,355 · 계 80,905) */}
-                  <tr><th>(43)신고대상세액 소득세 · 지방소득세 · 계</th><td className="text-right">
-                    {won(calc.tax.computedTax)} · {won(Math.floor(Number(calc.tax.computedTax) / 10))} · {won(Number(calc.tax.computedTax) + Math.floor(Number(calc.tax.computedTax) / 10))}
-                  </td></tr>
-                  <tr><th>(46)차감원천징수세액 소득세 · 지방소득세</th><td className="text-right">{won(calc.tax.incomeTax)} · {won(calc.tax.localIncomeTax)}</td></tr>
+                    <td className="text-right">{Number(form.retirementPay || 0).toLocaleString('ko-KR')}</td></tr>
+                  <tr><th className="text-left">(16)비과세 퇴직급여</th>
+                    <td><input className="ec-input w-full text-right" aria-label="중간지급 비과세" /></td>
+                    <td><input className="ec-input w-[160px] text-right" aria-label="최종 비과세 퇴직급여" value={form.nonTaxable}
+                               onChange={(e) => set({ nonTaxable: e.target.value })} onBlur={() => recalc(form, true)} /></td><td></td></tr>
+                  <tr><th className="text-left">(17)과세대상 퇴직급여((15)-(16))</th><td></td>
+                    <td className="text-right">{won(calc.tax.income)}</td><td className="text-right">{won(calc.tax.income)}</td></tr>
+                  <tr><th className="text-left">(18)과세이연 여부</th><td colSpan={3}>
+                    <select className="ec-input w-[200px]" aria-label="과세이연 여부" defaultValue="미해당"><option>미해당</option><option>해당</option></select></td></tr>
+                </tbody>
+              </table>
+
+              <table className="w-full ec-report receipt-table mb-[6px]">
+                <thead>
+                  <tr><th colSpan={2}>구 분</th><th>(19)입사일</th><th>(20)기산일</th><th>(21)퇴사일</th><th>(22)지급일</th><th>(23)근속월수</th><th>(24)제외월수</th><th>(25)가산월수</th><th>(26)중복월수</th><th>(27)근속연수</th></tr>
+                </thead>
+                <tbody>
+                  <tr><th rowSpan={3} className="w-[28px]">근속연수</th><th className="text-left">중간지급 근속연수</th>
+                    <td colSpan={4}></td><td><input className="ec-input w-[44px] text-right" aria-label="중간지급 근속월수" /></td>
+                    <td><input className="ec-input w-[44px] text-right" aria-label="중간지급 제외월수" /></td><td><input className="ec-input w-[44px] text-right" aria-label="중간지급 가산월수" /></td><td></td>
+                    <td><input className="ec-input w-[44px] text-right" aria-label="중간지급 근속연수" /></td></tr>
+                  <tr><th className="text-left">최종 근속연수</th><td>{slash(emps.find((x) => String(x.id) === form.employeeId)?.hireDate)}</td><td>{slash(form.startDate)}</td><td>{slash(form.retireDate)}</td><td>{slash(form.payDate)}</td>
+                    <td className="text-right">{calc.serviceMonths}</td><td><input className="ec-input w-[44px] text-right" aria-label="최종 제외월수" /></td><td><input className="ec-input w-[44px] text-right" aria-label="최종 가산월수" /></td><td></td>
+                    <td className="text-right">{calc.serviceYears}</td></tr>
+                  <tr><th className="text-left">정산 근속연수</th><td></td><td>{slash(form.startDate)}</td><td>{slash(form.retireDate)}</td><td></td>
+                    <td className="text-right">{calc.serviceMonths}</td><td className="text-right">0</td><td className="text-right">0</td><td className="text-right">0</td><td className="text-right">{calc.serviceYears}</td></tr>
+                </tbody>
+              </table>
+
+              <table className="w-full ec-report receipt-table mb-[6px]">
+                <thead><tr><th colSpan={2}>계 산 내 용</th><th>금 액</th></tr></thead>
+                <tbody>
+                  <tr><th rowSpan={5} className="w-[28px]">과세표준계산</th><td>(28)퇴직소득 ((17))</td><td className="text-right">{won(calc.tax.income)}</td></tr>
+                  <tr><td>(29)근속연수공제</td><td className="text-right">{won(calc.tax.serviceDeduction)}</td></tr>
+                  <tr><td>(30)환산급여 [((28)-(29))×12배/정산근속연수]</td><td className="text-right">{won(calc.tax.converted)}</td></tr>
+                  <tr><td>(31)환산급여별공제</td><td className="text-right">{won(calc.tax.convertedDeduction)}</td></tr>
+                  <tr><td>(32)퇴직소득과세표준 ((30)-(31))</td><td className="text-right">{won(calc.tax.taxBase)}</td></tr>
+                  <tr><th rowSpan={5} className="w-[28px]">퇴직소득세액계산</th><td>(33)환산산출세액 ((32)×세율)</td><td className="text-right">{won(calc.tax.convertedTax)}</td></tr>
+                  <tr><td>(34)퇴직소득 산출세액 ((33)×정산근속연수/12배)</td><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
+                  <tr><td>(35)세액공제</td><td><input className="ec-input w-full text-right" aria-label="세액공제" /></td></tr>
+                  <tr><td>(36)기납부(또는 기과세이연) 세액</td><td><input className="ec-input w-full text-right" aria-label="기납부 세액" /></td></tr>
+                  <tr><td>(37)신고대상세액 ((34)-(35)-(36))</td><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
+                </tbody>
+              </table>
+
+              <table className="w-full ec-report receipt-table mb-[6px]">
+                <thead>
+                  <tr><th rowSpan={2}>(38)신고대상세액 ((37))</th><th colSpan={5}>연금계좌 입금내역</th><th rowSpan={2}>(40)퇴직급여 ((17))</th><th rowSpan={2}>(41)이연퇴직소득세 ((38)×(39)/(40))</th></tr>
+                  <tr><th>연금계좌취급자</th><th>사업자등록번호</th><th>계좌번호</th><th>입금일</th><th>(39)계좌입금금액</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td rowSpan={2} className="text-right">{won(calc.tax.computedTax)}</td>
+                    {['취급자', '사업자번호', '계좌번호', '입금일', '입금금액'].map((l) => <td key={l}><input className="ec-input w-full" aria-label={`연금계좌 1 ${l}`} /></td>)}
+                    <td rowSpan={2}></td><td rowSpan={2}><input className="ec-input w-full text-right" aria-label="이연퇴직소득세" /></td></tr>
+                  <tr>{['취급자', '사업자번호', '계좌번호', '입금일', '입금금액'].map((l) => <td key={l}><input className="ec-input w-full" aria-label={`연금계좌 2 ${l}`} /></td>)}</tr>
+                </tbody>
+              </table>
+
+              <table className="w-full ec-report receipt-table">
+                <thead><tr><th colSpan={2}>구 분</th><th>소득세</th><th>지방소득세</th><th>농어촌특별세</th><th>계</th><th rowSpan={5} className="w-[110px] text-[11px]">부표 작성 여부<br />※ (위톱) 작성방법 제 13호에 해당하는 경우 "○" 표시합니다.</th></tr></thead>
+                <tbody>
+                  <tr><th rowSpan={4} className="w-[28px]">납부명세</th><td>(43)신고대상세액 ((37))</td>
+                    <td className="text-right">{won(calc.tax.computedTax)}</td><td className="text-right">{won(Math.floor(Number(calc.tax.computedTax) / 10))}</td><td></td>
+                    <td className="text-right">{won(Number(calc.tax.computedTax) + Math.floor(Number(calc.tax.computedTax) / 10))}</td></tr>
+                  <tr><td>(44)이연퇴직소득세 ((41))</td><td><input className="ec-input w-full text-right" aria-label="이연 소득세" /></td><td className="text-right">0</td><td></td><td className="text-right">0</td></tr>
+                  <tr><td>(45)기납부원천징수세액</td><td><input className="ec-input w-full text-right" aria-label="기납부 소득세" /></td><td className="text-right">0</td><td></td><td className="text-right">0</td></tr>
+                  <tr><td>(46)차감원천징수세액 ((43)-(44))</td><td className="text-right">{won(calc.tax.incomeTax)}</td><td className="text-right">{won(calc.tax.localIncomeTax)}</td><td className="text-right">0</td>
+                    <td className="text-right">{won(Number(calc.tax.incomeTax) + Number(calc.tax.localIncomeTax))}</td></tr>
                 </tbody>
               </table>
             </>

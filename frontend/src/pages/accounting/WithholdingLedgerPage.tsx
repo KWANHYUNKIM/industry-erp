@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import QuickSearchSettingModal from '../../components/QuickSearchSettingModal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingLedgerEmployee } from '../../types/api'
@@ -31,6 +32,7 @@ export default function WithholdingLedgerPage() {
   const [company, setCompany] = useState<Company | null>(null)
   const [viewing, setViewing] = useState<WithholdingLedgerEmployee | null>(null)
   const [error, setError] = useState('')
+  const [quickOpen, setQuickOpen] = useState(false)
 
   useEffect(() => {
     api.get<Company | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null))
@@ -66,6 +68,7 @@ export default function WithholdingLedgerPage() {
   return (
     <EcListShell title="원천징수부" onSearch={() => search()} actions={[{ label: 'Email', disabled: true }, { label: '인쇄' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <QuickSearchSettingModal open={quickOpen} target="기준연월" onClose={() => setQuickOpen(false)} />
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준연월">
@@ -89,6 +92,7 @@ export default function WithholdingLedgerPage() {
             {quick.map(([label, m]) => (
               <button key={label} className="ec-btn" onClick={() => { setMonth(m); void search(m) }}>{label}</button>
             ))}
+            <button className="ec-btn" onClick={() => setQuickOpen(true)}>설정</button>
             <button className="ec-btn" onClick={() => { setMonth(ymd(new Date()).slice(0, 7)); setEmployee(''); setStatus('재직자') }}>다시 작성</button>
           </div>
         </li>

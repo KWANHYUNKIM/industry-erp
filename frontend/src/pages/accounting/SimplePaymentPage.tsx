@@ -252,6 +252,13 @@ export function StatementListPage({ daily }: { daily: boolean }) {
 /** 원본 서식 아래 [지급자 보관용 ▼] — 머리의 '( [V]지급자 보관용 [ ]지급자 제출용 )' 표시를 바꾼다. */
 type SheetCopy = 'KEEP' | 'SUBMIT'
 /** 사업 · 기타소득 서식의 소득자 줄 수(원본은 일련번호 1~15 를 늘 그린다). */
+/** 인쇄용 — 입력칸(근로소득 서식 월별 칸)은 값을 글자로 바꿔 찍는다(innerHTML 은 친 값을 담지 않는다). */
+function paperHtml(el: HTMLElement) {
+  const c = el.cloneNode(true) as HTMLElement
+  const src = el.querySelectorAll('input')
+  c.querySelectorAll('input').forEach((i, k) => i.replaceWith(document.createTextNode((src[k] as HTMLInputElement).value)))
+  return c.innerHTML
+}
 const SHEET_ROWS = 15
 const SHEET_PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid;padding:2px 4px}'
 
@@ -281,19 +288,32 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
   const [y, m, d] = (s?.reportDate ?? '').split('-')
   const payee = s?.kind === 'BUSINESS' || s?.kind === 'OTHER'
   // 만들 때 숫자를 담아 두는 서식 — [새로불러오기] 는 확인 창 뒤 다시 센다(사업 · 기타 · 일용, 원본 2026-10-14)
-  const saved = payee || s?.kind === 'DAILY'
+  const saved = payee || s?.kind === 'DAILY' || s?.kind === 'LABOR'
+  /** 근로소득 서식 칸 직접 고치기(원본 2026-10-21): 월별 칸을 고치면 사원 합계 · 총액이 따라오고 [저장] 하면 다시 열어도 그대로. */
+  function editLabor(i: number, k: number, v: number | null) {
+    setSheet((cur) => cur && ({ ...cur, labor: cur.labor.map((r, j) => {
+      if (j !== i) return r
+      const monthlyPay = r.monthlyPay.map((x, m) => (m === k ? v : x))
+      return { ...r, monthlyPay, total: monthlyPay.reduce<number>((t, x) => t + Number(x ?? 0), 0) }
+    }) }))
+  }
+  function saveLabor() {
+    if (!sheet) return
+    setError('')
+    api.put<SimplePaymentSheet>(`/simple-payment-statements/${id}/sheet`, sheet.labor).then((r) => setSheet(r.data)).catch((e) => setError(extractErrorMessage(e)))
+  }
   function print() {
     const win = openPrintWindow()
     if (!win || !paperRef.current) return
     fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>간이지급명세서</title><style>${SHEET_PRINT_CSS}</style></head>`
-      + `<body>${paperRef.current.innerHTML}</body></html>`)
+      + `<body>${paperHtml(paperRef.current)}</body></html>`)
   }
 
   return (
     <Modal open title={s?.kind === 'DAILY' ? '일용근로소득 지급명세서' : '간이지급명세서'} width={900} error={error} onClose={onClose}>
       {s && (
         <div ref={paperRef}>
-          {s.kind === 'LABOR' ? <LaborSheet sheet={sheet!} company={company} address={address} />
+          {s.kind === 'LABOR' ? <LaborSheet sheet={sheet!} company={company} address={address} onEdit={editLabor} />
             : s.kind === 'DAILY' ? <DailySheet sheet={sheet!} company={company} address={address} />
               : <PayeeSheet sheet={sheet!} company={company} address={address} copy={copy} />}
           <p className="mt-[12px]">
@@ -306,10 +326,13 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
       )}
       <div className="flex gap-[6px] mt-[12px]">
         {/* 원본 사업 · 기타소득 서식: [인쇄] · Excel · [새로불러오기] · [닫기] · H · 도장인쇄 · [지급자 보관용 ▼] */}
-        {saved && <button className="ec-btn ec-btn-primary" onClick={print}>인쇄</button>}
+        {s?.kind === 'LABOR' && <button className="ec-btn ec-btn-primary" onClick={saveLabor}>저장</button>}
+        {saved && <button className={s?.kind === 'LABOR' ? 'ec-btn' : 'ec-btn ec-btn-primary'} onClick={print}>인쇄</button>}
+        {s?.kind === 'LABOR' && <button className="ec-btn" type="button">Excel</button>}
         <button className="ec-btn" onClick={() => (saved ? setConfirmReload(true) : load())}>새로불러오기</button>
         <button className="ec-btn" onClick={onClose}>닫기</button>
-        {payee && (
+        {s?.kind === 'LABOR' && <button className="ec-btn" type="button">H</button>}
+        {(payee || s?.kind === 'LABOR') && (
           <select className="ec-input w-[120px]" aria-label="보관용" value={copy} onChange={(e) => setCopy(e.target.value as SheetCopy)}>
             <option value="KEEP">지급자 보관용</option>
             <option value="SUBMIT">지급자 제출용</option>
@@ -329,7 +352,7 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
   )
 }
 
-function LaborSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; company: Company | null; address: string }) {
+function LaborSheet({ sheet, company, address, onEdit }: { sheet: SimplePaymentSheet; company: Company | null; address: string; onEdit: (i: number, k: number, v: number | null) => void }) {
   const s = sheet.statement
   const months = s.period === 1 ? [1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12]
   const total = sheet.labor.reduce((t, r) => t + Number(r.total), 0)
@@ -369,7 +392,12 @@ function LaborSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
                 {k === 0 && <td rowSpan={7} className="text-center">1<br />1</td>}
                 {k === 0 && <td rowSpan={7}>{dot(r.workFrom)}-{dot(r.workTo)}</td>}
                 <td className="text-center">{mo - (s.period === 1 ? 0 : 6)}월/{mo}월</td>
-                <td className="text-right">{won(r.monthlyPay[k])}</td>
+                <td className="text-right">
+                  {/* 원본: 월별 칸은 입력칸, 사원 합계는 읽기 전용 */}
+                  <input className="ec-input w-[120px] text-right" aria-label={`${r.employeeName} ${mo}월`} inputMode="numeric"
+                         value={r.monthlyPay[k] == null ? '' : won(r.monthlyPay[k])}
+                         onChange={(e) => { const raw = e.target.value.replace(/[^\d-]/g, ''); onEdit(i, k, raw === '' ? null : Number(raw)) }} />
+                </td>
                 <td></td>
               </tr>
             )),

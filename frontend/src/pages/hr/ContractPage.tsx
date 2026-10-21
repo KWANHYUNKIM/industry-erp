@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster, EmploymentContract, Project } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import ContractSettingModal from '../../features/contract/ContractSettingModal'
 
 const slash = (s: string) => s.replace(/-/g, '/')
 /** 원본 '2026/10/21 오후 1:36:00' */
@@ -56,6 +57,7 @@ export default function ContractPage() {
   const [editing, setEditing] = useState<EmploymentContract | null>(null)
   const [copyOf, setCopyOf] = useState<EmploymentContract | null>(null)
   const [recipientOf, setRecipientOf] = useState<EmploymentContract | null>(null)
+  const [settingOf, setSettingOf] = useState<EmploymentContract | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
@@ -160,7 +162,7 @@ export default function ContractPage() {
                 {/* 원본 수신정보 전 label-warning(주황) · 후 label-primary label-inverse(파란 테) */}
                 <span className="inline-flex gap-[3px]">
                   <button type="button" className={`ec-pill${r.employeeId ? ' active' : ''}`} onClick={() => setRecipientOf(r)}>수신정보입력</button>
-                  <button type="button" className="ec-pill active" onClick={() => void ecAlert(LINK_NEEDED)}>계약서설정</button>
+                  <button type="button" className="ec-pill active" onClick={() => setSettingOf(r)}>계약서설정</button>
                 </span>
               </td>
               <td className="text-center">
@@ -186,6 +188,7 @@ export default function ContractPage() {
       <Modal error={error} open={copyOf !== null} title="계약서복사" onClose={() => setCopyOf(null)}>{(
         copyOf && <CopyForm source={copyOf} onError={setError} onSaved={() => { setCopyOf(null); load() }} />
       )}</Modal>
+      <ContractSettingModal open={settingOf !== null} contractName={settingOf?.contractName ?? ''} onClose={() => setSettingOf(null)} />
       <Modal error={error} open={recipientOf !== null} title="수신정보입력" onClose={() => setRecipientOf(null)}>{(
         recipientOf && <RecipientForm contract={recipientOf} employees={employees} onError={setError}
                                       onSaved={() => { setRecipientOf(null); load() }} />

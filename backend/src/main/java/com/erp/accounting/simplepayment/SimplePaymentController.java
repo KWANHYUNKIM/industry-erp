@@ -44,6 +44,11 @@ public class SimplePaymentController {
         return service.sheet(id);
     }
 
+    @PutMapping("/{id}/sheet")
+    public SheetResponse saveSheet(@PathVariable Long id, @RequestBody List<com.erp.accounting.simplepayment.dto.SimplePaymentDtos.LaborRow> rows) {
+        return service.saveLaborSheet(id, rows);
+    }
+
     @PostMapping("/{id}/reload")
     public SheetResponse reload(@PathVariable Long id) {
         return service.reload(id);

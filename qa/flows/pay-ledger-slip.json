@@ -1,0 +1,29 @@
+{
+  "about": "관리 > 급여계산/대장 [급여대장 ▸ 전표생성](원본 2026-10-21 직접): 확정 대장에서 전표생성 창을 열고, 실지급액 줄 계정이 비면 '계정코드를 입력 바랍니다.', 보통예금을 고르고 저장하면 안내 없이 창이 닫히며 일반전표가 생긴다(지움). 대장도 지운다.",
+  "shots": [
+    {
+      "name": "확정 대장 → 전표생성 → 빈 계정 거절 → 보통예금 저장 → 안내 없이 닫힘 → 전표 · 대장 지움",
+      "path": "/hr/payroll",
+      "steps": [
+        "wait:4000",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};await fetch('/api/pay-ledgers',{method:'POST',headers:h,body:JSON.stringify({payMonth:'2091-06',name:'QA관리-전표시험'})});const ls=await (await fetch('/api/pay-ledgers',{headers:h})).json();const l=ls.find(x=>x.payMonth==='2091-06');await fetch('/api/pay-ledgers/'+l.id+'/calculate',{method:'POST',headers:h,body:JSON.stringify({employeeIds:null,excludeNonPositive:true})});const c=await fetch('/api/pay-ledgers/'+l.id+'/confirm',{method:'POST',headers:h});sessionStorage.setItem('qaSl',JSON.stringify({id:l.id,ok:c.ok}));location.reload();return true})()",
+        "wait:3500",
+        "expect:JSON.parse(sessionStorage.getItem('qaSl')).ok===true && [...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-전표시험'))",
+        "js:(async()=>{const r=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-전표시험'));[...r.querySelectorAll('button,a')].find(b=>b.textContent.trim()==='급여대장').click();await new Promise(z=>setTimeout(z,600));[...document.querySelectorAll('button,a,li')].filter(e=>e.offsetParent&&e.textContent.trim()==='전표생성').pop().click();return true})()",
+        "wait:1500",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return d.innerText.includes('전표생성')&&d.innerText.includes('차변')&&!!d.querySelector('select[aria-label=\"2줄 계정\"]')})()",
+        "clicklast:저장(F8)",
+        "wait:800",
+        "expect:document.body.innerText.includes('계정코드를 입력 바랍니다.')",
+        "js:(()=>{const s=[...document.querySelectorAll('[role=dialog]')].pop().querySelector('select[aria-label=\"2줄 계정\"]');const o=[...s.options].find(o=>o.text.includes('보통예금'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,o.value);s.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "clicklast:저장(F8)",
+        "wait:2000",
+        "expect:![...document.querySelectorAll('[role=dialog]')].some(d=>d.innerText.includes('전표생성')) && !document.body.innerText.includes('회계전표를 만들었습니다')",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const js=await (await fetch('/api/journals',{headers:h})).json();const rows=(js.content||js);const j=rows.find(x=>(x.description||'').includes('QA관리-전표시험'));sessionStorage.setItem('qaSlJ',JSON.stringify({found:!!j,id:j&&j.id}));if(j)await fetch('/api/journals/'+j.id,{method:'DELETE',headers:h});return true})()",
+        "expect:JSON.parse(sessionStorage.getItem('qaSlJ')).found===true",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const id=JSON.parse(sessionStorage.getItem('qaSl')).id;await fetch('/api/pay-ledgers/'+id+'/unconfirm',{method:'POST',headers:h});const r=await fetch('/api/pay-ledgers/'+id,{method:'DELETE',headers:h});sessionStorage.setItem('qaSlD',String(r.ok));return true})()",
+        "expect:sessionStorage.getItem('qaSlD')==='true'"
+      ]
+    }
+  ]
+}

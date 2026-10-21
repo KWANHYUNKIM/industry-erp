@@ -97,19 +97,9 @@ public class SimplePaymentService {
     public SheetResponse sheet(Long id) {
         SimplePaymentStatement s = find(id);
         if (s.getKind() == SimplePaymentKind.LABOR) {
-            int firstMonth = s.getPeriod() == 1 ? 1 : 7;
-            YearMonth from = YearMonth.of(s.getPayYear(), firstMonth), to = from.plusMonths(5);
-            List<LaborRow> rows = new ArrayList<>();
-            for (WithholdingDtos.LedgerEmployee e : withholdingService.ledger(from.toString(), to.toString())) {
-                Map<String, BigDecimal> byMonth = new HashMap<>();
-                e.months().forEach(m -> byMonth.put(m.payMonth(), m.taxablePay()));
-                List<BigDecimal> monthly = new ArrayList<>();
-                for (int i = 0; i < 6; i++) monthly.add(byMonth.get(from.plusMonths(i).toString()));
-                LocalDate workFrom = later(e.hireDate(), from.atDay(1));
-                LocalDate workTo = e.resignDate() != null && e.resignDate().isBefore(to.atEndOfMonth()) ? e.resignDate() : to.atEndOfMonth();
-                rows.add(new LaborRow(e.employeeName(), workFrom, workTo, monthly,
-                        monthly.stream().filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add)));
-            }
+            // 원본(2026-10-21): 만들 때 · [새로불러오기] 때 서식을 담아 두고, 칸을 직접 고쳐 [저장] 하면 그 값이 남는다.
+            List<LaborRow> rows = s.getSheetSnapshot() != null ? read(s.getSheetSnapshot(), new TypeReference<List<LaborRow>>() {})
+                    : countLabor(s);
             return new SheetResponse(toResponse(s), rows, List.of(), List.of());
         }
         YearMonth ym = YearMonth.of(s.getPayYear(), s.getPeriod());
@@ -135,9 +125,40 @@ public class SimplePaymentService {
         return sheet(id);
     }
 
-    /** 만들 때 · [새로불러오기] 때 서식 숫자를 담아 둔다 — 사업 · 기타소득 · 일용근로. 근로소득은 담지 않는다. */
+
+    /** 그 반기 급여대장의 월별 과세급여를 사원마다 — 근로소득 서식 숫자. */
+    private List<LaborRow> countLabor(SimplePaymentStatement s) {
+        int firstMonth = s.getPeriod() == 1 ? 1 : 7;
+        YearMonth from = YearMonth.of(s.getPayYear(), firstMonth), to = from.plusMonths(5);
+        List<LaborRow> rows = new ArrayList<>();
+        for (WithholdingDtos.LedgerEmployee e : withholdingService.ledger(from.toString(), to.toString())) {
+            Map<String, BigDecimal> byMonth = new HashMap<>();
+            e.months().forEach(m -> byMonth.put(m.payMonth(), m.taxablePay()));
+            List<BigDecimal> monthly = new ArrayList<>();
+            for (int i = 0; i < 6; i++) monthly.add(byMonth.get(from.plusMonths(i).toString()));
+            LocalDate workFrom = later(e.hireDate(), from.atDay(1));
+            LocalDate workTo = e.resignDate() != null && e.resignDate().isBefore(to.atEndOfMonth()) ? e.resignDate() : to.atEndOfMonth();
+            rows.add(new LaborRow(e.employeeName(), workFrom, workTo, monthly,
+                    monthly.stream().filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add)));
+        }
+        return rows;
+    }
+
+    /** 근로소득 서식 [저장] — 고친 월별 금액을 담고 사원 합계 · 총액은 다시 센다(원본 2026-10-21: 칸을 고치면 합계가 따라오고, 저장하면 다시 열어도 그대로). */
+    @Transactional
+    public SheetResponse saveLaborSheet(Long id, List<LaborRow> rows) {
+        SimplePaymentStatement s = find(id);
+        if (s.getKind() != SimplePaymentKind.LABOR) throw ApiException.badRequest("근로소득 서식만 직접 고칠 수 있습니다.");
+        List<LaborRow> fixed = rows.stream().map(r -> new LaborRow(r.employeeName(), r.workFrom(), r.workTo(), r.monthlyPay(),
+                r.monthlyPay().stream().filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add))).toList();
+        s.setSheetSnapshot(write(fixed));
+        return sheet(id);
+    }
+
+    /** 만들 때 · [새로불러오기] 때 서식 숫자를 담아 둔다 — 사업 · 기타소득 · 일용근로 · 근로소득(2026-10-21 원본: 근로도 만들 때 담는다). */
     private void snapshot(SimplePaymentStatement s) {
-        if (isPayee(s.getKind())) s.setSheetSnapshot(write(countPayees(s)));
+        if (s.getKind() == SimplePaymentKind.LABOR) s.setSheetSnapshot(write(countLabor(s)));
+        else if (isPayee(s.getKind())) s.setSheetSnapshot(write(countPayees(s)));
         else if (s.getKind() == SimplePaymentKind.DAILY) s.setSheetSnapshot(write(countDaily(s)));
     }
 
