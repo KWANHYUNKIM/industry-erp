@@ -39,7 +39,7 @@ interface Book { id: number; code: string; name: string; debitSide: boolean; car
  * 예금 줄의 거래처명은 그 전표를 만든 계좌 입출금의 통장 이름이다. 일별 · 월별은 하루 · 한 달을 한 줄로 묶는다.
  * 2026-10-22 원본 실측: 일별은 열 다섯(일자 · 적요 '일계' · 차변 · 대변 · 잔액, 거래처 열 없음, 'YYYY/MM 계' 줄), 월별은 'YYYY/MM · 월계' 한 줄(계 줄 없음)이고
  * <b>월별 · 계정별집계는 기준일자를 달 단위로 넓힌다</b>(시작일 → 그 달 1일, 끝일 → 그 달 말일 — 22일까지 봐도 28일 전표가 든다). 계정별집계는 계정마다 한 줄
- * (계정코드 · 계정명 · 이월잔액 · 차변 · 대변 · 잔액) + 합계. [거래내역없는거래처제외]는 아직 없다. 부서 · 프로젝트는 회계전표 줄의 것(V343)으로 거른다 — 이월잔액도 그 줄만 센다.
+ * (계정코드 · 계정명 · 이월잔액 · 차변 · 대변 · 잔액) + 합계. [거래내역없는거래처제외]는 이월잔액뿐인 계정 칸을 뺀다(2026-10-22 원본 실측). 부서 · 프로젝트는 회계전표 줄의 것(V343)으로 거른다 — 이월잔액도 그 줄만 센다.
  */
 export default function AccountLedgerPage() {
   const init = periodOf('전월')!
@@ -52,6 +52,8 @@ export default function AccountLedgerPage() {
   const [project, setProject] = useState('')
   const deptProject = useDeptProjectItems()
   const [withCarry, setWithCarry] = useState(true)
+  /** [거래내역없는거래처제외] — 원본 2026-10-22: 켜면 기간 안 거래가 없는(이월잔액뿐인) 계정 칸을 뺀다(계정을 비웠을 때 29 → 13 칸). */
+  const [hideIdle, setHideIdle] = useState(false)
   /** 원본 조건 [양식구분 ☐결재방표시](2026-10-21 실측) — 켜면 출력물 머리에 결재 칸. */
   const [signBox, setSignBox] = useState(false)
   const [fiscalStart, setFiscalStart] = useState<number | null>(null)
@@ -123,8 +125,8 @@ export default function AccountLedgerPage() {
         b.rows.push({ key: `${e.id}-${l.id}`, date: e.entryDate, no: e.docNo, text: l.description ?? e.description ?? '', partner, d, c })
       }
     }
-    return [...m.values()].filter((b) => b.rows.length > 0 || b.carry !== 0).sort((a, b) => a.code.localeCompare(b.code))
-  }, [entries, accounts, accountId, dept, project, withCarry, effFrom, plCut, bookOf])
+    return [...m.values()].filter((b) => b.rows.length > 0 || (!hideIdle && b.carry !== 0)).sort((a, b) => a.code.localeCompare(b.code))
+  }, [entries, accounts, accountId, dept, project, withCarry, hideIdle, effFrom, plCut, bookOf])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '계정별원장', [books.length, mode])
@@ -297,6 +299,9 @@ export default function AccountLedgerPage() {
         <EcCond label="기타">
           <label className="mr-2.5 inline-flex items-center gap-[3px]">
             <input type="checkbox" checked={withCarry} onChange={(e) => setWithCarry(e.target.checked)} /> 전월이월포함
+          </label>
+          <label className="mr-2.5 inline-flex items-center gap-[3px]">
+            <input type="checkbox" checked={hideIdle} onChange={(e) => setHideIdle(e.target.checked)} /> 거래내역없는거래처제외
           </label>
         </EcCond>
         <EcCond label="양식구분">
