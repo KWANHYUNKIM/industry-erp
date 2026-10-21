@@ -8,6 +8,7 @@
         "click:신규(F2)",
         "wait:800",
         "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('프로젝트')",
         "clicklast:저장(F8)",
         "expect:document.body.innerText.includes('사원명을 입력 바랍니다.')",
         "set:[role=dialog] input[placeholder=성명]|QA관리-화면시험",

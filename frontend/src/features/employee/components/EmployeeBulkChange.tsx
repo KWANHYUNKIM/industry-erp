@@ -57,7 +57,7 @@ export default function EmployeeBulkChange({ employees, depts, onClose, onSaved 
       zipcode: d.zipcode.trim(),
       foreignName1: d.foreignName1.trim(), foreignName2: d.foreignName2.trim(),
       address: d.address.trim() || null,
-      bankCode: e.bankCode, bankName: e.bankName, accountNo: e.accountNo, accountHolder: e.accountHolder,
+      bankCode: e.bankCode, bankName: e.bankName, accountNo: e.accountNo, accountHolder: e.accountHolder, projectId: e.projectId,
       active: !resignDate,
       hireKind: d.hireKind, duty: d.duty,
     })

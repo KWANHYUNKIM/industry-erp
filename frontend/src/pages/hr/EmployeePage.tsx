@@ -56,6 +56,7 @@ type FormTab = '기본' | '급여지급사항' | '추가정보' | '기타설정'
 export default function EmployeePage() {
   const [rows, setRows] = useState<EmployeeMaster[]>([])
   const [depts, setDepts] = useState<DeptRow[]>([])
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [error, setError] = useState('')
   const [formError, setFormError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -79,7 +80,7 @@ export default function EmployeePage() {
     phone: '', mobile: '', email: '', zipcode: '', address: '', remark: '',
     foreignName1: '', foreignName2: '', household: '세대주',
     payType: 'FIXED' as EmployeePayType, baseSalary: '',
-    bankCode: '', bankName: '', accountNo: '', accountHolder: '', hireKind: '', duty: '',
+    bankCode: '', bankName: '', accountNo: '', accountHolder: '', hireKind: '', duty: '', projectId: '',
   }
   const [form, setForm] = useState(empty)
 
@@ -90,6 +91,7 @@ export default function EmployeePage() {
       .then((r) => setRows(r.data))
       .catch((e) => setError(extractErrorMessage(e)))
     api.get<DeptRow[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+    api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => setProjects([]))
     api.get<PayItem[]>('/pay-settings/items').then((r) => setPayItems(r.data)).catch(() => setPayItems([]))
   }
 
@@ -116,7 +118,7 @@ export default function EmployeePage() {
     setForm({
       code: e.code, name: e.name,
       departmentId: e.departmentId ? String(e.departmentId) : '',
-      jobTitle: e.jobTitle ?? '', hireKind: e.hireKind ?? '', duty: e.duty ?? '',
+      jobTitle: e.jobTitle ?? '', hireKind: e.hireKind ?? '', duty: e.duty ?? '', projectId: e.projectId ? String(e.projectId) : '',
       hireDate: e.hireDate ?? '', resignDate: e.resignDate ?? '', resignReason: e.resignReason ?? '',
       phone: e.phone ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
       zipcode: e.zipcode ?? '', address: e.address ?? '', remark: e.remark ?? '',
@@ -164,6 +166,7 @@ export default function EmployeePage() {
       accountHolder: form.accountHolder.trim() || null,
       hireKind: form.hireKind,
       duty: form.duty,
+      projectId: form.projectId ? Number(form.projectId) : null,
     }
     try {
       let id = editId
@@ -223,6 +226,7 @@ export default function EmployeePage() {
   const [codeCond, setCodeCond] = useState('')
   const [nameCond, setNameCond] = useState('')
   const [deptCond, setDeptCond] = useState('')
+  const [projCond, setProjCond] = useState('')
   const [titleCond, setTitleCond] = useState('')
   const [payCond, setPayCond] = useState<'ALL' | EmployeePayType>('ALL')
   const [statusCond, setStatusCond] = useState<'ALL' | 'ACTIVE' | 'RESIGNED'>('ACTIVE')
@@ -233,6 +237,7 @@ export default function EmployeePage() {
     .filter((e) => !codeCond || e.code.includes(codeCond))
     .filter((e) => !nameCond || e.name.includes(nameCond))
     .filter((e) => !deptCond || String(e.departmentId ?? '') === deptCond)
+    .filter((e) => !projCond || String(e.projectId ?? '') === projCond)
     .filter((e) => !titleCond || (e.jobTitle ?? '').includes(titleCond))
     .filter((e) => !quick || e.code.includes(quick) || e.name.includes(quick))
     .sort((a, b) => a.code.localeCompare(b.code))
@@ -284,7 +289,7 @@ export default function EmployeePage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/* 원본 조건 차례(기본 탭): 사원번호 · 성명 · 부서 · 프로젝트 · 직위/직급 · 급여구분 · 지급구분 · 재직구분 · 근무기간.
-          프로젝트 · 지급구분 · 근무기간은 사원에 그 값이 없어 뺐다. */}
+          지급구분 · 근무기간은 사원에 그 값이 없어 뺐다. */}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="사원번호">
           <input className="ec-input w-[160px]" value={codeCond} onChange={(e) => setCodeCond(e.target.value)} />
@@ -296,6 +301,12 @@ export default function EmployeePage() {
           <select className="ec-input w-[160px]" value={deptCond} onChange={(e) => setDeptCond(e.target.value)}>
             <option value="">전체</option>
             {depts.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="프로젝트">
+          <select className="ec-input w-[160px]" value={projCond} onChange={(e) => setProjCond(e.target.value)}>
+            <option value="">전체</option>
+            {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
           </select>
         </EcCond>
         <EcCond label="직위/직급">
@@ -409,8 +420,14 @@ export default function EmployeePage() {
                   items={depts.map((d) => ({ value: String(d.id), code: d.code ?? undefined, name: d.name }))}
                 />
               </Field>
-              {/* [부서코드] 오른쪽은 원본 [프로젝트] — 사원에 프로젝트가 없어 비운다(보드) */}
-              <li className="mobile:hidden" aria-hidden />
+              <Field label="프로젝트">
+                <CodePickerField
+                  label="" placeholder="프로젝트" emptyLabel="선택 해제"
+                  value={form.projectId}
+                  onChange={(v) => setForm({ ...form, projectId: v })}
+                  items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))}
+                />
+              </Field>
               {/* 원본 [급여통장] — 은행 · 계좌번호 · 예금주 세 칸을 한 이름표 아래 쌓는다 */}
               <Field label="급여통장" wide>
                 <div className="flex gap-[6px] w-full mobile:flex-col">

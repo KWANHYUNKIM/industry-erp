@@ -49,6 +49,10 @@ public class Employee extends BaseTimeEntity {
     @Column(name = "duty", length = 20)
     private String duty;
 
+    /** 원본 사원등록 [프로젝트] — hr → inventory 간선이 없어 id 만 든다(production 의 employeeId 와 반대 방향의 같은 이유). */
+    @Column(name = "project_id")
+    private Long projectId;
+
     /** 입사일 */
     private LocalDate hireDate;
 

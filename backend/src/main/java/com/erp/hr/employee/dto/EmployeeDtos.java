@@ -138,7 +138,9 @@ public class EmployeeDtos {
             /* 원본 [입사구분] 100 신입 · 200 경력 */
             @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String hireKind,
             /* 원본 [직책] 100 팀원 · 200 팀장 */
-            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String duty
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String duty,
+            /* 원본 [프로젝트] — hr 은 inventory 를 참조하지 않으므로 id 만 든다 */
+            Long projectId
     ) {}
 
     /**
@@ -187,7 +189,9 @@ public class EmployeeDtos {
             /* 원본 [입사구분] 100 신입 · 200 경력 */
             @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String hireKind,
             /* 원본 [직책] 100 팀원 · 200 팀장 */
-            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String duty
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String duty,
+            /* 원본 [프로젝트] — hr 은 inventory 를 참조하지 않으므로 id 만 든다 */
+            Long projectId
     ) {}
 
     /** 세무 퇴사자리스트 [퇴직처리] 창 — 입사일자 · 퇴사일자 · 퇴사사유 */
@@ -238,7 +242,8 @@ public class EmployeeDtos {
             /* 원본 [급여통장] */
             String bankCode, String bankName, String accountNo, String accountHolder,
             /* 원본 [입사구분] · [직책] */
-            String hireKind, String duty
+            String hireKind, String duty,
+            Long projectId
     ) {
         public static EmployeeResponse from(Employee e) {
             return new EmployeeResponse(
@@ -251,7 +256,7 @@ public class EmployeeDtos {
                     e.getPhone(), e.getEmail(), e.getSearchKeyword(), e.getRemark(),
                     e.getPayType(), e.getPayType().getDisplayName(),
                     e.getMobile(), e.getResignReason(), e.getForeignName1(), e.getForeignName2(), e.getHousehold(), e.getZipcode(), e.getAddress(),
-                    e.getBankCode(), e.getBankName(), e.getAccountNo(), e.getAccountHolder(), e.getHireKind(), e.getDuty());
+                    e.getBankCode(), e.getBankName(), e.getAccountNo(), e.getAccountHolder(), e.getHireKind(), e.getDuty(), e.getProjectId());
         }
 
         /**
@@ -271,7 +276,7 @@ public class EmployeeDtos {
                     phone, email, searchKeyword, remark,
                     payType, payTypeName, mobile, resignReason, foreignName1, foreignName2, household, zipcode, address,
                     /* 급여통장도 급여 정보다 — 기본급과 같이 가린다 */
-                    null, null, null, null, hireKind, duty);
+                    null, null, null, null, hireKind, duty, projectId);
         }
     }
 }

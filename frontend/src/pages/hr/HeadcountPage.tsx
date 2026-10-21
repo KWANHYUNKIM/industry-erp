@@ -9,7 +9,7 @@ import { headcountRows } from '../../utils/headcount'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
 
-interface Emp { id: number; name: string; department: string | null; jobTitle: string | null; hireDate: string | null; resignDate: string | null; hireKind?: string | null; duty?: string | null; code?: string }
+interface Emp { id: number; name: string; department: string | null; jobTitle: string | null; hireDate: string | null; resignDate: string | null; hireKind?: string | null; duty?: string | null; code?: string; projectId?: number | null }
 type Mode = '일별' | '월별' | '사용자지정집계'
 
 const two = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -24,7 +24,7 @@ const count = (n: number) => (n === 0 ? '' : two(n))
  * 한 번이라도 재직한 사람, 계는 그중 기간 끝에 남은 사람(근무인원 − 퇴직자)으로 읽었다. 숫자는 소수 두 자리, 0 은 빈칸.
  */
 const AGG_DIMS: AggDim[] = [
-  { key: 'dept', label: '부서', group: '사원정보' }, { key: 'jobTitle', label: '직위/직급', group: '사원정보' },
+  { key: 'dept', label: '부서', group: '사원정보' }, { key: 'project', label: '프로젝트', group: '사원정보' }, { key: 'jobTitle', label: '직위/직급', group: '사원정보' },
   { key: 'duty', label: '직책', group: '사원정보' }, { key: 'hireKind', label: '입사구분', group: '사원정보' },
 ]
 const AGG_TARGETS: AggTarget[] = [
@@ -43,7 +43,7 @@ const HIRE_KIND: Record<string, string> = { '100': '신입', '200': '경력' }
  * <p>표: 일자 · 입사자 · 입사인원 · 퇴사자 · 퇴사인원 · 총인원, 끝 [합계](두 칸 묶음). 일별은 하루 한 줄(2026/10/01),
  * 월별은 한 달 한 줄(2025/01). 입사자 · 퇴사자 칸은 그날(그달) 들어오고 나간 사람 이름, 총인원은 그날(달 끝) 재직 인원(소수 두 자리).
  * [합계] 줄은 칸이 모두 빈다 — 2026-10-14 원본에서 QA관리-발령 1명을 넣은 달도 입사인원 합계가 비었다. 사원은 퇴사자까지(/employees/all) 받아 입사일자 · 퇴사일자로 센다.
- * 사용자지정집계는 아래 AGG_DIMS. 프로젝트는 사원에 없다. 입사구분은 사원등록 [입사구분](100 신입 · 200 경력)을 본다.
+ * 사용자지정집계는 아래 AGG_DIMS. 입사구분은 사원등록 [입사구분](100 신입 · 200 경력)을 본다.
  */
 export default function HeadcountPage() {
   const init = periodOf('금월(~오늘)')!
@@ -53,6 +53,8 @@ export default function HeadcountPage() {
   /** [부서] · [직위/직급] — 원본처럼 여러 개 고르는 코드도움. */
   const [dept, setDept] = useState<string[]>([])
   const [title, setTitle] = useState<string[]>([])
+  const [project, setProject] = useState<string[]>([])
+  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [hireKind, setHireKind] = useState<string[]>([])
   const [agg, setAgg] = useState<AggState>(EMPTY_AGG)
   const [emps, setEmps] = useState<Emp[]>([])
@@ -65,6 +67,7 @@ export default function HeadcountPage() {
     try {
       const r = await api.get<Emp[]>('/employees/all')
       setEmps(r.data)
+      api.get<{ id: number; code: string; name: string }[]>('/projects').then((p) => setProjects(p.data)).catch(() => setProjects([]))
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -75,8 +78,9 @@ export default function HeadcountPage() {
 
   const picked = useMemo(() => emps
     .filter((e) => dept.length === 0 || dept.includes(e.department ?? ''))
+    .filter((e) => project.length === 0 || project.includes(String(e.projectId ?? '')))
     .filter((e) => title.length === 0 || title.includes(e.jobTitle ?? ''))
-    .filter((e) => hireKind.length === 0 || hireKind.includes(e.hireKind ?? '')), [emps, dept, title, hireKind])
+    .filter((e) => hireKind.length === 0 || hireKind.includes(e.hireKind ?? '')), [emps, dept, project, title, hireKind])
 
   const rows = useMemo(() => (mode === '사용자지정집계' ? [] : headcountRows(picked, mode, from, to)), [picked, mode, from, to])
   const aggRecords: AggRecord[] = useMemo(() => picked
@@ -87,13 +91,14 @@ export default function HeadcountPage() {
       return {
         dims: {
           dept: { code: e.department ?? '', name: e.department ?? '' },
+          project: { code: projects.find((p) => p.id === e.projectId)?.code ?? '', name: projects.find((p) => p.id === e.projectId)?.name ?? '' },
           jobTitle: { code: e.jobTitle ?? '', name: e.jobTitle ?? '' },
           duty: { code: e.duty ?? '', name: DUTY[e.duty ?? ''] ?? e.duty ?? '' },
           hireKind: { code: kind, name: HIRE_KIND[kind] ?? kind },
         },
         values: { 입사자: e.hireDate! >= from ? 1 : 0, 퇴직자: resigned, 계: 1 - resigned, 근무인원: 1 },
       }
-    }), [picked, from, to])
+    }), [picked, from, to, projects])
   const depts = [...new Set(emps.map((e) => e.department).filter((v): v is string => !!v))].sort()
   const titles = [...new Set(emps.map((e) => e.jobTitle).filter((v): v is string => !!v))].sort()
 
@@ -106,7 +111,7 @@ export default function HeadcountPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setMode('일별'); setFrom(init.from); setTo(init.to); setDept([]); setTitle([]); setHireKind([]); setAgg(EMPTY_AGG) } },
+        { label: '다시 작성', onClick: () => { setMode('일별'); setFrom(init.from); setTo(init.to); setDept([]); setProject([]); setTitle([]); setHireKind([]); setAgg(EMPTY_AGG) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -146,6 +151,10 @@ export default function HeadcountPage() {
         <EcCond label="부서" pick>
           <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={dept} onChangeMulti={(v) => setDept(v)}
                            items={depts.map((d) => ({ value: d, name: d }))} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel fill multiple placeholder="프로젝트" values={project} onChangeMulti={(v) => setProject(v)}
+                           items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
         </EcCond>
         <EcCond label="직위/직급" pick>
           <CodePickerField label="직위/직급" hideLabel fill multiple placeholder="직위/직급" values={title} onChangeMulti={(v) => setTitle(v)}

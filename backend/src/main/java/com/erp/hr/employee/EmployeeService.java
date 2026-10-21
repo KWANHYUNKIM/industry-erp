@@ -108,6 +108,7 @@ public class EmployeeService {
                 .accountHolder(req.accountHolder())
                 .hireKind(blankToNull(req.hireKind()))
                 .duty(blankToNull(req.duty()))
+                .projectId(req.projectId())
                 .active(true)
                 .build();
         Employee saved = employeeRepository.save(e);
@@ -131,6 +132,7 @@ public class EmployeeService {
         // 안 보낸 화면(옛 클라이언트)이 지우지 않게 — 빈 글자를 보내야 지운다
         if (req.hireKind() != null) e.setHireKind(blankToNull(req.hireKind()));
         if (req.duty() != null) e.setDuty(blankToNull(req.duty()));
+        e.setProjectId(req.projectId());
         if (req.hireDate() != null) e.setHireDate(req.hireDate());
         if (req.baseSalary() != null) {
             if (req.baseSalary().signum() < 0) {

@@ -2061,6 +2061,8 @@ export interface EmployeeMaster {
   hireKind: string | null
   /** 원본 사원등록 [직책] — 100 팀원 · 200 팀장 */
   duty: string | null
+  /** 원본 사원등록 [프로젝트] */
+  projectId: number | null
 }
 
 export type EmployeePayType = 'FIXED' | 'VARIABLE'
