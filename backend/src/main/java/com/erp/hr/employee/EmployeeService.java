@@ -466,6 +466,7 @@ public class EmployeeService {
     /** 인사카드 목록에서 [입력] 칸을 자료 있음으로 칠하려고 — 항목별 줄 수. */
     @Transactional(readOnly = true)
     public java.util.Map<HrDetailCategory, Long> hrDetailCounts(Long employeeId) {
+        get(employeeId);   // 없는 사원이면 404
         java.util.Map<HrDetailCategory, Long> out = new java.util.EnumMap<>(HrDetailCategory.class);
         for (var d : hrDetailRepository.findByEmployee_IdOrderByCategoryAscLineNoAsc(employeeId)) out.merge(d.getCategory(), 1L, Long::sum);
         return out;

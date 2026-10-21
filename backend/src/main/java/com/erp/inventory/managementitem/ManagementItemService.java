@@ -101,6 +101,7 @@ public class ManagementItemService {
     /** 미사용코드조회 — 기간 안 전표에 안 쓰인 관리항목(그 항목을 단 품목이 쓰였는지로 본다) id (원본 재고1 리스트의 [미사용코드조회]) */
     @Transactional(readOnly = true)
     public List<Long> findUnusedIds(java.time.LocalDate from, java.time.LocalDate to) {
+        if (from.isAfter(to)) return List.of();   // 거꾸로 준 기간 — 줄을 주지 않는다
         return unusedCodeFinder.unusedIdsVia("management_items", "items", "management_item_id", from, to);
     }
 }

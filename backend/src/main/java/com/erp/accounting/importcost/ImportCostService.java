@@ -234,6 +234,7 @@ public class ImportCostService {
     public LedgerResponse ledger(LocalDate from, LocalDate to, Long lotId, Long partnerId,
                                  boolean includeZero, boolean includeInactive) {
         List<CostItemResponse> items = items().stream().filter(CostItemResponse::active).toList();
+        if (from.isAfter(to)) return new LedgerResponse(items, List.of());   // 거꾸로 준 기간 — 다른 기간 조회처럼 줄을 주지 않는다
         Map<Long, Acc> byLot = new LinkedHashMap<>();
         for (ImportLot l : lotRepository.findAllWithPartner()) byLot.put(l.getId(), new Acc(l));
         for (ImportCostVoucher v : voucherRepository.findUntil(to)) {

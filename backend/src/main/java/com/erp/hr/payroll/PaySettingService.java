@@ -229,6 +229,7 @@ public class PaySettingService {
 
     @Transactional(readOnly = true)
     public List<PaySettingDtos.EmployeePayItemResponse> findEmployeePayItems(Long employeeId) {
+        employeeService.get(employeeId);   // 없는 사원이면 404
         return employeePayItemRepository.findWithItemByEmployeeId(employeeId).stream()
                 .map(e -> new PaySettingDtos.EmployeePayItemResponse(e.getPayItem().getId(), e.getPayItem().getName(), e.getAmount()))
                 .toList();
@@ -263,6 +264,7 @@ public class PaySettingService {
 
     @Transactional(readOnly = true)
     public PaySettingDtos.EmployeePayrollSettingResponse findPayrollSetting(Long employeeId) {
+        employeeService.get(employeeId);   // 없는 사원이면 404
         return PaySettingDtos.EmployeePayrollSettingResponse.from(payrollSetting(employeeId));
     }
 

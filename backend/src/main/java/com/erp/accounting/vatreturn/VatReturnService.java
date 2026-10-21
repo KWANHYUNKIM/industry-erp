@@ -90,6 +90,7 @@ public class VatReturnService {
 
     @Transactional(readOnly = true)
     public List<VatReturnDocSummary> docs(Long id) {
+        if (!repository.existsById(id)) throw ApiException.notFound("부가가치세 신고서를 찾을 수 없습니다. id=" + id);
         return docRepository.findByVatReturnId(id).stream()
                 .map(d -> new VatReturnDocSummary(d.getDocCode(), d.getWrittenAt())).toList();
     }
@@ -121,6 +122,7 @@ public class VatReturnService {
     /** 목록 [이력] — 원본 '부가세신고서 이력보기'. 오래된 것부터. */
     @Transactional(readOnly = true)
     public List<VatReturnHistoryRow> history(Long id) {
+        if (!repository.existsById(id)) throw ApiException.notFound("부가가치세 신고서를 찾을 수 없습니다. id=" + id);
         return historyRepository.findByVatReturnIdOrderByChangedAtAscIdAsc(id).stream()
                 .map(h -> new VatReturnHistoryRow(h.getChangedBy(), h.getChangedAt(), h.getDocCode(), h.getAction())).toList();
     }

@@ -141,6 +141,7 @@ public class QcTypeService {
      */
     @Transactional(readOnly = true)
     public List<ItemCheckResponse> findItemChecks(Long itemId) {
+        itemService.findById(itemId);   // 없는 품목이면 404
         QcType t = typeRepository.findByItemId(itemId).stream().filter(QcType::isActive).findFirst().orElse(null);
         if (t == null) {
             return List.of();
@@ -305,6 +306,7 @@ public class QcTypeService {
 
     @Transactional(readOnly = true)
     public String nextDetailCode(Long checkItemId) {
+        getCheckItem(checkItemId);   // 없는 검사항목이면 404
         return nextCode(detailRepository.findByCheckItemIdOrderByCodeAsc(checkItemId).stream()
                 .map(QcCheckItemDetail::getCode).toList());
     }

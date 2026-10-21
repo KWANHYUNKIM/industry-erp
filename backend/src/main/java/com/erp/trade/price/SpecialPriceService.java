@@ -141,6 +141,7 @@ public class SpecialPriceService {
 
     @Transactional(readOnly = true)
     public List<MemberResponse> warehouses(Long groupId) {
+        group(groupId);   // 없는 그룹이면 404
         return warehouseLinkRepository.findAllWithRefs().stream()
                 .filter(w -> w.getGroup().getId().equals(groupId))
                 .map(MemberResponse::warehouse).toList();
