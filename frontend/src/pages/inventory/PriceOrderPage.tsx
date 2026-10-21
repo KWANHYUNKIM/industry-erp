@@ -148,16 +148,24 @@ export default function PriceOrderPage() {
         </div>
       </div>
 
-      {/* 원본 '소수점처리설정(영업관리/구매관리)' — 소수점단위 · 처리방법 반올림 · [적용(F8)] [닫기] (2026-10-14 실측). 소수점단위 값 목록은 원본 재기 필요 */}
-      <Modal open={decimalOpen} title="소수점처리설정(영업관리/구매관리)" width={420} error={error} onClose={() => setDecimalOpen(false)}>
+      {/*
+        원본 '소수점처리설정(영업관리)' · '(구매관리)' — 탭에 따라 제목이 하나다(2026-10-21 실측). 소수점단위 소수점없음 · 소수점 1자리 … 10자리
+        (기본 10자리), 처리방법 반올림 · 올림 · 버림(기본 반올림). [적용(F8)] 은 말 없이 창을 닫는다.
+        우리는 단가 계산에 이 값을 쓰지 않아 고른 값을 저장하지 않는다(스키마 없음 — plans 재고1:67).
+      */}
+      <Modal open={decimalOpen} title={`소수점처리설정(${cat === 'SALES' ? '영업관리' : '구매관리'})`} width={420} error={error} onClose={() => setDecimalOpen(false)}>
         <div className="ec-form">
           <div className="flex items-center gap-[10px] mb-[6px]">
             <span className="w-[100px] text-ec-label">소수점단위</span>
-            <select className="ec-input flex-1" aria-label="소수점단위"><option>사용안함</option></select>
+            <select className="ec-input flex-1" aria-label="소수점단위" defaultValue="소수점 10자리">
+              {['소수점없음', ...Array.from({ length: 10 }, (_, i) => `소수점 ${i + 1}자리`)].map((o) => <option key={o}>{o}</option>)}
+            </select>
           </div>
           <div className="flex items-center gap-[10px]">
             <span className="w-[100px] text-ec-label">처리방법</span>
-            <select className="ec-input flex-1" aria-label="처리방법"><option>반올림</option></select>
+            <select className="ec-input flex-1" aria-label="처리방법" defaultValue="반올림">
+              {['반올림', '올림', '버림'].map((o) => <option key={o}>{o}</option>)}
+            </select>
           </div>
         </div>
         <div className="flex gap-[4px] mt-[9px]">
