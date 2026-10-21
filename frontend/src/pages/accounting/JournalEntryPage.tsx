@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Modal from '../../components/Modal'
 import type { JournalEntry } from '../../types/api'
@@ -60,7 +61,12 @@ function workTime(iso?: string | null) {
  *
  * <p>격자 위 툴바는 원본 그대로 [찾기(F3)] · [전표불러오기](SlipGridTools — 받쳐 줄 기능이 없어 모양만).
  * <p>두지 않은 것(plans/회계1.md 남은 것): 적요코드(적요 마스터 없음) ·
- * 회계전표No. 직접 지정 · 웹자료올리기 · 보내기 · 수정 창 [확인취소] · 프로젝트 열(원본 이 회사 설정으로 숨김).
+ * 웹자료올리기 · 보내기 · 프로젝트 열(원본 이 회사 설정으로 숨김).
+ *
+ * <p>2026-10-21 원본 실측: [회계전표No.] 는 글자 칸(placeholder '회계전표No.') — '77' 을 넣고 저장해도 전표번호는 다음 번호
+ * (26/10/21-29)이고 수정 창에 77 이 그대로 남는다(번호를 지정하는 칸이 아니라 따로 적어 두는 글자).
+ * 수정 창 머리(Option 왼쪽)에 진행상태 단추 — 확인 전표면 [확인취소], 미확인이면 [전표확인]. 누르면 묻지 않고 상태를 바꾸고
+ * 창을 닫아 회계거래조회로.
  */
 export default function JournalEntryPage() {
   const navigate = useNavigate()
@@ -71,6 +77,7 @@ export default function JournalEntryPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [entryDate, setEntryDate] = useState(today())
   const [memo, setMemo] = useState('')
+  const [acctDocNo, setAcctDocNo] = useState('')
   const [rows, setRows] = useState<Row[]>(blankRows)
   const [loaded, setLoaded] = useState<JournalEntry | null>(null)
   const [error, setError] = useState('')
@@ -99,6 +106,7 @@ export default function JournalEntryPage() {
       setLoaded(e)
       setEntryDate(e.entryDate)
       setMemo(e.memo ?? '')
+      setAcctDocNo((e as JournalEntry & { acctDocNo?: string | null }).acctDocNo ?? '')
       const rs: Row[] = e.lines.map((l) => ({
         side: l.debit > 0 ? '3' : '4', accountId: String(l.accountId), partnerId: l.partnerId ? String(l.partnerId) : '',
         debit: l.debit > 0 ? String(l.debit) : '', credit: l.credit > 0 ? String(l.credit) : '',
@@ -153,7 +161,7 @@ export default function JournalEntryPage() {
   }
 
   function reset() {
-    setRows(blankRows()); setMemo(''); setMissing(null); setError('')
+    setRows(blankRows()); setMemo(''); setAcctDocNo(''); setMissing(null); setError('')
   }
 
   async function save(thenSlip = false) {
@@ -168,7 +176,7 @@ export default function JournalEntryPage() {
     setSaving(true)
     try {
       const body = {
-        entryDate, memo: memo.trim() || undefined,
+        entryDate, memo: memo.trim() || undefined, acctDocNo: acctDocNo.trim() || undefined,
         lines: filled.flatMap((r) => {
           const amt = amountOf(r)
           const line = {
@@ -212,6 +220,31 @@ export default function JournalEntryPage() {
     }
   }
 
+  /** 수정 창 머리 [확인취소] · [전표확인] — 원본: 묻지 않고 상태를 바꾸고 창을 닫는다. */
+  const confirmStatus = (loaded as (JournalEntry & { confirmStatus?: string }) | null)?.confirmStatus
+  async function toggleConfirm() {
+    if (!editId || !confirmStatus || confirmStatus === 'IN_APPROVAL') return
+    try {
+      await api.post('/journals/status', { ids: [editId], status: confirmStatus === 'CONFIRMED' ? 'UNCONFIRMED' : 'CONFIRMED' })
+      navigate('/accounting/journals')
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+  /* 공용 셸(EcSlipShell)에 머리 단추 자리가 없어, 머리 오른쪽 묶음(Option · 도움말) 맨 앞에 자리를 하나 끼운다. */
+  const anchorRef = useRef<HTMLSpanElement>(null)
+  const [headSlot, setHeadSlot] = useState<HTMLElement | null>(null)
+  useLayoutEffect(() => {
+    if (!editId) return
+    const tools = anchorRef.current?.closest('.ec-slip')?.querySelector('.ec-slip-title .ml-auto')
+    if (!tools) return
+    const slot = document.createElement('span')
+    slot.className = 'contents'
+    tools.insertBefore(slot, tools.firstChild)
+    setHeadSlot(slot)
+    return () => { slot.remove(); setHeadSlot(null) }
+  }, [editId])
+
   /** [복사] — 같은 줄로 새 전표를 연다(일자는 오늘). */
   function copy() {
     const keep = rows
@@ -247,6 +280,11 @@ export default function JournalEntryPage() {
     <form onSubmit={(e) => { e.preventDefault(); void save() }} onBlur={tempSave}>
       <EcSlipShell title="일반전표" formTabs={[{ id: 'basic', label: '일반전표' }]} activeFormTab="basic"
                    tempSave={hasTemp ? { onApply: applyTemp, onDelete: deleteTemp } : null} savedAt={savedAt} actions={actions}>
+        <span ref={anchorRef} className="hidden" />
+        {headSlot && confirmStatus && confirmStatus !== 'IN_APPROVAL' && createPortal(
+          <button type="button" className="ec-btn" onClick={() => void toggleConfirm()}>
+            {confirmStatus === 'CONFIRMED' ? '확인취소' : '전표확인'}
+          </button>, headSlot)}
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
         <ul className="ec-form mb-[8px]">
           <EcCond label="전표일자" span={2}>
@@ -261,7 +299,8 @@ export default function JournalEntryPage() {
             </select>
           </EcCond>
           <EcCond label="회계전표No." span={2}>
-            <input className="ec-input w-full" aria-label="회계전표No." placeholder="회계전표No." readOnly value="" />
+            <input className="ec-input w-full" aria-label="회계전표No." placeholder="회계전표No." maxLength={50}
+                   value={acctDocNo} onChange={(e) => setAcctDocNo(e.target.value)} />
           </EcCond>
           <EcCond label="첨언내용" span="full">
             <textarea className="ec-input w-full h-[52px]" aria-label="첨언내용" placeholder="첨언내용" maxLength={1000}
