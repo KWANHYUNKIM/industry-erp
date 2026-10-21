@@ -519,10 +519,10 @@ export default function DailyPayLedgerPage() {
                     <tr key={`${l.id}-a`}>
                       <td>{l.workerName}</td>
                       <td rowSpan={2} className="text-center"></td>
-                      <td className="text-right">{Number(l.days)}</td>
+                      <td className="text-right">{Number(l.days) || ''}</td>
                       <td className="relative text-right" title={l.direct ? '금액직접입력' : undefined}>
                         {l.direct && <i aria-hidden className="absolute left-0 top-0 border-t-[6px] border-r-[6px] border-t-ec-danger border-r-transparent" />}
-                        {won(l.dayPay ?? l.grossPay)}
+                        {Number(l.dayPay ?? l.grossPay) || l.direct ? won(l.dayPay ?? l.grossPay) : ''}
                       </td>
                       {allowCols.flatMap((c) => {
                         const it = itemOf(l, c.itemId)

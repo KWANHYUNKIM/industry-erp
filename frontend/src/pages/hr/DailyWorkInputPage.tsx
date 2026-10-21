@@ -80,7 +80,7 @@ export default function DailyWorkInputPage() {
         if (j !== i) return r
         const n = { ...r, ...patch }
         // 원본: 근무기록을 넣으면 금액 = 일근무 × 근무기록(직접 넣은 금액은 그대로). 더한 수당(QA관리-야간)은 채우지 않는다(2026-10-21).
-        if ('quantity' in patch && (n.amount === '' || n.autoAmt) && itemOf(n.item)?.builtin) {
+        if ('quantity' in patch && (n.amount === '' || n.autoAmt) && (!n.item || itemOf(n.item)?.builtin)) {
           const wage = workers.find((w) => String(w.id) === n.workerId)?.dailyWage
           const q = Number(n.quantity)
           if (wage != null && q > 0) { n.amount = String(Math.round(wage * q)); n.autoAmt = true }
