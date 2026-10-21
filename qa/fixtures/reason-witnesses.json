@@ -4376,12 +4376,6 @@
   ],
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
  },
- "분개장|정렬/소계기준": {
-  "claim": "일자 · 전표번호 · 줄 차례 하나로 세운다",
-  "present": [
-   "a.lineNo - b.lineNo"
-  ]
- },
  "일/월계표|기타": {
   "claim": "결재란을 그리지 않는다",
   "absent": [
