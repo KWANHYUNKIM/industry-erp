@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
@@ -152,6 +153,8 @@ export default function SpecialPricePage() {
   type BulkRow = { id: number; code: string; name: string; groupName: string; priceBasis: string; adjustRate: string; roundUnit: string; roundMode: string; active: boolean; dirty: Set<string> }
   const BULK_FIELDS = ['단가기준', '비율', '단위처리', '반올림구분', '사용구분'] as const
   const [bulk, setBulk] = useState<{ open: boolean; rows: BulkRow[]; field: typeof BULK_FIELDS[number]; value: string; error: string }>({ open: false, rows: [], field: '단가기준', value: '', error: '' })
+  const bulkTableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(bulkTableRef, '특별단가 변경', [bulk.open, bulk.rows.length])
   function openBulk(rows: SpecialPriceItemGroup[]) {
     setBulk({ open: true, field: '단가기준', value: options.priceBases[0] ?? '', error: '', rows: rows.map((r) => ({
       id: r.id, code: r.itemGroupCode, name: r.itemGroupName, groupName: r.groupName, priceBasis: r.priceBasis, adjustRate: String(r.adjustRate ?? ''),
@@ -510,7 +513,7 @@ export default function SpecialPricePage() {
               : <input className="ec-input text-right" value={bulk.value} onChange={(e) => setBulk({ ...bulk, value: e.target.value.replace(/[^0-9-]/g, '') })} />}
             <button type="button" className="ec-btn ec-btn-sm" onClick={bulkApply}>적용</button>
           </div>
-          <table>
+          <table ref={bulkTableRef}>
             <thead><tr><th className="w-[34px]" /><th>품목그룹코드</th><th>품목그룹명</th><th>특별단가그룹명</th><th>단가기준</th><th>비율</th><th>단위처리</th><th>반올림구분</th><th>사용구분</th></tr></thead>
             <tbody>
               {bulk.rows.map((r, i) => {
