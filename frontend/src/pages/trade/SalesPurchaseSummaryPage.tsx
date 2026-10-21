@@ -50,7 +50,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  * 품목명[규격] · 품목그룹1~3 · 프로젝트 · 프로젝트그룹1/2). 우리 자료로 낼 수 있는 것만 둔다 — 그룹2/3 · 프로젝트그룹은 마스터가 없어 뺀다.
  * 고른 축이 그대로 표의 앞머리 칸이 된다. 전부 사용안함이면 원본 문구를 낸다.
  * [집계대상] · [비교기간] · [가로보기] · [비율표시] · [코드포함] · [차이표시] 는 2026-10-21 실측대로 격자 머리 · 열 · 소계를 바꾼다.
- * 재지 못한 겹침(비율+차이 · 가로보기+비교기간 · 가로보기의 소계 줄 · 차이 열의 비율)은 지어내지 않고 단순 규칙을 쓴다(원본 재기 필요).
+ * 겹침(비율+차이 · 가로보기+비교기간 · 소계 줄 · 집계조건1~4)은 2026-10-22 원본 실측대로(plans/재고1.md).
  */
 const AXES = ['사용안함', '기준일자(일별)', '기준일자(월별)', '기준일자(연별)', '창고', '거래유형', '관리항목',
   '거래처', '거래처그룹1', '품목명[규격]', '품목그룹1', '프로젝트'] as const
@@ -116,7 +116,7 @@ const metricLabel = (side: Side, m: Target) => m === '수량' ? '수량' : m ===
 const sideLabel = (s: Side) => s === 'sale' ? '판매' : s === 'buy' ? '구매' : '차이'
 const fmtMetric = (m: Target, v: number) => m === '수량' ? qty2(v) : won(v)
 /** 원본 비율표시 — 합계 대비 % 정수 반올림, 0 이면 빈칸. */
-const ratioOf = (v: number, tot: number) => { if (!tot) return ''; const r = Math.round(v / tot * 100); return r === 0 ? '' : String(r) }
+const ratioOf = (v: number, tot: number) => { if (tot <= 0) return ''; const r = Math.round(v / tot * 100); return r === 0 ? '' : String(r) }
 const sumAgg = (list: Agg[]): Agg => list.reduce((s, a) => ({ ...s,
   saleCount: s.saleCount + a.saleCount, saleQty: s.saleQty + a.saleQty, saleSupply: s.saleSupply + a.saleSupply, saleVat: s.saleVat + a.saleVat,
   buyCount: s.buyCount + a.buyCount, buyQty: s.buyQty + a.buyQty, buySupply: s.buySupply + a.buySupply, buyVat: s.buyVat + a.buyVat }), emptyAgg('', []))
@@ -162,7 +162,8 @@ export default function SalesPurchaseSummaryPage() {
   const [axis1, setAxis1] = useState<Axis>('거래처')
   const [axis2, setAxis2] = useState<Axis>('사용안함')
   const [axis3, setAxis3] = useState<Axis>('사용안함')
-  const axes = [axis1, axis2, axis3].filter((a) => a !== '사용안함')
+  const [axis4, setAxis4] = useState<Axis>('사용안함')
+  const axes = [axis1, axis2, axis3, axis4].filter((a) => a !== '사용안함')
   const [targets, setTargets] = useState<Target[]>([])
   const [cmp, setCmp] = useState<Cmp>('사용안함')
   const [horizontal, setHorizontal] = useState(false)
@@ -173,7 +174,7 @@ export default function SalesPurchaseSummaryPage() {
   const [prevPurchases, setPrevPurchases] = useState<PurchaseDoc[]>([])
   /** 안 고르면 넷 다. 가로보기만은 하나라도 골라야 한다(원본 풍선). */
   const metrics: Target[] = targets.length ? TARGETS.filter((t) => targets.includes(t)) : [...TARGETS]
-  const useCmp = cmp !== '사용안함' && !horizontal
+  const useCmp = cmp !== '사용안함'
   const prevFrom = shiftDate(from, cmp)
   const prevTo = shiftDate(to, cmp)
   const needAxis = axes.length === 0
@@ -350,14 +351,14 @@ export default function SalesPurchaseSummaryPage() {
     const totals = periods.map((_, pi) => sumAgg(list.map((r) => r.aggs[pi])))
     return { list, totals }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sales, purchases, prevSales, prevPurchases, axis1, axis2, axis3, from, to, prevFrom, prevTo, useCmp, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond,
+  }, [sales, purchases, prevSales, prevPurchases, axis1, axis2, axis3, axis4, from, to, prevFrom, prevTo, useCmp, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond,
       partnerGroupCond, partnerMgrCond, categoryCond, itemGroupCond, taxTypeCond, mgmtCond])
   const rows = grid.list
   useTableColumnCheck(tableRef, '판매구매집계표', [axes.join(','), rows.length, loading, horizontal, cmp, targets.join(), showRatio, showDiff, showCode])
 
   /* ---- 격자 꼴: 옵션에 따라 머리 줄 · 열 · 소계가 바뀐다(원본 실측 2026-10-21) ---- */
   const sides: Side[] = showDiff ? ['sale', 'buy', 'diff'] : ['sale', 'buy']
-  const perMetric = (side: Side) => showRatio && side !== 'diff' ? 2 : 1
+  const perMetric = (_side: Side) => showRatio ? 2 : 1
   const sideSpan = (side: Side) => metrics.length * perMetric(side)
   const groupSpan = sides.reduce((n, sd) => n + sideSpan(sd), 0)
   const hMsg = horizontal
@@ -365,37 +366,36 @@ export default function SalesPurchaseSummaryPage() {
       : targets.length === 0 ? '집계대상에서 가로보기 대상을 선택바랍니다.' : '')
     : ''
 
-  /** 한 묶음(기간 또는 가로보기의 열 값)의 데이터 칸들. */
-  const cells = (a: Agg, base: Agg, key: string) => sides.flatMap((sd) => metrics.flatMap((m) => {
+  /** 한 묶음(기간 × 가로보기 열 값 한 칸)의 데이터 칸들. 소계 줄(계)에서는 비율을 비운다(원본 실측 2026-10-22). */
+  const cells = (a: Agg, base: Agg, key: string, withRatio = true) => sides.flatMap((sd) => metrics.flatMap((m) => {
     const v = metricOf(a, sd, m)
     const out = [<td key={`${key}${sd}${m}`} className="text-right">{fmtMetric(m, v)}</td>]
-    if (showRatio && sd !== 'diff') out.push(<td key={`${key}${sd}${m}r`} className="text-right">{ratioOf(v, metricOf(base, sd, m))}</td>)
+    if (showRatio) out.push(<td key={`${key}${sd}${m}r`} className="text-right">{withRatio ? ratioOf(v, metricOf(base, sd, m)) : ''}</td>)
     return out
   }))
   const leadAxes = horizontal ? axes.slice(0, -1) : axes
   const codeLead = showCode ? leadAxes.filter((ax) => CODE_HEAD[ax]) : []
   const leadCols = codeLead.length + leadAxes.length
-  /** 머리: 평소 두 줄 / 비교기간 · 가로보기는 맨 윗줄(기간 또는 열 값)이 더해져 세 줄. */
-  const headRows = (blocks: string[] | null) => {
-    const n = blocks ? 3 : 2
+  /** 머리: 평소 두 줄 / 비교기간 · 가로보기는 맨 윗줄이 더해져 세 줄 / 둘 다면 네 줄(기간 → 열 값 → 판매 · 구매 → 지표). */
+  const headRows = (periodLabels: string[] | null, colVals: string[] | null) => {
+    const n = 2 + (periodLabels ? 1 : 0) + (colVals ? 1 : 0)
     const lead = [...codeLead.map((ax) => <th key={`c${ax}`} rowSpan={n}>{CODE_HEAD[ax]}</th>),
       ...leadAxes.map((ax) => <th key={ax} rowSpan={n}>{AXIS_HEAD[ax]}</th>)]
+    const nCol = colVals ? colVals.length : 1
+    const nPer = periodLabels ? periodLabels.length : 1
+    const slots = Array.from({ length: nPer * nCol }, (_, i) => i)
     const sideTh = (i: number) => sides.map((sd) => <th key={`${i}${sd}`} colSpan={sideSpan(sd)} className="text-center">{sideLabel(sd)}</th>)
     const metTh = (i: number) => sides.flatMap((sd) => metrics.flatMap((m) => {
       const out = [<th key={`${i}${sd}${m}`} className="text-right">{metricLabel(sd, m)}</th>]
-      if (showRatio && sd !== 'diff') out.push(<th key={`${i}${sd}${m}r`} className="text-right">{metricLabel(sd, m)}비율</th>)
+      if (showRatio) out.push(<th key={`${i}${sd}${m}r`} className="text-right">{metricLabel(sd, m)}비율</th>)
       return out
     }))
-    const idx = (blocks ?? ['']).map((_, i) => i)
     return (
       <>
-        {blocks ? (
-          <>
-            <tr>{lead}{blocks.map((lb, i) => <th key={i} colSpan={groupSpan} className="text-center">{lb}</th>)}</tr>
-            <tr>{idx.flatMap(sideTh)}</tr>
-          </>
-        ) : <tr>{lead}{sideTh(0)}</tr>}
-        <tr>{idx.flatMap(metTh)}</tr>
+        {periodLabels && <tr>{lead}{periodLabels.map((lb, i) => <th key={i} colSpan={nCol * groupSpan} className="text-center">{lb}</th>)}</tr>}
+        {colVals && <tr>{periodLabels ? null : lead}{Array.from({ length: nPer }, (_, p) => colVals.map((c, j) => <th key={`${p}-${j}`} colSpan={groupSpan} className="text-center">{c}</th>))}</tr>}
+        <tr>{periodLabels || colVals ? null : lead}{slots.flatMap(sideTh)}</tr>
+        <tr>{slots.flatMap(metTh)}</tr>
       </>
     )
   }
@@ -403,70 +403,59 @@ export default function SalesPurchaseSummaryPage() {
     ...codeLead.map((ax) => <td key={`c${k}${ax}`}>{codeOf(ax, names[leadAxes.indexOf(ax)])}</td>),
     ...names.map((n, i) => <td key={`${k}n${i}`}>{n}</td>),
   ]
-  const subRow = (k: string, label: string, aggs: Agg[], bases: Agg[]) => (
+  const subRow = (k: string, label: string, aggs: Agg[], bases: Agg[], withRatio = false) => (
     <tr key={k} className="font-bold">
       <td colSpan={leadCols}>{label}</td>
-      {aggs.flatMap((ag, pi) => cells(ag, bases[pi], `${k}${pi}`))}
+      {aggs.flatMap((ag, pi) => cells(ag, bases[pi], `${k}${pi}`, withRatio))}
     </tr>
   )
 
-  /** 가로보기: 마지막 축의 값이 열 머리가 된다. */
-  const pivot = useMemo(() => {
-    if (!horizontal || axes.length < 2) return null
-    const lastVals = [...new Set(rows.map((r) => r.names[r.names.length - 1]))].sort((x, y) => x.localeCompare(y, 'ko'))
-    const leads = new Map<string, { names: string[]; byCol: Map<string, Agg> }>()
-    for (const r of rows) {
-      const names = r.names.slice(0, -1)
-      const k = names.join('\u0001')
-      let e = leads.get(k)
-      if (!e) { e = { names, byCol: new Map() }; leads.set(k, e) }
-      e.byCol.set(r.names[r.names.length - 1], r.aggs[0])
+  /**
+   * 줄 · 칸 모양 — 비교기간 × 가로보기를 한 틀로 만든다(원본 실측 2026-10-22: 둘은 함께 켜진다).
+   * 한 줄의 aggs 는 [기간0·열0, 기간0·열1, … 기간1·열0 …] 차례로 납작하게 편다.
+   */
+  const shape = useMemo(() => {
+    const nPer = grid.totals.length
+    if (horizontal && axes.length >= 2) {
+      const lastVals = [...new Set(rows.map((r) => r.names[r.names.length - 1]))].sort((x, y) => x.localeCompare(y, 'ko'))
+      const leads = new Map<string, { key: string; names: string[]; aggs: Agg[] }>()
+      for (const r of rows) {
+        const names = r.names.slice(0, -1)
+        const k = names.join('\u0001')
+        let e = leads.get(k)
+        if (!e) { e = { key: k, names, aggs: Array.from({ length: nPer * lastVals.length }, () => emptyAgg('', [])) }; leads.set(k, e) }
+        const ci = lastVals.indexOf(r.names[r.names.length - 1])
+        for (let p = 0; p < nPer; p++) e.aggs[p * lastVals.length + ci] = r.aggs[p]
+      }
+      const units = [...leads.values()]
+      const totals = Array.from({ length: nPer * lastVals.length }, (_, s) => sumAgg(units.map((u) => u.aggs[s])))
+      return { units, totals, colVals: lastVals as string[] | null }
     }
-    return { lastVals, leads: [...leads.values()] }
-  }, [rows, horizontal, axes.length])
+    return { units: rows.map((r) => ({ key: r.key, names: r.names, aggs: r.aggs })), totals: grid.totals, colVals: null as string[] | null }
+  }, [rows, grid.totals, horizontal, axes.length])
 
   function bodyRows(): React.ReactNode {
-    if (pivot) {
-      const base = grid.totals[0]
-      const out: React.ReactNode[] = []
-      let group: typeof pivot.leads = []
-      const flush = () => {
-        if (leadAxes.length >= 2 && group.length) {
-          const aggs = pivot.lastVals.map((c) => sumAgg(group.map((g) => g.byCol.get(c) ?? emptyAgg('', []))))
-          out.push(subRow(`s${out.length}`, `${group[0].names[0]} 계`, aggs, aggs.map(() => base)))
-        }
-        group = []
-      }
-      pivot.leads.forEach((e, i) => {
-        if (leadAxes.length >= 2 && group.length && group[0].names[0] !== e.names[0]) flush()
-        group.push(e)
-        out.push(<tr key={`r${i}`}>{leadTds(e.names, `r${i}`)}{pivot.lastVals.flatMap((c) => cells(e.byCol.get(c) ?? emptyAgg('', []), base, `r${i}${c}`))}</tr>)
-      })
-      flush()
-      const tot = pivot.lastVals.map((c) => sumAgg(pivot.leads.map((e) => e.byCol.get(c) ?? emptyAgg('', []))))
-      out.push(<tr key="tot" className="font-bold bg-ec-page"><td colSpan={leadCols}>합계</td>{tot.flatMap((ag, i) => cells(ag, base, `t${i}`))}</tr>)
-      return out
-    }
+    const { units, totals } = shape
     const out: React.ReactNode[] = []
-    let groupKey: string | null = null
-    let group: typeof rows = []
-    const flush = () => {
-      if (useCmp && axes.length >= 2 && group.length) {
-        out.push(subRow(`s${out.length}`, `${groupKey} 계`, grid.totals.map((_, pi) => sumAgg(group.map((g) => g.aggs[pi]))), grid.totals))
+    /* 소계: 집계조건이 둘 이상이면 1 .. (n-1)번째 축마다 그 값이 끝날 때 '<값> 계' 줄(안쪽 먼저, 칸 전부 합침). 값이 비면 '[] 계'. */
+    const levels = Math.max(axes.length - 1, 0)
+    const sameHead = (a: string[], b: string[], l: number) => a.slice(0, l).every((v, i) => v === b[i])
+    units.forEach((u, i) => {
+      out.push(<tr key={`r${u.key}`}>{leadTds(u.names, `r${i}`)}{u.aggs.flatMap((ag, s) => cells(ag, totals[s], `r${i}_${s}`))}</tr>)
+      for (let l = levels; l >= 1; l--) {
+        const nx = units[i + 1]
+        if (nx && sameHead(nx.names, u.names, l)) continue
+        let j = i
+        while (j > 0 && sameHead(units[j - 1].names, u.names, l)) j--
+        const grp = units.slice(j, i + 1)
+        out.push(subRow(`s${i}_${l}`, `${u.names[l - 1] || '[]'} 계`, totals.map((_, s) => sumAgg(grp.map((g) => g.aggs[s]))), totals))
       }
-      group = []
-    }
-    rows.forEach((r) => {
-      if (useCmp && axes.length >= 2 && groupKey !== null && groupKey !== r.names[0]) flush()
-      groupKey = r.names[0]; group.push(r)
-      out.push(<tr key={r.key}>{leadTds(r.names, r.key)}{r.aggs.flatMap((ag, pi) => cells(ag, grid.totals[pi], `${r.key}${pi}`))}</tr>)
     })
-    flush()
-    out.push(subRow('tot', '합계', grid.totals, grid.totals))
+    out.push(subRow('tot', '합계', totals, totals, true))
     return out
   }
-  const blocks: string[] | null = pivot ? pivot.lastVals : useCmp ? [slashRange(from, to), slashRange(prevFrom, prevTo)] : null
-  const totalCols = leadCols + (pivot ? pivot.lastVals.length : useCmp ? 2 : 1) * groupSpan
+  const periodLabels: string[] | null = useCmp ? [slashRange(from, to), slashRange(prevFrom, prevTo)] : null
+  const totalCols = leadCols + shape.totals.length * groupSpan
   const toggle = <T,>(arr: T[], v: T) => arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]
 
   const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }
@@ -492,7 +481,7 @@ export default function SalesPurchaseSummaryPage() {
           맨 뒤에 두고 있었다. 원본은 집계조건1~5 를 겹쳐 고르지만 우리 표는 축이 하나라
           거래처별·품목별 둘로 둔다.
         */}
-        {([['집계조건1', axis1, setAxis1], ['집계조건2', axis2, setAxis2], ['집계조건3', axis3, setAxis3]] as const).map(([lb, v, set]) => (
+        {([['집계조건1', axis1, setAxis1], ['집계조건2', axis2, setAxis2], ['집계조건3', axis3, setAxis3], ['집계조건4', axis4, setAxis4]] as const).map(([lb, v, set]) => (
           <div key={lb} className="flex items-center">
             <span style={{ ...label, width: 66 }}>{lb}</span>
             <select className="ec-input" value={v} style={{ width: 130 }}
@@ -619,7 +608,7 @@ export default function SalesPurchaseSummaryPage() {
         [수량 · 판매금액 · 부가세 · 합계 │ 수량 · 구매금액 · 부가세 · 합계], 끝에 '합계' 줄. 건수 · 순액 열은 없다.
       */}
       <table ref={tableRef} className="w-full text-left">
-        <thead>{headRows(blocks)}</thead>
+        <thead>{headRows(periodLabels, shape.colVals)}</thead>
         <tbody>
           {loading ? (
             <tr><td colSpan={totalCols} className="ec-empty">불러오는 중…</td></tr>
