@@ -5875,6 +5875,96 @@ async function scenarioProductionLaborMinutes(f) {
  * <p>계산은 현재고에서 <b>그 뒤의 입출고를 빼는</b> 것이다. 이력만 더해서 구하지 않는다 —
  * 이력이 지워지거나 잔량만 손으로 고쳐진 자료가 섞이면 그 시점 숫자가 통째로 틀린다.
  */
+/**
+ * 거래이력조회(재고) E040716 — 재고 · 생산 · 발주요청 · 단가요청 · 발주서 · 출하지시서 · 출하 전표도 작업 이력을 한 줄씩 적는다
+ * (재고1 마무리 12). 전표 종류마다 만들고 → 고치고 → 지우며 메뉴 글자 · 행위가 조회에 뜨는지 본다.
+ */
+async function scenarioSlipHistory(f) {
+  section('■ 거래이력조회(재고) — 재고 · 생산 · 발주 · 출하 전표 이력')
+  const today = new Date().toISOString().slice(0, 10)
+  const D = '2087-07-07'
+  const wh2 = await ensure('/warehouses', 'code', `${P}WH2`, null, { code: `${P}WH2`, name: 'QA창고2', location: 'QA동 2층' })
+  const rowsOf = async (menu, no) =>
+    (await must('GET', `/change-history/slips?from=${today}&to=${today}&menu=${encodeURIComponent(menu)}&latestOnly=false`))
+      .filter((r) => r.docNo === no).sort((a, b) => a.id - b.id)
+  const acts = (rows) => rows.map((r) => r.action).join(',')
+  await must('POST', '/stock/transactions', { itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 50 })
+
+  // 창고이동
+  const tr = await must('POST', '/stock-transfers/slips', { transferDate: D, fromWarehouseId: f.warehouse.id, toWarehouseId: wh2.id,
+    lines: [{ itemId: f.material.id, quantity: 1 }] })
+  const trNo = tr[0].transferNo
+  await must('PUT', `/stock-transfers/slips/${trNo}`, { transferDate: D, fromWarehouseId: f.warehouse.id, toWarehouseId: wh2.id,
+    lines: [{ itemId: f.material.id, quantity: 2 }] })
+  await must('DELETE', `/stock-transfers/slips/${trNo}`)
+  eq('이력: 창고이동 신규 · 수정 · 삭제', acts(await rowsOf('창고이동', trNo)), '신규,수정,삭제')
+
+  // 자가사용 · 불량처리
+  for (const [type, menu] of [['SELF_USE', '자가사용'], ['DEFECT', '불량처리']]) {
+    const sl = await must('POST', '/stock-adjustments/slips', { type, date: D, warehouseId: f.warehouse.id,
+      lines: [{ itemId: f.material.id, quantity: 1 }] })
+    const no = sl.adjustNo
+    await must('DELETE', `/stock-adjustments/slips/${no}`)
+    eq(`이력: ${menu} 신규 · 삭제`, acts(await rowsOf(menu, no)), '신규,삭제')
+  }
+
+  // 간편재고조정 → 재고조정 이력 + 실사전표 이력
+  const adj = await must('POST', '/stock-adjustments', { type: 'ADJUST', itemId: f.material.id, warehouseId: f.warehouse.id,
+    actualQty: 49, adjustDate: D })
+  eq('이력: 간편조정전표 신규', acts(await rowsOf('간편조정전표', adj.adjustNo)), '신규')
+  const st = (await must('GET', `/stock-adjustments/stocktakes?from=${D}&to=${D}`)).find((x) => x.adjustNo === adj.adjustNo)
+  eq('간편재고조정이 실사를 한 장 남긴다(이력 확인용)', !!st, true)
+  if (st) {
+    await must('DELETE', `/stock-adjustments/stocktakes/${st.id}`)
+    eq('이력: 실사전표 신규 · 삭제', acts(await rowsOf('실사전표', st.stocktakeNo)), '신규,삭제')
+    eq('이력: 실사를 지우면 딸린 조정도 삭제로 남는다', acts(await rowsOf('간편조정전표', adj.adjustNo)), '신규,삭제')
+  }
+
+  // 작업지시서 · 생산불출 · 생산입고
+  const wo = await must('POST', '/work-orders/slips', { orderDate: D, lines: [{ productId: f.product.id, plannedQty: 1, warehouseId: f.warehouse.id }] })
+  const woNo = wo[0].orderNo
+  await must('PUT', `/work-orders/slips/${woNo}`, { orderDate: D, lines: [{ productId: f.product.id, plannedQty: 2, warehouseId: f.warehouse.id }] })
+  await must('DELETE', `/work-orders/slips/${woNo}`)
+  eq('이력: 작업지시서 신규 · 수정 · 삭제', acts(await rowsOf('작업지시서', woNo)), '신규,수정,삭제')
+
+  const mi = await must('POST', '/material-issues/batch', { issueDate: D, warehouseId: f.warehouse.id, lines: [{ itemId: f.material.id, qty: 1 }] })
+  await must('DELETE', `/material-issues/${mi[0].id}`)
+  eq('이력: 생산불출 신규 · 삭제', acts(await rowsOf('생산불출', mi[0].issueNo)), '신규,삭제')
+
+  const pr = await must('POST', '/productions/slips', { entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1 }] })
+  const prNo = pr[0].prodNo
+  await must('PUT', `/productions/slips/${prNo}`, { entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 2 }] })
+  await must('DELETE', `/productions/slips/${prNo}`)
+  eq('이력: 생산입고I 신규 · 수정 · 삭제', acts(await rowsOf('생산입고I', prNo)), '신규,수정,삭제')
+
+  // 발주요청 · 단가요청 · 발주서
+  const poBody = (extra) => ({ partnerId: f.supplier.id, orderDate: D, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 500 }], ...extra })
+  const req = await must('POST', '/purchase-orders', poBody({}))
+  await must('PUT', `/purchase-orders/${req.id}`, poBody({ remark: 'QA이력' }))
+  await must('DELETE', `/purchase-orders/${req.id}`)
+  eq('이력: 발주요청 신규 · 수정 · 삭제', acts(await rowsOf('발주요청', req.orderNo)), '신규,수정,삭제')
+  const pq = await must('POST', '/purchase-orders', poBody({ priceRequest: true }))
+  await must('DELETE', `/purchase-orders/${pq.id}`)
+  eq('이력: 단가요청 신규 · 삭제', acts(await rowsOf('단가요청', pq.orderNo)), '신규,삭제')
+  const od = await must('POST', '/purchase-orders', poBody({ order: true }))
+  await must('DELETE', `/purchase-orders/${od.id}`)
+  eq('이력: 발주서 신규 · 삭제', acts(await rowsOf('발주서', od.orderNo)), '신규,삭제')
+
+  // 출하지시서 · 출하
+  const so = await must('POST', '/shipment-orders', { orderDate: D, partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 1 }] })
+  await must('PATCH', `/shipment-orders/${so.id}/status`, { status: 'COMPLETED' })
+  await must('DELETE', `/shipment-orders/${so.id}`)
+  eq('이력: 출하지시서 신규 · 상태변경 · 삭제', acts(await rowsOf('출하지시서', so.orderNo)), '신규,상태변경,삭제')
+  const sh = await must('POST', '/shipments', { partnerId: f.customer.id, shipDate: D, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }] })
+  await must('DELETE', `/shipments/${sh.id}`)
+  eq('이력: 출하 신규 · 삭제', acts(await rowsOf('출하', sh.shipNo)), '신규,삭제')
+}
+
 async function scenarioStockAsOf(f) {
   section('■ 기준일자 시점 재고')
 
@@ -10652,6 +10742,11 @@ async function main() {
     console.log('\n시드 완료.')
     return
   }
+  if (cmd === 'slip-history') {   // 거래이력조회(재고) 전표 이력만 빠르게
+    await scenarioSlipHistory(fixtures)
+    console.log(`\n통과 ${pass} / 실패 ${fail}`)
+    process.exit(fail ? 1 : 0)
+  }
   // 생산 쪽만 빨리 돌린다(node qa/qa.mjs production) — 전체는 수천 건을 만들고 오래 걸린다.
   if (cmd === 'production') {
     await scenarioProduction(fixtures)
@@ -10828,6 +10923,7 @@ async function main() {
   await scenarioWorkPostAttachment()
   await scenarioSurveyAttachment()
   await scenarioStockAsOf(fixtures)
+  await scenarioSlipHistory(fixtures)
   await scenarioProductionLaborMinutes(fixtures)
   await scenarioProductionBatch(fixtures)
   await scenarioProductionSlip(fixtures)
