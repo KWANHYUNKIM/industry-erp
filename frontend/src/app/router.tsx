@@ -321,6 +321,8 @@ const PurchaseRequestInputPage = lazy(() => import('../pages/trade/PurchaseReque
 const PurchasePlanInputPage = lazy(() => import('../pages/trade/PurchasePlanInputPage'))
 const PurchasePlanListPage = lazy(() => import('../pages/trade/PurchasePlanListPage'))
 const PriceRequestListPage = lazy(() => import('../pages/trade/PriceRequestListPage'))
+const PriceRequestInputPage = lazy(() => import('../pages/trade/PriceRequestInputPage'))
+const PurchaseOrderInputPage = lazy(() => import('../pages/trade/PurchaseOrderInputPage'))
 /* 이름표 묶음은 값이라 lazy 로 못 받는다 — 화면 파일에서 그대로 가져온다. */
 import { PLAN_LABELS } from '../pages/trade/PurchaseRequestStatusPage'
 const SalesDiscountPage = lazy(() => import('../pages/trade/SalesDiscountPage'))
@@ -581,6 +583,7 @@ export default function AppRouter() {
         <Route path="/sales/unordered" element={<UnorderedStatusPage />} />
         <Route path="/sales/quotations" element={<QuotationPage />} />
         <Route path="/sales/purchase-orders" element={<PurchaseOrderPage />} />
+        <Route path="/sales/purchase-order-input" element={<PurchaseOrderInputPage />} />
         <Route path="/sales/payable" element={<PayablePage />} />
         <Route path="/sales/export" element={<ExportPage />} />
         <Route path="/sales/export-status" element={<ExportStatusPage />} />
@@ -604,6 +607,7 @@ export default function AppRouter() {
         <Route path="/sales/purchase-plans" element={<PurchasePlanListPage />} />
         <Route path="/sales/purchase-plan-input" element={<PurchasePlanInputPage />} />
         <Route path="/sales/price-requests" element={<PriceRequestListPage />} />
+        <Route path="/sales/price-request-input" element={<PriceRequestInputPage />} />
         <Route path="/sales/purchase-request-status" element={<PurchaseRequestStatusPage />} />
         {/*
           한 파일이 셋을 겸하는데 <b>조건 이름표가 화면마다 다르다</b>(2026-09-08 실측) —
@@ -611,7 +615,7 @@ export default function AppRouter() {
           아래 둘은 [구분]·[발주No.]·[최초작성자]·[정렬/소계기준] 이다.
         */}
         <Route path="/sales/purchase-plan-status" element={<PurchaseRequestStatusPage defaultStatus="PLANNED" title="발주계획현황" {...PLAN_LABELS} />} />
-        <Route path="/sales/price-request-status" element={<PurchaseRequestStatusPage defaultStatus="PRICED" title="단가요청현황" {...PLAN_LABELS} />} />
+        <Route path="/sales/price-request-status" element={<PurchaseRequestStatusPage defaultStatus="PRICE_REQUESTED" title="단가요청현황" {...PLAN_LABELS} />} />
         <Route path="/sales/price-request-progress" element={<PriceRequestProgressPage />} />
         <Route path="/sales/purchase-discount" element={<PurchaseDiscountPage />} />
         <Route path="/sales/shipment-order" element={<ShipmentOrderPage />} />

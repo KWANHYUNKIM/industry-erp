@@ -19,7 +19,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  * 구매관리 > 발주 파이프라인 현황 — 한 컴포넌트를 진입 상태만 바꿔 재사용한다.
  *   발주요청현황 (E040318, 기본 REQUESTED)
  *   발주계획현황 (E041015, 기본 PLANNED)
- *   단가요청현황 (E040325, 기본 PRICED — 백엔드 /prices 가 "단가요청 결과 반영"으로 PRICED 를 매긴다)
+ *   단가요청현황 (E040325, 기본 PRICE_REQUESTED — 2026-10-21 단가요청을 따로 된 전표로 갈랐다. 단가 세 칸은 줄의 요청 · 수취 · 확정단가)
  * 상단에 상태별 집계 카드(클릭해 상태 전환), 하단에 선택 상태의 발주서를 라인 단위로 펼친다.
  *
  * 백엔드: 이 화면을 위해 서버사이드 조회를 추가했다 —
@@ -36,11 +36,11 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 /** 파이프라인 표시 순서 */
 const PIPELINE: PurchaseOrderStatus[] = ['REQUESTED', 'PLANNED', 'PRICED', 'ORDERED', 'RECEIVED', 'CANCELLED']
 const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: '발주요청', PLANNED: '발주계획', PRICED: '단가확정',
+  REQUESTED: '발주요청', PLANNED: '발주계획', PRICE_REQUESTED: '단가요청', PRICED: '단가확정',
   ORDERED: '발주확정', RECEIVED: '입고전환', CANCELLED: '취소',
 }
 const STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: 'var(--ec-warn)', PLANNED: 'var(--ec-text-hint)', PRICED: '#7a5bb5',
+  REQUESTED: 'var(--ec-warn)', PLANNED: 'var(--ec-text-hint)', PRICE_REQUESTED: 'var(--ec-text-hint)', PRICED: '#7a5bb5',
   ORDERED: 'var(--ec-blue)', RECEIVED: 'var(--ec-success)', CANCELLED: 'var(--ec-text-hint)',
 }
 
@@ -91,6 +91,9 @@ interface Row {
   validUntil: string
   qty: number
   unitPrice: number
+  /** 단가요청의 수취단가 · 확정단가(2026-10-21 단가요청을 따로 된 전표로 — 줄에 셋을 따로 든다). */
+  receivedPrice: number | null
+  confirmedPrice: number | null
   supply: number
   vat: number
 }
@@ -231,6 +234,8 @@ export default function PurchaseRequestStatusPage({
           ref: o.remark ?? '',
           qty: l.quantity,
           unitPrice: l.unitPrice,
+          receivedPrice: l.receivedPrice ?? null,
+          confirmedPrice: l.confirmedPrice ?? null,
           supply: l.supplyAmount,
           vat: l.vatAmount,
         }))
@@ -767,7 +772,10 @@ export default function PurchaseRequestStatusPage({
             <th>담당자명</th>
             <th>{title === '단가요청현황' ? '품목명[규격]' : title === '발주계획현황' ? '품목명[규격명]' : '품목명(규격)'}</th>
             <th className="text-right">수량</th>
-            <th className="text-right">단가</th>
+            {title === '단가요청현황' ? <>
+              {/* 원본 단가 세 칸(2026-09-09 실측) — 요청단가 · 수취단가(진행단계 [수취단가확인]) · 확정단가([단가확정]). */}
+              <th className="text-right">단가(요청단가)</th><th className="text-right">단가(수취단가)</th><th className="text-right">단가(확정단가)</th>
+            </> : <th className="text-right">단가</th>}
             <th className="text-right">공급가액</th>
             <th>거래처명</th>
             <th className="text-right">부가세</th>
@@ -777,9 +785,9 @@ export default function PurchaseRequestStatusPage({
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={title === '단가요청현황' ? 15 : 13} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} className="text-center text-ec-hint p-[20px]">
+            <tr><td colSpan={title === '단가요청현황' ? 15 : 13} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? `${STATUS_LABEL[status]} 상태의 발주서가 없습니다.` : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => (
@@ -793,6 +801,10 @@ export default function PurchaseRequestStatusPage({
               <td>{r.itemName}{r.spec ? (title === '발주요청현황' ? ` (${r.spec})` : ` [${r.spec}]`) : ''}</td>
               <td className="text-right">{r.qty.toLocaleString()}</td>
               <td className="text-right">{r.unitPrice.toLocaleString()}</td>
+              {title === '단가요청현황' && <>
+                <td className="text-right">{r.receivedPrice == null ? '' : r.receivedPrice.toLocaleString()}</td>
+                <td className="text-right">{r.confirmedPrice == null ? '' : r.confirmedPrice.toLocaleString()}</td>
+              </>}
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
               <td>{r.partner}</td>
               <td className="text-right text-ec-hint">{r.vat.toLocaleString()}</td>

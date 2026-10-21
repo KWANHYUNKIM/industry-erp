@@ -1,37 +1,37 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
+import type { PurchaseOrder } from '../../types/api'
+import Modal from '../../components/Modal'
+import EcNumInput from '../../components/EcNumInput'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 
 /**
- * 구매관리 > 단가요청진행단계 (이카운트 E040323)
- * 단가요청(=발주 파이프라인 문서)이 지금 어느 단계인지 문서 단위로 추적한다.
- * 발주요청→발주계획→단가확정→발주확정→입고전환 스테퍼로 현재 단계를 표시.
- * 단가요청현황(PurchaseRequestStatusPage)이 '상태별로 묶어 라인 목록'을 보여주는 반면,
- * 이 화면은 '문서 하나가 파이프라인 어디까지 왔나'를 한 줄로 본다.
- * <p>원본의 <b>[이력]</b>은 그 뒤에 만들었다 — 발주가 단계를 넘을 때마다 서버가
- * 남기고(purchase_order_histories) 이 화면이 그 자리에서 펀다. 남은 것은 <b>[수취금액]</b>
- * 뿐이다 — 매입처가 회신한 금액을 따로 적는 칸이 없어 확정금액(발주 전표금액)만 든다.
+ * 구매관리 > 단가요청진행단계 (이카운트 E040323) — 2026-10-21 loginaa 실측.
+ * 단가요청은 이제 <b>따로 된 전표</b>(PRICE_REQUESTED)다. 원본 열: 단가요청번호 · 품목명 · 진행단계 · 거래처명 · 수취금액 · 확정금액 · 이력.
+ * 진행단계는 두 칸 <b>[수취단가확인] → [단가확정]</b> — 누르면 줄마다 수취단가 · 확정단가를 적는 창이 뜬다(PATCH /price-steps).
+ * 확정단가는 단가요청조회 [다른전표생성 › 발주서] 로 베낄 때 발주서 단가가 된다.
+ * (원본 진행단계 칸을 눌러 뜨는 창은 합성 클릭으로 열리지 않아 못 쟀다 — 창 모양은 우리 것.)
  */
-const PIPELINE: PurchaseOrderStatus[] = ['REQUESTED', 'PLANNED', 'PRICED', 'ORDERED', 'RECEIVED']
-const LABEL: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: '발주요청', PLANNED: '발주계획', PRICED: '단가확정',
-  ORDERED: '발주확정', RECEIVED: '입고전환', CANCELLED: '취소',
-}
-const COLOR: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: 'var(--ec-warn)', PLANNED: 'var(--ec-text-hint)', PRICED: '#7a5bb5',
-  ORDERED: 'var(--ec-blue)', RECEIVED: 'var(--ec-success)', CANCELLED: 'var(--ec-danger)',
-}
+type Step = 'received' | 'confirmed'
+const STEP_LABEL: Record<Step, string> = { received: '수취단가확인', confirmed: '단가확정' }
 /** 오늘보다 지난 날짜인가. 목록에 날짜만 적어 두면 지났는지를 <b>사람이 세어야</b> 한다. */
 const expired = (d: string | null) => !!d && d < new Date().toISOString().slice(0, 10)
 
-const won = (n: number) => n.toLocaleString('ko-KR')
+const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
+const stepDone = (r: PurchaseOrder, s: Step) => r.lines.length > 0
+  && r.lines.every((l) => (s === 'received' ? l.receivedPrice : l.confirmedPrice) != null)
+const stepAmount = (r: PurchaseOrder, s: Step) => r.lines.reduce((a, l) => {
+  const p = s === 'received' ? l.receivedPrice : l.confirmedPrice
+  return a + (p == null ? 0 : Number(l.quantity) * Number(p))
+}, 0)
 
 /** 원본 [이력] 한 줄 — 언제 어느 단계로 넘어갔나. */
 interface HistoryRow {
@@ -42,25 +42,54 @@ interface HistoryRow {
   note: string | null
 }
 
-/** 문서의 파이프라인 진행 위치를 점으로 표시. 취소는 별도 표기. */
-function Stepper({ status }: { status: PurchaseOrderStatus }) {
-  if (status === 'CANCELLED') return <span style={{ color: COLOR.CANCELLED, fontWeight: 700 }}>취소됨</span>
-  const idx = PIPELINE.indexOf(status)
+/** [수취단가확인] · [단가확정] 창 — 줄마다 그 단가, 머리 [유효기간]. 단가확정은 비어 있으면 수취단가로 시작한다. */
+function PriceStepModal({ order, step, onClose, onSaved }: { order: PurchaseOrder; step: Step; onClose: () => void; onSaved: () => void }) {
+  const [prices, setPrices] = useState<string[]>(() => order.lines.map((l) => {
+    const v = step === 'received' ? (l.receivedPrice ?? l.unitPrice) : (l.confirmedPrice ?? l.receivedPrice ?? l.unitPrice)
+    return v == null ? '' : String(Number(v))
+  }))
+  const [valid, setValid] = useState(order.priceValidUntil ?? '')
+  const [error, setError] = useState('')
+  async function save() {
+    setError('')
+    try {
+      await api.patch(`/purchase-orders/${order.id}/price-steps`, {
+        priceValidUntil: valid || null,
+        lines: order.lines.map((l, i) => ({ lineId: l.id, [step === 'received' ? 'receivedPrice' : 'confirmedPrice']: prices[i] === '' ? null : Number(prices[i]) })),
+      })
+      onSaved()
+    } catch (e) { setError(extractErrorMessage(e)) }
+  }
   return (
-    <div className="flex items-center gap-[3px]">
-      {PIPELINE.map((st, i) => (
-        <span key={st} className="flex items-center gap-[3px]">
-          <span title={LABEL[st]} style={{
-            width: 9, height: 9, borderRadius: '50%',
-            background: i <= idx ? COLOR[status] : '#e2e6eb',
-            border: i === idx ? `2px solid ${COLOR[status]}` : 'none',
-            boxSizing: 'content-box',
-          }} />
-          {i < PIPELINE.length - 1 && <span style={{ width: 14, height: 2, background: i < idx ? COLOR[status] : '#e2e6eb' }} />}
-        </span>
-      ))}
-      <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 700, color: COLOR[status] }}>{LABEL[status]}</span>
-    </div>
+    <Modal open title={STEP_LABEL[step]} width={720} onClose={onClose} error={error}>
+      <div className="flex items-center gap-[6px] mb-[8px]">
+        <span className="w-[93px] text-ec-label">유효기간</span>
+        <input type="date" className="ec-input w-[145px]" value={valid} onChange={(e) => setValid(e.target.value)} />
+      </div>
+      <table className="w-full text-left">
+        <thead><tr>
+          <th>품목코드</th><th>품목명</th><th className="text-right">수량</th><th className="text-right">요청단가</th>
+          {step === 'confirmed' && <th className="text-right">수취단가</th>}
+          <th className="text-right w-[130px]">{step === 'received' ? '수취단가' : '확정단가'}</th>
+        </tr></thead>
+        <tbody>
+          {order.lines.map((l, i) => (
+            <tr key={l.id}>
+              <td>{l.itemCode}</td><td>{l.itemName}</td>
+              <td className="text-right">{won(Number(l.quantity))}</td>
+              <td className="text-right">{won(Number(l.unitPrice))}</td>
+              {step === 'confirmed' && <td className="text-right">{l.receivedPrice == null ? '' : won(Number(l.receivedPrice))}</td>}
+              <td><EcNumInput className="ec-input w-full text-right" value={prices[i]}
+                              onValue={(v) => setPrices((p) => p.map((x, k) => (k === i ? v : x)))} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex gap-[4px] mt-[10px]">
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+    </Modal>
   )
 }
 
@@ -72,7 +101,10 @@ const initP = periodOf('금월(~오늘)')!
 
 export default function PriceRequestProgressPage() {
   const [rows, setRows] = useState<PurchaseOrder[]>([])
-  const [statusFilter, setStatusFilter] = useState<'ALL' | PurchaseOrderStatus>('ALL')
+  const [stepOpen, setStepOpen] = useState<{ order: PurchaseOrder; step: Step } | null>(null)
+  /** 원본 조건 [진행상태] — 진행단계 어디까지 왔나. */
+  const [stepCond, setStepCond] = useState<'전체' | '수취단가확인 전' | '수취단가확인' | '단가확정'>('전체')
+  const tableRef = useRef<HTMLTableElement>(null)
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 단가요청진행단계의 조건 차례는 <b>유효기간 · 진행상태 · 거래처 · 품목 ·
@@ -146,7 +178,9 @@ export default function PriceRequestProgressPage() {
   }, [])
 
   const shown = useMemo(() => rows
-    .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
+    .filter((r) => r.status === 'PRICE_REQUESTED')
+    .filter((r) => stepCond === '전체' || (stepCond === '단가확정' ? stepDone(r, 'confirmed')
+      : stepCond === '수취단가확인' ? stepDone(r, 'received') && !stepDone(r, 'confirmed') : !stepDone(r, 'received')))
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.orderNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
     .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
     .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
@@ -164,7 +198,7 @@ export default function PriceRequestProgressPage() {
         && (!validTo || r.priceValidUntil <= validTo)))
     .filter((r) => (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
     .sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.id - a.id),
-  [rows, statusFilter, keyword, partnerCond, itemCond, empCond, remarkCond, partnerMgrCond, partnerMgrs, projCond,
+  [rows, stepCond, keyword, partnerCond, itemCond, empCond, remarkCond, partnerMgrCond, partnerMgrs, projCond,
     validUse, validFrom, validTo])
 
   /*
@@ -172,31 +206,14 @@ export default function PriceRequestProgressPage() {
    * (요청일 내림차순)를 그대로 쓴다.
    */
   const sort = useTableSort(shown, {
-    단가요청번호: (r) => r.orderNo,
-    요청일: (r) => r.orderDate,
+    단가요청번호: (r) => r.orderDate + r.orderNo,
   })
 
-  const count = (s: 'ALL' | PurchaseOrderStatus) => (s === 'ALL' ? rows.length : rows.filter((r) => r.status === s).length)
-  const totalAmount = useMemo(() => shown.reduce((a, r) => a + r.totalAmount, 0), [shown])
+  useTableColumnCheck(tableRef, '단가요청진행단계', [shown.length])
 
   return (
     <EcListShell title="단가요청진행단계" search={keyword} onSearchChange={setKeyword} onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      {/* 원본은 이 알약 줄에 <b>[진행상태]</b> 라는 이름표를 붙인다 — 이름이 없으면
-          무엇을 고르는 알약인지 화면만 보고는 알 수 없다. */}
-      <div className="flex gap-[2px] mb-[8px] flex-wrap items-center">
-        <span className="text-[12.5px] text-ec-label mr-[6px]">진행상태</span>
-        {(['ALL', ...PIPELINE, 'CANCELLED'] as const).map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
-            padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ec-text)', fontWeight: statusFilter === s ? 700 : 400,
-          }}>{s === 'ALL' ? '전체' : LABEL[s]} ({count(s)})</button>
-        ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12.5, color: 'var(--ec-label)' }}>
-          확정금액 합계 <b className="text-ec-blue text-[14px]">{won(totalAmount)}</b>
-        </span>
-      </div>
-
       {/* 원본 조건 차례: 진행상태 · 거래처 · 품목 · 담당자 · 적요 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 차례는 <b>[유효기간]이 맨 앞</b>이다(사본 실측). */}
@@ -226,6 +243,11 @@ export default function PriceRequestProgressPage() {
                      onChange={(e) => setValidTo(e.target.value)} style={{ width: 145 }} />
             </>
           )}
+        </EcCond>
+        <EcCond label="진행상태">
+          <select className="ec-input w-[140px]" value={stepCond} onChange={(e) => setStepCond(e.target.value as typeof stepCond)}>
+            {(['전체', '수취단가확인 전', '수취단가확인', '단가확정'] as const).map((o) => <option key={o}>{o}</option>)}
+          </select>
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
@@ -259,46 +281,43 @@ export default function PriceRequestProgressPage() {
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th className="w-[34px]"></th>
-            {/* 원본 실측: [단가요청번호]는 가운데다. */}
-            <th className="cursor-pointer text-center" onClick={() => sort.toggle('단가요청번호')}>단가요청번호 {sort.mark('단가요청번호')}</th><th className="cursor-pointer" onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>{/* 원본 차례: 단가요청번호 · 품목 · 진행단계 · <b>거래처명</b> · 확정금액 —
-                거래처명이 진행단계 뒤다. 우리는 맨 앞에 두어 어긋나 있었다. */}
-            <th>품목</th>
-            <th className="w-[320px]">진행단계</th>
+            {/* 원본 열(2026-10-21 실측): 단가요청번호 · 품목명 · 진행단계 · 거래처명 · 수취금액 · 확정금액 · 이력. 유효기간은 우리 덧붙임. */}
+            <th className="cursor-pointer text-center" onClick={() => sort.toggle('단가요청번호')}>단가요청번호 {sort.mark('단가요청번호')}</th>
+            <th>품목명</th>
+            <th className="w-[230px] text-center">진행단계</th>
             <th>거래처명</th>
+            <th className="text-right">수취금액</th>
             <th className="text-right">확정금액</th>
-            {/*
-              원본 격자에도 [유효기간] 열이 있다(stby_price_req.expire_date, 사본 실측).
-              지난 것은 붉게 적는다 — 목록에 날짜만 적어 두면 <b>지났는지를 사람이 세어야</b> 한다.
-            */}
-            <th className="w-[110px] text-center">유효기간</th><th>담당</th>
-            {/* 원본 격자의 마지막 열 [이력]. */}
+            <th className="w-[110px] text-center">유효기간</th>
             <th className="w-[60px] text-center">이력</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => [
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center text-ec-navy font-semibold">{r.orderNo}</td>
-              <td>{dateText(r.orderDate)}</td>
+              <td className="text-center">{dateNo(r.orderDate, r.orderNo)}</td>
               <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
-              <td><Stepper status={r.status} /></td>
-              <td>{r.partnerName}</td>
-              <td className="text-right font-semibold text-ec-blue">{won(r.totalAmount)}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace',
-                           color: expired(r.priceValidUntil) ? 'var(--ec-danger)' : 'var(--ec-label)',
-                           fontWeight: expired(r.priceValidUntil) ? 700 : 400 }}>
-                {r.priceValidUntil ?? ''}
+              <td className="text-center">
+                {(['received', 'confirmed'] as const).map((st) => (
+                  <button key={st} type="button" onClick={() => setStepOpen({ order: r, step: st })}
+                          className={`ec-btn ec-btn-sm mr-[4px]${stepDone(r, st) ? ' ec-btn-primary' : ''}`}>{STEP_LABEL[st]}</button>
+                ))}
               </td>
-              <td>{r.employeeName ?? ''}</td>
+              <td>{r.partnerName}</td>
+              <td className="text-right">{stepDone(r, 'received') ? won(stepAmount(r, 'received')) : ''}</td>
+              <td className="text-right">{stepDone(r, 'confirmed') ? won(stepAmount(r, 'confirmed')) : ''}</td>
+              <td className={`text-center ${expired(r.priceValidUntil) ? 'text-ec-danger font-bold' : 'text-ec-label'}`}>
+                {r.priceValidUntil ? dateText(r.priceValidUntil) : ''}
+              </td>
               <td className="text-center">
                 <button onClick={() => toggleHistory(r.id)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
@@ -308,7 +327,7 @@ export default function PriceRequestProgressPage() {
             </tr>,
             openHistory === r.id ? (
               <tr key={`${r.id}-history`}>
-                <td colSpan={10} className="bg-ec-page py-[8px] px-[14px]">
+                <td colSpan={9} className="bg-ec-page py-[8px] px-[14px]">
                   {history.length === 0 ? (
                     <span className="text-[12px] text-ec-hint">자취가 없습니다.</span>
                   ) : (
@@ -339,6 +358,8 @@ export default function PriceRequestProgressPage() {
           ]).flat()}
         </tbody>
       </table>
+      {stepOpen && <PriceStepModal order={stepOpen.order} step={stepOpen.step} onClose={() => setStepOpen(null)}
+                                   onSaved={() => { setStepOpen(null); void load() }} />}
     </EcListShell>
   )
 }

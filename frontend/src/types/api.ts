@@ -2149,7 +2149,7 @@ export interface Quotation {
 // ===== 발주서 =====
 
 export type PurchaseOrderStatus =
-  | 'REQUESTED' | 'PLANNED' | 'PRICED' | 'ORDERED' | 'RECEIVED' | 'CANCELLED'
+  | 'REQUESTED' | 'PLANNED' | 'PRICE_REQUESTED' | 'PRICED' | 'ORDERED' | 'RECEIVED' | 'CANCELLED'
 
 export interface PurchaseOrderLine {
   id: number
@@ -2175,6 +2175,9 @@ export interface PurchaseOrderLine {
   inputQuantity: number
   /** [수량조정] 창의 [최종계산일자]. */
   planCalcDate: string | null
+  /** 단가요청 진행단계의 수취단가 · 확정단가(요청단가는 unitPrice). */
+  receivedPrice?: number | null
+  confirmedPrice?: number | null
 }
 
 export interface PurchaseOrder {

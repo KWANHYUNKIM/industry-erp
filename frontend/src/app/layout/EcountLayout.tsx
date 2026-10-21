@@ -187,15 +187,18 @@ const MENU: TopMenu[] = [
           {
             label: '단가요청',
             children: [
+              /* 원본 단가요청 묶음 차례(2026-10-21 실측): 단가요청입력 · 단가요청조회 · 단가요청진행단계 · 단가요청현황. */
+              { label: '단가요청입력', to: '/sales/price-request-input' },
               { label: '단가요청조회', to: '/sales/price-requests' },
-              { label: '단가요청현황', to: '/sales/price-request-status' },
               { label: '단가요청진행단계', to: '/sales/price-request-progress' },
+              { label: '단가요청현황', to: '/sales/price-request-status' },
             ],
           },
           {
             label: '발주서',
             children: [
               { label: '발주서조회', to: '/sales/purchase-orders' },
+              { label: '발주서입력', to: '/sales/purchase-order-input' },
               { label: '발주서현황', to: '/sales/purchase-order-status' },
               /* 원본 발주서 묶음 넷째(2026-10-20 실측: 발주서조회 · 발주서입력 · 발주서현황 · 미구매현황). 출력물에도 있다. */
               { label: '미구매현황', to: '/sales/unpurchased' },

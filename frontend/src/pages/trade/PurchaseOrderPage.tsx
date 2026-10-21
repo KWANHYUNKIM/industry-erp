@@ -21,16 +21,20 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { dateNo } from '../../utils/dateNo'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
 
-const TABS = ['전체', '발주요청', '발주계획', '단가확정', '발주확정', '입고전환', '취소'] as const
+/**
+ * 원본 발주서조회 알약(2026-10-20 실측): 전체 · 결재중 · 미확인 · 확인 · 완료 · 진행중. 우리는 결재 · 확인 단계가 없어 전체 · 완료 · 진행중.
+ * 발주요청 · 발주계획 · 단가요청은 <b>다른 전표</b>(2026-10-21 전표 가르기)라 이 화면에 안 뜬다 — 각자 조회 화면이 있다.
+ */
+const TABS = ['전체', '완료', '진행중'] as const
 type Tab = (typeof TABS)[number]
-const TAB_STATUS: Record<Exclude<Tab, '전체'>, PurchaseOrderStatus> = {
-  발주요청: 'REQUESTED', 발주계획: 'PLANNED', 단가확정: 'PRICED',
-  발주확정: 'ORDERED', 입고전환: 'RECEIVED', 취소: 'CANCELLED',
-}
+const OTHER_SLIPS: PurchaseOrderStatus[] = ['REQUESTED', 'PLANNED', 'PRICE_REQUESTED']
+const isDone = (s: PurchaseOrderStatus) => s === 'RECEIVED' || s === 'CANCELLED'
+const inTab = (t: Tab, s: PurchaseOrderStatus) => t === '전체' || (t === '완료') === isDone(s)
 const statusColor = (s: PurchaseOrderStatus) =>
   s === 'RECEIVED' ? 'var(--ec-success)' : s === 'CANCELLED' ? 'var(--ec-text-hint)' : s === 'ORDERED' ? 'var(--ec-blue)' : 'var(--ec-label)'
 
@@ -177,7 +181,7 @@ export default function PurchaseOrderPage() {
    * 위에서 이미 걸고 있다. [내.외자구분]·[발송여부]만 여전히 우리 전표에 없다.
    */
   const shown = useMemo(() => rows
-    .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => !OTHER_SLIPS.includes(r.status) && inTab(tab, r.status))
     .filter((r) => (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
     .filter((r) => !orderNoCond || r.orderNo.includes(orderNoCond))
     .filter((r) => !whCond || String(r.warehouseId) === whCond)
@@ -208,7 +212,7 @@ export default function PurchaseOrderPage() {
      categoryCond, itemGroupCond, mgmt.groupOptions, partnerGroupCond, pgroups.groupOptions,
      dueFrom, dueTo, specCond, empCond, pmgrCond, pmgr.options, remarkCond, refCond,
      authorCond, madeFrom, madeTo, editedFrom, editedTo, byUpdated])
-  const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
+  const tabCount = (t: Tab) => rows.filter((r) => !OTHER_SLIPS.includes(r.status) && inTab(t, r.status)).length
 
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
 
@@ -345,8 +349,9 @@ export default function PurchaseOrderPage() {
        * 이름도 [+ 발주요청(F2)] 이었다 — 화면마다 새로 만드는 단추가 다른 자리에 있으면
        * 손이 매번 다시 찾는다. 셸에 맡겨 다른 화면과 같은 자리에 세운다.
        */
-      newLabel={showForm ? '입력닫기' : '발주요청(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      /* 2026-10-21: 발주요청은 다른 전표다 — [신규(F2)] 는 발주서입력 화면(바로 발주서)으로 간다. */
+      newLabel="신규(F2)"
+      onNew={() => navigate('/sales/purchase-order-input')}
       actions={[
       /* 원본 차례: 신규(F2) · 진행상태변경 · 인쇄 · 선택삭제 · Excel (사본 실측) */
       { label: `진행상태변경${picked.size ? ` (${picked.size})` : ''}`, onClick: bulkStatus },
@@ -497,30 +502,22 @@ export default function PurchaseOrderPage() {
           <tr>
             <th className="w-[28px] text-center"></th>
             <th className="w-[34px]"></th>
-            {/*
-              원본 발주서의 열은 <b>일자-No. · 거래처명 · 담당자명 · 품목명[규격명] ·
-              납기일자 · 발주금액합계 · 진행상태 · 생성한 전표 · 인쇄</b> 다(사본 실측).
-              우리는 이름이 여섯 군데 다르고, 일자와 번호를 둘로 나눴으며,
-              <b>담당자·품목·생성한 전표</b> 셋이 아예 없었다 — 셋 다 응답에 이미 오는 값이다.
-              규격은 발주 라인 응답에 없어 이름만 적는다 — 열 이름은 원본 그대로 둔다.
-              공급가액·부가세는 원본에 없지만 그대로 둔다(더 보여 주는 것이라 어긋남이 아니다).
-            */}
-            <th className="w-[190px]">일자-No.</th>
+            {/* 원본 발주서조회 열(2026-10-20 실측): 발주번호 · 거래처명 · 담당자 · 품목 · 납기일자 · 금액 · 종결여부 · 진행상태(조회) · 인쇄 · 프로젝트명. */}
+            <th className="w-[150px] text-center">발주번호</th>
             <th>거래처명</th>
-            <th className="w-[90px]">담당자명</th>
-            <th>품목명[규격명]</th>
+            <th className="w-[90px]">담당자</th>
+            <th>품목</th>
             <th className="w-[100px] text-center">납기일자</th>
-            <th className="text-right">공급가액</th><th className="text-right">부가세</th><th className="text-right">발주금액합계</th>
+            <th className="text-right">금액</th>
+            <th className="text-center">종결여부</th>
             <th className="text-center">진행상태</th>
-            {/* 원본은 이 칸을 <b>36px</b> 로 둔다 — 전표로 가는 짧은 링크 자리다.
-                우리도 번호만 짧게 적는다(110 은 담당자명·납기일자보다 넓어 앞뒤가 뒤집혔다). */}
-            <th className="w-[60px] text-center">생성한 전표</th>
             <th className="text-center">인쇄</th>
+            <th>프로젝트명</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((po, i) => (
             <Fragment key={po.id}>
               <tr onClick={() => toggle(po.id)} className="cursor-pointer">
@@ -528,8 +525,8 @@ export default function PurchaseOrderPage() {
                   <input type="checkbox" checked={picked.has(po.id)} onChange={() => pick(po.id)} />
                 </td>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td className="text-ec-blue font-semibold">
-                  {openId === po.id ? '▾ ' : '▸ '}{po.orderDate} {po.orderNo}
+                <td className="text-center text-ec-blue font-semibold">
+                  {openId === po.id ? '▾ ' : '▸ '}{dateNo(po.orderDate, po.orderNo)}
                 </td>
                 <td>{po.partnerName}</td>
                 <td style={{ color: po.employeeName ? undefined : 'var(--ec-text-off)' }}>{po.employeeName ?? ''}</td>
@@ -542,13 +539,11 @@ export default function PurchaseOrderPage() {
                     : ''}
                 </td>
                 <td className="text-center">{dateText(po.dueDate) || ''}</td>
-                <td className="text-right">{won(po.supplyAmount)}</td>
-                <td className="text-right text-ec-hint">{won(po.vatAmount)}</td>
                 <td className="text-right font-bold">{won(po.totalAmount)}</td>
-                <td className="text-center"><span style={{ color: statusColor(po.status) }}>{po.statusName}</span></td>
-                {/* 원본 [생성한 전표] — 입고로 넘어가며 만들어진 구매 전표를 가리킨다. */}
-                <td style={{ textAlign: 'center', color: po.convertedPurchaseId ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
-                  {po.convertedPurchaseId ? `#${po.convertedPurchaseId}` : '-'}
+                <td className="text-center"><span style={{ color: statusColor(po.status) }}>{isDone(po.status) ? '완료' : '진행중'}</span></td>
+                {/* 원본 [진행상태] '조회' — 이 발주서에서 이어진 전표. 우리는 줄을 펼쳐 이력 · 구매를 본다. */}
+                <td className="text-center">
+                  <a className="cursor-pointer" title={po.statusName}>조회</a>
                 </td>
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
                   <div className="inline-flex gap-[3px]">
@@ -561,10 +556,11 @@ export default function PurchaseOrderPage() {
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(po)}>삭제</button>
                   </div>
                 </td>
+                <td>{po.projectName ?? ''}</td>
               </tr>
               {openId === po.id && (
                 <tr className="no-ec">
-                  <td colSpan={13} className="p-0 bg-ec-page">
+                  <td colSpan={12} className="p-0 bg-ec-page">
                     <table className="w-full text-left my-[4px] mx-0">
                       <thead><tr><th className="w-[34px]"></th><th>품목코드</th><th>품목명</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th><th className="text-right">부가세</th></tr></thead>
                       <tbody>

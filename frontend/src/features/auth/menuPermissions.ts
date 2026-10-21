@@ -54,6 +54,7 @@ const RULES: Rule[] = [
   // 구매 (영업 라우트와 섞여 있어 먼저 걸러낸다)
   ['/sales/buy', 'PURCHASE'],
   ['/sales/purchase-orders', 'PURCHASE'],
+  ['/sales/purchase-order-input', 'PURCHASE'],
   ['/sales/purchase-list', 'PURCHASE'],
   ['/sales/purchase-status', 'PURCHASE'],
   ['/sales/unpurchased', 'PURCHASE'],
@@ -64,6 +65,7 @@ const RULES: Rule[] = [
   ['/sales/purchase-plans', 'PURCHASE'],
   ['/sales/purchase-plan-input', 'PURCHASE'],
   ['/sales/price-requests', 'PURCHASE'],
+  ['/sales/price-request-input', 'PURCHASE'],
   ['/sales/purchase-request-status', 'PURCHASE'],
   ['/sales/purchase-plan-status', 'PURCHASE'],
   ['/sales/price-request-status', 'PURCHASE'],

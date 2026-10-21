@@ -15,14 +15,6 @@
   ],
   "in": "backend"
  },
- "단가요청진행단계|수취금액": {
-  "claim": "단가요청에 받은 금액을 적는 칸이 없다",
-  "absent": [
-   "receivedAmount",
-   "quotedAmount"
-  ],
-  "in": "backend"
- },
  "구매단가일괄변경|환율": {
   "claim": "매입 전표에 통화 칸이 없다",
   "absent": [
@@ -2193,24 +2185,6 @@
   ],
   "in": "backend"
  },
- "발주서조회|진행중": {
-  "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소",
-  "present": [
-   "발주요청",
-   "단가확정",
-   "입고전환"
-  ],
-  "file": "trade/PurchaseOrderPage.tsx"
- },
- "발주서|진행중": {
-  "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소",
-  "present": [
-   "발주요청",
-   "단가확정",
-   "입고전환"
-  ],
-  "file": "trade/PurchaseOrderPage.tsx"
- },
  "창고이동현황|정렬/소계기준": {
   "claim": "[구분]이 이미 그 축을 고른다",
   "present": [
@@ -2448,33 +2422,6 @@
    "invoiceId"
   ],
   "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
- },
- "단가요청현황|단가(요청단가)": {
-  "claim": "발주 줄에 단가가 하나뿐이다",
-  "absent": [
-   "requestedPrice",
-   "receivedPrice",
-   "confirmedPrice"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
- },
- "단가요청현황|단가(수취단가)": {
-  "claim": "발주 줄에 단가가 하나뿐이다",
-  "absent": [
-   "requestedPrice",
-   "receivedPrice",
-   "confirmedPrice"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
- },
- "단가요청현황|단가(확정단가)": {
-  "claim": "발주 줄에 단가가 하나뿐이다",
-  "absent": [
-   "requestedPrice",
-   "receivedPrice",
-   "confirmedPrice"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
  "발주계획현황|진행상태": {
   "claim": "우리 표는 위 카드로 고른 한 상태만 편다",
@@ -3303,24 +3250,6 @@
    "confirmStatus"
   ],
   "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
- },
- "발주서조회|완료": {
-  "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소(위 [발주서조회|진행중] 과 같은 사실이다)",
-  "present": [
-   "발주요청",
-   "단가확정",
-   "입고전환"
-  ],
-  "file": "trade/PurchaseOrderPage.tsx"
- },
- "발주서|완료": {
-  "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소(위 [발주서|진행중] 과 같은 사실이다)",
-  "present": [
-   "발주요청",
-   "단가확정",
-   "입고전환"
-  ],
-  "file": "trade/PurchaseOrderPage.tsx"
  },
  "SW개발일정관리|프로젝트": {
   "claim": "이 화면의 행 자체가 프로젝트다 — 프로젝트로 프로젝트를 거를 수 없다(위 [건설예정공정표|프로젝트] 과 같은 사실이다)",

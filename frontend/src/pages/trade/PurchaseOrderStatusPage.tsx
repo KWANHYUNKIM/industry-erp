@@ -24,11 +24,11 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  * 나머지는 대응 필드가 없어 **의도적 제외**(값 없는 컨트롤을 흉내내지 않는다).
  */
 const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: '발주요청', PLANNED: '발주계획', PRICED: '단가확정',
+  REQUESTED: '발주요청', PLANNED: '발주계획', PRICE_REQUESTED: '단가요청', PRICED: '단가확정',
   ORDERED: '발주확정', RECEIVED: '입고전환', CANCELLED: '취소',
 }
 const STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: 'var(--ec-text-hint)', PLANNED: 'var(--ec-text-hint)', PRICED: 'var(--ec-warn)',
+  REQUESTED: 'var(--ec-text-hint)', PLANNED: 'var(--ec-text-hint)', PRICE_REQUESTED: 'var(--ec-text-hint)', PRICED: 'var(--ec-warn)',
   ORDERED: 'var(--ec-blue)', RECEIVED: 'var(--ec-success)', CANCELLED: 'var(--ec-text-off)',
 }
 

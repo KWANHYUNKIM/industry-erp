@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import PurchaseRequestForm, { copyLine, type PurchaseLineSeed } from '../../features/purchaserequest/PurchaseRequestForm'
+import { ecConfirm } from '../../components/EcDialog'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
@@ -9,12 +12,14 @@ import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPer
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
+import Modal from '../../components/Modal'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 단가를 회신받은 발주서 — 단가확정 뒤로만 발주확정 · 입고전환이 있다(PurchaseOrderService). */
-const PRICED_ON: PurchaseOrderStatus[] = ['PRICED', 'ORDERED', 'RECEIVED']
-const done = (s: PurchaseOrderStatus) => s === 'ORDERED' || s === 'RECEIVED'
+/** 단가요청은 따로 된 전표다(PRICE_REQUESTED, 2026-10-21) — 발주서를 만들어도 단가요청은 그대로(요청 · 계획과 같은 틀). */
+const isPriceRequest = (s: PurchaseOrderStatus) => s === 'PRICE_REQUESTED'
+type SrcLine = { sourceLineId?: number | null }
 /** 원본 [유효기간] 후보 — 다른 [유효기한] 조건과 같은 묶음이다. */
 const VALID_OPTS = ['사용안함', '직접입력', '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월'] as const
 type Tab = '전체' | '진행중' | '완료'
@@ -26,9 +31,9 @@ type Tab = '전체' | '진행중' | '완료'
  * 거래처관리담당자 · 최종수정자 · 발송여부. 열: 번호(일자-No.) · 품목명 · 금액(합계) · 유효기간 · Email 발송 · 진행상태 · 생성한 전표 · 인쇄.
  * 위 탭 전체 · 미확인 · 확인 · 진행중 · 완료.
  *
- * <p>우리 단가요청은 발주서의 [단가확정] 단계다 — 매입처가 회신한 단가를 반영하면 PRICED 가 된다. 그래서 단가확정 이상인 발주서가 단가요청이고,
- * 아직 발주로 안 넘어갔으면 '진행중', 발주확정 · 입고전환이면 '완료'. 유효기간은 회신 단가의 유효기간(priceValidUntil)이다.
- * Email 발송 · 생성한 전표 · 인쇄 열과 [발송여부]는 단가요청을 메일로 보내지 않아 없다. 확인 단계가 없어 미확인 · 확인 탭도 없다.
+ * <p>단가요청은 <b>따로 된 전표</b>(PRICE_REQUESTED)다 — 단가요청입력(E040321)으로 쓰고, 진행단계에서 수취단가 · 확정단가를 적고,
+ * [다른전표생성 › 발주서] 로 확정단가를 실은 발주서입력 창을 띄운다(줄에 출처). 원본 2026-10-21 실측: 저장하면 진행중, [선택삭제] '선택한 전표를 삭제 하겠습니까?'.
+ * [생성한 전표] '조회' 는 이 단가요청 줄을 베낀 발주서 번호. Email 발송 · 인쇄 열과 [발송여부]는 메일을 안 보내 없다. 확인 단계가 없어 미확인 · 확인 탭도 없다.
  */
 export default function PriceRequestListPage() {
   const pickers = useCondPickers(['partners', 'items', 'projects', 'employees'])
@@ -49,6 +54,11 @@ export default function PriceRequestListPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const navigate = useNavigate()
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [form, setForm] = useState<{ key: number; order: PurchaseOrder } | null>(null)
+  const [orderSeed, setOrderSeed] = useState<{ key: number; lines: PurchaseLineSeed[]; warehouseId: number | null; srcHead: [string, string] } | null>(null)
+  const [madeOf, setMadeOf] = useState<PurchaseOrder | null>(null)
 
   async function load() {
     setLoading(true)
@@ -66,7 +76,7 @@ export default function PriceRequestListPage() {
   useEffect(() => { void load() }, [from, to])
 
   const shown = useMemo(() => orders
-    .filter((o) => PRICED_ON.includes(o.status))
+    .filter((o) => isPriceRequest(o.status))
     .filter((o) => o.orderDate >= from && o.orderDate <= to)
     .filter((o) => validOpt === '사용안함' || (!!o.priceValidUntil && (!validFrom || o.priceValidUntil >= validFrom) && (!validTo || o.priceValidUntil <= validTo)))
     .filter((o) => domestic === '전체' || ((o.currency ?? 'KRW') === 'KRW') === (domestic === '내자'))
@@ -75,10 +85,29 @@ export default function PriceRequestListPage() {
     .filter((o) => !project || String(o.projectId) === project)
     .filter((o) => !employee || (o.employeeName ?? '') === employee)
     .filter((o) => !partnerMgr || pmgr.managerOfName(o.partnerName) === partnerMgr)
-    .filter((o) => tab === '전체' || (tab === '완료') === done(o.status))
+    .filter(() => tab !== '완료')
     .sort((a, b) => (a.orderDate > b.orderDate ? -1 : a.orderDate < b.orderDate ? 1 : b.orderNo.localeCompare(a.orderNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [orders, from, to, validOpt, validFrom, validTo, domestic, partner, item, project, employee, partnerMgr, tab])
+  /** 이 단가요청 줄을 베낀 발주서들 — 원본 [생성한 전표] '조회'. */
+  const madeFrom = (pr: PurchaseOrder) => {
+    const ids = new Set(pr.lines.map((l) => l.id))
+    return orders.filter((x) => !isPriceRequest(x.status) && x.lines.some((l) => ids.has((l as typeof l & SrcLine).sourceLineId ?? -1)))
+  }
+  /** [다른전표생성 › 발주서] — 고른 단가요청 줄을 확정단가로 한 장의 '발주서입력' 창에 베낀다(줄 열 [단가요청] · [No.]). 단가요청은 그대로다. */
+  function makeOrder() {
+    const lines: PurchaseLineSeed[] = []
+    for (const o of shown) if (checked.has(o.id)) for (const l of o.lines) lines.push(copyLine(o, l))
+    if (lines.length > 0) setOrderSeed({ key: Date.now(), lines, warehouseId: null, srcHead: ['단가요청', 'No.'] })
+  }
+  async function removeChecked() {
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
+    try {
+      for (const id of checked) await api.delete(`/purchase-orders/${id}`)
+      setChecked(new Set())
+    } catch (e) { setError(extractErrorMessage(e)) }
+    void load()
+  }
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '단가요청조회', [shown.length])
 
@@ -89,7 +118,11 @@ export default function PriceRequestListPage() {
       title="단가요청조회"
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
+        /* 원본 단추줄(2026-10-21 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 선택삭제 · Excel · 이력조회 — 메일 · 보내기 · 인쇄 · 바코드는 없다. */
+        { label: '신규(F2)', primary: true, onClick: () => navigate('/sales/price-request-input') },
+        { label: '다른전표생성 › 발주서', selected: checked.size, onClick: makeOrder },
+        { label: '선택삭제', selected: checked.size, onClick: () => void removeChecked() },
+        { label: '검색(F8)', onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setValidOpt('사용안함'); setValidFrom(''); setValidTo(''); setDomestic('전체'); setPartner(''); setItem(''); setProject(''); setEmployee(''); setPartnerMgr('') } },
         { label: 'Excel' },
       ]}
@@ -157,31 +190,56 @@ export default function PriceRequestListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
+            <th className="w-[34px]"><input type="checkbox" checked={shown.length > 0 && shown.every((o) => checked.has(o.id))}
+              onChange={(e) => setChecked(e.target.checked ? new Set(shown.map((o) => o.id)) : new Set())} /></th>
             <th className="text-center">번호</th>
             <th>품목명</th>
             <th className="text-right">금액(합계)</th>
             <th className="text-center">유효기간</th>
             <th className="text-center">진행상태</th>
+            <th className="text-center">생성한 전표</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => (
             <tr key={o.id}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{dateNo(o.orderDate, o.orderNo)}</td>
+              <td className="text-center"><input type="checkbox" aria-label={`${i + 1}`} checked={checked.has(o.id)}
+                onChange={(e) => setChecked((c) => { const n = new Set(c); if (e.target.checked) n.add(o.id); else n.delete(o.id); return n })} /></td>
+              <td className="text-center"><a className="cursor-pointer" onClick={() => setForm({ key: Date.now(), order: o })}>{dateNo(o.orderDate, o.orderNo)}</a></td>
               <td>{o.lines[0]?.itemName ?? ''}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td className="text-right">{won(Number(o.totalAmount))}</td>
               <td className="text-center">{o.priceValidUntil ? dateText(o.priceValidUntil) : ''}</td>
-              <td className="text-center">{done(o.status) ? '완료' : '진행중'}</td>
+              <td className="text-center">진행중</td>
+              <td className="text-center">{madeFrom(o).length > 0 && <a className="cursor-pointer" onClick={() => setMadeOf(o)}>조회</a>}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {form && (
+        <PurchaseRequestForm key={form.key} editing={form.order} priceRequest
+          onClose={() => setForm(null)}
+          onSaved={() => { setForm(null); void load() }}
+          onDeleted={() => { setForm(null); void load() }} />
+      )}
+      {orderSeed && (
+        <PurchaseRequestForm key={orderSeed.key} editing={null} order seed={orderSeed}
+          onClose={() => setOrderSeed(null)}
+          onSaved={() => { setOrderSeed(null); setChecked(new Set()); void load() }} />
+      )}
+      {madeOf && (
+        <Modal open title="발주서번호확인" width={420} error={error} onClose={() => setMadeOf(null)}>
+          <table className="w-full text-left">
+            <thead><tr><th>No.</th><th>발주번호</th></tr></thead>
+            <tbody>{madeFrom(madeOf).map((x) => (
+              <tr key={x.id}><td>{dateNo(madeOf.orderDate, madeOf.orderNo)}</td><td>{dateNo(x.orderDate, x.orderNo)}</td></tr>
+            ))}</tbody>
+          </table>
+        </Modal>
+      )}
     </EcListShell>
   )
 }

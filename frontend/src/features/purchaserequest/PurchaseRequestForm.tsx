@@ -35,7 +35,8 @@ export const copyLine = (o: PurchaseOrder, l: PurchaseOrderLine): LineForm => {
     itemId: String(rl.itemId),
     partnerId: String(rl.partnerId ?? o.partnerId ?? ''),
     quantity: String(Number(rl.quantity)),
-    unitPrice: String(Number(rl.unitPrice)),
+    /* 단가요청에서 베끼면 [단가확정] 의 확정단가가 발주서 단가다(없으면 요청단가). */
+    unitPrice: String(Number(o.status === 'PRICE_REQUESTED' ? (rl.confirmedPrice ?? rl.unitPrice) : rl.unitPrice)),
     sourceLineId: rl.id,
     sourceNo: o.orderNo,
     sourceDate: o.orderDate,
@@ -74,7 +75,7 @@ const MIN_ROWS = 3
  * (저장/전표가 없다). 저장하면 안내 없이 비우되 <b>입고될창고는 남긴다</b>. 입고될창고가 비면 그 칸만 빨갛게 — 요청과 같다.
  * 서버에는 plan: true 로 보내 요청을 거치지 않고 바로 [발주계획] 단계가 된다.
  */
-export default function PurchaseRequestForm({ editing, page, plan, order, seed, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
+export default function PurchaseRequestForm({ editing, page, plan, order, priceRequest, seed, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
   /** 고칠 발주요청. null 이면 신규. */
   editing: PurchaseOrder | null
   /** 창이 아니라 '발주요청입력' 화면으로 그린다. */
@@ -86,8 +87,13 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
    * 줄 열 … · [발주계획] · [No.]. 저장하면 바로 발주서(발주확정)가 되고 계획은 그대로다.
    */
   order?: boolean
+  /**
+   * 단가요청입력(E040321, 2026-10-21 loginaa 실측) — 머리 일자 · 거래처 · 담당자 · 통화 · 프로젝트 · 유효기간(기본 오늘), 줄 품목코드 · 품목명 · 규격 ·
+   * 수량 · 단가(요청단가 — 품목 입고단가) · 공급가액 · 부가세. 창고 · 납기가 없다. 저장(F8)은 말 없이 빈 화면. 서버에는 priceRequest: true.
+   */
+  priceRequest?: boolean
   /** 앞 전표에서 베껴 온 줄(copyLines) — 창이 이 줄로 찬 채 열린다. 입고창고도 같이 받는다. */
-  seed?: { lines: LineForm[]; warehouseId?: number | null }
+  seed?: { lines: LineForm[]; warehouseId?: number | null; srcHead?: [string, string] }
   onClose?: () => void
   onSaved?: () => void
   onDeleted?: () => void
@@ -109,9 +115,12 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
   }, [])
 
   const isEdit = editing != null && editing.id > 0
-  const docName = order ? '발주서' : plan ? '발주계획' : '발주요청'
+  const docName = priceRequest ? '단가요청' : order ? '발주서' : plan ? '발주계획' : '발주요청'
+  /** 거래처가 머리에 하나인 전표(발주서 · 단가요청) — 줄 거래처 열 · [합계] 열이 없다. */
+  const headParty = order || priceRequest
+  const [validUntil, setValidUntil] = useState(editing?.priceValidUntil ?? today())
   /** 줄 출처 열 이름 — 계획은 [발주요청] · [No], 발주서는 [발주계획] · [No.]. */
-  const srcHead = order ? ['발주계획', 'No.'] : plan ? ['발주요청', 'No'] : null
+  const srcHead = seed?.srcHead ?? (order ? ['발주계획', 'No.'] : plan ? ['발주요청', 'No'] : null)
   const [orderDate, setOrderDate] = useState(editing?.orderDate ?? today())
   const [dueDate, setDueDate] = useState(editing?.dueDate ?? today())
   const [employeeId, setEmployeeId] = useState(editing?.employeeId ? String(editing.employeeId) : '')
@@ -243,16 +252,17 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
       return
     }
     /* 원본: 창고가 비면 문구 없이 그 칸만 빨갛게 두르고 저장하지 않는다. */
-    if (!warehouseId) { win?.close(); setWhMissing(true); return }
+    if (!warehouseId && !priceRequest) { win?.close(); setWhMissing(true); return }
     const firstLinePartner = filled.find((l) => l.partnerId)?.partnerId
-    const headPartner = order ? headPartnerId : firstLinePartner
+    const headPartner = headParty ? headPartnerId : firstLinePartner
     const body = {
       partnerId: headPartner ? Number(headPartner) : null,
       orderDate,
-      dueDate: dueDate || null,
+      dueDate: priceRequest ? null : dueDate || null,
+      priceValidUntil: priceRequest ? validUntil || null : undefined,
       taxable,
       employeeId: employeeId ? Number(employeeId) : null,
-      warehouseId: Number(warehouseId),
+      warehouseId: warehouseId ? Number(warehouseId) : null,
       projectId: projectId ? Number(projectId) : null,
       currency,
       remark: editing?.remark ?? null,
@@ -260,11 +270,12 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
         itemId: Number(l.itemId),
         quantity: Number(l.quantity) || 0,
         unitPrice: l.unitPrice === '' ? null : Number(l.unitPrice),
-        partnerId: order ? (headPartnerId ? Number(headPartnerId) : null) : l.partnerId ? Number(l.partnerId) : null,
+        partnerId: headParty ? (headPartnerId ? Number(headPartnerId) : null) : l.partnerId ? Number(l.partnerId) : null,
         sourceLineId: l.sourceLineId ?? null,
       })),
       plan: plan || undefined,
       order: order || undefined,
+      priceRequest: priceRequest || undefined,
     }
     setSaving(true)
     try {
@@ -297,7 +308,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
   const reset = (keepWarehouse = false) => {
     setOrderDate(today()); setDueDate(today()); setEmployeeId(''); if (!keepWarehouse) setWarehouseId(''); setProjectId('')
     setCurrency('KRW'); setTaxable(true); setWhMissing(false); setLines(Array.from({ length: MIN_ROWS }, emptyLine)); setError('')
-    setApplied(false); setHeadPartnerId('')
+    setApplied(false); setHeadPartnerId(''); setValidUntil(today())
   }
 
   const body = (
@@ -310,7 +321,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
             disabled={isEdit} />
           {isEdit && <span className="text-ec-hint">{dateNo(editing!.orderDate, editing!.orderNo)}</span>}
         </label>
-        {order && (
+        {headParty && (
           <div className="flex items-center gap-[8px]">
             <span className="w-[93px] shrink-0 text-ec-label">거래처</span>
             <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="거래처"
@@ -330,14 +341,14 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
             <option value="FREE">부가세율 미적용</option>
           </select>
         </label>
-        <div className="flex items-center gap-[8px]">
+        {!priceRequest && <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">{plan ? '입고될창고' : order ? '입고창고' : '창고'}</span>
           <div className={`inline-block${whMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={whMissing || undefined}>
             <CodePickerField label="창고" hideLabel width={240} emptyLabel="선택 안 함" placeholder={plan ? '입고될창고' : '창고'}
               value={warehouseId} onChange={(v) => { setWarehouseId(v); if (v) setWhMissing(false) }}
               items={pickers.warehouses} />
           </div>
-        </div>
+        </div>}
         <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">프로젝트</span>
           <CodePickerField label="프로젝트" hideLabel width={240} emptyLabel="선택 안 함" placeholder="프로젝트"
@@ -350,10 +361,17 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
             {currencies.filter((c) => c.code !== 'KRW').map((c) => <option key={c.id} value={c.code}>{c.code} {c.name}</option>)}
           </select>
         </label>
-        <label className="flex items-center gap-[8px]">
-          <span className="w-[93px] shrink-0 text-ec-label">납기일자</span>
-          <input type="date" className="ec-input w-[150px]" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        </label>
+        {priceRequest ? (
+          <label className="flex items-center gap-[8px]">
+            <span className="w-[93px] shrink-0 text-ec-label">유효기간</span>
+            <input type="date" className="ec-input w-[150px]" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+          </label>
+        ) : (
+          <label className="flex items-center gap-[8px]">
+            <span className="w-[93px] shrink-0 text-ec-label">납기일자</span>
+            <input type="date" className="ec-input w-[150px]" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          </label>
+        )}
       </div>
 
       <div className="ec-toolbar">
@@ -384,8 +402,8 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
             <th className="w-[34px]"></th>
             <th className="w-[150px]">품목코드</th>
             <th>품목명</th>
-            {!order && <th className="w-[150px]">거래처코드</th>}
-            {!order && <th>거래처명</th>}
+            {!headParty && <th className="w-[150px]">거래처코드</th>}
+            {!headParty && <th>거래처명</th>}
             <th className="w-[70px]">규격</th>
             {stocks && <th className="w-[80px] text-right">전체수량</th>}
             {stocks && <th className="w-[80px] text-right">창고수량</th>}
@@ -393,7 +411,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
             <th className="w-[100px] text-right">단가</th>
             <th className="w-[100px] text-right">공급가액</th>
             <th className="w-[80px] text-right">부가세</th>
-            {!plan && !order && <th className="w-[100px] text-right">합계</th>}
+            {!plan && !headParty && <th className="w-[100px] text-right">합계</th>}
             {srcHead && <th className="w-[90px] text-center">{srcHead[0]}</th>}
             {srcHead && <th className="w-[50px] text-center">{srcHead[1]}</th>}
           </tr>
@@ -407,11 +425,11 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
                   value={l.itemId} onChange={(v) => pickItem(i, v)} items={itemPicks} />
               </td>
               <td>{itemOf(l.itemId)?.name ?? ''}</td>
-              {!order && <td>
+              {!headParty && <td>
                 <CodePickerField label="거래처" hideLabel fill placeholder="거래처코드" emptyLabel="선택 해제"
                   value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })} items={partnerPicks} />
               </td>}
-              {!order && <td>{partnerOf(l.partnerId)?.name ?? ''}</td>}
+              {!headParty && <td>{partnerOf(l.partnerId)?.name ?? ''}</td>}
               <td>{itemOf(l.itemId)?.spec ?? ''}</td>
               {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockAll(l.itemId).toLocaleString('ko-KR') : ''}</td>}
               {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockWh(l.itemId).toLocaleString('ko-KR') : ''}</td>}
@@ -419,7 +437,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
               <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
               <td className="text-right">{l.itemId ? won(calc[i].supply) : ''}</td>
               <td className="text-right">{l.itemId ? won(calc[i].vat) : ''}</td>
-              {!plan && !order && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
+              {!plan && !headParty && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
               {srcHead && <td className="text-center">{srcDate(l.sourceDate)}</td>}
               {srcHead && <td className="text-center">{srcNo(l.sourceNo)}</td>}
             </tr>
@@ -427,12 +445,12 @@ export default function PurchaseRequestForm({ editing, page, plan, order, seed, 
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={(stocks ? 8 : 6) - (order ? 2 : 0)}></td>
+            <td colSpan={(stocks ? 8 : 6) - (headParty ? 2 : 0)}></td>
             <td className="text-right">{qtySum.toLocaleString('ko-KR')}</td>
             <td></td>
             <td className="text-right">{won(sum('supply'))}</td>
             <td className="text-right">{won(sum('vat'))}</td>
-            {!plan && !order && <td className="text-right">{won(sum('total'))}</td>}
+            {!plan && !headParty && <td className="text-right">{won(sum('total'))}</td>}
             {srcHead && <td colSpan={2}></td>}
           </tr>
         </tfoot>
