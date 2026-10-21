@@ -97,7 +97,7 @@ public class OtherWithholdingService {
         OtherWithholding w = OtherWithholding.builder()
                 .docNo(docNoGenerator.next("WT-", "other_withholdings", "doc_no", "pay_date", req.payDate()))
                 .payDate(req.payDate())
-                .slipSeq(repository.maxSlipSeq(req.payDate()) + 1)
+                .slipSeq(nextSlipSeq(req.payDate()))
                 .lineNo(1)
                 .payMonth(YearMonth.from(req.payDate()).toString())
                 .taxRate(type.getTaxRate().movePointRight(2))
@@ -166,7 +166,7 @@ public class OtherWithholdingService {
     /** 새 전표 — 같은 지급일자의 다음 순번을 매긴다(2025/07/31-1, -2 …). */
     @Transactional
     public OtherWithholdingDtos.SlipResponse createSlip(OtherWithholdingDtos.SlipRequest req, String username) {
-        int seq = repository.maxSlipSeq(req.payDate()) + 1;
+        int seq = nextSlipSeq(req.payDate());
         return toSlip(saveLines(req, seq, username));
     }
 
@@ -178,7 +178,7 @@ public class OtherWithholdingService {
         if (old.isEmpty()) throw ApiException.notFound("전표를 찾을 수 없습니다. " + slipNo(payDate, slipSeq));
         repository.deleteAll(old);
         repository.flush();
-        int seq = payDate.equals(req.payDate()) ? slipSeq : repository.maxSlipSeq(req.payDate()) + 1;
+        int seq = payDate.equals(req.payDate()) ? slipSeq : nextSlipSeq(req.payDate());
         return toSlip(saveLines(req, seq, username));
     }
 
@@ -366,6 +366,11 @@ public class OtherWithholdingService {
     /** 원본 소득구분 이름 — 이자 · 배당은 한 구분 '이자배당소득'. */
     private static String slipTypeName(IncomeType t) {
         return t == IncomeType.INTEREST || t == IncomeType.DIVIDEND ? "이자배당소득" : t.getDisplayName();
+    }
+
+    /** 지급일자의 다음 전표 순번 — 지운 번호를 다시 쓰지 않는다(번호표). */
+    private int nextSlipSeq(java.time.LocalDate payDate) {
+        return docNoGenerator.nextSeq("other_withholdings:slip", payDate, repository.maxSlipSeq(payDate));
     }
 
     /** 원본 전표번호 표기 — 2025/07/31-2. */

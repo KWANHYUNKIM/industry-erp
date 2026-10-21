@@ -87,8 +87,7 @@ public class MultiSlipService {
     }
 
     private int nextNo(MultiSlipBoard board, java.time.LocalDate date) {
-        docNo.lockNumberSpace("MULTI-SLIP-" + board.name() + "-" + date);
-        return multiSlipRepository.maxSlipNo(board, date) + 1;
+        return docNo.nextSeq("multi_slips:" + board.name(), date, multiSlipRepository.maxSlipNo(board, date));
     }
 
     private void putLines(MultiSlip slip, List<Map<String, Object>> lines) {

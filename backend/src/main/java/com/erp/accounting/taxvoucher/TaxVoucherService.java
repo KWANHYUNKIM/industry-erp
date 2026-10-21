@@ -3,6 +3,7 @@ package com.erp.accounting.taxvoucher;
 import com.erp.accounting.taxvoucher.dto.TaxVoucherDtos.TaxVoucherRequest;
 import com.erp.accounting.taxvoucher.dto.TaxVoucherDtos.TaxVoucherResponse;
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.partner.PartnerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.List;
 public class TaxVoucherService {
 
     private final TaxVoucherRepository repository;
+    private final DocumentNoGenerator docNoGenerator;
     private final PartnerService partnerService;
 
     @Transactional(readOnly = true)
@@ -41,7 +43,7 @@ public class TaxVoucherService {
         TaxVoucher v = TaxVoucher.builder()
                 .side(req.side())
                 .entryDate(date)
-                .entryNo(repository.maxEntryNo(date) + 1)
+                .entryNo(docNoGenerator.nextSeq("tax_vouchers", date, repository.maxEntryNo(date)))
                 .createdBy(username)
                 .build();
         apply(v, req);

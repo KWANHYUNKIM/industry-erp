@@ -1,6 +1,7 @@
 package com.erp.hr.dailyworker;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.hr.dailyworker.dto.DailyPayDtos;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.CalculateRequest;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.CalculateResponse;
@@ -54,6 +55,7 @@ public class DailyPayService {
 
 
     private final DailyPayLedgerRepository ledgerRepository;
+    private final DocumentNoGenerator docNoGenerator;
     private final DailyWorkConfirmRepository confirmRepository;
     private final DailyPayLineRepository lineRepository;
     private final DailyWorkerRepository workerRepository;
@@ -73,7 +75,7 @@ public class DailyPayService {
     @Transactional
     public LedgerResponse create(CreateLedgerRequest req) {
         YearMonth ym = YearMonth.parse(req.payMonth());
-        int seq = ledgerRepository.maxSeq(req.payMonth()) + 1;
+        int seq = docNoGenerator.nextSeq("daily_pay_ledgers", ym.atDay(1), ledgerRepository.maxSeq(req.payMonth()));
         String paid = req.paidMonth() != null && !req.paidMonth().isBlank() ? req.paidMonth() : req.payMonth();
         LocalDate from = req.periodFrom() != null ? req.periodFrom() : ym.atDay(1);
         LocalDate to = req.periodTo() != null ? req.periodTo() : ym.atEndOfMonth();

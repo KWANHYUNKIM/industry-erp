@@ -9,6 +9,7 @@ import com.erp.accounting.billingcontract.dto.BillingContractDtos.SaveContractRe
 import com.erp.accounting.billingcontract.dto.BillingContractDtos.SaveLine;
 import com.erp.accounting.contractitem.ContractItemService;
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.inventory.project.ProjectService;
 import com.erp.trade.partner.PartnerService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 public class BillingContractService {
 
     private final BillingContractRepository repository;
+    private final DocumentNoGenerator docNoGenerator;
     private final BillingUnitRepository unitRepository;
     private final ContractItemService itemService;
     private final com.erp.inventory.item.ItemService productItemService;
@@ -54,6 +56,11 @@ public class BillingContractService {
         return withLines(List.of(get(id))).get(0);
     }
 
+    /** 계약일자의 다음 [일자-No.] — 지운 번호를 다시 쓰지 않는다(번호표). */
+    private int nextDocNo(java.time.LocalDate date) {
+        return docNoGenerator.nextSeq("billing_contracts", date, repository.maxDocNo(date));
+    }
+
     /** 계약입력의 [계약코드] 기본값 — 지금까지의 숫자 코드 다음 번호, 5자리('00017'). */
     @Transactional(readOnly = true)
     public String nextCode() {
@@ -70,7 +77,7 @@ public class BillingContractService {
         String code = req.code() == null || req.code().isBlank() ? nextCode() : req.code().trim();
         if (repository.existsByCode(code)) throw ApiException.conflict("이미 등록된 계약코드입니다: " + code);
         BillingContract c = BillingContract.builder()
-                .contractDate(req.contractDate()).docNo(repository.maxDocNo(req.contractDate()) + 1)
+                .contractDate(req.contractDate()).docNo(nextDocNo(req.contractDate()))
                 .code(code).createdBy(username).build();
         apply(c, req);
         repository.save(c);
@@ -86,7 +93,7 @@ public class BillingContractService {
         c.setCode(code);
         if (!c.getContractDate().equals(req.contractDate())) {
             c.setContractDate(req.contractDate());
-            c.setDocNo(repository.maxDocNo(req.contractDate()) + 1);
+            c.setDocNo(nextDocNo(req.contractDate()));
         }
         apply(c, req);
         return findOne(id);

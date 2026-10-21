@@ -51,8 +51,7 @@ public class WorkRecordService {
     /** 근무입력 [저장] — 새 전표(그 일자의 다음 번호). */
     @Transactional
     public SlipResponse create(SaveSlipRequest req, String worker) {
-        documentNoGenerator.lockNumberSpace("WORKREC" + req.slipDate());
-        int slipNo = repository.maxSlipNo(req.slipDate()) + 1;
+        int slipNo = documentNoGenerator.nextSeq("work_records", req.slipDate(), repository.maxSlipNo(req.slipDate()));
         saveLines(req.slipDate(), slipNo, req.lines());
         SlipResponse saved = findSlip(req.slipDate(), slipNo);
         record(saved, "신규", worker, snapshot(req.slipDate(), slipNo));

@@ -127,10 +127,9 @@ public class ApprovalService {
             throw ApiException.badRequest("결재자를 1명 이상 지정하세요. 결재선 없이 보관하려면 임시저장을 쓰세요.");
         }
 
-        // 기안No·기안서No 가 공유하는 일련번호. max 조회 전에 (AP,날짜) 번호 공간을 잠가
-        // 동시 기안이 같은 seq 를 읽어 번호가 중복되는 race 를 막는다.
-        docNoGenerator.lockNumberSpace("AP-" + draftDate.format(DateTimeFormatter.BASIC_ISO_DATE));
-        int seq = approvalRepository.maxDraftSeq(draftDate) + 1;
+        // 기안No·기안서No 가 공유하는 일련번호. 번호표(document_sequences)에서 올려 동시 기안도 겹치지 않고
+        // 지운 기안의 번호도 다시 주지 않는다.
+        int seq = docNoGenerator.nextSeq("approval_documents:AP-", draftDate, approvalRepository.maxDraftSeq(draftDate));
 
         ApprovalDocument doc = ApprovalDocument.builder()
                 .docNo(buildDocNo(draftDate, seq))

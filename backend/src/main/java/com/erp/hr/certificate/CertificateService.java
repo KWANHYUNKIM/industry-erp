@@ -1,6 +1,7 @@
 package com.erp.hr.certificate;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.hr.certificate.dto.CertificateDtos.CertificateRequest;
 import com.erp.hr.certificate.dto.CertificateDtos.CertificateResponse;
 import com.erp.hr.employee.Employee;
@@ -19,6 +20,7 @@ import java.util.List;
 public class CertificateService {
 
     private final CertificateRepository certificateRepository;
+    private final DocumentNoGenerator docNoGenerator;
     private final EmployeeService employeeService;
 
     @Transactional(readOnly = true)
@@ -37,7 +39,7 @@ public class CertificateService {
         int year = req.issueDate().getYear();
         Certificate c = Certificate.builder()
                 .issueYear(year)
-                .issueSeq(certificateRepository.maxSeq(year) + 1)
+                .issueSeq(docNoGenerator.nextSeq("certificates", java.time.LocalDate.of(year, 1, 1), certificateRepository.maxSeq(year)))
                 .kind(req.kind())
                 .employee(e)
                 .purpose(blankToNull(req.purpose()))

@@ -15,6 +15,7 @@ import com.erp.accounting.journal.dto.JournalDtos.VatSlipRequest;
 import com.erp.accounting.contractbill.dto.ContractBillDtos.BillResponse;
 import com.erp.accounting.contractbill.dto.ContractBillDtos.CreateBillRequest;
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.sales.SalesService;
 import com.erp.trade.sales.dto.SalesDtos;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,7 @@ import java.util.stream.Collectors;
 public class ContractBillService {
 
     private final ContractBillRepository repository;
+    private final DocumentNoGenerator docNoGenerator;
     private final BillingContractService contractService;
     private final JournalService journalService;
     /** accounting → trade (CLAUDE.md 4.1 허용) — 판매반영은 판매를 trade 의 규칙(재고 · 번호)대로 만든다. */
@@ -78,9 +80,8 @@ public class ContractBillService {
             groups.computeIfAbsent(key, (k) -> new ArrayList<>()).add(l);
         }
         List<Long> ids = new ArrayList<>();
-        int no = repository.maxDocNo(req.billDate());
         for (List<BillLine> g : groups.values()) {
-            ContractBill b = ContractBill.builder().billDate(req.billDate()).docNo(++no).vatType(req.vatType()).createdBy(username).build();
+            ContractBill b = ContractBill.builder().billDate(req.billDate()).docNo(docNoGenerator.nextSeq("contract_bills", req.billDate(), repository.maxDocNo(req.billDate()))).vatType(req.vatType()).createdBy(username).build();
             fill(b, g, cls);
             ids.add(repository.save(b).getId());
         }

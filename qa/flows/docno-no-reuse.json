@@ -1,0 +1,171 @@
+{
+  "about": "전표 번호 재사용 금지(마무리 묶음 46, plans/공용.md '전표 번호 재사용 — 고치는 설계'). 원본은 지운 전표 번호를 다시 쓰지 않는다 — 같은 날 -1 · -2 저장 → -2 삭제 → 새 전표는 -3(회계2 채권조회 · 채무조회 2026-10-13 실측, 관리 인사발령 [H]). 우리 판매입력 · 일반전표를 화면으로: 오늘 A · B 저장 → B 를 화면에서 삭제(판매조회 [선택삭제] · 일반전표 [삭제]) → C 저장 → C 번호가 B 번호를 다시 쓰지 않는다. 오늘 날짜라 다른 작업자 전표가 끼면 +2 이상일 수 있어 'B 보다 크다' 로 본다. A · C 는 끝에 지운다. node qa/shot.mjs qa/flows/docno-no-reuse.json",
+  "shots": [
+    {
+      "name": "준비 — 지난 실행의 QA묶음46 자료 지우기",
+      "path": "/sales/sell",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); sessionStorage.removeItem('b46'); for (const s of (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => (x.remark || '').startsWith('QA묶음46'))) await fetch('/api/sales/' + s.id, { method: 'DELETE', headers: H }); const j = await (await fetch('/api/journals?from=' + day + '&to=' + day, { headers: H })).json(); for (const e of j.rows.filter((r) => (r.description || '').startsWith('QA묶음46'))) await fetch('/api/journals/' + e.id, { method: 'DELETE', headers: H }); return true })()"
+      ]
+    },
+    {
+      "name": "판매입력 — A 저장(QA-CUST · QA-WH · QA-PROD 1)",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "set:input[placeholder=\"전표 적요\"]|QA묶음46 판매A",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const s = (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => x.remark === 'QA묶음46 판매A'); if (s.length !== 1) return false; const S = JSON.parse(sessionStorage.getItem('b46') || '{}'); S['sA'] = { id: s[0].id, no: s[0].docNo }; sessionStorage.setItem('b46', JSON.stringify(S)); return s[0].docNo.includes(day.replaceAll('-', '')) })()"
+      ]
+    },
+    {
+      "name": "판매입력 — B 저장(QA-CUST · QA-WH · QA-PROD 1)",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "set:input[placeholder=\"전표 적요\"]|QA묶음46 판매B",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const s = (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => x.remark === 'QA묶음46 판매B'); if (s.length !== 1) return false; const S = JSON.parse(sessionStorage.getItem('b46') || '{}'); S['sB'] = { id: s[0].id, no: s[0].docNo }; sessionStorage.setItem('b46', JSON.stringify(S)); return s[0].docNo.includes(day.replaceAll('-', '')) })()"
+      ]
+    },
+    {
+      "name": "판매조회 — B 를 [선택삭제] '선택한 전표를 삭제 하겠습니까?'",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('b46')); const no = S.sB.no.match(/SO-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); const label = no[1] + '/' + no[2] + '/' + no[3] + ' -' + Number(no[4]); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(label) && t.innerText.includes('QA')); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; return !!window.__row() })()",
+        "expect:!!window.__row()",
+        "js:(() => { window.__row().cells[0].click(); return true })()",
+        "click:선택삭제",
+        "wait:2000",
+        "expect:window.__msgs.includes('선택한 전표를 삭제 하겠습니까?') && !window.__row()",
+        "allowapi:404: /api/sales/",
+        "expect:(async () => { const S = JSON.parse(sessionStorage.getItem('b46')); return (await fetch('/api/sales/' + S.sB.id, { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).status === 404 })()"
+      ]
+    },
+    {
+      "name": "판매입력 — C 저장(QA-CUST · QA-WH · QA-PROD 1)",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "set:input[placeholder=\"전표 적요\"]|QA묶음46 판매C",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const s = (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => x.remark === 'QA묶음46 판매C'); if (s.length !== 1) return false; const S = JSON.parse(sessionStorage.getItem('b46') || '{}'); S['sC'] = { id: s[0].id, no: s[0].docNo }; sessionStorage.setItem('b46', JSON.stringify(S)); return s[0].docNo.includes(day.replaceAll('-', '')) })()"
+      ]
+    },
+    {
+      "name": "판매 — C 번호가 B 번호를 다시 쓰지 않는다",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:JSON.parse(sessionStorage.getItem('b46'))",
+        "expect:(() => { const seq = (no) => Number(no.split('-')[2]); const S = JSON.parse(sessionStorage.getItem('b46')); return seq(S.sB.no) > seq(S.sA.no) && seq(S.sC.no) > seq(S.sB.no) })()"
+      ]
+    },
+    {
+      "name": "일반전표 — A 저장(차 복리후생비 / 대 현금 11,000)",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelector('input.code'); c.focus(); set(c, '복리후생비'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 차변\"]|11000",
+        "set:[aria-label=\"1줄 적요\"]|QA묶음46 일반A",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const s = document.querySelector('[aria-label=\"2줄 구분\"]'); s.focus(); s.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); set(s, '4'); return true })()",
+        "wait:300",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[1].querySelector('input.code'); c.focus(); set(c, '101'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"2줄 대변\"]|11000",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('[aria-label=\"1줄 차변\"]').value === '' && !document.querySelector('[role=dialog]')",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const s = (await (await fetch('/api/journals?from=' + day + '&to=' + day, { headers: H })).json()).rows.filter((r) => r.sourceType === 'MANUAL' && r.description === 'QA묶음46 일반A'); if (s.length !== 1) return false; const S = JSON.parse(sessionStorage.getItem('b46') || '{}'); S['jA'] = { id: s[0].id, no: s[0].docNo }; sessionStorage.setItem('b46', JSON.stringify(S)); return s[0].docNo.includes(day.replaceAll('-', '')) })()"
+      ]
+    },
+    {
+      "name": "일반전표 — B 저장(차 복리후생비 / 대 현금 12,000)",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelector('input.code'); c.focus(); set(c, '복리후생비'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 차변\"]|12000",
+        "set:[aria-label=\"1줄 적요\"]|QA묶음46 일반B",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const s = document.querySelector('[aria-label=\"2줄 구분\"]'); s.focus(); s.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); set(s, '4'); return true })()",
+        "wait:300",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[1].querySelector('input.code'); c.focus(); set(c, '101'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"2줄 대변\"]|12000",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('[aria-label=\"1줄 차변\"]').value === '' && !document.querySelector('[role=dialog]')",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const s = (await (await fetch('/api/journals?from=' + day + '&to=' + day, { headers: H })).json()).rows.filter((r) => r.sourceType === 'MANUAL' && r.description === 'QA묶음46 일반B'); if (s.length !== 1) return false; const S = JSON.parse(sessionStorage.getItem('b46') || '{}'); S['jB'] = { id: s[0].id, no: s[0].docNo }; sessionStorage.setItem('b46', JSON.stringify(S)); return s[0].docNo.includes(day.replaceAll('-', '')) })()"
+      ]
+    },
+    {
+      "name": "일반전표 — B 를 수정 창에서 [삭제] '전표를 삭제하겠습니까? - 일반전표'",
+      "path": "/accounting/journals",
+      "steps": [
+        "js:location.href = '/accounting/journal-entry?journal=' + JSON.parse(sessionStorage.getItem('b46')).jB.id; true",
+        "wait:2500",
+        "expect:document.querySelector('[aria-label=\"1줄 차변\"]').value === '12,000'",
+        "click:삭제",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('전표를 삭제하겠습니까?') && d.innerText.includes('- 일반전표'))",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '확인').click(); true",
+        "wait:1500",
+        "allowapi:404: /api/journals/",
+        "expect:(async () => { const S = JSON.parse(sessionStorage.getItem('b46')); return (await fetch('/api/journals/' + S.jB.id, { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).status === 404 })()"
+      ]
+    },
+    {
+      "name": "일반전표 — C 저장(차 복리후생비 / 대 현금 13,000)",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelector('input.code'); c.focus(); set(c, '복리후생비'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 차변\"]|13000",
+        "set:[aria-label=\"1줄 적요\"]|QA묶음46 일반C",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const s = document.querySelector('[aria-label=\"2줄 구분\"]'); s.focus(); s.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); set(s, '4'); return true })()",
+        "wait:300",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[1].querySelector('input.code'); c.focus(); set(c, '101'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"2줄 대변\"]|13000",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('[aria-label=\"1줄 차변\"]').value === '' && !document.querySelector('[role=dialog]')",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const s = (await (await fetch('/api/journals?from=' + day + '&to=' + day, { headers: H })).json()).rows.filter((r) => r.sourceType === 'MANUAL' && r.description === 'QA묶음46 일반C'); if (s.length !== 1) return false; const S = JSON.parse(sessionStorage.getItem('b46') || '{}'); S['jC'] = { id: s[0].id, no: s[0].docNo }; sessionStorage.setItem('b46', JSON.stringify(S)); return s[0].docNo.includes(day.replaceAll('-', '')) })()"
+      ]
+    },
+    {
+      "name": "일반전표 — C 번호가 B 번호를 다시 쓰지 않는다 → A · C 지우기",
+      "path": "/accounting/journals",
+      "steps": [
+        "js:JSON.parse(sessionStorage.getItem('b46'))",
+        "expect:(() => { const seq = (no) => Number(no.split('-')[2]); const S = JSON.parse(sessionStorage.getItem('b46')); return seq(S.jB.no) > seq(S.jA.no) && seq(S.jC.no) > seq(S.jB.no) })()",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const S = JSON.parse(sessionStorage.getItem('b46')); const r = []; for (const k of ['sA', 'sC']) r.push((await fetch('/api/sales/' + S[k].id, { method: 'DELETE', headers: H })).ok); for (const k of ['jA', 'jC']) r.push((await fetch('/api/journals/' + S[k].id, { method: 'DELETE', headers: H })).ok); return r.every(Boolean) })()"
+      ]
+    }
+  ]
+}

@@ -41,8 +41,7 @@ public class DailyWorkEntryService {
 
     @Transactional
     public SlipResponse create(SaveSlipRequest req) {
-        documentNoGenerator.lockNumberSpace("DAILYWORK" + req.slipDate());
-        int slipNo = repository.maxSlipNo(req.slipDate()) + 1;
+        int slipNo = documentNoGenerator.nextSeq("daily_work_entries", req.slipDate(), repository.maxSlipNo(req.slipDate()));
         saveLines(req.slipDate(), slipNo, req.lines());
         return findSlip(req.slipDate(), slipNo);
     }

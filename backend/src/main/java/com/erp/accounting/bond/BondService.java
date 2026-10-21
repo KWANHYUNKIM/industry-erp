@@ -15,6 +15,7 @@ import com.erp.accounting.fastvoucher.dto.FastVoucherDtos.VoucherResponse;
 import com.erp.accounting.bond.dto.BondDtos.LineRequest;
 import com.erp.accounting.bond.dto.BondDtos.UpdateBondRequest;
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.inventory.project.ProjectService;
 import com.erp.trade.partner.PartnerService;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ import java.util.List;
 public class BondService {
 
     private final BondEntryRepository entryRepository;
+    private final DocumentNoGenerator docNoGenerator;
     private final AccountService accountService;
     private final PartnerService partnerService;
     private final ProjectService projectService;
@@ -66,7 +68,7 @@ public class BondService {
 
     @Transactional
     public BondEntryResponse create(CreateBondRequest req, String username) {
-        int no = entryRepository.maxEntryNo(req.side(), req.entryDate()) + 1;
+        int no = docNoGenerator.nextSeq("bond_entries:" + req.side(), req.entryDate(), entryRepository.maxEntryNo(req.side(), req.entryDate()));
         BondEntry e = BondEntry.builder()
                 .side(req.side()).entryDate(req.entryDate()).entryNo(no)
                 .direction(req.direction()).createdBy(username).updatedBy(username)
@@ -102,7 +104,7 @@ public class BondService {
                 type, req.date(), PaymentMethod.CASH, null, null, null, vLines,
                 blankToNull(req.description()), null, null, null, null, null, null, null, null, null), username);
 
-        int no = entryRepository.maxEntryNo(side, req.date()) + 1;
+        int no = docNoGenerator.nextSeq("bond_entries:" + side, req.date(), entryRepository.maxEntryNo(side, req.date()));
         BondEntry e = BondEntry.builder()
                 .side(side).entryDate(req.date()).entryNo(no)
                 .direction(BondDirection.DECREASE).createdBy(username).updatedBy(username)

@@ -1,6 +1,7 @@
 package com.erp.hr.insurance;
 
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.hr.employee.EmployeeService;
 import com.erp.hr.insurance.dto.InsuranceReportDtos.ReportRequest;
 import com.erp.hr.insurance.dto.InsuranceReportDtos.ReportResponse;
@@ -27,6 +28,7 @@ public class InsuranceReportService {
     public static final String EMPLOYEE_REQUIRED = "사원 필수";
 
     private final InsuranceReportRepository reportRepository;
+    private final DocumentNoGenerator docNoGenerator;
     private final InsuranceWorkplaceRepository workplaceRepository;
     private final EmployeeService employeeService;
 
@@ -82,7 +84,7 @@ public class InsuranceReportService {
     public ReportResponse create(ReportRequest req) {
         InsuranceReport r = InsuranceReport.builder()
                 .reportDate(req.reportDate())
-                .reportSeq(reportRepository.maxSeq(req.reportDate()) + 1)
+                .reportSeq(docNoGenerator.nextSeq("insurance_reports", req.reportDate(), reportRepository.maxSeq(req.reportDate())))
                 .kind(req.kind())
                 .build();
         apply(r, req);

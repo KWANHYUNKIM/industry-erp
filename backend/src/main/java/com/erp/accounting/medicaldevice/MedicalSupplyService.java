@@ -8,6 +8,7 @@ import com.erp.accounting.medicaldevice.dto.MedicalSupplyDtos.EntryResponse;
 import com.erp.accounting.medicaldevice.dto.MedicalSupplyDtos.EntryRow;
 import com.erp.accounting.medicaldevice.dto.MedicalSupplyDtos.SaleCandidate;
 import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.item.dto.ItemDtos.ItemResponse;
 import com.erp.trade.sales.SalesService;
@@ -40,6 +41,7 @@ public class MedicalSupplyService {
             "시리얼(UDI)이 등록된 모든 내역이 저장되었거나 불러올 내역이 없습니다. 확인 후 다시 시도 바랍니다.";
 
     private final MedicalSupplyEntryRepository repository;
+    private final DocumentNoGenerator docNoGenerator;
     private final SalesService salesService;
     private final ItemService itemService;
 
@@ -113,7 +115,7 @@ public class MedicalSupplyService {
         LocalDate today = LocalDate.now();
         MedicalSupplyEntry e = MedicalSupplyEntry.builder()
                 .entryDate(today)
-                .entrySeq(repository.maxSeq(today) + 1)
+                .entrySeq(docNoGenerator.nextSeq("medical_supply_entries", today, repository.maxSeq(today)))
                 .createdBy(user)
                 .build();
         apply(e, req);

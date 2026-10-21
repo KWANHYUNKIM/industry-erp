@@ -334,7 +334,7 @@ public class EmployeeService {
     }
 
     private int nextSlipNo(LocalDate slipDate) {
-        return assignmentRepository.maxSlipNo(slipDate) + 1;
+        return documentNoGenerator.nextSeq("employee_assignments", slipDate, assignmentRepository.maxSlipNo(slipDate));
     }
 
     /** 인사발령조회 · 현황 — 기준일자(전표 일자) 기간의 발령 줄. 화면이 전표로 묶는다. */
