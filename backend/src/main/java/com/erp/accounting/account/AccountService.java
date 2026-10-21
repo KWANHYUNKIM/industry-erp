@@ -43,6 +43,9 @@ public class AccountService {
                 .evalKind(req.evalKind() != null ? req.evalKind() : AccountEvalKind.NONE)
                 .cashFlowKind(req.cashFlowKind() != null ? req.cashFlowKind() : AccountCashFlowKind.NONE)
                 .searchKeyword(req.searchKeyword()).remark1(req.remark1()).remark2(req.remark2())
+                .displayOrder(req.displayOrder())
+                .indentOrder(req.indentOrder() != null ? req.indentOrder() : 0)
+                .showMethod1(Boolean.TRUE.equals(req.showMethod1())).showMethod2(Boolean.TRUE.equals(req.showMethod2()))
                 .build();
         a.setDebitCredit(req.debitCredit());
         return AccountResponse.from(accountRepository.save(a));
@@ -96,6 +99,10 @@ public class AccountService {
         if (req.searchKeyword() != null) a.setSearchKeyword(req.searchKeyword());
         if (req.remark1() != null) a.setRemark1(req.remark1());
         if (req.remark2() != null) a.setRemark2(req.remark2());
+        if (req.displayOrder() != null) a.setDisplayOrder(req.displayOrder());
+        if (req.indentOrder() != null) a.setIndentOrder(req.indentOrder());
+        if (req.showMethod1() != null) a.setShowMethod1(req.showMethod1());
+        if (req.showMethod2() != null) a.setShowMethod2(req.showMethod2());
         return AccountResponse.from(a);
     }
 }

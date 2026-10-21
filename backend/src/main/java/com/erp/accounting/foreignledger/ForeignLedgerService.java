@@ -30,13 +30,14 @@ public class ForeignLedgerService {
 
     @Transactional(readOnly = true)
     public Response ledger(String mode, LocalDate from, LocalDate to, Long accountId, Long partnerId,
-                           Long departmentId, Long projectId, String currency) {
+                           Long departmentId, Long projectId, String currency, boolean includeStopped) {
         boolean detail = "DETAIL".equalsIgnoreCase(mode);
         List<JournalLine> lines = journalLineRepository.findForeignUntil(to).stream()
                 .filter(l -> accountId == null || l.getAccount().getId().equals(accountId))
                 .filter(l -> partnerId == null || (l.effectivePartner() != null && l.effectivePartner().getId().equals(partnerId)))
                 .filter(l -> departmentId == null || departmentId.equals(l.getDepartmentId()))
                 .filter(l -> projectId == null || projectId.equals(l.getProjectId()))
+                .filter(l -> includeStopped || l.effectivePartner() == null || l.effectivePartner().isActive())
                 .filter(l -> currency == null || currency.isBlank() || currency.equalsIgnoreCase(l.getCurrencyCode()))
                 .toList();
 

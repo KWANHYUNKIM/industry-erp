@@ -26,7 +26,8 @@ public class ForeignLedgerController {
                            @RequestParam(required = false) Long partnerId,
                            @RequestParam(required = false) Long departmentId,
                            @RequestParam(required = false) Long projectId,
-                           @RequestParam(required = false) String currency) {
-        return foreignLedgerService.ledger(mode, from, to, accountId, partnerId, departmentId, projectId, currency);
+                           @RequestParam(required = false) String currency,
+                           @RequestParam(defaultValue = "true") boolean includeStopped) {
+        return foreignLedgerService.ledger(mode, from, to, accountId, partnerId, departmentId, projectId, currency, includeStopped);
     }
 }

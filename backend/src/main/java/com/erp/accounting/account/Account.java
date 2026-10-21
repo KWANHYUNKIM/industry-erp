@@ -94,6 +94,27 @@ public class Account extends BaseTimeEntity {
     @Column(name = "remark2", length = 100)
     private String remark2;
 
+    /**
+     * [표시순서] — 계정등록 [변경 ▲ 표시순서변경] 창 '표시순서설정'(2026-10-22 loginaa 실측: 주요 재무제표 · 합계잔액시산표에 쓰는 순서,
+     * 처음 값은 계정코드 × 10 — [1010]자산 10100). 비어 있으면 코드 × 10 으로 본다(V457).
+     */
+    @Column(name = "display_order")
+    private Integer displayOrder;
+
+    /** 표시방법 탭 [들여쓰기순서](처음 0). */
+    @Builder.Default
+    @Column(name = "indent_order", nullable = false)
+    private Integer indentOrder = 0;
+
+    /** 표시방법 탭 [표시방법1] · [표시방법2] — ○표시 ◉표시안함(처음 표시안함). */
+    @Builder.Default
+    @Column(name = "show_method1", nullable = false)
+    private boolean showMethod1 = false;
+
+    @Builder.Default
+    @Column(name = "show_method2", nullable = false)
+    private boolean showMethod2 = false;
+
     /** 대차구분을 안 정하고 만든 계정(표준계정 시드 등)은 구분·이름으로 정한다 — 자산·비용은 차변, 차감 계정(충당금·누계액)은 대변. */
     @PrePersist
     void fillDefaults() {

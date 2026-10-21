@@ -31,7 +31,9 @@ public final class AccountDtos {
             AccountCashFlowKind cashFlowKind,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String searchKeyword,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark1,
-            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark2
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark2,
+            /** [표시순서] · 표시방법 탭 [들여쓰기순서] · [표시방법1] · [표시방법2](V457) */
+            Integer displayOrder, Integer indentOrder, Boolean showMethod1, Boolean showMethod2
     ) {}
 
     public record UpdateAccountRequest(
@@ -50,7 +52,9 @@ public final class AccountDtos {
             AccountCashFlowKind cashFlowKind,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String searchKeyword,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark1,
-            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark2
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark2,
+            /** [표시순서] · 표시방법 탭 [들여쓰기순서] · [표시방법1] · [표시방법2](V457) */
+            Integer displayOrder, Integer indentOrder, Boolean showMethod1, Boolean showMethod2
     ) {}
 
     public record AccountResponse(
@@ -63,7 +67,8 @@ public final class AccountDtos {
             AccountEvalKind evalKind, String evalKindName,
             AccountCashFlowKind cashFlowKind, String searchKeyword, String remark1, String remark2,
             /** 원본 [계정종류] 자산 · 부채 · 자본 · 손익 */
-            String kindName
+            String kindName,
+            Integer displayOrder, int indentOrder, boolean showMethod1, boolean showMethod2
     ) {
         public static AccountResponse from(Account a) {
             return new AccountResponse(
@@ -80,7 +85,8 @@ public final class AccountDtos {
                         case LIABILITY -> "부채";
                         case EQUITY -> "자본";
                         default -> "손익";
-                    });
+                    },
+                    a.getDisplayOrder(), a.getIndentOrder() == null ? 0 : a.getIndentOrder(), a.isShowMethod1(), a.isShowMethod2());
         }
     }
 }
