@@ -134,11 +134,18 @@ public class FastVoucherService {
         List<com.erp.accounting.promissorynote.PromissoryNote> notes = v.getJournalEntry() == null ? List.of()
                 : noteRepository.findByCloseJournalEntryId(v.getJournalEntry().getId());
         notes.forEach(n -> n.setCloseJournalEntry(null));
+        /* 원본은 고쳐 저장해도 전표번호가 그대로다(2026-10-21 loginaa 매입처로 26/10/21-10 21,500 → 30,500, 번호 -10 그대로).
+           우리는 옛 분개를 지우고 새로 만들어 번호가 그날 끝 번호로 바뀌었다(-3 → -6) — 같은 날이면 옛 번호를 다시 쓴다.
+           옛 분개의 delete 는 아래 flush 에서 먼저 나가므로 unique 에 걸리지 않는다. */
+        String oldDocNo = v.getJournalEntry() == null ? null : v.getJournalEntry().getDocNo();
+        LocalDate oldDate = v.getJournalEntry() == null ? null : v.getJournalEntry().getEntryDate();
         undo(v, username);
         v.getLines().clear();
         voucherRepository.flush();
         if (req.method() != null) v.setMethod(req.method());
         apply(v, req, username);
+        JournalEntry renewed = v.getJournalEntry();
+        if (oldDocNo != null && renewed != null && renewed.getEntryDate().equals(oldDate)) renewed.setDocNo(oldDocNo);
         if (!checks.isEmpty()) {
             Long journalId = v.getJournalEntry().getId();
             checks.forEach(c -> c.setSettleJournalId(journalId));
