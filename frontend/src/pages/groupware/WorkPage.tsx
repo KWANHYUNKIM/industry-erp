@@ -312,6 +312,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   /** 글에 붙일 파일. 원본 [웹자료올리기]·[여기에 파일 놓기]. */
   const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [statusBlank, setStatusBlank] = useState(false)
   /** [담당자] 사원검색 — 사원 마스터(코드 · 이름). */
   const [employees, setEmployees] = useState<{ code: string; name: string }[]>([])
   useEffect(() => {
@@ -453,6 +454,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   }
 
   function openNew() {
+    setStatusBlank(false)
     setFormDirty(false)
     setEditId(null)
     // 원본 통합회의록 입력 창은 제목에 오늘 날짜가 미리 들어 있다('2026/10/13 ').
@@ -464,6 +466,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 
   /** 원본 View 의 [수정] — 같은 입력 창을 '…입력(수정)' 으로 띄운다. */
   function openEdit(r: WorkPost) {
+    setStatusBlank(false)
     setFormDirty(false)
     setViewing(null)
     setEditId(r.id)
@@ -1154,7 +1157,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             <li className="wide">
               <div className="title">진행상태</div>
               <div className="form">
-                <select className="ec-input w-[260px]" aria-label="진행상태" value={form.status} onChange={(e) => set('status', e.target.value as WorkPostStatus)}>
+                {/* 원본 진행상태 목록(2026-10-21 통합회의록 실측): '==' · 진행중(처음 값) · 완료. '==' 는 안 고른 칸 — 저장하면 진행중. */}
+                <select className="ec-input w-[260px]" aria-label="진행상태" value={statusBlank ? '==' : form.status}
+                        onChange={(e) => { setStatusBlank(e.target.value === '=='); set('status', (e.target.value === '==' ? 'IN_PROGRESS' : e.target.value) as WorkPostStatus) }}>
+                  <option value="==">==</option>
                   <option value="IN_PROGRESS">진행중</option>
                   <option value="DONE">완료</option>
                 </select>
