@@ -1,5 +1,5 @@
 {
-  "about": "회계1 · 회계2 원본 재기(2026-10-21 21시 원본 실측 — plans/회계1.md '원본 재기 필요(묶음 23 · 26)' · 회계2.md 묶음 31): 계좌리스트 [기타 ☑수정일자순(정렬)] · 이체정보 은행명 코드도움(003 → 기업은행) · 재무상태표 [당기누계](비교 머리 = 기준) · [전표발생계정](계정만 · 합계) · 월별손익분석 [기초,당기,기말표시] · 채권감소등록 [입금보고서작성] 전표 묶음기준 거래처별/계정별(QA1G1 10,000 + QA1G2 20,000 → 한 줄 30,000 · '채권 QA1G1 외') → 저장 → 감소 둘 · 입금보고서를 채권조회에서 지우면 채권조회로 돌아옴.",
+  "about": "회계1 · 회계2 원본 재기(2026-10-21 21시 원본 실측 — plans/회계1.md '원본 재기 필요(묶음 23 · 26)' · 회계2.md 묶음 31): 계좌리스트 [기타 ☑수정일자순(정렬)] · 이체정보 은행명 코드도움(003 → 기업은행) · 재무상태표 [당기누계](비교 머리 = 기준) · [전표발생계정](계정만 · 합계) · 월별손익분석 [기초,당기,기말표시] · 채권감소등록 [입금보고서작성] 전표 묶음기준 거래처별/계정별(QA1G1 10,000 + QA1G2 20,000 → 한 줄 30,000 · '채권 QA1G1 외') → 저장 → 감소 둘 · 입금보고서를 채권조회에서 지우면 채권조회로 돌아옴. 수금형태 어음: 계정코드 받을어음 · 생성방식 직접입력(처음) → 어음번호입력(번호생성 · 만기일자) → 입금보고서 돈 들어온 계좌 = 받을어음 · 추가정보 '채권 …, 받을어음 …' → 저장 → 받을어음조회 증가 둘(거래유형 입금보고서 · 회계전표 같음) → 입금보고서 삭제 → 어음 · 감소 사라짐.",
   "shots": [
     {
       "name": "계좌리스트 — 수정일자순 · 이체정보 은행 코드도움",
@@ -73,6 +73,50 @@
         "expect:location.pathname === '/accounting/bonds/ar'",
         "expect:(async () => (await window.__api('GET', '/bonds?side=RECEIVABLE')).body.filter((e) => e.direction === 'DECREASE' && e.lines.some((l) => l.bondNo === sessionStorage.getItem('g1'))).length === 0)()",
         "js:window.__api('GET', '/bonds?side=RECEIVABLE').then((r) => window.__api('POST', '/bonds/delete', { ids: r.body.filter((e) => e.lines.some((l) => l.bondNo.startsWith('QA1G'))).map((e) => e.id) })).then((r) => r.status)"
+      ]
+    },
+    {
+      "name": "채권감소 수금형태 어음 → 받을어음 증가 → 입금보고서 삭제로 함께 사라짐",
+      "path": "/accounting/bonds/ar/decrease-entry",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all([window.__api('GET', '/accounts'), window.__api('GET', '/partners')]).then(([a, p]) => { const acc = a.body.find((x) => x.code === '108').id; const pt = p.body.find((x) => x.code); const s = String(Date.now()).slice(-6); sessionStorage.setItem('n1', 'QA1N1' + s); sessionStorage.setItem('n2', 'QA1N2' + s); return window.__api('POST', '/bonds', { side: 'RECEIVABLE', entryDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), direction: 'INCREASE', lines: [{ accountId: acc, partnerId: pt.id, bondNo: sessionStorage.getItem('n1'), amount: 10000, memo: 'QA회계1 어음' }, { accountId: acc, partnerId: pt.id, bondNo: sessionStorage.getItem('n2'), amount: 20000, memo: 'QA회계1 어음' }] }) }).then((r) => { sessionStorage.setItem('nInc', r.body.id); return r.status })",
+        "js:location.reload(); true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(() => { for (const k of ['n1', 'n2']) document.querySelector(`input[aria-label=\"${sessionStorage.getItem(k)} 감소금액\"]`).dispatchEvent(new FocusEvent('focusin', { bubbles: true })); return true })()",
+        "wait:400",
+        "click:입금보고서작성",
+        "wait:600",
+        "js:(() => { [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '어음').querySelector('input').click(); return true })()",
+        "wait:300",
+        "expect:document.body.innerText.includes('계정코드') && [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '직접입력' && l.querySelector('input[name=produce]'))?.querySelector('input').checked",
+        "clicklast:적용(F8)",
+        "wait:300",
+        "expect:!!document.querySelector('[role=dialog] .outline-ec-danger')",
+        "js:(() => { const i = document.querySelector('[role=dialog] input[aria-label=\"계정검색\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '받을어음'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:(() => { document.querySelector('[role=dialog] input[aria-label=\"계정검색\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "clicklast:적용(F8)",
+        "wait:600",
+        "expect:document.body.innerText.includes('어음번호입력') && [...document.querySelectorAll('thead th')].map((x) => x.innerText.trim()).includes('만기일자') && document.querySelector('input[aria-label=\"1줄 어음번호\"]').value === ''",
+        "click:번호생성",
+        "wait:200",
+        "expect:/^\\d{20}$/.test(document.querySelector('input[aria-label=\"1줄 어음번호\"]').value)",
+        "js:sessionStorage.setItem('nn1', document.querySelector('input[aria-label=\"1줄 어음번호\"]').value); true",
+        "clicklast:적용(F8)",
+        "wait:600",
+        "expect:(() => { const rs = [...document.querySelectorAll('[role=dialog] tbody tr')].filter((t) => t.cells.length === 10); return rs.length === 2 && rs[0].cells[2].innerText.trim() === '받을어음' && rs[0].cells[9].innerText.includes(', 받을어음 ' + sessionStorage.getItem('nn1')) })()",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const r = await window.__api('GET', '/notes?all=true'); const ns = (r.body.notes ?? r.body.rows ?? r.body).filter((n) => n.noteNo === sessionStorage.getItem('nn1')); if (ns.length !== 1 || ns[0].issueVia !== 'VOUCHER' || !ns[0].issueJournalEntryId) return false; sessionStorage.setItem('nJ', ns[0].issueJournalEntryId); const j = (await window.__api('GET', '/journals/' + ns[0].issueJournalEntryId)).body; return Number(j.lines.find((l) => l.accountCode === '110').debit) === 30000 && Number(j.lines.filter((l) => l.accountCode === '108').reduce((t, l) => t + Number(l.credit), 0)) === 30000 })()",
+        "js:(() => { history.pushState(null, '', '/accounting/notes-list'); dispatchEvent(new PopStateEvent('popstate')); return true })()",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('nn1')) && t.innerText.includes('입금보고서') && t.innerText.includes('증가'))",
+        "js:(async () => { const v = (await window.__api('GET', '/vouchers/by-journal/' + sessionStorage.getItem('nJ'))).body; return (await window.__api('DELETE', '/vouchers/' + v.id)).status })()",
+        "wait:500",
+        "expect:(async () => { const r = await window.__api('GET', '/notes?all=true'); return !(r.body.notes ?? r.body.rows ?? r.body).some((n) => n.noteNo === sessionStorage.getItem('nn1')) })()",
+        "js:window.__api('POST', '/bonds/delete', { ids: [Number(sessionStorage.getItem('nInc'))] }).then((r) => r.status)"
       ]
     }
   ]
