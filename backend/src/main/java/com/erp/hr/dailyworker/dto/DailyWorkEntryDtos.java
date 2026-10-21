@@ -40,4 +40,43 @@ public class DailyWorkEntryDtos {
     }
 
     public record SlipResponse(LocalDate slipDate, int slipNo, List<LineResponse> lines) {}
+
+    /** 근무조회 [이력] 한 줄 · H 창 한 줄 — 작업일시 · 전표번호 · 행위 · 사원명 · 수당항목 · 근무기록 · 작업자 + 그때의 줄. */
+    public record HistoryRow(
+            Long id, java.time.LocalDateTime actedAt, LocalDate slipDate, int slipNo, String action,
+            String employeeName, String payItemName, BigDecimal quantity, String worker, List<HistoryLine> lines
+    ) {
+        private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+                new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+
+        public static HistoryRow from(com.erp.hr.dailyworker.DailyWorkEntryHistory h) {
+            return new HistoryRow(h.getId(), h.getActedAt(), h.getSlipDate(), h.getSlipNo(), h.getAction(),
+                    h.getEmployeeName(), h.getPayItemName(), h.getQuantity(), h.getWorker(), readLines(h.getLinesJson()));
+        }
+
+        public static String writeLines(List<HistoryLine> lines) {
+            try {
+                return JSON.writeValueAsString(lines);
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        private static List<HistoryLine> readLines(String json) {
+            if (json == null || json.isBlank()) return List.of();
+            try {
+                return JSON.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<HistoryLine>>() {});
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                return List.of();
+            }
+        }
+    }
+
+    /** 이력에 남긴 그때의 줄 — 근무일자 · 사원 · 수당항목 · 단위 · 근무기록. */
+    public record HistoryLine(LocalDate workDate, Long workerId, String workerCode, String workerName,
+                              String payItemName, String unit, BigDecimal quantity) {
+        public static HistoryLine from(LineResponse l) {
+            return new HistoryLine(l.workDate(), l.workerId(), l.workerCode(), l.workerName(), l.payItem(), l.unit(), l.quantity());
+        }
+    }
 }

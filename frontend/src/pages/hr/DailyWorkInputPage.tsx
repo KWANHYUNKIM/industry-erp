@@ -9,6 +9,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
 import GridFindButton from '../../components/GridFindButton'
 import { ecConfirm } from '../../components/EcDialog'
+import { DailyWorkSlipHistory } from '../../features/dailypay/components/DailyWorkHistoryView'
 
 interface Worker { id: number; code: string; name: string; dailyWage: number | null; payAmounts?: { itemId: number; amount: number | null }[] }
 /** item: 수당항목('02' 일근무 — 원본도 사원을 골라도 비어 있고 따로 고른다). autoAmt: 금액이 일근무 × 근무기록으로 채워진 값(저장하지 않는다). */
@@ -38,6 +39,9 @@ export default function DailyWorkInputPage() {
   const [params] = useSearchParams()
   const editDate = params.get('date')
   const editNo = params.get('no')
+  /** 원본 수정 창 [복사] — 그 전표의 줄을 담은 새 입력 창(일자는 오늘, 저장하면 새 번호) */
+  const copy = params.get('copy')   // 2026-10-14/3 꼴
+  const [histOpen, setHistOpen] = useState(false)
   const [slipDate, setSlipDate] = useState(editDate ?? ymd(new Date()))
   const [rows, setRows] = useState<Row[]>(Array.from({ length: BLANK_ROWS }, blank))
   const [workers, setWorkers] = useState<Worker[]>([])
@@ -63,8 +67,9 @@ export default function DailyWorkInputPage() {
   function reset() {
     setError('')
     setMissing(false)
-    if (!editDate || !editNo) { setRows(Array.from({ length: BLANK_ROWS }, blank)); return }
-    api.get<Slip>(`/hr/daily-work-entries/${editDate}/${editNo}`).then((r) => {
+    const src = editDate && editNo ? `${editDate}/${editNo}` : copy
+    if (!src) { setRows(Array.from({ length: BLANK_ROWS }, blank)); return }
+    api.get<Slip>(`/hr/daily-work-entries/${src}`).then((r) => {
       const got = r.data.lines.map((l) => ({
         workDate: l.workDate, workerId: String(l.workerId), item: String(l.payItemId ?? dayItem?.id ?? ''), quantity: String(l.quantity),
         amount: l.amount == null ? '' : String(l.amount), autoAmt: false,
@@ -72,7 +77,7 @@ export default function DailyWorkInputPage() {
       setRows([...got, ...Array.from({ length: Math.max(1, BLANK_ROWS - got.length) }, blank)])
     }).catch((e) => setError(extractErrorMessage(e)))
   }
-  useEffect(() => { reset() }, [editDate, editNo, dayItem?.id])
+  useEffect(() => { reset() }, [editDate, editNo, copy, dayItem?.id])
 
   function edit(i: number, patch: Partial<Row>) {
     setRows((rs) => {
@@ -147,10 +152,12 @@ export default function DailyWorkInputPage() {
       title="일용근로 근무입력"
       searchable={false}
       actions={editDate && editNo ? [
-        // 원본 수정 창 버튼줄: 저장(F8) · 복사 · 닫기 · 삭제 · H (복사 · H 는 아직 없다)
+        // 원본 수정 창 버튼줄(2026-10-14 실측): 저장(F8) · 복사 · 닫기 · 삭제 · H
         { label: '저장(F8)', onClick: save, primary: true },
+        { label: '복사', onClick: () => nav(`/hr/daily-work-input?copy=${editDate}/${editNo}`) },
         { label: '닫기', onClick: () => nav('/hr/daily-work-list') },
         { label: '삭제', onClick: remove },
+        { label: 'H', onClick: () => setHistOpen(true) },
       ] : [
         { label: '저장(F8)', onClick: save, primary: true },
         { label: '다시 작성', onClick: reset },
@@ -158,6 +165,7 @@ export default function DailyWorkInputPage() {
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {histOpen && editDate && editNo && <DailyWorkSlipHistory slipDate={editDate} slipNo={Number(editNo)} onClose={() => setHistOpen(false)} />}
       <ul className="ec-form mb-[8px]">
         <li>
           <span className="title">일자</span>

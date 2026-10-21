@@ -9,6 +9,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
+import DailyWorkHistoryView from '../../features/dailypay/components/DailyWorkHistoryView'
 
 interface Line { id: number; lineNo: number; workDate: string; workerId: number; workerCode: string; workerName: string; payItem: string; quantity: number }
 interface Row extends Line { slipDate: string; slipNo: number }
@@ -32,10 +33,12 @@ const monthToToday = () => {
  * 2026-10-14 다시 잼: 줄은 <b>전표마다 한 행</b>이다 — QA관리-일조 2.00(10/14) + 나일당 0.50(10/13) 전표가
  * '2026/10/14 -2 · (첫 줄 근무일자) · QA관리-일조 외 1건 · 일근무 · 2.00'(근무기록은 합 2.5 가 아니라 첫 줄 값). 번호 칸(form-checkbox-numbered),
  * 기간 '2026/10/01 ~2026/10/14'. [선택삭제]는 고른 줄이 없으면 '리스트에 선택된 자료가 없습니다.' 알림, 고르면 '삭제하겠습니까?' → 안내 없이 사라진다.
- * 원본 오른쪽 위 [이력](근무조회 이력조회 — 지운 전표도 남는다)은 우리에게 일용 근무 이력 표가 없어 아직 없다.
+ * 오른쪽 위 [이력](근무조회 이력조회 — 열 작업일자 · 전표번호 · 행위 · 사원명 · 수당항목 · 근무기록 · 작업자 · 이력(H), 지운 전표도 '삭제' 로 남는다)은
+ * daily_work_entry_histories 가 남기고 features/dailypay DailyWorkHistoryView 가 그린다. 버튼줄은 Excel 만, [전체] 알약으로 돌아온다.
  */
 export default function DailyWorkListPage() {
   const nav = useNavigate()
+  const [historyMode, setHistoryMode] = useState(false)
   const [range, setRange] = useState(monthToToday())
   const [shownRange, setShownRange] = useState(range)
   const [useWorkDate, setUseWorkDate] = useState(false)
@@ -96,15 +99,23 @@ export default function DailyWorkListPage() {
 
   return (
     <EcListShell
-      title="일용근로 근무조회"
+      title={historyMode ? '근무조회 이력조회' : '일용근로 근무조회'}
       searchable={false}
-      onNew={() => nav('/hr/daily-work-input')}
-      actions={[
+      onNew={historyMode ? undefined : () => nav('/hr/daily-work-input')}
+      actions={historyMode ? [{ label: 'Excel' }] : [
         { label: '선택삭제', onClick: deleteChecked, selected: checked.size },
         { label: 'Excel' },
       ]}
     >
-      <div className="ec-pills mb-[8px]"><button type="button" className="ec-pill active">전체</button></div>
+      <div className="flex items-center justify-between mb-[8px]">
+        <div className="ec-pills">
+          <button type="button" className={`ec-pill${historyMode ? '' : ' active'}`} onClick={() => { setHistoryMode(false); load() }}>전체</button>
+        </div>
+        <div className="ec-pills">
+          <button type="button" className={`ec-pill${historyMode ? ' active' : ''}`} onClick={() => setHistoryMode(true)}>이력</button>
+        </div>
+      </div>
+      {historyMode ? <DailyWorkHistoryView /> : (<>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
@@ -182,6 +193,7 @@ export default function DailyWorkListPage() {
           ))}
         </tbody>
       </table>
+      </>)}
     </EcListShell>
   )
 }
