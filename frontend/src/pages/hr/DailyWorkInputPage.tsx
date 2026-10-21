@@ -39,7 +39,7 @@ export default function DailyWorkInputPage() {
   const [params] = useSearchParams()
   const editDate = params.get('date')
   const editNo = params.get('no')
-  /** 원본 수정 창 [복사] — 그 전표의 줄을 담은 새 입력 창(일자는 오늘, 저장하면 새 번호) */
+  /** 원본 수정 창 [복사] — 그 전표의 줄을 담은 새 입력 창(일자 그대로, 저장하면 다음 번호 2026/10/13 -2) */
   const copy = params.get('copy')   // 2026-10-14/3 꼴
   const [histOpen, setHistOpen] = useState(false)
   const [slipDate, setSlipDate] = useState(editDate ?? ymd(new Date()))
@@ -70,6 +70,7 @@ export default function DailyWorkInputPage() {
     const src = editDate && editNo ? `${editDate}/${editNo}` : copy
     if (!src) { setRows(Array.from({ length: BLANK_ROWS }, blank)); return }
     api.get<Slip>(`/hr/daily-work-entries/${src}`).then((r) => {
+      if (!editDate) setSlipDate(r.data.slipDate)   // [복사] 는 원본처럼 같은 일자의 다음 번호로 저장된다
       const got = r.data.lines.map((l) => ({
         workDate: l.workDate, workerId: String(l.workerId), item: String(l.payItemId ?? dayItem?.id ?? ''), quantity: String(l.quantity),
         amount: l.amount == null ? '' : String(l.amount), autoAmt: false,
