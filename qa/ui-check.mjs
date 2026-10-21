@@ -7511,7 +7511,11 @@ console.log('\n■ 고른 줄이 있어야 도는 버튼을 미리 잠그지 않
       잰버튼 += 1
       const dis = /disabled\s*:\s*([^,}]*)/.exec(m[0])?.[1] ?? ''
       if (잠금.test(dis)) bad.push(`${파일}  [${m[1]}] 이 고른 줄이 없으면 잠긴다 — selected: 고른수 로`)
-      else if (!/selected\s*:/.test(m[0])) bad.push(`${파일}  [${m[1]}] 에 selected 가 없다 — 0 줄일 때 알림이 안 뜬다`)
+      /*
+       * onClick 몸통의 '}' 에서 m[0] 이 끊겨 그 뒤 selected 를 못 볼 때가 있다(2026-10-21 오더관리진행단계
+       * { label: '선택상세보기', onClick: () => { if (requireSelection(…)) … }, selected: … }) — 그 줄 끝까지 본다.
+       */
+      else if (!/selected\s*:/.test(m[0] + src.slice(m.index, src.indexOf('\n', m.index)))) bad.push(`${파일}  [${m[1]}] 에 selected 가 없다 — 0 줄일 때 알림이 안 뜬다`)
     }
     /* 2) 화면이 직접 그린 <button> */
     for (const m of src.matchAll(/<button\b[^>]*>([^<]{1,14})<\/button>/g)) {
