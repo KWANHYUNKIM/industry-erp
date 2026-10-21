@@ -16,7 +16,7 @@
         "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)').click(); true",
         "wait:600",
         "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사요청입력')); const n = Number(sessionStorage.getItem('qrpN')) + 1; const filled = [...m.querySelectorAll('tbody tr')].filter((tr) => tr.querySelector('input[aria-label$=\"줄 수량\"]')?.value).length; const noPull = ![...m.querySelectorAll('button')].some((b) => b.innerText.trim() === '구매'); return filled === n && noPull })()",
-        "expect:(async () => { const r = await fetch('/api/purchases/' + sessionStorage.getItem('qrpPur'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+        "js:(async () => { if (!(await ((async () => { const r = await fetch('/api/purchases/' + sessionStorage.getItem('qrpPur'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()"
       ]
     },
     {
@@ -33,7 +33,7 @@
         "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)').click(); true",
         "wait:600",
         "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사요청입력')); const qs = [...m.querySelectorAll('tbody input.text-right')].map((i) => i.value).filter(Boolean); return qs.length === 1 && qs[0] === '4' && ![...m.querySelectorAll('button')].some((b) => b.innerText.trim() === '발주') })()",
-        "expect:(async () => { const r = await fetch('/api/purchase-orders/' + sessionStorage.getItem('qrpPo'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+        "js:(async () => { if (!(await ((async () => { const r = await fetch('/api/purchase-orders/' + sessionStorage.getItem('qrpPo'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()"
       ]
     },
     {
@@ -51,7 +51,7 @@
         "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)').click(); true",
         "wait:600",
         "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사입력')); const qs = [...m.querySelectorAll('tbody tr')].map((tr) => tr.querySelector('td:nth-child(5) input')?.value).filter(Boolean); return qs.length === 1 && qs[0] === '6' && ![...m.querySelectorAll('button')].some((b) => b.innerText.trim() === '구매') })()",
-        "expect:(async () => { const r = await fetch('/api/purchases/' + sessionStorage.getItem('qipPur'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+        "js:(async () => { if (!(await ((async () => { const r = await fetch('/api/purchases/' + sessionStorage.getItem('qipPur'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()"
       ]
     },
     {

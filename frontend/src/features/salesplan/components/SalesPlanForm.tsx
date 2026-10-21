@@ -33,7 +33,7 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * (우리 코드도움 <code>pair</code> 칸). 단추 저장(F8) · 다시 작성 · 리스트 · 웹자료올리기. 저장하면 안내 없이 빈 입력이 남는다.
  * 수정 창 단추: 저장(F8) · 복사 · 닫기 · 삭제 · 보내기 · H(복사 · 보내기 · H 는 없다).
  */
-export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons, active = true, onError }: {
+export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons, active = true, slim = false, onError }: {
   /** 고치는 전표. null 이면 새로 넣는다. */
   editing: SalesPlanDoc | null
   /** 저장(또는 삭제)한 뒤. 입력 화면은 폼이 스스로 빈 입력으로 돌아간다. */
@@ -44,6 +44,8 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
   extraButtons?: ReactNode
   /** F8 을 받을지(창이 닫혀 있으면 false). */
   active?: boolean
+  /** 원본 [매출계획입력] 머리는 예상매출일자 하나다 — 창고 · 프로젝트 칸을 뺀다(조회 쪽 창은 둔다). */
+  slim?: boolean
   /** 창으로 띄웠을 때 오류를 창의 오류 줄(Modal error)로 올린다. 없으면 폼 위에 직접 그린다. */
   onError?: (message: string) => void
 }) {
@@ -133,14 +135,14 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
                  onChange={(e) => setF((x) => ({ ...x, expectedDate: e.target.value }))} />
         </div></li>
         {/* 원본 입력 머리에는 없다 — 조회 목록의 [창고명] · [프로젝트명] 열이 쓰는 우리 칸. */}
-        <li><div className="title">창고</div><div className="form">
+        {!slim && <li><div className="title">창고</div><div className="form">
           <CodePickerField label="창고" hideLabel fill emptyLabel="선택 안 함" placeholder="창고" value={f.warehouseId}
                            onChange={(v) => setF((x) => ({ ...x, warehouseId: v }))} items={pickers.warehouses} />
-        </div></li>
-        <li><div className="title">프로젝트</div><div className="form">
+        </div></li>}
+        {!slim && <li><div className="title">프로젝트</div><div className="form">
           <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 안 함" placeholder="프로젝트" value={f.projectId}
                            onChange={(v) => setF((x) => ({ ...x, projectId: v }))} items={pickers.projects} />
-        </div></li>
+        </div></li>}
       </ul>
       <table className="w-full ec-head700 mt-[8px]">
         <thead><tr>

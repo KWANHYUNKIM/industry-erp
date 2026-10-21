@@ -17,7 +17,7 @@
         "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === '완료').click(); true",
         "wait:1500",
         "expect:(async () => { const r = await (await fetch('/api/quality-inspections', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).json(); const x = r.find((y) => String(y.id) === sessionStorage.getItem('qis')); return x && x.status === 'COMPLETED' })()",
-        "expect:(async () => { const r = await fetch('/api/quality-inspections/' + sessionStorage.getItem('qis'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+        "js:(async () => { if (!(await ((async () => { const r = await fetch('/api/quality-inspections/' + sessionStorage.getItem('qis'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()"
       ]
     }
   ]

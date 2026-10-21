@@ -32,13 +32,15 @@ const linesOf = (r: QualityInspectionRequest | null): LineForm[] => r
   ? [...r.lines.map((l) => ({ method: l.method as Method, itemId: String(l.itemId), extraQty: l.extraQty == null ? '' : String(Number(l.extraQty)), quantity: String(l.quantity) })), emptyLine()]
   : emptyLines()
 
-export default function QualityRequestForm({ editing, items, projects, active = true, onSaved, onDeleted, extraButtons }: {
+export default function QualityRequestForm({ editing, items, projects, active = true, slim = false, onSaved, onDeleted, extraButtons }: {
   /** 고칠 요청 — 없으면 새 입력. */
   editing: QualityInspectionRequest | null
   items: Item[]
   projects: { id: number; code: string; name: string }[]
   /** F8 단축키를 걸 때(창이 열려 있을 때 · 입력 화면). */
   active?: boolean
+  /** 원본 [품질검사요청입력] 머리는 일자-No. · 담당자 둘뿐이다(2026-10-14 실측) — 프로젝트 · 적요 칸을 뺀다. 조회 쪽 창은 둔다. */
+  slim?: boolean
   /** 저장 뒤 — 새 입력이면 폼은 스스로 비운다. */
   onSaved: (saved: QualityInspectionRequest) => void
   onDeleted?: () => void
@@ -114,15 +116,15 @@ export default function QualityRequestForm({ editing, items, projects, active = 
           <input className="ec-input w-full" placeholder="담당자" aria-label="담당자" value={f.requester}
                  onChange={(e) => setF((x) => ({ ...x, requester: e.target.value }))} />
         </div></li>
-        <li><div className="title">프로젝트</div><div className="form">
+        {!slim && <li><div className="title">프로젝트</div><div className="form">
           <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 안 함" placeholder="프로젝트" value={f.projectId}
                            onChange={(v) => setF((x) => ({ ...x, projectId: v }))}
                            items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} />
-        </div></li>
-        <li><div className="title">적요</div><div className="form">
+        </div></li>}
+        {!slim && <li><div className="title">적요</div><div className="form">
           <input className="ec-input w-full" placeholder="적요" aria-label="적요" value={f.remark}
                  onChange={(e) => setF((x) => ({ ...x, remark: e.target.value }))} />
-        </div></li>
+        </div></li>}
       </ul>
       {!editing && !pulled && (
         <div className="flex gap-[4px] mt-[8px]">

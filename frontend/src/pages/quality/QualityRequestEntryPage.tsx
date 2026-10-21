@@ -29,7 +29,7 @@ export default function QualityRequestEntryPage() {
   return (
     <EcSlipShell title="품질검사요청입력">
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      <QualityRequestScreen editing={null} items={items} projects={projects}
+      <QualityRequestScreen editing={null} items={items} projects={projects} slim
                           onSaved={() => undefined}
                           extraButtons={<button className="ec-btn" onClick={() => navigate('/quality/inspection-request')}>리스트</button>} />
     </EcSlipShell>

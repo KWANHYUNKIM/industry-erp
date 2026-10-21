@@ -152,7 +152,7 @@ export default function SalesPlanComparePage() {
       </ul>
 
       <EcReportHead title="매출계획비교표" period={reportPeriod(from, to)} />
-      <table ref={tableRef} className="ec-report w-full text-left">
+      <table ref={tableRef} className="ec-report ec-report-head400 w-full text-left">
         <thead>
           <tr>
             {by1 && <th>{axis1?.label}</th>}
@@ -197,7 +197,7 @@ export default function SalesPlanComparePage() {
               {withRate && <td></td>}
               {withQty && <td className="text-right">{total.planQty ? qty2(total.planQty) : ''}</td>}
               {withQty && <td className="text-right">{qty2(total.saleQty)}</td>}
-              {withQty && <td></td>}
+              {withQty && <td className="text-right">{qty2(total.planQty - total.saleQty)}</td>}
               {withQty && withRate && <td></td>}
             </tr>
           </tfoot>

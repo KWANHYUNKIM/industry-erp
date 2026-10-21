@@ -262,7 +262,10 @@ export default function ProjectPlanPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[28px] text-center"></th>
+            <th className="w-[28px] text-center">
+              <input type="checkbox" aria-label="전체선택" checked={shown.length > 0 && shown.every((r) => picked.has(r.id))}
+                     onChange={(e) => setPicked(e.target.checked ? new Set(shown.map((r) => r.id)) : new Set())} />
+            </th>
             <th className="w-[34px]"></th>
             {/* 원본 격자 9열(2026-10-14 실측): 체크 · 프로젝트코드 · 프로젝트명 · 시작일 · 종료일 · 판매 · 구매 · 노무비 · 경비. 합계줄 없음. */}
             <th className="w-[90px]">프로젝트코드</th>

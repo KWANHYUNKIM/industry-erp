@@ -14,7 +14,7 @@ export default function SalesPlanEntryPage() {
   const navigate = useNavigate()
   return (
     <EcSlipShell title="매출계획입력">
-      <SalesPlanForm editing={null} onSaved={() => undefined}
+      <SalesPlanForm editing={null} slim onSaved={() => undefined}
                      extraButtons={<button type="button" className="ec-btn" onClick={() => navigate('/sales/sales-plan-list')}>리스트</button>} />
     </EcSlipShell>
   )

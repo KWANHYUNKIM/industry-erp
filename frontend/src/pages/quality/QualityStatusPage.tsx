@@ -246,9 +246,10 @@ export default function QualityStatusPage() {
     return n
   }, [filters])
 
-  const applyDraft = () => {
-    if (draft.gubun === '집계' && draft.pivot && !draft.targets.length) { void ecAlert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
-    setFilters(draft); setPanelOpen(false)
+  const applyDraft = (patch?: Partial<Filters>) => {
+    const next = patch ? { ...draft, ...patch } : draft
+    if (next.gubun === '집계' && next.pivot && !next.targets.length) { void ecAlert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
+    setFilters(next); setPanelOpen(false)
   }
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
   const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
@@ -350,20 +351,20 @@ export default function QualityStatusPage() {
             }
             return out
           })}
-        </tbody>
         {listRows.length > 0 && (() => {
           const t = sumOf(listRows)
           return (
-            <tfoot><tr className="ec-total">
+            <tr className="ec-total">
               <td colSpan={3} className="text-center">합계</td>
               <td className="text-right">{qty2(t.qty)}</td>
               <td className="text-right">{qty2(t.sample)}</td>
               <td className="text-right">{qty2(t.good)}</td>
               <td className="text-right">{t.defect === 0 ? '' : qty2(t.defect)}</td>
               <td></td>
-            </tr></tfoot>
+            </tr>
           )
         })()}
+        </tbody>
       </table>
       <EcReportFoot />
       </>
@@ -378,7 +379,7 @@ function SearchPanel({
 }: {
   draft: Filters
   onChange: (patch: Partial<Filters>) => void
-  onApply: () => void
+  onApply: (patch?: Partial<Filters>) => void
   onReset: () => void
   /** 원본 [데이터 보기형식] — 조건 판 맨 끝이다. 셸을 안 쓰는 화면이라 여기 직접 그린다. */
   view: '표' | '그래프'
@@ -452,7 +453,7 @@ function SearchPanel({
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={draft.dateFrom}
-              onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
+              onPick={(r) => { onChange({ dateFrom: r.from, dateTo: r.to }); onApply({ dateFrom: r.from, dateTo: r.to }) }} />
           </span>
       </div>
       {/*
@@ -558,7 +559,7 @@ function SearchPanel({
       </div>
       <div className="flex gap-[6px] mt-[12px] justify-end">
         <button className="ec-btn" onClick={onReset}>초기화</button>
-        <button className="ec-btn ec-btn-primary" onClick={onApply}>조회</button>
+        <button className="ec-btn ec-btn-primary" onClick={() => onApply()}>조회</button>
       </div>
     </div>
   )

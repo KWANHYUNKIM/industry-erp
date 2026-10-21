@@ -13,7 +13,7 @@
         "wait:400",
         "expect:document.body.innerText.includes('자료를 입력 바랍니다.')",
         "clicklast:닫기",
-        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = (await (await fetch('/api/items', { headers: H })).json()).filter((x) => x.active !== false); const r = await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'SAMPLING', quantity: 5, sampleQty: 8 }] }) }); const j = await r.json(); sessionStorage.setItem('qi-items', JSON.stringify([it[0].id, it[1].id, it[0].name])); return r.status === 400 && j.message === '시료는 수량보다 클 수 없습니다.' })()",
+        "js:(async () => { if (!(await ((async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = (await (await fetch('/api/items', { headers: H })).json()).filter((x) => x.active !== false); const r = await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'SAMPLING', quantity: 5, sampleQty: 8 }] }) }); const j = await r.json(); sessionStorage.setItem('qi-items', JSON.stringify([it[0].id, it[1].id, it[0].name])); return r.status === 400 && j.message === '시료는 수량보다 클 수 없습니다.' })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()",
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const [a, b] = JSON.parse(sessionStorage.getItem('qi-items')); const r = await (await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ remark: 'QA재고2', lines: [{ itemId: a, method: 'SAMPLING', quantity: 5, sampleQty: 3, defectQty: 1, passResult: 'FAIL' }, { itemId: b, method: 'FULL', quantity: 2 }] }) })).json(); sessionStorage.setItem('qi', JSON.stringify({ id: r.id, no: r.inspectionNo })); return r.inspectionNo + ' 시료 ' + r.inspectedQty + ' 불량 ' + r.defectQty + ' ' + r.resultName })()",
         "js:location.reload(); true",
         "wait:3000",
@@ -25,7 +25,7 @@
         "click:완료",
         "wait:500",
         "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(JSON.parse(sessionStorage.getItem('qi-items'))[2] + ' 외 1건') && t.innerText.includes('완료'))",
-        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('qi')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/quality-inspections/' + x.id, { method: 'DELETE', headers: H }); return d.status === 204 })()"
+        "js:(async () => { if (!(await ((async () => { const x = JSON.parse(sessionStorage.getItem('qi')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/quality-inspections/' + x.id, { method: 'DELETE', headers: H }); return d.status === 204 })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()"
       ]
     },
     {
