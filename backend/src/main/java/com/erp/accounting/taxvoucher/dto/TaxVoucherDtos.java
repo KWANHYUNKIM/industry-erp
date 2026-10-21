@@ -21,7 +21,9 @@ public final class TaxVoucherDtos {
             @NotNull(message = "거래처를 입력 바랍니다.") Long partnerId,
             @NotNull(message = "공급가액을 입력 바랍니다.") BigDecimal supplyAmount,
             BigDecimal vatAmount,
-            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.") String remark
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.") String remark,
+            Long departmentId,
+            Long projectId
     ) {}
 
     public record TaxVoucherResponse(
@@ -29,14 +31,15 @@ public final class TaxVoucherDtos {
             LocalDate entryDate, Integer entryNo, String vatType,
             Long partnerId, String partnerCode, String partnerName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
-            String remark
+            String remark,
+            Long departmentId, Long projectId
     ) {
         public static TaxVoucherResponse from(TaxVoucher v) {
             return new TaxVoucherResponse(v.getId(), v.getSide(), v.getSide().getDisplayName(),
                     v.getEntryDate(), v.getEntryNo(), v.getVatType(),
                     v.getPartner().getId(), v.getPartner().getCode(), v.getPartner().getName(),
                     v.getSupplyAmount(), v.getVatAmount(), v.getSupplyAmount().add(v.getVatAmount()),
-                    v.getRemark());
+                    v.getRemark(), v.getDepartmentId(), v.getProject() != null ? v.getProject().getId() : null);
         }
     }
 }

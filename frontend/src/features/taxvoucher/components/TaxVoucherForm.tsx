@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Modal from '../../../components/Modal'
 import CodePickerField from '../../../components/CodePickerField'
 import EcNumInput from '../../../components/EcNumInput'
@@ -12,8 +12,9 @@ export interface Voucher {
   id: number; side: Side; sideName: string; entryDate: string; entryNo: number; vatType: string
   partnerId: number; partnerCode: string; partnerName: string
   supplyAmount: number; vatAmount: number; totalAmount: number; remark: string | null
+  departmentId?: number | null; projectId?: number | null
 }
-export interface VoucherForm { id?: number; entryNo?: number; side: Side; entryDate: string; vatType: string; partnerId: string; supply: string; vat: string; remark: string }
+export interface VoucherForm { id?: number; entryNo?: number; side: Side; entryDate: string; vatType: string; partnerId: string; supply: string; vat: string; remark: string; departmentId: string; projectId: string }
 
 /* 원본 [부가세유형] 목록 글자 그대로(2026-10-12 loginaa 실측) — 매출 창과 매입 창이 다르다. */
 export const SALES_TYPES = [
@@ -33,10 +34,11 @@ const vatOf = (type: string, supply: string) => (TAXED.has(type) ? String(Math.r
 const today = () => new Date().toLocaleDateString('sv-SE')
 
 export const newVoucherForm = (side: Side): VoucherForm =>
-  ({ side, entryDate: today(), vatType: '세금계산서', partnerId: '', supply: '0', vat: '0', remark: '' })
+  ({ side, entryDate: today(), vatType: '세금계산서', partnerId: '', supply: '0', vat: '0', remark: '', departmentId: '', projectId: '' })
 export const voucherFormOf = (r: Voucher): VoucherForm =>
   ({ id: r.id, entryNo: r.entryNo, side: r.side, entryDate: r.entryDate, vatType: r.vatType, partnerId: String(r.partnerId),
-     supply: String(r.supplyAmount), vat: String(r.vatAmount), remark: r.remark ?? '' })
+     supply: String(r.supplyAmount), vat: String(r.vatAmount), remark: r.remark ?? '',
+     departmentId: r.departmentId ? String(r.departmentId) : '', projectId: r.projectId ? String(r.projectId) : '' })
 
 /**
  * (세금)계산서발행/수령(원본 E030202)의 '매출(세금)계산서발행' · '매입(세금)계산서수령' 창 — 그 화면 목록과
@@ -54,12 +56,21 @@ export default function TaxVoucherForm({ initial, partners, onClose, onSaved }: 
   const [form, setForm] = useState<VoucherForm>(initial)
   const [formError, setFormError] = useState('')
   const [detailOpen, setDetailOpen] = useState(false)
+  const [departments, setDepartments] = useState<{ value: string; code: string; name: string }[]>([])
+  const [projects, setProjects] = useState<{ value: string; code: string; name: string }[]>([])
+  useEffect(() => {
+    type Opt = { id: number; code: string; name: string }
+    const items = (rs: Opt[]) => rs.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))
+    api.get<Opt[]>('/departments').then((r) => setDepartments(items(r.data))).catch(() => setDepartments([]))
+    api.get<Opt[]>('/projects').then((r) => setProjects(items(r.data))).catch(() => setProjects([]))
+  }, [])
   const set = (patch: Partial<VoucherForm>) => setForm({ ...form, ...patch })
 
   async function save(thenPrint = false) {
     if (!form.partnerId) { setFormError('__partner'); return }
     const body = { side: form.side, entryDate: form.entryDate, vatType: form.vatType, partnerId: Number(form.partnerId),
-      supplyAmount: Number(form.supply) || 0, vatAmount: Number(form.vat) || 0, remark: form.remark }
+      supplyAmount: Number(form.supply) || 0, vatAmount: Number(form.vat) || 0, remark: form.remark,
+      departmentId: form.departmentId ? Number(form.departmentId) : null, projectId: form.projectId ? Number(form.projectId) : null }
     try {
       const saved = form.id ? await api.put<Voucher>(`/tax-vouchers/${form.id}`, body) : await api.post<Voucher>('/tax-vouchers', body)
       await onSaved(saved.data ?? null, thenPrint)
@@ -104,6 +115,14 @@ export default function TaxVoucherForm({ initial, partners, onClose, onSaved }: 
             <CodePickerField label="거래처" hideLabel fill pair emptyLabel="(선택 안 함)" value={form.partnerId}
                              onChange={(v) => { set({ partnerId: v }); setFormError('') }} items={partnerItems} />
             </div>
+          </EcCond>
+          <EcCond label="부서코드" span={2}>
+            <CodePickerField label="부서코드" hideLabel fill pair emptyLabel="(선택 안 함)" value={form.departmentId}
+                             onChange={(v) => set({ departmentId: v })} items={departments} />
+          </EcCond>
+          <EcCond label="프로젝트코드" span={2}>
+            <CodePickerField label="프로젝트코드" hideLabel fill pair emptyLabel="(선택 안 함)" value={form.projectId}
+                             onChange={(v) => set({ projectId: v })} items={projects} />
           </EcCond>
           <EcCond label="공급가액" span={2}>
             <EcNumInput className="ec-input w-full text-right" value={form.supply}

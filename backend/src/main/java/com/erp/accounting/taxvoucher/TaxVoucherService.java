@@ -2,6 +2,7 @@ package com.erp.accounting.taxvoucher;
 
 import com.erp.accounting.taxvoucher.dto.TaxVoucherDtos.TaxVoucherRequest;
 import com.erp.accounting.taxvoucher.dto.TaxVoucherDtos.TaxVoucherResponse;
+import com.erp.inventory.project.ProjectService;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.partner.PartnerService;
@@ -24,6 +25,7 @@ public class TaxVoucherService {
     private final TaxVoucherRepository repository;
     private final DocumentNoGenerator docNoGenerator;
     private final PartnerService partnerService;
+    private final ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<TaxVoucherResponse> list(LocalDate from, LocalDate to, TaxVoucherSide side) {
@@ -68,6 +70,8 @@ public class TaxVoucherService {
         v.setPartner(partnerService.get(req.partnerId()));
         v.setSupplyAmount(req.supplyAmount());
         v.setVatAmount(req.vatAmount() != null ? req.vatAmount() : BigDecimal.ZERO);
+        v.setDepartmentId(req.departmentId());
+        v.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         v.setRemark(req.remark() == null || req.remark().isBlank() ? null : req.remark().trim());
     }
 

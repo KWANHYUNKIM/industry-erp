@@ -1,5 +1,6 @@
 package com.erp.accounting.taxvoucher;
 
+import com.erp.inventory.project.Project;
 import com.erp.common.BaseTimeEntity;
 import com.erp.trade.partner.BusinessPartner;
 import jakarta.persistence.*;
@@ -51,6 +52,13 @@ public class TaxVoucher extends BaseTimeEntity {
 
     @Column(name = "vat_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal vatAmount;
+
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
 
     @Column(length = 300)
     private String remark;

@@ -4,6 +4,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { SALES_TAX_LIST_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { JournalEntry } from '../../types/api'
@@ -54,9 +55,15 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
   const [paper, setPaper] = useState<Row | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
+  /* 조건 — [검색] 을 누를 때 걸린다(applied). 발송여부는 매출만. 이 앱의 계산서는 메일을 보내는 길이 없어 모두 미발송이다. */
+  const [docNo, setDocNo] = useState('')
+  const [partnerId, setPartnerId] = useState('')
+  const [sent, setSent] = useState<'' | 'N' | 'Y'>('')
+  const [applied, setApplied] = useState({ docNo: '', partnerId: '', sent: '' as '' | 'N' | 'Y' })
 
   async function load() {
     setError('')
+    setApplied({ docNo: docNo.trim(), partnerId, sent })
     try {
       const [r, v] = await Promise.all([
         api.get<JournalList>('/journals', { params: { from, to, all: true } }),
@@ -76,6 +83,7 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
     void loadSupplierParty().then(setCompany)
   }, [])
 
+  const sales = side === '매출'
   const rows = useMemo(() => {
     if (status === '결재중' || status === '미확인') return [] as Row[]
     const out: Row[] = []
@@ -89,13 +97,15 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
       out.push({ key: `tv-${v.id}`, date: v.entryDate, no: String(v.entryNo), partnerId: v.partnerId, partner: v.partnerName,
         supply: Number(v.supplyAmount), vat: Number(v.vatAmount), source: '세무', voucher: v })
     }
-    return out.sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.no.localeCompare(a.no)))
-  }, [entries, vouchers, status, side])
+    const f = out.filter((r) => (!applied.docNo || dateNo(r.date, r.no).includes(applied.docNo))
+      && (!applied.partnerId || String(r.partnerId) === applied.partnerId)
+      && (applied.sent !== 'Y' || !sales))
+    return f.sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.no.localeCompare(a.no)))
+  }, [entries, vouchers, status, side, applied, sales])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [rows.length])
   const allPicked = rows.length > 0 && picked.size === rows.length
-  const sales = side === '매출'
   const cols = sales ? 8 : 7
 
   /** 청구서 두 장 — 매출은 우리 회사가 공급자, 거래처가 공급받는자. */
@@ -120,6 +130,20 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
           <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
           <EcPeriodPicks labels={SALES_TAX_LIST_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
         </EcCond>
+        <EcCond label="회계전표No.">
+          <input className="ec-input w-[150px]" value={docNo} onChange={(e) => setDocNo(e.target.value)} />
+        </EcCond>
+        <EcCond label="거래처">
+          <CodePickerField label="거래처" hideLabel pair emptyLabel="(전체)" value={partnerId} onChange={setPartnerId}
+                           items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
+        </EcCond>
+        {sales && (
+          <EcCond label="발송여부">
+            <select className="ec-input w-[100px]" value={sent} onChange={(e) => setSent(e.target.value as '' | 'N' | 'Y')}>
+              <option value="">전체</option><option value="N">미발송</option><option value="Y">발송</option>
+            </select>
+          </EcCond>
+        )}
         <li className="full">
           <div className="form">
             <button className="ec-btn ec-btn-primary" onClick={() => void load()}>검색(F8)</button>

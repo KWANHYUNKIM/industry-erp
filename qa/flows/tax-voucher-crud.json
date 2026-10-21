@@ -13,6 +13,7 @@
         "wait:400",
         "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('매출(세금)계산서발행'))",
         "expect:![...document.querySelector('[role=dialog]').querySelectorAll('input[placeholder=\"비고\"]')].length",
+        "expect:['부서코드', '프로젝트코드'].every((t) => document.querySelector('[role=dialog]').innerText.includes(t))",
         "clicklast:저장(F8)",
         "wait:400",
         "expect:!!document.querySelector('[role=dialog] .ec-invalid') && [...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('매출(세금)계산서발행'))",

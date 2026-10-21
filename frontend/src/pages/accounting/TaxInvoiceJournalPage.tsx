@@ -219,7 +219,7 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
       {searched && (
       <div className={tax ? 'ec-report-frame' : undefined}>
       {tax ? (
-        <EcReportHead title={side === '매출' ? '매출청구서현황' : '매입청구서현황'} period={`${slash(shown.from)}  ~ ${slash(shown.to)}`} />
+        <EcReportHead title={side === '매출' ? '매출청구서현황' : '매입청구서현황'} period={`${slash(shown.from)}  ~ ${slash(shown.to)}`} />
       ) : (<>
       <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">{side === '매출' ? '매출청구서현황' : '매입청구서현황'}</h3>
       <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
