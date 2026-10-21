@@ -190,7 +190,7 @@
       ]
     },
     {
-      "name": "기타출금 — 현금(000)에 수수료를 넣으면 '현금일경우 수수료를 입력할 수 없습니다.'",
+      "name": "기타출금 — 현금(000)에 수수료를 넣으면 글줄 알림 없이 [수수료] 칸만 빨간 테두리 + 말풍선 '현금일경우 수수료를 입력할 수 없습니다.'(원본 2026-10-21 E010414 popover), 수수료 0 이면 빨간 칸이 사라진다",
       "path": "/accounting/other-withdraw",
       "steps": [
         "wait:2500",
@@ -208,7 +208,10 @@
         "set:input[aria-label=\"수수료\"]|100",
         "click:저장(F8)",
         "wait:800",
-        "expect:document.body.innerText.includes('현금일경우 수수료를 입력할 수 없습니다.')"
+        "expect:(() => { const box = document.querySelector('.ec-invalid'); return !!box && !!box.querySelector('input[aria-label=\"수수료\"]') && box.innerText.includes('현금일경우 수수료를 입력할 수 없습니다.') && !document.querySelector('.ec-alert') })()",
+        "set:input[aria-label=\"수수료\"]|0",
+        "wait:300",
+        "expect:!document.querySelector('.ec-invalid') && !document.body.innerText.includes('현금일경우 수수료를')"
       ]
     },
     {

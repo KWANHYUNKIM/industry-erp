@@ -6,6 +6,7 @@ import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
 import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
 import { useRequired } from '../../utils/useRequired'
+import { ErrTip } from '../../components/GridCode'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -20,7 +21,7 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  *
  * 2026-10-12 loginaa 실측: 영수증으로와 같은 한 장짜리 폼(칸만 다르다 — features/cashquick/kinds.ts), 단추
  * [저장(F8)] · [저장/전표(F7)] · [다시 작성] · [리스트]. 저장하면 머리 계좌(입금 · 출금계좌)는 남고 나머지가 비워진다.
- * 기타출금은 머리 계좌가 000 현금인데 수수료를 넣으면 '현금일경우 수수료를 입력할 수 없습니다.'
+ * 기타출금은 머리 계좌가 000 현금인데 수수료를 넣으면 [수수료] 칸 빨간 테두리 + 말풍선 '현금일경우 수수료를 입력할 수 없습니다.'
  * 카드매출대금회수는 카드사를 고르면 수수료율 · 입금계좌가 채워지고, 통장입금액 9,700 · 3% → 수수료 300 · 총금액 10,000(총금액만 막힌 칸,
  * 수수료는 고칠 수 있다 — 2026-10-14 원본에서 400 으로 고치면 총금액 10,100).
  * 회계거래조회에서 전표번호를 누르면 일자가 막힌 같은 폼 + [삭제] '전표를 삭제하겠습니까? - 매출처로부터'.
@@ -81,6 +82,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   const [fee, setFee] = useState('')
   const [memo, setMemo] = useState('')
   const [error, setError] = useState('')
+  const [feeTip, setFeeTip] = useState(false)
   const req = useRequired()
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -112,8 +114,28 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     setDepartmentId(''); setProjectId('')
   }
 
+  /* 원본(2026-10-21 기타출금 · 2026-10-20 비현금거래): 저장 뒤 남는 칸(머리 계좌 · 계정 · 사원 · 카드 …)은 메뉴를 다시 열어도
+     그대로 들어 있다(세션 기억). 우리는 탭 하나의 sessionStorage 에 화면별로 둔다 — 못 읽으면 빈 폼. */
+  const memKey = `cashquick:${type}`
+  function remember() {
+    const mem = {
+      main, issuerId, feeRate, accountId,
+      employeeId: nonCash ? employeeId : '', creditAccountId: nonCash ? creditAccountId : '',
+      cardId: nonCash || type === 'CARD_BILL_PAYMENT' ? cardId : '', counter: type === 'ACCOUNT_TRANSFER' ? counter : '',
+    }
+    try { sessionStorage.setItem(memKey, JSON.stringify(mem)) } catch { /* 기억 못 해도 저장은 됐다 */ }
+  }
+  function recall() {
+    try {
+      const m = JSON.parse(sessionStorage.getItem(memKey) ?? 'null') as Record<string, string> | null
+      if (!m) return
+      setMain(m.main ?? ''); setIssuerId(m.issuerId ?? ''); setFeeRate(m.feeRate ?? ''); setAccountId(m.accountId ?? '')
+      setEmployeeId(m.employeeId ?? ''); setCreditAccountId(m.creditAccountId ?? ''); setCardId(m.cardId ?? ''); setCounter(m.counter ?? '')
+    } catch { /* 빈 폼 */ }
+  }
+
   useEffect(() => {
-    if (!editId && !journalId) { setEditing(null); reset(); return }
+    if (!editId && !journalId) { setEditing(null); reset(); recall(); return }
     const url = editId ? `/vouchers/${editId}` : `/vouchers/by-journal/${journalId}`
     api.get<CashQuickVoucher>(url).then(({ data }) => {
       const l = data.lines[0]
@@ -193,11 +215,15 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     }
   }
 
+  /** 기타출금: 머리 계좌가 000 현금이면 수수료를 못 넣는다. */
+  const cashFeeBlocked = type === 'OTHER_WITHDRAW' && main === '000' && feeNum > 0
   async function save() {
     setError('')
     /* 원본 has-error: 빈 필수칸은 글 알림 없이 칸만 빨간 테두리(공용-디자인-정리 A). */
     if (!req.check(Object.fromEntries(kind.fields.map(([f]) => [f, filled(f)])))) return
-    if (type === 'OTHER_WITHDRAW' && main === '000' && feeNum > 0) return setError('현금일경우 수수료를 입력할 수 없습니다.')
+    /* 원본 기타출금(2026-10-21 E010414 실측): 현금 + 수수료면 글줄 알림 없이 [수수료] 칸만 빨간 테두리 + 말풍선
+       '현금일경우 수수료를 입력할 수 없습니다.'(칸에 마우스 · 포커스). 수수료를 0 으로 고치면 저장된다. */
+    if (cashFeeBlocked) { setFeeTip(true); return }
     const body = {
       type,
       voucherDate: date,
@@ -226,6 +252,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
         navigate('/accounting/journals')
       } else {
         await api.post('/vouchers', body)
+        remember()
         reset(true)
       }
     } catch (e) {
@@ -284,7 +311,12 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
         return <div className={`w-full ${req.cls(f, filled(f))}`}><EcNumInput className="ec-input w-full text-right" aria-label={l} value={amount}
           onValue={has('issuer') ? (v) => setCardAmount(v) : setAmount} placeholder="0" /></div>
       case 'fee':
-        return <EcNumInput className="ec-input w-full text-right" aria-label={l} value={fee} onValue={setFee} placeholder="0" />
+        return (
+          <div className={`relative w-full ${feeTip && cashFeeBlocked ? 'ec-invalid' : ''}`}>
+            {feeTip && cashFeeBlocked && <ErrTip msg="현금일경우 수수료를 입력할 수 없습니다." />}
+            <EcNumInput className="ec-input w-full text-right" aria-label={l} value={fee} onValue={setFee} placeholder="0" />
+          </div>
+        )
       case 'total':
         return <input className="ec-input w-full text-right" aria-label={l} disabled value={cardGross.toLocaleString('ko-KR')} />
     }

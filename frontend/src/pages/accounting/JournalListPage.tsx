@@ -43,6 +43,15 @@ function slipNo(docNo: string) {
   return m ? `${m[2]}/${m[3]}/${m[4]}-${m[5]}` : docNo
 }
 
+/**
+ * 원본 차례 = 전표번호 내림차순(2026-10-21 은행으로 26/10/21-18 을 고쳐도 -19 아래 그대로).
+ * 서버는 id 차례라 고친 전표(분개를 다시 만든다)가 맨 위로 뛰었다 — 일자 + 번호로 다시 줄 세운다.
+ */
+function slipKey(r: { entryDate: string; docNo: string; id: number }) {
+  const m = /-0*(\d+)$/.exec(r.docNo)
+  return `${r.entryDate}|${(m ? m[1] : '').padStart(6, '0')}|${String(r.id).padStart(12, '0')}`
+}
+
 /** 원본 [거래유형] 이름 — 판매 회계반영은 '매출전표 I', 구매는 '매입전표 I', 직접 입력은 '일반전표'. */
 const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표', VAT_SALES: '매출전표 I', VAT_PURCHASE: '매입전표 I' }
 /**
@@ -216,7 +225,7 @@ export default function JournalListPage() {
     && (!authorCond || (r.createdBy ?? '') === authorCond)
     && (!editorCond || (r.updatedBy ?? r.createdBy ?? '') === editorCond)
     && (!keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
-  ).sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
+  ).sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : slipKey(b).localeCompare(slipKey(a)))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [rows, keyword, statusTab, docCond, workCond, voucherType, partnerCond, accountCond, deptCond, projectCond, amountFrom, amountTo, memoCond, authorCond, editorCond, byUpdated, cashQuickTotal])
 
