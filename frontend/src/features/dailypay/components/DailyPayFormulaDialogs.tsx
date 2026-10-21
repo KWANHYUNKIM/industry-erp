@@ -15,7 +15,7 @@ const TOOLS: [string, string][] = [
   ['R( 반올림', 'R('], ['C( 절상', 'C('], ['F( 절사', 'F('],
   [', [ , ]', ','], ['Min( 최소값', 'Min('], ['Max( 최대값', 'Max('],
 ]
-const YEARS = Array.from({ length: 2035 - 2010 + 1 }, (_, i) => String(2010 + i))
+const YEARS = Array.from({ length: 2100 - 2010 + 1 }, (_, i) => String(2010 + i))
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
 const slash = (ym: string) => ym.replace('-', '/')
 
