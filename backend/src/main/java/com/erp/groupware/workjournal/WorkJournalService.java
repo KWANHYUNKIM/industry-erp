@@ -33,6 +33,16 @@ public class WorkJournalService {
     private final ProjectService projectService;
     private final ChangeHistoryService changeHistoryService;
     private final WorkJournalViewRepository viewRepository;
+    private final com.erp.common.StoredFileRepository storedFileRepository;
+
+    /** 첨부 파일. null 이면 안 붙인 것이다. */
+    private com.erp.common.StoredFile attachmentOf(Long id) {
+        if (id == null) return null;
+        var f = storedFileRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("첨부 파일을 찾을 수 없습니다. id=" + id));
+        if (f.getOwnerCode() == null) f.setOwnerCode("GROUPWARE");
+        return f;
+    }
 
     @Transactional(readOnly = true)
     public List<WorkJournalResponse> findAll() {
@@ -65,6 +75,7 @@ public class WorkJournalService {
                 .title(req.title())
                 .content(req.content() != null ? req.content() : "")
                 .parentId(parentOf(req.parentId()))
+                .attachment(attachmentOf(req.attachmentId()))
                 .build();
 
         WorkJournal saved = workJournalRepository.save(journal);
@@ -85,6 +96,7 @@ public class WorkJournalService {
         j.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         j.setTitle(req.title());
         j.setContent(req.content() != null ? req.content() : "");
+        j.setAttachment(attachmentOf(req.attachmentId()));
         changeHistoryService.record(WORK_JOURNAL_HISTORY, j.getId(), ChangeHistoryService.UPDATED);
         return WorkJournalResponse.from(j);
     }

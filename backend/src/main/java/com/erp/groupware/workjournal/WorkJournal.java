@@ -6,6 +6,7 @@ import lombok.*;
 import java.time.LocalDate;
 import com.erp.auth.user.User;
 import com.erp.common.BaseTimeEntity;
+import com.erp.common.StoredFile;
 import com.erp.inventory.project.Project;
 import com.erp.trade.partner.BusinessPartner;
 
@@ -61,4 +62,9 @@ public class WorkJournal extends BaseTimeEntity {
     /** 답글이면 원글 id — 원본 '조회' 창 [답글(F8)] · [답변]. 원글이면 null. 격자에는 원글만 찍는다. */
     @Column(name = "parent_id")
     private Long parentId;
+
+    /** 입력 창 [첨부]. 원본 업무일지 입력 창에 첨부 줄이 있다(2026-10-21 실측). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachment_id")
+    private StoredFile attachment;
 }

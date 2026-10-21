@@ -14,6 +14,10 @@ import { inactiveDeptNames, showsJournal, type DeptRow } from '../../utils/inact
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcRichEditor from '../../components/EcRichEditor'
+import EcFileDrop from '../../components/EcFileDrop'
+import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
+import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 
 const WORKLOG_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '종료일', '최근3일+7일'] as const
 
@@ -48,8 +52,8 @@ function daysOf(from: string, to: string, onlyDow: string): string[] {
   return out
 }
 
-type Form = { reportDate: string; department: string; partnerName: string; projectId: string; title: string; content: string }
-const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerName: '', projectId: '', title: '', content: '' })
+type Form = { reportDate: string; department: string; partnerName: string; projectId: string; title: string; content: string; attachment: { id: number; name: string } | null }
+const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerName: '', projectId: '', title: '', content: '', attachment: null })
 
 /**
  * 그룹웨어 > 업무관리 > 업무일지 (이카운트 E070304)
@@ -83,9 +87,16 @@ const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerNam
  * (아무도 안 봤으면 빈 줄 하나), 하단 [닫기]. 글쓴이 자신이 열어 본 것은 조회자에 오르지 않는다.
  * 업무보고일 기간이 255일을 넘으면 '검색된 일자가 255일을 초과했습니다. / 검색조건을 재설정해주시기 바랍니다.' 만 띄운다.
  *
- * <p>두지 않은 것: 답글 · 수정 창의 [본문보기], 입력 창의 첨부 · 서식 편집기.
+ * <p>2026-10-21: 입력 창 [첨부] 줄 · 서식 편집기(본문은 HTML 로 저장) · 답글 창 [본문보기](원글 카드를 창 아래에 붙인다 —
+ * 수정 창에는 없다: [저장(F8)][닫기][삭제][H]). 원본 [요일] 칩은 지우면 일자 열이 날마다로 바뀐다(우리 [요일] 전체).
  * 원본은 조회 창에서 지운 뒤 격자를 다시 읽지 않아 지운 제목이 [검색] 전까지 남는데, 우리는 바로 다시 읽는다.
  */
+/** 일지 본문 — 서식 편집기가 만든 HTML 이면 그대로, 예전 글자 본문이면 줄바꿈만 살려 보인다. */
+function JournalBody({ content }: { content: string | null }) {
+  if (isHtml(content)) return <div className="mt-[6px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(content ?? '') }} />
+  return <div className="whitespace-pre-wrap mt-[6px]">{content ?? ''}</div>
+}
+
 export default function WorkLogPage() {
   const { user } = useAuth()
   const [rows, setRows] = useState<WorkJournal[]>([])
@@ -120,6 +131,19 @@ export default function WorkLogPage() {
   const [viewers, setViewers] = useState<Viewers | null>(null)
   /** 답글 창이면 원글 id — 저장할 때 parentId 로 보낸다. */
   const [replyTo, setReplyTo] = useState<number | null>(null)
+  /** 답글 창 [본문보기] — 원글 카드를 창 아래에 붙인다. */
+  const [showOriginal, setShowOriginal] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  async function upload(file: File) {
+    setUploading(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await api.post<{ id: number; name: string }>('/files', fd)
+      setF('attachment', { id: r.data.id, name: r.data.name })
+    } catch (err) { setError(extractErrorMessage(err)) } finally { setUploading(false) }
+  }
   /** 저장을 눌렀는데 비어 있던 필수칸 — 원본은 문구 없이 그 칸만 빨갛게 두른다(부서 · 제목). */
   const [invalid, setInvalid] = useState<Set<'department' | 'title'>>(new Set())
 
@@ -154,7 +178,7 @@ export default function WorkLogPage() {
     && (!cond.projectId || String(r.projectId ?? '') === cond.projectId)
     && has(r.partnerName, cond.partnerName)
     && has(r.title, cond.title)
-    && has(r.content, cond.content)
+    && has(htmlToText(r.content), cond.content)
     && has(r.authorName, cond.author)
     && showsJournal(r.department, inactiveDepts, withInactiveDept))
 
@@ -205,12 +229,14 @@ export default function WorkLogPage() {
   const fill = (r: WorkJournal): Form => ({
     reportDate: r.reportDate, department: r.department ?? '', partnerName: r.partnerName ?? '',
     projectId: r.projectId != null ? String(r.projectId) : '', title: r.title, content: r.content ?? '',
+    attachment: r.attachmentId ? { id: r.attachmentId, name: r.attachmentName ?? '첨부' } : null,
   })
   /** 원본 [답글(F8)] · [답변] — 그 글의 칸을 그대로 채운 작성 창. '조회' 창은 열어 둔다. */
   function openReply(r: WorkJournal) {
     setInvalid(new Set())
     setEditId(null)
     setReplyTo(r.id)
+    setShowOriginal(false)
     setForm(fill(r))
     setError('')
     setShowForm(true)
@@ -260,6 +286,7 @@ export default function WorkLogPage() {
       projectId: form.projectId ? Number(form.projectId) : undefined,
       title: form.title,
       content: form.content,
+      attachmentId: form.attachment?.id,
       parentId: replyTo ?? undefined,
     }
     try {
@@ -294,7 +321,7 @@ export default function WorkLogPage() {
     fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>업무일지</title></head><body>
 <h1>${escapeHtml(r.title)}</h1><p>${escapeHtml(r.authorName)} ${escapeHtml(stampText(r.createdAt))}</p>
 <p>업무보고일 : ${r.reportDate.replace(/-/g, '')}<br>부서 : ${escapeHtml(r.department ?? '')}<br>거래처 : ${escapeHtml(r.partnerName ?? '')}<br>프로젝트 : ${escapeHtml(r.projectName ?? '')}</p>
-<pre>${escapeHtml(r.content ?? '')}</pre></body></html>`)
+${isHtml(r.content) ? `<div>${sanitizeHtml(r.content)}</div>` : `<pre>${escapeHtml(r.content ?? '')}</pre>`}</body></html>`)
   }
 
   const deptItems = depts.filter((d) => withInactiveDept || d.active).map((d) => ({ value: d.name, code: d.code ?? '', name: d.name }))
@@ -445,7 +472,11 @@ export default function WorkLogPage() {
                   <div>부서 : {r.department ?? ''}</div>
                   <div>거래처 : {r.partnerName ?? ''}</div>
                   <div>프로젝트 : {r.projectName ?? ''}</div>
-                  <div className="whitespace-pre-wrap mt-[6px]">{r.content ?? ''}</div>
+                  {r.attachmentId && (
+                    <div>첨부 : <span className="text-ec-navy cursor-pointer" title={formatBytes(r.attachmentSize ?? 0)}
+                                     onClick={() => void downloadStoredFile(r.attachmentId!, r.attachmentName ?? '첨부')}>{r.attachmentName}</span></div>
+                  )}
+                  <JournalBody content={r.content} />
                 </div>
                 <div className="flex gap-[6px] px-[9px] pb-[9px]">
                   <button type="button" className="ec-btn" onClick={() => openReply(r)}>{depth === 0 ? '답글(F8)' : '답글'}</button>
@@ -494,11 +525,31 @@ export default function WorkLogPage() {
             <div className="title">제목</div>
             <div className={`form${invalid.has('title') && !form.title.trim() ? ' ec-invalid' : ''}`}><input className="ec-input w-full" aria-label="제목" value={form.title} onChange={(e) => setF('title', e.target.value)} /></div>
           </li>
+          <li className="wide">
+            <div className="title">첨부</div>
+            <div className="form">
+              <EcFileDrop busy={uploading} disabled={uploading} hint="+" onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
+                {form.attachment && (
+                  <span className="text-[12px] text-ec-navy">
+                    {form.attachment.name}
+                    <span onClick={() => setF('attachment', null)} className="cursor-pointer ml-[6px] font-bold">×</span>
+                  </span>
+                )}
+              </EcFileDrop>
+            </div>
+          </li>
         </ul>
-        <textarea className="ec-input w-full h-[200px] py-[8px] resize-y" aria-label="본문" value={form.content}
-                  onChange={(e) => setF('content', e.target.value)} />
+        <EcRichEditor value={form.content} onChange={(h) => setF('content', h)} />
+        {replyTo != null && showOriginal && (() => { const o = rows.find((x) => x.id === replyTo); return o ? (
+          <div className="border border-solid border-ec-line rounded-ec mt-[9px]" aria-label="원글">
+            <div className="flex flex-wrap items-baseline gap-[9px] py-[6px] px-[9px] bg-ec-page rounded-ec">
+              <span>{rootId(o)}</span><b>{o.title}</b><span className="text-ec-navy">{o.authorName}</span><span>{stampText(o.createdAt)}</span>
+            </div>
+            <div className="py-[9px] px-[9px] text-[12px] leading-[1.8]"><JournalBody content={o.content} /></div>
+          </div>) : null })()}
         <div className="flex gap-[6px] mt-[10px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
+          {replyTo != null && <button type="button" className="ec-btn" onClick={() => setShowOriginal((v) => !v)}>본문보기</button>}
           <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
           {/* 원본 수정 창: [저장(F8)][닫기][삭제][H] — 새 글 · 답글 창에는 [삭제]가 없다 */}
           {editId != null && (() => { const r = rows.find((x) => x.id === editId); return r ? <>

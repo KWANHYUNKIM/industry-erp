@@ -1,0 +1,39 @@
+{
+  "about": "업무일지 서식 편집기 · 답글 창 [본문보기] (원본 E070304, 2026-10-21 실측) — HTML 본문 글을 API 로 넣고 → 조회 창에 굵은 글(<b>)로 보임 → [답글(F8)] 창에 서식 편집기 · 첨부 줄 · [본문보기] 가 있고 누르면 원글 카드가 아래에 붙음 → 편집기에 굵게를 눌러 저장 → 지움. node qa/shot.mjs qa/flows/worklog-rich.json",
+  "shots": [
+    {
+      "name": "준비 — HTML 본문 글",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const t = new Date(); const day = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const d = await (await fetch('/api/departments', { headers: H })).json(); const dept = d.find((x) => x.active).name; const r = await fetch('/api/work-journals', { method: 'POST', headers: H, body: JSON.stringify({ reportDate: day, department: dept, title: 'QA그룹웨어-서식일지', content: '<p><b>굵은글 QA</b> 보통</p>' }) }); return r.status })()"
+      ]
+    },
+    {
+      "name": "조회 굵은 글 · 답글 창 편집기 · 본문보기",
+      "path": "/groupware/worklog",
+      "steps": [
+        "wait:800",
+        "click:검색(F8)",
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QA그룹웨어-서식일지').click(); true",
+        "wait:400",
+        "expect:!!document.querySelector('[role=dialog][aria-label=\"조회\"] b')&&document.querySelector('[role=dialog][aria-label=\"조회\"] b').textContent==='굵은글 QA'",
+        "click:답글(F8)",
+        "wait:400",
+        "expect:(() => { const f = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"]'); return !!f && !!f.querySelector('[role=textbox]') && f.innerText.includes('첨부') && f.innerText.includes('본문보기') && !f.querySelector('[aria-label=\"원글\"]') })()",
+        "expect:['실행취소 (Ctrl+Z)','다시실행 (Ctrl+Y)','굵게 (Ctrl+B)','기울임 (Ctrl+I)','밑줄 (Ctrl+U)','취소선 (Ctrl+D)','글자색','글자 배경색','왼쪽정렬 (Ctrl+,)','가운데정렬 (Ctrl+.)','오른쪽정렬 (Ctrl+/)','양쪽정렬','리스트','표만들기','등록이미지'].every((t) => !!document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"] [title=\"' + t + '\"]'))",
+        "click:본문보기",
+        "wait:300",
+        "expect:(() => { const o = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"] [aria-label=\"원글\"]'); return !!o && o.innerText.includes('QA그룹웨어-서식일지') && o.innerText.includes('굵은글 QA') })()",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const js = await (await fetch('/api/work-journals', { headers: H })).json(); const mine = js.filter((x) => x.title.startsWith('QA그룹웨어')).sort((a, b) => (b.parentId != null) - (a.parentId != null) || b.id - a.id); const out = []; for (const j of mine) out.push((await fetch('/api/work-journals/' + j.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

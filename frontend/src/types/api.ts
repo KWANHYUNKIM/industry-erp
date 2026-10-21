@@ -749,6 +749,9 @@ export interface WorkJournal {
   createdAt: string | null
   /** 답글이면 원글 id — 격자에는 원글(null)만 찍는다 */
   parentId: number | null
+  attachmentId?: number | null
+  attachmentName?: string | null
+  attachmentSize?: number | null
 }
 
 // ===== 그룹웨어: 출퇴근 =====

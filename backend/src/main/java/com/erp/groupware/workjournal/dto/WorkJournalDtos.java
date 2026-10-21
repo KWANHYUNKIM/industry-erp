@@ -23,7 +23,9 @@ public final class WorkJournalDtos {
             /** 원본은 본문 없이도 저장된다(2026-10-03 실측) — 비우면 빈 글자로 둔다. */
             String content,
             /** 답글이면 원글 id — 원본 '조회' 창 [답글(F8)] · [답변]. 고칠 때는 보내도 바뀌지 않는다. */
-            Long parentId
+            Long parentId,
+            /** 첨부 파일(POST /files 의 id). 고칠 때 안 보내면 뗀다. */
+            Long attachmentId
     ) {}
 
     public record WorkJournalResponse(
@@ -38,7 +40,8 @@ public final class WorkJournalDtos {
             /** 원본 '조회' 머리의 작성 시각('2026/10/03 오후 6:20:13'). */
             java.time.LocalDateTime createdAt,
             /** 답글이면 원글 id. 격자에는 원글(null)만 찍는다. */
-            Long parentId
+            Long parentId,
+            Long attachmentId, String attachmentName, Long attachmentSize
     ) {
         public static WorkJournalResponse from(WorkJournal j) {
             return new WorkJournalResponse(
@@ -48,7 +51,10 @@ public final class WorkJournalDtos {
                     j.getPartner() != null ? j.getPartner().getId() : null,
                     j.getProject() != null ? j.getProject().getId() : null,
                     j.getProject() != null ? j.getProject().getName() : null,
-                    j.getTitle(), j.getContent(), j.getCreatedAt(), j.getParentId());
+                    j.getTitle(), j.getContent(), j.getCreatedAt(), j.getParentId(),
+                    j.getAttachment() != null ? j.getAttachment().getId() : null,
+                    j.getAttachment() != null ? j.getAttachment().getName() : null,
+                    j.getAttachment() != null ? j.getAttachment().getSizeBytes() : null);
         }
     }
 
