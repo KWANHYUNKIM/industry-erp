@@ -1977,20 +1977,6 @@
   ],
   "in": "backend/src/main/java/com/erp/hr"
  },
- "출하조회|미확인": {
-  "claim": "출하 전표에 확인 상태가 없다(판매·구매에만 있다)",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
- },
- "출하조회|결재중": {
-  "claim": "출하 전표를 전자결재에 올리지 않는다",
-  "absent": [
-   "Approval"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
- },
  "생산입고조회|전자결재": {
   "claim": "생산 전표를 결재에 올리지 않는다",
   "absent": [
@@ -3243,13 +3229,6 @@
    "mailSent"
   ],
   "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
- "출하조회|확인": {
-  "claim": "출하 전표에 확인 상태가 없다(판매·구매에만 있다)(위 [출하조회|미확인] 과 같은 사실이다)",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
  "SW개발일정관리|프로젝트": {
   "claim": "이 화면의 행 자체가 프로젝트다 — 프로젝트로 프로젝트를 거를 수 없다(위 [건설예정공정표|프로젝트] 과 같은 사실이다)",
