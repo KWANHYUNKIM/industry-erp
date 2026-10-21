@@ -10,15 +10,19 @@ import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestForm'
+import PurchaseRequestForm, { copyLine, type PurchaseLineSeed } from '../../features/purchaserequest/PurchaseRequestForm'
 import PlanQtyAdjustModal, { type AdjustLine } from '../../features/purchaseplan/PlanQtyAdjustModal'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const qty = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-/** 계획을 세운 발주서 — 우리 단계는 요청 → 계획 → 단가확정 → 발주확정 → 입고전환으로 건너뛸 수 없다(PurchaseOrderService). */
-const PLANNED_ON: PurchaseOrderStatus[] = ['PLANNED', 'PRICED', 'ORDERED', 'RECEIVED']
+/**
+ * 발주계획 — 따로 된 전표(PLANNED 행)다. 발주서는 그 줄을 베낀 다른 행이고 계획은 진행중 그대로다(원본 E040315 2026-10-20 실측).
+ * 단가확정(PRICED)은 단가요청이 아직 계획 행 위에서 도는 예전 흐름이라 같이 본다.
+ */
+const PLANNED_ON: PurchaseOrderStatus[] = ['PLANNED', 'PRICED']
+type SrcLine = { sourceLineId?: number | null }
 /** 발주로 넘어간 계획 — 발주서가 이미 그 값을 보고 있어 격자에서 못 고친다(서버도 막는다). */
 const ordered = (s: PurchaseOrderStatus) => s === 'ORDERED' || s === 'RECEIVED'
 type Tab = '전체' | '확인' | '진행중' | '완료'
@@ -74,6 +78,9 @@ export default function PurchasePlanListPage() {
   const [orderOf, setOrderOf] = useState<Row | null>(null)
   const [form, setForm] = useState<{ key: number; order: PurchaseOrder } | null>(null)
   const [adjust, setAdjust] = useState<AdjustLine[] | null>(null)
+  /** [다른전표생성 ▴] 판 · 그 판에서 고른 '발주서입력' 창. */
+  const [otherMenu, setOtherMenu] = useState<{ left: number; bottom: number } | null>(null)
+  const [orderSeed, setOrderSeed] = useState<{ key: number; lines: PurchaseLineSeed[]; warehouseId: number | null } | null>(null)
 
   async function load() {
     setLoading(true)
@@ -201,6 +208,30 @@ export default function PurchasePlanListPage() {
     if (out.length > 0) setAdjust(out)
   }
 
+  /**
+   * [다른전표생성 › 발주서 › 1장라인별] — 고른 계획 줄을 한 장의 '발주서입력' 창에 베낀다(원본 2026-10-20 실측: 줄 L001 · 6 · 100 ·
+   * [발주계획] 20261020 · [No.] 2, 입고창고 그대로, 거래처는 머리에서 고른다). 계획은 진행중 그대로다.
+   */
+  function makeOrder() {
+    setOtherMenu(null)
+    const lines: PurchaseLineSeed[] = []
+    let warehouseId: number | null = null
+    for (const r of picked) {
+      const o = orders.find((x) => x.id === r.orderId)
+      if (!o) continue
+      warehouseId = warehouseId ?? o.warehouseId ?? null
+      for (const l of o.lines) if (r.lineId == null || l.id === r.lineId) lines.push(copyLine(o, l))
+    }
+    if (lines.length > 0) setOrderSeed({ key: Date.now(), lines, warehouseId })
+  }
+  /** 이 계획 줄(전표별이면 그 계획의 줄 전부)을 베낀 발주서들 — 원본 '발주번호확인'. */
+  const ordersOf = (r: Row) => {
+    const plan = orders.find((x) => x.id === r.orderId)
+    const ids = new Set((plan?.lines ?? []).filter((l) => r.lineId == null || l.id === r.lineId).map((l) => l.id))
+    return orders.filter((o) => !PLANNED_ON.includes(o.status) && o.status !== 'REQUESTED'
+      && o.lines.some((l) => ids.has((l as typeof l & SrcLine).sourceLineId ?? -1)))
+  }
+
   const closeBtn = tab === '완료'
     ? { label: '종결취소', onClick: () => (picked.length === 0 ? needPick() : void setClosed(picked, false)) }
     : { label: '종결', onClick: () => (picked.length === 0 ? needPick() : void setClosed(picked, true)) }
@@ -217,8 +248,12 @@ export default function PurchasePlanListPage() {
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setProject(''); setPartner(''); setItem(''); setUnit('건별'); setZero('전체') } },
         ...(tab === '전체' ? [] : [
           { label: '수량조정', onClick: openAdjust },
-          /* 다른전표생성 ▴ 발주서 는 아직 없어 잠가 둔다. */
-          { label: '다른전표생성', disabled: true },
+          { label: '다른전표생성', onClick: () => {
+            if (picked.length === 0) return needPick()
+            const b = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((x) => x.textContent?.trim() === '다른전표생성')
+            const r = b?.getBoundingClientRect()
+            setOtherMenu({ left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 })
+          } },
           closeBtn,
         ]),
         { label: '선택삭제', onClick: () => void removeChecked(), selected: picked.length },
@@ -340,11 +375,12 @@ export default function PurchasePlanListPage() {
         <table className="w-full">
           <thead><tr><th className="w-[50%] text-center">No.</th><th className="text-center">발주번호</th></tr></thead>
           <tbody>
-            {/* 우리 발주계획은 같은 전표의 다음 단계다 — 발주로 넘어갔으면 그 번호 하나. */}
-            {ordered(orderOf.status)
-              /* 원본: [No.] 는 줄 번호가 아니라 그 계획의 번호, [발주번호] 는 파란 링크(누르면 발주서) — 2026-10-13 실측 '2026/10/13 -2 | 2026/10/13 -1'. */
-              ? <tr><td className="text-center">{dateNo(orderOf.date, orderOf.no)}</td>
-                  <td className="text-center"><a className="ec-link" onClick={() => navigate('/sales/purchase-orders')}>{dateNo(orderOf.date, orderOf.no)}</a></td></tr>
+            {/* 원본: [No.] 는 줄 번호가 아니라 그 계획의 번호, [발주번호] 는 파란 링크(누르면 발주서) — 2026-10-20 실측 '2026/10/20 -2 | 2026/10/20 -1'. */}
+            {ordersOf(orderOf).length > 0
+              ? ordersOf(orderOf).map((o) => (
+                <tr key={o.id}><td className="text-center">{dateNo(orderOf.date, orderOf.no)}</td>
+                  <td className="text-center"><a className="ec-link" onClick={() => navigate('/sales/purchase-orders')}>{dateNo(o.orderDate, o.orderNo)}</a></td></tr>
+              ))
               : <tr><td colSpan={2} className="ec-empty">
                   발주서가 작성되지 않았습니다.<br />
                   [구매관리] &gt; [발주서입력]에서 [계획] 버튼을 통해 발주서를 작성하면 연결된 발주서 번호를 확인 할 수 있습니다.
@@ -354,6 +390,25 @@ export default function PurchasePlanListPage() {
         <div className="mt-[10px]"><button type="button" className="ec-btn" onClick={() => setOrderOf(null)}>닫기</button></div>
       </>)}</Modal>
 
+      {otherMenu && (
+        <>
+          <div className="ec-backdrop-clear" onClick={() => setOtherMenu(null)} />
+          {/* 원본 판 '발주서' 줄: 거래처별납기일자별라인별 · 거래처별납기일자별품목별 · 1장라인별 · 1장품목별 · 직접설정 */}
+          <div className="ec-menu fixed" style={otherMenu} role="menu" aria-label="다른전표생성">
+            <div className="px-[10px] pt-[4px] text-ec-label">▾ 발주서</div>
+            <button disabled title="아직 없습니다 — 1장라인별을 쓰세요.">거래처별납기일자별라인별</button>
+            <button disabled title="아직 없습니다 — 1장라인별을 쓰세요.">거래처별납기일자별품목별</button>
+            <button onClick={makeOrder}>1장라인별</button>
+            <button disabled title="아직 없습니다 — 1장라인별을 쓰세요.">1장품목별</button>
+            <button disabled title="아직 없습니다 — 1장라인별을 쓰세요.">직접설정</button>
+          </div>
+        </>
+      )}
+      {orderSeed && (
+        <PurchaseRequestForm key={orderSeed.key} editing={null} order seed={orderSeed}
+          onClose={() => setOrderSeed(null)}
+          onSaved={() => { setOrderSeed(null); setChecked(new Set()); void load() }} />
+      )}
       {adjust && (
         <PlanQtyAdjustModal lines={adjust} onClose={() => setAdjust(null)}
           onSaved={() => { setAdjust(null); setChecked(new Set()); void load() }} />

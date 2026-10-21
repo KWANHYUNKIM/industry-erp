@@ -6,9 +6,9 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SELF_USE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { shortDateNo } from '../../utils/dateNo'
+import { dateNo, shortDateNo } from '../../utils/dateNo'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
-import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestForm'
+import PurchaseRequestForm, { copyLines, type PurchaseLineSeed } from '../../features/purchaserequest/PurchaseRequestForm'
 import { purchaseRequestDocument } from '../../features/purchaserequest/purchaseRequestDocument'
 import Modal from '../../components/Modal'
 import { printDocuments } from '../../utils/printDocument'
@@ -22,11 +22,10 @@ type Progress = 'UNCONFIRMED' | 'IN_PROGRESS' | 'COMPLETED'
 type Req = PurchaseOrder & { requestProgress?: Progress | null }
 const PROGRESS_LABEL: Record<Progress, string> = { UNCONFIRMED: '미확인', IN_PROGRESS: '진행중', COMPLETED: '완료' }
 /**
- * [종결여부] — 사람이 [진행상태변경]으로 정했으면 그것. 안 정했으면 발주 흐름으로 본다: 우리 발주서는 모두 [발주요청]으로 시작해
- * 계획 → 단가확정 → 발주확정 → 입고전환으로 넘어가니, 발주로 넘어가면 그 요청은 끝난 것이다(완료). 취소는 원본에 없다(예전 자료).
+ * [종결여부] — 사람이 [진행상태변경]으로 정했으면 그것. 안 정했으면 <b>진행중</b>이다: 원본은 발주계획 · 발주서가 생겨도 요청을
+ * 자동으로 끝내지 않는다(E040315 2026-10-20 실측 — 계획이 잇혀도 진행중 · 수량 그대로). 취소는 원본에 없다(예전 자료).
  */
-const flowProgress = (s: PurchaseOrderStatus): Progress | 'CANCELLED' =>
-  s === 'ORDERED' || s === 'RECEIVED' ? 'COMPLETED' : s === 'CANCELLED' ? 'CANCELLED' : 'IN_PROGRESS'
+const flowProgress = (s: PurchaseOrderStatus): Progress | 'CANCELLED' => (s === 'CANCELLED' ? 'CANCELLED' : 'IN_PROGRESS')
 const progressOf = (o: Req) => o.requestProgress ?? flowProgress(o.status)
 const progressLabel = (o: Req) => { const p = progressOf(o); return p === 'CANCELLED' ? '취소' : PROGRESS_LABEL[p] }
 /** 위 알약 — 원본 '전체 · 결재중 · 미확인 · 확인 ▸ 진행중 – 완료'. 결재중은 우리 결재가 발주요청을 안 받아 늘 비어 있다. */
@@ -91,6 +90,8 @@ export default function PurchaseRequestListPage() {
   const [otherMenu, setOtherMenu] = useState<MenuAt | null>(null)
   /** 줄 [진행상태] '조회' 창 — 원본 '발주계획번호확인'. */
   const [planOf, setPlanOf] = useState<Req | null>(null)
+  /** [다른전표생성 › 발주계획] — 고른 요청의 줄을 베낀 '발주계획입력' 창. */
+  const [planSeed, setPlanSeed] = useState<{ key: number; lines: PurchaseLineSeed[]; warehouseId: number | null } | null>(null)
 
   async function load() {
     setLoading(true)
@@ -107,7 +108,9 @@ export default function PurchaseRequestListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to])
 
+  /** 발주요청은 따로 된 전표다(REQUESTED 행) — 계획 · 발주서는 그 줄을 베낀 다른 행이다(원본 E040315 2026-10-20 실측). */
   const filtered = useMemo(() => rows
+    .filter((o) => o.status === 'REQUESTED')
     .filter((o) => o.orderDate >= from && o.orderDate <= to)
     .filter((o) => !reqNo || o.orderNo.includes(reqNo))
     .filter((o) => domestic === '전체' || ((o.currency ?? 'KRW') === 'KRW') === (domestic === '내자'))
@@ -141,17 +144,21 @@ export default function PurchaseRequestListPage() {
     setChecked(new Set())
     void load()
   }
-  /** [다른전표생성 › 발주계획] — 고른 발주요청을 발주계획으로 넘긴다(우리는 같은 전표의 다음 단계). */
-  async function makePlans() {
+  /**
+   * [다른전표생성 › 발주계획] — 고른 발주요청의 줄을 베낀 '발주계획입력' 창을 띄운다. 요청은 그대로 둔다(원본: 요청 → 계획 사이에
+   * 잔량이 없어 같은 요청을 몇 번이고 베낀다, 요청은 진행중 · 수량 그대로).
+   */
+  function makePlans() {
     setOtherMenu(null)
     const targets = shown.filter((o) => checked.has(o.id))
-    const notReq = targets.filter((o) => o.status !== 'REQUESTED')
-    if (notReq.length > 0) return ecAlert(`이미 발주계획으로 넘어간 발주요청입니다.\n- ${notReq.map((o) => shortDateNo(o.orderDate, o.orderNo)).join(', ')}`)
-    const results = await Promise.allSettled(targets.map((o) => api.post(`/purchase-orders/${o.id}/plan`, {})))
-    const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
-    if (failed.length > 0) setError(`${failed.length}건을 넘기지 못했습니다: ${extractErrorMessage(failed[0].reason)}`)
-    setChecked(new Set())
-    void load()
+    if (targets.length === 0) return
+    setPlanSeed({ key: Date.now(), lines: copyLines(targets), warehouseId: targets.find((o) => o.warehouseId)?.warehouseId ?? null })
+  }
+  /** 이 요청의 줄을 베낀 발주계획들 — 원본 '발주계획번호확인'(여럿일 수 있다). */
+  const plansOf = (o: Req) => {
+    const ids = new Set(o.lines.map((l) => l.id))
+    return rows.filter((p) => p.status !== 'REQUESTED'
+      && p.lines.some((l) => ids.has((l as typeof l & { sourceLineId?: number | null }).sourceLineId ?? -1)))
   }
   /** 줄 [인쇄] · 하단 [인쇄] — 원본 '발주요청서'. */
   const printRows = (list: Req[]) => { if (list.length > 0) void printDocuments(list.map(purchaseRequestDocument)) }
@@ -160,7 +167,8 @@ export default function PurchaseRequestListPage() {
   async function removeChecked() {
     const ids = shown.filter((o) => checked.has(o.id)).map((o) => o.id)
     if (ids.length === 0) return
-    if (!(await ecConfirm(`전표를 삭제하겠습니까?\n- 발주요청 ${ids.length}건`))) return
+    /* 원본 글자 그대로 — 계획이 잇혀 있어도 막지 않는다(계획 줄의 출처 일자 · No. 는 남는다). */
+    if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 발주요청조회'))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/purchase-orders/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
     if (failed.length > 0) setError(`${failed.length}건을 지우지 못했습니다: ${extractErrorMessage(failed[0].reason)}`)
@@ -241,7 +249,7 @@ export default function PurchaseRequestListPage() {
         <>
           <div className="ec-backdrop-clear" onClick={() => setOtherMenu(null)} />
           <div className="ec-menu fixed" style={otherMenu} role="menu" aria-label="다른전표생성">
-            <button onClick={() => void makePlans()}>발주계획</button>
+            <button onClick={makePlans}>발주계획</button>
           </div>
         </>
       )}
@@ -249,10 +257,12 @@ export default function PurchaseRequestListPage() {
         <table className="w-full">
           <thead><tr><th className="w-[60px] text-center">No.</th><th className="text-center">발주계획번호</th></tr></thead>
           <tbody>
-            {/* 우리 발주계획은 같은 전표의 다음 단계다 — 계획으로 넘어갔으면 그 번호 하나. */}
-            {planOf.status === 'REQUESTED' || planOf.status === 'CANCELLED'
+            {/* 원본 '2026/10/20 -1 │ 2026/10/20 -2' — 이 요청 번호와 그 줄을 베낀 계획 번호들. */}
+            {plansOf(planOf).length === 0
               ? <tr><td colSpan={2} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-              : <tr><td className="text-center">1</td><td className="text-center">{shortDateNo(planOf.orderDate, planOf.orderNo)}</td></tr>}
+              : plansOf(planOf).map((p) => (
+                <tr key={p.id}><td className="text-center">{dateNo(planOf.orderDate, planOf.orderNo)}</td><td className="text-center">{dateNo(p.orderDate, p.orderNo)}</td></tr>
+              ))}
           </tbody>
         </table>
         <div className="mt-[10px]"><button type="button" className="ec-btn" onClick={() => setPlanOf(null)}>닫기</button></div>
@@ -326,6 +336,11 @@ export default function PurchaseRequestListPage() {
           onDeleted={() => { setForm(null); void load() }}
           onCopy={(src) => openForm({ ...src, id: 0, orderDate: new Date().toLocaleDateString('sv-SE'), dueDate: new Date().toLocaleDateString('sv-SE') })}
           onStep={step} />
+      )}
+      {planSeed && (
+        <PurchaseRequestForm key={planSeed.key} editing={null} plan seed={planSeed}
+          onClose={() => setPlanSeed(null)}
+          onSaved={() => { setPlanSeed(null); setChecked(new Set()); void load() }} />
       )}
     </EcListShell>
   )

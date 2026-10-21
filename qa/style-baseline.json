@@ -1055,7 +1055,7 @@
   "palette": 0
  },
  "pages/trade/PurchasePlanListPage.tsx": {
-  "inline": 0,
+  "inline": 1,
   "color": 1,
   "palette": 0
  },

@@ -1,0 +1,136 @@
+{
+  "about": "발주요청 · 발주계획 · 발주서 · 구매는 다른 전표다(원본 E040315 2026-10-20 loginaa 실측) — 요청 10 × 100 = 1,100(저장 즉시 진행중) → 발주계획입력 [발주요청] 검색창에서 베껴(10 · [발주요청] 날짜 · No) 6 으로 고쳐 660 → 요청은 진행중 · 10 그대로 · '조회' 에 계획 번호 → 발주계획조회 [다른전표생성 › 발주서 › 1장라인별] 로 발주서 6 = 660(계획은 진행중 그대로, '조회' 에 발주번호) → 구매입력 [발주] 로 4 = 440 → 미구매 2 · 미구매부가세 20 → 구매 · 발주서 · 계획을 지우고 요청은 [선택삭제] '전표를 삭제하겠습니까? / - 발주요청조회'.",
+  "shots": [
+    {
+      "name": "발주요청입력 — 10 × 100 = 1,000 · 100 · 1,100 을 저장하면 말 없이 비우고 요청 한 장(REQUESTED)이 선다",
+      "path": "/sales/purchase-request-input",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:800",
+        "js:document.querySelector('input[placeholder=\"품목코드\"]').click(); true",
+        "pickrow:QA-PROD",
+        "js:document.querySelector('input[placeholder=\"거래처코드\"]').click(); true",
+        "pickrow:QA-SUPP",
+        "set:tbody input.text-right#0|10",
+        "set:tbody input.text-right#1|100",
+        "js:document.querySelector('input[placeholder=\"창고\"]').click(); true",
+        "pickrow:QA-WH",
+        "expect:[...document.querySelectorAll('tfoot td')].map((t)=>t.innerText.trim()).filter(Boolean).join('|')==='10|1,000|100|1,100'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('tbody input.text-right').value",
+        "js:(async()=>{const r=(await window.__api('GET','/purchase-orders?status=REQUESTED')).body.sort((a,b)=>b.id-a.id)[0];sessionStorage.setItem('spReqId',r.id);sessionStorage.setItem('spReqNo',r.orderDate.slice(2).replace(/-/g,'/')+'-'+Number(r.orderNo.split('-').pop()));return r.id})()",
+        "expect:(async()=>{const r=(await window.__api('GET','/purchase-orders?status=REQUESTED')).body.find((x)=>String(x.id)===sessionStorage.getItem('spReqId'));return Number(r.totalAmount)===1100&&Number(r.lines[0].quantity)===10})()"
+      ]
+    },
+    {
+      "name": "발주계획입력 — [발주요청] 검색창: 고른 것 없이 적용(F8) 은 막고, 골라 적용하면 10 · 100 · [발주요청] · [No] 가 들어오고 [발주요청] · [전표불러오기] 가 사라진다. 6 으로 고쳐 저장 = 660, 요청은 10 그대로",
+      "path": "/sales/purchase-plan-input",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__alerts=[];window.alert=(m)=>window.__alerts.push(String(m));window.confirm=(m)=>{window.__alerts.push(String(m));return true};true",
+        "wait:800",
+        "js:[...document.querySelectorAll('.ec-toolbar button')].find((b)=>b.textContent.trim()==='발주요청').click(); true",
+        "wait:1200",
+        "expect:document.body.innerText.includes('발주요청검색창(조회)')",
+        "click:적용(F8)",
+        "expect:window.__alerts.some((m)=>m.includes('리스트에 선택된 자료가 없습니다.'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('spReqNo')).querySelector('input[type=checkbox]').click(); true",
+        "click:적용(F8)",
+        "wait:600",
+        "expect:(()=>{const t=document.querySelector('.ec-toolbar').nextElementSibling;const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const c=[...t.querySelector('tbody tr').cells].map((x)=>x.querySelector('input')?x.querySelector('input').value:x.innerText.trim());const tools=[...document.querySelectorAll('.ec-toolbar button')].map((b)=>b.textContent.trim());return h.slice(-2).join('|')==='발주요청|No'&&c[6]==='10'&&c[7]==='100'&&c[8]==='1,000'&&/^\\d{8}$/.test(c[10])&&!tools.includes('발주요청')&&!tools.includes('전표불러오기')})()",
+        "set:tbody input.text-right#0|6",
+        "expect:[...document.querySelectorAll('tfoot td')].map((t)=>t.innerText.trim()).filter(Boolean).join('|')==='6|600|60'",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async()=>{const r=(await window.__api('GET','/purchase-orders?status=PLANNED')).body.sort((a,b)=>b.id-a.id)[0];sessionStorage.setItem('spPlanId',r.id);sessionStorage.setItem('spPlanNo',r.orderDate.replace(/-/g,'/')+' -'+Number(r.orderNo.split('-').pop()));return r.id})()",
+        "expect:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const p=all.find((x)=>String(x.id)===sessionStorage.getItem('spPlanId'));const q=all.find((x)=>String(x.id)===sessionStorage.getItem('spReqId'));return Number(p.totalAmount)===660&&p.lines[0].sourceLineId===q.lines[0].id&&q.status==='REQUESTED'&&Number(q.lines[0].quantity)===10})()"
+      ]
+    },
+    {
+      "name": "발주요청조회 — 요청은 진행중 · 10 · 1,100 그대로, '조회' 에 이 요청을 베낀 계획 번호",
+      "path": "/sales/purchase-requests",
+      "steps": [
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spReqNo'));return !!tr&&tr.cells[6].innerText.trim()==='10'&&tr.cells[7].innerText.trim()==='1,100'&&tr.cells[8].innerText.trim()==='진행중'})()",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spReqNo')).cells[9].querySelector('a').click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('table')].find((t)=>t.innerText.includes('발주계획번호')).innerText.includes(sessionStorage.getItem('spPlanNo'))",
+        "clicklast:닫기"
+      ]
+    },
+    {
+      "name": "발주계획조회 — [다른전표생성 ▴] 판 '발주서' 다섯 줄 · 1장라인별 → 발주서입력 창(6 · [발주계획] · [No.]) 저장 → 발주서 660(발주확정), 계획은 진행중 그대로 · '조회' 에 발주번호",
+      "path": "/sales/purchase-plans",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo')).querySelector('input[type=checkbox]').click(); true",
+        "js:[...document.querySelectorAll('.ec-footer button')].find((b)=>b.textContent.trim()==='다른전표생성').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=menu]')].pop().innerText.replace(/\\n/g,',')==='▾ 발주서,거래처별납기일자별라인별,거래처별납기일자별품목별,1장라인별,1장품목별,직접설정'",
+        "js:[...document.querySelectorAll('[role=menu] button')].find((b)=>b.textContent.trim()==='1장라인별').click(); true",
+        "wait:1200",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const c=[...d.querySelector('tbody tr').cells].map((x)=>x.querySelector('input')?x.querySelector('input').value:x.innerText.trim());return d.innerText.startsWith('발주서입력')&&h==='|품목코드|품목명|규격|수량|단가|공급가액|부가세|발주계획|No.'&&c[4]==='6'&&c[6]==='600'})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='저장(F8)').click(); true",
+        "wait:1800",
+        "js:(async()=>{const r=(await window.__api('GET','/purchase-orders?status=ORDERED')).body.sort((a,b)=>b.id-a.id)[0];sessionStorage.setItem('spPoId',r.id);sessionStorage.setItem('spPoNo',r.orderDate.replace(/-/g,'/')+' -'+Number(r.orderNo.split('-').pop()));return r.id})()",
+        "expect:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const o=all.find((x)=>String(x.id)===sessionStorage.getItem('spPoId'));const p=all.find((x)=>String(x.id)===sessionStorage.getItem('spPlanId'));return Number(o.totalAmount)===660&&o.lines[0].sourceLineId===p.lines[0].id&&p.status==='PLANNED'&&!p.lines[0].planClosed})()",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spPlanNo')).cells[12].querySelector('a').click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('table')].find((t)=>t.innerText.includes('발주번호')).innerText.includes(sessionStorage.getItem('spPoNo'))",
+        "clicklast:닫기"
+      ]
+    },
+    {
+      "name": "구매입력 [발주] — 발주서만 뜬다(요청 · 계획은 안 뜸). 담아서 4 로 저장 = 440 → 미구매 2 · 미구매부가세 20",
+      "path": "/sales/buy",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "clicklast:발주",
+        "wait:1500",
+        "js:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body;const no=(id)=>o.find((x)=>String(x.id)===sessionStorage.getItem(id)).orderNo;sessionStorage.setItem('spPoDoc',no('spPoId'));sessionStorage.setItem('spPlanDoc',no('spPlanId'));sessionStorage.setItem('spReqDoc',no('spReqId'));return true})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop().innerText;return d.includes(sessionStorage.getItem('spPoDoc'))&&!d.includes(sessionStorage.getItem('spPlanDoc'))&&!d.includes(sessionStorage.getItem('spReqDoc'))})()",
+        "js:(()=>{const tr=[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('spPoDoc')));const cb=tr.querySelector('input[type=checkbox]');if(!cb.checked)cb.click();return true})()",
+        "click:선택 담기",
+        "wait:1000",
+        "js:(()=>{const q=[...document.querySelectorAll('tbody tr')[0].querySelectorAll('input')].find((i)=>i.value==='6');q.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(q,'4');q.dispatchEvent(new Event('input',{bubbles:true}));q.dispatchEvent(new Event('change',{bubbles:true}));q.blur();return true})()",
+        "wait:400",
+        "click:저장(F8)",
+        "wait:2000",
+        "expect:(async()=>{const p=(await window.__api('GET','/purchases')).body;const list=Array.isArray(p)?p:(p.content??[]);const mine=list.filter((x)=>(x.lines??[]).some((l)=>String(l.sourceOrderId)===sessionStorage.getItem('spPoId')));if(mine.length!==1)return false;sessionStorage.setItem('spBuyId',mine[0].id);return Number(mine[0].totalAmount)===440})()",
+        "expect:(async()=>{const u=(await window.__api('GET','/purchase-orders/unpurchased')).body.filter((r)=>String(r.orderId)===sessionStorage.getItem('spPoId'));return u.length===1&&Number(u[0].remainingQuantity??u[0].remainingQty??u[0].restQty)===2})()"
+      ]
+    },
+    {
+      "name": "미구매현황 — 발주서 6.00 · 미구매 2.00 · 미구매부가세 20. 지우기: 구매 · 발주서는 API",
+      "path": "/sales/unpurchased",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "click:새로고침",
+        "wait:1500",
+        "expect:(()=>{const t=[...document.querySelectorAll('table')].find((x)=>/미구매수량/.test(x.innerText));const tr=[...t.querySelectorAll('tbody tr')].find((r)=>r.cells[0].innerText.trim()===sessionStorage.getItem('spPoNo'));return !!tr&&tr.cells[2].innerText.trim()==='6.00'&&tr.cells[3].innerText.trim()==='2.00'&&tr.cells[7].innerText.trim()==='20'})()",
+        "js:(async()=>{await window.__api('DELETE','/purchases/'+sessionStorage.getItem('spBuyId'));await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('spPoId'));return true})()",
+        "expect:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body;return !o.some((x)=>String(x.id)===sessionStorage.getItem('spPoId'))})()"
+      ]
+    },
+    {
+      "name": "발주요청조회 [선택삭제] — 계획이 잇혀 있어도 막지 않고 '전표를 삭제하겠습니까? / - 발주요청조회' 로 지운다. 계획 줄은 연결만 끊기고 출처 번호는 남는다 → 계획도 지운다",
+      "path": "/sales/purchase-requests",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__alerts=[];window.alert=(m)=>window.__alerts.push(String(m));window.confirm=(m)=>{window.__alerts.push(String(m));return true};true",
+        "wait:1500",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('spReqNo')).querySelector('input[type=checkbox]').click(); true",
+        "click:선택삭제",
+        "wait:1500",
+        "expect:window.__alerts.some((m)=>m==='전표를 삭제하겠습니까?\\n- 발주요청조회')",
+        "expect:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body;const p=o.find((x)=>String(x.id)===sessionStorage.getItem('spPlanId'));return !o.some((x)=>String(x.id)===sessionStorage.getItem('spReqId'))&&p.lines[0].sourceLineId==null&&p.lines[0].sourceOrderNo===sessionStorage.getItem('spReqDoc')})()",
+        "js:(async()=>(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('spPlanId'))).status)()"
+      ]
+    }
+  ]
+}

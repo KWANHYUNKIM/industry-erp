@@ -13,11 +13,38 @@ import { openPrintWindow } from '../../utils/print'
 import type { Currency, Item, MyItem, Partner, PurchaseOrder, PurchaseOrderLine, StockRow } from '../../types/api'
 import { purchaseRequestDocument } from './purchaseRequestDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import RequestPickModal from './RequestPickModal'
 
 /** 서버 줄 응답은 줄 거래처도 싣는다(OrderLineResponse.partnerId · partnerName) — 공용 타입에 없어 여기서만 넓힌다. */
-type RequestLine = PurchaseOrderLine & { partnerId?: number | null; partnerName?: string | null }
-interface LineForm { itemId: string; partnerId: string; quantity: string; unitPrice: string }
+type RequestLine = PurchaseOrderLine & {
+  partnerId?: number | null; partnerName?: string | null
+  /** 베껴 온 앞 전표 줄과 그 전표 번호 · 일자(서버 OrderLineResponse). */
+  sourceLineId?: number | null; sourceOrderNo?: string | null; sourceOrderDate?: string | null
+}
+export interface PurchaseLineSeed {
+  itemId: string; partnerId: string; quantity: string; unitPrice: string
+  /** 원본 줄 열 [발주요청] · [No] / [발주계획] · [No.] — 베껴 온 앞 전표 줄. */
+  sourceLineId?: number | null; sourceNo?: string; sourceDate?: string
+}
+type LineForm = PurchaseLineSeed
 const emptyLine = (): LineForm => ({ itemId: '', partnerId: '', quantity: '', unitPrice: '' })
+/** 앞 전표(발주요청 · 발주계획)의 줄 하나를 그대로 베낀다 — 수량 · 단가 · 줄 거래처, 출처 일자 · No.(원본 E040315 2026-10-20 실측). */
+export const copyLine = (o: PurchaseOrder, l: PurchaseOrderLine): LineForm => {
+  const rl = l as RequestLine
+  return {
+    itemId: String(rl.itemId),
+    partnerId: String(rl.partnerId ?? o.partnerId ?? ''),
+    quantity: String(Number(rl.quantity)),
+    unitPrice: String(Number(rl.unitPrice)),
+    sourceLineId: rl.id,
+    sourceNo: o.orderNo,
+    sourceDate: o.orderDate,
+  }
+}
+export const copyLines = (orders: PurchaseOrder[]): LineForm[] => orders.flatMap((o) => o.lines.map((l) => copyLine(o, l)))
+/** 원본 [발주요청] 열 '20261020' · [No] '1'. */
+const srcDate = (d?: string) => (d ? d.replace(/-/g, '') : '')
+const srcNo = (n?: string) => { const seq = (n ?? '').split('-').pop() ?? ''; return n ? String(Number(seq) || seq) : '' }
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => new Date().toLocaleDateString('sv-SE')
 /** 원본 격자는 빈 줄 셋으로 열린다(신규 2026-10-13 실측). 고칠 때는 담긴 줄 뒤에 한 줄을 더 둔다. */
@@ -47,13 +74,20 @@ const MIN_ROWS = 3
  * (저장/전표가 없다). 저장하면 안내 없이 비우되 <b>입고될창고는 남긴다</b>. 입고될창고가 비면 그 칸만 빨갛게 — 요청과 같다.
  * 서버에는 plan: true 로 보내 요청을 거치지 않고 바로 [발주계획] 단계가 된다.
  */
-export default function PurchaseRequestForm({ editing, page, plan, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
+export default function PurchaseRequestForm({ editing, page, plan, order, seed, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
   /** 고칠 발주요청. null 이면 신규. */
   editing: PurchaseOrder | null
   /** 창이 아니라 '발주요청입력' 화면으로 그린다. */
   page?: boolean
   /** 발주계획입력 — 바로 계획 단계로 저장한다. */
   plan?: boolean
+  /**
+   * 발주서입력 — 발주계획조회 [다른전표생성 › 발주서 › 1장라인별] 이 띄우는 창(원본 2026-10-20 실측). 거래처는 머리에 하나,
+   * 줄 열 … · [발주계획] · [No.]. 저장하면 바로 발주서(발주확정)가 되고 계획은 그대로다.
+   */
+  order?: boolean
+  /** 앞 전표에서 베껴 온 줄(copyLines) — 창이 이 줄로 찬 채 열린다. 입고창고도 같이 받는다. */
+  seed?: { lines: LineForm[]; warehouseId?: number | null }
   onClose?: () => void
   onSaved?: () => void
   onDeleted?: () => void
@@ -75,22 +109,33 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
   }, [])
 
   const isEdit = editing != null && editing.id > 0
-  const docName = plan ? '발주계획' : '발주요청'
+  const docName = order ? '발주서' : plan ? '발주계획' : '발주요청'
+  /** 줄 출처 열 이름 — 계획은 [발주요청] · [No], 발주서는 [발주계획] · [No.]. */
+  const srcHead = order ? ['발주계획', 'No.'] : plan ? ['발주요청', 'No'] : null
   const [orderDate, setOrderDate] = useState(editing?.orderDate ?? today())
   const [dueDate, setDueDate] = useState(editing?.dueDate ?? today())
   const [employeeId, setEmployeeId] = useState(editing?.employeeId ? String(editing.employeeId) : '')
-  const [warehouseId, setWarehouseId] = useState(editing?.warehouseId ? String(editing.warehouseId) : '')
+  const [warehouseId, setWarehouseId] = useState(editing?.warehouseId ? String(editing.warehouseId) : seed?.warehouseId ? String(seed.warehouseId) : '')
+  /** 발주서입력 머리 [거래처] — 원본 발주서는 거래처가 머리에 하나다. 베껴 온 첫 줄 거래처로 시작한다. */
+  const [headPartnerId, setHeadPartnerId] = useState(editing?.partnerId ? String(editing.partnerId) : seed?.lines.find((l) => l.partnerId)?.partnerId ?? '')
+  /** [발주요청] 을 적용했나 — 원본은 적용하면 [발주요청] · [전표불러오기] 가 툴바에서 사라진다. */
+  const [pickOpen, setPickOpen] = useState(false)
+  const [applied, setApplied] = useState(Boolean(seed?.lines.length))
   const [projectId, setProjectId] = useState(editing?.projectId ? String(editing.projectId) : '')
   const [currency, setCurrency] = useState(editing?.currency ?? 'KRW')
   const [taxable, setTaxable] = useState(editing?.taxable ?? true)
   const [whMissing, setWhMissing] = useState(false)
   const [lines, setLines] = useState<LineForm[]>(() => {
-    const got = ((editing?.lines ?? []) as RequestLine[]).map((l) => ({
+    const got: LineForm[] = ((editing?.lines ?? []) as RequestLine[]).map((l) => ({
       itemId: String(l.itemId),
       partnerId: String(l.partnerId ?? editing?.partnerId ?? ''),
       quantity: String(l.quantity),
       unitPrice: String(l.unitPrice),
+      sourceLineId: l.sourceLineId ?? null,
+      sourceNo: l.sourceOrderNo ?? undefined,
+      sourceDate: l.sourceOrderDate ?? undefined,
     }))
+    if (got.length === 0 && seed?.lines.length) got.push(...seed.lines)
     return [...got, ...Array.from({ length: Math.max(1, MIN_ROWS - got.length) }, emptyLine)]
   })
   const [saving, setSaving] = useState(false)
@@ -199,8 +244,10 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
     }
     /* 원본: 창고가 비면 문구 없이 그 칸만 빨갛게 두르고 저장하지 않는다. */
     if (!warehouseId) { win?.close(); setWhMissing(true); return }
+    const firstLinePartner = filled.find((l) => l.partnerId)?.partnerId
+    const headPartner = order ? headPartnerId : firstLinePartner
     const body = {
-      partnerId: filled.find((l) => l.partnerId)?.partnerId ? Number(filled.find((l) => l.partnerId)!.partnerId) : null,
+      partnerId: headPartner ? Number(headPartner) : null,
       orderDate,
       dueDate: dueDate || null,
       taxable,
@@ -213,9 +260,11 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
         itemId: Number(l.itemId),
         quantity: Number(l.quantity) || 0,
         unitPrice: l.unitPrice === '' ? null : Number(l.unitPrice),
-        partnerId: l.partnerId ? Number(l.partnerId) : null,
+        partnerId: order ? (headPartnerId ? Number(headPartnerId) : null) : l.partnerId ? Number(l.partnerId) : null,
+        sourceLineId: l.sourceLineId ?? null,
       })),
       plan: plan || undefined,
+      order: order || undefined,
     }
     setSaving(true)
     try {
@@ -248,6 +297,7 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
   const reset = (keepWarehouse = false) => {
     setOrderDate(today()); setDueDate(today()); setEmployeeId(''); if (!keepWarehouse) setWarehouseId(''); setProjectId('')
     setCurrency('KRW'); setTaxable(true); setWhMissing(false); setLines(Array.from({ length: MIN_ROWS }, emptyLine)); setError('')
+    setApplied(false); setHeadPartnerId('')
   }
 
   const body = (
@@ -260,6 +310,13 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
             disabled={isEdit} />
           {isEdit && <span className="text-ec-hint">{dateNo(editing!.orderDate, editing!.orderNo)}</span>}
         </label>
+        {order && (
+          <div className="flex items-center gap-[8px]">
+            <span className="w-[93px] shrink-0 text-ec-label">거래처</span>
+            <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="거래처"
+              value={headPartnerId} onChange={setHeadPartnerId} items={partnerPicks} />
+          </div>
+        )}
         <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">담당자</span>
           <CodePickerField label="담당자" hideLabel width={240} emptyLabel="선택 안 함" placeholder="담당자"
@@ -274,7 +331,7 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
           </select>
         </label>
         <div className="flex items-center gap-[8px]">
-          <span className="w-[93px] shrink-0 text-ec-label">{plan ? '입고될창고' : '창고'}</span>
+          <span className="w-[93px] shrink-0 text-ec-label">{plan ? '입고될창고' : order ? '입고창고' : '창고'}</span>
           <div className={`inline-block${whMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={whMissing || undefined}>
             <CodePickerField label="창고" hideLabel width={240} emptyLabel="선택 안 함" placeholder={plan ? '입고될창고' : '창고'}
               value={warehouseId} onChange={(v) => { setWarehouseId(v); if (v) setWhMissing(false) }}
@@ -306,8 +363,8 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => void applyMyItems()}>My품목</button>
         <button type="button" className="ec-btn ec-btn-sm" {...notYet('소요량계산 창은 아직 없습니다.')}>소요</button>
         <button type="button" className="ec-btn ec-btn-sm" {...notYet('주문서검색창은 아직 없습니다.')}>주문</button>
-        {plan && <button type="button" className="ec-btn ec-btn-sm" {...notYet('발주요청 불러오기 창은 아직 없습니다.')}>발주요청</button>}
-        <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표불러오기 메뉴 창은 아직 없습니다.')}>전표불러오기</button>
+        {plan && !applied && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setPickOpen(true)}>발주요청</button>}
+        {!applied && <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표불러오기 메뉴 창은 아직 없습니다.')}>전표불러오기</button>}
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadStocks()}>재고불러오기</button>
         {plan && <button type="button" className="ec-btn ec-btn-sm" {...notYet('품목별안전재고 불러오기는 아직 없습니다.')}>품목별안전재고</button>}
         <button type="button" className={`ec-btn ec-btn-sm${barcodeOn ? ' bg-[var(--ec-bg-tag)] border-[var(--ec-bg-tag)] text-ec-panel' : ''}`}
@@ -327,8 +384,8 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
             <th className="w-[34px]"></th>
             <th className="w-[150px]">품목코드</th>
             <th>품목명</th>
-            <th className="w-[150px]">거래처코드</th>
-            <th>거래처명</th>
+            {!order && <th className="w-[150px]">거래처코드</th>}
+            {!order && <th>거래처명</th>}
             <th className="w-[70px]">규격</th>
             {stocks && <th className="w-[80px] text-right">전체수량</th>}
             {stocks && <th className="w-[80px] text-right">창고수량</th>}
@@ -336,7 +393,9 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
             <th className="w-[100px] text-right">단가</th>
             <th className="w-[100px] text-right">공급가액</th>
             <th className="w-[80px] text-right">부가세</th>
-            {!plan && <th className="w-[100px] text-right">합계</th>}
+            {!plan && !order && <th className="w-[100px] text-right">합계</th>}
+            {srcHead && <th className="w-[90px] text-center">{srcHead[0]}</th>}
+            {srcHead && <th className="w-[50px] text-center">{srcHead[1]}</th>}
           </tr>
         </thead>
         <tbody>
@@ -348,11 +407,11 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
                   value={l.itemId} onChange={(v) => pickItem(i, v)} items={itemPicks} />
               </td>
               <td>{itemOf(l.itemId)?.name ?? ''}</td>
-              <td>
+              {!order && <td>
                 <CodePickerField label="거래처" hideLabel fill placeholder="거래처코드" emptyLabel="선택 해제"
                   value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })} items={partnerPicks} />
-              </td>
-              <td>{partnerOf(l.partnerId)?.name ?? ''}</td>
+              </td>}
+              {!order && <td>{partnerOf(l.partnerId)?.name ?? ''}</td>}
               <td>{itemOf(l.itemId)?.spec ?? ''}</td>
               {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockAll(l.itemId).toLocaleString('ko-KR') : ''}</td>}
               {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockWh(l.itemId).toLocaleString('ko-KR') : ''}</td>}
@@ -360,22 +419,32 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
               <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
               <td className="text-right">{l.itemId ? won(calc[i].supply) : ''}</td>
               <td className="text-right">{l.itemId ? won(calc[i].vat) : ''}</td>
-              {!plan && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
+              {!plan && !order && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
+              {srcHead && <td className="text-center">{srcDate(l.sourceDate)}</td>}
+              {srcHead && <td className="text-center">{srcNo(l.sourceNo)}</td>}
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={stocks ? 8 : 6}></td>
+            <td colSpan={(stocks ? 8 : 6) - (order ? 2 : 0)}></td>
             <td className="text-right">{qtySum.toLocaleString('ko-KR')}</td>
             <td></td>
             <td className="text-right">{won(sum('supply'))}</td>
             <td className="text-right">{won(sum('vat'))}</td>
-            {!plan && <td className="text-right">{won(sum('total'))}</td>}
+            {!plan && !order && <td className="text-right">{won(sum('total'))}</td>}
+            {srcHead && <td colSpan={2}></td>}
           </tr>
         </tfoot>
       </table>
-
+      {pickOpen && (
+        <RequestPickModal onClose={() => setPickOpen(false)}
+          onApply={(picked) => {
+            setPickOpen(false); setApplied(true)
+            addLines(copyLines(picked))
+            if (!warehouseId) { const wh = picked.find((o) => o.warehouseId)?.warehouseId; if (wh) setWarehouseId(String(wh)) }
+          }} />
+      )}
     </>
   )
 
@@ -403,7 +472,7 @@ export default function PurchaseRequestForm({ editing, page, plan, onClose, onSa
       {/* 원본 단추줄 — 신규: 저장(F8) · 저장/전표(F7) · 다시 작성 · 닫기 / 수정: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H */}
       <div className="mt-[10px] flex flex-wrap items-center gap-[4px]">
         <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={() => void save()}>{saving ? '저장 중…' : '저장(F8)'}</button>
-        {!plan && <button type="button" className="ec-btn" disabled={saving} onClick={() => void save('print')}>저장/전표(F7)</button>}
+        {!plan && !order && <button type="button" className="ec-btn" disabled={saving} onClick={() => void save('print')}>저장/전표(F7)</button>}
         {isEdit ? <>
           <button type="button" className="ec-btn" onClick={() => onCopy?.(editing!)}>복사</button>
           <button type="button" className="ec-btn" onClick={() => onStep?.(1)}>이전</button>
