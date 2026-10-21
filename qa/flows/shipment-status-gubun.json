@@ -1,0 +1,20 @@
+{
+  "about": "출하현황(E040227) [구분] 여덟 갈래 + [진행상태] 체크 넷 — 2026-10-22 원본 실측: 열은 모두 같은 6열(일자-No. · 품목명(규격) · 수량 · 창고명 · 거래처명 · 연락처)에 월 계 · 총합계. 일별은 같은 날 묶음(첫 줄 이름 · 수량 합), 전표별은 전표 묶음. 진행상태는 전체 · 결재중 · 미확인 · 확인 체크(처음 확인만), 전체는 셋을 한꺼번에 켠다. 한 전표 두 줄 + 같은 날 다른 전표 한 줄을 만들어 보고 지운다.",
+  "shots": [
+    {
+      "name": "출하 2건(3줄) → 라인별 3줄 · 일별 1줄 · 전표별 2줄 · 진행상태 체크 → 지움",
+      "path": "/sales/shipment",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => (r.status === 204 ? null : r.json())); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const mk = (lines) => A('POST', '/shipments', { partnerId: pa[0].id, warehouseId: wh[0].id, shipDate: day, remark: 'QA재고1', lines }); const a = await mk([{ itemId: it[0].id, quantity: 3, unitPrice: 100 }, { itemId: it[1].id, quantity: 4, unitPrice: 100 }]); const b = await mk([{ itemId: it[0].id, quantity: 5, unitPrice: 100 }]); sessionStorage.setItem('shp', JSON.stringify({ ids: [a.id, b.id], day: day.replace(/-/g, '/') })); return a.shipNo + ' ' + b.shipNo })()",
+        "js:location.reload(); true",
+        "wait:3500",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t) => [...document.querySelectorAll('button')].find((b) => b.innerText.trim().startsWith(t)); B('검색')?.click(); await W(1500); const day = JSON.parse(sessionStorage.getItem('shp')).day; const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('change', { bubbles: true })) }; const sel = document.querySelector('select[aria-label=구분]'); const cnt = () => [...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells[0].innerText.trim().startsWith(day)).length; const o = {}; for (const k of ['라인별', '일별', '전표별']) { S(sel, k); await W(400); o[k] = cnt() } sessionStorage.setItem('cnt', JSON.stringify(o)); return JSON.stringify(o) })()",
+        "expect:(() => { const o = JSON.parse(sessionStorage.getItem('cnt')); return o['라인별'] - o['일별'] >= 2 && o['일별'] === 1 && o['라인별'] - o['전표별'] >= 1 })()",
+        "js:(async () => { document.querySelector('[aria-label=\"조건 더보기\"]')?.click(); await new Promise((r) => setTimeout(r, 500)); return true })()",
+        "expect:(() => { const l = [...document.querySelectorAll('li')].find((x) => /^진행상태/.test(x.innerText.trim()) && x.innerText.length < 60); const c = [...l.querySelectorAll('input[type=checkbox]')]; return c.map((x) => x.parentElement.innerText.trim()).join('|') === '전체|결재중|미확인|확인' && c.map((x) => (x.checked ? 1 : 0)).join('') === '0001' })()",
+        "js:(async () => { const x = JSON.parse(sessionStorage.getItem('shp')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = []; for (const id of x.ids) r.push((await fetch('/api/shipments/' + id, { method: 'DELETE', headers: H })).status); return '지움 ' + r.join('/') })()"
+      ]
+    }
+  ]
+}

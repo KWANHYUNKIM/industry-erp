@@ -40,6 +40,9 @@ type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
 type Mode = '현황' | '집계'
 /** 원본 [메뉴] 현황 · 집계(2026-10-21 실측 — 그 아래 줄이 [구분] 라인별 ▾ · 비교기간). */
 const MODES = ['현황', '집계'] as const
+/** 원본 [구분] 드롭다운(2026-10-22 E040227 실측) — 현황 메뉴에서 줄을 무엇으로 묶어 보일지. 열은 모두 같다. */
+const LINE_KINDS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '거래처별', '담당자별'] as const
+type LineKind = typeof LINE_KINDS[number]
 
 interface ShipLine {
   itemId: number
@@ -100,12 +103,15 @@ export default function ShipmentPage() {
   const [to, setTo] = useState(init.to)
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [mode, setMode] = useState<Mode>('현황')
+  const [lineKind, setLineKind] = useState<LineKind>('라인별')
   const [shipNo, setShipNo] = useState('')
   const [partner, setPartner] = useState('')
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [project, setProject] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | ShipStatus>('ALL')
+  /* 원본 [진행상태](2026-10-22 E040227 실측) — 체크 넷: 전체 · 결재중 · 미확인 · 확인(처음 확인만 켜짐). 전체는 나머지 셋을 한꺼번에 켠다.
+   우리 출하는 확인 상태만 있어 결재중 · 미확인은 늘 빈 결과(원본도 이 회사 출하가 모두 확인), 취소는 전체 때만 보인다. */
+  const [progress, setProgress] = useState<string[]>(['확인'])
   /** 원본은 [품목코드] 아래 조건을 회색 띠 밑에 접어 둔다 */
   const [more, setMore] = useState(false)
 
@@ -125,7 +131,7 @@ export default function ShipmentPage() {
 
   const reset = () => {
     setFrom(init.from); setTo(init.to); setCompare('사용안함'); setMode('현황')
-    setShipNo(''); setPartner(''); setItem(''); setStatusFilter('ALL'); setWarehouse(''); setProject('')
+    setShipNo(''); setPartner(''); setItem(''); setProgress(['확인']); setWarehouse(''); setProject('')
     /* 접힌 줄을 펼쳐 드러난 조건들도 같이 되돌린다. */
     setOrderNoCond(''); setSpecCond(''); setEmpCond(''); setPmgrCond('')
     setContactCond(''); setAddressCond(''); setAuthorCond('')
@@ -153,7 +159,7 @@ export default function ShipmentPage() {
   const pmgr = usePartnerManagers()
 
   const matches = (r: Shipment) => {
-    if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
+    if (r.status === 'CANCELED' ? progress.length < 3 : !progress.includes('확인')) return false
     if (shipNo && !r.shipNo.includes(shipNo)) return false
     if (partner && String(r.partnerId) !== partner) return false
     if (item && !r.lines.some((l) => String(l.itemId) === item)) return false
@@ -173,7 +179,7 @@ export default function ShipmentPage() {
   const shown = useMemo(
     () => rows.filter((r) => inRange(r, from, to) && matches(r)),
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [rows, from, to, statusFilter, shipNo, partner, item, warehouse, project, mgmtCond, mgmt.options],
+    [rows, from, to, progress, shipNo, partner, item, warehouse, project, mgmtCond, mgmt.options],
   )
 
   /** 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 합계만 견준다. */
@@ -186,7 +192,7 @@ export default function ShipmentPage() {
       qty: prev.reduce((n, r) => n + r.totalQuantity, 0),
       amount: prev.reduce((n, r) => n + r.totalAmount, 0),
     }
-  }, [rows, prevRange, statusFilter, shipNo, partner, item, warehouse, project])
+  }, [rows, prevRange, progress, shipNo, partner, item, warehouse, project])
 
   const totals = useMemo(
     () => shown.reduce((a, r) => ({ qty: a.qty + r.totalQuantity, amount: a.amount + r.totalAmount }),
@@ -220,17 +226,36 @@ export default function ShipmentPage() {
     [shown],
   )
 
-  /** 원본 라인별 격자 — 달마다 'YYYY/MM 계' 줄을 끼운다(lines 가 이미 일자 오름차순). */
+  /**
+   * 원본 [구분] 여덟 갈래(2026-10-22 E040227 실측)는 모두 같은 6열에 달마다 'YYYY/MM 계' · 총합계를 끼운다 — 묶는 키만 다르다.
+   *   일별 = 날짜 · 월별 = 월 · 라인별 = 줄 · 전표별 = 전표 · 품목별 = 월 × 품목 · 전표별품목별 = 전표 × 품목 · 거래처별 = 월 × 거래처 · 담당자별 = 월 × 담당자.
+   * 묶인 줄은 첫 줄의 일자-No. · 품목명 · 창고 · 거래처를 찍고 수량은 더한다(일별 10/21 = -1 의 70 + -3 의 10 = 80).
+   */
   const byMonth = useMemo(() => {
-    const out: { month: string; rows: typeof lines; qty: number }[] = []
+    type Row = { key: string; r: Shipment; l: ShipLine; q: number }
+    const out: { month: string; rows: Row[]; qty: number }[] = []
+    let idx = new Map<string, Row>()
     for (const x of lines) {
       const month = x.r.shipDate.slice(0, 7).replace('-', '/')
       let g = out[out.length - 1]
-      if (!g || g.month !== month) { g = { month, rows: [], qty: 0 }; out.push(g) }
-      g.rows.push(x); g.qty += Number(x.l.quantity)
+      if (!g || g.month !== month) { g = { month, rows: [], qty: 0 }; out.push(g); idx = new Map() }
+      const item = x.l.itemId
+      const k = lineKind === '일별' ? x.r.shipDate
+        : lineKind === '월별' ? month
+        : lineKind === '전표별' ? x.r.shipNo
+        : lineKind === '품목별' ? String(item)
+        : lineKind === '전표별품목별' ? `${x.r.shipNo}|${item}`
+        : lineKind === '거래처별' ? String(x.r.partnerId)
+        : lineKind === '담당자별' ? (x.r.employeeName ?? '')
+        : x.key
+      const q = Number(x.l.quantity)
+      const hit = idx.get(k)
+      if (hit) hit.q += q
+      else { const row = { key: x.key, r: x.r, l: x.l, q }; idx.set(k, row); g.rows.push(row) }
+      g.qty += q
     }
     return out
-  }, [lines])
+  }, [lines, lineKind])
 
   return (
     <EcListShell
@@ -251,6 +276,15 @@ export default function ShipmentPage() {
         view={view} onViewChange={setView}
         compare={compare} onCompareChange={setCompare}
         modeLabel="메뉴" compareLabel="구분"
+        modeExtra={mode === '현황' ? (
+          <label className="inline-flex items-center gap-[6px] ml-[12px]">
+            <span className="text-ec-label">구분</span>
+            <select className="ec-input w-[130px]" aria-label="구분" value={lineKind}
+                    onChange={(e) => setLineKind(e.target.value as LineKind)}>
+              {LINE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </label>
+        ) : undefined}
       >
         <EcCond label="출하No." pick>
           <input className="ec-input" placeholder="출하번호 일부" value={shipNo}
@@ -327,14 +361,15 @@ export default function ShipmentPage() {
                  onChange={(e) => setAddressCond(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="진행상태">
-          <div className="ec-pills">
-            {(['ALL', 'READY', 'SHIPPED', 'CANCELED'] as const).map((s) => (
-              <button key={s} type="button" className={`ec-pill no-ec${statusFilter === s ? ' active' : ''}`}
-                      onClick={() => setStatusFilter(s)}>
-                {s === 'ALL' ? '전체' : s === 'READY' ? '출하지시' : s === 'SHIPPED' ? '출하완료' : '취소'}
-              </button>
-            ))}
-          </div>
+          {(['전체', '결재중', '미확인', '확인'] as const).map((n) => (
+            <label key={n} className="mr-[10px] text-[12px]">
+              <input type="checkbox"
+                     checked={n === '전체' ? progress.length === 3 : progress.includes(n)}
+                     onChange={(e) => setProgress(n === '전체'
+                       ? (e.target.checked ? ['결재중', '미확인', '확인'] : [])
+                       : e.target.checked ? [...progress, n] : progress.filter((x) => x !== n))} /> {n}
+            </label>
+          ))}
         </EcCond>
         <EcCond label="작성자" pick>
           <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
@@ -417,11 +452,11 @@ export default function ShipmentPage() {
             ) : lines.length === 0 ? (
               <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byMonth.flatMap((g) => [
-              ...g.rows.map(({ key, r, l }) => (
+              ...g.rows.map(({ key, r, l, q }) => (
                 <tr key={key}>
                   <td className="whitespace-nowrap">{dateNo(r.shipDate, r.shipNo)}</td>
                   <td>{l.spec ? l.itemName + ' [' + l.spec + ']' : l.itemName}</td>
-                  <td className="text-right">{qty(l.quantity)}</td>
+                  <td className="text-right">{qty(q)}</td>
                   <td>{r.warehouseName ?? ''}</td>
                   <td>{r.partnerName}</td>
                   <td>{r.contact ?? ''}</td>
