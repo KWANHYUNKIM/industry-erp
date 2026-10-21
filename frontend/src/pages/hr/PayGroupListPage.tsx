@@ -14,7 +14,8 @@ const BLANK_LINES = 3
 interface LineRow { payItemId: string; amount: string }
 interface EmpRow { employeeId: string; rate: string }
 
-const blankLines = (n = BLANK_LINES): LineRow[] => Array.from({ length: n }, () => ({ payItemId: '', amount: '' }))
+/** 원본은 내역 빈칸에 0 이 들어 있다(2026-10-21 plans 관리:43). */
+const blankLines = (n = BLANK_LINES): LineRow[] => Array.from({ length: n }, () => ({ payItemId: '', amount: '0' }))
 const blankEmps = (n = BLANK_LINES): EmpRow[] => Array.from({ length: n }, () => ({ employeeId: '', rate: '' }))
 
 /**

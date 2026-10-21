@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useRequired } from '../../utils/useRequired'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -70,6 +71,7 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
   const word = isAllowance ? '수당' : '공제'
   const [rows, setRows] = useState<Row[]>([])
   const [error, setError] = useState('')
+  const req = useRequired()
   /** 원본 하단 [H] — 리스트 전체를 마지막으로 저장한 때 · 사람 한 줄(서버 PaySettingService.HISTORY_*) */
   const [historyOpen, setHistoryOpen] = useState(false)
   const [includeInactive, setIncludeInactive] = useState(false)
@@ -90,6 +92,7 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
 
   function load() {
     setError('')
+    req.reset()
     api.get<PayItem[]>('/pay-settings/items')
       .then((r) => {
         const mine = r.data.filter((i) => i.kind === kind)
@@ -117,11 +120,15 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
   async function save() {
     setError('')
     const todo = rows.filter((r) => r.dirty && (r.id || r.code.trim() || r.name.trim()))
+    // 원본(2026-10-13 실측)은 문구 없이 비운 칸만 빨갛게 두르고 저장하지 않는다
+    const need: Record<string, boolean> = {}
     for (const r of todo) {
-      if (!r.code.trim()) { setError(`${word}항목코드를 입력 바랍니다.`); return }
-      if (!r.name.trim()) { setError(`${word}항목명을 입력 바랍니다.`); return }
-      if (r.sortOrder === '') { setError('표시순서를 입력 바랍니다.'); return }
+      const i = rows.indexOf(r)
+      need[`code${i}`] = !!r.code.trim()
+      need[`name${i}`] = !!r.name.trim()
+      need[`sort${i}`] = r.sortOrder !== ''
     }
+    if (!req.check(need)) return
     try {
       for (const r of todo) {
         if (r.id) await api.put(`/pay-settings/items/${r.id}`, body(r))
@@ -223,12 +230,14 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
               <td>
                 {r.id != null
                   ? r.code
-                  : <input className="ec-input w-full" value={r.code} onChange={(e) => edit(idx, { code: e.target.value })} />}
+                  : <div className={req.cls(`code${idx}`, !!r.code.trim())}><input className="ec-input w-full" value={r.code} onChange={(e) => edit(idx, { code: e.target.value })} /></div>}
               </td>
-              <td><input className="ec-input w-full" value={r.name} onChange={(e) => edit(idx, { name: e.target.value })} /></td>
+              <td><div className={req.cls(`name${idx}`, !!r.name.trim())}><input className="ec-input w-full" value={r.name} onChange={(e) => edit(idx, { name: e.target.value })} /></div></td>
               <td>
-                <input className="ec-input w-full text-right" inputMode="numeric" value={r.sortOrder}
-                       onChange={(e) => edit(idx, { sortOrder: e.target.value.replace(/[^0-9]/g, '') })} />
+                <div className={req.cls(`sort${idx}`, r.sortOrder !== '')}>
+                  <input className="ec-input w-full text-right" inputMode="numeric" value={r.sortOrder}
+                         onChange={(e) => edit(idx, { sortOrder: e.target.value.replace(/[^0-9]/g, '') })} />
+                </div>
               </td>
               {isAllowance && (
                 <td>
