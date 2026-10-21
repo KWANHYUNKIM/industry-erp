@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import NumCheck from '../../components/NumCheck'
 import CheckOnlyDecreaseModal from '../../features/bankcheck/components/CheckOnlyDecreaseModal'
 import CheckDepositReportModal, { bankLabel, type CheckDepositPick } from '../../features/bankcheck/components/CheckDepositReportModal'
 
@@ -22,7 +23,7 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * 고르면 CheckDepositReportModal(입금보고서작성 → 입금보고서 → 저장). 펼침 ▴ [수표만감소] 는 CheckOnlyDecreaseModal(회계전표 없이 수표만 줄임,
  * 2026-10-21 실측 — 빈 선택이면 같은 알림).
  *
- * <p><b>발행수표출금처리</b>(E060606, type="ISSUED") 는 같은 틀이다(2026-10-14 실측): 열 [발행수표계좌명](나머지 같음 — [수령일자]도 그대로),
+ * <p><b>발행수표출금처리</b>(E060606, type="ISSUED") 는 같은 틀이다(2026-10-14 실측): 줄 첫 칸은 번호 체크칸('1'), 열 [발행수표계좌명](나머지 같음 — [수령일자]도 그대로),
  * 계정명은 수표계좌의 계정, 하단 [지출결의서작성 ▴](펼침 [수표만감소]) → 지출결의서작성 → 지출결의서 → 저장.
  */
 export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckType }) {
@@ -104,8 +105,11 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
         <thead>
           <tr>
             <th className="w-[30px] text-center">
-              <input type="checkbox" aria-label="전체선택" checked={held.length > 0 && held.every((c) => picked.has(c.id))}
-                     onChange={(e) => held.forEach((c) => toggle(c.id, e.target.checked))} />
+              {received
+                ? <input type="checkbox" aria-label="전체선택" checked={held.length > 0 && held.every((c) => picked.has(c.id))}
+                         onChange={(e) => held.forEach((c) => toggle(c.id, e.target.checked))} />
+                : <NumCheck no="" head label="전체선택" on={held.length > 0 && held.every((c) => picked.has(c.id))}
+                            onChange={(v) => held.forEach((c) => toggle(c.id, v))} />}
             </th>
             <th>수표번호</th>
             <th>수령일자</th>
@@ -125,10 +129,12 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
             <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : held.length === 0 ? (
             <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : held.map((c) => (
+          ) : held.map((c, i) => (
             <tr key={c.id}>
               <td className="text-center">
-                <input type="checkbox" aria-label={`${c.checkNo} 선택`} checked={picked.has(c.id)} onChange={(e) => toggle(c.id, e.target.checked)} />
+                {received
+                  ? <input type="checkbox" aria-label={`${c.checkNo} 선택`} checked={picked.has(c.id)} onChange={(e) => toggle(c.id, e.target.checked)} />
+                  : <NumCheck no={i + 1} label={`${c.checkNo} 선택`} on={picked.has(c.id)} onChange={(v) => toggle(c.id, v)} />}
               </td>
               <td className="text-ec-navy">{c.checkNo}</td>
               <td>{dateText(c.issueDate)}</td>
@@ -149,8 +155,8 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
         </tbody>
         {held.length > 0 && (
           <tfoot>
-            {/* 원본 합계줄은 700(회색 바탕 · 여백 2.7px 은 토큰이 없어 남은 것) */}
-            <tr className="font-bold">
+            {/* 원본 합계줄은 700 · 바탕 회색 243(= --ec-report-stripe). 여백 2.7px 은 전역 합계칸 규칙(!important)이 눌러 남은 것 */}
+            <tr className="font-bold [&>td]:!bg-[var(--ec-report-stripe)]">
               <td colSpan={7} className="text-center">합 계</td>
               <td className="text-right">{won(total)}</td>
               <td className="text-right">{pickedTotal ? won(pickedTotal) : ''}</td>

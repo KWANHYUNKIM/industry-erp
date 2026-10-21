@@ -63,11 +63,13 @@ export default function CheckDepositReportModal({ type = 'RECEIVED', picks, onCl
   const [memo, setMemo] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  /** 지출결의서 [돈 나간 계좌] 칸 말풍선 — 원본은 비우고 저장하면 글줄 대신 그 칸에 '자료를 입력 바랍니다.' + 빨간 테두리(2026-10-14 실측). */
+  const [settleErr, setSettleErr] = useState<string | null>(null)
 
   useEffect(() => {
     if (!picks) return
     setSettle(''); setMemoMode('SAME'); setGroup('LINE')
-    setLines(null); setDate(ymd(new Date())); setMemo(''); setError('')
+    setLines(null); setDate(ymd(new Date())); setMemo(''); setError(''); setSettleErr(null)
     api.get<BankAccountRow[]>('/bank-cards/accounts').then((r) => setBanks(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }, [picks])
 
@@ -91,7 +93,11 @@ export default function CheckDepositReportModal({ type = 'RECEIVED', picks, onCl
   async function save() {
     if (!lines) return
     setError('')
-    if (!settle) { setError(received ? '돈 들어온 계좌를 입력 바랍니다.' : `${flow}: 자료를 입력 바랍니다.`); return }
+    if (!settle) {
+      if (received) setError('돈 들어온 계좌를 입력 바랍니다.')
+      else setSettleErr('자료를 입력 바랍니다.')
+      return
+    }
     setSaving(true)
     try {
       await api.post(received ? '/checks/deposit-report' : '/checks/withdraw-report', {
@@ -178,7 +184,12 @@ export default function CheckDepositReportModal({ type = 'RECEIVED', picks, onCl
               {(lines ?? []).map((l, i) => (
                 <tr key={l.pick.check.id}>
                   <td className="text-center text-ec-hint">{i + 1}</td>
-                  <td>{settleCode}</td>
+                  {received ? <td>{settleCode}</td> : (
+                    <td>
+                      <GridCode title="계좌검색" codeHead="돈나간계좌번호" nameHead="계좌명" items={settleItems}
+                                value={settle} onPick={(v) => { setSettle(v); setSettleErr(null) }} err={settleErr} />
+                    </td>
+                  )}
                   <td>{settleName}</td>
                   <td>{l.pick.accountCode}</td>
                   <td>{l.pick.accountName}</td>
