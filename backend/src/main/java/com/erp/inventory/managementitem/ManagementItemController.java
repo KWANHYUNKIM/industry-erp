@@ -23,6 +23,12 @@ public class ManagementItemController {
         return managementItemService.findAll();
     }
 
+    @GetMapping("/unused")
+    public List<Long> unused(@RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+                             @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return managementItemService.findUnusedIds(from, to);
+    }
+
     @PostMapping
     public ResponseEntity<ManagementItemResponse> create(@Valid @RequestBody CreateManagementItemRequest req) {
         return ResponseEntity.ok(managementItemService.create(req));

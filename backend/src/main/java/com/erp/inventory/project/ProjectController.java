@@ -25,6 +25,12 @@ public class ProjectController {
         return projectService.findAll();
     }
 
+    @GetMapping("/unused")
+    public List<Long> unused(@RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+                             @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return projectService.findUnusedIds(from, to);
+    }
+
     @PostMapping
     public ResponseEntity<ProjectResponse> create(
             @Valid @RequestBody CreateProjectRequest req,

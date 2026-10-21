@@ -20,6 +20,7 @@ import com.erp.trade.partner.dto.PartnerDtos;
 public class PartnerService {
 
     private final BusinessPartnerRepository partnerRepository;
+    private final com.erp.common.usage.UnusedCodeFinder unusedCodeFinder;
     private final PartnerGroupRepository partnerGroupRepository;
     /** 영업 · 구매 단가그룹 칸이 드는 특별단가그룹 코드가 있는지 본다(같은 모듈 trade). */
     private final com.erp.trade.price.SpecialPriceGroupRepository specialPriceGroupRepository;
@@ -326,4 +327,10 @@ public class PartnerService {
         return partnerRepository.searchCount(like);
     }
 
+
+    /** 미사용코드조회 — 기간 안 전표에 안 쓰인 거래처 id (원본 재고1 리스트의 [미사용코드조회]) */
+    @Transactional(readOnly = true)
+    public List<Long> findUnusedIds(java.time.LocalDate from, java.time.LocalDate to) {
+        return unusedCodeFinder.unusedIds("business_partners", from, to);
+    }
 }

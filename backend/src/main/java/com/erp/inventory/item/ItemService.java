@@ -24,6 +24,7 @@ import com.erp.inventory.item.dto.ItemDtos;
 public class ItemService {
 
     private final ItemRepository itemRepository;
+    private final com.erp.common.usage.UnusedCodeFinder unusedCodeFinder;
     private final ItemGroupRepository itemGroupRepository;
     private final StoredFileRepository storedFileRepository;
     /** [삭제] 전에 품목을 쓰는 자료를 찾는다(원본 '삭제불가코드' 창). */
@@ -313,4 +314,10 @@ public class ItemService {
         return itemRepository.searchCount(like);
     }
 
+
+    /** 미사용코드조회 — 기간 안 전표에 안 쓰인 품목 id (원본 재고1 리스트의 [미사용코드조회]) */
+    @Transactional(readOnly = true)
+    public List<Long> findUnusedIds(java.time.LocalDate from, java.time.LocalDate to) {
+        return unusedCodeFinder.unusedIds("items", from, to);
+    }
 }

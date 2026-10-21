@@ -21,6 +21,7 @@ import com.erp.inventory.project.dto.ProjectDtos;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final com.erp.common.usage.UnusedCodeFinder unusedCodeFinder;
     private final DocumentNoGenerator documentNoGenerator;
     private final ChangeHistoryService changeHistory;
     /** [H] 이력 대상 이름 — 한 번 정하면 바꾸지 않는다(공용.md '붙이는 법'). */
@@ -111,5 +112,11 @@ public class ProjectService {
     private String generateCode(LocalDate date) {
         String prefix = "PRJ-" + String.format("%02d", date.getYear() % 100);
         return documentNoGenerator.nextMasterCode(prefix, "projects", "code", 2);
+    }
+
+    /** 미사용코드조회 — 기간 안 전표에 안 쓰인 프로젝트 id (원본 재고1 리스트의 [미사용코드조회]) */
+    @Transactional(readOnly = true)
+    public List<Long> findUnusedIds(java.time.LocalDate from, java.time.LocalDate to) {
+        return unusedCodeFinder.unusedIds("projects", from, to);
     }
 }

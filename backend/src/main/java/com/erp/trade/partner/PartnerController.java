@@ -24,6 +24,12 @@ public class PartnerController {
         return partnerService.findAll();
     }
 
+    @GetMapping("/unused")
+    public List<Long> unused(@RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+                             @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return partnerService.findUnusedIds(from, to);
+    }
+
     @PostMapping
     public ResponseEntity<PartnerResponse> create(@Valid @RequestBody CreatePartnerRequest req) {
         return ResponseEntity.ok(partnerService.create(req));

@@ -21,6 +21,7 @@ import com.erp.inventory.managementitem.dto.ManagementItemDtos;
 public class ManagementItemService {
 
     private final ManagementItemRepository managementItemRepository;
+    private final com.erp.common.usage.UnusedCodeFinder unusedCodeFinder;
     private final DocumentNoGenerator documentNoGenerator;
     private final ChangeHistoryService changeHistory;
     /** [H] 이력 대상 이름 — 한 번 정하면 바꾸지 않는다(공용.md '붙이는 법'). */
@@ -95,5 +96,11 @@ public class ManagementItemService {
     /** 코드 미입력 시 MG### 자동채번 */
     private String generateCode() {
         return documentNoGenerator.nextMasterCode("MG", "management_items", "code", 3);
+    }
+
+    /** 미사용코드조회 — 기간 안 전표에 안 쓰인 관리항목(그 항목을 단 품목이 쓰였는지로 본다) id (원본 재고1 리스트의 [미사용코드조회]) */
+    @Transactional(readOnly = true)
+    public List<Long> findUnusedIds(java.time.LocalDate from, java.time.LocalDate to) {
+        return unusedCodeFinder.unusedIdsVia("management_items", "items", "management_item_id", from, to);
     }
 }

@@ -37,6 +37,12 @@ public class ItemController {
         return itemService.findById(id);
     }
 
+    @GetMapping("/unused")
+    public List<Long> unused(@RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+                             @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return itemService.findUnusedIds(from, to);
+    }
+
     @PostMapping
     public ResponseEntity<ItemResponse> create(@Valid @RequestBody CreateItemRequest req) {
         return ResponseEntity.ok(itemService.create(req));
