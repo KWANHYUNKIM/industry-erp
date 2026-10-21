@@ -6670,6 +6670,10 @@ console.log('\n■ 조건 칸에 넣은 값이 실제로 쓰이나')
  */
 {
   const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
+  /** 원본도 칸만 있고 아무것도 거르지 않는 조건 — 실측 근거와 함께만 적는다. */
+  const SHOWN_ONLY = new Map([
+    ['WithholdingConfirmPage.tsx|신고일자', '원본 원천징수이행상황신고서확인(E030102) [신고일자] 는 기본 오늘이고 거르지 않는다 — 09/13 으로 바꿔도 세 줄 그대로(2026-10-13 loginaa 실측, b70530c7)'],
+  ])
   const bad = []
   let checked = 0
   for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
