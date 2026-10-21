@@ -179,6 +179,11 @@ export default function VatChecklistPage() {
             ~
             <input type="month" className="ec-input w-[150px]" value={toYm} onChange={(e) => setToYm(e.target.value)} />
           </EcCond>
+          {/* 원본 조건(2026-10-21 실측): 조회일자 · 예정누락기간 [예정누락분포함] · 부서 · 프로젝트 · 기타 [번호오류사업자포함] — 부서 · 프로젝트는 우리 회계전표에 없어 모양만 */}
+          <EcCond label="예정누락기간"><label className="inline-flex items-center gap-[4px]"><input type="checkbox" /> 예정누락분포함</label></EcCond>
+          <EcCond label="부서"><input className="ec-input w-[170px]" placeholder="부서" disabled /></EcCond>
+          <EcCond label="프로젝트"><input className="ec-input w-[170px]" placeholder="프로젝트" disabled /></EcCond>
+          <EcCond label="기타"><label className="inline-flex items-center gap-[4px]"><input type="checkbox" /> 번호오류사업자포함</label></EcCond>
           <li className="full">
             <div className="form">
               <button className="ec-btn ec-btn-primary" onClick={() => void search()}>검색(F8)</button>
@@ -188,6 +193,7 @@ export default function VatChecklistPage() {
                                const f = r.from.slice(0, 7), t = r.to.slice(0, 7)
                                setFromYm(f); setToYm(t); void search(f, t)
                              }} />
+              <button className="ec-btn" type="button">설정</button>
               <button className="ec-btn" onClick={() => { setFromYm(init.from.slice(0, 7)); setToYm(init.to.slice(0, 7)) }}>다시 작성</button>
             </div>
           </li>

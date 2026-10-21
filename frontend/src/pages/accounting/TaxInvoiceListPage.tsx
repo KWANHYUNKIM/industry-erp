@@ -120,7 +120,8 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
   }
 
   return (
-    <EcListShell title={title} onSearch={load} collapseConditions>
+    <EcListShell title={title} onSearch={load} collapseConditions
+      actions={sales ? [{ label: 'Email', disabled: true }, { label: '대화방', disabled: true }, { label: '인쇄' }, { label: '확인취소', disabled: true }, { label: '선택삭제', disabled: true }, { label: 'Excel' }] : []}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
@@ -133,10 +134,17 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
         <EcCond label="회계전표No.">
           <input className="ec-input w-[150px]" value={docNo} onChange={(e) => setDocNo(e.target.value)} />
         </EcCond>
+        {/* 원본 조건 판(2026-10-21 실측, 세무 매출 · 매입계산서조회): 기준일자 · 회계전표No. · 부서 · 프로젝트 · 거래처 · 거래처관리담당자 · 부가세유형 · 최종수정자 · 발송여부(매출) · 양식 · 적용양식.
+            부서 · 프로젝트 · 담당자 · 부가세유형 · 최종수정자는 우리 전표에 없는 값이라 칸 모양만 둔다. */}
+        <EcCond label="부서"><input className="ec-input w-[170px]" placeholder="부서" disabled /></EcCond>
+        <EcCond label="프로젝트"><input className="ec-input w-[170px]" placeholder="프로젝트" disabled /></EcCond>
         <EcCond label="거래처">
           <CodePickerField label="거래처" hideLabel pair emptyLabel="(전체)" value={partnerId} onChange={setPartnerId}
                            items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
         </EcCond>
+        <EcCond label="거래처관리담당자"><input className="ec-input w-[170px]" placeholder="거래처관리담당자" disabled /></EcCond>
+        <EcCond label="부가세유형"><input className="ec-input w-[170px]" placeholder="부가세유형" disabled /></EcCond>
+        <EcCond label="최종수정자"><input className="ec-input w-[170px]" placeholder="최종수정자" disabled /></EcCond>
         {sales && (
           <EcCond label="발송여부">
             <select className="ec-input w-[100px]" value={sent} onChange={(e) => setSent(e.target.value as '' | 'N' | 'Y')}>
@@ -144,6 +152,9 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
             </select>
           </EcCond>
         )}
+        <EcCond label="적용양식">
+          <select className="ec-input w-[170px]" aria-label="적용양식" defaultValue="기본"><option value="기본">기본(수정불가)</option></select>
+        </EcCond>
         <li className="full">
           <div className="form">
             <button className="ec-btn ec-btn-primary" onClick={() => void load()}>검색(F8)</button>

@@ -25,7 +25,7 @@
         "expect:/2088\\.01\\s*3,200,000/.test(document.querySelector('[role=dialog]').innerText)",
         "js:(() => { const i = document.querySelector('[role=dialog] input[aria-label=\"최종 퇴직급여\"]'); const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(i, '8,778,618'); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "wait:1200",
-        "expect:/\\(46\\)[^\\n]*130,680 · 13,060/.test(document.querySelector('[role=dialog]').innerText)",
+        "expect:/\\(46\\)[^\\n]*130,680\\s+13,060/.test(document.querySelector('[role=dialog]').innerText)",
         "expect:/\\(30\\)[^\\n]*40,671,708/.test(document.querySelector('[role=dialog]').innerText)",
         "click:저장(F8)",
         "wait:1200",
