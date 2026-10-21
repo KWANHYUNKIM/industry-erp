@@ -11,7 +11,7 @@ interface Line { side: '차변' | '대변'; accountId: string; amount: number; m
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
 
 /**
- * 확정 대장 [급여대장 ▸ 전표생성] (원본 E090106, 2026-10-13 실측 — 원본은 저장하지 않고 닫았다).
+ * 확정 대장 [급여대장 ▸ 전표생성] (원본 E090106, 2026-10-13 실측 · 2026-10-21 저장까지 해 봄 — 실지급액 줄 계정 비면 말풍선 '계정코드를 입력 바랍니다.', 보통예금(1039) 고르고 저장 → 안내 없이 닫힘).
  *
  * <p>원본은 일반전표 입력 창(오늘 일자)을 세 줄로 채워 연다:
  * 차) 8029 직원급여(판) 지급총액 · 적요 = 대장명칭 / 대) <b>계정 빈칸</b> 실지급액 / 대) 2549 예수금 공제총액. 차대 합 = 지급총액.
@@ -48,13 +48,13 @@ export default function PayrollSlipCreate({ ledger, onClose, onSaved }: { ledger
   async function save() {
     if (!ledger) return
     const used = lines.filter((l) => l.amount !== 0)
-    if (used.some((l) => !l.accountId)) { setError('계정을 입력 바랍니다.'); return }
+    if (used.some((l) => !l.accountId)) { setError('계정코드를 입력 바랍니다.'); return }
     try {
       await api.post('/journals', {
         entryDate: date, description: ledger.name,
         lines: used.map((l) => ({ accountId: Number(l.accountId), debit: l.side === '차변' ? l.amount : 0, credit: l.side === '대변' ? l.amount : 0, description: l.memo || undefined })),
       })
-      onSaved('회계전표를 만들었습니다.')
+      onSaved('') /* 원본(2026-10-21 실측): 저장하면 안내 없이 창이 닫히고, 같은 대장에서 [전표생성] 을 다시 눌러도 막지 않는다(회계 일반전표 26/10/21-32 가 생김) */
       onClose()
     } catch (e) {
       setError(extractErrorMessage(e))

@@ -345,6 +345,14 @@ export default function RetirementPayPage() {
                   <tr><th>(32)퇴직소득과세표준 ((30)-(31))</th><td className="text-right">{won(calc.tax.taxBase)}</td></tr>
                   <tr><th>(33)환산산출세액 ((32)×세율)</th><td className="text-right">{won(calc.tax.convertedTax)}</td></tr>
                   <tr><th>(34)퇴직소득 산출세액 ((33)×정산근속연수/12배)</th><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
+                  {/* 원본 영수증 꼴 칸(2026-10-21 실측): (35)세액공제 · (36)기납부(또는 기과세이연) 세액 · (37)(38)신고대상세액 · 연금계좌 입금내역 (39)(40) · (44)이연퇴직소득세 · (45)기납부원천징수세액.
+                      우리는 세액공제 · 이연 · 기납부 · 연금계좌를 받지 않아 0 으로 둔다(값 입력 창은 안 만듦). */}
+                  <tr><th>(35)세액공제</th><td className="text-right">0</td></tr>
+                  <tr><th>(36)기납부(또는 기과세이연) 세액</th><td className="text-right">0</td></tr>
+                  <tr><th>(37)신고대상세액 ((34)-(35)-(36))</th><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
+                  <tr><th>(38)신고대상세액 ((37))</th><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
+                  <tr><th>연금계좌 입금내역 (40)퇴직급여 ((17)) · (39)계좌입금금액</th><td className="text-right">{won(calc.tax.income)} · 0</td></tr>
+                  <tr><th>(44)이연퇴직소득세 · (45)기납부원천징수세액</th><td className="text-right">0 · 0</td></tr>
                   {/* (43)신고대상세액 — 10원 버리기 전(원본 73,550 · 7,355 · 계 80,905) */}
                   <tr><th>(43)신고대상세액 소득세 · 지방소득세 · 계</th><td className="text-right">
                     {won(calc.tax.computedTax)} · {won(Math.floor(Number(calc.tax.computedTax) / 10))} · {won(Number(calc.tax.computedTax) + Math.floor(Number(calc.tax.computedTax) / 10))}
@@ -358,6 +366,9 @@ export default function RetirementPayPage() {
           <div className="flex gap-[6px] mt-[12px]">
             <button className="ec-btn ec-btn-primary" onClick={save} disabled={!calc}>저장(F8)</button>
             <button className="ec-btn" onClick={() => form && recalc(form, false)}>퇴직금재계산</button>
+            {/* 원본 하단 [소액부징수] · [부표/명세서입력] — 눌러도 이 화면엔 값 입력 창이 없다(모양만). */}
+            <button className="ec-btn" type="button">소액부징수</button>
+            <button className="ec-btn" type="button">부표/명세서입력</button>
             <button className="ec-btn" onClick={() => { setForm(null); setCalc(null) }}>닫기</button>
           </div>
         </Modal>
