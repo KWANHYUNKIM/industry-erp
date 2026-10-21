@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcSlipShell from '../../components/EcSlipShell'
 import type { Item, Partner, Warehouse } from '../../types/api'
-import AsRepairScreen, { asRepairBody, blankRepairDraft, blankRepairLines, type AsRepairDraft, type AsReqPick, type RepairFormLine } from '../../features/as/AsRepairForm'
+import { useRequired } from '../../utils/useRequired'
+import AsRepairScreen, { asRepairBody, asRepairCheck, blankRepairDraft, blankRepairLines, type AsRepairDraft, type AsReqPick, type RepairFormLine } from '../../features/as/AsRepairForm'
 
 /**
  * 재고 II › A/S관리 › A/S수리 › <b>A/S수리입력</b>(E040605) — 메뉴에서 여는 입력 화면.
@@ -22,6 +23,7 @@ export default function AsRepairEntryPage() {
   const [lines, setLines] = useState<RepairFormLine[]>(blankRepairLines())
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const req = useRequired()
 
   useEffect(() => {
     Promise.all([
@@ -32,6 +34,7 @@ export default function AsRepairEntryPage() {
   }, [])
 
   function reset() {
+    req.reset()
     setF((x) => blankRepairDraft(x))
     setLines(blankRepairLines()); setError('')
   }
@@ -39,6 +42,7 @@ export default function AsRepairEntryPage() {
   async function submit(e?: FormEvent) {
     e?.preventDefault()
     if (saving) return
+    if (!req.check(asRepairCheck(f, lines))) return
     const built = asRepairBody(f, lines)
     if ('error' in built) return setError(built.error)
     setSaving(true); setError('')
@@ -60,7 +64,7 @@ export default function AsRepairEntryPage() {
       >
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
         <AsRepairScreen f={f} setF={setF} lines={lines} setLines={setLines} editing={false}
-                        partners={partners} warehouses={warehouses} items={items} asReqs={asReqs} />
+                        partners={partners} warehouses={warehouses} items={items} asReqs={asReqs} req={req} />
       </EcSlipShell>
     </form>
   )

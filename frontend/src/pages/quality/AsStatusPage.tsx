@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
-import { dateNo } from '../../utils/dateNo'
+import { shortDateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
 import { usePartnerGroups } from '../../utils/partnerGroups'
@@ -206,7 +206,7 @@ export default function AsStatusPage() {
    */
   const listRows = useMemo(() => {
     const form = filters.form
-    const one = ({ r, l }: { r: AsRow; l: AsLine }) => ({ key: `${r.id}-${l.id}`, r, l, qty: Number(l.quantity), dateCell: dateNo(r.receiptDate, r.asNo) })
+    const one = ({ r, l }: { r: AsRow; l: AsLine }) => ({ key: `${r.id}-${l.id}`, r, l, qty: Number(l.quantity), dateCell: shortDateNo(r.receiptDate, r.asNo) })
     if (form === '라인별') return lineRows.map(one)
     const keyOf = ({ r, l }: { r: AsRow; l: AsLine }) => form === '일별' ? r.receiptDate : form === '월별' ? r.receiptDate.slice(0, 7)
       : form === '전표별' ? String(r.id) : form === '품목별' ? String(l.itemId) : form === '전표별품목별' ? `${r.id}|${l.itemId}`
@@ -215,7 +215,7 @@ export default function AsStatusPage() {
     lineRows.forEach((x) => m.set(keyOf(x), [...(m.get(keyOf(x)) ?? []), x]))
     return [...m.entries()].map(([k, ls]) => ({
       ...one(ls[0]), key: k, qty: ls.reduce((n, x) => n + Number(x.l.quantity), 0),
-      dateCell: form === '일별' ? reportDate(ls[0].r.receiptDate) : form === '월별' ? reportDate(ls[0].r.receiptDate).slice(0, 7) : dateNo(ls[0].r.receiptDate, ls[0].r.asNo),
+      dateCell: form === '일별' ? reportDate(ls[0].r.receiptDate) : form === '월별' ? reportDate(ls[0].r.receiptDate).slice(0, 7) : shortDateNo(ls[0].r.receiptDate, ls[0].r.asNo),
     }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineRows.length, sort.sorted, filters.form, filters.item])
@@ -284,11 +284,10 @@ export default function AsStatusPage() {
         <thead>
           {/*
             원본 격자(2026-09-09 E040610 실측, 2026-10-04 다시 잼):
-            <b>일자-No. · 진행상태 · 창고명 · 담당자명 · 거래처명 · 제목 · 품목코드 ·
+            <b>일자-No.('26/10/13-1' 꼴, 앞 번호열 없음) · 진행상태 · 창고명 · 담당자명 · 거래처명 · 제목 · 품목코드 ·
             품목명[규격] · 수량 · 관리항목명 · 적요</b>. ◉내역의 어느 판이든 열은 같다.
           */}
           <tr>
-            <th className="w-[34px]"></th>
             <th className="cursor-pointer text-center" onClick={() => sort.toggle('접수일')}>일자-No. {sort.mark('접수일')}</th>
             <th className="text-center">진행상태</th>
             <th>창고명</th>
@@ -304,12 +303,11 @@ export default function AsStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : listRows.length === 0 ? (
-            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : listRows.map(({ key, r, l, qty, dateCell }, i) => (
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : listRows.map(({ key, r, l, qty, dateCell }) => (
               <tr key={key}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다(일별 · 월별은 날짜 · 달만). */}
                 <td className="text-center">{dateCell}</td>
                 <td className="text-center">{r.statusName || LABEL[r.status]}</td>
@@ -329,7 +327,7 @@ export default function AsStatusPage() {
         </tbody>
         {listRows.length > 0 && (
           <tfoot><tr className="ec-total">
-            <td colSpan={9} className="text-center">합계</td>
+            <td colSpan={8} className="text-center">합계</td>
             <td className="text-right">{qty2(totalQty)}</td>
             <td></td><td></td>
           </tr></tfoot>

@@ -1,5 +1,7 @@
 import CodePickerField from '../../components/CodePickerField'
+import { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { ymd } from '../../components/EcPeriodPicks'
+import type { useRequired } from '../../utils/useRequired'
 import type { Item, Partner, Warehouse } from '../../types/api'
 
 /**
@@ -48,6 +50,11 @@ export const repairDateNo = (date: string, no: string | null) => {
   return `${yy(date)}-${Number(seq) || seq}`
 }
 
+/** 필수칸 { 키: 채워졌나 } — 담당자 · 창고 · 수리유형 · 품목코드 칸을 한꺼번에 빨갛게(원본, 글 없이 테두리만). */
+export function asRepairCheck(f: AsRepairDraft, lines: RepairFormLine[]): Record<string, boolean> {
+  return { charge: !!f.charge.trim(), warehouse: !!f.warehouseId, type: !!f.repairType, item0: lines.some((l) => l.itemId) }
+}
+
 /** 원본이 빨갛게 막는 차례 그대로 — 담당자 · 창고 · 수리유형 · 품목. 거래처는 막지 않는다. */
 export function asRepairBody(f: AsRepairDraft, lines: RepairFormLine[]): { error: string } | { body: Record<string, unknown> } {
   const filled = lines.filter((l) => l.itemId)
@@ -76,11 +83,12 @@ export function pullAsRequest(f: AsRepairDraft, a: AsReqPick): { f: AsRepairDraf
 
 const won = (n: number) => Math.round(Number(n)).toLocaleString('ko-KR')
 
-export default function AsRepairScreen({ f, setF, lines, setLines, editing, saleAmount = 0, partners, warehouses, items, asReqs }: {
+export default function AsRepairScreen({ f, setF, lines, setLines, editing, saleAmount = 0, partners, warehouses, items, asReqs, req }: {
   f: AsRepairDraft; setF: (fn: (x: AsRepairDraft) => AsRepairDraft) => void
   lines: RepairFormLine[]; setLines: (fn: (x: RepairFormLine[]) => RepairFormLine[]) => void
   editing: boolean; saleAmount?: number
   partners: Partner[]; warehouses: Warehouse[]; items: Item[]; asReqs: AsReqPick[]
+  req: ReturnType<typeof useRequired>
 }) {
   const setFv = (k: keyof AsRepairDraft, v: string) => setF((x) => ({ ...x, [k]: v }))
   const itemPicks = items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))
@@ -106,10 +114,10 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
         <CodePickerField label="거래처" hideLabel fill emptyLabel="" placeholder="거래처" value={f.partnerId} onChange={(v) => setFv('partnerId', v)}
                          items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
       </div></li>
-      <li><div className="title">담당자</div><div className="form">
+      <li><div className="title">담당자</div><div className={`form ${req.cls('charge', !!f.charge.trim())}`}>
         <input className="ec-input w-full" placeholder="담당자" value={f.charge} onChange={(e) => setFv('charge', e.target.value)} />
       </div></li>
-      <li><div className="title">창고</div><div className="form">
+      <li><div className="title">창고</div><div className={`form ${req.cls('warehouse', !!f.warehouseId)}`}>
         <CodePickerField label="창고" hideLabel fill emptyLabel="" placeholder="창고" value={f.warehouseId} onChange={(v) => setFv('warehouseId', v)}
                          items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
       </div></li>
@@ -117,7 +125,7 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
         <CodePickerField label="A/S접수" hideLabel fill emptyLabel="선택 안 함" placeholder="A/S접수" value={f.asRequestId} onChange={pull}
                          items={asReqs.map((a) => ({ value: String(a.id), code: repairDateNo(a.receiptDate, a.asNo), name: `${a.partnerName ?? ''} ${a.title ?? ''}`.trim() }))} />
       </div></li>
-      <li><div className="title">수리유형</div><div className="form">
+      <li><div className="title">수리유형</div><div className={`form ${req.cls('type', !!f.repairType)}`}>
         <CodePickerField label="수리유형" hideLabel fill emptyLabel="" placeholder="수리유형" value={f.repairType} onChange={(v) => setFv('repairType', v)}
                          items={REPAIR_TYPES.map((t) => ({ value: t.value, code: t.code, name: t.name }))} />
       </div></li>
@@ -142,7 +150,7 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
           return (
             <tr key={i}>
               <td className="text-center">{i + 1}</td>
-              <td><CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
+              <td className={i === 0 ? req.cls('item0', filled.length > 0) : ''}><CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
                                    onChange={(v) => setLine(i, { itemId: v, quantity: l.quantity || (v ? '1' : '') })} items={itemPicks} /></td>
               <td>{it?.name ?? ''}</td>
               <td>{it?.spec ?? ''}</td>
@@ -153,5 +161,6 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
       </tbody>
       <tfoot><tr><td colSpan={4}></td><td className="text-right">{won(filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0))}</td></tr></tfoot>
     </table>
+    <EcWebUploadButton />
   </>)
 }

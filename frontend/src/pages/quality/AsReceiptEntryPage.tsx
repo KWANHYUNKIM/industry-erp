@@ -4,7 +4,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcSlipShell from '../../components/EcSlipShell'
 import type { Item, Partner, Warehouse } from '../../types/api'
 import AsReceiptScreen from '../../features/as/AsReceiptForm'
-import { asReceiptBody, blankAsDraft, emptyAsLines, type AsFormLine, type AsReceiptDraft } from '../../features/as/AsReceiptForm'
+import { useRequired } from '../../utils/useRequired'
+import { asReceiptBody, asReceiptCheck, blankAsDraft, emptyAsLines, type AsFormLine, type AsReceiptDraft } from '../../features/as/AsReceiptForm'
 
 /**
  * 재고 II › A/S관리 › A/S접수 › <b>A/S접수입력</b>(E040601) — 메뉴에서 여는 입력 화면.
@@ -24,6 +25,7 @@ export default function AsReceiptEntryPage() {
   const [lines, setLines] = useState<AsFormLine[]>(emptyAsLines())
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const req = useRequired()
 
   useEffect(() => {
     Promise.all([
@@ -34,6 +36,7 @@ export default function AsReceiptEntryPage() {
   }, [])
 
   function reset(keepWarehouse = false) {
+    req.reset()
     setF((x) => blankAsDraft(keepWarehouse ? x.warehouseId : ''))
     setLines(emptyAsLines()); setError('')
   }
@@ -41,6 +44,7 @@ export default function AsReceiptEntryPage() {
   async function submit(e?: FormEvent) {
     e?.preventDefault()
     if (saving) return
+    if (!req.check(asReceiptCheck(f, lines))) return   /* 원본: 글 없이 빈 칸을 한꺼번에 빨갛게 */
     const built = asReceiptBody(f, lines)
     if ('error' in built) return setError(built.error)
     setSaving(true); setError('')
@@ -61,7 +65,7 @@ export default function AsReceiptEntryPage() {
         ]}
       >
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-        <AsReceiptScreen f={f} setF={setF} lines={lines} setLines={setLines} editing={false} invalid={error}
+        <AsReceiptScreen f={f} setF={setF} lines={lines} setLines={setLines} editing={false} req={req}
                          partners={partners} warehouses={warehouses} projects={projects} items={items} />
       </EcSlipShell>
     </form>

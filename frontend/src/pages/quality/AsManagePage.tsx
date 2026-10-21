@@ -13,7 +13,8 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useShortcut } from '../../utils/useShortcut'
 import AsReceiptScreen from '../../features/as/AsReceiptForm'
-import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, blankAsDraft, emptyAsLines,
+import { useRequired } from '../../utils/useRequired'
+import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, asReceiptCheck, blankAsDraft, emptyAsLines,
   type AsFormLine, type AsReceiptDraft, type AsStatus } from '../../features/as/AsReceiptForm'
 import { ecConfirm } from '../../components/EcDialog'
 
@@ -170,16 +171,17 @@ export default function AsManagePage() {
   const [f, setF] = useState<AsReceiptDraft>(blankAsDraft())
   const [lines, setLines] = useState<AsFormLine[]>(emptyAsLines())
   const [formError, setFormError] = useState('')
+  const req = useRequired()
   const [saving, setSaving] = useState(false)
 
   function openNew() {
-    setEditing(null); setFormError(''); setLines(emptyAsLines())
+    setEditing(null); setFormError(''); req.reset(); setLines(emptyAsLines())
     /* 원본은 저장 뒤 새 창에 [창고]를 그대로 남긴다 — 같은 창고로 잇달아 받는다. */
     setF((x) => blankAsDraft(x.warehouseId))
     setOpen(true)
   }
   async function openEdit(r: AsRow) {
-    setEditing(r); setFormError('')
+    setEditing(r); setFormError(''); req.reset()
     setF({ receiptDate: r.receiptDate, partnerId: r.partnerId ? String(r.partnerId) : '', charge: r.charge ?? '',
       warehouseId: r.warehouseId ? String(r.warehouseId) : '', status: r.status,
       scheduledDate: r.scheduledDate ?? '', projectId: r.projectId ? String(r.projectId) : '',
@@ -196,6 +198,7 @@ export default function AsManagePage() {
 
   async function save() {
     if (saving) return
+    if (!req.check(asReceiptCheck(f, lines))) return
     const built = asReceiptBody(f, lines)
     if ('error' in built) return setFormError(built.error)
     setSaving(true); setFormError('')
@@ -467,7 +470,7 @@ export default function AsManagePage() {
 
       <Modal open={open} width={980} error={formError} onClose={() => setOpen(false)}
              title={editing ? 'A/S접수수정' : 'A/S접수입력'}>
-        <AsReceiptScreen f={f} setF={setF} lines={lines} setLines={setLines} editing={!!editing} invalid={formError}
+        <AsReceiptScreen f={f} setF={setF} lines={lines} setLines={setLines} editing={!!editing} req={req}
                          partners={partners} warehouses={warehouses} projects={projects} items={items} />
 
         <div className="flex gap-[4px] mt-[9px]">

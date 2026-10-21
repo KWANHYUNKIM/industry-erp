@@ -10,7 +10,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useShortcut } from '../../utils/useShortcut'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import type { Item, Partner, Warehouse } from '../../types/api'
-import AsRepairScreen, { asRepairBody, blankRepairDraft, blankRepairLines, repairDateNo, type AsRepairDraft, type AsReqPick, type RepairFormLine, type RepairType } from '../../features/as/AsRepairForm'
+import { useRequired } from '../../utils/useRequired'
+import AsRepairScreen, { asRepairBody, asRepairCheck, blankRepairDraft, blankRepairLines, repairDateNo, type AsRepairDraft, type AsReqPick, type RepairFormLine, type RepairType } from '../../features/as/AsRepairForm'
 import { ecConfirm } from '../../components/EcDialog'
 
 /**
@@ -101,16 +102,17 @@ export default function AsRepairListPage() {
   const [f, setF] = useState<AsRepairDraft>(blankRepairDraft())
   const [lines, setLines] = useState<RepairFormLine[]>(blankRepairLines())
   const [formError, setFormError] = useState('')
+  const req = useRequired()
   const [saving, setSaving] = useState(false)
 
   function openNew() {
-    setEditing(null); setFormError(''); setLines(blankRepairLines())
+    setEditing(null); setFormError(''); req.reset(); setLines(blankRepairLines())
     /* 원본은 저장 뒤 새 창에 [담당자] · [창고]를 남긴다. */
     setF((x) => blankRepairDraft(x))
     setOpen(true)
   }
   function openEdit(r: Repair) {
-    setEditing(r); setFormError('')
+    setEditing(r); setFormError(''); req.reset()
     setF({ repairDate: r.repairDate, partnerId: r.partnerId ? String(r.partnerId) : '', charge: r.charge, warehouseId: String(r.warehouseId),
       asRequestId: r.asRequestId ? String(r.asRequestId) : '', repairType: (r.repairType ?? '') as RepairType | '', title: r.title ?? '',
       content: r.content ?? '', status: r.status })
@@ -120,6 +122,7 @@ export default function AsRepairListPage() {
 
   async function save() {
     if (saving || !open) return
+    if (!req.check(asRepairCheck(f, lines))) return
     const built = asRepairBody(f, lines)
     if ('error' in built) return setFormError(built.error)
     setSaving(true); setFormError('')
@@ -297,7 +300,7 @@ export default function AsRepairListPage() {
 
       <Modal open={open} width={980} error={formError} onClose={() => setOpen(false)} title={editing ? 'A/S수리수정' : 'A/S수리입력'}>
         <AsRepairScreen f={f} setF={setF} lines={lines} setLines={setLines} editing={!!editing} saleAmount={editing?.saleAmount ?? 0}
-                        partners={partners} warehouses={warehouses} items={items} asReqs={asReqs} />
+                        partners={partners} warehouses={warehouses} items={items} asReqs={asReqs} req={req} />
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
           {editing
