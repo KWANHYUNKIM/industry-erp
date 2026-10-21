@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ecAlert } from '../../components/EcDialog'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -37,10 +38,11 @@ const SORT_KEYS = ['은행코드', '은행명', '계좌번호', '예금주명', 
  * 결과: 회사명 · 기간 머리 + 은행코드 · 은행명 · 계좌번호 · 예금주명 · 실지급액, 명세마다 한 줄(합계줄 없음). 버튼 인쇄 · Excel.
  * 은행 정보는 사원등록 [급여통장]에서 온다 — 비어 있으면 원본처럼 빈칸으로 찍는다.
  * [급여대장] · [이체은행]은 여러 개 고르는 코드도움 — 이체은행 창은 원본 은행코드 85줄(utils/bankCodes).
- * 지급연월([사용])은 그 귀속월 급여대장의 지급일 달로 거른다. [양식] 의 은행별 양식(우리은행 · 농협 …)은 꼴을 못 재서 없다.
+ * 지급연월([사용])은 그 귀속월 급여대장의 지급일 달로 거른다. [양식] 의 은행별 양식(우리은행 · 농협 …)은 Excel 꼴만 바꾸고 화면 격자는 모두 같다(2026-10-22 실측) — 고르기만 한다.
  */
 export default function PayTransferStatusPage() {
   const [range, setRange] = useState(pick('전월+금월'))
+  const [form, setForm] = useState('기본(수정불가)')
   const [banks, setBanks] = useState<string[]>([])
   const [ledgerMonths, setLedgerMonths] = useState<string[]>([])
   const [ledgers, setLedgers] = useState<{ payMonth: string; name: string; payDate: string | null }[]>([])
@@ -129,6 +131,10 @@ export default function PayTransferStatusPage() {
         </EcCond>
       </ul>
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
+        {/* 원본(2026-10-22 실측): [양식 ⌄] 이 검색 앞에 있다. 은행별 양식은 Excel 내려받기 꼴만 바꾸고 화면 격자는 그대로다. */}
+        <select className="ec-input w-auto" aria-label="양식" value={form} onChange={(e) => { if (e.target.value === '신규양식추가') { void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).'); return } setForm(e.target.value) }}>
+          {['기본(수정불가)', '우리은행', '농협', '신한은행', '국민은행', '하나은행', '제일은행', '기업은행', '우체국', '신규양식추가'].map((f) => <option key={f}>{f}</option>)}
+        </select>
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => search()}>검색(F8)</button>
         {/* 원본 빠른선택(2026-10-21 실측)은 귀속연월을 바꾸고 바로 찾는다. 뒤 [설정] 은 원본도 권한없음 창이라 두지 않는다. */}
         {['금월', '전월', '전월+금월', '금년', '금년(~오늘)', '전년'].map((l) => (

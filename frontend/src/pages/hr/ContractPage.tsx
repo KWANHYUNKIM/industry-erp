@@ -210,6 +210,31 @@ function DocumentForm({ initial, departments, projects, onError, onSaved }: {
     initial?.attachmentFileId ? { id: initial.attachmentFileId, name: initial.attachmentName ?? '', size: initial.attachmentSize } : null)
   const [twoFactor, setTwoFactor] = useState(initial?.twoFactor ?? false)
   const [category, setCategory] = useState(initial?.category ?? '')
+  // 원본 [구분] 은 코드도움(코드 · 항목명 · 적요) — 처음엔 비어 있고 창의 [신규(F2)] 로 더한다(2026-10-22 실측)
+  const [cats, setCats] = useState<{ code: string; name: string; remark: string | null }[]>([])
+  const [catGroupId, setCatGroupId] = useState<number | null>(null)
+  const [catNew, setCatNew] = useState(false)
+  const [catForm, setCatForm] = useState({ code: '', name: '', remark: '' })
+  const [catError, setCatError] = useState('')
+  async function loadCats() {
+    try {
+      const [g, c] = await Promise.all([
+        api.get<{ id: number; groupCode: string }[]>('/codes'),
+        api.get<{ code: string; name: string; remark: string | null }[]>('/codes/CONTRACT_CATEGORY'),
+      ])
+      setCatGroupId(g.data.find((x) => x.groupCode === 'CONTRACT_CATEGORY')?.id ?? null)
+      setCats(c.data)
+    } catch { setCats([]) }
+  }
+  useEffect(() => { void loadCats() }, [])
+  async function saveCat() {
+    setCatError('')
+    if (!catForm.code.trim() || !catForm.name.trim()) { setCatError(!catForm.code.trim() ? '코드를 입력하세요.' : '항목명을 입력하세요.'); return }
+    try {
+      await api.post(`/codes/groups/${catGroupId}/codes`, { code: catForm.code.trim(), name: catForm.name.trim(), remark: catForm.remark.trim() || null })
+      await loadCats(); setCategory(catForm.name.trim()); setCatNew(false); setCatForm({ code: '', name: '', remark: '' })
+    } catch (e) { setCatError(extractErrorMessage(e)) }
+  }
   const [departmentId, setDepartmentId] = useState(initial?.departmentId ? String(initial.departmentId) : '')
   const [projectId, setProjectId] = useState(initial?.projectId ? String(initial.projectId) : '')
   const [remark, setRemark] = useState(initial?.remark ?? '')
@@ -268,7 +293,31 @@ function DocumentForm({ initial, departments, projects, onError, onSaved }: {
         <EcCond label="2차인증사용여부">
           <label className="inline-flex items-center gap-[4px]"><input type="checkbox" checked={twoFactor} onChange={(e) => setTwoFactor(e.target.checked)} />사용</label>
         </EcCond>
-        <EcCond label="구분"><input className="ec-input w-full" placeholder="구분" value={category} onChange={(e) => setCategory(e.target.value)} /></EcCond>
+        <EcCond label="구분">
+          <CodePickerField label="구분" hideLabel width={220} placeholder="구분" emptyLabel="선택 해제"
+                           value={category} onChange={setCategory} onNew={() => { setCatError(''); setCatNew(true) }}
+                           columns={[
+                             { head: '코드', width: 235, cell: (i) => i.code ?? '', link: true },
+                             { head: '항목명', width: 470, cell: (i) => i.name, link: true },
+                             { head: '적요', width: 235, cell: (i) => i.sub ?? '' },
+                           ]}
+                           items={cats.map((x) => ({ value: x.name, code: x.code, name: x.name, sub: x.remark ?? '' }))} />
+          <Modal error={catError} open={catNew} title="구분" width={460} onClose={() => setCatNew(false)}>{(
+            <>
+              <ul className="ec-form">
+                {([['코드', 'code'], ['항목명', 'name'], ['적요', 'remark']] as const).map(([l, k]) => (
+                  <li key={k} className="wide"><span className="title">{l}</span>
+                    <div className="form"><input className="ec-input w-full" value={catForm[k]} onChange={(e) => setCatForm({ ...catForm, [k]: e.target.value })} /></div></li>
+                ))}
+              </ul>
+              <div className="flex gap-[6px] mt-[12px]">
+                <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveCat()}>저장(F8)</button>
+                <button type="button" className="ec-btn" onClick={() => setCatForm({ code: '', name: '', remark: '' })}>다시작성</button>
+                <button type="button" className="ec-btn" onClick={() => setCatNew(false)}>닫기</button>
+              </div>
+            </>
+          )}</Modal>
+        </EcCond>
         <EcCond label="부서">
           <CodePickerField label="부서" hideLabel width={220} placeholder="부서" emptyLabel="선택 해제"
                            value={departmentId} onChange={setDepartmentId}
