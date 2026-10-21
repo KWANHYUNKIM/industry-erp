@@ -1,0 +1,20 @@
+{
+  "about": "재고1 원본 재기 — 거래이력조회(재고) [구분] 기초코드: 메뉴검색 거래처등록 · 품목등록 · BOM(소요량), 결과 열 작업일자 · 코드 · 코드명 · 행위 · 이력(원본 2026-10-21 실측).",
+  "shots": [
+    {
+      "name": "기초코드 → 품목등록 → 검색",
+      "path": "/sales/trade-history",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const r = [...document.querySelectorAll('input[type=radio]')].find((x) => x.closest('label')?.innerText.includes('기초코드')); r.click(); return true })()",
+        "wait:400",
+        "click:메뉴 코드도움",
+        "pickrow:품목등록",
+        "wait:300",
+        "clicklast:검색(F8)",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent).join('|') === '작업일자|코드|코드명|행위|이력'"
+      ]
+    }
+  ]
+}

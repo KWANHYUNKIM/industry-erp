@@ -136,6 +136,27 @@ public class ChangeHistoryService {
                 h.getItemSummary(), h.getManagerCode(), h.getManagerName(), h.getWorker(), h.getDocStatus())).toList();
     }
 
+    /**
+     * 거래이력조회(재고) [구분] 기초코드 — 대상 종류(PARTNER · ITEM · BOM) · 작업일자 · 작업자 · 행위로 고른다.
+     * 원본(2026-10-21): 최종이력만 검색이 켜져 있으면 대상마다 마지막 작업 한 줄, [수정순] 이면 작업일시 늦은 것부터,
+     * 아니면 대상(코드) 순. 코드 · 코드명은 호출하는 쪽이 모듈 service 로 붙인다(common 은 다른 모듈을 모른다).
+     */
+    @Transactional(readOnly = true)
+    public List<ChangeHistory> searchMasters(LocalDate from, LocalDate to, List<String> targets, String worker,
+                                             List<String> actions, boolean latestOnly) {
+        List<ChangeHistory> rows = new ArrayList<>(repository.findMasters(targets, from.atStartOfDay(), to.plusDays(1).atStartOfDay()));
+        rows.sort(Comparator.comparing(ChangeHistory::getWorkedAt).thenComparing(ChangeHistory::getId).reversed());
+        Set<String> seen = new HashSet<>();
+        List<ChangeHistory> kept = new ArrayList<>();
+        for (ChangeHistory h : rows) {
+            if (worker != null && !worker.isBlank() && (h.getWorker() == null || !h.getWorker().equalsIgnoreCase(worker.trim()))) continue;
+            if (latestOnly && !seen.add(h.getTarget() + ":" + h.getTargetId())) continue;
+            if (actions != null && !actions.isEmpty() && !actions.contains(h.getAction())) continue;
+            kept.add(h);
+        }
+        return kept;
+    }
+
     /** 적어 둔 줄만 — 오래된 것부터(원본 No. 1 이 처음 작업). */
     @Transactional(readOnly = true)
     public List<ChangeHistoryResponse> list(String target, Long targetId) {

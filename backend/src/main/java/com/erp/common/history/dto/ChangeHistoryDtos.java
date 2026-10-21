@@ -15,4 +15,8 @@ public final class ChangeHistoryDtos {
     public record SlipHistoryResponse(Long id, String target, Long targetId, LocalDateTime workedAt, String menu,
                                       LocalDate docDate, String docNo, String action, String partnerCode, String partnerName,
                                       String itemSummary, String managerCode, String managerName, String worker, String docStatus) {}
+
+    /** 거래이력조회(재고) [구분] 기초코드 한 줄 — 작업일자 · 코드 · 코드명 · 행위 · 이력(H). */
+    public record MasterHistoryResponse(Long id, String target, Long targetId, LocalDateTime workedAt, String action,
+                                        String worker, String code, String name) {}
 }
