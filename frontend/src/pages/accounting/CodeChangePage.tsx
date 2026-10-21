@@ -41,6 +41,8 @@ export default function CodeChangePage() {
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }))
 
   async function change() {
+    if (!f.before) { await ecAlert('변경 전 코드를 입력하세요.'); return }
+    if (!f.after) { await ecAlert('변경 후 코드를 입력하세요.'); return }
     try {
       const r = await api.post<{ changed: number }>('/journals/code-change', {
         kind, from: f.from, to: f.to,
