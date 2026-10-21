@@ -57,6 +57,12 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
             "from Purchase p where p.purchaseDate <= :asOf group by p.partner.id")
     List<PartnerAmount> sumTotalByPartnerUntil(@Param("asOf") LocalDate asOf);
 
+    /** 거래처별 <b>세금계산서를 안 받은</b> 매입 합계(부가세 포함) — 기준일자까지(채무현황의 [미청구금액]). */
+    @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
+            "from Purchase p where p.purchaseDate between :from and :asOf " +
+            "and not exists (select 1 from TaxInvoice x where x.purchase = p) group by p.partner.id")
+    List<PartnerAmount> sumUnbilledByPartnerBetween(@Param("from") LocalDate from, @Param("asOf") LocalDate asOf);
+
     /** 거래처별 매입 합계 — 기간 내(거래처별채무의 [재고매입]). */
     @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
             "from Purchase p where p.purchaseDate between :from and :to group by p.partner.id")

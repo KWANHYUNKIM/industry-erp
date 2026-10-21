@@ -95,5 +95,12 @@ public final class LedgerDtos {
              * 채무관리 연령분석이 구매전표 몫과 갈라 쓴다 — 매입일이 없어 연령 칸에 못 넣는다(QA 65회차).
              */
             BigDecimal receivableJournal,
-            BigDecimal payableJournal) {}
+            BigDecimal payableJournal,
+            /**
+             * 원본 채권현황(E040721)·채무현황(E040722)의 <b>[미청구금액]</b> — 세금계산서를 안 끊은(안 받은)
+             * 판매(구매) 합계, 부가세 포함, 기준일자까지. [청구금액] = 잔액 − 미청구(수금은 늘 청구 칸에서 빠져
+             * 음수가 될 수 있다). 합계 = 잔액.
+             */
+            BigDecimal unbilledReceivable,
+            BigDecimal unbilledPayable) {}
 }

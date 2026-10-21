@@ -79,6 +79,12 @@ public class LedgerService {
      */
     @Transactional(readOnly = true)
     public List<PartnerBalanceResponse> partnerBalances(java.time.LocalDate asOf) {
+        return partnerBalances(asOf, null);
+    }
+
+    /** {@code unbilledFrom} 은 [미청구금액] 만 이 날부터 센다(null 이면 처음부터). */
+    @Transactional(readOnly = true)
+    public List<PartnerBalanceResponse> partnerBalances(java.time.LocalDate asOf, java.time.LocalDate unbilledFrom) {
         List<SalesRepository.PartnerAmount> salesSums = asOf == null
                 ? salesRepository.sumTotalByPartner() : salesRepository.sumTotalByPartnerUntil(asOf);
         Map<Long, BigDecimal> receivables = salesSums.stream()
@@ -111,8 +117,13 @@ public class LedgerService {
             payables.merge(id, v, BigDecimal::add);
         });
 
+        Map<Long, BigDecimal> unbilledAr = new HashMap<>();
+        Map<Long, BigDecimal> unbilledAp = new HashMap<>();
+        salesRepository.sumUnbilledByPartnerBetween(unbilledFrom != null ? unbilledFrom : EARLIEST, until).forEach(pa -> unbilledAr.put(pa.getPartnerId(), pa.getTotal()));
+        purchaseRepository.sumUnbilledByPartnerBetween(unbilledFrom != null ? unbilledFrom : EARLIEST, until).forEach(pa -> unbilledAp.put(pa.getPartnerId(), pa.getTotal()));
+
         return partnerRepository.findAllWithGroup().stream()
-                .map(p -> toBalance(p, receivables, payables, arJournal, apJournal))
+                .map(p -> toBalance(p, receivables, payables, arJournal, apJournal, unbilledAr, unbilledAp))
                 .toList();
     }
 
@@ -249,7 +260,9 @@ public class LedgerService {
                                              Map<Long, BigDecimal> receivables,
                                              Map<Long, BigDecimal> payables,
                                              Map<Long, BigDecimal> arJournal,
-                                             Map<Long, BigDecimal> apJournal) {
+                                             Map<Long, BigDecimal> apJournal,
+                                             Map<Long, BigDecimal> unbilledAr,
+                                             Map<Long, BigDecimal> unbilledAp) {
         return new PartnerBalanceResponse(
                 p.getId(), p.getCode(), p.getName(), p.getType(), p.getType().getDisplayName(),
                 receivables.getOrDefault(p.getId(), BigDecimal.ZERO),
@@ -260,6 +273,8 @@ public class LedgerService {
                 p.getParent() != null ? p.getParent().getId() : null,
                 p.getParent() != null ? p.getParent().getName() : null,
                 arJournal.getOrDefault(p.getId(), BigDecimal.ZERO),
-                apJournal.getOrDefault(p.getId(), BigDecimal.ZERO));
+                apJournal.getOrDefault(p.getId(), BigDecimal.ZERO),
+                unbilledAr.getOrDefault(p.getId(), BigDecimal.ZERO),
+                unbilledAp.getOrDefault(p.getId(), BigDecimal.ZERO));
     }
 }

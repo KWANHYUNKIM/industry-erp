@@ -23,8 +23,11 @@ public class LedgerController {
     @GetMapping("/partner-balances")
     public List<PartnerBalanceResponse> partnerBalances(
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOf) {
-        return ledgerService.partnerBalances(asOf);
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOf,
+            /** [미청구금액] 을 세는 시작일 — 경영자보고서 미청구액은 기준일−1년 ~ 기준일 구간. 없으면 처음부터. */
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate unbilledFrom) {
+        return ledgerService.partnerBalances(asOf, unbilledFrom);
     }
 
     /**

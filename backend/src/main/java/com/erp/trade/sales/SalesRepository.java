@@ -60,6 +60,12 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
             "from Sales s where s.saleDate <= :asOf group by s.partner.id")
     List<PartnerAmount> sumTotalByPartnerUntil(@Param("asOf") LocalDate asOf);
 
+    /** 거래처별 <b>세금계산서를 안 끊은</b> 매출 합계(부가세 포함) — 기준일자까지(채권현황의 [미청구금액]). */
+    @Query("select s.partner.id as partnerId, coalesce(sum(s.totalAmount), 0) as total " +
+            "from Sales s where s.saleDate between :from and :asOf " +
+            "and not exists (select 1 from TaxInvoice x where x.sales = s) group by s.partner.id")
+    List<PartnerAmount> sumUnbilledByPartnerBetween(@Param("from") LocalDate from, @Param("asOf") LocalDate asOf);
+
     /** 거래처별 매출 합계 — 기간 내(거래처별채권의 [재고매출]). */
     @Query("select s.partner.id as partnerId, coalesce(sum(s.totalAmount), 0) as total " +
             "from Sales s where s.saleDate between :from and :to group by s.partner.id")
