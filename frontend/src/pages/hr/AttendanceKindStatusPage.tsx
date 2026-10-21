@@ -344,7 +344,7 @@ export default function AttendanceKindStatusPage() {
               <td>{r.empName}</td>
               <td>{r.type}</td>
               <td className="text-right font-semibold">{days(r.days)}</td>
-              <td className="text-center">{r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}</td>
+              <td className="text-center">{r.startDate.replace(/-/g, '/')}{r.endDate !== r.startDate ? ` ~ ${r.endDate.replace(/-/g, '/')}` : ''}</td>
               <td style={{ color: r.reason ? undefined : 'var(--ec-text-off)' }}>{r.reason ?? ''}</td>
             </tr>
           ))}
