@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
 import { useAuth } from '../features/auth/AuthContext'
+import { api } from '../api/client'
+import { signLineHtml, signModuleOf, type PrintSignLine } from '../utils/print'
 
 /**
  * 원본 <b>[출력물]</b>의 머리글과 꼬리 — 2026-09-21 getComputedStyle 실측(재고현황 E040701).
@@ -37,10 +40,21 @@ export const reportPeriod = (from: string | null | undefined, to?: string | null
  * {@code period} 가 여러 줄이면 오른쪽에 위아래로 쌓는다 — 원본 프로젝트계획/실적현황(E040637)은
  * '기준일자: 2026/09 ~ 2026/09' · '프로젝트기간: 2026/09/01 ~ 2026/09/30' · '단위: 원' 세 줄이다(2026-10-13 실측).
  */
-export function EcReportHead({ title, period, sub }: { title: string; period: string | string[]; sub?: string }) {
+export function EcReportHead({ title, period, sub, sign = false }: { title: string; period: string | string[]; sub?: string; sign?: boolean }) {
   const { companyName } = useAuth()
+  /**
+   * [결재방표시](2026-10-22 급여현황 실측): 켜면 제목 줄 오른쪽 끝에 결재란(인쇄용결재라인 — [결재] 세로 칸 + 담당 · 대리 · 과장, 머리 26 · 본문 51)이
+   * 화면에도 선다. 위 6px 아래로, 폭은 칸 폭 합(209).
+   */
+  const [line, setLine] = useState<PrintSignLine | null>(null)
+  useEffect(() => {
+    if (!sign) { setLine(null); return }
+    api.get<PrintSignLine>('/print-sign-lines/default', { params: { module: signModuleOf(window.location.pathname) } })
+      .then((r) => setLine(r.status === 204 ? null : r.data)).catch(() => setLine(null))
+  }, [sign])
   return (
-    <div className="ec-report-head">
+    <div className="ec-report-head relative">
+      {sign && line && <div className="absolute right-0 top-[6px] z-[1]" dangerouslySetInnerHTML={{ __html: signLineHtml(line) }} />}
       <div className="ec-report-title">{title}</div>
       <div className="ec-report-meta">
         <span>회사명 : {companyName ?? ''}{sub ? ` / ${sub}` : ''}</span>

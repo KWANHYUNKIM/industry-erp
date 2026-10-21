@@ -318,7 +318,7 @@ export default function PayrollStatusPage() {
         <button type="button" className="ec-btn" onClick={() => { const r = { from: range.to, to: range.to }; setRange(r); search(r) }}>종료월</button>
       </div>
       {/* 원본은 출력물 머리(제목 24px · 회사명 · 기간) — 2026-10-13 실측 */}
-      <EcReportHead title="급여현황" period={reportPeriod(`${range.from}-01`, range.to.replace('-', '/'))} />
+      <EcReportHead title="급여현황" sign={signBox} period={reportPeriod(`${range.from}-01`, range.to.replace('-', '/'))} />
       {mode === '사용자지정집계' ? (
         <CustomAggregateTable name="급여현황" dims={AGG_DIMS} targets={aggTargets} records={aggRecords} agg={agg} />
       ) : (

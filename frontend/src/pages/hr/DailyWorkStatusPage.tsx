@@ -180,7 +180,7 @@ export default function DailyWorkStatusPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {mode === '달력형' ? (
         <div>
-          <EcReportHead title="근무현황" period="" />
+          <EcReportHead title="근무현황" sign={signBox} period="" />
           <div className="flex items-center justify-between w-[572px] mb-[2px]">
             <div className="inline-flex items-center gap-[10px] border border-ec-line rounded-ec px-[10px] h-[30px]">
               <button type="button" className="bg-transparent border-0 cursor-pointer" onClick={() => loadMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))}>&lt; 이전</button>
@@ -220,12 +220,12 @@ export default function DailyWorkStatusPage() {
         </div>
       ) : mode === '사용자지정집계' ? (
         <>
-          <EcReportHead title="근무현황" period={reportPeriod(shown.from, shown.to)} />
+          <EcReportHead title="근무현황" sign={signBox} period={reportPeriod(shown.from, shown.to)} />
           <CustomAggregateTable name="근무현황" dims={AGG_DIMS} targets={AGG_TARGETS} records={aggRecords} agg={agg} />
         </>
       ) : (
         <>
-      <EcReportHead title="근무현황" period={reportPeriod(shown.from, shown.to)} />
+      <EcReportHead title="근무현황" sign={signBox} period={reportPeriod(shown.from, shown.to)} />
       <table ref={tableRef} className="w-full text-left ec-report">
         <thead>
           <tr>
