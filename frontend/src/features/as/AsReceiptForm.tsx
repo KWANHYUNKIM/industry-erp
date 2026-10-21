@@ -147,11 +147,12 @@ export default function AsReceiptScreen({
       <div className="ec-toolbar mt-[8px] mb-[4px]">
         <GridFindButton tableRef={tableRef} />
         <button type="button" className="ec-btn ec-btn-sm">정렬</button>
-        <button type="button" className="ec-btn ec-btn-sm">거래내역보기</button>
+        <button type="button" className="ec-btn ec-btn-sm">거래내역보기(A/S접수)</button>
         <button type="button" className="ec-btn ec-btn-sm">My품목</button>
         <button type="button" className="ec-btn ec-btn-sm">판매</button>
         <button type="button" className="ec-btn ec-btn-sm">연결전표</button>
         <button type="button" className="ec-btn ec-btn-sm">바코드</button>
+        <button type="button" className="ec-btn ec-btn-sm">전표 바코드</button>
         <button type="button" className="ec-btn ec-btn-sm">검증</button>
         <button type="button" className="ec-btn ec-btn-sm">전표불러오기</button>
         <button type="button" className="ec-btn ec-btn-sm" disabled={picked.size === 0} onClick={removePicked}>선택삭제</button>
@@ -165,6 +166,7 @@ export default function AsReceiptScreen({
           <th className="w-[200px]">품목코드</th>
           <th>품목명</th>
           <th className="w-[120px] text-right">수량</th>
+          <th className="w-[110px]">새로운 항목 추가</th>
         </tr></thead>
         <tbody>
           {lines.map((l, i) => {
@@ -182,11 +184,12 @@ export default function AsReceiptScreen({
                   <input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId} aria-label={`수량${i + 1}`}
                          onChange={(e) => setLine(i, { quantity: e.target.value })} />
                 </td>
+                <td></td>
               </tr>
             )
           })}
         </tbody>
-        <tfoot><tr><td colSpan={3}></td><td className="text-right">{won(totalQty)}</td></tr></tfoot>
+        <tfoot><tr><td colSpan={3}></td><td className="text-right">{won(totalQty)}</td><td></td></tr></tfoot>
       </table>
       <EcWebUploadButton />
     </>

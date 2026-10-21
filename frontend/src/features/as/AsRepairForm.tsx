@@ -1,3 +1,5 @@
+import { useRef } from 'react'
+import GridFindButton from '../../components/GridFindButton'
 import CodePickerField from '../../components/CodePickerField'
 import { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -105,6 +107,7 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
     setF(() => r.f); setLines(() => r.lines)
   }
   const filled = lines.filter((l) => l.itemId)
+  const tableRef = useRef<HTMLTableElement>(null)
   return (<>
     <ul className="ec-form">
       <li><div className="title">일자</div><div className="form">
@@ -142,8 +145,20 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
         </select>
       </div></li>
     </ul>
-    <table className="w-full ec-head700 mt-[8px]">
-      <thead><tr><th className="w-[34px]"></th><th className="w-[200px]">품목코드</th><th>품목명</th><th className="w-[160px]">규격</th><th className="w-[110px] text-right">수량</th></tr></thead>
+    {/* 원본 격자 위 도구줄(2026-10-21 실측): 찾기(F3) · 정렬 · 거래내역보기(A/S수리) · My품목 · A/S접수 · 연결전표 · 바코드 · 검증 · 전표불러오기 — 모양만. */}
+    <div className="ec-toolbar mt-[8px] mb-[4px]">
+      <GridFindButton tableRef={tableRef} />
+      <button type="button" className="ec-btn ec-btn-sm">정렬</button>
+      <button type="button" className="ec-btn ec-btn-sm">거래내역보기(A/S수리)</button>
+      <button type="button" className="ec-btn ec-btn-sm">My품목</button>
+      <button type="button" className="ec-btn ec-btn-sm">A/S접수</button>
+      <button type="button" className="ec-btn ec-btn-sm">연결전표</button>
+      <button type="button" className="ec-btn ec-btn-sm">바코드</button>
+      <button type="button" className="ec-btn ec-btn-sm">검증</button>
+      <button type="button" className="ec-btn ec-btn-sm">전표불러오기</button>
+    </div>
+    <table ref={tableRef} className="w-full ec-head700">
+      <thead><tr><th className="w-[34px]"></th><th className="w-[200px]">품목코드</th><th>품목명</th><th className="w-[160px]">규격</th><th className="w-[110px] text-right">수량</th><th className="w-[110px]">새로운 항목 추가</th></tr></thead>
       <tbody>
         {lines.map((l, i) => {
           const it = itemById.get(l.itemId)
@@ -155,11 +170,12 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
               <td>{it?.name ?? ''}</td>
               <td>{it?.spec ?? ''}</td>
               <td><input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId} onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
+              <td></td>
             </tr>
           )
         })}
       </tbody>
-      <tfoot><tr><td colSpan={4}></td><td className="text-right">{won(filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0))}</td></tr></tfoot>
+      <tfoot><tr><td colSpan={4}></td><td className="text-right">{won(filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0))}</td><td></td></tr></tfoot>
     </table>
     <EcWebUploadButton />
   </>)

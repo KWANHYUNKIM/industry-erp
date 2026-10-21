@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import GridFindButton from '../../../components/GridFindButton'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { Item, QualityInspectionRequest } from '../../../types/api'
 import CodePickerField from '../../../components/CodePickerField'
@@ -51,6 +52,7 @@ export default function QualityRequestForm({ editing, items, projects, active = 
   const [lines, setLines] = useState<LineForm[]>(() => linesOf(editing))
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const tableRef = useRef<HTMLTableElement>(null)
   /* 입력 판 [판매 · 발주 · 주문 · 구매] 불러오기(features/quality/DocPull) — 한 번 불러오면 단추가 사라진다. */
   const [pulled, setPulled] = useState(false)
   useEffect(() => { setF(headOf(editing)); setLines(linesOf(editing)); setFormError(''); setPulled(false) }, [editing])
@@ -127,11 +129,20 @@ export default function QualityRequestForm({ editing, items, projects, active = 
         </div></li>}
       </ul>
       {!editing && !pulled && (
-        <div className="flex gap-[4px] mt-[8px]">
+        <div className="ec-toolbar mt-[8px]">
+          {/* 원본 도구줄(2026-10-21 실측): 찾기(F3) · 정렬 · My품목 · 판매 · 발주 · 주문 · 구매 · 생산 · 이동 · A/S접수 · 재고불러오기 · 생성한 전표 · 바코드 · 검증 · 전표불러오기 */}
+          {slim && <GridFindButton tableRef={tableRef} />}
+          {slim && <button type="button" className="ec-btn ec-btn-sm">정렬</button>}
+          {slim && <button type="button" className="ec-btn ec-btn-sm">My품목</button>}
           {(['판매', '발주', '주문', '구매', '생산', '이동', 'A/S접수'] as PullKind[]).map((k) => <DocPullButton key={k} kind={k} onApply={applyPull} />)}
+          {slim && <button type="button" className="ec-btn ec-btn-sm">재고불러오기</button>}
+          {slim && <button type="button" className="ec-btn ec-btn-sm">생성한 전표</button>}
+          {slim && <button type="button" className="ec-btn ec-btn-sm">바코드</button>}
+          {slim && <button type="button" className="ec-btn ec-btn-sm">검증</button>}
+          {slim && <button type="button" className="ec-btn ec-btn-sm">전표불러오기</button>}
         </div>
       )}
-      <table className="w-full ec-head700 mt-[8px]">
+      <table ref={tableRef} className="w-full ec-head700 mt-[8px]">
         <thead><tr>
           <th className="w-[34px]"></th>
           <th className="w-[100px]">검사방법</th>
@@ -140,6 +151,7 @@ export default function QualityRequestForm({ editing, items, projects, active = 
           <th className="w-[100px]">규격</th>
           <th className="w-[100px] text-right">추가수량</th>
           <th className="w-[100px] text-right">수량</th>
+          {slim && <th className="w-[110px]">새로운 항목 추가</th>}
         </tr></thead>
         <tbody>
           {lines.map((l, i) => {
@@ -163,18 +175,21 @@ export default function QualityRequestForm({ editing, items, projects, active = 
                            onChange={(e) => setLine(i, { extraQty: e.target.value, quantity: e.target.value })} /></td>
                 <td><input className="ec-input w-full text-right" aria-label={`${i + 1}줄 수량`} value={l.quantity} disabled={!l.itemId}
                            onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
+                {slim && <td></td>}
               </tr>
             )
           })}
         </tbody>
-        <tfoot><tr><td colSpan={5}></td><td className="text-right">{Math.round(totalExtra).toLocaleString('ko-KR')}</td><td className="text-right">{Math.round(totalQty).toLocaleString('ko-KR')}</td></tr></tfoot>
+        <tfoot><tr><td colSpan={5}></td><td className="text-right">{Math.round(totalExtra).toLocaleString('ko-KR')}</td><td className="text-right">{Math.round(totalQty).toLocaleString('ko-KR')}</td>{slim && <td></td>}</tr></tfoot>
       </table>
       <div className="flex gap-[4px] mt-[9px]">
         <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
+        {slim && <button type="button" className="ec-btn">저장/전표(F7)</button>}
         {editing
           ? <button className="ec-btn" onClick={() => void remove()}>삭제</button>
           : <button className="ec-btn" onClick={reset}>다시 작성</button>}
         {extraButtons}
+        {slim && <button type="button" className="ec-btn">웹자료올리기</button>}
       </div>
     </div>
   )

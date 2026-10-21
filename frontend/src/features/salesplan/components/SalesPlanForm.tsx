@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import GridFindButton from '../../../components/GridFindButton'
 import { api, extractErrorMessage } from '../../../api/client'
 import CodePickerField from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
@@ -55,6 +56,8 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
   const [error, setErrorRaw] = useState('')
   const setError = (m: string) => { setErrorRaw(m); onError?.(m) }
   const [saving, setSaving] = useState(false)
+  const tableRef = useRef<HTMLTableElement>(null)
+  const nameOf = (list: { value: string; name: string }[], id: string) => list.find((x) => x.value === id)?.name ?? ''
 
   /* 원본: 품목을 고르면 [단가] 에 품목의 출고단가(우리 items.unitPrice)가 차고 예상매출액은 수량 × 단가(수량이 비면 0). */
   const [prices, setPrices] = useState<Map<string, number>>(new Map())
@@ -144,41 +147,52 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
                            onChange={(v) => setF((x) => ({ ...x, projectId: v }))} items={pickers.projects} />
         </div></li>}
       </ul>
-      <table className="w-full ec-head700 mt-[8px]">
+      {/* 원본 격자 위 도구줄(2026-10-21 실측): 찾기(F3) · 정렬 · My품목 — 모양만. */}
+      {slim && <div className="ec-toolbar mt-[8px]">
+        <GridFindButton tableRef={tableRef} />
+        <button type="button" className="ec-btn ec-btn-sm">정렬</button>
+        <button type="button" className="ec-btn ec-btn-sm">My품목</button>
+      </div>}
+      <table ref={tableRef} className="w-full ec-head700 mt-[8px]">
         <thead><tr>
           <th className="w-[34px]"></th>
-          {/* 원본은 [거래처코드] · [거래처명], [품목코드] · [품목명] 두 칸씩 — 우리 코드도움 pair 칸은 한 칸에 [코드][🔍][이름] 을 놓는다. */}
-          <th className="w-[230px]">거래처코드 · 거래처명</th>
-          <th className="w-[140px]">담당자명</th>
-          <th className="w-[230px]">품목코드 · 품목명</th>
+          {/* 원본 열: 거래처코드 · 거래처명 · 담당자명 · 품목코드 · 품목명 · 수량 · 단가 · 예상매출액 · 새로운 항목 추가 */}
+          <th className="w-[130px]">거래처코드</th>
+          <th className="w-[130px]">거래처명</th>
+          <th className="w-[110px]">담당자명</th>
+          <th className="w-[130px]">품목코드</th>
+          <th className="w-[130px]">품목명</th>
           <th className="w-[80px] text-right">수량</th>
           <th className="w-[100px] text-right">단가</th>
           <th className="w-[110px] text-right">예상매출액</th>
-          <th>비고</th>
+          {slim ? <th className="w-[110px]">새로운 항목 추가</th> : <th>비고</th>}
         </tr></thead>
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
               <td className="text-center">{i + 1}</td>
-              <td><CodePickerField label="거래처" hideLabel fill pair emptyLabel="지우기" placeholder="거래처" value={l.partnerId}
+              <td className="[&_.name]:hidden [&_button.ec-btn]:hidden"><CodePickerField label="거래처" hideLabel fill pair emptyLabel="지우기" placeholder="거래처" value={l.partnerId}
                                    onChange={(v) => setLine(i, { partnerId: v })} items={pickers.partners} /></td>
+              <td>{nameOf(pickers.partners, l.partnerId)}</td>
               <td><CodePickerField label="담당자" hideLabel fill emptyLabel="지우기" placeholder="담당자" value={l.employeeId}
                                    onChange={(v) => setLine(i, { employeeId: v })} items={pickers.employees} /></td>
-              <td><CodePickerField label="품목" hideLabel fill pair emptyLabel="지우기" placeholder="품목" value={l.itemId}
+              <td className="[&_.name]:hidden [&_button.ec-btn]:hidden"><CodePickerField label="품목" hideLabel fill pair emptyLabel="지우기" placeholder="품목" value={l.itemId}
                                    onChange={(v) => setLine(i, v ? { itemId: v, unitPrice: String(prices.get(v) ?? 0) } : { itemId: v })} items={pickers.items} /></td>
+              <td>{nameOf(pickers.items, l.itemId)}</td>
               <td><input className="ec-input w-full text-right" aria-label="수량" value={l.planQty} disabled={!l.itemId} onChange={(e) => setLine(i, { planQty: e.target.value })} /></td>
               <td><input className="ec-input w-full text-right" aria-label="단가" value={l.unitPrice} disabled={!l.itemId} onChange={(e) => setLine(i, { unitPrice: e.target.value })} /></td>
               <td><input className="ec-input w-full text-right" aria-label="예상매출액" value={l.planAmount} disabled={!l.itemId} onChange={(e) => setLine(i, { planAmount: e.target.value })} /></td>
-              <td><input className="ec-input w-full" aria-label="비고" value={l.remark} disabled={!l.itemId} onChange={(e) => setLine(i, { remark: e.target.value })} /></td>
+              <td>{!slim && <input className="ec-input w-full" aria-label="비고" value={l.remark} disabled={!l.itemId} onChange={(e) => setLine(i, { remark: e.target.value })} />}</td>
             </tr>
           ))}
         </tbody>
-        <tfoot><tr><td colSpan={6}></td><td className="text-right">{won(total)}</td><td></td></tr></tfoot>
+        <tfoot><tr><td colSpan={8}></td><td className="text-right">{won(total)}</td><td></td></tr></tfoot>
       </table>
       <div className="flex gap-[4px] mt-[9px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()} disabled={saving}>저장(F8)</button>
         {!editing && <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>}
         {extraButtons}
+        {slim && <button type="button" className="ec-btn">웹자료올리기</button>}
         {onClose && <button type="button" className="ec-btn" onClick={onClose}>닫기</button>}
         {editing && <button type="button" className="ec-btn" onClick={() => void remove()}>삭제</button>}
       </div>

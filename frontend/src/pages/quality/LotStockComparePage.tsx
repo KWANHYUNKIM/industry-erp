@@ -41,8 +41,8 @@ export default function LotStockComparePage() {
   const [asOf, setAsOf] = useState('')
   const [item, setItem] = useState('')
   /* [창고] — 대조표(ecount-form-fields)에 있는 조건. 고르면 그 창고의 품목 재고 · 로트만 다시 센다(창고 없는 로트는 빠진다). */
-  const [warehouse, setWarehouse] = useState('')
-  const pickers = useCondPickers(['warehouses', 'items'])
+  const [warehouse] = useState('') // 원본 조건에 창고 없음(2026-10-21 실측)
+  const pickers = useCondPickers(['items'])
 
   async function load() {
     setLoading(true); setError('')
@@ -114,13 +114,19 @@ export default function LotStockComparePage() {
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </div>
         </EcCond>
-        <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
-                           value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
-        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={setItem} items={pickers.items} />
+        </EcCond>
+        {/* 원본 [양식] 탭(2026-10-21 실측): 적용양식 [기본(수정불가)] · 양식구분 [결재방표시] · 정렬/소계기준 [설정] — 모양만. */}
+        <EcCond label="적용양식">
+          <select className="ec-input w-[170px]" aria-label="적용양식" defaultValue="기본"><option value="기본">기본(수정불가)</option></select>
+        </EcCond>
+        <EcCond label="양식구분">
+          <label className="inline-flex items-center gap-[3px]"><input type="checkbox" /> 결재방표시</label>
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="ec-btn">설정</button>
         </EcCond>
       </ul>
 

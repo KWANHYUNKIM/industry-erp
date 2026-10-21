@@ -58,6 +58,7 @@ export default function AsRepairEntryPage() {
         title="A/S수리입력"
         actions={[
           { label: saving ? '저장 중…' : '저장(F8)', primary: true, submit: true, disabled: saving },
+          { label: '저장/전표(F7)', onClick: () => undefined },
           { label: '다시 작성', onClick: () => reset() },
           { label: '리스트', onClick: () => navigate('/quality/as-repair-list') },
         ]}
