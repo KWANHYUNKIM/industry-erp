@@ -209,7 +209,7 @@ export default function SpecialPriceGroupPage() {
           </ul>
           <div className="flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
-            <button type="button" className="ec-btn" onClick={() => openEdit(edit)}>다시 작성</button>
+            <button type="button" className="ec-btn" onClick={() => { /* 원본 2026-10-22 실측: 사람 손 클릭도 칸 값 그대로(되돌리지 않음) */ }}>다시 작성</button>
             <button type="button" className="ec-btn" onClick={() => setEdit(null)}>닫기</button>
             <EcHistoryButton target="PARTNER" id={edit.id} last />
           </div>

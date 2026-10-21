@@ -30,6 +30,7 @@ import NumCheck from '../../components/NumCheck'
 
 type Pill = '특별단가그룹' | '품목별' | '품목그룹별' | '적용단가'
 const PILLS: Pill[] = ['특별단가그룹', '품목별', '품목그룹별', '적용단가']
+const CHANGE_NO_PICK = '선택된 자료가 없습니다.\n변경할 자료를 체크한 후 다시 시도 바랍니다.'   // 원본 품목그룹별 [변경] 2026-10-22 실측
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'
 /** 원본 [특별단가그룹] 삭제 확인 글(2026-10-14 실측) — 막지 않고 그 그룹의 줄을 함께 지운다. */
 const GROUP_DELETE_CONFIRM = '해당 특별단가그룹으로 등록된\n품목별, 품목그룹별, 적용단가 설정도 모두 삭제됩니다.\n\n계속 진행하시겠습니까?'
@@ -257,7 +258,7 @@ export default function SpecialPricePage() {
 
   const actions = [
     ...(pill === '특별단가그룹' ? [] : [
-      { label: '변경', onClick: () => { if (pill === '품목별') { const r = firstPicked(shownPrices); if (r) openItemForm(r) } else { const r = firstPicked(shownIg); if (r) openIgForm(r) } } },
+      { label: '변경', onClick: () => { if (pill === '품목별') { const r = firstPicked(shownPrices); if (r) openItemForm(r) } else { const r = shownIg.find((x) => checked.has(x.id)); if (r) openIgForm(r); else void ecAlert(CHANGE_NO_PICK) } } },
       { label: '복사', onClick: () => { if (pill === '품목별') { const r = firstPicked(shownPrices); if (r) openItemForm(r, true) } else { const r = firstPicked(shownIg); if (r) openIgForm(r, true) } } },
     ]),
     { label: '사용중단/재사용', onClick: () => setMenuOpen((v) => !v) },
