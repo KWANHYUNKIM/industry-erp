@@ -220,7 +220,12 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   async function save() {
     setError('')
     /* 원본 has-error: 빈 필수칸은 글 알림 없이 칸만 빨간 테두리(공용-디자인-정리 A). */
-    if (!req.check(Object.fromEntries(kind.fields.map(([f]) => [f, filled(f)])))) return
+    /* 원본(2026-10-21 매출처로부터 · 일시적으로(입금) · 기타입금 실측)은 코드 칸만 두른다 — 매출처로부터 입금계좌 · 거래처,
+       일시적으로 입금계좌 · 사원, 기타입금 입금계좌 · 대변계정(거래처는 비워도 된다). [금액] 0 은 원본이 그대로 0원 전표로 저장하지만
+       우리는 막는다 — 코드 칸이 다 찬 뒤에 금액 칸만 두른다(받을어음증가와 같은 두 단계). */
+    const optional = (f: string) => f === 'amount' || (type === 'OTHER_DEPOSIT' && f === 'partner')
+    if (!req.check(Object.fromEntries(kind.fields.filter(([f]) => !optional(f)).map(([f]) => [f, filled(f)])))) return
+    if (kind.fields.some(([f]) => f === 'amount') && !req.check({ amount: filled('amount') })) return
     /* 원본 기타출금(2026-10-21 E010414 실측): 현금 + 수수료면 글줄 알림 없이 [수수료] 칸만 빨간 테두리 + 말풍선
        '현금일경우 수수료를 입력할 수 없습니다.'(칸에 마우스 · 포커스). 수수료를 0 으로 고치면 저장된다. */
     if (cashFeeBlocked) { setFeeTip(true); return }

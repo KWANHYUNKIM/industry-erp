@@ -2,13 +2,13 @@
   "about": "빈 필수칸 = 칸만 빨간 테두리(공용-디자인-정리 A, 원본 .control-set.has-error — 2.7px 바깥 0.5px rgb(215,62,62) · 둥글기 6, 글 알림 없음). 현금거래 기타출금(E010414) · 계좌간이동 · 지급어음증가를 빈 채로 저장하면 글줄(.ec-alert) 없이 필수칸만 .ec-invalid 로 둘러지고, 칸을 채우면 그 칸의 테두리가 사라진다. 아무것도 저장하지 않는다.",
   "shots": [
     {
-      "name": "기타출금 빈 저장 → 글 알림 없이 금액 · 계정 칸 빨간 테두리, 금액을 치면 그 칸만 풀림",
+      "name": "기타출금 빈 저장 → 글 알림 없이 코드 칸만 빨간 테두리(원본 2026-10-21: 금액은 코드 칸이 다 찬 뒤에야 — 받을어음증가와 같은 두 단계)",
       "path": "/accounting/other-withdraw",
       "steps": [
         "wait:2500",
         "click:저장(F8)",
         "wait:400",
-        "expect:!document.querySelector('.ec-alert') && document.querySelectorAll('.ec-invalid').length >= 1 && !!document.querySelector('input[aria-label=\"금액\"]').closest('.ec-invalid')",
+        "expect:!document.querySelector('.ec-alert') && document.querySelectorAll('.ec-invalid').length >= 1 && !document.querySelector('input[aria-label=\"금액\"]').closest('.ec-invalid')",
         "expect:(() => { const s = getComputedStyle(document.querySelector('.ec-invalid'), '::after'); return s.borderTopColor === 'rgb(215, 62, 62)' && s.borderTopLeftRadius === '6px' && s.top === '-2.7px' })()",
         "set:input[aria-label=\"금액\"]|1000",
         "wait:200",
@@ -36,6 +36,18 @@
         "click:저장(F8)",
         "wait:400",
         "expect:!document.querySelector('.ec-alert') && ['거래처', '어음번호'].every((p) => !!document.querySelector('input[placeholder=\"' + p + '\"]')?.closest('.ec-invalid')) && !document.querySelector('input[aria-label=\"금액\"]').closest('.ec-invalid')"
+      ]
+    },
+    {
+      "name": "기타입금 빈 저장 → 입금계좌 · 대변계정만 테두리(원본 2026-10-21 E010407: 거래처 · 금액은 두르지 않는다), 둘 채우면 금액만",
+      "path": "/accounting/other-deposit",
+      "steps": [
+        "wait:2500",
+        "js:(() => { sessionStorage.clear(); setTimeout(() => location.reload(), 50); return true })()",
+        "wait:3500",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:!document.querySelector('.ec-alert') && ['입금계좌', '대변계정'].every((p) => !!document.querySelector('input[placeholder=\"' + p + '\"]')?.closest('.ec-invalid')) && !document.querySelector('input[placeholder=\"거래처\"]')?.closest('.ec-invalid') && !document.querySelector('input[aria-label=\"금액\"]').closest('.ec-invalid')"
       ]
     }
   ]
