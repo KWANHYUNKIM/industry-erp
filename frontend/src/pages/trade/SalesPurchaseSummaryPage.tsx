@@ -52,13 +52,23 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
  * [집계대상] · [비교기간] · [가로보기] · [비율표시] · [코드포함] · [차이표시] 는 2026-10-21 실측대로 격자 머리 · 열 · 소계를 바꾼다.
  * 겹침(비율+차이 · 가로보기+비교기간 · 소계 줄 · 집계조건1~4)은 2026-10-22 원본 실측대로(plans/재고1.md).
  */
-const AXES = ['사용안함', '기준일자(일별)', '기준일자(월별)', '기준일자(연별)', '창고', '거래유형', '관리항목',
+const AXES = ['사용안함', '기준일자(일별)', '기준일자(주차별)', '기준일자(월별)', '기준일자(분기별)', '기준일자(반기별)', '기준일자(연별)', '담당자', '창고', '거래유형', '관리항목',
   '거래처', '거래처그룹1', '품목명[규격]', '품목그룹1', '프로젝트'] as const
 type Axis = typeof AXES[number]
 /** 품목에 붙는 축 — 하나라도 있으면 줄(라인) 단위로 더한다. 없으면 전표 합계 기준(거래처별 같은 기존 규칙). */
 const LINE_AXES: Axis[] = ['관리항목', '품목명[규격]', '품목그룹1']
+/**
+ * 원본 [주차별] 값 — '2026/40주차'(2026-10-22 실측: 40주차 = 10/01 ~ 10/03, 41주차 = 10/04(일) ~ 10/10, 42주차 10/11 ~, 43주차 10/18 ~).
+ * <b>일요일에 시작</b>하고 1월 1일이 든 주가 1주차다. 분기는 '2026/4분기', 반기는 '2026/상반기' · '2026/하반기'.
+ */
+const weekLabel = (date: string) => {
+  const d = new Date(`${date}T00:00:00`)
+  const doy = Math.round((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000) + 1
+  const jan1 = new Date(d.getFullYear(), 0, 1).getDay()
+  return `${d.getFullYear()}/${Math.floor((doy + jan1 - 1) / 7) + 1}주차`
+}
 const AXIS_HEAD: Record<Axis, string> = {
-  '사용안함': '', '기준일자(일별)': '일자', '기준일자(월별)': '월', '기준일자(연별)': '연도', '창고': '창고', '거래유형': '거래유형',
+  '사용안함': '', '기준일자(일별)': '일자', '기준일자(주차별)': '주차별', '기준일자(월별)': '월', '기준일자(분기별)': '분기별', '기준일자(반기별)': '반기별', '기준일자(연별)': '연도', '담당자': '담당자', '창고': '창고', '거래유형': '거래유형',
   '관리항목': '관리항목', '거래처': '거래처명', '거래처그룹1': '거래처그룹1', '품목명[규격]': '품목명[규격]', '품목그룹1': '품목그룹1', '프로젝트': '프로젝트',
 }
 
@@ -120,7 +130,7 @@ const ratioOf = (v: number, tot: number) => { if (tot <= 0) return ''; const r =
 const sumAgg = (list: Agg[]): Agg => list.reduce((s, a) => ({ ...s,
   saleCount: s.saleCount + a.saleCount, saleQty: s.saleQty + a.saleQty, saleSupply: s.saleSupply + a.saleSupply, saleVat: s.saleVat + a.saleVat,
   buyCount: s.buyCount + a.buyCount, buyQty: s.buyQty + a.buyQty, buySupply: s.buySupply + a.buySupply, buyVat: s.buyVat + a.buyVat }), emptyAgg('', []))
-const CODE_HEAD: Partial<Record<Axis, string>> = { '거래처': '거래처코드', '창고': '창고코드', '품목명[규격]': '품목코드', '프로젝트': '프로젝트코드' }
+const CODE_HEAD: Partial<Record<Axis, string>> = { '담당자': '담당자코드', '거래처': '거래처코드', '창고': '창고코드', '품목명[규격]': '품목코드', '프로젝트': '프로젝트코드' }
 
 export default function SalesPurchaseSummaryPage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
@@ -271,7 +281,11 @@ export default function SalesPurchaseSummaryPage() {
       const valueOf = (ax: Axis, l?: Line): string => {
         switch (ax) {
           case '기준일자(일별)': return date.replace(/-/g, '/')
+          case '기준일자(주차별)': return weekLabel(date)
           case '기준일자(월별)': return date.slice(0, 7).replace('-', '/')
+          case '기준일자(분기별)': return `${date.slice(0, 4)}/${Math.ceil(Number(date.slice(5, 7)) / 3)}분기`
+          case '기준일자(반기별)': return `${date.slice(0, 4)}/${Number(date.slice(5, 7)) <= 6 ? '상' : '하'}반기`
+          case '담당자': return d.employeeName ?? ''
           case '기준일자(연별)': return date.slice(0, 4)
           case '창고': return d.warehouseName
           case '거래유형': return d.taxable ? '과세' : '면세'
@@ -323,13 +337,14 @@ export default function SalesPurchaseSummaryPage() {
   /** 원본 [코드포함] — 축 이름으로 코드를 찾는다(거래처 · 창고 · 품목 · 프로젝트만 마스터에 코드가 있다). */
   const codeOf = useMemo(() => {
     const idx: Partial<Record<Axis, Map<string, string>>> = {
+      '담당자': new Map(partnerPick.employees.map((x) => [x.name, x.code ?? ''])),
       '거래처': new Map(partnerPick.partners.map((x) => [x.name, x.code ?? ''])),
       '창고': new Map(partnerPick.warehouses.map((x) => [x.name, x.code ?? ''])),
       '프로젝트': new Map(partnerPick.projects.map((x) => [x.name, x.code ?? ''])),
       '품목명[규격]': new Map(partnerPick.items.map((x) => [itemLabel(x.name, (x as { sub?: string | null }).sub ?? null), x.code ?? ''])),
     }
     return (ax: Axis, name: string) => idx[ax]?.get(name) ?? ''
-  }, [partnerPick.partners, partnerPick.warehouses, partnerPick.projects, partnerPick.items])
+  }, [partnerPick.partners, partnerPick.warehouses, partnerPick.projects, partnerPick.items, partnerPick.employees])
 
   /** 기간마다 한 벌 — 비교기간이면 [지금, 비교] 둘, 아니면 하나. 줄은 두 기간의 합집합. */
   const grid = useMemo(() => {
@@ -341,7 +356,11 @@ export default function SalesPurchaseSummaryPage() {
     const list = [...keys.entries()]
       .filter(([, names]) => !kw || names.join(' ').includes(kw))
       .sort(([, x], [, y]) => {
+        /* 원본 [코드순]: 거래처 · 담당자 · 창고 · 프로젝트 · 품목은 코드 차례(빈 값이 먼저), 나머지는 값 차례(2026-10-22 실측). */
         for (let i = 0; i < x.length; i++) {
+          const cx = codeOf(axes[i], x[i])
+          const cy = codeOf(axes[i], y[i])
+          if (CODE_HEAD[axes[i]] && (cx || cy)) { if (cx !== cy) return cx < cy ? -1 : 1; continue }
           const c = x[i].localeCompare(y[i], 'ko')
           if (c) return c
         }
@@ -352,7 +371,7 @@ export default function SalesPurchaseSummaryPage() {
     return { list, totals }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sales, purchases, prevSales, prevPurchases, axis1, axis2, axis3, axis4, from, to, prevFrom, prevTo, useCmp, keyword, partnerCond, projectCond, warehouseCond, empCond, remarkCond, itemCond, kindCond,
-      partnerGroupCond, partnerMgrCond, categoryCond, itemGroupCond, taxTypeCond, mgmtCond])
+      partnerGroupCond, partnerMgrCond, categoryCond, itemGroupCond, taxTypeCond, mgmtCond, codeOf])
   const rows = grid.list
   useTableColumnCheck(tableRef, '판매구매집계표', [axes.join(','), rows.length, loading, horizontal, cmp, targets.join(), showRatio, showDiff, showCode])
 
@@ -399,9 +418,13 @@ export default function SalesPurchaseSummaryPage() {
       </>
     )
   }
-  const leadTds = (names: string[], k: string) => [
-    ...codeLead.map((ax) => <td key={`c${k}${ax}`}>{codeOf(ax, names[leadAxes.indexOf(ax)])}</td>),
-    ...names.map((n, i) => <td key={`${k}n${i}`}>{n}</td>),
+  /** spans[j] — 이 줄에서 j번째 앞머리 칸이 아래로 몇 줄을 합치나(0 = 위 칸에 합쳐져 그리지 않음). 같은 값끼리 rowspan 병합(원본). */
+  const leadTds = (names: string[], k: string, spans?: number[]) => [
+    ...codeLead.map((ax) => {
+      const j = leadAxes.indexOf(ax)
+      return spans && spans[j] === 0 ? null : <td key={`c${k}${ax}`} rowSpan={spans && spans[j] > 1 ? spans[j] : undefined}>{codeOf(ax, names[j])}</td>
+    }),
+    ...names.map((n, i) => spans && spans[i] === 0 ? null : <td key={`${k}n${i}`} rowSpan={spans && spans[i] > 1 ? spans[i] : undefined}>{n}</td>),
   ]
   const subRow = (k: string, label: string, aggs: Agg[], bases: Agg[], withRatio = false) => (
     <tr key={k} className="font-bold">
@@ -440,8 +463,19 @@ export default function SalesPurchaseSummaryPage() {
     /* 소계: 집계조건이 둘 이상이면 1 .. (n-1)번째 축마다 그 값이 끝날 때 '<값> 계' 줄(안쪽 먼저, 칸 전부 합침). 값이 비면 '[] 계'. */
     const levels = Math.max(axes.length - 1, 0)
     const sameHead = (a: string[], b: string[], l: number) => a.slice(0, l).every((v, i) => v === b[i])
+    /* 앞머리 칸 병합: 소계 줄이 끼지 않는 연속 줄(첫 축부터 마지막-1 축이 같은 줄들) 안에서 앞 칸까지 같은 값끼리. */
+    const inRun = (a: { names: string[] }, b: { names: string[] }) => sameHead(a.names, b.names, levels)
+    const spanAt = (i: number, j: number) => {
+      const u = units[i]
+      const prev = units[i - 1]
+      if (prev && inRun(prev, u) && sameHead(prev.names, u.names, j + 1)) return 0
+      let n = 1
+      while (units[i + n] && inRun(units[i + n], u) && sameHead(units[i + n].names, u.names, j + 1)) n++
+      return n
+    }
     units.forEach((u, i) => {
-      out.push(<tr key={`r${u.key}`}>{leadTds(u.names, `r${i}`)}{u.aggs.flatMap((ag, s) => cells(ag, totals[s], `r${i}_${s}`))}</tr>)
+      const spans = u.names.map((_, j) => spanAt(i, j))
+      out.push(<tr key={`r${u.key}`}>{leadTds(u.names, `r${i}`, spans)}{u.aggs.flatMap((ag, s) => cells(ag, totals[s], `r${i}_${s}`))}</tr>)
       for (let l = levels; l >= 1; l--) {
         const nx = units[i + 1]
         if (nx && sameHead(nx.names, u.names, l)) continue

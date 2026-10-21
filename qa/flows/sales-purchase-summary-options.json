@@ -42,6 +42,23 @@
         "wait:300",
         "expect:/집계대상에서 가로보기 대상을 선택바랍니다\\./.test(document.querySelector('tbody').innerText)"
       ]
+    },
+    {
+      "name": "주차별 × 담당자 → 머리 · 앞머리 병합 · 분기별/반기별 글자",
+      "path": "/sales/sales-purchase-summary",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][0]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '기준일자(주차별)'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][1]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '담당자'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:/주차별/.test(document.querySelector('thead').innerText) && /담당자/.test(document.querySelector('thead').innerText)",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][0]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '기준일자(분기별)'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:!document.querySelector('tbody').innerText.trim() || /\\d{4}\\/\\d분기/.test(document.querySelector('tbody').innerText) || /등록된|없습니다/.test(document.body.innerText)",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][0]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '기준일자(반기별)'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:!document.querySelector('tbody').innerText.trim() || /\\d{4}\\/(상|하)반기/.test(document.querySelector('tbody').innerText) || /등록된|없습니다/.test(document.body.innerText)"
+      ]
     }
   ]
 }
