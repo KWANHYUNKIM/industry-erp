@@ -1,5 +1,5 @@
 {
-  "about": "회계 II › 계약관리(정기청구) — 계약항목등록 [신규] 창(코드 · 명을 비우고 저장하면 둘 다 빨갛게 → 넣고 저장하면 목록에 '주기적' 줄) → 계약(API) → 계약조회 [계약번호] '일자 -No.' · 금액 22,000 → 청구예정자료생성 [신규] 청구단위 없이 [계약] 을 누르면 칸이 빨갛게 → 월말청구 · [계약] · 전체 선택 · 적용 · [일괄생성] → 목록 22,000 → 번호를 열어 [삭제] '전표를 삭제하겠습니까?' (2026-10-13 원본 실측). 만든 계약 · 항목은 끝에 지운다.",
+  "about": "회계 II › 계약관리(정기청구) — 계약항목등록 [신규] 창(코드 · 명을 비우고 저장하면 둘 다 빨갛게 → 넣고 저장하면 목록에 '주기적' 줄) → 계약(API) → 계약조회 [계약번호] '일자 -No.' · 금액 22,000 → 청구예정자료생성 [신규] 청구단위 없이 [계약] 을 누르면 칸이 빨갛게 → 월말청구 · [계약] · 전체 선택 · 적용 · [일괄생성] → 목록 22,000 → 번호를 열어 [삭제] '전표를 삭제하겠습니까?' (2026-10-13 원본 실측). 만든 계약 · 항목은 끝에 지운다. 시작 전과 끝(중간에 멈춰도)에 이름이 QA회계2- 인 남은 계약 · 청구자료 · 항목을 지운다.",
   "shots": [
     {
       "name": "계약항목 · 계약 · 청구예정자료",
@@ -7,6 +7,7 @@
       "steps": [
         "js:window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); el.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); el.blur(); return true }; true",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const A=window.__api;const bs=(await A('GET','/contract-bills?from=2020-01-01&to=2099-12-31')).body||[];const mb=bs.filter((b)=>JSON.stringify(b).includes('QA회계2-정기계약')).map((b)=>b.id);if(mb.length)await A('POST','/contract-bills/delete',{ids:mb});const cs=(await A('GET','/billing-contracts')).body;const mc=(Array.isArray(cs)?cs:cs.rows||[]).filter((c)=>c.name==='QA회계2-정기계약').map((c)=>c.id);if(mc.length)await A('POST','/billing-contracts/delete',{ids:mc});for(const i of (await A('GET','/contract-items')).body.filter((x)=>x.name==='QA회계2-월사용료'))await A('DELETE','/contract-items/'+i.id);return true})()",
         "js:(()=>{const c='Q'+String(Date.now()).slice(-4);sessionStorage.setItem('ciCode',c);return c})()",
         "click:신규(F2)",
         "wait:500",
@@ -62,5 +63,8 @@
         "js:(async()=>{const a=await window.__api('POST','/billing-contracts/delete',{ids:[Number(sessionStorage.getItem('bcId'))]});const b=await window.__api('DELETE','/contract-items/'+sessionStorage.getItem('ciId'));return a.status+' '+b.status})()"
       ]
     }
+  ],
+  "finally": [
+    "js:(async()=>{const A=window.__api;const bs=(await A('GET','/contract-bills?from=2020-01-01&to=2099-12-31')).body||[];const mb=bs.filter((b)=>JSON.stringify(b).includes('QA회계2-정기계약')).map((b)=>b.id);if(mb.length)await A('POST','/contract-bills/delete',{ids:mb});const cs=(await A('GET','/billing-contracts')).body;const mc=(Array.isArray(cs)?cs:cs.rows||[]).filter((c)=>c.name==='QA회계2-정기계약').map((c)=>c.id);if(mc.length)await A('POST','/billing-contracts/delete',{ids:mc});for(const i of (await A('GET','/contract-items')).body.filter((x)=>x.name==='QA회계2-월사용료'))await A('DELETE','/contract-items/'+i.id);return true})()"
   ]
 }
