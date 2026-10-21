@@ -307,6 +307,16 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   const [date, setDate] = useState(ymd(new Date()))
   const [lines, setLines] = useState<Fields[]>([])
   const [dirty, setDirty] = useState(false)
+  /* 원본 임시저장(2026-10-21 채권회수 상황판 실측): 새 입력 창에서 값을 넣고 20초쯤 지나면 창 오른쪽 아래에 '오후 11:40 임시저장되었습니다.',
+   * 닫아도 남아서 다음에 신규 창을 열면 제목 아래 '○○입력에 임시저장된 내역이 있습니다. [적용] [삭제]'. [적용] 은 줄을 되살리고 안내만 사라진다
+   * (임시저장 자체는 남음), [삭제] 는 확인 없이 지운다. 우리는 이 브라우저(localStorage)에 둔다. */
+  const draftKey = `ms-draft:${cfg.board}`
+  const readDraft = (): { date: string; lines: Fields[] } | null => {
+    try { const r = localStorage.getItem(draftKey); return r ? JSON.parse(r) : null } catch { return null }
+  }
+  const [draftNotice, setDraftNotice] = useState(false)
+  const [draftSavedAt, setDraftSavedAt] = useState('')
+  const draftSnap = useRef('')
   const [emptyAlert, setEmptyAlert] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -351,6 +361,9 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
     setAttachment(null)
     setDate(ymd(new Date()))
     setLines(blankLines(cfg.rows))
+    setDraftNotice(!!readDraft())
+    setDraftSavedAt('')
+    draftSnap.current = ''
     setDirty(false)
     setError('')
     setOpen(true)
@@ -359,6 +372,8 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
 
   function openEdit(s: Slip) {
     setEditing(s)
+    setDraftNotice(false)
+    setDraftSavedAt('')
     setCopied(false)
     setAttachment(s.attachmentId ? { id: s.attachmentId, name: s.attachmentName ?? '첨부' } : null)
     setDate(s.slipDate)
@@ -394,6 +409,19 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
     setOpen(false)
   }
 
+  useEffect(() => {
+    if (!open || editing || copied || !dirty) return
+    const t = window.setInterval(() => {
+      const snap = JSON.stringify([date, lines])
+      if (snap === draftSnap.current) return
+      draftSnap.current = snap
+      try { localStorage.setItem(draftKey, JSON.stringify({ date, lines })) } catch { return }
+      const n = new Date()
+      setDraftSavedAt(`${n.getHours() < 12 ? '오전' : '오후'} ${n.getHours() % 12 === 0 ? 12 : n.getHours() % 12}:${String(n.getMinutes()).padStart(2, '0')} 임시저장되었습니다.`)
+    }, 20000)
+    return () => window.clearInterval(t)
+  }, [open, editing, copied, dirty, date, lines, draftKey])
+
   function setCell(i: number, key: string, v: string) {
     setLines((ls) => ls.map((l, j) => (j === i ? recompute(cfg.board, { ...l, [key]: v }) : l)))
     setDirty(true)
@@ -417,6 +445,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
       const saved = editing
         ? (await api.put<Slip>(`/multi-slips/${editing.id}`, body)).data
         : (await api.post<Slip>('/multi-slips', body)).data
+      if (!editing) { try { localStorage.removeItem(draftKey) } catch { /* 없어도 됨 */ } }
       // 원본: 안내 없이 창이 닫히고 목록 맨 위에 새 줄. [저장(F8)▴] 의 저장/신규는 빈 새 창, 저장/내용유지는 저장한 전표의 수정 창.
       if (after === 'new') openNew()
       else if (after === 'keep') openEdit(saved)
@@ -622,6 +651,20 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
           <button type="button" className="ec-btn">Option</button>
           <button type="button" className="ec-btn">도움말</button>
         </div>
+        {draftNotice && !editing && !copied && (
+          <div className="text-[12px] mb-[6px]">
+            {cfg.title}입력에 임시저장된 내역이 있습니다.{' '}
+            <button type="button" className="text-ec-navy cursor-pointer" onClick={() => {
+              const d = readDraft()
+              if (d) { setDate(d.date); setLines(d.lines); setDirty(true); draftSnap.current = JSON.stringify([d.date, d.lines]) }
+              setDraftNotice(false)
+            }}>적용</button>{' '}
+            <button type="button" className="text-ec-navy cursor-pointer" onClick={() => {
+              try { localStorage.removeItem(draftKey) } catch { /* 없어도 됨 */ }
+              setDraftNotice(false)
+            }}>삭제</button>
+          </div>
+        )}
         <ul className="ec-form mb-[8px]">
           <li className="wide">
             <div className="title">일자-No.</div>
@@ -728,6 +771,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
               {!copied && <button type="button" className="ec-btn">웹자료올리기</button>}
             </>
           )}
+          {draftSavedAt && <span className="ml-auto self-center text-[12px]">{draftSavedAt}</span>}
         </div>
       </Modal>
 

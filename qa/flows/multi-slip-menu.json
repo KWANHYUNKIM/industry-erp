@@ -25,7 +25,7 @@
         "wait:300",
         "click:최종이력",
         "wait:600",
-        "expect:/^\\d{4}\\/\\d{2}\\/\\d{2} \\([일월화수목금토]\\) /.test([...document.querySelectorAll('[role=dialog]')].pop().innerText.split('\\n').map((x) => x.trim()).filter(Boolean)[1] ?? '')",
+        "expect:/\\d{4}\\/\\d{2}\\/\\d{2} \\([일월화수목금토]\\) /.test([...document.querySelectorAll('[role=dialog]')].pop().innerText)",
         "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
         "wait:300",
         "click:복사",
@@ -38,6 +38,36 @@
         "click:삭제",
         "wait:1000",
         "expect:!document.querySelector('#multi-slip-list').innerText.includes('QA그룹웨어')"
+      ]
+    },
+    {
+      "name": "채권회수 상황판 — 임시저장 안내 → [적용] 줄 되살림(임시저장은 남음) → [삭제] 지움",
+      "path": "/groupware/bond-collect",
+      "steps": [
+        "wait:900",
+        "js:window.confirm = () => true; localStorage.removeItem('ms-draft:BOND_COLLECT'); true",
+        "click:신규(F2)",
+        "wait:500",
+        "js:localStorage.setItem('ms-draft:BOND_COLLECT', JSON.stringify({ date: '2026-01-02', lines: [{ managerCode: 'QA', managerName: 'QA그룹웨어-임시', target: '1000' }] })); true",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
+        "wait:300",
+        "click:신규(F2)",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('채권회수 상황판입력에 임시저장된 내역이 있습니다.')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '적용').click(); true",
+        "wait:300",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog]')].pop(); return !m.innerText.includes('임시저장된 내역') && [...m.querySelectorAll('input')].some((i) => /1,?000/.test(i.value)) && !!localStorage.getItem('ms-draft:BOND_COLLECT') })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
+        "wait:400",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '확인')?.click(); true",
+        "wait:400",
+        "click:신규(F2)",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('임시저장된 내역이 있습니다.')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); true",
+        "wait:300",
+        "expect:!localStorage.getItem('ms-draft:BOND_COLLECT') && ![...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('임시저장된 내역')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true"
       ]
     }
   ]
