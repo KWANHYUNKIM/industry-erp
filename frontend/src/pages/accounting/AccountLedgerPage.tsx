@@ -16,7 +16,7 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
 const slash = (d: string) => d.replace(/-/g, '/')
 /** 예금 계정 — 이 줄의 거래처명 자리는 전표의 거래처가 아니라 통장이다(원본: 기업은행-1122). 자금일보와 같은 가름. */
 const DEPOSIT_CODES = ['102', '103']
-type Mode = '건별' | '일별' | '월별'
+type Mode = '건별' | '일별' | '월별' | '계정별집계'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface AccountOpt { id: number; code: string; name: string; division: AccountDivision }
@@ -37,7 +37,9 @@ interface Book { id: number; code: string; name: string; debitSide: boolean; car
  * 끝 [합계] — 차변은 이월 + 기간 차변(원본 1,470,451,000 = 이월 530,380,000 + 940,071,000), 대변은 기간 대변, 잔액은 끝 잔액.
  * 잔액은 계정 구분의 증가 쪽(자산 · 비용은 차 − 대, 나머지는 대 − 차)으로 쌓고, 수익 · 비용 계정의 이월은 기수 첫날부터만 센다.
  * 예금 줄의 거래처명은 그 전표를 만든 계좌 입출금의 통장 이름이다. 일별 · 월별은 하루 · 한 달을 한 줄로 묶는다.
- * 계정별집계 판 · [거래내역없는거래처제외]는 아직 없다. 부서 · 프로젝트는 회계전표 줄의 것(V343)으로 거른다 — 이월잔액도 그 줄만 센다.
+ * 2026-10-22 원본 실측: 일별은 열 다섯(일자 · 적요 '일계' · 차변 · 대변 · 잔액, 거래처 열 없음, 'YYYY/MM 계' 줄), 월별은 'YYYY/MM · 월계' 한 줄(계 줄 없음)이고
+ * <b>월별 · 계정별집계는 기준일자를 달 단위로 넓힌다</b>(시작일 → 그 달 1일, 끝일 → 그 달 말일 — 22일까지 봐도 28일 전표가 든다). 계정별집계는 계정마다 한 줄
+ * (계정코드 · 계정명 · 이월잔액 · 차변 · 대변 · 잔액) + 합계. [거래내역없는거래처제외]는 아직 없다. 부서 · 프로젝트는 회계전표 줄의 것(V343)으로 거른다 — 이월잔액도 그 줄만 센다.
  */
 export default function AccountLedgerPage() {
   const init = periodOf('전월')!
@@ -68,14 +70,18 @@ export default function AccountLedgerPage() {
 
   /* 이월잔액을 내려고 처음부터 기간 끝까지 받는다. 기간 두 칸을 잇달아 바꾸면 읽기가 둘 뜬다 — 늦게 온 옛 응답이 새 것을 덮지 않게 마지막 것만 쓴다. */
   const seq = useRef(0)
+  /* 월별 · 계정별집계는 달 단위로 넓힌다(원본 실측) */
+  const wide = mode === '월별' || mode === '계정별집계'
+  const effFrom = wide && from ? `${from.slice(0, 7)}-01` : from
+  const effTo = wide && to ? `${to.slice(0, 7)}-${String(new Date(Number(to.slice(0, 4)), Number(to.slice(5, 7)), 0).getDate()).padStart(2, '0')}` : to
   async function load() {
     const my = ++seq.current
     setLoading(true)
     setError('')
     try {
       const [r, t, a] = await Promise.all([
-        api.get<JournalList>('/journals', { params: { from: '1900-01-01', to, all: true } }),
-        api.get<{ rows: BankTxn[] }>('/bank-cards/transactions', { params: { all: true, from: '1900-01-01', to } }).catch(() => ({ data: { rows: [] as BankTxn[] } })),
+        api.get<JournalList>('/journals', { params: { from: '1900-01-01', to: effTo, all: true } }),
+        api.get<{ rows: BankTxn[] }>('/bank-cards/transactions', { params: { all: true, from: '1900-01-01', to: effTo } }).catch(() => ({ data: { rows: [] as BankTxn[] } })),
         api.get<BankAccount[]>('/bank-cards/accounts').catch(() => ({ data: [] as BankAccount[] })),
       ])
       if (my !== seq.current) return
@@ -91,9 +97,9 @@ export default function AccountLedgerPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to])
+  useEffect(() => { void load() }, [from, to, wide])
 
-  const plCut = fiscalStart ? fiscalYearStartOf(from, fiscalStart) : null
+  const plCut = fiscalStart ? fiscalYearStartOf(effFrom, fiscalStart) : null
   const books = useMemo(() => {
     const accById = new Map(accounts.map((a) => [a.id, a]))
     const m = new Map<number, Book>()
@@ -108,7 +114,7 @@ export default function AccountLedgerPage() {
         if (!m.has(l.accountId)) m.set(l.accountId, { id: l.accountId, code: l.accountCode, name: l.accountName, debitSide, carry: 0, rows: [] })
         const b = m.get(l.accountId)!
         const d = Number(l.debit), c = Number(l.credit)
-        if (e.entryDate < from) {
+        if (e.entryDate < effFrom) {
           /* 지난 기수의 손익은 이익잉여금으로 넘어갔다 — 수익 · 비용 계정의 이월은 기수 첫날부터만. */
           if (withCarry && !(pl && plCut && e.entryDate < plCut)) b.carry += debitSide ? d - c : c - d
           continue
@@ -118,7 +124,7 @@ export default function AccountLedgerPage() {
       }
     }
     return [...m.values()].filter((b) => b.rows.length > 0 || b.carry !== 0).sort((a, b) => a.code.localeCompare(b.code))
-  }, [entries, accounts, accountId, dept, project, withCarry, from, plCut, bookOf])
+  }, [entries, accounts, accountId, dept, project, withCarry, effFrom, plCut, bookOf])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '계정별원장', [books.length, mode])
@@ -138,6 +144,8 @@ export default function AccountLedgerPage() {
     const step = (x: { d: number; c: number }) => (b.debitSide ? x.d - x.c : x.c - x.d)
     const months = [...new Set(b.rows.map((r) => r.date.slice(0, 7)))]
     const s = sum(b.rows)
+    /* 건별은 일자 · 적요 · 거래처 세 칸을, 일별 · 월별은 일자 · 적요 두 칸을 이월 · 계 · 합계 줄 앞에 합친다. */
+    const lead = mode === '건별' ? 3 : 2
     let bal = b.carry
     return (
       <Fragment key={b.id}>
@@ -145,18 +153,18 @@ export default function AccountLedgerPage() {
         <table ref={tableRef} className="ec-report w-full text-left">
           <thead>
             <tr>
-              <th>일자-No.</th>
+              <th>{mode === '건별' ? '일자-No.' : '일자'}</th>
               <th>적요</th>
-              <th>거래처명</th>
-              <th className="text-right">차변금액</th>
-              <th className="text-right">대변금액</th>
+              {mode === '건별' && <th>거래처명</th>}
+              <th className="text-right">{mode === '건별' ? '차변금액' : '차변'}</th>
+              <th className="text-right">{mode === '건별' ? '대변금액' : '대변'}</th>
               <th className="text-right">잔액</th>
             </tr>
           </thead>
           <tbody>
             {withCarry && (
               <tr>
-                <td colSpan={3} className="text-center">이월잔액</td>
+                <td colSpan={lead} className="text-center">이월잔액</td>
                 <td className="text-right">{b.debitSide ? won(b.carry) : ''}</td>
                 <td className="text-right">{b.debitSide ? '' : won(b.carry)}</td>
                 <td className="text-right">{won(b.carry)}</td>
@@ -173,26 +181,28 @@ export default function AccountLedgerPage() {
                     const r = g.rows[0]
                     return (
                       <tr key={g.key}>
-                        <td className="text-ec-blue">{mode === '건별' ? dateNo(r.date, r.no) : slash(g.key)}</td>
-                        <td>{mode === '건별' ? r.text : ''}</td>
-                        <td>{mode === '건별' ? r.partner : ''}</td>
+                        <td className={mode === '건별' ? 'text-ec-blue' : ''}>{mode === '건별' ? dateNo(r.date, r.no) : slash(g.key)}</td>
+                        <td>{mode === '건별' ? r.text : mode === '일별' ? '일계' : '월계'}</td>
+                        {mode === '건별' && <td>{r.partner}</td>}
                         <td className="text-right">{won(x.d)}</td>
                         <td className="text-right">{won(x.c)}</td>
                         <td className="text-right">{won(bal)}</td>
                       </tr>
                     )
                   })}
-                  <tr className="ec-total">
-                    <td colSpan={3} className="text-center">{slash(mo)} 계</td>
-                    <td className="text-right">{won(ms.d)}</td>
-                    <td className="text-right">{won(ms.c)}</td>
-                    <td className="text-right"></td>
-                  </tr>
+                  {mode !== '월별' && (
+                    <tr className="ec-total">
+                      <td colSpan={lead} className="text-center">{slash(mo)} 계</td>
+                      <td className="text-right">{won(ms.d)}</td>
+                      <td className="text-right">{won(ms.c)}</td>
+                      <td className="text-right"></td>
+                    </tr>
+                  )}
                 </Fragment>
               )
             })}
             <tr className="ec-total">
-              <td colSpan={3} className="text-center">합계</td>
+              <td colSpan={lead} className="text-center">합계</td>
               <td className="text-right">{won((b.debitSide ? b.carry : 0) + s.d)}</td>
               <td className="text-right">{won((b.debitSide ? 0 : b.carry) + s.c)}</td>
               <td className="text-right">{won(b.carry + step(s))}</td>
@@ -200,6 +210,48 @@ export default function AccountLedgerPage() {
           </tbody>
         </table>
       </Fragment>
+    )
+  }
+
+  /** 원본 계정별집계(2026-10-22 실측): 계정마다 한 줄 — 계정코드 · 계정명 · 이월잔액 · 차변 · 대변 · 잔액, 끝 [합계](앞 두 칸을 합침). */
+  function summaryTable() {
+    const rows = books.map((b) => {
+      const s = b.rows.reduce((t, r) => ({ d: t.d + r.d, c: t.c + r.c }), { d: 0, c: 0 })
+      return { b, d: s.d, c: s.c, bal: b.carry + (b.debitSide ? s.d - s.c : s.c - s.d) }
+    })
+    const tot = rows.reduce((t, x) => ({ carry: t.carry + x.b.carry, d: t.d + x.d, c: t.c + x.c, bal: t.bal + x.bal }), { carry: 0, d: 0, c: 0, bal: 0 })
+    return (
+      <table ref={tableRef} className="ec-report w-full text-left">
+        <thead>
+          <tr>
+            <th>계정코드</th>
+            <th>계정명</th>
+            <th className="text-right">이월잔액</th>
+            <th className="text-right">차변</th>
+            <th className="text-right">대변</th>
+            <th className="text-right">잔액</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((x) => (
+            <tr key={x.b.id}>
+              <td>{x.b.code}</td>
+              <td>{x.b.name}</td>
+              <td className="text-right">{won(x.b.carry)}</td>
+              <td className="text-right">{won(x.d)}</td>
+              <td className="text-right">{won(x.c)}</td>
+              <td className="text-right">{won(x.bal)}</td>
+            </tr>
+          ))}
+          <tr className="ec-total">
+            <td colSpan={2} className="text-center">합계</td>
+            <td className="text-right">{won(tot.carry)}</td>
+            <td className="text-right">{won(tot.d)}</td>
+            <td className="text-right">{won(tot.c)}</td>
+            <td className="text-right">{won(tot.bal)}</td>
+          </tr>
+        </tbody>
+      </table>
     )
   }
 
@@ -218,14 +270,11 @@ export default function AccountLedgerPage() {
       {error && <p className="ec-error">{error}</p>}
       <ul className="ec-cond mb-2">
         <EcCond label="구분">
-          {(['건별', '일별', '월별'] as Mode[]).map((v) => (
+          {(['건별', '일별', '월별', '계정별집계'] as Mode[]).map((v) => (
             <label key={v} className="mr-2.5 inline-flex items-center gap-[3px]">
               <input type="radio" name="al-mode" checked={mode === v} onChange={() => setMode(v)} /> {v}
             </label>
           ))}
-          <label className="mr-2.5 inline-flex items-center gap-[3px] text-[var(--ec-text-hint)]" title="원본의 계정별집계 판 — 아직 만들지 않았다">
-            <input type="radio" name="al-mode" disabled /> 계정별집계
-          </label>
         </EcCond>
         <EcCond label="기준일자">
           <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -263,7 +312,7 @@ export default function AccountLedgerPage() {
         <p className="p-5 text-center text-[var(--ec-text-hint)]">불러오는 중…</p>
       ) : books.length === 0 ? (
         <p className="p-5 text-center text-[var(--ec-text-hint)]">등록된 데이터가 없습니다.</p>
-      ) : books.map(bookTable)}
+      ) : mode === '계정별집계' ? summaryTable() : books.map(bookTable)}
     </EcListShell>
   )
 }

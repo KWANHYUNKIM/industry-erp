@@ -29,6 +29,7 @@ const DEPOSITS = ['102', '103']
  * 상대계정명은 같은 전표의 다른 줄 계정(둘 이상이면 '첫 계정 외 n'), 상대거래처명은 전표의 거래처다.
  * 첫 줄 [이월잔액](기간 첫날 전 잔고, 0 이면 없음 — 줄 모양은 계정별원장을 따랐다, 원본은 이월이 0 인 판만 잼), 달마다 [YYYY/MM 계], 끝 [합계](차변 = 이월 + 차변).
  * 부서 · 프로젝트는 회계전표가 들지 않는다.
+ * 2026-10-22 원본 실측: 잔액 칸은 <b>그날 마지막 줄에만</b> 찍는다(이월잔액 줄 · [합계] 줄 꼴은 우리와 같음).
  */
 export default function CashBookPage() {
   const { companyName } = useAuth()
@@ -159,7 +160,7 @@ export default function CashBookPage() {
                 const ms = rows.filter((x) => x.r.entryDate.startsWith(mo))
                 return (
                   <Fragment key={mo}>
-                    {ms.map(({ key, r, bal }) => (
+                    {ms.map(({ key, r, bal }, i) => (
                       <tr key={key}>
                         <td className="text-center">{dateNo(r.entryDate, r.docNo)}</td>
                         <td>{r.counterAccountName ?? ''}</td>
@@ -167,7 +168,8 @@ export default function CashBookPage() {
                         <td>{r.description ?? ''}</td>
                         <td className="text-right">{won(Number(r.debit))}</td>
                         <td className="text-right">{won(Number(r.credit))}</td>
-                        <td className="text-right">{Math.round(bal).toLocaleString('ko-KR')}</td>
+                        {/* 원본(2026-10-22 실측): 잔액은 그날 마지막 줄에만 찍는다('10/21 -1' 빈칸 · '-25' 잔액, 같은 날 전표가 둘이어도). */}
+                        <td className="text-right">{ms[i + 1]?.r.entryDate === r.entryDate ? '' : Math.round(bal).toLocaleString('ko-KR')}</td>
                       </tr>
                     ))}
                     <tr style={SUB_ROW}>

@@ -1,0 +1,88 @@
+{
+  "about": "회계1 마무리28 — 계정별원장 일별 · 월별 · 계정별집계 판(원본 2026-10-22 실측: 일별 열 5 + '일계' + 'YYYY/MM 계', 월별 '월계' · 계 줄 없음 · 달 단위로 넓힘, 계정별집계 6열 + 합계) · 현금출납장 잔액은 그날 마지막 줄에만. 원본 일반전표 3장(3차/4대 외상매출금 · 잡이익 10,000, 2입 잡이익 5,000, 1출 복리후생비 3,000)과 같은 3장을 우리 화면으로 넣고 판을 본 뒤 지운다. node qa/shot.mjs qa/flows/ledger-modes.json",
+  "finally": [
+    "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = await (await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H })).json(); const old = j.rows.filter((e) => (e.lines || []).some((l) => l.description === 'QA회계1 장부')); for (const e of old) await fetch('/api/journals/' + e.id, { method: 'DELETE', headers: H }); return '찌꺼기 ' + old.length })()"
+  ],
+  "shots": [
+    {
+      "name": "일반전표 — 3차/4대 · 2입 · 1출 세 장 (화면으로)",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "allowapi:404: /api/journals/",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = await (await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H })).json(); const old = j.rows.filter((e) => (e.lines || []).some((l) => l.description === 'QA회계1 장부')); for (const e of old) await fetch('/api/journals/' + e.id, { method: 'DELETE', headers: H }); return '찌꺼기 ' + old.length })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const p = await (await fetch('/api/partners', { headers: H })).json(); localStorage.setItem('lm-pc', p[0].code); return p[0].code })()",
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelectorAll('input.code')[0]; c.focus(); set(c, '108'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelectorAll('input.code')[1]; c.focus(); set(c, localStorage.getItem('lm-pc')); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 차변\"]|10000",
+        "set:[aria-label=\"1줄 적요\"]|QA회계1 장부",
+        "set:[aria-label=\"2줄 구분\"]|4",
+        "wait:200",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[1].querySelectorAll('input.code')[0]; c.focus(); set(c, '930'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"2줄 대변\"]|10000",
+        "set:[aria-label=\"2줄 적요\"]|QA회계1 장부",
+        "wait:200",
+        "expect:document.querySelector('tfoot').innerText.replace(/\\s+/g, ' ').trim() === '10,000 10,000'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('.ec-alert-danger') && document.querySelector('[aria-label=\"1줄 적요\"]').value === ''",
+        "set:[aria-label=\"1줄 구분\"]|2",
+        "wait:200",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelectorAll('input.code')[0]; c.focus(); set(c, '930'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelectorAll('input.code')[1]; c.focus(); set(c, localStorage.getItem('lm-pc')); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 대변\"]|5000",
+        "set:[aria-label=\"1줄 적요\"]|QA회계1 장부",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('.ec-alert-danger') && document.querySelector('[aria-label=\"1줄 적요\"]').value === ''",
+        "set:[aria-label=\"1줄 구분\"]|1",
+        "wait:200",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelectorAll('input.code')[0]; c.focus(); set(c, '811'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 차변\"]|3000",
+        "set:[aria-label=\"1줄 적요\"]|QA회계1 장부",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('.ec-alert-danger') && document.querySelector('[aria-label=\"1줄 적요\"]').value === ''"
+      ]
+    },
+    {
+      "name": "현금출납장 — 같은 날 둘째 줄에만 잔액",
+      "path": "/accounting/cash-book",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const r = [...document.querySelectorAll('tbody tr')].map((t) => [...t.cells].map((c) => c.innerText.trim())).filter((c) => c.length === 7 && c[3] === 'QA회계1 장부'); localStorage.setItem('lm-cash', JSON.stringify(r)); return r.length })()",
+        "expect:(() => { const r = JSON.parse(localStorage.getItem('lm-cash')); return r.length === 2 && r[0][6] === '' && r[1][6] !== '' })()"
+      ]
+    },
+    {
+      "name": "계정별원장 — 일별 · 월별 · 계정별집계",
+      "path": "/accounting/ledger-book",
+      "steps": [
+        "wait:1500",
+        "wait:500",
+        "js:(() => { const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const ds = document.querySelectorAll('input[type=date]'); set(ds[0], ym + '-01'); set(ds[1], ym + '-28'); document.querySelectorAll('input[name=al-mode]')[1].click(); return true })()",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('thead')].some((h) => [...h.rows[0].cells].map((c) => c.innerText.trim()).join('|') === '일자|적요|차변|대변|잔액')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.cells.length === 5 && r.cells[1].innerText.trim() === '일계') && [...document.querySelectorAll('tbody tr')].some((r) => r.cells.length === 4 && /^\\d{4}\\/\\d{2} 계$/.test(r.cells[0].innerText.trim()))",
+        "wait:500",
+        "js:(() => { const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const ds = document.querySelectorAll('input[type=date]'); set(ds[0], ym + '-01'); set(ds[1], ym + '-28'); document.querySelectorAll('input[name=al-mode]')[2].click(); return true })()",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('thead')].some((h) => [...h.rows[0].cells].map((c) => c.innerText.trim()).join('|') === '일자|적요|차변|대변|잔액')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.cells.length === 5 && r.cells[1].innerText.trim() === '월계') && ![...document.querySelectorAll('tbody tr')].some((r) => /^\\d{4}\\/\\d{2} 계$/.test(r.cells[0].innerText.trim()))",
+        "wait:500",
+        "js:(() => { const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const ds = document.querySelectorAll('input[type=date]'); set(ds[0], ym + '-01'); set(ds[1], ym + '-28'); document.querySelectorAll('input[name=al-mode]')[3].click(); return true })()",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('thead')].some((h) => [...h.rows[0].cells].map((c) => c.innerText.trim()).join('|') === '계정코드|계정명|이월잔액|차변|대변|잔액')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.cells.length === 6 && r.cells[0].innerText.trim() === '108') && [...document.querySelectorAll('tbody tr')].some((r) => r.cells.length === 6 && r.cells[0].innerText.trim() === '합계' && r.cells[0].colSpan === 2) || [...document.querySelectorAll('tbody tr')].some((r) => r.cells.length === 5 && r.cells[0].innerText.trim() === '합계')"
+      ]
+    }
+  ]
+}
