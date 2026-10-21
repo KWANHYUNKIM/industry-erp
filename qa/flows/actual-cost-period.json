@@ -1,16 +1,23 @@
 {
-  "about": "실제원가현황 [기준월] — 2026-10-13 원본 E040804 실측: 달 칸이 아니라 원가 기간 코드도움('2026/10  ~ 2026/10  (총평균법)'), 기본 최근 기간.",
+  "about": "실제원가현황 [기준월] — 2026-10-13 원본 E040804 실측: 달 칸이 아니라 원가 기간 코드도움('2026/10  ~ 2026/10  (총평균법)'), 기본 최근 기간. 원가 기간이 없으면 칸이 비므로 이번 달 기간을 API 로 만들고(있으면 그대로) 끝에 지운다. 원본처럼 [검색(F8)] 전에는 표가 없다(f8f4a4fd).",
   "shots": [
     {
       "name": "기준월이 원가 기간 코드도움으로 열린다",
       "path": "/accounting/actual-cost",
       "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ex=await (await fetch('/api/cost-periods',{headers:h})).json();if(ex.length){sessionStorage.removeItem('qaCostPeriod');return true}const d=new Date();const m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');const r=await fetch('/api/cost-periods',{method:'POST',headers:h,body:JSON.stringify({startMonth:m,endMonth:m,method:'TOTAL_AVERAGE',outsourcingBasis:'ITEM'})});const p=await r.json();if(!r.ok)return 'create '+r.status+' '+JSON.stringify(p);sessionStorage.setItem('qaCostPeriod',String(p.id));location.reload();return true})()",
         "wait:3500",
         "js:[...document.querySelectorAll('.ec-cond li')].find((l) => l.innerText.includes('기준월'))?.querySelector('input')?.value",
         "expect:!document.querySelector('input[type=month]')",
         "expect:/\\d{4}\\/\\d{2} ~ \\d{4}\\/\\d{2} \\(/.test([...([...document.querySelectorAll('.ec-cond li')].find((l) => l.innerText.includes('기준월'))?.querySelectorAll('input') ?? [])].map((i) => i.value).join(' '))",
+        "expect:document.querySelectorAll('table thead th').length === 0",
+        "click:검색(F8)",
+        "wait:1500",
         "expect:document.querySelectorAll('table thead th').length > 0"
       ]
     }
+  ],
+  "finally": [
+    "js:(async()=>{const id=sessionStorage.getItem('qaCostPeriod');if(!id)return true;const r=await fetch('/api/cost-periods/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});sessionStorage.removeItem('qaCostPeriod');return r.ok?true:'delete '+r.status})()"
   ]
 }
