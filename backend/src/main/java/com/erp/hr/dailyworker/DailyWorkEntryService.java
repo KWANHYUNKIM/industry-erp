@@ -2,6 +2,9 @@ package com.erp.hr.dailyworker;
 
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.hr.dailypayitem.DailyPayItem;
+import com.erp.hr.dailypayitem.DailyPayItemKind;
+import com.erp.hr.dailypayitem.DailyPayItemRepository;
 import com.erp.hr.dailyworker.dto.DailyWorkEntryDtos.EntryLine;
 import com.erp.hr.dailyworker.dto.DailyWorkEntryDtos.LineResponse;
 import com.erp.hr.dailyworker.dto.DailyWorkEntryDtos.SaveSlipRequest;
@@ -21,6 +24,7 @@ public class DailyWorkEntryService {
     private final DailyWorkEntryRepository repository;
     private final DailyWorkerRepository workerRepository;
     private final DocumentNoGenerator documentNoGenerator;
+    private final DailyPayItemRepository payItemRepository;
 
     /** 근무조회 — 전표일자 기간의 줄(원본은 줄마다 한 행). */
     @Transactional(readOnly = true)
@@ -64,9 +68,16 @@ public class DailyWorkEntryService {
         for (EntryLine in : lines) {
             DailyWorker w = workerRepository.findById(in.workerId())
                     .orElseThrow(() -> ApiException.notFound("일용근로 사원을 찾을 수 없습니다."));
+            DailyPayItem item = null;
+            if (in.payItemId() != null) {
+                item = payItemRepository.findById(in.payItemId())
+                        .filter(x -> x.getKind() == DailyPayItemKind.ALLOWANCE)
+                        .orElseThrow(() -> ApiException.notFound("수당항목을 찾을 수 없습니다."));
+                if (item.isBuiltin()) item = null;   // 기본 일근무는 비워 둔다(옛 줄과 같게)
+            }
             repository.save(DailyWorkEntry.builder()
                     .slipDate(slipDate).slipNo(slipNo).lineNo(++n)
-                    .workDate(in.workDate()).worker(w).quantity(in.quantity()).amount(in.amount())
+                    .workDate(in.workDate()).worker(w).payItem(item).quantity(in.quantity()).amount(in.amount())
                     .build());
         }
     }

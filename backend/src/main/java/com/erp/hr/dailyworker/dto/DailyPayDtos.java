@@ -33,12 +33,20 @@ public class DailyPayDtos {
     /** 근무기록확정 창 한 줄 — 원본 사원번호 · 사원명 · 최종근무일 · 부서명 · 일근무 · 근로일수. */
     public record ConfirmRow(
             Long workerId, String workerCode, String workerName, LocalDate lastWorkDate, String department, BigDecimal days,
-            BigDecimal amount, BigDecimal workDays
+            BigDecimal amount, BigDecimal workDays, List<ConfirmItem> items
     ) {}
+
+    /** 근무기록확정의 일근무 밖 변동(일) 수당 열 한 칸 — 원본 2026-10-21 '일근무 | QA관리-야간 | 근로일수'. */
+    public record ConfirmItem(@NotNull(message = "수당항목을 선택 바랍니다.") Long itemId,
+                              @PositiveOrZero(message = "근무기록은 0 이상이어야 합니다.") BigDecimal days) {}
 
     public record ConfirmCell(@NotNull(message = "사원을 선택 바랍니다.") Long workerId,
                               @PositiveOrZero(message = "일근무는 0 이상이어야 합니다.") BigDecimal days,
-                              @PositiveOrZero(message = "근로일수는 0 이상이어야 합니다.") BigDecimal workDays) {}
+                              @PositiveOrZero(message = "근로일수는 0 이상이어야 합니다.") BigDecimal workDays,
+                              List<@jakarta.validation.Valid ConfirmItem> items) {}
+
+    /** 대장 줄의 일근무 · 소득세 · 지방소득세 밖 항목 한 칸 — 수당은 근무기록(quantity) · 금액, 공제는 금액. */
+    public record LineItem(Long itemId, String kind, String code, String name, int sortOrder, BigDecimal quantity, BigDecimal amount) {}
 
     public record CalculateResponse(int calculated, int skipped) {}
 
@@ -67,15 +75,23 @@ public class DailyPayDtos {
             @NotNull(message = "지방소득세를 입력 바랍니다.") @PositiveOrZero(message = "지방소득세는 0 이상이어야 합니다.") BigDecimal localTax
     ) {}
 
+    /** grossPay 는 지급총액(일근무 + 항목 수당), dayPay 는 일근무 금액, deductionTotal 은 공제총액(소득세 + 지방소득세 + 항목 공제). */
     public record LineResponse(
             Long id, Long workerId, String workerCode, String workerName, BigDecimal days, BigDecimal dailyWage,
-            BigDecimal grossPay, BigDecimal incomeTax, BigDecimal localTax, BigDecimal netPay, boolean direct
+            BigDecimal grossPay, BigDecimal incomeTax, BigDecimal localTax, BigDecimal netPay, boolean direct,
+            BigDecimal dayPay, BigDecimal deductionTotal, List<LineItem> items
     ) {
         /** direct — 금액직접입력으로 정한 일근무(원본 급여대장 칸 모서리의 붉은 표시). */
-        public static LineResponse from(DailyPayLine l, boolean direct) {
+        public static LineResponse from(DailyPayLine l, boolean direct, List<LineItem> items) {
+            BigDecimal allow = sum(items, "ALLOWANCE"), ded = sum(items, "DEDUCTION");
             return new LineResponse(l.getId(), l.getWorker().getId(), l.getWorker().getCode(), l.getWorker().getName(),
-                    l.getDays(), l.getWorker().getDailyWage(), l.getGrossPay(), l.getIncomeTax(), l.getLocalTax(), l.getNetPay(), direct);
+                    l.getDays(), l.getWorker().getDailyWage(), l.getGrossPay(), l.getIncomeTax(), l.getLocalTax(), l.getNetPay(), direct,
+                    l.getGrossPay().subtract(allow), l.getIncomeTax().add(l.getLocalTax()).add(ded), items);
         }
+    }
+
+    public static BigDecimal sum(List<LineItem> items, String kind) {
+        return items.stream().filter(i -> kind.equals(i.kind())).map(LineItem::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /** 사원별급여조회 · 급여현황 · 급여이체현황 한 줄 — 대장 · 사원 · 금액 · 급여통장. */
@@ -83,7 +99,7 @@ public class DailyPayDtos {
             Long lineId, Long ledgerId, String payMonth, int seq, String ledgerName, String paidMonth, LocalDate payDate,
             boolean confirmed, Long workerId, String workerCode, String workerName, String department,
             LocalDate lastWorkDate, BigDecimal days, BigDecimal grossPay, BigDecimal incomeTax, BigDecimal localTax,
-            BigDecimal netPay, String bankName, String accountNo, String accountHolder
+            BigDecimal netPay, String bankName, String accountNo, String accountHolder, BigDecimal deductionTotal, List<LineItem> items
     ) {}
 
     /** 근무확정현황 한 줄 — 귀속연월-NO · 성명 · 수당항목명(일근무) · 근무기록. 지급연월 · 지급일 · 사원 · 부서는 조건으로 거른다. */

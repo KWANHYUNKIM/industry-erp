@@ -59,6 +59,11 @@ public class DailyPayItemService {
         DailyPayItem i = get(id);
         if (i.isBuiltin()) throw ApiException.conflict("급여계산에 쓰는 기본 항목은 삭제할 수 없습니다: " + i.getName());
         repository.delete(i);
+        try {
+            repository.flush();   // 근무입력 · 근무기록확정 · 급여대장에 쓰인 항목은 FK 가 막는다(사원 급여지급사항 칸은 함께 지워짐)
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw ApiException.conflict("근무입력 · 급여대장에 쓰인 항목은 삭제할 수 없습니다: " + i.getName());
+        }
     }
 
     private void apply(DailyPayItem i, DailyPayItemRequest req) {

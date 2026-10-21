@@ -4,6 +4,7 @@ import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.hr.dailyworker.dto.DailyWorkerDtos.DailyWorkerRequest;
 import com.erp.hr.dailyworker.dto.DailyWorkerDtos.DailyWorkerResponse;
+import com.erp.hr.dailyworker.dto.DailyWorkerDtos.PayAmount;
 import com.erp.hr.department.DepartmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,15 +24,24 @@ public class DailyWorkerService {
     private final DailyPayDirectAmountRepository dailyPayDirectAmountRepository;
     private final DepartmentService departmentService;
     private final DocumentNoGenerator documentNoGenerator;
+    private final DailyWorkerPayAmountRepository payAmountRepository;
+    private final com.erp.hr.dailypayitem.DailyPayItemRepository payItemRepository;
 
     @Transactional(readOnly = true)
     public List<DailyWorkerResponse> findAll() {
-        return dailyWorkerRepository.findAllWithRefs().stream().map(DailyWorkerResponse::from).toList();
+        List<DailyWorker> ws = dailyWorkerRepository.findAllWithRefs();
+        java.util.Map<Long, List<PayAmount>> amounts = new java.util.HashMap<>();
+        if (!ws.isEmpty()) {
+            for (DailyWorkerPayAmount a : payAmountRepository.findByWorkers(ws.stream().map(DailyWorker::getId).toList())) {
+                amounts.computeIfAbsent(a.getWorker().getId(), k -> new java.util.ArrayList<>()).add(new PayAmount(a.getItem().getId(), a.getAmount()));
+            }
+        }
+        return ws.stream().map(w -> DailyWorkerResponse.from(w, amounts.getOrDefault(w.getId(), List.of()))).toList();
     }
 
     @Transactional(readOnly = true)
     public DailyWorkerResponse find(Long id) {
-        return DailyWorkerResponse.from(get(id));
+        return response(get(id));
     }
 
     @Transactional(readOnly = true)
@@ -48,7 +58,9 @@ public class DailyWorkerService {
         }
         DailyWorker w = DailyWorker.builder().code(code).build();
         apply(w, req);
-        return DailyWorkerResponse.from(dailyWorkerRepository.save(w));
+        dailyWorkerRepository.save(w);
+        applyAmounts(w, req.payAmounts());
+        return response(w);
     }
 
     /** 수정 — 사원번호는 그대로(원본 사원번호 칸은 [변경]으로만 바꾼다). */
@@ -56,7 +68,8 @@ public class DailyWorkerService {
     public DailyWorkerResponse update(Long id, DailyWorkerRequest req) {
         DailyWorker w = get(id);
         apply(w, req);
-        return DailyWorkerResponse.from(w);
+        applyAmounts(w, req.payAmounts());
+        return response(w);
     }
 
     /** 원본 '한번 지워진 자료는 복구될 수 없습니다. 삭제하겠습니까?' */
@@ -96,6 +109,25 @@ public class DailyWorkerService {
         w.setDailyWage(req.dailyWage());
         w.setFixedIncomeTax(req.fixedIncomeTax());
         w.setFixedLocalTax(req.fixedLocalTax());
+    }
+
+    /** [급여지급사항] 기본 밖 항목 — 보낸 목록으로 갈아 끼운다(0 · 빈칸은 두지 않는다). null 이면 그대로. */
+    private void applyAmounts(DailyWorker w, List<PayAmount> in) {
+        if (in == null) return;
+        payAmountRepository.deleteByWorker(w.getId());
+        payAmountRepository.flush();
+        for (PayAmount a : in) {
+            if (a.amount() == null || a.amount().signum() == 0) continue;
+            var item = payItemRepository.findById(a.itemId())
+                    .orElseThrow(() -> ApiException.notFound("수당 · 공제 항목을 찾을 수 없습니다."));
+            if (item.isBuiltin()) continue;   // 기본 항목은 사원 칸(dailyWage · fixedIncomeTax · fixedLocalTax)에 둔다
+            payAmountRepository.save(DailyWorkerPayAmount.builder().worker(w).item(item).amount(a.amount()).build());
+        }
+    }
+
+    private DailyWorkerResponse response(DailyWorker w) {
+        return DailyWorkerResponse.from(w, payAmountRepository.findByWorker(w.getId()).stream()
+                .map(a -> new PayAmount(a.getItem().getId(), a.getAmount())).toList());
     }
 
     private DailyWorker get(Long id) {

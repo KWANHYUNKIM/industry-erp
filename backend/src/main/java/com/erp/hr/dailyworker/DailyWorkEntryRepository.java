@@ -9,11 +9,11 @@ import java.util.List;
 
 public interface DailyWorkEntryRepository extends JpaRepository<DailyWorkEntry, Long> {
 
-    @Query("select e from DailyWorkEntry e join fetch e.worker where e.slipDate between :from and :to "
+    @Query("select e from DailyWorkEntry e join fetch e.worker left join fetch e.payItem where e.slipDate between :from and :to "
             + "order by e.slipDate desc, e.slipNo desc, e.lineNo")
     List<DailyWorkEntry> findInPeriod(LocalDate from, LocalDate to);
 
-    @Query("select e from DailyWorkEntry e join fetch e.worker where e.slipDate = :slipDate and e.slipNo = :slipNo order by e.lineNo")
+    @Query("select e from DailyWorkEntry e join fetch e.worker left join fetch e.payItem where e.slipDate = :slipDate and e.slipNo = :slipNo order by e.lineNo")
     List<DailyWorkEntry> findSlip(LocalDate slipDate, int slipNo);
 
     @Query("select coalesce(max(e.slipNo), 0) from DailyWorkEntry e where e.slipDate = :slipDate")
@@ -23,8 +23,10 @@ public interface DailyWorkEntryRepository extends JpaRepository<DailyWorkEntry, 
     @Query("delete from DailyWorkEntry e where e.slipDate = :slipDate and e.slipNo = :slipNo")
     void deleteSlip(LocalDate slipDate, int slipNo);
 
-    @Query("select e from DailyWorkEntry e join fetch e.worker where e.workDate between :from and :to")
+    @Query("select e from DailyWorkEntry e join fetch e.worker left join fetch e.payItem where e.workDate between :from and :to")
     List<DailyWorkEntry> findInWorkPeriod(LocalDate from, LocalDate to);
 
     boolean existsByWorker_Id(Long workerId);
+
+    boolean existsByPayItem_Id(Long itemId);
 }

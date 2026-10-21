@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public class DailyWorkerDtos {
 
@@ -34,8 +35,13 @@ public class DailyWorkerDtos {
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.") String remark,
             @PositiveOrZero(message = "일근무 금액은 0 이상이어야 합니다.") BigDecimal dailyWage,
             @PositiveOrZero(message = "소득세는 0 이상이어야 합니다.") BigDecimal fixedIncomeTax,
-            @PositiveOrZero(message = "지방소득세는 0 이상이어야 합니다.") BigDecimal fixedLocalTax
+            @PositiveOrZero(message = "지방소득세는 0 이상이어야 합니다.") BigDecimal fixedLocalTax,
+            List<@jakarta.validation.Valid PayAmount> payAmounts
     ) {}
+
+    /** [급여지급사항] 기본 밖 항목 한 칸 — 수당 내역 · 공제 금액(원본 2026-10-21). 비우면(null) 그 항목은 0. */
+    public record PayAmount(@jakarta.validation.constraints.NotNull Long itemId,
+                            @PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount) {}
 
     public record DailyWorkerResponse(
             Long id, String code, String name, boolean foreigner, String nationality,
@@ -44,9 +50,13 @@ public class DailyWorkerDtos {
             boolean employmentInsurance, boolean pensionAuto, BigDecimal pensionBase,
             boolean healthAuto, BigDecimal healthBase,
             String bankName, String accountNo, String accountHolder, String remark,
-            BigDecimal dailyWage, BigDecimal fixedIncomeTax, BigDecimal fixedLocalTax
+            BigDecimal dailyWage, BigDecimal fixedIncomeTax, BigDecimal fixedLocalTax, List<PayAmount> payAmounts
     ) {
         public static DailyWorkerResponse from(DailyWorker w) {
+            return from(w, List.of());
+        }
+
+        public static DailyWorkerResponse from(DailyWorker w, List<PayAmount> payAmounts) {
             return new DailyWorkerResponse(
                     w.getId(), w.getCode(), w.getName(), w.isForeigner(), w.getNationality(),
                     w.getDepartment() != null ? w.getDepartment().getId() : null,
@@ -55,7 +65,7 @@ public class DailyWorkerDtos {
                     w.isEmploymentInsurance(), w.isPensionAuto(), w.getPensionBase(),
                     w.isHealthAuto(), w.getHealthBase(),
                     w.getBankName(), w.getAccountNo(), w.getAccountHolder(), w.getRemark(),
-                    w.getDailyWage(), w.getFixedIncomeTax(), w.getFixedLocalTax());
+                    w.getDailyWage(), w.getFixedIncomeTax(), w.getFixedLocalTax(), payAmounts);
         }
     }
 

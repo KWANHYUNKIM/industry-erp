@@ -17,7 +17,8 @@ public class DailyWorkEntryDtos {
             @NotNull(message = "근무일자를 확인바랍니다.") LocalDate workDate,
             @NotNull(message = "사원을 선택 바랍니다.") Long workerId,
             @NotNull(message = "근무기록을 입력 바랍니다.") @Positive(message = "근무기록은 0보다 커야 합니다.") BigDecimal quantity,
-            @PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount
+            @PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount,
+            Long payItemId
     ) {}
 
     public record SaveSlipRequest(
@@ -25,14 +26,16 @@ public class DailyWorkEntryDtos {
             @NotEmpty(message = "근무기록을 한 줄 이상 넣으세요.") List<@Valid EntryLine> lines
     ) {}
 
-    /** 원본 수당항목 · 단위 열 — 일근무 · 변동(일) 고정. */
+    /** 원본 수당항목 · 단위 열 — 수당항목이 비면 기본 일근무 · 변동(일). payItemId 는 null(일근무)일 수 있다. */
     public record LineResponse(
             Long id, LocalDate slipDate, int slipNo, int lineNo, LocalDate workDate, Long workerId, String workerCode, String workerName,
-            String payItem, String unit, BigDecimal quantity, BigDecimal amount
+            Long payItemId, String payItem, String unit, BigDecimal quantity, BigDecimal amount
     ) {
         public static LineResponse from(DailyWorkEntry e) {
+            var i = e.getPayItem();
             return new LineResponse(e.getId(), e.getSlipDate(), e.getSlipNo(), e.getLineNo(), e.getWorkDate(), e.getWorker().getId(),
-                    e.getWorker().getCode(), e.getWorker().getName(), "일근무", "변동(일)", e.getQuantity(), e.getAmount());
+                    e.getWorker().getCode(), e.getWorker().getName(), i != null ? i.getId() : null, i != null ? i.getName() : "일근무",
+                    i != null && i.getPayMethod() != null ? i.getPayMethod() : "변동(일)", e.getQuantity(), e.getAmount());
         }
     }
 
