@@ -39,8 +39,9 @@ import { useShipmentEntry, type ShipmentRes } from '../../features/shipment/useS
 type Shipment = ShipmentRes
 
 /*
- * 원본 출하조회 탭(2026-10-20 실측): 전체 · 결재중 · 미확인 · 확인. 우리 출하에는 전자결재 · 확인 기능이 없어
- * 모두 '미확인' 이다(결재중 · 확인 탭은 빈다). 예전 [발송여부] 알약(미발송 · 발송 · 취소)은 원본에 없어 뺐다.
+ * 원본 출하조회 탭(2026-10-20 실측): 전체 · 결재중 · 미확인 · 확인. 2026-10-22 원본 실측 — 출하 아홉 건이 모두 [확인] 탭에 있고 결재중 · 미확인은 빈다
+ * (이 회사는 전표상태관리유형이 꺼져 있어 [진행상태변경] ▴ › 미확인 · 확인 을 눌러도 '전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.' 알림만 뜬다).
+ * 우리 출하도 같다: 전체 · 확인에 다 있고 결재중 · 미확인은 늘 빈다. 예전 [발송여부] 알약(미발송 · 발송 · 취소)은 원본에 없어 뺐다.
  */
 const TABS = ['전체', '결재중', '미확인', '확인'] as const
 type Tab = (typeof TABS)[number]
@@ -171,9 +172,23 @@ export default function ShipmentInquiryPage() {
   const [editedTo, setEditedTo] = useState('')
   /** 원본 [기타] — 이 화면에서는 <b>수정일자순(정렬)</b> 하나다. */
   const [byUpdated, setByUpdated] = useState(false)
+  /** 하단 [진행상태변경 ▴] 메뉴(▾ 미확인 › 미확인 / ▾ 확인 › 확인) · 누르면 나오는 '알림' 표(구분 · 메뉴 · 사유). */
+  const [statusMenu, setStatusMenu] = useState<{ left: number; bottom: number } | null>(null)
+  const [blockedRows, setBlockedRows] = useState<string[][] | null>(null)
+  const openStatusMenu = () => {
+    const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === '진행상태변경')
+    const r = btn?.getBoundingClientRect()
+    setStatusMenu({ left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 })
+  }
+  const blockStatusChange = () => {
+    setStatusMenu(null)
+    setBlockedRows(rows.filter((x) => checked.has(x.id)).map((x) => [
+      `${x.shipDate.replace(/-/g, '')}-${Number(x.shipNo.split('-').pop()) || x.shipNo}`, '',
+      '전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.\n※ Self-Customizing > 환경설정 > 기능설정 > [응용] 탭 > 전표상태관리유형']))
+  }
 
   const shownRows = useMemo(() => rows
-    .filter(() => tab === '전체' || tab === '미확인')
+    .filter(() => tab === '전체' || tab === '확인')
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.shipNo.includes(keyword) || r.lines.some((l) => l.itemName.includes(keyword)))
     .filter((r) => !from || r.shipDate >= from)
     .filter((r) => !to || r.shipDate <= to)
@@ -239,6 +254,7 @@ export default function ShipmentInquiryPage() {
       newLabel="신규(F2)"
       onNew={() => navigate('/sales/shipment-entry')}
       actions={[
+        { label: '진행상태변경', selected: checked.size, onClick: openStatusMenu },
         { label: '인쇄', selected: checked.size, onClick: () => { shown.filter((r) => checked.has(r.id)).forEach((r) => void printShipment(r, company)) } },
         { label: '선택삭제', selected: checked.size, onClick: () => void remove([...checked]) },
         { label: 'Excel' },
@@ -408,6 +424,29 @@ export default function ShipmentInquiryPage() {
         </div>
       </Modal>
       {historyOpen && editing && <SlipHistoryModal target="SHIPMENT" id={editing.id} head={slipHeadLabel(editing.shipDate, editing.shipNo)} onClose={() => setHistoryOpen(false)} />}
+      {statusMenu && (
+        <>
+          <div className="ec-backdrop-clear" onClick={() => setStatusMenu(null)} />
+          <div className="ec-menu fixed" style={{ left: statusMenu.left, bottom: statusMenu.bottom }} role="menu" aria-label="진행상태변경">
+            <div className="px-[10px] pt-[4px] text-ec-label">▾ 미확인</div>
+            <button onClick={blockStatusChange}>미확인</button>
+            <div className="px-[10px] pt-[4px] text-ec-label">▾ 확인</div>
+            <button onClick={blockStatusChange}>확인</button>
+          </div>
+        </>
+      )}
+      <Modal open={blockedRows != null} title="알림" width={630} onClose={() => setBlockedRows(null)}>{blockedRows && (
+        <div>
+          <p className="m-0 leading-[18px]">아래의 경우 처리가 불가능합니다.<br />자세한 내용은 아래의 사항을 참고하시기 바랍니다.<br />아래 사항을 수정 후 다시 진행하시기 바랍니다.</p>
+          <table className="w-full text-left mt-[9px]">
+            <thead><tr><th>구분</th><th>메뉴</th><th>사유</th></tr></thead>
+            <tbody>
+              {blockedRows.map((r, i) => <tr key={i}><td>{r[0]}</td><td>{r[1]}</td><td className="whitespace-pre-line">{r[2]}</td></tr>)}
+            </tbody>
+          </table>
+          <div className="mt-[9px]"><button type="button" className="ec-btn" onClick={() => setBlockedRows(null)}>닫기</button></div>
+        </div>
+      )}</Modal>
     </EcListShell>
   )
 }
