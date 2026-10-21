@@ -29,6 +29,42 @@ const defaultRange = () => {
   return { from: ym(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: ym(now) }
 }
 
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const MONTH_PICKS = ['금월', '전월', '전월+금월', '금년', '전년', '종료월'] as const
+/** 원본 빠른선택 — 귀속연월(YYYY-MM) 범위. 종료월은 지금 끝 달 한 달. */
+function monthPick(label: (typeof MONTH_PICKS)[number], cur: { from: string; to: string }) {
+  const now = new Date()
+  const y = now.getFullYear()
+  const thisM = ym(now)
+  const prevM = ym(new Date(y, now.getMonth() - 1, 1))
+  switch (label) {
+    case '금월': return { from: thisM, to: thisM }
+    case '전월': return { from: prevM, to: prevM }
+    case '전월+금월': return { from: prevM, to: thisM }
+    case '금년': return { from: `${y}-01`, to: `${y}-12` }
+    case '전년': return { from: `${y - 1}-01`, to: `${y - 1}-12` }
+    case '종료월': return { from: cur.to, to: cur.to }
+  }
+}
+
+/** 원본 [귀속연월] 한 쪽 — 연도 · 월 고르기 둘(원본 '2026' · '09' 단추). 값은 'YYYY-MM'. */
+function YmSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const y = Number(value.slice(0, 4)) || new Date().getFullYear()
+  const m = value.slice(5, 7) || '01'
+  const now = new Date().getFullYear()
+  const years = Array.from(new Set([now + 1, now, now - 1, now - 2, now - 3, y])).sort((a, b) => b - a)
+  return (
+    <>
+      <select className="ec-input w-[54.8px]" aria-label={`${label} 연도`} value={y} onChange={(e) => onChange(`${e.target.value}-${m}`)}>
+        {years.map((v) => <option key={v} value={v}>{v}</option>)}
+      </select>
+      <select className="ec-input w-[47.5px]" aria-label={`${label} 월`} value={m} onChange={(e) => onChange(`${y}-${e.target.value}`)}>
+        {Array.from({ length: 12 }, (_, i) => pad2(i + 1)).map((v) => <option key={v} value={v}>{v}</option>)}
+      </select>
+    </>
+  )
+}
+
 /**
  * 관리 &gt; 급여관리 &gt; 급여작업 &gt; <b>사원별급여조회</b> (원본 E090110).
  *
@@ -56,6 +92,7 @@ export default function EmployeePayListPage() {
   const [ledgers, setLedgers] = useState<{ payMonth: string; name: string }[]>([])
   const [empCond, setEmpCond] = useState<string[]>([])
   const [deptCond, setDeptCond] = useState<string[]>([])
+  const [condTab, setCondTab] = useState<'기본' | '전체'>('기본')
   const [error, setError] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const tableRef = useRef<HTMLTableElement>(null)
@@ -139,14 +176,25 @@ export default function EmployeePayListPage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
+        {/* 원본 조건 판 위 탭 [기본] [전체] — 두 탭 모두 같은 칸 일곱(2026-10-21 실측) */}
+        <li className="full">
+          <div className="flex border-0 border-b border-solid border-ec-line" role="tablist" aria-label="조건 탭">
+            {(['기본', '전체'] as const).map((t) => (
+              <button key={t} type="button" role="tab" aria-selected={condTab === t} onClick={() => setCondTab(t)}
+                      className={`no-ec bg-transparent border-0 border-b-[1.5px] border-solid cursor-pointer text-[12px] py-[9.9px] px-[11.7px] ${condTab === t ? 'border-ec-blue text-ec-blue font-bold' : 'border-transparent text-[var(--ec-pill-text)]'}`}>{t}</button>
+            ))}
+          </div>
+        </li>
         <EcCond label="급여대장">
           <CodePickerField label="급여대장" hideLabel fill multiple placeholder="급여대장" values={ledgerCond} onChangeMulti={(v) => setLedgerCond(v)}
                            items={ledgers.map((l) => ({ value: l.payMonth, code: l.payMonth.replace('-', '/'), name: l.name }))} />
         </EcCond>
         <EcCond label="귀속연월">
-          <input type="month" className="ec-input w-[140px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <div className="flex items-center gap-[4px]">
+            <YmSelect value={range.from} onChange={(v) => setRange({ ...range, from: v })} label="시작" />
+            ~
+            <YmSelect value={range.to} onChange={(v) => setRange({ ...range, to: v })} label="끝" />
+          </div>
         </EcCond>
         <EcCond label="사원">
           <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={empCond} onChangeMulti={(v) => setEmpCond(v)}
@@ -156,6 +204,13 @@ export default function EmployeePayListPage() {
           <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}
                            items={depts.map((x) => ({ value: String(x.id), code: x.code ?? undefined, name: x.name }))} />
         </EcCond>
+        {/* 원본 [검색(F8)] 옆 빠른선택(2026-10-21 실측): 누르면 귀속연월을 바꾸고 바로 찾으며 판이 접힌다.
+            종료월 = 시작을 끝 달로(2026/09~10 → 2026/10~10). [설정] 은 원본도 권한없음 창이라 두지 않는다. 셸이 ▾ 로 모은다. */}
+        <li className="full">
+          {MONTH_PICKS.map((l) => (
+            <button key={l} type="button" className="ec-btn ec-btn-pick" onClick={() => setRange(monthPick(l, range))}>{l}</button>
+          ))}
+        </li>
       </ul>
       <div className="text-right mb-[4px] text-ec-hint">{range.from.replace('-', '/')}/01 ~ {range.to.replace('-', '/')}</div>
       <div className="overflow-x-auto">

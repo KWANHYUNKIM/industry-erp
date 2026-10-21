@@ -32,9 +32,11 @@
         "js:(()=>{[...document.querySelectorAll('label')].filter(l=>l.textContent.trim()==='사용')[0].querySelector('input').click();return true})()",
         "wait:300",
         "expect:/2091\\/06 -1/.test(document.querySelector('table').innerText)",
+        "set:input[type=month]#0|2091-05",
         "click:종료월",
-        "wait:200",
-        "expect:(()=>{const d=new Date();const m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');const ms=document.querySelectorAll('input[type=month]');return ms[0].value==='2091-06'&&ms[1].value===m})()",
+        "wait:500",
+        "expect:(()=>{const ms=document.querySelectorAll('input[type=month]');return ms[0].value==='2091-06'&&ms[1].value==='2091-06'})()",
+        "expect:/2091\\/06 -1/.test(document.querySelector('table').innerText) && document.body.innerText.includes('정렬/소계기준') && document.body.innerText.includes('결재방표시')",
         "js:(async()=>{const t=localStorage.getItem('erp_token');let ok=true;for(const id of sessionStorage.getItem('qaPs').split(',')){const r=await fetch('/api/payslips/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+t}});ok=ok&&r.ok}sessionStorage.setItem('qaPsDel',String(ok));return true})()",
         "expect:sessionStorage.getItem('qaPsDel')==='true'"
       ]

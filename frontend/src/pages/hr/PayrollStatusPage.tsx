@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
+import EcSortSubtotalModal, { withSubtotals, type SortSubtotal } from '../../components/EcSortSubtotalModal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
@@ -25,6 +26,18 @@ const AGG_DIMS: AggDim[] = [
 const DUTY: Record<string, string> = { '100': '팀원', '200': '팀장' }
 const HIRE_KIND: Record<string, string> = { '100': '신입', '200': '경력' }
 type Confirm = '전체' | '미확정' | '확정'
+/**
+ * [정렬/소계기준] [설정] — '정렬/소계/합계 설정' 창(2026-10-21 원본 E090115 실측). 기준 고르기: 없음 · 귀속연월-NO · 급여대장명 ·
+ * 부서명 · 부서코드 · 프로젝트명 · 프로젝트코드 · 성명 · 사원번호 · 지급총액 · 공제총액 · 실지급액.
+ * 처음 값: 1 성명 소계 ◉표시 · 2 귀속연월-NO ◉표시안함 · 3 없음, 합계영역 ◉표시 — 지금까지 고정으로 그리던 '성명 계' · 합계와 같다.
+ */
+const SORT_KEYS = ['귀속연월-NO', '급여대장명', '부서명', '부서코드', '프로젝트명', '프로젝트코드', '성명', '사원번호', '지급총액', '공제총액', '실지급액']
+const DEFAULT_SORT: SortSubtotal = {
+  lines: [{ key: '성명', desc: false, subtotal: true }, { key: '귀속연월-NO', desc: false, subtotal: false }, { key: '', desc: false, subtotal: false }],
+  total: true,
+}
+/** [양식] — 원본 기본(수정불가) · 부서별(2026-10-21 실측: 부서별도 같은 열 · 같은 '성명 계' 줄을 냈다). */
+const FORMS = ['기본(수정불가)', '부서별'] as const
 
 const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -54,6 +67,8 @@ interface Row {
   ledgerName: string
   department: string
   employeeName: string
+  employeeCode?: string
+  deptCode?: string
   amounts: Map<string, number>
   gross: number
   deduction: number
@@ -94,11 +109,16 @@ export default function PayrollStatusPage() {
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [depts, setDepts] = useState<DeptRow[]>([])
   const [error, setError] = useState('')
+  const [form, setForm] = useState<(typeof FORMS)[number]>('기본(수정불가)')
+  /** 원본 기타 [결재방표시] — 켜면 출력물 위에 결재란(인쇄용결재라인(관리)). 처음은 꺼짐. */
+  const [signBox, setSignBox] = useState(false)
+  const [sortCfg, setSortCfg] = useState<SortSubtotal>(DEFAULT_SORT)
+  const [sortOpen, setSortOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
 
-  function search() {
+  function search(r = range) {
     setError('')
-    api.get<Payslip[]>('/payslips/range', { params: range }).then((r) => setSlips(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<Payslip[]>('/payslips/range', { params: r }).then((r) => setSlips(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
   useEffect(() => {
     search()
@@ -140,7 +160,8 @@ export default function PayrollStatusPage() {
     for (const l of p.lines) amounts.set(colOf(l), (amounts.get(colOf(l)) ?? 0) + Number(l.amount))
     return {
       key: String(p.id), label: `${p.payMonth.replace('-', '/')} -1`, ledgerName: ledgerName(p.payMonth),
-      department: p.department ?? '', employeeName: p.employeeName, amounts,
+      department: p.department ?? '', employeeName: p.employeeName, employeeCode: p.employeeCode,
+      deptCode: depts.find((d) => d.name === p.department)?.code ?? '', amounts,
       gross: Number(p.grossPay), deduction: Number(p.deductionTotal), net: Number(p.netPay),
     }
   }
@@ -193,12 +214,23 @@ export default function PayrollStatusPage() {
     })
   }, [filtered, mode, ledgers])
 
-  // 성명 가나다 순으로 이름이 바뀔 때마다 '성명 계'
-  const groups: { name: string; rows: Row[] }[] = []
-  for (const r of [...lines].sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'ko'))) {
-    const g = groups[groups.length - 1]
-    if (g && g.name === r.employeeName) g.rows.push(r); else groups.push({ name: r.employeeName, rows: [r] })
+  // [정렬/소계기준] — 기준 차례로 줄을 세우고, 소계 ◉표시 기준이 바뀔 때마다 '<값> 계'(처음 값은 성명 → '성명 계')
+  const sortValue = (r: Row, key: string): string | number => {
+    switch (key) {
+      case '귀속연월-NO': return r.label
+      case '급여대장명': return r.ledgerName
+      case '부서명': return r.department
+      case '부서코드': return r.deptCode ?? ''
+      case '성명': return r.employeeName
+      case '사원번호': return r.employeeCode ?? ''
+      case '지급총액': return r.gross
+      case '공제총액': return r.deduction
+      case '실지급액': return r.net
+      default: return ''   // 프로젝트명 · 프로젝트코드 — 명세에 프로젝트가 없다
+    }
   }
+  const sortLabel = (r: Row, key: string) => { const v = sortValue(r, key); return typeof v === 'number' ? won(v) : v }
+  const out = withSubtotals(lines, sortCfg, sortValue, sortLabel)
   const total = sumRows(lines, { key: 'total', label: '합계', ledgerName: '', department: '', employeeName: '' })
 
   const cells = (r: Row) => (
@@ -212,7 +244,7 @@ export default function PayrollStatusPage() {
   )
 
   return (
-    <EcListShell title="급여현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
+    <EcListShell title="급여현황" searchable={false} collapseConditions={false} signLine={signBox} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="구분">
@@ -263,14 +295,27 @@ export default function PayrollStatusPage() {
             <label key={c} className="mr-[10px]"><input type="radio" name="pay-status-confirm" checked={confirmCond === c} onChange={() => setConfirmCond(c)} /> {c}</label>
           ))}
         </EcCond>
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[4px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+          </label>
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy text-[12px]"
+                  onClick={() => setSortOpen(true)}>설정</button>
+        </EcCond>
       </ul>
+      {/* 원본 아래 줄(2026-10-21 실측): [양식 ▾] [검색(F8)] 금월 · 전월 · 전월+금월 · 금년 · 전년 · 종료월 · 설정 [다시 작성].
+          빠른선택은 귀속연월을 바꾸고 바로 찾는다. 종료월 = 시작을 끝 달로(2026/09~10 → 2026/10~10). [설정] 은 원본도 권한없음 창이라 두지 않는다. */}
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
-        <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
+        <select className="ec-input w-auto" aria-label="양식" value={form} onChange={(e) => setForm(e.target.value as (typeof FORMS)[number])}>
+          {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => search()}>검색(F8)</button>
         {['금월', '전월', '전월+금월', '금년', '전년'].map((l) => (
-          <button key={l} type="button" className="ec-btn" onClick={() => setRange(pick(l))}>{l}</button>
+          <button key={l} type="button" className="ec-btn" onClick={() => { const r = pick(l); setRange(r); search(r) }}>{l}</button>
         ))}
-        {/* 원본 끝 단추 [종료월] — 시작은 그대로 두고 끝을 이번 달로 */}
-        <button type="button" className="ec-btn" onClick={() => setRange({ ...range, to: pick('금월').to })}>종료월</button>
+        <button type="button" className="ec-btn" onClick={() => { const r = { from: range.to, to: range.to }; setRange(r); search(r) }}>종료월</button>
       </div>
       {/* 원본은 출력물 머리(제목 24px · 회사명 · 기간) — 2026-10-13 실측 */}
       <EcReportHead title="급여현황" period={reportPeriod(`${range.from}-01`, range.to.replace('-', '/'))} />
@@ -298,41 +343,42 @@ export default function PayrollStatusPage() {
               <tr><td colSpan={8 + allowanceCols.length + deductionCols.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               <>
-                {groups.map((g) => (
-                  <GroupRows key={g.name} g={g} cells={cells} subtotal={sumRows(g.rows, { key: `s-${g.name}`, label: `${g.name} 계`, ledgerName: '', department: '', employeeName: '' })} />
-                ))}
-                <tr className="ec-total">
-                  <td colSpan={5} className="text-center">합계</td>
-                  {cells(total)}
-                </tr>
+                {out.map((o) => (o.kind === 'row' ? <LineRow key={o.row.key} r={o.row} cells={cells} /> : (
+                  // 원본 '성명 계' · 합계 줄(2026-10-13 실측): ec-total(700 · 칸마다 rgb 243) · 이름 칸 가운데(colSpan 5)
+                  <tr key={`s-${o.key}`} className="ec-total">
+                    <td colSpan={5} className="text-center">{o.label} 계</td>
+                    {cells(sumRows(o.list, { key: `s-${o.key}`, label: '', ledgerName: '', department: '', employeeName: '' }))}
+                  </tr>
+                )))}
+                {sortCfg.total && (
+                  <tr className="ec-total">
+                    <td colSpan={5} className="text-center">합계</td>
+                    {cells(total)}
+                  </tr>
+                )}
               </>
             )}
           </tbody>
         </table>
       </div>
       )}
+      {sortOpen && (
+        <EcSortSubtotalModal keys={SORT_KEYS} value={sortCfg} onApply={(v) => { setSortCfg(v); setSortOpen(false) }} onClose={() => setSortOpen(false)} />
+      )}
     </EcListShell>
   )
 }
 
-function GroupRows({ g, cells, subtotal }: { g: { name: string; rows: Row[] }; cells: (r: Row) => React.ReactNode; subtotal: Row }) {
+/** 격자는 출력물(ec-report) — 머리 700 · 6px 3px 3px · 선 1px · 본문 3px · 24.1 */
+function LineRow({ r, cells }: { r: Row; cells: (r: Row) => React.ReactNode }) {
   return (
-    <>
-      {g.rows.map((r) => (
-        <tr key={r.key}>
-          <td>{r.label}</td>
-          <td>{r.ledgerName}</td>
-          <td>{r.department}</td>
-          <td></td>
-          <td>{r.employeeName}</td>
-          {cells(r)}
-        </tr>
-      ))}
-      {/* 원본 '성명 계' · 합계 줄(2026-10-13 실측): ec-total(700 · 칸마다 rgb 243) · 이름 칸 가운데(colSpan 5). 격자는 출력물(ec-report) — 머리 700 · 6px 3px 3px · 선 1px · 본문 3px · 24.1 */}
-      <tr className="ec-total">
-        <td colSpan={5} className="text-center">{subtotal.label}</td>
-        {cells(subtotal)}
-      </tr>
-    </>
+    <tr>
+      <td>{r.label}</td>
+      <td>{r.ledgerName}</td>
+      <td>{r.department}</td>
+      <td></td>
+      <td>{r.employeeName}</td>
+      {cells(r)}
+    </tr>
   )
 }

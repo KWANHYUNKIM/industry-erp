@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { EmployeeMaster, PayGroup, PayGroupEmployee, PayItem, PayslipLineKind } from '../../types/api'
 import EditStateMenu from '../../components/EditStateMenu'
+import GridFindButton from '../../components/GridFindButton'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 원본 그룹 폼은 수당 · 공제 격자마다 빈 줄 세 개로 시작한다. */
@@ -30,7 +31,8 @@ const blankEmps = (n = BLANK_LINES): EmpRow[] => Array.from({ length: n }, () =>
  *       이 그룹의 수당 · 공제를 지급률만큼 받는다(서버 PayrollService).</li>
  *   <li>[사용중단/재사용 ▲] 은 사용중단 · 삭제 · 재사용. 삭제는 '한번 지워진 자료는 복구될 수 없습니다.' 를 묻는다.</li>
  * </ul>
- * 웹자료올리기 · 격자 [찾기(F3)] · [정렬] 은 아직 없다.
+ * 격자 [찾기(F3)] 는 그룹 창 수당 · 공제 격자와 적용사원등록 창 격자 위에 있다(2026-10-21 원본 실측). 그룹 창 [정렬] · 적용사원등록 창
+ * [웹자료올리기] · [Option] 은 아직 없다(원본 적용사원등록 창에는 [H] · [정렬] 이 없다).
  */
 export default function PayGroupListPage() {
   const [groups, setGroups] = useState<PayGroup[]>([])
@@ -188,8 +190,11 @@ export default function PayGroupListPage() {
   useTableColumnCheck(tableRef, '수당/공제그룹등록', [shown.length])
   const allChecked = shown.length > 0 && shown.every((g) => checked.has(g.id))
 
+  const allowRef = useRef<HTMLTableElement>(null)
+  const deductRef = useRef<HTMLTableElement>(null)
+  const empRef = useRef<HTMLTableElement>(null)
   const lineGrid = (kind: PayslipLineKind, rows: LineRow[], setRows: (r: LineRow[]) => void) => (
-    <table className="w-full mb-[8px]">
+    <table ref={kind === 'ALLOWANCE' ? allowRef : deductRef} className="w-full mb-[8px]">
       <thead>
         <tr>
           <th className="w-[34px]"></th>
@@ -307,8 +312,10 @@ export default function PayGroupListPage() {
             </li>
           </ul>
           <div className="ec-pills mb-[6px]"><span className="ec-pill active">수당</span></div>
+          <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={allowRef} /></div>
           {lineGrid('ALLOWANCE', allowances, setAllowances)}
           <div className="ec-pills mb-[6px]"><span className="ec-pill active">공제</span></div>
+          <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={deductRef} /></div>
           {lineGrid('DEDUCTION', deductions, setDeductions)}
           <div className="flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
@@ -328,7 +335,8 @@ export default function PayGroupListPage() {
             <li><span className="title">수당/공제그룹코드</span><div className="form">{empGroup?.code}</div></li>
             <li><span className="title">수당/공제그룹명</span><div className="form">{empGroup?.name}</div></li>
           </ul>
-          <table className="w-full">
+          <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={empRef} /></div>
+          <table ref={empRef} className="w-full">
             <thead>
               <tr>
                 <th className="w-[34px]"></th>

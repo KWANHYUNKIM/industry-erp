@@ -71,6 +71,8 @@ export default function AssignmentSlipForm({
   const editing = !!(editDate && editNo) && !copied
   const [slipDate, setSlipDate] = useState(editDate ?? ymd(new Date()))
   const [rows, setRows] = useState<Row[]>(Array.from({ length: BLANK_ROWS }, blank))
+  /** 격자 첫 칸 체크 — 원본은 머리에 전체 체크칸, 줄마다 체크칸 + 번호(2026-10-21 실측, 칸 폭 52). */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [error, setError] = useState('')
@@ -184,7 +186,10 @@ export default function AssignmentSlipForm({
         <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
-              <th className="w-[34px]"></th>
+              <th className="w-[52px] text-center">
+                <input type="checkbox" aria-label="전체 선택" checked={rows.length > 0 && checked.size === rows.length}
+                       onChange={(e) => setChecked(e.target.checked ? new Set(rows.map((_, i) => i)) : new Set())} />
+              </th>
               <th className="w-[150px]">발령일자</th>
               <th className="w-[150px]">사번</th>
               <th>성명</th>
@@ -202,7 +207,10 @@ export default function AssignmentSlipForm({
               const emp = employees.find((x) => String(x.id) === r.employeeId)
               return (
                 <tr key={i}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td className="text-center whitespace-nowrap">
+                    <input type="checkbox" aria-label={`${i + 1}줄 선택`} checked={checked.has(i)}
+                           onChange={() => { const n = new Set(checked); if (n.has(i)) n.delete(i); else n.add(i); setChecked(n) }} /> {i + 1}
+                  </td>
                   <td><input type="date" className="ec-input w-full" value={r.assignDate} onChange={(e) => edit(i, { assignDate: e.target.value })} /></td>
                   <td>
                     <CodePickerField label="사번" hideLabel fill placeholder="사번" emptyLabel="선택 해제"

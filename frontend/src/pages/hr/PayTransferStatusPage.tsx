@@ -4,6 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { bankItems } from '../../utils/bankCodes'
+import EcSortSubtotalModal, { emptySortSubtotal, withSubtotals, type SortSubtotal } from '../../components/EcSortSubtotalModal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, Payslip } from '../../types/api'
@@ -24,13 +25,19 @@ function pick(label: string) {
 }
 
 /**
+ * [정렬/소계기준] [설정] — '정렬/소계/합계 설정' 창(2026-10-21 원본 E090117 실측). 기준 고르기: 없음 · 은행코드 · 은행명 ·
+ * 계좌번호 · 예금주명 · 실지급액. 처음 값: 1~3 모두 없음 · 합계영역 ◉표시안함(그래서 합계줄이 없다).
+ */
+const SORT_KEYS = ['은행코드', '은행명', '계좌번호', '예금주명', '실지급액']
+
+/**
  * 관리 &gt; 급여관리 &gt; 급여작업 &gt; <b>급여이체현황</b> (원본 E090117).
  *
  * <p>2026-10-03 loginaa 실측: 조건 판이 펼쳐진 현황 — 귀속연월(전월+금월) · 지급연월 · 급여대장 · 이체은행 · 정렬/소계기준.
  * 결과: 회사명 · 기간 머리 + 은행코드 · 은행명 · 계좌번호 · 예금주명 · 실지급액, 명세마다 한 줄(합계줄 없음). 버튼 인쇄 · Excel.
  * 은행 정보는 사원등록 [급여통장]에서 온다 — 비어 있으면 원본처럼 빈칸으로 찍는다.
  * [급여대장] · [이체은행]은 여러 개 고르는 코드도움 — 이체은행 창은 원본 은행코드 85줄(utils/bankCodes).
- * 지급연월([사용])은 그 귀속월 급여대장의 지급일 달로 거른다. 정렬/소계기준은 아직 없다.
+ * 지급연월([사용])은 그 귀속월 급여대장의 지급일 달로 거른다. [양식] 의 은행별 양식(우리은행 · 농협 …)은 꼴을 못 재서 없다.
  */
 export default function PayTransferStatusPage() {
   const [range, setRange] = useState(pick('전월+금월'))
@@ -43,12 +50,14 @@ export default function PayTransferStatusPage() {
   const [slips, setSlips] = useState<Payslip[]>([])
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [error, setError] = useState('')
+  const [sortCfg, setSortCfg] = useState<SortSubtotal>(emptySortSubtotal())
+  const [sortOpen, setSortOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '급여이체현황', [slips.length])
+  useTableColumnCheck(tableRef, '급여이체현황', [slips.length, sortCfg])
 
-  function search() {
+  function search(r = range) {
     setError('')
-    api.get<Payslip[]>('/payslips/range', { params: { from: range.from, to: range.to } })
+    api.get<Payslip[]>('/payslips/range', { params: { from: r.from, to: r.to } })
       .then((r) => setSlips(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
   useEffect(() => {
@@ -69,6 +78,20 @@ export default function PayTransferStatusPage() {
     .filter(({ e }) => banks.length === 0 || banks.includes(e?.bankCode ?? ''))
     // 원본(2026-10-13 실측): 대장 차례(귀속연월-NO 오름차순) · 대장 안은 사원코드 순 — 서버는 귀속월 내림차순으로 준다
     .sort((a, b) => a.p.payMonth.localeCompare(b.p.payMonth) || a.p.employeeCode.localeCompare(b.p.employeeCode))
+  type Line = (typeof shown)[number]
+  const sortValue = ({ p, e }: Line, key: string): string | number => {
+    switch (key) {
+      case '은행코드': return e?.bankCode ?? ''
+      case '은행명': return e?.bankName ?? ''
+      case '계좌번호': return e?.accountNo ?? ''
+      case '예금주명': return e?.accountHolder ?? ''
+      case '실지급액': return Number(p.netPay)
+      default: return ''
+    }
+  }
+  const sortLabel = (l: Line, key: string) => { const v = sortValue(l, key); return typeof v === 'number' ? won(v) : v }
+  const out = withSubtotals(shown, sortCfg, sortValue, sortLabel)
+  const sumNet = (ls: Line[]) => ls.reduce((t, { p }) => t + Number(p.netPay), 0)
 
   return (
     <EcListShell title="급여이체현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
@@ -100,11 +123,16 @@ export default function PayTransferStatusPage() {
           <CodePickerField label="이체은행" hideLabel fill multiple placeholder="이체은행" values={banks}
                            onChangeMulti={(v) => setBanks(v)} items={bankItems()} />
         </EcCond>
+        <EcCond label="정렬/소계기준">
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy text-[12px]"
+                  onClick={() => setSortOpen(true)}>설정</button>
+        </EcCond>
       </ul>
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
-        <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => search()}>검색(F8)</button>
+        {/* 원본 빠른선택(2026-10-21 실측)은 귀속연월을 바꾸고 바로 찾는다. 뒤 [설정] 은 원본도 권한없음 창이라 두지 않는다. */}
         {['금월', '전월', '전월+금월', '금년', '금년(~오늘)', '전년'].map((l) => (
-          <button key={l} type="button" className="ec-btn" onClick={() => setRange(pick(l))}>{l}</button>
+          <button key={l} type="button" className="ec-btn" onClick={() => { const r = pick(l); setRange(r); search(r) }}>{l}</button>
         ))}
       </div>
       <EcReportHead title="급여이체현황" period={reportPeriod(`${range.from}-01`, range.to.replace('-', '/'))} />
@@ -121,18 +149,36 @@ export default function PayTransferStatusPage() {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map(({ p, e }) => (
-            <tr key={p.id}>
-              <td>{e?.bankCode ?? ''}</td>
-              <td>{e?.bankName ?? ''}</td>
-              <td>{e?.accountNo ?? ''}</td>
-              <td>{e?.accountHolder ?? ''}</td>
-              <td className="text-right">{won(p.netPay)}</td>
-            </tr>
-          ))}
+          ) : (
+            <>
+              {out.map((o) => (o.kind === 'row' ? (
+                <tr key={o.row.p.id}>
+                  <td>{o.row.e?.bankCode ?? ''}</td>
+                  <td>{o.row.e?.bankName ?? ''}</td>
+                  <td>{o.row.e?.accountNo ?? ''}</td>
+                  <td>{o.row.e?.accountHolder ?? ''}</td>
+                  <td className="text-right">{won(o.row.p.netPay)}</td>
+                </tr>
+              ) : (
+                <tr key={`s-${o.key}`} className="ec-total">
+                  <td colSpan={4} className="text-center">{o.label} 계</td>
+                  <td className="text-right">{won(sumNet(o.list))}</td>
+                </tr>
+              )))}
+              {sortCfg.total && (
+                <tr className="ec-total">
+                  <td colSpan={4} className="text-center">합계</td>
+                  <td className="text-right">{won(sumNet(shown))}</td>
+                </tr>
+              )}
+            </>
+          )}
         </tbody>
       </table>
       <EcReportFoot />
+      {sortOpen && (
+        <EcSortSubtotalModal keys={SORT_KEYS} value={sortCfg} onApply={(v) => { setSortCfg(v); setSortOpen(false) }} onClose={() => setSortOpen(false)} />
+      )}
     </EcListShell>
   )
 }
