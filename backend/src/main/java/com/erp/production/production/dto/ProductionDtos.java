@@ -180,6 +180,13 @@ public final class ProductionDtos {
             List<@Valid ManualConsumeLine> materials
     ) {}
 
+    /** BOM 저장 창 [재계산] — 이 제품이 기준일자 기간에 만든 생산입고 I 전표의 소모내역을 지금 BOM 으로 다시 계산한다. */
+    public record RecalcConsumptionRequest(
+            @jakarta.validation.constraints.NotNull Long productId,
+            @jakarta.validation.constraints.NotNull java.time.LocalDate from,
+            @jakarta.validation.constraints.NotNull java.time.LocalDate to
+    ) {}
+
     public record CreateProductionRequest(
             @NotNull(message = "작업지시를 선택하세요.") Long workOrderId,
             @NotNull(message = "생산수량을 입력하세요.") @Positive(message = "생산수량은 0보다 커야 합니다.") BigDecimal producedQty,

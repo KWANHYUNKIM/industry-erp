@@ -233,6 +233,7 @@ export default function BomPage() {
       return
     }
     const wantRecalc = recalc?.on ?? false
+    const recalcRange = recalc
     setRecalc(null)
     try {
       await api.post('/boms', {
@@ -244,8 +245,11 @@ export default function BomPage() {
       // 원본: 저장하면 말 없이 창이 닫히고 목록 [원재료갯수] 가 바뀐다.
       setShowForm(false)
       load()
-      // 우리는 생산입고 I 저장 때 소모를 적어 둔다 — 과거 전표 재계산은 아직 없다(원본 재계산 숫자를 못 쟀다). 말 없이 넘기지 않는다.
-      if (wantRecalc) void ecAlert('BOM 은 저장했습니다. 과거 생산입고1 전표의 소모 재계산은 아직 지원하지 않습니다.')
+      // 원본 2026-10-22 실측: ☑재계산 + 확인 → 알림 '[생산입고1 - 소모내역]을(를) 실행합니다.' (끝나면 메신저 알림 — 우리는 바로 끝난다).
+      if (wantRecalc && recalcRange) {
+        await api.post('/productions/recalculate-consumption', { productId: Number(productId), from: recalcRange.from, to: recalcRange.to })
+        void ecAlert('[생산입고1 - 소모내역]을(를) 실행합니다.' + '\n\n' + '메뉴이탈시에도 작업은 계속되며, 모든메뉴 정상사용가능합니다.' + '\n' + '작업완료시 메신저로 알림이 발송됩니다.')
+      }
     } catch (err) {
       setError(extractErrorMessage(err))
     }

@@ -108,7 +108,7 @@ public class BomService {
     public BomResponse setActive(Long id, boolean active) {
         Bom bom = getVersion(id);
         if (!active && bom.isDefaultVersion()) {
-            throw ApiException.badRequest("기본BOM 은 사용중단할 수 없습니다. 다른 버전을 기본으로 한 뒤 사용중단하세요.");
+            throw ApiException.badRequest("기본BOM은 사용중단할 수 없습니다.\n기본BOM 변경 후 다시 시도하시기 바랍니다.");
         }
         boolean changed = bom.isActive() != active;
         bom.setActive(active);

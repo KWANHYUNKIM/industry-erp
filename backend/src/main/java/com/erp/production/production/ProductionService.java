@@ -487,6 +487,35 @@ public class ProductionService {
         return changed;
     }
 
+    /**
+     * 원본 BOM 수정 창 [재계산] ☑ (2026-10-22 실측: 소모 A 2 → 3 으로 고치고 재계산 → 생산입고 I 10 개 전표의
+     * 소모가 A -20 → -30). 기준일자 안의 이 제품 생산입고 I 전표만 지금 BOM 으로 소모를 다시 낸다 —
+     * 확인된 전표 · 외주비를 회계반영한 전표는 건드리지 않는다. 고친 전표 수를 돌려 준다.
+     */
+    @Transactional
+    public int recalculateConsumption(Long productId, LocalDate from, LocalDate to, String username) {
+        int changed = 0;
+        for (Production p : productionRepository.findRecalcTargets(productId, from, to)) {
+            if (p.getConfirmStatus() == ProductionConfirmStatus.CONFIRMED || p.getSubcontractJournalId() != null) continue;
+            Warehouse consumedAt = p.getFromWarehouse() != null ? p.getFromWarehouse() : p.getWarehouse();
+            LocalDate date = p.getProductionDate();
+            for (ProductionMaterial m : p.getMaterials()) {
+                stockService.applyDelta(m.getComponent(), consumedAt, m.getQuantity(),
+                        StockTransactionType.INBOUND, null, date, "생산소요재계산취소 " + p.getProdNo(), username);
+            }
+            p.getMaterials().clear();
+            Bom bom = p.getBom() != null ? p.getBom() : getBom(p.getProduct());
+            for (BomLine line : bom.getLines()) {
+                BigDecimal consume = line.getQuantity().multiply(p.getProducedQty());
+                stockService.applyDelta(line.getComponent(), consumedAt, consume.negate(),
+                        StockTransactionType.OUTBOUND, null, date, "생산소요재계산 " + p.getProdNo(), username);
+                p.addMaterial(ProductionMaterial.builder().component(line.getComponent()).quantity(consume).build());
+            }
+            changed++;
+        }
+        return changed;
+    }
+
     /** 한 줄이 움직인 재고·작업지시 진척을 되돌린다(행은 지우지 않는다). */
     private void reverse(Production p, String username) {
         /* 원본도 확인한 전표는 확인취소를 먼저 해야 고치거나 지울 수 있다(판매와 같다). */

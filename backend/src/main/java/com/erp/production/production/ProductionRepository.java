@@ -35,6 +35,12 @@ public interface ProductionRepository extends JpaRepository<Production, Long> {
             "order by p.productionDate desc, p.id desc")
     List<Production> findWithRefsByOrderPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    /** 생산입고 I(BOM기준소모) 줄 중 이 제품이 이 기간에 만든 것 — BOM 저장 때 [재계산] 이 쓴다. */
+    @Query("select p from Production p join fetch p.product join fetch p.warehouse left join fetch p.fromWarehouse " +
+            "where p.product.id = :productId and p.entryType = com.erp.production.production.ProductionEntryType.I " +
+            "and p.productionDate between :from and :to order by p.productionDate, p.id")
+    List<Production> findRecalcTargets(@Param("productId") Long productId, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
     /** 작업지시에 붙은 생산실적 수. 작업지시를 지워도 되는지 판단한다. */
     long countByWorkOrder_Id(Long workOrderId);
 

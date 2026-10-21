@@ -82,6 +82,15 @@ public class ProductionController {
         return java.util.Map.of("changed", productionService.changeStatus(req.prodNos(), req.status()));
     }
 
+    /** BOM 저장 창 [재계산] ☑ — 생산입고 I 전표의 소모를 지금 BOM 으로 다시 계산한다(고친 전표 수). */
+    @PostMapping("/recalculate-consumption")
+    public java.util.Map<String, Integer> recalculateConsumption(
+            @jakarta.validation.Valid @RequestBody com.erp.production.production.dto.ProductionDtos.RecalcConsumptionRequest req,
+            java.security.Principal principal) {
+        int n = productionService.recalculateConsumption(req.productId(), req.from(), req.to(), principal != null ? principal.getName() : null);
+        return java.util.Map.of("changed", n);
+    }
+
     /** 전표째 [삭제]. */
     @DeleteMapping("/slips/{prodNo}")
     public ResponseEntity<Void> deleteSlip(@PathVariable String prodNo, java.security.Principal principal) {
