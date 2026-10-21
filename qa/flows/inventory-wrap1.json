@@ -1,0 +1,67 @@
+{
+  "about": "재고1 마무리 묶음1 — 부서리스트 · 관리항목리스트 Search(F3) 기타 [수정일자순(정렬)](켜면 나중에 고친 것이 위), 거래처등록 상호 빈 저장 '!' 가 [기본] · [거래처정보] 두 탭에. 만든 자료는 지운다.",
+  "shots": [
+    {
+      "name": "부서 수정일자순 준비",
+      "path": "/hr/departments",
+      "steps": [
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};for(const n of ['QA재고1-정렬A','QA재고1-정렬B']){await fetch('/api/departments',{method:'POST',headers:h,body:JSON.stringify({name:n})});await new Promise(r=>setTimeout(r,1100))}return true})()"
+      ]
+    },
+    {
+      "name": "부서 수정일자순",
+      "path": "/hr/departments",
+      "steps": [
+        "wait:800",
+        "click:Search(F3)",
+        "wait:300",
+        "set:input[placeholder=\"부서명\"]|QA재고1-정렬",
+        "expect:[...document.querySelectorAll('tbody tr')].map(r=>r.innerText).filter(x=>x.includes('정렬')).map(x=>x.includes('정렬A')?'A':'B').join('')==='AB'",
+        "js:(()=>{[...document.querySelectorAll('.ec-cond label')].find(l=>l.innerText.includes('수정일자순')).querySelector('input').click()})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tbody tr')].map(r=>r.innerText).filter(x=>x.includes('정렬')).map(x=>x.includes('정렬A')?'A':'B').join('')==='BA'",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const ds=await (await fetch('/api/departments',{headers:h})).json();for(const d of ds.filter(d=>d.name.startsWith('QA재고1-정렬')))await fetch('/api/departments/'+d.id,{method:'DELETE',headers:h});return true})()"
+      ]
+    },
+    {
+      "name": "관리항목 수정일자순 준비",
+      "path": "/inventory/manage-items",
+      "steps": [
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};for(const n of ['QA재고1-정렬A','QA재고1-정렬B']){await fetch('/api/management-items',{method:'POST',headers:h,body:JSON.stringify({name:n})});await new Promise(r=>setTimeout(r,1100))}return true})()"
+      ]
+    },
+    {
+      "name": "관리항목 수정일자순",
+      "path": "/inventory/manage-items",
+      "steps": [
+        "wait:800",
+        "click:Search(F3)",
+        "wait:300",
+        "set:input[placeholder=\"관리항목명\"]|QA재고1-정렬",
+        "expect:[...document.querySelectorAll('tbody tr')].map(r=>r.innerText).filter(x=>x.includes('정렬')).map(x=>x.includes('정렬A')?'A':'B').join('')==='AB'",
+        "js:(()=>{[...document.querySelectorAll('.ec-cond label')].find(l=>l.innerText.includes('수정일자순')).querySelector('input').click()})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tbody tr')].map(r=>r.innerText).filter(x=>x.includes('정렬')).map(x=>x.includes('정렬A')?'A':'B').join('')==='BA'",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const ds=await (await fetch('/api/management-items',{headers:h})).json();for(const d of ds.filter(d=>d.name.startsWith('QA재고1-정렬')))await fetch('/api/management-items/'+d.id,{method:'DELETE',headers:h});return true})()"
+      ]
+    },
+    {
+      "name": "거래처등록 상호 빈 저장 ! 두 탭",
+      "path": "/sales/partners",
+      "steps": [
+        "wait:800",
+        "click:신규(F2)",
+        "wait:600",
+        "clicklast:저장(F8)",
+        "wait:300",
+        "expect:[...document.querySelectorAll(\"li.ec-tab\")].filter(t=>t.querySelector(\"[aria-label=\\\"입력 안 된 칸\\\"]\")).map(t=>t.firstChild.textContent.trim()).join(\",\")===\"기본,거래처정보\"",
+        "js:[...document.querySelectorAll(\"li.ec-tab\")].find(t=>t.firstChild.textContent.trim()===\"거래처정보\").click()",
+        "wait:200",
+        "expect:document.querySelectorAll(\"input[aria-invalid=true]\").length===1",
+        "set:input[placeholder=\"상호(이름)\"]|QA재고1-상호",
+        "wait:200",
+        "expect:document.querySelectorAll(\"[aria-label=\\\"입력 안 된 칸\\\"]\").length===0"
+      ]
+    }
+  ]
+}
