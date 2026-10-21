@@ -31,6 +31,7 @@ public class EmployeeService {
     private final DepartmentService departmentService;
     private final DocumentNoGenerator documentNoGenerator;
     private final EmployeeHrDetailRepository hrDetailRepository;
+    private final EmployeeProfileRepository profileRepository;
     private final com.erp.common.history.ChangeHistoryService changeHistory;
 
     /** 인사발령 전표 [H] 이력의 대상 이름(common/history). 한 번 정하면 바꾸지 않는다. */
@@ -216,6 +217,7 @@ public class EmployeeService {
         Employee e = get(id);
         employeePayItemRepository.deleteByEmployeeId(id);
         employeePayrollSettingRepository.deleteByEmployeeId(id);   // [기타설정] — 사원과 같이 간다
+        profileRepository.deleteByEmployee_Id(id);                 // 인사카드 곁 자료
         employeeRepository.delete(e);
         employeeRepository.flush();   // FK 위반을 이 트랜잭션 안에서 터뜨린다
         changeHistory.record(HISTORY_TARGET, id, com.erp.common.history.ChangeHistoryService.DELETED);

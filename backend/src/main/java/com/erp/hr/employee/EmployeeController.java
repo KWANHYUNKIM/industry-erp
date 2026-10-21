@@ -29,6 +29,7 @@ import com.erp.hr.employee.dto.EmployeePerformanceDtos;
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final EmployeeProfileService profileService;
     private final EmployeePerformanceService performanceService;
 
     /** 담당자별 실적: 전표에 붙은 담당 사원으로 판매·구매를 집계한다(입력 계정이 아니다). */
@@ -137,6 +138,18 @@ public class EmployeeController {
     @DeleteMapping("/{id}/hr-details/{category}")
     public void deleteHrDetails(@PathVariable Long id, @PathVariable HrDetailCategory category) {
         employeeService.deleteHrDetails(id, category);
+    }
+
+    /** 인사카드 창 사원 곁 자료 — 여권번호 · 신상명세서 · 추천인 · 보증보험 · 무주택자 · 추가정보 열다섯 칸. */
+    @GetMapping("/{id}/profile")
+    public com.erp.hr.employee.dto.EmployeeProfileDtos.Profile profile(@PathVariable Long id) {
+        return profileService.get(id);
+    }
+
+    @PutMapping("/{id}/profile")
+    public com.erp.hr.employee.dto.EmployeeProfileDtos.Profile saveProfile(
+            @PathVariable Long id, @Valid @RequestBody com.erp.hr.employee.dto.EmployeeProfileDtos.Profile req) {
+        return profileService.save(id, req);
     }
 
     /** 원본 사원등록 폼이 미리 채우는 다음 사원번호. */
