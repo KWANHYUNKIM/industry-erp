@@ -5,6 +5,7 @@ import com.erp.accounting.taxvoucher.dto.TaxVoucherDtos.TaxVoucherResponse;
 import com.erp.inventory.project.ProjectService;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.trade.partner.PartnerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,9 @@ public class TaxVoucherService {
     private final DocumentNoGenerator docNoGenerator;
     private final PartnerService partnerService;
     private final ProjectService projectService;
+    private final ChangeHistoryService changeHistory;
+    /** [H] 이력 대상 — 원본은 마지막 수정 일시 · 작업자 한 줄만 보여 준다(2026-10-22 실측). */
+    public static final String HISTORY_TARGET = "TAX_VOUCHER";
 
     @Transactional(readOnly = true)
     public List<TaxVoucherResponse> list(LocalDate from, LocalDate to, TaxVoucherSide side) {
@@ -49,7 +53,9 @@ public class TaxVoucherService {
                 .createdBy(username)
                 .build();
         apply(v, req);
-        return TaxVoucherResponse.from(repository.save(v));
+        TaxVoucher saved = repository.save(v);
+        changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
+        return TaxVoucherResponse.from(saved);
     }
 
     @Transactional
@@ -57,6 +63,7 @@ public class TaxVoucherService {
         TaxVoucher v = find(id);
         apply(v, req);
         v.setUpdatedBy(username);
+        changeHistory.record(HISTORY_TARGET, v.getId(), ChangeHistoryService.UPDATED);
         return TaxVoucherResponse.from(v);
     }
 

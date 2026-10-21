@@ -5,6 +5,8 @@ import EcNumInput from '../../../components/EcNumInput'
 import { EcCond } from '../../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../../api/client'
 import { ecConfirm } from '../../../components/EcDialog'
+import EcHistoryButton from '../../../components/EcHistory'
+import DropUpButton from './DropUpButton'
 
 export type Side = 'SALES' | 'PURCHASE'
 export interface PartnerOpt { id: number; code: string; name: string; bizRegNo?: string | null; ceoName?: string | null; address?: string | null; bizType?: string | null; bizItem?: string | null }
@@ -50,8 +52,8 @@ export const voucherFormOf = (r: Voucher): VoucherForm =>
  */
 export default function TaxVoucherForm({ initial, partners, onClose, onSaved }: {
   initial: VoucherForm; partners: PartnerOpt[]; onClose: () => void
-  /** 저장 · 삭제 뒤. saved 는 저장한 계산서(삭제면 null), print 는 [저장/청구서인쇄] 였는지. */
-  onSaved: (saved: Voucher | null, print: boolean) => void | Promise<void>
+  /** 저장 · 삭제 뒤. saved 는 저장한 계산서(삭제면 null), print 는 [저장/청구서인쇄] 였는지. after 가 있으면 창을 닫지 않고 목록만 새로 읽는다. */
+  onSaved: (saved: Voucher | null, print: boolean, after?: 'keep' | 'new') => void | Promise<void>
 }) {
   const [form, setForm] = useState<VoucherForm>(initial)
   const [formError, setFormError] = useState('')
@@ -66,14 +68,18 @@ export default function TaxVoucherForm({ initial, partners, onClose, onSaved }: 
   }, [])
   const set = (patch: Partial<VoucherForm>) => setForm({ ...form, ...patch })
 
-  async function save(thenPrint = false) {
+  async function save(thenPrint = false, after?: 'keep' | 'new') {
     if (!form.partnerId) { setFormError('__partner'); return }
     const body = { side: form.side, entryDate: form.entryDate, vatType: form.vatType, partnerId: Number(form.partnerId),
       supplyAmount: Number(form.supply) || 0, vatAmount: Number(form.vat) || 0, remark: form.remark,
       departmentId: form.departmentId ? Number(form.departmentId) : null, projectId: form.projectId ? Number(form.projectId) : null }
     try {
       const saved = form.id ? await api.put<Voucher>(`/tax-vouchers/${form.id}`, body) : await api.post<Voucher>('/tax-vouchers', body)
-      await onSaved(saved.data ?? null, thenPrint)
+      await onSaved(saved.data ?? null, thenPrint, after)
+      /* 원본(2026-10-22 실측): [저장/내용유지] 는 창이 열린 채 방금 저장한 전표의 수정 창(전표일자 '2026/10/22 - 4' 막힘 · [삭제] · [H])이 되고,
+         [저장/신규] 는 같은 저장 뒤 빈 새 창이 뜬다. */
+      if (after === 'keep' && saved.data) { setForm(voucherFormOf(saved.data)); setFormError('') }
+      if (after === 'new') { setForm(newVoucherForm(form.side)); setFormError('') }
     } catch (e) {
       setFormError(extractErrorMessage(e))
     }
@@ -142,12 +148,18 @@ export default function TaxVoucherForm({ initial, partners, onClose, onSaved }: 
           )}
         </ul>
         <div className="flex gap-[6px] mt-[12px]">
-          <button className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
-          {form.side === 'SALES' && <button className="ec-btn" onClick={() => void save(true)}>저장/청구서인쇄</button>}
+          <DropUpButton label="저장(F8)" primary onClick={() => void save()}
+                        items={[{ label: '저장/내용유지', onClick: () => void save(false, 'keep') }, { label: '저장/신규', onClick: () => void save(false, 'new') }]} />
+          {form.side === 'SALES' && (
+            <DropUpButton label="저장/청구서인쇄" onClick={() => void save(true)}
+                          items={[{ label: '저장/전자(세금)계산서인쇄', onClick: () => void save(true) }, { label: '전자(세금)계산서발행', onClick: () => void save(true) }]} />
+          )}
           {form.id
             ? <button className="ec-btn" onClick={() => void remove()}>삭제</button>
             : <button className="ec-btn" onClick={() => { setForm(newVoucherForm(form.side)); setFormError('') }}>다시 작성</button>}
           <button className="ec-btn" onClick={onClose}>닫기</button>
+          {/* 원본 수정 창 끝의 [H] — 이력 창은 마지막 수정 일시 · 작업자 한 줄(2026-10-22 실측) */}
+          <EcHistoryButton target="TAX_VOUCHER" id={form.id} last />
         </div>
       </Modal>
 

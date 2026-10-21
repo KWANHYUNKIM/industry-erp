@@ -10,6 +10,7 @@ import EcPeriodPicks, { SALES_TAX_LIST_PICKS, periodOf } from '../../components/
 import type { JournalEntry } from '../../types/api'
 import { loadSupplierParty, type DocParty } from '../../utils/printDocument'
 import type { PaperParty, PaperVoucher } from '../../features/taxvoucher/components/TaxInvoicePaper'
+import TradeDetailModal from '../../features/taxvoucher/components/TradeDetailModal'
 import TaxInvoicePaperModal from '../../features/taxvoucher/components/TaxInvoicePaperModal'
 import TaxVoucherForm, { voucherFormOf, type PartnerOpt, type Voucher, type VoucherForm } from '../../features/taxvoucher/components/TaxVoucherForm'
 
@@ -18,7 +19,7 @@ type Status = '전체' | '결재중' | '미확인' | '확인'
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 /** 내역보기: 판매 · 구매 전표면 거래명세서, 회계에서 바로 쓴 전표면 회계 I, (세금)계산서발행/수령에서 쓴 계산서면 세무. */
 type Source = '거래명세서' | '회계 I' | '세무'
-interface Row { key: string; date: string; no: string; partnerId: number | null; partner: string; supply: number; vat: number; source: Source; voucher?: Voucher }
+interface Row { key: string; date: string; no: string; partnerId: number | null; partner: string; supply: number; vat: number; source: Source; voucher?: Voucher; sourceId?: number | null }
 const STATUSES: Status[] = ['전체', '결재중', '미확인', '확인']
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
@@ -53,6 +54,7 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
   const [company, setCompany] = useState<DocParty | null>(null)
   const [form, setForm] = useState<VoucherForm | null>(null)
   const [paper, setPaper] = useState<Row | null>(null)
+  const [detail, setDetail] = useState<Row | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
   /* 조건 — [검색] 을 누를 때 걸린다(applied). 발송여부는 매출만. 이 앱의 계산서는 메일을 보내는 길이 없어 모두 미발송이다. */
@@ -91,7 +93,7 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
       const amt = vatSlipAmounts(e.lines, side)
       if (!amt) continue
       out.push({ key: String(e.id), date: e.entryDate, no: e.docNo, partnerId: e.partnerId ?? null, partner: e.partnerName ?? '', supply: amt.supply, vat: amt.vat,
-        source: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' ? '거래명세서' : '회계 I' })
+        source: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' ? '거래명세서' : '회계 I', sourceId: e.sourceId })
     }
     for (const v of vouchers) {
       out.push({ key: `tv-${v.id}`, date: v.entryDate, no: String(v.entryNo), partnerId: v.partnerId, partner: v.partnerName,
@@ -204,7 +206,11 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
               <td className="text-right">{won(r.supply)}</td>
               <td className="text-right">{won(r.vat)}</td>
               <td className="text-right">{won(r.supply + r.vat)}</td>
-              <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>{r.source === '거래명세서' ? (sales ? '내역보기 거래명세서' : '내역보기') : r.source}</td>
+              <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>
+                {r.source === '거래명세서'
+                  ? <><button className="ec-link" onClick={() => setDetail(r)}>내역보기</button>{sales ? ' 거래명세서' : ''}</>
+                  : r.source}
+              </td>
               {sales && <td className="text-center"><button className="ec-link" onClick={() => setPaper(r)}>인쇄</button></td>}
             </tr>
           ))}
@@ -213,12 +219,14 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
 
       {form && (
         <TaxVoucherForm initial={form} partners={partners} onClose={() => setForm(null)}
-                        onSaved={async (saved, print) => {
+                        onSaved={async (saved, print, after) => {
+                          if (after) { await load(); return }
                           setForm(null); await load()
                           if (print && saved) setPaper({ key: `tv-${saved.id}`, date: saved.entryDate, no: String(saved.entryNo), partnerId: saved.partnerId,
                             partner: saved.partnerName, supply: Number(saved.supplyAmount), vat: Number(saved.vatAmount), source: '세무', voucher: saved })
                         }} />
       )}
+      {detail && <TradeDetailModal side={side} entryDate={detail.date} entryNo={detail.no} slipId={detail.sourceId ?? null} onClose={() => setDetail(null)} />}
       {paper && (() => { const x = paperOf(paper); return <TaxInvoicePaperModal v={x.v} supplier={x.supplier} buyer={x.buyer} onClose={() => setPaper(null)} /> })()}
     </EcListShell>
   )

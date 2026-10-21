@@ -12,6 +12,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
+import TradeDetailModal from '../../features/taxvoucher/components/TradeDetailModal'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
@@ -23,7 +24,7 @@ interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: bool
 interface PartnerOpt { id: number; code: string; name: string; manager: string | null; taxReport: boolean }
 const KIND_NAME = '세금계산서'
 type Status = '전체' | '결재중' | '미확인' | '확인'
-interface Row { key: string; date: string; no: string; kindName: string; partner: string; supply: number; vat: number; source: '거래명세서' | '회계 I' | '세무' }
+interface Row { key: string; date: string; no: string; kindName: string; partner: string; supply: number; vat: number; source: '거래명세서' | '회계 I' | '세무'; sourceId?: number | null }
 interface TaxVoucher { id: number; entryDate: string; entryNo: number; vatType: string; partnerId: number; partnerName: string; supplyAmount: number; vatAmount: number }
 
 /**
@@ -61,6 +62,7 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [docNo, setDocNo] = useState('')
+  const [detail, setDetail] = useState<Row | null>(null)
   const [partners, setPartners] = useState<PartnerOpt[]>([])
   const [partner, setPartner] = useState('')
   const [manager, setManager] = useState('')
@@ -125,7 +127,7 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
       if (!amt) continue
       const { supply, vat } = amt
       out.push({ key: String(e.id), date: e.entryDate, no: e.docNo, kindName: KIND_NAME, partner: e.partnerName ?? '', supply, vat,
-        source: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' ? '거래명세서' : '회계 I' })
+        source: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' ? '거래명세서' : '회계 I', sourceId: e.sourceId })
     }
     for (const v of docNo ? [] : vouchers) {
       const p = pById.get(v.partnerId)
@@ -263,7 +265,9 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
                         <td className="text-right">{won(r.supply)}</td>
                         <td className="text-right">{won(r.vat)}</td>
                         <td className="text-right">{won(r.supply + r.vat)}</td>
-                        <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>{r.source === '거래명세서' ? '내역보기 거래명세서' : r.source}</td>
+                        <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>
+                          {r.source === '거래명세서' ? <><button className="ec-link" onClick={() => setDetail(r)}>내역보기</button> 거래명세서</> : r.source}
+                        </td>
                       </tr>
                     ))}
                     <tr className={tax ? 'ec-total' : undefined} style={tax ? undefined : SUB_ROW}>
@@ -290,6 +294,7 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
       {tax && <EcReportFoot />}
       </div>
       )}
+      {detail && <TradeDetailModal side={side} entryDate={detail.date} entryNo={detail.no} slipId={detail.sourceId ?? null} onClose={() => setDetail(null)} />}
     </EcListShell>
   )
 }

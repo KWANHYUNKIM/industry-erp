@@ -175,7 +175,7 @@ export default function TaxVoucherPage() {
 
       {form && (
         <TaxVoucherForm initial={form} partners={partners} onClose={() => setForm(null)}
-                        onSaved={async (saved, print) => { setForm(null); await load(); if (print && saved) setPaper(saved) }} />
+                        onSaved={async (saved, print, after) => { if (after) { await load(); return } setForm(null); await load(); if (print && saved) setPaper(saved) }} />
       )}
 
       {paper && <TaxInvoicePaperModal v={paper} supplier={parties(paper)[0]} buyer={parties(paper)[1]} onClose={() => setPaper(null)} />}

@@ -32,7 +32,13 @@ function Party({ side, p }: { side: string; p: PaperParty }) {
   )
 }
 
-function Copy({ buyerCopy, v, supplier, buyer }: { buyerCopy: boolean; v: PaperVoucher; supplier: PaperParty; buyer: PaperParty }) {
+/** [표시설정] 창 값(2026-10-22 실측: 도장 · 일자 · 일련번호 표시 / 인쇄구분 전체 · 공급자 · 공급받는자 / 청구·영수 동그라미 · 미적용 · 문자인쇄 / 2건 · 페이지). */
+export interface PaperDisplay { stamp: boolean; date: boolean; serial: boolean; copies: 'all' | 'supplier' | 'buyer'; claim: 'circle' | 'none' | 'text'; two: boolean }
+export const DEFAULT_PAPER_DISPLAY: PaperDisplay = { stamp: true, date: true, serial: true, copies: 'all', claim: 'circle', two: true }
+/** 종이 종류 — '종이세금계산서'(제목 세 금 계 산 서) · '종이계산서'(제목 계 산 서, 면세용). */
+export type PaperKind = '청구서' | '종이세금계산서' | '종이계산서'
+
+function Copy({ buyerCopy, v, supplier, buyer, kind, display }: { buyerCopy: boolean; v: PaperVoucher; supplier: PaperParty; buyer: PaperParty; kind: PaperKind; display: PaperDisplay }) {
   const [y, m, d] = v.entryDate.split('-')
   const supplyLen = String(Math.abs(Math.round(v.supplyAmount))).length
   return (
@@ -41,10 +47,10 @@ function Copy({ buyerCopy, v, supplier, buyer }: { buyerCopy: boolean; v: PaperV
       <table>
         <tbody>
           <tr>
-            <td rowSpan={2} className="w-[60%]"><span className="tf-title">세 금 계 산 서</span> ({buyerCopy ? '공급받는자' : '공급자'} 보관용)</td>
+            <td rowSpan={2} className="w-[60%]"><span className="tf-title">{kind === '종이계산서' ? '계 산 서' : '세 금 계 산 서'}</span> ({buyerCopy ? '공급받는자' : '공급자'} 보관용)</td>
             <th>책번호</th><td>권</td><td>호</td>
           </tr>
-          <tr><th>일련번호</th><td colSpan={2} className="c">{`${y}${m}${d} - ${String(v.entryNo).padStart(4, '0')}`}</td></tr>
+          <tr><th>일련번호</th><td colSpan={2} className="c">{display.serial ? `${y}${m}${d} - ${String(v.entryNo).padStart(4, '0')}` : ''}</td></tr>
         </tbody>
       </table>
       <div className="flex">
@@ -61,7 +67,7 @@ function Copy({ buyerCopy, v, supplier, buyer }: { buyerCopy: boolean; v: PaperV
             {TAX_HEAD.map((h, i) => <th key={`t${i}`}>{h}</th>)}
           </tr>
           <tr>
-            <td className="c">{y}</td><td className="c">{m}</td><td className="c">{d}</td><td className="c">{Math.max(0, 11 - supplyLen)}</td>
+            <td className="c">{display.date ? y : ''}</td><td className="c">{display.date ? m : ''}</td><td className="c">{display.date ? d : ''}</td><td className="c">{Math.max(0, 11 - supplyLen)}</td>
             {digits(v.supplyAmount, 11).map((c, i) => <td key={`sd${i}`} className="c">{c}</td>)}
             {digits(v.vatAmount, 10).map((c, i) => <td key={`td${i}`} className="c">{c}</td>)}
           </tr>
@@ -82,7 +88,8 @@ function Copy({ buyerCopy, v, supplier, buyer }: { buyerCopy: boolean; v: PaperV
       </table>
       <table>
         <tbody>
-          <tr><th>합계금액</th><th>현금</th><th>수표</th><th>어음</th><th>외상미수금</th><td rowSpan={2}>이 금액을 청 구 함.</td></tr>
+          <tr><th>합계금액</th><th>현금</th><th>수표</th><th>어음</th><th>외상미수금</th><td rowSpan={2}>이 금액을{' '}
+              {display.claim === 'text' ? '청 구' : <>영 수 {display.claim === 'circle' ? <span className="inline-block border border-current rounded-full px-[3px]">청 구</span> : '청 구'}</>} 함.</td></tr>
           <tr><td className="n">{won(v.totalAmount)}</td><td className="n" /><td className="n" /><td className="n" /><td className="n">{won(v.totalAmount)}</td></tr>
         </tbody>
       </table>
@@ -90,11 +97,13 @@ function Copy({ buyerCopy, v, supplier, buyer }: { buyerCopy: boolean; v: PaperV
   )
 }
 
-export default function TaxInvoicePaper({ v, supplier, buyer }: { v: PaperVoucher; supplier: PaperParty; buyer: PaperParty }) {
+export default function TaxInvoicePaper({ v, supplier, buyer, kind = '종이세금계산서', display = DEFAULT_PAPER_DISPLAY }: {
+  v: PaperVoucher; supplier: PaperParty; buyer: PaperParty; kind?: PaperKind; display?: PaperDisplay
+}) {
   return (
     <div className="ec-print-area">
-      <Copy buyerCopy={false} v={v} supplier={supplier} buyer={buyer} />
-      <Copy buyerCopy v={v} supplier={supplier} buyer={buyer} />
+      {display.copies !== 'buyer' && <Copy buyerCopy={false} v={v} supplier={supplier} buyer={buyer} kind={kind} display={display} />}
+      {display.copies !== 'supplier' && <Copy buyerCopy v={v} supplier={supplier} buyer={buyer} kind={kind} display={display} />}
     </div>
   )
 }
