@@ -58,7 +58,11 @@ public class DailyPayItem extends BaseTimeEntity {
     /** 원본 계산식 칸 — 이름으로 자동으로 만든다(2026-10-20 실측, 이름을 바꾸면 따라 바뀜). */
     public String formula() {
         if (kind == DailyPayItemKind.DEDUCTION) return "R( " + name + "(급여지급사항) , 0 )";
-        if ("변동(일)".equals(payMethod)) return "R( " + name + "(급여지급사항) * " + name + "(근무기록확정) , 0 )";
+        // 원본 2026-10-21: 고정 'R( 이름(급여지급사항) , 0 )', 변동(일) · 변동(시간) · 변동(지급률) 'R( 이름(급여지급사항) * 이름(근무기록확정) , 0 )',
+        // 변동(직접입력) '근무기록확정(금액)'. [설정] 을 누르면 저장되며 채워진다(우리는 저장할 때).
+        if ("고정".equals(payMethod)) return "R( " + name + "(급여지급사항) , 0 )";
+        if ("변동(직접입력)".equals(payMethod)) return "근무기록확정(금액)";
+        if (payMethod == null || payMethod.startsWith("변동")) return "R( " + name + "(급여지급사항) * " + name + "(근무기록확정) , 0 )";
         return null;
     }
 }

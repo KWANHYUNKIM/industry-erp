@@ -38,7 +38,8 @@ public class DailyPayDtos {
 
     /** 근무기록확정의 일근무 밖 변동(일) 수당 열 한 칸 — 원본 2026-10-21 '일근무 | QA관리-야간 | 근로일수'. */
     public record ConfirmItem(@NotNull(message = "수당항목을 선택 바랍니다.") Long itemId,
-                              @PositiveOrZero(message = "근무기록은 0 이상이어야 합니다.") BigDecimal days) {}
+                              @PositiveOrZero(message = "근무기록은 0 이상이어야 합니다.") BigDecimal days,
+                              @PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount) {}
 
     public record ConfirmCell(@NotNull(message = "사원을 선택 바랍니다.") Long workerId,
                               @PositiveOrZero(message = "일근무는 0 이상이어야 합니다.") BigDecimal days,

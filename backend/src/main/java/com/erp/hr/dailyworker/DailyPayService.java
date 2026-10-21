@@ -107,7 +107,7 @@ public class DailyPayService {
         DailyPayLedger l = get(ledgerId);
         Map<Long, DailyWorkConfirm> saved = new HashMap<>();
         for (DailyWorkConfirm c : confirmRepository.findByLedger(ledgerId)) saved.put(c.getWorker().getId(), c);
-        Map<Long, Map<Long, BigDecimal>> itemDays = confirmItemDays(ledgerId);
+        Map<Long, Map<Long, ConfirmItem>> itemDays = confirmItemDays(ledgerId);
         Map<Long, LocalDate> last = new HashMap<>();
         for (DailyWorkEntry e : entryRepository.findInWorkPeriod(l.getPeriodFrom(), l.getPeriodTo())) {
             last.merge(e.getWorker().getId(), e.getWorkDate(), (a, b) -> a.isAfter(b) ? a : b);
@@ -131,11 +131,14 @@ public class DailyPayService {
         Map<Long, BigDecimal> sum = new HashMap<>();
         Map<Long, LocalDate> last = new HashMap<>();
         Map<Long, java.util.Set<LocalDate>> dates = new HashMap<>();
-        Map<Long, Map<Long, BigDecimal>> itemSum = new HashMap<>();
+        Map<Long, Map<Long, ConfirmItem>> itemSum = new HashMap<>();
         for (DailyWorkEntry e : entryRepository.findInWorkPeriod(l.getPeriodFrom(), l.getPeriodTo())) {
             if (e.isDayWork()) sum.merge(e.getWorker().getId(), e.getQuantity(), BigDecimal::add);
             else itemSum.computeIfAbsent(e.getWorker().getId(), k -> new HashMap<>())
-                    .merge(e.getPayItem().getId(), e.getQuantity(), BigDecimal::add);
+                    .merge(e.getPayItem().getId(), new ConfirmItem(e.getPayItem().getId(), e.getQuantity(),
+                                    "변동(직접입력)".equals(e.getPayItem().getPayMethod()) && e.getAmount() != null ? e.getAmount() : null),
+                            (a, b) -> new ConfirmItem(a.itemId(), a.days().add(b.days()),
+                                    a.amount() == null ? b.amount() : b.amount() == null ? a.amount() : a.amount().add(b.amount())));
             last.merge(e.getWorker().getId(), e.getWorkDate(), (a, b) -> a.isAfter(b) ? a : b);
             dates.computeIfAbsent(e.getWorker().getId(), k -> new java.util.HashSet<>()).add(e.getWorkDate());
         }
@@ -149,19 +152,20 @@ public class DailyPayService {
     }
 
     /** 원본 [일근무 금액] 은 숨은 열 — 일근무 × 사원의 일근무 단가(675,000 = 4.5 × 150,000). */
-    private ConfirmRow confirmRow(DailyWorker w, LocalDate last, BigDecimal days, BigDecimal workDays, Map<Long, BigDecimal> items) {
+    private ConfirmRow confirmRow(DailyWorker w, LocalDate last, BigDecimal days, BigDecimal workDays, Map<Long, ConfirmItem> items) {
         BigDecimal wage = w.getDailyWage() != null ? w.getDailyWage() : BigDecimal.ZERO;
         List<ConfirmItem> cells = items == null ? List.of()
-                : items.entrySet().stream().map(e -> new ConfirmItem(e.getKey(), e.getValue())).toList();
+                : List.copyOf(items.values());
         return new ConfirmRow(w.getId(), w.getCode(), w.getName(), last,
                 w.getDepartment() != null ? w.getDepartment().getName() : "", days, days.multiply(wage), workDays, cells);
     }
 
     /** 근무기록확정의 항목 열 — 사원 → 수당 → 근무기록. */
-    private Map<Long, Map<Long, BigDecimal>> confirmItemDays(Long ledgerId) {
-        Map<Long, Map<Long, BigDecimal>> out = new HashMap<>();
+    private Map<Long, Map<Long, ConfirmItem>> confirmItemDays(Long ledgerId) {
+        Map<Long, Map<Long, ConfirmItem>> out = new HashMap<>();
         for (DailyWorkConfirmItem i : confirmItemRepository.findByLedger(ledgerId)) {
-            out.computeIfAbsent(i.getConfirm().getWorker().getId(), k -> new HashMap<>()).put(i.getItem().getId(), i.getDays());
+            out.computeIfAbsent(i.getConfirm().getWorker().getId(), k -> new HashMap<>())
+                    .put(i.getItem().getId(), new ConfirmItem(i.getItem().getId(), i.getDays(), i.getAmount()));
         }
         return out;
     }
@@ -173,7 +177,7 @@ public class DailyPayService {
         confirmRepository.flush();
         for (ConfirmCell c : cells) {
             List<ConfirmItem> items = c.items() == null ? List.of()
-                    : c.items().stream().filter(i -> i.days() != null && i.days().signum() != 0).toList();
+                    : c.items().stream().filter(i -> (i.days() != null && i.days().signum() != 0) || (i.amount() != null && i.amount().signum() != 0)).toList();
             boolean day = c.days() != null && c.days().signum() != 0;
             if (!day && items.isEmpty()) continue;
             DailyWorker w = workerRepository.findById(c.workerId())
@@ -184,7 +188,8 @@ public class DailyPayService {
                 DailyPayItem item = payItemRepository.findById(i.itemId())
                         .filter(x -> x.getKind() == DailyPayItemKind.ALLOWANCE && !x.isBuiltin())
                         .orElseThrow(() -> ApiException.notFound("수당항목을 찾을 수 없습니다."));
-                confirmItemRepository.save(DailyWorkConfirmItem.builder().confirm(saved).item(item).days(i.days()).build());
+                confirmItemRepository.save(DailyWorkConfirmItem.builder().confirm(saved).item(item)
+                        .days(i.days() != null ? i.days() : BigDecimal.ZERO).amount(i.amount()).build());
             }
         }
         return confirms(ledgerId);
@@ -217,7 +222,7 @@ public class DailyPayService {
             workers.put(c.getWorker().getId(), c.getWorker());
             days.put(c.getWorker().getId(), c.getDays());
         }
-        Map<Long, Map<Long, BigDecimal>> itemDays = confirmItemDays(ledgerId);
+        Map<Long, Map<Long, ConfirmItem>> itemDays = confirmItemDays(ledgerId);
         Map<Long, BigDecimal> direct = new HashMap<>();
         for (DailyPayDirectAmount d : directRepository.findByLedger(ledgerId)) {
             if (d.getDayAmount() == null || (picked != null && !picked.contains(d.getWorker().getId()))) continue;
@@ -239,13 +244,20 @@ public class DailyPayService {
             BigDecimal wage = w.getDailyWage() != null ? w.getDailyWage() : BigDecimal.ZERO;
             BigDecimal gross = direct.containsKey(w.getId()) ? direct.get(w.getId()) : wage.multiply(d).setScale(0, RoundingMode.DOWN);
             Map<Long, BigDecimal> rate = rates.getOrDefault(w.getId(), Map.of());
-            Map<Long, BigDecimal> rec = itemDays.getOrDefault(w.getId(), Map.of());
+            Map<Long, ConfirmItem> rec = itemDays.getOrDefault(w.getId(), Map.of());
             List<DailyPayLineItem> extra = new java.util.ArrayList<>();
             for (DailyPayItem a : allowances) {
                 BigDecimal r = rate.getOrDefault(a.getId(), BigDecimal.ZERO);
-                BigDecimal q = rec.get(a.getId());
-                BigDecimal amt = "고정".equals(a.getPayMethod()) ? r
-                        : r.multiply(q != null ? q : BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP);
+                ConfirmItem ci = rec.get(a.getId());
+                BigDecimal q = ci != null ? ci.days() : null;
+                // 원본 2026-10-21(QA관리-지급: 고정 내역 10,000 · 시간 3,000 × 4 · 지급률 2,000 × 5 · 직접입력 근무입력 금액 15,000)
+                // → 대장 10,000 · 12,000 · 100 · 15,000. 지급률은 근무기록이 % 다(2,000 × 5 % = 100).
+                BigDecimal amt = switch (a.getPayMethod() == null ? "" : a.getPayMethod()) {
+                    case "고정" -> r;
+                    case "변동(직접입력)" -> ci != null && ci.amount() != null ? ci.amount() : BigDecimal.ZERO;
+                    case "변동(지급률)" -> r.multiply(q != null ? q : BigDecimal.ZERO).movePointLeft(2).setScale(0, RoundingMode.HALF_UP);
+                    default -> r.multiply(q != null ? q : BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP);
+                };
                 if (amt.signum() == 0 && q == null) continue;
                 extra.add(DailyPayLineItem.builder().item(a).quantity(q).amount(amt).build());
                 gross = gross.add(amt);

@@ -10,7 +10,7 @@ import { ymd } from '../../utils/periods'
 import GridFindButton from '../../components/GridFindButton'
 import { ecConfirm } from '../../components/EcDialog'
 
-interface Worker { id: number; code: string; name: string; dailyWage: number | null }
+interface Worker { id: number; code: string; name: string; dailyWage: number | null; payAmounts?: { itemId: number; amount: number | null }[] }
 /** item: 수당항목('02' 일근무 — 원본도 사원을 골라도 비어 있고 따로 고른다). autoAmt: 금액이 일근무 × 근무기록으로 채워진 값(저장하지 않는다). */
 interface Row { workDate: string; workerId: string; item: string; quantity: string; amount: string; autoAmt: boolean }
 interface SlipLine { workDate: string; workerId: number; payItemId: number | null; quantity: number; amount: number | null }
@@ -85,6 +85,13 @@ export default function DailyWorkInputPage() {
           const q = Number(n.quantity)
           if (wage != null && q > 0) { n.amount = String(Math.round(wage * q)); n.autoAmt = true }
           else if (n.autoAmt) { n.amount = ''; n.autoAmt = false }
+        }
+        // 원본(2026-10-21): 변동(직접입력) 수당은 근무기록을 넣으면 금액 = 사원 급여지급사항 내역 × 근무기록(7,000 × 2 → 14,000)이
+        // 채워지고 고칠 수 있다 — 그 금액이 근무기록확정(금액) 이 되므로 저장한다(직접입력 칸, autoAmt 아님).
+        if ('quantity' in patch && n.item && itemOf(n.item)?.payMethod === '변동(직접입력)') {
+          const rate = workers.find((w) => String(w.id) === n.workerId)?.payAmounts?.find((a) => String(a.itemId) === n.item)?.amount
+          const q = Number(n.quantity)
+          if (rate != null && q > 0) { n.amount = String(Math.round(Number(rate) * q)); n.autoAmt = false }
         }
         if ('amount' in patch) n.autoAmt = false
         return n
@@ -217,7 +224,9 @@ export default function DailyWorkInputPage() {
                          onChange={(e) => edit(i, { quantity: e.target.value.replace(/[^0-9.]/g, '') })} />
                 </td>
                 <td>
+                  {/* 원본: 변동(시간) · 변동(지급률) 수당은 금액 칸이 열리지 않는다(근무기록만) */}
                   <input className="ec-input w-full text-right" inputMode="numeric" value={r.amount === '' ? '' : Number(r.amount).toLocaleString('ko-KR')}
+                         disabled={['변동(시간)', '변동(지급률)', '고정'].includes(itemOf(r.item)?.payMethod ?? '')}
                          onChange={(e) => edit(i, { amount: e.target.value.replace(/[^0-9]/g, '') })} />
                 </td>
               </tr>

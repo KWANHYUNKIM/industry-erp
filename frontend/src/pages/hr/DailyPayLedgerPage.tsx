@@ -16,7 +16,7 @@ interface Ledger {
 }
 interface ConfirmRow {
   workerId: number; workerCode: string; workerName: string; lastWorkDate: string | null; department: string; days: number; amount: number; workDays: number | null
-  items: { itemId: number; days: number }[]
+  items: { itemId: number; days: number; amount?: number | null }[]
 }
 /** 일용근로 수당등록에서 더한 변동 수당 — 근무기록확정 창에 열 하나씩(원본 2026-10-21 '일근무 | QA관리-야간 | 근로일수'). */
 interface PayItem { id: number; name: string; payMethod: string | null; builtin: boolean }
@@ -28,6 +28,7 @@ function itemColumns(lines: Line[], kind: 'ALLOWANCE' | 'DEDUCTION') {
   for (const l of lines) for (const i of l.items ?? []) if (i.kind === kind && !seen.has(i.itemId)) seen.set(i.itemId, i)
   return [...seen.values()].sort((a, b) => a.sortOrder - b.sortOrder || (a.code < b.code ? -1 : 1))
 }
+interface Slot { itemId: number | null; name: string }
 const itemOf = (l: Line, id: number) => (l.items ?? []).find((i) => i.itemId === id)
 
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
@@ -86,6 +87,12 @@ export default function DailyPayLedgerPage() {
       .catch(() => setConfirmItems([]))
   }, [])
   const cellDays = (c: ConfirmRow, id: number) => c.items?.find((x) => x.itemId === id)?.days ?? 0
+  const cellAmt = (c: ConfirmRow, id: number) => c.items?.find((x) => x.itemId === id)?.amount ?? null
+  /** 원본(2026-10-21): [근무기록] 으로 불러온 창은 0 을 '0.00' · 금액 '0' 으로, 저장 뒤 다시 연 창은 0 을 빈칸으로 보인다. */
+  const [loaded, setLoaded] = useState(false)
+  /** 근무기록 칸 — 고치는 동안만 친 글자, 아니면 '4.00' 꼴 */
+  const [numFocus, setNumFocus] = useState('')
+  const dayText = (key: string, n: number) => (numFocus === key ? (n ? String(n) : '') : n ? Number(n).toFixed(2) : loaded ? '0.00' : '')
   /** 근로일수 칸 — 고치는 동안만 친 글자, 아니면 '1.00' 꼴(원본) */
   const [wdFocus, setWdFocus] = useState<number | null>(null)
   const [confirmError, setConfirmError] = useState('')
@@ -126,6 +133,7 @@ export default function DailyPayLedgerPage() {
     setConfirmError('')
     try {
       setCells((await api.get<ConfirmRow[]>(`/hr/daily-pay-ledgers/${l.id}/work-confirms`)).data)
+      setLoaded(false)
       setConfirmFor(l)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -135,6 +143,7 @@ export default function DailyPayLedgerPage() {
     if (!confirmFor) return
     try {
       setCells((await api.get<ConfirmRow[]>(`/hr/daily-pay-ledgers/${confirmFor.id}/work-confirms/load`)).data)
+      setLoaded(true)
     } catch (e) {
       setConfirmError(extractErrorMessage(e))
     }
@@ -218,6 +227,10 @@ export default function DailyPayLedgerPage() {
   const dedCols = view ? itemColumns(view.lines, 'DEDUCTION') : []
   /** 소득세 · 지방소득세 칸('공제(전체)') — 더한 공제만 있고 세금이 모두 0 이면 원본처럼 그 항목 열만 둔다(2026-10-21). */
   const taxCol = !!totals && (dedCols.length === 0 || totals.tax + totals.local !== 0)
+  /** 대장 수당 칸 — 일근무(itemId null) 다음 더한 수당, 두 개씩 한 줄(원본 2026-10-21). */
+  const slots: Slot[] = [{ itemId: null, name: '일근무' }, ...allowCols.map((c) => ({ itemId: c.itemId, name: c.name }))]
+  const slotRows: (Slot | null)[][] = []
+  for (let k = 0; k < slots.length; k += 2) slotRows.push([slots[k], slots[k + 1] ?? null])
   const itemSum = (id: number, f: (i: LineItem) => number) => (view?.lines ?? []).reduce((s, l) => s + (itemOf(l, id) ? f(itemOf(l, id)!) : 0), 0)
 
   return (
@@ -335,12 +348,15 @@ export default function DailyPayLedgerPage() {
               <th>프로젝트</th>
               <th className="w-[120px] text-right">일근무</th>
               {confirmItems.map((it) => <th key={it.id} className="w-[120px] text-right">{it.name}</th>)}
+              {/* 원본(2026-10-21): 근무기록 열 뒤에 '일근무 금액 | 수당 금액 …' — 변동(직접입력) 은 근무입력 금액의 합(근무기록확정(금액)) */}
+              <th className="w-[120px] text-right">일근무 금액</th>
+              {confirmItems.map((it) => <th key={`${it.id}-amt`} className="w-[120px] text-right">{it.name} 금액</th>)}
               <th className="w-[120px] text-right">근로일수</th>
             </tr>
           </thead>
           <tbody>
             {cells.length === 0 ? (
-              <tr><td colSpan={7 + confirmItems.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8 + confirmItems.length * 2} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : cells.map((c, i) => (
               <tr key={c.workerId}>
                 <td>{c.workerCode}</td>
@@ -351,7 +367,8 @@ export default function DailyPayLedgerPage() {
                 <td>
                   {/* 원본(2026-10-14): 일근무를 고치면 근로일수가 같은 값으로 따라온다(2 → 2.00, 0.5 → 0.50, 2 → 4 면 4.00).
                       근로일수를 고쳐도 일근무는 그대로(4.00 · 근로일수 1 로 저장되고 다시 열어도 그대로) */}
-                  <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${c.workerName} 일근무`} value={c.days ? String(c.days) : ''}
+                  <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${c.workerName} 일근무`} value={dayText(`${c.workerId}-d`, c.days)}
+                         onFocus={() => setNumFocus(`${c.workerId}-d`)} onBlur={() => setNumFocus('')}
                          onChange={(e) => {
                            const days = Number(e.target.value.replace(/[^0-9.]/g, '')) || 0
                            setCells(cells.map((x, j) => (j === i ? { ...x, days, workDays: days || null } : x)))
@@ -360,13 +377,29 @@ export default function DailyPayLedgerPage() {
                 {confirmItems.map((it) => (
                   <td key={it.id}>
                     <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${c.workerName} ${it.name}`}
-                           value={cellDays(c, it.id) ? String(cellDays(c, it.id)) : ''}
+                           value={dayText(`${c.workerId}-${it.id}`, cellDays(c, it.id))}
+                           onFocus={() => setNumFocus(`${c.workerId}-${it.id}`)} onBlur={() => setNumFocus('')}
                            onChange={(e) => {
                              const d = Number(e.target.value.replace(/[^0-9.]/g, '')) || 0
                              setCells(cells.map((x, j) => (j === i
-                               ? { ...x, items: [...(x.items ?? []).filter((y) => y.itemId !== it.id), ...(d ? [{ itemId: it.id, days: d }] : [])] } : x)))
+                               ? { ...x, items: [...(x.items ?? []).filter((y) => y.itemId !== it.id), ...(d || cellAmt(x, it.id) ? [{ itemId: it.id, days: d, amount: cellAmt(x, it.id) }] : [])] } : x)))
                            }} />
                   </td>
+                ))}
+                <td className="text-right">{Number(c.amount) ? won(c.amount) : loaded ? '0' : ''}</td>
+                {confirmItems.map((it) => it.payMethod === '변동(직접입력)' ? (
+                  <td key={`${it.id}-amt`}>
+                    <input className="ec-input w-full text-right" inputMode="numeric" aria-label={`${c.workerName} ${it.name} 금액`}
+                           value={cellAmt(c, it.id) != null ? won(Number(cellAmt(c, it.id))) : loaded ? '0' : ''}
+                           onChange={(e) => {
+                             const raw = e.target.value.replace(/[^0-9]/g, '')
+                             const a = raw === '' ? null : Number(raw)
+                             setCells(cells.map((x, j) => (j === i
+                               ? { ...x, items: [...(x.items ?? []).filter((y) => y.itemId !== it.id), ...(a || cellDays(x, it.id) ? [{ itemId: it.id, days: cellDays(x, it.id), amount: a }] : [])] } : x)))
+                           }} />
+                  </td>
+                ) : (
+                  <td key={`${it.id}-amt`} className="text-right">{loaded ? (cellDays(c, it.id) ? '' : '0') : (c.items?.some((x) => x.itemId === it.id) ? '0' : '')}</td>
                 ))}
                 <td>
                   <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${c.workerName} 근로일수`}
@@ -394,7 +427,14 @@ export default function DailyPayLedgerPage() {
         <p className="text-ec-danger mb-[6px]">⊙ 입력한 근무기록이 나타나지 않는 경우</p>
         <table className="w-full text-left">
           <thead><tr><th className="w-[34px] text-center"><input type="checkbox" checked readOnly aria-label="전체 선택" /></th><th className="text-center">수당명 ( 근무기록방법 )</th></tr></thead>
-          <tbody><tr><td className="text-center"><input type="checkbox" checked readOnly aria-label="일근무 선택" /></td><td>일근무 (일)</td></tr></tbody>
+          <tbody>
+            <tr><td className="text-center"><input type="checkbox" checked readOnly aria-label="일근무 선택" /></td><td>일근무 (일)</td></tr>
+            {/* 원본(2026-10-21): 'QA관리-시간 (시간)' · 'QA관리-률 (지급률)' · 직접입력은 괄호 없이 'QA관리-직접' */}
+            {confirmItems.map((it) => (
+              <tr key={it.id}><td className="text-center"><input type="checkbox" checked readOnly aria-label={`${it.name} 선택`} /></td>
+                <td>{it.payMethod === '변동(직접입력)' ? it.name : `${it.name} (${(it.payMethod ?? '변동(일)').replace(/^변동\((.*)\)$/, '$1')})`}</td></tr>
+            ))}
+          </tbody>
         </table>
         <div className="flex gap-[6px] mt-[12px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={async () => {
@@ -491,69 +531,84 @@ export default function DailyPayLedgerPage() {
             </div>
             <div className="overflow-x-auto">
               <table className="ec-report w-full">
+                {/*
+                  원본(2026-10-21 QA관리-지급: 일근무 · 고정 · 시간 · 지급률 · 직접입력): 수당 칸은 두 개씩 한 줄에 놓이고 넘치면 다음 줄로 —
+                  머리 '성명 | 최종근무일 | 일근무 | QA관리-고정 | 지급총액 | 공제(전체) | 공제총액 | 실지급액' / 'QA관리-시간 | QA관리-률' /
+                  'QA관리-직접 |' / '주민등록번호'. 사원 줄 · 총합계 줄도 같은 줄 수(총합계 수당 칸은 금액만).
+                */}
                 <thead>
-                  <tr>
-                    <th>성명</th>
-                    <th rowSpan={2}>최종근무일</th>
-                    <th colSpan={2}>일근무</th>
-                    {allowCols.map((c) => <th key={c.itemId} colSpan={2}>{c.name}</th>)}
-                    <th rowSpan={2}>지급총액</th>
-                    {taxCol && <th>공제(전체)</th>}
-                    {dedCols.map((c) => <th key={c.itemId}>{c.name}</th>)}
-                    <th rowSpan={2}>공제총액</th>
-                    <th rowSpan={2}>실지급액</th>
-                  </tr>
+                  {slotRows.map((pair, k) => (
+                    <tr key={k}>
+                      {k === 0 && <th rowSpan={slotRows.length}>성명</th>}
+                      {k === 0 && <th rowSpan={slotRows.length + 1}>최종근무일</th>}
+                      {pair.map((sl, m) => <th key={m} colSpan={2}>{sl ? sl.name : ''}</th>)}
+                      {k === 0 && <th rowSpan={slotRows.length + 1}>지급총액</th>}
+                      {taxCol && <th>{k === 0 ? '공제(전체)' : ''}</th>}
+                      {k === 0 && dedCols.map((c) => <th key={c.itemId} rowSpan={slotRows.length}>{c.name}</th>)}
+                      {k === 0 && <th rowSpan={slotRows.length + 1}>공제총액</th>}
+                      {k === 0 && <th rowSpan={slotRows.length + 1}>실지급액</th>}
+                    </tr>
+                  ))}
                   <tr>
                     <th>주민등록번호</th>
-                    <th></th>
-                    <th></th>
-                    {allowCols.flatMap((c) => [<th key={`${c.itemId}-q`}></th>, <th key={`${c.itemId}-a`}></th>])}
+                    <th></th><th></th><th></th><th></th>
                     {taxCol && <th></th>}
                     {dedCols.map((c) => <th key={c.itemId}></th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {view.lines.length === 0 ? (
-                    <tr><td colSpan={7 + allowCols.length * 2 + dedCols.length + (taxCol ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-                  ) : view.lines.flatMap((l) => [
-                    <tr key={`${l.id}-a`}>
-                      <td>{l.workerName}</td>
-                      <td rowSpan={2} className="text-center"></td>
-                      <td className="text-right">{Number(l.days) || ''}</td>
-                      <td className="relative text-right" title={l.direct ? '금액직접입력' : undefined}>
-                        {l.direct && <i aria-hidden className="absolute left-0 top-0 border-t-[6px] border-r-[6px] border-t-ec-danger border-r-transparent" />}
-                        {Number(l.dayPay ?? l.grossPay) || l.direct ? won(l.dayPay ?? l.grossPay) : ''}
-                      </td>
-                      {allowCols.flatMap((c) => {
-                        const it = itemOf(l, c.itemId)
-                        return [<td key={`${c.itemId}-q`} className="text-right">{it?.quantity != null ? Number(it.quantity) : ''}</td>,
-                          <td key={`${c.itemId}-a`} className="text-right">{it ? won(it.amount) : ''}</td>]
-                      })}
-                      <td rowSpan={2} className="text-right">{won(l.grossPay)}</td>
-                      {taxCol && <td className="text-right">{Number(l.incomeTax) ? won(l.incomeTax) : ''}</td>}
-                      {dedCols.map((c) => <td key={c.itemId} rowSpan={2} className="text-right">{itemOf(l, c.itemId) ? won(itemOf(l, c.itemId)!.amount) : ''}</td>)}
-                      <td rowSpan={2} className="text-right">{Number(l.deductionTotal ?? Number(l.incomeTax) + Number(l.localTax)) ? won(Number(l.deductionTotal ?? Number(l.incomeTax) + Number(l.localTax))) : ''}</td>
-                      <td rowSpan={2} className="text-right">{won(l.netPay)}</td>
-                    </tr>,
-                    <tr key={`${l.id}-b`}>
-                      <td></td>
-                      <td></td>
-                      <td></td>
-                      {allowCols.flatMap((c) => [<td key={`${c.itemId}-q`}></td>, <td key={`${c.itemId}-a`}></td>])}
-                      {taxCol && <td className="text-right">{Number(l.localTax) ? won(l.localTax) : ''}</td>}
-                    </tr>,
-                  ])}
+                    <tr><td colSpan={9 + dedCols.length + (taxCol ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                  ) : view.lines.flatMap((l) => {
+                    const ded = Number(l.deductionTotal ?? Number(l.incomeTax) + Number(l.localTax))
+                    const taxText = (k: number) => (k === 0 ? (Number(l.incomeTax) ? won(l.incomeTax) : '') : k === 1 ? (Number(l.localTax) ? won(l.localTax) : '') : '')
+                    const slotCells = (sl: Slot | null, key: string) => {
+                      if (!sl) return [<td key={`${key}-q`}></td>, <td key={`${key}-a`}></td>]
+                      if (sl.itemId == null) return [
+                        <td key={`${key}-q`} className="text-right">{Number(l.days) || ''}</td>,
+                        <td key={`${key}-a`} className="relative text-right" title={l.direct ? '금액직접입력' : undefined}>
+                          {l.direct && <i aria-hidden className="absolute left-0 top-0 border-t-[6px] border-r-[6px] border-t-ec-danger border-r-transparent" />}
+                          {Number(l.dayPay ?? l.grossPay) || l.direct ? won(l.dayPay ?? l.grossPay) : ''}
+                        </td>]
+                      const it = itemOf(l, sl.itemId)
+                      return [<td key={`${key}-q`} className="text-right">{it?.quantity != null ? Number(it.quantity) : ''}</td>,
+                        <td key={`${key}-a`} className="text-right">{it ? won(it.amount) : ''}</td>]
+                    }
+                    return [
+                      ...slotRows.map((pair, k) => (
+                        <tr key={`${l.id}-${k}`}>
+                          {k === 0 && <td rowSpan={slotRows.length}>{l.workerName}</td>}
+                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-center"></td>}
+                          {pair.flatMap((sl, m) => slotCells(sl, String(m)))}
+                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(l.grossPay)}</td>}
+                          {taxCol && <td className="text-right">{taxText(k)}</td>}
+                          {k === 0 && dedCols.map((c) => <td key={c.itemId} rowSpan={slotRows.length + 1} className="text-right">{itemOf(l, c.itemId) ? won(itemOf(l, c.itemId)!.amount) : ''}</td>)}
+                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{ded ? won(ded) : ''}</td>}
+                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(l.netPay)}</td>}
+                        </tr>
+                      )),
+                      <tr key={`${l.id}-b`}>
+                        <td></td>
+                        <td></td><td></td><td></td><td></td>
+                        {taxCol && <td className="text-right">{taxText(slotRows.length)}</td>}
+                      </tr>,
+                    ]
+                  })}
+                  {slotRows.map((pair, k) => (
+                    <tr key={`sum-${k}`} className="font-bold">
+                      {k === 0 && <td colSpan={2} rowSpan={slotRows.length + 1} className="text-center">총합계</td>}
+                      {pair.flatMap((sl, m) => [<td key={`${m}-q`}></td>,
+                        <td key={`${m}-a`} className="text-right">{!sl ? '' : sl.itemId == null ? won(totals.dayPay) : won(itemSum(sl.itemId, (i) => Number(i.amount)))}</td>])}
+                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(totals.gross)}</td>}
+                      {taxCol && <td className="text-right">{k === 0 && totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>}
+                      {k === 0 && dedCols.map((c) => <td key={c.itemId} rowSpan={slotRows.length + 1} className="text-right">{won(itemSum(c.itemId, (i) => Number(i.amount)))}</td>)}
+                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{totals.ded ? won(totals.ded) : ''}</td>}
+                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(totals.net)}</td>}
+                    </tr>
+                  ))}
                   <tr className="font-bold">
-                    <td colSpan={2} className="text-center">총합계</td>
-                    <td className="text-right">{totals.days || ''}</td>
-                    <td className="text-right">{won(totals.dayPay)}</td>
-                    {allowCols.flatMap((c) => [<td key={`${c.itemId}-q`} className="text-right">{itemSum(c.itemId, (i) => Number(i.quantity ?? 0)) || ''}</td>,
-                      <td key={`${c.itemId}-a`} className="text-right">{won(itemSum(c.itemId, (i) => Number(i.amount)))}</td>])}
-                    <td className="text-right">{won(totals.gross)}</td>
-                    {taxCol && <td className="text-right">{totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>}
-                    {dedCols.map((c) => <td key={c.itemId} className="text-right">{won(itemSum(c.itemId, (i) => Number(i.amount)))}</td>)}
-                    <td className="text-right">{totals.ded ? won(totals.ded) : ''}</td>
-                    <td className="text-right">{won(totals.net)}</td>
+                    <td></td><td></td><td></td><td></td>
+                    {taxCol && <td></td>}
                   </tr>
                 </tbody>
               </table>

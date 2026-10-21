@@ -22,7 +22,7 @@ interface DailyWorker {
   payAmounts?: { itemId: number; amount: number }[]
 }
 /** 일용근로 수당등록 · 공제등록에서 더한 항목(기본 일근무 · 소득세 · 지방소득세 밖) — [급여지급사항] 표에 한 줄씩 생긴다. */
-interface PayItem { id: number; kind: 'ALLOWANCE' | 'DEDUCTION'; name: string; builtin: boolean }
+interface PayItem { id: number; kind: 'ALLOWANCE' | 'DEDUCTION'; name: string; builtin: boolean; payMethod?: string | null }
 
 interface Form {
   code: string; name: string; foreigner: boolean; nationality: string; departmentId: string; mobile: string; email: string
@@ -364,14 +364,24 @@ export default function DailyWorkerListPage() {
               <li className="wide"><span className="title">사원번호</span><div className="form">{form.code}</div></li>
               {text('성명', 'name', true)}
             </ul>
-            <p className="font-bold mb-[4px]">&gt; 일급수당</p>
-            <table className="w-full mb-[8px]">
-              <thead><tr><th>수당항목명</th><th className="w-[260px]">내역</th></tr></thead>
-              <tbody>
-                <tr><td>일근무</td><td>{money('dailyWage')}</td></tr>
-                {payItems.filter((i) => i.kind === 'ALLOWANCE').map((i) => <tr key={i.id}><td>{i.name}</td><td>{itemMoney(i)}</td></tr>)}
-              </tbody>
-            </table>
+            {/* 원본(2026-10-21): 지급유형마다 표 — > 고정수당(고정) · > 일급수당(일근무 · 변동(일)) · > 시급수당(변동(시간)) ·
+                > 지급률수당(변동(지급률)) · > 변동수당(변동(직접입력)) · > 월정공제 */}
+            {([['고정수당', '고정'], ['일급수당', '변동(일)'], ['시급수당', '변동(시간)'], ['지급률수당', '변동(지급률)'], ['변동수당', '변동(직접입력)']] as const).map(([title, method]) => {
+              const its = payItems.filter((i) => i.kind === 'ALLOWANCE' && (i.payMethod ?? '변동(일)') === method)
+              if (method !== '변동(일)' && its.length === 0) return null
+              return (
+                <div key={method}>
+                  <p className="font-bold mb-[4px]">&gt; {title}</p>
+                  <table className="w-full mb-[8px]">
+                    <thead><tr><th>수당항목명</th><th className="w-[260px]">내역</th></tr></thead>
+                    <tbody>
+                      {method === '변동(일)' && <tr><td>일근무</td><td>{money('dailyWage')}</td></tr>}
+                      {its.map((i) => <tr key={i.id}><td>{i.name}</td><td>{itemMoney(i)}</td></tr>)}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })}
             <p className="font-bold mb-[4px]">&gt; 월정공제</p>
             <table className="w-full">
               <thead><tr><th>공제항목명</th><th className="w-[260px]">금액</th></tr></thead>
