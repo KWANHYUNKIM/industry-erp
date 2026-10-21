@@ -84,7 +84,9 @@ export default function UnsoldStatusPage() {
   const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
   const pmgr = usePartnerManagers()
   const [rows, setRows] = useState<UnsoldLine[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  /** 원본은 [검색(F8)] 전에는 격자가 없다(plans/재고1.md 주문서 남은 것 ②) — 한 번 찾은 뒤에만 그린다. */
+  const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
 
   /** 원본 [구분] — 품목별(품목으로 합침) / 라인별(주문 라인 그대로). */
@@ -109,6 +111,7 @@ export default function UnsoldStatusPage() {
     try {
       const res = await api.get<UnsoldLine[]>('/sales-orders/unsold', { params: { from: cond.from || undefined, to: cond.to || undefined } })
       setRows(res.data)
+      setSearched(true)
     } catch (err) {
       setError(extractErrorMessage(err))
       setRows([])
@@ -118,7 +121,7 @@ export default function UnsoldStatusPage() {
   }
 
   /* 기간을 서버로 보낸다 — 조건 판에 물어 놓고 전 기간을 받아 브라우저에서 걸렀다. */
-  useEffect(() => { load() }, [cond.from, cond.to])
+  useEffect(() => { if (searched) load() }, [cond.from, cond.to])
 
   const shown = rows
     /*
@@ -338,7 +341,7 @@ export default function UnsoldStatusPage() {
         원본 [데이터 보기형식]이 <b>그래프</b>면 거래처별 미판매금액을 막대로 그린다 —
         "어느 거래처의 수주가 얼마나 매출로 안 잡혔나" 가 이 화면의 물음이다.
       */}
-      {view === '그래프' && (
+      {searched && view === '그래프' && (
         <EcBarChart unit=" 원" emptyText="조회된 미판매 수주가 없습니다."
                     rows={(() => {
                       const m = new Map<string, number>()
@@ -348,6 +351,7 @@ export default function UnsoldStatusPage() {
       )}
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
+      {searched && <>
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '품목별' ? '품목' : '라인'}{' '}
         <b className="text-ec-text">{num(mode === '품목별' ? byItem.length : shown.length)}</b>
@@ -474,6 +478,7 @@ export default function UnsoldStatusPage() {
           </table>
         )}
       </div>
+      </>}
     </EcListShell>
   )
 }

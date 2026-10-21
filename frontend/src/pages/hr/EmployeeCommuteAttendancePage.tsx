@@ -67,12 +67,17 @@ export default function EmployeeCommuteAttendancePage() {
         api.get<Vacation[]>('/hr/vacations', { params: { from: `${range.from.slice(0, 4)}-01-01`, to: range.to } }),
         api.get<Kind[]>('/hr/attendance-kinds'),
       ])
-      setEmployees(e.data); setCommutes(c.data); setVacations(v.data); setKinds(k.data); setShown(range)
+      setEmployees(e.data); setCommutes(c.data); setVacations(v.data); setKinds(k.data); setShown(range); setSearched(true)
     } catch (err) {
       setError(extractErrorMessage(err))
     }
   }
-  useEffect(() => { search() }, [])
+  /** 원본은 [검색(F8)] 전에는 결과가 없다(plans/관리.md 출퇴근/근태현황 남은 것) — 조건 판 코드도움(사원명 · 근태항목)에 쓸 목록만 미리 받는다. */
+  const [searched, setSearched] = useState(false)
+  useEffect(() => {
+    api.get<EmployeeMaster[]>('/employees/all').then((r) => setEmployees(r.data)).catch(() => setEmployees([]))
+    api.get<Kind[]>('/hr/attendance-kinds').then((r) => setKinds(r.data)).catch(() => setKinds([]))
+  }, [])
   function reset() {
     setRange(monthToToday()); setEmpCond([]); setDeptCond([]); setKindCond([]); setVkCond([]); setGroupCond([]); setRemarkCond('')
     setPlace('all'); setDayKind('all'); setEmployment('a'); setStatuses(new Set(STATUSES)); setVacStatuses(new Set(['PENDING', 'APPROVED']))
@@ -181,6 +186,7 @@ export default function EmployeeCommuteAttendancePage() {
         </li>
       </ul>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {searched && <>
       <div className="text-center font-bold mb-[2px]">출퇴근/근태현황(사원)</div>
       <div className="text-ec-hint mb-[4px]">{slashDate(shown.from)} ~ {slashDate(shown.to)}</div>
       <div className="overflow-x-auto">
@@ -223,6 +229,7 @@ export default function EmployeeCommuteAttendancePage() {
           </tbody>
         </table>
       </div>
+      </>}
     </EcListShell>
   )
 }

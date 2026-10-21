@@ -14,6 +14,7 @@ type Tri = 'all' | 'a' | 'b'
  * 재직구분) · 빠른선택(금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일) · 결과 머리(회사명 · 기간) · 격자.
  * 열만 다르다. 사원명 · 부서는 여러 개 고르는 코드도움. 정렬/소계기준 · 양식은 없다.
  * 2026-10-20 실측: 조건 판은 펼쳐서 시작하고 판 안 [검색(F8)] 을 누르면 접히며 머리에 Search(F3), 줄 끝에 [다시 작성].
+ * 원본은 [검색(F8)] 전에는 결과 머리 · 격자가 없다(plans/관리.md 출/퇴근현황 · 지각현황 남은 것 — 우리는 열자마자 금월을 찾아 뒀다).
  * 2026-10-04 실측 처음 값: 출/퇴근현황은 내/외근 [내근] · 재직구분 [재직자], 지각현황은 [전체] · [재직자].
  * 출/퇴근현황만 [기타] 모든날짜검색(처음 꺼짐) — 켜면 기간의 날마다 줄을 두고 기록이 없는 날은 일자만 찍는다. 끝에 합계 줄.
  */
@@ -33,15 +34,15 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
   const [employment, setEmployment] = useState<Tri>('a')
   const [allDates, setAllDates] = useState(false)
   const [rows, setRows] = useState<EmployeeCommuteLine[]>([])
+  const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
 
   function search() {
     setError('')
     api.get<EmployeeCommuteLine[]>('/hr/employee-commutes', { params: { from: range.from, to: range.to } })
-      .then((r) => { setRows(r.data); setShown(range) }).catch((e) => setError(extractErrorMessage(e)))
+      .then((r) => { setRows(r.data); setShown(range); setSearched(true) }).catch((e) => setError(extractErrorMessage(e)))
   }
-  useEffect(() => { search() }, [])
   function reset() {
     setRange(monthToToday()); setEmpCond([]); setDeptCond([])
     setPlace(lateOnly ? 'all' : 'a'); setDayKind('all'); setEmployment('a'); setAllDates(false)
@@ -105,6 +106,7 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
         </li>
       </ul>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {searched && <>
       <div className="text-center font-bold mb-[2px]">{title}</div>
       <div className="text-ec-hint mb-[4px]">{slashDate(shown.from)} ~ {slashDate(shown.to)}</div>
       <table ref={tableRef} className="w-full text-left">
@@ -144,6 +146,7 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
           </tfoot>
         )}
       </table>
+      </>}
     </EcListShell>
   )
 }
