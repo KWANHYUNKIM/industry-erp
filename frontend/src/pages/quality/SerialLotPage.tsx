@@ -61,6 +61,8 @@ export default function SerialLotPage() {
   const [genCount, setGenCount] = useState('')
   const [genOpen, setGenOpen] = useState(false)
   const [genPrefix, setGenPrefix] = useState('')
+  /* 반복코드 고름칸(2026-10-22 실측): **** · T · M · 직접입력. T · M 은 번호생성설정의 반복코드[3] 자릿수와 안 맞아 '자릿수가 맞지 않습니다.' — 결과 꼴은 설정을 바꿔야 재서 못 잼. */
+  const [genKind, setGenKind] = useState<'****' | 'T' | 'M' | '직접입력'>('****')
   const [genSym, setGenSym] = useState('_')
   /* 원본 삭제가 막히면 뜨는 '알림' 창 — [코드 | 코드명 | 자료] 표(2026-10-13 실측: 'QA재고2-L01 | | 구매: 20261013-0'). */
   const [blocked, setBlocked] = useState<{ code: string; data: string[] } | null>(null)
@@ -305,13 +307,19 @@ export default function SerialLotPage() {
 
       <Modal open={genOpen} title="코드생성" width={520} error={error} onClose={() => setGenOpen(false)}>
         <div className="flex items-center gap-[6px]">
-          <label>반복코드[3] <input className="ec-input w-[80px]" maxLength={3} aria-label="반복코드" value={genPrefix} onChange={(e) => setGenPrefix(e.target.value)} /></label>
+          <label>반복코드[3]{' '}
+            <select className="ec-input w-[90px]" aria-label="반복코드 종류" value={genKind} onChange={(e) => setGenKind(e.target.value as typeof genKind)}>
+              {(['****', 'T', 'M', '직접입력'] as const).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            {genKind === '직접입력' && <input className="ec-input w-[80px] ml-[3px]" maxLength={3} aria-label="반복코드" value={genPrefix} onChange={(e) => setGenPrefix(e.target.value)} />}
+          </label>
           <label>기호1[1] <input className="ec-input w-[40px]" maxLength={1} aria-label="기호1" value={genSym} onChange={(e) => setGenSym(e.target.value)} /></label>
           <label>일련번호[4] <input className="ec-input w-[70px]" readOnly value="****" aria-label="일련번호" /></label>
         </div>
         <div className="mt-[8px] flex gap-[4px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => {
-            if (genPrefix.length !== 3) return setFormError('자릿수가 맞지 않습니다.')
+            if (genKind === '직접입력' ? genPrefix.length !== 3 : genKind !== '****') return setFormError('자릿수가 맞지 않습니다.')
+            if (genKind === '****') return
             const n = Math.min(Number(genCount || 1), 500)
             set('lotNos', Array.from({ length: n }, (_, i) => `${genPrefix}${genSym}${String(i + 1).padStart(4, '0')}`).join('\n'))
             setGenOpen(false)

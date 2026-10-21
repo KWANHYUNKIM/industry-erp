@@ -37,13 +37,42 @@ export interface PlanLine {
 
 export interface PlanItem { code: string; name: string; kind: string }
 
-/* 원본 항목 격자(2026-10-14 실측) — 항목코드 · 항목명 · 집계구분. 노무비 · 경비의 집계구분 '계정' 은 링크(여는 창은 못 잼). */
+/* 원본 항목 격자(2026-10-14 실측) — 항목코드 · 항목명 · 집계구분. 노무비 · 경비의 집계구분 '계정' 은 링크 → 계정등록 창(PlanAccountWindow, 2026-10-22 실측). */
 export const PLAN_ITEMS: PlanItem[] = [
   { code: '01', name: '판매', kind: '판매' },
   { code: '02', name: '구매', kind: '구매' },
   { code: '03', name: '노무비', kind: '계정' },
   { code: '04', name: '경비', kind: '계정' },
 ]
+
+/**
+ * 집계구분 '계정' 링크 창 [계정등록](2026-10-22 실측): 제목 '계정등록', 격자 [체크 · 계정코드 · 계정명 · 실적표기방법] 빈 줄 3 개(번호 동그라미),
+ * 아래 [저장(F8) ▴] [닫기]. 실적표기방법 칸은 눌러도 열리지 않는다(계정을 넣으면 채워지는 값). 우리는 계정 → 노무비 · 경비 실적 연결이 없어 모양만이다.
+ */
+function PlanAccountWindow({ name, onClose }: { name: string; onClose: () => void }) {
+  const [codes, setCodes] = useState(['', '', ''])
+  return (
+    <Modal open title="계정등록" width={560} onClose={onClose}>
+      <h3 className="text-[14px] font-bold mt-0 mb-[8px]" aria-label={`${name} 계정등록`}>계정등록</h3>
+      <table className="w-full text-left">
+        <thead><tr><th className="w-[28px]"><input type="checkbox" aria-label="전체 선택" /></th><th>계정코드</th><th>계정명</th><th>실적표기방법</th></tr></thead>
+        <tbody>
+          {codes.map((c, i) => (
+            <tr key={i}>
+              <td className="text-center"><span className="inline-block w-[18px] h-[18px] leading-[16px] text-center rounded-full border border-solid border-ec-line text-[11px]">{i + 1}</span></td>
+              <td><input className="ec-input w-full" aria-label={`계정코드 ${i + 1}`} value={c} onChange={(e) => setCodes((a) => a.map((x, j) => (j === i ? e.target.value : x)))} /></td>
+              <td /><td />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex gap-[4px] mt-[8px]">
+        <button type="button" className="ec-btn ec-btn-primary" onClick={onClose}>저장(F8)</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+    </Modal>
+  )
+}
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -79,6 +108,7 @@ export function PlanHeadWindow({ open, planId, projects, onClose, onChanged, onO
   const [missing, setMissing] = useState(false)
   const [error, setError] = useState('')
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [accountOf, setAccountOf] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -179,7 +209,7 @@ export function PlanHeadWindow({ open, planId, projects, onClose, onChanged, onO
               </td>
               <td>{it.code}</td>
               <td>{it.name}</td>
-              <td>{it.kind === '계정' ? <span className="ec-link">{it.kind}</span> : it.kind}</td>
+              <td>{it.kind === '계정' ? <button type="button" className="ec-link" onClick={() => setAccountOf(it.name)}>{it.kind}</button> : it.kind}</td>
               <td>해당없음</td><td>해당없음</td><td>해당없음</td><td>해당없음</td>
               <td className="text-center">
                 <button type="button" className="ec-btn ec-btn-sm" aria-label={`${it.name} 등록`} onClick={() => void register(it)}>등록</button>
@@ -195,6 +225,7 @@ export function PlanHeadWindow({ open, planId, projects, onClose, onChanged, onO
         {id && <button type="button" className="ec-btn" onClick={() => void remove()}>삭제</button>}
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
+      {accountOf && <PlanAccountWindow name={accountOf} onClose={() => setAccountOf(null)} />}
     </Modal>
   )
 }
