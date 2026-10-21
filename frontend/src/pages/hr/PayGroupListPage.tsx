@@ -481,7 +481,7 @@ export default function PayGroupListPage() {
           </div>
         </>
       )}</Modal>
-      <Modal open={sortFor != null} title="정렬기준" width={620} onClose={() => setSortFor(null)}>{(
+      <Modal error={error} open={sortFor != null} title="정렬기준" width={620} onClose={() => setSortFor(null)}>{(
         <>
           <ul className="ec-form mb-[10px]">
             <li>
