@@ -58,7 +58,21 @@ public final class PurchaseOrderDtos {
              * 원본 <b>발주서입력</b> — 발주계획조회 [다른전표생성 › 발주서 › 1장라인별] 이 띄우는 창. 바로 발주서(발주확정)로 만든다.
              * 계획 · 요청은 그대로 두고 새 전표가 된다(원본 실측: 계획은 진행중 그대로).
              */
-            Boolean order
+            Boolean order,
+            /** 원본 <b>단가요청입력</b>(E040321) — 단가요청(PRICE_REQUESTED) 전표로 만든다. 줄 단가가 요청단가다. */
+            Boolean priceRequest
+    ) {}
+
+    /** 단가요청진행단계 [수취단가확인] · [단가확정] — 줄마다 수취단가 · 확정단가, 머리 [유효기간]. 비운 값은 그대로 둔다. */
+    public record PriceStepRequest(
+            @NotEmpty(message = "줄을 1개 이상 보내세요.") @Valid List<PriceStepLine> lines,
+            LocalDate priceValidUntil
+    ) {}
+
+    public record PriceStepLine(
+            @NotNull Long lineId,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal receivedPrice,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal confirmedPrice
     ) {}
 
     /**
@@ -115,7 +129,9 @@ public final class PurchaseOrderDtos {
             /** [수량조정] 창의 [입력수량] · [최종계산일자]. */
             BigDecimal inputQuantity, LocalDate planCalcDate,
             /** 베껴 온 앞 전표의 줄 · 그 전표 번호 · 일자(원본 줄 열 [발주요청] · [No]). */
-            Long sourceLineId, String sourceOrderNo, LocalDate sourceOrderDate
+            Long sourceLineId, String sourceOrderNo, LocalDate sourceOrderDate,
+            /** 단가요청의 수취단가 · 확정단가(요청단가는 unitPrice). */
+            BigDecimal receivedPrice, BigDecimal confirmedPrice
     ) {
         public static OrderLineResponse from(PurchaseOrderLine l) {
             return new OrderLineResponse(
@@ -130,7 +146,8 @@ public final class PurchaseOrderDtos {
                     l.getRemark(),
                     l.isPlanClosed(),
                     l.getInputQuantity() != null ? l.getInputQuantity() : l.getQuantity(), l.getPlanCalcDate(),
-                    l.getSourceLineId(), l.getSourceOrderNo(), l.getSourceOrderDate());
+                    l.getSourceLineId(), l.getSourceOrderNo(), l.getSourceOrderDate(),
+                    l.getReceivedPrice(), l.getConfirmedPrice());
         }
     }
 

@@ -202,7 +202,8 @@ public class PurchaseOrderService {
                  * 발주요청 · 발주계획 · 발주서는 <b>다른 전표</b>다(원본 E040315 실측) — 다음 전표는 앞 전표를 베껴 새로 만들고
                  * 앞 전표의 상태는 그대로 둔다. 발주계획입력(E040316)은 계획, 발주서입력은 바로 발주확정(구매 [발주] 잔량적용 대상).
                  */
-                .status(Boolean.TRUE.equals(req.order()) ? PurchaseOrderStatus.ORDERED
+                .status(Boolean.TRUE.equals(req.priceRequest()) ? PurchaseOrderStatus.PRICE_REQUESTED
+                        : Boolean.TRUE.equals(req.order()) ? PurchaseOrderStatus.ORDERED
                         : Boolean.TRUE.equals(req.plan()) ? PurchaseOrderStatus.PLANNED : PurchaseOrderStatus.REQUESTED)
                 .taxable(req.taxable() == null || req.taxable())
                 .remark(req.remark())
@@ -241,8 +242,9 @@ public class PurchaseOrderService {
     public PurchaseOrderResponse update(Long id, CreatePurchaseOrderRequest req, String username) {
         PurchaseOrder po = get(id);
         /* 발주계획조회의 [일자-No.] 도 같은 창(발주계획입력 수정)으로 계획을 고친다 — 단가확정 이후는 다음 단계가 본다. */
-        if (po.getStatus() != PurchaseOrderStatus.REQUESTED && po.getStatus() != PurchaseOrderStatus.PLANNED) {
-            throw ApiException.badRequest("발주요청 · 발주계획 상태에서만 고칠 수 있습니다. (현재: " + po.getStatus().getDisplayName() + ")");
+        if (po.getStatus() != PurchaseOrderStatus.REQUESTED && po.getStatus() != PurchaseOrderStatus.PLANNED
+                && po.getStatus() != PurchaseOrderStatus.PRICE_REQUESTED) {
+            throw ApiException.badRequest("발주요청 · 발주계획 · 단가요청 상태에서만 고칠 수 있습니다. (현재: " + po.getStatus().getDisplayName() + ")");
         }
         BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
@@ -258,6 +260,7 @@ public class PurchaseOrderService {
         po.setCurrency((req.currency() == null || req.currency().isBlank()) ? "KRW" : req.currency().trim());
         if (req.taxable() != null) po.setTaxable(req.taxable());
         po.setRemark(req.remark());
+        if (po.getStatus() == PurchaseOrderStatus.PRICE_REQUESTED) po.setPriceValidUntil(req.priceValidUntil());
         /* 줄은 지우고 다시 단다. 지운 것을 먼저 내보내야 새 줄의 번호(1, 2 …)가 옛 줄과 겹치지 않는다. */
         po.getLines().clear();
         orderRepository.saveAndFlush(po);
@@ -341,6 +344,27 @@ public class PurchaseOrderService {
         trace(po, po.getStatus(), PurchaseOrderStatus.PRICED, username,
                 po.getPriceValidUntil() != null ? "유효기간 " + po.getPriceValidUntil() : null);
         po.setStatus(PurchaseOrderStatus.PRICED);
+        return PurchaseOrderResponse.from(po);
+    }
+
+    /**
+     * 단가요청진행단계 [수취단가확인] · [단가확정](원본 E040323) — 단가요청 줄에 매입처가 준 수취단가와 확정단가를 적는다.
+     * 요청단가(unitPrice)와 금액은 그대로다(원본 단가요청조회 [금액(합계)] 는 요청단가 기준). 확정단가는 발주서로 베낄 때 발주서 단가가 된다.
+     */
+    @Transactional
+    public PurchaseOrderResponse applyPriceSteps(Long id, PurchaseOrderDtos.PriceStepRequest req, String username) {
+        PurchaseOrder po = get(id);
+        expect(po, PurchaseOrderStatus.PRICE_REQUESTED, "단가요청 전표만 수취단가 · 확정단가를 적을 수 있습니다.");
+        for (PurchaseOrderDtos.PriceStepLine sl : req.lines()) {
+            PurchaseOrderLine line = po.getLines().stream()
+                    .filter(l -> l.getId().equals(sl.lineId()))
+                    .findFirst()
+                    .orElseThrow(() -> ApiException.badRequest("단가요청 " + po.getOrderNo() + " 에 없는 라인입니다. lineId=" + sl.lineId()));
+            if (sl.receivedPrice() != null) line.setReceivedPrice(sl.receivedPrice());
+            if (sl.confirmedPrice() != null) line.setConfirmedPrice(sl.confirmedPrice());
+        }
+        if (req.priceValidUntil() != null) po.setPriceValidUntil(req.priceValidUntil());
+        po.setUpdatedBy(username);
         return PurchaseOrderResponse.from(po);
     }
 

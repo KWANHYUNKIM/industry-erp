@@ -86,6 +86,14 @@ public class PurchaseOrderLine {
     @Column(name = "source_order_date")
     private java.time.LocalDate sourceOrderDate;
 
+    /** 단가요청 진행단계 [수취단가확인] — 매입처가 회신한 단가(원본 단가요청현황 [구분] 수취단가). 요청단가는 unitPrice. */
+    @Column(name = "received_price", precision = 18, scale = 2)
+    private BigDecimal receivedPrice;
+
+    /** 단가요청 진행단계 [단가확정] — 발주서로 베낄 때 이 값이 발주서 단가가 된다(원본 현황 [구분] 확정단가). */
+    @Column(name = "confirmed_price", precision = 18, scale = 2)
+    private BigDecimal confirmedPrice;
+
     @Column(name = "line_no", nullable = false)
     @Builder.Default
     private Integer lineNo = 1;

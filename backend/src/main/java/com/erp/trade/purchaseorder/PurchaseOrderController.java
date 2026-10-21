@@ -93,6 +93,13 @@ public class PurchaseOrderController {
         return service.applyPrices(id, req, principal.getUsername());
     }
 
+    /** 단가요청진행단계 [수취단가확인] · [단가확정] */
+    @PatchMapping("/{id}/price-steps")
+    public PurchaseOrderResponse applyPriceSteps(@PathVariable Long id, @Valid @RequestBody PurchaseOrderDtos.PriceStepRequest req,
+                                                 @AuthenticationPrincipal UserPrincipal principal) {
+        return service.applyPriceSteps(id, req, principal.getUsername());
+    }
+
     /**
      * 원본 단가요청진행단계의 [이력] — 그 발주가 밟아 온 자취.
      *
