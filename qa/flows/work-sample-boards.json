@@ -10,7 +10,10 @@
         "expect:[...document.querySelectorAll('.ec-pill')].map((p) => p.textContent.trim()).join(',') === '전체,진행중,완료,진행상태를 자유롭게 추가 가능합니다'",
         "click:신규(F2)",
         "wait:500",
-        "js:(() => { const d = document.querySelector('[role=dialog]'); const put = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; put(d.querySelector('input[placeholder=\"제목\"]'), 'QA그룹웨어- 차량 정보 시험'); put(d.querySelector('input[aria-label=\"차량번호\"]'), 'QA12가3456'); put(d.querySelector('input[aria-label=\"출고일자\"]'), '2026-10-14'); return true })()",
+        "js:(() => { const d = document.querySelector('[role=dialog]'); const put = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; put(d.querySelector('input[placeholder=\"제목\"]'), 'QA그룹웨어- 차량 정보 시험'); put(d.querySelector('input[aria-label=\"출고일자\"]'), '2026-10-14'); return true })()",
+        "js:document.querySelector('button[title=\"차량번호 코드도움\"]').click(); true",
+        "wait:500",
+        "pickrow:001",
         "click:저장(F8)",
         "wait:1200",
         "expect:!document.querySelector('[role=dialog]')",
@@ -20,7 +23,7 @@
         "click:금년",
         "click:검색(F8)",
         "wait:1000",
-        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어- 차량 정보 시험') && tr.innerText.includes('QA12가3456') && tr.innerText.includes('2026/10/14') && tr.innerText.includes('진행중'))",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어- 차량 정보 시험') && tr.innerText.includes('458노4836') && tr.innerText.includes('2026/10/14') && tr.innerText.includes('진행중'))",
         "js:window.confirm = () => true; const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어- 차량 정보 시험')); tr.cells[0].click(); true",
         "click:선택삭제",
         "wait:400",
@@ -52,6 +55,42 @@
       "steps": [
         "wait:800",
         "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()).slice(1).join(',') === '게시글번호,제목,차량증빙,차량정보,작성자명,진행상태,첨부,조회'"
+      ]
+    },
+    {
+      "name": "영업 방문관리 · 최종 계약관리 — 🔍 게시판 · 전표 잇기 창(원본 2026-10-22 실측)",
+      "path": "/groupware/visit-board",
+      "steps": [
+        "wait:800",
+        "click:신규(F2)",
+        "wait:500",
+        "click:전표형식1 검색",
+        "wait:600",
+        "expect:document.body.innerText.includes('상담 이력관리검색창')",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-pill')].map((p)=>p.textContent.trim()).join(',').startsWith('전체,기본')",
+        "expect:[...document.querySelectorAll('[role=dialog] th')].map((t)=>t.textContent.trim()).join(',').includes('게시글번호,제목,작성자명,전달자,진행상태,첨부,조회')",
+        "js:(() => { const m = [...document.querySelectorAll('.ec-modal-back')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); return true })()",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "최종 계약관리 — 판매검색창(조회) · 견적서검색창(조회)",
+      "path": "/groupware/contract-board",
+      "steps": [
+        "wait:800",
+        "click:신규(F2)",
+        "wait:500",
+        "click:판매 전표 검색",
+        "wait:800",
+        "expect:document.body.innerText.includes('판매검색창(조회)')",
+        "expect:[...document.querySelectorAll('[role=dialog] th')].map((t)=>t.textContent.trim()).join(',').includes('일자-No.,거래처명,품목명(요약),금액합계,거래유형명,창고명,회계반영여부,인쇄,불러온전표')",
+        "js:(() => { const m = [...document.querySelectorAll('.ec-modal-back')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); return true })()",
+        "wait:300",
+        "click:최종 발송 견적서 검색",
+        "wait:800",
+        "expect:document.body.innerText.includes('견적서검색창(조회)')",
+        "js:(() => { const m = [...document.querySelectorAll('.ec-modal-back')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); return true })()",
+        "wait:300"
       ]
     }
   ]

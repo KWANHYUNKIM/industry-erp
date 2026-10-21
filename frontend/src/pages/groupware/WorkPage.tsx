@@ -23,6 +23,7 @@ import EcRichEditor from '../../components/EcRichEditor'
 import EcRichBody from '../../components/EcRichBody'
 import EcDateTimeSelect from '../../components/EcDateTimeSelect'
 import CodePickerField from '../../components/CodePickerField'
+import { PostLinkField, SlipLinkField } from '../../features/workpost/components/LinkFields'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 
 const today = () => ymd(new Date())
@@ -120,7 +121,17 @@ export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 
  */
 type Col = 'no' | 'dateNo' | 'title' | 'writer' | 'forward' | 'stage' | 'postDate' | `x:${string}`
 /** 입력 창의 게시판별 입력항목. 원본 '항목추가' 로 회사가 고른 칸이다. */
-type Extra = { name: string; type: 'text' | 'date' | 'emp' }
+/**
+ * 입력항목 종류. emp 사원검색 · vehicle 차량번호검색 · item 품목검색 · partner 거래처검색 · project 프로젝트검색(코드 🔍 이름 두 칸),
+ * post 다른 게시판 글 잇기(board) · slip 판매 · 구매 · 견적서 전표 잇기(2026-10-22 loginaa 실측).
+ */
+type Extra = { name: string; type: 'text' | 'date' | 'emp' | 'vehicle' | 'item' | 'partner' | 'project' | 'post' | 'slip'; board?: PostBoardCode; slip?: 'sales' | 'purchase' | 'quotation' }
+/** 원본 차량번호검색 창의 차량(코드 001 ~ 005 · 항목명). */
+const VEHICLES = [['001', '458노4836'], ['002', '981부8492'], ['003', '188마6153'], ['004', '269라2544'], ['005', '356서1147']] as const
+/** 게시판 잇기 창 제목(이모지 + 게시판 이름 + '검색창'). */
+const POST_BOARD_TITLE: Partial<Record<PostBoardCode, string>> = {
+  CONSULT: '🎧 상담 이력관리', VISIT: '🤝🏻 영업 방문관리', CAR_INFO: '🚗 1. 차량 정보관리', CAR_DOC: '🚗 2. 차량 증빙관리', SITE_STATUS: '📊 공사진행현황',
+}
 
 /**
  * 통합회의록(E200066, 2026-10-13 실측)의 부서 칸 — 격자 머리 '경영지원팀 회의록 · 구매팀 회의록 · 생산팀 회의록 · 영업팀 회의록',
@@ -198,7 +209,8 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   // 🏗️ 현장공사일지 (E200176): 게시글번호 · 현장명 · 제목 · 작성자명 · 전달자 · 공정 흐름. 입력 창 [공정 흐름] 처음 값 '측량'.
   SITE_LOG: {
     ...SAMPLE, labels: true, stageLabel: '공정 흐름', stages: ['지반조사', '측량', '기초굴토', '가설'], defaultStage: '측량',
-    cols: ['no', 'x:현장명', 'title', 'writer', 'forward', 'stage'], extras: [{ name: '현장명', type: 'text' }],
+    cols: ['no', 'x:현장명', 'title', 'writer', 'forward', 'stage'],
+    extras: [{ name: '현장명', type: 'text' }, { name: '거래형1', type: 'post', board: 'SITE_STATUS' }, { name: '프로젝트', type: 'project' }],
   },
   // 📊 공사진행현황 (E200178): 일자-No. · 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태, 알약 진행중 · 완료, 라벨 없음.
   SITE_STATUS: { ...SAMPLE, stages: null, labels: false, cols: ['dateNo', 'no', 'title', 'writer', 'forward', 'stage'] },
@@ -206,28 +218,33 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   DEV_LOG: {
     ...SAMPLE, labels: true, stages: ['요구분석', '기획', '디자인', '개발', '테스트', '디버깅', '오픈(완료)'], defaultStage: '기획',
     cols: ['no', 'x:프로젝트|프로젝트명', 'title', 'writer', 'stage'],
-    extras: [{ name: '거래처', type: 'text' }, { name: '프로젝트', type: 'text' }, { name: '담당자', type: 'emp' }, { name: '비고', type: 'text' }],
+    extras: [{ name: '거래처', type: 'partner' }, { name: '프로젝트', type: 'project' }, { name: '담당자', type: 'emp' }, { name: '비고', type: 'text' }],
   },
   // 📈 개발진행현황 (E200186): 게시글번호 · 제목 · 전달자 · 일자 · 작성자명 · 진행상태, 알약 진행중 · 완료.
   DEV_STATUS: { ...SAMPLE, stages: null, labels: true, cols: ['no', 'title', 'forward', 'postDate', 'writer', 'stage'] },
   // 계약관리 게시판(예시) 🎧 · 🤝🏻 · 📑 (E200166 · E200168 · E200170): 알약 [전체][기본][진행상태를 자유롭게 추가 가능합니다].
   CONSULT: { ...SAMPLE, labels: true, stages: ['기본'], freePill: true, cols: PLAIN_COLS },
-  VISIT: { ...SAMPLE, labels: true, stages: ['기본'], freePill: true, cols: PLAIN_COLS },
-  CONTRACT: { ...SAMPLE, labels: true, stages: ['기본'], freePill: true, cols: PLAIN_COLS },
+  VISIT: { ...SAMPLE, labels: true, stages: ['기본'], freePill: true, cols: PLAIN_COLS, extras: [{ name: '전표형식1', type: 'post', board: 'CONSULT' }] },
+  CONTRACT: {
+    ...SAMPLE, labels: true, stages: ['기본'], freePill: true, cols: PLAIN_COLS,
+    extras: [{ name: '전화상담 보고서', type: 'post', board: 'CONSULT' }, { name: '방문 보고서', type: 'post', board: 'VISIT' },
+      { name: '판매 전표', type: 'slip', slip: 'sales' }, { name: '최종 발송 견적서', type: 'slip', slip: 'quotation' }],
+  },
   // 🛠️ A/S 관리 (E200184): 게시글번호 · 수리요청일 · 제목 · 작성자명 · 전달자 · 진행상태, 알약 [전체][기본].
   AS_CARE: {
     ...SAMPLE, labels: true, stages: ['기본'], cols: ['no', 'x:수리요청일', 'title', 'writer', 'forward', 'stage'],
-    extras: [{ name: '수리요청일', type: 'date' }],
+    extras: [{ name: '수리요청일', type: 'date' }, { name: '품목', type: 'item' }, { name: '상담 이력', type: 'post', board: 'CONSULT' }, { name: '연관 매입 내역', type: 'slip', slip: 'purchase' }],
   },
   // 🚗 1. 차량 정보관리 (E200172): 게시글번호 · 제목 · 차량번호 · 출고일자 · 작성자명 · 전달자 · 진행상태. 입력 창 제목 아래 [출고일자] · [차량번호].
   CAR_INFO: {
     ...SAMPLE, labels: true, stages: null, freePill: true, cols: ['no', 'title', 'x:차량번호', 'x:출고일자', 'writer', 'forward', 'stage'],
-    extras: [{ name: '출고일자', type: 'date' }, { name: '차량번호', type: 'text' }],
+    extras: [{ name: '출고일자', type: 'date' }, { name: '차량번호', type: 'vehicle' }],
   },
   // 🚗 2. 차량 증빙관리 (E200180): 공지사항 꼴, 알약 진행중 · 완료 + 자유롭게 추가.
-  CAR_DOC: { ...SAMPLE, labels: true, stages: null, freePill: true, cols: PLAIN_COLS },
+  CAR_DOC: { ...SAMPLE, labels: true, stages: null, freePill: true, cols: PLAIN_COLS, extras: [{ name: '차량정보', type: 'post', board: 'CAR_INFO' }] },
   // 🚗 3. 차량 운행관리 (E200182): 게시글번호 · 제목 · 차량증빙 · 차량정보 · 작성자명 · 진행상태, 라벨 없음.
-  CAR_RUN: { ...SAMPLE, labels: false, stages: null, freePill: true, cols: ['no', 'title', 'x:차량증빙', 'x:차량정보', 'writer', 'stage'] },
+  CAR_RUN: { ...SAMPLE, labels: false, stages: null, freePill: true, cols: ['no', 'title', 'x:차량증빙', 'x:차량정보', 'writer', 'stage'],
+    extras: [{ name: '차량정보', type: 'post', board: 'CAR_INFO' }, { name: '차량증빙', type: 'post', board: 'CAR_DOC' }] },
   /*
    * 🔸 칸반보드 활용 예시 🔸 (E200190, 2026-10-14 실측): 목록 = 칸반 판(열 = 진행상태 7 + 건수), 조건 판 게시일 최근 1년.
    * 입력 창 [진행상태] 처음 값 '신규문의' · 고르기 차례는 '견적' 이 맨 앞(판 열 차례와 다르다) · 본문 '*고객정보*' 양식 · [담당자].
@@ -317,6 +334,13 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [employees, setEmployees] = useState<{ code: string; name: string }[]>([])
   useEffect(() => {
     if (cfg.extras?.some((x) => x.type === 'emp')) api.get<{ code: string; name: string }[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+  }, [cfg.extras])
+  /** [거래처] · [품목] 코드도움 후보(거래처 · 품목 마스터). */
+  const [partnerList, setPartnerList] = useState<{ code: string; name: string }[]>([])
+  const [itemList, setItemList] = useState<{ code: string; name: string }[]>([])
+  useEffect(() => {
+    if (cfg.extras?.some((x) => x.type === 'partner')) api.get<{ code: string; name: string }[]>('/partners').then((r) => setPartnerList(r.data)).catch(() => {})
+    if (cfg.extras?.some((x) => x.type === 'item')) api.get<{ code: string; name: string }[]>('/items').then((r) => setItemList(r.data)).catch(() => {})
   }, [cfg.extras])
   // 원본 하단의 [진행상태변경]·[선택삭제]는 고른 글에 한꺼번에 하는 동작이다.
   // 고르는 방식은 다른 목록과 같다 — 회색 행번호 칸을 누른다.
@@ -1289,6 +1313,26 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                                    value={employees.find((e) => e.name === form.extra[x.name])?.code ?? ''}
                                    onChange={(v) => set('extra', { ...form.extra, [x.name]: employees.find((e) => e.code === v)?.name ?? '' })}
                                    items={employees.map((e) => ({ value: e.code, code: e.code, name: e.name }))} />
+                ) : x.type === 'vehicle' || x.type === 'item' || x.type === 'partner' || x.type === 'project' ? (
+                  /* 원본 코드도움 칸: 코드 · 🔍 · 이름 두 칸 — 차량번호검색(코드 001 ~ 005) · 품목검색 · 거래처검색 · 프로젝트검색. 고른 이름이 값으로 저장된다. */
+                  (() => {
+                    const src = x.type === 'vehicle' ? VEHICLES.map(([c, n]) => ({ code: c, name: n }))
+                      : x.type === 'item' ? itemList : x.type === 'partner' ? partnerList : projects
+                    return (
+                      <CodePickerField label={x.name} hideLabel fill pair plain
+                                       popupTitle={x.type === 'vehicle' ? '차량번호검색' : x.type === 'item' ? '품목검색' : x.type === 'partner' ? '거래처검색' : '프로젝트검색'}
+                                       value={src.find((e) => e.name === form.extra[x.name])?.code ?? ''}
+                                       onChange={(v) => set('extra', { ...form.extra, [x.name]: src.find((e) => e.code === v)?.name ?? '' })}
+                                       items={src.map((e) => ({ value: e.code, code: e.code, name: e.name }))} />
+                    )
+                  })()
+                ) : x.type === 'post' ? (
+                  <PostLinkField label={x.name} board={x.board!} boardTitle={POST_BOARD_TITLE[x.board!] ?? ''}
+                                 stages={BOARD_CFG[x.board!].stages} defaultStage={BOARD_CFG[x.board!].defaultStage} freePill={BOARD_CFG[x.board!].freePill}
+                                 dateNo={!!BOARD_CFG[x.board!].cols?.includes('dateNo')}
+                                 value={form.extra[x.name] ?? ''} onChange={(v) => set('extra', { ...form.extra, [x.name]: v })} />
+                ) : x.type === 'slip' ? (
+                  <SlipLinkField label={x.name} kind={x.slip!} value={form.extra[x.name] ?? ''} onChange={(v) => set('extra', { ...form.extra, [x.name]: v })} />
                 ) : (
                   <input className="ec-input w-full" type={x.type} placeholder={x.name} aria-label={x.name}
                          value={form.extra[x.name] ?? ''} onChange={(e) => set('extra', { ...form.extra, [x.name]: e.target.value })} />
