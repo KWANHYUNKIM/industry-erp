@@ -1,5 +1,5 @@
 {
-  "about": "판매조회 수정 창(원본 E040206 2026-10-21 loginaa 실측) — 일자-No. 를 누르면 목록 위에 '판매입력(수정)' 창이 뜬다. 아래 버튼줄 저장(F8) · 저장/전표(F7) · 복사 · 반품처리 · 현금수금 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H · 최종이력. 수량 1 → 2 [저장(F8)] 말 없이 창이 닫히고 목록 1,100 → 2,200, 재고 −1 더 · 채권 +1,100. [삭제] '전표를 삭제하겠습니까? / - 판매' → 창이 닫히고 목록에서 사라짐, 재고 · 채권 처음으로. 판매할 재고 5 는 구매(API)로 넣고 끝에 지운다. node qa/shot.mjs qa/flows/sales-edit-popup.json",
+  "about": "판매조회 수정 창(원본 E040206 2026-10-21 loginaa 실측) — 일자-No. 를 누르면 목록 위에 '판매입력(수정)' 창이 뜬다. 아래 버튼줄 저장(F8) · 저장/전표(F7) · 복사 · 반품처리 · 현금수금 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H · 최종이력. 수량 1 → 2 [저장(F8)] 말 없이 창이 닫히고 목록 1,100 → 2,200, 재고 −1 더 · 채권 +1,100. [삭제] '전표를 삭제하겠습니까? / - 판매' → 창이 닫히고 목록에서 사라짐, 재고 · 채권 처음으로. 판매할 재고 5 는 구매(API)로 넣고 끝에 지운다. [신규(F2)] 는 목록 위 '판매입력' 창, 수정 창 [복사] 는 신규 창으로 바뀌어 일자 오늘 · 새 번호로 저장(2026-10-21 원본 실측). node qa/shot.mjs qa/flows/sales-edit-popup.json",
   "shots": [
     {
       "name": "준비 — QAJ1P · QAJ1-Z12 · 재고 5 구매(API), 처음 재고 · 채권을 적어 둔다",
@@ -10,23 +10,32 @@
       ]
     },
     {
-      "name": "판매입력 — 1 × 1,000 = 1,100 저장(화면)",
-      "path": "/sales/sell",
+      "name": "판매조회 [신규(F2)] — 목록 위 '판매입력' 창(버튼 저장(F8) · 저장/전표(F7) · 다시 작성 · 현금수금 · 닫기 · 웹자료올리기), 1 × 1,000 = 1,100 저장하면 말 없이 닫힘",
+      "path": "/sales/sales-list",
       "steps": [
-        "click:거래처 코드도움",
+        "wait:2000",
+        "js:(() => { window.__dlg = () => document.querySelector('[role=dialog]'); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; return true })()",
+        "click:신규(F2)",
+        "wait:800",
+        "expect:window.__dlg()?.getAttribute('aria-label') === '판매입력' && location.pathname === '/sales/sales-list'",
+        "expect:[...window.__dlg().querySelector('.ec-slip-footer').querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => t !== '⌄').join('|') === '저장(F8)|저장/전표(F7)|다시 작성|현금수금|닫기|웹자료올리기'",
+        "clicklast:거래처 코드도움",
         "pickrow:QAJ1P",
-        "click:출하창고 코드도움",
+        "clicklast:출하창고 코드도움",
         "pickrow:WH-01",
-        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "js:window.__dlg().querySelector('input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QAJ1-Z12",
         "wait:500",
-        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
-        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1000",
-        "set:input[placeholder=\"전표 적요\"]|QA재고1 수정창",
-        "expect:/1\\s+1,000\\s+100\\s+1,100/.test(document.querySelector('table.ec-grid-input tfoot').innerText)",
-        "click:저장(F8)",
-        "wait:1500",
-        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => x.remark === 'QA재고1 수정창').sort((a, b) => b.id - a.id)[0]; const no = s.docNo.match(/SO-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); const S = JSON.parse(sessionStorage.getItem('sep')); S.saleNo = s.docNo; S.label = `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`; sessionStorage.setItem('sep', JSON.stringify(S)); return S.label })()"
+        "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1000",
+        "set:[role=dialog] input[placeholder=\"전표 적요\"]|QA재고1 수정창",
+        "expect:/1\\s+1,000\\s+100\\s+1,100/.test(window.__dlg().querySelector('table.ec-grid-input tfoot').innerText)",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
+        "wait:2000",
+        "expect:!window.__dlg()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => x.remark === 'QA재고1 수정창').sort((a, b) => b.id - a.id)[0]; const no = s.docNo.match(/SO-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); const S = JSON.parse(sessionStorage.getItem('sep')); S.saleNo = s.docNo; S.label = `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`; sessionStorage.setItem('sep', JSON.stringify(S)); return S.label })()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(JSON.parse(sessionStorage.getItem('sep')).label) && t.innerText.includes('1,100'))",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const S = JSON.parse(sessionStorage.getItem('sep')); const st = (await g('/api/stock')).filter((x) => x.itemCode === 'QAJ1-Z12' && x.warehouseId === S.whId).reduce((a, x) => a + Number(x.quantity), 0); const ar = (await g('/api/ledger/partner-balances?asOf=2099-12-31')).find((b) => b.partnerId === S.pId)?.receivable ?? 0; return st === S.st - 1 && ar === S.ar + 1100 })()"
       ]
     },
     {
@@ -50,7 +59,29 @@
       ]
     },
     {
-      "name": "수정 창 [삭제] '전표를 삭제하겠습니까? / - 판매' → 창 닫힘 · 목록에서 사라짐 · 재고 · 채권 처음으로",
+      "name": "수정 창 [복사] — 창이 '판매입력' 신규 창으로(원본 2026-10-21 실측), 품목줄 그대로 · 일자 오늘 · 번호는 저장 때 새로, [저장(F8)] 말 없이 닫힘 · 새 전표 2,200 · 재고 −2 · 채권 +2,200",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('sep')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-특가')); window.__dlg = () => document.querySelector('[role=dialog]'); window.__row().querySelector('button.ec-link').click(); return true })()",
+        "wait:1000",
+        "expect:window.__dlg()?.getAttribute('aria-label') === '판매입력(수정)'",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '복사').click(); true",
+        "wait:500",
+        "expect:window.__dlg().getAttribute('aria-label') === '판매입력' && window.__dlg().querySelector('.ec-modal-bar').innerText.trim().startsWith('판매입력') && !window.__dlg().querySelector('.ec-modal-bar').innerText.includes('수정')",
+        "expect:[...window.__dlg().querySelector('.ec-slip-footer').querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => t !== '⌄').join('|') === '저장(F8)|저장/전표(F7)|다시 작성|현금수금|닫기|웹자료올리기'",
+        "expect:window.__dlg().querySelector('input[type=date]').value === new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10)",
+        "expect:/2\\s+2,000\\s+200\\s+2,200/.test(window.__dlg().querySelector('table.ec-grid-input tfoot').innerText)",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
+        "wait:2000",
+        "expect:!window.__dlg()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('sep')); const all = (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => x.remark === 'QA재고1 수정창').sort((a, b) => b.id - a.id); const s = all[0]; const no = s.docNo.match(/SO-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); S.copyLabel = `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`; sessionStorage.setItem('sep', JSON.stringify(S)); return all.length + ' ' + S.copyLabel })()",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('sep')); return S.copyLabel !== S.label && [...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(S.copyLabel) && t.innerText.includes('2,200')) })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const S = JSON.parse(sessionStorage.getItem('sep')); const st = (await g('/api/stock')).filter((x) => x.itemCode === 'QAJ1-Z12' && x.warehouseId === S.whId).reduce((a, x) => a + Number(x.quantity), 0); const ar = (await g('/api/ledger/partner-balances?asOf=2099-12-31')).find((b) => b.partnerId === S.pId)?.receivable ?? 0; return st === S.st - 4 && ar === S.ar + 4400 })()"
+      ]
+    },
+    {
+      "name": "수정 창 [삭제] '전표를 삭제하겠습니까? / - 판매' → 창 닫힘 · 목록에서 사라짐 · 재고 · 채권은 복사본만 남음",
       "path": "/sales/sales-list",
       "steps": [
         "wait:2000",
@@ -59,6 +90,19 @@
         "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); true",
         "wait:2000",
         "expect:window.__msgs.includes('전표를 삭제하겠습니까?\\n - 판매') && !window.__dlg() && !window.__row()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const S = JSON.parse(sessionStorage.getItem('sep')); const st = (await g('/api/stock')).filter((x) => x.itemCode === 'QAJ1-Z12' && x.warehouseId === S.whId).reduce((a, x) => a + Number(x.quantity), 0); const ar = (await g('/api/ledger/partner-balances?asOf=2099-12-31')).find((b) => b.partnerId === S.pId)?.receivable ?? 0; return st === S.st - 2 && ar === S.ar + 2200 })()"
+      ]
+    },
+    {
+      "name": "복사본도 창 [삭제] → 재고 · 채권 처음으로",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('sep')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.copyLabel) && t.innerText.includes('QA재고1-특가')); window.__dlg = () => document.querySelector('[role=dialog]'); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; window.__row().querySelector('button.ec-link').click(); return true })()",
+        "wait:1000",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); true",
+        "wait:2000",
+        "expect:!window.__dlg() && !window.__row()",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const S = JSON.parse(sessionStorage.getItem('sep')); const st = (await g('/api/stock')).filter((x) => x.itemCode === 'QAJ1-Z12' && x.warehouseId === S.whId).reduce((a, x) => a + Number(x.quantity), 0); const ar = (await g('/api/ledger/partner-balances?asOf=2099-12-31')).find((b) => b.partnerId === S.pId)?.receivable ?? 0; return st === S.st && ar === S.ar })()"
       ]
     }
