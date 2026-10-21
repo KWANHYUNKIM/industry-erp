@@ -25,19 +25,19 @@
         "wait:400",
         "click:검색(F8)",
         "wait:1500",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('dfNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===dn);return h==='|입력일자|창고|품목|수량|처리방법'&&!!tr&&document.body.textContent.includes('불량유형')})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('dfNo');const dn=no.slice(3,7)+'/'+no.slice(7,9)+'/'+no.slice(9,11)+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===dn);return h==='|입력일자|창고|품목|수량|처리방법|인쇄'&&!!tr&&document.body.textContent.includes('불량유형')})()",
         "js:(async()=>(await window.__api('DELETE','/stock-adjustments/'+sessionStorage.getItem('dfId'))).status)()"
       ]
     },
     {
-      "name": "재고조정진행단계 — 오늘 실사 요청 1건이 뜨고 진행단계는 [실사] 가 파랑 · [조정] 은 회색, 끝나면 지운다",
+      "name": "재고조정진행단계 — 오늘 실사 요청 1건이 뜨고 진행단계는 [실사] 회색 · [조정] 파랑(2026-10-13 원본 재측 — 단계와 상관없이 늘 같다), 끝나면 지운다",
       "path": "/inventory/staged-progress",
       "steps": [
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=1);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/staged-adjustments',{itemId:st.itemId,warehouseId:st.warehouseId,actualQty:Number(st.quantity),requestDate:today,reason:'QA 진행단계'});sessionStorage.setItem('sgId',r.body&&r.body.id);sessionStorage.setItem('sgItem',r.body&&r.body.itemName);return r.status})()",
         "click:검색(F8)",
         "wait:1500",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('sgItem'))&&t.innerText.includes('실사'));if(!tr)return false;const sp=[...tr.cells[3].querySelectorAll('span')];return h==='실사전표|담당자|품목|진행단계|창고명|장부수량|실사수량|차이'&&getComputedStyle(sp[0]).backgroundColor==='rgb(31, 72, 212)'&&getComputedStyle(sp[1]).backgroundColor==='rgb(134, 141, 147)'})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('sgItem'))&&t.innerText.includes('실사'));if(!tr)return false;const sp=[...tr.cells[3].querySelectorAll('button,span')];return h==='실사전표|담당자|품목|진행단계|창고명|장부수량|실사수량|차이'&&sp[0].innerText.trim()==='실사'&&getComputedStyle(sp[0]).backgroundColor==='rgb(134, 141, 147)'&&sp[1].innerText.trim()==='조정'&&getComputedStyle(sp[1]).backgroundColor==='rgb(31, 72, 212)'})()",
         "js:(async()=>(await window.__api('DELETE','/staged-adjustments/'+sessionStorage.getItem('sgId'))).status)()"
       ]
     },
@@ -57,17 +57,17 @@
       ]
     },
     {
-      "name": "재고실사조회 — 기본이 차월이라 오늘 실사가 안 보이고, [금월(~오늘)] 을 누르면 단계별 실사 1건이 조정전표 빈 채로 뜬다, 끝나면 지운다",
+      "name": "재고실사조회 — 기본이 차월이라 오늘 실사가 안 보이고, [금월(~오늘)] 을 누르면 단계별 실사 1건이 조정전표 빈 채로 뜬다, 끝나면 지운다 (간편 줄도 같은 날 번호를 따로 매겨 같이 서므로 [구분] 단계별 줄을 찾는다)",
       "path": "/inventory/stocktake-list",
       "steps": [
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=1);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/staged-adjustments',{itemId:st.itemId,warehouseId:st.warehouseId,actualQty:Number(st.quantity),requestDate:today,reason:'QA 실사조회'});sessionStorage.setItem('stId',r.body&&r.body.id);sessionStorage.setItem('stNo',r.body&&r.body.adjustNo);return r.status})()",
         "click:검색(F8)",
         "wait:1200",
-        "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.cells[2]&&t.cells[2].innerText.trim()===((n)=>{const d=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);return d.replace(/-/g,'/')+' -'+Number(n.split('-').pop())})(sessionStorage.getItem('stNo')))",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.cells[1]&&t.cells[1].innerText.trim()==='단계별'&&t.cells[2]&&t.cells[2].innerText.trim()===((n)=>{const d=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);return d.replace(/-/g,'/')+' -'+Number(n.split('-').pop())})(sessionStorage.getItem('stNo')))",
         "click:금월(~오늘)",
         "wait:1500",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===((n)=>{const d=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);return d.replace(/-/g,'/')+' -'+Number(n.split('-').pop())})(sessionStorage.getItem('stNo')));return h==='|구분|입력일자|창고명|담당자|품목명[규격명]|수 량|조정전표'&&!!tr&&tr.cells[1].innerText.trim()==='단계별'&&tr.cells[7].innerText.trim()===''})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()==='단계별'&&t.cells[2]&&t.cells[2].innerText.trim()===((n)=>{const d=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);return d.replace(/-/g,'/')+' -'+Number(n.split('-').pop())})(sessionStorage.getItem('stNo')));return h==='|구분|입력일자|창고명|담당자|품목명[규격명]|수 량|조정전표'&&!!tr&&tr.cells[1].innerText.trim()==='단계별'&&tr.cells[7].innerText.trim()===''})()",
         "js:(async()=>(await window.__api('DELETE','/staged-adjustments/'+sessionStorage.getItem('stId'))).status)()"
       ]
     }

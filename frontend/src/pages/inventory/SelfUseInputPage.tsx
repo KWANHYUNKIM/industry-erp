@@ -162,8 +162,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
         : await api.post<StockAdjustmentSlip>('/stock-adjustments/slips', body)
       if (andPrint) setPrintSlip(data)
       if (editing || copied) { if (!andPrint) onDone?.(); return }
-      /* 원본 자가사용입력은 저장하면 말 없이 일자 · 창고를 둔 채 격자만 비운다(2026-10-21 실측). 불량처리는 예전대로 알린다. */
-      if (!selfUse) setNotice(`${dateNo(data.date, data.adjustNo)} 저장되었습니다.`)
+      /* 원본 자가사용입력 · 불량처리입력은 저장하면 말 없이 일자 · 창고를 둔 채 격자만 비운다(2026-10-21 실측). */
       reset()
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -171,7 +170,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   }
 
   async function remove() {
-    if (!adjustNo || !(await ecConfirm(selfUse ? '전표를 삭제하겠습니까?\n- 자가' : '전표를 삭제하겠습니까?'))) return
+    if (!adjustNo || !(await ecConfirm(selfUse ? '전표를 삭제하겠습니까?\n- 자가' : '전표를 삭제하겠습니까?\n- 불량처리'))) return
     try {
       await api.delete(`/stock-adjustments/slips/${encodeURIComponent(adjustNo)}`)
       onDone?.()
@@ -190,9 +189,8 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
       title={`${L.name}${editing ? '수정' : '입력'}`}
       formTabs={[{ id: 'basic', label: `${L.name}입력` }]} activeFormTab="basic"
       actions={editing
-        ? selfUse
-          /* 원본 자가사용수정 버튼 아홉(2026-10-21 실측) — 창고이동수정과 같다. */
-          ? [
+        /* 원본 자가사용수정 · 불량처리수정 버튼 아홉(2026-10-21 실측) — 창고이동수정과 같다. */
+        ? [
               { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
               { label: '저장/전표(F7)', onClick: () => void save(true) },
               { label: '복사', onClick: () => setCopied(true) },
@@ -204,22 +202,11 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
               { label: '보내기' },
               { label: 'H', onClick: () => setShowHistory(true) },
             ]
-          : [
-              { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
-              { label: '삭제', onClick: () => void remove() },
-              { label: '닫기', onClick: () => onDone?.() },
-            ]
-        : selfUse
-          ? [
-              { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
-              { label: '저장/전표(F7)', onClick: () => void save(true) },
-              { label: '다시 작성', onClick: reset },
-              copied ? { label: '닫기', onClick: () => onDone?.() } : { label: '리스트', onClick: () => navigate(L.list) },
-            ]
-          : [
+        : [
             { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
+            { label: '저장/전표(F7)', onClick: () => void save(true) },
             { label: '다시 작성', onClick: reset },
-            { label: '리스트', onClick: () => navigate(L.list) },
+            copied ? { label: '닫기', onClick: () => onDone?.() } : { label: '리스트', onClick: () => navigate(L.list) },
           ]}>
       <div>
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -324,9 +311,10 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
             </tbody>
           </table>
         </div>
-        <Modal open={!!printSlip} title={`${L.name}전표`} error={error} onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }}>
+        <Modal open={!!printSlip} title={selfUse ? '자가사용전표' : '불량처리'} error={error} onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }}>
           {printSlip && (
             <SelfUsePrint slip={printSlip} partnerText={partnerText}
+                          employeeText={employeeItems.find((e) => e.value === String(printSlip.employeeId))?.name ?? ''}
                           whCode={pickers.warehouses.find((w) => w.value === String(printSlip.warehouseId))?.code ?? ''}
                           onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }} />
           )}
@@ -366,12 +354,13 @@ function historyAt(at?: string | null) {
  * 전표번호 · 출고창고 '이름(코드)' · DATE '2026. 10. 20' · 출고처 '거래처(사업자번호)',
  * 순번 · 품목코드 · 품목명[규격] · 수량 · 적요, 감소수량 합 · 인수 인. 버튼 인쇄 · 닫기(Email · Excel 은 바깥 연동 · 파일이라 뺌).
  */
-export function SelfUsePrint({ slip, partnerText, whCode, onClose }: {
-  slip: StockAdjustmentSlip; partnerText: (id: number | null) => string; whCode: string; onClose: () => void
+export function SelfUsePrint({ slip, partnerText, employeeText = '', whCode, onClose }: {
+  slip: StockAdjustmentSlip; partnerText: (id: number | null) => string; employeeText?: string; whCode: string; onClose: () => void
 }) {
   const fix2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const lines = slip.lines.filter((l) => !l.normal)
   const total = lines.reduce((a, l) => a + Math.abs(Number(l.quantityChange)), 0)
+  if (slip.type === 'DEFECT') return <DefectPrint slip={slip} employeeText={employeeText} whCode={whCode} onClose={onClose} />
   return (
     <div>
       <div className="text-center font-bold text-[18px] mb-[8px]">자 가 사 용 전 표</div>
@@ -392,6 +381,53 @@ export function SelfUsePrint({ slip, partnerText, whCode, onClose }: {
             </tr>
           ))}
           <tr><td colSpan={3} className="text-right font-semibold">감소수량</td><td className="text-right font-semibold">{fix2(total)}</td><td>인수 <span className="ml-[24px]">인</span></td></tr>
+        </tbody>
+      </table>
+      <div className="flex gap-[4px] mt-[10px]">
+        <button className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
+        <button className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 불량발견보고서 — 원본 불량처리조회 [인쇄] 의 '기본(수정불가)' 양식(2026-10-21 실측, 창 제목 '불량처리'):
+ * 전표번호 · 담당자 '( )' · 처리방법 · 발견창고 '이름(코드)', 순번 · 품목코드 · 품목명[규격] · 감소수량 · 증가수량 · 적요,
+ * 감소수량 · 증가수량 합 · 인수 인. 불량품목 줄은 감소, 품목대체 · 정상사용의 정상품목 줄은 증가.
+ */
+function DefectPrint({ slip, employeeText, whCode, onClose }: {
+  slip: StockAdjustmentSlip; employeeText: string; whCode: string; onClose: () => void
+}) {
+  const fix2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const qty = (l: StockAdjustmentSlip['lines'][number]) => Math.abs(Number(l.quantityChange))
+  const dec = slip.lines.filter((l) => !l.normal).reduce((a, l) => a + qty(l), 0)
+  const inc = slip.lines.filter((l) => l.normal).reduce((a, l) => a + qty(l), 0)
+  return (
+    <div>
+      <div className="text-center font-bold text-[18px] mb-[8px]">불 량 발 견 보 고 서</div>
+      <table className="w-full text-left mb-[6px]">
+        <tbody>
+          <tr><th className="w-[90px]">전표번호</th><td>{dateNo(slip.date, slip.adjustNo)}</td><th className="w-[70px]">담당자</th><td>{employeeText} ( )</td></tr>
+          <tr><th>처리방법</th><td>{slip.handling ?? ''}</td><th>발견창고</th><td>{slip.warehouseName}({whCode})</td></tr>
+        </tbody>
+      </table>
+      <table className="w-full text-left">
+        <thead><tr><th className="w-[44px] text-center">순번</th><th className="w-[110px]">품목코드</th><th>품목명[규격]</th><th className="w-[90px] text-right">감소수량</th><th className="w-[90px] text-right">증가수량</th><th>적요</th></tr></thead>
+        <tbody>
+          {slip.lines.map((l, i) => (
+            <tr key={l.id}>
+              <td className="text-center">{i + 1}</td><td>{l.itemCode}</td>
+              <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
+              <td className="text-right">{l.normal ? '' : fix2(qty(l))}</td>
+              <td className="text-right">{l.normal ? fix2(qty(l)) : ''}</td><td>{l.reason ?? ''}</td>
+            </tr>
+          ))}
+          <tr>
+            <td colSpan={3} className="text-right font-semibold">감소수량 · 증가수량</td>
+            <td className="text-right font-semibold">{fix2(dec)}</td><td className="text-right font-semibold">{inc ? fix2(inc) : ''}</td>
+            <td>인수 <span className="ml-[24px]">인</span></td>
+          </tr>
         </tbody>
       </table>
       <div className="flex gap-[4px] mt-[10px]">

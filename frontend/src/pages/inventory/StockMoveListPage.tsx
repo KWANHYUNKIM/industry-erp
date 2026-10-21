@@ -202,14 +202,13 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
       </ul>
 
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">자료가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
-      {selfUse && (
-        <div className="ec-pills mb-[6px]" role="tablist" aria-label="전표상태">
-          {(['전체', '결재중', '미확인', '확인'] as const).map((t) => (
-            <button key={t} type="button" role="tab" aria-selected={stTab === t}
-                    className={`ec-pill${stTab === t ? ' active' : ''}`} onClick={() => setStTab(t)}>{t}</button>
-          ))}
-        </div>
-      )}
+      {/* 원본 자가사용조회 · 불량처리조회 둘 다 머리 탭 전체 · 결재중 · 미확인 · 확인(2026-10-21 실측). */}
+      <div className="ec-pills mb-[6px]" role="tablist" aria-label="전표상태">
+        {(['전체', '결재중', '미확인', '확인'] as const).map((t) => (
+          <button key={t} type="button" role="tab" aria-selected={stTab === t}
+                  className={`ec-pill${stTab === t ? ' active' : ''}`} onClick={() => setStTab(t)}>{t}</button>
+        ))}
+      </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -223,14 +222,14 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
             <th>품목</th>
             <th className="text-right">수량</th>
             {selfUse ? <th>담당자</th> : <th>처리방법</th>}
-            {selfUse && <th className="w-[54px] text-center">인쇄</th>}
+            <th className="w-[54px] text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={selfUse ? 8 : 6} className="ec-empty">불러오는 중…</td></tr>
-          ) : slips.length === 0 || (selfUse && (stTab === '결재중' || stTab === '미확인')) ? (
-            <tr><td colSpan={selfUse ? 8 : 6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={selfUse ? 8 : 7} className="ec-empty">불러오는 중…</td></tr>
+          ) : slips.length === 0 || stTab === '결재중' || stTab === '미확인' ? (
+            <tr><td colSpan={selfUse ? 8 : 7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : slips.map((ls) => {
             const r = ls[0]
             const qty = ls.reduce((s, x) => s + Math.abs(Number(x.quantityChange)), 0)
@@ -250,7 +249,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
                 {selfUse
                   ? <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
                   : <td>{r.handling ?? ''}</td>}
-                {selfUse && <td className="text-center"><a className="cursor-pointer" onClick={() => void openPrint(r.adjustNo)}>인쇄</a></td>}
+                <td className="text-center"><a className="cursor-pointer" onClick={() => void openPrint(r.adjustNo)}>인쇄</a></td>
               </tr>
             )
           })}
@@ -267,9 +266,10 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
                             }} />
         )}
       </Modal>
-      <Modal open={!!printSlip} title="자가사용전표" error={error} onClose={() => setPrintSlip(null)}>
+      <Modal open={!!printSlip} title={selfUse ? '자가사용전표' : '불량처리'} error={error} onClose={() => setPrintSlip(null)}>
         {printSlip && (
           <SelfUsePrint slip={printSlip}
+                        employeeText={printSlip.employeeId != null ? empName.get(printSlip.employeeId) ?? '' : ''}
                         partnerText={(id) => { const p = id != null ? pickers.partners.find((x) => x.value === String(id)) : undefined; return p ? `${p.name}(${p.code})` : '' }}
                         whCode={pickers.warehouses.find((w) => w.value === String(printSlip.warehouseId))?.code ?? ''}
                         onClose={() => setPrintSlip(null)} />

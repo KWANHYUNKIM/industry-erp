@@ -1,0 +1,62 @@
+{
+  "about": "불량처리입력(E040507) → 불량처리조회(C000088) → 불량처리수정 → 삭제를 화면으로 — 2026-10-21 loginaa 실측과 같은 흐름. 저장은 말 없이 발견창고를 둔 채 격자만 비운다, 조회는 탭 전체/결재중/미확인/확인 + 열 입력일자 · 창고 · 품목 · 수량 · 처리방법 · 인쇄, [인쇄] 는 불량발견보고서, 수정 창 버튼 아홉, 둘째 줄 1 → 2 로 고치면 수불부에 그 품목 불량처리 출고 2 한 줄(반대 거래 없음), 삭제 확인 \"전표를 삭제하겠습니까? - 불량처리\" 뒤 재고 · 수불 줄이 처음으로.",
+  "shots": [
+    {
+      "name": "불량처리입력 — 품목코드를 쳐서 Enter 로 두 줄, 저장(F8) 은 말 없이 발견창고를 둔 채 격자만 비우고 재고가 1 · 1 빠진다",
+      "path": "/inventory/defect-input",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:800",
+        "expect:[...document.querySelectorAll('button')].map((b)=>b.innerText.trim()).filter((t)=>['저장(F8)','저장/전표(F7)','다시 작성','리스트'].includes(t)).join('|')==='저장(F8)|저장/전표(F7)|다시 작성|리스트'",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body;const whs=(await window.__api('GET','/warehouses')).body;const ok=st.filter((s)=>Number(s.quantity)>=10);const uniq=(id)=>{const c=whs.find((w)=>w.id===id).code;return whs.filter((w)=>w.code.toLowerCase().includes(c.toLowerCase())).length===1};const a=ok.find((s)=>uniq(s.warehouseId)&&ok.some((t)=>t.warehouseId===s.warehouseId&&t.itemId!==s.itemId));const b=ok.find((s)=>s.warehouseId===a.warehouseId&&s.itemId!==a.itemId);sessionStorage.setItem('df2',JSON.stringify({wh:a.warehouseId,whCode:whs.find((w)=>w.id===a.warehouseId).code,a:a.itemId,ac:a.itemCode,b:b.itemId,bc:b.itemCode,qa:Number(a.quantity),qb:Number(b.quantity)}));return true})()",
+        "wait:300",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('df2'));const sl=(ms)=>new Promise((r)=>setTimeout(r,ms));const setv=(i,v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,v);i.dispatchEvent(new Event('input',{bubbles:true}))};const ent=(i)=>i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));const wh=document.querySelector('input[placeholder=\"발견창고\"]');wh.focus();setv(wh,s.whCode);await sl(200);ent(wh);await sl(400);const line=async(n,code,q)=>{const it=document.querySelectorAll('input[aria-label=\"품목검색\"]')[n];it.focus();setv(it,code);await sl(150);ent(it);await sl(300);setv(document.querySelector('input[aria-label=\"'+(n+1)+'줄 수량\"]'),q);await sl(150)};await line(0,s.ac,'1');await line(1,s.bc,'1');return true})()",
+        "wait:1800",
+        "expect:[...document.querySelectorAll('tbody tr')].slice(0,2).every((r)=>r.querySelectorAll('input')[2].value==='1')",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('.ec-alert')&&document.querySelector('input[placeholder=\"발견창고\"]').value!==''&&[...document.querySelectorAll('tbody input[aria-label=\"품목검색\"]')].every((i)=>i.value==='')",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('df2'));const st=(await window.__api('GET','/stock')).body;const q=(i)=>Number(st.find((x)=>x.itemId===i&&x.warehouseId===s.wh).quantity);window.__dec=q(s.a)===s.qa-1&&q(s.b)===s.qb-1;return window.__dec})()",
+        "wait:600",
+        "expect:window.__dec===true"
+      ]
+    },
+    {
+      "name": "불량처리조회 — 탭 넷 · [인쇄] 열 · 불량발견보고서, 수정 창 버튼 아홉, 둘째 줄 2 로 고치면 수량 3 · 수불 한 줄, 삭제하면 처음 숫자",
+      "path": "/inventory/defect",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('[role=tab]')].map((b)=>b.innerText.trim()).join('|')==='전체|결재중|미확인|확인'&&[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|입력일자|창고|품목|수량|처리방법|인쇄'",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>/외 1건/.test(t.innerText)&&t.cells[4]&&t.cells[4].innerText.trim()==='2');[...tr.querySelectorAll('a')].find((a)=>a.innerText.trim()==='인쇄').click();return true})()",
+        "wait:1200",
+        "expect:(()=>{const d=document.querySelector('[role=dialog]');return !!d&&/불 량 발 견 보 고 서/.test(d.innerText)&&/감소수량/.test(d.innerText)&&/증가수량/.test(d.innerText)&&/처리방법/.test(d.innerText)})()",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b)=>b.innerText.trim()==='닫기').click(); true",
+        "wait:600",
+        "js:(()=>{const s=JSON.parse(sessionStorage.getItem('df2'));const tr=[...document.querySelectorAll('tbody tr')].find((t)=>/외 1건/.test(t.innerText)&&t.cells[4]&&t.cells[4].innerText.trim()==='2');if(!tr)return false;window.__no=tr.cells[1].innerText.trim();tr.cells[1].querySelector('a').click();return true})()",
+        "wait:1500",
+        "expect:(()=>{const d=document.querySelector('[role=dialog]');return !!d&&[...d.querySelectorAll('button')].map((b)=>b.innerText.trim()).filter((t)=>['저장(F8)','저장/전표(F7)','복사','이전','다음','닫기','삭제','보내기','H'].includes(t)).join('|')==='저장(F8)|저장/전표(F7)|복사|이전|다음|닫기|삭제|보내기|H'})()",
+        "expect:(()=>{const d=document.querySelector('[role=dialog]');const i=d&&d.querySelector('input[aria-label=\"2줄 수량\"]');return !!i&&i.value==='1'&&d.querySelector('input[placeholder=\"발견창고\"]').value!==''})()",
+        "js:(()=>{const d=document.querySelector('[role=dialog]');const i=d.querySelector('input[aria-label=\"2줄 수량\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'2');i.dispatchEvent(new Event('input',{bubbles:true}));return true})()",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b)=>b.innerText.trim()==='저장(F8)').click(); true",
+        "wait:2500",
+        "expect:!document.querySelector('[role=dialog]')&&[...document.querySelectorAll('tbody tr')].some((t)=>t.cells[1]&&t.cells[1].innerText.trim()===window.__no&&t.cells[4].innerText.trim()==='3')",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('df2'));const r=(await window.__api('GET','/stock/ledger?itemId='+s.b+'&warehouseId='+s.wh+'&all=true')).body;const mine=r.rows.filter((t)=>/^불량처리 /.test(t.note||'')&&t.createdAt!==undefined?true:/^불량처리 /.test(t.note||''));const last=mine.filter((t)=>Number(t.quantityChange)===-2||Number(t.quantityChange)===-2||Number(t.quantityChange)===2);window.__one=!r.rows.some((t)=>/^불량처리취소/.test(t.note||'')&&t.transactionDate===new Date(Date.now()+9*36e5).toISOString().slice(0,10))&&last.some((t)=>Number(t.quantityChange)===-2);return window.__one})()",
+        "wait:600",
+        "expect:window.__one===true",
+        "js:(()=>{[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===window.__no).cells[1].querySelector('a').click();return true})()",
+        "wait:1500",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b)=>b.innerText.trim()==='삭제').click(); true",
+        "wait:600",
+        "js:(()=>{window.__confirm=(document.body.innerText.includes('전표를 삭제하겠습니까?')?document.body.innerText:'auto');return true})()",
+        "js:(()=>{const b=[...document.querySelectorAll('button')].filter((x)=>x.innerText.trim()==='확인'&&x.offsetParent).pop();if(b)b.click();return true})()",
+        "expect:window.__confirm==='auto'||window.__confirm.includes('- 불량처리')",
+        "wait:1500",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('df2'));const st=(await window.__api('GET','/stock')).body;const q=(i)=>Number(st.find((x)=>x.itemId===i&&x.warehouseId===s.wh).quantity);window.__back=q(s.a)===s.qa&&q(s.b)===s.qb;return window.__back})()",
+        "wait:600",
+        "expect:window.__back===true"
+      ]
+    }
+  ]
+}
