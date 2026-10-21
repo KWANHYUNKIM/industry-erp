@@ -71,7 +71,8 @@ export default function ExpenseSettlePage() {
     .filter((r) => !dept || (r.department ?? '').includes(dept))
     .filter((r) => !project || String(r.projectId) === project)
     .filter((r) => !payType || r.payType === payType)
-    .sort((a, b) => (a.expenseDate === b.expenseDate ? a.docNo.localeCompare(b.docNo) : a.expenseDate < b.expenseDate ? -1 : 1)),
+    /* 원본(2026-10-21): 최근 전표가 위('-2 김기현' · '-1 고준희'), 일괄 생성도 이 차례(-2 → 26/10/21-7, -1 → -8). */
+    .sort((a, b) => (a.expenseDate === b.expenseDate ? b.docNo.localeCompare(a.docNo) : a.expenseDate < b.expenseDate ? 1 : -1)),
   [rows, from, to, group, item, emp, partner, dept, project, payType])
   const total = shown.reduce((s, r) => s + Number(r.amount), 0)
   /* 원본(2026-10-20): 두 줄 전표도 한 줄 '2026/10/20 -2 · 개인비용 · 교통비(국내-자차) · 고준희 · 35,000' — 비용명 · 사용자는 첫 줄 것. */

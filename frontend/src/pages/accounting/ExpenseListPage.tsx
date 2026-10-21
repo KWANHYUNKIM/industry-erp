@@ -59,6 +59,19 @@ export default function ExpenseListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<Expense[] | null>(null)
+  /* 원본(2026-10-21): 회계반영된 전표의 [회계반영여부] ✓ → '회계전표번호보기' 창(No. · 회계전표 · 청구서 · 전자(세금)계산서). */
+  const [jview, setJview] = useState<{ nos: string[]; journal: string; id: number } | null>(null)
+  async function openJournalNo(g: Expense[]) {
+    const id = g.find((x) => x.settledJournalId != null)?.settledJournalId
+    if (id == null) return
+    try {
+      const j = (await api.get<{ docNo: string; entryDate: string }>(`/journals/${id}`)).data
+      const seq = Number(j.docNo.split('-').pop())
+      setJview({ nos: g.map((x) => `${slipNo(x)}-${x.lineNo ?? 1}`), journal: `${j.entryDate.replace(/-/g, '/')} - ${Number.isFinite(seq) ? seq : j.docNo}`, id })
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   useEffect(() => { api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => undefined) }, [])
@@ -98,7 +111,7 @@ export default function ExpenseListPage() {
   const more = (name: string, g: Expense[]) => (g.length > 1 && name ? `${name} 외 ${g.length - 1}건` : name)
   const pickedSlips = slips.filter((g) => checked.has(g[0].id))
   async function removeChecked() {
-    if (!(await ecConfirm('선택한 전표를 삭제하겠습니까?'))) return
+    if (!(await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) return
     try {
       for (const g of pickedSlips) await api.delete(`/expenses/${g[0].id}`)
       setChecked(new Set())
@@ -221,13 +234,27 @@ export default function ExpenseListPage() {
               <td>{more(itemName(r), g)}</td>
               <td>{more(userName(r), g)}</td>
               <td className="text-right">{won(g.reduce((s, x) => s + Number(x.amount), 0))}</td>
-              {/* 원본은 가지급금정산서로 반영한 뒤에도 빈칸이었다(2026-10-20 실측). 옛 지출은 저장 즉시 분개라 확인(회계). */}
-              <td className="text-center">{r.expenseItemId ? '' : '확인(회계)'}</td>
+              {/* 원본(2026-10-21 다시 잼): 가지급금정산서로 반영하면 주황 ✓ 링크(fa-check text-warning). 옛 지출은 저장 즉시 분개라 확인(회계). */}
+              <td className="text-center">{!r.expenseItemId ? '확인(회계)' : g.some((x) => x.settledJournalId != null)
+                ? <button type="button" className="ec-link text-ec-warn" aria-label={`${slipNo(r)} 회계전표번호보기`} onClick={() => void openJournalNo(g)}>✓</button> : ''}</td>
               <td className="text-center">인쇄</td>
             </tr>
           ) })}
         </tbody>
       </table>
+      <Modal error={error} open={!!jview} title="회계전표번호보기" width={800} onClose={() => setJview(null)}>{jview && (
+        <div>
+          <table className="w-full">
+            <thead><tr><th>No.</th><th>회계전표</th><th>청구서</th><th>전자(세금)계산서</th></tr></thead>
+            <tbody>
+              {jview.nos.map((no) => (
+                <tr key={no}><td>{no}</td><td><button type="button" className="ec-link" onClick={() => navigate(`/accounting/vouchers?journal=${jview.id}`)}>{jview.journal}</button></td><td></td><td></td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-[10px]"><button type="button" className="ec-btn" onClick={() => setJview(null)}>닫기</button></div>
+        </div>
+      )}</Modal>
       <Modal error={error} open={!!editing} title="비용내역수정" width={1200} onClose={() => setEditing(null)}>{(
         <ExpenseSlipForm edit={editing} onSaved={() => { void load() }} onClose={() => setEditing(null)} />
       )}</Modal>
