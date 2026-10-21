@@ -53,14 +53,12 @@
         "click:잔량적용",
         "expect:[...document.querySelectorAll('table td')].some((td)=>td.innerText.includes(sessionStorage.getItem('qaWO')))",
         "click:저장(F8)",
+        "expect:![...document.querySelectorAll('table td')].some((td)=>td.innerText.includes(sessionStorage.getItem('qaWO')))",
         "expect:!/저장되었습니다/.test(document.body.innerText)",
-        "js:fetch('/api/productions',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const p=d.find((x)=>x.workOrderNo===sessionStorage.getItem('qaWO'));sessionStorage.setItem('qaProd',p?p.prodNo:'');return true})",
-        "expect:/PR-[0-9]{8}-[0-9]{4}/.test(sessionStorage.getItem('qaProd'))",
-        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaStock1',String(x?x.quantity:0));return true})",
-        "expect:Number(sessionStorage.getItem('qaStock1')) - Number(sessionStorage.getItem('qaStock0')) === 2",
+        "expect:fetch('/api/productions',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const p=d.find((x)=>x.workOrderNo===sessionStorage.getItem('qaWO'));sessionStorage.setItem('qaProd',p?p.prodNo:'');return /PR-[0-9]{8}-[0-9]{4}/.test(sessionStorage.getItem('qaProd'))})",
+        "expect:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaStock1',String(x?x.quantity:0));return Number(sessionStorage.getItem('qaStock1')) - Number(sessionStorage.getItem('qaStock0')) === 2})",
         "apidel:/productions|@qaProd|prodNo",
-        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaStock2',String(x?x.quantity:0));return true})",
-        "expect:Number(sessionStorage.getItem('qaStock2')) === Number(sessionStorage.getItem('qaStock0'))",
+        "expect:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-PROD'&&r.warehouseName==='QA창고');return Number(x?x.quantity:0) === Number(sessionStorage.getItem('qaStock0'))})",
         "apidel:/work-orders|@qaWO|orderNo"
       ]
     },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef, type ReactElement } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Bom, BomLine, Item } from '../../types/api'
@@ -121,6 +121,15 @@ export default function BomPage() {
   /** 원본은 빈 칸을 글 없이 빨간 테두리 + 그 칸에 커서로만 알린다 — 생산수량 · 줄의 품목코드 · 수량. */
   const [bad, setBad] = useState<{ produceQty?: boolean; code?: number; qty?: number }>({})
   const [stopMenu, setStopMenu] = useState(false)
+  /** 원본 [전체단계보기] ↔ [1단계보기] — 켜면 [펼치기] · [접기] · '보기' 열이 생기고, 자기 BOM 이 있는 자재 아래에 그 BOM 줄이 들어선다. */
+  const [fullLevel, setFullLevel] = useState(false)
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  /**
+   * 원본 수정 저장 → '생산입고1로 입력된 과거 전표도 재계산하시겠습니까?' 창(2026-10-21 실측 — 줄을 바꿨을 때만 뜬다,
+   * 안 바꾸고 저장하면 말 없이 닫힘). ☐재계산 을 켜면 기준일자(이달 1일 ~ 오늘)가 나온다.
+   */
+  const [recalc, setRecalc] = useState<{ on: boolean; from: string; to: string } | null>(null)
+  const snapshot = useRef('')
   const gridRef = useRef<HTMLTableElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
   /* 원본처럼 빨간 칸으로 커서를 옮긴다. */
@@ -165,7 +174,7 @@ export default function BomPage() {
     setMakeDefault(vs.length === 0)
     setProduceQty('1')
     setLines(withBlanks([]))
-    setBad({}); setError(''); setStopMenu(false)
+    setBad({}); setError(''); setStopMenu(false); setFullLevel(false); setExpanded(new Set())
     setShowForm(true)
   }
 
@@ -179,7 +188,8 @@ export default function BomPage() {
     setProduceQty(num(b.produceQty ?? 1))
     setLines(withBlanks(b.lines.map((l) => ({ key: ++lineKey, componentId: String(l.componentId),
       quantity: num(l.inputQty ?? l.quantity), processId: l.processId ? String(l.processId) : '', location: l.location ?? '', remark: l.remark ?? '' }))))
-    setBad({}); setError(''); setStopMenu(false)
+    snapshot.current = shape(num(b.produceQty ?? 1), b.lines.map((l) => ({ componentId: String(l.componentId), quantity: num(l.inputQty ?? l.quantity) })))
+    setBad({}); setError(''); setStopMenu(false); setFullLevel(false); setExpanded(new Set())
     setShowForm(true)
   }
 
@@ -200,7 +210,11 @@ export default function BomPage() {
     setBad({})
   }
 
-  async function submit() {
+  /** 재계산을 물을 만큼 바뀌었나 — 생산수량 · 자재 · 수량(원본은 적요만 바꾸면 안 묻는지 못 쟀다, 그래서 소모에 닿는 것만 본다). */
+  const shape = (pq: string, ls: { componentId: string; quantity: string }[]) =>
+    JSON.stringify([Number(pq), ls.filter((l) => l.componentId).map((l) => [l.componentId, Number(l.quantity)])])
+
+  async function submit(asked = false) {
     setError('')
     const pq = Number(produceQty)
     if (!produceQty.trim() || !(pq > 0)) { setBad({ produceQty: true }); return }
@@ -208,6 +222,14 @@ export default function BomPage() {
     if (filled.length === 0) { setBad({ code: 0 }); return }
     const noQty = filled.find(({ l }) => !(Number(l.quantity) > 0))
     if (noQty) { setBad({ qty: noQty.i }); return }
+    if (editing && !asked && shape(produceQty, lines) !== snapshot.current) {
+      const t = new Date()
+      const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      setRecalc({ on: false, from: ymd(new Date(t.getFullYear(), t.getMonth(), 1)), to: ymd(t) })
+      return
+    }
+    const wantRecalc = recalc?.on ?? false
+    setRecalc(null)
     try {
       await api.post('/boms', {
         productId: Number(productId), remark: remark || undefined, versionName: versionName.trim() || '기본', defaultVersion: makeDefault,
@@ -218,6 +240,8 @@ export default function BomPage() {
       // 원본: 저장하면 말 없이 창이 닫히고 목록 [원재료갯수] 가 바뀐다.
       setShowForm(false)
       load()
+      // 우리는 생산입고 I 저장 때 소모를 적어 둔다 — 과거 전표 재계산은 아직 없다(원본 재계산 숫자를 못 쟀다). 말 없이 넘기지 않는다.
+      if (wantRecalc) void ecAlert('BOM 은 저장했습니다. 과거 생산입고1 전표의 소모 재계산은 아직 지원하지 않습니다.')
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -254,6 +278,29 @@ export default function BomPage() {
   const procCodes = procs.filter((p) => p.active || String(p.id) === processId || lines.some((l) => l.processId === String(p.id)))
     .map((p) => ({ value: String(p.id), code: p.code, name: p.name }))
   const product = itemById.get(productId)
+
+  /** [전체단계보기] — 자재가 제품 · 반제품이면 그 기본 BOM(사용중단 아닌 것). */
+  const subBom = (componentId: string) =>
+    componentId ? boms.find((x) => String(x.productId) === componentId && x.defaultVersion && x.active) : undefined
+  /** 하위 BOM 줄 — 읽기 전용, 품목코드를 단계만큼 들여 쓴다. 고리(자기를 다시 부르는 BOM)는 10단계에서 끊는다. */
+  const subRows = (b: BomX, depth: number, key: string): ReactElement[] => depth > 10 ? [] : b.lines.flatMap((m, i) => {
+    const child = subBom(String(m.componentId))
+    return [
+      <tr key={`${key}-${i}`} className="text-ec-hint">
+        <td></td>
+        <td style={{ paddingLeft: 6 + depth * 12 }}>{m.componentCode}</td>
+        <td></td>
+        <td>{m.componentName}</td>
+        <td>{m.componentSpec ?? ''}</td>
+        <td>{m.unit}</td>
+        <td className="text-right">{num(m.inputQty ?? m.quantity)}</td>
+        <td>{m.processName ?? ''}</td>
+        <td>{m.location ?? ''}</td>
+        <td>{m.remark ?? ''}</td>
+      </tr>,
+      ...(child ? subRows(child, depth + 1, `${key}-${i}`) : []),
+    ]
+  })
 
   /* 품목 한 줄 — 기본 BOM(없으면 첫 버전)을 붙인다. BOM 있는 품목이 먼저, 그다음 품목코드 차례(원본 실측). */
   const [catTab, setCatTab] = useState<string>('전체')
@@ -327,6 +374,13 @@ export default function BomPage() {
           <button type="button" className="ec-btn ec-btn-sm"
                   onClick={() => setLines((ls) => withBlanks([...ls].sort((a, b) =>
                     (itemById.get(a.componentId)?.code ?? '').localeCompare(itemById.get(b.componentId)?.code ?? ''))))}>정렬</button>
+          {fullLevel && (
+            <>
+              <button type="button" className="ec-btn ec-btn-sm"
+                      onClick={() => setExpanded(new Set(lines.map((l, i) => (subBom(l.componentId) ? i : -1)).filter((i) => i >= 0)))}>펼치기</button>
+              <button type="button" className="ec-btn ec-btn-sm" onClick={() => setExpanded(new Set())}>접기</button>
+            </>
+          )}
         </div>
         <div className="max-h-[50vh] overflow-y-auto">
           <table ref={gridRef} className="w-full text-left">
@@ -334,6 +388,7 @@ export default function BomPage() {
               <tr>
                 <th className="w-[32px] text-center"></th>
                 <th className="w-[130px]">품목코드</th>
+                {fullLevel && <th className="w-[40px] text-center">보기</th>}
                 <th>품목명</th>
                 <th className="w-[100px]">규격명</th>
                 <th className="w-[50px]">단위</th>
@@ -346,7 +401,8 @@ export default function BomPage() {
             <tbody>
               {lines.map((l, idx) => {
                 const c = itemById.get(l.componentId)
-                return (
+                const sub = fullLevel ? subBom(l.componentId) : undefined
+                return [
                   <tr key={l.key}>
                     <td className="text-center">{idx + 1}</td>
                     <td className={bad.code === idx ? 'ec-invalid' : undefined}>
@@ -354,6 +410,16 @@ export default function BomPage() {
                                 items={itemCodes.filter((x) => x.value !== productId)}
                                 value={l.componentId} onPick={(v) => updateLine(idx, { componentId: v })} />
                     </td>
+                    {fullLevel && (
+                      <td className="text-center">
+                        {sub && (
+                          <button type="button" className="no-ec ec-link" aria-label="하위 BOM 보기"
+                                  onClick={() => setExpanded((s) => { const n = new Set(s); if (n.has(idx)) n.delete(idx); else n.add(idx); return n })}>
+                            {expanded.has(idx) ? '−' : '+'}
+                          </button>
+                        )}
+                      </td>
+                    )}
                     <td>{c?.name ?? ''}</td>
                     <td>{c?.spec ?? ''}</td>
                     <td>{c?.unit ?? ''}</td>
@@ -366,8 +432,9 @@ export default function BomPage() {
                     </td>
                     <td><input className="ec-input w-full" aria-label="위치" value={l.location} onChange={(e) => updateLine(idx, { location: e.target.value })} /></td>
                     <td><input className="ec-input w-full" aria-label="적요" value={l.remark} onChange={(e) => updateLine(idx, { remark: e.target.value })} /></td>
-                  </tr>
-                )
+                  </tr>,
+                  ...(sub && expanded.has(idx) ? subRows(sub, 1, `${l.key}`) : []),
+                ]
               })}
             </tbody>
           </table>
@@ -376,6 +443,9 @@ export default function BomPage() {
         {/* 원본 아래 줄: 저장(F8) · 전체단계보기 · (수정 창만) 사용중단/재사용 ▲ › 사용중단|재사용 · 삭제 · Excel · 닫기 */}
         <div className="mt-[10px] flex gap-[4px] items-center">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => { setFullLevel((v) => !v); setExpanded(new Set()) }}>
+            {fullLevel ? '1단계보기' : '전체단계보기'}
+          </button>
           {editing && (
             <span className="relative inline-block">
               <button type="button" className="ec-btn" onClick={() => setStopMenu((v) => !v)}>사용중단/재사용 ▲</button>
@@ -394,7 +464,37 @@ export default function BomPage() {
         </div>
       </Modal>
 
-      <Modal open={versionsOf != null && !showForm} width={760} title="품목별BOM(소요량)조회" onClose={() => setVersionsOf(null)}>
+      <Modal error={error} open={recalc != null} width={460} title="알림" onClose={() => setRecalc(null)}>
+        {recalc && (
+          <>
+            <p className="leading-[1.7]">
+              생산입고1로 입력된 과거 전표도 재계산하시겠습니까?<br />
+              재계산 시 기존 입력된 전표의 소모내역이 변경되어 재고수불이 다르게 나타납니다.<br />
+              재계산 체크 후 확인버튼 클릭 시 기준일자 기간만큼 생산입고1 전표의 소모내역이 재계산됩니다.<br />
+              체크하지 않는 경우 기존 전표에 소모내역은 영향을 받지 않습니다.
+            </p>
+            <label className="flex items-center gap-[4px] mt-[8px]">
+              <input type="checkbox" checked={recalc.on} onChange={(e) => setRecalc({ ...recalc, on: e.target.checked })} />재계산
+            </label>
+            {recalc.on && (
+              <div className="flex items-center gap-[6px] mt-[6px]">
+                <span>기준일자</span>
+                <input type="date" className="ec-input" aria-label="기준일자 시작" value={recalc.from}
+                       onChange={(e) => setRecalc({ ...recalc, from: e.target.value })} />
+                <span>~</span>
+                <input type="date" className="ec-input" aria-label="기준일자 끝" value={recalc.to}
+                       onChange={(e) => setRecalc({ ...recalc, to: e.target.value })} />
+              </div>
+            )}
+            <div className="mt-[12px] flex justify-center gap-[4px]">
+              <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit(true)}>확인</button>
+              <button type="button" className="ec-btn" onClick={() => setRecalc(null)}>취소</button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      <Modal error={error} open={versionsOf != null && !showForm} width={760} title="품목별BOM(소요량)조회" onClose={() => setVersionsOf(null)}>
         {versionsOf && (
           <>
             <div className="flex justify-end mb-[6px]">
