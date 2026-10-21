@@ -388,7 +388,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   /** [검색(F8)] 을 눌러 목록에 건 조건(게시일 빼고). */
   const [applied, setApplied] = useState<CondExtra>(EMPTY_COND)
   useEffect(() => {
-    setMenu('조회'); setRepRan(false); setAgg(['', ''])
+    setMenu('조회'); setRepRan(false); setAgg(['', '', '', ''])
     const p = defaultPeriod(BOARD_CFG[board].period)
     setPeriod(p)
     setCond({ ...p, ...EMPTY_COND })
@@ -398,12 +398,52 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [menu, setMenu] = useState<'조회' | '현황' | '집계'>('조회')
   const [repRan, setRepRan] = useState(false)
   /** 집계조건1 · 2(항목추가 창에서 고른 것) · 비교기간. */
-  const [agg, setAgg] = useState<[string, string]>(['', ''])
-  const [aggPick, setAggPick] = useState<0 | 1 | null>(null)
+  const [agg, setAgg] = useState<string[]>(['', '', '', ''])
+  const [aggPick, setAggPick] = useState<number | null>(null)
+  /** 집계조건 칸 수 — 처음 둘, 하나 고를 때마다 하나씩 늘어 최대 넷(2026-10-22 실측). */
+  const aggSlots = Math.min(4, agg.filter(Boolean).length + 2)
+  /** 집계 결과 줄 — 고른 조건으로 묶어(전표별은 글 하나가 한 묶음), 묶음마다 첫 글 한 줄, 묶음 끝마다 '<값> 계', 맨 끝 '총합계'(2026-10-22 실측). */
+  function aggRows() {
+    const keys = agg.filter(Boolean)
+    const val = (r: WorkPost, k: string) => {
+      const d = dateText(r.postDate)
+      switch (k) {
+        case '일별': return d
+        case '주차별': return `${d.slice(0, 4)}-${String(Math.ceil(Number(d.slice(8, 10)) / 7)).padStart(2, '0')}주`
+        case '월별': return d.slice(0, 7)
+        case '분기별': return `${d.slice(0, 4)}/${Math.ceil(Number(d.slice(5, 7)) / 3)}분기`
+        case '반기별': return `${d.slice(0, 4)}/${Number(d.slice(5, 7)) <= 6 ? '상' : '하'}반기`
+        case '연별': return d.slice(0, 4)
+        case '진행상태별': return statusOf(r)
+        case '전표별': return r.title
+        default: return ''
+      }
+    }
+    const sorted = [...numbered].sort((a, b) => a.postNo - b.postNo)
+    const groups: { vals: string[]; row: WorkPost; id: string }[] = []
+    for (const r of sorted) {
+      const vals = keys.map((k) => val(r, k))
+      const id = keys.map((k, i) => (k === '전표별' ? String(r.id) : vals[i])).join('\u0001')
+      if (!groups.some((g) => g.id === id)) groups.push({ vals, row: r, id })
+    }
+    const out: ({ kind: 'row'; vals: string[]; row: WorkPost } | { kind: 'sum'; label: string; n: number })[] = []
+    const flush = (g: { vals: string[] } | null, upto: number) => {
+      if (!g) return
+      for (let lv = keys.length - 1; lv >= upto; lv--) out.push({ kind: 'sum', label: `${g.vals[lv]} 계`, n: lv })
+    }
+    let prev: (typeof groups)[number] | null = null
+    for (const g of groups) {
+      if (prev) { let d = 0; while (d < keys.length && prev.vals[d] === g.vals[d] && keys[d] !== '전표별') d++; flush(prev, d) }
+      out.push({ kind: 'row', vals: g.vals, row: g.row })
+      prev = g
+    }
+    flush(prev, 0)
+    return { keys, out }
+  }
   const [compare, setCompare] = useState('사용안함')
   const rep = !!cfg.menuModes && menu !== '조회'
   function applyCond() {
-    if (rep && menu === '집계' && !agg[0] && !agg[1]) { void ecAlert('집계조건은 1개 이상 선택하여야 합니다.'); return }
+    if (rep && menu === '집계' && !agg.some(Boolean)) { void ecAlert('집계조건은 1개 이상 선택하여야 합니다.'); return }
     setRepRan(rep)
     setPeriod({ from: cond.from, to: cond.to })
     const { from: _f, to: _t, ...extra } = cond
@@ -989,11 +1029,12 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                   <div className="form gap-[6px] flex-wrap">
                     {menu === '현황' ? (
                       <select className="ec-input w-[260px]" aria-label="구분" defaultValue="전표별"><option>전표별</option></select>
-                    ) : ([0, 1] as const).map((i) => (
+                    ) : Array.from({ length: aggSlots }, (_, i) => i).map((i) => (
                       <span key={i} className="inline-flex items-center gap-[4px] w-full">
                         <span className="ec-pill no-ec">{`집계조건${i + 1}`}</span>
                         <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" title={`집계조건${i + 1} 검색`} onClick={() => setAggPick(i)}>🔍</button>
-                        <input className="ec-input flex-1" readOnly placeholder="집계 항목선택" value={agg[i]} onClick={() => setAggPick(i)} />
+                        <input className="ec-input flex-1" readOnly placeholder={`집계조건${i + 1}`} value={agg[i]} onClick={() => setAggPick(i)} />
+                        {agg[i] && <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" title="지우기" onClick={() => setAgg((a) => { const n = [...a]; n[i] = ''; return [...n.filter(Boolean), ...n.filter((x) => !x)] })}>×</button>}
                       </span>
                     ))}
                     <span className="inline-flex items-center gap-[8px] w-full">
@@ -1141,24 +1182,34 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       {!cfg.kanban && !(rep && repRan) && <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>}
 
       {/* 현황 · 집계 결과(통합게시판 E200076 실측): 현황 = 일자-No. · 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태, 집계 = 집계기준항목 · 제목 · 작성자명 · 전달자 · 진행상태. 아래 [인쇄 ▲][Excel(화면)]. */}
-      {rep && repRan && (
+      {rep && repRan && (() => {
+        const ag = menu === '집계' ? aggRows() : null
+        return (
         <div className="flex-1 min-h-0">
           <table className="w-full text-left">
             <thead>
               <tr>
-                {menu === '현황' ? <><th className="w-[110px] text-center">일자-No.</th><th className="w-[90px] text-center">게시글번호</th></> : <th className="w-[150px] text-center">집계기준항목</th>}
+                {menu === '현황' ? <><th className="w-[110px] text-center">일자-No.</th><th className="w-[90px] text-center">게시글번호</th></> : ag!.keys.map((k) => <th key={k} className="w-[130px] text-center">{k}</th>)}
                 <th className="text-center">제목</th><th className="w-[100px] text-center">작성자명</th><th className="w-[110px] text-center">전달자</th><th className="w-[110px] text-center">진행상태</th>
               </tr>
             </thead>
             <tbody>
-              {numbered.length === 0 && <tr><td colSpan={menu === '현황' ? 6 : 5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
-              {numbered.map((r) => (
+              {numbered.length === 0 && <tr><td colSpan={menu === '현황' ? 6 : 4 + ag!.keys.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
+              {menu === '현황' && numbered.map((r) => (
                 <tr key={r.id}>
-                  {menu === '현황' ? <><td className="text-center">{dateText(r.postDate)} -{r.postNo}</td><td className="text-center">{r.postNo}</td></>
-                    : <td>{agg[0] === '진행상태별' ? statusOf(r) : dateText(r.postDate)}</td>}
+                  <td className="text-center">{dateText(r.postDate)} -{r.postNo}</td><td className="text-center">{r.postNo}</td>
                   <td>{r.title}</td><td>{r.writerName ?? r.writer}</td><td>{r.forwardTo ?? ''}</td><td>{statusOf(r)}</td>
                 </tr>
               ))}
+              {ag && numbered.length > 0 && ag.out.map((o, i) => o.kind === 'row' ? (
+                <tr key={i}>
+                  {o.vals.map((v, j) => <td key={j} className="text-center">{v}</td>)}
+                  <td>{o.row.title}</td><td>{o.row.writerName ?? o.row.writer}</td><td>{o.row.forwardTo ?? ''}</td><td>{statusOf(o.row)}</td>
+                </tr>
+              ) : (
+                <tr key={i}><td colSpan={4 + ag.keys.length} className="text-center font-bold bg-ec-page">{o.label}</td></tr>
+              ))}
+              {ag && numbered.length > 0 && <tr><td colSpan={4 + ag.keys.length} className="text-center font-bold bg-ec-page">총합계</td></tr>}
             </tbody>
           </table>
           <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
@@ -1166,7 +1217,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             <button className="ec-btn" onClick={() => setInfo('Excel(화면)은 지원하지 않습니다(파일 내려받기).')}>Excel(화면)</button>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       <div id="work-list" ref={gridRef} className={`flex-1 min-h-0${rep && repRan ? ' hidden' : ''}`}>
         {cfg.kanban ? (
@@ -1709,9 +1761,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             ['품목', ['품목그룹1별', '품목그룹2별', '품목그룹3별']], ['거래처', ['거래처그룹1별', '거래처그룹2별']]].map(([g, items]) => (
             <li key={g as string} className="mb-[6px]">
               <div className="font-bold mb-[2px]">{g as string}</div>
-              {(items as string[]).map((it) => (
+              {(items as string[]).filter((it) => !agg.includes(it)).map((it) => (
                 <button key={it} type="button" className="no-ec block w-full text-left bg-transparent border-0 py-[3px] pl-[14px] cursor-pointer text-ec-navy"
-                        onClick={() => { const i = aggPick!; setAgg((a) => (i === 0 ? [it, a[1]] : [a[0], it])); setAggPick(null) }}>{it}</button>
+                        onClick={() => { const i = aggPick!; setAgg((a) => { const n = [...a]; n[i] = it; return n }); setAggPick(null) }}>{it}</button>
               ))}
             </li>
           ))}

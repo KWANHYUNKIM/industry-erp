@@ -1,0 +1,33 @@
+{
+  "about": "통합게시판 집계(원본 E200076 2026-10-22 실측): 집계조건 일별 + 전표별 → 머리 '일별,전표별,제목,작성자명,전달자,진행상태', 글마다 한 줄 + '<제목> 계', 끝에 '<날짜> 계' · '총합계'. 시험 글은 API 로 지운다. node qa/shot.mjs qa/flows/board-aggregate.json",
+  "shots": [
+    {
+      "name": "통합게시판 — 집계 일별 + 전표별",
+      "path": "/groupware/shared-board",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/work-posts', { method: 'POST', headers: H, body: JSON.stringify({ board: 'SHARED', title: 'QA그룹웨어-집계A', content: 'x' }) }); return r.status })()",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/work-posts', { method: 'POST', headers: H, body: JSON.stringify({ board: 'SHARED', title: 'QA그룹웨어-집계B', content: 'x' }) }); return r.status })()",
+        "click:Search(F3)",
+        "wait:300",
+        "click:금년",
+        "js:(() => { const r = [...document.querySelectorAll('.ec-cond input[type=radio]')].find((x) => x.name === 'work-cond-menu' && x.parentElement.innerText.trim() === '집계'); r.click(); return true })()",
+        "wait:300",
+        "js:(() => { const b = document.querySelectorAll('.ec-cond button[title^=\"집계조건\"]')[0]; b.click(); return true })()",
+        "wait:300",
+        "js:(() => { const m = [...document.querySelectorAll('.ec-modal-back')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === '일별').click(); return true })()",
+        "wait:300",
+        "js:(() => { const b = document.querySelectorAll('.ec-cond button[title^=\"집계조건\"]')[1]; b.click(); return true })()",
+        "wait:300",
+        "js:(() => { const m = [...document.querySelectorAll('.ec-modal-back')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === '전표별').click(); return true })()",
+        "wait:300",
+        "expect:document.querySelectorAll('.ec-cond button[title^=\"집계조건\"]').length === 4",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('thead th')].filter((t) => t.offsetParent !== null).map((t) => t.textContent.trim()).join(',') === '일별,전표별,제목,작성자명,전달자,진행상태'",
+        "expect:(() => { const t = [...document.querySelectorAll('tbody tr')].filter((r) => r.offsetParent !== null).map((r) => r.innerText.replace(/\\s+/g, ' ').trim()); const a = t.findIndex((x) => x.includes('QA그룹웨어-집계A')); return a >= 0 && t[a + 1] === 'QA그룹웨어-집계A 계' && t[a + 2].includes('QA그룹웨어-집계B') && t[a + 3] === 'QA그룹웨어-집계B 계' && t.at(-1) === '총합계' && /\\d{4}\\/\\d\\d\\/\\d\\d 계$/.test(t.at(-2)) })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/work-posts?board=SHARED', { headers: H })).json(); const out = []; for (const p of d.filter((x) => x.title.startsWith('QA그룹웨어-집계'))) out.push((await fetch('/api/work-posts/' + p.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

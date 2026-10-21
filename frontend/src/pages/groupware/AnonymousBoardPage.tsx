@@ -29,12 +29,13 @@ const when = (s: string) => {
  * <p><b>2026-10-03 원본 실측으로 다시 맞췄다.</b> 글 하나는 <b>두 줄</b>이다 — 글, 그 아래 시각
  * ('2024/10/22 오전 8:57:23', 초까지). 우리는 한 줄 오른쪽에 '2024-10-22 08:57' 과 [삭제]를 달았다.
  * 원본 목록에는 [삭제]가 없고 화면에 안내 문구도 없다 — 둘 다 뺐다. 글상자 판과 목록 판은 따로 흰 판이다.
- * 빈 채로 [저장(F8)]을 누르면 원본은 글상자만 빨개진다.
+ * 빈 채로 [저장(F8)]을 누르면 원본은 글상자만 빨개진다(문구 없음 — 2026-10-22 재확인, 글 등록 시 알림도 없이 글상자만 비고 맨 위에 쌓임).
  */
 export default function AnonymousBoardPage() {
   const [rows, setRows] = useState<BoardPost[]>([])
   const [text, setText] = useState('')
   const [error, setError] = useState('')
+  const [invalid, setInvalid] = useState(false)
   const [saving, setSaving] = useState(false)
 
   function load() {
@@ -45,7 +46,8 @@ export default function AnonymousBoardPage() {
 
   async function save() {
     setError('')
-    if (!text.trim()) return setError('내용을 입력하세요.')
+    if (!text.trim()) return setInvalid(true)
+    setInvalid(false)
     setSaving(true)
     try {
       // 제목 칸이 없는 화면이므로 제목을 보내지 않는다. 서버가 첫 줄을 제목으로 쓴다.
@@ -63,8 +65,10 @@ export default function AnonymousBoardPage() {
       {/* 원본 실측: 글상자 720×194, [저장(F8)] 이 바로 아래, 전체가 왼쪽 정렬 720 폭 — 글상자 판과 목록 판이 따로 흰 판이다 */}
       <div className="w-[720px] max-w-[100%]">
         <div className="bg-ec-panel rounded-ec-panel p-[9px]">
-          <textarea className="ec-input w-full h-[194px] py-[5.4px] resize-y" aria-label="익명 글"
-                    value={text} onChange={(e) => setText(e.target.value)} />
+          <div className={invalid ? 'ec-invalid' : ''}>
+            <textarea className="ec-input w-full h-[194px] py-[5.4px] resize-y block" aria-label="익명 글"
+                      value={text} onChange={(e) => setText(e.target.value)} />
+          </div>
           <div className="mt-[5px]">
             <button className="ec-btn ec-btn-primary" onClick={() => void save()} disabled={saving}>
               {saving ? '저장 중…' : '저장(F8)'}
