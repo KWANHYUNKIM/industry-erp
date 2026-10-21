@@ -47,7 +47,7 @@
         "expect:![...window.__dlg().querySelectorAll('button')].some((b) => b.textContent.trim() === '최종이력')",
         "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === 'H').click(); true",
         "wait:1000",
-        "expect:(() => { const d = document.querySelector('[role=dialog][aria-label=\"이력\"]'); const S = JSON.parse(sessionStorage.getItem('pth')); const t = d.innerText; return t.includes('[' + S.label + ']') && !t.includes('보안이력') && [...d.querySelectorAll('table')[0].querySelectorAll('thead th')].map((x) => x.textContent).join('|') === '|작업자ID|작업일시|전표상태|진행상태|상태' && [...d.querySelectorAll('tbody tr')].map((r) => r.cells[3].textContent + r.cells[5].textContent).join('|') === '확인신규|확인수정' && /\\d{4}/\\d{2}/\\d{2} 오[전후] \\d+:\\d{2}:\\d{2}/.test(t) })()",
+        "expect:(() => { const d = document.querySelector('[role=dialog][aria-label=\"이력\"]'); const S = JSON.parse(sessionStorage.getItem('pth')); const t = d.innerText; return t.includes('[' + S.label + ']') && !t.includes('보안이력') && [...d.querySelectorAll('table')[0].querySelectorAll('thead th')].map((x) => x.textContent).join('|') === '|작업자ID|작업일시|전표상태|진행상태|상태' && [...d.querySelectorAll('tbody tr')].map((r) => r.cells[3].textContent + r.cells[5].textContent).join('|') === '확인신규|확인수정' && /\\d{4}.\\d{2}.\\d{2} 오[전후] \\d+:\\d{2}:\\d{2}/.test(t) })()",
         "js:[...document.querySelector('[role=dialog][aria-label=\"이력\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
         "wait:300",
         "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); true",
