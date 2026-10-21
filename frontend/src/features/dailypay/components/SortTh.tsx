@@ -8,6 +8,8 @@ export interface SortState { key: string; asc: boolean }
 /**
  * wrap — 원본 '귀속연월-NO ' 은 99px 칸(Dotum 12px 700 · 글자 78)에서 화살이 둘째 줄로 내려가 머리 줄이 두 줄(45.3)이 된다.
  * 우리 글꼴은 그 글자가 72px 이라 한 줄에 들어가므로, 그 칸만 화살을 다음 줄에 세운다.
+ * 화살은 공용 .ec-sort-mark(14px · 기준선에서 1px 올림) — 화살만 있는 둘째 줄이 18.14 가 되어 머리 45.281,
+ * 한 줄 머리 28.141 로 원본과 같다(2026-10-21 원본 급여현황 · 인사발령현황 실측, 공용-디자인-정리 F).
  */
 export function SortTh({ label, k, sort, onSort, className, wrap }: {
   label: string; k: string; sort: SortState | null; onSort: (s: SortState) => void; className?: string; wrap?: boolean
@@ -19,7 +21,7 @@ export function SortTh({ label, k, sort, onSort, className, wrap }: {
         {label}{' '}
         {wrap && <br />}
         {/* 화살은 ::after 로 — 글자에 넣으면 [Excel] 이 긁는 머리 글자에 섞인다 */}
-        <span aria-hidden className={`inline-block w-[14px] text-[14px] leading-[14px] text-center ${up ? "after:content-['▴']" : "after:content-['▾']"}`} />
+        <span aria-hidden className={`ec-sort-mark w-[14px] text-center ${up ? "after:content-['▴']" : "after:content-['▾']"}`} />
       </button>
     </th>
   )

@@ -15,8 +15,9 @@ import NumCheck from '../../../components/NumCheck'
  * 고르기 목록은 열 이름 + 맨 앞 '없음'(현황: 없음 · 수령일자 · 수표번호 · 거래처명 · 계정명 · 적요 · 금액).
  * 상세설정 [설정] · ② 직접설정 은 회사 양식을 바꾸는 창이라 열지 않았다(못 잼 — 우리는 두지 않음).
  *
- * <p>머리: 열 이름이 링크(ec-navy) + ▼(fa-caret 14px — 이것 때문에 머리 높이가 27.6, 정렬 없는 거래내역은 27.1).
- * 우리 ▾ 글자는 아래로 2.64px 내려야 원본 글꼴(FontAwesome) 상자처럼 줄을 0.5px 키운다(27.63).
+ * <p>머리: 열 이름이 링크(ec-navy) + ▼(fa-caret 14px — 이것 때문에 머리 높이가 28.141, 정렬 없는 거래내역은 27.1).
+ * 화살은 공용 .ec-sort-mark(기준선에서 1px 올림) 로 그 줄을 1px 키운다. 10-14 에 잰 27.6 은 10-21 에 같은 꼴의
+ * 원본 출력물(인사발령현황 · 일용근로 급여현황)을 다시 재니 28.141 이었다(공용-디자인-정리 F).
  * 누르면 그 열로 줄을 다시 세운다 — 처음 내림(▲ 로 바뀜), 다시 누르면 오름(▼). 묶음(소계)은 그대로 두고
  * 묶음끼리는 다시 세운 첫 줄 차례(2026-10-14 실측: 금액 내림 → (주)구로 150,000,000 · 구로조명유통 · Bisket World · 휴대폰매장아울렛).
  */
@@ -50,7 +51,7 @@ export function SortHead({ label, col, sort, className = '' }: {
   return (
     <th className={className}>
       <a href="#" className="text-ec-navy" onClick={(e) => { e.preventDefault(); sort.toggle(k) }}>{label}</a>
-      <span aria-hidden className="inline-block text-[14px] leading-[14px] align-[-2.64px] ml-[2px] cursor-pointer text-ec-navy" onClick={() => sort.toggle(k)}>{up ? '▴' : '▾'}</span>
+      <span aria-hidden className="ec-sort-mark ml-[2px] cursor-pointer text-ec-navy" onClick={() => sort.toggle(k)}>{up ? '▴' : '▾'}</span>
     </th>
   )
 }

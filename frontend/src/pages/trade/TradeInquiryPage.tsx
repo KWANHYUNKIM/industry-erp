@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
-import { useTableSort } from '../../utils/useTableSort'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
@@ -432,11 +431,6 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   useTableColumnCheck(listRef, `${cfg.title} 목록`, [isSales, shown.length])
 
 
-  /* 화면에 찍히는 <code>dateNo</code> 그대로 견준다 — 보이는 글자와 차례가 맞아야 한다. */
-  const sort = useTableSort(shown, {
-    '일자-No.': (d) => dateNo(d),
-  })
-
   return (
     <EcListShell
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
@@ -629,7 +623,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             {/* 칸 정렬 — 2026-09-21 구매조회에서 <b>글자가 칸 안 어디에 앉는지</b>(Range)로 잰 값:
                 [일자-No.] 왼쪽, [거래유형명]·[회계반영여부]·[인쇄]·[불러온전표] 가운데.
                 09-09 대조표는 가운데·좌·좌·좌·우 였는데 글자 위치로 다시 재니 틀렸다. */}
-            <th className="cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            {/* 머리 정렬 없음 — 원본 판매조회 E040206 · 구매조회 E040304 는 머리가 글자(span 700)뿐, 눌러도 차례가 안 바뀐다(2026-10-21 실측). */}
+            <th>일자-No.</th>
             <th>거래처명</th>
             <th>품목명(요약)</th>
             <th className="text-right">금액합계</th>
@@ -645,7 +640,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : sort.sorted.map((d, i) => (
+          ) : shown.map((d, i) => (
             <Fragment key={d.id}>
               <tr className={i % 2 ? 'ec-list-alt' : undefined}
                   onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>

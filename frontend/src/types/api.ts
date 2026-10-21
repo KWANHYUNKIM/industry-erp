@@ -1403,6 +1403,21 @@ export interface FixedAsset {
   disposalAmount: number | null
   remark: string | null
   createdBy: string | null
+  /** 자산마다 고르는 계정(원본 E010610) — 비면 203 · 818 */
+  accumAccountId: number | null
+  accumAccountName: string | null
+  expenseAccountId: number | null
+  expenseAccountName: string | null
+  /** 증가 전표의 출금계좌 · 부가세(원본 E010611) */
+  paymentAccountId: number | null
+  paymentAccountName: string | null
+  acquisitionVat: number
+  /** 감소 전표(원본 E010612) */
+  disposalType: 'SALE' | 'SCRAP' | null
+  disposalTypeName: string | null
+  disposalVat: number | null
+  receiptAccountId: number | null
+  receiptAccountName: string | null
 }
 
 export interface DepreciationRow {
