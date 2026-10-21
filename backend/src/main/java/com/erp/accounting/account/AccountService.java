@@ -38,7 +38,13 @@ public class AccountService {
                 .relatedWork(req.relatedWork() != null ? req.relatedWork() : AccountRelatedWork.NONE)
                 .partnerAggregate(Boolean.TRUE.equals(req.partnerAggregate()))
                 .active(true)
+                .parent(parentOf(req.parentId()))
+                .groupAccount(Boolean.TRUE.equals(req.groupAccount()))
+                .evalKind(req.evalKind() != null ? req.evalKind() : AccountEvalKind.NONE)
+                .cashFlowKind(req.cashFlowKind() != null ? req.cashFlowKind() : AccountCashFlowKind.NONE)
+                .searchKeyword(req.searchKeyword()).remark1(req.remark1()).remark2(req.remark2())
                 .build();
+        a.setDebitCredit(req.debitCredit());
         return AccountResponse.from(accountRepository.save(a));
     }
 
@@ -55,11 +61,21 @@ public class AccountService {
     public Account getUsable(Long id) {
         Account a = accountRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + id));
+        if (a.isGroupAccount()) {
+            throw ApiException.badRequest(
+                    "묶음 계정은 전표에 쓸 수 없습니다: " + a.getCode() + " " + a.getName());
+        }
         if (!a.isActive()) {
             throw ApiException.badRequest(
                     "사용중지된 계정과목입니다: " + a.getCode() + " " + a.getName());
         }
         return a;
+    }
+
+    private Account parentOf(Long parentId) {
+        if (parentId == null) return null;
+        return accountRepository.findById(parentId)
+                .orElseThrow(() -> ApiException.badRequest("상위계정을 찾을 수 없습니다. id=" + parentId));
     }
 
     @Transactional
@@ -72,6 +88,14 @@ public class AccountService {
         if (req.active() != null) a.setActive(req.active());
         if (req.relatedWork() != null) a.setRelatedWork(req.relatedWork());
         if (req.partnerAggregate() != null) a.setPartnerAggregate(req.partnerAggregate());
+        if (req.parentId() != null) a.setParent(req.parentId() == 0 ? null : parentOf(req.parentId()));
+        if (req.groupAccount() != null) a.setGroupAccount(req.groupAccount());
+        if (req.debitCredit() != null) a.setDebitCredit(req.debitCredit());
+        if (req.evalKind() != null) a.setEvalKind(req.evalKind());
+        if (req.cashFlowKind() != null) a.setCashFlowKind(req.cashFlowKind());
+        if (req.searchKeyword() != null) a.setSearchKeyword(req.searchKeyword());
+        if (req.remark1() != null) a.setRemark1(req.remark1());
+        if (req.remark2() != null) a.setRemark2(req.remark2());
         return AccountResponse.from(a);
     }
 }

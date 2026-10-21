@@ -56,4 +56,55 @@ public class Account extends BaseTimeEntity {
     @Column(name = "partner_aggregate", nullable = false)
     @Builder.Default
     private boolean partnerAggregate = false;
+
+    /** 상위계정 — 계정 나무. null 이면 맨 위. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Account parent;
+
+    /** 묶음 계정(굵은 줄) — 전표에 쓰지 못한다. false 면 전표입력계정. */
+    @Column(name = "group_account", nullable = false)
+    @Builder.Default
+    private boolean groupAccount = false;
+
+    /** 대차구분 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "debit_credit", nullable = false, length = 10)
+    private AccountDebitCredit debitCredit;
+
+    /** 평가구분 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "eval_kind", nullable = false, length = 20)
+    @Builder.Default
+    private AccountEvalKind evalKind = AccountEvalKind.NONE;
+
+    /** 수입지출구분 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cash_flow_kind", nullable = false, length = 20)
+    @Builder.Default
+    private AccountCashFlowKind cashFlowKind = AccountCashFlowKind.NONE;
+
+    /** 검색창내용 */
+    @Column(name = "search_keyword", length = 100)
+    private String searchKeyword;
+
+    @Column(name = "remark1", length = 100)
+    private String remark1;
+
+    @Column(name = "remark2", length = 100)
+    private String remark2;
+
+    /** 대차구분을 안 정하고 만든 계정(표준계정 시드 등)은 구분·이름으로 정한다 — 자산·비용은 차변, 차감 계정(충당금·누계액)은 대변. */
+    @PrePersist
+    void fillDefaults() {
+        if (debitCredit == null) {
+            boolean contra = division == AccountDivision.ASSET && (name.contains("충당금") || name.contains("누계액"));
+            boolean debit = (division == AccountDivision.ASSET || division == AccountDivision.EXPENSE) && !contra;
+            debitCredit = debit ? AccountDebitCredit.DEBIT : AccountDebitCredit.CREDIT;
+        }
+        if (evalKind == AccountEvalKind.NONE) {
+            if (name.contains("대손충당금")) evalKind = AccountEvalKind.EVAL;
+            else if (name.equals("외상매출금")) evalKind = AccountEvalKind.TARGET;
+        }
+    }
 }

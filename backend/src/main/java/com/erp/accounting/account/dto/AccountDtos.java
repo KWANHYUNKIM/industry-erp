@@ -1,7 +1,10 @@
 package com.erp.accounting.account.dto;
 
 import com.erp.accounting.account.Account;
+import com.erp.accounting.account.AccountCashFlowKind;
+import com.erp.accounting.account.AccountDebitCredit;
 import com.erp.accounting.account.AccountDivision;
+import com.erp.accounting.account.AccountEvalKind;
 import com.erp.accounting.account.AccountRelatedWork;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
@@ -20,7 +23,15 @@ public final class AccountDtos {
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String detailCategory,
             AccountRelatedWork relatedWork,
-            Boolean partnerAggregate
+            Boolean partnerAggregate,
+            Long parentId,
+            Boolean groupAccount,
+            AccountDebitCredit debitCredit,
+            AccountEvalKind evalKind,
+            AccountCashFlowKind cashFlowKind,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String searchKeyword,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark1,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark2
     ) {}
 
     public record UpdateAccountRequest(
@@ -31,21 +42,45 @@ public final class AccountDtos {
             String detailCategory,
             Boolean active,
             AccountRelatedWork relatedWork,
-            Boolean partnerAggregate
+            Boolean partnerAggregate,
+            Long parentId,
+            Boolean groupAccount,
+            AccountDebitCredit debitCredit,
+            AccountEvalKind evalKind,
+            AccountCashFlowKind cashFlowKind,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String searchKeyword,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark1,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String remark2
     ) {}
 
     public record AccountResponse(
             Long id, String code, String name,
             AccountDivision division, String divisionName,
             String detailCategory, boolean active,
-            AccountRelatedWork relatedWork, String relatedWorkName, boolean partnerAggregate
+            AccountRelatedWork relatedWork, String relatedWorkName, boolean partnerAggregate,
+            Long parentId, boolean groupAccount,
+            AccountDebitCredit debitCredit, String debitCreditName,
+            AccountEvalKind evalKind, String evalKindName,
+            AccountCashFlowKind cashFlowKind, String searchKeyword, String remark1, String remark2,
+            /** 원본 [계정종류] 자산 · 부채 · 자본 · 손익 */
+            String kindName
     ) {
         public static AccountResponse from(Account a) {
             return new AccountResponse(
                     a.getId(), a.getCode(), a.getName(),
                     a.getDivision(), a.getDivision().getDisplayName(),
                     a.getDetailCategory(), a.isActive(),
-                    a.getRelatedWork(), a.getRelatedWork().getDisplayName(), a.isPartnerAggregate());
+                    a.getRelatedWork(), a.getRelatedWork().getDisplayName(), a.isPartnerAggregate(),
+                    a.getParent() == null ? null : a.getParent().getId(), a.isGroupAccount(),
+                    a.getDebitCredit(), a.getDebitCredit().getDisplayName(),
+                    a.getEvalKind(), a.getEvalKind().getDisplayName(),
+                    a.getCashFlowKind(), a.getSearchKeyword(), a.getRemark1(), a.getRemark2(),
+                    switch (a.getDivision()) {
+                        case ASSET -> "자산";
+                        case LIABILITY -> "부채";
+                        case EQUITY -> "자본";
+                        default -> "손익";
+                    });
         }
     }
 }

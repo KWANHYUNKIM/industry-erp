@@ -140,8 +140,8 @@
   "palette": 0
  },
  "pages/accounting/AccountsPage.tsx": {
-  "inline": 8,
-  "color": 6,
+  "inline": 1,
+  "color": 0,
   "palette": 0
  },
  "pages/accounting/ActualCostPage.tsx": {
