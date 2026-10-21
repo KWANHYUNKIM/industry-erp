@@ -1,0 +1,115 @@
+{
+  "about": "회계 II 채권현황의 기준 — 채권번호로 적은 채권(증가 · 감소)만 센다. 판매 · 매출전표는 채권을 만들지 않는다. 원본 E060404 2026-10-21 실측: 김치좋아는 10/18 · 10/19 판매(각 693,000)가 있고 회계 I 채권/채무잔액분석표의 외상매출금은 -2,079,000 인데, 채권현황(기준일자 2026/10/21)은 2015/05/05 채권번호 150505053650291 한 줄 98,000 뿐 · 총합계 2,668,000(네 거래처 2015~2016 채권). 우리도 판매를 저장해도 채권현황 총합계가 그대로이고, 채권조회 [신규(F2)] 로 증가 50,000 을 적어야 +50,000, 60,000 으로 고치면 +60,000, 지우면 처음으로. 만든 판매는 API 로, 채권은 [선택삭제] 로 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 채권현황 총합계를 적어 둔다",
+      "path": "/accounting/bonds/ar/status",
+      "steps": [
+        "wait:1200",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; sessionStorage.setItem('bondTotal0', String(window.__total())); sessionStorage.getItem('bondTotal0')"
+      ]
+    },
+    {
+      "name": "판매입력 — QA-CUST 판매 1건 저장(화면)",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right|1",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__bondSale', s.docNo); return s.docNo })()",
+        "expect:/^SO-/.test(sessionStorage.getItem('__bondSale'))"
+      ]
+    },
+    {
+      "name": "채권현황 — 판매를 넣어도 총합계 그대로(판매는 채권을 만들지 않는다)",
+      "path": "/accounting/bonds/ar/status",
+      "steps": [
+        "wait:1200",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; window.__total()",
+        "expect:window.__total() === Number(sessionStorage.getItem('bondTotal0'))"
+      ]
+    },
+    {
+      "name": "채권조회 [신규(F2)] — QA-CUST 증가 50,000 저장",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "click:신규(F2)",
+        "wait:800",
+        "js:window.__type = (sel, v) => { const el = document.querySelector(sel); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true }; true",
+        "js:window.__type('[role=dialog] input[aria-label=\"계정검색\"]', '108')",
+        "wait:300",
+        "js:window.__type('[role=dialog] input[aria-label=\"거래처검색\"]', 'QA-CUST')",
+        "wait:300",
+        "js:document.querySelector('button[aria-label=\"1줄 채권번호 Fn\"]').click(); true",
+        "click:코드생성",
+        "js:sessionStorage.setItem('bno', document.querySelector('input[aria-label=\"1줄 채권번호\"]').value); sessionStorage.getItem('bno')",
+        "set:input[aria-label=\"1줄 금액\"]|50000",
+        "set:input[aria-label=\"1줄 적요\"]|QA회계2 기준",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')) && t.innerText.includes('50,000'))"
+      ]
+    },
+    {
+      "name": "채권현황 — 총합계 +50,000 · 그 번호 한 줄 50,000",
+      "path": "/accounting/bonds/ar/status",
+      "steps": [
+        "wait:1200",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; window.__total()",
+        "expect:window.__total() === Number(sessionStorage.getItem('bondTotal0')) + 50000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')) && t.innerText.includes('50,000') && t.innerText.includes('QA회계2 기준'))"
+      ]
+    },
+    {
+      "name": "채권조회 — [일자-No.] 눌러 60,000 으로 고친다",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('bno'))).querySelector('a, button.ec-link, [role=link]').click(); true",
+        "wait:800",
+        "set:input[aria-label=\"1줄 금액\"]|60000",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')) && t.innerText.includes('60,000'))"
+      ]
+    },
+    {
+      "name": "채권현황 — 총합계 +60,000",
+      "path": "/accounting/bonds/ar/status",
+      "steps": [
+        "wait:1200",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; window.__total()",
+        "expect:window.__total() === Number(sessionStorage.getItem('bondTotal0')) + 60000"
+      ]
+    },
+    {
+      "name": "정리 — 판매(API) · 채권 [선택삭제] → 총합계 처음으로",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "apidel:/sales|@__bondSale|docNo",
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes(sessionStorage.getItem('bno'))).forEach((t) => t.querySelector('input[type=checkbox]').click()); true",
+        "click:선택삭제",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:1000",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')))"
+      ]
+    },
+    {
+      "name": "채권현황 — 처음 총합계",
+      "path": "/accounting/bonds/ar/status",
+      "steps": [
+        "wait:1200",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; window.__total()",
+        "expect:window.__total() === Number(sessionStorage.getItem('bondTotal0'))"
+      ]
+    }
+  ]
+}
