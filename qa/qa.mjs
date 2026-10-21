@@ -5958,7 +5958,7 @@ async function scenarioProductionLaborMinutes(f) {
  */
 async function scenarioSlipHistory(f) {
   section('■ 거래이력조회(재고) — 재고 · 생산 · 발주 · 출하 전표 이력')
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
   const D = '2087-07-07'
   const wh2 = await ensure('/warehouses', 'code', `${P}WH2`, null, { code: `${P}WH2`, name: 'QA창고2', location: 'QA동 2층' })
   const rowsOf = async (menu, no) =>
@@ -9698,7 +9698,7 @@ async function scenarioNestedValidation(f) {
 async function scenarioSlipDelete(f) {
   section('■ 견적·수주·발주·출하 삭제')
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
   const line = [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }]
 
   for (const [label, path, body] of [
@@ -9751,7 +9751,7 @@ async function scenarioSlipDelete(f) {
 async function scenarioInactiveMaster(f) {
   section('■ 사용중지한 마스터')
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
   const item = await must('POST', '/items', {
     code: `${P}DEADITEM`, name: '중지품목', unit: 'EA',
     category: 'MERCHANDISE', unitPrice: 1000, safetyStock: 0,
@@ -11205,7 +11205,7 @@ async function scenarioGhostId() {
       const sub = m[2]
       if ((sub.match(/\{/g) || []).length !== 1) continue
       if (m[1] === 'Get' && !/\{\w*[Ii]d\}/.test(sub)) continue
-      const path = (base + sub).replace('/api', '').replace(/\{[^}]+\}/, GHOST)
+      const path = (base + sub).replace('/api', '').replace(/\{[^}]+\}/g, GHOST)
       if (SKIP.some((re) => re.test(path))) continue
       found.push([m[1].toUpperCase(), path])
     }
