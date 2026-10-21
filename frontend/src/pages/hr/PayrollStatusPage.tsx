@@ -236,7 +236,9 @@ export default function PayrollStatusPage() {
   const cells = (r: Row) => (
     <>
       {allowanceCols.map((c) => <td key={`a-${c}`} className="text-right">{won(r.amounts.get(c) ?? 0)}</td>)}
+      <td></td>
       {deductionCols.map((c) => <td key={`d-${c}`} className="text-right">{won(r.amounts.get(c) ?? 0)}</td>)}
+      <td></td>
       <td className="text-right">{won(r.gross)}</td>
       <td className="text-right">{won(r.deduction)}</td>
       <td className="text-right">{won(r.net)}</td>
@@ -326,13 +328,16 @@ export default function PayrollStatusPage() {
         <table ref={tableRef} className="ec-report w-full text-left whitespace-nowrap">
           <thead>
             <tr>
-              <th>귀속연월-NO</th>
-              <th>급여대장명</th>
-              <th>부서명</th>
-              <th>프로젝트명</th>
-              <th>성명</th>
-              {allowanceCols.map((c) => <th key={`a-${c}`} className="text-right">{c}</th>)}
-              {deductionCols.map((c) => <th key={`d-${c}`} className="text-right">{c}</th>)}
+              {/* 원본(2026-10-22 실측): 칸 폭 99 · 140 · 80 · 90 · 80 · 수당 91 · 공제 105 · 합계 85, 머리 글자는 줄바꿈('수당항목 추가가능' 두 줄 → 44.3) */}
+              <th className="whitespace-normal min-w-[99px]">귀속연월-NO</th>
+              <th className="whitespace-normal min-w-[140px]">급여대장명</th>
+              <th className="whitespace-normal min-w-[80px]">부서명</th>
+              <th className="whitespace-normal min-w-[90px]">프로젝트명</th>
+              <th className="whitespace-normal min-w-[80px]">성명</th>
+              {allowanceCols.map((c) => <th key={`a-${c}`} className="text-right whitespace-normal min-w-[91px]">{c}</th>)}
+              <th className="text-right whitespace-normal min-w-[91px]">수당항목 추가가능</th>
+              {deductionCols.map((c) => <th key={`d-${c}`} className="text-right whitespace-normal min-w-[105px]">{c}</th>)}
+              <th className="text-right whitespace-normal min-w-[105px]">공제항목 추가가능</th>
               <th className="text-right">지급총액</th>
               <th className="text-right">공제총액</th>
               <th className="text-right">실지급액</th>
@@ -340,7 +345,7 @@ export default function PayrollStatusPage() {
           </thead>
           <tbody>
             {lines.length === 0 ? (
-              <tr><td colSpan={8 + allowanceCols.length + deductionCols.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10 + allowanceCols.length + deductionCols.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               <>
                 {out.map((o) => (o.kind === 'row' ? <LineRow key={o.row.key} r={o.row} cells={cells} /> : (
