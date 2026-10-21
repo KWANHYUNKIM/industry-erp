@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
 import EcDateField from '../../../components/EcDateField'
@@ -11,6 +11,7 @@ import { useDeptProjectItems } from '../../cashquick/useDeptProject'
 import { dateText } from '../../../utils/dateText'
 import { requireSelection } from '../../../components/EcDialog'
 import NumCheck from '../../../components/NumCheck'
+import GridFindButton from '../../../components/GridFindButton'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../../types/api'
 
 interface Line { id?: number; checkNo: string; amount: string; remark: string; departmentId: string; projectId: string }
@@ -64,6 +65,9 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  /* 원본 머리 오른쪽 [Option](도움말은 없다) · 격자 위 [찾기(F3)] · 신규 버튼줄 끝 [웹자료올리기](2026-10-21 수령수표내역입력 실측) */
+  const [optionOpen, setOptionOpen] = useState(false)
+  const gridRef = useRef<HTMLTableElement>(null)
   /* 줄 첫 칸 번호 체크칸으로 고른 줄 — 격자 위 [선택삭제] 가 그 줄을 비운다(2026-10-14 실측: 줄은 남고 번호는 그대로, 확인 창 없음). */
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const { departments, projects } = useDeptProjectItems()
@@ -143,7 +147,22 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
   return (
     <Modal open={open} title={title} width={1000} error={error} onClose={onClose}>
       <div onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void save() } }}>
-        <h3 className="text-[14px] font-bold mb-[8px]">{title}</h3>
+        <div className="flex items-center mb-[8px]">
+          <h3 className="text-[14px] font-bold m-0">{title}</h3>
+          <span className="ml-auto relative">
+            <button type="button" className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
+            {optionOpen && (
+              <>
+                <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
+                <div className="ec-menu">
+                  {['입력화면설정', '기능설정'].map((m) => (
+                    <button key={m} type="button" onClick={() => setOptionOpen(false)}>{m}</button>
+                  ))}
+                </div>
+              </>
+            )}
+          </span>
+        </div>
         <ul className="ec-cond mb-[8px] grid grid-cols-2 mobile:grid-cols-1">
           <li className="flex items-center gap-[8px]">
             <span className="w-[93px] text-ec-hint">전표일자</span>
@@ -188,6 +207,7 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
 
         {/* 원본 격자 위 툴바 — [찾기(F3)] [선택삭제](h22 · btn-sm). 고른 줄 없이 [선택삭제] → '리스트에 선택된 자료가 없습니다.' */}
         <div className="flex gap-[5px] mb-[4px]">
+          <GridFindButton tableRef={gridRef} />
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => {
             if (!requireSelection(picked.size)) return
             setLines((ls) => ls.map((l, i) => (picked.has(i) ? blank() : l)))
@@ -195,7 +215,7 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
           }}>선택삭제</button>
         </div>
         <div className="overflow-x-auto">
-          <table className="ec-grid-input no-ec table-fixed min-w-[800px] [&_tbody_tr]:h-[36.5px] [&_td.pad]:p-[5.4px_2.7px] [&_tbody_input]:h-[var(--ec-grid-ctl-h)] [&_tbody_select]:h-[var(--ec-grid-ctl-h)] [&_tbody_button]:h-[var(--ec-grid-ctl-h)] [&_th]:leading-[1.42857] [&_tfoot_td]:leading-[1.42857]">
+          <table ref={gridRef} className="ec-grid-input no-ec table-fixed min-w-[800px] [&_tbody_tr]:h-[36.5px] [&_td.pad]:p-[5.4px_2.7px] [&_tbody_input]:h-[var(--ec-grid-ctl-h)] [&_tbody_select]:h-[var(--ec-grid-ctl-h)] [&_tbody_button]:h-[var(--ec-grid-ctl-h)] [&_th]:leading-[1.42857] [&_tfoot_td]:leading-[1.42857]">
             <thead>
               <tr>
                 {/* 원본 첫 두 칸 — 번호 체크칸(41) · 줄 옮기기 ⬇(43, fa-arrow-circle-down — 무엇을 하는지 못 잼) */}
@@ -264,6 +284,7 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
             : <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>}
           <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
           {editing && <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>}
+          {!editing && <button type="button" className="ec-btn">웹자료올리기</button>}
         </div>
       </div>
       {historyOpen && voucher && (
