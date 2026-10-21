@@ -187,6 +187,8 @@
         "click:삭제",
         "wait:1000",
         "expect:!document.querySelector('#multi-slip-list').innerText.includes('QA그룹웨어')",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '전체').click(); true",
+        "wait:300",
         "click:신규(F2)",
         "wait:500",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelectorAll('tbody [aria-label=\"거래처검색\"]')[0]; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, \"CUST-001\"); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
