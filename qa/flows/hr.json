@@ -7,7 +7,9 @@
       "steps": [
         "click:신규",
         "click:사원 * 선택",
-        "pickrow:이사원",
+        "wait:500",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); [...d.querySelectorAll('tr')].find((tr) => [...tr.cells].some((td) => td.innerText.trim() === '이사원')).click(); return true })()",
+        "wait:500",
         "set:[role=dialog] input[type=date]|2027-01-04",
         "set:[role=dialog] input[type=time]#0|09:00",
         "set:[role=dialog] input[type=time]#1|18:00",
@@ -20,10 +22,10 @@
       ]
     },
     {
-      "name": "휴가 입력 — 사원(사원등록)을 코드도움으로 골라 저장하면 근태번호(AT-)와 함께 안내(17회차까지 번호 없이 '1건 저장했습니다.'). 2026-10-21 사원 기준 — 잔여 숫자는 leave-input-employee.json 이 본다",
+      "name": "휴가 입력 — 사원(사원등록)을 코드도움으로 골라 저장하면 근태번호(AT-)와 함께 안내(17회차까지 번호 없이 '1건 저장했습니다.'). 2026-10-21 사원 기준 — 잔여 숫자는 leave-input-employee.json 이 본다. 날짜는 오늘 — 근태조회 기준일자 처음 값이 최근30일(+1개월)이라(원본 E020711, cbebe582) 12/30 은 목록에 안 뜬다",
       "path": "/hr/leave-input",
       "steps": [
-        "set:tbody tr:has(button[title=\"사원 선택\"]) input[type=date]#0|2026-12-30",
+        "js:(() => { const el = document.querySelector('tbody tr:has(button[title=\"사원 선택\"]) input[type=date]'); const v = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return v })()",
         "click:사원 선택",
         "pickrow:김철수",
         "set:tbody tr:has(button[title=\"사원 선택\"]) input[type=number]#0|1",

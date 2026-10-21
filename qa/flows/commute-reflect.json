@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 출/퇴근반영기준(E020725) → 근태항목등록(E020701) → 근태입력(E020710) [출/퇴근 ▲ › 사원기준] — 원본 2026-10-13 실측(QA01 지각 · 직접설정 09:00~18:00, 변종호 출근 14:08:35 · 퇴근 14:11:29 → 지각 일 1.00 · 시간 5.15 · 조퇴 3.82 · 근무 0.03). 반영기준을 [직접설정]으로 고르면 기준시간 · 오전반차설정 · 요일 · 업무일/휴일이 펴지고 계산단위 시간이면 최대시간 · 반영단위가 생긴다. 근태항목 유형 '출/퇴근'은 계산단위 대신 출/퇴근반영기준 코드도움(비우면 '출/퇴근반영기준을 입력 바랍니다.'). QA관리-사원1 이 10:30:25 출근 · 17:00 퇴근하면 셈은 지각 1.50 시간(초는 가까운 분으로 — 2차 실측 10:30:25 → 90분), 일별 적요 '출근: 10:30 / 퇴근: 17:00'. 근태입력은 계정(사용자) 기준이라 계정이 없는 사원은 줄을 못 깔고 그 이름을 알린다. 끝에 만든 것을 지운다.",
+  "about": "관리 > 출/퇴근반영기준(E020725) → 근태항목등록(E020701) → 근태입력(E020710) [출/퇴근 ▲ › 사원기준] — 원본 2026-10-13 실측(QA01 지각 · 직접설정 09:00~18:00, 변종호 출근 14:08:35 · 퇴근 14:11:29 → 지각 일 1.00 · 시간 5.15 · 조퇴 3.82 · 근무 0.03). 반영기준을 [직접설정]으로 고르면 기준시간 · 오전반차설정 · 요일 · 업무일/휴일이 펴지고 계산단위 시간이면 최대시간 · 반영단위가 생긴다. 근태항목 유형 '출/퇴근'은 계산단위 대신 출/퇴근반영기준 코드도움(비우면 문구 없이 그 칸만 빨간 테두리 — 원본 E020701 2026-10-20 실측, 5dbeceb3). QA관리-사원1 이 10:30:25 출근 · 17:00 퇴근하면 셈은 지각 1.50 시간(초는 가까운 분으로 — 2차 실측 10:30:25 → 90분), 일별 적요 '출근: 10:30 / 퇴근: 17:00'. 근태입력은 사원 기준(2026-10-21, 7a9080f7)이라 계정이 없는 사원도 줄이 깔린다 — 지각반영 1.5(창 처음 값 기간별이라 적요는 빈칸 — 일별 적요는 reflect API 로 본다, 저장은 안 한다). 끝에 만든 것을 지운다.",
   "shots": [
     {
       "name": "출/퇴근반영기준 직접설정 · 시간 단위 칸",
@@ -37,7 +37,7 @@
         "expect:(()=>{const t=document.querySelector('[role=dialog]').innerText;return t.includes('출/퇴근반영기준')&&!t.includes('계산단위')})()",
         "clicklast:저장(F8)",
         "wait:400",
-        "expect:document.body.innerText.includes('출/퇴근반영기준을 입력 바랍니다.')",
+        "expect:(()=>{const li=[...document.querySelectorAll('[role=dialog] li')].find(l=>l.querySelector('.title')?.textContent.trim()==='출/퇴근반영기준');return !!li?.querySelector('.form.ec-invalid')&&!document.body.innerText.includes('출/퇴근반영기준을 입력 바랍니다.')})()",
         "click:출/퇴근반영기준 선택",
         "wait:400",
         "pickrow:QAGL01",
@@ -59,7 +59,7 @@
         "expect:document.querySelector('[role=dialog]').innerText.includes('근태코드')",
         "click:적용(F8)",
         "wait:1200",
-        "expect:document.body.innerText.includes('계정이 이어지지 않은 사원은 넣지 못했습니다')&&document.body.innerText.includes('QA관리-사원1')",
+        "expect:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-사원1')||[...t.querySelectorAll('input')].some(i=>i.value.includes('QA관리-사원1')));if(!tr)return false;const v=[...tr.querySelectorAll('input,select')].map(i=>i.tagName==='SELECT'?(i.selectedOptions[0]?.textContent??''):i.value);return v.some(x=>x!==''&&Number(x)===1.5)&&v.includes('QA관리-지각반영')})()",
         "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const day=sessionStorage.getItem('qaGlDay');const emp=Number(sessionStorage.getItem('qaGlEmp'));const cs=await (await fetch('/api/hr/employee-commutes?from='+day+'&to='+day,{headers:H})).json();for(const c of cs.filter(c=>c.employeeId===emp))await fetch('/api/hr/employee-commutes/'+c.id,{method:'DELETE',headers:H});const ks=await (await fetch('/api/hr/attendance-kinds',{headers:H})).json();for(const k of ks.filter(k=>k.name==='QA관리-지각반영'))await fetch('/api/hr/attendance-kinds/'+k.id,{method:'DELETE',headers:H});const rs=await (await fetch('/api/hr/commute-rules',{headers:H})).json();for(const r of rs.filter(r=>r.code==='QAGL01'))await fetch('/api/hr/commute-rules/'+r.id,{method:'DELETE',headers:H});return true})()"
       ]
     }
