@@ -97,6 +97,12 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
          [자금의 증가] · [자금의 감소] 대신 끝의 [계좌간이동] 표에 '출금통장 → 입금통장' 한 줄로 나온다. */
       const isXfer = e.lines.every((o) => FUND_CODES.includes(o.accountCode))
         && e.lines.some((o) => Number(o.debit)) && e.lines.some((o) => Number(o.credit))
+      /* 원본(2026-10-22 실측): 수수료가 붙은 계좌간이동(차 입금통장 10,000 · 차 지급수수료 50 / 대 출금통장 10,050)도 [계좌간이동] 표에
+         '출금통장 → 입금통장 · 이동금액' 한 줄이고, 수수료 줄은 [자금의 감소] 에 '지급수수료(판) | 출금통장 | 적요 | 50' 으로 간다. */
+      const fundLines = e.lines.filter((o) => FUND_CODES.includes(o.accountCode))
+      const restLines = e.lines.filter((o) => !FUND_CODES.includes(o.accountCode))
+      const feeXfer = !isXfer && fundLines.length === 2 && fundLines.filter((o) => Number(o.debit)).length === 1 && fundLines.filter((o) => Number(o.credit)).length === 1
+        && restLines.length > 0 && restLines.every((o) => Number(o.debit) > 0)
       const bookFor = (l: JournalEntry['lines'][number]) => {
         if (l.accountCode === '101') return undefined
         const [a, b] = Number(l.debit) ? ['d', 'c'] : ['c', 'd']
@@ -116,21 +122,26 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
         const d = Number(l.debit), c = Number(l.credit)
         if (e.entryDate < from) { f.carry += d - c; b.carry += d - c; continue }
         f.inc += d; f.dec += c; b.inc += d; b.dec += c
-        if (isXfer) continue
+        if (isXfer || feeXfer) continue
         const others = [...new Set(e.lines.filter((o) => o !== l && !FUND_CODES.includes(o.accountCode)).map((o) => o.accountName))]
         const counter = others.length === 0 ? '' : others.length === 1 ? others[0] : `${others[0]} 외 ${others.length - 1}`
         const m = { key: `${e.id}-${l.id}`, date: e.entryDate, counter, partner: e.partnerName ?? '', text: l.description ?? e.description ?? '' }
         if (d) incs.push({ ...m, amount: d })
         if (c) decs.push({ ...m, amount: c })
       }
-      if (isXfer && e.entryDate >= from) {
+      if ((isXfer || feeXfer) && e.entryDate >= from) {
         const name = (l: JournalEntry['lines'][number]) => bookFor(l)?.label ?? l.accountName
-        const outL = e.lines.find((o) => Number(o.credit))!
-        const inL = e.lines.find((o) => Number(o.debit))!
+        const outL = (feeXfer ? fundLines : e.lines).find((o) => Number(o.credit))!
+        const inL = (feeXfer ? fundLines : e.lines).find((o) => Number(o.debit))!
         xfers.push({
           key: String(e.id), date: e.entryDate, route: `${name(outL)} → ${name(inL)}`,
-          text: inL.description ?? e.description ?? '', amount: e.lines.reduce((s, o) => s + Number(o.debit), 0),
+          text: inL.description ?? e.description ?? '', amount: feeXfer ? Number(inL.debit) : e.lines.reduce((s, o) => s + Number(o.debit), 0),
         })
+        if (feeXfer) {
+          for (const r of restLines) {
+            decs.push({ key: `${e.id}-${r.id}`, date: e.entryDate, counter: r.accountName, partner: name(outL), text: r.description ?? e.description ?? '', amount: Number(r.debit) })
+          }
+        }
       }
     }
     return { funds: [...fm.values()].filter((f) => f.carry || f.inc || f.dec).sort((a, b) => a.code.localeCompare(b.code)), incs, decs, xfers }
