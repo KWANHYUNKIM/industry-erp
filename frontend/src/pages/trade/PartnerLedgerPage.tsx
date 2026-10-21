@@ -11,6 +11,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { dateText } from '../../utils/dateText'
+import { useRequired } from '../../utils/useRequired'
 
 /**
  * 영업 > 거래처관리대장 — 거래처별로 <b>기간 동안의 오고 감</b>을 본다.
@@ -109,7 +110,10 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const [error, setError] = useState('')
 
   // 원본 기본값이 '전월+금월' 이다 — 대장은 지난달 잔액이 이번 달로 어떻게 넘어왔는지 같이 본다.
-  const init = periodOf('전월+금월')!
+  const base = periodOf('전월+금월')!
+  /* 거래처관리대장1(채권·채무)은 원본 기본 기간이 전월 1일 ~ 오늘(2026-10-20 실측)이다 — 공용 periodOf 는 말일까지라 여기서만 오늘로 끊는다. */
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+  const init = fixedSide === 'BOTH' ? base : { ...base, to: today }
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [side, setSide] = useState<Side>(fixedSide === 'AR' ? '채권' : fixedSide === 'AP' ? '채무' : '전체')
@@ -140,6 +144,16 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
  */
   const [searchParams] = useSearchParams()
   const [partner, setPartner] = useState(searchParams.get('partnerId') ?? '')
+  /**
+   * 거래처관리대장1(채권·채무)은 원본 <b>[거래처] 필수</b> — 비운 채 검색하면 칸에 빨간 테두리가 서고
+   * 결과는 없다(E040723 실측 2026-10-20). 거래처 없이 전 거래처를 펼치던 것은 '거래처관리대장' 한 화면(BOTH)에만 남는다.
+   */
+  const oneSided = fixedSide !== 'BOTH'
+  const req = useRequired()
+  const search = () => {
+    if (oneSided && !req.check({ partner: !!partner })) return
+    load()
+  }
   /** 원본 [거래처그룹1] — 거래처 마스터에서 잇는다(하나뿐인 그룹에 원본의 1 을 붙인다). */
   const pgroups = usePartnerGroups()
   const [partnerGroup, setPartnerGroup] = useState('')
@@ -205,6 +219,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const reset = () => {
     setFrom(init.from); setTo(init.to); setGroup('전표별'); setPartner(''); setBasis('개별거래처기준')
     setSide(fixedSide === 'AR' ? '채권' : fixedSide === 'AP' ? '채무' : '전체')
+    req.reset()
   }
 
   /** 기간과 무관하게 전부 만들어 두고, 기간 앞은 이월잔액으로 접는다. */
@@ -303,6 +318,8 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     }
 
     return [...partners.values()]
+      /* 거래처가 필수인 화면은 거래처를 고르기 전에는 결과를 내지 않는다. */
+      .filter(() => !oneSided || !!partner)
       .map((p) => {
         const entries = fold(p.entries)
         let balance = p.opening
@@ -321,7 +338,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
       .filter((p) => p.rows.length > 0 || p.opening !== 0)
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [bySide, openings, side, from, to, group, basis, rollup, partner, partnerGroup, pgroups.groupOptions])
+  }, [bySide, openings, side, from, to, group, basis, rollup, partner, partnerGroup, pgroups.groupOptions, oneSided])
 
   const totals = useMemo(() => ledger.reduce(
     (s, p) => ({
@@ -368,12 +385,96 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     x.remark && `기타사항 ${x.remark}`,
   ].filter(Boolean).join('   |   ')
 
+  /**
+   * 원본 거래처관리대장1(채권·채무) 결과 — 거래처마다 머리표 '{거래처명} 관리대장(거래명세서별)'(+ 거래처 등록 정보) 아래
+   * '판매/수금내역'(채무는 '구매/지급내역') 격자 <b>일자 · 적요 · 판매 · 수금 · 잔액</b> 다섯 칸.
+   * 내역 줄은 '품목명 / 수량 * 단가', 달이 끝나면 'YYYY/MM 계', 거래처 끝에 누계. 빈 결과는 '등록된 데이터가 없습니다.'
+   */
+  function renderOneSided() {
+    const ar = fixedSide === 'AR'
+    const [incLabel, decLabel] = ar ? ['판매', '수금'] : ['구매', '지급']
+    if (loading) return <table className="w-full text-left"><tbody><tr><td className="ec-empty">불러오는 중…</td></tr></tbody></table>
+    if (ledger.length === 0) return <table className="w-full text-left"><tbody><tr><td className="ec-empty">등록된 데이터가 없습니다.</td></tr></tbody></table>
+    const ym = (d: string) => d.slice(0, 7)
+    return (
+      <>
+        {ledger.map((p) => {
+          const months = [...new Set(p.rows.map((r) => ym(r.entry.date)))]
+          return (
+            <div key={p.partnerId} className="mb-[16px]">
+              <div className="text-[14px] font-bold mb-[2px]">{p.name} 관리대장(거래명세서별)</div>
+              {info(p.partnerId) && <div className="text-[11.5px] text-ec-label mb-[4px]">{headline(info(p.partnerId)!)}</div>}
+              <table className="w-full text-left ec-list-grid">
+                <thead>
+                  <tr><th colSpan={5} className="text-left">{incLabel}/{decLabel}내역</th></tr>
+                  <tr>
+                    <th className="w-[130px]">일자</th>
+                    <th>적요</th>
+                    <th className="w-[130px] text-right">{incLabel}</th>
+                    <th className="w-[130px] text-right">{decLabel}</th>
+                    <th className="w-[140px] text-right">잔액</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td></td><td>이월잔액</td><td></td><td></td>
+                    <td className="text-right">{won(p.opening)}</td>
+                  </tr>
+                  {months.map((m) => {
+                    const rows = p.rows.filter((r) => ym(r.entry.date) === m)
+                    const inc = rows.reduce((n, r) => n + r.entry.increase, 0)
+                    const dec = rows.reduce((n, r) => n + r.entry.decrease, 0)
+                    return (
+                      <Fragment key={m}>
+                        {rows.map((r) => (
+                          <Fragment key={r.entry.key}>
+                            <tr>
+                              <td>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</td>
+                              <td>{r.entry.kind.endsWith('반품') ? `${r.entry.kind} ` : ''}{r.entry.memo ?? ''}</td>
+                              <td className="text-right">{r.entry.increase ? won(r.entry.increase) : ''}</td>
+                              <td className="text-right">{r.entry.decrease ? won(r.entry.decrease) : ''}</td>
+                              <td className="text-right">{won(r.balance)}</td>
+                            </tr>
+                            {showDetail && r.entry.lines.map((l, li) => (
+                              <tr key={`${r.entry.key}-${li}`}>
+                                <td></td>
+                                <td>{l.itemName} / {l.quantity.toLocaleString('ko-KR', { minimumFractionDigits: 2 })} * {won(l.unitPrice)}</td>
+                                <td className="text-right">{won(l.supplyAmount)}</td>
+                                <td></td><td></td>
+                              </tr>
+                            ))}
+                          </Fragment>
+                        ))}
+                        <tr className="bg-ec-page font-semibold">
+                          <td>{m.replace('-', '/')} 계</td><td></td>
+                          <td className="text-right">{won(inc)}</td>
+                          <td className="text-right">{won(dec)}</td>
+                          <td></td>
+                        </tr>
+                      </Fragment>
+                    )
+                  })}
+                  <tr className="bg-ec-page font-bold">
+                    <td>누계</td><td></td>
+                    <td className="text-right">{won(p.increase)}</td>
+                    <td className="text-right">{won(p.decrease)}</td>
+                    <td className="text-right">{won(p.closing)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )
+        })}
+      </>
+    )
+  }
+
   return (
     <EcListShell
       title={title}
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '검색(F8)', primary: true, onClick: search },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -412,7 +513,8 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         */}
         {/* 원본 차례: 집계구분 · <b>거래처 · 대표거래처로 합산</b> (사본 실측) — 우리는 뒤바뀌어 있었다. */}
         <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel={oneSided ? undefined : '전체'}
+                           invalid={req.on('partner', !!partner)}
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>
@@ -432,7 +534,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         </EcCond>
       </EcStatusPanel>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+      {!oneSided && <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         거래처 <b className="text-ec-text">{ledger.length}</b>곳
         <span className="my-0 mx-[6px] text-ec-off">|</span>
         이월 <b>{won(totals.opening)}</b>
@@ -442,11 +544,11 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         감소 <b className="text-ec-success">{won(totals.decrease)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
         잔액 <b className="text-ec-navy text-[14px]">{won(totals.closing)}</b>
-      </div>
+      </div>}
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <table className="w-full text-left">
+      {oneSided ? renderOneSided() : <table className="w-full text-left">
         <thead>
           <tr>
             <th className="w-[34px]"></th>
@@ -568,7 +670,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
             <td className="text-right text-ec-navy">{won(totals.closing)}</td>
           </tr>
         </tfoot>
-      </table>
+      </table>}
     </EcListShell>
   )
 }
