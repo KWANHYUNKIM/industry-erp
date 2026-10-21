@@ -159,17 +159,23 @@ public class StagedStockAdjustmentService {
     }
 
     private void applyOn(StagedStockAdjustment staged, LocalDate date, String reason, String username) {
-        var made = stockAdjustmentService.createWithoutStocktake(new CreateAdjustmentRequest(
+        applyOn(staged, date, reason, username, null, 1);
+    }
+
+    private void applyOn(StagedStockAdjustment staged, LocalDate date, String reason, String username, String adjustNo, int lineNo) {
+        var req = new CreateAdjustmentRequest(
                 StockAdjustmentType.ADJUST,
                 staged.getItem().getId(),
                 staged.getWarehouse().getId(),
                 null,
                 staged.getActualQty(),
                 date,
-                null, null,
+                null, staged.getEmployeeId(),
                 stagedReason("단계별조정 " + staged.getAdjustNo(), reason != null && !reason.isBlank() ? reason : staged.getReason()),
                 null, null
-        ), username);
+        );
+        var made = adjustNo == null ? stockAdjustmentService.createWithoutStocktake(req, username)
+                : stockAdjustmentService.createSlipLine(req, username, adjustNo, lineNo);
         staged.setAdjustment(adjustmentRepository.getReferenceById(made.id()));
         staged.setStatus(StagedStatus.APPLIED);
         staged.setHandler(username);
@@ -186,7 +192,7 @@ public class StagedStockAdjustmentService {
         LocalDate date = req.date() != null ? req.date() : LocalDate.now();
         requireNoSimpleOn(date);
         String slipNo = docNoGenerator.next("ST-", "staged_stock_adjustments", "slip_no", "request_date", date);
-        return SlipResponse.of(writeSlip(slipNo, date, req, username));
+        return SlipResponse.of(writeSlip(slipNo, date, req, username, null));
     }
 
     @Transactional(readOnly = true)
@@ -203,8 +209,10 @@ public class StagedStockAdjustmentService {
         List<StagedStockAdjustment> old = slipRows(slipNo);
         LocalDate date = old.get(0).getRequestDate();
         requireNoSimpleOn(date);
+        /* 원본은 고치면 조정전표가 다음 번호(-1 → -2)로 선다 — 옛 조정을 지우기 전에 번호를 받는다. */
+        String adjustNo = req.adjust() ? stockAdjustmentService.nextAdjustNo(StockAdjustmentType.ADJUST, date) : null;
         removeRows(old, username);
-        return SlipResponse.of(writeSlip(slipNo, date, req, username));
+        return SlipResponse.of(writeSlip(slipNo, date, req, username, adjustNo));
     }
 
     /** 원본 단계별실사수정 [삭제] — 실사와 그 재고조정을 같이 지운다(재고가 되돌아온다). */
@@ -213,7 +221,7 @@ public class StagedStockAdjustmentService {
         removeRows(slipRows(slipNo), username);
     }
 
-    private List<StagedStockAdjustment> writeSlip(String slipNo, LocalDate date, SlipRequest req, String username) {
+    private List<StagedStockAdjustment> writeSlip(String slipNo, LocalDate date, SlipRequest req, String username, String adjustNo) {
         Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
                 .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
         List<StagedStockAdjustment> rows = new java.util.ArrayList<>();
@@ -232,16 +240,20 @@ public class StagedStockAdjustmentService {
                     .reason(line.reason())
                     .status(StagedStatus.REQUESTED)
                     .requester(username)
+                    .employeeId(req.employeeId())
                     .build()));
         }
         if (req.adjust()) {
+            /* 한 장의 실사는 조정전표도 한 장이다 — 줄마다 번호를 새로 따지 않고 한 번호의 줄번호로 쓴다(원본 26/10/20-1). */
+            String shared = adjustNo != null ? adjustNo : stockAdjustmentService.nextAdjustNo(StockAdjustmentType.ADJUST, date);
+            int adjLine = 0;
             for (StagedStockAdjustment r : rows) {
                 if (stockService.quantityOn(r.getItem().getId(), r.getWarehouse().getId(), date).compareTo(r.getActualQty()) == 0) {
                     r.setStatus(StagedStatus.APPLIED);
                     r.setHandler(username);
                     continue;
                 }
-                applyOn(r, date, null, username);
+                applyOn(r, date, null, username, shared, ++adjLine);
             }
         }
         return rows;

@@ -74,4 +74,8 @@ public class StagedStockAdjustment extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "adjustment_id")
     private StockAdjustment adjustment;
+
+    /** 실사 전표 머리 [담당자] — 사원 id 만 든다(inventory 는 hr 을 모른다). 한 전표의 줄이 같은 값을 쓴다. */
+    @Column(name = "employee_id")
+    private Long employeeId;
 }

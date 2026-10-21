@@ -78,6 +78,7 @@ public final class StagedAdjustmentDtos {
     public record SlipRequest(
             LocalDate date,
             @NotNull(message = "창고를 입력하세요.") Long warehouseId,
+            Long employeeId,
             boolean adjust,
             @jakarta.validation.constraints.NotEmpty(message = "품목을 입력하세요.")
             java.util.List<@jakarta.validation.Valid SlipLine> lines
@@ -90,10 +91,11 @@ public final class StagedAdjustmentDtos {
     ) {}
 
     public record SlipResponse(String slipNo, LocalDate date, Long warehouseId, String warehouseName,
-                               boolean adjusted, java.util.List<StagedResponse> lines) {
+                               Long employeeId, boolean adjusted, java.util.List<StagedResponse> lines) {
         public static SlipResponse of(java.util.List<StagedStockAdjustment> rows) {
             StagedStockAdjustment h = rows.get(0);
             return new SlipResponse(h.getSlipNo(), h.getRequestDate(), h.getWarehouse().getId(), h.getWarehouse().getName(),
+                    h.getEmployeeId(),
                     rows.stream().anyMatch(r -> r.getStatus() == StagedStatus.APPLIED),
                     rows.stream().map(StagedResponse::from).toList());
         }

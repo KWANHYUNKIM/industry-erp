@@ -97,17 +97,35 @@ public class StockAdjustmentService {
     /** 단계별재고조정 반영 — 실사는 단계별 요청이 들고 있어 간편 실사를 따로 남기지 않는다. */
     @Transactional
     public AdjustmentResponse createWithoutStocktake(CreateAdjustmentRequest req, String username) {
-        return create(req, username, false);
+        return create(req, username, false, null, 1);
+    }
+
+    /** 단계별재고실사 한 장의 조정 — 줄이 조정전표 한 장(같은 번호, 줄번호만 다름)을 쓴다(원본 26/10/20-1). */
+    @Transactional
+    public AdjustmentResponse createSlipLine(CreateAdjustmentRequest req, String username, String adjustNo, int lineNo) {
+        return create(req, username, false, adjustNo, lineNo);
+    }
+
+    /** 다음 조정전표 번호(같은 일자 · 같은 유형 접두어의 마지막 다음). 실사 한 장을 고칠 때 옛 조정을 지우기 전에 받아 -2 로 간다. */
+    @Transactional
+    public String nextAdjustNo(StockAdjustmentType type, LocalDate date) {
+        return docNoGenerator.next(type.getDocPrefix(), "stock_adjustments", "adjust_no", "adjust_date", date);
     }
 
     private AdjustmentResponse create(CreateAdjustmentRequest req, String username, boolean simpleStocktake) {
+        return create(req, username, simpleStocktake, null, 1);
+    }
+
+    private AdjustmentResponse create(CreateAdjustmentRequest req, String username, boolean simpleStocktake,
+                                      String sharedNo, int lineNo) {
         Item item = itemRepository.findById(req.itemId())
                 .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + req.itemId()));
         Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
                 .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
 
         LocalDate date = req.adjustDate() != null ? req.adjustDate() : LocalDate.now();
-        String adjustNo = docNoGenerator.next(req.type().getDocPrefix(), "stock_adjustments", "adjust_no", "adjust_date", date);
+        String adjustNo = sharedNo != null ? sharedNo
+                : docNoGenerator.next(req.type().getDocPrefix(), "stock_adjustments", "adjust_no", "adjust_date", date);
         String note = req.type().getDisplayName() + " " + adjustNo
                 + (req.reason() != null && !req.reason().isBlank() ? " (" + req.reason() + ")" : "");
 
@@ -132,6 +150,7 @@ public class StockAdjustmentService {
 
         StockAdjustment adjustment = StockAdjustment.builder()
                 .adjustNo(adjustNo)
+                .lineNo(lineNo)
                 .adjustDate(date)
                 .type(req.type())
                 .item(item)
