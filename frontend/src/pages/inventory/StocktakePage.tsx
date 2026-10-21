@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StagedAdjustment, Warehouse } from '../../types/api'
@@ -6,6 +6,9 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
+import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
+import { useCondPickers } from '../../utils/useCondPickers'
 
 /**
  * 재고 I &gt; 기타이동 &gt; 재고조정 &gt; 재고조정진행단계 [단계별재고실사](E040650) — 2026-10-21 loginaa 실측.
@@ -23,7 +26,7 @@ const NO_ADJUST_CONFIRM = '현재 [재고조정]에 체크되어 있지 않으�
 export const STOCKTAKE_DONE = '요청된 [단계별재고실사] 작업이 완료되었습니다.'
 
 interface Line { itemId: string; qty: string }
-interface Slip { slipNo: string; date: string; warehouseId: number; warehouseName: string; adjusted: boolean; lines: StagedAdjustment[] }
+interface Slip { slipNo: string; date: string; warehouseId: number; warehouseName: string; employeeId: number | null; adjusted: boolean; lines: StagedAdjustment[] }
 const blank = (): Line => ({ itemId: '', qty: '' })
 const blankLines = () => [blank(), blank(), blank()]
 
@@ -35,6 +38,11 @@ export default function StocktakePage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [date, setDate] = useState(ymd(new Date()))
   const [warehouseId, setWarehouseId] = useState('')
+  /* 머리 [담당자] — 사원 id 만 든다(inventory 는 hr 을 모른다). */
+  const [employeeId, setEmployeeId] = useState('')
+  const pickers = useCondPickers(['employees'])
+  const employeeItems = useMemo(() => pickers.employees.map((e) => ({ ...e, value: String(e.id) })), [pickers.employees])
+  const tableRef = useRef<HTMLTableElement>(null)
   const [lines, setLines] = useState<Line[]>(blankLines)
   const [adjust, setAdjust] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -50,6 +58,7 @@ export default function StocktakePage() {
       .then((r) => {
         setDate(r.data.date)
         setWarehouseId(String(r.data.warehouseId))
+        setEmployeeId(r.data.employeeId != null ? String(r.data.employeeId) : '')
         setAdjust(r.data.adjusted)
         const ls = r.data.lines.map((l) => ({ itemId: String(l.itemId), qty: String(Number(l.actualQty)) }))
         setLines([...ls, ...Array.from({ length: Math.max(1, 3 - ls.length) }, blank)])
@@ -63,7 +72,9 @@ export default function StocktakePage() {
     const n = ls.map((l, j) => (j === i ? { ...l, [k]: v } : l))
     return i === n.length - 1 && v ? [...n, blank()] : n
   })
-  const reset = () => { setDate(ymd(new Date())); setWarehouseId(''); setLines(blankLines()); setAdjust(false) }
+  const myItems = useMyItemsPick((picked) => setLines((ls) => [...ls.filter((l) => l.itemId || l.qty),
+    ...picked.map((m) => ({ ...blank(), itemId: String(m.itemId) })), blank()]))
+  const reset = () => { setDate(ymd(new Date())); setWarehouseId(''); setEmployeeId(''); setLines(blankLines()); setAdjust(false) }
   const close = () => navigate('/inventory/staged-progress')
 
   async function save() {
@@ -76,7 +87,7 @@ export default function StocktakePage() {
       if (l.qty === '' || Number(l.qty) < 0) return void ecAlert(`${i + 1}번째 줄 수량을 입력하세요.`)
     }
     if (!adjust && !(await ecConfirm(NO_ADJUST_CONFIRM))) return
-    const body = { date, warehouseId: Number(warehouseId), adjust,
+    const body = { date, warehouseId: Number(warehouseId), employeeId: employeeId ? Number(employeeId) : null, adjust,
       lines: filled.map((l) => ({ itemId: Number(l.itemId), actualQty: Number(l.qty) })) }
     setSaving(true)
     try {
@@ -115,9 +126,17 @@ export default function StocktakePage() {
                              value={warehouseId} onChange={(v) => setWarehouseId(v)}
                              items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
           </label>
+          <label className="flex items-center gap-[6px]">
+            <span className="w-[60px]">담당자</span>
+            <CodePickerField pair label="담당자" hideLabel width={220} placeholder="담당자" emptyLabel="선택 해제"
+                             value={employeeId} onChange={(v) => setEmployeeId(v)} items={employeeItems} />
+          </label>
         </div>
       </div>
-      <table className="w-full text-left">
+      <EcGridToolbar tableRef={tableRef} onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
+        <MyItemsNote note={myItems.note} />
+      </EcGridToolbar>
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th className="w-[34px]"></th>
@@ -126,6 +145,7 @@ export default function StocktakePage() {
             <th>규격</th>
             <th className="text-center">단위</th>
             <th className="w-[110px] text-right">수량</th>
+            <th className="w-[110px]">새로운 항목 추가</th>
           </tr>
         </thead>
         <tbody>
@@ -146,15 +166,18 @@ export default function StocktakePage() {
                   <input className="ec-input text-right w-[100px]" type="number" step="any" aria-label={`${i + 1}번째 줄 수량`}
                          value={l.qty} onChange={(e) => setLine(i, 'qty', e.target.value)} />
                 </td>
+                <td />
               </tr>
             )
           })}
           <tr>
             <td colSpan={5}></td>
             <td className="text-right font-semibold">{total.toLocaleString('ko-KR')}</td>
+            <td />
           </tr>
         </tbody>
       </table>
+      <EcWebUploadButton />
       <label className="flex items-center gap-[5px] mt-[10px] cursor-pointer">
         <input type="checkbox" aria-label="재고조정" checked={adjust} onChange={(e) => setAdjust(e.target.checked)} /> 재고조정
       </label>

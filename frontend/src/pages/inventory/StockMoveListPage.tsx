@@ -146,8 +146,12 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
       onSearch={() => void load()}
       onNew={() => navigate(selfUse ? '/inventory/self-use-input' : '/inventory/defect-input')}
       actions={[
+        /* 원본 자가사용조회 · 불량처리조회 버튼줄(2026-10-21 실측): Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 전자결재 · 선택삭제 · Excel · 이력조회.
+           바깥 연동 · 단계 없는 전표라 Email · 진행상태변경 · 보내기 · 바코드(품목) · 전자결재 · 이력조회 는 모양만. */
+        { label: 'Email' }, { label: '진행상태변경' }, { label: '보내기' }, { label: '인쇄' },
+        { label: '바코드(품목)' }, { label: '전자결재' },
         { label: '선택삭제', onClick: () => void removePicked(), selected: picked.size },
-        { label: 'Excel' },
+        { label: 'Excel' }, { label: '이력조회' },
       ]}
     >
       <p className="text-right text-[12px] mb-[4px]">{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</p>

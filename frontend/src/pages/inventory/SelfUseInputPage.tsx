@@ -13,6 +13,8 @@ import { dateNo } from '../../utils/dateNo'
 import type { StockAdjustmentSlip } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
 import { useRequired } from '../../utils/useRequired'
+import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
+import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 
 type Line = { itemId: string; quantity: string; kind: string }
 type Grid = 'defect' | 'normal'
@@ -29,8 +31,8 @@ const num = (n: number) => n.toLocaleString('ko-KR')
  * 창고를 비우고 저장하면 막힌다. 저장하면 일자 · 창고는 그대로 두고 격자만 비운다. 격자 밑 합계줄은 수량 합.
  * 수정 창은 일자가 잠기고 버튼이 [저장(F8) · 삭제 · 닫기], 삭제는 '전표를 삭제하겠습니까?' 를 묻는다.
  *
- * <p>원본에 있는데 두지 않은 것: 격자 위 [찾기(F3) · 정렬 · My품목 · 주문 · 구매 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기],
- * [새로운 항목 추가] 열, 아래 [저장/전표(F7) · 웹자료올리기], 수정 창의 [복사 · 이전 · 다음 · 보내기].
+ * <p>격자 위 도구줄 [찾기(F3) · 정렬 · My품목 · 주문 · 구매 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기](불량처리는 주문 · 구매 대신
+ * 판매 · 구매 · 생산 · 이동), 끝 [새로운 항목 추가] 열, 아래 [웹자료올리기] 는 원본처럼 모양을 둔다(EcGridToolbar — 찾기 · My품목만 동작).
  *
  * <p><b>불량처리입력</b>(E040507)도 이 화면이다(kind=DEFECT) — 같은 날 실측. 머리 [일자 · 담당자 / <b>발견창고</b> · <b>처리방법</b> / 프로젝트],
  * [거래처]는 없고 격자 끝 칸이 [불량유형]. 처리방법은 폐기(기본) · 품목대체 · 정상사용. 폐기로 저장하면 발견창고 재고가 수량만큼 빠지고
@@ -186,14 +188,25 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   }
 
   const tableRef = useRef<HTMLTableElement>(null)
+  /* [My품목] — 담아 둔 품목을 빈 줄에 붓는다(담는 쪽은 판매 · 구매입력 명세의 ★). */
+  const myItems = useMyItemsPick((picked) => setRows((ls) => {
+    const next = ls.filter((l) => l.itemId || l.quantity)
+    for (const m of picked) next.push({ ...blank(), itemId: String(m.itemId) })
+    next.push(blank())
+    return next
+  }))
   useTableColumnCheck(tableRef, `${L.name}${editing ? '수정' : '입력'}`, [rows])
   const totalQty = rows.reduce((s, l) => s + (Number(l.quantity) || 0), 0)
   const allPicked = rows.length > 0 && picked.size === rows.length
+  /* 원본 불량처리입력: 빈 저장이면 빨간 칸이 든 탭 오른쪽 위에 '!'(plans 재고1 불량처리 ①, 2026-10-21 실측). */
+  const bang = !selfUse && (req.on('warehouse', !!warehouseId)
+    || lines.some((l, i) => req.on(`item${i}`, !!l.itemId) || req.on(`qty${i}`, Number(l.quantity) > 0))
+    || normals.some((l, i) => req.on(`nitem${i}`, !!l.itemId) || req.on(`nqty${i}`, Number(l.quantity) > 0)))
 
   return (
     <EcSlipShell
       title={`${L.name}${editing ? '수정' : '입력'}`}
-      formTabs={[{ id: 'basic', label: `${L.name}입력` }]} activeFormTab="basic"
+      formTabs={[{ id: 'basic', label: `${L.name}입력`, bang }]} activeFormTab="basic"
       actions={editing
         /* 원본 자가사용수정 · 불량처리수정 버튼 아홉(2026-10-21 실측) — 창고이동수정과 같다. */
         ? [
@@ -260,12 +273,14 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
             ))}
           </div>
         )}
-        <div className="flex gap-[4px] mb-[4px]">
+        <EcGridToolbar tableRef={tableRef} slipKinds={selfUse ? ['주문', '구매'] : ['판매', '구매', '생산', '이동']}
+                       onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
           <button type="button" className="ec-btn ec-btn-sm" disabled={picked.size === 0}
                   onClick={() => { setRows((ls) => { const n = ls.filter((_, i) => !picked.has(i)); return n.length ? n : blankLines() }); setPicked(new Set()) }}>
             선택삭제
           </button>
-        </div>
+          <MyItemsNote note={myItems.note} />
+        </EcGridToolbar>
         <div className="overflow-x-auto">
           <table ref={tableRef} className="w-full">
             <thead>
@@ -279,6 +294,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                 <th className="w-[133px]">규격</th>
                 <th className="w-[101px] text-right">수량</th>
                 <th>{selfUse ? '사용유형' : '불량유형'}</th>
+                <th className="w-[110px]">새로운 항목 추가</th>
               </tr>
             </thead>
             <tbody>
@@ -311,6 +327,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                       <CodePickerField label={L.kind} hideLabel fill value={l.kind}
                                        onChange={(v) => setLine(i, { kind: v })} items={kindItems} />
                     </td>
+                    <td />
                   </tr>
                 )
               })}
@@ -318,10 +335,12 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                 <td colSpan={4} />
                 <td className="text-right">{num(totalQty)}</td>
                 <td />
+                <td />
               </tr>
             </tbody>
           </table>
         </div>
+        <EcWebUploadButton />
         <Modal open={!!printSlip} title={selfUse ? '자가사용전표' : '불량처리'} error={error} onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }}>
           {printSlip && (
             <SelfUsePrint slip={printSlip} partnerText={partnerText}

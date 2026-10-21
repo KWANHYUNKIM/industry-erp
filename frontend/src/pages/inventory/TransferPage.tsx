@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
@@ -17,6 +17,8 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import EcBarChart from '../../components/EcBarChart'
 import NumCheck from '../../components/NumCheck'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
+import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 
 const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -196,6 +198,7 @@ export default function TransferPage() {
     setShowForm(false)
     setEditSlip(null)
     setError('')
+    /* 창고이동 전표는 원본처럼 말 없이 닫힌다(2026-10-21 실측) — 안내 줄은 조정 계열만 쓴다. */
     setOk(msg)
     await load()
   }
@@ -277,9 +280,15 @@ export default function TransferPage() {
       newLabel={showForm ? '입력닫기' : `${tab} 등록(F2)`}
       onNew={() => { setEditSlip(null); setShowForm(true) }}
       actions={[
-        { label: '새로고침', onClick: load }, { label: '인쇄' },
-        ...(tab === '창고이동' ? [{ label: '선택삭제', selected: picked.size, onClick: () => void removePicked() }] : []),
+        { label: '새로고침', onClick: load },
+        /* 원본 창고이동조회 버튼줄(2026-10-21 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 전자결재 · 선택삭제 · Excel · 이력조회.
+           바깥 연동 · 단계가 없는 전표라 Email · 진행상태변경 · 보내기 · 바코드(품목) · 전자결재 · 이력조회 는 모양만. */
+        ...(tab === '창고이동' ? [{ label: 'Email' }, { label: '진행상태변경' }, { label: '보내기' }] : []),
+        { label: '인쇄' },
+        ...(tab === '창고이동' ? [{ label: '바코드(품목)' }, { label: '전자결재' },
+          { label: '선택삭제', selected: picked.size, onClick: () => void removePicked() }] : []),
         { label: 'Excel' },
+        ...(tab === '창고이동' ? [{ label: '이력조회' }] : []),
       ]}
     >
       <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
@@ -497,6 +506,11 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
     while (ls.length < 5) ls.push(blankLine())
     return ls
   })
+  const tableRef = useRef<HTMLTableElement>(null)
+  const myItems = useMyItemsPick((picked) => setLines((ls) => {
+    const kept = ls.filter((l) => l.itemId || l.quantity)
+    return [...kept, ...picked.map((m) => ({ ...blankLine(), itemId: String(m.itemId) })), blankLine()]
+  }))
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const setLine = (i: number, k: keyof SlipLine, v: string) =>
     setLines((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)))
@@ -534,7 +548,8 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
         : await api.post<StockTransfer[]>('/stock-transfers/slips', body)
       const r = res.data[0]
       if (andPrint) onPrint(r.transferNo)
-      onSaved(`${slipNoText(r.transferDate, r.transferNo)} ${head ? '수정' : '저장'} 완료 · ${r.fromWarehouseName} → ${r.toWarehouseName} · ${res.data.length}건 수량 ${num(total)}`)
+      /* 원본 창고이동 저장은 말 없이 창이 닫힌다(2026-10-21 실측, plans 재고1 창고이동 ⑤). */
+      onSaved('')
     } catch (err) {
       onError(extractErrorMessage(err))
     }
@@ -572,7 +587,10 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
                            items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </Field>
       </div>
-      <table className="w-full text-left">
+      <EcGridToolbar tableRef={tableRef} onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
+        <MyItemsNote note={myItems.note} />
+      </EcGridToolbar>
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th className="w-[34px]"></th>
@@ -581,6 +599,7 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
             <th className="w-[100px] text-right">수량</th>
             <th className="w-[110px] text-right">보내는창고 재고</th>
             <th>적요</th>
+            <th className="w-[110px]">새로운 항목 추가</th>
           </tr>
         </thead>
         <tbody>
@@ -607,6 +626,7 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
                   <input className="ec-input" aria-label={`${i + 1}번째 줄 적요`} value={l.reason}
                          onChange={(e) => setLine(i, 'reason', e.target.value)} style={{ width: '100%' }} />
                 </td>
+                <td />
               </tr>
             )
           })}
@@ -615,10 +635,11 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => setLines((ls) => [...ls, blankLine()])}>줄 추가</button>
             </td>
             <td className="text-right font-semibold">{num(total)}</td>
-            <td colSpan={2}></td>
+            <td colSpan={3}></td>
           </tr>
         </tbody>
       </table>
+      <EcWebUploadButton />
       {/* 원본 버튼 줄 — 수정: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H / 입력: 저장(F8) · 저장/전표(F7) · 다시 작성 · 닫기 */}
       <div className="flex gap-[4px] mt-[10px] flex-wrap">
         <button className="ec-btn ec-btn-primary" onClick={() => submit()}>저장(F8)</button>

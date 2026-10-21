@@ -45,6 +45,8 @@ export interface SlipTab {
   disabled?: boolean
   disabledReason?: string
   onSelect?: () => void
+  /** 빈 필수칸이 있는 탭 — 원본처럼 오른쪽 위에 빨간 동그라미 '!'(16×16, 위 -6.3px). */
+  bang?: boolean
 }
 
 /** ▴/▾ 드롭다운이 달린 버튼. 푸터·툴바·탭이 공유한다(입력 창의 [저장(F8)▴] 도 쓴다). */
@@ -183,13 +185,16 @@ export default function EcSlipShell({
   const tab = (t: SlipTab, active: boolean, caret?: boolean) => (
     <li
       key={t.id}
-      className={`ec-tab${active ? ' active' : ''}`}
+      className={`ec-tab${active ? ' active' : ''}${t.bang ? ' relative' : ''}`}
       title={t.disabled ? (t.disabledReason ?? '저장 후에 쓸 수 있습니다.') : undefined}
       style={t.disabled ? { color: '#b0b7c0', cursor: 'default' } : undefined}
       onClick={() => { if (!t.disabled) { onFormTab?.(t.id); t.onSelect?.() } }}
     >
       {t.label}
       {caret && <span className="caret">▾</span>}
+      {t.bang && (
+        <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
+      )}
     </li>
   )
 
