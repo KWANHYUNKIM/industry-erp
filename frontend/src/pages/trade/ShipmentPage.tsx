@@ -37,8 +37,9 @@ type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
  * 있어서 줄을 보려고 갈래를 하나 더 만들어 둔 것이다(판매·구매·생산불출·작업내역에 이어
  * <b>다섯 번째</b> 같은 꼴). [내역]을 원본대로 두면 둘이 같은 표가 되므로 갈래를 없앤다.
  */
-type Mode = '내역' | '집계'
-const MODES = ['내역', '집계'] as const
+type Mode = '현황' | '집계'
+/** 원본 [메뉴] 현황 · 집계(2026-10-21 실측 — 그 아래 줄이 [구분] 라인별 ▾ · 비교기간). */
+const MODES = ['현황', '집계'] as const
 
 interface ShipLine {
   itemId: number
@@ -98,13 +99,15 @@ export default function ShipmentPage() {
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
-  const [mode, setMode] = useState<Mode>('내역')
+  const [mode, setMode] = useState<Mode>('현황')
   const [shipNo, setShipNo] = useState('')
   const [partner, setPartner] = useState('')
   const [item, setItem] = useState('')
   const [warehouse, setWarehouse] = useState('')
   const [project, setProject] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | ShipStatus>('ALL')
+  /** 원본은 [품목코드] 아래 조건을 회색 띠 밑에 접어 둔다 */
+  const [more, setMore] = useState(false)
 
   async function load() {
     setLoading(true); setError('')
@@ -121,11 +124,11 @@ export default function ShipmentPage() {
   useEffect(() => { load() }, [from, to, compare])
 
   const reset = () => {
-    setFrom(init.from); setTo(init.to); setCompare('사용안함'); setMode('내역')
+    setFrom(init.from); setTo(init.to); setCompare('사용안함'); setMode('현황')
     setShipNo(''); setPartner(''); setItem(''); setStatusFilter('ALL'); setWarehouse(''); setProject('')
     /* 접힌 줄을 펼쳐 드러난 조건들도 같이 되돌린다. */
     setOrderNoCond(''); setSpecCond(''); setEmpCond(''); setPmgrCond('')
-    setContactCond(''); setAddressCond(''); setRemarkCond(''); setAuthorCond('')
+    setContactCond(''); setAddressCond(''); setAuthorCond('')
   }
 
   const inRange = (r: Shipment, a: string, b: string) => r.shipDate >= a && r.shipDate <= b
@@ -146,7 +149,6 @@ export default function ShipmentPage() {
   const [pmgrCond, setPmgrCond] = useState('')
   const [contactCond, setContactCond] = useState('')
   const [addressCond, setAddressCond] = useState('')
-  const [remarkCond, setRemarkCond] = useState('')
   const [authorCond, setAuthorCond] = useState('')
   const pmgr = usePartnerManagers()
 
@@ -164,7 +166,6 @@ export default function ShipmentPage() {
     if (pmgrCond && pmgr.managerOfName(r.partnerName) !== pmgrCond) return false
     if (contactCond && !(r.contact ?? '').includes(contactCond)) return false
     if (addressCond && !(r.address ?? '').includes(addressCond)) return false
-    if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
     if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
   }
@@ -249,6 +250,7 @@ export default function ShipmentPage() {
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         view={view} onViewChange={setView}
         compare={compare} onCompareChange={setCompare}
+        modeLabel="메뉴" compareLabel="구분"
       >
         <EcCond label="출하No." pick>
           <input className="ec-input" placeholder="출하번호 일부" value={shipNo}
@@ -275,11 +277,17 @@ export default function ShipmentPage() {
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+        <EcCond label="품목코드" pick>
+          <CodePickerField label="품목코드" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={(v) => setItem(v)}
                            items={pickers.items} />
         </EcCond>
+        {/*
+          2026-10-21 원본 실측: [품목코드] 아래는 회색 띠(view-hidden-item, 높이 10) 밑에 접혀 있다 — 펼치면
+          오더관리번호 · 규격 · 담당자 · 거래처관리담당자 · 연락처 · 주소 · (새로운 항목 추가 · 문자형식) · 진행상태 · 작성자 ·
+          (최종수정자 · 제목 · 사용자지정). 적요는 없다(뺌).
+        */}
+        {more && (<>
         {/*
           원본 차례(2026-09-08 실측, 접힌 줄을 펼쳐 서른):
           … 품목 · 시리얼/로트No. · <b>오더관리번호 · 규격 · 담당자 · 거래처관리담당자 ·
@@ -318,10 +326,6 @@ export default function ShipmentPage() {
           <input className="ec-input" value={addressCond}
                  onChange={(e) => setAddressCond(e.target.value)} style={{ width: 200 }} />
         </EcCond>
-        <EcCond label="적요">
-          <input className="ec-input" value={remarkCond}
-                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
-        </EcCond>
         <EcCond label="진행상태">
           <div className="ec-pills">
             {(['ALL', 'READY', 'SHIPPED', 'CANCELED'] as const).map((s) => (
@@ -338,6 +342,9 @@ export default function ShipmentPage() {
                            items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
+        </>)}
+        <li className="full h-[10.8px] !min-h-0 !p-0 bg-ec-disabled cursor-pointer" role="button" aria-label="조건 더보기"
+            onClick={() => setMore((v) => !v)} />
       </EcStatusPanel>
 
       {/* 원본은 격자 위 건수 · 수량 · 금액 줄이 없다(2026-10-21 실측) — 비교기간을 걸었을 때만 그 합계를 적는다. */}

@@ -12,6 +12,7 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import TradeEntry from './TradeEntry'
+import Modal from '../../components/Modal'
 
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
@@ -125,6 +126,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
+  /** 구매조회 [불러온전표] '조회' 가 여는 '불러온 전표' 창의 전표 */
+  const [sourceDoc, setSourceDoc] = useState<NormalDoc | null>(null)
   /** 목록 위에 뜬 '판매입력(수정)' 창의 전표 id(원본 E040206 — 일자-No. 를 누르면 뜬다). */
   const [popupId, setPopupId] = useState<number | null>(null)
   /** 창이 떠 있나. popupId 가 null 인데 떠 있으면 [신규(F2)] 의 '판매입력' 창이다(원본 2026-10-21 실측). */
@@ -725,10 +728,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                       if (nos.length === 0) return ''
                       return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
                     }
-                    /* 2026-10-20 원본 구매조회 [불러온전표] 는 줄마다 '조회' 링크다(눌렀을 때 창은 못 쟀다 — 원본 재기 필요). */
+                    /* 원본 구매조회 [불러온전표] 는 줄마다 '조회' 링크 — 누르면 '불러온 전표' 창(2026-10-21 실측). */
                     return (
                       <button type="button" className="ec-link"
-                              onClick={(e) => { e.stopPropagation(); void ecAlert(nos.length ? `불러온 전표: ${nos.join(', ')}` : '불러온 전표가 없습니다.') }}>
+                              onClick={(e) => { e.stopPropagation(); setSourceDoc(d) }}>
                         조회
                       </button>
                     )
@@ -840,6 +843,46 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           </div>
         </div>
       )}
+      {/*
+        원본 '불러온 전표' 창(2026-10-21 구매조회 실측): 위 '구매조회 : 2026/10/28 -1', 격자 품목코드 · 품목명 · 규격 · 수량 ·
+        불러온 전표 · 불러온 전표일자-No.(폭 236 · 315 · 142 · 142 · 189 · 236), 직접 넣은 줄은 뒤 두 칸이 빈칸, 아래 [닫기] 하나.
+      */}
+      <Modal open={!!sourceDoc} title="불러온 전표" width={1280} onClose={() => setSourceDoc(null)}>
+        {sourceDoc && (
+          <>
+            <div className="mb-[6px]">{cfg.title} : {dateNo(sourceDoc)}</div>
+            <table className="w-full text-left table-fixed">
+              <colgroup>
+                <col className="w-[236px]" /><col className="w-[315px]" /><col className="w-[142px]" />
+                <col className="w-[142px]" /><col className="w-[189px]" /><col className="w-[236px]" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th>
+                  <th>불러온 전표</th><th className="text-center">불러온 전표일자-No.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sourceDoc.lines.map((l, i) => (
+                  <tr key={i}>
+                    <td>{l.itemCode}</td>
+                    <td>{l.itemName}</td>
+                    <td>{l.spec ?? ''}</td>
+                    <td className="text-right">{Number(l.quantity).toLocaleString()}</td>
+                    <td>{l.sourceDocNo ? (l.sourceDocType ?? '') : ''}</td>
+                    <td className="text-center">
+                      {l.sourceDocNo && l.sourceDocDate ? dateNo({ date: l.sourceDocDate, docNo: l.sourceDocNo }) : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex gap-[4px] mt-[9px]">
+              <button type="button" className="ec-btn" onClick={() => setSourceDoc(null)}>닫기</button>
+            </div>
+          </>
+        )}
+      </Modal>
     </EcListShell>
   )
 }
