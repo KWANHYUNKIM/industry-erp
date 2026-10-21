@@ -30,7 +30,7 @@ import type { LedgerBasis } from '../../utils/partnerRollup'
  * <b>거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계</b> 다.
  * <b>[청구금액]·[미청구금액]</b>(2026-10-21 만듦) — 2026-10-20 실측 규칙: 미청구 = 세금계산서를 안 끊은 판매 합계
  * (부가세 포함), 합계 = 채권 잔액, 청구 = 합계 − 미청구(수금은 늘 청구 칸에서 빠진다 → 음수 가능).
- * 서버가 partner-balances 에 unbilledReceivable · unbilledPayable 로 싣는다. [채권/채무] 구분의 두 줄 머리는 아직 안 만들었다.
+ * 서버가 partner-balances 에 unbilledReceivable · unbilledPayable 로 싣는다. [채권/채무] 구분은 두 줄 머리(채권·채무 밑에 청구·미청구·합계, 거래처코드 열 없음, 0 은 빈칸, 차액 = 채권합계 − 채무합계 — 2026-10-22 원본 실측).
  *
  * <p><b>2026-09-09 자료 줄을 읽어 두 칸의 관계를 알아냈다.</b>
  * <code>청구금액 + 미청구금액 = 합계</code> 이고, 그 합계가 곧 <b>채권 잔액</b>이다
@@ -207,7 +207,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
 
   const showR = mode !== 'PAYABLE'
   const showP = mode !== 'RECEIVABLE'
-  const cols = 5
+  const cols = mode === 'BOTH' ? 8 : 5
   /*
    * 원본 채권현황 · 채무현황 · 채권/채무현황(채권·채무 구분)의 <b>[청구금액] · [미청구금액] · [합계]</b>
    * (2026-10-20 실측 규칙). 미청구 = 세금계산서 안 끊은(안 받은) 전표 합계(부가세 포함),
@@ -356,8 +356,8 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         */}
         <thead><tr>
           {/* 2026-10-20: 원본에 없는 번호 · 거래처그룹 · 관리담당자 열을 뺐다(원본 다섯 열 = 106 + 291 + 107 × 3 = 718px). */}
-          <th style={{ width: fixedFrame ? 106 : 110 }}>거래처코드</th>
-          <th style={fixedFrame ? { width: 291 } : undefined}>거래처명</th>
+          {mode !== 'BOTH' && <th style={{ width: fixedFrame ? 106 : 110 }}>거래처코드</th>}
+          <th rowSpan={mode === 'BOTH' ? 2 : undefined} style={fixedFrame ? { width: 291 } : undefined}>거래처명</th>
           {/*
             원본 <b>채권현황(E040721)·채무현황(E040722)</b>의 금액 열 이름은 [채권]·[채무]가
             아니라 <b>[합계]</b> 다(2026-09-09 실측: 거래처코드 · 거래처명 · 청구금액 ·
@@ -375,10 +375,12 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>청구금액</th>}
           {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>미청구금액</th>}
           {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>합계</th>}
-          {mode === 'BOTH' && <th className="w-[130px] text-right">채권</th>}
-          {mode === 'BOTH' && <th className="w-[130px] text-right">채무</th>}
-          {mode === 'BOTH' && <th className="w-[130px] text-right">차액</th>}
-        </tr></thead>
+          {mode === 'BOTH' && <th colSpan={3}>채권</th>}
+          {mode === 'BOTH' && <th colSpan={3}>채무</th>}
+          {mode === 'BOTH' && <th rowSpan={2}>차액</th>}
+        </tr>
+        {mode === 'BOTH' && <tr>{['청구금액', '미청구금액', '합계', '청구금액', '미청구금액', '합계'].map((h, i) => <th key={i}>{h}</th>)}</tr>}
+        </thead>
         <tbody>
           {loading ? (
             <tr><td colSpan={cols} className="ec-empty">불러오는 중…</td></tr>
@@ -386,7 +388,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
             <tr><td colSpan={cols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.partnerId}>
-              <td>{r.code}</td>
+              {mode !== 'BOTH' && <td>{r.code}</td>}
               {/* 원본은 거래처명을 눌러 그 거래처를 연다(사본 실측). */}
               <td>
                 <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'inherit' }}>{r.name}</Link>
@@ -394,25 +396,23 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
               </td>
               {mode !== 'BOTH' && <td className="text-right">{won(totalOf(r) - unbilledOf(r))}</td>}
               {mode !== 'BOTH' && <td className="text-right">{won(unbilledOf(r))}</td>}
-              {showR && <td className="text-right">{won(r.receivable)}</td>}
-              {showP && <td className="text-right">{won(r.payable)}</td>}
-              {mode === 'BOTH' && (
-                <td className="text-right">{won(r.receivable - r.payable)}</td>
-              )}
+              {mode === 'BOTH' && [r.receivable - r.unbilledReceivable, r.unbilledReceivable, r.receivable,
+                r.payable - r.unbilledPayable, r.unbilledPayable, r.payable, r.receivable - r.payable].map((v, i) => (
+                <td key={i} className="text-right">{v ? won(v) : ''}</td>
+              ))}
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={2} className="text-center">합계</td>
+              <td colSpan={mode === 'BOTH' ? 1 : 2} className="text-center">합계</td>
               {mode !== 'BOTH' && <td className="text-right">{won((mode === 'PAYABLE' ? total.payable - total.unbilledP : total.receivable - total.unbilledR))}</td>}
               {mode !== 'BOTH' && <td className="text-right">{won(mode === 'PAYABLE' ? total.unbilledP : total.unbilledR)}</td>}
-              {showR && <td className="text-right">{won(total.receivable)}</td>}
-              {showP && <td className="text-right">{won(total.payable)}</td>}
-              {mode === 'BOTH' && (
-                <td className="text-right">{won(total.receivable - total.payable)}</td>
-              )}
+              {mode === 'BOTH' && [total.receivable - total.unbilledR, total.unbilledR, total.receivable,
+                total.payable - total.unbilledP, total.unbilledP, total.payable, total.receivable - total.payable].map((v, i) => (
+                <td key={i} className="text-right">{v ? won(v) : ''}</td>
+              ))}
             </tr>
           </tfoot>
         )}
