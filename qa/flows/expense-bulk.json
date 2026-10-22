@@ -9,13 +9,14 @@
         "js:(async()=>{const is=(await __api('GET','/expense-items')).body.filter(x=>x.code==='QA2BLK').map(x=>x.id);if(is.length)await __api('POST','/expense-items/delete',is);const ts=(await __api('GET','/expense-control-types')).body.filter(x=>x.code==='QA2BLKC').map(x=>x.id);if(ts.length)await __api('POST','/expense-control-types/delete',ts);const t=(await __api('POST','/expense-control-types',{code:'QA2BLKC',name:'QA회계2-일괄통제',periodType:'MONTHLY',personControl:true,limitType:'PERSONAL_SAME',noticeType:'WARN',active:true})).body;const i=(await __api('POST','/expense-items',{code:'QA2BLK',name:'QA회계2-일괄비용',controlTypeId:t.id,limitAmount:50000,employeeIds:[],alertEmployeeIds:[],remark:null})).body;sessionStorage.setItem('qa2blkT',String(t.id));sessionStorage.setItem('qa2blkI',String(i.id));return true})()",
         "js:location.reload();true",
         "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA2BLK')&&t.innerText.includes('매월반복')&&t.innerText.includes('개인별(동일금액)'))",
         "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA2BLK'));const inp=tr.querySelector('input[aria-label=한도금액]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(inp,'77000');inp.dispatchEvent(new Event('input',{bubbles:true}));return true})()",
         "wait:300",
         "click:저장(F8)",
         "wait:1500",
-        "expect:(async()=>{const r=(await __api('GET','/expense-items')).body.find(x=>x.code==='QA2BLK');return r.limitAmount===77000&&r.controlTypeId!=null})()",
-        "js:(async()=>{const r=(await __api('GET','/expense-items')).body.find(x=>x.code==='QA2BLK');return r.limitAmount===77000&&r.name==='QA회계2-일괄비용'})()",
+        "js:(async()=>{const r=(await __api('GET','/expense-items')).body.find(x=>x.code==='QA2BLK');sessionStorage.setItem('qa2blkOk',String(r.limitAmount===77000&&r.name==='QA회계2-일괄비용'&&r.controlTypeId!=null));return true})()",
+        "expect:sessionStorage.getItem('qa2blkOk')==='true'",
         "expect:[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA2BLK')).querySelector('input[aria-label=한도금액]').value.replace(/,/g,'')==='77000'",
         "js:(async()=>{await __api('POST','/expense-items/delete',[Number(sessionStorage.getItem('qa2blkI'))]);await __api('POST','/expense-control-types/delete',[Number(sessionStorage.getItem('qa2blkT'))]);return true})()"
       ]
