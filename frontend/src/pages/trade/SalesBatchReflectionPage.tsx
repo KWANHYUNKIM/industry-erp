@@ -118,17 +118,23 @@ function SalesBatch() {
   async function load(): Promise<void> {
     setLoading(true); setError('')
     try {
-      const res = await api.get<Slip[]>('/accounting-reflection?kind=SALES')
+      const res = await api.get<Slip[]>('/accounting-reflection', {
+        params: { kind: 'SALES', onlyUnreflected: true, from: cond.from || undefined, to: cond.to || undefined },
+      })
       setSlips(res.data)
     } catch (err) {
       setError(extractErrorMessage(err)); setSlips([])
     } finally { setLoading(false) }
   }
-  useEffect(() => { void load() }, [])
+  // 원본 빠른선택(금일 · 전일 …)은 누르면 그 기간으로 바로 검색한다 — 기간이 바뀌면 다시 받는다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load() }, [cond.from, cond.to])
 
   const rows = useMemo<Row[]>(() => {
     const f = slips
       .filter((s) => !s.reflected)
+      // □거래처코드없는자료인쇄 — 끄면 거래처코드가 없는 전표는 뺀다(우리 판매는 거래처가 필수라 늘 있다).
+      .filter((s) => cond.noCodePrint || s.partnerId != null)
       .filter((s) => !cond.from || s.slipDate >= cond.from)
       .filter((s) => !cond.to || s.slipDate <= cond.to)
       .filter((s) => !cond.partner || String(s.partnerId) === cond.partner)
@@ -150,6 +156,11 @@ function SalesBatch() {
       cur.supply += s.supplyAmount; cur.vat += s.vatAmount
       cur.vatTypes.add(s.vatType)
       m.set(key, cur)
+    }
+    // 원본 품목요약은 묶인 전표의 품목 줄 전부로 센다 — 같은 거래처 2건(줄 2 + 1) → '코카콜라 외 2건'(2026-10-22 실측).
+    for (const r of m.values()) {
+      const ls = r.slips.flatMap((s) => s.lines ?? [])
+      if (r.slips.length > 1 && ls.length > 0) r.items = ls.length > 1 ? `${ls[0].itemName} 외 ${ls.length - 1}건` : ls[0].itemName
     }
     return [...m.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.partnerName.localeCompare(b.partnerName)))
   }, [slips, cond, mode])
@@ -324,7 +335,7 @@ function SalesBatch() {
         )}
       </table>
 
-      <Modal open={detail != null} title="일괄회계반영" width={980} onClose={() => setDetail(null)}>
+      <Modal open={detail != null} title="일괄회계반영" width={980} error={slipError} onClose={() => setDetail(null)}>
         {detail && <>
           <EcReportHead title={`매출 ${vatOf(detail)} 미청구 리스트`} period={reportPeriod(cond.from, cond.to)} sub={detail.partnerName} />
           <table className="ec-report w-full">
@@ -384,8 +395,13 @@ function SalesBatch() {
             <EcCond label="부가세유형" span={2}>
               <select className="ec-input w-full" aria-label="매출전표 부가세유형" value={slipVat} onChange={(e) => setSlipVat(e.target.value)}>{vatOptions}</select>
             </EcCond>
-            <EcCond label="거래처" span={2}><span>{cur.partnerName}</span></EcCond>
-            <EcCond label="공급가액"><span aria-label="매출전표 공급가액">{won(curAmt.supply)}</span></EcCond>
+            {/* 원본은 거래처도 코드도움으로 바꿀 수 있다 — 우리 분개는 판매전표의 거래처를 그대로 써서 잠가 둔다(plans/재고1.md 남은 것). */}
+            <EcCond label="거래처" span={2}><input className="ec-input w-full" disabled aria-label="매출전표 거래처" value={cur.partnerName} /></EcCond>
+            {/* 원본 공급가액은 입력 칸 — 바꾸면 부가세가 10% 로 다시 매겨진다(5,000 → 4,000 · 부가세 400). 우리는 그 차이를 [조정]으로 넘긴다. */}
+            <EcCond label="공급가액">
+              <input className="ec-input w-full text-right" aria-label="매출전표 공급가액" inputMode="numeric" value={won(curAmt.supply)}
+                     onChange={(e) => setAdjust((m) => ({ ...m, [cur.key]: String(cur.supply - num(e.target.value)) }))} />
+            </EcCond>
             <EcCond label="부가세"><span aria-label="매출전표 부가세">{won(curAmt.vat)}</span></EcCond>
             <EcCond label="적요" span={2}><span>{cur.items}</span></EcCond>
             <EcCond label="매출계정"><span>4049 제품매출</span></EcCond>

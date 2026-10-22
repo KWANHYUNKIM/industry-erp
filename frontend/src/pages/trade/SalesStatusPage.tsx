@@ -79,7 +79,8 @@ export default function SalesStatusPage() {
    * 기간부터 맞춰야 했다.
    */
   const [from, setFrom] = useState(() => periodOf('전월+금월')!.from)
-  const [to, setTo] = useState(() => periodOf('전월+금월')!.to)
+  // 끝은 오늘이다 — 원본 머리 '2026/09/01 ~ 2026/10/22'(2026-10-22 실측, 달 끝 10/31 이 아니다).
+  const [to, setTo] = useState(() => periodOf('금일')!.to)
   /*
    * 원본 판매현황의 나머지 조건. 우리 데이터로 실제 거를 수 있는 것만 둔다 —
    * 값이 없는 조건칸을 만드는 건 5장 레시피가 금지한다.
@@ -345,7 +346,7 @@ export default function SalesStatusPage() {
   const reset = () => {
     // [다시 작성]은 화면을 열었을 때로 되돌린다 — 다른 기간으로 되돌리면 그건 초기화가 아니다.
     const m = periodOf('전월+금월')!
-    setFrom(m.from); setTo(m.to)
+    setFrom(m.from); setTo(periodOf('금일')!.to)
     setMode('현황'); setCompare('사용안함'); setProgress('전체')
     setPartnerId(''); setItemId(''); setWarehouse(''); setProject('')
     setLotNo(''); setTaxType('전체'); setTradeKind('전체'); setKeyword('')
