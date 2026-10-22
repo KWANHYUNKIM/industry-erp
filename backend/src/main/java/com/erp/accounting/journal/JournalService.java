@@ -516,13 +516,16 @@ public class JournalService {
             JournalEntry cur = todo.poll();
             if (!done.add(cur.getId())) continue;
             List<Long> salesIds = new java.util.ArrayList<>();
-            for (JournalEntrySales l : entrySalesRepository.findByEntryId(cur.getId())) {
+            List<JournalEntrySales> links = entrySalesRepository.findByEntryId(cur.getId());
+            for (JournalEntrySales l : links) {
                 Sales s = l.getSales();
                 s.setAccountingReflected(false);
                 s.getLines().forEach(x -> x.setAccountingReflected(false));
                 salesIds.add(s.getId());
             }
             for (JournalEntry other : batchEntriesOf(salesIds)) if (!done.contains(other.getId())) todo.add(other);
+            entrySalesRepository.deleteAll(links);   // 영속 컨텍스트의 연결이 지워진 전표를 가리키지 않게 전표보다 먼저
+            entrySalesRepository.flush();
             entryRepository.delete(cur);
             entryRepository.flush();
         }
