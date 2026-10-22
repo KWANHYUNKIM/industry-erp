@@ -9568,12 +9568,16 @@ async function scenarioCostRollForward() {
   eq('수량이 0 인 거래는 없다', ledger.rows.filter((r) => Number(r.quantityChange) === 0).length, 0)
 
   // 수불부의 증가 합이 변동표의 증가 합과 같아야 한다 — 두 화면이 같은 자료를 다르게 세면 안 된다.
-  const sumIn = inc.reduce((n, r) => n + Number(r.quantityChange), 0)
-  const sumOut = dec.reduce((n, r) => n - Number(r.quantityChange), 0)
+  /*
+   * 재고조정은 변동표에서 <b>출고 칸에 부호 반대로</b> 실린다(원본 E040719, f00e8c33) — 조정으로 늘면 출고가 음수.
+   * 그래서 증가 합은 조정을 뺀 입고끼리 견주고, 감소 쪽은 증가 − 감소(순증감) 전체로 견준다.
+   */
+  const sumIn = inc.filter((r) => r.type !== 'ADJUST').reduce((n, r) => n + Number(r.quantityChange), 0)
+  const net = ledger.rows.reduce((n, r) => n + Number(r.quantityChange), 0)
   eq('증가 수량 합이 변동표와 같다',
     Math.round(sumIn * 1000) / 1000, Math.round(movement.reduce((n, r) => n + Number(r.inQty), 0) * 1000) / 1000)
   eq('감소 수량 합이 변동표와 같다',
-    Math.round(sumOut * 1000) / 1000, Math.round(movement.reduce((n, r) => n + Number(r.outQty), 0) * 1000) / 1000)
+    Math.round(net * 1000) / 1000, Math.round(movement.reduce((n, r) => n + Number(r.inQty) - Number(r.outQty), 0) * 1000) / 1000)
 
   // 화면이 기대는 필드
   const row = movement[0]
@@ -10844,7 +10848,6 @@ async function main() {
   }
   if (cmd === 'slip-history') {   // 거래이력조회(재고) 전표 이력만 빠르게
     await scenarioSlipHistory(fixtures)
-  await scenarioPasswordHistory()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
     process.exit(fail ? 1 : 0)
   }
@@ -10974,6 +10977,7 @@ async function main() {
   await scenarioSlipPriceBulk(fixtures)
   await scenarioNestedValidation(fixtures)
   await scenarioWoEfficiencyFields()
+  await scenarioPasswordHistory()
   await scenarioCostRollForward()
   await scenarioVarianceInputs(fixtures)
   await scenarioStandardCostBuild(fixtures)

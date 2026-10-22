@@ -81,13 +81,6 @@
    "일부반영"
   ]
  },
- "출하조회|진행상태변경": {
-  "claim": "보기만 하는 화면이라 상태를 바꾸지 않는다",
-  "absent": [
-   "/status`"
-  ],
-  "in": "frontend/src/pages/trade/ShipmentInquiryPage.tsx"
- },
  "매출계획|금액": {
   "claim": "계획금액과 실적금액을 나란히 낸다 — 이름 없는 [금액] 한 칸으로는 못 가린다",
   "present": [
@@ -1280,14 +1273,6 @@
    "settlementId"
   ],
   "in": "backend/src/main/java/com/erp/trade/sales/dto/SalesDtos.java"
- },
- "주문서현황|외화종류": {
-  "claim": "수주에 통화 칸이 없다",
-  "absent": [
-   "currency",
-   "exchangeRate"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/salesorder/dto/SalesOrderDtos.java"
  },
  "주문서현황|결제조건": {
   "claim": "수주에 결제조건 칸이 없다",
@@ -2532,13 +2517,6 @@
   "absent": [
    "orderTypeId",
    "stageId"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
- },
- "견적서조회|담당자": {
-  "claim": "견적에 담당 사원을 달지 않는다",
-  "absent": [
-   "employeeId"
   ],
   "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
@@ -4097,15 +4075,6 @@
   ],
   "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
  },
- "주문서조회|내.외자구분": {
-  "claim": "수주가 내자 · 외자를 가르지 않는다",
-  "absent": [
-   "foreign",
-   "Foreign",
-   "currency"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/salesorder/SalesOrder.java"
- },
  "주문서조회|발송여부": {
   "claim": "발송 이력이 없다",
   "absent": [
@@ -4508,13 +4477,15 @@
  "매출(세금)계산서현황|데이터 보기형식": {
   "claim": "전표 한 장이 한 줄인 현황이다",
   "present": [
-   "내역보기 거래명세서"
+   "내역보기",
+   "거래명세서"
   ]
  },
  "매입(세금)계산서현황|데이터 보기형식": {
   "claim": "전표 한 장이 한 줄인 현황이다",
   "present": [
-   "내역보기 거래명세서"
+   "내역보기",
+   "거래명세서"
   ]
  },
  "거래이력조회(회계)|전표일자": {
@@ -4685,14 +4656,6 @@
   ],
   "in": "backend/src/main/java/com/erp/settings/companyinfo/CompanyInfo.java"
  },
- "인원현황|프로젝트": {
-  "claim": "사원에 프로젝트가 없다",
-  "absent": [
-   "project",
-   "Project"
-  ],
-  "in": "backend/src/main/java/com/erp/hr/employee/Employee.java"
- },
  "고정자산수불부|부서": {
   "claim": "고정자산에 부서가 없다",
   "absent": [
@@ -4714,14 +4677,6 @@
   "present": [
    "books.map(bookTable)"
   ]
- },
- "공지사항|일자-No.": {
-  "claim": "원본 목록에는 없고 View 창 안에만 있다 — 우리도 View 창에 둔다",
-  "present": [
-   "title={`${title}View`}",
-   "일자-No."
-  ],
-  "file": "groupware/WorkPage.tsx"
  },
  "설문조사현황|진행중": {
   "claim": "원본 조건 판에 [진행]이 없다",

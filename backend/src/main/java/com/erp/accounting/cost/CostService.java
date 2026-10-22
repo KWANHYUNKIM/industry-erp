@@ -137,7 +137,7 @@ public class CostService {
 
             // 품목등록 [원가] 탭에 재료비표준원가를 넣은 품목은 그 값을 쓴다(원본 E040808 은 이 값을 옮긴다).
             if (item.getMaterialStdCost() != null) {
-                itemCostRepository.save(fromItemMaster(item, p));
+                created.add(CostResponse.from(itemCostRepository.save(fromItemMaster(item, p))));
                 continue;
             }
             BigDecimal mat = standardMaterialCost(item, bomOf.get(item.getId()), unitCost);

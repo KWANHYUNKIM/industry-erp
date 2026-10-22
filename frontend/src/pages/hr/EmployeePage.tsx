@@ -304,10 +304,9 @@ export default function EmployeePage() {
           </select>
         </EcCond>
         <EcCond label="프로젝트">
-          <select className="ec-input w-[160px]" value={projCond} onChange={(e) => setProjCond(e.target.value)}>
-            <option value="">전체</option>
-            {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-          </select>
+          <CodePickerField label="프로젝트" hideLabel width={160} placeholder="프로젝트" emptyLabel="전체"
+                           value={projCond} onChange={setProjCond}
+                           items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
         </EcCond>
         <EcCond label="직위/직급">
           <input className="ec-input w-[160px]" value={titleCond} onChange={(e) => setTitleCond(e.target.value)} />
