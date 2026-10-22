@@ -39,6 +39,7 @@ public class LedgerService {
      * 새 기능과 같은 판에서 갈아엎지 않는다.
      */
     private final com.erp.trade.sales.SalesService salesService;
+    private final com.erp.accounting.journal.JournalEntrySalesRepository entrySalesRepository;
     private final com.erp.trade.purchase.PurchaseService purchaseService;
     private final com.erp.trade.settlement.SettlementService settlementService;
 
@@ -63,7 +64,7 @@ public class LedgerService {
     private static final String AP_ACCOUNT = "251";   // 외상매입금
     /** 전표 자체로 세는 출처 — 이 출처의 회계전표를 또 더하면 두 번 센다. */
     private static final java.util.Set<JournalSourceType> COUNTED_BY_SLIP = java.util.EnumSet.of(
-            JournalSourceType.SALES, JournalSourceType.PURCHASE, JournalSourceType.SETTLEMENT);
+            JournalSourceType.SALES, JournalSourceType.SALES_BATCH, JournalSourceType.PURCHASE, JournalSourceType.SETTLEMENT);
 
     /** 거래처별 채권(매출−수금)·채무(매입−지급) 현황 — 현재 시점 잔액. */
     @Transactional(readOnly = true)
@@ -101,6 +102,23 @@ public class LedgerService {
         (asOf == null ? settlementRepository.sumByPartner(SettlementType.PAYMENT)
                 : settlementRepository.sumByPartnerUntil(SettlementType.PAYMENT, asOf)).forEach(pa ->
                 payables.merge(pa.getPartnerId(), pa.getTotal().negate(), BigDecimal::add));
+
+        /*
+         * 기타할인등차액 — 판매전표와 그 회계전표의 금액이 다른 몫(원본 2026-10-22: 반영한 판매를 수정, 또는 [매출전표 I] 창에서 공급가액을
+         * 고쳐 반영하면 거래처관리대장에 기타할인등차액이 생기고 잔액은 회계전표 금액을 따른다 — 판매 990 · 전표 660 → 잔액 660).
+         * 회계전표 외상매출금 − 판매 합계를 채권에 더한다. 같으면 0 이라 그대로다.
+         */
+        LocalDate untilDelta = asOf != null ? asOf : LocalDate.of(9999, 12, 31);
+        List<JournalSourceType> salesSources = List.of(JournalSourceType.SALES, JournalSourceType.SALES_BATCH);
+        for (Object[] r : journalLineRepository.sumReceivableOfSalesEntries(salesSources, untilDelta)) {
+            receivables.merge((Long) r[0], (BigDecimal) r[1], BigDecimal::add);
+        }
+        for (Object[] r : entrySalesRepository.sumBatchSalesSide(untilDelta)) {
+            receivables.merge((Long) r[0], ((BigDecimal) r[1]).negate(), BigDecimal::add);
+        }
+        for (Object[] r : entrySalesRepository.sumLegacySalesSide(untilDelta)) {
+            receivables.merge((Long) r[0], ((BigDecimal) r[1]).negate(), BigDecimal::add);
+        }
 
         // 회계전표가 통제계정을 직접 움직인 것(어음·수표·대체·외주비 회계반영 …). 채권은 차변이, 채무는 대변이 늘린다.
         LocalDate until = asOf != null ? asOf : LocalDate.of(9999, 12, 31);

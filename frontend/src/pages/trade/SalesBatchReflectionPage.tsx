@@ -34,6 +34,8 @@ interface SlipLine {
   supplyAmount: number
   vatAmount: number
   remark: string | null
+  lineId: number | null
+  reflected: boolean
 }
 
 interface Slip {
@@ -63,6 +65,8 @@ interface Row {
   partnerId: number
   partnerName: string
   ids: number[]
+  /** [일부반영] 으로 고른 판매 줄 id — 없으면 그 판매들의 남은 줄 전부. */
+  lineIds?: number[]
   slips: Slip[]
   supply: number
   vat: number
@@ -109,11 +113,18 @@ function SalesBatch() {
   const [adjust, setAdjust] = useState<Record<string, string>>({})
   // [일부반영] 창 — 그 줄 전표의 품목 줄. 고른 전표만 [매출전표 I] 로 넘긴다.
   const [detail, setDetail] = useState<Row | null>(null)
-  const [detailPick, setDetailPick] = useState<Set<number>>(new Set())
+  const [detailPick, setDetailPick] = useState<Set<number>>(new Set()) // 고른 판매 줄(lineId)
   // [매출전표 I] 창 — 고른 줄을 하나씩
   const [queue, setQueue] = useState<Row[]>([])
   const [slipVat, setSlipVat] = useState('')
   const [slipError, setSlipError] = useState('')
+  // 창에서 고치는 값 — 일자 · 부서 · 프로젝트 · 거래처 · 적요 (원본은 모두 입력 칸)
+  const [slipForm, setSlipForm] = useState({ date: '', dept: '', project: '', partner: '', note: '' })
+  const [depts, setDepts] = useState<{ value: string; code: string; name: string }[]>([])
+  useEffect(() => {
+    api.get<{ id: number; code: string; name: string }[]>('/departments')
+      .then((r) => setDepts(r.data.map((d) => ({ value: String(d.id), code: d.code, name: d.name })))).catch(() => setDepts([]))
+  }, [])
 
   async function load(): Promise<void> {
     setLoading(true); setError('')
@@ -184,7 +195,10 @@ function SalesBatch() {
 
   function openSlips(picked: Row[]) {
     if (picked.length === 0) { void ecAlert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
-    setSlipError(''); setQueue(picked); setSlipVat(vatOf(picked[0]))
+    setSlipError(''); setQueue(picked); setSlipVat(vatOf(picked[0])); initSlip(picked[0])
+  }
+  function initSlip(r: Row) {
+    setSlipForm({ date: r.date, dept: '', project: '', partner: String(r.partnerId), note: r.items })
   }
 
   /** '매출전표 I' 창 [저장(F8)] — 그 줄의 판매전표를 분개로 넘긴다. 조정이 있으면 원본 확인 글을 먼저 띄운다. 저장하면 말 없이 닫힌다. */
@@ -195,12 +209,17 @@ function SalesBatch() {
     if (a.adj && !(await ecConfirm(MISMATCH))) return
     setSlipError('')
     try {
-      const adjustments = a.adj ? { [r.ids[0]]: a.adj } : undefined
-      await api.post('/accounting-reflection/reflect', { kind: 'SALES', ids: r.ids,
-        vatTypes: Object.fromEntries(r.ids.map((id) => [id, slipVat])), adjustments })
+      // 거래처별 여러 판매 → 회계전표 한 장. 창에서 고친 값이 분개로 간다(공급가액을 고치면 부가세는 서버가 10% 로 다시 매긴다).
+      await api.post('/accounting-reflection/reflect-sales-batch', {
+        salesIds: r.ids, lineIds: r.lineIds, entryDate: slipForm.date || undefined,
+        departmentId: slipForm.dept ? Number(slipForm.dept) : undefined,
+        projectId: slipForm.project ? Number(slipForm.project) : undefined,
+        partnerId: slipForm.partner && slipForm.partner !== String(r.partnerId) ? Number(slipForm.partner) : undefined,
+        note: slipForm.note && slipForm.note !== r.items ? slipForm.note : undefined,
+        vatType: slipVat, supplyAmount: a.adj ? a.supply : undefined })
       const rest = queue.slice(1)
       setQueue(rest)
-      if (rest[0]) setSlipVat(vatOf(rest[0]))
+      if (rest[0]) { setSlipVat(vatOf(rest[0])); initSlip(rest[0]) }
       setChecked(new Set()); setDetail(null)
       setAdjust((m) => { const n = { ...m }; delete n[r.key]; return n })
       await load()
@@ -314,7 +333,7 @@ function SalesBatch() {
                           onChange={(e) => setRowVat((m) => ({ ...m, [r.key]: e.target.value }))}>{vatOptions}</select>
                 </td>
                 <td className="text-center">
-                  <button type="button" className="ec-link" onClick={() => { setDetail(r); setDetailPick(new Set(r.ids)) }}>일부반영</button>
+                  <button type="button" className="ec-link" onClick={() => { setDetail(r); setDetailPick(new Set(r.slips.flatMap((s) => s.lines.map((l) => l.lineId ?? -1)))) }}>일부반영</button>
                 </td>
               </tr>
             )
@@ -350,9 +369,10 @@ function SalesBatch() {
             <tbody>
               {detail.slips.flatMap((s) => s.lines.map((l, i) => (
                 <tr key={`${s.id}-${i}`}>
-                  <td className="text-center">{i === 0 && (
-                    <input type="checkbox" aria-label={`${s.docNo} 선택`} checked={detailPick.has(s.id)}
-                           onChange={() => setDetailPick((p) => { const n = new Set(p); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n })} />)}</td>
+                  <td className="text-center">
+                    <input type="checkbox" aria-label={`${s.docNo} ${i + 1}번째 줄 선택`} checked={detailPick.has(l.lineId ?? -1)}
+                           onChange={() => setDetailPick((p) => { const n = new Set(p); const k = l.lineId ?? -1; if (n.has(k)) n.delete(k); else n.add(k); return n })} />
+                  </td>
                   <td>{s.partnerName}</td>
                   <td className="text-center">{dateText(s.slipDate)} -{seqOf(s.docNo)}</td>
                   <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
@@ -378,9 +398,16 @@ function SalesBatch() {
           </table>
           <div className="flex gap-[4px] mt-[8px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => {
-              const ss = detail.slips.filter((s) => detailPick.has(s.id))
-              openSlips(ss.length === 0 ? [] : [{ ...detail, key: `${detail.key}:part`, ids: ss.map((s) => s.id), slips: ss,
-                supply: ss.reduce((t, s) => t + s.supplyAmount, 0), vat: ss.reduce((t, s) => t + s.vatAmount, 0) }])
+              // 품목 줄마다 고른다 — 고른 줄이 있는 판매만, 그 줄들의 금액으로 넘긴다.
+              const ss = detail.slips
+                .map((s) => ({ ...s, lines: s.lines.filter((l) => detailPick.has(l.lineId ?? -1)) }))
+                .filter((s) => s.lines.length > 0)
+              const ls = ss.flatMap((s) => s.lines)
+              const sup = ls.reduce((t, l) => t + Number(l.supplyAmount), 0)
+              const vat = ls.reduce((t, l) => t + Number(l.vatAmount), 0)
+              openSlips(ss.length === 0 ? [] : [{ ...detail, key: `${detail.key}:part`, ids: ss.map((s) => s.id),
+                lineIds: ls.map((l) => l.lineId as number), slips: ss, supply: sup, vat,
+                items: ls.length > 1 ? `${ls[0].itemName} 외 ${ls.length - 1}건` : ls[0].itemName }])
             }}>매출전표 I</button>
             <button type="button" className="ec-btn" onClick={() => setDetail(null)}>닫기</button>
           </div>
@@ -390,20 +417,36 @@ function SalesBatch() {
       <Modal open={cur != null} title="매출전표 I" width={760} error={slipError} onClose={() => setQueue([])}>
         {cur && curAmt && <>
           <ul className="ec-form mb-[8px]">
-            <EcCond label="일자-No." span={2}><span>{dateText(cur.date)}</span></EcCond>
+            <EcCond label="일자-No." span={2}>
+              <input type="date" className="ec-input w-[150px]" aria-label="매출전표 일자" value={slipForm.date}
+                     onChange={(e) => setSlipForm((f) => ({ ...f, date: e.target.value }))} />
+            </EcCond>
             <EcCond label="연결거래" span={2}><span className="ec-link">없음</span></EcCond>
             <EcCond label="부가세유형" span={2}>
               <select className="ec-input w-full" aria-label="매출전표 부가세유형" value={slipVat} onChange={(e) => setSlipVat(e.target.value)}>{vatOptions}</select>
             </EcCond>
-            {/* 원본은 거래처도 코드도움으로 바꿀 수 있다 — 우리 분개는 판매전표의 거래처를 그대로 써서 잠가 둔다(plans/재고1.md 남은 것). */}
-            <EcCond label="거래처" span={2}><input className="ec-input w-full" disabled aria-label="매출전표 거래처" value={cur.partnerName} /></EcCond>
+            <EcCond label="부서" span={2} pick>
+              <CodePickerField label="부서" hideLabel width={200} emptyLabel="" value={slipForm.dept}
+                               onChange={(v) => setSlipForm((f) => ({ ...f, dept: v }))} items={depts} />
+            </EcCond>
+            <EcCond label="프로젝트" span={2} pick>
+              <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="" value={slipForm.project}
+                               onChange={(v) => setSlipForm((f) => ({ ...f, project: v }))} items={pickers.projects} />
+            </EcCond>
+            <EcCond label="거래처" span={2} pick>
+              <CodePickerField label="거래처" hideLabel width={200} emptyLabel="" value={slipForm.partner}
+                               onChange={(v) => setSlipForm((f) => ({ ...f, partner: v }))} items={pickers.partners} />
+            </EcCond>
             {/* 원본 공급가액은 입력 칸 — 바꾸면 부가세가 10% 로 다시 매겨진다(5,000 → 4,000 · 부가세 400). 우리는 그 차이를 [조정]으로 넘긴다. */}
             <EcCond label="공급가액">
               <input className="ec-input w-full text-right" aria-label="매출전표 공급가액" inputMode="numeric" value={won(curAmt.supply)}
                      onChange={(e) => setAdjust((m) => ({ ...m, [cur.key]: String(cur.supply - num(e.target.value)) }))} />
             </EcCond>
             <EcCond label="부가세"><span aria-label="매출전표 부가세">{won(curAmt.vat)}</span></EcCond>
-            <EcCond label="적요" span={2}><span>{cur.items}</span></EcCond>
+            <EcCond label="적요" span={2}>
+              <input className="ec-input w-full" aria-label="매출전표 적요" maxLength={200} value={slipForm.note}
+                     onChange={(e) => setSlipForm((f) => ({ ...f, note: e.target.value }))} />
+            </EcCond>
             <EcCond label="매출계정"><span>4049 제품매출</span></EcCond>
             <EcCond label="입금계좌"><span>1089 외상매출금</span></EcCond>
             <EcCond label="수수료"><span>0</span></EcCond>

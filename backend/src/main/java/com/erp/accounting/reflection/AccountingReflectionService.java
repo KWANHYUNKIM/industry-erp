@@ -36,6 +36,7 @@ public class AccountingReflectionService {
     private final SettlementRepository settlementRepository;
     private final JournalEntryRepository entryRepository;
     private final JournalService journalService;
+    private final com.erp.accounting.journal.JournalEntrySalesRepository entrySalesRepository;
     private final SalesService salesService;
     private final com.erp.accounting.bankcard.BankCardService bankCardService;
 
@@ -52,16 +53,44 @@ public class AccountingReflectionService {
     public ReflectResult deleteSalesWithJournal(List<Long> ids, String username) {
         if (ids.isEmpty()) throw ApiException.badRequest("지울 전표를 선택하세요.");
         int count = 0;
+        /* 판매일괄회계반영으로 여럿이 한 장에 묶인 전표 — 묶인 판매가 모두 미반영으로 돌아온다(삭제할 판매는 이어서 지운다). */
+        releaseBatch(ids);
         for (Sales s : salesRepository.findAllById(ids)) {
             if (s.isAccountingReflected()) {
                 journalService.deleteBySource(JournalSourceType.SALES, s.getId());
                 s.setAccountingReflected(false);
+                s.getLines().forEach(l -> l.setAccountingReflected(false));
                 salesRepository.flush();
             }
             salesService.delete(s.getId(), username);
             count++;
         }
         return new ReflectResult(count);
+    }
+
+    /** 이 판매들이 묶인 묶음 전표를 모두 되돌린다. 되돌린 판매 수가 아니라 전표를 되돌렸는지만 알린다. */
+    private boolean releaseBatch(List<Long> salesIds) {
+        List<JournalEntry> entries = journalService.batchEntriesOf(salesIds);
+        for (JournalEntry e : entries) {
+            if (entryRepository.existsById(e.getId())) journalService.releaseBatchEntry(e);   // 앞 전표를 되돌리며 함께 지워졌을 수 있다
+        }
+        return !entries.isEmpty();
+    }
+
+    /**
+     * 판매일괄회계반영 [매출전표 I] 창 [저장(F8)] — 고른 판매(또는 판매 줄)를 회계전표 한 장으로.
+     * 거래처가 다른 판매는 한 장으로 묶지 않는다(화면이 거래처별로 따로 부른다).
+     */
+    @Transactional
+    public AccountingReflectionDtos.SalesBatchResult reflectSalesBatch(AccountingReflectionDtos.SalesBatchRequest req) {
+        List<Long> ids = req.salesIds().stream().distinct().toList();
+        List<Sales> sales = salesRepository.findAllById(ids);
+        if (sales.size() != ids.size()) throw ApiException.notFound("판매전표를 찾을 수 없습니다.");
+        JournalEntry e = journalService.createFromSalesBatch(new JournalService.SalesBatchSpec(
+                sales, req.lineIds() == null || req.lineIds().isEmpty() ? null : new java.util.HashSet<>(req.lineIds()),
+                req.entryDate(), req.departmentId(), req.projectId(), req.partnerId(), req.note(), req.vatType(), req.supplyAmount()));
+        int lines = (int) sales.stream().flatMap(s -> s.getLines().stream()).filter(com.erp.trade.sales.SalesLine::isAccountingReflected).count();
+        return new AccountingReflectionDtos.SalesBatchResult(e.getId(), e.getDocNo(), sales.size(), lines);
     }
 
     /** 화면에서 고른 [부가세유형]. 비었으면 null — 분개가 과세 여부로 정한다. */
@@ -97,7 +126,8 @@ public class AccountingReflectionService {
                     .map(SlipResponse::fromSettlement).toList();
         };
         if (onlyUnreflected) {
-            return slips.stream().filter(s -> !s.reflected()).toList();
+            return slips.stream().filter(s -> !s.reflected())
+                    .map(s -> kind == SlipKind.SALES ? s.onlyUnreflectedLines() : s).toList();   // 일부 줄만 반영된 판매는 남은 줄로
         }
         return withJournalNos(kind, slips);
     }
@@ -124,8 +154,16 @@ public class AccountingReflectionService {
                 .findBySourceTypeAndSourceIdIn(source, reflected).stream()
                 .collect(Collectors.toMap(JournalEntry::getSourceId, e -> e, (a, b) -> a));
 
+        /* 여러 판매를 한 장으로 묶은 전표(판매일괄회계반영)는 출처 id 가 없어 연결 표로 찾는다. */
+        Map<Long, JournalEntry> byBatch = new java.util.HashMap<>();
+        if (kind == SlipKind.SALES) {
+            List<Long> missing = reflected.stream().filter(id -> !bySource.containsKey(id)).toList();
+            if (!missing.isEmpty()) {
+                for (var l : entrySalesRepository.findBySalesIds(missing)) byBatch.putIfAbsent(l.getSales().getId(), l.getJournalEntry());
+            }
+        }
         return slips.stream().map(s -> {
-            JournalEntry e = bySource.get(s.id());
+            JournalEntry e = bySource.getOrDefault(s.id(), byBatch.get(s.id()));
             return e == null ? s : s.withJournal(e.getId(), e.getDocNo());
         }).toList();
     }
@@ -149,9 +187,13 @@ public class AccountingReflectionService {
             List<Sales> targets = salesRepository.findAllById(req.ids());
             for (Sales s : targets) {
                 if (!s.isAccountingReflected()) {
+                    if (s.getLines().stream().anyMatch(com.erp.trade.sales.SalesLine::isAccountingReflected)) {
+                        throw ApiException.conflict("일부 품목이 이미 회계반영된 판매전표입니다: " + s.getDocNo());
+                    }
                     journalService.createFromSales(s, vatTypeOf(req, s.getId()),
                             req.adjustments() == null ? null : req.adjustments().get(s.getId()));   // 실제 분개 생성
                     s.setAccountingReflected(true);
+                    s.getLines().forEach(l -> l.setAccountingReflected(true));
                     count++;
                 }
             }
@@ -202,10 +244,16 @@ public class AccountingReflectionService {
                 }
             }
         } else if (req.kind() == SlipKind.SALES) {
+            /* 묶음 전표(여러 판매 · 일부 줄) — 묶인 판매가 모두 미반영으로 돌아온다. 센 수는 고른 판매 가운데 되돌아간 것. */
+            java.util.Set<Long> batched = journalService.batchEntriesOf(req.ids()).isEmpty() ? java.util.Set.of()
+                    : new java.util.HashSet<>(entrySalesRepository.findBySalesIds(req.ids()).stream().map(l -> l.getSales().getId()).toList());
+            releaseBatch(req.ids());
+            count += batched.size();
             for (Sales s : salesRepository.findAllById(req.ids())) {
                 if (s.isAccountingReflected()) {
                     journalService.deleteBySource(JournalSourceType.SALES, s.getId());
                     s.setAccountingReflected(false);
+                    s.getLines().forEach(l -> l.setAccountingReflected(false));
                     count++;
                 }
             }

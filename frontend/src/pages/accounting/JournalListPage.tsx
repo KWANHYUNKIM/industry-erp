@@ -130,7 +130,7 @@ export default function JournalListPage() {
     : r.sourceType === 'MANUAL' && cashQuickTotal[r.id] == null && payeeOf[r.id] == null ? `/accounting/journal-entry?journal=${r.id}` : null
   const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? noteLabel(r) ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
-  const rowBg = (r: JournalEntry) => (r.sourceType as string) === 'SALES' || (r.sourceType as string) === 'VAT_SALES' ? 'bg-[var(--ec-bg-sales-row)]'
+  const rowBg = (r: JournalEntry) => (r.sourceType as string) === 'SALES' || (r.sourceType as string) === 'SALES_BATCH' || (r.sourceType as string) === 'VAT_SALES' ? 'bg-[var(--ec-bg-sales-row)]'
     : (r.sourceType as string) === 'PURCHASE' || (r.sourceType as string) === 'VAT_PURCHASE' ? 'bg-[var(--ec-bg-basic)]' : ''
   const [from, setFrom] = useState(defaultPeriod().from)
   const [to, setTo] = useState(defaultPeriod().to)

@@ -233,6 +233,8 @@ public class SalesService {
         if (req.saleDate() != null) sales.setSaleDate(req.saleDate());
 
         applyContent(sales, req, username);
+        /* 회계반영된 판매를 고쳐도 줄은 반영된 채로 둔다(새로 쓴 줄에도 표시를 잇는다). */
+        if (sales.isAccountingReflected()) sales.getLines().forEach(l -> l.setAccountingReflected(true));
         salesRepository.flush();
         syncLots(sales);
         touchedOrders.addAll(sourceOrders(sales));
@@ -433,8 +435,17 @@ public class SalesService {
      * 여럿을 볼 때는 {@link #editLockReasons} 가 한 번에 받아 넘긴다. 규칙은 여기 하나뿐이다.
      */
     private void ensureEditable(Sales s, String action, boolean hasTaxInvoice, boolean fromMall) {
-        if (s.isAccountingReflected()) {
+        /*
+         * 회계반영된 판매의 수정은 막지 않는다 — 원본(2026-10-22 판매입력 II 실측)은 경고 '판매전표와 회계전표의 정보가 서로 다릅니다'
+         * 뒤 저장하고, 회계전표는 그대로 둔다(그 차이가 채권의 기타할인등차액). 삭제 · 단가변경은 그대로 막는다(삭제는 회계 쪽
+         * deleteSalesWithJournal 이 전표까지 함께 지운다).
+         */
+        if (s.isAccountingReflected() && !"수정".equals(action)) {
             throw ApiException.badRequest("회계반영된 전표는 " + action + "할 수 없습니다. 회계반영을 먼저 취소하세요: " + s.getDocNo());
+        }
+        /* 일부 줄만 회계반영된 판매(판매일괄회계반영 [일부반영])는 줄을 다시 쓰는 수정 · 삭제가 전표와 어긋나게 하므로 막는다. */
+        if (!s.isAccountingReflected() && s.getLines().stream().anyMatch(SalesLine::isAccountingReflected)) {
+            throw ApiException.badRequest("일부 품목이 회계반영된 전표는 " + action + "할 수 없습니다. 회계반영을 먼저 취소하세요: " + s.getDocNo());
         }
         if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
             throw ApiException.badRequest("전자결재 진행중인 전표는 " + action + "할 수 없습니다: " + s.getDocNo());

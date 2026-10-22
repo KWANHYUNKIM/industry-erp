@@ -74,4 +74,12 @@ public class SalesLine {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_order_id")
     private SalesOrder sourceOrder;
+
+    /**
+     * 이 줄이 회계전표로 반영됐는지. 원본 판매일괄회계반영 [일부반영] 창은 품목 줄마다 골라 반영한다
+     * (2026-10-22 재기: 3줄 중 2번째 줄만 반영하면 그 줄만 목록에서 빠진다). 판매의 모든 줄이 반영되면 판매의 accountingReflected 도 켜진다.
+     */
+    @Builder.Default
+    @Column(name = "accounting_reflected", nullable = false)
+    private boolean accountingReflected = false;
 }

@@ -36,6 +36,13 @@ public class AccountingReflectionController {
         return ResponseEntity.ok(service.reflect(req));
     }
 
+    /** 판매일괄회계반영 [매출전표 I] 저장 — 고른 판매(줄)를 회계전표 한 장으로. */
+    @PostMapping("/reflect-sales-batch")
+    public ResponseEntity<com.erp.accounting.reflection.dto.AccountingReflectionDtos.SalesBatchResult> reflectSalesBatch(
+            @Valid @RequestBody com.erp.accounting.reflection.dto.AccountingReflectionDtos.SalesBatchRequest req) {
+        return ResponseEntity.ok(service.reflectSalesBatch(req));
+    }
+
     /** 회계반영된 판매를 매출전표(분개)까지 함께 삭제 — 원본 [선택삭제]의 [매출전표포함]. */
     @PostMapping("/delete-sales-with-journal")
     public ResponseEntity<ReflectResult> deleteSalesWithJournal(@Valid @RequestBody ReflectRequest req,

@@ -48,8 +48,15 @@ public final class AccountingReflectionDtos {
             String spec, String itemCategoryName, String sourceDocNo,
             BigDecimal quantity, BigDecimal unitPrice,
             BigDecimal supplyAmount, BigDecimal vatAmount,
-            String remark
-    ) {}
+            String remark,
+            /** 판매 줄 id · 이 줄이 이미 회계반영됐는지(판매일괄회계반영 [일부반영] 이 줄마다 고른다). 구매 · 결제 줄은 null · false. */
+            Long lineId, boolean reflected
+    ) {
+        public SlipLine(Long itemId, String itemCode, String itemName, String spec, String itemCategoryName, String sourceDocNo,
+                        BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount, String remark) {
+            this(itemId, itemCode, itemName, spec, itemCategoryName, sourceDocNo, quantity, unitPrice, supplyAmount, vatAmount, remark, null, false);
+        }
+    }
 
     public record SlipResponse(
             Long id,
@@ -130,7 +137,24 @@ public final class AccountingReflectionDtos {
                             l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                             l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
                             l.getQuantity(), l.getUnitPrice(),
-                            l.getSupplyAmount(), l.getVatAmount(), l.getRemark())).toList());
+                            l.getSupplyAmount(), l.getVatAmount(), l.getRemark(), l.getId(), l.isAccountingReflected())).toList());
+        }
+
+        /**
+         * 일부 줄만 반영된 판매의 <b>아직 안 된 줄</b>만 남긴 모습 — 판매일괄회계반영은 그 줄들의 금액으로 보여 준다
+         * (원본 2026-10-22 재기: 3줄 중 한 줄을 반영하면 거래처 줄이 남은 금액 · 남은 품목요약으로 바뀐다).
+         * 반영된 줄이 없으면 그대로.
+         */
+        public SlipResponse onlyUnreflectedLines() {
+            if (lines == null || lines.stream().noneMatch(SlipLine::reflected)) return this;
+            List<SlipLine> rest = lines.stream().filter(l -> !l.reflected()).toList();
+            BigDecimal sup = rest.stream().map(SlipLine::supplyAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal vat = rest.stream().map(SlipLine::vatAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            return new SlipResponse(id, kind, docNo, slipDate, partnerId, partnerName,
+                    warehouseId, warehouseName, projectId, projectName, employeeName, partnerManager,
+                    summarize(rest.stream().map(SlipLine::itemName).toList()),
+                    sup, vat, sup.add(vat), vatType, tradeKind, reflected,
+                    journalEntryId, journalDocNo, createdBy, createdAt, note, rest);
         }
 
         public static SlipResponse fromPurchase(Purchase p) {
@@ -157,6 +181,7 @@ public final class AccountingReflectionDtos {
                             l.getQuantity(), l.getUnitPrice(),
                             l.getSupplyAmount(), l.getVatAmount(), l.getRemark())).toList());
         }
+
 
         /**
          * 결제(수금·지급) 한 줄. 원본 결제내역조회의 격자다.
@@ -212,6 +237,28 @@ public final class AccountingReflectionDtos {
             this(kind, ids, vatTypes, null);
         }
     }
+
+    /**
+     * 판매일괄회계반영 [매출전표 I] 창 [저장(F8)] — 고른 판매(또는 판매 줄)를 <b>회계전표 한 장</b>으로 묶는다
+     * (원본 2026-10-22 2차 재기: 같은 거래처 두 판매 18,000 · 1,800 · 19,800 → 전표 1장).
+     * 창에서 고친 값(일자 · 부서 · 프로젝트 · 거래처 · 적요 · 부가세유형 · 공급가액)이 분개로 간다.
+     * 공급가액을 고치면 부가세는 10% 로 다시 매기고, 판매 쪽과의 차이가 채권의 기타할인등차액이 된다.
+     */
+    public record SalesBatchRequest(
+            @NotEmpty(message = "반영할 전표를 선택하세요.") List<Long> salesIds,
+            /** 비우면 그 판매의 아직 안 된 줄 전부. 주면 이 줄들만(일부반영). */
+            List<Long> lineIds,
+            LocalDate entryDate,
+            Long departmentId,
+            Long projectId,
+            Long partnerId,
+            @jakarta.validation.constraints.Size(max = 200, message = "적요는 200자까지입니다.") String note,
+            @jakarta.validation.constraints.Size(max = 30, message = "부가세유형은 30자까지입니다.") String vatType,
+            /** 창에서 고친 공급가액. 비우면 판매 금액 그대로. */
+            BigDecimal supplyAmount
+    ) {}
+
+    public record SalesBatchResult(Long journalEntryId, String journalDocNo, int salesCount, int lineCount) {}
 
     public record ReflectResult(int reflectedCount) {}
 }

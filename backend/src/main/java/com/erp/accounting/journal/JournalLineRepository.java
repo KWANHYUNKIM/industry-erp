@@ -166,4 +166,12 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
     List<JournalLine> findForCodeChange(@Param("from") LocalDate from, @Param("to") LocalDate to,
                                         @Param("acct") long acct, @Param("partner") long partner,
                                         @Param("dept") long dept, @Param("proj") long proj);
+
+    /** 판매에서 만든 회계전표(판매 · 판매일괄회계반영)가 외상매출금(108)을 움직인 몫 — 거래처별 차변 − 대변. 판매 쪽 금액과의 차이가 기타할인등차액이다. */
+    @Query("select e.partner.id, coalesce(sum(l.debit - l.credit), 0) " +
+            "from JournalLine l join l.entry e " +
+            "where l.account.code = '108' and e.sourceType in :sources and e.partner is not null and e.entryDate <= :until " +
+            "group by e.partner.id")
+    List<Object[]> sumReceivableOfSalesEntries(@Param("sources") java.util.Collection<com.erp.accounting.journal.JournalSourceType> sources,
+                                               @Param("until") LocalDate until);
 }

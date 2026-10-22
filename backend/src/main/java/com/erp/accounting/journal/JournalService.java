@@ -8,6 +8,7 @@ import com.erp.trade.partner.BusinessPartner;
 import com.erp.accounting.expense.Expense;
 import com.erp.trade.purchase.Purchase;
 import com.erp.trade.sales.Sales;
+import com.erp.trade.sales.SalesLine;
 import com.erp.trade.settlement.Settlement;
 import com.erp.trade.settlement.SettlementType;
 import com.erp.accounting.journal.dto.JournalDtos.CashTxnRequest;
@@ -62,6 +63,7 @@ public class JournalService {
     private final AccountRepository accountRepository;
     private final AccountService accountService;
     private final PartnerService partnerService;
+    private final JournalEntrySalesRepository entrySalesRepository;
     private final BankAccountRepository bankAccountRepository;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
@@ -290,6 +292,10 @@ public class JournalService {
          * 고정자산증가 · 감소 전표는 회계거래조회에서 지우면 고정자산 전표도 같이 지워진다(원본 2026-10-21 실측:
          * 전표번호를 누르면 고정자산증가/감소 창이 열리고 [삭제] 가 두 곳에서 다 지운다). 자산 쪽이 이벤트를 듣고 먼저 지운다.
          */
+        if (e.getSourceType() == JournalSourceType.SALES_BATCH) {   // 판매일괄회계반영 묶음 전표 — 묶인 판매가 모두 미반영으로 돌아온다
+            releaseBatchEntry(e);
+            return;
+        }
         boolean assetSlip = e.getSourceType() == JournalSourceType.ASSET_ACQUISITION || e.getSourceType() == JournalSourceType.DISPOSAL;
         if (e.getSourceType() != JournalSourceType.MANUAL && e.getSourceType() != JournalSourceType.VAT_SALES
                 && e.getSourceType() != JournalSourceType.VAT_PURCHASE && !assetSlip) {
@@ -421,6 +427,115 @@ public class JournalService {
             addCredit(e, "255", vat, seen ? lineDesc : "부가세예수금");
         }
         return save(e);
+    }
+
+    /** 판매일괄회계반영 [매출전표 I] 한 장의 입력. 판매 여럿 · (선택) 줄 일부 + 창에서 고친 값. */
+    public record SalesBatchSpec(List<Sales> sales, java.util.Set<Long> lineIds, LocalDate entryDate,
+                                 Long departmentId, Long projectId, Long partnerId, String note, String vatType,
+                                 BigDecimal supplyAmount) {}
+
+    /**
+     * 판매 여러 건(또는 그 줄 일부)을 <b>회계전표 한 장</b>으로 — 원본 판매일괄회계반영 [매출전표 I] (2026-10-22 2차 재기:
+     * 같은 거래처 두 판매 18,000 · 1,800 · 19,800 → 전표 1장 / 5 × 1,000 줄만 골라 공급가 4,000 으로 고쳐 반영 → 4,400).
+     *
+     * <p>출처는 {@link JournalSourceType#SALES_BATCH}(출처 id 없음), 판매와의 연결은 journal_entry_sales.
+     * 반영한 줄에 표시를 하고 판매의 모든 줄이 반영되면 판매도 반영됨으로 바꾼다. 공급가액을 고쳤으면 부가세는 그 10% 로
+     * 다시 매긴다(부가세가 없던 묶음은 0) — 판매 쪽과 달라진 몫이 채권의 기타할인등차액이다.
+     */
+    @Transactional
+    public JournalEntry createFromSalesBatch(SalesBatchSpec spec) {
+        List<SalesLine> picked = new java.util.ArrayList<>();
+        Map<Sales, BigDecimal> salesAmount = new LinkedHashMap<>();   // 판매 → 이 전표가 덮는 판매 쪽 금액
+        BigDecimal supply = BigDecimal.ZERO, vat = BigDecimal.ZERO;
+        boolean allTaxable = true, anyReturn = false;
+        for (Sales s : spec.sales()) {
+            if (s.isAccountingReflected()) throw ApiException.conflict("이미 회계반영된 판매전표입니다: " + s.getDocNo());
+            if (spec.partnerId() == null && !java.util.Objects.equals(spec.sales().get(0).getPartner().getId(), s.getPartner().getId())) {
+                throw ApiException.badRequest("거래처가 다른 판매는 전표 한 장으로 묶을 수 없습니다: " + s.getDocNo());
+            }
+            List<SalesLine> sel = s.getLines().stream().filter(l -> !l.isAccountingReflected()
+                    && (spec.lineIds() == null || spec.lineIds().contains(l.getId()))).toList();
+            if (sel.isEmpty()) continue;
+            boolean whole = sel.size() == s.getLines().size();
+            BigDecimal sup = whole ? s.getSupplyAmount() : sel.stream().map(SalesLine::getSupplyAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal v = whole ? s.getVatAmount() : sel.stream().map(SalesLine::getVatAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            supply = supply.add(sup); vat = vat.add(nz(v));
+            salesAmount.put(s, sup.add(nz(v)));
+            picked.addAll(sel);
+            allTaxable &= s.isTaxable(); anyReturn |= s.isReturnSlip();
+        }
+        if (picked.isEmpty()) throw ApiException.badRequest("반영할 전표를 선택하세요.");
+        BigDecimal entrySupply = supply, entryVat = vat;
+        if (spec.supplyAmount() != null && spec.supplyAmount().compareTo(supply) != 0) {
+            entrySupply = spec.supplyAmount();
+            entryVat = isNonZero(vat) ? entrySupply.multiply(new BigDecimal("0.1")).setScale(0, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        }
+        BigDecimal total = entrySupply.add(entryVat);
+        Sales first = spec.sales().get(0);
+        com.erp.trade.partner.BusinessPartner partner = spec.partnerId() != null ? partnerService.get(spec.partnerId()) : first.getPartner();
+        LocalDate date = spec.entryDate() != null ? spec.entryDate()
+                : spec.sales().stream().map(Sales::getSaleDate).max(LocalDate::compareTo).orElse(first.getSaleDate());
+        String vatType = spec.vatType() != null && !spec.vatType().isBlank() ? spec.vatType().trim() : allTaxable ? "세금계산서" : "계산서";
+        /* 적요 — 창의 기본값은 품목요약('코카콜라 외 1건'). 고쳤으면 그 글. */
+        String firstName = picked.get(0).getItem().getName();
+        String summary = picked.size() == 1 ? firstName : firstName + " 외 " + (picked.size() - 1) + "건";
+        String lineDesc = spec.note() != null && !spec.note().isBlank() ? spec.note().trim() : summary;
+
+        JournalEntry e = newEntry(JournalSourceType.SALES_BATCH, null, date,
+                "매출 : " + vatType + " / " + partner.getName() + " / " + String.format("%,d", entrySupply.longValue()) + " / "
+                        + String.format("%,d", entryVat.longValue()), partner, first.getCreatedBy());
+        e.setVatType(vatType);
+        addDebit(e, "108", total, lineDesc);
+        byAccount(picked, l -> salesAccountOf(l.getItem().getCategory()), SalesLine::getSupplyAmount, entrySupply, "401")
+                .forEach((code, amt) -> addCredit(e, code, amt, lineDesc));
+        if (isNonZero(entryVat)) addCredit(e, "255", entryVat, lineDesc);
+        e.stampDeptProject(spec.departmentId(), spec.projectId());
+        JournalEntry saved = save(e);
+
+        for (Map.Entry<Sales, BigDecimal> en : salesAmount.entrySet()) {
+            entrySalesRepository.save(new JournalEntrySales(saved, en.getKey(), en.getValue()));
+        }
+        for (SalesLine l : picked) l.setAccountingReflected(true);
+        for (Sales s : salesAmount.keySet()) {
+            if (s.getLines().stream().allMatch(SalesLine::isAccountingReflected)) s.setAccountingReflected(true);
+        }
+        return saved;
+    }
+
+    /**
+     * 묶음 전표를 되돌린다 — 전표를 지우고, 묶였던 판매의 줄 · 판매 반영 표시를 모두 내린다.
+     * (반영취소 · 판매 삭제 · 전표 삭제가 같이 쓴다.) 한 판매가 전표 여러 장에 나눠 반영돼 있으면(일부반영) 그 판매가 묶인 다른 전표도
+     * 함께 지운다 — 줄 표시를 판매 단위로 내리므로 남겨 두면 같은 줄이 두 번 반영될 수 있다. 그렇게 이어진 판매는 모두 미반영으로 돌아온다.
+     */
+    @Transactional
+    public void releaseBatchEntry(JournalEntry entry) {
+        java.util.Set<Long> done = new java.util.HashSet<>();
+        java.util.ArrayDeque<JournalEntry> todo = new java.util.ArrayDeque<>();
+        todo.add(entry);
+        while (!todo.isEmpty()) {
+            JournalEntry cur = todo.poll();
+            if (!done.add(cur.getId())) continue;
+            List<Long> salesIds = new java.util.ArrayList<>();
+            for (JournalEntrySales l : entrySalesRepository.findByEntryId(cur.getId())) {
+                Sales s = l.getSales();
+                s.setAccountingReflected(false);
+                s.getLines().forEach(x -> x.setAccountingReflected(false));
+                salesIds.add(s.getId());
+            }
+            for (JournalEntry other : batchEntriesOf(salesIds)) if (!done.contains(other.getId())) todo.add(other);
+            entryRepository.delete(cur);
+            entryRepository.flush();
+        }
+    }
+
+    /** 이 판매들이 묶여 있는 묶음 전표(중복 없이). */
+    @Transactional(readOnly = true)
+    public List<JournalEntry> batchEntriesOf(java.util.Collection<Long> salesIds) {
+        if (salesIds.isEmpty()) return List.of();
+        return entrySalesRepository.findBySalesIds(salesIds).stream().map(JournalEntrySales::getJournalEntry)
+                .collect(java.util.stream.Collectors.collectingAndThen(
+                        java.util.stream.Collectors.toMap(JournalEntry::getId, x -> x, (a, b) -> a, LinkedHashMap::new),
+                        m -> List.copyOf(m.values())));
     }
 
     /** 매입 → 분개. 차)상품·제품·원재료·부재료(품목구분별)·부가세대급금 / 대)외상매입금 */
