@@ -21,6 +21,8 @@ const ExecutiveReportPage = lazy(() => import('../pages/inventory/ExecutiveRepor
 const CurrentStockPage = lazy(() => import('../pages/inventory/CurrentStockPage'))
 const WarehouseStockPage = lazy(() => import('../pages/inventory/WarehouseStockPage'))
 const BomStockPage = lazy(() => import('../pages/inventory/BomStockPage'))
+const RelationStockPage = lazy(() => import('../pages/inventory/RelationStockPage'))
+const MultiSpecStockPage = lazy(() => import('../pages/inventory/MultiSpecStockPage'))
 const TransferStatusPage = lazy(() => import('../pages/inventory/TransferStatusPage'))
 const DailyStockPage = lazy(() => import('../pages/inventory/DailyStockPage'))
 const StocktakeStatusPage = lazy(() => import('../pages/inventory/StocktakeStatusPage'))
@@ -482,6 +484,8 @@ export default function AppRouter() {
         <Route path="/inventory/executive-report" element={<ExecutiveReportPage />} />
         <Route path="/inventory/current" element={<CurrentStockPage />} />
         <Route path="/inventory/warehouse-stock" element={<WarehouseStockPage />} />
+        <Route path="/inventory/relation-stock" element={<RelationStockPage />} />
+        <Route path="/inventory/multi-spec-stock" element={<MultiSpecStockPage />} />
         <Route path="/inventory/bom-stock" element={<BomStockPage />} />
         <Route path="/inventory/transfer-status" element={<TransferStatusPage />} />
         <Route path="/inventory/daily-stock" element={<DailyStockPage />} />

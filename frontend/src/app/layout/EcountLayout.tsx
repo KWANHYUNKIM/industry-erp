@@ -298,8 +298,10 @@ const MENU: TopMenu[] = [
             children: [
               { label: '재고현황', to: '/inventory/current' },
               { label: '창고별재고현황', to: '/inventory/warehouse-stock' },
+              /* 원본 차례(2026-10-22 실측): 창고별 다음 관계별(E040728) · 다규격별(E040720). [입출고] 는 원본 재고현황 묶음에 없다. */
+              { label: '관계별재고현황', to: '/inventory/relation-stock' },
+              { label: '다규격별재고현황', to: '/inventory/multi-spec-stock' },
               { label: 'BOM환산재고현황', to: '/inventory/bom-stock' },
-              { label: '입출고', to: '/inventory/stock-io' },
               { label: '재고잔량분석표', to: '/inventory/stock-analysis' },
               { label: '재고수불부', to: '/inventory/ledger' },
               { label: '재고변동표', to: '/inventory/movement' },

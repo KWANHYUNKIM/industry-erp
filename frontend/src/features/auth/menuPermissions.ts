@@ -27,6 +27,8 @@ const RULES: Rule[] = [
   // 걸려 형제 화면(재고현황·재고수불부)과 다른 권한 바구니에 들어간다 —
   // STOCK_MOVE 만 가진 사람에게 재고현황은 보이는데 창고별재고현황은 안 보이게 된다.
   ['/inventory/warehouse-stock', 'STOCK_MOVE'],
+  ['/inventory/relation-stock', 'STOCK_MOVE'],
+  ['/inventory/multi-spec-stock', 'STOCK_MOVE'],
   ['/inventory/bom-stock', 'STOCK_MOVE'],
   ['/inventory/daily-stock', 'STOCK_MOVE'],
   ['/inventory/stocktake-status', 'STOCK_MOVE'],
