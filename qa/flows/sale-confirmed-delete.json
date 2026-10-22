@@ -34,12 +34,12 @@
       ]
     },
     {
-      "name": "판매조회 — 미반영 · 저장하자마자 확인(미확인 탭에 없다, 원본 2026-10-22 실측) → 확인 탭 → 확인된 판매 [선택삭제] '선택한 전표를 삭제 하겠습니까?' 로 지워진다",
+      "name": "판매조회 — 미반영(빈칸 — 반영은 ✓) · 저장하자마자 확인(미확인 탭에 없다, 원본 2026-10-22 실측) → 확인 탭 → 확인된 판매 [선택삭제] '선택한 전표를 삭제 하겠습니까?' 로 지워진다",
       "path": "/sales/sales-list",
       "steps": [
         "wait:2000",
         "js:(() => { const S = JSON.parse(sessionStorage.getItem('scd')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-특가')); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; return !!window.__row() })()",
-        "expect:window.__row().innerText.includes('660') && window.__row().innerText.includes('미반영')",
+        "expect:window.__row().innerText.includes('660') && !window.__row().innerText.includes('✓')",
         "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim().startsWith('미확인')).click(); return true })()",
         "wait:500",
         "expect:!window.__row()",

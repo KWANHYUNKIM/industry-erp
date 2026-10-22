@@ -135,6 +135,14 @@ public class Sales extends BaseTimeEntity {
     @Builder.Default
     private boolean returnSlip = false;
 
+    /**
+     * 판매입력 II 로 만든 전표인가. 원본은 이 전표를 판매조회에서 열면 창 제목이 '판매입력 II(수정)' 이고
+     * (2026-10-22 loginaa 실측), 판매현황 숨은 조건 [판매구분] 이 판매 · 판매 II 로 가른다. 만들 때 정해지고 바뀌지 않는다.
+     */
+    @Column(name = "input_ii", nullable = false)
+    @Builder.Default
+    private boolean inputII = false;
+
 
     /** 확인상태. 전자결재 상신/완료/반려에 따라 움직인다. */
     @Enumerated(EnumType.STRING)

@@ -78,14 +78,16 @@ public final class SalesDtos {
             @PositiveOrZero(message = "할인 공급가액은 0 이상이어야 합니다.")
             BigDecimal discountSupply,
             @PositiveOrZero(message = "할인 부가세는 0 이상이어야 합니다.")
-            BigDecimal discountVat
+            BigDecimal discountVat,
+            /** 판매입력 II 화면에서 저장했나(만들 때만 본다 — 수정은 처음 값을 지킨다). 비우면 판매입력(I). */
+            Boolean inputII
     ) {
         /** 금액조정 없는 전표(판매입력 · A/S · 쇼핑몰 주문). */
         public CreateSalesRequest(Long partnerId, Long warehouseId, LocalDate saleDate, Boolean taxable,
                                   Boolean returnSlip, String remark, Long projectId, Long employeeId,
                                   Boolean vatBySlip, List<SalesLineRequest> lines) {
             this(partnerId, warehouseId, saleDate, taxable, returnSlip, remark, projectId, employeeId,
-                    vatBySlip, lines, null, null);
+                    vatBySlip, lines, null, null, null);
         }
     }
 
@@ -173,7 +175,9 @@ public final class SalesDtos {
             Long employeeId, String employeeName,
             List<SalesLineResponse> lines,
             /** 판매입력 II [금액조정] 할인 감소(-) — 머리 금액은 이미 뺀 값이다. 판매입력(I) 전표는 0. */
-            BigDecimal discountSupply, BigDecimal discountVat
+            BigDecimal discountSupply, BigDecimal discountVat,
+            /** 판매입력 II 로 만든 전표인가 — 수정 창 제목 '판매입력 II(수정)'. */
+            boolean inputII
     ) {
         public static SalesResponse from(Sales s) {
             return new SalesResponse(
@@ -195,7 +199,7 @@ public final class SalesDtos {
                     s.getEmployee() != null ? s.getEmployee().getId() : null,
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
                     s.getLines().stream().map(SalesLineResponse::from).toList(),
-                    s.getDiscountSupply(), s.getDiscountVat());
+                    s.getDiscountSupply(), s.getDiscountVat(), s.isInputII());
         }
     }
 }

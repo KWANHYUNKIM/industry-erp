@@ -61,6 +61,8 @@ interface Row {
   extraCost: number | null
   createdBy: string | null
   sourceDocNo: string | null
+  /** 판매입력 II 로 만든 전표인가 — 원본 숨은 조건 [판매구분] 판매 · 판매 II. */
+  inputII: boolean
 }
 
 export default function SalesStatusPage() {
@@ -131,6 +133,12 @@ export default function SalesStatusPage() {
   const [more, setMore] = useState(false)
   /** 원본 숨은 조건 [진행상태] — 전체 · 결재중 · 미확인 · 확인. 판매 confirmStatus(IN_APPROVAL · UNCONFIRMED · CONFIRMED)로 거른다. */
   const [progress, setProgress] = useState<'전체' | '결재중' | '미확인' | '확인'>('전체')
+  /** 원본 [내.외자구분] 전체 · 내자 · 외자(2026-10-22 실측). 우리 판매는 통화가 없어 모두 내자다. */
+  const [domestic, setDomestic] = useState<'전체' | '내자' | '외자'>('전체')
+  /** 원본 숨은 조건 [판매구분] 전체 · 판매 · 판매 II(2026-10-22 실측). */
+  const [salesKind, setSalesKind] = useState<'전체' | '판매' | '판매 II'>('전체')
+  const [vatPriceFrom, setVatPriceFrom] = useState('')
+  const [vatPriceTo, setVatPriceTo] = useState('')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
@@ -173,6 +181,7 @@ export default function SalesStatusPage() {
           extraCost: l.extraCost,
           createdBy: d.createdBy,
           sourceDocNo: l.sourceDocNo,
+          inputII: !!d.inputII || Number(d.discountSupply ?? 0) + Number(d.discountVat ?? 0) !== 0,
         }))
       }
       // 최신 일자 우선
@@ -224,6 +233,11 @@ export default function SalesStatusPage() {
     .filter((r) => !supplyTo || r.supply <= Number(supplyTo))
     .filter((r) => !vatFrom || r.vat >= Number(vatFrom))
     .filter((r) => !vatTo || r.vat <= Number(vatTo))
+    .filter(() => domestic !== '외자')
+    .filter((r) => salesKind === '전체' || (salesKind === '판매 II') === r.inputII)
+    // 원본 [단가(vat포함)] — 과세 줄은 단가 × 1.1.
+    .filter((r) => !vatPriceFrom || r.unitPrice * (r.taxable ? 1.1 : 1) >= Number(vatPriceFrom))
+    .filter((r) => !vatPriceTo || r.unitPrice * (r.taxable ? 1.1 : 1) <= Number(vatPriceTo))
     .filter((r) => progress === '전체' || r.confirmStatus === ({ 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' } as const)[progress])
     .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
     .filter((r) => !keyword || r.partner.includes(keyword) || r.itemName.includes(keyword))
@@ -354,7 +368,7 @@ export default function SalesStatusPage() {
     setOrderNoCond(''); setEmpCond(''); setPmgrCond(''); setSpecCond('')
     setQtyFrom(''); setQtyTo(''); setPriceFrom(''); setPriceTo('')
     setSupplyFrom(''); setSupplyTo(''); setVatFrom(''); setVatTo('')
-    setAuthorCond('')
+    setAuthorCond(''); setDomestic('전체'); setSalesKind('전체'); setVatPriceFrom(''); setVatPriceTo('')
     // 집계조건도 조건이다. 안 되돌리면 '거래처별'로 바꿔 둔 채 다시 작성해도 그대로 남는다.
     setGroup1('품목별'); setGroup2('')
   }
@@ -393,6 +407,8 @@ export default function SalesStatusPage() {
         { label: '다시작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel(화면)' },
+        // 원본 결과 아래 [Email](2026-10-22) — 메일 보내기는 받쳐 줄 것이 없어 흐리게.
+        { label: 'Email', disabled: true },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -441,6 +457,12 @@ export default function SalesStatusPage() {
                            value={taxType === '전체' ? '' : taxType}
                            onChange={(v) => setTaxType((v || '전체') as '전체' | '과세' | '면세')}
                            items={[{ value: '과세', name: '과세' }, { value: '면세', name: '면세' }]} />
+        </EcCond>
+        <EcCond label="내.외자구분">
+          {(['전체', '내자', '외자'] as const).map((t) => (
+            <button key={t} type="button" className={`ec-btn ec-btn-sm${domestic === t ? ' ec-btn-primary' : ''}`}
+                    onClick={() => setDomestic(t)}>{t}</button>
+          ))}
         </EcCond>
         <EcCond label="출하창고" pick>
           <CodePickerField
@@ -539,6 +561,13 @@ export default function SalesStatusPage() {
             <input type="number" className="ec-input text-right" placeholder="이하" value={priceTo}
                    onChange={(e) => setPriceTo(e.target.value)} style={{ width: 110 }} />
           </EcCond>
+          <EcCond label="단가(vat포함)">
+            <input type="number" className="ec-input text-right w-[110px]" placeholder="이상" value={vatPriceFrom}
+                   onChange={(e) => setVatPriceFrom(e.target.value)} />
+            <span className="my-0 mx-[4px] text-ec-hint">~</span>
+            <input type="number" className="ec-input text-right w-[110px]" placeholder="이하" value={vatPriceTo}
+                   onChange={(e) => setVatPriceTo(e.target.value)} />
+          </EcCond>
           <EcCond label="공급가액">
             <input type="number" className="ec-input text-right" placeholder="이상" value={supplyFrom}
                    onChange={(e) => setSupplyFrom(e.target.value)} style={{ width: 120 }} />
@@ -552,6 +581,13 @@ export default function SalesStatusPage() {
             <span className="my-0 mx-[4px] text-ec-hint">~</span>
             <input type="number" className="ec-input text-right" placeholder="이하" value={vatTo}
                    onChange={(e) => setVatTo(e.target.value)} style={{ width: 120 }} />
+          </EcCond>
+          <EcCond label="판매구분">
+            {(['전체', '판매', '판매 II'] as const).map((t) => (
+              <label key={t} className="mr-[9px]">
+                <input type="radio" checked={salesKind === t} onChange={() => setSalesKind(t)} /> {t}
+              </label>
+            ))}
           </EcCond>
           <EcCond label="진행상태">
             {(['전체', '결재중', '미확인', '확인'] as const).map((t) => (

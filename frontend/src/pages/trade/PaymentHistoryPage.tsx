@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { INQUIRY_PICKS } from '../../utils/periods'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { useNavigate } from 'react-router-dom'
 
@@ -96,10 +98,36 @@ async function printReceipt(r: SettlementRow) {
   }])
 }
 
-const TABS = ['전체', '미반영', '회계반영'] as const
+/*
+ * 2026-10-22 원본(loginaa E040254) 다시 잼 — 머리 Search(F3) · Option · 도움말(빠른 검색칸 없음), 조건 판은 접혀서 시작.
+ * 탭 전체 · 미반영*(기본) · 회계반영 · 강제회계반영. 열 14(☐+번호 · 결제요청일시 '2026/10/22 오전 11:06:59' · 결제요청자ID ·
+ * 거래처 · 품목 · 결제금액 · 결제방법 · 결제상태 · 승인번호 · 재고전표 · 상태별처리기능 · 회계전표 · 내역 '보기' · 영수증인쇄),
+ * 합계줄 없음, 아래 버튼 입금보고서작성 · 신규(F2) · Excel. 빈 결과 '등록된 데이터가 없습니다.'
+ * 우리 결제 = 수금/지급 전표라 품목 · 결제상태 · 승인번호 · 재고전표는 값이 생기지 않는다(PG 연동 없음 — 지어내지 않는다).
+ * 원본 [상태별처리기능] 칸(승인실패 → '재결제')에 우리 일(회계반영 · 반영취소)을 둔다 — 결제를 회계로 넘기는 곳이 이 화면뿐이다.
+ */
+const TABS = ['전체', '미반영', '회계반영', '강제회계반영'] as const
 type Tab = typeof TABS[number]
 
+/** 원본 기간 빠른선택(결제요청일자): 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · 최근7일. */
+const PICKS = [...INQUIRY_PICKS, '최근7일'] as const
+
 const initP = periodOf('최근7일')!
+const initCond = {
+  from: initP.from, to: initP.to,
+  /** 원본 [전표일자] 는 '사용안함' 으로 시작한다. */
+  slipUse: false, slipFrom: initP.from, slipTo: initP.to,
+  status: '', partnerName: '', warehouse: '', approval: '', card: '', amtFrom: '', amtTo: '', lastOnly: false, item: '',
+}
+
+/** 원본 결제요청일시 꼴 '2026/10/22 오전 11:06:59'. */
+function requestedAt(r: SettlementRow): string {
+  if (!r.createdAt) return r.slipDate.replace(/-/g, '/')
+  const [d, t = ''] = r.createdAt.split('T')
+  const [hh = '0', mm = '00', ss = '00'] = t.slice(0, 8).split(':')
+  const h = Number(hh)
+  return `${d.replace(/-/g, '/')} ${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${mm}:${ss.padStart(2, '0')}`
+}
 
 export default function PaymentHistoryPage() {
   /** 원본 [입금보고서작성] — FastEntry 의 입금보고서 화면을 연다. */
@@ -107,33 +135,21 @@ export default function PaymentHistoryPage() {
   const [rows, setRows] = useState<SettlementRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
-  const [keyword, setKeyword] = useState('')
-  /** 원본 조건 판. 기간은 비워 두면 전체다 — 기본값으로 과거를 숨기지 않는다. */
-  /*
-   * 원본 결제내역조회는 <b>[최근7일]</b> 로 열린다(사본 실측). 다른 현황이 다 금월인데
-   * 이 화면만 이레다 — 수금·지급은 <b>방금 들어온 돈</b>을 보는 자리라서다.
-   * 우리는 비워 두어 열면 몇 해치 결제가 쏟아졌다.
-   */
-  const [cond, setCond] = useState({ from: initP.from, to: initP.to, partnerName: '', amtFrom: '', amtTo: '' })
+  const [cond, setCond] = useState(initCond)
   const setC = (p: Partial<typeof cond>) => setCond((c) => ({ ...c, ...p }))
-  /*
-   * 원본은 <b>[미반영]</b> 탭이 켜진 채로 열린다(사본 실측 — 그 탭에 active 가 붙어 있다).
-   * 이 화면에 오는 까닭은 대개 <b>아직 회계로 안 넘긴 결제</b>를 찾으려는 것이라,
-   * 전체로 열면 이미 끝난 것까지 섞여 그 사이에서 골라내야 한다.
-   */
+  /** 원본은 [미반영] 탭이 켜진 채로 열린다. */
   const [tab, setTab] = useState<Tab>('미반영')
   const [picked, setPicked] = useState<number[]>([])
 
   async function load(): Promise<SettlementRow[]> {
     setLoading(true)
     try {
-      // 고른 [전표일자] 를 서버에도 보낸다 — 전 기간을 받아 화면에서만 자르던 것(비운 쪽은 끝까지).
+      // 결제요청일자 = 우리 전표일자(수금/지급은 그날 만든다) — 서버가 그 기간만 준다.
       const res = await api.get<SettlementRow[]>('/accounting-reflection', {
         params: { kind: 'SETTLEMENT', from: cond.from || undefined, to: cond.to || undefined },
       })
-      const list = [...res.data].sort((a, b) =>
-        (a.slipDate < b.slipDate ? 1 : a.slipDate > b.slipDate ? -1 : b.id - a.id))
+      const key = (r: SettlementRow) => r.createdAt ?? r.slipDate
+      const list = [...res.data].sort((a, b) => (key(a) < key(b) ? 1 : key(a) > key(b) ? -1 : b.id - a.id))
       setRows(list)
       setPicked([])
       return list
@@ -145,36 +161,29 @@ export default function PaymentHistoryPage() {
     }
   }
 
-  // 기간을 바꾸면 그 기간을 다시 받는다(예전엔 전 기간을 한 번 받아 화면에서 바로 잘랐다)
   useEffect(() => { load() }, [cond.from, cond.to])
 
-  const shown = rows
-    .filter((r) => tab === '전체' || (tab === '미반영' ? !r.reflected : r.reflected))
-    .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
-    // 원본 [전표일자] — 비워 두면 그쪽 끝은 안 자른다.
-    .filter((r) => (!cond.from || r.slipDate >= cond.from) && (!cond.to || r.slipDate <= cond.to))
-    // 원본 [거래처명]. 코드도움이 아니라 <b>이름 일부</b>다(사본 실측 — 그냥 text 칸이다).
+  // 값이 생기지 않는 조건(결제상태 · 창고명 · 승인번호 · 카드/식별번호 · 품목명)에 글자를 넣으면 맞는 결제가 없다.
+  const noValue = !!(cond.status || cond.warehouse || cond.approval || cond.card || cond.item)
+  const shown = noValue ? [] : rows
+    .filter((r) => tab === '전체' || (tab === '미반영' ? !r.reflected : tab === '회계반영' ? r.reflected : false))
+    .filter((r) => !cond.slipUse || ((!cond.slipFrom || r.slipDate >= cond.slipFrom) && (!cond.slipTo || r.slipDate <= cond.slipTo)))
+    // 원본 [거래처명] 은 코드도움이 아니라 이름 일부(글자 칸)다.
     .filter((r) => !cond.partnerName || r.partnerName.includes(cond.partnerName))
-    // 원본 [결제금액] 은 칸이 둘에 사이가 '~' 인 <b>범위</b>다(사본 실측).
     .filter((r) => (!cond.amtFrom || r.totalAmount >= Number(cond.amtFrom))
       && (!cond.amtTo || r.totalAmount <= Number(cond.amtTo)))
-  const total = useMemo(() => shown.reduce((s, r) => s + r.totalAmount, 0), [shown])
-  const unreflected = rows.filter((r) => !r.reflected).length
+    // 원본 [기타] ☐ 최종결제상태만 — 같은 결제의 재결제 · 취소 줄 가운데 마지막 것만. 우리 결제는 전표 하나가 한 상태라
+    // 전표번호마다 마지막(가장 늦게 만든) 줄만 남기는 것과 같다.
+    .filter((r, _i, all) => !cond.lastOnly || all.find((x) => x.docNo === r.docNo) === r)
 
-  /** 고른 전표를 회계로 넘긴다. 수금은 차)현금 / 대)외상매출금. */
-  async function reflect(reverse: boolean) {
-    if (picked.length === 0) return
-    setError(''); setOk('')
+  /** 고른(또는 그 줄) 전표를 회계로 넘긴다. 수금은 차)현금 / 대)외상매출금. */
+  async function reflect(ids: number[], reverse: boolean) {
+    if (ids.length === 0) return
+    setError('')
+    if (!await ecConfirm(reverse ? '회계반영을 취소하겠습니까?' : '회계반영하겠습니까?')) return
     try {
-      const res = await api.post<{ reflectedCount: number }>(
-        `/accounting-reflection/${reverse ? 'unreflect' : 'reflect'}`,
-        { kind: 'SETTLEMENT', ids: picked })
-      const ids = picked
-      const list = await load()
-      // 판매·구매일괄회계반영과 같이 만들어진 회계전표 번호를 붙인다(24회차 #74 와 같은 까닭).
-      const nos = reverse ? [] : list.filter((r) => ids.includes(r.id) && r.journalDocNo).map((r) => r.journalDocNo as string)
-      setOk(`${res.data.reflectedCount}건 회계${reverse ? '반영취소' : '반영'} 완료`
-        + (nos.length ? ` — 회계전표 ${nos.slice(0, 5).join(', ')}${nos.length > 5 ? ` 외 ${nos.length - 5}건` : ''}` : ''))
+      await api.post(`/accounting-reflection/${reverse ? 'unreflect' : 'reflect'}`, { kind: 'SETTLEMENT', ids })
+      await load()
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -182,135 +191,137 @@ export default function PaymentHistoryPage() {
 
   const toggle = (id: number) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+  const allPicked = shown.length > 0 && shown.every((r) => picked.includes(r.id))
 
   return (
-    <EcListShell title="결제내역조회" search={keyword} onSearchChange={setKeyword} onSearch={load}
+    <EcListShell title="결제내역조회" searchable={false} collapseConditions onSearch={load}
+                 onReset={() => setCond(initCond)}
                  // 원본 [신규(F2)] — 결제는 수금/지급 입력에서 만든다. 그 화면을 연다.
                  onNew={() => navigate('/sales/settlement')}
-                 actions={[{ label: '새로고침', onClick: load },
-                           // 원본 [입금보고서작성] — FastEntry 의 입금보고서로 넘긴다.
-                           { label: '입금보고서작성', onClick: () => navigate('/accounting/vouchers?type=DEPOSIT_REPORT') },
+                 actions={[{ label: '입금보고서작성', onClick: () => navigate('/accounting/vouchers?type=DEPOSIT_REPORT') },
                            { label: 'Excel' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {ok && <p style={{ background: '#eaf5ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
-      <EcStatusPanel from={cond.from} to={cond.to} dateLabel="전표일자"
+      <EcStatusPanel from={cond.from} to={cond.to} dateLabel="결제요청일자" picks={PICKS}
                      onPeriod={(r) => setC({ from: r.from, to: r.to })}>
+        <EcCond label="전표일자">
+          <select className="ec-input w-[90px]" value={cond.slipUse ? 'Y' : ''}
+                  onChange={(e) => setC({ slipUse: e.target.value === 'Y' })}>
+            <option value="">사용안함</option>
+            <option value="Y">사용</option>
+          </select>
+          <input type="date" className="ec-input w-[130px]" disabled={!cond.slipUse}
+                 value={cond.slipFrom} onChange={(e) => setC({ slipFrom: e.target.value })} />
+          <span className="text-ec-label">~</span>
+          <input type="date" className="ec-input w-[130px]" disabled={!cond.slipUse}
+                 value={cond.slipTo} onChange={(e) => setC({ slipTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="결제상태">
+          <input className="ec-input w-[200px]" placeholder="결제상태" value={cond.status} onChange={(e) => setC({ status: e.target.value })} />
+        </EcCond>
         <EcCond label="거래처명">
-          <input className="ec-input" style={{ width: 200 }} placeholder="거래처명"
+          <input className="ec-input w-[200px]" placeholder="거래처명"
                  value={cond.partnerName} onChange={(e) => setC({ partnerName: e.target.value })} />
         </EcCond>
+        <EcCond label="창고명">
+          <input className="ec-input w-[200px]" placeholder="창고명" value={cond.warehouse} onChange={(e) => setC({ warehouse: e.target.value })} />
+        </EcCond>
+        <EcCond label="승인번호">
+          <input className="ec-input w-[200px]" placeholder="승인번호" value={cond.approval} onChange={(e) => setC({ approval: e.target.value })} />
+        </EcCond>
+        <EcCond label="카드/식별번호">
+          <input className="ec-input w-[200px]" placeholder="카드/식별번호" value={cond.card} onChange={(e) => setC({ card: e.target.value })} />
+        </EcCond>
         <EcCond label="결제금액">
-          <input className="ec-input" type="number" style={{ width: 130, textAlign: 'right' }}
+          <input className="ec-input w-[130px] text-right" type="number" placeholder="결제금액"
                  value={cond.amtFrom} onChange={(e) => setC({ amtFrom: e.target.value })} />
           <span className="text-ec-label">~</span>
-          <input className="ec-input" type="number" style={{ width: 130, textAlign: 'right' }}
+          <input className="ec-input w-[130px] text-right" type="number"
                  value={cond.amtTo} onChange={(e) => setC({ amtTo: e.target.value })} />
+        </EcCond>
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[4px]">
+            <input type="checkbox" checked={cond.lastOnly} onChange={(e) => setC({ lastOnly: e.target.checked })} />최종결제상태만
+          </label>
+        </EcCond>
+        <EcCond label="품목명">
+          <input className="ec-input w-[200px]" placeholder="품목명" value={cond.item} onChange={(e) => setC({ item: e.target.value })} />
+        </EcCond>
+        <EcCond label="양식">
+          <span className="text-ec-label mr-[6px]">적용양식</span>
+          <select className="ec-input w-[150px]" disabled><option>기본(수정불가)</option></select>
         </EcCond>
       </EcStatusPanel>
 
-      {/* 원본 위쪽 탭. 미반영이 몇 건인지 붙여 둔다 — 안 보이면 끝난 줄 안다. */}
-      <ul className="ec-tabs" style={{ marginBottom: 8 }}>
+      <ul className="ec-tabs mb-[8px]">
         {TABS.map((t) => (
           <li key={t} className={`ec-tab${tab === t ? ' active' : ''}`}
-              onClick={() => { setTab(t); setPicked([]) }}>
-            {t}{t === '미반영' && unreflected > 0 ? ` (${unreflected})` : ''}
-          </li>
+              onClick={() => { setTab(t); setPicked([]) }}>{t}</li>
         ))}
       </ul>
-
-      <div className="flex items-center gap-[8px] mb-[8px]">
-        <button className="ec-btn ec-btn-primary" disabled={picked.length === 0}
-                onClick={() => reflect(false)}>회계반영</button>
-        <button className="ec-btn" disabled={picked.length === 0}
-                onClick={() => reflect(true)}>반영취소</button>
-        <span className="text-[11.5px] text-ec-hint">
-          수금 차)현금·예금 / 대)외상매출금 · 지급 차)외상매입금 / 대)현금·예금
-        </span>
-        <span className="ml-auto text-[12.5px] text-ec-label">
-          합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString()}</b>
-        </span>
-      </div>
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            <th className="w-[30px] text-center"></th>
-            {/* 원본 첫 열은 [결제요청일시] 다 — 날짜만 있으면 같은 날 여러 건의 순서가 안 보인다. */}
-            {/* 원본 폭은 결제요청일시 160 · 회계전표 100 — 우리는 135 vs 150 으로 <b>앞뒤가 뒤집혀</b> 있었다. */}
+            <th className="w-[25px] text-center">
+              <input type="checkbox" checked={allPicked}
+                     onChange={() => setPicked(allPicked ? [] : shown.map((r) => r.id))} />
+            </th>
             <th className="w-[160px]">결제요청일시</th>
-            {/*
-              원본 차례: 결제요청일시 · <b>결제요청자ID</b> · 거래처 · <b>품목</b> · 결제금액 ·
-              결제방법 · … · <b>회계전표</b> · 내역 · 영수증인쇄 (사본 실측).
-              요청자는 뒤에 가 있었고, 품목은 <b>값이 있는데 안 보여 줬다.</b>
-            */}
-            <th className="w-[110px]">결제요청자ID</th>
-            <th className="w-[150px]">전표번호</th>
-            <th>거래처</th>
-            <th className="w-[60px] text-center">구분</th>
-            {/* 원본 차례는 <b>결제금액 · 결제방법</b> 이다(사본 실측) — 우리는 뒤집혀 있었다. */}
-            <th className="w-[130px] text-right">결제금액</th>
-            <th className="w-[110px]">결제방법</th>
-            <th className="w-[90px] text-center">회계반영</th>
+            <th className="w-[100px]">결제요청자ID</th>
+            <th className="w-[120px]">거래처</th>
+            <th className="w-[120px]">품목</th>
+            <th className="w-[80px] text-right">결제금액</th>
+            <th className="w-[80px]">결제방법</th>
+            <th className="w-[80px]">결제상태</th>
+            <th className="w-[100px]">승인번호</th>
+            <th className="w-[100px]">재고전표</th>
+            <th className="w-[100px] text-center">상태별처리기능</th>
             <th className="w-[100px]">회계전표</th>
-            <th>내역</th>
-            {/* 원본 결제내역조회의 마지막 열 [영수증인쇄]. */}
-            <th className="w-[80px] text-center">영수증인쇄</th>
+            <th className="w-[100px] text-center">내역</th>
+            <th className="w-[100px] text-center">영수증인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={14} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={14} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="text-center">
-                <input type="checkbox" checked={picked.includes(r.id)} onChange={() => toggle(r.id)} />
+                <label className="inline-flex items-center gap-[2px]">
+                  <input type="checkbox" checked={picked.includes(r.id)} onChange={() => toggle(r.id)} />{i + 1}
+                </label>
               </td>
-              <td>
-                {r.slipDate}
-                {r.createdAt && (
-                  <span className="text-ec-hint ml-[4px]">{r.createdAt.slice(11, 16)}</span>
-                )}
-              </td>
-              <td className="text-ec-label text-[11.5px]">{r.createdBy ?? ''}</td>
-              <td>{r.docNo}</td>
+              <td>{requestedAt(r)}</td>
+              <td>{r.createdBy ?? ''}</td>
               <td>{r.partnerName}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.vatType === '수금' ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.vatType}</td>
+              <td></td>
               <td className="text-right">{r.totalAmount.toLocaleString()}</td>
               <td>{r.methodText || ''}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 11.5,
-                           color: r.reflected ? 'var(--ec-success)' : 'var(--ec-warn)' }}>
-                {r.reflected ? '반영' : '미반영'}
-              </td>
-              {/* 원본 [회계전표No.]. 반영했다는 표시만 있고 어느 분개인지 없으면 찾아갈 길이 없다. */}
-              <td className="text-[11.5px]">
-                {r.journalDocNo ? (
-                  <Link to={`/accounting/journals?entryId=${r.journalEntryId}`}
-                        style={{ color: 'var(--ec-blue)' }}>{r.journalDocNo}</Link>
-                ) : <span className="text-ec-off">—</span>}
-              </td>
-              <td className="text-ec-hint">{r.note ?? ''}</td>
+              <td></td>
+              <td></td>
+              <td></td>
               <td className="text-center">
-                <button onClick={() => printReceipt(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
-                  {r.vatType === '수금' ? '영수증' : '지급증'}
-                </button>
+                <a className="cursor-pointer" onClick={() => reflect(picked.includes(r.id) ? picked : [r.id], r.reflected)}>
+                  {r.reflected ? '반영취소' : '회계반영'}
+                </a>
+              </td>
+              {/* 원본 [회계전표] — 어느 분개인지 찾아간다. */}
+              <td>
+                {r.journalDocNo && <Link to={`/accounting/journals?entryId=${r.journalEntryId}`}>{r.journalDocNo}</Link>}
+              </td>
+              <td className="text-center">
+                <a className="cursor-pointer"
+                   onClick={() => ecAlert(`${r.docNo} · ${r.vatType}${r.methodText ? ` (${r.methodText})` : ''}${r.note ? `\n${r.note}` : ''}`)}>보기</a>
+              </td>
+              <td className="text-center">
+                <a className="cursor-pointer" onClick={() => printReceipt(r)}>{r.vatType === '수금' ? '영수증' : '지급증'}</a>
               </td>
             </tr>
           ))}
         </tbody>
-        {shown.length > 0 && (
-          <tfoot>
-            <tr className="font-bold bg-ec-page">
-              <td colSpan={7} className="text-right">합계 ({shown.length}건)</td>
-              <td className="text-right text-ec-navy">{total.toLocaleString()}</td>
-              <td colSpan={5}></td>
-            </tr>
-          </tfoot>
-        )}
       </table>
     </EcListShell>
   )

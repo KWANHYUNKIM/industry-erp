@@ -610,7 +610,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     if (!d) return
     // 금액조정(할인)이 든 전표는 판매입력 II 전표다 — 원본도 판매조회에서 그 전표를 열면 [판매입력 II(수정)] 창이 뜬다.
     const disc = mode === 'sales' ? Number((d as SalesDoc).discountSupply ?? 0) + Number((d as SalesDoc).discountVat ?? 0) : 0
-    if (disc !== 0 && !isAdjust) { navigate(`/sales/sell2?edit=${d.id}`, { replace: true }); return }
+    // 판매입력 II 로 만든 전표(inputII)도 — 할인이 없어도 원본 창 제목은 '판매입력 II(수정)'. 목록 위 창은 판매조회가 adjust 로 연다.
+    if ((disc !== 0 || (d as SalesDoc).inputII) && !isAdjust && !popup) { navigate(`/sales/sell2?edit=${d.id}`, { replace: true }); return }
     setDiscountTotal(disc)
     setEditing({ id: d.id, docNo: d.docNo })
     setDate((d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate)
@@ -1310,7 +1311,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
       lines: validLines,
-      ...(isAdjust ? { discountSupply: discount.supply, discountVat: discount.vat } : {}),
+      ...(isAdjust ? { discountSupply: discount.supply, discountVat: discount.vat, inputII: true } : {}),
     }
     if (isAdjust && discount.total > totals.total) return setError('할인 합계가 거래 합계보다 큽니다.')
     try {
@@ -1635,7 +1636,11 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           id: t.label,
           label: t.label,
           onSelect: () => navigate(t.to),
-        })) : []}
+        }))
+          /* 회계반영된 판매의 수정 창: 원본 알약 [기본(수정불가)] [매출전표 I] [+](2026-10-22 판매입력 II(수정) 실측). */
+          : editing && mode === 'sales' && (docs.find((x) => x.id === editing.id) as SalesDoc | undefined)?.accountingReflected
+            ? [{ id: '매출전표 I', label: '매출전표 I', onSelect: () => navigate('/sales/accounting-reflection') }]
+            : []}
         onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
         tempSave={hasTemp && !popup ? { onApply: applyTemp, onDelete: deleteTemp } : null}
         savedAt={savedAt}

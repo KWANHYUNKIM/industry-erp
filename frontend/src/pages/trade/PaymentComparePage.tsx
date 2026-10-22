@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { usePartnerGroups } from '../../utils/partnerGroups'
 import { dateNo } from '../../utils/dateNo'
 import { COMPARE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
@@ -98,8 +97,6 @@ export default function PaymentComparePage() {
    * 거래처 하나씩만 좁힐 수 있었다. 거래처그룹은 마스터에 진작 있다.
    * (거래처그룹2·거래처계층그룹은 우리 그룹이 하나뿐이라 전역 예외다.)
    */
-  const [partnerGroup, setPartnerGroup] = useState('')
-  const { groupOptions, groupOfName } = usePartnerGroups()
   // '이번기수(~전월)' 은 회사 회계연도 시작월을 알아야 계산된다. 1월로 넘겨짚지 않는다.
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
 
@@ -188,7 +185,6 @@ export default function PaymentComparePage() {
 
   const shown = useMemo(() => compared.filter((r) => {
     if (partner && String(r.partnerId) !== partner) return false
-    if (partnerGroup && groupOfName(r.partnerName) !== partnerGroup) return false
     if (basis !== '전체') {
       const same = Math.abs(r.saleTotal - r.payTotal) < 0.005
       if (basis === '일치' ? !same : same) return false
@@ -196,7 +192,7 @@ export default function PaymentComparePage() {
     return true
   }).sort((a, b) => (subtotal === '거래처'
     ? a.partnerName.localeCompare(b.partnerName) || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)
-    : 0)), [compared, partner, partnerGroup, groupOfName, basis, subtotal])
+    : 0)), [compared, partner, basis, subtotal])
 
   /* 그리는 줄만 자른다 — 아래 합계는 자르기 전 전부로 낸 값이다. 자른 것은 표 위에 적는다. */
   const capped = capRows(shown, 300)
@@ -214,7 +210,7 @@ export default function PaymentComparePage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
-          setFrom(init.from); setTo(init.to); setPartner(''); setPartnerGroup(''); setBasis('전체')
+          setFrom(init.from); setTo(init.to); setPartner(''); setBasis('전체')
         } },
         { label: 'Excel' },
       ]}
@@ -232,13 +228,7 @@ export default function PaymentComparePage() {
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>
-        <EcCond label="거래처그룹1">
-          <select className="ec-input w-[170px]" value={partnerGroup}
-                  onChange={(e) => setPartnerGroup(e.target.value)}>
-            <option value="">전체</option>
-            {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
-        </EcCond>
+        {/* [거래처그룹1] 은 원본 판에 없다(2026-10-22 loginaa 다시 잼: 기준일자 · 거래처 · 자료기준 · 양식 · 정렬/소계기준). */}
         <EcCond label="자료기준">
           <div className="ec-pills">
             {(['전체', '일치', '불일치'] as const).map((b) => (

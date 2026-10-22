@@ -196,6 +196,7 @@ public class SalesService {
                 .warehouse(warehouseService.getUsable(req.warehouseId()))
                 .saleDate(saleDate)
                 .createdBy(username)
+                .inputII(Boolean.TRUE.equals(req.inputII()))
                 .build();
 
         applyContent(sales, req, username);

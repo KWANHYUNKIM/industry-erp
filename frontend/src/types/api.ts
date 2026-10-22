@@ -374,6 +374,8 @@ export interface SalesDoc {
   /** 판매입력 II [금액조정] 할인 감소(-) — 머리 금액(supply/vat/total)은 이미 뺀 값. 판매입력(I) 전표는 0. */
   discountSupply?: number
   discountVat?: number
+  /** 판매입력 II 로 만든 전표인가 — 판매조회에서 열면 '판매입력 II(수정)' 창. */
+  inputII?: boolean
 }
 
 export interface PurchaseDoc {

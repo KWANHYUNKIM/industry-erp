@@ -236,7 +236,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     }
     setPopupId(to.id); setPopupCopied(false)
   }
-  const popupTitle = popupId != null && !popupCopied ? `${cfg.entryTitle}(수정)` : cfg.entryTitle
+  /*
+   * 판매입력 II 로 만든 전표(또는 금액조정이 든 전표)는 원본도 '판매입력 II(수정)' 창으로 연다(2026-10-22 loginaa 실측:
+   * 창 제목 · 머리 '판매입력 II(수정)', 위 알약 [기본(수정불가)] [매출전표 I] [+], 아래 저장(F8) · 결제취소(결제 있는 전표) · 저장/전표(F7) …).
+   */
+  const popupDoc = isSales && popupId != null ? rawDocs.find((d) => d.id === popupId) as SalesDoc | undefined : undefined
+  const popupII = !!popupDoc && (!!popupDoc.inputII || Number(popupDoc.discountSupply ?? 0) + Number(popupDoc.discountVat ?? 0) !== 0)
+  const entryTitle = popupII ? '판매입력 II' : cfg.entryTitle
+  const popupTitle = popupId != null && !popupCopied ? `${entryTitle}(수정)` : cfg.entryTitle
   function closePopup(changed: boolean) {
     setPopupId(null); setPopupOpen(false); setPopupCopied(false)
     if (changed) { setOpenId(null); load() }
@@ -715,7 +722,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 <td>{d.warehouseName}</td>
                 <td className="text-center">
                   {/* 2026-10-20 원본 구매조회 [회계반영여부] 는 반영 전에 빈칸이다(판매조회는 '미반영' 글자 — 그대로). */}
-                  {d.accountingReflected ? '반영' : isSales ? '미반영' : ''}
+                  {/* 2026-10-22 원본 판매조회(loginaa): 반영은 초록 ✓(fa-check 14px · 초록 = --ec-ok), 미반영은 빈칸. */}
+                  {d.accountingReflected ? (isSales ? <span className="text-ec-ok text-[14px]">✓</span> : '반영') : ''}
                 </td>
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
                   {/* 원본 [인쇄]는 버튼이 아니라 링크 글자다. */}
@@ -832,7 +840,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                           onClick={() => void ecAlert('전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.')}>확인취소</button>
                 </div>
               )}
-              <TradeEntry key={popupId ?? 'new'} mode={isSales ? 'sales' : 'purchase'} popup={{
+              <TradeEntry key={popupId ?? 'new'} mode={isSales ? 'sales' : 'purchase'} adjust={popupII} popup={{
                 editId: popupId,
                 onCopy: () => setPopupCopied(true),
                 onClose: closePopup,
