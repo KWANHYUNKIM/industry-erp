@@ -379,6 +379,12 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
    * (전체수량 · 창고수량 · 단위 · 단가(vat포함) · 관리항목 · 부대비용 … 은 양식에 깔려 있고 꺼져 있다).
    * 그래서 판매는 시리얼/로트를 수량 뒤에 두고 부대비용(구매 쪽 값)은 그리지 않는다.
    */
+  /*
+   * 판매입력 II(원본 E040253, 2026-10-22 실측) 격자는 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 새로운 항목 추가 —
+   * 판매입력의 [시리얼/로트No.] · [적요] 열이 없다. 머리에도 [거래구분] · 판매No. · [적요] 가 없다.
+   */
+  const lineLotCol = !isAdjust
+  const lineRemarkCol = !isAdjust
   const lotAfterQty = mode === 'sales'
   const showExtraCost = mode !== 'sales'
   /*
@@ -1312,6 +1318,15 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       const res = editing
         ? await api.put<SalesDoc | PurchaseDoc>(`${cfg.endpoint}/${editing.id}`, body)
         : await api.post<SalesDoc | PurchaseDoc>(cfg.endpoint, body)
+      /*
+       * 판매입력 II 는 저장하면 <b>매출전표 I 까지 함께</b> 생긴다(원본 E040253 2026-10-22 실측: 저장 직후 판매조회
+       * 회계반영여부 ✓, 판매단가일괄변경 목록에서 빠지고, 수정 창에 [매출전표 I] 탭 · 삭제 알림에 '- 매출전표 I').
+       * 판매입력(I) 은 회계에 안 간다. 반영이 실패해도 판매는 이미 저장됐으니 되돌리지 않고 알린다.
+       */
+      if (isAdjust && !editing) {
+        await api.post('/accounting-reflection/reflect', { kind: 'SALES', ids: [res.data.id] })
+          .catch((err) => flash(`판매는 저장했지만 매출전표 생성에 실패했습니다: ${extractErrorMessage(err)}`))
+      }
       // 추가항목(사용자정의)은 전표가 생긴 뒤에야 붙일 수 있다 — id 를 키로 쓰기 때문이다.
       if (customDefs.length > 0 && Object.values(customValues).some((v) => v?.trim())) {
         await api.put('/custom-fields/values', { values: customValues },
@@ -1540,7 +1555,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     // 원본 푸터의 마지막 두 개는 [리스트][웹자료올리기] 다. '닫기' 가 아니라 조회 화면으로 간다.
     { label: '리스트', onClick: () => navigate(cfg.listTo) },
     { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
-  ]
+  // 원본 판매입력 II 아래 줄은 저장(F8)▴ · 저장/전표(F7)▴ · 다시 작성 · 현금수금▴ · 리스트 — 회계전표연결 · 웹자료올리기가 없다(2026-10-22).
+  ].filter((a) => !isAdjust || (a.label !== '회계전표연결' && a.label !== '웹자료올리기'))
 
   /*
    * 판매조회 위 수정 창의 아래 버튼줄(원본 E040206 '판매입력(수정)' 2026-10-21 실측):
@@ -1550,10 +1566,16 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
   async function deleteInPopup() {
     if (!popup || !editing) return
     // 원본 '알림' 창: "전표를 삭제하겠습니까?" 아래 줄 " - 판매" · [확인] [취소] → 확인하면 창이 닫히고 목록에서 사라진다.
+    /*
+     * 회계반영된 판매(판매입력 II 로 저장한 전표 등)는 원본 알림이 '- 판매' '- 매출전표 I' 두 줄에 [매출전표포함 삭제] 가 켜져 있고,
+     * [확인] 하면 매출전표까지 같이 지워진다(2026-10-22 E040253 실측).
+     */
+    const reflected = mode === 'sales' && !!docs.find((x) => x.id === editing.id && (x as SalesDoc).accountingReflected)
     if (!(await ecConfirm(`전표를 삭제하겠습니까?
- - ${mode === 'sales' ? '판매' : '구매'}`))) return
+ - ${mode === 'sales' ? '판매' : '구매'}${reflected ? '\n - 매출전표 I' : ''}`))) return
     try {
-      await api.delete(`${cfg.endpoint}/${editing.id}`)
+      if (reflected) await api.post('/accounting-reflection/delete-sales-with-journal', { kind: 'SALES', ids: [editing.id] })
+      else await api.delete(`${cfg.endpoint}/${editing.id}`)
       popup.onClose(true)
     } catch (err) {
       void ecAlert(extractErrorMessage(err))
@@ -1691,6 +1713,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             반품은 그 거래의 반대다 — 판매반품은 물건이 창고로 돌아오고 채권이 준다.
             여기서는 되돌려받는 수량을 <b>양수로</b> 적는다. 부호는 서버가 뒤집는다.
           */}
+          {!isAdjust && (
           <li>
             <div className="title">거래구분</div>
             <div className="form">
@@ -1706,6 +1729,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               )}
             </div>
           </li>
+          )}
           <li>
             <div className="title">통화</div>
             <div className="form">
@@ -1737,6 +1761,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             </div>
           </li>
           )}
+          {!isAdjust && (<>
           <li>
             <div className="title">{cfg.docNoLabel}</div>
             <div className="form">
@@ -1750,6 +1775,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                      placeholder="전표 적요" style={{ flex: 1 }} />
             </div>
           </li>
+          </>)}
 
           {/* 확장(추가) 항목 — 원본의 ADD_TXT/ADD_NUM/ADD_DATE/ADD_CD 자리.
               우리 쪽은 Self-Customizing > 사용자정의필드에 정의한 항목이 여기에 나온다. */}
@@ -2025,7 +2051,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               {cols.stockWh && <col className="w-[70px]" />}
               {cols.unit && <col className="w-[50px]" />}
               <col className="w-[78px]" />
-              {lotAfterQty && <col className="w-[110px]" />}
+              {lotAfterQty && lineLotCol && <col className="w-[110px]" />}
               <col className="w-[96px]" />
               {cols.priceVat && <col className="w-[95px]" />}
               <col className="w-[110px]" />
@@ -2033,7 +2059,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               {cols.lineTotal && <col className="w-[100px]" />}
               {showExtraCost && <col className="w-[96px]" />}
               {cols.mgmtItem && <col className="w-[90px]" />}
-              <col className="w-[130px]" />
+              {lineRemarkCol && <col className="w-[130px]" />}
               {lineDefs.map((d) => <col key={d.fieldKey} className="w-[110px]" />)}
               {cols.srcType && <col className="w-[80px]" />}
               {cols.srcDate && <col className="w-[100px]" />}
@@ -2073,7 +2099,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                     이름으로 찾는 검사가 여태 이 칸을 아예 못 보고 있었다. */}
                 <th className="text-right">수량</th>
                 {/* 원본 판매입력은 [수량] 다음이 [시리얼/로트No.] 다(2026-10-14 실측). */}
-                {lotAfterQty && <th className="text-center">시리얼/로트No.</th>}
+                {lotAfterQty && lineLotCol && <th className="text-center">시리얼/로트No.</th>}
                 <th className="text-right">단가</th>
                 {cols.priceVat && <th>단가(vat포함)</th>}
                 <th className="text-right">공급가액</th>
@@ -2081,7 +2107,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 {cols.lineTotal && <th className="text-right">합계</th>}
                 {showExtraCost && <th className="text-right">부대비용</th>}
                 {cols.mgmtItem && <th>관리항목</th>}
-                <th className="text-left">적요</th>
+                {lineRemarkCol && <th className="text-left">적요</th>}
                 {/* 라인 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 표가 그대로다. */}
                 {lineDefs.map((d) => (
                   <th key={d.fieldKey} className="text-left">{d.label}</th>
@@ -2167,7 +2193,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                              value={l.quantity} onValue={(v) => { if (qtyErr === idx) setQtyErr(null); updateLine(idx, 'quantity', v) }} />
                       {qtyErr === idx && <ErrTip msg="유효키항목 필수입력" />}
                     </td>
-                    {lotAfterQty && lotCell(l, idx)}
+                    {lotAfterQty && lineLotCol && lotCell(l, idx)}
                     <td>
                       <EcNumInput className="cell text-right"
                              value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} />
@@ -2208,10 +2234,12 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                         {it?.managementItemName ?? ''}
                       </td>
                     )}
+                    {lineRemarkCol && (
                     <td>
                       <input className="cell" value={l.remark} disabled={!l.itemId}
                              onChange={(e) => updateLine(idx, 'remark', e.target.value)} />
                     </td>
+                    )}
                     {lineDefs.map((d) => (
                       <td key={d.fieldKey}>
                         {/*
@@ -2270,12 +2298,12 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             <tfoot>
               <tr>
                 <td colSpan={2} />
-                <td colSpan={lotAfterQty ? 3 : 4} className="pl-[6px]">합계 ({lineCount}건)</td>
+                <td colSpan={lotAfterQty ? 3 : 4} className="pl-[6px]">{isAdjust ? '' : `합계 (${lineCount}건)`}</td>
                 {cols.stockAll && <td />}
                 {cols.stockWh && <td />}
                 {cols.unit && <td />}
                 <td className="text-right">{won(totals.qty)}</td>
-                {lotAfterQty && <td />}
+                {lotAfterQty && lineLotCol && <td />}
                 <td />
                 {cols.priceVat && <td />}
                 <td className="text-right">{won(totals.supply)}</td>
@@ -2288,7 +2316,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 */}
                 {cols.mgmtItem && <td />}
                 {/* 합계 열이 켜져 있으면 합계는 그 아래, 아니면 예전처럼 적요 칸에 선다. */}
-                {cols.lineTotal ? <td /> : totalTd}
+                {lineRemarkCol && (cols.lineTotal ? <td /> : totalTd)}
                 {lineDefs.map((d) => <td key={d.fieldKey} />)}
                 {cols.srcType && <td />}
                 {cols.srcDate && <td />}

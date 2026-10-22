@@ -92,6 +92,8 @@ public class PriceBulkService {
                 if (!statusMatches(status, confirmed)) continue;
                 if (!taxTypeMatches(taxType, s.isTaxable())) continue;
                 if (!tradeKindMatches(tradeKind, s.isReturnSlip())) continue;
+                // 원본 판매단가일괄변경은 회계반영된 전표(판매입력 II 로 저장해 매출전표가 같이 생긴 것 포함)를 아예 안 뽑는다(2026-10-22 실측).
+                if (s.isAccountingReflected()) continue;
                 String lock = locks.get(s.getId());
                 for (SalesLine l : s.getLines()) {
                     if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
