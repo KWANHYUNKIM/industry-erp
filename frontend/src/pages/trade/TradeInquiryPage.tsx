@@ -216,7 +216,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   function editDoc(d: NormalDoc) {
     setPopupId(d.id); setPopupCopied(false); setPopupOpen(true)
   }
-  /** [신규(F2)] — 원본 판매조회는 목록 위에 '판매입력' 창을 띄우고, 저장하면 말 없이 닫혀 목록에 새 전표가 선다(2026-10-21 실측). */
+  /** [신규(F2)] — 원본 판매조회 · 구매조회는 목록 위에 '판매입력' · '구매입력' 창을 띄우고, 저장하면 말 없이 닫혀 목록에 새 전표가 선다(2026-10-21 실측). */
   function newDoc() {
     setPopupId(null); setPopupCopied(false); setPopupOpen(true)
   }
@@ -480,7 +480,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       title={cfg.title} search={keyword} onSearchChange={setKeyword}
       // 원본 목록의 하단 버튼줄은 [신규(F2)] 로 시작한다 — 조회에서 바로 입력 화면으로 간다.
       // 셸에는 이미 그 자리가 있었는데 이 화면이 onNew 를 안 넘겨 비어 있었다.
-      onNew={() => (isSales ? newDoc() : navigate(cfg.entryTo))}
+      // 구매조회 [신규(F2)] 도 목록 위 '구매입력' 창이다(2026-10-22 원본 E040304 실측, 아래 [현금지급]).
+      onNew={newDoc}
       /*
        * 원본 버튼 실측(사본 · 판매조회/구매조회):
        *   신규(F2) · 진행상태변경 · 보내기 · 바코드(품목) · 선택삭제 · 이력조회

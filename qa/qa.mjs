@@ -4598,6 +4598,9 @@ async function scenarioConfirmTransition(f) {
     lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
   })
 
+  // 원본(2026-10-22 실측): 판매는 저장하면 바로 '확인'이다.
+  eq('저장하면 바로 확인', sale.confirmStatus, 'CONFIRMED')
+  await must('POST', `/sales/${sale.id}/unconfirm`)
   await rejects('확인 안 된 전표의 확인취소는 거부', 'POST', `/sales/${sale.id}/unconfirm`, undefined, '확인되지 않은')
 
   const first = await must('POST', `/sales/${sale.id}/confirm`)
@@ -7199,7 +7202,9 @@ async function scenarioSalesConfirmBulk(f) {
   const a = await mk(1)
   const b = await mk(2)
 
-  eq('처음엔 미확인이다', a.confirmStatus, 'UNCONFIRMED')
+  // 원본(2026-10-22 실측): 판매는 저장하면 바로 '확인' 탭에 든다.
+  eq('처음엔 확인이다', a.confirmStatus, 'CONFIRMED')
+  for (const x of [a, b]) await must('POST', `/sales/${x.id}/unconfirm`)
 
   for (const x of [a, b]) await must('POST', `/sales/${x.id}/confirm`)
   const after = await must('GET', '/sales')
@@ -7208,7 +7213,6 @@ async function scenarioSalesConfirmBulk(f) {
 
   // 원본(2026-10-14 실측): 확인된 판매도 [선택삭제] 로 지워진다 — 확인이 막는 것은 단가일괄변경 같은 일괄 동작뿐이다.
   const c = await mk(3)
-  await must('POST', `/sales/${c.id}/confirm`)
   eq('확인한 전표도 지워진다(원본은 막지 않는다)', (await call('DELETE', `/sales/${c.id}`)).status, 204)
 
   for (const x of [a, b]) await must('POST', `/sales/${x.id}/unconfirm`)
@@ -11576,6 +11580,7 @@ async function scenarioPressedTwice(f) {
   const 확정할것 = 만든것[0]
   const 재고 = async () => Number((await must('GET', '/stock')).find(
     (s) => s.itemId === f.product.id && s.warehouseName === f.warehouse.name)?.quantity ?? 0)
+  await must('POST', `/sales/${확정할것.id}/unconfirm`)   // 원본처럼 저장하면 이미 확인 — 한 번 풀고 시험한다
   const 첫확정 = await call('POST', `/sales/${확정할것.id}/confirm`)
   eq('판매 확정은 된다', 첫확정.status, 200)
   const 확정후재고 = await 재고()

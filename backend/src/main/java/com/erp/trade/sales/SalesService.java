@@ -199,6 +199,8 @@ public class SalesService {
                 .build();
 
         applyContent(sales, req, username);
+        // 원본 loginaa(2026-10-22 E040205 → E040206 실측): 판매를 저장하면 바로 '확인' 탭에 든다(미확인 탭에 없다).
+        sales.markConfirmed();
         Sales saved = salesRepository.save(sales);
         syncLots(saved);
         refreshOrders(sourceOrders(saved));
@@ -440,11 +442,9 @@ public class SalesService {
         /*
          * 원본 loginaa(2026-10-14 실측): 판매는 저장하면 바로 '확인' 탭에 들고, 확인된 판매도 판매조회 [선택삭제]
          * ('선택한 전표를 삭제 하겠습니까?') · 수정 창 [삭제]('전표를 삭제하겠습니까? - 판매') · [저장(F8)] 이 그대로 된다.
-         * 확인이 막는 것은 판매단가일괄변경 같은 일괄 동작뿐이다 — 수정 · 삭제는 막지 않는다.
+         * 판매단가일괄변경도 저장 직후(= 확인된) 판매의 단가를 바꾼다(2026-10-20 E040224 2 × 300 → 350) — 원본은 저장하면 늘 확인이라
+         * 확인을 이유로 막는 동작이 없다(2026-10-22 실측, 저장 즉시 확인).
          */
-        if (s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED && !"수정".equals(action) && !"삭제".equals(action)) {
-            throw ApiException.badRequest("확인된 전표는 " + action + "할 수 없습니다. 확인취소를 먼저 하세요: " + s.getDocNo());
-        }
         if (hasTaxInvoice) {
             throw ApiException.badRequest("세금계산서가 발행된 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
         }
