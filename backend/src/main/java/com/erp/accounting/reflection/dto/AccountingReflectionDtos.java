@@ -199,8 +199,19 @@ public final class AccountingReflectionDtos {
              * 세.계(고정자산) · 소매(면세) · 카드매출(면세) · 현금영수증(면세) · 현금영수증 · 매입자발행세금계산서 · 영세율(기타) · 기타매출).
              * 고른 값이 분개의 부가세유형으로 그대로 들어간다. 없으면 과세 → 세금계산서, 면세 → 계산서.
              */
-            java.util.Map<Long, @jakarta.validation.constraints.Size(max = 30, message = "부가세유형은 30자까지입니다.") String> vatTypes
-    ) {}
+            java.util.Map<Long, @jakarta.validation.constraints.Size(max = 30, message = "부가세유형은 30자까지입니다.") String> vatTypes,
+            /**
+             * 전표 id → [조정] 금액(선택, 판매만). 원본 판매일괄회계반영(E040215, 2026-10-22 loginaa 실측): 격자 [조정] 칸에 100 을 넣으면
+             * 공급가액 = 거래가액 − 조정(10,000 → 9,900), 부가세 = 공급가액의 10%(990), 합계 10,890 이 되고
+             * [매출전표 I] 로 만든 분개가 외상매출금 10,890 / 제품매출 9,900 · 부가세예수금 990 이다(판매전표는 그대로 11,000).
+             */
+            java.util.Map<Long, BigDecimal> adjustments
+    ) {
+        /** 예전 호출(조정 없음). */
+        public ReflectRequest(SlipKind kind, List<Long> ids, java.util.Map<Long, String> vatTypes) {
+            this(kind, ids, vatTypes, null);
+        }
+    }
 
     public record ReflectResult(int reflectedCount) {}
 }

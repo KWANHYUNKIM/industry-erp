@@ -149,7 +149,8 @@ public class AccountingReflectionService {
             List<Sales> targets = salesRepository.findAllById(req.ids());
             for (Sales s : targets) {
                 if (!s.isAccountingReflected()) {
-                    journalService.createFromSales(s, vatTypeOf(req, s.getId()));   // 실제 분개 생성
+                    journalService.createFromSales(s, vatTypeOf(req, s.getId()),
+                            req.adjustments() == null ? null : req.adjustments().get(s.getId()));   // 실제 분개 생성
                     s.setAccountingReflected(true);
                     count++;
                 }

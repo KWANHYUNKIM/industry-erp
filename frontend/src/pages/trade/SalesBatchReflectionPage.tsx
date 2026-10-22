@@ -5,6 +5,9 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
+import Modal from '../../components/Modal'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import AccountingReflectionPage from './AccountingReflectionPage'
@@ -13,10 +16,26 @@ import AccountingReflectionPage from './AccountingReflectionPage'
  * 판매일괄회계반영 (원본 E040215, 2026-10-22 loginaa 실측 — plans/재고1.md 97행).
  * 구매일괄회계반영 · 회계미반영현황은 AccountingReflectionPage 가 그대로 맡는다(구매 쪽 원본 값은 아직 모른다).
  *
- * 조건: 구분(거래처별 기본/전표별) · 기준일자(전월) · 창고 · 거래처 · 품목 · 프로젝트 · 담당자 · 거래처관리담당자 ·
- * 거래유형 · 부가세율 적용 · 내.외자구분(내자 기본) · 거래구분(전체 기본) · 거래처코드없는자료인쇄.
- * 격자: 체크 · 거래일자 · 거래처명 · 거래가액 · 조정 · 공급가액 · 부가세 · 합계 · 품목요약 · 부가세유형 · 일부반영 + 합계 줄.
+ * 조건: 구분(◉거래처별/○전표별) · 기준일자(전월) · 창고 · 거래처 · 품목 · 프로젝트 · 담당자 · 거래처관리담당자 ·
+ * 거래유형(선택상자 전체 · 부가세율 적용★ · 부가세율 미적용 — 2026-10-22 재기: '부가세율 적용' 은 따로 된 조건이 아니라 이 칸의 기본값) ·
+ * 내.외자구분(전체/◉내자/외자) · 거래구분(◉전체/일반/반품 — 기타 없음) · 기타 □거래처코드없는자료인쇄.
+ * 격자: 체크 · 거래일자(전표별은 '2026/10/22-6') · 거래처명 · 거래가액 · 조정(입력) · 공급가액 · 부가세 · 합계 · 품목요약 · 부가세유형 · 일부반영(링크) + 합계 줄.
+ * [조정] 100 → 공급가액 = 거래가액 − 조정, 부가세 = 공급가액의 10%, 합계 = 둘의 합.
+ * [매출전표 I] → '매출전표 I' 창(일자 · 연결거래 없음 · 부가세유형 · 거래처 · 공급가액 · 부가세 · 적요(품목요약) · 매출계정 4049 제품매출 ·
+ * 입금계좌 1089 외상매출금 · 수수료 0) [저장(F8)] — 조정이 있으면 원본 확인 글('기타할인등차액') → 말 없이 닫히고 그 줄이 빠진다.
+ * [일부반영] → '일괄회계반영' 창 '매출 세금계산서 미청구 리스트'(거래처명 · 일자-No. · 품목명[규격] · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 적요) [매출전표 I] [닫기].
  */
+interface SlipLine {
+  itemId: number
+  itemName: string
+  spec: string | null
+  quantity: number
+  unitPrice: number
+  supplyAmount: number
+  vatAmount: number
+  remark: string | null
+}
+
 interface Slip {
   id: number
   docNo: string
@@ -28,7 +47,7 @@ interface Slip {
   employeeName: string | null
   partnerManager: string | null
   itemSummary: string
-  lines: { itemId: number }[]
+  lines: SlipLine[]
   supplyAmount: number
   vatAmount: number
   totalAmount: number
@@ -40,21 +59,27 @@ interface Slip {
 interface Row {
   key: string
   date: string
+  docNo: string | null
   partnerId: number
   partnerName: string
   ids: number[]
+  slips: Slip[]
   supply: number
   vat: number
   items: string
   vatTypes: Set<string>
-  partial: boolean
 }
 
 const SALES_VAT_TYPES = ['세금계산서', '영세율', '계산서', '소매매출', '수출', '카드매출', '계산서(고정자산)', '세.계(고정자산)',
   '소매(면세)', '카드매출(면세)', '현금영수증(면세)', '현금영수증', '매입자발행세금계산서', '영세율(기타)', '기타매출']
 const vatOptions = SALES_VAT_TYPES.map((v) => <option key={v} value={v}>{v}</option>)
 const won = (n: number) => n.toLocaleString('ko-KR')
+const num = (v: string | undefined) => Number(String(v ?? '').replace(/,/g, '')) || 0
 const initP = periodOf('전월')!
+/** 원본 [거래유형] 선택상자 — 판매입력의 거래유형과 같은 이름(부가세율 적용 = 과세 · 미적용 = 면세). */
+const TRADE_TYPES = [['', '전체'], ['과세', '부가세율 적용'], ['면세', '부가세율 미적용']] as const
+const seqOf = (docNo: string) => { const t = docNo.split('-').pop() ?? ''; return String(Number(t) || t) }
+const MISMATCH = "판매전표와 회계전표의 정보가 서로 다릅니다. 정보가 다른 경우 거래처관리대장 조회시 '기타할인등차액'이 발생할 수 있습니다. 계속 저장하겠습니까?\n- 합계금액"
 
 function Pills<T extends string>({ values, value, onChange, label }: {
   values: readonly T[]; value: T; onChange: (v: T) => void; label: (v: T) => string
@@ -74,14 +99,21 @@ function SalesBatch() {
   const [slips, setSlips] = useState<Slip[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
   const [mode, setMode] = useState<'거래처별' | '전표별'>('거래처별')
   const blank = { from: initP.from, to: initP.to, warehouse: '', partner: '', item: '', project: '', employee: '',
-    partnerManager: '', vatType: '', vatRate: '', domestic: '내자', tradeKind: '', noCodePrint: false }
+    partnerManager: '', vatType: '과세', domestic: '내자', tradeKind: '', noCodePrint: false }
   const [cond, setCond] = useState(blank)
   const setC = (patch: Partial<typeof blank>) => setCond((c) => ({ ...c, ...patch }))
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [rowVat, setRowVat] = useState<Record<string, string>>({})
+  const [adjust, setAdjust] = useState<Record<string, string>>({})
+  // [일부반영] 창 — 그 줄 전표의 품목 줄. 고른 전표만 [매출전표 I] 로 넘긴다.
+  const [detail, setDetail] = useState<Row | null>(null)
+  const [detailPick, setDetailPick] = useState<Set<number>>(new Set())
+  // [매출전표 I] 창 — 고른 줄을 하나씩
+  const [queue, setQueue] = useState<Row[]>([])
+  const [slipVat, setSlipVat] = useState('')
+  const [slipError, setSlipError] = useState('')
 
   async function load(): Promise<void> {
     setLoading(true); setError('')
@@ -108,14 +140,12 @@ function SalesBatch() {
       .filter((s) => !cond.vatType || s.vatType === cond.vatType)
       .filter(() => cond.domestic !== '외자') // 우리 판매전표는 모두 내자다
       .filter((s) => !cond.tradeKind || s.tradeKind === cond.tradeKind)
-    // 일부반영 — 같은 거래처에 이미 반영된 전표가 있는가
-    const done = new Set(slips.filter((s) => s.reflected).map((s) => s.partnerId))
     const m = new Map<string, Row>()
     for (const s of f) {
       const key = mode === '거래처별' ? `p${s.partnerId}` : `s${s.id}`
-      const cur = m.get(key) ?? { key, date: s.slipDate, partnerId: s.partnerId, partnerName: s.partnerName, ids: [],
-        supply: 0, vat: 0, items: s.itemSummary, vatTypes: new Set<string>(), partial: done.has(s.partnerId) }
-      cur.ids.push(s.id)
+      const cur = m.get(key) ?? { key, date: s.slipDate, docNo: mode === '전표별' ? s.docNo : null, partnerId: s.partnerId,
+        partnerName: s.partnerName, ids: [], slips: [], supply: 0, vat: 0, items: s.itemSummary, vatTypes: new Set<string>() }
+      cur.ids.push(s.id); cur.slips.push(s)
       if (s.slipDate > cur.date) cur.date = s.slipDate // 거래처별은 마지막 거래일
       cur.supply += s.supplyAmount; cur.vat += s.vatAmount
       cur.vatTypes.add(s.vatType)
@@ -125,26 +155,50 @@ function SalesBatch() {
   }, [slips, cond, mode])
 
   const vatOf = (r: Row) => rowVat[r.key] ?? (r.vatTypes.size === 1 && r.vatTypes.has('면세') ? '계산서' : '세금계산서')
-  const sum = rows.reduce((t, r) => ({ supply: t.supply + r.supply, vat: t.vat + r.vat }), { supply: 0, vat: 0 })
+  /** 원본 [조정]: 공급가액 = 거래가액 − 조정, 부가세 = 공급가액의 10%(부가세가 없던 줄은 0), 합계 = 둘의 합. */
+  const amountsOf = (r: Row) => {
+    const adj = num(adjust[r.key])
+    if (!adj) return { adj, supply: r.supply, vat: r.vat }
+    const supply = r.supply - adj
+    return { adj, supply, vat: r.vat ? Math.round(supply / 10) : 0 }
+  }
+  const sum = rows.reduce((t, r) => {
+    const a = amountsOf(r)
+    return { trade: t.trade + r.supply, adj: t.adj + a.adj, supply: t.supply + a.supply, vat: t.vat + a.vat }
+  }, { trade: 0, adj: 0, supply: 0, vat: 0 })
 
   function toggle(k: string) {
     setChecked((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n })
   }
 
-  async function reflect() {
-    const picked = rows.filter((r) => checked.has(r.key))
-    setError(''); setOk('')
-    try {
-      const ids = picked.flatMap((r) => r.ids)
-      const vatTypes = Object.fromEntries(picked.flatMap((r) => r.ids.map((id) => [id, vatOf(r)])))
-      const res = await api.post<{ reflectedCount: number }>('/accounting-reflection/reflect', { kind: 'SALES', ids, vatTypes })
-      setChecked(new Set())
-      await load()
-      setOk(`${res.data.reflectedCount}건 회계반영 완료`)
-    } catch (err) { setError(extractErrorMessage(err)) }
+  function openSlips(picked: Row[]) {
+    if (picked.length === 0) { void ecAlert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
+    setSlipError(''); setQueue(picked); setSlipVat(vatOf(picked[0]))
   }
 
-  const reset = () => { setCond(blank); setMode('거래처별'); setChecked(new Set()) }
+  /** '매출전표 I' 창 [저장(F8)] — 그 줄의 판매전표를 분개로 넘긴다. 조정이 있으면 원본 확인 글을 먼저 띄운다. 저장하면 말 없이 닫힌다. */
+  async function saveSlip() {
+    const r = queue[0]
+    if (!r) return
+    const a = amountsOf(r)
+    if (a.adj && !(await ecConfirm(MISMATCH))) return
+    setSlipError('')
+    try {
+      const adjustments = a.adj ? { [r.ids[0]]: a.adj } : undefined
+      await api.post('/accounting-reflection/reflect', { kind: 'SALES', ids: r.ids,
+        vatTypes: Object.fromEntries(r.ids.map((id) => [id, slipVat])), adjustments })
+      const rest = queue.slice(1)
+      setQueue(rest)
+      if (rest[0]) setSlipVat(vatOf(rest[0]))
+      setChecked(new Set()); setDetail(null)
+      setAdjust((m) => { const n = { ...m }; delete n[r.key]; return n })
+      await load()
+    } catch (err) { setSlipError(extractErrorMessage(err)) }
+  }
+
+  const reset = () => { setCond(blank); setMode('거래처별'); setChecked(new Set()); setAdjust({}) }
+  const cur = queue[0]
+  const curAmt = cur ? amountsOf(cur) : null
 
   return (
     <EcListShell
@@ -153,16 +207,13 @@ function SalesBatch() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: () => void load() },
         { label: '다시작성', onClick: reset },
-        { label: '매출전표 I', selected: checked.size, onClick: () => void reflect() },
-        { label: '인쇄' },
-        { label: 'Excel' },
+        { label: '매출전표 I', selected: checked.size, onClick:() => openSlips(rows.filter((r) => checked.has(r.key))) },
       ]}
     >
       <EcStatusPanel from={cond.from} to={cond.to} onPeriod={(r) => setC({ from: r.from, to: r.to })}
-                     picks={INQUIRY_PICKS} dateLabel="기준일자">
-        <EcCond label="구분">
-          <Pills values={['거래처별', '전표별'] as const} value={mode} onChange={(v) => { setMode(v); setChecked(new Set()) }} label={(v) => v} />
-        </EcCond>
+                     picks={INQUIRY_PICKS} dateLabel="기준일자"
+                     modes={['거래처별', '전표별']} mode={mode}
+                     onModeChange={(v) => { setMode(v as '거래처별' | '전표별'); setChecked(new Set()); setAdjust({}) }}>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체" value={cond.warehouse}
                            onChange={(v) => setC({ warehouse: v })} items={pickers.warehouses} />
@@ -188,13 +239,8 @@ function SalesBatch() {
                            onChange={(v) => setC({ partnerManager: v })} items={pickers.employees} />
         </EcCond>
         <EcCond label="거래유형">
-          <Pills values={['', '과세', '면세'] as const} value={cond.vatType as '' | '과세' | '면세'}
-                 onChange={(v) => setC({ vatType: v })} label={(v) => v || '전체'} />
-        </EcCond>
-        {/* 원본 재기 필요: [부가세율 적용] 의 선택지 · 기본값(plans/재고1.md 97행). 값을 모르니 고를 것이 없다. */}
-        <EcCond label="부가세율 적용">
-          <select className="ec-input" aria-label="부가세율 적용" value={cond.vatRate} onChange={(e) => setC({ vatRate: e.target.value })}>
-            <option value="">전체</option>
+          <select className="ec-input w-[160px]" aria-label="거래유형" value={cond.vatType} onChange={(e) => setC({ vatType: e.target.value })}>
+            {TRADE_TYPES.map(([v, l]) => <option key={l} value={v}>{l}</option>)}
           </select>
         </EcCond>
         <EcCond label="내.외자구분">
@@ -202,10 +248,10 @@ function SalesBatch() {
                  onChange={(v) => setC({ domestic: v })} label={(v) => v || '전체'} />
         </EcCond>
         <EcCond label="거래구분">
-          <Pills values={['', '일반', '반품', '기타'] as const} value={cond.tradeKind as '' | '일반' | '반품' | '기타'}
+          <Pills values={['', '일반', '반품'] as const} value={cond.tradeKind as '' | '일반' | '반품'}
                  onChange={(v) => setC({ tradeKind: v })} label={(v) => v || '전체'} />
         </EcCond>
-        <EcCond label="">
+        <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={cond.noCodePrint} onChange={(e) => setC({ noCodePrint: e.target.checked })} />
             거래처코드없는자료인쇄
@@ -214,16 +260,15 @@ function SalesBatch() {
       </EcStatusPanel>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <table className="ec-grid w-full text-left">
         <thead>
           <tr>
             <th className="w-[34px]"></th>
-            <th className="w-[100px]">거래일자</th>
+            <th className="w-[110px]">거래일자</th>
             <th>거래처명</th>
             <th className="w-[120px] text-right">거래가액</th>
-            <th className="w-[80px] text-right">조정</th>
+            <th className="w-[90px] text-right">조정</th>
             <th className="w-[120px] text-right">공급가액</th>
             <th className="w-[100px] text-right">부가세</th>
             <th className="w-[120px] text-right">합계</th>
@@ -237,31 +282,39 @@ function SalesBatch() {
             <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
             <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((r) => (
-            <tr key={r.key}>
-              <td className="text-center"><input type="checkbox" checked={checked.has(r.key)} onChange={() => toggle(r.key)} /></td>
-              <td>{dateText(r.date)}</td>
-              <td>{r.partnerName}</td>
-              <td className="text-right">{won(r.supply)}</td>
-              <td className="text-right"><input className="ec-input w-full text-right" aria-label="조정" value="0" readOnly /></td>
-              <td className="text-right">{won(r.supply)}</td>
-              <td className="text-right">{won(r.vat)}</td>
-              <td className="text-right">{won(r.supply + r.vat)}</td>
-              <td>{r.items}</td>
-              <td className="text-center">
-                <select className="ec-input w-full" aria-label="부가세유형" value={vatOf(r)}
-                        onChange={(e) => setRowVat((m) => ({ ...m, [r.key]: e.target.value }))}>{vatOptions}</select>
-              </td>
-              <td className="text-center">{r.partial ? 'Y' : ''}</td>
-            </tr>
-          ))}
+          ) : rows.map((r) => {
+            const a = amountsOf(r)
+            return (
+              <tr key={r.key}>
+                <td className="text-center"><input type="checkbox" checked={checked.has(r.key)} onChange={() => toggle(r.key)} /></td>
+                <td>{r.docNo ? <span className="ec-link">{dateText(r.date)}-{seqOf(r.docNo)}</span> : dateText(r.date)}</td>
+                <td>{r.partnerName}</td>
+                <td className="text-right">{won(r.supply)}</td>
+                <td className="text-right">
+                  <input className="ec-input w-full text-right" aria-label="조정" inputMode="numeric"
+                         value={adjust[r.key] ?? '0'} onChange={(e) => setAdjust((m) => ({ ...m, [r.key]: e.target.value }))} />
+                </td>
+                <td className="text-right">{won(a.supply)}</td>
+                <td className="text-right">{won(a.vat)}</td>
+                <td className="text-right">{won(a.supply + a.vat)}</td>
+                <td>{r.items}</td>
+                <td className="text-center">
+                  <select className="ec-input w-full" aria-label="부가세유형" value={vatOf(r)}
+                          onChange={(e) => setRowVat((m) => ({ ...m, [r.key]: e.target.value }))}>{vatOptions}</select>
+                </td>
+                <td className="text-center">
+                  <button type="button" className="ec-link" onClick={() => { setDetail(r); setDetailPick(new Set(r.ids)) }}>일부반영</button>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
         {rows.length > 0 && (
           <tfoot>
             <tr className="font-bold bg-ec-page">
-              <td colSpan={3} className="text-right">합계 ({rows.length})</td>
-              <td className="text-right">{won(sum.supply)}</td>
-              <td className="text-right">0</td>
+              <td colSpan={3}></td>
+              <td className="text-right">{won(sum.trade)}</td>
+              <td className="text-right">{won(sum.adj)}</td>
               <td className="text-right">{won(sum.supply)}</td>
               <td className="text-right">{won(sum.vat)}</td>
               <td className="text-right">{won(sum.supply + sum.vat)}</td>
@@ -270,6 +323,81 @@ function SalesBatch() {
           </tfoot>
         )}
       </table>
+
+      <Modal open={detail != null} title="일괄회계반영" width={980} onClose={() => setDetail(null)}>
+        {detail && <>
+          <EcReportHead title={`매출 ${vatOf(detail)} 미청구 리스트`} period={reportPeriod(cond.from, cond.to)} sub={detail.partnerName} />
+          <table className="ec-report w-full">
+            <thead>
+              <tr>
+                <th className="w-[25px]"></th>
+                <th>거래처명</th><th className="text-center">일자-No.</th><th>품목명[규격]</th>
+                <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th>
+                <th className="text-right">부가세</th><th className="text-right">합계</th><th>적요</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.slips.flatMap((s) => s.lines.map((l, i) => (
+                <tr key={`${s.id}-${i}`}>
+                  <td className="text-center">{i === 0 && (
+                    <input type="checkbox" aria-label={`${s.docNo} 선택`} checked={detailPick.has(s.id)}
+                           onChange={() => setDetailPick((p) => { const n = new Set(p); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n })} />)}</td>
+                  <td>{s.partnerName}</td>
+                  <td className="text-center">{dateText(s.slipDate)} -{seqOf(s.docNo)}</td>
+                  <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
+                  <td className="text-right">{won(Number(l.quantity))}</td>
+                  <td className="text-right">{won(Number(l.unitPrice))}</td>
+                  <td className="text-right">{won(Number(l.supplyAmount))}</td>
+                  <td className="text-right">{won(Number(l.vatAmount))}</td>
+                  <td className="text-right">{won(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
+                  <td>{l.remark ?? ''}</td>
+                </tr>
+              )))}
+              <tr className="ec-total">
+                <td />
+                <td colSpan={3} className="text-center">합계</td>
+                <td className="text-right">{won(detail.slips.reduce((t, s) => t + s.lines.reduce((u, l) => u + Number(l.quantity), 0), 0))}</td>
+                <td className="text-right">{won(detail.slips.reduce((t, s) => t + s.lines.reduce((u, l) => u + Number(l.unitPrice), 0), 0))}</td>
+                <td className="text-right">{won(detail.supply)}</td>
+                <td className="text-right">{won(detail.vat)}</td>
+                <td className="text-right">{won(detail.supply + detail.vat)}</td>
+                <td />
+              </tr>
+            </tbody>
+          </table>
+          <div className="flex gap-[4px] mt-[8px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => {
+              const ss = detail.slips.filter((s) => detailPick.has(s.id))
+              openSlips(ss.length === 0 ? [] : [{ ...detail, key: `${detail.key}:part`, ids: ss.map((s) => s.id), slips: ss,
+                supply: ss.reduce((t, s) => t + s.supplyAmount, 0), vat: ss.reduce((t, s) => t + s.vatAmount, 0) }])
+            }}>매출전표 I</button>
+            <button type="button" className="ec-btn" onClick={() => setDetail(null)}>닫기</button>
+          </div>
+        </>}
+      </Modal>
+
+      <Modal open={cur != null} title="매출전표 I" width={760} error={slipError} onClose={() => setQueue([])}>
+        {cur && curAmt && <>
+          <ul className="ec-form mb-[8px]">
+            <EcCond label="일자-No." span={2}><span>{dateText(cur.date)}</span></EcCond>
+            <EcCond label="연결거래" span={2}><span className="ec-link">없음</span></EcCond>
+            <EcCond label="부가세유형" span={2}>
+              <select className="ec-input w-full" aria-label="매출전표 부가세유형" value={slipVat} onChange={(e) => setSlipVat(e.target.value)}>{vatOptions}</select>
+            </EcCond>
+            <EcCond label="거래처" span={2}><span>{cur.partnerName}</span></EcCond>
+            <EcCond label="공급가액"><span aria-label="매출전표 공급가액">{won(curAmt.supply)}</span></EcCond>
+            <EcCond label="부가세"><span aria-label="매출전표 부가세">{won(curAmt.vat)}</span></EcCond>
+            <EcCond label="적요" span={2}><span>{cur.items}</span></EcCond>
+            <EcCond label="매출계정"><span>4049 제품매출</span></EcCond>
+            <EcCond label="입금계좌"><span>1089 외상매출금</span></EcCond>
+            <EcCond label="수수료"><span>0</span></EcCond>
+          </ul>
+          <div className="flex gap-[4px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveSlip()}>저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setQueue([])}>닫기</button>
+          </div>
+        </>}
+      </Modal>
     </EcListShell>
   )
 }

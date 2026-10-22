@@ -1,5 +1,5 @@
 {
-  "about": "판매일괄회계반영(10-22 새 화면: 체크 → [매출전표 I]) 거래처별 [부가세유형] 고르기(원본 E040215 2026-10-13 실측: 세금계산서 · 영세율 · 계산서 · … 15가지). 판매 1건(전월 1일 — 조회 기본 기간이 전월이다)을 만들고 그 거래처 줄에서 '카드매출' 을 골라 반영하면 분개 부가세유형이 카드매출. 반영을 풀고 판매를 지운다.",
+  "about": "판매일괄회계반영(10-22 새 화면: 체크 → [매출전표 I] 창 → [저장(F8)]) 거래처별 [부가세유형] 고르기(원본 E040215 2026-10-13 실측: 세금계산서 · 영세율 · 계산서 · … 15가지). 거래처 QAJ1-VAT 가 없으면 만들고, 판매 1건(전월 1일 — 조회 기본 기간이 전월이다)을 만들고 그 거래처 줄에서 '카드매출' 을 골라 반영하면 분개 부가세유형이 카드매출. 반영을 풀고 판매를 지운다.",
   "shots": [
     {
       "name": "부가세유형 고르기 → 분개",
@@ -7,7 +7,7 @@
       "steps": [
         "wait:2000",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
-        "js:Promise.all(['/partners','/items','/warehouses'].map((p) => window.__api('GET', p))).then(([pa, it, wh]) => { const c = pa.body.find((x) => x.code === 'QAJ1-VAT'), i = it.body.find((x) => x.code === 'QA-PROD'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0]; return window.__api('POST', '/sales', { saleDate: (()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'})(), partnerId: c.id, warehouseId: w.id, remark: 'QA재고1 부가세유형', lines: [{ itemId: i.id, quantity: 1, unitPrice: 1000 }] }).then((r) => { sessionStorage.setItem('rvSale', JSON.stringify({ id: r.body.id, docNo: r.body.docNo, partner: c.name })); return r.status }) })",
+        "js:Promise.all(['/partners','/items','/warehouses'].map((p) => window.__api('GET', p))).then(([pa, it, wh]) => { const i = it.body.find((x) => x.code === 'QA-PROD'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0]; const ensure = pa.body.find((x) => x.code === 'QAJ1-VAT') ? Promise.resolve(pa.body.find((x) => x.code === 'QAJ1-VAT')) : window.__api('POST', '/partners', { code: 'QAJ1-VAT', name: 'QA재고1-부가세유형', type: 'BOTH' }).then((r) => r.body); return ensure.then((c) => window.__api('POST', '/sales', { saleDate: (()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'})(), partnerId: c.id, warehouseId: w.id, remark: 'QA재고1 부가세유형', lines: [{ itemId: i.id, quantity: 1, unitPrice: 1000 }] }).then((r) => { sessionStorage.setItem('rvSale', JSON.stringify({ id: r.body.id, docNo: r.body.docNo, partner: c.name })); return r.status }) }) })",
         "js:location.reload(); true",
         "wait:3500",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
@@ -17,6 +17,9 @@
         "expect:window.__opts.startsWith('세금계산서|영세율|계산서|소매매출|수출|카드매출') && window.__opts.split('|').length === 15",
         "wait:300",
         "js:(()=>{window.__tr.querySelector('input[type=\"checkbox\"]').click();[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='매출전표 I').click();return true})()",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog], .modal, .ec-modal')].some((d)=>d.innerText.includes('매출전표 I')&&d.innerText.includes('4049 제품매출')) || document.body.innerText.includes('1089 외상매출금')",
+        "js:(()=>{const b=[...document.querySelectorAll('button')].filter((x)=>x.textContent.trim()==='저장(F8)').pop();b&&b.click();return !!b})()",
         "wait:2500",
         "js:(async()=>{const S=JSON.parse(sessionStorage.getItem('rvSale'));const d=(()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'})();const j=(await window.__api('GET','/journals?from='+d+'&to='+d)).body.rows.find((x)=>x.sourceType==='SALES'&&x.sourceId===S.id);sessionStorage.setItem('rvVat',j?String(j.vatType):'none');return true})()",
         "expect:sessionStorage.getItem('rvVat') === '카드매출'",

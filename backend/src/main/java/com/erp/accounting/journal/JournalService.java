@@ -368,6 +368,22 @@ public class JournalService {
     /** vatType — 판매일괄회계반영에서 고른 [부가세유형]. null 이면 과세 → 세금계산서, 면세 → 계산서. */
     @Transactional
     public JournalEntry createFromSales(Sales s, String vatType) {
+        return createFromSales(s, vatType, null);
+    }
+
+    /**
+     * adjust — 판매일괄회계반영 격자의 [조정](원본 E040215 2026-10-22 실측). 공급가액에서 빼고 부가세는 새 공급가액의 10% 로 다시 셈한다
+     * (조정 100 → 공급 9,900 · 부가세 990 · 외상매출금 10,890). 판매전표 금액은 그대로 둔다 — 그 차이가 원본 거래처관리대장의 '기타할인등차액'.
+     */
+    @Transactional
+    public JournalEntry createFromSales(Sales s, String vatType, BigDecimal adjust) {
+        BigDecimal supply = s.getSupplyAmount();
+        BigDecimal vat = s.getVatAmount();
+        if (isNonZero(adjust)) {
+            supply = supply.subtract(adjust);
+            vat = isNonZero(vat) ? supply.multiply(new BigDecimal("0.1")).setScale(0, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        }
+        BigDecimal total = supply.add(nz(vat));
         if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SALES, s.getId())) {
             throw ApiException.conflict("이미 회계반영된 판매전표입니다: " + s.getDocNo());
         }
@@ -383,17 +399,17 @@ public class JournalService {
         String lineDesc = seen ? s.getLines().get(0).getItem().getName() + (discounted ? " 외 1건" : "") : null;
         String entryDesc = seen
                 ? "매출 : " + (vatType != null ? vatType : "세금계산서") + " / " + s.getPartner().getName() + " / "
-                  + String.format("%,d", s.getSupplyAmount().longValue()) + " / " + String.format("%,d", s.getVatAmount().longValue())
+                  + String.format("%,d", supply.longValue()) + " / " + String.format("%,d", nz(vat).longValue())
                 : "판매 " + s.getDocNo();
         JournalEntry e = newEntry(JournalSourceType.SALES, s.getId(), s.getSaleDate(),
                 entryDesc, s.getPartner(), s.getCreatedBy());
         /* 원본 판매 회계반영 전표의 부가세유형 — 매입/매출장 유형명이 '세금계산서'(2026-10-13 loginaa 실측). 면세 판매는 '계산서'. */
         e.setVatType(vatType != null ? vatType : s.isTaxable() ? "세금계산서" : "계산서");
 
-        addDebit(e, "108", s.getTotalAmount(), seen ? lineDesc : "외상매출금");
+        addDebit(e, "108", total, seen ? lineDesc : "외상매출금");
         byAccount(s.getLines(),
                 l -> salesAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
-                s.getSupplyAmount(), "401")
+                supply, "401")
                 .forEach((code, amt) -> addCredit(e, code, amt, seen ? lineDesc : ACCOUNT_NAMES.get(code)));
         /*
          * 반품 전표는 금액이 음수다(수량을 음수로 저장). 예전엔 부가세가 0보다 클 때만 줄을 넣어
@@ -401,8 +417,8 @@ public class JournalService {
          * 0 이 아니면 넣는다. 음수 금액은 addDebit/addCredit 이 반대편 양수로 뒤집는다 —
          * 반품은 차)제품매출·부가세예수금 / 대)외상매출금 의 역분개가 된다.
          */
-        if (isNonZero(s.getVatAmount())) {
-            addCredit(e, "255", s.getVatAmount(), seen ? lineDesc : "부가세예수금");
+        if (isNonZero(vat)) {
+            addCredit(e, "255", vat, seen ? lineDesc : "부가세예수금");
         }
         return save(e);
     }
