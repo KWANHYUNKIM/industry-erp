@@ -888,6 +888,7 @@ const MENU: TopMenu[] = [
             { label: '전표별회계반영(비용)', to: '/accounting/expense-settle' },
           ] },
           { label: '비용현황', children: [{ label: '비용내역현황', to: '/accounting/expense-detail' }] },
+            { label: '비용일괄등록', to: '/accounting/expense-bulk' },
         ],
       },
     ],

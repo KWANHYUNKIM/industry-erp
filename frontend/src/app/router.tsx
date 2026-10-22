@@ -197,6 +197,7 @@ const ExtraFieldTypePage = lazy(() => import('../pages/accounting/ExtraFieldType
 const CodeChangePage = lazy(() => import('../pages/accounting/CodeChangePage'))
 const ExpenseControlTypePage = lazy(() => import('../pages/accounting/ExpenseControlTypePage'))
 const ExpenseItemPage = lazy(() => import('../pages/accounting/ExpenseItemPage'))
+const ExpenseBulkPage = lazy(() => import('../pages/accounting/ExpenseBulkPage'))
 const ExpenseGroupPage = lazy(() => import('../pages/accounting/ExpenseGroupPage'))
 const ExpenseSettlePage = lazy(() => import('../pages/accounting/ExpenseSettlePage'))
 const ImportCostEntryPage = lazy(() => import('../pages/accounting/ImportCostEntryPage'))
@@ -884,6 +885,7 @@ export default function AppRouter() {
         <Route path="/accounting/code-change" element={<CodeChangePage />} />
         <Route path="/accounting/expense-control-types" element={<ExpenseControlTypePage />} />
         <Route path="/accounting/expense-items" element={<ExpenseItemPage />} />
+        <Route path="/accounting/expense-bulk" element={<ExpenseBulkPage />} />
         <Route path="/accounting/expense-groups" element={<ExpenseGroupPage />} />
         <Route path="/accounting/expense-settle" element={<ExpenseSettlePage />} />
         <Route path="/accounting/income" element={<IncomePage />} />

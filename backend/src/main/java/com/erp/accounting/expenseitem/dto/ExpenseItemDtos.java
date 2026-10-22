@@ -43,4 +43,10 @@ public final class ExpenseItemDtos {
                                          @PositiveOrZero BigDecimal limitAmount, List<Long> employeeIds,
                                          java.time.LocalDate controlFrom, java.time.LocalDate controlTo, List<Long> alertEmployeeIds,
                                          @Size(max = 500) String remark, Boolean active) {}
+
+    /** 비용일괄등록(E060811) 저장 — 고친 줄만. 비용명 · 한도금액(통제유형이 있는 줄만 의미) 외의 값은 지금 값을 그대로 둔다. */
+    public record BulkSaveRequest(@jakarta.validation.Valid List<BulkChange> changes) {}
+
+    public record BulkChange(@jakarta.validation.constraints.NotNull Long id, @NotBlank @Size(max = 100) String name,
+                             @PositiveOrZero BigDecimal limitAmount) {}
 }

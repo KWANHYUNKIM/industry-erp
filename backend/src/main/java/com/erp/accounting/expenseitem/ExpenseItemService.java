@@ -56,6 +56,22 @@ public class ExpenseItemService {
         return ExpenseItemResponse.from(i);
     }
 
+    /** 비용일괄등록 — 줄마다 단건 수정(update)과 같은 규칙. 하나라도 실패하면 전부 되돌린다. */
+    @Transactional
+    public int bulkUpdate(List<com.erp.accounting.expenseitem.dto.ExpenseItemDtos.BulkChange> changes) {
+        if (changes == null) return 0;
+        for (var c : changes) {
+            ExpenseItem i = get(c.id());
+            update(c.id(), new SaveExpenseItemRequest(i.getCode(), c.name(),
+                    i.getAccount() != null ? i.getAccount().getId() : null,
+                    i.getControlType() != null ? i.getControlType().getId() : null,
+                    c.limitAmount() != null ? c.limitAmount() : i.getLimitAmount(),
+                    List.copyOf(i.getEmployeeIds()), i.getControlFrom(), i.getControlTo(),
+                    List.copyOf(i.getAlertEmployeeIds()), i.getRemark(), null));
+        }
+        return changes.size();
+    }
+
     @Transactional
     public void setActive(List<Long> ids, boolean active) {
         for (Long id : ids) {
