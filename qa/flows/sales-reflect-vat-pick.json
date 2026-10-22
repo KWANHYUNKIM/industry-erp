@@ -21,7 +21,7 @@
         "expect:[...document.querySelectorAll('[role=dialog], .modal, .ec-modal')].some((d)=>d.innerText.includes('매출전표 I')&&d.innerText.includes('4049 제품매출')) || document.body.innerText.includes('1089 외상매출금')",
         "js:(()=>{const b=[...document.querySelectorAll('button')].filter((x)=>x.textContent.trim()==='저장(F8)').pop();b&&b.click();return !!b})()",
         "wait:2500",
-        "js:(async()=>{const S=JSON.parse(sessionStorage.getItem('rvSale'));const d=(()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'})();const j=(await window.__api('GET','/journals?from='+d+'&to='+d)).body.rows.find((x)=>x.sourceType==='SALES'&&x.sourceId===S.id);sessionStorage.setItem('rvVat',j?String(j.vatType):'none');return true})()",
+        "js:(async()=>{const S=JSON.parse(sessionStorage.getItem('rvSale'));const sl=(await window.__api('GET','/accounting-reflection?kind=SALES')).body.find((x)=>x.id===S.id);const j=sl&&sl.journalEntryId?(await window.__api('GET','/journals/'+sl.journalEntryId)).body:null;sessionStorage.setItem('rvVat',j?String(j.vatType):'none');return true})()",
         "expect:sessionStorage.getItem('rvVat') === '카드매출'",
         "js:(async()=>{const S=JSON.parse(sessionStorage.getItem('rvSale'));await window.__api('POST','/accounting-reflection/unreflect',{kind:'SALES',ids:[S.id]});const r=await window.__api('DELETE','/sales/'+S.id);sessionStorage.setItem('rvDel',String(r.status));return true})()",
         "expect:['200','204'].includes(sessionStorage.getItem('rvDel'))"
