@@ -166,7 +166,7 @@ const MENU: TopMenu[] = [
               { label: '수금/지급', to: '/sales/settlement' },
             ],
           },
-          { label: '판매일괄회계반영', children: [{ label: '회계반영/미반영', to: '/sales/accounting-reflection?view=batch' }] },
+          { label: '판매일괄회계반영', children: [{ label: '판매일괄회계반영', to: '/sales/accounting-reflection?view=batch' }] },
           { label: '출하지시서', children: [{ label: '출하지시서조회', to: '/sales/shipment-order' }] },
           {
             label: '출하',

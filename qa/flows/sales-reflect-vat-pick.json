@@ -1,5 +1,5 @@
 {
-  "about": "판매일괄회계반영 거래처별 [부가세유형] 고르기(원본 E040215 2026-10-13 실측: 세금계산서 · 영세율 · 계산서 · … 15가지). 판매 1건(전월 1일 — 조회 기본 기간이 전월이다)을 만들고 그 거래처 줄에서 '카드매출' 을 골라 반영하면 분개 부가세유형이 카드매출. 반영을 풀고 판매를 지운다.",
+  "about": "판매일괄회계반영(10-22 새 화면: 체크 → [매출전표 I]) 거래처별 [부가세유형] 고르기(원본 E040215 2026-10-13 실측: 세금계산서 · 영세율 · 계산서 · … 15가지). 판매 1건(전월 1일 — 조회 기본 기간이 전월이다)을 만들고 그 거래처 줄에서 '카드매출' 을 골라 반영하면 분개 부가세유형이 카드매출. 반영을 풀고 판매를 지운다.",
   "shots": [
     {
       "name": "부가세유형 고르기 → 분개",
@@ -13,10 +13,10 @@
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "js:(()=>{const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.trim()==='거래처별');b&&b.click();return !!b})()",
         "wait:800",
-        "js:(()=>{const S=JSON.parse(sessionStorage.getItem('rvSale'));const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===S.partner);window.__tr=tr;const sel=tr.querySelector('select[aria-label=\"부가세유형\"]');window.__opts=[...sel.options].map((o)=>o.text).join('|');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(sel,'카드매출');sel.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "js:(()=>{const S=JSON.parse(sessionStorage.getItem('rvSale'));const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===S.partner);window.__tr=tr;const sel=tr.querySelector('select[aria-label=\"부가세유형\"]');window.__opts=[...sel.options].map((o)=>o.text).join('|');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(sel,'카드매출');sel.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
         "expect:window.__opts.startsWith('세금계산서|영세율|계산서|소매매출|수출|카드매출') && window.__opts.split('|').length === 15",
         "wait:300",
-        "js:(()=>{[...window.__tr.querySelectorAll('button')].find((b)=>/건 반영$/.test(b.textContent.trim())).click();return true})()",
+        "js:(()=>{window.__tr.querySelector('input[type=\"checkbox\"]').click();[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='매출전표 I').click();return true})()",
         "wait:2500",
         "js:(async()=>{const S=JSON.parse(sessionStorage.getItem('rvSale'));const d=(()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'})();const j=(await window.__api('GET','/journals?from='+d+'&to='+d)).body.rows.find((x)=>x.sourceType==='SALES'&&x.sourceId===S.id);sessionStorage.setItem('rvVat',j?String(j.vatType):'none');return true})()",
         "expect:sessionStorage.getItem('rvVat') === '카드매출'",
