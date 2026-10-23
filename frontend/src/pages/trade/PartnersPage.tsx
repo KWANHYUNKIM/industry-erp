@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CodeOption, Currency, GroupMaster, Partner } from '../../types/api'
 import { useSearchParams } from 'react-router-dom'
@@ -153,7 +153,7 @@ export default function PartnersPage() {
     전화번호: (p) => p.phone,
     Email: (p) => p.email,
     주소: (p) => p.address,
-  })
+  }, { key: '거래처명', dir: 'asc' })   // 원본 거래처리스트는 처음에 거래처명 오름차순(2026-10 QA 실측)
   const shown = sort.sorted
   const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
@@ -184,7 +184,10 @@ export default function PartnersPage() {
     setWebFile({ name: f.name, total: Math.max(0, lines.length - 1), head: (lines[0] ?? '').split(/[,\t]/).slice(0, 8) })
   }
 
+  /* 연달아 저장하면 조회가 겹친다 — 먼저 시작한(느린) 응답이 나중 응답을 덮어 새 거래처가 목록에서 빠지던 것. 마지막에 시작한 조회만 반영한다. */
+  const loadSeq = useRef(0)
   async function load() {
+    const seq = ++loadSeq.current
     setLoading(true)
     try {
       const [p, t, g] = await Promise.all([
@@ -192,13 +195,14 @@ export default function PartnersPage() {
         api.get<CodeOption[]>('/meta/partner-types'),
         api.get<GroupMaster[]>('/partner-groups'),
       ])
+      if (seq !== loadSeq.current) return
       setPartners(p.data)
       setTypes(t.data)
       setPartnerGroups(g.data)
     } catch (err) {
-      setError(extractErrorMessage(err))
+      if (seq === loadSeq.current) setError(extractErrorMessage(err))
     } finally {
-      setLoading(false)
+      if (seq === loadSeq.current) setLoading(false)
     }
   }
 
@@ -290,9 +294,11 @@ export default function PartnersPage() {
       /* 원본은 저장하면 말없이 창을 닫고 목록만 다시 그린다(신규 · 수정 둘 다). */
       setForm({ ...empty })
       setShowForm(false)
-      load()
+      await load()
     } catch (err) {
-      setError(extractErrorMessage(err))
+      const m = extractErrorMessage(err)
+      /* 서버의 중복 안내는 칸 이름이 없다 — 겹친 거래처코드를 붙여 준다. */
+      setError(m.includes('이미 같은 값') && editId == null ? `${m} (거래처코드 ${form.code.trim()})` : m)
     }
   }
 

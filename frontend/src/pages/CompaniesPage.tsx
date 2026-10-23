@@ -267,6 +267,7 @@ function CreateCompanyForm({ onCreated }: { onCreated: (c: Company) => void }) {
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mt-[10px]">{error}</p>}
+      {submitting && <p className="ec-alert mt-[10px]" role="status">회사 스키마를 만드는 중입니다. 1분쯤 걸리니 창을 닫지 말고 기다려 주세요.</p>}
 
       <div className="mt-[12px] flex justify-end">
         <button type="submit" disabled={submitting} className="ec-btn ec-btn-primary">

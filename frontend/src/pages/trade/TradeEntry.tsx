@@ -477,6 +477,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   useTableColumnCheck(gridRef, '판매/구매입력 명세 그리드', [cols, lines.length])
   // 회사 · 사용자마다 따로 둔다. 같은 브라우저에서 다른 회사로 들어가면 앞 회사의 쓰던 전표가 불려 오던 것.
   const { companyCode, user } = useAuth()
+  const whKey = `ec-slip-wh:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
   const tempKey = `ec-slip-temp:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
 
   const flash = (msg: string) => {
@@ -502,7 +503,14 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setPartners(p.data)
     setWarehouses(w.data)
     setItems(i.data)
-    setWarehouseId((prev) => prev || (w.data[0] ? String(w.data[0].id) : ''))
+    /* 원본은 안내용 더미 창고('00000 창고/공장/외주공장 등록을 통해…')를 처음 값으로 깔지 않는다 — 마지막에 쓴 창고, 없으면 빈 칸.
+       (실제 창고가 있으면 첫 실창고로 채워 입력이 막히지 않게 한다.) */
+    let remembered = ''
+    try { remembered = localStorage.getItem(whKey) ?? '' } catch { /* 저장소가 막힌 환경 */ }
+    const guide = (x: Warehouse) => x.code === '00000' || (x.name ?? '').startsWith('창고/공장/외주공장 등록')
+    const first = w.data.find((x) => x.active && !guide(x))
+    const start = w.data.find((x) => String(x.id) === remembered && x.active) ?? first
+    setWarehouseId((prev) => prev || (start ? String(start.id) : ''))
   }
   const loadDocs = () => api.get<(SalesDoc | PurchaseDoc)[]>(cfg.endpoint).then((r) => setDocs(r.data))
   /*
@@ -1343,6 +1351,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       const res = editing
         ? await api.put<SalesDoc | PurchaseDoc>(`${cfg.endpoint}/${editing.id}`, body)
         : await api.post<SalesDoc | PurchaseDoc>(cfg.endpoint, body)
+      if (!editing) { try { localStorage.setItem(whKey, warehouseId) } catch { /* 무시 */ } }
       /*
        * 판매입력 II 는 저장하면 <b>매출전표 I 까지 함께</b> 생긴다(원본 E040253 2026-10-22 실측: 저장 직후 판매조회
        * 회계반영여부 ✓, 판매단가일괄변경 목록에서 빠지고, 수정 창에 [매출전표 I] 탭 · 삭제 알림에 '- 매출전표 I').

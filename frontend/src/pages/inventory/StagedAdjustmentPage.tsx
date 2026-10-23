@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../types/api'
@@ -70,7 +70,10 @@ export default function StagedAdjustmentPage() {
   /** 품목을 물고 왔으면 조정 폼을 바로 연다 — 한 번 더 누르게 하지 않는다. */
   const [showForm, setShowForm] = useState(Boolean(searchParams.get('item')))
 
+  /* 연달아 부른 조회 중 마지막 것만 반영한다 — 느린 옛 응답이 반영 직후의 새 상태를 덮던 것. */
+  const loadSeq = useRef(0)
   async function load() {
+    const seq = ++loadSeq.current
     setLoading(true)
     try {
       const [s, i, w] = await Promise.all([
@@ -78,9 +81,10 @@ export default function StagedAdjustmentPage() {
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
       ])
+      if (seq !== loadSeq.current) return
       setRows(s.data); setItems(i.data); setWarehouses(w.data)
-    } catch (err) { setError(extractErrorMessage(err)) }
-    finally { setLoading(false) }
+    } catch (err) { if (seq === loadSeq.current) setError(extractErrorMessage(err)) }
+    finally { if (seq === loadSeq.current) setLoading(false) }
   }
   /* 기준일자를 바꾸면 서버에 다시 물어본다 — 브라우저에서 거르지 않는다. */
   useEffect(() => { load() }, [from, to])
@@ -98,7 +102,12 @@ export default function StagedAdjustmentPage() {
         actualQty: Number(form.actualQty), requestDate: form.requestDate, reason: form.reason || undefined,
       })
       setForm((f) => ({ ...f, itemId: '', warehouseId: '', actualQty: '', reason: '' }))
-      setShowForm(false); load()
+      setShowForm(false)
+      /* 요청일자가 조회 기준일자 밖이면 목록에 안 보인다 — 방금 만든 요청이 보이도록 기준일자를 넓힌다. */
+      const rd = form.requestDate
+      if (rd && from && rd < from) setFrom(rd)
+      else if (rd && to && rd > to) setTo(rd)
+      else await load()
       const d = res.data
       setOk(`${d.adjustNo} 조정요청 등록 완료 · ${d.itemName} · ${d.warehouseName} · 장부 ${num(d.bookQty)} → 실사 ${num(d.actualQty)}`)
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -106,7 +115,7 @@ export default function StagedAdjustmentPage() {
 
   async function act(r: StagedAdjustment, kind: 'apply' | 'reject') {
     if (kind === 'apply' && !(await ecConfirm(`${r.adjustNo}을(를) 반영할까요? 재고가 ${num(r.actualQty)}(으)로 조정됩니다.`))) return
-    try { await api.post(`/staged-adjustments/${r.id}/${kind}`); load() }
+    try { await api.post(`/staged-adjustments/${r.id}/${kind}`); await load() }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   async function remove(r: StagedAdjustment) {

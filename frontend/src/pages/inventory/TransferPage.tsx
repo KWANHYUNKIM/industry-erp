@@ -568,7 +568,7 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
           <input className="ec-input" type="date" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} style={{ width: 140 }} />
         </Field>
         <Field label="담당자">
-          <CodePickerField label="담당자" hideLabel width={150} placeholder="담당자" emptyLabel="선택 해제"
+          <CodePickerField pair label="담당자" hideLabel width={150} placeholder="담당자" emptyLabel="선택 해제"
                            value={form.employeeId} onChange={(v) => set('employeeId', v)}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </Field>
@@ -823,7 +823,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
                            items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </Field>
         <Field label="담당자">
-          <CodePickerField label="담당자" hideLabel width={150} placeholder="선택 안 함" emptyLabel="선택 해제"
+          <CodePickerField pair label="담당자" hideLabel width={150} placeholder="선택 안 함" emptyLabel="선택 해제"
                            value={form.employeeId} onChange={(v) => set('employeeId', v)}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </Field>

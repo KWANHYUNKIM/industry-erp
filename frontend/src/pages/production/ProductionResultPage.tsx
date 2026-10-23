@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import GridCode from '../../components/GridCode'
 import CodePickerField from '../../components/CodePickerField'
 import EcDateField from '../../components/EcDateField'
 import EcSlipShell from '../../components/EcSlipShell'
@@ -506,8 +507,9 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                                      value={l.processId} onChange={(v) => setLine(l.key, { processId: v })} items={processPicks} />
                   </td>
                 )}
-                <td className="pad text-ec-label overflow-hidden whitespace-nowrap">
-                  {it?.code ?? ''}
+                <td className="pad">
+                  <GridCode title="생산품목검색" codeHead="생산품목코드" nameHead="생산품목명" subHead="규격" items={itemPicks} value={l.productId}
+                            onPick={(v) => setLine(l.key, { productId: v, workOrderId: v === l.productId ? l.workOrderId : '', unitPrice: '', amountTouched: false, bomId: v === l.productId ? l.bomId : '' })} />
                 </td>
                 <td>
                   <input className="cell" style={{ textAlign: 'center' }} disabled={!l.productId} value={l.lotNo}
