@@ -205,7 +205,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   useEffect(() => {
     void Promise.all([
       api.get<Item[]>('/items').then((r) => setItems(r.data.filter((i) => i.active))),
-      api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data.filter((w) => w.active))),
+      api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data)),
       api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees')
         .then((r) => setEmployees(r.data.filter((e) => e.active !== false))),
       api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)),
@@ -257,8 +257,8 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   /** 생산된공장 — 공장·외주를 먼저 보인다(원본 생산불출의 받는공장 검색이 공장만 보인다). */
   const factoryPicks = useMemo(() => [...warehouses]
     .sort((a, b) => Number(a.kind === '창고') - Number(b.kind === '창고'))
-    .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind })), [warehouses])
-  const whPicks = useMemo(() => warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind })), [warehouses])
+    .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind, stopped: !w.active })), [warehouses])
+  const whPicks = useMemo(() => warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind, stopped: !w.active })), [warehouses])
   const processPicks = useMemo(() => processes.map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [processes])
 
   /** 생산된공장이 외주처면 품목의 [외주비단가]를 기본으로 깐다. 원 미만: 합계 반올림, 부가세 버림. */

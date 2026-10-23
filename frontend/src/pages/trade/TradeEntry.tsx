@@ -696,7 +696,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const usablePartners = useMemo(() => partners.filter(cfg.canUse), [partners, cfg])
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
   const codeItems = useMemo(
-    () => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec })),
+    () => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec, stopped: !i.active })),
     [items],
   )
 
@@ -1703,7 +1703,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               <CodePickerField
                 label={cfg.partnerLabel} hideLabel pair
                 value={partnerId} onChange={choosePartner}
-                items={partnerCodeItems(usablePartners)}
+                items={partnerCodeItems(usablePartners, true)}
               />
             </div>
           </li>
@@ -1723,7 +1723,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               <CodePickerField
                 label={cfg.whLabel} hideLabel pair
                 value={warehouseId} onChange={setWarehouseId}
-                items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))}
+                items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location, stopped: !w.active }))}
               />
             </div>
           </li>

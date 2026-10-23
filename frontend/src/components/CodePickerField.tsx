@@ -124,7 +124,8 @@ export default function CodePickerField({
     setTyped(null)
     if (!needle) { setOpen(true); return }
     const low = needle.toLowerCase()
-    const hits = items.filter((i) => `${i.code ?? ''} ${i.name}`.toLowerCase().includes(low))
+    // 직접 쳐서 Enter 할 때는 사용 중인 것만 맞춘다 — 사용중단은 창에서 [사용중단포함] 을 켜야 보인다(원본 동작을 가정, 미실측)
+    const hits = items.filter((i) => !i.stopped && `${i.code ?? ''} ${i.name}`.toLowerCase().includes(low))
     if (hits.length === 1) { pick(hits[0]); return }
     // 아무것도 안 걸리면 바꾸려던 이전 값은 무효 — 비운다(안 비우면 창을 닫았을 때 옛 값으로 저장된다)
     if (hits.length === 0 && value) onChange?.('', null)
