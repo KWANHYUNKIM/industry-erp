@@ -5135,6 +5135,11 @@ async function scenarioInactiveItemGuards(f) {
   eq('자재를 사용중지로 내린다', stopped.active, false)
 
   const D = '2093-03-03'
+  // BOM 의 자재 경우는 완제품 BOM 에 버전을 더하지 않도록 따로 만든 껍데기 제품으로 시험한다.
+  const bomShell = (await must('GET', '/items')).find((i) => i.code === `${P}BOMSHELL`)
+    ?? await must('POST', '/items', {
+      code: `${P}BOMSHELL`, name: 'QA BOM껍데기', unit: 'EA', category: 'FINISHED', unitPrice: 1, safetyStock: 0,
+    })
   const blocked = [
     ['작업지시서', '/work-orders',
       { productId: f.material.id, warehouseId: f.warehouse.id, plannedQty: 1, orderDate: D }],
@@ -5143,7 +5148,7 @@ async function scenarioInactiveItemGuards(f) {
     ['BOM 의 제품', '/boms',
       { productId: f.material.id, lines: [{ componentId: f.product.id, quantity: 1 }] }],
     ['BOM 의 자재', '/boms',
-      { productId: f.product.id, lines: [{ componentId: f.material.id, quantity: 1 }] }],
+      { productId: bomShell.id, lines: [{ componentId: f.material.id, quantity: 1 }] }],
     ['재고입고', '/stock/transactions',
       { itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 1 }],
   ]
@@ -8503,7 +8508,9 @@ async function scenarioMaterialIssueMove(f) {
 
   // 창고 등록에는 [사용] 이 없다 — 만들 때는 늘 사용중이고, 내리는 것은 수정이다.
   // (처음엔 POST 에 active:false 를 실었는데 조용히 무시되고 불출이 그대로 됐다.)
-  const madeWh = await must('POST', '/warehouses', { code: `${P}DW`, name: `${P}폐쇄창고` })
+  // 사용중단 창고로 불출하면 재고이동 내역이 남아 창고를 지울 수 없다 — 지우지 않고 사용중단으로 남겨 재실행에 재사용한다.
+  const madeWh = (await must('GET', '/warehouses')).find((w) => w.code === `${P}DW`)
+    ?? await must('POST', '/warehouses', { code: `${P}DW`, name: `${P}폐쇄창고` })
   const deadWh = await must('PUT', `/warehouses/${madeWh.id}`, {
     name: madeWh.name, active: false,
   })
@@ -8513,7 +8520,6 @@ async function scenarioMaterialIssueMove(f) {
   })
   eq('사용중단한 창고로도 보낼 수 있다(원본 실측)', toDead.status < 300, true)
   if (toDead.data?.id) await call('DELETE', `/material-issues/${toDead.data.id}`)
-  await must('DELETE', `/warehouses/${deadWh.id}`)
 
   eq('불출을 지울 수 있다', (await call('DELETE', `/material-issues/${issue.id}`)).status, 204)
   eq('지우면 보내는창고로 돌아온다', await stockOf(f.warehouse.id), fromBefore)
@@ -9774,12 +9780,16 @@ async function scenarioInactiveMaster(f) {
   section('■ 사용중지한 마스터')
 
   const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
-  const item = await must('POST', '/items', {
-    code: `${P}DEADITEM`, name: '중지품목', unit: 'EA',
-    category: 'MERCHANDISE', unitPrice: 1000, safetyStock: 0,
-  })
+  // 사용중단 품목으로 전표를 저장하면 재고 행이 생겨 품목을 지울 수 없다 — 지우지 않고 사용중단으로 남겨 두고 재실행에 재사용한다.
+  const item = (await must('GET', '/items')).find((i) => i.code === `${P}DEADITEM`)
+    ?? await must('POST', '/items', {
+      code: `${P}DEADITEM`, name: '중지품목', unit: 'EA',
+      category: 'MERCHANDISE', unitPrice: 1000, safetyStock: 0,
+    })
   const partner = await must('POST', '/partners',
     { code: `${P}DEADPT`, name: '중지거래처', type: 'CUSTOMER' })
+  const deadSupplier = await must('POST', '/partners',
+    { code: `${P}DEADSP`, name: '중지공급처', type: 'SUPPLIER' })
 
   // 살아 있는 동안 만든 전표는 그대로 남아야 한다 — 중지가 소급되면 안 된다
   const before = await must('POST', '/sales', {
@@ -9793,13 +9803,17 @@ async function scenarioInactiveMaster(f) {
   })
   await must('PUT', `/partners/${partner.id}`,
     { code: `${P}DEADPT`, name: '중지거래처', type: 'CUSTOMER', active: false })
+  await must('PUT', `/partners/${deadSupplier.id}`,
+    { code: `${P}DEADSP`, name: '중지공급처', type: 'SUPPLIER', active: false })
 
   const withDeadItem = await call('POST', '/sales', {
     saleDate: today, partnerId: f.customer.id, warehouseId: f.warehouse.id,
     lines: [{ itemId: item.id, quantity: 1, unitPrice: 1000 }],
   })
   // 원본 실측(2026-10-23): [사용중단포함] 으로 고른 사용중단 품목 · 창고 · 거래처도 전표가 저장된다.
-  eq('중지된 품목으로도 판매전표가 저장된다(원본 실측)', withDeadItem.status < 300, true)
+  // 이 품목은 재고가 없어 '재고 부족' 으로 막힐 수는 있다 — 사용중지 때문에 막히지만 않으면 된다.
+  eq('중지된 품목이라는 이유로는 판매전표가 막히지 않는다(원본 실측)',
+    withDeadItem.status < 300 || !/사용중지/.test(String(withDeadItem.data?.message ?? '')), true)
   if (withDeadItem.data?.id) await call('DELETE', `/sales/${withDeadItem.data.id}`)
 
   const withDeadPartner = await call('POST', '/sales', {
@@ -9831,7 +9845,7 @@ async function scenarioInactiveMaster(f) {
     const byItem = await call('POST', path, body(partnerId, item.id))
     eq(`${label}: 중지된 품목도 저장된다(원본 실측)`, byItem.status < 300, true)
     if (byItem.data?.id) await call('DELETE', `${path}/${byItem.data.id}`)
-    const byPartner = await call('POST', path, body(partner.id, f.product.id))
+    const byPartner = await call('POST', path, body(path === '/purchase-orders' ? deadSupplier.id : partner.id, f.product.id))
     eq(`${label}: 중지된 거래처도 저장된다(원본 실측)`, byPartner.status < 300, true)
     if (byPartner.data?.id) await call('DELETE', `${path}/${byPartner.data.id}`)
   }
@@ -9849,9 +9863,9 @@ async function scenarioInactiveMaster(f) {
 
   await must('DELETE', `/sales/${before.id}`)
   await must('DELETE', `/partners/${partner.id}`)
-  await must('DELETE', `/items/${item.id}`)
-  eq('시험 자료는 남기지 않는다',
-    (await must('GET', '/items')).filter((i) => i.code === `${P}DEADITEM`).length, 0)
+  await must('DELETE', `/partners/${deadSupplier.id}`)
+  eq('시험 품목은 사용중단으로 남긴다',
+    (await must('GET', '/items')).find((i) => i.code === `${P}DEADITEM`).active, false)
 }
 
 /**
