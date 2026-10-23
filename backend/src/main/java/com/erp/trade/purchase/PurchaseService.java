@@ -334,7 +334,7 @@ public class PurchaseService {
 
     /** 라인 단가가 바뀐 뒤 공급가액·부가세·전표합계를 다시 맞춘다. */
     private void recalcAmounts(Purchase slip) {
-        boolean taxable = slip.isTaxable();
+        boolean taxable = slip.isTaxable() && (slip.getCurrencyCode() == null || slip.getCurrencyCode().isBlank());
         List<PurchaseLine> lines = slip.getLines();
         List<BigDecimal> supplies = lines.stream()
                 .map(l -> VatAllocator.lineSupply(l.getQuantity(), l.getUnitPrice()))
@@ -501,7 +501,9 @@ public class PurchaseService {
         }
         purchase.setCurrencyCode(cur);
         purchase.setExchangeRate(foreign ? headRate : null);
-        boolean taxable = !foreign && (req.taxable() == null || req.taxable());
+        boolean taxable = req.taxable() == null || req.taxable();
+        // 거래유형(taxable)은 고른 그대로 둔다. 외자는 부가세만 0 (원본 수입 구매도 거래유형 부가세율 적용).
+        boolean vatOn = taxable && !foreign;
         // 전표의 성질로 남긴다. 안 남기면 나중에 '부가세가 0이면 면세' 로 되짚어야 하고,
         // 반올림으로 부가세가 0 이 된 과세 전표를 면세로 오인한다.
         purchase.setTaxable(taxable);
@@ -541,9 +543,9 @@ public class PurchaseService {
                         : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign));
             }
         }
-        List<BigDecimal> vats = new java.util.ArrayList<>(VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip));
+        List<BigDecimal> vats = new java.util.ArrayList<>(VatAllocator.allocate(supplies, VAT_RATE, vatOn, vatBySlip));
         // 손으로 고친 부가세는 그 줄에 그대로 쓴다(면세 전표는 0 이 원칙이라 무시한다).
-        for (int i = 0; taxable && i < req.lines().size(); i++) {
+        for (int i = 0; vatOn && i < req.lines().size(); i++) {
             BigDecimal typedVat = req.lines().get(i).vatAmount();
             if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP).multiply(sign));
         }
