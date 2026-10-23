@@ -126,6 +126,8 @@ export default function CodePickerField({
     const low = needle.toLowerCase()
     const hits = items.filter((i) => `${i.code ?? ''} ${i.name}`.toLowerCase().includes(low))
     if (hits.length === 1) { pick(hits[0]); return }
+    // 아무것도 안 걸리면 바꾸려던 이전 값은 무효 — 비운다(안 비우면 창을 닫았을 때 옛 값으로 저장된다)
+    if (hits.length === 0 && value) onChange?.('', null)
     setQ(needle)
     setOpen(true)
   }
