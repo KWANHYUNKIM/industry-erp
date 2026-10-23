@@ -54,7 +54,7 @@ export default function QuotationPage() {
   const [rows, setRows] = useState<Quotation[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
-  const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string }[]>([])
+  const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string; active?: boolean }[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   /** 다른전표생성 입력 창 [담당자] · [통화] 직접입력 후보. */
   const [genEmps, setGenEmps] = useState<{ id: number; code: string; name: string }[]>([])
@@ -126,7 +126,7 @@ export default function QuotationPage() {
   useEffect(() => {
     api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {})
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data.filter((p) => p.type !== 'SUPPLIER'))).catch(() => {})
-    api.get<{ id: number; code: string; name: string }[]>('/warehouses').then((r) => setWarehouses(r.data)).catch(() => {})
+    api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/warehouses').then((r) => setWarehouses(r.data)).catch(() => {})
     api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
   }, [])
 
@@ -798,7 +798,7 @@ export default function QuotationPage() {
 function QuotationForm({ editing, items, partners, warehouses, projects, onClose, onSaved }: {
   editing: Quotation | null
   items: Item[]; partners: Partner[]
-  warehouses: { id: number; code: string; name: string }[]
+  warehouses: { id: number; code: string; name: string; active?: boolean }[]
   projects: { id: number; code: string; name: string }[]
   onClose: () => void; onSaved: () => void
 }) {
@@ -911,7 +911,7 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
               <td className={partnerMissing ? 'ec-invalid' : undefined}>
                 <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="거래처"
                                  value={partnerId} onChange={choosePartner}
-                                 items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
+                                 items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'), true)} />
               </td>
             </tr>
             <tr>
@@ -919,7 +919,7 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
               <td>
                 <CodePickerField label="출하창고" hideLabel width={240} emptyLabel="선택 안 함" placeholder="출하창고"
                                  value={fWarehouse} onChange={setFWarehouse}
-                                 items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
+                                 items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, stopped: w.active === false }))} />
               </td>
               <th className={th}>프로젝트</th>
               <td>
@@ -950,7 +950,7 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
                   <td>
                     <CodePickerField label="품목" hideLabel fill placeholder="품목코드" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => pickItem(i, v)}
-                                     items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, alias: x.searchKeyword, sub: x.spec }))} />
+                                     items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, alias: x.searchKeyword, sub: x.spec, stopped: x.active === false }))} />
                   </td>
                   <td>{it?.spec ?? ''}</td>
                   <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>

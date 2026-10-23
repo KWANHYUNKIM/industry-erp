@@ -158,8 +158,8 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
 
   const itemOf = (id: string) => items.find((x) => String(x.id) === id)
   const partnerOf = (id: string) => partners.find((x) => String(x.id) === id)
-  const itemPicks = useMemo(() => items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec })), [items])
-  const partnerPicks = useMemo(() => partnerCodeItems(partners).map((p, i) => ({ ...p, value: String(partners[i].id) })), [partners])
+  const itemPicks = useMemo(() => items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec, stopped: x.active === false })), [items])
+  const partnerPicks = useMemo(() => partnerCodeItems(partners, true).map((p, i) => ({ ...p, value: String(partners[i].id) })), [partners])
 
   function setLine(i: number, patch: Partial<LineForm>) {
     setLines((ls) => {

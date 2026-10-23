@@ -769,7 +769,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 <td>
                   <CodePickerField label="매입처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매입처 선택"
                                    value={partnerId} onChange={choosePartner}
-                                   items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
+                                   items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'), true)} />
                 </td>
                 {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
                 <th className="w-[70px] bg-ec-page">일자</th>
@@ -803,7 +803,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 <td>
                   <CodePickerField label="입고창고" hideLabel width={150} emptyLabel="창고 선택"
                                    value={warehouseId} onChange={setWarehouseId}
-                                   items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                                   items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name, stopped: x.active === false }))} />
                 </td>
               </tr>
               <tr>
@@ -844,13 +844,13 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                   <td>
                     <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => pickItem(i, v)}
-                                     items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
+                                     items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec, stopped: it.active === false }))} />
                   </td>
                   <td className="text-ec-muted">{specOf(l.itemId)}</td>
                   <td>
                     <CodePickerField label="매입처" hideLabel fill emptyLabel="(헤더 매입처)" placeholder="(헤더 매입처)"
                                      value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })}
-                                     items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
+                                     items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'), true)} />
                   </td>
                   {/* [재고불러오기]가 채우는 두 칸. 누르기 전에는 '-' 다. */}
                   <td className="text-right text-ec-label">{stockCell(stockAllOf(l.itemId))}</td>

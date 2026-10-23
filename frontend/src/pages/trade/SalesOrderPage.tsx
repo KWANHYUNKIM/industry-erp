@@ -124,9 +124,9 @@ export default function SalesOrderPage() {
   const [fromQuotes, setFromQuotes] = useState<number[] | null>(null)
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
-  /** 줄의 품목 코드도움 — 코드·이름·검색어로 찾고 규격을 옆에 보인다. 사용중단 품목은 뺀다. */
-  const itemPicks = useMemo(() => items.filter((it) => it.active !== false)
-    .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword })), [items])
+  /** 줄의 품목 코드도움 — 코드·이름·검색어로 찾고 규격을 옆에 보인다. 사용중단 품목은 stopped 로 달아 [사용중단포함] 을 켜야 보인다. */
+  const itemPicks = useMemo(() => items
+    .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword, stopped: it.active === false })), [items])
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
 
   async function load() {
@@ -490,7 +490,7 @@ export default function SalesOrderPage() {
                                        })
                                      })
                                    }}
-                                   items={partnerCodeItems(customers)} />
+                                   items={partnerCodeItems(customers, true)} />
                 </td>
               </tr>
               <tr>
