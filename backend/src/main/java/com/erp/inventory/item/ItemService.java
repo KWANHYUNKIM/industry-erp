@@ -178,20 +178,15 @@ public class ItemService {
     }
 
     /**
-     * 새 전표에 <b>쓸 수 있는</b> 품목을 얻는다. 사용중지된 품목이면 거절한다.
+     * 새 전표에 쓸 품목을 얻는다.
      *
-     * <p>{@link #get(Long)} 은 그대로 둔다 — 이미 저장된 전표를 읽거나 지울 때는
-     * 그 품목이 지금 중지됐는지와 상관없이 꺼내 와야 하기 때문이다.
-     * "지금부터 새로 쓰겠다"는 자리에서만 이쪽을 부른다.
+     * <p><b>사용중단 품목도 받는다</b> — 원본 실측(2026-10-23, 두 번): 코드도움 [사용중단포함] 으로
+     * 사용중단 품목(J001/J002)을 고르면 주문서가 그대로 저장된다. 코드도움이 기본으로 숨길 뿐
+     * 저장이 막지는 않는다. 그래서 예전 거절을 없앴다. 진입점 이름은 부르는 쪽이 많아 그대로 둔다.
      */
     @Transactional(readOnly = true)
     public Item getUsable(Long id) {
-        Item item = getItem(id);
-        if (!item.isActive()) {
-            throw ApiException.badRequest(
-                    "사용중지된 품목입니다: " + item.getCode() + " " + item.getName());
-        }
-        return item;
+        return getItem(id);
     }
 
     /**

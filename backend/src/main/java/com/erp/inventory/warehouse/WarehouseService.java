@@ -103,15 +103,13 @@ public class WarehouseService {
         return getWarehouse(id);
     }
 
-    /** 새 전표에 쓸 수 있는 창고. 사용중지된 창고면 거절한다. ({@link #get(Long)} 은 조회·삭제용) */
+    /**
+     * 새 전표에 쓸 창고. <b>사용중단 창고도 받는다</b> — 원본 실측(2026-10-23, 두 번): 코드도움
+     * [사용중단포함] 으로 사용중단 창고(200)를 고른 생산입고가 그대로 저장된다.
+     */
     @Transactional(readOnly = true)
     public Warehouse getUsable(Long id) {
-        Warehouse warehouse = getWarehouse(id);
-        if (!warehouse.isActive()) {
-            throw ApiException.badRequest(
-                    "사용중지된 창고입니다: " + warehouse.getCode() + " " + warehouse.getName());
-        }
-        return warehouse;
+        return getWarehouse(id);
     }
 
     private Warehouse getWarehouse(Long id) {

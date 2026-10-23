@@ -29,6 +29,8 @@ export interface CondPickerItem {
   sub?: string | null
   alias?: string | null
   extra?: string | null
+  /** 사용중단 자료 — 코드도움이 기본으로 숨기고 [사용중단포함] 을 켜면 보인다(withStopped 로 받았을 때만 있다). */
+  stopped?: boolean
 }
 
 export interface CondPickers {
@@ -61,13 +63,21 @@ const EMPTY: CondPickers = { partners: [], warehouses: [], items: [], projects: 
  * @param want 받을 것만 고른다. 품목이 수천 건인 회사에서 모든 화면이 품목을 받으면
  *             조건을 안 쓰는 화면까지 느려진다.
  */
-export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
+export function useCondPickers(
+  want: (keyof CondPickers)[],
+  /**
+   * 입력 화면용. true 면 사용중단 창고·품목도 `stopped: true` 로 표시해 담는다 — 원본은 입력 화면 코드도움의
+   * [사용중단포함] 으로 사용중단 자료를 골라 저장할 수 있다(2026-10-23 실측). 조회 조건은 이 옵션을 쓰지 않는다.
+   */
+  opts?: { withStopped?: boolean },
+): CondPickers {
   const [state, setState] = useState<CondPickers>(EMPTY)
-  const key = [...want].sort().join(',')
+  const withStopped = !!opts?.withStopped
+  const key = [...want].sort().join(',') + (withStopped ? '|stopped' : '')
 
   useEffect(() => {
     let alive = true
-    const need = new Set(key.split(',').filter(Boolean) as (keyof CondPickers)[])
+    const need = new Set(key.split('|')[0].split(',').filter(Boolean) as (keyof CondPickers)[])
     const jobs: Promise<Partial<CondPickers>>[] = []
 
     if (need.has('partners')) {
@@ -83,17 +93,17 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
     if (need.has('warehouses')) {
       jobs.push(api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/warehouses')
         .then((r) => ({
-          // 사용중단한 창고는 새로 거를 일이 없다 — 목록이 길어지기만 한다.
-          warehouses: r.data.filter((w) => w.active !== false)
-            .map((w) => ({ value: String(w.id), id: w.id, code: w.code, name: w.name })),
+          // 조회 조건: 사용중단한 창고는 새로 거를 일이 없다 — 목록이 길어지기만 한다. 입력 화면(withStopped)은 표시해 담는다.
+          warehouses: r.data.filter((w) => withStopped || w.active !== false)
+            .map((w) => ({ value: String(w.id), id: w.id, code: w.code, name: w.name, ...(w.active === false ? { stopped: true } : {}) })),
         }))
         .catch(() => ({})))
     }
     if (need.has('items')) {
       jobs.push(api.get<{ id: number; code: string; name: string; spec?: string | null; searchKeyword?: string | null; active?: boolean }[]>('/items')
         .then((r) => ({
-          items: r.data.filter((x) => x.active !== false)
-            .map((x) => ({ value: String(x.id), id: x.id, code: x.code, name: x.name, sub: x.spec, alias: x.searchKeyword })),
+          items: r.data.filter((x) => withStopped || x.active !== false)
+            .map((x) => ({ value: String(x.id), id: x.id, code: x.code, name: x.name, sub: x.spec, alias: x.searchKeyword, ...(x.active === false ? { stopped: true } : {}) })),
         }))
         .catch(() => ({})))
     }
@@ -117,7 +127,7 @@ export function useCondPickers(want: (keyof CondPickers)[]): CondPickers {
       setState(parts.reduce<CondPickers>((a, p) => ({ ...a, ...p }), EMPTY))
     })
     return () => { alive = false }
-  }, [key])
+  }, [key, withStopped])
 
   return state
 }

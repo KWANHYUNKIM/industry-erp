@@ -106,7 +106,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
   /** 화면 [리스트] — 발주요청조회로. */
   onList?: () => void
 }) {
-  const pickers = useCondPickers(['warehouses', 'projects', 'employees'])
+  const pickers = useCondPickers(['warehouses', 'projects', 'employees'], { withStopped: true })
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])

@@ -4,27 +4,18 @@ import com.erp.common.ApiException;
 import com.erp.trade.partner.BusinessPartner;
 
 /**
- * 전표를 새로 쓸 때 거래처가 쓸 수 있는 상태인지 본다.
+ * 전표를 새로 쓸 때 거래처를 얻는 자리.
  *
- * <p>사용중지는 "더 이상 쓰지 말자"는 표시인데, 오래도록 표시만 되고 아무것도 막지 않아서
- * 중지한 거래처로 판매·구매·견적·수주·발주·출하·수출 전표가 그대로 저장됐다.
- *
- * <p>거래처는 {@code trade} 모듈의 엔티티라 품목·창고처럼 다른 모듈 서비스에 규칙을 맡길 수 없다.
- * 그렇다고 일곱 군데에 같은 문장을 흩어 놓으면 다음에 문구를 고칠 때 한두 곳이 빠진다.
- * 품목은 {@code ItemService.getUsable}, 창고는 {@code WarehouseService.getUsable} 이 같은 일을 한다.
- *
- * <p><b>이미 저장된 전표에는 쓰지 않는다.</b> 그때는 살아 있던 거래처가 나중에 중지됐다고 해서
- * 옛 전표를 못 읽거나 못 고치게 되면 안 된다. 새로 쓰는 자리에서만 부른다.
+ * <p><b>사용중단 거래처도 받는다</b> — 원본 실측(2026-10-23, 두 번): 코드도움 [사용중단포함] 으로 고른
+ * 사용중단 자료로도 전표가 저장된다. 품목 · 창고({@code ItemService.getUsable} ·
+ * {@code WarehouseService.getUsable}) 도 같다. 부르는 자리가 많아 진입점은 그대로 둔다.
  */
 public final class TradeMasters {
 
     private TradeMasters() {}
 
     public static BusinessPartner requireUsable(BusinessPartner partner) {
-        if (!partner.isActive()) {
-            throw ApiException.badRequest(
-                    "사용중지된 거래처입니다: " + partner.getCode() + " " + partner.getName());
-        }
+        // 원본 실측(2026-10-23): [사용중단포함] 으로 고른 사용중단 거래처도 전표가 저장된다 — 막지 않는다.
         return partner;
     }
 }

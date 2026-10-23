@@ -109,6 +109,8 @@ export default function SalesOrderPage() {
   const [fProject, setFProject] = useState('')
   const [fEmployee, setFEmployee] = useState('')
   const pickers = useCondPickers(['warehouses', 'projects', 'employees', 'partners', 'items'])
+  /** 입력 창의 출하창고 코드도움 — 원본은 [사용중단포함] 으로 사용중단 창고도 고른다(2026-10-23 실측). 조회 조건은 위 pickers 그대로. */
+  const formPickers = useCondPickers(['warehouses'], { withStopped: true })
   /** 입력 창의 프로젝트 코드도움 — 사용중단은 뺀다(고쳐 여는 주문이 이미 쓰는 것은 남긴다). 조회 조건은 전부 그대로. */
   const [projActive, setProjActive] = useState<Map<number, boolean>>(new Map())
   useEffect(() => {
@@ -480,7 +482,7 @@ export default function SalesOrderPage() {
                 <th style={th}>거래처</th>
                 <td>
                   {/* 긴 드롭다운이었다 — 4회차에 다른 입력 화면 15곳은 코드도움으로 바꿨는데 여기만 남아 있었다(9회차). */}
-                  <CodePickerField label="매출처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매출처 선택"
+                  <CodePickerField label="매출처" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="매출처 선택"
                                    value={partnerId} onChange={(v) => {
                                      // 거래처를 고르면 담긴 품목의 특별단가를 다시 찾는다(품목을 먼저 담아도 걸리게).
                                      setPartnerId(v)
@@ -496,7 +498,7 @@ export default function SalesOrderPage() {
               <tr>
                 <th style={th}>담당자</th>
                 <td>
-                  <CodePickerField label="담당자" hideLabel width={170} emptyLabel="선택 안 함"
+                  <CodePickerField label="담당자" hideLabel pair width={170} emptyLabel="선택 안 함"
                                    value={fEmployee} onChange={setFEmployee}
                                    items={pickers.employees.map((x) => ({ ...x, value: String(x.id) }))} />
                 </td>
@@ -507,9 +509,9 @@ export default function SalesOrderPage() {
                 <th style={th}>출하창고</th>
                 <td>
                   <div className={`inline-block${whMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={whMissing || undefined}>
-                    <CodePickerField label="출하창고" hideLabel width={170} emptyLabel="선택 안 함" placeholder="출하창고"
+                    <CodePickerField label="출하창고" hideLabel pair width={170} emptyLabel="선택 안 함" placeholder="출하창고"
                                      value={fWarehouse} onChange={(v) => { setFWarehouse(v); if (v) setWhMissing(false) }}
-                                     items={pickers.warehouses} />
+                                     items={formPickers.warehouses} />
                   </div>
                 </td>
               </tr>
@@ -526,7 +528,7 @@ export default function SalesOrderPage() {
                 <th style={th}>프로젝트</th>
                 <td>
                   {/* 원본 '프로젝트리스트' 코드도움은 사용중단 프로젝트를 빼고 띄운다([사용중단포함] 을 눌러야 보인다, 2026-10-14 실측). */}
-                  <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="선택 안 함"
+                  <CodePickerField label="프로젝트" hideLabel pair width={170} emptyLabel="선택 안 함"
                                    value={fProject} onChange={setFProject}
                                    items={formProjects} />
                 </td>

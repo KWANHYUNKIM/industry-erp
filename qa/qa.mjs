@@ -935,9 +935,11 @@ async function scenarioRelations(f) {
     safetyStock: f.material.safetyStock, active: false,
   })
   eq('시험용으로 잠깐 사용중지', stoppedItem.active, false)
-  await rejects('사용중지된 품목은 작업품목이 될 수 없다', 'POST', '/work-results',
-    { process: `${P}임시수작업`, worker: 'QA', goodQty: 1, workItemId: f.material.id },
-    '사용중지된 품목')
+  // 원본 실측(2026-10-23): [사용중단포함] 으로 고른 사용중단 품목도 저장된다 — 막지 않는다.
+  const wrStopped = await call('POST', '/work-results',
+    { process: `${P}임시수작업`, worker: 'QA', goodQty: 1, workItemId: f.material.id })
+  eq('사용중단 품목도 작업품목이 될 수 있다(원본 실측)', wrStopped.status < 300, true)
+  if (wrStopped.data?.id) await call('DELETE', `/work-results/${wrStopped.data.id}`)
   await must('PUT', `/items/${f.material.id}`, {
     name: f.material.name, unit: f.material.unit, category: f.material.category,
     unitPrice: f.material.unitPrice, purchasePrice: f.material.purchasePrice,
@@ -2821,10 +2823,16 @@ async function scenarioIncome() {
 async function scenarioCurrency() {
   section('■ 시나리오 20. 외화 (통화 · 고시환율 · 원화 환산)')
 
+  // 원본 외화리스트는 회사가 등록한 것만 있다 — 기본 통화를 깔지 않는다(2026-10-23). 없으면 등록해 쓴다.
   const currencies = await must('GET', '/currencies')
   const usd = currencies.find((c) => c.code === 'USD')
+    ?? await must('POST', '/currencies', { code: 'USD', name: '미국 달러', symbol: '$', unit: 1 })
   const jpy = currencies.find((c) => c.code === 'JPY')
-  eq('기본 통화(USD)가 시드됨', Boolean(usd), true)
+    ?? await must('POST', '/currencies', { code: 'JPY', name: '일본 엔', symbol: '¥', unit: 100 })
+  eq('통화(USD)를 쓸 수 있다', Boolean(usd), true)
+  const longCode = await call('POST', '/currencies', { code: '00001', name: 'QA긴코드', unit: 1 })
+  eq('원본 외화코드 00001 도 등록된다(3자 제한 없음)', longCode.status < 300 || /이미 등록/.test(String(longCode.data?.message ?? '')), true)
+  if (longCode.data?.id) await call('PUT', `/currencies/${longCode.data.id}`, { code: '00001', name: 'QA긴코드', unit: 1, active: false })
   eq('엔화 고시단위는 100', jpy.unit, 100)
 
   await rejects('원화(KRW)는 외화로 등록 불가', 'POST', '/currencies',
@@ -5116,7 +5124,7 @@ async function scenarioValidationMessages(f) {
  * 털어낼 길이 없어져 영영 장부에 붙어 있게 된다.
  */
 async function scenarioInactiveItemGuards(f) {
-  section('■ 사용중지 품목으로 새로 만들 수 없다')
+  section('■ 사용중단 품목으로도 새로 만들 수 있다(원본 실측 2026-10-23)')
 
   const body = {
     name: f.material.name, unit: f.material.unit, category: f.material.category,
@@ -5139,11 +5147,15 @@ async function scenarioInactiveItemGuards(f) {
     ['재고입고', '/stock/transactions',
       { itemId: f.material.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 1 }],
   ]
+  // 원본 실측(2026-10-23): 사용중단 품목도 저장된다. 저장되는 것을 확인하고 바로 되돌린다.
   for (const [label, path, payload] of blocked) {
     const r = await call('POST', path, payload)
-    eq(`${label}: 사용중지 품목은 거부`, r.status, 400)
-    eq(`${label}: 무엇이 막혔는지 말한다`,
-      /사용중지된 품목/.test(String(r.data?.message ?? '')), true)
+    eq(`${label}: 사용중단 품목도 저장된다(원본 실측)`, r.status < 300, true)
+    if (path === '/stock/transactions') {
+      await call('POST', path, { ...payload, type: 'OUTBOUND' })
+    } else if (r.data?.id) {
+      await call('DELETE', `${path}/${r.data.id}`)
+    }
   }
 
   // 창고 쪽도 같다 — 작업지시서의 창고.
@@ -5159,8 +5171,8 @@ async function scenarioInactiveItemGuards(f) {
   await must('PUT', `/items/${f.material.id}`, { ...body, active: true })
   const woWh = await call('POST', '/work-orders',
     { productId: f.material.id, warehouseId: other.id, plannedQty: 1, orderDate: D })
-  eq('작업지시서: 사용중지 창고도 거부', woWh.status, 400)
-  eq('무엇이 막혔는지 말한다', /사용중지된 창고/.test(String(woWh.data?.message ?? '')), true)
+  eq('작업지시서: 사용중단 창고도 저장된다(원본 실측)', woWh.status < 300, true)
+  if (woWh.data?.id) await call('DELETE', `/work-orders/${woWh.data.id}`)
   const back = await must('PUT', `/warehouses/${other.id}`, { ...whBody, active: true })
   eq('되돌린 창고가 원래대로다', `${back.name}|${back.location}|${back.kind}`,
     `${other.name}|${other.location}|${other.kind}`)
@@ -8482,10 +8494,12 @@ async function scenarioMaterialIssueMove(f) {
   const deadItem = await call('POST', '/material-issues', {
     itemId: f.material.id, warehouseId: f.warehouse.id, toWarehouseId: to.id, qty: 1,
   })
-  eq('사용중단한 자재는 불출할 수 없다', deadItem.status, 400)
-  eq('무엇이 막혔는지 말한다', /사용중지된 품목/.test(String(deadItem.data?.message ?? '')), true)
+  eq('사용중단한 자재도 불출된다(원본 실측)', deadItem.status < 300, true)
+  if (deadItem.data?.id) {
+    await call('DELETE', `/material-issues/${deadItem.data.id}`)
+  }
   await must('PUT', `/items/${f.material.id}`, { ...itemBody, active: true })
-  eq('막힌 요청은 재고를 건드리지 않는다', await stockOf(f.warehouse.id), fromBefore - 20)
+  eq('지우면 재고가 돌아온다', await stockOf(f.warehouse.id), fromBefore - 20)
 
   // 창고 등록에는 [사용] 이 없다 — 만들 때는 늘 사용중이고, 내리는 것은 수정이다.
   // (처음엔 POST 에 active:false 를 실었는데 조용히 무시되고 불출이 그대로 됐다.)
@@ -8497,8 +8511,8 @@ async function scenarioMaterialIssueMove(f) {
   const toDead = await call('POST', '/material-issues', {
     itemId: f.material.id, warehouseId: f.warehouse.id, toWarehouseId: deadWh.id, qty: 1,
   })
-  eq('사용중단한 창고로는 보낼 수 없다', toDead.status, 400)
-  eq('무엇이 막혔는지 말한다', /사용중지된 창고/.test(String(toDead.data?.message ?? '')), true)
+  eq('사용중단한 창고로도 보낼 수 있다(원본 실측)', toDead.status < 300, true)
+  if (toDead.data?.id) await call('DELETE', `/material-issues/${toDead.data.id}`)
   await must('DELETE', `/warehouses/${deadWh.id}`)
 
   eq('불출을 지울 수 있다', (await call('DELETE', `/material-issues/${issue.id}`)).status, 204)
@@ -9784,21 +9798,23 @@ async function scenarioInactiveMaster(f) {
     saleDate: today, partnerId: f.customer.id, warehouseId: f.warehouse.id,
     lines: [{ itemId: item.id, quantity: 1, unitPrice: 1000 }],
   })
-  eq('중지된 품목으로는 판매전표를 못 쓴다', withDeadItem.status, 400)
-  eq('어느 품목인지 알려 준다',
-    /사용중지된 품목입니다/.test(String(withDeadItem.data?.message ?? '')), true)
+  // 원본 실측(2026-10-23): [사용중단포함] 으로 고른 사용중단 품목 · 창고 · 거래처도 전표가 저장된다.
+  eq('중지된 품목으로도 판매전표가 저장된다(원본 실측)', withDeadItem.status < 300, true)
+  if (withDeadItem.data?.id) await call('DELETE', `/sales/${withDeadItem.data.id}`)
 
   const withDeadPartner = await call('POST', '/sales', {
     saleDate: today, partnerId: partner.id, warehouseId: f.warehouse.id,
     lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
   })
-  eq('중지된 거래처로는 판매전표를 못 쓴다', withDeadPartner.status, 400)
+  eq('중지된 거래처로도 판매전표가 저장된다(원본 실측)', withDeadPartner.status < 300, true)
+  if (withDeadPartner.data?.id) await call('DELETE', `/sales/${withDeadPartner.data.id}`)
 
   const purchase = await call('POST', '/purchases', {
     purchaseDate: today, partnerId: f.supplier.id, warehouseId: f.warehouse.id,
     lines: [{ itemId: item.id, quantity: 1, unitPrice: 500 }],
   })
-  eq('구매전표도 마찬가지다', purchase.status, 400)
+  eq('구매전표도 마찬가지다(저장된다)', purchase.status < 300, true)
+  if (purchase.data?.id) await call('DELETE', `/purchases/${purchase.data.id}`)
 
   // 판매·구매만 막고 끝내면 옆문이 남는다 — 견적서로 쓰고 수주로 전환하면 그만이다.
   // 품목·거래처를 받는 전표 전부에 같은 검사를 건다.
@@ -9813,11 +9829,11 @@ async function scenarioInactiveMaster(f) {
   for (const [label, path, body] of others) {
     const partnerId = path === '/purchase-orders' ? f.supplier.id : f.customer.id
     const byItem = await call('POST', path, body(partnerId, item.id))
-    eq(`${label}: 중지된 품목을 막는다`, byItem.status, 400)
-    eq(`${label}: 사유가 품목이라고 나온다`,
-      /사용중지된 품목입니다/.test(String(byItem.data?.message ?? '')), true)
+    eq(`${label}: 중지된 품목도 저장된다(원본 실측)`, byItem.status < 300, true)
+    if (byItem.data?.id) await call('DELETE', `${path}/${byItem.data.id}`)
     const byPartner = await call('POST', path, body(partner.id, f.product.id))
-    eq(`${label}: 중지된 거래처를 막는다`, byPartner.status, 400)
+    eq(`${label}: 중지된 거래처도 저장된다(원본 실측)`, byPartner.status < 300, true)
+    if (byPartner.data?.id) await call('DELETE', `${path}/${byPartner.data.id}`)
   }
 
   // 중지 전에 쓴 전표는 여전히 읽히고 고쳐진다
@@ -10378,6 +10394,7 @@ async function scenarioBankAccountCurrency() {
   }
 
   const usd = (await must('GET', '/currencies')).find((c) => c.code === 'USD')
+    ?? await must('POST', '/currencies', { code: 'USD', name: '미국 달러', symbol: '$', unit: 1 })
   const acc = await save(`${P}-FX-001`, {
     code: `${P}FX`, name: 'QA외화통장', bankName: 'QA은행', holder: 'QA',
     currencyId: usd ? usd.id : undefined,
@@ -11462,7 +11479,6 @@ async function scenarioNewCompany() {
    */
   for (const [이름표, path, 최소] of [
     ['공통코드 그룹', '/codes', 5],
-    ['통화', '/currencies', 4],
     ['급여항목', '/pay-settings/items', 5],
   ]) {
     const 본사것 = await must('GET', path)
@@ -11471,6 +11487,8 @@ async function scenarioNewCompany() {
     eq(`새 회사에도 ${이름표} 씨앗이 그만큼 있다`,
       `${이름표} ${회사것.length}개`, `${이름표} ${본사것.length}개`)
   }
+  // 원본 외화리스트는 회사가 직접 등록한 것만 있다 — 새 회사에 기본 통화를 깔지 않는다(2026-10-23 실측).
+  eq('새 회사의 외화등록은 비어 있다', (await 그쪽('/currencies')).length, 0)
 }
 
 async function scenarioNoPermission() {
