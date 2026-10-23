@@ -1327,7 +1327,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       warehouseId: Number(warehouseId),
       vatBySlip,
       [dateKey]: date,
-      taxable: taxable && !fx,
+      // 외자도 고른 거래유형 그대로 보낸다 — 부가세 0 은 서버가 통화코드로 정한다(원본 수입 구매도 '부가세율 적용')
+      taxable,
       returnSlip,
       ...(fx ? { currencyCode, exchangeRate: num(exchangeRate) } : {}),
       remark: remark || undefined,
