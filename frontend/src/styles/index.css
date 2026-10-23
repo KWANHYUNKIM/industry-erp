@@ -35,6 +35,8 @@
   --color-ec-success-bg: var(--ec-success-bg);
   --color-ec-warn: var(--ec-warn);
   --color-ec-warn-bg: var(--ec-warn-bg);
+  --color-ec-row-stopped: var(--ec-row-stopped);
+  --color-ec-btn-warning: var(--ec-btn-warning);
   --color-ec-info-line: var(--ec-info-line);
   --color-ec-shell: var(--ec-bg-shell);
   --color-ec-page: var(--ec-bg-page);
@@ -306,6 +308,8 @@ main table,
 #root table.ec-list-grid > tbody > tr.ec-list-alt > td {
   background-color: rgb(249, 249, 249);
 }
+/* 사용중단 줄 — 원본 품목등록 리스트는 분홍 바탕. */
+#root table tbody tr.ec-row-stopped > td { background-color: var(--ec-row-stopped); }
 /* 격자 안의 링크 글자(원본 [인쇄]·일자-No) — 색 (25,53,140), 밑줄 없음. */
 .ec-link {
   background: none;

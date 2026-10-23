@@ -258,7 +258,7 @@ export default function WarehousesPage() {
               <div>
                 <label className="mb-1 block text-sm text-ec-label">생산공정</label>
                 {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
-                <CodePickerField label="생산공정" hideLabel fill placeholder="생산공정"
+                <CodePickerField label="생산공정" hideLabel fill pair placeholder="생산공정"
                                  emptyLabel="선택 안 함"
                                  value={form.processId} onChange={(v) => setForm({ ...form, processId: v })}
                                  items={processes.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />

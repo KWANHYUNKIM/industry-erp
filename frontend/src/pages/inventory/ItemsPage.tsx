@@ -398,13 +398,16 @@ export default function ItemsPage() {
   async function toggleActive() {
     const targets = shown.filter((it) => selected.has(it.id))
     if (targets.length === 0) { void ecAlert(NO_PICK); return }
-    await setActive(targets, targets.every((it) => !it.active))
+    const next = targets.every((it) => !it.active)
+    if (!next && !(await ecConfirm('선택한 코드를 사용중단 하겠습니까?'))) return   // 원본: 사용중단만 확인 창, 재사용은 바로
+    await setActive(targets, next)
   }
 
   /** 펼침의 [사용중단] · [재사용] — 고른 줄만. */
   async function setActiveChecked(active: boolean) {
     const targets = shown.filter((it) => selected.has(it.id))
     if (targets.length === 0) { void ecAlert(NO_PICK); return }
+    if (!active && !(await ecConfirm('선택한 코드를 사용중단 하겠습니까?'))) return
     await setActive(targets, active)
   }
 
@@ -702,7 +705,7 @@ export default function ItemsPage() {
         </EcCond>
       </ul>
 
-      <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[8px]">
+      <label className={`text-[12.5px] inline-flex items-center gap-[4px] mb-[8px]${withStopped ? " rounded-ec bg-ec-btn-warning px-[6px] text-ec-panel" : ""}`}>
         <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
         사용중단포함
       </label>
@@ -768,7 +771,7 @@ export default function ItemsPage() {
                 )}
               </Field>
               <Field label="품목그룹1">
-                <CodePickerField label="품목그룹1" hideLabel fill placeholder="품목그룹1" emptyLabel="선택 해제"
+                <CodePickerField label="품목그룹1" hideLabel fill pair placeholder="품목그룹1" emptyLabel="선택 해제"
                                  value={form.itemGroupId} onChange={(v) => set('itemGroupId', v)}
                                  items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
                                  onNew={() => setGroupOpen(true)} />
@@ -1016,7 +1019,7 @@ export default function ItemsPage() {
               <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
-                <tr key={it.id} className={it.active ? undefined : 'text-ec-hint'}>
+                <tr key={it.id} className={it.active ? undefined : 'text-ec-hint ec-row-stopped'}>
                   <td className="text-center">
                     <NumCheck tone="plain" no={idx + 1} label="선택" on={selected.has(it.id)} onChange={() => toggle(it.id)} />
                   </td>
