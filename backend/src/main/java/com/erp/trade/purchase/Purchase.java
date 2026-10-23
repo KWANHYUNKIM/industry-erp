@@ -33,8 +33,9 @@ public class Purchase extends BaseTimeEntity {
     @Column(nullable = false, unique = true, length = 30)
     private String docNo;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "partner_id", nullable = false)
+    /** 거래처 — 비울 수 있다(원본: 채무 없이 재고만 들어오는 입고). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -156,7 +156,7 @@ public class PurchaseService {
                         ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 rows.add(new PurchaseDiscountRow(
-                        p.getPurchaseDate(), p.getDocNo(), p.getPartner().getName(),
+                        p.getPurchaseDate(), p.getDocNo(), p.getPartner() != null ? p.getPartner().getName() : null,
                         l.getItem().getCode(), l.getItem().getName(),
                         p.getWarehouse() != null ? p.getWarehouse().getName() : null,
                         p.getProject() != null ? p.getProject().getName() : null,
@@ -428,11 +428,13 @@ public class PurchaseService {
      * 새로 쓰는 자리에서만 막는다.
      */
     private void requireUsableMasters(CreatePurchaseRequest req) {
-        TradeMasters.requireUsable(resolvePartner(req.partnerId()));
+        BusinessPartner partner = resolvePartner(req.partnerId());
+        if (partner != null) TradeMasters.requireUsable(partner);
         req.lines().forEach(l -> itemService.getUsable(l.itemId()));
     }
 
     private BusinessPartner resolvePartner(Long partnerId) {
+        if (partnerId == null) return null; // 거래처 없는 구매(채무 없이 재고만 입고)
         BusinessPartner partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + partnerId));
         if (!partner.getType().canBuy()) {

@@ -60,6 +60,7 @@ public class TaxInvoiceService {
             if (repository.existsByPurchase_Id(p.getId())) {
                 throw ApiException.conflict("이미 세금계산서가 발행된 구매전표입니다: " + p.getDocNo());
             }
+            if (p.getPartner() == null) throw ApiException.badRequest("거래처가 없는 구매전표에는 세금계산서를 발행할 수 없습니다: " + p.getDocNo());
             b.purchase(p).partner(p.getPartner())
                     .supplyAmount(p.getSupplyAmount()).vatAmount(p.getVatAmount()).totalAmount(p.getTotalAmount());
         }

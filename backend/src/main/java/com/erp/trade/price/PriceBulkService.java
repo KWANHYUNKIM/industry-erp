@@ -127,7 +127,7 @@ public class PriceBulkService {
                     if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
                     rows.add(new SlipLineRow(
                             l.getId(), p.getId(), p.getDocNo(), p.getPurchaseDate(),
-                            p.getPartner().getName(),
+                            p.getPartner() != null ? p.getPartner().getName() : null,
                             p.getEmployee() != null ? p.getEmployee().getName() : null,
                             p.getWarehouse().getName(),
                             p.isTaxable() ? "과세" : "면세",

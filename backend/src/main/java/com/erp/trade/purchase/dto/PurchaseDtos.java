@@ -51,7 +51,7 @@ public final class PurchaseDtos {
     ) {}
 
     public record CreatePurchaseRequest(
-            @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            Long partnerId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             LocalDate purchaseDate,
             Boolean taxable,
@@ -175,7 +175,8 @@ public final class PurchaseDtos {
         public static PurchaseResponse from(Purchase p) {
             return new PurchaseResponse(
                     p.getId(), p.getDocNo(),
-                    p.getPartner().getId(), p.getPartner().getName(),
+                    p.getPartner() != null ? p.getPartner().getId() : null,
+                    p.getPartner() != null ? p.getPartner().getName() : null,
                     p.getWarehouse().getId(), p.getWarehouse().getName(),
                     p.getPurchaseDate(),
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),

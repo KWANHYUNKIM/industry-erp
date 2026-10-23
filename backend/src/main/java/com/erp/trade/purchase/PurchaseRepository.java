@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
 
-    @Query("select p from Purchase p join fetch p.partner join fetch p.warehouse " +
+    @Query("select p from Purchase p left join fetch p.partner join fetch p.warehouse " +
             "order by p.purchaseDate desc, p.id desc")
     List<Purchase> findAllWithRefs();
 
@@ -19,19 +19,19 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
      * 기간으로 걸러 온다. 안 준 쪽은 서비스가 열린 끝으로 채워 준다 —
      * <code>:from is null</code> 로 쓰면 PostgreSQL 이 그 자리의 형을 못 정해 터진다.
      */
-    @Query("select p from Purchase p join fetch p.partner join fetch p.warehouse " +
+    @Query("select p from Purchase p left join fetch p.partner join fetch p.warehouse " +
             "where p.purchaseDate between :from and :to " +
             "order by p.purchaseDate desc, p.id desc")
     List<Purchase> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
     /** 전표 + 라인 + 품목까지 한 번에(회계미반영현황의 품목 줄). N+1 방지. */
-    @Query("select distinct p from Purchase p join fetch p.partner join fetch p.warehouse " +
+    @Query("select distinct p from Purchase p left join fetch p.partner join fetch p.warehouse " +
             "left join fetch p.lines l left join fetch l.item " +
             "order by p.purchaseDate desc, p.id desc")
     List<Purchase> findAllWithRefsAndLines();
 
     /** 위와 같되 기간 안만(거래처관리대장 · 회계반영 목록의 기간 조회). */
-    @Query("select distinct p from Purchase p join fetch p.partner join fetch p.warehouse " +
+    @Query("select distinct p from Purchase p left join fetch p.partner join fetch p.warehouse " +
             "left join fetch p.lines l left join fetch l.item " +
             "where p.purchaseDate between :from and :to " +
             "order by p.purchaseDate desc, p.id desc")
@@ -41,7 +41,7 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
     List<Purchase> findByPurchaseDateBetween(LocalDate from, LocalDate to);
 
     /** 기간 내 구매 전표 + 라인 + 품목까지 fetch (구매/외주 할인현황 집계용) */
-    @Query("select distinct p from Purchase p join fetch p.partner " +
+    @Query("select distinct p from Purchase p left join fetch p.partner " +
             "left join fetch p.lines l left join fetch l.item " +
             "where p.purchaseDate between :from and :to " +
             "order by p.purchaseDate desc, p.id desc")
@@ -49,23 +49,23 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
 
     /** 거래처별 매입 합계(=채무) */
     @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
-            "from Purchase p group by p.partner.id")
+            "from Purchase p where p.partner is not null group by p.partner.id")
     List<PartnerAmount> sumTotalByPartner();
 
     /** 거래처별 매입 합계 — 기준일자까지(채권/채무현황의 as-of 잔액). */
     @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
-            "from Purchase p where p.purchaseDate <= :asOf group by p.partner.id")
+            "from Purchase p where p.partner is not null and p.purchaseDate <= :asOf group by p.partner.id")
     List<PartnerAmount> sumTotalByPartnerUntil(@Param("asOf") LocalDate asOf);
 
     /** 거래처별 <b>세금계산서를 안 받은</b> 매입 합계(부가세 포함) — 기준일자까지(채무현황의 [미청구금액]). */
     @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
-            "from Purchase p where p.purchaseDate between :from and :asOf " +
+            "from Purchase p where p.partner is not null and p.purchaseDate between :from and :asOf " +
             "and not exists (select 1 from TaxInvoice x where x.purchase = p) group by p.partner.id")
     List<PartnerAmount> sumUnbilledByPartnerBetween(@Param("from") LocalDate from, @Param("asOf") LocalDate asOf);
 
     /** 거래처별 매입 합계 — 기간 내(거래처별채무의 [재고매입]). */
     @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
-            "from Purchase p where p.purchaseDate between :from and :to group by p.partner.id")
+            "from Purchase p where p.partner is not null and p.purchaseDate between :from and :to group by p.partner.id")
     List<PartnerAmount> sumTotalByPartnerBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
     interface PartnerAmount {
@@ -108,12 +108,12 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
     }
 
     /** 통합검색: 전표번호·거래처명 부분일치 상위 N건 */
-    @Query("select p from Purchase p join fetch p.partner bp " +
+    @Query("select p from Purchase p left join fetch p.partner bp " +
            "where lower(p.docNo) like :q or lower(bp.name) like :q " +
            "order by p.purchaseDate desc, p.id desc")
     List<Purchase> searchTop(@Param("q") String q, Pageable pageable);
 
-    @Query("select count(p) from Purchase p where lower(p.docNo) like :q or lower(p.partner.name) like :q")
+    @Query("select count(p) from Purchase p left join p.partner bp where lower(p.docNo) like :q or lower(bp.name) like :q")
     long searchCount(@Param("q") String q);
 
     /**

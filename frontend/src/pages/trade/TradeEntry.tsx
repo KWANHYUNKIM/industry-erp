@@ -1179,7 +1179,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   /** 원본 [검증] — 저장 전에 걸릴 것을 미리 모아 보여 준다. */
   function verify() {
     const msgs: string[] = []
-    if (!partnerId) msgs.push(`${cfg.partnerLabel}를 선택하세요.`)
+    if (!partnerId && mode === 'sales') msgs.push(`${cfg.partnerLabel}를 선택하세요.`)
     if (!warehouseId) msgs.push(`${cfg.whLabel}를 선택하세요.`)
     if (foreign && rate <= 0) msgs.push('외자 전표는 환율을 입력해야 합니다.')
     lines.forEach((l, i) => {
@@ -1291,7 +1291,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
 ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       return
     }
-    if (!partnerId) return setError(`${cfg.partnerLabel}를 선택하세요.`)
+    if (!partnerId && mode === 'sales') return setError(`${cfg.partnerLabel}를 선택하세요.`)
     /* 로트관리 품목은 로트No. 가 있어야 한다 — 서버도 거절한다(QA 62회차). 저장 전에 어느 줄인지 알려 준다. */
     const noLot = keptLines.find((l) => !l.lotNo.trim() && items.find((i) => String(i.id) === l.itemId)?.lotManaged)
     if (noLot) {
@@ -1301,7 +1301,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
 
     const dateKey = mode === 'sales' ? 'saleDate' : 'purchaseDate'
     const body = {
-      partnerId: Number(partnerId),
+      partnerId: partnerId ? Number(partnerId) : null,
       warehouseId: Number(warehouseId),
       vatBySlip,
       [dateKey]: date,
