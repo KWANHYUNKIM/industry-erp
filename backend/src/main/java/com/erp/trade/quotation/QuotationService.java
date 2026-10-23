@@ -18,6 +18,7 @@ import com.erp.trade.partner.BusinessPartnerRepository;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.warehouse.WarehouseService;
+import com.erp.hr.employee.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,7 @@ public class QuotationService {
     /* 다른 모듈의 값은 그 모듈이 공개한 service 를 거친다(CLAUDE.md 4.2). */
     private final WarehouseService warehouseService;
     private final ProjectService projectService;
+    private final EmployeeService employeeService;
     private final SalesOrderService salesOrderService;
     private final DocumentNoGenerator docNoGenerator;
     private final ChangeHistoryService changeHistory;
@@ -86,6 +88,7 @@ public class QuotationService {
                 .partner(partner)
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
+                .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
                 .status(QuotationStatus.IN_PROGRESS)
                 .remark(req.remark())
                 .createdBy(username)
@@ -115,6 +118,7 @@ public class QuotationService {
         q.setValidUntil(req.validUntil());
         q.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         q.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
+        q.setEmployee(req.employeeId() == null ? null : employeeService.get(req.employeeId()));
         q.setRemark(req.remark());
         q.getLines().clear();
         fillLines(q, req.lines(), req.taxable() == null || req.taxable());
@@ -127,7 +131,7 @@ public class QuotationService {
 
     /**
      * 행위 때 견적서 모습 — 원본 거래이력조회 '견적서' 줄(2026-10-21 실측: 행위 신규 · 수정 · 상태변경 …, 전표상태 '진행중' · '완료').
-     * 우리 견적에는 담당자가 없어 빈칸.
+     * 담당자는 견적의 [담당자].
      */
     private static SlipSnapshot snapshot(Quotation q) {
         Item first = q.getLines().isEmpty() ? null : q.getLines().get(0).getItem();
@@ -135,7 +139,8 @@ public class QuotationService {
                 q.getPartner() != null ? q.getPartner().getCode() : null,
                 q.getPartner() != null ? q.getPartner().getName() : null,
                 first == null ? null : ChangeHistoryService.itemSummary(first.getName(), first.getSpec(), q.getLines().size()),
-                null, null,
+                q.getEmployee() != null ? q.getEmployee().getCode() : null,
+                q.getEmployee() != null ? q.getEmployee().getName() : null,
                 q.getStatus() != null ? q.getStatus().getDisplayName() : null);
     }
 

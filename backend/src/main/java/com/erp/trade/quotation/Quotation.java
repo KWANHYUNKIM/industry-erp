@@ -3,6 +3,7 @@ package com.erp.trade.quotation;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.inventory.warehouse.Warehouse;
 import com.erp.inventory.project.Project;
+import com.erp.hr.employee.Employee;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -57,6 +58,14 @@ public class Quotation extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")
     private Project project;
+
+    /**
+     * 원본 견적서의 [담당자](견적서조회 [사원(담당)명]). 주문서(SalesOrder)와 같은 방식으로 Employee 를 직접 문다.
+     * 견적 시점에 안 정했을 수 있어 nullable 이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

@@ -28,6 +28,8 @@ public final class QuotationDtos {
             /* 원본 견적서의 [창고]·[프로젝트]. 견적 시점에는 안 정했을 수 있어 필수가 아니다. */
             Long warehouseId,
             Long projectId,
+            /* 원본 견적서의 [담당자]. */
+            Long employeeId,
             LocalDate quoteDate,
             LocalDate validUntil,
             Boolean taxable,
@@ -69,6 +71,7 @@ public final class QuotationDtos {
             Long partnerId, String partnerName,
             Long warehouseId, String warehouseName,
             Long projectId, String projectName,
+            Long employeeId, String employeeName,
             QuotationStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             Long convertedOrderId, String remark, String createdBy,
@@ -88,6 +91,8 @@ public final class QuotationDtos {
                     q.getWarehouse() != null ? q.getWarehouse().getName() : null,
                     q.getProject() != null ? q.getProject().getId() : null,
                     q.getProject() != null ? q.getProject().getName() : null,
+                    q.getEmployee() != null ? q.getEmployee().getId() : null,
+                    q.getEmployee() != null ? q.getEmployee().getName() : null,
                     q.getStatus(), q.getStatus().getDisplayName(),
                     q.getSupplyAmount(), q.getVatAmount(), q.getTotalAmount(),
                     q.getConvertedOrderId(), q.getRemark(), q.getCreatedBy(),

@@ -31,7 +31,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  * 의도적 제외" 라 적혀 있었는데 <b>대부분 틀린 말이었다</b> — <code>Quotation</code> 은
  * warehouseName·projectName·remark·createdBy·statusName·validUntil 을 진작 싣고,
  * 관리항목은 품목 마스터로, 거래처관리담당자는 거래처 마스터로 이으면 된다
- * (견적서 화면이 이미 그렇게 한다). 정말 없는 것은 <b>담당자</b> 하나다.
+ * (견적서 화면이 이미 그렇게 한다). 담당자도 견적서에 생겨(2026-10-23) 조건으로 건다.
  *
  * 조건 판은 현황 화면 공용(`EcStatusPanel`)이다. 원본도 접히지 않고 펼쳐져 있다.
  * 원본 기준일자는 '기준일자(영업주기)' 라는 **한 날짜**지만, 우리는 견적일자 <b>구간</b>으로 거른다 —
@@ -57,6 +57,8 @@ interface Row {
   warehouse: string | null
   project: string | null
   projectId: number | null
+  /** 원본 [담당자] — 견적서의 담당자(2026-10-23 견적에 담당자가 생겼다). */
+  employeeId: number | null
   remark: string | null
   createdBy: string | null
   itemId: number
@@ -83,6 +85,7 @@ interface Filters {
   /* 2026-09-08 실측으로 만든 것들. 값은 전부 이미 응답이나 마스터에 있다. */
   warehouse: string
   project: string
+  employee: string
   mgmt: string
   partnerMgr: string
   /** 원본 [유효기간] — 구간이다. 우리는 [기타]의 '지난 것만' 체크뿐이었다. */
@@ -122,7 +125,7 @@ const init = periodOf('금월(~오늘)')!
 
 const EMPTY_FILTERS: Filters = {
   dateFrom: init.from, dateTo: init.to, partner: '', quoteNo: '', item: '', expiredOnly: false, sortByDoc: false,
-  warehouse: '', project: '', mgmt: '', partnerMgr: '',
+  warehouse: '', project: '', employee: '', mgmt: '', partnerMgr: '',
   validFrom: '', validTo: '', qtyFrom: '', qtyTo: '', unorderedFrom: '', unorderedTo: '',
   priceFrom: '', priceTo: '', supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
   remark: '', status: '', createdBy: '', taxType: '', spec: '',
@@ -136,7 +139,7 @@ const todayStr = () => ymd(new Date())
 
 export default function UnorderedStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects', 'employees'])
   const mgmt = useItemMgmt()
   const pmgr = usePartnerManagers()
   /**
@@ -178,6 +181,7 @@ export default function UnorderedStatusPage() {
           warehouseId: q.warehouseId ?? null,
           project: q.projectName,
           projectId: q.projectId,
+          employeeId: q.employeeId ?? null,
           remark: q.remark,
           createdBy: q.createdBy,
           itemId: l.itemId,
@@ -216,6 +220,7 @@ export default function UnorderedStatusPage() {
       if (f.item && String(r.itemId) !== f.item) return false
       if (f.warehouse && String(r.warehouseId) !== f.warehouse) return false
       if (f.project && String(r.projectId) !== f.project) return false
+      if (f.employee && String(r.employeeId) !== f.employee) return false
       if (f.mgmt && mgmt.nameOf(r.itemId) !== f.mgmt) return false
       if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
       if (f.validFrom && !(r.validUntil && r.validUntil >= f.validFrom)) return false
@@ -340,6 +345,11 @@ export default function UnorderedStatusPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={filters.item} onChange={(v) => setF({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={160} emptyLabel="전체"
+                           value={filters.employee} onChange={(v) => setF({ employee: v })}
+                           items={pickers.employees.map((x) => ({ ...x, value: String(x.id) }))} />
         </EcCond>
         <EcCond label="거래처관리담당자" pick>
           <CodePickerField label="거래처관리담당자" hideLabel width={160} emptyLabel="전체"

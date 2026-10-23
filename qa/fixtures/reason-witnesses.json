@@ -1279,14 +1279,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
  },
- "미주문현황|담당자": {
-  "claim": "견적 전표에 담당자를 안 붙인다",
-  "absent": [
-   "employeeId",
-   "employeeName"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/quotation/dto/QuotationDtos.java"
- },
  "미주문현황|외화종류": {
   "claim": "견적에 통화 칸이 없다",
   "absent": [

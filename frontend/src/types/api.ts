@@ -2224,6 +2224,9 @@ export interface Quotation {
   warehouseName: string | null
   projectId: number | null
   projectName: string | null
+  /** 원본 견적서의 [담당자](견적서조회 [사원(담당)명]). */
+  employeeId: number | null
+  employeeName: string | null
   status: QuotationStatus
   statusName: string
   supplyAmount: number

@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface QuotationRepository extends JpaRepository<Quotation, Long> {
 
-    @Query("select distinct q from Quotation q join fetch q.partner " +
+    @Query("select distinct q from Quotation q join fetch q.partner left join fetch q.employee " +
             "left join fetch q.lines l left join fetch l.item " +
             "order by q.quoteDate desc, q.id desc")
     List<Quotation> findAllWithRefs();
@@ -20,7 +20,7 @@ public interface QuotationRepository extends JpaRepository<Quotation, Long> {
      * 기간으로 걸러 온다. 안 준 쪽은 서비스가 열린 끝으로 채워 준다 —
      * <code>:from is null</code> 로 쓰면 PostgreSQL 이 그 자리의 형을 못 정해 터진다.
      */
-    @Query("select distinct q from Quotation q join fetch q.partner " +
+    @Query("select distinct q from Quotation q join fetch q.partner left join fetch q.employee " +
             "left join fetch q.lines l left join fetch l.item " +
             "where q.quoteDate between :from and :to " +
             "order by q.quoteDate desc, q.id desc")

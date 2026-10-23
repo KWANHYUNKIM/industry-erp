@@ -270,7 +270,7 @@ export default function QuotationPage() {
         bizRegNo: p?.bizRegNo, ceo: p?.ceoName, bizType: p?.bizType, bizItem: p?.bizItem,
         tel: p?.phone, address: p?.address,
       },
-      extra: [{ label: '유효기간', value: q.validUntil }, { label: '담당', value: q.createdBy }],
+      extra: [{ label: '유효기간', value: q.validUntil }, { label: '담당', value: q.employeeName }],
       remark: q.remark,
       lines: q.lines.map((l) => ({
         itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
@@ -324,7 +324,7 @@ export default function QuotationPage() {
             dueDate: genDirect['납기일자'] ? (genVal.due || undefined) : todayStr,
             warehouseId: genDirect['출하창고'] && genVal.wh ? Number(genVal.wh) : q.warehouseId ?? undefined,
             projectId: genDirect['프로젝트'] && genVal.project ? Number(genVal.project) : q.projectId ?? undefined,
-            employeeId: genDirect['담당자'] ? (genVal.emp ? Number(genVal.emp) : undefined) : undefined,
+            employeeId: genDirect['담당자'] ? (genVal.emp ? Number(genVal.emp) : undefined) : q.employeeId ?? undefined,
             taxable: genDirect['거래유형'] ? genVal.taxable : q.vatAmount > 0,
             currencyCode: genDirect['통화'] ? genVal.currency : undefined,
             lines: byItem
@@ -767,7 +767,7 @@ export default function QuotationPage() {
               {/* 원본은 [일자-No.] 를 누르면 그 견적이 든 입력 창이 뜬다. */}
               <td><a className="cursor-pointer" onClick={() => { setEditing(q); setShowForm(true) }}>{dateNo(q)}</a></td>
               <td>{q.partnerName}</td>
-              <td>{q.createdBy ?? ''}</td>
+              <td>{q.employeeName ?? ''}</td>
               {/* 원본 '포장재 [30cm*40cm]' · '코카콜라 [355ml] 외 1건' — 첫 품목에 규격을 대괄호로. */}
               <td>{q.lines[0]?.itemName ?? ''}{q.lines[0]?.spec ? ` [${q.lines[0].spec}]` : ''}{q.lines.length > 1 ? ` 외 ${q.lines.length - 1}건` : ''}</td>
               <td>{q.validUntil ? q.validUntil.replace(/-/g, '/') : ''}</td>
@@ -781,7 +781,7 @@ export default function QuotationPage() {
       </table>
       ))}
 
-      {showForm && <QuotationForm key={editing?.id ?? 'new'} editing={editing} items={items} partners={partners} warehouses={warehouses} projects={projects}
+      {showForm && <QuotationForm key={editing?.id ?? 'new'} editing={editing} items={items} partners={partners} warehouses={warehouses} projects={projects} employees={genEmps}
         onClose={() => { setShowForm(false); setEditing(null) }}
         onSaved={() => { setShowForm(false); setEditing(null); load() }} />}
     </EcListShell>
@@ -795,11 +795,12 @@ export default function QuotationPage() {
  * 줄 없이 저장하면 '알림' 창의 '그리드(표)에 최소 1줄 이상 입력되어야 합니다.', 출하창고는 비워도 저장된다. 저장하면 말 없이 새 창이 된다.
  * 수정 창 하단: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · H · 최종이력 — 삭제 확인 '전표를 삭제하겠습니까?\n- 견적서', 지우면 말 없이 목록에서 빠진다.
  */
-function QuotationForm({ editing, items, partners, warehouses, projects, onClose, onSaved }: {
+function QuotationForm({ editing, items, partners, warehouses, projects, employees, onClose, onSaved }: {
   editing: Quotation | null
   items: Item[]; partners: Partner[]
   warehouses: { id: number; code: string; name: string; active?: boolean }[]
   projects: { id: number; code: string; name: string }[]
+  employees: { id: number; code: string; name: string }[]
   onClose: () => void; onSaved: () => void
 }) {
   const init = () => ({
@@ -807,6 +808,7 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
     quoteDate: editing?.quoteDate ?? today(),
     warehouse: editing?.warehouseId ? String(editing.warehouseId) : '',
     project: editing?.projectId ? String(editing.projectId) : '',
+    employee: editing?.employeeId ? String(editing.employeeId) : '',
     validUntil: editing?.validUntil ?? '',
     lines: editing && editing.lines.length
       ? [...editing.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) })), emptyLine(), emptyLine()]
@@ -817,6 +819,8 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
   /* 원본 견적서의 [출하창고]·[프로젝트]. 판매전표는 이미 물고 있는데 견적만 없었다. */
   const [fWarehouse, setFWarehouse] = useState(init().warehouse)
   const [fProject, setFProject] = useState(init().project)
+  /* 원본 견적서의 [담당자](2026-10-23 재고1 QA) — 견적서조회 [사원(담당)명] 이 이 값이다. */
+  const [fEmployee, setFEmployee] = useState(init().employee)
   const [validUntil, setValidUntil] = useState(init().validUntil)
   const [lines, setLines] = useState<LineForm[]>(init().lines)
   const [saving, setSaving] = useState(false)
@@ -827,7 +831,7 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
 
   function reset() {
     const v = init()
-    setPartnerId(v.partnerId); setQuoteDate(v.quoteDate); setFWarehouse(v.warehouse); setFProject(v.project)
+    setPartnerId(v.partnerId); setQuoteDate(v.quoteDate); setFWarehouse(v.warehouse); setFProject(v.project); setFEmployee(v.employee)
     setValidUntil(v.validUntil); setLines(v.lines); setError(''); setPartnerMissing(false)
   }
   function setLine(i: number, patch: Partial<LineForm>) {
@@ -877,6 +881,7 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
       const body = { partnerId: Number(partnerId), quoteDate,
         warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
         projectId: fProject ? Number(fProject) : undefined,
+        employeeId: fEmployee ? Number(fEmployee) : undefined,
         validUntil: validUntil || undefined, taxable: true, lines: payload }
       if (editing) await api.put(`/quotations/${editing.id}`, body)
       else await api.post('/quotations', body)
@@ -909,28 +914,34 @@ function QuotationForm({ editing, items, partners, warehouses, projects, onClose
               </td>
               <th className={th}>거래처</th>
               <td className={partnerMissing ? 'ec-invalid' : undefined}>
-                <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="거래처"
+                <CodePickerField label="거래처" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="거래처"
                                  value={partnerId} onChange={choosePartner}
                                  items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'), true)} />
               </td>
             </tr>
             <tr>
+              <th className={th}>담당자</th>
+              <td>
+                <CodePickerField label="담당자" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="담당자"
+                                 value={fEmployee} onChange={setFEmployee}
+                                 items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+              </td>
               <th className={th}>출하창고</th>
               <td>
-                <CodePickerField label="출하창고" hideLabel width={240} emptyLabel="선택 안 함" placeholder="출하창고"
+                <CodePickerField label="출하창고" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="출하창고"
                                  value={fWarehouse} onChange={setFWarehouse}
                                  items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, stopped: w.active === false }))} />
               </td>
+            </tr>
+            <tr>
               <th className={th}>프로젝트</th>
               <td>
-                <CodePickerField label="프로젝트" hideLabel width={240} emptyLabel="선택 안 함" placeholder="프로젝트"
+                <CodePickerField label="프로젝트" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="프로젝트"
                                  value={fProject} onChange={setFProject}
                                  items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
               </td>
-            </tr>
-            <tr>
               <th className={th}>유효기간</th>
-              <td colSpan={3}><input type="date" className="ec-input w-[150px]" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></td>
+              <td><input type="date" className="ec-input w-[150px]" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></td>
             </tr>
           </tbody>
         </table>
