@@ -8,12 +8,11 @@
   "in": "backend"
  },
  "구매단가일괄변경|환율": {
-  "claim": "매입 전표에 통화 칸이 없다",
+  "claim": "구매입력 외자 전표는 통화 · 환율을 저장하지만(V473) 단가일괄변경은 외화 단가를 건드리지 않는다 — 원화 단가만 바꾼다",
   "absent": [
-   "currency",
-   "Currency"
+   "foreignPrice"
   ],
-  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
+  "in": "backend/src/main/java/com/erp/trade/price"
  },
  "내결재관리|My도장/서명": {
   "claim": "결재 도장 이미지를 만들지 않는다",
@@ -185,12 +184,11 @@
   "file": "trade/PartnersPage.tsx"
  },
  "구매단가일괄변경|환율변경": {
-  "claim": "매입 전표에 통화 칸이 없어 바꿀 환율이 없다(수출오더에는 있다)",
+  "claim": "전표 환율은 입력 때 정한다 — 일괄로 바꾸면 원화 금액이 소리 없이 달라져 우리 일괄변경은 단가만 바꾼다",
   "absent": [
-   "currency",
-   "Currency"
+   "foreignPrice"
   ],
-  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
+  "in": "backend/src/main/java/com/erp/trade/price"
  },
  "원가생성_수정|공정명": {
   "claim": "원가를 공정 단위로 쌓지 않는다",
@@ -1206,11 +1204,11 @@
   ]
  },
  "구매현황|외화종류": {
-  "claim": "구매 전표에 통화 칸이 없다",
-  "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java",
+  "claim": "구매 전표는 통화코드를 저장하지만(V473) 구매현황 조건 [외화종류] 로 거르는 자리는 아직 안 만들었다",
   "absent": [
-   "currency"
-  ]
+   "currencyCode"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/purchase/PurchaseRepository.java"
  },
  "품질검사현황|최초작성자": {
   "claim": "만든 사람을 안 남긴다 — QualityInspection 에 createdBy 칸이 없다(검사자와 다른 사람이다)",

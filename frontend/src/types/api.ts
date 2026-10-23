@@ -323,6 +323,10 @@ export interface TradeLine {
   lotNo: string | null
   /** 부대비용 (cust_amt). 합계 금액에는 더하지 않는다. */
   extraCost: number | null
+  /** 구매 외자 줄의 외화단가 · 외화금액 · 줄 환율 (내자 줄은 null) */
+  foreignPrice?: number | null
+  foreignAmount?: number | null
+  lineRate?: number | null
   /**
    * 불러온 근거전표 — 이카운트 판매입력·구매입력 그리드의 [불러온 전표 / 전표일자 / 전표No.] 3열.
    * [전표불러오기]로 수주·발주 라인을 담았을 때만 채워지고, 직접 입력한 줄은 전부 null 이다.
@@ -403,6 +407,9 @@ export interface PurchaseDoc {
   returnSlip: boolean
   /** 원본 [거래구분] 표시값 — 일반 · 반품. */
   tradeKindName: string
+  /** 구매 외자(수입) 전표의 통화코드 · 머리 환율. 내자면 null. 금액 열은 늘 원화다. */
+  currencyCode?: string | null
+  exchangeRate?: number | null
   /** 회계반영 여부 (판매와 맞추려고 응답에 추가했다) */
   accountingReflected: boolean
   /** 귀속 프로젝트 (백엔드 PurchaseResponse 가 이미 주고 있던 필드 — 타입에 빠져 있었다) */

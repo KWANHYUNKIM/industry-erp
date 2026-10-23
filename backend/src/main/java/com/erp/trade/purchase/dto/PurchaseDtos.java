@@ -47,7 +47,16 @@ public final class PurchaseDtos {
              * 합계 1,100 으로 저장되고 다시 열어도 99. 공급가액을 바꾸면 화면이 부가세를 다시 계산한다.
              */
             @PositiveOrZero(message = "부가세는 0 이상이어야 합니다.")
-            BigDecimal vatAmount
+            BigDecimal vatAmount,
+            /** 외자 전표의 외화 단가(선택). 외화금액을 비우면 수량 × 외화단가. */
+            @PositiveOrZero(message = "외화단가는 0 이상이어야 합니다.")
+            BigDecimal foreignPrice,
+            /** 외자 전표의 외화금액(선택). 원화 공급가액 = round(외화금액 × 환율). */
+            @PositiveOrZero(message = "외화금액은 0 이상이어야 합니다.")
+            BigDecimal foreignAmount,
+            /** 줄 환율(선택). 비우면 머리 환율. */
+            @PositiveOrZero(message = "환율은 0 이상이어야 합니다.")
+            BigDecimal lineRate
     ) {}
 
     public record CreatePurchaseRequest(
@@ -68,6 +77,12 @@ public final class PurchaseDtos {
             Long employeeId,
             /** 거래별부가세계산 — 전표 합계에 한 번 반올림한다. 비우면 라인별 반올림(기존 동작). */
             Boolean vatBySlip,
+            /** 외자(수입) 전표의 통화코드(외화등록). 비우면 내자. */
+            @Size(max = 10, message = "통화코드가 너무 깁니다.")
+            String currencyCode,
+            /** 외자 전표의 머리 환율. 줄에서 따로 정하지 않은 줄에 쓴다. */
+            @PositiveOrZero(message = "환율은 0 이상이어야 합니다.")
+            BigDecimal exchangeRate,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<PurchaseLineRequest> lines
     ) {}
 
@@ -83,6 +98,8 @@ public final class PurchaseDtos {
             ItemCategory itemCategory, String itemCategoryName,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
             String remark, String lotNo, BigDecimal extraCost,
+            /** 외자 줄의 외화단가 · 외화금액 · 줄 환율. 내자 줄은 null. */
+            BigDecimal foreignPrice, BigDecimal foreignAmount, BigDecimal lineRate,
             /** 불러온 전표 — 원본 그리드의 [불러온 전표 / 전표일자 / 전표No.] 3열. 없으면 전부 null. */
             Long sourceOrderId, String sourceDocType, LocalDate sourceDocDate, String sourceDocNo
     ) {
@@ -95,6 +112,7 @@ public final class PurchaseDtos {
                     l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getRemark(), l.getLotNo(), l.getExtraCost(),
+                    l.getForeignPrice(), l.getForeignAmount(), l.getLineRate(),
                     src == null ? null : src.getId(),
                     src == null ? null : "발주서",
                     src == null ? null : src.getOrderDate(),
@@ -149,6 +167,8 @@ public final class PurchaseDtos {
             boolean taxable,
             /** 원본 [거래구분]이 반품인가. 수량·금액이 음수로 저장돼 있다. */
             boolean returnSlip,
+            /** 외자 전표의 통화코드 · 머리 환율. 내자면 null. */
+            String currencyCode, BigDecimal exchangeRate,
             /** 원본 [거래구분] 표시값 — 일반 · 반품. */
             String tradeKindName,
             /**
@@ -183,7 +203,9 @@ public final class PurchaseDtos {
                     p.getRemark(), p.getCreatedBy(),
                     p.isVatBySlip(),
                     p.isTaxable(),
-                    p.isReturnSlip(), p.isReturnSlip() ? "반품" : "일반",
+                    p.isReturnSlip(),
+                    p.getCurrencyCode(), p.getExchangeRate(),
+                    p.isReturnSlip() ? "반품" : "일반",
                     p.isAccountingReflected(),
                     p.getProject() != null ? p.getProject().getId() : null,
                     p.getProject() != null ? p.getProject().getName() : null,

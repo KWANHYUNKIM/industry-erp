@@ -55,6 +55,18 @@ public class PurchaseLine {
     @Column(name = "extra_cost", precision = 18, scale = 2)
     private BigDecimal extraCost;
 
+    /** 외자 줄의 외화단가. 내자 줄은 null. */
+    @Column(name = "foreign_price", precision = 18, scale = 4)
+    private BigDecimal foreignPrice;
+
+    /** 외자 줄의 외화금액. 원화 공급가액 = round(외화금액 × 환율). */
+    @Column(name = "foreign_amount", precision = 18, scale = 2)
+    private BigDecimal foreignAmount;
+
+    /** 이 줄에 적용한 환율(머리 환율과 다를 수 있다). */
+    @Column(name = "line_rate", precision = 18, scale = 4)
+    private BigDecimal lineRate;
+
     /**
      * 불러온 근거전표(발주서). 이카운트 구매입력 그리드의 <b>불러온 전표 / 전표일자 / 전표No.</b> 3열.
      * [전표불러오기]로 발주 라인을 담았을 때만 채워진다.

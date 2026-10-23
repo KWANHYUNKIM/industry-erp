@@ -489,7 +489,7 @@ public class PurchaseOrderService {
         if (po.getPartner() == null) throw ApiException.badRequest("거래처가 없는 발주서는 입고할 수 없습니다.");
         List<PurchaseLineRequest> lines = po.getLines().stream()
                 // 입고전환으로 생긴 라인은 이 발주서가 근거전표다 — 구매입력에서 [불러온 전표]로 보인다.
-                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null))
+                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null, null, null, null))
                 .toList();
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(
@@ -497,6 +497,7 @@ public class PurchaseOrderService {
                 Boolean.FALSE,  // 발주서 입고전환은 늘 일반 구매다
                 "발주 " + po.getOrderNo() + " 입고", null, null,
                 null,   // 거래별부가세계산: 발주서가 라인별로 계산해 둔 값을 그대로 승계한다
+                null, null,   // 통화 · 환율: 내자
                 lines);
 
         PurchaseResponse purchase = purchaseService.create(purchaseReq, username);

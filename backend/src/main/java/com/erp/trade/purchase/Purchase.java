@@ -113,6 +113,13 @@ public class Purchase extends BaseTimeEntity {
     @Builder.Default
     private boolean returnSlip = false;
 
+    /** 외자(수입) 전표의 통화코드(외화등록). null 이면 내자. 금액 열은 늘 원화다. */
+    @Column(name = "currency_code", length = 10)
+    private String currencyCode;
+
+    /** 외자 전표의 머리 환율. 줄 환율이 없는 줄에 쓴다. */
+    @Column(name = "exchange_rate", precision = 18, scale = 4)
+    private BigDecimal exchangeRate;
 
     @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

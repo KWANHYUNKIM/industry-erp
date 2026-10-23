@@ -492,7 +492,16 @@ public class PurchaseService {
     }
 
     private void applyContent(Purchase purchase, CreatePurchaseRequest req, String username) {
-        boolean taxable = req.taxable() == null || req.taxable();
+        // 외자(수입) — 통화코드가 있으면 부가세는 붙지 않는다(수입 부가세는 세관에서 따로).
+        String cur = req.currencyCode() == null || req.currencyCode().isBlank() ? null : req.currencyCode().trim();
+        boolean foreign = cur != null;
+        BigDecimal headRate = req.exchangeRate();
+        if (foreign && (headRate == null || headRate.signum() <= 0)) {
+            throw ApiException.badRequest("외자 전표는 환율을 입력하세요.");
+        }
+        purchase.setCurrencyCode(cur);
+        purchase.setExchangeRate(foreign ? headRate : null);
+        boolean taxable = !foreign && (req.taxable() == null || req.taxable());
         // 전표의 성질로 남긴다. 안 남기면 나중에 '부가세가 0이면 면세' 로 되짚어야 하고,
         // 반올림으로 부가세가 0 이 된 과세 전표를 면세로 오인한다.
         purchase.setTaxable(taxable);
@@ -512,11 +521,26 @@ public class PurchaseService {
         boolean vatBySlip = Boolean.TRUE.equals(req.vatBySlip());
         purchase.setVatBySlip(vatBySlip);
         BigDecimal sign = isReturn ? BigDecimal.ONE.negate() : BigDecimal.ONE;
-        List<BigDecimal> supplies = req.lines().stream()
-                .map(lr -> (lr.supplyAmount() != null
+        // 외자 줄: 외화금액(비우면 수량 × 외화단가) × 줄 환율(비우면 머리 환율) = 원화 공급가액
+        List<BigDecimal> fAmts = new java.util.ArrayList<>();
+        List<BigDecimal> fRates = new java.util.ArrayList<>();
+        List<BigDecimal> supplies = new java.util.ArrayList<>();
+        for (PurchaseLineRequest lr : req.lines()) {
+            if (foreign) {
+                BigDecimal rate = lr.lineRate() != null && lr.lineRate().signum() > 0 ? lr.lineRate() : headRate;
+                BigDecimal fa = lr.foreignAmount() != null ? lr.foreignAmount()
+                        : lr.quantity().multiply(lr.foreignPrice() != null ? lr.foreignPrice() : BigDecimal.ZERO);
+                fAmts.add(fa.multiply(sign));
+                fRates.add(rate);
+                supplies.add(fa.multiply(rate).setScale(0, RoundingMode.HALF_UP).multiply(sign));
+            } else {
+                fAmts.add(null);
+                fRates.add(null);
+                supplies.add((lr.supplyAmount() != null
                         ? lr.supplyAmount().setScale(0, RoundingMode.HALF_UP)
-                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign))
-                .toList();
+                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign));
+            }
+        }
         List<BigDecimal> vats = new java.util.ArrayList<>(VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip));
         // 손으로 고친 부가세는 그 줄에 그대로 쓴다(면세 전표는 0 이 원칙이라 무시한다).
         for (int i = 0; taxable && i < req.lines().size(); i++) {
@@ -541,12 +565,19 @@ public class PurchaseService {
             BigDecimal supply = supplies.get(i);
             BigDecimal vat = vats.get(i);
 
+            // 외자 줄의 원가 단가는 원화 환산 단가(재고 평가 · 채무가 원화로 돈다).
+            BigDecimal unitCost = foreign && lr.quantity().signum() != 0
+                    ? supply.multiply(sign).divide(lr.quantity(), 2, RoundingMode.HALF_UP)
+                    : lr.unitPrice();
             PurchaseLine line = PurchaseLine.builder()
                     .item(item)
                     .quantity(lr.quantity().multiply(sign))
-                    .unitPrice(lr.unitPrice())
+                    .unitPrice(unitCost)
                     .supplyAmount(supply)
                     .vatAmount(vat)
+                    .foreignPrice(foreign ? lr.foreignPrice() : null)
+                    .foreignAmount(foreign ? fAmts.get(i) : null)
+                    .lineRate(foreign ? fRates.get(i) : null)
                     .remark(lr.remark())
                     .lotNo(lr.lotNo())
                     .extraCost(lr.extraCost())
@@ -563,7 +594,7 @@ public class PurchaseService {
             // 재고 증가(입고). 반품이면 반대다 — 되돌려주는 물건이 창고에서 나간다.
             stockService.applyDelta(item, purchase.getWarehouse(), lr.quantity().multiply(sign),
                     isReturn ? StockTransactionType.OUTBOUND : StockTransactionType.INBOUND,
-                    lr.unitPrice(), purchase.getPurchaseDate(),
+                    unitCost, purchase.getPurchaseDate(),
                     (isReturn ? "구매반품 " : "구매 ") + purchase.getDocNo(), username);
         }
 

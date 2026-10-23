@@ -68,6 +68,8 @@ interface LineInput {
   itemId: string
   quantity: string
   unitPrice: string
+  /** 외자 구매의 줄 환율. 비우면 머리 환율. (외자일 때 unitPrice 는 외화단가다) */
+  lineRate: string
   /** 시리얼/로트 (원본 serial_cd) */
   lotNo: string
   /** 부대비용 (원본 cust_amt). 합계 금액에는 더하지 않는다. */
@@ -136,7 +138,7 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const emptyLine = (): LineInput => ({
-  itemId: '', quantity: '', unitPrice: '', lotNo: '', extraCost: '', remark: '',
+  itemId: '', quantity: '', unitPrice: '', lineRate: '', lotNo: '', extraCost: '', remark: '',
   supplyOverride: '', supplyBase: '', vatOverride: '', vatBase: '',
   qcRequest: false,
   sourceOrderId: '', sourceDocType: '', sourceDocDate: '', sourceDocNo: '', checked: false,
@@ -348,6 +350,12 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const returnLoaded = useRef(false)
   const [foreign, setForeign] = useState(false)          // 통화: 내자/외자
   const [exchangeRate, setExchangeRate] = useState('0')
+  const [currencyCode, setCurrencyCode] = useState('')
+  useEffect(() => {
+    if (mode !== 'purchase') return
+    api.get<typeof currencies>('/currencies').then((r) => setCurrencies(r.data)).catch(() => {})
+  }, [mode])
+  const [currencies, setCurrencies] = useState<{ id: number; code: string; name: string; active: boolean; latestRate: number | null }[]>([])
   const [projectId, setProjectId] = useState('')
   const [remark, setRemark] = useState('')
   const [customValues, setCustomValues] = useState<Record<string, string>>({})
@@ -624,16 +632,21 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setReturnSlip(d.returnSlip)
     setVatBySlip(d.vatBySlip)
     setRemark(d.remark ?? '')
+    const fxDoc = mode === 'purchase' && !!(d as PurchaseDoc).currencyCode
+    setForeign(fxDoc)
+    setCurrencyCode(fxDoc ? ((d as PurchaseDoc).currencyCode ?? '') : '')
+    setExchangeRate(fxDoc ? String((d as PurchaseDoc).exchangeRate ?? 0) : '0')
     setLines([
       ...d.lines.map((l) => ({
         ...emptyLine(),
         itemId: String(l.itemId),
         quantity: String(Math.abs(l.quantity)),
-        unitPrice: String(l.unitPrice),
+        unitPrice: fxDoc && l.foreignPrice != null ? String(l.foreignPrice) : String(l.unitPrice),
+        lineRate: fxDoc && l.lineRate != null && l.lineRate !== (d as PurchaseDoc).exchangeRate ? String(l.lineRate) : '',
         lotNo: l.lotNo ?? '',
         extraCost: l.extraCost != null ? String(l.extraCost) : '',
         // 저장된 공급가액이 수량 × 단가와 다르면 손으로 고친 값이다 — 다시 저장해도 남도록 들고 온다.
-        ...(Math.abs(Number(l.supplyAmount)) !== lineSupply(Math.abs(l.quantity), Number(l.unitPrice))
+        ...(!fxDoc && Math.abs(Number(l.supplyAmount)) !== lineSupply(Math.abs(l.quantity), Number(l.unitPrice))
           ? { supplyOverride: String(Math.abs(Number(l.supplyAmount))), supplyBase: `${Math.abs(l.quantity)}|${l.unitPrice}` }
           : {}),
         // 부가세도 같다 — 줄마다 계산하는 전표에서 공급가액 × 10% 와 다르면 손으로 고친 값이다.
@@ -1033,12 +1046,18 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   // ── 계산 ──────────────────────────────────────────────
   // 부가세 배분은 백엔드 `VatAllocator` 와 같은 규칙이어야 한다 — 화면에 보이는 값과
   // 저장된 값이 1원이라도 다르면 사용자는 화면을 못 믿는다.
+  /** 구매입력의 외자(수입) — 단가는 외화단가, 공급가액은 round(외화금액 × 환율) 원화, 부가세는 붙지 않는다. */
+  const fx = mode === 'purchase' && foreign
+  const lineRateOf = (l: LineInput) => (num(l.lineRate) > 0 ? num(l.lineRate) : num(exchangeRate))
+  const fxAmountOf = (l: LineInput) => num(l.quantity) * num(l.unitPrice)
   const computed = (() => {
-    const supplies = lines.map((l) => overriddenSupply(l) ?? lineSupply(num(l.quantity), num(l.unitPrice)))
-    const vats = supplies.map((sup) => (taxable ? roundWon(sup * 0.1) : 0))
+    const supplies = lines.map((l) => (fx
+      ? roundWon(fxAmountOf(l) * lineRateOf(l))
+      : overriddenSupply(l) ?? lineSupply(num(l.quantity), num(l.unitPrice))))
+    const vats = supplies.map((sup) => (taxable && !fx ? roundWon(sup * 0.1) : 0))
     // 손으로 고친 부가세는 거래별 배분보다 먼저다 — 서버도 배분한 뒤 그 줄만 덮어쓴다.
-    const typedVat = lines.map((l, i) => (taxable && l.vatOverride !== '' && l.vatBase === String(supplies[i]) ? roundWon(num(l.vatOverride)) : null))
-    if (taxable && vatBySlip && supplies.length > 0) {
+    const typedVat = lines.map((l, i) => (taxable && !fx && l.vatOverride !== '' && l.vatBase === String(supplies[i]) ? roundWon(num(l.vatOverride)) : null))
+    if (taxable && !fx && vatBySlip && supplies.length > 0) {
       const slipVat = roundWon(supplies.reduce((a, b) => a + b, 0) * 0.1)
       const residual = slipVat - vats.reduce((a, b) => a + b, 0)
       if (residual !== 0) {
@@ -1056,6 +1075,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     supply: computed.reduce((s, c) => s + c.supply, 0),
     vat: computed.reduce((s, c) => s + c.vat, 0),
     extra: lines.reduce((s, l) => s + num(l.extraCost), 0),
+    foreign: lines.reduce((s, l) => s + (l.itemId ? fxAmountOf(l) : 0), 0),
     total: computed.reduce((s, c) => s + c.total, 0),
   }
   /** 합계행의 전표 합계 칸 — 합계 열이 켜져 있으면 그 아래, 아니면 적요 칸 자리에 선다. */
@@ -1182,6 +1202,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     if (!partnerId && mode === 'sales') msgs.push(`${cfg.partnerLabel}를 선택하세요.`)
     if (!warehouseId) msgs.push(`${cfg.whLabel}를 선택하세요.`)
     if (foreign && rate <= 0) msgs.push('외자 전표는 환율을 입력해야 합니다.')
+    if (fx && !currencyCode) msgs.push('외자 전표는 외화(통화)를 선택해야 합니다.')
     lines.forEach((l, i) => {
       if (!l.itemId) return
       if (num(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
@@ -1202,7 +1223,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
 
   // ── 임시저장 (원본은 주기적으로 자동 저장하고 푸터에 시각을 찍는다) ──
   const snapshot = () => JSON.stringify({
-    date, partnerId, employeeId, warehouseId, taxable, returnSlip, foreign, exchangeRate, projectId, remark, customValues, lines,
+    date, partnerId, employeeId, warehouseId, taxable, returnSlip, foreign, exchangeRate, currencyCode, projectId, remark, customValues, lines,
   })
   function applyTemp() {
     const raw = localStorage.getItem(tempKey)
@@ -1210,7 +1231,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     try {
       const s = JSON.parse(raw)
       setDate(s.date ?? today()); setPartnerId(s.partnerId ?? ''); setEmployeeId(s.employeeId ?? '')
-      setWarehouseId(s.warehouseId ?? ''); setTaxable(s.taxable ?? true); setForeign(s.foreign ?? false)
+      setWarehouseId(s.warehouseId ?? ''); setTaxable(s.taxable ?? true); setForeign(s.foreign ?? false); setCurrencyCode(s.currencyCode ?? '')
       setReturnSlip(s.returnSlip ?? false)
       setExchangeRate(s.exchangeRate ?? '0'); setProjectId(s.projectId ?? ''); setRemark(s.remark ?? '')
       setCustomValues(s.customValues ?? {}); setLines(Array.isArray(s.lines) && s.lines.length ? s.lines : emptyLines())
@@ -1269,7 +1290,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       .map((l) => ({
         itemId: Number(l.itemId),
         quantity: num(l.quantity),
-        unitPrice: num(l.unitPrice),
+        unitPrice: fx ? roundWon(fxAmountOf(l) * lineRateOf(l) / Math.max(num(l.quantity), 1e-9)) : num(l.unitPrice),
+        ...(fx ? { foreignPrice: num(l.unitPrice), foreignAmount: fxAmountOf(l), lineRate: num(l.lineRate) > 0 ? num(l.lineRate) : undefined } : {}),
         remark: l.remark.trim() || undefined,
         lotNo: l.lotNo.trim() || undefined,
         extraCost: l.extraCost ? num(l.extraCost) : undefined,
@@ -1305,8 +1327,9 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       warehouseId: Number(warehouseId),
       vatBySlip,
       [dateKey]: date,
-      taxable,
+      taxable: taxable && !fx,
       returnSlip,
+      ...(fx ? { currencyCode, exchangeRate: num(exchangeRate) } : {}),
       remark: remark || undefined,
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
@@ -1742,6 +1765,21 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 <option value="D">내자</option>
                 <option value="F">외자</option>
               </select>
+              {mode === 'purchase' && foreign && (
+                <select
+                  className="ec-input" aria-label="외화" value={currencyCode} style={{ width: 120 }}
+                  onChange={(e) => {
+                    setCurrencyCode(e.target.value)
+                    const c = currencies.find((x) => x.code === e.target.value)
+                    if (c?.latestRate && num(exchangeRate) <= 0) setExchangeRate(String(c.latestRate))
+                  }}
+                >
+                  <option value="">외화 선택</option>
+                  {currencies.filter((c) => c.active || c.code === currencyCode).map((c) => (
+                    <option key={c.code} value={c.code}>{c.code} {c.name}</option>
+                  ))}
+                </select>
+              )}
               {foreign && (
                 <input
                   className="ec-input" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)}
@@ -1834,7 +1872,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           2026-10-13 판매입력 II 를 따로 열었다(/sales/sell2, adjust) — 그쪽에서만 격자 아래 금액조정 표와
           [금액조정] 창을 그린다. 판매입력(/sales/sell)에는 원본처럼 없다.
         */}
-        {foreign && rate > 0 && (
+        {foreign && !fx && rate > 0 && (
           <div className="mt-[6px] text-right text-[12px] text-ec-label">
             외화금액{' '}
             <b className="text-ec-text">
@@ -2105,10 +2143,12 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 <th className="text-right">수량</th>
                 {/* 원본 판매입력은 [수량] 다음이 [시리얼/로트No.] 다(2026-10-14 실측). */}
                 {lotAfterQty && lineLotCol && <th className="text-center">시리얼/로트No.</th>}
-                <th className="text-right">단가</th>
-                {cols.priceVat && <th>단가(vat포함)</th>}
-                <th className="text-right">공급가액</th>
-                <th className="text-right">부가세</th>
+                <th className="text-right">{fx ? '단가(외화)' : '단가'}</th>
+                {cols.priceVat && !fx && <th>단가(vat포함)</th>}
+                {fx && <th className="text-right">외화금액</th>}
+                {fx && <th className="text-right">환율</th>}
+                <th className="text-right">{fx ? '원화금액' : '공급가액'}</th>
+                {!fx && <th className="text-right">부가세</th>}
                 {cols.lineTotal && <th className="text-right">합계</th>}
                 {showExtraCost && <th className="text-right">부대비용</th>}
                 {cols.mgmtItem && <th>관리항목</th>}
@@ -2203,18 +2243,33 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                       <EcNumInput className="cell text-right"
                              value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} />
                     </td>
-                    {cols.priceVat && (
+                    {cols.priceVat && !fx && (
                       <td className="pad text-right text-ec-hint">
                         {l.itemId ? won(Math.round(num(l.unitPrice) * (taxable ? 1.1 : 1))) : ''}
                       </td>
                     )}
-                    <td>
+                    {fx && (
+                      <td className="pad text-right">
+                        {l.itemId ? fxAmountOf(l).toLocaleString('ko-KR', { maximumFractionDigits: 2 }) : ''}
+                      </td>
+                    )}
+                    {fx && (
+                      <td>
+                        <EcNumInput className="cell text-right" disabled={!l.itemId} aria-label="줄 환율"
+                               value={l.itemId ? (l.lineRate || exchangeRate) : ''}
+                               onValue={(v) => updateLine(idx, 'lineRate', v)} />
+                      </td>
+                    )}
+                    <td className={fx ? 'pad text-right' : undefined}>
+                      {fx ? (l.itemId ? won(computed[idx].supply) : '') : (
                       <EcNumInput className="cell text-right" disabled={!l.itemId}
                              aria-label="공급가액"
                              value={l.itemId ? (overriddenSupply(l) != null ? l.supplyOverride : String(computed[idx].supply)) : ''}
                              onValue={(v) => setLines((ls) => ls.map((x, i) => (i === idx
                                ? { ...x, supplyOverride: v, supplyBase: `${num(x.quantity)}|${num(x.unitPrice)}` } : x)))} />
+                      )}
                     </td>
+                    {!fx && (
                     <td>
                       <EcNumInput className="cell text-right" disabled={!l.itemId || !taxable}
                              aria-label="부가세"
@@ -2222,6 +2277,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                              onValue={(v) => setLines((ls) => ls.map((x, i) => (i === idx
                                ? { ...x, vatOverride: v, vatBase: String(computed[idx].supply) } : x)))} />
                     </td>
+                    )}
                     {cols.lineTotal && (
                       <td className="pad text-right font-semibold text-ec-text">
                         {l.itemId ? won(computed[idx].supply + computed[idx].vat) : ''}
@@ -2310,9 +2366,11 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 <td className="text-right">{won(totals.qty)}</td>
                 {lotAfterQty && lineLotCol && <td />}
                 <td />
-                {cols.priceVat && <td />}
+                {cols.priceVat && !fx && <td />}
+                {fx && <td className="text-right">{totals.foreign.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}</td>}
+                {fx && <td />}
                 <td className="text-right">{won(totals.supply)}</td>
-                <td className="text-right">{won(totals.vat)}</td>
+                {!fx && <td className="text-right">{won(totals.vat)}</td>}
                 {cols.lineTotal && totalTd}
                 {showExtraCost && <td className="text-right">{won(totals.extra)}</td>}
                 {/*
