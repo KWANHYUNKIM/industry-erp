@@ -325,7 +325,8 @@ for (const schema of ['public', ...tenants]) {
   const 상한 = [
     ['수주 줄의 출하수량 ≤ 주문수량', 'sales_order_lines', 'coalesce(shipped_qty,0) > quantity'],
     ['작업지시 기생산 ≤ 지시수량', 'work_orders', 'coalesce(produced_qty,0) > planned_qty'],
-    ['재고 잔량이 음수가 아니다', 'stocks', 'quantity < 0'],
+    // 환경설정 '재고 마이너스 허용'(preference.negative_stock)을 켠 회사는 음수가 정상이다(원본 동작, a303733b).
+    ['재고 잔량이 음수가 아니다', 'stocks', `quantity < 0 and not exists (select 1 from ${schema}.preference where negative_stock)`],
   ]
   for (const [이름, 표, 조건] of 상한) {
     const 넘은것 = psql(`select id from ${schema}.${표} where ${조건} limit 5`).map((r) => r[0])
