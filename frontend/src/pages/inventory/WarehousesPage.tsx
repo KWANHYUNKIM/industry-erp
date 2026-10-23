@@ -19,12 +19,12 @@ const inputCls = 'ec-input w-full'
 const KINDS = ['창고', '공장', '외주'] as const
 
 /** active — 원본은 사용중단한 공정을 코드도움에 안 띄운다. */
-interface ProcessRow { id: number; name: string; active: boolean }
+interface ProcessRow { id: number; code: string; name: string; active: boolean }
 interface PartnerRow { id: number; code: string; name: string; type: string }
 
 
 export default function WarehousesPage() {
-  const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
+  const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('사용')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -261,7 +261,7 @@ export default function WarehousesPage() {
                 <CodePickerField label="생산공정" hideLabel fill placeholder="생산공정"
                                  emptyLabel="선택 안 함"
                                  value={form.processId} onChange={(v) => setForm({ ...form, processId: v })}
-                                 items={processes.map((x) => ({ value: String(x.id), name: x.name }))} />
+                                 items={processes.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
               </div>
             )}
             {form.kind === '외주' && (

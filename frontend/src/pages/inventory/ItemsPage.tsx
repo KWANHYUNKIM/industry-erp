@@ -770,7 +770,8 @@ export default function ItemsPage() {
               <Field label="품목그룹1">
                 <CodePickerField label="품목그룹1" hideLabel fill placeholder="품목그룹1" emptyLabel="선택 해제"
                                  value={form.itemGroupId} onChange={(v) => set('itemGroupId', v)}
-                                 items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))} />
+                                 items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
+                                 onNew={() => setGroupOpen(true)} />
               </Field>
               <Field label="적요" wide>
                 <input className={inputCls} placeholder="적요" value={form.remark} onChange={(e) => set('remark', e.target.value)} />
