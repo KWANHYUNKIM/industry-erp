@@ -1768,7 +1768,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               </select>
               {mode === 'purchase' && foreign && (
                 <select
-                  className="ec-input" aria-label="외화" value={currencyCode} style={{ width: 120 }}
+                  className="ec-input w-[120px]" aria-label="외화" value={currencyCode}
                   onChange={(e) => {
                     setCurrencyCode(e.target.value)
                     const c = currencies.find((x) => x.code === e.target.value)
