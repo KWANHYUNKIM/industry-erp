@@ -80,7 +80,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   const rows = showNormal ? normals : lines
   const setRows = showNormal ? setNormals : setLines
   const [picked, setPicked] = useState<Set<number>>(new Set())
-  const [kinds, setKinds] = useState<string[]>([])
+  const [kinds, setKinds] = useState<{ code: string; name: string }[]>([])
   const [error, setError] = useState('')
   /* 빈 저장 — 원본은 글 없이 필수칸만 빨간 테두리(재고1 plans 자가사용 ② · 불량처리 ①: 창고 · 첫 품목코드 칸, 2026-10-21 실측). */
   const req = useRequired()
@@ -91,8 +91,8 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
-    api.get<{ name: string; codes: { name: string }[] }[]>('/codes')
-      .then((r) => setKinds((r.data.find((g) => g.name === L.kindCodes)?.codes ?? []).map((c) => c.name)))
+    api.get<{ name: string; codes: { code: string; name: string }[] }[]>('/codes')
+      .then((r) => setKinds((r.data.find((g) => g.name === L.kindCodes)?.codes ?? []).map((c) => ({ code: c.code, name: c.name }))))
       .catch(() => setKinds([]))
   }, [L.kindCodes])
 
@@ -124,7 +124,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
     const p = id != null ? pickers.partners.find((x) => x.value === String(id)) : undefined
     return p ? `${p.name}${p.code ? `(${p.code})` : ''}` : ''
   }
-  const kindItems = useMemo(() => kinds.map((k) => ({ value: k, name: k })), [kinds])
+  const kindItems = useMemo(() => kinds.map((k) => ({ value: k.name, code: k.code, name: k.name })), [kinds])
 
   function setLine(i: number, patch: Partial<Line>) {
     setRows((ls) => {
@@ -326,7 +326,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                     </td>
                     <td>
                       <CodePickerField label={L.kind} hideLabel fill value={l.kind}
-                                       onChange={(v) => setLine(i, { kind: v })} items={kindItems} />
+                                       onChange={(v) => setLine(i, { kind: v })} items={kindItems} hideNew />
                     </td>
                     <td />
                   </tr>

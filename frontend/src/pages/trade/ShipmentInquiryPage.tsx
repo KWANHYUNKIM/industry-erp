@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
-import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
@@ -89,10 +89,14 @@ export default function ShipmentInquiryPage() {
   const [keyword, setKeyword] = useState('')
   /*
    * <b>기간 기본값이 비어 있었다</b> — 화면을 열면 전 기간이 내려왔다(2026-09-10 실측 1,075KB).
-   * 같은 날 고친 회계 화면들과 같은 <b>금월(~오늘)</b> 로 맞춘다. 예전 자료는 기간을 넓히면 보인다.
+   * 원본 기본은 한 달 전 ~ 한 달 뒤 전날(2026/10/23 에 2026/09/23 ~ 2026/11/22) — 출하지시서조회와 같다. 예전 자료는 기간을 넓히면 보인다.
    */
-  const [from, setFrom] = useState(periodOf('금월(~오늘)')!.from)
-  const [to, setTo] = useState(periodOf('금월(~오늘)')!.to)
+  const [period0] = useState<[string, string]>(() => {
+    const d = new Date()
+    return [ymd(new Date(d.getFullYear(), d.getMonth() - 1, d.getDate())), ymd(new Date(d.getFullYear(), d.getMonth() + 1, d.getDate() - 1))]
+  })
+  const [from, setFrom] = useState(period0[0])
+  const [to, setTo] = useState(period0[1])
   const [tab, setTab] = useState<Tab>('전체')
   const [shipNoCond, setShipNoCond] = useState('')
   const [warehouseCond, setWarehouseCond] = useState('')
@@ -403,7 +407,7 @@ export default function ShipmentInquiryPage() {
                 })} />
               </td>
               {/* 원본은 일자와 번호를 한 칸에 적고, 누르면 '출하입력(수정)' 창이 뜬다. */}
-              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setEditing(r) }}>{dateText(r.shipDate)} {r.shipNo}</a></td>
+              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setEditing(r) }}>{dateNo(r.shipDate, r.shipNo)}</a></td>
               <td>{r.warehouseName ?? ''}</td>
               <td>{r.lines[0]?.itemName}{r.lines[0]?.spec ? ` [${r.lines[0].spec}]` : ''}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
               <td className="text-right">{qty2(r.totalQuantity)}</td>
