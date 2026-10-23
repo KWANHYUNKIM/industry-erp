@@ -13,3 +13,9 @@ Thumbs.db
 .env
 .env.local
 *.local
+
+# skills CLI 설치 캐시(실제 파일은 .claude/skills 에 복사해 둔다)
+.agents/
+
+# 데이터이관 QA 접속 정보(시험 비밀번호)
+.claude/skills/ecount-diff/plans/데이터이관/_접속.md
