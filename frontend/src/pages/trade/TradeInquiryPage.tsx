@@ -20,6 +20,8 @@ interface NormalDoc {
   id: number; docNo: string; partnerId: number; partnerName: string; warehouseId: number; warehouseName: string
   projectId: number | null
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
+  /** 거래유형(과세). 외자 구매는 과세여도 부가세가 0 이라 부가세로 되짚으면 면세로 보인다. */
+  taxable?: boolean
   createdBy: string | null; remark: string | null
   /**
    * 원본 조건 [담당자]. <b>작성자와 다른 값</b>이다 — 전표를 <b>맡은</b> 사람이고,
@@ -121,7 +123,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [projectCond, setProjectCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   /** 목록의 [거래유형명]과 같은 규칙 — 부가세가 있으면 과세다(전표 입력과 같다). */
-  const tradeTypeOf = (d: { vatAmount: number }) => (d.vatAmount !== 0 ? '부가세율 적용' : '면세')   // 반품은 부가세가 음수다 — > 0 이면 과세 반품이 면세로 찍혔다(26회차)
+  // 전표가 거래유형(taxable)을 들고 오면 그것을 쓴다 — 외자 구매는 과세여도 부가세가 0 이다(원본 10/12-1 '부가세율 적용').
+  const tradeTypeOf = (d: { vatAmount: number; taxable?: boolean }) => ((d.taxable ?? d.vatAmount !== 0) ? '부가세율 적용' : '면세')   // 반품은 부가세가 음수다 — > 0 이면 과세 반품이 면세로 찍혔다(26회차)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
@@ -158,6 +161,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseId: d.warehouseId, warehouseName: d.warehouseName, projectId: d.projectId ?? null,
         date: (d as never)[cfg.dateKey] as string,
         supplyAmount: d.supplyAmount, vatAmount: d.vatAmount, totalAmount: d.totalAmount,
+        taxable: (d as { taxable?: boolean }).taxable,
         createdBy: d.createdBy, remark: d.remark, updatedAt: d.updatedAt, createdAt: d.createdAt,
         employeeName: d.employeeName,
         confirmStatus: (d as SalesDoc).confirmStatus,
