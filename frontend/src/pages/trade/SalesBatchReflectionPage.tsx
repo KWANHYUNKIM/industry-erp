@@ -163,7 +163,9 @@ function SalesBatch() {
       const cur = m.get(key) ?? { key, date: s.slipDate, docNo: mode === '전표별' ? s.docNo : null, partnerId: s.partnerId,
         partnerName: s.partnerName, ids: [], slips: [], supply: 0, vat: 0, items: s.itemSummary, vatTypes: new Set<string>() }
       cur.ids.push(s.id); cur.slips.push(s)
-      if (s.slipDate > cur.date) cur.date = s.slipDate // 거래처별은 마지막 거래일
+      // 거래처별은 마지막 거래일이 아니라 기준일자 끝(원본 실측: 9월 검색 → 모두 09/30, 10/01~10/23 → 모두 10/23). 이 날짜가 회계전표 일자로도 간다.
+      if (mode === '거래처별' && cond.to) cur.date = cond.to
+      else if (s.slipDate > cur.date) cur.date = s.slipDate
       cur.supply += s.supplyAmount; cur.vat += s.vatAmount
       cur.vatTypes.add(s.vatType)
       m.set(key, cur)
