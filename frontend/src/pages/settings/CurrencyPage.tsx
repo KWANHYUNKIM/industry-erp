@@ -330,7 +330,7 @@ function CurrencyForm({ onError, onSaved }: { onError: (m: string) => void; onSa
       <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">통화 등록</div>
       <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="통화코드 *">
-          <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value.toUpperCase())} style={{ width: 90 }} placeholder="GBP" maxLength={3} />
+          <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value.toUpperCase())} style={{ width: 90 }} placeholder="외화코드" maxLength={10} />
         </Field>
         <Field label="통화명 *">
           <input className="ec-input" value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 170 }} placeholder="영국 파운드" />

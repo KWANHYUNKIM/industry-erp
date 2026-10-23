@@ -15,7 +15,7 @@ public final class CurrencyDtos {
     private CurrencyDtos() {}
 
     public record CurrencyRequest(
-            @Size(max = 3, message = "통화코드는 3자까지 넣을 수 있습니다.")
+            @Size(max = 10, message = "통화코드는 10자까지 넣을 수 있습니다.")
             @NotBlank(message = "통화코드를 입력하세요.") String code,
             @Size(max = 50, message = "통화명은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "통화명을 입력하세요.") String name,

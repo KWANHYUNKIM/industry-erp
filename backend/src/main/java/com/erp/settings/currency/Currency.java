@@ -21,8 +21,8 @@ public class Currency extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** ISO 4217 통화코드 (USD, JPY, EUR …) */
-    @Column(nullable = false, unique = true, length = 3)
+    /** 외화코드 — 사용자가 정하는 코드(원본 실측: 00001 · 100 · 500 …). 최대 10자. */
+    @Column(nullable = false, unique = true, length = 10)
     private String code;
 
     @Column(nullable = false, length = 50)
