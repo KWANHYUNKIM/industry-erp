@@ -478,6 +478,11 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   // 회사 · 사용자마다 따로 둔다. 같은 브라우저에서 다른 회사로 들어가면 앞 회사의 쓰던 전표가 불려 오던 것.
   const { companyCode, user } = useAuth()
   const whKey = `ec-slip-wh:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
+  /** 원본은 새 전표를 열면 마지막으로 쓴 머리(일자 · 담당자 · 창고)를 채운다 — 일자 · 담당자는 창고와 같은 열쇠 꼴로 함께 기억한다. */
+  const hdKey = `ec-slip-hd:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
+  const readHd = (): { date?: string; employeeId?: string } => {
+    try { return JSON.parse(localStorage.getItem(hdKey) ?? '{}') } catch { return {} }
+  }
   const tempKey = `ec-slip-temp:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
 
   const flash = (msg: string) => {
@@ -511,6 +516,11 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     const first = w.data.find((x) => x.active && !guide(x))
     const start = w.data.find((x) => String(x.id) === remembered && x.active) ?? first
     setWarehouseId((prev) => prev || (start ? String(start.id) : ''))
+    if (!editId && !returnFromId && !popup) {
+      const hd = readHd()
+      if (hd.date && /^d{4}-d{2}-d{2}$/.test(hd.date)) setDate(hd.date)
+      if (hd.employeeId) setEmployeeId((prev) => prev || hd.employeeId!)
+    }
   }
   const loadDocs = () => api.get<(SalesDoc | PurchaseDoc)[]>(cfg.endpoint).then((r) => setDocs(r.data))
   /*
@@ -1275,7 +1285,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setRemark('')
     setCustomValues({})
     setQtyErr(null); setError('')
-    if (!keepHeader) { setPartnerId(''); setProjectId(''); setEmployeeId('') }
+    if (!keepHeader) { setPartnerId(''); setProjectId(''); setEmployeeId(readHd().employeeId ?? '') }
   }
 
   /*
@@ -1351,7 +1361,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       const res = editing
         ? await api.put<SalesDoc | PurchaseDoc>(`${cfg.endpoint}/${editing.id}`, body)
         : await api.post<SalesDoc | PurchaseDoc>(cfg.endpoint, body)
-      if (!editing) { try { localStorage.setItem(whKey, warehouseId) } catch { /* 무시 */ } }
+      if (!editing) { try { localStorage.setItem(whKey, warehouseId); localStorage.setItem(hdKey, JSON.stringify({ date, employeeId })) } catch { /* 무시 */ } }
       /*
        * 판매입력 II 는 저장하면 <b>매출전표 I 까지 함께</b> 생긴다(원본 E040253 2026-10-22 실측: 저장 직후 판매조회
        * 회계반영여부 ✓, 판매단가일괄변경 목록에서 빠지고, 수정 창에 [매출전표 I] 탭 · 삭제 알림에 '- 매출전표 I').
