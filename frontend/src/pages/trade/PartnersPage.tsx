@@ -175,6 +175,7 @@ export default function PartnersPage() {
   const [groupOpen, setGroupOpen] = useState(false)  // 계층그룹 모달
   const [webOpen, setWebOpen] = useState(false)      // 웹자료올리기 모달
   const [unusedOpen, setUnusedOpen] = useState(false) // 미사용코드조회 창
+  const [dupPartner, setDupPartner] = useState<Partner | null>(null) // 코드가 겹칠 때 [공지] 창에 보일 기존 거래처
   const [webFile, setWebFile] = useState<{ name: string; total: number; head: string[] } | null>(null)
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -219,8 +220,11 @@ export default function PartnersPage() {
    * 다섯 자리 숫자 코드 중 가장 큰 것 + 1, 없으면 10001. 사람이 지우고 다른 코드를 써도 된다.
    */
   function nextCode() {
-    const nums = partners.map((x) => x.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
-    return String(nums.length ? Math.max(...nums) + 1 : 10001)
+    /* 순수 숫자 코드 중 가장 큰 것 + 1 을 그 코드 폭(앞 0 포함)에 맞춰 채운다. 숫자 코드가 없으면 빈칸. */
+    const nums = partners.map((x) => x.code).filter((c) => /^\d{1,9}$/.test(c))
+    if (!nums.length) return ''
+    const width = Math.max(...nums.map((c) => c.length))
+    return String(Math.max(...nums.map(Number)) + 1).padStart(width, '0')
   }
 
   function openCreate() {
@@ -262,6 +266,14 @@ export default function PartnersPage() {
     setShowForm(true)
   }
 
+  /* 화면에 올라온 목록에 없을 때(다른 사람이 방금 만듦)만 서버에서 다시 찾는다. */
+  async function findByCode(code: string): Promise<Partner | null> {
+    try {
+      const r = await api.get<Partner[]>('/partners')
+      return r.data.find((x) => x.code === code) ?? null
+    } catch { return null }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
@@ -270,7 +282,7 @@ export default function PartnersPage() {
     /* 원본은 저장할 때 같은 코드가 있으면 [공지] 창으로 "이미 등록된 코드입니다." 를 띄우고 그 거래처를 보여 준다. */
     if (editId == null) {
       const dup = partners.find((x) => x.code === form.code.trim())
-      if (dup) { setError(`이미 등록된 코드입니다. ${dup.code} ${dup.name} ${dup.active ? '사용중' : '사용중단'}`); return }
+      if (dup) { setDupPartner(dup); return }
     }
     const body = {
       ...form,
@@ -298,7 +310,9 @@ export default function PartnersPage() {
     } catch (err) {
       const m = extractErrorMessage(err)
       /* 서버의 중복 안내는 칸 이름이 없다 — 겹친 거래처코드를 붙여 준다. */
-      setError(m.includes('이미 같은 값') && editId == null ? `${m} (거래처코드 ${form.code.trim()})` : m)
+      const again = m.includes('이미 같은 값') && editId == null ? await findByCode(form.code.trim()) : null
+      if (again) setDupPartner(again)
+      else setError(m)
     }
   }
 
@@ -524,7 +538,7 @@ export default function PartnersPage() {
         })}>조건 지우기</button>
       </div>
 
-      <Modal error={error} open={showForm} title="거래처등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="거래처등록" onClose={() => { if (!dupPartner) setShowForm(false) }}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">거래처등록</div>
           <ul className="ec-tabs" style={{ marginBottom: 10 }}>
@@ -898,6 +912,28 @@ export default function PartnersPage() {
           </div>
         </form>
       )}</Modal>
+
+      {/* 원본: 코드가 겹치면 [공지] 창 — 이미 있는 거래처를 작은 표로 보이고 [거래처등록] 으로 그 거래처를 연다. 입력 창은 그대로. */}
+      <Modal open={dupPartner != null} title="공지" width={520} onClose={() => setDupPartner(null)}>
+        {dupPartner && (
+          <div>
+            <p className="mb-[8px] text-[12px]">이미 등록된 코드입니다.</p>
+            <table>
+              <thead><tr><th className="text-center">거래처코드</th><th>거래처명</th><th className="text-center">사용구분</th><th className="text-center">자료</th></tr></thead>
+              <tbody><tr>
+                <td className="text-center">{dupPartner.code}</td>
+                <td>{dupPartner.name}</td>
+                <td className="text-center">{dupPartner.active ? '사용중' : '사용중단'}</td>
+                <td className="text-center">
+                  <button type="button" className="ec-link"
+                          onClick={() => { const p = dupPartner; setDupPartner(null); openEdit(p) }}>거래처등록</button>
+                </td>
+              </tr></tbody>
+            </table>
+            <div className="mt-[8px]"><button type="button" className="ec-btn" onClick={() => setDupPartner(null)}>닫기</button></div>
+          </div>
+        )}
+      </Modal>
 
       <div className="overflow-x-auto">
         <table className="w-full text-center">
