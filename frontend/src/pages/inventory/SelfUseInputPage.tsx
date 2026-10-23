@@ -11,7 +11,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import type { StockAdjustmentSlip } from '../../types/api'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { useRequired } from '../../utils/useRequired'
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
@@ -90,11 +90,28 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   const [printSlip, setPrintSlip] = useState<StockAdjustmentSlip | null>(null)
   const [showHistory, setShowHistory] = useState(false)
 
-  useEffect(() => {
-    api.get<{ name: string; codes: { code: string; name: string }[] }[]>('/codes')
-      .then((r) => setKinds((r.data.find((g) => g.name === L.kindCodes)?.codes ?? []).map((c) => ({ code: c.code, name: c.name }))))
+  /* 공통코드 그룹(사용유형 · 불량유형) — [신규(F2)] 가 같은 그룹에 코드를 더한다(Self-Customizing 공통코드와 같은 API). */
+  const [kindGroupId, setKindGroupId] = useState<number | null>(null)
+  const [newKind, setNewKind] = useState<{ line: number; code: string; name: string } | null>(null)
+  const loadKinds = () =>
+    api.get<{ id: number; name: string; codes: { code: string; name: string }[] }[]>('/codes')
+      .then((r) => {
+        const g = r.data.find((x) => x.name === L.kindCodes)
+        setKindGroupId(g?.id ?? null)
+        setKinds((g?.codes ?? []).map((c) => ({ code: c.code, name: c.name })))
+      })
       .catch(() => setKinds([]))
-  }, [L.kindCodes])
+  useEffect(() => { void loadKinds() }, [L.kindCodes])
+  async function saveNewKind() {
+    if (!newKind || kindGroupId == null) return
+    if (!newKind.code.trim() || !newKind.name.trim()) { void ecAlert('코드와 코드명을 입력하세요.'); return }
+    try {
+      await api.post(`/codes/groups/${kindGroupId}/codes`, { code: newKind.code.trim(), name: newKind.name.trim(), value1: null, sortOrder: 0 })
+      await loadKinds()
+      setLine(newKind.line, { kind: newKind.name.trim() })
+      setNewKind(null)
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
+  }
 
   useEffect(() => {
     if (!adjustNo) return
@@ -326,7 +343,8 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                     </td>
                     <td>
                       <CodePickerField label={L.kind} hideLabel fill value={l.kind}
-                                       onChange={(v) => setLine(i, { kind: v })} items={kindItems} hideNew />
+                                       onChange={(v) => setLine(i, { kind: v })} items={kindItems}
+                                       onNew={kindGroupId == null ? undefined : () => setNewKind({ line: i, code: '', name: '' })} />
                     </td>
                     <td />
                   </tr>
@@ -342,6 +360,21 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
           </table>
         </div>
         <EcWebUploadButton />
+        <Modal open={newKind != null} error={error} title={`${L.kind} 신규`} width={360} onClose={() => setNewKind(null)}>
+          {newKind && (
+            <div className="grid grid-cols-[80px_1fr] items-center gap-[6px]">
+              <label className="text-ec-label">코드</label>
+              <input className="ec-input" aria-label="코드" value={newKind.code} onChange={(e) => setNewKind({ ...newKind, code: e.target.value })} />
+              <label className="text-ec-label">{L.kind}명</label>
+              <input className="ec-input" aria-label={`${L.kind}명`} value={newKind.name} onChange={(e) => setNewKind({ ...newKind, name: e.target.value })}
+                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void saveNewKind() } }} />
+              <div className="col-span-2 flex gap-[6px]">
+                <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveNewKind()}>저장(F8)</button>
+                <button type="button" className="ec-btn" onClick={() => setNewKind(null)}>닫기</button>
+              </div>
+            </div>
+          )}
+        </Modal>
         <Modal open={!!printSlip} title={selfUse ? '자가사용전표' : '불량처리'} error={error} onClose={() => { setPrintSlip(null); if (editing || copied) onDone?.() }}>
           {printSlip && (
             <SelfUsePrint slip={printSlip} partnerText={partnerText}
