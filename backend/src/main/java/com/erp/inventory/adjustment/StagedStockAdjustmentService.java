@@ -2,6 +2,7 @@ package com.erp.inventory.adjustment;
 
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.NegativeStockPolicy;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.warehouse.Warehouse;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustRequest;
@@ -34,6 +35,17 @@ public class StagedStockAdjustmentService {
     private final DocumentNoGenerator docNoGenerator;
     private final StockAdjustmentRepository adjustmentRepository;
     private final StocktakeRepository stocktakeRepository;
+    private final NegativeStockPolicy negativeStockPolicy;
+
+    /**
+     * 실사수량은 재고 마이너스를 허용할 때만 0 아래가 된다. 원본 기초재고(9/30)에는 −322 같은 값이 있다
+     * (2026-10-23 loginaa 창고별재고현황) — 막으면 그 회사 재고를 옮겨 올 수 없다.
+     */
+    private void requireActualQty(BigDecimal qty) {
+        if (qty != null && qty.signum() < 0 && !negativeStockPolicy.allowsNegativeStock()) {
+            throw ApiException.badRequest("실사수량은 0 이상이어야 합니다.");
+        }
+    }
 
     /** 원본 단계별재고실사 저장 검증 문구(2026-10-21 실측) — 같은 일자에 간편재고조정이 있으면 창고와 상관없이 막는다. */
     static final String SIMPLE_SAME_DAY = "같은 일자로 입력된 간편재고조정이 있습니다.";
@@ -68,6 +80,7 @@ public class StagedStockAdjustmentService {
         Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
                 .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
 
+        requireActualQty(req.actualQty());
         LocalDate date = req.requestDate() != null ? req.requestDate() : LocalDate.now();
         /*
          * 장부수량은 <b>실사일자의</b> 재고다(없으면 0). 예전에는 입력하는 순간의 현재고를 박아서,
@@ -102,7 +115,11 @@ public class StagedStockAdjustmentService {
                 staged.getWarehouse().getId(),
                 null,
                 staged.getActualQty(),
-                LocalDate.now(),
+                /*
+                 * 조정일자는 반영한 날이 아니라 요청일(기준일자)이다 — 원본 재고조정은 기준일자에 수량이 찍힌다
+                 * (D:\이카운트 0764 '기초재고의 기준일자'). 오늘로 넣으면 9/30 기초재고가 10월 거래 뒤에 기록됐다.
+                 */
+                staged.getRequestDate(),
                 /* 단계별조정은 프로젝트·담당자를 따로 받지 않는다 — 실사 결과를 그대로 맞추는 자리다. */
                 null, null,
                 "단계별조정 " + staged.getAdjustNo()
@@ -227,6 +244,7 @@ public class StagedStockAdjustmentService {
         List<StagedStockAdjustment> rows = new java.util.ArrayList<>();
         int lineNo = 0;
         for (var line : req.lines()) {
+            requireActualQty(line.actualQty());
             Item item = itemRepository.findById(line.itemId())
                     .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + line.itemId()));
             rows.add(stagedRepository.save(StagedStockAdjustment.builder()

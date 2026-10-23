@@ -7175,6 +7175,7 @@ console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
     'TaxVoucherRequest.supplyAmount': '음수는 마이너스(수정) 계산서라 받는다 — 원본 (세금)계산서발행/수령이 공급가액 -100,000 · 부가세 -10,000 을 그대로 저장했다(2026-10-12 실측)',
     'TaxVoucherRequest.vatAmount': '공급가액과 같은 이유 — 마이너스 계산서의 부가세는 음수다(2026-10-12 원본 -10,000 저장)',
     'AdjustLotRequest.actualQty': '음수 로트 재고를 받는다 — 원본 시리얼/로트No.재고조정(E040634)이 합계 -1 을 저장했다(2026-10-13 ryu_0025 실측, 되돌림)',
+    'CreateStagedRequest.actualQty': '환경설정 재고 마이너스 허용이 켜져 있으면 음수를 받는다(서비스 requireActualQty 가 꺼져 있을 때만 막음) — 원본 9/30 재고에 J001 본사창고 -322 가 있다(2026-10-23 loginaa 창고별재고현황)',
     'ManualTxRequest.quantity': '재고조정 줄은 수량이 음수다(원본 0 → 5 = 내역조회 수량 -5.00, 2026-10-14 실측) — 그 밖의 전표구분은 서비스가 0 초과를 본다(LotService.createManual · updateManual "수량은 0보다 커야 합니다.")',
     'UpdateLedgerRequest.openingQty': '음수 기초수량을 받는다 — 원본 원가계산내역이 장부대로 기초 -3 을 들고 있었다(E040802 440000, 2026-10-13 실측)',
     'AsLineRequest.quantity': '음수 · 0 은 화면이 "수량을 입력하세요." 로 0 만 막고 -1 은 그대로 받는다 — 원본 A/S접수입력이 수량 -1 을 저장했다(합계줄 -1, 2026-10-13 실측)',

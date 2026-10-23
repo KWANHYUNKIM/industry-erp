@@ -1,6 +1,7 @@
 package com.erp.inventory.stock;
 
 import com.erp.common.ApiException;
+import com.erp.common.NegativeStockPolicy;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.warehouse.Warehouse;
 import com.erp.inventory.stock.dto.StockDtos.StockResponse;
@@ -34,6 +35,8 @@ public class StockService {
     private final WarehouseRepository warehouseRepository;
     private final StockRepository stockRepository;
     private final StockTransactionRepository transactionRepository;
+    /** 환경설정 '재고 마이너스 허용' — 켜져 있으면 잔량이 0 아래로 내려가도 막지 않는다(원본 동작). */
+    private final NegativeStockPolicy negativeStockPolicy;
 
     /** 현재고 목록 (품목 x 창고) */
     @Transactional(readOnly = true)
@@ -281,7 +284,7 @@ public class StockService {
                         .build()));
 
         BigDecimal newBalance = stock.getQuantity().add(delta);
-        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+        if (newBalance.compareTo(BigDecimal.ZERO) < 0 && !negativeStockPolicy.allowsNegativeStock()) {
             throw ApiException.badRequest(String.format(
                     "재고가 부족합니다. 현재고 %s, 요청 %s (%s)",
                     stock.getQuantity().stripTrailingZeros().toPlainString(),
@@ -322,7 +325,7 @@ public class StockService {
             Stock stock = stockRepository.findForUpdate(tx.getItem().getId(), tx.getWarehouse().getId())
                     .orElseThrow(() -> ApiException.notFound("재고 잔량을 찾을 수 없습니다. (" + tx.getItem().getName() + ")"));
             BigDecimal newBalance = stock.getQuantity().subtract(tx.getQuantityChange());
-            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0 && !negativeStockPolicy.allowsNegativeStock()) {
                 throw ApiException.badRequest(String.format(
                         "재고가 부족합니다. 현재고 %s, 요청 %s (%s)",
                         stock.getQuantity().stripTrailingZeros().toPlainString(),

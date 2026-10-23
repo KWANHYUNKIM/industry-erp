@@ -24,6 +24,7 @@ type TabKey = typeof TABS[number]
 interface Preference { fiscalStart: string; [k: string]: unknown }
 
 const FISCAL_DESC = '회계연도가 시작하는 달을 선택합니다. 장부·재무제표의 기초 기간이 이 달부터 잡힙니다.'
+const NEGATIVE_DESC = '재고가 부족해도 판매 · 생산불출 · 생산입고 소모 · 재고조정을 저장합니다. 재고현황에는 −로 남습니다.'
 
 function sheetOf(p: Preference): Record<TabKey, SheetSection[]> {
   return {
@@ -57,6 +58,8 @@ function sheetOf(p: Preference): Record<TabKey, SheetSection[]> {
       groups: [
         // 판매 · 구매 전표가 프로젝트를 받는다(trade Sales/Purchase.project).
         { title: '기본', rows: [{ label: '(재고)프로젝트별관리', value: '사용' }] },
+        // 재고가 0 아래로 내려가도 판매 · 생산이 저장되는가(StockService · NegativeStockPolicy). 원본 줄 이름은 아직 못 잼.
+        { title: '재고수량', rows: [{ label: '재고 마이너스 허용', value: p.negativeStock ? '사용' : '사용안함', editable: true }] },
         { title: '채권채무관리', rows: [
           { label: '채권계정', value: '외상매출금' },
           { label: '채무계정', value: '외상매입금' },
@@ -130,6 +133,20 @@ function EditDialog({ title, pref, error, onError, onClose, onSaved }: {
 
   return (
     <Modal open title={title} onClose={onClose} error={error} width={960}>
+      {title === '재고수량' ? (
+      <div className="pb-[10px] mb-[10px]">
+        <div className="mb-[2px]">⊙ 재고 마이너스 허용</div>
+        <div className="pl-[13px] mb-[6px]">{NEGATIVE_DESC}</div>
+        <div className="pl-[13px]">
+          {([[true, '사용'], [false, '사용안함']] as const).map(([v, l]) => (
+            <label key={l} className="mr-[10px]">
+              <input type="radio" name="pref-negative-stock" checked={!!form.negativeStock === v}
+                onChange={() => setForm((f) => ({ ...f, negativeStock: v }))} /> {l}
+            </label>
+          ))}
+        </div>
+      </div>
+      ) : (
       <div className="pb-[10px] mb-[10px]">
         <div className="mb-[2px]">⊙ 회계연도 시작월</div>
         <div className="pl-[13px] mb-[6px]">{FISCAL_DESC}</div>
@@ -141,6 +158,7 @@ function EditDialog({ title, pref, error, onError, onClose, onSaved }: {
           </select>
         </div>
       </div>
+      )}
       <div className="ec-slip-footer">
         <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
         <button className="ec-btn" onClick={onClose}>닫기</button>
