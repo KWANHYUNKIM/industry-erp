@@ -28,6 +28,9 @@ export interface InsuranceReport {
   detail: string | null
   dependents: string | null
   deleted: boolean
+  residentNo: string | null
+  /** 신고 성명(한글) — 현황 사원 열 */
+  reportName: string
 }
 
 export const INSURANCE_FORM_NAMES: Record<InsuranceKind, string> = {

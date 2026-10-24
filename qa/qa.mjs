@@ -11712,11 +11712,18 @@ async function scenarioInsuranceReport() {
   await rejects('빈 사업장으로 취득신고를 저장하면 막는다', 'POST', '/hr/insurance/reports',
     { reportDate: today, kind: 'ACQUIRE', employeeId: emp.id }, '사업장명[기본값설정] 필수')
   const body = { reportDate: today, kind: 'ACQUIRE', employeeId: emp.id, pensionWorkplaceId: wp.id, healthWorkplaceId: wp.id,
-    employmentWorkplaceId: wp.id, accidentWorkplaceId: wp.id, pensionApply: true, pensionDate: today }
+    employmentWorkplaceId: wp.id, accidentWorkplaceId: wp.id, pensionApply: true, pensionDate: today,
+    residentNo: '900101-1000000', reportName: '큐에이관리주민' }
+  // 원본 2026-10-24: 주민등록번호 필수(체크숫자는 안 봄) · 성명 한글만 · 신청구분 하나 이상 · 피부양자는 격자 한 줄 이상
+  await rejects('주민등록번호가 비면 막는다', 'POST', '/hr/insurance/reports', { ...body, residentNo: '' }, '주민등록번호 필수')
+  await rejects('성명이 한글이 아니면 막는다', 'POST', '/hr/insurance/reports', { ...body, reportName: 'QA관리-주민1' }, '한글만 입력 가능합니다.')
+  await rejects('신청구분이 없으면 막는다', 'POST', '/hr/insurance/reports', { ...body, pensionApply: false }, '신청구분을 1개 이상 선택해 주세요.')
+  await rejects('피부양자 격자가 비면 막는다', 'POST', '/hr/insurance/reports', { ...body, kind: 'DEPENDENT' }, '그리드(표)에 최소 1줄 이상 입력되어야 합니다.')
   const before = (await must('GET', `/hr/insurance/reports?from=${today}&to=${today}`)).map((r) => r.reportSeq)
   const r = await must('POST', '/hr/insurance/reports', body)
   eq('일자-No. 는 그날 다음 차례', r.reportSeq, Math.max(0, ...before) + 1)
   eq('서식명', r.formName, '사업장가입자 자격취득 신고서')
+  eq('주민등록번호는 숫자만 남긴다', r.residentNo, '9001011000000')
   const u = await must('PUT', `/hr/insurance/reports/${r.id}`, { ...body, healthApply: true, healthDate: today })
   eq('고친 신청구분이 읽힌다', (await must('GET', `/hr/insurance/reports/${u.id}`)).healthApply, 'true')
   await must('POST', '/hr/insurance/reports/delete', [r.id])

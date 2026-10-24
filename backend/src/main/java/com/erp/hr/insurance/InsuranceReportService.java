@@ -26,6 +26,10 @@ public class InsuranceReportService {
 
     public static final String WORKPLACE_REQUIRED = "사업장명[기본값설정] 필수";
     public static final String EMPLOYEE_REQUIRED = "사원 필수";
+    public static final String RESIDENT_NO_REQUIRED = "주민등록번호 필수";
+    public static final String HANGUL_ONLY = "한글만 입력 가능합니다.";
+    public static final String APPLY_REQUIRED = "신청구분을 1개 이상 선택해 주세요.";
+    public static final String GRID_REQUIRED = "그리드(표)에 최소 1줄 이상 입력되어야 합니다.";
 
     private final InsuranceReportRepository reportRepository;
     private final DocumentNoGenerator docNoGenerator;
@@ -115,10 +119,21 @@ public class InsuranceReportService {
             if (req.accidentWorkplaceId() == null) errors.add(WORKPLACE_REQUIRED);
         }
         if (req.healthWorkplaceId() == null) errors.add(WORKPLACE_REQUIRED);
-        if (req.employeeId() == null) errors.add(EMPLOYEE_REQUIRED);
         if (!errors.isEmpty()) throw ApiException.badRequest(String.join("\n", errors));
+        // 원본(2026-10-24 실측): 사원 · 주민등록번호가 비면 창 없이 칸 테두리만 빨갛다 — API 로는 한 줄 문구.
+        if (req.employeeId() == null) throw ApiException.badRequest(EMPLOYEE_REQUIRED);
+        String residentNo = req.residentNo() == null ? "" : req.residentNo().replaceAll("[^0-9]", "");
+        if (residentNo.isEmpty()) throw ApiException.badRequest(RESIDENT_NO_REQUIRED);
+        var employee = employeeService.get(req.employeeId());
+        String name = blank(req.reportName()) != null ? req.reportName().trim() : employee.getName();
+        if (!name.matches("[가-힣]+")) throw ApiException.badRequest(HANGUL_ONLY);
+        if (!dependent && !(req.pensionApply() || req.healthApply() || req.employmentApply() || req.accidentApply()))
+            throw ApiException.badRequest(APPLY_REQUIRED);
+        if (dependent && blank(req.dependents()) == null) throw ApiException.badRequest(GRID_REQUIRED);
 
-        r.setEmployee(employeeService.get(req.employeeId()));
+        r.setEmployee(employee);
+        r.setResidentNo(residentNo);
+        r.setReportName(name);
         r.setPensionWorkplace(dependent ? null : workplace(req.pensionWorkplaceId()));
         r.setHealthWorkplace(workplace(req.healthWorkplaceId()));
         r.setEmploymentWorkplace(dependent ? null : workplace(req.employmentWorkplaceId()));
