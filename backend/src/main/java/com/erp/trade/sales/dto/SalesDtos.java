@@ -52,7 +52,7 @@ public final class SalesDtos {
     ) {}
 
     public record CreateSalesRequest(
-            @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            Long partnerId,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             LocalDate saleDate,
             /** 과세 여부 (true=부가세 10%, false=면세) */
@@ -182,7 +182,7 @@ public final class SalesDtos {
         public static SalesResponse from(Sales s) {
             return new SalesResponse(
                     s.getId(), s.getDocNo(),
-                    s.getPartner().getId(), s.getPartner().getName(),
+                    s.getPartner() != null ? s.getPartner().getId() : null, s.getPartner() != null ? s.getPartner().getName() : "",
                     s.getWarehouse().getId(), s.getWarehouse().getName(),
                     s.getSaleDate(),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),

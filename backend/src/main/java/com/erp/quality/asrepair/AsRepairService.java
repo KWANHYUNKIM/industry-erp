@@ -106,7 +106,7 @@ public class AsRepairService {
                 .map(l -> new SalesLineRequest(l.itemId(), l.quantity(), l.unitPrice(), null, null, null, null, null, null))
                 .toList();
         Long partnerId = r.getPartner() != null ? r.getPartner().getId() : req.partnerId();
-        if (partnerId == null) throw ApiException.badRequest("거래처를 선택하세요.");
+        // 원본 판매는 거래처 없이도 저장된다(재고2 A/S수리 실측) — 거래처 없는 수리는 거래처 없는 판매가 된다.
         SalesResponse sale = salesService.create(new CreateSalesRequest(
                 partnerId, r.getWarehouse().getId(),
                 req.saleDate() != null ? req.saleDate() : r.getRepairDate(),

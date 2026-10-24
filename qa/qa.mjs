@@ -417,6 +417,17 @@ async function scenarioSaleWithinOrder(f) {
   })
   eq('근거수주에 없는 품목은 거부', other.status, 400)
 
+  // 거래처 없이 저장 — 원본 판매입력은 거래처를 비운 채 저장된다(2026-10-22). 판매조회에 보이고, 채권 집계 · 세금계산서는 터지지 않아야 한다.
+  const noPartner = await must('POST', '/sales', {
+    saleDate: '2026-07-13', warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('거래처 없는 판매 저장', noPartner.partnerId ?? null, null)
+  eq('판매조회에 보인다', (await must('GET', '/sales')).some((x) => x.id === noPartner.id && x.partnerId == null), true)
+  eq('거래처별 채권 집계는 터지지 않는다', (await call('GET', '/ledger/partner-balances')).status < 500, true)
+  eq('거래처 없는 판매의 세금계산서는 400', (await call('POST', '/tax-invoices', { type: 'SALES', sourceId: noPartner.id, issueDate: '2026-07-13' })).status, 400)
+  await must('DELETE', `/sales/${noPartner.id}`)
+
   await must('DELETE', `/sales/${second.id}`)
   await must('DELETE', `/sales/${first.id}`)
   await must('DELETE', `/sales-orders/${order.id}`)

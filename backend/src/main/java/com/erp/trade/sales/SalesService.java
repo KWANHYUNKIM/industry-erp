@@ -172,7 +172,7 @@ public class SalesService {
                         ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 rows.add(new SalesDiscountRow(
-                        s.getSaleDate(), s.getDocNo(), s.getPartner().getName(),
+                        s.getSaleDate(), s.getDocNo(), s.getPartner() != null ? s.getPartner().getName() : null,
                         l.getItem().getCode(), l.getItem().getName(),
                         s.getWarehouse() != null ? s.getWarehouse().getName() : null,
                         s.getProject() != null ? s.getProject().getName() : null,
@@ -492,11 +492,14 @@ public class SalesService {
      * 새로 쓰는 자리에서만 막는다.
      */
     private void requireUsableMasters(CreateSalesRequest req) {
-        TradeMasters.requireUsable(resolvePartner(req.partnerId()));
+        BusinessPartner partner = resolvePartner(req.partnerId());
+        if (partner != null) TradeMasters.requireUsable(partner);
         req.lines().forEach(l -> itemService.getUsable(l.itemId()));
     }
 
+    /** 거래처는 비워 둘 수 있다(원본 판매입력은 거래처 없이 저장된다) — null 이면 null. */
     private BusinessPartner resolvePartner(Long partnerId) {
+        if (partnerId == null) return null;
         BusinessPartner partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + partnerId));
         if (!partner.getType().canSell()) {

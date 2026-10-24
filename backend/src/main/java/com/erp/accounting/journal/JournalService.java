@@ -404,7 +404,7 @@ public class JournalService {
         boolean discounted = isNonZero(s.getDiscountSupply()) || isNonZero(s.getDiscountVat());
         String lineDesc = seen ? s.getLines().get(0).getItem().getName() + (discounted ? " 외 1건" : "") : null;
         String entryDesc = seen
-                ? "매출 : " + (vatType != null ? vatType : "세금계산서") + " / " + s.getPartner().getName() + " / "
+                ? "매출 : " + (vatType != null ? vatType : "세금계산서") + " / " + (s.getPartner() != null ? s.getPartner().getName() : "") + " / "
                   + String.format("%,d", supply.longValue()) + " / " + String.format("%,d", nz(vat).longValue())
                 : "판매 " + s.getDocNo();
         JournalEntry e = newEntry(JournalSourceType.SALES, s.getId(), s.getSaleDate(),
@@ -450,7 +450,7 @@ public class JournalService {
         boolean allTaxable = true, anyReturn = false;
         for (Sales s : spec.sales()) {
             if (s.isAccountingReflected()) throw ApiException.conflict("이미 회계반영된 판매전표입니다: " + s.getDocNo());
-            if (spec.partnerId() == null && !java.util.Objects.equals(spec.sales().get(0).getPartner().getId(), s.getPartner().getId())) {
+            if (spec.partnerId() == null && !java.util.Objects.equals(spec.sales().get(0).getPartner() != null ? spec.sales().get(0).getPartner().getId() : null, s.getPartner() != null ? s.getPartner().getId() : null)) {
                 throw ApiException.badRequest("거래처가 다른 판매는 전표 한 장으로 묶을 수 없습니다: " + s.getDocNo());
             }
             List<SalesLine> sel = s.getLines().stream().filter(l -> !l.isAccountingReflected()

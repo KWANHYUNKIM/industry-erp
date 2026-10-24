@@ -152,11 +152,10 @@ export default function AsRepairListPage() {
   const [saleFor, setSaleFor] = useState<Repair | null>(null)
   const [saleLines, setSaleLines] = useState<{ itemId: string; quantity: string; unitPrice: string }[]>([])
   const [saleError, setSaleError] = useState('')
-  const [salePartner, setSalePartner] = useState('')
   useShortcut('F8', save, open && !saleFor)
   /* 원본 [신규]는 수리의 품목 줄 · 품목 단가를 판매 줄로 미리 채운다(2026-10-13 실측 — 투광등 100W 1 × 350,000). */
   function openSales(r: Repair) {
-    setSaleFor(r); setSaleError(''); setSalePartner('')
+    setSaleFor(r); setSaleError('')
     setSaleLines([...r.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity),
       unitPrice: String(items.find((x) => x.id === l.itemId)?.unitPrice || '') })), { itemId: '', quantity: '', unitPrice: '' }])
   }
@@ -164,10 +163,9 @@ export default function AsRepairListPage() {
     if (!saleFor) return
     const ls = saleLines.filter((l) => l.itemId)
     if (ls.length === 0) return setSaleError('품목을 1개 이상 입력하세요.')
-    if (!saleFor.partnerId && !salePartner) return setSaleError('거래처를 선택하세요.')
     try {
       const r = (await api.post<Repair>(`/as-repairs/${saleFor.id}/sales`, {
-        partnerId: saleFor.partnerId ? null : Number(salePartner),
+        partnerId: null,   // 서버가 수리의 거래처를 쓴다 — 없으면 거래처 없는 판매(원본 실측)
         lines: ls.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) })),
       })).data
       setSaleFor(r); setSaleLines([{ itemId: '', quantity: '', unitPrice: '' }]); setSaleError(''); load()
@@ -205,7 +203,6 @@ export default function AsRepairListPage() {
   }
   const printRepair = (r: Repair) => printRepairs([r])
 
-  const partnerPicks = partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))
   const itemPicks = items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))
 
   return (
@@ -326,13 +323,6 @@ export default function AsRepairListPage() {
           </tbody>
         </table>
         <div className="font-bold mb-[4px]">신규 — 부품 · 수리비를 판매로 잡는다(재고가 빠지고 매출이 선다)</div>
-        {saleFor && !saleFor.partnerId && (
-          <div className="flex items-center gap-[6px] mb-[6px]">
-            <span>거래처</span>
-            <CodePickerField label="판매 거래처" hideLabel width={260} emptyLabel="" placeholder="거래처" value={salePartner} onChange={setSalePartner}
-                             items={partnerPicks} />
-          </div>
-        )}
         <table className="w-full ec-head700">
           <thead><tr><th>품목</th><th className="w-[100px] text-right">수량</th><th className="w-[120px] text-right">단가</th></tr></thead>
           <tbody>

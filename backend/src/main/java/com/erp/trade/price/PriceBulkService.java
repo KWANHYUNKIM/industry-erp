@@ -86,7 +86,7 @@ public class PriceBulkService {
             List<Sales> slips = salesRepository.findWithLinesBySaleDateBetween(from, to);
             java.util.Map<Long, String> locks = salesService.editLockReasons(slips);
             for (Sales s : slips) {
-                if (partnerId != null && !partnerId.equals(s.getPartner().getId())) continue;
+                if (partnerId != null && (s.getPartner() == null || !partnerId.equals(s.getPartner().getId()))) continue;
                 if (warehouseId != null && !warehouseId.equals(s.getWarehouse().getId())) continue;
                 boolean confirmed = s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED;
                 if (!statusMatches(status, confirmed)) continue;
@@ -99,7 +99,7 @@ public class PriceBulkService {
                     if (itemId != null && !itemId.equals(l.getItem().getId())) continue;
                     rows.add(new SlipLineRow(
                             l.getId(), s.getId(), s.getDocNo(), s.getSaleDate(),
-                            s.getPartner().getName(),
+                            s.getPartner() != null ? s.getPartner().getName() : null,
                             s.getEmployee() != null ? s.getEmployee().getName() : null,
                             s.getWarehouse().getName(),
                             s.isTaxable() ? "과세" : "면세",

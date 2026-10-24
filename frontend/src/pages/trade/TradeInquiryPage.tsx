@@ -17,7 +17,7 @@ import Modal from '../../components/Modal'
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
 interface NormalDoc {
-  id: number; docNo: string; partnerId: number; partnerName: string; warehouseId: number; warehouseName: string
+  id: number; docNo: string; partnerId: number | null; partnerName: string; warehouseId: number; warehouseName: string
   projectId: number | null
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   createdBy: string | null; remark: string | null

@@ -171,7 +171,7 @@ public class LedgerService {
                                                                 boolean receivableSide) {
         List<LedgerDtos.PartnerEntryResponse> out = new java.util.ArrayList<>();
         if (receivableSide) {
-            salesService.findAll(from, to).forEach(s -> out.add(new LedgerDtos.PartnerEntryResponse(
+            salesService.findAll(from, to).stream().filter(s -> s.partnerId() != null).forEach(s -> out.add(new LedgerDtos.PartnerEntryResponse(
                     s.saleDate(), s.docNo(), "판매", s.partnerId(), s.partnerName(),
                     s.totalAmount(), BigDecimal.ZERO)));
             settlementService.findBetween(SettlementType.RECEIPT, from, to)

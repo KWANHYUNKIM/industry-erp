@@ -343,7 +343,7 @@ export interface SalesDoc {
   createdAt: string | null
   id: number
   docNo: string
-  partnerId: number
+  partnerId: number | null
   partnerName: string
   warehouseId: number
   warehouseName: string
