@@ -1,0 +1,28 @@
+{
+  "about": "A/S접수입력 · 조회(E040601 · E040602) — 2026-10-03 원본에서 직접 해 본 흐름: 창고 없이 저장하면 막고, 품목을 두 줄 받아 저장하면 목록 [접수] 알약에 서고, 수정에서 상태를 수리중으로 바꾸면 접수 알약에서 빠져 수리중 알약에 선다. 수정 창에서 일자는 잠긴다. 지운다.",
+  "shots": [
+    {
+      "name": "창고 필수 → 두 줄 저장 → 접수 알약 → 수정(수리중) → 수리중 알약 → 삭제",
+      "path": "/quality/as",
+      "steps": [
+        "allowapi:400: /api/as-requests",
+        "wait:3000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: r.status === 204 ? null : await r.json() })); const g = (p) => A('GET', p).then((r) => r.body); const [pa, it, wh] = await Promise.all([g('/partners'), g('/items'), g('/warehouses')]); const c = pa.find((x) => x.type === 'CUSTOMER' || x.type === 'BOTH'); const no = await A('POST', '/as-requests', { partnerId: c.id, title: 'QA재고2-접수', lines: [{ itemId: it[0].id, quantity: 2 }] }); const ok = await A('POST', '/as-requests', { partnerId: c.id, warehouseId: wh[0].id, title: 'QA재고2-접수', symptom: 'QA재고2', lines: [{ itemId: it[0].id, quantity: 2 }, { itemId: it[1].id, quantity: 1 }] }); sessionStorage.setItem('asId', ok.body.id); return no.status + ' ' + no.body.message + ' / ' + ok.status + ' 줄 ' + ok.body.lines.length + ' 합계 ' + ok.body.totalQuantity })()",
+        "js:location.reload(); true",
+        "wait:3500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-접수') && tr.innerText.includes('접수'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA재고2-접수')).querySelector('a.ec-link').click(); true",
+        "wait:1200",
+        "expect:document.body.innerText.includes('A/S접수수정') && [...document.querySelectorAll('[role=dialog] input[type=date]')][0].disabled",
+        "set:[role=dialog] select|IN_PROGRESS",
+        "click:저장(F8)",
+        "wait:3000",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-접수'))",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '수리중').click(); true",
+        "wait:800",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-접수') && tr.innerText.includes('수리중'))",
+        "js:fetch('/api/as-requests/' + sessionStorage.getItem('asId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => '지움 ' + r.status)"
+      ]
+    }
+  ]
+}

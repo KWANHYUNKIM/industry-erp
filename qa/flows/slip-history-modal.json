@@ -1,0 +1,39 @@
+{
+  "about": "전표 수정 창 [H] (거래이력조회(재고) 마무리12) — 작업지시서를 API 로 만들고 수정 창(?no=)의 [H] 에 '신규' 줄이 뜨는지, 출하지시서 수정 창의 [H] 도 본다. 만든 전표는 지운다.",
+  "shots": [
+    {
+      "name": "작업지시서 · 출하지시서 [H]",
+      "path": "/production/work-order-entry",
+      "steps": [
+        "wait:2000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((i)=>i.category==='FINISHED_GOOD'||true);const wh=(await window.__api('GET','/warehouses')).body[0];const d=new Date().toISOString().slice(0,10);const r=await window.__api('POST','/work-orders/slips',{orderDate:d,lines:[{productId:it.id,plannedQty:1,warehouseId:wh.id}]});sessionStorage.setItem('woH',r.body[0].orderNo);return r.status})()",
+        "js:location.href='/production/work-order-entry?no='+sessionStorage.getItem('woH'); true",
+        "wait:3000",
+        "click:H",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].some((t)=>t.innerText.includes('신규'))",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const r=await window.__api('DELETE','/work-orders/slips/'+sessionStorage.getItem('woH'));return r.status})()"
+      ]
+    },
+    {
+      "name": "출하지시서 [H]",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "wait:2000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body[0];const p=(await window.__api('GET','/partners')).body.find((x)=>x.type!=='SUPPLIER')||(await window.__api('GET','/partners')).body[0];const d=new Date().toISOString().slice(0,10);const r=await window.__api('POST','/shipment-orders',{orderDate:d,partnerId:p.id,lines:[{itemId:it.id,quantity:1}]});sessionStorage.setItem('soH',String(r.body.id));sessionStorage.setItem('soHno',r.body.orderNo);return r.status})()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "js:(()=>{const no=Number(sessionStorage.getItem('soHno').split('-').pop());const a=[...document.querySelectorAll('tbody a')].find((x)=>x.innerText.trim().endsWith(' -'+no)||x.innerText.includes('-'+no));a.click();return true})()",
+        "wait:1000",
+        "click:H",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].some((t)=>t.innerText.includes('신규'))",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const r=await window.__api('DELETE','/shipment-orders/'+sessionStorage.getItem('soH'));return r.status})()"
+      ]
+    }
+  ]
+}

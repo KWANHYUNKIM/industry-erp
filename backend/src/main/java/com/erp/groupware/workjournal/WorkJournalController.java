@@ -1,0 +1,68 @@
+package com.erp.groupware.workjournal;
+
+import com.erp.groupware.workjournal.dto.WorkJournalDtos.CreateWorkJournalRequest;
+import com.erp.groupware.workjournal.dto.WorkJournalDtos.WorkJournalResponse;
+import com.erp.security.UserPrincipal;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.time.LocalDate;
+import com.erp.groupware.workjournal.dto.WorkJournalDtos;
+
+@RestController
+@RequestMapping("/api/work-journals")
+@RequiredArgsConstructor
+public class WorkJournalController {
+
+    private final WorkJournalService workJournalService;
+
+    @GetMapping
+    public List<WorkJournalResponse> list(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return workJournalService.findAll(from, to);
+    }
+
+    @PostMapping
+    public ResponseEntity<WorkJournalResponse> create(
+            @Valid @RequestBody CreateWorkJournalRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(workJournalService.create(req, principal.getUsername()));
+    }
+
+    @PutMapping("/{id}")
+    public WorkJournalResponse update(@PathVariable Long id, @Valid @RequestBody CreateWorkJournalRequest req,
+                                      @AuthenticationPrincipal UserPrincipal principal) {
+        return workJournalService.update(id, req, principal.getUsername());
+    }
+
+    /** 원본 [H] '이력' */
+    @GetMapping("/{id}/history")
+    public List<com.erp.common.history.dto.ChangeHistoryDtos.ChangeHistoryResponse> history(@PathVariable Long id) {
+        return workJournalService.history(id);
+    }
+
+    /** '조회' 창을 열 때 — 조회 기록(글쓴이 자신은 적지 않는다) */
+    @PostMapping("/{id}/views")
+    public ResponseEntity<Void> markViewed(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        workJournalService.markViewed(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 원본 [R] '조회자 현황' */
+    @GetMapping("/{id}/viewers")
+    public WorkJournalDtos.WorkJournalViewersResponse viewers(@PathVariable Long id) {
+        return workJournalService.viewers(id);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        workJournalService.delete(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+}

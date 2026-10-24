@@ -12,15 +12,13 @@ import java.time.format.DateTimeFormatter;
 /**
  * 전표번호 채번: {@code PREFIX-yyyyMMdd-NNNN}.
  * <p>
- * 같은 날짜·같은 접두어의 마지막 일련번호 다음 값을 준다. 전체 건수(count)로 채번하면
- * 전표가 하나라도 삭제되거나 과거 날짜 전표가 섞이는 순간 이미 쓰인 번호를 다시 발급해
- * unique 제약에 걸린다.
+ * <b>지운 번호를 다시 쓰지 않는다</b>(원본 이카운트와 같다 — 같은 날 -1 · -2 를 저장하고 -2 를 지우면
+ * 다음은 -3). 남은 행의 max + 1 로 매기면 마지막 번호를 지웠을 때 그 번호가 되돌아오고, count() + 1 은
+ * 아무 번호나 지워도 이미 쓰는 번호를 다시 준다. 그래서 (번호 공간, 일자)별로 마지막에 준 번호를
+ * {@code document_sequences} 표에 두고 거기서 올린다 — {@link #nextSeq}.
  * <p>
- * <b>동시성:</b> "max 조회 → 다음 번호로 insert" 사이에 다른 트랜잭션이 끼어들면 둘이 같은
- * 번호를 발급받아 unique 제약에서 하나가 터진다(실제로 터졌다 — 두 클라이언트가 동시에
- * 회계전표를 만들자 GL-yyyyMMdd-NNNN 이 중복됐다). 그래서 채번 직전에 (접두어, 날짜) 단위
- * advisory lock 을 잡아 같은 번호 공간의 채번만 줄을 세운다. 락은 트랜잭션이 끝나면 자동으로
- * 풀리고, 접두어나 날짜가 다르면 서로를 막지 않는다.
+ * <b>동시성:</b> 올리기는 {@code INSERT … ON CONFLICT DO UPDATE … RETURNING} 한 문장이라 같은 (공간, 일자)
+ * 행을 잠그고 줄을 세운다. 두 저장이 같은 번호를 집지 않는다(예전 max+1 은 GL 번호가 겹쳐 터진 적이 있다).
  */
 @Component
 public class DocumentNoGenerator {
@@ -38,9 +36,8 @@ public class DocumentNoGenerator {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public String next(String prefix, String table, String noColumn, String dateColumn, LocalDate date) {
-        lockNumberSpace(prefix + date.format(YMD));
-
         // table/noColumn/dateColumn 은 호출부의 상수만 들어온다 (사용자 입력 아님).
+        // 남은 행의 max 는 번호표가 생기기 전 전표를 따라잡는 데만 쓴다(nextSeq 의 GREATEST).
         Object max = em.createNativeQuery(
                         "select coalesce(max(cast(split_part(" + noColumn + ", '-', 3) as integer)), 0)"
                                 + " from " + table
@@ -48,18 +45,64 @@ public class DocumentNoGenerator {
                 .setParameter("date", date)
                 .setParameter("prefix", prefix + "%")
                 .getSingleResult();
-        int seq = ((Number) max).intValue() + 1;
+        int seq = nextSeq(table + ":" + prefix, date, ((Number) max).intValue());
         return prefix + date.format(YMD) + "-" + String.format("%04d", seq);
+    }
+
+    /**
+     * (번호 공간, 일자)의 다음 일련번호. 지운 번호를 다시 주지 않는다.
+     * <p>
+     * 번호를 직접 조립하는 호출부(기안서 · 채권/채무 · 인사발령 · 일용직 근무기록 …)가 쓴다.
+     * {@code currentMax} 는 그 표에 지금 남은 행의 최댓값 — 번호표가 생기기 전 전표와 겹치지 않게
+     * 처음 한 번 따라잡는 데 쓴다: 다음 번호 = max(번호표의 마지막 번호, currentMax) + 1.
+     *
+     * @param space      번호 공간 이름(호출부 상수). 보통 {@code 테이블:접두어}
+     * @param date       일자. 월 · 연 단위 번호는 그 달 · 그해 1일
+     * @param currentMax 그 공간 · 일자에 지금 남은 번호의 최댓값(없으면 0)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int nextSeq(String space, LocalDate date, int currentMax) {
+        Object no = em.createNativeQuery(
+                        "insert into document_sequences(space, seq_date, last_no) values (:space, :date, :first)"
+                                + " on conflict (space, seq_date) do update"
+                                + " set last_no = greatest(document_sequences.last_no, excluded.last_no - 1) + 1"
+                                + " returning last_no")
+                .setParameter("space", space)
+                .setParameter("date", date)
+                .setParameter("first", currentMax + 1)
+                .getSingleResult();
+        return ((Number) no).intValue();
+    }
+
+    /**
+     * 마스터 코드 채번: {@code PREFIX + 0채움 일련번호} (예: CI001, PRJ-2605).
+     * <p>
+     * 그 접두어 뒤가 숫자인 코드 중 <b>가장 큰 값 + 1</b>. 건수 + 1 로 하던 곳들이(카드사·결제대행·
+     * 관리항목·쇼핑몰계정·프로젝트) 하나라도 지우면 이미 쓰는 번호를 다시 줬다 — 프로젝트는 QA 가
+     * 쌓은 460개를 정리하자 PRJ-26461 다음이 PRJ-2605 로 되돌아갔다.
+     *
+     * @param table      테이블명 (호출부 상수)
+     * @param codeColumn 코드 컬럼 (호출부 상수)
+     * @param width      일련번호 0채움 자릿수 (넘치면 그대로 길어진다)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public String nextMasterCode(String prefix, String table, String codeColumn, int width) {
+        lockNumberSpace(prefix);
+        String tail = "substring(" + codeColumn + " from " + (prefix.length() + 1) + ")";
+        Object max = em.createNativeQuery(
+                        "select coalesce(max(cast(" + tail + " as integer)), 0) from " + table
+                                + " where " + codeColumn + " like :prefix and " + tail + " ~ '^[0-9]+$'")
+                .setParameter("prefix", prefix + "%")
+                .getSingleResult();
+        return prefix + String.format("%0" + width + "d", ((Number) max).intValue() + 1);
     }
 
     /**
      * 같은 번호 공간의 채번을 트랜잭션 단위로 직렬화한다. 트랜잭션이 끝나면 자동 해제되고,
      * {@code key} 가 다르면 서로를 막지 않는다.
      * <p>
-     * 번호를 직접 조립하는 호출부에서 쓴다 — 예: 기안서는 하나의 일련번호로 기안No(
-     * {@code 2026/07/10-2})와 기안서No({@code AP-20260710-0002})를 동시에 만들어야 해서
-     * {@link #next}(문자열만 반환)를 못 쓴다. 그런 경우 {@code max(seq)} 조회 직전에 이 락을
-     * 잡아 두 트랜잭션이 같은 seq 를 읽는 race 를 막는다.
+     * 전표 일련번호에는 쓰지 않는다 — {@link #nextSeq} 가 번호표 행 잠금으로 줄을 세우고 지운 번호도
+     * 다시 주지 않는다. 지운 번호를 다시 써도 되는 게시판 글번호 같은 곳에서 {@code max} 조회 직전에 잡는다.
      *
      * @param key 번호 공간 식별자. 보통 {@code 접두어 + yyyyMMdd}.
      */

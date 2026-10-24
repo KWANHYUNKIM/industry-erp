@@ -1,0 +1,39 @@
+{
+  "about": "재고 화면 회귀 시험(창고이동 전표는 stock-transfer-slip.json). node qa/shot.mjs qa/flows/inventory.json — 만든 전표는 끝에 지운다(지우면 재고가 되돌아오는지도 본다).",
+  "shots": [
+    {
+      "name": "폐기 — QA창고의 QA원자재 1개를 폐기하면 번호와 함께 '폐기 완료', 재고가 1 줄고, 목록의 [삭제]로 지우면 돌아온다(10회차까지 지울 길이 없었다)",
+      "path": "/inventory/transfer",
+      "steps": [
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaD0',String(x?x.quantity:0));return true})",
+        "click:폐기",
+        "click:폐기 등록",
+        "click:품목 선택",
+        "pickrow:QA-MAT",
+        "choose:[role=dialog] select#0|QA창고",
+        "set:[role=dialog] input[type=number]|1",
+        "click:폐기 처리",
+        "expect:/[A-Z]{2}-[0-9]{8}-[0-9]{4} 폐기 완료/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaAdj', document.body.innerText.match(/[A-Z]{2}-[0-9]{8}-[0-9]{4}(?= 폐기 완료)/)[0]); true",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaD1',String(x?x.quantity:0));return true})",
+        "expect:Number(sessionStorage.getItem('qaD0')) - Number(sessionStorage.getItem('qaD1')) === 1",
+        "js:window.confirm = () => true; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaAdj'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '삭제') b.click() }); true",
+        "expect:document.body.innerText.includes(sessionStorage.getItem('qaAdj') + ' 삭제')",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaD2',String(x?x.quantity:0));return true})",
+        "expect:Number(sessionStorage.getItem('qaD2')) === Number(sessionStorage.getItem('qaD0'))"
+      ]
+    },
+    {
+      "name": "창고이동 — 보내는창고 · 받는창고를 같게 하면 그 말을 창 안에(15회차까지 창 뒤)",
+      "path": "/inventory/transfer",
+      "steps": [
+        "wait:1500",
+        "click:창고이동 등록",
+        "wait:800",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const d = () => [...document.querySelectorAll('[role=dialog]')].pop(); const code = async (n, v) => { const el = d().querySelectorAll('input.ec-input.code')[n]; el.focus(); set(el, v); await W(150); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await W(300) }; await code(0, 'QA-WH2'); await code(1, 'QA-WH2'); await code(2, 'QA-MAT'); set(d().querySelector('input[aria-label=\"1번째 줄 수량\"]'), '1'); await W(200); return true })()",
+        "click:저장(F8)",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('보내는창고와 받는창고가 같을 수 없습니다.')"
+      ]
+    }
+  ]
+}

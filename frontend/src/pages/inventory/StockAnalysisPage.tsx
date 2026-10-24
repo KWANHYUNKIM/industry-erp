@@ -1,135 +1,195 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, StockRow, Warehouse } from '../../api/types'
+import type { Item, StockRow, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
-import { stockCostMap } from '../../utils/stockValue'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
- * 재고 > 재고잔량분석표 (이카운트 E040727)
- * 현재고를 품목별로 집계해 안전재고 대비 과부족·상태와 재고금액(수량×단가)을 분석한다.
- * 데이터는 GET /api/stock(현재고) + GET /api/items(단가) 를 조인(백엔드 무변경).
- * 재고금액은 <b>취득원가</b>로 평가한다 — 실제 입고단가가 있으면 그것, 없으면 품목 구매단가.
- * 예전에는 판매단가(Item.unitPrice)로 평가해서 아직 팔지도 않은 이익이 재고에 얹혔다
- * (개발 자료에서 1억 8,457만 vs 3,490만, 5배 차이). 기준이 없으면 0 이 아니라 평가에서 뺀다.
+ * 재고 I &gt; 출력물 &gt; 재고현황 &gt; <b>재고잔량분석표</b>(E040727) — 2026-10-13 loginaa 원본 실측(자료 든 판, 52품목).
  *
- * 원본 조건: 기준일자(한 날짜) · 품목 · 기타(재고수량0포함 / 수량관리제외품목포함 /
- * 사용중단품목포함 / 품목별안전재고설정미만표시).
- * 재고현황과 같이 <b>기준일자가 한 날짜</b>다 — 재고는 시점을 보는 것이라서 빠른선택도 금일·전일뿐이다.
+ * <p>조건: 기준일자(한 날짜, 금일 · 전일) · 품목(▾ 를 펼치면 품목구분 · 품목그룹1~3 · 품목계층그룹) · 기타(재고수량0포함 / 수량관리제외품목포함 / <b>사용중단품목포함</b>(켜짐) /
+ * 품목별안전재고설정미만표시) · ⌄ 를 펼치면 <b>창고</b> · 양식(적용양식 · 결재방표시 · 정렬/소계기준 '설정').
+ * 우리는 품목구분 · 품목그룹1 · 정렬/소계기준(없음 · 품목구분 · 품목그룹1)을 둔다 — 정렬/소계기준 팝업의 후보는 아직 못 쟀다.
  *
- * 원본에는 창고 조건이 없다(품목별로 전 창고를 합쳐 보는 분석표라서). 우리는 창고 조건이
- * 이미 있고 실제로 동작하므로 남긴다 — 원본에 없다고 되는 기능을 빼지는 않는다.
+ * <p>격자(출력물): [회사명 · 기준일자] 머리 아래 품목코드 · 품목명[규격] · <b>재고수량</b>(파란 링크 → 그 품목 재고수불부) ·
+ * <b>재고수량현황</b>(기준일자의 달부터 넉 달 + 기타) · <b>미판매</b>(파란 링크). 열 폭 200 / 450 / 100 / 100×5 / 100,
+ * 머리 400 · 바탕 (247,248,249). 음수 재고 칸은 분홍 (242,222,222). 맨 끝 [합계] — 앞 두 칸 합쳐 가운데, 700 · 회색 243.
+ * 숫자는 소수 둘째 자리(1,597.00), 0 인 달 칸은 비운다.
  *
- * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
- * 날짜를 바꿔도 늘 현재고가 나왔다. 조건이 있으면 사람은 그 값이 반영된 줄 안다.
- * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
+ * <p><b>재고수량현황 — 지금 재고가 언제 들어온 것인가.</b> 원본을 원장과 맞춰 가렸다(H001 비밀의정원):
+ * 재고 919 · 10월 입고 900 · 9월 입고 100 → 표는 10월 900 · 9월 19. 즉 <b>최근 달의 입고부터 거슬러 채우고</b>(그 달 입고만큼까지)
+ * 넉 달을 넘는 몫은 [기타]다. A001 270 + 180 + 180 + 180 + 787 = 1,597 처럼 다섯 칸의 합이 재고수량이다.
+ * 재고가 0 이하이면 통째로 이번 달 칸에 둔다(G002 -650 → 10월 -650).
+ * 입고는 재고수불부의 입고수량(수량이 늘어난 줄)이다. 창고 전체로 볼 때는 창고이동(적요 '창고이동…')을 뺀다 —
+ * 회사 밖에서 들어온 것이 아니라 창고끼리 옮긴 것이라서(원본에서 창고이동이 든 품목으로는 못 가렸다).
+ *
+ * <p>[미판매]는 그 품목의 열린 수주 잔량 합(미판매현황의 미판매수량과 같다 — 2026-09-09 가림).
  */
 
 interface AnalysisRow {
-  itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
-  quantity: number; safetyStock: number; unitPrice: number; value: number
-  whCount: number
+  itemId: number; itemCode: string; itemName: string; spec: string | null
+  quantity: number; months: number[]; etc: number
+}
+type LedgerRow = { itemId: number; quantityChange: number; transactionDate: string; note: string | null }
+
+/** 원본 [정렬/소계기준] 의 축 — 팝업을 못 열어 후보를 못 쟀으므로 <b>우리가 거르는 축</b>만 둔다. */
+const SUBTOTALS = ['없음', '품목구분', '품목그룹1'] as const
+
+const n2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/** 0 인 칸은 비운다(원본 달 칸 · 미판매). */
+const blank0 = (n: number) => (n ? n2(n) : '')
+
+/** 기준일자의 달부터 거슬러 넉 달 — [{ym:'2026-10', label:'10월'}, …]. */
+function monthsBack(date: string) {
+  const [y, m] = date.split('-').map(Number)
+  return [0, 1, 2, 3].map((k) => {
+    const d = new Date(y, m - 1 - k, 1)
+    return { ym: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: `${d.getMonth() + 1}월` }
+  })
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
-
 export default function StockAnalysisPage() {
-  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const navigate = useNavigate()
   const pickers = useCondPickers(['items'])
   const [stocks, setStocks] = useState<StockRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [ledger, setLedger] = useState<LedgerRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [warehouseId, setWarehouseId] = useState('')
-  const [keyword, setKeyword] = useState('')
+  // 품목 코드도움은 id 를 준다 — 이름이 같은 품목이 정상이라서다.
+  const [itemCond, setItemCond] = useState('')
   const [shortageOnly, setShortageOnly] = useState(false)
-  /** 원본 '재고수량0포함' — 기본은 0 인 품목을 뺀다(분석표에 0 만 잔뜩 뜨면 못 읽는다). */
+  /** 원본 '재고수량0포함' — 기본은 0 인 품목을 뺀다. */
   const [includeZero, setIncludeZero] = useState(false)
-  /** 재고 평가에 쓸 구매전표. 마지막 입고단가를 여기서 뽑는다. */
-  /*
-   * 원본 재고잔량분석표(E040727) [기타]는 <b>넷</b>이다(2026-09-02 실측):
-   * 재고수량0포함 · <b>수량관리제외품목포함</b> · <b>사용중단품목포함</b> ·
-   * 품목별안전재고설정미만표시. 우리에겐 첫째와 넷째뿐이었다 —
-   * 재고현황·재고변동표·창고별재고현황에 이어 <b>네 번째 같은 구멍</b>이다.
-   */
   const [withUntracked, setWithUntracked] = useState(false)
-  const [withInactive, setWithInactive] = useState(false)
-  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 재고 줄에는 없어 따로 받는다. */
+  /** [사용중단품목포함]은 기본이 켜짐이다(원본 실측) — 끄면 안 쓰기로 한 품목의 재고가 사라진다. */
+  const [withInactive, setWithInactive] = useState(true)
   const { inactive, untracked } = useItemFlags()
-  const [buys, setBuys] = useState<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>([])
-  /* 원본 재고잔량분석표의 기준일자 기본값은 [금일] 이다(사본 실측). */
+  const [category, setCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('없음')
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
   const [date, setDate] = useState(periodOf('금일')!.to)
+  /** 화면에 그린 기준일자 — 검색을 눌러야 표가 그 날로 바뀐다. */
+  const [shownDate, setShownDate] = useState(date)
+  const [unsold, setUnsold] = useState<{ itemId: number; unsoldQty: number }[]>([])
+  const unsoldByItem = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const u of unsold) m.set(u.itemId, (m.get(u.itemId) ?? 0) + Number(u.unsoldQty))
+    return m
+  }, [unsold])
   const today = ymd(new Date())
+  const months = useMemo(() => monthsBack(shownDate), [shownDate])
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, i, w, b] = await Promise.all([
+      const first = `${monthsBack(date)[3].ym}-01`
+      const [s, i, w, u, l] = await Promise.all([
         api.get<StockRow[]>('/stock', { params: { asOf: date } }),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
-        api.get<{ purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }[]>('/purchases'),
+        /* 원본 [미판매] — 기간을 안 건다. 아직 열려 있는 수주 잔량 전부다. */
+        api.get<{ itemId: number; unsoldQty: number }[]>('/sales-orders/unsold'),
+        /* 재고수량현황 — 넉 달치 입고. */
+        api.get<{ rows: LedgerRow[] }>('/stock/ledger', { params: { from: first, to: date, warehouseId: warehouseId || undefined, all: true } }),
       ])
-      setStocks(s.data); setItems(i.data); setWarehouses(w.data); setBuys(b.data)
+      setStocks(s.data); setItems(i.data); setWarehouses(w.data); setUnsold(u.data); setLedger(l.data.rows)
+      setShownDate(date)
     } catch (err) { setError(extractErrorMessage(err)); setStocks([]) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load() }, [])
 
-  const priceById = useMemo(() => stockCostMap(items, buys), [items, buys])
+  /** 품목 × 달 → 그 달 입고 합. */
+  const inByItemMonth = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of ledger) {
+      const q = Number(r.quantityChange)
+      const note = r.note ?? ''
+      if (!warehouseId && note.startsWith('창고이동')) continue
+      /*
+       * 되돌림 줄('판매삭제 원복 SO-…' · '생산입고취소 PI-…') — 원본 수불부에는 지운 전표가 아예 없다.
+       * 양수 되돌림은 출고를 되돌린 것이라 입고가 아니고, 음수 되돌림은 입고를 되돌린 것이라 그 달 입고에서 뺀다
+       * (StockFifoService.isRevert 와 같은 판정). ITM-0003: 7월 생산입고 50 + 10월 판매삭제 원복 +1 ×2 → 7월 50.
+       */
+      const revert = /(원복|취소)$/.test(note.replace(/\s*[A-Z]{1,4}-\d{8}-\d+.*$/, '').trim())
+      if (revert ? !(q < 0) : !(q > 0)) continue
+      const k = `${r.itemId}|${r.transactionDate.slice(0, 7)}`
+      m.set(k, (m.get(k) ?? 0) + q)
+    }
+    return m
+  }, [ledger, warehouseId])
 
   const rows = useMemo(() => {
     const wid = warehouseId ? Number(warehouseId) : null
     const m = new Map<number, AnalysisRow>()
+    const safety = new Map<number, number>()
     for (const s of stocks) {
       if (wid != null && s.warehouseId !== wid) continue
       let a = m.get(s.itemId)
       if (!a) {
-        a = { itemId: s.itemId, itemCode: s.itemCode, itemName: s.itemName, spec: s.spec, unit: s.unit,
-          quantity: 0, safetyStock: s.safetyStock, unitPrice: priceById.get(s.itemId) ?? 0, value: 0, whCount: 0 }
+        a = { itemId: s.itemId, itemCode: s.itemCode, itemName: s.itemName, spec: s.spec, quantity: 0, months: [0, 0, 0, 0], etc: 0 }
         m.set(s.itemId, a)
+        safety.set(s.itemId, Number(s.safetyStock) || 0)
       }
-      a.quantity += s.quantity
-      if (s.quantity > 0) a.whCount += 1
+      a.quantity += Number(s.quantity)
     }
-    const kw = keyword.trim()
-    const out = [...m.values()]
-    for (const a of out) a.value = a.quantity * a.unitPrice
-    return out
+    /* [재고수량0포함]을 켜면 재고 줄이 한 번도 없던 품목까지 0 으로 나온다(원본 2026-10-03 실측 52 → 73품목). */
+    if (includeZero) {
+      for (const it of items) {
+        if (m.has(it.id)) continue
+        m.set(it.id, { itemId: it.id, itemCode: it.code, itemName: it.name, spec: it.spec, quantity: 0, months: [0, 0, 0, 0], etc: 0 })
+        safety.set(it.id, it.safetyStock ?? 0)
+      }
+    }
+    for (const a of m.values()) {
+      if (a.quantity <= 0) { a.months[0] = a.quantity; continue }
+      let left = a.quantity
+      months.forEach((mo, k) => {
+        const take = Math.min(left, Math.max(0, inByItemMonth.get(`${a.itemId}|${mo.ym}`) ?? 0))
+        a.months[k] = take
+        left -= take
+      })
+      a.etc = left
+    }
+    return [...m.values()]
       /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
       .filter((a) => withUntracked || !untracked.has(a.itemId))
       .filter((a) => withInactive || !inactive.has(a.itemId))
-      .filter((a) => !kw || a.itemName.includes(kw) || a.itemCode.includes(kw))
-      .filter((a) => !shortageOnly || a.quantity < a.safetyStock)
-      // 원본 '재고수량0포함' — 끄면 0 인 품목을 뺀다. 0 만 잔뜩 뜨면 분석표를 읽을 수 없다.
+      .filter((a) => !itemCond || String(a.itemId) === itemCond)
+      .filter((a) => !category || (itemById.get(a.itemId)?.categoryName ?? '') === category)
+      .filter((a) => !itemGroup || (itemById.get(a.itemId)?.itemGroupName ?? '') === itemGroup)
+      .filter((a) => !shortageOnly || a.quantity < (safety.get(a.itemId) ?? 0))
       .filter((a) => includeZero || a.quantity !== 0)
-      .sort((a, b) => b.value - a.value)
-  }, [stocks, priceById, warehouseId, keyword, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
+      /* 원본은 품목코드 차례다(A001 · A002 …). */
+      .sort((x, y) => x.itemCode.localeCompare(y.itemCode))
+  }, [stocks, items, itemById, category, itemGroup, warehouseId, itemCond, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive, months, inByItemMonth])
 
   const reset = () => {
-    setWarehouseId(''); setKeyword(''); setShortageOnly(false); setIncludeZero(false)
-    setWithUntracked(false); setWithInactive(false); setDate(today)
+    setWarehouseId(''); setItemCond(''); setShortageOnly(false); setIncludeZero(false)
+    setWithUntracked(false); setWithInactive(true); setCategory(''); setItemGroup(''); setSubtotal('없음'); setDate(today)
   }
 
-  const totals = useMemo(() => ({
-    count: rows.length,
-    value: rows.reduce((s, r) => s + r.value, 0),
-    shortage: rows.filter((r) => r.quantity < r.safetyStock).length,
-  }), [rows])
-
+  const sum = (f: (r: AnalysisRow) => number) => rows.reduce((s, r) => s + f(r), 0)
+  /** [재고수량] 링크 — 원본은 그 품목의 재고수불부(넉 달 전 1일 ~ 기준일자)를 띄운다. */
+  const openLedger = (r: AnalysisRow) => navigate(`/inventory/ledger?itemId=${r.itemId}&from=${months[3].ym}-01&to=${shownDate}`)
 
   return (
     <EcListShell
       title="재고잔량분석표"
-      search={keyword}
-      onSearchChange={setKeyword}
       onSearch={load}
       searchable={false}
       actions={[
@@ -139,113 +199,144 @@ export default function StockAnalysisPage() {
         { label: 'Excel' },
       ]}
     >
-      <EcStatusPanel
-        single
-        from={date} to={date}
-        onPeriod={(r) => setDate(r.from)}
-        picks={STOCK_PICKS}
-      >
+      <EcStatusPanel single from={date} to={date} onPeriod={(r) => setDate(r.from)} picks={STOCK_PICKS}
+        subtotal={subtotal} subtotals={SUBTOTALS} onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={keyword} onChange={(v) => setKeyword(v)}
-                           items={pickers.items} />
+                           value={itemCond} onChange={(v) => setItemCond(v)} items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분">
+          <select className="ec-input w-[130px]" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(items.map((i) => i.categoryName).filter(Boolean))].sort().map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input w-[150px]" value={itemGroup} onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(items.map((i) => i.itemGroupName).filter((v): v is string => !!v))].sort().map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="기타">
+          <label className="text-[12px] mr-[12px]">
+            <input type="checkbox" checked={includeZero} onChange={(e) => setIncludeZero(e.target.checked)} /> 재고수량0포함
+          </label>
+          <label className="text-[12px] mr-[12px]">
+            <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+          </label>
+          <label className="text-[12px] mr-[12px]">
+            <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+          </label>
+          <label className="text-[12px]">
+            <input type="checkbox" checked={shortageOnly} onChange={(e) => setShortageOnly(e.target.checked)} /> 품목별안전재고설정미만표시
+          </label>
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={220} value={warehouseId} onChange={setWarehouseId}
                            items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.location }))} />
         </EcCond>
-        {/* 원본 [기타] 차례 그대로다(2026-09-02 E040727 실측). [결재방표시]는 인쇄 판이라 아직 없다. */}
-        <EcCond label="기타">
-          <label style={{ fontSize: 12, marginRight: 12 }}>
-            <input type="checkbox" checked={includeZero}
-                   onChange={(e) => setIncludeZero(e.target.checked)} /> 재고수량0포함
-          </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
-            <input type="checkbox" checked={withUntracked}
-                   onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
-          </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
-            <input type="checkbox" checked={withInactive}
-                   onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
-          </label>
-          <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={shortageOnly}
-                   onChange={(e) => setShortageOnly(e.target.checked)} /> 품목별안전재고설정미만표시
-          </label>
-        </EcCond>
       </EcStatusPanel>
 
-      {date !== today && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
-          지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
-          숫자가 달라지지 않습니다.
-        </p>
-      )}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        품목 <b style={{ color: '#3c4553', fontSize: 14 }}>{won(totals.count)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        미달 <b style={{ color: '#c60a2e', fontSize: 14 }}>{won(totals.shortage)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        재고금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.value)}</b>
-      </div>
-
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th style={{ width: 34 }}></th>
-            <th>품목코드</th>
-            <th>품목명</th>
-            <th>규격</th>
-            <th style={{ textAlign: 'center', width: 46 }}>단위</th>
-            <th style={{ textAlign: 'right' }}>현재고</th>
-            <th style={{ textAlign: 'right' }}>안전재고</th>
-            <th style={{ textAlign: 'right' }}>과부족</th>
-            <th style={{ textAlign: 'center', width: 60 }}>상태</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>재고금액</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : rows.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
-              {stocks.length === 0 ? '재고 자료가 없습니다.' : '조건에 맞는 자료가 없습니다.'}
-            </td></tr>
-          ) : rows.map((r, i) => {
-            const diff = r.quantity - r.safetyStock
-            const short = r.quantity < r.safetyStock
-            return (
-              <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
-                <td>{r.itemName}</td>
-                <td style={{ color: '#8a929c' }}>{r.spec ?? ''}</td>
-                <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.quantity)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.safetyStock)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: diff < 0 ? '#c60a2e' : '#1c7c3c' }}>{diff > 0 ? '+' : ''}{won(diff)}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <span style={{ background: short ? '#fdecec' : '#eaf6ec', color: short ? '#c60a2e' : '#1c7c3c', padding: '1px 7px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{short ? '부족' : '적정'}</span>
-                </td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.unitPrice)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.value)}</td>
+      <div className="overflow-x-auto">
+        <div className="ec-report-frame">
+          <EcReportHead title="재고잔량분석표" period={reportPeriod(shownDate)} />
+          <table className="text-left ec-report ec-report-fixed ec-report-head400">
+            <colgroup>
+              <col className="w-[200px]" /><col className="w-[450px]" /><col className="w-[100px]" />
+              <col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[100px]" />
+              <col className="w-[100px]" /><col className="w-[100px]" />
+            </colgroup>
+            <thead>
+              <tr>
+                {/* 원본 머리는 모두 가운데 · 400 — 출력물 틀(.ec-report th)이 가운데로 덮는다. text-right 는 칸 정렬을 적어 두는 것. */}
+                <th rowSpan={2}>품목코드</th>
+                <th rowSpan={2}>품목명[규격]</th>
+                <th rowSpan={2} className="text-right">재고수량</th>
+                <th colSpan={5}>재고수량현황</th>
+                <th rowSpan={2} className="text-right">미판매</th>
               </tr>
-            )
-          })}
-        </tbody>
-        {rows.length > 0 && (
-          <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={10} style={{ textAlign: 'right' }}>재고금액 합계</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.value)}</td>
-            </tr>
-          </tfoot>
-        )}
-      </table>
+              <tr>
+                <th>{months[0].label}</th>
+                <th>{months[1].label}</th>
+                <th>{months[2].label}</th>
+                <th>{months[3].label}</th>
+                <th>기타</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={9} className="text-center text-ec-ink">불러오는 중…</td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={9} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+              ) : rows.map((r) => (
+                <tr key={r.itemId}>
+                  <td>{r.itemCode}</td>
+                  <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                  <td className={`text-right${r.quantity < 0 ? ' bg-[var(--ec-bg-cell-negative)]' : ''}`}>
+                    <a className="ec-link" onClick={() => openLedger(r)}>{n2(r.quantity)}</a>
+                  </td>
+                  <td className="text-right">{blank0(r.months[0])}</td>
+                  <td className="text-right">{blank0(r.months[1])}</td>
+                  <td className="text-right">{blank0(r.months[2])}</td>
+                  <td className="text-right">{blank0(r.months[3])}</td>
+                  <td className="text-right">{blank0(r.etc)}</td>
+                  <td className="text-right">
+                    {unsoldByItem.get(r.itemId)
+                      ? <a className="ec-link" onClick={() => navigate('/sales/unsold')}>{n2(unsoldByItem.get(r.itemId)!)}</a>
+                      : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {/* 원본 [합계]는 본문 마지막 줄이다 — 앞 두 칸을 합쳐 가운데, 700 · 회색 243(출력물 꼬리줄과 같은 모양). */}
+            {!loading && rows.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td colSpan={2} className="text-center">합계</td>
+                  <td className="text-right">{n2(sum((r) => r.quantity))}</td>
+                  <td className="text-right">{n2(sum((r) => r.months[0]))}</td>
+                  <td className="text-right">{n2(sum((r) => r.months[1]))}</td>
+                  <td className="text-right">{n2(sum((r) => r.months[2]))}</td>
+                  <td className="text-right">{n2(sum((r) => r.months[3]))}</td>
+                  <td className="text-right">{n2(sum((r) => r.etc))}</td>
+                  <td className="text-right">{n2(sum((r) => unsoldByItem.get(r.itemId) ?? 0))}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+      {subtotal !== '없음' && rows.length > 0 && (() => {
+        /* 소계 축은 품목 마스터의 값이라 줄에서 바로 못 읽는다 — id 로 되짚는다. */
+        const keyOf = (r: AnalysisRow) => {
+          const it = itemById.get(r.itemId)
+          return (subtotal === '품목구분' ? it?.categoryName : it?.itemGroupName) || ''
+        }
+        const groups = subtotalBy(rows, keyOf, { qty: (r) => r.quantity })
+        return (
+          <>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th className="w-[90px] text-right">품목수</th>
+                <th className="w-[130px] text-right">재고수량</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td>{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right">{n2(g.sums.qty)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
     </EcListShell>
   )
 }

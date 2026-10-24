@@ -1,0 +1,24 @@
+{
+  "about": "부가세신고서 PDF 다운로드(원본 E030216) — 올해 − 5 ~ 올해 − 2 의 신고서 목록. 고르지 않고 [PDF] → '다운로드할 신고서가 선택되지 않았습니다.' · [신고기간] → 읽기만 하는 신고서 머리 · [조회] → PDF변환목록(부가가치세 신고서 · 파일받기). 원본(2026-10-12)에서 같은 문구 · 창을 확인했다. 2024년 2기 확정 · 2024년 05월 신고서가 우리 DB 에 있어야 한다(없으면 첫 expect 가 실패한다).",
+  "shots": [
+    {
+      "name": "목록 → 빈 선택 PDF 거절 → 신고기간 창 → PDF변환목록",
+      "path": "/accounting/vat/return-pdf",
+      "steps": [
+        "wait:3000",
+        "expect:document.body.innerText.includes('귀속연도 : ' + (new Date().getFullYear() - 5) + '년도 ~ ' + (new Date().getFullYear() - 2) + '년도')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => /2024년 2기 확정\\(10~12\\)\\s+YES/.test(t.innerText))",
+        "clicklast:PDF",
+        "wait:300",
+        "expect:document.body.innerText.includes('다운로드할 신고서가 선택되지 않았습니다.')",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => /2024년 05월 - 05월/.test(t.innerText)).querySelector('button.ec-link').click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('월별신고(조기환급)') && [...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('2025/06/25')",
+        "clicklast:닫기",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => /2024년 2기 확정/.test(t.innerText)).querySelectorAll('button.ec-link')[1].click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('PDF변환목록') && [...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('07월 ~ 09월') && [...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('파일받기')"
+      ]
+    }
+  ]
+}

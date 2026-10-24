@@ -1,0 +1,40 @@
+{
+  "about": "관리 > 근무조회 [이력](원본 E090105 '근무조회 이력조회', 2026-10-13 실측) — 근무 전표를 신규 → 수정(1 → 2) → 삭제하면 [최종이력만 검색](기본)이라 '삭제 · 2.00' 한 줄, [H] 를 누르면 '이력' 창에 [2091/MM/DD -N](일자는 돌 때마다 2091년 안에서 고른다 — 같은 번호 이력이 쌓이지 않게) 과 작업자ID · 작업일시 · 상태 세 줄(신규 · 수정 · 삭제)이 오래된 것부터. [최종이력만 검색]을 끄면 세 줄. [전체] 로 돌아오면 근무조회 목록. 2026-10-13 2차: 최종이력만 끄면 세 줄 모두 마지막 값(2.00). [전표번호]는 그때의 근무입력 창(일자 막힘, 보기 전용) — 신규 이력은 1.00. 근무일자 금일이면 빠지고 직접입력 2091년이면 다시 선다.",
+  "shots": [
+    {
+      "name": "신규 → 수정 → 삭제 → 이력 한 줄 · H 창 세 줄",
+      "path": "/hr/work-list",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const items=(await (await fetch('/api/pay-settings/items',{headers:h})).json()).filter(i=>i.kind==='ALLOWANCE');const D='2091-'+String(1+Math.floor(Math.random()*12)).padStart(2,'0')+'-'+String(1+Math.floor(Math.random()*28)).padStart(2,'0');const line=q=>({workDate:D,employeeId:emps[0].id,payItemId:items[0].id,quantity:q});const c=await (await fetch('/api/work-records',{method:'POST',headers:h,body:JSON.stringify({slipDate:D,lines:[line(1)]})})).json();await fetch('/api/work-records/'+D+'/'+c.slipNo,{method:'PUT',headers:h,body:JSON.stringify({slipDate:D,lines:[line(2)]})});const d=await fetch('/api/work-records/'+D+'/'+c.slipNo,{method:'DELETE',headers:h});sessionStorage.setItem('qaWh',JSON.stringify({s:D.replace(/-/g,'/'),no:c.slipNo,emp:emps[0].name,ok:d.ok}));return true})()",
+        "expect:JSON.parse(sessionStorage.getItem('qaWh')).ok===true",
+        "click:이력",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim()).join(',')==='작업일자,전표번호,행위,사원명,수당항목,근무기록,작업자,이력'",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaWh'));const rs=[...document.querySelectorAll('table tbody tr')].filter(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaWh')).s+' -'+q.no+'\\t'));return rs.length===1&&rs[0].cells[2].innerText.trim()==='삭제'&&rs[0].cells[5].innerText.trim()==='2.00'&&rs[0].cells[3].innerText.trim()===q.emp})()",
+        "js:(()=>{const q=JSON.parse(sessionStorage.getItem('qaWh'));const r=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaWh')).s+' -'+q.no+'\\t'));[...r.querySelectorAll('a')].find(a=>a.textContent==='H').click();return true})()",
+        "wait:800",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaWh'));const m=document.querySelector('.ec-modal-back');const st=[...m.querySelectorAll('tbody tr')].map(r=>r.cells[3].innerText.trim()).join(',');return m.innerText.includes('['+JSON.parse(sessionStorage.getItem('qaWh')).s+' -'+q.no+']')&&st==='신규,수정,삭제'&&/\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d+:\\d{2}:\\d{2}/.test(m.innerText)})()",
+        "clicklast:닫기",
+        "wait:300",
+        "js:(()=>{[...document.querySelectorAll('label')].find(l=>l.textContent.trim()==='최종이력만 검색').querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaWh'));return [...document.querySelectorAll('table tbody tr')].filter(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaWh')).s+' -'+q.no+'\\t')).map(t=>t.cells[2].innerText.trim()).join(',')==='삭제,수정,신규'})()",
+        "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaWh')).s+' -'+JSON.parse(sessionStorage.getItem('qaWh')).no+'\\t')).every(t=>t.cells[5].innerText.trim()==='2.00')",
+        "js:(()=>{const r=[...document.querySelectorAll('table tbody tr')].filter(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaWh')).s+' -'+JSON.parse(sessionStorage.getItem('qaWh')).no+'\\t'))[2];[...r.querySelectorAll('a')].find(a=>a.textContent.startsWith(JSON.parse(sessionStorage.getItem('qaWh')).s)).click();return true})()",
+        "wait:500",
+        "expect:(()=>{const m=document.querySelector('.ec-modal-back');const t=m.querySelector('table[aria-label=\"그때의 근무입력\"]');return m.querySelector('input[aria-label=일자]').disabled&&t.tBodies[0].rows.length===2&&t.tBodies[0].rows[0].cells[1].innerText.trim()===JSON.parse(sessionStorage.getItem('qaWh')).s&&t.tBodies[0].rows[0].cells[5].innerText.trim()==='1.00'&&![...m.querySelectorAll('button')].some(b=>b.textContent==='저장')})()",
+        "clicklast:닫기",
+        "wait:300",
+        "js:(()=>{const s=document.querySelector('select[aria-label=근무일자]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'금일');s.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaWh')).s+' -'+JSON.parse(sessionStorage.getItem('qaWh')).no+'\\t')).length===0",
+        "js:(()=>{const s=document.querySelector('select[aria-label=근무일자]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'직접입력');s.dispatchEvent(new Event('change',{bubbles:true}));const set=(l,v)=>{const el=document.querySelector('input[aria-label=\"'+l+'\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}))};setTimeout(()=>{set('근무일자 시작','2091-01-01');set('근무일자 끝','2091-12-31')},50);return true})()",
+        "wait:400",
+        "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaWh')).s+' -'+JSON.parse(sessionStorage.getItem('qaWh')).no+'\\t')).length===3",
+        "click:전체",
+        "wait:800",
+        "expect:[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim()).slice(1).join(',')==='전표일자,사원,수당항목,근무기록'"
+      ]
+    }
+  ]
+}

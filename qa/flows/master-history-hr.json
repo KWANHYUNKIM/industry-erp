@@ -1,0 +1,46 @@
+{
+  "about": "관리 > 사원등록(E090101) · 인사카드등록(E020603) · 수당 · 공제항목등록(E090103 · E090114) [H] — 원본 2026-10-14 실측: 사원 수정 창 끝 [H] → '이력' 960, 머리 '사원코드: 00008', 격자 순번 · 작업자ID · 작업일시 · 상태(신규 → 수정 …), 인사카드 창 [H] 도 같은 사원 이력. 수당리스트 · 공제리스트 하단 [H] → 리스트 전체의 마지막 저장 한 줄 '날짜 시각 [작업자]'. 시험 사원 · 항목은 지운다.",
+  "shots": [
+    {
+      "name": "사원등록 수정 → [H] 신규 · 수정",
+      "path": "/hr/employees",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await (await fetch('/api/employees',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-이력',hireDate:'2091-01-01',baseSalary:0,payType:'FIXED'})})).json();sessionStorage.setItem('qaHiCode',r.code);sessionStorage.setItem('qaHiId',String(r.id));return !!r.id})()",
+        "js:location.reload();true",
+        "wait:4000",
+        "js:(async()=>{for(let i=0;i<60;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent.trim()==='QA관리-이력');if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "wait:1000",
+        "expect:(()=>{const b=[...document.querySelectorAll('[role=dialog] button')].map(x=>x.textContent.trim());return b.slice(-2).join('|')==='닫기|H'})()",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "js:(async()=>{for(let i=0;i<60;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent.trim()==='QA관리-이력');if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "wait:1000",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='H').click();true",
+        "wait:1000",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.innerText;const th=[...d.querySelectorAll('thead th')].map(x=>x.textContent.trim());return t.includes('사원코드: '+sessionStorage.getItem('qaHiCode'))&&th.join('|')==='순번|작업자ID|작업일시|상태'&&/1\\s+ADMIN[\\s\\S]*신규/.test(t)&&t.includes('수정')})()"
+      ]
+    },
+    {
+      "name": "인사카드 [H] — 같은 사원 이력",
+      "path": "/hr/cards",
+      "steps": [
+        "js:(async()=>{const c=sessionStorage.getItem('qaHiCode');for(let i=0;i<60;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent.trim()===(c));if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "wait:1500",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='H').click();true",
+        "wait:1000",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.innerText;const th=[...d.querySelectorAll('thead th')].map(x=>x.textContent.trim());return t.includes('사원코드: '+sessionStorage.getItem('qaHiCode'))&&th.join('|')==='순번|작업자ID|작업일시|상태'&&/1\\s+ADMIN[\\s\\S]*신규/.test(t)&&t.includes('수정')})()"
+      ]
+    },
+    {
+      "name": "수당리스트 [H] — 마지막 저장 한 줄 → 정리",
+      "path": "/hr/allowance-items",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAHI',name:'QA관리-이력수당',kind:'ALLOWANCE',defaultAmount:0,sortOrder:96,payMethod:'FIXED',taxFreeType:'NONE'})});return r.ok})()",
+        "click:H",
+        "wait:1000",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return d.innerText.includes('이력')&&/\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d+:\\d{2}:\\d{2} \\[ADMIN\\]/.test(d.innerText)&&!d.querySelector('thead')})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const it=(await (await fetch('/api/pay-settings/items',{headers:h})).json()).find(x=>x.code==='QAHI');if(it)await fetch('/api/pay-settings/items/'+it.id,{method:'DELETE',headers:h});await fetch('/api/employees/'+sessionStorage.getItem('qaHiId'),{method:'DELETE',headers:h});return true})()"
+      ]
+    }
+  ]
+}

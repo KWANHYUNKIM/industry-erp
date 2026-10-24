@@ -1,0 +1,58 @@
+package com.erp.trade.purchase;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+public interface PurchaseLineRepository extends JpaRepository<PurchaseLine, Long> {
+
+    /** 품목별 매입수량·매입액(공급가) 집계 → 총평균 매입단가 계산에 사용 */
+    @Query("select l.item.id as itemId, coalesce(sum(l.quantity),0) as qty, " +
+            "coalesce(sum(l.supplyAmount),0) as amount " +
+            "from PurchaseLine l group by l.item.id")
+    List<ItemAggregate> aggregateByItem();
+
+    /** 기간 안 구매의 품목별 수량 · 공급가액 — 원가생성 [전월금액비교] 가 본다. */
+    @Query("select l.item.id as itemId, coalesce(sum(l.quantity),0) as qty, " +
+            "coalesce(sum(l.supplyAmount),0) as amount " +
+            "from PurchaseLine l where l.purchase.purchaseDate >= :from and l.purchase.purchaseDate <= :to " +
+            "group by l.item.id")
+    List<ItemAggregate> aggregateByItemBetween(@Param("from") java.time.LocalDate from, @Param("to") java.time.LocalDate to);
+
+    /**
+     * 한 발주의 품목별 구매 전환수량 — 구매 저장 시 <b>발주수량을 넘지 않는지</b> 볼 때 쓴다.
+     * 판매(SalesLineRepository.aggregateSoldByOrder)와 같은 규칙이다.
+     *
+     * @param excludePurchaseId 수정 중인 구매전표. 빼지 않으면 자기 수량을 두 번 세어
+     *                          멀쩡한 수정이 거부된다.
+     */
+    @Query("select l.sourceOrder.id as orderId, l.item.id as itemId, coalesce(sum(l.quantity),0) as qty " +
+            "from PurchaseLine l where l.sourceOrder.id = :orderId " +
+            "and (:excludePurchaseId is null or l.purchase.id <> :excludePurchaseId) " +
+            "group by l.sourceOrder.id, l.item.id")
+    List<OrderItemAggregate> aggregateBoughtByOrder(@Param("orderId") Long orderId,
+                                                    @Param("excludePurchaseId") Long excludePurchaseId);
+
+    /** 모든 발주의 품목별 구매 전환수량 — 구매입력 [발주] 불러오기의 잔량(발주 − 구매)을 낼 때(42회차). */
+    @Query("select l.sourceOrder.id as orderId, l.item.id as itemId, coalesce(sum(l.quantity),0) as qty " +
+            "from PurchaseLine l where l.sourceOrder is not null group by l.sourceOrder.id, l.item.id")
+    List<OrderItemAggregate> aggregateBoughtAll();
+
+    interface OrderItemAggregate {
+        Long getOrderId();
+        Long getItemId();
+        BigDecimal getQty();
+    }
+
+    interface ItemAggregate {
+        Long getItemId();
+        BigDecimal getQty();
+        BigDecimal getAmount();
+    }
+
+    /** 이 발주를 근거로 만든 구매 라인이 있나. 발주 삭제 가능 여부를 본다. */
+    boolean existsBySourceOrderId(Long sourceOrderId);
+}

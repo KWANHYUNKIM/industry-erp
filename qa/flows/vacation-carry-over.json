@@ -1,0 +1,42 @@
+{
+  "about": "관리 > 휴가항목등록(E020702) [이월 휴가코드] → 사원별휴가일수입력(E020703) — 원본 2026-10-04 실측: 이월 잔여일수 자동계산 [사용]을 고르면 [이월 휴가코드] 칸이 나오고, 사원별휴가일수입력에 사번을 넣으면 이월 잔여일수가 그 휴가코드의 잔여로 찬다(16일 받은 사원 → 16, 휴가일수 16). 시험 휴가항목은 지운다.",
+  "shots": [
+    {
+      "name": "휴가항목 신규 — [사용]이면 이월 휴가코드 칸 · 머리 눌러 정렬",
+      "path": "/hr/vacation-kinds",
+      "steps": [
+        "wait:1200",
+        "click:신규(F2)",
+        "wait:500",
+        "expect:!document.querySelector('[role=dialog] button[title=\"이월 휴가코드 선택\"]')",
+        "js:(()=>{const l=[...document.querySelectorAll('[role=dialog] label')].find(x=>x.innerText.trim()==='사용');l.querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:!!document.querySelector('[role=dialog] button[title=\"이월 휴가코드 선택\"]')",
+        "js:(()=>{document.querySelector('[role=dialog] button.close').click();return true})()",
+        "js:(()=>{[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('휴가코드')).click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('휴가코드')).innerText.includes('▲')",
+        "js:(()=>{[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('휴가코드')).click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('휴가코드')).innerText.includes('▼')"
+      ]
+    },
+    {
+      "name": "사원별휴가일수입력 — 사번 넣으면 이월 잔여일수 16 → 정리",
+      "path": "/hr/vacation-grants",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const es=await (await fetch('/api/employees/all',{headers:h})).json();const e=es.find(x=>x.code==='EMP-0001');const s=await (await fetch('/api/hr/vacation-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-이월원',periodFrom:'2090-01-01',periodTo:'2090-12-31',carryOver:false})})).json();await fetch('/api/hr/vacation-kinds/'+s.id+'/grants',{method:'PUT',headers:h,body:JSON.stringify([{employeeId:e.id,carryOverDays:0,currentDays:16}])});const t=await (await fetch('/api/hr/vacation-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-이월',periodFrom:'2091-01-01',periodTo:'2091-12-31',carryOver:true,carryFromId:s.id})})).json();sessionStorage.setItem('qaVc',JSON.stringify({s:s.id,t:t.id,tcode:t.code,from:t.carryFromId}));return t.carryFromId===s.id?true:JSON.stringify(t)})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:(async()=>{const q=JSON.parse(sessionStorage.getItem('qaVc'));for(let i=0;i<40;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent===q.tcode);if(a){a.click();return true}await new Promise(z=>setTimeout(z,100))}return 'no link'})()",
+        "wait:1200",
+        "pick:사번:EMP-0001",
+        "wait:300",
+        "expect:document.querySelector('[role=dialog] table tbody tr:first-child td:nth-child(7) input').value==='16'&&document.querySelector('[role=dialog] table tbody tr:first-child td:nth-child(9)').textContent==='16'",
+        "js:(()=>{document.querySelector('[role=dialog] button.close').click();return true})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const q=JSON.parse(sessionStorage.getItem('qaVc'));let ok=(await fetch('/api/hr/vacation-kinds/'+q.t,{method:'DELETE',headers:h})).ok;ok=(await fetch('/api/hr/vacation-kinds/'+q.s+'/grants',{method:'DELETE',headers:h})).ok&&ok;ok=(await fetch('/api/hr/vacation-kinds/'+q.s,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaVcClean',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaVcClean')==='true'"
+      ]
+    }
+  ]
+}

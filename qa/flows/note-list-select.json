@@ -1,0 +1,36 @@
+{
+  "about": "받을어음조회(원본 회계 I › 어음거래 › 받을어음조회 E010622, 2026-10-13 실측) — ① 받을어음증가로 넣은 어음 줄: 증감구분 '증가' · 거래유형 '받을어음증가' · 회계전표일자-No. '2026/10/13 -4' 꼴, 체크가 안 된다(전표째 회계거래조회에서 지운다). ② [내역만등록] '받을어음내역입력' 창에서 거래처 · 어음번호 · 금액 · 적요 저장 → 줄 '어음만증가', 회계전표일자-No. 빈칸, 회계전표 없음 → 체크해 [선택삭제] '전표를 삭제하겠습니까? - 받을어음내역입력' [확인] → 사라짐. node qa/shot.mjs qa/flows/note-list-select.json",
+  "shots": [
+    {
+      "name": "받을어음증가 줄 · 내역만등록 → 선택삭제",
+      "path": "/accounting/notes-list",
+      "steps": [
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const p = (await A('GET', '/partners'))[0]; sessionStorage.setItem('nlP', p.code); const d = new Date(); const ymd = (x) => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); const due = new Date(d.getTime() + 20 * 864e5); const n = await A('POST', '/notes', { type: 'RECEIVABLE', partnerId: p.id, issueDate: ymd(d), dueDate: ymd(due), amount: 10000, remark: 'QA회계1-증가' }); sessionStorage.setItem('nlId', n.id); sessionStorage.setItem('nlNo', n.noteNo); const j = (await A('GET', '/journals?from=' + ymd(d) + '&to=' + ymd(d) + '&all=true')).rows.find((x) => x.sourceType === 'NOTE' && x.sourceId === n.id); sessionStorage.setItem('nlJ', ymd(d).replace(/-/g, '/') + ' -' + Number(j.docNo.split('-').pop())); sessionStorage.setItem('rcNo', 'QA1-R' + Date.now() % 100000); return n.noteNo + ' ' + sessionStorage.getItem('nlJ') })()",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('nlNo'))); return tr && tr.innerText.includes('받을어음증가') && tr.innerText.includes(sessionStorage.getItem('nlJ')) && tr.cells[3].innerText.trim() === '증가' && tr.querySelector('input[type=checkbox]').disabled })()",
+        "click:내역만등록",
+        "wait:400",
+        "js:(() => { document.querySelector('[role=dialog] button[title=\"거래처코드 선택\"]').click(); return true })()",
+        "wait:500",
+        "pickrow:@nlP",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"어음번호1\"]'), sessionStorage.getItem('rcNo')); set(document.querySelector('input[aria-label=\"금액1\"]'), '7000'); set(document.querySelector('input[aria-label=\"적요1\"]'), 'QA회계1-내역만'); return true })()",
+        "wait:200",
+        "js:(() => { [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '저장(F8)').click(); return true })()",
+        "wait:1500",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('rcNo'))); return tr && tr.innerText.includes('어음만증가') && tr.cells[tr.cells.length - 1].innerText.trim() === '' && !tr.querySelector('input[type=checkbox]').disabled })()",
+        "expect:(async () => { const r = await fetch('/api/journals?from=2000-01-01&to=2099-12-31&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((x) => x.json()); return !r.rows.some((x) => (x.description ?? '').includes(sessionStorage.getItem('rcNo'))) })()",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('rcNo'))); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:200",
+        "click:선택삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 받을어음내역입력')",
+        "js:(() => { [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '확인').click(); return true })()",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('rcNo')))",
+        "allowapi:404: /api/notes/",
+        "expect:(async () => (await fetch('/api/notes/' + sessionStorage.getItem('nlId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).ok)()"
+      ]
+    }
+  ]
+}

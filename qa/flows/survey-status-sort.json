@@ -1,0 +1,27 @@
+{
+  "about": "설문조사현황 [정렬/소계기준 설정](원본 E070258, 2026-10-13 잼) — '정렬/소계/합계 설정' 창: 기준 없음·작성일·게시글번호·설문종료일, 처음 1번 작성일, 2·3번은 없음이라 소계 라디오가 막힘, [올림][내림][선택삭제], [적용(F8)▴ 적용/저장][닫기] → 소계 · 합계 표시로 적용하면 검색 결과에 '… 계' · '합계' 줄. node qa/shot.mjs qa/flows/survey-status-sort.json",
+  "shots": [
+    {
+      "name": "정렬/소계/합계 설정",
+      "path": "/groupware/survey-status",
+      "steps": [
+        "js:try { localStorage.removeItem('survey-status-sort') } catch (e) {} ; true",
+        "click:설정",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '정렬/소계/합계 설정'",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelector('select[aria-label=\"정렬/소계기준 1\"]').options].map((o) => o.text).join('|') === '없음|작성일|게시글번호|설문종료일' && [...document.querySelectorAll('[role=dialog]')].pop().querySelector('select[aria-label=\"정렬/소계기준 1\"]').value === '작성일'",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[name=subtotal-1]').disabled && ![...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[name=subtotal-0]').disabled",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].filter((b) => !b.classList.contains('close') && !b.classList.contains('no-ec')).map((b) => b.textContent.trim()).join('|') === '올림|내림|선택삭제|↓↑|↓↑|↓↑|적용(F8)|▴|닫기'",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input[name=subtotal-0]')[0].click(); [...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input[name=total]')[0].click(); true",
+        "wait:200",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody td')].filter((t) => t.textContent.trim() === '설정').length === 2",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:![...document.querySelectorAll('[role=dialog]')].some((d) => d.getAttribute('aria-label') === '정렬/소계/합계 설정')",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:document.querySelectorAll('tbody tr[data-row=line]').length === 0 && (document.querySelector('tbody').innerText.includes('등록된 데이터가 없습니다.') || (!!document.querySelector('tbody tr[data-row=total]') && !!document.querySelector('tbody tr[data-row=sub]')))"
+      ]
+    }
+  ]
+}

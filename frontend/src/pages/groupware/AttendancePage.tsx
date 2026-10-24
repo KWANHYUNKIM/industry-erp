@@ -1,109 +1,61 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { exportTableToXlsx } from '../../utils/excel'
-import { printTable } from '../../utils/print'
-import { findDataTable } from '../../utils/tableExport'
 import { ymd } from '../../components/EcPeriodPicks'
-import type { Attendance } from '../../api/types'
-import { useShortcut } from '../../utils/useShortcut'
+import type { Attendance } from '../../types/api'
+import { useAuth } from '../../features/auth/AuthContext'
+import AttendanceRecordModal, { type AttendanceRecordBody } from '../../features/attendance/components/AttendanceRecordModal'
 
 const TITLE = '출/퇴근기록부(ID)'
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
 const fmtMin = (m: number | null) => {
   if (m == null) return ''
-  const h = Math.floor(m / 60)
-  const mm = m % 60
-  return `${h}시간 ${mm}분`
+  return `${Math.floor(m / 60)}시간 ${m % 60}분`
 }
+const hm = (t: string | null) => (t ? t.slice(0, 5) : '--:--')
 
 /**
  * 그룹웨어 > 업무관리 > 출/퇴근 > 출/퇴근기록부(ID) (이카운트 E070305)
  *
- * 원본은 표가 아니라 <b>화면을 가득 채우는 월 달력</b>이다. 위에 [사용자] 필터와 연/월 선택이
- * 있고, 날짜 칸마다 그날의 출퇴근 기록이 들어간다(실측: 요일 칸 324px x 7 = 2268).
- * 우리는 일자·사용자·출근·퇴근·근무시간·지각 6컬럼 표였다 — 한 달을 한눈에 볼 수가 없었다.
- *
- * '오늘 근무' 카드(출근하기·퇴근하기)는 원본 이 화면에 없지만 남겨 둔다.
- * 우리 앱에서 출퇴근을 찍는 유일한 자리라, 없애면 기록을 만들 방법이 사라진다.
+ * <p>원본(2026-10-14 실측 — plans/그룹웨어/E070305.md): 제목줄 [Option][도움말], 알약 [사용자][전체](사용자 켜짐), 연 ▾ · 월 ▾,
+ * 일 ~ 토 월 달력. <b>하단 버튼줄도 '오늘 근무' 판도 없다</b> — 출퇴근은 <b>날짜 칸을 눌러</b> 뜨는 '출/퇴근기록부' 창
+ * (장소 · ☐외근 · 시간 · ☐오전반차설정 · 사유 · [출근][닫기])에서 찍는다. 지난날 칸도 같은 창이 뜬다.
+ * 예전 우리 화면은 '오늘 근무' 판(출근하기 · 퇴근하기 — 지금 시각만)과 하단 [Excel][인쇄] 가 더 있었다.
  */
 export default function AttendancePage() {
   const [rows, setRows] = useState<Attendance[]>([])
-  const [today, setToday] = useState<Attendance | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cursor, setCursor] = useState(() => new Date())
-  /** 사용자 필터. 빈 값이면 전체 — 원본 [사용자] 조건의 기본값이 '전체'다. */
-  const [userFilter, setUserFilter] = useState('')
-
-  // 표 내보내기/인쇄/검색 직접 배선
-  const bodyRef = useRef<HTMLDivElement>(null)
-  const [search, setSearch] = useState('')
-  const [optionOpen, setOptionOpen] = useState(false)
+  const { user } = useAuth()
+  /** 원본 위쪽 알약 [사용자][전체] — <b>사용자(나)</b>가 기본이다. */
+  const [scope, setScope] = useState<'사용자' | '전체'>('사용자')
   const [helpOpen, setHelpOpen] = useState(false)
-  const [notice, setNotice] = useState('')
-
-  // Search(F3) — 버튼 라벨이 약속한 단축키
-  useShortcut('F3', () => filterRows(search))
-
-  const flash = (msg: string) => {
-    setNotice(msg)
-    window.setTimeout(() => setNotice(''), 2500)
-  }
-
-  // 렌더된 tbody 행을 텍스트 부분일치로 숨기는 클라이언트 필터
-  const filterRows = (q: string) => {
-    const table = findDataTable(bodyRef.current)
-    if (!table) return
-    const needle = q.trim().toLowerCase()
-    let hit = 0
-    table.querySelectorAll('tbody tr').forEach((tr) => {
-      const row = tr as HTMLTableRowElement
-      if (row.cells.length === 1 && row.cells[0].colSpan > 1) return
-      const match = !needle || (row.textContent ?? '').toLowerCase().includes(needle)
-      row.style.display = match ? '' : 'none'
-      if (match) hit += 1
-    })
-    if (needle) flash(`'${q.trim()}' 검색결과 ${hit}건`)
-  }
-
-  async function doExcel() {
-    const table = findDataTable(bodyRef.current)
-    if (!table) return flash('이 화면에는 내보낼 표가 없습니다.')
-    if (!(await exportTableToXlsx(table, TITLE))) flash('내보낼 자료가 없습니다.')
-  }
-
-  function doPrint() {
-    const table = findDataTable(bodyRef.current)
-    if (!table) return flash('이 화면에는 인쇄할 표가 없습니다.')
-    if (!printTable(table, TITLE)) flash('인쇄할 자료가 없습니다.')
-  }
+  /** 누른 날 — 기록 창이 열린다. */
+  const [picked, setPicked] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
     try {
-      const [list, t] = await Promise.all([
-        api.get<Attendance[]>('/attendances'),
-        api.get<Attendance | ''>('/attendances/today'),
-      ])
-      setRows(list.data)
-      setToday(t.data || null)
+      setRows((await api.get<Attendance[]>('/attendances')).data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
-
   useEffect(() => { load() }, [])
 
-  const moveMonth = (d: number) => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + d, 1))
+  /** 창의 [출근] · [퇴근] — 누른 날 · 고른 시각으로 넣고 달력을 다시 읽는다. 실패하면 창이 오류를 띄운다. */
+  async function record(body: AttendanceRecordBody) {
+    await api.post('/attendances/record', body)
+    setPicked(null)
+    void load()
+  }
 
-  /** 화면에 보이는 사용자 목록 — 조회된 기록에서 뽑는다(별도 요청 없음). */
-  const userNames = [...new Set(rows.map((r) => r.userName))].sort()
-
-  const shown = rows.filter((r) => !userFilter || r.userName === userFilter)
+  const mine = (r: Attendance) => r.username === user?.username
+  const shown = rows.filter((r) => scope === '전체' || mine(r))
 
   /** 날짜 → 그날 기록. 달력 칸마다 훑지 않도록 한 번만 묶는다. */
   const byDate = new Map<string, Attendance[]>()
@@ -126,99 +78,48 @@ export default function AttendancePage() {
   })()
   const todayKey = ymd(new Date())
 
-  async function punch(kind: 'clock-in' | 'clock-out') {
-    setError('')
-    try {
-      await api.post(`/attendances/${kind}`)
-      load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
-  }
-
-
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '출퇴근', [])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>출/퇴근기록부(ID)</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
-          <button className="ec-btn" onClick={load}>새로고침</button>
-          <input
-            className="ec-input"
-            placeholder="입력 후 [Enter]"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); filterRows(e.target.value) }}
-            onKeyDown={(e) => { if (e.key === 'Enter') filterRows(search) }}
-            style={{ width: 150 }}
-          />
-          <button className="ec-btn ec-btn-primary" onClick={() => filterRows(search)}>Search(F3)</button>
-          <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">출/퇴근기록부(ID)</span>
+        <div className="ml-auto flex items-center gap-[4px]">
+          {/* 원본 제목 줄에는 [Option][도움말] 뿐이다. Option 판(설정 화면)은 받쳐 줄 설정이 없어 모양만 둔다. */}
+          <button className="ec-btn">Option</button>
           <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
-
-          {optionOpen && (
-            <>
-              <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
-                {[
-                  { label: 'Excel 내려받기', run: () => { void doExcel() } },
-                  { label: '인쇄', run: () => doPrint() },
-                  { label: '검색조건 초기화', run: () => { setSearch(''); filterRows('') } },
-                ].map((m) => (
-                  <button key={m.label} onClick={() => { setOptionOpen(false); m.run() }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', fontSize: 12, background: 'none', border: 0, cursor: 'pointer' }}>{m.label}</button>
-                ))}
-              </div>
-            </>
-          )}
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {/* 오늘 출퇴근 카드 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20, border: '1px solid var(--ec-border)', background: '#fff', padding: '14px 18px', marginBottom: 10, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)' }}>오늘 근무</div>
-        <div style={{ display: 'flex', gap: 24, fontSize: 13 }}>
-          <div><span style={{ color: '#8a929c' }}>출근</span> <b style={{ marginLeft: 6 }}>{today?.clockIn ?? '--:--'}</b></div>
-          <div><span style={{ color: '#8a929c' }}>퇴근</span> <b style={{ marginLeft: 6 }}>{today?.clockOut ?? '--:--'}</b></div>
-          <div><span style={{ color: '#8a929c' }}>근무시간</span> <b style={{ marginLeft: 6 }}>{fmtMin(today?.workMinutes ?? null) || '-'}</b></div>
-          {today?.late && <span style={{ color: '#c60a2e', fontWeight: 700 }}>지각</span>}
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <button className="ec-btn ec-btn-primary" onClick={() => punch('clock-in')} disabled={!!today?.clockIn}>출근하기</button>
-          <button className="ec-btn" onClick={() => punch('clock-out')} disabled={!today?.clockIn || !!today?.clockOut}>퇴근하기</button>
-        </div>
+      {/* 원본: 알약 [사용자][전체], 그 아래 연 · 월 고르기 — 달력 바로 위 */}
+      <div className="ec-pills mb-[6px]">
+        {(['사용자', '전체'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${scope === t ? ' active' : ''}`} onClick={() => setScope(t)}>{t}</button>
+        ))}
       </div>
-
-      {/* 조회 조건 — 원본은 [사용자] 와 연/월이 달력 위에 있다 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 12, color: 'var(--ec-label)' }}>사용자</span>
-        <select className="ec-input" value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={{ width: 150 }}>
-          <option value="">전체</option>
-          {userNames.map((n) => <option key={n} value={n}>{n}</option>)}
+      <div className="flex items-center gap-[6px] mb-[6px]">
+        <select className="ec-input w-[80px]" aria-label="연" value={cursor.getFullYear()}
+                onChange={(e) => setCursor(new Date(Number(e.target.value), cursor.getMonth(), 1))}>
+          {Array.from({ length: 11 }, (_, k) => new Date().getFullYear() - 5 + k).map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <span style={{ marginLeft: 12 }}>
-          <button className="ec-btn ec-btn-sm" onClick={() => moveMonth(-1)} aria-label="이전 달">‹</button>
-          <span style={{ margin: '0 10px', fontSize: 12 }}>
-            {cursor.getFullYear()} / {String(cursor.getMonth() + 1).padStart(2, '0')}
-          </span>
-          <button className="ec-btn ec-btn-sm" onClick={() => moveMonth(1)} aria-label="다음 달">›</button>
-          <button className="ec-btn ec-btn-sm" style={{ marginLeft: 6 }} onClick={() => setCursor(new Date())}>이번 달</button>
-        </span>
+        <select className="ec-input w-[64px]" aria-label="월" value={cursor.getMonth() + 1}
+                onChange={(e) => setCursor(new Date(cursor.getFullYear(), Number(e.target.value) - 1, 1))}>
+          {Array.from({ length: 12 }, (_, k) => k + 1).map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
       </div>
 
-      <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>
+      <div className="flex-1 min-h-0">
         <table ref={tableRef} className="w-full text-left">
-          <colgroup>{DOW.map((d) => <col key={d} style={{ width: '14.28%' }} />)}</colgroup>
+          <colgroup>{DOW.map((d) => <col key={d} className="w-[14.28%]" />)}</colgroup>
           <thead>
             <tr>
-              {DOW.map((d, i) => (
-                <th key={d} style={{ textAlign: 'center', color: i === 0 ? '#c60a2e' : i === 6 ? 'var(--ec-blue)' : undefined }}>{d}</th>
+              {DOW.map((d) => (
+                <th key={d} className="text-center">{d}</th>
               ))}
             </tr>
           </thead>
@@ -230,24 +131,19 @@ export default function AttendancePage() {
                   const otherMonth = day.getMonth() !== cursor.getMonth()
                   const list = byDate.get(key) ?? []
                   return (
-                    <td key={key} style={{ verticalAlign: 'top', height: 92, padding: 4, background: otherMonth ? '#fafbfc' : undefined }}>
-                      <div style={{
-                        fontSize: 12, marginBottom: 3,
-                        color: otherMonth ? '#c8ced6'
-                          : day.getDay() === 0 ? '#c60a2e'
-                          : day.getDay() === 6 ? 'var(--ec-blue)' : 'var(--ec-text-grid)',
-                        fontWeight: key === todayKey ? 700 : 400,
-                      }}>
-                        {day.getDate()}
-                      </div>
-                      {list.map((r) => (
-                        <div key={r.id} style={{ fontSize: 11.5, lineHeight: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <span style={{ color: 'var(--ec-label)' }}>{r.userName}</span>{' '}
-                          <span style={{ color: r.late ? '#c60a2e' : undefined }}>{r.clockIn ?? '--:--'}</span>
-                          <span style={{ color: '#c8ced6' }}>~</span>
-                          <span>{r.clockOut ?? '--:--'}</span>
+                    // 원본: 그 달 밖의 칸은 숫자 없이 회색, 오늘 칸은 옅은 파랑. 그 달 칸(td calItem cursor-pointer)을 누르면 기록 창.
+                    <td key={key} data-date={otherMonth ? undefined : key}
+                        className={`align-top h-[62px] p-[2.7px] ${otherMonth ? 'bg-ec-disabled' : `cursor-pointer ${key === todayKey ? 'bg-ec-blue-wash' : ''}`}`}
+                        onClick={otherMonth ? undefined : () => setPicked(key)}>
+                      {!otherMonth && <div className="text-[12px] mb-[3px] text-ec-ink">{day.getDate()}</div>}
+                      {!otherMonth && list.map((r) => (
+                        <div key={r.id} className="text-[11.5px] leading-[1.5] whitespace-nowrap overflow-hidden text-ellipsis">
+                          <span className="text-ec-label">{r.userName}</span>{' '}
+                          <span className={r.late ? 'text-ec-danger' : undefined}>{hm(r.clockIn)}</span>
+                          <span className="text-ec-off">~</span>
+                          <span>{hm(r.clockOut)}</span>
                           {r.workMinutes != null && (
-                            <span style={{ color: 'var(--ec-label)' }}> ({fmtMin(r.workMinutes)})</span>
+                            <span className="text-ec-label"> ({fmtMin(r.workMinutes)})</span>
                           )}
                         </div>
                       ))}
@@ -258,29 +154,26 @@ export default function AttendancePage() {
             ))}
           </tbody>
         </table>
-        {loading && <p style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 10 }}>불러오는 중…</p>}
+        {loading && <p className="text-center text-ec-ink p-[10px]">불러오는 중…</p>}
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
-        <button className="ec-btn" onClick={() => { void doExcel() }}>Excel</button>
-        <button className="ec-btn" onClick={() => doPrint()}>인쇄</button>
-      </div>
+      <AttendanceRecordModal date={picked} userName={user?.name ?? ''}
+                             record={picked ? rows.find((r) => r.workDate === picked && mine(r)) ?? null : null}
+                             onClose={() => setPicked(null)}
+                             onSubmit={record} />
 
       {helpOpen && (
-        <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 420, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
-              <span>{TITLE} · 도움말</span>
-              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
+        <div className="ec-modal-back" onClick={() => setHelpOpen(false)}>
+          <div role="dialog" aria-label={`${TITLE} · 도움말`} className="ec-modal w-[420px]" onClick={(e) => e.stopPropagation()}>
+            <div className="ec-modal-bar">
+              <span className="name">{TITLE} · 도움말</span>
+              <button className="close" aria-label="닫기" onClick={() => setHelpOpen(false)}>✕</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
-              <ul style={{ paddingLeft: 16, margin: 0 }}>
-                <li>상단 <b>출근하기·퇴근하기</b> 버튼으로 오늘 근무를 기록합니다.</li>
-                <li><b>Search(F3)</b> — 일자·사용자 등 입력한 낱말이 포함된 행만 추립니다.</li>
-                <li><b>Excel/인쇄</b> — 지금 화면의 출퇴근 기록표를 파일로 내려받거나 인쇄합니다.</li>
-                <li>정시보다 늦게 출근하면 <b>지각</b>으로 표시됩니다.</li>
-              </ul>
-            </div>
+            <ul className="pl-[16px] m-0 text-[12px] leading-[1.7]">
+              <li>날짜 칸을 누르면 <b>출/퇴근기록부</b> 창이 뜹니다. 장소 · 시간 · 사유를 넣고 [출근] — 같은 날을 다시 누르면 [퇴근] 입니다.</li>
+              <li>지난날도 같은 창에서 넣을 수 있습니다.</li>
+              <li>정시(09:00)보다 늦게 출근하면 지각으로 칩니다(☐오전반차설정을 켠 날은 빼고).</li>
+            </ul>
           </div>
         </div>
       )}

@@ -1,0 +1,31 @@
+{
+  "about": "재고조정조회 [인쇄] · [이력조회] (원본 E040614 2026-10-13 실측) — 간편재고조정 1건을 API 로 만들고, 안 고르고 [인쇄] 는 '리스트에 선택된 자료가 없습니다.', 고르면 재고조정전표 창. [이력조회] 창에 '신규' 줄, 지우면 '삭제' 줄이 붙는다. 만든 조정은 지운다(재고는 되돌아간다).",
+  "shots": [
+    {
+      "name": "인쇄 · 이력조회",
+      "path": "/inventory/adjust-list",
+      "steps": [
+        "wait:2000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=1);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await window.__api('POST','/stock-adjustments',{type:'ADJUST',itemId:st.itemId,warehouseId:st.warehouseId,actualQty:Number(st.quantity)+2,adjustDate:ymd,reason:'QA재고1 이력'});sessionStorage.setItem('adjH',JSON.stringify({id:r.body.id,no:r.body.adjustNo,date:ymd}));return r.status})()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(()=>{window.__asked='';window.alert=(m)=>{window.__asked=m};return true})()",
+        "click:인쇄",
+        "wait:300",
+        "expect:window.__asked.startsWith('리스트에 선택된 자료가 없습니다.')",
+        "js:(()=>{const S=JSON.parse(sessionStorage.getItem('adjH'));const lab=S.date.slice(2).replace(/-/g,'/')+'-'+Number(S.no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(lab));tr.querySelector('input[type=checkbox]').click();window.__asked='';window.__opened=null;window.open=()=>{const f=document.createElement('iframe');f.style.cssText='position:fixed;left:0;top:0;width:900px;height:700px;z-index:99999;background:#fff;border:0';document.body.appendChild(f);const w=f.contentWindow;w.print=()=>{};window.__opened=w;window.__pf=f;return w};return true})()",
+        "click:인쇄",
+        "wait:800",
+        "expect:window.__opened.document.body.innerText.includes('재고조정전표') && window.__opened.document.body.innerText.includes('[ 1 / 1 ]')",
+        "js:(()=>{window.__pf&&window.__pf.remove();return true})()",
+        "click:이력조회",
+        "wait:1500",
+        "expect:(()=>{const S=JSON.parse(sessionStorage.getItem('adjH'));const lab=S.date.replace(/-/g,'/')+' -'+Number(S.no.split('-').pop());return [...document.querySelectorAll('[role=dialog] tbody tr')].some((t)=>t.innerText.includes(lab)&&t.innerText.includes('신규'))})()",
+        "js:(async()=>{const S=JSON.parse(sessionStorage.getItem('adjH'));const r=await window.__api('DELETE','/stock-adjustments/'+S.id);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const h=(await window.__api('GET','/stock-adjustments/histories?sort=%EA%B0%84%ED%8E%B8&from='+ymd+'&to='+ymd)).body;sessionStorage.setItem('adjHdel',String(r.status)+':'+h.filter((x)=>x.adjustNo===S.no).map((x)=>x.action).join(','));return true})()",
+        "expect:/^20[04]:삭제,신규$/.test(sessionStorage.getItem('adjHdel'))"
+      ]
+    }
+  ]
+}

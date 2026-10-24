@@ -1,0 +1,65 @@
+{
+  "about": "화면을 사람처럼 써 보는 회귀 시험 — node qa/shot.mjs qa/flows/trade-entry.json. QA 하네스 기본자료(QA-CUST·QA-SUPP·QA-WH·QA-PROD·QA-MAT)를 쓰고, 만든 전표는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "판매입력 — 거래처·창고·품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아간다(원본 E040205 2026-10-21) — 번호는 API 로 찾는다",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right|1",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!/(저장|수정) 완료/.test(document.body.innerText)",
+        "expect:!document.querySelector('tbody tr input.text-right')?.value",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSale', s.docNo); return s.docNo })()",
+        "expect:/^SO-/.test(sessionStorage.getItem('__lastSale'))",
+        "apidel:/sales|@__lastSale|docNo"
+      ]
+    },
+    {
+      "name": "구매입력 — 같은 흐름(QA-MAT 은 구매단가가 0 이라 단가를 직접 넣는다)",
+      "path": "/sales/buy",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-SUPP",
+        "click:입고창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-MAT",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|500",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!/(저장|수정) 완료/.test(document.body.innerText)",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/purchases', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastPurchase', s.docNo); return s.docNo })()",
+        "expect:/^PO-/.test(sessionStorage.getItem('__lastPurchase'))",
+        "apidel:/purchases|@__lastPurchase|docNo"
+      ]
+    },
+    {
+      "name": "주문서 등록 — 매출처·품목을 코드도움으로(9회차까지 긴 드롭다운이었다)",
+      "path": "/sales/orders",
+      "steps": [
+        "click:신규(F2)",
+        "click:매출처 선택",
+        "pickrow:QA-CUST",
+        "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:[role=dialog] tbody input.text-right#0|2",
+        "set:[role=dialog] tbody input.text-right#1|1000",
+        "click:출하창고 선택",
+        "pickrow:QA-WH",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSO', o.orderNo); return o.orderNo })()",
+        "apidel:/sales-orders|@__lastSO|orderNo"
+      ]
+    }
+  ]
+}

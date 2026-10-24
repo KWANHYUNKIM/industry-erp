@@ -1,0 +1,33 @@
+{
+  "about": "품질검사입력(E040621) 따로 된 입력 화면 — 2026-10-14: 메뉴가 품질검사조회의 창이 아니라 입력 화면을 연다(품질검사요청입력 E040628 과 같은 꼴, 폼은 features/quality/components/QualityInspectionForm). 빈 저장 '자료를 입력 바랍니다.', 저장하면 빈 입력으로 남는다(안내 없음). [리스트] 는 품질검사조회로. 만든 검사는 지운다.",
+  "shots": [
+    {
+      "name": "빈 저장 막힘 → ITM-0001 × 2 저장 → 빈 입력 · 안내 없음 → 조회에 생김 → 지움",
+      "path": "/quality/inspection-entry",
+      "steps": [
+        "wait:1500",
+        "expect:document.body.innerText.includes('품질검사입력') && !document.querySelector('[role=dialog]')",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('자료를 입력 바랍니다.')",
+        "set:input[aria-label=\"담당자\"]|QA재고2",
+        "js:document.querySelector('input[placeholder=\"품목코드\"]').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))",
+        "wait:600",
+        "pickrow:ITM-0001",
+        "wait:400",
+        "set:input[aria-label=\"1줄 수량\"]|2",
+        "expect:document.querySelector('input[aria-label=\"1줄 시료\"]').value === '2'",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:!document.body.innerText.includes('임시저장되었습니다.') && !document.body.innerText.includes('자료를 입력')",
+        "expect:document.querySelector('input[aria-label=\"1줄 수량\"]').value === '' && document.querySelector('input[aria-label=\"담당자\"]').value === ''",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const qs = await (await fetch('/api/quality-inspections', { headers: H })).json(); const q = qs.filter((x) => x.inspector === 'QA재고2' && x.lines?.[0]?.itemCode === 'ITM-0001' && Number(x.totalQuantity) === 2).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('qie', JSON.stringify({ id: q?.id, sample: q?.inspectedQty, status: q?.statusName })); return JSON.stringify({ id: q?.id, no: q?.inspectionNo, sample: q?.inspectedQty, status: q?.statusName }) })()",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('qie') || '{}'); return !!x.id && Number(x.sample) === 2 && x.status === '진행중' })()",
+        "click:리스트",
+        "wait:2000",
+        "expect:location.pathname === '/quality/inspection' && document.body.innerText.includes('품질검사조회')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const x = JSON.parse(sessionStorage.getItem('qie')); const d = await fetch('/api/quality-inspections/' + x.id, { method: 'DELETE', headers: H }); return 'deleted ' + x.id + ' ' + d.status })()"
+      ]
+    }
+  ]
+}

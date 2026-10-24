@@ -9,7 +9,7 @@
  * '입고단가(품목)' 이 품목의 <b>판매단가</b>를 읽고 있어서, 개발 자료에서 매출 25,794,000 에
  * 원가 99,090,000(매출의 4배)이 잡히고 이익이 −73,296,000 으로 나왔다.
  */
-export type CostBasis = '월별원가' | '최종구매가' | '입고단가(품목)'
+export type CostBasis = '선입선출(판매)' | '월별원가' | '최종구매가' | '입고단가(품목)'
 
 export interface CostSources {
   /** 그 달의 표준원가. 없으면 null. */
@@ -18,6 +18,11 @@ export interface CostSources {
   lastPurchasePrice: number | null
   /** 품목 마스터의 <b>구매단가</b>. 판매단가가 아니다. 0 이면 안 정한 것이다. */
   itemPurchasePrice: number | null
+  /**
+   * 그 판매 줄의 <b>선입선출 단가</b>(서버 /stock/fifo-sale-costs 가 셈한 원가 ÷ 수량). 원본 이익현황의 기본 원가다
+   * (2026-10-04 실측). 재고 이력에 그 판매 출고가 없으면 null.
+   */
+  fifoUnitCost?: number | null
 }
 
 /**
@@ -27,6 +32,10 @@ export interface CostSources {
  * 모르는 것은 모른다고 해야 화면이 '—' 로 두고 합계에서 뺄 수 있다.
  */
 export function costOf(basis: CostBasis, src: CostSources): number | null {
+  if (basis === '선입선출(판매)') {
+    /* 선입선출 원가는 0 일 수 있다(0원에 들어온 층). 그래도 '안다' 이므로 null 과 가른다. */
+    return src.fifoUnitCost == null ? null : Math.max(src.fifoUnitCost, 0)
+  }
   const pick = basis === '월별원가' ? src.monthlyCost
     : basis === '최종구매가' ? src.lastPurchasePrice
       : src.itemPurchasePrice

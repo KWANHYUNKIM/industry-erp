@@ -10,8 +10,10 @@ import { useRef } from 'react'
  * 값은 바깥과 `YYYY-MM-DD` 로 주고받는다 — API 가 쓰는 형식 그대로다.
  */
 export default function EcDateField({
-  value, onChange, disabled, yearSpan = 3,
+  value, onChange, disabled, yearSpan = 3, invalid,
 }: {
+  /** 빈 필수칸 — 원본 has-error 빨간 테두리(`.ec-invalid`). useRequired 훅의 on(키, 채워졌나). */
+  invalid?: boolean
   value: string
   onChange: (v: string) => void
   disabled?: boolean
@@ -41,7 +43,7 @@ export default function EcDateField({
   }
 
   return (
-    <div className="ec-date">
+    <div className={invalid ? 'ec-date ec-invalid' : 'ec-date'}>
       <select
         className="ec-input"
         disabled={disabled}

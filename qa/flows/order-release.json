@@ -1,0 +1,43 @@
+{
+  "about": "주문서출고처리(원본 E040230, 2026-10-13 loginaa 실측) — 오늘자 주문 7개를 만들고, 미처리에서 체크하면 출고수량이 잔량 7 로 차고, 3 으로 고쳐 [출고] → 출고등록 [저장(F8)] 하면 잔량 4. 처리 탭에 출고수량합계 3.00 · 판매 '입력', '입력' 을 누르면 판매입력이 거래처 · 품목 · 수량 3 으로 차고 저장하면 처리 탭 [판매] 가 판매 일자-No.(공백 없이). [처리취소] 는 '이미 판매입력된 전표가 있습니다.' 를 묻고 처리만 지운다 — 미처리 잔량이 다시 7. 판매 · 주문은 끝에 지운다. CDP_PORT=<포트> node qa/shot.mjs qa/flows/order-release.json",
+  "shots": [
+    {
+      "name": "출고 → 판매입력 → 처리취소",
+      "path": "/sales/order-release",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const p = (await (await fetch('/api/partners', { headers: H })).json()).find((x) => x.type === 'CUSTOMER' || x.type === 'BOTH'); const items = await (await fetch('/api/items', { headers: H })).json(); const st = (await (await fetch('/api/stock', { headers: H })).json()).find((x) => x.quantity >= 10 && items.some((i) => i.id === x.itemId && i.active !== false)); const it = items.find((i) => i.id === st.itemId); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const r = await (await fetch('/api/sales-orders', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, orderDate: d, dueDate: d, warehouseId: st.warehouseId, taxable: true, remark: 'QA재고1 출고처리', lines: [{ itemId: it.id, quantity: 7, unitPrice: 1000 }] }) })).json(); const label = d.replace(/-/g, '/') + ' -' + Number(r.orderNo.split('-').pop()); sessionStorage.setItem('orl', JSON.stringify({ id: r.id, label, item: it.name })); return label })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('orl')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => [...t.querySelectorAll('a')].some((a) => a.textContent.trim() === S.label)); window.__set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; window.__row().querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:300",
+        "expect:(() => window.__row().querySelectorAll('input')[1].value.replace(/[^0-9.]/g, '') === '7')()",
+        "js:(() => { const i = window.__row().querySelectorAll('input')[1]; i.focus(); window.__set(i, '3'); i.blur(); return true })()",
+        "click:출고",
+        "wait:500",
+        "expect:(() => !!document.querySelector('[role=dialog]') && document.querySelector('[role=dialog]').innerText.includes('처리구분'))()",
+        "click:저장(F8)",
+        "wait:2000",
+        "expect:(() => !document.querySelector('[role=dialog]') && window.__row().cells[4].innerText.trim() === '4.00')()",
+        "click:처리",
+        "wait:2000",
+        "expect:(() => { const r = window.__row(); return !!r && r.cells[5].innerText.trim() === '3.00' && r.cells[6].innerText.trim() === '입력' })()",
+        "js:(() => { [...window.__row().querySelectorAll('a')].find((a) => a.textContent.trim() === '입력').click(); return true })()",
+        "wait:3500",
+        "expect:(() => location.pathname === '/sales/sell' && [...document.querySelectorAll('input')].some((i) => i.value === '3'))()",
+        "click:저장(F8)",
+        "wait:3000",
+        "expect:(() => location.pathname === '/sales/order-release' && /^\\d{4}\\/\\d{2}\\/\\d{2}-\\d+$/.test(window.__row()?.cells[6].innerText.trim() ?? ''))()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('orl')); const r = (await (await fetch('/api/order-releases', { headers: H })).json()).find((x) => x.orderId === S.id); S.saleId = r.saleId; sessionStorage.setItem('orl', JSON.stringify(S)); return r.saleNo })()",
+        "js:(() => { window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; window.__row().querySelector('input[type=checkbox]').click(); return true })()",
+        "click:처리취소",
+        "wait:2000",
+        "expect:(() => window.__asked.startsWith('이미 판매입력된 전표가 있습니다.') && !window.__row())()",
+        "click:미처리",
+        "wait:2000",
+        "expect:(() => window.__row()?.cells[4].innerText.trim() === '7.00')()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('orl')); const a = (await fetch('/api/sales/' + S.saleId, { method: 'DELETE', headers: H })).ok; const b = (await fetch('/api/sales-orders/' + S.id, { method: 'DELETE', headers: H })).ok; return a && b })()"
+      ]
+    }
+  ]
+}

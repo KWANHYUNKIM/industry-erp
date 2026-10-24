@@ -1,0 +1,16 @@
+{
+  "about": "출/퇴근기록부(ID)(원본 E070305) — 알약 [사용자][전체](사용자 기본), 연 · 월 고르기, 제목 줄은 [Option][도움말]뿐, 달 밖 칸은 숫자 없이 회색 · 오늘 칸 옅은 파랑. node qa/shot.mjs qa/flows/attendance-calendar.json",
+  "shots": [
+    {
+      "name": "알약 · 연월 · 달력",
+      "path": "/groupware/attendance",
+      "steps": [
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.textContent.trim()).join(',') === '사용자,전체' && document.querySelector('.ec-pills .ec-pill.active')?.textContent.trim() === '사용자'",
+        "expect:!!document.querySelector('select[aria-label=연]') && !!document.querySelector('select[aria-label=월]')",
+        "expect:![...document.querySelectorAll('button')].some((b) => ['새로고침', 'Search(F3)'].includes(b.textContent.trim()))",
+        "expect:[...document.querySelectorAll('tbody td.bg-ec-disabled')].every((td) => !/\\d/.test(td.innerText))",
+        "expect:!!document.querySelector('tbody td.bg-ec-blue-wash')"
+      ]
+    }
+  ]
+}

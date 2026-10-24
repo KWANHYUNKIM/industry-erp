@@ -1,0 +1,87 @@
+{
+  "about": "시리얼/로트No.재고조정(E040634) — 2026-10-14 원본 실측(QA재고2-ADJ1 = 우리 QA재고2-조정): 로트 등록 → [합계] 빈칸(0) 을 5 · 적요 QA재고2 저장 → '알림 · 저장되었습니다.' → [합계] 5.00 · 적요 빈칸 → [보기] 재고조정 -5.00 → 재고현황 5.00 → 재고수불부 '재고조정 | | QA재고2 | | -5.00 | 5.00 | … -0' → -1 저장(잔량 -1.00) → 내역조회에서 재고조정 줄 둘을 열어 [삭제] → 재고현황에서 빠짐 → 로트 삭제.",
+  "shots": [
+    {
+      "name": "로트 등록",
+      "path": "/quality/serial-lot",
+      "steps": [
+        "wait:2000",
+        "click:신규(F2)",
+        "wait:600",
+        "js:(async () => { document.querySelector('.ec-modal input[placeholder=\"품목\"]').click(); await new Promise((r) => setTimeout(r, 700)); return 'ok' })()",
+        "pickrow:QA2LOT01",
+        "js:(() => { const el = document.querySelector('.ec-modal textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(el, 'QA재고2-조정'); el.dispatchEvent(new Event('input', { bubbles: true })); return el.value })()",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-조정'))"
+      ]
+    },
+    {
+      "name": "합계 빈칸 → 5 · 적요 저장 → 알림 · 5.00 · 적요 비움 · [보기] -5.00",
+      "path": "/quality/lot-adjust",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); S([...document.querySelectorAll('input')].find((x) => !x.type || x.type === 'text' ? x.closest('li')?.innerText.includes('시리얼/로트No.') : false), 'QA재고2-조정'); await W(300); return 'ok' })()",
+        "expect:[...document.querySelectorAll('tbody tr')].length === 1 && document.querySelector('input[aria-label=\"QA재고2-조정 합계\"]').value === ''",
+        "expect:/\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d+:\\d{2}:\\d{2}/.test(document.body.innerText)",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); S([...document.querySelectorAll('input')].find((x) => !x.type || x.type === 'text' ? x.closest('li')?.innerText.includes('시리얼/로트No.') : false), 'QA재고2-조정'); await W(300); S(document.querySelector('input[aria-label=\"QA재고2-조정 합계\"]'), '5'); S(document.querySelector('input[aria-label=\"QA재고2-조정 적요\"]'), 'QA재고2'); await W(200); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '저장(F8)').click(); await W(1500); const t = document.querySelector('[role=alertdialog]')?.innerText ?? ''; [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(500); return t })()",
+        "expect:document.querySelector('input[aria-label=\"QA재고2-조정 합계\"]').value === '5.00' && document.querySelector('input[aria-label=\"QA재고2-조정 적요\"]').value === ''",
+        "js:(async () => { [...document.querySelectorAll('tbody button')].find((b) => b.innerText.trim() === '보기').click(); await new Promise((r) => setTimeout(r, 900)); return 'ok' })()",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-조정') && tr.innerText.includes('재고조정') && tr.innerText.includes('-5.00'))"
+      ]
+    },
+    {
+      "name": "재고현황 5.00",
+      "path": "/quality/lot-stock",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-조정') && r.cells[r.cells.length - 1].innerText.trim() === '5.00')"
+      ]
+    },
+    {
+      "name": "재고수불부 — 재고조정은 출고 -5.00 · 적요 QA재고2",
+      "path": "/quality/lot-ledger",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); return c[1] === 'QA재고2-조정' && c[3] === '재고조정' && c[5] === 'QA재고2' && c[6] === '' && c[7] === '-5.00' && c[8] === '5.00' && / -0$/.test(c[9]) })"
+      ]
+    },
+    {
+      "name": "합계 -1 저장 → -1.00",
+      "path": "/quality/lot-adjust",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); S([...document.querySelectorAll('input')].find((x) => !x.type || x.type === 'text' ? x.closest('li')?.innerText.includes('시리얼/로트No.') : false), 'QA재고2-조정'); await W(300); S(document.querySelector('input[aria-label=\"QA재고2-조정 합계\"]'), '-1'); S(document.querySelector('input[aria-label=\"QA재고2-조정 적요\"]'), 'QA재고2'); await W(200); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '저장(F8)').click(); await W(1500); const t = document.querySelector('[role=alertdialog]')?.innerText ?? ''; [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(500); return t })()",
+        "expect:document.querySelector('input[aria-label=\"QA재고2-조정 합계\"]').value === '-1.00'"
+      ]
+    },
+    {
+      "name": "내역조회에서 재고조정 줄 둘 삭제(되돌림)",
+      "path": "/quality/lot-tx-list",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((r) => r.innerText.includes('QA재고2-조정') && r.innerText.includes('재고조정')).length === 2",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-조정')).querySelector('button.ec-link').click(); await W(800); const m = [...document.querySelectorAll('[role=dialog]')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); await W(400); [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(1500); return 'ok' })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-조정')).querySelector('button.ec-link').click(); await W(800); const m = [...document.querySelectorAll('[role=dialog]')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); await W(400); [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(1500); return 'ok' })()",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-조정'))"
+      ]
+    },
+    {
+      "name": "재고현황에서 빠짐",
+      "path": "/quality/lot-stock",
+      "steps": [
+        "wait:2500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-조정'))"
+      ]
+    },
+    {
+      "name": "로트 지우기",
+      "path": "/quality/serial-lot",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-조정')).querySelector('a').click(); await W(600); const m = [...document.querySelectorAll('.ec-modal')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.startsWith('사용중단/재사용')).click(); await W(300); [...m.querySelectorAll('.ec-menu button')].find((b) => b.textContent === '삭제').click(); await W(400); [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(1500); return 'ok' })()",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-조정'))"
+      ]
+    }
+  ]
+}

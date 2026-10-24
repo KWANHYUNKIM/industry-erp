@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { ecAlert } from './EcDialog'
 import EcPeriodPicks, {
   COMPARE_PERIODS, INQUIRY_PICKS, comparePeriodOf, type ComparePeriod, type PeriodRange,
 } from './EcPeriodPicks'
@@ -18,18 +19,43 @@ import EcPeriodPicks, {
  * 우리는 EcListShell 의 actions 가 그 자리다.
  */
 
-/** 조건 한 줄. `pick` 이면 코드도움 조건이라 라벨이 파랗다(원본 규칙). */
-export function EcCond({ label, pick, children }: { label: string; pick?: boolean; children: ReactNode }) {
+/**
+ * 조건 한 칸. `pick` 이면 코드도움 조건이라 라벨이 파랗다(원본 규칙).
+ *
+ * <p>조건 판은 칸 폭이 같은 격자다(index.css .ec-cond). 한 칸에 안 들어가는 조건은
+ * `span={2}`(두 칸) 또는 `span="full"`(한 줄 통째)로 넓힌다. 입력칸 둘짜리 범위(일자~일자)는
+ * CSS 가 알아서 두 칸으로 잡으니 따로 줄 필요 없다.
+ */
+export function EcCond({ label, pick, span, children }: {
+  label: string; pick?: boolean; span?: 2 | 'full'; children: ReactNode
+}) {
+  const cls = [pick && 'pick', span === 2 && 'wide', span === 'full' && 'full'].filter(Boolean).join(' ')
   return (
-    <li className={pick ? 'pick' : undefined}>
+    <li className={cls || undefined}>
       <div className="title">{label}</div>
       <div className="form">{children}</div>
     </li>
   )
 }
 
+/**
+ * 조건 판 맨 위 탭 [기본] [전체] [+] — 원본 이익관리 현황(실제원가현황 · 차이분석 · 월별이익현황, 2026-10-22 실측)은
+ * [전체] 가 [기본] 과 같은 칸을 보인다. [+] 는 My탭(개인 탭)이라 두지 않고 안내만 한다. `.ec-cond` 의 첫 칸으로 둔다.
+ */
+export function EcCondTabs() {
+  const [tab, setTab] = useState<'기본' | '전체'>('기본')
+  return (
+    <li className="full ec-cond-tabs" aria-label="조건 탭">
+      {(['기본', '전체'] as const).map((t) => (
+        <button key={t} type="button" className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>
+      ))}
+      <button type="button" onClick={() => void ecAlert('My탭은 지원하지 않습니다.')}>+</button>
+    </li>
+  )
+}
+
 export default function EcStatusPanel({
-  modes, mode, onModeChange,
+  modes, mode, onModeChange, modeLabel = '구분', compareLabel = '비교기간', modeExtra,
   compare, onCompareChange,
   from, to, onPeriod,
   view, onViewChange,
@@ -49,6 +75,18 @@ export default function EcStatusPanel({
    * 이익현황은 [라인별 | 품목별 | 거래처별 | …]. 그래서 목록을 받는다.
    */
   modes?: readonly string[]
+  /**
+   * 이 두 줄의 <b>이름표</b>. 기본은 [구분]·[비교기간] 인데 화면마다 다르다 —
+   * 주문서현황(E040209)은 위 줄이 <b>[메뉴]</b>(현황·집계)이고 비교기간이 <b>[구분]</b> 안에 있다.
+   * 이름을 화면이 정하게 두지 않으면 그런 화면에서 대조표가 늘 어긋난다.
+   */
+  modeLabel?: string
+  compareLabel?: string
+  /**
+   * [구분] 줄 끝에 붙는 것 — 원본은 ◉내역 아래 선택상자(일별 · 월별 · 라인별 · 전표별 · …)로 내역의 모양을 고른다
+   * (2026-10-02 생산불출현황 실측). 화면이 고를 수 있는 것만 넣어 준다.
+   */
+  modeExtra?: ReactNode
   mode?: string
   onModeChange?: (m: string) => void
   /** [비교기간]. 안 주면 그 줄을 그리지 않는다. */
@@ -85,6 +123,8 @@ export default function EcStatusPanel({
   /** 화면마다 다른 조건들 — `EcCond` 로 감싼다. */
   children?: ReactNode
 }) {
+  /* [메뉴 현황|집계] 위 줄 + [구분] 아래 줄 틀(판매 · 구매 · 출하 · 주문서 현황)은 비교기간이 알약이다. */
+  const asPills = modeLabel === '메뉴' && compareLabel === '구분'
   const prev = compare ? comparePeriodOf(from, to, compare) : null
   /** 원본은 기준일자 옆에 마지막으로 누른 빠른선택 이름을 적어 둔다(예: '금월(~오늘)'). */
   const [pickedLabel, setPickedLabel] = useState('')
@@ -92,7 +132,7 @@ export default function EcStatusPanel({
   return (
     <ul className="ec-cond" style={{ marginBottom: 8 }}>
       {mode && onModeChange && (
-        <EcCond label="구분">
+        <EcCond label={modeLabel}>
           <div className="ec-pills">
             {(modes ?? ['내역', '집계', '라인별']).map((m) => (
               <button
@@ -104,11 +144,35 @@ export default function EcStatusPanel({
               </button>
             ))}
           </div>
+          {!asPills && modeExtra}
         </EcCond>
       )}
 
-      {compare && onCompareChange && (
-        <EcCond label="비교기간">
+      {compare && onCompareChange && asPills && (
+        /* 원본 판매현황 · 출하현황(2026-10-22 실측): [구분] 줄 안에 선택상자(라인별 …)가 위, 그 아래 줄에 '비교기간' 꼬리표 + 알약. */
+        <EcCond label={compareLabel}>
+          <div className="flex flex-col items-start gap-[5px]">
+            {modeExtra}
+            <div className="flex items-center gap-[5px]">
+              <span className="inline-flex items-center h-[18px] px-[6px] rounded-[4px] bg-ec-page text-ec-label text-[11px]">비교기간</span>
+              <div className="ec-pills">
+                {COMPARE_PERIODS.map((c) => (
+                  <button key={c} type="button" className={`ec-pill no-ec${compare === c ? ' active' : ''}`}
+                          onClick={() => onCompareChange(c)}>{c}</button>
+                ))}
+              </div>
+              {prev && (
+                <span className="text-[11.5px] text-ec-label">
+                  비교 대상 {prev.from.replace(/-/g, '/')} ~ {prev.to.replace(/-/g, '/')}
+                </span>
+              )}
+            </div>
+          </div>
+        </EcCond>
+      )}
+
+      {compare && onCompareChange && !asPills && (
+        <EcCond label={compareLabel}>
           <select
             className="ec-input"
             value={compare}
@@ -118,16 +182,20 @@ export default function EcStatusPanel({
             {COMPARE_PERIODS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           {prev && (
-            <span style={{ fontSize: 11.5, color: 'var(--ec-label)' }}>
+            <span className="text-[11.5px] text-ec-label">
               비교 대상 {prev.from.replace(/-/g, '/')} ~ {prev.to.replace(/-/g, '/')}
             </span>
           )}
         </EcCond>
       )}
 
-      <EcCond label={dateLabel}>
+      {/*
+        기간 빠른선택([금일][전일][금월] …)은 기준일자와 한 줄에 둔다. 예전엔 라벨 없는 줄을 따로
+        썼는데, 조건을 가로로 늘어놓자 그 줄이 엉뚱한 칸에 끼어 어느 조건의 버튼인지 알 수 없었다.
+      */}
+      <EcCond label={dateLabel} span="full">
         {pickedLabel && (
-          <span style={{ fontSize: 12, color: 'var(--ec-blue)', marginRight: 6 }}>{pickedLabel}</span>
+          <span className="text-[12px] text-ec-blue mr-[6px]">{pickedLabel}</span>
         )}
         <input type="date" className="ec-input" value={from}
                onChange={(e) => {
@@ -136,14 +204,11 @@ export default function EcStatusPanel({
                }} style={{ width: 140 }} />
         {!single && (
           <>
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <span className="text-ec-label">~</span>
             <input type="date" className="ec-input" value={to}
                    onChange={(e) => { setPickedLabel(''); onPeriod({ from, to: e.target.value }) }} style={{ width: 140 }} />
           </>
         )}
-      </EcCond>
-
-      <EcCond label="">
         <EcPeriodPicks
           labels={picks} currentFrom={from} fiscalStart={fiscalStart}
           // 한 날짜짜리 화면은 구간을 받아도 시작일만 쓴다 — 끝을 같이 맞춰 돌려준다.

@@ -1,0 +1,25 @@
+{
+  "about": "회계 I › 장부 › 거래처관리대장 II(E010842, 2026-10-22 원본 실측) — [거래처] 필수(빈 채로 [검색(F8)] 하면 칸이 빨개지고 조회 안 함) · 고르면 머리 '○○ 관리대장' + 사업자등록번호~기타사항 머리표 + 이월잔액 colspan 2. 조회만 한다.",
+  "shots": [
+    {
+      "name": "거래처 비움 → 빨간 칸 → 거래처 고름 → 관리대장 머리",
+      "path": "/accounting/partner-book-2",
+      "steps": [
+        "wait:2000",
+        "click:검색(F8)",
+        "wait:400",
+        "expect:!!document.querySelector('.ec-invalid')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const p = (await (await fetch('/api/partners', { headers: H })).json()).find((x) => x.code); sessionStorage.setItem('pb2code', p.code); sessionStorage.setItem('pb2name', p.name); return true })()",
+        "set:input[type=date]#0|2020-01-01",
+        "set:input[type=date]#1|2030-12-31",
+        "click:거래처 선택",
+        "pickrow:@pb2code",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:document.body.innerText.includes(sessionStorage.getItem('pb2name') + ' 관리대장')",
+        "expect:/사업자등록번호/.test(document.body.innerText) && /기타사항/.test(document.body.innerText) && /주 소/.test(document.body.innerText)",
+        "expect:[...document.querySelectorAll('tbody td')].some((td) => td.innerText.trim() === '이월잔액' && td.colSpan === 2)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "about": "판매입력 → 판매조회 확인 → 확인된 판매 [선택삭제](원본 E040205 · E040206 2026-10-14 실측) — 품목을 고르면 수량이 빈칸(단가만 찬다), 머리에 [프로젝트] 없음, 격자 수량 → 시리얼/로트No. → 단가 … 부가세 → 합계, 2 × 300 = 600 · 60 · 660 → 판매조회 '미반영' · [확인] → 확인된 판매도 '선택한 전표를 삭제 하겠습니까?' 하나로 지워진다(확인취소 없이). 판매할 재고 2 는 처음에 구매(API)로 넣고 끝에 지운다. node qa/shot.mjs qa/flows/sale-confirmed-delete.json",
+  "shots": [
+    {
+      "name": "준비 — QAJ1P · QAJ1-Z12 (없으면 만든다) · 재고 2 구매(API). 화면이 마스터를 다시 읽게 따로 연다",
+      "path": "/sales/sell",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); let p = (await g('/api/partners')).find((x) => x.code === 'QAJ1P'); if (!p) p = await (await fetch('/api/partners', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAJ1P', name: 'QA재고1-거래처', type: 'BOTH' }) })).json(); let it = (await g('/api/items')).find((x) => x.code === 'QAJ1-Z12'); if (!it) it = await (await fetch('/api/items', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAJ1-Z12', name: 'QA재고1-특가', category: 'MERCHANDISE', unitPrice: 0, safetyStock: 0 }) })).json(); const wh = (await g('/api/warehouses')).find((x) => x.code === 'WH-01'); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const r = await (await fetch('/api/purchases', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, warehouseId: wh.id, purchaseDate: d, taxable: true, remark: 'QA재고1 판매확인삭제 재고', lines: [{ itemId: it.id, quantity: 2, unitPrice: 200 }] }) })).json(); sessionStorage.setItem('scd', JSON.stringify({ purchaseId: r.id })); return r.id })()"
+      ]
+    },
+    {
+      "name": "판매입력 — 수량 빈칸 · 프로젝트 없음 · 2 × 300 = 660 저장",
+      "path": "/sales/sell",
+      "steps": [
+        "expect:![...document.querySelectorAll('.ec-form .title')].some((t) => t.textContent.trim() === '프로젝트')",
+        "expect:[...document.querySelector('table.ec-grid-input thead tr').cells].map((c) => c.textContent.trim()).slice(5, 11).join('|') === '수량|시리얼/로트No.|단가|공급가액|부가세|합계'",
+        "click:거래처 코드도움",
+        "pickrow:QAJ1P",
+        "click:출하창고 코드도움",
+        "pickrow:WH-01",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QAJ1-Z12",
+        "wait:500",
+        "expect:document.querySelector('tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right').value === ''",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|300",
+        "set:input[placeholder=\"전표 적요\"]|QA재고1 판매확인삭제",
+        "expect:/2\\s+600\\s+60\\s+660/.test(document.querySelector('table.ec-grid-input tfoot').innerText)",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!/(저장|수정) 완료/.test(document.body.innerText)",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSale', s.docNo); return s.docNo })()",
+        "js:(() => { const no = sessionStorage.getItem('__lastSale').match(/SO-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); const S = JSON.parse(sessionStorage.getItem('scd')); S.label = `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`; sessionStorage.setItem('scd', JSON.stringify(S)); return S.label })()"
+      ]
+    },
+    {
+      "name": "판매조회 — 미반영(빈칸 — 반영은 ✓) · 저장하자마자 확인(미확인 탭에 없다, 원본 2026-10-22 실측) → 확인 탭 → 확인된 판매 [선택삭제] '선택한 전표를 삭제 하겠습니까?' 로 지워진다",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('scd')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-특가')); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; return !!window.__row() })()",
+        "expect:window.__row().innerText.includes('660') && !window.__row().innerText.includes('✓')",
+        "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim().startsWith('미확인')).click(); return true })()",
+        "wait:500",
+        "expect:!window.__row()",
+        "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim().startsWith('확인')).click(); return true })()",
+        "wait:500",
+        "expect:!!window.__row() && ![...window.__row().cells].some((c) => /^(확인|확인취소|발행)$/.test(c.textContent.trim()))",
+        "js:(() => { window.__row().cells[0].click(); return true })()",
+        "click:선택삭제",
+        "wait:2000",
+        "expect:window.__msgs.includes('선택한 전표를 삭제 하겠습니까?') && !window.__row()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('scd')); return (await fetch('/api/purchases/' + S.purchaseId, { method: 'DELETE', headers: H })).ok })()"
+      ]
+    }
+  ]
+}

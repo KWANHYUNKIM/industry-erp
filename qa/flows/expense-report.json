@@ -1,0 +1,21 @@
+{
+  "about": "지출결의서(원본 회계 I › 현금거래 › 지출결의서 E010408, 2026-10-12 실측) — 빈 채로 [저장(F8)] → 계정칸 '계정코드를 입력 바랍니다.', 계좌칸에 '현금' Enter → 000 현금 · 계정 811 복리후생비가 찬다, 금액 12,000 · 적요 저장 → 빈 화면. 분개 차) 복리후생비 12,000 / 대) 현금 12,000(적요 같음). 시험 전표는 API 로 지운다. node qa/shot.mjs qa/flows/expense-report.json",
+  "shots": [
+    {
+      "name": "빈 저장 거절 → 현금 줄 저장 → 분개",
+      "path": "/accounting/vouchers",
+      "steps": [
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('계정코드를 입력 바랍니다.')",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"계좌검색\"]'); set(c, '현금'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "expect:(() => { const tr = document.querySelector('table.ec-grid-input tbody tr'); return tr.innerText.includes('현금') && tr.innerText.includes('복리후생비') })()",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 금액\"]'), '12000'); set(document.querySelector('input[aria-label=\"1줄 적요명\"]'), 'QA회계1-flow 식대'); return true })()",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:!document.querySelector('table.ec-grid-input tbody tr').innerText.includes('현금')",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/vouchers?type=EXPENSE_REPORT', { headers: H })).json(); const v = d.rows.find((r) => r.lines.some((l) => l.description === 'QA회계1-flow 식대')); if (!v) return false; const j = await (await fetch('/api/journals/' + v.journalEntryId, { headers: H })).json(); const ok = j.lines.some((l) => l.accountCode === '811' && Number(l.debit) === 12000 && l.description === 'QA회계1-flow 식대') && j.lines.some((l) => l.accountCode === '101' && Number(l.credit) === 12000 && l.description === 'QA회계1-flow 식대'); await fetch('/api/vouchers/' + v.id, { method: 'DELETE', headers: H }); return ok })()"
+      ]
+    }
+  ]
+}

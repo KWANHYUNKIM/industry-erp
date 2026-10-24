@@ -1,0 +1,20 @@
+{
+  "about": "원가생성/수정 — 사전작업 [표준원가생성] 은 브라우저 입력창(prompt · confirm · alert)을 띄우지 않고 화면 안 '알림' 창(원본 문구)으로 묻는다. 2026-10-24 흐름 갱신: 원본 모양으로 바뀌며 위 [기준년월] 칸과 [실제원가 계산] 단추는 없어졌다(원가를 잡는 기간 목록 + 줄의 [표준원가생성] · [생성]). [취소] 하면 아무것도 바뀌지 않는다.",
+  "shots": [
+    {
+      "name": "[표준원가생성] → 화면 안 확인 창(원본 문구) → [취소] — 브라우저 창은 안 뜸",
+      "path": "/accounting/cost-build",
+      "steps": [
+        "wait:1500",
+        "js:window.__prompted = 0; window.prompt = () => { window.__prompted++; return null }; window.alert = () => { window.__prompted++ }; true",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '실제원가 계산')",
+        "click:표준원가생성",
+        "expect:document.querySelector('[role=alertdialog]')?.innerText.includes('표준원가를 생성하겠습니까?')",
+        "clicklast:취소",
+        "wait:300",
+        "expect:!document.body.innerText.includes('[표준원가생성] 작업이 요청되었습니다.')",
+        "expect:window.__prompted === 0"
+      ]
+    }
+  ]
+}

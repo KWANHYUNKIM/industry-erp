@@ -1,13 +1,14 @@
 package com.erp.tenant;
 
-import com.erp.settings.domain.Company;
-import com.erp.settings.repository.CompanyRepository;
+import com.erp.settings.company.Company;
+import com.erp.settings.company.CompanyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.exception.FlywayValidateException;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -38,6 +39,11 @@ public class TenantMigrationRunner implements ApplicationRunner {
     private final DataSource dataSource;
     private final TenantSeeder tenantSeeder;
 
+    /** 본사 Flyway 와 같은 값(spring.flyway.out-of-order). 기본 false — 공유 개발 서버만 qa/restart-backend.sh 가 true 로 띄운다.
+     *  여럿이 마이그레이션 번호를 받아 커밋하는 차례가 엇갈리면(V391 이 V392 뒤에 들어옴) 기동이 거절되던 것. */
+    @Value("${spring.flyway.out-of-order:false}")
+    private boolean outOfOrder;
+
     @Override
     public void run(ApplicationArguments args) {
         List<Company> companies;
@@ -58,6 +64,7 @@ public class TenantMigrationRunner implements ApplicationRunner {
                     .defaultSchema(schema)
                     .locations("classpath:db/tenant")
                     .baselineOnMigrate(false)
+                    .outOfOrder(outOfOrder)
                     .load();
             try {
                 int applied;

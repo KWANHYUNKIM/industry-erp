@@ -1,0 +1,27 @@
+{
+  "about": "재고 II 원가생성/수정(E040802) 맨 위 기간의 원가현황 [수량비교] · [전월금액비교] · 기타 [이력] 창 — 원본 2026-10-13 실측: '재고수량 Checklist'(품목코드 · 품목명[규격] · 장부 기초수량 · 월별원가 기초수량 · 차이), '금액비교 Checklist'(현재기준 전월 구매 · 이전 월별원가 구매 · 차이), 이력(품목코드 · 품목명 · 작업자 · 수정시간 · 최종상태). 맨 위 기간이 있어야 한다.",
+  "shots": [
+    {
+      "name": "수량비교 · 전월금액비교 · 이력",
+      "path": "/accounting/cost-build",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('button.ec-link')].some((b) => b.textContent.trim() === '수량비교')",
+        "click:수량비교",
+        "wait:1000",
+        "expect:document.body.innerText.includes('재고수량 Checklist') && document.body.innerText.includes('월별원가 기초수량')",
+        "clicklast:닫기",
+        "wait:300",
+        "click:전월금액비교",
+        "wait:1000",
+        "expect:document.body.innerText.includes('금액비교 Checklist') && document.body.innerText.includes('이전 월별원가 구매금액')",
+        "clicklast:닫기",
+        "wait:300",
+        "click:이력",
+        "wait:1000",
+        "expect:[...document.querySelectorAll('th')].some((t) => t.textContent.trim() === '최종상태')",
+        "clicklast:닫기"
+      ]
+    }
+  ]
+}

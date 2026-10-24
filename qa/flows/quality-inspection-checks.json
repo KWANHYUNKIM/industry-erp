@@ -1,0 +1,37 @@
+{
+  "about": "품질검사입력 [검사항목](E040621) — 2026-10-12 원본 실측: 품목에 붙은 품질검사유형의 칸(코드형 1~4 · 숫자형 1~4 · 문자형 1~4 차례)을 줄의 [내역] 창('검사항목', '품목명:○○')에 펴서 적는다. 코드형식은 상세항목을 고르고 나머지는 적는다. [적용(F8)] 하면 그 칸이 주황 꼬리표(값을 칸 차례로 이음)가 되고, 저장 뒤 다시 열어도 남는다. 유형이 없는 품목이면 '등록된 검사항목이 없습니다. 품질검사유형등록에서 검사항목을 등록 바랍니다.'. 만든 유형 · 항목 · 검사는 지운다.",
+  "shots": [
+    {
+      "name": "유형 붙은 품목 → [내역] 창 → 상세항목 고르고 문자 적고 [적용] → 주황 꼬리표 → 저장 → 값이 칸 차례로 남음 → 지움",
+      "path": "/quality/inspection",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const J = async (m, u, b) => { const r = await fetch('/api' + u, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.status === 204 ? null : r.json() };\nconst taken = new Set((await J('GET', '/quality-types/item-settings')).filter((x) => x.typeCode).map((x) => x.itemId));\nconst it = (await J('GET', '/items')).filter((x) => x.active !== false && !taken.has(x.id))[0];\nconst a = await J('POST', '/quality-check-items', { format: 'CODE', name: 'QA재고2-흐름외관', required: true });\nconst d = await J('POST', '/quality-check-items/' + a.id + '/details', { name: 'QA상' });\nconst b = await J('POST', '/quality-check-items', { format: 'TEXT', name: 'QA재고2-흐름비고', required: true });\nconst t = await J('POST', '/quality-types', { code: 'QAFLOWQI', name: 'QA재고2-흐름검사입력' });\nawait J('PUT', '/quality-types/' + t.id + '/slots', { slots: [{ checkItemId: b.id, slot: 1 }, { checkItemId: a.id, slot: 1 }] });\nawait J('POST', '/quality-types/' + t.id + '/items', { itemIds: [it.id] });\nconst q = await J('POST', '/quality-inspections', { remark: 'QA재고2', lines: [{ itemId: it.id, method: 'FULL', quantity: 1 }] });\nsessionStorage.setItem('qic', JSON.stringify({ item: it.id, name: it.name, a: a.id, b: b.id, t: t.id, q: q.id, no: q.inspectionNo }));\nreturn q.inspectionNo })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '|검사번호|품목|수량|시료|적격|부적격|출처|종결여부|인쇄'",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const D = () => [...document.querySelectorAll('[role=dialog]')].pop(); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); const x = JSON.parse(sessionStorage.getItem('qic')); const seq = Number(x.no.split('-').pop()); const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].innerText.trim().endsWith('-' + seq) && r.innerText.includes(x.name)); tr.cells[1].querySelector('button').click(); await W(800); B('내역', D()).click(); await W(800); return D().innerText.slice(0, 120) })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const x = JSON.parse(sessionStorage.getItem('qic')); return d.innerText.includes('품목명:' + x.name) && d.innerText.indexOf('QA재고2-흐름외관') < d.innerText.indexOf('QA재고2-흐름비고') })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const D = () => [...document.querySelectorAll('[role=dialog]')].pop(); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(D().querySelector('input[placeholder=\\\"QA재고2-흐름비고\\\"]'), 'QA재고2 메모'); D().querySelector('button[title=\\\"QA재고2-흐름외관 선택\\\"]').click(); await W(500); [...D().querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA상')).click(); await W(400); B('적용(F8)', D()).click(); await W(400); return 'ok' })()",
+        "expect:(() => { const tag = [...document.querySelectorAll('[role=dialog] tbody button')].find((b) => b.innerText.trim() === 'QA상 QA재고2 메모'); return !!tag && getComputedStyle(tag).backgroundColor === 'rgb(246, 136, 45)' })()",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "js:(async () => { if (!(await ((async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const x = JSON.parse(sessionStorage.getItem('qic')); const q = (await (await fetch('/api/quality-inspections', { headers: H })).json()).find((y) => y.id === x.q); const ok = JSON.stringify(q.lines[0].checks.map((c) => c.value)) === JSON.stringify(['QA상', 'QA재고2 메모']); const del = await fetch('/api/quality-inspections/' + x.q, { method: 'DELETE', headers: H }); await fetch('/api/quality-types/bulk', { method: 'POST', headers: H, body: JSON.stringify({ ids: [x.t] }) }); const c = await fetch('/api/quality-check-items/bulk', { method: 'POST', headers: H, body: JSON.stringify({ ids: [x.a, x.b] }) }); return ok && del.status === 204 && c.status === 204 })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()"
+      ]
+    },
+    {
+      "name": "유형이 없는 품목의 [내역] → '등록된 검사항목이 없습니다.'",
+      "path": "/quality/inspection",
+      "steps": [
+        "wait:2000",
+        "js:sessionStorage.setItem('qic', '{}'); true",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); const D = () => [...document.querySelectorAll('[role=dialog]')].pop(); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); const x = JSON.parse(sessionStorage.getItem('qic')); const taken = new Set((await (await fetch('/api/quality-types/item-settings', { headers: H })).json()).filter((y) => y.typeCode).map((y) => y.itemId)); const free = (await (await fetch('/api/items', { headers: H })).json()).find((y) => y.active !== false && !taken.has(y.id)); const q = await (await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ remark: 'QA재고2', lines: [{ itemId: free.id, method: 'FULL', quantity: 1 }] }) })).json(); x.q2 = q.id; sessionStorage.setItem('qic', JSON.stringify(x)); return q.id })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const x = JSON.parse(sessionStorage.getItem('qic')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const q = (await (await fetch('/api/quality-inspections', { headers: H })).json()).find((y) => y.id === x.q2); const seq = Number(q.inspectionNo.split('-').pop()); const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].innerText.trim().endsWith('-' + seq) && r.innerText.includes(q.lines[0].itemName)); tr.cells[1].querySelector('button').click(); await W(800); [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '내역').click(); await W(800); return 'ok' })()",
+        "expect:document.body.innerText.includes('등록된 검사항목이 없습니다.') && document.body.innerText.includes('품질검사유형등록에서 검사항목을 등록 바랍니다.')",
+        "js:(async () => { if (!(await ((async () => { const x = JSON.parse(sessionStorage.getItem('qic')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/quality-inspections/' + x.q2, { method: 'DELETE', headers: H }); return d.status === 204 })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()"
+      ]
+    }
+  ]
+}

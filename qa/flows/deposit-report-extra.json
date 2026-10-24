@@ -1,0 +1,59 @@
+{
+  "about": "입금보고서 수정 검증 — 채권 증가 50,000(API) → 채권감소등록 [입금보고서작성] 20,000(API, 현금) → 회계거래조회에서 연 입금보고서(?journal=)의 금액을 15,000 으로 고쳐 [저장(F8)] → 원본 '금액과 추가정보의 합계액이 일치하지 않은 분개가 있습니다.'(회계2 E060402 실측), 채권 잔액은 그대로 30,000. 금액을 그대로 두고 저장하면 통과하고 감소 장이 남는다. 만든 입금보고서 · 증가 장은 API 로 지운다. 수령수표입금처리 [입금보고서작성]으로 만든 입금보고서도 같다(수표 금액과 대조) — 그대로 다시 저장해도 수표는 '입금'(입금보고서) 그대로 남아야 한다(전에는 옛 회계전표를 지울 때 트리거가 보유로 되돌렸다).",
+  "shots": [
+    {
+      "name": "준비 — 증가 50,000 · 입금보고서 20,000(API)",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async () => { const day = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const p = (await window.__api('GET', '/partners')).body.find((x) => x.code); const acc = (await window.__api('GET', '/accounts')).body.find((x) => x.code === '108'); const bno = 'QA1DR' + Date.now(); const inc = await window.__api('POST', '/bonds', { side: 'RECEIVABLE', entryDate: day, direction: 'INCREASE', lines: [{ accountId: acc.id, partnerId: p.id, bondNo: bno, amount: 50000, memo: 'QA회계1 입금보고서 수정' }] }); const dr = await window.__api('POST', '/bonds/deposit-report?side=RECEIVABLE', { date: day, cash: true, description: 'QA회계1', lines: [{ accountId: acc.id, partnerId: p.id, bondNo: bno, amount: 20000, memo: 'QA회계1 입금보고서 수정' }] }); sessionStorage.setItem('drInc', inc.body.id); sessionStorage.setItem('drVoucher', dr.body.sourceVoucherId); sessionStorage.setItem('drJournal', dr.body.journalEntryId); sessionStorage.setItem('drBno', bno); return inc.status + '/' + dr.status })()",
+        "expect:!!sessionStorage.getItem('drJournal') && sessionStorage.getItem('drJournal') !== 'undefined'"
+      ]
+    },
+    {
+      "name": "입금보고서 금액만 15,000 → 저장 — 막힌다",
+      "path": "/accounting/journals",
+      "steps": [
+        "allowapi:400: /api/vouchers/",
+        "js:location.href = '/accounting/vouchers?journal=' + sessionStorage.getItem('drJournal'); 'go'",
+        "wait:2000",
+        "expect:document.querySelector('input[aria-label=\"1줄 금액\"]') && document.querySelector('input[aria-label=\"1줄 금액\"]').value.replace(/,/g, '') === '20000'",
+        "set:input[aria-label=\"1줄 금액\"]|15000",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:document.body.innerText.includes('금액과 추가정보의 합계액이 일치하지 않은 분개가 있습니다.')"
+      ]
+    },
+    {
+      "name": "그대로 저장하면 통과 — 감소 장 남고 잔액 30,000",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "allowapi:400: /api/vouchers/",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async () => { const v = (await window.__api('GET', '/vouchers/' + sessionStorage.getItem('drVoucher'))).body; const body = { type: v.type, voucherDate: v.voucherDate, method: v.method, description: v.description, lines: v.lines.map((l) => ({ accountId: l.accountId, amount: l.amount, description: l.description, bankAccountId: l.bankAccountId, cash: l.cash, partnerId: l.partnerId })) }; const bad = await window.__api('PUT', '/vouchers/' + v.id, { ...body, lines: body.lines.map((l) => ({ ...l, amount: 15000 })) }); const ok = await window.__api('PUT', '/vouchers/' + v.id, body); window.__dr = { bad: bad.status, badMsg: bad.body && bad.body.message, ok: ok.status }; return JSON.stringify(window.__dr) })()",
+        "expect:window.__dr.bad === 400 && window.__dr.badMsg === '금액과 추가정보의 합계액이 일치하지 않은 분개가 있습니다.' && window.__dr.ok === 200",
+        "js:(async () => { const rows = (await window.__api('GET', '/bonds?side=RECEIVABLE')).body; const mine = rows.filter((e) => e.lines.some((l) => l.bondNo === sessionStorage.getItem('drBno'))); window.__drRows = mine.map((e) => e.directionName + ':' + e.lines[0].amount + ':' + (e.sourceVoucherId || '')); return JSON.stringify(window.__drRows) })()",
+        "expect:window.__drRows.length === 2 && window.__drRows.some((s) => s.startsWith('감소:20000') && s.endsWith(':' + sessionStorage.getItem('drVoucher')))"
+      ]
+    },
+    {
+      "name": "정리 — 입금보고서(감소 장 함께) · 증가 장 지움(API)",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async () => { const a = await window.__api('DELETE', '/vouchers/' + sessionStorage.getItem('drVoucher')); const b = await window.__api('POST', '/bonds/delete', { ids: [Number(sessionStorage.getItem('drInc'))] }); window.__drDel = [a.status, b.status]; return JSON.stringify(window.__drDel) })()",
+        "expect:window.__drDel[0] < 300 && window.__drDel[1] < 300"
+      ]
+    },
+    {
+      "name": "수령수표 입금보고서 — 금액 바꾸면 막히고, 그대로 저장해도 수표는 입금 그대로(API)",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "allowapi:400: /api/vouchers/",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async () => { const day = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const p = (await window.__api('GET', '/partners')).body.find((x) => x.code); const no = 'QA1CK' + Date.now(); const c = await window.__api('POST', '/checks', { type: 'RECEIVED', checkNo: no, amount: 33000, issueDate: day, partnerId: p.id, remark: 'QA회계1 입금보고서 수정' }); const dr = await window.__api('POST', '/checks/deposit-report', { date: day, cash: true, description: 'QA회계1 수표', lines: [{ checkId: c.body.id, memo: 'QA회계1 수표' }] }); const vs = (await window.__api('GET', '/vouchers?type=DEPOSIT_REPORT&from=' + day + '&to=' + day + '&all=true')).body.rows.filter((v) => v.description === 'QA회계1 수표'); const v = vs[vs.length - 1]; const body = { type: v.type, voucherDate: v.voucherDate, method: v.method, description: v.description, lines: v.lines.map((l) => ({ accountId: l.accountId, amount: l.amount, description: l.description, bankAccountId: l.bankAccountId, cash: l.cash, partnerId: l.partnerId })) }; const bad = await window.__api('PUT', '/vouchers/' + v.id, { ...body, lines: body.lines.map((l) => ({ ...l, amount: 30000 })) }); const ok = await window.__api('PUT', '/vouchers/' + v.id, body); const after = (await window.__api('GET', '/checks')).body.find((x) => x.id === c.body.id); window.__ck = { created: c.status, dr: dr.status, bad: bad.status, badMsg: bad.body && bad.body.message, ok: ok.status, status: after.status, byVoucher: after.settledByVoucher }; const del = await window.__api('DELETE', '/vouchers/' + v.id); const back = (await window.__api('GET', '/checks')).body.find((x) => x.id === c.body.id); window.__ck.del = del.status; window.__ck.back = back.status; const rm = await window.__api('POST', '/checks/delete', { decreaseIds: [], increaseIds: [c.body.id] }); window.__ck.rm = rm.status; return JSON.stringify(window.__ck) })()",
+        "expect:window.__ck.bad === 400 && window.__ck.badMsg === '금액과 추가정보의 합계액이 일치하지 않은 분개가 있습니다.' && window.__ck.ok === 200 && window.__ck.status === 'DEPOSITED' && window.__ck.back === 'HELD' && window.__ck.rm < 300"
+      ]
+    }
+  ]
+}

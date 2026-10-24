@@ -1,0 +1,177 @@
+package com.erp.accounting.journal;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
+import java.util.List;
+
+public interface JournalLineRepository extends JpaRepository<JournalLine, Long> {
+
+    /** 계정별원장: 특정 계정의 기간 내 분개 라인(전표·거래처 포함) */
+    @Query("select l from JournalLine l " +
+            "join fetch l.entry e left join fetch e.partner left join fetch l.partner " +
+            "join fetch l.account " +
+            "where l.account.id = :accountId and e.entryDate between :from and :to " +
+            "order by e.entryDate asc, e.id asc, l.lineNo asc")
+    List<JournalLine> findByAccountAndPeriod(@Param("accountId") Long accountId,
+                                             @Param("from") LocalDate from,
+                                             @Param("to") LocalDate to);
+
+    /** 외화장부(V456): 외화 코드가 든 줄 — {@code to} 까지(이월 계산 때문에 시작일은 자르지 않는다). */
+    @Query("select l from JournalLine l " +
+            "join fetch l.entry e left join fetch e.partner left join fetch l.partner " +
+            "join fetch l.account " +
+            "where l.currencyCode is not null and e.entryDate <= :to " +
+            "order by e.entryDate asc, e.id asc, l.lineNo asc")
+    List<JournalLine> findForeignUntil(@Param("to") LocalDate to);
+
+    /**
+     * 계정별원장 · 현금출납장의 [부서] · [프로젝트] 조건(V343). 0 이면 그 조건을 끈다 —
+     * null 로 끄면 PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Query("select l from JournalLine l " +
+            "join fetch l.entry e left join fetch e.partner left join fetch l.partner " +
+            "join fetch l.account " +
+            "where l.account.id = :accountId and e.entryDate between :from and :to " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
+            "order by e.entryDate asc, e.id asc, l.lineNo asc")
+    List<JournalLine> findByAccountAndPeriodIn(@Param("accountId") Long accountId,
+                                               @Param("from") LocalDate from,
+                                               @Param("to") LocalDate to,
+                                               @Param("dept") long dept, @Param("proj") long proj);
+
+    /**
+     * 거래처별 <b>통제계정</b>(외상매출금·외상매입금) 차변합·대변합. 거래처는 줄 거래처(일반전표 격자), 없으면 전표 거래처.
+     *
+     * <p>판매·구매·정산전표에서 자동으로 만들어진 전표({@code excludeSources})는 뺀다 —
+     * 그건 이미 전표 자체로 세고 있어서 두 번 세게 된다.
+     *
+     * <p>누적 잔액을 낼 때는 {@code from} 에 아주 이른 날짜를 준다. null 을 넘겨
+     * 조건을 끄는 방식은 PostgreSQL 이 파라미터 타입을 못 정해 42P18 로 터진다.
+     */
+    @Query("select coalesce(lp.id, ep.id), coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e left join l.partner lp left join e.partner ep " +
+            "where l.account.code = :accountCode and (lp is not null or ep is not null) " +
+            "and e.sourceType not in :excludeSources " +
+            "and e.entryDate between :from and :to " +
+            "group by coalesce(lp.id, ep.id)")
+    List<Object[]> sumControlAccountByPartner(@Param("accountCode") String accountCode,
+                                              @Param("excludeSources") java.util.Collection<com.erp.accounting.journal.JournalSourceType> excludeSources,
+                                              @Param("from") LocalDate from,
+                                              @Param("to") LocalDate to);
+
+    /**
+     * 통제계정을 움직인 회계전표 <b>줄</b> — 거래처관리대장 [전표별] 에 판매·수금과 나란히 세운다.
+     * 열: 일자 · 전표번호 · 출처 · 거래처 id · 거래처명 · 차변 · 대변.
+     */
+    @Query("select e.entryDate, e.docNo, e.sourceType, coalesce(lp.id, ep.id), coalesce(lp.name, ep.name), l.debit, l.credit " +
+            "from JournalLine l join l.entry e left join l.partner lp left join e.partner ep " +
+            "where l.account.code = :accountCode and (lp is not null or ep is not null) " +
+            "and e.sourceType not in :excludeSources " +
+            "and e.entryDate between :from and :to")
+    List<Object[]> controlAccountLines(@Param("accountCode") String accountCode,
+                                       @Param("excludeSources") java.util.Collection<com.erp.accounting.journal.JournalSourceType> excludeSources,
+                                       @Param("from") LocalDate from,
+                                       @Param("to") LocalDate to);
+
+    /**
+     * 예산관리 출력물(예산-실적비교표 · 예산-실적대장, 2026-10-14 loginaa 실측)의 실적 — 그 계정들의 전표 줄.
+     * 적요는 전표 줄 적요, 거래처는 줄 거래처(없으면 빈칸)다.
+     */
+    @Query("select e.id, e.entryDate, e.docNo, l.description, lp.name, l.account.id, l.account.division, " +
+            "l.debit, l.credit, l.departmentId, l.projectId " +
+            "from JournalLine l join l.entry e left join l.partner lp " +
+            "where e.entryDate between :from and :to and l.account.id in :accountIds " +
+            "order by e.entryDate, e.docNo, l.lineNo")
+    List<Object[]> budgetActualLines(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                     @Param("accountIds") java.util.Collection<Long> accountIds);
+
+    /** 시산표/재무제표용: 계정별 차변합·대변합 집계 (기간 내) */
+    @Query("select l.account.id, l.account.code, l.account.name, l.account.division, " +
+            "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e " +
+            "where e.entryDate between :from and :to " +
+            "group by l.account.id, l.account.code, l.account.name, l.account.division " +
+            "order by l.account.code")
+    List<Object[]> sumByAccount(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 시산표 · 재무제표의 [부서] · [프로젝트] 조건(V343). 0 이면 그 조건을 끈다. */
+    @Query("select l.account.id, l.account.code, l.account.name, l.account.division, " +
+            "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e " +
+            "where e.entryDate between :from and :to " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
+            "group by l.account.id, l.account.code, l.account.name, l.account.division " +
+            "order by l.account.code")
+    List<Object[]> sumByAccountIn(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                  @Param("dept") long dept, @Param("proj") long proj);
+
+    /**
+     * 재무제표 · 원가명세서 [부서표시방법] 종 · 횡 — {@link #sumByAccountIn} 을 부서마다 나눈다.
+     * 첫 칸이 부서 id(부서 없는 줄은 null = 원본 '기타').
+     */
+    @Query("select l.departmentId, l.account.id, l.account.code, l.account.name, l.account.division, " +
+            "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e " +
+            "where e.entryDate between :from and :to " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
+            "group by l.departmentId, l.account.id, l.account.code, l.account.name, l.account.division " +
+            "order by l.account.code")
+    List<Object[]> sumByDepartmentAndAccountIn(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                               @Param("dept") long dept, @Param("proj") long proj);
+
+    /** [프로젝트표시방법] 종 · 횡 — 첫 칸이 프로젝트 id(없는 줄은 null). */
+    @Query("select l.projectId, l.account.id, l.account.code, l.account.name, l.account.division, " +
+            "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e " +
+            "where e.entryDate between :from and :to " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
+            "group by l.projectId, l.account.id, l.account.code, l.account.name, l.account.division " +
+            "order by l.account.code")
+    List<Object[]> sumByProjectAndAccountIn(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                            @Param("dept") long dept, @Param("proj") long proj);
+
+    /** 법인세Checklist [2. 손익계산서 매출계정 내역]: 손익계산서 '매출액' 계정(대변 − 차변)을 달별로 */
+    @Query("select year(e.entryDate), month(e.entryDate), coalesce(sum(l.credit - l.debit),0) " +
+            "from JournalLine l join l.entry e join l.account a " +
+            "where e.entryDate between :from and :to " +
+            "and a.division = com.erp.accounting.account.AccountDivision.REVENUE and a.detailCategory = '매출액' " +
+            "group by year(e.entryDate), month(e.entryDate)")
+    List<Object[]> sumSalesByMonth(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 지출증빙현황: [계정설정]에서 '표시' 로 고른 계정의 기간 내 분개 줄(전표 · 거래처 · 계정 함께) */
+    @Query("select l from JournalLine l join fetch l.entry e left join fetch e.partner join fetch l.account a " +
+            "where a.evidenceReport = true and e.entryDate between :from and :to " +
+            "order by e.entryDate, e.docNo, l.lineNo")
+    List<JournalLine> findEvidenceReportLines(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 전표마다 매입 부가세(135 차변 − 대변)와 그 밖 계정의 차변 합 — 지출증빙현황의 '매출매입자료' 가 이것이다. */
+    @Query("select l.entry.id, " +
+            "coalesce(sum(case when l.account.code = '135' then l.debit - l.credit else 0 end),0), " +
+            "coalesce(sum(case when l.account.code <> '135' then l.debit else 0 end),0) " +
+            "from JournalLine l where l.entry.id in :ids group by l.entry.id")
+    List<Object[]> purchaseVatByEntry(@Param("ids") java.util.Collection<Long> ids);
+
+    /**
+     * 각종코드변경(E010111)이 바꿀 줄 — 기간 · 프로젝트 · 거래처 · 부서 · 계정으로 좁힌다. 0 이면 그 조건을 끈다.
+     * 거래처는 줄 거래처, 없으면 전표 거래처로 본다(채권거래처 집계와 같은 규칙).
+     */
+    @Query("select l from JournalLine l join fetch l.entry e left join e.partner ep left join l.partner lp " +
+            "where e.entryDate between :from and :to " +
+            "and (:acct = 0 or l.account.id = :acct) " +
+            "and (:partner = 0 or lp.id = :partner or (lp is null and ep.id = :partner)) " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj)")
+    List<JournalLine> findForCodeChange(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                        @Param("acct") long acct, @Param("partner") long partner,
+                                        @Param("dept") long dept, @Param("proj") long proj);
+
+    /** 판매에서 만든 회계전표(판매 · 판매일괄회계반영)가 외상매출금(108)을 움직인 몫 — 거래처별 차변 − 대변. 판매 쪽 금액과의 차이가 기타할인등차액이다. */
+    @Query("select e.partner.id, coalesce(sum(l.debit - l.credit), 0) " +
+            "from JournalLine l join l.entry e " +
+            "where l.account.code = '108' and e.sourceType in :sources and e.partner is not null and e.entryDate <= :until " +
+            "group by e.partner.id")
+    List<Object[]> sumReceivableOfSalesEntries(@Param("sources") java.util.Collection<com.erp.accounting.journal.JournalSourceType> sources,
+                                               @Param("until") LocalDate until);
+}

@@ -1,0 +1,35 @@
+{
+  "about": "회계 II › 계약관리 › 청구예정자료미생성현황(E060909, 2026-10-13 원본 실측): 청구예정월(금월) 안에서 청구될 계약 줄 중 청구예정자료를 아직 안 만든 것 — 열 계약번호 · 청구예정월 · 계약명 · 거래처명 · 항목명 · 수량 · 단가 · 공급가액 · 부가세 · 청구단위 · 적요, 끝에 합계. QA 계약(이번 달 청구, 2 × 10,000)이 '2.00 · 10,000 · 20,000 · 2,000' 로 나오고, 그 달 청구예정자료를 만들면 빠지고, 지우면 다시 나온다. 만든 자료는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 계약항목 · 계약(API)",
+      "path": "/accounting/contract-items",
+      "steps": [
+        "wait:1000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const c='U'+String(Date.now()).slice(-4);const it=(await window.__api('POST','/contract-items',{code:c,name:'QA회계2-미생성항목',unitPrice:10000,vatIncluded:false,billingCycle:'PERIODIC',salesAccountId:null})).body;sessionStorage.setItem('ciId',it.id);const u=(await window.__api('GET','/billing-contracts/units')).body.find((x)=>x.name==='월말청구');const p=(await window.__api('GET','/partners')).body[0];const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');sessionStorage.setItem('ymd',ymd);const bc=(await window.__api('POST','/billing-contracts',{contractDate:ymd,partnerId:p.id,code:null,name:'QA회계2-미생성계약',billStart:ymd,billEnd:(d.getFullYear()+1)+ymd.slice(4),vatType:'세금계산서',foreignCurrency:false,employeeId:null,departmentId:null,projectId:null,remark:null,lines:[{itemId:it.id,billMonths:ymd.slice(5,7),quantity:2,unitPrice:10000,supplyAmount:null,vatAmount:null,billingUnitId:u.id,remark:'QA회계2'}]})).body;sessionStorage.setItem('bcId',bc.id);sessionStorage.setItem('clId',bc.lines[0].id);return bc.id})()"
+      ]
+    },
+    {
+      "name": "청구예정자료미생성현황 — 아직 안 만든 달",
+      "path": "/accounting/contract-unbilled",
+      "steps": [
+        "wait:1500",
+        "js:window.__row = () => [...document.querySelectorAll('table.ec-report tbody tr')].find((t) => t.innerText.includes('QA회계2-미생성계약')); true",
+        "expect:[...document.querySelectorAll('table.ec-report thead th')].map((t)=>t.innerText.trim()).join('|')==='계약번호|청구예정월|계약명|거래처명|항목명|수량|단가|공급가액|부가세|청구단위|적요'",
+        "expect:(()=>{const c=[...window.__row().cells].map((x)=>x.innerText.trim());return /^\\d{4}\\/\\d{2}\\/\\d{2} -\\d+$/.test(c[0])&&c[1]===sessionStorage.getItem('ymd').slice(0,7).replace('-','/')&&c[4]==='QA회계2-미생성항목'&&c[5]==='2.00'&&c[6]==='10,000'&&c[7]==='20,000'&&c[8]==='2,000'&&c[9]==='월말청구'&&c[10]==='QA회계2'})()",
+        "expect:[...document.querySelectorAll('table.ec-report tbody tr')].pop().innerText.trim().startsWith('합계')",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const ymd=sessionStorage.getItem('ymd');const b=(await window.__api('POST','/contract-bills',{billDate:ymd,vatType:'세금계산서',byPartner:false,lines:[{contractLineId:Number(sessionStorage.getItem('clId')),billMonth:ymd.slice(0,7),quantity:2,unitPrice:10000,supplyAmount:20000,vatAmount:2000,remark:'QA회계2'}]})).body;sessionStorage.setItem('billId',b[0].id);return b[0].id})()",
+        "clicklast:검색(F8)",
+        "wait:1200",
+        "expect:!window.__row()",
+        "js:(async()=>{const r=await window.__api('POST','/contract-bills/delete',{ids:[Number(sessionStorage.getItem('billId'))]});return r.status})()",
+        "clicklast:검색(F8)",
+        "wait:1200",
+        "expect:!!window.__row()",
+        "js:(async()=>{const a=await window.__api('POST','/billing-contracts/delete',{ids:[Number(sessionStorage.getItem('bcId'))]});const b=await window.__api('DELETE','/contract-items/'+sessionStorage.getItem('ciId'));return a.status+' '+b.status})()"
+      ]
+    }
+  ]
+}

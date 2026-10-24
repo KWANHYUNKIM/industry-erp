@@ -1,0 +1,23 @@
+{
+  "about": "매출(세금)계산서요약(원본 E030206) — 원본 (세금)계산서진행단계의 [계산서분류]는 계산서 · 계산서(고정자산) · 세금계산서 · 세금계산서(고정자산) · 영세율이고 요약 미발행 38건 = 진행단계 미발행 38건(2026-10-13 loginaa 2026/01 ~ 2026/10). 그래서 카드매출 · 현금영수증 전표는 요약에 안 센다. 이번 달 1일에 매출전표 I 카드매출 · 현금영수증 · 세금계산서 세 장을 넣고 [금월] 합계가 세금계산서 한 장(1건 · 300,000 · 30,000)만 느는지 보고 지운다. CDP_PORT=<포트> node qa/shot.mjs qa/flows/sales-tax-summary-vattype.json",
+  "shots": [
+    {
+      "name": "카드 · 현금영수증은 빼고 세금계산서만",
+      "path": "/accounting/vat/sales-tax-summary",
+      "steps": [
+        "wait:2500",
+        "clicklast:금월(~오늘)",
+        "wait:2500",
+        "js:(() => { window.__sum = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.cells[0]?.innerText.trim() === '합계'); return r ? [...r.cells].slice(-3).map((c) => Number(c.innerText.replace(/[^0-9-]/g, '')) || 0) : [0, 0, 0] }; window.__b = window.__sum(); return JSON.stringify(window.__b) })()",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const acc = await (await fetch('/api/accounts', { headers: H })).json(); const id = (c) => acc.find((a) => a.code === c).id; const p = (await (await fetch('/api/partners', { headers: H })).json())[0]; const d = new Date(); const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01'; const ids = []; for (const [vt, sup, vat] of [['카드매출', 100000, 10000], ['현금영수증', 200000, 20000], ['세금계산서', 300000, 30000]]) { const r = await (await fetch('/api/journals/vat-slip', { method: 'POST', headers: H, body: JSON.stringify({ sales: true, entryDate: date, vatType: vt, partnerId: p.id, supplyAmount: sup, vatAmount: vat, description: 'QA세무 요약 ' + vt, accountId: id('404'), settleAccountId: id('108') }) })).json(); ids.push(r.id) } sessionStorage.setItem('sts-ids', JSON.stringify(ids)); return ids })()",
+        "clicklast:Search(F3)",
+        "wait:800",
+        "clicklast:금월(~오늘)",
+        "wait:2500",
+        "js:(() => { window.__a = window.__sum(); return JSON.stringify(window.__a) })()",
+        "expect:window.__a[0] - window.__b[0] === 1 && window.__a[1] - window.__b[1] === 300000 && window.__a[2] - window.__b[2] === 30000",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; let ok = true; for (const id of JSON.parse(sessionStorage.getItem('sts-ids') || '[]')) ok = (await fetch('/api/journals/' + id, { method: 'DELETE', headers: H })).ok && ok; return ok })()"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "about": "A/S접수현황(E040610) · A/S수리현황(E040611) · 품질검사현황(E040623) ○집계 집계조건 칸 옆 [정렬] · [소계] 단추 — 2026-10-13 원본 품질검사현황 · A/S접수현황 실측: 처음 올림 · 소계 표시, 품목명[규격] · 월별에서 품목명 [정렬] 을 누르고 검색하면 품목 차례가 뒤집히고(인텔 A002 → MSI A004 가 MSI → 인텔), [소계] 를 끄면 '… 계' 줄만 없어지고 [합계] 는 그대로. QA재고2 접수 한 건(품목 둘)을 넣고 본 다음 지운다.",
+  "shots": [
+    {
+      "name": "A/S접수현황 품목명[규격] · 월별 → 정렬 뒤집기 · 소계 끄기",
+      "path": "/quality/as-status",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const c = pa.find((x) => x.type === 'CUSTOMER' || x.type === 'BOTH'); const its = it.filter((x) => x.active !== false); const r = await A('POST', '/as-requests', { partnerId: c.id, warehouseId: wh[0].id, title: 'QA재고2-정렬', lines: [{ itemId: its[0].id, quantity: 1 }, { itemId: its[1].id, quantity: 2 }] }); sessionStorage.setItem('asSortId', r.id); return r.asNo })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "click:상세검색",
+        "wait:300",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '집계').querySelector('input').click(); true",
+        "wait:300",
+        "expect:!document.querySelector('button[aria-label=\"집계조건1 정렬\"]')",
+        "set:select[aria-label=\"집계조건1\"]|품목명[규격]",
+        "set:select[aria-label=\"집계조건2\"]|월별",
+        "expect:!!document.querySelector('button[aria-label=\"집계조건1 정렬\"]') && !!document.querySelector('button[aria-label=\"집계조건2 소계\"]') && !document.querySelector('button[aria-label=\"집계조건3 정렬\"]')",
+        "click:조회",
+        "wait:1200",
+        "js:sessionStorage.setItem('asSortUp', JSON.stringify([...document.querySelectorAll('tbody tr')].filter((r) => !r.classList.contains('ec-list-total')).map((r) => r.cells[0].innerText.trim()).filter(Boolean))); true",
+        "expect:JSON.parse(sessionStorage.getItem('asSortUp')).length >= 2 && [...document.querySelectorAll('tbody tr.ec-list-total')].length >= 2",
+        "click:상세검색",
+        "wait:300",
+        "js:document.querySelector('button[aria-label=\"집계조건1 정렬\"]').click(); true",
+        "wait:200",
+        "expect:document.querySelector('button[aria-label=\"집계조건1 정렬\"]').title === '내림차순'",
+        "click:조회",
+        "wait:1200",
+        "expect:(() => { const up = JSON.parse(sessionStorage.getItem('asSortUp')); const dn = [...document.querySelectorAll('tbody tr')].filter((r) => !r.classList.contains('ec-list-total')).map((r) => r.cells[0].innerText.trim()).filter(Boolean); return dn.join('‖') === [...up].reverse().join('‖') })()",
+        "click:상세검색",
+        "wait:300",
+        "js:document.querySelector('button[aria-label=\"집계조건1 소계\"]').click(); true",
+        "wait:200",
+        "click:조회",
+        "wait:1200",
+        "expect:document.querySelectorAll('tbody tr.ec-list-total').length === 0 && document.querySelector('tfoot tr').innerText.includes('합계')",
+        "expect:(async () => { const r = await fetch('/api/as-requests/' + sessionStorage.getItem('asSortId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+      ]
+    },
+    {
+      "name": "A/S수리현황 — 고른 조건 칸 옆에 두 단추",
+      "path": "/quality/as-repair-status",
+      "steps": [
+        "wait:2500",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '집계')?.querySelector('input')?.click(); true",
+        "wait:300",
+        "set:select[aria-label=\"집계조건1\"]|품목명[규격]",
+        "expect:!!document.querySelector('button[aria-label=\"집계조건1 정렬\"]') && !!document.querySelector('button[aria-label=\"집계조건1 소계\"]')"
+      ]
+    }
+  ]
+}

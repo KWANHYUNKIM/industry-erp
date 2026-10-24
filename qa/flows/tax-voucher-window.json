@@ -1,0 +1,47 @@
+{
+  "about": "(세금)계산서발행/수령 창 [저장 ▴](저장/내용유지 → 수정 창 · [H] 마지막 수정 한 줄) · [저장/청구서인쇄 ▴] — 2026-10-22 원본 실측.",
+  "shots": [
+    {
+      "name": "저장 ▴ · 내용유지 · [H] 이력",
+      "path": "/accounting/vat/tax-voucher",
+      "steps": [
+        "wait:2000",
+        "clicklast:매출(세금)계산서",
+        "wait:400",
+        "js:[...document.querySelectorAll('button[title=\"거래처 코드도움\"]')].pop().click(); true",
+        "pickrow:BOTH-001",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelector('input.text-right'); el.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '100000'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "clicklast:세부내역",
+        "wait:300",
+        "setnear:비고|QA세무-WIN",
+        "clicklast:적용(F8)",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button[aria-label=\"펼침\"]')[0].click(); true",
+        "wait:200",
+        "expect:['저장/내용유지','저장/신규'].every((t) => [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-menu button')].some((b) => b.textContent.trim() === t))",
+        "js:[...document.querySelectorAll('.ec-menu button')].find((b) => b.textContent.trim() === '저장/내용유지').click(); true",
+        "wait:1200",
+        "expect:!![...document.querySelectorAll('[role=dialog]')].pop() && ['삭제','H'].every((t) => [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].some((b) => b.textContent.trim() === t))",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes('QA세무-WIN')).length === 1",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === 'H').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('이력') && /\\d{4}\\/\\d\\d\\/\\d\\d (오전|오후) \\d+:\\d\\d:\\d\\d \\[[A-Z0-9_]+\\]/.test([...document.querySelectorAll('[role=dialog]')].pop().innerText)",
+        "clicklast:닫기",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button[aria-label=\"펼침\"]')[1].click(); true",
+        "wait:200",
+        "expect:['저장/전자(세금)계산서인쇄','전자(세금)계산서발행'].every((t) => [...document.querySelectorAll('.ec-menu button')].some((b) => b.textContent.trim() === t))",
+        "js:document.body.click(); true",
+        "clicklast:삭제",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA세무-WIN'))"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const y=new Date().getFullYear();const vs=await (await fetch('/api/tax-vouchers?from='+y+'-01-01&to='+y+'-12-31',{headers:h})).json();const left=vs.filter((v)=>(v.remark||'').includes('QA세무-WIN'));for(const v of left)await fetch('/api/tax-vouchers/'+v.id,{method:'DELETE',headers:h});return left.length?'남은 시험 계산서 '+left.length+'건 지움':true})()"
+  ]
+}

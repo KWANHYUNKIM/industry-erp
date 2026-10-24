@@ -1,0 +1,53 @@
+{
+  "about": "관리 > 일용근로 근무조회 [이력](E020751) · 근무입력 수정 창 [복사] · [H] — 시험 사원(QA관리-이력)의 2091/10/02 전표를 만들고(신규) 근무기록 2 → 3 으로 고치면(수정) 이력조회에 '수정 · QA관리-이력 · 3.00' 한 줄, H 를 누르면 이력 창에 신규 → 수정 두 줄. 근무입력 수정 창의 [H] 도 같은 창, [복사] 는 그 전표 줄을 담은 새 입력(삭제 단추 없음)이고 저장하면 같은 일자의 다음 번호(2091/10/03 -2)다. 전표를 지워도 이력조회에 '삭제' 로 남는다. 이력 줄 자체는 지울 수 없어(원본도 같다) 2091/10/02 전표 몫만 남는다.",
+  "shots": [
+    {
+      "name": "근무조회 [이력] · H · 지워도 남음",
+      "path": "/hr/daily-work-list",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const w=await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-이력',foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:150000})})).json();const body=q=>JSON.stringify({slipDate:'2091-10-02',lines:[{workDate:'2091-10-02',workerId:w.id,quantity:q}]});const s=await (await fetch('/api/hr/daily-work-entries',{method:'POST',headers:h,body:body(2)})).json();await fetch('/api/hr/daily-work-entries/2091-10-02/'+s.slipNo,{method:'PUT',headers:h,body:body(3)});sessionStorage.setItem('qaDh',JSON.stringify({w:w.id,no:s.slipNo}));return true})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "click:이력",
+        "wait:1200",
+        "expect:document.body.innerText.includes('근무조회 이력조회')",
+        "expect:[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim()).join('|')==='작업일자|전표번호|행위|사원명|수당항목|근무기록|작업자|이력'",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaDh'));const r=[...document.querySelectorAll('table tbody tr')].map(t=>t.innerText.replace(/\\s+/g,' ').trim()).find(t=>t.includes('2091/10/02 -'+q.no));return !!r&&r.includes('수정')&&r.includes('QA관리-이력')&&r.includes('3.00')})()",
+        "js:(()=>{const q=JSON.parse(sessionStorage.getItem('qaDh'));const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10/02 -'+q.no));[...tr.querySelectorAll('a')].find(a=>a.textContent==='H').click();return true})()",
+        "wait:800",
+        "expect:(()=>{const rows=[...document.querySelectorAll('.ec-modal table tbody tr')].map(t=>t.innerText.replace(/\\s+/g,' ').trim());return rows.length===2&&rows[0].endsWith('신규')&&rows[1].endsWith('수정')})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDh'));const a=(await fetch('/api/hr/daily-work-entries/2091-10-02/'+q.no,{method:'DELETE',headers:h})).ok;const b=(await fetch('/api/hr/daily-workers/'+q.w,{method:'DELETE',headers:h})).ok;sessionStorage.setItem('qaDhClean',String(a&&b));return true})()",
+        "expect:sessionStorage.getItem('qaDhClean')==='true'",
+        "js:location.reload();true",
+        "wait:2500",
+        "click:이력",
+        "wait:1200",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaDh'));const r=[...document.querySelectorAll('table tbody tr')].map(t=>t.innerText.replace(/\\s+/g,' ').trim()).find(t=>t.includes('2091/10/02 -'+q.no));return !!r&&r.includes('삭제')})()"
+      ]
+    },
+    {
+      "name": "근무입력 수정 창 — 복사 · H",
+      "path": "/hr/daily-work-list",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const w=await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-복사',foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:150000})})).json();const s=await (await fetch('/api/hr/daily-work-entries',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-10-03',lines:[{workDate:'2091-10-03',workerId:w.id,quantity:2}]})})).json();sessionStorage.setItem('qaDc',JSON.stringify({w:w.id,no:s.slipNo}));location.href='/hr/daily-work-input?date=2091-10-03&no='+s.slipNo;return true})()",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-btn')].map(b=>b.innerText.trim()).join('|').includes('저장(F8)|복사|닫기|삭제|H')",
+        "click:H",
+        "wait:800",
+        "expect:document.body.innerText.includes('이력')&&[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.replace(/\\s+/g,' ').trim().endsWith('신규'))",
+        "js:[...document.querySelectorAll('.ec-modal .ec-btn')].find(b=>b.innerText.trim()==='닫기').click();true",
+        "wait:300",
+        "click:복사",
+        "wait:1500",
+        "expect:!document.body.innerText.includes('삭제')||![...document.querySelectorAll('.ec-btn')].some(b=>b.innerText.trim()==='삭제')",
+        "expect:document.querySelector('table tbody tr:first-child td:nth-child(6) input').value==='2.00'||document.querySelector('table tbody tr:first-child td:nth-child(6) input').value==='2'",
+        "click:저장(F8)",
+        "wait:1000",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDc'));const l=await (await fetch('/api/hr/daily-work-entries?from=2091-10-03&to=2091-10-03',{headers:h})).json();const mine=l.filter(x=>x.workerId===q.w);sessionStorage.setItem('qaDcCopies',JSON.stringify(mine.map(x=>x.slipDate+'/'+x.slipNo)));return true})()",
+        "expect:JSON.parse(sessionStorage.getItem('qaDcCopies')).length===2",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDc'));let ok=true;for(const s of JSON.parse(sessionStorage.getItem('qaDcCopies'))){ok=(await fetch('/api/hr/daily-work-entries/'+s,{method:'DELETE',headers:h})).ok&&ok}ok=(await fetch('/api/hr/daily-workers/'+q.w,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaDcClean',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaDcClean')==='true'"
+      ]
+    }
+  ]
+}

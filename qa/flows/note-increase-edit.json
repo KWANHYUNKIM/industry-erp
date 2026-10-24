@@ -1,0 +1,75 @@
+{
+  "about": "회계 I › 받을어음증가 빈 저장 두 단계 · 받을어음조회 증가 줄 [일자] → 수정 창 · [내역만등록] 빈 저장. 원본 2026-10-21 loginaa 실측: 증가 빈 저장은 글 없이 거래처 · 어음번호 칸만 빨간 테두리(말풍선 글 없음), 둘을 채우고 [금액] 0 이면 금액 칸만. QA1-N9 123,000 → 받을어음조회 '2026/10/21-1 | QA1-N9 | 증가 | 한성전자 | 123,000 | … | 받을어음증가 | 2026/10/21 -26' → 일자 → 수정 창(일자 · 거래처명 막힘, 저장(F8) · 저장/전표(F7) · 복사 · 삭제 · 닫기) 125,000 → 목록 125,000 · 회계전표 -26 그대로 → 삭제 '전표를 삭제하겠습니까? - 받을어음증가'. [내역만등록] 빈 저장은 거래처코드 · 계정코드 · 첫 줄 어음번호 · 금액 칸만 빨간 테두리(글 없음). 거래처는 스스로 만들고 끝에 지운다.",
+  "shots": [
+    {
+      "name": "받을어음증가 빈 저장 → 거래처 · 어음번호만 테두리(금액은 아직) → 둘 채우면 금액만 → 123,000 저장",
+      "path": "/accounting/notes-increase",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null }); const s = await A('GET', '/notes'); for (const n of s.notes.filter((x) => x.noteNo === 'QA1-NEDIT')) await A('DELETE', '/notes/' + n.id); let p = (await A('GET', '/partners')).find((x) => x.code === 'QAAC1E'); if (!p) await A('POST', '/partners', { code: 'QAAC1E', name: 'QA회계1어음수정', type: 'BOTH' }); return true })()",
+        "js:(() => { setTimeout(() => location.reload(), 50); return true })()",
+        "wait:4000",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:!document.querySelector('.ec-alert') && ['거래처', '어음번호'].every((p) => !!document.querySelector('input[placeholder=\"' + p + '\"]')?.closest('.ec-invalid')) && !document.querySelector('input[aria-label=\"금액\"]').closest('.ec-invalid')",
+        "set:input[placeholder=\"거래처\"]|QAAC1E",
+        "js:(() => { document.querySelector('input[placeholder=\"거래처\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"어음번호\"]|QA1-NEDIT",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:!document.querySelector('.ec-alert') && document.querySelectorAll('.ec-invalid').length === 1 && !!document.querySelector('input[aria-label=\"금액\"]').closest('.ec-invalid')",
+        "set:input[aria-label=\"금액\"]|123000",
+        "set:input[placeholder=\"적요\"]|QA회계1",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[placeholder=\"어음번호\"]').value === ''"
+      ]
+    },
+    {
+      "name": "받을어음조회 증가 줄 [일자] → 수정 창 125,000 → 목록 125,000, 회계전표번호 그대로 → 삭제",
+      "path": "/accounting/notes-list",
+      "steps": [
+        "wait:3500",
+        "js:(async () => { const A = (u) => fetch('/api' + u, { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = await A('/journals?from=' + day + '&to=' + day + '&all=true'); const rows = Array.isArray(j) ? j : (j.content ?? j.rows ?? []); const e = rows.find((x) => (x.description ?? '').includes('QA1-NEDIT')); sessionStorage.setItem('nedit', e ? e.docNo : ''); return true })()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA1-NEDIT') && r.innerText.includes('123,000'))",
+        "js:(() => { [...document.querySelectorAll('tbody a.ec-link')].find((a) => a.closest('tr').innerText.includes('QA1-NEDIT')).click(); return true })()",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/notes-increase' && document.querySelector('input[aria-label=\"금액\"]').value === '123,000' && ['저장(F8)', '삭제', '닫기'].every((t) => [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === t))",
+        "set:input[aria-label=\"금액\"]|125000",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/notes-list' && [...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA1-NEDIT') && r.innerText.includes('125,000'))",
+        "expect:(async () => { const A = (u) => fetch('/api' + u, { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = await A('/journals?from=' + day + '&to=' + day + '&all=true'); const rows = Array.isArray(j) ? j : (j.content ?? j.rows ?? []); const e = rows.find((x) => (x.description ?? '').includes('QA1-NEDIT')); const before = sessionStorage.getItem('nedit'); return !before || (e && e.docNo === before) })()",
+        "js:(() => { [...document.querySelectorAll('tbody a.ec-link')].find((a) => a.closest('tr').innerText.includes('QA1-NEDIT')).click(); return true })()",
+        "wait:2500",
+        "click:삭제",
+        "wait:400",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 받을어음증가')",
+        "click:확인",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/notes-list' && ![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA1-NEDIT'))"
+      ]
+    },
+    {
+      "name": "[내역만등록] 빈 저장 → 글 없이 거래처코드 · 첫 줄 어음번호 · 금액 테두리, 둘째 줄만 적으면 거래처코드만, [다시 작성] 하면 풀림",
+      "path": "/accounting/notes-list",
+      "steps": [
+        "wait:3000",
+        "click:내역만등록",
+        "wait:600",
+        "js:(() => { [...document.querySelectorAll('button')].filter((b) => b.offsetParent && b.innerText.trim() === '저장(F8)').pop().click(); return true })()",
+        "wait:400",
+        "expect:!document.querySelector('.ec-alert') && ['거래처코드', '어음번호1', '금액1'].every((l) => !!document.querySelector('input[aria-label=\"' + l + '\"], input[placeholder=\"' + l + '\"]')?.closest('.ec-invalid')) && document.querySelectorAll('.ec-invalid').length === 3",
+        "set:input[aria-label=\"금액2\"]|5000",
+        "js:(() => { [...document.querySelectorAll('button')].filter((b) => b.offsetParent && b.innerText.trim() === '저장(F8)').pop().click(); return true })()",
+        "wait:400",
+        "expect:document.querySelectorAll('.ec-invalid').length === 1",
+        "click:다시 작성",
+        "wait:300",
+        "expect:document.querySelectorAll('.ec-invalid').length === 0",
+        "js:(async () => { const A = (m, u) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null }); const s = await A('GET', '/notes'); for (const n of s.notes.filter((x) => x.noteNo === 'QA1-NEDIT')) await A('DELETE', '/notes/' + n.id); const p = (await A('GET', '/partners')).find((x) => x.code === 'QAAC1E'); if (p) await A('DELETE', '/partners/' + p.id); return true })()"
+      ]
+    }
+  ]
+}

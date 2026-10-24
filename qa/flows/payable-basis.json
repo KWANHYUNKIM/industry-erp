@@ -1,0 +1,104 @@
+{
+  "about": "회계 II 채무관리 — 채무조회 [신규(F2)] 채무내역입력 증가 50,000 → 채무현황 총합계 · 거래처 계 +50,000 → [일자-No.] 수정 창에서 60,000 (번호 그대로 -1) → +60,000 → 수정 창 [삭제] '전표를 삭제하겠습니까? - 채무내역' → 처음. 원본 E060503 · E060504 2026-10-21 실측: (주)구로 2519 외상매입금 QA2AP1021 50,000 적요 QA회계2 → 총합계 3,800,000 → 3,850,000 · (주)구로 계 2,050,000 → 60,000 으로 수정 3,860,000 → 삭제 3,800,000. 줄 없이 저장하면 원본은 '아래의 경우 처리가 불가능합니다.' 창에 '20261021 채무내역입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.'",
+  "shots": [
+    {
+      "name": "준비 — 채무현황 총합계를 적어 둔다",
+      "path": "/accounting/bonds/ap/status",
+      "steps": [
+        "wait:1200",
+        "expect:document.querySelector('select[aria-label=\"적용양식\"]').value === '현황_집계'",
+        "click:검색(F8)",
+        "wait:800",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; sessionStorage.setItem('apTotal0', String(window.__total())); sessionStorage.getItem('apTotal0')"
+      ]
+    },
+    {
+      "name": "채무조회 [신규(F2)] — 줄 없이 저장하면 처리 불가 창",
+      "path": "/accounting/bonds/ap",
+      "steps": [
+        "click:신규(F2)",
+        "wait:800",
+        "click:저장(F8)",
+        "wait:500",
+        "expect:document.body.innerText.includes('채무내역입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
+        "clicklast:확인",
+        "wait:300",
+        "js:window.__type = (sel, v) => { const el = document.querySelector(sel); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true }; true",
+        "js:window.__type('[role=dialog] input[aria-label=\"계정검색\"]', '251')",
+        "wait:300",
+        "js:window.__type('[role=dialog] input[aria-label=\"거래처검색\"]', 'QA-SUPP')",
+        "wait:300",
+        "set:input[aria-label=\"1줄 채무번호\"]|QA2AP1021",
+        "set:input[aria-label=\"1줄 금액\"]|50000",
+        "set:input[aria-label=\"1줄 적요\"]|QA회계2",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA2AP1021') && t.innerText.includes('50,000') && t.innerText.includes('채무내역'))"
+      ]
+    },
+    {
+      "name": "채무현황 — 총합계 +50,000 · QA매입처 계",
+      "path": "/accounting/bonds/ap/status",
+      "steps": [
+        "wait:1200",
+        "click:검색(F8)",
+        "wait:800",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; window.__total()",
+        "expect:window.__total() === Number(sessionStorage.getItem('apTotal0')) + 50000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA2AP1021') && t.innerText.includes('QA회계2') && t.innerText.includes('50,000'))",
+        "expect:[...document.querySelectorAll('tr')].some((t) => t.innerText.includes('QA매입처 계'))"
+      ]
+    },
+    {
+      "name": "채무조회 — [일자-No.] 수정 창에서 60,000",
+      "path": "/accounting/bonds/ap",
+      "steps": [
+        "wait:1000",
+        "js:const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA2AP1021')); sessionStorage.setItem('apNo', tr.querySelector('a, button.ec-link, [role=link]').innerText.trim()); tr.querySelector('a, button.ec-link, [role=link]').click(); sessionStorage.getItem('apNo')",
+        "wait:800",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('채무내역입력(수정)')",
+        "set:input[aria-label=\"1줄 금액\"]|60000",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA2AP1021') && t.innerText.includes('60,000') && t.innerText.includes(sessionStorage.getItem('apNo')))"
+      ]
+    },
+    {
+      "name": "채무현황 — 총합계 +60,000",
+      "path": "/accounting/bonds/ap/status",
+      "steps": [
+        "wait:1200",
+        "click:검색(F8)",
+        "wait:800",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; window.__total()",
+        "expect:window.__total() === Number(sessionStorage.getItem('apTotal0')) + 60000"
+      ]
+    },
+    {
+      "name": "채무조회 — 수정 창 [삭제] '- 채무내역' → 확인",
+      "path": "/accounting/bonds/ap",
+      "steps": [
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA2AP1021')).querySelector('a, button.ec-link, [role=link]').click(); true",
+        "wait:800",
+        "click:삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 채무내역')",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA2AP1021'))"
+      ]
+    },
+    {
+      "name": "채무현황 — 처음 총합계",
+      "path": "/accounting/bonds/ap/status",
+      "steps": [
+        "wait:1200",
+        "click:검색(F8)",
+        "wait:800",
+        "js:window.__total = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('총합계')); return r ? Number(r.innerText.replace(/[^\\d-]/g, '')) : 0 }; window.__total()",
+        "expect:window.__total() === Number(sessionStorage.getItem('apTotal0'))"
+      ]
+    }
+  ]
+}

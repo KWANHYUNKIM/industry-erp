@@ -1,0 +1,16 @@
+{
+  "about": "회계 II 채권증가현황 [구분] 집계 — 집계조건을 비우고 검색하면 원본 알림, 거래처별로 고르면 '… 계' · 총합계 줄이 나온다(자료 없으면 빈 판).",
+  "shots": [
+    {
+      "name": "집계 조건 비움 → 알림",
+      "path": "/accounting/bonds/ar/increase",
+      "steps": [
+        "js:(() => { const s = document.querySelector('select[aria-label=\"구분\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '집계'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:300",
+        "click:검색(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('집계 조건은 1개 이상 선택하셔야 합니다.')"
+      ]
+    }
+  ]
+}

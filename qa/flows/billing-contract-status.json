@@ -1,0 +1,35 @@
+{
+  "about": "회계 II › 계약관리 › 계약현황(E060912, 2026-10-13 원본 실측): 계약일자(금월(~오늘)) 계약 줄이 출력물에 — 열 일자-No. · 계약명 · 거래처명 · 항목명 · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 청구예정월, 달마다 'YYYY/MM 계' 와 '합계'. 수량 2 × 10,000 → '2.00 · 10,000 · 20,000 · 2,000 · 22,000 · 01 . 03 . 05'. 청구예정월 □사용 으로 2월만 고르면 빠진다. 만든 계약 · 항목은 끝에 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 계약항목 · 계약(API)",
+      "path": "/accounting/contract-items",
+      "steps": [
+        "wait:1000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const c='S'+String(Date.now()).slice(-4);const it=(await window.__api('POST','/contract-items',{code:c,name:'QA회계2-현황항목',unitPrice:10000,vatIncluded:false,billingCycle:'PERIODIC',salesAccountId:null})).body;sessionStorage.setItem('ciId',it.id);const u=(await window.__api('GET','/billing-contracts/units')).body.find((x)=>x.name==='월말청구');const p=(await window.__api('GET','/partners')).body[0];const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await window.__api('POST','/billing-contracts',{contractDate:ymd,partnerId:p.id,code:null,name:'QA회계2-현황계약',billStart:ymd,billEnd:(d.getFullYear()+1)+ymd.slice(4),vatType:'세금계산서',foreignCurrency:false,employeeId:null,departmentId:null,projectId:null,remark:null,lines:[{itemId:it.id,billMonths:'01,03,05',quantity:2,unitPrice:10000,supplyAmount:null,vatAmount:null,billingUnitId:u.id,remark:'QA회계2'}]});sessionStorage.setItem('bcId',r.body.id);return r.status})()"
+      ]
+    },
+    {
+      "name": "계약현황",
+      "path": "/accounting/contract-status",
+      "steps": [
+        "wait:1500",
+        "js:window.__row = () => [...document.querySelectorAll('table.ec-report tbody tr')].find((t) => t.innerText.includes('QA회계2-현황계약')); true",
+        "expect:[...document.querySelectorAll('table.ec-report thead th')].map((t)=>t.innerText.trim()).join('|')==='일자-No.|계약명|거래처명|항목명|수량|단가|공급가액|부가세|합계|청구예정월'",
+        "expect:(()=>{const c=[...window.__row().cells].map((x)=>x.innerText.trim());return /^\\d{4}\\/\\d{2}\\/\\d{2} -\\d+$/.test(c[0])&&c[3]==='QA회계2-현황항목'&&c[4]==='2.00'&&c[5]==='10,000'&&c[6]==='20,000'&&c[7]==='2,000'&&c[8]==='22,000'&&c[9]==='01 . 03 . 05'})()",
+        "expect:[...document.querySelectorAll('table.ec-report tbody tr')].some((t)=>/^\\d{4}\\/\\d{2} 계/.test(t.innerText.trim()))&&[...document.querySelectorAll('table.ec-report tbody tr')].pop().innerText.trim().startsWith('합계')",
+        "js:(()=>{const cb=[...document.querySelectorAll('label')].find((l)=>l.innerText.trim()==='사용').querySelector('input');cb.click();return true})()",
+        "wait:300",
+        "js:(()=>{const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;const y=new Date().getFullYear();for(const [k,v] of [['청구예정월 시작',y+'-02'],['청구예정월 끝',y+'-02']]){const el=document.querySelector(`input[aria-label='${k}']`);set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}))}return true})()",
+        "wait:300",
+        "expect:!window.__row()",
+        "js:(()=>{const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;const y=new Date().getFullYear();const el=document.querySelector(`input[aria-label='청구예정월 끝']`);set.call(el,y+'-03');el.dispatchEvent(new Event('input',{bubbles:true}));return true})()",
+        "wait:300",
+        "expect:!!window.__row()",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const a=await window.__api('POST','/billing-contracts/delete',{ids:[Number(sessionStorage.getItem('bcId'))]});const b=await window.__api('DELETE','/contract-items/'+sessionStorage.getItem('ciId'));return a.status+' '+b.status})()"
+      ]
+    }
+  ]
+}

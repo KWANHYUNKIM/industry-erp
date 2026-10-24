@@ -1,0 +1,38 @@
+{
+  "about": "거래처 없이 판매 저장 (원본 E040206 판매입력 · 재고1.md:55 '거래처 비움'): 거래처를 안 고르고 창고 · 품목 · 수량만 넣어 [저장(F8)] → 막히지 않고 partnerId 없는 판매가 판매조회 목록에 생긴다. 만든 전표는 지움.",
+  "shots": [
+    {
+      "name": "재고 3 넣기(API)",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/items','/warehouses','/partners'].map((p) => window.__api('GET', p))).then(([it, wh, pa]) => { const i = it.body.find((x) => x.code === 'QA-PROD'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0], c = pa.body.find((x) => x.code === 'QA-CUST'); sessionStorage.setItem('s2r', JSON.stringify({ itemId: i.id, whId: w.id, whCode: w.code, partnerId: c.id })); sessionStorage.setItem('s2rWh', w.code); return window.__api('POST', '/stock/transactions', { itemId: i.id, warehouseId: w.id, type: 'INBOUND', quantity: 3, remark: 'QA재고1' }) }).then((r) => r.status === 200)",
+        "expect:!!sessionStorage.getItem('s2r')"
+      ]
+    },
+    {
+      "name": "판매입력 화면에서 거래처 비우고 2 x 777 저장 → 거래처 없는 판매 · 삭제",
+      "path": "/sales/sell",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "click:출하창고 코드도움",
+        "pickrow:@s2rWh",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "wait:500",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|777",
+        "wait:300",
+        "click:저장(F8)",
+        "wait:6000",
+        "js:window.__api('GET', '/sales').then((r) => { const t = new Date(); const d = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const s = r.body.filter((x) => x.partnerId == null && x.saleDate === d && Number(x.supplyAmount) === 1554).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('s2rSale', JSON.stringify(s ? { id: s.id, docNo: s.docNo } : null)); return true })",
+        "expect:!!JSON.parse(sessionStorage.getItem('s2rSale'))",
+        "expect:window.__api('GET', '/sales').then((r) => r.body.some((x) => x.id === JSON.parse(sessionStorage.getItem('s2rSale')).id && !x.partnerName))",
+        "js:window.__api('DELETE', '/sales/' + JSON.parse(sessionStorage.getItem('s2rSale')).id).then((r) => { sessionStorage.setItem('s2rDel', String(r.status)); return true })",
+        "expect:sessionStorage.getItem('s2rDel') === '200' || sessionStorage.getItem('s2rDel') === '204'",
+        "js:(() => { const c = JSON.parse(sessionStorage.getItem('s2r')); return window.__api('POST', '/stock/transactions', { itemId: c.itemId, warehouseId: c.whId, type: 'OUTBOUND', quantity: 3, remark: 'QA재고1 되돌림' }).then((r) => r.status === 200) })()"
+      ]
+    }
+  ]
+}

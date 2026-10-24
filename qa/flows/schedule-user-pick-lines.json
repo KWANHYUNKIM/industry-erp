@@ -1,0 +1,26 @@
+{
+  "about": "일정관리등록 [참석자] 🔍 '사용자검색' 알약 [결재라인별](원본 E070201 2026-10-13 실측) — 결재설정의 결재라인마다 [줄번호][결재라인](합침) [☐][성명], 체크 → 적용(F8) 하면 이름 칩. 시험 결재라인(QA그룹웨어-결재라인, 첫 사용자 한 명)을 API 로 만들고 지운다. node qa/shot.mjs qa/flows/schedule-user-pick-lines.json",
+  "shots": [
+    {
+      "name": "결재라인별 알약",
+      "path": "/groupware/schedule",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const us = await (await fetch('/api/users', { headers: H })).json(); const u = us.find((x) => x.username !== 'admin') ?? us[1]; const r = await fetch('/api/approval-settings/presets', { method: 'POST', headers: H, body: JSON.stringify({ name: 'QA그룹웨어-결재라인', active: true, approverIds: [u.id] }) }); const p = await r.json(); sessionStorage.setItem('qaPreset', String(p.id)); sessionStorage.setItem('qaPresetUser', u.name); return r.status + ' ' + p.id + ' ' + u.name })()",
+        "click:신규(F2)",
+        "wait:600",
+        "js:document.querySelector('[aria-label=\"참석자 사용자검색\"]').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-pill')].map((b) => b.textContent.trim() + (b.classList.contains('active') ? '+' : '')).join('|') === '조직도+|결재라인별'",
+        "js:[...document.querySelectorAll('[role=dialog] .ec-pill')].find((b) => b.textContent.trim() === '결재라인별').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table[aria-label=\"결재라인별\"] thead th')].map((t) => t.textContent.trim()).join('|') === '|결재라인||성명'",
+        "expect:[...document.querySelectorAll('table[aria-label=\"결재라인별\"] tbody tr')].some((tr) => tr.textContent.includes('QA그룹웨어-결재라인') && tr.textContent.includes(sessionStorage.qaPresetUser))",
+        "js:document.querySelector('table[aria-label=\"결재라인별\"] input[aria-label=\"QA그룹웨어-결재라인 ' + sessionStorage.qaPresetUser + '\"]').click(); true",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:!!document.querySelector('[aria-label=\"참석자 ' + sessionStorage.qaPresetUser + ' 빼기\"]')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; return 'del ' + (await fetch('/api/approval-settings/presets/' + sessionStorage.qaPreset, { method: 'DELETE', headers: H })).status })()"
+      ]
+    }
+  ]
+}

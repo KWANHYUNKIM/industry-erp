@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import type { Currency, CurrencyConversion, ExchangeRate } from '../../api/types'
+import type { Currency, CurrencyConversion, ExchangeRate } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useTableSort } from '../../utils/useTableSort'
 import { dateText } from '../../utils/dateText'
@@ -92,34 +92,34 @@ export default function CurrencyPage() {
         { label: 'Excel' },
       ]}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
           <button key={t} onClick={() => { setTab(t); setShowForm(false); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400,
             borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({t === '통화등록' ? currencies.length : rates.length})</button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11.5, color: '#8a929c' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
           원화(KRW)는 기준통화라 등록하지 않습니다.
         </span>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      <Modal open={showForm && tab === '통화등록'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm && tab === '통화등록'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
         <CurrencyForm onError={setError} onSaved={() => { setShowForm(false); flash('통화를 등록했습니다.'); load() }} />
       )}</Modal>
-      <Modal open={showForm && tab === '고시환율'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm && tab === '고시환율'} title="외화 (통화·고시환율) 등록" onClose={() => setShowForm(false)}>{(
         <RateForm currencies={currencies} onError={setError}
           onSaved={(r) => { setShowForm(false); flash(`${r.currencyCode} ${r.rateDate} 환율 ${rateText(r.rate)}원 등록`); load() }} />
       )}</Modal>
 
       {tab === '고시환율' && <Converter currencies={currencies} onError={setError} />}
 
-      {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p className="ec-empty">불러오는 중…</p>
         : tab === '통화등록' ? <CurrencyTable rows={currencies} picked={picked} onPick={pick} />
         : <RateTable rows={rates} />}
     </EcListShell>
@@ -154,7 +154,7 @@ function CurrencyTable({ rows, picked, onPick }: {
   return (
     <>
       {/* 원본 조건 차례: 외화코드 · 외화명 · … · 사용구분 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>외화코드</span>
         <input className="ec-input" value={code} onChange={(e) => setCode(e.target.value)} style={{ width: 110 }} />
         <span>외화명</span>
@@ -167,40 +167,40 @@ function CurrencyTable({ rows, picked, onPick }: {
     <table className="w-full text-left">
       <thead>
         <tr>
-          <th style={{ width: 28, textAlign: 'center' }}></th>
-          <th style={{ width: 34 }}></th>
+          <th className="w-[28px] text-center"></th>
+          <th className="w-[34px]"></th>
           {/*
             원본 외화등록의 열 이름은 <b>외화코드 · 외화명 · 환율 · 사용구분</b> 이다(사본 실측).
             우리는 넷 다 [통화…] 로 부르고 있었다 — 같은 것을 두 이름으로 부르면
             원본을 쓰던 사람이 매번 되짚어야 한다. 정렬 열쇠는 그대로 둔다(화면에 안 보인다).
           */}
-          <th style={{ width: 80, cursor: 'pointer' }} onClick={() => sort.toggle('통화코드')}>외화코드 {sort.mark('통화코드')}</th>
-          <th style={{ width: 160, cursor: 'pointer' }} onClick={() => sort.toggle('통화명')}>외화명 {sort.mark('통화명')}</th>
-          <th style={{ width: 70, textAlign: 'center' }}>기호</th>
-          <th style={{ width: 90, textAlign: 'right' }}>고시단위</th>
-          <th style={{ width: 150, textAlign: 'right', cursor: 'pointer' }} onClick={() => sort.toggle('최근 고시환율')}>환율 {sort.mark('최근 고시환율')}</th>
-          <th style={{ width: 110 }}>고시일</th>
-          <th style={{ width: 70, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용구분 {sort.mark('사용')}</th>
+          <th className="w-[80px] cursor-pointer" onClick={() => sort.toggle('통화코드')}>외화코드 {sort.mark('통화코드')}</th>
+          <th className="w-[160px] cursor-pointer" onClick={() => sort.toggle('통화명')}>외화명 {sort.mark('통화명')}</th>
+          <th className="w-[70px] text-center">기호</th>
+          <th className="w-[90px] text-right">고시단위</th>
+          <th className="w-[150px] text-right cursor-pointer" onClick={() => sort.toggle('최근 고시환율')}>환율 {sort.mark('최근 고시환율')}</th>
+          <th className="w-[110px]">고시일</th>
+          <th className="w-[70px] text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용구분 {sort.mark('사용')}</th>
         </tr>
       </thead>
       <tbody>
         {shown.length === 0 ? (
-          <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : shown.map((c, i) => (
           <tr key={c.id}>
-            <td style={{ textAlign: 'center' }}>
+            <td className="text-center">
               <input type="checkbox" checked={picked.has(c.id)} onChange={() => onPick(c.id)} />
             </td>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-            <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>{c.code}</td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td className="font-bold text-ec-blue">{c.code}</td>
             <td>{c.name}</td>
-            <td style={{ textAlign: 'center' }}>{c.symbol ?? ''}</td>
-            <td style={{ textAlign: 'right' }}>{c.unit}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>
-              {c.latestRate === null ? <span style={{ color: '#c60a2e', fontWeight: 400 }}>미등록</span> : `${rateText(c.latestRate)}원`}
+            <td className="text-center">{c.symbol ?? ''}</td>
+            <td className="text-right">{c.unit}</td>
+            <td className="text-right font-bold">
+              {c.latestRate === null ? <span className="text-ec-danger font-normal">미등록</span> : `${rateText(c.latestRate)}원`}
             </td>
-            <td style={{ color: '#5a626e' }}>{dateText(c.latestRateDate) || ''}</td>
-            <td style={{ textAlign: 'center', color: c.active ? '#1c7c3c' : '#8a929c' }}>{c.active ? '사용' : '중지'}</td>
+            <td className="text-ec-label">{dateText(c.latestRateDate) || ''}</td>
+            <td style={{ textAlign: 'center', color: c.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{c.active ? '사용' : '중지'}</td>
           </tr>
         ))}
       </tbody>
@@ -222,29 +222,29 @@ function RateTable({ rows }: { rows: ExchangeRate[] }) {
     <table className="w-full text-left">
       <thead>
         <tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 110, cursor: 'pointer' }} onClick={() => sort.toggle('고시일')}>고시일 {sort.mark('고시일')}</th>
-          <th style={{ width: 80, cursor: 'pointer' }} onClick={() => sort.toggle('통화')}>통화 {sort.mark('통화')}</th>
-          <th style={{ width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('통화명')}>통화명 {sort.mark('통화명')}</th>
-          <th style={{ width: 90, textAlign: 'right' }}>고시단위</th>
-          <th style={{ width: 140, textAlign: 'right', cursor: 'pointer' }} onClick={() => sort.toggle('고시환율')}>고시환율 {sort.mark('고시환율')}</th>
-          <th style={{ width: 150, textAlign: 'right' }}>1통화당 원화</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[110px] cursor-pointer" onClick={() => sort.toggle('고시일')}>고시일 {sort.mark('고시일')}</th>
+          <th className="w-[80px] cursor-pointer" onClick={() => sort.toggle('통화')}>통화 {sort.mark('통화')}</th>
+          <th className="w-[140px] cursor-pointer" onClick={() => sort.toggle('통화명')}>통화명 {sort.mark('통화명')}</th>
+          <th className="w-[90px] text-right">고시단위</th>
+          <th className="w-[140px] text-right cursor-pointer" onClick={() => sort.toggle('고시환율')}>고시환율 {sort.mark('고시환율')}</th>
+          <th className="w-[150px] text-right">1통화당 원화</th>
           <th>등록자</th>
         </tr>
       </thead>
       <tbody>
         {shown.length === 0 ? (
-          <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : shown.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
             <td>{dateText(r.rateDate)}</td>
-            <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>{r.currencyCode}</td>
+            <td className="font-bold text-ec-blue">{r.currencyCode}</td>
             <td>{r.currencyName}</td>
-            <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.unit}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{rateText(r.rate)}원</td>
-            <td style={{ textAlign: 'right', color: '#5a626e' }}>{rateText(r.ratePerUnit)}원</td>
-            <td style={{ color: '#5a626e' }}>{r.createdBy ?? ''}</td>
+            <td className="text-right text-ec-label">{r.unit}</td>
+            <td className="text-right font-bold">{rateText(r.rate)}원</td>
+            <td className="text-right text-ec-label">{rateText(r.ratePerUnit)}원</td>
+            <td className="text-ec-label">{r.createdBy ?? ''}</td>
           </tr>
         ))}
       </tbody>
@@ -276,8 +276,8 @@ function Converter({ currencies, onError }: { currencies: Currency[]; onError: (
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 8 }}>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-white p-[12px] mb-[8px]">
+      <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="통화">
           <select className="ec-input" value={currencyId} onChange={(e) => setCurrencyId(e.target.value)} style={{ width: 150 }}>
             {usable.map((c) => <option key={c.id} value={c.id}>{c.code} {c.name}</option>)}
@@ -291,9 +291,9 @@ function Converter({ currencies, onError }: { currencies: Currency[]; onError: (
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={convert}>원화 환산</button>
         {result && (
-          <div style={{ fontSize: 13, paddingBottom: 4 }}>
-            <b style={{ color: 'var(--ec-blue-dark)', fontSize: 16 }}>{won(result.krwAmount)}원</b>
-            <span style={{ color: '#8a929c', marginLeft: 8, fontSize: 11.5 }}>
+          <div className="text-[13px] pb-[4px]">
+            <b className="text-ec-navy text-[16px]">{won(result.krwAmount)}원</b>
+            <span className="text-ec-hint ml-[8px] text-[11.5px]">
               {result.appliedRateDate} 고시 {rateText(result.appliedRate)}원 / {result.unit}{result.currencyCode} 적용
               {result.appliedRateDate !== result.baseDate && ' (기준일 고시가 없어 직전 고시 적용)'}
             </span>
@@ -326,9 +326,9 @@ function CurrencyForm({ onError, onSaved }: { onError: (m: string) => void; onSa
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>통화 등록</div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">통화 등록</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="통화코드 *">
           <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value.toUpperCase())} style={{ width: 90 }} placeholder="GBP" maxLength={3} />
         </Field>
@@ -343,7 +343,7 @@ function CurrencyForm({ onError, onSaved }: { onError: (m: string) => void; onSa
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">
         ※ 고시단위는 엔화처럼 100단위로 고시하는 통화에 씁니다(JPY 100 = 950원이면 단위 100, 환율 950).
       </div>
     </div>
@@ -377,9 +377,9 @@ function RateForm({ currencies, onError, onSaved }: {
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>고시환율 등록</div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">고시환율 등록</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="통화 *">
           <select className="ec-input" value={form.currencyId} onChange={(e) => set('currencyId', e.target.value)} style={{ width: 170 }}>
             {usable.map((c) => <option key={c.id} value={c.id}>{c.code} {c.name}</option>)}
@@ -393,7 +393,7 @@ function RateForm({ currencies, onError, onSaved }: {
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">
         ※ 같은 통화의 같은 날 환율은 하나만 등록됩니다. 기준일에 고시가 없으면 환산 시 직전 고시를 적용합니다.
       </div>
     </div>
@@ -402,8 +402,8 @@ function RateForm({ currencies, onError, onSaved }: {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
     </label>
   )

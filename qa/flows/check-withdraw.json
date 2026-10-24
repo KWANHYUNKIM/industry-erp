@@ -1,0 +1,48 @@
+{
+  "about": "발행수표출금처리(E060606) — 고른 줄 없이 [지출결의서작성] → '리스트에 선택된 자료가 없습니다.', 고르면 지출결의서작성(돈나간계좌번호) → 지출결의서(계정코드(차변) · 추가정보 '발행수표 …') → 저장하면 목록에서 빠지고 발행수표조회에 감소 줄 '지출결의서'(거래처 빈칸 · 체크칸 막힘), 출금계좌 잔액 -금액. 지출결의서를 지우면 수표가 보유로 돌아오고 잔액도 돌아온다(2026-10-14 원본 실측).",
+  "shots": [
+    {
+      "name": "출금처리 → 지출결의서 → 감소 줄 → 지출결의서 삭제",
+      "path": "/accounting/checks-withdraw",
+      "steps": [
+        "js:window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); el.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); el.blur(); return true }; true",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const as=(await window.__api('GET','/bank-cards/accounts')).body.filter((x)=>x.active);const chk=as[0],out=as.find((x)=>x.id!==chk.id&&Number(x.balance)>=40000);sessionStorage.setItem('wOut',out.id);sessionStorage.setItem('wOutCode',out.code??out.accountNo);sessionStorage.setItem('wBal',out.balance);const no='QAWD'+Date.now();sessionStorage.setItem('wNo',no);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await window.__api('POST','/checks/direct',{type:'ISSUED',date:ymd,increase:true,partnerId:null,bankAccountId:chk.id,lines:[{checkNo:no,amount:40000,remark:'QA회계2 출금처리'}]});sessionStorage.setItem('wId',r.body[0].id);location.reload();return r.status})()",
+        "wait:2500",
+        "js:window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); el.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); el.blur(); return true }; true",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "click:지출결의서작성",
+        "wait:500",
+        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다.')",
+        "clicklast:확인",
+        "wait:300",
+        "js:document.querySelector(`[aria-label=\"${sessionStorage.getItem('wNo')} 선택\"]`).click()",
+        "click:지출결의서작성",
+        "wait:600",
+        "expect:document.body.innerText.includes('돈나간계좌번호')",
+        "js:window.__set('계좌검색', sessionStorage.getItem('wOutCode'))",
+        "wait:300",
+        "click:적용(F8)",
+        "wait:600",
+        "expect:document.body.innerText.includes('계정코드(차변)')&&document.body.innerText.includes('발행수표 '+sessionStorage.getItem('wNo'))",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:!document.body.innerText.includes(sessionStorage.getItem('wNo'))",
+        "js:(async()=>{const a=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>String(x.id)===sessionStorage.getItem('wOut'));const c=(await window.__api('GET','/checks')).body.find((x)=>x.checkNo===sessionStorage.getItem('wNo'));sessionStorage.setItem('wOk',String(Number(a.balance)===Number(sessionStorage.getItem('wBal'))-40000&&c.status==='PAID'&&c.settledByVoucher));return true})()",
+        "expect:sessionStorage.getItem('wOk')==='true'"
+      ]
+    },
+    {
+      "name": "발행수표조회 — 감소 줄 '지출결의서' · 거래처 빈칸 · 체크칸 막힘, 지출결의서 삭제로 되돌림",
+      "path": "/accounting/checks-issued-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('wNo'))&&t.innerText.includes('감소'));return !!tr&&tr.innerText.includes('지출결의서')&&tr.cells[4].innerText.trim()===''&&tr.querySelector('input[type=checkbox]').disabled})()",
+        "js:(async()=>{const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const v=(await window.__api('GET','/vouchers?type=EXPENSE_REPORT&from='+ymd+'&to='+ymd)).body.rows.find((x)=>x.lines.some((l)=>l.description==='QA회계2 출금처리'));const r=await window.__api('DELETE','/vouchers/'+v.id);const c=(await window.__api('GET','/checks')).body.find((x)=>x.checkNo===sessionStorage.getItem('wNo'));const a=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>String(x.id)===sessionStorage.getItem('wOut'));sessionStorage.setItem('wBack',String(c.status==='HELD'&&Number(a.balance)===Number(sessionStorage.getItem('wBal'))));await window.__api('POST','/checks/delete',{decreaseIds:[],increaseIds:[c.id]});return r.status})()",
+        "wait:500",
+        "expect:sessionStorage.getItem('wBack')==='true'"
+      ]
+    }
+  ]
+}

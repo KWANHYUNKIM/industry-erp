@@ -1,0 +1,123 @@
+{
+  "about": "회계1 · 회계2 원본 재기(2026-10-21 21시 원본 실측 — plans/회계1.md '원본 재기 필요(묶음 23 · 26)' · 회계2.md 묶음 31): 계좌리스트 [기타 ☑수정일자순(정렬)] · 이체정보 은행명 코드도움(003 → 기업은행) · 재무상태표 [당기누계](비교 머리 = 기준) · [전표발생계정](계정만 · 합계) · 월별손익분석 [기초,당기,기말표시] · 채권감소등록 [입금보고서작성] 전표 묶음기준 거래처별/계정별(QA1G1 10,000 + QA1G2 20,000 → 한 줄 30,000 · '채권 QA1G1 외') → 저장 → 감소 둘 · 입금보고서를 채권조회에서 지우면 채권조회로 돌아옴. 수금형태 어음: 계정코드 받을어음 · 생성방식 직접입력(처음) → 어음번호입력(번호생성 · 만기일자) → 입금보고서 돈 들어온 계좌 = 받을어음 · 추가정보 '채권 …, 받을어음 …' → 저장 → 받을어음조회 증가 둘(거래유형 입금보고서 · 회계전표 같음) → 입금보고서 삭제 → 어음 · 감소 사라짐.",
+  "shots": [
+    {
+      "name": "계좌리스트 — 수정일자순 · 이체정보 은행 코드도움",
+      "path": "/accounting/bank-accounts",
+      "steps": [
+        "wait:2000",
+        "expect:!!document.querySelector('input[aria-label=\"수정일자순(정렬)\"]')",
+        "js:(() => { const codes = () => [...document.querySelectorAll('tbody tr')].map((t) => t.cells[1]?.innerText.trim()).filter(Boolean); window.__before = codes().join(','); document.querySelector('input[aria-label=\"수정일자순(정렬)\"]').click(); return window.__before })()",
+        "wait:400",
+        "expect:(() => { const now = [...document.querySelectorAll('tbody tr')].map((t) => t.cells[1]?.innerText.trim()).filter(Boolean); return now.length > 0 && now.slice().sort().join(',') === window.__before.split(',').sort().join(',') })()",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')][0]; tr.cells[tr.cells.length - 1].querySelector('a,button').click(); return true })()",
+        "wait:600",
+        "expect:document.body.innerText.includes('이체정보등록') && !!document.querySelector('.ec-code input.code[placeholder=\"은행명\"], [role=dialog] input[placeholder=\"은행명\"]')",
+        "clicklast:닫기"
+      ]
+    },
+    {
+      "name": "재무상태표 — 당기누계 · 전표발생계정",
+      "path": "/accounting/balance-sheet",
+      "steps": [
+        "wait:2500",
+        "js:(() => { [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '당기누계').querySelector('input').click(); return true })()",
+        "wait:2000",
+        "expect:(() => { const ps = [...document.querySelectorAll('p')].filter((p) => /현재$/.test(p.innerText.trim())).map((p) => p.innerText.trim()); return ps.length === 2 && ps[0] === ps[1] })()",
+        "js:(() => { [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '전표발생계정').querySelector('input').click(); return true })()",
+        "wait:800",
+        "expect:(() => { const rs = [...document.querySelectorAll('tbody tr')].map((t) => t.cells[0]?.innerText.trim()); return rs.includes('합계') && rs.includes('(당기순이익)') && !rs.some((x) => /^1\\. 자산/.test(x ?? '')) })()"
+      ]
+    },
+    {
+      "name": "월별손익분석 — 기초,당기,기말표시",
+      "path": "/accounting/monthly-pnl",
+      "steps": [
+        "wait:2500",
+        "js:(() => { window.__n = document.querySelectorAll('tbody tr').length; [...document.querySelectorAll('label')].find((l) => l.innerText.includes('기초,당기,기말표시')).querySelector('input').click(); return window.__n })()",
+        "wait:600",
+        "expect:(() => { const rs = [...document.querySelectorAll('tbody tr')].map((t) => t.cells[0]?.innerText.trim()); const cogs = rs.some((x) => x === '2. 매출원가'); return !cogs || (rs.includes('기초재고액') && rs.includes('당기매입액') && rs.includes('기말재고액')) })()"
+      ]
+    },
+    {
+      "name": "채권감소등록 — 거래처별/계정별 한 줄 → 저장 → 채권조회에서 지우면 채권조회",
+      "path": "/accounting/bonds/ar/decrease-entry",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all([window.__api('GET', '/accounts'), window.__api('GET', '/partners')]).then(([a, p]) => { const acc = a.body.find((x) => x.code === '108').id; const pt = p.body.find((x) => x.code); sessionStorage.setItem('gp', pt.name); const s = String(Date.now()).slice(-6); sessionStorage.setItem('g1', 'QA1G1' + s); sessionStorage.setItem('g2', 'QA1G2' + s); return window.__api('POST', '/bonds', { side: 'RECEIVABLE', entryDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), direction: 'INCREASE', lines: [{ accountId: acc, partnerId: pt.id, bondNo: sessionStorage.getItem('g1'), amount: 10000, memo: 'QA회계1 묶음' }, { accountId: acc, partnerId: pt.id, bondNo: sessionStorage.getItem('g2'), amount: 20000, memo: 'QA회계1 묶음' }] }) }).then((r) => { sessionStorage.setItem('gInc', r.body.id); return r.status })",
+        "js:location.reload(); true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(() => { for (const k of ['g1', 'g2']) document.querySelector(`input[aria-label=\"${sessionStorage.getItem(k)} 감소금액\"]`).dispatchEvent(new FocusEvent('focusin', { bubbles: true })); return true })()",
+        "wait:400",
+        "click:입금보고서작성",
+        "wait:600",
+        "js:(() => { [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '거래처별/계정별').querySelector('input').click(); const i = document.querySelector('[role=dialog] input[aria-label=\"계좌검색\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '현금'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:(() => { document.querySelector('[role=dialog] input[aria-label=\"계좌검색\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "clicklast:적용(F8)",
+        "wait:600",
+        "expect:(() => { const rs = [...document.querySelectorAll('[role=dialog] tbody tr')].filter((t) => t.cells.length === 10); return rs.length === 1 && rs[0].innerText.includes('30,000') && rs[0].cells[9].innerText.trim() === '채권 ' + sessionStorage.getItem('g1') + ' 외' })()",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const r = await window.__api('GET', '/bonds?side=RECEIVABLE'); const dec = r.body.filter((e) => e.direction === 'DECREASE' && e.lines.some((l) => [sessionStorage.getItem('g1'), sessionStorage.getItem('g2')].includes(l.bondNo))); if (dec.length === 0 || !dec[0].journalEntryId) return false; sessionStorage.setItem('gJ', dec[0].journalEntryId); const j = (await window.__api('GET', '/journals/' + dec[0].journalEntryId)).body; return dec.flatMap((e) => e.lines).length === 2 && j.lines.filter((l) => l.accountCode === '108').length === 1 && Number(j.lines.find((l) => l.accountCode === '108').credit) === 30000 })()",
+        "js:(() => { history.pushState(null, '', '/accounting/bonds/ar'); dispatchEvent(new PopStateEvent('popstate')); return true })()",
+        "wait:2000",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('g1')) && t.innerText.includes('감소')); tr.cells[tr.cells.length - 1].querySelector('button,a').click(); return tr.cells[tr.cells.length - 1].innerText })()",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/vouchers' && [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '삭제')",
+        "click:삭제",
+        "wait:300",
+        "clicklast:확인",
+        "wait:1500",
+        "expect:location.pathname === '/accounting/bonds/ar'",
+        "expect:(async () => (await window.__api('GET', '/bonds?side=RECEIVABLE')).body.filter((e) => e.direction === 'DECREASE' && e.lines.some((l) => l.bondNo === sessionStorage.getItem('g1'))).length === 0)()",
+        "js:window.__api('GET', '/bonds?side=RECEIVABLE').then((r) => window.__api('POST', '/bonds/delete', { ids: r.body.filter((e) => e.lines.some((l) => l.bondNo.startsWith('QA1G'))).map((e) => e.id) })).then((r) => r.status)"
+      ]
+    },
+    {
+      "name": "채권감소 수금형태 어음 → 받을어음 증가 → 입금보고서 삭제로 함께 사라짐",
+      "path": "/accounting/bonds/ar/decrease-entry",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all([window.__api('GET', '/accounts'), window.__api('GET', '/partners')]).then(([a, p]) => { const acc = a.body.find((x) => x.code === '108').id; const pt = p.body.find((x) => x.code); const s = String(Date.now()).slice(-6); sessionStorage.setItem('n1', 'QA1N1' + s); sessionStorage.setItem('n2', 'QA1N2' + s); return window.__api('POST', '/bonds', { side: 'RECEIVABLE', entryDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), direction: 'INCREASE', lines: [{ accountId: acc, partnerId: pt.id, bondNo: sessionStorage.getItem('n1'), amount: 10000, memo: 'QA회계1 어음' }, { accountId: acc, partnerId: pt.id, bondNo: sessionStorage.getItem('n2'), amount: 20000, memo: 'QA회계1 어음' }] }) }).then((r) => { sessionStorage.setItem('nInc', r.body.id); return r.status })",
+        "js:location.reload(); true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(() => { for (const k of ['n1', 'n2']) document.querySelector(`input[aria-label=\"${sessionStorage.getItem(k)} 감소금액\"]`).dispatchEvent(new FocusEvent('focusin', { bubbles: true })); return true })()",
+        "wait:400",
+        "click:입금보고서작성",
+        "wait:600",
+        "js:(() => { [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '어음').querySelector('input').click(); return true })()",
+        "wait:300",
+        "expect:document.body.innerText.includes('계정코드') && [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '직접입력' && l.querySelector('input[name=produce]'))?.querySelector('input').checked",
+        "clicklast:적용(F8)",
+        "wait:300",
+        "expect:!!document.querySelector('[role=dialog] .outline-ec-danger')",
+        "js:(() => { const i = document.querySelector('[role=dialog] input[aria-label=\"계정검색\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '받을어음'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:(() => { document.querySelector('[role=dialog] input[aria-label=\"계정검색\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "clicklast:적용(F8)",
+        "wait:600",
+        "expect:document.body.innerText.includes('어음번호입력') && [...document.querySelectorAll('thead th')].map((x) => x.innerText.trim()).includes('만기일자') && document.querySelector('input[aria-label=\"1줄 어음번호\"]').value === ''",
+        "click:번호생성",
+        "wait:200",
+        "expect:/^\\d{20}$/.test(document.querySelector('input[aria-label=\"1줄 어음번호\"]').value)",
+        "js:sessionStorage.setItem('nn1', document.querySelector('input[aria-label=\"1줄 어음번호\"]').value); true",
+        "clicklast:적용(F8)",
+        "wait:600",
+        "expect:(() => { const rs = [...document.querySelectorAll('[role=dialog] tbody tr')].filter((t) => t.cells.length === 10); return rs.length === 2 && rs[0].cells[2].innerText.trim() === '받을어음' && rs[0].cells[9].innerText.includes(', 받을어음 ' + sessionStorage.getItem('nn1')) })()",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const r = await window.__api('GET', '/notes?all=true'); const ns = (r.body.notes ?? r.body.rows ?? r.body).filter((n) => n.noteNo === sessionStorage.getItem('nn1')); if (ns.length !== 1 || ns[0].issueVia !== 'VOUCHER' || !ns[0].issueJournalEntryId) return false; sessionStorage.setItem('nJ', ns[0].issueJournalEntryId); const j = (await window.__api('GET', '/journals/' + ns[0].issueJournalEntryId)).body; return Number(j.lines.find((l) => l.accountCode === '110').debit) === 30000 && Number(j.lines.filter((l) => l.accountCode === '108').reduce((t, l) => t + Number(l.credit), 0)) === 30000 })()",
+        "js:(() => { history.pushState(null, '', '/accounting/notes-list'); dispatchEvent(new PopStateEvent('popstate')); return true })()",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('nn1')) && t.innerText.includes('입금보고서') && t.innerText.includes('증가'))",
+        "js:(async () => { const v = (await window.__api('GET', '/vouchers/by-journal/' + sessionStorage.getItem('nJ'))).body; return (await window.__api('DELETE', '/vouchers/' + v.id)).status })()",
+        "wait:500",
+        "expect:(async () => { const r = await window.__api('GET', '/notes?all=true'); return !(r.body.notes ?? r.body.rows ?? r.body).some((n) => n.noteNo === sessionStorage.getItem('nn1')) })()",
+        "js:window.__api('POST', '/bonds/delete', { ids: [Number(sessionStorage.getItem('nInc'))] }).then((r) => r.status)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "about": "지급명세서(일용직)(E020146) · 원천징수영수증(일용직)(C000733) — 숫자는 그 지급연월의 일용근로 급여대장에서, 지급명세서는 만들 때 담아 둔다. 원본 2026-10-14 QA세무-일용(일당 200,000): 근무기록확정 2 → 전체계산 400,000(공제 0) → [신규] 서식 '1 명 1 건 400,000 0 0 0', 같은 지급연월 두 번째 [저장] '이미 생성된 자료입니다.', 대장을 3일 600,000 으로 다시 계산해도 서식 400,000 → [새로불러오기] 확인 창 뒤 600,000 · 3. 영수증 목록은 대장 그대로 600,000. 2091/10 에 만들고 끝에 지운다.",
+  "shots": [
+    {
+      "name": "만들 때 담기 · 새로불러오기 · 중복 막기",
+      "path": "/accounting/withholding/daily-statement",
+      "steps": [
+        "wait:1000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const j = async (m, u, b) => { const r = await fetch('/api' + u, { method: m, headers: H, body: b === undefined ? undefined : JSON.stringify(b) }); const t = await r.text(); return { s: r.status, d: t ? JSON.parse(t) : null } }; const st = (await j('GET', '/simple-payment-statements?daily=true')).d.filter((s) => s.managerDept === 'QA세무' && s.payYear === 2091).map((s) => s.id); if (st.length) await j('POST', '/simple-payment-statements/delete', st); for (const l of (await j('GET', '/hr/daily-pay-ledgers')).d.filter((l) => l.payMonth === '2091-10')) await j('DELETE', '/hr/daily-pay-ledgers/' + l.id); for (const w of (await j('GET', '/hr/daily-workers')).d.filter((w) => w.name === 'QA세무-일용')) await j('DELETE', '/hr/daily-workers/' + w.id); const w = (await j('POST', '/hr/daily-workers', { name: 'QA세무-일용', hireDate: '2091-10-01', dailyWage: 200000, foreigner: false, employmentInsurance: false, pensionAuto: false, healthAuto: false })).d; const l = (await j('POST', '/hr/daily-pay-ledgers', { payMonth: '2091-10', paidMonth: '2091-10', payDate: '2091-10-31' })).d; await j('PUT', '/hr/daily-pay-ledgers/' + l.id + '/work-confirms', [{ workerId: w.id, days: 2 }]); await j('POST', '/hr/daily-pay-ledgers/' + l.id + '/calculate', {}); const body = { kind: 'DAILY', payYear: 2091, period: 10, reportDate: '2091-10-31', managerDept: 'QA세무', managerName: 'QA세무', managerPhone: '02-000-0000', submitter: 'DIRECT' }; const a = await j('POST', '/simple-payment-statements', body); const dup = await j('POST', '/simple-payment-statements', body); await j('PUT', '/hr/daily-pay-ledgers/' + l.id + '/work-confirms', [{ workerId: w.id, days: 3 }]); await j('POST', '/hr/daily-pay-ledgers/' + l.id + '/calculate', {}); const rc = (await j('GET', '/withholding/daily-receipts?month=2091-10')).d.find((r) => r.employeeName === 'QA세무-일용'); window.__qa = a.s + ' ' + dup.s + ' ' + (dup.d && dup.d.message) + ' ' + (rc && rc.totalPay); return 'setup ' + window.__qa })()",
+        "allowapi:400: /api/simple-payment-statements",
+        "expect:/^200 400 이미 생성된 자료입니다\\. 600000/.test(window.__qa || '')",
+        "js:(() => { location.reload(); return 'reload' })()",
+        "wait:2000",
+        "js:(() => { const tr = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('2091년 10월')); [...tr.querySelectorAll('button')].find((b) => b.textContent.trim() === '조회').click(); return 'opened' })()",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tr')].some((t) => t.innerText.includes('QA세무-일용') && t.innerText.includes('400,000')) && document.body.innerText.includes('1 명')",
+        "click:새로불러오기",
+        "wait:400",
+        "expect:document.body.innerText.includes('직접 수정한 사항은 유지되지 않으며')",
+        "js:(() => { [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '확인').click(); return 'ok' })()",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tr')].some((t) => t.innerText.includes('QA세무-일용') && t.innerText.includes('600,000') && /\\s3\\s/.test(t.innerText))",
+        "clicklast:닫기",
+        "wait:500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const j = async (m, u, b) => { const r = await fetch('/api' + u, { method: m, headers: H, body: b === undefined ? undefined : JSON.stringify(b) }); const t = await r.text(); return { s: r.status, d: t ? JSON.parse(t) : null } }; const st = (await j('GET', '/simple-payment-statements?daily=true')).d.filter((s) => s.managerDept === 'QA세무' && s.payYear === 2091).map((s) => s.id); if (st.length) await j('POST', '/simple-payment-statements/delete', st); for (const l of (await j('GET', '/hr/daily-pay-ledgers')).d.filter((l) => l.payMonth === '2091-10')) await j('DELETE', '/hr/daily-pay-ledgers/' + l.id); for (const w of (await j('GET', '/hr/daily-workers')).d.filter((w) => w.name === 'QA세무-일용')) await j('DELETE', '/hr/daily-workers/' + w.id); return 'cleanup' })()"
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Assignment, AssignmentType, Department, EmployeeMaster } from '../../api/types'
+import type { Assignment, AssignmentType, Department, EmployeeMaster } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -65,18 +65,18 @@ export default function HrRecordPage() {
 
   return (
     <EcListShell title="인사관리 (인사기록카드)" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[6px] border-b border-b-ec-line border-solid">
         {(['재직', '퇴사', '전체'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({count(t)})</button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-text-hint)' }}>
           사원을 클릭하면 발령이력이 보입니다. 발령을 등록하면 부서·직위·재직상태가 함께 갱신됩니다.
         </span>
       </div>
@@ -84,41 +84,41 @@ export default function HrRecordPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>사번</th>
             <th>성명</th>
             <th>부서</th>
             <th>직위</th>
             <th>입사일</th>
             <th>퇴사일</th>
-            <th style={{ textAlign: 'right' }}>근속</th>
-            <th style={{ textAlign: 'center' }}>재직</th>
-            <th style={{ textAlign: 'center' }}>처리</th>
+            <th className="text-right">근속</th>
+            <th className="text-center">재직</th>
+            <th className="text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((e, i) => {
             const days = tenureDays(e)
             return (
               <tr
                 key={e.id}
                 onClick={() => setSelected(selected?.id === e.id ? null : e)}
-                style={{ cursor: 'pointer', background: selected?.id === e.id ? '#eef5ff' : undefined }}
+                style={{ cursor: 'pointer', background: selected?.id === e.id ? 'var(--ec-blue-wash)' : undefined }}
               >
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{selected?.id === e.id ? '▾ ' : '▸ '}{e.code}</td>
-                <td style={{ fontWeight: 600 }}>{e.name}</td>
-                <td>{e.department || <span style={{ color: '#c60a2e' }}>미배치</span>}</td>
-                <td>{e.jobTitle || <span style={{ color: '#c3c8cf' }}>-</span>}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{selected?.id === e.id ? '▾ ' : '▸ '}{e.code}</td>
+                <td className="font-semibold">{e.name}</td>
+                <td>{e.department || <span className="text-ec-danger">미배치</span>}</td>
+                <td>{e.jobTitle || <span className="text-ec-off">-</span>}</td>
                 <td>{dateText(e.hireDate) || ''}</td>
-                <td style={{ color: e.resignDate ? '#c60a2e' : undefined }}>{dateText(e.resignDate) || ''}</td>
-                <td style={{ textAlign: 'right' }}>{days == null ? '-' : `${days.toLocaleString('ko-KR')}일`}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <span style={{ color: e.active ? '#1c7c3c' : '#8a929c' }}>{e.active ? '재직' : '퇴사'}</span>
+                <td style={{ color: e.resignDate ? 'var(--ec-danger)' : undefined }}>{dateText(e.resignDate) || ''}</td>
+                <td className="text-right">{days == null ? '-' : `${days.toLocaleString('ko-KR')}일`}</td>
+                <td className="text-center">
+                  <span style={{ color: e.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{e.active ? '재직' : '퇴사'}</span>
                 </td>
-                <td style={{ textAlign: 'center' }} onClick={(ev) => ev.stopPropagation()}>
+                <td className="text-center" onClick={(ev) => ev.stopPropagation()}>
                   <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => setAssigning(e)}>발령</button>
                 </td>
               </tr>
@@ -128,34 +128,34 @@ export default function HrRecordPage() {
       </table>
 
       {selected && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ padding: '6px 8px', background: '#f5f7fa', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+        <div className="mt-[12px]">
+          <div style={{ padding: '6px 8px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
             {selected.name} 발령이력 ({assignments.length}건)
           </div>
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>발령일</th>
-                <th style={{ width: 80 }}>유형</th>
+                <th className="w-[80px]">유형</th>
                 <th>부서</th>
                 <th>직위</th>
                 <th>비고</th>
-                <th style={{ width: 80 }}>등록자</th>
+                <th className="w-[80px]">등록자</th>
               </tr>
             </thead>
             <tbody>
               {assignments.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
               ) : assignments.map((a, i) => (
                 <tr key={a.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{dateText(a.assignDate)}</td>
-                  <td style={{ color: a.type === 'RESIGN' ? '#c60a2e' : a.type === 'PROMOTION' ? '#1c7c3c' : 'var(--ec-blue)' }}>{a.typeName}</td>
+                  <td style={{ color: a.type === 'RESIGN' ? 'var(--ec-danger)' : a.type === 'PROMOTION' ? 'var(--ec-success)' : 'var(--ec-blue)' }}>{a.typeName}</td>
                   <td>{a.department || ''}</td>
                   <td>{a.jobTitle || ''}</td>
-                  <td style={{ color: '#5a626e' }}>{a.remark ?? ''}</td>
-                  <td style={{ color: '#8a929c' }}>{a.createdBy ?? ''}</td>
+                  <td className="text-ec-label">{a.remark ?? ''}</td>
+                  <td className="text-ec-hint">{a.createdBy ?? ''}</td>
                 </tr>
               ))}
             </tbody>
@@ -213,29 +213,29 @@ function AssignmentForm({ employee, departments, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 520, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>인사발령 — {employee.name} ({employee.code})</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">인사발령 — {employee.name} ({employee.code})</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>발령 유형</th>
+                <th className="w-[90px] bg-ec-page">발령 유형</th>
                 <td>
                   <select className="ec-input" value={type} onChange={(e) => setType(e.target.value as AssignmentType)} style={{ width: 160 }}>
                     {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
-                  <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>{hint}</span>
+                  <span className="ml-[8px] text-[11.5px] text-ec-hint">{hint}</span>
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>발령일</th>
-                <td><input type="date" className="ec-input" value={dateText(assignDate)} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
+                <th className="bg-ec-page">발령일</th>
+                <td><input type="date" className="ec-input" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>부서</th>
+                <th className="bg-ec-page">부서</th>
                 <td>
             {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
             <CodePickerField label="부서" hideLabel width={200} emptyLabel="(변경 없음)"
@@ -244,17 +244,17 @@ function AssignmentForm({ employee, departments, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>직위</th>
+                <th className="bg-ec-page">직위</th>
                 <td><input className="ec-input" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="예: 대리" style={{ width: 200 }} disabled={type === 'RESIGN'} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>비고</th>
+                <th className="bg-ec-page">비고</th>
                 <td><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '발령 등록(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

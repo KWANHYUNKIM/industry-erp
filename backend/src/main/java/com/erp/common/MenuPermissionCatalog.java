@@ -74,50 +74,57 @@ public final class MenuPermissionCatalog {
                 "/api/management-items", "/api/lots");
         put(m, "PARTNER", "/api/partners", "/api/partner-groups", "/api/business-cards",
                 "/api/crm-activities");
-        put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/sales-plans", "/api/quotations", "/api/shipments",
-                "/api/price-bulk", "/api/special-prices", "/api/order-types", "/api/order-stages",
-                "/api/price-order-settings", "/api/settlements", "/api/custom-fields/values");
+        put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/sales-plans", "/api/quotations", "/api/shipments", "/api/shipment-orders",
+                "/api/price-bulk", "/api/special-prices", "/api/order-types", "/api/order-stages", "/api/order-numbers",
+                "/api/price-order-settings", "/api/settlements", "/api/custom-fields/values",
+                "/api/order-releases");
         put(m, "PURCHASE", "/api/purchases", "/api/purchase-orders");
         put(m, "PRODUCTION", "/api/productions", "/api/work-orders", "/api/boms", "/api/processes",
-                "/api/resources", "/api/production-plans", "/api/work-results", "/api/work-posts",
+                "/api/resources", "/api/production-plans", "/api/mrp-runs", "/api/work-results", "/api/work-posts",
                 "/api/bor", "/api/process-operations",
                 "/api/material-issues",
                 // 공용품은 문서상 groupware 소관인데 여기 묶여 있다. 사용내역만 떼어 옮기면
                 // 짝이 갈라지므로 둘을 붙여 둔다 — 옮길 거면 같이 옮긴다.
-                "/api/supplies", "/api/supply-usages");
+                "/api/supplies", "/api/supply-usages", "/api/supply-labels");
         put(m, "STOCK_MOVE", "/api/stock", "/api/stock-transfers", "/api/stock-adjustments",
                 "/api/staged-adjustments");
-        put(m, "QUALITY", "/api/quality-inspections", "/api/quality-inspection-requests", "/api/as-requests");
+        put(m, "QUALITY", "/api/quality-inspections", "/api/quality-inspection-requests", "/api/as-requests", "/api/as-repairs",
+                "/api/quality-types", "/api/quality-check-items", "/api/quality-check-item-details");
         put(m, "WMS", "/api/wms");
         put(m, "EXPORT", "/api/exports");
         put(m, "MALL", "/api/mall-orders", "/api/mall-item-mappings", "/api/mall-accounts");
-        put(m, "PROFIT", "/api/costs", "/api/process-expenses");
+        put(m, "PROFIT", "/api/costs", "/api/cost-periods", "/api/process-expenses");
         put(m, "PROJECT", "/api/projects", "/api/project-plans");
         // 회계
         put(m, "ACCOUNTING", "/api/accounting", "/api/accounting-reflection", "/api/journals",
-                "/api/vouchers", "/api/accounts", "/api/ledger", "/api/evidence-attachments");
+                "/api/vouchers", "/api/accounts", "/api/extra-field-types", "/api/ledger", "/api/evidence-attachments", "/api/statement-sheets");
         put(m, "TAX_INVOICE", "/api/tax-invoices");
         put(m, "BANK", "/api/bank-cards", "/api/cash-details", "/api/checks", "/api/non-cash", "/api/notes",
                 "/api/card-issuers", "/api/payment-agencies");
         put(m, "FIXED_ASSET", "/api/fixed-assets");
-        put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses",
-                "/api/cash-plans");
+        put(m, "FINANCE", "/api/budget-plans", "/api/contracts", "/api/incomes", "/api/expenses",
+                "/api/expense-control-types", "/api/expense-items", "/api/expense-groups",
+                "/api/cash-plans", "/api/bonds", "/api/fund-plans",
+                "/api/contract-items", "/api/billing-contracts", "/api/contract-bills", "/api/import-costs");
         put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax",
-                "/api/medical-device-reports");
+                "/api/medical-device-reports", "/api/vat-returns", "/api/vat-media-files", "/api/vat-invoice-marks",
+                "/api/expense-evidence", "/api/withholding-payees",
+                "/api/payment-statement-files", "/api/simple-payment-statements", "/api/tax-settlements", "/api/tax-vouchers");
         // 관리
-        put(m, "PAYROLL", "/api/payslips", "/api/pay-settings", "/api/daily-works");
+        put(m, "PAYROLL", "/api/payslips", "/api/pay-settings", "/api/daily-works", "/api/pay-ledgers", "/api/retirement-pays");
         put(m, "HR", "/api/employees", "/api/hr", "/api/attendances", "/api/employment-contracts",
-                "/api/departments");
+                "/api/departments", "/api/work-records");
         // 그룹웨어
         put(m, "GROUPWARE", "/api/approvals", "/api/approval-settings", "/api/approval-form-templates",
                 "/api/work-journals", "/api/board", "/api/notices", "/api/surveys",
                 "/api/drive-documents", "/api/mails", "/api/spam-rules", "/api/short-messages", "/api/schedule-events",
                 "/api/chat",
-                "/api/field-works");
+                "/api/field-works", "/api/field-vehicles", "/api/multi-slips",
+                "/api/schedule-categories", "/api/schedule-labels", "/api/work-post-labels");
         // 설정
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
                 "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields",
-                "/api/collect-sources");
+                "/api/collect-sources", "/api/collect-data");
         put(m, "USER_MANAGE", "/api/users", "/api/roles", "/api/permissions", "/api/companies");
         return m;
     }

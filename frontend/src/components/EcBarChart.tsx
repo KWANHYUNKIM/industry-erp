@@ -23,32 +23,29 @@ export default function EcBarChart({
 }) {
   const bars = toBars(topRows(rows, limit))
   if (bars.length === 0) {
-    return <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 24, fontSize: 12.5 }}>{emptyText}</p>
+    return <p className="text-center text-ec-hint p-[24px] text-[12.5px]">{emptyText}</p>
   }
   const allZero = bars.every((b) => b.percent === 0)
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: '12px 14px' }}>
+    <div className="border border-ec-line border-solid bg-white py-[12px] px-[14px]">
       {allZero && (
-        <p style={{ margin: '0 0 8px', fontSize: 11.5, color: '#c07a00' }}>
+        <p className="mt-0 mx-0 mb-[8px] text-[11.5px] text-ec-warn">
           값이 모두 0이라 막대를 그리지 않았습니다.
         </p>
       )}
       {bars.map((b, i) => (
         <div key={`${b.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, height: 22 }}>
-          <div style={{
-            width: 170, flexShrink: 0, fontSize: 11.5, color: 'var(--ec-text)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }} title={b.label}>{b.label}</div>
-          <div style={{ flex: 1, background: 'var(--ec-body-bg)', height: 12, position: 'relative' }}>
+          <div className="w-[170px] shrink-0 text-[11.5px] text-ec-text overflow-hidden text-ellipsis whitespace-nowrap" title={b.label}>{b.label}</div>
+          <div className="flex-1 bg-ec-page h-[12px] relative">
             <div style={{
               width: `${b.percent}%`, height: '100%',
-              background: b.negative ? '#c60a2e' : 'var(--ec-blue)',
+              background: b.negative ? 'var(--ec-danger)' : 'var(--ec-blue)',
             }} />
           </div>
           <div style={{
             width: 130, flexShrink: 0, textAlign: 'right', fontSize: 11.5,
-            fontWeight: 600, color: b.negative ? '#c60a2e' : 'var(--ec-text)',
+            fontWeight: 600, color: b.negative ? 'var(--ec-danger)' : 'var(--ec-text)',
           }}>
             {b.value.toLocaleString('ko-KR')}{unit}
           </div>

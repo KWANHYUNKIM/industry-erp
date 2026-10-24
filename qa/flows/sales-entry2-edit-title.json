@@ -1,0 +1,70 @@
+{
+  "about": "판매입력 II 로 만든 전표 표시(sales.input_ii, 원본 E040253 · E040206 2026-10-22 실측): 저장 → 판매조회 ✓ → 수정 창 제목 '판매입력 II(수정)' · [매출전표 I] 알약 → 매출전표포함 삭제. QA-CUST · QA-PROD 재고 3 넣고 끝에 되돌림.",
+  "shots": [
+    {
+      "name": "재고 3 넣기(API)",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/items','/warehouses','/partners'].map((p) => window.__api('GET', p))).then(([it, wh, pa]) => { const i = it.body.find((x) => x.code === 'QA-PROD'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0], c = pa.body.find((x) => x.code === 'QA-CUST'); sessionStorage.setItem('s2r', JSON.stringify({ itemId: i.id, whId: w.id, whCode: w.code, partnerId: c.id })); sessionStorage.setItem('s2rWh', w.code); return window.__api('POST', '/stock/transactions', { itemId: i.id, warehouseId: w.id, type: 'INBOUND', quantity: 3, remark: 'QA재고1' }) }).then((r) => r.status === 200)",
+        "expect:!!sessionStorage.getItem('s2r')"
+      ]
+    },
+    {
+      "name": "판매입력 II 화면에서 2 x 300 저장(F8) → 매출전표까지",
+      "path": "/sales/sell2",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('.ec-form .title')].some((t) => ['거래구분', '판매No.', '적요'].includes(t.textContent.trim()))",
+        "expect:(() => { const h = [...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()); return h.includes('품목코드') && !h.includes('시리얼/로트No.') && !h.includes('적요') })()",
+        "expect:![...document.querySelectorAll('button')].some((b) => ['회계전표연결', '웹자료올리기'].includes(b.textContent.trim()))",
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:@s2rWh",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "wait:500",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|300",
+        "wait:300",
+        "click:저장(F8)",
+        "wait:6000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/sales').then((r) => { const t = new Date(); const d = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const s = r.body.filter((x) => x.partnerId === JSON.parse(sessionStorage.getItem('s2r')).partnerId).filter((x) => x.saleDate === d && Number(x.totalAmount) === 660).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('s2rSale', JSON.stringify(s ? { id: s.id, docNo: s.docNo, refl: s.accountingReflected, conf: s.confirmStatus } : null)); return true })",
+        "expect:JSON.parse(sessionStorage.getItem('s2rSale'))?.refl === true && JSON.parse(sessionStorage.getItem('s2rSale'))?.conf === 'CONFIRMED'",
+        "expect:window.__api('GET', '/price-bulk/lines?tradeType=SALES&from=2000-01-01&to=2099-12-31').then((r) => !r.body.some((x) => x.slipId === JSON.parse(sessionStorage.getItem('s2rSale')).id))"
+      ]
+    },
+    {
+      "name": "판매조회 — 회계반영여부 초록 ✓ · 그 전표를 열면 '판매입력 II(수정)' 창 · [매출전표 I] 알약 (원본 2026-10-22) → 매출전표포함 지움",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:2500",
+        "js:window.__api('GET', '/sales').then((r) => { const s = r.body.find((x) => x.id === JSON.parse(sessionStorage.getItem('s2rSale')).id); sessionStorage.setItem('s2rII', String(!!s?.inputII)); return true })",
+        "expect:sessionStorage.getItem('s2rII') === 'true'",
+        "js:window.__r = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('660') && r.querySelector('.text-ec-ok')?.textContent === '✓'); true",
+        "expect:!!window.__r",
+        "js:window.__r.querySelector('button.ec-link').click(); true",
+        "wait:3000",
+        "expect:document.querySelector('[role=dialog] .ec-modal-bar .name')?.textContent.trim() === '판매입력 II(수정)'",
+        "expect:[...document.querySelectorAll('[role=dialog] *')].some((e) => e.children.length === 0 && e.textContent.trim() === '매출전표 I')",
+        "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|3",
+        "wait:300",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:document.querySelector('[role=alertdialog] p')?.textContent.startsWith('판매전표와 회계전표의 정보가 서로 다릅니다.') && document.querySelector('[role=alertdialog] p').textContent.includes('- 합계금액')",
+        "js:[...document.querySelectorAll('[role=alertdialog] button')].find((b) => b.textContent.trim() === '확인').click(); true",
+        "wait:2500",
+        "js:sessionStorage.setItem('s2rDbg', document.body.innerText.slice(0,0) + [...document.querySelectorAll('[role=dialog] .text-ec-danger, [role=alertdialog] p, .ec-alert')].map((e) => e.textContent).join('|')); true",
+        "js:window.__api('GET', '/sales').then((r) => { const s = r.body.find((x) => x.id === JSON.parse(sessionStorage.getItem('s2rSale')).id); sessionStorage.setItem('s2rTot', String(s?.totalAmount)); return true })",
+        "expect:Number(sessionStorage.getItem('s2rTot')) === 990 || sessionStorage.getItem('s2rTot') + sessionStorage.getItem('s2rDbg') === 'x'",
+        "js:window.__api('POST', '/accounting-reflection/delete-sales-with-journal', { kind: 'SALES', ids: [JSON.parse(sessionStorage.getItem('s2rSale')).id] }).then((r) => { sessionStorage.setItem('s2rDel', String(r.status)); return true })",
+        "expect:sessionStorage.getItem('s2rDel') === '200'",
+        "js:(() => { const c = JSON.parse(sessionStorage.getItem('s2r')); return window.__api('POST', '/stock/transactions', { itemId: c.itemId, warehouseId: c.whId, type: 'OUTBOUND', quantity: 3, remark: 'QA재고1 되돌림' }).then((r) => r.status === 200) })()"
+      ]
+    }
+  ]
+}

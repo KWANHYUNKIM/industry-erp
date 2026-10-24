@@ -1,0 +1,96 @@
+{
+  "about": "회계 I › 전자(세금)계산서 묶음(원본 C000045 · E010723 · E010726 · E030206, 2026-10-14 loginaa 실측). 매출전표 I(세금계산서 · 거래처 (주)대신전자 · 공급가액 10,000 · 부가세 1,000 · 적요 QA회계1 진행단계)를 넣으면 — 원본 한성전자 10,000 과 같은 숫자 — (세금)계산서진행단계 맨 위에 '2026/10/14 -n | 10,000 | 1,000 | 11,000 | 전자 | 미발행 | … | 회계 I' 줄, 각종구분값변경에 '2026/10/14-n | 세금계산서 | … | 전자(세금)계산서 | 발행 안됨' 줄, 매출(세금)계산서요약 [금월] 미발행 · 합계 +1 · +10,000 · +1,000 이 선다. 20,000 으로 고치면 진행단계 20,000 · 2,000 · 22,000, 이카운트 vs 홈택스 자료비교(불일치) 그 거래처 확인건수 +1 · 공급가액 +20,000. 지우면 진행단계 줄이 빠지고 요약이 처음으로. node qa/shot.mjs qa/flows/einvoice-bundle.json",
+  "shots": [
+    {
+      "name": "처음 — 홈택스 자료비교 · 요약 기준",
+      "path": "/accounting/vat/hometax-compare",
+      "steps": [
+        "wait:2500",
+        "click:검색(F8)",
+        "wait:2500",
+        "js:(() => { window.__hrow = () => { const t = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].innerText.trim() === '(주)대신전자'); return t ? [Number(t.cells[3].innerText.replace(/[^0-9]/g, '')) || 0, Number(t.cells[4].innerText.replace(/[^0-9]/g, '')) || 0] : [0, 0] }; true })()",
+        "js:(() => { sessionStorage.setItem('eiH0', JSON.stringify(window.__hrow())); return sessionStorage.getItem('eiH0') })()",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const acc = await (await fetch('/api/accounts', { headers: H })).json(); const id = (c) => acc.find((a) => a.code === c).id; const p = (await (await fetch('/api/partners', { headers: H })).json()).find((x) => x.code === 'CUST-001'); const d = new Date(); sessionStorage.setItem('eiDay', d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')); sessionStorage.setItem('eiP', p.id); sessionStorage.setItem('eiA', id('404')); sessionStorage.setItem('eiS', id('108')); return p.name })()"
+      ]
+    },
+    {
+      "name": "요약 [금월] — 넣기 전 → 넣은 뒤 +1 · 10,000 · 1,000",
+      "path": "/accounting/vat/sales-tax-summary",
+      "steps": [
+        "wait:2500",
+        "clicklast:금월(~오늘)",
+        "wait:2500",
+        "js:(() => { window.__sum = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.cells[0]?.innerText.trim() === '합계'); return r ? [...r.cells].slice(-3).map((c) => Number(c.innerText.replace(/[^0-9-]/g, '')) || 0) : [0, 0, 0] }; true })()",
+        "js:(() => { sessionStorage.setItem('eiS0', JSON.stringify(window.__sum())); return sessionStorage.getItem('eiS0') })()",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await (await fetch('/api/journals/vat-slip', { method: 'POST', headers: H, body: JSON.stringify({ sales: true, entryDate: sessionStorage.getItem('eiDay'), vatType: '세금계산서', partnerId: Number(sessionStorage.getItem('eiP')), supplyAmount: 10000, vatAmount: 1000, description: 'QA회계1 진행단계', accountId: Number(sessionStorage.getItem('eiA')), settleAccountId: Number(sessionStorage.getItem('eiS')) }) })).json(); sessionStorage.setItem('eiId', r.id); const seq = Number(r.docNo.split('-').pop()); sessionStorage.setItem('eiNo', r.entryDate.replace(/-/g, '/') + ' -' + seq); sessionStorage.setItem('eiNoTight', r.entryDate.replace(/-/g, '/') + '-' + seq); return sessionStorage.getItem('eiNo') })()",
+        "clicklast:Search(F3)",
+        "wait:800",
+        "clicklast:금월(~오늘)",
+        "wait:2500",
+        "expect:(() => { const a = window.__sum(), b = JSON.parse(sessionStorage.getItem('eiS0')); return a[0] - b[0] === 1 && a[1] - b[1] === 10000 && a[2] - b[2] === 1000 })()"
+      ]
+    },
+    {
+      "name": "진행단계 — 맨 위 줄 · 미발행 · 회계 I",
+      "path": "/accounting/tax-invoice-sales",
+      "steps": [
+        "wait:2500",
+        "js:(() => { window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1] && t.cells[1].innerText.trim() === sessionStorage.getItem('eiNo')); true })()",
+        "expect:!!window.__row() && [...document.querySelectorAll('tbody tr')][0] === window.__row()",
+        "expect:window.__row().cells[3].innerText.trim() === '(주)대신전자' && window.__row().cells[4].innerText.trim() === '10,000' && window.__row().cells[5].innerText.trim() === '1,000' && window.__row().cells[6].innerText.trim() === '11,000'",
+        "expect:window.__row().cells[7].innerText.trim() === '전자' && window.__row().cells[8].innerText.includes('미발행') && window.__row().cells[11].innerText.trim() === '회계 I'"
+      ]
+    },
+    {
+      "name": "각종구분값변경 — '일자-n' · 발행 안됨",
+      "path": "/accounting/vat/marks",
+      "steps": [
+        "wait:2500",
+        "js:(() => { window.__mrow = () => [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1] && t.cells[1].innerText.trim() === sessionStorage.getItem('eiNoTight')); true })()",
+        "expect:!!window.__mrow() && window.__mrow().cells[2].innerText.trim() === '세금계산서' && window.__mrow().cells[4].innerText.trim() === '10,000' && window.__mrow().cells[6].innerText.trim() === '전자(세금)계산서' && window.__mrow().cells[7].innerText.trim() === '발행 안됨'",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/journals/vat-slip/' + sessionStorage.getItem('eiId'), { method: 'PUT', headers: H, body: JSON.stringify({ sales: true, entryDate: sessionStorage.getItem('eiDay'), vatType: '세금계산서', partnerId: Number(sessionStorage.getItem('eiP')), supplyAmount: 20000, vatAmount: 2000, description: 'QA회계1 진행단계', accountId: Number(sessionStorage.getItem('eiA')), settleAccountId: Number(sessionStorage.getItem('eiS')) }) }); return r.status })()"
+      ]
+    },
+    {
+      "name": "고친 뒤 — 진행단계 20,000 · 2,000 · 22,000",
+      "path": "/accounting/tax-invoice-sales",
+      "steps": [
+        "wait:2500",
+        "js:(() => { window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1] && t.cells[1].innerText.trim() === sessionStorage.getItem('eiNo')); true })()",
+        "expect:!!window.__row() && window.__row().cells[4].innerText.trim() === '20,000' && window.__row().cells[5].innerText.trim() === '2,000' && window.__row().cells[6].innerText.trim() === '22,000'"
+      ]
+    },
+    {
+      "name": "고친 뒤 — 홈택스 자료비교 확인건수 +1 · 공급가액 +20,000",
+      "path": "/accounting/vat/hometax-compare",
+      "steps": [
+        "wait:2500",
+        "click:검색(F8)",
+        "wait:2500",
+        "js:(() => { window.__hrow = () => { const t = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].innerText.trim() === '(주)대신전자'); return t ? [Number(t.cells[3].innerText.replace(/[^0-9]/g, '')) || 0, Number(t.cells[4].innerText.replace(/[^0-9]/g, '')) || 0] : [0, 0] }; true })()",
+        "expect:(() => { const a = window.__hrow(), b = JSON.parse(sessionStorage.getItem('eiH0')); return a[0] - b[0] === 1 && a[1] - b[1] === 20000 })()",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/journals/' + sessionStorage.getItem('eiId'), { method: 'DELETE', headers: H }); return r.status })()"
+      ]
+    },
+    {
+      "name": "지운 뒤 — 진행단계 줄 없음",
+      "path": "/accounting/tax-invoice-sales",
+      "steps": [
+        "wait:2500",
+        "js:(() => { window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1] && t.cells[1].innerText.trim() === sessionStorage.getItem('eiNo')); true })()",
+        "expect:!window.__row()"
+      ]
+    },
+    {
+      "name": "지운 뒤 — 요약 처음으로",
+      "path": "/accounting/vat/sales-tax-summary",
+      "steps": [
+        "wait:2500",
+        "clicklast:금월(~오늘)",
+        "wait:2500",
+        "js:(() => { window.__sum = () => { const r = [...document.querySelectorAll('tr')].find((t) => t.cells[0]?.innerText.trim() === '합계'); return r ? [...r.cells].slice(-3).map((c) => Number(c.innerText.replace(/[^0-9-]/g, '')) || 0) : [0, 0, 0] }; true })()",
+        "expect:JSON.stringify(window.__sum()) === sessionStorage.getItem('eiS0')"
+      ]
+    }
+  ]
+}

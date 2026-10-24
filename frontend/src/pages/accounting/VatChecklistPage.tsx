@@ -1,0 +1,273 @@
+import { useEffect, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { invoiceSlipAmounts, vatSlipAmounts, type VatSide } from '../../utils/vatSlip'
+import { incomeBucketOf } from '../../utils/incomeBuckets'
+import { api, extractErrorMessage } from '../../api/client'
+import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
+import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
+import { EcReportFoot, reportDate } from '../../components/EcReportFrame'
+import { useAuth } from '../../features/auth/AuthContext'
+import type { IncomeStatement, JournalEntry } from '../../types/api'
+
+interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
+interface AccountOpt { code: string; detailCategory: string | null; division: string }
+interface VoucherRow { id: number; journalEntryId: number | null; type: 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT' }
+interface VoucherList { rows: VoucherRow[] }
+/** (세금)계산서발행/수령(E030202) — 분개 없는 부가세 신고용 계산서. */
+interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string; partnerName: string; supplyAmount: number; vatAmount: number; remark: string | null }
+interface AccRow { code: string; name: string; amount: number; vat: number }
+interface SlipRow { key: string; date: string; partner: string; supply: number; vat: number; description: string }
+interface BalanceRow { key: string; account: string; partner: string; balance: number }
+interface Sheet {
+  from: string; to: string; vatSales: number; plSales: number
+  expense: AccRow[]; advance: AccRow[]; fromEcount: SlipRow[]; toEcount: SlipRow[]
+  negatives: BalanceRow[]; dupSales: SlipRow[]; dupPurchases: SlipRow[]
+}
+
+const PICKS = ['금월(~오늘)', '전월', '직전분기', '직전반기', '종료일'] as const
+/** 자금현황표(FundStatusPage)와 같은 계정 — 원본 자금관리 계정. */
+const FUND_ACCOUNTS = ['현금', '당좌예금', '보통예금', '외상매출금', '미수금', '가지급금', '외상매입금', '미지급금']
+const CASH_CODES = ['101', '102', '103']
+/** 원본 4. 의 상대 — 이카운트(회사)와 주고받은 세금계산서. */
+const ECOUNT = '이카운트'
+const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
+/** 6. 중복거래의 부가세는 0 도 찍는다(원본 계산서 줄 '100,000 · 0 · 100,000'). */
+const num = (n: number) => Math.round(n).toLocaleString('ko-KR')
+const lastDay = (m: string) => {
+  const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)
+  return `${m}-${String(d.getDate()).padStart(2, '0')}`
+}
+const ymLabel = (m: string) => `${m.slice(0, 4)}년 ${m.slice(5, 7)}월`
+
+/** 부가세 줄이 든 지출결의서 · 가지급금정산서 전표 → 계정별 금액 · 부가세. */
+function vatByAccount(entries: JournalEntry[]): AccRow[] {
+  const by = new Map<string, AccRow>()
+  for (const e of entries) {
+    const amt = vatSlipAmounts(e.lines, '매입')
+    if (!amt) continue
+    let first = true
+    for (const l of e.lines) {
+      if (l.accountCode === '135' || Number(l.debit) === 0) continue
+      const r = by.get(l.accountCode) ?? { code: l.accountCode, name: l.accountName, amount: 0, vat: 0 }
+      r.amount += Number(l.debit)
+      if (first) { r.vat += amt.vat; first = false }
+      by.set(l.accountCode, r)
+    }
+  }
+  return [...by.values()].sort((a, b) => a.code.localeCompare(b.code))
+}
+
+/** 부가세 줄이 든 전표 + 계산서(면세, 부가세유형 '계산서 …') — 원본 1. 부가세매출액 · 6. 중복거래가 계산서도 센다. */
+function slipRows(entries: JournalEntry[], side: VatSide): SlipRow[] {
+  const out: SlipRow[] = []
+  for (const e of entries as (JournalEntry & { vatType?: string | null })[]) {
+    const amt = invoiceSlipAmounts(e, side)
+    if (amt) out.push({ key: `${side}${e.id}`, date: e.entryDate, partner: e.partnerName ?? '', supply: amt.supply, vat: amt.vat, description: e.description ?? '' })
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** 같은 날 · 같은 거래처 · 같은 공급가액 · 부가세가 두 장 이상이면 둘 다 낸다. */
+function duplicates(rows: SlipRow[]): SlipRow[] {
+  const keyOf = (r: SlipRow) => `${r.date}|${r.partner}|${r.supply}|${r.vat}`
+  const n = new Map<string, number>()
+  rows.forEach((r) => n.set(keyOf(r), (n.get(keyOf(r)) ?? 0) + 1))
+  return rows.filter((r) => (n.get(keyOf(r)) ?? 0) > 1)
+}
+
+/**
+ * 세무 › 부가세 › 신고전검토자료 › <b>부가세Checklist</b>(E030207) — 2026-10-04 loginaa 실측.
+ *
+ * <p>조건 [조회일자 연/월 ~ 연/월(기본 직전분기 — 10/04 에 2026/07 ~ 2026/09) · 예정누락기간 · 부서 · 프로젝트 · 기타 □번호오류사업자포함],
+ * 아래 [검색(F8) · 금월(~오늘) · 전월 · 직전분기 · 직전반기 · 종료일]. 검색하면 한 장에 여섯 칸:
+ * 1. 매출액비교 [기간 · 부가세매출액 · 손익계산서매출액](원본 2026/07~09 396,450,000 · 396,450,000),
+ * 2. 지출결의서중 부가세가 등록된 상황 · 3. 가지급금정산서중 부가세가 등록된 상황 [계정코드 · 계정명 · 금액 · 수수료 · 부가세],
+ * 4. 이카운트 매출 매입과 맞는지 확인 — 이카운트가 우리에게 발행한 것 · 우리가 이카운트로 입력한 것 [일자 · 거래처명 · 금액 · 수수료 · 적요]
+ * (원본 2026/09/28 이카운트 4,000,000 · 400,000 — '수수료' 칸에 부가세가 찍힌다),
+ * 계산서(면세)도 센다(2026-10-13 실측 — 9/30 매출전표 I 계산서 100,000 두 장: 1. 396,450,000 → 396,650,000,
+ * 6. 매출 '2026/09/30 QA세무-계산서 100,000 0 100,000' 두 줄 · 매입전표 I 계산서 50,000 두 장도 6. 매입에 두 줄),
+ * (세금)계산서발행/수령(분개 없음)의 계산서도 1. · 6. 에 싣는다(같은 날 실측 — 부가세매출액만 +200,000, 손익계산서매출액 그대로),
+ * 5. 자금현황표상 마이너스인 계정 [계정명 · 거래처명 · 잔액](자금현황표와 같은 차변 − 대변 잔액, 조회 끝날까지),
+ * 6. 중복거래 확인대상 자료 매출 · 매입 [일자 · 거래처명 · 공급가액 · 부가세 · 합계].
+ *
+ * <p>두지 않은 것: 예정누락분포함 · 부서 · 프로젝트 · 번호오류사업자포함 조건(회계전표에 부서 · 프로젝트가 없다), [설정].
+ * 우리 지출결의서 · 가지급금정산서는 부가세 칸이 없어 2 · 3 은 늘 빈 칸이다.
+ */
+export default function VatChecklistPage() {
+  const init = periodOf('직전분기')!
+  const { companyName } = useAuth()
+  const [fromYm, setFromYm] = useState(init.from.slice(0, 7))
+  const [toYm, setToYm] = useState(init.to.slice(0, 7))
+  const [accounts, setAccounts] = useState<AccountOpt[]>([])
+  const [sheet, setSheet] = useState<Sheet | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
+  }, [])
+
+  async function search(f = fromYm, t = toYm) {
+    setError('')
+    const from = `${f}-01`
+    const to = lastDay(t)
+    try {
+      const [period, upTo, pl, vouchers, taxVouchers] = await Promise.all([
+        api.get<JournalList>('/journals', { params: { from, to, all: true } }),
+        api.get<JournalList>('/journals', { params: { from: '2000-01-01', to, all: true } }),
+        api.get<IncomeStatement>('/journals/income-statement', { params: { from, to } }),
+        api.get<VoucherList>('/vouchers', { params: { from, to, all: true } }),
+        api.get<TaxVoucher[]>('/tax-vouchers', { params: { from, to } }),
+      ])
+      const entries = period.data.rows
+      const cat = new Map(accounts.map((a) => [a.code, a]))
+      const plSales = pl.data.revenues
+        .filter((r) => incomeBucketOf(r.division, cat.get(r.accountCode)?.detailCategory ?? '') === 'SALES')
+        .reduce((s, r) => s + Number(r.amount), 0)
+      /* (세금)계산서발행/수령의 계산서도 1. 부가세매출액 · 4. · 6. 에 실린다 — 원본 9/30 매출 계산서 100,000 두 장:
+         부가세매출액 396,450,000 → 396,650,000(손익계산서매출액은 그대로) · 6. 매출 두 줄(2026-10-13 loginaa). */
+      const tvRows = (side: TaxVoucher['side']): SlipRow[] => taxVouchers.data.filter((v) => v.side === side).map((v) => ({
+        key: `T${v.id}`, date: v.entryDate, partner: v.partnerName ?? '', supply: Number(v.supplyAmount), vat: Number(v.vatAmount), description: v.remark ?? '',
+      }))
+      const byDate = (a: SlipRow, b: SlipRow) => a.date.localeCompare(b.date)
+      const sales = [...slipRows(entries, '매출'), ...tvRows('SALES')].sort(byDate)
+      const purchases = [...slipRows(entries, '매입'), ...tvRows('PURCHASE')].sort(byDate)
+      /* 간편전표가 만든 회계전표 — 전표 쪽 출처 칸보다 간편전표가 든 전표 id 로 잇는다. */
+      const typeOf = new Map(vouchers.data.rows.filter((v) => v.journalEntryId != null).map((v) => [v.journalEntryId!, v.type]))
+      const voucherOf = (type: VoucherRow['type']) => entries.filter((e) => typeOf.get(e.id) === type)
+
+      const bal = new Map<string, BalanceRow>()
+      for (const e of upTo.data.rows) {
+        for (const l of e.lines) {
+          if (!FUND_ACCOUNTS.includes(l.accountName)) continue
+          const partner = CASH_CODES.includes(l.accountCode) ? '[ ]' : e.partnerName ?? '[ ]'
+          const key = `${l.accountName}|${partner}`
+          const r = bal.get(key) ?? { key, account: l.accountName, partner, balance: 0 }
+          r.balance += Number(l.debit) - Number(l.credit)
+          bal.set(key, r)
+        }
+      }
+      const negatives = [...bal.values()].filter((r) => r.balance < 0).sort((a, b) =>
+        a.account !== b.account ? FUND_ACCOUNTS.indexOf(a.account) - FUND_ACCOUNTS.indexOf(b.account) : a.partner.localeCompare(b.partner))
+
+      setSheet({
+        from: f, to: t,
+        vatSales: sales.reduce((s, r) => s + r.supply, 0), plSales,
+        expense: vatByAccount(voucherOf('EXPENSE_REPORT')),
+        advance: vatByAccount(voucherOf('ADVANCE_SETTLEMENT')),
+        fromEcount: purchases.filter((r) => r.partner === ECOUNT),
+        toEcount: sales.filter((r) => r.partner === ECOUNT),
+        negatives,
+        dupSales: duplicates(sales), dupPurchases: duplicates(purchases),
+      })
+    } catch (e) {
+      setSheet(null); setError(extractErrorMessage(e))
+    }
+  }
+
+  const company = companyName ?? ''
+
+  return (
+    <EcListShell title="부가세Checklist" onSearch={() => setSheet(null)} option={false}
+                 actions={sheet ? [{ label: '인쇄', primary: true }, { label: 'Excel' }] : []}>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      {!sheet && (
+        <ul className="ec-cond mb-[8px]">
+          <EcCond label="조회일자">
+            <input type="month" className="ec-input w-[150px]" value={fromYm} onChange={(e) => setFromYm(e.target.value)} />
+            ~
+            <input type="month" className="ec-input w-[150px]" value={toYm} onChange={(e) => setToYm(e.target.value)} />
+          </EcCond>
+          {/* 원본 조건(2026-10-21 실측): 조회일자 · 예정누락기간 [예정누락분포함] · 부서 · 프로젝트 · 기타 [번호오류사업자포함] — 부서 · 프로젝트는 우리 회계전표에 없어 모양만 */}
+          <EcCond label="예정누락기간"><label className="inline-flex items-center gap-[4px]"><input type="checkbox" /> 예정누락분포함</label></EcCond>
+          <EcCond label="부서"><input className="ec-input w-[170px]" placeholder="부서" disabled /></EcCond>
+          <EcCond label="프로젝트"><input className="ec-input w-[170px]" placeholder="프로젝트" disabled /></EcCond>
+          <EcCond label="기타"><label className="inline-flex items-center gap-[4px]"><input type="checkbox" /> 번호오류사업자포함</label></EcCond>
+          <li className="full">
+            <div className="form">
+              <button className="ec-btn ec-btn-primary" onClick={() => void search()}>검색(F8)</button>
+              {/* 원본은 빠른선택을 누르면 그 기간으로 바로 검색한다(2026-10-20 금월(~오늘) 실측 — 판이 접히고 결과가 뜬다). */}
+              <EcPeriodPicks labels={PICKS} currentFrom={`${fromYm}-01`}
+                             onPick={(r) => {
+                               const f = r.from.slice(0, 7), t = r.to.slice(0, 7)
+                               setFromYm(f); setToYm(t); void search(f, t)
+                             }} />
+              <button className="ec-btn" type="button">설정</button>
+              <button className="ec-btn" onClick={() => { setFromYm(init.from.slice(0, 7)); setToYm(init.to.slice(0, 7)) }}>다시 작성</button>
+            </div>
+          </li>
+        </ul>
+      )}
+
+      {sheet && (
+        <div>
+          <div className="ec-report-head">
+            <div className="ec-report-title">부가세Checklist</div>
+            <div className="ec-report-meta"><span>회사명 : {company}</span><span /></div>
+          </div>
+
+          <div className="ec-report-meta"><span>1. 매출액비교</span><span>{sheet.from.replace('-', '/')} ~{sheet.to.replace('-', '/')}</span></div>
+          <CheckTable title="1. 매출액비교" head={['기간', '부가세매출액', '손익계산서매출액']} right={[1, 2]} cols={[249, 250, 250]}
+                      rows={[[`${ymLabel(sheet.from)} ~ ${ymLabel(sheet.to)}`, won(sheet.vatSales), won(sheet.plSales)]]} />
+
+          <p className="mt-[12px] mb-[4px]">2.지출결의서중 부가세가 등록된 상황</p>
+          <CheckTable title="2. 지출결의서" head={['계정코드', '계정명', '금액', '수수료', '부가세']} right={[2, 3, 4]} cols={[99, 260, 130, 130, 130]}
+                      rows={sheet.expense.map((r) => [r.code, r.name, won(r.amount), '', won(r.vat)])} />
+
+          <p className="mt-[12px] mb-[4px]">3.가지급금정산서중 부가세가 등록된 상황</p>
+          <CheckTable title="3. 가지급금정산서" head={['계정코드', '계정명', '금액', '수수료', '부가세']} right={[2, 3, 4]} cols={[99, 260, 130, 130, 130]}
+                      rows={sheet.advance.map((r) => [r.code, r.name, won(r.amount), '', won(r.vat)])} />
+
+          <p className="mt-[12px] mb-[4px]">4.이카운트 매출 매입과 맞는지 확인</p>
+          <p className="mb-[4px]">{ECOUNT}가 {company}에게 발행한 세금계산서</p>
+          <CheckTable title="4. 이카운트 발행" head={['일자', '거래처명', '금액', '수수료', '적요']} right={[2, 3]} cols={[99, 240, 140, 140, 130]}
+                      rows={sheet.fromEcount.map((r) => [reportDate(r.date), r.partner, won(r.supply), won(r.vat), r.description])} />
+          <p className="mt-[8px] mb-[4px]">{company}이(가) {ECOUNT}로 입력한 세금계산서</p>
+          <CheckTable title="4. 이카운트 입력" head={['일자', '거래처명', '금액', '수수료', '적요']} right={[2, 3]} cols={[99, 240, 140, 140, 130]}
+                      rows={sheet.toEcount.map((r) => [reportDate(r.date), r.partner, won(r.supply), won(r.vat), r.description])} />
+
+          <p className="mt-[12px] mb-[4px]">5.자금현황표상 마이너스인 계정</p>
+          <CheckTable title="5. 자금현황표" head={['계정명', '거래처명', '잔액']} right={[2]} cols={[249, 250, 250]}
+                      rows={sheet.negatives.map((r) => [r.account, r.partner, Math.round(r.balance).toLocaleString('ko-KR')])} />
+
+          <p className="mt-[12px] mb-[4px]">6.중복거래 확인대상 자료</p>
+          <p className="mb-[4px]">매출</p>
+          <CheckTable title="6. 중복 매출" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]} cols={[99, 290, 120, 120, 120]}
+                      rows={sheet.dupSales.map((r) => [reportDate(r.date), r.partner, won(r.supply), num(r.vat), won(r.supply + r.vat)])} />
+          <p className="mt-[8px] mb-[4px]">매입</p>
+          <CheckTable title="6. 중복 매입" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]} cols={[99, 290, 120, 120, 120]}
+                      rows={sheet.dupPurchases.map((r) => [reportDate(r.date), r.partner, won(r.supply), num(r.vat), won(r.supply + r.vat)])} />
+
+          <EcReportFoot page={false} />
+        </div>
+      )}
+    </EcListShell>
+  )
+}
+
+/**
+ * 원본 격자는 출력물 꼴이 아니라 조회 격자 꼴이다(2026-10-20 실측): 머리 400 · 9px 2.7px 7.2px · 34.7, 본문 5.4px 2.7px · 28.9,
+ * 표 폭은 본문 틀 전부(table-layout fixed)이고 열 폭은 colgroup 비율 — 1 · 5 는 249/250/250, 2 · 3 은 99/260/130/130/130,
+ * 4 는 99/240/140/140/130, 6 은 99/290/120/120/120.
+ */
+function CheckTable({ title, head, rows, right, cols }: { title: string; head: string[]; rows: string[][]; right: number[]; cols: number[] }) {
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, title, [rows.length])
+  const align = (i: number) => (right.includes(i) ? 'text-right' : undefined)
+  return (
+    <table ref={tableRef} className="w-full table-fixed ec-report-head400">
+      <colgroup>{cols.map((w, i) => <col key={i} width={w} />)}</colgroup>
+      <thead>
+        <tr>{head.map((h, i) => <th key={h} className={align(i)}>{h}</th>)}</tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr><td colSpan={head.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+        ) : rows.map((r, i) => (
+          <tr key={i}>{r.map((c, j) => <td key={j} className={align(j)}>{c}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}

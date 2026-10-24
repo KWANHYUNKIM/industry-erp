@@ -1,0 +1,43 @@
+{
+  "about": "시리얼/로트No.등록(E040617) 마스터 — 2026-10-13 · 14 원본 실측: 등록은 내역 0줄([보기] '등록된 데이터가 없습니다.'), 수정 창은 [저장(F8)] · [다시 작성] · [사용중단/재사용 ▲](사용중단 · 삭제) · [닫기] · [H], 사용중단하면 기본 목록(사용)에서 빠지고 '사용중단' 으로 보인다, 내역이 있는 로트를 지우면 '알림' 창 '처리가 불가능한 코드입니다.' + [코드 | 코드명 | 자료] 표, [변경] 은 항목검색 → 변경 창.",
+  "shots": [
+    {
+      "name": "등록 → 보기 0줄 → 수정(유효기한) → 사용중단 → 목록에서 빠짐 → 변경으로 재사용 → 삭제 / 내역 있는 로트 삭제는 알림 표",
+      "path": "/quality/serial-lot",
+      "steps": [
+        "allowapi:400: /api/lots/",
+        "wait:2000",
+        "click:신규(F2)",
+        "wait:600",
+        "js:(async () => { document.querySelector('.ec-modal input[placeholder=\"품목\"]').click(); await new Promise((r) => setTimeout(r, 700)); return 'ok' })()",
+        "pickrow:QA2LOT01",
+        "js:(() => { const el = document.querySelector('.ec-modal textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(el, 'QA재고2-FLOW'); el.dispatchEvent(new Event('input', { bubbles: true })); return el.value })()",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-FLOW'))",
+        "js:(async () => { const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-FLOW')); [...tr.querySelectorAll('button')].find((b) => b.textContent === '보기').click(); await new Promise((r) => setTimeout(r, 1200)); return 'ok' })()",
+        "expect:[...document.querySelectorAll('.ec-modal')].pop().innerText.includes('등록된 데이터가 없습니다.')",
+        "js:(async () => { [...document.querySelectorAll('.ec-modal')].pop().querySelector('.close').click(); await new Promise((r) => setTimeout(r, 300)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-FLOW')).querySelector('a').click(); await new Promise((r) => setTimeout(r, 600)); return 'ok' })()",
+        "expect:[...[...document.querySelectorAll('.ec-modal')].pop().querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => ['저장(F8)', '다시 작성', '사용중단/재사용 ▲', '닫기', 'H'].includes(t)).join(',') === '저장(F8),다시 작성,사용중단/재사용 ▲,닫기,H'",
+        "set:.ec-modal input[type=\"date\"]|2027-10-13",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-FLOW') && r.innerText.includes('2027/10/13'))",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-FLOW')).querySelector('input[type=checkbox]').click(); await W(200); document.querySelector('button[aria-label=\"사용중단/재사용 더보기\"]').click(); await W(300); const it = [...document.querySelectorAll('button')].filter((b) => b.offsetParent !== null && b.textContent.trim() === '사용중단'); it[it.length - 1].click(); await W(1500); return 'ok' })()",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-FLOW'))",
+        "js:(async () => { [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '사용중단').querySelector('input').click(); await new Promise((r) => setTimeout(r, 400)); return 'ok' })()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-FLOW'))",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-FLOW')).querySelector('input[type=checkbox]').click(); await W(200); [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '변경').click(); await W(500); let m = [...document.querySelectorAll('.ec-modal')].pop(); m.querySelector('input[aria-label=\"사용구분\"]').click(); await W(200); [...m.querySelectorAll('button')].find((b) => b.textContent === '적용(F8)').click(); await W(500); return 'ok' })()",
+        "set:.ec-modal tbody select|true",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '사용').querySelector('input').click(); await new Promise((r) => setTimeout(r, 400)); return 'ok' })()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-FLOW'))",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-FLOW')).querySelector('a').click(); await W(600); const m = [...document.querySelectorAll('.ec-modal')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.startsWith('사용중단/재사용')).click(); await W(300); [...m.querySelectorAll('.ec-menu button')].find((b) => b.textContent === '삭제').click(); await W(400); [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(1500); return 'ok' })()",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-FLOW'))",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA-LOT-001')).querySelector('a').click(); await W(600); const m = [...document.querySelectorAll('.ec-modal')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.startsWith('사용중단/재사용')).click(); await W(300); [...m.querySelectorAll('.ec-menu button')].find((b) => b.textContent === '삭제').click(); await W(400); [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(1800); return 'ok' })()",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-modal')].pop().innerText; return t.includes('처리가 불가능한 코드입니다.') && t.includes('QA-LOT-001') && /: \\d{8}-\\d+/.test(t) })()"
+      ]
+    }
+  ]
+}

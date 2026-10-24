@@ -1,0 +1,30 @@
+{
+  "about": "회계거래현황 ○집계(E010847) — 원본 2026-10-22 실측: 집계조건 칸(정한 수+2, 최대 4) · 집계대상 · 비교기간 · 기타(가로보기 · 비율표시 · 코드포함). 월별+거래처 → 월 칸 rowSpan · '2026/MM 계' · 합계, 월별이면 비교기간 막힘 '집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.'. 읽기만 한다(자료를 만들지 않음).",
+  "shots": [
+    {
+      "name": "집계 켜기 → 칸 2개 · 월별 고르면 3개 · 거래처까지 고르면 4개 → 월별+거래처 표 · 계 · 합계 → 비교기간 막힘",
+      "path": "/accounting/journal-status",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const R = [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '집계').querySelector('input'); R.click(); await W(300); return document.querySelectorAll('input[name=agg-compare]').length })()",
+        "expect:[...document.querySelectorAll('.ec-cond li')].map((l) => l.innerText.trim().split('\\n')[0]).filter((t) => /^집계조건/.test(t)).length === 2",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const pick = async (n, v) => { const li = [...document.querySelectorAll('.ec-cond li')].find((l) => l.innerText.trim().startsWith(n)); li.querySelector('button').click(); await W(500); const it = [...document.querySelectorAll('.modal *, [role=dialog] *, .ec-modal *')].filter((e) => e.children.length === 0 && e.textContent.trim() === v)[0]; it.click(); await W(500) }; await pick('집계조건1', '월별'); await pick('집계조건2', '거래처'); const T = [...document.querySelectorAll('label')].filter((l) => ['공급가액', '합계'].includes(l.innerText.trim())).map((l) => l.querySelector('input')); T.forEach((i) => i.click()); await W(300); return 'ok' })()",
+        "expect:[...document.querySelectorAll('.ec-cond li')].map((l) => l.innerText.trim().split('\\n')[0]).filter((t) => /^집계조건/.test(t)).length === 4",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('button')].find((b) => b.innerText.trim().startsWith('검색')).click(); await W(2500); return document.querySelectorAll('tbody tr.ec-total').length })()",
+        "js:(() => { const h = [...document.querySelectorAll('table thead')].pop().rows[0].cells; return [...h].map((c) => c.innerText.trim()).join('|') + ' // ' + [...document.querySelectorAll('tbody tr.ec-total')].map((t) => t.innerText.replace(/\\s+/g, ' ')).join(' ;; ') })()",
+        "expect:(() => { const h = [...document.querySelectorAll('table thead')].pop().rows[0].cells; return [...h].map((c) => c.innerText.trim()).join('|') === '월별|거래처|공급가액|합계' && [...document.querySelectorAll('tbody tr.ec-total')].pop().innerText.trim().startsWith('합계') })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('input[name=agg-compare]')][2].click(); await W(200); [...document.querySelectorAll('button')].find((b) => b.innerText.trim().startsWith('검색')).click(); await W(1500); return 'x' })()",
+        "expect:document.body.innerText.includes('집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.')"
+      ]
+    },
+    {
+      "name": "지출결의서이체리스트 — 집계 켜기 → 월별 + 금액 → 표 머리 월별|금액 · 합계",
+      "path": "/accounting/transfer-list",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '집계').querySelector('input').click(); await W(300); const li = [...document.querySelectorAll('.ec-cond li')].find((l) => l.innerText.trim().startsWith('집계조건1')); li.querySelector('button').click(); await W(500); [...document.querySelectorAll('.modal *, [role=dialog] *, .ec-modal *')].filter((e) => e.children.length === 0 && e.textContent.trim() === '월별')[0].click(); await W(500); [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '금액').querySelector('input').click(); await W(300); [...document.querySelectorAll('button')].find((b) => b.innerText.trim().startsWith('검색')).click(); await W(2500); return [...document.querySelectorAll('table thead')].pop().rows[0].innerText.replace(/\\s+/g, '|') })()",
+        "expect:[...document.querySelectorAll('table thead')].pop().rows[0].innerText.replace(/\\s+/g, '|') === '월별|금액' && [...document.querySelectorAll('tbody tr.ec-total')].pop().innerText.trim().startsWith('합계')"
+      ]
+    }
+  ]
+}

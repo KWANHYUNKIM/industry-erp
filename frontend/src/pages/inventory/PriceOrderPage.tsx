@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PriceOrderLine } from '../../api/types'
+import type { PriceOrderLine } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
+import { ecAlert } from '../../components/EcDialog'
+import EcHistoryButton from '../../components/EcHistory'
+import Modal from '../../components/Modal'
 
 type Cat = 'SALES' | 'PURCHASE'
 const CAT_LABEL: Record<Cat, string> = { SALES: '영업관리', PURCHASE: '구매관리' }
@@ -19,29 +21,33 @@ const CAT_LABEL: Record<Cat, string> = { SALES: '영업관리', PURCHASE: '구�
  * <p>[상세설정]은 그 기능의 값을 실제로 적는 화면으로 보낸다. 순서만 정해 놓고
  * 특별단가를 한 줄도 안 넣으면 이 설정은 아무 일도 하지 않는데, 그 사실을 알 방법이
  * 이 화면에 없었다.
+ *
+ * <p><b>2026-09-09 원본을 직접 열어 쟀다</b>(그전에는 사본만 봤다). 격자는 7행 4열이고
+ * 열 정렬은 기능 좌 · 적용순서 우 · 사용구분 중 · 상세설정 중 — 우리와 같다.
+ * 기능 일곱의 이름과 차례도 같다(창고별특별단가 품목별·품목그룹별 → 거래처별특별단가
+ * 품목별·품목그룹별 → 최종단가 → 거래처조정률 → 출고단가).
+ * <b>다른 것은 [사용구분] 기본값 하나였다</b> — 원본은 <b>[출고단가]만 '사용'</b>이고
+ * 나머지 여섯은 '사용안함'으로 열린다. 서버의 미저장 기본값을 그렇게 고쳤다
+ * (PriceOrderService.DEFAULT_FUNCTIONS 옆).
+ * 버튼줄도 원본과 같다(저장(F8) 하나) — 원본에는 [검색]이 없다.
  */
 
 /**
- * 기능마다 값을 적는 화면. 원본 [상세설정] 링크가 가리키는 곳이다.
- *
- * <p>[최종단가]는 마지막 거래단가를 그대로 쓰는 규칙이라 따로 적을 마스터가 없다 —
- * 없는 링크를 만들어 두면 눌렀을 때 빈 화면이 뜬다.
+ * [상세설정] 칸 — 2026-10-14 원본(E040126 영업 · E040125 구매) 실측: 일곱 줄 중 <b>[거래처조정률] 한 줄에만 '설정'</b>이 있고
+ * 나머지 칸은 비어 있다. 원본 '설정' 은 '소수점처리설정(영업관리/구매관리)' 창(소수점단위 · 처리방법 반올림 · [적용(F8)] [닫기])을 띄운다 —
+ * 창은 있고(2026-10-21) 소수점단위 값 목록 · 저장은 원본 재기 필요 — [적용] 은 닫기만 한다. 예전엔 줄마다 등록 화면 링크를 달았다(원본에 없음).
  */
-const DETAIL_LINK: Record<string, { to: string; label: string } | null> = {
-  '창고별특별단가(품목별)': { to: '/sales/special-price', label: '특별단가등록' },
-  '창고별특별단가(품목그룹별)': { to: '/sales/special-price', label: '특별단가등록' },
-  '거래처별특별단가(품목별)': { to: '/sales/special-price', label: '특별단가등록' },
-  '거래처별특별단가(품목그룹별)': { to: '/inventory/special-price-group', label: '거래처특별단가그룹' },
-  '최종단가': null,
-  '거래처조정률': { to: '/sales/partners', label: '거래처등록' },
-  '출고단가': { to: '/inventory/items', label: '품목등록' },
-}
+const DETAIL_SETTING = '거래처조정률'
 export default function PriceOrderPage() {
   const [cat, setCat] = useState<Cat>('SALES')
   const [lines, setLines] = useState<PriceOrderLine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  /** 불러온(마지막 저장) 값 — 원본은 바꾼 것 없이 [저장] 하면 '수정된 내역이 없습니다.' 를 띄운다. */
+  const [savedKey, setSavedKey] = useState('')
+  const [decimalOpen, setDecimalOpen] = useState(false)
+  const keyOf = (ls: PriceOrderLine[]) => ls.map((l) => `${l.functionName}:${l.active}`).join('|')
 
   // 저장(F8) — 버튼 라벨이 약속한 단축키. 저장 중이면 안 먹는다.
   useShortcut('F8', save, !saving)
@@ -51,6 +57,7 @@ export default function PriceOrderPage() {
     try {
       const r = await api.get<PriceOrderLine[]>('/price-order-settings', { params: { category: c } })
       setLines(r.data)
+      setSavedKey(keyOf(r.data))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -64,24 +71,15 @@ export default function PriceOrderPage() {
     setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, active: v } : l)))
   }
 
-  function move(idx: number, dir: -1 | 1) {
-    setLines((ls) => {
-      const j = idx + dir
-      if (j < 0 || j >= ls.length) return ls
-      const next = [...ls]
-      ;[next[idx], next[j]] = [next[j], next[idx]]
-      return next.map((l, i) => ({ ...l, applyOrder: i + 1 }))
-    })
-  }
-
   async function save() {
     setError('')
+    if (keyOf(lines) === savedKey) { void ecAlert('수정된 내역이 없습니다.'); return }
     setSaving(true)
     try {
       const payload = { category: cat, settings: lines.map((l, i) => ({ ...l, applyOrder: i + 1 })) }
       const r = await api.put<PriceOrderLine[]>('/price-order-settings', payload)
       setLines(r.data)
-      alert(`[${CAT_LABEL[cat]}] 단가적용순서를 저장했습니다.`)
+      setSavedKey(keyOf(r.data))   // 원본은 저장 뒤 아무 말도 없다
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -90,73 +88,91 @@ export default function PriceOrderPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>단가적용순서설정</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          <button className="ec-btn" onClick={() => load(cat)}>새로고침</button>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">단가적용순서설정</span>
+        <div className="ml-auto flex gap-[4px]">
           <button className="ec-btn">도움말</button>
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      {/* 원본 탭은 알약(켜짐 파란 바탕 · 흰 글, h24.6 · 여백 6.3px 11.7px) — 2026-10-14 실측 */}
+      <div className="ec-pills mb-[8px]">
         {(['SALES', 'PURCHASE'] as const).map((t) => (
-          <button key={t} onClick={() => setCat(t)} className="no-ec" style={{
-            padding: '6px 16px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: cat === t ? '#fff' : 'transparent', color: cat === t ? 'var(--ec-blue)' : '#5a626e',
-            fontWeight: cat === t ? 700 : 400, borderBottom: cat === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{CAT_LABEL[t]}</button>
+          <button key={t} type="button" className={`ec-pill no-ec${cat === t ? ' active' : ''}`} onClick={() => setCat(t)}>{CAT_LABEL[t]}</button>
         ))}
       </div>
 
-      <div style={{ maxWidth: 760 }}>
+      {/* 원본 격자는 본문 폭 전부 · 열 46.6% · 10.7% · 29.3% · 13.3%, 머리 400 가운데(2026-10-14 E040126 실측, 폭 1628 에서 759.5 · 173.6 · 477.4 · 217) */}
+      <div>
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th>기능</th>
-              <th style={{ width: 140, textAlign: 'right' }}>적용순서</th>
-              <th style={{ width: 150, textAlign: 'center' }}>사용구분</th>
-              <th style={{ textAlign: 'center', width: 150 }}>상세설정</th>
+              <th className="w-[46.6%] text-left font-normal">기능</th>
+              <th className="w-[10.7%] text-right font-normal">적용순서</th>
+              <th className="w-[29.3%] text-center font-normal">사용구분</th>
+              <th className="w-[13.3%] text-center font-normal">상세설정</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
             ) : lines.map((l, i) => (
-              <tr key={l.functionName}>
-                <td style={{ color: l.active ? undefined : '#9aa1ab' }}>{l.functionName}</td>
-                <td style={{ textAlign: 'right' }}>
-                  <b style={{ marginRight: 6 }}>{i + 1}</b>
-                  <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
-                  <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3 }} disabled={i === lines.length - 1} onClick={() => move(i, 1)}>▼</button>
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  <label style={{ marginRight: 10, fontSize: 12 }}>
+              // 원본 줄 높이 36.5(라디오 칸) — 우리 28.9 였다
+              <tr key={l.functionName} className="h-[36.5px]">
+                <td>{l.functionName}</td>
+                <td className="text-right">{i + 1}</td>
+                <td className="text-center">
+                  <label className="mr-[10px] text-[12px]">
                     <input type="radio" name={`u${i}`} checked={l.active} onChange={() => setActive(i, true)} /> 사용
                   </label>
-                  <label style={{ fontSize: 12 }}>
+                  <label className="text-[12px]">
                     <input type="radio" name={`u${i}`} checked={!l.active} onChange={() => setActive(i, false)} /> 사용안함
                   </label>
                 </td>
-                <td style={{ textAlign: 'center' }}>
-                  {DETAIL_LINK[l.functionName]
-                    ? <Link to={DETAIL_LINK[l.functionName]!.to} style={{ color: 'var(--ec-blue)' }}>
-                        {DETAIL_LINK[l.functionName]!.label}
-                      </Link>
-                    : <span style={{ color: '#c9ced6' }}>—</span>}
+                <td className="text-center">
+                  {l.functionName === DETAIL_SETTING && <button type="button" className="ec-link" onClick={() => setDecimalOpen(true)}>설정</button>}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+        <div className="flex gap-[6.3px] mt-[15.3px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
+          {/* 원본 [H] — '이력' 아래 한 줄(마지막으로 고친 때 [사람]), 탭마다 따로. PriceOrderService.save 가 PRICE_ORDER 1(영업) · 2(구매)로 적는다 */}
+          <EcHistoryButton key={cat} target="PRICE_ORDER" id={cat === 'SALES' ? 1 : 2} last />
         </div>
       </div>
+
+      {/*
+        원본 '소수점처리설정(영업관리)' · '(구매관리)' — 탭에 따라 제목이 하나다(2026-10-21 실측). 소수점단위 소수점없음 · 소수점 1자리 … 10자리
+        (기본 10자리), 처리방법 반올림 · 올림 · 버림(기본 반올림). [적용(F8)] 은 말 없이 창을 닫는다.
+        우리는 단가 계산에 이 값을 쓰지 않아 고른 값을 저장하지 않는다(스키마 없음 — plans 재고1:67).
+      */}
+      <Modal open={decimalOpen} title={`소수점처리설정(${cat === 'SALES' ? '영업관리' : '구매관리'})`} width={420} error={error} onClose={() => setDecimalOpen(false)}>
+        <div className="ec-form">
+          <div className="flex items-center gap-[10px] mb-[6px]">
+            <span className="w-[100px] text-ec-label">소수점단위</span>
+            <select className="ec-input flex-1" aria-label="소수점단위" defaultValue="소수점 10자리">
+              {['소수점없음', ...Array.from({ length: 10 }, (_, i) => `소수점 ${i + 1}자리`)].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-[10px]">
+            <span className="w-[100px] text-ec-label">처리방법</span>
+            <select className="ec-input flex-1" aria-label="처리방법" defaultValue="반올림">
+              {['반올림', '올림', '버림'].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => setDecimalOpen(false)}>적용(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setDecimalOpen(false)}>닫기</button>
+        </div>
+      </Modal>
     </div>
   )
 }

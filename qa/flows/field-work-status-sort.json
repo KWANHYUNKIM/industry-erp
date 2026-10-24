@@ -1,0 +1,69 @@
+{
+  "about": "외근현황 [정렬/소계기준 설정](원본 E070255, 2026-10-13 잼) — '정렬/소계/합계 설정' 창: 기준 없음·일자·차량종류·사용자명·사용목적·주행전/주행후 계기판거리·운행거리·적요, 처음 1 차량종류(소계 표시)·2 일자(표시안함)·3 없음, 합계 표시, ⊙소계/합계 표시항목 ◉직접설정(세 숫자 열 모두 체크). 1 사용자명 · 2 일자 소계를 켜면 안쪽부터 'YYYY/MM 계' → '사용자 계' → '합계'. 시험 외근 둘을 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-work-status-sort.json",
+  "shots": [
+    {
+      "name": "준비 — 오늘 외근 둘",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:try { localStorage.removeItem('field-work-status-sort') } catch (e) {} ; true",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date().toISOString().slice(0, 10); const a = await (await fetch('/api/field-works', { method: 'POST', headers: H, body: JSON.stringify({ workDate: d, vehicleNo: 'QA1', vehicleName: 'QA-K5[H]', distance: 100, purpose: 'QA그룹웨어-정렬소계' }) })).json(); const b = await (await fetch('/api/field-works', { method: 'POST', headers: H, body: JSON.stringify({ workDate: d, vehicleNo: 'QA2', vehicleName: 'QA-모닝', distance: 50, purpose: 'QA그룹웨어-정렬소계' }) })).json(); sessionStorage.setItem('qaFwSort', JSON.stringify([a.id, b.id])); return a.id + ',' + b.id })()"
+      ]
+    },
+    {
+      "name": "설정 창 — 기본값",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "set:.ec-form input[placeholder=\"적요\"]|QA그룹웨어-정렬소계",
+        "click:설정",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '정렬/소계/합계 설정'",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelector('select[aria-label=\"정렬/소계기준 1\"]').options].map((o) => o.text).join('|') === '없음|일자|차량종류|사용자명|사용목적|주행전 계기판거리|주행후 계기판거리|운행거리|적요'",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const s = (i) => d.querySelector(`select[aria-label=\"정렬/소계기준 ${i}\"]`).value; return s(1) === '차량종류' && s(2) === '일자' && s(3) === '' && d.querySelectorAll('input[name=subtotal-0]')[0].checked && d.querySelectorAll('input[name=subtotal-1]')[1].checked && d.querySelector('input[name=subtotal-2]').disabled && d.querySelectorAll('input[name=total]')[0].checked })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const b = [...d.querySelectorAll('table[aria-label=\"소계/합계 표시항목\"] input[type=checkbox]')]; return d.querySelectorAll('input[name=items-mode]')[1].checked && b.length === 6 && b.every((x) => x.checked && !x.disabled) })()",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input[name=items-mode]')[0].click(); true",
+        "wait:150",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('table[aria-label=\"소계/합계 표시항목\"] input[type=checkbox]')].every((x) => x.checked && x.disabled)",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input[name=items-mode]')[1].click(); true",
+        "wait:150",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "기본 — 차량종류 계 · 합계",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "set:.ec-form input[placeholder=\"적요\"]|QA그룹웨어-정렬소계",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].map((tr) => tr.cells[0].textContent.trim()).filter((t) => t.endsWith('계') || t === '합계').map((t, i, a) => (i === a.length - 1 ? t : 'x:' + t)).sort().join('|') === 'x:QA-K5[H] 계|x:QA-모닝 계|합계'"
+      ]
+    },
+    {
+      "name": "1 사용자명 · 2 일자 소계 → 'YYYY/MM 계' · '사용자 계' · 합계, 합계 운행거리 빼기",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "set:.ec-form input[placeholder=\"적요\"]|QA그룹웨어-정렬소계",
+        "click:설정",
+        "wait:300",
+        "choose:[role=dialog] select[aria-label=\"정렬/소계기준 1\"]|사용자명",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input[name=subtotal-1]')[0].click(); true",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[aria-label=\"합계 운행거리\"]').click(); true",
+        "wait:150",
+        "click:적용(F8)",
+        "wait:300",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(() => { const labs = [...document.querySelectorAll('tbody tr')].map((tr) => tr.cells[0].textContent.trim()).filter((t) => t.endsWith('계') || t === '합계'); return labs.length === 3 && /^\\d{4}\\/\\d{2} 계$/.test(labs[0]) && !/^\\d{4}/.test(labs[1]) && labs[2] === '합계' })()",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((x) => x.cells[0].textContent.trim() === '합계'); const sub = [...document.querySelectorAll('tbody tr')].find((x) => /^\\d{4}\\/\\d{2} 계$/.test(x.cells[0].textContent.trim())); return tr.cells[3].textContent.trim() === '' && sub.cells[3].textContent.trim() === '150.00' })()"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:try { localStorage.removeItem('field-work-status-sort') } catch (e) {} ; true",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const out = []; for (const id of JSON.parse(sessionStorage.getItem('qaFwSort'))) out.push((await fetch('/api/field-works/' + id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

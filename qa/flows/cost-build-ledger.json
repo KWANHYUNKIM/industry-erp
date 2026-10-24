@@ -1,0 +1,50 @@
+{
+  "about": "재고 II 원가생성/수정(E040802) 원가계산 [수정] · [기말금액재계산] — 원본 2026-10-13 실측: 대상(◉전체 ○선택공정) [적용(F8)] → '원가계산내역'(품목코드 · 품목명[규격] · 품목구분 · 생산공정명 · 기초/증가/감소/기말 수량 · 단가 · 금액). 안 고르고 [변경] 하면 '리스트에 선택된 자료가 없습니다.', 고르면 '원가수정'(기초 · 구매 · 생산입고 · 노무비 · 경비 · 외주비 · 조정/대체/반품 · 감소 · 기말). 값을 고치면 감소 · 기말이 '자동계산', [기말금액재계산] 이 다시 낸다. 기타 [회계반영] 은 자동대체가 없다는 안내. 맨 위 기간이 있어야 한다.",
+  "shots": [
+    {
+      "name": "생성 → 수정(원가계산내역 · 원가수정) → 기말금액재계산 · 회계반영",
+      "path": "/accounting/cost-build",
+      "steps": [
+        "wait:1000",
+        "js:window.alert = (m) => { window.__alert = m }; window.confirm = () => true; true",
+        "click:생성",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop()?.innerText.includes('선택공정')",
+        "clicklast:적용(F8)",
+        "wait:2500",
+        "expect:document.body.innerText.includes('원가생성] 작업이 완료되었습니다')",
+        "click:수정",
+        "wait:500",
+        "expect:document.body.innerText.includes('대상 공정을 선택 바랍니다.')",
+        "click:적용(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('th')].some((t) => t.textContent.trim() === '생산공정명') && document.body.innerText.includes('원가계산내역')",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].length > 0",
+        "click:변경",
+        "wait:300",
+        "expect:window.__alert === '리스트에 선택된 자료가 없습니다.\\n\\n체크박스에 체크한 후 다시 시도 바랍니다.'",
+        "js:const c = [...document.querySelectorAll('[role=dialog] tbody input[type=checkbox]')][0]; c.click(); true",
+        "click:변경",
+        "wait:800",
+        "expect:document.body.innerText.includes('조정/대체/반품') && [...document.querySelectorAll('input[aria-label=\"노무비 금액\"]')].length === 1",
+        "set:input[aria-label=\"노무비 금액\"]|1000",
+        "expect:document.body.innerText.includes('자동계산')",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:document.body.innerText.includes('원가계산내역') && document.body.innerText.includes('자동계산')",
+        "clicklast:닫기",
+        "wait:300",
+        "click:기말금액재계산",
+        "wait:500",
+        "click:적용(F8)",
+        "wait:1500",
+        "expect:document.body.innerText.includes('원가계산내역') && !document.body.innerText.includes('자동계산')",
+        "clicklast:닫기",
+        "wait:300",
+        "click:회계반영",
+        "wait:300",
+        "expect:(window.__alert || '').startsWith('선택된 연월에 대체분개시점이 유효한 자동대체가 존재하지 않습니다.')"
+      ]
+    }
+  ]
+}

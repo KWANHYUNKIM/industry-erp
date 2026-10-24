@@ -1,0 +1,20 @@
+{
+  "about": "월별이익현황 — 2026-10-13 원본 E040805 실측: [기준월]은 원가생성/수정의 원가 기간 코드도움(기본 최근 기간), 원가는 그 기간에 생성한 원가, 머리 두 줄 판매(수량 · 단가 · 금액) · 원가(단가 · 금액) · 판매부대비용 · 이익(단가 · 금액) · 이익율, 이익 = 판매 − 원가 − 부대비용, 이익율 정수 %, 번호 · 건수 열 없음, 표 위 제목 품목별이익현황 · 거래처 칸은 거래처코드 · 거래처명.",
+  "shots": [
+    {
+      "name": "기본(품목별) — 최근 원가 기간으로 바로 그린다",
+      "path": "/accounting/monthly-profit",
+      "steps": [
+        "wait:3500",
+        "js:[document.querySelector('.ec-report-head')?.innerText.replace(/\\s+/g, ' '), [...document.querySelectorAll('table thead tr')].map((r) => r.innerText.replace(/\\s+/g, '|')).join(' / '), [...document.querySelectorAll('table tbody tr, table tfoot tr')].slice(0, 3).map((r) => r.innerText.replace(/\\s+/g, ' ')).join(' ;; ')].join(' ## ')",
+        "expect:document.querySelector('.ec-report-title')?.innerText.trim() === '품목별이익현황'",
+        "expect:[...document.querySelectorAll('table thead tr')][1].innerText.replace(/\\s+/g, '|') === '수량|단가|금액|단가|금액|단가|금액'",
+        "expect:[...document.querySelectorAll('table thead tr')][0].innerText.replace(/\\s+/g, '|') === '품목코드|품목명[규격]|판매|원가|판매부대비용|이익|이익율'",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '월별')",
+        "expect:(() => { const n = (s) => Number(String(s).replace(/[,%]/g, '')) || 0; return [...document.querySelectorAll('table tbody tr')].filter((r) => r.cells.length === 11 && r.cells[6].innerText.trim() !== '—').every((r) => n(r.cells[4].innerText) - n(r.cells[6].innerText) - n(r.cells[7].innerText) === n(r.cells[9].innerText)) })()",
+        "js:(async () => { [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '거래처별').click(); await new Promise((r) => setTimeout(r, 200)); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '검색(F8)').click(); await new Promise((r) => setTimeout(r, 2500)); return document.querySelector('.ec-report-title')?.innerText })()",
+        "expect:document.querySelector('.ec-report-title')?.innerText.trim() === '거래처별이익현황' && [...document.querySelectorAll('table thead tr')][0].innerText.replace(/\\s+/g, '|').startsWith('거래처코드|거래처명|판매')"
+      ]
+    }
+  ]
+}

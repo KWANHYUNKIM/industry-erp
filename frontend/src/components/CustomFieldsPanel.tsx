@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
-import type { EntityCustomFields } from '../api/types'
+import type { EntityCustomFields } from '../types/api'
 
 /**
  * 특정 전표(entityType, entityId)의 사용자정의(추가 형식) 필드를 조회·편집·저장하는 재사용 패널.
@@ -39,14 +39,14 @@ export default function CustomFieldsPanel({ entityType, entityId }: { entityType
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fafbfc', padding: 12, marginTop: 10 }}>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#3c4553', marginBottom: 8 }}>추가항목 (사용자정의)</div>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '5px 8px', fontSize: 12, borderRadius: 3, marginBottom: 6 }}>{error}</p>}
-      {ok && <span style={{ color: '#1c7c3c', fontSize: 12, marginLeft: 6 }}>{ok}</span>}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-ec-page p-[12px] mt-[10px]">
+      <div className="text-[12.5px] font-bold text-ec-text mb-[8px]">추가항목 (사용자정의)</div>
+      {error && <p className="bg-ec-danger-bg text-ec-danger py-[5px] px-[8px] text-[12px] rounded-[3px] mb-[6px]">{error}</p>}
+      {ok && <span className="text-ec-success text-[12px] ml-[6px]">{ok}</span>}
+      <div className="flex gap-[12px] flex-wrap items-end">
         {data.defs.map((d) => (
-          <label key={d.fieldKey} style={{ fontSize: 12.5 }}>
-            <div style={{ color: '#5a626e', marginBottom: 3 }}>{d.label}{d.required && <span style={{ color: '#c60a2e' }}> *</span>}</div>
+          <label key={d.fieldKey} className="text-[12.5px]">
+            <div className="text-ec-label mb-[3px]">{d.label}{d.required && <span className="text-ec-danger"> *</span>}</div>
             {d.fieldType === 'CODE' ? (
               <select className="ec-input" value={form[d.fieldKey] ?? ''} onChange={(e) => set(d.fieldKey, e.target.value)} style={{ width: 160 }}>
                 <option value="">선택</option>

@@ -1,0 +1,87 @@
+{
+  "about": "채권감소등록(E060402) [입금보고서작성] 수금형태 '수표' → 생성방식 자동생성 → 수표번호입력(20자리 번호) → 입금보고서(추가정보 '채권 …, 수령수표 …') → 저장하면 채권 감소와 함께 수령수표가 늘고, 수령수표조회 증가 줄 거래유형 '입금보고서'(거래처 찍힘 · 체크칸 막힘). 채무감소등록(E060502) 지급형태 '수표' → 지출결의서 · 발행수표 '지출결의서' 가 거울. 전표를 지우면 수표 · 감소가 함께 사라진다(2026-10-14 원본 실측: 김치좋아 98,000 · 도서출판책사 1,800,000).",
+  "shots": [
+    {
+      "name": "채권 — 수금형태 수표 → 수표번호입력 → 입금보고서 저장",
+      "path": "/accounting/bonds/ar/decrease-entry",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');sessionStorage.setItem('bcYmd',ymd);const acc=(await window.__api('GET','/accounts')).body;const ar=acc.find((a)=>a.code==='108');const ap=acc.find((a)=>a.code==='251');const p=(await window.__api('GET','/partners')).body[0];const as=(await window.__api('GET','/bank-cards/accounts')).body.filter((x)=>x.active);sessionStorage.setItem('bcAcct',as[0].code??as[0].accountNo);sessionStorage.setItem('bcAcctId',as[0].id);const t=Date.now();sessionStorage.setItem('bcAr','QABCR'+t);sessionStorage.setItem('bcAp','QABCP'+t);const a=await window.__api('POST','/bonds',{side:'RECEIVABLE',entryDate:ymd,direction:'INCREASE',lines:[{accountId:ar.id,partnerId:p.id,bondNo:'QABCR'+t,amount:45000,dueDate:ymd,memo:'QA회계2 수표수금'}]});const b=await window.__api('POST','/bonds',{side:'PAYABLE',entryDate:ymd,direction:'INCREASE',lines:[{accountId:ap.id,partnerId:p.id,bondNo:'QABCP'+t,amount:32000,dueDate:ymd,memo:'QA회계2 수표지급'}]});sessionStorage.setItem('bcArId',a.body.id);sessionStorage.setItem('bcApId',b.body.id);sessionStorage.setItem('bcPartner',p.name);location.reload();return a.status+'/'+b.status})()",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); el.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); el.blur(); return true }; true",
+        "js:document.querySelector(`[aria-label=\"${sessionStorage.getItem('bcAr')} 선택\"]`).click(); true",
+        "click:입금보고서작성",
+        "wait:600",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='수표').querySelector('input').click(); true",
+        "wait:300",
+        "expect:document.body.innerText.includes('생성방식')&&[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='자동생성').querySelector('input').checked",
+        "click:적용(F8)",
+        "wait:400",
+        "expect:!document.body.innerText.includes('수표번호입력')",
+        "js:window.__set('계좌검색', sessionStorage.getItem('bcAcct'))",
+        "wait:300",
+        "click:적용(F8)",
+        "wait:500",
+        "expect:document.body.innerText.includes('수표번호입력')&&/^\\d{20}$/.test(document.querySelector('[aria-label=\"1줄 수표번호\"]').value)",
+        "js:sessionStorage.setItem('bcNo', document.querySelector('[aria-label=\"1줄 수표번호\"]').value); true",
+        "clicklast:적용(F8)",
+        "wait:500",
+        "expect:document.body.innerText.includes('채권 '+sessionStorage.getItem('bcAr')+', 수령수표 '+sessionStorage.getItem('bcNo'))",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:!document.body.innerText.includes(sessionStorage.getItem('bcAr'))",
+        "js:(async()=>{const c=(await window.__api('GET','/checks')).body.find((x)=>x.checkNo===sessionStorage.getItem('bcNo'));sessionStorage.setItem('bcOk',String(!!c&&c.type==='RECEIVED'&&c.status==='HELD'&&c.issuedByVoucher&&Number(c.amount)===45000&&String(c.bankAccountId)===sessionStorage.getItem('bcAcctId')&&c.issueJournalId!=null));return true})()",
+        "expect:sessionStorage.getItem('bcOk')==='true'"
+      ]
+    },
+    {
+      "name": "수령수표조회 — 증가 줄 '입금보고서' · 거래처 · 체크칸 막힘",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('bcNo')));return !!tr&&tr.innerText.includes('입금보고서')&&tr.innerText.includes('증가')&&tr.innerText.includes(sessionStorage.getItem('bcPartner'))&&tr.querySelector('input[type=checkbox]').disabled})()"
+      ]
+    },
+    {
+      "name": "채무 — 지급형태 수표 → 지출결의서 저장 → 발행수표",
+      "path": "/accounting/bonds/ap/decrease-entry",
+      "steps": [
+        "wait:1500",
+        "js:window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); el.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); el.blur(); return true }; true",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:document.querySelector(`[aria-label=\"${sessionStorage.getItem('bcAp')} 선택\"]`).click(); true",
+        "click:지출결의서작성",
+        "wait:600",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='수표').querySelector('input').click(); true",
+        "js:window.__set('계좌검색', sessionStorage.getItem('bcAcct'))",
+        "wait:300",
+        "click:적용(F8)",
+        "wait:500",
+        "js:sessionStorage.setItem('bcNoP', document.querySelector('[aria-label=\"1줄 수표번호\"]').value); true",
+        "clicklast:적용(F8)",
+        "wait:500",
+        "expect:document.body.innerText.includes('채무 '+sessionStorage.getItem('bcAp')+', 발행수표 '+sessionStorage.getItem('bcNoP'))",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:!document.body.innerText.includes(sessionStorage.getItem('bcAp'))"
+      ]
+    },
+    {
+      "name": "발행수표조회 — 증가 줄 '지출결의서', [회계전표일자-No.] → 지출결의서(수정), 두 전표를 지우면 수표 · 감소가 함께 사라진다",
+      "path": "/accounting/checks-issued-list",
+      "steps": [
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('bcNoP')));return !!tr&&tr.innerText.includes('지출결의서')&&tr.innerText.includes('증가')&&tr.querySelector('input[type=checkbox]').disabled})()",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const cs=(await window.__api('GET','/checks')).body;sessionStorage.setItem('bcJr',cs.find((x)=>x.checkNo===sessionStorage.getItem('bcNo')).issueJournalId);sessionStorage.setItem('bcJp',cs.find((x)=>x.checkNo===sessionStorage.getItem('bcNoP')).issueJournalId);return true})()",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('bcNoP'))).cells[9].querySelector('a').click(); true",
+        "wait:1500",
+        "expect:location.pathname==='/accounting/vouchers'&&location.search.includes('journal='+sessionStorage.getItem('bcJp'))",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{for(const j of [sessionStorage.getItem('bcJp'),sessionStorage.getItem('bcJr')]){const v=(await window.__api('GET','/vouchers/by-journal/'+j)).body;if(v&&v.id)await window.__api('DELETE','/vouchers/'+v.id)}const cs=(await window.__api('GET','/checks')).body.filter((x)=>x.checkNo===sessionStorage.getItem('bcNo')||x.checkNo===sessionStorage.getItem('bcNoP'));const ar=(await window.__api('GET','/bonds?side=RECEIVABLE')).body.filter((e)=>e.lines.some((l)=>l.bondNo===sessionStorage.getItem('bcAr')));const ap=(await window.__api('GET','/bonds?side=PAYABLE')).body.filter((e)=>e.lines.some((l)=>l.bondNo===sessionStorage.getItem('bcAp')));const back=ar.length===1&&ap.length===1;await window.__api('POST','/bonds/delete',{ids:[Number(sessionStorage.getItem('bcArId')),Number(sessionStorage.getItem('bcApId'))]});sessionStorage.setItem('bcGone',String(cs.length===0&&back));return true})()",
+        "expect:sessionStorage.getItem('bcGone')==='true'"
+      ]
+    }
+  ]
+}

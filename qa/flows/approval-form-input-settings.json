@@ -1,0 +1,41 @@
+{
+  "about": "공통양식 입력화면설정 [기안서확인시점설정] · [사용자별권한](원본 E070107, 2026-10-13 실측) — 새 양식 QA그룹웨어-권한 을 만들고 열린 입력화면설정에서 '설정' → 수신참조 결재완료전 · 공유문서 결재완료후 [적용(F8)], '대상자선택'에서 나(admin)를 사용불가 [저장(F8)] → 양식 [저장(F8)] → 서버 값 · 기안서작성 양식 목록(forDraft)에서 빠지는지 · 기안이 403 인지 본다. 끝에 양식을 지운다. node qa/shot.mjs qa/flows/approval-form-input-settings.json",
+  "shots": [
+    {
+      "name": "기안서확인시점 · 사용자별권한",
+      "path": "/groupware/approval/settings?tab=공통양식등록",
+      "steps": [
+        "allowapi:403: /api/approvals",
+        "wait:800",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ts = await (await fetch('/api/approval-settings/templates', { headers: H })).json(); for (const t of ts.filter((x) => x.name === 'QA그룹웨어-권한')) await fetch('/api/approval-settings/templates/' + t.id, { method: 'DELETE', headers: H }); location.reload(); return true })()",
+        "wait:1500",
+        "click:신규(F2)",
+        "setnear:양식명|QA그룹웨어-권한",
+        "click:저장(F8)",
+        "wait:900",
+        "expect:document.body.innerText.includes('입력화면설정') && document.body.innerText.includes('기안서확인시점설정') && document.body.innerText.includes('사용자별권한')",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.startsWith('기안서확인시점설정')).querySelector('button').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '기안서확인시점설정' && document.body.innerText.includes('참조자가 문서를 확인할 수 있는 시기를 설정합니다.')",
+        "expect:document.querySelector('[aria-label=\"수신참조 확인시점 기본설정(결재완료후)\"]').checked && document.querySelector('[aria-label=\"공유문서 확인시점 기본설정(결재완료전)\"]').checked",
+        "js:document.querySelector('[aria-label=\"수신참조 확인시점 결재완료전\"]').click(); document.querySelector('[aria-label=\"공유문서 확인시점 결재완료후\"]').click(); true",
+        "click:적용(F8)",
+        "wait:200",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.startsWith('사용자별권한')).querySelector('button').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '대상자선택' && [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('thead th')].map((t) => t.textContent).join(',') === '사용자,권한그룹,사용허가,사용불가'",
+        "js:(async () => { const me = await (await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).json(); window.__me = me; const row = [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find((r) => r.cells[0].textContent.endsWith('(' + me.username + ')')); row.cells[3].querySelector('input').click(); return me.username })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '저장(F8)').click(); true",
+        "wait:200",
+        "expect:[...document.querySelectorAll('label')].find((l) => l.textContent.startsWith('사용자별권한')).textContent.includes('(1)')",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '저장(F8)').pop().click(); true",
+        "wait:900",
+        "expect:fetch('/api/approval-settings/templates', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((ts) => { const t = ts.find((x) => x.name === 'QA그룹웨어-권한'); window.__t = t; return t && t.referenceViewTiming === 'BEFORE' && t.shareViewTiming === 'AFTER' && t.userPermissions[String(window.__me.id)] === 'DENY' })",
+        "expect:fetch('/api/approval-form-templates?forDraft=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((ts) => !ts.some((x) => x.id === window.__t.id))",
+        "expect:fetch('/api/approval-form-templates', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((ts) => ts.some((x) => x.id === window.__t.id))",
+        "expect:fetch('/api/approvals', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: JSON.stringify({ formTemplateId: window.__t.id, title: 'QA그룹웨어-권한', content: 'x', approverIds: [window.__me.id], referenceUserIds: [], shareUserIds: [], temporary: true }) }).then((r) => r.status === 403)",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/approval-settings/templates/' + window.__t.id, { method: 'DELETE', headers: H }); return 'cleanup ' + r.status })()"
+      ]
+    }
+  ]
+}

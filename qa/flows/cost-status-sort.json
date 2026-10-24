@@ -1,0 +1,55 @@
+{
+  "about": "실제원가현황 · 표준원가현황 [정렬/소계기준 설정](원본 E040804 · E040808, 2026-10-13 잼) — '정렬/소계/합계 설정' 창에 [페이지분할] 열, 처음 1 품목구분(세트포함) 소계 표시 · 2 품목코드 표시안함 · 3 없음. 실제원가 원가집계표는 합계영역이 ◉표시로 막혀 있고 표시항목은 [소계] 줄만(단가 넷 빈칸). 소계를 끄면 '… 계' 줄이 없어지고 누계만 남는다. 실제원가현황은 원본처럼 [검색(F8)] 전에는 표가 없다(f8f4a4fd) — 검색을 먼저 누른다. 원가집계표는 원가생성/수정 결과(f8f4a4fd)라 원가 기간이 없으면 표가 비므로, 이번 달 원가 기간을 API 로 만들고 [생성] 한 뒤 끝에 지운다(기간이 이미 있으면 그대로 쓰고 안 지운다). node qa/shot.mjs qa/flows/cost-status-sort.json",
+  "shots": [
+    {
+      "name": "실제원가현황 — 설정 창 기본값",
+      "path": "/accounting/actual-cost",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ex=await (await fetch('/api/cost-periods',{headers:h})).json();if(ex.length){sessionStorage.removeItem('qaCostPeriod');return true}const d=new Date();const m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');const r=await fetch('/api/cost-periods',{method:'POST',headers:h,body:JSON.stringify({startMonth:m,endMonth:m,method:'TOTAL_AVERAGE',outsourcingBasis:'ITEM'})});const p=await r.json();if(!r.ok)return 'create '+r.status+' '+JSON.stringify(p);sessionStorage.setItem('qaCostPeriod',String(p.id));const g=await fetch('/api/cost-periods/'+p.id+'/generate',{method:'POST',headers:h});return g.ok?true:'generate '+g.status+' '+(await g.text()).slice(0,200)})()",
+        "js:try { localStorage.removeItem('actual-cost-status-sort'); localStorage.removeItem('standard-cost-status-sort') } catch (e) {} ; true",
+        "wait:1500",
+        "click:설정",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const s = (i) => d.querySelector(`select[aria-label=\"정렬/소계기준 ${i}\"]`).value; return s(1) === '품목구분(세트포함) (원가집계표)' && s(2) === '품목코드 (품목)' && s(3) === '' && d.querySelectorAll('input[name=subtotal-0]')[0].checked && d.querySelectorAll('input[name=subtotal-1]')[1].checked && d.querySelector('input[aria-label=\"페이지분할 3\"]').disabled })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const t = d.querySelectorAll('input[name=total]'); return t[0].checked && t[0].disabled && t[1].disabled })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const rows = d.querySelectorAll('table[aria-label=\"소계/합계 표시항목\"] tbody tr'); const b = [...rows[0].querySelectorAll('input')].map((x) => (x.checked ? 'Y' : 'n')).join(''); return rows.length === 1 && b === 'YnYYnYYnYYnY' })()",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "실제원가현황 — 소계 끄기",
+      "path": "/accounting/actual-cost",
+      "steps": [
+        "wait:1500",
+        "expect:!document.querySelector('tfoot')",
+        "click:검색(F8)",
+        "js:(async()=>{for(let i=0;i<60;i++){if(document.querySelector('tfoot'))return true;await new Promise(z=>setTimeout(z,250))}return document.querySelector('.ec-frame')?.innerText.slice(0,300)})()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => / 계$/.test(tr.cells[0]?.textContent.trim() ?? ''))",
+        "expect:[...document.querySelectorAll('tfoot tr')].some((tr) => tr.cells[0]?.textContent.trim() === '누계' && tr.cells[0].colSpan === 4)",
+        "click:설정",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input[name=subtotal-0]')[1].click(); true",
+        "wait:150",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => / 계$/.test(tr.cells[0]?.textContent.trim() ?? ''))",
+        "expect:[...document.querySelectorAll('tfoot tr')].some((tr) => tr.cells[0]?.textContent.trim() === '누계')"
+      ]
+    },
+    {
+      "name": "표준원가현황 — 설정 창 기본값",
+      "path": "/accounting/standard-cost",
+      "steps": [
+        "wait:1500",
+        "click:설정",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const s = (i) => d.querySelector(`select[aria-label=\"정렬/소계기준 ${i}\"]`).value; const t = d.querySelectorAll('input[name=total]'); return s(1) === '품목구분(세트포함) (표준원가)' && s(2) === '품목코드 (품목)' && t[0].checked && !t[0].disabled })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const b = [...d.querySelectorAll('table[aria-label=\"소계/합계 표시항목\"] input[type=checkbox]')]; return b.length === 2 && b.every((x) => x.checked) })()",
+        "click:닫기"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const id=sessionStorage.getItem('qaCostPeriod');if(!id)return true;const r=await fetch('/api/cost-periods/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});sessionStorage.removeItem('qaCostPeriod');return r.ok?true:'delete '+r.status})()"
+  ]
+}

@@ -1,0 +1,3719 @@
+// 백엔드 응답과 매칭되는 타입 정의
+
+export interface User {
+  id: number
+  username: string
+  name: string
+  email: string | null
+  department: string | null
+  /**
+   * 이어진 사원(hr.Employee) id. 안 이으면 null.
+   *
+   * <p>이름·직급·사원번호는 여기 없다 — auth 는 기반층이라 hr 을 참조할 수 없어
+   * 서버가 붙이지 못한다(CLAUDE.md 4.1). 근태 응답은 hr 이 붙여서 보낸다.
+   */
+  employeeId: number | null
+  enabled: boolean
+  roles: string[]
+}
+
+export interface Role {
+  id: number
+  name: string
+  displayName: string
+  description: string | null
+  system?: boolean
+  userCount?: number
+  permissionCodes?: string[]
+}
+
+export interface Permission {
+  code: string
+  name: string
+  category: string
+  sort: number
+}
+
+export interface LoginResponse {
+  token: string
+  companyCode: string
+  companyName: string
+  user: User
+}
+
+export interface Company {
+  id: number
+  code: string
+  name: string
+  schemaName: string
+  active: boolean
+  createdAt: string | null
+  /** 사용자 수 한도. null = 제한 없음 */
+  maxUsers: number | null
+  /** 사용기한(이 날까지). null = 무기한 */
+  expiresOn: string | null
+}
+
+export interface CreateUserRequest {
+  username: string
+  password: string
+  name: string
+  email?: string
+  department?: string
+  roleNames: string[]
+}
+
+export interface UpdateUserRequest {
+  name: string
+  email?: string
+  department?: string
+  enabled?: boolean
+  roleNames?: string[]
+  password?: string
+}
+
+// ===== 재고관리 =====
+
+export interface CodeOption {
+  code: string
+  name: string
+}
+
+export interface Item {
+  id: number
+  code: string
+  name: string
+  spec: string | null
+  unit: string
+  category: string
+  categoryName: string
+  unitPrice: number
+  /** 구매(입고) 기준단가. 0 이면 안 정한 것이고, 구매할인현황이 할인을 계산하지 않는다. */
+  purchasePrice: number
+  /** 단가A ~ 단가J (원본 품목등록 [단가] 탭). 늘 열 칸. */
+  gradePrices: number[]
+  safetyStock: number
+  barcode: string | null
+  /** 원본 품목등록 리스트의 [이미지]. 파일이 없으면 둘 다 null. */
+  imageFileId: number | null
+  imageFileName: string | null
+  /**
+   * 원본 품목등록 리스트의 [구매처명] — 이 품목을 늘 사 오는 곳.
+   * 서버는 id 만 준다(inventory 가 trade 를 참조할 수 없어서). 이름은 화면이 거래처 목록에서 붙인다.
+   */
+  supplierId: number | null
+  /** 원본 품목등록 리스트의 [검색창내용]. */
+  searchKeyword: string | null
+  /**
+   * 재고수량관리 — 원본 품목등록 리스트의 열('수량관리대상' · '수량관리제외').
+   * false 면 재고를 잡지 않는다(용역·운반비 같은 품목).
+   */
+  stockTracked: boolean
+  /** 의료기기 표준코드(UDI-DI). 값이 있으면 의료기기공급내역보고 대상. */
+  udiDi: string | null
+  /**
+   * 관리항목 (이카운트 품목등록 A7 탭 `item_type`).
+   * 전표 라인의 관리항목 열은 이 값을 읽기전용으로 보여 준다 — 라인에서 고르는 값이 아니다.
+   */
+  managementItemId: number | null
+  managementItemName: string | null
+  /**
+   * 품목그룹 (원본 품목등록 리스트의 '품목그룹1명' 열).
+   * 오랫동안 엔티티에만 있고 등록 요청에는 없어서 아무도 지정할 수 없었다.
+   */
+  itemGroupId: number | null
+  itemGroupName: string | null
+  active: boolean
+  /* 원본 품목등록 폼의 나머지 칸들. */
+  remark: string | null
+  vatRateSales: number | null
+  vatRatePurchase: number | null
+  subcontractPrice: number | null
+  leadTimeDays: number | null
+  minPurchaseUnit: number | null
+  setItem: boolean
+  sharedItem: boolean
+  itemType: string | null
+  parentItemId: number | null
+  parentItemName: string | null
+  lotManaged: boolean
+  qcType: string | null
+  qcMethod: string | null
+  qcOnPurchase: boolean
+  qcOnProduction: boolean
+  autoProductionOnSales: boolean
+  autoProductionOnTransfer: boolean
+  /** [원가] 탭(원본 C000029). 경비 · 노무비 · 외주비표준원가는 원본 창에서 잠긴 칸 — 보기만 한다. */
+  stdLaborHours: number
+  expenseWeight: number
+  materialStdCost: number | null
+  expenseStdCost: number
+  laborStdCost: number
+  subcontractStdCost: number
+  /** 원본 조건 [최초작성일자]·[최종수정일자]. */
+  createdDate: string | null
+  updatedDate: string | null
+}
+
+/** 품목그룹·거래처그룹 마스터. 두 그룹의 모양이 같아 한 타입으로 쓴다. */
+export interface GroupMaster {
+  id: number
+  code: string
+  name: string
+  sortOrder: number
+  active: boolean
+}
+
+export interface Warehouse {
+  id: number
+  code: string
+  name: string
+  location: string | null
+  active: boolean
+  /**
+   * 구분 — 창고 · 공장 · 외주. 원본 창고등록리스트의 [구분] 열.
+   * 공정·외주거래처는 <b>id 만</b> 온다 — inventory 는 다른 모듈을 참조할 수 없어
+   * 서버가 이름을 붙이지 못한다(CLAUDE.md 4.1). 화면이 각자 목록에서 붙인다.
+   */
+  kind: string
+  processId: number | null
+  outsourcingPartnerId: number | null
+}
+
+export type StockTxType = 'INBOUND' | 'OUTBOUND' | 'ADJUST'
+
+export interface StockRow {
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  unit: string
+  warehouseId: number
+  warehouseName: string
+  quantity: number
+  safetyStock: number
+  belowSafety: boolean
+}
+
+export interface StockTransaction {
+  id: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  warehouseId: number
+  warehouseName: string
+  type: StockTxType
+  typeName: string
+  quantityChange: number
+  balanceAfter: number
+  unitPrice: number | null
+  transactionDate: string
+  note: string | null
+  createdBy: string | null
+}
+
+// Spring Data Page 응답
+export interface Page<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  number: number
+  size: number
+}
+
+// ===== 판매/구매 =====
+
+export type PartnerType = 'CUSTOMER' | 'SUPPLIER' | 'BOTH'
+
+export interface Partner {
+  id: number
+  code: string
+  name: string
+  type: PartnerType
+  typeName: string
+  bizRegNo: string | null
+  ceoName: string | null
+  bizType: string | null
+  bizItem: string | null
+  manager: string | null
+  phone: string | null
+  /** 모바일. 원본 거래처리스트의 열 — 전화와 따로다. */
+  mobile: string | null
+  /** 원본 거래처관리대장 I 머리말의 Email. */
+  email: string | null
+  /** 원본 거래처관리대장 I 머리말의 Fax. */
+  fax: string | null
+  /** 원본 거래처관리대장 I 머리말의 여신한도. 0 은 '한도 없음' 이 아니라 원본이 찍는 값이다. */
+  creditLimit: number
+  /** 이체정보 — 지급할 때 쓸 계좌. 원본 [이체정보] 열이 이게 있는지를 보여 준다. */
+  bankName: string | null
+  accountNo: string | null
+  accountHolder: string | null
+  /** 우편번호. 원본 거래처등록 [기본] 탭의 [주소1 우편번호]. */
+  postalCode: string | null
+  address: string | null
+  /** 원본 조건 [최초작성일자]·[최종수정일자]. 서버가 BaseTimeEntity 에서 실어 준다. */
+  createdDate: string | null
+  updatedDate: string | null
+  salesPriceGroup: string | null
+  purchasePriceGroup: string | null
+  /** 원본 거래처검색·거래처리스트의 [검색창내용]. 부르는 이름으로 찾는다. */
+  searchKeyword: string | null
+  /** 원본 [거래처코드구분] — 사업자등록번호 · 주민등록번호 · 외국인. */
+  regNoKind: string
+  /** 원본 [업종별구분] — 일반 · 관세사 · 외화거래처. */
+  industryKind: string
+  /**
+   * 원본 의료기기공급내역보고의 [공급형태] — 이 거래처가 어떤 곳인지.
+   * 안 정할 수 있다(의료기기를 안 다루면 없는 개념이다).
+   */
+  udiSupplyShape: string | null
+  subBizNo: string | null
+  postalCode2: string | null
+  address2: string | null
+  homepage: string | null
+  remark: string | null
+  /** 원본 [세무신고거래처]. */
+  taxReport: boolean
+  /** 원본 [출하대상거래처]. */
+  shipmentTarget: boolean
+  /**
+   * 원본 [관계설정]의 대표거래처. 이 거래처가 어느 회사의 지점·사업장이면 그 회사다.
+   * 미지정이면 자기가 곧 대표다 — 거래처관리대장의 [대표거래처로 합산]이 이걸 쓴다.
+   */
+  parentId: number | null
+  parentName: string | null
+  /* 원본 거래처등록 폼의 나머지 칸들. */
+  foreignCurrency: boolean
+  /** 원본 [세무신고거래처] — 다른 코드로 묶어 신고할 때 그 코드. 비면 '거래처코드동일'. */
+  taxReportCode: string | null
+  /** 원본 [통화] — 외화등록 통화 코드. 비면 내자. */
+  currencyCode: string | null
+  salesTaxType: string | null
+  purchaseTaxType: string | null
+  creditDays: number | null
+  settleDueDay: number | null
+  arNoManaged: boolean
+  apNoManaged: boolean
+  partnerGroupId: number | null
+  partnerGroupName: string | null
+  active: boolean
+}
+
+export interface TradeLine {
+  /**
+   * 라인 id. 라인 단위로 무언가를 붙이려면(추가항목 등) 이 키가 있어야 한다.
+   * 수주는 예전부터 주는데 판매·구매만 빠져 있었다.
+   */
+  lineId: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  spec: string | null
+  /** 원본 전표이력조회(거래이력조회) 조건의 [품목구분]. 품목 마스터의 값이다. */
+  itemCategoryName: string | null
+  quantity: number
+  unitPrice: number
+  supplyAmount: number
+  vatAmount: number
+  remark: string | null
+  /** 시리얼/로트 (이카운트 판매입력 그리드의 serial_cd) */
+  lotNo: string | null
+  /** 부대비용 (cust_amt). 합계 금액에는 더하지 않는다. */
+  extraCost: number | null
+  /**
+   * 불러온 근거전표 — 이카운트 판매입력·구매입력 그리드의 [불러온 전표 / 전표일자 / 전표No.] 3열.
+   * [전표불러오기]로 수주·발주 라인을 담았을 때만 채워지고, 직접 입력한 줄은 전부 null 이다.
+   */
+  sourceOrderId: number | null
+  /** '주문서'(판매) 또는 '발주서'(구매) */
+  sourceDocType: string | null
+  sourceDocDate: string | null
+  sourceDocNo: string | null
+}
+
+export type SalesConfirmStatus = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
+
+export interface SalesDoc {
+  /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. BaseTimeEntity 가 든다. */
+  updatedAt: string | null
+  /** 원본 조건 [최초작성일자]. 앞 바퀴에 updatedAt 만 싣고 두고 온 값이다. */
+  createdAt: string | null
+  id: number
+  docNo: string
+  partnerId: number | null
+  partnerName: string
+  warehouseId: number
+  warehouseName: string
+  saleDate: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  remark: string | null
+  createdBy: string | null
+  confirmStatus: SalesConfirmStatus
+  confirmStatusName: string
+  confirmedAt: string | null
+  accountingReflected: boolean
+  /** 부가세를 전표 단위로 계산한 전표인가 (이카운트 [거래별부가세계산]) */
+  vatBySlip: boolean
+  /** 과세 전표인가. 예전에는 부가세 > 0 인지로 되짚었는데 반올림으로 0 이 된 과세 전표가 면세로 섞였다. */
+  taxable: boolean
+  /** 원본 [거래구분]이 반품인가. 반품이면 수량·금액이 음수로 저장돼 있다. */
+  returnSlip: boolean
+  /** 원본 [거래구분] 표시값 — 일반 · 반품. */
+  tradeKindName: string
+  /** 귀속 프로젝트 (백엔드 SalesResponse 가 이미 주고 있던 필드 — 타입에 빠져 있었다) */
+  projectId: number | null
+  projectName: string | null
+  employeeId: number | null
+  employeeName: string | null
+  lines: TradeLine[]
+  /** 판매입력 II [금액조정] 할인 감소(-) — 머리 금액(supply/vat/total)은 이미 뺀 값. 판매입력(I) 전표는 0. */
+  discountSupply?: number
+  discountVat?: number
+  /** 판매입력 II 로 만든 전표인가 — 판매조회에서 열면 '판매입력 II(수정)' 창. */
+  inputII?: boolean
+}
+
+export interface PurchaseDoc {
+  /** 원본 조건 판 [기타]의 [수정일자순(정렬)]이 쓰는 축. BaseTimeEntity 가 든다. */
+  updatedAt: string | null
+  /** 원본 조건 [최초작성일자]. 앞 바퀴에 updatedAt 만 싣고 두고 온 값이다. */
+  createdAt: string | null
+  id: number
+  docNo: string
+  partnerId: number
+  partnerName: string
+  warehouseId: number
+  warehouseName: string
+  purchaseDate: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  remark: string | null
+  createdBy: string | null
+  /** 부가세를 전표 단위로 계산한 전표인가 (이카운트 [거래별부가세계산]) */
+  vatBySlip: boolean
+  /** 과세 전표인가. 예전에는 부가세 > 0 인지로 되짚었는데 반올림으로 0 이 된 과세 전표가 면세로 섞였다. */
+  taxable: boolean
+  /** 원본 [거래구분]이 반품인가. 반품이면 수량·금액이 음수로 저장돼 있다. */
+  returnSlip: boolean
+  /** 원본 [거래구분] 표시값 — 일반 · 반품. */
+  tradeKindName: string
+  /** 회계반영 여부 (판매와 맞추려고 응답에 추가했다) */
+  accountingReflected: boolean
+  /** 귀속 프로젝트 (백엔드 PurchaseResponse 가 이미 주고 있던 필드 — 타입에 빠져 있었다) */
+  projectId: number | null
+  projectName: string | null
+  employeeId: number | null
+  employeeName: string | null
+  lines: TradeLine[]
+}
+
+export interface PartnerBalance {
+  partnerId: number
+  code: string
+  name: string
+  type: PartnerType
+  typeName: string
+  receivable: number
+  payable: number
+  /** 채권/채무현황 조건용 (기존 화면은 쓰지 않아도 된다) */
+  partnerGroupId: number | null
+  partnerGroupName: string | null
+  manager: string | null
+  active: boolean
+  /** 원본 [대표거래처로 합산]이 쓰는 본사. 미지정이면 자기가 곧 대표다. */
+  parentId: number | null
+  parentName: string | null
+  /** 잔액 가운데 회계전표가 외상매출금·외상매입금을 직접 움직인 몫(어음·수표·외주비 회계반영 …). */
+  receivableJournal: number
+  payableJournal: number
+  /** 세금계산서를 안 끊은(안 받은) 판매(구매) 합계 — 원본 채권현황 · 채무현황 [미청구금액] */
+  unbilledReceivable: number
+  unbilledPayable: number
+}
+
+// ===== 생산관리 =====
+
+export interface BomLine {
+  componentId: number
+  componentCode: string
+  componentName: string
+  unit: string
+  quantity: number
+}
+
+export interface Bom {
+  id: number
+  productId: number
+  productCode: string
+  productName: string
+  productUnit: string
+  remark: string | null
+  active: boolean
+  lines: BomLine[]
+  /** 원본 [BOM버전] · [기본BOM] — 제품 하나에 버전이 여럿일 수 있다(V226). */
+  versionName: string
+  defaultVersion: boolean
+}
+
+export type WorkOrderStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
+
+export interface WorkOrder {
+  id: number
+  orderNo: string
+  productId: number
+  productCode: string
+  productName: string
+  /**
+   * 규격. 원본 작업지시서조회의 열 이름이 <b>[품목명[규격]]</b> 이다 —
+   * 서버는 보내고 있었는데 이 타입에 없어 화면이 쓸 수가 없었다.
+   */
+  productSpec: string | null
+  productUnit: string
+  warehouseId: number
+  warehouseName: string
+  /** 납품처. 원본 작업지시서조회의 [거래처명] 열. */
+  partnerId: number | null
+  partnerName: string | null
+  /**
+   * 담당자(사원) id. <b>이름은 여기 없다</b> — production 은 hr 을 참조할 수 없어
+   * 서버가 붙이지 못한다(hr → accounting → production 이 이미 있어 순환).
+   * 화면이 사원 목록에서 붙인다.
+   */
+  employeeId: number | null
+  plannedQty: number
+  producedQty: number
+  remainingQty: number
+  status: WorkOrderStatus
+  statusName: string
+  orderDate: string
+  dueDate: string | null
+  remark: string | null
+  createdBy: string | null
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  productCategoryName: string | null
+  /** 원본 조건 [최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
+  createdAt: string | null
+  updatedAt: string | null
+  /** 전표 안 줄 차례. 같은 orderNo 를 가진 줄들이 한 작업지시서다. */
+  lineNo: number
+  /** 원본 작업지시서입력 머리의 [프로젝트]. */
+  projectId: number | null
+  projectName: string | null
+  /** 진행상태 — 결재중·미확인·확인. */
+  confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
+  /** 원본 작업지시서입력 머리의 [첨부]. */
+  attachmentId?: number | null
+  attachmentName?: string | null
+  attachmentSize?: number | null
+}
+
+export interface ProductionMaterial {
+  componentId: number
+  componentCode: string
+  componentName: string
+  unit: string
+  quantity: number
+  /** 규격. 원본 [소모] 탭의 [규격]. */
+  componentSpec?: string | null
+  /** 원본 [소모] 탭의 [적요]. */
+  note?: string | null
+  /** 원본 [소모] 탭의 [시리얼/로트No.]. */
+  lotNo?: string | null
+}
+
+/** 생산입고를 넣은 화면 — 원본 생산입고 I(BOM기준소모)·II(소모품목 선택)·III(공정별). */
+export type ProductionEntryType = 'I' | 'II' | 'III'
+
+export interface Production {
+  id: number
+  /** 전표번호. 한 전표의 줄들이 같은 번호를 나눠 가진다(원본처럼 전표 하나에 번호 하나). */
+  prodNo: string
+  /** 전표 안 줄 차례(1부터). */
+  lineNo: number
+  /** 넣은 화면 — 고칠 때 같은 화면으로 연다. */
+  entryType: ProductionEntryType
+  /** 불러온 작업지시서. 원본처럼 없어도 된다. */
+  workOrderId: number | null
+  workOrderNo: string | null
+  workOrderDate: string | null
+  /** 생산입고 III 의 [공정]. */
+  processId: number | null
+  processName: string | null
+  /** 원본 격자 [외주비단가]·[외주비합계]·[외주비부가세]. */
+  subcontractUnitPrice: number
+  subcontractAmount: number
+  subcontractVat: number
+  /** 원본 격자 [시리얼/로트No.]. */
+  lotNo: string | null
+  /** 원본 격자 [BOM버전] — 비었으면 기본 BOM 으로 소모했다. */
+  bomId?: number | null
+  bomVersionName?: string | null
+  /** 원본 생산입고입력 머리의 [첨부]. */
+  attachmentId?: number | null
+  attachmentName?: string | null
+  productId: number
+  productCode: string
+  productName: string
+  productUnit: string
+  warehouseId: number
+  warehouseName: string
+  /**
+   * 생산된공장 — 자재가 빠진 곳. 원본 생산입고조회의 [생산된공장명] 열.
+   * 안 고르면 null 이고 받는창고 하나에서 오간 것이다.
+   */
+  fromWarehouseId: number | null
+  fromWarehouseName: string | null
+  /** 귀속 프로젝트. 원본 생산입고현황 조건의 [프로젝트]. */
+  projectId: number | null
+  projectName: string | null
+  /** 적요. 원본 생산입고현황의 마지막 열. */
+  note: string | null
+  /** 원본 생산입고 I·II 의 [노무시간](분). 안 적었으면 null — 0 과 다르다. */
+  laborMinutes: number | null
+  /** 담당자(사원) id. 원본 생산입고 머리의 [담당자]. 이름은 화면이 사원 목록에서 붙인다. */
+  employeeId: number | null
+  producedQty: number
+  productionDate: string
+  createdBy: string | null
+  materials: ProductionMaterial[]
+}
+
+// ===== 회계/원가 =====
+
+export interface VatSummary {
+  salesSupply: number
+  salesVat: number
+  salesTotal: number
+  purchaseSupply: number
+  purchaseVat: number
+  purchaseTotal: number
+  /** 지출(비용)의 매입세액 — 46·47회차 */
+  expenseVat?: number
+  /** 카드 사용의 매입세액 */
+  cardVat?: number
+  vatPayable: number
+}
+
+export interface ItemProfit {
+  itemId: number
+  code: string
+  name: string
+  costBasis: string
+  soldQty: number
+  salesAmount: number
+  unitCost: number
+  costAmount: number
+  profit: number
+  marginRate: number
+}
+
+export interface ProfitSummary {
+  totalSales: number
+  totalCost: number
+  grossProfit: number
+  marginRate: number
+}
+
+// ===== 그룹웨어: 전자결재 =====
+
+/** 양식코드. 양식은 approval_form_templates 마스터가 정하므로 열린 문자열이다. */
+export type ApprovalFormType = string
+
+export type ApprovalStatus = 'DRAFTING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED'
+
+export type ApprovalLineStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+export type ApprovalParticipantRole = 'REFERENCE' | 'SHARE'
+
+/** 양식별 입력 항목 정의. 백엔드 field_schema(jsonb)를 그대로 받는다. */
+export type ApprovalFieldType = 'text' | 'textarea' | 'date' | 'datetime' | 'number' | 'table'
+
+export interface ApprovalFieldColumn {
+  key: string
+  label: string
+  type?: 'text' | 'number' | 'date'
+}
+
+export interface ApprovalField {
+  key: string
+  label: string
+  type: ApprovalFieldType
+  required?: boolean
+  /** type='table' 전용 */
+  columns?: ApprovalFieldColumn[]
+  defaultRows?: Record<string, unknown>[]
+  /** 이 컬럼을 합계 낸다 (예: 여비 총계) */
+  totalOf?: string
+  totalLabel?: string
+  /**
+   * 셀 배치 — 원본은 「신청일자 | 시작 ~ 종료」처럼 여러 필드를 한 줄에 놓는다.
+   * 같은 `row` 값을 가진 필드들이 한 줄에 그려진다. 없으면 한 줄에 한 필드(기존 동작).
+   */
+  row?: number
+  /** 그 줄의 라벨. 줄의 첫 필드에만 준다. 없으면 첫 필드의 label 을 쓴다. */
+  rowLabel?: string
+  /** 앞 필드와 이 필드 사이에 넣을 글자 (예: '~'). */
+  sep?: string
+}
+
+export interface ApprovalFormTemplate {
+  id: number
+  code: string
+  name: string
+  sortOrder: number
+  fieldSchema: ApprovalField[]
+}
+
+export interface ApprovalLine {
+  id: number
+  stepOrder: number
+  approverId: number
+  approverName: string
+  status: ApprovalLineStatus
+  statusName: string
+  comment: string | null
+  actedAt: string | null
+}
+
+export interface ApprovalParticipant {
+  userId: number
+  userName: string
+  role: ApprovalParticipantRole
+  roleName: string
+}
+
+export interface ApprovalVoucher {
+  id: number
+  voucherType: 'SALES' | 'PURCHASE' | 'EXPENSE'
+  voucherId: number
+  voucherNo: string
+}
+
+export interface ApprovalDoc {
+  id: number
+  /** 기안서No. */
+  docNo: string
+  /** 기안No. (2026/07/10-2) */
+  draftNo: string
+  formTemplateId: number
+  formType: ApprovalFormType
+  formTypeName: string
+  title: string
+  content: string
+  formData: Record<string, unknown>
+  drafterId: number
+  drafterName: string
+  draftDate: string
+  department: string | null
+  projectId: number | null
+  projectName: string | null
+  status: ApprovalStatus
+  statusName: string
+  currentStep: number
+  reference: string | null
+  deleted: boolean
+  /** 원본 기안서통합관리 조건의 [라벨] — 문서에 붙이는 꼬리표. 서버는 이미 주고 있었다. */
+  labelText: string | null
+  /** 원본 조건의 [첨부] — 붙임 파일. 서버는 이미 주고 있었다. */
+  attachmentId: number | null
+  attachmentName: string | null
+  currentApproverName: string | null
+  /**
+   * 작업자 · 작업일시 — 원본 기안서통합관리의 마지막 두 열.
+   * 마지막으로 이 문서를 움직인 사람과 시각이다. 아무도 결재 안 했으면 기안자·기안 시각.
+   */
+  lastActorName: string | null
+  lastActedAt: string | null
+  voucherCount: number
+  lines: ApprovalLine[]
+  participants: ApprovalParticipant[]
+  vouchers: ApprovalVoucher[]
+}
+
+// ===== 그룹웨어: 업무일지 =====
+
+export interface WorkJournal {
+  id: number
+  reportDate: string
+  authorId: number
+  authorName: string
+  department: string | null
+  partnerName: string | null
+  /** 거래처 마스터와 이름이 정확히 일치할 때만 채워진다 */
+  partnerId: number | null
+  projectId: number | null
+  projectName: string | null
+  title: string
+  content: string
+  /** 원본 '조회' 머리의 작성 시각 */
+  createdAt: string | null
+  /** 답글이면 원글 id — 격자에는 원글(null)만 찍는다 */
+  parentId: number | null
+  attachmentId?: number | null
+  attachmentName?: string | null
+  attachmentSize?: number | null
+}
+
+// ===== 그룹웨어: 출퇴근 =====
+
+export interface Attendance {
+  id: number
+  userId: number
+  userName: string
+  workDate: string
+  clockIn: string | null
+  clockOut: string | null
+  workMinutes: number | null
+  late: boolean
+  note: string | null
+  /** 아래는 출/퇴근기록부(ID) 창(E070305)의 칸 — 장소 · ☐외근 · ☐오전반차설정, 입력한 때(지각현황(ID) [입력시간]) */
+  username: string
+  department: string | null
+  place: string | null
+  outsideWork: boolean
+  halfLeave: boolean
+  enteredAt: string | null
+}
+
+// 결재선 지정용 간단 사용자 옵션
+export interface MemberOption {
+  id: number
+  name: string
+  department: string
+}
+
+// ===== 전자결재 설정 (공통양식등록 · 결재선 프리셋) =====
+
+/** 관리 화면용 양식 (사용중지된 양식도 포함) */
+export interface ApprovalFormTemplateAdmin {
+  id: number
+  code: string
+  name: string
+  sortOrder: number
+  active: boolean
+  fieldSchema: ApprovalField[]
+  /** 이 양식으로 작성된 기안서 수 — 0건일 때만 삭제 가능 */
+  documentCount: number
+}
+
+export interface ApprovalPresetStep {
+  stepOrder: number
+  approverId: number
+  approverName: string
+  department: string | null
+}
+
+export interface ApprovalPreset {
+  id: number
+  name: string
+  active: boolean
+  formTemplateId: number | null
+  formTemplateName: string | null
+  steps: ApprovalPresetStep[]
+}
+
+// ===== 재고 기초등록: 관리항목 / 단가적용순서 =====
+
+export interface ManagementItem {
+  id: number
+  code: string
+  name: string
+  description: string | null
+  active: boolean
+  /** 조회 조건 [수정일자순(정렬)] 의 축 */
+  updatedAt?: string | null
+}
+
+/**
+ * 품목별 원가 (`GET /api/costs`). 회계 모듈이 소유하고, 판매입력의 [이익계산] 이 읽어 간다.
+ * (원가 화면 4개가 각자 같은 모양을 지역 선언하고 있다 — 그 화면들을 손볼 때 이걸로 모은다.)
+ */
+export interface ItemCost {
+  id: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  /** 귀속 기간 'YYYY-MM' */
+  period: string
+  materialCost: number
+  laborCost: number
+  overheadCost: number
+  standardTotal: number
+  actualMaterial: number
+  actualLabor: number
+  actualOverhead: number
+  actualTotal: number
+  /** 실제 - 표준 */
+  variance: number
+  varianceRate: number
+}
+
+/**
+ * My품목 (`GET /api/my-items`) — 전표 입력 툴바 [My품목 ▾] 의 즐겨찾기 품목.
+ * users × items 를 함께 참조해야 해서 백엔드에서는 groupware 모듈이 소유한다.
+ */
+export interface MyItem {
+  id: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  unit: string
+  unitPrice: number
+  /** 담을 기본 수량 */
+  defaultQty: number
+  sortOrder: number
+}
+
+export interface PriceOrderLine {
+  functionName: string
+  applyOrder: number
+  active: boolean
+}
+
+// ===== 특별단가(E040124) =====
+
+export type SpecialPriceType = 'SALES' | 'PURCHASE'
+
+/** 특별단가그룹 — 원본 [특별단가그룹] 알약. has* 는 그 칸 링크가 주황 알약인가(무언가 붙었나). */
+export interface SpecialPriceGroup {
+  id: number
+  code: string
+  name: string
+  active: boolean
+  hasPartners: boolean
+  hasWarehouses: boolean
+  hasItems: boolean
+  hasItemGroups: boolean
+  updatedAt: string | null
+}
+
+/** 품목별 특별단가 — 그룹 × 품목 = 적용단가 · VAT포함 */
+export interface SpecialPrice {
+  id: number
+  groupId: number
+  groupCode: string
+  groupName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  unit: string | null
+  itemGroupName: string | null
+  unitPrice: number
+  vatIncluded: boolean
+  active: boolean
+  remark: string | null
+  updatedAt: string | null
+}
+
+/** 품목그룹별 특별단가 — 그룹 × 품목그룹 = 단가기준 · 조정_비율 · 조정_단위처리 */
+export interface SpecialPriceItemGroup {
+  id: number
+  groupId: number
+  groupCode: string
+  groupName: string
+  itemGroupId: number
+  itemGroupCode: string
+  itemGroupName: string
+  priceBasis: string
+  adjustRate: number
+  roundUnit: string
+  roundMode: string
+  adjustText: string
+  active: boolean
+}
+
+/** 적용단가 알약 한 줄 */
+export interface SpecialPriceApplied {
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  itemGroupName: string | null
+  kind: string
+  groupCode: string
+  groupName: string
+  adjustText: string
+  unitPrice: number
+  vatIncluded: boolean
+}
+
+/** 거래처설정 · 창고설정 한 줄 — 구분 · 코드 · 이름 */
+export interface SpecialPriceMember {
+  id: number
+  tradeType: SpecialPriceType
+  tradeTypeName: string
+  targetId: number
+  code: string
+  name: string
+}
+
+export interface SpecialPriceResolve {
+  found: boolean
+  unitPrice: number | null
+  /** 걸린 단가적용순서 줄 — '거래처별특별단가(품목별)' … */
+  source: string | null
+  groupCode: string | null
+  groupName: string | null
+  vatIncluded: boolean
+}
+
+// ===== 카드사(E010109) / 결제대행사(E010114) 기초등록 마스터 =====
+
+export interface CardIssuer {
+  id: number
+  code: string
+  name: string
+  feeRate: number | null
+  remark: string | null
+  active: boolean
+  /** 원본 폼의 [계정]·[입금계좌]·[검색창내용]. */
+  accountId: number | null
+  accountName: string | null
+  depositAccount: string | null
+  searchKeyword: string | null
+}
+
+export interface PaymentAgency {
+  id: number
+  code: string
+  name: string
+  ceoName: string | null
+  phone: string | null
+  email: string | null
+  remark: string | null
+  active: boolean
+  /** 원본 E010114 폼의 나머지 칸들. */
+  accountId: number | null
+  accountName: string | null
+  depositAccount: string | null
+  searchKeyword: string | null
+  feeRate: number | null
+  regNoKind: string
+  /** 원본 [외화거래처]. #281 에 [업종별구분]으로 잘못 만들었던 칸을 깃발로 바로잡았다. */
+  foreignCurrency: boolean
+  /** 외화거래처로 고른 통화(외화등록). 내자면 null. */
+  currencyId: number | null
+  currencyName: string | null
+  bizType: string | null
+  bizItem: string | null
+  manager: string | null
+  taxReport: boolean
+  postalCode: string | null
+  address: string | null
+  postalCode2: string | null
+  address2: string | null
+}
+
+// ===== 품질검사 =====
+
+export type QualityInspectionType = 'INCOMING' | 'PROCESS' | 'SHIPMENT'
+export type QualityResult = 'PASS' | 'CONDITIONAL' | 'FAIL'
+
+export interface QualityInspection {
+  id: number
+  inspectionNo: string
+  inspectionDate: string
+  type: QualityInspectionType
+  typeName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  lotNo: string | null
+  inspectedQty: number
+  defectQty: number
+  goodQty: number
+  defectRate: number
+  result: QualityResult
+  resultName: string
+  /** 원본 조건의 [창고]·[프로젝트]. 검사 시점에 안 정했을 수 있어 널이다. */
+  warehouseId: number | null
+  warehouseName: string | null
+  projectId: number | null
+  projectName: string | null
+  inspector: string | null
+  remark: string | null
+  /**
+   * 원본 불량률파악보고서의 [불량유형] — 공통코드 DEFECT_TYPE 의 <b>코드</b>다.
+   * 불량이 없는 검사에는 없다. 이름은 화면이 공통코드에서 붙인다.
+   */
+  defectType: string | null
+  /** 원본 [종결여부] 진행중 · 완료(2026-10-04 실측). */
+  status: 'IN_PROGRESS' | 'COMPLETED'
+  statusName: string
+  /** 원본 품질검사입력의 품목 줄 — 머리의 품목 · 검사수량(시료 합) · 불량수량(부적격 합)은 여기서 모은 값이다. */
+  lines: QualityInspectionLine[]
+  totalQuantity: number
+  /** 불러온 검사요청(원본 목록의 [출처]). */
+  requestId: number | null
+  requestNo: string | null
+}
+
+export interface QualityInspectionLine {
+  id: number
+  lineNo: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  method: 'FULL' | 'SAMPLING'
+  methodName: string
+  quantity: number
+  sampleQty: number
+  goodQty: number
+  defectQty: number
+  passResult: 'NA' | 'PASS' | 'FAIL'
+  passResultName: string
+  defectType: string | null
+  /** 원본 [검사항목] — 품목의 품질검사유형 칸에 적은 값(코드형식은 고른 상세항목명). */
+  checks: QualityCheckValue[]
+}
+
+export interface QualityCheckValue {
+  checkItemId: number
+  detailId: number | null
+  value: string
+}
+
+/** 품질검사입력 [검사항목] [내역] 창의 한 칸 — 품목에 붙은 검사유형의 검사항목. */
+export interface QualityItemCheck {
+  checkItemId: number
+  code: string
+  name: string
+  format: 'CODE' | 'NUMBER' | 'TEXT'
+  slot: number
+  required: boolean
+  details: { id: number; code: string; name: string; active: boolean }[]
+}
+
+export type QualityRequestStatus = 'REQUESTED' | 'INSPECTED' | 'CANCELED'
+
+export interface QualityInspectionRequest {
+  id: number
+  requestNo: string
+  requestDate: string
+  type: QualityInspectionType
+  typeName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  /** 원본 격자의 [규격]. 품목이 들고 있는 값이다. */
+  spec: string | null
+  unit: string
+  lotNo: string | null
+  requestQty: number
+  dueDate: string | null
+  status: QualityRequestStatus
+  statusName: string
+  /** 원본 품질검사요청입력 격자의 [프로젝트]. 안 걸었으면 null. */
+  projectId: number | null
+  projectName: string | null
+  /** 원본 [검사방법] — 전수 · 샘플링. 샘플링이면 비율이 함께 온다. */
+  inspectMethod: string | null
+  samplePercent: number | null
+  requester: string | null
+  remark: string | null
+  /** 원본 품질검사요청입력의 품목 줄(2026-10-04 실측). 머리의 품목 · 요청수량은 여기서 모은 값이다. */
+  lines: { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; spec: string | null; method: 'FULL' | 'SAMPLING'; methodName: string; quantity: number; extraQty: number | null }[]
+  /** 원본 [연결전표] — 이 요청을 [검사요청] 으로 불러와 만든 검사들. */
+  inspections: { id: number; inspectionNo: string; inspectionDate: string; quantity: number }[]
+  inspectedQty: number
+  /** 원본 [잔량적용] 이 불러오는 남은 수량. */
+  remainingQty: number
+}
+
+// ===== 재고 창고간이동 =====
+
+export interface StockTransfer {
+  id: number
+  transferNo: string
+  transferDate: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  fromWarehouseId: number
+  fromWarehouseName: string
+  toWarehouseId: number
+  toWarehouseName: string
+  quantity: number
+  /** 원본 조건의 [프로젝트]·[담당자]. 옮길 때 안 정했을 수 있어 널이다. */
+  projectId: number | null
+  projectName: string | null
+  employeeId: number | null
+  reason: string | null
+  createdBy: string | null
+}
+
+// ===== 외화 (통화 마스터 · 고시환율) =====
+
+export interface Currency {
+  id: number
+  code: string
+  name: string
+  symbol: string | null
+  /** 고시 단위 (JPY는 100) */
+  unit: number
+  active: boolean
+  latestRate: number | null
+  latestRateDate: string | null
+}
+
+export interface ExchangeRate {
+  id: number
+  currencyId: number
+  currencyCode: string
+  currencyName: string
+  unit: number
+  rateDate: string
+  rate: number
+  /** 1 통화당 원화 (rate / unit) */
+  ratePerUnit: number
+  createdBy: string | null
+}
+
+export interface CurrencyConversion {
+  currencyId: number
+  currencyCode: string
+  baseDate: string
+  appliedRateDate: string
+  appliedRate: number
+  unit: number
+  foreignAmount: number
+  krwAmount: number
+}
+
+// ===== 계약관리 · 전자계약 (회계 II) =====
+
+export type BusinessContractType = 'SALES' | 'PURCHASE' | 'OTHER'
+export type BusinessContractStatus = 'DRAFT' | 'SENT' | 'SIGNED' | 'TERMINATED'
+
+export interface BusinessContract {
+  id: number
+  contractNo: string
+  title: string
+  type: BusinessContractType
+  typeName: string
+  status: BusinessContractStatus
+  statusName: string
+  partnerId: number
+  partnerName: string
+  startDate: string
+  endDate: string
+  amount: number
+  paymentTerms: string | null
+  content: string | null
+  sentAt: string | null
+  signerName: string | null
+  signedAt: string | null
+  agreement: string | null
+  terminatedDate: string | null
+  terminationReason: string | null
+  /** 오늘 기준 만료까지 남은 일수 */
+  daysToExpiry: number
+  createdBy: string | null
+  /** 전자계약 &gt; 계약서진행단계 [일자] · 계약서현황 [최종수정일자] */
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+// ===== 현금거래 세분류 (계좌간이동 · 법인카드 대금결제) =====
+
+export interface AccountTransfer {
+  id: number
+  transferNo: string
+  transferDate: string
+  fromAccountId: number
+  fromAccountName: string
+  fromBalanceAfter: number
+  toAccountId: number
+  toAccountName: string
+  toBalanceAfter: number
+  amount: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+}
+
+export interface CardPaymentLine {
+  cardUsageId: number
+  usageNo: string
+  usageDate: string
+  merchant: string
+  expenseAccountName: string
+  amount: number
+}
+
+export interface CardPayment {
+  id: number
+  paymentNo: string
+  paymentDate: string
+  cardId: number
+  cardName: string
+  cardCompany: string
+  bankAccountId: number
+  bankAccountName: string
+  amount: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  createdBy: string | null
+  lines: CardPaymentLine[]
+}
+
+// ===== 수표관리 (회계 II) =====
+
+export type CheckType = 'RECEIVED' | 'ISSUED'
+export type CheckStatus = 'HELD' | 'DEPOSITED' | 'PAID' | 'DISHONORED'
+
+export interface BankCheck {
+  id: number
+  checkNo: string
+  type: CheckType
+  typeName: string
+  status: CheckStatus
+  statusName: string
+  issueDate: string
+  amount: number
+  bankName: string | null
+  partnerId: number | null
+  partnerName: string | null
+  bankAccountId: number | null
+  bankAccountName: string | null
+  settledDate: string | null
+  remark: string | null
+  createdBy: string | null
+  /** 원본 [최종수정자] — 입금 · 부도 · 결제와 그 취소를 한 사람 */
+  updatedBy: string | null
+  /** 수표내역입력에서 분개 없이 넣은 수표 — 거래유형 '수표만증가' · '수표만감소' */
+  directEntry: boolean
+  /** 받을 때(발행할 때) 회계전표 번호 — 원본 수령수표증가현황의 [일자-No.]. 목록에서만 온다. */
+  issueJournalNo?: string | null
+  /** 손을 떠날 때(입금 · 부도) 회계전표 번호 — 원본 수령수표감소현황의 [일자-No.]. 발행수표 결제는 분개가 없어 비어 있다. */
+  settleJournalNo?: string | null
+  /** 수표내역입력 전표 번호 — 원본 [일자] '2026/10/13 -5' 의 5(늘린 전표 · 줄인 전표). */
+  directInNo?: number | null
+  directOutNo?: number | null
+  /** 수령수표입금처리 [입금보고서작성] 으로 손을 떠난 수표 — 수령수표조회 거래유형 '입금보고서', 감소 줄 체크칸 막힘. */
+  settledByVoucher?: boolean
+  /** 손을 떠날 때 회계전표 id — 감소 줄 [회계전표일자-No.] 가 그 입금보고서(수정) · 지출결의서(수정)를 연다. */
+  settleJournalId?: number | null
+  /** 수표내역입력 줄의 [부서] · [프로젝트] — 부서 이름은 부서 목록에서 붙인다. */
+  departmentId?: number | null
+  projectId?: number | null
+  projectName?: string | null
+  /** 채권감소 [입금보고서작성] 수금형태 '수표'(채무감소 지급형태 '수표')로 늘어난 수표 — 증가 줄 거래유형 '입금보고서' · '지출결의서', 체크칸 막힘. */
+  issuedByVoucher?: boolean
+  /** 그 입금보고서(지출결의서)의 회계전표 id — 증가 줄 [일자-No.] · [회계전표일자-No.] 가 그 전표(수정)를 연다. */
+  issueJournalId?: number | null
+  /** 감소 줄의 적요 — 비면 증가 적요(remark)를 그대로(원본 [수표만감소] '증가적요동일', 2026-10-21). */
+  outRemark?: string | null
+}
+
+// ===== 비현금거래 (대체전표) =====
+
+export type NonCashType = 'OFFSET' | 'BAD_DEBT' | 'ACCRUAL' | 'TRANSFER'
+
+export interface NonCashTxn {
+  id: number
+  txnNo: string
+  type: NonCashType
+  typeName: string
+  txnDate: string
+  debitAccountId: number
+  debitAccountCode: string
+  debitAccountName: string
+  creditAccountId: number
+  creditAccountCode: string
+  creditAccountName: string
+  amount: number
+  partnerId: number | null
+  partnerName: string | null
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+}
+
+// ===== FastEntry 간편전표 (지출결의서·입금보고서·가지급금정산서) =====
+
+export type FastVoucherType = 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT' | 'RECEIPT_PAYMENT'
+export type PaymentMethod = 'CASH' | 'BANK' | 'CREDIT'
+
+export interface VoucherLine {
+  id: number
+  lineNo: number
+  accountId: number
+  accountCode: string
+  accountName: string
+  amount: number
+  description: string | null
+  /** 줄의 결제 계좌 — 원본 [돈 나간(들어온) 계좌]. cash 면 000 현금, 둘 다 없으면 머리 결제수단(옛 줄). */
+  bankAccountId: number | null
+  cash: boolean
+  partnerId: number | null
+  bankAccountCode: string | null
+  bankAccountName: string | null
+  partnerCode: string | null
+  partnerName: string | null
+  /** 가지급금정산서 [정산자] 사원 · [정산대상자명]. */
+  employeeId: number | null
+  employeeName: string | null
+  /** [추가정보] 부가세정보 — 없으면 vatType null(지출결의서 · 가지급금정산서). */
+  vatType?: string | null
+  vatDate?: string | null
+  vatPartnerId?: number | null
+  vatPartnerCode?: string | null
+  vatPartnerName?: string | null
+  vatSupply?: number | null
+  vatAmount?: number | null
+  /** 돈 들어온(나간) 쪽이 계정인 줄(수금형태 어음 — 1109 받을어음) */
+  settleAccountId?: number | null
+  settleAccountCode?: string | null
+  settleAccountName?: string | null
+}
+
+export interface FastVoucher {
+  id: number
+  voucherNo: string
+  type: FastVoucherType
+  typeName: string
+  voucherDate: string
+  method: PaymentMethod
+  methodName: string
+  bankAccountId: number | null
+  bankAccountName: string | null
+  partnerId: number | null
+  partnerName: string | null
+  advanceAmount: number | null
+  totalAmount: number
+  /** 가지급금정산서: 가지급금 − 실사용액 (양수 반납, 음수 추가지급) */
+  balance: number | null
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+  lines: VoucherLine[]
+  /** 영수증으로 [거래처명](친 글자) · [수수료] */
+  payeeName: string | null
+  fee: number
+}
+
+// ===== 고정자산 (회계 I) =====
+
+export type DepreciationMethod = 'STRAIGHT_LINE' | 'DECLINING_BALANCE'
+export type AssetStatus = 'IN_USE' | 'DISPOSED'
+
+export interface FixedAsset {
+  id: number
+  assetNo: string
+  name: string
+  assetAccountId: number
+  assetAccountCode: string
+  assetAccountName: string
+  acquisitionDate: string
+  acquisitionCost: number
+  salvageValue: number
+  usefulLifeYears: number
+  method: DepreciationMethod
+  methodName: string
+  declineRate: number | null
+  accumulatedDepreciation: number
+  bookValue: number
+  status: AssetStatus
+  statusName: string
+  disposalDate: string | null
+  disposalAmount: number | null
+  remark: string | null
+  createdBy: string | null
+  /** 자산마다 고르는 계정(원본 E010610) — 비면 203 · 818 */
+  accumAccountId: number | null
+  accumAccountName: string | null
+  expenseAccountId: number | null
+  expenseAccountName: string | null
+  /** 증가 전표의 출금계좌 · 부가세(원본 E010611) */
+  paymentAccountId: number | null
+  paymentAccountName: string | null
+  acquisitionVat: number
+  /** 감소 전표(원본 E010612) */
+  disposalType: 'SALE' | 'SCRAP' | null
+  disposalTypeName: string | null
+  disposalVat: number | null
+  receiptAccountId: number | null
+  receiptAccountName: string | null
+  /** 원본 E010610 [수량관리] 사용 — 수불부 · 대장 [수량] 은 사용 자산만 */
+  quantityManaged: boolean
+  /** 증가 수량 합(감소를 빼지 않는다) — 남은 수량 = quantity − decreasedQuantity */
+  quantity: number
+  /** 감소 전표들의 합 — 남은 취득가 = acquisitionCost − decreasedCost */
+  decreasedCost: number
+  decreasedAccum: number
+  decreasedQuantity: number
+  /** 첫 증가 전표의 수수료(지급수수료(판)) · 거래처 */
+  acquisitionFee?: number
+  partnerId?: number | null
+  partnerName?: string | null
+  /** 증가 · 감소 전표(원본 고정자산전표조회 한 줄씩) */
+  movements: FixedAssetMovement[]
+}
+
+/** 고정자산증가(E010611) · 감소(E010612) 전표 한 장 — 자산 하나에 여러 장, 각각 회계전표 한 장 */
+export interface FixedAssetMovement {
+  id: number
+  kind: 'INCREASE' | 'DECREASE'
+  kindName: string
+  slipDate: string
+  quantity: number
+  /** 증가 = 공급가액, 감소 = 취득원가 몫 */
+  amount: number
+  vat: number
+  accumAmount: number
+  saleAmount: number
+  disposalType: 'SALE' | 'SCRAP' | null
+  disposalTypeName: string | null
+  gainLoss: number
+  accountId: number | null
+  accountName: string | null
+  journalEntryId: number | null
+  journalDocNo: string | null
+  remark: string | null
+}
+
+export interface DepreciationRow {
+  id: number
+  assetId: number
+  assetNo: string
+  assetName: string
+  period: string
+  depreciationDate: string
+  amount: number
+  accumulatedAfter: number
+  bookValueAfter: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  createdBy: string | null
+}
+
+export interface DepreciationRun {
+  period: string
+  assetCount: number
+  totalAmount: number
+  skippedCount: number
+  rows: DepreciationRow[]
+  /** 앞 달 상각이 빠진 자산 — "자산명: 2026-08, 2026-09" */
+  gaps?: string[]
+}
+
+// ===== 계좌/카드 (회계 I) =====
+
+export type CardType = 'CORPORATE' | 'PERSONAL'
+
+export interface BankAccountRow {
+  id: number
+  /** 원본 계좌등록의 [계좌코드]·[계좌명]. 이미 있는 계좌에는 없으므로 널이다. */
+  code: string | null
+  name: string | null
+  bankName: string
+  accountNo: string
+  holder: string | null
+  glAccountId: number
+  glAccountCode: string
+  glAccountName: string
+  /** 원본 계좌등록의 [외화통장환종]. 안 정한 통장은 null — 원화다. */
+  currencyId: number | null
+  currencyCode: string | null
+  currencyName: string | null
+  balance: number
+  active: boolean
+  remark: string | null
+  /** 원본 계좌등록의 [검색창내용] · [이체정보] 적요1 · 적요2. */
+  searchText: string | null
+  transferRemark1: string | null
+  transferRemark2: string | null
+  /** 조건 [수정일자순(정렬)] */
+  updatedAt?: string | null
+}
+
+export interface CreditCardRow {
+  id: number
+  /** 원본 카드등록의 [카드코드]. 이미 있는 카드에는 없으므로 널이다. */
+  code: string | null
+  cardName: string
+  cardCompany: string
+  cardNo: string
+  type: CardType
+  typeName: string
+  ownerName: string | null
+  settlementAccountId: number | null
+  settlementAccountName: string | null
+  /** 원본 카드등록의 [계정명] — 결제계좌가 물고 있는 예금계정이다. */
+  glAccountName: string | null
+  settlementDay: number | null
+  active: boolean
+  remark: string | null
+  /** 원본 카드등록의 [카드구분] — 신용카드 · 체크카드. */
+  cardKind: CardKind
+  cardKindName: string
+  /** 원본 [사업용 카드 구분]. */
+  businessUse: boolean
+  /** 원본 [계정] — 카드사용 분개의 대변(기본 미지급금). */
+  glAccountId: number | null
+  glAccountCode: string | null
+  /** 원본 [카드관리자] · [검색창내용]. */
+  manager: string | null
+  searchText: string | null
+}
+
+export type CardKind = 'CREDIT' | 'CHECK'
+
+export interface BankTxn {
+  id: number
+  txnNo: string
+  txnDate: string
+  bankAccountId: number
+  bankName: string
+  accountNo: string
+  deposit: boolean
+  directionName: string
+  amount: number
+  counterAccountId: number
+  counterAccountName: string
+  partnerId: number | null
+  partnerName: string | null
+  balanceAfter: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+}
+
+export interface CardUsage {
+  id: number
+  usageNo: string
+  usageDate: string
+  cardId: number
+  cardName: string
+  cardCompany: string
+  cardNo: string
+  cardTypeName: string
+  merchant: string
+  expenseAccountId: number
+  expenseAccountName: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  description: string | null
+  createdBy: string | null
+}
+
+// ===== 기타이동 (자가사용·불량처리·재고조정) =====
+
+export type StockAdjustmentType = 'SELF_USE' | 'DEFECT' | 'SUBSTITUTE' | 'DISPOSAL' | 'ADJUST'
+
+export type StagedStatus = 'REQUESTED' | 'APPLIED' | 'REJECTED'
+
+export interface StagedAdjustment {
+  id: number
+  adjustNo: string
+  requestDate: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  warehouseId: number
+  warehouseName: string
+  bookQty: number
+  actualQty: number
+  diff: number
+  reason: string | null
+  status: StagedStatus
+  statusName: string
+  requester: string | null
+  handler: string | null
+  /** 실사 전표 번호(줄들이 같이 쓴다) · 이 줄로 맞춘 재고조정(없으면 null). */
+  slipNo: string
+  adjustmentNo: string | null
+  adjustmentDate: string | null
+}
+
+export interface StockAdjustment {
+  id: number
+  adjustNo: string
+  adjustDate: string
+  type: StockAdjustmentType
+  typeName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  /** 규격 — 원본 [품목] 열이 '이름 [규격]' 으로 찍는다. */
+  spec?: string | null
+  warehouseId: number
+  warehouseName: string
+  beforeQty: number
+  quantityChange: number
+  afterQty: number
+  /** 원본 조건의 [프로젝트]·[담당자]. 옮길 때 안 정했을 수 있어 널이다. */
+  projectId: number | null
+  projectName: string | null
+  employeeId: number | null
+  reason: string | null
+  createdBy: string | null
+  /** 원본 [불량유형]·[사용유형] · [처리방법](불량처리). */
+  kind?: string | null
+  handling?: string | null
+  /** 전표 안 줄 차례 — 같은 adjustNo 의 줄들이 한 장이다(자가사용입력). */
+  lineNo?: number
+  /** 원본 자가사용입력 머리 [거래처]. 이름은 화면이 거래처 목록에서 붙인다. */
+  partnerId?: number | null
+  /** 불량처리의 정상품목 줄(재고가 들어온 줄 — 품목대체 [정상품목] · 정상사용의 되돌아온 수량). */
+  normal?: boolean
+  /** 줄을 쓴 때(전표를 고치면 다시 쓴다) — 자가사용수정 [H] 이력. */
+  createdAt?: string | null
+}
+
+/** 원본 자가사용입력(E040503) 전표 한 장 — 머리 + 줄. */
+export interface StockAdjustmentSlip {
+  adjustNo: string
+  date: string
+  type: StockAdjustmentType
+  partnerId: number | null
+  employeeId: number | null
+  warehouseId: number
+  warehouseName: string
+  projectId: number | null
+  projectName: string | null
+  /** 불량처리의 [처리방법](폐기 · 품목대체 · 정상사용). */
+  handling?: string | null
+  lines: StockAdjustment[]
+}
+
+// ===== 시리얼/로트 관리 =====
+
+export type LotStatus = 'IN_STOCK' | 'SHIPPED' | 'HOLD'
+
+export interface Lot {
+  id: number
+  lotNo: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  /** 규격 — 원본 열 [품목명[규격]]·[규격] 이 쓴다. */
+  spec: string | null
+  unit: string
+  warehouseId: number | null
+  warehouseName: string | null
+  inboundDate: string
+  expireDate: string | null
+  inboundQty: number
+  stockQty: number
+  held: boolean
+  /** 저장하지 않고 파생되는 상태 (보류 우선 → 수량 0이면 출고완료) */
+  status: LotStatus
+  statusName: string
+  /** 원본 [사용구분] — true 사용, false 사용중단. */
+  useYn: boolean
+  udiCode: string | null
+}
+
+export type LotTxType = 'INBOUND' | 'OUTBOUND' | 'ADJUST'
+
+export interface LotTransaction {
+  id: number
+  lotId: number
+  lotNo: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  /*
+   * 원본 시리얼/로트No.재고수불부 조건의 [창고]. 로트가 물고 있는 창고인데 응답에 안 실어
+   * 어느 창고에서 오간 로트인지 보이지도 걸리지도 않았다. 안 정한 로트는 null.
+   */
+  warehouseId: number | null
+  warehouseName: string | null
+  /** 원본 시리얼/로트No.내역현황의 [유효기한] 조건(거기서는 구간이다)이 쓰는 축. */
+  expireDate: string | null
+  /** 원본 수불부 [기타]의 [사용중단시리얼/로트포함] 이 쓰는 축 — 우리 '사용중단' 은 보류다. */
+  held: boolean
+  txDate: string
+  type: LotTxType
+  typeName: string
+  quantityChange: number
+  balanceAfter: number
+  note: string | null
+  createdBy: string | null
+  /** 원본 [전표구분] · [연결전표-No.] — 구매 · 판매가 남긴 줄이면 '구매' · 그 전표번호, 직접 남긴 줄이면 null. */
+  docType: string | null
+  sourceId: number | null
+  sourceNo: string | null
+  partnerName: string | null
+  /** [신규(F2)] 내역입력으로 손으로 넣은 줄 — 그 줄만 열어 고치고 [선택삭제] 로 지운다. */
+  manual: boolean
+  txWarehouseId: number | null
+  txWarehouseName: string | null
+  projectId: number | null
+  projectName: string | null
+  chargeName: string | null
+  mgmtName: string | null
+}
+
+// ===== 고객관리(CRM) =====
+
+export type CrmStage = 'LEAD' | 'CONSULTING' | 'QUOTE' | 'CONTRACT' | 'LOST'
+
+export interface CrmActivity {
+  id: number
+  activityDate: string
+  partnerId: number
+  partnerCode: string
+  partnerName: string
+  contactName: string | null
+  charge: string | null
+  activity: string | null
+  stage: CrmStage
+  stageName: string
+  nextAction: string | null
+}
+
+// ===== WORK 업무게시판 =====
+
+export type WorkPostStatus = 'IN_PROGRESS' | 'DONE'
+
+export interface WorkPost {
+  id: number
+  /** 게시판. 게시글번호는 게시판을 가로질러 한 줄기라 목록 번호에 구멍이 보인다 */
+  board: 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 'MINUTES'
+    | 'AI_GUIDE' | 'SITE_LOG' | 'SITE_STATUS' | 'DEV_LOG' | 'DEV_STATUS' | 'CONSULT' | 'VISIT' | 'CONTRACT' | 'AS_CARE'
+    | 'CAR_INFO' | 'CAR_DOC' | 'CAR_RUN' | 'KANBAN_SAMPLE' | 'PROJECT_KANBAN'
+  boardName: string
+  postNo: number
+  postDate: string
+  title: string
+  content: string
+  /** 작성자 로그인 아이디 (users.username FK) */
+  writer: string
+  /** 작성자 표시 이름. 화면은 이걸 쓴다 — writer 는 아이디라 사람이 읽기 나쁘다. */
+  writerName: string
+  forwardTo: string | null
+  /** 원본 WORK입력 폼의 [참조자]. */
+  ccTo: string | null
+  /** 원본 WORK입력 폼의 [공지사항여부]. true 면 목록 맨 위에 붙는다. */
+  notice: boolean
+  /** 원본 WORK입력 폼의 [완료일시]. 진행중이면 null. */
+  completedAt: string | null
+  /** 원본 격자의 [첨부] 열. 파일이 없으면 셋 다 null 이다. */
+  attachmentId: number | null
+  attachmentName: string | null
+  attachmentSize: number | null
+  /** 원본 격자의 [조회] 열 — 글을 연 횟수. */
+  viewCount: number
+  /** 원본 View 머리줄의 작성 일시. */
+  createdAt: string | null
+  /** 원본 조건 [수정일자순(정렬)] 의 기준. */
+  updatedAt?: string | null
+  status: WorkPostStatus
+  statusName: string
+  /** 원본 [라벨] — 제목 앞 칩. */
+  labels: string[]
+  /** 회사가 정한 진행상태 이름(SHARED · MEETING · SIGN). 그 밖의 게시판은 null */
+  stage?: string | null
+  /** 통합회의록 [주 차 구분] 1 ~ 5. 그 밖의 게시판은 null */
+  weekNo?: number | null
+  /** 통합회의록 부서 칸(경영지원팀 · 구매팀 · 생산팀 · 영업팀 회의록)에 이은 팀별회의록 글 id, 칸 차례대로(빈 칸 null) */
+  meetingLinks?: (number | null)[]
+  /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 없으면 null. */
+  extraFields?: string | null
+  /** 간판제작 [프로젝트] — 📅 프로젝트 진행현황 칸반 판의 열 이름. 그 밖의 게시판은 null */
+  project?: string | null
+  /** 간판제작 [칸반연결] — 📅 프로젝트 진행현황 칸반 글 id. 그 밖의 게시판은 null */
+  kanbanPostId?: number | null
+}
+
+// ===== ECDrive 문서 드라이브 =====
+
+export interface DriveDocument {
+  id: number
+  name: string
+  drive: string
+  sizeBytes: number
+  uploader: string | null
+  important: boolean
+  trashed: boolean
+  updatedAt: string | null
+  /** 실제 업로드된 파일 id. null 이면 메타데이터만 등록된 항목(다운로드 불가). */
+  fileId: number | null
+  /** 폴더면 true(원본 [새 폴더]) */
+  folder: boolean
+  /** 들어 있는 폴더 id. 최상위면 null */
+  parentId: number | null
+}
+
+// ===== 증빙(증빙센터) =====
+
+export type EvidenceMethod = 'TAX_INVOICE' | 'CARD' | 'CASH_RECEIPT' | 'STATEMENT' | 'ETC'
+
+export interface EvidenceAttachment {
+  id: number
+  entityType: string
+  menuLabel: string
+  entityId: number
+  docNo: string | null
+  docDate: string | null
+  evidenceDate: string | null
+  method: EvidenceMethod
+  methodName: string
+  worker: string | null
+  note: string | null
+  fileId: number | null
+  fileName: string | null
+  fileSize: number | null
+  attached: boolean
+}
+
+// ===== 회계전표(복식부기) =====
+
+export type JournalSourceType = 'SALES' | 'PURCHASE' | 'EXPENSE' | 'MANUAL'
+export type AccountDivision = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+
+export interface JournalLine {
+  id: number
+  lineNo: number
+  accountId: number
+  accountCode: string
+  accountName: string
+  debit: number
+  credit: number
+  description: string | null
+  departmentId?: number | null
+  projectId?: number | null
+  /** 줄 거래처(일반전표 격자 거래처코드 · 거래처명) */
+  partnerId?: number | null
+  partnerCode?: string | null
+  partnerName?: string | null
+  /** 줄 [외화] · [외화금액](V456) — 외화장부가 읽는다 */
+  currencyCode?: string | null
+  foreignAmount?: number | null
+}
+
+export interface JournalEntry {
+  id: number
+  docNo: string
+  entryDate: string
+  description: string | null
+  partnerId: number | null
+  partnerName: string | null
+  sourceType: JournalSourceType
+  sourceTypeName: string
+  sourceId: number | null
+  totalDebit: number
+  totalCredit: number
+  balanced: boolean
+  lines: JournalLine[]
+  /** 원본 거래이력조회(회계)의 [작업자] · [작업일자]. */
+  createdBy?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+  /** 일반전표 [첨언내용] */
+  memo?: string | null
+}
+
+export interface LedgerRow {
+  entryDate: string
+  docNo: string
+  description: string | null
+  partnerName: string | null
+  debit: number
+  credit: number
+  balance: number
+  /** 원본 현금출납장의 [상대계정명] — 같은 전표의 다른 줄 계정. */
+  counterAccountName?: string | null
+  /** 원본 계정별거래처별원장 — 거래처마다 원장을 가르는 열쇠. 전표에 거래처가 없으면 null. */
+  partnerId?: number | null
+}
+
+export interface AccountLedger {
+  accountId: number
+  accountCode: string
+  accountName: string
+  division: AccountDivision
+  totalDebit: number
+  totalCredit: number
+  closingBalance: number
+  rows: LedgerRow[]
+}
+
+export interface TrialBalanceRow {
+  accountId: number
+  accountCode: string
+  accountName: string
+  division: AccountDivision
+  debit: number
+  credit: number
+  balance: number
+}
+
+export interface TrialBalance {
+  from: string
+  to: string
+  totalDebit: number
+  totalCredit: number
+  balanced: boolean
+  rows: TrialBalanceRow[]
+}
+
+export interface StatementRow {
+  accountCode: string
+  accountName: string
+  division: AccountDivision
+  amount: number
+}
+
+export interface BalanceSheet {
+  asOf: string
+  assets: StatementRow[]
+  totalAssets: number
+  liabilities: StatementRow[]
+  totalLiabilities: number
+  equity: StatementRow[]
+  totalEquity: number
+  netIncome: number
+  balanced: boolean
+}
+
+export interface IncomeStatement {
+  from: string
+  to: string
+  revenues: StatementRow[]
+  totalRevenue: number
+  expenses: StatementRow[]
+  totalExpense: number
+  netIncome: number
+}
+
+// ===== 전자(세금)계산서 =====
+
+export type TaxInvoiceType = 'SALES' | 'PURCHASE'
+export type TaxInvoiceStatus = 'DRAFT' | 'ISSUED' | 'SENT' | 'APPROVED'
+
+export interface TaxInvoice {
+  id: number
+  invoiceNo: string
+  invoiceType: TaxInvoiceType
+  invoiceTypeName: string
+  status: TaxInvoiceStatus
+  statusName: string
+  issueDate: string
+  partnerId: number
+  partnerName: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  sourceDocNo: string | null
+  remark: string | null
+  createdBy: string | null
+}
+
+// ===== 급여관리 =====
+
+export type PayslipStatus = 'DRAFT' | 'CONFIRMED'
+export type PayslipLineKind = 'ALLOWANCE' | 'DEDUCTION'
+
+/** 사원 마스터 (/api/employees). 로그인 User 와는 별개다. */
+export interface EmployeeMaster {
+  id: number
+  code: string
+  name: string
+  departmentId: number | null
+  department: string
+  jobTitle: string
+  baseSalary: number
+  hireDate: string | null
+  resignDate: string | null
+  active: boolean
+  /** 원본 [담당자연락처]·[담당자Email]·[검색창내용]·[적요]. */
+  phone: string | null
+  email: string | null
+  searchKeyword: string | null
+  remark: string | null
+  /** 원본 관리 > 사원등록의 [급여구분]·[모바일]·[퇴사사유]·[주소]. */
+  payType: EmployeePayType
+  payTypeName: string
+  mobile: string | null
+  resignReason: string | null
+  /** 원본 사원등록 [외국어성명1] · [외국어성명2] · [세대주여부](세대주 · 세대원 · 세대주의 배우자) */
+  foreignName1: string | null
+  foreignName2: string | null
+  household: string | null
+  /** 원본 사원등록 [우편번호] */
+  zipcode: string | null
+  address: string | null
+  /** 원본 사원등록 [급여통장] — 급여 권한이 없으면 null */
+  bankCode: string | null
+  bankName: string | null
+  accountNo: string | null
+  accountHolder: string | null
+  /** 원본 사원등록 [입사구분] — 100 신입 · 200 경력 */
+  hireKind: string | null
+  /** 원본 사원등록 [직책] — 100 팀원 · 200 팀장 */
+  duty: string | null
+  /** 원본 사원등록 [프로젝트] */
+  projectId: number | null
+}
+
+export type EmployeePayType = 'FIXED' | 'VARIABLE'
+
+export interface PayslipLine {
+  id: number
+  lineNo: number
+  kind: PayslipLineKind
+  kindName: string
+  name: string
+  amount: number
+  auto: boolean
+}
+
+export interface Payslip {
+  id: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  department: string | null
+  payMonth: string
+  baseSalary: number
+  allowanceTotal: number
+  deductionTotal: number
+  grossPay: number
+  netPay: number
+  status: PayslipStatus
+  statusName: string
+  remark: string | null
+  lines: PayslipLine[]
+}
+
+// ===== 급여 설정 (수당·공제 항목/그룹) · 급여이체 =====
+// PayslipLineKind 는 위 급여관리 블록에 이미 있다.
+
+export interface PayItem {
+  id: number
+  code: string
+  name: string
+  kind: PayslipLineKind
+  kindName: string
+  /** 비과세 수당이면 false — 4대보험·소득세 기준에서 빠진다 */
+  taxable: boolean
+  defaultAmount: number
+  active: boolean
+  /** 원본 수당항목등록(E090103)의 [표시순서]·[배율]·[비과세유형]·[지급유형]·[산출방법]. */
+  sortOrder: number
+  rate: number | null
+  taxFreeType: PayTaxFreeType
+  taxFreeTypeName: string
+  payMethod: PayMethod
+  payMethodName: string
+  calcNote: string | null
+}
+
+export type PayTaxFreeType = 'NONE' | 'NIGHT_WORK' | 'CHILDCARE' | 'MEAL' | 'VEHICLE'
+export type PayMethod = 'FIXED' | 'DAILY' | 'HOURLY' | 'RATE' | 'MANUAL'
+
+export interface PayGroupLine {
+  payItemId: number
+  code: string
+  name: string
+  kind: PayslipLineKind
+  kindName: string
+  taxable: boolean
+  amount: number
+}
+
+export interface PayGroup {
+  id: number
+  /** 원본 [수당/공제그룹코드] (00001 꼴) */
+  code: string
+  name: string
+  remark: string | null
+  active: boolean
+  allowanceTotal: number
+  deductionTotal: number
+  lines: PayGroupLine[]
+  /** 원본 목록 [사원] 칸 — 적용사원 수 */
+  employeeCount: number
+}
+
+/** 원본 [적용사원등록] 한 줄 */
+export interface PayGroupEmployee {
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  department: string
+  rate: number
+}
+
+export interface PayrollTransferLine {
+  payslipId: number
+  employeeId: number
+  employeeName: string
+  department: string | null
+  netPay: number
+}
+
+export interface PayrollTransfer {
+  id: number
+  transferNo: string
+  payMonth: string
+  transferDate: string
+  bankAccountId: number
+  bankAccountName: string
+  totalPay: number
+  totalDeduction: number
+  netPay: number
+  journalEntryId: number | null
+  journalDocNo: string | null
+  createdBy: string | null
+  lines: PayrollTransferLine[]
+}
+
+// ===== 견적서 =====
+
+export type QuotationStatus = 'UNCONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+
+export interface QuoteLine {
+  id: number
+  lineNo: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  /** 규격. 미주문현황(E040211)의 열 이름이 [품목명(규격)] 이라 붙여 찍는다. */
+  spec: string | null
+  quantity: number
+  unitPrice: number
+  supplyAmount: number
+  vatAmount: number
+}
+
+export interface Quotation {
+  /** 원본 견적서조회 [기타]의 [수정일자순(정렬)]이 쓰는 축. */
+  updatedAt: string | null
+  id: number
+  quoteNo: string
+  quoteDate: string
+  validUntil: string | null
+  partnerId: number
+  partnerName: string
+  /** 원본 견적서의 [창고]·[프로젝트]. 견적 시점에는 안 정했을 수 있어 널이다. */
+  warehouseId: number | null
+  warehouseName: string | null
+  projectId: number | null
+  projectName: string | null
+  status: QuotationStatus
+  statusName: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  convertedOrderId: number | null
+  remark: string | null
+  createdBy: string | null
+  lines: QuoteLine[]
+}
+
+// ===== 발주서 =====
+
+export type PurchaseOrderStatus =
+  | 'REQUESTED' | 'PLANNED' | 'PRICE_REQUESTED' | 'PRICED' | 'ORDERED' | 'RECEIVED' | 'CANCELLED'
+
+export interface PurchaseOrderLine {
+  id: number
+  lineNo: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  /** 원본 조건·열의 [규격]. 서버가 품목에서 실어 준다. */
+  spec: string | null
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  itemCategory: string | null
+  itemCategoryName: string | null
+  quantity: number
+  unitPrice: number
+  supplyAmount: number
+  vatAmount: number
+  /** 원본 조건 [적요]. 줄마다 붙는 메모다. */
+  remark: string | null
+  /** 발주계획조회 [종결여부] — 이 줄을 종결했나(원본은 줄마다 닫는다). */
+  planClosed: boolean
+  /** [수량조정] 창의 [입력수량] — 처음 넣은 수량. 격자에서 고친 수량(발주확정수량)과 따로 간다. */
+  inputQuantity: number
+  /** [수량조정] 창의 [최종계산일자]. */
+  planCalcDate: string | null
+  /** 단가요청 진행단계의 수취단가 · 확정단가(요청단가는 unitPrice). */
+  receivedPrice?: number | null
+  confirmedPrice?: number | null
+}
+
+export interface PurchaseOrder {
+  id: number
+  orderNo: string
+  orderDate: string
+  dueDate: string | null
+  /**
+   * 회신받은 단가의 [유효기간]. 납기일과 <b>다른 것</b>이다 —
+   * 납기는 물건이 언제 오느냐이고 이것은 그 값이 언제까지 유효하냐다.
+   */
+  priceValidUntil: string | null
+  partnerId: number
+  partnerName: string
+  employeeId: number | null
+  employeeName: string | null
+  warehouseId: number | null
+  warehouseName: string | null
+  /** 원본 발주서의 [프로젝트]. 발주 시점에는 안 정했을 수 있어 널이다. */
+  projectId: number | null
+  projectName: string | null
+  currency: string | null
+  status: PurchaseOrderStatus
+  statusName: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  taxable: boolean
+  convertedPurchaseId: number | null
+  remark: string | null
+  createdBy: string | null
+  /** 원본 발주계획조회 [최종수정자]. */
+  updatedBy: string | null
+  /** 원본 발주서조회 조건의 [최초작성일자]·[최종작업일자], 그리고 [기타]의 수정일자순(정렬). */
+  createdAt: string | null
+  updatedAt: string | null
+  lines: PurchaseOrderLine[]
+}
+
+export interface Department {
+  id: number
+  code: string
+  name: string
+  parentId: number | null
+  parentName: string | null
+  sortOrder: number
+  active: boolean
+  employeeCount: number
+  /** 부서장 사원 id — 조직도등록 [부서장] 열 · [부서장지정] · [부서장설정] */
+  headEmployeeId: number | null
+  /** 조회 조건 [수정일자순(정렬)] 의 축 */
+  updatedAt?: string | null
+}
+
+// ===== 인사관리 (발령이력) =====
+
+export type AssignmentType = 'HIRE' | 'TRANSFER' | 'PROMOTION' | 'RESIGN' | 'REHIRE'
+
+export interface Assignment {
+  id: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  assignDate: string
+  type: AssignmentType
+  typeName: string
+  departmentId: number | null
+  department: string
+  jobTitle: string
+  remark: string | null
+  createdBy: string | null
+}
+
+// ===== 원천징수 =====
+
+export interface WithholdingRow {
+  payslipId: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  grossPay: number
+  incomeTax: number
+  localIncomeTax: number
+  totalWithheld: number
+}
+
+export interface WithholdingStatement {
+  payMonth: string
+  headcount: number
+  draftCount: number
+  totalGrossPay: number
+  totalIncomeTax: number
+  totalLocalIncomeTax: number
+  totalWithheld: number
+  rows: WithholdingRow[]
+  /** 소득 구분별 줄(근로 간이세액 · 일용근로 · 사업·기타 …). 위 total* 은 근로소득만, 납부할 세액은 grand* */
+  sections: { code: string; name: string; count: number; grossPay: number; incomeTax: number; localIncomeTax: number }[]
+  grandIncomeTax: number
+  grandLocalIncomeTax: number
+  grandWithheld: number
+}
+
+/** 원천징수이행상황신고서 목록 한 줄 (E030101) */
+export interface WithholdingReturn {
+  id: number
+  filingType: 'REGULAR' | 'LATE'
+  filingTypeName: string
+  filingMethod: 'MONTHLY' | 'HALF'
+  filingMethodName: string
+  attributionMonth: string
+  payMonth: string
+  reportDate: string
+  includeYearEnd: boolean
+  companyName: string | null
+  bizRegNo: string | null
+}
+
+/** 원천징수부 (E020116) — 소득자 한 사람의 달별 근로소득 지급명세 */
+export interface WithholdingLedgerEmployee {
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  hireDate: string | null
+  resignDate: string | null
+  /** payBracket — 원천징수부 (31) 급여구간(간이세액표 구간 '4,240,000~4,260,000'), 표 밖이면 null. */
+  months: { payMonth: string; taxablePay: number; nonTaxablePay: number; incomeTax: number; localIncomeTax: number; payBracket: string | null }[]
+}
+
+/** 퇴직금계산 (E030117) 목록 한 줄 */
+export interface RetirementPay {
+  id: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  department: string
+  hireDate: string | null
+  startDate: string
+  retireDate: string
+  payDate: string
+  withholdingMonth: string
+  retireReason: string | null
+  executive: boolean
+  extraPay: number
+  retirementPay: number
+  nonTaxable: number
+  incomeTax: number
+  localIncomeTax: number
+  deductionTotal: number
+  netPay: number
+}
+
+/** 퇴직금계산 내역(ⓐ~ⓘ) · 퇴직소득세 (28)~(34) */
+export interface RetirementPayCalculation {
+  wageFrom: string
+  wageTo: string
+  wages: { month: string; amount: number }[]
+  wage3m: number
+  bonusFrom: string
+  bonusTo: string
+  bonuses: { month: string; amount: number }[]
+  bonus1y: number
+  bonus3m: number
+  extraPay: number
+  total3m: number
+  workDays3m: number
+  dailyWage: number
+  serviceDays: number
+  computedPay: number
+  serviceMonths: number
+  serviceYears: number
+  retirementPay: number
+  nonTaxable: number
+  tax: {
+    income: number; serviceDeduction: number; converted: number; convertedDeduction: number
+    taxBase: number; convertedTax: number; computedTax: number; incomeTax: number; localIncomeTax: number
+  }
+}
+
+export interface ReceiptMonth {
+  payMonth: string
+  grossPay: number
+  incomeTax: number
+  localIncomeTax: number
+}
+
+export interface WithholdingReceipt {
+  year: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  grossPay: number
+  incomeTax: number
+  localIncomeTax: number
+  totalWithheld: number
+  socialInsurance: number
+  months: ReceiptMonth[]
+}
+
+// ===== 어음거래 =====
+
+export type NoteType = 'RECEIVABLE' | 'PAYABLE'
+export type NoteStatus = 'HELD' | 'SETTLED' | 'DISCOUNTED' | 'DISHONORED' | 'RECORD_DECREASED' | 'ENDORSED'
+
+export interface PromissoryNote {
+  id: number
+  noteNo: string
+  type: NoteType
+  typeName: string
+  partnerId: number
+  partnerName: string
+  issueDate: string
+  dueDate: string
+  amount: number
+  status: NoteStatus
+  statusName: string
+  closedDate: string | null
+  discountFee: number | null
+  bankName: string | null
+  remark: string | null
+  createdBy: string | null
+}
+
+export interface NoteSummary {
+  receivableHeld: number
+  payableHeld: number
+  receivableDueSoon: number
+  payableDueSoon: number
+  notes: PromissoryNote[]
+  /** 조건에 걸린 전체 어음 수. 잘렸을 때 "몇 장 중 몇 장" 을 말하려고 받는다. */
+  totalRows: number
+  /** 잘라서 온 것인가. 이때만 [오천건이상조회] 를 띄운다. */
+  truncated: boolean
+}
+
+// ===== 전자근로계약 =====
+
+export type ContractType = 'PERMANENT' | 'FIXED_TERM' | 'DAILY'
+export type ContractStatus = 'DRAFT' | 'SENT' | 'SIGNED' | 'TERMINATED'
+
+export interface EmploymentContract {
+  id: number
+  contractNo: string
+  employeeId: number | null
+  employeeCode: string
+  employeeName: string
+  type: ContractType | null
+  typeName: string
+  status: ContractStatus
+  statusName: string
+  startDate: string
+  endDate: string | null
+  departmentId: number | null
+  department: string
+  jobTitle: string
+  monthlySalary: number
+  weeklyHours: number
+  workPlace: string | null
+  duty: string | null
+  signedAt: string | null
+  signedBy: string | null
+  remark: string | null
+  createdBy: string | null
+  /** 원본 근로계약현황 [요청일시] · [최종수정일자] */
+  sentAt: string | null
+  updatedAt: string | null
+  /** 원본 근로계약서진행단계 [최초작성일자] */
+  createdAt: string | null
+  /** 원본 계약서입력 — 계약서명 · 첨부(PDF) · 2차인증사용여부 · 구분 · 프로젝트, 수신정보입력 전달방식 */
+  contractName: string
+  attachmentFileId: number | null
+  attachmentName: string | null
+  attachmentSize: number | null
+  twoFactor: boolean
+  category: string
+  projectId: number | null
+  deliveryMethod: 'EMAIL' | 'SMS' | 'KAKAO' | 'DIRECT' | null
+  deliveryMethodName: string
+}
+
+// ===== 일용근로급여 =====
+
+export interface DailyWork {
+  id: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  department: string
+  workDate: string
+  workHours: number
+  dailyWage: number
+  incomeTax: number
+  localIncomeTax: number
+  netPay: number
+  paid: boolean
+  paidDate: string | null
+  remark: string | null
+  createdBy: string | null
+  /** 지급하며 만든 회계전표 번호(QA 69회차). 미지급이면 null. */
+  journalNo: string | null
+}
+
+export interface DailyWorkSummary {
+  month: string
+  headcount: number
+  workDays: number
+  totalWage: number
+  totalIncomeTax: number
+  totalLocalIncomeTax: number
+  totalNetPay: number
+  unpaidNetPay: number
+  rows: DailyWork[]
+}
+
+// ===== 회계 II: 예산관리 · 자금계획 =====
+
+export interface Account {
+  id: number
+  code: string
+  name: string
+  division: AccountDivision
+  divisionName: string
+  detailCategory: string | null
+  active: boolean
+}
+
+export interface BudgetRow {
+  id: number
+  period: string
+  accountId: number
+  accountCode: string
+  accountName: string
+  division: AccountDivision
+  amount: number
+  actual: number
+  remaining: number
+  executionRate: number
+  over: boolean
+  remark: string | null
+}
+
+export interface BudgetStatus {
+  period: string
+  totalBudget: number
+  totalActual: number
+  totalRemaining: number
+  executionRate: number
+  rows: BudgetRow[]
+}
+
+export type CashFlowType = 'INFLOW' | 'OUTFLOW'
+
+export interface CashPlanRow {
+  id: number
+  period: string
+  type: CashFlowType
+  typeName: string
+  category: string
+  amount: number
+  remark: string | null
+}
+
+export interface CashPlanStatus {
+  period: string
+  plannedInflow: number
+  plannedOutflow: number
+  plannedNet: number
+  actualInflow: number
+  actualOutflow: number
+  actualNet: number
+  inflowDiff: number
+  outflowDiff: number
+  plans: CashPlanRow[]
+}
+
+// ===== 기타원천세 =====
+
+export type IncomeType = 'BUSINESS' | 'OTHER' | 'INTEREST' | 'DIVIDEND' | 'NON_RESIDENT'
+
+export interface OtherWithholding {
+  id: number
+  docNo: string
+  payDate: string
+  attributionMonth: string
+  incomeType: IncomeType
+  incomeTypeName: string
+  partnerId: number | null
+  payeeName: string
+  payeeRegNo: string | null
+  incomeCode: string | null
+  grossAmount: number
+  expenseAmount: number
+  taxableAmount: number
+  incomeTax: number
+  localIncomeTax: number
+  netAmount: number
+  description: string | null
+  createdBy: string | null
+}
+
+export interface IncomeTypeSummary {
+  incomeType: IncomeType
+  incomeTypeName: string
+  count: number
+  grossAmount: number
+  incomeTax: number
+  localIncomeTax: number
+}
+
+export interface OtherWithholdingSummary {
+  month: string
+  count: number
+  totalGross: number
+  totalIncomeTax: number
+  totalLocalIncomeTax: number
+  totalNet: number
+  byIncomeType: IncomeTypeSummary[]
+  rows: OtherWithholding[]
+}
+
+// ===== 명함관리 =====
+
+export interface BusinessCard {
+  id: number
+  name: string
+  partnerId: number | null
+  partnerName: string | null
+  companyName: string | null
+  department: string | null
+  jobTitle: string | null
+  phone: string | null
+  mobile: string | null
+  email: string | null
+  address: string | null
+  ownerUserId: number | null
+  ownerName: string | null
+  tags: string[]
+  memo: string | null
+}
+
+// ===== 그룹웨어: 공용메일 =====
+
+export type MailType = 'INTERNAL' | 'SHARED'
+export type MailStatus = 'UNREAD' | 'READ' | 'IN_PROGRESS' | 'HANDLED'
+
+export interface Mail {
+  id: number
+  type: MailType
+  typeName: string
+  senderId: number | null
+  senderName: string | null
+  fromAddress: string | null
+  recipientId: number | null
+  recipientName: string | null
+  subject: string
+  body: string | null
+  sentAt: string
+  status: MailStatus
+  statusName: string
+  assigneeId: number | null
+  assigneeName: string | null
+  handledAt: string | null
+  handleNote: string | null
+  draft: boolean
+  deletedAt: string | null
+  /** 스팸 메일함 분류 여부와 사유(어떤 규칙에 걸렸는지 / 수동 지정) */
+  spam: boolean
+  spamReason: string | null
+}
+
+export interface SharedMailBox {
+  pendingCount: number
+  mails: Mail[]
+}
+
+// ===== 쪽지 =====
+
+/** 쪽지. senderId 가 null 이면 시스템 자동알림(senderName 은 'ECOUNT'). */
+export interface ShortMessage {
+  id: number
+  senderId: number | null
+  senderName: string
+  recipientId: number
+  recipientName: string
+  partnerId: number | null
+  partnerName: string | null
+  content: string
+  sentAt: string
+  readAt: string | null
+  archived: boolean
+  system: boolean
+  statusName: string
+  linkSource: string | null
+  linkRef: string | null
+  linkPath: string | null
+}
+
+// ===== 법인세 =====
+
+export type TaxAdjustmentType = 'ADD' | 'DEDUCT'
+export type TaxReturnStatus = 'DRAFT' | 'CONFIRMED'
+
+export interface TaxAdjustment {
+  id: number
+  type: TaxAdjustmentType
+  typeName: string
+  name: string
+  amount: number
+  remark: string | null
+}
+
+export interface TaxReturn {
+  id: number
+  fiscalYear: number
+  periodFrom: string
+  periodTo: string
+  status: TaxReturnStatus
+  statusName: string
+  netIncome: number
+  additions: number
+  deductions: number
+  incomeForYear: number
+  lossCarryforward: number
+  taxBase: number
+  calculatedTax: number
+  taxCredit: number
+  penaltyTax: number
+  totalTax: number
+  prepaidTax: number
+  payableTax: number
+  localIncomeTax: number
+  remark: string | null
+  createdBy: string | null
+  adjustments: TaxAdjustment[]
+}
+
+// ===== 회계 II: 수입비용 =====
+
+export type ReceiptMethod = 'CASH' | 'BANK' | 'CREDIT'
+
+export interface Income {
+  id: number
+  incomeDate: string
+  accountId: number
+  accountCode: string
+  accountName: string
+  content: string
+  partnerName: string | null
+  amount: number
+  receiptMethod: ReceiptMethod
+  receiptMethodName: string
+  bankAccountId: number | null
+  bankAccountName: string | null
+  journalEntryId: number | null
+  journalDocNo: string | null
+  department: string | null
+  createdBy: string | null
+}
+
+export interface AccountSummaryRow {
+  accountId: number
+  accountCode: string
+  accountName: string
+  amount: number
+  ratio: number
+}
+
+export interface IncomeExpenseStatus {
+  from: string
+  to: string
+  totalIncome: number
+  totalExpense: number
+  net: number
+  incomeByAccount: AccountSummaryRow[]
+  expenseByAccount: AccountSummaryRow[]
+}
+
+// ===== WMS (로케이션) =====
+
+export interface WarehouseLocation {
+  id: number
+  warehouseId: number
+  warehouseName: string
+  code: string
+  zone: string | null
+  rack: string | null
+  level: string | null
+  description: string | null
+  active: boolean
+}
+
+export interface LocationStock {
+  id: number
+  locationId: number
+  locationCode: string
+  warehouseId: number
+  warehouseName: string
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  quantity: number
+}
+
+/** (품목, 창고)별 배치 현황: 창고 재고 = 배치 + 미배치 */
+export interface AllocationRow {
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  warehouseId: number
+  warehouseName: string
+  stockQuantity: number
+  allocatedQuantity: number
+  unallocatedQuantity: number
+}
+
+export interface WmsOverview {
+  locations: WarehouseLocation[]
+  locationStocks: LocationStock[]
+  allocations: AllocationRow[]
+}
+
+// ===== 수출관리 =====
+
+export type ExportStatus = 'ORDER' | 'CUSTOMS' | 'SHIPPED' | 'PAID'
+
+export interface ExportOrderLine {
+  id: number
+  lineNo: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  quantity: number
+  unitPrice: number
+  amount: number
+  /** 원본 품목 격자의 패킹리스트 칸(2026-10-04). */
+  marks: string | null
+  description: string | null
+  netWeight: number | null
+  grossWeight: number | null
+  measurement: number | null
+}
+
+export interface ExportOrder {
+  id: number
+  /** 원본은 비워 저장하면 비운 채로 둔다(2026-10-12). */
+  invoiceNo: string | null
+  invoiceDate: string
+  partnerId: number
+  buyerName: string
+  /** 비면 원본 [통화] 의 '내자'(원화). */
+  currencyId: number | null
+  currencyCode: string | null
+  currencySymbol: string | null
+  foreignAmount: number
+  appliedRate: number
+  krwAmount: number
+  incoterms: string | null
+  destination: string | null
+  status: ExportStatus
+  statusName: string
+  declarationNo: string | null
+  blNo: string | null
+  shippedDate: string | null
+  paidDate: string | null
+  remark: string | null
+  createdBy: string | null
+  /** 원본 [기타]의 [수정일자순(정렬)] 이 쓰는 축. */
+  updatedAt: string | null
+  lines: ExportOrderLine[]
+  /* 원본 Invoice/Packing List 입력 머리(2026-10-04 실측). voucherDate 가 목록 [Voucher Date] 다. */
+  voucherDate: string
+  lcNo: string | null
+  lcDate: string | null
+  lcBank: string | null
+  shipper: string | null
+  messrs: string | null
+  notifyParty: string | null
+  portOfLoading: string | null
+  carrier: string | null
+  sailingDate: string | null
+  weightUnit: string | null
+  /** 원본 목록 탭 [미확인] · [확인]. */
+  confirmed: boolean
+}
+
+export interface ExportSummary {
+  totalKrw: number
+  unpaidKrw: number
+  orderCount: number
+  shippingCount: number
+  unpaidCount: number
+  exports: ExportOrder[]
+}
+
+// ===== 쇼핑몰관리 =====
+
+export type MallOrderStatus = 'RECEIVED' | 'CONFIRMED' | 'CONVERTED' | 'SHIPPED' | 'RETURNED' | 'EXCHANGED' | 'CANCELLED'
+
+export interface MallOrder {
+  id: number
+  mall: string
+  mallOrderNo: string
+  orderDate: string
+  status: MallOrderStatus
+  statusName: string
+  buyerName: string
+  buyerPhone: string | null
+  address: string | null
+  productName: string
+  mallProductCode: string | null
+  itemId: number | null
+  itemCode: string | null
+  itemName: string | null
+  quantity: number
+  unitPrice: number
+  totalAmount: number
+  salesId: number | null
+  salesDocNo: string | null
+  remark: string | null
+  createdBy: string | null
+  courier: string | null
+  trackingNo: string | null
+  shippedAt: string | null
+  closeReason: string | null
+  closedAt: string | null
+}
+
+export interface MallSummary {
+  mall: string
+  orderCount: number
+  totalAmount: number
+  unconverted: number
+}
+
+export interface MallItemMapping {
+  id: number
+  mall: string
+  mallProductCode: string
+  mallProductName: string | null
+  itemId: number
+  itemCode: string
+  itemName: string
+  active: boolean
+}
+
+// ===== 수집데이터 소스 등록(E100000) =====
+
+export interface CollectSource {
+  id: number
+  /** 원본 [데이터코드]. 이미 있는 행에는 없으므로 널이다. */
+  code: string | null
+  name: string
+  category: string
+  endpoint: string
+  paged: boolean
+  sortOrder: number
+  active: boolean
+  /** 원본 [최초작성일자]·[최종작업일자]. BaseTimeEntity 가 들고 있던 값이다. */
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+/** 수집데이터등록(C001401)의 [수신문서] */
+export type CollectDocType = 'STATEMENT' | 'QUOTATION' | 'PURCHASE_ORDER'
+
+/** 데이터센터 › 수집데이터등록 한 줄 — 이메일로 받은 문서를 모을 규칙. */
+export interface CollectData {
+  id: number
+  /** [데이터코드] — 기본 줄은 널 */
+  code: string | null
+  name: string
+  channel: string
+  docType: CollectDocType
+  docTypeLabel: string
+  senderCompany: string | null
+  /** [진행상태] */
+  status: string
+  /** [조건] '거래명세서' · '거래명세서 AND 보낸회사' */
+  condition: string
+  /** [연결업무] — 기본 줄만 */
+  linkedTask: string | null
+  builtIn: boolean
+  createdBy: string | null
+  updatedBy: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+// ===== 사용자정의 필드(Self-Customizing) =====
+
+export type CustomFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'CODE'
+
+export interface CustomFieldDef {
+  id: number
+  entityType: string
+  fieldKey: string
+  label: string
+  fieldType: CustomFieldType
+  fieldTypeName: string
+  options: string | null
+  required: boolean
+  sortOrder: number
+  active: boolean
+}
+
+export interface EntityCustomFields {
+  defs: CustomFieldDef[]
+  values: Record<string, string>
+}
+
+export type MallAccountType = 'MALL' | 'SOLUTION'
+
+export interface MallAccount {
+  id: number
+  code: string
+  name: string
+  type: MallAccountType
+  typeName: string
+  partnerId: number | null
+  partnerName: string | null
+  sellerId: string | null
+  memo: string | null
+  active: boolean
+}
+
+export interface MallOverview {
+  totalOrders: number
+  totalAmount: number
+  unmapped: number
+  unconverted: number
+  byMall: MallSummary[]
+  orders: MallOrder[]
+}
+
+// ===== 인쇄용 결재라인 =====
+
+/** 인쇄용결재라인등록(원본 E010106 · E090102) — 모듈마다 결재라인 1 · 2 */
+export type SignModule = 'ACCOUNTING' | 'INVENTORY' | 'MANAGEMENT'
+
+export interface SignSlotRow {
+  slotOrder: number
+  title: string | null
+  widthPx: number | null
+  fontPx: number | null
+}
+
+export interface SignLineRow {
+  lineNo: number
+  labelName: string | null
+  labelWidth: number | null
+  labelFont: number | null
+  slots: SignSlotRow[]
+}
+
+export interface SignLineSet {
+  module: SignModule
+  lines: SignLineRow[]
+}
+
+// ===== 프로젝트 (기초등록 마스터) · 프로젝트별 손익 =====
+
+export type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
+
+export interface Project {
+  id: number
+  code: string
+  name: string
+  manager: string | null
+  startDate: string
+  endDate: string | null
+  progress: number
+  status: ProjectStatus
+  statusName: string
+  remark: string | null
+  createdBy: string | null
+  /** 원본 프로젝트리스트의 [사용] */
+  active: boolean
+}
+
+export interface ProjectProfitRow {
+  projectId: number
+  projectCode: string
+  projectName: string
+  status: string | null
+  revenue: number
+  purchaseCost: number
+  expense: number
+  profit: number
+  marginRate: number
+  salesCount: number
+  purchaseCount: number
+  expenseCount: number
+}
+
+export interface ProjectProfitSummary {
+  from: string
+  to: string
+  totalRevenue: number
+  totalCost: number
+  totalProfit: number
+  unassignedRevenue: number
+  unassignedCost: number
+  rows: ProjectProfitRow[]
+}
+
+// ===== 익명게시판 · 외근조회 =====
+
+export interface BoardPost {
+  id: number
+  title: string
+  /** 목록에도 본문이 실린다 — 익명게시판은 목록이 곧 본문이라서 */
+  content: string | null
+  category: string | null
+  author: string | null
+  anonymous: boolean
+  views: number
+  createdAt: string
+}
+
+export interface BoardPostDetail extends BoardPost {
+  content: string | null
+}
+
+export type FieldWorkStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED'
+
+export interface FieldWork {
+  id: number
+  userId: number
+  userName: string
+  department: string | null
+  workDate: string
+  startTime: string | null
+  endTime: string | null
+  /** 원본 [도착지 주소]. 비워 둘 수 있다. */
+  destination: string | null
+  /** 원본 [적요]. */
+  purpose: string | null
+  status: FieldWorkStatus
+  statusName: string
+  approverName: string | null
+  rejectReason: string | null
+  /** 원본 외근조회(E070254) 운행 기록 칸 — 출발지 주소 · 이동수단코드(차량번호) · 이동수단명 · 사용목적명 · 운행거리. */
+  departure: string | null
+  vehicleNo: string | null
+  vehicleName: string | null
+  usePurpose: string | null
+  distance: number | null
+  /** 원본 [주행전 계기판거리][주행후 계기판거리] */
+  odometerBefore: number | null
+  odometerAfter: number | null
+}
+
+export interface FieldWorkSummary {
+  requestedCount: number
+  approvedCount: number
+  rejectedCount: number
+  rows: FieldWork[]
+}
+
+// ===== 공통코드 =====
+
+export interface CommonCode {
+  id: number
+  code: string
+  name: string
+  value1: string | null
+  value2: string | null
+  sortOrder: number
+  active: boolean
+  remark: string | null
+}
+
+export interface CodeGroup {
+  id: number
+  groupCode: string
+  name: string
+  description: string | null
+  system: boolean
+  active: boolean
+  codes: CommonCode[]
+}
+
+// ===== 담당자별 실적 =====
+
+export interface PerformanceRow {
+  employeeId: number | null
+  employeeCode: string
+  employeeName: string
+  department: string | null
+  salesCount: number
+  salesAmount: number
+  purchaseCount: number
+  purchaseAmount: number
+  salesShare: number
+}
+
+export interface PerformanceSummary {
+  from: string
+  to: string
+  totalSales: number
+  totalPurchase: number
+  rows: PerformanceRow[]
+}
+
+// ===== 우측 앱바 위젯 (통합검색 · 알림 · E Note) =====
+
+export interface SearchHit {
+  title: string
+  subtitle: string
+  /** 클릭하면 이동할 화면 경로 */
+  to: string
+}
+
+export interface SearchGroup {
+  type: string
+  typeName: string
+  /** 전체 매칭 건수 (hits 는 상위 일부만) */
+  total: number
+  hits: SearchHit[]
+}
+
+export interface WorkspaceSearch {
+  keyword: string
+  total: number
+  groups: SearchGroup[]
+}
+
+export interface WorkspaceNotification {
+  type: string
+  level: 'INFO' | 'WARN'
+  title: string
+  message: string
+  count: number
+  to: string
+}
+
+export interface NotificationResponse {
+  total: number
+  notifications: WorkspaceNotification[]
+}
+
+export interface UserNote {
+  id: number
+  content: string
+  pinned: boolean
+  updatedAt: string
+}
+
+/* ── 메신저 (앱바 💬) ───────────────────────────────────────────── */
+
+export interface ChatMember {
+  userId: number
+  name: string
+  department: string | null
+}
+
+export interface ChatRoom {
+  id: number
+  /** 1:1 이면 상대 이름, 그룹이면 방 이름 (백엔드가 내 기준으로 만들어 준다) */
+  title: string
+  direct: boolean
+  memberCount: number
+  members: ChatMember[]
+  lastMessage: string | null
+  lastSenderName: string | null
+  lastMessageAt: string | null
+  unread: number
+}
+
+export interface ChatMessage {
+  id: number
+  roomId: number
+  senderId: number | null
+  senderName: string
+  content: string
+  sentAt: string
+  /** 참여·퇴장 같은 시스템 안내 */
+  system: boolean
+}
+
+// ── 설문조사 (그룹웨어 > 공유정보 > 설문조사) ───────────────────────────────
+
+/** 원본 설문조사입력의 질문유형 9종. */
+export type QuestionType =
+  | 'SINGLE' | 'MULTI' | 'SINGLE_ETC' | 'MULTI_ETC'
+  | 'SHORT_TEXT' | 'LONG_TEXT' | 'RANK' | 'DATE' | 'SCALE'
+
+export type SurveyStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'UNSENT'
+
+export interface SurveyQuestion {
+  id: number
+  seq: number
+  type: QuestionType
+  typeName: string
+  /** 보기항목을 쓰는 유형인가 — 화면이 보기 칸을 그릴지 판단한다 */
+  usesOptions: boolean
+  content: string
+  options: string[]
+  required: boolean
+}
+
+export interface SurveyDoc {
+  id: number
+  postNo: number
+  title: string
+  endAt: string | null
+  targetScope: 'INTERNAL' | 'EXTERNAL'
+  targetScopeName: string
+  anonymous: boolean
+  resultVisibility: 'ALL' | 'PARTIAL' | 'NONE'
+  resultVisibilityName: string
+  headerText: string | null
+  status: SurveyStatus
+  statusName: string
+  createdBy: string | null
+  writerName: string | null
+  createdAt: string | null
+  questionCount: number
+  targetCount: number
+  responseCount: number
+  responseRate: number
+  /** 지금 보는 사람이 이미 응답했는가 — 원본 '설문조사 참여여부' 칸 */
+  answeredByMe: boolean
+  /** 설문종료일이 지났는가. 상태가 '진행중'이어도 시간으로 닫힌다 */
+  expired: boolean
+  questions: SurveyQuestion[]
+  targets: { userId: number; userName: string }[]
+}
+
+export interface SurveyQuestionResult {
+  questionId: number
+  seq: number
+  typeName: string
+  content: string
+  usesOptions: boolean
+  /** 보기 → 응답 수. 보기 없는 유형이면 비어 있다 */
+  counts: Record<string, number>
+  /** 서술형 답변 원문 + '기타' 직접 입력 */
+  texts: string[]
+  answeredCount: number
+}
+
+export interface SurveyResult {
+  surveyId: number
+  title: string
+  targetCount: number
+  responseCount: number
+  responseRate: number
+  anonymous: boolean
+  questions: SurveyQuestionResult[]
+}
+
+/** 법인세Checklist(E030401) — GET /corporate-tax/checklist?year= */
+export interface CorporateTaxChecklist {
+  year: number
+  sales: CorporateTaxSalesMonth[]
+  payroll: CorporateTaxPayrollMonth[]
+}
+
+/** [2. 손익계산서 매출계정 내역] 한 달 — 칸이 없는 달은 null */
+export interface CorporateTaxSalesMonth {
+  month: number
+  sales: number
+  quarterOnly: number | null
+  quarterCumulative: number | null
+  halfCumulative: number | null
+  total: number | null
+}
+
+/** [3. 급여 및 원천세 내역] 한 달. difference = reported − salary */
+export interface CorporateTaxPayrollMonth {
+  month: number
+  reported: number
+  difference: number
+  salary: number
+  bonus: number
+  incomeTax: number
+  localIncomeTax: number
+  pension: number
+  health: number
+  employment: number
+}
+
+export interface CorporateTaxCheckMemo {
+  id: number
+  year: number
+  section: number
+  memoDate: string
+  title: string
+  content: string
+  writer: string | null
+}
+
+/** 지출증빙현황(E030402) — GET /expense-evidence?from=YYYY-MM&to=YYYY-MM */
+export interface ExpenseEvidenceStatus {
+  from: string
+  to: string
+  kinds: string[]
+  rows: { accountId: number; accountCode: string; accountName: string; amounts: Record<string, number>; total: number }[]
+}
+
+/** 지출증빙현황 금액 링크 → 전표vs매출매입자료비교 한 줄 */
+export interface ExpenseEvidenceCompareRow {
+  entryId: number
+  entryDate: string
+  docNo: string
+  accountName: string
+  partnerName: string | null
+  debit: number
+  credit: number
+  vatDocNo: string | null
+  vatKind: string | null
+  vatPartnerName: string | null
+  supply: number
+  vat: number
+  vatTotal: number
+}
+
+/** 지출증빙현황 [계정설정] 한 줄 — shown 이 인쇄방법 '표시' */
+export interface ExpenseEvidenceAccount { id: number; code: string; name: string; shown: boolean }
+
+/** 간이지급명세서(E030116) */
+export type SimplePaymentKind = 'LABOR' | 'BUSINESS' | 'OTHER' | 'DAILY'
+export interface SimplePaymentStatement {
+  id: number
+  kind: SimplePaymentKind
+  kindName: string
+  payYear: number
+  /** 근로소득은 반기(1 · 2), 사업 · 기타소득은 달(1~12) */
+  period: number
+  reportDate: string
+  managerDept: string
+  managerName: string
+  managerPhone: string
+  submitter: 'DIRECT' | 'AGENT'
+  submitterName: string
+}
+export interface SimplePaymentSheet {
+  statement: SimplePaymentStatement
+  labor: { employeeName: string; workFrom: string; workTo: string; monthlyPay: (number | null)[]; total: number }[]
+  payees: { payeeName: string; payeeRegNo: string | null; incomeCode: string | null; count: number; gross: number; expense: number; taxable: number;
+    rate: number; incomeTax: number; localIncomeTax: number }[]
+  daily: { name: string; days: number; lastDate: string | null; taxable: number; incomeTax: number; localIncomeTax: number }[]
+}
+
+/** 소득자료제출집계표(E030508) — GET /withholding/income-submission */
+export interface IncomeSubmission { kind: string; label: string; pages: number; count: number; income: number; incomeTax: number; corporateTax: number; ruralTax: number; localIncomeTax: number }
+
+/** 원천징수영수증(일용직, C000733) — GET /withholding/daily-receipts?month= */
+export interface DailyReceipt {
+  employeeId: number; employeeCode: string | null; employeeName: string; days: number; lastDate: string | null
+  totalPay: number; nonTaxable: number; incomeTax: number; localIncomeTax: number
+}
+
+/** 퇴직급여추계액(E030108) — GET /retirement-pays/estimate */
+export interface RetirementEstimateRow {
+  employeeId: number; employeeCode: string | null; employeeName: string; hireDate: string; startDate: string
+  threeMonthPay: number; bonusThreeMonths: number; years: number; months: number; days: number
+  threeMonthDays: number; serviceDays: number; retirementPay: number
+}
+
+/** 원천세신고자료비교표(E030104) 한 줄 — month 가 null 이면 합계 줄 */
+export interface WithholdingComparisonRow {
+  month: string | null; kind: string; count: number
+  gross: number | null; nonTaxable: number | null; incomeTax: number | null; localIncomeTax: number | null
+  reportedCount: number | null; reportedGross: number | null; reportedTax: number | null; differs: boolean
+}
+
+/** 소득자등록(세무 › 기타원천세 E030301) */
+export type PayeeKind = 'CORPORATE' | 'INDIVIDUAL'
+
+export interface WithholdingPayee {
+  id: number
+  kind: PayeeKind
+  kindName: string
+  bizRegNo: string | null
+  regNo: string
+  regNoFront: string
+  tradeName: string | null
+  name: string
+  address: string | null
+  englishName: string | null
+  bizAddress: string | null
+  payeeKindCode: string | null
+  industryCode: string | null
+  industryName: string | null
+  bankName: string | null
+  accountNo: string | null
+  nonResident: boolean
+  foreigner: boolean
+  nonRealName: boolean
+  birthDate: string | null
+  accountCode: string | null
+  mobile: string | null
+  email: string | null
+  memo: string | null
+  deleted: boolean
+}
+
+/** 기타원천세 코드도움 한 줄 — rate1 · rate2 는 기타소득 소득코드의 기본 필요경비율 · 세율(%). */
+export interface WithholdingCodeItem {
+  code: string
+  name: string
+  rate1: string | null
+  rate2: string | null
+}
+
+/** 기타원천세 전표 한 줄(원본 기타원천세입력 E030314) */
+export interface WithholdingSlipLine {
+  id: number
+  lineNo: number
+  payeeId: number | null
+  payeeName: string | null
+  payeeKindName: string | null
+  incomeCode: string | null
+  incomeCodeName: string | null
+  grossAmount: number
+  expenseRate: number | null
+  expenseAmount: number
+  taxableAmount: number
+  taxRate: number
+  incomeTax: number
+  localIncomeTax: number
+  taxTotal: number
+  netAmount: number
+  description: string | null
+  /** 소액부징수(SMALL) · 과세최저한(MIN) 으로 세액을 0 으로 둔 줄 */
+  taxExempt: 'SMALL' | 'MIN' | null
+  /** 이자배당소득 줄의 지급명세서 칸(다른 줄은 null) */
+  interest: {
+    accountNo: string | null; taxationCode: string | null; specialCode: string | null; productCode: string | null
+    securityCode: string | null; bondInterestCode: string | null; periodFrom: string | null; periodTo: string | null
+    interestRate: number | null; changeKind: string | null; changeMonth: string | null; trustIncome: boolean
+  } | null
+}
+
+/** 기타원천세 전표 한 장 — slipNo 는 원본 표기 '2025/07/31-2'. */
+export interface WithholdingSlip {
+  slipNo: string
+  payDate: string
+  slipSeq: number
+  attributionMonth: string
+  payMonth: string
+  incomeType: IncomeType
+  incomeTypeName: string
+  lines: WithholdingSlipLine[]
+}
+
+/** 기타원천세조회 한 줄 */
+export interface WithholdingSlipListRow {
+  slipNo: string
+  payDate: string
+  slipSeq: number
+  attributionMonth: string
+  payMonth: string
+  payeeSummary: string
+  incomeType: IncomeType
+  incomeTypeName: string
+  grossAmount: number
+  taxTotal: number
+  netAmount: number
+}
+
+/** 기타원천세현황 한 줄 */
+export interface WithholdingLineReportRow {
+  slipNo: string
+  payDate: string
+  slipSeq: number
+  attributionMonth: string
+  payMonth: string
+  payeeName: string | null
+  incomeType: IncomeType
+  incomeTypeName: string
+  incomeCode: string | null
+  grossAmount: number
+  incomeAmount: number
+  taxRate: number
+  taxTotal: number
+  description: string | null
+}
+
+/** 기타원천세 원천징수영수증(보관용) — 소득자 한 사람 */
+export interface WithholdingReceiptLine {
+  payDate: string
+  attributionMonth: string
+  incomeCode: string | null
+  grossAmount: number
+  expenseAmount: number
+  taxableAmount: number
+  taxRate: number
+  incomeTax: number
+  localIncomeTax: number
+  taxTotal: number
+  /** 이자 · 배당 서식 [별지 제23호서식(1)] 칸 */
+  accountNo: string | null
+  trustIncome: boolean
+  taxationCode: string | null
+  specialCode: string | null
+  productCode: string | null
+  securityCode: string | null
+  bondInterestCode: string | null
+  periodFrom: string | null
+  periodTo: string | null
+  interestRate: number | null
+}
+
+export interface WithholdingReceiptPayee {
+  payeeId: number | null
+  regNo: string | null
+  name: string
+  tradeName: string | null
+  bizRegNo: string | null
+  address: string | null
+  bizAddress: string | null
+  foreigner: boolean
+  industryCode: string | null
+  incomeCodes: string[]
+  grossAmount: number
+  taxTotal: number
+  lines: WithholdingReceiptLine[]
+  /** 이자 · 배당 서식 ⑧ 소득자구분코드 · ⑩ 거주구분 */
+  payeeKindCode: string | null
+  nonResident: boolean
+}
+
+/** 기타원천세 지급명세서(보고용) — 소득자별 연간집계표 */
+export interface WithholdingStatementRow {
+  code: string | null
+  name: string
+  regNo: string | null
+  foreigner: boolean
+  payYear: number
+  count: number
+  grossAmount: number
+  expenseAmount: number
+  taxableAmount: number
+  taxRate: number
+  incomeTax: number
+  localIncomeTax: number
+  taxTotal: number
+}
+
+export interface WithholdingPaymentStatement {
+  year: number
+  payeeCount: number
+  lineCount: number
+  grossAmount: number
+  taxableAmount: number
+  incomeTax: number
+  localIncomeTax: number
+  taxTotal: number
+  smallCount: number
+  smallGross: number
+  rows: WithholdingStatementRow[]
+}

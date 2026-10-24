@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { Link, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
@@ -6,8 +7,8 @@ import EcBarChart from '../../components/EcBarChart'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PartnerBalance } from '../../api/types'
-import EcPeriodPicks, { periodOf, BALANCE_PICKS } from '../../components/EcPeriodPicks'
+import type { PartnerBalance } from '../../types/api'
+import EcPeriodPicks, { periodOf, BALANCE_PICKS, STOCK_PICKS } from '../../components/EcPeriodPicks'
 import type { LedgerBasis } from '../../utils/partnerRollup'
 
 /**
@@ -23,16 +24,69 @@ import type { LedgerBasis } from '../../utils/partnerRollup'
  * 원본의 거래처계층그룹·하위그룹포함검색은 우리 거래처 <b>그룹</b>에 계층이 없어 제외했다
  * (거래처그룹은 1단계 평면 그룹이다). <b>[대표거래처로 합산]은 다르다</b> — 거래처끼리는
  * 대표(parent)로 묶이므로 만들 수 있는데, 없다고 적어 두고 넘어갔었다.
+ *
+ * <p><b>2026-09-09 채권현황(E040721) 원본 실측</b> — 조건은 <b>열둘</b>이고(대조표의 열셋은
+ * [기타]와 [대표거래처로 합산]의 라디오 두 알을 펴 놓은 것이었다), 격자는
+ * <b>거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계</b> 다.
+ * <b>[청구금액]·[미청구금액]</b>(2026-10-21 만듦) — 2026-10-20 실측 규칙: 미청구 = 세금계산서를 안 끊은 판매 합계
+ * (부가세 포함), 합계 = 채권 잔액, 청구 = 합계 − 미청구(수금은 늘 청구 칸에서 빠진다 → 음수 가능).
+ * 서버가 partner-balances 에 unbilledReceivable · unbilledPayable 로 싣는다. [채권/채무] 구분은 두 줄 머리(채권·채무 밑에 청구·미청구·합계, 거래처코드 열 없음, 0 은 빈칸, 차액 = 채권합계 − 채무합계 — 2026-10-22 원본 실측).
+ *
+ * <p><b>2026-09-09 자료 줄을 읽어 두 칸의 관계를 알아냈다.</b>
+ * <code>청구금액 + 미청구금액 = 합계</code> 이고, 그 합계가 곧 <b>채권 잔액</b>이다
+ * (실측 합계 249,200,000 + 221,200,000 = 470,400,000 이고 이 값이 경영자보고서의
+ * [채권]과 같다). 거래처 여섯 중 넷은 두 칸이 <b>정확히 반반</b>이었고,
+ * 하나는 청구만(60,000,000 / 0), 하나는 미청구만(0 / 32,000,000) 이었다.
+ *
+ * <p><b>그 가설은 다음 바퀴에 깨졌다.</b> 거래처별채권(E040214)을 열어 같은 기간을 보니
+ * <b>채권 470,400,000 이 전부 [기초채권]</b> 이었다 — 그 기간 [재고매출]이 <b>0</b> 이다
+ * (움직인 것은 경지양돈 하나뿐: 회계매출 49,500,000 · 수금 49,500,000 → 잔액 0 이라
+ * 채권현황에는 아예 안 뜬다). <b>기초채권에는 판매 전표가 없다.</b>
+ * 그런데도 채권현황은 그 기초채권을 청구 249,200,000 / 미청구 221,200,000 으로 가른다.
+ * 즉 <b>세금계산서가 어느 판매에 붙었나로는 설명되지 않는다</b> — 붙을 판매가 없다.
+ *
+ * <p>남은 실마리는 <b>기초채권을 넣을 때 이미 갈라 넣는가</b> 다(회계 쪽 기초등록).
+ * 그 자리를 열어 보기 전에는 지어내지 않는다. 우리 기초채권은 한 수라 가를 축이 없다.
+ *
+ * <p>격자 자체는 우리 것과 같다(2026-09-09 실측) —
+ * 거래처명 · 기초채권 · 재고매출 · 회계매출 · 수금합계 · 기타할인등차액 · 잔액.
  */
 type Mode = 'BOTH' | 'RECEIVABLE' | 'PAYABLE'
 const MODE_LABEL: Record<Mode, string> = { BOTH: '채권/채무', RECEIVABLE: '채권', PAYABLE: '채무' }
 
 const won = (n: number) => n.toLocaleString()
 
-export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?: Mode }) {
+/**
+ * 이 표가 겸하는 <b>원본 세 화면</b>. 무엇을 겸하는지 이름으로 들고 있어야
+ * [구분] 기본값과 기준일자 기본값을 갈라 줄 수 있다 — 둘이 서로 다른 축이라
+ * defaultMode 하나로는 못 갈랐다(채권/채무현황의 [구분] 기본은 <b>채권</b>인데
+ * 기준일자 기본은 그 화면만 <b>금일</b>이다).
+ */
+type Screen = 'AR_AP' | 'AR' | 'AP'
+
+export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }) {
+  /*
+   * 원본 <b>채권/채무현황(E040703)</b> 을 열면 [구분]이 <b>채권</b>에 찍혀 있다
+   * (2026-09-09 실측 — 라디오 세 알 [채권]·[채무]·[채권/채무] 중 첫 알).
+   * 우리는 이 화면을 <b>채권/채무</b>로 열고 있었다 — 원본과 다른 숫자가 첫 화면에 보였다.
+   */
+  const defaultMode: Mode = screen === 'AP' ? 'PAYABLE' : 'RECEIVABLE'
   const [mode, setMode] = useState<Mode>(defaultMode)
-  /** 원본 기준일자는 <b>한 날짜</b>이고 [금월(~오늘)] 이 눌린 채로 열린다(2026-09-02 실측). */
-  const [asOf, setAsOf] = useState(periodOf('금월(~오늘)')!.to)
+  /**
+   * 원본 열 폭·머리글을 잰 판 — 2026-09-21. 채권현황·채무현황, 그리고 <b>채권/채무현황의 기본 판</b>
+   * ([구분] 채권). 원본 채권/채무현황은 기본 [구분]이 채권이고 그때 큰 제목이 <b>'채권현황'</b>,
+   * 표도 채권현황과 같다(718px · 106/291/107/107/107). [구분]을 채무·채권채무로 바꾼 판은
+   * 조건을 건드려야 해서 안 쟀다 — 그 판은 예전처럼 화면 폭이다.
+   */
+  const fixedFrame = screen === 'AR' || screen === 'AP' || (screen === 'AR_AP' && mode === 'RECEIVABLE')
+  /*
+   * 원본 기준일자는 <b>한 날짜</b>인데 <b>기본값이 화면마다 다르다</b> —
+   * 채권현황·채무현황(E040721)은 <b>금월(~오늘)</b>(2026-09-02 실측)이고,
+   * 채권/채무현황(E040703)은 <b>금일</b>(2026-09-08 실측)이다.
+   * 한 파일이 셋을 겸하면서 한 값으로 열고 있었다 — [구분]으로 갈린다.
+   */
+  const [asOf, setAsOf] = useState(
+    screen === 'AR_AP' ? periodOf('금일')!.to : periodOf('금월(~오늘)')!.to)
   const [rows, setRows] = useState<PartnerBalance[]>([])
   const [loading, setLoading] = useState(true)
   /*
@@ -95,8 +149,9 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
     for (const r of rows) {
       if (r.parentId == null) continue
       const 머리 = 대표.get(r.parentId)
-        ?? { ...r, partnerId: r.parentId, code: '', name: r.parentName ?? '(대표 미등록)', receivable: 0, payable: 0 }
-      대표.set(r.parentId, { ...머리, receivable: 머리.receivable + r.receivable, payable: 머리.payable + r.payable })
+        ?? { ...r, partnerId: r.parentId, code: '', name: r.parentName ?? '(대표 미등록)', receivable: 0, payable: 0, unbilledReceivable: 0, unbilledPayable: 0 }
+      대표.set(r.parentId, { ...머리, receivable: 머리.receivable + r.receivable, payable: 머리.payable + r.payable,
+        unbilledReceivable: 머리.unbilledReceivable + r.unbilledReceivable, unbilledPayable: 머리.unbilledPayable + r.unbilledPayable })
     }
     return [...대표.values()]
   }, [rows, rollUp])
@@ -114,8 +169,9 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
   }), [rolled, includeInactive, group, manager, keyword, hideZero, mode])
 
   const total = useMemo(() => shown.reduce(
-    (a, r) => ({ receivable: a.receivable + r.receivable, payable: a.payable + r.payable }),
-    { receivable: 0, payable: 0 }), [shown])
+    (a, r) => ({ receivable: a.receivable + r.receivable, payable: a.payable + r.payable,
+      unbilledR: a.unbilledR + r.unbilledReceivable, unbilledP: a.unbilledP + r.unbilledPayable }),
+    { receivable: 0, payable: 0, unbilledR: 0, unbilledP: 0 }), [shown])
 
   /*
    * 원본 [정렬/소계기준]. 우리는 <b>거래처그룹으로만</b> 묶었는데, 받을 돈을 나눠 맡는
@@ -130,7 +186,13 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
 
   const [view, setView] = useState<'표' | '그래프'>('표')
   /*
-   * 원본 거래처별채권·채무의 [그래프로 보기].
+   * <b>[데이터 보기형식]은 이 화면의 원본에는 없다.</b> 2026-09-08 에 채권/채무현황(E040703)을
+   * 재고 앞서 채권현황(E040721)을 잰 것을 견주니 <b>둘 다 이 줄이 없다</b> —
+   * 아래 주석이 가리키는 <b>거래처별채권·채무</b>는 이 파일이 겸하지 않는 다른 화면이다.
+   * 지우지 않고 남기되, 원본에 없는 우리 칸이라는 것을 여기 적어 둔다
+   * (같은 화면의 [잔액 0 숨김]과 같은 처지다).
+   *
+   * <p>원본 거래처별채권·채무의 [그래프로 보기].
    *
    * <p>보고 있는 [구분]이 재는 값을 그린다. 채권/채무를 함께 보는 중이면
    * <b>순채권(채권−채무)</b>을 그린다 — 그래야 줄 것이 더 많은 거래처가 음수 막대로
@@ -145,7 +207,14 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
 
   const showR = mode !== 'PAYABLE'
   const showP = mode !== 'RECEIVABLE'
-  const cols = 4 + (showR ? 1 : 0) + (showP ? 1 : 0) + (mode === 'BOTH' ? 1 : 0)
+  const cols = mode === 'BOTH' ? 8 : 5
+  /*
+   * 원본 채권현황 · 채무현황 · 채권/채무현황(채권·채무 구분)의 <b>[청구금액] · [미청구금액] · [합계]</b>
+   * (2026-10-20 실측 규칙). 미청구 = 세금계산서 안 끊은(안 받은) 전표 합계(부가세 포함),
+   * 합계 = 잔액, 청구 = 합계 − 미청구 — 수금은 늘 청구 칸에서 빠져 음수가 될 수 있다.
+   */
+  const unbilledOf = (r: PartnerBalance) => (mode === 'PAYABLE' ? r.unbilledPayable : r.unbilledReceivable)
+  const totalOf = (r: PartnerBalance) => (mode === 'PAYABLE' ? r.payable : r.receivable)
 
 
   useTableColumnCheck(tableRef, '채권·채무현황', [loading])
@@ -160,20 +229,20 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
       title={mode === 'RECEIVABLE' ? '채권현황' : mode === 'PAYABLE' ? '채무현황' : '채권·채무현황'}
       actions={[{ label: '검색(F8)', onClick: load, primary: true }, { label: 'Excel' }, { label: '인쇄' }]}
       help={
-        <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+        <p className="text-[12.5px] leading-[1.7]">
           기준일자까지 발생한 매출·매입에서 수금·지급을 뺀 잔액입니다. 거래처관리대장이 ‘지금 잔액’이라면
           이 화면은 특정 시점으로 되돌린 잔액이라 마감·대사에 씁니다. 거래처그룹 소계를 함께 냅니다.
         </p>
       }
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분</div>
+      <div className="flex flex-wrap gap-[10px] items-end border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
+        <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">구분</div>
           <select className="ec-input" value={mode} onChange={(e) => setMode(e.target.value as Mode)} style={{ width: 110 }}>
             {(Object.keys(MODE_LABEL) as Mode[]).map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
           </select></label>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>기준일자</div>
+        <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">기준일자</div>
           <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 150 }} /></label>
         {/*
           원본 기간 빠른선택 실측(2026-09-02):
@@ -181,7 +250,8 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           우리는 원본에 없는 [전월말일]·[당월말일]을 손으로 만들어 두고 나머지 다섯을 빼먹었었다.
           한 날짜짜리 화면이라 고른 구간의 <b>끝날</b>만 받는다.
         */}
-        <EcPeriodPicks labels={BALANCE_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
+        {/* 2026-10-20 원본 채권/채무현황(E040703) 빠른선택은 금일 · 전일 둘뿐이다. */}
+        <EcPeriodPicks labels={screen === 'AR_AP' ? STOCK_PICKS : BALANCE_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
         {/* 이카운트 원본은 거래처·거래처그룹·관리담당자가 드롭다운이 아니라 코드도움 팝업(code.openpopup)이다 */}
         <CodePickerField label="거래처" value={partnerCode} width={150}
                          onChange={(v, item) => { setPartnerCode(v); setKeyword(item ? item.name : '') }}
@@ -197,16 +267,16 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
                          onChange={(v) => setGroup(v || '전체')}
                          items={groups.map((g) => ({ value: g, name: g }))} />
         {/* 원본 차례는 거래처그룹들 뒤, 거래처관리담당자 앞이다(사본 실측). */}
-        <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: '#5a626e', marginBottom: 3 }}>대표거래처로 합산</div>
+        <div className="text-[12.5px]">
+          <div className="text-ec-label mb-[3px]">대표거래처로 합산</div>
           {/* 배열로 돌리면 라벨이 <b>글자로 남지 않아</b> 검사가 못 본다 — 그대로 편다. */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div className="flex gap-[10px]">
+            <label className="flex items-center gap-[4px]">
               <input type="radio" name="arap-basis" checked={basis === '거래처관계기준'}
                      onChange={() => setBasis('거래처관계기준')} />
               거래처관계기준
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label className="flex items-center gap-[4px]">
               <input type="radio" name="arap-basis" checked={basis === '개별거래처기준'}
                      onChange={() => setBasis('개별거래처기준')} />
               개별거래처기준
@@ -216,17 +286,30 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
         <CodePickerField label="거래처관리담당자" value={manager === '전체' ? '' : manager} width={120}
                          onChange={(v) => setManager(v || '전체')}
                          items={managers.map((m) => ({ value: m, name: m }))} />
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
-          사용중단거래처포함
-        </label>
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
-          잔액 0 숨김
-        </label>
+        {/*
+          2026-09-08 에 <b>채권/채무현황(E040703)</b> 을 열어 재니, 이 화면은 체크를 낱개로
+          두지 않고 <b>[기타]</b> 안에 묶는다 — 그 안에는 <b>사용중단거래처포함</b> 하나뿐이고
+          <b>켜짐</b>이 기본이다(우리도 켜짐이다). 이름표를 붙여 예외에 기대지 않게 한다.
+          <b>[잔액 0 숨김]은 원본에 없다</b> — 우리가 만든 것이다. 채권/채무현황도
+          채권현황도 그 체크가 없다. 지우지 않고 여기 적어 둔다(잔액 0 인 거래처가
+          수천 줄 쌓이는 것을 막는 칸이다).
+        */}
+        <div className="text-[12.5px]">
+          <div className="text-ec-label mb-[3px]">기타</div>
+          <div className="flex gap-[10px]">
+            <label className="flex items-center gap-[4px]">
+              <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
+              사용중단거래처포함
+            </label>
+            <label className="flex items-center gap-[4px]">
+              <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
+              잔액 0 숨김
+            </label>
+          </div>
+        </div>
         {/* 원본 [정렬/소계기준]. 데이터 보기형식 바로 앞줄이다(사본 실측). */}
-        <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: '#5a626e', marginBottom: 3 }}>정렬/소계기준</div>
+        <div className="text-[12.5px]">
+          <div className="text-ec-label mb-[3px]">정렬/소계기준</div>
           <div className="ec-pills">
             {SUBTOTALS.map((v) => (
               <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
@@ -235,8 +318,8 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
           </div>
         </div>
         {/* 원본 [데이터 보기형식]. 이 화면은 EcStatusPanel 을 쓰지 않아 여기에 둔다. */}
-        <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: '#5a626e', marginBottom: 3 }}>데이터 보기형식</div>
+        <div className="text-[12.5px]">
+          <div className="text-ec-label mb-[3px]">데이터 보기형식</div>
           <div className="ec-pills">
             {(['표', '그래프'] as const).map((v) => (
               <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
@@ -246,101 +329,115 @@ export default function ArApStatusPage({ defaultMode = 'BOTH' }: { defaultMode?:
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-        {showR && (
-          <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: '#8a929c' }}>채권 합계 ({asOf} 기준)</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{won(total.receivable)}</div>
-          </div>
-        )}
-        {showP && (
-          <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: '#8a929c' }}>채무 합계 ({asOf} 기준)</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#c07a00' }}>{won(total.payable)}</div>
-          </div>
-        )}
-        {mode === 'BOTH' && (
-          <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: '#8a929c' }}>순채권(채권−채무)</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{won(total.receivable - total.payable)}</div>
-          </div>
-        )}
-        <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 110 }}>
-          <div style={{ fontSize: 11.5, color: '#8a929c' }}>거래처</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{shown.length}</div>
-        </div>
-      </div>
-
+      {/* 2026-10-20: 격자 위 합계 카드(채권 합계 · 채무 합계 · 순채권 · 거래처 수)는 원본 세 화면 어디에도 없어 뺐다 — 합계는 격자 끝 [합계] 줄에 있다. */}
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
       ) : (
-      <table ref={tableRef} className="w-full text-left">
+      /*
+        머리글·꼬리와 열 폭은 <b>채권현황(E040721)·채무현황(E040722)</b>을 원본대로 둔다 —
+        2026-09-21 실측, 두 화면이 같다(표 width 718px · table-layout fixed · 열 106 / 291 / 107 /
+        107 / 107px = 거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계). 채권/채무현황은 열 폭을
+        아직 안 재서 예전처럼 화면 폭이다. 번호·거래처그룹·관리담당자는 원본에 없는 우리 열이다.
+
+        <b>줄무늬는 없다</b> — 두 화면 다 본문 줄이 모두 투명이고 회색은 합계줄뿐이다(채권현황 7줄,
+        채무현황 수십 줄을 줄 차례대로 읽었다). 처음에는 첫 여덟 줄의 배경을 <b>중복 없이 모은
+        목록</b>으로 보고 거기 섞인 합계줄의 회색을 줄무늬로 잘못 읽어 넣었다가 뺐다.
+      */
+      <div className={fixedFrame ? 'ec-report-frame' : undefined}>
+      {fixedFrame && <EcReportHead title={screen === 'AP' ? '채무현황' : '채권현황'} period={reportPeriod(asOf)} />}
+      <table ref={tableRef} className={fixedFrame
+        ? 'text-left ec-report ec-report-fixed'
+        : 'w-full text-left ec-report'}>
+        {/*
+          <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040721) getComputedStyle 실측.
+          머리 700 · 가운데, 본문 3px · 줄 간격 17.14px, 줄무늬, 합계줄 굵게·회색·<b>이름은 가운데</b>.
+          원본은 숫자를 <b>맑은 고딕</b>으로, 거래처명을 <b>검정·보통 굵기</b>로 찍는다 — 고정폭 숫자와
+          파란 굵은 이름은 우리가 덧칠한 것이었다.
+        */}
         <thead><tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 110 }}>거래처코드</th>
-          <th>거래처명</th>
-          <th style={{ width: 130 }}>거래처그룹</th>
-          <th style={{ width: 100 }}>관리담당자</th>
-          {showR && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
-          {showP && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
-          {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>순액</th>}
-        </tr></thead>
+          {/* 2026-10-20: 원본에 없는 번호 · 거래처그룹 · 관리담당자 열을 뺐다(원본 다섯 열 = 106 + 291 + 107 × 3 = 718px). */}
+          {mode !== 'BOTH' && <th style={{ width: fixedFrame ? 106 : 110 }}>거래처코드</th>}
+          <th rowSpan={mode === 'BOTH' ? 2 : undefined} style={fixedFrame ? { width: 291 } : undefined}>거래처명</th>
+          {/*
+            원본 <b>채권현황(E040721)·채무현황(E040722)</b>의 금액 열 이름은 [채권]·[채무]가
+            아니라 <b>[합계]</b> 다(2026-09-09 실측: 거래처코드 · 거래처명 · 청구금액 ·
+            미청구금액 · <b>합계</b>. 두 화면의 조건·격자·버튼줄이 글자 하나까지 같았다).
+            채권/채무현황(E040703)은 둘을 나란히 놓으므로 그쪽에서만 [채권]·[채무]다 —
+            <b>같은 표가 세 화면을 겸하므로</b> 보는 화면에 따라 머리를 갈라 그린다.
+          */}
+          {/*
+            [구분]을 <b>채권/채무</b>로 놓았을 때의 원본 격자(2026-09-09 실측)는
+            머리가 <b>두 줄</b>이다 — 위가 [거래처명 · 채권(3칸) · 채무(3칸) · <b>차액</b>],
+            아래가 [청구금액 · 미청구금액 · 합계]를 채권·채무 밑에 한 벌씩.
+            우리는 청구·미청구를 못 가르므로(아래 예외) 한 쪽에 한 칸씩만 두는데,
+            마지막 칸 이름을 <b>[순액]</b> 이라 잘못 적고 있었다 — 원본은 <b>[차액]</b> 이다.
+          */}
+          {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>청구금액</th>}
+          {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>미청구금액</th>}
+          {mode !== 'BOTH' && <th className={`text-right ${fixedFrame ? 'w-[107px]' : 'w-[130px]'}`}>합계</th>}
+          {mode === 'BOTH' && <th colSpan={3}>채권</th>}
+          {mode === 'BOTH' && <th colSpan={3}>채무</th>}
+          {mode === 'BOTH' && <th rowSpan={2}>차액</th>}
+        </tr>
+        {mode === 'BOTH' && <tr>{['청구금액', '미청구금액', '합계', '청구금액', '미청구금액', '합계'].map((h, i) => <th key={i}>{h}</th>)}</tr>}
+        </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={cols + 2} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={cols} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={cols + 2} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+            <tr><td colSpan={cols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r) => (
             <tr key={r.partnerId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
+              {mode !== 'BOTH' && <td>{r.code}</td>}
               {/* 원본은 거래처명을 눌러 그 거래처를 연다(사본 실측). */}
-              <td style={{ fontWeight: 600 }}>
-                <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'var(--ec-blue)' }}>{r.name}</Link>
-                {!r.active && <span style={{ color: '#c60a2e', fontSize: 11, marginLeft: 4 }}>(사용중단)</span>}
+              <td>
+                <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'inherit' }}>{r.name}</Link>
+                {!r.active && <span className="text-ec-danger text-[11px] ml-[4px]">(사용중단)</span>}
               </td>
-              <td style={{ color: '#5a626e' }}>{r.partnerGroupName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.manager ?? ''}</td>
-              {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(r.receivable)}</td>}
-              {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(r.payable)}</td>}
-              {mode === 'BOTH' && (
-                <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(r.receivable - r.payable)}</td>
-              )}
+              {mode !== 'BOTH' && <td className="text-right">{won(totalOf(r) - unbilledOf(r))}</td>}
+              {mode !== 'BOTH' && <td className="text-right">{won(unbilledOf(r))}</td>}
+              {mode === 'BOTH' && [r.receivable - r.unbilledReceivable, r.unbilledReceivable, r.receivable,
+                r.payable - r.unbilledPayable, r.unbilledPayable, r.payable, r.receivable - r.payable].map((v, i) => (
+                <td key={i} className="text-right">{v ? won(v) : ''}</td>
+              ))}
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-              {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.receivable)}</td>}
-              {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.payable)}</td>}
-              {mode === 'BOTH' && (
-                <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{won(total.receivable - total.payable)}</td>
-              )}
+              <td colSpan={mode === 'BOTH' ? 1 : 2} className="text-center">합계</td>
+              {mode !== 'BOTH' && <td className="text-right">{won((mode === 'PAYABLE' ? total.payable - total.unbilledP : total.receivable - total.unbilledR))}</td>}
+              {mode !== 'BOTH' && <td className="text-right">{won(mode === 'PAYABLE' ? total.unbilledP : total.unbilledR)}</td>}
+              {mode === 'BOTH' && [total.receivable - total.unbilledR, total.unbilledR, total.receivable,
+                total.payable - total.unbilledP, total.unbilledP, total.payable, total.receivable - total.payable].map((v, i) => (
+                <td key={i} className="text-right">{v ? won(v) : ''}</td>
+              ))}
             </tr>
           </tfoot>
         )}
       </table>
+      {fixedFrame && <EcReportFoot />}
+      </div>
       )}
 
       {shown.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
           <table className="w-full text-left">
             <thead><tr>
               <th>{subtotal}</th>
-              <th style={{ width: 90, textAlign: 'right' }}>거래처수</th>
-              {showR && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
-              {showP && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
+              <th className="w-[90px] text-right">거래처수</th>
+              {showR && <th className="w-[130px] text-right">채권</th>}
+              {showP && <th className="w-[130px] text-right">채무</th>}
             </tr></thead>
             <tbody>
               {subtotals.map((g) => (
                 <tr key={g.label}>
-                  <td style={{ fontWeight: 600 }}>{g.label}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                  {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.receivable)}</td>}
-                  {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.payable)}</td>}
+                  <td className="font-semibold">{g.label}</td>
+                  <td className="text-right">{g.count}</td>
+                  {showR && <td className="text-right">{won(g.sums.receivable)}</td>}
+                  {showP && <td className="text-right">{won(g.sums.payable)}</td>}
                 </tr>
               ))}
             </tbody>

@@ -1,0 +1,26 @@
+{
+  "about": "어음 삭제 — 보유 중인 받을어음을 [삭제] 하면 수취 분개도 지워진다(58회차 — 잘못 받아 적은 어음을 지울 길이 없었다). 어음은 API 로 만들고 화면에서 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 받을어음 1장(API)",
+      "path": "/accounting/notes",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/partners').then((r) => window.__api('POST', '/notes', { type: 'RECEIVABLE', partnerId: r.body.find((x) => x.code === 'QA-CUST').id, issueDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), dueDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), amount: 12345, remark: 'QA 화면시험 58' })).then((r) => { sessionStorage.setItem('bnNo', r.body.noteNo); return r.status })",
+        "expect:!!sessionStorage.getItem('bnNo')"
+      ]
+    },
+    {
+      "name": "[삭제]",
+      "path": "/accounting/notes",
+      "steps": [
+        "js:window.confirm = () => true; window.alert = (m) => { window.__msg = m }; true",
+        "wait:1200",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('bnNo'))); [...tr.querySelectorAll('button')].find((b) => b.innerText === '삭제').click(); return true })()",
+        "wait:1200",
+        "expect:document.body.innerText.includes(sessionStorage.getItem('bnNo') + ' 삭제 — 회계전표도 지웠습니다.')",
+        "expect:!([...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('bnNo'))))"
+      ]
+    }
+  ]
+}

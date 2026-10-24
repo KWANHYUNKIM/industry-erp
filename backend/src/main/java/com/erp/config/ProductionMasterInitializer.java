@@ -1,9 +1,9 @@
 package com.erp.config;
 
-import com.erp.production.domain.ProductionProcess;
-import com.erp.production.domain.ProductionResource;
-import com.erp.production.repository.ProcessRepository;
-import com.erp.production.repository.ResourceRepository;
+import com.erp.production.process.ProductionProcess;
+import com.erp.production.resource.ProductionResource;
+import com.erp.production.process.ProcessRepository;
+import com.erp.production.resource.ResourceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

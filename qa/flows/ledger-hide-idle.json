@@ -1,0 +1,15 @@
+{
+  "about": "회계 I › 출력물 › 계정별원장 [거래내역없는거래처제외] — 원본 2026-10-22: 계정을 비우고 금월로 찾으면 29 칸, 이 칸을 켜면 이월잔액뿐인 계정을 뺀 13 칸. 켜면 칸 수가 줄거나 같고, 켜진 칸마다 기간 안 줄이 있다.",
+  "shots": [
+    {
+      "name": "계정별원장 — 거래내역없는거래처제외",
+      "path": "/accounting/ledger-book",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const go = async () => { const b = [...document.querySelectorAll('button')].find((x) => /^검색\\(F8\\)|^Search\\(F3\\)/.test(x.textContent.trim()) && x.offsetParent); b && b.click(); await new Promise((r) => setTimeout(r, 800)); const c = [...document.querySelectorAll('button')].filter((x) => x.offsetParent && x.textContent.trim() === '취소').pop(); c && c.click(); await new Promise((r) => setTimeout(r, 2500)) }; const n = () => [...document.querySelectorAll('span')].filter((s) => /^회사명 : .* \\/ \\S+\\(.+\\)$/.test(s.textContent.trim())).length; await go(); sessionStorage.setItem('hi-a', String(n())); const cb = [...document.querySelectorAll('label')].find((l) => l.textContent.includes('거래내역없는거래처제외')).querySelector('input'); cb.click(); await new Promise((r) => setTimeout(r, 300)); await go(); sessionStorage.setItem('hi-b', String(n())); return true })()",
+        "wait:500",
+        "expect:Number(sessionStorage.getItem('hi-b')) <= Number(sessionStorage.getItem('hi-a')) && Number(sessionStorage.getItem('hi-a')) > 0"
+      ]
+    }
+  ]
+}

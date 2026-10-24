@@ -1,0 +1,47 @@
+{
+  "about": "회계 II 채권감소등록 — 증가 50,000(API) 줄의 [감소금액] 칸을 누르면 체크되고 50,000 이 차며, 20,000 으로 고쳐 [채권만감소] → 채권내역입력 감소 창(같은 계정 · 거래처 · 번호 · 20,000)이 열리고 저장하면 잔액 30,000. 원본 E060402 2026-10-12 실측과 같다. 만든 장은 API 로 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 증가 50,000(API)",
+      "path": "/accounting/bonds/ar/decrease-entry",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all([window.__api('GET', '/accounts'), window.__api('GET', '/partners')]).then(([a, p]) => { const no = 'QA2' + Date.now(); sessionStorage.setItem('bno', no); return window.__api('POST', '/bonds', { side: 'RECEIVABLE', entryDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), direction: 'INCREASE', lines: [{ accountId: a.body.find((x) => x.code === '108').id, partnerId: p.body[0].id, bondNo: no, amount: 50000, memo: 'QA회계2 감소등록' }] }) }).then((r) => { sessionStorage.setItem('incId', String(r.body.id)); return r.status })",
+        "expect:!!sessionStorage.getItem('incId')"
+      ]
+    },
+    {
+      "name": "[감소금액] → 20,000 → [채권만감소] → 저장",
+      "path": "/accounting/bonds/ar/decrease-entry",
+      "steps": [
+        "wait:1200",
+        "js:document.querySelector('button[aria-label=\"입금보고서작성 더보기\"]').click(); true",
+        "wait:200",
+        "click:채권만감소",
+        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다.')",
+        "clicklast:확인",
+        "js:document.querySelector(`input[aria-label=\"${sessionStorage.getItem('bno')} 감소금액\"]`).dispatchEvent(new FocusEvent('focusin', { bubbles: true })); true",
+        "wait:300",
+        "expect:document.querySelector(`input[aria-label=\"${sessionStorage.getItem('bno')} 선택\"]`).checked",
+        "js:(() => { const el = document.querySelector(`input[aria-label=\"${sessionStorage.getItem('bno')} 감소금액\"]`); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '20000'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:document.querySelector('button[aria-label=\"입금보고서작성 더보기\"]').click(); true",
+        "wait:200",
+        "click:채권만감소",
+        "wait:600",
+        "expect:document.querySelector('[role=dialog] select[aria-label=\"증감구분\"]').value === 'DECREASE' && document.querySelector('input[aria-label=\"1줄 채권번호\"]').value === sessionStorage.getItem('bno') && document.querySelector('input[aria-label=\"1줄 금액\"]').value === '20,000'",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')) && t.innerText.includes('30,000'))"
+      ]
+    },
+    {
+      "name": "정리 — 이 번호의 장을 지운다(API)",
+      "path": "/accounting/bonds/ar",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/bonds?side=RECEIVABLE').then((r) => window.__api('POST', '/bonds/delete', { ids: r.body.filter((e) => e.lines.some((l) => l.bondNo === sessionStorage.getItem('bno'))).map((e) => e.id) })).then((r) => r.status)",
+        "wait:500"
+      ]
+    }
+  ]
+}

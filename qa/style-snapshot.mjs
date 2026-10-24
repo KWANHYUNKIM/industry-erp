@@ -1,0 +1,123 @@
+#!/usr/bin/env node
+/**
+ * 화면 모양 회귀 시험 — 라우트마다 모든 요소의 <b>계산된 스타일</b>을 떠 두고, 고치고 나서 다시 떠 비교한다.
+ * 픽셀이 아니라 getComputedStyle 값을 견주므로 그림 라이브러리 없이 돌고, 어느 요소의 무엇이 바뀌었는지 바로 나온다.
+ * 앱이 떠 있어야 한다(백엔드 8081 · 프론트 5180).
+ *
+ *   node qa/style-snapshot.mjs save <폴더> [접두사]     예: save /tmp/before sales
+ *   node qa/style-snapshot.mjs diff <전 폴더> <후 폴더>
+ *
+ * 왜: 인라인 style 을 클래스로 옮기면 모양이 그대로여야 한다. 그런데 인라인은 CSS 규칙을 이기고
+ * Tailwind 클래스는 우리 CSS 규칙(층 밖)에 진다 — 옮긴 자리 일부가 <b>조용히</b> 달라질 수 있다.
+ * 타입체크도 화면 점검도 그건 못 본다. 큰 회사들이 시각 회귀 시험(Chromatic·Percy)으로 막는 그것이다.
+ */
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
+
+const [, , cmd, a, b] = process.argv
+const PROPS = ['color', 'background-color', 'font-size', 'font-weight', 'font-family', 'font-style', 'text-align',
+  'text-decoration-line', 'white-space', 'vertical-align', 'display', 'position', 'cursor', 'opacity',
+  'width', 'height', 'min-width', 'max-width',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+  'border-top-width', 'border-top-color', 'border-bottom-width', 'border-bottom-color',
+  'border-left-width', 'border-right-width', 'border-top-left-radius',
+  'align-items', 'justify-content', 'gap', 'flex-grow', 'flex-direction', 'flex-wrap', 'overflow-x', 'line-height']
+
+const file = (r) => (r.replace(/^\//, '').replace(/\//g, '__') || 'home') + '.json'
+
+if (cmd === 'save') {
+  const { openBrowser } = await import('./browser.mjs')
+  const prefix = b ? '/' + b.replace(/^\//, '') : ''
+  const router = readFileSync(new URL('../frontend/src/app/router.tsx', import.meta.url), 'utf8')
+  const routes = [...new Set([...router.matchAll(/path="([^"]+)"/g)].map((m) => m[1]))]
+    .filter((r) => !r.includes(':') && !r.includes('*') && r !== '/login' && r.startsWith(prefix))
+    // ROUTES=/a,/b — 몇 화면만(mobile-check 와 같은 방식). 공용 부품 하나를 쓰는 화면만 골라 뜰 때.
+    .filter((r) => !process.env.ROUTES || process.env.ROUTES.split(',').includes(r))
+  if (!prefix && !process.env.ROUTES) routes.unshift('/')
+  mkdirSync(a, { recursive: true })
+  // 처음 로그인부터 못 하면(남이 백엔드를 재기동하는 중 — ECONNREFUSED) 스택 대신 한 줄로 알리고 실패로 끝낸다.
+  // 예전에는 node 스택만 찍고 끝나 '0 화면' 인지 알아보기 어려웠다(2026-10-14 공용 4차).
+  let br
+  try { br = await openBrowser({ width: 1600, height: 900 }) }
+  catch (e) {
+    console.log(`✗ 실패 — 로그인 못 함(${e.cause?.code ?? e.message.slice(0, 60)}). 백엔드(8081)가 뜬 뒤 다시 돌린다(뜬 화면은 이어서 뜬다). 0/${routes.length}`)
+    process.exit(1)
+  }
+  let n = 0
+  // 로그인 화면이 찍힌 라우트 — 백엔드가 도중에 내려가면 앱이 /login 으로 튕기고, 그 화면을 '고친 뒤' 로 떠서
+  // 엉터리 비교가 나왔다(2026-10-14 공용 3차: 63화면이 전부 로그인 화면). 이런 화면은 저장하지 않고 '실패' 로 센다.
+  const failed = []
+  let streak = 0
+  for (const r of routes) {
+    if (existsSync(join(a, file(r)))) { n++; continue }   // 끊겼다 다시 돌리면 이어서 뜬다
+    try {
+      await br.goto(r, 1200)
+      if (await br.evaluate(`location.pathname === '/login'`)) {
+        failed.push(r)
+        console.log('  ✗ 로그인 화면', r)
+        // 연달아 셋이면 백엔드가 내려갔거나 토큰이 죽은 것 — 더 떠 봐야 다 로그인 화면이다
+        if (++streak >= 3) { console.log('  ✗ 로그인 화면이 연달아 3번 — 백엔드(8081)가 떠 있는지 보고 다시 돌린다(뜬 화면은 이어서 뜬다)'); break }
+        // 401 을 받은 앱은 토큰을 지운다 — 다시 심지 않으면 뒤의 화면도 전부 로그인 화면이다
+        try { await br.loginAs(process.env.ERP_USER ?? 'admin', process.env.ERP_PASS ?? 'admin1234') }
+        catch (e) { console.log('  ✗ 다시 로그인 못 함 —', e.message.slice(0, 80)); break }
+        continue
+      }
+      streak = 0
+      const snap = await br.evaluate(`(() => {
+        const P = ${JSON.stringify(PROPS)}, out = {}
+        // 보이는 요소만 센다 — 숨은 요소(휴대폰 전용 단추 등)를 더해도 번호가 밀리지 않게
+        const vis = (e) => e.checkVisibility ? e.checkVisibility() : getComputedStyle(e).display !== 'none'
+        const key = (el) => { const p = []; for (let e = el; e && e.id !== 'root'; e = e.parentElement) {
+          let i = 1; for (let s = e.previousElementSibling; s; s = s.previousElementSibling) if (s.tagName === e.tagName && vis(s)) i++
+          p.unshift(e.tagName.toLowerCase() + i) } return p.join('>') }
+        for (const el of document.querySelectorAll('#root *')) {
+          if (el.closest('svg') || !vis(el)) continue
+          const s = getComputedStyle(el); out[key(el)] = P.map((p) => s.getPropertyValue(p)).join('|')
+        }
+        return out })()`)
+      writeFileSync(join(a, file(r)), JSON.stringify(snap))
+      n++
+    } catch (e) {
+      console.log('  ⚠', r, e.message.slice(0, 80))
+      if (/WebSocket|closed|ECONNREFUSED/i.test(e.message)) break
+    }
+  }
+  await br.close()
+  console.log(`${n}/${routes.length} 화면을 떴다 → ${a}`)
+  if (failed.length) {
+    console.log(`✗ 실패 ${failed.length} — 로그인 화면이 찍혀 저장하지 않았다: ${failed.slice(0, 5).join(' ')}${failed.length > 5 ? ' …' : ''}`)
+    process.exit(1)
+  }
+  process.exit(n === routes.length ? 0 : 1)
+}
+
+if (cmd === 'diff') {
+  let changed = 0, screens = 0
+  const byProp = {}
+  for (const f of readdirSync(a).filter((x) => x.endsWith('.json'))) {
+    if (!existsSync(join(b, f))) { console.log('  ⚠ 후에 없음', f); continue }
+    const A = JSON.parse(readFileSync(join(a, f), 'utf8')), B = JSON.parse(readFileSync(join(b, f), 'utf8'))
+    const lines = []
+    for (const k of Object.keys(A)) {
+      if (!(k in B)) continue
+      if (A[k] === B[k]) continue
+      const x = A[k].split('|'), y = B[k].split('|')
+      const d = PROPS.map((p, i) => (x[i] !== y[i] ? `${p}: ${x[i]} → ${y[i]}` : null)).filter(Boolean)
+      for (const p of PROPS.filter((_, i) => x[i] !== y[i])) byProp[p] = (byProp[p] ?? 0) + 1
+      lines.push(`    ${k.split('>').slice(-3).join('>')}  ${d.join(' · ')}`)
+    }
+    const missing = Object.keys(A).filter((k) => !(k in B)).length
+    if (lines.length || missing) {
+      screens++; changed += lines.length
+      console.log(`■ ${f.replace(/\.json$/, '')}  — 바뀐 요소 ${lines.length}${missing ? ` · 사라진 요소 ${missing}` : ''}`)
+      lines.slice(0, 8).forEach((l) => console.log(l))
+      if (lines.length > 8) console.log(`    … 외 ${lines.length - 8}`)
+    }
+  }
+  console.log(`\n바뀐 화면 ${screens} · 바뀐 요소 ${changed}`)
+  console.log('속성별:', Object.entries(byProp).sort((x, y) => y[1] - x[1]).map(([p, c]) => `${p} ${c}`).join(' · ') || '없음')
+  process.exit(changed ? 1 : 0)
+}
+console.log('사용법: node qa/style-snapshot.mjs save <폴더> [접두사] | diff <전> <후>')
+process.exit(2)

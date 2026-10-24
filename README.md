@@ -51,7 +51,7 @@ cd backend
 > 최초 기동 시 기본 역할(ADMIN/MANAGER/STAFF)과 관리자 계정이 자동 생성됩니다.
 > **아이디: `admin` / 비밀번호: `admin1234`**
 
-### 3. 프론트엔드 (Vite, 포트 5173)
+### 3. 프론트엔드 (Vite, 포트 5180)
 
 ```bash
 cd frontend
@@ -59,13 +59,13 @@ npm install
 npm run dev
 ```
 
-브라우저에서 **http://localhost:5173** 접속 → 위 계정으로 로그인.
+브라우저에서 **http://localhost:5180** 접속 → 위 계정으로 로그인.
 
 ## 포트
 
 | 서비스 | 포트 |
 |--------|------|
-| 프론트엔드 (Vite) | 5173 |
+| 프론트엔드 (Vite) | 5180 |
 | 백엔드 (Spring Boot) | 8081 |
 | PostgreSQL | 5432 |
 
