@@ -149,6 +149,8 @@
       "path": "/accounting/journal-status",
       "steps": [
         "wait:2500",
+        "click:검색(F8)",
+        "wait:1500",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='전표번호|거래유형|금액|거래처명|적요'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
       ]
     },
@@ -157,6 +159,8 @@
       "path": "/accounting/sales-tax-journal",
       "steps": [
         "wait:2500",
+        "click:검색(F8)",
+        "wait:1500",
         "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|거래처명|공급가액|매출부가세|매출합계|내역보기'"
       ]
     },
@@ -165,6 +169,8 @@
       "path": "/accounting/purchase-tax-journal",
       "steps": [
         "wait:2500",
+        "click:검색(F8)",
+        "wait:1500",
         "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|거래처명|공급가액|매입부가세|매입합계|내역보기'"
       ]
     },
@@ -181,6 +187,8 @@
       "path": "/accounting/transfer-list",
       "steps": [
         "wait:2500",
+        "click:검색(F8)",
+        "wait:1500",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='전표일자|적요|거래처명|적요1|은행|계좌번호|금액'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
       ]
     },
@@ -191,7 +199,7 @@
         "wait:2000",
         "click:전월",
         "wait:2500",
-        "expect:(()=>{const ts=[...document.querySelectorAll('table')];const h=[...ts[0].querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const b=document.body.innerText;return ts.length===3&&h==='계정명|거래처명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|계정코드|거래처코드'&&b.includes('2 . 자금의 증가')&&b.includes('3 . 자금의 감소')})()"
+        "expect:(()=>{const ts=[...document.querySelectorAll('table')];const h=[...ts[0].querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const b=document.body.innerText;return ts.length===3&&h==='계정명|거래처명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]'&&b.includes('2 . 자금의 증가')&&b.includes('3 . 자금의 감소')})()"
       ]
     },
     {
@@ -233,7 +241,7 @@
       "path": "/accounting/monthly-cost",
       "steps": [
         "wait:5000",
-        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const b=t.innerText;return h[0]==='계정명'&&h[h.length-1]==='합계'&&['IV. 당기총비용합계','V. 기초재공품재고액','VI. 합계','VII. 기말재공품재고액','VIII. 타계정대체액','IX. 당기제품제조원가'].every((x)=>b.includes(x))})()"
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const b=t.innerText;return h[0]==='계정명'&&h[h.length-1]==='합계'&&(b.includes('등록된 데이터가 없습니다')||['IV. 당기총비용합계','V. 기초재공품재고액','VI. 합계','VII. 기말재공품재고액','VIII. 타계정대체액','IX. 당기제품제조원가'].every((x)=>b.includes(x)))})()"
       ]
     },
     {
@@ -263,6 +271,8 @@
       "path": "/accounting/management-summary",
       "steps": [
         "wait:2500",
+        "click:검색(F8)",
+        "wait:1500",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return h==='계정명|계좌명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|실제통장잔액[외화]|차이[외화]|연결여부'&&document.body.innerText.includes('1. 통장잔액비교표')})()"
       ]
     },

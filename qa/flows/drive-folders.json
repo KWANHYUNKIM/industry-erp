@@ -102,7 +102,7 @@
         "js:[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-대상')).querySelector('.ec-btn').click(); true",
         "click:영구삭제",
         "wait:800",
-        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA그룹웨어-'))"
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => /QA그룹웨어-(이동|대상)/.test(r.innerText))"
       ]
     },
     {

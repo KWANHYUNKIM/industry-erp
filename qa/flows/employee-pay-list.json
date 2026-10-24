@@ -5,7 +5,7 @@
       "name": "구간 조회 → 항목 열 → 뒷정리",
       "path": "/hr/payroll/by-employee?ledger=2091-05",
       "steps": [
-        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0004');const r=await fetch('/api/payslips',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,payMonth:'2091-05'})});sessionStorage.setItem('qaEpl',String((await r.json()).id));return r.ok})()",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0004');const l=await (await fetch('/api/payslips?month=2091-05',{headers:h})).json();const ex=l.find(p=>p.employeeId===e.id);let id=ex?ex.id:null;if(!id){const r=await fetch('/api/payslips',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,payMonth:'2091-05'})});id=(await r.json()).id}sessionStorage.setItem('qaEpl',String(id));return !!id})()",
         "js:document.querySelector('button[title^=\"Search\"], .ec-search-btn')?.click();true",
         "expect:(()=>{const t=[...document.querySelectorAll('[role=tab]')].map(x=>x.textContent);return t.join(',')==='기본,전체'})()",
         "expect:[...document.querySelectorAll('.ec-btn-pick')].map(b=>b.textContent).join(',')==='금월,전월,전월+금월,금년,전년,종료월'",
@@ -18,7 +18,7 @@
         "js:document.querySelector('button[title=\"급여대장 선택\"]').click();true",
         "wait:300",
         "expect:!!document.querySelector('[role=dialog]')&&document.querySelector('[role=dialog]').innerText.includes('급여대장')",
-        "clicklast:확인",
+        "clicklast:적용(F8)",
         "js:(async()=>{const t=localStorage.getItem('erp_token');const r=await fetch('/api/payslips/'+sessionStorage.getItem('qaEpl'),{method:'DELETE',headers:{Authorization:'Bearer '+t}});sessionStorage.setItem('qaEplDel',String(r.ok));return true})()",
         "expect:sessionStorage.getItem('qaEplDel')==='true'"
       ]

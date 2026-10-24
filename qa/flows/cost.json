@@ -1,17 +1,18 @@
 {
-  "about": "원가생성/수정 — 표준원가생성·실제원가 계산이 브라우저 입력창(prompt)을 띄우지 않고 위 [기준년월] 로 돈다. 비어 있으면 막는다(25회차 #76). 실제원가 계산은 다시 눌러도 같은 값이라(그 달 생산실적에서 다시 잼) 뒷정리가 없다.",
+  "about": "원가생성/수정 — 사전작업 [표준원가생성] 은 브라우저 입력창(prompt · confirm · alert)을 띄우지 않고 화면 안 '알림' 창(원본 문구)으로 묻는다. 2026-10-24 흐름 갱신: 원본 모양으로 바뀌며 위 [기준년월] 칸과 [실제원가 계산] 단추는 없어졌다(원가를 잡는 기간 목록 + 줄의 [표준원가생성] · [생성]). [취소] 하면 아무것도 바뀌지 않는다.",
   "shots": [
     {
-      "name": "기준년월 없이 → 막음, 고르면 그 달 실제원가",
+      "name": "[표준원가생성] → 화면 안 확인 창(원본 문구) → [취소] — 브라우저 창은 안 뜸",
       "path": "/accounting/cost-build",
       "steps": [
+        "wait:1500",
         "js:window.__prompted = 0; window.prompt = () => { window.__prompted++; return null }; window.alert = () => { window.__prompted++ }; true",
-        "click:실제원가 계산",
-        "expect:document.body.innerText.includes('위 [기준년월] 을 먼저 고르세요')",
-        "set:input[type=month]|2026-10",
-        "wait:500",
-        "click:실제원가 계산",
-        "expect:/2026-10 (실제원가 [0-9]+건을 계산했습니다|에 계산할 것이 없습니다)/.test(document.body.innerText)",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '실제원가 계산')",
+        "click:표준원가생성",
+        "expect:document.querySelector('[role=alertdialog]')?.innerText.includes('표준원가를 생성하겠습니까?')",
+        "clicklast:취소",
+        "wait:300",
+        "expect:!document.body.innerText.includes('[표준원가생성] 작업이 요청되었습니다.')",
         "expect:window.__prompted === 0"
       ]
     }
