@@ -10,6 +10,8 @@ export interface DailyPayLineRow {
   grossPay: number; incomeTax: number; localTax: number; netPay: number; direct: boolean
   /** 일근무 금액 · 공제총액 · 일근무 밖 항목(2026-10-21 — 수당등록 · 공제등록에서 더한 것) */
   dayPay?: number; deductionTotal?: number
+  /** 최종근무일 — 대장 대상기간 근무입력의 마지막 날(없으면 null) */
+  lastWorkDate?: string | null
   items?: { itemId: number; kind: 'ALLOWANCE' | 'DEDUCTION'; code: string; name: string; sortOrder: number; quantity: number | null; amount: number }[]
 }
 interface Ledger { id: number; payMonth: string; seq: number; paidMonth: string }
@@ -23,11 +25,12 @@ const slash = (s: string) => s.replace(/-/g, '/')
  *
  * <p>① '급여수정 대상자 선택' — 그 대장에 줄이 있는 사원(사원번호 · 성명 · 부서명 · 입사일자 · 퇴사일자)에 체크하고 [적용].
  * ② '급여내역수정' — 머리 귀속연월 'YYYY/MM - n' · 지급연월 · 원천세신고 사업자번호, 격자 사원번호 · 사원명 · 실지급액 ·
- * 지급총액/공제총액(두 줄) · 총근무일수 · 일근무(일수 · 금액), 우리 대장은 소득세 · 지방소득세 칸을 더 둔다. 고친 칸은 붉어지고
+ * 최종근무일 · 지급총액/공제총액(두 줄) · 총근무일수 · 일근무(한 칸: 일수 글자 | 금액칸 — 2026-10-24 재측, 금액칸 읽기 전용 ·
+ * 금액직접입력 사원만 고침), 우리 대장은 소득세 · 지방소득세 칸을 더 둔다(원본 시험 대장은 공제 0 이라 공제 열이 안 보여 못 견줌). 고친 칸은 붉어지고
  * 지급총액 · 공제총액 · 실지급액만 합으로 바뀐다. [저장(F8)] — 금액직접입력으로 셈한 사원이면 원본 확인 창
  * '금액직접입력을 통해 계산한 금액 변경시 금액직접입력에 입력한 금액도 함께 변경됩니다. 저장하겠습니까?', 저장하면 창이 닫힌다.
  *
- * <p>원본 최종근무일 칸은 우리 대장 줄에 최종근무일이 없어(근무입력에서 셈한다) 고치지 못한다. [사전작업▲] · [삭제] 는 아직 없다.
+ * <p>원본 최종근무일 칸은 날짜 입력칸이다 — 우리는 근무입력에서 셈한 값을 보이기만 하고 고치지 못한다. [사전작업▲] · [삭제] 는 아직 없다.
  */
 export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved, lineIds }: {
   ledger: Ledger | null; bizRegNo: string; onClose: () => void; onSaved: () => void
@@ -162,17 +165,17 @@ export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved, l
                 <tr>
                   <th rowSpan={2}>사원번호</th>
                   <th rowSpan={2}>사원명</th>
+                  <th rowSpan={2} className="w-[210px] text-center">최종근무일</th>
                   <th rowSpan={2} className="text-right">실지급액</th>
                   <th className="text-right">지급총액</th>
                   <th rowSpan={2} className="text-right">총근무일수</th>
-                  <th colSpan={2}>일근무</th>
+                  <th>일근무</th>
                   <th rowSpan={2} className="text-right">소득세</th>
                   <th rowSpan={2} className="text-right">지방소득세</th>
                 </tr>
                 <tr>
                   <th className="text-right">공제총액</th>
-                  <th className="text-right">일수</th>
-                  <th className="text-right">금액</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -180,24 +183,31 @@ export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved, l
                   <tr key={`${l.id}-a`}>
                     <td rowSpan={2}>{l.workerCode}</td>
                     <td rowSpan={2}>{l.workerName}</td>
+                    <td rowSpan={2} className="text-center">{l.lastWorkDate ? slash(l.lastWorkDate) : ''}</td>
                     <td rowSpan={2} className="text-right">{won(net(l))}</td>
                     <td className="text-right">{won(value(l, 'grossPay'))}</td>
                     <td rowSpan={2} className="text-right">{value(l, 'days').toFixed(2)}</td>
-                    {cell(l, 'days', '일근무 일수')}
-                    {cell(l, 'grossPay', '일근무 금액')}
+                    {/* 원본(2026-10-24 재측): 한 칸에 일수 글자 '3' | 금액칸 — 금액칸은 읽기 전용(계산한 값), 금액직접입력으로 셈한 사원만 고친다 */}
+                    <td className={changed(l, 'grossPay') ? 'bg-ec-danger-bg' : undefined}>
+                      <span className="flex items-center gap-[6px]">
+                        <span className="w-[24px] text-right">{Number(l.days)}</span>
+                        <EcNumInput className="ec-input w-full text-right" aria-label={`${l.workerName} 일근무 금액`} readOnly={!l.direct}
+                                    value={vals.get(k(l, 'grossPay')) ?? String(Number(l.grossPay))}
+                                    onValue={(raw) => { if (l.direct) setVals(new Map(vals).set(k(l, 'grossPay'), raw)) }} />
+                      </span>
+                    </td>
                     {cell(l, 'incomeTax', '소득세')}
                     {cell(l, 'localTax', '지방소득세')}
                   </tr>,
                   <tr key={`${l.id}-b`}>
                     <td className="text-right">{won(deduct(l))}</td>
-                    <td colSpan={4}></td>
+                    <td colSpan={3}></td>
                   </tr>,
                 ])}
                 <tr className="font-bold">
-                  <td colSpan={2}></td>
+                  <td colSpan={3}></td>
                   <td className="text-right">{won(total(net))}</td>
                   <td className="text-right">{won(total((l) => value(l, 'grossPay')))}<br />{won(total(deduct))}</td>
-                  <td></td>
                   <td></td>
                   <td className="text-right">{won(total((l) => value(l, 'grossPay')))}</td>
                   <td className="text-right">{won(total((l) => value(l, 'incomeTax')))}</td>
