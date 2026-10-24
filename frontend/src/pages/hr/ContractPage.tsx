@@ -9,6 +9,7 @@ import type { Department, EmployeeMaster, EmploymentContract, Project } from '..
 import { ymd } from '../../utils/periods'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import ContractSettingModal from '../../features/contract/ContractSettingModal'
+import ContractItemsModal, { type ContractItem } from '../../features/contract/ContractItemsModal'
 
 const slash = (s: string) => s.replace(/-/g, '/')
 /** 원본 '2026/10/21 오후 1:36:00' */
@@ -368,7 +369,8 @@ function CopyForm({ source, onError, onSaved }: { source: EmploymentContract; on
 
 /**
  * 원본 '수신정보입력' 창 — 계약참여자1 [항목등록] · [전송정보입력](전달방식 Email · SMS · 카카오톡 · 직접서명, 찾기 탭 사원 · 일용근로사원),
- * 계약참여자2 사용여부(사용 · 사용안함). 우리는 계약참여자1의 사원 · 전달방식만 담는다(계약참여자2 는 사용안함 고정).
+ * 계약참여자2 사용여부(사용 · 사용안함). 우리는 계약참여자1의 사원 · 전달방식 · 항목 값을 담는다(계약참여자2 는 사용안함 고정).
+ * [항목등록] 은 features/contract/ContractItemsModal — 등록한 항목마다 값 칸이 붙는다(원본은 [전송정보입력] 격자의 열).
  */
 function RecipientForm({ contract, employees, onError, onSaved }: {
   contract: EmploymentContract; employees: EmployeeMaster[]; onError: (m: string) => void; onSaved: () => void
@@ -376,11 +378,23 @@ function RecipientForm({ contract, employees, onError, onSaved }: {
   const [employeeId, setEmployeeId] = useState(contract.employeeId ? String(contract.employeeId) : '')
   const [method, setMethod] = useState<string>(contract.deliveryMethod ?? 'EMAIL')
   const [bad, setBad] = useState(false)
+  /** [항목등록] 한 항목 — 원본 [전송정보입력] 격자의 항목 열. 우리는 받는 사원이 하나라 값 칸 하나씩. */
+  const [items, setItems] = useState<ContractItem[]>([])
+  const [itemsOpen, setItemsOpen] = useState(false)
+  function loadItems() {
+    api.get<ContractItem[]>(`/employment-contracts/${contract.id}/items`)
+      .then((r) => setItems((prev) => r.data.map((it) => ({ ...it, value: prev.find((p) => p.id === it.id)?.value ?? it.value }))))
+      .catch((e) => onError(extractErrorMessage(e)))
+  }
+  useEffect(() => { loadItems() }, [contract.id]) // eslint-disable-line react-hooks/exhaustive-deps
   async function save() {
     if (!employeeId) { setBad(true); return }
     onError('')
     try {
-      await api.put(`/employment-contracts/${contract.id}/recipient`, { employeeId: Number(employeeId), deliveryMethod: method })
+      await api.put(`/employment-contracts/${contract.id}/recipient`, {
+        employeeId: Number(employeeId), deliveryMethod: method,
+        items: items.map((it) => ({ id: it.id, value: it.value ?? '' })),
+      })
       onSaved()
     } catch (e) { onError(extractErrorMessage(e)) }
   }
@@ -394,6 +408,15 @@ function RecipientForm({ contract, employees, onError, onSaved }: {
                              items={employees.filter((e) => e.active !== false).map((e) => ({ value: String(e.id), code: e.code, name: e.name, sub: e.department || null }))} />
           </span>
         </EcCond>
+        <EcCond label="항목등록">
+          <a href="#" onClick={(ev) => { ev.preventDefault(); setItemsOpen(true) }}>항목등록</a>
+        </EcCond>
+        {items.map((it) => (
+          <EcCond key={it.id} label={it.name}>
+            <input aria-label={it.name} className="ec-input w-[220px]" value={it.value ?? ''}
+                   onChange={(e) => setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, value: e.target.value } : x)))} />
+          </EcCond>
+        ))}
         <EcCond label="전달방식">
           <span className="inline-flex gap-[9px]">
             {METHODS.map((m) => (
@@ -411,6 +434,7 @@ function RecipientForm({ contract, employees, onError, onSaved }: {
         </EcCond>
       </ul>
       <div className="flex gap-[6px] mt-[9px]"><button type="button" className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button></div>
+      <ContractItemsModal contractId={contract.id} open={itemsOpen} onClose={() => setItemsOpen(false)} onChanged={loadItems} />
     </div>
   )
 }
