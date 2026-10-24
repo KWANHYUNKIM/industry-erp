@@ -92,7 +92,7 @@ const won = (n: number) => n.toLocaleString('ko-KR')
  * <p>부가세유형 칸은 접혀 있다 — 유형 아래 표지(전자(세금)계산서-신규 · 예정누락아님)만 보이고 누르면 [전자종류] · [예정누락분]이 펼쳐진다.
  * 수정 창 [이전] · [다음] · [H](전표이력보기)는 원본대로 둔다.
  *
- * <p>두지 않은 것: 연결거래 고르기(원본도 '없음'만 보였다) · [매출전표II로 변경](남의 전표라 눌러 보지 못했다) · [보내기] · [웹자료올리기].
+ * <p>두지 않은 것: 연결거래 고르기(원본도 '없음'만 보였다) · [보내기] · [웹자료올리기].
  */
 export default function VatSlipPage({ sales }: { sales: boolean }) {
   const navigate = useNavigate()
@@ -294,8 +294,17 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
   }
 
   /* 원본 수정 창 버튼(2026-10-13 실측) — 매출: 저장 · 저장/전표 · 복사 · 매출전표II로 변경 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H,
-     매입: 저장 · 저장/전표 · 복사 · 매입전표II로 변경 · 삭제 · 닫기 · 보내기 · H. II로 변경 · 보내기는 아직 없다.
+     매입: 저장 · 저장/전표 · 복사 · 매입전표II로 변경 · 삭제 · 닫기 · 보내기 · H. II로 변경은 있고 보내기는 아직 없다.
      [이전]은 회계거래조회 목록의 아래 줄 전표(26/10/28-1 → 26/10/26-1 매입전표 I 창), [다음]은 윗줄. */
+  /** [매출전표II로 변경] · [매입전표II로 변경] — 원본은 확인 없이 바꾸고 창을 닫아 회계거래조회로 간다(되돌리기 없음). */
+  async function toII() {
+    try {
+      await api.post(`/journals/vat-slip/${editId}/to-ii`)
+      navigate('/accounting/journals')
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
   const nav = editId ? journalNeighbors(`${sales ? '/accounting/sales-slip' : '/accounting/purchase-slip'}?journal=${editId}`) : { prev: null, next: null }
   const actions = editId
     ? (sales
@@ -303,6 +312,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
           { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
           { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving || detailOpen },
           { label: '복사', onClick: copy },
+          { label: '매출전표II로 변경', onClick: () => void toII() },
           { label: '이전', onClick: () => nav.prev && navigate(nav.prev), disabled: !nav.prev },
           { label: '다음', onClick: () => nav.next && navigate(nav.next), disabled: !nav.next },
           { label: '닫기', onClick: () => navigate('/accounting/journals') },
@@ -313,6 +323,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
           { label: '저장(F8)', primary: true, submit: true, disabled: saving || detailOpen },
           { label: '저장/전표(F7)', onClick: () => void save(), disabled: saving || detailOpen },
           { label: '복사', onClick: copy },
+          { label: '매입전표II로 변경', onClick: () => void toII() },
           { label: '삭제', onClick: () => setConfirmDelete(true) },
           { label: '닫기', onClick: () => navigate('/accounting/journals') },
           { label: 'H', onClick: () => setHistoryOpen(true) },

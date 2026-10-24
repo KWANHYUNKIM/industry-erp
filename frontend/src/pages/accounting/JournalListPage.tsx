@@ -53,7 +53,7 @@ function slipKey(r: { entryDate: string; docNo: string; id: number }) {
 }
 
 /** 원본 [거래유형] 이름 — 판매 회계반영은 '매출전표 I', 구매는 '매입전표 I', 직접 입력은 '일반전표'. */
-const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표', VAT_SALES: '매출전표 I', VAT_PURCHASE: '매입전표 I',
+const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표', VAT_SALES: '매출전표 I', VAT_PURCHASE: '매입전표 I', VAT_SALES_II: '매출전표 II', VAT_PURCHASE_II: '매입전표 II',
   /* 원본 거래유형(2026-10-21 실측 plans/회계1/고정자산.md): 증가 · 감소 전표 이름 그대로 — [업무구분] 고정자산 조건도 이 이름으로 건다. */
   ASSET_ACQUISITION: '고정자산증가', DISPOSAL: '고정자산감소' }
 /**
@@ -127,7 +127,7 @@ export default function JournalListPage() {
     ? `${VOUCHER_SCREEN_BY_TYPE_NAME[voucherType[r.id]] ?? '/accounting/vouchers'}?journal=${r.id}`
     : VAT_SLIP_SCREEN[r.sourceType] ? `${VAT_SLIP_SCREEN[r.sourceType]}?journal=${r.id}`
     /* 일반전표(E010201) — 전표번호를 누르면 일반전표 수정 창(원본 실측). 현금거래 · 영수증으로 간편전표는 빼고. */
-    : r.sourceType === 'MANUAL' && cashQuickTotal[r.id] == null && payeeOf[r.id] == null ? `/accounting/journal-entry?journal=${r.id}` : null
+    : (r.sourceType === 'MANUAL' || (r.sourceType as string) === 'VAT_SALES_II' || (r.sourceType as string) === 'VAT_PURCHASE_II') && cashQuickTotal[r.id] == null && payeeOf[r.id] == null ? `/accounting/journal-entry?journal=${r.id}` : null
   const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? noteLabel(r) ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
   const rowBg = (r: JournalEntry) => (r.sourceType as string) === 'SALES' || (r.sourceType as string) === 'SALES_BATCH' || (r.sourceType as string) === 'VAT_SALES' ? 'bg-[var(--ec-bg-sales-row)]'
