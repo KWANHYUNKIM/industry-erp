@@ -73,8 +73,9 @@ public class JournalController {
 
     /** 매출전표 I · 매입전표 I 수정 창 [매출전표II로 변경] · [매입전표II로 변경] — 확인 없이 II 종류로 바꾼다. */
     @PostMapping("/vat-slip/{id}/to-ii")
-    public JournalEntryResponse vatSlipToII(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
-        return JournalEntryResponse.from(journalService.toSlipII(id, principal.getUsername()));
+    public ResponseEntity<Void> vatSlipToII(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        journalService.toSlipII(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
     }
 
     /** 현금거래 간편입력 */

@@ -236,7 +236,7 @@ public class JournalService {
      * 분개 줄 · 부가세유형 · 세부내역은 그대로 둔다(원본 II 격자에 부가세 칸이 없어 어디로 가는지는 못 쟀다).
      */
     @Transactional
-    public JournalEntry toSlipII(Long id, String username) {
+    public void toSlipII(Long id, String username) {
         JournalEntry e = entryRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
         JournalSourceType to = e.getSourceType() == JournalSourceType.VAT_SALES ? JournalSourceType.VAT_SALES_II
@@ -249,7 +249,7 @@ public class JournalService {
         }
         e.setSourceType(to);
         e.setUpdatedBy(username);
-        return save(e);
+        save(e);
     }
 
     /**
