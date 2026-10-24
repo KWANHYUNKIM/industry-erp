@@ -11465,8 +11465,10 @@ async function scenarioNewCompany() {
     ['통화', '/currencies', 4],
     ['급여항목', '/pay-settings/items', 5],
   ]) {
-    const 본사것 = await must('GET', path)
-    const 회사것 = await 그쪽(path)
+    // 시험이 남긴 QA 자료(이름이 QA 로 시작)는 씨앗이 아니다 — 급여항목은 다른 흐름이 만든 QA관리-… 가 남아 있으면 본사만 늘어 어긋났다
+    const 씨앗만 = (xs) => xs.filter((x) => !String(x.name ?? '').startsWith('QA'))
+    const 본사것 = 씨앗만(await must('GET', path))
+    const 회사것 = 씨앗만(await 그쪽(path))
     eq(`본사에 ${이름표} 씨앗이 ${최소}개 이상 있다`, 본사것.length >= 최소, true)
     eq(`새 회사에도 ${이름표} 씨앗이 그만큼 있다`,
       `${이름표} ${회사것.length}개`, `${이름표} ${본사것.length}개`)
