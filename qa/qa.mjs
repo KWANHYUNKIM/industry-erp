@@ -1636,6 +1636,8 @@ async function scenarioPurchaseOrder(f) {
   const balAll = async () => must('GET', '/ledger/partner-balances')
   const arOf = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.receivable ?? 0)
   const apOf = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.payable ?? 0)
+  const unb = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.unbilledReceivable ?? 0)
+  const unb0 = await unb(f.customer.id)
   const ar0 = await arOf(f.customer.id)
   const half = await must('POST', '/sales', {
     saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
@@ -1646,6 +1648,7 @@ async function scenarioPurchaseOrder(f) {
   eq('[원본] 판매 3 × 333.5 → 합계 1,101', Number(half.totalAmount), 1101)
   eq('라인 공급가액도 1,001 (전표 합과 같다)', Number(half.lines[0].supplyAmount), 1001)
   eq('[일관성] 채권이 합계 1,101 만큼 는다', (await arOf(f.customer.id)) - ar0, 1101)
+  eq('[원본] 세금계산서 없는 판매는 미청구금액이 합계만큼 는다', (await unb(f.customer.id)) - unb0, 1101)
   const back = await must('POST', '/sales', {
     saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
     returnSlip: true, lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
