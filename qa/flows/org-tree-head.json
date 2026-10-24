@@ -5,7 +5,8 @@
       "name": "준비 — 시험 부서 하나 · 사원 둘",
       "path": "/groupware/org-tree",
       "steps": [
-        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/departments', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-H1', name: 'QA그룹웨어-부서장시험', sortOrder: 99 }) })).json(); const a = await fetch('/api/employees', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-E1', name: 'QA그룹웨어-사원1', departmentId: d.id, jobTitle: '사원' }) }); const b = await fetch('/api/employees', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-E2', name: 'QA그룹웨어-사원2', departmentId: d.id, jobTitle: '과장' }) }); return d.id + ' ' + a.status + ' ' + b.status })()"
+        "allowapi:409: /api/",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const J = async (u) => (await fetch(u, { headers: H })).json(); let d = (await J('/api/departments')).find((y) => y.code === 'QAGW-H1'); if (!d) d = await (await fetch('/api/departments', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-H1', name: 'QA그룹웨어-부서장시험', sortOrder: 99 }) })).json(); await fetch('/api/departments/' + d.id + '/head', { method: 'PUT', headers: H, body: JSON.stringify({ employeeId: null }) }); const es = await J('/api/employees'); const out = []; for (const [code, name, title] of [['QAGW-E1', 'QA그룹웨어-사원1', '사원'], ['QAGW-E2', 'QA그룹웨어-사원2', '과장']]) { const e = es.find((y) => y.code === code); if (e) { if (e.departmentId !== d.id) await fetch('/api/employees/' + e.id + '/department', { method: 'PUT', headers: H, body: JSON.stringify({ departmentId: d.id }) }); out.push(code + ' 있음') } else out.push(code + ' ' + (await fetch('/api/employees', { method: 'POST', headers: H, body: JSON.stringify({ code, name, departmentId: d.id, jobTitle: title }) })).status) } return d.id + ' ' + out.join(' ') })()"
       ]
     },
     {
@@ -17,7 +18,7 @@
         "expect:[...document.querySelectorAll('#org-members thead th')].map((t) => t.textContent.trim()).slice(1).join('|') === '사용자ID|사원번호|성명|소속부서|직위/직급|부서장'",
         "expect:[...document.querySelectorAll('#org-members tbody tr')].every((r) => r.cells[6].textContent.trim() === '일반')",
         "click:부서장지정",
-        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')",
+        "expect:/리스트에 선택된 자료가 없습니다\\.\\s+체크박스에 체크한 후 다시 시도 바랍니다\\./.test(document.body.innerText)",
         "js:[...document.querySelectorAll('#org-members tbody tr')].forEach((r) => r.cells[0].click()); true",
         "click:부서장지정",
         "expect:document.body.innerText.includes('리스트에 하나만 체크가 되어야 합니다.')",
@@ -44,7 +45,8 @@
       "name": "정리 — 시험 사원 · 부서 지움",
       "path": "/groupware/org-tree",
       "steps": [
-        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const out = []; const e = await (await fetch('/api/employees', { headers: H })).json(); for (const c of ['QAGW-E1', 'QAGW-E2']) { const x = e.find((y) => y.code === c); if (x) out.push(c + ' ' + (await fetch('/api/employees/' + x.id, { method: 'DELETE', headers: H })).status) } const d = await (await fetch('/api/departments', { headers: H })).json(); const x = d.find((y) => y.code === 'QAGW-H1'); if (x) out.push('QAGW-H1 ' + (await fetch('/api/departments/' + x.id, { method: 'DELETE', headers: H })).status); return out.join(' / ') })()"
+        "allowapi:409: /api/",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const out = []; const ds = (await (await fetch('/api/departments', { headers: H })).json()).filter((y) => y.code === 'QAGW-H1'); for (const x of ds) await fetch('/api/departments/' + x.id + '/head', { method: 'PUT', headers: H, body: JSON.stringify({ employeeId: null }) }); const e = await (await fetch('/api/employees', { headers: H })).json(); for (const c of ['QAGW-E1', 'QAGW-E2']) { const x = e.find((y) => y.code === c); if (x) out.push(c + ' ' + (await fetch('/api/employees/' + x.id, { method: 'DELETE', headers: H })).status) } for (const x of ds) out.push('QAGW-H1 ' + (await fetch('/api/departments/' + x.id, { method: 'DELETE', headers: H })).status); return out.join(' / ') })()"
       ]
     }
   ]

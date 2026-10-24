@@ -56,7 +56,7 @@
       "steps": [
         "wait:2500",
         "js:window.__tr = () => { const t = [...document.querySelectorAll('tbody tr')]; const i = t.findIndex((r) => r.cells[0] && r.cells[0].innerText.trim() === 'QAB9P'); return t.slice(i, i + 5) }; window.__lab = () => window.__tr().map((r, k) => r.cells[k ? 0 : 2].innerText.trim()).join('|'); window.__col = () => { const ym = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 7).replace('-', '/'); return [...document.querySelectorAll('thead th')].findIndex((h) => h.innerText.trim() === ym) }; window.__v = (k) => { const r = window.__tr()[k]; const v = r.cells[window.__col() - (k ? 2 : 0)].innerText.replace(/,/g, '').trim(); return v === '' ? 0 : Number(v) }; true",
-        "expect:window.__lab() === '매입|지급|기타할인등차액|잔액|미회수액' && window.__v(0) === 1100 && window.__v(3) >= 1100"
+        "expect:window.__lab() === '매입|지급|기타할인등차액|잔액|미지급액' && window.__v(0) === 1100 && window.__v(3) >= 1100"
       ]
     }
   ],
