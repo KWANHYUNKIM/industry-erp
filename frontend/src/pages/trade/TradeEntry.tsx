@@ -1315,6 +1315,16 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       ...(isAdjust ? { discountSupply: discount.supply, discountVat: discount.vat, inputII: true } : {}),
     }
     if (isAdjust && discount.total > totals.total) return setError('할인 합계가 거래 합계보다 큽니다.')
+    /*
+     * 회계반영된 판매(판매입력 II 로 저장한 전표 등)를 고쳐 합계가 달라지면 원본(2026-10-22 판매입력 II(수정) 실측: 수량 3 [저장])은
+     * 알림을 띄운다 — [확인] 이면 저장하고 회계전표는 그대로 둔다(차이가 채권의 기타할인등차액). 합계가 같으면 말 없이 저장한다.
+     */
+    if (editing && mode === 'sales') {
+      const old = docs.find((x) => x.id === editing.id) as SalesDoc | undefined
+      if (old?.accountingReflected && Math.round(net.total) !== Math.round(Number(old.totalAmount))) {
+        if (!(await ecConfirm("판매전표와 회계전표의 정보가 서로 다릅니다.\n정보가 다른 경우 거래처관리대장 조회시 '기타할인등차액'이 발생할 수 있습니다.\n계속 저장하겠습니까?\n- 합계금액"))) return
+      }
+    }
     try {
       // 수정 모드면 PUT — 서버가 옛 라인의 재고를 되돌리고 새 라인으로 다시 반영한다.
       const res = editing
