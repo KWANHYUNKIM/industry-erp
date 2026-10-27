@@ -3729,10 +3729,12 @@ async function scenarioCreatedByFk() {
   eq('관리자는 admin 으로 온다', adminP.admin, true)
 
   // 마지막에 쓴 값 기억(/me/memory) — 계정마다 서버에 남는다
-  eq('기억이 없으면 null', (await must('GET', '/me/memory/qa-head:sales')).value, null)
-  await must('PUT', '/me/memory/qa-head:sales', { value: '{"date":"2026-01-02"}' })
-  await must('PUT', '/me/memory/qa-head:sales', { value: '{"date":"2026-01-03"}' })
-  eq('기억을 덮어쓰면 마지막 값', (await must('GET', '/me/memory/qa-head:sales')).value, '{"date":"2026-01-03"}')
+  // 열쇠는 돌릴 때마다 새로 — 같은 열쇠면 두 번째 돌릴 때 앞 회차 값이 남아 'null' 단언이 깨진다
+  const memKey = `qa-head:${Date.now()}`
+  eq('기억이 없으면 null', (await must('GET', `/me/memory/${memKey}`)).value, null)
+  await must('PUT', `/me/memory/${memKey}`, { value: '{"date":"2026-01-02"}' })
+  await must('PUT', `/me/memory/${memKey}`, { value: '{"date":"2026-01-03"}' })
+  eq('기억을 덮어쓰면 마지막 값', (await must('GET', `/me/memory/${memKey}`)).value, '{"date":"2026-01-03"}')
 
   const rows = (await must('GET', `/cash-plans?period=${PERIOD}`)).plans
   eq('자금계획의 작성자가 그 사용자로 남음', rows.find((c) => c.id === plan.id) !== undefined, true)
