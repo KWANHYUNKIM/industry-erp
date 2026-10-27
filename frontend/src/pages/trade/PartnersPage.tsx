@@ -216,15 +216,13 @@ export default function PartnersPage() {
   }
 
   /**
-   * 원본 [신규] 는 거래처코드 칸에 다음 번호를 미리 채운다(loginaa: 10001 · 10003 이 있으면 10004).
-   * 다섯 자리 숫자 코드 중 가장 큰 것 + 1, 없으면 10001. 사람이 지우고 다른 코드를 써도 된다.
+   * 원본 [신규] 는 거래처코드 칸에 다음 번호를 미리 채운다. 원본 [Fn] › 번호생성설정(2026-10-27 실측): 직접입력(수정가능) ·
+   * 생성기준 '일련번호(5) 00001' — <b>다섯 자리 숫자 코드</b> 중 가장 큰 것 + 1 이다. 10 · 12 자리 숫자 코드(사업자번호 · 1234567101 …)가
+   * 있어도 원본은 00017 다음 00018 을 채웠다. 다섯 자리 코드가 없으면 00001. 사람이 지우고 다른 코드를 써도 된다.
    */
   function nextCode() {
-    /* 순수 숫자 코드 중 가장 큰 것 + 1 을 그 코드 폭(앞 0 포함)에 맞춰 채운다. 숫자 코드가 없으면 빈칸. */
-    const nums = partners.map((x) => x.code).filter((c) => /^\d{1,9}$/.test(c))
-    if (!nums.length) return ''
-    const width = Math.max(...nums.map((c) => c.length))
-    return String(Math.max(...nums.map(Number)) + 1).padStart(width, '0')
+    const nums = partners.map((x) => x.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
+    return String((nums.length ? Math.max(...nums) : 0) + 1).padStart(5, '0')
   }
 
   function openCreate() {
