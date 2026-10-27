@@ -52,7 +52,7 @@ export default function CardListPage() {
     Promise.all([
       api.get<CreditCardRow[]>('/bank-cards/cards'),
       api.get<BankAccountRow[]>('/bank-cards/accounts'),
-      api.get<AccountOption[]>('/accounts'),
+      api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
     ]).then(([c, b, a]) => { setRows(c.data); setBanks(b.data); setAccounts(a.data) })
       .catch((e) => setError(extractErrorMessage(e)))
   }

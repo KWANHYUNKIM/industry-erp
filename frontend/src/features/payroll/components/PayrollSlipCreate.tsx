@@ -27,7 +27,7 @@ export default function PayrollSlipCreate({ ledger, onClose, onSaved }: { ledger
   useEffect(() => {
     if (!ledger) return
     setError(''); setDate(ymd(new Date()))
-    Promise.all([api.get<Account[]>('/accounts'), api.get<Payslip[]>('/payslips', { params: { month: ledger.payMonth } })])
+    Promise.all([api.get<Account[]>('/accounts', { params: { slip: true } }), api.get<Payslip[]>('/payslips', { params: { month: ledger.payMonth } })])
       .then(([a, p]) => {
         setAccounts(a.data)
         const by = (code: string) => String(a.data.find((x) => x.code === code)?.id ?? '')

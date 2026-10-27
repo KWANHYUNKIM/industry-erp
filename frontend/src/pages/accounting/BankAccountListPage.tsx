@@ -57,7 +57,7 @@ export default function BankAccountListPage() {
     setError('')
     Promise.all([
       api.get<BankAccountRow[]>('/bank-cards/accounts'),
-      api.get<AccountOption[]>('/accounts'),
+      api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
       api.get<Currency[]>('/currencies'),
     ]).then(([b, a, c]) => { setRows(b.data); setAccounts(a.data); setCurrencies(c.data) })
       .catch((e) => setError(extractErrorMessage(e)))

@@ -25,7 +25,7 @@ export function useBondMasters(): BondMasters {
   const [projects, setProjects] = useState<CodeItem[]>([])
   useEffect(() => {
     type Opt = { id: number; code: string; name: string; active?: boolean }
-    api.get<Opt[]>('/accounts').then((r) => setAccounts(r.data.filter((a) => a.active !== false)
+    api.get<Opt[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data.filter((a) => a.active !== false)
       .map((a) => ({ value: String(a.id), code: a.code, name: a.name })))).catch(() => {})
     api.get<PartnerLike[]>('/partners').then((r) => setPartners(partnerCodeItems(r.data))).catch(() => {})
     api.get<Opt[]>('/departments').then((r) => setDepartments(r.data

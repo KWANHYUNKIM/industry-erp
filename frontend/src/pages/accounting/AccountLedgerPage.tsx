@@ -64,7 +64,7 @@ export default function AccountLedgerPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
+    api.get<AccountOpt[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
     api.get<{ fiscalStart?: string } | null>('/preferences')
       .then((r) => { const m = Number(r.data?.fiscalStart); if (m >= 1 && m <= 12) setFiscalStart(m) })
       .catch(() => setFiscalStart(null))

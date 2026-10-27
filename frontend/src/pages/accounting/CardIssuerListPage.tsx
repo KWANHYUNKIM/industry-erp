@@ -46,7 +46,7 @@ export default function CardIssuerListPage() {
     Promise.all([
       api.get<CardIssuer[]>('/card-issuers'),
       api.get<BankAccountRow[]>('/bank-cards/accounts'),
-      api.get<AccountOption[]>('/accounts'),
+      api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
     ]).then(([c, b, a]) => { setRows(c.data); setBanks(b.data); setAccounts(a.data) })
       .catch((e) => setError(extractErrorMessage(e)))
   }

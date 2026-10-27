@@ -57,7 +57,7 @@ export default function ReceiptPaymentPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
-    Promise.all([api.get<AccountOption[]>('/accounts'), api.get<BankAccountRow[]>('/bank-cards/accounts')])
+    Promise.all([api.get<AccountOption[]>('/accounts', { params: { slip: true } }), api.get<BankAccountRow[]>('/bank-cards/accounts')])
       .then(([a, b]) => { setAccounts(a.data); setBanks(b.data) })
       .catch((e) => setError(extractErrorMessage(e)))
   }, [])

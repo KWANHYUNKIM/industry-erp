@@ -59,7 +59,7 @@ export default function AccountRemarkLedgerPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
+    api.get<AccountOpt[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
   }, [])
 
   async function load() {

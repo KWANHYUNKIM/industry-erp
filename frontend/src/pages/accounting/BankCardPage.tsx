@@ -103,7 +103,7 @@ export default function BankCardPage() {
         api.get<BankTxnList>('/bank-cards/transactions', { params: { from: txnFrom || undefined, to: txnTo || undefined } }),
         /* 카드사용내역도 같은 [기간]을 쓴다 — 한 화면 안에서 예금·카드가 다른 구간을 보면 헷갈린다. */
         api.get<CardUsage[]>('/bank-cards/usages', { params: { from: txnFrom || undefined, to: txnTo || undefined } }),
-        api.get<AccountOption[]>('/accounts'),
+        api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
         api.get<Partner[]>('/partners'),
       ])
       setAccounts(a.data)

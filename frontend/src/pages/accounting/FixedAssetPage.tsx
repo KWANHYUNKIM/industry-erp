@@ -57,7 +57,7 @@ export default function FixedAssetPage() {
     try {
       const [a, acc] = await Promise.all([
         api.get<FixedAsset[]>('/fixed-assets', { params: { from: pFrom || undefined, to: pTo || undefined } }),
-        api.get<AccountOption[]>('/accounts'),
+        api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
       ])
       setAssets(a.data)
       setAccounts(acc.data)

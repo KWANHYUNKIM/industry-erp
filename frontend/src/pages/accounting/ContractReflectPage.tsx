@@ -112,7 +112,7 @@ export default function ContractReflectPage() {
   }
   useEffect(() => {
     void load()
-    api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
+    api.get<AccountOpt[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
     api.get<{ id: number; code: string; name: string }[]>('/warehouses')
       .then((r) => setWarehouses(r.data.map((w) => ({ value: String(w.id), code: w.code, name: w.name })))).catch(() => setWarehouses([]))
   // eslint-disable-next-line react-hooks/exhaustive-deps

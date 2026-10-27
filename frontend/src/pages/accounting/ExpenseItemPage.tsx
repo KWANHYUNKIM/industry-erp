@@ -60,7 +60,7 @@ export default function ExpenseItemPage() {
   }
   useEffect(() => {
     load()
-    api.get<Account[]>('/accounts').then((r) => setAccounts(r.data.filter((a) => a.active))).catch(() => undefined)
+    api.get<Account[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data.filter((a) => a.active))).catch(() => undefined)
     api.get<ExpenseControlType[]>('/expense-control-types').then((r) => setControls(r.data)).catch(() => undefined)
     api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => undefined)
   }, [])

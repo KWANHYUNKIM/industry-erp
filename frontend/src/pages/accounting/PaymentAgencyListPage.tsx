@@ -62,7 +62,7 @@ export default function PaymentAgencyListPage() {
     Promise.all([
       api.get<PaymentAgency[]>('/payment-agencies'),
       api.get<BankAccountRow[]>('/bank-cards/accounts'),
-      api.get<AccountOption[]>('/accounts'),
+      api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
     ]).then(([p, b, a]) => { setRows(p.data); setBanks(b.data); setAccounts(a.data) })
       .catch((e) => setError(extractErrorMessage(e)))
   }

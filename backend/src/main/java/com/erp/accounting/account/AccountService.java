@@ -20,7 +20,14 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public List<AccountResponse> findAll() {
+        return findAll(false);
+    }
+
+    /** slipOnly 면 묶음 계정(전표에 못 쓰는 합계용 계정)을 뺀다 — 원본 계정 코드도움과 같다. */
+    @Transactional(readOnly = true)
+    public List<AccountResponse> findAll(boolean slipOnly) {
         return accountRepository.findAll(Sort.by(Sort.Direction.ASC, "code")).stream()
+                .filter(a -> !slipOnly || !a.isGroupAccount())
                 .map(AccountResponse::from)
                 .toList();
     }

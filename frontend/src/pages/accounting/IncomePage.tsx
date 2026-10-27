@@ -39,7 +39,7 @@ export default function IncomePage() {
 
   useEffect(() => {
     load()
-    api.get<Account[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => {})
+    api.get<Account[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch(() => {})
     api.get<BankAccountRow[]>('/bank-cards/accounts').then((r) => setBanks(r.data)).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
