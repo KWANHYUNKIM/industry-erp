@@ -1,5 +1,6 @@
 package com.erp.accounting.promissorynote;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.bankcard.BankCardService;
 import com.erp.accounting.journal.JournalService;
 import com.erp.common.ApiException;
@@ -37,8 +38,8 @@ import com.erp.accounting.promissorynote.dto.PromissoryNoteDtos;
 @RequiredArgsConstructor
 public class PromissoryNoteService {
 
-    private static final String ACC_NOTES_RECEIVABLE = "110";   // 받을어음
-    private static final String ACC_NOTES_PAYABLE = "252";      // 지급어음
+    private static final String ACC_NOTES_RECEIVABLE = StandardAccounts.NOTES_RECEIVABLE;   // 받을어음
+    private static final String ACC_NOTES_PAYABLE = StandardAccounts.NOTES_PAYABLE;      // 지급어음
 
     private final PromissoryNoteRepository noteRepository;
     private final BusinessPartnerRepository partnerRepository;

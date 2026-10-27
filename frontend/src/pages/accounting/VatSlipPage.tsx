@@ -134,7 +134,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
   /* 원본 기본 계정: 매출 4049 제품매출 · 1089 외상매출금, 매입 1539 원재료 · 2519 외상매입금(우리 코드 404 · 108 · 153 · 251). */
   const defaults = useMemo(() => {
     const id = (code: string) => String(accounts.find((a) => a.code === code)?.id ?? '')
-    return sales ? { main: id('404'), settle: id('108') } : { main: id('153'), settle: id('251') }
+    return sales ? { main: id('4049'), settle: id('1089') } : { main: id('1539'), settle: id('2519') }
   }, [accounts, sales])
   useEffect(() => {
     api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
@@ -146,9 +146,9 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
     if (!editId) return
     api.get<VatEntry>(`/journals/${editId}`).then(({ data: e }) => {
       const lines = e.lines
-      const vatCode = sales ? '255' : '135'
-      const mainLine = lines.find((l) => (sales ? l.credit > 0 : l.debit > 0) && l.accountCode !== vatCode && l.accountCode !== '831')
-      const settleLine = lines.find((l) => (sales ? l.debit > 0 : l.credit > 0) && l.accountCode !== '831')
+      const vatCode = sales ? '2559' : '1359'
+      const mainLine = lines.find((l) => (sales ? l.credit > 0 : l.debit > 0) && l.accountCode !== vatCode && l.accountCode !== '8319')
+      const settleLine = lines.find((l) => (sales ? l.debit > 0 : l.credit > 0) && l.accountCode !== '8319')
       const sum = (pred: (l: (typeof lines)[number]) => boolean, side: 'debit' | 'credit') =>
         lines.filter(pred).reduce((a, l) => a + l[side], 0)
       setLoaded(e)
@@ -163,7 +163,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
       setPartnerId(e.partnerId ? String(e.partnerId) : '')
       setSupply(String(mainLine ? (sales ? mainLine.credit : mainLine.debit) : 0))
       setVat(String(sum((l) => l.accountCode === vatCode, sales ? 'credit' : 'debit')))
-      setFee(str(sum((l) => l.accountCode === '831', 'debit')))
+      setFee(str(sum((l) => l.accountCode === '8319', 'debit')))
       setMemo(e.description && e.description !== e.partnerName ? e.description : '')
       setAccountId(mainLine ? String(mainLine.accountId) : '')
       setSettleId(settleLine ? String(settleLine.accountId) : '')

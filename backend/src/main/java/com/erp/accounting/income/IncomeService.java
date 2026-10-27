@@ -1,5 +1,6 @@
 package com.erp.accounting.income;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.account.AccountService;
 import com.erp.accounting.bankcard.BankCardService;
 import com.erp.accounting.journal.JournalService;
@@ -49,7 +50,7 @@ import com.erp.accounting.journal.dto.JournalDtos;
 @RequiredArgsConstructor
 public class IncomeService {
 
-    private static final String ACC_RECEIVABLE = "108";   // 외상매출금
+    private static final String ACC_RECEIVABLE = StandardAccounts.RECEIVABLE;   // 외상매출금
 
     private final IncomeRepository incomeRepository;
     private final ExpenseRepository expenseRepository;

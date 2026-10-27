@@ -16,8 +16,8 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
 
 interface AccountOpt { id: number; code: string; name: string }
 /** 현금 계정과 [예금포함]으로 더하는 예금 계정(StandardAccounts — 101 현금 · 102 당좌예금 · 103 보통예금). */
-const CASH = '101'
-const DEPOSITS = ['102', '103']
+const CASH = '1019'
+const DEPOSITS = ['1029', '1039']
 
 /**
  * 회계 I &gt; 출력물 &gt; 장부 &gt; <b>현금출납장</b>(E010801) — 2026-10-03 loginaa 실측(빈 판).

@@ -31,7 +31,7 @@ const MODES: Mode[] = ['전표별', '전표별+내역', '일별', '월별', '회
  * 채권은 차변이 올리고 대변이 내린다. 채무는 반대. 계정을 못 읽었으면 외상매출금 · 외상매입금.
  */
 interface AccountOpt { code: string; division: string; relatedWork: string }
-const FALLBACK_CONTROL: Record<Side, Set<string>> = { 채권: new Set(['108']), 채무: new Set(['251']) }
+const FALLBACK_CONTROL: Record<Side, Set<string>> = { 채권: new Set(['1089']), 채무: new Set(['2519']) }
 /** 재고 문서(판매 · 구매 · 수금/지급)가 만든 회계전표 — 대장 II 의 [재고채권] 칸. 나머지는 [회계채권]. */
 const STOCK_SOURCES = new Set(['SALES', 'PURCHASE', 'SETTLEMENT'])
 

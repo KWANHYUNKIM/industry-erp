@@ -128,7 +128,7 @@ export default function JournalEntryPage() {
   const totalDebit = rows.reduce((a, r) => a + (r.side === '4' ? 0 : amountOf(r)), 0)
   const totalCredit = rows.reduce((a, r) => a + (r.side === '3' ? 0 : amountOf(r)), 0)
   /** 1출 · 2입의 상대 줄 계정 — 우리 표준계정 101 현금(원본 1019). */
-  const cashId = accounts.find((a) => a.code === '101')?.id ?? accounts.find((a) => a.name === '현금')?.id
+  const cashId = accounts.find((a) => a.code === '1019')?.id ?? accounts.find((a) => a.name === '현금')?.id
   const diff = Math.abs(totalDebit - totalCredit)
 
   function setRow(i: number, patch: Partial<Row>) {

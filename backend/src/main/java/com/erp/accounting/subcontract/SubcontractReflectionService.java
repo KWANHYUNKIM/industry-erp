@@ -1,5 +1,6 @@
 package com.erp.accounting.subcontract;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.account.Account;
 import com.erp.accounting.account.AccountRepository;
 import com.erp.accounting.journal.JournalEntry;
@@ -111,9 +112,9 @@ public class SubcontractReflectionService {
                     .sourceId(first.id())
                     .createdBy(username)
                     .build();
-            line(e, "533", supply, true, "외주가공비");
-            if (vat.signum() != 0) line(e, "135", vat, true, "부가세대급금");
-            line(e, "251", supply.add(vat), false, "외상매입금");
+            line(e, StandardAccounts.SUBCONTRACT_COST, supply, true, "외주가공비");
+            if (vat.signum() != 0) line(e, StandardAccounts.VAT_PAID, vat, true, "부가세대급금");
+            line(e, StandardAccounts.PAYABLE_TRADE, supply.add(vat), false, "외상매입금");
             if (!e.isBalanced()) {
                 throw ApiException.badRequest("분개가 대차평형을 이루지 않습니다. 차변 " + e.totalDebit() + " ≠ 대변 " + e.totalCredit());
             }

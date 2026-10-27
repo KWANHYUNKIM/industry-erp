@@ -79,7 +79,7 @@ export default function ImportCostEntryPage({ kind }: { kind: ImportCostKind }) 
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const payableId = useMemo(() => accounts.find((a) => a.code === '251')?.id, [accounts])
+  const payableId = useMemo(() => accounts.find((a) => a.code === '2519')?.id, [accounts])
 
   useEffect(() => {
     Promise.all([

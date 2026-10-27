@@ -28,7 +28,7 @@ interface Sheet {
 const PICKS = ['금월(~오늘)', '전월', '직전분기', '직전반기', '종료일'] as const
 /** 자금현황표(FundStatusPage)와 같은 계정 — 원본 자금관리 계정. */
 const FUND_ACCOUNTS = ['현금', '당좌예금', '보통예금', '외상매출금', '미수금', '가지급금', '외상매입금', '미지급금']
-const CASH_CODES = ['101', '102', '103']
+const CASH_CODES = ['1019', '1029', '1039']
 /** 원본 4. 의 상대 — 이카운트(회사)와 주고받은 세금계산서. */
 const ECOUNT = '이카운트'
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
@@ -48,7 +48,7 @@ function vatByAccount(entries: JournalEntry[]): AccRow[] {
     if (!amt) continue
     let first = true
     for (const l of e.lines) {
-      if (l.accountCode === '135' || Number(l.debit) === 0) continue
+      if (l.accountCode === '1359' || Number(l.debit) === 0) continue
       const r = by.get(l.accountCode) ?? { code: l.accountCode, name: l.accountName, amount: 0, vat: 0 }
       r.amount += Number(l.debit)
       if (first) { r.vat += amt.vat; first = false }

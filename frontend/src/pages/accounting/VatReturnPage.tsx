@@ -172,7 +172,7 @@ export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Pro
     }
     if (type && side === '매출' && FREE_CARD_SALES.includes(type)) {
       /* 지급수수료(831) 차변은 짝이 되는 입금계좌 대변을 지운다(utils/vatSlip withoutFee 와 같은 까닭). */
-      const free = e.lines.reduce((t, l) => t + Number(l.credit) - (l.accountCode === '831' ? Number(l.debit) : 0), 0)
+      const free = e.lines.reduce((t, l) => t + Number(l.credit) - (l.accountCode === '8319' ? Number(l.debit) : 0), 0)
       if (type === '카드매출(면세)') cards.saleCardFree += free
       else cards.saleCashFree += free
       continue

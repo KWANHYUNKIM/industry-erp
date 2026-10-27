@@ -42,7 +42,7 @@
         "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
         "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
         "wait:2000",
-        "expect:!document.querySelector('[role=dialog]') && window.__row().innerText.includes('110')",
+        "expect:!document.querySelector('[role=dialog]') && window.__row().innerText.includes('1109')",
         "js:window.__row().querySelector('button.ec-link').click(); true",
         "wait:1000",
         "expect:![...window.__dlg().querySelectorAll('button')].some((b) => b.textContent.trim() === '최종이력')",

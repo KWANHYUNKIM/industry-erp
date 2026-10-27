@@ -17,7 +17,7 @@
         "wait:500",
         "js:(() => { [...document.querySelectorAll('button[title=\"계정 선택\"]')].filter((x) => x.getClientRects().length).pop().click(); return true })()",
         "wait:600",
-        "js:(() => { const tr = [...document.querySelectorAll('tr')].filter((t) => t.getClientRects().length && [...t.cells].some((c) => c.innerText.trim() === '120')).pop(); tr.click(); return tr.innerText })()",
+        "js:(() => { const tr = [...document.querySelectorAll('tr')].filter((t) => t.getClientRects().length && [...t.cells].some((c) => c.innerText.trim() === '1209')).pop(); tr.click(); return tr.innerText })()",
         "wait:500",
         "click:저장(F8)",
         "wait:1200",

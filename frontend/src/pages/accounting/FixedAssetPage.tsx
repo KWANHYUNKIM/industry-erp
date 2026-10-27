@@ -242,8 +242,8 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
     name: '', assetAccountId: '', acquisitionDate: today(), acquisitionCost: '',
     salvageValue: '', usefulLifeYears: '5', method: 'STRAIGHT_LINE' as DepreciationMethod,
     declineRate: '', remark: '',
-    accumAccountId: String(byCode(accounts, '203') ?? ''), expenseAccountId: String(byCode(accounts, '818') ?? ''),
-    paymentAccountId: String(byCode(accounts, '251') ?? ''), acquisitionVat: '',
+    accumAccountId: String(byCode(accounts, '2099') ?? ''), expenseAccountId: String(byCode(accounts, '8239') ?? ''),
+    paymentAccountId: String(byCode(accounts, '2519') ?? ''), acquisitionVat: '',
     quantityManaged: 'N', quantity: '1', acquisitionFee: '', partnerId: '',
   })
   const partners = usePartners()
@@ -401,7 +401,7 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
   const [type, setType] = useState<'SALE' | 'SCRAP'>('SALE')
   const [amount, setAmount] = useState('')
   const [vatText, setVatText] = useState<string | null>(null)
-  const [receipt, setReceipt] = useState(String(byCode(accounts, '108') ?? ''))
+  const [receipt, setReceipt] = useState(String(byCode(accounts, '1089') ?? ''))
   const [feeText, setFeeText] = useState('')
   const [partnerId, setPartnerId] = useState(asset.partnerId ? String(asset.partnerId) : '')
   /* 원본 [처분손익계정] 은 필수 — 비면 '처분이익 또는 처분손실 관련 계정을 입력 바랍니다.' */
@@ -516,7 +516,7 @@ function IncreaseForm({ asset, accounts, onError, onSaved }: {
   const [qtyText, setQtyText] = useState('1')
   const [amount, setAmount] = useState('')
   const [vatText, setVatText] = useState<string | null>(null)
-  const [pay, setPay] = useState(String(asset.paymentAccountId ?? byCode(accounts, '251') ?? ''))
+  const [pay, setPay] = useState(String(asset.paymentAccountId ?? byCode(accounts, '2519') ?? ''))
   const [feeText, setFeeText] = useState('')
   const [partnerId, setPartnerId] = useState(asset.partnerId ? String(asset.partnerId) : '')
   const partners = usePartners()

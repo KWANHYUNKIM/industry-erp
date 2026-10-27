@@ -14,7 +14,7 @@
         "click:저장(F8)",
         "wait:800",
         "expect:!document.querySelector('table.ec-grid-input tbody tr').innerText.includes('현금')",
-        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/vouchers?type=EXPENSE_REPORT', { headers: H })).json(); const v = d.rows.find((r) => r.lines.some((l) => l.description === 'QA회계1-flow 식대')); if (!v) return false; const j = await (await fetch('/api/journals/' + v.journalEntryId, { headers: H })).json(); const ok = j.lines.some((l) => l.accountCode === '811' && Number(l.debit) === 12000 && l.description === 'QA회계1-flow 식대') && j.lines.some((l) => l.accountCode === '101' && Number(l.credit) === 12000 && l.description === 'QA회계1-flow 식대'); await fetch('/api/vouchers/' + v.id, { method: 'DELETE', headers: H }); return ok })()"
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/vouchers?type=EXPENSE_REPORT', { headers: H })).json(); const v = d.rows.find((r) => r.lines.some((l) => l.description === 'QA회계1-flow 식대')); if (!v) return false; const j = await (await fetch('/api/journals/' + v.journalEntryId, { headers: H })).json(); const ok = j.lines.some((l) => l.accountCode === '8109' && Number(l.debit) === 12000 && l.description === 'QA회계1-flow 식대') && j.lines.some((l) => l.accountCode === '1019' && Number(l.credit) === 12000 && l.description === 'QA회계1-flow 식대'); await fetch('/api/vouchers/' + v.id, { method: 'DELETE', headers: H }); return ok })()"
       ]
     }
   ]

@@ -12,7 +12,7 @@
  */
 export type VatSide = '매출' | '매입'
 
-export const VAT_ACCOUNT: Record<VatSide, string> = { 매출: '255', 매입: '135' }
+export const VAT_ACCOUNT: Record<VatSide, string> = { 매출: '2559', 매입: '1359' }
 
 interface Line { accountCode: string; debit: number | string; credit: number | string }
 
@@ -71,7 +71,7 @@ export function invoiceSlipAmounts(
  * 그렇게 짝이 지어질 때만 뺀다(지출결의서의 지급수수료처럼 짝이 없는 831 은 그대로 공급가액이다).
  */
 function withoutFee<T extends Line>(lines: readonly T[]): T[] {
-  const fees = lines.filter((l) => l.accountCode === '831' && Number(l.debit) > 0)
+  const fees = lines.filter((l) => l.accountCode === '8319' && Number(l.debit) > 0)
   if (fees.length === 0) return [...lines]
   const drop = new Set<T>()
   for (const fee of fees) {

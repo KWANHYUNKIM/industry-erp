@@ -66,7 +66,7 @@ export default function BankAccountListPage() {
 
   /* 원본 [계정] 선택상자는 현금 · 예금 · 적금 계정만 든다 */
   const depositAccounts = accounts.filter((a) => /현금|예금|적금/.test(a.name))
-  const defaultGl = depositAccounts.find((a) => a.code === '103')
+  const defaultGl = depositAccounts.find((a) => a.code === '1039')
 
   function openNew() {
     setF({ ...blank, glAccountId: defaultGl ? String(defaultGl.id) : '' })

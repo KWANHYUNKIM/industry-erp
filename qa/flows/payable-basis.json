@@ -24,7 +24,7 @@
         "clicklast:확인",
         "wait:300",
         "js:window.__type = (sel, v) => { const el = document.querySelector(sel); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true }; true",
-        "js:window.__type('[role=dialog] input[aria-label=\"계정검색\"]', '251')",
+        "js:window.__type('[role=dialog] input[aria-label=\"계정검색\"]', '2519')",
         "wait:300",
         "js:window.__type('[role=dialog] input[aria-label=\"거래처검색\"]', 'QA-SUPP')",
         "wait:300",

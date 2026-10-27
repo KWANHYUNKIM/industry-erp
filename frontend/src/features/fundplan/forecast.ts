@@ -13,7 +13,7 @@ import type { FundPlan, FundPlanDirection, FundPlanMethod } from './types'
  *
  * <p>자금 계정은 회계 I 자금일보와 같은 현금 · 당좌 · 보통예금(101 · 102 · 103).
  */
-export const FUND_CODES = ['101', '102', '103']
+export const FUND_CODES = ['1019', '1029', '1039']
 
 export interface ActualMove {
   key: string; date: string; text: string; partner: string; inc: number; dec: number
@@ -53,7 +53,7 @@ export async function fetchActualMoves(baseDate: string): Promise<ActualMove[]> 
       if (!FUND_CODES.includes(l.accountCode)) continue
       const d = Number(l.debit), c = Number(l.credit)
       if (!d && !c) continue
-      const book = l.accountCode === '101' ? undefined : bookOf.get(e.id)
+      const book = l.accountCode === '1019' ? undefined : bookOf.get(e.id)
       const partner = book || e.partnerName || ''
       const others = [...new Set(e.lines.filter((o) => o !== l && !FUND_CODES.includes(o.accountCode)).map((o) => o.accountName))]
       const counter = others.length === 0 ? '' : others.length === 1 ? others[0] : `${others[0]} 외 ${others.length - 1}`

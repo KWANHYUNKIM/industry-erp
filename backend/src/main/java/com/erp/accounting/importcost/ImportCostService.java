@@ -1,5 +1,6 @@
 package com.erp.accounting.importcost;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.account.Account;
 import com.erp.accounting.account.AccountRepository;
 import com.erp.accounting.bankcard.BankAccount;
@@ -29,10 +30,10 @@ import java.util.*;
 public class ImportCostService {
 
     /** 미착품 — 원본 1689(우리 계정은 세 자리라 168). */
-    static final String GOODS_IN_TRANSIT = "168";
-    static final String ACCOUNTS_PAYABLE = "251";
-    static final String VAT_RECEIVABLE = "135";
-    static final String FEE = "831";
+    static final String GOODS_IN_TRANSIT = StandardAccounts.GOODS_IN_TRANSIT;
+    static final String ACCOUNTS_PAYABLE = StandardAccounts.PAYABLE_TRADE;
+    static final String VAT_RECEIVABLE = StandardAccounts.VAT_PAID;
+    static final String FEE = StandardAccounts.FEE;
 
     private final ImportCostItemRepository itemRepository;
     private final ImportLotRepository lotRepository;

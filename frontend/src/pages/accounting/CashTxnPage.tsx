@@ -27,7 +27,7 @@ export default function CashTxnPage({ mode }: { mode: 'deposit' | 'withdraw' }) 
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    api.get<Account[]>('/accounts').then((r) => setAccounts(r.data.filter((a) => a.code !== '101'))).catch((e) => setError(extractErrorMessage(e)))
+    api.get<Account[]>('/accounts').then((r) => setAccounts(r.data.filter((a) => a.code !== '1019'))).catch((e) => setError(extractErrorMessage(e)))
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data)).catch(() => {})
   }, [])
 

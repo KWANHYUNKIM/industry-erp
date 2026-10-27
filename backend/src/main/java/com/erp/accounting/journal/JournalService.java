@@ -1,5 +1,6 @@
 package com.erp.accounting.journal;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.account.AccountService;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
@@ -153,7 +154,7 @@ public class JournalService {
             throw ApiException.badRequest("금액은 0보다 커야 합니다.");
         }
         LocalDate date = req.entryDate() != null ? req.entryDate() : LocalDate.now();
-        Account cash = account("101");
+        Account cash = account(StandardAccounts.CASH);
         Account counter = account(req.counterAccountId());
         String desc = req.description() != null ? req.description()
                 : (req.deposit() ? "현금입금" : "현금출금");
@@ -292,14 +293,14 @@ public class JournalService {
         if (sales) {
             addDebitAccount(e, settle, supply.add(vat), desc);
             addCreditAccount(e, main, supply, desc);
-            if (vat.signum() > 0) addCredit(e, "255", vat, desc);
+            if (vat.signum() > 0) addCredit(e, StandardAccounts.VAT_RECEIVED, vat, desc);
         } else {
             addDebitAccount(e, main, supply, desc);
-            if (vat.signum() > 0) addDebit(e, "135", vat, desc);
+            if (vat.signum() > 0) addDebit(e, StandardAccounts.VAT_PAID, vat, desc);
             addCreditAccount(e, settle, supply.add(vat), desc);
         }
         if (fee.signum() > 0) {
-            addDebit(e, "831", fee, desc);
+            addDebit(e, StandardAccounts.FEE, fee, desc);
             addCreditAccount(e, settle, fee, desc);
         }
         e.stampDeptProject(req.departmentId(), req.projectId());
@@ -351,22 +352,22 @@ public class JournalService {
      * 손익계산서의 매출 구분(상품/제품)이 늘 한쪽이었다(QA 11회차, 회계반영 분개를 대조하다 발견).
      */
     static String salesAccountOf(ItemCategory c) {
-        return c == ItemCategory.FINISHED || c == ItemCategory.SEMI_FINISHED ? "404" : "401";
+        return c == ItemCategory.FINISHED || c == ItemCategory.SEMI_FINISHED ? StandardAccounts.PRODUCT_SALES : StandardAccounts.SALES;
     }
 
     /** 품목구분 → 재고(매입) 계정. 원재료 153 · 부재료 162 · 제품·반제품 150 · 상품(과 미지정) 146. */
     static String stockAccountOf(ItemCategory c) {
-        if (c == null) return "146";
+        if (c == null) return StandardAccounts.GOODS;
         return switch (c) {
-            case RAW_MATERIAL -> "153";
-            case SUB_MATERIAL -> "162";
-            case FINISHED, SEMI_FINISHED -> "150";
-            case MERCHANDISE, INTANGIBLE -> "146";
+            case RAW_MATERIAL -> StandardAccounts.RAW_MATERIAL;
+            case SUB_MATERIAL -> StandardAccounts.SUB_MATERIAL;
+            case FINISHED, SEMI_FINISHED -> StandardAccounts.FINISHED_GOODS;
+            case MERCHANDISE, INTANGIBLE -> StandardAccounts.GOODS;
         };
     }
 
     private static final Map<String, String> ACCOUNT_NAMES = Map.of(
-            "401", "상품매출", "404", "제품매출", "146", "상품", "150", "제품", "153", "원재료", "162", "부재료");
+            StandardAccounts.SALES, "상품매출", StandardAccounts.PRODUCT_SALES, "제품매출", StandardAccounts.GOODS, "상품", StandardAccounts.FINISHED_GOODS, "제품", StandardAccounts.RAW_MATERIAL, "원재료", StandardAccounts.SUB_MATERIAL, "부재료");
 
     /**
      * 줄의 공급가액을 계정별로 모은다. 합계가 머리 공급가액과 다르면(옛 자료·반올림) 차이를
@@ -435,10 +436,10 @@ public class JournalService {
         /* 원본 판매 회계반영 전표의 부가세유형 — 매입/매출장 유형명이 '세금계산서'(2026-10-13 loginaa 실측). 면세 판매는 '계산서'. */
         e.setVatType(vatType != null ? vatType : s.isTaxable() ? "세금계산서" : "계산서");
 
-        addDebit(e, "108", total, seen ? lineDesc : "외상매출금");
+        addDebit(e, StandardAccounts.RECEIVABLE, total, seen ? lineDesc : "외상매출금");
         byAccount(s.getLines(),
                 l -> salesAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
-                supply, "401")
+                supply, StandardAccounts.SALES)
                 .forEach((code, amt) -> addCredit(e, code, amt, seen ? lineDesc : ACCOUNT_NAMES.get(code)));
         /*
          * 반품 전표는 금액이 음수다(수량을 음수로 저장). 예전엔 부가세가 0보다 클 때만 줄을 넣어
@@ -447,7 +448,7 @@ public class JournalService {
          * 반품은 차)제품매출·부가세예수금 / 대)외상매출금 의 역분개가 된다.
          */
         if (isNonZero(vat)) {
-            addCredit(e, "255", vat, seen ? lineDesc : "부가세예수금");
+            addCredit(e, StandardAccounts.VAT_RECEIVED, vat, seen ? lineDesc : "부가세예수금");
         }
         return save(e);
     }
@@ -508,10 +509,10 @@ public class JournalService {
                 "매출 : " + vatType + " / " + partner.getName() + " / " + String.format("%,d", entrySupply.longValue()) + " / "
                         + String.format("%,d", entryVat.longValue()), partner, first.getCreatedBy());
         e.setVatType(vatType);
-        addDebit(e, "108", total, lineDesc);
-        byAccount(picked, l -> salesAccountOf(l.getItem().getCategory()), SalesLine::getSupplyAmount, entrySupply, "401")
+        addDebit(e, StandardAccounts.RECEIVABLE, total, lineDesc);
+        byAccount(picked, l -> salesAccountOf(l.getItem().getCategory()), SalesLine::getSupplyAmount, entrySupply, StandardAccounts.SALES)
                 .forEach((code, amt) -> addCredit(e, code, amt, lineDesc));
-        if (isNonZero(entryVat)) addCredit(e, "255", entryVat, lineDesc);
+        if (isNonZero(entryVat)) addCredit(e, StandardAccounts.VAT_RECEIVED, entryVat, lineDesc);
         e.stampDeptProject(spec.departmentId(), spec.projectId());
         JournalEntry saved = save(e);
 
@@ -583,12 +584,12 @@ public class JournalService {
 
         byAccount(p.getLines(),
                 l -> stockAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
-                p.getSupplyAmount(), "146")
+                p.getSupplyAmount(), StandardAccounts.GOODS)
                 .forEach((code, amt) -> addDebit(e, code, amt, ACCOUNT_NAMES.get(code)));
         if (isNonZero(p.getVatAmount())) {   // 구매반품도 판매반품과 같은 까닭
-            addDebit(e, "135", p.getVatAmount(), "부가세대급금");
+            addDebit(e, StandardAccounts.VAT_PAID, p.getVatAmount(), "부가세대급금");
         }
-        addCredit(e, "251", p.getTotalAmount(), "외상매입금");
+        addCredit(e, StandardAccounts.PAYABLE_TRADE, p.getTotalAmount(), "외상매입금");
         return save(e);
     }
 
@@ -611,9 +612,9 @@ public class JournalService {
         BankAccount bank = st.getBankAccountId() == null ? null
                 : bankAccountRepository.findById(st.getBankAccountId())
                 .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + st.getBankAccountId()));
-        String cashCode = isBankMethod(st.getMethod()) ? "103" : "101";
+        String cashCode = isBankMethod(st.getMethod()) ? StandardAccounts.BANK_DEPOSIT : StandardAccounts.CASH;
         Account cash = bank != null ? bank.getGlAccount() : account(cashCode);
-        String cashName = bank != null ? bank.getBankName() : "103".equals(cashCode) ? "보통예금" : "현금";
+        String cashName = bank != null ? bank.getBankName() : StandardAccounts.BANK_DEPOSIT.equals(cashCode) ? "보통예금" : "현금";
         JournalEntry e = newEntry(JournalSourceType.SETTLEMENT, st.getId(), st.getSettleDate(),
                 st.getType().getDisplayName() + " " + st.getDocNo(), st.getPartner(), st.getCreatedBy());
 
@@ -621,13 +622,13 @@ public class JournalService {
             /* 수수료는 받을 돈에서 떼인 몫 — 원본 '매출처로부터' 분개: 차)현금 1,000 · 지급수수료(판) 100 / 대)외상매출금 1,100. */
             BigDecimal fee = st.getFee() != null ? st.getFee() : BigDecimal.ZERO;
             addDebitAccount(e, cash, st.getAmount().subtract(fee), cashName);
-            if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
-            addCredit(e, "108", st.getAmount(), "외상매출금");
+            if (fee.signum() > 0) addDebit(e, StandardAccounts.FEE, fee, "지급수수료");
+            addCredit(e, StandardAccounts.RECEIVABLE, st.getAmount(), "외상매출금");
         } else {
             /* 지급 수수료는 더 나가는 돈 — 원본 '매입처로' 분개: 차)외상매입금 1,000 · 지급수수료(판) 100 / 대)현금 1,100. */
             BigDecimal fee = st.getFee() != null ? st.getFee() : BigDecimal.ZERO;
-            addDebit(e, "251", st.getAmount(), "외상매입금");
-            if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
+            addDebit(e, StandardAccounts.PAYABLE_TRADE, st.getAmount(), "외상매입금");
+            if (fee.signum() > 0) addDebit(e, StandardAccounts.FEE, fee, "지급수수료");
             addCreditAccount(e, cash, st.getAmount().add(fee), cashName);
         }
         return save(e);
@@ -656,14 +657,14 @@ public class JournalService {
         addDebitAccount(e, expenseAccount, x.getAmount(), x.getContent());
         // 세금계산서를 받은 비용은 부가세를 부가세대급금으로 가른다 — 매입세액 공제(46회차).
         BigDecimal vat = x.getVatAmount() != null ? x.getVatAmount() : BigDecimal.ZERO;
-        if (isNonZero(vat)) addDebit(e, "135", vat, "부가세대급금");
+        if (isNonZero(vat)) addDebit(e, StandardAccounts.VAT_PAID, vat, "부가세대급금");
         BigDecimal paid = x.getAmount().add(vat);
         /*
          * 대변은 결제수단으로 가른다 — 카드·외상은 미지급금(253), 계좌이체는 보통예금(103), 나머지는 현금(101).
          * 예전엔 계좌이체도 현금으로 나가 현금 장부만 줄고 통장은 그대로였다(39회차). 수금·지급과 같은 판정.
          */
-        String credit = isOnCredit(x.getPaymentMethod()) ? "253" : isBankMethod(x.getPaymentMethod()) ? "103" : "101";
-        String creditName = "253".equals(credit) ? "미지급금" : "103".equals(credit) ? "보통예금" : "현금";
+        String credit = isOnCredit(x.getPaymentMethod()) ? StandardAccounts.PAYABLE : isBankMethod(x.getPaymentMethod()) ? StandardAccounts.BANK_DEPOSIT : StandardAccounts.CASH;
+        String creditName = StandardAccounts.PAYABLE.equals(credit) ? "미지급금" : StandardAccounts.BANK_DEPOSIT.equals(credit) ? "보통예금" : "현금";
         addCredit(e, credit, paid, creditName);
         return save(e);
     }
@@ -699,14 +700,14 @@ public class JournalService {
 
         addDebitAccount(e, u.getExpenseAccount(), u.getSupplyAmount(), desc);
         if (isPositive(u.getVatAmount())) {
-            addDebit(e, "135", u.getVatAmount(), "부가세대급금");
+            addDebit(e, StandardAccounts.VAT_PAID, u.getVatAmount(), "부가세대급금");
         }
         // 원본 카드등록의 [계정] — 그 카드를 쓰면 대변에 잡히는 계정이다(기본 미지급금). 안 정한 옛 카드는 미지급금.
         com.erp.accounting.account.Account cardAccount = u.getCard().getGlAccount();
         if (cardAccount != null) {
             addCreditAccount(e, cardAccount, u.getTotalAmount(), cardAccount.getName() + " (" + u.getCard().getCardName() + ")");
         } else {
-            addCredit(e, "253", u.getTotalAmount(), "미지급금 (" + u.getCard().getCardName() + ")");
+            addCredit(e, StandardAccounts.PAYABLE, u.getTotalAmount(), "미지급금 (" + u.getCard().getCardName() + ")");
         }
         return save(e);
     }
@@ -735,21 +736,21 @@ public class JournalService {
         switch (event) {
             case ISSUE -> {
                 if (receivable) {
-                    addDebit(e, "110", n.getAmount(), "받을어음");
-                    addCredit(e, "108", n.getAmount(), "외상매출금 회수");
+                    addDebit(e, StandardAccounts.NOTES_RECEIVABLE, n.getAmount(), "받을어음");
+                    addCredit(e, StandardAccounts.RECEIVABLE, n.getAmount(), "외상매출금 회수");
                 } else {
-                    addDebit(e, "251", n.getAmount(), "외상매입금 결제");
-                    addCredit(e, "252", n.getAmount(), "지급어음");
+                    addDebit(e, StandardAccounts.PAYABLE_TRADE, n.getAmount(), "외상매입금 결제");
+                    addCredit(e, StandardAccounts.NOTES_PAYABLE, n.getAmount(), "지급어음");
                 }
             }
             case DISCOUNT_FEE -> {
                 BigDecimal fee = nz(n.getDiscountFee());
-                addDebit(e, "936", fee, "매출채권처분손실(할인료)");
-                addCredit(e, "110", fee, "받을어음");
+                addDebit(e, StandardAccounts.RECEIVABLE_DISPOSAL_LOSS, fee, "매출채권처분손실(할인료)");
+                addCredit(e, StandardAccounts.NOTES_RECEIVABLE, fee, "받을어음");
             }
             case DISHONOR -> {
-                addDebit(e, "108", n.getAmount(), "부도어음 → 외상매출금 환원");
-                addCredit(e, "110", n.getAmount(), "받을어음");
+                addDebit(e, StandardAccounts.RECEIVABLE, n.getAmount(), "부도어음 → 외상매출금 환원");
+                addCredit(e, StandardAccounts.NOTES_RECEIVABLE, n.getAmount(), "받을어음");
             }
         }
         e.stampDeptProject(n.getDepartmentId(), n.getProjectId());
@@ -769,8 +770,8 @@ public class JournalService {
         JournalEntry e = newEntry(JournalSourceType.NOTE, null, date, desc, n.getPartner(), createdBy);
         String lineDesc = (desc != null ? desc : "") + "(No." + n.getNoteNo() + ")";
         if (isPositive(deposit)) addDebitAccount(e, bankGl, deposit, desc);
-        if (isPositive(fee)) addDebit(e, "951", fee, desc);
-        addCredit(e, "110", nz(deposit).add(nz(fee)), lineDesc);
+        if (isPositive(fee)) addDebit(e, StandardAccounts.INTEREST_EXPENSE, fee, desc);
+        addCredit(e, StandardAccounts.NOTES_RECEIVABLE, nz(deposit).add(nz(fee)), lineDesc);
         e.stampDeptProject(departmentId, projectId);
         return save(e);
     }
@@ -788,7 +789,7 @@ public class JournalService {
         JournalEntry e = newEntry(JournalSourceType.NOTE, null, date, desc, n.getPartner(), createdBy);
         String lineDesc = (desc != null ? desc : "") + "(No." + n.getNoteNo() + ","
                 + n.getDueDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd")) + " )";
-        e.addLine(JournalLine.builder().account(account("252")).debit(amount).credit(BigDecimal.ZERO)
+        e.addLine(JournalLine.builder().account(account(StandardAccounts.NOTES_PAYABLE)).debit(amount).credit(BigDecimal.ZERO)
                 .description(lineDesc).partner(n.getPartner()).build());
         addCreditAccount(e, bankGl, amount, desc);
         e.stampDeptProject(departmentId, projectId);
@@ -809,9 +810,9 @@ public class JournalService {
         JournalEntry e = newEntry(JournalSourceType.NOTE, null, date, desc, payee, createdBy);
         String lineDesc = (desc != null ? desc : "") + "(No." + n.getNoteNo() + ","
                 + n.getDueDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd")) + " )";
-        e.addLine(JournalLine.builder().account(account("251")).debit(amount).credit(BigDecimal.ZERO)
+        e.addLine(JournalLine.builder().account(account(StandardAccounts.PAYABLE_TRADE)).debit(amount).credit(BigDecimal.ZERO)
                 .description(desc).partner(payee).build());
-        e.addLine(JournalLine.builder().account(account("110")).debit(BigDecimal.ZERO).credit(amount)
+        e.addLine(JournalLine.builder().account(account(StandardAccounts.NOTES_RECEIVABLE)).debit(BigDecimal.ZERO).credit(amount)
                 .description(lineDesc).partner(n.getPartner()).build());
         e.stampDeptProject(departmentId, projectId);
         return save(e);
@@ -849,9 +850,9 @@ public class JournalService {
                 desc, null, d.getCreatedBy());
         /* 자산마다 고른 계정(원본 E010610 감가상각비계정 · 감가상각충당금계정). 비었으면 예전처럼 818 / 203. */
         if (asset.getExpenseAccount() != null) addDebitAccount(e, asset.getExpenseAccount(), d.getAmount(), "감가상각비");
-        else addDebit(e, "818", d.getAmount(), "감가상각비");
+        else addDebit(e, StandardAccounts.DEPRECIATION_EXPENSE, d.getAmount(), "감가상각비");
         if (asset.getAccumAccount() != null) addCreditAccount(e, asset.getAccumAccount(), d.getAmount(), "감가상각누계액");
-        else addCredit(e, "203", d.getAmount(), "감가상각누계액");
+        else addCredit(e, StandardAccounts.ACCUMULATED_DEPRECIATION, d.getAmount(), "감가상각누계액");
         return save(e);
     }
 
@@ -873,8 +874,8 @@ public class JournalService {
                 p, m.getCreatedBy());
         /* 원본 2026-10-22 전표: 차) 비품 · 부가세대급금 · 지급수수료(판) / 대) 출금계좌 공급가액 + 부가세 + 수수료. 0 인 줄은 없다. */
         addPartnerLine(e, asset.getAssetAccount(), cost, true, remark, p);
-        if (isPositive(vat)) addPartnerLine(e, account("135"), vat, true, remark, p);
-        if (isPositive(fee)) addPartnerLine(e, account("831"), fee, true, remark, p);
+        if (isPositive(vat)) addPartnerLine(e, account(StandardAccounts.VAT_PAID), vat, true, remark, p);
+        if (isPositive(fee)) addPartnerLine(e, account(StandardAccounts.FEE), fee, true, remark, p);
         addPartnerLine(e, m.getAccount(), cost.add(vat).add(fee), false, remark, p);
         return save(e);
     }
@@ -899,23 +900,23 @@ public class JournalService {
         com.erp.trade.partner.BusinessPartner p = m.getPartner();
         JournalEntry e = newEntry(JournalSourceType.DISPOSAL, m.getId(), m.getSlipDate(),
                 r.isEmpty() ? "자산처분 " + asset.getAssetNo() + " " + asset.getName() : r, p, m.getCreatedBy());
-        Account receipt = m.getAccount() != null ? m.getAccount() : account("101");
+        Account receipt = m.getAccount() != null ? m.getAccount() : account(StandardAccounts.CASH);
         BigDecimal receiptAmount = proceeds.add(vat).subtract(fee);
         if (receiptAmount.signum() != 0) addPartnerLine(e, receipt, receiptAmount, true, remark, p);
-        if (isPositive(fee)) addPartnerLine(e, account("831"), fee, true, remark, p);
+        if (isPositive(fee)) addPartnerLine(e, account(StandardAccounts.FEE), fee, true, remark, p);
         if (isPositive(proceeds)) addPartnerLine(e, asset.getAssetAccount(), proceeds, false, remark, p);
-        if (isPositive(vat)) addPartnerLine(e, account("255"), vat, false, remark, p);
+        if (isPositive(vat)) addPartnerLine(e, account(StandardAccounts.VAT_RECEIVED), vat, false, remark, p);
         BigDecimal offset = cost.subtract(proceeds);
         if (offset.signum() != 0) addPartnerLine(e, asset.getAssetAccount(), offset, false, "취득원가상계:" + r, null);
         if (isPositive(accumulated)) {
-            addPartnerLine(e, asset.getAccumAccount() != null ? asset.getAccumAccount() : account("203"),
+            addPartnerLine(e, asset.getAccumAccount() != null ? asset.getAccumAccount() : account(StandardAccounts.ACCUMULATED_DEPRECIATION),
                     accumulated, true, "감가상각누계액상계:" + r, null);
         }
         if (gain.signum() < 0) {
-            addPartnerLine(e, m.getGainLossAccount() != null ? m.getGainLossAccount() : account("970"),
+            addPartnerLine(e, m.getGainLossAccount() != null ? m.getGainLossAccount() : account(StandardAccounts.ASSET_DISPOSAL_LOSS),
                     gain.negate(), true, "매각 손실 : " + r, null);
         } else if (gain.signum() > 0) {
-            addPartnerLine(e, m.getGainLossAccount() != null ? m.getGainLossAccount() : account("914"),
+            addPartnerLine(e, m.getGainLossAccount() != null ? m.getGainLossAccount() : account(StandardAccounts.ASSET_DISPOSAL_GAIN),
                     gain, false, "매각 이익 : " + r, null);
         }
         return save(e);
@@ -978,7 +979,7 @@ public class JournalService {
                         g.amount = g.amount.add(l.getAmount());
                         if (g.desc == null) g.desc = lineDesc(l);
                     }
-                    Account adv = account("134");
+                    Account adv = account(StandardAccounts.ADVANCE_PAID);
                     byEmp.values().forEach(g -> addCreditAccount(e, adv, g.amount, g.desc));
                     break;
                 }
@@ -988,7 +989,7 @@ public class JournalService {
                 } else if (balance.signum() < 0) {          // 더 썼다 → 추가 지급
                     addCreditAccount(e, settlement, balance.negate(), "추가 지급");
                 }
-                addCredit(e, "134", v.getAdvanceAmount(), "가지급금 정산");
+                addCredit(e, StandardAccounts.ADVANCE_PAID, v.getAdvanceAmount(), "가지급금 정산");
             }
         }
         /* [추가정보] 부가세가 든 줄이 있으면 전표가 매입장에 선다 — 유형은 첫 부가세 줄의 것(전자종류는 기본 '전자(세금)계산서-신규'). */
@@ -1010,7 +1011,7 @@ public class JournalService {
         }
         addDebitAccount(e, l.getAccount(), l.getVatSupply(), lineDesc(l));
         if (nz(l.getVatAmount()).signum() != 0) {
-            addDebit(e, "135", l.getVatAmount(), lineDesc(l));
+            addDebit(e, StandardAccounts.VAT_PAID, l.getVatAmount(), lineDesc(l));
             e.getLines().get(e.getLines().size() - 1).setPartner(l.getVatPartner());
         }
     }
@@ -1084,10 +1085,10 @@ public class JournalService {
 
         JournalEntry e = newEntry(JournalSourceType.CHECK, c.getId(), c.getIssueDate(), desc, c.getPartner(), c.getCreatedBy());
         if (received) {
-            addDebit(e, "104", c.getAmount(), "받을수표");
-            addCredit(e, "108", c.getAmount(), "외상매출금");
+            addDebit(e, StandardAccounts.CHECK_RECEIVABLE, c.getAmount(), "받을수표");
+            addCredit(e, StandardAccounts.RECEIVABLE, c.getAmount(), "외상매출금");
         } else {
-            addDebit(e, "251", c.getAmount(), "외상매입금");
+            addDebit(e, StandardAccounts.PAYABLE_TRADE, c.getAmount(), "외상매입금");
             addCreditAccount(e, c.getBankAccount().getGlAccount(), c.getAmount(), "수표 발행");
         }
         return save(e);
@@ -1099,7 +1100,7 @@ public class JournalService {
         String desc = "수표 입금 " + c.getCheckNo();
         JournalEntry e = newEntry(JournalSourceType.CHECK, null, date, desc, c.getPartner(), username);
         addDebitAccount(e, c.getBankAccount().getGlAccount(), c.getAmount(), desc);
-        addCredit(e, "104", c.getAmount(), "받을수표");
+        addCredit(e, StandardAccounts.CHECK_RECEIVABLE, c.getAmount(), "받을수표");
         return save(e);
     }
 
@@ -1108,8 +1109,8 @@ public class JournalService {
     public JournalEntry createFromCheckDishonor(com.erp.accounting.bankcheck.BankCheck c, LocalDate date, String username) {
         String desc = "수표 부도 " + c.getCheckNo();
         JournalEntry e = newEntry(JournalSourceType.CHECK, null, date, desc, c.getPartner(), username);
-        addDebit(e, "108", c.getAmount(), "외상매출금 환원");
-        addCredit(e, "104", c.getAmount(), "받을수표");
+        addDebit(e, StandardAccounts.RECEIVABLE, c.getAmount(), "외상매출금 환원");
+        addCredit(e, StandardAccounts.CHECK_RECEIVABLE, c.getAmount(), "받을수표");
         return save(e);
     }
 
@@ -1124,9 +1125,9 @@ public class JournalService {
         String desc = "급여이체 " + t.getPayMonth() + " " + t.getTransferNo();
 
         JournalEntry e = newEntry(JournalSourceType.PAYROLL, null, t.getTransferDate(), desc, null, t.getCreatedBy());
-        addDebit(e, "801", t.getTotalPay(), "급여");
+        addDebit(e, StandardAccounts.SALARY, t.getTotalPay(), "급여");
         if (isPositive(t.getTotalDeduction())) {
-            addCredit(e, "254", t.getTotalDeduction(), "예수금 (4대보험·소득세)");
+            addCredit(e, StandardAccounts.WITHHOLDING, t.getTotalDeduction(), "예수금 (4대보험·소득세)");
         }
         addCreditAccount(e, t.getBankAccount().getGlAccount(), t.getNetPay(), "실지급액");
         return save(e);
@@ -1144,13 +1145,13 @@ public class JournalService {
     public JournalEntry createFromDailyWagePay(LocalDate date, BigDecimal wage, BigDecimal tax,
                                                Long bankAccountId, String desc, String createdBy) {
         JournalEntry e = newEntry(JournalSourceType.DAILY_WAGE, null, date, desc, null, createdBy);
-        addDebit(e, "805", wage, "일용직 임금");
+        addDebit(e, StandardAccounts.DAILY_WAGE, wage, "일용직 임금");
         if (isPositive(tax)) {
-            addCredit(e, "254", tax, "예수금 (일용근로소득세·지방소득세)");
+            addCredit(e, StandardAccounts.WITHHOLDING, tax, "예수금 (일용근로소득세·지방소득세)");
         }
         BigDecimal net = wage.subtract(tax == null ? BigDecimal.ZERO : tax);
         if (bankAccountId == null) {
-            addCredit(e, "101", net, "실지급액 (현금)");
+            addCredit(e, StandardAccounts.CASH, net, "실지급액 (현금)");
         } else {
             BankAccount b = bankAccountRepository.findById(bankAccountId)
                     .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + bankAccountId));
@@ -1184,7 +1185,7 @@ public class JournalService {
 
         JournalEntry e = newEntry(JournalSourceType.CARD_PAYMENT, p.getId(), p.getPaymentDate(),
                 desc, null, p.getCreatedBy());
-        addDebit(e, "253", p.getAmount(), "미지급금 상환");
+        addDebit(e, StandardAccounts.PAYABLE, p.getAmount(), "미지급금 상환");
         addCreditAccount(e, p.getBankAccount().getGlAccount(), p.getAmount(), "카드대금 출금");
         return save(e);
     }

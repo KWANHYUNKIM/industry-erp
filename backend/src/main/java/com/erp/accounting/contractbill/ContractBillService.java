@@ -1,5 +1,6 @@
 package com.erp.accounting.contractbill;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.billingcontract.BillingContractLine;
 import com.erp.accounting.billingcontract.BillingContractService;
 import com.erp.accounting.contractbill.dto.ContractBillDtos;
@@ -215,7 +216,7 @@ public class ContractBillService {
             if (from != null && e.getEntryDate().isBefore(from)) continue;
             if (to != null && e.getEntryDate().isAfter(to)) continue;
             BigDecimal total = e.totalDebit();
-            BigDecimal vat = e.getLines().stream().filter((l) -> "255".equals(l.getAccount().getCode()))
+            BigDecimal vat = e.getLines().stream().filter((l) -> StandardAccounts.VAT_RECEIVED.equals(l.getAccount().getCode()))
                     .map(JournalLine::getCredit).reduce(BigDecimal.ZERO, BigDecimal::add);
             JournalLine first = e.getLines().isEmpty() ? null : e.getLines().get(0);
             out.add(new InvoiceRow(e.getId(), e.getEntryDate(), entryNo(e.getDocNo()), e.getDocNo(),
