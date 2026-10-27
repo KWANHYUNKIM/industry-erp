@@ -480,8 +480,21 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const whKey = `ec-slip-wh:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
   /** 원본은 새 전표를 열면 마지막으로 쓴 머리(일자 · 담당자 · 창고)를 채운다 — 일자 · 담당자는 창고와 같은 열쇠 꼴로 함께 기억한다. */
   const hdKey = `ec-slip-hd:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
-  const readHd = (): { date?: string; employeeId?: string } => {
-    try { return JSON.parse(localStorage.getItem(hdKey) ?? '{}') } catch { return {} }
+  /** 원본은 계정마다 서버에 남긴다 → 우리도 /me/memory. 서버가 안 되면 이 브라우저 저장소로 대신한다. */
+  const memKey = `trade-head:${mode}`
+  const readLocalHd = (): { date?: string; employeeId?: string; warehouseId?: string } => {
+    try {
+      const hd = JSON.parse(localStorage.getItem(hdKey) ?? '{}')
+      return { ...hd, warehouseId: localStorage.getItem(whKey) ?? undefined }
+    } catch { return {} }
+  }
+  /** 저장 뒤 [새로] 에서 머리 담당자를 되채울 때 쓴다(서버 응답을 다시 기다리지 않게 들고 있는다). */
+  const rememberedEmpRef = useRef('')
+  const readHd = async (): Promise<{ date?: string; employeeId?: string; warehouseId?: string }> => {
+    try {
+      const r = await api.get<{ value: string | null }>(`/me/memory/${memKey}`)
+      return r.data.value ? JSON.parse(r.data.value) : {}
+    } catch { return readLocalHd() }
   }
   const tempKey = `ec-slip-temp:${companyCode ?? '-'}:${user?.username ?? '-'}:${mode}`
 
@@ -510,15 +523,16 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setItems(i.data)
     /* 원본은 안내용 더미 창고('00000 창고/공장/외주공장 등록을 통해…')를 처음 값으로 깔지 않는다 — 마지막에 쓴 창고, 없으면 빈 칸.
        (실제 창고가 있으면 첫 실창고로 채워 입력이 막히지 않게 한다.) */
-    let remembered = ''
-    try { remembered = localStorage.getItem(whKey) ?? '' } catch { /* 저장소가 막힌 환경 */ }
+    const isNew = !editId && !returnFromId && !popup
+    const hd = isNew ? await readHd() : {}
+    rememberedEmpRef.current = hd.employeeId ?? ''
+    const remembered = hd.warehouseId ?? ''
     const guide = (x: Warehouse) => x.code === '00000' || (x.name ?? '').startsWith('창고/공장/외주공장 등록')
     const first = w.data.find((x) => x.active && !guide(x))
     const start = w.data.find((x) => String(x.id) === remembered && x.active) ?? first
     setWarehouseId((prev) => prev || (start ? String(start.id) : ''))
-    if (!editId && !returnFromId && !popup) {
-      const hd = readHd()
-      if (hd.date && /^d{4}-d{2}-d{2}$/.test(hd.date)) setDate(hd.date)
+    if (isNew) {
+      if (hd.date && /^\d{4}-\d{2}-\d{2}$/.test(hd.date)) setDate(hd.date)
       if (hd.employeeId) setEmployeeId((prev) => prev || hd.employeeId!)
     }
   }
@@ -1285,7 +1299,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setRemark('')
     setCustomValues({})
     setQtyErr(null); setError('')
-    if (!keepHeader) { setPartnerId(''); setProjectId(''); setEmployeeId(readHd().employeeId ?? '') }
+    if (!keepHeader) { setPartnerId(''); setProjectId(''); setEmployeeId(rememberedEmpRef.current) }
   }
 
   /*
@@ -1370,7 +1384,13 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       const res = editing
         ? await api.put<SalesDoc | PurchaseDoc>(`${cfg.endpoint}/${editing.id}`, body)
         : await api.post<SalesDoc | PurchaseDoc>(cfg.endpoint, body)
-      if (!editing) { try { localStorage.setItem(whKey, warehouseId); localStorage.setItem(hdKey, JSON.stringify({ date, employeeId })) } catch { /* 무시 */ } }
+      if (!editing) {
+        rememberedEmpRef.current = employeeId
+        const mem = JSON.stringify({ date, employeeId, warehouseId })
+        api.put(`/me/memory/${memKey}`, { value: mem }).catch(() => {
+          try { localStorage.setItem(whKey, warehouseId); localStorage.setItem(hdKey, JSON.stringify({ date, employeeId })) } catch { /* 무시 */ }
+        })
+      }
       /*
        * 판매입력 II 는 저장하면 <b>매출전표 I 까지 함께</b> 생긴다(원본 E040253 2026-10-22 실측: 저장 직후 판매조회
        * 회계반영여부 ✓, 판매단가일괄변경 목록에서 빠지고, 수정 창에 [매출전표 I] 탭 · 삭제 알림에 '- 매출전표 I').
