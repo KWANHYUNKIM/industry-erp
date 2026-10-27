@@ -223,28 +223,36 @@ public class LotService {
     public void replaceDocument(String docType, Long sourceId, String sourceNo, LocalDate date,
                                 String partnerName, List<DocLine> lines) {
         removeDocument(docType, sourceId);
-        for (DocLine dl : lines) {
-            if (dl.lotNo() == null || dl.lotNo().isBlank() || dl.quantity().signum() == 0) continue;
-            String no = dl.lotNo().trim();
-            Lot lot = lotRepository.findByLotNo(no).orElse(null);
-            if (lot == null) {
-                BigDecimal in = dl.quantity().max(BigDecimal.ZERO);
-                lot = lotRepository.save(Lot.builder()
-                        .lotNo(no).item(dl.item()).warehouse(dl.warehouse())
-                        .inboundDate(date).inboundQty(in).stockQty(BigDecimal.ZERO)
-                        .held(false).build());
-            } else if (!lot.getItem().getId().equals(dl.item().getId())) {
-                throw ApiException.badRequest("시리얼/로트No. " + no + " 은(는) 다른 품목("
-                        + lot.getItem().getName() + ")에 쓰였습니다.");
+        for (DocLine whole : lines) {
+            if (whole.lotNo() == null || whole.lotNo().isBlank() || whole.quantity().signum() == 0) continue;
+            // 원본 판매입력 2026/11/21-3: 한 줄 수량 6 에 시리얼 6개를 'ㆍ' 로 이어 적는다(BEN_0009ㆍBEN_0010ㆍ…).
+            // 통째로 로트No. 하나로 보면 50자를 넘어 저장이 막혔다 — 나눠서 시리얼마다 수량 ÷ 개수씩 움직인다.
+            List<String> nos = java.util.Arrays.stream(whole.lotNo().split("ㆍ"))
+                    .map(String::trim).filter(s -> !s.isEmpty()).toList();
+            if (nos.isEmpty()) continue;
+            BigDecimal each = whole.quantity().divide(BigDecimal.valueOf(nos.size()), 4, java.math.RoundingMode.HALF_UP);
+            for (String no : nos) {
+                DocLine dl = new DocLine(whole.item(), whole.warehouse(), no, each);
+                Lot lot = lotRepository.findByLotNo(no).orElse(null);
+                if (lot == null) {
+                    BigDecimal in = dl.quantity().max(BigDecimal.ZERO);
+                    lot = lotRepository.save(Lot.builder()
+                            .lotNo(no).item(dl.item()).warehouse(dl.warehouse())
+                            .inboundDate(date).inboundQty(in).stockQty(BigDecimal.ZERO)
+                            .held(false).build());
+                } else if (!lot.getItem().getId().equals(dl.item().getId())) {
+                    throw ApiException.badRequest("시리얼/로트No. " + no + " 은(는) 다른 품목("
+                            + lot.getItem().getName() + ")에 쓰였습니다.");
+                }
+                lot.setStockQty(lot.getStockQty().add(dl.quantity()));
+                lotTxRepository.save(LotTransaction.builder()
+                        .lot(lot).txDate(date)
+                        .type(dl.quantity().signum() > 0 ? LotTxType.INBOUND : LotTxType.OUTBOUND)
+                        .quantityChange(dl.quantity()).balanceAfter(lot.getStockQty())
+                        .note(docType + " " + sourceNo)
+                        .docType(docType).sourceId(sourceId).sourceNo(sourceNo).partnerName(partnerName)
+                        .build());
             }
-            lot.setStockQty(lot.getStockQty().add(dl.quantity()));
-            lotTxRepository.save(LotTransaction.builder()
-                    .lot(lot).txDate(date)
-                    .type(dl.quantity().signum() > 0 ? LotTxType.INBOUND : LotTxType.OUTBOUND)
-                    .quantityChange(dl.quantity()).balanceAfter(lot.getStockQty())
-                    .note(docType + " " + sourceNo)
-                    .docType(docType).sourceId(sourceId).sourceNo(sourceNo).partnerName(partnerName)
-                    .build());
         }
     }
 
