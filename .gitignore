@@ -19,3 +19,4 @@ Thumbs.db
 
 # 데이터이관 QA 접속 정보(시험 비밀번호)
 .claude/skills/ecount-diff/plans/데이터이관/_접속.md
+backups/
