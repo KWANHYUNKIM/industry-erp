@@ -3728,6 +3728,12 @@ async function scenarioCreatedByFk() {
   const adminP = await must('GET', '/me/permissions')
   eq('관리자는 admin 으로 온다', adminP.admin, true)
 
+  // 마지막에 쓴 값 기억(/me/memory) — 계정마다 서버에 남는다
+  eq('기억이 없으면 null', (await must('GET', '/me/memory/qa-head:sales')).value, null)
+  await must('PUT', '/me/memory/qa-head:sales', { value: '{"date":"2026-01-02"}' })
+  await must('PUT', '/me/memory/qa-head:sales', { value: '{"date":"2026-01-03"}' })
+  eq('기억을 덮어쓰면 마지막 값', (await must('GET', '/me/memory/qa-head:sales')).value, '{"date":"2026-01-03"}')
+
   const rows = (await must('GET', `/cash-plans?period=${PERIOD}`)).plans
   eq('자금계획의 작성자가 그 사용자로 남음', rows.find((c) => c.id === plan.id) !== undefined, true)
 

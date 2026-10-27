@@ -1,10 +1,12 @@
 package com.erp.auth.auth;
 
+import com.erp.auth.memory.UserInputMemoryService;
+import com.erp.auth.memory.dto.UserInputMemoryDtos.MemoryResponse;
+import com.erp.auth.memory.dto.UserInputMemoryDtos.SaveMemoryRequest;
 import com.erp.security.UserPrincipal;
+import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -15,6 +17,25 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/me")
 public class MeController {
+
+    private final UserInputMemoryService memoryService;
+
+    public MeController(UserInputMemoryService memoryService) {
+        this.memoryService = memoryService;
+    }
+
+    /** 마지막에 쓴 값 기억(예: 판매입력 머리). 계정마다 서버에 남아 다른 PC 에서도 이어진다. */
+    @GetMapping("/memory/{key}")
+    public MemoryResponse getMemory(@AuthenticationPrincipal UserPrincipal principal, @PathVariable String key) {
+        return new MemoryResponse(memoryService.get(principal.getId(), key));
+    }
+
+    @PutMapping("/memory/{key}")
+    public MemoryResponse putMemory(@AuthenticationPrincipal UserPrincipal principal, @PathVariable String key,
+                                    @Valid @RequestBody SaveMemoryRequest req) {
+        memoryService.put(principal.getId(), key, req.value());
+        return new MemoryResponse(req.value());
+    }
 
     public record MyPermissions(boolean admin, List<String> codes) {}
 
