@@ -456,6 +456,11 @@ export default function PartnersPage() {
 
   return (
     <EcListShell
+      headExtra={
+        // 원본: 머리 검색칸 왼쪽 [사용중단포함] 단추, 켜지면 주황(btn-warning) — 2026-10-27 품목 · 거래처리스트 실측
+        <button type="button" className={`ec-btn${withStopped ? ' bg-ec-btn-warning text-ec-panel' : ''}`} aria-pressed={withStopped}
+                onClick={() => setWithStopped(!withStopped)}>사용중단포함</button>
+      }
       title="거래처리스트"
       search={keyword}
       onSearchChange={setKeyword}
@@ -498,10 +503,6 @@ export default function PartnersPage() {
                        onClose={() => setUnusedOpen(false)} />
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
-      <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[8px]">
-        <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
-        사용중단포함
-      </label>
 
       {/* 원본 거래처검색 조건 판. 이름은 원본 그대로 쓴다. */}
       <div className="flex flex-wrap gap-[6px] items-center mb-[8px]">

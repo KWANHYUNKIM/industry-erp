@@ -594,6 +594,11 @@ export default function ItemsPage() {
 
   return (
     <EcListShell
+      headExtra={
+        // 원본: 머리 검색칸 왼쪽 [사용중단포함] 단추, 켜지면 주황(btn-warning) — 2026-10-27 품목 · 거래처리스트 실측
+        <button type="button" className={`ec-btn${withStopped ? ' bg-ec-btn-warning text-ec-panel' : ''}`} aria-pressed={withStopped}
+                onClick={() => setWithStopped(!withStopped)}>사용중단포함</button>
+      }
       title="품목등록 리스트"
       search={keyword}
       onSearchChange={setKeyword}
@@ -705,10 +710,6 @@ export default function ItemsPage() {
         </EcCond>
       </ul>
 
-      <label className={`text-[12.5px] inline-flex items-center gap-[4px] mb-[8px]${withStopped ? " rounded-ec bg-ec-btn-warning px-[6px] text-ec-panel" : ""}`}>
-        <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
-        사용중단포함
-      </label>
 
       <Modal error={error} open={showForm} title="품목등록" width={760} onClose={closeForm}>{(
         <form onSubmit={submit} className="my-[8px] p-[14px] bg-ec-panel"

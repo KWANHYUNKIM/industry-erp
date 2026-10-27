@@ -142,9 +142,11 @@ function restoreFields(el: HTMLElement, first: WeakMap<Element, string | boolean
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
   renderForm, formTitle, formWidth, actions = [], help, searchable = true, option = true,
-  signLine = false, searchBtn = false, collapseConditions, onReset, optionMenu, formMenu, children,
+  signLine = false, searchBtn = false, collapseConditions, onReset, optionMenu, formMenu, headExtra, children,
 }: {
   title: string
+  /** 머리 검색칸 왼쪽에 붙는 것 — 원본 품목 · 거래처리스트의 [사용중단포함] 단추 자리. */
+  headExtra?: ReactNode
   search?: string
   onSearchChange?: (v: string) => void
   onSearch?: () => void
@@ -432,6 +434,7 @@ export default function EcListShell({
         {/* 원본 휴대폰 목록 화면은 제목을 감추고 검색 도구만 남긴다 */}
         <span className="ec-page-title m-hide">{title}</span>
         <div className="tools relative">
+          {headExtra}
           {showSearch && <>
             <input
               className="ec-input ec-quick"
