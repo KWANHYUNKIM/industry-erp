@@ -177,7 +177,9 @@ export default function CodeSearchModal({
   const rows = shown.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE)
 
   const runNew = () => {
-    if (onNew) { onNew(); return }
+    // 화면이 띄우는 등록 창(Modal)은 제자리에 그려지고 이 창은 body 끝에 붙어, 이 창을 둔 채 열면 등록 창이 뒤에 깔려
+    // [신규(F2)] 가 아무 일도 안 하는 것처럼 보였다(2026-10-27 불량처리입력 불량유형). 이 창을 닫고 연다.
+    if (onNew) { onClose(); onNew(); return }
     if (route) window.open(route, '_blank', 'width=960,height=700')
   }
 
