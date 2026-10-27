@@ -29,7 +29,7 @@ public class InsuranceReportDtos {
             boolean employmentApply, LocalDate employmentDate,
             boolean accidentApply, LocalDate accidentDate,
             @Size(max = 30) String phone, String detail, String dependents,
-            @Size(max = 13) String residentNo, @Size(max = 50) String reportName) {}
+            @Size(max = 14) String residentNo, @Size(max = 50) String reportName) {}
 
     public record ReportResponse(
             Long id, LocalDate reportDate, Integer reportSeq, InsuranceReportKind kind, String formName,

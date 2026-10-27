@@ -5072,7 +5072,7 @@ async function scenarioValidationMessages(f) {
 
   const cases = [
     ['품목', '/items', { code: `${P}VMSG`, name: '문구시험', unit: 'EA' }, ['단가', '안전재고']],
-    ['판매', '/sales', { saleDate: '2026-08-26' }, ['거래처', '창고', '품목']],
+    ['판매', '/sales', { saleDate: '2026-08-26' }, ['창고', '품목']],   // 판매는 거래처 없이 저장된다(원본)
     ['판매 라인', '/sales',
       { saleDate: '2026-08-26', partnerId: f.customer.id, warehouseId: f.warehouse.id,
         lines: [{ itemId: f.product.id }] }, ['수량', '단가']],
