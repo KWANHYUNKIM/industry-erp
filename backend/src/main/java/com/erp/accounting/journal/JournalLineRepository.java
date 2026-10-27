@@ -147,10 +147,10 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
             "order by e.entryDate, e.docNo, l.lineNo")
     List<JournalLine> findEvidenceReportLines(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
-    /** 전표마다 매입 부가세(135 차변 − 대변)와 그 밖 계정의 차변 합 — 지출증빙현황의 '매출매입자료' 가 이것이다. */
+    /** 전표마다 매입 부가세(1359 차변 − 대변)와 그 밖 계정의 차변 합 — 지출증빙현황의 '매출매입자료' 가 이것이다. */
     @Query("select l.entry.id, " +
-            "coalesce(sum(case when l.account.code = '135' then l.debit - l.credit else 0 end),0), " +
-            "coalesce(sum(case when l.account.code <> '135' then l.debit else 0 end),0) " +
+            "coalesce(sum(case when l.account.code = '1359' then l.debit - l.credit else 0 end),0), " +
+            "coalesce(sum(case when l.account.code <> '1359' then l.debit else 0 end),0) " +
             "from JournalLine l where l.entry.id in :ids group by l.entry.id")
     List<Object[]> purchaseVatByEntry(@Param("ids") java.util.Collection<Long> ids);
 
@@ -170,7 +170,7 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
     /** 판매에서 만든 회계전표(판매 · 판매일괄회계반영)가 외상매출금(108)을 움직인 몫 — 거래처별 차변 − 대변. 판매 쪽 금액과의 차이가 기타할인등차액이다. */
     @Query("select e.partner.id, coalesce(sum(l.debit - l.credit), 0) " +
             "from JournalLine l join l.entry e " +
-            "where l.account.code = '108' and e.sourceType in :sources and e.partner is not null and e.entryDate <= :until " +
+            "where l.account.code = '1089' and e.sourceType in :sources and e.partner is not null and e.entryDate <= :until " +
             "group by e.partner.id")
     List<Object[]> sumReceivableOfSalesEntries(@Param("sources") java.util.Collection<com.erp.accounting.journal.JournalSourceType> sources,
                                                @Param("until") LocalDate until);

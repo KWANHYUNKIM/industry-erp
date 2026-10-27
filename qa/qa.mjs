@@ -2403,7 +2403,7 @@ async function scenarioNonCash() {
     txnDate: '2026-07-14',
   })
   const transferEntry = await must('GET', `/journals/${transfer.journalEntryId}`)
-  eq('계정대체는 지정한 차/대변 그대로', `${transfer.debitAccountCode}/${transfer.creditAccountCode}`, '830/146')
+  eq('계정대체는 지정한 차/대변 그대로', `${transfer.debitAccountCode}/${transfer.creditAccountCode}`, '8159/1469')
   eq('대체 분개가 대차평형', Number(transferEntry.totalDebit), Number(transferEntry.totalCredit))
 
   await rejects('현금 계정은 비현금거래에 쓸 수 없음', 'POST', '/non-cash', {
@@ -8979,7 +8979,7 @@ async function scenarioExpenseDocNo() {
   section('■ 비용 전표번호')
 
   const accounts = await must('GET', '/accounts')
-  const account = accounts[0]
+  const account = accounts.find((x) => !x.groupAccount)   // 묶음 계정(1010 자산 …)은 전표에 못 쓴다
   const date = '2098-03-14'
   const mk = (n) => must('POST', '/expenses', {
     expenseDate: date, accountId: account.id, content: `${P}채번${n}`,
@@ -11988,18 +11988,18 @@ async function scenarioImportCost() {
   vs.push(await must('POST', '/import-costs/vouchers', { ...base, kind: 'BROKER_PAYMENT', amount: 32000, bankAccountId: bank.id, partnerId: partner.id }))
   const lines = async (v) => (await must('GET', `/journals/${v.journalEntryId}`)).lines
     .map((l) => `${l.accountCode}:${Number(l.debit) || -Number(l.credit)}`).join(' ')
-  eq('청구서 분개 차 미착품 / 대 외상매입금', await lines(vs[0]), '168:100000 251:-100000')
-  eq('세금계산서 분개 차 미착품 공급가 · 부가세대급금 / 대 합계', await lines(vs[1]), '168:20000 135:2000 251:-22000')
-  eq('관세사에지급 분개 차 외상매입금 / 대 계좌', await lines(vs[4]), `251:32000 ${bank.glAccountCode}:-32000`)
+  eq('청구서 분개 차 미착품 / 대 외상매입금', await lines(vs[0]), '1689:100000 2519:-100000')
+  eq('세금계산서 분개 차 미착품 공급가 · 부가세대급금 / 대 합계', await lines(vs[1]), '1689:20000 1359:2000 2519:-22000')
+  eq('관세사에지급 분개 차 외상매입금 / 대 계좌', await lines(vs[4]), `2519:32000 ${bank.glAccountCode}:-32000`)
   // 원본 2026-10-20 거래대금지급 500 · 수수료 50: 차 외상매입금 500 · 지급수수료(판) 50 / 대 보통예금 550, 전표검색 [금액] 550
-  eq('거래대금지급 수수료 분개 차 외상매입금 · 지급수수료 / 대 계좌 합', await lines(vs[3]), `251:100000 831:500 ${bank.glAccountCode}:-100500`)
+  eq('거래대금지급 수수료 분개 차 외상매입금 · 지급수수료 / 대 계좌 합', await lines(vs[3]), `2519:100000 8319:500 ${bank.glAccountCode}:-100500`)
   eq('전표검색 금액 — 지급은 수수료 포함 · 계산서는 부가세 포함', `${Number(vs[3].total)} ${Number(vs[1].total)}`, '100500 22000')
   const row = async () => (await must('GET', `/import-costs/ledger?from=2026-10-01&to=2026-10-31&lotId=${lot.id}`)).rows[0]
   let r = await row()
   eq('대장 상품대금 · 직접설정가능 · 합계', `${r.goods} ${r.costs[items[0].id]} ${r.total}`, '100000 30000 130000')
   eq('대장 거래대금지급(수수료 포함) · 관세사에지급 · 최초대금지급일', `${r.tradePaid} ${r.brokerPaid} ${r.firstPaymentDate}`, `100500 32000 ${day}`)
   const transfer = await must('POST', '/import-costs/vouchers', { ...base, kind: 'TRANSFER', amount: 130000, accountId: acc('1539').id })
-  eq('본계정대체 분개 차 원재료 / 대 미착품', await lines(transfer), '153:130000 168:-130000')
+  eq('본계정대체 분개 차 원재료 / 대 미착품', await lines(transfer), '1539:130000 1689:-130000')
   r = await row()
   eq('대체 뒤 대체금액 · 잔액 · 통관일', `${r.transfer} ${r.balance} ${r.clearanceDate}`, `130000 0 ${day}`)
   eq('전표검색에 여섯 장', (await must('GET', `/import-costs/vouchers?from=${day}&to=${day}`)).filter((v) => v.lotId === lot.id).length, 6)
@@ -12012,8 +12012,8 @@ async function scenarioImportCost() {
   const feeTax = await must('POST', '/import-costs/vouchers', { ...base, kind: 'TAX_INVOICE', amount: 20000, vat: 2000, fee: 300, costItemId: items[0].id })
   const feeRcpt = await must('POST', '/import-costs/vouchers', { ...base, kind: 'GENERAL_RECEIPT', amount: 5000, fee: 200, costItemId: items[0].id })
   vs.push(feeTax, feeRcpt)
-  eq('세금계산서 수수료 분개 — 외상매입금 두 줄', await lines(feeTax), '168:20000 135:2000 251:-22000 831:300 251:-300')
-  eq('일반영수증 수수료 분개 — 외상매입금 한 줄 합', await lines(feeRcpt), '168:5000 831:200 251:-5200')
+  eq('세금계산서 수수료 분개 — 외상매입금 두 줄', await lines(feeTax), '1689:20000 1359:2000 2519:-22000 8319:300 2519:-300')
+  eq('일반영수증 수수료 분개 — 외상매입금 한 줄 합', await lines(feeRcpt), '1689:5000 8319:200 2519:-5200')
   eq('전표검색 금액 — 영수증은 수수료 포함 · 계산서는 뺀다', `${Number(feeRcpt.total)} ${Number(feeTax.total)}`, '5200 22000')
   await rejects('전표가 쓰는 관리번호는 못 지운다', 'DELETE', `/import-costs/lots/${lot.id}`, undefined, '쓰고 있는')
   await must('POST', '/import-costs/vouchers/delete', { ids: vs.map((v) => v.id) })
