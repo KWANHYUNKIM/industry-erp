@@ -32,7 +32,7 @@ interface Block extends Cell { accCode: string; accName: string; lines: Line[] }
 interface BankTxn { journalEntryId: number | null; bankAccountId: number }
 interface BankAccount { id: number; name: string | null; bankName: string | null; accountNo: string | null }
 /** 현금 · 당좌 · 보통예금 — 이 줄의 거래처 자리는 전표의 거래처가 아니라 통장(현금은 '[ ]')이다. 자금일보와 같은 가름. */
-const CASH_CODES = ['101', '102', '103']
+const CASH_CODES = ['1019', '1029', '1039']
 
 /**
  * 회계 I &gt; 경영자료 &gt; <b>자금현황표</b>(E010804) — 2026-10-03 loginaa 실측(자료가 든 판, 최근30일).
@@ -104,7 +104,7 @@ export default function FundStatusPage() {
         if (!m.has(l.accountCode)) m.set(l.accountCode, { accCode: l.accountCode, accName: l.accountName, carry: 0, inc: 0, dec: 0, lines: [] })
         const b = m.get(l.accountCode)!
         const cash = CASH_CODES.includes(l.accountCode)
-        const bk = cash && l.accountCode !== '101' ? bookOf.get(e.id) : undefined
+        const bk = cash && l.accountCode !== '1019' ? bookOf.get(e.id) : undefined
         /* 통장은 번호로 묶는다 — 끝 네 자리가 같은 두 통장이 한 줄로 합쳐지지 않게. */
         const key = cash ? `bank:${bk?.id ?? ''}` : String(pid ?? '')
         let line = b.lines.find((x) => x.key === key)

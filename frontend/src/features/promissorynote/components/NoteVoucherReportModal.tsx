@@ -104,7 +104,7 @@ export default function NoteVoucherReportModal({ receivable, picks, onClose, onS
   )
 
   /* 우리 계정코드 — 받을어음 110 · 지급어음 252(원본 1109 · 2529). */
-  const accCode = received ? '110' : '252'
+  const accCode = received ? '1109' : '2529'
   const accName = received ? '받을어음' : '지급어음'
   const total = (lines ?? []).reduce((s, l) => s + Number(l.pick.note.amount), 0)
 

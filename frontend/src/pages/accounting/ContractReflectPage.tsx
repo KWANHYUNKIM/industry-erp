@@ -141,7 +141,7 @@ export default function ContractReflectPage() {
     setSlip({
       group: g, date: ymd(new Date()), departmentId: g.lines[0].departmentId != null ? String(g.lines[0].departmentId) : '',
       projectId: g.lines[0].projectId != null ? String(g.lines[0].projectId) : '', vatType: filter.vatType || g.lines[0].vatType,
-      supply: g.supply, vat: g.vat, memo: g.memo, accountId: g.accountId || acctId('404'), settleId: acctId('108'), fee: '0',
+      supply: g.supply, vat: g.vat, memo: g.memo, accountId: g.accountId || acctId('4049'), settleId: acctId('1089'), fee: '0',
     })
   }
   function startReflect(gs: Group[]) {

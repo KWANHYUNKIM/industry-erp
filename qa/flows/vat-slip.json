@@ -17,7 +17,7 @@
         "click:저장(F8)",
         "wait:1500",
         "expect:document.querySelector('input[aria-label=\"공급가액\"]').value === '' && document.querySelector('select[aria-label=\"부가세유형\"]').value === '세금계산서'",
-        "expect:(async () => { const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = (await fetch('/api/journals?from=' + ymd + '&to=' + ymd + '&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json())).rows.find((r) => r.description === 'QA회계1 매출전표'); sessionStorage.setItem('vsJ', j.id); const amt = (code, side) => Number((j.lines.find((l) => l.accountCode === code) ?? {})[side] ?? 0); return j.sourceTypeName === '매출전표 I' && j.vatType === '카드매출' && amt('108', 'debit') === 110000 && amt('404', 'credit') === 100000 && amt('255', 'credit') === 10000 })()",
+        "expect:(async () => { const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = (await fetch('/api/journals?from=' + ymd + '&to=' + ymd + '&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json())).rows.find((r) => r.description === 'QA회계1 매출전표'); sessionStorage.setItem('vsJ', j.id); const amt = (code, side) => Number((j.lines.find((l) => l.accountCode === code) ?? {})[side] ?? 0); return j.sourceTypeName === '매출전표 I' && j.vatType === '카드매출' && amt('1089', 'debit') === 110000 && amt('4049', 'credit') === 100000 && amt('2559', 'credit') === 10000 })()",
         "expect:(async () => (await fetch('/api/journals/' + sessionStorage.getItem('vsJ'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).ok)()"
       ]
     },
@@ -45,7 +45,7 @@
         "wait:200",
         "click:저장(F8)",
         "wait:1500",
-        "expect:(async () => { const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = (await fetch('/api/journals?from=' + ymd + '&to=' + ymd + '&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json())).rows.find((r) => r.description === 'QA회계1 세부내역'); sessionStorage.setItem('vsJ2', j.id); const amt = (code, side) => j.lines.filter((l) => l.accountCode === code).reduce((a, l) => a + Number(l[side]), 0); return amt('108', 'debit') === 110000 && amt('831', 'debit') === 1000 && amt('108', 'credit') === 1000 && j.vatDetail && j.vatDetail.items.length === 1 && j.eInvoiceKind === '전자(세금)계산서-신규' && j.vatOmitted === false })()",
+        "expect:(async () => { const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = (await fetch('/api/journals?from=' + ymd + '&to=' + ymd + '&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json())).rows.find((r) => r.description === 'QA회계1 세부내역'); sessionStorage.setItem('vsJ2', j.id); const amt = (code, side) => j.lines.filter((l) => l.accountCode === code).reduce((a, l) => a + Number(l[side]), 0); return amt('1089', 'debit') === 110000 && amt('8319', 'debit') === 1000 && amt('1089', 'credit') === 1000 && j.vatDetail && j.vatDetail.items.length === 1 && j.eInvoiceKind === '전자(세금)계산서-신규' && j.vatOmitted === false })()",
         "js:(() => { location.href = '/accounting/sales-slip?journal=' + sessionStorage.getItem('vsJ2'); return true })()",
         "wait:5000",
         "expect:document.querySelector('input[aria-label=\"수수료\"]').value.replace(/,/g, '') === '1000' && document.querySelector('input[aria-label=\"공급가액\"]').value.replace(/,/g, '') === '100000'",
@@ -54,7 +54,7 @@
         "click:저장(F8)",
         "wait:1500",
         "expect:location.pathname === '/accounting/journals'",
-        "expect:(async () => { const j = await fetch('/api/journals/' + sessionStorage.getItem('vsJ2'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()); const amt = (code, side) => j.lines.filter((l) => l.accountCode === code).reduce((a, l) => a + Number(l[side]), 0); return amt('108', 'debit') === 220000 && amt('255', 'credit') === 20000 && amt('831', 'debit') === 1000 && !!j.updatedBy })()",
+        "expect:(async () => { const j = await fetch('/api/journals/' + sessionStorage.getItem('vsJ2'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()); const amt = (code, side) => j.lines.filter((l) => l.accountCode === code).reduce((a, l) => a + Number(l[side]), 0); return amt('1089', 'debit') === 220000 && amt('2559', 'credit') === 20000 && amt('8319', 'debit') === 1000 && !!j.updatedBy })()",
         "expect:(async () => (await fetch('/api/journals/' + sessionStorage.getItem('vsJ2'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).ok)()"
       ]
     }

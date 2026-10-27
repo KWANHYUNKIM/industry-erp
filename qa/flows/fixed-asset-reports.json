@@ -79,7 +79,7 @@
     "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-출력물'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-출력물')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
     "js:__d(0,'2026-10-01');__d(1,'2026-10-21');true",
     "wait:2000",
-    "expect:(c=>c&&c.join('|').endsWith('QA회계1-출력물|2026/10/21|0|1,200,000|QA회계1')&&c[0]==='212'&&c[1]==='비품')(__c())",
+    "expect:(c=>c&&c.join('|').endsWith('QA회계1-출력물|2026/10/21|0|1,200,000|QA회계1')&&c[0]==='2074'&&c[1]==='비품')(__c())",
     "expect:!!__c((r=>r.cells[0]&&r.cells[0].innerText.trim()==='212 계'))&&__c((r=>r.cells[0]&&r.cells[0].innerText.trim()==='212 계'))[1]==='0'"
    ],
    "finally": [
@@ -112,7 +112,7 @@
     "js:window.confirm=()=>true;window.__set=(el,v)=>{const p=el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))};window.__q=n=>document.querySelector('[name='+n+']');window.__row=()=>[...document.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA회계1-출력물'));window.__c=(f)=>{const r=[...document.querySelectorAll('tbody tr, tfoot tr')].find(f||(r=>r.innerText.includes('QA회계1-출력물')));return r?[...r.cells].map(c=>c.innerText.trim()):null};window.__d=(i,v)=>__set(document.querySelectorAll('input[type=date]')[i],v);true",
     "js:__d(0,'2026-10-01');__d(1,'2026-10-21');true",
     "wait:2000",
-    "expect:(c=>c&&c[0]==='212'&&c[4]==='2026/10/21'&&c[5]==='0'&&c[6]==='1,200,000'&&c[8]==='500,000')(__c())",
+    "expect:(c=>c&&c[0]==='2074'&&c[4]==='2026/10/21'&&c[5]==='0'&&c[6]==='1,200,000'&&c[8]==='500,000')(__c())",
     "expect:!!__c((r=>r.cells[0]&&r.cells[0].innerText.trim()==='212 계'))"
    ],
    "finally": [

@@ -1,5 +1,6 @@
 package com.erp.accounting.fastvoucher;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.bankcard.BankCardService;
 import com.erp.accounting.journal.JournalService;
 import com.erp.common.ApiException;
@@ -33,13 +34,13 @@ import com.erp.accounting.fastvoucher.dto.FastVoucherDtos;
 @RequiredArgsConstructor
 public class FastVoucherService {
 
-    private static final String CASH = "101";              // 현금
-    private static final String PAYABLE = "253";           // 미지급금
-    private static final String RECEIVABLE = "108";        // 외상매출금
-    private static final String ADVANCE = "134";           // 가지급금
-    private static final String FEE = "831";               // 지급수수료
-    private static final String OTHER_RECEIVABLE = "120";  // 미수금 (카드사)
-    private static final String INTEREST = "951";          // 이자비용
+    private static final String CASH = StandardAccounts.CASH;              // 현금
+    private static final String PAYABLE = StandardAccounts.PAYABLE;           // 미지급금
+    private static final String RECEIVABLE = StandardAccounts.RECEIVABLE;        // 외상매출금
+    private static final String ADVANCE = StandardAccounts.ADVANCE_PAID;           // 가지급금
+    private static final String FEE = StandardAccounts.FEE;               // 지급수수료
+    private static final String OTHER_RECEIVABLE = StandardAccounts.OTHER_RECEIVABLE;  // 미수금 (카드사)
+    private static final String INTEREST = StandardAccounts.INTEREST_EXPENSE;          // 이자비용
 
     private final FastVoucherRepository voucherRepository;
     private final AccountRepository accountRepository;
@@ -436,7 +437,7 @@ public class FastVoucherService {
             case SALES_COLLECTION -> account(RECEIVABLE);
             case CARD_SALES_COLLECTION -> issuer != null && issuer.getAccount() != null ? issuer.getAccount() : account(OTHER_RECEIVABLE); // 원본: 카드사 [계정] 을 바꾸면 대변 자리가 그 계정(2026-10-22 외상매출금 1089 로 실측)
             case TEMP_DEPOSIT, TEMP_WITHDRAW -> account(ADVANCE);
-            case PURCHASE_PAYMENT -> account("251");
+            case PURCHASE_PAYMENT -> account(StandardAccounts.PAYABLE_TRADE);
             case CARD_BILL_PAYMENT -> account(PAYABLE);
             case ACCOUNT_TRANSFER, BANK_BORROWING, LOAN_REPAYMENT -> counter.getGlAccount();
             default -> account(in.accountId());

@@ -1,5 +1,6 @@
 package com.erp.accounting.fixedasset;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.account.Account;
 import com.erp.accounting.account.AccountRepository;
 import com.erp.accounting.fixedasset.dto.FixedAssetDtos.*;
@@ -137,8 +138,8 @@ public class DepreciationCalcService {
         for (Depreciation d : rows.stream().sorted(Comparator.comparing((Depreciation x) -> x.getAsset().getAssetAccount().getCode())
                 .thenComparing(Depreciation::getId)).toList()) {
             FixedAsset a = d.getAsset();
-            Account accum = a.getAccumAccount() != null ? a.getAccumAccount() : byCode("203");
-            Account expense = a.getExpenseAccount() != null ? a.getExpenseAccount() : byCode("818");
+            Account accum = a.getAccumAccount() != null ? a.getAccumAccount() : byCode(StandardAccounts.ACCUMULATED_DEPRECIATION);
+            Account expense = a.getExpenseAccount() != null ? a.getExpenseAccount() : byCode(StandardAccounts.DEPRECIATION_EXPENSE);
             sums.merge(new Key(a.getAssetAccount().getCode(), accum, expense), d.getAmount(), BigDecimal::add);
         }
         List<SlipDraftLine> lines = new ArrayList<>();

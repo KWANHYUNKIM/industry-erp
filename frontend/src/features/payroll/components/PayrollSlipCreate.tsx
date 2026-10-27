@@ -34,9 +34,9 @@ export default function PayrollSlipCreate({ ledger, onClose, onSaved }: { ledger
         const gross = p.data.reduce((s, x) => s + Number(x.grossPay), 0)
         const ded = p.data.reduce((s, x) => s + Number(x.deductionTotal), 0)
         setLines([
-          { side: '차변', accountId: by('801'), amount: gross, memo: ledger.name },
+          { side: '차변', accountId: by('8029'), amount: gross, memo: ledger.name },
           { side: '대변', accountId: '', amount: gross - ded, memo: '' },
-          { side: '대변', accountId: by('254'), amount: ded, memo: '' },
+          { side: '대변', accountId: by('2549'), amount: ded, memo: '' },
         ])
       })
       .catch((e) => setError(extractErrorMessage(e)))

@@ -18,8 +18,8 @@ import { scopeEntries } from '../../utils/deptProject'
 type Side = '채권' | '채무'
 /** 계정(StandardAccounts) — 채권은 받을어음 110 · 외상매출금 108, 채무는 지급어음 252 · 외상매입금 251. */
 const ACC: Record<Side, { note: string; open: string; noteName: string; openName: string; plan: string }> = {
-  채권: { note: '110', open: '108', noteName: '받을어음', openName: '외상매출금', plan: '수금계획' },
-  채무: { note: '252', open: '251', noteName: '지급어음', openName: '외상매입금', plan: '지급계획' },
+  채권: { note: '1109', open: '1089', noteName: '받을어음', openName: '외상매출금', plan: '수금계획' },
+  채무: { note: '2529', open: '2519', noteName: '지급어음', openName: '외상매입금', plan: '지급계획' },
 }
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }

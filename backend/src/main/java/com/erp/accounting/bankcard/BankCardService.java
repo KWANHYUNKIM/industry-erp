@@ -1,5 +1,6 @@
 package com.erp.accounting.bankcard;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.journal.JournalService;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
@@ -35,7 +36,7 @@ import com.erp.accounting.bankcard.dto.BankCardDtos;
 public class BankCardService {
 
     /** 계좌의 기본 예금계정 */
-    private static final String DEFAULT_BANK_ACCOUNT_CODE = "103";
+    private static final String DEFAULT_BANK_ACCOUNT_CODE = StandardAccounts.BANK_DEPOSIT;
 
     private final BankAccountRepository bankAccountRepository;
     private final CreditCardRepository cardRepository;
@@ -185,7 +186,7 @@ public class BankCardService {
         if (req.businessUse() != null) c.setBusinessUse(req.businessUse());
         c.setGlAccount(req.glAccountId() != null ? account(req.glAccountId())
                 : c.getGlAccount() != null ? c.getGlAccount()
-                : accountRepository.findByCode("253").orElse(null));
+                : accountRepository.findByCode(StandardAccounts.PAYABLE).orElse(null));
         if (req.manager() != null) c.setManager(blankToNull(req.manager()));
         if (req.searchText() != null) c.setSearchText(blankToNull(req.searchText()));
     }
@@ -351,7 +352,7 @@ public class BankCardService {
                 .orElseThrow(() -> ApiException.notFound("입출금 내역을 찾을 수 없습니다. id=" + id));
         String code = t.getCounterAccount() == null ? null : t.getCounterAccount().getCode();
         boolean fromIncome = t.getJournalEntry() != null && incomeRepository.existsByJournalEntryId(t.getJournalEntry().getId());
-        if (code == null || fromIncome || "110".equals(code) || "252".equals(code)) {
+        if (code == null || fromIncome || StandardAccounts.NOTES_RECEIVABLE.equals(code) || StandardAccounts.NOTES_PAYABLE.equals(code)) {
             throw ApiException.badRequest(t.getTxnNo() + " 은(는) 다른 전표(" + (fromIncome ? "수입"
                     : code == null ? "계좌간이동·카드대금결제·간편전표" : "어음") + ")가 만든 입출금입니다 — 그 전표에서 지우세요.");
         }

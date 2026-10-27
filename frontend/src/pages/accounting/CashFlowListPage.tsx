@@ -16,7 +16,7 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 24
 const BOLD: React.CSSProperties = { fontWeight: 700 }
 const slash = (d: string) => d.replace(/-/g, '/')
 /** 자금 계정 — 현금 · 당좌예금 · 보통예금(StandardAccounts). 자금일보와 같다. */
-const FUND_CODES = ['101', '102', '103']
+const FUND_CODES = ['1019', '1029', '1039']
 const shiftDay = (d: string, n: number) => {
   const t = new Date(`${d}T00:00:00`); t.setDate(t.getDate() + n)
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`

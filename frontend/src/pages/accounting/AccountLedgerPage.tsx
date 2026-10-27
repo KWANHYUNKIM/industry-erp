@@ -15,7 +15,7 @@ import { lineInDeptProject } from '../../utils/deptProject'
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
 /** 예금 계정 — 이 줄의 거래처명 자리는 전표의 거래처가 아니라 통장이다(원본: 기업은행-1122). 자금일보와 같은 가름. */
-const DEPOSIT_CODES = ['102', '103']
+const DEPOSIT_CODES = ['1029', '1039']
 type Mode = '건별' | '일별' | '월별' | '계정별집계'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }

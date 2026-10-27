@@ -1,5 +1,6 @@
 package com.erp.accounting.bankcheck;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.bankcard.BankCardService;
 import com.erp.accounting.journal.JournalService;
 import com.erp.common.ApiException;
@@ -199,7 +200,7 @@ public class BankCheckService {
             requireNotBeforeIssue(c, req.date(), "일자");
             Long account = (!received || c.isDirectEntry()) && c.getBankAccount() != null && c.getBankAccount().getGlAccount() != null
                     ? c.getBankAccount().getGlAccount().getId()
-                    : received ? accountRepository.findByCode("104")
+                    : received ? accountRepository.findByCode(StandardAccounts.CHECK_RECEIVABLE)
                         .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: 104")).getId()
                     : null;
             if (account == null) throw ApiException.badRequest(c.getCheckNo() + " 의 수표계좌에 계정이 없습니다.");

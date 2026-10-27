@@ -24,8 +24,8 @@ type Tab = '전체' | '결재중' | '미확인' | '확인'
 const TAB_STATUS: Record<Exclude<Tab, '전체'>, NonNullable<Journal['confirmStatus']>> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
 
 /** 부가세대급금 — 매입부가세가 걸리는 계정. 매출은 부가세예수금(255). */
-const VAT_PAID = '135'
-const VAT_RECEIVED = '255'
+const VAT_PAID = '1359'
+const VAT_RECEIVED = '2559'
 /** 재고 쪽에서 회계로 넘긴 전표 — 매입은 구매 회계반영 · 외주비 회계반영, 매출은 판매 회계반영. */
 const SOURCES = { PURCHASE: new Set(['PURCHASE', 'SUBCONTRACT']), SALES: new Set(['SALES']) }
 /** 원본 소계 · 합계줄(2026-10-03 매출 쪽 실측): 바탕 rgb(243,243,243) · 굵게 · 앞 두 칸을 묶어 가운데. */

@@ -15,7 +15,7 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
 /* 원본 [계정 계] · [합계] 줄(2026-10-03 실측): 바탕 회색 243 · 굵게 — 출력물 합계줄 토큰 --ec-report-stripe 로 그린다. */
 const slash = (d: string) => d.replace(/-/g, '/')
 /** 자금 계정 — 현금 · 당좌예금 · 보통예금(StandardAccounts). */
-const FUND_CODES = ['101', '102', '103']
+const FUND_CODES = ['1019', '1029', '1039']
 /** 자금증감내역 원본 빠른선택 — 결산 묶음 뒤에 최근30일(기본). */
 const FLOW_PICKS = [...SETTLE_PICKS, '최근30일'] as const
 
@@ -108,7 +108,7 @@ export default function FundDailyPage({ variant = 'daily', embed }: { variant?: 
       const feeXfer = !isXfer && fundLines.length === 2 && fundLines.filter((o) => Number(o.debit)).length === 1 && fundLines.filter((o) => Number(o.credit)).length === 1
         && restLines.length > 0 && restLines.every((o) => Number(o.debit) > 0)
       const bookFor = (l: JournalEntry['lines'][number]) => {
-        if (l.accountCode === '101') return undefined
+        if (l.accountCode === '1019') return undefined
         const [a, b] = Number(l.debit) ? ['d', 'c'] : ['c', 'd']
         return bookOf.get(`${e.id}:${a}`) ?? bookOf.get(`${e.id}:${b}`)
       }
@@ -117,7 +117,7 @@ export default function FundDailyPage({ variant = 'daily', embed }: { variant?: 
         if (!fm.has(l.accountCode)) fm.set(l.accountCode, { code: l.accountCode, name: l.accountName, carry: 0, inc: 0, dec: 0, books: new Map() })
         const f = fm.get(l.accountCode)!
         /* 현금은 통장이 없어 거래처명이 빈칸(원본). 예금 줄은 그 전표를 만든 통장으로, 통장 없이 잡힌 분개는 '[ ]' 줄로. */
-        const cash = l.accountCode === '101'
+        const cash = l.accountCode === '1019'
         const bk = bookFor(l)
         /* 통장 번호로 묶는다 — 끝 네 자리가 같은 두 통장(이름이 같게 보이는 통장)이 한 줄로 합쳐지지 않게. */
         const key = cash ? '' : bk ? `#${bk.id}` : '[ ]'

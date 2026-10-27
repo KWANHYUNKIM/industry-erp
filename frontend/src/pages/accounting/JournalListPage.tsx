@@ -116,7 +116,7 @@ export default function JournalListPage() {
   const disposalAmount = (r: JournalEntry) => (r.sourceType as string) === 'DISPOSAL'
     ? r.lines.filter((l) => l.debit > 0 && !/^(취득원가상계|감가상각누계액상계|매각 (손실|이익))/.test(l.description ?? '')).reduce((s, l) => s + l.debit, 0) : undefined
   const acquisitionAmount = (r: JournalEntry) => (r.sourceType as string) === 'ASSET_ACQUISITION'
-    ? r.lines.filter((l) => l.debit > 0 && l.accountCode !== '831').reduce((s, l) => s + l.debit, 0) : undefined
+    ? r.lines.filter((l) => l.debit > 0 && l.accountCode !== '8319').reduce((s, l) => s + l.debit, 0) : undefined
   const amountOf = (r: JournalEntry) => cashQuickTotal[r.id] ?? disposalAmount(r) ?? acquisitionAmount(r) ?? r.totalDebit
   /* 원본 거래유형: 받을어음증가 화면으로 넣은 어음의 전표는 '받을어음증가'(지급은 '지급어음증가') — 2026-10-13 실측.
      우리 수취/발행 분개 적요가 '받을어음 수취/발행 BN-…' 이다. 할인료 · 부도 전표 이름은 못 쟀다. */

@@ -35,7 +35,7 @@ const rankOf = (n: string) => { const i = RANK.indexOf(n); return i < 0 ? 500 : 
 /** 우리 계정은 세부분류 한 층만 든다 — 원본 묶음 층으로 펼친다(손익은 원본 이름으로 한 층). */
 function chainOf(division: AccountDivision, cat: string, code: string, name: string): string[] {
   if (division === 'ASSET') {
-    if (cat === '유동자산') return ['유동자산', '당좌자산', ['101', '102', '103'].includes(code) || /예금$/.test(name) ? '현금및현금성자산' : '기타']
+    if (cat === '유동자산') return ['유동자산', '당좌자산', ['1019', '1029', '1039'].includes(code) || /예금$/.test(name) ? '현금및현금성자산' : '기타']
     if (cat === '매출채권') return ['유동자산', '당좌자산', '매출채권']
     if (cat === '재고자산') return ['유동자산', '재고자산']
     return ['비유동자산', cat || '기타']

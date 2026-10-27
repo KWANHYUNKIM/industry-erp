@@ -27,7 +27,7 @@ export function salesInvoiceOf(e: { lines: readonly Line[]; vatType?: string | n
   let amt = vatSlipAmounts(e.lines, '매출')
   /* 계산서(면세)는 부가세 줄이 없다 — 매출 계정 대변이 곧 공급가액(지급수수료 831 짝은 지운다). */
   if (!amt && vt?.startsWith('계산서')) {
-    amt = { supply: e.lines.reduce((t, l) => t + Number(l.credit) - (l.accountCode === '831' ? Number(l.debit) : 0), 0), vat: 0 }
+    amt = { supply: e.lines.reduce((t, l) => t + Number(l.credit) - (l.accountCode === '8319' ? Number(l.debit) : 0), 0), vat: 0 }
   }
   if (!amt) return null
   const isTax = vt ? !vt.startsWith('계산서') : amt.vat !== 0

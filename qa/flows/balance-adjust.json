@@ -6,10 +6,10 @@
       "path": "/accounting/balance-adjust",
       "steps": [
         "wait:1500",
-        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const e = new Date(d.getFullYear(), d.getMonth(), 0); const asOf = e.getFullYear() + '-' + String(e.getMonth() + 1).padStart(2, '0') + '-' + String(e.getDate()).padStart(2, '0'); const tb = await (await fetch('/api/journals/trial-balance?from=' + asOf + '&to=' + asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '811') || { debit: 0, credit: 0 }; const acc = (await (await fetch('/api/journals/balance-adjustments/accounts?asOf=' + asOf, { headers: H })).json()).find((x) => x.code === '811'); sessionStorage.setItem('ba-base', JSON.stringify({ asOf, d811: Number(r.debit), c811: Number(r.credit), bal: Number(acc.debitAmount), tbd: Number(tb.totalDebit), tbc: Number(tb.totalCredit) })); return sessionStorage.getItem('ba-base') })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const e = new Date(d.getFullYear(), d.getMonth(), 0); const asOf = e.getFullYear() + '-' + String(e.getMonth() + 1).padStart(2, '0') + '-' + String(e.getDate()).padStart(2, '0'); const tb = await (await fetch('/api/journals/trial-balance?from=' + asOf + '&to=' + asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '8109') || { debit: 0, credit: 0 }; const acc = (await (await fetch('/api/journals/balance-adjustments/accounts?asOf=' + asOf, { headers: H })).json()).find((x) => x.code === '8109'); sessionStorage.setItem('ba-base', JSON.stringify({ asOf, d811: Number(r.debit), c811: Number(r.credit), bal: Number(acc.debitAmount), tbd: Number(tb.totalDebit), tbc: Number(tb.totalCredit) })); return sessionStorage.getItem('ba-base') })()",
         "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|계정|계정명|거래처별집계구분|차변금액|대변금액|진행단계'",
         "expect:(() => { const b = JSON.parse(sessionStorage.getItem('ba-base')); return document.body.innerText.includes(b.asOf.replaceAll('-', '/')) })()",
-        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.innerText.trim() === '811'); [...tr.querySelectorAll('button')].find((x) => x.innerText.trim() === '조정').click(); return true })()",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.innerText.trim() === '8109'); [...tr.querySelectorAll('button')].find((x) => x.innerText.trim() === '조정').click(); return true })()",
         "wait:800",
         "expect:document.body.innerText.includes('잔액실사(계정별)') && [...document.querySelectorAll('[role=dialog] thead th')].map((t) => t.innerText.trim()).join('|') === '|부서|프로젝트|장부잔액|실잔액|조정금액|적요코드|적요명'",
         "clicklast:저장(F8)",
@@ -22,8 +22,8 @@
         "clicklast:저장(F8)",
         "wait:1500",
         "expect:!document.body.innerText.includes('잔액실사(계정별)')",
-        "expect:(() => { const b = JSON.parse(sessionStorage.getItem('ba-base')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.innerText.trim() === '811'); return Number(tr.cells[4].innerText.replace(/,/g, '')) === b.bal + 11000 && tr.cells[6].innerText.replace(/\\s+/g, ' ').trim() === '수정 추가 조회' })()",
-        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const b = JSON.parse(sessionStorage.getItem('ba-base')); const tb = await (await fetch('/api/journals/trial-balance?from=' + b.asOf + '&to=' + b.asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '811'); return Number(r.debit) === b.d811 + 11000 && Number(r.credit) === b.c811 && Number(tb.totalDebit) === b.tbd + 11000 && Number(tb.totalCredit) === b.tbc })()"
+        "expect:(() => { const b = JSON.parse(sessionStorage.getItem('ba-base')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.innerText.trim() === '8109'); return Number(tr.cells[4].innerText.replace(/,/g, '')) === b.bal + 11000 && tr.cells[6].innerText.replace(/\\s+/g, ' ').trim() === '수정 추가 조회' })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const b = JSON.parse(sessionStorage.getItem('ba-base')); const tb = await (await fetch('/api/journals/trial-balance?from=' + b.asOf + '&to=' + b.asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '8109'); return Number(r.debit) === b.d811 + 11000 && Number(r.credit) === b.c811 && Number(tb.totalDebit) === b.tbd + 11000 && Number(tb.totalCredit) === b.tbc })()"
       ]
     },
     {
@@ -41,7 +41,7 @@
       "steps": [
         "wait:1500",
         "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '일자|계정코드|계정명|거래처명|조정후잔액(차변)|조정후잔액(대변)|차이(차변)|차이(대변)|적요명'",
-        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[8]?.innerText.trim() === 'QA회계1 잔액조정'); return !!tr && tr.cells[1].innerText.trim() === '811' && tr.cells[6].innerText.trim() === '11,000' && [...document.querySelectorAll('tbody tr')].some((t) => / 계$/.test(t.cells[0]?.innerText.trim() ?? '')) && document.querySelector('tfoot').innerText.includes('합계') })()"
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[8]?.innerText.trim() === 'QA회계1 잔액조정'); return !!tr && tr.cells[1].innerText.trim() === '8109' && tr.cells[6].innerText.trim() === '11,000' && [...document.querySelectorAll('tbody tr')].some((t) => / 계$/.test(t.cells[0]?.innerText.trim() ?? '')) && document.querySelector('tfoot').innerText.includes('합계') })()"
       ]
     },
     {
@@ -61,7 +61,7 @@
         "clicklast:확인",
         "wait:1200",
         "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.cells[2]?.innerText.trim() === '복리후생비')",
-        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const b = JSON.parse(sessionStorage.getItem('ba-base')); const tb = await (await fetch('/api/journals/trial-balance?from=' + b.asOf + '&to=' + b.asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '811') || { debit: 0, credit: 0 }; const acc = (await (await fetch('/api/journals/balance-adjustments/accounts?asOf=' + b.asOf, { headers: H })).json()).find((x) => x.code === '811'); return Number(r.debit) === b.d811 && Number(tb.totalDebit) === b.tbd && Number(acc.debitAmount) === b.bal && acc.adjustmentIds.length === 0 })()"
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const b = JSON.parse(sessionStorage.getItem('ba-base')); const tb = await (await fetch('/api/journals/trial-balance?from=' + b.asOf + '&to=' + b.asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '8109') || { debit: 0, credit: 0 }; const acc = (await (await fetch('/api/journals/balance-adjustments/accounts?asOf=' + b.asOf, { headers: H })).json()).find((x) => x.code === '8109'); return Number(r.debit) === b.d811 && Number(tb.totalDebit) === b.tbd && Number(acc.debitAmount) === b.bal && acc.adjustmentIds.length === 0 })()"
       ]
     },
     {

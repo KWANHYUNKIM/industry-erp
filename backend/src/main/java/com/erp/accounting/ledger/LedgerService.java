@@ -1,5 +1,6 @@
 package com.erp.accounting.ledger;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.trade.settlement.SettlementType;
 import com.erp.accounting.journal.JournalSourceType;
@@ -60,8 +61,8 @@ public class LedgerService {
      *
      * <p>판매·구매·정산(수금·지급)전표에서 자동으로 만들어진 회계전표는 뺀다 — 그건 전표 자체로 이미 세고 있다.
      */
-    private static final String AR_ACCOUNT = "108";   // 외상매출금
-    private static final String AP_ACCOUNT = "251";   // 외상매입금
+    private static final String AR_ACCOUNT = StandardAccounts.RECEIVABLE;   // 외상매출금
+    private static final String AP_ACCOUNT = StandardAccounts.PAYABLE_TRADE;   // 외상매입금
     /** 전표 자체로 세는 출처 — 이 출처의 회계전표를 또 더하면 두 번 센다. */
     private static final java.util.Set<JournalSourceType> COUNTED_BY_SLIP = java.util.EnumSet.of(
             JournalSourceType.SALES, JournalSourceType.SALES_BATCH, JournalSourceType.PURCHASE, JournalSourceType.SETTLEMENT);

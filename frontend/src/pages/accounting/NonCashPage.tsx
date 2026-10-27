@@ -207,7 +207,7 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
   const conf = TYPES.find((t) => t.type === type)!
   // 현금·당좌예금·보통예금은 비현금거래에 쓸 수 없으므로 목록에서 뺀다(서버도 거절한다).
   const selectable = useMemo(
-    () => accounts.filter((a) => !['101', '102', '103'].includes(a.code)), [accounts])
+    () => accounts.filter((a) => !['1019', '1029', '1039'].includes(a.code)), [accounts])
   const expenses = useMemo(() => selectable.filter((a) => a.division === 'EXPENSE'), [selectable])
 
   async function submit() {

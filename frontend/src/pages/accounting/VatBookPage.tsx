@@ -114,7 +114,7 @@ export default function VatBookPage({ embed }: { embed?: VatEmbed } = {}) {
     const keep = new Set<Row>()
     for (const e of sorted) {
       /* 결의서 [추가정보] 부가세는 거래처를 전표가 아니라 부가세 줄에 든다(원본 회계거래조회 거래처명 빈칸 · 매입장엔 그 거래처). */
-      const vl = e.partnerId == null ? e.lines.find((l) => (l.accountCode === '135' || l.accountCode === '255') && l.partnerId != null) : undefined
+      const vl = e.partnerId == null ? e.lines.find((l) => (l.accountCode === '1359' || l.accountCode === '2559') && l.partnerId != null) : undefined
       const ePid = e.partnerId ?? vl?.partnerId ?? null
       const ePname = e.partnerName ?? vl?.partnerName ?? ''
       const p = ePid != null ? pById.get(ePid) : undefined
@@ -127,7 +127,7 @@ export default function VatBookPage({ embed }: { embed?: VatEmbed } = {}) {
         /* 부가세 줄이 없는 매출전표 I · 매입전표 I(영세율 · 계산서 …)도 장에 선다 — 부가세 0, 공급가액은 그쪽 합에서 [수수료](831 차변)를 뺀 것. */
         const vt = (e as JournalEntry & { vatType?: string | null }).vatType?.trim()
         if (!amt && vt && vatEntrySide(e) === side) {
-          const fee = e.lines.reduce((t, l) => t + (l.accountCode === '831' ? Number(l.debit) : 0), 0)
+          const fee = e.lines.reduce((t, l) => t + (l.accountCode === '8319' ? Number(l.debit) : 0), 0)
           amt = { supply: e.lines.reduce((t, l) => t + Number(side === '매출' ? l.credit : l.debit), 0) - fee, vat: 0 }
         }
         if (!amt) continue

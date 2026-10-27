@@ -184,7 +184,7 @@
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "js:window.__in = (el, v) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return true }; window.__set = (label, v) => { const el = document.querySelector(`[aria-label=\"${label}\"]`); window.__in(el, v); el.blur(); return true }; window.__code = (label, code) => { const el = document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`); window.__in(el, code); setTimeout(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })), 150); return true }; window.__codeOf = (label) => document.querySelector(`input.ec-input.code[placeholder=\"${label}\"]`)?.value ?? ''; window.__row = (t) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(t)); true",
         "wait:800",
-        "js:window.__code('구입자산', '153')",
+        "js:window.__code('구입자산', '1539')",
         "wait:500",
         "js:window.__code('관리번호', sessionStorage.getItem('icLot'))",
         "wait:500",
@@ -192,7 +192,7 @@
         "wait:200",
         "click:저장(F8)",
         "wait:1500",
-        "expect:window.__codeOf('구입자산') === '153' && window.__codeOf('관리번호') === ''"
+        "expect:window.__codeOf('구입자산') === '1539' && window.__codeOf('관리번호') === ''"
       ]
     },
     {

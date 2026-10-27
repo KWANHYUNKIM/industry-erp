@@ -5,7 +5,7 @@
       "name": "확인(기본) → 확인취소 → 확인 → 선택삭제",
       "path": "/accounting/journals",
       "steps": [
-        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = (await A('GET', '/accounts')).find((a) => a.code === '811'); const r = await A('POST', '/journals/cash', { entryDate: new Date().toISOString().slice(0, 10), deposit: false, counterAccountId: acc.id, amount: 3000, description: 'QA회계1-확인' }); sessionStorage.setItem('jcId', r.id); window.confirm = () => true; return r.docNo })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = (await A('GET', '/accounts')).find((a) => a.code === '8109'); const r = await A('POST', '/journals/cash', { entryDate: new Date().toISOString().slice(0, 10), deposit: false, counterAccountId: acc.id, amount: 3000, description: 'QA회계1-확인' }); sessionStorage.setItem('jcId', r.id); window.confirm = () => true; return r.docNo })()",
         "click:검색(F8)",
         "wait:800",
         "expect:document.querySelector('.ec-pill.active').textContent.trim() === '확인'",

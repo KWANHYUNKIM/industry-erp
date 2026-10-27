@@ -67,7 +67,7 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
   /** 계정코드(대변 · 발행수표는 차변) · 계정명 — 수표내역입력 수표 · 발행수표는 수표계좌의 계정, 분개로 받은 수표는 받을수표(104). */
   const accountOf = (c: BankCheck) => {
     const b = (c.directEntry || !received) && c.bankAccountId != null ? bankById.get(c.bankAccountId) : undefined
-    return b ? { code: b.glAccountCode, name: b.glAccountName } : { code: '104', name: '받을수표' }
+    return b ? { code: b.glAccountCode, name: b.glAccountName } : { code: '1022', name: '받을수표' }
   }
   const accountName = (c: BankCheck) => (c.bankAccountId != null && bankById.get(c.bankAccountId) ? bankLabel(bankById.get(c.bankAccountId)!) : '')
   const total = held.reduce((s, c) => s + Number(c.amount), 0)

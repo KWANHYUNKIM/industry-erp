@@ -1,5 +1,6 @@
 package com.erp.accounting.noncash;
 
+import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.journal.JournalService;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
@@ -29,11 +30,11 @@ import com.erp.accounting.noncash.dto.NonCashDtos;
 @RequiredArgsConstructor
 public class NonCashService {
 
-    private static final String RECEIVABLE = "108";     // 외상매출금
-    private static final String PAYABLE_TRADE = "251";  // 외상매입금
-    private static final String PAYABLE = "253";        // 미지급금
-    private static final String BAD_DEBT = "835";       // 대손상각비
-    private static final Set<String> CASH_CODES = Set.of("101", "102", "103");
+    private static final String RECEIVABLE = StandardAccounts.RECEIVABLE;     // 외상매출금
+    private static final String PAYABLE_TRADE = StandardAccounts.PAYABLE_TRADE;  // 외상매입금
+    private static final String PAYABLE = StandardAccounts.PAYABLE;        // 미지급금
+    private static final String BAD_DEBT = StandardAccounts.BAD_DEBT;       // 대손상각비
+    private static final Set<String> CASH_CODES = Set.of(StandardAccounts.CASH, StandardAccounts.CHECKING, StandardAccounts.BANK_DEPOSIT);
 
     private final NonCashTransactionRepository txnRepository;
     private final AccountRepository accountRepository;

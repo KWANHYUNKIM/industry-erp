@@ -29,7 +29,7 @@ function monthsBetween(fromYm: string, toYm: string): string[] {
 /** 원가명세서와 같은 [구분] — 원가 계정 코드 앞자리(5 · 6 · 7). */
 const KINDS = [['제품제조 5018', '5'], ['용역 6018', '6'], ['기타 7018', '7']] as const
 /** 재공품 계정(표준 169) — 원가명세서와 같다. */
-const WIP_CODE = '169'
+const WIP_CODE = '1699'
 type Bucket = '재료비' | '노무비' | '경비'
 const bucketOf = (name: string): Bucket =>
   /재료/.test(name) ? '재료비' : /임금|급여|상여|퇴직|잡급|수당/.test(name) ? '노무비' : '경비'

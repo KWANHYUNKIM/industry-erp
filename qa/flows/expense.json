@@ -7,7 +7,7 @@
       "steps": [
         "wait:800",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
-        "js:(async () => { const a = (await __api('GET', '/accounts')).body.find((x) => x.code === '812'); const r = await __api('POST', '/expense-items', { code: 'QAF-E1', name: 'QA회계2-흐름교통비', accountId: a.id }); sessionStorage.setItem('qaExItem', String(r.body.id)); return r.status === 200 })()"
+        "js:(async () => { const a = (await __api('GET', '/accounts')).body.find((x) => x.code === '8119'); const r = await __api('POST', '/expense-items', { code: 'QAF-E1', name: 'QA회계2-흐름교통비', accountId: a.id }); sessionStorage.setItem('qaExItem', String(r.body.id)); return r.status === 200 })()"
       ]
     },
     {
@@ -80,7 +80,7 @@
       "steps": [
         "wait:800",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
-        "js:(async () => { const a = (await __api('GET', '/accounts')).body.find((x) => x.code === '812'); const t = await __api('POST', '/expense-control-types', { code: 'QAF-T2', name: 'QA회계2-흐름통제', periodType: 'MONTHLY', personControl: true, limitType: 'PERSONAL_SAME', noticeType: 'WARN' }); sessionStorage.setItem('qaExCt', String(t.body.id)); const r = await __api('POST', '/expense-items', { code: 'QAF-E2', name: 'QA회계2-흐름교통비2', accountId: a.id, controlTypeId: t.body.id, limitAmount: 30000, employeeIds: [] }); sessionStorage.setItem('qaExItem2', String(r.body.id)); return t.status === 200 && r.status === 200 })()"
+        "js:(async () => { const a = (await __api('GET', '/accounts')).body.find((x) => x.code === '8119'); const t = await __api('POST', '/expense-control-types', { code: 'QAF-T2', name: 'QA회계2-흐름통제', periodType: 'MONTHLY', personControl: true, limitType: 'PERSONAL_SAME', noticeType: 'WARN' }); sessionStorage.setItem('qaExCt', String(t.body.id)); const r = await __api('POST', '/expense-items', { code: 'QAF-E2', name: 'QA회계2-흐름교통비2', accountId: a.id, controlTypeId: t.body.id, limitAmount: 30000, employeeIds: [] }); sessionStorage.setItem('qaExItem2', String(r.body.id)); return t.status === 200 && r.status === 200 })()"
       ]
     },
     {
@@ -135,7 +135,7 @@
         "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
         "wait:1500",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
-        "expect:(async () => { const xs = (await __api('GET', '/expenses')).body.filter((e) => e.expenseItemCode === 'QAF-E2'); const j = xs[0].settledJournalId; if (!j || xs.some((x) => x.settledJournalId !== j)) return false; sessionStorage.setItem('qaExJ2', String(j)); const e = (await __api('GET', '/journals/' + j)).body; const dr = e.lines.filter((z) => z.accountCode === '812').map((z) => z.debit).sort().join(); const cr = e.lines.filter((z) => z.accountCode === '134').reduce((s, z) => s + z.credit, 0); return dr === '15000,20000' && cr === 35000 })()"
+        "expect:(async () => { const xs = (await __api('GET', '/expenses')).body.filter((e) => e.expenseItemCode === 'QAF-E2'); const j = xs[0].settledJournalId; if (!j || xs.some((x) => x.settledJournalId !== j)) return false; sessionStorage.setItem('qaExJ2', String(j)); const e = (await __api('GET', '/journals/' + j)).body; const dr = e.lines.filter((z) => z.accountCode === '8119').map((z) => z.debit).sort().join(); const cr = e.lines.filter((z) => z.accountCode === '1349').reduce((s, z) => s + z.credit, 0); return dr === '15000,20000' && cr === 35000 })()"
       ]
     },
     {

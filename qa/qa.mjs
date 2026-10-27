@@ -549,12 +549,12 @@ async function scenarioReflectionAccounts(f) {
     await must('POST', '/accounting-reflection/reflect', { kind: 'SALES', ids: [sale.id] })
     await must('POST', '/accounting-reflection/reflect', { kind: 'PURCHASE', ids: [buy.id] })
     const s = await linesOf('SALES', sale.id)
-    eq('제품을 팔면 제품매출(404)', amt(s, '404', 'credit'), 100000)
-    eq('원재료를 팔면 상품매출(401)', amt(s, '401', 'credit'), 20000)
+    eq('제품을 팔면 제품매출(404)', amt(s, '4049', 'credit'), 100000)
+    eq('원재료를 팔면 상품매출(401)', amt(s, '4019', 'credit'), 20000)
     eq('섞인 판매도 대차가 맞는다', s.reduce((n, l) => n + Number(l.debit), 0), s.reduce((n, l) => n + Number(l.credit), 0))
     const p = await linesOf('PURCHASE', buy.id)
-    eq('원재료를 사면 원재료(153)', amt(p, '153', 'debit'), 60000)
-    eq('상품(146)으로는 안 잡힌다', amt(p, '146', 'debit'), 0)
+    eq('원재료를 사면 원재료(153)', amt(p, '1539', 'debit'), 60000)
+    eq('상품(146)으로는 안 잡힌다', amt(p, '1469', 'debit'), 0)
   } finally {
     await call('POST', '/accounting-reflection/unreflect', { kind: 'SALES', ids: [sale.id] })
     await call('POST', '/accounting-reflection/unreflect', { kind: 'PURCHASE', ids: [buy.id] })
@@ -1209,7 +1209,7 @@ async function scenarioQuotationWarehouseProject(f) {
     partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-03-02', taxable: true, projectId: proj.id,
     lines: [{ itemId: f.material.id, quantity: 2, unitPrice: 5000 }],
   })
-  const acct = (await must('GET', '/accounts')).find((a) => a.code === '812') ?? (await must('GET', '/accounts'))[0]
+  const acct = (await must('GET', '/accounts')).find((a) => a.code === '8119') ?? (await must('GET', '/accounts'))[0]
   await must('POST', '/expenses', { accountId: acct.id, expenseDate: '2026-03-02', content: 'QA 프로젝트 비용', amount: 3000, projectId: proj.id })
   const after = await rowOf()
   const d = (k) => Number(after[k]) - Number(before[k])
@@ -1743,7 +1743,7 @@ async function scenarioPurchaseOrder(f) {
     .find((j) => j.sourceType === 'SALES' && j.sourceId === posted.id)
   const glAmt = (code, k) => Number(gl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
   eq('[원본] 반영 분개 — 차)외상매출금 1,101 / 대)제품매출 1,001 · 부가세예수금 100',
-    `${glAmt('108', 'debit')} ${glAmt('404', 'credit')} ${glAmt('255', 'credit')}`, '1101 1001 100')
+    `${glAmt('1089', 'debit')} ${glAmt('4049', 'credit')} ${glAmt('2559', 'credit')}`, '1101 1001 100')
   eq('[일관성] 반영 분개 대차평형', Number(gl?.totalDebit), Number(gl?.totalCredit))
   eq('[원본] 전표 적요 "매출 : 세금계산서 / 거래처 / 1,001 / 100"', gl?.description, `매출 : 세금계산서 / ${f.customer.name} / 1,001 / 100`)
   eq('[원본] 줄 적요는 품목명', [...new Set(gl?.lines.map((l) => l.description))].join(','), f.product.name)
@@ -1977,15 +1977,15 @@ async function scenarioBankCard() {
 
   const accounts = await must('GET', '/accounts')
   const byCode = (code) => accounts.find((a) => a.code === code)
-  const cash = byCode('101')
-  const welfare = byCode('811')
+  const cash = byCode('1019')
+  const welfare = byCode('8109')
 
   const accountNo = `${P}110-999-000001`
   const existing = (await must('GET', '/bank-cards/accounts')).find((a) => a.accountNo === accountNo)
   const bank = existing ?? await must('POST', '/bank-cards/accounts', {
     bankName: 'QA은행', accountNo, holder: 'QA법인', openingBalance: 1_000_000,
   })
-  eq('예금계정 미지정 시 보통예금(103)', bank.glAccountCode, '103')
+  eq('예금계정 미지정 시 보통예금(103)', bank.glAccountCode, '1039')
 
   const cardNo = `${P}5310-****-****-0001`
   const existingCard = (await must('GET', '/bank-cards/cards')).find((c) => c.cardNo === cardNo)
@@ -2024,7 +2024,7 @@ async function scenarioBankCard() {
 
   // 카드사용은 차)비용·부가세대급금 / 대)미지급금 — 대변 미지급금이 합계와 같아야 한다
   const entry = await must('GET', `/journals/${usage.journalEntryId}`)
-  const payable = entry.lines.find((l) => l.accountCode === '253')
+  const payable = entry.lines.find((l) => l.accountCode === '2539')
   eq('카드사용 분개의 대변은 미지급금', Number(payable.credit), 55_000)
   eq('카드사용 분개가 대차평형', Number(entry.totalDebit), Number(entry.totalCredit))
 
@@ -2077,7 +2077,7 @@ async function scenarioFixedAsset() {
   section('■ 시나리오 11. 고정자산 (취득 → 감가상각 → 처분)')
 
   const accounts = await must('GET', '/accounts')
-  const machine = accounts.find((a) => a.code === '206')   // 기계장치
+  const machine = accounts.find((a) => a.code === '2044')   // 기계장치
 
   // 1,200만 · 5년 정액법 → 월 상각 20만
   const asset = await must('POST', '/fixed-assets', {
@@ -2100,7 +2100,7 @@ async function scenarioFixedAsset() {
 
   /* 현금·외상매출금 같은 유동자산 계정에는 고정자산을 달 수 없다(34회차 — 화면이 그것까지 골라 줬다). */
   await rejects('유동자산(현금) 계정에는 고정자산을 등록할 수 없다', 'POST', '/fixed-assets', {
-    name: `${P}현금자산`, assetAccountId: accounts.find((a) => a.code === '101').id, acquisitionDate: '2026-01-15',
+    name: `${P}현금자산`, assetAccountId: accounts.find((a) => a.code === '1019').id, acquisitionDate: '2026-01-15',
     acquisitionCost: 1_000_000, salvageValue: 0, usefulLifeYears: 5, method: 'STRAIGHT_LINE',
   }, '유형자산')
 
@@ -2111,8 +2111,8 @@ async function scenarioFixedAsset() {
   eq('상각에 회계전표가 붙음', String(mine.journalDocNo).startsWith('GL-'), 'true')
 
   const entry = await must('GET', `/journals/${mine.journalEntryId}`)
-  const expense = entry.lines.find((l) => l.accountCode === '818')
-  const accumulated = entry.lines.find((l) => l.accountCode === '203')
+  const expense = entry.lines.find((l) => l.accountCode === '8239')
+  const accumulated = entry.lines.find((l) => l.accountCode === '2099')
   eq('상각 분개 차변은 감가상각비', Number(expense.debit), 200_000)
   eq('상각 분개 대변은 감가상각누계액', Number(accumulated.credit), 200_000)
 
@@ -2129,7 +2129,7 @@ async function scenarioFixedAsset() {
 
   const journals = (await must('GET', '/journals?from=2026-07-01&to=2026-07-31&all=true')).rows
   const disposal = journals.find((j) => j.sourceType === 'DISPOSAL' && JSON.stringify(j).includes(asset.assetNo))   // 출처 id 는 이제 감소 전표 id(6c6885cf) — 설명의 자산번호로 찾는다
-  const gain = disposal.lines.find((l) => l.accountCode === '914')
+  const gain = disposal.lines.find((l) => l.accountCode === '9149')
   eq('처분이익 = 처분가액 - 장부가액', Number(gain.credit), 200_000)
   eq('처분 분개가 대차평형', Number(disposal.totalDebit), Number(disposal.totalCredit))
 
@@ -2189,8 +2189,8 @@ async function scenarioNote(f) {
   const issueEntries = await journalsOf(recv.noteNo)
   eq('수취 시 분개가 생성됨', issueEntries.length >= 1, true)
   const issue = issueEntries[0]
-  eq('받을어음 수취 분개 차변은 받을어음(110)', issue.lines.find((l) => Number(l.debit) > 0).accountCode, '110')
-  eq('받을어음 수취 분개 대변은 외상매출금(108)', issue.lines.find((l) => Number(l.credit) > 0).accountCode, '108')
+  eq('받을어음 수취 분개 차변은 받을어음(110)', issue.lines.find((l) => Number(l.debit) > 0).accountCode, '1109')
+  eq('받을어음 수취 분개 대변은 외상매출금(108)', issue.lines.find((l) => Number(l.credit) > 0).accountCode, '1089')
 
   const beforeSettle = await balanceOf()
   const settled = await must('POST', `/notes/${recv.id}/settle`, { bankAccountId: bank.id, settleDate: '2026-09-14' })
@@ -2210,7 +2210,7 @@ async function scenarioNote(f) {
   eq('할인 후 상태는 할인', discounted.statusName, '할인')
   eq('할인 입금액 = 어음금액 - 할인료', await balanceOf(), beforeDiscount + 300000 - 12000)
 
-  const feeEntry = (await journalsOf(disc.noteNo)).find((j) => j.lines.some((l) => l.accountCode === '936'))
+  const feeEntry = (await journalsOf(disc.noteNo)).find((j) => j.lines.some((l) => l.accountCode === '9607'))
   eq('할인료가 매출채권처분손실(936)로 분개', Boolean(feeEntry), true)
   eq('할인료 분개가 대차평형', Number(feeEntry.totalDebit), Number(feeEntry.totalCredit))
 
@@ -2241,8 +2241,8 @@ async function scenarioNote(f) {
   eq('부도는 현금이 오가지 않음', await balanceOf(), beforeDishonor)
 
   const dishonorEntry = (await journalsOf(bad.noteNo)).find((j) => j.description.includes('부도'))
-  eq('부도 분개 차변은 외상매출금(108)', dishonorEntry.lines.find((l) => Number(l.debit) > 0).accountCode, '108')
-  eq('부도 분개 대변은 받을어음(110)', dishonorEntry.lines.find((l) => Number(l.credit) > 0).accountCode, '110')
+  eq('부도 분개 차변은 외상매출금(108)', dishonorEntry.lines.find((l) => Number(l.debit) > 0).accountCode, '1089')
+  eq('부도 분개 대변은 받을어음(110)', dishonorEntry.lines.find((l) => Number(l.credit) > 0).accountCode, '1109')
 
   // ── 지급어음: 발행 → 만기결제(출금)
   const ap0 = Number((await balOf(f.supplier.id)).payable)
@@ -2254,8 +2254,8 @@ async function scenarioNote(f) {
   eq('지급어음을 발행하면 그 거래처 채무가 어음 금액만큼 준다', ap0 - Number((await balOf(f.supplier.id)).payable), 150000)
   // 65회차 — 그 몫은 [회계전표 몫](payableJournal)으로도 따로 나온다. 채무관리 연령분석이 구매전표 몫과 가른다.
   eq('그 몫이 회계전표 몫으로 따로 잡힌다', apJ0 - Number((await balOf(f.supplier.id)).payableJournal), 150000)
-  eq('지급어음 발행 차변은 외상매입금(251)', payIssue.lines.find((l) => Number(l.debit) > 0).accountCode, '251')
-  eq('지급어음 발행 대변은 지급어음(252)', payIssue.lines.find((l) => Number(l.credit) > 0).accountCode, '252')
+  eq('지급어음 발행 차변은 외상매입금(251)', payIssue.lines.find((l) => Number(l.debit) > 0).accountCode, '2519')
+  eq('지급어음 발행 대변은 지급어음(252)', payIssue.lines.find((l) => Number(l.credit) > 0).accountCode, '2529')
 
   // 할인·부도는 받을어음 전용 (보유 상태에서 확인해야 상태 검증이 아닌 유형 검증에 걸린다)
   await rejects('지급어음은 할인 불가', 'POST', `/notes/${pay.id}/discount`,
@@ -2291,9 +2291,9 @@ async function scenarioFastVoucher() {
 
   const accounts = await must('GET', '/accounts')
   const byCode = (c) => accounts.find((a) => a.code === c)
-  const welfare = byCode('811')      // 복리후생비
-  const travel = byCode('812')       // 여비교통비
-  const revenue = byCode('401')      // 상품매출
+  const welfare = byCode('8109')      // 복리후생비
+  const travel = byCode('8119')       // 여비교통비
+  const revenue = byCode('4019')      // 상품매출
 
   const accountNo = `${P}220-888-000002`
   const banks = await must('GET', '/bank-cards/accounts')
@@ -2315,7 +2315,7 @@ async function scenarioFastVoucher() {
   const expenseEntry = await must('GET', `/journals/${expense.journalEntryId}`)
   eq('지출 분개 차변에 비용 2줄', expenseEntry.lines.filter((l) => Number(l.debit) > 0).length, 2)
   eq('지출 분개 대변은 현금 총액',
-    Number(expenseEntry.lines.find((l) => l.accountCode === '101').credit), 50_000)
+    Number(expenseEntry.lines.find((l) => l.accountCode === '1019').credit), 50_000)
   eq('지출 분개가 대차평형', Number(expenseEntry.totalDebit), Number(expenseEntry.totalCredit))
 
   // 지출결의서 — 계좌 결제는 잔액도 깎는다
@@ -2334,8 +2334,8 @@ async function scenarioFastVoucher() {
 
   const depositEntry = await must('GET', `/journals/${deposit.journalEntryId}`)
   eq('입금 분개 차변은 예금계정',
-    Number(depositEntry.lines.find((l) => l.accountCode === '103').debit), 500_000)
-  eq('입금 분개 대변은 매출', Number(depositEntry.lines.find((l) => l.accountCode === '401').credit), 500_000)
+    Number(depositEntry.lines.find((l) => l.accountCode === '1039').debit), 500_000)
+  eq('입금 분개 대변은 매출', Number(depositEntry.lines.find((l) => l.accountCode === '4019').credit), 500_000)
 
   // 가지급금정산서 — 20만 지급, 15만 사용 → 5만 반납
   const settle = await must('POST', '/vouchers', {
@@ -2346,9 +2346,9 @@ async function scenarioFastVoucher() {
 
   const settleEntry = await must('GET', `/journals/${settle.journalEntryId}`)
   eq('정산 분개 대변은 가지급금 전액',
-    Number(settleEntry.lines.find((l) => l.accountCode === '134').credit), 200_000)
+    Number(settleEntry.lines.find((l) => l.accountCode === '1349').credit), 200_000)
   eq('반납액은 현금 차변으로 돌아옴',
-    Number(settleEntry.lines.find((l) => l.accountCode === '101').debit), 50_000)
+    Number(settleEntry.lines.find((l) => l.accountCode === '1019').debit), 50_000)
   eq('정산 분개가 대차평형', Number(settleEntry.totalDebit), Number(settleEntry.totalCredit))
 
   await rejects('가지급금 없이 정산서는 거부', 'POST', '/vouchers', {
@@ -2372,31 +2372,31 @@ async function scenarioNonCash() {
 
   const accounts = await must('GET', '/accounts')
   const byCode = (c) => accounts.find((a) => a.code === c)
-  const travel = byCode('812')     // 여비교통비
-  const supplies = byCode('830')   // 소모품비
-  const goods = byCode('146')      // 상품
-  const cash = byCode('101')       // 현금
+  const travel = byCode('8119')     // 여비교통비
+  const supplies = byCode('8159')   // 소모품비
+  const goods = byCode('1469')      // 상품
+  const cash = byCode('1019')       // 현금
 
   const linesOf = async (id) => (await must('GET', `/journals/${id}`)).lines
 
   const offset = await must('POST', '/non-cash', { type: 'OFFSET', amount: 300_000, txnDate: '2026-07-14' })
-  eq('상계는 차)외상매입금', offset.debitAccountCode, '251')
-  eq('상계는 대)외상매출금', offset.creditAccountCode, '108')
+  eq('상계는 차)외상매입금', offset.debitAccountCode, '2519')
+  eq('상계는 대)외상매출금', offset.creditAccountCode, '1089')
   eq('상계에 회계전표가 붙음', String(offset.journalDocNo).startsWith('GL-'), 'true')
 
   const badDebt = await must('POST', '/non-cash', { type: 'BAD_DEBT', amount: 150_000, txnDate: '2026-07-14' })
-  eq('대손은 차)대손상각비', badDebt.debitAccountCode, '835')
+  eq('대손은 차)대손상각비', badDebt.debitAccountCode, '8359')
   const badLines = await linesOf(badDebt.journalEntryId)
   eq('대손 분개 대변은 외상매출금',
-    Number(badLines.find((l) => l.accountCode === '108').credit), 150_000)
+    Number(badLines.find((l) => l.accountCode === '1089').credit), 150_000)
 
   const accrual = await must('POST', '/non-cash', {
     type: 'ACCRUAL', amount: 80_000, debitAccountId: travel.id, txnDate: '2026-07-14',
   })
-  eq('미지급 계상은 대)미지급금', accrual.creditAccountCode, '253')
+  eq('미지급 계상은 대)미지급금', accrual.creditAccountCode, '2539')
   const accrualLines = await linesOf(accrual.journalEntryId)
   eq('미지급 계상 분개 차변은 선택한 비용계정',
-    Number(accrualLines.find((l) => l.accountCode === '812').debit), 80_000)
+    Number(accrualLines.find((l) => l.accountCode === '8119').debit), 80_000)
 
   const transfer = await must('POST', '/non-cash', {
     type: 'TRANSFER', amount: 50_000, debitAccountId: supplies.id, creditAccountId: goods.id,
@@ -2422,8 +2422,8 @@ async function scenarioNonCash() {
 async function scenarioForeignLedger() {
   section('■ 외화장부 — 전표 줄 외화 · 외화금액(V456)이 거래처별집계 · 건별로 모인다')
   const accounts = await must('GET', '/accounts')
-  const ar = accounts.find((a) => a.code === '108')
-  const sales = accounts.find((a) => a.code === '404')
+  const ar = accounts.find((a) => a.code === '1089')
+  const sales = accounts.find((a) => a.code === '4049')
   const partner = (await must('GET', '/partners'))[0]
   const D = '2026-04-03'
   const e = await must('POST', '/journals', {
@@ -2435,7 +2435,7 @@ async function scenarioForeignLedger() {
   })
   eq('저장한 줄에 외화 · 외화금액이 남는다', `${e.lines[0].currencyCode} ${Number(e.lines[0].foreignAmount)}`, 'QFX 100')
   const sum = await must('GET', `/accounting/foreign-ledger?mode=PARTNER&from=${D}&to=${D}&currency=QFX`)
-  const row = sum.rows.find((r) => r.kind === 'LINE' && r.accountCode === '108')
+  const row = sum.rows.find((r) => r.kind === 'LINE' && r.accountCode === '1089')
   eq('거래처별집계 — 외화 증가 100 · 잔액 100 · 원화 130,000', `${Number(row?.foreignDebit)} ${Number(row?.foreignBalance)} ${Number(row?.krwBalance)}`, '100 100 130000')
   const det = await must('GET', `/accounting/foreign-ledger?mode=DETAIL&from=${D}&to=${D}&currency=QFX`)
   eq('건별 — 이월 · 줄 · 계 · 합계', det.rows.map((r) => r.kind).join(','), 'CARRY,LINE,TOTAL,SUM')
@@ -2447,7 +2447,7 @@ async function scenarioForeignLedger() {
 
 async function scenarioAccountRemarks() {
   section('■ 계정등록 — 적요리스트 · 적요등록 · 표시순서 · 표시방법(V457)')
-  const acc = (await must('GET', '/accounts')).find((a) => a.code === '811') ?? (await must('GET', '/accounts'))[0]
+  const acc = (await must('GET', '/accounts')).find((a) => a.code === '8109') ?? (await must('GET', '/accounts'))[0]
   const base = `/accounts/${acc.id}/remarks`
   const before = (await must('GET', base)).length
   const { code } = await must('GET', `/accounts/${acc.id}/remarks/next-code`)
@@ -2470,7 +2470,7 @@ async function scenarioBudget() {
   const PERIOD = '2026-05'          // QA 전용 귀속월 (다른 시나리오 전표와 섞이지 않게 과거 달을 쓴다)
   const FROM = '2026-05-01'
   const accounts = await must('GET', '/accounts')
-  const welfare = accounts.find((a) => a.code === '811')   // 복리후생비 (비용)
+  const welfare = accounts.find((a) => a.code === '8109')   // 복리후생비 (비용)
 
   /*
    * 예산 = 기준년도 × 계정 × 부서 × 프로젝트 × 12달(원본 월별예산조회 E020201, 2026-10-14 loginaa 실측).
@@ -2513,7 +2513,7 @@ async function scenarioBudget() {
     entryDate: FROM, description: 'QA 예산 집행 테스트',
     lines: [
       { accountId: welfare.id, debit: SPEND, description: 'QA 예산 집행 줄' },
-      { accountId: accounts.find((a) => a.code === '101').id, credit: SPEND },
+      { accountId: accounts.find((a) => a.code === '1019').id, credit: SPEND },
     ],
   })
   const report = await must('GET', `/budget-plans/report?fromYear=${YEAR}&toYear=${YEAR}`)
@@ -2653,9 +2653,9 @@ async function scenarioCheck(f) {
   const journals = (await must('GET', '/journals?from=2026-07-01&to=2026-07-31&all=true')).rows
   const receiptEntry = journals.find((j) => j.sourceType === 'CHECK' && j.sourceId === received.id)
   eq('수취 분개 차변은 받을수표(104)',
-    Number(receiptEntry.lines.find((l) => l.accountCode === '104').debit), 500_000)
+    Number(receiptEntry.lines.find((l) => l.accountCode === '1022').debit), 500_000)
   eq('수취 분개 대변은 외상매출금(108)',
-    Number(receiptEntry.lines.find((l) => l.accountCode === '108').credit), 500_000)
+    Number(receiptEntry.lines.find((l) => l.accountCode === '1089').credit), 500_000)
 
   // 입금 → 예금 증가, 받을수표 소멸
   const deposited = await must('POST', `/checks/${received.id}/deposit`, {
@@ -2689,7 +2689,7 @@ async function scenarioCheck(f) {
     ((await must('GET', '/journals?from=2026-07-01&to=2026-07-31&all=true')).rows)
       .find((j) => j.sourceType === 'CHECK' && j.sourceId === issued.id).id)
   eq('발행 분개 차변은 외상매입금(251)',
-    Number(issueLines.find((l) => l.accountCode === '251').debit), 300_000)
+    Number(issueLines.find((l) => l.accountCode === '2519').debit), 300_000)
 
   eq('결제 확인 후 상태는 결제완료',
     (await must('POST', `/checks/${issued.id}/settle`, { settledDate: '2026-07-15' })).statusName, '결제완료')
@@ -2763,8 +2763,8 @@ async function scenarioIncome() {
   const FROM = '2026-04-01'
   const TO = '2026-04-30'
   const accounts = await must('GET', '/accounts')
-  const interest = accounts.find((a) => a.code === '901')     // 이자수익 (수익)
-  const welfare = accounts.find((a) => a.code === '811')      // 복리후생비 (비용)
+  const interest = accounts.find((a) => a.code === '9019')     // 이자수익 (수익)
+  const welfare = accounts.find((a) => a.code === '8109')      // 복리후생비 (비용)
 
   eq('수입용 영업외수익 계정이 시드됨', Boolean(interest), true)
 
@@ -2784,8 +2784,8 @@ async function scenarioIncome() {
   eq('현금 수입에 회계전표가 붙음', typeof cash.journalDocNo, 'string')
 
   const journal = await must('GET', `/journals/${cash.journalEntryId}`)
-  eq('현금 수입 분개 차변은 현금(101)', journal.lines.find((l) => Number(l.debit) > 0).accountCode, '101')
-  eq('현금 수입 분개 대변은 이자수익(901)', journal.lines.find((l) => Number(l.credit) > 0).accountCode, '901')
+  eq('현금 수입 분개 차변은 현금(101)', journal.lines.find((l) => Number(l.debit) > 0).accountCode, '1019')
+  eq('현금 수입 분개 대변은 이자수익(901)', journal.lines.find((l) => Number(l.credit) > 0).accountCode, '9019')
   eq('분개가 대차평형', Number(journal.totalDebit), Number(journal.totalCredit))
 
   // ── 계좌 수입: 계좌 잔액이 함께 오른다
@@ -2814,7 +2814,7 @@ async function scenarioIncome() {
   })
   const creditJournal = await must('GET', `/journals/${credit.journalEntryId}`)
   eq('외상 수입 분개 차변은 외상매출금(108)',
-    creditJournal.lines.find((l) => Number(l.debit) > 0).accountCode, '108')
+    creditJournal.lines.find((l) => Number(l.debit) > 0).accountCode, '1089')
 
   // ── 수입비용현황
   const status = await must('GET', `/incomes/status?from=${FROM}&to=${TO}`)
@@ -2824,7 +2824,7 @@ async function scenarioIncome() {
   eq('계정별 합계가 총합과 일치',
     status.incomeByAccount.reduce((s, r) => s + Number(r.amount), 0), Number(status.totalIncome))
 
-  const row = status.incomeByAccount.find((r) => r.accountCode === '901')
+  const row = status.incomeByAccount.find((r) => r.accountCode === '9019')
   eq('구성비 = 계정금액 / 총수입 × 100', Number(row.ratio),
     Math.round(Number(row.amount) / Number(status.totalIncome) * 1000) / 10)
 
@@ -3211,10 +3211,10 @@ async function scenarioPaySetting() {
 
   const entry = await must('GET', `/journals/${transfer.journalEntryId}`)
   eq('이체 분개 차변은 급여(801) 지급총액',
-    Number(entry.lines.find((l) => l.accountCode === '801').debit), Number(transfer.totalPay))
+    Number(entry.lines.find((l) => l.accountCode === '8029').debit), Number(transfer.totalPay))
   /* 새 사원은 4대보험이 '안함' 이라 공제가 0 일 수 있다 — 그러면 예수금 줄이 없는 것이 맞다. */
   eq('공제합계는 예수금(254)으로 남음',
-    Number(entry.lines.find((l) => l.accountCode === '254')?.credit ?? 0), Number(transfer.totalDeduction))
+    Number(entry.lines.find((l) => l.accountCode === '2549')?.credit ?? 0), Number(transfer.totalDeduction))
   eq('이체 분개가 대차평형', Number(entry.totalDebit), Number(entry.totalCredit))
 
   await rejects('같은 명세를 두 번 이체할 수 없음', 'POST', '/pay-settings/transfers',
@@ -3403,7 +3403,7 @@ async function scenarioCashDetail() {
   section('■ 시나리오 25. 현금거래 세분류 (계좌간이동 · 카드대금결제)')
 
   const accounts = await must('GET', '/accounts')
-  const welfare = accounts.find((a) => a.code === '811')   // 복리후생비
+  const welfare = accounts.find((a) => a.code === '8109')   // 복리후생비
 
   const ensureBank = async (no, opening) =>
     (await must('GET', '/bank-cards/accounts')).find((b) => b.accountNo === no)
@@ -3421,7 +3421,7 @@ async function scenarioCashDetail() {
   if (await balanceOf(from.id) < NEEDED) {
     await must('POST', '/bank-cards/transactions', {
       bankAccountId: from.id, deposit: true, amount: NEEDED,
-      counterAccountId: accounts.find((a) => a.code === '101').id,   // 현금
+      counterAccountId: accounts.find((a) => a.code === '1019').id,   // 현금
       txnDate: '2026-07-14', description: 'QA 시나리오 준비금 보충',
     })
   }
@@ -3475,7 +3475,7 @@ async function scenarioCashDetail() {
 
   const payEntry = await must('GET', `/journals/${payment.journalEntryId}`)
   eq('결제 분개 차변은 미지급금(253)',
-    Number(payEntry.lines.find((l) => l.accountCode === '253').debit), Number(payment.amount))
+    Number(payEntry.lines.find((l) => l.accountCode === '2539').debit), Number(payment.amount))
   eq('결제 분개가 대차평형', Number(payEntry.totalDebit), Number(payEntry.totalCredit))
 
   eq('결제한 사용건은 미결제 목록에서 빠짐',
@@ -3508,7 +3508,7 @@ async function scenarioCashDetail() {
   const toStart = await balanceOf(to.id)
   const dep = await must('POST', '/bank-cards/transactions', {
     bankAccountId: to.id, deposit: true, amount: 10_000,
-    counterAccountId: accounts.find((a) => a.code === '101').id, txnDate: '2026-07-14', description: 'QA 63 입금',
+    counterAccountId: accounts.find((a) => a.code === '1019').id, txnDate: '2026-07-14', description: 'QA 63 입금',
   })
   const t2 = await must('POST', '/cash-details/account-transfers', {
     fromAccountId: from.id, toAccountId: to.id, amount: 1_000, transferDate: '2026-07-14',
@@ -3676,7 +3676,7 @@ async function scenarioCreatedByFk() {
   section('■ 시나리오 27. created_by 무결성 (작성 이력이 있는 계정은 못 지운다)')
 
   const accounts = await must('GET', '/accounts')
-  const welfare = accounts.find((a) => a.code === '811')
+  const welfare = accounts.find((a) => a.code === '8109')
   const PERIOD = '2026-02'
   const UNAME = `${P.toLowerCase()}deluser`
 
@@ -3887,7 +3887,7 @@ async function scenarioPartnerLink(f) {
   section('■ 시나리오 29. 거래처 자유입력 + 마스터 연결 · 로트 상태 파생')
 
   const accounts = await must('GET', '/accounts')
-  const welfare = accounts.find((a) => a.code === '811')
+  const welfare = accounts.find((a) => a.code === '8109')
 
   // 이름이 마스터와 정확히 일치하면 FK 가 붙는다
   const linked = await must('POST', '/expenses', {
@@ -4495,7 +4495,7 @@ async function scenarioTenantIsolation() {
   // 코드값으로 찾아 쓰기 때문이다("계정과목이 없습니다: 135").
   const coAccounts = (await asTenant('GET', '/accounts')).data ?? []
   const codes = new Set(coAccounts.map((a) => a.code))
-  const needed = ['108', '110', '135', '251', '252', '253', '254', '255', '801', '936']
+  const needed = ['1089', '1109', '1359', '2519', '2529', '2539', '2549', '2559', '8029', '9607']
   eq('테넌트에도 코드가 찾아 쓰는 계정과목이 있다',
     needed.filter((c) => !codes.has(c)).join(', ') || '없음', '없음')
 
@@ -6404,7 +6404,7 @@ async function scenarioInactiveMasterGuards(f) {
   section('■ 사용중지 마스터로 새로 만들 수 없다 (계정·자원·관리항목)')
 
   // ── 계정과목
-  const cash = (await must('GET', '/accounts')).find((a) => a.code === '101')
+  const cash = (await must('GET', '/accounts')).find((a) => a.code === '1019')
   eq('현금 계정이 있다', !!cash, true)
   const accBody = { name: cash.name, division: cash.division, detailCategory: cash.detailCategory }
   await must('PATCH', `/accounts/${cash.id}`, { ...accBody, active: false })
@@ -6694,7 +6694,7 @@ async function scenarioSettlementAccounting(f) {
     const row = tb.rows.find((r) => r.accountCode === code)
     return row ? Number(row.debit) - Number(row.credit) : 0
   }
-  const ar = () => balOf('108')
+  const ar = () => balOf('1089')
 
   for (const x of (await must('GET', '/settlements')).filter((x) => x.settleDate === D)) {
     await call('DELETE', `/settlements/${x.id}`)
@@ -6741,7 +6741,7 @@ async function scenarioSettlementAccounting(f) {
     .find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === withFee.id)
   const feeAmt = (code, k) => Number(feeGl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
   eq('[원본] 수수료 수금 분개 — 차)현금 1,000 · 지급수수료 100 / 대)외상매출금 1,100',
-    `${feeAmt('101', 'debit')} ${feeAmt('831', 'debit')} ${feeAmt('108', 'credit')}`, '1000 100 1100')
+    `${feeAmt('1019', 'debit')} ${feeAmt('8319', 'debit')} ${feeAmt('1089', 'credit')}`, '1000 100 1100')
   eq('[일관성] 수수료 분개 대차평형', Number(feeGl?.totalDebit), Number(feeGl?.totalCredit))
   /* [원본] 지급 수수료 — 같은 날 '매입처로'(전표 2026/10/06-14, 삭제함): 금액 1,000 · 수수료 100 → 지급현황 1,000,
      차)외상매입금 1,000 · 지급수수료(판) 100 / 대)현금 1,100. 수금과 달리 amount 는 채무 쪽 금액 그대로다. */
@@ -6754,7 +6754,7 @@ async function scenarioSettlementAccounting(f) {
   const payGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === payFee.id)
   const payAmt = (code, k) => Number(payGl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
   eq('[원본] 지급 수수료 분개 — 차)외상매입금 1,000 · 지급수수료 100 / 대)현금 1,100',
-    `${payAmt('251', 'debit')} ${payAmt('831', 'debit')} ${payAmt('101', 'credit')}`, '1000 100 1100')
+    `${payAmt('2519', 'debit')} ${payAmt('8319', 'debit')} ${payAmt('1019', 'credit')}`, '1000 100 1100')
   await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [payFee.id] })
   await must('DELETE', `/settlements/${payFee.id}`)
   await rejects('수수료가 금액 이상이면 거절', 'POST', '/settlements',
@@ -6797,7 +6797,7 @@ async function scenarioSettlementAccounting(f) {
     await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [rcB.id] })
     const bGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === rcB.id)
     eq('[원본] 계좌 수금 분개 — 차)그 계좌의 계정 1,000 · 지급수수료 100 / 대)외상매출금 1,100',
-      `${Number(bGl?.lines.find((l) => l.accountCode === viaBank.glAccountCode)?.debit ?? 0)} ${Number(bGl?.lines.find((l) => l.accountCode === '831')?.debit ?? 0)} ${Number(bGl?.lines.find((l) => l.accountCode === '108')?.credit ?? 0)}`,
+      `${Number(bGl?.lines.find((l) => l.accountCode === viaBank.glAccountCode)?.debit ?? 0)} ${Number(bGl?.lines.find((l) => l.accountCode === '8319')?.debit ?? 0)} ${Number(bGl?.lines.find((l) => l.accountCode === '1089')?.credit ?? 0)}`,
       '1000 100 1100')
     eq('[일관성] 반영하면 계좌잔액이 받은 돈 1,000 만큼 는다', (await balOf()) - bal0, 1000)
     /* 지급은 방금 받은 1,000 이 계좌에 있는 동안 반영한다 — 잔액 부족으로 막히지 않게. */
@@ -6842,7 +6842,7 @@ async function scenarioSettlementAccounting(f) {
       .find((x) => x.id === st.id).journalDocNo, null)
 
   // 지급은 반대다 — 차)외상매입금 / 대)현금.
-  const ap = async () => -(await balOf('251'))
+  const ap = async () => -(await balOf('2519'))
   const apBefore = await ap()
   const pay = await must('POST', '/settlements', {
     type: 'PAYMENT', partnerId: f.supplier.id, amount: 30000,
@@ -7391,7 +7391,7 @@ async function scenarioDailyWorkTax() {
   eq('현금 지급에 회계전표가 붙는다', String(paidCash.journalNo).startsWith('GL-'), 'true')
   const jc = await journalOf(paidCash.journalNo, `${payY}-05-31`)
   eq('현금 지급 분개 — 차)잡급 200,000 / 대)예수금 1,480 · 현금 198,520',
-    `${side(jc, '805', 'debit')} ${side(jc, '254', 'credit')} ${side(jc, '101', 'credit')}`, '200000 1480 198520')
+    `${side(jc, '8059', 'debit')} ${side(jc, '2549', 'credit')} ${side(jc, '1019', 'credit')}`, '200000 1480 198520')
   eq('일용직 지급 분개가 대차평형', Number(jc?.totalDebit), Number(jc?.totalCredit))
   await rejects('이미 지급한 출역 재지급은 거부', 'POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: `${payY}-05-31` }, '이미 지급')
 
@@ -7440,9 +7440,9 @@ async function scenarioWorkHours() {
 async function scenarioExpenseJournal() {
   section('■ 지출 → 회계전표')
   const accounts = await must('GET', '/accounts')
-  const welfare = accounts.find((a) => a.code === '811')
+  const welfare = accounts.find((a) => a.code === '8109')
   const D = '2091-05-07'
-  const cases = [['계좌이체', '103'], ['법인카드', '253'], ['현금', '101']]
+  const cases = [['계좌이체', '1039'], ['법인카드', '2539'], ['현금', '1019']]
   for (const [method, code] of cases) {
     const ex = await must('POST', '/expenses', {
       accountId: welfare.id, expenseDate: D, content: `${P}지출 ${method}`, amount: 33_000, paymentMethod: method,
@@ -7450,7 +7450,7 @@ async function scenarioExpenseJournal() {
     const rows = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
     const j = rows.find((x) => x.sourceType === 'EXPENSE' && x.sourceId === ex.id)
     eq(`지출(${method})을 저장하면 회계전표가 생긴다`, !!j, true)
-    eq(`지출(${method}) 차변은 비용계정 811`, j?.lines.find((l) => Number(l.debit) > 0)?.accountCode, '811')
+    eq(`지출(${method}) 차변은 비용계정 811`, j?.lines.find((l) => Number(l.debit) > 0)?.accountCode, '8109')
     eq(`지출(${method}) 대변은 ${code}`, j?.lines.find((l) => Number(l.credit) > 0)?.accountCode, code)
     await must('DELETE', `/expenses/${ex.id}`)
     const after = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
@@ -7464,7 +7464,7 @@ async function scenarioExpenseJournal() {
   const vj = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((x) => x.sourceType === 'EXPENSE' && x.sourceId === vx.id)
   const amt = (code, side) => Number(vj?.lines.find((l) => l.accountCode === code)?.[side] ?? 0)
   eq('부가세 지출 분개: 차 811 100,000 · 차 135 10,000 / 대 103 110,000',
-    [amt('811', 'debit'), amt('135', 'debit'), amt('103', 'credit')].join('/'), '100000/10000/110000')
+    [amt('8109', 'debit'), amt('1359', 'debit'), amt('1039', 'credit')].join('/'), '100000/10000/110000')
   /* 부가세 요약이 기간을 받고, 지출의 매입세액도 공제한다(47회차). 그날은 판매·구매가 없는 먼 날짜다. */
   const vs = await must('GET', `/accounting/vat-summary?from=${D}&to=${D}`)
   eq('부가세 요약: 그 날의 지출 매입세액 10,000', Number(vs.expenseVat), 10_000)
@@ -11969,7 +11969,7 @@ async function scenarioImportCost() {
   const bank = (await must('GET', '/bank-cards/accounts')).find((b) => b.active)
   const accounts = await must('GET', '/accounts')
   const acc = (code) => accounts.find((a) => a.code === code)
-  eq('표준계정 168 미착품', acc('168')?.name, '미착품')
+  eq('표준계정 168 미착품', acc('1689')?.name, '미착품')
   const next = (await must('GET', '/import-costs/lots/next-code')).code
   eq('다음 관리번호는 9자리', next.length, 9)
   const lot = await must('POST', '/import-costs/lots', { name: 'QA회계2-수입1', partnerId: partner.id, firstTradeDate: '2026-09-01', remark: 'QA회계2' })
@@ -11998,7 +11998,7 @@ async function scenarioImportCost() {
   let r = await row()
   eq('대장 상품대금 · 직접설정가능 · 합계', `${r.goods} ${r.costs[items[0].id]} ${r.total}`, '100000 30000 130000')
   eq('대장 거래대금지급(수수료 포함) · 관세사에지급 · 최초대금지급일', `${r.tradePaid} ${r.brokerPaid} ${r.firstPaymentDate}`, `100500 32000 ${day}`)
-  const transfer = await must('POST', '/import-costs/vouchers', { ...base, kind: 'TRANSFER', amount: 130000, accountId: acc('153').id })
+  const transfer = await must('POST', '/import-costs/vouchers', { ...base, kind: 'TRANSFER', amount: 130000, accountId: acc('1539').id })
   eq('본계정대체 분개 차 원재료 / 대 미착품', await lines(transfer), '153:130000 168:-130000')
   r = await row()
   eq('대체 뒤 대체금액 · 잔액 · 통관일', `${r.transfer} ${r.balance} ${r.clearanceDate}`, `130000 0 ${day}`)

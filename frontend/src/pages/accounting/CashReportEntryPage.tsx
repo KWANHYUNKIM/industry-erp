@@ -69,13 +69,13 @@ interface Conf {
 const BANK_PICKER = { title: '계좌검색', codeHead: '계좌코드', nameHead: '계좌명' }
 const CONF: Record<Kind, Conf> = {
   EXPENSE_REPORT: { title: '지출결의서', settleHead: '돈 나간 계좌', settleNameHead: '돈 나간 계좌명', accountHead: '계정코드(차변)',
-    partnerHead: '거래처 검색', defaultAccount: '811', settlePicker: BANK_PICKER,
+    partnerHead: '거래처 검색', defaultAccount: '8109', settlePicker: BANK_PICKER,
     tools: ['찾기(F3)', '보류', '자금계획', '계좌입출금내역', '카드매입내역', '계정별잔액'] },
   DEPOSIT_REPORT: { title: '입금보고서', settleHead: '돈 들어온 계좌', settleNameHead: '돈 들어온 계좌명', accountHead: '계정코드(대변)',
-    partnerHead: '거래처 검색', defaultAccount: '108', settlePicker: BANK_PICKER,
+    partnerHead: '거래처 검색', defaultAccount: '1089', settlePicker: BANK_PICKER,
     tools: ['찾기(F3)', '보류', '자금계획', '계좌입출금내역', '결제대행사내역'] },
   ADVANCE_SETTLEMENT: { title: '가지급금정산서', settleHead: '정산자', settleNameHead: '정산대상자명', accountHead: '계정코드(차변)',
-    partnerHead: '거래처', defaultAccount: '811', settlePicker: { title: '사원검색', codeHead: '사원코드', nameHead: '사원명' },
+    partnerHead: '거래처', defaultAccount: '8109', settlePicker: { title: '사원검색', codeHead: '사원코드', nameHead: '사원명' },
     tools: ['찾기(F3)', '보류'] },
 }
 

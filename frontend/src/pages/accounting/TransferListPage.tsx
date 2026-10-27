@@ -21,7 +21,7 @@ const slash = (d: string) => d.replace(/-/g, '/')
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface PartnerOpt { id: number; name: string; bankName: string | null; accountNo: string | null }
 /** 돈이 나가는 계정 — 현금 · 당좌예금 · 보통예금(StandardAccounts). 이 계정 대변이 이체 금액이다. */
-const OUT_CODES = ['101', '102', '103']
+const OUT_CODES = ['1019', '1029', '1039']
 /** 지출결의서에 해당하는 우리 전표 — 지출 · 수금·지급. */
 const SOURCES = ['EXPENSE', 'SETTLEMENT']
 type Unit = '건별' | '일별' | '월별' | '전표별' | '거래처별'

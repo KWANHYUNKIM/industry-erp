@@ -28,7 +28,7 @@
         "wait:300",
         "set:input[aria-label=\"금액\"]|5000",
         "set:input[placeholder=\"적요\"]|QA회계1 일계표현금 입금",
-        "expect:document.querySelector('input[placeholder=\"입금계좌\"]').value === '000' && document.querySelector('input[placeholder=\"대변계정\"]').value === '930'",
+        "expect:document.querySelector('input[placeholder=\"입금계좌\"]').value === '000' && document.querySelector('input[placeholder=\"대변계정\"]').value === '9199'",
         "click:저장(F8)",
         "wait:1500",
         "expect:document.querySelector('input[aria-label=\"금액\"]').value === '' && !document.querySelector('.ec-alert-danger')"
@@ -50,7 +50,7 @@
         "wait:300",
         "set:input[aria-label=\"금액\"]|7000",
         "set:input[placeholder=\"적요\"]|QA회계1 일계표현금 출금",
-        "expect:document.querySelector('input[placeholder=\"출금계좌\"]').value === '000' && document.querySelector('input[placeholder=\"차변계정\"]').value === '811'",
+        "expect:document.querySelector('input[placeholder=\"출금계좌\"]').value === '000' && document.querySelector('input[placeholder=\"차변계정\"]').value === '8109'",
         "click:저장(F8)",
         "wait:1500",
         "expect:document.querySelector('input[aria-label=\"금액\"]').value === '' && !document.querySelector('.ec-alert-danger')"
@@ -73,7 +73,7 @@
         "wait:2500",
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const es = await (await fetch('/api/employees', { headers: H })).json(); const emp = es.find((e) => es.filter((x) => (x.code + ' ' + x.name).includes(e.name)).length === 1); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"사원검색\"]'); set(c, emp.name); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return emp.name })()",
         "wait:400",
-        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"계정검색\"]'); set(c, '812'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"계정검색\"]'); set(c, '8119'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
         "wait:400",
         "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 금액\"]'), '9000'); set(document.querySelector('input[aria-label=\"1줄 적요명\"]'), 'QA회계1 가지급집계'); return true })()",
         "click:저장(F8)",

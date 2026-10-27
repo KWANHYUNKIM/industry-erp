@@ -97,16 +97,26 @@ public class DataInitializer implements CommandLineRunner {
         // 목록은 StandardAccounts 하나뿐이다 — 테넌트 시더도 같은 것을 쓴다.
         // 예전엔 여기 안에만 있어서 새로 만든 회사는 계정과목이 0개로 시작했다.
         for (StandardAccounts.Spec a : StandardAccounts.ALL) {
-            ensureAccount(a.code(), a.name(), a.division(), a.detail());
+            ensureAccount(a);
+        }
+        for (StandardAccounts.Spec a : StandardAccounts.ALL) {   // 원본 나무대로 상위계정을 잇는다(비어 있는 것만)
+            if (a.parentCode() == null) continue;
+            Account child = accountRepository.findByCode(a.code()).orElse(null);
+            if (child == null || child.getParent() != null) continue;
+            accountRepository.findByCode(a.parentCode()).ifPresent(p -> {
+                child.setParent(p);
+                accountRepository.save(child);
+            });
         }
     }
 
-    private void ensureAccount(String code, String name, AccountDivision division, String detail) {
-        if (!accountRepository.existsByCode(code)) {
+    private void ensureAccount(StandardAccounts.Spec a) {
+        if (!accountRepository.existsByCode(a.code())) {
             accountRepository.save(Account.builder()
-                    .code(code).name(name).division(division).detailCategory(detail).active(true)
-                    .relatedWork(StandardAccounts.relatedWorkOf(code))
-                    .partnerAggregate(StandardAccounts.partnerAggregateOf(code, name))
+                    .code(a.code()).name(a.name()).division(a.division()).detailCategory(a.detail()).active(a.active())
+                    .groupAccount(a.group()).debitCredit(a.debitCredit()).evalKind(a.evalKind())
+                    .relatedWork(StandardAccounts.relatedWorkOf(a.code()))
+                    .partnerAggregate(StandardAccounts.partnerAggregateOf(a.code(), a.name()))
                     .build());
         }
     }

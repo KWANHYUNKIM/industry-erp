@@ -13,7 +13,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [월계] · [금일/전일] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
-const CASH = '101'
+const CASH = '1019'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface AccountOpt { id: number; code: string; name: string }
