@@ -19,7 +19,9 @@ export default function EcNumInput({ value, onValue, ...rest }: Omit<InputHTMLAt
       type="text"
       inputMode="decimal"
       value={focused ? value : withCommas(value)}
-      onFocus={(e) => { setFocused(true); rest.onFocus?.(e) }}
+      // 원본 격자(2026-10-27 loginaa 주문서입력 단가 1,700,000 칸을 눌러 5 → 5): 칸에 들어가면 값 전체가 골라져 치는 값이 바꾼다.
+      // 쉼표를 뗀 값으로 다시 그린 뒤에 골라야 선택이 풀리지 않는다.
+      onFocus={(e) => { setFocused(true); const t = e.currentTarget; requestAnimationFrame(() => { if (document.activeElement === t) t.select() }); rest.onFocus?.(e) }}
       onBlur={(e) => { setFocused(false); rest.onBlur?.(e) }}
       onChange={(e) => onValue(e.target.value.replace(/,/g, '').replace(/[^0-9.\-]/g, ''))}
     />
