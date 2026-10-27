@@ -91,7 +91,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     const need = (f: CashQuickField) => has(f)
     Promise.all([
       api.get<BankAccountRow[]>('/bank-cards/accounts'),
-      need('account') || need('creditAccount') ? api.get<AccountOption[]>('/accounts') : Promise.resolve({ data: [] as AccountOption[] }),
+      need('account') || need('creditAccount') ? api.get<AccountOption[]>('/accounts', { params: { slip: true } }) : Promise.resolve({ data: [] as AccountOption[] }),
       need('partner') ? api.get<PartnerOption[]>('/partners') : Promise.resolve({ data: [] as PartnerOption[] }),
       need('employee') ? api.get<EmployeeOption[]>('/employees') : Promise.resolve({ data: [] as EmployeeOption[] }),
       need('card') ? api.get<CreditCardRow[]>('/bank-cards/cards') : Promise.resolve({ data: [] as CreditCardRow[] }),

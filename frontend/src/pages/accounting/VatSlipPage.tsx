@@ -137,7 +137,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
     return sales ? { main: id('4049'), settle: id('1089') } : { main: id('1539'), settle: id('2519') }
   }, [accounts, sales])
   useEffect(() => {
-    api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
+    api.get<AccountOpt[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
   }, [])
   useEffect(() => { if (!editId) { setAccountId(defaults.main); setSettleId(defaults.settle) } }, [defaults, editId])
 

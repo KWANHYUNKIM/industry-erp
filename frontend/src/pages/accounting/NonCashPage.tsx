@@ -70,7 +70,7 @@ export default function NonCashPage() {
     try {
       const [t, a, p] = await Promise.all([
         api.get<{ rows: NonCashTxn[]; totalRows: number; truncated: boolean }>('/non-cash', { params: { ...{ from: from2 || undefined, to: to2 || undefined }, all: all || undefined } }),
-        api.get<AccountOption[]>('/accounts'),
+        api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
         api.get<Partner[]>('/partners'),
       ])
       setRows(t.data.rows)

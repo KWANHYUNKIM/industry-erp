@@ -56,7 +56,7 @@ export default function ForeignLedgerPage() {
   const deptProject = useDeptProjectItems()
 
   useEffect(() => {
-    api.get<{ id: number; code: string; name: string }[]>('/accounts')
+    api.get<{ id: number; code: string; name: string }[]>('/accounts', { params: { slip: true } })
       .then((r) => setAccounts(r.data.map((a) => ({ value: String(a.id), code: a.code, name: a.name })))).catch(() => {})
     api.get<{ code: string; name: string }[]>('/currencies').then((r) => setCurrencies(r.data)).catch(() => {})
   }, [])

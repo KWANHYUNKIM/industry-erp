@@ -223,7 +223,7 @@ function JournalModal({ draft, onClose }: { draft: JournalDraft; onClose: () => 
   const [done, setDone] = useState('')
 
   useEffect(() => {
-    api.get<Account[]>('/accounts').then((r) => {
+    api.get<Account[]>('/accounts', { params: { slip: true } }).then((r) => {
       setAccounts(r.data)
       const w = r.data.find((a) => a.name === '예수금')
       setRows((rs) => rs.map((x) => (x.accountId === 'WITHHOLDING' ? { ...x, accountId: w ? String(w.id) : '' } : x)))

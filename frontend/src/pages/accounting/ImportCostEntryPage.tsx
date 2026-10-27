@@ -83,7 +83,7 @@ export default function ImportCostEntryPage({ kind }: { kind: ImportCostKind }) 
 
   useEffect(() => {
     Promise.all([
-      api.get<AccountOption[]>('/accounts'), api.get<BankAccountRow[]>('/bank-cards/accounts'), api.get<Partner[]>('/partners'),
+      api.get<AccountOption[]>('/accounts', { params: { slip: true } }), api.get<BankAccountRow[]>('/bank-cards/accounts'), api.get<Partner[]>('/partners'),
       api.get<ImportLot[]>('/import-costs/lots'), api.get<ImportCostItem[]>('/import-costs/items'),
     ]).then(([a, b, p, l, i]) => { setAccounts(a.data); setBanks(b.data); setPartners(p.data); setLots(l.data); setItems(i.data) })
       .catch((e) => setError(extractErrorMessage(e)))

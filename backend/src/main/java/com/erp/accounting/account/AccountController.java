@@ -19,8 +19,8 @@ public class AccountController {
     private final AccountService accountService;
 
     @GetMapping
-    public List<AccountResponse> list() {
-        return accountService.findAll();
+    public List<AccountResponse> list(@RequestParam(defaultValue = "false") boolean slip) {
+        return accountService.findAll(slip);
     }
 
     @PostMapping

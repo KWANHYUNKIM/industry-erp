@@ -98,7 +98,7 @@ export default function JournalEntryPage() {
   const [savedAt, setSavedAt] = useState('')
 
   useEffect(() => {
-    api.get<Account[]>('/accounts').then((r) => setAccounts(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<Account[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }, [])
   useEffect(() => {
     if (editId) return

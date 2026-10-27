@@ -73,7 +73,7 @@ export default function AccountingVsStockPage() {
 
   useEffect(() => {
     api.get<Opt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
-    api.get<Opt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
+    api.get<Opt[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
     api.get<Opt[]>('/warehouses').then((r) => setWarehouses(r.data)).catch(() => setWarehouses([]))
   }, [])
 

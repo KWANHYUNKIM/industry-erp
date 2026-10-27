@@ -58,7 +58,7 @@ export default function ContractItemPage() {
   }
   useEffect(() => {
     void load()
-    api.get<{ id: number; code: string; name: string }[]>('/accounts')
+    api.get<{ id: number; code: string; name: string }[]>('/accounts', { params: { slip: true } })
       .then((r) => setAccounts(r.data.map((a) => ({ value: String(a.id), code: a.code, name: a.name }))))
       .catch(() => setAccounts([]))
     api.get<ProductOption[]>('/items').then((r) => setProducts(r.data)).catch(() => setProducts([]))

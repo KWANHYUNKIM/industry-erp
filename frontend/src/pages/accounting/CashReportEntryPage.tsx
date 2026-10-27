@@ -117,7 +117,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
 
   useEffect(() => {
     Promise.all([
-      api.get<AccountOption[]>('/accounts'),
+      api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
       api.get<BankAccountRow[]>('/bank-cards/accounts'),
       api.get<Partner[]>('/partners'),
       advance ? api.get<EmployeeOption[]>('/employees') : Promise.resolve({ data: [] as EmployeeOption[] }),

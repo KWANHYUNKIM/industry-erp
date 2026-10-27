@@ -65,7 +65,7 @@ export default function AccountDetailPage() {
   const [printedAt, setPrintedAt] = useState(new Date())
 
   useEffect(() => {
-    api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
+    api.get<AccountOpt[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
     api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
     api.get<{ fiscalStart?: string } | null>('/preferences')
       .then((r) => { const m = Number(r.data?.fiscalStart); if (m >= 1 && m <= 12) setFiscalStart(m) })

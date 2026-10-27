@@ -123,7 +123,7 @@ export function JournalVatCompareView({ init }: { init?: JvcInit }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    api.get<Opt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
+    api.get<Opt[]>('/accounts', { params: { slip: true } }).then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
     api.get<Opt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
     if (init) void search()   // 링크로 열면 조건을 채운 채 바로 조회한다(원본 지출증빙현황 → 이 창)
   }, [])   // eslint-disable-line react-hooks/exhaustive-deps
