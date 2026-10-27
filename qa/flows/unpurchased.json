@@ -1,0 +1,19 @@
+{
+  "about": "발주서 → 구매 → 미구매현황(E040307) — 2026-10-20 원본 실측 숫자: 발주서 6 × 100 = 660 → 구매입력 [발주] 잔량적용 4 저장 = 440 → 미구매현황 '수량 6.00 · 미구매수량 2.00 · 미구매부가세 20'. 발주요청 단계(발주서 전)는 미구매에도 구매입력 [발주] 창에도 안 뜬다(원본은 요청 · 계획이 다른 전표). 만든 전표는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "미구매현황 — 발주확정 6 중 4 를 산 발주서가 원본 여덟 열(일자-No. · 품목명(규격) · 수량 · 미구매수량 · 품목별납기일자 · 거래처명 · 적요 · 미구매부가세)에 6.00 · 2.00 · 20 으로 뜨고, 발주요청 상태 전표는 안 뜬다",
+      "path": "/sales/unpurchased",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const ps=(await window.__api('GET','/partners')).body;const p=ps.find((x)=>x.type==='SUPPLIER'||x.type==='BOTH')||ps[0];const w=(await window.__api('GET','/warehouses')).body[0];const today=new Date(Date.now()+9*36e5).toISOString().slice(0,10);const po=(await window.__api('POST','/purchase-orders',{partnerId:p.id,warehouseId:w.id,orderDate:today,taxable:true,remark:'QA재고1-미구매',plan:true,lines:[{itemId:it.id,quantity:6,unitPrice:100}]})).body;await window.__api('POST','/purchase-orders/'+po.id+'/prices',{lines:po.lines.map((l)=>({lineId:l.id,unitPrice:100}))});await window.__api('POST','/purchase-orders/'+po.id+'/confirm');const rq=(await window.__api('POST','/purchase-orders',{partnerId:p.id,warehouseId:w.id,orderDate:today,taxable:true,remark:'QA재고1-요청',lines:[{itemId:it.id,quantity:3,unitPrice:100}]})).body;const pu=(await window.__api('POST','/purchases',{partnerId:p.id,warehouseId:w.id,purchaseDate:today,taxable:true,remark:'QA재고1-미구매',lines:[{itemId:it.id,quantity:4,unitPrice:100,sourceOrderId:po.id}]})).body;const dn=(no)=>no.replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/,'$1/$2/$3 -$4');sessionStorage.setItem('unpPo',po.id);sessionStorage.setItem('unpRq',rq.id);sessionStorage.setItem('unpPu',pu.id);sessionStorage.setItem('unpPoNo',dn(po.orderNo));sessionStorage.setItem('unpRqNo',dn(rq.orderNo));return po.totalAmount+'/'+pu.totalAmount})()",
+        "click:새로고침",
+        "wait:1500",
+        "expect:(()=>{const t=[...document.querySelectorAll('table')].find((x)=>/미구매수량/.test(x.innerText));const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.replace(/[▲▼]/g,'').trim()).join('|');const rows=[...t.querySelectorAll('tbody tr')];const tr=rows.find((r)=>r.cells[0].innerText.trim()===sessionStorage.getItem('unpPoNo'));const rq=rows.find((r)=>r.cells[0].innerText.trim()===sessionStorage.getItem('unpRqNo'));return h==='일자-No.|품목명(규격)|수량|미구매수량|품목별납기일자|거래처명|적요|미구매부가세'&&!!tr&&tr.cells[2].innerText.trim()==='6.00'&&tr.cells[3].innerText.trim()==='2.00'&&tr.cells[6].innerText.trim()==='QA재고1-미구매'&&tr.cells[7].innerText.trim()==='20'&&!rq})()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{window.__api=window.__api||((m,p,b)=>fetch('/api'+p,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>({status:r.status,body:await r.json().catch(()=>null)})));const a=(await window.__api('DELETE','/purchases/'+sessionStorage.getItem('unpPu'))).status;const b=(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('unpPo'))).status;const c=(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('unpRq'))).status;return a+'/'+b+'/'+c})()"
+  ]
+}

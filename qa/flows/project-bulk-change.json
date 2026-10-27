@@ -1,0 +1,32 @@
+{
+  "about": "관리 > 프로젝트등록 프로젝트리스트 [변경](E010112) — 원본 2026-10-04 실측 항목검색: 프로젝트명 · 프로젝트그룹1 · 2 · 적요 · 부가정보 · 사용구분. 우리는 프로젝트명 · 적요 · 사용구분. 적요를 한꺼번에 바꿔 저장 → 이름 · 사용은 그대로. 시험 프로젝트 둘은 지운다.",
+  "shots": [
+    {
+      "name": "변경 — 적요 한꺼번에 → 저장 → 정리",
+      "path": "/inventory/projects",
+      "steps": [
+        "wait:1500",
+        "click:변경",
+        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=[];for(const n of ['QA관리-PJ변경A','QA관리-PJ변경B']){const r=await (await fetch('/api/projects',{method:'POST',headers:h,body:JSON.stringify({name:n,remark:'원래'})})).json();ids.push(r.id)}sessionStorage.setItem('qaPb',JSON.stringify(ids));return ids.every(Boolean)?true:JSON.stringify(ids)})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:(()=>{const n=['QA관리-PJ변경A','QA관리-PJ변경B'];let k=0;for(const t of document.querySelectorAll('table tbody tr')){if(n.some(x=>t.innerText.includes(x))){t.querySelector('input[type=checkbox]').click();k++}}return k===2?true:'ticked '+k})()",
+        "click:변경",
+        "wait:400",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[aria-label=\"적요\"]').click();return true})()",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find(b=>b.innerText.startsWith('적용')).click();return true})()",
+        "wait:400",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('thead th')].map(t=>t.innerText.trim()).filter(Boolean).join(',')==='프로젝트코드,프로젝트명,적요'",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const i=d.querySelector('.ec-form input');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'QA관리-일괄적요');i.dispatchEvent(new Event('input',{bubbles:true}));[...d.querySelectorAll('.ec-form button')].find(b=>b.innerText.trim()==='적용').click();return true})()",
+        "wait:200",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find(b=>b.innerText.startsWith('저장')).click();return true})()",
+        "wait:3000",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=JSON.parse(sessionStorage.getItem('qaPb'));const all=await (await fetch('/api/projects',{headers:h})).json();sessionStorage.setItem('qaPbGot',JSON.stringify(ids.map(i=>{const p=all.find(e=>e.id===i);return [p.remark,p.active,p.name]})));return true})()",
+        "expect:JSON.parse(sessionStorage.getItem('qaPbGot')).every(x=>x[0]==='QA관리-일괄적요'&&x[1]===true&&x[2].startsWith('QA관리-PJ변경'))",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=JSON.parse(sessionStorage.getItem('qaPb'));let ok=true;for(const i of ids)ok=(await fetch('/api/projects/'+i,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaPbClean',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPbClean')==='true'"
+      ]
+    }
+  ]
+}

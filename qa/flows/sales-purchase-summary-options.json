@@ -1,0 +1,64 @@
+{
+  "about": "출력물 › 기타 › 판매구매집계표(E040725) 옵션 꼴 — 원본 실측 2026-10-21(plans/재고1.md): 비율표시 '<지표>비율' 열 · 차이표시 '차이' 묶음 [수량 · 차이금액 · 부가세 · 합계] · 집계대상 고른 지표만 · 비교기간 맨 윗머리 기간 둘 · 가로보기 풍선 둘 · 가로보기 머리 세 줄. 조회만 한다(자료를 만들지 않는다).",
+  "shots": [
+    {
+      "name": "기본 → 비율 → 차이 → 집계대상 공급가액 → 비교기간 → 가로보기",
+      "path": "/sales/sales-purchase-summary",
+      "steps": [
+        "wait:2500",
+        "expect:/판매금액/.test(document.querySelector('thead').innerText) && !/비율|차이/.test(document.querySelector('thead').innerText) && document.querySelectorAll('thead tr').length === 2",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '비율표시').querySelector('input').click()",
+        "wait:300",
+        "expect:/판매금액비율/.test(document.querySelector('thead').innerText) && /구매금액비율/.test(document.querySelector('thead').innerText) && /합계비율/.test(document.querySelector('thead').innerText)",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '비율표시').querySelector('input').click()",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '차이표시').querySelector('input').click()",
+        "wait:300",
+        "expect:/차이금액/.test(document.querySelector('thead').innerText) && [...document.querySelectorAll('thead th')].some((t) => t.innerText.trim() === '차이')",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '차이표시').querySelector('input').click()",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '공급가액').querySelector('input').click()",
+        "wait:300",
+        "expect:!/부가세/.test(document.querySelector('thead').innerText) && !/수량/.test(document.querySelector('thead').innerText) && /판매금액/.test(document.querySelector('thead').innerText)",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '전월동일기간').querySelector('input').click()",
+        "wait:2000",
+        "expect:document.querySelectorAll('thead tr').length === 3 && /\\d{4}\\/\\d\\d\\/\\d\\d ~ \\d{4}\\/\\d\\d\\/\\d\\d/.test(document.querySelector('thead').innerText)",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '가로보기').querySelector('input').click()",
+        "wait:300",
+        "expect:/가로보기는 집계조건을 2개 이상 선택해야 합니다\\./.test(document.querySelector('tbody').innerText)",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][1]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '창고'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:500",
+        "expect:document.querySelectorAll('thead tr').length === 4 && /\\d{4}\\/\\d\\d\\/\\d\\d ~/.test(document.querySelector('thead').innerText) && /판매/.test(document.querySelector('thead').innerText)",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '사용안함').querySelector('input').click()",
+        "wait:1200",
+        "expect:document.querySelectorAll('thead tr').length === 3 && !/\\d{4}\\/\\d\\d\\/\\d\\d ~/.test(document.querySelector('thead').innerText)",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => /\\S+ 계$/.test(r.cells[0].innerText.trim()))",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '비율표시').querySelector('input').click()",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '차이표시').querySelector('input').click()",
+        "wait:300",
+        "expect:/차이금액비율/.test(document.querySelector('thead').innerText) && /판매금액비율/.test(document.querySelector('thead').innerText)",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '비율표시').querySelector('input').click()",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '차이표시').querySelector('input').click()",
+        "wait:300",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '공급가액').querySelector('input').click()",
+        "wait:300",
+        "expect:/집계대상에서 가로보기 대상을 선택바랍니다\\./.test(document.querySelector('tbody').innerText)"
+      ]
+    },
+    {
+      "name": "주차별 × 담당자 → 머리 · 앞머리 병합 · 분기별/반기별 글자",
+      "path": "/sales/sales-purchase-summary",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][0]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '기준일자(주차별)'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][1]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '담당자'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:/주차별/.test(document.querySelector('thead').innerText) && /담당자/.test(document.querySelector('thead').innerText)",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][0]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '기준일자(분기별)'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:!document.querySelector('tbody').innerText.trim() || /\\d{4}\\/\\d분기/.test(document.querySelector('tbody').innerText) || /등록된|없습니다/.test(document.body.innerText)",
+        "js:(() => { const sel = [...document.querySelectorAll('select')][0]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '기준일자(반기별)'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:!document.querySelector('tbody').innerText.trim() || /\\d{4}\\/(상|하)반기/.test(document.querySelector('tbody').innerText) || /등록된|없습니다/.test(document.body.innerText)"
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 
 /**
  * 일자칸 — 이카운트 `.wrapper-datepicker` 를 옮긴 것.
@@ -10,8 +10,10 @@ import { useRef } from 'react'
  * 값은 바깥과 `YYYY-MM-DD` 로 주고받는다 — API 가 쓰는 형식 그대로다.
  */
 export default function EcDateField({
-  value, onChange, disabled, yearSpan = 3,
+  value, onChange, disabled, yearSpan = 3, invalid,
 }: {
+  /** 빈 필수칸 — 원본 has-error 빨간 테두리(`.ec-invalid`). useRequired 훅의 on(키, 채워졌나). */
+  invalid?: boolean
   value: string
   onChange: (v: string) => void
   disabled?: boolean
@@ -19,6 +21,8 @@ export default function EcDateField({
   yearSpan?: number
 }) {
   const nativeRef = useRef<HTMLInputElement>(null)
+  /** 일 칸에 치는 중인 글자 — 확정(blur/Enter) 전에는 값으로 내보내지 않는다. */
+  const [dayDraft, setDayDraft] = useState<string | null>(null)
 
   const [y, m, d] = (value || '').split('-')
   const year = Number(y) || new Date().getFullYear()
@@ -41,7 +45,7 @@ export default function EcDateField({
   }
 
   return (
-    <div className="ec-date">
+    <div className={invalid ? 'ec-date ec-invalid' : 'ec-date'}>
       <select
         className="ec-input"
         disabled={disabled}
@@ -67,16 +71,19 @@ export default function EcDateField({
       <input
         className="ec-input"
         disabled={disabled}
-        value={pad(day)}
+        value={dayDraft ?? pad(day)}
         inputMode="numeric"
         maxLength={2}
-        // onChange 로 바로 emit 하면 "0"→"01" 로 튕겨서 두 자리를 칠 수가 없다.
-        // 확정(blur/Enter) 시점에만 보정한다.
-        onChange={(e) => {
-          const n = Number(e.target.value.replace(/\D/g, ''))
-          if (Number.isFinite(n) && n > 0) emit(year, month, n)
+        // 치는 동안 바로 내보내면 "2" 가 "02" 로 튕겨 두 자리(10~31)를 칠 수가 없었다(2026-10-27 생산입고 28 → 02).
+        // 치는 글자는 dayDraft 에 두고 확정(blur/Enter) 때만 그 달 말일 안으로 보정해 내보낸다.
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setDayDraft(e.target.value.replace(/\D/g, ''))}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+        onBlur={() => {
+          const n = Number(dayDraft)
+          if (dayDraft != null && n > 0) emit(year, month, n)
+          setDayDraft(null)
         }}
-        onBlur={() => emit(year, month, day)}
         style={{ width: 34, textAlign: 'center' }}
       />
       {/* 달력 버튼 — 원본 btn-datepicker-toggle. 브라우저 기본 달력을 빌려 쓴다. */}

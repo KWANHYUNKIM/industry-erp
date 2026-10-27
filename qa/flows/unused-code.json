@@ -1,0 +1,144 @@
+{
+  "about": "재고1 마무리 묶음2 — 거래처 · 프로젝트 · 관리항목 · 품목 리스트의 [사용중단/재사용 ▴] 펼침 [미사용코드조회](원본 E010101 · E010112 · E040104 · C000029 실측: 조건 코드 · 이름 · 기준일자, 격자는 리스트 열, 하단 사용중단 · Excel · 닫기). 전표가 없는 QA 코드를 만들어 열고 → 처음엔 '등록된 데이터가 없습니다.' → [검색(F8)] 하면 그 코드가 뜨고 → 체크해 [사용중단] 하면 사용구분이 No 로 바뀌며 목록에서 빠진다. 끝에 만든 코드를 지운다. 거래처 시험은 판매 전표가 있는 거래처가 그 전표일자 기간의 미사용 목록에 없는 것도 본다.",
+  "shots": [
+    {
+      "name": "거래처리스트 [미사용코드조회] → 검색 → [사용중단]",
+      "path": "/sales/partners",
+      "steps": [
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const r=await window.__api('POST','/partners',{code:'QAUC'+String(Date.now()).slice(-6),name:'QA재고1-미사용거래처',type:'CUSTOMER'});sessionStorage.setItem('ucId',String(r.body.id));sessionStorage.setItem('ucCode',r.body.code);return r.status})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(()=>{const bs=[...document.querySelectorAll('button')];const a=bs.find(b=>(b.getAttribute('aria-label')||'').startsWith('사용중단/재사용')&&b.getAttribute('aria-label').endsWith('더보기'))||bs.find(b=>b.textContent.trim().startsWith('사용중단/재사용'));a.click();return true})()",
+        "wait:300",
+        "js:[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='미사용코드조회').click();true",
+        "wait:400",
+        "expect:!!document.querySelector('[role=dialog][aria-label=미사용코드조회]')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('기준일자')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('사용중단')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('Excel')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('닫기')",
+        "expect:document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('등록된 데이터가 없습니다.')",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.startsWith('검색')).click();true",
+        "wait:1500",
+        "expect:document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes(sessionStorage.getItem('ucCode'))",
+        "js:(()=>{const tr=[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('tbody tr')].find(r=>r.innerText.includes(sessionStorage.getItem('ucCode')));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.trim()==='사용중단').click();true",
+        "wait:1500",
+        "expect:(async()=>{const r=(await window.__api('GET','/partners')).body;const x=(Array.isArray(r)?r:r.rows).find(v=>String(v.id)===sessionStorage.getItem('ucId'));return !!x&&x.active===false})()",
+        "expect:!document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes(sessionStorage.getItem('ucCode'))",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.trim()==='닫기').click();true",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog][aria-label=미사용코드조회]')",
+        "js:(async()=>{const d=await window.__api('DELETE','/partners/'+sessionStorage.getItem('ucId'));sessionStorage.setItem('ucDel',String(d.status));return d.status})()",
+        "expect:['200','204'].includes(sessionStorage.getItem('ucDel'))",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const l=(await window.__api('GET','/sales')).body;const x=(Array.isArray(l)?l:l.rows)[0];if(!x)return 'nosale';const a=(await window.__api('GET','/partners/unused?from='+x.saleDate+'&to='+x.saleDate)).body;sessionStorage.setItem('ucUsed',String(!a.includes(x.partnerId)));return x.partnerId})()",
+        "expect:sessionStorage.getItem('ucUsed')==='true'"
+      ],
+      "finally": [
+        "js:(async()=>{const id=sessionStorage.getItem('ucId');if(id&&!sessionStorage.getItem('ucDel')){await fetch('/api/partners/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})}sessionStorage.removeItem('ucDel');return true})()"
+      ]
+    },
+    {
+      "name": "프로젝트리스트 [미사용코드조회]",
+      "path": "/inventory/projects",
+      "steps": [
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const r=await window.__api('POST','/projects',{name:'QA재고1-미사용프로젝트'});sessionStorage.setItem('ucId',String(r.body.id));sessionStorage.setItem('ucCode',r.body.code);return r.status})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(()=>{const bs=[...document.querySelectorAll('button')];const a=bs.find(b=>(b.getAttribute('aria-label')||'').startsWith('사용중단/재사용')&&b.getAttribute('aria-label').endsWith('더보기'))||bs.find(b=>b.textContent.trim().startsWith('사용중단/재사용'));a.click();return true})()",
+        "wait:300",
+        "js:[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='미사용코드조회').click();true",
+        "wait:400",
+        "expect:!!document.querySelector('[role=dialog][aria-label=미사용코드조회]')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('기준일자')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('사용중단')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('Excel')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('닫기')",
+        "expect:document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('등록된 데이터가 없습니다.')",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.startsWith('검색')).click();true",
+        "wait:1500",
+        "expect:document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes(sessionStorage.getItem('ucCode'))",
+        "js:(()=>{const tr=[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('tbody tr')].find(r=>r.innerText.includes(sessionStorage.getItem('ucCode')));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.trim()==='사용중단').click();true",
+        "wait:1500",
+        "expect:(async()=>{const r=(await window.__api('GET','/projects')).body;const x=(Array.isArray(r)?r:r.rows).find(v=>String(v.id)===sessionStorage.getItem('ucId'));return !!x&&x.active===false})()",
+        "expect:!document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes(sessionStorage.getItem('ucCode'))",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.trim()==='닫기').click();true",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog][aria-label=미사용코드조회]')",
+        "js:(async()=>{const d=await window.__api('DELETE','/projects/'+sessionStorage.getItem('ucId'));sessionStorage.setItem('ucDel',String(d.status));return d.status})()",
+        "expect:['200','204'].includes(sessionStorage.getItem('ucDel'))"
+      ],
+      "finally": [
+        "js:(async()=>{const id=sessionStorage.getItem('ucId');if(id&&!sessionStorage.getItem('ucDel')){await fetch('/api/projects/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})}sessionStorage.removeItem('ucDel');return true})()"
+      ]
+    },
+    {
+      "name": "관리항목리스트 [미사용코드조회]",
+      "path": "/inventory/manage-items",
+      "steps": [
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const r=await window.__api('POST','/management-items',{name:'QA재고1-미사용관리항목'});sessionStorage.setItem('ucId',String(r.body.id));sessionStorage.setItem('ucCode',r.body.code);return r.status})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(()=>{const bs=[...document.querySelectorAll('button')];const a=bs.find(b=>(b.getAttribute('aria-label')||'').startsWith('사용중단/재사용')&&b.getAttribute('aria-label').endsWith('더보기'))||bs.find(b=>b.textContent.trim().startsWith('사용중단/재사용'));a.click();return true})()",
+        "wait:300",
+        "js:[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='미사용코드조회').click();true",
+        "wait:400",
+        "expect:!!document.querySelector('[role=dialog][aria-label=미사용코드조회]')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('기준일자')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('사용중단')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('Excel')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('닫기')",
+        "expect:document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('등록된 데이터가 없습니다.')",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.startsWith('검색')).click();true",
+        "wait:1500",
+        "expect:document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes(sessionStorage.getItem('ucCode'))",
+        "js:(()=>{const tr=[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('tbody tr')].find(r=>r.innerText.includes(sessionStorage.getItem('ucCode')));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.trim()==='사용중단').click();true",
+        "wait:1500",
+        "expect:(async()=>{const r=(await window.__api('GET','/management-items')).body;const x=(Array.isArray(r)?r:r.rows).find(v=>String(v.id)===sessionStorage.getItem('ucId'));return !!x&&x.active===false})()",
+        "expect:!document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes(sessionStorage.getItem('ucCode'))",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.trim()==='닫기').click();true",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog][aria-label=미사용코드조회]')",
+        "js:(async()=>{const d=await window.__api('DELETE','/management-items/'+sessionStorage.getItem('ucId'));sessionStorage.setItem('ucDel',String(d.status));return d.status})()",
+        "expect:['200','204'].includes(sessionStorage.getItem('ucDel'))"
+      ],
+      "finally": [
+        "js:(async()=>{const id=sessionStorage.getItem('ucId');if(id&&!sessionStorage.getItem('ucDel')){await fetch('/api/management-items/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})}sessionStorage.removeItem('ucDel');return true})()"
+      ]
+    },
+    {
+      "name": "품목리스트 [미사용코드조회]",
+      "path": "/inventory/items",
+      "steps": [
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const r=await window.__api('POST','/items',{code:'QAUC'+String(Date.now()).slice(-6),name:'QA재고1-미사용품목',unit:'EA',category:'MERCHANDISE',unitPrice:0,safetyStock:0});sessionStorage.setItem('ucId',String(r.body.id));sessionStorage.setItem('ucCode',r.body.code);return r.status})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(()=>{const bs=[...document.querySelectorAll('button')];const a=bs.find(b=>(b.getAttribute('aria-label')||'').startsWith('사용중단/재사용')&&b.getAttribute('aria-label').endsWith('더보기'))||bs.find(b=>b.textContent.trim().startsWith('사용중단/재사용'));a.click();return true})()",
+        "wait:300",
+        "js:[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='미사용코드조회').click();true",
+        "wait:400",
+        "expect:!!document.querySelector('[role=dialog][aria-label=미사용코드조회]')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('기준일자')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('사용중단')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('Excel')&&document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('닫기')",
+        "expect:document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes('등록된 데이터가 없습니다.')",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.startsWith('검색')).click();true",
+        "wait:1500",
+        "expect:document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes(sessionStorage.getItem('ucCode'))",
+        "js:(()=>{const tr=[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('tbody tr')].find(r=>r.innerText.includes(sessionStorage.getItem('ucCode')));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.trim()==='사용중단').click();true",
+        "wait:1500",
+        "expect:(async()=>{const r=(await window.__api('GET','/items')).body;const x=(Array.isArray(r)?r:r.rows).find(v=>String(v.id)===sessionStorage.getItem('ucId'));return !!x&&x.active===false})()",
+        "expect:!document.querySelector('[role=dialog][aria-label=미사용코드조회]').innerText.includes(sessionStorage.getItem('ucCode'))",
+        "js:[...document.querySelector('[role=dialog][aria-label=미사용코드조회]').querySelectorAll('button')].find(b=>b.textContent.trim()==='닫기').click();true",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog][aria-label=미사용코드조회]')",
+        "js:(async()=>{const d=await window.__api('DELETE','/items/'+sessionStorage.getItem('ucId'));sessionStorage.setItem('ucDel',String(d.status));return d.status})()",
+        "expect:['200','204'].includes(sessionStorage.getItem('ucDel'))"
+      ],
+      "finally": [
+        "js:(async()=>{const id=sessionStorage.getItem('ucId');if(id&&!sessionStorage.getItem('ucDel')){await fetch('/api/items/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})}sessionStorage.removeItem('ucDel');return true})()"
+      ]
+    }
+  ]
+}

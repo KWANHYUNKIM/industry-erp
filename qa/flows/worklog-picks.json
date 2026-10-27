@@ -1,0 +1,12 @@
+{
+  "about": "업무일지(원본 E070304) 조건 판 빠른선택 — 금일 · 전일 · 금주(~오늘) · 전주 · 금월 · 전월 · 금년 · 전년 · 종료일 · 최근3일+7일. node qa/shot.mjs qa/flows/worklog-picks.json",
+  "shots": [
+    {
+      "name": "빠른선택 줄",
+      "path": "/groupware/worklog",
+      "steps": [
+        "expect:['금일','전일','금주(~오늘)','전주','금월','전월','금년','전년','종료일','최근3일+7일'].every((l) => [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === l))"
+      ]
+    }
+  ]
+}

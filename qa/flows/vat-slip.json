@@ -1,0 +1,62 @@
+{
+  "about": "회계 I › 매출/매입거래 › 매출전표 I(원본 2026-10-13 loginaa 실측: 부가세유형 카드매출 · 좋은컴퓨터 · 공급가액 100,000 → 부가세 10,000 · 적요 QA회계1 저장 → 칸이 처음으로, 회계거래조회 26/10/13-6 '매출전표 I', 전표 차) 외상매출금 110,000 / 대) 제품매출 100,000 · 부가세예수금 10,000). 우리 화면에서 같은 값을 넣고 저장 → 칸이 비고 → 회계전표 응답의 거래유형 · 부가세유형 · 세 줄 금액 → 지운다. node qa/shot.mjs qa/flows/vat-slip.json 두 번째: 세부내역 창(2 × 50,000 → 적용 → 공급가액 100,000 · 부가세 10,000) · 수수료 1,000(차) 지급수수료 831 / 대) 외상매출금, 원본 26/10/13-9) 저장 → 수정 창(?journal=)에서 공급가액 200,000 저장 → 목록으로, 분개 220,000.",
+  "shots": [
+    {
+      "name": "매출전표 I 카드매출 저장 → 분개 · 부가세유형",
+      "path": "/accounting/sales-slip",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const p = (await fetch('/api/partners', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()))[0]; sessionStorage.setItem('vsP', p.code); return p.code })()",
+        "js:(() => { const s = document.querySelector('select[aria-label=\"부가세유형\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '카드매출'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "js:(() => { (document.querySelector('button[title=\"거래처 코드도움\"]') ?? document.querySelector('button[title=\"거래처 선택\"]')).click(); return true })()",
+        "wait:500",
+        "pickrow:@vsP",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"공급가액\"]'), '100000'); set(document.querySelector('input[placeholder=\"적요\"]'), 'QA회계1 매출전표'); return true })()",
+        "wait:200",
+        "expect:document.querySelector('input[aria-label=\"부가세\"]').value.replace(/,/g, '') === '10000'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[aria-label=\"공급가액\"]').value === '' && document.querySelector('select[aria-label=\"부가세유형\"]').value === '세금계산서'",
+        "expect:(async () => { const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = (await fetch('/api/journals?from=' + ymd + '&to=' + ymd + '&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json())).rows.find((r) => r.description === 'QA회계1 매출전표'); sessionStorage.setItem('vsJ', j.id); const amt = (code, side) => Number((j.lines.find((l) => l.accountCode === code) ?? {})[side] ?? 0); return j.sourceTypeName === '매출전표 I' && j.vatType === '카드매출' && amt('1089', 'debit') === 110000 && amt('4049', 'credit') === 100000 && amt('2559', 'credit') === 10000 })()",
+        "expect:(async () => (await fetch('/api/journals/' + sessionStorage.getItem('vsJ'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).ok)()"
+      ]
+    },
+    {
+      "name": "매출전표 I 세부내역 · 수수료 → 수정 창",
+      "path": "/accounting/sales-slip",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const old = (await fetch('/api/journals?from=' + ymd + '&to=' + ymd + '&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json())).rows.filter((r) => r.description === 'QA회계1 세부내역'); for (const j of old) await fetch('/api/journals/' + j.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return old.length })()",
+        "js:(async () => { const p = (await fetch('/api/partners', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()))[0]; sessionStorage.setItem('vsP', p.code); return p.code })()",
+        "js:(() => { (document.querySelector('button[title=\"거래처 코드도움\"]') ?? document.querySelector('button[title=\"거래처 선택\"]')).click(); return true })()",
+        "wait:500",
+        "pickrow:@vsP",
+        "js:(() => { [...document.querySelectorAll('a')].find((a) => a.textContent === '세부내역').click(); return true })()",
+        "wait:300",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 품명\"]'), 'QA회계1-품'); set(document.querySelector('input[aria-label=\"1줄 수량\"]'), '2'); return true })()",
+        "wait:100",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 단가\"]'), '50000'); return true })()",
+        "wait:200",
+        "expect:document.querySelector('input[aria-label=\"외상매출금\"]').value.replace(/,/g, '') === '110000'",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:document.querySelector('input[aria-label=\"공급가액\"]').value.replace(/,/g, '') === '100000' && document.querySelector('input[aria-label=\"부가세\"]').value.replace(/,/g, '') === '10000'",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"수수료\"]'), '1000'); set(document.querySelector('input[placeholder=\"적요\"]'), 'QA회계1 세부내역'); return true })()",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = (await fetch('/api/journals?from=' + ymd + '&to=' + ymd + '&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json())).rows.find((r) => r.description === 'QA회계1 세부내역'); sessionStorage.setItem('vsJ2', j.id); const amt = (code, side) => j.lines.filter((l) => l.accountCode === code).reduce((a, l) => a + Number(l[side]), 0); return amt('1089', 'debit') === 110000 && amt('8319', 'debit') === 1000 && amt('1089', 'credit') === 1000 && j.vatDetail && j.vatDetail.items.length === 1 && j.eInvoiceKind === '전자(세금)계산서-신규' && j.vatOmitted === false })()",
+        "js:(() => { location.href = '/accounting/sales-slip?journal=' + sessionStorage.getItem('vsJ2'); return true })()",
+        "wait:5000",
+        "expect:document.querySelector('input[aria-label=\"수수료\"]').value.replace(/,/g, '') === '1000' && document.querySelector('input[aria-label=\"공급가액\"]').value.replace(/,/g, '') === '100000'",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"공급가액\"]'), '200000'); return true })()",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:location.pathname === '/accounting/journals'",
+        "expect:(async () => { const j = await fetch('/api/journals/' + sessionStorage.getItem('vsJ2'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()); const amt = (code, side) => j.lines.filter((l) => l.accountCode === code).reduce((a, l) => a + Number(l[side]), 0); return amt('1089', 'debit') === 220000 && amt('2559', 'credit') === 20000 && amt('8319', 'debit') === 1000 && !!j.updatedBy })()",
+        "expect:(async () => (await fetch('/api/journals/' + sessionStorage.getItem('vsJ2'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).ok)()"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "about": "마무리 묶음5 — 판매현황 [구분] 드롭다운 · 주문서현황 조건 접기 · 미판매현황 기준일자 하나 · 출하지시서현황 이름 · 판매조회 수정 창 [확인취소] 알림(원본 plans 재고1:75 · 82 · 84 · 80). node qa/shot.mjs qa/flows/closeout-5-status.json",
+  "shots": [
+    { "name": "판매현황 [구분]", "path": "/sales/sales-status", "steps": [
+      "wait:800",
+      "expect:[...document.querySelectorAll('select[aria-label=\"구분\"] option')].map(o=>o.textContent).join(',')==='일별,월별,라인별,전표별,품목별,전표별품목별,거래처별,담당자별'",
+      "choose:select[aria-label=\"구분\"]|품목별",
+      "click:검색(F8)", "wait:800",
+      "expect:[...document.querySelectorAll('.ec-report thead th')].map(t=>t.textContent).join(',')==='일자-No.,거래처명,품목명(규격),수량,단가,공급가액,부가세,합계'",
+      "expect:[...document.querySelectorAll('.ec-report tbody td')].some(t=>t.textContent==='총합계')",
+      "choose:select[aria-label=\"구분\"]|월별", "wait:300",
+      "expect:[...document.querySelectorAll('.ec-report thead th')].length===8 && [...document.querySelectorAll('.ec-report tbody td')].filter(t=>t.textContent.endsWith(' 계')).length === [...document.querySelectorAll('.ec-report tbody tr')].filter(r=>!r.textContent.includes('계')).length"
+    ] },
+    { "name": "주문서현황 조건 접기", "path": "/sales/order-status", "steps": [
+      "wait:800",
+      "expect:![...document.querySelectorAll('.ec-cond li')].some(l=>l.textContent.startsWith('작성자'))",
+      "expect:[...document.querySelectorAll('.ec-cond li')].some(l=>l.textContent.startsWith('정렬기준'))",
+      "js:document.querySelector('[aria-label=\"조건 더보기\"]').click(); true",
+      "wait:200",
+      "expect:[...document.querySelectorAll('.ec-cond li')].some(l=>l.textContent.startsWith('작성자'))"
+    ] },
+    { "name": "미판매현황 기준일자 하나", "path": "/sales/unsold", "steps": [
+      "wait:800",
+      "expect:[...document.querySelectorAll('.ec-cond li')].find(l=>l.textContent.startsWith('기준일자')).querySelectorAll('input[type=date]').length===1",
+      "expect:!document.querySelector('table.ec-report, table.ec-list-grid')",
+      "click:검색(F8)", "wait:1000"
+    ] },
+    { "name": "출하지시서현황 이름", "path": "/sales/shipment-order-status", "steps": [
+      "wait:800",
+      "expect:[...document.querySelectorAll('.ec-cond li')].some(l=>l.textContent.startsWith('품목코드'))",
+      "expect:![...document.querySelectorAll('.ec-cond li')].some(l=>l.textContent.startsWith('작성자'))",
+      "expect:[...document.querySelectorAll('.ec-pill')].some(p=>p.textContent==='현황')"
+    ] }
+  ]
+}

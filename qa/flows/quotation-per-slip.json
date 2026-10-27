@@ -1,0 +1,63 @@
+{
+  "about": "재고1 원본 재기 — 견적서조회 [다른전표생성 ▴] › 주문서 › 전표라인별: '다른전표생성 입력' 창 → [저장(F8)] → 알림 '성공 : 1건 / 실패 : 0건' → 견적 [생성한전표] 에 주문서가 걸림(원본 2026-10-21 실측). 끝에 주문서 · 견적을 지운다.",
+  "shots": [
+    {
+      "name": "견적 만들기(API)",
+      "path": "/sales/quotations",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const [ps, its, whs] = await Promise.all([g('/api/partners'), g('/api/items'), g('/api/warehouses')]); const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const it = its.find((i) => !i.lotManaged && i.active !== false); const r = await fetch('/api/quotations', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: ps.find((p) => p.type !== 'SUPPLIER').id, warehouseId: whs[0].id, quoteDate: today, remark: 'QA재고1 전표라인별', lines: [{ itemId: it.id, quantity: 2, unitPrice: 500 }] }) }); const b = await r.json(); sessionStorage.setItem('qpl', JSON.stringify({ st: r.status, id: b.id, no: b.quoteNo, m: b.message })); return true })()",
+        "wait:500",
+        "expect:JSON.parse(sessionStorage.getItem('qpl')).st === 200 || JSON.parse(sessionStorage.getItem('qpl')).st === 201",
+        "js:location.reload(); true",
+        "wait:3000"
+      ]
+    },
+    {
+      "name": "전표라인별 → 저장 → 알림",
+      "path": "/sales/quotations",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const t = JSON.parse(sessionStorage.getItem('qpl')); const n = String(Number(t.no.slice(-4))); const rows = [...document.querySelectorAll('tbody tr')].filter((x) => x.querySelector('input[type=checkbox]')); const r = rows.find((x) => new RegExp('-\\s?' + n + '\\b').test(x.innerText.split('\\n')[1] || x.innerText)) || rows[0]; r.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:300",
+        "click:다른전표생성",
+        "wait:400",
+        "click:전표라인별",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('다른전표생성 입력') && d.innerText.includes('기본입력') && d.innerText.includes('직접입력'))",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:document.body.innerText.includes('성공 : 1건') && document.body.innerText.includes('실패 : 0건')"
+      ]
+    },
+    {
+      "name": "직접설정 창 → 집계 · 품목별 → 집계 창",
+      "path": "/sales/quotations",
+      "steps": [
+        "wait:2000",
+        "js:(() => { const t = JSON.parse(sessionStorage.getItem('qpl')); const n = String(Number(t.no.slice(-4))); const rows = [...document.querySelectorAll('tbody tr')].filter((x) => x.querySelector('input[type=checkbox]')); const r = rows.find((x) => new RegExp('-\\\\s?' + n + '\\\\b').test(x.innerText.split('\\n')[1] || x.innerText)) || rows[0]; r.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:300",
+        "click:다른전표생성",
+        "wait:400",
+        "click:직접설정",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('다른전표생성 설정') && d.innerText.includes('일괄생성기준') && d.innerText.includes('자료묶음기준'))",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.innerText.includes('다른전표생성 설정')); const rs = d.querySelectorAll('input[type=radio]'); rs[1].click(); rs[3].click(); return true })()",
+        "wait:300",
+        "clicklast:적용(F8)",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('다른전표생성 집계') && d.innerText.includes('공급가액') && d.innerText.includes('생성(F8)'))"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/sales/quotations",
+      "steps": [
+        "wait:800",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('qpl')); const so = (await (await fetch('/api/sales-orders', { headers: H })).json()).filter((o) => (o.remark || '').includes('') && o.createdAt !== undefined || true); const gen = await (await fetch('/api/quotations/' + S.id + '/generated', { headers: H })).json(); S.gen = gen.length; sessionStorage.setItem('qpl', JSON.stringify(S)); const sos = await (await fetch('/api/sales-orders', { headers: H })).json(); for (const x of gen) { const o = sos.find((v) => v.orderNo === x.slipNo); if (o) await fetch('/api/sales-orders/' + o.id, { method: 'DELETE', headers: H }); } await fetch('/api/quotations/' + S.id, { method: 'DELETE', headers: H }); return true })()",
+        "wait:800",
+        "expect:JSON.parse(sessionStorage.getItem('qpl')).gen === 1"
+      ]
+    }
+  ]
+}

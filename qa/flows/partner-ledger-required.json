@@ -1,0 +1,35 @@
+{
+  "about": "영업관리현황 > 거래처관리대장1(채권) E040723 — 원본처럼 [거래처] 필수: 비운 채 [검색(F8)] 하면 거래처 칸에 빨간 테두리(.ec-invalid)가 서고 결과는 '등록된 데이터가 없습니다.'. 거래처를 고르면 거래처마다 머리표 '{거래처명} 관리대장(거래명세서별)' 아래 '판매/수금내역' 격자 일자 · 적요 · 판매 · 수금 · 잔액 다섯 칸이 열린다. 채무 쪽은 구매/지급.",
+  "shots": [
+    {
+      "name": "채권 대장 거래처 필수 → 빨간 테두리 → 거래처 고르면 머리표 · 5열",
+      "path": "/sales/partner-ledger-receivable",
+      "steps": [
+        "wait:3000",
+        "clicklast:검색(F8)",
+        "wait:800",
+        "expect:!!document.querySelector('.ec-invalid')",
+        "expect:document.body.innerText.includes('등록된 데이터가 없습니다.')",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const ps=await (await fetch('/api/partners',{headers:{Authorization:'Bearer '+t}})).json();const sales=await (await fetch('/api/sales',{headers:{Authorization:'Bearer '+t}})).json();const id=sales.length?sales[0].partnerId:ps[0].id;location.href='/sales/partner-ledger-receivable?partnerId='+id;return true})()",
+        "wait:4000",
+        "expect:/관리대장\\(거래명세서별\\)/.test(document.body.innerText)",
+        "expect:[...document.querySelectorAll('table thead tr')].some(t=>[...t.children].map(c=>c.innerText.trim()).join(',')==='일자,적요,판매,수금,잔액')",
+        "expect:!document.querySelector('.ec-invalid')",
+        "expect:[...document.querySelectorAll('td')].some((td) => td.colSpan === 2 && /^(누계|이월잔액)$/.test(td.innerText.trim())) || document.body.innerText.includes('등록된 데이터가 없습니다.')",
+        "js:(() => { const a = [...document.querySelectorAll('tbody td a')].find((x) => /\\d{4}\\/\\d{2}\\/\\d{2}/.test(x.textContent)); sessionStorage.setItem('plLink', a ? '1' : '0'); if (a) a.click(); return true })()",
+        "wait:2500",
+        "expect:sessionStorage.getItem('plLink') === '0' || [...document.querySelectorAll('[role=dialog]')].some((d) => /^(판매|구매)입력\\(수정\\)/.test(d.getAttribute('aria-label') || ''))"
+      ]
+    },
+    {
+      "name": "채무 대장은 구매/지급 머리",
+      "path": "/sales/partner-ledger-payable",
+      "steps": [
+        "wait:3000",
+        "clicklast:검색(F8)",
+        "wait:800",
+        "expect:!!document.querySelector('.ec-invalid')"
+      ]
+    }
+  ]
+}

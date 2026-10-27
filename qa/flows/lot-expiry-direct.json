@@ -1,0 +1,25 @@
+{
+  "about": "시리얼/로트No.재고현황(E040619) · 재고수불부(E040620)의 [유효기한] 직접입력 — 2026-10-04 원본 실측: 고르면 구간이 오늘 ~ 5년 뒤 하루 전(2026/10/04 ~ 2031/10/03)으로 채워진다. 예전 우리는 빈 칸을 띄웠다.",
+  "shots": [
+    {
+      "name": "재고현황 — 직접입력 고르면 오늘 ~ 5년 뒤 하루 전",
+      "path": "/quality/lot-stock",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '직접입력')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '직접입력'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:400",
+        "expect:(() => { const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '직접입력')); const ds = [...s.parentElement.querySelectorAll('input[type=date]')].map((i) => i.value); const t = new Date(Date.now() + 9 * 36e5); const y = t.getUTCFullYear(); const today = t.toISOString().slice(0, 10); const e = new Date(Date.UTC(y + 5, t.getUTCMonth(), t.getUTCDate() - 1)).toISOString().slice(0, 10); return ds[0] === today && ds[1] === e })()"
+      ]
+    },
+    {
+      "name": "재고수불부 — 같은 기본 구간",
+      "path": "/quality/lot-ledger",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '직접입력')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '직접입력'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:400",
+        "expect:(() => { const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '직접입력')); const ds = [...s.parentElement.querySelectorAll('input[type=date]')].map((i) => i.value); const t = new Date(Date.now() + 9 * 36e5); const y = t.getUTCFullYear(); const today = t.toISOString().slice(0, 10); const e = new Date(Date.UTC(y + 5, t.getUTCMonth(), t.getUTCDate() - 1)).toISOString().slice(0, 10); return ds[0] === today && ds[1] === e })()"
+      ]
+    }
+  ]
+}

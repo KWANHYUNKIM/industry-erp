@@ -1,39 +1,99 @@
 import { useEffect, useMemo, useState, useRef} from 'react'
-import EcListShell from '../../components/EcListShell'
+import EcListShell, { type BottomAction } from '../../components/EcListShell'
+import { useNavigate } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../api/types'
+import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => ymd(new Date())
 
-const TABS = ['전체', '수집', '확인', '판매전환', '배송', '반품', '교환', '취소'] as const
-type Tab = (typeof TABS)[number]
-const TAB_STATUS: Record<Exclude<Tab, '전체'>, MallOrderStatus> = {
-  수집: 'RECEIVED', 확인: 'CONFIRMED', 판매전환: 'CONVERTED', 배송: 'SHIPPED',
-  반품: 'RETURNED', 교환: 'EXCHANGED', 취소: 'CANCELLED',
-}
-const statusColor = (s: MallOrderStatus) =>
-  s === 'CONVERTED' || s === 'SHIPPED' ? '#1c7c3c'
-    : s === 'RETURNED' ? '#c60a2e' : s === 'EXCHANGED' ? '#8a5cf6'
-    : s === 'CANCELLED' ? '#8a929c' : s === 'CONFIRMED' ? 'var(--ec-blue)' : '#c07a00'
+/** 바깥 쇼핑몰과 주고받아야 하는 버튼의 안내. 원본은 연동 계정이 있어야 동작한다 — 원본 문구가 아니라 지은 문구(plans/재고1). */
+const MALL_LINK_MSG = '쇼핑몰 연동이 필요합니다.'
 
 /**
- * 재고 I > 쇼핑몰관리 — 외부몰 주문 수집 → 확인 → 판매전환.
+ * 원본 주문관리진행단계(E041005) 알약 — 전체 · 신규주문 · 주문확인 · 출고대기 · 출고완료 · 취소접수 · 취소완료 ·
+ * 반품접수 · 반품처리중 · 반품완료 · 교환접수(2026-10-20 실측). 우리 주문 상태는 일곱이라 셋(취소접수 · 반품접수 ·
+ * 반품처리중)은 늘 0 이다. 판매전환(CONVERTED)은 원본의 ERP전송(판매) 뒤 [출고대기] 에 둔다.
+ */
+const STAGES = ['신규주문', '주문확인', '출고대기', '출고완료', '취소접수', '취소완료', '반품접수', '반품처리중', '반품완료', '교환접수'] as const
+type Stage = (typeof STAGES)[number]
+const STAGE_OF: Record<MallOrderStatus, Stage> = {
+  RECEIVED: '신규주문', CONFIRMED: '주문확인', CONVERTED: '출고대기', SHIPPED: '출고완료',
+  CANCELLED: '취소완료', RETURNED: '반품완료', EXCHANGED: '교환접수',
+}
+
+export type MallMode = 'progress' | 'confirm' | 'ship' | 'cancel' | 'return' | 'exchange' | 'erp'
+
+type Col = '오픈마켓명' | '주문번호' | '묶음주문번호' | '주문옵션' | '결제일자' | '오픈마켓상품명' | '오픈마켓품목key' | '수량' | '주문금액'
+  | '주문상태' | '상태별처리기능' | '배송방법코드' | '배송방법' | '송장번호' | '품목코드(ERP)' | '품목명(ERP)' | '수취인' | '수취인연락처1'
+  | '수취인연락처2' | '주소' | '배송비금액' | '배송요청사항' | '클레임 사유' | 'ERP전송여부(주문)' | 'ERP전송여부(판매)'
+
+const HEAD: Col[] = ['오픈마켓명', '주문번호', '묶음주문번호']
+const BUYER: Col[] = ['품목코드(ERP)', '품목명(ERP)', '수취인', '수취인연락처1', '수취인연락처2']
+/** 원본 화면별 열 · 하단 버튼 · 보이는 상태(2026-10-20 loginaa 실측). */
+const MODES: Record<MallMode, { title: string; statuses: MallOrderStatus[] | null; cols: Col[]; buttons: string[] }> = {
+  progress: {
+    title: '주문관리진행단계', statuses: null,
+    cols: [...HEAD, '주문옵션', '결제일자', '오픈마켓상품명', '오픈마켓품목key', '수량', '주문금액', '주문상태', '상태별처리기능', '배송방법코드', '배송방법', '송장번호'],
+    buttons: ['진행상태변경', '주문수집', '선택삭제', '품목연결', 'ERP전송(판매)', '매핑조회', '송수신현황', '쇼핑몰별제공기능', 'Excel'],
+  },
+  confirm: {
+    title: '주문확인처리', statuses: ['RECEIVED', 'CONFIRMED'],
+    cols: [...HEAD, '결제일자', '오픈마켓상품명', '오픈마켓품목key', '수량', '주문금액', '주문상태', '상태별처리기능', ...BUYER],
+    buttons: ['주문수집', '선택삭제', '품목연결', 'ERP전송(판매)', '송수신현황', '쇼핑몰별제공기능', 'Excel', '웹자료올리기'],
+  },
+  ship: {
+    title: '배송처리', statuses: ['CONVERTED', 'SHIPPED'],
+    cols: [...HEAD, '결제일자', '오픈마켓상품명', '수량', '주문금액', '주문상태', '상태별처리기능', ...BUYER, '주소', '배송비금액', '배송방법코드', '배송방법', '송장번호', '배송요청사항'],
+    buttons: ['출고대기', '선택삭제', '품목연결', 'ERP전송(주문)', '매핑조회', '송수신현황', '쇼핑몰별제공기능', 'Excel', '웹자료올리기'],
+  },
+  cancel: {
+    title: '취소처리', statuses: ['CANCELLED'],
+    cols: [...HEAD, '결제일자', '오픈마켓상품명', '오픈마켓품목key', '수량', '주문금액', '주문상태', '상태별처리기능', ...BUYER, '클레임 사유'],
+    buttons: ['취소완료', '선택삭제', '품목연결', 'ERP전송(판매)', '송수신현황', '쇼핑몰별제공기능', 'Excel'],
+  },
+  return: {
+    title: '반품처리', statuses: ['RETURNED'],
+    cols: [...HEAD, '결제일자', '오픈마켓상품명', '오픈마켓품목key', '수량', '주문상태', '상태별처리기능', ...BUYER, '주소', '배송비금액', '클레임 사유'],
+    buttons: ['반품완료', '선택삭제', '품목연결', 'ERP전송(판매)', '송수신현황', '쇼핑몰별제공기능', 'Excel'],
+  },
+  exchange: {
+    title: '교환처리', statuses: ['EXCHANGED'],
+    cols: [...HEAD, '결제일자', '오픈마켓상품명', '오픈마켓품목key', '수량', '주문상태', '상태별처리기능', ...BUYER, '주소', '배송비금액', '배송방법코드', '배송방법', '송장번호', '클레임 사유', '배송요청사항'],
+    buttons: ['반품완료(교환)', '선택삭제', '품목연결', 'ERP전송(판매)', '송수신현황', '쇼핑몰별제공기능', 'Excel'],
+  },
+  erp: {
+    title: 'ERP전송', statuses: null,
+    cols: [...HEAD, '결제일자', '오픈마켓상품명', '오픈마켓품목key', '수량', '주문금액', '주문상태', ...BUYER, '주소', 'ERP전송여부(주문)', 'ERP전송여부(판매)'],
+    buttons: ['선택삭제', '품목연결', 'ERP전송(판매)', 'Excel', 'ERP항목매핑설정'],
+  },
+}
+const NUM_COLS = new Set<Col>(['수량', '주문금액', '배송비금액'])
+
+/**
+ * 재고 I > 쇼핑몰관리 > 주문관리 일곱 화면(E041005~E041011) — 같은 틀이라 한 컴포넌트가 mode 로 갈린다.
  *
+ * 원본의 주문수집 · 상태 전송은 바깥 쇼핑몰 연동이다. 우리는 [주문수집] 을 손으로 넣는 창으로 대신하고,
+ * 줄의 [상태별처리기능] 이 우리 상태(확인 → 판매전환 → 배송 → 반품/교환, 취소)를 바꾼다.
  * 재고 차감과 채권 계상은 판매전표가 한다. 쇼핑몰이 재고를 직접 건드리면 같은 사실을
  * 두 곳이 기록하게 되고, 두 숫자는 반드시 갈라진다.
  */
-export default function MallPage() {
+export default function MallPage({ mode = 'progress' }: { mode?: MallMode }) {
+  const M = MODES[mode]
+  const navigate = useNavigate()
   const [data, setData] = useState<MallOverview | null>(null)
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [mallNames, setMallNames] = useState<string[]>([])
-  const [tab, setTab] = useState<Tab>('전체')
+  const [stage, setStage] = useState<Stage | '전체'>('전체')
+  const [picked, setPicked] = useState<Set<number>>(new Set())
   const [showForm, setShowForm] = useState(false)
   const [converting, setConverting] = useState<MallOrder | null>(null)
   const [fulfill, setFulfill] = useState<{ order: MallOrder; action: 'ship' | 'return' | 'exchange' } | null>(null)
@@ -63,18 +123,19 @@ export default function MallPage() {
   }
 
   useEffect(() => { load() }, [])
+  useEffect(() => { setStage('전체'); setPicked(new Set()) }, [mode])
 
-  const orders = data?.orders ?? []
-  const shown = useMemo(() => orders.filter((o) => tab === '전체' || o.status === TAB_STATUS[tab]), [orders, tab])
-  const tabCount = (t: Tab) => orders.filter((o) => t === '전체' || o.status === TAB_STATUS[t]).length
+  const orders = useMemo(() => (data?.orders ?? []).filter((o) => !M.statuses || M.statuses.includes(o.status)), [data, M])
+  const shown = useMemo(() => orders.filter((o) => stage === '전체' || STAGE_OF[o.status] === stage), [orders, stage])
+  const stageCount = (s: Stage | '전체') => orders.filter((o) => s === '전체' || STAGE_OF[o.status] === s).length
 
   async function act(o: MallOrder, action: 'confirm' | 'cancel') {
-    if (action === 'cancel' && !window.confirm(`${o.mallOrderNo} 주문을 취소할까요?`)) return
+    if (action === 'cancel' && !(await ecConfirm(`${o.mallOrderNo} 주문을 취소할까요?`))) return
     try {
       await api.post(`/mall-orders/${o.id}/${action}`)
       flash(action === 'confirm' ? '주문을 확인했습니다.' : '주문을 취소했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function mapItem(o: MallOrder, itemId: string) {
@@ -83,148 +144,129 @@ export default function MallPage() {
       await api.put(`/mall-orders/${o.id}/item`, { itemId: Number(itemId) })
       flash('품목을 매핑했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
+  const pick = (id: number) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const allPicked = shown.length > 0 && shown.every((o) => picked.has(o.id))
+
+  /** 하단 버튼 — 우리 안에서 끝나는 것만 실제로 하고, 바깥 쇼핑몰과 주고받는 것은 안내만 띄운다. */
+  function bottom(label: string): BottomAction {
+    const link = () => { void ecAlert(MALL_LINK_MSG) }
+    switch (label) {
+      case '주문수집': return { label, primary: true, onClick: () => setShowForm(true) }
+      case '품목연결': case '매핑조회': return { label, onClick: () => navigate('/sales/mall-item-mappings') }
+      case 'ERP전송(판매)': return {
+        label, selected: picked.size,
+        onClick: () => { const o = shown.find((x) => picked.has(x.id)); if (o) setConverting(o) },
+      }
+      case 'Excel': return { label }
+      case '진행상태변경': case '출고대기': case '취소완료': case '반품완료': case '반품완료(교환)': case 'ERP전송(주문)': case '선택삭제':
+        return { label, primary: label === '진행상태변경', selected: picked.size, onClick: link }
+      default: return { label, onClick: link }
+    }
+  }
+
+  function cell(c: Col, o: MallOrder) {
+    const open = o.status === 'RECEIVED' || o.status === 'CONFIRMED'
+    switch (c) {
+      case '오픈마켓명': return o.mall
+      case '주문번호': return <span className="text-ec-blue">{o.mallOrderNo}</span>
+      case '결제일자': return dateText(o.orderDate)
+      case '오픈마켓상품명': return o.productName
+      case '오픈마켓품목key': return o.mallProductCode ?? ''
+      case '수량': return won(o.quantity)
+      case '주문금액': return won(o.totalAmount)
+      case '주문상태': return (
+        <>
+          {STAGE_OF[o.status]}
+          {o.salesDocNo && <div className="text-[10.5px] text-ec-success">{o.salesDocNo}</div>}
+        </>
+      )
+      case '상태별처리기능': return (
+        <div className="inline-flex gap-[3px]">
+          {o.status === 'RECEIVED' && <button className="ec-btn ec-btn-sm" onClick={() => act(o, 'confirm')}>확인</button>}
+          {o.status === 'CONFIRMED' && <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => setConverting(o)}>판매전환</button>}
+          {o.status === 'CONVERTED' && <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => setFulfill({ order: o, action: 'ship' })}>배송처리</button>}
+          {o.status === 'SHIPPED' && (
+            <>
+              <button className="ec-btn ec-btn-sm" onClick={() => setFulfill({ order: o, action: 'return' })}>반품</button>
+              <button className="ec-btn ec-btn-sm" onClick={() => setFulfill({ order: o, action: 'exchange' })}>교환</button>
+            </>
+          )}
+          {open && <button className="ec-btn ec-btn-sm text-ec-danger" onClick={() => act(o, 'cancel')}>취소</button>}
+        </div>
+      )
+      case '배송방법': return o.courier ?? ''
+      case '송장번호': return o.trackingNo ?? ''
+      case '품목코드(ERP)': return open ? (
+        /* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */
+        <CodePickerField label="품목" hideLabel fill placeholder="품목(미매핑)" emptyLabel="선택 안 함"
+                         value={String(o.itemId ?? '')} onChange={(v) => mapItem(o, v)}
+                         items={items.filter((it) => it.active !== false || it.id === o.itemId).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
+      ) : (o.itemCode ?? '')
+      case '품목명(ERP)': return o.itemName ?? ''
+      case '수취인': return o.buyerName
+      case '수취인연락처1': return o.buyerPhone ?? ''
+      case '주소': return o.address ?? ''
+      case '배송요청사항': return o.remark ?? ''
+      case '클레임 사유': return o.closeReason ?? ''
+      case 'ERP전송여부(판매)': return o.salesDocNo ? 'Y' : 'N'
+      default: return ''
+    }
+  }
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '쇼핑몰', [])
+  useTableColumnCheck(tableRef, '쇼핑몰', [mode])
 
   return (
-    <EcListShell title="쇼핑몰관리" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 주문 수집(F2)</button>
-        <span style={{ fontSize: 12, color: '#9aa1ab' }}>
-          수집 → 확인 → 판매전환. 재고 차감·채권 계상은 판매전표가 합니다(몰이 재고를 직접 건드리지 않습니다).
-        </span>
-      </div>
+    <EcListShell title={M.title} actions={M.buttons.map(bottom)}>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
-
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-        <Box label="총 주문" value={`${data?.totalOrders ?? 0} 건`} color="var(--ec-blue-dark)" bg="#f7f9fb" />
-        <Box label="주문 금액" value={`${won(data?.totalAmount ?? 0)} 원`} color="var(--ec-blue)" bg="#f7f9ff" />
-        <Box label="품목 미매핑" value={`${data?.unmapped ?? 0} 건`} color={(data?.unmapped ?? 0) > 0 ? '#c60a2e' : '#2f8401'} bg={(data?.unmapped ?? 0) > 0 ? '#fdf6f6' : '#f4faf5'} />
-        <Box label="미전환" value={`${data?.unconverted ?? 0} 건`} color={(data?.unconverted ?? 0) > 0 ? '#c07a00' : '#2f8401'} bg="#f7f9fb" />
-      </div>
-
-      {(data?.byMall.length ?? 0) > 0 && (
-        <>
-          <div style={{ padding: '6px 8px', background: '#f5f7fa', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
-            몰별 집계
-          </div>
-          <table className="w-full text-left" style={{ marginBottom: 12 }}>
-            <thead>
-              <tr>
-                <th>몰</th>
-                <th style={{ textAlign: 'right' }}>주문 건수</th>
-                <th style={{ textAlign: 'right' }}>주문 금액</th>
-                <th style={{ textAlign: 'right' }}>미전환</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data!.byMall.map((m) => (
-                <tr key={m.mall}>
-                  <td style={{ fontWeight: 600 }}>{m.mall}</td>
-                  <td style={{ textAlign: 'right' }}>{m.orderCount}</td>
-                  <td style={{ textAlign: 'right' }}>{won(m.totalAmount)}</td>
-                  <td style={{ textAlign: 'right', color: m.unconverted > 0 ? '#c07a00' : '#c3c8cf' }}>{m.unconverted}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+      {/* 원본: 진행단계만 단계별 알약(건수), 나머지 화면은 [전체] 하나. */}
+      {mode === 'progress' ? (
+        /* 원본 score-box(2026-10-21 실측): 칸 64.6 × 40.9 · 둥글기 10 · 머리카락 테두리(고른 것 파랑 · 나머지 hair 색) ·
+           위 건수 14px 흰 바탕 h21 · 아래 이름 12px h18.9 회색(연회색, 고른 것은 파랑 바탕 흰 글자) · 칸 사이 5.4 */
+        <div className="flex gap-[5.4px] mb-[6px] flex-wrap">
+          {(['전체' as const, ...STAGES]).map((t) => {
+            const on = stage === t
+            return (
+              <button key={t} type="button" onClick={() => setStage(t)}
+                      className={`no-ec score-box flex flex-col w-[64.6px] h-[40.9px] p-0 overflow-hidden rounded-[10px] border-[0.5px] bg-transparent cursor-pointer ${on ? 'border-ec-blue' : 'border-ec-line'}`}>
+                <span className={`block w-full h-[21px] leading-[21px] text-[14px] bg-white ${on ? 'text-ec-blue' : 'text-black'}`}>{stageCount(t)}</span>
+                <span className={`block w-full h-[18.9px] leading-[18px] text-[12px] ${on ? 'bg-ec-blue text-white' : 'bg-ec-line-soft text-black'}`}>{t}</span>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="ec-pills mb-[6px]">
+          <button type="button" onClick={() => setStage('전체')}
+                  className={`ec-pill no-ec${stage === '전체' ? ' active' : ''}`}>전체</button>
+        </div>
       )}
-
-      {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
-      <div className="ec-pills" style={{ marginBottom: 6 }}>
-        {TABS.map((t) => (
-          <button
-            key={t} type="button" onClick={() => setTab(t)}
-            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
-          >
-            {t} ({tabCount(t)})
-          </button>
-        ))}
-      </div>
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th>몰</th>
-            <th>몰 주문번호</th>
-            <th>주문일</th>
-            <th>구매자</th>
-            <th>몰 상품명</th>
-            <th style={{ width: 180 }}>품목 매핑</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ textAlign: 'center', width: 130 }}>처리</th>
+            <th className="w-[34px] text-center">
+              <input type="checkbox" checked={allPicked}
+                     onChange={() => setPicked(allPicked ? new Set() : new Set(shown.map((o) => o.id)))} />
+            </th>
+            {M.cols.map((c) => <th key={c} className={NUM_COLS.has(c) ? 'text-right' : c === '품목코드(ERP)' ? 'w-[160px]' : undefined}>{c}</th>)}
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((o, i) => {
-            const open = o.status === 'RECEIVED' || o.status === 'CONFIRMED'
-            return (
-              <tr key={o.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td>{o.mall}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{o.mallOrderNo}</td>
-                <td>{dateText(o.orderDate)}</td>
-                <td>{o.buyerName}</td>
-                <td style={{ color: '#5a626e' }}>{o.productName}</td>
-                <td>
-                  {open ? (
-                    <select
-                      className="ec-input"
-                      value={o.itemId ?? ''}
-                      onChange={(e) => mapItem(o, e.target.value)}
-                      style={{ width: '100%', borderColor: o.itemId ? undefined : '#c60a2e' }}
-                    >
-                      <option value="">(미매핑)</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-                    </select>
-                  ) : (
-                    <span>{o.itemName ?? '-'}</span>
-                  )}
-                </td>
-                <td style={{ textAlign: 'right' }}>{won(o.quantity)}</td>
-                <td style={{ textAlign: 'right' }}>{won(o.unitPrice)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(o.totalAmount)}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <span style={{ color: statusColor(o.status) }}>{o.statusName}</span>
-                  {o.salesDocNo && <div style={{ fontSize: 10.5, color: '#1c7c3c' }}>{o.salesDocNo}</div>}
-                  {o.trackingNo && <div style={{ fontSize: 10.5, color: '#5a626e' }}>{o.courier} {o.trackingNo}</div>}
-                  {o.closeReason && <div style={{ fontSize: 10.5, color: '#c07a00' }}>{o.closedAt}: {o.closeReason}</div>}
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  <div style={{ display: 'inline-flex', gap: 3 }}>
-                    {o.status === 'RECEIVED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => act(o, 'confirm')}>확인</button>}
-                    {o.status === 'CONFIRMED' && (
-                      <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => setConverting(o)}>판매전환</button>
-                    )}
-                    {o.status === 'CONVERTED' && (
-                      <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => setFulfill({ order: o, action: 'ship' })}>배송처리</button>
-                    )}
-                    {o.status === 'SHIPPED' && (
-                      <>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => setFulfill({ order: o, action: 'return' })}>반품</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#8a5cf6' }} onClick={() => setFulfill({ order: o, action: 'exchange' })}>교환</button>
-                      </>
-                    )}
-                    {open && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => act(o, 'cancel')}>취소</button>}
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
+            <tr><td colSpan={M.cols.length + 1} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((o) => (
+            <tr key={o.id}>
+              <td className="text-center"><input type="checkbox" checked={picked.has(o.id)} onChange={() => pick(o.id)} /></td>
+              {M.cols.map((c) => <td key={c} className={NUM_COLS.has(c) ? 'text-right' : undefined}>{cell(c, o)}</td>)}
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -292,54 +334,45 @@ function FulfillForm({ order, action, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 460, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{title}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">{title}</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-          <p style={{ fontSize: 12.5, color: '#5a626e', marginBottom: 10 }}>
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+          <p className="text-[12.5px] text-ec-label mb-[10px]">
             {order.mall} / {order.mallOrderNo} · {order.buyerName} · {order.productName}
           </p>
           <table className="w-full text-left"><tbody>
             {(isShip || action === 'exchange') && (
               <>
                 <tr>
-                  <th style={{ width: 90, background: '#f5f7fa' }}>택배사{isShip && <span style={{ color: '#c60a2e' }}>*</span>}</th>
+                  <th className="w-[90px] bg-ec-page">택배사{isShip && <span className="text-ec-danger">*</span>}</th>
                   <td><input className="ec-input" value={courier} onChange={(e) => setCourier(e.target.value)} style={{ width: '100%' }} placeholder="예: CJ대한통운" /></td>
                 </tr>
                 <tr>
-                  <th style={{ background: '#f5f7fa' }}>송장번호{isShip && <span style={{ color: '#c60a2e' }}>*</span>}</th>
+                  <th className="bg-ec-page">송장번호{isShip && <span className="text-ec-danger">*</span>}</th>
                   <td><input className="ec-input" value={trackingNo} onChange={(e) => setTrackingNo(e.target.value)} style={{ width: '100%' }} /></td>
                 </tr>
               </>
             )}
             {!isShip && (
               <tr>
-                <th style={{ background: '#f5f7fa' }}>사유<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th className="bg-ec-page">사유<span className="text-ec-danger">*</span></th>
                 <td><input className="ec-input" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: '100%' }} placeholder={action === 'return' ? '예: 단순변심' : '예: 사이즈 교환'} /></td>
               </tr>
             )}
             <tr>
-              <th style={{ background: '#f5f7fa' }}>{isShip ? '배송일' : '처리일'}</th>
-              <td><input className="ec-input" type="date" value={dateText(date)} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
+              <th className="bg-ec-page">{isShip ? '배송일' : '처리일'}</th>
+              <td><input className="ec-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
             </tr>
           </tbody></table>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '처리 중…' : title}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Box({ label, value, color, bg }: { label: string; value: string; color: string; bg: string }) {
-  return (
-    <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: bg, padding: '10px 14px' }}>
-      <div style={{ fontSize: 12, color: '#5a626e' }}>{label}</div>
-      <div style={{ fontSize: 19, fontWeight: 800, color }}>{value}</div>
     </div>
   )
 }
@@ -397,54 +430,54 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
       <table className="w-full text-left">
         <tbody>
           <tr>
-            <th style={{ width: 100, background: '#f5f7fa' }}>몰<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="w-[100px] bg-ec-page">몰<span className="text-ec-danger">*</span></th>
             <td>
               <input className="ec-input" value={mall} onChange={(e) => setMall(e.target.value)} style={{ width: 140 }} list="mall-name-list" />
               <datalist id="mall-name-list">{mallNames.map((n) => <option key={n} value={n} />)}</datalist>
             </td>
-            <th style={{ width: 90, background: '#f5f7fa' }}>몰 주문번호<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="w-[90px] bg-ec-page">몰 주문번호<span className="text-ec-danger">*</span></th>
             <td><input className="ec-input" value={mallOrderNo} onChange={(e) => setMallOrderNo(e.target.value)} placeholder="예: 2026071400123" style={{ width: 160 }} /></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>주문일</th>
-            <td><input type="date" className="ec-input" value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
-            <th style={{ background: '#f5f7fa' }}>구매자<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="bg-ec-page">주문일</th>
+            <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
+            <th className="bg-ec-page">구매자<span className="text-ec-danger">*</span></th>
             <td><input className="ec-input" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} style={{ width: 160 }} /></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>연락처</th>
+            <th className="bg-ec-page">연락처</th>
             <td><input className="ec-input" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} style={{ width: 140 }} /></td>
-            <th style={{ background: '#f5f7fa' }}>배송지</th>
+            <th className="bg-ec-page">배송지</th>
             <td><input className="ec-input" value={address} onChange={(e) => setAddress(e.target.value)} style={{ width: 160 }} /></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>몰 상품명<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="bg-ec-page">몰 상품명<span className="text-ec-danger">*</span></th>
             <td colSpan={3}><input className="ec-input" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="몰이 보내준 상품명 원문" style={{ width: '100%' }} /></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>몰품목코드</th>
+            <th className="bg-ec-page">몰품목코드</th>
             <td colSpan={3}>
               <input className="ec-input" value={mallProductCode} onChange={(e) => setMallProductCode(e.target.value)} placeholder="몰 상품 key (예: NSP-1001)" style={{ width: 220 }} />
-              <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>품목코드연결에 등록돼 있으면 품목이 자동 연결됩니다.</span>
+              <span className="ml-[8px] text-[11.5px] text-ec-hint">품목코드연결에 등록돼 있으면 품목이 자동 연결됩니다.</span>
             </td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>품목 매핑</th>
+            <th className="bg-ec-page">품목 매핑</th>
             <td colSpan={3}>
             {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
             <CodePickerField label="품목 매핑" hideLabel width={280} emptyLabel="(비우면 몰품목코드로 자동연결 시도)"
                              value={itemId} onChange={setItemId}
                              items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-              <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>매핑해야 판매전환할 수 있습니다.</span>
+              <span className="ml-[8px] text-[11.5px] text-ec-hint">매핑해야 판매전환할 수 있습니다.</span>
             </td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>수량 / 단가</th>
+            <th className="bg-ec-page">수량 / 단가</th>
             <td colSpan={3}>
               <input className="ec-input" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ width: 80, textAlign: 'right' }} />
-              <span style={{ margin: '0 6px' }}>×</span>
+              <span className="my-0 mx-[6px]">×</span>
               <input className="ec-input" type="number" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
-              <span style={{ marginLeft: 8, fontWeight: 700 }}>= {won(total)} 원</span>
+              <span className="ml-[8px] font-bold">= {won(total)} 원</span>
             </td>
           </tr>
         </tbody>
@@ -488,24 +521,23 @@ function ConvertForm({ order, partners, warehouses, onClose, onSaved }: {
       <table className="w-full text-left">
         <tbody>
           <tr>
-            <th style={{ width: 110, background: '#f5f7fa' }}>주문</th>
+            <th className="w-[110px] bg-ec-page">주문</th>
             <td>{order.productName} · {won(order.quantity)}개 × {won(order.unitPrice)}원 = <b>{won(order.totalAmount)}원</b></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>품목</th>
-            <td>{order.itemName ?? <span style={{ color: '#c60a2e' }}>미매핑</span>}</td>
+            <th className="bg-ec-page">품목</th>
+            <td>{order.itemName ?? <span className="text-ec-danger">미매핑</span>}</td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>거래처(몰)<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="bg-ec-page">거래처(몰)<span className="text-ec-danger">*</span></th>
             <td>
-              <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 220 }}>
-                <option value="">매출처 선택</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <CodePickerField label="거래처(몰)" hideLabel width={220} emptyLabel="선택 안 함" placeholder="매출처 선택"
+                               value={partnerId} onChange={setPartnerId}
+                               items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
             </td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>출고 창고<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="bg-ec-page">출고 창고<span className="text-ec-danger">*</span></th>
             <td>
               <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 220 }}>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -513,16 +545,16 @@ function ConvertForm({ order, partners, warehouses, onClose, onSaved }: {
             </td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>과세</th>
+            <th className="bg-ec-page">과세</th>
             <td>
-              <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <label className="text-[12.5px] flex items-center gap-[4px]">
                 <input type="checkbox" checked={taxable} onChange={(e) => setTaxable(e.target.checked)} /> 부가세 10% 부과
               </label>
             </td>
           </tr>
         </tbody>
       </table>
-      <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>
+      <p className="mt-[10px] text-[11.5px] text-ec-hint">
         ※ 전환하면 판매전표가 만들어지고 재고가 차감됩니다. 재고가 부족하면 전환이 거부됩니다.
       </p>
     </Modal>
@@ -540,15 +572,15 @@ function Modal({ title, children, onClose, onSave, saving, error }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 620, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{title}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">{title}</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           {children}
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={onSave} disabled={saving}>{saving ? '처리 중…' : '확인(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

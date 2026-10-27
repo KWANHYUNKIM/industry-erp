@@ -1,0 +1,134 @@
+{
+  "about": "재고 II 프로젝트계획(E040636 · E040637) 원본 계획 모델 — 2026-10-14 loginaa 실측(plans/재고2/E040636.md). [신규(F2)] 등록 창: 빈 저장은 글자 없이 프로젝트 칸 빨간 테두리 + 알약 '!', 저장 전 항목 [등록] 은 '프로젝트계획 저장 후 계획등록을 할 수 있습니다. 저장하시겠습니까?' → 확인하면 저장되고 제목이 '프로젝트 계획항목 수정'. 판매 [등록] → '… 판매 계획 리스트'(빈 목록) → [신규(F2)] 계획 입력: 계획 기간 2026/10/14 ~ 2026/12/31 의 달 칸 셋, 금액 100,000 · 10월 100,000 · 11월 200,000 저장 → 리스트 100,000 → 목록 판매 100,000 · 시작일 2026/10/14. 실적현황(월별): 2026.10 100,000 · 2026.11 200,000 · 2026.12 빈 줄 · [판매] 소계 300,000 · 손익 300,000(차이 -300,000). 수정 창 [삭제] → 실적현황 '등록된 데이터가 없습니다.'. 프로젝트는 js 로 한 번 만들고 finally 에서 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 프로젝트(js 한 번)",
+      "path": "/accounting/project-plan",
+      "steps": [
+        "wait:800",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const code = 'QA재고2-PP' + String(Date.now()).slice(-6); const r = await fetch('/api/projects', { method: 'POST', headers: H, body: JSON.stringify({ code, name: code, startDate: '2026-10-01', endDate: '2026-12-31' }) }); const b = await r.json(); sessionStorage.setItem('ppCode', code); sessionStorage.setItem('ppProject', String(b.id)); return r.status + ' ' + code })()"
+      ]
+    },
+    {
+      "name": "등록 창 → 판매 계획 리스트 → 계획 입력(달 칸) → 목록",
+      "path": "/accounting/project-plan",
+      "steps": [
+        "js:window.confirm = () => true; true",
+        "wait:1500",
+        "click:신규(F2)",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop()?.getAttribute('aria-label') === '프로젝트 계획항목 등록'",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.querySelector('input[aria-label=\"시작일\"]').value.length === 10 && d.querySelector('input[aria-label=\"완료일\"]').value.endsWith('-12-31') })()",
+        "clicklast:저장(F8)",
+        "wait:500",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return !!d.querySelector('.ec-invalid') && d.querySelector('.ec-pill').innerText.includes('!') && !d.querySelector('.ec-error') })()",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"프로젝트 선택\"]').click(); true",
+        "pickrow:@ppCode",
+        "wait:400",
+        "set:[role=dialog] input[aria-label=\"시작일\"]|2026-10-14",
+        "set:[role=dialog] input[aria-label=\"완료일\"]|2026-12-31",
+        "set:[role=dialog] input[aria-label=\"적요\"]|QA재고2",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"판매 등록\"]').click(); true",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop()?.getAttribute('aria-label') === '프로젝트 계획항목 수정'",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"판매 등록\"]').click(); true",
+        "wait:1200",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const c = sessionStorage.getItem('ppCode'); return d.getAttribute('aria-label') === c + ' [' + c + '] 판매 계획 리스트' && d.innerText.includes('등록된 데이터가 없습니다.') && d.innerText.includes('예상수익금액') })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '신규(F2)').click(); true",
+        "wait:600",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.getAttribute('aria-label').endsWith('판매 계획 입력') && ['2026년 10월', '2026년 11월', '2026년 12월'].every((l) => d.querySelector('input[aria-label=\"' + l + '\"]')?.value === '0') && !d.querySelector('input[aria-label=\"2026년 9월\"]') })()",
+        "set:[role=dialog] input[aria-label=\"금액\"]|100000",
+        "set:[role=dialog] input[aria-label=\"2026년 10월\"]|100000",
+        "set:[role=dialog] input[aria-label=\"2026년 11월\"]|200000",
+        "set:[role=dialog] input[aria-label=\"적요\"]#1|QA재고2",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '저장(F8)').click(); true",
+        "wait:1500",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.getAttribute('aria-label').endsWith('판매 계획 리스트') && d.querySelector('tbody').innerText.includes('100,000') && d.querySelector('tbody').innerText.includes('QA재고2') })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '닫기').click(); true",
+        "wait:300",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '닫기').click(); true",
+        "wait:1200",
+        "expect:(() => { const c = sessionStorage.getItem('ppCode'); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.cells[2]?.innerText.trim() === c); return !!r && r.cells[4].innerText.trim() === '2026/10/14' && r.cells[5].innerText.trim() === '2026/12/31' && r.cells[6].innerText.trim() === '100,000' && r.cells[7].innerText.trim() === '0' })()"
+      ]
+    },
+    {
+      "name": "실적현황 — 달별 금액 · 빈 달 줄 · 소계",
+      "path": "/accounting/project-plan-status",
+      "steps": [
+        "wait:1200",
+        "js:document.querySelector('button[title=\"프로젝트 선택\"]').click(); true",
+        "pickrow:@ppCode",
+        "wait:400",
+        "expect:[...document.querySelectorAll('input[type=month]')].map((x) => x.value).join('~') === '2026-10~2026-12'",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:[...document.querySelectorAll('table.ec-report tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')).join(' / ')",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); const c = sessionStorage.getItem('ppCode'); return rows[0] === c + '|수익|판매|2026.10|100,000||-100,000|' && rows[1] === '|||2026.11|200,000||-200,000|' && rows[2] === '|||2026.12||||' && rows[3] === '||[판매] 소계|300,000||-300,000|' && rows[4] === '|[수익] 소계|300,000||-300,000|' && rows[5] === '[' + c + '] 손익|300,000||-300,000|' && rows.length === 6 })()",
+        "expect:(() => { const th = getComputedStyle(document.querySelector('table.ec-report thead th')); const td = getComputedStyle(document.querySelector('table.ec-report tbody td')); return th.fontSize === '11px' && th.fontWeight === '400' && td.fontSize === '11px' })()",
+        "expect:![...document.querySelectorAll('.ec-footer button')].some((b) => b.innerText.trim() === '검색(F8)')",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '천단위').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); return rows[0].endsWith('|2026.10|100||-100|') && rows[3] === '||[판매] 소계|300||-300|' && document.body.innerText.includes('단위: 원 (천단위)') })()",
+        "js:[...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '천단위').querySelector('input').click(); [...document.querySelectorAll('label')].find((l) => l.innerText.trim() === '집계기준 1').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:[...document.querySelectorAll('table.ec-report tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')).join(' / ')",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); const head = [...document.querySelectorAll('table.ec-report thead th')].map((c) => c.innerText.trim()).join('|'); return head === '프로젝트|계획구분|항목|집계기준 1|월별|예상금액|실적금액|차이금액|비율(%)' && rows[0].endsWith('|수익|판매||2026.10|100,000||-100,000|') && rows[3] === '|||[] 소계|300,000||-300,000|' && rows[4] === '||[판매] 소계|300,000||-300,000|' })()",
+        "click:금월(~오늘)",
+        "wait:300",
+        "expect:(() => { const v = [...document.querySelectorAll('input[type=month]')].map((x) => x.value); const d = new Date(); const now = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); return v[0] === now && v[1] === now })()"
+      ]
+    },
+    {
+      "name": "수정 창 [삭제] → 실적현황 '등록된 데이터가 없습니다.'",
+      "path": "/accounting/project-plan",
+      "steps": [
+        "js:window.confirm = () => true; true",
+        "wait:1500",
+        "js:(() => { const c = sessionStorage.getItem('ppCode'); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.cells[2]?.innerText.trim() === c); r.cells[2].querySelector('button').click(); return true })()",
+        "wait:1000",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d?.getAttribute('aria-label') === '프로젝트 계획항목 수정' && d.querySelector('input[aria-label=\"시작일\"]').value === '2026-10-14' })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '삭제').click(); true",
+        "wait:1500",
+        "expect:(() => { const c = sessionStorage.getItem('ppCode'); return !document.querySelector('[role=dialog]') && ![...document.querySelectorAll('tbody tr')].some((x) => x.cells[2]?.innerText.trim() === c) })()"
+      ]
+    },
+    {
+      "name": "지운 뒤 실적현황",
+      "path": "/accounting/project-plan-status",
+      "steps": [
+        "wait:1200",
+        "js:document.querySelector('button[title=\"프로젝트 선택\"]').click(); true",
+        "pickrow:@ppCode",
+        "wait:400",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:document.querySelector('table.ec-report tbody').innerText.trim() === '등록된 데이터가 없습니다.'"
+      ]
+    },
+    {
+      "name": "등록 창 저장(F8) → 창 닫힘 · 0 줄 → [선택삭제] '선택한 전표를 삭제 하겠습니까?'",
+      "path": "/accounting/project-plan",
+      "steps": [
+        "js:window.__asked = []; window.confirm = (m) => { window.__asked.push(m); return true }; true",
+        "wait:1500",
+        "click:신규(F2)",
+        "wait:600",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"프로젝트 선택\"]').click(); true",
+        "pickrow:@ppCode",
+        "wait:400",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.innerText.trim() === '저장(F8)').click(); true",
+        "wait:1500",
+        "expect:(() => { const c = sessionStorage.getItem('ppCode'); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.cells[2]?.innerText.trim() === c); return !document.querySelector('[role=dialog]') && !!r && [6, 7, 8, 9].every((i) => r.cells[i].innerText.trim() === '0') && r.cells[5].innerText.trim().endsWith('/12/31') })()",
+        "js:(() => { const c = sessionStorage.getItem('ppCode'); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.cells[2]?.innerText.trim() === c); r.cells[0].querySelector('input').click(); return true })()",
+        "click:선택삭제",
+        "wait:1500",
+        "expect:(() => { const c = sessionStorage.getItem('ppCode'); return ![...document.querySelectorAll('tbody tr')].some((x) => x.cells[2]?.innerText.trim() === c) })()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('ppProject'); if (!id) return 'no project'; const plans = await (await fetch('/api/project-plans', { headers: H })).json(); for (const p of plans.filter((x) => String(x.projectId) === id)) await fetch('/api/project-plans/' + p.id, { method: 'DELETE', headers: H }); const r = await fetch('/api/projects/' + id, { method: 'DELETE', headers: H }); return 'cleanup ' + r.status })()"
+  ]
+}

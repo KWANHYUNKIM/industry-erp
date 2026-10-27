@@ -1,17 +1,17 @@
 package com.erp.tenant;
 
 import com.erp.accounting.StandardAccounts;
-import com.erp.accounting.domain.Account;
-import com.erp.accounting.repository.AccountRepository;
+import com.erp.accounting.account.Account;
+import com.erp.accounting.account.AccountRepository;
 import com.erp.common.MenuPermissionCatalog;
-import com.erp.settings.domain.CompanyInfo;
-import com.erp.settings.repository.CompanyInfoRepository;
-import com.erp.auth.domain.Permission;
-import com.erp.auth.domain.Role;
-import com.erp.auth.domain.User;
-import com.erp.auth.repository.PermissionRepository;
-import com.erp.auth.repository.RoleRepository;
-import com.erp.auth.repository.UserRepository;
+import com.erp.settings.companyinfo.CompanyInfo;
+import com.erp.settings.companyinfo.CompanyInfoRepository;
+import com.erp.auth.role.Permission;
+import com.erp.auth.role.Role;
+import com.erp.auth.user.User;
+import com.erp.auth.role.PermissionRepository;
+import com.erp.auth.role.RoleRepository;
+import com.erp.auth.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -90,13 +90,30 @@ public class TenantSeeder {
             if (accountRepository.existsByCode(a.code())) continue;
             accountRepository.save(Account.builder()
                     .code(a.code()).name(a.name()).division(a.division())
-                    .detailCategory(a.detail()).active(true)
+                    .detailCategory(a.detail()).active(a.active()).groupAccount(a.group())
+                    .debitCredit(a.debitCredit()).evalKind(a.evalKind())
+                    .relatedWork(StandardAccounts.relatedWorkOf(a.code()))
+                    .partnerAggregate(StandardAccounts.partnerAggregateOf(a.code(), a.name()))
                     .build());
             added++;
         }
+        linkStandardAccountTree();
         ensureCompanyInfo(companyName);
         if (added > 0) {
             log.info("테넌트 기준자료 보충 → 계정과목 {}개", added);
+        }
+    }
+
+    /** 원본 나무대로 상위계정을 잇는다 — 상위가 비어 있는 계정만(사용자가 고친 나무는 두고). */
+    private void linkStandardAccountTree() {
+        for (StandardAccounts.Spec a : StandardAccounts.ALL) {
+            if (a.parentCode() == null) continue;
+            Account child = accountRepository.findByCode(a.code()).orElse(null);
+            if (child == null || child.getParent() != null) continue;
+            accountRepository.findByCode(a.parentCode()).ifPresent(p -> {
+                child.setParent(p);
+                accountRepository.save(child);
+            });
         }
     }
 

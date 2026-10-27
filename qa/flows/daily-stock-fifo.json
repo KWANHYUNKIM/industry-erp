@@ -1,0 +1,16 @@
+{
+  "about": "일별재고현황 [원가] — 2026-10-13 원본 E040807 실측: 선입선출(판매)* · 월별원가 · 입고단가(품목) · 입고단가(품목) - VAT 제외 · 최종구매가, 기본 선입선출. 선입선출 단가 = 그 날 남은 층 금액 ÷ 수량.",
+  "shots": [
+    {
+      "name": "기본 원가가 선입선출(판매)이고 단가가 선다",
+      "path": "/inventory/daily-stock",
+      "steps": [
+        "wait:4000",
+        "js:[[...document.querySelectorAll('.ec-pill.active')].map((b) => b.innerText.trim()).join(','), [...document.querySelectorAll('table tbody tr')].slice(0, 3).map((r) => r.innerText.replace(/\\s+/g, ' ')).join(' ;; '), document.querySelector('.ec-alert-danger')?.innerText ?? ''].join(' ## ')",
+        "expect:[...document.querySelectorAll('.ec-pill.active')].some((b) => b.innerText.trim() === '선입선출(판매)')",
+        "expect:[...document.querySelectorAll('.ec-pill')].map((b) => b.innerText.trim()).join('|').includes('선입선출(판매)|월별원가|입고단가(품목)|최종구매가')",
+        "expect:!document.querySelector('.ec-alert-danger')"
+      ]
+    }
+  ]
+}

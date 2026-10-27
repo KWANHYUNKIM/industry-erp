@@ -1,0 +1,27 @@
+{
+  "about": "A/S접수입력(E040601) 메뉴 화면 — 2026-10-13 원본 직접 입력: 빈 저장은 창고에서 막고, 품목을 골라도 수량이 비어 있으면 막고(0 도), 거래처 없이 수량 -1 은 저장된다. 저장 뒤 빈 화면에 창고만 남는다. 만든 접수는 지운다.",
+  "shots": [
+    {
+      "name": "창고 → 수량 막기 → 거래처 없이 -1 저장 → 창고만 남음 → 삭제",
+      "path": "/quality/as-entry",
+      "steps": [
+        "wait:4000",
+        "click:저장(F8)",
+        "expect:document.querySelectorAll('.ec-invalid').length === 2 && !document.querySelector('.ec-alert')",
+        "pick:창고:WH-01",
+        "pick:품목:ITM-0001",
+        "click:저장(F8)",
+        "expect:document.querySelectorAll('.ec-invalid').length === 1 && !!document.querySelector('td.ec-invalid input[aria-label=\"수량1\"]')",
+        "set:input[aria-label=\"수량1\"]|0",
+        "click:저장(F8)",
+        "expect:document.querySelectorAll('.ec-invalid').length === 1 && !!document.querySelector('td.ec-invalid input[aria-label=\"수량1\"]')",
+        "set:input[aria-label=\"수량1\"]|-1",
+        "setnear:제목|QA재고2-입력흐름",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('.ec-alert') && document.querySelector('input[placeholder=\"창고\"]').value === '본사창고' && document.querySelector('input[placeholder=\"제목\"]').value === ''",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/as-requests', { headers: H }).then((x) => x.json()); const a = r.find((x) => x.title === 'QA재고2-입력흐름'); if (!a) return false; const d = await fetch('/api/as-requests/' + a.id, { method: 'DELETE', headers: H }); return a.partnerId === null && Number(a.totalQuantity) === -1 && a.status === 'RECEIVED' && (d.status === 204 || d.status === 200) })()"
+      ]
+    }
+  ]
+}

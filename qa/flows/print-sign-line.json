@@ -1,0 +1,25 @@
+{
+  "about": "인쇄용결재라인등록(원본 E010106 회계 · E090102 관리) — 메뉴마다 켜진 알약, 결재라인 1 · 2 격자(결재라인 + 결재자 1 ~ 9), [미리보기] 결재란(결재라인 칸이 머리 26 + 도장 51 을 덮는다). node qa/shot.mjs qa/flows/print-sign-line.json",
+  "shots": [
+    {
+      "name": "회계 메뉴 — [회계] 알약 · 격자 둘",
+      "path": "/accounting/print-sign",
+      "steps": [
+        "expect:document.querySelector('.ec-pill.active')?.textContent.trim() === '회계'",
+        "expect:[...document.querySelectorAll('table')].filter((t) => t.rows.length === 11).length === 2",
+        "expect:[...document.querySelectorAll('th')].map((t) => t.textContent.trim()).join('|').includes('명칭|가로크기(px)|글자크기(px)')",
+        "click:미리보기",
+        "wait:500",
+        "expect:(() => { const t = document.querySelector('table.signline'); if (!t) return false; const h = (c) => c.getBoundingClientRect().height; return t.rows[0].cells[0].rowSpan === 2 && Math.abs(h(t.rows[0].cells[1]) - 26) < 1.5 && Math.abs(h(t.rows[1].cells[0]) - 51) < 1.5 })()"
+      ]
+    },
+    {
+      "name": "관리 메뉴 — [관리] 알약 · 결재라인 28",
+      "path": "/hr/print-sign",
+      "steps": [
+        "expect:document.querySelector('.ec-pill.active')?.textContent.trim() === '관리'",
+        "expect:document.querySelector('table tbody tr td:nth-child(3) input')?.value === '28'"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "about": "간편재고조정 창(2026-10-13 원본 실측) — 재고실사조회 [간편재고조정] → 품목 × 창고 재고 표, 고른 줄 없이 [조정]이면 '리스트에 선택된 자료가 없습니다.', 줄을 골라 [조정] → 창고마다 실사수량 칸(그 날 재고가 들어 있음) → 하나를 +2 로 저장(F8) → '요청된 [간편재고조정] 작업이 완료되었습니다.', 재고조정 · 실사가 한 장씩 생기고 표의 재고가 +2. 끝에 실사를 지워 조정 · 재고를 되돌린다.",
+  "shots": [
+    {
+      "name": "간편재고조정 — 조회 → 조정 → 저장, 재고 +2 · 실사 한 장",
+      "path": "/inventory/stocktake-list",
+      "steps": [
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "click:간편재고조정",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('기준일자')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.innerText.trim()==='금일').click(); true",
+        "wait:1500",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const th=[...d.querySelectorAll('thead th')].map((t)=>t.innerText.trim());return th.slice(1,5).join('|')==='품목코드|품목명|규격|합계'&&th.length>5})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.innerText.trim()==='조정').click(); true",
+        "wait:300",
+        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다.')",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const tr=d.querySelector('tbody tr');const code=tr.cells[1].innerText.trim();sessionStorage.setItem('sa',JSON.stringify({code}));tr.querySelector('input[type=checkbox]').click();[...d.querySelectorAll('button')].find((b)=>b.innerText.trim()==='조정').click();return code})()",
+        "wait:600",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const inp=[...d.querySelectorAll('tbody input')].find((x)=>Number(x.value)>0)||d.querySelector('tbody input');const s=JSON.parse(sessionStorage.getItem('sa'));s.before=Number(inp.value);s.label=inp.getAttribute('aria-label');sessionStorage.setItem('sa',JSON.stringify(s));const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(inp,String(s.before+2));inp.dispatchEvent(new Event('input',{bubbles:true}));return s.label+' '+s.before})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.innerText.trim()==='저장(F8)').click(); true",
+        "wait:2000",
+        "expect:document.body.innerText.includes('요청된 [간편재고조정] 작업이 완료되었습니다.')",
+        "expect:(async()=>{const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);const t=(await window.__api('GET','/stock-adjustments/stocktakes?from='+d+'&to='+d)).body;const s=JSON.parse(sessionStorage.getItem('sa'));const mine=t.filter((x)=>x.itemCode===s.code&&Number(x.actualQty)===s.before+2&&x.adjustmentId);if(mine.length){s.st=mine[0].id;sessionStorage.setItem('sa',JSON.stringify(s))}return mine.length===1})()",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('sa'));return (await window.__api('DELETE','/stock-adjustments/stocktakes/'+s.st)).status})()"
+      ]
+    }
+  ]
+}

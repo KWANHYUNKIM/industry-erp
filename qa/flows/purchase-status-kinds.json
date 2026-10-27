@@ -1,0 +1,21 @@
+{
+  "about": "구매현황(E040305) [구분] 여덟 갈래(2026-10-22 원본 실측) — 월별은 달마다 한 줄(가장 이른 줄의 일자-No.), 거래처별 · 담당자별 · 품목별은 기간 전체로 묶어 같은 값이 두 줄로 안 나온다. 조회만 한다.",
+  "shots": [
+    {
+      "name": "구분 월별 · 거래처별 · 품목별",
+      "path": "/sales/purchase-status",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const s = document.querySelector('select[aria-label=\"구분\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '월별'); s.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:(() => { const rows = [...document.querySelectorAll('tbody tr')].filter((r) => /^\\d{4}\\/\\d\\d\\/\\d\\d -/.test(r.cells[0]?.innerText.trim() ?? '')); const months = rows.map((r) => r.cells[0].innerText.trim().slice(0, 7)); return new Set(months).size === months.length })()",
+        "js:(() => { const s = document.querySelector('select[aria-label=\"구분\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '거래처별'); s.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:(() => { const rows = [...document.querySelectorAll('tbody tr')].filter((r) => /^\\d{4}\\/\\d\\d\\/\\d\\d -/.test(r.cells[0]?.innerText.trim() ?? '')); const names = rows.map((r) => r.cells[1].innerText.trim()); return new Set(names).size === names.length })()",
+        "js:(() => { const s = document.querySelector('select[aria-label=\"구분\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '품목별'); s.dispatchEvent(new Event('change', { bubbles: true })) })()",
+        "wait:600",
+        "expect:(() => { const rows = [...document.querySelectorAll('tbody tr')].filter((r) => /^\\d{4}\\/\\d\\d\\/\\d\\d -/.test(r.cells[0]?.innerText.trim() ?? '')); const names = rows.map((r) => r.cells[3].innerText.trim()); return new Set(names).size === names.length })()"
+      ]
+    }
+  ]
+}

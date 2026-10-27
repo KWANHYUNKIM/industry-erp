@@ -1,0 +1,16 @@
+{
+  "about": "표준원가현황 — 2026-10-13 원본 E040808 실측: [기준월]은 원가 기간 코드도움(기본 최근 기간), 격자 다섯 칸 [품목코드 · 품목명[규격] · 품목구분(세트포함) · 생산공정명 · 단가], 위에 '표준원가현황' · 회사명 · 기간, [기타] 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함 · 단가0포함 넷 다 꺼짐.",
+  "shots": [
+    {
+      "name": "기본 — 최근 원가 기간 · 다섯 칸",
+      "path": "/accounting/standard-cost",
+      "steps": [
+        "wait:3500",
+        "js:[document.querySelector('.ec-report-head')?.innerText.replace(/\\s+/g, ' '), [...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|'), [...document.querySelectorAll('table tbody tr, table tfoot tr')].slice(0, 3).map((r) => r.innerText.replace(/\\s+/g, ' ')).join(' ;; ')].join(' ## ')",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '품목코드|품목명[규격]|품목구분(세트포함)|생산공정명|단가'",
+        "expect:document.querySelector('.ec-report-title')?.innerText.trim() === '표준원가현황'",
+        "expect:['결재방표시', '수량관리제외품목포함', '사용중단품목포함', '단가0포함'].every((t) => { const l = [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === t); return l && !l.querySelector('input').checked })"
+      ]
+    }
+  ]
+}

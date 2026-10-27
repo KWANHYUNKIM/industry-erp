@@ -1,0 +1,18 @@
+{
+  "about": "기안서작성(원본 E070103) 맨 위 '00 기본' — 칸 없는 기본 양식이 정렬과 상관없이 첫 줄에 초록 바탕(--ec-bg-basic)으로 붙고, 누르면 작성 창이 뜬다. node qa/shot.mjs qa/flows/approval-basic.json",
+  "shots": [
+    {
+      "name": "'00 기본' 첫 줄 → 작성 창",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:800",
+        "expect:(() => { const tr = document.querySelector('tbody tr'); return tr.cells[0].textContent.trim() === '00' && tr.cells[1].textContent.trim() === '기본' && getComputedStyle(tr).backgroundColor === 'rgb(223, 240, 216)' })()",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells[1]?.textContent.trim() === '기본').length === 1",
+        "js:document.querySelector('thead th').click(); true",
+        "expect:document.querySelector('tbody tr').cells[0].textContent.trim() === '00'",
+        "js:document.querySelector('tbody tr').click(); true",
+        "expect:!!document.querySelector('[role=dialog]')"
+      ]
+    }
+  ]
+}

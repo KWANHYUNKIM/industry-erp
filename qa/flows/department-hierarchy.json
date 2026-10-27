@@ -1,0 +1,35 @@
+{
+  "about": "관리 > 부서등록 부서리스트 [계층그룹](E010105) — 원본 2026-10-04 실측 '부서계층그룹' 창(왼쪽 root 나무 · 오른쪽 포함/미포함 부서 · 제외 · 이동). 우리는 상위 부서로 나무를 만든다: 상위 마디를 고르고 [미포함]에서 하위를 [이동] → 상위 부서가 매겨진다, [포함]에서 [제외] → 풀린다. 시험 부서 둘은 지운다.",
+  "shots": [
+    {
+      "name": "계층그룹 — 이동 → 포함에 보임 → 제외 → 정리",
+      "path": "/hr/departments",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const a=await (await fetch('/api/departments',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-부서상위'})})).json();const b=await (await fetch('/api/departments',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-부서하위'})})).json();sessionStorage.setItem('qaDh',JSON.stringify({a:a.id,b:b.id}));return a.id&&b.id?true:JSON.stringify([a,b])})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "click:계층그룹",
+        "wait:400",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='부서계층그룹');const b=[...d.querySelectorAll('button')].find(x=>x.innerText.trim().endsWith('QA관리-부서상위'));b.click();return true})()",
+        "wait:200",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='부서계층그룹');const b=[...d.querySelectorAll('button')].find(x=>x.innerText.trim()==='미포함');b.click();return true})()",
+        "wait:200",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='부서계층그룹').querySelector('input[aria-label=\"QA관리-부서하위\"]').click();return true})()",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='부서계층그룹');const b=[...d.querySelectorAll('button')].find(x=>x.innerText.trim()==='이동');b.click();return true})()",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const q=JSON.parse(sessionStorage.getItem('qaDh'));const all=await (await fetch('/api/departments',{headers:h})).json();sessionStorage.setItem('qaDhP',String(all.find(x=>x.id===q.b).parentId));return true})()",
+        "expect:sessionStorage.getItem('qaDhP')===String(JSON.parse(sessionStorage.getItem('qaDh')).a)",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='부서계층그룹');const b=[...d.querySelectorAll('button')].find(x=>x.innerText.trim()==='포함');b.click();return true})()",
+        "wait:300",
+        "expect:!![...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='부서계층그룹').querySelector('input[aria-label=\"QA관리-부서하위\"]')",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='부서계층그룹').querySelector('input[aria-label=\"QA관리-부서하위\"]').click();return true})()",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='부서계층그룹');const b=[...d.querySelectorAll('button')].find(x=>x.innerText.trim()==='제외');b.click();return true})()",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const q=JSON.parse(sessionStorage.getItem('qaDh'));const all=await (await fetch('/api/departments',{headers:h})).json();sessionStorage.setItem('qaDhP',String(all.find(x=>x.id===q.b).parentId));return true})()",
+        "expect:sessionStorage.getItem('qaDhP')==='null'",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const q=JSON.parse(sessionStorage.getItem('qaDh'));let ok=(await fetch('/api/departments/'+q.b,{method:'DELETE',headers:h})).ok;ok=(await fetch('/api/departments/'+q.a,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaDhClean',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaDhClean')==='true'"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "about": "(세금)계산서진행단계(원본 C000045, 2026-10-13 loginaa 실측) — 줄은 매출 (세금)계산서 회계전표(일자-No.)이고 매출(세금)계산서요약과 같은 규칙으로 센다. 판매(QA완제품 1 × 1,000 과세, 비고 QA회계1)를 회계반영하면 기본 기간(전월 1일 ~ 오늘)에 '전자 · 미발행' 줄이 서고 [미발행] 칸 숫자가 미발행 줄 수와 같다 → 단계별기능 [타발행] → 그 줄이 타발행 · [기타 › 타발행] 칸이 1 늘고 [타발행] 칸을 누르면 그 줄이 남는다 → 계산서분류 [세금계산서]를 끄면 줄이 빠진다. 만든 판매는 [매출전표포함] 삭제로 지운다.",
+  "shots": [
+    {
+      "name": "미발행 → 타발행",
+      "path": "/accounting/tax-invoice-sales",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const [pa,it,wh]=await Promise.all(['/partners','/items','/warehouses'].map((p)=>window.__api('GET',p)));const c=pa.body.find((x)=>x.code==='QA-CUST'),i=it.body.find((x)=>x.code==='QA-PROD'),w=wh.body.find((x)=>x.code==='QA-WH')??wh.body[0];const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const s=(await window.__api('POST','/sales',{saleDate:ymd,partnerId:c.id,warehouseId:w.id,taxable:true,remark:'QA회계1',lines:[{itemId:i.id,quantity:1,unitPrice:1000}]})).body;sessionStorage.setItem('tipSale',s.id);await window.__api('POST','/accounting-reflection/reflect',{kind:'SALES',ids:[s.id]});const e=(await window.__api('GET','/journals?from='+ymd+'&to='+ymd+'&all=true')).body.rows.find((x)=>x.sourceType==='SALES'&&x.sourceId===s.id);sessionStorage.setItem('tipJ',e.id);sessionStorage.setItem('tipNo',e.entryDate.replace(/-/g,'/')+' -'+Number(e.docNo.split('-').pop()));return sessionStorage.getItem('tipNo')})()",
+        "js:(()=>{location.reload();return true})()",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('tipNo')); window.__card = (l) => { const b=[...document.querySelectorAll('button')].find((x)=>x.lastElementChild&&x.lastElementChild.innerText.trim()===l&&x.children.length===2); return b ? Number(b.firstElementChild.innerText) : -1 }; true",
+        "expect:!!window.__row()",
+        "expect:window.__row().cells[4].innerText.trim()==='1,000'&&window.__row().cells[5].innerText.trim()==='100'&&window.__row().cells[6].innerText.trim()==='1,100'",
+        "expect:window.__row().cells[7].innerText.trim()==='전자'&&window.__row().cells[8].innerText.includes('미발행')",
+        "expect:window.__card('미발행')===[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells[8]&&t.cells[8].innerText.includes('미발행')).length",
+        "expect:window.__card('전체')===[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length>10).length",
+        "js:sessionStorage.setItem('tipElse', String(window.__card('타발행'))); true",
+        "js:(()=>{[...window.__row().cells[9].querySelectorAll('a')].find((a)=>a.innerText.trim()==='타발행').click();return true})()",
+        "wait:1200",
+        "expect:window.__row().cells[8].innerText.includes('타발행')&&!window.__row().cells[9].innerText.includes('기한후발행')",
+        "expect:window.__card('타발행')===Number(sessionStorage.getItem('tipElse'))+1",
+        "js:(()=>{[...document.querySelectorAll('button')].find((x)=>x.children.length===2&&x.lastElementChild.innerText.trim()==='타발행').click();return true})()",
+        "wait:300",
+        "expect:!!window.__row()&&[...document.querySelectorAll('tbody tr')].every((t)=>t.cells.length<10||t.cells[8].innerText.includes('타발행'))",
+        "js:(()=>{[...document.querySelectorAll('button')].find((x)=>x.children.length===2&&x.lastElementChild.innerText.trim()==='전체').click();return true})()",
+        "click:Search(F3)",
+        "wait:300",
+        "js:(()=>{[...document.querySelectorAll('label')].find((l)=>l.innerText.trim()==='세금계산서').querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:!window.__row()",
+        "js:(async()=>{const a=await window.__api('POST','/vat-invoice-marks/progress',{ids:[Number(sessionStorage.getItem('tipJ'))],progress:'NONE'});const b=await window.__api('POST','/accounting-reflection/delete-sales-with-journal',{kind:'SALES',ids:[Number(sessionStorage.getItem('tipSale'))]});return a.status+' '+b.status})()"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "about": "기타원천세입력(E030314) 이자배당 — 배당 흐름. 원본 2026-10-20 실측: 소득구분 이자배당소득으로 바꾸면 세율 칸은 빈칸(14 를 손으로 넣는다), 빈 격자 [저장(F8)] '소득자를 선택 바랍니다.' → 소득자만 고르면 '소득코드를 선택 바랍니다.' → 과세구분 T · 소득코드 51 · 1,000,000 · 14% → 140,000 · 14,000 · 154,000 · 실지급 846,000 → 저장하면 안내 없이 격자가 빈다 → 조회 '이자배당소득 · 1,000,000 · 154,000 · 846,000' → 원천세신고자료비교표 그 달 '배당소득 1 · 1,000,000 · 140,000 · 14,000'. 소득자 QA세무-배당(우리 DB 에 남겨 둔 흐름용 소득자) · 지급일 2091-10-20 · 적요 없음, 끝에 2091/10 전표를 지운다.",
+  "shots": [
+    {
+      "name": "배당 입력 → 조회 → 비교표",
+      "path": "/accounting/other-withholding/input",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const ps = await (await fetch('/api/withholding-payees', { headers: H })).json(); if (!ps.some((x) => x.regNoFront === '900101' && !x.deleted)) { const r = await fetch('/api/withholding-payees', { method: 'POST', headers: H, body: JSON.stringify({ kind: 'INDIVIDUAL', regNo: '900101-1000000', name: 'QA세무-배당', nonResident: false, foreigner: false, nonRealName: false }) }); return 'payee ' + r.status } return 'payee ok' })()",
+        "js:location.reload(); true",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const s = await (await fetch('/api/other-withholdings/slips?from=2091-10-01&to=2091-10-31', { headers: H })).json(); if (s.length) await fetch('/api/other-withholdings/slips/delete', { method: 'POST', headers: H, body: JSON.stringify(s.map((r) => ({ payDate: r.payDate, slipSeq: r.slipSeq }))) }); return 'clean ' + s.length })()",
+        "choose:ul.ec-form select|이자배당소득",
+        "wait:300",
+        "set:ul.ec-form input[type=date]|2091-10-20",
+        "set:ul.ec-form input[type=month]#0|2091-10",
+        "set:ul.ec-form input[type=month]#1|2091-10",
+        "expect:document.querySelector('tbody input[class*=\"w-[60px]\"]')?.value === ''",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('소득자를 선택 바랍니다.')",
+        "pick:소득자:900101",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('소득코드를 선택 바랍니다.')",
+        "pick:과세구분코드:T",
+        "pick:소득코드:51",
+        "set:tbody input[inputmode=numeric]#0|1000000",
+        "set:tbody input[class*=\"w-[60px]\"]#0|14",
+        "wait:300",
+        "expect:(() => { const t = document.querySelector('tbody tr').innerText; return document.querySelector('tbody input[inputmode=numeric]').value === '1,000,000' && ['140,000', '14,000', '154,000', '846,000'].every((n) => t.includes(n)) })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:!document.body.innerText.includes('바랍니다.') && !document.querySelector('tbody tr').innerText.includes('846,000')",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = await (await fetch('/api/other-withholdings/slips?from=2091-10-01&to=2091-10-31', { headers: H })).json(); return s.length === 1 && s[0].slipNo === '2091/10/20-1' && s[0].incomeTypeName === '이자배당소득' && s[0].grossAmount === 1000000 && s[0].taxTotal === 154000 && s[0].netAmount === 846000 })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await (await fetch('/api/withholding/comparison?year=2091&byPayMonth=false', { headers: H })).json(); return r.some((x) => x.month === '2091-10' && x.kind === '배당소득' && x.count === 1 && x.gross === 1000000 && x.incomeTax === 140000 && x.localIncomeTax === 14000) })()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const s = await (await fetch('/api/other-withholdings/slips?from=2091-10-01&to=2091-10-31', { headers: H })).json(); if (s.length) await fetch('/api/other-withholdings/slips/delete', { method: 'POST', headers: H, body: JSON.stringify(s.map((r) => ({ payDate: r.payDate, slipSeq: r.slipSeq }))) }); return 'cleanup ' + s.length })()"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "about": "재고1 마무리 묶음9 월별채권증감내역 · 월별채무증감내역 (원본 E040713 · E040714 실측) — 조건 [기준일자] 년/월 ~ 년/월(기본 금월), 거래처마다 다섯 줄(매출 · 수금 · 기타할인등차액 · 잔액 · 미회수액) + 끝 [누계] 다섯 줄, 채권/채무 알약 없음. QA 거래처에 판매 입력 화면으로 660 · 수금 200 · 구매 1,100 을 넣고 매출 660 · 수금 200 · 잔액 460 · 매입 1,100 을 본다. 미회수액 규칙은 묶음 36(칸은 비어 있음). 끝에 만든 것을 지운다.",
+  "shots": [
+    {
+      "name": "준비 — QA 거래처 · 품목, 구매 10 × 100 (채무 1,100)",
+      "path": "/sales/sell",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const sum = async (k) => (await g('/api/ledger/partner-balances?asOf=' + today + '&unbilledFrom=' + new Date(new Date(today).setFullYear(new Date(today).getFullYear() - 1)).toISOString().slice(0, 10))).reduce((a, r) => a + r[k], 0); const base = { ar: await sum('unbilledReceivable'), ap: await sum('unbilledPayable') };\n let p = (await g('/api/partners')).find((x) => x.code === 'QAB9P'); if (!p) p = await (await fetch('/api/partners', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAB9P', name: 'QA재고1-미청구', type: 'BOTH' }) })).json();\n let it = (await g('/api/items')).find((x) => x.code === 'QAB9-Z'); if (!it) it = await (await fetch('/api/items', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAB9-Z', name: 'QA미청구-품목', category: 'MERCHANDISE', unitPrice: 0, safetyStock: 0 }) })).json();\n const wh = (await g('/api/warehouses')).find((x) => x.code === 'WH-01');\n const r = await (await fetch('/api/purchases', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, warehouseId: wh.id, purchaseDate: today, taxable: true, remark: 'QA재고1 미청구 재고', lines: [{ itemId: it.id, quantity: 10, unitPrice: 100 }] }) })).json();\n sessionStorage.setItem('b9', JSON.stringify({ purchaseId: r.id, partnerId: p.id, itemId: it.id, base })); return r.id })()",
+        "expect:!!JSON.parse(sessionStorage.getItem('b9')).purchaseId"
+      ]
+    },
+    {
+      "name": "판매입력 화면으로 판매 (2 × 300 = 660) 저장",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QAB9P",
+        "click:출하창고 코드도움",
+        "pickrow:WH-01",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QAB9-Z",
+        "wait:500",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|300",
+        "set:input[placeholder=\"전표 적요\"]|QA재고1 월별",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; const S = JSON.parse(sessionStorage.getItem('b9')); (S.sales = S.sales || []).push({ id: s.id, total: s.totalAmount }); sessionStorage.setItem('b9', JSON.stringify(S)); return s.totalAmount })()",
+        "expect:JSON.parse(sessionStorage.getItem('b9')).sales[0].total === 660"
+      ]
+    },
+    {
+      "name": "수금 200 (정산 API — 수금 입력 화면은 길어 API)",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const S = JSON.parse(sessionStorage.getItem('b9')); const st = await fetch('/api/settlements', { method: 'POST', headers: H, body: JSON.stringify({ type: 'RECEIPT', partnerId: S.partnerId, amount: 200, method: 'CASH', settleDate: today, note: 'QA재고1 월별' }) }); const sj = await st.json(); S.settleId = sj.id; sessionStorage.setItem('b9', JSON.stringify(S)); return st.status })()",
+        "expect:!!JSON.parse(sessionStorage.getItem('b9')).settleId"
+      ]
+    },
+    {
+      "name": "월별채권증감내역 — 조건 기준일자 기간 · 알약 없음, 다섯 줄, [누계]",
+      "path": "/sales/monthly-ar-ap",
+      "steps": [
+        "wait:2500",
+        "js:window.__tr = () => { const t = [...document.querySelectorAll('tbody tr')]; const i = t.findIndex((r) => r.cells[0] && r.cells[0].innerText.trim() === 'QAB9P'); return t.slice(i, i + 5) }; window.__lab = () => window.__tr().map((r, k) => r.cells[k ? 0 : 2].innerText.trim()).join('|'); window.__col = () => { const ym = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 7).replace('-', '/'); return [...document.querySelectorAll('thead th')].findIndex((h) => h.innerText.trim() === ym) }; window.__v = (k) => { const r = window.__tr()[k]; const v = r.cells[window.__col() - (k ? 2 : 0)].innerText.replace(/,/g, '').trim(); return v === '' ? 0 : Number(v) }; true",
+        "expect:document.querySelectorAll('input[type=month]').length === 2 && document.body.innerText.includes('기준일자') && !document.body.innerText.includes('채권(받을 돈)') && !document.body.innerText.includes('연도')",
+        "expect:window.__tr().length === 5 && window.__lab() === '매출|수금|기타할인등차액|잔액|미회수액' && window.__v(4) === window.__v(3)",
+        "expect:window.__col() > 3 && window.__v(0) === 660 && window.__v(1) === 200 && window.__v(3) >= 460",
+        "expect:[...document.querySelectorAll('tbody td')].some((t) => t.innerText.trim() === '[누계]' && t.rowSpan === 5 && t.colSpan === 2)",
+        "expect:document.querySelectorAll('thead th').length === 6"
+      ]
+    },
+    {
+      "name": "월별채무증감내역 — 매입 1,100 · 지급 줄",
+      "path": "/sales/monthly-ap",
+      "steps": [
+        "wait:2500",
+        "js:window.__tr = () => { const t = [...document.querySelectorAll('tbody tr')]; const i = t.findIndex((r) => r.cells[0] && r.cells[0].innerText.trim() === 'QAB9P'); return t.slice(i, i + 5) }; window.__lab = () => window.__tr().map((r, k) => r.cells[k ? 0 : 2].innerText.trim()).join('|'); window.__col = () => { const ym = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 7).replace('-', '/'); return [...document.querySelectorAll('thead th')].findIndex((h) => h.innerText.trim() === ym) }; window.__v = (k) => { const r = window.__tr()[k]; const v = r.cells[window.__col() - (k ? 2 : 0)].innerText.replace(/,/g, '').trim(); return v === '' ? 0 : Number(v) }; true",
+        "expect:window.__lab() === '매입|지급|기타할인등차액|잔액|미지급액' && window.__v(0) === 1100 && window.__v(3) >= 1100"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const S = JSON.parse(sessionStorage.getItem('b9') || '{}'); const del = (u) => fetch(u, { method: 'DELETE', headers: H }); if (S.settleId) await del('/api/settlements/' + S.settleId); for (const s of S.sales || []) await del('/api/sales/' + s.id); if (S.purchaseId) await del('/api/purchases/' + S.purchaseId); if (S.partnerId) await del('/api/partners/' + S.partnerId); if (S.itemId) await del('/api/items/' + S.itemId); sessionStorage.removeItem('b9'); return true })()"
+  ]
+}

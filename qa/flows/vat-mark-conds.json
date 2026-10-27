@@ -1,0 +1,30 @@
+{
+ "about": "각종구분값변경(E010723) 조건 — 기준일자 빠른선택 [전월+금월], 세무신고거래처코드 · 부서 · 최초작성자로 거르기(마무리 묶음 25). 판매(QA-CUST, 비고 QA회계1)를 회계반영하면 줄이 서고, 맞는 거래처로 거르면 남고 다른 코드면 빠진다. 만든 판매는 [매출전표포함] 삭제로 지운다.",
+ "finally": [
+  "js:(async()=>{const s=sessionStorage.getItem('tipSale');if(!s)return 0;const f=(m,p,b)=>fetch('/api'+p,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});await f('POST','/accounting-reflection/delete-sales-with-journal',{kind:'SALES',ids:[Number(s)]});sessionStorage.removeItem('tipSale');return 1})()"
+ ],
+ "shots": [
+  {
+   "name": "조건으로 거르기",
+   "path": "/accounting/vat/marks",
+   "steps": [
+    "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+    "js:(async()=>{const [pa,it,wh]=await Promise.all(['/partners','/items','/warehouses'].map((p)=>window.__api('GET',p)));const c=pa.body.find((x)=>x.code==='QA-CUST'),i=it.body.find((x)=>x.code==='QA-PROD'),w=wh.body.find((x)=>x.code==='QA-WH')??wh.body[0];const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const s=(await window.__api('POST','/sales',{saleDate:ymd,partnerId:c.id,warehouseId:w.id,taxable:true,remark:'QA회계1',lines:[{itemId:i.id,quantity:1,unitPrice:1000}]})).body;sessionStorage.setItem('tipSale',s.id);await window.__api('POST','/accounting-reflection/reflect',{kind:'SALES',ids:[s.id]});const e=(await window.__api('GET','/journals?from='+ymd+'&to='+ymd+'&all=true')).body.rows.find((x)=>x.sourceType==='SALES'&&x.sourceId===s.id);sessionStorage.setItem('tipJ',e.id);sessionStorage.setItem('tipNo',e.entryDate.replace(/-/g,'/')+' -'+Number(e.docNo.split('-').pop()));return sessionStorage.getItem('tipNo')})()",
+    "js:(()=>{location.reload();return true})()",
+    "wait:2500",
+    "click:전월+금월",
+    "wait:300",
+    "js:window.__rows=()=>[...document.querySelectorAll(\"tbody tr\")].filter((r)=>r.innerText.includes(\"QA\")||true).length; true",
+    "js:(()=>{window.__hit=()=>[...document.querySelectorAll(\"tbody tr\")].some((r)=>r.innerText.includes(sessionStorage.getItem(\"tipNo\").replace(\" -\",\"-\")));return true})()",
+    "click:Search(F3)",
+    "wait:300",
+    "expect:window.__hit()",
+    "pick:세무신고거래처코드:QA-CUST",
+    "click:검색(F8)",
+    "wait:600",
+    "expect:window.__hit()",
+    "expect:!!document.body.innerText.match(/최초작성자/)"
+   ]
+  }
+ ]
+}

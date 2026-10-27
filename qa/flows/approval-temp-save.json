@@ -1,0 +1,59 @@
+{
+  "about": "기안서 임시저장(원본 E070103 · E070105 · E070108, 2026-10-14 실측) — '00 기본' 양식은 제목이 빈칸으로 열림 → 제목만 넣고 [임시저장/미리보기] → 내결재관리 [기안중] 줄: [결재] '보기' · [기안서복사] 빈칸 → 기안서통합관리 [전체] 에는 없고 [기안중] 에만 → 기안중 줄 [기안일자] 로 다시 열어 제목 고쳐 임시저장 → 같은 번호(2026-10-20) → 보기 창 [저장/결재(F7)] 있고 [기안서복사] 없음 → [선택삭제] '기안서를 삭제하겠습니까?\\n삭제된 기안서는 복구되지 않습니다.' → [삭제] 알약에 남음. node qa/shot.mjs qa/flows/approval-temp-save.json [삭제] 알약 열은 작업자 · 작업일시(지운 때 '2026/10/20 오후 8:30:00').",
+  "shots": [
+    {
+      "name": "기본 양식 임시저장",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:1200",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.textContent.trim() === '00').cells[1].click(); true",
+        "wait:500",
+        "expect:document.querySelector('input[placeholder=\"제목\"]')?.value === ''",
+        "setnear:제목|QA그룹웨어- 임시저장 시험",
+        "click:임시저장/미리보기",
+        "expect:location.pathname === '/groupware/approval/my' && !/AP-[0-9]{8}-[0-9]{4} 기안서/.test(document.body.innerText)",
+        "js:/* 원본은 저장 안내(AP-… 번호)가 없다 — 지울 때 제목으로 찾는다 */ sessionStorage.setItem('qaApT', 'QA그룹웨어- 임시저장 시험'); true",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.textContent.trim() === '기안중').click(); true",
+        "wait:500",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험')); if (!tr) return false; const c = [...tr.cells].map((x) => x.innerText.trim()); return c[5] === '기안중' && c[6] === '보기' && c[7] === '' })()",
+        "js:sessionStorage.setItem('qaApNo', [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험')).cells[1].innerText.trim()); true",
+        "js:/* 원본: 기안중 줄 [기안일자] 링크 → 같은 작성 창([삭제] 더) */ [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험')).cells[1].querySelector('a').click(); true",
+        "wait:1200",
+        "expect:document.querySelector('input[placeholder=\"제목\"]')?.value === 'QA그룹웨어- 임시저장 시험' && [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '삭제')",
+        "setnear:제목|QA그룹웨어- 임시저장 시험 고침",
+        "click:임시저장/미리보기",
+        "wait:800",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.textContent.trim() === '기안중').click(); true",
+        "wait:500",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험 고침')); return !!tr && tr.cells[1].innerText.trim() === sessionStorage.getItem('qaApNo') })()",
+        "js:sessionStorage.setItem('qaApT', 'QA그룹웨어- 임시저장 시험 고침'); true"
+      ]
+    },
+    {
+      "name": "통합관리 전체에는 없고 기안중에만 · 보기 창 · 선택삭제",
+      "path": "/groupware/approval/all",
+      "steps": [
+        "wait:1500",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.textContent.trim() === '전체').click(); true",
+        "wait:500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험'))",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.textContent.trim() === '기안중').click(); true",
+        "wait:500",
+        "js:[...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험')).cells[8].querySelector('a').click(); true",
+        "wait:400",
+        "expect:(() => { const t = [...document.querySelectorAll('button')].map((b) => b.innerText.trim()); return t.includes('저장/결재(F7)') && !t.includes('기안서복사') })()",
+        "click:닫기",
+        "js:[...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험')).cells[0].click(); true",
+        "js:window.__qaMsg = []; window.confirm = (m) => { window.__qaMsg.push(m); return true }; true",
+        "click:선택삭제",
+        "wait:1200",
+        "expect:window.__qaMsg[0] === '기안서를 삭제하겠습니까?\\n삭제된 기안서는 복구되지 않습니다.'",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.textContent.trim() === '삭제').click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험'))",
+        "expect:(() => { const h = [...document.querySelectorAll('thead th')].map((x) => x.innerText.trim()); return h.includes('작업자') && h.includes('작업일시') && !h.includes('진행상태') && !h.includes('연결전표') })()",
+        "expect:/\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d{1,2}:\\d{2}:\\d{2}/.test([...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험')).innerText)"
+      ]
+    }
+  ]
+}

@@ -67,7 +67,7 @@ export default function EcFileDrop({
         opacity: disabled ? 0.6 : 1,
       }}
     >
-      <span style={{ fontSize: 12, color: over ? 'var(--ec-blue-dark)' : '#8a929c' }}>{hint}</span>
+      <span style={{ fontSize: 12, color: over ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)' }}>{hint}</span>
       <button
         type="button" className="ec-btn" disabled={disabled}
         onClick={() => inputRef.current?.click()}
@@ -78,9 +78,9 @@ export default function EcFileDrop({
         ref={inputRef} type="file" multiple={multiple} style={{ display: 'none' }}
         onChange={(e) => { take(e.target.files); e.target.value = '' }}
       />
-      {busy && <span style={{ fontSize: 11.5, color: '#8a929c' }}>올리는 중…</span>}
+      {busy && <span className="text-[11.5px] text-ec-hint">올리는 중…</span>}
       {skipped > 0 && (
-        <span style={{ fontSize: 11.5, color: '#c07a00' }}>
+        <span className="text-[11.5px] text-ec-warn">
           이 자리는 한 개만 받습니다 — {skipped}개는 올리지 않았습니다.
         </span>
       )}

@@ -1,0 +1,48 @@
+{
+  "about": "A/S수리현황(E040611) ○집계 — 2026-10-13 원본 실측: 집계조건 후보에 [프로젝트](수리에 프로젝트 칸이 없어 값은 빈칸) · 집계조건 3 ~ 5 · [집계대상] 수량 · [비교기간] · [기타] 가로보기 · 비율표시, 조건 칸 옆 정렬 기준 선택상자(코드순 · 코드명순, 마지막 조건만 + 수량, 기준일자 축은 시간순). 원본 [최혁순 | | 2.00] · '최혁순 계 2.00' · 합계 2.00, 비율표시면 수량비율 100 · 소계 줄 빈칸 · 합계 100, 가로보기는 프로젝트 빈 이름 열 하나, 전월동일기간은 '2026/10/01 ~ 2026/10/13 | 2026/09/01 ~ 2026/09/13' 두 벌. QA재고2 수리 둘(이번 달 품목 둘 1 + 1, 지난달 같은 날 범위 2)을 넣고 본 다음 지운다.",
+  "shots": [
+    {
+      "name": "담당자 · 프로젝트 → 비율표시 · 가로보기 · 비교기간 · 집계조건3 · 코드명순",
+      "path": "/quality/as-repair-status",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [it, wh] = await Promise.all([A('GET', '/items'), A('GET', '/warehouses')]); const its = it.filter((x) => x.active !== false); const t = new Date(); const p = (n) => String(n).padStart(2, '0'); const ymd = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()); const pm = new Date(t.getFullYear(), t.getMonth() - 1, 1); const prev = pm.getFullYear() + '-' + p(pm.getMonth() + 1) + '-01'; const b = { charge: 'QA재고2기사', warehouseId: wh[0].id, repairType: 'FREE_REPAIR', title: 'QA재고2-집계' }; const r1 = await A('POST', '/as-repairs', { ...b, repairDate: ymd, lines: [{ itemId: its[0].id, quantity: 1 }, { itemId: its[1].id, quantity: 1 }] }); const r2 = await A('POST', '/as-repairs', { ...b, repairDate: prev, lines: [{ itemId: its[0].id, quantity: 2 }] }); sessionStorage.setItem('asrAgg', JSON.stringify([r1.id, r2.id])); return r1.id && r2.id })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '집계').querySelector('input').click(); true",
+        "wait:300",
+        "expect:[...document.querySelector('select[aria-label=\"집계조건1\"]').options].some((o) => o.value === '프로젝트')",
+        "set:select[aria-label=\"집계조건1\"]|담당자",
+        "set:select[aria-label=\"집계조건2\"]|프로젝트",
+        "expect:!!document.querySelector('select[aria-label=\"집계조건3\"]') && !!document.querySelector('select[aria-label=\"집계조건4\"]') && !document.querySelector('select[aria-label=\"집계조건5\"]')",
+        "expect:[...document.querySelector('select[aria-label=\"집계조건1 정렬기준\"]').options].map((o) => o.text).join('/') === '코드순/코드명순' && [...document.querySelector('select[aria-label=\"집계조건2 정렬기준\"]').options].map((o) => o.text).join('/') === '코드순/코드명순/수량'",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => x.innerText.includes('QA재고2기사')); const rows = [...t.rows].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); return rows.includes('QA재고2기사||2.00') && rows.includes('QA재고2기사 계|2.00') && rows.includes('합계|2.00') })()",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '비율표시').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => x.innerText.includes('QA재고2기사')); const rows = [...t.rows].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); return rows[0] === '담당자|프로젝트|수량|수량비율' && rows.includes('QA재고2기사||2.00|100') && rows.includes('QA재고2기사 계|2.00|') && rows.includes('합계|2.00|100') })()",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '비율표시').querySelector('input').click(); [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '가로보기').querySelector('input').click(); [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '수량').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => x.innerText.includes('QA재고2기사')); const rows = [...t.rows].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); return rows[0] === '담당자|' && rows[1] === '수량' && rows.includes('QA재고2기사|2.00') && rows.includes('합계|2.00') })()",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '가로보기').querySelector('input').click(); [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '전월동일기간').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1800",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => x.innerText.includes('QA재고2기사')); const rows = [...t.rows].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); return rows[1] === '수량|수량' && rows.includes('QA재고2기사||2.00|2.00') && rows.includes('합계|2.00|2.00') })()",
+        "js:[...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '사용안함' && x.querySelector('input[name=\"asr-compare\"]')).querySelector('input').click(); true",
+        "set:select[aria-label=\"집계조건3\"]|품목명[규격]",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:sessionStorage.setItem('asrAggUp', JSON.stringify([...[...document.querySelectorAll('table')].find((x) => x.innerText.includes('QA재고2기사')).tBodies[0].rows].filter((r) => !r.classList.contains('ec-list-total')).map((r) => r.cells[2].innerText.trim()))); true",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => x.innerText.includes('QA재고2기사')); const rows = [...t.rows].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); return JSON.parse(sessionStorage.getItem('asrAggUp')).length === 2 && rows.includes('[] 계|2.00') && rows.includes('QA재고2기사 계|2.00') })()",
+        "set:select[aria-label=\"집계조건3 정렬기준\"]|코드명순",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(() => { const names = [...[...document.querySelectorAll('table')].find((x) => x.innerText.includes('QA재고2기사')).tBodies[0].rows].filter((r) => !r.classList.contains('ec-list-total')).map((r) => r.cells[2].innerText.trim()); return names.length === 2 && names.join('‖') === [...names].sort((a, b) => a.localeCompare(b, 'ko')).join('‖') })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ids = JSON.parse(sessionStorage.getItem('asrAgg')); const rs = await Promise.all(ids.map((id) => fetch('/api/as-repairs/' + id, { method: 'DELETE', headers: H }))); return rs.every((r) => r.status < 300) })()"
+      ]
+    }
+  ]
+}

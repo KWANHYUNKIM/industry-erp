@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
 
 /**
  * 표 머리를 눌러 정렬한다.
@@ -94,8 +94,16 @@ export function useTableSort<T>(
     setDir(k ? d : null)
   }
 
-  /** 머리에 붙일 표시. 지금 정렬 중인 열만 진하게, 나머지는 '누를 수 있다' 는 뜻으로 흐리게. */
-  const mark = (k: string) => (k === key && dir ? (dir === 'asc' ? '▲' : '▼') : '▼')
+  /**
+   * 머리에 붙일 표시. 지금 정렬 중인 열은 방향(▲/▼), 나머지는 '누를 수 있다' 는 뜻으로 ▼.
+   *
+   * <p>글자가 아니라 <b>`span.ec-sort-mark`</b> 로 돌려준다 — 원본(품목 C000029 2026-10-21 실측)은 정렬 열마다
+   * `span.fa-caret-down` 14px 400 inline-block 을 글자 옆에 두고, 그 칸 때문에 머리가 34.97 → 35.33 이 된다.
+   * 크기 · 자리는 index.css `.ec-sort-mark` 한 곳에서 정한다. textContent 에는 ▼▲ 가 그대로 남아
+   * 표 내보내기 · 흐름의 `replace(/[▲▼]/g, '')` 는 그대로 먹는다.
+   */
+  const mark = (k: string) =>
+    createElement('span', { className: 'ec-sort-mark' }, k === key && dir ? (dir === 'asc' ? '▲' : '▼') : '▼')
   const active = (k: string) => k === key && !!dir
 
   return { sorted, sortKey: key, dir, toggle, setSort, mark, active }

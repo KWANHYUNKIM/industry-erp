@@ -1,0 +1,36 @@
+{
+  "about": "시리얼/로트No.내역조회(E040618) [신규(F2)] = '시리얼/로트No.내역입력' 창 — 2026-10-12 원본 실측: 빈 저장은 [창고 · 품목코드 · 수량 · 시리얼/로트No.] 가 빨개진다. 구매 3 → 로트 재고 +3, 손으로 넣은 줄을 누르면 수정 창([일자] · [전표구분] 잠김), [삭제] 하면 재고가 되돌아간다.",
+  "shots": [
+    {
+      "name": "빈 저장 → 네 칸 빨강 → 구매 3 저장 → 로트 +3 → 줄 열어 잠김 확인 → 삭제 → 되돌아감",
+      "path": "/quality/lot-tx-list",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = (await (await fetch('/api/lots', { headers: H })).json()).find((x) => x.lotNo === 'QA-LOT-001'); sessionStorage.setItem('lotQty', l.stockQty); return 'QA-LOT-001 ' + l.stockQty })()",
+        "click:신규(F2)",
+        "wait:800",
+        "click:저장(F8)",
+        "expect:[...document.querySelectorAll('[role=dialog] [class*=\"border-ec-danger\"]')].length === 4",
+        "set:select[aria-label=\"전표구분\"]|구매",
+        "click:창고 코드도움",
+        "pickrow:QA-WH",
+        "click:품목코드 코드도움",
+        "pickrow:QA-MAT",
+        "set:input[aria-label=\"수량\"]|3",
+        "click:시리얼/로트No. 코드도움",
+        "js:(async () => { await new Promise((r) => setTimeout(r, 600)); const d = [...document.querySelectorAll('[role=dialog]')].pop(); [...d.querySelectorAll('tr')].find((tr) => [...tr.cells].some((td) => td.innerText.trim() === 'QA-LOT-001')).click(); await new Promise((r) => setTimeout(r, 500)); return 'ok' })()",
+        "set:input[aria-label=\"적요\"]|QA재고2 내역입력",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('시리얼/로트No.내역입력'))",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = (await (await fetch('/api/lots', { headers: H })).json()).find((x) => x.lotNo === 'QA-LOT-001'); return Number(l.stockQty) === Number(sessionStorage.getItem('lotQty')) + 3 })()",
+        "js:(async () => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA-LOT-001') && t.innerText.includes('구매') && t.querySelector('button.ec-link')); tr.querySelector('button.ec-link').click(); await new Promise((r) => setTimeout(r, 800)); return 'ok' })()",
+        "expect:document.querySelector('[role=dialog] select[aria-label=\"전표구분\"]').disabled && document.querySelector('[role=dialog] input[type=date]').disabled && document.querySelector('[role=dialog] input[aria-label=\"수량\"]').value === '3'",
+        "click:삭제",
+        "js:(async () => { [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); return 'ok' })()",
+        "wait:1500",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = (await (await fetch('/api/lots', { headers: H })).json()).find((x) => x.lotNo === 'QA-LOT-001'); return Number(l.stockQty) === Number(sessionStorage.getItem('lotQty')) })()"
+      ]
+    }
+  ]
+}

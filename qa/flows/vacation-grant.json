@@ -1,0 +1,34 @@
+{
+  "about": "관리 > 사원별휴가일수조회(E020703) — 휴가항목 하나(2091 QA관리-휴가)의 [휴가코드]를 눌러 '사원별휴가일수입력' 창에서 사원 · 이월 잔여일수 2 · 당해년 휴가일수 15 를 넣으면 휴가일수 17. 저장하면 목록 등록인원수 1.00, 선택삭제로 비운다(휴가항목은 남는다 — 정리 단계에서 지운다). [연차계산]은 입사일로 당해년 휴가일수를 채운다(원본 40시간제: 앞 해 입사는 15×일한날/그해날수, 그 전 입사는 15+⌊(근속−1)/2⌋, 상한 25).",
+  "shots": [
+    {
+      "name": "입력 → 저장 → 등록인원수 → 선택삭제",
+      "path": "/hr/vacation-grants",
+      "steps": [
+        "js:window.confirm=()=>true;(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const v=await (await fetch('/api/hr/vacation-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-휴가',periodFrom:'2091-01-01',periodTo:'2091-12-31',carryOver:false})})).json();sessionStorage.setItem('qaVg',JSON.stringify({id:v.id,code:v.code}));return true})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:window.confirm=()=>true;(async()=>{const q=JSON.parse(sessionStorage.getItem('qaVg'));for(let i=0;i<40;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent===q.code);if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "wait:1000",
+        "pick:사번:EMP-0001",
+        "set:[role=dialog] table tbody tr:first-child td:nth-child(7) input|2",
+        "set:[role=dialog] table tbody tr:first-child td:nth-child(8) input|15",
+        "expect:document.querySelector('[role=dialog] table tbody tr:first-child td:nth-child(9)').textContent==='17'",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const es=await (await fetch('/api/employees/all',{headers:h})).json();const e=es.find(x=>x.code==='EMP-0001');const vs=await (await fetch('/api/hr/vacation-kinds',{headers:h})).json();const v=vs.find(x=>x.id===JSON.parse(sessionStorage.getItem('qaVg')).id);const f=(h,pf)=>{if(!h)return 0;const y=+pf.slice(0,4),hy=+h.slice(0,4);if(hy>=y)return 0;if(hy===y-1){const s=Date.UTC(hy,+h.slice(5,7)-1,+h.slice(8,10)),e=Date.UTC(hy,11,31);const w=Math.round((e-s)/864e5)+1;const dy=(hy%4===0&&hy%100!==0)||hy%400===0?366:365;return Math.round(15*w/dy*1e6)/1e6}return Math.min(25,15+Math.floor((y-hy-1)/2))};sessionStorage.setItem('qaVgExp',String(f(e.hireDate,v.periodFrom)));return sessionStorage.getItem('qaVgExp')})()",
+        "click:연차계산",
+        "wait:300",
+        "expect:document.querySelector('[role=dialog] table tbody tr:first-child td:nth-child(8) input').value===sessionStorage.getItem('qaVgExp')",
+        "set:[role=dialog] table tbody tr:first-child td:nth-child(8) input|15",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaVg'));const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes(q.code));return tr&&tr.innerText.trim().endsWith('1.00')})()",
+        "js:(()=>{const q=JSON.parse(sessionStorage.getItem('qaVg'));const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes(q.code));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "click:선택삭제",
+        "wait:1200",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaVg'));const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes(q.code));return tr&&!tr.innerText.includes('1.00')})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaVg'));const r=await fetch('/api/hr/vacation-kinds/'+q.id,{method:'DELETE',headers:h});sessionStorage.setItem('qaVgClean',String(r.ok));return true})()",
+        "expect:sessionStorage.getItem('qaVgClean')==='true'"
+      ]
+    }
+  ]
+}

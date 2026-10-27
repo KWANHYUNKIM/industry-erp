@@ -1,0 +1,54 @@
+{
+  "about": "가지급금정산서(원본 회계 I › FastEntry › 가지급금정산서 E010505, 2026-10-12 실측) — 빈 채로 [저장(F8)] → '계정코드를 입력 바랍니다.', [정산자 검색]에 사원 이름 Enter → 정산대상자명 · 계정 811 복리후생비가 찬다, 금액 9,000 · 적요 저장 → 빈 화면. 분개 차) 복리후생비 9,000 / 대) 가지급금 9,000(적요 같음), 회계거래조회 [거래처명] = 정산자. 시험 전표는 API 로 지운다. node qa/shot.mjs qa/flows/advance-settlement.json 둘째 판(2026-10-14 원본 실측): 정산자 H01 김기현 · 8109 복리후생비(판) 14,000 'QA회계1 가지급금정산' → 회계거래조회 26/10/14-8 | 가지급금정산서 | 14,000 | 김기현, 전표 인쇄 차) 복리후생비(판) / 대) 가지급금 → 시산표(금월) 복리후생비(판) 7,962,500 → 7,976,500 · 가지급금 기말금액(대) +14,000(기말잔액 −290,500 → −304,500) → 수정 창 16,000 [저장(F8)] → 창 닫힘 · 회계거래조회 16,000 · 시산표 각 +16,000 → [삭제] '전표를 삭제하겠습니까? - 가지급금정산서' [확인] → 회계거래조회에서 사라짐 · 시산표 처음. 우리 811 차 · 134 대 같은 숫자, 수정 저장 뒤 회계거래조회(/accounting/journals). 툴바 원본 [찾기(F3)] · [보류].",
+  "shots": [
+    {
+      "name": "빈 저장 거절 → 정산자 줄 저장 → 분개",
+      "path": "/accounting/vouchers?type=ADVANCE_SETTLEMENT",
+      "steps": [
+        "expect:document.body.innerText.includes('정산대상자명')",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('계정코드를 입력 바랍니다.')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const es = await (await fetch('/api/employees', { headers: H })).json(); window.__emp = es.find((e) => es.filter((x) => (x.code + ' ' + x.name).includes(e.name)).length === 1); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"사원검색\"]'); set(c, window.__emp.name); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "expect:(() => { const tr = document.querySelector('table.ec-grid-input tbody tr'); return tr.innerText.includes(window.__emp.name) && tr.innerText.includes('복리후생비') })()",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 금액\"]'), '9000'); set(document.querySelector('input[aria-label=\"1줄 적요명\"]'), 'QA회계1-flow 가지급정산'); return true })()",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:!document.querySelector('table.ec-grid-input tbody tr').innerText.includes(window.__emp.name)",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/vouchers?type=ADVANCE_SETTLEMENT', { headers: H })).json(); const v = d.rows.find((r) => r.lines.some((l) => l.description === 'QA회계1-flow 가지급정산')); if (!v) return false; const j = await (await fetch('/api/journals/' + v.journalEntryId, { headers: H })).json(); const ok = v.payeeName === window.__emp.name && v.lines[0].employeeId === window.__emp.id && j.lines.some((l) => l.accountCode === '8109' && Number(l.debit) === 9000) && j.lines.some((l) => l.accountCode === '1349' && Number(l.credit) === 9000 && l.description === 'QA회계1-flow 가지급정산'); await fetch('/api/vouchers/' + v.id, { method: 'DELETE', headers: H }); return ok })()"
+      ]
+    },
+    {
+      "name": "정산 14,000 → 시산표 811 차 · 134 대 +14,000 → 수정 16,000(회계거래조회로) → 삭제 → 0",
+      "path": "/accounting/vouchers?type=ADVANCE_SETTLEMENT",
+      "steps": [
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === '찾기(F3)'); return !!b && [...b.parentElement.querySelectorAll('button')].map((x) => x.textContent).join(' · ') === '찾기(F3) · 보류' })()",
+        "expect:Math.abs(document.querySelector('table.ec-grid-input tbody input').getBoundingClientRect().height - 25.2) < 0.1",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const t = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await (await fetch('/api/journals/trial-balance?from=' + t + '&to=' + t, { headers: H })).json(); const g = (c, k) => Number((tb.rows.find((r) => r.accountCode === c) || {})[k] || 0); sessionStorage.setItem('qa1tb', JSON.stringify({ t, d811: g('8109', 'debit'), c134: g('1349', 'credit'), td: Number(tb.totalDebit), tc: Number(tb.totalCredit) })); window.__qa1tb = async (want) => { const b = JSON.parse(sessionStorage.getItem('qa1tb')); const x = await (await fetch('/api/journals/trial-balance?from=' + b.t + '&to=' + b.t, { headers: H })).json(); const v = (c, k) => Number((x.rows.find((r) => r.accountCode === c) || {})[k] || 0); return v('8109', 'debit') - b.d811 === want && v('1349', 'credit') - b.c134 === want && Number(x.totalDebit) - b.td === want && Number(x.totalCredit) - b.tc === want }; return true })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const es = await (await fetch('/api/employees', { headers: H })).json(); window.__emp = es.find((e) => es.filter((x) => (x.code + ' ' + x.name).includes(e.name)).length === 1); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"사원검색\"]'); set(c, window.__emp.name); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 금액\"]'), '14000'); set(document.querySelector('input[aria-label=\"1줄 적요명\"]'), 'QA회계1-tb 가지급정산'); return true })()",
+        "click:저장(F8)",
+        "wait:900",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/vouchers?type=ADVANCE_SETTLEMENT', { headers: H })).json(); const v = d.rows.find((r) => r.lines.some((l) => l.description === 'QA회계1-tb 가지급정산')); if (!v) return false; sessionStorage.setItem('qa1v', String(v.id)); return await window.__qa1tb(14000) })()",
+        "js:(() => { history.pushState({}, '', '/accounting/vouchers?type=ADVANCE_SETTLEMENT&id=' + sessionStorage.getItem('qa1v')); dispatchEvent(new PopStateEvent('popstate')); return true })()",
+        "wait:1200",
+        "expect:document.querySelector('input[aria-label=\"1줄 금액\"]').value.replace(/,/g, '') === '14000'",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 금액\"]'), '16000'); return true })()",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:location.pathname === '/accounting/journals' && (document.querySelector('.ec-page-title')?.textContent ?? '').includes('회계거래조회')",
+        "expect:window.__qa1tb(16000)",
+        "js:(() => { history.pushState({}, '', '/accounting/vouchers?type=ADVANCE_SETTLEMENT&id=' + sessionStorage.getItem('qa1v')); dispatchEvent(new PopStateEvent('popstate')); return true })()",
+        "wait:1200",
+        "click:삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 가지급금정산서')",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:location.pathname === '/accounting/journals'",
+        "expect:window.__qa1tb(0)"
+      ]
+    }
+  ]
+}

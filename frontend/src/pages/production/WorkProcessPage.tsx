@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { WORK_PROCESS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { WORK_PROCESS_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * 생산관리 > 작업지시서작업처리.
@@ -38,6 +40,7 @@ interface WorkOrder {
   dueDate: string | null
   statusName: string
   warehouseName: string | null
+  warehouseId: number | null
   /** 원본 조건 판의 [담당자]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
   employeeId: number | null
 }
@@ -80,6 +83,8 @@ interface Row {
   availableQty: number
   /** 미작업량 = 지시수량 − 이 공정 완료. 잔량기준을 켜면 직전작업까지만. */
   remainQty: number
+  /** BOR 의 개당 작업시간(시간) — 작업수량을 넣으면 노무/장치투입시간을 채운다(원본도 그렇다). */
+  hoursPerUnit: number
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -123,13 +128,48 @@ export default function WorkProcessPage() {
   const [manager, setManager] = useState('')
   /** 줄마다 입력한 처리 수량·시간 */
   const [input, setInput] = useState<Record<string, { qty: string; minutes: string }>>({})
+  const navigate = useNavigate()
+  /** 원본 줄 앞의 체크 — 작업수량을 넣으면 저절로 켜진다. 켠 줄을 [작업내역입력] 이 가져간다. */
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  /**
+   * 원본 아래 버튼 <b>[작업내역입력]</b>(2026-10-02 loginaa 실측) — 저장하지 않고 <b>작업내역입력 창을 연다</b>.
+   * 켠 줄마다 작업지시서 · 작업 · 작업품목 · 작업수량 · 노무/장치투입시간이 한 줄씩 채워지고, 머리의 생산공장은
+   * 지시의 공장이다. 저장은 그 창에서 한다.
+   */
+  function openWorkEntry() {
+    const sel = rows.filter((r) => picked.has(r.key))
+    if (sel.length === 0) return setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
+    for (const r of sel) {
+      const q = Number(input[r.key]?.qty ?? '')
+      if (q > r.remainQty) return setError(`${r.wo.orderNo} ${r.workName}: 미작업량(${num(r.remainQty)})보다 많이 처리할 수 없습니다.`)
+    }
+    const prefill = {
+      /* 원본 창의 [일자]는 오늘이다(조회 기간의 끝이 아니다). */
+      workDate: ymd(new Date()),
+      warehouseId: sel[0].wo.warehouseId,
+      lines: sel.map((r) => ({
+        workOrderId: r.wo.id, process: r.processName, workItemId: r.workItemId ?? r.wo.productId,
+        goodQty: input[r.key]?.qty ?? '', workTimeMin: input[r.key]?.minutes ?? '',
+        note: `${r.wo.orderNo} ${r.seq}.${r.workName}`,
+      })),
+    }
+    try { sessionStorage.setItem('workEntryPrefill', JSON.stringify(prefill)) } catch { /* 저장소가 막혀 있으면 빈 창으로 연다 */ }
+    navigate('/production/work-result')
+  }
 
   async function load() {
     setLoading(true)
     setError('')
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [w, b, r] = await Promise.all([
-        api.get<WorkOrder[]>('/work-orders'),
+        /*
+         * <b>고른 기간을 서버에도 보낸다.</b> 이 표는 작업지시를 <b>그 지시일로</b> 거른다
+         * (아래 <code>wo.orderDate &lt; from</code>) — 서버에 같은 창을 주면 된다.
+         */
+        api.get<WorkOrder[]>('/work-orders', { params: period }),
         api.get<BorRow[]>('/bor'),
         api.get<WorkResult[]>('/work-results'),
       ])
@@ -137,13 +177,16 @@ export default function WorkProcessPage() {
       setBor(b.data)
       setResults(r.data)
       setInput({})
+      setPicked(new Set())
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   /** 품목 → 작업(순서대로) */
   /** 사원 id → 이름. */
@@ -179,7 +222,7 @@ export default function WorkProcessPage() {
     for (const wo of orders) {
       if (wo.orderDate < from || wo.orderDate > to) continue
       if (orderNo && !wo.orderNo.includes(orderNo)) continue
-      if (item && !`${wo.productCode} ${wo.productName}`.includes(item)) continue
+      if (item && String(wo.productId) !== item) continue
       if (dueDate && (wo.dueDate ?? '') !== dueDate) continue
       if (plant && !(wo.warehouseName ?? '').includes(plant)) continue
       const ops = opsOf.get(wo.productId) ?? []
@@ -194,7 +237,7 @@ export default function WorkProcessPage() {
           wo, seq: o.seq, processId: o.processId, processName: o.processName, workName: o.workName,
           workItemId: o.workItemId,
           workItemLabel: o.workItemId == null ? '' : `[${o.workItemCode ?? ''}] ${o.workItemName ?? ''}`,
-          doneQty: done, availableQty: prevDone, remainQty: remain,
+          doneQty: done, availableQty: prevDone, remainQty: remain, hoursPerUnit: o.hoursPerUnit,
         })
         prevDone = done
       }
@@ -203,7 +246,7 @@ export default function WorkProcessPage() {
     return out
       .filter((r) => !work || `${r.processName} ${r.workName}`.includes(work))
       // 작업품목은 BOR 줄에 붙는다 — 생산품목(작업지시가 만드는 물건)과 다른 축이다.
-      .filter((r) => !workItem || r.workItemLabel.includes(workItem))
+      .filter((r) => !workItem || String(r.workItemId) === workItem)
       // 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 사원 목록으로 이름과 잇는다.
       .filter((r) => !manager || (nameOfEmployee.get(r.wo.employeeId ?? -1) ?? '') === manager)
       .filter((r) => (minRemain && !Number.isNaN(min) ? r.remainQty >= min : r.remainQty > 0))
@@ -219,7 +262,8 @@ export default function WorkProcessPage() {
     if (qty > r.remainQty) return setError(`미작업량(${num(r.remainQty)})보다 많이 처리할 수 없습니다.`)
     setError(''); setOk('')
     try {
-      await api.post('/work-results', {
+      /* qa/fixtures 증거가 api.post('/work-results' 글자를 찾는다 — 타입은 받는 쪽에 단다 */
+      const res: { data: { resultNo: string } } = await api.post('/work-results', {
         workOrderId: r.wo.id,
         process: r.processName,
         // BOR 이 정해 둔 작업품목을 그대로 실적에 남긴다 — 나중에 무엇을 만졌는지 알 수 있다.
@@ -230,7 +274,7 @@ export default function WorkProcessPage() {
         workDate: to,
         note: `${r.wo.orderNo} ${r.seq}.${r.workName}`,
       })
-      setOk(`${r.wo.orderNo} ${r.processName} ${num(qty)} 처리 완료`)
+      setOk(`${res.data.resultNo} 작업실적 등록 완료 · ${r.wo.orderNo} ${r.processName} ${num(qty)} 처리`)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -238,6 +282,8 @@ export default function WorkProcessPage() {
   }
 
   const totalRemain = rows.reduce((n, r) => n + r.remainQty, 0)
+  /* 그리는 줄만 자른다 — 위 합계는 rows 전부로 낸 값이다. 자른 것은 표 위에 적는다. */
+  const capped = capRows(rows, 300)
 
   return (
     <EcListShell
@@ -250,11 +296,12 @@ export default function WorkProcessPage() {
           setPrevBased(true); setMinRemain('')
           setDueDate(''); setPlant(''); setWork(''); setWorkItem('')
         } },
+        { label: '작업내역입력', onClick: openWorkEntry },
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <EcStatusPanel
         from={from} to={to}
@@ -313,68 +360,79 @@ export default function WorkProcessPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {rows.length}줄
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        미작업량 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totalRemain)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        미작업량 합계 <b className="text-ec-navy text-[14px]">{num(totalRemain)}</b>
       </div>
 
       <div className="overflow-x-auto">
+        <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total}
+                  hint="품목이나 공정으로 좁혀 보세요." />
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 160 }}>작업지시No.</th>
-              <th style={{ width: 100 }}>지시일자</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[160px]">작업지시No.</th>
+              <th className="w-[100px]">지시일자</th>
               <th>생산품목</th>
-              <th style={{ width: 60, textAlign: 'right' }}>순서</th>
-              <th style={{ width: 130 }}>작업/공정</th>
-              <th style={{ width: 150 }}>작업품목</th>
-              <th style={{ width: 90, textAlign: 'right' }}>지시수량</th>
-              <th style={{ width: 90, textAlign: 'right' }}>완료</th>
-              <th style={{ width: 100, textAlign: 'right' }}>미작업량</th>
-              <th style={{ width: 90, textAlign: 'right' }}>처리수량</th>
-              <th style={{ width: 90, textAlign: 'right' }}>작업시간(분)</th>
-              <th style={{ width: 80, textAlign: 'center' }}>처리</th>
+              <th className="w-[60px] text-right">순서</th>
+              <th className="w-[130px]">작업/공정</th>
+              <th className="w-[150px]">작업품목</th>
+              <th className="w-[90px] text-right">지시수량</th>
+              <th className="w-[90px] text-right">완료</th>
+              <th className="w-[100px] text-right">미작업량</th>
+              <th className="w-[90px] text-right">처리수량</th>
+              <th className="w-[90px] text-right">작업시간(분)</th>
+              <th className="w-[80px] text-center">처리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+              <tr><td colSpan={13} className="text-center text-ec-hint p-[20px]">
                 처리할 작업이 없습니다. 품목에 BOR(작업소요시간)이 있어야 여기 나옵니다.
               </td></tr>
-            ) : rows.slice(0, 300).map((r, i) => (
+            ) : capped.rows.map((r, i) => (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.wo.orderNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.wo.orderDate.replace(/-/g, '/')}</td>
+                <td className="text-center text-ec-hint whitespace-nowrap">
+                  <input type="checkbox" aria-label={`${r.wo.orderNo} ${r.workName} 선택`} checked={picked.has(r.key)}
+                         onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n })} />
+                  {' '}{i + 1}
+                </td>
+                <td>{r.wo.orderNo}</td>
+                <td>{r.wo.orderDate.replace(/-/g, '/')}</td>
                 <td>[{r.wo.productCode}] {r.wo.productName}</td>
-                <td style={{ textAlign: 'right' }}>{r.seq}</td>
-                <td>{r.workName} <span style={{ color: '#8a929c', fontSize: 11.5 }}>({r.processName})</span></td>
-                <td style={{ color: r.workItemLabel ? undefined : '#9aa1ab' }}>{r.workItemLabel || ''}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.wo.plannedQty)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.doneQty)}</td>
+                <td className="text-right">{r.seq}</td>
+                <td>{r.workName} <span className="text-ec-hint text-[11.5px]">({r.processName})</span></td>
+                <td style={{ color: r.workItemLabel ? undefined : 'var(--ec-text-hint)' }}>{r.workItemLabel || ''}</td>
+                <td className="text-right">{num(r.wo.plannedQty)}</td>
+                <td className="text-right text-ec-label">{num(r.doneQty)}</td>
                 {/* 직전작업 기준이면 앞 공정이 덜 끝난 만큼 여기서 막힌다 */}
-                <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>
+                <td className="text-right font-bold text-ec-danger">
                   {num(r.remainQty)}
                   {prevBased && r.remainQty < r.wo.plannedQty - r.doneQty && (
                     <span title={`직전작업 완료 ${num(r.availableQty)}에 막혀 있습니다.`}
-                          style={{ color: '#c07a00' }}> *</span>
+                          style={{ color: 'var(--ec-warn)' }}> *</span>
                   )}
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="text-right">
                   <input className="ec-input text-right" type="number" style={{ width: 70 }}
                          value={input[r.key]?.qty ?? ''}
-                         onChange={(e) => setInput((p) => ({ ...p, [r.key]: { qty: e.target.value, minutes: p[r.key]?.minutes ?? '' } }))} />
+                         onChange={(e) => {
+                           const qty = e.target.value
+                           /* 원본처럼 수량을 넣으면 줄이 켜지고, 투입시간이 비었으면 BOR 개당 시간 × 수량(분)으로 채운다. */
+                           setInput((p) => ({ ...p, [r.key]: { qty, minutes: p[r.key]?.minutes || (Number(qty) > 0 && r.hoursPerUnit > 0 ? String(Math.round(r.hoursPerUnit * 60 * Number(qty))) : '') } }))
+                           if (Number(qty) > 0) setPicked((s) => new Set(s).add(r.key))
+                         }} />
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="text-right">
                   <input className="ec-input text-right" type="number" style={{ width: 70 }}
                          value={input[r.key]?.minutes ?? ''}
                          onChange={(e) => setInput((p) => ({ ...p, [r.key]: { qty: p[r.key]?.qty ?? '', minutes: e.target.value } }))} />
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} onClick={() => process(r)}>처리</button>
                 </td>
               </tr>
@@ -382,13 +440,13 @@ export default function WorkProcessPage() {
           </tbody>
         </table>
         {rows.length > 300 && (
-          <p style={{ fontSize: 11.5, color: '#c07a00', marginTop: 6 }}>
+          <p className="text-[11.5px] text-ec-warn mt-[6px]">
             * 앞의 300줄만 보여 줍니다({rows.length}줄 중). 기간이나 품목을 좁혀 주세요.
           </p>
         )}
       </div>
 
-      <p style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <p className="mt-[8px] text-[11.5px] text-ec-hint">
         * [잔량기준] 직전작업을 켜면 <b>앞 공정이 끝낸 만큼만</b> 처리할 수 있습니다.
         끄면 지시수량까지 열립니다 — 조립을 하나도 안 했는데 검사를 100개 했다고 적히는 것을 막는 장치입니다.
       </p>

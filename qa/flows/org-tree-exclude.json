@@ -1,0 +1,49 @@
+{
+  "about": "조직도등록 Fn › 미포함 · 하위부서추가로 다시 넣기 · [미포함(전체그룹)] 버튼(원본 E090222, 2026-10-13 기획팀을 미포함했다가 되돌려 실측). 시험 부서 둘(상위 · 하위)을 API 로 만들고 → 하위를 Fn › 미포함(원본 문구) → [미포함] 아래로, Fn 없음 → 상위 Fn › 하위부서추가 코드도움에 미포함 부서만 → 고르면 상위 밑으로 → [미포함(전체그룹)] 은 [인사발령입력][사용자포함] → 정리. node qa/shot.mjs qa/flows/org-tree-exclude.json",
+  "shots": [
+    {
+      "name": "준비 — 시험 부서 둘",
+      "path": "/groupware/org-tree",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const all = await (await fetch('/api/departments', { headers: H })).json(); for (const d of all.filter((x) => x.name.startsWith('QA그룹웨어-미포함'))) await fetch('/api/departments/' + d.id, { method: 'DELETE', headers: H }); const p = await (await fetch('/api/departments', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-X1', name: 'QA그룹웨어-미포함상위', sortOrder: 98 }) })).json(); const c = await (await fetch('/api/departments', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-X2', name: 'QA그룹웨어-미포함하위', sortOrder: 99 }) })).json(); sessionStorage.setItem('qaP', p.id); sessionStorage.setItem('qaC', c.id); return p.id + ' ' + c.id })()"
+      ]
+    },
+    {
+      "name": "Fn › 미포함 → [미포함] 아래, 하위부서추가로 다시 넣기",
+      "path": "/groupware/org-tree",
+      "steps": [
+        "wait:1000",
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; window.alert = (m) => { window.__alerted = m }; true",
+        "js:[...document.querySelectorAll('span')].find((s) => s.textContent.startsWith(\"QA\\uadf8\\ub8f9\\uc6e8\\uc5b4-\\ubbf8\\ud3ec\\ud568\\ud558\\uc704\")).click(); true",
+        "click:Fn",
+        "js:[...document.querySelectorAll('button.justify-start')].find((b) => b.textContent.trim() === '미포함').click(); true",
+        "wait:1000",
+        "expect:window.__asked === '선택한 항목을 조직도에 미포함 처리하시겠습니까?\\n하위부서 존재 시 하위부서까지 미포함 처리됩니다.'",
+        "expect:document.querySelector('[aria-label=\"미포함 부서\"]')?.innerText.includes('QA그룹웨어-미포함하위')",
+        "js:[...document.querySelectorAll('span')].find((s) => s.textContent.startsWith(\"QA\\uadf8\\ub8f9\\uc6e8\\uc5b4-\\ubbf8\\ud3ec\\ud568\\ud558\\uc704\")).click(); true",
+        "wait:300",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Fn')",
+        "js:[...document.querySelectorAll('span')].find((s) => s.textContent.startsWith(\"QA\\uadf8\\ub8f9\\uc6e8\\uc5b4-\\ubbf8\\ud3ec\\ud568\\uc0c1\\uc704\")).click(); true",
+        "click:Fn",
+        "click:하위부서추가",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '하위부서추가'",
+        "click:하위부서 선택",
+        "wait:400",
+        "expect:(() => { const rows = [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].map((r) => r.innerText); return rows.some((t) => t.includes('QA그룹웨어-미포함하위')) && !rows.some((t) => t.includes('QA그룹웨어-미포함상위')) })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-미포함하위')).click(); true",
+        "wait:300",
+        "click:적용(F8)",
+        "wait:1000",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/departments', { headers: H })).json(); const c = d.find((x) => x.id === Number(sessionStorage.getItem('qaC'))); return c && c.orgExcluded === false && c.parentId === Number(sessionStorage.getItem('qaP')) })()",
+        "expect:!document.querySelector('[aria-label=\"미포함 부서\"]')?.innerText.includes('QA그룹웨어-미포함하위')",
+        "click:미포함(전체그룹)",
+        "wait:300",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '사용자포함') && ![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '부서변경')",
+        "click:사용자포함",
+        "expect:window.__alerted === '리스트에 선택된 자료가 없습니다.\\n\\n체크박스에 체크한 후 다시 시도 바랍니다.'",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; for (const k of ['qaC', 'qaP']) await fetch('/api/departments/' + sessionStorage.getItem(k), { method: 'DELETE', headers: H }); return true })()"
+      ]
+    }
+  ]
+}

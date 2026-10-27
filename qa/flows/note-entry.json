@@ -1,0 +1,27 @@
+{
+  "about": "어음등록(원본 받을어음증가 E010601, 2026-10-13 loginaa 에서 QA회계1-001 · 이카운트 · 1,000 을 [저장/전표(F7)] 로 저장해 '일반전표' 창(차) 받을어음 1,000 / 대) 외상매출금 1,000)을 보고 지움). 칸 차례 [구분 · 전표일자 · 회계전표No. · 부서 · 프로젝트 · 거래처 · 어음번호 · 만기일자 · 금액 · 적요], 단추 [저장(F8) · 저장/전표(F7) · 다시 작성]. 사람이 적은 어음번호 QA회계1-F7-<시각> 그대로 저장되고, [저장/전표(F7)] 는 그 분개가 지목된 회계전표조회로 간다(차) 110 1,000 / 대) 108 1,000). 만든 어음은 지운다(분개도 같이 사라진다).",
+  "shots": [
+    {
+      "name": "받을어음증가 — 칸 차례 · 어음번호 · 저장/전표(F7)",
+      "path": "/accounting/notes",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const p = (await fetch('/api/partners', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json())).find((x) => x.type !== 'SUPPLIER'); sessionStorage.setItem('neP', p.code); sessionStorage.setItem('neNo', 'QA회계1-F7-' + Date.now() % 100000); return p.code })()",
+        "click:+ 어음등록(F2)",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '구분|전표일자|회계전표No.|부서|프로젝트|거래처|어음번호|만기일자|금액|적요'",
+        "expect:['저장(F8)', '저장/전표(F7)', '다시 작성'].every((l) => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.innerText.trim() === l))",
+        "js:(() => { (document.querySelector('[role=dialog] button[title=\"거래처 코드도움\"]') ?? document.querySelector('[role=dialog] button[title=\"거래처 선택\"]')).click(); return true })()",
+        "wait:500",
+        "pickrow:@neP",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"어음번호\"]'), sessionStorage.getItem('neNo')); set(document.querySelector('input[aria-label=\"금액\"]'), '1000'); set(document.querySelector('input[aria-label=\"적요\"]'), 'QA회계1 어음'); return true })()",
+        "wait:200",
+        "click:저장/전표(F7)",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/journals' && /entryId=\\d+/.test(location.search)",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = new URLSearchParams(location.search).get('entryId'); const j = await fetch('/api/journals/' + id, { headers: H }).then((r) => r.json()); sessionStorage.setItem('neLines', j.lines.map((l) => l.accountCode + ':' + l.debit + ':' + l.credit).join(',')); return sessionStorage.getItem('neLines') === '110:1000:0,108:0:1000' })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/notes', { headers: H }).then((x) => x.json()); const list = Array.isArray(r) ? r : (r.notes ?? r.rows ?? []); const n = list.find((x) => x.noteNo === sessionStorage.getItem('neNo')); if (!n) return false; const d = await fetch('/api/notes/' + n.id, { method: 'DELETE', headers: H }); return d.ok })()"
+      ]
+    }
+  ]
+}

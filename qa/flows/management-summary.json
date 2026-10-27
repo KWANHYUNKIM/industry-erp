@@ -1,0 +1,24 @@
+{
+  "about": "경영요약보고서(E010821) — [종류] 다중 선택(13종) 후 검색하면 자료 있는 표만 번호를 이어 그린다. 계정별원장(집계)는 처음 한 번 확인을 묻고 그 표만 빠진다.",
+  "shots": [
+    {
+      "name": "경영요약보고서 — 종류검색 창에서 전체 선택 → 적용하면 꼬리표 13개, 검색하면 표 제목이 1번부터 빈틈없이 이어진다",
+      "path": "/accounting/management-summary",
+      "steps": [
+        "wait:2500",
+        "js:window.confirm = () => true; true",
+        "expect:[...document.querySelectorAll('.tag-remove')].length===1",
+        "click:종류검색",
+        "wait:500",
+        "js:(()=>{const cb=document.querySelector('.ec-modal-back thead input[type=checkbox]');cb.click();return true})()",
+        "click:적용(F8)",
+        "wait:500",
+        "expect:[...document.querySelectorAll('.tag-remove')].length===13",
+        "js:(()=>{const f=[...document.querySelectorAll('input[type=date]')];const set=(el,v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const y=new Date().getFullYear();set(f[0],y+'-01-01');set(f[1],y+'-12-31');return true})()",
+        "click:검색(F8)",
+        "wait:6000",
+        "expect:(()=>{const t=[...document.querySelectorAll('[data-ms-head] span:first-child')].map((e)=>e.innerText.trim());const n=t.map((x)=>parseInt(x));return t.length>=1&&n.every((v,i)=>v===i+1)&&t[0].startsWith('1.')})()"
+      ]
+    }
+  ]
+}

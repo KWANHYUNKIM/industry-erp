@@ -1,0 +1,67 @@
+{
+  "about": "판매입력 II [금액조정] — 원본 E040253 2026-10-13 실측: 10 × 1,000(10,000 · 1,000)에 할인 합계 1,100 → 1,000 · 100, 조정 후 9,000 · 900 · 9,900. 판매조회 금액합계 9,900, 회계반영 분개 차) 외상매출금 9,900 / 대) 매출 9,000 · 부가세예수금 900. 판매 1건을 API 로 만들고 판매입력 II 수정 창에서 할인을 넣어 저장한다. 판매입력(?edit=)으로 열면 판매입력 II 로 넘어가는 것도 본다. 만든 전표·분개는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "판매 1건 만들기(API, 10 × 1,000)",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/partners','/items','/warehouses'].map((p) => window.__api('GET', p))).then(([pa, it, wh]) => { const c = pa.body.find((x) => x.code === 'QA-CUST'), i = it.body.find((x) => x.code === 'QA-PROD'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0]; return window.__api('POST', '/sales', { saleDate: new Date().toISOString().slice(0, 10), partnerId: c.id, warehouseId: w.id, remark: 'QA재고1 금액조정', lines: [{ itemId: i.id, quantity: 10, unitPrice: 1000 }] }) }).then((r) => { sessionStorage.setItem('adjSale', r.body.docNo); sessionStorage.setItem('adjSaleId', r.body.id); return r.status })",
+        "expect:!!sessionStorage.getItem('adjSaleId')"
+      ]
+    },
+    {
+      "name": "판매입력 II 수정 — 금액조정 표 한 줄, [금액조정] 창에서 할인 합계 1,100 → 적용 → 저장(합계 9,900)",
+      "path": "/sales/sell2",
+      "steps": [
+        "js:location.href = '/sales/sell2?edit=' + sessionStorage.getItem('adjSaleId'); true",
+        "wait:2500",
+        "expect:document.body.innerText.includes('판매입력 II')",
+        "expect:[...document.querySelectorAll('table')].some((t) => t.innerText.includes('금액조정항목명') && t.innerText.includes('거래별 부가세 합계') && t.innerText.includes('11,000') && !t.innerText.includes('조정 후 합계'))",
+        "click:금액조정",
+        "wait:500",
+        "expect:document.body.innerText.includes('부가세율 10% 계') && document.body.innerText.includes('감소(-)')",
+        "set:input[aria-label=\"할인 합계\"]|1100",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tr')].some((tr) => /^할인\\s+감소\\(-\\)\\s+1,000\\s+100/.test(tr.innerText.trim()))",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tr')].some((tr) => /조정 후 합계\\s+9,000\\s+900\\s+9,900/.test(tr.innerText))",
+        "click:수정저장(F8)",
+        "wait:1500",
+        "expect:!/(저장|수정) 완료/.test(document.body.innerText)",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).find((x) => String(x.id) === sessionStorage.getItem('adjSaleId')); return Number(s.totalAmount) === 9900 })()"
+      ]
+    },
+    {
+      "name": "판매조회 거래명세서 인쇄 — 품목 아래 '할인' 줄(1 · -1,000 · -100), 공급가액 9,000 · 부가세 900(원본 E040253 거래명세서 실측)",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:window.open = () => { const f = document.createElement('iframe'); f.id = 'pf'; f.style.cssText = 'position:fixed;left:0;top:0;width:1100px;height:900px;z-index:99999;background:#fff;border:0'; document.body.appendChild(f); const w = f.contentWindow; w.print = () => {}; return w }; true",
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).find((x) => String(x.id) === sessionStorage.getItem('adjSaleId')); const label = s.saleDate.replace(/-/g, '/') + ' -' + Number(s.docNo.split('-').pop()); [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(label) && t.innerText.includes('9,900')).click(); return label })()",
+        "wait:600",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '거래명세서 인쇄').click(); true",
+        "wait:2500",
+        "expect:(() => { const t = document.getElementById('pf')?.contentDocument?.body?.innerText ?? ''; return /할인\\s+1\\s+-1,000\\s+-1,000\\s+-100/.test(t) && /9,000/.test(t) && /900/.test(t) })()"
+      ]
+    },
+    {
+      "name": "판매입력(I) ?edit= 로 열면 판매입력 II 로 넘어간다 · 서버 값 · 회계반영 분개 9,900 / 9,000 · 900 · 뒷정리",
+      "path": "/sales/sell",
+      "steps": [
+        "js:location.href = '/sales/sell?edit=' + sessionStorage.getItem('adjSaleId'); true",
+        "wait:3000",
+        "expect:location.pathname === '/sales/sell2' && document.body.innerText.includes('조정 후 합계')",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/sales').then((r) => { const s = r.body.find((x) => String(x.id) === sessionStorage.getItem('adjSaleId')); sessionStorage.setItem('adjAmt', [s.supplyAmount, s.vatAmount, s.totalAmount, s.discountSupply, s.discountVat].map(Number).join('/')); return true })",
+        "expect:sessionStorage.getItem('adjAmt') === '9000/900/9900/1000/100'",
+        "js:window.__api('POST', '/accounting-reflection/reflect', { kind: 'SALES', ids: [Number(sessionStorage.getItem('adjSaleId'))] }).then(() => { const d = new Date().toISOString().slice(0, 10); return window.__api('GET', '/journals?from=' + d + '&to=' + d) }).then((r) => { const e = r.body.rows.find((x) => x.sourceType === 'SALES' && String(x.sourceId) === sessionStorage.getItem('adjSaleId')); sessionStorage.setItem('adjJe', e ? e.lines.map((l) => l.accountName + ':' + Number(l.debit) + ':' + Number(l.credit)).join('|') : 'none'); return true })",
+        "expect:/외상매출금:9900:0/.test(sessionStorage.getItem('adjJe')) && /매출:0:9000/.test(sessionStorage.getItem('adjJe')) && /부가세예수금:0:900/.test(sessionStorage.getItem('adjJe'))",
+        "js:window.__api('POST', '/accounting-reflection/unreflect', { kind: 'SALES', ids: [Number(sessionStorage.getItem('adjSaleId'))] }).then((r) => { sessionStorage.setItem('adjUn', String(r.status)); return true })",
+        "expect:sessionStorage.getItem('adjUn') === '200'",
+        "apidel:/sales|@adjSale|docNo"
+      ]
+    }
+  ]
+}

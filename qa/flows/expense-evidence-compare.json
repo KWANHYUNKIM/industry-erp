@@ -1,0 +1,42 @@
+{
+  "about": "지출증빙현황(E030402) 금액 링크 → 원본처럼 [전표vs매출매입자료비교] 화면을 조건 채운 채 창으로(2026-10-13 loginaa 실측: 1469 상품 세금계산서 → 계정명 상품 · 부가세유형 세금계산서 · 매출매입자료 있는 것만 · 조회자료 전체 / 8109 증빙없음 → 매출매입자료 없는 것만, 조회자료 줄 숨김, 자료 없는 전표 첫 줄 0 · 0 · 0). 811 복리후생비를 계정설정에서 잠깐 표시로 두고 끝에 원래대로.",
+  "shots": [
+    {
+      "name": "세금계산서 · 증빙없음 링크 → 비교 창",
+      "path": "/accounting/corporate-tax/expense-evidence",
+      "steps": [
+        "wait:1000",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const a = await (await fetch('/api/expense-evidence/accounts', { headers: H })).json(); sessionStorage.setItem('ev-shown', JSON.stringify(a.filter((x) => x.shown).map((x) => x.id))); await fetch('/api/expense-evidence/accounts', { method: 'PUT', headers: H, body: JSON.stringify({ shownIds: [a.find((x) => x.code === '8109').id] }) }); return true })()",
+        "set:select[aria-label=\"시작 연도\"]|2026",
+        "set:select[aria-label=\"시작 월\"]|01",
+        "set:select[aria-label=\"끝 연도\"]|2026",
+        "set:select[aria-label=\"끝 월\"]|10",
+        "click:검색(F8)",
+        "wait:1200",
+        "js:window.__ev = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.innerText.trim() === '8109').innerText; window.__ev",
+        "expect:/^세금계산서$/.test(document.querySelectorAll('thead th')[2].innerText.trim()) && /^증빙없음$/.test(document.querySelectorAll('thead th')[3].innerText.trim())",
+        "js:[...[...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.innerText.trim() === '8109').cells][2].querySelector('button').click(); true",
+        "wait:1800",
+        "expect:/전표vs매출매입자료비교/.test(document.querySelector('[role=dialog]').innerText)",
+        "js:(() => { const t = [...document.querySelectorAll('[role=dialog] tr.ec-total')].pop(); window.__tot = t.innerText.replace(/\\s+/g, ' '); return window.__tot })()",
+        "expect:(() => { const n = (s) => Number(String(s).replace(/,/g, '')); const rep = n(window.__ev.split(/\\s+/).filter((x) => /\\d,\\d/.test(x))[0]); const tot = n(window.__tot.split(' ').filter((x) => /^[\\d,]+$/.test(x))[0]); const rows = [...document.querySelectorAll('[role=dialog] tbody tr:not(.ec-total)')].filter((t) => t.cells[0] && t.cells[0].innerText.trim()).length; return tot === rep || (rows >= 15 && tot > 0 && tot < rep) })()",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr:not(.ec-total)')].every((t) => !t.cells[1] || t.cells[1].innerText.includes('복리후생비'))",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].some((t) => t.innerText.includes('세금계산서'))",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === 'Search(F3)').click(); true",
+        "wait:600",
+        "expect:(() => { const d = document.querySelector('[role=dialog]'); const v = [...d.querySelectorAll('.ec-cond input')].map((i) => i.value).join('|'); return /복리후생비/.test(v) && /세금계산서/.test(v) && /조회자료/.test(d.querySelector('.ec-cond').innerText) && d.querySelector('input[name=jvc-has]:checked').parentElement.innerText.includes('있는 것만') && d.querySelector('input[name=jvc-mismatch]:checked').parentElement.innerText.trim() === '전체' })()",
+        "js:document.querySelector('[role=dialog] button[aria-label=\"닫기\"]').click(); true",
+        "wait:600",
+        "js:[...[...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.innerText.trim() === '8109').cells][3].querySelector('button').click(); true",
+        "wait:1800",
+        "js:(() => { const t = [...document.querySelectorAll('[role=dialog] tr.ec-total')].pop(); return t.innerText.replace(/\\s+/g, ' ') })()",
+        "expect:(() => { const r = [...document.querySelectorAll('[role=dialog] tbody tr:not(.ec-total)')].filter((t) => t.cells[0].innerText.trim()); return r.length > 0 && r.every((t) => t.cells[8].innerText.trim() === '0' && t.cells[10].innerText.trim() === '0') })()",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === 'Search(F3)').click(); true",
+        "wait:600",
+        "expect:!/조회자료/.test(document.querySelector('[role=dialog]').querySelector('.ec-cond').innerText) && document.querySelector('[role=dialog]').querySelector('input[name=jvc-has]:checked').parentElement.innerText.includes('없는 것만')",
+        "js:document.querySelector('[role=dialog] button[aria-label=\"닫기\"]').click(); true",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/expense-evidence/accounts', { method: 'PUT', headers: H, body: JSON.stringify({ shownIds: JSON.parse(sessionStorage.getItem('ev-shown') || '[]') }) }); return true })()"
+      ]
+    }
+  ]
+}

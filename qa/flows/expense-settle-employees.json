@@ -1,0 +1,103 @@
+{
+  "about": "회계2 전표별회계반영(비용) 사원별 정산(2026-10-21 원본 실측, plans/회계2/비용관리.md 10장) — 사원 둘(EMP-0001 30,000 · EMP-0002 20,000) 개인비용 전표를 비용내역입력 화면으로 한 장씩 저장 → 전표별회계반영에 두 줄(최근 전표가 위) → 둘 다 골라 [가지급금정산서작성] → 창 없이 '전표 일괄 생성을 진행하겠습니까?' [확인] → 전표 한 장마다 가지급금정산서 한 장(차 812 / 대 134, 사원별 금액) → 비용내역조회 [회계반영여부] ✓ → '회계전표번호보기'(No. '…-1-1' · 회계전표) → 한 정산서를 [삭제](정산취소) 하면 그 비용 전표가 전표별회계반영에 다시 나옴 → [선택삭제] '선택한 전표를 삭제 하겠습니까?' 로 두 전표 · 남은 정산서 함께 지움. 비용 마스터는 API 로 만들고 끝에 지운다.",
+  "shots": [
+    {
+      "name": "비용 마스터 준비",
+      "path": "/accounting/expense-items",
+      "steps": [
+        "wait:800",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async () => { const a = (await __api('GET', '/accounts')).body.find((x) => x.code === '8119'); const r = await __api('POST', '/expense-items', { code: 'QAF-S1', name: 'QA회계2-사원별정산', accountId: a.id }); sessionStorage.setItem('qaSItem', String(r.body.id)); return r.status === 200 })()"
+      ]
+    },
+    {
+      "name": "비용내역입력 — 사원 둘 개인비용 전표 한 장씩",
+      "path": "/accounting/expense",
+      "steps": [
+        "wait:1200",
+        "js:[...document.querySelectorAll('input[name=expense-slip-pay-type]')].find((r) => r.parentElement.textContent.includes('개인비용')).click(); true",
+        "set:tbody input[aria-label=비용검색]#0|QAF-S1",
+        "js:document.querySelector('tbody input[aria-label=비용검색]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true",
+        "set:tbody input[aria-label=사원검색]#0|EMP-0001",
+        "js:document.querySelector('tbody input[aria-label=사원검색]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true",
+        "set:tbody input[aria-label=사용금액]#0|30000",
+        "set:tbody input[aria-label=적요]#0|QA회계2 사원별A",
+        "click:저장(F8)",
+        "wait:1200",
+        "js:[...document.querySelectorAll('input[name=expense-slip-pay-type]')].find((r) => r.parentElement.textContent.includes('개인비용')).click(); true",
+        "set:tbody input[aria-label=비용검색]#0|QAF-S1",
+        "js:document.querySelector('tbody input[aria-label=비용검색]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true",
+        "set:tbody input[aria-label=사원검색]#0|EMP-0002",
+        "js:document.querySelector('tbody input[aria-label=사원검색]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true",
+        "set:tbody input[aria-label=사용금액]#0|20000",
+        "set:tbody input[aria-label=적요]#0|QA회계2 사원별B",
+        "click:저장(F8)",
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:(async () => { const xs = (await __api('GET', '/expenses')).body.filter((e) => /^QA회계2 사원별/.test(e.content || '')); return xs.length === 2 && xs.every((e) => e.payType === 'PERSONAL' && e.settledJournalId === null) })()"
+      ]
+    },
+    {
+      "name": "전표별회계반영 — 둘 골라 일괄 생성 → 사원별 정산서 두 장",
+      "path": "/accounting/expense-settle",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const rs = [...document.querySelectorAll('tbody tr')].filter((r) => r.innerText.includes('QA회계2-사원별정산')); return rs.length === 2 && rs[0].innerText.includes('20,000') && rs[1].innerText.includes('30,000') })()",
+        "js:[...document.querySelectorAll('tbody tr')].filter((r) => r.innerText.includes('QA회계2-사원별정산')).forEach((r) => r.querySelector('input[type=checkbox]').click()); true",
+        "click:가지급금정산서작성",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog],[role=alertdialog]')].some((d) => d.innerText.includes('전표 일괄 생성을 진행하겠습니까?'))",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.offsetParent && b.textContent.trim() === '확인').pop().click(); true",
+        "wait:1800",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA회계2-사원별정산'))",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:(async () => { const xs = (await __api('GET', '/expenses')).body.filter((e) => /^QA회계2 사원별/.test(e.content || '')); const ids = [...new Set(xs.map((e) => e.settledJournalId))]; if (ids.length !== 2 || ids.includes(null)) return false; const b = xs.find((e) => e.content === 'QA회계2 사원별B'); sessionStorage.setItem('qaSJb', String(b.settledJournalId)); for (const e of xs) { const j = (await __api('GET', '/journals/' + e.settledJournalId)).body; const d = j.lines.find((l) => l.accountCode === '8119'); const c = j.lines.find((l) => l.accountCode === '1349'); if (j.lines.length !== 2 || Number(d.debit) !== Number(e.amount) || Number(c.credit) !== Number(e.amount)) return false } return true })()"
+      ]
+    },
+    {
+      "name": "비용내역조회 — 회계반영여부 ✓ → 회계전표번호보기",
+      "path": "/accounting/expense-list",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((r) => r.innerText.includes('QA회계2-사원별정산') && r.innerText.includes('✓')).length === 2",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA회계2-사원별정산')).querySelector('button[aria-label$=회계전표번호보기]').click(); true",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('회계전표번호보기') && /\\d{4}\\/\\d{2}\\/\\d{2} -\\d+-1/.test(d.innerText))",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '닫기').click(); true"
+      ]
+    },
+    {
+      "name": "정산취소 — 정산서 [삭제] → 비용 전표가 전표별회계반영에 다시",
+      "path": "/accounting/expense-settle",
+      "steps": [
+        "wait:500",
+        "js:location.href = '/accounting/vouchers?journal=' + sessionStorage.getItem('qaSJb'); true",
+        "wait:2500",
+        "click:삭제",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog],[role=alertdialog]')].some((d) => d.innerText.includes('전표를 삭제하겠습니까?'))",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.offsetParent && b.textContent.trim() === '확인').pop().click(); true",
+        "wait:1500",
+        "js:location.href = '/accounting/expense-settle'; true",
+        "wait:2500",
+        "expect:(() => { const rs = [...document.querySelectorAll('tbody tr')].filter((r) => r.innerText.includes('QA회계2-사원별정산')); return rs.length === 1 && rs[0].innerText.includes('20,000') })()"
+      ]
+    },
+    {
+      "name": "비용내역조회 [선택삭제] — 두 전표 · 남은 정산서 함께",
+      "path": "/accounting/expense-list",
+      "steps": [
+        "wait:1500",
+        "js:[...document.querySelectorAll('tbody tr')].filter((r) => r.innerText.includes('QA회계2-사원별정산')).forEach((r) => r.querySelector('input[type=checkbox]').click()); true",
+        "click:선택삭제",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog],[role=alertdialog]')].some((d) => d.innerText.includes('선택한 전표를 삭제 하겠습니까?'))",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.offsetParent && b.textContent.trim() === '확인').pop().click(); true",
+        "wait:1500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:(async () => (await __api('GET', '/expenses')).body.filter((e) => /^QA회계2 사원별/.test(e.content || '')).length === 0)()",
+        "expect:(async () => (await __api('POST', '/expense-items/delete', [Number(sessionStorage.getItem('qaSItem'))])).status < 300)()"
+      ]
+    }
+  ]
+}

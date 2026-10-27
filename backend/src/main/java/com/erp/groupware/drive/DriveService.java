@@ -1,0 +1,399 @@
+package com.erp.groupware.drive;
+
+import com.erp.common.ApiException;
+import com.erp.common.FileStorageService;
+import com.erp.common.StoredFile;
+import com.erp.groupware.drive.dto.DriveDtos.CreateDocumentRequest;
+import com.erp.groupware.drive.dto.DriveDtos.CreateFolderRequest;
+import com.erp.groupware.drive.dto.DriveDtos.DocumentResponse;
+import com.erp.groupware.drive.dto.DriveDtos.UpdateDocumentRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import com.erp.groupware.drive.dto.DriveDtos;
+
+@Service
+@RequiredArgsConstructor
+public class DriveService {
+
+    private final DriveDocumentRepository documentRepository;
+    private final FileStorageService fileStorage;
+    private final DriveHistoryRepository historyRepository;
+
+    /** 원본 [버전/이력] 에 한 줄 남긴다. 이름 · 크기 · 위치는 지금 값 그대로 적어 둔다. */
+    private void log(DriveDocument doc, String action, String actor, String ip) {
+        historyRepository.save(DriveHistory.builder()
+                .document(doc).action(action).name(doc.getName()).sizeBytes(doc.getSizeBytes())
+                .actor(actor).ip(ip).location(folderPath(doc.getParent())).build());
+    }
+
+    /** '/폴더/폴더' — 드라이브 맨 위면 빈 글자(원본 [위치] 빈칸). */
+    private static String folderPath(DriveDocument folder) {
+        StringBuilder sb = new StringBuilder();
+        for (DriveDocument f = folder; f != null; f = f.getParent()) sb.insert(0, "/" + f.getName());
+        return sb.toString();
+    }
+
+    /**
+     * 원본 [버전/이력](2026-10-13 실측). 폴더면 <b>자기와 안에 든 것 전부</b>의 이력, 드라이브 머리(My Drive)면
+     * 그 드라이브 전체. 휴지통에 들어간 것의 줄은 빠진다(휴지통으로 옮기자 My Drive 이력이 비었다). 최근 것이 위.
+     */
+    @Transactional(readOnly = true)
+    public List<DriveDtos.HistoryResponse> history(Long id, String drive) {
+        List<DriveDocument> scope = id != null
+                ? withChildren(getDoc(id))
+                : documentRepository.findAllOrdered().stream()
+                        .filter(d -> ("SHARED".equalsIgnoreCase(drive) ? "SHARED" : "MY").equalsIgnoreCase(d.getDrive())).toList();
+        List<Long> ids = scope.stream().filter(d -> !d.isTrashed()).map(DriveDocument::getId).toList();
+        if (ids.isEmpty()) return List.of();
+        return historyRepository.findByDocumentIds(ids).stream()
+                .map(h -> new DriveDtos.HistoryResponse(h.getId(),
+                        h.getCreatedAt() != null ? h.getCreatedAt().toString() : null,
+                        h.getAction(), h.getName(), h.getSizeBytes(), h.getDocument().isFolder(),
+                        h.getActor() != null ? h.getActor().toUpperCase() : null, h.getIp(), h.getLocation()))
+                .toList();
+    }
+
+    /** 원본 [상세보기] — 위치는 'My Drive/폴더/자기 이름', 최종작업자는 마지막으로 손댄 사람. */
+    @Transactional(readOnly = true)
+    public DriveDtos.DetailResponse detail(Long id) {
+        DriveDocument doc = getDoc(id);
+        String root = "SHARED".equalsIgnoreCase(doc.getDrive()) ? "Shared Drive" : "My Drive";
+        String last = historyRepository.findByDocumentIds(List.of(id)).stream()
+                .map(DriveHistory::getActor).filter(java.util.Objects::nonNull).findFirst().orElse(doc.getUploader());
+        return new DriveDtos.DetailResponse(doc.getId(), doc.getName(), doc.isFolder(),
+                root + folderPath(doc.getParent()) + "/" + doc.getName(), doc.getSizeBytes(),
+                doc.getCreatedAt() != null ? doc.getCreatedAt().toString() : null,
+                doc.getUpdatedAt() != null ? doc.getUpdatedAt().toString() : null,
+                doc.getUploader(), last);
+    }
+
+    /** folder: my / shared / important / trash */
+    @Transactional(readOnly = true)
+    public List<DocumentResponse> list(String folder) {
+        return list(folder, null, false);
+    }
+
+    /**
+     * My Drive · Shared Drive 는 <b>그 폴더 바로 안</b>(parentId, 없으면 최상위)만 낸다. all 이면 폴더 안까지 전부
+     * (사용용량 · 나무 그리기용). 휴지통 · 중요문서함은 폴더와 상관없이 전부.
+     */
+    @Transactional(readOnly = true)
+    public List<DocumentResponse> list(String folder, Long parentId, boolean all) {
+        String f = folder != null ? folder.toLowerCase() : "my";
+        boolean byParent = !all && ("my".equals(f) || "shared".equals(f));
+        return documentRepository.findAllOrdered().stream()
+                .filter(d -> matchesFolder(d, f))
+                .filter(d -> !byParent || java.util.Objects.equals(d.getParent() != null ? d.getParent().getId() : null, parentId))
+                .map(DocumentResponse::from)
+                .toList();
+    }
+
+    private boolean matchesFolder(DriveDocument d, String folder) {
+        return switch (folder) {
+            case "trash" -> d.isTrashed();
+            case "important" -> d.isImportant() && !d.isTrashed();
+            case "shared" -> "SHARED".equalsIgnoreCase(d.getDrive()) && !d.isTrashed();
+            default -> "MY".equalsIgnoreCase(d.getDrive()) && !d.isTrashed();
+        };
+    }
+
+    @Transactional
+    public DocumentResponse create(CreateDocumentRequest req, String uploader) {
+        String drive = "SHARED".equalsIgnoreCase(req.drive()) ? "SHARED" : "MY";
+        DriveDocument doc = DriveDocument.builder()
+                .name(req.name())
+                .drive(drive)
+                .sizeBytes(req.sizeBytes() != null ? req.sizeBytes() : 0L)
+                .uploader(uploader)
+                .important(false)
+                .trashed(false)
+                .build();
+        return DocumentResponse.from(documentRepository.save(doc));
+    }
+
+    /** 원본 우클릭 [새 폴더] → '새 폴더' 창의 [저장(F8)]. 폴더 안에 폴더도 만든다. */
+    @Transactional
+    public DocumentResponse createFolder(CreateFolderRequest req, String uploader) {
+        return createFolder(req, uploader, null);
+    }
+
+    @Transactional
+    public DocumentResponse createFolder(CreateFolderRequest req, String uploader, String ip) {
+        DriveDocument parent = req.parentId() != null ? getDoc(req.parentId()) : null;
+        if (parent != null && !parent.isFolder()) throw ApiException.badRequest("폴더 안에만 폴더를 만들 수 있습니다.");
+        DriveDocument doc = DriveDocument.builder()
+                .name(req.name().trim())
+                .drive(parent != null ? parent.getDrive() : ("SHARED".equalsIgnoreCase(req.drive()) ? "SHARED" : "MY"))
+                .sizeBytes(0L)
+                .uploader(uploader)
+                .important(false)
+                .trashed(false)
+                .folder(true)
+                .parent(parent)
+                .build();
+        documentRepository.save(doc);
+        log(doc, "생성", uploader, ip);
+        return DocumentResponse.from(doc);
+    }
+
+    @Transactional
+    public DocumentResponse update(Long id, UpdateDocumentRequest req) {
+        return update(id, req, null, null);
+    }
+
+    @Transactional
+    public DocumentResponse update(Long id, UpdateDocumentRequest req, String actor, String ip) {
+        DriveDocument doc = getDoc(id);
+        if (req.name() != null) {
+            /* 원본 이름변경 창은 비우고 [저장(F8)] 하면 '이름을 입력 바랍니다.' */
+            if (req.name().isBlank()) throw ApiException.badRequest("이름을 입력 바랍니다.");
+            if (doc.isFolder() && req.name().trim().length() > 50) throw ApiException.badRequest("최대 50자까지 입력 가능합니다.");
+            boolean changed = !doc.getName().equals(req.name().trim());
+            doc.setName(req.name().trim());
+            if (changed) log(doc, "이름변경", actor, ip);
+        }
+        if (req.important() != null) doc.setImportant(req.important());
+        /* 폴더를 휴지통에 넣거나 꺼내면 안에 든 것도 같이 간다 — 원본 휴지통도 폴더째 옮긴다. */
+        if (req.trashed() != null) for (DriveDocument d : withChildren(doc)) d.setTrashed(req.trashed());
+        return DocumentResponse.from(doc);
+    }
+
+    /**
+     * 원본 [이동] · [복사] 가 받아 주는 곳인지 본다(2026-10-12 loginaa ECDrive 실측).
+     * <ul>
+     *   <li>지금 들어 있는 곳 그대로 → '동일 폴더로는 이동/복사가 불가합니다.'</li>
+     *   <li>자기 자신 · 자기 안의 폴더, Shared Drive 맨 위 → '해당 위치로 이동/복사가 불가합니다.'</li>
+     * </ul>
+     */
+    private DriveDocument checkTarget(DriveDocument doc, DriveDtos.TransferRequest req) {
+        DriveDocument target = req.parentId() != null ? getDoc(req.parentId()) : null;
+        if (target != null && (!target.isFolder() || target.isTrashed())) throw ApiException.badRequest("해당 위치로 이동/복사가 불가합니다.");
+        String drive = target != null ? target.getDrive() : ("SHARED".equalsIgnoreCase(req.drive()) ? "SHARED" : "MY");
+        if (target == null && "SHARED".equals(drive)) throw ApiException.badRequest("해당 위치로 이동/복사가 불가합니다.");
+        Long curParent = doc.getParent() != null ? doc.getParent().getId() : null;
+        Long newParent = target != null ? target.getId() : null;
+        if (java.util.Objects.equals(curParent, newParent) && drive.equalsIgnoreCase(doc.getDrive())) {
+            throw ApiException.badRequest("동일 폴더로는 이동/복사가 불가합니다.");
+        }
+        if (target != null && doc.isFolder()) {
+            for (DriveDocument d : withChildren(doc)) {
+                if (d.getId().equals(target.getId())) throw ApiException.badRequest("해당 위치로 이동/복사가 불가합니다.");
+            }
+        }
+        return target;
+    }
+
+    /** 고른 곳 바로 안에 같은 이름의 폴더가 있으면 그 폴더(원본은 옮긴 폴더를 그 폴더에 합친다). */
+    private DriveDocument sameNameFolder(String drive, DriveDocument target, String name, Long exceptId) {
+        Long pid = target != null ? target.getId() : null;
+        return documentRepository.findAllOrdered().stream()
+                .filter(d -> d.isFolder() && !d.isTrashed() && !d.getId().equals(exceptId))
+                .filter(d -> drive.equalsIgnoreCase(d.getDrive()))
+                .filter(d -> java.util.Objects.equals(d.getParent() != null ? d.getParent().getId() : null, pid))
+                .filter(d -> d.getName().equals(name))
+                .findFirst().orElse(null);
+    }
+
+    /**
+     * 원본 [이동]. 폴더는 안에 든 것까지 같이 간다. 고른 곳에 같은 이름의 폴더가 이미 있으면
+     * 옮긴 폴더의 내용이 그 폴더로 합쳐진다(실측: My Drive 에 'QA그룹웨어-폴더3' 이 있는데 같은 이름을
+     * 옮겨 오니 목록에 한 줄만 남았다).
+     */
+    @Transactional
+    public DocumentResponse move(Long id, DriveDtos.TransferRequest req) {
+        return move(id, req, null, null);
+    }
+
+    /** 원본 이력은 옮긴 것 한 줄 — 행위 '이동', 위치는 <b>옮겨 간 곳</b>. */
+    @Transactional
+    public DocumentResponse move(Long id, DriveDtos.TransferRequest req, String actor, String ip) {
+        DriveDocument doc = getDoc(id);
+        DriveDocument target = checkTarget(doc, req);
+        String drive = target != null ? target.getDrive() : "MY";
+        DriveDocument moved = moveInto(doc, target, drive);
+        if (moved == doc) log(doc, "이동", actor, ip);
+        return DocumentResponse.from(moved);
+    }
+
+    private DriveDocument moveInto(DriveDocument doc, DriveDocument target, String drive) {
+        DriveDocument same = doc.isFolder() ? sameNameFolder(drive, target, doc.getName(), doc.getId()) : null;
+        if (same == null) {
+            for (DriveDocument d : withChildren(doc)) d.setDrive(drive);
+            doc.setParent(target);
+            return doc;
+        }
+        List<DriveDocument> kids = documentRepository.findAllOrdered().stream()
+                .filter(d -> d.getParent() != null && d.getParent().getId().equals(doc.getId())).toList();
+        for (DriveDocument k : kids) moveInto(k, same, drive);
+        documentRepository.flush();
+        documentRepository.delete(doc);
+        return same;
+    }
+
+    /** 원본 [복사]. 폴더면 안에 든 것까지 새로 만들고, 파일은 바이트까지 따로 둔다(원본을 지워도 사본은 남는다). */
+    @Transactional
+    public DocumentResponse copy(Long id, DriveDtos.TransferRequest req, String uploader) {
+        return copy(id, req, uploader, null);
+    }
+
+    /** 원본 이력은 새로 생긴 사본 한 줄 — 행위 '복사(T)', 위치는 사본이 선 곳. 원본 쪽에는 줄이 안 생긴다. */
+    @Transactional
+    public DocumentResponse copy(Long id, DriveDtos.TransferRequest req, String uploader, String ip) {
+        DriveDocument doc = getDoc(id);
+        DriveDocument target = checkTarget(doc, req);
+        String drive = target != null ? target.getDrive() : "MY";
+        DriveDocument made = copyInto(doc, target, drive, uploader);
+        log(made, "복사(T)", uploader, ip);
+        return DocumentResponse.from(made);
+    }
+
+    private DriveDocument copyInto(DriveDocument src, DriveDocument target, String drive, String uploader) {
+        DriveDocument same = src.isFolder() ? sameNameFolder(drive, target, src.getName(), null) : null;
+        DriveDocument made = same;
+        if (made == null) {
+            made = documentRepository.save(DriveDocument.builder()
+                    .name(src.getName()).drive(drive).category(src.getCategory()).version(src.getVersion())
+                    .sizeBytes(src.getSizeBytes()).uploader(uploader)
+                    .file(src.getFile() != null ? fileStorage.duplicate(src.getFile().getId(), uploader) : null)
+                    .important(false).trashed(false).folder(src.isFolder()).parent(target)
+                    .build());
+        }
+        if (src.isFolder()) {
+            List<DriveDocument> kids = documentRepository.findAllOrdered().stream()
+                    .filter(d -> d.getParent() != null && d.getParent().getId().equals(src.getId()) && !d.isTrashed()).toList();
+            for (DriveDocument k : kids) copyInto(k, made, drive, uploader);
+        }
+        return made;
+    }
+
+    /** 이 항목과, 폴더면 그 안에 든 것 전부(깊이 우선, 자기 자신이 맨 앞). */
+    private List<DriveDocument> withChildren(DriveDocument root) {
+        List<DriveDocument> all = documentRepository.findAllOrdered();
+        List<DriveDocument> out = new java.util.ArrayList<>();
+        java.util.ArrayDeque<DriveDocument> stack = new java.util.ArrayDeque<>();
+        stack.push(root);
+        while (!stack.isEmpty()) {
+            DriveDocument cur = stack.pop();
+            out.add(cur);
+            if (cur.isFolder()) {
+                for (DriveDocument d : all) {
+                    if (d.getParent() != null && d.getParent().getId().equals(cur.getId())) stack.push(d);
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 실제 파일을 올려 문서를 만든다. 이름·크기는 올린 파일에서 가져오므로 따로 받지 않는다.
+     * (기존 {@link #create} 는 파일 없이 항목만 등록하는 경로로 남겨 둔다.)
+     */
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String drive, String uploader) {
+        return upload(file, drive, null, uploader);
+    }
+
+    /** 폴더 안에 올리면 그 폴더의 드라이브를 따른다. */
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader) {
+        return upload(file, drive, parentId, uploader, null);
+    }
+
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader, String ip) {
+        return upload(file, drive, parentId, uploader, ip, false);
+    }
+
+    /**
+     * 원본(2026-10-14 loginaa My Drive 에 QA 파일 하나 올려 잼): [버전/이력] 에 행위 '파일업로드' · 크기 '0KB' · 작업자 'GUEST' ·
+     * 위치 <b>'My Drive'</b> 한 줄. 폴더 [생성] 은 맨 위면 위치가 빈칸인데 파일 올리기는 드라이브 이름이 찍힌다.
+     * <p>2026-10-20 다시 잼: 폴더 안에 올리면 위치가 <b>'My Drive/QA그룹웨어-폴더'</b>(드라이브 이름 + 폴더 길)이고, 그 폴더 줄의
+     * 최종수정일자가 올린 시각으로 바뀐다. 같은 곳에 같은 이름의 파일이 있으면 '동일한 이름의 파일이 존재합니다. 덮어 씌우겠습니까?'
+     * 를 묻고 [확인] 이면 <b>같은 줄</b>의 파일 · 크기 · 최종수정일자만 바뀌고 이력에 '파일업로드' 줄이 하나 더 생긴다
+     * ([버전관리] 창이 그 줄들을 판 차례로 보여 준다). 묻는 것은 화면이 하므로, overwrite 없이 겹치면 409.
+     */
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader, String ip, boolean overwrite) {
+        DriveDocument parent = parentId != null ? getDoc(parentId) : null;
+        if (parent != null && !parent.isFolder()) throw ApiException.badRequest("폴더 안에만 올릴 수 있습니다.");
+        if (parent != null) drive = parent.getDrive();
+        String driveKey = "SHARED".equalsIgnoreCase(drive) ? "SHARED" : "MY";
+        String orig = file.getOriginalFilename() != null ? file.getOriginalFilename().replace('\\', '/') : "";
+        String name = orig.substring(orig.lastIndexOf('/') + 1);   // 저장소가 붙이는 이름(FileStorageService.safeName)과 같게
+        DriveDocument same = documentRepository.findAllOrdered().stream()
+                .filter(d -> !d.isFolder() && !d.isTrashed() && driveKey.equalsIgnoreCase(d.getDrive()))
+                .filter(d -> java.util.Objects.equals(d.getParent() != null ? d.getParent().getId() : null, parentId))
+                .filter(d -> d.getName().equals(name))
+                .findFirst().orElse(null);
+        if (same != null && !overwrite) throw ApiException.conflict("동일한 이름의 파일이 존재합니다.");
+        StoredFile stored = fileStorage.store(file, uploader);
+        /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
+        stored.setOwnerCode("GROUPWARE");
+        String root = "SHARED".equals(driveKey) ? "Shared Drive" : "My Drive";
+        if (same != null) {
+            Long oldFileId = same.getFile() != null ? same.getFile().getId() : null;
+            same.setFile(stored);
+            same.setSizeBytes(stored.getSizeBytes());
+            documentRepository.saveAndFlush(same);
+            if (parent != null) documentRepository.touch(parent.getId(), same.getUpdatedAt());
+            if (oldFileId != null) fileStorage.delete(oldFileId);
+            historyRepository.save(DriveHistory.builder()
+                    .document(same).action("파일업로드").name(same.getName()).sizeBytes(same.getSizeBytes())
+                    .actor(uploader).ip(ip).location(root + folderPath(parent)).build());
+            return DocumentResponse.from(same);
+        }
+        DriveDocument doc = DriveDocument.builder()
+                .name(stored.getName())
+                .drive("SHARED".equalsIgnoreCase(drive) ? "SHARED" : "MY")
+                .sizeBytes(stored.getSizeBytes())
+                .uploader(uploader)
+                .file(stored)
+                .important(false)
+                .trashed(false)
+                .parent(parent)
+                .build();
+        documentRepository.save(doc);
+        if (parent != null) documentRepository.touch(parent.getId(), doc.getUpdatedAt());   // 폴더 줄 = 올린 시각
+        historyRepository.save(DriveHistory.builder()
+                .document(doc).action("파일업로드").name(doc.getName()).sizeBytes(doc.getSizeBytes())
+                .actor(uploader).ip(ip)
+                .location(root + folderPath(parent))
+                .build());
+        return DocumentResponse.from(doc);
+    }
+
+    /** 다운로드할 파일 id. 파일 없이 등록만 된 항목이면 400. */
+    @Transactional(readOnly = true)
+    public Long fileIdOf(Long id) {
+        DriveDocument doc = getDoc(id);
+        if (doc.getFile() == null) {
+            throw ApiException.badRequest("이 항목에는 실제 파일이 없습니다(메타데이터만 등록됨).");
+        }
+        return doc.getFile().getId();
+    }
+
+    /** 문서를 지우면 붙어 있던 파일도 함께 지운다 — 참조가 사라진 바이트를 남겨둘 이유가 없다. */
+    @Transactional
+    public void delete(Long id) {
+        /* 폴더면 안에 든 것부터(자식 → 부모 차례로) 지운다 — parent_id 외래키가 걸려 있다. */
+        List<DriveDocument> targets = withChildren(getDoc(id));
+        java.util.Collections.reverse(targets);
+        for (DriveDocument doc : targets) {
+            Long fileId = doc.getFile() != null ? doc.getFile().getId() : null;
+            documentRepository.delete(doc);
+            documentRepository.flush();
+            if (fileId != null) {
+                fileStorage.delete(fileId);
+            }
+        }
+    }
+
+    private DriveDocument getDoc(Long id) {
+        return documentRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("문서를 찾을 수 없습니다. id=" + id));
+    }
+}

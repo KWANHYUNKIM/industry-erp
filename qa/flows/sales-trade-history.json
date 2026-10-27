@@ -1,0 +1,98 @@
+{
+  "about": "거래이력조회(재고) E040716 · 판매 수정 창 [H] · [최종이력] (원본 2026-10-21 loginaa 실측: 판매 2026/10/21 -5 신규 → 수정 → 삭제 뒤 거래이력조회 [메뉴] 판매 · 최종이력만 끔 → 같은 전표 세 줄 삭제 · 수정 · 신규(늦은 작업부터), 최종이력만 켬 → 삭제 한 줄. 열 작업일자 · 전표번호 · 행위 · 거래처코드 · 거래처명 · 품목명 · 담당자코드 · 담당자명 · 작업자 · 전표상태 · 이력(H). 메뉴를 비우고 [검색(F8)] 하면 메뉴 칸만 빨갛고 격자 없음. 수정 창 [H] '이력' 창 머리 [20261021-5] · '거래이력' 격자(작업자ID · 작업일시(요일) · 전표상태 · 진행상태 · 행위) · 보안이력 · 발송이력, [최종이력] 한 줄 '2026/10/21 (수) 오후 1:48:49 [GUEST]'). 판매할 재고는 구매(API)로 넣고 끝에 지운다. 같은 날 지운 전표 번호가 다시 쓰이면 같은 전표번호 줄이 더 있다(우리는 전표 id 로 묶어 [H] 에는 안 섞임) — 그래서 앞 세 줄만 본다. node qa/shot.mjs qa/flows/sales-trade-history.json",
+  "shots": [
+    {
+      "name": "준비 — QAJ1P · QAJ1-Z12 · 재고 5 구매(API)",
+      "path": "/sales/sell",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); let p = (await g('/api/partners')).find((x) => x.code === 'QAJ1P'); if (!p) p = await (await fetch('/api/partners', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAJ1P', name: 'QA재고1-거래처', type: 'BOTH' }) })).json(); let it = (await g('/api/items')).find((x) => x.code === 'QAJ1-Z12'); if (!it) it = await (await fetch('/api/items', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAJ1-Z12', name: 'QA재고1-특가', category: 'MERCHANDISE', unitPrice: 0, safetyStock: 0 }) })).json(); const wh = (await g('/api/warehouses')).find((x) => x.code === 'WH-01'); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const r = await (await fetch('/api/purchases', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, warehouseId: wh.id, purchaseDate: d, taxable: true, remark: 'QA재고1 이력흐름 재고', lines: [{ itemId: it.id, quantity: 5, unitPrice: 200 }] }) })).json(); return r.id })()"
+      ]
+    },
+    {
+      "name": "판매조회 [신규(F2)] 창 — 1 × 1,000 저장",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:2000",
+        "js:(() => { window.__dlg = () => document.querySelector('[role=dialog]'); window.confirm = () => true; return true })()",
+        "click:신규(F2)",
+        "wait:800",
+        "clicklast:거래처 코드도움",
+        "pickrow:QAJ1P",
+        "clicklast:출하창고 코드도움",
+        "pickrow:WH-01",
+        "js:window.__dlg().querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QAJ1-Z12",
+        "wait:500",
+        "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1000",
+        "set:[role=dialog] input[placeholder=\"전표 적요\"]|QA재고1 이력흐름",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
+        "wait:2000",
+        "expect:!window.__dlg()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => x.remark === 'QA재고1 이력흐름').sort((a, b) => b.id - a.id)[0]; const no = s.docNo.match(/SO-([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); sessionStorage.setItem('sth', JSON.stringify({ label: `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`, head: `[${no[1]}${no[2]}${no[3]}-${Number(no[4])}]` })); return s.docNo })()"
+      ]
+    },
+    {
+      "name": "수정 창 수량 2 저장 → 다시 열어 [H] '이력'(신규 · 수정) · [최종이력] 한 줄 → [삭제]",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('sth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('sth')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-특가')); window.__dlg = () => document.querySelector('[role=dialog][aria-label=\"판매입력(수정)\"]'); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; window.__row().querySelector('button.ec-link').click(); return true })()",
+        "wait:1000",
+        "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
+        "wait:2000",
+        "expect:!window.__dlg() && window.__row().innerText.includes('2,200')",
+        "js:window.__row().querySelector('button.ec-link').click(); true",
+        "wait:1000",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === 'H').click(); true",
+        "wait:1000",
+        "expect:(() => { const d = document.querySelector('[role=dialog][aria-label=\"이력\"]'); const S = JSON.parse(sessionStorage.getItem('sth')); const t = d.innerText; return t.includes(S.head) && t.includes('거래이력') && t.includes('보안이력') && t.includes('발송이력') && [...d.querySelectorAll('table')[0].querySelectorAll('thead th')].map((x) => x.textContent).join('|') === '|작업자ID|작업일시|전표상태|진행상태|행위' && [...d.querySelectorAll('table')[0].querySelectorAll('tbody tr')].map((r) => r.cells[5].textContent).join('|') === '신규|수정' && /\\d{4}\\/\\d{2}\\/\\d{2} \\(.\\) 오[전후] \\d+:\\d{2}:\\d{2}/.test(t) })()",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"이력\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:300",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '최종이력').click(); true",
+        "wait:1000",
+        "expect:/^\\d{4}\\/\\d{2}\\/\\d{2} \\(.\\) 오[전후] \\d+:\\d{2}:\\d{2} \\[[A-Z0-9_]+\\]$/.test(document.querySelector('[role=dialog][aria-label=\"최종이력\"] .text-center').textContent.trim())",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"최종이력\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:300",
+        "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); true",
+        "wait:2500",
+        "expect:window.__msgs.includes('전표를 삭제하겠습니까?\\n - 판매') && !window.__row()"
+      ]
+    },
+    {
+      "name": "거래이력조회(재고) — 메뉴 빈 채 [검색(F8)] 메뉴 칸만 빨강 · 격자 없음, 메뉴 판매 · 최종이력만 끔 → 삭제 · 수정 · 신규 세 줄, [H] 창 세 줄",
+      "path": "/sales/trade-history",
+      "steps": [
+        "wait:1500",
+        "click:검색(F8)",
+        "expect:!!document.querySelector('.ec-invalid') && ![...document.querySelectorAll('th')].some((t) => t.textContent === '전표번호')",
+        "click:메뉴 선택",
+        "pickrow:판매",
+        "set:input[placeholder=\"작업자\"]|admin",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.includes('최종이력만')).querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent).join('|') === '작업일자|전표번호|행위|거래처코드|거래처명|품목명|담당자코드|담당자명|작업자|전표상태|이력'",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('sth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('sth')); const rs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P'); return rs.slice(0, 3).map((r) => r.cells[2].textContent).join('|') === '삭제|수정|신규' && rs.every((r) => r.cells[5].textContent.startsWith('QA재고1-') && r.cells[10].textContent === 'H') })()",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('sth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('sth')); [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P').querySelector('a').click(); return true })()",
+        "wait:1000",
+        "expect:(() => { const d = document.querySelector('[role=dialog][aria-label=\"이력\"]'); const S = JSON.parse(sessionStorage.getItem('sth')); return d.innerText.includes('[' + S.label + ']') && [...d.querySelectorAll('tbody tr')].map((r) => r.cells[5].textContent).join('|') === '신규|수정|삭제' })()",
+        "js:[...document.querySelector('[role=dialog][aria-label=\"이력\"]').querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "click:Search(F3)",
+        "wait:500",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.includes('최종이력만')).querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('sth')); for (let n = 1; n <= 12; n++) { if ([...document.querySelectorAll('tbody tr')].some((t) => t.cells[1]?.textContent === S.label)) return true; const b = [...document.querySelectorAll('nav.ec-paging button')].find((x) => x.textContent === String(n + 1)); if (!b) break; b.click(); await new Promise((r) => setTimeout(r, 300)) } return true })()",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('sth')); const rs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[1]?.textContent === S.label && t.cells[3]?.textContent === 'QAJ1P'); return rs.length >= 1 && rs.every((r) => r.cells[2].textContent === '삭제') })()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const left = (await (await fetch('/api/sales', { headers: H })).json()).filter((x) => x.remark === 'QA재고1 이력흐름'); for (const s of left) await fetch('/api/sales/' + s.id, { method: 'DELETE', headers: H }); for (const pu of (await (await fetch('/api/purchases', { headers: H })).json()).filter((x) => x.remark === 'QA재고1 이력흐름 재고')) await fetch('/api/purchases/' + pu.id, { method: 'DELETE', headers: H }); return left.length })()"
+  ]
+}

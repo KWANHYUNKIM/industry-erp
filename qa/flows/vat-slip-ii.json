@@ -1,0 +1,43 @@
+{
+  "about": "매출전표 I · 매입전표 I 수정 창 [매출전표II로 변경] · [매입전표II로 변경](원본 C000011 2026-10-22 실측): 확인 없이 그 전표를 II 종류로 바꾸고 창을 닫아 회계거래조회로 — 종류 이름 '매출전표 II' · '매입전표 II'. 만든 전표는 지운다.",
+  "shots": [
+    {
+      "name": "매출전표 I 수정 창 — [매출전표II로 변경] 확인 없이 매출전표 II 로, 창 닫고 회계거래조회로",
+      "path": "/accounting/sales-slip",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = await A('GET', '/accounts'); const a = (c) => acc.find((x) => x.code === c).id; const ps = await A('GET', '/partners'); const cus = ps.find((p) => p.code === 'CUST-001'); const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); sessionStorage.setItem('v2Day', ymd); const e = await A('POST', '/journals/vat-slip', { sales: true, entryDate: ymd, vatType: '세금계산서', partnerId: cus.id, supplyAmount: 5000, vatAmount: 500, description: 'QA회계1 II변경', accountId: a('4049'), settleAccountId: a('1089'), eInvoiceKind: '전자(세금)계산서-신규' }); sessionStorage.setItem('v2Id', e.id); history.pushState(null, '', '/accounting/sales-slip?journal=' + e.id); dispatchEvent(new PopStateEvent('popstate')); return e.id })()",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '매출전표II로 변경')",
+        "click:매출전표II로 변경",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/journals' && !document.querySelector('[role=dialog]')",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = sessionStorage.getItem('v2Day'); const r = await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H }).then((x) => x.json()); const e = r.rows.find((x) => String(x.id) === sessionStorage.getItem('v2Id')); return !!e && e.sourceType === 'VAT_SALES_II' && Number(e.totalDebit) === 5500 })()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => /매출전표 II\\s+5,500/.test(t.innerText))",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/journals/' + sessionStorage.getItem('v2Id'), { method: 'DELETE', headers: H }); return r.status })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = sessionStorage.getItem('v2Day'); const r = await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H }).then((x) => x.json()); return !r.rows.some((x) => String(x.id) === sessionStorage.getItem('v2Id')) })()"
+      ]
+    },
+    {
+      "name": "매입전표 I 수정 창 — [매입전표II로 변경] 확인 없이 매입전표 II 로, 창 닫고 회계거래조회로",
+      "path": "/accounting/purchase-slip",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = await A('GET', '/accounts'); const a = (c) => acc.find((x) => x.code === c).id; const ps = await A('GET', '/partners'); const cus = ps.find((p) => p.code === 'SUPP-001'); const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); sessionStorage.setItem('v2Day', ymd); const e = await A('POST', '/journals/vat-slip', { sales: false, entryDate: ymd, vatType: '세금계산서', partnerId: cus.id, supplyAmount: 5000, vatAmount: 500, description: 'QA회계1 II변경', accountId: a('1539'), settleAccountId: a('2519'), eInvoiceKind: '전자(세금)계산서-신규' }); sessionStorage.setItem('v2Id', e.id); history.pushState(null, '', '/accounting/purchase-slip?journal=' + e.id); dispatchEvent(new PopStateEvent('popstate')); return e.id })()",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '매입전표II로 변경')",
+        "click:매입전표II로 변경",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/journals' && !document.querySelector('[role=dialog]')",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = sessionStorage.getItem('v2Day'); const r = await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H }).then((x) => x.json()); const e = r.rows.find((x) => String(x.id) === sessionStorage.getItem('v2Id')); return !!e && e.sourceType === 'VAT_PURCHASE_II' && Number(e.totalDebit) === 5500 })()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => /매입전표 II\\s+5,500/.test(t.innerText))",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/journals/' + sessionStorage.getItem('v2Id'), { method: 'DELETE', headers: H }); return r.status })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const day = sessionStorage.getItem('v2Day'); const r = await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H }).then((x) => x.json()); return !r.rows.some((x) => String(x.id) === sessionStorage.getItem('v2Id')) })()"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "about": "판매단가일괄변경(원본 E040224 2026-10-20 실측) — 조건 판만 펴고 시작(격자 없음, 하단 [검색(F8)] · [다시 작성]) → [검색(F8)] 하면 판이 접히고 머리 Search(F3), 하단은 [저장(F8)] 하나 · 일자-No. '2026/10/20 -N' · 합계줄 없음 → 판매 2 × 300 의 단가를 350 으로 → [저장(F8)] 확인 창 '일괄수정에서는 아래의 사항을 확인바랍니다. …변경하겠습니까?' → 말 없이 700 · 70 → 판매조회 금액합계 770(원본 (사)경남주류협회 L001 2 × 300 → 350 = 770 과 같음) → 고친 것 없이 [저장(F8)] '변경된정보가 없습니다.'. 재고 2 구매 · 판매는 API 로 넣고 끝에 지운다. node qa/shot.mjs qa/flows/sales-price-bulk.json",
+  "shots": [
+    {
+      "name": "준비 — QAJ1P · QAJ1-Z12 (없으면 만든다) · 재고 2 구매 · 판매 2 × 300 (API)",
+      "path": "/sales/sales-price-bulk",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const post = async (u, b) => (await fetch(u, { method: 'POST', headers: H, body: JSON.stringify(b) })).json(); let p = (await g('/api/partners')).find((x) => x.code === 'QAJ1P'); if (!p) p = await post('/api/partners', { code: 'QAJ1P', name: 'QA재고1-거래처', type: 'BOTH' }); let it = (await g('/api/items')).find((x) => x.code === 'QAJ1-Z12'); if (!it) it = await post('/api/items', { code: 'QAJ1-Z12', name: 'QA재고1-특가', category: 'MERCHANDISE', unitPrice: 0, safetyStock: 0 }); const wh = (await g('/api/warehouses')).find((x) => x.code === 'WH-01'); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const pu = await post('/api/purchases', { partnerId: p.id, warehouseId: wh.id, purchaseDate: d, taxable: true, remark: 'QA재고1 단가일괄 재고', lines: [{ itemId: it.id, quantity: 2, unitPrice: 200 }] }); const sa = await post('/api/sales', { saleDate: d, partnerId: p.id, warehouseId: wh.id, remark: 'QA재고1 단가일괄', lines: [{ itemId: it.id, quantity: 2, unitPrice: 300 }] }); sessionStorage.setItem('spb', JSON.stringify({ purchaseId: pu.id, saleId: sa.id, label: d.replace(/-/g, '/') + ' -' + Number(sa.docNo.split('-').pop()) })); return sa.docNo })()"
+      ]
+    },
+    {
+      "name": "판 펴고 시작 → [검색(F8)] → 단가 350 → [저장(F8)] 확인 창 → 700 · 70 → 고친 것 없이 저장 '변경된정보가 없습니다.'",
+      "path": "/sales/sales-price-bulk",
+      "steps": [
+        "wait:1500",
+        "expect:!document.querySelector('.ec-frame table, main table') && [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '다시 작성')",
+        "click:검색(F8)",
+        "wait:2500",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('spb')); window.__row = () => [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.textContent.trim() === S.label && t.innerText.includes('QA재고1-거래처')); window.__msgs = []; window.confirm = (m) => { window.__msgs.push(m); return true }; return !!window.__row() })()",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Search(F3)') && ![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '다시 작성') && !document.querySelector('tfoot')",
+        "expect:/\\s600\\s+60\\s/.test(window.__row().innerText) && window.__row().querySelector('input').value === '300'",
+        "js:(() => { const el = window.__row().querySelector('input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '350'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:window.__msgs.some((m) => m.startsWith('일괄수정에서는 아래의 사항을 확인바랍니다.') && m.endsWith('변경하겠습니까?'))",
+        "expect:/\\s700\\s+70\\s/.test(window.__row().innerText) && window.__row().querySelector('input').value === '350'",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('spb')); const s = (await (await fetch('/api/sales', { headers: H })).json()).find((x) => x.id === S.saleId); return Number(s.supplyAmount) === 700 && Number(s.vatAmount) === 70 && Number(s.totalAmount) === 770 })()",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:document.body.innerText.includes('변경된정보가 없습니다.')"
+      ]
+    },
+    {
+      "name": "판매조회 금액합계 770 → 뒷정리(판매 · 구매 지움)",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:2500",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('spb')); const r = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(S.label) && t.innerText.includes('QA재고1-거래처')); return !!r && r.cells[4].textContent.trim() === '770' })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('spb')); const a = await fetch('/api/sales/' + S.saleId, { method: 'DELETE', headers: H }); const b = await fetch('/api/purchases/' + S.purchaseId, { method: 'DELETE', headers: H }); return a.ok && b.ok })()"
+      ]
+    }
+  ]
+}

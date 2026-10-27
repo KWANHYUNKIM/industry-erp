@@ -1,0 +1,53 @@
+{
+  "about": "관리 > 수당/공제그룹등록(E090104) — 원본처럼 그룹코드가 미리 채워진 창에서 그룹명 · 수당 줄(식대)을 넣어 저장하고, [사원 등록] 창에서 사원과 지급율(%)을 매긴다(지급률을 비우고 저장하면 원본처럼 그 칸만 빨갛고 '데이터를 입력하기 바랍니다'). 목록의 사원 칸은 넣은 뒤에도 원본처럼 '등록'. 적용사원이 남은 그룹은 원본처럼 지워지지 않고(409) 사원을 뺀 뒤에 지워진다. 그 사원의 급여명세를 그룹 없이 만들면 식대가 지급율만큼 들어와야 한다. 만든 명세 · 그룹은 지운다.",
+  "shots": [
+    {
+      "name": "그룹 저장 → 적용사원 50% → 급여명세에 식대 절반",
+      "path": "/hr/pay-groups",
+      "steps": [
+        "allowapi:409: /api/pay-settings/groups/",
+        "click:신규(F2)",
+        "wait:600",
+        "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='정렬').click();true",
+        "wait:300",
+        "expect:document.querySelectorAll('select[aria-label^=정렬기준]').length===3&&document.body.innerText.includes('정렬방법')&&document.body.innerText.includes('오름차순')&&[...document.querySelector('select[aria-label=정렬기준1]').options].map(o=>o.text).join()==='구분,항목코드,항목명,표시순서,단위,내역'",
+        "clicklast:닫기",
+        "wait:300",
+        "set:[role=dialog] input[placeholder=\"수당/공제그룹명\"]|QA관리-화면시험그룹",
+        "choose:[role=dialog] table select#0|MEAL",
+        "set:[role=dialog] table input.ec-input#0|200000",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:!document.querySelector('[role=dialog]') && /QA관리-화면시험그룹\\s+등록/.test(document.querySelector('table').innerText)",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-화면시험그룹'));tr.querySelector('td:last-child a').click();return true})()",
+        "wait:800",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='Option').click();true",
+        "wait:200",
+        "expect:[...document.querySelectorAll('.ec-menu button')].some(b=>b.textContent.trim()==='입력화면설정')",
+        "js:document.querySelector('.ec-backdrop-clear').click();true",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='웹자료올리기').click();true",
+        "wait:300",
+        "expect:document.body.innerText.includes('엑셀서식내려받기로 다운로드한 엑셀에')&&document.body.innerText.includes('자료올리기 항목추가')",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const ins=[...d.querySelectorAll('table tbody input')];const vals=['99999','EMP-0004','50'];ins.slice(0,3).forEach((el,k)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,vals[k]);el.dispatchEvent(new Event('input',{bubbles:true}))});return true})()",
+        "wait:200",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find(b=>b.textContent.trim().startsWith('저장(F8)')).click();true",
+        "wait:800",
+        "expect:(()=>{const t=document.body.innerText;return t.includes('구분')&&t.includes('1행')&&t.includes('수당/공제그룹(미등록코드[99999])')&&t.includes('[0] 수당/공제그룹(미등록코드[99999])')})()",
+        "clicklast:닫기",
+        "clicklast:닫기",
+        "wait:300",
+        "choose:[role=dialog] table select#0|EMP-0004 정수진",
+        "clicklast:저장(F8)",
+        "wait:800",
+        "expect:!!document.querySelector('[role=dialog]') && /데이터를 입력하기 바랍니다/.test(document.querySelector('[role=dialog] td.ec-invalid').innerText)",
+        "set:[role=dialog] table input.ec-input#0|50",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-화면시험그룹') && /등록/.test(t.innerText) && t.querySelector('td:last-child span[title=\"1명\"]'))",
+        "js:(async()=>{const ok=await (async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0004');const r=await fetch('/api/payslips',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,payMonth:'2091-01'})});const p=await r.json();const meal=(p.lines||[]).find(l=>l.name==='식대');await fetch('/api/payslips/'+p.id,{method:'DELETE',headers:h});const gs=await (await fetch('/api/pay-settings/groups',{headers:h})).json();const g=gs.find(x=>x.name==='QA관리-화면시험그룹');const blocked=await fetch('/api/pay-settings/groups/'+g.id,{method:'DELETE',headers:h});await fetch('/api/pay-settings/groups/'+g.id+'/employees',{method:'PUT',headers:h,body:'[]'});const gone=await fetch('/api/pay-settings/groups/'+g.id,{method:'DELETE',headers:h});if(blocked.status!==409||!gone.ok)return false;return r.ok&&!!meal&&Number(meal.amount)===100000})();sessionStorage.setItem('qaPg0',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPg0')==='true'"
+      ]
+    }
+  ]
+}

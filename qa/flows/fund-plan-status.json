@@ -1,0 +1,29 @@
+{
+  "about": "회계 II 계획전표현황(E020523) — 오늘 날짜로 출금 · 예금 30,000 · 입금 · 어음 50,000 계획전표를 API 로 넣으면 캘린더 오늘 칸에 '예금(현금)감소 30 · 받을어음증가 50'(천단위), 구분을 현황으로 바꾸면 두 줄 '자금' · 계 80,000. 원본 2026-10-12 실측과 같다. 만든 장은 API 로 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 계획전표 둘(API)",
+      "path": "/accounting/fund-plans/status",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(() => { const d = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const tag = 'QA회계2 현황' + Date.now(); sessionStorage.setItem('fptag', tag); return Promise.all([window.__api('POST', '/fund-plans', { direction: 'OUT', planDate: d, method: 'DEPOSIT', amount: 30000, memo: tag }), window.__api('POST', '/fund-plans', { direction: 'IN', planDate: d, method: 'NOTE', amount: 50000, memo: tag })]).then((rs) => { sessionStorage.setItem('fpids', JSON.stringify(rs.map((r) => r.body.id))); return rs.map((r) => r.status).join(',') }) })()",
+        "expect:JSON.parse(sessionStorage.getItem('fpids') || '[]').length === 2"
+      ]
+    },
+    {
+      "name": "캘린더 → 현황",
+      "path": "/accounting/fund-plans/status",
+      "steps": [
+        "wait:1200",
+        "expect:(() => { const t = [...document.querySelectorAll('td.bg-ec-blue-wash')][0]; return !!t && t.innerText.includes('예금(현금)감소') && t.innerText.includes('받을어음증가') && /감소\\s*\\n?\\s*\\d/.test(t.innerText) })()",
+        "choose:select[aria-label=\"구분\"]|현황",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes(sessionStorage.getItem('fptag'))).length === 2 && [...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes(sessionStorage.getItem('fptag'))).every((t) => t.innerText.includes('자금'))",
+        "set:input[placeholder=\"적요\"]|QA회계2 현황",
+        "wait:300",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status })); window.__api('POST', '/fund-plans/delete', { ids: JSON.parse(sessionStorage.getItem('fpids')) }).then((r) => r.status)",
+        "wait:500"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "about": "업무일지 신규 — 필수칸(원본 E070304, 2026-10-14 실측): 부서 · 제목을 비운 채 [저장(F8)] 하면 저장하지 않고 두 칸만 빨갛게 두른다(문구 없음, 원본 .has-error > .validation). 제목만 채우면 부서만 남는다. 저장은 하지 않는다. node qa/shot.mjs qa/flows/worklog-required.json",
+  "shots": [
+    {
+      "name": "빈 부서 · 제목 → 두 칸 빨강",
+      "path": "/groupware/worklog",
+      "steps": [
+        "wait:800",
+        "click:검색(F8)",
+        "wait:800",
+        "click:신규(F2)",
+        "wait:300",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:(() => { const f = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"]'); return !!f && f.querySelectorAll('.ec-invalid').length === 2 && !/입력하세요/.test(f.innerText) })()",
+        "expect:getComputedStyle(document.querySelector('.ec-invalid'), '::after').borderTopColor === 'rgb(215, 62, 62)'",
+        "setnear:제목|QA그룹웨어-필수",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:(() => { const f = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"]'); return !!f && f.querySelectorAll('.ec-invalid').length === 1 })()",
+        "click:닫기"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+ALTER TABLE sales ALTER COLUMN partner_id DROP NOT NULL;

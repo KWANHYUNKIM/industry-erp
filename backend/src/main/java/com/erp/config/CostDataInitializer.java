@@ -1,9 +1,9 @@
 package com.erp.config;
 
-import com.erp.inventory.domain.Item;
-import com.erp.accounting.domain.ItemCost;
-import com.erp.accounting.repository.ItemCostRepository;
-import com.erp.inventory.repository.ItemRepository;
+import com.erp.inventory.item.Item;
+import com.erp.accounting.cost.ItemCost;
+import com.erp.accounting.cost.ItemCostRepository;
+import com.erp.inventory.item.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

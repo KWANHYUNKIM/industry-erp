@@ -1,0 +1,92 @@
+{
+  "about": "출/퇴근(ID) 다섯(원본 E070305 · E070306 · E070307 · E070309 · E070315) — 기록부 날짜 칸 → '출/퇴근기록부' 창(장소 '사무실' · ☐외근 · 시 · 분 · ☐오전반차설정 · 사유 · [출근][닫기]) → 출근 09:10 → 같은 칸 [퇴근] 18:10 → 출/퇴근현황(ID) · 지각현황(ID) · 일별근무시간(ID) · 출퇴근/근태/일정현황(ID) 숫자 → 지움. admin 의 2026-10-06 기록만 쓴다. node qa/shot.mjs qa/flows/attendance-id.json",
+  "shots": [
+    {
+      "name": "기록부 칸 → 출근 09:10 → 퇴근 18:10",
+      "path": "/groupware/attendance",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const list = await (await fetch('/api/attendances?from=2026-10-06&to=2026-10-06', { headers: H })).json(); const mine = list.filter((a) => a.username === 'admin'); for (const a of mine) await fetch('/api/hr/attendance/' + a.id, { method: 'DELETE', headers: H }); return 'QA 기록 지움 ' + mine.length })()",
+        "set:select[aria-label=연]|2026",
+        "set:select[aria-label=월]|10",
+        "expect:![...document.querySelectorAll('button')].some((b) => ['Excel', '인쇄', '출근하기', '퇴근하기'].includes(b.textContent.trim())) && !document.body.innerText.includes('오늘 근무')",
+        "js:document.querySelector(\"td[data-date='2026-10-06']\").click(); true",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '출/퇴근기록부'",
+        "expect:document.querySelector('[role=dialog] input[aria-label=장소]').value === '사무실' && document.querySelector('[role=dialog]').innerText.includes('외근') && document.querySelector('[role=dialog]').innerText.includes('오전반차설정') && document.querySelector('[role=dialog]').innerText.includes('2026/10/06')",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].map((b) => b.textContent.trim()).filter((t) => t !== '✕').join(',') === '출근,닫기'",
+        "set:select[aria-label=시]|9",
+        "set:select[aria-label=분]|10",
+        "set:input[aria-label=사유]|QA그룹웨어 지각",
+        "click:출근",
+        "expect:!document.querySelector('[role=dialog]') && document.querySelector(\"td[data-date='2026-10-06']\").innerText.includes('09:10~--:--') && !!document.querySelector(\"td[data-date='2026-10-06'] .text-ec-danger\")",
+        "js:document.querySelector(\"td[data-date='2026-10-06']\").click(); true",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent.trim() === '퇴근')",
+        "set:select[aria-label=시]|18",
+        "set:select[aria-label=분]|10",
+        "click:퇴근",
+        "expect:document.querySelector(\"td[data-date='2026-10-06']\")?.innerText.includes('09:10~18:10 (8시간 0분)')",
+        "js:document.querySelector(\"td[data-date='2026-10-06']\").click(); true",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].map((b) => b.textContent.trim()).filter((t) => t !== '✕').join(',') === '닫기'",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "출/퇴근현황(ID) — 일자 · 사원명 · 출근 · 퇴근 · 근무시간(시간단위)",
+      "path": "/groupware/attendance-status",
+      "steps": [
+        "set:input[aria-label='기간 부터']|2026-10-06",
+        "set:input[aria-label='기간 까지']|2026-10-06",
+        "set:input[aria-label=사원명]|시스템 관리자",
+        "click:검색(F8)",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '2026/10/06' && tr.cells[1]?.innerText.trim() === '시스템 관리자')?.innerText.replace(/\\s+/g, ' ').trim() === '2026/10/06 시스템 관리자 09:10 18:10 8.00'"
+      ]
+    },
+    {
+      "name": "지각현황(ID) — 09:10 출근 · 입력시간 · 적요",
+      "path": "/groupware/attendance-late",
+      "steps": [
+        "set:input[aria-label='기간 부터']|2026-10-06",
+        "set:input[aria-label='기간 까지']|2026-10-06",
+        "set:input[aria-label=사원명]|시스템 관리자",
+        "click:검색(F8)",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '2026/10/06' && tr.cells[1]?.innerText.trim() === '시스템 관리자')?.cells[2].innerText.trim() === '09:10'",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '2026/10/06' && tr.cells[1]?.innerText.trim() === '시스템 관리자')?.cells[4].innerText.trim() === 'QA그룹웨어 지각'",
+        "expect:/^\\d{4}\\/\\d{2}\\/\\d{2} \\d{2}:\\d{2}:\\d{2}$/.test([...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '2026/10/06' && tr.cells[1]?.innerText.trim() === '시스템 관리자')?.cells[3].innerText.trim())"
+      ]
+    },
+    {
+      "name": "일별근무시간(ID) — 480분 · 표준 480 · 차이 0",
+      "path": "/groupware/daily-hours",
+      "steps": [
+        "set:input[aria-label='기간 부터']|2026-10-06",
+        "set:input[aria-label='기간 까지']|2026-10-06",
+        "set:input[aria-label=사원명]|시스템 관리자",
+        "click:검색(F8)",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '2026/10/06' && tr.cells[1]?.innerText.trim() === '시스템 관리자')?.innerText.replace(/\\s+/g, ' ').trim() === '2026/10/06 시스템 관리자 8.00 480 8.00 480 0.00 0'"
+      ]
+    },
+    {
+      "name": "출퇴근/근태/일정현황(ID) — 사람마다 한 줄",
+      "path": "/groupware/work-integrated",
+      "steps": [
+        "set:input[aria-label='기간 부터']|2026-10-06",
+        "set:input[aria-label='기간 까지']|2026-10-06",
+        "set:input[aria-label=사원명]|시스템 관리자",
+        "click:검색(F8)",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '2026/10/06' && tr.cells[1]?.innerText.trim() === '시스템 관리자')?.innerText.replace(/\\s+/g, ' ').trim().startsWith('2026/10/06 시스템 관리자 09:10 18:10 480')",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.innerText.trim() === '2026/10/06' && tr.cells[1]?.innerText.trim() === '시스템 관리자')?.cells[6].innerText.trim() === 'QA그룹웨어 지각'"
+      ]
+    },
+    {
+      "name": "지움 → 현황 비어 있음",
+      "path": "/groupware/attendance-status",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const list = await (await fetch('/api/attendances?from=2026-10-06&to=2026-10-06', { headers: H })).json(); const mine = list.filter((a) => a.username === 'admin'); for (const a of mine) await fetch('/api/hr/attendance/' + a.id, { method: 'DELETE', headers: H }); return 'QA 기록 지움 ' + mine.length })()",
+        "set:input[aria-label='기간 부터']|2026-10-06",
+        "set:input[aria-label='기간 까지']|2026-10-06",
+        "set:input[aria-label=사원명]|시스템 관리자",
+        "click:검색(F8)",
+        "expect:document.querySelector('tbody')?.innerText.trim() === '등록된 데이터가 없습니다.'"
+      ]
+    }
+  ]
+}

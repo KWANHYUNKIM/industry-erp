@@ -1,0 +1,23 @@
+-- 원본 Invoice/Packing List 입력(C000652, 2026-10-04 실측)의 머리 · 품목 줄 칸, 그리고 목록 [미확인/확인] 탭이 거르는 확인여부.
+ALTER TABLE export_orders ADD COLUMN voucher_date date;
+UPDATE export_orders SET voucher_date = invoice_date WHERE voucher_date IS NULL;
+ALTER TABLE export_orders ALTER COLUMN voucher_date SET NOT NULL;
+ALTER TABLE export_orders ADD COLUMN lc_no varchar(50);
+ALTER TABLE export_orders ADD COLUMN lc_date date;
+ALTER TABLE export_orders ADD COLUMN lc_bank varchar(300);
+ALTER TABLE export_orders ADD COLUMN shipper varchar(300);
+ALTER TABLE export_orders ADD COLUMN messrs varchar(300);
+ALTER TABLE export_orders ADD COLUMN notify_party varchar(300);
+ALTER TABLE export_orders ADD COLUMN port_of_loading varchar(100);
+ALTER TABLE export_orders ADD COLUMN carrier varchar(100);
+ALTER TABLE export_orders ADD COLUMN sailing_date date;
+ALTER TABLE export_orders ADD COLUMN weight_unit varchar(20);
+ALTER TABLE export_orders ADD COLUMN confirmed boolean;
+UPDATE export_orders SET confirmed = false WHERE confirmed IS NULL;
+ALTER TABLE export_orders ALTER COLUMN confirmed SET NOT NULL;
+ALTER TABLE export_order_lines ADD COLUMN unit varchar(20);
+ALTER TABLE export_order_lines ADD COLUMN marks varchar(200);
+ALTER TABLE export_order_lines ADD COLUMN description varchar(300);
+ALTER TABLE export_order_lines ADD COLUMN net_weight numeric(18,3);
+ALTER TABLE export_order_lines ADD COLUMN gross_weight numeric(18,3);
+ALTER TABLE export_order_lines ADD COLUMN measurement numeric(18,3);

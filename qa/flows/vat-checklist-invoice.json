@@ -1,0 +1,24 @@
+{
+  "about": "부가세Checklist(원본 E030207) — 계산서(면세)도 센다. 원본 2026-10-13 loginaa: 9/30 매출전표 I 계산서 100,000 두 장 → 1. 부가세매출액 396,450,000 → 396,650,000 · 6. 중복거래 매출에 두 줄(부가세 0), 매입전표 I 계산서 50,000 두 장 → 6. 매입에 두 줄. 직전분기 끝날에 매출 계산서 123,457 두 장 · 매입 계산서 54,321 두 장을 넣고 [검색] → 1. 부가세매출액 +246,914 · 6. 매출 · 매입에 두 줄씩 · (세금)계산서발행/수령 매출 계산서 77,777 두 장(분개 없음 — 원본도 부가세매출액에만 +, 6. 에 두 줄) → 지운다. CDP_PORT=<포트> node qa/shot.mjs qa/flows/vat-checklist-invoice.json",
+  "shots": [
+    {
+      "name": "계산서 두 장씩 → 1. 매출액 · 6. 중복거래",
+      "path": "/accounting/vat/checklist",
+      "steps": [
+        "wait:2500",
+        "js:(() => { window.__sales = () => { const r = [...document.querySelectorAll('tr')].find((t) => /년 \\d+월 ~/.test(t.cells[0]?.innerText ?? '')); return r ? Number(r.cells[1].innerText.replace(/[^0-9-]/g, '')) || 0 : null }; window.__dup = (n) => [...document.querySelectorAll('tr')].filter((t) => t.cells.length === 5 && t.cells[2]?.innerText.trim() === n && t.cells[3]?.innerText.trim() === '0').length; return 'ok' })()",
+        "clicklast:검색(F8)",
+        "wait:3000",
+        "js:(() => { window.__b = window.__sales(); return String(window.__b) })()",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const acc = await (await fetch('/api/accounts', { headers: H })).json(); const id = (c) => acc.find((a) => a.code === c).id; const p = (await (await fetch('/api/partners', { headers: H })).json())[0]; const d = new Date(); const q = Math.floor(d.getMonth() / 3) * 3; const e = new Date(d.getFullYear(), q, 0); const date = e.getFullYear() + '-' + String(e.getMonth() + 1).padStart(2, '0') + '-' + String(e.getDate()).padStart(2, '0'); const ids = []; for (const [sales, sup, a, s] of [[true, 123457, '4049', '1089'], [true, 123457, '4049', '1089'], [false, 54321, '1539', '2519'], [false, 54321, '1539', '2519']]) { const r = await (await fetch('/api/journals/vat-slip', { method: 'POST', headers: H, body: JSON.stringify({ sales, entryDate: date, vatType: '계산서', partnerId: p.id, supplyAmount: sup, vatAmount: 0, description: 'QA세무 Checklist 계산서', accountId: id(a), settleAccountId: id(s) }) })).json(); ids.push(r.id) } const tv = []; for (let i = 0; i < 2; i++) { const r = await (await fetch('/api/tax-vouchers', { method: 'POST', headers: H, body: JSON.stringify({ side: 'SALES', entryDate: date, vatType: '계산서', partnerId: p.id, supplyAmount: 77777, vatAmount: 0, remark: 'QA세무 Checklist 발행/수령' }) })).json(); tv.push(r.id) } sessionStorage.setItem('vcl-ids', JSON.stringify(ids)); sessionStorage.setItem('vcl-tv', JSON.stringify(tv)); return [ids, tv] })()",
+        "clicklast:Search(F3)",
+        "wait:800",
+        "clicklast:검색(F8)",
+        "wait:3000",
+        "expect:window.__sales() - window.__b === 246914 + 155554",
+        "expect:window.__dup('123,457') === 2 && window.__dup('54,321') === 2 && window.__dup('77,777') === 2",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; let ok = true; for (const id of JSON.parse(sessionStorage.getItem('vcl-ids') || '[]')) ok = (await fetch('/api/journals/' + id, { method: 'DELETE', headers: H })).ok && ok; for (const id of JSON.parse(sessionStorage.getItem('vcl-tv') || '[]')) ok = (await fetch('/api/tax-vouchers/' + id, { method: 'DELETE', headers: H })).ok && ok; return ok })()"
+      ]
+    }
+  ]
+}

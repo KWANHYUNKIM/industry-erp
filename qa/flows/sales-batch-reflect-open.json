@@ -1,0 +1,23 @@
+{
+  "about": "판매일괄회계반영(원본 E040215 2026-10-22 실측·재기) 열기 → 조건 이름·기본값(거래유형 선택상자 기본 부가세율 적용 · 거래구분 기타 없음) → [검색(F8)] → 격자 열·합계 줄 · 일부반영 링크. 만드는 자료 없음.",
+  "shots": [
+    {
+      "name": "판매일괄회계반영 조건·열",
+      "path": "/sales/accounting-reflection?view=batch",
+      "steps": [
+        "wait:2500",
+        "expect:document.querySelector('.ec-page-title, h1, h2') && document.body.innerText.includes('판매일괄회계반영')",
+        "expect:['구분','기준일자','창고','거래처','품목','프로젝트','담당자','거래처관리담당자','거래유형','내.외자구분','거래구분','기타','거래처코드없는자료인쇄'].every((t)=>document.body.innerText.includes(t))",
+        "expect:(()=>{const s=document.querySelector('select[aria-label=\"거래유형\"]');return !!s && [...s.options].map((o)=>o.text).join('|')==='전체|부가세율 적용|부가세율 미적용' && s.options[s.selectedIndex].text==='부가세율 적용'})()",
+        "expect:![...document.querySelectorAll('.ec-pill')].some((b)=>b.textContent.trim()==='기타')",
+        "expect:[...document.querySelectorAll('.ec-pill.active')].map((b)=>b.textContent.trim()).join('|').startsWith('거래처별')",
+        "js:(()=>{const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.trim().startsWith('검색(F8)'));b&&b.click();return !!b})()",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|').includes('거래일자|거래처명|거래가액|조정|공급가액|부가세|합계|품목요약|부가세유형|일부반영')",
+        "expect:[...document.querySelectorAll('button')].some((x)=>x.textContent.trim()==='매출전표 I')",
+        "expect:!document.body.innerText.includes('판매No.')",
+        "expect:[...document.querySelectorAll('tbody tr')].every((t)=>t.cells.length<11 || t.cells[10].innerText.trim()==='일부반영')"
+      ]
+    }
+  ]
+}

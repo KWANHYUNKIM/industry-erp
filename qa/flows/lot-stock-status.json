@@ -1,0 +1,24 @@
+{
+  "about": "시리얼/로트No.재고현황(E040619) — 2026-10-13 원본 실측: 출력물 격자 품목코드 · 품목명 · 규격 · 시리얼/로트No. · 유효기한 · 재고수량(소수 둘째 자리), 끝에 합계, 잔량 0 인 로트는 안 찍는다. 시리얼/로트No. 를 누르면 그 로트의 시리얼/로트No.재고수불부 창('회사명 : … / 품목명', '○○ 계', 합계). QA 로트(QA재고2-ST)를 등록(내역 0줄) · 재고조정으로 2 로 맞춰 보고, 끝에 조정 줄 · 로트를 지운다.",
+  "shots": [
+    {
+      "name": "QA 로트 잔량 2 → 격자 2.00 · 합계 · 0 줄 없음 → 로트 눌러 수불부 창 → 조정 줄 · 로트를 지우면 줄이 빠진다",
+      "path": "/quality/lot-stock",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const lots = await (await fetch('/api/lots', { headers: H })).json(); let lot = lots.find((x) => x.lotNo === 'QA재고2-ST'); if (!lot) { const it = await (await fetch('/api/items', { headers: H })).json(); lot = await (await fetch('/api/lots', { method: 'POST', headers: H, body: JSON.stringify({ lotNo: 'QA재고2-ST', itemId: it[0].id }) })).json() } if (Number(lot.stockQty) !== 2) { lot = await (await fetch('/api/lots/' + lot.id + '/adjust', { method: 'PATCH', headers: H, body: JSON.stringify({ actualQty: 2, note: 'QA재고2' }) })).json() } sessionStorage.setItem('stLot', lot.id); return lot.lotNo + ' ' + lot.stockQty })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('table.ec-report thead th')].map((t) => t.innerText.trim()).join('|') === '품목코드|품목명|규격|시리얼/로트No.|유효기한|재고수량'",
+        "expect:[...document.querySelectorAll('table.ec-report tbody tr')].some((tr) => tr.cells[3]?.innerText.trim() === 'QA재고2-ST' && tr.cells[5].innerText.trim() === '2.00')",
+        "expect:![...document.querySelectorAll('table.ec-report tbody tr')].some((tr) => tr.cells[5]?.innerText.trim() === '0.00')",
+        "expect:document.querySelector('table.ec-report tfoot td')?.innerText.trim() === '합계'",
+        "js:(async () => { [...document.querySelectorAll('table.ec-report tbody button')].find((b) => b.innerText.trim() === 'QA재고2-ST').click(); await new Promise((r) => setTimeout(r, 1200)); return 'ok' })()",
+        "expect:(() => { const d = document.querySelector('[role=dialog]'); return !!d && d.innerText.includes('시리얼/로트No.재고수불부') && d.innerText.includes('QA재고2-ST 계') && d.innerText.includes(' / ') })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const id = Number(sessionStorage.getItem('stLot')); const ids = (await (await fetch('/api/lots/transactions', { headers: H })).json()).filter((t) => t.lotId === id).map((t) => t.id); if (ids.length) await fetch('/api/lots/transactions/delete', { method: 'POST', headers: H, body: JSON.stringify({ ids }) }); await fetch('/api/lots/' + id, { method: 'DELETE', headers: H }); location.reload(); return 'ok' })()",
+        "wait:3000",
+        "expect:![...document.querySelectorAll('table.ec-report tbody tr')].some((tr) => tr.cells[3]?.innerText.trim() === 'QA재고2-ST')"
+      ]
+    }
+  ]
+}

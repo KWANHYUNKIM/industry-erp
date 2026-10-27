@@ -1,0 +1,24 @@
+{
+  "about": "품질검사요청입력 [추가수량](E040628) — 2026-10-13 원본 실측: A001 줄에 추가수량 3 → 수량 3, 수량을 5 로 고쳐도 추가수량은 3 그대로, 추가수량 2 → 수량 2. 저장 뒤 다시 열면 추가수량 2 · 수량 2 가 남는다. 합계줄은 추가수량 · 수량 둘 다 찍는다.",
+  "shots": [
+    {
+      "name": "추가수량 2 요청 → 다시 열면 2 · 2 → 추가수량 3 넣으면 수량 3 → 저장 → 서버 3 · 3 → 지움",
+      "path": "/quality/inspection-request",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = (await (await fetch('/api/items', { headers: H })).json()).filter((x) => x.active !== false); const r = await (await fetch('/api/quality-inspection-requests', { method: 'POST', headers: H, body: JSON.stringify({ requester: 'QA재고2', remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'FULL', quantity: 2, extraQty: 2 }] }) })).json(); sessionStorage.setItem('qrx', JSON.stringify({ id: r.id, no: r.requestNo })); return r.requestNo + ' ' + r.lines[0].extraQty })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "js:(async () => { const x = JSON.parse(sessionStorage.getItem('qrx')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA재고2') && t.querySelector('button.ec-link')); [...document.querySelectorAll('tbody tr button.ec-link')].find((b) => b.innerText.endsWith('-' + Number(x.no.split('-').pop()))).click(); await new Promise((r) => setTimeout(r, 800)); return 'ok' })()",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|').includes('규격|추가수량|수량')",
+        "expect:document.querySelector('input[aria-label=\"1줄 추가수량\"]').value === '2' && document.querySelector('input[aria-label=\"1줄 추가수량\"]').closest('td').nextElementSibling.querySelector('input').value === '2'",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; S(document.querySelector('input[aria-label=\"1줄 추가수량\"]'), '3'); await new Promise((r) => setTimeout(r, 300)); return 'ok' })()",
+        "expect:document.querySelector('input[aria-label=\"1줄 추가수량\"]').closest('td').nextElementSibling.querySelector('input').value === '3'",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('qrx')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = (await (await fetch('/api/quality-inspection-requests', { headers: H })).json()).find((y) => y.id === x.id); return Number(r.lines[0].extraQty) === 3 && Number(r.lines[0].quantity) === 3 })()",
+        "js:(async () => { if (!(await ((async () => { const x = JSON.parse(sessionStorage.getItem('qrx')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/quality-inspection-requests/' + x.id, { method: 'DELETE', headers: H }); return d.status === 204 })()))) throw new Error(\"저장 · 지움 단계 실패\"); return true })()"
+      ]
+    }
+  ]
+}

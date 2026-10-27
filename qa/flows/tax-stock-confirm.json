@@ -1,0 +1,45 @@
+{
+  "about": "매입(세금)계산서조회(재고)(E040219) · 현황(E040320) — 2026-10-13 loginaa 원본 실측대로: 위 알약 전체 · 결재중 · 미확인 · 확인(열면 확인), 맨 앞 고르기 칸, 확인 탭 [확인취소] · 미확인 탭 [확인] 으로 회계전표 진행상태를 바꾼다. 현황은 조건 [상태] 라디오(기본 확인). 구매 1건을 회계반영해 보고 끝나면 반영 취소 · 구매 삭제.",
+  "shots": [
+    {
+      "name": "매입(세금)계산서조회(재고) — 회계반영한 구매가 확인 탭에 서고, [확인취소] 하면 미확인 탭으로, [확인] 하면 다시 확인 탭으로. 하단 버튼은 탭마다 다르다",
+      "path": "/production/purchase-tax-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const [pa,it,wh]=await Promise.all(['/partners','/items','/warehouses'].map((p)=>window.__api('GET',p)));const s=pa.body.find((x)=>x.code==='QA-SUPP'),i=it.body.find((x)=>x.code==='QA-PROD'),w=wh.body.find((x)=>x.code==='QA-WH');const d=new Date(Date.now()+9*36e5).toISOString().slice(0,10);const p=(await window.__api('POST','/purchases',{partnerId:s.id,warehouseId:w.id,purchaseDate:d,taxable:true,remark:'QA재고1',lines:[{itemId:i.id,quantity:1,unitPrice:1000}]})).body;sessionStorage.setItem('txPur',p.id);await window.__api('POST','/accounting-reflection/reflect',{kind:'PURCHASE',ids:[p.id]});const js=(await window.__api('GET','/journals?from='+d+'&to='+d+'&all=true')).body.rows.filter((j)=>j.sourceType==='PURCHASE').sort((a,b)=>b.id-a.id);sessionStorage.setItem('txNo',js[0].docNo.replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'));return js[0].docNo+' '+js[0].confirmStatus})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='|일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&document.querySelector('.ec-pill.active').innerText.trim()==='확인'})()",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('txNo'));return !!tr&&tr.cells[2].innerText.trim()==='QA매입처'&&tr.cells[5].innerText.trim()==='1,100'})()",
+        "expect:(()=>{const b=[...document.querySelectorAll('.ec-footer button')].map((x)=>x.textContent.trim());return b.includes('확인취소')&&!b.includes('확인')&&b.includes('선택삭제')})()",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('txNo')).cells[0].querySelector('input').click(); true",
+        "js:[...document.querySelectorAll('.ec-footer button')].find((x)=>x.textContent.trim()==='확인취소').click(); true",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('txNo'))",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b)=>b.textContent.trim()==='미확인').click(); true",
+        "wait:300",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('txNo'))&&[...document.querySelectorAll('.ec-footer button')].some((x)=>x.textContent.trim()==='확인')",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('txNo')).cells[0].querySelector('input').click(); true",
+        "js:[...document.querySelectorAll('.ec-footer button')].find((x)=>x.textContent.trim()==='확인').click(); true",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('txNo'))",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b)=>b.textContent.trim()==='확인').click(); true",
+        "wait:300",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('txNo'))",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b)=>b.textContent.trim()==='전체').click(); true",
+        "wait:300",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('txNo'))&&![...document.querySelectorAll('.ec-footer button')].some((x)=>['확인','확인취소'].includes(x.textContent.trim()))"
+      ]
+    },
+    {
+      "name": "매입(세금)계산서현황(재고) — 조건 [상태] 라디오 전체 · 결재중 · 미확인 · 확인(기본 확인), 끝나면 반영 취소 · 구매 삭제",
+      "path": "/production/purchase-tax-status",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1200",
+        "expect:(()=>{const r=[...document.querySelectorAll('input[name=tax-stock-status]')];return r.length===4&&r[3].checked})()",
+        "js:(async()=>{const id=Number(sessionStorage.getItem('txPur'));const a=await window.__api('POST','/accounting-reflection/unreflect',{kind:'PURCHASE',ids:[id]});const b=await window.__api('DELETE','/purchases/'+id);return a.status+' '+b.status})()"
+      ]
+    }
+  ]
+}

@@ -69,9 +69,13 @@ const byName = new Map(javaFiles.map((f) => [f.split(sep).pop().replace('.java',
 /** enum 이름 → 상수 집합 */
 const enumConsts = new Map()
 for (const [name, src] of byName) {
-  const m = src.match(new RegExp(`public\\s+enum\\s+${name}\\s*\\{([\\s\\S]*?)(?:;|\\})`))
+  // 주석을 먼저 지운다 — 상수 위 javadoc 의 '&gt;' · '(E200066, …' 가 상수 목록을 끊거나 상수로 잡혔다(2026-10-14 PostBoard).
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  const m = code.match(new RegExp(`public\\s+enum\\s+${name}\\s*\\{([\\s\\S]*?)(?:;|\\})`))
   if (!m) continue
-  const consts = [...m[1].matchAll(/\b([A-Z][A-Z_0-9]*)\s*(?:\(|,|;|\})/g)].map((x) => x[1])
+  // 끝에 ',' 를 붙인다 — 위 정규식이 닫는 '}' · ';' 를 먹어서, 쉼표 없이 끝나는 마지막 상수(`ACCOUNTING, INVENTORY, MANAGEMENT }`)가
+  // 빠지고 'DB 에만 있는 값' 으로 잘못 잡혔다(2026-10-21 statement_sheets · tax_settlements · print_sign_lines · daily_pay_items).
+  const consts = [...(m[1] + ',').matchAll(/\b([A-Z][A-Z_0-9]*)\s*(?:\(|,|;|\})/g)].map((x) => x[1])
   if (consts.length) enumConsts.set(name, new Set(consts))
 }
 
@@ -321,7 +325,8 @@ for (const schema of ['public', ...tenants]) {
   const 상한 = [
     ['수주 줄의 출하수량 ≤ 주문수량', 'sales_order_lines', 'coalesce(shipped_qty,0) > quantity'],
     ['작업지시 기생산 ≤ 지시수량', 'work_orders', 'coalesce(produced_qty,0) > planned_qty'],
-    ['재고 잔량이 음수가 아니다', 'stocks', 'quantity < 0'],
+    // 환경설정 '재고 마이너스 허용'(preference.negative_stock)을 켠 회사는 음수가 정상이다(원본 동작, a303733b).
+    ['재고 잔량이 음수가 아니다', 'stocks', `quantity < 0 and not exists (select 1 from ${schema}.preference where negative_stock)`],
   ]
   for (const [이름, 표, 조건] of 상한) {
     const 넘은것 = psql(`select id from ${schema}.${표} where ${조건} limit 5`).map((r) => r[0])

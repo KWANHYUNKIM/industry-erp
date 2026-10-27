@@ -1,8 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { MallAccount, MallAccountType, Partner } from '../../api/types'
+import type { MallAccount, MallAccountType, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 I > 쇼핑몰관리 > 쇼핑몰등록 (이카운트 C000664)
@@ -67,9 +70,9 @@ export default function MallAccountPage() {
   }
 
   async function remove(id: number) {
-    if (!confirm('이 쇼핑몰을 삭제할까요?')) return
+    if (!(await ecConfirm('이 쇼핑몰을 삭제할까요?'))) return
     setError('')
-    try { await api.delete(`/mall-accounts/${id}`); load() }
+    try { await api.delete(`/mall-accounts/${id}`); setShowForm(false); load() }
     catch (err) { setError(extractErrorMessage(err)) }
   }
 
@@ -79,67 +82,76 @@ export default function MallAccountPage() {
     <EcListShell
       title="쇼핑몰등록"
       onNew={openNew}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      /* 원본 하단: 신규(F2) · 쇼핑몰추가요청 · 쇼핑몰별제공기능(2026-10-20 실측). 뒤 둘은 이카운트와 주고받는 것 — 안내만(지은 문구). */
+      actions={[
+        { label: '쇼핑몰추가요청', onClick: () => { void ecAlert('쇼핑몰 연동이 필요합니다.') } },
+        { label: '쇼핑몰별제공기능', onClick: () => { void ecAlert('쇼핑몰 연동이 필요합니다.') } },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">우리가 판매하는 쇼핑몰/통합관리솔루션 계정. 주문 수집·품목코드연결의 쇼핑몰 선택지가 되고, 판매전환 시 기본 거래처를 제공합니다. (오픈API 자동수집 연동은 별개.)</p>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal open={showForm} title={editId ? '쇼핑몰 수정' : '쇼핑몰 등록'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="쇼핑몰등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>쇼핑몰명 *</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            {editId && <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">쇼핑몰코드</div>
+              <input className={inputCls} value={rows.find((r) => r.id === editId)?.code ?? ''} disabled style={{ width: 90 }} /></label>}
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">쇼핑몰명 *</div>
               <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 180 }} placeholder="예: 스마트스토어" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분 *</div>
-              <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 150 }}>
-                <option value="MALL">쇼핑몰</option><option value="SOLUTION">통합관리솔루션</option>
-              </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>판매전환 거래처</div>
-              <select className={inputCls} value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)} style={{ width: 200 }}>
-                <option value="">(미지정)</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>판매자 ID</div>
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">수집처 *</div>
+              <span className="flex items-center gap-[10px] h-[26px]">
+                {([['MALL', '쇼핑몰'], ['SOLUTION', '통합관리솔루션']] as const).map(([v, n]) => (
+                  <label key={v} className="inline-flex items-center gap-[3px]">
+                    <input type="radio" name="mallType" aria-label={n} checked={form.type === v} onChange={() => set('type', v)} />{n}
+                  </label>
+                ))}
+              </span></div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">거래처</div>
+              <CodePickerField label="판매전환 거래처" hideLabel width={200} emptyLabel="(미지정)" placeholder="(미지정)"
+                               value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                               items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} /></label>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">ID</div>
               <input className={inputCls} value={form.sellerId} onChange={(e) => set('sellerId', e.target.value)} style={{ width: 150 }} /></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>
+            <label className="text-[12.5px] flex-1 min-w-[160px]"><div className="text-ec-label mb-[3px]">비고</div>
               <input className={inputCls} value={form.memo} onChange={(e) => set('memo', e.target.value)} style={{ width: '100%' }} /></label>
-            <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
+            {/* 원본은 [저장/인증요청(F8)] — 우리는 쇼핑몰 인증을 하지 않으므로 저장만 한다. 비밀번호 칸도 두지 않는다. */}
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            {editId && <button type="button" className="ec-btn" onClick={() => remove(editId)}>삭제</button>}
           </div>
         </form>
       )}</Modal>
 
+      {/* 원본 열: 쇼핑몰코드 · 쇼핑몰명 · ID · 거래처명 · 수집처구분 · 사용구분 · 진행상태 · 판매자사이트(2026-10-20 실측).
+          진행상태는 원본이 '등록완료' / '인증완료' — 우리는 인증하지 않으니 저장된 것은 '등록완료'. 판매자사이트 [이동] 은 몰 주소가 없어 빈칸. */}
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 90 }}>코드</th>
+          <th className="w-[90px]">쇼핑몰코드</th>
           <th>쇼핑몰명</th>
-          <th style={{ width: 130 }}>구분</th>
-          <th>판매전환 거래처</th>
-          <th style={{ width: 120 }}>판매자 ID</th>
-          <th style={{ textAlign: 'center', width: 80 }}>사용</th>
-          <th style={{ textAlign: 'center', width: 90 }}>관리</th>
+          <th className="w-[120px]">ID</th>
+          <th>거래처명</th>
+          <th className="w-[130px]">수집처구분</th>
+          <th className="text-center w-[80px]">사용구분</th>
+          <th className="text-center w-[90px]">진행상태</th>
+          <th className="text-center w-[90px]">판매자사이트</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 쇼핑몰이 없습니다. 우측 상단에서 등록하세요.</td></tr>
-          ) : rows.map((a, i) => (
-            <tr key={a.id} style={{ opacity: a.active ? 1 : 0.5 }}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{a.code}</td>
-              <td>{a.name}</td>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : rows.map((a) => (
+            <tr key={a.id}>
+              <td>{a.code}</td>
+              <td><a className="cursor-pointer" onClick={() => openEdit(a)}>{a.name}</a></td>
+              <td>{a.sellerId ?? ''}</td>
+              <td>{a.partnerName ?? ''}</td>
               <td>{TYPE_LABEL[a.type]}</td>
-              <td style={{ color: a.partnerName ? undefined : '#c07a00' }}>{a.partnerName ?? '미지정'}</td>
-              <td style={{ color: '#6b7280' }}>{a.sellerId ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => toggleActive(a)} style={{ border: '1px solid var(--ec-border)', background: a.active ? '#eaf6ec' : '#f2f3f5', color: a.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{a.active ? '사용' : '중단'}</button>
+              <td className="text-center">
+                <a className="cursor-pointer" onClick={() => toggleActive(a)}>{a.active ? 'Yes' : 'No'}</a>
               </td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => openEdit(a)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
-                <button className="no-ec" onClick={() => remove(a.id)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-              </td>
+              <td className="text-center">등록완료</td>
+              <td className="text-center"></td>
             </tr>
           ))}
         </tbody>

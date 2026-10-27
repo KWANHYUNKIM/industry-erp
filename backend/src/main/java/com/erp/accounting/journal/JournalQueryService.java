@@ -1,0 +1,245 @@
+package com.erp.accounting.journal;
+
+import com.erp.common.ApiException;
+import com.erp.accounting.account.Account;
+import com.erp.accounting.account.AccountDivision;
+import com.erp.accounting.journal.dto.JournalDtos.AccountLedgerResponse;
+import com.erp.accounting.journal.dto.JournalDtos.BalanceSheetResponse;
+import com.erp.accounting.journal.dto.JournalDtos.GroupedAccountSum;
+import com.erp.accounting.journal.dto.JournalDtos.IncomeStatementResponse;
+import com.erp.accounting.journal.dto.JournalDtos.JournalEntryResponse;
+import com.erp.accounting.journal.dto.JournalDtos.LedgerRow;
+import com.erp.accounting.journal.dto.JournalDtos.StatementRow;
+import com.erp.accounting.journal.dto.JournalDtos.TrialBalanceResponse;
+import com.erp.accounting.journal.dto.JournalDtos.TrialBalanceRow;
+import com.erp.accounting.account.AccountRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import com.erp.accounting.journal.dto.JournalDtos;
+
+/** 회계전표에서 파생되는 조회: 전표목록·계정별원장·시산표·재무상태표·손익계산서 */
+@Service
+@RequiredArgsConstructor
+public class JournalQueryService {
+
+    /** 재무상태표 누적 시작 기준일(사실상 전체 기간). */
+    private static final LocalDate EPOCH = LocalDate.of(2000, 1, 1);
+
+    private final JournalEntryRepository entryRepository;
+    private final JournalLineRepository lineRepository;
+    private final AccountRepository accountRepository;
+
+    /** 한 번에 내려보낼 전표 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
+    public static final int LIST_PAGE_ROWS = 5000;
+
+    @Transactional(readOnly = true)
+    public JournalDtos.JournalListResponse entries(LocalDate from, LocalDate to, boolean all) {
+        long totalRows = entryRepository.countByPeriod(from, to);
+        boolean truncated = !all && totalRows > LIST_PAGE_ROWS;
+        List<JournalEntry> found;
+        if (truncated) {
+            /* id 를 먼저 자르고 그것만 실어 온다 — join fetch 를 그대로 페이징하면 못 자른다. */
+            List<Long> ids = entryRepository.findIdsByPeriod(from, to,
+                    org.springframework.data.domain.PageRequest.of(0, LIST_PAGE_ROWS));
+            found = entryRepository.findByIdsWithLines(ids);
+        } else {
+            found = entryRepository.findByPeriod(from, to);
+        }
+        return new JournalDtos.JournalListResponse(
+                found.stream().map(JournalEntryResponse::from).toList(), totalRows, truncated);
+    }
+
+    @Transactional(readOnly = true)
+    public JournalEntryResponse entry(Long id) {
+        return entryRepository.findById(id)
+                .map(JournalEntryResponse::from)
+                .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
+    }
+
+    /** 계정별원장: 해당 계정의 기간 내 분개 + 누적 잔액. */
+    @Transactional(readOnly = true)
+    public AccountLedgerResponse accountLedger(Long accountId, LocalDate from, LocalDate to) {
+        return accountLedger(accountId, from, to, null, null);
+    }
+
+    /** [부서] · [프로젝트](회계전표 줄, V343)로 거른 계정별원장 — 비우면 전체. */
+    @Transactional(readOnly = true)
+    public AccountLedgerResponse accountLedger(Long accountId, LocalDate from, LocalDate to, Long dept, Long proj) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> ApiException.notFound("계정과목을 찾을 수 없습니다. id=" + accountId));
+
+        List<JournalLine> lines = lineRepository.findByAccountAndPeriodIn(accountId, from, to, nz(dept), nz(proj));
+        boolean debitSide = isDebitSide(account.getDivision());
+
+        List<LedgerRow> rows = new ArrayList<>();
+        BigDecimal running = BigDecimal.ZERO;
+        BigDecimal totalDebit = BigDecimal.ZERO;
+        BigDecimal totalCredit = BigDecimal.ZERO;
+
+        for (JournalLine l : lines) {
+            // 잔액은 계정 구분의 증가 방향으로 누적한다.
+            running = running.add(debitSide
+                    ? l.getDebit().subtract(l.getCredit())
+                    : l.getCredit().subtract(l.getDebit()));
+            totalDebit = totalDebit.add(l.getDebit());
+            totalCredit = totalCredit.add(l.getCredit());
+            rows.add(new LedgerRow(
+                    l.getEntry().getEntryDate(), l.getEntry().getDocNo(), l.getDescription(),
+                    l.effectivePartner() != null ? l.effectivePartner().getName() : null,
+                    l.getDebit(), l.getCredit(), running, counterOf(l),
+                    l.effectivePartner() != null ? l.effectivePartner().getId() : null));
+        }
+        return new AccountLedgerResponse(
+                account.getId(), account.getCode(), account.getName(), account.getDivision(),
+                totalDebit, totalCredit, running, rows);
+    }
+
+    /** 같은 전표의 다른 줄 계정 이름 — 하나면 그 이름, 둘 이상이면 '첫 계정 외 n'. 원장 계정과 같은 계정은 뺀다. */
+    private static String counterOf(JournalLine l) {
+        List<String> names = l.getEntry().getLines().stream()
+                .filter((o) -> o != l && !o.getAccount().getId().equals(l.getAccount().getId()))
+                .map((o) -> o.getAccount().getName())
+                .distinct()
+                .toList();
+        if (names.isEmpty()) return null;
+        return names.size() == 1 ? names.get(0) : names.get(0) + " 외 " + (names.size() - 1);
+    }
+
+    /** 합계잔액시산표. 전체 차변합 = 전체 대변합이면 대차평형. */
+    @Transactional(readOnly = true)
+    public TrialBalanceResponse trialBalance(LocalDate from, LocalDate to) {
+        return trialBalance(from, to, null, null);
+    }
+
+    /** [부서] · [프로젝트]로 거른 합계잔액시산표 */
+    @Transactional(readOnly = true)
+    public TrialBalanceResponse trialBalance(LocalDate from, LocalDate to, Long dept, Long proj) {
+        List<TrialBalanceRow> rows = new ArrayList<>();
+        BigDecimal totalDebit = BigDecimal.ZERO;
+        BigDecimal totalCredit = BigDecimal.ZERO;
+
+        for (Object[] r : lineRepository.sumByAccountIn(from, to, nz(dept), nz(proj))) {
+            Long accountId = (Long) r[0];
+            String code = (String) r[1];
+            String name = (String) r[2];
+            AccountDivision division = (AccountDivision) r[3];
+            BigDecimal debit = (BigDecimal) r[4];
+            BigDecimal credit = (BigDecimal) r[5];
+            BigDecimal balance = isDebitSide(division)
+                    ? debit.subtract(credit)
+                    : credit.subtract(debit);
+            rows.add(new TrialBalanceRow(accountId, code, name, division, debit, credit, balance));
+            totalDebit = totalDebit.add(debit);
+            totalCredit = totalCredit.add(credit);
+        }
+        return new TrialBalanceResponse(from, to, totalDebit, totalCredit,
+                totalDebit.compareTo(totalCredit) == 0, rows);
+    }
+
+    /** 재무상태표: EPOCH~asOf 누적. 자산 = 부채 + 자본 + 당기순이익. */
+    @Transactional(readOnly = true)
+    public BalanceSheetResponse balanceSheet(LocalDate asOf) {
+        return balanceSheet(asOf, null, null);
+    }
+
+    /** [부서] · [프로젝트]로 거른 재무상태표 */
+    @Transactional(readOnly = true)
+    public BalanceSheetResponse balanceSheet(LocalDate asOf, Long dept, Long proj) {
+        List<StatementRow> assets = new ArrayList<>();
+        List<StatementRow> liabilities = new ArrayList<>();
+        List<StatementRow> equity = new ArrayList<>();
+        BigDecimal totalAssets = BigDecimal.ZERO, totalLiab = BigDecimal.ZERO, totalEquity = BigDecimal.ZERO;
+        BigDecimal revenue = BigDecimal.ZERO, expense = BigDecimal.ZERO;
+
+        for (Object[] r : lineRepository.sumByAccountIn(EPOCH, asOf, nz(dept), nz(proj))) {
+            AccountDivision division = (AccountDivision) r[3];
+            BigDecimal debit = (BigDecimal) r[4];
+            BigDecimal credit = (BigDecimal) r[5];
+            BigDecimal signed = isDebitSide(division) ? debit.subtract(credit) : credit.subtract(debit);
+            StatementRow row = new StatementRow((String) r[1], (String) r[2], division, signed);
+            switch (division) {
+                case ASSET -> { assets.add(row); totalAssets = totalAssets.add(signed); }
+                case LIABILITY -> { liabilities.add(row); totalLiab = totalLiab.add(signed); }
+                case EQUITY -> { equity.add(row); totalEquity = totalEquity.add(signed); }
+                case REVENUE -> revenue = revenue.add(signed);
+                case EXPENSE -> expense = expense.add(signed);
+            }
+        }
+        BigDecimal netIncome = revenue.subtract(expense);
+        // 당기순이익은 자본에 귀속 → 대차 검증: 자산 == 부채 + 자본 + 순이익
+        boolean balanced = totalAssets.compareTo(totalLiab.add(totalEquity).add(netIncome)) == 0;
+        return new BalanceSheetResponse(asOf, assets, totalAssets, liabilities, totalLiab,
+                equity, totalEquity, netIncome, balanced);
+    }
+
+    /**
+     * 재무제표 · 원가명세서 [부서표시방법] · [프로젝트표시방법] 종 · 횡 — 기간의 계정 합을 부서(by=department)나
+     * 프로젝트(by=project)마다 나눠 준다. from 이 없으면 처음부터(재무상태표 누적).
+     */
+    @Transactional(readOnly = true)
+    public List<GroupedAccountSum> accountSumsBy(LocalDate from, LocalDate to, String by, Long dept, Long proj) {
+        LocalDate f = from == null ? EPOCH : from;
+        List<Object[]> raw = "project".equals(by)
+                ? lineRepository.sumByProjectAndAccountIn(f, to, nz(dept), nz(proj))
+                : lineRepository.sumByDepartmentAndAccountIn(f, to, nz(dept), nz(proj));
+        return raw.stream().map((r) -> new GroupedAccountSum((Long) r[0], (Long) r[1], (String) r[2], (String) r[3],
+                (AccountDivision) r[4], (BigDecimal) r[5], (BigDecimal) r[6])).toList();
+    }
+
+    /** 손익계산서: from~to 기간. 당기순이익 = 수익 - 비용. */
+    @Transactional(readOnly = true)
+    public IncomeStatementResponse incomeStatement(LocalDate from, LocalDate to) {
+        return incomeStatement(from, to, null, null);
+    }
+
+    /** [부서] · [프로젝트]로 거른 손익계산서 */
+    @Transactional(readOnly = true)
+    public IncomeStatementResponse incomeStatement(LocalDate from, LocalDate to, Long dept, Long proj) {
+        List<StatementRow> revenues = new ArrayList<>();
+        List<StatementRow> expenses = new ArrayList<>();
+        BigDecimal totalRevenue = BigDecimal.ZERO, totalExpense = BigDecimal.ZERO;
+
+        for (Object[] r : lineRepository.sumByAccountIn(from, to, nz(dept), nz(proj))) {
+            AccountDivision division = (AccountDivision) r[3];
+            BigDecimal debit = (BigDecimal) r[4];
+            BigDecimal credit = (BigDecimal) r[5];
+            if (division == AccountDivision.REVENUE) {
+                BigDecimal amount = credit.subtract(debit);
+                revenues.add(new StatementRow((String) r[1], (String) r[2], division, amount));
+                totalRevenue = totalRevenue.add(amount);
+            } else if (division == AccountDivision.EXPENSE) {
+                BigDecimal amount = debit.subtract(credit);
+                expenses.add(new StatementRow((String) r[1], (String) r[2], division, amount));
+                totalExpense = totalExpense.add(amount);
+            }
+        }
+        return new IncomeStatementResponse(from, to, revenues, totalRevenue,
+                expenses, totalExpense, totalRevenue.subtract(totalExpense));
+    }
+
+    /** 손익계산서 매출액 계정의 달별 금액 — 1월부터 12월까지 열두 칸(전표 없는 달은 0). 법인세Checklist 가 쓴다. */
+    @Transactional(readOnly = true)
+    public List<BigDecimal> monthlySales(int year) {
+        List<BigDecimal> out = new ArrayList<>(java.util.Collections.nCopies(12, BigDecimal.ZERO));
+        for (Object[] r : lineRepository.sumSalesByMonth(LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31))) {
+            out.set(((Number) r[1]).intValue() - 1, (BigDecimal) r[2]);
+        }
+        return out;
+    }
+
+    /** 자산·비용은 차변이 증가 방향, 부채·자본·수익은 대변이 증가 방향. */
+    private static boolean isDebitSide(AccountDivision division) {
+        return division == AccountDivision.ASSET || division == AccountDivision.EXPENSE;
+    }
+
+    /** 조건을 끄는 값은 0(쿼리 쪽 규칙). */
+    private static long nz(Long id) {
+        return id != null ? id : 0L;
+    }
+}

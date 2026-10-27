@@ -1,0 +1,149 @@
+{
+  "about": "회계1 일/월계표(E010803) 현금 칸 · 가지급금정산서집계(E010840) [일자-No.] 링크 — 원본 2026-10-21 loginaa 실측: 기타입금(입금계좌 1019 현금 · 대변 잡이익 5,000) · 기타출금(출금계좌 현금 · 차변 8109 7,000)을 넣어도 일계표는 모든 줄 '대체'(현금 줄 차 5,000 · 대 7,000, [일계]에서 뺌), [금일/전일] 차변현금 −2,000(= 금일 잔고 − 전일 잔고 변화). 일반전표 머리 [구분]은 일반전표 · 매출전표 II · 매입전표 II 뿐(입금 · 출금 전표 없음) — 원본 이 회사는 현금 칸을 채우는 길이 없다. 가지급금정산서집계 [일자-No.] 는 navy 링크, 누르면 그 정산서 수정 창 → 저장 · 삭제하면 닫히고 집계가 다시 그려진다(9,000 → 9,500 → '등록된 데이터가 없습니다.'). 우리도 화면으로 넣고 · 고치고 · 지운다. node qa/shot.mjs qa/flows/daysheet-cash-advance-link.json",
+  "shots": [
+    {
+      "name": "일계표 — 넣기 전 숫자",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = await (await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H })).json(); const old = j.rows.filter((e) => (e.lines || []).some((l) => (l.description || '').startsWith('QA회계1 일계표현금'))); for (const e of old) await fetch('/api/journals/' + e.id, { method: 'DELETE', headers: H }); return '앞 판 찌꺼기 ' + old.length })()",
+        "js:(() => { document.querySelectorAll('input[name=dm-mode]')[1].click(); return true })()",
+        "wait:2000",
+        "js:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 7) m[c[3]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); localStorage.setItem('dca-dm0', JSON.stringify(m)); return Object.keys(m).length })()"
+      ]
+    },
+    {
+      "name": "기타입금 — 현금 · 대변 930 잡이익 5,000 (화면으로)",
+      "path": "/accounting/other-deposit",
+      "steps": [
+        "wait:2500",
+        "set:input[placeholder=\"입금계좌\"]|현금",
+        "js:(() => { document.querySelector('input[placeholder=\"입금계좌\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"거래처\"]|QA-CUST",
+        "js:(() => { document.querySelector('input[placeholder=\"거래처\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"대변계정\"]|930",
+        "js:(() => { document.querySelector('input[placeholder=\"대변계정\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"금액\"]|5000",
+        "set:input[placeholder=\"적요\"]|QA회계1 일계표현금 입금",
+        "expect:document.querySelector('input[placeholder=\"입금계좌\"]').value === '000' && document.querySelector('input[placeholder=\"대변계정\"]').value === '9199'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[aria-label=\"금액\"]').value === '' && !document.querySelector('.ec-alert-danger')"
+      ]
+    },
+    {
+      "name": "기타출금 — 현금 · 차변 811 복리후생비 7,000 (화면으로)",
+      "path": "/accounting/other-withdraw",
+      "steps": [
+        "wait:2500",
+        "set:input[placeholder=\"출금계좌\"]|현금",
+        "js:(() => { document.querySelector('input[placeholder=\"출금계좌\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"거래처\"]|QA-CUST",
+        "js:(() => { document.querySelector('input[placeholder=\"거래처\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"차변계정\"]|811",
+        "js:(() => { document.querySelector('input[placeholder=\"차변계정\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"금액\"]|7000",
+        "set:input[placeholder=\"적요\"]|QA회계1 일계표현금 출금",
+        "expect:document.querySelector('input[placeholder=\"출금계좌\"]').value === '000' && document.querySelector('input[placeholder=\"차변계정\"]').value === '8109'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[aria-label=\"금액\"]').value === '' && !document.querySelector('.ec-alert-danger')"
+      ]
+    },
+    {
+      "name": "일계표 — 현금거래 입금 · 출금도 '대체' 칸 · 현금 줄은 [일계]에서 뺌 · [금일/전일] −2,000",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "wait:2000",
+        "js:(() => { document.querySelectorAll('input[name=dm-mode]')[1].click(); return true })()",
+        "wait:2000",
+        "expect:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 7) m[c[3]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dca-dm0')); const g = (n, i) => (m[n] || [0,0,0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0,0,0])[i]); const body = [...document.querySelectorAll('table tbody tr')].map((r) => [...r.cells].map((x) => Number(x.innerText.replace(/,/g, '')) || 0)).filter((c) => c.length === 7); return g('현금', 1) === 5000 && g('현금', 5) === 7000 && g('복리후생비', 1) === 7000 && g('잡이익', 5) === 5000 && body.every((c) => c[2] === 0 && c[4] === 0) && g('[일계]', 1) === 7000 && g('[일계]', 5) === 5000 && g('[금일/전일]', 0) === -2000 && g('[금일/전일]', 2) === -2000 && g('[금일/전일]', 6) === 0 && m['[합계]'][0] === m['[합계]'][6] })()"
+      ]
+    },
+    {
+      "name": "가지급금정산서 — 정산자 · 812 여비교통비 9,000 (화면으로)",
+      "path": "/accounting/vouchers?type=ADVANCE_SETTLEMENT",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const es = await (await fetch('/api/employees', { headers: H })).json(); const emp = es.find((e) => es.filter((x) => (x.code + ' ' + x.name).includes(e.name)).length === 1); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"사원검색\"]'); set(c, emp.name); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return emp.name })()",
+        "wait:400",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"계정검색\"]'); set(c, '8119'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 금액\"]'), '9000'); set(document.querySelector('input[aria-label=\"1줄 적요명\"]'), 'QA회계1 가지급집계'); return true })()",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[aria-label=\"1줄 금액\"]').value === '' && !document.querySelector('.ec-alert-danger')"
+      ]
+    },
+    {
+      "name": "가지급금정산서집계 — [일자-No.] 링크 → 수정 창 9,500 저장 → 집계로 돌아와 9,500",
+      "path": "/accounting/advance-slip-summary",
+      "steps": [
+        "wait:2500",
+        "expect:(() => { const tr = [...document.querySelectorAll('table tbody tr')].find((r) => r.innerText.includes('QA회계1 가지급집계')); const a = tr && tr.cells[0].querySelector('a'); return !!a && /^\\d{4}\\/\\d{2}\\/\\d{2} -\\d+$/.test(a.innerText.trim()) && getComputedStyle(a).color === 'rgb(25, 53, 140)' && tr.cells[2].innerText.trim() === '여비교통비' && tr.cells[5].innerText.trim() === '9,000' })()",
+        "js:(() => { [...document.querySelectorAll('table tbody tr')].find((r) => r.innerText.includes('QA회계1 가지급집계')).cells[0].querySelector('a').click(); return true })()",
+        "wait:2000",
+        "expect:location.pathname === '/accounting/vouchers' && document.querySelector('input[aria-label=\"1줄 금액\"]').value === '9,000' && [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '삭제')",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 금액\"]'), '9500'); return true })()",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/advance-slip-summary' && ([...document.querySelectorAll('table tbody tr')].find((r) => r.innerText.includes('QA회계1 가지급집계')) || { cells: [] }).cells[5]?.innerText.trim() === '9,500'"
+      ]
+    },
+    {
+      "name": "가지급금정산서집계 — [일자-No.] → [삭제] '전표를 삭제하겠습니까? - 가지급금정산서' → 집계에서 사라짐",
+      "path": "/accounting/advance-slip-summary",
+      "steps": [
+        "wait:2500",
+        "js:(() => { [...document.querySelectorAll('table tbody tr')].find((r) => r.innerText.includes('QA회계1 가지급집계')).cells[0].querySelector('a').click(); return true })()",
+        "wait:2000",
+        "click:삭제",
+        "wait:400",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 가지급금정산서')",
+        "clicklast:확인",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/advance-slip-summary' && ![...document.querySelectorAll('table tbody tr')].some((r) => r.innerText.includes('QA회계1 가지급집계'))"
+      ]
+    },
+    {
+      "name": "지우기 — 기타출금 · 기타입금 수정 창 [삭제] (화면으로)",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = await (await fetch('/api/journals?from=' + day + '&to=' + day + '&all=true', { headers: H })).json(); const id = (t) => (j.rows.find((e) => (e.lines || []).some((l) => l.description === t)) || {}).id; localStorage.setItem('dca-ids', JSON.stringify([id('QA회계1 일계표현금 출금'), id('QA회계1 일계표현금 입금')])); return localStorage.getItem('dca-ids') })()",
+        "js:(() => { history.pushState({}, '', '/accounting/other-withdraw?journal=' + JSON.parse(localStorage.getItem('dca-ids'))[0]); dispatchEvent(new PopStateEvent('popstate')); return true })()",
+        "wait:2000",
+        "expect:document.querySelector('input[placeholder=\"적요\"]').value === 'QA회계1 일계표현금 출금'",
+        "click:삭제",
+        "wait:400",
+        "expect:document.body.innerText.includes('- 기타출금')",
+        "clicklast:확인",
+        "wait:1500",
+        "js:(() => { history.pushState({}, '', '/accounting/other-deposit?journal=' + JSON.parse(localStorage.getItem('dca-ids'))[1]); dispatchEvent(new PopStateEvent('popstate')); return true })()",
+        "wait:2000",
+        "expect:document.querySelector('input[placeholder=\"적요\"]').value === 'QA회계1 일계표현금 입금'",
+        "click:삭제",
+        "wait:400",
+        "expect:document.body.innerText.includes('- 기타입금')",
+        "clicklast:확인",
+        "wait:1500"
+      ]
+    },
+    {
+      "name": "지운 뒤 — 일계표 처음 숫자",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "wait:2000",
+        "js:(() => { document.querySelectorAll('input[name=dm-mode]')[1].click(); return true })()",
+        "wait:2000",
+        "expect:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 7) m[c[3]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dca-dm0')); const g = (n, i) => (m[n] || [0,0,0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0,0,0])[i]); return g('현금', 1) === 0 && g('현금', 5) === 0 && g('[금일/전일]', 0) === 0 && !document.body.innerText.includes('QA회계1 일계표현금') })()"
+      ]
+    }
+  ]
+}

@@ -1,174 +1,220 @@
-import { useEffect, useState, useRef} from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Partner } from '../../api/types'
+import type { Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
+import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
+import EcHistoryButton from '../../components/EcHistory'
+import { EcCond } from '../../components/EcStatusPanel'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { useTableSort } from '../../utils/useTableSort'
 
-const SALES_GROUPS = ['일반가', '대리점가', '특판가']
-const PURCHASE_GROUPS = ['표준매입가', '계약단가']
+/** 원본 목록 쪽당 줄 수(2026-10-14 loginaa 실측 — 100줄, 위 왼쪽 쪽번호). */
+const PAGE_SIZE = 100
 
-/** 재고 기초등록 > 거래처특별단가그룹 — 거래처별 영업/구매 단가그룹 지정(실제 저장) */
+interface PriceGroup { code: string; name: string; active: boolean }
+
+/**
+ * 재고 I › 기초등록 › 단가관리 › 거래처특별단가그룹등록(원본 E040120, 화면 제목 '거래처특별단가그룹').
+ *
+ * <p>2026-10-14 loginaa 실측(plans/재고1/E040120.md):
+ * <ul>
+ *   <li>격자 거래처코드(링크) · 거래처명(링크) · 영업단가그룹명 · 구매단가그룹명 — 번호 · 체크 칸 없음, 모든 거래처, 거래처명 차례.
+ *       머리 700 · 34.3, 본문 28.4. 열 폭 300.4 / 583.4 / 367.3 / 367.4(본문 1619). 영업단가그룹명 칸은 오른쪽, 구매는 가운데 정렬(원본 그대로).
+ *       쪽당 100줄. 아래 버튼줄 [Excel] 하나.</li>
+ *   <li>Search(F3) 조건: 거래처 · 영업단가그룹 · 구매단가그룹(코드도움) · 기타 수정일자순(정렬).</li>
+ *   <li>코드 · 이름 링크 → '거래처특별단가그룹수정' 창(960): 거래처코드 · 거래처명(글자) · 영업단가그룹명 · 구매단가그룹명(코드도움, × 로 비움).
+ *       버튼 저장(F8) · 다시 작성 · 닫기 · H. 저장하면 <b>말 없이 닫히고</b> 목록 줄이 바뀐다. H 는 마지막으로 고친 때 한 줄.
+ *       단가그룹 코드도움 창은 제목 '영업단가그룹명'/'구매단가그룹명', 열 특별단가그룹코드 · 특별단가그룹명(470 · 470), 하단 [닫기] 하나.</li>
+ * </ul>
+ * 예전 우리 화면은 격자 안 select 두 개 + 일괄 [저장] + 원본에 없는 알림('n개 거래처 단가그룹을 저장했습니다.')이었다.
+ */
 export default function SpecialPriceGroupPage() {
   const [partners, setPartners] = useState<Partner[]>([])
+  const [priceGroups, setPriceGroups] = useState<PriceGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  /*
-   * 원본 거래처특별단가그룹등록의 조건은 <b>거래처 · 영업단가그룹 · 구매단가그룹</b>
-   * 이다(사본 실측). 우리는 검색어 한 칸뿐이라 <b>그룹으로 거를 길이 없었다.</b>
-   */
-  const [partnerCond, setPartnerCond] = useState('')
-  const [salesGroupCond, setSalesGroupCond] = useState('전체')
-  const [purchaseGroupCond, setPurchaseGroupCond] = useState('전체')
-  const [groups, setGroups] = useState<Record<number, { sales: string; purchase: string }>>({})
-  const [saving, setSaving] = useState(false)
+  const [cond, setCond] = useState({ partner: '', sales: '', purchase: '' })
+  const [page, setPage] = useState(1)
+  /** Search(F3) 기타 [수정일자순(정렬)] — 켜면 최근에 고친 거래처가 먼저 */
+  const [byUpdated, setByUpdated] = useState(false)
+
+  /* 수정 창 */
+  const [edit, setEdit] = useState<Partner | null>(null)
+  const [form, setForm] = useState({ sales: '', purchase: '' })
+  const [formError, setFormError] = useState('')
 
   async function load() {
     setLoading(true)
     try {
-      const r = await api.get<Partner[]>('/partners')
-      setPartners(r.data)
-      const init: Record<number, { sales: string; purchase: string }> = {}
-      r.data.forEach((p) => { init[p.id] = { sales: p.salesPriceGroup ?? '', purchase: p.purchasePriceGroup ?? '' } })
-      setGroups(init)
+      const [p, g] = await Promise.all([
+        api.get<Partner[]>('/partners'),
+        api.get<PriceGroup[]>('/special-prices/groups'),
+      ])
+      setPartners(p.data)
+      setPriceGroups(g.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
+  useEffect(() => { void load() }, [])
 
-  useEffect(() => { load() }, [])
+  const groupName = (code: string | null | undefined) => (code ? priceGroups.find((g) => g.code === code)?.name ?? code : '')
+  const groupItems: CodeItem[] = useMemo(
+    () => priceGroups.map((g) => ({ value: g.code, code: g.code, name: g.name, stopped: !g.active })), [priceGroups])
+  const groupCols = [
+    { head: '특별단가그룹코드', width: 470, cell: (i: CodeItem) => i.code ?? '', link: true },
+    { head: '특별단가그룹명', width: 470, cell: (i: CodeItem) => i.name, link: true },
+  ]
+  const partnerItems = useMemo(() => partnerCodeItems(partners), [partners])
 
-  function setGroup(id: number, field: 'sales' | 'purchase', v: string) {
-    setGroups((g) => ({ ...g, [id]: { ...(g[id] ?? { sales: '', purchase: '' }), [field]: v } }))
+  function openEdit(p: Partner) {
+    setEdit(p)
+    setForm({ sales: p.salesPriceGroup ?? '', purchase: p.purchasePriceGroup ?? '' })
+    setFormError('')
   }
 
-  async function save() {
-    setError('')
-    setSaving(true)
+  async function save(ev?: FormEvent) {
+    ev?.preventDefault()
+    if (!edit) return
     try {
-      // 변경된 거래처만 PATCH
-      const changed = partners.filter((p) => {
-        const g = groups[p.id] ?? { sales: '', purchase: '' }
-        return g.sales !== (p.salesPriceGroup ?? '') || g.purchase !== (p.purchasePriceGroup ?? '')
+      await api.patch(`/partners/${edit.id}/price-group`, {
+        salesPriceGroup: form.sales || null,
+        purchasePriceGroup: form.purchase || null,
       })
-      await Promise.all(changed.map((p) => api.patch(`/partners/${p.id}/price-group`, {
-        salesPriceGroup: groups[p.id]?.sales || null,
-        purchasePriceGroup: groups[p.id]?.purchase || null,
-      })))
-      alert(changed.length ? `${changed.length}개 거래처 단가그룹을 저장했습니다.` : '변경된 내용이 없습니다.')
-      load()
+      setEdit(null)          // 원본: 저장하면 말 없이 닫힌다
+      void load()
     } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setSaving(false)
+      setFormError(extractErrorMessage(err))
     }
   }
 
-  /* 그룹은 <b>아직 저장 전인 고른 값</b>을 먼저 본다 — 정렬과 같은 규칙이다. */
-  const groupOf = (p: Partner, kind: 'sales' | 'purchase') =>
-    (kind === 'sales' ? groups[p.id]?.sales ?? p.salesPriceGroup : groups[p.id]?.purchase ?? p.purchasePriceGroup) ?? ''
   const shownRows = partners
     .filter((p) => !keyword || p.code.includes(keyword) || p.name.includes(keyword))
-    .filter((p) => !partnerCond || p.name.includes(partnerCond))
-    .filter((p) => salesGroupCond === '전체' || groupOf(p, 'sales') === salesGroupCond)
-    .filter((p) => purchaseGroupCond === '전체' || groupOf(p, 'purchase') === purchaseGroupCond)
+    .filter((p) => !cond.partner || String(p.id) === cond.partner)
+    .filter((p) => !cond.sales || p.salesPriceGroup === cond.sales)
+    .filter((p) => !cond.purchase || p.purchasePriceGroup === cond.purchase)
+    // 원본 기본 차례 = 거래처명(글자 차례 — '!!! …' · '### …' · 'QA재고1-…' · 'QA회계2-…'). [수정일자순(정렬)] 은 고친 날짜 늦은 것부터
+    .sort((a, b) => (byUpdated
+      ? (b.updatedDate ?? '').localeCompare(a.updatedDate ?? '')
+      : 0) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
-  /*
-   * 원본 거래처특별단가그룹등록은 네 칸 모두 머리를 눌러 정렬한다(사본 실측).
-   * 그룹 두 칸은 <b>고른 값이 아직 저장 전이면 그 값으로</b> 견준다 — 화면에 보이는
-   * 것과 다른 차례로 서면 방금 바꾼 줄이 엉뚱한 자리로 사라진다.
-   */
   const sort = useTableSort(shownRows, {
     거래처코드: (p) => p.code,
     거래처명: (p) => p.name,
-    영업단가그룹명: (p) => groups[p.id]?.sales ?? p.salesPriceGroup,
-    구매단가그룹명: (p) => groups[p.id]?.purchase ?? p.purchasePriceGroup,
+    영업단가그룹명: (p) => groupName(p.salesPriceGroup),
+    구매단가그룹명: (p) => groupName(p.purchasePriceGroup),
   })
-  const shown = sort.sorted
+  const all = sort.sorted
+  const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE))
+  const cur = Math.min(page, pages)
+  const shown = all.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE)
+  useEffect(() => { setPage(1) }, [keyword, cond, byUpdated])
 
-
-  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '거래처특별단가그룹', [])
+  useTableColumnCheck(tableRef, '거래처특별단가그룹', [shown.length])
 
   return (
     <EcListShell
       title="거래처특별단가그룹"
       search={keyword}
       onSearchChange={setKeyword}
-      onNew={undefined}
-      actions={[
-        { label: saving ? '저장 중…' : '저장(F8)', primary: true, onClick: save },
-        { label: '새로고침', onClick: load },
-        { label: 'Excel' },
-      ]}
+      onSearch={() => undefined}
+      collapseConditions
+      onReset={() => { setCond({ partner: '', sales: '', purchase: '' }); setByUpdated(false) }}
+      actions={[{ label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {/* 원본 조건 차례: 거래처 · 영업단가그룹 · 구매단가그룹 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>거래처</span>
-        <input className="ec-input" value={partnerCond} onChange={(e) => setPartnerCond(e.target.value)}
-               placeholder="거래처명 일부" style={{ width: 150 }} />
-        <span>영업단가그룹</span>
-        <select className="ec-input" value={salesGroupCond} onChange={(e) => setSalesGroupCond(e.target.value)} style={{ width: 120 }}>
-          <option>전체</option>
-          {SALES_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
-        </select>
-        <span>구매단가그룹</span>
-        <select className="ec-input" value={purchaseGroupCond} onChange={(e) => setPurchaseGroupCond(e.target.value)} style={{ width: 120 }}>
-          <option>전체</option>
-          {PURCHASE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
-        </select>
-      </div>
+      {/* 원본 Search(F3) 조건: 거래처 · 영업단가그룹 · 구매단가그룹 · 기타 수정일자순(정렬) · 양식 적용양식 기본(수정불가) */}
+      <ul className="ec-cond">
+        <EcCond label="거래처">
+          <CodePickerField label="거래처" hideLabel fill placeholder="거래처" emptyLabel=""
+                           value={cond.partner} onChange={(v) => setCond({ ...cond, partner: v })} items={partnerItems} />
+        </EcCond>
+        <EcCond label="영업단가그룹">
+          <CodePickerField label="영업단가그룹" hideLabel fill placeholder="영업단가그룹" emptyLabel="" plain hideNew columns={groupCols}
+                           value={cond.sales} onChange={(v) => setCond({ ...cond, sales: v })} items={groupItems} />
+        </EcCond>
+        <EcCond label="구매단가그룹">
+          <CodePickerField label="구매단가그룹" hideLabel fill placeholder="구매단가그룹" emptyLabel="" plain hideNew columns={groupCols}
+                           value={cond.purchase} onChange={(v) => setCond({ ...cond, purchase: v })} items={groupItems} />
+        </EcCond>
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[3px]"><input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} /> 수정일자순(정렬)</label>
+        </EcCond>
+        <EcCond label="양식">
+          <span className="mr-[6px]">적용양식</span>
+          <select className="ec-input w-[200px]" aria-label="적용양식" disabled><option>기본(수정불가)</option></select>
+        </EcCond>
+      </ul>
+
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      {pages > 1 && (
+        <nav className="ec-paging mb-[5px]" aria-label="쪽">
+          {Array.from({ length: pages }, (_, n) => n + 1)
+            .filter((n) => Math.floor((n - 1) / 10) === Math.floor((cur - 1) / 10))
+            .map((n) => (
+              <button key={n} type="button" className={n === cur ? 'active' : undefined}
+                      aria-current={n === cur ? 'page' : undefined} onClick={() => setPage(n)}>{n}</button>
+            ))}
+        </nav>
+      )}
 
       <table ref={tableRef} className="w-full text-left">
+        <colgroup>
+          <col className="w-[18.55%]" /><col className="w-[36.03%]" /><col className="w-[22.71%]" /><col className="w-[22.71%]" />
+        </colgroup>
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
-            <th style={{ textAlign: 'right', width: 200, cursor: 'pointer' }} onClick={() => sort.toggle('영업단가그룹명')}>영업단가그룹명 {sort.mark('영업단가그룹명')}</th>
-            <th style={{ textAlign: 'center', width: 200, cursor: 'pointer' }} onClick={() => sort.toggle('구매단가그룹명')}>구매단가그룹명 {sort.mark('구매단가그룹명')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
+            <th className="text-right cursor-pointer" onClick={() => sort.toggle('영업단가그룹명')}>영업단가그룹명 {sort.mark('영업단가그룹명')}</th>
+            <th className="text-center cursor-pointer" onClick={() => sort.toggle('구매단가그룹명')}>구매단가그룹명 {sort.mark('구매단가그룹명')}</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((p, i) => (
+            <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((p) => (
             <tr key={p.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              {/*
-                원본은 코드·이름을 눌러 그 거래처를 연다(사본 실측). 이 화면은 단가그룹만
-                고치는 자리라 거래처등록으로 보낸다 — 이름으로 찾아 들어가면 된다.
-              */}
-              <td style={{ fontFamily: 'monospace' }}>
-                <Link to={`/sales/partners?q=${encodeURIComponent(p.code)}`} style={{ color: 'var(--ec-blue)' }}>{p.code}</Link>
-              </td>
-              <td>
-                <Link to={`/sales/partners?q=${encodeURIComponent(p.name)}`} style={{ color: 'var(--ec-blue)' }}>{p.name}</Link>
-              </td>
-              <td style={{ textAlign: 'right' }}>
-                <select className="ec-input" value={groups[p.id]?.sales ?? ''} onChange={(e) => setGroup(p.id, 'sales', e.target.value)} style={{ width: '100%' }}>
-                  <option value="">(미지정)</option>
-                  {SALES_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </td>
-              <td style={{ textAlign: 'center' }}>
-                <select className="ec-input" value={groups[p.id]?.purchase ?? ''} onChange={(e) => setGroup(p.id, 'purchase', e.target.value)} style={{ width: '100%' }}>
-                  <option value="">(미지정)</option>
-                  {PURCHASE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </td>
+              {/* 원본: 코드 · 이름을 누르면 '거래처특별단가그룹수정' 창 */}
+              <td onClick={(e) => { e.preventDefault(); openEdit(p) }}><a href="#" className="text-ec-navy">{p.code}</a></td>
+              <td onClick={(e) => { e.preventDefault(); openEdit(p) }}><a href="#" className="text-ec-navy">{p.name}</a></td>
+              <td className="text-right">{groupName(p.salesPriceGroup)}</td>
+              <td className="text-center">{groupName(p.purchasePriceGroup)}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <Modal error={formError} open={!!edit} title="거래처특별단가그룹수정" width={960} onClose={() => setEdit(null)}>{edit && (
+        <form onSubmit={save}>
+          <ul className="ec-form">
+            <li className="wide"><span className="title">거래처코드</span><div className="form"><span>{edit.code}</span></div></li>
+            <li className="wide"><span className="title">거래처명</span><div className="form"><span>{edit.name}</span></div></li>
+            <li className="wide"><span className="title">영업단가그룹명</span><div className="form">
+              <CodePickerField label="영업단가그룹명" popupTitle="영업단가그룹명" hideLabel fill placeholder="영업단가그룹명" emptyLabel="" plain hideNew columns={groupCols}
+                               value={form.sales} onChange={(v) => setForm({ ...form, sales: v })} items={groupItems} />
+            </div></li>
+            <li className="wide"><span className="title">구매단가그룹명</span><div className="form">
+              <CodePickerField label="구매단가그룹명" popupTitle="구매단가그룹명" hideLabel fill placeholder="구매단가그룹명" emptyLabel="" plain hideNew columns={groupCols}
+                               value={form.purchase} onChange={(v) => setForm({ ...form, purchase: v })} items={groupItems} />
+            </div></li>
+          </ul>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => { /* 원본 2026-10-22 실측: 사람 손 클릭도 칸 값 그대로(되돌리지 않음) */ }}>다시 작성</button>
+            <button type="button" className="ec-btn" onClick={() => setEdit(null)}>닫기</button>
+            <EcHistoryButton target="PARTNER" id={edit.id} last />
+          </div>
+        </form>
+      )}</Modal>
     </EcListShell>
   )
 }

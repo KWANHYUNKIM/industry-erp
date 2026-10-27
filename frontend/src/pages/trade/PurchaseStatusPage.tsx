@@ -1,20 +1,34 @@
 import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PurchaseDoc } from '../../api/types'
-import { STATUS_PICKS, comparePeriodOf, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import { dateNo } from '../../utils/dateNo'
+import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
+import type { PurchaseDoc } from '../../types/api'
+import { STATUS_PICKS, comparePeriodOf, fetchWindow, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
-type Mode = '내역' | '집계' | '라인별'
-const MODES = ['내역', '집계', '라인별'] as const
+/*
+ * 원본 [구분]은 <b>내역·집계 둘</b>이다(대조표 실측). [라인별]은 우리가 더 둔 갈래였는데,
+ * 원본 [내역]이 이미 줄 단위이고 <b>월 소계까지 끼운다</b>(2026-09-09 실측). 우리 [내역]에
+ * 그 둘을 다 넣으면 [라인별]과 같은 표가 되므로 갈래를 없앤다 - 판매현황과 같다.
+ */
+/*
+ * 2026-10-20 loginaa 실측: 맨 위 줄은 [메뉴] ◉현황 ○집계 이고, 그 아래 [구분] 줄에 '라인별 ▾' 와 비교기간이 같이 있다(판매현황과 같다).
+ * 우리가 '내역' 이라 부르던 것이 원본의 [메뉴] 현황이다. [구분] 의 다른 갈래(일별 · 월별 …)는 구매현황에서 아직 못 쟀다.
+ */
+type Mode = '현황' | '집계'
+const MODES = ['현황', '집계'] as const
+
+/** 원본 [구분] 드롭다운(2026-10-22 실측) — 현황 메뉴에서 줄을 무엇으로 묶어 보일지. */
+const LINE_KINDS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '거래처별', '담당자별'] as const
+type LineKind = (typeof LINE_KINDS)[number]
 
 interface Row {
   key: string
@@ -23,16 +37,29 @@ interface Row {
   warehouse: string
   partner: string
   itemName: string
+  /** 창고·거래처·품목 조건(코드도움)은 id 로 견준다 — 이름은 겹칠 수 있다. */
+  warehouseId: number
+  partnerId: number
+  itemId: number
   qty: number
   unitPrice: number
   supply: number
   vat: number
   // 집계(utils/statusAggregate)가 읽는 값들. 화면이 이미 받아 온 전표에서 뽑는다.
+  projectId: number | null
   projectName: string | null
   taxable: boolean
   /** 원본 [거래구분] — 일반 · 반품. 반품 전표는 수량·금액이 음수다. */
   returnSlip: boolean
   employeeName: string | null
+  /*
+   * 2026-09-08 에 원본(E040305)의 <b>접힌 줄을 펼쳐</b> 조건을 전부 쟀다 — 스물넷이다
+   * (사본은 열하나). 아래 넷은 그때 드러난 조건이 보는 값이고, 전부 응답에 진작 오던 것이다.
+   */
+  spec: string | null
+  remark: string | null
+  createdBy: string | null
+  sourceDocNo: string | null
 }
 
 /** 이카운트 Search 패널의 검색조건. 이 화면 데이터로 실제 거를 수 있는 항목만 둔다. */
@@ -49,6 +76,24 @@ interface Filters {
   /** 원본 [거래구분] — 일반 · 반품. */
   tradeKind: string
   sortByModified: boolean
+  /*
+   * 원본 구매현황의 <b>접힌 줄</b>을 펼쳐 드러난 조건들. 사본에는 열하나라 적혀
+   * 있었는데 원본은 <b>스물넷</b>이다 — 판매현황과 같은 구멍이다.
+   */
+  orderNo: string
+  employee: string
+  partnerManager: string
+  spec: string
+  qtyFrom: string
+  qtyTo: string
+  priceFrom: string
+  priceTo: string
+  supplyFrom: string
+  supplyTo: string
+  vatFrom: string
+  vatTo: string
+  remark: string
+  author: string
 }
 
 /*
@@ -60,6 +105,10 @@ const EMPTY_FILTERS: Filters = {
   dateFrom: periodOf('전월+금월')!.from, dateTo: periodOf('전월+금월')!.to,
   partner: '', warehouse: '', item: '',
   project: '', taxType: '', tradeKind: '', sortByModified: false,
+  orderNo: '', employee: '', partnerManager: '', spec: '',
+  qtyFrom: '', qtyTo: '', priceFrom: '', priceTo: '',
+  supplyFrom: '', supplyTo: '', vatFrom: '', vatTo: '',
+  remark: '', author: '',
 }
 
 export default function PurchaseStatusPage() {
@@ -72,7 +121,8 @@ export default function PurchaseStatusPage() {
    * 원본 구매현황의 [구분] 도 판매현황과 같이 <b>내역 · 집계 · 라인별</b> 세 가지다(사본 실측).
    * 우리가 '현황' 이라 부르던 것이 원본의 '라인별'이고, '내역'(전표 단위)이 없었다.
    */
-  const [mode, setMode] = useState<Mode>('내역')
+  const [mode, setMode] = useState<Mode>('현황')
+  const [lineKind, setLineKind] = useState<LineKind>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [group1, setGroup1] = useState<GroupKey | ''>('품목별')
   const [group2, setGroup2] = useState<GroupKey | ''>('')
@@ -87,12 +137,14 @@ export default function PurchaseStatusPage() {
    * 화면은 "그런 자료가 없다" 처럼 보인다.
    */
   const pickers = useCondPickers(['partners', 'warehouses', 'items', 'projects'])
+  /** 원본 [거래처관리담당자] — 그 거래처를 맡은 영업담당자. 전표 [담당자]와 다른 사람이다. */
+  const pmgr = usePartnerManagers()
   const setF = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
 
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<PurchaseDoc[]>('/purchases', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } })
+      const res = await api.get<PurchaseDoc[]>('/purchases', { params: fetchWindow(filters.dateFrom, filters.dateTo, compare) })
       const flat: Row[] = []
       for (const d of res.data) {
         d.lines.forEach((l, idx) => flat.push({
@@ -102,16 +154,24 @@ export default function PurchaseStatusPage() {
           warehouse: d.warehouseName,
           partner: d.partnerName,
           itemName: l.itemName,
+          warehouseId: d.warehouseId,
+          partnerId: d.partnerId,
+          itemId: l.itemId,
           qty: l.quantity,
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
           vat: l.vatAmount,
+          projectId: d.projectId,
           projectName: d.projectName,
           // 전표가 과세 여부를 들고 있다. 예전에는 부가세 > 0 인지로 되짚어서,
           // 반올림으로 부가세가 0 이 된 과세 전표가 면세로 섞였다.
           taxable: d.taxable,
           returnSlip: d.returnSlip,
           employeeName: d.employeeName,
+          spec: l.spec,
+          remark: d.remark,
+          createdBy: d.createdBy,
+          sourceDocNo: l.sourceDocNo,
         }))
       }
       setRows(flat)
@@ -126,7 +186,7 @@ export default function PurchaseStatusPage() {
    * <b>기간을 서버에 보낸다.</b> 예전에는 조건 판에 [기간]을 물어 놓고 서버에는 아무것도
    * 안 보내, 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
+  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo, compare])
 
   /** 상단 키워드 + 상세검색 조건을 모두 통과한 행 */
   const shown = useMemo(() => {
@@ -136,12 +196,26 @@ export default function PurchaseStatusPage() {
       if (kw && !r.partner.includes(kw) && !r.itemName.includes(kw) && !r.docNo.includes(kw)) return false
       if (f.dateFrom && r.date < f.dateFrom) return false
       if (f.dateTo && r.date > f.dateTo) return false
-      if (f.partner && !r.partner.includes(f.partner)) return false
-      if (f.warehouse && !r.warehouse.includes(f.warehouse)) return false
-      if (f.item && !r.itemName.includes(f.item)) return false
-      if (f.project && !(r.projectName ?? '').includes(f.project)) return false
+      if (f.partner && String(r.partnerId) !== f.partner) return false
+      if (f.warehouse && String(r.warehouseId) !== f.warehouse) return false
+      if (f.item && String(r.itemId) !== f.item) return false
+      if (f.project && String(r.projectId) !== f.project) return false
       if (f.taxType && (f.taxType === '면세' ? r.taxable : !r.taxable)) return false
       if (f.tradeKind && (f.tradeKind === '반품' ? !r.returnSlip : r.returnSlip)) return false
+      if (f.orderNo && (r.sourceDocNo ?? '') !== f.orderNo) return false
+      if (f.employee && (r.employeeName ?? '') !== f.employee) return false
+      if (f.partnerManager && pmgr.managerOfName(r.partner) !== f.partnerManager) return false
+      if (f.spec && (r.spec ?? '') !== f.spec) return false
+      if (f.qtyFrom && r.qty < Number(f.qtyFrom)) return false
+      if (f.qtyTo && r.qty > Number(f.qtyTo)) return false
+      if (f.priceFrom && r.unitPrice < Number(f.priceFrom)) return false
+      if (f.priceTo && r.unitPrice > Number(f.priceTo)) return false
+      if (f.supplyFrom && r.supply < Number(f.supplyFrom)) return false
+      if (f.supplyTo && r.supply > Number(f.supplyTo)) return false
+      if (f.vatFrom && r.vat < Number(f.vatFrom)) return false
+      if (f.vatTo && r.vat > Number(f.vatTo)) return false
+      if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
+      if (f.author && (r.createdBy ?? '') !== f.author) return false
       return true
     })
     // 기타: 수정일자순(정렬) 체크 시 전표번호 역순, 기본은 일자 내림차순
@@ -151,31 +225,15 @@ export default function PurchaseStatusPage() {
     return out
   }, [rows, keyword, filters])
 
-  /**
-   * 내역 — 전표 하나를 한 줄로 접는다. 원본 구매조회 격자와 같은 칸 구성
-   * (일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 창고명).
+  /*
+   * <b>[내역]은 전표가 아니라 줄이다.</b> 2026-09-09 에 원본(E040305)의 격자를 처음 재 보니
+   * 판매현황(E040207)과 <b>글자 하나까지 같았다</b> - 일자-No. · 품목명(규격) · 수량 ·
+   * 단가 · 공급가액 · 부가세 · 합계 · 거래처명. 같은 [일자-No.] 가 품목 수만큼 되풀이된다.
+   * 우리는 전표 하나를 한 줄로 접고 품목을 '첫 품목 외 N건' 으로 줄여 두어
+   * <b>무엇을 샀는지가 화면에서 사라졌다</b> - 주석에는 '원본 구매조회 격자와 같은 칸 구성'
+   * 이라 적혀 있었는데, <b>구매조회(E040304)는 다른 화면이다.</b>
+   * 여기서는 줄을 그대로 편다(<code>shown</code> 이 이미 줄 단위다).
    */
-  const slips = useMemo(() => {
-    const by = new Map<string, {
-      date: string; docNo: string; partner: string; itemName: string; lineCount: number
-      qty: number; supply: number; vat: number; warehouse: string
-    }>()
-    for (const r of shown) {
-      const cur = by.get(r.docNo)
-      if (!cur) {
-        by.set(r.docNo, {
-          date: r.date, docNo: r.docNo, partner: r.partner, itemName: r.itemName, lineCount: 1,
-          qty: r.qty, supply: r.supply, vat: r.vat, warehouse: r.warehouse,
-        })
-      } else {
-        cur.lineCount += 1
-        cur.qty += r.qty
-        cur.supply += r.supply
-        cur.vat += r.vat
-      }
-    }
-    return [...by.values()]
-  }, [shown])
 
   /** 집계는 판매현황과 같은 규칙을 쓴다 — 계산은 utils/statusAggregate 가 진다. */
   const grouped = useMemo(
@@ -207,52 +265,45 @@ export default function PurchaseStatusPage() {
   }, [mode, grouped, shown])
 
 
-  /**
-   * [라인별] 을 원본 모양으로 — 줄 사이에 <b>월별 소계</b>를 끼우고 끝에 총합계를 둔다.
-   *
-   * <p>원본 구매현황의 결과는 일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 부가세 ·
-   * <b>합계</b> · 거래처명 이고, 월이 바뀌는 자리마다 '2026/06 계' 가 들어간 뒤
-   * 맨 끝에 '총합계' 가 온다. 우리는 [합계] 열도 소계도 없어서 "이번 달 얼마 샀나" 를
-   * 눈으로 세야 했다.
-   *
-   * <p>소계를 화면에서 따로 계산하지 않고 목록을 만들면서 같이 넣는다 —
-   * 두 벌로 세면 한쪽만 조건이 바뀌었을 때 소계와 줄이 어긋난다.
+  /*
+   * 2026-10-20 loginaa 실측: [라인별] 은 <b>소계 · 총합계가 없는</b> 일자 내림차순 줄이다
+   * (9-09 기록의 '월 소계' 는 오늘 원본에 없다). shown 이 이미 줄 단위 · 내림차순이다.
    */
   /*
-   * [일자] 머리에 ▼ 를 그려 놓고 <b>눌러도 아무 일이 없었다.</b> 이 표는 실은 늘
-   * 일자 오름차순으로 세워져 있었다 — 표시가 '고를 수 있다' 고 말하는데 고를 수가 없었다.
-   *
-   * <p>이 표는 달이 바뀌는 자리에 <b>월 소계 줄을 끼워 넣는다.</b> 그래서 정렬을
-   * <b>풀 수는 없다</b> — 날짜로 묶여 있지 않으면 소계가 엉킨다. 오름/내림만 오간다.
+   * 원본 [구분] 여덟 갈래(2026-10-22 구매현황 실측 · 둘째 바퀴): 같은 일곱 열에 묶는 키만 다르다(소계 · 총합계 줄은 없다).
+   * 묶인 줄은 <b>가장 이른 줄</b>의 일자-No. · 거래처 · 적요 · 품목을 찍고(월별 10월 = 2026/10/01 -1 — 10/19 가 아니다) 수량 · 금액은 더하며
+   * 단가는 줄 단가의 평균이다(전표 셋 줄 10,000 · 1,900 · 50 → 3,983). 품목별 · 거래처별 · 담당자별은 <b>기간 전체</b>로 묶는다(달마다 나누지 않는다 —
+   * 9월+10월 거래처별 13줄). 묶음은 가장 이른 줄의 일자 · 번호가 늦은 것부터 늘어선다.
    */
-  const sort = useTableSort(shown, { 일자: (r) => r.date }, { key: '일자', dir: 'asc' })
-
   const lineRows = useMemo(() => {
-    type Row =
-      | { kind: 'line'; key: string; no: number; r: typeof shown[number] }
-      | { kind: 'subtotal'; key: string; month: string; qty: number; supply: number; vat: number }
-    const sorted = sort.sorted
-    const out: Row[] = []
-    let month = ''
-    let no = 0
-    let qty = 0
-    let supply = 0
-    let vat = 0
-    const flush = () => {
-      if (month) out.push({ kind: 'subtotal', key: `sub-${month}`, month, qty, supply, vat })
-      qty = 0; supply = 0; vat = 0
+    if (lineKind === '라인별') return shown
+    const itemOf = (r: typeof shown[number]) => r.itemName + (r.spec ? ` [${r.spec}]` : '')
+    const seq = (docNo: string) => Number(docNo.split('-').pop()) || 0
+    const keyOf = (r: typeof shown[number]): string => {
+      switch (lineKind) {
+        case '일별': return r.date
+        case '월별': return r.date.slice(0, 7)
+        case '전표별': return dateNo(r.date, r.docNo)
+        case '품목별': return `${r.itemId}|${itemOf(r)}`
+        case '전표별품목별': return `${dateNo(r.date, r.docNo)}|${r.itemId}|${itemOf(r)}`
+        case '거래처별': return `${r.partnerId}`
+        default: return `${r.employeeName ?? ''}`
+      }
     }
-    for (const r of sorted) {
-      const m = r.date.slice(0, 7).replace('-', '/')
-      if (m !== month) { flush(); month = m }
-      out.push({ kind: 'line', key: r.key, no: ++no, r })
-      qty += r.qty
-      supply += r.supply
-      vat += r.vat
-    }
-    flush()
-    return out
-  }, [shown, sort.sorted])
+    /* shown 은 일자 내림차순(같은 날은 들어온 차례) — 가장 이른 줄을 첫 줄로 삼으려 일자 · 번호 오름차순으로 한 번 뒤집는다. */
+    const asc = shown.map((r, i) => ({ r, i })).sort((x, y) =>
+      x.r.date !== y.r.date ? (x.r.date < y.r.date ? -1 : 1) : (seq(x.r.docNo) - seq(y.r.docNo)) || x.i - y.i)
+    const groups = new Map<string, { first: typeof shown[number]; order: number; n: number; qty: number; price: number; supply: number }>()
+    asc.forEach(({ r }, order) => {
+      const k = keyOf(r)
+      const g = groups.get(k) ?? { first: r, order, n: 0, qty: 0, price: 0, supply: 0 }
+      g.n += 1; g.qty += r.qty; g.price += r.unitPrice; g.supply += r.supply
+      groups.set(k, g)
+    })
+    return [...groups].sort(([, x], [, y]) => x.first.date !== y.first.date ? (x.first.date < y.first.date ? 1 : -1)
+      : (seq(y.first.docNo) - seq(x.first.docNo)) || x.order - y.order)
+      .map(([k, g]) => ({ ...g.first, key: `g|${k}`, qty: g.qty, unitPrice: Math.round(g.price / g.n), supply: g.supply }))
+  }, [shown, lineKind])
 
   /**
    * 비교기간 — 같은 조건을 같은 길이의 앞 구간에 걸어 다시 합친다.
@@ -265,15 +316,15 @@ export default function PurchaseStatusPage() {
     const kw = keyword.trim()
     return rows
       .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
-      .filter((r) => !f.partner || r.partner.includes(f.partner))
-      .filter((r) => !f.warehouse || r.warehouse.includes(f.warehouse))
-      .filter((r) => !f.item || r.itemName.includes(f.item))
+      .filter((r) => !f.partner || String(r.partnerId) === f.partner)
+      .filter((r) => !f.warehouse || String(r.warehouseId) === f.warehouse)
+      .filter((r) => !f.item || String(r.itemId) === f.item)
       .filter((r) => !kw || r.partner.includes(kw) || r.itemName.includes(kw))
       .reduce((s2, r) => ({ supply: s2.supply + r.supply, vat: s2.vat + r.vat }), { supply: 0, vat: 0 })
   }, [rows, prevRange, filters, keyword])
 
   const reset = () => {
-    setFilters(EMPTY_FILTERS); setMode('내역'); setCompare('사용안함'); setKeyword('')
+    setFilters(EMPTY_FILTERS); setMode('현황'); setCompare('사용안함'); setKeyword('')
     // 집계조건도 조건이다. 안 되돌리면 '거래처별'로 바꿔 둔 채 다시 작성해도 그대로 남는다.
     setGroup1('품목별'); setGroup2('')
   }
@@ -295,13 +346,23 @@ export default function PurchaseStatusPage() {
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel(화면)' },
+        { label: 'Email', disabled: true },   // 바깥 발송 — 누르지 않는다
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/* 조건 판은 현황 화면 공용이다(EcStatusPanel). 원본도 접히지 않고 펼쳐져 있다. */}
       <EcStatusPanel
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        modeLabel="메뉴" compareLabel="구분"
+        modeExtra={mode === '현황' ? (
+          <label className="inline-flex items-center gap-[6px]">
+            <select className="ec-input w-[130px]" aria-label="구분" value={lineKind}
+                    onChange={(e) => setLineKind(e.target.value as LineKind)}>
+              {LINE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </label>
+        ) : undefined}
         view={view} onViewChange={setView}
         compare={compare} onCompareChange={setCompare}
         from={filters.dateFrom} to={filters.dateTo}
@@ -354,6 +415,67 @@ export default function PurchaseStatusPage() {
                            value={filters.item} onChange={(v) => setF({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 접힌 줄을 펼쳐 스물넷):
+          … 품목 · <b>오더관리번호 · 담당자 · 거래처관리담당자</b> · (외화종류) ·
+          <b>규격 · 수량 · 단가 · 공급가액 · 부가세 · 적요</b> · 구매구분 ·
+          (진행상태 · 채무번호) · <b>작성자</b> · (최종수정자 · 사용자지정).
+        */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
+                           value={filters.orderNo} onChange={(v) => setF({ orderNo: v })}
+                           items={[...new Set(rows.map((r) => r.sourceDocNo).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={filters.employee} onChange={(v) => setF({ employee: v })}
+                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={filters.partnerManager} onChange={(v) => setF({ partnerManager: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
+                           value={filters.spec} onChange={(v) => setF({ spec: v })}
+                           items={[...new Set(rows.map((r) => r.spec).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="수량">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={filters.qtyFrom}
+                 onChange={(e) => setF({ qtyFrom: e.target.value })} style={{ width: 100 }} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={filters.qtyTo}
+                 onChange={(e) => setF({ qtyTo: e.target.value })} style={{ width: 100 }} />
+        </EcCond>
+        <EcCond label="단가">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={filters.priceFrom}
+                 onChange={(e) => setF({ priceFrom: e.target.value })} style={{ width: 110 }} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={filters.priceTo}
+                 onChange={(e) => setF({ priceTo: e.target.value })} style={{ width: 110 }} />
+        </EcCond>
+        <EcCond label="공급가액">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={filters.supplyFrom}
+                 onChange={(e) => setF({ supplyFrom: e.target.value })} style={{ width: 120 }} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={filters.supplyTo}
+                 onChange={(e) => setF({ supplyTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="부가세">
+          <input type="number" className="ec-input text-right" placeholder="이상" value={filters.vatFrom}
+                 onChange={(e) => setF({ vatFrom: e.target.value })} style={{ width: 120 }} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input type="number" className="ec-input text-right" placeholder="이하" value={filters.vatTo}
+                 onChange={(e) => setF({ vatTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={filters.remark}
+                 onChange={(e) => setF({ remark: e.target.value })} style={{ width: 170 }} />
+        </EcCond>
         <EcCond label="구매구분">
           <div className="ec-pills">
             {['', '일반', '반품'].map((v) => (
@@ -363,8 +485,14 @@ export default function PurchaseStatusPage() {
             ))}
           </div>
         </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
+                           value={filters.author} onChange={(v) => setF({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="정렬기준">
-          <label style={{ fontSize: 12 }}>
+          <label className="text-[12px]">
             <input type="checkbox" checked={filters.sortByModified}
                    onChange={(e) => setF({ sortByModified: e.target.checked })} /> 전표번호순 (기본: 일자순)
           </label>
@@ -372,14 +500,14 @@ export default function PurchaseStatusPage() {
       </EcStatusPanel>
 
       {prevTotals && (
-        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
-          <span style={{ color: 'var(--ec-label)' }}>
+        <div className="mb-[8px] text-[12.5px] text-right text-ec-label">
+          <span className="text-ec-label">
             비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
           </span>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          <span className="my-0 mx-[8px] text-ec-off">|</span>
           공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
           {prevTotals.supply > 0 && (
-            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? '#1c7c3c' : '#c60a2e' }}>
+            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
               ({totals.supply >= prevTotals.supply ? '+' : ''}
               {Math.round(((totals.supply - prevTotals.supply) / prevTotals.supply) * 100)}%)
             </span>
@@ -387,41 +515,34 @@ export default function PurchaseStatusPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
-      </div>
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 구매가 없습니다." />
       ) : mode === '집계' ? (
         <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>{group1 || '집계조건1'}</th>
               {group2 && <th>{group2}</th>}
-              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
-              <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
-              <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+              <th className="w-[90px] text-right">건수</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[130px] text-right">공급가액</th>
+              <th className="w-[130px] text-right">부가세</th>
+              <th className="w-[130px] text-right">합계</th>
             </tr>
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={group2 ? 8 : 7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}`}>
-                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint bg-ec-stripe">{i + 1}</td>
                 <td>{g.g1}</td>
                 {group2 && <td>{g.g2}</td>}
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+                <td className="text-right text-ec-hint">{g.count.toLocaleString()}</td>
+                <td className="text-right">{g.qty.toLocaleString()}</td>
+                <td className="text-right">{g.supply.toLocaleString()}</td>
+                <td className="text-right text-ec-hint">{g.vat.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: '#1c6b32' }}>
                   {(g.supply + g.vat).toLocaleString()}
                 </td>
@@ -429,126 +550,58 @@ export default function PurchaseStatusPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={group2 ? 3 : 2} style={{ textAlign: 'right' }}>합계 ({grouped.length}개 그룹)</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.qty, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={group2 ? 3 : 2} className="text-right">합계 ({grouped.length}개 그룹)</td>
+              <td className="text-right">{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
+              <td className="text-right">{grouped.reduce((a, g) => a + g.qty, 0).toLocaleString()}</td>
+              <td className="text-right">{totals.supply.toLocaleString()}</td>
+              <td className="text-right">{totals.vat.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#1c6b32' }}>{(totals.supply + totals.vat).toLocaleString()}</td>
             </tr>
           </tfoot>
         </table>
-      ) : mode === '내역' ? (
-        <table className="w-full text-left">
-          <thead>
-            <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 190 }}>일자-No.</th>
-              <th>매입처</th>
-              <th>품목명(요약)</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
-              <th style={{ width: 120, textAlign: 'right' }}>부가세</th>
-              <th style={{ width: 130, textAlign: 'right' }}>금액합계</th>
-              <th style={{ width: 110 }}>창고명</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : slips.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : slips.map((sl, i) => (
-              <tr key={sl.docNo}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(sl.date)} {sl.docNo}</td>
-                <td>{sl.partner}</td>
-                <td>{sl.itemName}{sl.lineCount > 1 ? ` 외 ${sl.lineCount - 1}건` : ''}</td>
-                <td style={{ textAlign: 'right' }}>{sl.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{sl.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{sl.vat.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>
-                  {(sl.supply + sl.vat).toLocaleString()}
-                </td>
-                <td>{sl.warehouse}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({slips.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{slips.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#1c6b32' }}>
-                {(totals.supply + totals.vat).toLocaleString()}
-              </td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
       ) : (
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
-            <th>전표번호</th>
-            <th>창고</th>
-            <th>매입처</th>
-            <th>품목명</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
-            <th style={{ textAlign: 'right' }}>합계</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          /* 그리는 것(lineRows)을 보고 판단한다 — 판매현황과 같은 자리였다. */
-          ) : lineRows.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
-              {rows.length === 0 ? '구매 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
-            </td></tr>
-          ) : lineRows.map((x) => x.kind === 'subtotal' ? (
-            <tr key={x.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
-              <td colSpan={6} style={{ textAlign: 'right' }}>{x.month} 계</td>
-              <td style={{ textAlign: 'right' }}>{x.qty.toLocaleString()}</td>
-              <td></td>
-              <td style={{ textAlign: 'right' }}>{x.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{x.vat.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{(x.supply + x.vat).toLocaleString()}</td>
-            </tr>
-          ) : (
-            <tr key={x.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{x.no}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(x.r.date)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{x.r.docNo}</td>
-              <td>{x.r.warehouse}</td>
-              <td>{x.r.partner}</td>
-              <td>{x.r.itemName}</td>
-              <td style={{ textAlign: 'right' }}>{x.r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{x.r.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{x.r.vat.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{(x.r.supply + x.r.vat).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-            <td colSpan={6} style={{ textAlign: 'right' }}>총합계 ({shown.length}줄)</td>
-            <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.qty, 0).toLocaleString()}</td>
-            <td></td>
-            <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
-            <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
-            <td style={{ textAlign: 'right', color: '#1c6b32' }}>{(totals.supply + totals.vat).toLocaleString()}</td>
-          </tr>
-        </tfoot>
-      </table>
+        /*
+          2026-10-20 loginaa 실측(구매현황 라인별, 검색 뒤): 판매현황처럼 <b>출력물 모양</b>이다 — 위에 '구매현황' · '회사명 : …' · 기간(기본 전월+금월),
+          열 일곱이 아니라 <b>일곱</b>: 일자-No. · 거래처명 · 적요 · 품목명(규격) · 수량 · 단가 · <b>금액(=공급가액)</b>.
+          일자 <b>내림차순</b> · 소계 · 총합계 줄 없음. 부가세 · 합계 · 창고명 열은 원본에 없다(9-09 · 9-23 기록의 아홉 열은 지금 원본과 다르다).
+          열 폭은 판매현황 출력물(머리 400 · 28.1, 본문 25.1)을 따른다 — 구매현황 자체의 폭은 못 쟀다(원본 재기 필요).
+        */
+        <div className="ec-report-frame">
+          <EcReportHead title="구매현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
+          <table className="w-full text-left table-fixed ec-report ec-report-head400 [&_thead_th]:h-[28.14px] [&_tbody_td]:h-[25.14px]">
+            <thead>
+              <tr>
+                {/* 머리의 정렬 클래스는 칸 정렬을 적어 두는 것이다(ui-check 가 읽는다) — 보이는 머리는 .ec-report 가 가운데로 덮는다. */}
+                <th className="text-center">일자-No.</th>
+                <th>거래처명</th>
+                <th>적요</th>
+                <th>품목명(규격)</th>
+                <th className="text-right">수량</th>
+                <th className="text-right">단가</th>
+                <th className="text-right">금액</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} className="text-center">불러오는 중…</td></tr>
+              ) : lineRows.length === 0 ? (
+                <tr><td colSpan={7} className="text-center">등록된 데이터가 없습니다.</td></tr>
+              ) : lineRows.map((r) => (
+                <tr key={r.key}>
+                  <td className="text-center"><span className="ec-link">{dateNo(r.date, r.docNo)}</span></td>
+                  <td>{r.partner}</td>
+                  <td>{r.remark ?? ''}</td>
+                  {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 없는 품목은 이름만 찍는다. */}
+                  <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                  <td className="text-right">{r.qty.toLocaleString()}</td>
+                  <td className="text-right">{r.unitPrice.toLocaleString()}</td>
+                  <td className="text-right">{r.supply.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </EcListShell>
   )

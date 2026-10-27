@@ -1,0 +1,38 @@
+{
+  "about": "재고1 원본 재기(2026-10-22) 읽기 전용 꼴 확인 — 채권/채무현황 [구분] 채권/채무 두 줄 머리 · 월별채무증감내역 [미지급액] 줄 · 구매현황 [구분] 여덟 갈래와 비교기간 알약이 같은 [구분] 칸 · 재고수불부 품목마다 6열 표(전일재고 줄 · 계 · 합계).",
+  "shots": [
+    {
+      "name": "채권/채무현황 [구분] 채권/채무 — 두 줄 머리, 거래처코드 열 없음, 차액",
+      "path": "/sales/ar-ap-status",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.text === '채권/채무')); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, [...s.options].find((o) => o.text === '채권/채무').value); s.dispatchEvent(new Event('change', { bubbles: true })); await new Promise((r) => setTimeout(r, 1200)); return true })()",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => /차액/.test(x.tHead?.innerText ?? '')); const h = [...t.tHead.rows].map((r) => [...r.cells].map((c) => c.innerText.trim()).join('|')); return h.length === 2 && h[0] === '거래처명|채권|채무|차액' && h[1] === '청구금액|미청구금액|합계|청구금액|미청구금액|합계' })()"
+      ]
+    },
+    {
+      "name": "월별채무증감내역 — 줄 이름 미지급액",
+      "path": "/sales/monthly-ap",
+      "steps": [
+        "wait:2500",
+        "expect:/미지급액/.test(document.body.innerText) && !/미회수액/.test([...document.querySelectorAll('table')].map((t) => t.innerText).join(' '))"
+      ]
+    },
+    {
+      "name": "구매현황 — [구분] 여덟 갈래, 비교기간 알약은 같은 칸 안",
+      "path": "/sales/purchase-status",
+      "steps": [
+        "wait:2500",
+        "expect:(() => { const s = document.querySelector('select[aria-label=\"구분\"]'); const li = s.closest('li'); return [...s.options].map((o) => o.text).join('|') === '일별|월별|라인별|전표별|품목별|전표별품목별|거래처별|담당자별' && /비교기간/.test(li.innerText) && /^구분/.test(li.innerText.trim()) })()"
+      ]
+    },
+    {
+      "name": "재고수불부 — 품목마다 6열 표 · 전일재고 줄 · 합계",
+      "path": "/inventory/ledger",
+      "steps": [
+        "wait:3500",
+        "expect:(() => { const t = document.querySelector('.ec-report-frame table'); return !!t && [...t.tHead.rows[0].cells].map((c) => c.innerText.trim()).join('|') === '일자|거래처명|적요|입고수량|출고수량|재고수량' && /^전일재고/.test(t.tBodies[0].rows[0].innerText.trim()) && document.querySelectorAll('.ec-report-frame .ec-report-head').length >= 1 })()"
+      ]
+    }
+  ]
+}

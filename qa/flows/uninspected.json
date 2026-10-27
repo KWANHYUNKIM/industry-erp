@@ -1,0 +1,18 @@
+{
+  "about": "미검사현황(E040631) — 2026-10-04 원본 실측: 요청 품목 줄마다 한 행(5/21 -3 → MSI 10 · 인텔 20 두 행), 미검사수량 = 줄 수량 − 그 요청으로 만든 검사가 같은 품목에 검사한 수량, 달마다 계 · 총합계. 두 줄 요청(A 4 · B 2)에서 A 를 3 검사하면 A 미검사 1 · B 2 인지 보고 지운다.",
+  "shots": [
+    {
+      "name": "두 줄 요청 + A 3 검사 → 미검사 A 1 · B 2 → 지움",
+      "path": "/quality/uninspected",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = await (await fetch('/api/items', { headers: H })).json(); const r = await (await fetch('/api/quality-inspection-requests', { method: 'POST', headers: H, body: JSON.stringify({ requester: 'QA재고2미검사', remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'FULL', quantity: 4 }, { itemId: it[1].id, method: 'FULL', quantity: 2 }] }) })).json(); const q = await (await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ requestId: r.id, inspector: 'QA재고2', remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'FULL', quantity: 3 }] }) })).json(); sessionStorage.setItem('unReq', r.id); sessionStorage.setItem('unQ', q.id); sessionStorage.setItem('unNo', r.requestNo); return r.requestNo + ' / ' + q.inspectionNo })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:(() => { const rows = [...document.querySelectorAll('tbody tr')].filter((tr) => tr.innerText.includes('QA재고2미검사')); const t = rows.map((tr) => [...tr.cells].slice(-2).map((c) => c.innerText.trim()).join('/')); return rows.length === 2 && t.includes('4/1') && t.includes('2/2') })()",
+        "expect:document.querySelector('.ec-report-title')?.innerText.trim() === '미검사현황' && document.querySelector('.ec-report-foot')?.innerText.includes('[P.1]')",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const a = await fetch('/api/quality-inspections/' + sessionStorage.getItem('unQ'), { method: 'DELETE', headers: H }); const b = await fetch('/api/quality-inspection-requests/' + sessionStorage.getItem('unReq'), { method: 'DELETE', headers: H }); return a.ok && b.ok })()"
+      ]
+    }
+  ]
+}

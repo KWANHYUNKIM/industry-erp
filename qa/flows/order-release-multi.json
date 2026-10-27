@@ -1,0 +1,35 @@
+{
+  "about": "주문서출고처리 — 두 주문을 한 번에 [출고] 하고 출고등록 창 [판매입력] 을 켜 저장(원본 E040230 2026-10-13 실측: 주문마다 처리 1건, 판매입력 창에 두 주문 품목이 함께 차고 저장하면 두 처리 건의 [판매] 가 같은 판매). 처리 건 단건 조회가 출고증 머리(납품처 · 창고 · 품목코드)를 싣는지 본다. 판매 · 처리 · 주문은 끝에 지운다. CDP_PORT=<포트> node qa/shot.mjs qa/flows/order-release-multi.json",
+  "shots": [
+    {
+      "name": "두 주문 출고 + 판매입력 → 한 판매",
+      "path": "/sales/order-release",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const p = (await (await fetch('/api/partners', { headers: H })).json()).find((x) => x.type === 'CUSTOMER' || x.type === 'BOTH'); const items = await (await fetch('/api/items', { headers: H })).json(); const st = (await (await fetch('/api/stock', { headers: H })).json()).find((x) => x.quantity >= 10 && items.some((i) => i.id === x.itemId && i.active !== false)); const it = items.find((i) => i.id === st.itemId); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const mk = async (q) => (await (await fetch('/api/sales-orders', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, orderDate: d, dueDate: d, warehouseId: st.warehouseId, taxable: true, remark: 'QA재고1 출고묶음', lines: [{ itemId: it.id, quantity: q, unitPrice: 1000 }] }) })).json()); const a = await mk(5), b = await mk(3); const lab = (r) => d.replace(/-/g, '/') + ' -' + Number(r.orderNo.split('-').pop()); sessionStorage.setItem('orm', JSON.stringify({ ids: [a.id, b.id], labels: [lab(a), lab(b)] })); return lab(a) + ' ' + lab(b) })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('orm')); window.__rows = () => [...document.querySelectorAll('tbody tr')].filter((t) => [...t.querySelectorAll('a')].some((a) => S.labels.includes(a.textContent.trim()))); return true })()",
+        "expect:window.__rows().length === 2",
+        "js:(() => { window.__rows().forEach((r) => r.querySelector('input[type=checkbox]').click()); return true })()",
+        "wait:300",
+        "click:출고",
+        "wait:500",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('판매입력')",
+        "js:(() => { [...document.querySelectorAll('[role=dialog] label')].find((l) => l.textContent.trim() === '판매입력').querySelector('input').click(); return true })()",
+        "click:저장(F8)",
+        "wait:3500",
+        "expect:location.pathname === '/sales/sell' && /fromRelease=\\d+,\\d+/.test(location.search)",
+        "expect:[...document.querySelectorAll('input')].filter((i) => i.value === '5' || i.value === '3').length >= 2",
+        "click:저장(F8)",
+        "wait:3500",
+        "expect:location.pathname === '/sales/order-release'",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('orm')); window.__rows = () => [...document.querySelectorAll('tbody tr')].filter((t) => [...t.querySelectorAll('a')].some((a) => S.labels.includes(a.textContent.trim()))); return true })()",
+        "expect:window.__rows().length === 2 && new Set(window.__rows().map((r) => r.cells[6].innerText.trim())).size === 1 && /^\\d{4}\\/\\d{2}\\/\\d{2}-\\d+$/.test(window.__rows()[0].cells[6].innerText.trim()) && window.__rows()[0].cells[7].innerText.trim() === '인쇄'",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('orm')); const rs = (await (await fetch('/api/order-releases', { headers: H })).json()).filter((x) => S.ids.includes(x.orderId)); S.rel = rs.map((r) => r.id); S.saleId = rs[0].saleId; const d = await (await fetch('/api/order-releases/' + rs[0].id, { headers: H })).json(); S.slip = !!d.partnerName && !!d.lines[0].itemCode && !!d.lines[0].itemName; sessionStorage.setItem('orm', JSON.stringify(S)); return S.slip })()",
+        "expect:JSON.parse(sessionStorage.getItem('orm')).slip === true",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const S = JSON.parse(sessionStorage.getItem('orm')); let ok = (await fetch('/api/sales/' + S.saleId, { method: 'DELETE', headers: H })).ok; for (const id of S.rel) ok = (await fetch('/api/order-releases/' + id, { method: 'DELETE', headers: H })).ok && ok; for (const id of S.ids) ok = (await fetch('/api/sales-orders/' + id, { method: 'DELETE', headers: H })).ok && ok; return ok })()"
+      ]
+    }
+  ]
+}

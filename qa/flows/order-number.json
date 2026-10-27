@@ -1,0 +1,69 @@
+{
+  "about": "재고 II > 오더관리 — 오더관리유형등록(E040901) · 오더관리진행단계(E040904) 2026-10-21 원본 실측: 유형 10007 'QA재고2-유형'(1단계 주문서) 등록 → [신규(F2)] 오더관리번호등록 창(번호 00027 자동 · 오더관리명 · 오더관리유형 · 생성일자 · 적요1 · 2 · 검색창내용), 빈 채 저장 → 오더관리명 · 오더관리유형 두 칸만 붉게(글 없음), 채워 저장 → 말 없이 닫히고 맨 위 줄 '00027 · QA재고2-오더 · QA재고2-유형 · 2026/10/21 · 주문서 (0) · 보기'. 번호 눌러 수정(유형 잠김) → 이름 바뀜. [보기] '오더관리번호별 상세내역' 진행상태 진행중 → 고르고 [전체단계완료] '선택한 오더관리번호를 종결 하겠습니까?' → 진행상태 완료. 수정 창 [사용중단/재사용 ▴] › [삭제] '삭제하겠습니까?' → 사라짐.",
+  "shots": [
+    {
+      "name": "유형 하나 만들기(유형등록 화면은 앞 바퀴 흐름이 본다)",
+      "path": "/sales/order-stages",
+      "steps": [
+        "wait:1200",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const st = await A('GET', '/order-stages'); const s = Date.now().toString().slice(-5); const t = await A('POST', '/order-types', { code: 'QA2O' + s, name: 'QA재고2-유형' + s, stageIds: [st[0].id] }); sessionStorage.setItem('ono', JSON.stringify({ tid: t.id, tname: t.name, stage: st[0].name, s })); sessionStorage.setItem('ocode', t.code); return !!t.id })()",
+        "wait:200"
+      ]
+    },
+    {
+      "name": "오더관리번호 등록(빈 칸 검증 → 저장)",
+      "path": "/sales/order-stages",
+      "steps": [
+        "wait:1200",
+        "click:신규(F2)",
+        "wait:600",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.innerText.includes('오더관리번호등록') && /^\\d{5}$/.test(d.querySelector('input[placeholder=오더관리번호]').value) })()",
+        "click:저장(F8)",
+        "wait:400",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.querySelectorAll('.ec-invalid').length === 2 })()",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; set(d.querySelector('input[placeholder=오더관리명]'), 'QA재고2-오더' + S.s); set(d.querySelector('input[placeholder=적요1]'), 'QA재고2'); return true })()",
+        "js:([...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"오더관리유형 선택\"]').click(), true)",
+        "pickrow:@ocode",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-오더' + S.s)); return !!r && r.innerText.includes(S.tname) && r.innerText.includes(S.stage + ' (0)') && r.innerText.includes('보기') && ![...document.querySelectorAll('[role=dialog]')].length })()"
+      ]
+    },
+    {
+      "name": "번호 눌러 수정(유형 잠김) · 보기 · 전체단계완료 · 삭제",
+      "path": "/sales/order-stages",
+      "steps": [
+        "wait:1200",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-오더' + S.s)).querySelector('a').click(); return true })()",
+        "wait:500",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.querySelector('button[title=\"오더관리유형 선택\"]').disabled })()",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelector('input[placeholder=오더관리명]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'QA재고2-오더수정' + S.s); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); return document.querySelector('tbody').innerText.includes('QA재고2-오더수정' + S.s) })()",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); [...[...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-오더수정' + S.s)).querySelectorAll('a')].find((a) => a.textContent.trim() === '보기').click(); return true })()",
+        "wait:400",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.innerText.includes('오더관리번호별 상세내역') && d.innerText.includes('진행중') && d.innerText.includes('1단계 [') })()",
+        "clicklast:닫기",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-오더수정' + S.s)).querySelector('input[type=checkbox]').click(); return true })()",
+        "click:전체단계완료",
+        "expect:[...document.querySelectorAll('[role=alertdialog]')].some((d) => d.innerText.includes('선택한 오더관리번호를 종결 하겠습니까?'))",
+        "clicklast:확인",
+        "wait:1200",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); [...[...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-오더수정' + S.s)).querySelectorAll('a')].find((a) => a.textContent.trim() === '보기').click(); return true })()",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('완료')",
+        "clicklast:닫기",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-오더수정' + S.s)).querySelector('a').click(); return true })()",
+        "wait:500",
+        "clicklast:사용중단/재사용 ▲",
+        "js:([...document.querySelectorAll('.ec-menu button')].find((b) => b.textContent.trim() === '삭제').click(), true)",
+        "expect:[...document.querySelectorAll('[role=alertdialog]')].some((d) => d.innerText.includes('삭제하겠습니까?'))",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); return !document.querySelector('tbody').innerText.includes('QA재고2-오더수정' + S.s) })()",
+        "js:(async () => { const S = JSON.parse(sessionStorage.getItem('ono')); const r = await fetch('/api/order-types/' + S.tid, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 })()"
+      ]
+    }
+  ]
+}

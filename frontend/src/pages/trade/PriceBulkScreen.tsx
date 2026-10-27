@@ -2,11 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import { INQUIRY_PICKS, periodOf, ymd } from '../../components/periods'
+import { INQUIRY_PICKS, periodOf, ymd } from '../../utils/periods'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Partner, Item, Warehouse } from '../../api/types'
+import type { Partner, Item, Warehouse } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
+
+/** 원본 판매단가일괄변경 [저장(F8)] 확인 창 글(2026-10-20 E040224 실측, 줄바꿈 그대로). */
+const BULK_SAVE_CONFIRM = '일괄수정에서는 아래의 사항을 확인바랍니다.\n\n1. 여신한도 및 기간이 체크되지 않습니다.\n'
+  + '2. 부대비용 및 전/후잔 자동변경이 되지 않습니다.\n\n변경된 자료는 복원이 불가합니다.\n변경하겠습니까?'
 
 /**
  * 판매·구매 단가일괄변경.
@@ -40,6 +45,12 @@ interface SlipLineRow {
   vatAmount: number
   editable: boolean
   lockReason: string | null
+  projectName: string | null
+  sourceDate: string | null
+  sourceNo: string | null
+  managementItemName: string | null
+  remark: string | null
+  lotNo: string | null
 }
 
 interface PriceBulkItem {
@@ -99,7 +110,7 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   }, [])
 
   async function loadLines() {
-    setLoading(true); setError(''); setMessage('')
+    setLoading(true); setError(''); setMessage(''); setSearched(true)
     try {
       const res = await api.get<SlipLineRow[]>('/price-bulk/lines', {
         params: {
@@ -120,7 +131,11 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
     }
   }
 
-  useEffect(() => { if (mode === '전표단가') loadLines() }, [mode])
+  /**
+   * 원본 판매단가일괄변경 · 구매단가일괄변경은 조건 판만 펴고 시작하고, [검색(F8)] 을 눌러야 격자가 나온다
+   * (판매 2026-10-20 실측, 구매 같은 날 재고1c 실측 — 저장 확인 창 · 말 없는 저장 · 합계줄 없음도 같다).
+   */
+  const [searched, setSearched] = useState(false)
 
   const changed = useMemo(
     () => rows.filter((r) => {
@@ -132,18 +147,20 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
 
   async function save() {
     setError(''); setMessage('')
-    if (changed.length === 0) return setError('바꾼 단가가 없습니다.')
+    // 원본(판매, 2026-10-20 실측): 고친 칸 없이 [저장(F8)] → '알림' 창 '변경된정보가 없습니다.'
+    if (changed.length === 0) return void ecAlert('변경된정보가 없습니다.')
     const locked = changed.filter((r) => !r.editable)
     if (locked.length > 0) {
       return setError(`고칠 수 없는 전표가 있습니다: ${locked.map((r) => r.docNo).join(', ')}`)
     }
+    // 원본은 저장 전에 한 번 묻고(체크칸을 안 골라도 고친 줄 전부), 저장 뒤에는 말 없이 격자만 새 금액으로 바뀐다.
+    if (!(await ecConfirm(BULK_SAVE_CONFIRM))) return
     setSaving(true)
     try {
-      const res = await api.put<{ changedLines: number; changedSlips: number }>('/price-bulk/lines', {
+      await api.put<{ changedLines: number; changedSlips: number }>('/price-bulk/lines', {
         tradeType: trade,
         changes: changed.map((r) => ({ lineId: r.lineId, unitPrice: Number(edits[r.lineId]) })),
       })
-      setMessage(`${res.data.changedSlips}개 전표 ${res.data.changedLines}줄의 단가를 바꿨습니다. 공급가액·부가세도 다시 계산했습니다.`)
       await loadLines()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -152,9 +169,6 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
     }
   }
 
-  const total = useMemo(() => rows.reduce((a, r) => ({
-    qty: a.qty + r.quantity, supply: a.supply + r.supplyAmount, vat: a.vat + r.vatAmount,
-  }), { qty: 0, supply: 0, vat: 0 }), [rows])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [rows.length, mode])
@@ -162,16 +176,20 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
   return (
     <EcListShell
       title={title}
-      actions={mode === '전표단가'
-        ? [
-          { label: loading ? '조회 중…' : '검색(F8)', onClick: loadLines },
-          { label: saving ? '저장 중…' : `저장(F8)${changed.length ? ` (${changed.length})` : ''}`, onClick: save, primary: true },
-          { label: 'Excel' },
-        ]
-        : [{ label: 'Excel' }]}
+      /* 판매 · 구매: 머리에 검색칸이 없는 현황형 — 판을 펴고 시작, 판 아래 [검색(F8)], 하단 버튼줄은 [저장(F8)] 하나(원본 실측). */
+      searchable={false}
+      onSearch={() => { if (mode === '전표단가') void loadLines() }}
+      actions={(mode !== '전표단가' ? []
+          : searched ? [{ label: saving ? '저장 중…' : '저장(F8)', onClick: save, primary: true }]
+          /* 검색 전(판이 펴진 채): 원본 판 아래 [검색(F8)] · [다시 작성] */
+          : [{ label: '검색(F8)', onClick: () => void loadLines(), primary: true },
+             { label: '다시 작성', onClick: () => {
+               setFrom(init.from); setTo(init.to); setPartnerId(''); setItemId(''); setWarehouseId('')
+               setTaxType(''); setTradeKind(''); setStatus('ALL')
+             } }])}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {message && <p style={{ background: '#e9f6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {message && <p style={{ background: '#e9f6ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
 
       <EcStatusPanel
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
@@ -244,59 +262,85 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
       </EcStatusPanel>
 
       {mode === '전표단가'
-        ? <SlipGrid rows={rows} edits={edits} setEdits={setEdits} loading={loading} total={total} tableRef={tableRef} />
+        ? (searched && <SlipGrid rows={rows} edits={edits} setEdits={setEdits} loading={loading} tableRef={tableRef} />)
         : <ItemPriceGrid sale={sale} />}
     </EcListShell>
   )
 }
 
-function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
+function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
   rows: SlipLineRow[]
   edits: Record<number, string>
   setEdits: (f: (prev: Record<number, string>) => Record<number, string>) => void
   loading: boolean
-  total: { qty: number; supply: number; vat: number }
   tableRef: React.RefObject<HTMLTableElement | null>
 }) {
   return (
     <table className="ec-grid w-full text-left" ref={tableRef}>
       <thead>
         <tr>
-          <th style={{ textAlign: 'center' }}>일자-No.</th>
+          {/* 원본 27열(2026-10-21 구매단가일괄변경 실측) — 우리에게 없는 값(추가수량 · 단가(vat포함) · 금액1/2)은 0, 적요1~3 은 빈칸. */}
+          <th className="text-center">일자-No.</th>
           <th>거래처명</th>
           <th>담당자명</th>
           <th>창고명</th>
           <th>거래유형</th>
+          <th>내.외자구분</th>
+          <th>프로젝트명</th>
+          <th className="text-center">불러온 전표일자</th>
+          <th className="text-center">번호</th>
           <th>품목코드</th>
           <th>품목명</th>
           <th>규격명</th>
-          <th style={{ textAlign: 'right' }}>수량</th>
-          <th style={{ textAlign: 'right' }}>단가</th>
-          <th style={{ textAlign: 'right' }}>공급가액</th>
-          <th style={{ textAlign: 'right' }}>부가세</th>
+          <th className="text-right">추가수량</th>
+          <th className="text-right">수량</th>
+          <th>단위</th>
+          <th className="text-right">단가</th>
+          <th className="text-right">단가(vat포함)</th>
+          <th className="text-right">공급가액</th>
+          <th className="text-right">부가세</th>
+          <th>관리항목명</th>
+          <th>적요</th>
+          <th className="text-right">금액1</th>
+          <th className="text-right">금액2</th>
+          <th>적요1</th>
+          <th>적요2</th>
+          <th>적요3</th>
+          <th>시리얼/로트No.</th>
         </tr>
       </thead>
       <tbody>
         {loading ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+          <tr><td colSpan={27} className="ec-empty">불러오는 중…</td></tr>
         ) : rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={27} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r) => {
           const v = edits[r.lineId]
           const next = v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : r.unitPrice
           const dirty = next !== r.unitPrice
           return (
-            <tr key={r.lineId} style={dirty ? { background: '#fffbe6' } : undefined}>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.slipDate.replace(/-/g, '/')} {r.docNo}</td>
+            <tr key={r.lineId}>
+              {/* 원본 일자-No. '2026/10/20 -10' — 전표번호 끝 일련번호만 붙인다(판매조회와 같은 규칙). */}
+              <td className="text-center">{r.slipDate.replace(/-/g, '/')} -{Number(r.docNo.split('-').pop()) || r.docNo}</td>
               <td>{r.partnerName}</td>
               <td>{r.employeeName ?? ''}</td>
               <td>{r.warehouseName}</td>
-              <td>{r.taxTypeName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              {/* 원본 격자 [거래유형] 글자는 '부가세율 적용' · '부가세율 미적용' 이다(2026-10-20 구매단가일괄변경 실측) — 조건 칸만 과세 · 면세. */}
+              <td>{r.taxTypeName === '과세' ? '부가세율 적용' : r.taxTypeName === '면세' ? '부가세율 미적용' : r.taxTypeName}</td>
+              {/* 원본 '내자' — 우리 판매 · 구매에는 외자(수입 · 수출) 구분이 없어 늘 내자다. */}
+              <td>내자</td>
+              <td>{r.projectName ?? ''}</td>
+              <td className="text-center">{r.sourceDate ? r.sourceDate.replace(/-/g, '/') : ''}</td>
+              {/* 원본 [번호] 는 불러온 전표의 일련번호 '3' 만 찍는다. */}
+              <td className="text-center">{r.sourceNo ? (Number(r.sourceNo.split('-').pop()) || r.sourceNo) : ''}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.quantity)}</td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="text-right">0</td>
+              <td className="text-right">{won(r.quantity)}</td>
+              <td>{r.unit ?? ''}</td>
+              {/* 원본(2026-10-20 구매단가일괄변경 실측): 고친 칸 바탕은 (246,215,215) 연분홍 — 줄이 아니라 그 칸이다. */}
+              <td className="text-right" style={dirty ? { background: 'rgb(246, 215, 215)' } : undefined}>
                 {r.editable ? (
                   <input
                     className="ec-input" type="number" style={{ width: 100, textAlign: 'right' }}
@@ -304,27 +348,24 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
                     onChange={(e) => setEdits((prev) => ({ ...prev, [r.lineId]: e.target.value }))}
                   />
                 ) : (
-                  <span title={r.lockReason ?? undefined} style={{ color: '#8a929c' }}>{won(r.unitPrice)} 🔒</span>
+                  <span title={r.lockReason ?? undefined} className="text-ec-hint">{won(r.unitPrice)} 🔒</span>
                 )}
               </td>
               {/* 저장 전 미리보기 — 서버가 부가세를 다시 배분하므로 부가세 열은 저장 뒤에 맞는다. */}
-              <td style={{ textAlign: 'right' }}>{won(Math.round(r.quantity * next))}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.vatAmount)}</td>
+              <td className="text-right">0</td>
+              <td className="text-right">{won(Math.round(r.quantity * next))}</td>
+              <td className="text-right text-ec-hint">{won(r.vatAmount)}</td>
+              <td>{r.managementItemName ?? ''}</td>
+              <td>{r.remark ?? ''}</td>
+              <td className="text-right">0</td>
+              <td className="text-right">0</td>
+              <td /><td /><td />
+              <td>{r.lotNo ?? ''}</td>
             </tr>
           )
         })}
       </tbody>
-      {rows.length > 0 && (
-        <tfoot>
-          <tr>
-            <td colSpan={8} style={{ textAlign: 'center', fontWeight: 700 }}>합계 ({rows.length}줄)</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(total.qty)}</td>
-            <td></td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(total.supply)}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(total.vat)}</td>
-          </tr>
-        </tfoot>
-      )}
+      {/* 원본 판매 · 구매단가일괄변경 격자에는 합계줄이 없다(2026-10-20 실측). */}
     </table>
   )
 }
@@ -386,10 +427,10 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
 
   return (
     <>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {message && <p style={{ background: '#e9f6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e' }}>변경방식</span>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {message && <p style={{ background: '#e9f6ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
+      <div className="flex items-center gap-[6px] mb-[8px]">
+        <span className="text-[12.5px] text-ec-label">변경방식</span>
         <select className="ec-input" style={{ width: 110 }} value={calc} onChange={(e) => setCalc(e.target.value as 'rate' | 'amount')}>
           <option value="rate">증감율(%)</option>
           <option value="amount">증감액</option>
@@ -398,28 +439,28 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
                placeholder={calc === 'rate' ? '예: 10, -5' : '예: 1000, -500'}
                value={value} onChange={(e) => setValue(e.target.value)} />
         <button className="ec-btn ec-btn-primary" onClick={apply} disabled={applying}>{applying ? '적용 중…' : '일괄적용'}</button>
-        <span style={{ fontSize: 12.5, color: '#8a929c' }}>선택 {selectedCount}건 · 앞으로 입력할 전표에 채워질 기준값입니다</span>
+        <span className="text-[12.5px] text-ec-hint">선택 {selectedCount}건 · 앞으로 입력할 전표에 채워질 기준값입니다</span>
       </div>
       <table className="ec-grid w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox" checked={rows.length > 0 && selectedCount === rows.length}
                      onChange={() => setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))))} />
             </th>
             <th>품목코드</th><th>품목명</th>
-            <th style={{ textAlign: 'right' }}>{sale ? '판매' : '구매'}평균단가</th>
-            <th style={{ textAlign: 'right' }}>현재{sale ? '판매' : '구매'}단가</th>
-            <th style={{ textAlign: 'right' }}>변경단가</th>
-            <th style={{ textAlign: 'right' }}>증감</th>
-            <th style={{ textAlign: 'right' }}>증감율(%)</th>
+            <th className="text-right">{sale ? '판매평균단가' : '구매평균단가'}</th>
+            <th className="text-right">{sale ? '현재판매단가' : '현재구매단가'}</th>
+            <th className="text-right">변경단가</th>
+            <th className="text-right">증감</th>
+            <th className="text-right">증감율(%)</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => {
             const checked = selected.has(r.id)
             const cur = priceOf(r)
@@ -428,20 +469,20 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
             const rate = cur ? Math.round(diff / cur * 100) : 0
             return (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <input type="checkbox" checked={checked} onChange={() => setSelected((prev) => {
                     const next = new Set(prev)
                     if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
                     return next
                   })} />
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
+                <td>{r.code}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{avgOf(r) != null ? avgOf(r)!.toLocaleString('ko-KR') : ''}</td>
-                <td style={{ textAlign: 'right', color: cur > 0 ? undefined : '#c9ced6' }}>{cur.toLocaleString('ko-KR')}</td>
+                <td className="text-right text-ec-hint">{avgOf(r) != null ? avgOf(r)!.toLocaleString('ko-KR') : ''}</td>
+                <td style={{ textAlign: 'right', color: cur > 0 ? undefined : 'var(--ec-text-off)' }}>{cur.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', fontWeight: checked ? 600 : 400 }}>{newPrice.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: diff > 0 ? '#c60a2e' : diff < 0 ? '#1c7c3c' : '#9aa1ab' }}>{diff.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{rate.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: diff > 0 ? 'var(--ec-danger)' : diff < 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{diff.toLocaleString('ko-KR')}</td>
+                <td className="text-right font-semibold">{rate.toLocaleString('ko-KR')}</td>
               </tr>
             )
           })}

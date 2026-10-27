@@ -34,6 +34,7 @@ export interface PartnerLike {
   address2?: string | null
   homepage?: string | null
   remark?: string | null
+  active?: boolean
 }
 
 export interface PartnerCodeItem {
@@ -44,6 +45,7 @@ export interface PartnerCodeItem {
   alias?: string | null
   /** 화면에는 안 보이고 <b>찾는 데만</b> 쓰는 글자들. */
   extra?: string | null
+  stopped?: boolean
 }
 
 /**
@@ -59,8 +61,9 @@ export function partnerSearchText(p: PartnerLike): string {
 }
 
 /** 거래처 코드도움 한 줄. 화면마다 다르게 만들지 않도록 여기서만 만든다. */
-export function partnerCodeItem(p: PartnerLike): PartnerCodeItem {
+export function partnerCodeItem(p: PartnerLike, markStopped = false): PartnerCodeItem {
   return {
+    ...(markStopped && p.active === false ? { stopped: true } : {}),
     value: String(p.id),
     code: p.code,
     name: p.name,
@@ -71,6 +74,7 @@ export function partnerCodeItem(p: PartnerLike): PartnerCodeItem {
 }
 
 /** 목록 통째로. */
-export function partnerCodeItems(rows: PartnerLike[]): PartnerCodeItem[] {
-  return rows.map(partnerCodeItem)
+/** markStopped — 사용중단 거래처에 stopped 를 달아 코드도움 [사용중단포함] 을 켜야 보이게 한다. */
+export function partnerCodeItems(rows: PartnerLike[], markStopped = false): PartnerCodeItem[] {
+  return rows.map((p) => partnerCodeItem(p, markStopped))
 }

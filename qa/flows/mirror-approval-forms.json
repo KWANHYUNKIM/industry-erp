@@ -1,0 +1,56 @@
+{
+  "about": "원본 loginaa 기안서작성 양식 목록 차례(정렬순서 1 휴가신청서 · 2 법인카드 사용지출결의서 · 2 품의서 · … 9 사직서 — 같은 정렬순서끼리의 차례는 원본에서 이름순인지 등록순인지 가릴 수 없어 보지 않는다)를, 우리 공통양식등록(양식등록 → 입력화면설정 정렬순서)으로 양식을 섞인 차례로 만들어 기안서작성 목록에서 견준다. 이름에 QA 를 붙이고 끝에 지운다. node qa/shot.mjs qa/flows/mirror-approval-forms.json",
+  "shots": [
+    {
+      "name": "양식 넷을 화면으로",
+      "path": "/groupware/approval/settings?tab=공통양식등록",
+      "steps": [
+        "wait:800",
+        "click:신규(F2)",
+        "setnear:양식명|QA사직서",
+        "click:저장(F8)",
+        "wait:1000",
+        "js:(() => { const i = [...document.querySelectorAll('input[type=number]')][0]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '9'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '저장(F8)').pop().click(); true",
+        "wait:1200",
+        "click:신규(F2)",
+        "setnear:양식명|QA품의서",
+        "click:저장(F8)",
+        "wait:1000",
+        "js:(() => { const i = [...document.querySelectorAll('input[type=number]')][0]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '2'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '저장(F8)').pop().click(); true",
+        "wait:1200",
+        "click:신규(F2)",
+        "setnear:양식명|QA휴가신청서",
+        "click:저장(F8)",
+        "wait:1000",
+        "js:(() => { const i = [...document.querySelectorAll('input[type=number]')][0]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '1'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '저장(F8)').pop().click(); true",
+        "wait:1200",
+        "click:신규(F2)",
+        "setnear:양식명|QA법인카드 사용지출결의서",
+        "click:저장(F8)",
+        "wait:1000",
+        "js:(() => { const i = [...document.querySelectorAll('input[type=number]')][0]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '2'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '저장(F8)').pop().click(); true",
+        "wait:1200"
+      ]
+    },
+    {
+      "name": "기안서작성 목록 차례",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:1500",
+        "js:window.__got = [...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells[1]?.textContent.includes('QA')).map((tr) => tr.cells[0].textContent.trim() + ':' + tr.cells[1].textContent.trim()); JSON.stringify(window.__got)",
+        "expect:window.__got.length === 4 && window.__got.map((x) => Number(x.split(':')[0])).join(',') === '1,2,2,9' && window.__got[0] === '1:QA휴가신청서' && window.__got[3] === '9:QA사직서'"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/approval/settings?tab=공통양식등록",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ts = await (await fetch('/api/approval-settings/templates', { headers: H })).json(); const out = []; for (const t of ts.filter((x) => x.name.startsWith('QA'))) out.push((await fetch('/api/approval-settings/templates/' + t.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

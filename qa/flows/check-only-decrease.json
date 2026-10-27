@@ -1,0 +1,51 @@
+{
+  "about": "수령수표입금처리(E060602) 하단 [입금보고서작성 ▴] 펼침 [수표만감소] — 고른 줄 없이 누르면 '리스트에 선택된 자료가 없습니다.', 고르면 '수표만감소' 창(전표일자 · 적요 증가적요동일/수표번호/직접입력 · 저장(F8) · 닫기) → 저장하면 회계전표 없이 목록에서 빠지고 수령수표조회에 감소 줄 '수표만감소'(적요 = 증가 적요). 감소 줄을 [선택삭제]하면 수표가 입금처리 목록에 돌아온다(2026-10-21 원본 실측: 김치좋아 · 기업은행-1122 · 33,000 · QA회계2 → '2026/10/21 -2 감소 33,000 QA회계2 수표만감소', 삭제 '전표를 삭제하겠습니까? - 수령수표내역입력').",
+  "shots": [
+    {
+      "name": "입금처리 ▴ 수표만감소 → 목록에서 빠짐",
+      "path": "/accounting/checks-deposit",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const as=(await window.__api('GET','/bank-cards/accounts')).body.filter((x)=>x.active);const no='QAOD'+Date.now();sessionStorage.setItem('odNo',no);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await window.__api('POST','/checks/direct',{type:'RECEIVED',date:ymd,increase:true,partnerId:null,bankAccountId:as[0].id,lines:[{checkNo:no,amount:33000,remark:'QA회계2'}]});location.reload();return r.status})()",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:document.querySelector('[aria-label=\"입금보고서작성 더보기\"]').click()",
+        "wait:300",
+        "click:수표만감소",
+        "wait:500",
+        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다.')",
+        "clicklast:확인",
+        "wait:300",
+        "js:document.querySelector(`[aria-label=\"${sessionStorage.getItem('odNo')} 선택\"]`).click()",
+        "js:document.querySelector('[aria-label=\"입금보고서작성 더보기\"]').click()",
+        "wait:300",
+        "click:수표만감소",
+        "wait:600",
+        "expect:document.body.innerText.includes('증가적요동일')&&document.body.innerText.includes('직접입력')",
+        "clicklast:저장(F8)",
+        "wait:2000",
+        "expect:!document.body.innerText.includes(sessionStorage.getItem('odNo'))",
+        "js:(async()=>{const c=(await window.__api('GET','/checks')).body.find((x)=>x.checkNo===sessionStorage.getItem('odNo'));sessionStorage.setItem('odOk',String(c.status==='DEPOSITED'&&!c.settledByVoucher&&c.settleJournalId==null&&c.directOutNo!=null));return true})()",
+        "expect:sessionStorage.getItem('odOk')==='true'"
+      ]
+    },
+    {
+      "name": "수령수표조회 — 감소 줄 '수표만감소' · 적요 증가적요동일, 선택삭제로 되돌리고 수표도 지움",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('odNo'))&&t.innerText.includes('감소'));return !!tr&&tr.innerText.includes('수표만감소')&&tr.innerText.includes('QA회계2')&&tr.innerText.includes('33,000')})()",
+        "js:document.querySelector(`[aria-label=\"${sessionStorage.getItem('odNo')} 수령수표감소 선택\"]`).click()",
+        "click:선택삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('선택한 전표를 삭제 하겠습니까?')",
+        "clicklast:확인",
+        "wait:2000",
+        "js:(async()=>{const c=(await window.__api('GET','/checks')).body.find((x)=>x.checkNo===sessionStorage.getItem('odNo'));sessionStorage.setItem('odBack',String(c.status==='HELD'));await window.__api('POST','/checks/delete',{decreaseIds:[],increaseIds:[c.id]});return true})()",
+        "wait:800",
+        "expect:sessionStorage.getItem('odBack')==='true'"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "about": "회계1 일/월계표(E010803) · 합계잔액시산표(E010811) — 원본 2026-10-21 loginaa 실측(재집계 후 조회): 일반전표 2입 9199 잡이익 11,000 · 1출 8109 22,000 · 대체 8109 / 9199 33,000 → 일계표는 모든 줄 '대체'(현금 줄 차 11,000 · 대 22,000 은 [일계] 합에서 뺌), [금일/전일] 차변현금 −11,000, [합계] 차 = 대. 시산표는 유동자산 > 당좌자산 > 현금및현금성자산 층 · 손익 묶음 순액(차 · 대 같은 숫자) · 계산 줄 매출총이익 · 영업이익 · 법인세비용차감전순손익 · 당기순이익, [합계] 기말금액 = 재무상태표 계정 차변 합 + 손익 묶음 순액 합(차 = 대). 수정 33,000 → 34,000 → [합계] +2,000. 우리 811 · 930 · 101 로 화면에서 넣고 · 고치고 · 지운다. node qa/shot.mjs qa/flows/day-month-trial.json",
+  "shots": [
+    {
+      "name": "일/월계표 일계표 — 넣기 전 숫자",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "allowapi:404: /api/journals/",
+        "wait:2000",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const get = async (p) => (await fetch('/api' + p, { headers: H })).json(); const j = await get('/journals?from=' + day + '&to=' + day + '&all=true'); const old = j.rows.filter((e) => (e.lines || []).some((l) => l.description === 'QA회계1 일계표')); for (const e of old) await fetch('/api/journals/' + e.id, { method: 'DELETE', headers: H }); return '앞 판 찌꺼기 ' + old.length })()",
+        "wait:1000",
+        "js:(() => { document.querySelectorAll('input[name=dm-mode]')[1].click(); return true })()",
+        "wait:2000",
+        "expect:document.body.innerText.includes('회사명 :') && [...document.querySelectorAll('span')].some((s) => /^\\d{4}\\/\\d{2}\\/\\d{2}$/.test(s.innerText.trim()))",
+        "js:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 7) m[c[3]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); localStorage.setItem('dmt-dm0', JSON.stringify(m)); return Object.keys(m).length })()"
+      ]
+    },
+    {
+      "name": "합계잔액시산표 금월 — 넣기 전 숫자 · 계산 줄",
+      "path": "/accounting/trial-balance",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.querySelectorAll('input[type=month]').forEach((el) => set(el, ym)); return true })()",
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.querySelectorAll('input[type=month]').forEach((el) => set(el, ym)); return true })()",
+        "wait:3500",
+        "expect:(() => { const n = [...document.querySelectorAll('table tbody tr')].map((r) => r.cells[2] && r.cells[2].innerText.trim()); const i = (x) => n.indexOf(x); return i('유동자산') >= 0 && i('당좌자산') === i('유동자산') + 1 && i('현금및현금성자산') === i('당좌자산') + 1 && i('매출총이익') > i('매출') && i('영업이익') > i('판매비및일반관리비') && n.lastIndexOf('당기순이익') > i('법인세비용차감전순손익') && !n.includes('자산') })()",
+        "js:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 5) m[c[2]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); localStorage.setItem('dmt-tb0', JSON.stringify(m)); return Object.keys(m).length })()"
+      ]
+    },
+    {
+      "name": "일반전표 — 2입 잡이익 11,000 · 1출 복리후생비 22,000 · 대체 복리후생비 / 잡이익 33,000 (화면으로)",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "allowapi:404: /api/journals/",
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; set(document.querySelector('[aria-label=\"1줄 구분\"]'), '2'); return true })()",
+        "wait:200",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelector('input.code'); c.focus(); set(c, '9199'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 대변\"]|11000",
+        "set:[aria-label=\"1줄 적요\"]|QA회계1 일계표",
+        "wait:200",
+        "expect:document.querySelector('tfoot').innerText.replace(/\\s+/g, ' ').trim() === '11,000 11,000'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('.ec-alert-danger') && document.querySelector('[aria-label=\"1줄 적요\"]').value === ''",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; set(document.querySelector('[aria-label=\"1줄 구분\"]'), '1'); return true })()",
+        "wait:200",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelector('input.code'); c.focus(); set(c, '8109'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 차변\"]|22000",
+        "set:[aria-label=\"1줄 적요\"]|QA회계1 일계표",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('.ec-alert-danger') && document.querySelector('[aria-label=\"1줄 적요\"]').value === ''",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; set(document.querySelector('[aria-label=\"1줄 구분\"]'), '3'); return true })()",
+        "wait:200",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[0].querySelector('input.code'); c.focus(); set(c, '8109'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"1줄 차변\"]|33000",
+        "set:[aria-label=\"1줄 적요\"]|QA회계1 일계표",
+        "wait:200",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; set(document.querySelector('[aria-label=\"2줄 구분\"]'), '4'); return true })()",
+        "wait:200",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const c = document.querySelectorAll('tbody tr')[1].querySelector('input.code'); c.focus(); set(c, '9199'); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:400",
+        "set:[aria-label=\"2줄 대변\"]|33000",
+        "set:[aria-label=\"2줄 적요\"]|QA회계1 일계표",
+        "wait:200",
+        "expect:document.querySelector('tfoot').innerText.replace(/\\s+/g, ' ').trim() === '33,000 33,000'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!document.querySelector('.ec-alert-danger') && document.querySelector('[aria-label=\"1줄 적요\"]').value === ''",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const get = async (p) => (await fetch('/api' + p, { headers: H })).json(); const j = await get('/journals?from=' + day + '&to=' + day + '&all=true'); const mine = j.rows.filter((e) => (e.lines || []).some((l) => l.description === 'QA회계1 일계표')); localStorage.setItem('dmt-ids', JSON.stringify(mine.map((e) => e.id))); localStorage.setItem('dmt-dae', String((mine.find((e) => e.lines.some((l) => Number(l.debit) === 33000)) || {}).id)); return mine.length })()",
+        "expect:JSON.parse(localStorage.getItem('dmt-ids')).length === 3"
+      ]
+    },
+    {
+      "name": "일계표 — 모든 줄 대체 · 현금 줄은 [일계]에서 뺌 · [금일/전일] −11,000",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "wait:2000",
+        "js:(() => { document.querySelectorAll('input[name=dm-mode]')[1].click(); return true })()",
+        "wait:2000",
+        "expect:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 7) m[c[3]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dmt-dm0')); const g = (n, i) => (m[n] || [0,0,0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0,0,0])[i]); const k = 1; const body = [...document.querySelectorAll('table tbody tr')].map((r) => [...r.cells].map((x) => Number(x.innerText.replace(/,/g, '')) || 0)).filter((c) => c.length === 7); const names = [...document.querySelectorAll('table tbody tr')].map((r) => r.cells[3] && r.cells[3].innerText.trim()); const nonCash = body.filter((c, i) => names[i] !== '현금'); const sd = nonCash.reduce((t, c) => t + c[1], 0), sc = nonCash.reduce((t, c) => t + c[5], 0); return g('현금', 1) === 11000 * k && g('현금', 5) === 22000 * k && g('잡이익', 5) === 44000 * k && body.every((c) => c[2] === 0 && c[4] === 0) && m['[일계]'][1] === sd && m['[일계]'][5] === sc && m['[일계]'][2] === 0 && m['[일계]'][4] === 0 && g('[금일/전일]', 0) === -11000 * k && m['[합계]'][0] === m['[일계]'][0] + m['[금일/전일]'][0] && m['[합계]'][0] === m['[합계]'][6] })()"
+      ]
+    },
+    {
+      "name": "합계잔액시산표 — 계산 줄 · [합계] 차 = 대 +110,000",
+      "path": "/accounting/trial-balance",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.querySelectorAll('input[type=month]').forEach((el) => set(el, ym)); return true })()",
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.querySelectorAll('input[type=month]').forEach((el) => set(el, ym)); return true })()",
+        "wait:3500",
+        "js:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 5) m[c[2]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dmt-tb0')); const g = (n, i) => (m[n] || [0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0])[i]); return JSON.stringify(['현금', '복리후생비', '잡이익', '판매비및일반관리비', '영업외수익', '영업이익', '법인세비용차감전순손익', '당기순이익', '합계'].map((n) => n + ':' + [0,1,3,4].map((i) => g(n, i)).join('/'))) })()",
+        "expect:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 5) m[c[2]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dmt-tb0')); const g = (n, i) => (m[n] || [0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0])[i]); const k = 1, x = 0; const rows = [...document.querySelectorAll('table tbody tr')].map((r) => ({ g: r.style.background !== '', c: [...r.cells].map((y) => y.innerText.trim()) })).filter((r) => r.c.length === 5); const num = (v) => Number(v.replace(/,/g, '')) || 0; const v = (n) => num((rows.find((r) => r.c[2] === n) || { c: ['', '0'] }).c[1]); const lastNI = num(rows.filter((r) => r.c[2] === '당기순이익').pop().c[1]); const iPL = rows.findIndex((r) => ['매출', '매출원가', '판매비및일반관리비', '영업외수익', '영업외비용'].includes(r.c[2]) && r.g); const bsLeaf = rows.slice(0, iPL < 0 ? rows.length : iPL).filter((r) => !r.g).reduce((t, r) => t + num(r.c[1]), 0); const plGroups = rows.slice(iPL).filter((r) => r.g && !['매출총이익', '영업이익', '법인세비용차감전순손익', '당기순이익'].includes(r.c[2]) && r.c[1] === r.c[3]).reduce((t, r) => t + num(r.c[1]), 0); return g('현금', 1) === 11000 * k && g('현금', 3) === 22000 * k && g('현금', 0) === -11000 * k && g('잡이익', 3) === (44000 + x) * k && v('영업이익') === v('매출총이익') - v('판매비및일반관리비') && v('법인세비용차감전순손익') === v('영업이익') + v('영업외수익') - v('영업외비용') && lastNI === v('법인세비용차감전순손익') && m['합계'][1] === m['합계'][3] && m['합계'][1] === bsLeaf + plGroups })()"
+      ]
+    },
+    {
+      "name": "수정 — 대체 전표 33,000 → 34,000 (수정 창)",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "wait:1000",
+        "js:(() => { const ids = JSON.parse(localStorage.getItem('dmt-ids')); setTimeout(() => { location.href = '/accounting/journal-entry?journal=' + localStorage.getItem('dmt-dae') }, 0); return ids.length })()",
+        "wait:2500",
+        "js:(() => { const t = document.querySelector('[aria-label=\"1줄 차변\"]').value; localStorage.setItem('dmt-modt', t); return t })()",
+        "expect:document.querySelector('[aria-label=\"1줄 차변\"]').value === '33,000'",
+        "set:[aria-label=\"1줄 차변\"]|34000",
+        "set:[aria-label=\"2줄 대변\"]|34000",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:2000",
+        "expect:!document.querySelector('.ec-alert-danger')"
+      ]
+    },
+    {
+      "name": "합계잔액시산표 — 수정 뒤 [합계] +112,000",
+      "path": "/accounting/trial-balance",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.querySelectorAll('input[type=month]').forEach((el) => set(el, ym)); return true })()",
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.querySelectorAll('input[type=month]').forEach((el) => set(el, ym)); return true })()",
+        "wait:3500",
+        "js:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 5) m[c[2]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dmt-tb0')); const g = (n, i) => (m[n] || [0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0])[i]); return JSON.stringify(['현금', '복리후생비', '잡이익', '판매비및일반관리비', '영업외수익', '영업이익', '법인세비용차감전순손익', '당기순이익', '합계'].map((n) => n + ':' + [0,1,3,4].map((i) => g(n, i)).join('/'))) })()",
+        "expect:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 5) m[c[2]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dmt-tb0')); const g = (n, i) => (m[n] || [0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0])[i]); const k = 1, x = 1000; const rows = [...document.querySelectorAll('table tbody tr')].map((r) => ({ g: r.style.background !== '', c: [...r.cells].map((y) => y.innerText.trim()) })).filter((r) => r.c.length === 5); const num = (v) => Number(v.replace(/,/g, '')) || 0; const v = (n) => num((rows.find((r) => r.c[2] === n) || { c: ['', '0'] }).c[1]); const lastNI = num(rows.filter((r) => r.c[2] === '당기순이익').pop().c[1]); const iPL = rows.findIndex((r) => ['매출', '매출원가', '판매비및일반관리비', '영업외수익', '영업외비용'].includes(r.c[2]) && r.g); const bsLeaf = rows.slice(0, iPL < 0 ? rows.length : iPL).filter((r) => !r.g).reduce((t, r) => t + num(r.c[1]), 0); const plGroups = rows.slice(iPL).filter((r) => r.g && !['매출총이익', '영업이익', '법인세비용차감전순손익', '당기순이익'].includes(r.c[2]) && r.c[1] === r.c[3]).reduce((t, r) => t + num(r.c[1]), 0); return g('현금', 1) === 11000 * k && g('현금', 3) === 22000 * k && g('현금', 0) === -11000 * k && g('잡이익', 3) === (44000 + x) * k && v('영업이익') === v('매출총이익') - v('판매비및일반관리비') && v('법인세비용차감전순손익') === v('영업이익') + v('영업외수익') - v('영업외비용') && lastNI === v('법인세비용차감전순손익') && m['합계'][1] === m['합계'][3] && m['합계'][1] === bsLeaf + plGroups })()"
+      ]
+    },
+    {
+      "name": "삭제 1/3 — 수정 창 [삭제] → '전표를 삭제하겠습니까?' [확인]",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "wait:1000",
+        "js:(() => { const ids = JSON.parse(localStorage.getItem('dmt-ids')); setTimeout(() => { location.href = '/accounting/journal-entry?journal=' + ids[0] }, 0); return ids.length })()",
+        "wait:2500",
+        "click:삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:2000"
+      ]
+    },
+    {
+      "name": "삭제 2/3 — 수정 창 [삭제] → '전표를 삭제하겠습니까?' [확인]",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "wait:1000",
+        "js:(() => { const ids = JSON.parse(localStorage.getItem('dmt-ids')); setTimeout(() => { location.href = '/accounting/journal-entry?journal=' + ids[1] }, 0); return ids.length })()",
+        "wait:2500",
+        "click:삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:2000"
+      ]
+    },
+    {
+      "name": "삭제 3/3 — 수정 창 [삭제] → '전표를 삭제하겠습니까?' [확인]",
+      "path": "/accounting/journal-entry",
+      "steps": [
+        "wait:1000",
+        "js:(() => { const ids = JSON.parse(localStorage.getItem('dmt-ids')); setTimeout(() => { location.href = '/accounting/journal-entry?journal=' + ids[2] }, 0); return ids.length })()",
+        "wait:2500",
+        "click:삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:2000"
+      ]
+    },
+    {
+      "name": "지운 뒤 — 일계표 처음 숫자",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "wait:2000",
+        "js:(() => { document.querySelectorAll('input[name=dm-mode]')[1].click(); return true })()",
+        "wait:2000",
+        "expect:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 7) m[c[3]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dmt-dm0')); const g = (n, i) => (m[n] || [0,0,0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0,0,0])[i]); const k = 0; const body = [...document.querySelectorAll('table tbody tr')].map((r) => [...r.cells].map((x) => Number(x.innerText.replace(/,/g, '')) || 0)).filter((c) => c.length === 7); const names = [...document.querySelectorAll('table tbody tr')].map((r) => r.cells[3] && r.cells[3].innerText.trim()); const nonCash = body.filter((c, i) => names[i] !== '현금'); const sd = nonCash.reduce((t, c) => t + c[1], 0), sc = nonCash.reduce((t, c) => t + c[5], 0); return g('현금', 1) === 11000 * k && g('현금', 5) === 22000 * k && g('잡이익', 5) === 44000 * k && body.every((c) => c[2] === 0 && c[4] === 0) && m['[일계]'][1] === sd && m['[일계]'][5] === sc && m['[일계]'][2] === 0 && m['[일계]'][4] === 0 && g('[금일/전일]', 0) === -11000 * k && m['[합계]'][0] === m['[일계]'][0] + m['[금일/전일]'][0] && m['[합계]'][0] === m['[합계]'][6] })()"
+      ]
+    },
+    {
+      "name": "지운 뒤 — 합계잔액시산표 처음 숫자",
+      "path": "/accounting/trial-balance",
+      "steps": [
+        "wait:2500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.querySelectorAll('input[type=month]').forEach((el) => set(el, ym)); return true })()",
+        "wait:1500",
+        "js:(() => { const set = (el, v) => { const p = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(p, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })) }; const d = new Date(); const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.querySelectorAll('input[type=month]').forEach((el) => set(el, ym)); return true })()",
+        "wait:3500",
+        "js:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 5) m[c[2]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dmt-tb0')); const g = (n, i) => (m[n] || [0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0])[i]); return JSON.stringify(['현금', '복리후생비', '잡이익', '판매비및일반관리비', '영업외수익', '영업이익', '법인세비용차감전순손익', '당기순이익', '합계'].map((n) => n + ':' + [0,1,3,4].map((i) => g(n, i)).join('/'))) })()",
+        "expect:(() => { const m = {}; document.querySelectorAll('table tbody tr, table tfoot tr').forEach((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); if (c.length === 5) m[c[2]] = c.map((v) => Number(v.replace(/,/g, '')) || 0) }); const b = JSON.parse(localStorage.getItem('dmt-tb0')); const g = (n, i) => (m[n] || [0,0,0,0,0])[i] - ((b[n] || [0,0,0,0,0])[i]); const k = 0, x = 0; const rows = [...document.querySelectorAll('table tbody tr')].map((r) => ({ g: r.style.background !== '', c: [...r.cells].map((y) => y.innerText.trim()) })).filter((r) => r.c.length === 5); const num = (v) => Number(v.replace(/,/g, '')) || 0; const v = (n) => num((rows.find((r) => r.c[2] === n) || { c: ['', '0'] }).c[1]); const lastNI = num(rows.filter((r) => r.c[2] === '당기순이익').pop().c[1]); const iPL = rows.findIndex((r) => ['매출', '매출원가', '판매비및일반관리비', '영업외수익', '영업외비용'].includes(r.c[2]) && r.g); const bsLeaf = rows.slice(0, iPL < 0 ? rows.length : iPL).filter((r) => !r.g).reduce((t, r) => t + num(r.c[1]), 0); const plGroups = rows.slice(iPL).filter((r) => r.g && !['매출총이익', '영업이익', '법인세비용차감전순손익', '당기순이익'].includes(r.c[2]) && r.c[1] === r.c[3]).reduce((t, r) => t + num(r.c[1]), 0); return g('현금', 1) === 11000 * k && g('현금', 3) === 22000 * k && g('현금', 0) === -11000 * k && g('잡이익', 3) === (44000 + x) * k && v('영업이익') === v('매출총이익') - v('판매비및일반관리비') && v('법인세비용차감전순손익') === v('영업이익') + v('영업외수익') - v('영업외비용') && lastNI === v('법인세비용차감전순손익') && m['합계'][1] === m['합계'][3] && m['합계'][1] === bsLeaf + plGroups })()",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const get = async (p) => (await fetch('/api' + p, { headers: H })).json(); const j = await get('/journals?from=' + day + '&to=' + day + '&all=true'); return j.rows.filter((e) => (e.lines || []).some((l) => l.description === 'QA회계1 일계표')).length })()"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "about": "보안설정 › 로그인관리 › 비밀번호설정 줄에 '동일 비밀번호 사용제한:N회'(원본 C001138 글자) 가 뜬다. 보기만 한다.",
+  "shots": [
+    {
+      "name": "보안설정 비밀번호설정 줄",
+      "path": "/settings/security",
+      "steps": [
+        "wait:2500",
+        "expect:/최소 길이:\\d+자 \\/ 동일 비밀번호 사용제한:\\d+회/.test(document.body.innerText)"
+      ]
+    }
+  ]
+}

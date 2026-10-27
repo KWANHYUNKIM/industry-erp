@@ -1,0 +1,64 @@
+{
+  "about": "재고조정 묶음(재고조정조회 · 재고실사조회 · 재고조정진행단계 · 재고조정현황) — 2026-10-12 원본 실측. 간편재고조정 장부 N → 실사 N+2 한 건이 조정조회 '간편 · 26/10/12-1 · … · -2'(장부−실사), 실사조회 'N+2.00 · 조정전표 2026/10/12 -1', 진행단계 '실사 조정 · N · N+2 · 2', 조정현황 '26/10/12-1 · N · N+2 · 2' 로 선다. 조정조회 [선택삭제] 로 지우면 재고가 돌아온다.",
+  "shots": [
+    {
+      "name": "재고조정조회 — 간편 조정 한 건이 '26/10/12-1' · 수량 -2(장부−실사)로 선다",
+      "path": "/inventory/adjust-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=10);const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await window.__api('POST','/stock-adjustments',{type:'ADJUST',itemId:st.itemId,warehouseId:st.warehouseId,actualQty:Number(st.quantity)+2,adjustDate:ymd,reason:'QA재고1'});sessionStorage.setItem('ad',JSON.stringify({wh:st.warehouseId,it:st.itemId,q:Number(st.quantity)}));sessionStorage.setItem('adNo',r.body&&r.body.adjustNo);sessionStorage.setItem('adDate',ymd);sessionStorage.setItem('adId',String(r.body&&r.body.id));return r.status})()",
+        "wait:600",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Search(F3)')?.click(); true",
+        "wait:400",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const no=sessionStorage.getItem('adNo');const d=sessionStorage.getItem('adDate');const sd=d.slice(2).replace(/-/g,'/')+'-'+Number(no.split('-').pop());const ld=d.replace(/-/g,'/')+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sd);return !!tr&&tr.cells[1].innerText.trim()==='간편'&&tr.cells[5].innerText.trim()==='-2'})()"
+      ]
+    },
+    {
+      "name": "재고실사조회 — 같은 건이 실사수량 소수 둘째 자리 · 조정전표 '2026/10/12 -1' 로 선다",
+      "path": "/inventory/stocktake-list",
+      "steps": [
+        "js:(()=>{const ins=[...document.querySelectorAll('input[type=date]')];const d=sessionStorage.getItem('adDate');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;for(const i of ins.slice(0,2)){set.call(i,d);i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}))}return true})()",
+        "wait:1500",
+        "expect:(()=>{const no=sessionStorage.getItem('adNo');const d=sessionStorage.getItem('adDate');const sd=d.slice(2).replace(/-/g,'/')+'-'+Number(no.split('-').pop());const ld=d.replace(/-/g,'/')+' -'+Number(no.split('-').pop());const s=JSON.parse(sessionStorage.getItem('ad'));const want=(s.q+2).toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2});const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[7]&&t.cells[7].innerText.trim()===ld);return !!tr&&tr.cells[6].innerText.trim()===want})()"
+      ]
+    },
+    {
+      "name": "재고조정진행단계 — 간편 조정도 '조정' 이 파란 줄로 선다(장부 · 실사 · 차이 2)",
+      "path": "/inventory/staged-progress",
+      "steps": [
+        "wait:1500",
+        "expect:(()=>{const s=JSON.parse(sessionStorage.getItem('ad'));const n=(x)=>x.toLocaleString('ko-KR');return [...document.querySelectorAll('tbody tr')].some((t)=>t.cells.length>=8&&t.cells[5].innerText.trim()===n(s.q)&&t.cells[6].innerText.trim()===n(s.q+2)&&t.cells[7].innerText.trim()==='2')})()"
+      ]
+    },
+    {
+      "name": "재고조정현황 — 일자-No. '26/10/12-1', 장부 · 실사 · 조정 2",
+      "path": "/inventory/adjust-status",
+      "steps": [
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const no=sessionStorage.getItem('adNo');const d=sessionStorage.getItem('adDate');const sd=d.slice(2).replace(/-/g,'/')+'-'+Number(no.split('-').pop());const ld=d.replace(/-/g,'/')+' -'+Number(no.split('-').pop());return [...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sd))})()"
+      ]
+    },
+    {
+      "name": "재고조정조회 [선택삭제] — '선택한 전표를 삭제 하겠습니까?' 뒤 지우면 재고가 돌아온다",
+      "path": "/inventory/adjust-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Search(F3)')?.click(); true",
+        "wait:400",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:(()=>{const no=sessionStorage.getItem('adNo');const d=sessionStorage.getItem('adDate');const sd=d.slice(2).replace(/-/g,'/')+'-'+Number(no.split('-').pop());const ld=d.replace(/-/g,'/')+' -'+Number(no.split('-').pop());const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sd);tr.querySelector('input[type=checkbox]').click();return true})()",
+        "wait:300",
+        "js:window.__msg='';window.confirm=(m)=>{window.__msg=m;return true};[...document.querySelectorAll('button')].find((b)=>b.innerText.trim()==='선택삭제').click(); true",
+        "wait:1500",
+        "expect:window.__msg==='선택한 전표를 삭제 하겠습니까?'",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('ad'));const x=(await window.__api('GET','/stock')).body.find((y)=>y.itemId===s.it&&y.warehouseId===s.wh);window.__back=Number(x.quantity)===s.q;return window.__back})()",
+        "wait:500",
+        "expect:window.__back===true"
+      ]
+    }
+  ]
+}

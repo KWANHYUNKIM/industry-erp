@@ -1,0 +1,16 @@
+{
+  "about": "출하조회(E040226) 탭 · [진행상태변경] (2026-10-22 원본 실측) — 이 회사는 전표상태관리유형이 꺼져 있어 출하가 전부 [확인] 탭에 있고 결재중 · 미확인은 비며, [진행상태변경] ▴ › 미확인 · 확인 을 눌러도 '전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.' 알림 표(구분 · 메뉴 · 사유)만 뜬다. 조회만 한다.",
+  "shots": [
+    {
+      "name": "탭 확인 = 전체 · 미확인 · 결재중 비어 있음 → 진행상태변경 막힘 알림",
+      "path": "/sales/shipment-inquiry",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const tab = (t) => [...document.querySelectorAll('.ec-pills .ec-pill, li, button')].find((x) => x.innerText && x.innerText.trim() === t && x.getBoundingClientRect().top < 220); const rowsN = () => [...document.querySelectorAll('tbody tr')].filter((r) => /^\\s*\\d+\\s*\\d{4}\\/\\d\\d\\/\\d\\d/.test(r.innerText)).length; const o = {}; for (const t of ['전체', '결재중', '미확인', '확인']) { tab(t)?.click(); await W(600); o[t] = rowsN() } sessionStorage.setItem('shipTabs', JSON.stringify(o)); return true })()",
+        "expect:(() => { const o = JSON.parse(sessionStorage.getItem('shipTabs')); return o['결재중'] === 0 && o['미확인'] === 0 && o['확인'] === o['전체'] })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const first = [...document.querySelectorAll('tbody tr input[type=checkbox]')][0]; if (!first) { sessionStorage.setItem('shipBlock', 'norow'); return true } first.click(); await W(300); [...document.querySelectorAll('.ec-footer button')].find((b) => b.innerText.trim() === '진행상태변경')?.click(); await W(400); [...document.querySelectorAll('[aria-label=\"진행상태변경\"] button')].find((b) => b.innerText.trim() === '미확인')?.click(); await W(600); sessionStorage.setItem('shipBlock', /전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다\\./.test(document.body.innerText) ? 'ok' : 'miss'); return true })()",
+        "expect:['ok', 'norow'].includes(sessionStorage.getItem('shipBlock'))"
+      ]
+    }
+  ]
+}

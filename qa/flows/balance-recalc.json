@@ -1,0 +1,25 @@
+{
+  "about": "회계1 마무리28 — 잔액재집계(E010705) 원본 2026-10-22 실측: 확인 창 없이 바로 돌아 '2026/10 부터 2026/10 까지 잔액 재집계가 되었습니다.' 판(달마다 ✓) + [이전], 2분 안에 또 누르면 '최종 재집계 시간으로부터 2분이 경과한 후에 진행할 수 있습니다.' 알림. node qa/shot.mjs qa/flows/balance-recalc.json",
+  "finally": [
+    "js:(() => { try { localStorage.removeItem('erp.balanceRecalcAt') } catch (e) {} return true })()"
+  ],
+  "shots": [
+    {
+      "name": "잔액재집계 — 바로 돌고 판 · 이전 · 2분 안 재시도 막힘",
+      "path": "/accounting/balance-recalc",
+      "steps": [
+        "js:(() => { try { localStorage.removeItem('erp.balanceRecalcAt') } catch (e) {} return true })()",
+        "wait:500",
+        "click:잔액재집계(F8)",
+        "wait:800",
+        "expect:!document.body.innerText.includes('재집계하시겠습니까') && /\\d{4}\\/\\d{2} 부터 \\d{4}\\/\\d{2} 까지 잔액 재집계가 되었습니다\\./.test(document.body.innerText) && [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '이전')",
+        "click:이전",
+        "wait:500",
+        "expect:document.body.innerText.includes('잔액재집계(F8)') && !document.body.innerText.includes('이후에 수정된 전표가 있으므로')",
+        "click:잔액재집계(F8)",
+        "wait:800",
+        "expect:document.body.innerText.includes('최종 재집계 시간으로부터 2분이 경과한 후에 진행할 수 있습니다.') && /재집계 가능 시간 : \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2} 이후/.test(document.body.innerText)"
+      ]
+    }
+  ]
+}

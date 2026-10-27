@@ -2,23 +2,23 @@ package com.erp.config;
 
 import com.erp.common.MenuPermissionCatalog;
 import com.erp.accounting.StandardAccounts;
-import com.erp.accounting.domain.Account;
-import com.erp.accounting.domain.AccountDivision;
-import com.erp.trade.domain.BusinessPartner;
-import com.erp.inventory.domain.Item;
-import com.erp.inventory.domain.ItemCategory;
-import com.erp.trade.domain.PartnerType;
-import com.erp.auth.domain.Permission;
-import com.erp.auth.domain.Role;
-import com.erp.auth.domain.User;
-import com.erp.inventory.domain.Warehouse;
-import com.erp.accounting.repository.AccountRepository;
-import com.erp.trade.repository.BusinessPartnerRepository;
-import com.erp.inventory.repository.ItemRepository;
-import com.erp.auth.repository.PermissionRepository;
-import com.erp.auth.repository.RoleRepository;
-import com.erp.auth.repository.UserRepository;
-import com.erp.inventory.repository.WarehouseRepository;
+import com.erp.accounting.account.Account;
+import com.erp.accounting.account.AccountDivision;
+import com.erp.trade.partner.BusinessPartner;
+import com.erp.inventory.item.Item;
+import com.erp.inventory.item.ItemCategory;
+import com.erp.trade.partner.PartnerType;
+import com.erp.auth.role.Permission;
+import com.erp.auth.role.Role;
+import com.erp.auth.user.User;
+import com.erp.inventory.warehouse.Warehouse;
+import com.erp.accounting.account.AccountRepository;
+import com.erp.trade.partner.BusinessPartnerRepository;
+import com.erp.inventory.item.ItemRepository;
+import com.erp.auth.role.PermissionRepository;
+import com.erp.auth.role.RoleRepository;
+import com.erp.auth.user.UserRepository;
+import com.erp.inventory.warehouse.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -97,14 +97,26 @@ public class DataInitializer implements CommandLineRunner {
         // 목록은 StandardAccounts 하나뿐이다 — 테넌트 시더도 같은 것을 쓴다.
         // 예전엔 여기 안에만 있어서 새로 만든 회사는 계정과목이 0개로 시작했다.
         for (StandardAccounts.Spec a : StandardAccounts.ALL) {
-            ensureAccount(a.code(), a.name(), a.division(), a.detail());
+            ensureAccount(a);
+        }
+        for (StandardAccounts.Spec a : StandardAccounts.ALL) {   // 원본 나무대로 상위계정을 잇는다(비어 있는 것만)
+            if (a.parentCode() == null) continue;
+            Account child = accountRepository.findByCode(a.code()).orElse(null);
+            if (child == null || child.getParent() != null) continue;
+            accountRepository.findByCode(a.parentCode()).ifPresent(p -> {
+                child.setParent(p);
+                accountRepository.save(child);
+            });
         }
     }
 
-    private void ensureAccount(String code, String name, AccountDivision division, String detail) {
-        if (!accountRepository.existsByCode(code)) {
+    private void ensureAccount(StandardAccounts.Spec a) {
+        if (!accountRepository.existsByCode(a.code())) {
             accountRepository.save(Account.builder()
-                    .code(code).name(name).division(division).detailCategory(detail).active(true)
+                    .code(a.code()).name(a.name()).division(a.division()).detailCategory(a.detail()).active(a.active())
+                    .groupAccount(a.group()).debitCredit(a.debitCredit()).evalKind(a.evalKind())
+                    .relatedWork(StandardAccounts.relatedWorkOf(a.code()))
+                    .partnerAggregate(StandardAccounts.partnerAggregateOf(a.code(), a.name()))
                     .build());
         }
     }

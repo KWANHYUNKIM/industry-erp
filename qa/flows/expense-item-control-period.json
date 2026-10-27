@@ -1,0 +1,26 @@
+{
+  "about": "회계 II › 비용관리 › 비용등록(원본 E060809, 2026-10-22 실측) — 지정기간 통제유형을 고르면 통제기간 날짜 칸(처음 오늘 ~ 오늘)이 생기고 목록 기간이 '날짜 ~날짜' · [통제알림대상] 칸 · 수정 창 [사용중단/재사용 ▲] 펼침 사용중단 · 삭제 · 하단 [사용중단/재사용 ▲] 는 글자를 눌러도 펼침.",
+  "shots": [
+    {
+      "name": "비용등록 — 통제기간 · 통제알림대상 · 펼침",
+      "path": "/accounting/expense-items",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const is=await (await fetch('/api/expense-items',{headers:h})).json();const ids=is.filter(x=>x.code==='QA2R2E').map(x=>x.id);if(ids.length)await fetch('/api/expense-items/delete',{method:'POST',headers:h,body:JSON.stringify(ids)});const ts=await (await fetch('/api/expense-control-types',{headers:h})).json();const tids=ts.filter(x=>x.code==='QA2R2C').map(x=>x.id);if(tids.length)await fetch('/api/expense-control-types/delete',{method:'POST',headers:h,body:JSON.stringify(tids)});return true})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const t=await (await fetch('/api/expense-control-types',{method:'POST',headers:h,body:JSON.stringify({code:'QA2R2C',name:'QA회계2-재기통제',periodType:'DESIGNATED',personControl:true,limitType:'PERSONAL_SAME',noticeType:'WARN',active:true})})).json();const i=await (await fetch('/api/expense-items',{method:'POST',headers:h,body:JSON.stringify({code:'QA2R2E',name:'QA회계2-재기비용',controlTypeId:t.id,limitAmount:0,employeeIds:[],alertEmployeeIds:[],remark:null})})).json();sessionStorage.setItem('qa2r2t',String(t.id));sessionStorage.setItem('qa2r2i',String(i.id));return true})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>/\\d{4}\\/\\d\\d\\/\\d\\d ~\\d{4}\\/\\d\\d\\/\\d\\d/.test(t.innerText)&&t.innerText.includes('QA회계2-재기비용'))",
+        "click:사용중단/재사용",
+        "wait:200",
+        "expect:[...document.querySelectorAll('.ec-btn-group .absolute button')].map(b=>b.innerText.trim()).slice(0,3).join()==='사용중단,삭제,재사용'",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA회계2-재기비용'));tr.querySelector('button.ec-link,a').click();return true})()",
+        "wait:600",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('통제알림대상')&&document.querySelector('[role=dialog]').innerText.includes('통제기간')",
+        "click:사용중단/재사용 ▲",
+        "wait:200",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-menu button')].map(b=>b.innerText.trim()).join()==='사용중단,삭제'",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};await fetch('/api/expense-items/delete',{method:'POST',headers:h,body:JSON.stringify([Number(sessionStorage.getItem('qa2r2i'))])});await fetch('/api/expense-control-types/delete',{method:'POST',headers:h,body:JSON.stringify([Number(sessionStorage.getItem('qa2r2t'))])});return true})()"
+      ]
+    }
+  ]
+}

@@ -8,14 +8,25 @@
  * <p>날짜 계산 자체는 `periods.ts` 에 있다 — 테스트로 못 박으려고 JSX 없는 파일로 뺐다.
  * 여기서 다시 내보내므로 `EcPeriodPicks` 에서 import 하던 곳은 그대로 두면 된다.
  */
-export * from './periods'
-import { periodOf, type PeriodRange } from './periods'
-import { JOURNAL_PICKS } from './periods'
+export * from '../utils/periods'
+import { periodOf, type PeriodRange } from '../utils/periods'
+import { JOURNAL_PICKS } from '../utils/periods'
+
+/** currentTo 를 안 준 화면: 버튼 위쪽에서 날짜 칸이 둘 이상 든 가장 가까운 묶음의 두 번째 칸 값. */
+function domEnd(btn: HTMLElement): string | undefined {
+  for (let el = btn.parentElement; el; el = el.parentElement) {
+    const ins = el.querySelectorAll<HTMLInputElement>('input[type="date"]')
+    if (ins.length >= 2) return ins[1].value || undefined
+    if (el.classList.contains('ec-frame')) break
+  }
+  return undefined
+}
 
 export default function EcPeriodPicks({
   onPick,
   labels = JOURNAL_PICKS,
   currentFrom,
+  currentTo,
   fiscalStart,
   onPickLabel,
 }: {
@@ -23,6 +34,8 @@ export default function EcPeriodPicks({
   labels?: readonly string[]
   /** 지금 화면의 시작일. '종료일' 처럼 시작일을 건드리지 않는 버튼이 이 값을 그대로 돌려준다. */
   currentFrom?: string
+  /** 지금 화면의 종료일. 없으면 같은 칸 묶음의 두 번째 날짜 칸에서 읽는다. */
+  currentTo?: string
   /** 회계연도 시작월(1~12). '이번기수'·'직전기수' 를 쓰는 화면만 준다. */
   fiscalStart?: number
   /** 어떤 버튼을 눌렀는지 — 원본은 기준일자 옆에 그 이름을 적어 둔다. */
@@ -34,9 +47,14 @@ export default function EcPeriodPicks({
         <button
           key={label}
           type="button"
-          className="ec-btn"
-          onClick={() => {
-            const r = periodOf(label, new Date(), fiscalStart)
+          /*
+           * 원본 모양은 <b>테두리·배경 없는 글자 버튼</b>이다(index.css .ec-btn-pick,
+           * 2026-09-21 재고현황 getComputedStyle 실측: 50×22 · 여백 5px · 둥글기 5).
+           */
+          className="ec-btn ec-btn-pick"
+          onClick={(e) => {
+            const to = currentTo ?? domEnd(e.currentTarget)
+            const r = periodOf(label, new Date(), fiscalStart, to ? { from: currentFrom ?? to, to } : undefined)
             // 시작일을 바꾸지 않는 버튼('종료일')은 빈 from 을 준다. 그대로 넣으면 시작일이 지워진다.
             if (!r) return
             onPick(r.from ? r : { ...r, from: currentFrom ?? r.to })

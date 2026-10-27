@@ -1,0 +1,57 @@
+{
+  "about": "(세금)계산서발행/수령(원본 E030202) CRUD — 2026-10-20 원본 잰 숫자 그대로: 비고 조건 'QA세무-E030202' 로 거른 빈 목록 → [매출(세금)계산서] 창에서 거래처 · 공급가액 100,000(부가세 10,000 자동) · [세부내역] 창 비고 → [저장(F8)] 은 안내 없이 창이 닫히고 목록 '매출 · 100,000 · 10,000 · 110,000' → 일자-NO 를 눌러 수정 창(전표일자 잠김) 200,000(→ 20,000) 저장 → '200,000 · 20,000 · 220,000' → [삭제] '전표를 삭제하겠습니까?' [확인] → '등록된 데이터가 없습니다.'. 빈 거래처로 저장하면 문구 없이 칸이 빨간 테두리.",
+  "shots": [
+    {
+      "name": "매출(세금)계산서 등록 → 수정 → 삭제",
+      "path": "/accounting/vat/tax-voucher",
+      "steps": [
+        "wait:2000",
+        "set:input[placeholder=\"비고\"]|QA세무-E030202",
+        "wait:300",
+        "expect:document.querySelector('tbody .ec-empty')?.innerText === '등록된 데이터가 없습니다.'",
+        "clicklast:매출(세금)계산서",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('매출(세금)계산서발행'))",
+        "expect:![...document.querySelector('[role=dialog]').querySelectorAll('input[placeholder=\"비고\"]')].length",
+        "expect:['부서코드', '프로젝트코드'].every((t) => document.querySelector('[role=dialog]').innerText.includes(t))",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:!!document.querySelector('[role=dialog] .ec-invalid') && [...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('매출(세금)계산서발행'))",
+        "js:[...document.querySelectorAll('button[title=\"거래처 코드도움\"]')].pop().click(); true",
+        "pickrow:BOTH-001",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelector('input.text-right'); el.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '100000'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input.text-right')].map((i) => i.value.replace(/,/g, '')).join('|') === '100000|10000'",
+        "clicklast:세부내역",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('세금계산서내역등록')",
+        "setnear:비고|QA세무-E030202",
+        "clicklast:적용(F8)",
+        "wait:300",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes('QA세무-E030202')).length === 1 && [...document.querySelectorAll('tbody tr')].some((t) => /매출\\s+BOTH-001\\s+\\S.*QA세무-E030202\\s+100,000\\s+10,000\\s+110,000\\s+인쇄/.test(t.innerText))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA세무-E030202')).querySelector('button.ec-link').click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog] input[type=date]')].some((i) => i.disabled)",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelector('input.text-right'); el.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '200000'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input.text-right')].map((i) => i.value.replace(/,/g, '')).join('|') === '200000|20000'",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => /QA세무-E030202\\s+200,000\\s+20,000\\s+220,000/.test(t.innerText))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA세무-E030202')).querySelector('button.ec-link').click(); true",
+        "wait:400",
+        "clicklast:삭제",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:document.querySelector('tbody .ec-empty')?.innerText === '등록된 데이터가 없습니다.'"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const y=new Date().getFullYear();const vs=await (await fetch('/api/tax-vouchers?from='+y+'-01-01&to='+y+'-12-31',{headers:h})).json();const left=vs.filter((v)=>(v.remark||'').includes('QA세무-E030202'));for(const v of left)await fetch('/api/tax-vouchers/'+v.id,{method:'DELETE',headers:h});return left.length?'남은 시험 계산서 '+left.length+'건 지움':true})()"
+  ]
+}

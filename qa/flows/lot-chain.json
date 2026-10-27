@@ -1,0 +1,107 @@
+{
+  "about": "시리얼/로트No. 묶음 흐름(2026-10-14 원본 실측 = 우리): 로트 등록 → 내역입력 구매 3 → 수정 2(수정 창 저장(F8) · 이전 · 다음 · 닫기 · 삭제) → 재고현황 2.00 → 재고수불부 '구매 | | QA재고2 | 2.00 | | 2.00 | 2026/10/14 -0' · 'L 계 2.00' → 내역현황 같은 줄 → 품목vs시리얼재고수량비교 시리얼/로트수량 +2 → 로트 삭제 막힘 → 내역 삭제 → 로트 삭제.",
+  "shots": [
+    {
+      "name": "로트 등록",
+      "path": "/quality/serial-lot",
+      "steps": [
+        "wait:2000",
+        "click:신규(F2)",
+        "wait:600",
+        "js:(async () => { document.querySelector('.ec-modal input[placeholder=\"품목\"]').click(); await new Promise((r) => setTimeout(r, 700)); return 'ok' })()",
+        "pickrow:QA2LOT01",
+        "js:(() => { const el = document.querySelector('.ec-modal textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(el, 'QA재고2-CHAIN'); el.dispatchEvent(new Event('input', { bubbles: true })); return el.value })()",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-CHAIN'))"
+      ]
+    },
+    {
+      "name": "내역입력 구매 3 → 수정 2",
+      "path": "/quality/lot-tx-list",
+      "steps": [
+        "wait:2000",
+        "js:(() => { window.__pick = async (label, code) => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const d0 = [...document.querySelectorAll('[role=dialog]')].pop(); const i = [...d0.querySelectorAll('input')].find((x) => x.placeholder === label || x.getAttribute('aria-label') === label); let p = i.parentElement; while (p && !p.querySelector('button')) p = p.parentElement; p.querySelector('button').click(); await W(900); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const tr = [...d.querySelectorAll('tr')].find((t) => [...t.cells].some((c) => c.innerText.trim() === code)); for (const t of ['mousedown', 'mouseup']) tr.dispatchEvent(new MouseEvent(t, { bubbles: true })); tr.click(); await W(600); return label + ' ' + code }; return 'ok' })()",
+        "click:신규(F2)",
+        "wait:800",
+        "choose:select[aria-label=\"전표구분\"]|구매",
+        "js:window.__pick('창고', 'QA-WH')",
+        "js:window.__pick('품목코드', 'QA2LOT01')",
+        "set:input[aria-label=\"수량\"]|3",
+        "js:window.__pick('시리얼/로트No.', 'QA재고2-CHAIN')",
+        "set:input[aria-label=\"적요\"]|QA재고2",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-CHAIN') && r.innerText.includes('3.00') && r.innerText.includes('구매'))",
+        "js:(async () => { [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-CHAIN')).querySelector('button.ec-link').click(); await new Promise((r) => setTimeout(r, 800)); return 'ok' })()",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => ['저장(F8)', '이전', '다음', '닫기', '삭제'].includes(t)).join(',') === '저장(F8),이전,다음,닫기,삭제'",
+        "set:[role=dialog] input[aria-label=\"수량\"]|2",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-CHAIN') && r.innerText.includes('2.00'))"
+      ]
+    },
+    {
+      "name": "재고현황 2.00",
+      "path": "/quality/lot-stock",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => [...r.cells].map((c) => c.innerText.trim()).join('|') === 'QA2LOT01|QA재고2-로트품목||QA재고2-CHAIN|2031/10/13|2.00' || (r.innerText.includes('QA재고2-CHAIN') && r.innerText.includes('2.00')))"
+      ]
+    },
+    {
+      "name": "재고수불부 — 적요 · 연결전표 '-0'",
+      "path": "/quality/lot-ledger",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); return c[1] === 'QA재고2-CHAIN' && c[3] === '구매' && c[5] === 'QA재고2' && c[6] === '2.00' && c[8] === '2.00' && / -0$/.test(c[9]) })"
+      ]
+    },
+    {
+      "name": "내역현황 — 적요 · 연결전표 '-0'",
+      "path": "/quality/lot-tx-status",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => { const c = [...r.cells].map((x) => x.innerText.trim()); return c[2] === 'QA재고2-CHAIN' && c[4] === '구매' && c[6] === 'QA재고2' && c[7] === '2.00' && / -0$/.test(c[9]) })"
+      ]
+    },
+    {
+      "name": "품목vs시리얼재고수량비교 — 6열 · 합계",
+      "path": "/quality/lot-compare",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join(',') === '품목코드,품목명,규격,품목별수량,시리얼/로트수량,수량차이'",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.cells[0]?.innerText.trim() === 'QA2LOT01' && r.cells[4].innerText.trim() !== '')",
+        "expect:document.querySelector('tfoot td')?.innerText.trim() === '합계'"
+      ]
+    },
+    {
+      "name": "로트 삭제 막힘 → 내역 삭제 → 로트 삭제",
+      "path": "/quality/serial-lot",
+      "steps": [
+        "allowapi:400: /api/lots/",
+        "wait:2000",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-CHAIN')).querySelector('a').click(); await W(600); const m = [...document.querySelectorAll('.ec-modal')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.startsWith('사용중단/재사용')).click(); await W(300); [...m.querySelectorAll('.ec-menu button')].find((b) => b.textContent === '삭제').click(); await W(400); [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(1800); return 'ok' })()",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-modal')].pop().innerText; return t.includes('처리가 불가능한 코드입니다.') && t.includes('QA재고2-CHAIN') && t.includes('구매: ') })()"
+      ]
+    },
+    {
+      "name": "내역 지우기",
+      "path": "/quality/lot-tx-list",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-CHAIN')).querySelector('button.ec-link').click(); await W(800); const m = [...document.querySelectorAll('[role=dialog]')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); await W(400); [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(1500); return 'ok' })()",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-CHAIN'))"
+      ]
+    },
+    {
+      "name": "로트 지우기",
+      "path": "/quality/serial-lot",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-CHAIN')).querySelector('a').click(); await W(600); const m = [...document.querySelectorAll('.ec-modal')].pop(); [...m.querySelectorAll('button')].find((b) => b.textContent.startsWith('사용중단/재사용')).click(); await W(300); [...m.querySelectorAll('.ec-menu button')].find((b) => b.textContent === '삭제').click(); await W(400); [...document.querySelector('[role=alertdialog]').querySelectorAll('button')].find((b) => b.textContent === '확인').click(); await W(1500); return 'ok' })()",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA재고2-CHAIN'))"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,243 @@
+{
+  "about": "회계 I › 현금거래 › 현금예금출금 일곱(매입처로 · 영수증으로 · 법인카드대금결제 · 계좌간이동 · 일시적으로(출금) · 은행으로 · 기타출금). 원본 2026-10-14 loginaa: 매입처로 26/10/14-11 (기업은행-1122 · 한성전자 · 11,000 · 수수료 500) 전표 인쇄 = 차) 외상매입금(한성전자) 11,000 · 지급수수료(판) 500 / 대) 보통예금(기업은행-1122) 11,500, 회계거래조회 [금액] 11,500. 수정 창: 전표일자 막힘 · 출금계좌 · 거래처 · 금액 · 수수료 · 적요, 단추 저장(F8) · 저장/전표(F7) · 복사 · 삭제 · 닫기. 원본 일곱 화면의 칸 차례는 아래 labels 와 같다(2026-10-14 실측). 매입처로 밖 여섯의 분개는 FastVoucherType 의 2026-10-12 실측 그대로 — 2026-10-20 원본에 일곱을 모두 저장해 전표 인쇄로 다시 봤다 — 분개 같음. 우리는 화면으로 넣고 그날 시산표 차 · 대 증감으로 보고, 매입처로는 회계거래조회에서 열어 22,000 으로 고치고 [삭제] 까지 화면으로.",
+  "shots": [
+    {
+      "name": "매입처로 11,000 · 수수료 500 → 251 차 +11,000 · 831 차 +500 · 103 대 +11,500, 저장 뒤 출금계좌만 남음",
+      "path": "/accounting/purchase-payment",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; sessionStorage.setItem('tb0', JSON.stringify(m)); return true })()",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|출금계좌|거래처|금액|수수료|적요|회계전표No.'",
+        "set:input[placeholder=\"출금계좌\"]|QA-110-999-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"거래처\"]|QA-CUST",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"거래처\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"금액\"]|11000",
+        "set:input[aria-label=\"수수료\"]|500",
+        "set:input[placeholder=\"적요\"]|QA회계1-흐름 매입처로",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[placeholder=\"출금계좌\"]').value === 'QA-110-999-000002' && document.querySelector('input[aria-label=\"금액\"]').value === '' && document.querySelector('input[placeholder=\"거래처\"]').value === ''",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,11500],\"2519\":[11000,0],\"8319\":[500,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "회계거래조회 [금액] 11,500 → 전표번호 → 수정 창(일자 막힘) → 금액 22,000 저장 → 251 +22,000 · 103 대 +22,500 · 고쳐도 전표번호 그대로(원본 26/10/21-10 21,500 → 30,500 번호 그대로)",
+      "path": "/accounting/journals",
+      "steps": [
+        "wait:3000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-흐름 매입처로') && tr.innerText.includes('매입처로') && tr.innerText.includes('11,500'))",
+        "js:sessionStorage.setItem('ppNo', [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 매입처로')).querySelector('a').innerText.trim()); true",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 매입처로')).querySelector('a').click(); true",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/purchase-payment' && document.querySelector('input[aria-label=\"금액\"]').value === '11,000'",
+        "expect:['저장(F8)', '저장/전표(F7)', '복사', '삭제', '닫기'].every((t) => [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === t))",
+        "set:input[aria-label=\"금액\"]|22000",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/journals'",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 매입처로')).querySelector('a').innerText.trim() === sessionStorage.getItem('ppNo')",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,22500],\"2519\":[22000,0],\"8319\":[500,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "매입처로 [삭제] '전표를 삭제하겠습니까? - 매입처로' → 시산표 처음으로",
+      "path": "/accounting/journals",
+      "steps": [
+        "wait:3000",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 매입처로')).querySelector('a').click(); true",
+        "wait:2500",
+        "click:삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 매입처로')",
+        "clicklast:확인",
+        "wait:2000",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,0],\"2519\":[0,0],\"8319\":[0,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "영수증으로 계정 811 · 거래처명 글자 · 12,000 · 수수료 300 → 811 +12,000 · 831 +300 · 103 대 +12,300, 저장 뒤 출금계좌 · 계정이 남음(원본 2026-10-20)",
+      "path": "/accounting/receipt-payment",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; sessionStorage.setItem('tb0', JSON.stringify(m)); return true })()",
+        "set:input[placeholder=\"출금계좌\"]|QA-110-999-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"계정\"]|811",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"계정\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"거래처명\"]|QA회계1-가게",
+        "set:input[aria-label=\"금액\"]|12000",
+        "set:input[aria-label=\"수수료\"]|300",
+        "set:input[placeholder=\"적요\"]|QA회계1-흐름 영수증으로",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[placeholder=\"출금계좌\"]').value === 'QA-110-999-000002' && document.querySelector('input[placeholder=\"계정\"]').value !== '' && document.querySelector('input[placeholder=\"거래처명\"]').value === '' && document.querySelector('input[aria-label=\"금액\"]').value === ''",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,12300],\"8109\":[12000,0],\"8319\":[300,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "회계거래조회 영수증으로 [금액] 12,000 — 수수료를 뺀 금액(원본 2026-10-20 26/10/20-11: 목록 12,000 · 분개 12,300) → 지우면 시산표 처음으로",
+      "path": "/accounting/journals",
+      "steps": [
+        "wait:3000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-흐름 영수증으로') && tr.innerText.includes('영수증으로') && tr.innerText.includes('12,000') && !tr.innerText.includes('12,300'))",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null }); const vs = await A('GET', '/vouchers'); const v = (vs.rows ?? vs).find((x) => (x.lines ?? []).some((l) => l.description === 'QA회계1-흐름 영수증으로') || x.description === 'QA회계1-흐름 영수증으로'); if (v) await A('DELETE', '/vouchers/' + v.id); return !!v })()",
+        "wait:800",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,0],\"8109\":[0,0],\"8319\":[0,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "법인카드대금결제 카드 QA법인카드 · 13,000 · 수수료 200 → 253 미지급금 +13,000 · 831 +200 · 103 대 +13,200, 저장 뒤 출금계좌 · 카드가 남음(원본 2026-10-20)",
+      "path": "/accounting/card-bill-payment",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; sessionStorage.setItem('tb0', JSON.stringify(m)); return true })()",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|출금계좌|카드|금액|수수료|적요|회계전표No.'",
+        "set:input[placeholder=\"출금계좌\"]|QA-110-999-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"카드\"]|QA-5310-****-****-0001",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"카드\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"금액\"]|13000",
+        "set:input[aria-label=\"수수료\"]|200",
+        "set:input[placeholder=\"적요\"]|QA회계1-흐름 법인카드대금결제",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[placeholder=\"출금계좌\"]').value === 'QA-110-999-000002' && document.querySelector('input[placeholder=\"카드\"]').value !== '' && document.querySelector('input[aria-label=\"금액\"]').value === ''",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,13200],\"2539\":[13000,0],\"8319\":[200,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null }); const vs = await A('GET', '/vouchers'); const v = (vs.rows ?? vs).find((x) => (x.lines ?? []).some((l) => l.description === 'QA회계1-흐름 법인카드대금결제') || x.description === 'QA회계1-흐름 법인카드대금결제'); if (v) await A('DELETE', '/vouchers/' + v.id); return !!v })()",
+        "wait:800",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,0],\"2539\":[0,0],\"8319\":[0,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "계좌간이동 입금 QA-110 ← 출금 QA-220 · 14,000 · 수수료 100 → 103 차 +14,000 · 대 +14,100 · 831 +100, 저장 뒤 입금 · 출금계좌가 남음(원본 2026-10-20)",
+      "path": "/accounting/account-transfer",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; sessionStorage.setItem('tb0', JSON.stringify(m)); return true })()",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|입금계좌|출금계좌|금액|수수료|적요|회계전표No.'",
+        "set:input[placeholder=\"입금계좌\"]|QA-110-999-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"입금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"출금계좌\"]|QA-220-888-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"금액\"]|14000",
+        "set:input[aria-label=\"수수료\"]|100",
+        "set:input[placeholder=\"적요\"]|QA회계1-흐름 계좌간이동",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:document.querySelector('input[placeholder=\"입금계좌\"]').value === 'QA-110-999-000002' && document.querySelector('input[placeholder=\"출금계좌\"]').value === 'QA-220-888-000002' && document.querySelector('input[aria-label=\"금액\"]').value === ''",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[14000,14100],\"8319\":[100,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null }); const vs = await A('GET', '/vouchers'); const v = (vs.rows ?? vs).find((x) => (x.lines ?? []).some((l) => l.description === 'QA회계1-흐름 계좌간이동') || x.description === 'QA회계1-흐름 계좌간이동'); if (v) await A('DELETE', '/vouchers/' + v.id); return !!v })()",
+        "wait:800",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,0],\"8319\":[0,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "일시적으로(출금) 사원 EMP-0001 · 15,000 → 134 가지급금 차 +15,000 · 103 대 +15,000 · 화면 제목 '일시적으로'(원본 E010410 — 괄호 없음, 삭제 확인도 '- 일시적으로')",
+      "path": "/accounting/temp-withdraw",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; sessionStorage.setItem('tb0', JSON.stringify(m)); return true })()",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|출금계좌|사원|금액|수수료|적요|회계전표No.'",
+        "expect:[...document.querySelectorAll('span.name')].some((s) => s.innerText.trim() === '일시적으로')",
+        "set:input[placeholder=\"출금계좌\"]|QA-110-999-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"사원\"]|EMP-0001",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"사원\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"금액\"]|15000",
+        "set:input[placeholder=\"적요\"]|QA회계1-흐름 일시적으로출금",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,15000],\"1349\":[15000,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null }); const vs = await A('GET', '/vouchers'); const v = (vs.rows ?? vs).find((x) => (x.lines ?? []).some((l) => l.description === 'QA회계1-흐름 일시적으로출금') || x.description === 'QA회계1-흐름 일시적으로출금'); if (v) await A('DELETE', '/vouchers/' + v.id); return !!v })()",
+        "wait:800",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,0],\"1349\":[0,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "은행으로 차입처 QA-220 · 원금상환액 100,000 · 이자금액 1,000 → 103 차 +100,000(차입처) · 951 +1,000 · 103 대 +101,000",
+      "path": "/accounting/loan-repayment",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; sessionStorage.setItem('tb0', JSON.stringify(m)); return true })()",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|출금계좌|차입처|원금상환액|이자금액|적요|회계전표No.'",
+        "set:input[placeholder=\"출금계좌\"]|QA-110-999-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"차입처\"]|QA-220-888-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"차입처\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"원금상환액\"]|100000",
+        "set:input[aria-label=\"이자금액\"]|1000",
+        "set:input[placeholder=\"적요\"]|QA회계1-흐름 은행으로",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[100000,101000],\"9319\":[1000,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null }); const vs = await A('GET', '/vouchers'); const v = (vs.rows ?? vs).find((x) => (x.lines ?? []).some((l) => l.description === 'QA회계1-흐름 은행으로') || x.description === 'QA회계1-흐름 은행으로'); if (v) await A('DELETE', '/vouchers/' + v.id); return !!v })()",
+        "wait:800",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,0],\"9319\":[0,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    },
+    {
+      "name": "기타출금 — 현금(000)에 수수료를 넣으면 글줄 알림 없이 [수수료] 칸만 빨간 테두리 + 말풍선 '현금일경우 수수료를 입력할 수 없습니다.'(원본 2026-10-21 E010414 popover), 수수료 0 이면 빨간 칸이 사라진다",
+      "path": "/accounting/other-withdraw",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|출금계좌|거래처|금액|수수료|차변계정|적요|회계전표No.'",
+        "set:input[placeholder=\"출금계좌\"]|현금",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"거래처\"]|QA-CUST",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"거래처\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"차변계정\"]|811",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"차변계정\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"금액\"]|1000",
+        "set:input[aria-label=\"수수료\"]|100",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:(() => { const box = document.querySelector('.ec-invalid'); return !!box && !!box.querySelector('input[aria-label=\"수수료\"]') && box.innerText.includes('현금일경우 수수료를 입력할 수 없습니다.') && !document.querySelector('.ec-alert') })()",
+        "set:input[aria-label=\"수수료\"]|0",
+        "wait:300",
+        "expect:!document.querySelector('.ec-invalid') && !document.body.innerText.includes('현금일경우 수수료를')"
+      ]
+    },
+    {
+      "name": "기타출금 거래처 QA-CUST · 16,000 · 차변계정 811 → 811 +16,000 · 103 대 +16,000",
+      "path": "/accounting/other-withdraw",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; sessionStorage.setItem('tb0', JSON.stringify(m)); return true })()",
+        "set:input[placeholder=\"출금계좌\"]|QA-110-999-000002",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"출금계좌\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"거래처\"]|QA-CUST",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"거래처\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[aria-label=\"금액\"]|16000",
+        "set:input[placeholder=\"차변계정\"]|811",
+        "js:(() => { const el = document.querySelector('input[placeholder=\"차변계정\"]'); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "set:input[placeholder=\"적요\"]|QA회계1-흐름 기타출금",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,16000],\"8109\":[16000,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null }); const vs = await A('GET', '/vouchers'); const v = (vs.rows ?? vs).find((x) => (x.lines ?? []).some((l) => l.description === 'QA회계1-흐름 기타출금') || x.description === 'QA회계1-흐름 기타출금'); if (v) await A('DELETE', '/vouchers/' + v.id); return !!v })()",
+        "wait:800",
+        "expect:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => { const t = await r.text(); return t ? JSON.parse(t) : null });const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const tb = await A('GET', '/journals/trial-balance?from=' + day + '&to=' + day); const m = {}; for (const r of tb.rows) m[r.accountCode] = [Number(r.debit), Number(r.credit)]; const b = JSON.parse(sessionStorage.getItem('tb0')); const e = {\"1039\":[0,0],\"8109\":[0,0]}; const g = (c, i) => ((m[c] || [0, 0])[i] - ((b[c] || [0, 0])[i])); const bad = Object.entries(e).filter(([c, [dd, cc]]) => g(c, 0) !== dd || g(c, 1) !== cc); if (bad.length) console.log('diff', JSON.stringify(Object.keys(e).map((c) => [c, g(c, 0), g(c, 1)]))); return bad.length === 0 })()"
+      ]
+    }
+  ]
+}

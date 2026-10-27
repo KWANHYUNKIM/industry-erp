@@ -1,0 +1,20 @@
+{
+  "about": "A/S접수조회 — 2026-10-04 원본 실측 알약 [전체 · 확인 · 접수 · 수리중 · 완료](접수로 연다)와 버튼 [접수증인쇄]. [확인]은 전표상태라 결재 없는 회사에서는 전체와 같다. 우리는 끝에 [취소](소모부품을 되돌리는 문)를 하나 더 둔다.",
+  "shots": [
+    {
+      "name": "알약 차례 · 확인 = 전체 · 접수증인쇄 단추",
+      "path": "/quality/as",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.innerText.trim()).join('|').startsWith('전체|확인|접수|수리중|완료') && document.querySelector('.ec-pills .ec-pill.active')?.innerText.trim() === '접수'",
+        "js:[...document.querySelectorAll('.ec-pills .ec-pill')].find((b) => b.innerText.trim() === '전체').click(); true",
+        "wait:400",
+        "js:sessionStorage.setItem('asAll', String(document.querySelectorAll('tbody tr input[type=checkbox]').length)); true",
+        "js:[...document.querySelectorAll('.ec-pills .ec-pill')].find((b) => b.innerText.trim() === '확인').click(); true",
+        "wait:400",
+        "expect:String(document.querySelectorAll('tbody tr input[type=checkbox]').length) === sessionStorage.getItem('asAll')",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '접수증인쇄')"
+      ]
+    }
+  ]
+}
