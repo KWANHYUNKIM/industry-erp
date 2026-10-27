@@ -3616,6 +3616,9 @@ console.log('\n■ 화면 위의 버튼이 원본과 같은 차례로 서 있나
      * 화면에 보이는 자리와 아무 상관이 없다 — 그대로 재면 [Excel] 뒤에 선 것처럼 보인다.
      */
     if (/onNew=|renderForm=/.test(src)) pos.set('신규(F2)', -1)
+    // 셸 머리 검색칸 왼쪽(headExtra)의 단추는 화면에서 아래 단추줄보다 위 · 앞에 선다(품목 · 거래처 [사용중단포함]).
+    const he = /headExtra=\{[\s\S]{0,600}?>([^<>{}]{1,24})<\/button>/.exec(src)
+    if (he) pos.set(he[1].trim(), -2)
 
     const ours = btns.filter((b) => !SHELL_BUTTONS.has(b) && !ORDER_BLIND.has(b))
       // '없는 버튼'과 '맨 앞에 붙는 버튼'을 같은 -1 로 적으면 안 된다 — 없는 것까지 끼어든다.
@@ -7247,6 +7250,7 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
 {
   /* 표에 길이가 없는 칸 — 막을 근거가 없다. 까닭을 적어 둔다. */
   const 예외 = {
+    'ReportRequest.residentNo': '4대보험 신고 주민등록번호 — 하이픈 넣은 14자(900101-1234567)도 받고 서비스가 숫자 13자만 남겨 저장한다(ca005276)',
     'CreateApprovalRequest.content': '결재 본문은 TEXT 라 길이가 없다',
     'CreatePostRequest.content': '게시글 본문은 TEXT 라 길이가 없다',
     'CreateContractRequest.content': '계약 본문은 TEXT 라 길이가 없다',
