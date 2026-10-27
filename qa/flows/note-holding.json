@@ -68,8 +68,8 @@
       "path": "/accounting/notes-ledger",
       "steps": [
         "wait:1800",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|증감구분|어음번호|거래처명|계정명|적요|증가금액|감소금액|잔액'})()",
-        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')));return !!tr&&tr.cells[1].innerText.trim()==='증가'&&tr.cells[6].innerText.includes('23,456')})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|증감구분|어음번호|거래처명|계정명|부서명|프로젝트명|적요|증가금액|감소금액|잔액'})()",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')));return !!tr&&tr.cells[1].innerText.trim()==='증가'&&tr.cells[8].innerText.includes('23,456')})()",
         "expect:document.querySelectorAll('input[type=radio]')[0].checked&&[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='잔액0포함').querySelector('input').checked"
       ]
     },
@@ -78,7 +78,7 @@
       "path": "/accounting/notes-pay-ledger",
       "steps": [
         "wait:1800",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return document.body.innerText.includes('지급어음거래내역')&&h==='일자|증감구분|어음번호|거래처명|계정명|적요|증가금액|감소금액|잔액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return document.body.innerText.includes('지급어음거래내역')&&h==='일자|증감구분|어음번호|거래처명|계정명|부서명|프로젝트명|적요|증가금액|감소금액|잔액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))})()"
       ]
     },
     {
@@ -111,7 +111,7 @@
       "path": "/accounting/checks-held",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');if(h!=='수령일자|수표번호|거래처명|계정명|적요|금액')return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');const sum=subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0);return sum===n(tot.cells[tot.cells.length-1].innerText)})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.replace('▾','').replace('▴','').trim()).join('|');if(h!=='수령일자|수표번호|거래처명|계정명|적요|금액')return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');const sum=(subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0)+[...document.querySelectorAll('table tbody tr')].filter((t)=>!/ 계$/.test(t.cells[0].innerText.trim())&&t.cells.length>3&&t.cells[2].innerText.trim()==='').reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0));return sum===n(tot.cells[tot.cells.length-1].innerText)})()"
       ]
     },
     {
@@ -119,7 +119,7 @@
       "path": "/accounting/checks-issued",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');if(h!=='발행일자|수표번호|거래처명|계정명|적요|금액')return false;if(!document.body.innerText.includes('발행수표계좌'))return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');return subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0)===n(tot.cells[tot.cells.length-1].innerText)})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.replace('▾','').replace('▴','').trim()).join('|');if(h!=='발행일자|수표번호|거래처명|계정명|적요|금액')return false;if(!document.body.innerText.includes('발행수표계좌'))return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');return (subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0)+[...document.querySelectorAll('table tbody tr')].filter((t)=>!/ 계$/.test(t.cells[0].innerText.trim())&&t.cells.length>3&&t.cells[2].innerText.trim()==='').reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0))===n(tot.cells[tot.cells.length-1].innerText)})()"
       ]
     }
   ]

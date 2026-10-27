@@ -82,7 +82,7 @@ export default function ConditionSearchPage() {
     targetPartners.forEach((p) => { agg[p.id] = { name: p.name, sale: 0, purchase: 0 } })
     const inProject = (id: number | null) => !projectId || String(id) === projectId
     sales.forEach((s) => {
-      if (ids.has(s.partnerId) && inRange(s.saleDate) && inProject(s.projectId)) agg[s.partnerId].sale += s.supplyAmount
+      if (s.partnerId != null && ids.has(s.partnerId) && inRange(s.saleDate) && inProject(s.projectId)) agg[s.partnerId].sale += s.supplyAmount
     })
     purchases.forEach((pu) => {
       if (ids.has(pu.partnerId) && inRange(pu.purchaseDate) && inProject(pu.projectId)) agg[pu.partnerId].purchase += pu.supplyAmount

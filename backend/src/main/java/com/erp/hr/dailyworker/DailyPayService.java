@@ -392,8 +392,13 @@ public class DailyPayService {
         for (DailyPayDirectAmount d : directRepository.findByLedger(ledgerId)) if (d.getDayAmount() != null) direct.add(d.getWorker().getId());
         List<DailyPayLine> ls = lineRepository.findByLedger(ledgerId);
         Map<Long, List<LineItem>> items = lineItems(ls.stream().map(DailyPayLine::getId).toList());
+        DailyPayLedger g = get(ledgerId);
+        Map<Long, LocalDate> last = new HashMap<>();
+        for (DailyWorkEntry e : entryRepository.findInWorkPeriod(g.getPeriodFrom(), g.getPeriodTo())) {
+            last.merge(e.getWorker().getId(), e.getWorkDate(), (a, b) -> a.isAfter(b) ? a : b);
+        }
         return ls.stream().map(l -> LineResponse.from(l, direct.contains(l.getWorker().getId()),
-                items.getOrDefault(l.getId(), List.of()))).toList();
+                items.getOrDefault(l.getId(), List.of()), last.get(l.getWorker().getId()))).toList();
     }
 
     /** 일용근로 사원별급여조회 · 급여현황 · 급여이체현황 — 귀속연월 구간의 대장 줄. 최종근무일은 대장 대상기간의 근무입력에서. */

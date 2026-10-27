@@ -47,7 +47,7 @@ interface SubcontractRow {
 /** 세 화면이 읽는 한 장 — 판매·구매 전표와 외주비 줄을 같은 모양으로 맞춘다. */
 type Src = DiscountSrc
 const fromDoc = (d: Doc): Src => ({
-  date: 'saleDate' in d ? d.saleDate : d.purchaseDate, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName,
+  date: 'saleDate' in d ? d.saleDate : d.purchaseDate, docNo: d.docNo, partnerId: d.partnerId ?? 0, partnerName: d.partnerName,
   warehouseId: d.warehouseId ?? null, warehouseName: d.warehouseName, employeeName: d.employeeName,
   projectId: d.projectId ?? null, projectName: d.projectName ?? null,
   supplyAmount: d.supplyAmount, reflected: !!d.accountingReflected, remark: d.remark ?? null, taxable: !!d.taxable,

@@ -63,8 +63,25 @@ public class EmploymentContractDtos {
     /** 원본 [수신정보입력] — 계약참여자1(사원) · 전달방식. */
     public record RecipientRequest(
             @NotNull(message = "데이터를 입력하기 바랍니다") Long employeeId,
-            @NotNull(message = "데이터를 입력하기 바랍니다") DeliveryMethod deliveryMethod
+            @NotNull(message = "데이터를 입력하기 바랍니다") DeliveryMethod deliveryMethod,
+            /** [항목등록] 한 항목의 값(원본 [전송정보입력] 격자의 항목 열). 없으면 그대로 둔다. */
+            java.util.List<ItemValue> items
     ) {}
+
+    public record ItemValue(@NotNull Long id, @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String value) {}
+
+    /** 원본 '항목등록' · '항목수정' 창 — 항목명 하나. */
+    public record ItemRequest(
+            @NotBlank(message = "데이터를 입력하기 바랍니다")
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String name
+    ) {}
+
+    public record ItemResponse(Long id, String name, String value) {
+        public static ItemResponse from(com.erp.hr.contract.EmploymentContractItem i) {
+            return new ItemResponse(i.getId(), i.getName(), i.getValue());
+        }
+    }
 
     /** 서명. 사원 본인 확인용 서명자명을 남긴다. */
     public record SignContractRequest(

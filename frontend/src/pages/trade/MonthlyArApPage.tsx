@@ -158,7 +158,8 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
     const 담당id = manager
       ? new Set(partnerRows.filter((p) => (p.manager ?? '') === manager).map((p) => p.id))
       : null
-    const keep = (id: number) => {
+    const keep = (rawId: number | null) => {
+      const id = rawId ?? 0
       if (고른id.size && !고른id.has(id)) return false
       if (담당id && !담당id.has(id)) return false
       if (그룹id && !그룹id.has(id)) return false

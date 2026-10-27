@@ -153,7 +153,7 @@ export default function StatementPrintPage() {
     /* 품목 쪽 조건은 <b>줄 하나라도</b> 걸리면 그 명세서를 남긴다 — 명세서는 여러 품목을 싣는다. */
     if (itemCat && !d.lines.some((l) => categoryOf(l.itemId) === itemCat)) return false
     if (itemGroup && !d.lines.some((l) => groupOf(l.itemId) === itemGroup)) return false
-    if (partnerGroup && pgroups.groupOfId(d.partnerId) !== partnerGroup) return false
+    if (partnerGroup && pgroups.groupOfId((d.partnerId ?? 0)) !== partnerGroup) return false
     return true
   })
   const total = useMemo(() => shown.reduce((s, d) => s + d.supplyAmount + d.vatAmount, 0), [shown])
@@ -195,8 +195,8 @@ export default function StatementPrintPage() {
        * 미수금집계를 켜면 명세서 아래에 지난 미수와 이번 거래를 합쳐 찍는다.
        * 받는 쪽이 "그래서 얼마를 보내면 되나" 를 이 한 줄에서 안다.
        */
-      footNote: withReceivable && balances.has(d.partnerId)
-        ? `미수금 ${Math.round(balances.get(d.partnerId) ?? 0).toLocaleString('ko-KR')}원 (기준일 ${toDate}) · `
+      footNote: withReceivable && balances.has((d.partnerId ?? 0))
+        ? `미수금 ${Math.round(balances.get((d.partnerId ?? 0)) ?? 0).toLocaleString('ko-KR')}원 (기준일 ${toDate}) · `
           + `이번 거래 ${Math.round(d.supplyAmount + d.vatAmount).toLocaleString('ko-KR')}원. `
           + '위와 같이 거래하였음을 확인합니다.'
         : '위와 같이 거래하였음을 확인합니다.',
@@ -383,9 +383,9 @@ export default function StatementPrintPage() {
               <td className="text-right text-ec-hint">{d.vatAmount.toLocaleString('ko-KR')}</td>
               <td className="text-right font-semibold text-ec-navy">{d.totalAmount.toLocaleString('ko-KR')}</td>
               {withReceivable && (
-                <td style={{ textAlign: 'right', color: (balances.get(d.partnerId) ?? 0) > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
-                  {balances.has(d.partnerId)
-                    ? Math.round(balances.get(d.partnerId) ?? 0).toLocaleString('ko-KR')
+                <td style={{ textAlign: 'right', color: (balances.get((d.partnerId ?? 0)) ?? 0) > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
+                  {balances.has((d.partnerId ?? 0))
+                    ? Math.round(balances.get((d.partnerId ?? 0)) ?? 0).toLocaleString('ko-KR')
                     : '-'}
                 </td>
               )}
@@ -418,7 +418,7 @@ export default function StatementPrintPage() {
       {shown.length > 0 && (() => {
         const managerOf = new Map(partners.map((p) => [p.id, p.manager ?? '']))
         const groups = subtotalBy(shown,
-          (d) => (subtotal === '거래처관리담당자' ? (managerOf.get(d.partnerId) || null)
+          (d) => (subtotal === '거래처관리담당자' ? (managerOf.get((d.partnerId ?? 0)) || null)
             : subtotal === '창고' ? d.warehouseName : d.partnerName),
           { supply: (d) => d.supplyAmount, vat: (d) => d.vatAmount })
         return (

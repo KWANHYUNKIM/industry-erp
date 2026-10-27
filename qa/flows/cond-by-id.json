@@ -2,6 +2,14 @@
   "about": "조회 조건 코드도움이 id 로 거르는지 — 고르면 남은 줄이 전부 그 거래처·창고·품목이다(5·9회차). node qa/shot.mjs qa/flows/cond-by-id.json 소계·합계 줄은 뺀다.",
   "shots": [
     {
+      "name": "준비 — 미출하현황에 걸릴 출하지시서 한 장(QA-CUST · QA창고 · QA-PROD)",
+      "path": "/sales/unshipped",
+      "steps": [
+        "wait:800",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch('/api' + u, { headers: H })).json(); const [ps, ws, its] = await Promise.all([g('/partners'), g('/warehouses'), g('/items')]); const p = ps.find((x) => x.code === 'QA-CUST'), w = ws.find((x) => x.name === 'QA창고'), it = its.find((x) => x.code === 'QA-PROD'); const d = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const r = await (await fetch('/api/shipment-orders', { method: 'POST', headers: H, body: JSON.stringify({ orderDate: d, partnerId: p.id, warehouseId: w.id, lines: [{ itemId: it.id, quantity: 1 }] }) })).json(); sessionStorage.setItem('cbiSo', String(r.id)); return true })()"
+      ]
+    },
+    {
       "name": "견적서조회 — 거래처",
       "path": "/sales/quotations",
       "steps": [
@@ -26,5 +34,8 @@
         "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells.length > 5 && !/(^|\\s)(소|합)?계(\\s|$)/.test(tr.cells[0].innerText)).every((tr) => tr.innerText.includes('QA완제품'))"
       ]
     }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('cbiSo'); if (id) await fetch('/api/shipment-orders/' + id, { method: 'DELETE', headers: H }); return true })()"
   ]
 }

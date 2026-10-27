@@ -164,7 +164,7 @@ export default function SalesStatusPage() {
           unitPrice: l.unitPrice,
           supply: l.supplyAmount,
           vat: l.vatAmount,
-          partnerId: d.partnerId,
+          partnerId: d.partnerId ?? 0,
           itemId: l.itemId,
           warehouseId: d.warehouseId,
           warehouseName: d.warehouseName,

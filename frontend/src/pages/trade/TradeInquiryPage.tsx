@@ -17,7 +17,7 @@ import Modal from '../../components/Modal'
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
 interface NormalDoc {
-  id: number; docNo: string; partnerId: number; partnerName: string; warehouseId: number; warehouseName: string
+  id: number; docNo: string; partnerId: number | null; partnerName: string; warehouseId: number; warehouseName: string
   projectId: number | null
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   /** 거래유형(과세). 외자 구매는 과세여도 부가세가 0 이라 부가세로 되짚으면 면세로 보인다. */

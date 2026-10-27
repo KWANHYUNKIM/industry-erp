@@ -27,6 +27,7 @@ public class EmploymentContractService {
     private final DepartmentService departmentService;
     private final DocumentNoGenerator docNoGenerator;
     private final com.erp.common.FileStorageService fileStorage;
+    private final EmploymentContractItemRepository itemRepository;
 
     /**
      * 원본 계약서입력 [저장(F8)] — 계약서명 · 첨부(PDF). 일자는 오늘, 진행단계는 '수신정보입력'(작성).
@@ -102,7 +103,57 @@ public class EmploymentContractService {
         }
         c.setEmployee(e);
         c.setDeliveryMethod(req.deliveryMethod());
+        if (req.items() != null) {
+            for (EmploymentContractDtos.ItemValue v : req.items()) {
+                EmploymentContractItem i = getItem(id, v.id());
+                i.setValue(v.value() == null || v.value().isBlank() ? null : v.value().trim());
+            }
+        }
         return ContractResponse.from(c);
+    }
+
+    /** 원본 [수신정보입력] › 계약참여자1 [항목등록] '항목리스트' — 이 계약서의 항목(등록 차례). */
+    @Transactional(readOnly = true)
+    public List<EmploymentContractDtos.ItemResponse> items(Long id) {
+        get(id);
+        return itemRepository.findByContractIdOrderBySortOrderAscIdAsc(id).stream()
+                .map(EmploymentContractDtos.ItemResponse::from).toList();
+    }
+
+    /** '항목등록' [저장(F8)] — 안내 없이 창이 닫히고 항목리스트 끝에 붙는다(2026-10-24 실측). */
+    @Transactional
+    public EmploymentContractDtos.ItemResponse addItem(Long id, EmploymentContractDtos.ItemRequest req) {
+        EmploymentContract c = get(id);
+        requireDraft(c);
+        int next = itemRepository.findByContractIdOrderBySortOrderAscIdAsc(id).stream()
+                .mapToInt(EmploymentContractItem::getSortOrder).max().orElse(0) + 1;
+        EmploymentContractItem i = EmploymentContractItem.builder().contract(c).name(req.name().trim()).sortOrder(next).build();
+        return EmploymentContractDtos.ItemResponse.from(itemRepository.save(i));
+    }
+
+    /** '항목수정' [저장(F8)]. */
+    @Transactional
+    public EmploymentContractDtos.ItemResponse renameItem(Long id, Long itemId, EmploymentContractDtos.ItemRequest req) {
+        requireDraft(get(id));
+        EmploymentContractItem i = getItem(id, itemId);
+        i.setName(req.name().trim());
+        return EmploymentContractDtos.ItemResponse.from(i);
+    }
+
+    /** '항목수정' [삭제] — 원본 '삭제하겠습니까? 전송정보입력이 된 경우 해당 코드에 입력된 내용이 같이 삭제됩니다.' 값도 같이 사라진다. */
+    @Transactional
+    public void deleteItem(Long id, Long itemId) {
+        requireDraft(get(id));
+        itemRepository.delete(getItem(id, itemId));
+    }
+
+    private EmploymentContractItem getItem(Long contractId, Long itemId) {
+        EmploymentContractItem i = itemRepository.findById(itemId)
+                .orElseThrow(() -> ApiException.notFound("항목을 찾을 수 없습니다. id=" + itemId));
+        if (!i.getContract().getId().equals(contractId)) {
+            throw ApiException.notFound("항목을 찾을 수 없습니다. id=" + itemId);
+        }
+        return i;
     }
 
     /** 요청취소 — 진행중(발송) → 취소. 원본 근로계약현황 진행상태 '취소'. */

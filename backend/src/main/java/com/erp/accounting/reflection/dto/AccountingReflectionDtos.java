@@ -118,13 +118,13 @@ public final class AccountingReflectionDtos {
         public static SlipResponse fromSales(Sales s) {
             return new SlipResponse(
                     s.getId(), SlipKind.SALES, s.getDocNo(), s.getSaleDate(),
-                    s.getPartner().getId(), s.getPartner().getName(),
+                    s.getPartner() != null ? s.getPartner().getId() : null, s.getPartner() != null ? s.getPartner().getName() : null,
                     s.getWarehouse() != null ? s.getWarehouse().getId() : null,
                     s.getWarehouse() != null ? s.getWarehouse().getName() : null,
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
-                    s.getPartner().getManager(),
+                    s.getPartner() != null ? s.getPartner().getManager() : null,
                     summarize(s.getLines().stream().map(l -> l.getItem().getName()).toList()),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),
                     s.isTaxable() ? "과세" : "면세",

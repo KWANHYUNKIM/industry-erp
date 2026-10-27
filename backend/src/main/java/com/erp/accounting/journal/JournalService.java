@@ -89,7 +89,8 @@ public class JournalService {
     public JournalEntry updateManual(Long id, CreateJournalRequest req, String username) {
         JournalEntry e = entryRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
-        if (e.getSourceType() != JournalSourceType.MANUAL) {
+        if (e.getSourceType() != JournalSourceType.MANUAL && e.getSourceType() != JournalSourceType.VAT_SALES_II
+                && e.getSourceType() != JournalSourceType.VAT_PURCHASE_II) {
             throw ApiException.badRequest("일반전표로 만든 전표만 이 화면에서 고칠 수 있습니다.");
         }
         if (e.getConfirmStatus() == JournalConfirmStatus.IN_APPROVAL) {
@@ -231,6 +232,27 @@ public class JournalService {
     }
 
     /**
+     * [매출전표II로 변경] · [매입전표II로 변경] — 원본은 확인 없이 그 전표를 일반전표 꼴 II 로 바꾼다(되돌리기 없음, 2026-10-22 실측).
+     * 분개 줄 · 부가세유형 · 세부내역은 그대로 둔다(원본 II 격자에 부가세 칸이 없어 어디로 가는지는 못 쟀다).
+     */
+    @Transactional
+    public void toSlipII(Long id, String username) {
+        JournalEntry e = entryRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
+        JournalSourceType to = e.getSourceType() == JournalSourceType.VAT_SALES ? JournalSourceType.VAT_SALES_II
+                : e.getSourceType() == JournalSourceType.VAT_PURCHASE ? JournalSourceType.VAT_PURCHASE_II : null;
+        if (to == null) {
+            throw ApiException.badRequest("매출전표 I · 매입전표 I 로 만든 전표만 II 로 바꿀 수 있습니다.");
+        }
+        if (e.getConfirmStatus() == JournalConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표는 고칠 수 없습니다: " + e.getDocNo());
+        }
+        e.setSourceType(to);
+        e.setUpdatedBy(username);
+        save(e);
+    }
+
+    /**
      * 매출: 차) 입금계좌(외상매출금) 합계 / 대) 매출계정(제품매출) 공급가액 · 부가세예수금(255) 부가세.
      * 매입: 차) 매입계정(원재료) 공급가액 · 부가세대급금(135) 부가세 / 대) 출금계좌(외상매입금) 합계.
      * 수수료: 차) 지급수수료(831) / 대) 입금(출금)계좌 — 매출 · 매입 같다(26/10/13-9 · -11, 수수료 1,000 → 합계 111,000).
@@ -298,6 +320,7 @@ public class JournalService {
         }
         boolean assetSlip = e.getSourceType() == JournalSourceType.ASSET_ACQUISITION || e.getSourceType() == JournalSourceType.DISPOSAL;
         if (e.getSourceType() != JournalSourceType.MANUAL && e.getSourceType() != JournalSourceType.VAT_SALES
+                && e.getSourceType() != JournalSourceType.VAT_SALES_II && e.getSourceType() != JournalSourceType.VAT_PURCHASE_II
                 && e.getSourceType() != JournalSourceType.VAT_PURCHASE && !assetSlip) {
             throw ApiException.badRequest("업무전표에서 생성된 회계전표는 회계반영 취소로만 삭제할 수 있습니다.");
         }
@@ -404,7 +427,7 @@ public class JournalService {
         boolean discounted = isNonZero(s.getDiscountSupply()) || isNonZero(s.getDiscountVat());
         String lineDesc = seen ? s.getLines().get(0).getItem().getName() + (discounted ? " 외 1건" : "") : null;
         String entryDesc = seen
-                ? "매출 : " + (vatType != null ? vatType : "세금계산서") + " / " + s.getPartner().getName() + " / "
+                ? "매출 : " + (vatType != null ? vatType : "세금계산서") + " / " + (s.getPartner() != null ? s.getPartner().getName() : "") + " / "
                   + String.format("%,d", supply.longValue()) + " / " + String.format("%,d", nz(vat).longValue())
                 : "판매 " + s.getDocNo();
         JournalEntry e = newEntry(JournalSourceType.SALES, s.getId(), s.getSaleDate(),
@@ -450,7 +473,7 @@ public class JournalService {
         boolean allTaxable = true, anyReturn = false;
         for (Sales s : spec.sales()) {
             if (s.isAccountingReflected()) throw ApiException.conflict("이미 회계반영된 판매전표입니다: " + s.getDocNo());
-            if (spec.partnerId() == null && !java.util.Objects.equals(spec.sales().get(0).getPartner().getId(), s.getPartner().getId())) {
+            if (spec.partnerId() == null && !java.util.Objects.equals(spec.sales().get(0).getPartner() != null ? spec.sales().get(0).getPartner().getId() : null, s.getPartner() != null ? s.getPartner().getId() : null)) {
                 throw ApiException.badRequest("거래처가 다른 판매는 전표 한 장으로 묶을 수 없습니다: " + s.getDocNo());
             }
             List<SalesLine> sel = s.getLines().stream().filter(l -> !l.isAccountingReflected()

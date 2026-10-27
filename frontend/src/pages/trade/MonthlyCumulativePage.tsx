@@ -147,7 +147,7 @@ export default function MonthlyCumulativePage() {
   const lineHit = (l: { itemId: number; itemCategoryName: string | null }) =>
     (!category || (l.itemCategoryName ?? '') === category)
     && (!itemGroup || mgmt.groupOf(l.itemId) === itemGroup)
-  const keepDoc = (d: { warehouseId: number; partnerId: number; partnerName: string; projectId: number | null;
+  const keepDoc = (d: { warehouseId: number; partnerId: number | null; partnerName: string; projectId: number | null;
                         lines: { itemId: number; itemCategoryName: string | null }[] }) =>
     (!warehouse || String(d.warehouseId) === warehouse)
     && (!partner || String(d.partnerId) === partner)

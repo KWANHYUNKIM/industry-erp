@@ -54,12 +54,12 @@ export default function InsuranceReportListPage() {
   const shown = useMemo(() => rows.filter((r) => kinds.has(r.kind)
     && (!employeeId || String(r.employeeId) === employeeId)
     && (deleted === 'ALL' || (deleted === 'YES') === r.deleted)
-    && (!search || `${r.employeeCode} ${r.employeeName}`.includes(search))), [rows, kinds, employeeId, deleted, search])
+    && (!search || `${r.employeeCode} ${r.employeeName} ${r.reportName}`.includes(search))), [rows, kinds, employeeId, deleted, search])
 
   const biz = company ? `${company.name ?? ''} ${(company.bizRegNo ?? '').replaceAll('-', '')}`.trim() : ''
 
   async function deleteChecked() {
-    if (!(await ecConfirm('삭제하겠습니까?'))) return
+    if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 4대보험신고'))) return
     try {
       await api.post('/hr/insurance/reports/delete', [...checked])
       setChecked(new Set())
@@ -151,7 +151,7 @@ export default function InsuranceReportListPage() {
                   <a className="cursor-pointer" onClick={() => navigate(`${INSURANCE_INPUT_PATHS[r.kind]}?id=${r.id}`)}>{slash(r.reportDate)} -{r.reportSeq}</a>
                 </td>
                 <td />
-                <td>{r.employeeName}</td>
+                <td>{r.reportName}</td>
                 <td>{biz}</td>
                 <td />
                 <td>{r.formName}</td>

@@ -28,7 +28,8 @@ public class InsuranceReportDtos {
             boolean healthApply, LocalDate healthDate,
             boolean employmentApply, LocalDate employmentDate,
             boolean accidentApply, LocalDate accidentDate,
-            @Size(max = 30) String phone, String detail, String dependents) {}
+            @Size(max = 30) String phone, String detail, String dependents,
+            @Size(max = 13) String residentNo, @Size(max = 50) String reportName) {}
 
     public record ReportResponse(
             Long id, LocalDate reportDate, Integer reportSeq, InsuranceReportKind kind, String formName,
@@ -39,7 +40,8 @@ public class InsuranceReportDtos {
             boolean healthApply, LocalDate healthDate,
             boolean employmentApply, LocalDate employmentDate,
             boolean accidentApply, LocalDate accidentDate,
-            String phone, String detail, String dependents, boolean deleted) {
+            String phone, String detail, String dependents, boolean deleted,
+            String residentNo, String reportName) {
         public static ReportResponse from(InsuranceReport r) {
             return new ReportResponse(r.getId(), r.getReportDate(), r.getReportSeq(), r.getKind(), r.getKind().formName(),
                     r.getEmployee().getId(), r.getEmployee().getCode(), r.getEmployee().getName(),
@@ -47,7 +49,8 @@ public class InsuranceReportDtos {
                     WorkplaceResponse.from(r.getEmploymentWorkplace()), WorkplaceResponse.from(r.getAccidentWorkplace()),
                     r.isPensionApply(), r.getPensionDate(), r.isHealthApply(), r.getHealthDate(),
                     r.isEmploymentApply(), r.getEmploymentDate(), r.isAccidentApply(), r.getAccidentDate(),
-                    r.getPhone(), r.getDetail(), r.getDependents(), r.isDeleted());
+                    r.getPhone(), r.getDetail(), r.getDependents(), r.isDeleted(),
+                    r.getResidentNo(), r.getReportName() != null ? r.getReportName() : r.getEmployee().getName());
         }
     }
 }

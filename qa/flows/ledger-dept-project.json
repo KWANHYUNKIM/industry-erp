@@ -31,7 +31,9 @@
         "wait:500",
         "pickrow:@ldDeptCode",
         "wait:800",
-        "expect:(() => { const heads = [...document.querySelectorAll('p.font-bold')].map((p) => p.textContent.trim()); return heads.length === 2 && heads.some((h) => h.includes('복리후생비')) && heads.some((h) => h.includes('현금')) && document.body.innerText.includes('3,000') })()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(() => { const heads = [...[...document.querySelectorAll('span')].filter((s) => /^회사명 : .* \\/ \\S+\\(.+\\)$/.test(s.textContent.trim()))].map((p) => p.textContent.trim()); return heads.length === 2 && heads.some((h) => h.includes('복리후생비')) && heads.some((h) => h.includes('현금')) && document.body.innerText.includes('3,000') })()",
         "expect:(async () => { const d = sessionStorage.getItem('ldDay'); const r = await fetch('/api/journals/income-statement?from=' + d + '&to=' + d + '&departmentId=' + sessionStorage.getItem('ldDept'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((x) => x.json()); return Number(r.totalExpense) === 3000 })()",
         "expect:(async () => (await fetch('/api/vouchers/' + sessionStorage.getItem('ldV'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).ok)()"
       ]

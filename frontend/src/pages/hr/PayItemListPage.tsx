@@ -216,7 +216,7 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
             {isAllowance && <th className="w-[70px] text-right">배율</th>}
             {isAllowance && <th className="w-[120px]">비과세유형</th>}
             {isAllowance && <th className="w-[130px]">지급유형</th>}
-            {isAllowance && <th>계산식</th>}
+            <th>계산식</th>
             <th>산출방법</th>
           </tr>
         </thead>

@@ -82,6 +82,14 @@ public class InsuranceReport extends BaseTimeEntity {
     @Column(length = 30)
     private String phone;
 
+    /** 주민등록번호(숫자 13자리, 원본 칸이 '-' 없이 받는다) — 원본 저장 필수. 체크숫자는 원본도 안 본다. */
+    @Column(name = "resident_no", length = 13)
+    private String residentNo;
+
+    /** 신고 성명 — 사원을 고르면 사원명이 들어오고 고칠 수 있다. 원본은 한글만 받는다. */
+    @Column(name = "report_name", length = 50)
+    private String reportName;
+
     @Column(columnDefinition = "text")
     private String detail;
 

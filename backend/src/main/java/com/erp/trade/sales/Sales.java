@@ -34,8 +34,8 @@ public class Sales extends BaseTimeEntity {
     @Column(nullable = false, unique = true, length = 30)
     private String docNo;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "partner_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

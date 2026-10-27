@@ -4,9 +4,10 @@ import Modal from '../../components/Modal'
 const FONTS = ['돋움', '굴림', '바탕', '맑은 고딕']
 const SIZES = ['10px', '12px', '14px', '16px', '18px', '20px', '24px']
 const INSERTS = [
-  { key: 'text', label: '텍스트 상자', mark: 'T' },
-  { key: 'check', label: '체크 상자', mark: '☑' },
+  // 원본 차례(2026-10-24 재측): 서명(펜) · 체크 상자 · 텍스트 상자 · (넷째는 흐림)
   { key: 'line', label: '서명(도장) 칸', mark: '✎' },
+  { key: 'check', label: '체크 상자', mark: '☑' },
+  { key: 'text', label: '텍스트 상자', mark: 'T' },
   { key: 'date', label: '날짜 칸', mark: '31' },
 ] as const
 

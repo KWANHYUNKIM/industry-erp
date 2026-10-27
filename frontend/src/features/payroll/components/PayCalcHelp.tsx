@@ -43,7 +43,9 @@ export default function PayCalcHelp({ month, open, onClose, payslips, employees 
       .then((r) => {
         const amountOf = (empId: number, item: string) => payslips.find((p) => p.employeeId === empId)?.lines
           .filter((l) => l.kind === 'ALLOWANCE' && l.name === item).reduce((s, l) => s + Number(l.amount), 0) ?? 0
-        setMissing(r.data.filter((c) => Number(c.quantity) !== 0 && amountOf(c.employeeId, c.payItemName) === 0)
+        // 원본(2026-10-24 실측): 대장에 없는 사원(급여 대상 아님 — 홍재혁 야근 1)은 근무기록확정에 수량이 있어도 1번 표에 안 나온다.
+        const inLedger = (empId: number) => payslips.some((p) => p.employeeId === empId)
+        setMissing(r.data.filter((c) => Number(c.quantity) !== 0 && inLedger(c.employeeId) && amountOf(c.employeeId, c.payItemName) === 0)
           .map((c) => ({ code: c.employeeCode, name: c.employeeName, item: c.payItemName })))
       })
       .catch((e) => setError(extractErrorMessage(e)))

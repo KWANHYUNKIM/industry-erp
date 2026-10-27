@@ -9,7 +9,7 @@
         "wait:600",
         "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
         "clicklast:저장(F8)",
-        "expect:document.body.innerText.includes('프로젝트명을 입력 바랍니다.')",
+        "expect:document.querySelector('[role=dialog] input[placeholder=\"프로젝트명\"]')?.getAttribute('aria-invalid') === 'true'",
         "set:[role=dialog] input[placeholder=\"프로젝트명\"]|QA관리-화면시험프로젝트",
         "clicklast:저장(F8)",
         "wait:2500",

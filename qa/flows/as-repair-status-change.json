@@ -6,7 +6,7 @@
       "path": "/quality/as-repair-list",
       "steps": [
         "wait:2500",
-        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const d = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const r = await A('POST', '/as-repairs', { repairDate: d, partnerId: pa[0].id, charge: 'QA재고2', warehouseId: wh[0].id, title: 'QA재고2 상태변경', content: 'QA재고2', status: 'IN_PROGRESS', lines: [{ itemId: it[0].id, quantity: 1 }] }); sessionStorage.setItem('rscId', String(r.id)); return r.id })()",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const d = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const r = await A('POST', '/as-repairs', { repairDate: d, partnerId: pa[0].id, charge: 'QA재고2', warehouseId: wh[0].id, title: 'QA재고2 상태변경', content: 'QA재고2', status: 'IN_PROGRESS', repairType: 'FREE_REPAIR', lines: [{ itemId: it[0].id, quantity: 1 }] }); sessionStorage.setItem('rscId', String(r.id)); return r.id })()",
         "js:location.reload(); true",
         "wait:3000",
         "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.innerText.trim()).join('|') === '전체|확인|진행중|완료'",

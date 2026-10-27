@@ -417,6 +417,17 @@ async function scenarioSaleWithinOrder(f) {
   })
   eq('근거수주에 없는 품목은 거부', other.status, 400)
 
+  // 거래처 없이 저장 — 원본 판매입력은 거래처를 비운 채 저장된다(2026-10-22). 판매조회에 보이고, 채권 집계 · 세금계산서는 터지지 않아야 한다.
+  const noPartner = await must('POST', '/sales', {
+    saleDate: '2026-07-13', warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('거래처 없는 판매 저장', noPartner.partnerId ?? null, null)
+  eq('판매조회에 보인다', (await must('GET', '/sales')).some((x) => x.id === noPartner.id && x.partnerId == null), true)
+  eq('거래처별 채권 집계는 터지지 않는다', (await call('GET', '/ledger/partner-balances')).status < 500, true)
+  eq('거래처 없는 판매의 세금계산서는 400', (await call('POST', '/tax-invoices', { type: 'SALES', sourceId: noPartner.id, issueDate: '2026-07-13' })).status, 400)
+  await must('DELETE', `/sales/${noPartner.id}`)
+
   await must('DELETE', `/sales/${second.id}`)
   await must('DELETE', `/sales/${first.id}`)
   await must('DELETE', `/sales-orders/${order.id}`)
@@ -1627,6 +1638,8 @@ async function scenarioPurchaseOrder(f) {
   const balAll = async () => must('GET', '/ledger/partner-balances')
   const arOf = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.receivable ?? 0)
   const apOf = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.payable ?? 0)
+  const unb = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.unbilledReceivable ?? 0)
+  const unb0 = await unb(f.customer.id)
   const ar0 = await arOf(f.customer.id)
   const half = await must('POST', '/sales', {
     saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
@@ -1637,6 +1650,7 @@ async function scenarioPurchaseOrder(f) {
   eq('[원본] 판매 3 × 333.5 → 합계 1,101', Number(half.totalAmount), 1101)
   eq('라인 공급가액도 1,001 (전표 합과 같다)', Number(half.lines[0].supplyAmount), 1001)
   eq('[일관성] 채권이 합계 1,101 만큼 는다', (await arOf(f.customer.id)) - ar0, 1101)
+  eq('[원본] 세금계산서 없는 판매는 미청구금액이 합계만큼 는다', (await unb(f.customer.id)) - unb0, 1101)
   const back = await must('POST', '/sales', {
     saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
     returnSlip: true, lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
@@ -11495,8 +11509,10 @@ async function scenarioNewCompany() {
     ['공통코드 그룹', '/codes', 5],
     ['급여항목', '/pay-settings/items', 5],
   ]) {
-    const 본사것 = await must('GET', path)
-    const 회사것 = await 그쪽(path)
+    // 시험이 남긴 QA 자료(이름이 QA 로 시작)는 씨앗이 아니다 — 급여항목은 다른 흐름이 만든 QA관리-… 가 남아 있으면 본사만 늘어 어긋났다
+    const 씨앗만 = (xs) => xs.filter((x) => !String(x.name ?? '').startsWith('QA'))
+    const 본사것 = 씨앗만(await must('GET', path))
+    const 회사것 = 씨앗만(await 그쪽(path))
     eq(`본사에 ${이름표} 씨앗이 ${최소}개 이상 있다`, 본사것.length >= 최소, true)
     eq(`새 회사에도 ${이름표} 씨앗이 그만큼 있다`,
       `${이름표} ${회사것.length}개`, `${이름표} ${본사것.length}개`)
@@ -11744,11 +11760,18 @@ async function scenarioInsuranceReport() {
   await rejects('빈 사업장으로 취득신고를 저장하면 막는다', 'POST', '/hr/insurance/reports',
     { reportDate: today, kind: 'ACQUIRE', employeeId: emp.id }, '사업장명[기본값설정] 필수')
   const body = { reportDate: today, kind: 'ACQUIRE', employeeId: emp.id, pensionWorkplaceId: wp.id, healthWorkplaceId: wp.id,
-    employmentWorkplaceId: wp.id, accidentWorkplaceId: wp.id, pensionApply: true, pensionDate: today }
+    employmentWorkplaceId: wp.id, accidentWorkplaceId: wp.id, pensionApply: true, pensionDate: today,
+    residentNo: '900101-1000000', reportName: '큐에이관리주민' }
+  // 원본 2026-10-24: 주민등록번호 필수(체크숫자는 안 봄) · 성명 한글만 · 신청구분 하나 이상 · 피부양자는 격자 한 줄 이상
+  await rejects('주민등록번호가 비면 막는다', 'POST', '/hr/insurance/reports', { ...body, residentNo: '' }, '주민등록번호 필수')
+  await rejects('성명이 한글이 아니면 막는다', 'POST', '/hr/insurance/reports', { ...body, reportName: 'QA관리-주민1' }, '한글만 입력 가능합니다.')
+  await rejects('신청구분이 없으면 막는다', 'POST', '/hr/insurance/reports', { ...body, pensionApply: false }, '신청구분을 1개 이상 선택해 주세요.')
+  await rejects('피부양자 격자가 비면 막는다', 'POST', '/hr/insurance/reports', { ...body, kind: 'DEPENDENT' }, '그리드(표)에 최소 1줄 이상 입력되어야 합니다.')
   const before = (await must('GET', `/hr/insurance/reports?from=${today}&to=${today}`)).map((r) => r.reportSeq)
   const r = await must('POST', '/hr/insurance/reports', body)
   eq('일자-No. 는 그날 다음 차례', r.reportSeq, Math.max(0, ...before) + 1)
   eq('서식명', r.formName, '사업장가입자 자격취득 신고서')
+  eq('주민등록번호는 숫자만 남긴다', r.residentNo, '9001011000000')
   const u = await must('PUT', `/hr/insurance/reports/${r.id}`, { ...body, healthApply: true, healthDate: today })
   eq('고친 신청구분이 읽힌다', (await must('GET', `/hr/insurance/reports/${u.id}`)).healthApply, 'true')
   await must('POST', '/hr/insurance/reports/delete', [r.id])

@@ -80,14 +80,20 @@ public class DailyPayDtos {
     public record LineResponse(
             Long id, Long workerId, String workerCode, String workerName, BigDecimal days, BigDecimal dailyWage,
             BigDecimal grossPay, BigDecimal incomeTax, BigDecimal localTax, BigDecimal netPay, boolean direct,
-            BigDecimal dayPay, BigDecimal deductionTotal, List<LineItem> items
+            BigDecimal dayPay, BigDecimal deductionTotal, List<LineItem> items,
+            /** 최종근무일 — 대장 대상기간 근무입력의 마지막 날(원본 급여내역수정 [최종근무일] 열, 근무입력이 없으면 빈칸). */
+            LocalDate lastWorkDate
     ) {
         /** direct — 금액직접입력으로 정한 일근무(원본 급여대장 칸 모서리의 붉은 표시). */
         public static LineResponse from(DailyPayLine l, boolean direct, List<LineItem> items) {
+            return from(l, direct, items, null);
+        }
+
+        public static LineResponse from(DailyPayLine l, boolean direct, List<LineItem> items, LocalDate lastWorkDate) {
             BigDecimal allow = sum(items, "ALLOWANCE"), ded = sum(items, "DEDUCTION");
             return new LineResponse(l.getId(), l.getWorker().getId(), l.getWorker().getCode(), l.getWorker().getName(),
                     l.getDays(), l.getWorker().getDailyWage(), l.getGrossPay(), l.getIncomeTax(), l.getLocalTax(), l.getNetPay(), direct,
-                    l.getGrossPay().subtract(allow), l.getIncomeTax().add(l.getLocalTax()).add(ded), items);
+                    l.getGrossPay().subtract(allow), l.getIncomeTax().add(l.getLocalTax()).add(ded), items, lastWorkDate);
         }
     }
 

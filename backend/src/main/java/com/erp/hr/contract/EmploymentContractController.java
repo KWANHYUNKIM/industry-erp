@@ -55,6 +55,28 @@ public class EmploymentContractController {
         return service.setRecipient(id, req);
     }
 
+    @GetMapping("/{id}/items")
+    public List<EmploymentContractDtos.ItemResponse> items(@PathVariable Long id) {
+        return service.items(id);
+    }
+
+    @PostMapping("/{id}/items")
+    public EmploymentContractDtos.ItemResponse addItem(@PathVariable Long id, @Valid @RequestBody EmploymentContractDtos.ItemRequest req) {
+        return service.addItem(id, req);
+    }
+
+    @PutMapping("/{id}/items/{itemId}")
+    public EmploymentContractDtos.ItemResponse renameItem(@PathVariable Long id, @PathVariable Long itemId,
+                                                          @Valid @RequestBody EmploymentContractDtos.ItemRequest req) {
+        return service.renameItem(id, itemId, req);
+    }
+
+    @DeleteMapping("/{id}/items/{itemId}")
+    public ResponseEntity<Void> deleteItem(@PathVariable Long id, @PathVariable Long itemId) {
+        service.deleteItem(id, itemId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/cancel-request")
     public ContractResponse cancelRequest(@PathVariable Long id) {
         return service.cancelRequest(id);
