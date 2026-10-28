@@ -1,5 +1,5 @@
 import { resolveSpecialPrice } from '../../features/price/specialPrice'
-import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
+import { useEffect, useMemo, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -8,7 +8,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, StockRow, Warehouse } from '../../types/api'
+import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseDoc, PurchaseOrder, PurchaseOrderStatus, StockRow, Warehouse } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
@@ -19,9 +19,12 @@ import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPer
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
-import CustomFieldsPanel from '../../components/CustomFieldsPanel'
+import Modal from '../../components/Modal'
+import TradeEntry, { type TradeEntryPrefill } from './TradeEntry'
+import { openPrintWindow } from '../../utils/print'
+import { purchaseSlipDocument } from '../../utils/tradeSlipDocument'
 import { ecConfirm } from '../../components/EcDialog'
-import { shortDateNo } from '../../utils/dateNo'
+import { dateNo, shortDateNo } from '../../utils/dateNo'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -38,13 +41,20 @@ const inTab = (t: Tab, s: PurchaseOrderStatus) => t === '전체' || (t === '완�
 const statusColor = (s: PurchaseOrderStatus) =>
   s === 'RECEIVED' ? 'var(--ec-success)' : s === 'CANCELLED' ? 'var(--ec-text-hint)' : s === 'ORDERED' ? 'var(--ec-blue)' : 'var(--ec-label)'
 
-/** GET /purchase-orders/{id}/history 한 줄 — 단계가 언제 누구 손에 바뀌었나. */
-interface HistoryRow {
-  changedAt: string
-  fromStatusName: string | null
-  toStatusName: string
-  changedBy: string | null
-  note: string | null
+/** GET /purchase-orders/{id}/generated 한 줄 — '생성한 전표' 창(PurchaseOrderDtos.GeneratedSlipRow). */
+interface GeneratedRow {
+  orderLineId: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  quantity: number
+  remaining: number
+  unitPrice: number
+  slipType: string | null
+  slipDate: string | null
+  slipNo: string | null
+  slipId: number | null
 }
 
 /**
@@ -55,6 +65,20 @@ interface HistoryRow {
  */
 interface LineForm { itemId: string; quantity: string; unitPrice: string; partnerId: string; remark: string; custom: Record<string, string> }
 const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', partnerId: '', remark: '', custom: {} })
+
+/** '생성한 전표' [신규(F2)] 가 여는 구매입력의 처음 값 — 잔량이 남은 발주 줄만, 한 발주 줄은 한 번(전표가 여럿이면 줄이 겹쳐 온다). */
+function prefillOf(o: PurchaseOrder, rows: GeneratedRow[]): TradeEntryPrefill {
+  const seen = new Set<number>()
+  const lines = rows.filter((r) => {
+    if (Number(r.remaining) <= 0 || seen.has(r.orderLineId)) return false
+    seen.add(r.orderLineId)
+    return true
+  }).map((r) => ({
+    itemId: r.itemId, quantity: Number(r.remaining), unitPrice: Number(r.unitPrice),
+    sourceOrderId: o.id, sourceDocType: '발주서', sourceDocDate: o.orderDate, sourceDocNo: o.orderNo,
+  }))
+  return { partnerId: o.partnerId ?? null, employeeId: o.employeeId ?? null, warehouseId: o.warehouseId ?? null, projectId: o.projectId ?? null, lines }
+}
 
 /** 발주서 — 구매 흐름의 시작점. 발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환(구매전표 생성). */
 /*
@@ -76,24 +100,42 @@ export default function PurchaseOrderPage() {
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [tab, setTab] = useState<Tab>('전체')
-  const [openId, setOpenId] = useState<number | null>(null)
   /**
-   * 발주 <b>진행이력</b> — 서버가 단계가 바뀔 때마다 누가 언제 무엇으로 옮겼는지 남긴다
-   * (/purchase-orders/{id}/history). <b>남기기만 하고 보여 주는 자리가 없었다.</b>
-   * '이 발주는 왜 아직 입고가 안 됐나' 를 물으면 아무도 답을 못 했다.
-   *
-   * <p>펼칠 때 한 번만 부르고 그대로 둔다 — 줄을 여닫을 때마다 다시 부르면 목록이 무거워진다.
+   * 원본 [진행상태] '조회' → 목록 위 '생성한 전표' 창(2026-10-28 실측). 예전엔 줄을 펼쳐 품목 · 진행이력을 보였다 — 원본에 없는 동작.
+   * entryOpen 은 창의 [신규(F2)] 가 띄운 구매입력 창(그 발주의 잔량으로 채움).
    */
-  const [hist, setHist] = useState<Record<number, HistoryRow[]>>({})
-
-  function toggle(id: number) {
-    const next = openId === id ? null : id
-    setOpenId(next)
-    if (next != null && hist[next] === undefined) {
-      api.get<HistoryRow[]>(`/purchase-orders/${next}/history`)
-        .then((r) => setHist((p) => ({ ...p, [next]: r.data })))
-        .catch(() => setHist((p) => ({ ...p, [next]: [] })))
+  const [generated, setGenerated] = useState<{ order: PurchaseOrder; rows: GeneratedRow[] } | null>(null)
+  const [entryOpen, setEntryOpen] = useState(false)
+  async function openGenerated(po: PurchaseOrder) {
+    try { setGenerated({ order: po, rows: (await api.get<GeneratedRow[]>(`/purchase-orders/${po.id}/generated`)).data }) }
+    catch (err) { setError(extractErrorMessage(err)) }
+  }
+  /** 일자-No. 링크 — 그 구매전표 인쇄 미리보기(원본). 창은 누른 순간에 열어야 팝업 차단을 피한다. */
+  async function printPurchase(r: GeneratedRow) {
+    if (r.slipId == null || !r.slipDate) return
+    const win = openPrintWindow()
+    if (!win) return
+    try {
+      const docs = (await api.get<PurchaseDoc[]>('/purchases', { params: { from: r.slipDate, to: r.slipDate } })).data
+      const d = docs.find((x) => x.id === r.slipId)
+      if (!d) { win.close(); return }
+      void printDocuments([purchaseSlipDocument(d)], win)
+    } catch (err) { win.close(); setError(extractErrorMessage(err)) }
+  }
+  /* 창이 떠 있을 때 F2 는 목록의 [신규(F2)](발주서입력)가 아니라 창의 [신규(F2)] — capture 단계에서 먼저 받는다. */
+  useEffect(() => {
+    if (!generated || entryOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F2' || e.repeat) return
+      e.preventDefault(); e.stopPropagation()
+      setEntryOpen(true)
     }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [generated, entryOpen])
+  function closeEntry(changed: boolean) {
+    setEntryOpen(false)
+    if (changed && generated) { void openGenerated(generated.order); load() }
   }
   const [error, setError] = useState('')
   const [from, setFrom] = useState(initP.from)
@@ -317,12 +359,6 @@ export default function PurchaseOrderPage() {
       { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
       { label: 'Excel' },
     ]}>
-      <div className="flex items-center gap-[6px] mb-[8px]">
-        <button className="ec-btn" onClick={load}>새로고침</button>
-        <span className="ml-[8px] text-[12px] text-ec-hint">
-          발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환. 재고는 입고전환 시에만 증가합니다.
-        </span>
-      </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
@@ -477,110 +513,91 @@ export default function PurchaseOrderPage() {
           {shown.length === 0 ? (
             <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((po, i) => (
-            <Fragment key={po.id}>
-              <tr onClick={() => toggle(po.id)} className="cursor-pointer">
-                <td className="text-center">
-                  <input type="checkbox" checked={picked.has(po.id)} onChange={() => pick(po.id)} />
-                </td>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td className="text-center text-ec-blue font-semibold">
-                  {shortDateNo(po.orderDate, po.orderNo)}
-                </td>
-                <td>{po.partnerName}</td>
-                <td style={{ color: po.employeeName ? undefined : 'var(--ec-text-off)' }}>{po.employeeName ?? ''}</td>
-                {/* 여러 줄이면 첫 줄에 '외 N건' 을 붙인다 — 원본도 한 칸에 대표 품목을 적는다. */}
-                <td>
-                  {po.lines[0]
-                    // 열 이름이 품목명[규격명] 인데 규격을 안 찍었다(45회차 screen-check) — 같은 이름 다른 규격을 못 가른다.
-                    ? po.lines[0].itemName + (po.lines[0].spec ? ` [${po.lines[0].spec}]` : '')
-                      + (po.lines.length > 1 ? ` 외 ${po.lines.length - 1}건` : '')
-                    : ''}
-                </td>
-                <td className="text-center">{dateText(po.dueDate) || ''}</td>
-                <td className="text-right font-bold">{won(po.totalAmount)}</td>
-                <td className="text-center"><span style={{ color: statusColor(po.status) }}>{isDone(po.status) ? '완료' : '진행중'}</span></td>
-                {/* 원본 [진행상태] '조회' — 이 발주서에서 이어진 전표. 우리는 줄을 펼쳐 이력 · 구매를 본다. */}
-                <td className="text-center">
-                  <a className="cursor-pointer" title={po.statusName}>조회</a>
-                </td>
-                <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                  {/* 원본 [인쇄] 열은 '인쇄' 한 칸뿐(2026-10-21 실측). 옛 단추(발주계획 · 단가확정 · 발주확정 · 입고전환 · 취소 · 삭제)는
-                      원본 자리로 갔다 — 단가는 단가요청진행단계, 입고는 구매입력 [발주], 지우기는 [선택삭제]. */}
-                  <a className="cursor-pointer" onClick={() => void printOrder(po)}>인쇄</a>
-                </td>
-                <td>{po.projectName ?? ''}</td>
-              </tr>
-              {openId === po.id && (
-                <tr className="no-ec">
-                  <td colSpan={12} className="p-0 bg-ec-page">
-                    <table className="w-full text-left my-[4px] mx-0">
-                      <thead><tr><th className="w-[34px]"></th><th>품목코드</th><th>품목명</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th><th className="text-right">부가세</th></tr></thead>
-                      <tbody>
-                        {po.lines.map((l) => (
-                          <tr key={l.id}>
-                            <td className="text-center text-ec-hint">{l.lineNo}</td>
-                            <td>{l.itemCode}</td>
-                            <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
-                            <td className="text-right">{won(l.quantity)} {l.unit}</td>
-                            <td className="text-right">{won(l.unitPrice)}</td>
-                            <td className="text-right">{won(l.supplyAmount)}</td>
-                            <td className="text-right text-ec-hint">{won(l.vatAmount)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {/* 진행이력 — 단계가 바뀐 자취. 아직 안 왔거나 하나도 없으면 그 사실을 적는다. */}
-                    <div className="pt-[2px] px-[6px] pb-[8px]">
-                      <div className="text-[12px] font-bold text-ec-label mt-[2px] mx-0 mb-[4px]">진행이력</div>
-                      {hist[po.id] === undefined ? (
-                        <span className="text-[12px] text-ec-hint">불러오는 중…</span>
-                      ) : hist[po.id].length === 0 ? (
-                        <span className="text-[12px] text-ec-hint">기록된 단계 변경이 없습니다.</span>
-                      ) : (
-                        <table className="w-full text-left max-w-[720px]">
-                          <thead><tr>
-                            <th className="w-[150px]">일시</th>
-                            <th className="w-[180px]">단계</th>
-                            <th className="w-[120px]">처리자</th>
-                            <th>메모</th>
-                          </tr></thead>
-                          <tbody>
-                            {hist[po.id].map((h, k) => (
-                              <tr key={k}>
-                                <td>{h.changedAt.replace('T', ' ').slice(0, 16)}</td>
-                                <td>
-                                  {h.fromStatusName ? `${h.fromStatusName} → ` : ''}
-                                  <b>{h.toStatusName}</b>
-                                </td>
-                                <td>{h.changedBy ?? ''}</td>
-                                <td style={{ color: h.note ? undefined : 'var(--ec-text-off)' }}>{h.note ?? ''}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                    {/*
-                      <b>추가항목(사용자정의).</b> 열 예외에 "우리 추가항목은 판매·구매 전표까지고
-                      <b>발주서 화면이 아직 안 읽는다</b>" 고 적어 두었다 — 이유가 아니라 할 일이었다.
-                      Self-Customizing > 사용자정의필드에서 [발주서]로 정의하면 여기 뜬다.
-                      정의가 없으면 아무것도 안 그린다(안 쓰는 회사의 화면은 그대로다).
-
-                      <p>줄(격자 열)은 아직이다. 원본은 격자에 추가문자·추가숫자·추가일자·추가코드
-                      스물다섯 칸을 여는데, 그건 입력 격자를 손봐야 하는 별개의 일이라 여기서
-                      반만 만들어 두지 않는다 — 열 예외에 그렇게 적어 두었다.
-                    */}
-                    <div className="pt-0 px-[6px] pb-[8px]">
-                      <CustomFieldsPanel entityType="PURCHASE_ORDER" entityId={po.id} />
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </Fragment>
+            <tr key={po.id}>
+              <td className="text-center">
+                <input type="checkbox" checked={picked.has(po.id)} onChange={() => pick(po.id)} />
+              </td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center text-ec-blue font-semibold">
+                {shortDateNo(po.orderDate, po.orderNo)}
+              </td>
+              <td>{po.partnerName}</td>
+              <td style={{ color: po.employeeName ? undefined : 'var(--ec-text-off)' }}>{po.employeeName ?? ''}</td>
+              {/* 여러 줄이면 첫 줄에 '외 N건' 을 붙인다 — 원본도 한 칸에 대표 품목을 적는다. */}
+              <td>
+                {po.lines[0]
+                  // 열 이름이 품목명[규격명] 인데 규격을 안 찍었다(45회차 screen-check) — 같은 이름 다른 규격을 못 가른다.
+                  ? po.lines[0].itemName + (po.lines[0].spec ? ` [${po.lines[0].spec}]` : '')
+                    + (po.lines.length > 1 ? ` 외 ${po.lines.length - 1}건` : '')
+                  : ''}
+              </td>
+              <td className="text-center">{dateText(po.dueDate) || ''}</td>
+              <td className="text-right font-bold">{won(po.totalAmount)}</td>
+              <td className="text-center"><span style={{ color: statusColor(po.status) }}>{isDone(po.status) ? '완료' : '진행중'}</span></td>
+              {/* 원본 [진행상태] '조회' — 목록 위 '생성한 전표' 창(2026-10-28 실측). */}
+              <td className="text-center">
+                <a className="cursor-pointer" title={po.statusName} onClick={() => void openGenerated(po)}>조회</a>
+              </td>
+              <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                {/* 원본 [인쇄] 열은 '인쇄' 한 칸뿐(2026-10-21 실측). 옛 단추(발주계획 · 단가확정 · 발주확정 · 입고전환 · 취소 · 삭제)는
+                    원본 자리로 갔다 — 단가는 단가요청진행단계, 입고는 구매입력 [발주], 지우기는 [선택삭제]. */}
+                <a className="cursor-pointer" onClick={() => void printOrder(po)}>인쇄</a>
+              </td>
+              <td>{po.projectName ?? ''}</td>
+            </tr>
           ))}
         </tbody>
       </table>
 
+      {/*
+        원본 '생성한 전표' 창(2026-10-28 발주서조회 실측): 머리 '발주서조회 : 2026/11/08 -1', 표 품목코드 · 품목명 · 규격 · 수량 · 잔량 ·
+        생성한 전표 · 생성한 전표일자-No., 아래 [신규(F2)] · [닫기]. 다 넘어간 줄은 잔량이 빈칸(0 을 안 찍음).
+      */}
+      <Modal open={generated != null && !entryOpen} title="생성한 전표" width={760} onClose={() => setGenerated(null)}>{generated && (
+        <div>
+          <p className="mb-[6px]">발주서조회 : {dateNo(generated.order.orderDate, generated.order.orderNo)}</p>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th><th className="text-right">잔량</th>
+              <th>생성한 전표</th><th>생성한 전표일자-No.</th>
+            </tr></thead>
+            <tbody>
+              {generated.rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
+                  <td className="text-right">{won(r.quantity)}</td>
+                  <td className="text-right">{Number(r.remaining) > 0 ? won(r.remaining) : ''}</td>
+                  <td>{r.slipType ?? ''}</td>
+                  <td>{r.slipDate && r.slipNo
+                    ? <a className="cursor-pointer" onClick={() => void printPurchase(r)}>{dateNo(r.slipDate, r.slipNo)}</a>
+                    : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-[8px] flex gap-[4px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => setEntryOpen(true)}>신규(F2)</button>
+            <button type="button" className="ec-btn" onClick={() => setGenerated(null)}>닫기</button>
+          </div>
+        </div>
+      )}</Modal>
+      {generated && entryOpen && (
+        /* 원본 [신규(F2)] — 그 발주의 잔량으로 찬 구매입력 창(일자는 오늘). 구매조회 [신규(F2)] 창과 같은 틀, 바깥을 눌러도 안 닫힌다. */
+        <div className="ec-modal-back">
+          <div role="dialog" aria-modal="true" aria-label="구매입력" className="ec-modal w-[max(960px,50vw)]">
+            <div className="ec-modal-bar">
+              <span className="name">구매입력</span>
+              <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => closeEntry(false)}>✕</button>
+            </div>
+            <div className="ec-modal-body">
+              <TradeEntry mode="purchase" popup={{
+                editId: null, onClose: closeEntry, onMove: () => {}, onReturn: () => {}, docs: [],
+                prefill: prefillOf(generated.order, generated.rows),
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
       {showForm && <PurchaseOrderForm items={items} partners={partners} employees={employees} warehouses={warehouses} projects={projects} currencies={currencies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}
     </EcListShell>
   )

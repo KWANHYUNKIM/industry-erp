@@ -62,6 +62,19 @@ export interface TradeEntryPopup {
   onReturn: () => void
   /** 조회 화면이 이미 받아 둔 전표 목록(응답 그대로). 창을 열 때마다 2MB 넘는 목록을 다시 받지 않는다. */
   docs: (SalesDoc | PurchaseDoc)[]
+  /**
+   * 새 전표를 이 값으로 채워 연다 — 발주서조회 '생성한 전표' 창 [신규(F2)] 가 그 발주의 잔량으로 구매입력을 띄운다
+   * (2026-10-28 원본 실측: 거래처 · 담당자 · 입고창고 · 줄(품목 · 잔량 · 단가) · 불러온 전표No., 일자는 오늘).
+   */
+  prefill?: TradeEntryPrefill
+}
+
+export interface TradeEntryPrefill {
+  partnerId: number | null
+  employeeId: number | null
+  warehouseId: number | null
+  projectId: number | null
+  lines: { itemId: number; quantity: number; unitPrice: number; sourceOrderId: number; sourceDocType: string; sourceDocDate: string; sourceDocNo: string }[]
 }
 
 interface LineInput {
@@ -612,6 +625,27 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       emptyLine(),
     ])
   }, [returnFromId, editing, docs])
+
+  /* 발주서조회 '생성한 전표' [신규(F2)] — 그 발주의 잔량으로 채운다. loadRefs 의 창고 기본값은 prev 를 지키므로 덮이지 않는다. */
+  useEffect(() => {
+    const pf = popup?.prefill
+    if (!pf || editId) return
+    setPartnerId(pf.partnerId != null ? String(pf.partnerId) : '')
+    setEmployeeId(pf.employeeId != null ? String(pf.employeeId) : '')
+    if (pf.warehouseId != null) setWarehouseId(String(pf.warehouseId))
+    setProjectId(pf.projectId != null ? String(pf.projectId) : '')
+    setLines([
+      ...pf.lines.map((l) => ({
+        ...emptyLine(),
+        itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+        sourceOrderId: String(l.sourceOrderId), sourceDocType: l.sourceDocType,
+        sourceDocDate: l.sourceDocDate, sourceDocNo: l.sourceDocNo,
+      })),
+      emptyLine(),
+    ])
+    setCols((c) => ({ ...c, srcNo: true }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!fromReleaseId || releaseLoaded.current) return
