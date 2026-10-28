@@ -177,10 +177,10 @@ const BondPartnerLedgerPrintPage = lazy(() => import('../pages/accounting/BondPa
 const BondDecreasePage = lazy(() => import('../pages/accounting/BondDecreasePage'))
 const BondBalanceAnalysisPage = lazy(() => import('../pages/accounting/BondBalanceAnalysisPage'))
 const ContractPage = lazy(() => import('../pages/accounting/ContractPage'))
-const ContractItemPage = lazy(() => import('../pages/accounting/ContractItemPage'))
-const BillingContractEntryPage = lazy(() => import('../pages/accounting/BillingContractEntryPage'))
 const EContractProgressPage = lazy(() => import('../pages/accounting/EContractProgressPage'))
 const EContractStatusPage = lazy(() => import('../pages/accounting/EContractStatusPage'))
+const ContractItemPage = lazy(() => import('../pages/accounting/ContractItemPage'))
+const BillingContractEntryPage = lazy(() => import('../pages/accounting/BillingContractEntryPage'))
 const BillingContractListPage = lazy(() => import('../pages/accounting/BillingContractListPage'))
 const ContractBillPage = lazy(() => import('../pages/accounting/ContractBillPage'))
 const ContractPriceChangePage = lazy(() => import('../pages/accounting/ContractPriceChangePage'))
@@ -700,6 +700,8 @@ export default function AppRouter() {
         <Route path="/accounting/notes-endorse" element={<NoteEntryPage key="endorse" mode="endorse" />} />
         <Route path="/accounting/notes-batch-decrease" element={<NoteBatchDecreasePage key="recv" receivable />} />
         <Route path="/accounting/notes-pay-batch-decrease" element={<NoteBatchDecreasePage key="pay" receivable={false} />} />
+        <Route path="/accounting/notes-pay-increase" element={<NoteEntryPage key="pay-increase" mode="pay-increase" />} />
+        <Route path="/accounting/notes-pay-decrease" element={<NoteEntryPage key="pay-decrease" mode="pay-decrease" />} />
         <Route path="/accounting/notes-list" element={<NoteListPage type="RECEIVABLE" />} />
         <Route path="/accounting/notes-pay-list" element={<NoteListPage type="PAYABLE" />} />
         <Route path="/accounting/notes-ledger" element={<NoteLedgerPage type="RECEIVABLE" />} />
@@ -714,8 +716,6 @@ export default function AppRouter() {
         <Route path="/accounting/budget/status" element={<BudgetReportPage variant="status" />} />
         <Route path="/accounting/budget/compare" element={<BudgetReportPage variant="compare" />} />
         <Route path="/accounting/budget/control-ledger" element={<BudgetReportPage variant="controlLedger" />} />
-        <Route path="/accounting/notes-pay-increase" element={<NoteEntryPage key="pay-increase" mode="pay-increase" />} />
-        <Route path="/accounting/notes-pay-decrease" element={<NoteEntryPage key="pay-decrease" mode="pay-decrease" />} />
         <Route path="/accounting/budget/ledger" element={<BudgetReportPage variant="ledger" />} />
         <Route path="/accounting/budget/control-compare" element={<BudgetReportPage variant="controlCompare" />} />
         <Route path="/accounting/cash-plan" element={<CashPlanPage />} />
@@ -876,12 +876,12 @@ export default function AppRouter() {
         <Route path="/accounting/checks-held" element={<CheckHoldingPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued" element={<CheckHoldingPage type="ISSUED" />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />
+        <Route path="/accounting/e-contracts" element={<EContractProgressPage />} />
+        <Route path="/accounting/e-contracts/status" element={<EContractStatusPage />} />
         <Route path="/accounting/contract-items" element={<ContractItemPage />} />
         <Route path="/accounting/billing-contracts/new" element={<BillingContractEntryPage />} />
         <Route path="/accounting/billing-contracts" element={<BillingContractListPage />} />
         <Route path="/accounting/contract-bills" element={<ContractBillPage />} />
-        <Route path="/accounting/e-contracts" element={<EContractProgressPage />} />
-        <Route path="/accounting/e-contracts/status" element={<EContractStatusPage />} />
         <Route path="/accounting/contract-price-change" element={<ContractPriceChangePage />} />
         <Route path="/accounting/contract-status" element={<ContractStatusReportPage />} />
         <Route path="/accounting/contract-unbilled" element={<ContractUnbilledPage />} />

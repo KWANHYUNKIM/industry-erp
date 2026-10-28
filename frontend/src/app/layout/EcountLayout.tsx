@@ -635,9 +635,9 @@ const MENU: TopMenu[] = [
              거래처지급(E010603) · 지급어음증가 · 감소(E010604 · E010605)도 한 장 입력. 일괄감소 둘(E010621 · E010629)은 보유 어음 목록 → 입금보고서 · 지출결의서. */
           { label: '받을어음', children: [
             { label: '받을어음증가', to: '/accounting/notes-increase' }, { label: '받을어음감소', to: '/accounting/notes-decrease' },
+            { label: '받을어음거래처지급', to: '/accounting/notes-endorse' }, { label: '받을어음일괄감소', to: '/accounting/notes-batch-decrease' },
             { label: '받을어음조회', to: '/accounting/notes-list' }, { label: '받을어음거래내역', to: '/accounting/notes-ledger' },
             { label: '받을어음증가현황', to: '/accounting/notes-in' }, { label: '받을어음감소현황', to: '/accounting/notes-out' },
-            { label: '받을어음거래처지급', to: '/accounting/notes-endorse' }, { label: '받을어음일괄감소', to: '/accounting/notes-batch-decrease' },
             { label: '보유어음현황', to: '/accounting/notes-held' },
           ] },
           { label: '지급어음', children: [
@@ -723,11 +723,11 @@ const MENU: TopMenu[] = [
               { label: '원가명세서', to: '/accounting/cost-statement' },
               { label: '계정명세서', to: '/accounting/account-detail' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
-            ],
-          },
               { label: '현금흐름표', to: '/accounting/cash-flow-statement' },
               { label: '이익잉여금처분계산서', to: '/accounting/retained-earnings-statement' },
               { label: '수입지출명세서', to: '/accounting/income-expense-statement' },
+            ],
+          },
           {
             /* 원본 출력물 › 기타(E010847 … E010705, 2026-10-20 실측) 차례. 전표인쇄 · 거래처중심입력은 회계거래관리 · 재고 쪽 화면을 같이 건다. */
             label: '기타',
@@ -873,6 +873,7 @@ const MENU: TopMenu[] = [
             { label: '통제유형등록', to: '/accounting/expense-control-types' },
             { label: '비용등록', to: '/accounting/expense-items' },
             { label: '비용그룹등록', to: '/accounting/expense-groups' },
+            { label: '비용일괄등록', to: '/accounting/expense-bulk' },
           ] },
           { label: '비용내역', children: [
             { label: '비용내역입력', to: '/accounting/expense' },
@@ -880,7 +881,6 @@ const MENU: TopMenu[] = [
             { label: '전표별회계반영(비용)', to: '/accounting/expense-settle' },
           ] },
           { label: '비용현황', children: [{ label: '비용내역현황', to: '/accounting/expense-detail' }] },
-            { label: '비용일괄등록', to: '/accounting/expense-bulk' },
         ],
       },
       {
