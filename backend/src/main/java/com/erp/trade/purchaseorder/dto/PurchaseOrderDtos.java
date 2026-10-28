@@ -161,7 +161,19 @@ public final class PurchaseOrderDtos {
             Long partnerId, String partnerName, String statusName,
             Long warehouseId, Long projectId,
             Long itemId, String itemCode, String itemName, String unit,
-            BigDecimal orderQty, BigDecimal boughtQty, BigDecimal restQty, BigDecimal unitPrice
+            BigDecimal orderQty, BigDecimal boughtQty, BigDecimal restQty, BigDecimal unitPrice,
+            /** 발주의 담당자 — 원본 구매입력 [발주] 불러오기가 머리 담당자로 채운다(2026-10-28 실측). */
+            Long employeeId
+    ) {}
+
+    /**
+     * 발주서조회 [진행상태] '조회' → '생성한 전표' 창 한 줄(2026-10-28 원본 실측).
+     * 품목코드 · 품목명 · 규격 · 수량 · 잔량 · 생성한 전표 · 생성한 전표일자-No. slipId 는 일자-No. 링크(구매전표 인쇄)용.
+     */
+    public record GeneratedSlipRow(
+            Long orderLineId, Long itemId, String itemCode, String itemName, String spec,
+            BigDecimal quantity, BigDecimal remaining, BigDecimal unitPrice,
+            String slipType, LocalDate slipDate, String slipNo, Long slipId
     ) {}
 
     public record PurchaseOrderResponse(

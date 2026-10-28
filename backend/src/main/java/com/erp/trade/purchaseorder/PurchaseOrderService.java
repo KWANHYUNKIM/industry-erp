@@ -114,10 +114,46 @@ public class PurchaseOrderService {
                         po.getWarehouse() != null ? po.getWarehouse().getId() : null,
                         po.getProject() != null ? po.getProject().getId() : null,
                         itemId, l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                        l.getQuantity(), used, rest, l.getUnitPrice()));
+                        l.getQuantity(), used, rest, l.getUnitPrice(),
+                        po.getEmployee() != null ? po.getEmployee().getId() : null));
             }
         }
         return out;
+    }
+
+    /**
+     * 발주서조회 [진행상태] '생성한 전표' 창 — 발주 줄마다 잔량(발주 − 구매)과 이 발주에서 만든 구매 전표.
+     * 구매 줄은 발주 헤더만 가리키므로 품목으로 맞추고 같은 품목이 두 줄이면 위 줄부터 채운다(미구매 잔량과 같은 규칙).
+     * 구매 전표는 품목이 같은 첫 발주 줄에만 붙인다(주문서조회 [생성한전표] 와 같은 꼴).
+     */
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderDtos.GeneratedSlipRow> generatedSlips(Long id) {
+        PurchaseOrder po = get(id);
+        List<com.erp.trade.purchase.PurchaseLine> bought = purchaseLineRepository.findGeneratedByOrder(id);
+        java.util.Map<Long, BigDecimal> pool = new java.util.HashMap<>();
+        for (var l : bought) pool.merge(l.getItem().getId(), l.getQuantity(), BigDecimal::add);
+        java.util.Set<Long> shown = new java.util.HashSet<>();
+        List<PurchaseOrderDtos.GeneratedSlipRow> rows = new java.util.ArrayList<>();
+        for (PurchaseOrderLine line : po.getLines()) {
+            Item it = line.getItem();
+            BigDecimal left = pool.getOrDefault(it.getId(), BigDecimal.ZERO);
+            BigDecimal used = left.min(line.getQuantity()).max(BigDecimal.ZERO);
+            pool.put(it.getId(), left.subtract(used));
+            BigDecimal remaining = line.getQuantity().subtract(used);
+            List<com.erp.trade.purchase.PurchaseLine> mine = shown.add(it.getId())
+                    ? bought.stream().filter(b -> b.getItem().getId().equals(it.getId())).toList()
+                    : List.of();
+            if (mine.isEmpty()) {
+                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), it.getName(), it.getSpec(),
+                        line.getQuantity(), remaining, line.getUnitPrice(), null, null, null, null));
+            }
+            for (var b : mine) {
+                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), it.getName(), it.getSpec(),
+                        line.getQuantity(), remaining, line.getUnitPrice(),
+                        "구매", b.getPurchase().getPurchaseDate(), b.getPurchase().getDocNo(), b.getPurchase().getId()));
+            }
+        }
+        return rows;
     }
 
     @Transactional(readOnly = true)

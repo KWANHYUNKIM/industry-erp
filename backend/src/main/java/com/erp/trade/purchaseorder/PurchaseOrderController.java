@@ -106,6 +106,12 @@ public class PurchaseOrderController {
      * <p>목록에 끼워 넣지 않고 <b>펼칠 때</b> 이 자리로 가져간다. 줄마다 이력을 달면
      * 보지도 않을 자취까지 전부 실어 나른다.
      */
+    /** 발주서조회 [진행상태] '조회' → '생성한 전표' 창. */
+    @GetMapping("/{id}/generated")
+    public List<PurchaseOrderDtos.GeneratedSlipRow> generated(@PathVariable Long id) {
+        return service.generatedSlips(id);
+    }
+
     @GetMapping("/{id}/history")
     public java.util.List<com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.HistoryRow> history(@PathVariable Long id) {
         return service.history(id);
