@@ -1,5 +1,5 @@
 {
-  "about": "수주 4개(원본처럼 저장하면 말 없이 창이 닫힌다 — 번호는 API 로 읽는다) → 3개 출하 → 판매입력 [주문] = 원본 '주문서검색창(조회)'(전표 단위 · 판매 일자보다 늦은 주문 제외 · 라인별 담을수량 '주문 − 판매'(4) · 잔량적용 뒤 툴바에서 주문 · 전표불러오기 빠짐, 묶음 H). 예전엔 '주문 − 출하'(1)라 출하한 3개를 판매로 끊을 수 없었다(23회차 #70). node qa/shot.mjs qa/flows/order-to-sale.json — 만든 출하·주문은 끝에 지운다.",
+  "about": "수주 4개(원본처럼 저장하면 말 없이 창이 닫힌다 — 번호는 API 로 읽는다) → 3개 출하 → 판매입력 [주문] = 원본 '주문서검색창(조회)'(전표 단위 · 판매 일자보다 늦은 주문 제외 · 라인별 담을수량 '주문 − 판매'(4) · 머리 담당자를 주문의 담당자로 덮어씀(묶음 I) · 잔량적용 뒤 툴바에서 주문 · 전표불러오기 빠짐, 묶음 H). 예전엔 '주문 − 출하'(1)라 출하한 3개를 판매로 끊을 수 없었다(23회차 #70). node qa/shot.mjs qa/flows/order-to-sale.json — 만든 출하·주문은 끝에 지운다.",
   "shots": [
     {
       "name": "수주 4개 등록 — 합계 줄은 공급가액·부가세 제 열에, 부가세 포함 총액은 따로",
@@ -7,6 +7,9 @@
       "steps": [
         "click:거래처 코드도움",
         "pickrow:QA-CUST",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const e = (await (await fetch('/api/employees', { headers: H })).json()).filter((x) => x.active !== false && x.code); sessionStorage.setItem('o2sEmpA', e[0].code); sessionStorage.setItem('o2sEmpB', e[1].code); return e[0].code + ' / ' + e[1].code })()",
+        "click:담당자 코드도움",
+        "pickrow:@o2sEmpA",
         "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
         "set:tbody input.text-right#0|4",
@@ -37,9 +40,13 @@
       ]
     },
     {
-      "name": "판매입력 [주문] — 주문서검색창(조회) 전표 단위 · 판매 일자보다 늦은 주문은 없다 · 라인별 담을수량 4 · 잔량적용 뒤 툴바에서 주문 · 전표불러오기가 빠진다",
+      "name": "판매입력 [주문] — 주문서검색창(조회) 전표 단위 · 판매 일자보다 늦은 주문은 없다 · 라인별 담을수량 4 · 머리 담당자는 주문의 담당자로 덮어쓴다 · 잔량적용 뒤 툴바에서 주문 · 전표불러오기가 빠진다",
       "path": "/sales/sell",
       "steps": [
+        "wait:1000",
+        "click:담당자 코드도움",
+        "pickrow:@o2sEmpB",
+        "expect:[...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('o2sEmpB'))",
         "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '주문').click(); true",
         "wait:800",
         "expect:document.querySelector('[role=dialog]').innerText.includes('주문서검색창(조회)') && ['전체', '결재중', 'C-Portal', '미확인', '확인', '진행중', '완료'].every((t) => [...document.querySelectorAll('[role=dialog] .ec-pill')].some((b) => b.textContent.trim() === t))",
@@ -60,6 +67,7 @@
         "wait:500",
         "expect:!document.querySelector('[role=dialog]')",
         "expect:[...document.querySelectorAll('tbody input')].some((i) => i.value === '4')",
+        "expect:[...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('o2sEmpA')) && ![...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('o2sEmpB'))",
         "expect:(() => { const t = [...document.querySelectorAll('.ec-toolbar button')].map((b) => b.textContent.trim()); return !t.includes('주문') && !t.includes('전표불러오기') && !t.includes('전표 바코드') && !t.includes('구매') && t.includes('재고불러오기') })()",
         "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '다시 작성').click(); true",
         "wait:300",

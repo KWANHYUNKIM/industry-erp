@@ -27,6 +27,7 @@ import EcRowCap, { capRows } from '../../components/EcRowCap'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { ErrTip } from '../../components/GridCode'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
+import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -1175,11 +1176,12 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
      * 주문은 본사창고인데 QA창고에서 출하하는 판매가 만들어졌다. 주문들의 창고가 하나면 그것으로 바꾸고 알린다.
      */
     /*
-     * 원본은 발주의 담당자(P01 김현수) · 주문의 담당자(S04)가 머리에 찬다(2026-10-28 실측). 이미 고른 담당자를 덮는지는 미실측 — 비었을 때만.
+     * 원본은 발주의 담당자(P01 김현수) · 주문의 담당자(S04)가 머리에 찬다 — 이미 고른 담당자도 <b>덮어쓴다</b>
+     * (주문 → 판매 Z20 → S04, 견적 → 주문 Z20 → Z12, 2026-10-28 루프 26 실측). 불러온 전표에 담당자가 없을 때는 미실측 — 그대로 둔다.
      * 일자는 머리 값 그대로다(원본도 판매입력의 처음 일자 '오늘' 이 그대로 남았다).
      */
     const emp = picked.find((r) => r.employeeId != null)?.employeeId
-    if (!employeeId && emp != null) setEmployeeId(String(emp))
+    if (emp != null) setEmployeeId(String(emp))
     const whIds = [...new Set(picked.map((r) => r.warehouseId).filter((x): x is number => x != null))]
     const whNote = whIds.length === 1 && warehouseId !== String(whIds[0])
     if (whNote) setWarehouseId(String(whIds[0]))
@@ -2823,17 +2825,21 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
            * 머리 검색칸, 전표 단위 열 일자-No. · 거래처명 · 사원(담당)명 · 품목명(요약) · 납기일자 · 주문금액합계 · 진행상태 · 생성한전표 · 인쇄,
            * 아래 라인별 ▾ · 잔량적용(F8) · 전체적용 · 신규(F2) · 리스트 · 닫기. 판매 일자보다 늦은 주문은 없다.
            */
-          <>
-            <div className="flex items-center gap-[10px] mb-[6px]">
-              <div className="ec-pills">
-                {ORDER_LOAD_TABS.map(([k, label]) => (
-                  <button key={k} type="button" className={`ec-pill no-ec${loadTab === k ? ' active' : ''}`} onClick={() => setLoadTab(k)}>{label}</button>
-                ))}
-              </div>
-              <input className="ec-input ml-auto w-[220px]" placeholder="검색어 찾기"
-                     value={loadQuery} onChange={(e) => setLoadQuery(e.target.value)} />
-            </div>
-            {loadByLine ? (
+          <SourceDocSearch
+            tabs={ORDER_LOAD_TABS} tab={loadTab} onTab={setLoadTab}
+            query={loadQuery} onQuery={setLoadQuery}
+            date2Label="납기일자" totalLabel="주문금액합계"
+            docs={loadDocsShown.map((d) => ({
+              key: d.orderId, dateNo: dateNo(d.first.date, d.first.docNo), partnerName: d.first.partnerName,
+              employeeName: d.first.employeeName ?? '',
+              itemSummary: `${d.first.itemName}${d.first.spec ? ` [${d.first.spec}]` : ''}${d.lineCount > 1 ? ` 외 ${d.lineCount - 1}건` : ''}`,
+              date2: dateText(d.first.dueDate ?? '') || '', total: d.total,
+              statusLabel: ORDER_STATUS_LABEL[d.status] ?? d.first.statusName, created: d.created,
+            }))}
+            picked={loadDocPicked} onPicked={setLoadDocPicked}
+            createdTitle="생성한 전표는 주문서조회의 [생성한전표] 에서 봅니다."
+            byLine={loadByLine} onToggleByLine={() => setLoadByLine((v) => !v)}
+            lineView={(
               <>
                 {partnerId && (
                   <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[6px]">
@@ -2841,66 +2847,15 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                     이 전표 거래처만
                   </label>
                 )}
-            {loadLineTable}
+                {loadLineTable}
               </>
-            ) : (
-              <div className="max-h-[360px] overflow-y-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr>
-                      <th className="w-[30px] text-center">
-                        <input type="checkbox" aria-label="전체 선택"
-                               checked={loadDocsShown.length > 0 && loadDocsShown.every((d) => loadDocPicked[d.orderId])}
-                               onChange={(e) => setLoadDocPicked(e.target.checked ? Object.fromEntries(loadDocsShown.map((d) => [d.orderId, true])) : {})} />
-                      </th>
-                      <th>일자-No.</th>
-                      <th>거래처명</th>
-                      <th>사원(담당)명</th>
-                      <th>품목명(요약)</th>
-                      <th>납기일자</th>
-                      <th className="text-right">주문금액합계</th>
-                      <th className="text-center">진행상태</th>
-                      <th className="text-center">생성한전표</th>
-                      <th className="text-center">인쇄</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadDocsShown.length === 0 ? (
-                      <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-                    ) : loadDocsShown.map((d) => (
-                      <tr key={d.orderId}>
-                        <td className="text-center">
-                          <input type="checkbox" aria-label="선택" checked={!!loadDocPicked[d.orderId]}
-                                 onChange={(e) => setLoadDocPicked((p) => ({ ...p, [d.orderId]: e.target.checked }))} />
-                        </td>
-                        <td>{dateNo(d.first.date, d.first.docNo)}</td>
-                        <td>{d.first.partnerName}</td>
-                        <td>{d.first.employeeName ?? ''}</td>
-                        <td>{d.first.itemName}{d.first.spec ? ` [${d.first.spec}]` : ''}{d.lineCount > 1 ? ` 외 ${d.lineCount - 1}건` : ''}</td>
-                        <td>{dateText(d.first.dueDate ?? '') || ''}</td>
-                        <td className="text-right">{won(d.total)}</td>
-                        <td className="text-center text-ec-navy">{ORDER_STATUS_LABEL[d.status] ?? d.first.statusName}</td>
-                        {/* 원본은 판매로 이어진 주문만 [생성한전표] 가 주황이다. 그 창은 주문서조회에서 연다. */}
-                        <td className="text-center">
-                          <span className={`ec-btn ec-btn-sm${d.created ? ' bg-[var(--ec-bg-tag)] border-[var(--ec-bg-tag)] text-ec-panel' : ''}`}
-                                title="생성한 전표는 주문서조회의 [생성한전표] 에서 봅니다.">조회</span>
-                        </td>
-                        <td className="text-center text-ec-hint">인쇄</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             )}
-            <div className="flex items-center gap-[4px] mt-[9px]">
-              <button type="button" className={`ec-btn${loadByLine ? ' ec-btn-primary' : ''}`} onClick={() => setLoadByLine((v) => !v)}>라인별 ▾</button>
-              <button type="button" className="ec-btn ec-btn-primary" onClick={applyLoadPicked}>잔량적용(F8)</button>
-              <button type="button" className="ec-btn" {...todo('주문 수량 전체를 담는 [전체적용] 은 원본 동작을 아직 재지 않았습니다.')}>전체적용</button>
-              <button type="button" className="ec-btn" onClick={() => window.open('/sales/order-entry', '_blank')}>신규(F2)</button>
-              <button type="button" className="ec-btn" onClick={() => window.open('/sales/orders', '_blank')}>리스트</button>
-              <button type="button" className="ec-btn" onClick={() => setLoadOpen(false)}>닫기</button>
-            </div>
-          </>
+            onApply={applyLoadPicked}
+            applyAllTitle="주문 수량 전체를 담는 [전체적용] 은 원본 동작을 아직 재지 않았습니다."
+            onNew={() => window.open('/sales/order-entry', '_blank')}
+            onList={() => window.open('/sales/orders', '_blank')}
+            onClose={() => setLoadOpen(false)}
+          />
         ) : loadRows.length === 0 ? (
           <p className="text-[12.5px] text-ec-hint m-0">아직 입고되지 않은 발주서가 없습니다.</p>
         ) : (

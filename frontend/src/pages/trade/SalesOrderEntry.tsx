@@ -19,6 +19,7 @@ import { dateText } from '../../utils/dateText'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
+import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 
 /**
  * 주문서입력 — 원본 영업관리 &gt; 주문서 &gt; <b>주문서입력</b>(2026-10-28 진행자 실측). 판매입력(TradeEntry)과 같은 큰 입력 화면이다.
@@ -51,6 +52,23 @@ interface OrderDoc {
   orderDate: string; dueDate: string | null
   warehouseId?: number | null; projectId?: number | null; employeeId?: number | null; employeeName: string | null
   supplyAmount: number; vatAmount: number; totalAmount: number; remark: string | null; lines: OrderLineDoc[]
+}
+/** [견적] 창이 쓰는 견적서(`GET /quotations` 응답 중 쓰는 것만). */
+interface QuoteLite {
+  id: number; quoteNo: string; quoteDate: string; validUntil: string | null
+  partnerId: number; partnerName: string; warehouseId: number | null; employeeId: number | null; employeeName: string | null
+  status: string; statusName: string; totalAmount: number; convertedOrderId: number | null
+  lines: { itemId: number; itemName: string; spec: string | null; quantity: number; unitPrice: number }[]
+}
+/**
+ * 견적서검색창 알약 — 원본 '전체 · 결재중 · 미확인 · 확인 · 진행중 · 완료'(2026-10-28 루프 26 실측).
+ * 결재는 우리에게 그 경로가 없어 늘 비어 있다(견적서조회 QuotationPage 와 같은 잣대).
+ */
+type QuoteTab = 'ALL' | 'APPROVAL' | 'UNCONFIRMED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED'
+const QUOTE_TABS: [QuoteTab, string][] = [['ALL', '전체'], ['APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인'], ['IN_PROGRESS', '진행중'], ['COMPLETED', '완료']]
+const QUOTE_TAB_MATCH: Record<QuoteTab, (s: string) => boolean> = {
+  ALL: () => true, APPROVAL: () => false, UNCONFIRMED: (s) => s === 'UNCONFIRMED',
+  CONFIRMED: (s) => s === 'IN_PROGRESS' || s === 'COMPLETED', IN_PROGRESS: (s) => s === 'IN_PROGRESS', COMPLETED: (s) => s === 'COMPLETED',
 }
 interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
 
@@ -85,6 +103,15 @@ export default function SalesOrderEntry() {
   const [editing, setEditing] = useState<{ id: number; orderNo: string; orderDate: string } | null>(null)
   /** 견적서조회 [다른전표생성] › 주문서 › 1장라인별로 채운 화면이면 그 견적들 — 저장하면 주문서가 그 견적들에 걸린다. */
   const [fromQuotes, setFromQuotes] = useState<number[] | null>(null)
+  /** 툴바 [견적] 창(원본 '견적서검색창(조회)') — 담고 나면 툴바에서 견적 · 전표 바코드 · 전표불러오기를 감춘다(원본 실측). */
+  const [quoteOpen, setQuoteOpen] = useState(false)
+  const [quoteRows, setQuoteRows] = useState<QuoteLite[] | null>(null)
+  const [quoteTab, setQuoteTab] = useState<QuoteTab>('ALL')
+  const [quoteQuery, setQuoteQuery] = useState('')
+  const [quotePicked, setQuotePicked] = useState<Record<number, boolean>>({})
+  const [quoteByLine, setQuoteByLine] = useState(false)
+  const [quoteLinePicked, setQuoteLinePicked] = useState<Record<string, boolean>>({})
+  const [quoteLoaded, setQuoteLoaded] = useState(false)
   /** 빈 [출하창고] — 원본은 안내 없이 그 칸만 빨갛게 두르고 저장하지 않는다(2026-10-13 실측). */
   const [whMissing, setWhMissing] = useState(false)
   /** 품목은 골랐는데 수량이 빈 줄 — 그 [수량] 칸 위에 '유효키항목 필수입력' 말풍선(판매입력과 같다). */
@@ -166,7 +193,7 @@ export default function SalesOrderEntry() {
   }, [editParam])
 
   function openOrder(o: OrderDoc) {
-    setError(''); setWhMissing(false); setQtyErr(null); setFromQuotes(null)
+    setError(''); setWhMissing(false); setQtyErr(null); setFromQuotes(null); setQuoteLoaded(false)
     setEditing({ id: o.id, orderNo: o.orderNo, orderDate: o.orderDate })
     setDate(o.orderDate); setDueDate(o.dueDate ?? '')
     setPartnerId(String(o.partnerId))
@@ -202,6 +229,70 @@ export default function SalesOrderEntry() {
       .catch((err) => setError(extractErrorMessage(err)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotesParam])
+
+  // ── [견적] 불러오기 (원본 '견적서검색창(조회)') ─────────
+  /**
+   * 원본 주문서입력 [견적](2026-10-28 루프 26 실측): 주문 일자보다 늦은 견적도 보인다 — <b>날짜로 거르지 않는다</b>
+   * (판매입력 [주문] 은 늦은 주문을 뺀다 — 불러오기마다 다르다). 취소한 견적은 주문서로 못 바꾸므로 뺀다(서버 convertToOrder 가 막는다).
+   */
+  async function openQuoteLoad() {
+    setQuoteOpen(true); setQuoteRows(null); setQuotePicked({}); setQuoteLinePicked({})
+    setQuoteByLine(false); setQuoteTab('ALL'); setQuoteQuery('')
+    try {
+      const r = await api.get<QuoteLite[]>('/quotations')
+      setQuoteRows(r.data.filter((q) => q.status !== 'CANCELLED')
+        .sort((a, b) => b.quoteDate.localeCompare(a.quoteDate) || b.quoteNo.localeCompare(a.quoteNo)))
+    } catch (err) { setQuoteRows([]); setError(extractErrorMessage(err)) }
+  }
+  const quoteShown = (quoteRows ?? []).filter((q) => {
+    const k = quoteQuery.trim().toLowerCase()
+    return !k || [q.quoteNo, dateNo(q.quoteDate, q.quoteNo), q.partnerName, q.employeeName, ...q.lines.map((l) => l.itemName)]
+      .some((v) => (v ?? '').toLowerCase().includes(k))
+  })
+  const quoteDocsShown = quoteShown.filter((q) => QUOTE_TAB_MATCH[quoteTab](q.status))
+
+  /**
+   * [잔량적용(F8)] — 담으면 일자 그대로 · 거래처 · 담당자(견적의 것으로 덮어씀 Z20 → Z12) · <b>프로젝트 비움</b>(20250010 이 지워짐) ·
+   * 창고 · 줄(잔량). 잔량은 `?fromQuotes=` 와 같은 잣대 — 이미 주문서를 만든 견적은 0 이라 줄이 없다.
+   * 저장하면 `/quotations/convert` 로 그 견적들의 [생성한전표] 에 이 주문서가 걸린다.
+   */
+  function applyQuotePicked() {
+    const lineKeys = Object.keys(quoteLinePicked).filter((k) => quoteLinePicked[k])
+    const picked = quoteByLine
+      ? (quoteRows ?? []).filter((q) => lineKeys.some((k) => k.startsWith(`${q.id}-`)))
+      : quoteDocsShown.filter((q) => quotePicked[q.id])
+    if (picked.length === 0) return flash(quoteByLine ? '담을 행을 체크하세요.' : '담을 견적을 체크하세요.')
+    const partnerIds = [...new Set(picked.map((q) => q.partnerId))]
+    if (partnerIds.length > 1) return flash('거래처가 다른 행은 한 전표에 담을 수 없습니다.')
+    if (partnerId && String(partnerIds[0]) !== partnerId && lines.some((l) => l.itemId)) {
+      return flash('지금 전표의 거래처와 다릅니다. 거래처를 비우거나 같은 거래처 행을 고르세요.')
+    }
+    setPartnerId(String(partnerIds[0]))
+    const emp = picked.find((q) => q.employeeId != null)?.employeeId
+    if (emp != null) setEmployeeId(String(emp))
+    setProjectId('')
+    const wh = picked.find((q) => q.warehouseId != null)?.warehouseId
+    if (wh != null) { setWarehouseId(String(wh)); setWhMissing(false) }
+    const added = picked.filter((q) => q.convertedOrderId == null).flatMap((q) => q.lines
+      .map((l, i) => ({ l, key: `${q.id}-${i}` }))
+      .filter(({ key }) => !quoteByLine || quoteLinePicked[key])
+      .map(({ l }) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: '' })))
+    setLines((ls) => [...ls.filter((l) => l.itemId), ...added, emptyLine()])
+    setFromQuotes((prev) => [...new Set([...(prev ?? []), ...picked.map((q) => q.id)])])
+    setQuoteLoaded(true)
+    setQuoteOpen(false)
+  }
+  /* 창의 [잔량적용(F8)] — 전표 틀(EcSlipShell)도 F8(저장)을 걸어 두어 capture 단계에서 먼저 받는다(판매입력 [주문] 과 같다). */
+  useEffect(() => {
+    if (!quoteOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F8' || e.repeat) return
+      e.preventDefault(); e.stopPropagation()
+      applyQuotePicked()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  })
 
   // ── 줄 편집 ───────────────────────────────────────────
   async function applySpecialPrice(idx: number, itemId: string, partnerOverride?: string) {
@@ -327,7 +418,7 @@ export default function SalesOrderEntry() {
 
   // ── 저장 ──────────────────────────────────────────────
   function reset(keepHeader = false) {
-    setLines(emptyLines()); setRemark(''); setQtyErr(null); setError(''); setWhMissing(false)
+    setLines(emptyLines()); setRemark(''); setQtyErr(null); setError(''); setWhMissing(false); setQuoteLoaded(false)
     setDueDate(today())
     if (!keepHeader) { setPartnerId(''); setProjectId(''); setEmployeeId(rememberedEmpRef.current) }
   }
@@ -575,7 +666,7 @@ export default function SalesOrderEntry() {
               </div>
             )}
           </span>
-          <button type="button" className="ec-btn ec-btn-sm" {...todo('견적서에서 불러오기는 견적서조회의 [다른전표생성] › 주문서에서 합니다.')}>견적</button>
+          {!quoteLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openQuoteLoad()}>견적</button>}
           <button type="button" className="ec-btn ec-btn-sm" {...todo('주문서에는 할인 금액조정이 없습니다.')}>할인</button>
           <button type="button" className="ec-btn ec-btn-sm" {...todo('주문서입력에서 재고를 불러오는 기능은 아직 없습니다.')}>재고불러오기</button>
           <button type="button" className="ec-btn ec-btn-sm" disabled={!editing} title={editing ? undefined : '저장한 주문서를 열었을 때만 쓸 수 있습니다.'} onClick={() => void openLoaded()}>불러온전표</button>
@@ -586,10 +677,10 @@ export default function SalesOrderEntry() {
                    onChange={(e) => setBarcode(e.target.value)}
                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scanBarcode() } }} />
           )}
-          <button type="button" className="ec-btn ec-btn-sm" {...todo('전표 단위 바코드 출력은 아직 없습니다.')}>전표 바코드</button>
+          {!quoteLoaded && <button type="button" className="ec-btn ec-btn-sm" {...todo('전표 단위 바코드 출력은 아직 없습니다.')}>전표 바코드</button>}
           <button type="button" className="ec-btn ec-btn-sm" onClick={verify}>검증</button>
           <button type="button" className="ec-btn ec-btn-sm" {...todo('주문서입력의 이익계산은 아직 없습니다 — 판매입력에서 합니다.')}>이익계산</button>
-          <button type="button" className="ec-btn ec-btn-sm" {...todo('다른 전표를 복사해 오는 기능은 아직 없습니다.')}>전표불러오기</button>
+          {!quoteLoaded && <button type="button" className="ec-btn ec-btn-sm" {...todo('다른 전표를 복사해 오는 기능은 아직 없습니다.')}>전표불러오기</button>}
         </div>
 
         {notice && <div className="ec-alert ec-alert-info my-[4px] mx-0">{notice}</div>}
@@ -678,6 +769,59 @@ export default function SalesOrderEntry() {
                           head={`[${editing.orderDate.replace(/-/g, '/')} -${Number(editing.orderNo.split('-').pop()) || editing.orderNo}]`}
                           onClose={() => setHistoryOpen(false)} />
       )}
+
+      {/* ── [견적] — 원본 '견적서검색창(조회)'(판매입력 [주문] 의 주문서검색창과 같은 부품) ── */}
+      <Modal error={error} open={quoteOpen} title="견적서검색창(조회)" width={960} onClose={() => setQuoteOpen(false)}>
+        {quoteRows === null ? (
+          <p className="text-[12.5px] text-ec-hint m-0">불러오는 중…</p>
+        ) : (
+          <SourceDocSearch
+            tabs={QUOTE_TABS} tab={quoteTab} onTab={setQuoteTab}
+            query={quoteQuery} onQuery={setQuoteQuery}
+            date2Label="유효기간" totalLabel="견적금액합계"
+            docs={quoteDocsShown.map((q) => ({
+              key: q.id, dateNo: dateNo(q.quoteDate, q.quoteNo), partnerName: q.partnerName, employeeName: q.employeeName ?? '',
+              itemSummary: `${q.lines[0]?.itemName ?? ''}${q.lines[0]?.spec ? ` [${q.lines[0].spec}]` : ''}${q.lines.length > 1 ? ` 외 ${q.lines.length - 1}건` : ''}`,
+              date2: dateText(q.validUntil ?? '') || '', total: q.totalAmount, statusLabel: q.statusName, created: q.convertedOrderId != null,
+            }))}
+            picked={quotePicked} onPicked={setQuotePicked}
+            createdTitle="생성한 전표는 견적서조회의 [생성한전표] 에서 봅니다."
+            byLine={quoteByLine} onToggleByLine={() => setQuoteByLine((v) => !v)}
+            lineView={(
+              <div className="max-h-[360px] overflow-y-auto border border-ec-line border-solid">
+                <table className="w-full text-left">
+                  <thead><tr>
+                    <th className="w-[30px]" /><th>견적No.</th><th className="w-[90px]">일자</th><th>거래처</th><th>품목</th>
+                    <th className="w-[70px] text-right">잔량</th><th className="w-[80px] text-right">단가</th><th className="w-[70px]">상태</th>
+                  </tr></thead>
+                  <tbody>
+                    {quoteShown.flatMap((q) => q.lines.map((l, i) => {
+                      const key = `${q.id}-${i}`
+                      return (
+                        <tr key={key} className="cursor-pointer" onClick={() => setQuoteLinePicked((p) => ({ ...p, [key]: !p[key] }))}>
+                          <td className="text-center"><input type="checkbox" readOnly checked={!!quoteLinePicked[key]} /></td>
+                          <td>{dateNo(q.quoteDate, q.quoteNo)}</td>
+                          <td>{dateText(q.quoteDate)}</td>
+                          <td>{q.partnerName}</td>
+                          <td>{l.itemName}</td>
+                          <td className="text-right font-bold">{won(q.convertedOrderId == null ? l.quantity : 0)}</td>
+                          <td className="text-right">{won(l.unitPrice)}</td>
+                          <td className="text-ec-hint">{q.statusName}</td>
+                        </tr>
+                      )
+                    }))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            onApply={applyQuotePicked}
+            applyAllTitle="견적 수량 전체를 담는 [전체적용] 은 원본 동작을 아직 재지 않았습니다."
+            onNew={() => window.open('/sales/quotation-entry', '_blank')}
+            onList={() => window.open('/sales/quotations', '_blank')}
+            onClose={() => setQuoteOpen(false)}
+          />
+        )}
+      </Modal>
 
       <Modal open={blocked != null} title="알림" width={630} onClose={() => setBlocked(null)}>{blocked && (
         <div>

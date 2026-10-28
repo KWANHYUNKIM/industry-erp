@@ -1,5 +1,5 @@
 {
-  "about": "주문서입력(원본 영업관리 › 주문서 › 주문서입력, 2026-10-28 실측) — 판매입력과 같은 큰 입력 화면. 거래처 · 출하창고 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고(거래처는 비우고 창고는 남긴다), 주문서조회에 진행중으로 서며, 일자-No. 를 누르면 같은 화면이 수정으로 열린다(일자 잠김). Esc 로 입력이 사라지지 않는다. node qa/shot.mjs qa/flows/sales-order-entry.json — 만든 주문은 끝에 지운다.",
+  "about": "주문서입력(원본 영업관리 › 주문서 › 주문서입력, 2026-10-28 실측) — 판매입력과 같은 큰 입력 화면. 거래처 · 출하창고 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고(거래처는 비우고 창고는 남긴다), 주문서조회에 진행중으로 서며, 일자-No. 를 누르면 같은 화면이 수정으로 열린다(일자 잠김). Esc 로 입력이 사라지지 않는다. node qa/shot.mjs qa/flows/sales-order-entry.json 툴바 [견적] 은 원본 '견적서검색창(조회)' — 주문 일자보다 늦은 견적도 보이고, 담으면 담당자는 견적의 것으로 덮어쓰고 프로젝트는 비우며 툴바에서 견적 · 전표 바코드 · 전표불러오기가 빠진다(묶음 I). — 만든 주문 · 견적은 끝에 지운다.",
   "shots": [
     {
       "name": "주문서입력 — 코드도움으로 입력 → 저장하면 말 없이 빈 칸(거래처 비움 · 창고 남음)",
@@ -55,6 +55,39 @@
         "wait:1500",
         "expect:window.__asked === '전표를 삭제하겠습니까?\\n- 주문서' && location.pathname === '/sales/orders'",
         "expect:![...document.querySelectorAll('tbody a')].some((a) => a.textContent.trim() === sessionStorage.getItem('soeDateNo'))"
+      ]
+    },
+    {
+      "name": "주문서입력 [견적] — 견적서검색창(조회): 늦은 견적도 보이고, 담으면 담당자 덮어씀 · 프로젝트 비움 · 창고 · 줄 · 툴바에서 견적 · 전표 바코드 · 전표불러오기 빠짐 · 저장하면 견적에 걸린다",
+      "path": "/sales/order-entry",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const get = async (u) => (await fetch(u, { headers: H })).json(); const p = (await get('/api/partners')).find((x) => x.code === 'QA-CUST'); const it = (await get('/api/items')).find((x) => x.code === 'QA-PROD'); const w = (await get('/api/warehouses')).find((x) => x.code === 'QA-WH'); const e = (await get('/api/employees')).filter((x) => x.active !== false && x.code); const pr = (await get('/api/projects')).find((x) => x.code); const d = new Date(Date.now() + 40 * 864e5); const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; const q = await (await fetch('/api/quotations', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, warehouseId: w.id, employeeId: e[0].id, quoteDate: day, validUntil: day, taxable: true, lines: [{ itemId: it.id, quantity: 5, unitPrice: 1000 }] }) })).json(); const n = q.quoteNo.match(/([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); sessionStorage.setItem('soeQuote', q.quoteNo); sessionStorage.setItem('soeQuoteId', String(q.id)); sessionStorage.setItem('soeQDateNo', `${n[1]}/${n[2]}/${n[3]} -${Number(n[4])}`); sessionStorage.setItem('soeEmpA', e[0].code); sessionStorage.setItem('soeEmpB', e[1].code); sessionStorage.setItem('soeProj', pr.code); return q.quoteNo })()",
+        "expect:/^QT-/.test(sessionStorage.getItem('soeQuote') || '')",
+        "click:담당자 코드도움",
+        "pickrow:@soeEmpB",
+        "click:프로젝트 코드도움",
+        "pickrow:@soeProj",
+        "expect:[...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('soeEmpB')) && [...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('soeProj'))",
+        "js:[...document.querySelectorAll('.ec-toolbar button')].find((b) => b.textContent.trim() === '견적').click(); true",
+        "wait:800",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('견적서검색창(조회)') && ['전체', '결재중', '미확인', '확인', '진행중', '완료'].every((t) => [...document.querySelectorAll('[role=dialog] .ec-pill')].some((b) => b.textContent.trim() === t))",
+        "expect:['일자-No.', '거래처명', '사원(담당)명', '품목명(요약)', '유효기간', '견적금액합계', '진행상태', '생성한전표', '인쇄'].every((t) => [...document.querySelectorAll('[role=dialog] thead th')].some((th) => th.textContent.trim() === t)) && ['라인별 ▾', '잔량적용(F8)', '전체적용', '신규(F2)', '리스트', '닫기'].every((t) => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent.trim() === t))",
+        "js:(() => { const el = document.querySelector('[role=dialog] input[placeholder*=\"찾기\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, sessionStorage.getItem('soeQuote')); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "expect:(() => { const rows = [...document.querySelectorAll('[role=dialog] tbody tr')].filter((r) => r.cells.length > 1); return rows.length === 1 && rows[0].innerText.includes(sessionStorage.getItem('soeQDateNo')) && rows[0].innerText.includes('5,500') })()",
+        "js:document.querySelector('[role=dialog] tbody input[type=checkbox]').click(); true",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '잔량적용(F8)').click(); true",
+        "wait:500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:document.querySelector('tbody tr input.text-right').value === '5' && [...document.querySelectorAll('input')].some((i) => i.value.includes('QA-CUST')) && [...document.querySelectorAll('input')].some((i) => i.value.includes('QA-WH'))",
+        "expect:[...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('soeEmpA')) && ![...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('soeEmpB')) && ![...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('soeProj'))",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-toolbar button')].map((b) => b.textContent.trim()); return !t.includes('견적') && !t.includes('전표 바코드') && !t.includes('전표불러오기') && t.includes('검증') })()",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const q = (await (await fetch('/api/quotations', { headers: H })).json()).find((x) => x.quoteNo === sessionStorage.getItem('soeQuote')); if (!q || q.convertedOrderId == null) return false; const o = await (await fetch('/api/sales-orders/' + q.convertedOrderId, { headers: H })).json(); sessionStorage.setItem('soeQOrder', o.orderNo); return o.projectId == null && o.lines.length === 1 })()",
+        "expect:[...document.querySelectorAll('.ec-toolbar button')].some((b) => b.textContent.trim() === '견적')",
+        "apidel:/sales-orders|@soeQOrder|orderNo",
+        "apidel:/quotations|@soeQuote|quoteNo"
       ]
     }
   ]
