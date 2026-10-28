@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
@@ -18,6 +18,7 @@ import EmployeePayrollSettingPanel, {
 } from '../../features/employee/components/EmployeePayrollSettingPanel'
 import { ecConfirm } from '../../components/EcDialog'
 import { ymd } from '../../utils/periods'
+import { useRequired } from '../../utils/useRequired'
 
 const inputCls = 'ec-input w-full'
 
@@ -59,6 +60,9 @@ export default function EmployeePage() {
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [error, setError] = useState('')
   const [formError, setFormError] = useState('')
+  const req = useRequired()
+  // 이미 '기준소득월액기준 + 빈 금액' 으로 저장돼 있던 사원은 그대로 저장되게 둔다(막는 건 새로 고른 경우만)
+  const pensionLoadedEmpty = useRef(false)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [tab, setTab] = useState<FormTab>('기본')
@@ -131,8 +135,9 @@ export default function EmployeePage() {
       .then((r) => setPayVals(new Map(r.data.map((x) => [x.payItemId, String(Number(x.amount))]))))
       .catch((err) => setFormError(extractErrorMessage(err)))
     setPaySetting(emptyPayrollSetting)
+    pensionLoadedEmpty.current = true
     api.get<PayrollSettingResponse>(`/pay-settings/employees/${e.id}/settings`)
-      .then((r) => setPaySetting(payrollSettingForm(r.data)))
+      .then((r) => { const f = payrollSettingForm(r.data); pensionLoadedEmpty.current = f.pensionMode === 'AUTO' && !f.pensionBaseAmount.trim(); setPaySetting(f) })
       .catch((err) => setFormError(extractErrorMessage(err)))
     setShowForm(true)
   }
@@ -145,6 +150,9 @@ export default function EmployeePage() {
   async function submit(ev?: React.FormEvent) {
     ev?.preventDefault()
     if (!form.name.trim()) { setTab('기본'); setFormError('사원명을 입력 바랍니다.'); return }
+    // 원본: 국민연금 '기준소득월액기준' 인데 기준소득월액이 비면 글 없이 그 칸만 빨갛게 두르고 저장하지 않는다(2026-10-14 실측)
+    const pensionOk = !(paySetting.pensionMode === 'AUTO' && !paySetting.pensionBaseAmount.trim() && !(editId && pensionLoadedEmpty.current))
+    if (!req.check({ pensionBase: pensionOk })) { setTab('기타설정'); setFormError(''); return }
     const body = {
       name: form.name.trim(),
       departmentId: form.departmentId ? Number(form.departmentId) : null,
@@ -484,7 +492,7 @@ export default function EmployeePage() {
                 <Field label="사원번호"><span>{form.code}</span></Field>
                 <Field label="성명"><span>{form.name}</span></Field>
               </ul>
-              <EmployeePayrollSettingPanel value={paySetting} onChange={setPaySetting} onNotice={setNotice} />
+              <EmployeePayrollSettingPanel pensionInvalid={req.on('pensionBase')} value={paySetting} onChange={setPaySetting} onNotice={setNotice} />
             </>
           )}
 
