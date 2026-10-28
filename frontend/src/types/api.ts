@@ -1651,6 +1651,8 @@ export interface StagedAdjustment {
   slipNo: string
   adjustmentNo: string | null
   adjustmentDate: string | null
+  /** 실사 전표 머리 [담당자](사원 id) — 이름은 사원 목록에서 붙인다. */
+  employeeId: number | null
 }
 
 export interface StockAdjustment {

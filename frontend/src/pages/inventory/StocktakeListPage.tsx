@@ -103,7 +103,7 @@ export default function StocktakeListPage() {
       const slip = slipOf.get(s.adjustNo)
       /* 입력일자 번호는 실사 전표 번호(줄들이 같이 쓴다) — 원본 '2026/10/20 -1'. 조정전표는 그 줄로 맞춘 재고조정. */
       out.push({ key: `s${s.id}`, id: s.id, sort: '단계별', date: s.requestDate, no: s.slipNo ?? s.adjustNo, warehouseId: s.warehouseId, warehouseName: s.warehouseName,
-        person: s.requester ?? '', itemId: s.itemId, itemName: s.itemName, spec: null, qty: Number(s.actualQty),
+        person: s.employeeId != null ? empName.get(s.employeeId) ?? '' : '', itemId: s.itemId, itemName: s.itemName, spec: null, qty: Number(s.actualQty),
         slip: s.adjustmentNo && s.adjustmentDate ? dateNo(s.adjustmentDate, s.adjustmentNo) : slip ? dateNo(slip.adjustDate, slip.adjustNo) : '' })
     }
     return out
@@ -115,7 +115,7 @@ export default function StocktakeListPage() {
       .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.no.localeCompare(a.no)))
   }, [adjusts, simple, staged, from, to, sort, warehouse, item, person, empName])
   const people = useMemo(() => [...new Set([
-    ...simple.map((t) => (t.employeeId != null ? empName.get(t.employeeId) : null)), ...staged.map((s) => s.requester),
+    ...simple.map((t) => (t.employeeId != null ? empName.get(t.employeeId) : null)), ...staged.map((s) => (s.employeeId != null ? empName.get(s.employeeId) : null)),
   ].filter(Boolean) as string[])].sort(), [simple, staged, empName])
   const allPicked = lines.length > 0 && lines.every((l) => picked.has(l.key))
 
