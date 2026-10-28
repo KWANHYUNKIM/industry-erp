@@ -118,6 +118,29 @@
         "apidel:/quotations|@__anyQ|quoteNo",
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('__anyMade'); if (!id) return true; sessionStorage.removeItem('__anyMade'); return (await fetch('/api/partners/' + id, { method: 'DELETE', headers: H })).status })()"
       ]
+    },
+    {
+      "name": "견적서입력 — 품목을 고른 뒤 품목명 칸을 고쳐 쓰면 저장되고(원본 견적 11/18-2 임의품목 Z00007 줄마다 이름, 2026-10-29) 다시 열어도 그 이름 · 단가 칸은 Tab 직후 바로 쳐도 값이 바뀐다",
+      "path": "/sales/quotation-entry",
+      "steps": [
+        "wait:1500",
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input[placeholder=\"품목 선택\"]|QA ERP구축 -계약금",
+        "js:(() => { const r = document.querySelector('tbody tr:has(input[placeholder=\"품목 선택\"])'); const p = r.querySelectorAll('input.text-right')[1]; p.focus(); if (p.value.includes(',')) p.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); sessionStorage.setItem('__pv', document.activeElement === p ? (p.selectionStart === 0 && p.selectionEnd === p.value.length ? 'all' : 'part ' + p.selectionStart + '-' + p.selectionEnd + ' ' + p.value) : 'nofocus'); return sessionStorage.getItem('__pv') })()",
+        "expect:sessionStorage.getItem('__pv') === 'all'",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const q = (await (await fetch('/api/quotations', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__nq', q.quoteNo); sessionStorage.setItem('__nqId', String(q.id)); return q.lines[0].itemName })()",
+        "expect:fetch('/api/quotations', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((l) => l.find((q) => q.quoteNo === sessionStorage.getItem('__nq'))?.lines[0].itemName === 'QA ERP구축 -계약금')",
+        "js:location.href = '/sales/quotation-entry?edit=' + sessionStorage.getItem('__nqId'); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody input')].some((i) => i.value === 'QA ERP구축 -계약금')",
+        "apidel:/quotations|@__nq|quoteNo"
+      ]
     }
   ],
   "finally": [

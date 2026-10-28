@@ -24,10 +24,15 @@ public final class QuotationDtos {
             /* 줄 적요 — 원본 견적서입력 줄 열 '적요'. */
             @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.") String remark,
             /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
+            /** 줄 품목명(선택). 원본은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
     ) {
         public QuoteLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark) {
-            this(itemId, quantity, unitPrice, remark, null);
+            this(itemId, quantity, unitPrice, remark, null, null);
+        }
+        public QuoteLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String spec) {
+            this(itemId, quantity, unitPrice, remark, spec, null);
         }
     }
 

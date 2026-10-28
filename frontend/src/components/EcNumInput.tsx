@@ -1,4 +1,5 @@
 import { useState, type InputHTMLAttributes } from 'react'
+import { flushSync } from 'react-dom'
 import { withCommas } from '../utils/lineSupply'
 
 /**
@@ -21,7 +22,8 @@ export default function EcNumInput({ value, onValue, ...rest }: Omit<InputHTMLAt
       value={focused ? value : withCommas(value)}
       // 원본 격자(2026-10-27 loginaa 주문서입력 단가 1,700,000 칸을 눌러 5 → 5): 칸에 들어가면 값 전체가 골라져 치는 값이 바꾼다.
       // 쉼표를 뗀 값으로 다시 그린 뒤에 골라야 선택이 풀리지 않는다.
-      onFocus={(e) => { setFocused(true); const t = e.currentTarget; requestAnimationFrame(() => { if (document.activeElement === t) t.select() }); rest.onFocus?.(e) }}
+      // 2026-10-29: rAF 로 미루면 Tab 직후 바로 치는 글자가 선택 전에 붙었다(30,000 → 3,000,030,000) — 동기로 다시 그린 뒤 바로 고른다.
+      onFocus={(e) => { const t = e.currentTarget; flushSync(() => setFocused(true)); t.select(); rest.onFocus?.(e) }}
       onBlur={(e) => { setFocused(false); rest.onBlur?.(e) }}
       onChange={(e) => onValue(e.target.value.replace(/,/g, '').replace(/[^0-9.\-]/g, ''))}
     />
