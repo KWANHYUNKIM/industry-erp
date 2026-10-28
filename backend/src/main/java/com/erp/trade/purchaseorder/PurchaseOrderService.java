@@ -249,11 +249,11 @@ public class PurchaseOrderService {
 
     /**
      * 머리 거래처 — 발주요청 · 발주계획은 <b>비워도 된다</b>(원본 E040315 실측: 거래처 칸은 줄마다, 비워 두고 저장되고 조회 거래처도 빈칸).
-     * 발주서 · 단가요청은 거래처가 머리에 하나라 꼭 있어야 한다.
+     * 발주서도 비워 저장된다(원본 발주서 2026/11/28-1 실측). 단가요청만 거래처가 꼭 있어야 한다.
      */
     private BusinessPartner headPartner(Long partnerId, PurchaseOrderStatus kind) {
         if (partnerId == null) {
-            if (kind == PurchaseOrderStatus.REQUESTED || kind == PurchaseOrderStatus.PLANNED) return null;
+            if (kind == PurchaseOrderStatus.REQUESTED || kind == PurchaseOrderStatus.PLANNED || kind == PurchaseOrderStatus.ORDERED) return null;
             throw ApiException.badRequest("매입처를 선택하세요.");
         }
         BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(partnerId)
