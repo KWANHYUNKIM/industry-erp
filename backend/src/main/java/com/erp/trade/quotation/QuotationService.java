@@ -126,6 +126,19 @@ public class QuotationService {
         return QuotationResponse.from(q);
     }
 
+    /** 일자변경(원본 [Fn] → [일자변경]) — 새 날짜의 다음 번호로 견적번호를 다시 매긴다. 재고 수불 없음. (원본 견적서는 미실측 — 판매로 잼) */
+    @Transactional
+    public QuotationResponse changeDate(Long id, LocalDate newDate) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        Quotation q = get(id);
+        if (newDate.equals(q.getQuoteDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+        q.setQuoteDate(newDate);
+        q.setQuoteNo(generateQuoteNo(newDate));
+        quotationRepository.flush();
+        changeHistory.recordSlip(HISTORY_TARGET, q.getId(), ChangeHistoryService.UPDATED, snapshot(q));
+        return QuotationResponse.from(q);
+    }
+
     /** [H] · 거래이력조회(재고) 메뉴 '견적서' 의 대상 글자. */
     public static final String HISTORY_TARGET = "QUOTATION";
 

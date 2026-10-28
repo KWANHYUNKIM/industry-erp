@@ -3120,7 +3120,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3170,7 +3170,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3180,7 +3180,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3190,7 +3190,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3200,7 +3200,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3210,7 +3210,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3220,7 +3220,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3230,7 +3230,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3240,7 +3240,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3250,7 +3250,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3260,7 +3260,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3270,7 +3270,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3280,7 +3280,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3290,7 +3290,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3300,7 +3300,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3310,7 +3310,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3320,7 +3320,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3330,7 +3330,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3340,7 +3340,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3350,7 +3350,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3360,7 +3360,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3370,7 +3370,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3380,7 +3380,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3390,7 +3390,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3400,7 +3400,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]

@@ -253,6 +253,23 @@ public class SalesOrderService {
         return SalesOrderResponse.from(order);
     }
 
+    /** 일자변경(원본 [Fn] → [일자변경]) — 새 날짜의 다음 번호로 주문번호를 다시 매긴다. 수정과 같이 출하가 있으면 막는다. 재고 수불 없음. */
+    @Transactional
+    public SalesOrderResponse changeDate(Long id, LocalDate newDate) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        SalesOrder order = salesOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id));
+        if (shipmentRepository.existsBySalesOrderId(id)) {
+            throw ApiException.conflict("출하가 있어 일자를 바꿀 수 없습니다. 먼저 출하를 지우세요: " + order.getOrderNo());
+        }
+        if (newDate.equals(order.getOrderDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+        order.setOrderDate(newDate);
+        order.setOrderNo(generateOrderNo(newDate));
+        salesOrderRepository.flush();
+        changeHistory.recordSlip(HISTORY_TARGET, order.getId(), ChangeHistoryService.UPDATED, snapshot(order));
+        return SalesOrderResponse.from(order);
+    }
+
     /** [H] · 거래이력조회(재고) 메뉴 '주문서' 의 대상 글자. */
     public static final String HISTORY_TARGET = "SALES_ORDER";
 

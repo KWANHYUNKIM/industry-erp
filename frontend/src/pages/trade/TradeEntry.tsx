@@ -817,7 +817,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     if (!editing) return
     if (!dateChgTo || dateChgTo === date) { void ecAlert('변경일자를 기존일자와 다르게 입력하세요.'); return }
     try {
-      const res = await api.post<SalesDoc | PurchaseDoc>(`${cfg.endpoint}/${editing.id}/change-date`, { date: dateChgTo })
+      const res = await api.post<SalesDoc | PurchaseDoc>(mode === 'sales' ? `/sales/${editing.id}/change-date` : `/purchases/${editing.id}/change-date`, { date: dateChgTo })
       setEditing({ id: editing.id, docNo: res.data.docNo })
       setDate(dateChgTo)
       dateChangedRef.current = true

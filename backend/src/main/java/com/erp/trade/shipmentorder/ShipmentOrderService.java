@@ -195,6 +195,19 @@ public class ShipmentOrderService {
         return respond(o);
     }
 
+    /** 일자변경(원본 [Fn] → [일자변경]) — 새 날짜의 다음 번호로 지시서번호를 다시 매긴다. 재고 수불 없음. */
+    @Transactional
+    public ShipmentOrderResponse changeDate(Long id, LocalDate newDate) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        ShipmentOrder o = load(id);
+        if (newDate.equals(o.getOrderDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+        o.setOrderDate(newDate);
+        o.setOrderNo(docNoGenerator.next("SI-", "shipment_orders", "order_no", "order_date", newDate));
+        repository.flush();
+        recordHistory(o, com.erp.common.history.ChangeHistoryService.UPDATED);
+        return respond(o);
+    }
+
     /** 진행상태 — 원본 [진행상태] 링크 펼침(진행중 · 완료). 확인 창 없이 바로 바뀐다. */
     @Transactional
     public ShipmentOrderResponse updateStatus(Long id, ShipmentOrderStatus status) {

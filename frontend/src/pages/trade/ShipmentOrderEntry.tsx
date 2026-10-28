@@ -8,6 +8,7 @@ import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
+import DateChangeFn from '../../features/datechange/DateChangeFn'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateNo } from '../../utils/dateNo'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
@@ -356,6 +357,7 @@ export default function ShipmentOrderEntry() {
             <div className="form flex items-center gap-[6px]">
               <EcDateField value={date} onChange={setDate} disabled={editing != null} />
               {editing && <span className="text-ec-label">{dateNo(editing.orderDate, editing.orderNo)}</span>}
+              {editing && <DateChangeFn date={date} onSubmit={async (d) => { const r = await api.post<{ orderNo: string; orderDate: string }>(`/shipment-orders/${editing.id}/change-date`, { date: d }); setEditing({ id: editing.id, orderNo: r.data.orderNo, orderDate: r.data.orderDate }); setDate(d) }} />}
             </div>
           </li>
           <li>

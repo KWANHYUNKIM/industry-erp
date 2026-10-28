@@ -5,6 +5,7 @@ import com.erp.trade.sales.Sales;
 import com.erp.trade.settlement.Settlement;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -253,8 +254,8 @@ public final class AccountingReflectionDtos {
             Long departmentId,
             Long projectId,
             Long partnerId,
-            @jakarta.validation.constraints.Size(max = 200, message = "적요는 200자까지입니다.") String note,
-            @jakarta.validation.constraints.Size(max = 30, message = "부가세유형은 30자까지입니다.") String vatType,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.") String note,
+            @Size(max = 30, message = "부가세유형은 30자까지입니다.") String vatType,
             /** 창에서 고친 공급가액. 비우면 판매 금액 그대로. */
             BigDecimal supplyAmount
     ) {}

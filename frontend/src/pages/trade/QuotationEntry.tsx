@@ -13,6 +13,7 @@ import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
+import DateChangeFn from '../../features/datechange/DateChangeFn'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateNo } from '../../utils/dateNo'
 import { lineSupply } from '../../utils/lineSupply'
@@ -412,8 +413,9 @@ export default function QuotationEntry() {
           <li>
             <div className="title">일자-No.</div>
             <div className="form flex items-center gap-[6px]">
-              <EcDateField value={date} onChange={setDate} />
+              <EcDateField value={date} onChange={setDate} disabled={editing != null} />
               {editing && <span className="text-ec-label">{dateNo(editing.quoteDate, editing.quoteNo)}</span>}
+              {editing && <DateChangeFn date={date} onSubmit={async (d) => { const r = await api.post<Quotation>(`/quotations/${editing.id}/change-date`, { date: d }); setEditing(r.data); setDate(d) }} />}
             </div>
           </li>
           <li>
