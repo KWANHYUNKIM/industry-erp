@@ -10,7 +10,7 @@ import EcPeriodPicks, { STOCKTAKE_LIST_PICKS, periodOf } from '../../components/
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import type { StagedAdjustment, StockAdjustment } from '../../types/api'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated: boolean }
 /** 단계별재고조정을 반영하면 서버가 적요 앞에 이 말 + 실사번호를 붙여 재고조정(ADJUST)을 만든다(StagedStockAdjustmentService.apply). */
@@ -133,7 +133,10 @@ export default function StocktakeListPage() {
         await api.delete(l.sort === '간편' ? `/stock-adjustments/stocktakes/${l.id}` : `/staged-adjustments/${l.id}`)
       }
     } catch (e) {
-      setError(extractErrorMessage(e))
+      /* 서버가 막은 까닭(예: '이미 반영된 조정은 삭제할 수 없습니다.')을 창으로 — setError 는 이어지는 load() 가 바로 지워
+         [확인] 뒤 아무 말도 없었다. 조정을 든 실사는 조정과 같이 지워진다(41줄 2026-10-12 · 13 실측). */
+      await load()
+      return ecAlert(extractErrorMessage(e))
     }
     await load()
   }
