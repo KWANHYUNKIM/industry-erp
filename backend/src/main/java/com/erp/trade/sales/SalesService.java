@@ -244,6 +244,34 @@ public class SalesService {
         return SalesResponse.from(sales);
     }
 
+    /**
+     * 일자변경(원본 [Fn] → [일자변경]). 일자를 바꾸고 <b>새 날짜의 다음 번호로 전표번호를 다시 매긴다</b>
+     * (원본: 10/28-7 → 10/20-5, 옛 번호는 다시 쓰지 않는다). 재고 수불은 옛 일자로 되돌리고 새 일자로 다시 반영한다.
+     * 수정 가능한 전표(확인 · 회계반영 · 세금계산서 전)만 — 그 밖은 수정과 같은 이유로 거부.
+     */
+    @Transactional
+    public SalesResponse changeDate(Long id, LocalDate newDate, String username) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        Sales sales = getSales(id);
+        ensureEditable(sales, "일자변경");
+        if (newDate.equals(sales.getSaleDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+
+        revertStock(sales, "일자변경 원복", username);
+        sales.setSaleDate(newDate);
+        sales.setDocNo(generateDocNo(newDate));
+        for (SalesLine l : sales.getLines()) {
+            boolean back = l.getQuantity().signum() < 0;
+            stockService.applyDelta(l.getItem(), sales.getWarehouse(), l.getQuantity().negate(),
+                    back ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND,
+                    l.getUnitPrice(), newDate,
+                    (back ? "판매반품 " : "판매 ") + sales.getDocNo(), username);
+        }
+        salesRepository.flush();
+        syncLots(sales);
+        changeHistory.recordSlip(HISTORY_TARGET, sales.getId(), ChangeHistoryService.UPDATED, snapshot(sales));
+        return SalesResponse.from(sales);
+    }
+
     /** [H] · 거래이력조회의 대상 글자 — 화면 EcHistoryButton target 과 같다. */
     public static final String HISTORY_TARGET = "SALES";
 

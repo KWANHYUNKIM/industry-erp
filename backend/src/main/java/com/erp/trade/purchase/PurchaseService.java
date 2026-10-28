@@ -401,6 +401,30 @@ public class PurchaseService {
         }
     }
 
+    /** 일자변경(원본 [Fn] → [일자변경]) — 새 날짜의 다음 번호로 전표번호를 다시 매기고 재고 수불 일자를 옮긴다. */
+    @Transactional
+    public PurchaseResponse changeDate(Long id, LocalDate newDate, String username) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        Purchase purchase = getPurchase(id);
+        ensureEditable(purchase, "일자변경");
+        if (newDate.equals(purchase.getPurchaseDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+
+        revertStock(purchase, "일자변경 원복", username);
+        purchase.setPurchaseDate(newDate);
+        purchase.setDocNo(generateDocNo(newDate));
+        for (PurchaseLine l : purchase.getLines()) {
+            boolean out = l.getQuantity().signum() < 0;
+            stockService.applyDelta(l.getItem(), purchase.getWarehouse(), l.getQuantity(),
+                    out ? StockTransactionType.OUTBOUND : StockTransactionType.INBOUND,
+                    l.getUnitPrice(), newDate,
+                    (out ? "구매반품 " : "구매 ") + purchase.getDocNo(), username);
+        }
+        purchaseRepository.flush();
+        syncLots(purchase);
+        changeHistory.recordSlip(HISTORY_TARGET, purchase.getId(), ChangeHistoryService.UPDATED, snapshot(purchase));
+        return PurchaseResponse.from(purchase);
+    }
+
     /**
      * 입고했던 수량을 창고에서 다시 뺀다. 이력을 지우지 않고 반대 거래를 남긴다.
      *

@@ -77,6 +77,17 @@ public class PurchaseController {
     }
 
     /** 구매조회의 '삭제'. 입고분을 되돌린다. 회계반영·세금계산서 발행 전표는 거부. */
+    /** [Fn] → [일자변경] — 일자를 바꾸고 새 날짜의 다음 번호로 전표번호를 다시 매긴다. 본문 {"date":"yyyy-MM-dd"}. */
+    @PostMapping("/{id}/change-date")
+    public PurchaseResponse changeDate(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String d = body.get("date");
+        if (d == null || d.isBlank()) throw com.erp.common.ApiException.badRequest("변경일자를 입력하세요.");
+        return purchaseService.changeDate(id, java.time.LocalDate.parse(d), principal.getUsername());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
             @PathVariable Long id,

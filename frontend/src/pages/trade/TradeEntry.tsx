@@ -514,6 +514,11 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const submitting = useSubmitting()
   /** 수정 중인 전표. 있으면 저장이 POST 가 아니라 PUT 이 된다. */
   const [editing, setEditing] = useState<{ id: number; docNo: string } | null>(null)
+  /* [Fn] → [일자변경] 작은 창 — 원본: 수정 창의 일자 칸은 잠겨 있고 이 창에서만 바꾼다(2026-10-28 21시 실측). */
+  const [dateChgOpen, setDateChgOpen] = useState(false)
+  const [dateChgTo, setDateChgTo] = useState('')
+  const [fnOpen, setFnOpen] = useState(false)
+  const dateChangedRef = useRef(false)
   /** 수정 창 [복사] 를 누른 뒤 — 같은 내용을 새 전표로 쓴다. 불러오기 효과가 그 전표를 다시 펼치지 않게 막는다. */
   const copiedRef = useRef(false)
   const [verifyResult, setVerifyResult] = useState<string[] | null>(null)
@@ -807,6 +812,22 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   )
 
   /** 재고 조회는 [재고불러오기]를 눌렀을 때만 한다 — 화면을 열 때마다 전 품목 재고를 끌어올 필요는 없다. */
+  /** [일자변경] 저장 — 서버가 새 날짜의 다음 번호로 전표번호를 다시 매긴다. */
+  async function changeDate() {
+    if (!editing) return
+    if (!dateChgTo || dateChgTo === date) { void ecAlert('변경일자를 기존일자와 다르게 입력하세요.'); return }
+    try {
+      const res = await api.post<SalesDoc | PurchaseDoc>(`${cfg.endpoint}/${editing.id}/change-date`, { date: dateChgTo })
+      setEditing({ id: editing.id, docNo: res.data.docNo })
+      setDate(dateChgTo)
+      dateChangedRef.current = true
+      setDateChgOpen(false)
+      void ecAlert('정상적으로 변경되었습니다.')
+    } catch (err) {
+      void ecAlert(extractErrorMessage(err))
+    }
+  }
+
   async function loadMyItems() {
     try {
       const r = await api.get<MyItem[]>('/my-items')
@@ -1850,7 +1871,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     ...(cashAction ? [{ ...cashAction, menu: undefined }] : []),
     { label: '이전', onClick: () => popup.onMove('prev') },
     { label: '다음', onClick: () => popup.onMove('next') },
-    { label: '닫기', onClick: () => popup.onClose(false) },
+    { label: '닫기', onClick: () => popup.onClose(dateChangedRef.current) },
     { label: '삭제', onClick: () => void deleteInPopup() },
     { label: '보내기', disabled: true, disabledReason: '메일 · 팩스 보내기는 아직 없습니다.' },
     // 원본 구매 수정 창은 [H] 하나뿐 — [최종이력] 이 없다(2026-10-21 loginaa 구매 2026/10/21 -4 실측).
@@ -1926,7 +1947,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         <ul className={`ec-form${mode === 'sales' && !adjust ? ' [&>li>.title]:basis-[120px]' : ''}`}>
           <li>
             <div className="title">일자</div>
-            <div className="form"><EcDateField value={date} onChange={setDate} /></div>
+            <div className="form"><EcDateField value={date} onChange={setDate} disabled={!!editing} /></div>
           </li>
           <li>
             <div className="title">{cfg.partnerLabel}<span className="req">*</span></div>
@@ -2017,7 +2038,18 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           <li>
             <div className="title">{cfg.docNoLabel}</div>
             <div className="form">
-              <input className="ec-input" readOnly value="(저장 시 자동채번)" style={{ width: 170, background: '#f4f5f7', color: 'var(--ec-text-hint)' }} />
+              <input className="ec-input" readOnly aria-label="일자-No." value={editing ? `${date.replace(/-/g, '/')} -${editing.docNo.split('-').pop()?.replace(/^0+/, '') ?? ''}` : '(저장 시 자동채번)'} style={{ width: 170, background: '#f4f5f7', color: 'var(--ec-text-hint)' }} />
+              {editing && (
+                <span className="relative inline-block ml-[4px]">
+                  <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFnOpen((o) => !o)}>Fn</button>
+                  {fnOpen && (
+                    <span className="absolute left-0 top-full z-20 bg-white border border-ec-line rounded-ec min-w-[90px]">
+                      <button type="button" className="ec-btn ec-btn-sm w-full"
+                              onClick={() => { setFnOpen(false); setDateChgTo(date); setDateChgOpen(true) }}>일자변경</button>
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
           </li>
           <li className="wide">
@@ -2658,6 +2690,22 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
 
       {/* ── 열 선택 ──────────────────────────────────────── */}
       {/* ── 현금수금(판매) — 원본 '매출처로부터' 입금 창 ───────────────── */}
+      <Modal error={null} open={dateChgOpen} title="일자변경" width={360} onClose={() => setDateChgOpen(false)}>
+        <div className="ec-form">
+          <div className="flex items-center gap-[8px] mb-[6px]">
+            <span className="w-[70px]">기존일자</span>
+            <input className="ec-input" readOnly aria-label="기존일자" value={date} />
+          </div>
+          <div className="flex items-center gap-[8px] mb-[6px]">
+            <span className="w-[70px]">변경일자</span>
+            <EcDateField value={dateChgTo} onChange={setDateChgTo} />
+          </div>
+          <div className="flex gap-[4px] mt-[8px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void changeDate()}>저장</button>
+            <button type="button" className="ec-btn" onClick={() => setDateChgOpen(false)}>닫기</button>
+          </div>
+        </div>
+      </Modal>
       <Modal error={cashMsg} open={cashOpen} title={mode === 'sales' ? '매출처로부터' : '매입처로'} width={520} onClose={() => setCashOpen(false)}>
         <div className="ec-form">
           <label className="block mb-[6px]">전표일자
