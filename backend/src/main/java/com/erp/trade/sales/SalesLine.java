@@ -50,6 +50,19 @@ public class SalesLine {
     private String remark;
 
     /**
+     * 줄 규격. 원본은 전표 줄의 [규격] 을 줄마다 따로 저장한다 — 품목을 고르면 품목 규격으로 채워지지만
+     * 줄에서 고치거나 비울 수 있고, 저장된 값이 그대로 보인다(2026-10-28 loginaa: 같은 D001 이 견적 11/15-2 는 '[대형]', 11/20-1 은 빈칸).
+     * 비어 있으면(null) 품목 규격으로 본다. 빈 글자("")는 일부러 비운 것이다.
+     */
+    @Column(name = "spec", length = 200)
+    private String spec;
+
+    /** 화면에 보일 규격 — 줄에 저장된 값, 저장 전 옛 줄(null)이면 품목 규격. */
+    public String effectiveSpec() {
+        return spec != null ? spec : (getItem() == null ? null : getItem().getSpec());
+    }
+
+    /**
      * 시리얼/로트 번호(선택). 이카운트 판매입력 그리드의 `serial_cd` 컬럼.
      * 로트 마스터(inventory.Lot)와 FK로 묶지 않는다 — 로트 관리를 켜지 않은 품목도
      * 출하 시 제조번호를 적어 두는 용도로 쓰기 때문이다.

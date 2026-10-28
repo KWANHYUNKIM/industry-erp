@@ -255,7 +255,8 @@ public class SalesService {
         String items = null;
         if (!s.getLines().isEmpty()) {
             Item first = s.getLines().get(0).getItem();
-            items = first.getName() + (first.getSpec() == null || first.getSpec().isBlank() ? "" : " [" + first.getSpec() + "]");
+            String firstSpec = s.getLines().get(0).effectiveSpec();
+            items = first.getName() + (firstSpec == null || firstSpec.isBlank() ? "" : " [" + firstSpec + "]");
             if (s.getLines().size() > 1) items += " 외 " + (s.getLines().size() - 1) + "건";
         }
         return new SlipSnapshot("판매", s.getSaleDate(), s.getDocNo(),
@@ -621,6 +622,7 @@ public class SalesService {
                     .supplyAmount(supply)
                     .vatAmount(vat)
                     .remark(lr.remark())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .lotNo(lr.lotNo())
                     .extraCost(lr.extraCost())
                     .sourceOrder(lr.sourceOrderId() == null ? null

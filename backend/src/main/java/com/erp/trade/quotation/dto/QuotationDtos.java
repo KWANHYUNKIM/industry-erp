@@ -22,8 +22,14 @@ public final class QuotationDtos {
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice,
             /* 줄 적요 — 원본 견적서입력 줄 열 '적요'. */
-            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.") String remark
-    ) {}
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.") String remark,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec
+    ) {
+        public QuoteLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark) {
+            this(itemId, quantity, unitPrice, remark, null);
+        }
+    }
 
     public record CreateQuotationRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
@@ -64,7 +70,7 @@ public final class QuotationDtos {
             return new QuoteLineResponse(
                     l.getId(), l.getLineNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getItem().getSpec(),
+                    l.effectiveSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getRemark());
         }

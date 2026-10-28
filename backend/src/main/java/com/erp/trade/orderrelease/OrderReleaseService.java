@@ -60,7 +60,7 @@ public class OrderReleaseService {
                             o.getPartner().getId(), o.getPartner().getName(),
                             o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                             o.getProject() != null ? o.getProject().getId() : null,
-                            l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(),
+                            l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.effectiveSpec(),
                             l.getQuantity(), done, rest, o.getDueDate(), o.getRemark(), o.getUpdatedAt());
                 }))
                 .filter(p -> p.remainQty().signum() > 0)
@@ -94,7 +94,7 @@ public class OrderReleaseService {
                     BigDecimal others = released.getOrDefault(ol.getId(), BigDecimal.ZERO).subtract(l.getQuantity());
                     return new DetailLine(ol.getItem().getId(), l.getQuantity(), ol.getUnitPrice(),
                             ol.getItem().getCode(), ol.getItem().getName(),
-                            l.getId(), ol.getItem().getSpec(), ol.getQuantity().subtract(others));
+                            l.getId(), ol.effectiveSpec(), ol.getQuantity().subtract(others));
                 }).toList(),
                 o.getPartner().getName(), o.getWarehouse() != null ? o.getWarehouse().getName() : null);
     }
@@ -192,7 +192,7 @@ public class OrderReleaseService {
     }
 
     private static String itemLabel(SalesOrderLine l) {
-        String spec = l.getItem().getSpec();
+        String spec = l.effectiveSpec();
         return l.getItem().getName() + (spec == null || spec.isBlank() ? "" : "[" + spec + "]");
     }
 }

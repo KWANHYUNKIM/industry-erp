@@ -57,8 +57,18 @@ public final class PurchaseDtos {
             BigDecimal foreignAmount,
             /** 줄 환율(선택). 비우면 머리 환율. */
             @PositiveOrZero(message = "환율은 0 이상이어야 합니다.")
-            BigDecimal lineRate
-    ) {}
+            BigDecimal lineRate,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec
+    ) {
+        /** 규격 없이 만드는 호출(서버 안에서 전표를 옮겨 담는 곳) — 품목 규격으로 채워진다. */
+        public PurchaseLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String lotNo,
+                                   BigDecimal extraCost, Long sourceOrderId, BigDecimal supplyAmount, BigDecimal vatAmount,
+                                   BigDecimal foreignPrice, BigDecimal foreignAmount, BigDecimal lineRate) {
+            this(itemId, quantity, unitPrice, remark, lotNo, extraCost, sourceOrderId, supplyAmount, vatAmount,
+                    foreignPrice, foreignAmount, lineRate, null);
+        }
+    }
 
     public record CreatePurchaseRequest(
             Long partnerId,
@@ -103,7 +113,7 @@ public final class PurchaseDtos {
             PurchaseOrder src = l.getSourceOrder();
             return new PurchaseLineResponse(
                     l.getId(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.getItem().getSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.effectiveSpec(),
                     l.getItem().getCategory(),
                     l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),

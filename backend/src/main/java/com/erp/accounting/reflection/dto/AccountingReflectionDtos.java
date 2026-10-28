@@ -133,7 +133,7 @@ public final class AccountingReflectionDtos {
                     null, null, s.getCreatedBy(), s.getCreatedAt(), s.getRemark(),
                     s.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
-                            l.getItem().getSpec(),
+                            l.effectiveSpec(),
                             l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                             l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
                             l.getQuantity(), l.getUnitPrice(),
@@ -176,7 +176,7 @@ public final class AccountingReflectionDtos {
                     null, null, p.getCreatedBy(), p.getCreatedAt(), p.getRemark(),
                     p.getLines().stream().map(l -> new SlipLine(
                             l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
-                            l.getItem().getSpec(),
+                            l.effectiveSpec(),
                             l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                             l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
                             l.getQuantity(), l.getUnitPrice(),

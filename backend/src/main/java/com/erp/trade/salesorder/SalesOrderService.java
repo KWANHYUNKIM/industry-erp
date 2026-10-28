@@ -262,7 +262,7 @@ public class SalesOrderService {
         return new SlipSnapshot("주문서", o.getOrderDate(), o.getOrderNo(),
                 o.getPartner() != null ? o.getPartner().getCode() : null,
                 o.getPartner() != null ? o.getPartner().getName() : null,
-                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), first.getSpec(), o.getLines().size()),
+                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), o.getLines().get(0).effectiveSpec(), o.getLines().size()),
                 o.getEmployee() != null ? o.getEmployee().getCode() : null,
                 o.getEmployee() != null ? o.getEmployee().getName() : null,
                 o.getStatus() != null ? o.getStatus().getDisplayName() : null);
@@ -284,6 +284,7 @@ public class SalesOrderService {
                     .supplyAmount(supply)
                     .vatAmount(vat)
                     .remark(lr.remark())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build());
 
             totalSupply = totalSupply.add(supply);
@@ -441,11 +442,11 @@ public class SalesOrderService {
                 }
             }
             if (slips.isEmpty()) {
-                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), it.getSpec(),
+                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), line.effectiveSpec(),
                         line.getQuantity(), remaining, null, null, null));
             }
             for (String[] x : slips) {
-                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), it.getSpec(),
+                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), line.effectiveSpec(),
                         line.getQuantity(), remaining, x[0], LocalDate.parse(x[1]), x[2]));
             }
         }

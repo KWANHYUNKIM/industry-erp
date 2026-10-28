@@ -49,8 +49,16 @@ public final class SalesDtos {
              * 합계 1,100 으로 저장되고 다시 열어도 99. 공급가액을 바꾸면 화면이 부가세를 다시 계산한다.
              */
             /* 반품 줄의 부가세는 음수다. */
-            BigDecimal vatAmount
-    ) {}
+            BigDecimal vatAmount,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec
+    ) {
+        /** 규격 없이 만드는 호출(서버 안에서 전표를 옮겨 담는 곳) — 품목 규격으로 채워진다. */
+        public SalesLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String lotNo,
+                                BigDecimal extraCost, Long sourceOrderId, BigDecimal supplyAmount, BigDecimal vatAmount) {
+            this(itemId, quantity, unitPrice, remark, lotNo, extraCost, sourceOrderId, supplyAmount, vatAmount, null);
+        }
+    }
 
     public record CreateSalesRequest(
             Long partnerId,
@@ -106,7 +114,7 @@ public final class SalesDtos {
             SalesOrder src = l.getSourceOrder();
             return new SalesLineResponse(
                     l.getId(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.getItem().getSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.effectiveSpec(),
                     l.getItem().getCategory(),
                     l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
