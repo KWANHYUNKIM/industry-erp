@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
-import type { EmployeeMaster, Item, MyItem, Partner, Project, Warehouse } from '../../types/api'
+import type { EmployeeMaster, Item, MyItem, Partner, Project, SalesDoc, Warehouse } from '../../types/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
@@ -12,6 +12,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { dateNo } from '../../utils/dateNo'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
+import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 
 /**
  * 출하지시서입력(E040220) — 원본 영업관리 &gt; 출하지시서 &gt; <b>출하지시서입력</b>(2026-10-28 데이터이관 루프 18 실측).
@@ -22,11 +23,19 @@ import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/Slip
  * 툴바(원본 차례): 찾기 · 정렬 · My품목 · 판매 · 재고불러오기 · 생성한전표 · 바코드 · 전표 바코드 · 검증 · 전표불러오기.
  * 품목 코드도움은 사용중단 품목도 담는다 — [사용중단포함] 으로 J001 · J002 를 넣는다(2cb70643).
  *
+ * [판매] = 원본 '판매검색창(조회)'(루프 27 실측) — 출하지시서가 안 걸린 판매(일자까지)를 담는다. 담으면 일자 그대로 · 거래처 ·
+ * 담당자 · 프로젝트(판매의 것) · 출하창고(판매 창고) · 연락처(거래처의 것) · 출하예정일 오늘 · 줄, 툴바에서 [판매] 가 빠진다.
+ * 저장하면 그 줄이 판매에 걸려(shipment_order_lines.sales_id) 판매검색창에서 빠진다.
+ *
  * 저장은 말 없이 빈 칸으로 돌아간다(창고는 남긴다). 출하지시서조회의 [신규(F2)] · [일자-No.](`?edit=`) 가 이 화면으로 온다.
  */
 
-interface LineInput { id: number | null; itemId: string; quantity: string; remark: string }
+interface LineInput { id: number | null; itemId: string; quantity: string; remark: string; salesId?: number | null }
 const emptyLine = (): LineInput => ({ id: null, itemId: '', quantity: '', remark: '' })
+/** 판매검색창 알약 — 원본 전체 · 결재중 · 미확인 · 확인. */
+type SalesTab = 'ALL' | 'IN_APPROVAL' | 'UNCONFIRMED' | 'CONFIRMED'
+const SALES_TABS: [SalesTab, string][] = [['ALL', '전체'], ['IN_APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인']]
+const won = (n: number) => n.toLocaleString('ko-KR')
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -39,7 +48,7 @@ interface SoDoc {
   id: number; orderNo: string; orderDate: string
   partnerId: number; employeeId: number | null; warehouseId: number | null; projectId: number | null
   contact: string | null; dueDate: string | null; postalCode: string | null; address: string | null; remark: string | null
-  lines: { id: number; itemId: number; quantity: number; remark: string | null }[]
+  lines: { id: number; itemId: number; quantity: number; remark: string | null; salesId: number | null }[]
 }
 interface SalesOrderLite {
   id: number; orderNo: string; orderDate: string; partnerId: number; partnerName: string
@@ -88,6 +97,14 @@ export default function ShipmentOrderEntry() {
   const [loadOpen, setLoadOpen] = useState(false)
   const [orders, setOrders] = useState<SalesOrderLite[]>([])
   const [pickOrder, setPickOrder] = useState<number | null>(null)
+  // [판매] — 원본 판매검색창
+  const [salesOpen, setSalesOpen] = useState(false)
+  const [salesDocs, setSalesDocs] = useState<SalesDoc[] | null>(null)
+  const [salesTab, setSalesTab] = useState<SalesTab>('ALL')
+  const [salesQuery, setSalesQuery] = useState('')
+  const [salesPicked, setSalesPicked] = useState<Record<number, boolean>>({})
+  const [salesByLine, setSalesByLine] = useState(false)
+  const [salesLoaded, setSalesLoaded] = useState(false)
   const [generated, setGenerated] = useState<{ code: string; name: string; spec: string | null; qty: number; slipNo: string }[] | null>(null)
 
   const gridRef = useRef<HTMLDivElement>(null)
@@ -124,7 +141,7 @@ export default function ShipmentOrderEntry() {
         setEmployeeId(s.employeeId ? String(s.employeeId) : ''); setWarehouseId(s.warehouseId ? String(s.warehouseId) : '')
         setProjectId(s.projectId ? String(s.projectId) : ''); setContact(s.contact ?? ''); setDueDate(s.dueDate ?? '')
         setPostalCode(s.postalCode ?? ''); setAddress(s.address ?? ''); setRemark(s.remark ?? '')
-        setLines([...s.lines.map((l) => ({ id: l.id, itemId: String(l.itemId), quantity: String(l.quantity), remark: l.remark ?? '' })), emptyLine()])
+        setLines([...s.lines.map((l) => ({ id: l.id, itemId: String(l.itemId), quantity: String(l.quantity), remark: l.remark ?? '', salesId: l.salesId ?? null })), emptyLine()])
       })
       .catch((err) => setError(extractErrorMessage(err)))
   }, [editParam])
@@ -210,9 +227,46 @@ export default function ShipmentOrderEntry() {
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
+  /** [판매] — 출하지시서가 안 걸린 판매, 이 전표 일자까지. */
+  async function openSales() {
+    setSalesDocs(null); setSalesPicked({}); setSalesTab('ALL'); setSalesQuery(''); setSalesByLine(false); setSalesOpen(true)
+    try {
+      const res = await api.get<SalesDoc[]>('/shipment-orders/loadable-sales', { params: { to: date || today() } })
+      setSalesDocs(res.data)
+    } catch (err) { setSalesDocs([]); void ecAlert(extractErrorMessage(err)) }
+  }
+  const salesShown = useMemo(() => {
+    const q = salesQuery.trim().toLowerCase()
+    return (salesDocs ?? []).filter((d) => salesTab === 'ALL' || d.confirmStatus === salesTab)
+      .filter((d) => !q || `${d.docNo} ${d.partnerName} ${d.warehouseName} ${d.lines.map((l) => l.itemName).join(' ')}`.toLowerCase().includes(q))
+  }, [salesDocs, salesTab, salesQuery])
+  const salesSummary = (d: SalesDoc) => {
+    const f = d.lines[0]
+    if (!f) return ''
+    return `${f.itemName}${f.spec ? ` [${f.spec}]` : ''}${d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}`
+  }
+  /** [적용(F8)] — 원본(10/28-4 라라금속): 일자 그대로 · 거래처 · 담당자 · 프로젝트 · 출하창고 · 연락처(거래처) · 출하예정일 오늘 · 줄. */
+  function applySales() {
+    const picked = (salesDocs ?? []).filter((d) => salesPicked[d.id])
+    if (picked.length === 0) { void ecAlert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
+    const s = picked[0]
+    if (s.partnerId != null) {
+      setPartnerId(String(s.partnerId))
+      setContact(partners.find((p) => p.id === s.partnerId)?.phone ?? '')
+    }
+    if (s.employeeId) setEmployeeId(String(s.employeeId))
+    if (s.projectId) setProjectId(String(s.projectId))
+    if (s.warehouseId) setWarehouseId(String(s.warehouseId))
+    setDueDate(today())
+    const loaded: LineInput[] = picked.flatMap((d) => d.lines.map((l) => ({ id: null, itemId: String(l.itemId), quantity: String(l.quantity), remark: '', salesId: d.id })))
+    setLines((ls) => [...ls.filter((l) => l.itemId), ...loaded, emptyLine()])
+    setSalesLoaded(true)
+    setSalesOpen(false)
+  }
+
   // ── 저장 ──────────────────────────────────────────────
   function reset(keepWarehouse = false) {
-    setLines(emptyLines()); setError(''); setPartnerId(''); setEmployeeId(''); setProjectId('')
+    setLines(emptyLines()); setError(''); setSalesLoaded(false); setPartnerId(''); setEmployeeId(''); setProjectId('')
     setContact(''); setPostalCode(''); setAddress(''); setRemark(''); setDate(today()); setDueDate(today())
     if (!keepWarehouse) setWarehouseId('')
   }
@@ -232,7 +286,7 @@ export default function ShipmentOrderEntry() {
       projectId: projectId ? Number(projectId) : null,
       contact: contact || null, dueDate: dueDate || null,
       postalCode: postalCode || null, address: address || null, remark: remark || null,
-      lines: filled.map((l) => ({ id: l.id, itemId: Number(l.itemId), quantity: num(l.quantity), remark: l.remark || null })),
+      lines: filled.map((l) => ({ id: l.id, itemId: Number(l.itemId), quantity: num(l.quantity), remark: l.remark || null, salesId: l.salesId ?? null })),
     }
     try {
       if (editing) {
@@ -350,7 +404,8 @@ export default function ShipmentOrderEntry() {
           {findOpen && <input className="ec-input w-[130px] h-[23px]" autoFocus value={findText} placeholder="품목명·적요" onChange={(e) => setFindText(e.target.value)} />}
           <button type="button" className="ec-btn ec-btn-sm" onClick={sortLines}>정렬</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={applyMyItems}>My품목{myItems.length > 0 ? ` (${myItems.length})` : ''}</button>
-          <button type="button" className="ec-btn ec-btn-sm" {...todo('판매 전표에서 불러오기는 아직 없습니다 — [전표불러오기] 로 주문서를 불러옵니다.')}>판매</button>
+          {/* 원본: 판매를 담은 뒤에는 툴바에서 [판매] 가 빠진다 */}
+          {!salesLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openSales()}>판매</button>}
           <button type="button" className="ec-btn ec-btn-sm" {...todo('출하지시서입력에서 재고를 불러오는 기능은 아직 없습니다.')}>재고불러오기</button>
           <button type="button" className="ec-btn ec-btn-sm" disabled={!editing} title={editing ? undefined : '저장한 출하지시서를 열었을 때만 쓸 수 있습니다.'} onClick={() => void openGenerated()}>생성한전표</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setBarcodeOpen((v) => !v)}>바코드</button>
@@ -444,6 +499,55 @@ export default function ShipmentOrderEntry() {
           <button type="button" className="ec-btn ec-btn-primary" onClick={applyOrder}>적용(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setLoadOpen(false)}>닫기</button>
         </div>
+      </Modal>
+
+      {/* 원본 출하지시서입력 [판매] = '판매검색창(조회)'(루프 27 실측). */}
+      <Modal open={salesOpen} width={960} title="판매검색창" onClose={() => setSalesOpen(false)}>
+        {salesDocs === null ? <p className="text-ec-hint m-0">불러오는 중…</p> : (
+          <SourceDocSearch
+            tabs={SALES_TABS} tab={salesTab} onTab={setSalesTab}
+            query={salesQuery} onQuery={setSalesQuery}
+            date2Label="" totalLabel=""
+            columns={[
+              { label: '일자-No.' }, { label: '거래처명' }, { label: '품목명(요약)' }, { label: '금액합계', className: 'text-right' },
+              { label: '거래유형명' }, { label: '창고명' }, { label: '회계반영여부', className: 'text-center' },
+              { label: '인쇄', className: 'text-center' }, { label: '불러온전표', className: 'text-center' },
+            ]}
+            docs={salesShown.map((d) => ({
+              key: d.id, dateNo: dateNo(d.saleDate, d.docNo), partnerName: d.partnerName, employeeName: d.employeeName ?? '',
+              itemSummary: salesSummary(d), date2: '', total: d.totalAmount, statusLabel: d.confirmStatusName, created: false,
+              cells: [
+                dateNo(d.saleDate, d.docNo), d.partnerName, salesSummary(d), won(d.totalAmount),
+                d.taxable ? '부가세율 적용' : '부가세율 미적용', d.warehouseName, d.accountingReflected ? 'Y' : 'N',
+                <span className="text-ec-hint">인쇄</span>,
+                <span className="ec-btn ec-btn-sm" title="불러온 전표는 판매조회에서 봅니다.">조회</span>,
+              ],
+            }))}
+            picked={salesPicked} onPicked={setSalesPicked}
+            createdTitle=""
+            byLine={salesByLine} onToggleByLine={() => setSalesByLine((v) => !v)}
+            lineView={(
+              <div className="max-h-[360px] overflow-y-auto">
+                <table className="w-full text-left">
+                  <thead><tr><th className="w-[30px]" /><th>일자-No.</th><th>거래처명</th><th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th><th>창고명</th></tr></thead>
+                  <tbody>
+                    {salesShown.length === 0 ? <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr> : salesShown.flatMap((d) => d.lines.map((l) => (
+                      <tr key={`${d.id}-${l.lineId}`}>
+                        <td className="text-center"><input type="checkbox" aria-label="선택" checked={!!salesPicked[d.id]} onChange={(e) => setSalesPicked({ ...salesPicked, [d.id]: e.target.checked })} /></td>
+                        <td>{dateNo(d.saleDate, d.docNo)}</td><td>{d.partnerName}</td><td>{l.itemCode}</td><td>{l.itemName}</td><td>{l.spec ?? ''}</td>
+                        <td className="text-right">{qty2(l.quantity)}</td><td>{d.warehouseName}</td>
+                      </tr>
+                    )))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            onApply={applySales} applyLabel="적용(F8)"
+            onNew={() => window.open('/sales/sell', '_blank')}
+            onList={() => window.open('/sales/sales-list', '_blank')}
+            onClose={() => setSalesOpen(false)}
+          />
+        )}
       </Modal>
 
       <Modal open={generated != null} title="생성한 전표" width={760} onClose={() => setGenerated(null)}>{generated && editing && (

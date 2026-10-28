@@ -9,6 +9,9 @@ import com.erp.inventory.warehouse.WarehouseService;
 import com.erp.trade.TradeMasters;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.trade.partner.BusinessPartnerRepository;
+import com.erp.trade.sales.Sales;
+import com.erp.trade.sales.SalesService;
+import com.erp.trade.sales.dto.SalesDtos.SalesResponse;
 import com.erp.trade.shipment.ShipmentService;
 import com.erp.trade.shipment.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.trade.shipmentorder.dto.ShipmentOrderDtos.LineRequest;
@@ -50,6 +53,8 @@ public class ShipmentOrderService {
     private final EmployeeService employeeService;
     private final ProjectService projectService;
     private final ShipmentService shipmentService;
+    private final ShipmentOrderLineRepository lineRepository;
+    private final SalesService salesService;
     private final DocumentNoGenerator docNoGenerator;
     private final com.erp.common.history.ChangeHistoryService changeHistory;
 
@@ -109,6 +114,23 @@ public class ShipmentOrderService {
         return out;
     }
 
+    /**
+     * 출하지시서입력 [판매] — 원본 '판매검색창(조회)'. 아직 출하지시서가 안 걸린 판매, 출하지시서 일자까지(늦은 판매는 빠진다).
+     * 원본은 오늘 생긴 판매 2건만 보였다(루프 27) — 기간을 안 주면 일자 한 달 전부터로 본다(추정).
+     */
+    @Transactional(readOnly = true)
+    public List<SalesResponse> findLoadableSales(LocalDate from, LocalDate to) {
+        LocalDate end = to != null ? to : LocalDate.now();
+        Set<Long> linked = new HashSet<>(lineRepository.findLinkedSalesIds());
+        return salesService.findAll(from != null ? from : end.minusMonths(1), end).stream()
+                .filter(s -> !linked.contains(s.id()))
+                .toList();
+    }
+
+    private Sales salesOf(Long salesId) {
+        return salesId == null ? null : salesService.get(salesId);
+    }
+
     @Transactional
     public ShipmentOrderResponse create(SaveRequest req, String username) {
         validate(req);
@@ -121,7 +143,7 @@ public class ShipmentOrderService {
         applyHeader(o, req, date);
         for (LineRequest lr : req.lines()) {
             o.addLine(ShipmentOrderLine.builder().item(itemService.getUsable(lr.itemId()))
-                    .quantity(lr.quantity()).remark(lr.remark()).build());
+                    .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId())).build());
         }
         o.setTotalQuantity(total(o));
         ShipmentOrder savedOne = repository.save(o);
@@ -144,13 +166,14 @@ public class ShipmentOrderService {
             ShipmentOrderLine line = lr.id() != null ? byId.get(lr.id()) : null;
             if (line == null) {
                 added.add(ShipmentOrderLine.builder().item(itemService.getUsable(lr.itemId()))
-                        .quantity(lr.quantity()).remark(lr.remark()).build());
+                        .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId())).build());
                 continue;
             }
             keep.add(line.getId());
             if (!line.getItem().getId().equals(lr.itemId())) line.setItem(itemService.getUsable(lr.itemId()));
             line.setQuantity(lr.quantity());
             line.setRemark(lr.remark());
+            if (lr.salesId() != null) line.setSales(salesOf(lr.salesId()));
         }
         o.getLines().removeIf(l -> !keep.contains(l.getId()));
         added.forEach(o::addLine);

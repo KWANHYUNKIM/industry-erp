@@ -1,6 +1,7 @@
 package com.erp.trade.shipmentorder;
 
 import com.erp.security.UserPrincipal;
+import com.erp.trade.sales.dto.SalesDtos.SalesResponse;
 import com.erp.trade.shipment.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.trade.shipmentorder.dto.ShipmentOrderDtos.SaveRequest;
 import com.erp.trade.shipmentorder.dto.ShipmentOrderDtos.ShipRequest;
@@ -37,6 +38,14 @@ public class ShipmentOrderController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return service.findUnshipped(from, to);
+    }
+
+    /** 출하지시서입력 [판매] 검색창 — 출하지시서가 안 걸린 판매(일자까지). */
+    @GetMapping("/loadable-sales")
+    public List<SalesResponse> loadableSales(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.findLoadableSales(from, to);
     }
 
     @GetMapping("/{id}")

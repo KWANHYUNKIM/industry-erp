@@ -1,6 +1,7 @@
 package com.erp.trade.shipmentorder;
 
 import com.erp.inventory.item.Item;
+import com.erp.trade.sales.Sales;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -33,4 +34,9 @@ public class ShipmentOrderLine {
 
     @Column(length = 255)
     private String remark;
+
+    /** 출하지시서입력 [판매] 로 담은 판매(원본 '판매검색창') — 판매검색창은 출하지시서가 안 걸린 판매만 보인다. 없으면 null. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sales_id")
+    private Sales sales;
 }
