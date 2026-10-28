@@ -52,6 +52,18 @@ public class ProjectService {
                 .remark(req.remark())
                 .group1(blankToNull(req.group1()))
                 .group2(blankToNull(req.group2()))
+                .extraText1(req.extraText1())
+                .extraText2(req.extraText2())
+                .extraText3(req.extraText3())
+                .extraNum1(req.extraNum1())
+                .extraNum2(req.extraNum2())
+                .extraNum3(req.extraNum3())
+                .extraLong1(req.extraLong1())
+                .extraLong2(req.extraLong2())
+                .extraLong3(req.extraLong3())
+                .extraDate1(req.extraDate1())
+                .extraDate2(req.extraDate2())
+                .extraDate3(req.extraDate3())
                 .createdBy(username)
                 .build();
         Project saved = projectRepository.save(p);
@@ -86,6 +98,18 @@ public class ProjectService {
         if (req.group1() != null) p.setGroup1(blankToNull(req.group1()));
         if (req.group2() != null) p.setGroup2(blankToNull(req.group2()));
         if (req.active() != null) p.setActive(req.active());
+        if (req.extraText1() != null) p.setExtraText1(blankToNull(req.extraText1()));
+        if (req.extraText2() != null) p.setExtraText2(blankToNull(req.extraText2()));
+        if (req.extraText3() != null) p.setExtraText3(blankToNull(req.extraText3()));
+        if (req.extraNum1() != null) p.setExtraNum1(req.extraNum1());
+        if (req.extraNum2() != null) p.setExtraNum2(req.extraNum2());
+        if (req.extraNum3() != null) p.setExtraNum3(req.extraNum3());
+        if (req.extraLong1() != null) p.setExtraLong1(blankToNull(req.extraLong1()));
+        if (req.extraLong2() != null) p.setExtraLong2(blankToNull(req.extraLong2()));
+        if (req.extraLong3() != null) p.setExtraLong3(blankToNull(req.extraLong3()));
+        if (req.extraDate1() != null) p.setExtraDate1(req.extraDate1());
+        if (req.extraDate2() != null) p.setExtraDate2(req.extraDate2());
+        if (req.extraDate3() != null) p.setExtraDate3(req.extraDate3());
 
         // 완료 처리 시 진척률 100 동기화
         if (p.getStatus() == ProjectStatus.DONE) p.setProgress(100);

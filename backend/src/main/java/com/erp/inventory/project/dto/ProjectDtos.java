@@ -28,7 +28,19 @@ public final class ProjectDtos {
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String group2,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String extraText1,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String extraText2,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String extraText3,
+            java.math.BigDecimal extraNum1,
+            java.math.BigDecimal extraNum2,
+            java.math.BigDecimal extraNum3,
+            @Size(max = 2000, message = "입력한 글자가 너무 깁니다. 2000자까지 넣을 수 있습니다.") String extraLong1,
+            @Size(max = 2000, message = "입력한 글자가 너무 깁니다. 2000자까지 넣을 수 있습니다.") String extraLong2,
+            @Size(max = 2000, message = "입력한 글자가 너무 깁니다. 2000자까지 넣을 수 있습니다.") String extraLong3,
+            LocalDate extraDate1,
+            LocalDate extraDate2,
+            LocalDate extraDate3
     ) {}
 
     /** 진척률/상태/일정 수정. null 필드는 변경하지 않음. */
@@ -48,21 +60,35 @@ public final class ProjectDtos {
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark,
             /* 원본 [사용중단/재사용] */
-            Boolean active
+            Boolean active,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String extraText1,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String extraText2,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String extraText3,
+            java.math.BigDecimal extraNum1,
+            java.math.BigDecimal extraNum2,
+            java.math.BigDecimal extraNum3,
+            @Size(max = 2000, message = "입력한 글자가 너무 깁니다. 2000자까지 넣을 수 있습니다.") String extraLong1,
+            @Size(max = 2000, message = "입력한 글자가 너무 깁니다. 2000자까지 넣을 수 있습니다.") String extraLong2,
+            @Size(max = 2000, message = "입력한 글자가 너무 깁니다. 2000자까지 넣을 수 있습니다.") String extraLong3,
+            LocalDate extraDate1,
+            LocalDate extraDate2,
+            LocalDate extraDate3
     ) {}
 
     public record ProjectResponse(
             Long id, String code, String name, String manager,
             LocalDate startDate, LocalDate endDate,
             int progress, ProjectStatus status, String statusName,
-            String remark, String createdBy, boolean active, String group1, String group2
+            String remark, String createdBy, boolean active, String group1, String group2,
+            String extraText1, String extraText2, String extraText3, java.math.BigDecimal extraNum1, java.math.BigDecimal extraNum2, java.math.BigDecimal extraNum3, String extraLong1, String extraLong2, String extraLong3, LocalDate extraDate1, LocalDate extraDate2, LocalDate extraDate3
     ) {
         public static ProjectResponse from(Project p) {
             return new ProjectResponse(
                     p.getId(), p.getCode(), p.getName(), p.getManager(),
                     p.getStartDate(), p.getEndDate(),
                     p.getProgress(), p.getStatus(), p.getStatus().getDisplayName(),
-                    p.getRemark(), p.getCreatedBy(), p.isActive(), p.getGroup1(), p.getGroup2());
+                    p.getRemark(), p.getCreatedBy(), p.isActive(), p.getGroup1(), p.getGroup2(),
+                    p.getExtraText1(), p.getExtraText2(), p.getExtraText3(), p.getExtraNum1(), p.getExtraNum2(), p.getExtraNum3(), p.getExtraLong1(), p.getExtraLong2(), p.getExtraLong3(), p.getExtraDate1(), p.getExtraDate2(), p.getExtraDate3());
         }
     }
 }

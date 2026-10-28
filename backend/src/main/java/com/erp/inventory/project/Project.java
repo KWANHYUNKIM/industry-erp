@@ -60,6 +60,40 @@ public class Project extends BaseTimeEntity {
     @Column(length = 50)
     private String group2;
 
+    /** 원본 [부가정보] 탭 — 추가문자형식 · 추가숫자형식 · 추가장문형식 · 날짜 각 3칸 */
+    @Column(length = 200)
+    private String extraText1;
+
+    @Column(length = 200)
+    private String extraText2;
+
+    @Column(length = 200)
+    private String extraText3;
+
+    @Column(precision = 19, scale = 4)
+    private java.math.BigDecimal extraNum1;
+
+    @Column(precision = 19, scale = 4)
+    private java.math.BigDecimal extraNum2;
+
+    @Column(precision = 19, scale = 4)
+    private java.math.BigDecimal extraNum3;
+
+    @Column(length = 2000)
+    private String extraLong1;
+
+    @Column(length = 2000)
+    private String extraLong2;
+
+    @Column(length = 2000)
+    private String extraLong3;
+
+    private LocalDate extraDate1;
+
+    private LocalDate extraDate2;
+
+    private LocalDate extraDate3;
+
     @Column(length = 50)
     private String createdBy;
 

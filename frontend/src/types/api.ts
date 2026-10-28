@@ -3155,6 +3155,18 @@ export interface Project {
   active: boolean
   group1: string | null
   group2: string | null
+  extraText1: string | null
+  extraText2: string | null
+  extraText3: string | null
+  extraNum1: number | null
+  extraNum2: number | null
+  extraNum3: number | null
+  extraLong1: string | null
+  extraLong2: string | null
+  extraLong3: string | null
+  extraDate1: string | null
+  extraDate2: string | null
+  extraDate3: string | null
 }
 
 export interface ProjectProfitRow {
