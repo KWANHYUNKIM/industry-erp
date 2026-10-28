@@ -1,0 +1,25 @@
+{
+  "about": "기본값설정(C001124) — [12/24시간제] 창에서 24시간제로 저장하면 줄 값이 '24시간제 (0:03)', 다시 12시간제로 되돌리면 '12시간제 (오전 0:03)'(원본 적용예시). 묶음 53.",
+  "shots": [
+    {
+      "name": "기본값설정 12/24시간제 바꾸고 되돌리기",
+      "path": "/settings/defaults",
+      "steps": [
+        "wait:1000",
+        "expect:document.body.innerText.includes('12시간제 (오전 0:03)')",
+        "click:12/24시간제",
+        "wait:400",
+        "js:document.querySelector('input[name=\"pref-clock\"]:not(:checked)').click()",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:document.body.innerText.includes('24시간제 (0:03)')",
+        "click:12/24시간제",
+        "wait:400",
+        "js:document.querySelector('input[name=\"pref-clock\"]:not(:checked)').click()",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:document.body.innerText.includes('12시간제 (오전 0:03)')"
+      ]
+    }
+  ]
+}
