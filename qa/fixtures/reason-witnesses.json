@@ -386,22 +386,6 @@
   ],
   "in": "backend"
  },
- "프로젝트그룹1": {
-  "claim": "프로젝트를 그룹으로 묶는 마스터가 없다",
-  "absent": [
-   "ProjectGroup",
-   "projectGroupId"
-  ],
-  "in": "backend"
- },
- "프로젝트그룹2": {
-  "claim": "프로젝트를 그룹으로 묶는 마스터가 없다",
-  "absent": [
-   "ProjectGroup",
-   "projectGroupId"
-  ],
-  "in": "backend"
- },
  "월별채권증감내역|정렬/소계기준": {
   "claim": "거래처마다 다섯 줄 + 끝 [누계] 로 고정이라 따로 묶을 것이 없다",
   "present": [
