@@ -15,7 +15,7 @@
         "pickrow:QA-PROD",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1000",
-        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) td:nth-last-child(2) input|QA줄적요",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) td:nth-last-child(3) input|QA줄적요",
         "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
         "wait:300",
         "expect:location.pathname === '/sales/order-entry' && document.querySelector('tbody tr input.text-right').value === '2'",

@@ -26,7 +26,7 @@ import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
  * 주문서입력 — 원본 영업관리 &gt; 주문서 &gt; <b>주문서입력</b>(2026-10-28 진행자 실측). 판매입력(TradeEntry)과 같은 큰 입력 화면이다.
  *
  * 머리: 일자-No. · 거래처 · 담당자 · 출하창고 · 거래유형 · 통화 · 프로젝트 · 납기일자 · 첨부.
- * 줄: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 적요, 아래 합계 줄.
+ * 줄: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 적요 · 합계, 아래 합계 줄.
  * 저장은 말 없이 빈 칸으로 돌아간다(거래처는 비우고 창고는 남긴다). 머리 기억(일자 · 담당자 · 창고)은 판매입력과 같은 /me/memory.
  *
  * 저장 API 는 `/sales-orders` 그대로 — 줄 적요도 함께 보내고 다시 열면 보인다.
@@ -701,15 +701,15 @@ export default function SalesOrderEntry() {
           <table className="ec-grid-input no-ec table-fixed">
             <colgroup>
               <col className="w-[26px]" /><col className="w-[26px]" /><col className="w-[100px]" /><col className="w-[200px]" /><col className="w-[110px]" />
-              <col className="w-[78px]" /><col className="w-[96px]" /><col className="w-[110px]" /><col className="w-[96px]" /><col className="w-[100px]" />
-              <col className="w-[130px]" /><col className="w-[30px]" />
+              <col className="w-[78px]" /><col className="w-[96px]" /><col className="w-[110px]" /><col className="w-[96px]" /><col className="w-[130px]" />
+              <col className="w-[100px]" /><col className="w-[30px]" />
             </colgroup>
             <thead>
               <tr>
                 <th /><th title="My품목 담기/빼기">★</th>
                 <th className="text-left">품목코드</th><th className="text-left">품목명</th><th className="text-left">규격</th>
                 <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th>
-                <th className="text-right">부가세</th><th className="text-right">합계</th><th className="text-left">적요</th><th />
+                <th className="text-right">부가세</th><th className="text-left">적요</th><th className="text-right">합계</th><th />
               </tr>
             </thead>
             <tbody>
@@ -741,8 +741,8 @@ export default function SalesOrderEntry() {
                     <td><EcNumInput className="cell text-right" value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} /></td>
                     <td className="pad text-right">{l.itemId ? won(computed[idx].supply) : ''}</td>
                     <td className="pad text-right">{l.itemId ? won(computed[idx].vat) : ''}</td>
-                    <td className="pad text-right font-semibold text-ec-text">{l.itemId ? won(computed[idx].total) : ''}</td>
                     <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
+                    <td className="pad text-right font-semibold text-ec-text">{l.itemId ? won(computed[idx].total) : ''}</td>
                     <td className="text-center">
                       {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint">✕</button>}
                     </td>
@@ -758,8 +758,8 @@ export default function SalesOrderEntry() {
                 <td />
                 <td className="text-right">{won(totals.supply)}</td>
                 <td className="text-right">{won(totals.vat)}</td>
-                <td className="text-right font-bold text-ec-blue">{won(totals.total)}</td>
                 <td />
+                <td className="text-right font-bold text-ec-blue">{won(totals.total)}</td>
                 <td />
               </tr>
             </tfoot>
