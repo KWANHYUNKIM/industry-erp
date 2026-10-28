@@ -50,11 +50,17 @@ public class ProjectService {
                 .progress(0)
                 .status(req.status() != null ? req.status() : ProjectStatus.PLANNING)
                 .remark(req.remark())
+                .group1(blankToNull(req.group1()))
+                .group2(blankToNull(req.group2()))
                 .createdBy(username)
                 .build();
         Project saved = projectRepository.save(p);
         changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
         return ProjectResponse.from(saved);
+    }
+
+    private static String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v.trim();
     }
 
     /** 다른 서비스가 프로젝트 엔티티를 얻는 진입점 (전표에 붙이기 위해). */
@@ -77,6 +83,8 @@ public class ProjectService {
         if (req.progress() != null) p.setProgress(req.progress());
         if (req.status() != null) p.setStatus(req.status());
         if (req.remark() != null) p.setRemark(req.remark());
+        if (req.group1() != null) p.setGroup1(blankToNull(req.group1()));
+        if (req.group2() != null) p.setGroup2(blankToNull(req.group2()));
         if (req.active() != null) p.setActive(req.active());
 
         // 완료 처리 시 진척률 100 동기화

@@ -3153,6 +3153,8 @@ export interface Project {
   createdBy: string | null
   /** 원본 프로젝트리스트의 [사용] */
   active: boolean
+  group1: string | null
+  group2: string | null
 }
 
 export interface ProjectProfitRow {

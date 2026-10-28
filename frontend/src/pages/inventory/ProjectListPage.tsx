@@ -52,6 +52,9 @@ export default function ProjectListPage() {
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [remark, setRemark] = useState('')
+  const [group1, setGroup1] = useState('')
+  const [group2, setGroup2] = useState('')
+  const [formTab, setFormTab] = useState<'기본' | '프로젝트정보' | '부가정보'>('기본')
   const [editMenu, setEditMenu] = useState(false)
 
   function load() {
@@ -63,13 +66,15 @@ export default function ProjectListPage() {
   function openNew() {
     setEditId(null); setFormError(''); setInvalid(false); setName(''); setRemark(''); setEditMenu(false)
     // 원본처럼 다음 번호를 미리 채운다 — 숫자로만 된 코드 중 가장 큰 것 + 1, 다섯 자리
-    const max = rows.map((r) => (/^[0-9]+$/.test(r.code) ? Number(r.code) : 0)).reduce((a, b) => Math.max(a, b), 0)
-    setCode(String(max + 1).padStart(5, '0'))
+    // 원본 2026-10-28 실측: 다섯 자리 숫자 코드(00022)만 센다 — 100 · 200 같은 짧은 코드와 20210801A 같은 긴 코드는 무시(00022 → 00023)
+    const nums = rows.map((r) => r.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
+    setCode(String((nums.length ? Math.max(...nums) : 0) + 1).padStart(5, '0'))
+    setGroup1(''); setGroup2(''); setFormTab('기본')
     setFormOpen(true)
   }
 
   function openEdit(p: Project) {
-    setEditId(p.id); setFormError(''); setInvalid(false); setCode(p.code); setName(p.name); setRemark(p.remark ?? ''); setEditMenu(false)
+    setEditId(p.id); setFormError(''); setInvalid(false); setCode(p.code); setName(p.name); setRemark(p.remark ?? ''); setGroup1(p.group1 ?? ''); setGroup2(p.group2 ?? ''); setFormTab('기본'); setEditMenu(false)
     setFormOpen(true)
   }
 
@@ -78,8 +83,8 @@ export default function ProjectListPage() {
     if (!name.trim()) { setInvalid(true); return }
     setInvalid(false)
     try {
-      if (editId) await api.patch(`/projects/${editId}`, { name: name.trim(), remark: remark.trim() })
-      else await api.post('/projects', { code: code.trim() || null, name: name.trim(), remark: remark.trim() || null })
+      if (editId) await api.patch(`/projects/${editId}`, { name: name.trim(), remark: remark.trim(), group1: group1.trim(), group2: group2.trim() })
+      else await api.post('/projects', { code: code.trim() || null, name: name.trim(), remark: remark.trim() || null, group1: group1.trim() || null, group2: group2.trim() || null })
       setFormOpen(false)
       load()
     } catch (e) {
@@ -225,31 +230,44 @@ export default function ProjectListPage() {
 
       <Modal error={formError} open={formOpen} title={editId ? '프로젝트수정' : '프로젝트등록'} width={720} onClose={() => setFormOpen(false)}>{(
         <form onSubmit={save}>
+          <ul className="ec-tabs mb-[10px]">
+            {(['기본', '프로젝트정보', '부가정보'] as const).map((t) => (
+              <li key={t} className={`ec-tab relative cursor-pointer${formTab === t ? ' active' : ''}`} onClick={() => setFormTab(t)}>{t}</li>
+            ))}
+          </ul>
           <ul className="ec-form">
-            <li className="wide">
+            <li className={`wide${formTab === '기본' ? '' : ' hidden'}`}>
               <span className="title">프로젝트코드</span>
               <div className="form">
                 {editId ? <span>{code}</span> : <input className="ec-input w-full" value={code} onChange={(e) => setCode(e.target.value)} />}
               </div>
             </li>
-            <li className="wide">
+            <li className={`wide${formTab === '기본' ? '' : ' hidden'}`}>
               <span className="title">프로젝트명</span>
               <div className="form">
                 <input className={`ec-input w-full ${invalid && !name.trim() ? 'border-[color:var(--ec-text-danger)]' : ''}`}
                        aria-invalid={invalid && !name.trim()} value={name} placeholder="프로젝트명" autoFocus onChange={(e) => setName(e.target.value)} />
               </div>
             </li>
-            <li className="wide">
+            <li className={`wide${formTab === '기본' ? '' : ' hidden'}`}>
               <span className="title">적요</span>
               <div className="form">
                 <textarea className="ec-input w-full" rows={2} value={remark} placeholder="적요" onChange={(e) => setRemark(e.target.value)} />
               </div>
             </li>
+            <li className={`wide${formTab === '프로젝트정보' ? '' : ' hidden'}`}>
+              <span className="title">프로젝트그룹1</span>
+              <div className="form"><input className="ec-input w-full" value={group1} maxLength={50} onChange={(e) => setGroup1(e.target.value)} /></div>
+            </li>
+            <li className={`wide${formTab === '프로젝트정보' ? '' : ' hidden'}`}>
+              <span className="title">프로젝트그룹2</span>
+              <div className="form"><input className="ec-input w-full" value={group2} maxLength={50} onChange={(e) => setGroup2(e.target.value)} /></div>
+            </li>
           </ul>
           <div className="relative flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             <button type="button" className="ec-btn"
-                    onClick={() => { const p = rows.find((x) => x.id === editId); if (p) openEdit(p); else { setName(''); setRemark('') } }}>
+                    onClick={() => { const p = rows.find((x) => x.id === editId); if (p) openEdit(p); else { setName(''); setRemark(''); setGroup1(''); setGroup2('') } }}>
               다시 작성
             </button>
             {editId && (

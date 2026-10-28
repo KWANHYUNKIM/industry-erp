@@ -23,6 +23,10 @@ public final class ProjectDtos {
             LocalDate startDate,
             LocalDate endDate,
             ProjectStatus status,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String group1,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String group2,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark
     ) {}
@@ -37,6 +41,10 @@ public final class ProjectDtos {
             LocalDate endDate,
             @Min(value = 0, message = "진척률은 0~100입니다.") @Max(value = 100, message = "진척률은 0~100입니다.") Integer progress,
             ProjectStatus status,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String group1,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String group2,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark,
             /* 원본 [사용중단/재사용] */
@@ -47,14 +55,14 @@ public final class ProjectDtos {
             Long id, String code, String name, String manager,
             LocalDate startDate, LocalDate endDate,
             int progress, ProjectStatus status, String statusName,
-            String remark, String createdBy, boolean active
+            String remark, String createdBy, boolean active, String group1, String group2
     ) {
         public static ProjectResponse from(Project p) {
             return new ProjectResponse(
                     p.getId(), p.getCode(), p.getName(), p.getManager(),
                     p.getStartDate(), p.getEndDate(),
                     p.getProgress(), p.getStatus(), p.getStatus().getDisplayName(),
-                    p.getRemark(), p.getCreatedBy(), p.isActive());
+                    p.getRemark(), p.getCreatedBy(), p.isActive(), p.getGroup1(), p.getGroup2());
         }
     }
 }

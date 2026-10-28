@@ -53,6 +53,13 @@ public class Project extends BaseTimeEntity {
     @Column(length = 500)
     private String remark;
 
+    /** 원본 [프로젝트정보] 탭의 프로젝트그룹1 · 2 */
+    @Column(length = 50)
+    private String group1;
+
+    @Column(length = 50)
+    private String group2;
+
     @Column(length = 50)
     private String createdBy;
 
