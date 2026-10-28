@@ -11,6 +11,7 @@ import Modal from '../../components/Modal'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateNo } from '../../utils/dateNo'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { useSubmitting } from '../../utils/useSubmitting'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 
@@ -270,6 +271,8 @@ export default function ShipmentOrderEntry() {
     setContact(''); setPostalCode(''); setAddress(''); setRemark(''); setDate(today()); setDueDate(today())
     if (!keepWarehouse) setWarehouseId('')
   }
+  /** 저장 요청이 도는 동안 두 번째 저장을 막는다(utils/useSubmitting). */
+  const submitting = useSubmitting()
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
@@ -329,7 +332,7 @@ export default function ShipmentOrderEntry() {
   const todo = (why: string) => ({ disabled: true, title: why })
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submitting.wrap(submit)}>
       <EcSlipShell
         title={editing ? '출하지시서입력(수정)' : '출하지시서입력'}
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
@@ -337,6 +340,7 @@ export default function ShipmentOrderEntry() {
         onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
         options={[{ label: '입력값 초기화', onClick: () => reset(false) }]}
         actions={actions}
+        busy={submitting.busy}
         help={
           <ul className="pl-[16px] m-0">
             <li>이카운트 <b>출하지시서입력</b> 구조를 따릅니다 — 헤더 항목 폼 · 명세 그리드 · 하단 버튼줄. 단가 · 금액은 없습니다(수량만).</li>

@@ -421,7 +421,7 @@ export default function ShipmentInquiryPage() {
       <Modal open={editing != null} width={900} title="출하입력(수정)" onClose={() => setEditing(null)} error={error}>
         {entry.form}
         <div className="mt-[8px] flex gap-[4px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장(F8)</button>
+          <button type="button" className="ec-btn ec-btn-primary" disabled={entry.busy} onClick={() => void saveEdit()}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setEditing(null)}>닫기</button>
           <button type="button" className="ec-btn" onClick={() => editing && void remove([editing.id])}>삭제</button>
           <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>

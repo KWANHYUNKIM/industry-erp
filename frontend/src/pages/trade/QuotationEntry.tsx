@@ -17,6 +17,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { dateNo } from '../../utils/dateNo'
 import { lineSupply } from '../../utils/lineSupply'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { useSubmitting } from '../../utils/useSubmitting'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 
 /**
@@ -291,12 +292,15 @@ export default function QuotationEntry() {
     }], win)
   }
   function saveAndPrint() {
+    if (submitting.isBusy()) return   // 저장 중에 인쇄창만 하나 더 열리지 않게
     printWinRef.current = openPrintWindow()
     if (!printWinRef.current) return
     afterSaveRef.current = 'print'
     formRef.current?.requestSubmit()
   }
 
+  /** 저장 요청이 도는 동안 두 번째 저장을 막는다(utils/useSubmitting). */
+  const submitting = useSubmitting()
   async function submit(e: FormEvent) {
     try { await submitInner(e) } finally {
       if (printWinRef.current) { printWinRef.current.close(); printWinRef.current = null; afterSaveRef.current = null }
@@ -381,7 +385,7 @@ export default function QuotationEntry() {
   const todo = (why: string) => ({ disabled: true, title: why })
 
   return (
-    <form ref={formRef} onSubmit={submit}>
+    <form ref={formRef} onSubmit={submitting.wrap(submit)}>
       <EcSlipShell
         title={editing ? '견적서수정' : '견적서입력'}
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
@@ -392,6 +396,7 @@ export default function QuotationEntry() {
           { label: '입력값 초기화', onClick: () => reset(false) },
         ]}
         actions={actions}
+        busy={submitting.busy}
         help={
           <ul className="pl-[16px] m-0">
             <li>이카운트 <b>견적서입력</b> 구조를 따릅니다 — 헤더 항목 폼 · 명세 그리드 · 하단 버튼줄.</li>

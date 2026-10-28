@@ -25,6 +25,7 @@ import { lineSupply, roundWon } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { useSubmitting } from '../../utils/useSubmitting'
 import { ErrTip } from '../../components/GridCode'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
@@ -504,6 +505,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const [loadOrderMeta, setLoadOrderMeta] = useState<Map<number, { total: number; status: string; lineCount: number }>>(new Map())
   /** 방금 저장한 전표 — 연결전표 탭·회계전표연결은 이게 있어야 열린다(원본도 저장 전엔 hidden). */
   const [savedDoc, setSavedDoc] = useState<{ id: number; docNo: string } | null>(null)
+  /** 저장 요청이 도는 동안 두 번째 저장을 막는다(2026-10-28 [복사] 뒤 두 번 눌러 같은 구매가 두 건 생겼다). */
+  const submitting = useSubmitting()
   /** 수정 중인 전표. 있으면 저장이 POST 가 아니라 PUT 이 된다. */
   const [editing, setEditing] = useState<{ id: number; docNo: string } | null>(null)
   /** 수정 창 [복사] 를 누른 뒤 — 같은 내용을 새 전표로 쓴다. 불러오기 효과가 그 전표를 다시 펼치지 않게 막는다. */
@@ -1725,6 +1728,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
   }
 
   function saveAndPrintSlip() {
+    if (submitting.isBusy()) return   // 저장 중에 인쇄창만 하나 더 열리지 않게
     printWinRef.current = openPrintWindow()
     if (!printWinRef.current) return
     afterSaveRef.current = SLIP_PRINT_AFTER_SAVE
@@ -1859,7 +1863,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
   }
 
   return (
-    <form ref={formRef} onSubmit={submit}>
+    <form ref={formRef} onSubmit={submitting.wrap(submit)}>
       <EcSlipShell
         title={popup ? (editing ? `${cfg.title}(수정)` : cfg.title) : editing ? `${cfg.title} — ${editing.docNo} 수정` : cfg.title}
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
@@ -1889,6 +1893,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           { label: '입력값 초기화', onClick: () => reset(false) },
         ]}
         actions={popupActions ?? footerActions}
+        busy={submitting.busy}
         help={
           <ul className="pl-[16px] m-0">
             <li>이 화면은 이카운트 <b>판매입력(ESD006M)</b> 구조를 따릅니다 — 헤더 항목 폼 · 금액조정 합계 · 명세 그리드 · 하단 버튼줄.</li>

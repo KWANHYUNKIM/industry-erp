@@ -9,6 +9,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateNo } from '../../utils/dateNo'
 import { ecAlert } from '../../components/EcDialog'
+import { useSubmitting } from '../../utils/useSubmitting'
 
 /**
  * 출하입력(E040225) · 출하입력(수정) 창이 같이 쓰는 머리 · 격자 · [출하지시] — 2026-10-21 재고1 출하 바퀴.
@@ -147,8 +148,13 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
   }
   const todo = (why: string) => ({ disabled: true, title: why })
 
-  /** 저장 — 됐으면 true. 원본은 말 없이 빈 폼(화면) · 창 닫힘(수정). */
+  /** 저장 요청이 도는 동안 두 번째 저장을 막는다(utils/useSubmitting). */
+  const submitting = useSubmitting()
+  /** 저장 — 됐으면 true. 원본은 말 없이 빈 폼(화면) · 창 닫힘(수정). 저장 중에 또 누르면 false. */
   async function save(): Promise<boolean> {
+    return (await submitting.run(saveInner)) ?? false
+  }
+  async function saveInner(): Promise<boolean> {
     const filled = lines.filter((l) => l.itemId && Number(l.quantity) > 0)
     if (filled.length === 0) {
       void ecAlert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n출하입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')
@@ -303,5 +309,5 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
     </>
   )
 
-  return { form, save, reset }
+  return { form, save, reset, busy: submitting.busy }
 }

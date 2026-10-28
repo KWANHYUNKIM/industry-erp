@@ -15,7 +15,7 @@ export default function ShipmentEntryPage() {
     <EcSlipShell
       title="출하입력"
       actions={[
-        { label: '저장(F8)', primary: true, onClick: () => { void entry.save().then((ok) => { if (ok) entry.reset() }) } },
+        { label: '저장(F8)', primary: true, disabled: entry.busy, onClick: () => { void entry.save().then((ok) => { if (ok) entry.reset() }) } },
         { label: '다시 작성', onClick: entry.reset },
         { label: '리스트', onClick: () => navigate('/sales/shipment-inquiry') },
       ]}
