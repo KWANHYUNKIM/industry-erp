@@ -28,7 +28,7 @@ public final class PurchaseDtos {
             @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
             String remark,
             /** 시리얼/로트 번호 (선택) */
-            @Size(max = 60, message = "입력한 글자가 너무 깁니다. 60자까지 넣을 수 있습니다.")
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String lotNo,
             /** 부대비용 (선택). 합계에는 더하지 않는다. */
             @PositiveOrZero(message = "부대비용은 0 이상이어야 합니다.")

@@ -44,4 +44,8 @@ public class SalesOrderLine {
 
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal vatAmount;
+
+    /** 줄 적요(선택). 원본 주문서입력 줄 열 '적요'. */
+    @Column(length = 255)
+    private String remark;
 }

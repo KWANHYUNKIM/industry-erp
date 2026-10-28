@@ -48,7 +48,7 @@ public class PurchaseLine {
     private String remark;
 
     /** 시리얼/로트 번호(선택). 이카운트 구매입력 그리드의 `serial_cd` 컬럼. */
-    @Column(name = "lot_no", length = 60)
+    @Column(name = "lot_no", length = 500)
     private String lotNo;
 
     /** 부대비용(선택). 이카운트의 `cust_amt`. 합계 금액에는 더하지 않는다. */

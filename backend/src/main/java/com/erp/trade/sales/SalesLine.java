@@ -54,7 +54,7 @@ public class SalesLine {
      * 로트 마스터(inventory.Lot)와 FK로 묶지 않는다 — 로트 관리를 켜지 않은 품목도
      * 출하 시 제조번호를 적어 두는 용도로 쓰기 때문이다.
      */
-    @Column(name = "lot_no", length = 60)
+    @Column(name = "lot_no", length = 500)
     private String lotNo;
 
     /**

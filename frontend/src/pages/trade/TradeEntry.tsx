@@ -955,7 +955,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   }
   const lotCell = (l: LineInput, idx: number) => (
     <td>
-      <input className="cell" value={l.lotNo} disabled={!l.itemId}
+      <input className="cell" value={l.lotNo} maxLength={500} disabled={!l.itemId}
              onChange={(e) => updateLine(idx, 'lotNo', e.target.value)} />
     </td>
   )

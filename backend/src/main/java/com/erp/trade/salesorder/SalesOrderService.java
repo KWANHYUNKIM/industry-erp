@@ -283,6 +283,7 @@ public class SalesOrderService {
                     .unitPrice(lr.unitPrice())
                     .supplyAmount(supply)
                     .vatAmount(vat)
+                    .remark(lr.remark())
                     .build());
 
             totalSupply = totalSupply.add(supply);
