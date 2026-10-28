@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
 import { api } from '../../api/client'
@@ -167,12 +167,13 @@ const MENU: TopMenu[] = [
             ],
           },
           { label: '판매일괄회계반영', children: [{ label: '판매일괄회계반영', to: '/sales/accounting-reflection?view=batch' }] },
-          { label: '출하지시서', children: [{ label: '출하지시서조회', to: '/sales/shipment-order' }] },
+          { label: '출하지시서', children: [{ label: '출하지시서조회', to: '/sales/shipment-order' }, { label: '출하지시서입력', to: '/sales/shipment-order-entry' }, { label: '출하지시서현황', to: '/sales/shipment-order-status' }] },
           {
             label: '출하',
             children: [
               { label: '출하조회', to: '/sales/shipment-inquiry' },
               { label: '출하입력', to: '/sales/shipment-entry' },
+              { label: '출하현황', to: '/sales/shipment' },
             ],
           },
           { label: '특별단가등록', to: '/sales/special-price' },
@@ -1786,7 +1787,11 @@ export default function EcountLayout() {
               셸이 있는 화면은 셸이 이벤트를 먼저 잡고 전파를 끊으므로 여기까지 오지 않는다. */}
           <TableContextMenu containerRef={contentRef} toolbarRef={contentRef} />
           {canRoute(location.pathname) ? (
-            <Outlet />
+            /* 화면 조각(lazy)을 처음 받을 때 본문만 기다린다 — 바깥(router) Suspense 만 있으면 머리 · 메뉴까지 통째로
+               '불러오는 중' 으로 바뀌어, 처음 여는 화면이 한 번 빈 흰 화면으로 보였다(데이터이관 루프 19 · 출하입력). */
+            <Suspense fallback={<div className="p-[24px] text-ec-hint text-[13px]">화면을 불러오는 중…</div>}>
+              <Outlet />
+            </Suspense>
           ) : (
             <div className="p-[48px] text-center text-ec-hint">
               <div className="text-[40px] mb-[12px]">🔒</div>

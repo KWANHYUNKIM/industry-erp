@@ -1,0 +1,40 @@
+{
+  "about": "출하지시서입력 큰 화면(/sales/shipment-order-entry, 원본 E040220 · 데이터이관 루프 18) — 품목 코드도움 [사용중단포함] 으로 사용중단 품목(원본 J001 · J002 같은 것)을 골라 품목코드 칸에 코드가 서고, 저장하면 말 없이 빈 칸 · 조회에 진행중으로 선다. 사용중단 품목이 없으면 API 로 하나 만든다(만든 것만 끝에 지운다), 만든 지시서는 끝에 지운다. node qa/shot.mjs qa/flows/shipment-order-entry.json",
+  "shots": [
+    {
+      "name": "시험용 사용중단 품목(API)",
+      "path": "/sales/shipment-order-entry",
+      "steps": [
+        "wait:1000",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const all = await (await fetch('/api/items', { headers: H })).json(); let it = all.find((x) => x.active === false); if (!it) { const base = await (await fetch('/api/items/' + all.find((x) => x.code === 'QA-PROD').id, { headers: H })).json(); it = await (await fetch('/api/items', { method: 'POST', headers: H, body: JSON.stringify({ ...base, id: undefined, code: 'QA-SOE-STOP', name: 'QA사용중단품목', barcode: null }) })).json(); const full = await (await fetch('/api/items/' + it.id, { headers: H })).json(); await fetch('/api/items/' + it.id, { method: 'PUT', headers: H, body: JSON.stringify({ ...full, active: false }) }); sessionStorage.setItem('soeMade', '1') } const now = await (await fetch('/api/items/' + it.id, { headers: H })).json(); sessionStorage.setItem('soeItem', String(it.id)); sessionStorage.setItem('soeCode', now.code); return now.active === false })()"
+      ]
+    },
+    {
+      "name": "사용중단 품목 — 코드도움에서는 [사용중단포함] 을 켜야 보이고, 고르면 품목코드 칸에 코드 · 저장하면 말 없이 빈 칸",
+      "path": "/sales/shipment-order-entry",
+      "steps": [
+        "wait:1500",
+        "expect:document.body.innerText.includes('출하지시서입력') && !document.querySelector('[role=dialog]')",
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "wait:600",
+        "expect:![...document.querySelectorAll('[role=dialog] tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('soeCode')))",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '사용중단포함').click(); true",
+        "wait:400",
+        "pickrow:@soeCode",
+        "wait:300",
+        "expect:document.querySelector('tbody tr').cells[1].innerText.trim() === sessionStorage.getItem('soeCode')",
+        "set:tbody input.text-right#0|2",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:location.pathname === '/sales/shipment-order-entry' && !document.querySelector('tbody input.text-right').value && !/(저장|수정) 완료/.test(document.body.innerText)",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/shipment-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('soeId', String(s.id)); return s.lines.length === 1 && String(s.lines[0].itemId) === sessionStorage.getItem('soeItem') && Number(s.totalQuantity) === 2 && s.status === 'IN_PROGRESS' })()",
+        "expect:sessionStorage.getItem('soeId')"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const so = sessionStorage.getItem('soeId'); if (so) await fetch('/api/shipment-orders/' + so, { method: 'DELETE', headers: H }); const it = sessionStorage.getItem('soeItem'); if (it && sessionStorage.getItem('soeMade')) await fetch('/api/items/' + it, { method: 'DELETE', headers: H }); return true })()"
+  ]
+}

@@ -4,6 +4,7 @@ import type { Item, Partner } from '../../types/api'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
+import EcDateField from '../../components/EcDateField'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateNo } from '../../utils/dateNo'
@@ -66,6 +67,11 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
   const [pickOpen, setPickOpen] = useState(false)
   const [orders, setOrders] = useState<SoLite[]>([])
   const [picked, setPicked] = useState<number | null>(null)
+  const [findOpen, setFindOpen] = useState(false)
+  const [findText, setFindText] = useState('')
+  const [barcodeOpen, setBarcodeOpen] = useState(false)
+  const [barcode, setBarcode] = useState('')
+  const [verifyResult, setVerifyResult] = useState<string[] | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -103,7 +109,43 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
       return next
     })
   }
-  function reset() { setHead(emptyHead()); setLines([emptyLine()]) }
+  function reset() { setHead(emptyHead()); setLines([emptyLine()]); setVerifyResult(null) }
+  /* 사용중단 품목도 담는다 — 지시서에서 불러온 J001 · J002(사용중단)가 품목코드 칸에 보이고, [사용중단포함] 으로 고를 수 있다. */
+  const codeItems = useMemo(
+    () => items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword, stopped: it.active === false })),
+    [items],
+  )
+  function sortLines() {
+    setLines((ls) => {
+      const filled = ls.filter((l) => l.itemId)
+      filled.sort((a, b) => (itemById.get(a.itemId)?.code ?? '').localeCompare(itemById.get(b.itemId)?.code ?? ''))
+      return [...filled, ...ls.filter((l) => !l.itemId)]
+    })
+  }
+  function scanBarcode() {
+    const q = barcode.trim()
+    if (!q) return
+    const hit = items.find((i) => i.barcode === q) ?? items.find((i) => i.code.toLowerCase() === q.toLowerCase())
+    if (!hit) { void ecAlert(`'${q}' 에 해당하는 품목이 없습니다.`); return }
+    setLines((ls) => {
+      const at = ls.findIndex((l) => l.itemId === String(hit.id))
+      if (at >= 0) return ls.map((l, i) => (i === at ? { ...l, quantity: String((Number(l.quantity) || 0) + 1) } : l))
+      const filled = { ...emptyLine(), itemId: String(hit.id), quantity: '1' }
+      const blank = ls.findIndex((l) => !l.itemId)
+      if (blank < 0) return [...ls, filled, emptyLine()]
+      const next = ls.map((l, i) => (i === blank ? filled : l))
+      return blank === ls.length - 1 ? [...next, emptyLine()] : next
+    })
+    setBarcode('')
+  }
+  function verify() {
+    const msgs: string[] = []
+    if (!head.partnerId) msgs.push('거래처를 선택하세요.')
+    lines.forEach((l, i) => { if (l.itemId && !(Number(l.quantity) > 0)) msgs.push(`${i + 1}행: 수량이 0입니다.`) })
+    if (!lines.some((l) => l.itemId)) msgs.push('품목을 1줄 이상 입력하세요.')
+    setVerifyResult(msgs)
+  }
+  const todo = (why: string) => ({ disabled: true, title: why })
 
   /** 저장 — 됐으면 true. 원본은 말 없이 빈 폼(화면) · 창 닫힘(수정). */
   async function save(): Promise<boolean> {
@@ -161,7 +203,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
     <>
       <ul className="ec-form">
         <EcCond label="일자-No.">
-          <input type="date" className="ec-input w-[140px]" value={head.shipDate} onChange={(e) => setH('shipDate', e.target.value)} />
+          <EcDateField value={head.shipDate} onChange={(v) => setH('shipDate', v)} />
           {editing && <span className="ml-[6px]">-{Number(editing.shipNo.split('-').pop())}</span>}
         </EcCond>
         <EcCond label="거래처" pick>
@@ -184,26 +226,52 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
         <EcCond label="주소"><input className="ec-input w-[360px]" value={head.address} onChange={(e) => setH('address', e.target.value)} /></EcCond>
       </ul>
 
+      {/* 원본 E040225 툴바 차례: 찾기 · 정렬 · My품목 · 출하지시 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기. [출하지시] 는 지시서 줄이 이어지면 빠진다. */}
       <div className="ec-toolbar my-[6px] flex gap-[4px]">
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFindOpen((v) => !v)}>찾기(F3)</button>
+        {findOpen && <input className="ec-input w-[130px]" autoFocus value={findText} placeholder="품목명·적요" onChange={(e) => setFindText(e.target.value)} />}
+        <button type="button" className="ec-btn ec-btn-sm" onClick={sortLines}>정렬</button>
+        <button type="button" className="ec-btn ec-btn-sm" {...todo('출하입력의 My품목은 아직 없습니다 — 판매입력에서 씁니다.')}>My품목</button>
         {!linked && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openPicker()}>출하지시</button>}
+        <button type="button" className="ec-btn ec-btn-sm" {...todo('출하입력에서 재고를 불러오는 기능은 아직 없습니다.')}>재고불러오기</button>
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setBarcodeOpen((v) => !v)}>바코드</button>
+        {barcodeOpen && (
+          <input className="ec-input w-[170px]" autoFocus value={barcode} placeholder="바코드/품목코드 후 Enter"
+                 onChange={(e) => setBarcode(e.target.value)}
+                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scanBarcode() } }} />
+        )}
+        <button type="button" className="ec-btn ec-btn-sm" {...todo('전표 단위 바코드 출력은 아직 없습니다.')}>전표 바코드</button>
+        <button type="button" className="ec-btn ec-btn-sm" onClick={verify}>검증</button>
+        <button type="button" className="ec-btn ec-btn-sm" {...todo('다른 전표를 복사해 오는 기능은 아직 없습니다 — [출하지시] 로 지시서 잔량을 불러옵니다.')}>전표불러오기</button>
       </div>
+      {verifyResult && (
+        <div className={`ec-alert my-[4px] mx-0 ${verifyResult.length ? 'ec-alert-danger' : 'ec-alert-info'}`}>
+          {verifyResult.length === 0 ? '문제가 없습니다.' : verifyResult.map((m, i) => <div key={i}>{m}</div>)}
+          <button type="button" className="ec-btn ec-btn-sm mt-[4px]" onClick={() => setVerifyResult(null)}>닫기</button>
+        </div>
+      )}
       <table className="w-full table-fixed text-left">
-        <colgroup><col className="w-[35px]" /><col className="w-[160px]" /><col className="w-[169px]" /><col className="w-[88px]" /><col className="w-[93px]" /><col /></colgroup>
+        <colgroup><col className="w-[35px]" /><col className="w-[100px]" /><col className="w-[229px]" /><col className="w-[88px]" /><col className="w-[93px]" /><col /></colgroup>
         <thead><tr><th className="text-center"></th><th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th><th>적요</th></tr></thead>
         <tbody>
-          {lines.map((l, idx) => (
-            <tr key={idx}>
-              <td className="text-center text-ec-hint">{idx + 1}</td>
-              <td>
-                <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제" value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)}
-                                 items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
-              </td>
-              <td>{itemById.get(l.itemId)?.name ?? ''}</td>
-              <td>{itemById.get(l.itemId)?.spec ?? ''}</td>
-              <td><input type="number" className="ec-input w-full text-right" value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
-              <td><input className="ec-input w-full" value={l.remark} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
-            </tr>
-          ))}
+          {lines.map((l, idx) => {
+            const it = itemById.get(l.itemId)
+            const needle = findText.trim().toLowerCase()
+            const hit = !needle || `${it?.name ?? ''} ${it?.code ?? ''} ${l.remark}`.toLowerCase().includes(needle)
+            return (
+              <tr key={idx} className={hit ? undefined : 'hidden'}>
+                <td className="text-center text-ec-hint">{idx + 1}</td>
+                {/* 원본은 품목코드 칸에 코드(J001), 품목명 칸에 이름. 예전에는 코드도움이 이 칸에 이름을 띄웠고 사용중단 품목은 빈칸이었다. */}
+                <td className="text-ec-label overflow-hidden whitespace-nowrap">{it?.code ?? ''}</td>
+                <td>
+                  <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제" value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />
+                </td>
+                <td>{it?.spec ?? ''}</td>
+                <td><input type="number" className="ec-input w-full text-right" value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
+                <td><input className="ec-input w-full" value={l.remark} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
+              </tr>
+            )
+          })}
         </tbody>
         <tfoot>
           <tr><td colSpan={4} className="text-right">합계</td><td className="text-right">{qty2(totalQty)}</td><td></td></tr>

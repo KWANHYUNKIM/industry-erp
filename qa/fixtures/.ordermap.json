@@ -293,7 +293,7 @@
  ],
  [
   "출하지시서입력",
-  "trade/ShipmentOrderPage.tsx"
+  "trade/ShipmentOrderEntry.tsx"
  ],
  [
   "출하지시서조회",
@@ -301,7 +301,7 @@
  ],
  [
   "출하입력",
-  "trade/ShipmentOrderPage.tsx"
+  "../features/shipment/useShipmentEntry.tsx"
  ],
  [
   "생산입고II-소모품목 선택",
