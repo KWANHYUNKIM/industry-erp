@@ -23,7 +23,8 @@ public final class SalesDtos {
 
     public record SalesLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            /* 음수는 반품 줄이다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 으로 연다(2026-10-28 loginaa). 0 은 서비스가 막는다. */
+            @NotNull(message = "수량을 입력하세요.") BigDecimal quantity,
             @NotNull(message = "단가를 입력하세요.") @PositiveOrZero(message = "단가를 입력하세요.") BigDecimal unitPrice,
             @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
             String remark,
@@ -40,14 +41,14 @@ public final class SalesDtos {
              * 원본 판매입력 격자의 [공급가액] 칸은 고칠 수 있다 — 2026-10-06 loginaa 실측: 3 × 333.5 에서 1,009 로 고치면
              * 부가세 101 · 합계 1,110 으로 저장되고 단가 333.5 는 그대로 남는다. 수량·단가를 다시 바꾸면 화면이 새로 계산한다.
              */
-            @PositiveOrZero(message = "공급가액은 0 이상이어야 합니다.")
+            /* 반품(음수 수량) 줄의 공급가액은 음수다. */
             BigDecimal supplyAmount,
             /**
              * 부가세를 손으로 고친 값(선택, 과세 전표에서만). 비우면 공급가액 × 10% 를 원 단위로 반올림.
              * 원본 판매입력 격자의 [부가세] 칸도 고칠 수 있다 — 2026-10-06 loginaa: 1,001 줄의 부가세를 99 로 고치면
              * 합계 1,100 으로 저장되고 다시 열어도 99. 공급가액을 바꾸면 화면이 부가세를 다시 계산한다.
              */
-            @PositiveOrZero(message = "부가세는 0 이상이어야 합니다.")
+            /* 반품 줄의 부가세는 음수다. */
             BigDecimal vatAmount
     ) {}
 

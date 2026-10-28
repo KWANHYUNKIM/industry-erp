@@ -7190,6 +7190,13 @@ console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
     'UpdateItemRequest.stdLaborHours': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
     'UpdateItemRequest.expenseWeight': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
     'UpdateItemRequest.materialStdCost': '음수를 받는다 — 원본 품목등록 [원가] 탭이 재료비표준원가 -5 를 말 없이 저장했다(C000029, 2026-10-20 실측). 표준노무시간 · 경비가중치도 같은 창의 같은 숫자 칸이라 같게 둔다',
+    'SalesLineRequest.quantity': '음수는 반품 줄이라 받는다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 · 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측). 0 은 서비스가 막는다(TradeQuantities.require). 구매는 미실측 — 판매와 같게',
+    'SalesLineRequest.supplyAmount': '음수는 반품 줄이라 받는다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 · 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측). 0 은 서비스가 막는다(TradeQuantities.require). 구매는 미실측 — 판매와 같게',
+    'SalesLineRequest.vatAmount': '음수는 반품 줄이라 받는다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 · 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측). 0 은 서비스가 막는다(TradeQuantities.require). 구매는 미실측 — 판매와 같게',
+    'PurchaseLineRequest.quantity': '음수는 반품 줄이라 받는다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 · 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측). 0 은 서비스가 막는다(TradeQuantities.require). 구매는 미실측 — 판매와 같게',
+    'PurchaseLineRequest.supplyAmount': '음수는 반품 줄이라 받는다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 · 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측). 0 은 서비스가 막는다(TradeQuantities.require). 구매는 미실측 — 판매와 같게',
+    'PurchaseLineRequest.vatAmount': '음수는 반품 줄이라 받는다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 · 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측). 0 은 서비스가 막는다(TradeQuantities.require). 구매는 미실측 — 판매와 같게',
+    'PurchaseLineRequest.foreignAmount': '음수는 반품 줄이라 받는다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 · 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측). 0 은 서비스가 막는다(TradeQuantities.require). 구매는 미실측 — 판매와 같게',
     'CreateSettlementRequest.amount': '음수는 되돌린 돈(수금 − = 매출처 환불, 지급 − = 매입처 환급)이라 받는다 — 0 만 서비스가 막는다(SettlementService.create, 27회차)',
   }
   const 숫자 = /(BigDecimal|Integer|Long|int|long|Double|double)\s+(\w+)$/

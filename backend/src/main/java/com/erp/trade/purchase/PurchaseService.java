@@ -512,7 +512,13 @@ public class PurchaseService {
          * 채무가 준다. <b>여기서 한 번</b> 부호를 뒤집어 저장한다 — 수량도 금액도 음수다.
          * 읽는 쪽은 아무것도 안 바꿔도 맞는다. 화면은 되돌려주는 수량을 양수로 적는다.
          */
-        boolean isReturn = Boolean.TRUE.equals(req.returnSlip());
+        boolean flip = Boolean.TRUE.equals(req.returnSlip());
+        /*
+         * 판매와 같다(SalesService.applyContent) — 음수 수량 줄은 반품 줄로 그대로 받고, 줄이 전부 음수면 반품 전표다.
+         * 원본 구매 [반품처리] 는 아직 못 쟀다 — 판매 [반품처리](2026-10-28 loginaa, 음수 수량 · 금액)와 같다고 둔다.
+         */
+        com.erp.trade.TradeQuantities.require(req.lines().stream().map(PurchaseLineRequest::quantity).toList(), flip);
+        boolean isReturn = flip || req.lines().stream().allMatch(l -> l.quantity().signum() < 0);
         purchase.setReturnSlip(isReturn);
         purchase.setRemark(req.remark());
         purchase.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
@@ -522,7 +528,7 @@ public class PurchaseService {
         // 전표 합계를 알아야 반올림할 수 있기 때문이다. 규칙은 VatAllocator 에 모아 뒀다.
         boolean vatBySlip = Boolean.TRUE.equals(req.vatBySlip());
         purchase.setVatBySlip(vatBySlip);
-        BigDecimal sign = isReturn ? BigDecimal.ONE.negate() : BigDecimal.ONE;
+        BigDecimal sign = flip ? BigDecimal.ONE.negate() : BigDecimal.ONE;
         // 외자 줄: 외화금액(비우면 수량 × 외화단가) × 줄 환율(비우면 머리 환율) = 원화 공급가액
         List<BigDecimal> fAmts = new java.util.ArrayList<>();
         List<BigDecimal> fRates = new java.util.ArrayList<>();
@@ -593,11 +599,12 @@ public class PurchaseService {
             totalSupply = totalSupply.add(supply);
             totalVat = totalVat.add(vat);
 
-            // 재고 증가(입고). 반품이면 반대다 — 되돌려주는 물건이 창고에서 나간다.
-            stockService.applyDelta(item, purchase.getWarehouse(), lr.quantity().multiply(sign),
-                    isReturn ? StockTransactionType.OUTBOUND : StockTransactionType.INBOUND,
+            // 재고 증가(입고). 음수(반품) 줄이면 반대다 — 되돌려주는 물건이 창고에서 나간다. 이름표는 줄의 부호를 따른다.
+            boolean out = line.getQuantity().signum() < 0;
+            stockService.applyDelta(item, purchase.getWarehouse(), line.getQuantity(),
+                    out ? StockTransactionType.OUTBOUND : StockTransactionType.INBOUND,
                     unitCost, purchase.getPurchaseDate(),
-                    (isReturn ? "구매반품 " : "구매 ") + purchase.getDocNo(), username);
+                    (out ? "구매반품 " : "구매 ") + purchase.getDocNo(), username);
         }
 
         purchase.setSupplyAmount(totalSupply);

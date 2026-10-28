@@ -596,7 +596,9 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
    * 반올림으로 부가세가 0 이 된 과세 전표를 면세로 바꿔 놓고 저장하는 일이 생겼다.
    */
   /*
-   * [반품처리] 로 넘어온 경우 — 그 전표를 베껴 담고 거래구분을 반품으로 둔다.
+   * [반품처리] 로 넘어온 경우 — 원본(2026-10-28 loginaa 판매 수정 창 [반품처리] 실측)처럼 새 입력 창을 같은 머리
+   * (일자 오늘 · 거래처 · 담당자 · 출하창고)로 열고 줄 수량을 <b>음수</b>로 담는다(-30 → 공급가액 -60,000 · 부가세 -6,000).
+   * 적요는 비우고 거래구분은 일반 그대로다 — 원본 판매입력에는 거래구분 칸이 없고, 줄이 전부 음수면 서버가 반품 전표로 적는다.
    * 근거전표(sourceOrderId)는 <b>안 옮긴다</b>. 반품은 그 수주를 다시 채우는 것이 아니라
    * 되돌려주는 것이라, 옮기면 수주 잔량이 엉뚱하게 줄어든다.
    */
@@ -611,13 +613,13 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
     setTaxable(d.taxable)
     setVatBySlip(d.vatBySlip)
-    setReturnSlip(true)
-    setRemark(`반품 (근거전표 ${d.docNo})`)
+    setReturnSlip(false)
+    setRemark('')
     setLines([
       ...d.lines.map((l) => ({
         ...emptyLine(),
         itemId: String(l.itemId),
-        quantity: String(Math.abs(l.quantity)),
+        quantity: String(-Math.abs(l.quantity)),
         unitPrice: String(l.unitPrice),
         lotNo: l.lotNo ?? '',
         remark: l.remark ?? '',
@@ -1277,9 +1279,9 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     if (fx && !currencyCode) msgs.push('외자 전표는 외화(통화)를 선택해야 합니다.')
     lines.forEach((l, i) => {
       if (!l.itemId) return
-      if (num(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
+      if (num(l.quantity) === 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
       if (num(l.unitPrice) <= 0) msgs.push(`${i + 1}행: 단가가 0입니다.`)
-      if (mode === 'sales' && stocks.length > 0) {
+      if (mode === 'sales' && stocks.length > 0 && num(l.quantity) > 0) {
         const have = stockWhOf(l.itemId)
         if (have < num(l.quantity)) {
           msgs.push(`${i + 1}행: ${itemById.get(l.itemId)?.name} 창고재고 ${won(have)} < 출고 ${won(num(l.quantity))}`)
@@ -1357,12 +1359,13 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setError(''); setQtyErr(null)
     // 요청에 실을 줄과 그 줄의 원본(추가항목 값이 붙어 있다)을 같은 순서로 들고 간다.
     // 원본 판매입력 · 구매입력은 단가 0 인 줄도 저장한다(2026-10-21 실측, 합계 0 / 칸은 빈칸).
-    const keptLines = lines.filter((l) => l.itemId && num(l.quantity) > 0 && num(l.unitPrice) >= 0)
+    // 음수 수량은 반품 줄이다(원본 [반품처리] 가 -30 으로 연다) — 0 만 뺀다.
+    const keptLines = lines.filter((l) => l.itemId && num(l.quantity) !== 0 && num(l.unitPrice) >= 0)
     const validLines = keptLines
       .map((l) => ({
         itemId: Number(l.itemId),
         quantity: num(l.quantity),
-        unitPrice: fx ? roundWon(fxAmountOf(l) * lineRateOf(l) / Math.max(num(l.quantity), 1e-9)) : num(l.unitPrice),
+        unitPrice: fx ? roundWon(fxAmountOf(l) * lineRateOf(l) / (num(l.quantity) || 1e-9)) : num(l.unitPrice),
         ...(fx ? { foreignPrice: num(l.unitPrice), foreignAmount: fxAmountOf(l), lineRate: num(l.lineRate) > 0 ? num(l.lineRate) : undefined } : {}),
         remark: l.remark.trim() || undefined,
         lotNo: l.lotNo.trim() || undefined,
@@ -1375,7 +1378,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
      * 원본 차례(2026-10-21 E040205 실측): 빈 격자 → '알림' 창, 품목만 고른 줄 → 그 [수량] 칸 말풍선.
      * 원본은 거래처가 비어도 저장된다 — 우리 전표는 거래처가 필수라(스키마) 그 검사는 뒤에 남긴다.
      */
-    const noQty = lines.findIndex((l) => l.itemId && !(num(l.quantity) > 0))
+    const noQty = lines.findIndex((l) => l.itemId && num(l.quantity) === 0)
     if (noQty >= 0) return setQtyErr(noQty)
     if (validLines.length === 0) {
       void ecAlert(`아래의 경우 처리가 불가능합니다.
