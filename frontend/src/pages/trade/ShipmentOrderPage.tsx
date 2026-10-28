@@ -425,7 +425,7 @@ export default function ShipmentOrderPage() {
                 <td className="text-center text-ec-hint">{idx + 1}</td>
                 <td>
                   <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제" value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)}
-                                   items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
+                                   items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword, stopped: it.active === false }))} />
                 </td>
                 <td>{itemById.get(l.itemId)?.name ?? ''}</td>
                 <td>{itemById.get(l.itemId)?.spec ?? ''}</td>
