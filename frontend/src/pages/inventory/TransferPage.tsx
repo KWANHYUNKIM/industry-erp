@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import EcDateField from '../../components/EcDateField'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer as TransferRow, Warehouse } from '../../types/api'
@@ -348,7 +349,7 @@ export default function TransferPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal error={error} open={showForm} title={tab === '창고이동' ? (editSlip && !copying ? '창고이동수정' : '창고이동입력') : '기타이동 등록'}
+      <Modal error={error} open={showForm} title={tab === '창고이동' ? (editSlip && !copying ? '창고이동수정' : '창고이동입력') : '기타이동 등록'} width={tab === '창고이동' ? 1100 : 640}
              onClose={() => { setShowForm(false); setEditSlip(null) }}>{(tab === '창고이동'
         ? <TransferForm key={editSlip?.[0]?.transferNo ?? 'new'} slip={editSlip} onDelete={removeTransfer}
                         onPrint={openPrint} onNav={(dir) => editSlip?.[0] && navSlip(editSlip[0].transferNo, dir)} onCopy={() => setCopying(true)}
@@ -563,43 +564,61 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
                   onClick={() => void ecAlert('권한이 없습니다. 마스터에게 문의 바랍니다. - 창고이동\n(전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다. ※ Self-Customizing > 환경설정 > 기능설정 > [공통]탭 > 전표상태관리유형)')}>확인취소</button>
         </div>
       )}
-      <div className="flex gap-[12px] flex-wrap items-end mb-[10px]">
-        <Field label="일자">
-          <input className="ec-input" type="date" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} style={{ width: 140 }} />
-        </Field>
-        <Field label="담당자">
-          <CodePickerField pair label="담당자" hideLabel width={150} placeholder="담당자" emptyLabel="선택 해제"
-                           value={form.employeeId} onChange={(v) => set('employeeId', v)}
-                           items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-        </Field>
-        <Field label="보내는창고">
-          <CodePickerField pair label="보내는창고" hideLabel width={170} placeholder="보내는창고" emptyLabel="선택 해제"
-                           value={form.fromWarehouseId} onChange={(v) => set('fromWarehouseId', v)} items={whItems} />
-        </Field>
-        <Field label="받는창고">
-          <CodePickerField pair label="받는창고" hideLabel width={170} placeholder="받는창고" emptyLabel="선택 해제"
-                           value={form.toWarehouseId} onChange={(v) => set('toWarehouseId', v)} items={whItems} />
-        </Field>
-        <Field label="프로젝트">
-          <CodePickerField label="프로젝트" hideLabel width={160} placeholder="프로젝트" emptyLabel="선택 해제"
-                           value={form.projectId} onChange={(v) => set('projectId', v)}
-                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-        </Field>
-      </div>
+      {/* 원본 머리는 2열 고정 — 값을 채워도 칸이 다음 줄로 넘어가지 않는다(.ec-form 은 2열 격자). */}
+      <ul className="ec-form mb-[10px]">
+        <li>
+          <div className="title">일자</div>
+          <div className="form"><EcDateField value={form.transferDate} onChange={(v) => set('transferDate', v)} /></div>
+        </li>
+        <li>
+          <div className="title">담당자</div>
+          <div className="form">
+            <CodePickerField pair label="담당자" hideLabel width={220} placeholder="담당자" emptyLabel="선택 해제"
+                             value={form.employeeId} onChange={(v) => set('employeeId', v)}
+                             items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+          </div>
+        </li>
+        <li>
+          <div className="title">보내는창고</div>
+          <div className="form">
+            <CodePickerField pair label="보내는창고" hideLabel width={220} placeholder="보내는창고" emptyLabel="선택 해제"
+                             value={form.fromWarehouseId} onChange={(v) => set('fromWarehouseId', v)} items={whItems} />
+          </div>
+        </li>
+        <li>
+          <div className="title">받는창고</div>
+          <div className="form">
+            <CodePickerField pair label="받는창고" hideLabel width={220} placeholder="받는창고" emptyLabel="선택 해제"
+                             value={form.toWarehouseId} onChange={(v) => set('toWarehouseId', v)} items={whItems} />
+          </div>
+        </li>
+        <li>
+          <div className="title">프로젝트</div>
+          <div className="form">
+            <CodePickerField pair label="프로젝트" hideLabel width={220} placeholder="프로젝트" emptyLabel="선택 해제"
+                             value={form.projectId} onChange={(v) => set('projectId', v)}
+                             items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+          </div>
+        </li>
+      </ul>
       {/* 원본 창고이동입력 도구줄(2026-10-21 실측): 찾기(F3) · 정렬 · My품목 · 주문 · 구매 · 생산 · 발주요청 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기 */}
       <EcGridToolbar tableRef={tableRef} slipKinds={['주문', '구매', '생산', '발주요청']} onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
         <MyItemsNote note={myItems.note} />
       </EcGridToolbar>
-      <table ref={tableRef} className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left table-fixed min-w-[960px]">
+        <colgroup>
+          <col className="w-[34px]" /><col className="w-[260px]" /><col /><col className="w-[100px]" />
+          <col className="w-[110px]" /><col className="w-[220px]" /><col className="w-[110px]" />
+        </colgroup>
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            <th className="w-[240px]">품목코드</th>
+            <th></th>
+            <th>품목코드</th>
             <th>품목명</th>
-            <th className="w-[100px] text-right">수량</th>
-            <th className="w-[110px] text-right">보내는창고 재고</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">보내는창고 재고</th>
             <th>적요</th>
-            <th className="w-[110px]">새로운 항목 추가</th>
+            <th>새로운 항목 추가</th>
           </tr>
         </thead>
         <tbody>
@@ -616,15 +635,15 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
                                    value={l.itemId} onChange={(v) => setLine(i, 'itemId', v)}
                                    items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, alias: x.searchKeyword, sub: x.spec }))} />
                 </td>
-                <td>{it ? `${it.name}${it.spec ? ` [${it.spec}]` : ''}` : ''}</td>
+                <td className="truncate">{it ? `${it.name}${it.spec ? ` [${it.spec}]` : ''}` : ''}</td>
                 <td>
                   <input className="ec-input text-right" type="number" step="any" aria-label={`${i + 1}번째 줄 수량`}
                          value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} style={{ width: 90 }} />
                 </td>
                 <td className="text-right text-ec-hint">{have === null ? '' : num(have)}</td>
                 <td>
-                  <input className="ec-input" aria-label={`${i + 1}번째 줄 적요`} value={l.reason}
-                         onChange={(e) => setLine(i, 'reason', e.target.value)} style={{ width: '100%' }} />
+                  <input className="ec-input w-full" type="text" aria-label={`${i + 1}번째 줄 적요`} value={l.reason}
+                         onChange={(e) => setLine(i, 'reason', e.target.value)} />
                 </td>
                 <td />
               </tr>
