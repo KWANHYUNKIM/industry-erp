@@ -35,11 +35,19 @@ public final class PurchaseOrderDtos {
             /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
             /** 줄 품목명(선택). 원본 입력 화면은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007 · '포장김치1kg'). 비우면 품목 마스터 이름. */
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName,
+            /** 외화 발주서 줄의 외화단가(선택, 비우면 unitPrice 를 외화단가로 본다). 내자면 무시. */
+            @PositiveOrZero(message = "외화단가는 0 이상이어야 합니다.") BigDecimal foreignPrice,
+            /** 외화 발주서 줄의 외화금액(선택, 비우면 수량 × 외화단가). 내자면 무시. */
+            @PositiveOrZero(message = "외화금액은 0 이상이어야 합니다.") BigDecimal foreignAmount
     ) {
         public OrderLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, Long partnerId, String remark,
                                 Long sourceLineId, String spec) {
-            this(itemId, quantity, unitPrice, partnerId, remark, sourceLineId, spec, null);
+            this(itemId, quantity, unitPrice, partnerId, remark, sourceLineId, spec, null, null, null);
+        }
+        public OrderLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, Long partnerId, String remark,
+                                Long sourceLineId, String spec, String itemName) {
+            this(itemId, quantity, unitPrice, partnerId, remark, sourceLineId, spec, itemName, null, null);
         }
     }
 
@@ -57,6 +65,8 @@ public final class PurchaseOrderDtos {
             /* 원본 발주서의 [프로젝트]. 발주 시점에는 안 정했을 수 있어 필수가 아니다. */
             Long projectId,
             String currency,
+            /** 외화 발주서의 환율(원본 통화 옆 칸). 통화가 내자가 아니면 꼭 있어야 한다. */
+            @PositiveOrZero(message = "환율은 0 이상이어야 합니다.") BigDecimal exchangeRate,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines,
             /**
              * 원본 메뉴 <b>발주계획입력</b>(E040316)에서 넣은 것 — 요청을 거치지 않고 바로 [발주계획] 단계로 만든다.
@@ -140,7 +150,9 @@ public final class PurchaseOrderDtos {
             /** 베껴 온 앞 전표의 줄 · 그 전표 번호 · 일자(원본 줄 열 [발주요청] · [No]). */
             Long sourceLineId, String sourceOrderNo, LocalDate sourceOrderDate,
             /** 단가요청의 수취단가 · 확정단가(요청단가는 unitPrice). */
-            BigDecimal receivedPrice, BigDecimal confirmedPrice
+            BigDecimal receivedPrice, BigDecimal confirmedPrice,
+            /** 외화 발주서 줄의 외화단가 · 외화금액(내자는 null). 원화금액은 supplyAmount. */
+            BigDecimal foreignPrice, BigDecimal foreignAmount
     ) {
         public static OrderLineResponse from(PurchaseOrderLine l) {
             return new OrderLineResponse(
@@ -156,7 +168,8 @@ public final class PurchaseOrderDtos {
                     l.isPlanClosed(),
                     l.getInputQuantity() != null ? l.getInputQuantity() : l.getQuantity(), l.getPlanCalcDate(),
                     l.getSourceLineId(), l.getSourceOrderNo(), l.getSourceOrderDate(),
-                    l.getReceivedPrice(), l.getConfirmedPrice());
+                    l.getReceivedPrice(), l.getConfirmedPrice(),
+                    l.getForeignPrice(), l.getForeignAmount());
         }
     }
 
@@ -174,7 +187,9 @@ public final class PurchaseOrderDtos {
             /** 발주의 담당자 — 원본 구매입력 [발주] 불러오기가 머리 담당자로 채운다(2026-10-28 실측). */
             Long employeeId,
             /** 발주 줄의 규격 — 구매입력 [발주] 불러오기가 줄 규격으로 채운다. */
-            String spec
+            String spec,
+            /** 외화 발주서의 통화 · 환율 · 줄 외화단가 — 구매입력 [발주] 불러오기가 외자 전표로 잇는다. 내자면 셋 다 null. */
+            String currencyCode, BigDecimal exchangeRate, BigDecimal foreignPrice
     ) {}
 
     /**
@@ -195,6 +210,8 @@ public final class PurchaseOrderDtos {
             Long employeeId, String employeeName,
             Long warehouseId, String warehouseName,
             Long projectId, String projectName, String currency,
+            /** 외화 발주서의 환율. 내자면 null. */
+            BigDecimal exchangeRate,
             PurchaseOrderStatus status, String statusName,
             BigDecimal supplyAmount, BigDecimal vatAmount, BigDecimal totalAmount,
             Boolean taxable, Long convertedPurchaseId, String remark, String createdBy,
@@ -222,6 +239,7 @@ public final class PurchaseOrderDtos {
                     po.getProject() != null ? po.getProject().getId() : null,
                     po.getProject() != null ? po.getProject().getName() : null,
                     po.getCurrency(),
+                    po.getExchangeRate(),
                     po.getStatus(), po.getStatus().getDisplayName(),
                     po.getSupplyAmount(), po.getVatAmount(), po.getTotalAmount(),
                     po.getTaxable(), po.getConvertedPurchaseId(), po.getRemark(), po.getCreatedBy(),

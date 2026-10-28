@@ -45,6 +45,14 @@ public class PurchaseOrderLine {
     @Builder.Default
     private BigDecimal unitPrice = BigDecimal.ZERO;
 
+    /** 외화 발주서 줄의 외화단가(원본 [단가]). 내자 줄은 null — 그때 unitPrice 가 원화 단가다. */
+    @Column(name = "foreign_price", precision = 18, scale = 4)
+    private BigDecimal foreignPrice;
+
+    /** 외화 발주서 줄의 [외화금액]. 원화 [원화금액](supplyAmount) = round(외화금액 × 머리 환율). */
+    @Column(name = "foreign_amount", precision = 18, scale = 2)
+    private BigDecimal foreignAmount;
+
     @Column(name = "supply_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default
     private BigDecimal supplyAmount = BigDecimal.ZERO;

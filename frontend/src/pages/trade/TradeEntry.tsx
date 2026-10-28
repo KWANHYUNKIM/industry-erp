@@ -78,6 +78,9 @@ export interface TradeEntryPrefill {
   employeeId: number | null
   warehouseId: number | null
   projectId: number | null
+  /** 외화 발주서에서 왔으면 그 통화 · 환율 — 구매가 외자 전표로 열린다(줄 unitPrice 는 외화단가). */
+  currencyCode?: string | null
+  exchangeRate?: number | null
   lines: { itemId: number; quantity: number; unitPrice: number; sourceOrderId: number; sourceDocType: string; sourceDocDate: string; sourceDocNo: string; itemName?: string | null }[]
 }
 
@@ -308,6 +311,10 @@ interface LoadableLine {
   /** 담을 수량 — 판매는 미판매 잔량(주문 − 판매), 구매는 발주 잔량 */
   restQty: number
   unitPrice: number
+  /** 외화 발주서의 통화 · 환율 · 줄 외화단가 — 담으면 구매가 외자 전표가 된다. 내자는 null. */
+  currencyCode?: string | null
+  exchangeRate?: number | null
+  foreignPrice?: number | null
 }
 
 /**
@@ -685,6 +692,10 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setEmployeeId(pf.employeeId != null ? String(pf.employeeId) : '')
     if (pf.warehouseId != null) setWarehouseId(String(pf.warehouseId))
     setProjectId(pf.projectId != null ? String(pf.projectId) : '')
+    if (mode === 'purchase' && pf.currencyCode) {
+      setForeign(true); setCurrencyCode(pf.currencyCode)
+      if (pf.exchangeRate != null) setExchangeRate(String(pf.exchangeRate))
+    }
     setLines([
       ...pf.lines.map((l) => ({
         ...emptyLine(),
@@ -1070,6 +1081,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           itemId: number; itemCode: string; itemName: string; unit: string
           orderQty: number; boughtQty: number; restQty: number; unitPrice: number
           employeeId: number | null; spec: string | null
+          currencyCode: string | null; exchangeRate: number | null; foreignPrice: number | null
         }[]>('/purchase-orders/unpurchased')
         /*
          * 원본 [발주] 검색창은 <b>발주서</b>만 띄운다 — 발주요청 · 발주계획은 다른 전표다(2026-10-20 실측).
@@ -1083,6 +1095,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
           orderedQty: l.orderQty, doneQty: l.boughtQty, restQty: l.restQty, unitPrice: l.unitPrice,
           spec: l.spec ?? null,
+          currencyCode: l.currencyCode ?? null, exchangeRate: l.exchangeRate ?? null, foreignPrice: l.foreignPrice ?? null,
         }))
       }
       rows.sort((a, b) => b.date.localeCompare(a.date) || b.docNo.localeCompare(a.docNo))
@@ -1198,7 +1211,24 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     if (partnerId && String(partnerIds[0]) !== partnerId) {
       return flash('지금 전표의 거래처와 다릅니다. 거래처를 비우거나 같은 거래처 행을 고르세요.')
     }
+    /*
+     * 외화 발주서를 담으면 구매도 외자 — 통화 · 환율을 이어받고 단가 칸에는 외화단가를 싣는다(구매 외자 줄과 같은 꼴).
+     * 통화가 다른 발주(내자 · 외화 섞임 포함)는 한 전표에 담을 수 없다 — 원화금액을 정할 환율이 하나여야 한다.
+     */
+    const curs = [...new Set(picked.map((r) => r.currencyCode ?? ''))]
+    if (curs.length > 1) return flash('통화가 다른 발주는 한 전표에 담을 수 없습니다. 통화별로 나눠 담으세요.')
+    const fxCur = curs[0]
+    if (mode === 'purchase' && lines.some((l) => l.itemId) && (fxCur ? !(foreign && currencyCode === fxCur) : foreign)) {
+      return flash('지금 전표의 통화와 다른 발주입니다. 통화가 같은 발주를 고르세요.')
+    }
     if (!partnerId) setPartnerId(String(partnerIds[0]))
+    if (mode === 'purchase' && fxCur) {
+      setForeign(true); setCurrencyCode(fxCur)
+      const r0 = picked.find((r) => r.exchangeRate != null)?.exchangeRate
+      if (r0 != null) setExchangeRate(String(r0))
+    } else if (mode === 'purchase' && foreign) {
+      setForeign(false); setCurrencyCode('')
+    }
 
     /*
      * 근거전표의 프로젝트·창고도 이어받는다. 예전엔 거래처만 받아서, 수주를 불러와 만든 판매가
@@ -1234,7 +1264,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
         ...emptyLine(),
         itemId: String(r.itemId),
         quantity: String(r.restQty),
-        unitPrice: String(r.unitPrice),
+        unitPrice: String(fxCur && r.foreignPrice != null ? r.foreignPrice : r.unitPrice),
         spec: r.spec ?? null,
         name: r.itemName ?? null,
         // 적요에 "SO-… 불러옴" 이라고 적던 것을 근거전표 3열로 옮겼다. 적요는 사람 몫으로 비워 둔다.

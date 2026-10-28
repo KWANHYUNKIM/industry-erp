@@ -20,7 +20,7 @@
         "click:저장(F8)",
         "wait:500",
         "expect:document.querySelector('[data-invalid]') !== null",
-        "js:document.querySelector('input[placeholder=\"입고될창고\"]').click(); true",
+        "js:document.querySelector('button[title=\"입고될창고 코드도움\"]').click(); true",
         "pickrow:QA-WH",
         "click:저장(F8)",
         "wait:1500",

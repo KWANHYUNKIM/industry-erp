@@ -68,16 +68,20 @@ const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', pa
 
 /** '생성한 전표' [신규(F2)] 가 여는 구매입력의 처음 값 — 잔량이 남은 발주 줄만, 한 발주 줄은 한 번(전표가 여럿이면 줄이 겹쳐 온다). */
 function prefillOf(o: PurchaseOrder, rows: GeneratedRow[]): TradeEntryPrefill {
+  const fx = !!o.currency && o.currency !== 'KRW'
   const seen = new Set<number>()
   const lines = rows.filter((r) => {
     if (Number(r.remaining) <= 0 || seen.has(r.orderLineId)) return false
     seen.add(r.orderLineId)
     return true
   }).map((r) => ({
-    itemId: r.itemId, quantity: Number(r.remaining), unitPrice: Number(r.unitPrice), itemName: r.itemName,
+    /* 외화 발주서면 단가 칸은 외화단가(구매 외자 줄과 같은 꼴). */
+    itemId: r.itemId, quantity: Number(r.remaining), itemName: r.itemName,
+    unitPrice: Number(fx ? (o.lines.find((l) => l.id === r.orderLineId)?.foreignPrice ?? r.unitPrice) : r.unitPrice),
     sourceOrderId: o.id, sourceDocType: '발주서', sourceDocDate: o.orderDate, sourceDocNo: o.orderNo,
   }))
-  return { partnerId: o.partnerId ?? null, employeeId: o.employeeId ?? null, warehouseId: o.warehouseId ?? null, projectId: o.projectId ?? null, lines }
+  return { partnerId: o.partnerId ?? null, employeeId: o.employeeId ?? null, warehouseId: o.warehouseId ?? null, projectId: o.projectId ?? null,
+    currencyCode: fx ? o.currency : null, exchangeRate: fx ? (o.exchangeRate ?? null) : null, lines }
 }
 
 /** 발주서 — 구매 흐름의 시작점. 발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환(구매전표 생성). */

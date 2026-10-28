@@ -63,7 +63,8 @@ try {
       }
       else if (kind === 'pick') {
         const [label, code] = rest
-        await b.evaluate(`document.querySelector('button[title="${label} 선택"]').click(); true`)
+        // 조건 칸은 [🔍] 이 '<라벨> 선택', 전표 코드칸(pair)은 '<라벨> 코드도움'
+        await b.evaluate(`(document.querySelector('button[title="${label} 선택"]') ?? document.querySelector('button[title="${label} 코드도움"]')).click(); true`)
         await b.waitFor(`[...document.querySelectorAll('tr')].some(tr => tr.innerText.includes(${JSON.stringify(code)}))`)
         await b.evaluate(`[...document.querySelectorAll('tr')].find(tr => [...tr.cells].some(td => td.innerText.trim() === ${JSON.stringify(code)})).click(); true`)
         await sleep(600)

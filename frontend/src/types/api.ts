@@ -2274,6 +2274,9 @@ export interface PurchaseOrderLine {
   /** 단가요청 진행단계의 수취단가 · 확정단가(요청단가는 unitPrice). */
   receivedPrice?: number | null
   confirmedPrice?: number | null
+  /** 외화 발주서 줄의 외화단가 · 외화금액(내자는 null). 원화금액은 supplyAmount. */
+  foreignPrice?: number | null
+  foreignAmount?: number | null
 }
 
 export interface PurchaseOrder {
@@ -2296,6 +2299,8 @@ export interface PurchaseOrder {
   projectId: number | null
   projectName: string | null
   currency: string | null
+  /** 외화 발주서의 환율(원본 통화 옆 칸). 내자면 null. */
+  exchangeRate?: number | null
   status: PurchaseOrderStatus
   statusName: string
   supplyAmount: number

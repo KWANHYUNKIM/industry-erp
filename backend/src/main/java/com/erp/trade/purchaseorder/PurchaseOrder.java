@@ -82,6 +82,15 @@ public class PurchaseOrder extends BaseTimeEntity {
     @Builder.Default
     private String currency = "KRW";
 
+    /** 외화 발주서의 환율(원본 통화 옆 칸). 내자(KRW)면 null. 원화금액 = round(외화금액 × 환율). */
+    @Column(name = "exchange_rate", precision = 18, scale = 4)
+    private BigDecimal exchangeRate;
+
+    /** 외화 발주서인가 — 통화가 내자(KRW)가 아니다. */
+    public boolean isForeign() {
+        return currency != null && !currency.isBlank() && !"KRW".equals(currency);
+    }
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

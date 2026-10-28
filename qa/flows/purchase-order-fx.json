@@ -1,0 +1,57 @@
+{
+  "about": "발주서입력 외화 — 원본 발주서 2026/11/12-1(2026-10-29 loginaa 실측): 담당자 · 입고창고 · 거래처 코드칸에 코드를 쳐서 Enter 로 고르고, 통화 '달러' 를 고르면 옆에 환율 칸이 생기며 격자가 단가 · 외화금액 · 원화금액(공급가액 · 부가세 없음)이 된다. 1,000 × 8 → 외화금액 8,000 · 원화금액 8,416,000(환율 1,052). 저장하면 통화 · 환율 · 외화단가 · 외화금액이 남고, 발주서조회 '조회' → [신규(F2)] 구매입력이 외자 · 환율 1052 · 단가 8 로 열린다. 만든 전표는 지운다.",
+  "finally": [
+    "js:(async()=>{const id=sessionStorage.getItem('pofxId');if(id)await fetch('/api/purchase-orders/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});sessionStorage.removeItem('pofxId');return 1})()"
+  ],
+  "shots": [
+    {
+      "name": "발주서입력 — 코드 쳐서 Enter(담당자 EMP-0001 · 창고 QA-WH · 거래처 QA-SUPP), 통화 USD → 환율 칸 · 외화금액/원화금액 열, 1,000 × 8 저장",
+      "path": "/sales/purchase-order-input",
+      "steps": [
+        "wait:1500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__type = (ph, v) => { const el = document.querySelector('.ec-code input.code[placeholder=\"' + ph + '\"]'); el.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true }; true",
+        "js:window.__type('담당자', 'EMP-0001')",
+        "wait:300",
+        "expect:(()=>{const c=document.querySelector('.ec-code input.code[placeholder=\"담당자\"]');return c.value==='EMP-0001'&&c.parentElement.querySelector('input.name').value==='김철수'&&!document.querySelector('[role=dialog]')})()",
+        "js:window.__type('창고', 'QA-WH')",
+        "wait:300",
+        "expect:(()=>{const c=document.querySelector('.ec-code input.code[placeholder=\"창고\"]');return c.value==='QA-WH'&&c.parentElement.querySelector('input.name').value!==''&&!document.querySelector('[role=dialog]')})()",
+        "js:window.__type('거래처', 'QA-SUPP')",
+        "wait:300",
+        "expect:document.querySelector('.ec-code input.code[placeholder=\"거래처\"]').value==='QA-SUPP'",
+        "expect:!document.querySelector('input[aria-label=\"환율\"]')&&[...document.querySelectorAll('thead th')].some((t)=>t.innerText.trim()==='공급가액')",
+        "set:select[aria-label=\"통화\"]|USD",
+        "wait:300",
+        "expect:(()=>{const r=document.querySelector('input[aria-label=\"환율\"]');const h=[...document.querySelectorAll('thead th')].map((t)=>t.innerText.trim());return !!r&&r.value!==''&&h.includes('외화금액')&&h.includes('원화금액')&&!h.includes('공급가액')&&!h.includes('부가세')})()",
+        "set:input[aria-label=\"환율\"]|1052",
+        "pick:품목:QA-PROD",
+        "set:tbody input.text-right#0|1000",
+        "set:tbody input.text-right#1|8",
+        "wait:300",
+        "expect:(()=>{const t=[...document.querySelector('tbody tr').cells].map((c)=>c.innerText.trim());return t.includes('8,000')&&t.includes('8,416,000')})()",
+        "set:input[aria-label=\"머리 적요\"]|QA외화발주",
+        "click:저장(F8)",
+        "wait:2500",
+        "js:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body.filter((x)=>x.remark==='QA외화발주');if(o.length!==1)return 'n='+o.length;sessionStorage.setItem('pofxId',o[0].id);sessionStorage.setItem('pofxShort',o[0].orderDate.slice(2).replace(/-/g,'/')+'-'+Number(o[0].orderNo.split('-').pop()));return 'ok'})()",
+        "expect:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body.find((x)=>String(x.id)===sessionStorage.getItem('pofxId'));const l=o.lines[0];return o.currency==='USD'&&Number(o.exchangeRate)===1052&&o.employeeName==='김철수'&&o.status==='ORDERED'&&Number(l.foreignPrice)===8&&Number(l.foreignAmount)===8000&&Number(l.supplyAmount)===8416000&&Number(l.vatAmount)===0&&Number(o.totalAmount)===8416000})()",
+        "expect:document.querySelector('select[aria-label=\"통화\"]').value==='KRW'&&!document.querySelector('input[aria-label=\"환율\"]')",
+        "expect:(async()=>{const u=(await window.__api('GET','/purchase-orders/unpurchased')).body.filter((x)=>String(x.orderId)===sessionStorage.getItem('pofxId'));return u.length===1&&u[0].currencyCode==='USD'&&Number(u[0].exchangeRate)===1052&&Number(u[0].foreignPrice)===8})()"
+      ]
+    },
+    {
+      "name": "발주서조회 '조회' → [신규(F2)] — 구매입력이 외자 · USD · 환율 1052 · 단가(외화) 8 · 원화금액 8,416,000 으로 열린다(저장은 안 한다)",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "wait:2000",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('pofxShort'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('pofxShort')).cells[9].querySelector('a').click(); true",
+        "wait:2000",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='신규(F2)').click(); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label')==='구매입력'",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const r=d.querySelector('input[placeholder=\"환율\"]');const t=[...d.querySelector('tbody tr').cells].map((c)=>c.innerText.trim());const v=[...d.querySelectorAll('tbody tr')[0].querySelectorAll('input')].map((i)=>i.value);return h.includes('외화금액')&&h.includes('원화금액')&&!!r&&r.value==='1052'&&v.includes('8')&&t.includes('8,416,000')&&d.querySelector('select[aria-label=\"외화\"]').value==='USD'})()"
+      ]
+    }
+  ]
+}
