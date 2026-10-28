@@ -502,7 +502,7 @@ export default function ShipmentOrderEntry() {
       </Modal>
 
       {/* 원본 출하지시서입력 [판매] = '판매검색창(조회)'(루프 27 실측). */}
-      <Modal open={salesOpen} width={960} title="판매검색창" onClose={() => setSalesOpen(false)}>
+      <Modal open={salesOpen} error={error} width={960} title="판매검색창" onClose={() => setSalesOpen(false)}>
         {salesDocs === null ? <p className="text-ec-hint m-0">불러오는 중…</p> : (
           <SourceDocSearch
             tabs={SALES_TABS} tab={salesTab} onTab={setSalesTab}
