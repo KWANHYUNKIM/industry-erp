@@ -8,10 +8,8 @@ import { execSync } from 'node:child_process'
 const base = '.claude/skills/ecount-diff/plans/데이터이관/'
 // 스레드마다 진행 파일 · 현황판이 따로 있다(_진행.md · _진행-B.md …) — 모두 합쳐 센다.
 const files = fs.readdirSync(base)
-const prog = files.filter((f) => /^_진행.*\.md$/.test(f)).map((f) => fs.readFileSync(base + f, 'utf8')).join('
-')
-const board = files.filter((f) => /^_현황판.*\.md$/.test(f)).map((f) => fs.readFileSync(base + f, 'utf8')).join('
-')
+const prog = files.filter((f) => /^_진행.*\.md$/.test(f)).map((f) => fs.readFileSync(base + f, 'utf8')).join('\n')
+const board = files.filter((f) => /^_현황판.*\.md$/.test(f)).map((f) => fs.readFileSync(base + f, 'utf8')).join('\n')
 
 /** '26' · '26+' · '11 · 13' · '49 품목 · 창고별' · '1전표 2줄' → 앞쪽 숫자들의 합(· 로 나뉜 것만). */
 function count(cell) {
