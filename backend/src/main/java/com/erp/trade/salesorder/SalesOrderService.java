@@ -201,6 +201,7 @@ public class SalesOrderService {
         SalesOrder order = SalesOrder.builder()
                 .orderNo(generateOrderNo(orderDate))
                 .partner(partner)
+                .partnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()))
                 .orderDate(orderDate)
                 .dueDate(req.dueDate())
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
@@ -239,6 +240,7 @@ public class SalesOrderService {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 주문을 받을 수 없습니다: " + partner.getName());
         }
         order.setPartner(partner);
+        order.setPartnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()));
         order.setDueDate(req.dueDate());
         order.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         order.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
@@ -278,7 +280,7 @@ public class SalesOrderService {
         Item first = o.getLines().isEmpty() ? null : o.getLines().get(0).getItem();
         return new SlipSnapshot("주문서", o.getOrderDate(), o.getOrderNo(),
                 o.getPartner() != null ? o.getPartner().getCode() : null,
-                o.getPartner() != null ? o.getPartner().getName() : null,
+                o.displayPartnerName(),
                 first == null ? null : ChangeHistoryService.itemSummary(o.getLines().get(0).effectiveItemName(), o.getLines().get(0).effectiveSpec(), o.getLines().size()),
                 o.getEmployee() != null ? o.getEmployee().getCode() : null,
                 o.getEmployee() != null ? o.getEmployee().getName() : null,

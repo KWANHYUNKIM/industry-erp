@@ -50,7 +50,7 @@ export default function CodePickerField({
    * 안 고르면 전체라는 뜻은 [전체] 지우기 항목(emptyLabel)이 말해 준다.
    */
   label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
-  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain, hideNew, showCode, invalid,
+  hideLabel, multiple, values, onChangeMulti, fill, pair, nameValue, onNameChange, columns, popupTitle, onNew, plain, hideNew, showCode, invalid,
   employeeSearch, onPickMany,
 }: {
   /** 빈 필수칸 — 칸 줄을 원본 has-error 빨간 테두리(`.ec-invalid`)로 두른다. 보통 useRequired 훅의 on(키, 채워졌나). */
@@ -87,6 +87,12 @@ export default function CodePickerField({
    * 코드를 직접 쳐서 넣는 사용자가 있어 코드칸이 앞에 따로 있다.
    */
   pair?: boolean
+  /**
+   * pair 의 명칭칸을 고칠 수 있게 연다 — 원본 [임의거래처](12341234)를 고르면 거래처 이름 칸이 열린다(2026-10-28 실측).
+   * 주면 명칭칸이 이 값을 보이고, 고친 글자를 onNameChange 로 넘긴다(비면 고른 항목 이름).
+   */
+  nameValue?: string
+  onNameChange?: (name: string) => void
   /** 다중 선택 — 원본의 tags-input 에 해당. values/onChangeMulti 와 함께 쓴다. */
   multiple?: boolean
   values?: string[]
@@ -209,13 +215,14 @@ export default function CodePickerField({
           </button>
           <input
             className="ec-input name"
-            readOnly
+            readOnly={!onNameChange}
             disabled={disabled}
-            value={selected?.name ?? ''}
+            value={onNameChange ? (nameValue ?? selected?.name ?? '') : (selected?.name ?? '')}
+            onChange={onNameChange ? (e) => onNameChange(e.target.value) : undefined}
             placeholder=""
-            onClick={(e) => !disabled && openFrom(e)}
+            onClick={(e) => !disabled && !onNameChange && openFrom(e)}
             title={selected ? `${selected.code ?? ''} ${selected.name}`.trim() : ''}
-            style={{ background: disabled ? '#f4f5f7' : '#fff', cursor: disabled ? 'default' : 'pointer' }}
+            style={{ background: disabled ? '#f4f5f7' : '#fff', cursor: disabled ? 'default' : onNameChange ? 'text' : 'pointer' }}
           />
           {!!selected && !disabled && (
             <button type="button" className="ec-btn" onClick={clearAll} title="선택 해제" style={{ color: 'var(--ec-danger)' }}>

@@ -72,6 +72,8 @@ public final class PurchaseDtos {
 
     public record CreatePurchaseRequest(
             Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             LocalDate purchaseDate,
             Boolean taxable,
@@ -202,7 +204,7 @@ public final class PurchaseDtos {
             return new PurchaseResponse(
                     p.getId(), p.getDocNo(),
                     p.getPartner() != null ? p.getPartner().getId() : null,
-                    p.getPartner() != null ? p.getPartner().getName() : null,
+                    p.displayPartnerName(),
                     p.getWarehouse().getId(), p.getWarehouse().getName(),
                     p.getPurchaseDate(),
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),

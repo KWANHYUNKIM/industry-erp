@@ -45,6 +45,15 @@ public class Quotation extends BaseTimeEntity {
     @JoinColumn(name = "partner_id", nullable = false)
     private BusinessPartner partner;
 
+    /** 저장 때 거래처명 — 임의거래처는 화면에서 고친 이름(원본 실측 2026-10-28). 옛 전표는 거래처 이름으로 백필. */
+    @Column(name = "partner_name", length = 200)
+    private String partnerName;
+
+    /** 화면에 찍을 거래처명 — 전표에 남긴 이름, 없으면 거래처 마스터 이름. */
+    public String displayPartnerName() {
+        return partnerName != null ? partnerName : (partner != null ? partner.getName() : null);
+    }
+
     /**
      * 원본 견적서의 [창고]. 판매전표는 이미 물고 있는데 견적만 없어서,
      * 견적 → 수주 → 판매로 이어질 때 <b>맨 앞에서 정한 창고가 중간에 끊겼다.</b>

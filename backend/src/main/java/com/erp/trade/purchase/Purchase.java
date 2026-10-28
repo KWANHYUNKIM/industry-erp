@@ -38,6 +38,15 @@ public class Purchase extends BaseTimeEntity {
     @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 
+    /** 저장 때 거래처명 — 임의거래처는 화면에서 고친 이름(원본 실측 2026-10-28). 옛 전표는 거래처 이름으로 백필. */
+    @Column(name = "partner_name", length = 200)
+    private String partnerName;
+
+    /** 화면에 찍을 거래처명 — 전표에 남긴 이름, 없으면 거래처 마스터 이름. */
+    public String displayPartnerName() {
+        return partnerName != null ? partnerName : (partner != null ? partner.getName() : null);
+    }
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;

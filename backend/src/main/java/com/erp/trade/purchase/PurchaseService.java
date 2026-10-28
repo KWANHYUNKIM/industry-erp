@@ -156,7 +156,7 @@ public class PurchaseService {
                         ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 rows.add(new PurchaseDiscountRow(
-                        p.getPurchaseDate(), p.getDocNo(), p.getPartner() != null ? p.getPartner().getName() : null,
+                        p.getPurchaseDate(), p.getDocNo(), p.displayPartnerName(),
                         l.getItem().getCode(), l.effectiveItemName(),
                         p.getWarehouse() != null ? p.getWarehouse().getName() : null,
                         p.getProject() != null ? p.getProject().getName() : null,
@@ -231,7 +231,7 @@ public class PurchaseService {
         Item first = p.getLines().isEmpty() ? null : p.getLines().get(0).getItem();
         return new SlipSnapshot("구매", p.getPurchaseDate(), p.getDocNo(),
                 p.getPartner() != null ? p.getPartner().getCode() : null,
-                p.getPartner() != null ? p.getPartner().getName() : null,
+                p.displayPartnerName(),
                 first == null ? null : ChangeHistoryService.itemSummary(p.getLines().get(0).effectiveItemName(), p.getLines().get(0).effectiveSpec(), p.getLines().size()),
                 p.getEmployee() != null ? p.getEmployee().getCode() : null,
                 p.getEmployee() != null ? p.getEmployee().getName() : null,
@@ -271,7 +271,7 @@ public class PurchaseService {
     /** 로트No. 를 든 줄을 시리얼/로트 내역에 남긴다 — 들어온 수량만큼 +(반품이면 줄 수량이 음수라 −). */
     private void syncLots(Purchase p) {
         lotService.replaceDocument(LOT_DOC_TYPE, p.getId(), p.getDocNo(), p.getPurchaseDate(),
-                p.getPartner() != null ? p.getPartner().getName() : null,
+                p.displayPartnerName(),
                 p.getLines().stream()
                         .map(l -> new LotService.DocLine(l.getItem(), p.getWarehouse(), l.getLotNo(), l.getQuantity()))
                         .toList());
@@ -516,6 +516,7 @@ public class PurchaseService {
     }
 
     private void applyContent(Purchase purchase, CreatePurchaseRequest req, String username) {
+        purchase.setPartnerName(TradeMasters.partnerNameSnapshot(purchase.getPartner(), req.partnerName()));
         // 외자(수입) — 통화코드가 있으면 부가세는 붙지 않는다(수입 부가세는 세관에서 따로).
         String cur = req.currencyCode() == null || req.currencyCode().isBlank() ? null : req.currencyCode().trim();
         boolean foreign = cur != null;

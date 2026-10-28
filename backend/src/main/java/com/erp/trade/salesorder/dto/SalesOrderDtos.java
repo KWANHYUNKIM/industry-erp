@@ -33,6 +33,8 @@ public final class SalesOrderDtos {
 
     public record CreateSalesOrderRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             LocalDate orderDate,
             LocalDate dueDate,
             /* 원본 수주의 [창고]·[프로젝트]·[담당자]. 수주 시점에 안 정했을 수 있어 필수가 아니다. */
@@ -53,6 +55,8 @@ public final class SalesOrderDtos {
      */
     public record UpdateSalesOrderRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             LocalDate dueDate,
             Long warehouseId,
             Long projectId,
@@ -138,7 +142,7 @@ public final class SalesOrderDtos {
             BigDecimal shipped = committed != null ? committed : BigDecimal.ZERO;
             return new UnshippedLineResponse(
                     o.getId(), o.getOrderNo(), l.getId(),
-                    o.getPartner().getId(), o.getPartner().getName(),
+                    o.getPartner().getId(), o.displayPartnerName(),
                     o.getOrderDate(), o.getDueDate(),
                     o.getStatus(), o.getStatus().getDisplayName(),
                     l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
@@ -199,7 +203,7 @@ public final class SalesOrderDtos {
             BigDecimal price = l.getUnitPrice() != null ? l.getUnitPrice() : BigDecimal.ZERO;
             return new UnsoldLineResponse(
                     o.getId(), o.getOrderNo(), l.getId(),
-                    o.getPartner().getId(), o.getPartner().getName(),
+                    o.getPartner().getId(), o.displayPartnerName(),
                     o.getOrderDate(), o.getDueDate(),
                     o.getStatus(), o.getStatus().getDisplayName(),
                     l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
@@ -258,7 +262,7 @@ public final class SalesOrderDtos {
         public static SalesOrderResponse from(SalesOrder o) {
             return new SalesOrderResponse(
                     o.getId(), o.getOrderNo(),
-                    o.getPartner().getId(), o.getPartner().getName(),
+                    o.getPartner().getId(), o.displayPartnerName(),
                     o.getOrderDate(), o.getDueDate(),
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                     o.getWarehouse() != null ? o.getWarehouse().getName() : null,

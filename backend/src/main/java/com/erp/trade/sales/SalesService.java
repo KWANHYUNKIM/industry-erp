@@ -172,7 +172,7 @@ public class SalesService {
                         ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 rows.add(new SalesDiscountRow(
-                        s.getSaleDate(), s.getDocNo(), s.getPartner() != null ? s.getPartner().getName() : null,
+                        s.getSaleDate(), s.getDocNo(), s.displayPartnerName(),
                         l.getItem().getCode(), l.effectiveItemName(),
                         s.getWarehouse() != null ? s.getWarehouse().getName() : null,
                         s.getProject() != null ? s.getProject().getName() : null,
@@ -289,7 +289,7 @@ public class SalesService {
         }
         return new SlipSnapshot("판매", s.getSaleDate(), s.getDocNo(),
                 s.getPartner() != null ? s.getPartner().getCode() : null,
-                s.getPartner() != null ? s.getPartner().getName() : null,
+                s.displayPartnerName(),
                 items,
                 s.getEmployee() != null ? s.getEmployee().getCode() : null,
                 s.getEmployee() != null ? s.getEmployee().getName() : null,
@@ -302,7 +302,7 @@ public class SalesService {
     /** 로트No. 를 든 줄을 시리얼/로트 내역에 남긴다 — 나간 수량만큼 −(반품이면 줄 수량이 음수라 +). */
     private void syncLots(Sales s) {
         lotService.replaceDocument(LOT_DOC_TYPE, s.getId(), s.getDocNo(), s.getSaleDate(),
-                s.getPartner() != null ? s.getPartner().getName() : null,
+                s.displayPartnerName(),
                 s.getLines().stream()
                         .map(l -> new LotService.DocLine(l.getItem(), s.getWarehouse(), l.getLotNo(), l.getQuantity().negate()))
                         .toList());
@@ -592,6 +592,7 @@ public class SalesService {
     }
 
     private void applyContent(Sales sales, CreateSalesRequest req, String username) {
+        sales.setPartnerName(TradeMasters.partnerNameSnapshot(sales.getPartner(), req.partnerName()));
         boolean taxable = req.taxable() == null || req.taxable();
         // 전표의 성질로 남긴다. 안 남기면 나중에 '부가세가 0이면 면세' 로 되짚어야 하고,
         // 반올림으로 부가세가 0 이 된 과세 전표를 면세로 오인한다.

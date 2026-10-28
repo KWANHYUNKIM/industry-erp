@@ -33,6 +33,8 @@ public final class QuotationDtos {
 
     public record CreateQuotationRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             /* 원본 견적서의 [창고]·[프로젝트]. 견적 시점에는 안 정했을 수 있어 필수가 아니다. */
             Long warehouseId,
             Long projectId,
@@ -96,7 +98,7 @@ public final class QuotationDtos {
         public static QuotationResponse from(Quotation q) {
             return new QuotationResponse(
                     q.getId(), q.getQuoteNo(), q.getQuoteDate(), q.getValidUntil(),
-                    q.getPartner().getId(), q.getPartner().getName(),
+                    q.getPartner().getId(), q.displayPartnerName(),
                     q.getWarehouse() != null ? q.getWarehouse().getId() : null,
                     q.getWarehouse() != null ? q.getWarehouse().getName() : null,
                     q.getProject() != null ? q.getProject().getId() : null,

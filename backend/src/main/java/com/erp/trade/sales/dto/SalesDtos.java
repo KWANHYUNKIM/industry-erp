@@ -62,6 +62,8 @@ public final class SalesDtos {
 
     public record CreateSalesRequest(
             Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             LocalDate saleDate,
             /** 과세 여부 (true=부가세 10%, false=면세) */
@@ -90,7 +92,7 @@ public final class SalesDtos {
         public CreateSalesRequest(Long partnerId, Long warehouseId, LocalDate saleDate, Boolean taxable,
                                   String remark, Long projectId, Long employeeId,
                                   Boolean vatBySlip, List<SalesLineRequest> lines) {
-            this(partnerId, warehouseId, saleDate, taxable, remark, projectId, employeeId,
+            this(partnerId, null, warehouseId, saleDate, taxable, remark, projectId, employeeId,
                     vatBySlip, lines, null, null, null);
         }
     }
@@ -186,7 +188,7 @@ public final class SalesDtos {
         public static SalesResponse from(Sales s) {
             return new SalesResponse(
                     s.getId(), s.getDocNo(),
-                    s.getPartner() != null ? s.getPartner().getId() : null, s.getPartner() != null ? s.getPartner().getName() : "",
+                    s.getPartner() != null ? s.getPartner().getId() : null, s.getPartner() != null ? s.displayPartnerName() : "",
                     s.getWarehouse().getId(), s.getWarehouse().getName(),
                     s.getSaleDate(),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),

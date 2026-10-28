@@ -15,6 +15,7 @@ import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
 import DateChangeFn from '../../features/datechange/DateChangeFn'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { isAnyPartner } from '../../utils/anyPartner'
 import { dateNo } from '../../utils/dateNo'
 import { lineSupply } from '../../utils/lineSupply'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
@@ -63,6 +64,8 @@ export default function QuotationEntry() {
   // ── 머리 ──────────────────────────────────────────────
   const [date, setDate] = useState(today())
   const [partnerId, setPartnerId] = useState('')
+  /** 임의거래처(12341234)에 고친 거래처명 — 고른 거래처 id 와 같이 들어 다른 거래처를 고르면 저절로 버려진다. */
+  const [anyName, setAnyName] = useState<{ id: string; name: string } | null>(null)
   const [employeeId, setEmployeeId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [taxable, setTaxable] = useState(true)
@@ -101,6 +104,10 @@ export default function QuotationEntry() {
   const printWinRef = useRef<Window | null>(null)
 
   const customers = useMemo(() => partners.filter((p) => p.type !== 'SUPPLIER'), [partners])
+  const chosenPartner = partners.find((p) => String(p.id) === partnerId)
+  const anyPartner = isAnyPartner(chosenPartner)
+  /** 임의거래처 이름 칸의 값 — 고친 것이 없으면 마스터 이름('임의거래처'). 원본 견적 11/21-2 '경동상회'(2026-10-28 실측). */
+  const anyPartnerName = anyPartner ? (anyName?.id === partnerId ? anyName.name : chosenPartner?.name ?? '') : ''
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
   const codeItems = useMemo(
     () => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec, stopped: !i.active })),
@@ -157,6 +164,7 @@ export default function QuotationEntry() {
     setEditing(q)
     setDate(q.quoteDate); setValidUntil(q.validUntil ?? '')
     setPartnerId(String(q.partnerId))
+    setAnyName({ id: String(q.partnerId), name: q.partnerName ?? '' })
     setTaxable(q.vatAmount > 0 || q.supplyAmount === 0); setRemark(q.remark ?? '')
     setWarehouseId(q.warehouseId ? String(q.warehouseId) : '')
     setProjectId(q.projectId ? String(q.projectId) : '')
@@ -319,7 +327,7 @@ export default function QuotationEntry() {
     }
     if (!partnerId) { setPartnerMissing(true); return }
     const body = {
-      partnerId: Number(partnerId), quoteDate: date,
+      partnerId: Number(partnerId), partnerName: anyPartner ? anyPartnerName : null, quoteDate: date,
       warehouseId: warehouseId ? Number(warehouseId) : undefined,
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
@@ -422,7 +430,8 @@ export default function QuotationEntry() {
             <div className="title">거래처<span className="req">*</span></div>
             <div className="form">
               <div className={`inline-block${partnerMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={partnerMissing || undefined}>
-                <CodePickerField label="거래처" hideLabel pair value={partnerId} onChange={choosePartner} items={partnerCodeItems(customers, true)} />
+                <CodePickerField label="거래처" hideLabel pair value={partnerId} onChange={choosePartner} items={partnerCodeItems(customers, true)}
+                {...(anyPartner ? { nameValue: anyPartnerName, onNameChange: (n: string) => setAnyName({ id: partnerId, name: n }) } : {})} />
               </div>
             </div>
           </li>

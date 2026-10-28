@@ -15,6 +15,7 @@ import Modal from '../../components/Modal'
 import DateChangeFn from '../../features/datechange/DateChangeFn'
 import { ErrTip } from '../../components/GridCode'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { isAnyPartner } from '../../utils/anyPartner'
 import { dateNo } from '../../utils/dateNo'
 import { dateText } from '../../utils/dateText'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
@@ -93,6 +94,8 @@ export default function SalesOrderEntry() {
   // ── 머리 ──────────────────────────────────────────────
   const [date, setDate] = useState(today())
   const [partnerId, setPartnerId] = useState('')
+  /** 임의거래처(12341234)에 고친 거래처명 — 고른 거래처 id 와 같이 들어 다른 거래처를 고르면 저절로 버려진다. */
+  const [anyName, setAnyName] = useState<{ id: string; name: string } | null>(null)
   const [employeeId, setEmployeeId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [taxable, setTaxable] = useState(true)
@@ -142,6 +145,10 @@ export default function SalesOrderEntry() {
   const printWinRef = useRef<Window | null>(null)
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
+  const chosenPartner = partners.find((p) => String(p.id) === partnerId)
+  const anyPartner = isAnyPartner(chosenPartner)
+  /** 임의거래처 이름 칸의 값 — 고친 것이 없으면 마스터 이름('임의거래처'). 원본 견적 11/21-2 '경동상회'(2026-10-28 실측). */
+  const anyPartnerName = anyPartner ? (anyName?.id === partnerId ? anyName.name : chosenPartner?.name ?? '') : ''
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
   const codeItems = useMemo(
     () => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec, stopped: !i.active })),
@@ -199,6 +206,7 @@ export default function SalesOrderEntry() {
     setEditing({ id: o.id, orderNo: o.orderNo, orderDate: o.orderDate })
     setDate(o.orderDate); setDueDate(o.dueDate ?? '')
     setPartnerId(String(o.partnerId))
+    setAnyName({ id: String(o.partnerId), name: o.partnerName ?? '' })
     setTaxable(o.vatAmount > 0 || o.supplyAmount === 0); setRemark(o.remark ?? '')
     setWarehouseId(o.warehouseId ? String(o.warehouseId) : '')
     setProjectId(o.projectId ? String(o.projectId) : '')
@@ -475,7 +483,7 @@ export default function SalesOrderEntry() {
     if (noPrice) return setError('단가를 입력하세요.')
     if (!warehouseId) { setWhMissing(true); return }
     const body = {
-      partnerId: Number(partnerId), dueDate: dueDate || undefined,
+      partnerId: Number(partnerId), partnerName: anyPartner ? anyPartnerName : null, dueDate: dueDate || undefined,
       warehouseId: Number(warehouseId),
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
@@ -592,7 +600,8 @@ export default function SalesOrderEntry() {
           <li>
             <div className="title">거래처<span className="req">*</span></div>
             <div className="form">
-              <CodePickerField label="거래처" hideLabel pair value={partnerId} onChange={choosePartner} items={partnerCodeItems(customers, true)} />
+              <CodePickerField label="거래처" hideLabel pair value={partnerId} onChange={choosePartner} items={partnerCodeItems(customers, true)}
+                {...(anyPartner ? { nameValue: anyPartnerName, onNameChange: (n: string) => setAnyName({ id: partnerId, name: n }) } : {})} />
             </div>
           </li>
           <li>

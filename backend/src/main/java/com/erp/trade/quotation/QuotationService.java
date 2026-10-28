@@ -86,6 +86,7 @@ public class QuotationService {
                 .quoteDate(quoteDate)
                 .validUntil(req.validUntil())
                 .partner(partner)
+                .partnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()))
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
@@ -114,6 +115,7 @@ public class QuotationService {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 견적을 낼 수 없습니다: " + partner.getName());
         }
         q.setPartner(partner);
+        q.setPartnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()));
         if (req.quoteDate() != null) q.setQuoteDate(req.quoteDate());
         q.setValidUntil(req.validUntil());
         q.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
@@ -150,7 +152,7 @@ public class QuotationService {
         Item first = q.getLines().isEmpty() ? null : q.getLines().get(0).getItem();
         return new SlipSnapshot("견적서", q.getQuoteDate(), q.getQuoteNo(),
                 q.getPartner() != null ? q.getPartner().getCode() : null,
-                q.getPartner() != null ? q.getPartner().getName() : null,
+                q.displayPartnerName(),
                 first == null ? null : ChangeHistoryService.itemSummary(q.getLines().get(0).effectiveItemName(), q.getLines().get(0).effectiveSpec(), q.getLines().size()),
                 q.getEmployee() != null ? q.getEmployee().getCode() : null,
                 q.getEmployee() != null ? q.getEmployee().getName() : null,

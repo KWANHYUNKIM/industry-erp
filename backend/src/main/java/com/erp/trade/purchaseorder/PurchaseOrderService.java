@@ -533,7 +533,7 @@ public class PurchaseOrderService {
                 .toList();
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(
-                po.getPartner().getId(), req.warehouseId(), purchaseDate, po.getTaxable(),
+                po.getPartner().getId(), null, req.warehouseId(), purchaseDate, po.getTaxable(),
                 "발주 " + po.getOrderNo() + " 입고", null, null,
                 null,   // 거래별부가세계산: 발주서가 라인별로 계산해 둔 값을 그대로 승계한다
                 null, null,   // 통화 · 환율: 내자

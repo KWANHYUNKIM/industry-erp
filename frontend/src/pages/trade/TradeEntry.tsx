@@ -29,6 +29,7 @@ import { useSubmitting } from '../../utils/useSubmitting'
 import { ErrTip } from '../../components/GridCode'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
+import { isAnyPartner } from '../../utils/anyPartner'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -385,6 +386,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   // ── 헤더 항목 ──────────────────────────────────────────
   const [date, setDate] = useState(today())
   const [partnerId, setPartnerId] = useState('')
+  /** 임의거래처(12341234)에 고친 거래처명 — 고른 거래처 id 와 같이 들어 다른 거래처를 고르면 저절로 버려진다. */
+  const [anyName, setAnyName] = useState<{ id: string; name: string } | null>(null)
   const [employeeId, setEmployeeId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [taxable, setTaxable] = useState(true)
@@ -651,6 +654,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     returnLoaded.current = true
     setDate(today())
     setPartnerId(d.partnerId != null ? String(d.partnerId) : '')
+    setAnyName(d.partnerId != null ? { id: String(d.partnerId), name: d.partnerName ?? '' } : null)
     setWarehouseId(String(d.warehouseId))
     setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
     setTaxable(d.taxable)
@@ -736,6 +740,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setEditing({ id: d.id, docNo: d.docNo })
     setDate((d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate)
     setPartnerId(d.partnerId != null ? String(d.partnerId) : '')
+    setAnyName(d.partnerId != null ? { id: String(d.partnerId), name: d.partnerName ?? '' } : null)
     setWarehouseId(String(d.warehouseId))
     setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
     setProjectId((d as SalesDoc).projectId != null ? String((d as SalesDoc).projectId) : '')
@@ -805,6 +810,10 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, custom: { ...l.custom, [key]: value } } : l)))
 
   const usablePartners = useMemo(() => partners.filter(cfg.canUse), [partners, cfg])
+  const chosenPartner = partners.find((p) => String(p.id) === partnerId)
+  const anyPartner = isAnyPartner(chosenPartner)
+  /** 임의거래처 이름 칸의 값 — 고친 것이 없으면 마스터 이름('임의거래처'). */
+  const anyPartnerName = anyPartner ? (anyName?.id === partnerId ? anyName.name : chosenPartner?.name ?? '') : ''
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
   const codeItems = useMemo(
     () => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec, stopped: !i.active })),
@@ -1556,6 +1565,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     const dateKey = mode === 'sales' ? 'saleDate' : 'purchaseDate'
     const body = {
       partnerId: partnerId ? Number(partnerId) : null,
+      partnerName: anyPartner ? anyPartnerName : null,
       warehouseId: Number(warehouseId),
       vatBySlip,
       [dateKey]: date,
@@ -1956,6 +1966,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 label={cfg.partnerLabel} hideLabel pair
                 value={partnerId} onChange={choosePartner}
                 items={partnerCodeItems(usablePartners, true)}
+                {...(anyPartner ? { nameValue: anyPartnerName, onNameChange: (n: string) => setAnyName({ id: partnerId, name: n }) } : {})}
               />
             </div>
           </li>
@@ -1995,6 +2006,13 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 <option value="D">내자</option>
                 <option value="F">외자</option>
               </select>
+              {/* 원본 판매입력: 임의거래처를 고르면 통화 자리에 [거래처명] 칸이 하나 더 생기고 이름 칸과 같은 값을 든다(2026-10-28 실측) */}
+              {anyPartner && (
+                <input
+                  className="ec-input w-[150px]" aria-label="거래처명" placeholder="거래처명"
+                  value={anyPartnerName} onChange={(e) => setAnyName({ id: partnerId, name: e.target.value })}
+                />
+              )}
               {mode === 'purchase' && foreign && (
                 <select
                   className="ec-input w-[120px]" aria-label="외화" value={currencyCode}
