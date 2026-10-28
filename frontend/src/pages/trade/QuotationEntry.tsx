@@ -34,8 +34,8 @@ import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphisto
  * 견적서조회의 [신규(F2)] · [일자-No.](`?edit=`) 가 이 화면으로 온다. 창이 아니라 화면이라 Esc 로 입력이 사라지지 않는다.
  */
 
-interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string }
-const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '' })
+interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */ }
+const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '', spec: null })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -160,7 +160,7 @@ export default function QuotationEntry() {
     setWarehouseId(q.warehouseId ? String(q.warehouseId) : '')
     setProjectId(q.projectId ? String(q.projectId) : '')
     setEmployeeId(q.employeeId ? String(q.employeeId) : '')
-    setLines([...q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '' })), emptyLine(), emptyLine()])
+    setLines([...q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '', spec: l.spec ?? null })), emptyLine(), emptyLine()])
   }
 
   // ── 줄 편집 ───────────────────────────────────────────
@@ -178,6 +178,7 @@ export default function QuotationEntry() {
   function updateLine(idx: number, field: keyof LineInput, value: string) {
     setLines((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
+      if (field === 'itemId') next[idx] = { ...next[idx], spec: null } // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
       if (field === 'itemId' && value) {
         /* 원본: 품목을 고르면 수량은 비어 있고 단가는 품목 출고단가(없으면 0). */
         const it = itemById.get(value)
@@ -213,7 +214,7 @@ export default function QuotationEntry() {
         next[at] = { ...next[at], quantity: String(num(next[at].quantity) + qty) }
         return next
       }
-      const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice ?? 0), remark: '' }
+      const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice ?? 0), remark: '', spec: null }
       const blank = ls.findIndex((l) => !l.itemId)
       if (blank >= 0) return ls.map((l, i) => (i === blank ? filled : l))
       return [...ls, filled, emptyLine()]
@@ -226,7 +227,7 @@ export default function QuotationEntry() {
   function applyMyItems() {
     if (myItems.length === 0) return flash('My품목이 비어 있습니다. 주문서입력 · 판매입력 명세의 [★]로 담아 두세요.')
     setLines((ls) => [...ls.filter((l) => l.itemId),
-      ...myItems.map((m) => ({ itemId: String(m.itemId), quantity: String(m.defaultQty), unitPrice: String(m.unitPrice), remark: '' })), emptyLine()])
+      ...myItems.map((m) => ({ itemId: String(m.itemId), quantity: String(m.defaultQty), unitPrice: String(m.unitPrice), remark: '', spec: null })), emptyLine()])
     setMyItemsOpen(false)
     flash(`My품목 ${myItems.length}건을 명세에 담았습니다.`)
   }
@@ -322,7 +323,7 @@ export default function QuotationEntry() {
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
       validUntil: validUntil || undefined, taxable, remark: remark || undefined,
-      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice), remark: l.remark || undefined })),
+      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice), remark: l.remark || undefined, spec: l.spec ?? undefined })),
     }
     try {
       const saved = editing
@@ -556,7 +557,7 @@ export default function QuotationEntry() {
                       <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제" value={l.itemId}
                                        onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />
                     </td>
-                    <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">{it?.spec ?? ''}</td>
+                    <td><input className="cell" value={l.spec ?? it?.spec ?? ''} maxLength={200} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'spec', e.target.value)} /></td>
                     <td><EcNumInput className="cell text-right" value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} /></td>
                     <td><EcNumInput className="cell text-right" value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} /></td>
                     <td className="pad text-right">{l.itemId ? won(computed[idx].supply) : ''}</td>

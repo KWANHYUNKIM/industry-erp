@@ -33,8 +33,8 @@ import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
  * 주문서조회의 [신규(F2)] · [일자-No.] · `?edit=` · `?fromQuotes=` 가 모두 이 화면으로 온다. 창이 아니라 화면이라 Esc 로 닫히지 않는다.
  */
 
-interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string }
-const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '' })
+interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */ }
+const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '', spec: null })
 /** 원본은 빈 입력행 3줄로 뜬다. */
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
@@ -202,7 +202,7 @@ export default function SalesOrderEntry() {
     setWarehouseId(o.warehouseId ? String(o.warehouseId) : '')
     setProjectId(o.projectId ? String(o.projectId) : '')
     setEmployeeId(o.employeeId ? String(o.employeeId) : '')
-    setLines([...o.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '' })), emptyLine()])
+    setLines([...o.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '', spec: l.spec ?? null })), emptyLine()])
   }
 
   /**
@@ -213,7 +213,7 @@ export default function SalesOrderEntry() {
     if (!quotesParam) return
     const ids = quotesParam.split(',').map(Number).filter((n) => n > 0)
     api.get<{ id: number; partnerId: number; warehouseId: number | null; projectId: number | null; vatAmount: number; convertedOrderId: number | null
-      lines: { itemId: number; quantity: number; unitPrice: number; remark?: string | null }[] }[]>('/quotations')
+      lines: { itemId: number; quantity: number; unitPrice: number; remark?: string | null; spec?: string | null }[] }[]>('/quotations')
       .then((r) => {
         const qs = ids.map((id) => r.data.find((q) => q.id === id)).filter((q) => q != null)
         if (qs.length === 0) return
@@ -224,7 +224,7 @@ export default function SalesOrderEntry() {
         setWarehouseId(first.warehouseId ? String(first.warehouseId) : '')
         setProjectId(first.projectId ? String(first.projectId) : '')
         /* 원본(2026-10-21 실측): 이미 주문서를 만든 견적을 다시 하면 막지 않고 잔량 0 이라 줄이 빈 창이 뜬다. */
-        setLines([...qs.filter((q) => q.convertedOrderId == null).flatMap((q) => q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '' }))), emptyLine()])
+        setLines([...qs.filter((q) => q.convertedOrderId == null).flatMap((q) => q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '', spec: l.spec ?? null }))), emptyLine()])
         setFromQuotes(qs.map((q) => q.id))
       })
       .catch((err) => setError(extractErrorMessage(err)))
@@ -277,7 +277,7 @@ export default function SalesOrderEntry() {
     const added = picked.filter((q) => q.convertedOrderId == null).flatMap((q) => q.lines
       .map((l, i) => ({ l, key: `${q.id}-${i}` }))
       .filter(({ key }) => !quoteByLine || quoteLinePicked[key])
-      .map(({ l }) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '' })))
+      .map(({ l }) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '', spec: l.spec ?? null })))
     setLines((ls) => [...ls.filter((l) => l.itemId), ...added, emptyLine()])
     setFromQuotes((prev) => [...new Set([...(prev ?? []), ...picked.map((q) => q.id)])])
     setQuoteLoaded(true)
@@ -309,6 +309,7 @@ export default function SalesOrderEntry() {
   function updateLine(idx: number, field: keyof LineInput, value: string) {
     setLines((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
+      if (field === 'itemId') next[idx] = { ...next[idx], spec: null } // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
       if (field === 'itemId' && value) {
         const it = itemById.get(value)
         if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: String(it.unitPrice) }
@@ -332,7 +333,7 @@ export default function SalesOrderEntry() {
         next[at] = { ...next[at], quantity: String(num(next[at].quantity) + qty) }
         return next
       }
-      const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice), remark: '' }
+      const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice), remark: '', spec: null }
       const blank = ls.findIndex((l) => !l.itemId)
       if (blank >= 0) return ls.map((l, i) => (i === blank ? filled : l))
       return [...ls, filled, emptyLine()]
@@ -384,7 +385,7 @@ export default function SalesOrderEntry() {
   function applyMyItems() {
     if (myItems.length === 0) return flash('My품목이 비어 있습니다. 명세에서 [★]로 담아 두세요.')
     setLines((ls) => [...ls.filter((l) => l.itemId),
-      ...myItems.map((m) => ({ itemId: String(m.itemId), quantity: String(m.defaultQty), unitPrice: String(m.unitPrice), remark: '' })), emptyLine()])
+      ...myItems.map((m) => ({ itemId: String(m.itemId), quantity: String(m.defaultQty), unitPrice: String(m.unitPrice), remark: '', spec: null })), emptyLine()])
     setMyItemsOpen(false)
     flash(`My품목 ${myItems.length}건을 명세에 담았습니다.`)
   }
@@ -478,7 +479,7 @@ export default function SalesOrderEntry() {
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
       taxable, remark: remark || undefined,
-      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice), remark: l.remark || undefined })),
+      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice), remark: l.remark || undefined, spec: l.spec ?? undefined })),
     }
     try {
       let saved: OrderDoc
@@ -732,7 +733,7 @@ export default function SalesOrderEntry() {
                       <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제" value={l.itemId}
                                        onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />
                     </td>
-                    <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">{it?.spec ?? ''}</td>
+                    <td><input className="cell" value={l.spec ?? it?.spec ?? ''} maxLength={200} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'spec', e.target.value)} /></td>
                     <td className="relative">
                       <EcNumInput className="cell text-right" value={l.quantity}
                                   onValue={(v) => { if (qtyErr === idx) setQtyErr(null); updateLine(idx, 'quantity', v) }} />

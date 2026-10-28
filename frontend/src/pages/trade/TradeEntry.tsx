@@ -86,6 +86,11 @@ interface LineInput {
   unitPrice: string
   /** 외자 구매의 줄 환율. 비우면 머리 환율. (외자일 때 unitPrice 는 외화단가다) */
   lineRate: string
+  /**
+   * 줄 규격 — 원본은 줄마다 따로 저장한다(품목을 고르면 품목 규격으로 채우되 줄에서 고치거나 비울 수 있다).
+   * null = 아직 안 건드림(품목 규격을 따라간다), 빈 글자 = 일부러 비움.
+   */
+  spec: string | null
   /** 시리얼/로트 (원본 serial_cd) */
   lotNo: string
   /** 부대비용 (원본 cust_amt). 합계 금액에는 더하지 않는다. */
@@ -154,7 +159,7 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const emptyLine = (): LineInput => ({
-  itemId: '', quantity: '', unitPrice: '', lineRate: '', lotNo: '', extraCost: '', remark: '',
+  itemId: '', quantity: '', unitPrice: '', lineRate: '', spec: null, lotNo: '', extraCost: '', remark: '',
   supplyOverride: '', supplyBase: '', vatOverride: '', vatBase: '',
   qcRequest: false,
   sourceOrderId: '', sourceDocType: '', sourceDocDate: '', sourceDocNo: '', checked: false,
@@ -652,6 +657,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
         itemId: String(l.itemId),
         quantity: String(-Math.abs(l.quantity)),
         unitPrice: String(l.unitPrice),
+        spec: l.spec ?? null,
         lotNo: l.lotNo ?? '',
         remark: l.remark ?? '',
       })),
@@ -742,6 +748,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
         quantity: String(l.quantity),
         unitPrice: fxDoc && l.foreignPrice != null ? String(l.foreignPrice) : String(l.unitPrice),
         lineRate: fxDoc && l.lineRate != null && l.lineRate !== (d as PurchaseDoc).exchangeRate ? String(l.lineRate) : '',
+        spec: l.spec ?? null,
         lotNo: l.lotNo ?? '',
         extraCost: l.extraCost != null ? String(l.extraCost) : '',
         // 저장된 공급가액이 수량 × 단가와 다르면 손으로 고친 값이다 — 다시 저장해도 남도록 들고 온다.
@@ -941,6 +948,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   function updateLine(idx: number, field: keyof LineInput, value: string | boolean) {
     setLines((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
+      // 품목을 새로 고르면 규격도 새 품목 규격으로 다시 채운다(원본). 고친 규격은 같은 품목에서만 남는다.
+      if (field === 'itemId') next[idx] = { ...next[idx], spec: null }
       if (field === 'itemId' && value) {
         const it = itemById.get(String(value))
         if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: basePriceOf(it) }
@@ -1058,6 +1067,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       ...d.lines.map((ln) => ({
         ...emptyLine(),
         itemId: String(ln.itemId), quantity: String(ln.quantity), unitPrice: String(ln.unitPrice),
+        spec: ln.spec ?? null,
         remark: ln.remark ?? '',
       })),
       emptyLine(),
@@ -1188,6 +1198,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
         itemId: String(r.itemId),
         quantity: String(r.restQty),
         unitPrice: String(r.unitPrice),
+        spec: r.spec ?? null,
         // 적요에 "SO-… 불러옴" 이라고 적던 것을 근거전표 3열로 옮겼다. 적요는 사람 몫으로 비워 둔다.
         sourceOrderId: String(r.orderId),
         sourceDocType: r.docType,
@@ -1492,6 +1503,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
         unitPrice: fx ? roundWon(fxAmountOf(l) * lineRateOf(l) / (num(l.quantity) || 1e-9)) : num(l.unitPrice),
         ...(fx ? { foreignPrice: num(l.unitPrice), foreignAmount: fxAmountOf(l), lineRate: num(l.lineRate) > 0 ? num(l.lineRate) : undefined } : {}),
         remark: l.remark.trim() || undefined,
+        spec: l.spec ?? undefined,
         lotNo: l.lotNo.trim() || undefined,
         extraCost: l.extraCost ? num(l.extraCost) : undefined,
         sourceOrderId: l.sourceOrderId ? Number(l.sourceOrderId) : undefined,
@@ -2419,8 +2431,9 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                         items={codeItems}
                       />
                     </td>
-                    <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">
-                      {it?.spec ?? ''}
+                    <td className="pad">
+                      <input className="cell" value={l.spec ?? it?.spec ?? ''} maxLength={200} disabled={!l.itemId}
+                             onChange={(e) => updateLine(idx, 'spec', e.target.value)} />
                     </td>
                     {!lotAfterQty && lotCell(l, idx)}
                     {cols.stockAll && (
