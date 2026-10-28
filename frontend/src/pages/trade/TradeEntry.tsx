@@ -263,6 +263,8 @@ interface LoadableLine {
   /** 근거전표의 창고·프로젝트 — 담을 때 전표 머리에 이어받는다(없으면 null). */
   warehouseId: number | null
   projectId: number | null
+  /** 근거전표의 담당자 — 원본 구매입력 [발주] 불러오기는 머리 담당자를 채운다(2026-10-28 실측). 판매는 아직 null. */
+  employeeId: number | null
   statusName: string
   itemId: number
   itemCode: string
@@ -931,7 +933,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           key: `${l.orderId}-${l.orderLineId}`, orderId: l.orderId, docType: '주문서',
           docNo: l.orderNo, date: l.orderDate,
           partnerId: l.partnerId, partnerName: l.partnerName, statusName: l.statusName,
-          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null,
+          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null, employeeId: null,
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
           orderedQty: l.orderQty, doneQty: l.soldQty, restQty: l.unsoldQty, unitPrice: l.unitPrice,
         }))
@@ -946,6 +948,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           warehouseId: number | null; projectId: number | null
           itemId: number; itemCode: string; itemName: string; unit: string
           orderQty: number; boughtQty: number; restQty: number; unitPrice: number
+          employeeId: number | null
         }[]>('/purchase-orders/unpurchased')
         /*
          * 원본 [발주] 검색창은 <b>발주서</b>만 띄운다 — 발주요청 · 발주계획은 다른 전표다(2026-10-20 실측).
@@ -955,7 +958,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           key: `${l.orderId}-${l.orderLineId}`, orderId: l.orderId, docType: '발주서',
           docNo: l.orderNo, date: l.orderDate,
           partnerId: l.partnerId, partnerName: l.partnerName, statusName: l.statusName,
-          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null,
+          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null, employeeId: l.employeeId ?? null,
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
           orderedQty: l.orderQty, doneQty: l.boughtQty, restQty: l.restQty, unitPrice: l.unitPrice,
         }))
@@ -1022,6 +1025,9 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
      * 창고는 화면을 열 때 기본값(마지막에 쓴 창고 등)이 이미 차 있어서 "비었으면 채운다" 로는 안 바뀐다 —
      * 주문은 본사창고인데 QA창고에서 출하하는 판매가 만들어졌다. 주문들의 창고가 하나면 그것으로 바꾸고 알린다.
      */
+    /* 원본은 발주의 담당자(P01 김현수)가 머리에 찬다(2026-10-28 실측). 이미 고른 담당자를 덮는지는 미실측 — 비었을 때만. */
+    const emp = picked.find((r) => r.employeeId != null)?.employeeId
+    if (!employeeId && emp != null) setEmployeeId(String(emp))
     const whIds = [...new Set(picked.map((r) => r.warehouseId).filter((x): x is number => x != null))]
     const whNote = whIds.length === 1 && warehouseId !== String(whIds[0])
     if (whNote) setWarehouseId(String(whIds[0]))
