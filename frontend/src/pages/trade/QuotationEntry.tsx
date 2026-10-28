@@ -34,8 +34,8 @@ import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphisto
  * 견적서조회의 [신규(F2)] · [일자-No.](`?edit=`) 가 이 화면으로 온다. 창이 아니라 화면이라 Esc 로 입력이 사라지지 않는다.
  */
 
-interface LineInput { itemId: string; quantity: string; unitPrice: string }
-const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
+interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string }
+const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '' })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -160,7 +160,7 @@ export default function QuotationEntry() {
     setWarehouseId(q.warehouseId ? String(q.warehouseId) : '')
     setProjectId(q.projectId ? String(q.projectId) : '')
     setEmployeeId(q.employeeId ? String(q.employeeId) : '')
-    setLines([...q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) })), emptyLine(), emptyLine()])
+    setLines([...q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '' })), emptyLine(), emptyLine()])
   }
 
   // ── 줄 편집 ───────────────────────────────────────────
@@ -213,7 +213,7 @@ export default function QuotationEntry() {
         next[at] = { ...next[at], quantity: String(num(next[at].quantity) + qty) }
         return next
       }
-      const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice ?? 0) }
+      const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice ?? 0), remark: '' }
       const blank = ls.findIndex((l) => !l.itemId)
       if (blank >= 0) return ls.map((l, i) => (i === blank ? filled : l))
       return [...ls, filled, emptyLine()]
@@ -226,7 +226,7 @@ export default function QuotationEntry() {
   function applyMyItems() {
     if (myItems.length === 0) return flash('My품목이 비어 있습니다. 주문서입력 · 판매입력 명세의 [★]로 담아 두세요.')
     setLines((ls) => [...ls.filter((l) => l.itemId),
-      ...myItems.map((m) => ({ itemId: String(m.itemId), quantity: String(m.defaultQty), unitPrice: String(m.unitPrice) })), emptyLine()])
+      ...myItems.map((m) => ({ itemId: String(m.itemId), quantity: String(m.defaultQty), unitPrice: String(m.unitPrice), remark: '' })), emptyLine()])
     setMyItemsOpen(false)
     flash(`My품목 ${myItems.length}건을 명세에 담았습니다.`)
   }
@@ -322,7 +322,7 @@ export default function QuotationEntry() {
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
       validUntil: validUntil || undefined, taxable, remark: remark || undefined,
-      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice) })),
+      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice), remark: l.remark || undefined })),
     }
     try {
       const saved = editing
@@ -532,7 +532,7 @@ export default function QuotationEntry() {
           <table className="ec-grid-input no-ec table-fixed">
             <colgroup>
               <col className="w-[26px]" /><col className="w-[100px]" /><col className="w-[200px]" /><col className="w-[110px]" />
-              <col className="w-[78px]" /><col className="w-[96px]" /><col className="w-[110px]" /><col className="w-[96px]" /><col className="w-[100px]" />
+              <col className="w-[78px]" /><col className="w-[96px]" /><col className="w-[110px]" /><col className="w-[96px]" /><col className="w-[140px]" /><col className="w-[100px]" />
               <col className="w-[30px]" />
             </colgroup>
             <thead>
@@ -540,7 +540,7 @@ export default function QuotationEntry() {
                 <th />
                 <th className="text-left">품목코드</th><th className="text-left">품목명</th><th className="text-left">규격</th>
                 <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th>
-                <th className="text-right">부가세</th><th className="text-right">합계</th><th />
+                <th className="text-right">부가세</th><th className="text-left">적요</th><th className="text-right">합계</th><th />
               </tr>
             </thead>
             <tbody>
@@ -561,6 +561,7 @@ export default function QuotationEntry() {
                     <td><EcNumInput className="cell text-right" value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} /></td>
                     <td className="pad text-right">{l.itemId ? won(computed[idx].supply) : ''}</td>
                     <td className="pad text-right">{l.itemId ? won(computed[idx].vat) : ''}</td>
+                    <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                     <td className="pad text-right font-semibold text-ec-text">{l.itemId ? won(computed[idx].total) : ''}</td>
                     <td className="text-center">
                       {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint">✕</button>}
@@ -577,6 +578,7 @@ export default function QuotationEntry() {
                 <td />
                 <td className="text-right">{won(totals.supply)}</td>
                 <td className="text-right">{won(totals.vat)}</td>
+                <td />
                 <td className="text-right font-bold text-ec-blue">{won(totals.total)}</td>
                 <td />
               </tr>

@@ -45,4 +45,8 @@ public class QuotationLine {
     @Column(name = "line_no", nullable = false)
     @Builder.Default
     private Integer lineNo = 1;
+
+    /** 줄 적요(선택). 원본 견적서입력 줄 열 '적요'. */
+    @Column(length = 255)
+    private String remark;
 }

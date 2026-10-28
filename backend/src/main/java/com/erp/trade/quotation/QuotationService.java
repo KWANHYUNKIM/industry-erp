@@ -155,7 +155,7 @@ public class QuotationService {
             BigDecimal vat = taxable ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
             q.addLine(QuotationLine.builder()
                     .item(item).quantity(lr.quantity()).unitPrice(lr.unitPrice())
-                    .supplyAmount(supply).vatAmount(vat).build());
+                    .supplyAmount(supply).vatAmount(vat).remark(lr.remark()).build());
             totalSupply = totalSupply.add(supply);
             totalVat = totalVat.add(vat);
         }

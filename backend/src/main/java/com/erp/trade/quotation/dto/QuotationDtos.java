@@ -20,7 +20,9 @@ public final class QuotationDtos {
     public record QuoteLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
+            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice,
+            /* 줄 적요 — 원본 견적서입력 줄 열 '적요'. */
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.") String remark
     ) {}
 
     public record CreateQuotationRequest(
@@ -55,14 +57,16 @@ public final class QuotationDtos {
              * 그 열을 지어내야 한다 - 품목 마스터가 진작 들고 있는데 응답이 안 싣고 있었다.
              */
             String spec,
-            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
+            String remark
     ) {
         public static QuoteLineResponse from(QuotationLine l) {
             return new QuoteLineResponse(
                     l.getId(), l.getLineNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
                     l.getItem().getSpec(),
-                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount());
+                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                    l.getRemark());
         }
     }
 

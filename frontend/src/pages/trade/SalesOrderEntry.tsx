@@ -59,7 +59,7 @@ interface QuoteLite {
   id: number; quoteNo: string; quoteDate: string; validUntil: string | null
   partnerId: number; partnerName: string; warehouseId: number | null; employeeId: number | null; employeeName: string | null
   status: string; statusName: string; totalAmount: number; convertedOrderId: number | null
-  lines: { itemId: number; itemName: string; spec: string | null; quantity: number; unitPrice: number }[]
+  lines: { itemId: number; itemName: string; spec: string | null; quantity: number; unitPrice: number; remark?: string | null }[]
 }
 /**
  * 견적서검색창 알약 — 원본 '전체 · 결재중 · 미확인 · 확인 · 진행중 · 완료'(2026-10-28 루프 26 실측).
@@ -213,7 +213,7 @@ export default function SalesOrderEntry() {
     if (!quotesParam) return
     const ids = quotesParam.split(',').map(Number).filter((n) => n > 0)
     api.get<{ id: number; partnerId: number; warehouseId: number | null; projectId: number | null; vatAmount: number; convertedOrderId: number | null
-      lines: { itemId: number; quantity: number; unitPrice: number }[] }[]>('/quotations')
+      lines: { itemId: number; quantity: number; unitPrice: number; remark?: string | null }[] }[]>('/quotations')
       .then((r) => {
         const qs = ids.map((id) => r.data.find((q) => q.id === id)).filter((q) => q != null)
         if (qs.length === 0) return
@@ -224,7 +224,7 @@ export default function SalesOrderEntry() {
         setWarehouseId(first.warehouseId ? String(first.warehouseId) : '')
         setProjectId(first.projectId ? String(first.projectId) : '')
         /* 원본(2026-10-21 실측): 이미 주문서를 만든 견적을 다시 하면 막지 않고 잔량 0 이라 줄이 빈 창이 뜬다. */
-        setLines([...qs.filter((q) => q.convertedOrderId == null).flatMap((q) => q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: '' }))), emptyLine()])
+        setLines([...qs.filter((q) => q.convertedOrderId == null).flatMap((q) => q.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '' }))), emptyLine()])
         setFromQuotes(qs.map((q) => q.id))
       })
       .catch((err) => setError(extractErrorMessage(err)))
@@ -277,7 +277,7 @@ export default function SalesOrderEntry() {
     const added = picked.filter((q) => q.convertedOrderId == null).flatMap((q) => q.lines
       .map((l, i) => ({ l, key: `${q.id}-${i}` }))
       .filter(({ key }) => !quoteByLine || quoteLinePicked[key])
-      .map(({ l }) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: '' })))
+      .map(({ l }) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '' })))
     setLines((ls) => [...ls.filter((l) => l.itemId), ...added, emptyLine()])
     setFromQuotes((prev) => [...new Set([...(prev ?? []), ...picked.map((q) => q.id)])])
     setQuoteLoaded(true)

@@ -2210,6 +2210,8 @@ export interface QuoteLine {
   unitPrice: number
   supplyAmount: number
   vatAmount: number
+  /** 줄 적요(원본 견적서입력 줄 열 '적요'). */
+  remark?: string | null
 }
 
 export interface Quotation {
