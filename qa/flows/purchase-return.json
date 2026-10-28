@@ -11,13 +11,14 @@
       ]
     },
     {
-      "name": "[반품처리] → 일자 오늘 · 줄 수량 -2 · 적요 빈칸 · 거래구분 일반 → 저장",
+      "name": "[반품처리] → 일자 오늘 · 줄 수량 -2 · 적요 빈칸 · 거래구분 칸 없음 → 저장",
       "path": "/sales/buy",
       "steps": [
         "js:location.href = '/sales/buy?returnFrom=' + sessionStorage.getItem('prBuyId'); true",
         "wait:2500",
         "expect:[...document.querySelectorAll('input.cell')].some((x) => x.value === '-2')",
         "expect:![...document.querySelectorAll('select')].some((s) => s.options[s.selectedIndex]?.text === '반품')",
+        "expect:![...document.querySelectorAll('.title')].some((t) => t.textContent.trim() === '거래구분')",
         "click:저장(F8)",
         "wait:1500",
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const S = JSON.parse(sessionStorage.getItem('prS')); const p = (await g('/api/purchases')).filter((x) => x.partnerId === S.sId && Number(x.totalAmount) === -2200).sort((a, b) => b.id - a.id)[0]; const st = (await g('/api/stock')).filter((x) => x.itemId === S.iId && x.warehouseId === S.wId).reduce((a, x) => a + Number(x.quantity), 0); const ap = (await g('/api/ledger/partner-balances?asOf=2099-12-31')).find((b) => b.partnerId === S.sId)?.payable ?? 0; sessionStorage.setItem('prRet', p?.docNo ?? ''); sessionStorage.setItem('prOut', JSON.stringify({ rs: p?.returnSlip, rm: p?.remark ?? '', q: p?.lines.map((l) => Number(l.quantity)).join(','), dst: st - S.st0, dap: ap - S.ap0 })); return sessionStorage.getItem('prOut') })()",

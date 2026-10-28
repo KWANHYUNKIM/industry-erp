@@ -382,11 +382,6 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const [employeeId, setEmployeeId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [taxable, setTaxable] = useState(true)
-  /**
-   * 원본 [거래구분] — 일반 · 반품. 되돌려받는(되돌려주는) 수량은 <b>양수로</b> 적는다.
-   * 부호를 뒤집는 것은 서버가 저장할 때 한 번만 한다.
-   */
-  const [returnSlip, setReturnSlip] = useState(false)
   /** [반품처리] 베끼기는 한 번만 한다 — 사람이 고친 뒤 다시 덮어쓰면 안 된다. */
   const returnLoaded = useRef(false)
   const [foreign, setForeign] = useState(false)          // 통화: 내자/외자
@@ -647,7 +642,6 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
     setTaxable(d.taxable)
     setVatBySlip(d.vatBySlip)
-    setReturnSlip(false)
     setRemark('')
     setLines([
       ...d.lines.map((l) => ({
@@ -732,8 +726,6 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
     setProjectId((d as SalesDoc).projectId != null ? String((d as SalesDoc).projectId) : '')
     setTaxable(d.taxable)
-    // 반품 전표는 수량이 음수로 저장돼 있다. 화면에는 원본처럼 양수로 되돌려 보여 준다.
-    setReturnSlip(d.returnSlip)
     setVatBySlip(d.vatBySlip)
     setRemark(d.remark ?? '')
     const fxDoc = mode === 'purchase' && !!(d as PurchaseDoc).currencyCode
@@ -744,18 +736,18 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       ...d.lines.map((l) => ({
         ...emptyLine(),
         itemId: String(l.itemId),
-        quantity: String(Math.abs(l.quantity)),
+        quantity: String(l.quantity),
         unitPrice: fxDoc && l.foreignPrice != null ? String(l.foreignPrice) : String(l.unitPrice),
         lineRate: fxDoc && l.lineRate != null && l.lineRate !== (d as PurchaseDoc).exchangeRate ? String(l.lineRate) : '',
         lotNo: l.lotNo ?? '',
         extraCost: l.extraCost != null ? String(l.extraCost) : '',
         // 저장된 공급가액이 수량 × 단가와 다르면 손으로 고친 값이다 — 다시 저장해도 남도록 들고 온다.
-        ...(!fxDoc && Math.abs(Number(l.supplyAmount)) !== lineSupply(Math.abs(l.quantity), Number(l.unitPrice))
-          ? { supplyOverride: String(Math.abs(Number(l.supplyAmount))), supplyBase: `${Math.abs(l.quantity)}|${l.unitPrice}` }
+        ...(!fxDoc && Number(l.supplyAmount) !== lineSupply(l.quantity, Number(l.unitPrice))
+          ? { supplyOverride: String(Number(l.supplyAmount)), supplyBase: `${l.quantity}|${l.unitPrice}` }
           : {}),
         // 부가세도 같다 — 줄마다 계산하는 전표에서 공급가액 × 10% 와 다르면 손으로 고친 값이다.
-        ...(d.taxable && !d.vatBySlip && Math.abs(Number(l.vatAmount)) !== roundWon(Math.abs(Number(l.supplyAmount)) * 0.1)
-          ? { vatOverride: String(Math.abs(Number(l.vatAmount))), vatBase: String(Math.abs(Number(l.supplyAmount))) }
+        ...(d.taxable && !d.vatBySlip && Number(l.vatAmount) !== roundWon(Number(l.supplyAmount) * 0.1)
+          ? { vatOverride: String(Number(l.vatAmount)), vatBase: String(Number(l.supplyAmount)) }
           : {}),
         remark: l.remark ?? '',
         sourceOrderId: l.sourceOrderId != null ? String(l.sourceOrderId) : '',
@@ -1427,7 +1419,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
 
   // ── 임시저장 (원본은 주기적으로 자동 저장하고 푸터에 시각을 찍는다) ──
   const snapshot = () => JSON.stringify({
-    date, partnerId, employeeId, warehouseId, taxable, returnSlip, foreign, exchangeRate, currencyCode, projectId, remark, customValues, lines,
+    date, partnerId, employeeId, warehouseId, taxable, foreign, exchangeRate, currencyCode, projectId, remark, customValues, lines,
   })
   function applyTemp() {
     const raw = localStorage.getItem(tempKey)
@@ -1436,7 +1428,6 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       const s = JSON.parse(raw)
       setDate(s.date ?? today()); setPartnerId(s.partnerId ?? ''); setEmployeeId(s.employeeId ?? '')
       setWarehouseId(s.warehouseId ?? ''); setTaxable(s.taxable ?? true); setForeign(s.foreign ?? false); setCurrencyCode(s.currencyCode ?? '')
-      setReturnSlip(s.returnSlip ?? false)
       setExchangeRate(s.exchangeRate ?? '0'); setProjectId(s.projectId ?? ''); setRemark(s.remark ?? '')
       setCustomValues(s.customValues ?? {}); setLines(Array.isArray(s.lines) && s.lines.length ? s.lines : emptyLines())
       setHasTemp(false)
@@ -1533,7 +1524,6 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       [dateKey]: date,
       // 외자도 고른 거래유형 그대로 보낸다 — 부가세 0 은 서버가 통화코드로 정한다(원본 수입 구매도 '부가세율 적용')
       taxable,
-      returnSlip,
       ...(fx ? { currencyCode, exchangeRate: num(exchangeRate) } : {}),
       remark: remark || undefined,
       projectId: projectId ? Number(projectId) : undefined,
@@ -1959,29 +1949,6 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               </select>
             </div>
           </li>
-          {/*
-            원본 [거래구분] — 일반 · 반품. 네 화면(판매·구매일괄회계반영, 구매단가일괄변경,
-            일별이익현황)이 이 구분을 조건으로 든다.
-            반품은 그 거래의 반대다 — 판매반품은 물건이 창고로 돌아오고 채권이 준다.
-            여기서는 되돌려받는 수량을 <b>양수로</b> 적는다. 부호는 서버가 뒤집는다.
-          */}
-          {!isAdjust && (
-          <li>
-            <div className="title">거래구분</div>
-            <div className="form">
-              <select className="ec-input" value={returnSlip ? 'R' : 'N'}
-                      onChange={(e) => setReturnSlip(e.target.value === 'R')} style={{ width: 100 }}>
-                <option value="N">일반</option>
-                <option value="R">반품</option>
-              </select>
-              {returnSlip && (
-                <span className="ml-[8px] text-[11.5px] text-ec-danger">
-                  {mode === 'sales' ? '되돌려받는' : '되돌려보내는'} 수량을 양수로 적으세요. {mode === 'sales' ? '재고가 늘고 채권이 줄어듭니다.' : '재고가 줄고 채무가 줄어듭니다.'}
-                </span>
-              )}
-            </div>
-          </li>
-          )}
           <li>
             <div className="title">통화</div>
             <div className="form">
