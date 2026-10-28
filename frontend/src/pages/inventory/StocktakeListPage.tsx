@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import SimpleAdjustDialog from '../../features/stockadjust/components/SimpleAdjustDialog'
@@ -41,11 +41,13 @@ interface Line {
  * 원본은 실사와 조정이 따로 남는다(2026-10-12 실측): 조정을 지워도 실사는 조정전표 빈 채로 남고, 실사를 여기 [선택삭제]
  * ('선택한 전표를 삭제 하겠습니까?')로 지우면 그 조정까지 같이 지워진다(2026-10-13 실측). 예전에는 조정을 그대로 실사로 보여 줘서 조정을 지우면 실사도 사라졌다. 단계별 = 단계별재고조정의 실사 요청 — 수량은 실사수량, 조정전표는 반영할 때
  * 생긴 재고조정(적요 '단계별조정 {실사번호}')이고 아직 안 반영했으면 비어 있다.
- * 담당자는 간편이 조정의 작성자, 단계별이 요청자다.
+ * 담당자는 간편이 간편재고조정 창의 담당자, 단계별이 실사 전표 머리의 담당자다.
  */
 export default function StocktakeListPage() {
   const pickers = useCondPickers(['warehouses', 'items', 'employees'])
-  const init = periodOf('차월')!
+  /* 재고조정진행단계 [실사 › 조회] 는 그 실사 전표 날짜로 걸러 연다(2026-10-28 원본 실측). */
+  const opened = useLocation().state as { from?: string; to?: string } | null
+  const init = opened?.from && opened?.to ? { from: opened.from, to: opened.to } : periodOf('차월')!
   /* 원본 [간편재고조정] — 품목 × 창고 재고 표에서 실사수량을 넣는 창(SimpleAdjustDialog). */
   const [simpleOpen, setSimpleOpen] = useState(false)
   const [sort, setSort] = useState<'전체' | '간편' | '단계별'>('전체')

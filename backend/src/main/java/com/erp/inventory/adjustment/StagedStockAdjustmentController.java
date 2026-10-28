@@ -63,6 +63,12 @@ public class StagedStockAdjustmentController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 진행단계 줄의 [조정] → '조정' — 그 실사 전표만 재고조정전표로 맞춘다. */
+    @PostMapping("/slips/{slipNo}/adjust")
+    public BulkAdjustResult adjustSlip(@PathVariable String slipNo, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.adjustSlip(slipNo, principal.getUsername());
+    }
+
     @PostMapping("/adjust")
     public BulkAdjustResult adjustAll(@Valid @RequestBody BulkAdjustRequest req, @AuthenticationPrincipal UserPrincipal principal) {
         return service.adjustAll(req, principal.getUsername());

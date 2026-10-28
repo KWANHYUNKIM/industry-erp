@@ -1,0 +1,33 @@
+{
+  "about": "재고조정진행단계 줄 [조정] → '조정' → 확인 → 그 실사 전표만 재고조정 → 재고조정조회 [선택삭제] 와 같은 삭제(DELETE /stock-adjustments/{id}) → 실사 줄이 조정 전(요청 · 장부/차이 빈칸)으로 돌아온다(2026-10-28 loginaa 실측). [담당자] 는 실사 전표에서 고른 사원. QA 품목 QAJ1ST1 · 2092-01-03 에 실사를 넣어 쓰고 지운다.",
+  "shots": [
+    {
+      "name": "실사 5(조정 안 함) → 줄 [조정] → 조정 삭제 → 실사 조정 전",
+      "path": "/inventory/staged-progress",
+      "steps": [
+        "allowapi:409: /api/items",
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find(x=>x.code==='QAJ1ST1')||(await window.__api('POST','/items',{code:'QAJ1ST1',name:'QA재고1-실사',unit:'EA',category:'MERCHANDISE',unitPrice:0,safetyStock:0})).body;const wh=(await window.__api('GET','/warehouses')).body.find(w=>w.code==='WH-01');const em=(await window.__api('GET','/employees')).body.find(e=>e.active!==false);const r=await window.__api('POST','/staged-adjustments/slips',{date:'2092-01-03',warehouseId:wh.id,employeeId:em.id,adjust:false,lines:[{itemId:it.id,actualQty:5}]});sessionStorage.setItem('sra',JSON.stringify({slip:r.body.slipNo,emp:em.name}));return r.status+' '+r.body.slipNo+' '+em.name})()",
+        "js:(()=>{const set=(el,v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}))};const d=document.querySelectorAll('.ec-cond input[type=date]');set(d[0],'2092-01-03');set(d[1],'2092-01-03');return true})()",
+        "wait:1500",
+        "expect:(()=>{const s=JSON.parse(sessionStorage.getItem('sra'));const tr=[...document.querySelectorAll('tbody tr')].find(t=>t.innerText.includes('QA재고1-실사'));return !!tr&&tr.cells[1].innerText.trim()===s.emp&&tr.cells[5].innerText.trim()===''})()",
+        "js:window.confirm=(m)=>{window.__cm=String(m);return true};[...[...document.querySelectorAll('tbody tr')].find(t=>t.innerText.includes('QA재고1-실사')).querySelectorAll('button')].find(b=>b.innerText.trim()==='조정').click();true",
+        "wait:400",
+        "js:[...[...document.querySelectorAll('tbody tr')].find(t=>t.innerText.includes('QA재고1-실사')).querySelectorAll('button.ec-btn')].find(b=>b.innerText.trim()==='조정').click();true",
+        "wait:400",
+        "wait:1500",
+        "expect:(window.__cm||'').startsWith('재고조정전표를 생성하시겠습니까?\\n재고조정 시, 실사입력된 전표만 조정이 됩니다.')",
+        "expect:document.body.innerText.includes('요청된 [단계별재고조정] 작업이 완료되었습니다.')",
+        "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('sra'));const a=(await window.__api('GET','/stock-adjustments?from=2092-01-03&to=2092-01-03&type=ADJUST')).body.rows.filter(x=>(x.reason||'').includes(s.slip));const g=(await window.__api('GET','/staged-adjustments/slips/'+encodeURIComponent(s.slip))).body.lines[0];sessionStorage.setItem('sra-adj',String(a[0]&&a[0].id));return a.length===1&&g.status==='APPLIED'&&!!g.adjustmentNo})()",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find(t=>t.innerText.includes('QA재고1-실사'));return tr.cells[6].innerText.trim()==='5'&&tr.cells[7].innerText.trim()!==''})()",
+        "js:(async()=>(await window.__api('DELETE','/stock-adjustments/'+sessionStorage.getItem('sra-adj'))).status)()",
+        "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('sra'));const g=(await window.__api('GET','/staged-adjustments/slips/'+encodeURIComponent(s.slip))).body.lines[0];return g.status==='REQUESTED'&&g.adjustmentNo===null&&g.handler===null})()",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find(t=>t.innerText.includes('QA재고1-실사'));return !!tr&&tr.cells[5].innerText.trim()===''&&tr.cells[7].innerText.trim()===''})()",
+        "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('sra'));return (await window.__api('DELETE','/staged-adjustments/slips/'+encodeURIComponent(s.slip))).status===204})()"
+      ]
+    }
+  ]
+}

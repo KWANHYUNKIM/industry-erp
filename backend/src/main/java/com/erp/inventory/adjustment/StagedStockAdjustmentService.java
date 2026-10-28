@@ -261,20 +261,39 @@ public class StagedStockAdjustmentService {
                     .employeeId(req.employeeId())
                     .build()));
         }
-        if (req.adjust()) {
-            /* 한 장의 실사는 조정전표도 한 장이다 — 줄마다 번호를 새로 따지 않고 한 번호의 줄번호로 쓴다(원본 26/10/20-1). */
-            String shared = adjustNo != null ? adjustNo : stockAdjustmentService.nextAdjustNo(StockAdjustmentType.ADJUST, date);
-            int adjLine = 0;
-            for (StagedStockAdjustment r : rows) {
-                if (stockService.quantityOn(r.getItem().getId(), r.getWarehouse().getId(), date).compareTo(r.getActualQty()) == 0) {
-                    r.setStatus(StagedStatus.APPLIED);
-                    r.setHandler(username);
-                    continue;
-                }
-                applyOn(r, date, null, username, shared, ++adjLine);
-            }
-        }
+        if (req.adjust()) adjustRows(rows, date, username, adjustNo);
         return rows;
+    }
+
+    /**
+     * 실사 전표 한 장의 아직 조정 안 한 줄을 그 일자의 재고조정 한 장으로 맞춘다. 만든 조정 줄 수를 준다.
+     * 한 장의 실사는 조정전표도 한 장이다 — 줄마다 번호를 새로 따지 않고 한 번호의 줄번호로 쓴다(원본 26/10/20-1).
+     */
+    private int adjustRows(List<StagedStockAdjustment> rows, LocalDate date, String username, String adjustNo) {
+        String shared = adjustNo;
+        int adjLine = 0;
+        for (StagedStockAdjustment r : rows) {
+            if (r.getStatus() != StagedStatus.REQUESTED) continue;
+            if (stockService.quantityOn(r.getItem().getId(), r.getWarehouse().getId(), date).compareTo(r.getActualQty()) == 0) {
+                r.setStatus(StagedStatus.APPLIED);
+                r.setHandler(username);
+                continue;
+            }
+            if (shared == null) shared = stockAdjustmentService.nextAdjustNo(StockAdjustmentType.ADJUST, date);
+            applyOn(r, date, null, username, shared, ++adjLine);
+        }
+        return adjLine;
+    }
+
+    /**
+     * 원본 재고조정진행단계 줄의 [조정] 알약 → '조정' → '재고조정전표를 생성하시겠습니까?' 확인(2026-10-28 loginaa 실측) —
+     * <b>그 실사 전표만</b> 실사일자의 재고조정전표로 맞춘다(창고 · 기준일자로 고르는 [재고조정] 단추와 다르다).
+     * 이미 조정된 줄은 건너뛴다(원본에서 조정된 줄의 [조정] 은 아직 안 쟀다).
+     */
+    @Transactional
+    public BulkAdjustResult adjustSlip(String slipNo, String username) {
+        List<StagedStockAdjustment> rows = slipRows(slipNo);
+        return new BulkAdjustResult(adjustRows(rows, rows.get(0).getRequestDate(), username, null));
     }
 
     /** 실사 줄을 지우고 그 줄로 맞춘 재고조정도 지운다(재고조정 삭제가 재고를 되돌린다). */
