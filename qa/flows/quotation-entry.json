@@ -23,12 +23,20 @@
         "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
         "wait:300",
         "expect:location.pathname === '/sales/quotation-entry' && document.querySelector('tbody tr input.text-right').value === '3'",
+        "js:(() => { const d = document.querySelector('.ec-date'); const sel = (el, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(v)); el.dispatchEvent(new Event('change', { bubbles: true })) }; const y = new Date().getFullYear(), m = new Date().getMonth() + 1; sel(d.querySelectorAll('select')[0], y); sel(d.querySelectorAll('select')[1], m); const dd = 10 + Math.floor(Math.random() * 17); sessionStorage.setItem('qeDay', String(dd)); sessionStorage.setItem('qeWant', `${y}/${String(m).padStart(2, '0')}/${dd} -`); return true })()",
+        "wait:200",
+        "js:(() => { const el = document.querySelector('.ec-date input[inputmode=numeric]'); el.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, sessionStorage.getItem('qeDay')); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "js:document.querySelector('.ec-date input[inputmode=numeric]').dispatchEvent(new FocusEvent('focusout', { bubbles: true })); true",
+        "wait:300",
+        "expect:document.querySelector('.ec-date input[inputmode=numeric]').value === sessionStorage.getItem('qeDay') && document.querySelector('.ec-date input[type=date]').value.endsWith('-' + sessionStorage.getItem('qeDay'))",
         "click:저장(F8)",
         "wait:1500",
         "expect:!/(저장|수정) 완료/.test(document.body.innerText) && !document.querySelector('tbody tr input.text-right')?.value",
         "expect:location.pathname === '/sales/quotation-entry' && ![...document.querySelectorAll('input')].some((i) => i.value.includes('QA-CUST'))",
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const q = (await (await fetch('/api/quotations', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; const no = q.quoteNo.match(/([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]+)$/); sessionStorage.setItem('qeId', String(q.id)); sessionStorage.setItem('qeTotal', String(q.totalAmount)); sessionStorage.setItem('qeDateNo', `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`); return q.quoteNo })()",
-        "expect:sessionStorage.getItem('qeTotal') === '3303'"
+        "expect:sessionStorage.getItem('qeTotal') === '3303'",
+        "expect:sessionStorage.getItem('qeDateNo').startsWith(sessionStorage.getItem('qeWant')) /* 입력한 일자 그대로 그 날짜의 순번 */ && /^[0-9]+$/.test(sessionStorage.getItem('qeDateNo').split(' -')[1])"
       ]
     },
     {
