@@ -10896,6 +10896,13 @@ async function main() {
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
     process.exit(fail ? 1 : 0)
   }
+  if (cmd === 'return-slip') {   // 반품(음수 수량 일반 전표)만 빠르게 — 거래구분 · 매출계획 반품구분 · 반품 반올림
+    await scenarioReturnSlip(fixtures)
+    await scenarioSalesPlanScope(fixtures)
+    await scenarioPurchaseOrder(fixtures)
+    console.log(`\n통과 ${pass} / 실패 ${fail}`)
+    process.exit(fail ? 1 : 0)
+  }
   if (cmd === 'slip-history') {   // 거래이력조회(재고) 전표 이력만 빠르게
     await scenarioSlipHistory(fixtures)
     console.log(`\n통과 ${pass} / 실패 ${fail}`)

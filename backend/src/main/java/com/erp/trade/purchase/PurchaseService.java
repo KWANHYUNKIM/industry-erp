@@ -513,6 +513,10 @@ public class PurchaseService {
          * 원본 구매 [반품처리] 는 아직 못 쟀다 — 판매 [반품처리](2026-10-28 loginaa, 음수 수량 · 금액)와 같다고 둔다.
          */
         com.erp.trade.TradeQuantities.require(req.lines().stream().map(PurchaseLineRequest::quantity).toList());
+        for (PurchaseLineRequest lr : req.lines()) {
+            com.erp.trade.TradeQuantities.requireSameSign(lr.quantity(), lr.supplyAmount(), "공급가액");
+            com.erp.trade.TradeQuantities.requireSameSign(lr.quantity(), lr.vatAmount(), "부가세");
+        }
         purchase.setRemark(req.remark());
         purchase.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         purchase.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);

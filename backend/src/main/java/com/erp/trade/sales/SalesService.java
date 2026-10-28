@@ -573,6 +573,10 @@ public class SalesService {
          * 줄이 전부 음수면 반품 전표다(Sales.isReturnSlip — 저장 칸 없이 줄에서 읽는다).
          */
         com.erp.trade.TradeQuantities.require(req.lines().stream().map(SalesLineRequest::quantity).toList());
+        for (SalesLineRequest lr : req.lines()) {
+            com.erp.trade.TradeQuantities.requireSameSign(lr.quantity(), lr.supplyAmount(), "공급가액");
+            com.erp.trade.TradeQuantities.requireSameSign(lr.quantity(), lr.vatAmount(), "부가세");
+        }
         sales.setRemark(req.remark());
         sales.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         sales.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);

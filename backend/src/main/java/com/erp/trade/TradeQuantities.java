@@ -20,4 +20,15 @@ public final class TradeQuantities {
             if (q.signum() == 0) throw ApiException.badRequest("수량을 입력하세요.");
         }
     }
+
+    /**
+     * 손으로 고친 공급가액 · 부가세는 줄 수량과 부호가 같아야 한다 — 반품(음수 수량) 줄은 음수(원본 [반품처리] 공급가액
+     * -60,000 · 부가세 -6,000), 일반 줄은 0 이상. 비운 값(null) · 0 은 본다.
+     */
+    public static void requireSameSign(BigDecimal qty, BigDecimal typed, String label) {
+        if (typed == null || qty == null) return;
+        if (typed.signum() * qty.signum() < 0) {
+            throw ApiException.badRequest(label + "은(는) 수량과 부호가 같아야 합니다(반품 줄은 음수, 일반 줄은 0 이상).");
+        }
+    }
 }
