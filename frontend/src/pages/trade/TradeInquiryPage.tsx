@@ -12,7 +12,7 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import TradeEntry from './TradeEntry'
-import Modal from '../../components/Modal'
+import Modal, { ModalWindow } from '../../components/Modal'
 
 /** 불러온 전표가 있는 구매의 [불러온전표] 주황 꼬리표(원본 실측: 바탕 --ec-tag-warn · 흰 글자 · 둥글기 6 — QuotationPage GEN_TAG 와 같다). */
 const SRC_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
@@ -846,12 +846,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       {popupOpen && (
         /* 원본 창은 바깥을 눌러도 닫히지 않는다 — 고치던 것이 날아가지 않게 [닫기] · ✕ 로만 닫는다. */
         <div className="ec-modal-back">
-          <div role="dialog" aria-modal="true" aria-label={popupTitle} className="ec-modal w-[max(960px,50vw)]">
-            <div className="ec-modal-bar">
-              <span className="name">{popupTitle}</span>
-              <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => closePopup(false)}>✕</button>
-            </div>
-            <div className="ec-modal-body">
+          <ModalWindow title={popupTitle} onClose={() => closePopup(false)} className="w-[max(960px,50vw)]">
               {/* 원본 판매입력(수정) 머리 오른쪽 [확인취소] — 이 회사는 전표상태관리유형이 꺼져 있어 원본도 이 알림만 띄운다(plans 재고1:80). */}
               {isSales && popupId != null && !popupCopied && (
                 <div className="flex justify-end mb-[6px]">
@@ -867,8 +862,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 docs: rawDocs,
                 onReturn: () => { const id = popupId; closePopup(false); navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?returnFrom=${id}`) },
               }} />
-            </div>
-          </div>
+          </ModalWindow>
         </div>
       )}
       {/*

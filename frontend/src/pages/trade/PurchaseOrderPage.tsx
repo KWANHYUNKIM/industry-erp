@@ -19,7 +19,7 @@ import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPer
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
-import Modal from '../../components/Modal'
+import Modal, { ModalWindow } from '../../components/Modal'
 import TradeEntry, { type TradeEntryPrefill } from './TradeEntry'
 import { openPrintWindow } from '../../utils/print'
 import { purchaseSlipDocument } from '../../utils/tradeSlipDocument'
@@ -584,18 +584,12 @@ export default function PurchaseOrderPage() {
       {generated && entryOpen && (
         /* 원본 [신규(F2)] — 그 발주의 잔량으로 찬 구매입력 창(일자는 오늘). 구매조회 [신규(F2)] 창과 같은 틀, 바깥을 눌러도 안 닫힌다. */
         <div className="ec-modal-back">
-          <div role="dialog" aria-modal="true" aria-label="구매입력" className="ec-modal w-[max(960px,50vw)]">
-            <div className="ec-modal-bar">
-              <span className="name">구매입력</span>
-              <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => closeEntry(false)}>✕</button>
-            </div>
-            <div className="ec-modal-body">
+          <ModalWindow title="구매입력" onClose={() => closeEntry(false)} className="w-[max(960px,50vw)]">
               <TradeEntry mode="purchase" popup={{
                 editId: null, onClose: closeEntry, onMove: () => {}, onReturn: () => {}, docs: [],
                 prefill: prefillOf(generated.order, generated.rows),
               }} />
-            </div>
-          </div>
+          </ModalWindow>
         </div>
       )}
       {showForm && <PurchaseOrderForm items={items} partners={partners} employees={employees} warehouses={warehouses} projects={projects} currencies={currencies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('발주요청을 등록했습니다.'); load() }} />}

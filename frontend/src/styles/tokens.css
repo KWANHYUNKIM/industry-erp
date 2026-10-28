@@ -133,6 +133,14 @@
   --ec-footer-h: 38px;
   --ec-footer-gap: 9px;                     /* 격자 끝 → 하단 버튼줄 (원본 .contents 아래 여백) */
 
+  /* ── 팝업창 끌기 · 크기 조절(원본 jQuery UI dialog — 2026-10-28 loginaa 구매조회 '구매수정' 창) ── */
+  --ec-modal-min-w: 200px;                  /* 최소 크기 — 원본 실측 */
+  --ec-modal-min-h: 155px;
+  --ec-modal-grip: 7px;                     /* 변 손잡이 두께 · 모서리 손잡이 · 창 밖으로 나온 양 — jQuery UI 기본값(원본 미실측) */
+  --ec-modal-grip-corner: 9px;
+  --ec-modal-grip-out: -5px;
+  --ec-modal-keep: 40px;                    /* 창을 옆으로 밀어도 화면 안에 남기는 폭 — 제목줄을 다시 잡을 수 있게(원본 미실측) */
+
   /* ── 옛 이름(화면 코드가 아직 쓴다) → 새 토큰 ── */
   --ec-blue-dark: var(--ec-navy);
   --ec-blue-light: #d3daf7;

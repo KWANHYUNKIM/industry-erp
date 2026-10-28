@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { ModalWindow } from '../../components/Modal'
 import { useSearchParams } from 'react-router-dom'
 import { groupKeyOf, UNPOSTED } from '../../utils/ledgerGroup'
 import { rollupOf, toRollupMap, type LedgerBasis, type RollupPartner } from '../../utils/partnerRollup'
@@ -714,12 +715,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         const tabs = receipt ? ['찾기(F3)', '자금계획', '계좌입출금내역', '결제대행사내역'] : ['찾기(F3)', '자금계획', '계좌입출금내역', '카드매입내역', '계정별잔액']
         return (
           <div className="ec-modal-back">
-            <div role="dialog" aria-modal="true" aria-label={title} className="ec-modal w-[max(960px,50vw)]">
-              <div className="ec-modal-bar">
-                <span className="name">{title}</span>
-                <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => setSettlePopup(null)}>✕</button>
-              </div>
-              <div className="ec-modal-body">
+            <ModalWindow title={title} onClose={() => setSettlePopup(null)} className="w-[max(960px,50vw)]">
                 <div className="ec-page-head"><span className="ec-page-title">{title}</span></div>
                 <div className="mb-[8px] text-[12.5px]">일자 <b>{dateText(settlePopup.date)}</b></div>
                 <div className="mb-[8px] text-[12.5px]">첨언내용 {settlePopup.memo ?? ''}</div>
@@ -735,19 +731,13 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                   </tr></tbody>
                 </table>
                 <div className="mt-[10px]"><button type="button" className="ec-btn" onClick={() => setSettlePopup(null)}>닫기</button></div>
-              </div>
-            </div>
+            </ModalWindow>
           </div>
         )
       })()}
       {entryPopup && (
         <div className="ec-modal-back">
-          <div role="dialog" aria-modal="true" aria-label={entryPopup.mode === 'sales' ? '판매입력(수정)' : '구매입력(수정)'} className="ec-modal w-[max(960px,50vw)]">
-            <div className="ec-modal-bar">
-              <span className="name">{entryPopup.mode === 'sales' ? '판매입력(수정)' : '구매입력(수정)'}</span>
-              <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => setEntryPopup(null)}>✕</button>
-            </div>
-            <div className="ec-modal-body">
+          <ModalWindow title={entryPopup.mode === 'sales' ? '판매입력(수정)' : '구매입력(수정)'} onClose={() => setEntryPopup(null)} className="w-[max(960px,50vw)]">
               <TradeEntry key={`${entryPopup.mode}-${entryPopup.id}`} mode={entryPopup.mode} popup={{
                 editId: entryPopup.id,
                 onCopy: () => {},
@@ -756,8 +746,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                 onReturn: () => { setEntryPopup(null) },
                 docs: [],
               }} />
-            </div>
-          </div>
+          </ModalWindow>
         </div>
       )}
     </EcListShell>
