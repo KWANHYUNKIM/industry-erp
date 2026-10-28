@@ -3,21 +3,21 @@
   "shots": [
     {
       "name": "출하창고 없이 저장 — 칸만 빨갛게, 저장 안 됨",
-      "path": "/sales/orders",
+      "path": "/sales/order-entry",
       "steps": [
-        "click:신규(F2)",
-        "click:매출처 선택",
+        "click:거래처 코드도움",
         "pickrow:QA-CUST",
-        "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
-        "set:[role=dialog] tbody input.text-right#0|2",
-        "set:[role=dialog] tbody input.text-right#1|1000",
+        "set:tbody input.text-right#0|2",
+        "set:tbody input.text-right#1|1000",
+        "js:[...document.querySelectorAll('.ec-form li')].find((li) => li.innerText.includes('출하창고')).querySelector('button[title=\"선택 해제\"]').click(); true",
         "click:저장(F8)",
         "wait:500",
-        "expect:document.querySelector('[role=dialog] [data-invalid]') !== null && !/수주 등록 완료/.test(document.body.innerText)",
-        "click:출하창고 선택",
+        "expect:document.querySelector('[data-invalid]') !== null && !/수주 등록 완료/.test(document.body.innerText)",
+        "click:출하창고 코드도움",
         "pickrow:QA-WH",
-        "expect:document.querySelector('[role=dialog] [data-invalid]') === null",
+        "expect:document.querySelector('[data-invalid]') === null",
         "click:저장(F8)",
         "wait:1500",
         "expect:!document.querySelector('[role=dialog]')",
@@ -52,9 +52,9 @@
         "click:닫기",
         "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soiDateNo')).click(); true",
         "wait:600",
+        "wait:600",
         "click:복사",
-        "expect:document.querySelector('[role=dialog]').innerText.includes('주문서입력') && !document.querySelector('[role=dialog] input[type=date]').disabled",
-        "click:닫기",
+        "expect:document.body.innerText.includes('주문서입력') && !document.body.innerText.includes('주문서입력(수정)') && ![...document.querySelectorAll('select')].some((x) => x.disabled)",
         "apidel:/sales-orders|@soiOrder|orderNo"
       ]
     }

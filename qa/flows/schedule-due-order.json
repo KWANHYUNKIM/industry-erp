@@ -12,8 +12,8 @@
         "wait:1200",
         "js:const t = [...document.querySelectorAll('div.cursor-pointer[title]')].find((d) => d.title.startsWith('[') && d.title.includes(']')); t.click(); t.title",
         "wait:2000",
-        "expect:location.pathname === '/sales/orders' && !location.search.includes('edit=')",
-        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => (d.getAttribute('aria-label') || d.textContent).includes('주문수정'))"
+        "expect:location.pathname === '/sales/order-entry' && location.search.includes('edit=')",
+        "expect:document.body.innerText.includes('주문서입력(수정)')"
       ]
     },
     {

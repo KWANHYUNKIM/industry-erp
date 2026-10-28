@@ -1050,8 +1050,8 @@
   "palette": 0
  },
  "pages/trade/SalesOrderPage.tsx": {
-  "inline": 16,
-  "color": 1,
+  "inline": 4,
+  "color": 0,
   "palette": 0
  },
  "pages/trade/SalesOrderStatusPage.tsx": {

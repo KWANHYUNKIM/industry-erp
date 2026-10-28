@@ -1,0 +1,61 @@
+{
+  "about": "주문서입력(원본 영업관리 › 주문서 › 주문서입력, 2026-10-28 실측) — 판매입력과 같은 큰 입력 화면. 거래처 · 출하창고 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고(거래처는 비우고 창고는 남긴다), 주문서조회에 진행중으로 서며, 일자-No. 를 누르면 같은 화면이 수정으로 열린다(일자 잠김). Esc 로 입력이 사라지지 않는다. node qa/shot.mjs qa/flows/sales-order-entry.json — 만든 주문은 끝에 지운다.",
+  "shots": [
+    {
+      "name": "주문서입력 — 코드도움으로 입력 → 저장하면 말 없이 빈 칸(거래처 비움 · 창고 남음)",
+      "path": "/sales/order-entry",
+      "steps": [
+        "wait:1500",
+        "expect:document.body.innerText.includes('주문서입력') && document.body.innerText.includes('납기일자') && document.body.innerText.includes('거래유형') && !document.querySelector('[role=dialog]')",
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1000",
+        "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
+        "wait:300",
+        "expect:location.pathname === '/sales/order-entry' && document.querySelector('tbody tr input.text-right').value === '2'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!/(저장|수정) 완료/.test(document.body.innerText) && !document.querySelector('tbody tr input.text-right')?.value",
+        "expect:location.pathname === '/sales/order-entry' && [...document.querySelectorAll('input')].some((i) => i.value.includes('QA-WH')) && ![...document.querySelectorAll('input')].some((i) => i.value.includes('QA-CUST'))",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; const no = o.orderNo.match(/([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{4})/); sessionStorage.setItem('__lastSO', o.orderNo); sessionStorage.setItem('__lastSOId', String(o.id)); sessionStorage.setItem('soeDateNo', `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`); return o.orderNo })()",
+        "expect:/^SN-/.test(sessionStorage.getItem('__lastSO'))"
+      ]
+    },
+    {
+      "name": "주문서조회 — 방금 만든 주문이 진행중 2,200 으로 서고, [일자-No.] 를 누르면 같은 화면이 수정(일자 잠김)으로 열린다",
+      "path": "/sales/orders",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('soeDateNo')) && r.innerText.includes('2,200') && r.innerText.includes('진행중'))",
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soeDateNo')).click(); true",
+        "wait:1500",
+        "expect:location.pathname === '/sales/order-entry' && document.body.innerText.includes('주문서입력(수정)') && [...document.querySelectorAll('select')].some((s) => s.disabled)",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|3",
+        "click:수정저장(F8)",
+        "wait:1500",
+        "expect:location.pathname === '/sales/orders'",
+        "wait:800",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('soeDateNo')) && r.innerText.includes('3,300'))"
+      ]
+    },
+    {
+      "name": "주문서입력(수정) — [삭제] 원본 확인 문구 후 목록에서 사라진다",
+      "path": "/sales/orders",
+      "steps": [
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; true",
+        "wait:800",
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soeDateNo')).click(); true",
+        "wait:1500",
+        "click:삭제",
+        "wait:1500",
+        "expect:window.__asked === '전표를 삭제하겠습니까?\\n- 주문서' && location.pathname === '/sales/orders'",
+        "expect:![...document.querySelectorAll('tbody a')].some((a) => a.textContent.trim() === sessionStorage.getItem('soeDateNo'))"
+      ]
+    }
+  ]
+}

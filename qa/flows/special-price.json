@@ -32,15 +32,14 @@
     },
     {
       "name": "수주 — 품목 먼저 → 매출처 → 777, 뒷정리",
-      "path": "/sales/orders",
+      "path": "/sales/order-entry",
       "steps": [
-        "click:신규(F2)",
-        "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
         "wait:600",
-        "js:document.querySelector('[role=dialog] input[placeholder=\"매출처 선택\"]').click(); true",
+        "click:거래처 코드도움",
         "pickrow:QA-CUST",
-        "expect:document.querySelectorAll('[role=dialog] tbody input.text-right')[1].value === '777'",
+        "expect:document.querySelectorAll('tbody input.text-right')[1].value === '777'",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status })); true",
         "js:(async () => { const g = sessionStorage.getItem('spGroup'), pid = sessionStorage.getItem('spPartner'), keep = sessionStorage.getItem('spPartnerGroup'); await window.__api('DELETE', '/special-prices/' + sessionStorage.getItem('spId')); await window.__api('DELETE', '/special-prices/groups/' + g + '/partners/' + pid + '?tradeType=SALES'); const r = await window.__api('DELETE', '/special-prices/groups/' + g); if (keep) await window.__api('PATCH', '/partners/' + pid + '/price-group', { salesPriceGroup: keep }); return r.status })()",
         "js:window.__api('PUT', '/price-order-settings', { category: 'SALES', settings: JSON.parse(sessionStorage.getItem('poSaved')) }).then((r) => r.status)"
