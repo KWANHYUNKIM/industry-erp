@@ -65,11 +65,6 @@ public final class PurchaseDtos {
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             LocalDate purchaseDate,
             Boolean taxable,
-            /**
-             * 원본 [구매구분] — 일반(false) · 반품(true). 안 주면 일반.
-             * 반품이면 서버가 수량·금액을 음수로 뒤집어 저장한다. 화면은 양수로 적는다.
-             */
-            Boolean returnSlip,
             @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
             /** 귀속 프로젝트 (선택) */
@@ -166,7 +161,7 @@ public final class PurchaseDtos {
             boolean vatBySlip,
             /** 과세 전표인가. 원본 일괄회계반영의 [부가세유형] (과세 · 면세). */
             boolean taxable,
-            /** 원본 [거래구분]이 반품인가. 수량·금액이 음수로 저장돼 있다. */
+            /** 반품 전표인가 — 줄이 전부 음수 수량(Purchase.isReturnSlip, 저장 칸 없음). 원본 입력에는 거래구분 칸이 없다. */
             boolean returnSlip,
             /** 외자 전표의 통화코드 · 머리 환율. 내자면 null. */
             String currencyCode, BigDecimal exchangeRate,

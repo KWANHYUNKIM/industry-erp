@@ -110,7 +110,7 @@ public class AsRepairService {
         SalesResponse sale = salesService.create(new CreateSalesRequest(
                 partnerId, r.getWarehouse().getId(),
                 req.saleDate() != null ? req.saleDate() : r.getRepairDate(),
-                null, null, "A/S수리 " + r.getRepairNo(), null, null, null, lines), user);
+                null, "A/S수리 " + r.getRepairNo(), null, null, null, lines), user);
         saleLinkRepository.save(AsRepairSale.builder().repair(r).salesId(sale.id()).build());
         return get(id);
     }

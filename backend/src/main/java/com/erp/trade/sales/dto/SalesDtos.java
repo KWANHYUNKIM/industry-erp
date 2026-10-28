@@ -58,11 +58,6 @@ public final class SalesDtos {
             LocalDate saleDate,
             /** 과세 여부 (true=부가세 10%, false=면세) */
             Boolean taxable,
-            /**
-             * 원본 [거래구분] — 일반(false) · 반품(true). 안 주면 일반.
-             * 반품이면 서버가 수량·금액을 음수로 뒤집어 저장한다. 화면은 양수로 적는다.
-             */
-            Boolean returnSlip,
             @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
             /** 귀속 프로젝트 (선택). 프로젝트별 손익 집계의 재료가 된다. */
@@ -85,9 +80,9 @@ public final class SalesDtos {
     ) {
         /** 금액조정 없는 전표(판매입력 · A/S · 쇼핑몰 주문). */
         public CreateSalesRequest(Long partnerId, Long warehouseId, LocalDate saleDate, Boolean taxable,
-                                  Boolean returnSlip, String remark, Long projectId, Long employeeId,
+                                  String remark, Long projectId, Long employeeId,
                                   Boolean vatBySlip, List<SalesLineRequest> lines) {
-            this(partnerId, warehouseId, saleDate, taxable, returnSlip, remark, projectId, employeeId,
+            this(partnerId, warehouseId, saleDate, taxable, remark, projectId, employeeId,
                     vatBySlip, lines, null, null, null);
         }
     }
@@ -156,7 +151,7 @@ public final class SalesDtos {
             boolean vatBySlip,
             /** 과세 전표인가. 원본 일괄회계반영의 [부가세유형] (과세 · 면세). */
             boolean taxable,
-            /** 원본 [거래구분]이 반품인가. 수량·금액이 음수로 저장돼 있다. */
+            /** 반품 전표인가 — 줄이 전부 음수 수량(Sales.isReturnSlip, 저장 칸 없음). 원본 입력에는 거래구분 칸이 없다. */
             boolean returnSlip,
             /** 원본 [거래구분] 표시값 — 일반 · 반품. */
             String tradeKindName,

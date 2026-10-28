@@ -568,21 +568,11 @@ public class SalesService {
         // 반올림으로 부가세가 0 이 된 과세 전표를 면세로 오인한다.
         sales.setTaxable(taxable);
         /*
-         * 원본 [거래구분] — 일반 · 반품. 반품은 판매의 <b>반대</b>다: 물건이 창고로 돌아오고
-         * 채권이 준다. 그래서 <b>여기서 한 번</b> 부호를 뒤집어 저장한다 — 수량도 금액도 음수다.
-         * 읽는 쪽(재고·채권·이익·현황)은 아무것도 안 바꿔도 맞는다. 화면은 되돌려받는 수량을
-         * 양수로 적는다(원본도 그렇다).
-         */
-        boolean flip = Boolean.TRUE.equals(req.returnSlip());
-        /*
          * 원본은 반품을 <b>음수 수량</b>의 판매로 적는다 — 판매 [반품처리] 가 같은 머리로 수량 -30 · 공급가액 -60,000 ·
-         * 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측, 거래구분 칸 없음). 음수 줄은 그대로 받고(뒤집지 않는다),
-         * 줄이 전부 음수면 반품 전표다(일괄회계반영 [거래구분] · 일별이익 [반품만] 이 이 표시로 거른다).
-         * 거래구분 '반품'(returnSlip=true)으로 양수를 보내는 옛 길은 여기서 한 번 뒤집어 같은 모양으로 저장한다.
+         * 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측, 거래구분 칸 없음). 음수 줄은 그대로 받는다.
+         * 줄이 전부 음수면 반품 전표다(Sales.isReturnSlip — 저장 칸 없이 줄에서 읽는다).
          */
-        com.erp.trade.TradeQuantities.require(req.lines().stream().map(SalesLineRequest::quantity).toList(), flip);
-        boolean isReturn = flip || req.lines().stream().allMatch(l -> l.quantity().signum() < 0);
-        sales.setReturnSlip(isReturn);
+        com.erp.trade.TradeQuantities.require(req.lines().stream().map(SalesLineRequest::quantity).toList());
         sales.setRemark(req.remark());
         sales.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         sales.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
@@ -591,17 +581,16 @@ public class SalesService {
         // 전표 합계를 알아야 반올림할 수 있기 때문이다. 규칙은 VatAllocator 에 모아 뒀다.
         boolean vatBySlip = Boolean.TRUE.equals(req.vatBySlip());
         sales.setVatBySlip(vatBySlip);
-        BigDecimal sign = flip ? BigDecimal.ONE.negate() : BigDecimal.ONE;
         List<BigDecimal> supplies = req.lines().stream()
                 .map(lr -> (lr.supplyAmount() != null
                         ? lr.supplyAmount().setScale(0, RoundingMode.HALF_UP)
-                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign))
+                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())))
                 .toList();
         List<BigDecimal> vats = new java.util.ArrayList<>(VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip));
         // 손으로 고친 부가세는 그 줄에 그대로 쓴다(면세 전표는 0 이 원칙이라 무시한다).
         for (int i = 0; taxable && i < req.lines().size(); i++) {
             BigDecimal typedVat = req.lines().get(i).vatAmount();
-            if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP).multiply(sign));
+            if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP));
         }
 
         BigDecimal totalSupply = BigDecimal.ZERO;
@@ -623,7 +612,7 @@ public class SalesService {
 
             SalesLine line = SalesLine.builder()
                     .item(item)
-                    .quantity(lr.quantity().multiply(sign))
+                    .quantity(lr.quantity())
                     .unitPrice(lr.unitPrice())
                     .supplyAmount(supply)
                     .vatAmount(vat)
@@ -659,7 +648,7 @@ public class SalesService {
         BigDecimal dSupply = nzWon(req.discountSupply());
         BigDecimal dVat = taxable ? nzWon(req.discountVat()) : BigDecimal.ZERO;
         if (dSupply.signum() != 0 || dVat.signum() != 0) {
-            if (isReturn) throw ApiException.badRequest("반품 전표에는 금액조정(할인)을 넣을 수 없습니다.");
+            if (sales.isReturnSlip()) throw ApiException.badRequest("반품 전표에는 금액조정(할인)을 넣을 수 없습니다.");
             if (dSupply.add(dVat).compareTo(totalSupply.add(totalVat)) > 0) {
                 throw ApiException.badRequest("할인 합계가 거래 합계보다 큽니다.");
             }

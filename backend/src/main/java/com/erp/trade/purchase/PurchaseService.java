@@ -508,18 +508,11 @@ public class PurchaseService {
         // 반올림으로 부가세가 0 이 된 과세 전표를 면세로 오인한다.
         purchase.setTaxable(taxable);
         /*
-         * 원본 [구매구분] — 일반 · 반품. 반품은 구매의 <b>반대</b>다: 물건이 창고에서 나가고
-         * 채무가 준다. <b>여기서 한 번</b> 부호를 뒤집어 저장한다 — 수량도 금액도 음수다.
-         * 읽는 쪽은 아무것도 안 바꿔도 맞는다. 화면은 되돌려주는 수량을 양수로 적는다.
-         */
-        boolean flip = Boolean.TRUE.equals(req.returnSlip());
-        /*
-         * 판매와 같다(SalesService.applyContent) — 음수 수량 줄은 반품 줄로 그대로 받고, 줄이 전부 음수면 반품 전표다.
+         * 판매와 같다(SalesService.applyContent) — 음수 수량 줄은 반품 줄로 그대로 받고, 줄이 전부 음수면 반품 전표다
+         * (Purchase.isReturnSlip). 원본 구매입력에도 거래구분 칸이 없다.
          * 원본 구매 [반품처리] 는 아직 못 쟀다 — 판매 [반품처리](2026-10-28 loginaa, 음수 수량 · 금액)와 같다고 둔다.
          */
-        com.erp.trade.TradeQuantities.require(req.lines().stream().map(PurchaseLineRequest::quantity).toList(), flip);
-        boolean isReturn = flip || req.lines().stream().allMatch(l -> l.quantity().signum() < 0);
-        purchase.setReturnSlip(isReturn);
+        com.erp.trade.TradeQuantities.require(req.lines().stream().map(PurchaseLineRequest::quantity).toList());
         purchase.setRemark(req.remark());
         purchase.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         purchase.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
@@ -528,7 +521,6 @@ public class PurchaseService {
         // 전표 합계를 알아야 반올림할 수 있기 때문이다. 규칙은 VatAllocator 에 모아 뒀다.
         boolean vatBySlip = Boolean.TRUE.equals(req.vatBySlip());
         purchase.setVatBySlip(vatBySlip);
-        BigDecimal sign = flip ? BigDecimal.ONE.negate() : BigDecimal.ONE;
         // 외자 줄: 외화금액(비우면 수량 × 외화단가) × 줄 환율(비우면 머리 환율) = 원화 공급가액
         List<BigDecimal> fAmts = new java.util.ArrayList<>();
         List<BigDecimal> fRates = new java.util.ArrayList<>();
@@ -538,22 +530,22 @@ public class PurchaseService {
                 BigDecimal rate = lr.lineRate() != null && lr.lineRate().signum() > 0 ? lr.lineRate() : headRate;
                 BigDecimal fa = lr.foreignAmount() != null ? lr.foreignAmount()
                         : lr.quantity().multiply(lr.foreignPrice() != null ? lr.foreignPrice() : BigDecimal.ZERO);
-                fAmts.add(fa.multiply(sign));
+                fAmts.add(fa);
                 fRates.add(rate);
-                supplies.add(fa.multiply(rate).setScale(0, RoundingMode.HALF_UP).multiply(sign));
+                supplies.add(fa.multiply(rate).setScale(0, RoundingMode.HALF_UP));
             } else {
                 fAmts.add(null);
                 fRates.add(null);
                 supplies.add((lr.supplyAmount() != null
                         ? lr.supplyAmount().setScale(0, RoundingMode.HALF_UP)
-                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign));
+                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())));
             }
         }
         List<BigDecimal> vats = new java.util.ArrayList<>(VatAllocator.allocate(supplies, VAT_RATE, vatOn, vatBySlip));
         // 손으로 고친 부가세는 그 줄에 그대로 쓴다(면세 전표는 0 이 원칙이라 무시한다).
         for (int i = 0; vatOn && i < req.lines().size(); i++) {
             BigDecimal typedVat = req.lines().get(i).vatAmount();
-            if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP).multiply(sign));
+            if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP));
         }
 
         BigDecimal totalSupply = BigDecimal.ZERO;
@@ -575,11 +567,11 @@ public class PurchaseService {
 
             // 외자 줄의 원가 단가는 원화 환산 단가(재고 평가 · 채무가 원화로 돈다).
             BigDecimal unitCost = foreign && lr.quantity().signum() != 0
-                    ? supply.multiply(sign).divide(lr.quantity(), 2, RoundingMode.HALF_UP)
+                    ? supply.divide(lr.quantity(), 2, RoundingMode.HALF_UP)
                     : lr.unitPrice();
             PurchaseLine line = PurchaseLine.builder()
                     .item(item)
-                    .quantity(lr.quantity().multiply(sign))
+                    .quantity(lr.quantity())
                     .unitPrice(unitCost)
                     .supplyAmount(supply)
                     .vatAmount(vat)
