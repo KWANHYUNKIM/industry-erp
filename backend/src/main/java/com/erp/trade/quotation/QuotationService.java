@@ -138,7 +138,7 @@ public class QuotationService {
         return new SlipSnapshot("견적서", q.getQuoteDate(), q.getQuoteNo(),
                 q.getPartner() != null ? q.getPartner().getCode() : null,
                 q.getPartner() != null ? q.getPartner().getName() : null,
-                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), q.getLines().get(0).effectiveSpec(), q.getLines().size()),
+                first == null ? null : ChangeHistoryService.itemSummary(q.getLines().get(0).effectiveItemName(), q.getLines().get(0).effectiveSpec(), q.getLines().size()),
                 q.getEmployee() != null ? q.getEmployee().getCode() : null,
                 q.getEmployee() != null ? q.getEmployee().getName() : null,
                 q.getStatus() != null ? q.getStatus().getDisplayName() : null);
@@ -156,6 +156,7 @@ public class QuotationService {
             q.addLine(QuotationLine.builder()
                     .item(item).quantity(lr.quantity()).unitPrice(lr.unitPrice())
                     .supplyAmount(supply).vatAmount(vat).remark(lr.remark())
+                    .itemName(item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
             totalSupply = totalSupply.add(supply);
             totalVat = totalVat.add(vat);
@@ -190,7 +191,7 @@ public class QuotationService {
         Quotation q = get(id);
         SalesOrderResponse order = q.getConvertedOrderId() == null ? null : salesOrderService.findOne(q.getConvertedOrderId());
         return q.getLines().stream().map(l -> new QuotationDtos.GeneratedSlipRow(
-                l.getItem().getCode(), l.getItem().getName(), l.effectiveSpec(),
+                l.getItem().getCode(), l.effectiveItemName(), l.effectiveSpec(),
                 l.getQuantity(), order == null ? l.getQuantity() : BigDecimal.ZERO,
                 order == null ? null : "주문서",
                 order == null ? null : order.orderDate(),

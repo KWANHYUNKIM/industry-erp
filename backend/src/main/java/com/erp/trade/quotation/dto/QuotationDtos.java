@@ -69,7 +69,7 @@ public final class QuotationDtos {
         public static QuoteLineResponse from(QuotationLine l) {
             return new QuoteLineResponse(
                     l.getId(), l.getLineNo(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
                     l.effectiveSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getRemark());

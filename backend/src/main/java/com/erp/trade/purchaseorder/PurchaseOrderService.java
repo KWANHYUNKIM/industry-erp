@@ -78,7 +78,7 @@ public class PurchaseOrderService {
         changeHistory.recordSlip(HISTORY_TARGET, po.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot(menu, po.getOrderDate(), po.getOrderNo(),
                 po.getPartner() != null ? po.getPartner().getCode() : null,
                 po.getPartner() != null ? po.getPartner().getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.effectiveSpec(), po.getLines().size()),
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.effectiveItemName(), first.effectiveSpec(), po.getLines().size()),
                 po.getEmployee() != null ? po.getEmployee().getCode() : null,
                 po.getEmployee() != null ? po.getEmployee().getName() : null,
                 status.getDisplayName()));
@@ -113,7 +113,7 @@ public class PurchaseOrderService {
                         po.getPartner() != null ? po.getPartner().getId() : null, po.getPartner() != null ? po.getPartner().getName() : null, po.getStatus().getDisplayName(),
                         po.getWarehouse() != null ? po.getWarehouse().getId() : null,
                         po.getProject() != null ? po.getProject().getId() : null,
-                        itemId, l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                        itemId, l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
                         l.getQuantity(), used, rest, l.getUnitPrice(),
                         po.getEmployee() != null ? po.getEmployee().getId() : null, l.effectiveSpec()));
             }
@@ -144,11 +144,11 @@ public class PurchaseOrderService {
                     ? bought.stream().filter(b -> b.getItem().getId().equals(it.getId())).toList()
                     : List.of();
             if (mine.isEmpty()) {
-                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), it.getName(), line.effectiveSpec(),
+                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), line.effectiveItemName(), line.effectiveSpec(),
                         line.getQuantity(), remaining, line.getUnitPrice(), null, null, null, null));
             }
             for (var b : mine) {
-                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), it.getName(), line.effectiveSpec(),
+                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), line.effectiveItemName(), line.effectiveSpec(),
                         line.getQuantity(), remaining, line.getUnitPrice(),
                         "구매", b.getPurchase().getPurchaseDate(), b.getPurchase().getDocNo(), b.getPurchase().getId()));
             }
@@ -308,6 +308,7 @@ public class PurchaseOrderService {
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
+                    .itemName(item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build();
             linkSource(line, lr.sourceLineId());
@@ -358,6 +359,7 @@ public class PurchaseOrderService {
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
+                    .itemName(item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build();
             linkSource(line, lr.sourceLineId());

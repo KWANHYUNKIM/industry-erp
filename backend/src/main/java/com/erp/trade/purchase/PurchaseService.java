@@ -157,7 +157,7 @@ public class PurchaseService {
                         : BigDecimal.ZERO;
                 rows.add(new PurchaseDiscountRow(
                         p.getPurchaseDate(), p.getDocNo(), p.getPartner() != null ? p.getPartner().getName() : null,
-                        l.getItem().getCode(), l.getItem().getName(),
+                        l.getItem().getCode(), l.effectiveItemName(),
                         p.getWarehouse() != null ? p.getWarehouse().getName() : null,
                         p.getProject() != null ? p.getProject().getName() : null,
                         p.getEmployee() != null ? p.getEmployee().getName() : null,
@@ -232,7 +232,7 @@ public class PurchaseService {
         return new SlipSnapshot("구매", p.getPurchaseDate(), p.getDocNo(),
                 p.getPartner() != null ? p.getPartner().getCode() : null,
                 p.getPartner() != null ? p.getPartner().getName() : null,
-                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), p.getLines().get(0).effectiveSpec(), p.getLines().size()),
+                first == null ? null : ChangeHistoryService.itemSummary(p.getLines().get(0).effectiveItemName(), p.getLines().get(0).effectiveSpec(), p.getLines().size()),
                 p.getEmployee() != null ? p.getEmployee().getCode() : null,
                 p.getEmployee() != null ? p.getEmployee().getName() : null,
                 "확인");
@@ -583,6 +583,7 @@ public class PurchaseService {
                     .foreignAmount(foreign ? fAmts.get(i) : null)
                     .lineRate(foreign ? fRates.get(i) : null)
                     .remark(lr.remark())
+                    .itemName(item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .lotNo(lr.lotNo())
                     .extraCost(lr.extraCost())

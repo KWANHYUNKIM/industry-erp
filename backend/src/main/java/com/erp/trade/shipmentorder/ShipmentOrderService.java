@@ -67,7 +67,7 @@ public class ShipmentOrderService {
         BusinessPartner p = o.getPartner();
         changeHistory.recordSlip(HISTORY_TARGET, o.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot("출하지시서", o.getOrderDate(), o.getOrderNo(),
                 p != null ? p.getCode() : null, p != null ? p.getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.effectiveSpec(), o.getLines().size()),
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.effectiveItemName(), first.effectiveSpec(), o.getLines().size()),
                 o.getEmployee() != null ? o.getEmployee().getCode() : null,
                 o.getEmployee() != null ? o.getEmployee().getName() : null,
                 o.getStatus() != null ? o.getStatus().getDisplayName() : null));
@@ -102,7 +102,7 @@ public class ShipmentOrderService {
             if (remain.signum() <= 0) continue;
             ShipmentOrder o = l.getShipmentOrder();
             out.add(new UnshippedLine(o.getId(), o.getOrderNo(), o.getOrderDate(), l.getId(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.effectiveSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.effectiveSpec(),
                     l.getItem().getUnit(), l.getQuantity(), remain,
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                     o.getWarehouse() != null ? o.getWarehouse().getName() : null,
@@ -146,6 +146,7 @@ public class ShipmentOrderService {
             Item item = itemService.getUsable(lr.itemId());
             o.addLine(ShipmentOrderLine.builder().item(item)
                     .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId()))
+                    .itemName(item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
         }
         o.setTotalQuantity(total(o));
@@ -171,12 +172,14 @@ public class ShipmentOrderService {
                 Item item = itemService.getUsable(lr.itemId());
                 added.add(ShipmentOrderLine.builder().item(item)
                         .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId()))
-                        .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
+                        .itemName(item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
                 continue;
             }
             keep.add(line.getId());
             if (!line.getItem().getId().equals(lr.itemId())) {
                 line.setItem(itemService.getUsable(lr.itemId()));
+                line.setItemName(line.getItem().getName());
                 if (lr.spec() == null) line.setSpec(line.getItem().getSpec());
             }
             if (lr.spec() != null) line.setSpec(lr.spec());
@@ -231,7 +234,7 @@ public class ShipmentOrderService {
                 BigDecimal remain = l.getQuantity().subtract(shipped.getOrDefault(l.getId(), BigDecimal.ZERO));
                 if (sl.quantity().compareTo(remain) > 0) {
                     throw ApiException.badRequest(String.format("출하수량이 잔량을 초과합니다. 품목=%s, 잔량=%s, 요청=%s",
-                            l.getItem().getName(), remain.stripTrailingZeros().toPlainString(),
+                            l.effectiveItemName(), remain.stripTrailingZeros().toPlainString(),
                             sl.quantity().stripTrailingZeros().toPlainString()));
                 }
                 qty.put(l, sl.quantity());

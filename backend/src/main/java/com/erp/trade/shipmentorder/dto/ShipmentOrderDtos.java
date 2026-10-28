@@ -60,7 +60,7 @@ public final class ShipmentOrderDtos {
     ) {
         static LineResponse from(ShipmentOrderLine l, Map<Long, BigDecimal> shipped) {
             BigDecimal s = shipped.getOrDefault(l.getId(), BigDecimal.ZERO);
-            return new LineResponse(l.getId(), l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
+            return new LineResponse(l.getId(), l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(),
                     l.effectiveSpec(), l.getItem().getUnit(), l.getQuantity(), s,
                     l.getQuantity().subtract(s), l.getRemark(),
                     l.getSales() != null ? l.getSales().getId() : null);

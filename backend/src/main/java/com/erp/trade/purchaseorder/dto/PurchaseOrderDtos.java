@@ -138,7 +138,7 @@ public final class PurchaseOrderDtos {
         public static OrderLineResponse from(PurchaseOrderLine l) {
             return new OrderLineResponse(
                     l.getId(), l.getLineNo(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
                     l.effectiveSpec(),
                     l.getItem().getCategory(),
                     l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,

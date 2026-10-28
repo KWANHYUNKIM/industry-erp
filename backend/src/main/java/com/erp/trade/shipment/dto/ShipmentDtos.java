@@ -80,7 +80,7 @@ public final class ShipmentDtos {
     ) {
         static ShipLineResponse from(ShipmentLine l) {
             return new ShipLineResponse(
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(),
                     l.getItem().getUnit(), l.effectiveSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getAmount(), l.getRemark(),
                     l.getOrderLine() != null ? l.getOrderLine().getId() : null,

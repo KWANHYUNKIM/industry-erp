@@ -262,7 +262,7 @@ public class SalesOrderService {
         return new SlipSnapshot("주문서", o.getOrderDate(), o.getOrderNo(),
                 o.getPartner() != null ? o.getPartner().getCode() : null,
                 o.getPartner() != null ? o.getPartner().getName() : null,
-                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), o.getLines().get(0).effectiveSpec(), o.getLines().size()),
+                first == null ? null : ChangeHistoryService.itemSummary(o.getLines().get(0).effectiveItemName(), o.getLines().get(0).effectiveSpec(), o.getLines().size()),
                 o.getEmployee() != null ? o.getEmployee().getCode() : null,
                 o.getEmployee() != null ? o.getEmployee().getName() : null,
                 o.getStatus() != null ? o.getStatus().getDisplayName() : null);
@@ -284,6 +284,7 @@ public class SalesOrderService {
                     .supplyAmount(supply)
                     .vatAmount(vat)
                     .remark(lr.remark())
+                    .itemName(item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build());
 

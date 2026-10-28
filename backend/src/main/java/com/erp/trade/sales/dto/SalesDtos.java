@@ -114,7 +114,7 @@ public final class SalesDtos {
             SalesOrder src = l.getSourceOrder();
             return new SalesLineResponse(
                     l.getId(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.effectiveSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(), l.effectiveSpec(),
                     l.getItem().getCategory(),
                     l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),

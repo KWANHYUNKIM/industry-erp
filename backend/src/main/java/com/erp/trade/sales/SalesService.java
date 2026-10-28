@@ -173,7 +173,7 @@ public class SalesService {
                         : BigDecimal.ZERO;
                 rows.add(new SalesDiscountRow(
                         s.getSaleDate(), s.getDocNo(), s.getPartner() != null ? s.getPartner().getName() : null,
-                        l.getItem().getCode(), l.getItem().getName(),
+                        l.getItem().getCode(), l.effectiveItemName(),
                         s.getWarehouse() != null ? s.getWarehouse().getName() : null,
                         s.getProject() != null ? s.getProject().getName() : null,
                         s.getEmployee() != null ? s.getEmployee().getName() : null,
@@ -622,6 +622,7 @@ public class SalesService {
                     .supplyAmount(supply)
                     .vatAmount(vat)
                     .remark(lr.remark())
+                    .itemName(item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .lotNo(lr.lotNo())
                     .extraCost(lr.extraCost())

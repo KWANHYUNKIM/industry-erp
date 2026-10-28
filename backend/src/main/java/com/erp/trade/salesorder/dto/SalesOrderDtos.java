@@ -84,7 +84,7 @@ public final class SalesOrderDtos {
     ) {
         static OrderLineResponse from(SalesOrderLine l) {
             return new OrderLineResponse(
-                    l.getId(), l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getId(), l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
                     l.effectiveSpec(),
                     l.getQuantity(), l.getShippedQty(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     l.getRemark());
@@ -141,7 +141,7 @@ public final class SalesOrderDtos {
                     o.getPartner().getId(), o.getPartner().getName(),
                     o.getOrderDate(), o.getDueDate(),
                     o.getStatus(), o.getStatus().getDisplayName(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
                     orderQty, shipped, orderQty.subtract(shipped),
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                     o.getWarehouse() != null ? o.getWarehouse().getName() : null,
@@ -202,7 +202,7 @@ public final class SalesOrderDtos {
                     o.getPartner().getId(), o.getPartner().getName(),
                     o.getOrderDate(), o.getDueDate(),
                     o.getStatus(), o.getStatus().getDisplayName(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
                     orderQty, soldQty, unsold,
                     price, unsold.multiply(price),
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
