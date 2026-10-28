@@ -6,8 +6,12 @@ import fs from 'node:fs'
 import { execSync } from 'node:child_process'
 
 const base = '.claude/skills/ecount-diff/plans/데이터이관/'
-const prog = fs.readFileSync(base + '_진행.md', 'utf8')
-const board = fs.existsSync(base + '_현황판.md') ? fs.readFileSync(base + '_현황판.md', 'utf8') : ''
+// 스레드마다 진행 파일 · 현황판이 따로 있다(_진행.md · _진행-B.md …) — 모두 합쳐 센다.
+const files = fs.readdirSync(base)
+const prog = files.filter((f) => /^_진행.*\.md$/.test(f)).map((f) => fs.readFileSync(base + f, 'utf8')).join('
+')
+const board = files.filter((f) => /^_현황판.*\.md$/.test(f)).map((f) => fs.readFileSync(base + f, 'utf8')).join('
+')
 
 /** '26' · '26+' · '11 · 13' · '49 품목 · 창고별' · '1전표 2줄' → 앞쪽 숫자들의 합(· 로 나뉜 것만). */
 function count(cell) {
@@ -27,7 +31,7 @@ for (const line of prog.split('\n')) {
 const bar = (r) => { const n = Math.round(r * 20); return '█'.repeat(n) + '░'.repeat(20 - n) }
 const pct = (a, b) => (b ? Math.round((a * 100) / b) : 100)
 
-const vouchers = rows.filter((r) => /전표|입력|이동|견적|주문|발주|출하|불량|생산입고|수금|출금|반영|실사/.test(r.name))
+const vouchers = rows.filter((r) => /전표|입력|이동|견적|주문|발주|출하|불량|생산입고|수금|출금|반영|실사|급여|근태|결재|일지|신고/.test(r.name))
 const masters = rows.filter((r) => !vouchers.includes(r))
 const sum = (xs, k) => xs.reduce((a, r) => a + r[k], 0)
 
