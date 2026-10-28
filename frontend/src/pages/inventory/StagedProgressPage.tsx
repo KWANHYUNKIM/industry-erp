@@ -72,7 +72,13 @@ export default function StagedProgressPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  /*
+   * 마지막으로 보낸 조회만 표에 쓴다. 처음 조회(금년)가 기간을 바꾼 뒤의 조회보다 늦게 오면 옛 기간 표로 덮어써서
+   * 방금 넣은 실사가 [검색(F8)] 을 다시 누를 때까지 안 보였다(QA 루프 15 · 흐름 staged-row-adjust-undo 에서 재현).
+   */
+  const loadSeq = useRef(0)
   async function load() {
+    const my = ++loadSeq.current
     setLoading(true)
     setError('')
     try {
@@ -80,12 +86,13 @@ export default function StagedProgressPage() {
         api.get<StagedAdjustment[]>('/staged-adjustments', { params: { from, to } }),
         api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to, type: 'ADJUST' } }),
       ])
+      if (my !== loadSeq.current) return
       setStaged(r.data)
       setQuick(q.data.rows.filter((a) => !(a.reason ?? '').startsWith(STAGED_PREFIX)))
     } catch (e) {
-      setError(extractErrorMessage(e))
+      if (my === loadSeq.current) setError(extractErrorMessage(e))
     } finally {
-      setLoading(false)
+      if (my === loadSeq.current) setLoading(false)
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
