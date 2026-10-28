@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ecAlert } from './EcDialog'
+import EcDateField from './EcDateField'
 import EcPeriodPicks, {
   COMPARE_PERIODS, INQUIRY_PICKS, comparePeriodOf, type ComparePeriod, type PeriodRange,
 } from './EcPeriodPicks'
@@ -64,6 +65,7 @@ export default function EcStatusPanel({
   fiscalStart,
   single,
   dateLabel = '기준일자',
+  ecDate,
   children,
 }: {
   /**
@@ -105,6 +107,8 @@ export default function EcStatusPanel({
   single?: boolean
   /** 라벨을 바꿔야 하는 화면(예: '기준일(영업주기)'). */
   dateLabel?: string
+  /** 한 날짜 화면에서 브라우저 날짜칸 대신 원본 모양(연 선택 / 월 선택 / 일 칸 + 달력)을 쓴다. */
+  ecDate?: boolean
   /**
    * [데이터 보기형식] — 표 · 그래프. 원본 현황 17종에 공통으로 있는 줄이다.
    * 안 주면 그 줄을 그리지 않는다(그래프로 보여 줄 집계가 없는 화면).
@@ -197,11 +201,15 @@ export default function EcStatusPanel({
         {pickedLabel && (
           <span className="text-[12px] text-ec-blue mr-[6px]">{pickedLabel}</span>
         )}
+        {ecDate && single ? (
+          <EcDateField value={from} onChange={(v) => { setPickedLabel(''); onPeriod({ from: v, to: v }) }} />
+        ) : (
         <input type="date" className="ec-input" value={from}
                onChange={(e) => {
                  setPickedLabel('')
                  onPeriod(single ? { from: e.target.value, to: e.target.value } : { from: e.target.value, to })
                }} style={{ width: 140 }} />
+        )}
         {!single && (
           <>
             <span className="text-ec-label">~</span>

@@ -1,0 +1,11 @@
+{
+  "about": "창고별재고현황(재고 I › 출력물 › 재고현황, 2026-10-29 실측): 조건 판이 펼쳐진 채 시작(출력물은 아직 없음) · 구분 라디오 · [검색(F8)] 하면 판이 접히고 머리에 Search(F3) · 출력물에 창고 열이 '쓰는 창고 이름순 → 사용중단 이름순'.",
+  "shots": [
+    {"name": "창고별재고현황 — 펼쳐서 시작", "path": "/inventory/warehouse-stock", "steps": [
+      "wait:2500",
+      "expect:!!document.querySelector('.ec-cond') && document.querySelectorAll('input[type=radio][name=wh-mode]').length === 2 && document.body.innerText.includes('창고별(횡)') && !document.querySelector('table.ec-report')",
+      "click:검색(F8)",
+      "wait:1500",
+      "expect:(() => { const ws = [...document.querySelectorAll('table.ec-report thead th')].slice(4); if (!ws.length) return false; const grey = (x) => x.querySelector('span')?.style.color !== ''; const act = ws.filter((x) => !grey(x)).map((x) => x.innerText.trim()); const off = ws.filter(grey).map((x) => x.innerText.trim()); const by = (a, b) => a.localeCompare(b, 'ko'); const inOrder = ws.map((x) => x.innerText.trim()).join() === [...act, ...off].join(); return inOrder && act.join() === [...act].sort(by).join() && off.join() === [...off].sort(by).join() && document.body.innerText.includes('Search(F3)') })()"]}
+  ]
+}

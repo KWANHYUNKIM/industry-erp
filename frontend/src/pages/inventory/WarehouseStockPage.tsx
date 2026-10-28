@@ -55,6 +55,10 @@ export default function WarehouseStockPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 원본은 [검색] 을 눌러야 출력물이 나온다 — 누르기 전에는 조건 판만 보인다. */
+  const [searched, setSearched] = useState(false)
+  /** 원본에 없는 조건(품목구분·품목그룹1·대표품목으로 합산)은 [설정] 아래에 둔다. */
+  const [extraOpen, setExtraOpen] = useState(false)
 
   const today = ymd(new Date())
   /**
@@ -106,7 +110,8 @@ export default function WarehouseStockPage() {
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
-  function load() {
+  function load(show = true) {
+    if (show) setSearched(true)
     setLoading(true)
     setError('')
     Promise.all([
@@ -119,7 +124,7 @@ export default function WarehouseStockPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(false) }, [])
 
   /**
    * 품목 id → <b>대표품목 id</b>. 대표가 없으면 자기가 곧 대표다.
@@ -142,13 +147,17 @@ export default function WarehouseStockPage() {
     return m
   }, [stock, headOf])
 
+  /**
+   * 창고 열 차례 — 원본(2026-10-29 실측): 쓰는 창고를 이름순, 그 뒤에 사용중단 창고를 이름순.
+   * 재고가 0 인 창고(출고대기창고)도 열로 보인다 — [재고수량0창고포함] 은 [횡] 에서 흐리게 잠겨 있다.
+   */
   const shownWarehouses = useMemo(() => {
-    const used = new Set(stock.filter((r) => r.quantity !== 0).map((r) => r.warehouseId))
+    const byName = (x: Warehouse, y: Warehouse) => x.name.localeCompare(y.name, 'ko')
     return warehouses
       .filter((w) => cond.inactiveWarehouse || w.active)
       .filter((w) => !cond.warehouseId || String(w.id) === cond.warehouseId)
-      .filter((w) => cond.zeroWarehouse || used.has(w.id))
-  }, [warehouses, stock, cond.inactiveWarehouse, cond.warehouseId, cond.zeroWarehouse])
+      .sort((x, y) => (x.active === y.active ? byName(x, y) : x.active ? -1 : 1))
+  }, [warehouses, cond.inactiveWarehouse, cond.warehouseId])
 
   /* 품목의 [수량관리] 는 품목 마스터가 든다 — 재고 줄에는 없어 따로 받는다. */
   const { untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
@@ -202,38 +211,36 @@ export default function WarehouseStockPage() {
       searchable={false}
       signLine={signBox}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '검색(F8)', primary: true, onClick: () => load() },
         { label: '다시 작성', onClick: reset },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
     >
       <EcStatusPanel
-        single
+        single ecDate
         from={cond.date} to={cond.date}
         onPeriod={(r) => setC({ date: r.from })}
         picks={STOCK_PICKS}
       >
         <EcCond label="구분">
-          <div className="ec-pills">
-            {(['종', '횡'] as const).map((m) => (
-              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
-                      onClick={() => setMode(m)}>
-                창고별({m})
-              </button>
-            ))}
-          </div>
+          {(['종', '횡'] as const).map((m) => (
+            <label key={m} className="text-[12px] mr-[12px]">
+              <input type="radio" name="wh-mode" checked={mode === m} onChange={() => setMode(m)} /> 창고별({m})
+            </label>
+          ))}
         </EcCond>
-        <EcCond label="창고" pick>
+        <EcCond label="창고" pick span="full">
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
                            items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
         </EcCond>
-        <EcCond label="품목" pick>
+        <EcCond label="품목" pick span="full">
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        {extraOpen && (<>
         <EcCond label="품목구분">
           <select className="ec-input" value={cond.category} style={{ width: 130 }}
                   onChange={(e) => setC({ category: e.target.value })}>
@@ -259,6 +266,7 @@ export default function WarehouseStockPage() {
                    onChange={(e) => setC({ rollUp: e.target.checked })} /> 형제 품목을 대표 한 줄로
           </label>
         </EcCond>
+        </>)}
         <EcCond label="기타">
           {/*
             원본 [기타] 차례 그대로다(2026-09-02 E040711 실측): 결재방표시 ·
@@ -287,7 +295,7 @@ export default function WarehouseStockPage() {
                    onChange={(e) => setC({ zeroItem: e.target.checked })} /> 재고수량0품목포함
           </label>
           <label className="text-[12px] mr-[12px]">
-            <input type="checkbox" checked={cond.zeroWarehouse}
+            <input type="checkbox" checked={mode === '횡' ? true : cond.zeroWarehouse} disabled={mode === '횡'}
                    onChange={(e) => setC({ zeroWarehouse: e.target.checked })} /> 재고수량0창고포함
           </label>
           <label className="text-[12px] mr-[12px]">
@@ -299,6 +307,9 @@ export default function WarehouseStockPage() {
                    onChange={(e) => setC({ safety: e.target.checked })} /> 창고별안전재고수량포함
           </label>
         </EcCond>
+        <li className="full">
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => setExtraOpen((v) => !v)}>설정 {extraOpen ? '▴' : '▾'}</button>
+        </li>
       </EcStatusPanel>
 
       {cond.date !== today && (
@@ -310,14 +321,6 @@ export default function WarehouseStockPage() {
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        품목 <b className="text-ec-text">{shownItems.length.toLocaleString()}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        창고 <b className="text-ec-text">{shownWarehouses.length.toLocaleString()}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        재고수량 <b className="text-ec-blue text-[14px]">{num(grandTotal)}</b>
-      </div>
-
       {/*
         <b>출력물 격자 — 2026-09-23 원본(E040711) getComputedStyle 실측</b>, 자료 든 판(기준일자 오늘).
         머리글·꼬리는 재고현황(E040701)과 같다: 제목 24/700 가운데(제목 폭 1255 ≈ 표 1263),
@@ -328,6 +331,7 @@ export default function WarehouseStockPage() {
         재고현황과 <b>다른</b> 것: 머리가 <b>보통 굵기(400)</b>다(바탕 247,248,249 · 6/3/3 · 27px 은 같다).
         .ec-report 가 머리를 700 으로 덮으므로 ec-report-head400 변형(index.css)을 붙였다.
       */}
+      {searched && (
       <div ref={tableRef} className="overflow-x-auto">
         <div className="ec-report-frame">
         <EcReportHead title="창고별재고현황" period={reportPeriod(cond.date)} />
@@ -467,6 +471,7 @@ export default function WarehouseStockPage() {
         <EcReportFoot />
         </div>
       </div>
+      )}
     </EcListShell>
   )
 }
