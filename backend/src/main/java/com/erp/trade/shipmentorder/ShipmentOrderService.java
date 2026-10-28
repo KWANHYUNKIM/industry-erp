@@ -146,7 +146,7 @@ public class ShipmentOrderService {
             Item item = itemService.getUsable(lr.itemId());
             o.addLine(ShipmentOrderLine.builder().item(item)
                     .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId()))
-                    .itemName(item.getName())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
         }
         o.setTotalQuantity(total(o));
@@ -172,7 +172,7 @@ public class ShipmentOrderService {
                 Item item = itemService.getUsable(lr.itemId());
                 added.add(ShipmentOrderLine.builder().item(item)
                         .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId()))
-                        .itemName(item.getName())
+                        .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
                 continue;
             }
@@ -182,6 +182,7 @@ public class ShipmentOrderService {
                 line.setItemName(line.getItem().getName());
                 if (lr.spec() == null) line.setSpec(line.getItem().getSpec());
             }
+            if (lr.itemName() != null && !lr.itemName().isBlank()) line.setItemName(lr.itemName().trim());
             if (lr.spec() != null) line.setSpec(lr.spec());
             line.setQuantity(lr.quantity());
             line.setRemark(lr.remark());

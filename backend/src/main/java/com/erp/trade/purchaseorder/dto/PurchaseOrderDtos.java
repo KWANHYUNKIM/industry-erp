@@ -33,8 +33,15 @@ public final class PurchaseOrderDtos {
             /** 베껴 온 앞 전표의 줄(발주계획 ← 발주요청 줄, 발주서 ← 발주계획 줄). 비우면 직접 넣은 줄. */
             Long sourceLineId,
             /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec
-    ) {}
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
+            /** 줄 품목명(선택). 원본 입력 화면은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007 · '포장김치1kg'). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
+    ) {
+        public OrderLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, Long partnerId, String remark,
+                                Long sourceLineId, String spec) {
+            this(itemId, quantity, unitPrice, partnerId, remark, sourceLineId, spec, null);
+        }
+    }
 
     public record CreatePurchaseOrderRequest(
             Long partnerId,

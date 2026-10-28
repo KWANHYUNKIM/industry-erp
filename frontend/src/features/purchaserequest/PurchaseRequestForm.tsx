@@ -29,6 +29,8 @@ export interface PurchaseLineSeed {
   sourceLineId?: number | null; sourceNo?: string; sourceDate?: string
   /** 줄 규격 — null · 없음 = 품목 규격을 따라감, '' = 일부러 비움. */
   spec?: string | null
+  /** 줄 품목명 — null · 없음 = 품목 이름을 따라감. 원본 발주서입력은 품목을 고른 뒤 이름 칸을 고쳐 쓴다. */
+  name?: string | null
 }
 type LineForm = PurchaseLineSeed
 const emptyLine = (): LineForm => ({ itemId: '', partnerId: '', quantity: '', unitPrice: '' })
@@ -45,6 +47,7 @@ export const copyLine = (o: PurchaseOrder, l: PurchaseOrderLine): LineForm => {
     sourceNo: o.orderNo,
     sourceDate: o.orderDate,
     spec: rl.spec ?? null,
+    name: rl.itemName ?? null,
   }
 }
 export const copyLines = (orders: PurchaseOrder[]): LineForm[] => orders.flatMap((o) => o.lines.map((l) => copyLine(o, l)))
@@ -153,6 +156,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
       sourceNo: l.sourceOrderNo ?? undefined,
       sourceDate: l.sourceOrderDate ?? undefined,
       spec: l.spec ?? null,
+      name: l.itemName ?? null,
     }))
     if (got.length === 0 && seed?.lines.length) got.push(...seed.lines)
     return [...got, ...Array.from({ length: Math.max(1, MIN_ROWS - got.length) }, emptyLine)]
@@ -180,6 +184,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
       itemId,
       partnerId: it?.supplierId ? String(it.supplierId) : lines[i].partnerId,
       unitPrice: pp > 0 ? String(pp) : '',
+      name: null,
       spec: null, // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
     })
   }
@@ -284,6 +289,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
         partnerId: headParty ? (headPartnerId ? Number(headPartnerId) : null) : l.partnerId ? Number(l.partnerId) : null,
         sourceLineId: l.sourceLineId ?? null,
         spec: l.spec ?? undefined,
+        itemName: l.name ?? undefined,
       })),
       plan: plan || undefined,
       order: order || undefined,
@@ -438,7 +444,11 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
                 <CodePickerField label="품목" hideLabel fill placeholder="품목코드" emptyLabel="선택 해제"
                   value={l.itemId} onChange={(v) => pickItem(i, v)} items={itemPicks} />
               </td>
-              <td>{itemOf(l.itemId)?.name ?? ''}</td>
+              <td>
+                {/* 원본 발주서입력: 품목을 고르면 품목명 칸에서 줄마다 이름을 고쳐 쓴다(비우면 품목 이름). */}
+                {l.itemId && <input className="ec-input w-full" value={l.name ?? itemOf(l.itemId)?.name ?? ''} maxLength={200}
+                                    onChange={(e) => setLine(i, { name: e.target.value })} />}
+              </td>
               {!headParty && <td>
                 <CodePickerField label="거래처" hideLabel fill placeholder="거래처코드" emptyLabel="선택 해제"
                   value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })} items={partnerPicks} />

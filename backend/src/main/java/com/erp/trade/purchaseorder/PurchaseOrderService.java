@@ -308,7 +308,7 @@ public class PurchaseOrderService {
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
-                    .itemName(item.getName())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build();
             linkSource(line, lr.sourceLineId());
@@ -359,7 +359,7 @@ public class PurchaseOrderService {
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
-                    .itemName(item.getName())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build();
             linkSource(line, lr.sourceLineId());
@@ -529,7 +529,7 @@ public class PurchaseOrderService {
         if (po.getPartner() == null) throw ApiException.badRequest("거래처가 없는 발주서는 입고할 수 없습니다.");
         List<PurchaseLineRequest> lines = po.getLines().stream()
                 // 입고전환으로 생긴 라인은 이 발주서가 근거전표다 — 구매입력에서 [불러온 전표]로 보인다.
-                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null, null, null, null, l.effectiveSpec()))
+                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null, null, null, null, l.effectiveSpec(), l.effectiveItemName()))
                 .toList();
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(

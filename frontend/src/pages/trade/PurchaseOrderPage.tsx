@@ -74,7 +74,7 @@ function prefillOf(o: PurchaseOrder, rows: GeneratedRow[]): TradeEntryPrefill {
     seen.add(r.orderLineId)
     return true
   }).map((r) => ({
-    itemId: r.itemId, quantity: Number(r.remaining), unitPrice: Number(r.unitPrice),
+    itemId: r.itemId, quantity: Number(r.remaining), unitPrice: Number(r.unitPrice), itemName: r.itemName,
     sourceOrderId: o.id, sourceDocType: '발주서', sourceDocDate: o.orderDate, sourceDocNo: o.orderNo,
   }))
   return { partnerId: o.partnerId ?? null, employeeId: o.employeeId ?? null, warehouseId: o.warehouseId ?? null, projectId: o.projectId ?? null, lines }

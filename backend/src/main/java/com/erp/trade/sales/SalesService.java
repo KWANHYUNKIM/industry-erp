@@ -651,7 +651,7 @@ public class SalesService {
                     .supplyAmount(supply)
                     .vatAmount(vat)
                     .remark(lr.remark())
-                    .itemName(item.getName())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .lotNo(lr.lotNo())
                     .extraCost(lr.extraCost())

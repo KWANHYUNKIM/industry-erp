@@ -207,7 +207,8 @@ public class ShipmentService {
                     .unitPrice(unitPrice)
                     .amount(amount)
                     .remark(lr.remark())
-                    .itemName(item.getName())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim()
+                            : soLine != null ? soLine.effectiveItemName() : orderLine != null ? orderLine.effectiveItemName() : item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build());
 

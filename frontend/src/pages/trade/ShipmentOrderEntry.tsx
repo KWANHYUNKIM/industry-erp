@@ -32,7 +32,7 @@ import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
  * 저장은 말 없이 빈 칸으로 돌아간다(창고는 남긴다). 출하지시서조회의 [신규(F2)] · [일자-No.](`?edit=`) 가 이 화면으로 온다.
  */
 
-interface LineInput { id: number | null; itemId: string; quantity: string; remark: string; salesId?: number | null; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */ }
+interface LineInput { id: number | null; itemId: string; quantity: string; remark: string; salesId?: number | null; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */; name?: string | null /* 줄 품목명 — 없으면 품목 이름을 따라감 */ }
 const emptyLine = (): LineInput => ({ id: null, itemId: '', quantity: '', remark: '', spec: null })
 /** 판매검색창 알약 — 원본 전체 · 결재중 · 미확인 · 확인. */
 type SalesTab = 'ALL' | 'IN_APPROVAL' | 'UNCONFIRMED' | 'CONFIRMED'
@@ -50,7 +50,7 @@ interface SoDoc {
   id: number; orderNo: string; orderDate: string
   partnerId: number; employeeId: number | null; warehouseId: number | null; projectId: number | null
   contact: string | null; dueDate: string | null; postalCode: string | null; address: string | null; remark: string | null
-  lines: { id: number; itemId: number; quantity: number; remark: string | null; salesId: number | null; spec: string | null }[]
+  lines: { id: number; itemId: number; itemName?: string | null; quantity: number; remark: string | null; salesId: number | null; spec: string | null }[]
 }
 interface SalesOrderLite {
   id: number; orderNo: string; orderDate: string; partnerId: number; partnerName: string
@@ -143,16 +143,16 @@ export default function ShipmentOrderEntry() {
         setEmployeeId(s.employeeId ? String(s.employeeId) : ''); setWarehouseId(s.warehouseId ? String(s.warehouseId) : '')
         setProjectId(s.projectId ? String(s.projectId) : ''); setContact(s.contact ?? ''); setDueDate(s.dueDate ?? '')
         setPostalCode(s.postalCode ?? ''); setAddress(s.address ?? ''); setRemark(s.remark ?? '')
-        setLines([...s.lines.map((l) => ({ id: l.id, itemId: String(l.itemId), quantity: String(l.quantity), remark: l.remark ?? '', salesId: l.salesId ?? null, spec: l.spec ?? null })), emptyLine()])
+        setLines([...s.lines.map((l) => ({ id: l.id, itemId: String(l.itemId), quantity: String(l.quantity), remark: l.remark ?? '', salesId: l.salesId ?? null, spec: l.spec ?? null, name: l.itemName ?? null })), emptyLine()])
       })
       .catch((err) => setError(extractErrorMessage(err)))
   }, [editParam])
 
   // ── 줄 편집 ───────────────────────────────────────────
-  function updateLine(idx: number, field: 'itemId' | 'quantity' | 'remark' | 'spec', value: string) {
+  function updateLine(idx: number, field: 'itemId' | 'quantity' | 'remark' | 'spec' | 'name', value: string) {
     setLines((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
-      if (field === 'itemId') next[idx] = { ...next[idx], spec: null } // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
+      if (field === 'itemId') next[idx] = { ...next[idx], spec: null, name: null } // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
       if (field === 'itemId' && value && idx === ls.length - 1) next.push(emptyLine())
       return next
     })
@@ -216,7 +216,7 @@ export default function ShipmentOrderEntry() {
     if (o.employeeId) setEmployeeId(String(o.employeeId))
     if (o.warehouseId) setWarehouseId(String(o.warehouseId))
     if (o.projectId) setProjectId(String(o.projectId))
-    setLines([...o.lines.map((l) => ({ id: null, itemId: String(l.itemId), quantity: String(l.quantity), remark: '', spec: l.spec ?? null })), emptyLine()])
+    setLines([...o.lines.map((l) => ({ id: null, itemId: String(l.itemId), quantity: String(l.quantity), remark: '', spec: l.spec ?? null, name: l.itemName ?? null })), emptyLine()])
     setLoadOpen(false)
   }
   /** [생성한전표] — 이 지시서 줄에 이어진 출하(출하 줄의 shipmentOrderLineId). */
@@ -261,7 +261,7 @@ export default function ShipmentOrderEntry() {
     if (s.projectId) setProjectId(String(s.projectId))
     if (s.warehouseId) setWarehouseId(String(s.warehouseId))
     setDueDate(today())
-    const loaded: LineInput[] = picked.flatMap((d) => d.lines.map((l) => ({ id: null, itemId: String(l.itemId), quantity: String(l.quantity), remark: '', salesId: d.id, spec: l.spec ?? null })))
+    const loaded: LineInput[] = picked.flatMap((d) => d.lines.map((l) => ({ id: null, itemId: String(l.itemId), quantity: String(l.quantity), remark: '', salesId: d.id, spec: l.spec ?? null, name: l.itemName ?? null })))
     setLines((ls) => [...ls.filter((l) => l.itemId), ...loaded, emptyLine()])
     setSalesLoaded(true)
     setSalesOpen(false)
@@ -291,7 +291,7 @@ export default function ShipmentOrderEntry() {
       projectId: projectId ? Number(projectId) : null,
       contact: contact || null, dueDate: dueDate || null,
       postalCode: postalCode || null, address: address || null, remark: remark || null,
-      lines: filled.map((l) => ({ id: l.id, itemId: Number(l.itemId), quantity: num(l.quantity), remark: l.remark || null, salesId: l.salesId ?? null, spec: l.spec ?? undefined })),
+      lines: filled.map((l) => ({ id: l.id, itemId: Number(l.itemId), quantity: num(l.quantity), remark: l.remark || null, salesId: l.salesId ?? null, spec: l.spec ?? undefined, itemName: l.name ?? undefined })),
     }
     try {
       if (editing) {
@@ -457,8 +457,16 @@ export default function ShipmentOrderEntry() {
                     <td className="text-center text-ec-hint">{idx + 1}</td>
                     <td className="pad text-ec-label overflow-hidden whitespace-nowrap">{it?.code ?? ''}</td>
                     <td className="pad">
-                      <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제" value={l.itemId}
-                                       onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />
+                      {l.itemId ? (
+                        /* 원본: 품목을 고르면 품목명 칸이 글자 칸이 되어 줄마다 이름을 고쳐 쓴다(임의품목 Z00007). 고르기 전에는 검색 칸. */
+                        <div className="flex">
+                          <input className="cell" placeholder="품목 선택" value={l.name ?? it?.name ?? ''} maxLength={200} onChange={(e) => updateLine(idx, 'name', e.target.value)} />
+                          <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기" onClick={() => updateLine(idx, 'itemId', '')}>🔍</button>
+                        </div>
+                      ) : (
+                        <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제" value={l.itemId}
+                                         onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />
+                      )}
                     </td>
                     <td><input className="cell" value={l.spec ?? it?.spec ?? ''} maxLength={200} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'spec', e.target.value)} /></td>
                     <td><EcNumInput className="cell text-right" value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} /></td>

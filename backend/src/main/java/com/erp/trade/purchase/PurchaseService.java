@@ -608,7 +608,7 @@ public class PurchaseService {
                     .foreignAmount(foreign ? fAmts.get(i) : null)
                     .lineRate(foreign ? fRates.get(i) : null)
                     .remark(lr.remark())
-                    .itemName(item.getName())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
                     .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .lotNo(lr.lotNo())
                     .extraCost(lr.extraCost())

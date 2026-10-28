@@ -59,8 +59,16 @@ public final class PurchaseDtos {
             @PositiveOrZero(message = "환율은 0 이상이어야 합니다.")
             BigDecimal lineRate,
             /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
+            /** 줄 품목명(선택). 원본 입력 화면은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007 · '포장김치1kg'). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
     ) {
+        public PurchaseLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String lotNo,
+                                   BigDecimal extraCost, Long sourceOrderId, BigDecimal supplyAmount, BigDecimal vatAmount,
+                                   BigDecimal foreignPrice, BigDecimal foreignAmount, BigDecimal lineRate, String spec) {
+            this(itemId, quantity, unitPrice, remark, lotNo, extraCost, sourceOrderId, supplyAmount, vatAmount,
+                    foreignPrice, foreignAmount, lineRate, spec, null);
+        }
         /** 규격 없이 만드는 호출(서버 안에서 전표를 옮겨 담는 곳) — 품목 규격으로 채워진다. */
         public PurchaseLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String lotNo,
                                    BigDecimal extraCost, Long sourceOrderId, BigDecimal supplyAmount, BigDecimal vatAmount,

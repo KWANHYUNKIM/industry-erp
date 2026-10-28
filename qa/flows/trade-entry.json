@@ -22,6 +22,31 @@
       ]
     },
     {
+      "name": "판매입력 — 품목을 고른 뒤 품목명 칸을 고쳐 쓰면 저장되고(원본 판매 '포장김치1kg' ↔ 마스터 '포장김치', 2026-10-29) 다시 열어도 그 이름 · 🔍 로 품목 검색 칸으로 돌아간다",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right|1",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.cell[placeholder=\"품목 선택\"]|QA 포장김치1kg",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__nmSale', s.docNo); sessionStorage.setItem('__nmSaleId', String(s.id)); return s.lines[0].itemName })()",
+        "expect:fetch('/api/sales', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((l) => l.find((s) => s.docNo === sessionStorage.getItem('__nmSale'))?.lines[0].itemName === 'QA 포장김치1kg')",
+        "js:location.href = '/sales/sell?edit=' + sessionStorage.getItem('__nmSaleId'); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody input')].some((i) => i.value === 'QA 포장김치1kg')",
+        "js:(() => { const b = [...document.querySelectorAll('tbody button[title=\"품목 다시 고르기\"]')][0]; b.click(); return true })()",
+        "wait:300",
+        "expect:![...document.querySelectorAll('tbody input')].some((i) => i.value === 'QA 포장김치1kg')",
+        "apidel:/sales|@__nmSale|docNo"
+      ]
+    },
+    {
       "name": "구매입력 — 같은 흐름(QA-MAT 은 구매단가가 0 이라 단가를 직접 넣는다)",
       "path": "/sales/buy",
       "steps": [

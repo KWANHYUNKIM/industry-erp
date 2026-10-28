@@ -45,7 +45,7 @@ interface SoLite {
   status: 'IN_PROGRESS' | 'COMPLETED'; statusName: string; totalQuantity: number; lines: SoLine[]
 }
 
-interface LineInput { itemId: string; quantity: string; remark: string; soLineId: number | null; orderLineId: number | null; unitPrice: number | null; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */ }
+interface LineInput { itemId: string; quantity: string; remark: string; soLineId: number | null; orderLineId: number | null; unitPrice: number | null; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */; name?: string | null /* 줄 품목명 — 없으면 품목 이름을 따라감 */ }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', remark: '', soLineId: null, orderLineId: null, unitPrice: null, spec: null })
 interface Head { shipDate: string; partnerId: string; employeeId: string; warehouseId: string; projectId: string; contact: string; postalCode: string; address: string }
 const emptyHead = (): Head => ({ shipDate: ymd(new Date()), partnerId: '', employeeId: '', warehouseId: '', projectId: '', contact: '', postalCode: '', address: '' })
@@ -94,7 +94,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
     })
     setLines([...editing.lines.map((l) => ({
       itemId: String(l.itemId), quantity: String(l.quantity), remark: l.remark ?? '',
-      soLineId: l.shipmentOrderLineId, orderLineId: l.orderLineId, unitPrice: l.unitPrice, spec: l.spec ?? null,
+      soLineId: l.shipmentOrderLineId, orderLineId: l.orderLineId, unitPrice: l.unitPrice, spec: l.spec ?? null, name: l.itemName ?? null,
     })), emptyLine()])
   }, [editing])
 
@@ -103,10 +103,10 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
   const linked = lines.some((l) => l.soLineId != null)
   const totalQty = lines.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
   const setH = (k: keyof Head, v: string) => setHead((h) => ({ ...h, [k]: v }))
-  function updateLine(idx: number, field: 'itemId' | 'quantity' | 'remark' | 'spec', value: string) {
+  function updateLine(idx: number, field: 'itemId' | 'quantity' | 'remark' | 'spec' | 'name', value: string) {
     setLines((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
-      if (field === 'itemId') next[idx] = { ...next[idx], spec: null } // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
+      if (field === 'itemId') next[idx] = { ...next[idx], spec: null, name: null } // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
       if (field === 'itemId' && value && idx === ls.length - 1) next.push(emptyLine())
       return next
     })
@@ -172,7 +172,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
       ...(editing ? {} : { status: 'SHIPPED' }),
       lines: filled.map((l) => ({
         itemId: Number(l.itemId), quantity: Number(l.quantity), remark: l.remark || null,
-        unitPrice: l.unitPrice, shipmentOrderLineId: l.soLineId, orderLineId: l.orderLineId, spec: l.spec ?? undefined,
+        unitPrice: l.unitPrice, shipmentOrderLineId: l.soLineId, orderLineId: l.orderLineId, spec: l.spec ?? undefined, itemName: l.name ?? undefined,
       })),
     }
     try {
@@ -201,7 +201,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
         projectId: so.projectId ? String(so.projectId) : '', contact: so.contact ?? '',
         postalCode: so.postalCode ?? '', address: so.address ?? '',
       }))
-      setLines([...rem.map((l) => ({ itemId: String(l.itemId), quantity: String(l.unshippedQty), remark: l.remark ?? '', soLineId: l.id, orderLineId: null, unitPrice: null, spec: l.spec ?? null })), emptyLine()])
+      setLines([...rem.map((l) => ({ itemId: String(l.itemId), quantity: String(l.unshippedQty), remark: l.remark ?? '', soLineId: l.id, orderLineId: null, unitPrice: null, spec: l.spec ?? null, name: l.itemName ?? null })), emptyLine()])
       setPickOpen(false)
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
@@ -264,14 +264,22 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
           {lines.map((l, idx) => {
             const it = itemById.get(l.itemId)
             const needle = findText.trim().toLowerCase()
-            const hit = !needle || `${it?.name ?? ''} ${it?.code ?? ''} ${l.remark}`.toLowerCase().includes(needle)
+            const hit = !needle || `${l.name ?? it?.name ?? ''} ${it?.code ?? ''} ${l.remark}`.toLowerCase().includes(needle)
             return (
               <tr key={idx} className={hit ? undefined : 'hidden'}>
                 <td className="text-center text-ec-hint">{idx + 1}</td>
                 {/* 원본은 품목코드 칸에 코드(J001), 품목명 칸에 이름. 예전에는 코드도움이 이 칸에 이름을 띄웠고 사용중단 품목은 빈칸이었다. */}
                 <td className="text-ec-label overflow-hidden whitespace-nowrap">{it?.code ?? ''}</td>
                 <td>
-                  <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제" value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />
+                  {l.itemId ? (
+                    /* 원본 출하입력: 품목을 고르면 품목명 칸이 글자 칸이 되어 줄마다 이름을 고쳐 쓴다. 고르기 전에는 검색 칸. */
+                    <div className="flex">
+                      <input className="ec-input w-full" placeholder="품목" value={l.name ?? it?.name ?? ''} maxLength={200} onChange={(e) => updateLine(idx, 'name', e.target.value)} />
+                      <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기" onClick={() => updateLine(idx, 'itemId', '')}>🔍</button>
+                    </div>
+                  ) : (
+                    <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제" value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />
+                  )}
                 </td>
                 <td><input className="ec-input w-full" value={l.spec ?? it?.spec ?? ''} maxLength={200} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'spec', e.target.value)} /></td>
                 <td><input type="number" className="ec-input w-full text-right" value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
