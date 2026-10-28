@@ -119,10 +119,10 @@ export default function CodePickerField({
    * 그 검색어로 목록 창을 연다. 없으면 빈 목록 창. 예전엔 코드칸이 읽기 전용이라 먼저 창부터 열렸다.
    */
   const [typed, setTyped] = useState<string | null>(null)
-  function submitTyped() {
+  function submitTyped(blurOnly = false) {
     const needle = (typed ?? '').trim()
     setTyped(null)
-    if (!needle) { setOpen(true); return }
+    if (!needle) { if (!blurOnly) setOpen(true); return }
     const low = needle.toLowerCase()
     // 직접 쳐서 Enter 할 때는 사용 중인 것만 맞춘다 — 사용중단은 창에서 [사용중단포함] 을 켜야 보인다(원본 동작을 가정, 미실측)
     const hits = items.filter((i) => !i.stopped && `${i.code ?? ''} ${i.name}`.toLowerCase().includes(low))
@@ -130,6 +130,8 @@ export default function CodePickerField({
     const exact = hits.filter((i) => (i.code ?? '').trim().toLowerCase() === low)
     if (exact.length === 1) { pick(exact[0]); return }
     if (hits.length === 1) { pick(hits[0]); return }
+    // Tab 으로 떠날 때는 딱 하나 걸린 경우만 채운다 — 여럿이거나 없으면 창을 띄우지 않고 원래 값으로 돌아간다
+    if (blurOnly) return
     // 아무것도 안 걸리면 바꾸려던 이전 값은 무효 — 비운다(안 비우면 창을 닫았을 때 옛 값으로 저장된다)
     if (hits.length === 0 && value) onChange?.('', null)
     setQ(needle)
@@ -192,8 +194,8 @@ export default function CodePickerField({
             onChange={(e) => setTyped(e.target.value)}
             // <form> 안에서 Enter 가 바깥 폼을 제출하지 않게 막는다
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitTyped() } }}
-            // 고르지 않고 떠나면 친 글자를 버리고 원래 값으로 돌아간다
-            onBlur={() => setTyped(null)}
+            // Tab 으로 떠나도 코드가 정확히 하나를 가리키면 그것을 고른다. 아니면 친 글자를 버리고 원래 값으로 돌아간다
+            onBlur={() => { if (typed !== null) submitTyped(true) }}
             style={{ background: disabled ? '#f4f5f7' : undefined }}
           />
           <button

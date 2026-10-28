@@ -1,0 +1,64 @@
+{
+  "about": "판매 · 구매입력 줄 품목 코드도움 — 사용중단 품목을 [사용중단포함] 켜고 품목코드로 쳐도 찾힌다(데이터이관 QA 46). node qa/shot.mjs qa/flows/item-picker-stopped-code.json",
+  "shots": [
+    {
+      "name": "사용중단 품목 코드로 검색 /sales/sell",
+      "path": "/sales/sell",
+      "steps": [
+        "wait:1500",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const all = await (await fetch('/api/items', { headers: H })).json(); let it = all.find((x) => x.active === false); if (!it) { const base = await (await fetch('/api/items/' + all.find((x) => x.code === 'QA-PROD').id, { headers: H })).json(); it = await (await fetch('/api/items', { method: 'POST', headers: H, body: JSON.stringify({ ...base, id: undefined, code: 'QA-SCS-STOP', name: 'QA사용중단품목', barcode: null }) })).json(); const full = await (await fetch('/api/items/' + it.id, { headers: H })).json(); await fetch('/api/items/' + it.id, { method: 'PUT', headers: H, body: JSON.stringify({ ...full, active: false }) }); sessionStorage.setItem('scsMade', '1') } const now = await (await fetch('/api/items/' + it.id, { headers: H })).json(); sessionStorage.setItem('scsItem', String(it.id)); sessionStorage.setItem('scsCode', now.code); return now.active === false })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "wait:600",
+        "js:(() => { const i = document.querySelector('[role=dialog] input[placeholder=\"입력 후 [Enter]\"]'); const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(i, sessionStorage.getItem('scsCode')); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '사용중단포함').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('scsCode')))"
+      ]
+    },
+    {
+      "name": "사용중단 품목 코드로 검색 /sales/buy",
+      "path": "/sales/buy",
+      "steps": [
+        "wait:1500",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const all = await (await fetch('/api/items', { headers: H })).json(); let it = all.find((x) => x.active === false); if (!it) { const base = await (await fetch('/api/items/' + all.find((x) => x.code === 'QA-PROD').id, { headers: H })).json(); it = await (await fetch('/api/items', { method: 'POST', headers: H, body: JSON.stringify({ ...base, id: undefined, code: 'QA-SCS-STOP', name: 'QA사용중단품목', barcode: null }) })).json(); const full = await (await fetch('/api/items/' + it.id, { headers: H })).json(); await fetch('/api/items/' + it.id, { method: 'PUT', headers: H, body: JSON.stringify({ ...full, active: false }) }); sessionStorage.setItem('scsMade', '1') } const now = await (await fetch('/api/items/' + it.id, { headers: H })).json(); sessionStorage.setItem('scsItem', String(it.id)); sessionStorage.setItem('scsCode', now.code); return now.active === false })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "wait:600",
+        "js:(() => { const i = document.querySelector('[role=dialog] input[placeholder=\"입력 후 [Enter]\"]'); const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(i, sessionStorage.getItem('scsCode')); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '사용중단포함').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('scsCode')))"
+      ]
+    },
+    {
+      "name": "구매입력 거래처 코드칸 — 코드를 치고 Enter 로도, Tab(떠남)으로도 그 거래처가 잡힌다",
+      "path": "/sales/buy",
+      "steps": [
+        "wait:1800",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/partners', { headers: H })).json(); const all = ps.filter((p) => p.active !== false && p.code); const p = all.find((x) => all.filter((y) => y.code.toLowerCase().includes(x.code.toLowerCase())).length === 1) || all[0]; sessionStorage.setItem('scsP', p.code); sessionStorage.setItem('scsPn', p.name); return true })()",
+        "js:(() => { const i = document.querySelector('input[placeholder=\"거래처\"]'); i.focus(); const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(i, sessionStorage.getItem('scsP')); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:600",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('.ec-code input')].some((i) => i.value === sessionStorage.getItem('scsPn'))"
+      ]
+    },
+    {
+      "name": "Tab 으로 떠나도 잡힌다",
+      "path": "/sales/buy",
+      "steps": [
+        "wait:1800",
+        "js:(() => { const i = document.querySelector('input[placeholder=\"거래처\"]'); i.focus(); const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(i, sessionStorage.getItem('scsP')); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:document.querySelector('input[placeholder=\"거래처\"]').dispatchEvent(new FocusEvent('focusout', { bubbles: true })); true",
+        "wait:500",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('.ec-code input')].some((i) => i.value === sessionStorage.getItem('scsPn'))"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const so = sessionStorage.getItem('scsId'); if (so) await fetch('/api/shipment-orders/' + so, { method: 'DELETE', headers: H }); const it = sessionStorage.getItem('scsItem'); if (it && sessionStorage.getItem('scsMade')) await fetch('/api/items/' + it, { method: 'DELETE', headers: H }); return true })()"
+  ]
+}
