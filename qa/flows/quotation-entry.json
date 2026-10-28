@@ -6,7 +6,7 @@
       "path": "/sales/quotation-entry",
       "steps": [
         "wait:1500",
-        "expect:document.body.innerText.includes('견적서입력') && document.body.innerText.includes('유효기간') && document.body.innerText.includes('거래유형') && !document.querySelector('[role=dialog]')",
+        "expect:document.body.innerText.includes('견적서입력') && !document.body.innerText.includes('유효기간') && document.body.innerText.includes('거래유형') && document.body.innerText.includes('웹자료올리기') && document.body.innerText.includes('전표불러오기') && !document.querySelector('[role=dialog]')",
         "click:저장(F8)",
         "wait:600",
         "expect:document.body.innerText.includes('견적서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",

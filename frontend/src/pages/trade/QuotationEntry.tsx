@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
 import { api, extractErrorMessage } from '../../api/client'
-import type { EmployeeMaster, Item, Partner, Project, Quotation, Warehouse } from '../../types/api'
+import type { EmployeeMaster, Item, MyItem, Partner, Project, Quotation, Warehouse } from '../../types/api'
 import { openPrintWindow } from '../../utils/print'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -23,7 +23,10 @@ import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphisto
  * 견적서입력 — 원본 영업관리 &gt; 견적서 &gt; <b>견적서입력</b>(E040201). 주문서입력 · 출하지시서입력과 같은 큰 입력 화면이다
  * (원본 견적서 메뉴 = 견적서조회 · 견적서입력 · 견적서현황 · 미주문현황, 데이터이관 루프 21 실측).
  *
- * 머리는 예전 견적서입력 창이 가진 칸 그대로: 일자-No. · 거래처 · 담당자 · 출하창고 · 거래유형 · 통화(내자) · 프로젝트 · 유효기간 · 적요.
+ * 머리는 원본 E040201(데이터이관 루프 22 실측) 그대로: 일자-No. · 거래처 · 담당자 · 출하창고 · 거래유형 · 통화(내자) · 프로젝트 · 첨부.
+ * 원본 머리엔 유효기간 · 적요 칸이 없다. 견적서조회 목록엔 '유효기간' 열이 있어 지우지 않고, 판매입력처럼 [Option] › 추가항목 펼치기로만 보인다
+ * (숨겨도 값은 그대로 들고 있어 수정 저장 때 지워지지 않는다).
+ * 툴바도 원본 차례: 찾기(F3) · 정렬 · 거래내역보기(견적) · My품목 · 할인 · 재고불러오기 · 생성한전표 · 바코드 · 검증 · 이익계산 · 전표불러오기.
  * 줄: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 합계(원본 2026-10-14 실측 — 3 × 1,001 → 3,003 · 300 · 3,303).
  * 품목을 고르면 수량은 비어 있고 단가는 품목 출고단가(특별단가가 있으면 그것). 줄 없이 저장하면 '알림' 창, 거래처가 비면 그 칸만 빨갛게,
  * 출하창고는 비워도 저장된다. 저장하면 말 없이 빈 칸으로 돌아간다(거래처는 비우고 창고 · 담당자 · 일자는 남긴다).
@@ -80,6 +83,13 @@ export default function QuotationEntry() {
   /** [H] · [최종이력] — QuotationService.HISTORY_TARGET 'QUOTATION'. */
   const [slipHistory, setSlipHistory] = useState<'H' | 'last' | null>(null)
   const [generated, setGenerated] = useState<GeneratedRow[] | null>(null)
+  /** My품목(사용자별, 서버 /my-items) — 주문서입력 · 판매입력과 같은 목록을 쓴다. */
+  const [myItems, setMyItems] = useState<MyItem[]>([])
+  const [myItemsOpen, setMyItemsOpen] = useState(false)
+  const [barcodeOpen, setBarcodeOpen] = useState(false)
+  const [barcode, setBarcode] = useState('')
+  /** [Option] › 추가항목 펼치기 — 원본 머리에 없는 유효기간 · 적요(판매입력 showExtra 와 같은 방식, 처음엔 접힘). */
+  const [showExtra, setShowExtra] = useState(false)
 
   const rememberedEmpRef = useRef('')
   const formRef = useRef<HTMLFormElement>(null)
@@ -105,7 +115,12 @@ export default function QuotationEntry() {
     }
   }
 
+  async function loadMyItems() {
+    try { setMyItems((await api.get<MyItem[]>('/my-items')).data) } catch { setMyItems([]) }
+  }
+
   useEffect(() => {
+    void loadMyItems()
     api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
     api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data.filter((e) => e.active !== false))).catch(() => {})
     void (async () => {
@@ -187,7 +202,46 @@ export default function QuotationEntry() {
     ? { qty: a.qty + num(lines[i].quantity), supply: a.supply + c.supply, vat: a.vat + c.vat, total: a.total + c.total } : a),
   { qty: 0, supply: 0, vat: 0, total: 0 })
 
+  function addItemLine(itemId: string, qty = 1, price?: number) {
+    const it = itemById.get(itemId)
+    if (!it) return false
+    setLines((ls) => {
+      const at = ls.findIndex((l) => l.itemId === itemId)
+      if (at >= 0) {
+        const next = [...ls]
+        next[at] = { ...next[at], quantity: String(num(next[at].quantity) + qty) }
+        return next
+      }
+      const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice ?? 0) }
+      const blank = ls.findIndex((l) => !l.itemId)
+      if (blank >= 0) return ls.map((l, i) => (i === blank ? filled : l))
+      return [...ls, filled, emptyLine()]
+    })
+    return true
+  }
+
   // ── 툴바 동작 ─────────────────────────────────────────
+  /** My품목을 통째로 명세에 담는다(품목별 기본수량 그대로) — 주문서입력과 같다. */
+  function applyMyItems() {
+    if (myItems.length === 0) return flash('My품목이 비어 있습니다. 주문서입력 · 판매입력 명세의 [★]로 담아 두세요.')
+    setLines((ls) => [...ls.filter((l) => l.itemId),
+      ...myItems.map((m) => ({ itemId: String(m.itemId), quantity: String(m.defaultQty), unitPrice: String(m.unitPrice) })), emptyLine()])
+    setMyItemsOpen(false)
+    flash(`My품목 ${myItems.length}건을 명세에 담았습니다.`)
+  }
+  async function removeMyItem(itemId: number) {
+    try { await api.delete(`/my-items/${itemId}`); flash('My품목에서 뺐습니다.'); await loadMyItems() }
+    catch (err) { setError(extractErrorMessage(err)) }
+  }
+  function scanBarcode() {
+    const q = barcode.trim()
+    if (!q) return
+    const hit = items.find((i) => i.barcode === q) ?? items.find((i) => i.code.toLowerCase() === q.toLowerCase())
+    if (!hit) { flash(`'${q}' 에 해당하는 품목이 없습니다.`); return }
+    addItemLine(String(hit.id))
+    setBarcode('')
+    flash(`${hit.name} 1개를 담았습니다.`)
+  }
   function sortLines() {
     setLines((ls) => {
       const filled = ls.filter((l) => l.itemId)
@@ -321,7 +375,10 @@ export default function QuotationEntry() {
     { label: '저장/전표(F7)', onClick: saveAndPrint },
     { label: '다시 작성', onClick: () => reset(false) },
     { label: '리스트', onClick: () => void toList() },
+    { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
   ]
+  /** 원본에 있으나 견적서에는 아직 없는 기능 — 흐리게 두고 이유를 단다(주문서입력과 같은 방식). */
+  const todo = (why: string) => ({ disabled: true, title: why })
 
   return (
     <form ref={formRef} onSubmit={submit}>
@@ -330,13 +387,17 @@ export default function QuotationEntry() {
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
         activeFormTab="main"
         onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
-        options={[{ label: '입력값 초기화', onClick: () => reset(false) }]}
+        options={[
+          { label: showExtra ? '추가항목 접기' : '추가항목 펼치기', onClick: () => setShowExtra((v) => !v) },
+          { label: '입력값 초기화', onClick: () => reset(false) },
+        ]}
         actions={actions}
         help={
           <ul className="pl-[16px] m-0">
             <li>이카운트 <b>견적서입력</b> 구조를 따릅니다 — 헤더 항목 폼 · 명세 그리드 · 하단 버튼줄.</li>
             <li>저장하면 말 없이 빈 칸으로 돌아갑니다(거래처는 비우고 출하창고는 남깁니다). 번호는 [리스트](견적서조회)에서 봅니다.</li>
             <li>출하창고는 비워도 저장됩니다. 주문서로 넘길 때 정합니다.</li>
+            <li>유효기간 · 적요는 원본 머리에 없어 [Option] › 추가항목 펼치기로 엽니다. 흐리게 보이는 버튼은 원본에 있으나 아직 연결되지 않은 기능입니다.</li>
           </ul>
         }
       >
@@ -395,13 +456,22 @@ export default function QuotationEntry() {
             </div>
           </li>
           <li>
-            <div className="title">유효기간</div>
-            <div className="form"><EcDateField value={validUntil} onChange={setValidUntil} /></div>
+            <div className="title">첨부</div>
+            <div className="form"><button type="button" className="ec-btn ec-btn-sm" {...todo('파일 첨부는 [전자결재·드라이브]에서 씁니다.')}>첨부</button></div>
           </li>
-          <li className="wide">
-            <div className="title">적요</div>
-            <div className="form"><input className="ec-input flex-1" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="전표 적요" /></div>
-          </li>
+          {/* 원본 머리에 없는 칸 — [Option] › 추가항목 펼치기로만 보인다. 접어도 값은 state 에 남아 저장 때 그대로 간다. */}
+          {showExtra && (
+            <>
+              <li>
+                <div className="title">유효기간</div>
+                <div className="form"><EcDateField value={validUntil} onChange={setValidUntil} /></div>
+              </li>
+              <li className="wide">
+                <div className="title">적요</div>
+                <div className="form"><input className="ec-input flex-1" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="전표 적요" /></div>
+              </li>
+            </>
+          )}
         </ul>
 
         {/* ── 명세 탭 + 툴바 ───────────────────────────────── */}
@@ -410,8 +480,38 @@ export default function QuotationEntry() {
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFindOpen((v) => !v)}>찾기(F3)</button>
           {findOpen && <input className="ec-input w-[130px] h-[23px]" autoFocus value={findText} placeholder="품목명·품목코드" onChange={(e) => setFindText(e.target.value)} />}
           <button type="button" className="ec-btn ec-btn-sm" onClick={sortLines}>정렬</button>
+          <button type="button" className="ec-btn ec-btn-sm" {...todo('거래처별 지난 견적 보기는 아직 없습니다 — 견적서조회에서 거래처 조건으로 봅니다.')}>거래내역보기(견적)</button>
+          <span className="relative inline-flex">
+            <button type="button" className="ec-btn ec-btn-sm" onClick={applyMyItems}>My품목{myItems.length > 0 ? ` (${myItems.length})` : ''}</button>
+            <button type="button" className="ec-btn ec-btn-sm ec-btn-arrow" aria-label="My품목 목록" onClick={() => setMyItemsOpen((v) => !v)}>▾</button>
+            {myItemsOpen && (
+              <div className="ec-menu absolute top-full left-0 z-30 mt-[2px] min-w-[280px] p-[6px]">
+                {myItems.length === 0 ? (
+                  <div className="py-[8px] px-[6px] text-[12px] text-ec-hint">비어 있습니다. 주문서입력 · 판매입력 명세의 [★]로 담아 두세요.</div>
+                ) : myItems.map((m) => (
+                  <div key={m.id} className="flex items-center gap-[6px] py-[3px] px-[4px] text-[12px]">
+                    <button type="button" className="ec-btn ec-btn-sm flex-1 justify-start"
+                            onClick={() => { addItemLine(String(m.itemId), m.defaultQty, m.unitPrice); setMyItemsOpen(false) }}>
+                      {m.itemCode} {m.itemName} · {m.defaultQty}
+                    </button>
+                    <button type="button" className="ec-btn ec-btn-sm" title="My품목에서 빼기" onClick={() => void removeMyItem(m.itemId)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </span>
+          <button type="button" className="ec-btn ec-btn-sm" {...todo('견적서에는 할인 금액조정이 없습니다.')}>할인</button>
+          <button type="button" className="ec-btn ec-btn-sm" {...todo('견적서입력에서 재고를 불러오는 기능은 아직 없습니다.')}>재고불러오기</button>
           <button type="button" className="ec-btn ec-btn-sm" disabled={!editing} title={editing ? undefined : '저장한 견적서를 열었을 때만 쓸 수 있습니다.'} onClick={() => void openGenerated()}>생성한전표</button>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => setBarcodeOpen((v) => !v)}>바코드</button>
+          {barcodeOpen && (
+            <input className="ec-input w-[170px] h-[23px]" autoFocus value={barcode} placeholder="바코드/품목코드 후 Enter"
+                   onChange={(e) => setBarcode(e.target.value)}
+                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scanBarcode() } }} />
+          )}
           <button type="button" className="ec-btn ec-btn-sm" onClick={verify}>검증</button>
+          <button type="button" className="ec-btn ec-btn-sm" {...todo('견적서입력의 이익계산은 아직 없습니다 — 판매입력에서 합니다.')}>이익계산</button>
+          <button type="button" className="ec-btn ec-btn-sm" {...todo('다른 전표를 복사해 오는 기능은 아직 없습니다.')}>전표불러오기</button>
         </div>
 
         {notice && <div className="ec-alert ec-alert-info my-[4px] mx-0">{notice}</div>}
