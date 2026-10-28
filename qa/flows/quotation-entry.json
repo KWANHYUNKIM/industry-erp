@@ -92,6 +92,35 @@
         "expect:/2026\\/10\\/20/.test(document.body.innerText.replace(/-/g, '/')) || /20261020/.test(document.body.innerText)",
         "apidel:/quotations|@__cdNew|quoteNo"
       ]
+    },
+    {
+      "name": "견적서입력 — 임의거래처(12341234)를 고르면 이름 칸이 열리고(기본 '임의거래처') 고친 이름이 견적서조회 거래처명(원본 견적 11/21-2 '경동상회', 2026-10-28)",
+      "path": "/sales/quotation-entry",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const l = await (await fetch('/api/partners', { headers: H })).json(); let p = (Array.isArray(l) ? l : l.content).find((x) => x.code === '12341234'); if (!p) { const r = await fetch('/api/partners', { method: 'POST', headers: H, body: JSON.stringify({ code: '12341234', name: '임의거래처', type: 'BOTH' }) }); p = await r.json(); sessionStorage.setItem('__anyMade', String(p.id)) } sessionStorage.setItem('__anyName', p.name); return p.code + ' ' + p.name })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "click:거래처 코드도움",
+        "pickrow:12341234",
+        "expect:document.querySelector('input.ec-input.name:not([readonly])')?.value === sessionStorage.getItem('__anyName')",
+        "set:input.ec-input.name:not([readonly])|QA임의상회",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const q = (await (await fetch('/api/quotations', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__anyQ', q.quoteNo); return q.quoteNo + ' ' + q.partnerName })()",
+        "expect:fetch('/api/quotations', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((l) => l.find((q) => q.quoteNo === sessionStorage.getItem('__anyQ'))?.partnerName === 'QA임의상회')",
+        "js:location.href = '/sales/quotations'; true",
+        "wait:2500",
+        "expect:document.body.innerText.includes('QA임의상회')",
+        "apidel:/quotations|@__anyQ|quoteNo",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('__anyMade'); if (!id) return true; sessionStorage.removeItem('__anyMade'); return (await fetch('/api/partners/' + id, { method: 'DELETE', headers: H })).status })()"
+      ]
     }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('__anyMade'); if (!id) return true; sessionStorage.removeItem('__anyMade'); return (await fetch('/api/partners/' + id, { method: 'DELETE', headers: H })).status })()"
   ]
 }
