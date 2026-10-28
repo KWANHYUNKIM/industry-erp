@@ -506,7 +506,7 @@ export default function ShipmentOrderEntry() {
       </Modal>
 
       {/* 원본 출하지시서입력 [판매] = '판매검색창(조회)'(루프 27 실측). */}
-      <Modal open={salesOpen} error={error} width={960} title="판매검색창" onClose={() => setSalesOpen(false)}>
+      <Modal open={salesOpen} error={error} width={960} title="판매검색창(조회)" onClose={() => setSalesOpen(false)}>
         {salesDocs === null ? <p className="text-ec-hint m-0">불러오는 중…</p> : (
           <SourceDocSearch
             tabs={SALES_TABS} tab={salesTab} onTab={setSalesTab}
@@ -522,7 +522,7 @@ export default function ShipmentOrderEntry() {
               itemSummary: salesSummary(d), date2: '', total: d.totalAmount, statusLabel: d.confirmStatusName, created: false,
               cells: [
                 dateNo(d.saleDate, d.docNo), d.partnerName, salesSummary(d), won(d.totalAmount),
-                d.taxable ? '부가세율 적용' : '부가세율 미적용', d.warehouseName, d.accountingReflected ? 'Y' : 'N',
+                d.taxable ? '부가세율 적용' : '부가세율 미적용', d.warehouseName, d.accountingReflected ? '✓' : '',
                 <span className="text-ec-hint">인쇄</span>,
                 <span className="ec-btn ec-btn-sm" title="불러온 전표는 판매조회에서 봅니다.">조회</span>,
               ],

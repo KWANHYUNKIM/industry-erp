@@ -29,7 +29,7 @@ import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
  * 줄: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 적요, 아래 합계 줄.
  * 저장은 말 없이 빈 칸으로 돌아간다(거래처는 비우고 창고는 남긴다). 머리 기억(일자 · 담당자 · 창고)은 판매입력과 같은 /me/memory.
  *
- * 저장 API 는 `/sales-orders` 그대로 — 요청 DTO 에 줄 적요가 없어 [적요] 칸은 두되 보내지 않는다.
+ * 저장 API 는 `/sales-orders` 그대로 — 줄 적요도 함께 보내고 다시 열면 보인다.
  * 주문서조회의 [신규(F2)] · [일자-No.] · `?edit=` · `?fromQuotes=` 가 모두 이 화면으로 온다. 창이 아니라 화면이라 Esc 로 닫히지 않는다.
  */
 
@@ -47,7 +47,7 @@ const MEM_KEY = 'sales-order-head'
 /** 서버(SalesOrderService.delete)가 막을 때 첫 줄 — 원본 '알림' 창의 첫 줄 그대로. */
 const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.'
 
-interface OrderLineDoc { itemId: number; itemCode?: string; itemName: string; spec?: string | null; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }
+interface OrderLineDoc { itemId: number; itemCode?: string; itemName: string; spec?: string | null; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number; remark?: string | null }
 interface OrderDoc {
   id: number; orderNo: string; partnerId: number; partnerName: string
   orderDate: string; dueDate: string | null
@@ -202,7 +202,7 @@ export default function SalesOrderEntry() {
     setWarehouseId(o.warehouseId ? String(o.warehouseId) : '')
     setProjectId(o.projectId ? String(o.projectId) : '')
     setEmployeeId(o.employeeId ? String(o.employeeId) : '')
-    setLines([...o.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: '' })), emptyLine()])
+    setLines([...o.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), remark: l.remark ?? '' })), emptyLine()])
   }
 
   /**
@@ -478,7 +478,7 @@ export default function SalesOrderEntry() {
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
       taxable, remark: remark || undefined,
-      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice) })),
+      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice), remark: l.remark || undefined })),
     }
     try {
       let saved: OrderDoc
@@ -674,7 +674,7 @@ export default function SalesOrderEntry() {
           {!quoteLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openQuoteLoad()}>견적</button>}
           <button type="button" className="ec-btn ec-btn-sm" {...todo('주문서에는 할인 금액조정이 없습니다.')}>할인</button>
           <button type="button" className="ec-btn ec-btn-sm" {...todo('주문서입력에서 재고를 불러오는 기능은 아직 없습니다.')}>재고불러오기</button>
-          <button type="button" className="ec-btn ec-btn-sm" disabled={!editing} title={editing ? undefined : '저장한 주문서를 열었을 때만 쓸 수 있습니다.'} onClick={() => void openLoaded()}>불러온전표</button>
+          {!quoteLoaded && <button type="button" className="ec-btn ec-btn-sm" disabled={!editing} title={editing ? undefined : '저장한 주문서를 열었을 때만 쓸 수 있습니다.'} onClick={() => void openLoaded()}>불러온전표</button>}
           <button type="button" className="ec-btn ec-btn-sm" disabled={!editing} title={editing ? undefined : '저장한 주문서를 열었을 때만 쓸 수 있습니다.'} onClick={() => void openGenerated()}>생성한전표</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setBarcodeOpen((v) => !v)}>바코드</button>
           {barcodeOpen && (
