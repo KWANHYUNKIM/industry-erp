@@ -45,8 +45,8 @@ interface SoLite {
   status: 'IN_PROGRESS' | 'COMPLETED'; statusName: string; totalQuantity: number; lines: SoLine[]
 }
 
-interface LineInput { itemId: string; quantity: string; remark: string; soLineId: number | null; orderLineId: number | null; unitPrice: number | null }
-const emptyLine = (): LineInput => ({ itemId: '', quantity: '', remark: '', soLineId: null, orderLineId: null, unitPrice: null })
+interface LineInput { itemId: string; quantity: string; remark: string; soLineId: number | null; orderLineId: number | null; unitPrice: number | null; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */ }
+const emptyLine = (): LineInput => ({ itemId: '', quantity: '', remark: '', soLineId: null, orderLineId: null, unitPrice: null, spec: null })
 interface Head { shipDate: string; partnerId: string; employeeId: string; warehouseId: string; projectId: string; contact: string; postalCode: string; address: string }
 const emptyHead = (): Head => ({ shipDate: ymd(new Date()), partnerId: '', employeeId: '', warehouseId: '', projectId: '', contact: '', postalCode: '', address: '' })
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -94,7 +94,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
     })
     setLines([...editing.lines.map((l) => ({
       itemId: String(l.itemId), quantity: String(l.quantity), remark: l.remark ?? '',
-      soLineId: l.shipmentOrderLineId, orderLineId: l.orderLineId, unitPrice: l.unitPrice,
+      soLineId: l.shipmentOrderLineId, orderLineId: l.orderLineId, unitPrice: l.unitPrice, spec: l.spec ?? null,
     })), emptyLine()])
   }, [editing])
 
@@ -103,9 +103,10 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
   const linked = lines.some((l) => l.soLineId != null)
   const totalQty = lines.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
   const setH = (k: keyof Head, v: string) => setHead((h) => ({ ...h, [k]: v }))
-  function updateLine(idx: number, field: 'itemId' | 'quantity' | 'remark', value: string) {
+  function updateLine(idx: number, field: 'itemId' | 'quantity' | 'remark' | 'spec', value: string) {
     setLines((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
+      if (field === 'itemId') next[idx] = { ...next[idx], spec: null } // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
       if (field === 'itemId' && value && idx === ls.length - 1) next.push(emptyLine())
       return next
     })
@@ -171,7 +172,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
       ...(editing ? {} : { status: 'SHIPPED' }),
       lines: filled.map((l) => ({
         itemId: Number(l.itemId), quantity: Number(l.quantity), remark: l.remark || null,
-        unitPrice: l.unitPrice, shipmentOrderLineId: l.soLineId, orderLineId: l.orderLineId,
+        unitPrice: l.unitPrice, shipmentOrderLineId: l.soLineId, orderLineId: l.orderLineId, spec: l.spec ?? undefined,
       })),
     }
     try {
@@ -200,7 +201,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
         projectId: so.projectId ? String(so.projectId) : '', contact: so.contact ?? '',
         postalCode: so.postalCode ?? '', address: so.address ?? '',
       }))
-      setLines([...rem.map((l) => ({ itemId: String(l.itemId), quantity: String(l.unshippedQty), remark: l.remark ?? '', soLineId: l.id, orderLineId: null, unitPrice: null })), emptyLine()])
+      setLines([...rem.map((l) => ({ itemId: String(l.itemId), quantity: String(l.unshippedQty), remark: l.remark ?? '', soLineId: l.id, orderLineId: null, unitPrice: null, spec: l.spec ?? null })), emptyLine()])
       setPickOpen(false)
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
@@ -272,7 +273,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
                 <td>
                   <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제" value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />
                 </td>
-                <td>{it?.spec ?? ''}</td>
+                <td><input className="ec-input w-full" value={l.spec ?? it?.spec ?? ''} maxLength={200} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'spec', e.target.value)} /></td>
                 <td><input type="number" className="ec-input w-full text-right" value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
                 <td><input className="ec-input w-full" value={l.remark} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
               </tr>

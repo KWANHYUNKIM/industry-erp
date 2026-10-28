@@ -27,6 +27,8 @@ export interface PurchaseLineSeed {
   itemId: string; partnerId: string; quantity: string; unitPrice: string
   /** 원본 줄 열 [발주요청] · [No] / [발주계획] · [No.] — 베껴 온 앞 전표 줄. */
   sourceLineId?: number | null; sourceNo?: string; sourceDate?: string
+  /** 줄 규격 — null · 없음 = 품목 규격을 따라감, '' = 일부러 비움. */
+  spec?: string | null
 }
 type LineForm = PurchaseLineSeed
 const emptyLine = (): LineForm => ({ itemId: '', partnerId: '', quantity: '', unitPrice: '' })
@@ -42,6 +44,7 @@ export const copyLine = (o: PurchaseOrder, l: PurchaseOrderLine): LineForm => {
     sourceLineId: rl.id,
     sourceNo: o.orderNo,
     sourceDate: o.orderDate,
+    spec: rl.spec ?? null,
   }
 }
 export const copyLines = (orders: PurchaseOrder[]): LineForm[] => orders.flatMap((o) => o.lines.map((l) => copyLine(o, l)))
@@ -149,6 +152,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
       sourceLineId: l.sourceLineId ?? null,
       sourceNo: l.sourceOrderNo ?? undefined,
       sourceDate: l.sourceOrderDate ?? undefined,
+      spec: l.spec ?? null,
     }))
     if (got.length === 0 && seed?.lines.length) got.push(...seed.lines)
     return [...got, ...Array.from({ length: Math.max(1, MIN_ROWS - got.length) }, emptyLine)]
@@ -176,6 +180,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
       itemId,
       partnerId: it?.supplierId ? String(it.supplierId) : lines[i].partnerId,
       unitPrice: pp > 0 ? String(pp) : '',
+      spec: null, // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
     })
   }
 
@@ -278,6 +283,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
         unitPrice: l.unitPrice === '' ? null : Number(l.unitPrice),
         partnerId: headParty ? (headPartnerId ? Number(headPartnerId) : null) : l.partnerId ? Number(l.partnerId) : null,
         sourceLineId: l.sourceLineId ?? null,
+        spec: l.spec ?? undefined,
       })),
       plan: plan || undefined,
       order: order || undefined,
@@ -438,7 +444,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
                   value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })} items={partnerPicks} />
               </td>}
               {!headParty && <td>{partnerOf(l.partnerId)?.name ?? ''}</td>}
-              <td>{itemOf(l.itemId)?.spec ?? ''}</td>
+              <td><input className="ec-input w-full" value={l.spec ?? itemOf(l.itemId)?.spec ?? ''} maxLength={200} disabled={!l.itemId} onChange={(e) => setLine(i, { spec: e.target.value })} /></td>
               {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockAll(l.itemId).toLocaleString('ko-KR') : ''}</td>}
               {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockWh(l.itemId).toLocaleString('ko-KR') : ''}</td>}
               <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>

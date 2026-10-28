@@ -50,7 +50,7 @@ public class ShipmentService {
         BusinessPartner p = sh.getPartner();
         changeHistory.recordSlip(HISTORY_TARGET, sh.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot("출하", sh.getShipDate(), sh.getShipNo(),
                 p != null ? p.getCode() : null, p != null ? p.getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), sh.getLines().size()),
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.effectiveSpec(), sh.getLines().size()),
                 sh.getEmployee() != null ? sh.getEmployee().getCode() : null,
                 sh.getEmployee() != null ? sh.getEmployee().getName() : null,
                 sh.getStatus() != null ? sh.getStatus().getDisplayName() : null));
@@ -207,6 +207,7 @@ public class ShipmentService {
                     .unitPrice(unitPrice)
                     .amount(amount)
                     .remark(lr.remark())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build());
 
             totalQty = totalQty.add(lr.quantity());
@@ -287,6 +288,7 @@ public class ShipmentService {
                     .quantity(t.qty())
                     .unitPrice(line.getUnitPrice())
                     .amount(amount)
+                    .spec(line.effectiveSpec())
                     // 주문에서 만든 출하는 줄 적요가 비어 나간다 — 주문 라인에
                     // 적요 칸이 없어 이어받을 것이 없다. 출하 화면에서 직접 적는다.
                     .build());
@@ -411,6 +413,7 @@ public class ShipmentService {
                     .unitPrice(price)
                     .amount(amount)
                     .remark(e.getKey().getRemark())
+                    .spec(e.getKey().effectiveSpec())
                     .build());
             totalQty = totalQty.add(e.getValue());
             totalAmount = totalAmount.add(amount);

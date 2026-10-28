@@ -78,7 +78,7 @@ public class PurchaseOrderService {
         changeHistory.recordSlip(HISTORY_TARGET, po.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot(menu, po.getOrderDate(), po.getOrderNo(),
                 po.getPartner() != null ? po.getPartner().getCode() : null,
                 po.getPartner() != null ? po.getPartner().getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), po.getLines().size()),
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.effectiveSpec(), po.getLines().size()),
                 po.getEmployee() != null ? po.getEmployee().getCode() : null,
                 po.getEmployee() != null ? po.getEmployee().getName() : null,
                 status.getDisplayName()));
@@ -115,7 +115,7 @@ public class PurchaseOrderService {
                         po.getProject() != null ? po.getProject().getId() : null,
                         itemId, l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
                         l.getQuantity(), used, rest, l.getUnitPrice(),
-                        po.getEmployee() != null ? po.getEmployee().getId() : null));
+                        po.getEmployee() != null ? po.getEmployee().getId() : null, l.effectiveSpec()));
             }
         }
         return out;
@@ -144,11 +144,11 @@ public class PurchaseOrderService {
                     ? bought.stream().filter(b -> b.getItem().getId().equals(it.getId())).toList()
                     : List.of();
             if (mine.isEmpty()) {
-                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), it.getName(), it.getSpec(),
+                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), it.getName(), line.effectiveSpec(),
                         line.getQuantity(), remaining, line.getUnitPrice(), null, null, null, null));
             }
             for (var b : mine) {
-                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), it.getName(), it.getSpec(),
+                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), it.getName(), line.effectiveSpec(),
                         line.getQuantity(), remaining, line.getUnitPrice(),
                         "구매", b.getPurchase().getPurchaseDate(), b.getPurchase().getDocNo(), b.getPurchase().getId()));
             }
@@ -308,6 +308,7 @@ public class PurchaseOrderService {
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build();
             linkSource(line, lr.sourceLineId());
             po.addLine(line);
@@ -357,6 +358,7 @@ public class PurchaseOrderService {
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build();
             linkSource(line, lr.sourceLineId());
             po.addLine(line);
@@ -525,7 +527,7 @@ public class PurchaseOrderService {
         if (po.getPartner() == null) throw ApiException.badRequest("거래처가 없는 발주서는 입고할 수 없습니다.");
         List<PurchaseLineRequest> lines = po.getLines().stream()
                 // 입고전환으로 생긴 라인은 이 발주서가 근거전표다 — 구매입력에서 [불러온 전표]로 보인다.
-                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null, null, null, null))
+                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null, null, null, null, l.effectiveSpec()))
                 .toList();
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(

@@ -31,7 +31,9 @@ public final class PurchaseOrderDtos {
             @Size(max = 200, message = "비고는 200자까지 넣을 수 있습니다.")
             String remark,
             /** 베껴 온 앞 전표의 줄(발주계획 ← 발주요청 줄, 발주서 ← 발주계획 줄). 비우면 직접 넣은 줄. */
-            Long sourceLineId
+            Long sourceLineId,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec
     ) {}
 
     public record CreatePurchaseOrderRequest(
@@ -137,7 +139,7 @@ public final class PurchaseOrderDtos {
             return new OrderLineResponse(
                     l.getId(), l.getLineNo(),
                     l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getItem().getSpec(),
+                    l.effectiveSpec(),
                     l.getItem().getCategory(),
                     l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
@@ -163,7 +165,9 @@ public final class PurchaseOrderDtos {
             Long itemId, String itemCode, String itemName, String unit,
             BigDecimal orderQty, BigDecimal boughtQty, BigDecimal restQty, BigDecimal unitPrice,
             /** 발주의 담당자 — 원본 구매입력 [발주] 불러오기가 머리 담당자로 채운다(2026-10-28 실측). */
-            Long employeeId
+            Long employeeId,
+            /** 발주 줄의 규격 — 구매입력 [발주] 불러오기가 줄 규격으로 채운다. */
+            String spec
     ) {}
 
     /**

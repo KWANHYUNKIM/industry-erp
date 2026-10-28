@@ -39,4 +39,16 @@ public class ShipmentOrderLine {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sales_id")
     private Sales sales;
+
+    /**
+     * 줄 규격. 원본은 전표 줄의 [규격] 을 줄마다 따로 저장한다 — 품목을 고르면 품목 규격으로 채워지지만
+     * 줄에서 고치거나 비울 수 있고, 저장된 값이 그대로 보인다. 비어 있으면(null) 품목 규격으로 본다. 빈 글자("")는 일부러 비운 것이다.
+     */
+    @Column(name = "spec", length = 200)
+    private String spec;
+
+    /** 화면에 보일 규격 — 줄에 저장된 값, 저장 전 옛 줄(null)이면 품목 규격. */
+    public String effectiveSpec() {
+        return spec != null ? spec : (getItem() == null ? null : getItem().getSpec());
+    }
 }

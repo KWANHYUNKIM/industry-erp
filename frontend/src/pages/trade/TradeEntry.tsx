@@ -1034,7 +1034,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           warehouseId: number | null; projectId: number | null
           itemId: number; itemCode: string; itemName: string; unit: string
           orderQty: number; boughtQty: number; restQty: number; unitPrice: number
-          employeeId: number | null
+          employeeId: number | null; spec: string | null
         }[]>('/purchase-orders/unpurchased')
         /*
          * 원본 [발주] 검색창은 <b>발주서</b>만 띄운다 — 발주요청 · 발주계획은 다른 전표다(2026-10-20 실측).
@@ -1047,6 +1047,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null, employeeId: l.employeeId ?? null,
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
           orderedQty: l.orderQty, doneQty: l.boughtQty, restQty: l.restQty, unitPrice: l.unitPrice,
+          spec: l.spec ?? null,
         }))
       }
       rows.sort((a, b) => b.date.localeCompare(a.date) || b.docNo.localeCompare(a.docNo))

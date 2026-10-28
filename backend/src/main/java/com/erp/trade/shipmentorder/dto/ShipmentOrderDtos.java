@@ -25,7 +25,9 @@ public final class ShipmentOrderDtos {
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.") String remark,
             /** [판매] 로 담은 줄이면 그 판매 id — 그 판매는 판매검색창에서 빠진다. 고칠 때 null 이면 원래 연결을 둔다. */
-            Long salesId
+            Long salesId,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec
     ) {}
 
     /** 출하지시서 저장 — 원본 머리 칸 차례: 일자 · 거래처 · 담당자 · 출하창고 · 프로젝트 · 연락처 · 출하예정일 · 우편번호 · 주소. */
@@ -59,7 +61,7 @@ public final class ShipmentOrderDtos {
         static LineResponse from(ShipmentOrderLine l, Map<Long, BigDecimal> shipped) {
             BigDecimal s = shipped.getOrDefault(l.getId(), BigDecimal.ZERO);
             return new LineResponse(l.getId(), l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
-                    l.getItem().getSpec(), l.getItem().getUnit(), l.getQuantity(), s,
+                    l.effectiveSpec(), l.getItem().getUnit(), l.getQuantity(), s,
                     l.getQuantity().subtract(s), l.getRemark(),
                     l.getSales() != null ? l.getSales().getId() : null);
         }

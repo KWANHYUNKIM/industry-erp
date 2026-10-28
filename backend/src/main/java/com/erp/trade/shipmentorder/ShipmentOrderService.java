@@ -3,6 +3,7 @@ package com.erp.trade.shipmentorder;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.hr.employee.EmployeeService;
+import com.erp.inventory.item.Item;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.warehouse.WarehouseService;
@@ -66,7 +67,7 @@ public class ShipmentOrderService {
         BusinessPartner p = o.getPartner();
         changeHistory.recordSlip(HISTORY_TARGET, o.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot("출하지시서", o.getOrderDate(), o.getOrderNo(),
                 p != null ? p.getCode() : null, p != null ? p.getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), o.getLines().size()),
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.effectiveSpec(), o.getLines().size()),
                 o.getEmployee() != null ? o.getEmployee().getCode() : null,
                 o.getEmployee() != null ? o.getEmployee().getName() : null,
                 o.getStatus() != null ? o.getStatus().getDisplayName() : null));
@@ -101,7 +102,7 @@ public class ShipmentOrderService {
             if (remain.signum() <= 0) continue;
             ShipmentOrder o = l.getShipmentOrder();
             out.add(new UnshippedLine(o.getId(), o.getOrderNo(), o.getOrderDate(), l.getId(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.effectiveSpec(),
                     l.getItem().getUnit(), l.getQuantity(), remain,
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                     o.getWarehouse() != null ? o.getWarehouse().getName() : null,
@@ -142,8 +143,10 @@ public class ShipmentOrderService {
                 .build();
         applyHeader(o, req, date);
         for (LineRequest lr : req.lines()) {
-            o.addLine(ShipmentOrderLine.builder().item(itemService.getUsable(lr.itemId()))
-                    .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId())).build());
+            Item item = itemService.getUsable(lr.itemId());
+            o.addLine(ShipmentOrderLine.builder().item(item)
+                    .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId()))
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
         }
         o.setTotalQuantity(total(o));
         ShipmentOrder savedOne = repository.save(o);
@@ -165,12 +168,18 @@ public class ShipmentOrderService {
         for (LineRequest lr : req.lines()) {
             ShipmentOrderLine line = lr.id() != null ? byId.get(lr.id()) : null;
             if (line == null) {
-                added.add(ShipmentOrderLine.builder().item(itemService.getUsable(lr.itemId()))
-                        .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId())).build());
+                Item item = itemService.getUsable(lr.itemId());
+                added.add(ShipmentOrderLine.builder().item(item)
+                        .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId()))
+                        .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
                 continue;
             }
             keep.add(line.getId());
-            if (!line.getItem().getId().equals(lr.itemId())) line.setItem(itemService.getUsable(lr.itemId()));
+            if (!line.getItem().getId().equals(lr.itemId())) {
+                line.setItem(itemService.getUsable(lr.itemId()));
+                if (lr.spec() == null) line.setSpec(line.getItem().getSpec());
+            }
+            if (lr.spec() != null) line.setSpec(lr.spec());
             line.setQuantity(lr.quantity());
             line.setRemark(lr.remark());
             if (lr.salesId() != null) line.setSales(salesOf(lr.salesId()));
