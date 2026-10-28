@@ -2,6 +2,8 @@ import { api } from '../api/client'
 import { fillAndPrint, openPrintWindow, signLineHtml, signModuleOf, type PrintSignLine } from './print'
 import { amountToKorean } from './amountToKorean'
 import { escapeHtml } from './escapeHtml'
+import { DEFAULT_DISPLAY_PREFS, printPageCss, zeroText, type DisplayPrefs } from './displayPrefs'
+import { loadDisplayPrefs } from '../features/preference/displayPrefsStore'
 
 export { amountToKorean }
 
@@ -112,11 +114,12 @@ const CSS = `
   table.signline { table-layout: fixed; }
   table.signline th { height: 26px; padding: 0; font-weight: 400; background: #eff3f8; }
   table.signline td.sign { height: 51px; padding: 0; }
-  @page { size: A4 portrait; margin: 12mm; }
   @media print { body { margin: 0; } .doc { page-break-after: always; } .doc:last-child { page-break-after: auto; } }
 `
 
-function documentHtml(o: PrintDocumentOptions): string {
+function documentHtml(o: PrintDocumentOptions, prefs: DisplayPrefs = DEFAULT_DISPLAY_PREFS): string {
+  // 기본값설정 0값표시(원본 기본 표시안함 — 공란) — 줄 칸에만
+  const cell = (n: number) => zeroText(n, won, prefs.zeroDisplay)
   const supply = o.lines.reduce((a, l) => a + Number(l.supplyAmount || 0), 0)
   const vat = o.lines.reduce((a, l) => a + Number(l.vatAmount || 0), 0)
   const total = supply + vat
@@ -137,10 +140,10 @@ function documentHtml(o: PrintDocumentOptions): string {
           <td>${escapeHtml(l.itemName)}${l.itemCode ? ` <span style="color:#8a929c">(${escapeHtml(l.itemCode)})</span>` : ''}</td>
           <td>${escapeHtml(l.spec ?? '')}</td>
           <td class="center">${escapeHtml(l.unit ?? '')}</td>
-          <td class="num">${won(Number(l.quantity))}</td>
-          ${money ? `<td class="num">${won(Number(l.unitPrice))}</td>
-          <td class="num">${won(Number(l.supplyAmount))}</td>
-          <td class="num">${won(Number(l.vatAmount))}</td>` : ''}
+          <td class="num">${cell(Number(l.quantity))}</td>
+          ${money ? `<td class="num">${cell(Number(l.unitPrice))}</td>
+          <td class="num">${cell(Number(l.supplyAmount))}</td>
+          <td class="num">${cell(Number(l.vatAmount))}</td>` : ''}
         </tr>`).join('')
 
   return `
@@ -252,13 +255,16 @@ export async function printDocuments(docs: PrintDocumentOptions[], opened?: Wind
   if (!win) return false
 
   try {
-    const sign = docs.some((d) => d.signLine === undefined) ? await defaultSignLine() : null
+    const [sign, prefs] = await Promise.all([
+      docs.some((d) => d.signLine === undefined) ? defaultSignLine() : Promise.resolve(null),
+      loadDisplayPrefs(),
+    ])
     const filled = docs.map((d) => ({ ...d, signLine: d.signLine === undefined ? sign : d.signLine }))
 
     const title = filled.length === 1 ? filled[0].title : `${filled[0].title} 외 ${filled.length - 1}건`
     fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8">
-      <title>${escapeHtml(title)}</title><style>${CSS}</style></head>
-      <body>${filled.map(documentHtml).join('')}</body></html>`)
+      <title>${escapeHtml(title)}</title><style>${CSS}${printPageCss(prefs)}</style></head>
+      <body>${filled.map((d) => documentHtml(d, prefs)).join('')}</body></html>`)
     return true
   } catch (e) {
     // 준비 중 문구만 띄운 빈 창을 남겨두지 않는다

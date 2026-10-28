@@ -14,7 +14,11 @@ public final class PreferenceDtos {
             Boolean autoDocNo,
             Boolean lotUse,
             Boolean approvalRequired,
-            Boolean priceHide
+            Boolean priceHide,
+            Boolean zeroDisplay,
+            Boolean clock24,
+            String printAlign,
+            String printOrientation
     ) {}
 
     public record PreferenceResponse(
@@ -26,14 +30,19 @@ public final class PreferenceDtos {
             Boolean autoDocNo,
             Boolean lotUse,
             Boolean approvalRequired,
-            Boolean priceHide
+            Boolean priceHide,
+            Boolean zeroDisplay,
+            Boolean clock24,
+            String printAlign,
+            String printOrientation
     ) {
         public static PreferenceResponse from(Preference p) {
             if (p == null) return null;
             return new PreferenceResponse(
                     p.getId(), p.getFiscalStart(), p.getCurrency(), p.getDecimals(),
                     p.getNegativeStock(), p.getAutoDocNo(), p.getLotUse(),
-                    p.getApprovalRequired(), p.getPriceHide());
+                    p.getApprovalRequired(), p.getPriceHide(),
+                    p.getZeroDisplay(), p.getClock24(), p.getPrintAlign(), p.getPrintOrientation());
         }
     }
 }
