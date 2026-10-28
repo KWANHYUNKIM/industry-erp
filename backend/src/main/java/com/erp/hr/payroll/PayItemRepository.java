@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface PayItemRepository extends JpaRepository<PayItem, Long> {
 
-    boolean existsByCode(String code);
+    boolean existsByKindAndCode(PayslipLineKind kind, String code);
 
     List<PayItem> findAllByOrderByKindAscSortOrderAscCodeAsc();
 }

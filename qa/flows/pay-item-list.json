@@ -45,6 +45,30 @@
         "js:(async()=>{const ok=await (async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();const i=l.find(x=>x.code==='QAFLOWD');if(!i||i.kind!=='DEDUCTION'||i.sortOrder!==98)return false;return (await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok})();sessionStorage.setItem('qaPi1',String(ok));return true})()",
         "expect:sessionStorage.getItem('qaPi1')==='true'"
       ]
+    },
+    {
+      "name": "공제 01 류 코드는 수당과 같은 코드여도 따로 저장된다(코드는 종류별 유일) · 같은 종류 중복은 409",
+      "path": "/hr/deduction-items",
+      "steps": [
+        "wait:500",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const a=await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAZ9',name:'QA코드시험',kind:'ALLOWANCE',taxable:true,defaultAmount:0,active:true,sortOrder:97})});const b=await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAZ9',name:'QA코드시험',kind:'DEDUCTION',taxable:true,defaultAmount:0,active:true,sortOrder:97})});const c=await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAZ9',name:'QA코드시험',kind:'DEDUCTION',taxable:true,defaultAmount:0,active:true,sortOrder:97})});const m=(await c.json()).message||'';sessionStorage.setItem('qaPz',String(a.ok&&b.ok&&c.status===409&&m.includes('이미 등록된 코드입니다.')));return true})()",
+        "expect:sessionStorage.getItem('qaPz')==='true'"
+      ]
+    },
+    {
+      "name": "같은 종류 중복 코드를 화면에서 저장하면 안내 창(칸만 비워지지 않는다) → 뒷정리",
+      "path": "/hr/deduction-items",
+      "steps": [
+        "wait:800",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#0|QAZ9",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#1|QA코드중복",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#2|96",
+        "click:저장(F8)",
+        "wait:1000",
+        "expect:document.querySelector('[role=alertdialog]')?.innerText.includes('이미 등록된 코드입니다.')",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();let ok=true;for(const i of l.filter(x=>x.code==='QAZ9'))ok=(await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaPz2',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPz2')==='true'"
+      ]
     }
   ]
 }

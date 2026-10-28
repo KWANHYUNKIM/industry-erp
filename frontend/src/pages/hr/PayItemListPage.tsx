@@ -138,8 +138,9 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
       load()
       loadFormulas()
     } catch (e) {
-      setError(extractErrorMessage(e))
+      // load() 가 error 를 비우므로 먼저 다시 읽고 안내를 띄운다(예전엔 안내가 지워져 칸만 비워졌다)
       load()
+      void ecAlert(extractErrorMessage(e))
     }
   }
 
