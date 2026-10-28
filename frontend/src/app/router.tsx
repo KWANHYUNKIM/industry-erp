@@ -268,6 +268,7 @@ const SalesOrderPage = lazy(() => import('../pages/trade/SalesOrderPage'))
 const SalesOrderEntry = lazy(() => import('../pages/trade/SalesOrderEntry'))
 const OrderReleasePage = lazy(() => import('../pages/trade/OrderReleasePage'))
 const QuotationPage = lazy(() => import('../pages/trade/QuotationPage'))
+const QuotationEntry = lazy(() => import('../pages/trade/QuotationEntry'))
 const PurchaseOrderPage = lazy(() => import('../pages/trade/PurchaseOrderPage'))
 const PayablePage = lazy(() => import('../pages/trade/PayablePage'))
 const TradeInquiryPage = lazy(() => import('../pages/trade/TradeInquiryPage'))
@@ -594,6 +595,7 @@ export default function AppRouter() {
         <Route path="/sales/sales-plan-status" element={<SalesPlanStatusPage />} />
         <Route path="/sales/unordered" element={<UnorderedStatusPage />} />
         <Route path="/sales/quotations" element={<QuotationPage />} />
+        <Route path="/sales/quotation-entry" element={<QuotationEntry />} />
         <Route path="/sales/purchase-orders" element={<PurchaseOrderPage />} />
         <Route path="/sales/purchase-order-input" element={<PurchaseOrderInputPage />} />
         <Route path="/sales/payable" element={<PayablePage />} />

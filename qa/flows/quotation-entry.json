@@ -1,0 +1,66 @@
+{
+  "about": "견적서입력(원본 영업관리 › 견적서 › 견적서입력, 데이터이관 루프 21) — 주문서입력과 같은 큰 입력 화면. 메뉴 견적서 = 견적서조회 · 견적서입력 · 견적서현황 · 미주문현황. 거래처 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고, 견적서조회에 서며, [일자-No.] 를 누르면 같은 화면이 견적서수정으로 열린다. 줄 없이 저장하면 원본 '알림'. node qa/shot.mjs qa/flows/quotation-entry.json — 만든 견적은 끝에 지운다(회사 0001).",
+  "shots": [
+    {
+      "name": "견적서입력 — 줄 없이 저장하면 알림 · 코드도움으로 입력 → 저장하면 말 없이 빈 칸(거래처 비움)",
+      "path": "/sales/quotation-entry",
+      "steps": [
+        "wait:1500",
+        "expect:document.body.innerText.includes('견적서입력') && document.body.innerText.includes('유효기간') && document.body.innerText.includes('거래유형') && !document.querySelector('[role=dialog]')",
+        "click:저장(F8)",
+        "wait:600",
+        "expect:document.body.innerText.includes('견적서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
+        "clicklast:확인",
+        "wait:300",
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|3",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1001",
+        "expect:document.querySelector('tfoot').innerText.includes('3,003') && document.querySelector('tfoot').innerText.includes('3,303')",
+        "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
+        "wait:300",
+        "expect:location.pathname === '/sales/quotation-entry' && document.querySelector('tbody tr input.text-right').value === '3'",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:!/(저장|수정) 완료/.test(document.body.innerText) && !document.querySelector('tbody tr input.text-right')?.value",
+        "expect:location.pathname === '/sales/quotation-entry' && ![...document.querySelectorAll('input')].some((i) => i.value.includes('QA-CUST'))",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const q = (await (await fetch('/api/quotations', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; const no = q.quoteNo.match(/([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]+)$/); sessionStorage.setItem('qeId', String(q.id)); sessionStorage.setItem('qeTotal', String(q.totalAmount)); sessionStorage.setItem('qeDateNo', `${no[1]}/${no[2]}/${no[3]} -${Number(no[4])}`); return q.quoteNo })()",
+        "expect:sessionStorage.getItem('qeTotal') === '3303'"
+      ]
+    },
+    {
+      "name": "견적서조회 — 방금 만든 견적이 3,303 으로 서고, [일자-No.] 를 누르면 같은 화면이 견적서수정으로 열린다 → 수량 고쳐 저장하면 목록으로",
+      "path": "/sales/quotations",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('qeDateNo')) && r.innerText.includes('3,303'))",
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('qeDateNo')).click(); true",
+        "wait:1500",
+        "expect:location.pathname === '/sales/quotation-entry' && document.body.innerText.includes('견적서수정') && document.querySelector('tbody tr input.text-right').value === '3'",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|4",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:location.pathname === '/sales/quotations'",
+        "wait:800",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('qeDateNo')) && r.innerText.includes('4,404'))"
+      ]
+    },
+    {
+      "name": "견적서수정 — [삭제] 원본 확인 문구 후 목록에서 사라진다",
+      "path": "/sales/quotations",
+      "steps": [
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; true",
+        "wait:1200",
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('qeDateNo')).click(); true",
+        "wait:1500",
+        "click:삭제",
+        "wait:1500",
+        "expect:window.__asked === '전표를 삭제하겠습니까?\\n- 견적서' && location.pathname === '/sales/quotations'",
+        "wait:800",
+        "expect:![...document.querySelectorAll('tbody a')].some((a) => a.textContent.trim() === sessionStorage.getItem('qeDateNo'))"
+      ]
+    }
+  ]
+}

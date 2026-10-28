@@ -19,15 +19,16 @@
     },
     {
       "name": "견적서 — 품목 먼저 → 거래처 → 777",
-      "path": "/sales/quotations",
+      "path": "/sales/quotation-entry",
       "steps": [
-        "click:신규(F2)",
-        "js:document.querySelector('.ec-modal button[title=\"품목 선택\"]').click(); true",
+        "wait:1500",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
         "wait:600",
-        "js:document.querySelector('.ec-modal button[title=\"거래처 선택\"]').click(); true",
+        "click:거래처 코드도움",
         "pickrow:QA-CUST",
-        "expect:document.querySelectorAll('.ec-modal tbody tr:has(button[title=\"품목 선택\"]) input.text-right')[1]?.value === '777'"
+        "wait:600",
+        "expect:document.querySelectorAll('tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right')[1]?.value === '777'"
       ]
     },
     {

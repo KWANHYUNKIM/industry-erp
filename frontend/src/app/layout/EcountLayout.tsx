@@ -132,7 +132,7 @@ const MENU: TopMenu[] = [
         // 우리 화면 하나가 원본의 조회·입력을 겸하는 경우가 많아, 없는 이름은 만들지 않고 있는 것만 건다.
         label: '영업관리',
         nodes: [
-          { label: '견적서', children: [{ label: '견적서조회', to: '/sales/quotations' }] },
+          { label: '견적서', children: [{ label: '견적서조회', to: '/sales/quotations' }, { label: '견적서입력', to: '/sales/quotation-entry' }, { label: '견적서현황', to: '/sales/quotations?view=status' }, { label: '미주문현황', to: '/sales/unordered' }] },
           { label: '주문서', children: [{ label: '주문서조회', to: '/sales/orders' }, { label: '주문서입력', to: '/sales/order-entry' }, { label: '주문서현황', to: '/sales/order-status' }, { label: '주문서출고처리', to: '/sales/order-release' }, { label: '미판매현황', to: '/sales/unsold' }] },
           {
             label: '판매',
