@@ -1,5 +1,5 @@
 {
-  "about": "수주 4개(원본처럼 저장하면 말 없이 창이 닫힌다 — 번호는 API 로 읽는다) → 3개 출하 → 판매입력 [주문] 불러오기가 담을수량을 '주문 − 판매'(4)로 내는지. 예전엔 '주문 − 출하'(1)라 출하한 3개를 판매로 끊을 수 없었다(23회차 #70). node qa/shot.mjs qa/flows/order-to-sale.json — 만든 출하·주문은 끝에 지운다.",
+  "about": "수주 4개(원본처럼 저장하면 말 없이 창이 닫힌다 — 번호는 API 로 읽는다) → 3개 출하 → 판매입력 [주문] = 원본 '주문서검색창(조회)'(전표 단위 · 판매 일자보다 늦은 주문 제외 · 라인별 담을수량 '주문 − 판매'(4) · 잔량적용 뒤 툴바에서 주문 · 전표불러오기 빠짐, 묶음 H). 예전엔 '주문 − 출하'(1)라 출하한 3개를 판매로 끊을 수 없었다(23회차 #70). node qa/shot.mjs qa/flows/order-to-sale.json — 만든 출하·주문은 끝에 지운다.",
   "shots": [
     {
       "name": "수주 4개 등록 — 합계 줄은 공급가액·부가세 제 열에, 부가세 포함 총액은 따로",
@@ -37,13 +37,33 @@
       ]
     },
     {
-      "name": "판매입력 [주문] — 이 주문의 담을수량이 4(주문 − 판매), 찾기로 좁혀진다",
+      "name": "판매입력 [주문] — 주문서검색창(조회) 전표 단위 · 판매 일자보다 늦은 주문은 없다 · 라인별 담을수량 4 · 잔량적용 뒤 툴바에서 주문 · 전표불러오기가 빠진다",
       "path": "/sales/sell",
       "steps": [
         "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '주문').click(); true",
+        "wait:800",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('주문서검색창(조회)') && ['전체', '결재중', 'C-Portal', '미확인', '확인', '진행중', '완료'].every((t) => [...document.querySelectorAll('[role=dialog] .ec-pill')].some((b) => b.textContent.trim() === t))",
         "expect:document.querySelector('[role=dialog] input[placeholder*=\"찾기\"]') !== null",
         "js:(() => { const el = document.querySelector('[role=dialog] input[placeholder*=\"찾기\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, sessionStorage.getItem('o2sOrder')); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
-        "expect:(() => { const rows = [...document.querySelectorAll('[role=dialog] tbody tr')]; return rows.length === 1 && rows[0].cells[7].innerText.trim() === '4' })()",
+        "expect:(() => { const rows = [...document.querySelectorAll('[role=dialog] tbody tr')].filter((r) => r.cells.length > 1); return rows.length === 1 && rows[0].innerText.includes(sessionStorage.getItem('o2sOrder').slice(-4).replace(/^0+/, '')) && rows[0].innerText.includes('4,400') })()",
+        "js:(() => { const el = document.querySelector('.ec-date select'); const y = Number(el.value) + (-1); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(y)); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].filter((r) => r.cells.length > 1).length === 0",
+        "js:(() => { const el = document.querySelector('.ec-date select'); const y = Number(el.value) + (1); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(y)); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].filter((r) => r.cells.length > 1).length === 1",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '라인별 ▾').click(); true",
+        "expect:(() => { const rows = [...document.querySelectorAll('[role=dialog] tbody tr')].filter((r) => r.cells.length > 1); return rows.length === 1 && rows[0].cells[7].innerText.trim() === '4' })()",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '라인별 ▾').click(); true",
+        "js:document.querySelector('[role=dialog] tbody input[type=checkbox]').click(); true",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '잔량적용(F8)').click(); true",
+        "wait:500",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:[...document.querySelectorAll('tbody input')].some((i) => i.value === '4')",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-toolbar button')].map((b) => b.textContent.trim()); return !t.includes('주문') && !t.includes('전표불러오기') && !t.includes('전표 바코드') && !t.includes('구매') && t.includes('재고불러오기') })()",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '다시 작성').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-toolbar button')].some((b) => b.textContent.trim() === '주문')",
         "apidel:/shipments|@o2sShip|shipNo",
         "apidel:/sales-orders|@o2sOrder|orderNo"
       ]
