@@ -84,7 +84,7 @@ export default function StocktakePage() {
     if (filled.length === 0) return void ecAlert('품목을 입력하세요.')
     for (const [i, l] of filled.entries()) {
       if (!l.itemId) return void ecAlert(`${i + 1}번째 줄 품목을 입력하세요.`)
-      if (l.qty === '' || Number(l.qty) < 0) return void ecAlert(`${i + 1}번째 줄 수량을 입력하세요.`)
+      if (l.qty.trim() === '' || !Number.isFinite(Number(l.qty))) return void ecAlert(`${i + 1}번째 줄 수량을 입력하세요.`)
     }
     if (!adjust && !(await ecConfirm(NO_ADJUST_CONFIRM))) return
     const body = { date, warehouseId: Number(warehouseId), employeeId: employeeId ? Number(employeeId) : null, adjust,
