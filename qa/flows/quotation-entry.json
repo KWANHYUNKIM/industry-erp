@@ -1,5 +1,5 @@
 {
-  "about": "견적서입력(원본 영업관리 › 견적서 › 견적서입력, 데이터이관 루프 21) — 주문서입력과 같은 큰 입력 화면. 메뉴 견적서 = 견적서조회 · 견적서입력 · 견적서현황 · 미주문현황. 거래처 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고, 견적서조회에 서며, [일자-No.] 를 누르면 같은 화면이 견적서수정으로 열린다. 줄 없이 저장하면 원본 '알림'. node qa/shot.mjs qa/flows/quotation-entry.json — 만든 견적은 끝에 지운다(회사 0001).",
+  "about": "견적서입력(원본 영업관리 › 견적서 › 견적서입력, 데이터이관 루프 21) — 주문서입력과 같은 큰 입력 화면. 메뉴 견적서 = 견적서조회 · 견적서입력 · 견적서현황 · 미주문현황. 거래처 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고, 견적서조회에 서며, [일자-No.] 를 누르면 같은 화면이 견적서수정으로 열린다. 줄 없이 저장하면 원본 '알림'. node qa/shot.mjs qa/flows/quotation-entry.json — 만든 견적은 끝에 지운다(회사 0001). · 머리 적요(원본 [새로운 항목 추가])를 넣어 저장 → 다시 열면 그대로. [Fn] 일자변경 창은 이름표가 한 줄 · 일 칸이 창 안.",
   "shots": [
     {
       "name": "견적서입력 — 줄 없이 저장하면 알림 · 코드도움으로 입력 → 저장하면 말 없이 빈 칸(거래처 비움)",
@@ -30,6 +30,7 @@
         "js:document.querySelector('.ec-date input[inputmode=numeric]').dispatchEvent(new FocusEvent('focusout', { bubbles: true })); true",
         "wait:300",
         "expect:document.querySelector('.ec-date input[inputmode=numeric]').value === sessionStorage.getItem('qeDay') && document.querySelector('.ec-date input[type=date]').value.endsWith('-' + sessionStorage.getItem('qeDay'))",
+        "set:input[aria-label=\"머리 적요\"]|QA머리적요",
         "click:저장(F8)",
         "wait:1500",
         "expect:!/(저장|수정) 완료/.test(document.body.innerText) && !document.querySelector('tbody tr input.text-right')?.value",
@@ -49,6 +50,7 @@
         "wait:1500",
         "expect:location.pathname === '/sales/quotation-entry' && document.body.innerText.includes('견적서수정') && document.querySelector('tbody tr input.text-right').value === '3'",
         "expect:[...document.querySelectorAll('tbody tr:has(input[placeholder=\"품목 선택\"]) td input')].some((i) => i.value === 'QA줄적요')",
+        "expect:document.querySelector('input[aria-label=\"머리 적요\"]')?.value === 'QA머리적요' /* 머리 적요(원본 [새로운 항목 추가]) — 저장 · 다시 열기 */",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|4",
         "click:저장(F8)",
         "wait:1500",
@@ -84,6 +86,7 @@
         "expect:[...document.querySelectorAll('.ec-date select')][0]?.disabled === true",
         "click:Fn",
         "click:일자변경",
+        "expect:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const r = dlg.getBoundingClientRect(); const lab = [...dlg.querySelectorAll('span')].filter((x) => /^(기존|변경)일자$/.test(x.textContent.trim())); const day = dlg.querySelector('.ec-date input[inputmode=numeric]').getBoundingClientRect(); return lab.length === 2 && lab.every((x) => x.getBoundingClientRect().height < 20) && day.right <= r.right })() /* 창이 좁아 이름표가 한 글자씩 접히고 일 칸이 창 밖으로 잘렸다(2026-10-29 QA) */",
         "js:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const el = dlg.querySelector('input[type=date]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '2026-10-20'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
         "js:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const b = [...dlg.querySelectorAll('button')].find((x) => x.textContent.trim() === '저장'); b.click(); return true })()",
         "wait:1200",

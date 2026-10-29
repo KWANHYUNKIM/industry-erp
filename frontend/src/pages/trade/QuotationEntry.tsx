@@ -476,18 +476,17 @@ export default function QuotationEntry() {
             <div className="title">첨부</div>
             <div className="form"><button type="button" className="ec-btn ec-btn-sm" {...todo('파일 첨부는 [전자결재·드라이브]에서 씁니다.')}>첨부</button></div>
           </li>
+          {/* 원본 머리 끝 [새로운 항목 추가] — 견적서에 찍힐 비고(quotations.remark). 예전엔 [Option] › 추가항목 펼치기 안에 숨어 있었다(2026-10-29 QA). */}
+          <li className="wide">
+            <div className="title">적요</div>
+            <div className="form"><input className="ec-input flex-1" aria-label="머리 적요" maxLength={500} value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="새로운 항목 추가" /></div>
+          </li>
           {/* 원본 머리에 없는 칸 — [Option] › 추가항목 펼치기로만 보인다. 접어도 값은 state 에 남아 저장 때 그대로 간다. */}
           {showExtra && (
-            <>
-              <li>
-                <div className="title">유효기간</div>
-                <div className="form"><EcDateField value={validUntil} onChange={setValidUntil} /></div>
-              </li>
-              <li className="wide">
-                <div className="title">적요</div>
-                <div className="form"><input className="ec-input flex-1" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="전표 적요" /></div>
-              </li>
-            </>
+            <li>
+              <div className="title">유효기간</div>
+              <div className="form"><EcDateField value={validUntil} onChange={setValidUntil} /></div>
+            </li>
           )}
         </ul>
 
