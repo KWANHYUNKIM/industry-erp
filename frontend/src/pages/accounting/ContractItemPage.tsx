@@ -6,8 +6,9 @@ import GridCode from '../../components/GridCode'
 import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { won, type BillingCycle, type ContractItemRow, type ProductLink } from '../../features/billingcontract/types'
+import { won, type BillingCycle, type ContractItemRow, type ProductLink, type QtyPrice } from '../../features/billingcontract/types'
 import ProductLinkModal, { SetTag, type ProductOption } from '../../features/billingcontract/ProductLinkModal'
+import QtyPriceModal from '../../features/billingcontract/QtyPriceModal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { EcHistoryModal } from '../../components/EcHistory'
@@ -15,9 +16,9 @@ import { ecConfirm, requireSelection } from '../../components/EcDialog'
 
 interface Form {
   id: number | null; code: string; name: string; unitPrice: string; vatIncluded: boolean; billingCycle: BillingCycle; salesAccountId: string
-  products: ProductLink[]
+  products: ProductLink[]; qtyPrices: QtyPrice[]
 }
-const blank = (): Form => ({ id: null, code: '', name: '', unitPrice: '0', vatIncluded: false, billingCycle: 'ONCE', salesAccountId: '', products: [] })
+const blank = (): Form => ({ id: null, code: '', name: '', unitPrice: '0', vatIncluded: false, billingCycle: 'ONCE', salesAccountId: '', products: [], qtyPrices: [] })
 const productTotal = (ps: ProductLink[]) => ps.reduce((s, p) => s + Number(p.supplyAmount ?? 0), 0)
 /** 조건 판 — 원본 Search(F3): 계약항목코드 · 계약항목명 · 단가 ~ · 청구주기(전체) · 매출계정 · 사용구분(사용 기본). */
 interface Cond { code: string; name: string; priceFrom: string; priceTo: string; cycle: 'ALL' | BillingCycle; accountId: string; use: 'ALL' | 'Y' | 'N' }
@@ -31,7 +32,9 @@ const blankCond = (): Cond => ({ code: '', name: '', priceFrom: '', priceTo: '',
  * 저장하면 창이 닫히고 목록 끝에 붙는다(코드 차례).
  * <p>[품목별단가 › 설정] → '품목연결설정' 창(2026-10-13 실측, {@link ProductLinkModal}) — 고른 품목들의 공급가액 합계가 창의 품목별단가 칸과
  * 목록 [품목별단가] 열이 된다(00007 렌탈 품목관리 340,000). 계약입력 줄 [상세]가 이 설정을 복사해 쓰고, 그것을 [적용]한 계약 줄만
- * 회계/판매일괄반영 [판매반영]에 나온다. 수량별단가 [설정] 창(수량 N 이상 · 적용단가 · VAT포함, 00003 실측)은 아직 두지 않는다.
+ * 회계/판매일괄반영 [판매반영]에 나온다. [수량별단가 › 설정] → {@link QtyPriceModal}(수량 N 이상 · 적용단가 · VAT포함 줄 목록 —
+ * <b>원본 창 미실측</b>, 00003 목록 값 50,000 만 읽음). 목록 [수량별단가] 열은 첫 줄의 단가.
+ * <p>매출계정 칸은 원본처럼 코드 + 계정명 두 칸('4019 | 상품매출', 2026-10-29 데이터이관 QA C2). 목록에서 F2 = [신규].
  */
 export default function ContractItemPage() {
   const [rows, setRows] = useState<ContractItemRow[]>([])
@@ -42,6 +45,7 @@ export default function ContractItemPage() {
   const [error, setError] = useState('')
   const [products, setProducts] = useState<ProductOption[]>([])
   const [linkOpen, setLinkOpen] = useState(false)
+  const [qtyOpen, setQtyOpen] = useState(false)
   const [cond, setCond] = useState<Cond>(blankCond)
   const [applied, setApplied] = useState<Cond>(blankCond)
   const [quick, setQuick] = useState('')
@@ -73,7 +77,8 @@ export default function ContractItemPage() {
     setInvalid(bad)
     if (bad.size) return
     const body = { code: form.code.trim(), name: form.name.trim(), unitPrice: Number(form.unitPrice) || 0, vatIncluded: form.vatIncluded,
-      billingCycle: form.billingCycle, salesAccountId: form.salesAccountId ? Number(form.salesAccountId) : null, products: form.products }
+      billingCycle: form.billingCycle, salesAccountId: form.salesAccountId ? Number(form.salesAccountId) : null, products: form.products,
+      qtyPrices: form.qtyPrices }
     try {
       if (form.id) await api.put(`/contract-items/${form.id}`, body)
       else await api.post('/contract-items', body)
@@ -114,7 +119,7 @@ export default function ContractItemPage() {
     && (!quick || has(r.code, quick) || has(r.name, quick)))
   const edit = (r: ContractItemRow) => { setInvalid(new Set()); setForm({ id: r.id, code: r.code, name: r.name, unitPrice: String(Number(r.unitPrice)),
     vatIncluded: r.vatIncluded, billingCycle: r.billingCycle, salesAccountId: r.salesAccountId != null ? String(r.salesAccountId) : '',
-    products: r.products ?? [] }) }
+    products: r.products ?? [], qtyPrices: r.qtyPrices ?? [] }) }
   const bad = (k: string) => (invalid.has(k) ? ' outline outline-1 outline-ec-danger' : '')
 
   return (
@@ -195,7 +200,7 @@ export default function ContractItemPage() {
               <td className="text-center">{r.billingCycleName}</td>
               <td className="text-right">{Number(r.unitPrice) ? won(r.unitPrice) : ''}</td>
               <td className="text-right">{r.productPrice != null ? won(r.productPrice) : ''}</td>
-              <td className="text-right" />
+              <td className="text-right">{r.qtyPrice != null ? won(r.qtyPrice) : ''}</td>
               <td className="text-center">{r.active ? 'Yes' : 'No'}</td>
             </tr>
           ))}
@@ -236,6 +241,15 @@ export default function ContractItemPage() {
                 <SetTag set={form.products.length > 0} label="설정" onClick={() => setLinkOpen(true)} />
               </li>
               <li className="flex items-center gap-[8px]">
+                <span className="w-[120px] text-ec-hint">수량별단가</span>
+                {/* 품목별단가 줄과 같은 꼴: 막힌 칸(첫 줄 단가) · VAT포함(막힘) · [설정] — 원본 [설정] 창 미실측 */}
+                <input className="ec-input flex-1 text-right" aria-label="수량별단가" disabled value={won(form.qtyPrices[0]?.unitPrice ?? 0)} />
+                <label className="inline-flex items-center gap-[3px]">
+                  <input type="checkbox" disabled checked={!!form.qtyPrices[0]?.vatIncluded} readOnly /> VAT포함
+                </label>
+                <SetTag set={form.qtyPrices.length > 0} label="설정" onClick={() => setQtyOpen(true)} />
+              </li>
+              <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">청구주기</span>
                 {(['ONCE', 'PERIODIC'] as BillingCycle[]).map((c) => (
                   <label key={c} className="inline-flex items-center gap-[3px] mr-[10px]">
@@ -265,6 +279,8 @@ export default function ContractItemPage() {
       {historyId != null && <EcHistoryModal url={`/contract-items/${historyId}/history`} onClose={() => setHistoryId(null)} />}
       <ProductLinkModal open={linkOpen} value={form?.products ?? []} products={products} onClose={() => setLinkOpen(false)}
         onApply={(ps) => { set({ products: ps }); setLinkOpen(false) }} />
+      <QtyPriceModal open={qtyOpen} value={form?.qtyPrices ?? []} onClose={() => setQtyOpen(false)}
+        onApply={(qs) => { set({ qtyPrices: qs }); setQtyOpen(false) }} />
     </EcListShell>
   )
 }

@@ -7,7 +7,12 @@ export interface ContractItemRow {
   salesAccountId: number | null; salesAccountCode: string | null; salesAccountName: string | null; active: boolean
   /** 목록 [품목별단가] — 품목연결설정 공급가액 합계. 없으면 null. */
   productPrice: number | null; products: ProductLink[]
+  /** 목록 [수량별단가] — 수량별단가 설정 첫 줄의 단가. 없으면 null. */
+  qtyPrice: number | null; qtyPrices: QtyPrice[]
 }
+
+/** 수량별단가 한 줄 — 서버 ContractItemDtos.QtyPrice. 수량 minQuantity 이상이면 unitPrice. */
+export interface QtyPrice { minQuantity: number; unitPrice: number; vatIncluded: boolean }
 
 /** 품목연결설정 한 줄 — 서버 ContractItemDtos.ProductLink(계약항목 · 계약 줄 [상세]가 같이 쓴다). */
 export interface ProductLink {

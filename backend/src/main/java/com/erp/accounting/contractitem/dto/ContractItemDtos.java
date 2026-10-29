@@ -20,7 +20,16 @@ public final class ContractItemDtos {
             @NotNull BillingCycle billingCycle,
             Long salesAccountId,
             /** [품목별단가 › 설정] 품목연결설정. null 이면 그대로 둔다. */
-            java.util.List<@jakarta.validation.Valid ProductLink> products
+            java.util.List<@jakarta.validation.Valid ProductLink> products,
+            /** [수량별단가 › 설정]. null 이면 그대로 둔다. */
+            java.util.List<@jakarta.validation.Valid QtyPrice> qtyPrices
+    ) {}
+
+    /** 수량별단가 한 줄 — 수량 minQuantity 이상이면 unitPrice(원본 [설정] 창 미실측). */
+    public record QtyPrice(
+            @NotNull(message = "수량을 입력하세요.") @PositiveOrZero(message = "수량은 0 이상이어야 합니다.") BigDecimal minQuantity,
+            @NotNull(message = "단가를 입력하세요.") @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            boolean vatIncluded
     ) {}
 
     /**
@@ -59,7 +68,10 @@ public final class ContractItemDtos {
             Long salesAccountId, String salesAccountCode, String salesAccountName, boolean active,
             /** 목록 [품목별단가] — 품목연결설정 공급가액 합계(없으면 null). */
             BigDecimal productPrice,
-            java.util.List<ProductLink> products
+            java.util.List<ProductLink> products,
+            /** 목록 [수량별단가] — 첫 줄(가장 작은 수량)의 단가(없으면 null). */
+            BigDecimal qtyPrice,
+            java.util.List<QtyPrice> qtyPrices
     ) {
         public static ContractItemResponse from(ContractItem i) {
             java.util.List<ProductLink> ps = i.getProducts().stream()
@@ -71,7 +83,9 @@ public final class ContractItemDtos {
                     i.getSalesAccount() != null ? i.getSalesAccount().getName() : null,
                     i.isActive(),
                     ps.isEmpty() ? null : ps.stream().map(ProductLink::supplyAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
-                    ps);
+                    ps,
+                    i.getQtyPrices().isEmpty() ? null : i.getQtyPrices().get(0).getUnitPrice(),
+                    i.getQtyPrices().stream().map((q) -> new QtyPrice(q.getMinQuantity(), q.getUnitPrice(), q.isVatIncluded())).toList());
         }
     }
 }

@@ -99,5 +99,14 @@ public class ContractItemService {
                         .quantity(p.quantity()).unitPrice(p.unitPrice()).supplyAmount(p.supplyOrDefault()).vatAmount(p.vatOrDefault()).build());
             }
         }
+        if (req.qtyPrices() != null) {
+            i.getQtyPrices().clear();
+            int no = 1;
+            for (ContractItemDtos.QtyPrice q : req.qtyPrices().stream()
+                    .sorted(java.util.Comparator.comparing(ContractItemDtos.QtyPrice::minQuantity)).toList()) {
+                i.getQtyPrices().add(ContractItemQtyPrice.builder().contractItem(i).lineNo(no++)
+                        .minQuantity(q.minQuantity()).unitPrice(q.unitPrice()).vatIncluded(q.vatIncluded()).build());
+            }
+        }
     }
 }

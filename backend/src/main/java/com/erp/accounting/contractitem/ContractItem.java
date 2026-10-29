@@ -11,7 +11,7 @@ import java.math.BigDecimal;
  * 회계 II › 계약관리 › <b>계약항목등록</b>(E060901) 한 줄 — 2026-10-13 loginaa 실측.
  *
  * <p>창: 계약항목코드(필수, 5자) · 계약항목명(필수) · 단가 + VAT포함 · 품목별단가 · 수량별단가 · 청구주기(1회 · 주기적, 기본 1회) · 매출계정.
- * 품목별 · 수량별단가 [설정] 창은 아직 재지 않아 두지 않는다.
+ * 품목별단가 [설정] = {@link ContractItemProduct}, 수량별단가 [설정] = {@link ContractItemQtyPrice}(원본 창 미실측).
  */
 @Entity
 @Table(name = "contract_items")
@@ -54,4 +54,10 @@ public class ContractItem extends BaseTimeEntity {
     @OrderBy("lineNo ASC")
     @Builder.Default
     private java.util.List<ContractItemProduct> products = new java.util.ArrayList<>();
+
+    /** 수량별단가 설정(수량 차례). */
+    @OneToMany(mappedBy = "contractItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("lineNo ASC")
+    @Builder.Default
+    private java.util.List<ContractItemQtyPrice> qtyPrices = new java.util.ArrayList<>();
 }
