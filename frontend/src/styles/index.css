@@ -910,6 +910,38 @@ main table,
   background: #fffbe6;
 }
 
+/* 서식 본문(공통양식 [기안내용] · 기안서 본문) — 붙여 넣은 원본 표를 그 서식대로 그린다.
+   표에는 sanitizeHtml 이 no-ec 를 달아 전역 격자 규칙을 비켜 간다. preflight 가 border=1 속성을 0 으로
+   지우므로 테두리 속성이 있는 표만 검은 1px 선을 다시 준다(인라인 style 이 있으면 그쪽이 이긴다). */
+.ec-rich {
+  font-size: 12px;
+  color: #000;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+.ec-rich table { border-collapse: collapse; }
+.ec-rich table[border]:not([border="0"]) td,
+.ec-rich table[border]:not([border="0"]) th {
+  border: 1px solid #000;
+}
+.ec-rich td, .ec-rich th { padding: 3px 5px; vertical-align: middle; }
+.ec-rich-edit {
+  border: 1px solid var(--ec-border);
+  background: #fff;
+  padding: 14px;
+  outline: none;
+}
+.ec-rich-source {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--ec-border);
+  padding: 8px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  resize: vertical;
+  outline: none;
+}
+
 /* 에디터 툴바 — 원본은 한 줄을 [글꼴][서식][삽입][레이아웃] 그룹으로 나누고
    각 그룹 아래에 회색(#868d93) 12px 라벨을 단다. */
 .ec-editor-bar {

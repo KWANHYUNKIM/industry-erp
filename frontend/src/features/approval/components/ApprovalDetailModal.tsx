@@ -1,4 +1,6 @@
 import type { ApprovalDoc, ApprovalField, ApprovalStatus } from '../../../types/api'
+import { RichBodyView } from './RichBodyEditor'
+import { looksLikeHtml } from '../bodyTemplate'
 
 /**
  * 기안서 상세 팝업. 내결재관리·기안서통합관리(ApprovalListPage)와 주요전달사항(KeyNoticePage)이
@@ -134,8 +136,10 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
 
           <FormDataView data={doc.formData} fields={fields} />
 
-          {doc.content && (
-            <div className="whitespace-pre-wrap border border-ec-line border-solid p-[12px] min-h-[80px] text-[13px] mb-[14px]">{doc.content}</div>
+          {/* 공통양식 [기안내용] 서식으로 쓴 본문은 HTML(표)이라 그대로 그린다. 예전 본문은 맨 글자. */}
+          {doc.content && (looksLikeHtml(doc.content)
+            ? <RichBodyView html={doc.content} className="border border-ec-line border-solid p-[12px] min-h-[80px] mb-[14px]" />
+            : <div className="whitespace-pre-wrap border border-ec-line border-solid p-[12px] min-h-[80px] text-[13px] mb-[14px]">{doc.content}</div>
           )}
 
           <div className="font-bold text-[12.5px] text-ec-label mb-[6px]">결재선</div>

@@ -16,6 +16,8 @@ import { useTableSort } from '../../utils/useTableSort'
 import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
 import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
 import { shrinkImage } from '../../utils/imageResize'
+import RichBodyEditor from '../../features/approval/components/RichBodyEditor'
+import { bodyHtmlOf, formFieldsOf, looksLikeHtml, sanitizeHtml } from '../../features/approval/bodyTemplate'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -29,7 +31,7 @@ const today = () => ymd(new Date())
 /** 양식의 table 필드는 기본행(defaultRows)을 깔아준다. 예: 여비산정의 숙박비/교통비/… */
 function initialFormData(t: ApprovalFormTemplate): Record<string, unknown> {
   const data: Record<string, unknown> = {}
-  for (const f of t.fieldSchema) {
+  for (const f of formFieldsOf(t.fieldSchema)) {
     if (f.type === 'table') data[f.key] = f.defaultRows ? f.defaultRows.map((r) => ({ ...r })) : []
   }
   return data
@@ -176,6 +178,8 @@ export default function ApprovalDraftPage() {
     // 원본: 양식의 기본값설정 › 구분(휴가신청서 → 02 휴가신청서)으로 [구분] 칸이 열린다.
     setCategory(t.groupName ?? '')
     setFormData(initialFormData(t))
+    // 공통양식 [기안내용] 서식(표)이 있으면 본문이 그 서식으로 열린다 — 원본은 양식이 본문 안의 표다.
+    setBody(bodyHtmlOf(t.fieldSchema))
     setError('')
   }
 
@@ -197,7 +201,7 @@ export default function ApprovalDraftPage() {
   /** 필수 항목 검사. 서버도 막지만, 왕복 전에 알려준다. */
   const missing = useMemo(() => {
     if (!selected) return []
-    return selected.fieldSchema
+    return formFieldsOf(selected.fieldSchema)
       .filter((f) => f.required)
       .filter((f) => {
         const v = formData[f.key]
@@ -247,7 +251,7 @@ export default function ApprovalDraftPage() {
       const body0 = {
         formTemplateId: selected!.id,
         title,
-        content: body,
+        content: looksLikeHtml(body) ? sanitizeHtml(body) : body,
         formData,
         draftDate,
         department: department || undefined,
@@ -284,6 +288,9 @@ export default function ApprovalDraftPage() {
         ))}
       </div>
     )
+
+  /** 본문을 서식(HTML) 편집기로 쓰나 — 양식에 [기안내용] 서식이 있거나, 고쳐 여는 문서 본문이 이미 서식일 때. */
+  const richBody = !!selected && (bodyHtmlOf(selected.fieldSchema) !== '' || looksLikeHtml(body))
 
   const memberItems = useMemo(
     () => members.map((m) => ({ value: String(m.id), code: m.department ?? '', name: m.name, sub: m.department })),
@@ -570,12 +577,18 @@ export default function ApprovalDraftPage() {
                 maxHeight: 420, overflow: 'auto',
                 fontFamily: FONT_FAMILY[fontFamily] ?? undefined,
               }}>
-                <ApprovalFormFields
-                  title={selected.name.split('').join(' ')}
-                  fields={selected.fieldSchema}
-                  value={formData}
-                  onChange={setFormData}
-                />
+                {/* 칸 없이 [기안내용] 서식만 있는 양식(원본 공통양식 아홉 개가 다 그렇다)은 서식 표 자체가 문서라 칸 표를 그리지 않는다. */}
+                {(formFieldsOf(selected.fieldSchema).length > 0 || !richBody) && (
+                  <ApprovalFormFields
+                    title={selected.name.split('').join(' ')}
+                    fields={formFieldsOf(selected.fieldSchema)}
+                    value={formData}
+                    onChange={setFormData}
+                  />
+                )}
+                {richBody ? (
+                  <div className="mt-[10px]"><RichBodyEditor label="본문" value={body} onChange={setBody} /></div>
+                ) : (
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
@@ -590,6 +603,7 @@ export default function ApprovalDraftPage() {
                     textDecoration: underline ? 'underline' : 'none',
                   }}
                 />
+                )}
               </div>
 
               {/*
@@ -608,7 +622,7 @@ export default function ApprovalDraftPage() {
                   className="ec-btn"
                   title="이 양식이 어떤 항목을 요구하는지 미리 봅니다."
                   onClick={() => setNotice(
-                    `${selected.name} — 입력항목: ${selected.fieldSchema.map((f) => f.label).join(' · ') || '없음'}`,
+                    `${selected.name} — 입력항목: ${formFieldsOf(selected.fieldSchema).map((f) => f.label).join(' · ') || '없음'}`,
                   )}
                 >
                   양식샘플보기

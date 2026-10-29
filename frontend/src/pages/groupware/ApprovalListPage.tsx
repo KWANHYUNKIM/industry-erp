@@ -96,8 +96,8 @@ export default function ApprovalListPage({
   /* 원본 기안서통합관리 · 내결재관리 둘 다 [진행중] 알약이 켜진 채로 열린다(2026-10-03 실측). */
   const [tab, setTab] = useState<Tab>('진행중')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
-  /* 기간 줄의 이름은 화면마다 다르다 — 내결재관리 [기준일자] · 기안서통합관리 [일자](사본 실측). */
-  const dateLabel = scope === 'mine' ? '기준일자' : '일자'
+  /* 기간 줄 이름 — 두 화면 모두 [기준일자](2026-10-30 원본 기안서통합관리 실측 · 사본에서 '일자' 로 봤던 것을 바로잡음). */
+  const dateLabel = '기준일자'
   /**
    * 빈 줄이 걸칠 칸 수. [작업자]·[작업일시]가 scope 에 따라 붙었다 빠지므로
    * 숫자를 두 군데 적으면 한쪽만 고치게 된다 — 실제로 이 저장소에서 가장 자주 낸 실수다.
@@ -436,15 +436,25 @@ export default function ApprovalListPage({
 
       {/* 원본은 조건을 접어 두고 [Search(F3)] 로 편다. 펴면 기안일자 기간 + 조건들이 나온다. */}
       {condOpen && <div className="flex items-center flex-wrap gap-[4px] mb-[6px] ec-search-conds">
-        {/*
-          <b>이 파일이 겸하는 두 화면은 이 줄을 서로 다르게 부른다</b>(사본 실측) —
-          기안서통합관리는 [일자], 내결재관리는 [기준일자]다. 한 이름으로 눌러 두면
-          한쪽이 늘 틀린다(판매조회/구매조회에서 겪은 것과 같다).
-        */}
+        {/* 두 화면 모두 [기준일자] — 기안서통합관리를 사본에서 [일자] 로 봤으나 2026-10-30 원본은 [기준일자]였다. */}
         <label className="text-[12.5px] text-ec-label">{dateLabel}</label>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span className="text-ec-label">~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        {/* 원본 조건 차례(2026-10-30 기안서통합관리 실측): 기준일자 · 기안서No. · 구분 · 기안자 · 제목 · 내용 — 그 뒤는 예전에 잰 더보기 칸. */}
+        <label className="text-[12.5px] text-ec-label ml-[8px]">기안서No.</label>
+        <input className="ec-input" value={docNoCond} onChange={(e) => setDocNoCond(e.target.value)}
+               style={{ width: 140 }} placeholder="문서번호 일부" />
+        {/*
+          <b>이름을 잘못 달고 있었다.</b> 이 칸이 거르는 것은 기안서의 <b>양식</b>(지출결의서·
+          품의서 …)인데 원본은 그것을 <b>[구분]</b> 이라 부른다. 원본의 [출력양식]은 따로 있는
+          <b>인쇄 양식</b>이라 다른 것이다 — 우리는 화면마다 인쇄 양식이 하나라 그 칸이 없다.
+        */}
+        <label className="text-[12.5px] text-ec-label ml-[8px]">구분</label>
+        <select className="ec-input" value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: 150 }}>
+          <option value="">전체</option>
+          {formTypes.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
         <label className="text-[12.5px] text-ec-label ml-[8px]">기안자</label>
         <input className="ec-input" value={drafterCond} onChange={(e) => setDrafterCond(e.target.value)}
                style={{ width: 110 }} placeholder="기안자" />
@@ -459,16 +469,6 @@ export default function ApprovalListPage({
           <option value="">전체</option>
           {approvers.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        {/*
-          <b>이름을 잘못 달고 있었다.</b> 이 칸이 거르는 것은 기안서의 <b>양식</b>(지출결의서·
-          품의서 …)인데 원본은 그것을 <b>[구분]</b> 이라 부른다. 원본의 [출력양식]은 따로 있는
-          <b>인쇄 양식</b>이라 다른 것이다 — 우리는 화면마다 인쇄 양식이 하나라 그 칸이 없다.
-        */}
-        <label className="text-[12.5px] text-ec-label ml-[8px]">구분</label>
-        <select className="ec-input" value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: 150 }}>
-          <option value="">전체</option>
-          {formTypes.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
         <label className="text-[12.5px] text-ec-label ml-[8px]">부서</label>
         <select className="ec-input" value={dept} onChange={(e) => setDept(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>
@@ -478,9 +478,6 @@ export default function ApprovalListPage({
         {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
         <CodePickerField label="프로젝트" hideLabel width={150} placeholder="프로젝트" emptyLabel="전체"
                          value={project} onChange={setProject} items={projects} />
-        <label className="text-[12.5px] text-ec-label ml-[8px]">기안서No.</label>
-        <input className="ec-input" value={docNoCond} onChange={(e) => setDocNoCond(e.target.value)}
-               style={{ width: 140 }} placeholder="문서번호 일부" />
         <label className="text-[12.5px] text-ec-label ml-[8px]">첨부</label>
         <select className="ec-input" value={attachCond} style={{ width: 100 }}
                 onChange={(e) => setAttachCond(e.target.value as '전체' | '있음' | '없음')}>
