@@ -78,7 +78,7 @@ public class AsService {
     public AsResponse create(CreateAsRequest req, String username) {
         BusinessPartner partner = req.partnerId() == null ? null : partnerService.get(req.partnerId());
         List<AsLineRequest> lines = req.lines() != null && !req.lines().isEmpty() ? req.lines()
-                : req.itemId() != null ? List.of(new AsLineRequest(req.itemId(), BigDecimal.ONE)) : List.of();
+                : req.itemId() != null ? List.of(new AsLineRequest(req.itemId(), BigDecimal.ONE, null)) : List.of();
         if (lines.isEmpty()) throw ApiException.badRequest("품목을 1개 이상 입력하세요.");
 
         LocalDate date = req.receiptDate() != null ? req.receiptDate() : LocalDate.now();
@@ -93,6 +93,7 @@ public class AsService {
                 .scheduledDate(req.scheduledDate())
                 .symptom(req.symptom())
                 .charge(req.charge())
+                .extraNote(req.extraNote())
                 .status(req.status() != null ? req.status() : AsStatus.RECEIVED)
                 .createdBy(username)
                 .build();
@@ -119,6 +120,7 @@ public class AsService {
             as.getLines().add(AsRequestLine.builder()
                     .asRequest(as).lineNo(++no).item(item)
                     .quantity(l.quantity() != null ? l.quantity() : BigDecimal.ONE)
+                    .note(l.note() != null && !l.note().isBlank() ? l.note().trim() : null)
                     .build());
         }
     }
@@ -160,6 +162,7 @@ public class AsService {
         if (req.scheduledDate() != null) as.setScheduledDate(req.scheduledDate());
         if (req.repairNote() != null) as.setRepairNote(req.repairNote());
         if (req.doneDate() != null) as.setDoneDate(req.doneDate());
+        if (req.extraNote() != null) as.setExtraNote(req.extraNote());
         return AsResponse.from(as);
     }
 

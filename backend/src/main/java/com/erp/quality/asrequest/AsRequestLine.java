@@ -35,4 +35,8 @@ public class AsRequestLine {
 
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal quantity;
+
+    /** 원본 격자 [새로운 항목 추가] — 줄 적요('설치기사 부주의로 인한 반품', 2026-10-29 실측). */
+    @Column(length = 200)
+    private String note;
 }

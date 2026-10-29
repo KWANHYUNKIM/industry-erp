@@ -1,0 +1,34 @@
+{
+  "about": "A/S접수입력 '새로운 항목 추가' — 원본(데이터이관 QA B4) 줄 적요 '설치기사 부주의로 인한 반품' · 머리 한 줄 글. 줄 품목코드 칸은 고른 뒤 코드가 보이고 이름은 품목명 열. 저장 → API 로 줄 적요 · 머리 글 확인 → A/S접수조회 수정 창에 다시 남음 → 지운다.",
+  "shots": [
+    {
+      "name": "적요 저장 · 다시 열기",
+      "path": "/quality/as-entry",
+      "steps": [
+        "wait:4000",
+        "pick:창고:WH-01",
+        "pick:품목:ITM-0001",
+        "expect:document.querySelector('input[placeholder=\"품목코드\"]').value === 'ITM-0001'",
+        "set:input[aria-label=\"수량1\"]|1",
+        "set:input[aria-label=\"새로운 항목 추가1\"]|QA 설치기사 부주의로 인한 반품",
+        "set:input[aria-label=\"새로운 항목 추가\"]|QA 머리 글",
+        "setnear:제목|QA재고2-적요흐름",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('.ec-alert') && document.querySelector('input[aria-label=\"새로운 항목 추가\"]').value === ''",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/as-requests', { headers: H }).then((x) => x.json()); const a = r.find((x) => x.title === 'QA재고2-적요흐름'); if (!a) return false; sessionStorage.setItem('as-note-id', String(a.id)); return a.extraNote === 'QA 머리 글' && a.lines[0].note === 'QA 설치기사 부주의로 인한 반품' })()"
+      ]
+    },
+    {
+      "name": "A/S접수조회 수정 창에 남음 → 삭제",
+      "path": "/quality/as",
+      "steps": [
+        "wait:3000",
+        "js:(() => { const a = [...document.querySelectorAll('tbody a, tbody button.ec-link')].find((x) => x.closest('tr').innerText.includes('QA재고2-적요흐름')); if (!a) return 'no row'; a.click(); return true })()",
+        "wait:1000",
+        "expect:document.querySelector('input[aria-label=\"새로운 항목 추가1\"]')?.value === 'QA 설치기사 부주의로 인한 반품' && document.querySelector('input[aria-label=\"새로운 항목 추가\"]')?.value === 'QA 머리 글'",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/as-requests/' + sessionStorage.getItem('as-note-id'), { method: 'DELETE', headers: H }); return d.status === 204 || d.status === 200 })()"
+      ]
+    }
+  ]
+}

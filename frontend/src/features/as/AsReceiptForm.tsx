@@ -26,15 +26,19 @@ export const AS_STAGES: AsStatus[] = ['RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'C
 export interface AsReceiptDraft {
   receiptDate: string; partnerId: string; charge: string; warehouseId: string; status: AsStatus
   scheduledDate: string; projectId: string; title: string; symptom: string
+  /** 원본 머리 [새로운 항목 추가] 한 줄 글(자리표시 '다양한 내역을 입력해보세요'). */
+  extraNote: string
 }
-export type AsFormLine = { itemId: string; quantity: string }
+/** note = 원본 격자 [새로운 항목 추가] 열의 줄 적요('설치기사 부주의로 인한 반품', 2026-10-29 실측). */
+export type AsFormLine = { itemId: string; quantity: string; note: string }
+export const emptyAsLine = (): AsFormLine => ({ itemId: '', quantity: '', note: '' })
 
 const today = () => ymd(new Date())
-export const emptyAsLines = (): AsFormLine[] => [{ itemId: '', quantity: '' }, { itemId: '', quantity: '' }, { itemId: '', quantity: '' }]
+export const emptyAsLines = (): AsFormLine[] => [emptyAsLine(), emptyAsLine(), emptyAsLine()]
 /** 원본은 저장 뒤 새 창에 [창고]를 그대로 남긴다 — 같은 창고로 잇달아 받는다. */
 export const blankAsDraft = (warehouseId = ''): AsReceiptDraft => ({
   receiptDate: today(), partnerId: '', charge: '', warehouseId, status: 'RECEIVED',
-  scheduledDate: today(), projectId: '', title: '', symptom: '',
+  scheduledDate: today(), projectId: '', title: '', symptom: '', extraNote: '',
 })
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -59,8 +63,8 @@ export function asReceiptBody(f: AsReceiptDraft, lines: AsFormLine[]): { error: 
       warehouseId: Number(f.warehouseId),
       projectId: f.projectId ? Number(f.projectId) : undefined,
       title: f.title, scheduledDate: f.scheduledDate || undefined, symptom: f.symptom, charge: f.charge,
-      status: f.status,
-      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity) })),
+      status: f.status, extraNote: f.extraNote,
+      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), note: l.note })),
     },
   }
 }
@@ -87,7 +91,7 @@ export default function AsReceiptScreen({
   const setLine = (i: number, patch: Partial<AsFormLine>) => setLines((ls) => {
     const n = ls.map((l, k) => (k === i ? { ...l, ...patch } : l))
     /* 마지막 줄을 채우면 빈 줄을 하나 더 단다(원본 격자처럼). */
-    if (n[n.length - 1].itemId) n.push({ itemId: '', quantity: '' })
+    if (n[n.length - 1].itemId) n.push(emptyAsLine())
     return n
   })
   const tableRef = useRef<HTMLTableElement>(null)
@@ -140,6 +144,10 @@ export default function AsReceiptScreen({
         <li className="wide"><div className="title">접수내용</div><div className="form">
           <textarea className="ec-input w-full h-[52px]" placeholder="접수내용" value={f.symptom} onChange={(e) => setFv('symptom', e.target.value)} />
         </div></li>
+        <li className="wide"><div className="title">새로운 항목 추가</div><div className="form">
+          <input className="ec-input w-full" aria-label="새로운 항목 추가" placeholder="다양한 내역을 입력해보세요" maxLength={200}
+                 value={f.extraNote} onChange={(e) => setFv('extraNote', e.target.value)} />
+        </div></li>
       </ul>
 
       {/* 원본 격자 위 도구줄 차례(2026-10-13 loginaa 실측, plans 재고2:44): 찾기 · 정렬 · 거래내역보기 · My품목 · 판매 · 연결전표 · 바코드 · 검증 · 전표불러오기.
@@ -166,7 +174,7 @@ export default function AsReceiptScreen({
           <th className="w-[200px]">품목코드</th>
           <th>품목명</th>
           <th className="w-[120px] text-right">수량</th>
-          <th className="w-[110px]">새로운 항목 추가</th>
+          <th className="w-[220px]">새로운 항목 추가</th>
         </tr></thead>
         <tbody>
           {lines.map((l, i) => {
@@ -176,7 +184,8 @@ export default function AsReceiptScreen({
                 <td className="text-center"><input type="checkbox" aria-label={`선택${i + 1}`} checked={picked.has(i)} onChange={() => toggle(i)} /></td>
                 <td className={i === 0 ? req.cls('item0', lines.some((x) => x.itemId)) : ''}>
                   {/* 원본은 품목을 골라도 수량을 비워 둔다 — 사람이 넣어야 저장된다. */}
-                  <CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
+                  {/* 원본: 고른 뒤 칸에는 코드(G001), 이름은 [품목명] 열 */}
+                  <CodePickerField label="품목" hideLabel fill showCode emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
                                    onChange={(v) => setLine(i, { itemId: v })} items={itemPicks} />
                 </td>
                 <td>{it ? `${it.name}${it.spec ? ` [${it.spec}]` : ''}` : ''}</td>
@@ -184,7 +193,10 @@ export default function AsReceiptScreen({
                   <input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId} aria-label={`수량${i + 1}`}
                          onChange={(e) => setLine(i, { quantity: e.target.value })} />
                 </td>
-                <td></td>
+                <td>
+                  <input className="ec-input w-full" aria-label={`새로운 항목 추가${i + 1}`} maxLength={200} value={l.note}
+                         disabled={!l.itemId} onChange={(e) => setLine(i, { note: e.target.value })} />
+                </td>
               </tr>
             )
           })}
