@@ -197,7 +197,8 @@ export default function PartnersPage() {
         api.get<GroupMaster[]>('/partner-groups'),
       ])
       if (seq !== loadSeq.current) return
-      setPartners(p.data)
+      // 계좌 · 카드 · 카드사의 짝 거래처(linkedKind)는 코드도움에만 — 거래처등록 목록은 보통 거래처만
+      setPartners(p.data.filter((x) => !x.linkedKind))
       setTypes(t.data)
       setPartnerGroups(g.data)
     } catch (err) {

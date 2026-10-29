@@ -79,4 +79,9 @@ public class CreditCard extends BaseTimeEntity {
     /** 원본 [검색창내용]. */
     @Column(name = "search_text", length = 100)
     private String searchText;
+
+    /** 거래처 코드도움에 이 카드를 거래처로 내놓는 짝 거래처(PartnerService.syncLinked — BusinessPartner.linkedKind). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private com.erp.trade.partner.BusinessPartner partner;
 }

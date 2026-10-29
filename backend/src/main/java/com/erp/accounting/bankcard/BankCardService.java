@@ -49,6 +49,8 @@ public class BankCardService {
     private final JournalService journalService;
     private final DocumentNoGenerator docNoGenerator;
     private final com.erp.settings.currency.CurrencyService currencyService;
+    /** 계좌 · 카드를 거래처 코드도움에 내놓는 짝 거래처(원본은 거래처와 한 이름공간). */
+    private final com.erp.trade.partner.PartnerService partnerService;
 
     // ── 계좌 마스터 ────────────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ public class BankCardService {
                 .transferRemark1(req.transferRemark1())
                 .transferRemark2(req.transferRemark2())
                 .build();
+        linkPartner(b);
         return BankAccountResponse.from(bankAccountRepository.save(b));
     }
 
@@ -105,6 +108,7 @@ public class BankCardService {
         if (req.transferRemark1() != null) b.setTransferRemark1(blankToNull(req.transferRemark1()));
         if (req.transferRemark2() != null) b.setTransferRemark2(blankToNull(req.transferRemark2()));
         // 잔액은 입출금으로만 움직인다. 여기서 openingBalance 로 덮어쓰면 수불과 어긋난다.
+        linkPartner(b);
         return BankAccountResponse.from(b);
     }
 
@@ -113,8 +117,10 @@ public class BankCardService {
     public void deleteAccount(Long id) {
         BankAccount b = bankAccount(id);
         try {
+            com.erp.trade.partner.BusinessPartner linked = b.getPartner();
             bankAccountRepository.delete(b);
             bankAccountRepository.flush();
+            partnerService.retireLinked(linked);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             throw ApiException.conflict("거래가 있는 계좌는 삭제할 수 없습니다. 사용중단하세요: " + (b.getName() != null ? b.getName() : b.getAccountNo()));
         }
@@ -150,6 +156,7 @@ public class BankCardService {
                 .remark(req.remark())
                 .build();
         applyCardRegister(c, req);
+        linkPartner(c);
         return CreditCardResponse.from(cardRepository.save(c));
     }
 
@@ -172,6 +179,7 @@ public class BankCardService {
         c.setActive(req.active() == null || req.active());
         c.setRemark(req.remark());
         applyCardRegister(c, req);
+        linkPartner(c);
         return CreditCardResponse.from(c);
     }
 
@@ -196,11 +204,27 @@ public class BankCardService {
     public void deleteCard(Long id) {
         CreditCard c = card(id);
         try {
+            com.erp.trade.partner.BusinessPartner linked = c.getPartner();
             cardRepository.delete(c);
             cardRepository.flush();
+            partnerService.retireLinked(linked);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             throw ApiException.conflict("사용내역이 있는 카드는 삭제할 수 없습니다. 사용중단하세요: " + c.getCardName());
         }
+    }
+
+    /** 계좌를 거래처 코드도움에 — 코드(없으면 계좌번호) · 계좌명(없으면 은행 계좌번호). */
+    private void linkPartner(BankAccount b) {
+        String name = b.getName() != null && !b.getName().isBlank() ? b.getName()
+                : (b.getBankName() + " " + b.getAccountNo()).trim();
+        b.setPartner(partnerService.syncLinked(b.getPartner(), com.erp.trade.partner.PartnerService.LINKED_BANK,
+                b.getCode() != null ? b.getCode() : b.getAccountNo(), name, b.getSearchText(), b.isActive()));
+    }
+
+    /** 카드를 거래처 코드도움에 — 코드(없으면 카드번호) · 카드명. */
+    private void linkPartner(CreditCard c) {
+        c.setPartner(partnerService.syncLinked(c.getPartner(), com.erp.trade.partner.PartnerService.LINKED_CARD,
+                c.getCode() != null ? c.getCode() : c.getCardNo(), c.getCardName(), c.getSearchText(), c.isActive()));
     }
 
     private static String blankToNull(String v) {

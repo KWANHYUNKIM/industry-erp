@@ -11,6 +11,8 @@ public interface BusinessPartnerRepository extends JpaRepository<BusinessPartner
 
     boolean existsByCode(String code);
 
+    java.util.Optional<BusinessPartner> findByCode(String code);
+
     /** 이 거래처를 대표로 삼는 종속거래처가 있는가. 관계를 두 단계로 묶어 두는 데 쓴다. */
     boolean existsByParentId(Long parentId);
 

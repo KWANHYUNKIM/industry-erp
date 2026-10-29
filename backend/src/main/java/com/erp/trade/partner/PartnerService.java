@@ -263,6 +263,52 @@ public class PartnerService {
         if (!sales && code.equals(p.getPurchasePriceGroup())) p.setPurchasePriceGroup(null);
     }
 
+    /** 짝 거래처 종류 — 계좌 · 카드 · 카드사(BusinessPartner.linkedKind). */
+    public static final String LINKED_BANK = "BANK";
+    public static final String LINKED_CARD = "CARD";
+    public static final String LINKED_CARD_ISSUER = "CARD_ISSUER";
+
+    /**
+     * 계좌 · 카드 · 카드사를 거래처 코드도움에서 고를 수 있게 짝 거래처를 맞춘다(원본은 한 이름공간 — BusinessPartner.linkedKind).
+     *
+     * <p>current 가 있으면 그 짝의 이름 · 검색창내용 · 사용여부를 고친다(코드는 비어 있는 코드로만 바꾼다). 없으면 같은 코드의 짝을
+     * 찾아 다시 쓰거나(지웠다가 같은 코드로 다시 등록) 새로 만든다. 같은 코드의 <b>보통 거래처</b>가 이미 있으면 짝을 만들지 않고 null —
+     * 그 코드는 거래처가 쓰고 있다(보통 거래처를 계좌로 바꿔 버리지 않는다).
+     */
+    @Transactional
+    public BusinessPartner syncLinked(BusinessPartner current, String kind, String code, String name,
+                                      String searchKeyword, boolean active) {
+        String c = emptyToNull(code);
+        if (c == null) return current;
+        c = c.trim();
+        String n = emptyToNull(name) != null ? name.trim() : c;
+        BusinessPartner p = current;
+        if (p == null) {
+            BusinessPartner same = partnerRepository.findByCode(c).orElse(null);
+            if (same != null && !kind.equals(same.getLinkedKind())) return null;
+            p = same;
+        } else if (!c.equals(p.getCode()) && !partnerRepository.existsByCode(c)) {
+            p.setCode(c);
+        }
+        if (p == null) {
+            p = partnerRepository.save(BusinessPartner.builder()
+                    .code(c).name(n).type(PartnerType.BOTH).linkedKind(kind)
+                    .taxReport(false).shipmentTarget(false)
+                    .searchKeyword(emptyToNull(searchKeyword)).active(active).build());
+            return p;
+        }
+        p.setName(n);
+        p.setSearchKeyword(emptyToNull(searchKeyword));
+        p.setActive(active);
+        return p;
+    }
+
+    /** 계좌 · 카드 · 카드사를 지울 때 그 짝 거래처 — 전표가 물고 있을 수 있어 지우지 않고 사용중단으로 둔다. */
+    @Transactional
+    public void retireLinked(BusinessPartner p) {
+        if (p != null && p.getLinkedKind() != null) p.setActive(false);
+    }
+
     /** 다른 서비스가 거래처 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
     @Transactional(readOnly = true)
     public BusinessPartner get(Long id) {

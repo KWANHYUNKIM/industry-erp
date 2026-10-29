@@ -290,6 +290,8 @@ export interface Partner {
   taxReportCode: string | null
   /** 원본 [통화] — 외화등록 통화 코드. 비면 내자. */
   currencyCode: string | null
+  /** 계좌 · 카드 · 카드사의 짝 거래처면 BANK · CARD · CARD_ISSUER — 코드도움에만 나오고 거래처등록 목록에는 안 보인다. */
+  linkedKind?: 'BANK' | 'CARD' | 'CARD_ISSUER' | null
   salesTaxType: string | null
   purchaseTaxType: string | null
   creditDays: number | null
