@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 
 /** 이카운트풍 중앙 팝업(모달). 신규/등록 폼을 인라인 대신 이 안에 띄운다.
  *  배경 클릭·ESC 로 닫힌다.
@@ -51,6 +51,20 @@ export default function Modal({
       </ModalWindow>
     </div>
   )
+}
+
+/**
+ * 창 안 입력칸의 Enter 가 <b>창 바깥 전표 form</b> 을 제출하지 않게 한다. 전표 화면은 화면 전체가 form 이고 창(Modal)은
+ * 그 안에 그려져서, 주문서입력 [견적] '견적서검색창' 의 검색칸에서 Enter 를 치면 주문서 [저장(F8)] 이 돌아
+ * '그리드(표)에 최소 1줄 이상 입력되어야 합니다.' 가 떴다(2026-10-29 QA). 원본 검색칸의 Enter 는 찾기만 한다.
+ * 칸 자신의 onKeyDown(코드도움 고르기 …)은 먼저 돌고, 창 안에 따로 둔 form 의 제출은 그대로 둔다.
+ */
+function blockOuterSubmit(e: ReactKeyboardEvent<HTMLDivElement>) {
+  if (e.key !== 'Enter') return
+  const t = e.target as HTMLElement
+  if (!(t instanceof HTMLInputElement)) return
+  const form = t.form
+  if (form && !e.currentTarget.contains(form)) e.preventDefault()
 }
 
 type Dir = 'move' | 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se'
@@ -153,6 +167,7 @@ export function ModalWindow({
       role="dialog" aria-modal="true" aria-label={title}
       className={`ec-modal ec-modal-win${geo ? ' is-free' : ''}${restore !== undefined ? ' is-max' : ''} ${className}`.trim()}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={blockOuterSubmit}
       style={geo ? { left: geo.x, top: geo.y, width: geo.w, height: geo.h } : width != null ? { width } : undefined}
     >
       <div className="ec-modal-bar" onPointerDown={(e) => begin(e, 'move')}>
