@@ -1,0 +1,43 @@
+{
+  "about": "재고 I > 품목등록 [품목정보] 품질검사유형 — 품질검사유형등록 마스터(유형)에서 고른다. 품목에 유형을 고르면 품질관리 › 품질검사유형등록 그 유형의 [품목설정] 에 그 품목이 들어가고, 품목 수정 창을 다시 열면 그 유형이 골라져 있다. 끝에 품목설정에서 빼고 품목 · 유형을 지운다(시험용 유형 QAFLOWQT 를 API 로 만든다).",
+  "shots": [
+    {
+      "name": "유형 준비 → 품목 신규 + 품질검사유형 고름 → 저장",
+      "path": "/inventory/items",
+      "steps": [
+        "wait:1500",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const t=await A('POST','/quality-types',{code:'QAFLOWQT',name:'QA흐름검사유형'});sessionStorage.setItem('qaQt',String(t.id));location.reload();return true})()",
+        "wait:2500",
+        "click:신규(F2)",
+        "wait:500",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const [code,name]=[...D().querySelectorAll('input')].filter((i)=>i.type==='text'&&!i.readOnly);set(code,'QAFLOWQI');set(name,'QA흐름품목');[...D().querySelectorAll('li.ec-tab')].find((x)=>x.innerText.trim().startsWith('품목정보')).click();await W(300);return true})()",
+        "choose:select[aria-label=\"품질검사유형\"]|QA흐름검사유형",
+        "clicklast:저장(F8)",
+        "wait:2000",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QAFLOWQI'))",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('qaQt'); const its = await (await fetch('/api/items', { headers: H })).json(); const it = its.find((x) => x.code === 'QAFLOWQI'); const l = await (await fetch('/api/quality-types/' + id + '/items', { headers: H })).json(); return !!it && l.some((x) => x.itemId === it.id) })()"
+      ]
+    },
+    {
+      "name": "품질검사유형등록 > 그 유형 [품목설정] 에 품목이 보임",
+      "path": "/quality/inspection-type",
+      "steps": [
+        "wait:2000",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const row=[...document.querySelectorAll('tbody tr')].find((r)=>r.innerText.includes('QAFLOWQT'));B('품목설정',row).click();await W(900);return true})()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.innerText.includes('QAFLOWQI') && d.innerText.includes('QA흐름품목') })()"
+      ]
+    },
+    {
+      "name": "품목 수정 창을 다시 열면 유형이 골라져 있음",
+      "path": "/inventory/items",
+      "steps": [
+        "wait:2500",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};[...document.querySelectorAll('tbody button.ec-link')].find((b)=>b.innerText.trim()==='QAFLOWQI').click();await W(600);[...D().querySelectorAll('li.ec-tab')].find((x)=>x.innerText.trim().startsWith('품목정보')).click();await W(300);return true})()",
+        "expect:(() => { const s = document.querySelector('select[aria-label=\"품질검사유형\"]'); return s.options[s.selectedIndex].text.trim() === 'QA흐름검사유형' })()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const id=sessionStorage.getItem('qaQt');const its=await (await fetch('/api/items',{headers:H})).json();const it=its.find((x)=>x.code==='QAFLOWQI');if(id&&it)await fetch('/api/quality-types/'+id+'/items/remove',{method:'POST',headers:H,body:JSON.stringify({itemIds:[it.id]})});if(it)await fetch('/api/items/'+it.id,{method:'DELETE',headers:H});if(id){await fetch('/api/quality-types/bulk',{method:'POST',headers:H,body:JSON.stringify({ids:[Number(id)],active:false})});await fetch('/api/quality-types/bulk',{method:'POST',headers:H,body:JSON.stringify({ids:[Number(id)]})})}return true})()"
+  ]
+}

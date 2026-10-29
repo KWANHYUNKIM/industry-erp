@@ -1,0 +1,33 @@
+{
+  "about": "생산관리 > 자원등록 — 자원 하나를 등록하고(자원코드·자원명), 자원코드를 눌러 수정 창을 열면 코드 칸이 잠기고, 대상작업 태그를 더해 저장하면 목록 [대상작업] 열에 뜬다. 끝에 지운다. 시험용 작업코드는 API 로 만들었다 지운다(회사 0001).",
+  "shots": [
+    {
+      "name": "신규 → 코드 눌러 수정(코드 잠김) → 대상작업 태그 → 저장 → 목록 → 삭제",
+      "path": "/production/resource",
+      "steps": [
+        "wait:1500",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const ps=await A('GET','/processes');const o=await A('POST','/process-operations',{processId:ps[0].id,code:'QAFR'+Date.now().toString().slice(-5),name:'QA자원작업',seq:1,resourceType:null,baseItem:null,active:true});sessionStorage.setItem('qaRes',JSON.stringify({op:o.id}));location.reload();return true})()",
+        "wait:2500",
+        "click:신규(F2)",
+        "wait:400",
+        "setnear:자원코드|QAFLOWRES",
+        "setnear:자원명|QA흐름자원",
+        "clicklast:등록",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QAFLOWRES') && r.innerText.includes('QA흐름자원'))",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};[...document.querySelectorAll('tbody button.ec-link')].find((b)=>b.innerText.trim()==='QAFLOWRES').click();await W(500);return true})()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const c = [...d.querySelectorAll('input')].find((i) => i.value === 'QAFLOWRES'); return d.innerText.includes('자원 수정') && !!c && c.disabled })()",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const s=[...D().querySelectorAll('select')].find((x)=>x.options[0]?.text.trim()==='작업코드 추가');const o=[...s.options].find((x)=>x.text.includes('QA자원작업'));set(s,o.value);await W(300);return true})()",
+        "expect:[...document.querySelectorAll('[role=dialog] button[title=\"빼기\"]')].some((b) => b.innerText.includes('QA자원작업'))",
+        "clicklast:저장",
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QAFLOWRES') && r.cells[4].innerText.includes('QA자원작업'))",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};window.confirm=()=>true;const row=[...document.querySelectorAll('tbody tr')].find((r)=>r.innerText.includes('QAFLOWRES'));[...row.querySelectorAll('button')].find((b)=>b.innerText.trim()==='삭제').click();await W(1500);return true})()",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QAFLOWRES'))"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaRes')||'null');const rs=await (await fetch('/api/resources',{headers:H})).json();for(const r of rs.filter((x)=>x.code==='QAFLOWRES'))await fetch('/api/resources/'+r.id,{method:'DELETE',headers:H});if(q)await fetch('/api/process-operations/'+q.op,{method:'DELETE',headers:H});return true})()"
+  ]
+}
