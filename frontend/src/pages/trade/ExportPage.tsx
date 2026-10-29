@@ -44,7 +44,10 @@ const initP = periodOf('최근30일(+1개월)')!
  * Sailing on or about · 통화 · 중량단위 · Remarks, 품목 격자 [품목코드 · 품목명 · 수량 · 단위 · 단가 · 금액 · Mark&amp;Number of PKGS ·
  * Description of Goods · Net Weight · Gross Weight · Measurement]. Voucher Date 를 누르면 같은 창이 수정으로 열린다.
  */
-/** 원본이 품목명 뒤에 규격을 ' [규격]' 으로 붙인다(2026-10-20 실측: Cookie SET 수입과자 [20개입]). 규격이 없으면 이름만. */
+/**
+ * 원본이 품목명 뒤에 규격을 ' [규격]' 으로 붙인다(2026-10-20 실측: Cookie SET 수입과자 [20개입]). 규격이 없으면 이름만.
+ * 규격은 <b>저장할 때 줄에 찍은 것</b>이다 — 원본 예전 전표(10/06 · 10/09)는 품목에 규격이 있어도 안 붙는다(10-29 데이터이관 B12).
+ */
 const withSpec = (name: string, spec?: string | null) => (spec ? `${name} [${spec}]` : name)
 
 export default function ExportPage() {
@@ -230,7 +233,7 @@ export default function ExportPage() {
                 <button type="button" className="ec-link" onClick={() => setEditing(e)}>{voucherText(e)}</button>
               </td>
               <td>{e.buyerName}</td>
-              <td>{e.lines[0] ? withSpec(e.lines[0].itemName, items.find((it) => it.id === e.lines[0].itemId)?.spec) : ''}{e.lines.length > 1 ? ` 외 ${e.lines.length - 1}건` : ''}</td>
+              <td>{e.lines[0] ? withSpec(e.lines[0].itemName, e.lines[0].spec) : ''}{e.lines.length > 1 ? ` 외 ${e.lines.length - 1}건` : ''}</td>
               <td>{e.invoiceNo}</td>
               <td className="text-center">{e.invoiceDate.replace(/-/g, '/')}</td>
               <td>{e.currencyId == null ? '' : currencyName(e.currencyId) || e.currencyCode}</td>

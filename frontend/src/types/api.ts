@@ -2915,6 +2915,8 @@ export interface ExportOrderLine {
   itemId: number
   itemCode: string
   itemName: string
+  /** 저장할 때의 품목 규격(사본) — 예전 전표는 비어 있다(원본도 안 붙는다, V505). */
+  spec: string | null
   unit: string
   quantity: number
   unitPrice: number
