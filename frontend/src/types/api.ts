@@ -1392,6 +1392,10 @@ export interface VoucherLine {
   settleAccountId?: number | null
   settleAccountCode?: string | null
   settleAccountName?: string | null
+  /** 입금보고서 격자 [수수료] — 남기기만 한다(분개 안 됨). */
+  fee?: number | null
+  /** 지출결의서 격자 [거래처명] 글자 — 거래처 코드 없이 친 것. */
+  payeeName?: string | null
 }
 
 export interface FastVoucher {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import EcSlipShell from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'
@@ -9,6 +9,7 @@ import type { CodeItem } from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import SlipGridTools, { type SlipTool } from '../../features/fastentry/components/SlipGridTools'
 import VoucherVatModal, { type LineVat, vatCellText } from '../../features/fastentry/components/VoucherVatModal'
 import SlipPrintModal from '../../features/journalprint/SlipPrintModal'
@@ -33,6 +34,9 @@ import type { BankAccountRow, FastVoucher, JournalEntry, Partner } from '../../t
  *   적용하면 칸이 '[세금계산서] 10,909 / 1,091', 줄 금액 = 공급가액 + 부가세, 분개는 차) 줄 계정 공급가액 · 부가세대급금 부가세.
  *   부가세가 든 줄의 [금액]을 누르면 그 창이 뜬다. 입금보고서는 계좌 없는 줄의 [입력]에 '계좌번호를 먼저 선택 바랍니다.'
  *   (계좌가 있으면 원본도 창이 안 떴다 — 무엇을 받는지 못 잼).
+ * - 입금보고서 격자 끝 [수수료] 열(원본 E010403) — 줄마다 받아 남긴다. 원본이 이 칸을 어느 계정으로 분개하는지는 못 재서
+ *   분개 · 계좌 입출금에는 넣지 않는다.
+ * - 지출결의서 [거래처명]은 거래처를 안 고르면 글자로 친다(원본 26/10/13-2 '스타벅스' · 'SK주유소') — 회계거래조회 [거래처명]에 선다.
  *
  * FastEntry [가지급금정산서](E010505)도 같은 틀이다(2026-10-12 실측) — 첫 열이 계좌 대신 [정산자 검색](사원검색 창) ·
  * [정산대상자명], 사원을 고르면 계정칸에 8109 복리후생비(판). 분개는 차) 줄 계정 / 대) 가지급금(정산자별로 묶음) —
@@ -53,9 +57,13 @@ interface Line {
   description: string
   /** [추가정보] 부가세정보 — 없으면 null */
   vat: LineVat | null
+  /** 입금보고서 [수수료] */
+  fee: string
+  /** 지출결의서 [거래처명] 글자 — 거래처를 안 고른 줄 */
+  payee: string
 }
 
-const blank = (): Line => ({ settle: '', accountId: '', partnerId: '', amount: '', description: '', vat: null })
+const blank = (): Line => ({ settle: '', accountId: '', partnerId: '', amount: '', description: '', vat: null, fee: '', payee: '' })
 const START_ROWS = 3
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -91,6 +99,10 @@ type CellErr = { row: number; col: 'settle' | 'account' | 'amount' | 'extra'; ms
 export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   const conf = CONF[kind]
   const advance = kind === 'ADVANCE_SETTLEMENT'
+  const hasFee = kind === 'DEPOSIT_REPORT'
+  const typedPayee = kind === 'EXPENSE_REPORT'
+  const gridRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(gridRef, `${CONF[kind].title} 격자`, [hasFee])
   const navigate = useNavigate()
   /* 집계(가지급금정산서집계 등)의 [일자-No.] 로 들어왔으면 저장 · 삭제 뒤 그 집계로 돌아간다(원본 — 창이 닫히고 집계가 다시 그려짐). */
   const back = (useLocation().state as { back?: string } | null)?.back ?? '/accounting/journals'
@@ -142,6 +154,8 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
         description: l.description ?? '',
         vat: l.vatType ? { vatType: l.vatType, vatDate: l.vatDate ?? data.voucherDate, partnerId: l.vatPartnerId ? String(l.vatPartnerId) : '',
           supply: String(l.vatSupply ?? 0), vat: String(l.vatAmount ?? 0) } : null,
+        fee: l.fee ? String(l.fee) : '',
+        payee: l.payeeName ?? '',
       }))
       while (ls.length < START_ROWS) ls.push(blank())
       setLines(ls)
@@ -163,6 +177,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   const partnerItems: CodeItem[] = useMemo(() => partnerCodeItems(partners), [partners])
 
   const total = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0)
+  const fees = hasFee ? lines.reduce((s, l) => s + (Number(l.fee) || 0), 0) : 0
 
   function reset() {
     setDate(ymd(new Date()))
@@ -195,7 +210,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   async function save(thenSlip = false) {
     setError('')
     const used = lines.map((l, i) => ({ l, i }))
-      .filter(({ l }) => l.settle || l.accountId || l.partnerId || l.amount || l.description)
+      .filter(({ l }) => l.settle || l.accountId || l.partnerId || l.amount || l.description || l.fee || l.payee.trim())
     if (used.length === 0) return setCellErr({ row: 0, col: 'account', msg: '계정코드를 입력 바랍니다.' })
     for (const { l, i } of used) {
       if (!l.accountId) return setCellErr({ row: i, col: 'account', msg: '계정코드를 입력 바랍니다.' })
@@ -219,6 +234,8 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
         partnerId: l.partnerId ? Number(l.partnerId) : undefined,
         vat: l.vat ? { vatType: l.vat.vatType, vatDate: l.vat.vatDate || undefined, partnerId: Number(l.vat.partnerId),
           supply: Number(l.vat.supply) || 0, vat: Number(l.vat.vat) || 0 } : undefined,
+        fee: hasFee && Number(l.fee) > 0 ? Number(l.fee) : undefined,
+        payeeName: typedPayee && !l.partnerId ? l.payee.trim() || undefined : undefined,
       })),
     }
     setSaving(true)
@@ -292,11 +309,12 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
         <div className="overflow-x-auto">
           {/* 원본 본문 줄 36.5 = 칸 안 입력(span.grid-input-data) 25.2 + 위아래 5.4 — 우리 입력칸 26 이 줄을 37.3 으로 밀었다.
               머리 33.8 = 9 + 7.2 + 줄높이 17.14(12px × 1.42857) — 우리 줄높이 18 이 34.7 로 만들었다. */}
-          <table className="ec-grid-input no-ec table-fixed min-w-[1100px] [&_tbody_tr]:h-[36.5px] [&_td.pad]:p-[5.4px_2.7px] [&_tbody_input]:h-[var(--ec-grid-ctl-h)] [&_tbody_select]:h-[var(--ec-grid-ctl-h)] [&_tbody_button]:h-[var(--ec-grid-ctl-h)] [&_th]:leading-[1.42857] [&_tfoot_td]:leading-[1.42857]">
+          <table ref={gridRef} className="ec-grid-input no-ec table-fixed min-w-[1100px] [&_tbody_tr]:h-[36.5px] [&_td.pad]:p-[5.4px_2.7px] [&_tbody_input]:h-[var(--ec-grid-ctl-h)] [&_tbody_select]:h-[var(--ec-grid-ctl-h)] [&_tbody_button]:h-[var(--ec-grid-ctl-h)] [&_th]:leading-[1.42857] [&_tfoot_td]:leading-[1.42857]">
             <colgroup>
               <col className="w-[42px]" /><col className="w-[208px]" /><col className="w-[206px]" /><col className="w-[198px]" />
               <col className="w-[151px]" /><col className="w-[178px]" /><col className="w-[151px]" /><col className="w-[167px]" /><col />
               <col className="w-[60px]" />
+              {hasFee && <col className="w-[120px]" />}
             </colgroup>
             <thead>
               <tr>
@@ -310,6 +328,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                 <th>금액</th>
                 <th>적요명</th>
                 <th>추가정보</th>
+                {hasFee && <th>수수료</th>}
               </tr>
             </thead>
             <tbody>
@@ -330,7 +349,12 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                     <GridCode title="거래처검색" codeHead="거래처코드" nameHead="거래처명" items={partnerItems}
                               value={l.partnerId} onPick={(v) => setLine(i, { partnerId: v })} />
                   </td>
-                  <td className="pad">{partnerItems.find((x) => x.value === l.partnerId)?.name ?? ''}</td>
+                  <td className="pad">
+                    {typedPayee && !l.partnerId
+                      ? <input className="ec-input w-full border-transparent focus:border-ec-line-focus" aria-label={`${i + 1}줄 거래처명`} maxLength={100}
+                               value={l.payee} onChange={(e) => setLine(i, { payee: e.target.value })} />
+                      : partnerItems.find((x) => x.value === l.partnerId)?.name ?? ''}
+                  </td>
                   <td className="pad relative">
                     {l.vat
                       ? <input className="ec-input w-full text-right border-transparent cursor-pointer" readOnly aria-label={`${i + 1}줄 금액`}
@@ -356,6 +380,12 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                        }}>{l.vat ? vatCellText(l.vat) : '입력'}</a>
                     {errAt(i, 'extra') && <ErrTip msg={errAt(i, 'extra')!} />}
                   </td>
+                  {hasFee && (
+                    <td className="pad">
+                      <EcNumInput className="ec-input w-full text-right border-transparent focus:border-ec-line-focus"
+                                  aria-label={`${i + 1}줄 수수료`} value={l.fee} onValue={(v) => setLine(i, { fee: v })} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -365,6 +395,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                 <td className="text-right">{won(total)}</td>
                 <td />
                 <td />
+                {hasFee && <td className="text-right">{fees ? won(fees) : ''}</td>}
               </tr>
             </tfoot>
           </table>

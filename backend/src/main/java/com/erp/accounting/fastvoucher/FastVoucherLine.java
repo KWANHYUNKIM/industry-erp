@@ -89,6 +89,20 @@ public class FastVoucherLine {
     @JoinColumn(name = "settle_account_id")
     private Account settleAccount;
 
+    /**
+     * 입금보고서 격자 끝 [수수료](E010403) — 줄마다 받는다. 원본이 이 칸을 어느 계정으로 분개하는지는 아직 못 쟀다:
+     * 분개 · 계좌 입출금에는 넣지 않고 전표에 남겨 보여 주기만 한다. 없으면 null.
+     */
+    @Column(precision = 18, scale = 2)
+    private BigDecimal fee;
+
+    /**
+     * 지출결의서 격자 [거래처명] — 거래처 코드 없이 친 글자('스타벅스' · 'SK주유소'). 거래처를 고른 줄은 null.
+     * 회계거래조회 [거래처명]에 선다(머리 payeeName).
+     */
+    @Column(name = "payee_name", length = 100)
+    private String payeeName;
+
     /** 줄이 제 결제 계좌를 정했는지. false 는 옛 줄 — 머리 결제수단을 따른다. */
     @Column(nullable = false)
     @Builder.Default

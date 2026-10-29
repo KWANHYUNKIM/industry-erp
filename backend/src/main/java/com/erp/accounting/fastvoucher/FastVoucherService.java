@@ -296,6 +296,10 @@ public class FastVoucherService {
                     .vatSupply(vat != null ? vat.supply() : null)
                     .vatAmount(vat != null ? (vat.vat() != null ? vat.vat() : BigDecimal.ZERO) : null)
                     .settleAccount(in.settleAccountId() != null ? account(in.settleAccountId()) : null)
+                    /* 입금보고서 격자 끝 [수수료] — 남기기만 한다(원본 분개 계정을 아직 못 잼, 분개 · 계좌에는 안 들어간다). */
+                    .fee(v.getType() == FastVoucherType.DEPOSIT_REPORT && in.fee() != null && in.fee().signum() > 0 ? in.fee() : null)
+                    /* 지출결의서 [거래처명] 글자 — 거래처 코드를 고르지 않은 줄만. */
+                    .payeeName(in.partnerId() == null && in.payeeName() != null && !in.payeeName().isBlank() ? in.payeeName().trim() : null)
                     .build());
             if (headPartner == null && in.partnerId() != null) headPartner = v.getLines().get(v.getLines().size() - 1).getPartner();
         }
@@ -316,7 +320,10 @@ public class FastVoucherService {
             }
         } else {
             // 가지급금정산서: 원본 회계거래조회 [거래처명]은 정산자 이름이다(26/10/12-17 · 고준희).
-            v.setPayeeName(perEmployee ? v.getLines().get(0).getEmployeeName() : null);
+            // 지출결의서 · 입금보고서: 고른 거래처가 없으면 줄에 친 거래처명 글자(원본 26/10/13-2 '스타벅스').
+            v.setPayeeName(perEmployee ? v.getLines().get(0).getEmployeeName()
+                    : headPartner == null ? v.getLines().stream().map(FastVoucherLine::getPayeeName)
+                            .filter(java.util.Objects::nonNull).findFirst().orElse(null) : null);
             v.setFee(BigDecimal.ZERO);
         }
         // 원본 회계거래조회 [거래처명]은 줄의 거래처다(26/10/13-2 지출결의서 · 스타벅스). 머리에 없으면 첫 거래처 줄.
