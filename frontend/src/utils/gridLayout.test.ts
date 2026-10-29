@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { collides, normalize, place, twoColumns, MIN_H, MIN_W, type GridItem } from './gridLayout.ts'
+import { collides, fitWidth, normalize, place, twoColumns, MIN_H, MIN_W, type GridItem } from './gridLayout.ts'
 
 const noOverlap = (items: GridItem[]) => {
   for (const a of items) for (const b of items) assert.ok(!collides(a, b), `${a.id} ↔ ${b.id} 겹침`)
@@ -59,4 +59,17 @@ test('없던 위젯을 놓으면 목록 끝에 더한다', () => {
 test('두 단 배치 — 낮은 단에 차례로 쌓는다', () => {
   const out = twoColumns(['a', 'b', 'c'], 24, () => 5)
   assert.deepEqual(out.map((i) => [i.x, i.y, i.w]), [[0, 0, 12], [12, 0, 12], [0, 5, 12]])
+})
+
+test('fitWidth — 28칸 기본 배치를 26칸에 맞춰 줄여도 두 단이 나란히, 겹침 없이', () => {
+  const base = [
+    { id: 'a', x: 0, y: 0, w: 15, h: 10 },
+    { id: 'b', x: 15, y: 0, w: 13, h: 5 },
+    { id: 'c', x: 15, y: 5, w: 13, h: 5 },
+    { id: 'd', x: 0, y: 10, w: 28, h: 4 },
+  ]
+  const out = normalize(fitWidth(base, 26, 28), 26)
+  noOverlap(out)
+  assert.deepEqual(out.map((it) => [it.x, it.y, it.w]), [[0, 0, 14], [14, 0, 12], [14, 5, 12], [0, 10, 26]])
+  assert.equal(fitWidth(base, 30, 28), base, '넓으면 그대로')
 })

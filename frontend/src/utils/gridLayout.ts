@@ -114,3 +114,16 @@ export function twoColumns(ids: string[], cols: number, heightOf: (id: string) =
 export function bottomRow(items: GridItem[]): number {
   return items.reduce((m, it) => Math.max(m, it.y + it.h), 0)
 }
+
+/**
+ * 원본 기본 배치(28칸 폭에서 잰 것)를 지금 판 폭에 맞춰 줄인다 — 줄이지 않으면 오른쪽 위젯이 판을 넘어
+ * 왼쪽으로 밀리며 겹쳐 아래로 떨어진다(26칸에서 전자결재 · 공지사항이 일정관리 밑으로 갔다). 넓으면 그대로.
+ */
+export function fitWidth(items: GridItem[], cols: number, base: number): GridItem[] {
+  if (cols >= base) return items
+  const k = cols / base
+  return items.map((it) => {
+    const x = Math.round(it.x * k)
+    return { ...it, x, w: Math.max(Math.min(MIN_W, cols), Math.round((it.x + it.w) * k) - x) }
+  })
+}
