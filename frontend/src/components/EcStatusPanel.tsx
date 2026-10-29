@@ -66,8 +66,14 @@ export default function EcStatusPanel({
   single,
   dateLabel = '기준일자',
   ecDate,
+  maxDate,
+  lead,
   children,
 }: {
+  /** 한 날짜(ecDate) 화면의 마지막 날 — 원본 창고별재고현황은 오늘까지만 고른다. */
+  maxDate?: string
+  /** 기준일자 줄 <b>앞</b>에 설 조건 — 원본 창고별재고현황은 [구분] 이 기준일자보다 위다(2026-10-29 실측). */
+  lead?: ReactNode
   /**
    * [구분] 토글. 안 주면 그 줄을 그리지 않는다.
    *
@@ -193,6 +199,8 @@ export default function EcStatusPanel({
         </EcCond>
       )}
 
+      {lead}
+
       {/*
         기간 빠른선택([금일][전일][금월] …)은 기준일자와 한 줄에 둔다. 예전엔 라벨 없는 줄을 따로
         썼는데, 조건을 가로로 늘어놓자 그 줄이 엉뚱한 칸에 끼어 어느 조건의 버튼인지 알 수 없었다.
@@ -202,7 +210,7 @@ export default function EcStatusPanel({
           <span className="text-[12px] text-ec-blue mr-[6px]">{pickedLabel}</span>
         )}
         {ecDate && single ? (
-          <EcDateField value={from} onChange={(v) => { setPickedLabel(''); onPeriod({ from: v, to: v }) }} />
+          <EcDateField value={from} max={maxDate} onChange={(v) => { setPickedLabel(''); onPeriod({ from: v, to: v }) }} />
         ) : (
         <input type="date" className="ec-input" value={from}
                onChange={(e) => {

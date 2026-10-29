@@ -220,16 +220,19 @@ export default function WarehouseStockPage() {
       <EcStatusPanel
         single ecDate
         from={cond.date} to={cond.date}
-        onPeriod={(r) => setC({ date: r.from })}
+        onPeriod={(r) => setC({ date: r.from > today ? today : r.from })}
         picks={STOCK_PICKS}
+        maxDate={today}
+        lead={(
+          <EcCond label="구분">
+            {(['종', '횡'] as const).map((m) => (
+              <label key={m} className="text-[12px] mr-[12px]">
+                <input type="radio" name="wh-mode" checked={mode === m} onChange={() => setMode(m)} /> 창고별({m})
+              </label>
+            ))}
+          </EcCond>
+        )}
       >
-        <EcCond label="구분">
-          {(['종', '횡'] as const).map((m) => (
-            <label key={m} className="text-[12px] mr-[12px]">
-              <input type="radio" name="wh-mode" checked={mode === m} onChange={() => setMode(m)} /> 창고별({m})
-            </label>
-          ))}
-        </EcCond>
         <EcCond label="창고" pick span="full">
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}

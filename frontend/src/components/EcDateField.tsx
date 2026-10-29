@@ -10,8 +10,13 @@ import { useRef, useState } from 'react'
  * 값은 바깥과 `YYYY-MM-DD` 로 주고받는다 — API 가 쓰는 형식 그대로다.
  */
 export default function EcDateField({
-  value, onChange, disabled, yearSpan = 3, invalid,
+  value, onChange, disabled, yearSpan = 3, invalid, max,
 }: {
+  /**
+   * 고를 수 있는 마지막 날(YYYY-MM-DD) — 원본 창고별재고현황 기준일자는 오늘까지만이다(연은 올해까지, 올해의 월 목록은 이번 달에서 끝난다,
+   * 2026-10-29 실측). 넘는 날을 치면 이 날로 당긴다.
+   */
+  max?: string
   /** 빈 필수칸 — 원본 has-error 빨간 테두리(`.ec-invalid`). useRequired 훅의 on(키, 채워졌나). */
   invalid?: boolean
   value: string
@@ -31,7 +36,8 @@ export default function EcDateField({
 
   const thisYear = new Date().getFullYear()
   const years: number[] = []
-  for (let i = thisYear - yearSpan; i <= thisYear + yearSpan; i += 1) years.push(i)
+  const [maxY, maxM] = max ? max.split('-').map(Number) : [0, 0]
+  for (let i = thisYear - yearSpan; i <= (max ? Math.min(maxY, thisYear + yearSpan) : thisYear + yearSpan); i += 1) years.push(i)
   if (!years.includes(year)) years.push(year)
   years.sort((a, b) => a - b)
 
@@ -41,7 +47,8 @@ export default function EcDateField({
   /** 말일을 넘는 일자는 그 달 말일로 당긴다 — 1/31 에서 2월로 바꾸면 2/28 이 된다. */
   const emit = (yy: number, mm: number, dd: number) => {
     const safe = Math.min(Math.max(dd, 1), daysIn(yy, mm))
-    onChange(`${yy}-${pad(mm)}-${pad(safe)}`)
+    const v = `${yy}-${pad(mm)}-${pad(safe)}`
+    onChange(max && v > max ? max : v)
   }
 
   return (
@@ -63,7 +70,7 @@ export default function EcDateField({
         onChange={(e) => emit(year, Number(e.target.value), day)}
         style={{ width: 50 }}
       >
-        {Array.from({ length: 12 }, (_, i) => i + 1).map((mm) => (
+        {Array.from({ length: max && year >= maxY ? maxM : 12 }, (_, i) => i + 1).map((mm) => (
           <option key={mm} value={mm}>{pad(mm)}</option>
         ))}
       </select>
@@ -107,7 +114,8 @@ export default function EcDateField({
         ref={nativeRef}
         type="date"
         value={value}
-        onChange={(e) => e.target.value && onChange(e.target.value)}
+        max={max}
+        onChange={(e) => e.target.value && onChange(max && e.target.value > max ? max : e.target.value)}
         tabIndex={-1}
         aria-hidden
         style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
