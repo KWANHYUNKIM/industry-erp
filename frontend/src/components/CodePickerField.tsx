@@ -169,6 +169,20 @@ export default function CodePickerField({
     setOpen(false)
     setQ('')
   }
+  /*
+   * 창에서 고른 뒤 포커스를 이 칸으로 돌린다 — 창이 닫히면 포커스가 body 로 떨어져, 출하입력 머리에서 담당자를 코드 + Enter 로
+   * 고른 다음 Tab · 출하창고 코드 + Enter 가 아무 데도 안 갔다(두 번째에야 됐다, 2026-10-29 QA). 칸에서 Enter 나 글자를 치면 창이 열린다.
+   */
+  const fieldRef = useRef<HTMLInputElement>(null)
+  const pickFromPopup = (item: CodeItem | null) => {
+    pick(item)
+    requestAnimationFrame(() => fieldRef.current?.focus())
+  }
+  const openByKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled || e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.key === 'Enter') { e.preventDefault(); setOpen(true); return }
+    if (e.key.length === 1 && e.key !== ' ') { e.preventDefault(); setQ(e.key); setOpen(true) }
+  }
 
   /** 다중 선택 — 체크만 하고 팝업은 열어 둔다(여러 개를 연달아 고르는 게 목적이므로). */
   function toggle(item: CodeItem) {
@@ -193,6 +207,7 @@ export default function CodePickerField({
         /* 전표 코드칸: [코드][🔍][명칭][×] — 원본 .control > .form-control-code */
         <div className={invalid ? 'ec-code ec-invalid' : 'ec-code'}>
           <input
+            ref={fieldRef}
             className="ec-input code"
             disabled={disabled}
             value={typed ?? selected?.code ?? ''}
@@ -233,8 +248,10 @@ export default function CodePickerField({
       ) : (
       <div className={invalid ? 'ec-invalid' : undefined} style={{ display: 'flex', width: fill ? '100%' : undefined }}>
         <input
+          ref={fieldRef}
           className="ec-input ec-pick-input"
           readOnly
+          onKeyDown={multiple ? undefined : openByKey}
           disabled={disabled}
           value={display}
           placeholder={placeholder ?? label}
@@ -276,7 +293,7 @@ export default function CodePickerField({
         value={value}
         emptyLabel={emptyLabel}
         initialQuery={q}
-        onPick={pick}
+        onPick={pickFromPopup}
         onClose={() => { setOpen(false); setQ('') }}
         multiple={multiple}
         picked={picked}

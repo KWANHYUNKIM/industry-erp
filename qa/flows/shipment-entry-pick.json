@@ -1,0 +1,48 @@
+{
+  "about": "2026-10-29 데이터이관 QA 고침 셋 — ① 불러오기 창(주문서입력 [견적] 견적서검색창 · 판매입력 [주문] · 출하입력 [출하지시])의 검색칸 Enter 가 바깥 전표 form 을 제출하지 않는다(예전엔 '그리드(표)에 최소 1줄 이상' 이 떴다 — 창 틀이 Enter 기본 동작을 막는지 본다). ② 출하입력 [출하지시] 창에는 잔량이 남은 지시서만, 출하 일자보다 늦은 지시서는 빠진다(원본 판매 [주문] 과 같다). ③ 코드도움 창에서 고르면 포커스가 그 칸으로 돌아오고, 칸에서 글자를 치면 그 글자로 창이 열린다(담당자 코드 + Enter 다음 출하창고 코드 + Enter 가 헛돌았다). node qa/shot.mjs qa/flows/shipment-entry-pick.json — 만든 지시서 · 출하는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "주문서입력 [견적] — 견적서검색창 검색칸 Enter 는 찾기만(전표 저장 안 함)",
+      "path": "/sales/order-entry",
+      "steps": [
+        "wait:1800",
+        "js:[...document.querySelectorAll('.ec-toolbar button')].find((b) => b.textContent.trim() === '견적').click(); true",
+        "js:(async () => { for (let i = 0; i < 70; i++) { if (document.querySelector('[role=dialog][aria-label=\"견적서검색창(조회)\"] input[placeholder=\"검색어 찾기\"]')) return true; await new Promise((r) => setTimeout(r, 250)) } return 'timeout' })()",
+        "js:(async () => { for (let i = 0; i < 70; i++) { if (document.querySelector('[role=dialog][aria-label=\"견적서검색창(조회)\"] input[placeholder=\"검색어 찾기\"]')) return true; await new Promise((r) => setTimeout(r, 250)) } return 'timeout' })()",
+        "js:(async () => { for (let i = 0; i < 70; i++) { if (document.querySelector('[role=dialog][aria-label=\"견적서검색창(조회)\"] input[placeholder=\"검색어 찾기\"]')) return true; await new Promise((r) => setTimeout(r, 250)) } return 'timeout' })()",
+        "expect:!!document.querySelector('[role=dialog][aria-label=\"견적서검색창(조회)\"] input[placeholder=\"검색어 찾기\"]')",
+        "expect:(() => { const el = document.querySelector('[role=dialog][aria-label=\"견적서검색창(조회)\"] input[placeholder=\"검색어 찾기\"]'); el.focus(); const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }); el.dispatchEvent(ev); return ev.defaultPrevented && !!el.form })()",
+        "wait:400",
+        "expect:!document.body.innerText.includes('그리드(표)에 최소 1줄 이상') && !!document.querySelector('[role=dialog][aria-label=\"견적서검색창(조회)\"]')"
+      ]
+    },
+    {
+      "name": "출하입력 [출하지시] — 다 나간 지시서 · 출하 일자보다 늦은 지시서는 안 뜨고, 잔량 남은 오늘 지시서만 뜬다",
+      "path": "/sales/shipment-entry",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const g = async (p) => (await fetch('/api' + p, { headers: H })).json(); const pt = (await g('/partners')).find((p) => p.code === 'QA-CUST'); const it = (await g('/items')).find((i) => i.code === 'QA-PROD'); const wh = (await g('/warehouses')).find((w) => w.code === 'QA-WH'); const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const today = ymd(new Date()); const tom = ymd(new Date(Date.now() + 86400000)); const mk = async (date, qty) => (await (await fetch('/api/shipment-orders', { method: 'POST', headers: H, body: JSON.stringify({ orderDate: date, partnerId: pt.id, warehouseId: wh.id, remark: 'QA출하지시창', lines: [{ itemId: it.id, quantity: qty }] }) })).json()); const a = await mk(today, 2); const b = await mk(tom, 1); const c = await mk(today, 1); const s = await (await fetch('/api/shipment-orders/' + a.id + '/ship', { method: 'POST', headers: H, body: JSON.stringify({ shipDate: today }) })).json(); const dn = (o) => o.orderDate.replace(/-/g, '/') + ' -' + Number(o.orderNo.split('-').pop()); sessionStorage.setItem('sepIds', JSON.stringify([a.id, b.id, c.id])); sessionStorage.setItem('sepShip', String(s.id)); sessionStorage.setItem('sepDn', JSON.stringify([dn(a), dn(b), dn(c)])); return !!(a.id && b.id && c.id && s.id) })()",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '출하지시').click(); true",
+        "js:(async () => { for (let i = 0; i < 70; i++) { if (document.querySelector('[role=dialog][aria-label=\"출하지시서검색창(조회)\"] tbody tr')) return true; await new Promise((r) => setTimeout(r, 250)) } return 'timeout' })()",
+        "js:(async () => { for (let i = 0; i < 70; i++) { if (document.querySelector('[role=dialog][aria-label=\"출하지시서검색창(조회)\"] tbody tr')) return true; await new Promise((r) => setTimeout(r, 250)) } return 'timeout' })()",
+        "js:(async () => { for (let i = 0; i < 70; i++) { if (document.querySelector('[role=dialog][aria-label=\"출하지시서검색창(조회)\"] tbody tr')) return true; await new Promise((r) => setTimeout(r, 250)) } return 'timeout' })()",
+        "expect:(() => { const t = document.querySelector('[role=dialog][aria-label=\"출하지시서검색창(조회)\"]').innerText; const [a, b, c] = JSON.parse(sessionStorage.getItem('sepDn')); return t.includes(c) && !t.includes(a) && !t.includes(b) })()"
+      ]
+    },
+    {
+      "name": "출하입력 머리 — 담당자 창에서 Enter 로 고르면 포커스가 담당자 칸, 출하창고 칸에서 글자를 치면 그 글자로 창이 열린다",
+      "path": "/sales/shipment-entry",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const emp = document.querySelector('input.ec-pick-input[placeholder=\"담당자\"]'); emp.click(); await W(500); const s = document.querySelector('[role=dialog][aria-label=\"담당자검색\"] input[aria-label=\"담당자 검색어\"]'); const pick = [...document.querySelectorAll('[role=dialog][aria-label=\"담당자검색\"] tbody tr')].map((r) => r.cells[0]?.innerText.trim()).find((x) => x && /^[A-Za-z0-9_-]+$/.test(x)); set(s, pick); await W(200); s.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await W(400); sessionStorage.setItem('sepFocus', document.activeElement === emp && !!emp.value ? '1' : 'no:' + pick); return true })()",
+        "expect:sessionStorage.getItem('sepFocus') === '1' && !document.querySelector('[role=dialog]')",
+        "js:(() => { const wh = document.querySelector('input.ec-pick-input[placeholder=\"출하창고\"]'); wh.focus(); wh.dispatchEvent(new KeyboardEvent('keydown', { key: 'Q', bubbles: true, cancelable: true })); return true })()",
+        "wait:500",
+        "expect:document.querySelector('[role=dialog][aria-label=\"출하창고검색\"] input[aria-label=\"출하창고 검색어\"]')?.value === 'Q' && document.activeElement === document.querySelector('[role=dialog][aria-label=\"출하창고검색\"] input[aria-label=\"출하창고 검색어\"]')"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = sessionStorage.getItem('sepShip'); if (s) await fetch('/api/shipments/' + s, { method: 'DELETE', headers: H }); for (const id of JSON.parse(sessionStorage.getItem('sepIds') ?? '[]')) await fetch('/api/shipment-orders/' + id, { method: 'DELETE', headers: H }); sessionStorage.removeItem('sepShip'); sessionStorage.removeItem('sepIds'); return true })()"
+  ]
+}

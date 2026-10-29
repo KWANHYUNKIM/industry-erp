@@ -241,7 +241,16 @@ function CodeSearchBody({
           placeholder="입력 후 [Enter]"
           onChange={(e) => setQ(e.target.value)}
           // <form> 안에 놓이면 Enter 가 바깥 폼을 제출해 버린다 — 막는다
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (!multiple && !employeeSearch && shown.length === 1) onPick(shown[0]) } }}
+          // 걸린 것이 여럿이어도 코드가 친 글자와 똑같은 것이 하나면 그것을 고른다(코드칸 직접 입력과 같다 — 창고 '100' 이 1001 에도 걸려 첫 Enter 가 헛돌았다)
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            if (multiple || employeeSearch) return
+            const low = q.trim().toLowerCase()
+            const exact = low ? shown.filter((i) => (i.code ?? '').trim().toLowerCase() === low) : []
+            if (exact.length === 1) onPick(exact[0])
+            else if (shown.length === 1) onPick(shown[0])
+          }}
         />}
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => { if (employeeSearch) { setPanel((v) => !v); return } searchRef.current?.focus() }}>Search(F3)</button>
         {!bare && (
