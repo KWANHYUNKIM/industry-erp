@@ -80,6 +80,8 @@ export default function CompanyInfoPage() {
     setSaving(true)
     try {
       await api.put('/company', form)
+      // 머리 로고 자리 · 창 제목이 상호를 따라가게 틀(EcountLayout)에 알린다
+      window.dispatchEvent(new CustomEvent('erp:company-updated', { detail: { name: form.name.trim() } }))
       setOk('회사정보가 저장되었습니다.')
     } catch (err) {
       setError(extractErrorMessage(err))

@@ -1417,6 +1417,21 @@ export default function EcountLayout() {
   const [alertCount, setAlertCount] = useState(0)               // 알림 배지
   const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
   const [noteCount, setNoteCount] = useState(0)
+  /* 머리 로고 자리 · 창 제목의 상호 — 로그인 때 받은 이름으로 시작해 회사정보(/company)를 다시 읽고,
+     회사정보 화면에서 저장하면(erp:company-updated) 바로 따라 바뀐다 */
+  const [brand, setBrand] = useState<string | null>(companyName)
+  useEffect(() => {
+    let alive = true
+    api.get<{ name?: string }>('/company')
+      .then((r) => { if (alive && r.data?.name) setBrand(r.data.name) })
+      .catch(() => {})
+    const onUpdate = (e: Event) => {
+      const name = (e as CustomEvent<{ name?: string }>).detail?.name
+      if (name) setBrand(name)
+    }
+    window.addEventListener('erp:company-updated', onUpdate)
+    return () => { alive = false; window.removeEventListener('erp:company-updated', onUpdate) }
+  }, [])
   const [folders, setFolders] = useState<MyFolder[] | null>(null)  // MyPage 나만의 업무 폴더 (사용자별)                 // 쪽지 안 읽은 수
   const [userOpen, setUserOpen] = useState(false)               // 사용자 동그라미 → 이름·로그아웃
   // 휴대폰·태블릿(≤768px, 원본 실측) — ☰ 메뉴판과 ★ 즐겨찾기 · 앱 모음 펼침
@@ -1583,6 +1598,13 @@ export default function EcountLayout() {
 
   /* 가장 길게 맞는 메뉴 하나만 켠다 — '/accounting/withholding' 과 '/accounting/withholding/pdf' 가 함께 켜지지 않게 */
   const bestLeafLen = Math.max(0, ...FLAT_MENU.map((f) => matchLength(f.to, location.pathname)))
+
+  /* 창(탭) 제목 = 지금 화면 이름 - 상호 (원본도 탭 제목이 화면 이름이다). 메뉴에 없는 화면은 상호만 */
+  useEffect(() => {
+    const leaf = bestLeafLen > 0 ? FLAT_MENU.find((f) => matchLength(f.to, location.pathname) === bestLeafLen) : undefined
+    const site = brand || '제조 ERP'
+    document.title = leaf ? `${leaf.label} - ${site}` : site
+  }, [bestLeafLen, location.pathname, brand])
   function sidebarLeaf(leaf: Leaf, key: number) {
     const on = !!leaf.to && bestLeafLen > 0 && matchLength(leaf.to, location.pathname) === bestLeafLen
     return (
@@ -1699,7 +1721,9 @@ export default function EcountLayout() {
 
       {/* ===== 머리 메뉴(1단) + 떠 있는 2단 메뉴 ===== */}
       <div className="ec-gnb" onMouseLeave={() => setHoverIdx(null)}>
-        <Link to="/" className="ec-logo"><b>제조</b><span className="tail">ERP</span></Link>
+        <Link to="/" className="ec-logo" title={brand ?? undefined}>
+          {brand ? <b className="ec-logo-name">{brand}</b> : <><b>제조</b><span className="tail">ERP</span></>}
+        </Link>
         {/* 휴대폰·태블릿에서만 — ☰ 메뉴판, ★ 즐겨찾기 */}
         <button className="ec-m-btn ec-m-menu" aria-label="메뉴" onClick={() => { setMPanel(null); setDrawer((d) => (d ? null : { top: topIdx, tab: tabIdx })) }}>☰</button>
         <button className="ec-m-btn ec-m-fav" aria-label="즐겨찾기" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'fav' ? null : 'fav')) }}>★</button>
