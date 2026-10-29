@@ -23,8 +23,8 @@ public final class ResourceDtos {
             @PositiveOrZero(message = "시간당비용은 0 이상이어야 합니다.") BigDecimal costPerHr,
             /** 위치(창고). 원본 자원등록의 [위치] 열. 비워 두면 자리를 안 정한 설비다. */
             Long warehouseId,
-            /** 대상작업(공정). 원본 [대상작업] 열. */
-            Long processId
+            /** 대상작업 — 작업코드 id 여러 개. 원본 [대상작업] 태그. 비우면 범용 설비. */
+            java.util.List<Long> operationIds
     ) {}
 
     public record UpdateResourceRequest(
@@ -37,8 +37,8 @@ public final class ResourceDtos {
             @PositiveOrZero(message = "시간당비용은 0 이상이어야 합니다.") BigDecimal costPerHr,
             /** 위치(창고). 원본 자원등록의 [위치] 열. 비워 두면 자리를 안 정한 설비다. */
             Long warehouseId,
-            /** 대상작업(공정). 원본 [대상작업] 열. */
-            Long processId,
+            /** 대상작업 — 작업코드 id 여러 개. 원본 [대상작업] 태그. 비우면 범용 설비. */
+            java.util.List<Long> operationIds,
             Boolean active
     ) {}
 
@@ -51,7 +51,8 @@ public final class ResourceDtos {
             String unit,
             BigDecimal costPerHr,
             Long warehouseId, String warehouseName,
-            Long processId, String processName,
+            /** 대상작업 — 작업코드 id · 작업명(같은 차례). 비었으면 범용 설비. */
+            java.util.List<Long> operationIds, java.util.List<String> operationNames,
             boolean active
     ) {
         public static ResourceResponse from(ProductionResource r) {
@@ -59,8 +60,8 @@ public final class ResourceDtos {
                     r.getCapacity(), r.getUnit(), r.getCostPerHr(),
                     r.getWarehouse() != null ? r.getWarehouse().getId() : null,
                     r.getWarehouse() != null ? r.getWarehouse().getName() : null,
-                    r.getProcess() != null ? r.getProcess().getId() : null,
-                    r.getProcess() != null ? r.getProcess().getName() : null,
+                    r.getOperations().stream().map(o -> o.getId()).toList(),
+                    r.getOperations().stream().map(o -> o.getName()).toList(),
                     r.isActive());
         }
     }

@@ -13,7 +13,8 @@ const board = files.filter((f) => /^_현황판.*\.md$/.test(f)).map((f) => fs.re
 
 /** '26' · '26+' · '11 · 13' · '49 품목 · 창고별' · '1전표 2줄' → 앞쪽 숫자들의 합(· 로 나뉜 것만). */
 function count(cell) {
-  const nums = cell.split('·').map((p) => p.trim().match(/^(\d+)/)?.[1]).filter(Boolean).map(Number)
+  // 괄호 안 설명(코드 · 이름 나열)은 건수가 아니다 — '8 (00001 식비 · 00010 숙박비 …)' 가 8/542 로 셌다
+  const nums = cell.split('(')[0].split('·').map((p) => p.trim().match(/^(\d+)/)?.[1]).filter(Boolean).map(Number)
   return nums.length ? nums.reduce((a, b) => a + b, 0) : null
 }
 

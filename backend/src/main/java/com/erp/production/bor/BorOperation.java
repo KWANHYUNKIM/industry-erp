@@ -82,9 +82,14 @@ public class BorOperation extends BaseTimeEntity {
     @Column(name = "work_qty", precision = 15, scale = 3)
     private BigDecimal workQty;
 
-    @Column(name = "work_hours", nullable = false, precision = 10, scale = 3)
-    @Builder.Default
-    private BigDecimal workHours = BigDecimal.ZERO;
+    /** 작업시간(H). 비워 둘 수 있다 — 원본은 빈칸으로 둔다(V509). 셈할 때는 {@link #hoursOrZero()}. */
+    @Column(name = "work_hours", precision = 10, scale = 3)
+    private BigDecimal workHours;
+
+    /** 셈에 쓰는 작업시간 — 비었으면 0. */
+    public BigDecimal hoursOrZero() {
+        return workHours != null ? workHours : BigDecimal.ZERO;
+    }
 
     @Column(length = 255)
     private String remark;

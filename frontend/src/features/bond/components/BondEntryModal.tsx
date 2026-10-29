@@ -206,7 +206,8 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
             <span className="form">
               {editing && entry
                 ? <span>{entry.entryDate.replaceAll('-', '/')} - {entry.entryNo}</span>
-                : <EcDateField value={date} onChange={changeDate} />}
+                /* 원본 미결 채권 · 채무는 2015 · 2016 발생이다(loginaa 채권감소등록) — 기본 ±3년이면 그해를 못 고른다. */
+                : <EcDateField value={date} onChange={changeDate} yearSpan={30} />}
             </span>
           </li>
           <li>

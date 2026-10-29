@@ -6,7 +6,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotBlank;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -36,7 +35,12 @@ public final class WorkResultDtos {
     /** 격자 한 줄. */
     public record WorkResultLine(
             Long workOrderId,
-            @NotBlank(message = "공정을 입력하세요.") String process,
+            /** 원본 격자의 [생산품목]. 작업지시 없이 바로 고른다. 작업지시를 고르면 그 지시의 생산품목이 먼저다. */
+            Long productId,
+            /** 원본 격자의 [작업] — 작업코드 id. 고르면 공정은 그 작업코드의 공정이다. */
+            Long operationId,
+            /** 공정명. 작업코드를 고르면 비워도 된다. */
+            String process,
             Long workItemId,
             Long resourceId,
             String worker,
@@ -48,8 +52,13 @@ public final class WorkResultDtos {
 
     public record CreateWorkResultRequest(
             Long workOrderId,
+            /** 원본 격자의 [생산품목]. 작업지시 없이 바로 고른다. */
+            Long productId,
+            /** 원본 격자의 [작업] — 작업코드 id. 고르면 공정은 그 작업코드의 공정이다. */
+            Long operationId,
+            /** 공정명. 작업코드를 안 고르면 꼭 넣는다(서버가 본다). */
             @Size(max = 100, message = "공정은 100자까지 넣을 수 있습니다.")
-            @NotBlank(message = "공정을 입력하세요.") String process,
+            String process,
             /**
              * 원본 그리드의 [작업품목] id — 이 작업이 다루는 품목. 생산품목과 다르다.
              * 안 정할 수 있다.
@@ -76,11 +85,13 @@ public final class WorkResultDtos {
             /** 전표번호 WR-yyyyMMdd-NNNN. 원본 작업내역조회 첫 열 [일자-No.] 의 No. 다. */
             String resultNo,
             Long workOrderId, String workOrderNo,
-            /** 작업지시가 가리키는 생산품목. 지시 없이 적은 작업내역이면 null. */
+            /** 생산품목 — 줄에 고른 것, 없으면 작업지시의 생산품목. 둘 다 없으면 null. */
             Long productId, String productCode, String productName,
             String process,
             /** 공정 마스터와 연결된 경우의 공정 id. 자유입력이면 null. */
             Long processId,
+            /** 원본 [작업] — 작업코드. 공정명만 적은 줄이면 null. */
+            Long operationId, String operationCode, String operationName,
             /**
              * 원본 [작업품목] — 이 작업이 다루는 품목. 생산품목과 다르다.
              * 조회 화면은 '작업품목명[규격명]' 으로 적는다.
@@ -118,7 +129,9 @@ public final class WorkResultDtos {
         }
 
         public static WorkResultResponse from(WorkResult wr, Integer standardTimeMin) {
-            var product = wr.getWorkOrder() != null ? wr.getWorkOrder().getProduct() : null;
+            var product = wr.getProduct() != null ? wr.getProduct()
+                    : wr.getWorkOrder() != null ? wr.getWorkOrder().getProduct() : null;
+            var op = wr.getOperation();
             return new WorkResultResponse(
                     wr.getId(), wr.getResultNo(),
                     wr.getWorkOrder() != null ? wr.getWorkOrder().getId() : null,
@@ -128,6 +141,7 @@ public final class WorkResultDtos {
                     product != null ? product.getName() : null,
                     wr.getProcess(),
                     wr.getProcessMaster() != null ? wr.getProcessMaster().getId() : null,
+                    op != null ? op.getId() : null, op != null ? op.getCode() : null, op != null ? op.getName() : null,
                     wr.getWorkItem() != null ? wr.getWorkItem().getId() : null,
                     wr.getWorkItem() != null ? wr.getWorkItem().getCode() : null,
                     wr.getWorkItem() != null ? wr.getWorkItem().getName() : null,

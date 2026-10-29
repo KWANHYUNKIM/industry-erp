@@ -1244,12 +1244,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         <table className="w-full text-left">
           <thead>
             <tr>
-              {/* 1열은 행머리 — 헤더는 전체선택, 본문은 회색 행번호(눌러서 선택). 다른 목록과 같은 규칙. */}
-              <th className="w-[34px] cursor-pointer" title="전체 선택 / 해제"
-                  onClick={() => setSelected(
-                    selected.size === shown.length ? new Set() : new Set(shown.map((r) => r.id)),
-                  )}>
-                {shown.length > 0 && selected.size === shown.length ? '☑' : ''}
+              {/*
+                * 1열은 행머리 — 헤더는 전체선택 체크칸, 본문은 회색 행번호 + 체크칸(번호 칸을 눌러도 고른다).
+                * 원본 공지사항 목록은 줄마다 체크칸이 있어 [라벨변경] · [선택삭제] 할 글을 고른다(2026-10-29 데이터이관 QA B11 —
+                * 번호 칸만 눌러 고르게 해 두었더니 고를 줄 몰라 '리스트에 선택된 자료가 없습니다' 에서 막혔다).
+                */}
+              <th className="w-[52px] text-center">
+                <input type="checkbox" aria-label="전체선택" checked={shown.length > 0 && selected.size === shown.length}
+                       onChange={() => setSelected(selected.size === shown.length ? new Set() : new Set(shown.map((r) => r.id)))} />
               </th>
               {/* 원본 컬럼 순서: 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회 */}
               {cfg.cols ? cfg.cols.map((c) => (
@@ -1295,7 +1297,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                             ? 'bg-ec-blue-wash text-ec-navy font-bold' : 'bg-ec-stripe text-ec-hint'}`}
                           title="눌러서 이 글을 고릅니다"
                           onClick={() => toggleSelect(r.id)}>
-                        {i + 1}
+                        <span className="inline-flex items-center gap-[4px]">
+                          {i + 1}
+                          <input type="checkbox" aria-label={`${r.postNo} 선택`} checked={selected.has(r.id)}
+                                 onClick={(e) => e.stopPropagation()} onChange={() => toggleSelect(r.id)} />
+                        </span>
                       </td>
                       {cells(r, false)}
                     </tr>

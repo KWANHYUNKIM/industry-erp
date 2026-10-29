@@ -12,6 +12,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { weekOfYear } from '../../utils/statusAggregate'
+import { minToHours } from '../../utils/workHours'
 
 /**
  * 생산관리 > 작업내역현황 — 작업 실적을 기간·조건으로 본다 (/api/work-results).
@@ -59,12 +60,12 @@ interface WorkResult {
   workItemSpec: string | null
   resourceId: number | null
   resourceName: string | null
-  /** BOR 표준작업시간(분). 그 품목·공정의 라우팅이 없으면 null — 0 과 다르다. */
-  standardTimeMin: number | null
+  /** BOR 표준작업시간(H). 그 품목·공정의 라우팅이 없으면 null — 0 과 다르다. */
+  standardHours: number | null
   worker: string | null
   goodQty: number
   defectQty: number
-  workTimeMin: number
+  workHours: number
   workDate: string
   note: string | null
   /**
@@ -146,8 +147,11 @@ export default function WorkResultListPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<WorkResult[]>('/work-results')
-      setRows([...res.data].sort((a, b) =>
+      /* 서버는 분(workTimeMin · standardTimeMin)으로 낸다 — 원본처럼 시간(H)으로 바꿔 둔다(utils/workHours). */
+      const res = await api.get<(Omit<WorkResult, 'workHours' | 'standardHours'> & { workTimeMin: number; standardTimeMin: number | null })[]>('/work-results')
+      const data: WorkResult[] = res.data.map(({ workTimeMin, standardTimeMin, ...r }) => ({
+        ...r, workHours: minToHours(workTimeMin), standardHours: standardTimeMin == null ? null : minToHours(standardTimeMin) }))
+      setRows([...data].sort((a, b) =>
         (a.workDate < b.workDate ? 1 : a.workDate > b.workDate ? -1 : b.id - a.id)))
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -184,8 +188,8 @@ export default function WorkResultListPage() {
     if (resourceCond && (r.resourceName ?? '') !== resourceCond) return false
     if (qtyFrom && r.goodQty < Number(qtyFrom)) return false
     if (qtyTo && r.goodQty > Number(qtyTo)) return false
-    if (timeFrom && r.workTimeMin < Number(timeFrom)) return false
-    if (timeTo && r.workTimeMin > Number(timeTo)) return false
+    if (timeFrom && r.workHours < Number(timeFrom)) return false
+    if (timeTo && r.workHours > Number(timeTo)) return false
     if (noteCond && !(r.note ?? '').includes(noteCond)) return false
     if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
@@ -210,12 +214,12 @@ export default function WorkResultListPage() {
       process: lineView === '전표별' && ls.length > 1 ? `${ls[0].process} 외 ${ls.length - 1}건` : ls[0].process,
       goodQty: ls.reduce((n, r) => n + r.goodQty, 0),
       defectQty: ls.reduce((n, r) => n + r.defectQty, 0),
-      workTimeMin: ls.reduce((n, r) => n + r.workTimeMin, 0),
-      standardTimeMin: ls.some((r) => r.standardTimeMin == null) ? null : ls.reduce((n, r) => n + (r.standardTimeMin ?? 0), 0),
+      workHours: ls.reduce((n, r) => n + r.workHours, 0),
+      standardHours: ls.some((r) => r.standardHours == null) ? null : ls.reduce((n, r) => n + (r.standardHours ?? 0), 0),
     }))
   }, [shown, lineView])
   const totals = useMemo(() => shown.reduce(
-    (s, r) => ({ good: s.good + r.goodQty, defect: s.defect + r.defectQty, time: s.time + r.workTimeMin }),
+    (s, r) => ({ good: s.good + r.goodQty, defect: s.defect + r.defectQty, time: s.time + r.workHours }),
     { good: 0, defect: 0, time: 0 },
   ), [shown])
 
@@ -224,7 +228,7 @@ export default function WorkResultListPage() {
    * 0 으로 치면 라우팅을 안 세운 품목 때문에 합계 차이가 통째로 마이너스가 된다.
    */
   const time = useMemo(() => stdVsActual(
-    shown.map((r) => ({ standard: r.standardTimeMin, actual: r.workTimeMin })),
+    shown.map((r) => ({ standard: r.standardHours, actual: r.workHours })),
   ), [shown])
 
   /** 집계 — 공정(원본의 '작업') 단위로 모은다. */
@@ -297,7 +301,7 @@ export default function WorkResultListPage() {
       cur.count += 1
       cur.good += r.goodQty
       cur.defect += r.defectQty
-      cur.time += r.workTimeMin
+      cur.time += r.workHours
       by.set(k, cur)
     }
     /* 코드순 — 코드가 없는 축(날짜 · 작업 …)은 이름 그대로가 차례다. */
@@ -495,9 +499,9 @@ export default function WorkResultListPage() {
         <span className="my-0 mx-[6px] text-ec-off">|</span>
         불량률 <b className="text-ec-danger text-[14px]">{pct(totals.defect, totals.good)}%</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        표준 <b className="text-ec-text">{num(time.standard)}</b>분
+        표준 <b className="text-ec-text">{num(time.standard)}</b>H
         <span className="my-0 mx-[2px]">/</span>
-        실제 <b className="text-ec-text">{num(time.actual)}</b>분
+        실제 <b className="text-ec-text">{num(time.actual)}</b>H
         <span className="my-0 mx-[6px] text-ec-off">|</span>
         차이 <b style={{ color: time.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>{gap(time.diff)}</b>
         {time.unknown > 0 && (
@@ -518,7 +522,7 @@ export default function WorkResultListPage() {
         return (
           <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
-            {' '}{line('양품', (r) => r.goodQty)} · {line('불량', (r) => r.defectQty)} · {line('작업시간(분)', (r) => r.workTimeMin)}
+            {' '}{line('양품', (r) => r.goodQty)} · {line('불량', (r) => r.defectQty)} · {line('작업시간(H)', (r) => r.workHours)}
           </div>
         )
       })()}
@@ -570,7 +574,7 @@ export default function WorkResultListPage() {
               {ratio && <th className="w-[80px] text-right">비율(%)</th>}
               <th className="w-[110px] text-right">불량</th>
               <th className="w-[110px] text-right">불량률(%)</th>
-              <th className="w-[130px] text-right">작업시간(분)</th>
+              <th className="w-[130px] text-right">작업시간(H)</th>
             </tr>
           </thead>
           <tbody>
@@ -675,15 +679,15 @@ export default function WorkResultListPage() {
                   걸렸는데 없으면 그 품목·공정의 <b>BOR 을 세워야</b> 한다.
                   '-' 만 찍어 두면 어느 쪽인지 몰라 엉뚱한 데를 뒤진다.
                 */}
-                <td style={{ textAlign: 'right', color: r.standardTimeMin == null ? 'var(--ec-text-off)' : undefined }}
-                    title={r.standardTimeMin != null ? undefined
+                <td style={{ textAlign: 'right', color: r.standardHours == null ? 'var(--ec-text-off)' : undefined }}
+                    title={r.standardHours != null ? undefined
                       : r.processId == null ? '공정이 마스터에 없습니다 — 공정명을 고치세요'
                         : '이 품목·공정의 BOR(작업소요시간)이 없습니다'}>
-                  {r.standardTimeMin == null ? '-' : num(r.standardTimeMin)}
+                  {r.standardHours == null ? '-' : num(r.standardHours)}
                 </td>
-                <td className="text-right">{num(r.workTimeMin)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: r.standardTimeMin == null ? 'var(--ec-text-off)' : (r.standardTimeMin - r.workTimeMin) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                  {r.standardTimeMin == null ? '-' : gap(r.standardTimeMin - r.workTimeMin)}
+                <td className="text-right">{num(r.workHours)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: r.standardHours == null ? 'var(--ec-text-off)' : (r.standardHours - r.workHours) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
+                  {r.standardHours == null ? '-' : gap(r.standardHours - r.workHours)}
                 </td>
                 <td style={{ textAlign: 'right', color: r.defectQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                   {pct(r.defectQty, r.goodQty)}

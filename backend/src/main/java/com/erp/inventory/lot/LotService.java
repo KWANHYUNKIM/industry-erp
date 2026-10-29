@@ -226,11 +226,13 @@ public class LotService {
         for (DocLine whole : lines) {
             if (whole.lotNo() == null || whole.lotNo().isBlank() || whole.quantity().signum() == 0) continue;
             // 원본 판매입력 2026/11/21-3: 한 줄 수량 6 에 시리얼 6개를 'ㆍ' 로 이어 적는다(BEN_0009ㆍBEN_0010ㆍ…).
-            // 통째로 로트No. 하나로 보면 50자를 넘어 저장이 막혔다 — 나눠서 시리얼마다 수량 ÷ 개수씩 움직인다.
+            // 통째로 로트No. 하나로 보면 50자를 넘어 저장이 막혔다 — 나눠서 시리얼마다 움직인다.
+            // 여럿이면 시리얼 한 줄마다 1 이다 — 원본 시리얼/로트No.내역은 구매 11/09-2 줄 수량 6 · 시리얼 3개를
+            // 시리얼마다 1.00 으로 적는다(2026-10-29 데이터이관 QA B13, 수량 ÷ 개수 = 2 가 아니다). 하나면 줄 수량 그대로(로트).
             List<String> nos = java.util.Arrays.stream(whole.lotNo().split("ㆍ"))
                     .map(String::trim).filter(s -> !s.isEmpty()).toList();
             if (nos.isEmpty()) continue;
-            BigDecimal each = whole.quantity().divide(BigDecimal.valueOf(nos.size()), 4, java.math.RoundingMode.HALF_UP);
+            BigDecimal each = nos.size() > 1 ? BigDecimal.valueOf(whole.quantity().signum()) : whole.quantity();
             for (String no : nos) {
                 DocLine dl = new DocLine(whole.item(), whole.warehouse(), no, each);
                 Lot lot = lotRepository.findByLotNo(no).orElse(null);

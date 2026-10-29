@@ -54,6 +54,10 @@ public class ExportOrderLine {
     @Column(length = 300)
     private String description;
 
+    /** 저장할 때의 품목 규격(사본) — 원본은 예전 전표에 나중 규격을 붙이지 않는다(V505). */
+    @Column(length = 200)
+    private String spec;
+
     @Column(name = "net_weight", precision = 18, scale = 3)
     private BigDecimal netWeight;
 

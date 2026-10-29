@@ -89,7 +89,7 @@ interface ProcessRow {
 interface BorRow {
   productId: number
   processId: number
-  hoursPerUnit: number
+  hoursPerUnit: number | null
   active: boolean
 }
 
@@ -233,7 +233,7 @@ export default function WoEfficiencyPage() {
     const m = new Map<number, number>()
     for (const b of bor) {
       if (!b.active) continue
-      m.set(b.productId, (m.get(b.productId) ?? 0) + b.hoursPerUnit * 60)
+      m.set(b.productId, (m.get(b.productId) ?? 0) + (b.hoursPerUnit ?? 0) * 60)
     }
     return m
   }, [bor])

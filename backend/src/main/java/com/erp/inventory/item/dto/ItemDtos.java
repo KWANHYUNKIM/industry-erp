@@ -97,7 +97,9 @@ public final class ItemDtos {
              */
             BigDecimal stdLaborHours,
             BigDecimal expenseWeight,
-            BigDecimal materialStdCost
+            BigDecimal materialStdCost,
+            /** 원본 [품목정보] 의 [생산공정] — 공정 id 여러 개(태그). 안 주면 비어 있다. */
+            java.util.List<Long> productionProcessIds
     ) {}
 
     public record UpdateItemRequest(
@@ -178,6 +180,8 @@ public final class ItemDtos {
             BigDecimal stdLaborHours,
             BigDecimal expenseWeight,
             BigDecimal materialStdCost,
+            /** 원본 [품목정보] 의 [생산공정]. 안 보내면(null) 그대로 둔다 — 이 칸을 모르는 호출이 지우지 않게. */
+            java.util.List<Long> productionProcessIds,
             Boolean active
     ) {}
 
@@ -245,7 +249,9 @@ public final class ItemDtos {
             BigDecimal stdLaborHours, BigDecimal expenseWeight, BigDecimal materialStdCost,
             BigDecimal expenseStdCost, BigDecimal laborStdCost, BigDecimal subcontractStdCost,
             /** 원본 조건 [최초작성일자]·[최종수정일자]. BaseTimeEntity 가 진작 들고 있다. */
-            java.time.LocalDate createdDate, java.time.LocalDate updatedDate
+            java.time.LocalDate createdDate, java.time.LocalDate updatedDate,
+            /** 원본 [생산공정] — 공정 id. 이름은 화면이 공정 목록에서 붙인다(inventory 는 production 을 모른다). */
+            java.util.List<Long> productionProcessIds
     ) {
         public static ItemResponse from(Item item) {
             return new ItemResponse(
@@ -284,7 +290,8 @@ public final class ItemDtos {
                     item.getStdLaborHours(), item.getExpenseWeight(), item.getMaterialStdCost(),
                     item.getExpenseStdCost(), item.getLaborStdCost(), item.getSubcontractStdCost(),
                     item.getCreatedAt() != null ? item.getCreatedAt().toLocalDate() : null,
-                    item.getUpdatedAt() != null ? item.getUpdatedAt().toLocalDate() : null
+                    item.getUpdatedAt() != null ? item.getUpdatedAt().toLocalDate() : null,
+                    java.util.List.copyOf(item.getProductionProcessIds())
             );
         }
     }

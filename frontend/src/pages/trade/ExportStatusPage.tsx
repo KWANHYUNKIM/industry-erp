@@ -111,7 +111,7 @@ export default function ExportStatusPage() {
     date: r.voucherDate, charge: '', warehouse: ['', ''], mgmt: '',
     partner: [r.buyerName, pickers.partners.find((p) => p.value === String(r.partnerId))?.code ?? ''],
     partnerGroup: pgroup.groupOfId(r.partnerId),
-    itemName: l.itemName, itemSpec: pickers.items.find((x) => x.value === String(l.itemId))?.sub ?? null, itemCode: l.itemCode,
+    itemName: l.itemName, itemSpec: l.spec, itemCode: l.itemCode,
     itemGroup: flags.groupOf(l.itemId), project: ['', ''],
     qty: Number(l.quantity), vals: [Number(l.quantity), Number(l.amount)],
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,7 +208,7 @@ export default function ExportStatusPage() {
                   원본 열 이름 그대로 [품목명[규격]] — 규격이 있으면 'Cookie SET 수입과자 [20개입]' 처럼 붙인다.
                   [Description of Goods] 는 적은 것만 찍고, 안 적었으면 비운다(품목명으로 메우지 않는다) — 2026-10-20 E040907 실측.
                 */}
-                <td>{withSpec(l.itemName, pickers.items.find((x) => x.value === String(l.itemId))?.sub)}</td>
+                <td>{withSpec(l.itemName, l.spec)}</td>
                 <td>{l.description ?? ''}</td>
                 <td className="text-right">{num(l.quantity)}</td>
                 <td className="text-right">{num(l.unitPrice)}</td>

@@ -99,14 +99,14 @@ public final class ExportDtos {
 
     public record ExportLineResponse(
             Long id, int lineNo,
-            Long itemId, String itemCode, String itemName, String unit,
+            Long itemId, String itemCode, String itemName, String spec, String unit,
             BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount,
             String marks, String description, BigDecimal netWeight, BigDecimal grossWeight, BigDecimal measurement
     ) {
         public static ExportLineResponse from(ExportOrderLine l) {
             return new ExportLineResponse(
                     l.getId(), l.getLineNo(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
+                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getSpec(),
                     l.getUnit() != null && !l.getUnit().isBlank() ? l.getUnit() : l.getItem().getUnit(),
                     l.getQuantity(), l.getUnitPrice(), l.getAmount(),
                     l.getMarks(), l.getDescription(), l.getNetWeight(), l.getGrossWeight(), l.getMeasurement());

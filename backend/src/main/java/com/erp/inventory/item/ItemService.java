@@ -82,6 +82,9 @@ public class ItemService {
                 req.qcOnPurchase(), req.qcOnProduction(),
                 req.autoProductionOnSales(), req.autoProductionOnTransfer());
         applyCost(item, req.stdLaborHours(), req.expenseWeight(), req.materialStdCost());
+        if (req.productionProcessIds() != null) {
+            req.productionProcessIds().stream().filter(java.util.Objects::nonNull).forEach(item.getProductionProcessIds()::add);
+        }
         Item saved = itemRepository.save(item);
         changeHistory.record(HISTORY_TARGET, saved.getId(), ChangeHistoryService.CREATED);
         return ItemResponse.from(saved);
@@ -115,6 +118,10 @@ public class ItemService {
                 req.qcOnPurchase(), req.qcOnProduction(),
                 req.autoProductionOnSales(), req.autoProductionOnTransfer());
         applyCost(item, req.stdLaborHours(), req.expenseWeight(), req.materialStdCost());
+        if (req.productionProcessIds() != null) {
+            item.getProductionProcessIds().clear();
+            req.productionProcessIds().stream().filter(java.util.Objects::nonNull).forEach(item.getProductionProcessIds()::add);
+        }
         if (req.active() != null) {
             item.setActive(req.active());
         }

@@ -200,7 +200,7 @@ public class ExportService {
             BigDecimal amount = lr.quantity().multiply(lr.unitPrice());
             e.addLine(ExportOrderLine.builder()
                     .item(item).quantity(lr.quantity()).unitPrice(lr.unitPrice()).amount(amount)
-                    .unit(lr.unit()).marks(lr.marks()).description(lr.description())
+                    .unit(lr.unit()).marks(lr.marks()).description(lr.description()).spec(item.getSpec())
                     .netWeight(lr.netWeight()).grossWeight(lr.grossWeight()).measurement(lr.measurement())
                     .build());
             foreignTotal = foreignTotal.add(amount);

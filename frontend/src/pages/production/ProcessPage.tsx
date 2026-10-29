@@ -40,6 +40,8 @@ export default function ProcessPage() {
   const [editId, setEditId] = useState<number | null>(null)
   /** 원본 공정등록의 [작업코드등록] — 별도 메뉴가 아니라 이 화면에서 연다. */
   const [opOpen, setOpOpen] = useState(false)
+  /** 원본은 목록 줄마다 [작업코드등록 [등록]] — 그 공정의 작업코드만 보이며 연다. 아래 단추로 열면 null(공정 전부). */
+  const [opFor, setOpFor] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
@@ -214,7 +216,8 @@ export default function ProcessPage() {
       {opOpen && (
         <ProcessOperationModal
           processes={rows.map((r) => ({ id: r.id, code: r.code, name: r.name, sortOrder: r.sortOrder, active: r.active }))}
-          onClose={() => setOpOpen(false)}
+          processId={opFor ?? undefined}
+          onClose={() => { setOpOpen(false); setOpFor(null) }}
         />
       )}
 
@@ -244,6 +247,8 @@ export default function ProcessPage() {
             <th className="cursor-pointer" onClick={() => sort.toggle('생산공정코드')}>생산공정코드 {sort.mark('생산공정코드')}</th>
             <th className="cursor-pointer" onClick={() => sort.toggle('생산공정명')}>생산공정명 {sort.mark('생산공정명')}</th>
             <th className="w-[60px] cursor-pointer" onClick={() => sort.toggle('순번')}>순번 {sort.mark('순번')}</th>
+            {/* 원본 열: 생산공정코드 · 생산공정명 · 순번 · 작업코드등록(2026-10-29 데이터이관 QA 79회). 뒤의 열은 우리 것이다. */}
+            <th className="w-[90px]">작업코드등록</th>
             <th>작업장</th>
             <th className="text-right">표준시간(분)</th>
             <th className="text-right">시간당비용</th>
@@ -253,9 +258,9 @@ export default function ProcessPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td className="text-center">
@@ -279,6 +284,9 @@ export default function ProcessPage() {
                 </button>
               </td>
               <td className="text-ec-label">{r.sortOrder}</td>
+              <td>
+                <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setOpFor(r.id); setOpOpen(true) }}>등록</button>
+              </td>
               <td>{r.workcenter ?? ''}</td>
               <td className="text-right">{r.stdTimeMin.toLocaleString()}</td>
               <td className="text-right">{r.costPerHr.toLocaleString()}</td>

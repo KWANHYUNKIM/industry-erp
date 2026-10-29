@@ -153,6 +153,8 @@ export interface Item {
   /** 원본 조건 [최초작성일자]·[최종수정일자]. */
   createdDate: string | null
   updatedDate: string | null
+  /** 원본 [품목정보] 의 [생산공정] — 공정 id(태그 여러 개). 이름은 화면이 공정 목록에서 붙인다. */
+  productionProcessIds?: number[]
 }
 
 /** 품목그룹·거래처그룹 마스터. 두 그룹의 모양이 같아 한 타입으로 쓴다. */
@@ -2915,6 +2917,8 @@ export interface ExportOrderLine {
   itemId: number
   itemCode: string
   itemName: string
+  /** 저장할 때의 품목 규격(사본) — 예전 전표는 비어 있다(원본도 안 붙는다, V505). */
+  spec: string | null
   unit: string
   quantity: number
   unitPrice: number

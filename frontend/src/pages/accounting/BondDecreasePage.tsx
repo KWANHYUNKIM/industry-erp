@@ -105,6 +105,8 @@ export default function BondDecreasePage({ side }: { side: BondSide }) {
               <input type="checkbox" aria-label="전체선택" checked={open.length > 0 && open.every((b) => picked[b.key])}
                      onChange={(e) => open.forEach((b) => toggle(b, e.target.checked))} />
             </th>
+            {/* 원본은 체크칸 뒤에 줄번호(1 · 2 · 3) 칸이 있다(2026-10-29 loginaa 채권감소등록). */}
+            <th className="w-[34px]"></th>
             <th>{word}번호</th>
             <th>발생일자</th>
             <th>만기일자</th>
@@ -123,14 +125,15 @@ export default function BondDecreasePage({ side }: { side: BondSide }) {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={16} className="ec-empty">불러오는 중…</td></tr>
           ) : open.length === 0 ? (
-            <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : open.map((b) => (
+            <tr><td colSpan={16} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : open.map((b, i) => (
             <tr key={b.key}>
               <td className="text-center">
                 <input type="checkbox" aria-label={`${b.bondNo} 선택`} checked={!!picked[b.key]} onChange={(e) => toggle(b, e.target.checked)} />
               </td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="text-ec-navy">{b.bondNo}</td>
               <td>{b.issueDate.replaceAll('-', '/')}</td>
               <td>{b.dueDate ? b.dueDate.replaceAll('-', '/') : ''}</td>
@@ -158,7 +161,7 @@ export default function BondDecreasePage({ side }: { side: BondSide }) {
         {open.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={7} />
+              <td colSpan={8} />
               <td className="text-right">{won(total)}</td>
               <td />
               <td className="text-right">0</td>

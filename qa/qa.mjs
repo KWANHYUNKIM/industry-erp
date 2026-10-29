@@ -79,6 +79,26 @@ const rejects = async (label, method, path, body, expectSubstring) => {
 
 const section = (t) => console.log(`\n${t}`)
 
+// ── 환경설정 '재고 마이너스 허용' — 돌기 전 값을 기억해 두고 끝나면 되돌린다 ────────────
+
+let negativeStockBeforeRun = null
+
+async function setNegativeStock(on) {
+  const p = await must('GET', '/preferences')
+  if (negativeStockBeforeRun === null) negativeStockBeforeRun = Boolean(p.negativeStock)
+  if (Boolean(p.negativeStock) !== on) await must('PUT', '/preferences', { ...p, negativeStock: on })
+}
+
+async function restoreNegativeStock() {
+  if (negativeStockBeforeRun !== null) await setNegativeStock(negativeStockBeforeRun)
+}
+
+/** process.exit 전에 설정을 되돌린다 — 바로 exit 하면 켜 두었던 회사의 값이 꺼진 채 남는다. */
+async function finish(code) {
+  await restoreNegativeStock().catch((e) => console.error(`재고 마이너스 허용 되돌리기 실패: ${e.message}`))
+  process.exit(code)
+}
+
 // ── 시드 (있으면 재사용 → 여러 번 돌려도 안전) ──────────────────────────────
 
 const findBy = (list, key, value) => list.find((x) => x[key] === value)
@@ -1828,6 +1848,41 @@ async function scenarioLotRequiredProduction(f) {
 }
 
 /** 기타이동 — 자가사용·불량처리(차감) / 재고조정(실사 차이만큼 증감) */
+/**
+ * 재고 마이너스 허용을 <b>켠</b> 회사 — 원본(loginaa)처럼 재고를 넘는 자가사용 · 판매도 저장되고 재고가 그만큼 음수가 된다
+ * (a303733b). 지우면 처음 재고로 돌아온다. 이 시나리오 밖에서는 main 이 끈 채로 돌린다(막는 쪽 단언을 위해).
+ */
+async function scenarioNegativeStockAllowed(f) {
+  section('■ 재고 마이너스 허용 — 켜면 재고를 넘게 빼도 저장되고 음수로 남는다')
+  const stockOf = async (itemId) => {
+    const r = (await must('GET', '/stock')).find((x) => x.itemId === itemId && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  await setNegativeStock(true)
+  try {
+    const m0 = await stockOf(f.material.id)
+    const over = await call('POST', '/stock-adjustments', {
+      type: 'SELF_USE', itemId: f.material.id, warehouseId: f.warehouse.id, quantity: m0 + 5, reason: 'QA 마이너스',
+    })
+    eq('허용이면 현재고보다 많은 자가사용도 저장된다', over.status, 200)
+    eq('재고가 넘친 만큼 음수가 된다', await stockOf(f.material.id), -5)
+    if (over.data?.id) await must('DELETE', `/stock-adjustments/${over.data.id}`)
+    eq('자가사용을 지우면 처음 재고로', await stockOf(f.material.id), m0)
+
+    const p0 = await stockOf(f.product.id)
+    const sale = await call('POST', '/sales', {
+      partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2091-08-01', taxable: true,
+      lines: [{ itemId: f.product.id, quantity: p0 + 3, unitPrice: 10000 }],
+    })
+    eq('허용이면 재고보다 많이 팔아도 저장된다', sale.status < 300, true)
+    eq('판매한 만큼 재고가 음수가 된다', await stockOf(f.product.id), -3)
+    if (sale.data?.id) await must('DELETE', `/sales/${sale.data.id}`)
+    eq('판매를 지우면 처음 재고로', await stockOf(f.product.id), p0)
+  } finally {
+    await setNegativeStock(false)
+  }
+}
+
 async function scenarioAdjustment(f) {
   section('■ 시나리오 8. 기타이동 (자가사용 · 불량처리 · 재고조정)')
 
@@ -3099,7 +3154,7 @@ async function scenarioPaySetting() {
   eq('직책수당은 과세 항목', position.taxable, true)
 
   await rejects('중복 항목코드는 거부', 'POST', '/pay-settings/items',
-    { code: 'MEAL', name: '중복 식대', kind: 'ALLOWANCE' }, '이미 등록된 항목코드')
+    { code: 'MEAL', name: '중복 식대', kind: 'ALLOWANCE' }, '이미 등록된 코드')
 
   // ── 세율/세액등록(4대보험 요율) — 아무도 안 쓰는 2099년에 정했다가 되돌린다(실제 급여 연도는 건드리지 않는다)
   {
@@ -6440,11 +6495,11 @@ async function scenarioInactiveMasterGuards(f) {
   if (res) {
     const resBody = {
       name: res.name, type: res.type, capacity: res.capacity, unit: res.unit,
-      costPerHr: res.costPerHr, warehouseId: res.warehouseId, processId: res.processId,
+      costPerHr: res.costPerHr, warehouseId: res.warehouseId, operationIds: res.operationIds,
     }
     await must('PUT', `/resources/${res.id}`, { ...resBody, active: false })
     const wr = await call('POST', '/work-results', {
-      workDate: '2095-02-02', process: res.processName ?? '절단', resourceId: res.id,
+      workDate: '2095-02-02', process: '절단', resourceId: res.id,
       goodQty: 1, defectQty: 0, workTimeMin: 10,
     })
     eq('사용중지 설비로 작업내역을 올릴 수 없다', wr.status, 400)
@@ -6494,6 +6549,11 @@ async function scenarioInactiveProcessGuards() {
     code: proc.code, name: proc.name, workcenter: proc.workcenter,
     stdTimeMin: proc.stdTimeMin, costPerHr: proc.costPerHr, sortOrder: proc.sortOrder,
   }
+  // 자원의 대상작업은 작업코드다(원본 태그) — 공정을 내리기 전에 그 공정의 작업코드를 하나 만들어 둔다.
+  for (const o of (await must('GET', '/process-operations')).filter((x) => x.code === `${P}OPG`)) {
+    await call('DELETE', `/process-operations/${o.id}`)
+  }
+  const guardOp = await must('POST', '/process-operations', { processId: proc.id, code: `${P}OPG`, name: `${P}가드작업` })
   const stopped = await must('PUT', `/processes/${proc.id}`, { ...body, active: false })
   eq('공정을 사용중지로 내릴 수 있다', stopped.active, false)
   eq('관리 목록에는 남는다',
@@ -6503,7 +6563,7 @@ async function scenarioInactiveProcessGuards() {
     ['공정작업(작업코드)', '/process-operations',
       { processId: proc.id, code: `${P}OP`, name: `${P}작업코드` }],
     ['자원등록', '/resources',
-      { code: `${P}RES`, name: `${P}설비`, processId: proc.id, kind: '설비' }],
+      { code: `${P}RES`, name: `${P}설비`, operationIds: [guardOp.id], kind: '설비' }],
     ['공정별경비', '/process-expenses',
       { period: '2093-01', processId: proc.id, laborCost: 1000, overheadCost: 1000 }],
   ]
@@ -6522,6 +6582,7 @@ async function scenarioInactiveProcessGuards() {
     { processId: proc.id, code: `${P}OP`, name: `${P}작업코드` })
   eq('되살린 뒤에는 통과한다', op.processId, proc.id)
   await must('DELETE', `/process-operations/${op.id}`)
+  await must('DELETE', `/process-operations/${guardOp.id}`)
   eq('시험용 작업코드는 남기지 않는다',
     (await must('GET', '/process-operations')).some((x) => x.id === op.id), false)
 }
@@ -8416,8 +8477,12 @@ async function scenarioWorkResultResource() {
     await call('DELETE', `/resources/${r.id}`)
   }
 
+  for (const o of (await must('GET', '/process-operations')).filter((x) => x.code === `${P}RSCOP`)) {
+    await call('DELETE', `/process-operations/${o.id}`)
+  }
+  const cutOp = await must('POST', '/process-operations', { processId: cut.id, code: `${P}RSCOP`, name: `${P}절단작업` })
   const dedicated = await must('POST', '/resources', {
-    code: `${P}RSC1`, name: `${P}절단기`, type: '설비', processId: cut.id,
+    code: `${P}RSC1`, name: `${P}절단기`, type: '설비', operationIds: [cutOp.id],
   })
   const generic = await must('POST', '/resources', {
     code: `${P}RSC2`, name: `${P}범용설비`, type: '설비',
@@ -8453,7 +8518,16 @@ async function scenarioWorkResultResource() {
   eq('없는 자원은 404', missing.status, 404)
 
   for (const r of [okRow, anyProc]) await must('DELETE', `/work-results/${r.id}`)
+  // 원본처럼 작업코드를 골라 적으면 공정은 그 작업코드의 공정이고, 전용 설비도 그 작업이면 통과한다.
+  const byOp = await must('POST', '/work-results', {
+    operationId: cutOp.id, resourceId: dedicated.id, worker: 'QA',
+    goodQty: 2, defectQty: 0, workTimeMin: 60, workDate: '2026-07-14',
+  })
+  eq('작업코드를 고르면 공정은 그 작업코드의 공정', byOp.process, cut.name)
+  eq('작업코드가 실려 나온다', byOp.operationName, `${P}절단작업`)
+  await must('DELETE', `/work-results/${byOp.id}`)
   for (const r of [dedicated, generic]) await must('DELETE', `/resources/${r.id}`)
+  await must('DELETE', `/process-operations/${cutOp.id}`)
   eq('시험용 자원은 남기지 않는다',
     (await must('GET', '/resources')).filter((x) => x.code.startsWith(`${P}RSC`)).length, 0)
 }
@@ -8758,6 +8832,64 @@ async function scenarioWorkProcess(f) {
 }
 
 /**
+ * 생산/외주 공정 — 데이터이관 QA 79회 묶음 T(2026-10-29 loginaa 실측).
+ *
+ * <p>① 작업내역입력은 작업지시 없이 줄마다 생산품목 · 작업(작업코드) · 수량 · 작업시간을 넣는다(원본 E001 · 최신스마트폰 14 · 14H).
+ * ② 작업코드등록에 투입자원유형(기계 …) · 작업기준품목(생산품 · 소모품). ④ BOR 작업시간을 비우면 빈칸.
+ * ⑥ 품목등록 [생산공정] 태그.
+ */
+async function scenarioProductionParityT() {
+  section('■ 생산/외주 공정 원본 대조(작업내역 직접 입력 · 작업코드 칸 · BOR 빈 작업시간 · 품목 생산공정)')
+  const proc = (await must('GET', '/processes')).find((x) => x.active)
+  for (const o of (await must('GET', '/process-operations')).filter((x) => x.code === `${P}TOP`)) {
+    await call('DELETE', `/process-operations/${o.id}`)
+  }
+  for (const i of (await must('GET', '/items')).filter((x) => x.code === `${P}TITEM`)) {
+    await call('DELETE', `/items/${i.id}`)
+  }
+  const op = await must('POST', '/process-operations', {
+    processId: proc.id, code: `${P}TOP`, name: `${P}T작업`, seq: 1, resourceType: '기계', baseItem: '소모품',
+  })
+  eq('작업코드에 투입자원유형이 붙는다', op.resourceType, '기계')
+  eq('작업코드에 작업기준품목이 붙는다', op.baseItem, '소모품')
+  const badOp = await call('PUT', `/process-operations/${op.id}`, {
+    processId: proc.id, code: op.code, name: op.name, resourceType: '로봇',
+  })
+  eq('정해진 값 밖의 투입자원유형은 거부', badOp.status, 400)
+
+  const item = await must('POST', '/items', {
+    code: `${P}TITEM`, name: `${P}T생산품`, category: 'FINISHED', unitPrice: 0, safetyStock: 0,
+    productionProcessIds: [proc.id],
+  })
+  eq('품목에 생산공정이 붙는다', item.productionProcessIds.join(','), String(proc.id))
+
+  const made = await must('POST', '/work-results/batch', {
+    workDate: '2026-07-14',
+    lines: [
+      { productId: item.id, operationId: op.id, goodQty: 14, workTimeMin: 840, worker: 'QA' },
+      { productId: item.id, process: proc.name, goodQty: 13, workTimeMin: 1560, worker: 'QA' },
+    ],
+  })
+  eq('작업지시 없이 생산품목이 붙는다', made.map((x) => x.productId).join(','), `${item.id},${item.id}`)
+  eq('작업코드를 고르면 공정이 따라온다', made[0].process, proc.name)
+  eq('작업코드가 실려 나온다', made[0].operationName, `${P}T작업`)
+  eq('한 전표 번호를 나눠 갖는다', made[0].resultNo, made[1].resultNo)
+  const noWork = await call('POST', '/work-results', { productId: item.id, goodQty: 1, workDate: '2026-07-14' })
+  eq('작업(공정)이 없으면 거부', noWork.status, 400)
+  for (const x of made) await must('DELETE', `/work-results/${x.id}`)
+
+  const bor = await must('POST', '/bor', { productId: item.id, processId: proc.id, seq: 1, workName: `${P}T작업`, baseQty: 1 })
+  isNull('BOR 작업시간을 비우면 빈칸(0 이 아님)', bor.workHours)
+  isNull('1개당 작업시간도 빈칸', bor.hoursPerUnit)
+  await must('DELETE', `/bor/${bor.id}`)
+
+  await must('DELETE', `/items/${item.id}`)
+  await must('DELETE', `/process-operations/${op.id}`)
+  eq('시험용 작업코드는 남기지 않는다',
+    (await must('GET', '/process-operations')).some((x) => x.code === `${P}TOP`), false)
+}
+
+/**
  * 자원(설비)의 <b>위치</b>와 <b>대상작업</b>.
  *
  * <p>원본 자원등록의 열은 자원코드 · 자원명 · 위치 · 대상작업이다
@@ -8776,28 +8908,36 @@ async function scenarioResourceLocation() {
   for (const r of (await must('GET', '/resources')).filter((x) => x.code === `${P}RES`)) {
     await call('DELETE', `/resources/${r.id}`)
   }
+  for (const o of (await must('GET', '/process-operations')).filter((x) => x.code.startsWith(`${P}LOCOP`))) {
+    await call('DELETE', `/process-operations/${o.id}`)
+  }
+  const locOps = [
+    await must('POST', '/process-operations', { processId: processes[0].id, code: `${P}LOCOP1`, name: `${P}위치작업1` }),
+    await must('POST', '/process-operations', { processId: processes[0].id, code: `${P}LOCOP2`, name: `${P}위치작업2` }),
+  ]
 
   const made = await must('POST', '/resources', {
     code: `${P}RES`, name: `${P}절단기`, type: '설비', capacity: 8, unit: '시간/일', costPerHr: 15000,
-    warehouseId: warehouses[0].id, processId: processes[0].id,
+    warehouseId: warehouses[0].id, operationIds: [locOps[0].id, locOps[1].id],
   })
   eq('위치가 붙는다', made.warehouseName, warehouses[0].name)
-  eq('대상작업이 붙는다', made.processName, processes[0].name)
+  // 원본 [대상작업]은 작업코드를 여러 개 고르는 태그다(2026-10-29 데이터이관 QA 79회).
+  eq('대상작업(작업코드)이 여러 개 붙는다', made.operationNames.join(','), `${P}위치작업1,${P}위치작업2`)
 
   const body = {
     name: made.name, type: made.type, capacity: made.capacity, unit: made.unit,
     costPerHr: made.costPerHr, active: true,
   }
-  const cleared = await must('PUT', `/resources/${made.id}`, { ...body, warehouseId: null, processId: null })
+  const cleared = await must('PUT', `/resources/${made.id}`, { ...body, warehouseId: null, operationIds: [] })
   isNull('위치를 비울 수 있다', cleared.warehouseId)
-  isNull('대상작업도 비울 수 있다', cleared.processId)
+  eq('대상작업도 비울 수 있다', cleared.operationIds.length, 0)
 
   // 없는 id 는 404 다. 예전에는 이 자리만 400 을 냈는데, 사용중지 검사를 붙이면서
   // 품목·창고와 같은 경로(ProcessService.getUsable)를 쓰게 돼 응답이 맞춰졌다.
   // 400 은 '요청이 잘못됐다', 404 는 '그런 것이 없다' 다 — 후자가 맞다.
-  const bad = await call('PUT', `/resources/${made.id}`, { ...body, processId: 99999999 })
-  eq('없는 공정은 404', bad.status, 404)
-  eq('무엇이 없는지 말한다', /공정/.test(String(bad.data?.message ?? '')), true)
+  const bad = await call('PUT', `/resources/${made.id}`, { ...body, operationIds: [99999999] })
+  eq('없는 작업코드는 404', bad.status, 404)
+  eq('무엇이 없는지 말한다', /작업코드/.test(String(bad.data?.message ?? '')), true)
 
   // 원본 자원등록의 버튼은 [삭제]가 아니라 <b>사용중단/재사용</b>이다.
   // 설비를 지우면 그 설비로 적어 둔 작업내역이 어느 설비였는지 잃는다.
@@ -8809,6 +8949,7 @@ async function scenarioResourceLocation() {
   eq('되살릴 수 있다', revived.active, true)
 
   await must('DELETE', `/resources/${made.id}`)
+  for (const o of locOps) await must('DELETE', `/process-operations/${o.id}`)
   eq('시험용 자원은 남기지 않는다',
     (await must('GET', '/resources')).filter((x) => x.code === `${P}RES`).length, 0)
 }
@@ -10883,32 +11024,41 @@ async function main() {
   token = login.data.token
   console.log(`로그인: ${login.data.user.name} (${login.data.user.roles.join(',')})`)
 
+  /*
+   * 재고를 넘게 빼면 막는지 재는 단언(자가사용 · 불출 · 판매 · 생산입고 · 반품 · 여러 줄 전부 되돌림)은
+   * 환경설정 '재고 마이너스 허용' 이 <b>꺼져 있을 때</b>의 동작이다(a303733b — 기본은 막고, 켜면 원본처럼 받는다).
+   * 누가 이 회사에서 그 값을 켜 두면 그 단언들이 저장해 버리고 재고를 수백만 음수로 남겼다(2026-10-29).
+   * 그래서 돌기 전에 끄고 끝나면 원래 값으로 되돌린다. 켰을 때의 동작은 scenarioNegativeStockAllowed 가 잰다.
+   */
+  await setNegativeStock(false)
+
   const fixtures = await seed()
   if (cmd === 'seed') {
     console.log('\n시드 완료.')
+    await restoreNegativeStock()
     return
   }
   if (cmd === 'importcost') {   // 수입비용(輸入)만 빠르게
     await scenarioImportCost()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
-    process.exit(fail ? 1 : 0)
+    await finish(fail ? 1 : 0)
   }
   if (cmd === 'password-history') {
     await scenarioPasswordHistory()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
-    process.exit(fail ? 1 : 0)
+    await finish(fail ? 1 : 0)
   }
   if (cmd === 'return-slip') {   // 반품(음수 수량 일반 전표)만 빠르게 — 거래구분 · 매출계획 반품구분 · 반품 반올림
     await scenarioReturnSlip(fixtures)
     await scenarioSalesPlanScope(fixtures)
     await scenarioPurchaseOrder(fixtures)
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
-    process.exit(fail ? 1 : 0)
+    await finish(fail ? 1 : 0)
   }
   if (cmd === 'slip-history') {   // 거래이력조회(재고) 전표 이력만 빠르게
     await scenarioSlipHistory(fixtures)
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
-    process.exit(fail ? 1 : 0)
+    await finish(fail ? 1 : 0)
   }
   // 생산 쪽만 빨리 돌린다(node qa/qa.mjs production) — 전체는 수천 건을 만들고 오래 걸린다.
   if (cmd === 'production') {
@@ -10929,7 +11079,7 @@ async function main() {
     await scenarioMrpRuns(fixtures)
     await scenarioLotRequiredProduction(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // 견적서만(node qa/qa.mjs quotation) — 시나리오 6(진행상태변경 · 수정 · 생성한전표 · 주문서 만들기)과 창고 · 프로젝트 승계.
@@ -10937,7 +11087,7 @@ async function main() {
     await scenarioQuotation(fixtures)
     await scenarioQuotationWarehouseProject(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // 의료기기공급내역보고만(node qa/qa.mjs medical) — 판매에서 불러와 저장 · 고침 · 지움.
@@ -10945,28 +11095,44 @@ async function main() {
     await scenarioUdiSupplyShape(fixtures)
     await scenarioMedicalSupplyEntries(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // 연말정산만(node qa/qa.mjs yearend) — 대상자 · 종전 · 공제 · 계산처리(원본 사례 C 숫자) · 선택삭제.
   if (cmd === 'yearend') {
     await scenarioYearEndSettlement()
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // 중도정산만(node qa/qa.mjs midterm) — 퇴직처리 → 대상자 → 원천징수연월 → 계산처리 → 퇴사 거두면 같이 지워짐.
   if (cmd === 'midterm') {
     await scenarioMidTermSettlement()
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // A/S 소모 쪽만(node qa/qa.mjs as) — 수리 · 판매연결전표 · 소모현황.
   if (cmd === 'as') {
     await scenarioAsConsumption(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
+  }
+
+  // 생산 공정 마스터 · 작업내역만(node qa/qa.mjs process) — 작업코드 · 자원 대상작업 · BOR · 작업내역 · 품목 생산공정.
+  if (cmd === 'process') {
+    await scenarioRelations(fixtures)
+    await scenarioWorkResultBatch(fixtures)
+    await scenarioInactiveMasterGuards(fixtures)
+    await scenarioInactiveProcessGuards()
+    await scenarioResourceLocation()
+    await scenarioWorkProcess(fixtures)
+    await scenarioWorkResultResource()
+    await scenarioProductionParityT()
+    await scenarioProcessOrderAndOperations()
+    await scenarioBor(fixtures)
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   await scenarioShipment(fixtures)
@@ -10986,6 +11152,7 @@ async function main() {
   await scenarioQuotation(fixtures)
   await scenarioPurchaseOrder(fixtures)
   await scenarioAdjustment(fixtures)
+  await scenarioNegativeStockAllowed(fixtures)
   await scenarioLotRequired(fixtures)
   await scenarioDailyWorkTax()
   await scenarioWithholding()
@@ -11055,6 +11222,7 @@ async function main() {
   await scenarioWarehouseKind()
   await scenarioMaterialIssueMove(fixtures)
   await scenarioWorkResultResource()
+  await scenarioProductionParityT()
   await scenarioProcessOrderAndOperations()
   await scenarioLeaveDocNo()
   await scenarioProductionWarehouses(fixtures)
@@ -11145,9 +11313,10 @@ async function main() {
   console.log(`통과 ${pass} · 실패 ${fail}`)
   if (fail > 0) {
     console.log('\n실패가 있습니다. 위 ❌ 항목을 확인하세요.')
-    process.exit(1)
+    await finish(1)
   }
   console.log('전부 통과했습니다.')
+  await restoreNegativeStock()
 }
 
 /**
@@ -12401,7 +12570,7 @@ function checkDeadAssertions() {
     dead.length ? dead.join(' / ') : '없음', '없음')
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(`\n중단: ${e.message}`)
-  process.exit(2)
+  await finish(2)
 })

@@ -51,7 +51,7 @@ interface BorRow {
   processName: string
   seq: number
   workName: string
-  hoursPerUnit: number
+  hoursPerUnit: number | null
   active: boolean
   /** BOR 줄이 다루는 <b>작업품목</b>. 만드는 물건(생산품목)과 다르다. */
   workItemId: number | null
@@ -237,7 +237,7 @@ export default function WorkProcessPage() {
           wo, seq: o.seq, processId: o.processId, processName: o.processName, workName: o.workName,
           workItemId: o.workItemId,
           workItemLabel: o.workItemId == null ? '' : `[${o.workItemCode ?? ''}] ${o.workItemName ?? ''}`,
-          doneQty: done, availableQty: prevDone, remainQty: remain, hoursPerUnit: o.hoursPerUnit,
+          doneQty: done, availableQty: prevDone, remainQty: remain, hoursPerUnit: o.hoursPerUnit ?? 0,
         })
         prevDone = done
       }

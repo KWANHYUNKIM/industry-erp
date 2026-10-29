@@ -10,6 +10,7 @@ import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { minToHours, hoursToMin, fmt2 } from '../../utils/workHours'
 
 /**
  * 생산관리 > 작업 > 작업내역입력 (/api/work-results).
@@ -17,15 +18,18 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
  * <p>원본 머리 실측(사본): 일자 · <b>생산공장</b> · 담당자 · 생산품목.
  * 그리드는 생산품목코드/명 · 작업품목코드/명 · 수량 · 투입자원 · 작업시간 · <b>적요</b>.
  *
- * <p>생산품목은 우리 쪽이 작업지시에 묶여 있어 지시를 고르면 따라온다.
- * 생산공장과 적요가 빠져 있었다 — 적요는 서버가 이미 받고 있었는데 폼에 칸이 없어
- * 늘 비어 나갔다.
+ * <p>원본은 <b>작업지시 없이</b> 줄마다 생산품목 · 작업 · 작업품목 · 수량 · 투입자원 · 작업시간(H) · 적요를
+ * 바로 넣는다(2026-10-29 데이터이관 QA 79회 — 우리는 작업지시를 골라야만 생산품목이 찼다).
+ * 작업지시는 고를 수 있는 칸으로 남긴다 — 고르면 그 지시의 생산품목이 들어온다.
+ * [작업]은 그 생산품목의 BOR 공정에 등록된 작업코드에서 고른다(BOR 이 없으면 작업코드 전부).
+ * 작업시간은 원본처럼 <b>시간(H)</b>으로 받는다 — 서버는 분으로 저장한다(utils/workHours).
  */
 interface WorkResult {
   id: number
   workOrderId: number | null
   workOrderNo: string | null
   process: string
+  operationName: string | null
   warehouseId: number | null
   warehouseName: string | null
   productCode: string | null
@@ -47,6 +51,8 @@ interface WorkResult {
 /** 원본 격자의 [생산품목코드]·[생산품목명] — 고른 작업지시에서 따라온다. */
 interface WorkOrder { id: number; orderNo: string; productCode: string; productName: string }
 interface Process { id: number; name: string }
+/** 작업코드(공정등록 › 작업코드등록). 원본 격자 [작업]의 후보. */
+interface Operation { id: number; processId: number; processName: string; code: string; name: string; active: boolean }
 interface Warehouse { id: number; code: string; name: string; kind: string; active: boolean }
 interface Project { id: number; code: string; name: string }
 
@@ -62,18 +68,23 @@ const emptyForm = {
 interface WrLine {
   key: number
   workOrderId: string
+  /** 원본 [생산품목]. 작업지시를 고르면 그 지시의 생산품목이다. */
+  productId: string
+  /** 원본 [작업] — 작업코드 id. 고르면 process 는 그 작업코드의 공정명. */
+  operationId: string
   process: string
   workItemId: string
   resourceId: string
   goodQty: string
   defectQty: string
-  workTimeMin: string
+  /** 작업시간(H). 저장할 때 분으로 바꾼다. */
+  workHours: string
   note: string
 }
 let wrLineKey = 0
 const emptyLine = (): WrLine => ({
-  key: ++wrLineKey, workOrderId: '', process: '', workItemId: '', resourceId: '',
-  goodQty: '', defectQty: '', workTimeMin: '', note: '',
+  key: ++wrLineKey, workOrderId: '', productId: '', operationId: '', process: '', workItemId: '', resourceId: '',
+  goodQty: '', defectQty: '', workHours: '', note: '',
 })
 
 export default function WorkResultPage() {
@@ -85,12 +96,15 @@ export default function WorkResultPage() {
    */
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [processes, setProcesses] = useState<Process[]>([])
+  const [operations, setOperations] = useState<Operation[]>([])
+  /** BOR — 생산품목이 거치는 공정. [작업] 후보를 그 공정의 작업코드로 좁힌다. */
+  const [borRows, setBorRows] = useState<{ productId: number; processId: number }[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   /** 원본 그리드의 [작업품목] 후보. */
   const [items, setItems] = useState<Item[]>([])
   /** 원본 그리드의 [투입자원]. 자원등록의 [대상작업]과 짝이다. */
-  const [resources, setResources] = useState<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>([])
+  const [resources, setResources] = useState<{ id: number; code: string; name: string; operationIds: number[]; operationNames: string[] }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -135,7 +149,7 @@ export default function WorkResultPage() {
   function applyWo() {
     const picked = woFull.filter((w) => woPicked.includes(w.id))
     setWrLines((ls) => [...ls.filter((l) => l.workOrderId || l.workItemId),
-      ...picked.map((w) => ({ ...emptyLine(), workOrderId: String(w.id), workItemId: String(w.productId) })), emptyLine()])
+      ...picked.map((w) => ({ ...emptyLine(), workOrderId: String(w.id), productId: String(w.productId), workItemId: String(w.productId) })), emptyLine()])
     setWoPickOpen(false)
   }
 
@@ -153,14 +167,18 @@ export default function WorkResultPage() {
 
   async function loadRefs() {
     try {
-      const [wo, pr, rs, wh, it, pj] = await Promise.all([
+      const [wo, pr, rs, wh, it, pj, op, bor] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders/options'),
         api.get<Process[]>('/processes'),
-        api.get<{ id: number; code: string; name: string; processId: number | null; processName: string | null }[]>('/resources'),
+        api.get<{ id: number; code: string; name: string; operationIds: number[]; operationNames: string[] }[]>('/resources'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<Item[]>('/items'),
         api.get<Project[]>('/projects'),
+        api.get<Operation[]>('/process-operations'),
+        api.get<{ productId: number; processId: number }[]>('/bor'),
       ])
+      setOperations(op.data.filter((o) => o.active))
+      setBorRows(bor.data)
       setWorkOrders(wo.data)
       setProcesses(pr.data)
       setResources(rs.data)
@@ -185,8 +203,10 @@ export default function WorkResultPage() {
     const p = JSON.parse(raw) as { workDate: string; warehouseId: number | null
       lines: { workOrderId: number; process: string; workItemId: number; goodQty: string; workTimeMin: string; note: string }[] }
     setForm((f) => ({ ...f, workDate: p.workDate, warehouseId: p.warehouseId != null ? String(p.warehouseId) : f.warehouseId }))
+    /* 작업지시서작업처리는 분으로 넘긴다 — 이 화면은 원본처럼 시간(H)으로 받는다. */
     setWrLines([...p.lines.map((l) => ({ ...emptyLine(), workOrderId: String(l.workOrderId), process: l.process,
-      workItemId: String(l.workItemId), goodQty: l.goodQty, workTimeMin: l.workTimeMin, note: l.note })), emptyLine()])
+      workItemId: String(l.workItemId), goodQty: l.goodQty,
+      workHours: l.workTimeMin === '' || l.workTimeMin == null ? '' : String(minToHours(Number(l.workTimeMin))), note: l.note })), emptyLine()])
     setShowForm(true)
   }, [])
 
@@ -229,7 +249,8 @@ export default function WorkResultPage() {
     setError('')
     // 아무것도 안 적은 빈 줄은 보내지 않는다. 줄 추가만 눌러 두고 지우지 않은 경우다.
     const lines = wrLines.filter(
-      (l) => l.process.trim() !== '' || l.workOrderId !== '' || l.goodQty !== '' || l.defectQty !== '',
+      (l) => l.process.trim() !== '' || l.operationId !== '' || l.productId !== '' || l.workOrderId !== ''
+        || l.goodQty !== '' || l.defectQty !== '',
     )
     if (lines.length === 0) {
       setError('작업을 한 줄 이상 넣으세요.')
@@ -242,13 +263,15 @@ export default function WorkResultPage() {
         projectId: form.projectId === '' ? null : Number(form.projectId),
         lines: lines.map((l) => ({
           workOrderId: l.workOrderId === '' ? null : Number(l.workOrderId),
+          productId: l.productId === '' ? null : Number(l.productId),
+          operationId: l.operationId === '' ? null : Number(l.operationId),
           process: l.process,
           workItemId: l.workItemId === '' ? null : Number(l.workItemId),
           resourceId: l.resourceId === '' ? null : Number(l.resourceId),
           worker: form.worker,
           goodQty: l.goodQty === '' ? 0 : Number(l.goodQty),
           defectQty: l.defectQty === '' ? 0 : Number(l.defectQty),
-          workTimeMin: l.workTimeMin === '' ? 0 : Number(l.workTimeMin),
+          workTimeMin: hoursToMin(l.workHours),
           note: l.note || null,
         })),
       })
@@ -278,6 +301,27 @@ export default function WorkResultPage() {
 
   const shown = rows.filter((r) => !keyword || (r.workOrderNo ?? '').includes(keyword) || r.process.includes(keyword))
 
+
+  /** 고른 작업지시. 고르면 생산품목은 그 지시의 것이다. */
+  const woOf = (l: WrLine) => workOrders.find((w) => String(w.id) === l.workOrderId)
+  /** 줄의 생산품목 id — 작업지시를 골랐으면 그 지시의 생산품목(품목코드로 찾는다). */
+  const productIdOf = (l: WrLine): number | null => {
+    const wo = woOf(l)
+    if (wo) return items.find((x) => x.code === wo.productCode)?.id ?? null
+    return l.productId ? Number(l.productId) : null
+  }
+  /** [작업] 후보 — 생산품목의 BOR 공정에 등록된 작업코드. BOR 이 없거나 품목을 안 골랐으면 작업코드 전부. */
+  const opsFor = (pid: number | null) => {
+    const procs = new Set(borRows.filter((b) => b.productId === pid).map((b) => b.processId))
+    return procs.size ? operations.filter((o) => procs.has(o.processId)) : operations
+  }
+  /** 대상작업을 정한 자원은 그 작업(작업코드)에서만 — 작업코드 없이 공정명만 적었으면 그 공정의 작업코드면 된다. */
+  const resourceFits = (r: (typeof resources)[number], l: WrLine) => {
+    if (r.operationIds.length === 0) return true
+    if (l.operationId) return r.operationIds.includes(Number(l.operationId))
+    if (!l.process) return true
+    return operations.some((o) => r.operationIds.includes(o.id) && o.processName === l.process)
+  }
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
@@ -395,7 +439,7 @@ export default function WorkResultPage() {
                 {/* 원본은 코드 옆에 <b>이름</b>도 편다 — 고른 작업지시가 가리키는 품목이 무엇인지
                     코드만으로는 알 수가 없다. 이름은 이미 작업지시 목록에 있다. */}
                 <th className="w-[160px]">생산품목명</th>
-                <th className="w-[120px]">작업</th>
+                <th className="w-[140px]">작업</th>
                 <th className="w-[130px]">작업품목코드</th>
                 <th>작업품목명</th>
                 {/*
@@ -408,31 +452,57 @@ export default function WorkResultPage() {
                 <th className="w-[150px]">투입자원</th>
                 <th className="w-[80px] text-right">양품</th>
                 <th className="w-[80px] text-right">불량</th>
+                {/* 원본 머리는 [작업시간] — 단위는 시간(H)이다(합계 40.00). */}
                 <th className="w-[100px] text-right">작업시간</th>
                 <th className="w-[140px]">적요</th>
                 <th className="w-[50px] text-center">삭제</th>
               </tr>
             </thead>
             <tbody>
-              {wrLines.map((l, idx) => (
+              {wrLines.map((l, idx) => {
+                const wo = woOf(l)
+                const ops = opsFor(productIdOf(l))
+                return (
                 <tr key={l.key}>
                   <td className="text-center text-ec-hint">{idx + 1}</td>
                   <td>
-                    {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                    {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). 원본은 안 골라도 된다. */}
                     <CodePickerField label="작업지시" hideLabel fill placeholder="작업지시" emptyLabel="선택 해제"
-                                     value={l.workOrderId} onChange={(v) => setWrLine(l.key, { workOrderId: v })}
+                                     value={l.workOrderId} onChange={(v) => setWrLine(l.key, { workOrderId: v, operationId: '' })}
                                      items={workOrders.map((w) => ({ value: String(w.id), code: w.orderNo, name: w.productName }))} />
                   </td>
-                  {/* 생산품목 — 고른 작업지시가 가리키는 최종 품목이다. 사람이 고치는 칸이 아니다. */}
-                  <td className="text-ec-muted">
-                    {workOrders.find((w) => String(w.id) === l.workOrderId)?.productCode ?? ''}
+                  {/*
+                    원본 [생산품목코드] — 작업지시 없이 바로 고른다(2026-10-29 데이터이관 QA 79회).
+                    작업지시를 고르면 그 지시의 생산품목이라 고칠 칸이 아니다.
+                  */}
+                  <td>
+                    {wo ? <span className="text-ec-muted">{wo.productCode}</span> : (
+                      <CodePickerField label="생산품목" hideLabel fill placeholder="생산품목" emptyLabel="선택 해제"
+                                       value={l.productId} onChange={(v) => setWrLine(l.key, { productId: v, operationId: '', process: '' })}
+                                       items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec ?? undefined }))} />
+                    )}
                   </td>
                   <td className="text-ec-muted">
-                    {workOrders.find((w) => String(w.id) === l.workOrderId)?.productName ?? ''}
+                    {wo ? wo.productName : items.find((x) => String(x.id) === l.productId)?.name ?? ''}
                   </td>
                   <td>
-                    <input className={inputCls} list="wr-process-list" value={l.process} placeholder="조립"
-                           onChange={(e) => setWrLine(l.key, { process: e.target.value })} />
+                    {/* 원본 [작업] — 그 생산품목의 BOR 공정에 등록된 작업코드. 작업코드가 하나도 없는 회사는 공정명을 친다. */}
+                    {operations.length === 0 ? (
+                      <input className={inputCls} list="wr-process-list" value={l.process} placeholder="조립"
+                             onChange={(e) => setWrLine(l.key, { process: e.target.value })} />
+                    ) : (
+                      <select className={inputCls} value={l.operationId ? l.operationId : l.process ? 'p:' + l.process : ''}
+                              onChange={(e) => {
+                                const v = e.target.value
+                                if (v.startsWith('p:')) return
+                                const o = operations.find((x) => String(x.id) === v)
+                                setWrLine(l.key, { operationId: v, process: o ? o.processName : '' })
+                              }}>
+                        <option value="">선택</option>
+                        {l.process && !l.operationId && <option value={'p:' + l.process}>{l.process}</option>}
+                        {ops.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                      </select>
+                    )}
                   </td>
                   <td>
                     {/*
@@ -446,51 +516,56 @@ export default function WorkResultPage() {
                   <td className="text-ec-muted">
                     {items.find((x) => String(x.id) === l.workItemId)?.name ?? ''}
                   </td>
-                  {/* 사람이 적는 칸이 아니다 — 양품·불량을 적으면 따라 는다. */}
-                  <td className="text-right text-ec-muted font-semibold">
-                    {(Number(l.goodQty || 0) + Number(l.defectQty || 0)).toLocaleString()}
+                  <td>
+                    {/* 원본 [수량]은 바로 친다. 우리는 양품 · 불량으로 나눠 들고 있어, 친 수량에서 불량을 뺀 것이 양품이다. */}
+                    <input type="number" step="any" className="ec-input w-full text-right"
+                           value={l.goodQty === '' && l.defectQty === '' ? '' : String(Number(l.goodQty || 0) + Number(l.defectQty || 0))}
+                           onChange={(e) => setWrLine(l.key, { goodQty: e.target.value === '' ? ''
+                             : String(Math.max(0, Number(e.target.value) - Number(l.defectQty || 0))) })} />
                   </td>
                   <td>
-                    {/* 대상작업이 정해진 자원은 그 공정에서만 쓸 수 있다. 그 줄의 작업에 맞는 것만 낸다. */}
+                    {/* 대상작업이 정해진 자원은 그 작업에서만 쓸 수 있다. 그 줄의 작업에 맞는 것만 낸다. */}
                     <select className={inputCls} value={l.resourceId} onChange={(e) => setWrLine(l.key, { resourceId: e.target.value })}>
                       <option value="">선택 안 함</option>
                       {resources
-                        .filter((r) => !r.processName || !l.process || r.processName === l.process)
-                        .map((r) => <option key={r.id} value={r.id}>{r.name}{r.processName ? ' (' + r.processName + ')' : ''}</option>)}
+                        .filter((r) => resourceFits(r, l))
+                        .map((r) => <option key={r.id} value={r.id}>{r.name}{r.operationNames.length ? ' (' + r.operationNames.join(', ') + ')' : ''}</option>)}
                     </select>
                   </td>
                   <td>
-                    <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
+                    <input type="number" step="any" className="ec-input w-full text-right"
                            value={l.goodQty} onChange={(e) => setWrLine(l.key, { goodQty: e.target.value })} />
                   </td>
                   <td>
-                    <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
+                    <input type="number" step="any" className="ec-input w-full text-right"
                            value={l.defectQty} onChange={(e) => setWrLine(l.key, { defectQty: e.target.value })} />
                   </td>
                   <td>
-                    <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
-                           value={l.workTimeMin} onChange={(e) => setWrLine(l.key, { workTimeMin: e.target.value })} />
+                    <input type="number" step="any" className="ec-input w-full text-right"
+                           value={l.workHours} onChange={(e) => setWrLine(l.key, { workHours: e.target.value })} />
                   </td>
                   <td>
                     <input className={inputCls} value={l.note} onChange={(e) => setWrLine(l.key, { note: e.target.value })} />
                   </td>
                   <td className="text-center">
-                    <button type="button" style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                    <button type="button" className="text-ec-danger bg-transparent border-0 cursor-pointer text-[12px]"
                             onClick={() => setWrLines(wrLines.length > 1 ? wrLines.filter((x) => x.key !== l.key) : [emptyLine()])}>삭제</button>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={8} className="text-right font-bold">합계</td>
-                {/* 수량 합계도 양품 + 불량이다 — 줄마다 더한 것과 같아야 한다. */}
+                <td colSpan={7} className="text-right font-bold">합계</td>
+                {/* 수량 합계도 양품 + 불량이다 — 줄마다 더한 것과 같아야 한다. 원본은 소수 둘째 자리(27.00 · 40.00). */}
                 <td className="text-right font-bold">
-                  {wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0) + (Number(l.defectQty) || 0), 0).toLocaleString()}
+                  {fmt2(wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0) + (Number(l.defectQty) || 0), 0))}
                 </td>
+                <td></td>
                 <td className="text-right font-bold">{wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0), 0).toLocaleString()}</td>
                 <td className="text-right font-bold">{wrLines.reduce((n, l) => n + (Number(l.defectQty) || 0), 0).toLocaleString()}</td>
-                <td className="text-right font-bold">{wrLines.reduce((n, l) => n + (Number(l.workTimeMin) || 0), 0).toLocaleString()}</td>
+                <td className="text-right font-bold">{fmt2(wrLines.reduce((n, l) => n + (Number(l.workHours) || 0), 0))}</td>
                 <td colSpan={2}></td>
               </tr>
             </tfoot>
@@ -513,14 +588,14 @@ export default function WorkResultPage() {
             <th className="w-[34px]"></th>
             <th>일자</th>
             <th>작업지시번호</th>
-            <th>공정</th>
+            <th>작업</th>
             <th>생산공장</th>
             <th>생산품목명</th>
             <th>투입자원</th>
             <th>작업자</th>
             <th className="text-right">양품</th>
             <th className="text-right">불량</th>
-            <th className="text-right">작업시간(분)</th>
+            <th className="text-right">작업시간(H)</th>
             <th>적요</th>
             <th className="w-[60px] text-center">관리</th>
           </tr>
@@ -535,14 +610,14 @@ export default function WorkResultPage() {
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{dateText(r.workDate)}</td>
               <td>{r.workOrderNo ?? ''}</td>
-              <td>{r.process}</td>
+              <td>{r.operationName ?? r.process}</td>
               <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
               <td>{r.productName ?? ''}</td>
               <td style={{ color: r.resourceName ? undefined : 'var(--ec-text-off)' }}>{r.resourceName ?? ''}</td>
               <td>{r.worker ?? ''}</td>
               <td className="text-right">{r.goodQty.toLocaleString()}</td>
               <td className="text-right">{r.defectQty.toLocaleString()}</td>
-              <td className="text-right">{r.workTimeMin.toLocaleString()}</td>
+              <td className="text-right">{fmt2(minToHours(r.workTimeMin))}</td>
               <td className="text-ec-hint">{r.note ?? ''}</td>
               <td className="text-center">
                 <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
@@ -556,7 +631,7 @@ export default function WorkResultPage() {
               <td colSpan={8} className="text-right font-bold">합계</td>
               <td className="text-right font-bold">{shown.reduce((a, r) => a + r.goodQty, 0).toLocaleString()}</td>
               <td className="text-right font-bold">{shown.reduce((a, r) => a + r.defectQty, 0).toLocaleString()}</td>
-              <td className="text-right font-bold">{shown.reduce((a, r) => a + r.workTimeMin, 0).toLocaleString()}</td>
+              <td className="text-right font-bold">{fmt2(minToHours(shown.reduce((a, r) => a + r.workTimeMin, 0)))}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
