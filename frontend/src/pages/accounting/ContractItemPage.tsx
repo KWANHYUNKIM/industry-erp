@@ -260,10 +260,13 @@ export default function ContractItemPage() {
               </li>
               <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">매출계정</span>
-                <span className="flex-1">
+                {/* 원본: 코드 칸 + 계정명 칸('4019 | 상품매출') */}
+                <span className="w-[140px]">
                   <GridCode title="계정검색" codeHead="계정코드" nameHead="계정명" items={accounts} value={form.salesAccountId}
                             onPick={(v) => set({ salesAccountId: v })} />
                 </span>
+                <input className="ec-input flex-1" aria-label="매출계정명" disabled
+                       value={accounts.find((a) => a.value === form.salesAccountId)?.name ?? ''} />
               </li>
             </ul>
             <div className="flex gap-[5px]">
