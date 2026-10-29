@@ -14,15 +14,23 @@ public final class BalanceAdjustDtos {
      * adjustmentIds: 기준일자에 이 계정으로 이미 넣은 잔액조정 전표 — 있으면 진행단계가 [조정] 대신 [수정 · 추가 · 조회].
      */
     public record AccountBalanceRow(Long accountId, String code, String name, String division, String aggregation,
-                                    BigDecimal debitAmount, BigDecimal creditAmount, List<Long> adjustmentIds) {}
+                                    BigDecimal debitAmount, BigDecimal creditAmount, List<Long> adjustmentIds,
+                                    /** 거래처별집계구분 창 — ◉거래처별(아니면 ○없음) · ☑부서별집계 · ☑프로젝트별집계 */
+                                    boolean byPartner, boolean byDept, boolean byProject) {}
+
+    /** '거래처별집계구분' 창 [저장] — 계정의 집계 설정(accounts.partner_aggregate · aggregate_by_dept · aggregate_by_project). */
+    public record AggregationRequest(boolean byPartner, boolean byDept, boolean byProject) {}
 
     /** 잔액실사(계정별) 창 한 줄 — 부서 · 프로젝트 묶음의 장부잔액. 실잔액은 화면이 넣는다(처음엔 장부잔액과 같다). */
-    public record AuditGroupRow(Long departmentId, Long projectId, BigDecimal bookAmount, BigDecimal actualAmount, String memo) {}
+    public record AuditGroupRow(Long partnerId, String partnerCode, String partnerName,
+                                Long departmentId, Long projectId, BigDecimal bookAmount, BigDecimal actualAmount, String memo) {}
 
-    public record AuditResponse(LocalDate asOf, Long accountId, String accountCode, String accountName, List<AuditGroupRow> rows) {}
+    /** byPartner 면 '잔액실사(거래처별)' 창 — 줄이 거래처(· 부서 · 프로젝트) 묶음이다. 아니면 '잔액실사(계정별)'(부서 · 프로젝트 묶음). */
+    public record AuditResponse(LocalDate asOf, Long accountId, String accountCode, String accountName, List<AuditGroupRow> rows,
+                                boolean byPartner, boolean byDept, boolean byProject) {}
 
     /** 실잔액을 넣은 줄. actualAmount 가 null 이면 '고치지 않은 줄'. */
-    public record SaveRow(Long departmentId, Long projectId, BigDecimal actualAmount, String memo) {}
+    public record SaveRow(Long partnerId, Long departmentId, Long projectId, BigDecimal actualAmount, String memo) {}
 
     /**
      * [저장(F8)]. zeroUnchanged = '실잔액을 변경하지 않은 내역의 잔액을 0으로 조정'.

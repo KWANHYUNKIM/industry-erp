@@ -26,4 +26,12 @@ public interface BalanceAdjustRepository extends Repository<JournalEntry, Long> 
             "group by l.departmentId, l.projectId")
     List<Object[]> sumByDeptProject(@Param("accountId") Long accountId, @Param("asOf") LocalDate asOf,
                                     @Param("exclude") long exclude);
+
+    /** 거래처별 — 줄 거래처(없으면 전표 거래처) · 부서 · 프로젝트 묶음 잔액. 잔액실사(거래처별) 창이 쓴다. */
+    @Query("select coalesce(lp.id, ep.id), l.departmentId, l.projectId, coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e left join l.partner lp left join e.partner ep " +
+            "where l.account.id = :accountId and e.entryDate <= :asOf and e.id <> :exclude " +
+            "group by coalesce(lp.id, ep.id), l.departmentId, l.projectId")
+    List<Object[]> sumByPartnerDeptProject(@Param("accountId") Long accountId, @Param("asOf") LocalDate asOf,
+                                           @Param("exclude") long exclude);
 }

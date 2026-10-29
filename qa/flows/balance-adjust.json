@@ -32,7 +32,7 @@
       "steps": [
         "wait:1500",
         "expect:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|') === '|구분|전표일자|계정명|장부가액|실가액|회계전표'",
-        "expect:(() => { const book = Number(sessionStorage.getItem('ba-book')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[3]?.innerText.trim() === '복리후생비'); return !!tr && tr.cells[1].innerText.trim() === '계정별' && Number(tr.cells[4].innerText.replace(/,/g, '')) === book && Number(tr.cells[5].innerText.replace(/,/g, '')) === book + 11000 && / -\\d+$/.test(tr.cells[6].innerText.trim()) })()"
+        "expect:(() => { const book = Number(sessionStorage.getItem('ba-book')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[3]?.innerText.trim().startsWith('복리후생비')); return !!tr && tr.cells[1].innerText.trim() === '계정별' && Number(tr.cells[4].innerText.replace(/,/g, '')) === book && Number(tr.cells[5].innerText.replace(/,/g, '')) === book + 11000 && / -\\d+$/.test(tr.cells[6].innerText.trim()) })()"
       ]
     },
     {
@@ -54,13 +54,13 @@
         "wait:300",
         "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다.')",
         "clicklast:확인",
-        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[2]?.innerText.trim() === '복리후생비' && /^\\d{4}\\/\\d{2}\\/\\d{2} -\\d+$/.test(t.cells[1].innerText.trim())); tr.querySelector('input[type=checkbox]').click(); return tr.cells[1].innerText })()",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[2]?.innerText.trim().startsWith('복리후생비') && /^\\d{4}\\/\\d{2}\\/\\d{2} -\\d+$/.test(t.cells[1].innerText.trim())); tr.querySelector('input[type=checkbox]').click(); return tr.cells[1].innerText })()",
         "click:선택삭제",
         "wait:300",
         "expect:document.body.innerText.includes('선택한 전표를 삭제 하겠습니까?')",
         "clicklast:확인",
         "wait:1200",
-        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.cells[2]?.innerText.trim() === '복리후생비')",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.cells[2]?.innerText.trim().startsWith('복리후생비'))",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const b = JSON.parse(sessionStorage.getItem('ba-base')); const tb = await (await fetch('/api/journals/trial-balance?from=' + b.asOf + '&to=' + b.asOf, { headers: H })).json(); const r = tb.rows.find((x) => x.accountCode === '8109') || { debit: 0, credit: 0 }; const acc = (await (await fetch('/api/journals/balance-adjustments/accounts?asOf=' + b.asOf, { headers: H })).json()).find((x) => x.code === '8109'); return Number(r.debit) === b.d811 && Number(tb.totalDebit) === b.tbd && Number(acc.debitAmount) === b.bal && acc.adjustmentIds.length === 0 })()"
       ]
     },
