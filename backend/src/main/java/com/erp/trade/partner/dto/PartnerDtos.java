@@ -284,7 +284,9 @@ public final class PartnerDtos {
             boolean foreignCurrency, String salesTaxType, String purchaseTaxType,
             Integer creditDays, Integer settleDueDay,
             boolean arNoManaged, boolean apNoManaged,
-            String taxReportCode, String currencyCode
+            String taxReportCode, String currencyCode,
+            /** 계좌 · 카드 · 카드사의 짝 거래처면 BANK · CARD · CARD_ISSUER(BusinessPartner.linkedKind). */
+            String linkedKind
     ) {
         public static PartnerResponse from(BusinessPartner p) {
             return new PartnerResponse(
@@ -308,7 +310,7 @@ public final class PartnerDtos {
                     p.isForeignCurrency(), p.getSalesTaxType(), p.getPurchaseTaxType(),
                     p.getCreditDays(), p.getSettleDueDay(),
                     p.isArNoManaged(), p.isApNoManaged(),
-                    p.getTaxReportCode(), p.getCurrencyCode());
+                    p.getTaxReportCode(), p.getCurrencyCode(), p.getLinkedKind());
         }
     }
 }

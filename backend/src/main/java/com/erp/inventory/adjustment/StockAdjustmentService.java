@@ -37,6 +37,7 @@ public class StockAdjustmentService {
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
     private final StocktakeRepository stocktakeRepository;
+    private final StagedStockAdjustmentRepository stagedRepository;
     private final StockAdjustmentHistoryRepository historyRepository;
     private final com.erp.common.history.ChangeHistoryService changeHistory;
 
@@ -263,11 +264,25 @@ public class StockAdjustmentService {
                 .orElseThrow(() -> ApiException.notFound("재고조정을 찾을 수 없습니다. id=" + id));
         revert(a, username);
         logHistory(a, "삭제", username);
+        unlinkStaged(a);
         adjustmentRepository.delete(a);
         adjustmentRepository.flush();
         /* 단계별 반영은 한 장(번호)의 줄을 하나씩 지운다 — 마지막 줄이 지워질 때 전표 삭제 한 줄만 적는다. */
         if (adjustmentRepository.findSlip(a.getAdjustNo()).isEmpty()) {
             recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, List.of(a));
+        }
+    }
+
+    /**
+     * 단계별 실사로 맞춘 조정을 지우면 그 실사는 <b>조정 전</b>으로 돌아간다 — 원본 재고조정조회에서 단계별 26/10/10-1 을
+     * [선택삭제] 하니 재고조정진행단계의 그 실사 줄이 장부 · 차이 빈칸(조정 전)이 됐다(2026-10-28 loginaa 실측).
+     * 예전에는 DB 의 ON DELETE SET NULL 이 조정만 비워 '반영완료 · 조정전표 없음' 으로 남았다.
+     */
+    private void unlinkStaged(StockAdjustment a) {
+        for (StagedStockAdjustment s : stagedRepository.findByAdjustment_Id(a.getId())) {
+            s.setAdjustment(null);
+            s.setStatus(StagedStatus.REQUESTED);
+            s.setHandler(null);
         }
     }
 
@@ -344,6 +359,7 @@ public class StockAdjustmentService {
         List<StockAdjustment> rows = slipRows(adjustNo);
         withdrawSlip(rows, username);
         recordHistory(com.erp.common.history.ChangeHistoryService.DELETED, rows);
+        rows.forEach(this::unlinkStaged);
         adjustmentRepository.deleteAll(rows);
     }
 

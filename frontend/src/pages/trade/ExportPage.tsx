@@ -420,12 +420,12 @@ function ExportForm({ initial, partners, currencies, items, mappings, onClose, o
       )}
       <ExportSlipPickModal kind={pick} partnerId={h.partnerId ? Number(h.partnerId) : null} onClose={() => setPick(null)} onApply={applySlip} />
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full text-left">
+        <table ref={tableRef} className="w-full min-w-[1300px] table-fixed text-left">
           <thead>
             <tr>
               <th className="w-[30px]"></th>
               <th className="w-[200px]">품목코드</th>
-              <th>품목명</th>
+              <th className="w-[160px]">품목명</th>
               <th className="text-right w-[70px]">수량</th>
               <th className="w-[60px]">단위</th>
               <th className="text-right w-[90px]">단가</th>
@@ -442,11 +442,11 @@ function ExportForm({ initial, partners, currencies, items, mappings, onClose, o
               <tr key={i}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>
-                  <CodePickerField label="품목" hideLabel fill placeholder="품목코드" emptyLabel="선택 해제" value={l.itemId}
+                  <CodePickerField label="품목" hideLabel fill showCode placeholder="품목코드" emptyLabel="선택 해제" value={l.itemId}
                                    onChange={(v) => setLine(i, { itemId: v, unit: l.unit || itemOf(v)?.unit || '' })}
                                    items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
                 </td>
-                <td>{itemOf(l.itemId)?.name ?? ''}</td>
+                <td className="truncate" title={itemOf(l.itemId)?.name ?? ''}>{itemOf(l.itemId)?.name ?? ''}</td>
                 <td><input className="ec-input w-full text-right" aria-label={`${i + 1}행 수량`} value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
                 <td><input className="ec-input w-full" aria-label={`${i + 1}행 단위`} value={l.unit} onChange={(e) => setLine(i, { unit: e.target.value })} /></td>
                 <td><input className="ec-input w-full text-right" aria-label={`${i + 1}행 단가`} value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} /></td>

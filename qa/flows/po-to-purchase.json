@@ -1,0 +1,88 @@
+{
+  "about": "발주 → 구매 전환(원본 loginaa 2026-10-28 실측) — 발주서조회 줄 [진행상태] '조회' 는 목록 위 '생성한 전표' 창(머리 '발주서조회 : 일자 -No', 품목코드 · 품목명 · 규격 · 수량 · 잔량 · 생성한 전표 · 생성한 전표일자-No., 아래 [신규(F2)] · [닫기]). 발주 2줄(10 · 1000) → [신규(F2)] 는 그 발주의 잔량 · 담당자 · 창고로 찬 구매입력 창(일자 오늘) → 첫 줄 4 로 저장 → 창이 다시 그려져 첫 줄 잔량 6 · 둘째 줄 잔량 빈칸 · '구매' · 일자-No. → 구매조회 체크박스 열 · [불러온전표] 주황 꼬리표 → 구매를 지우면 잔량 10 · 1000. 구매입력 [발주] 불러오기는 발주 담당자를 채운다. 머리에 [새로고침] · 흐름 안내 글이 없다. 만든 전표는 지운다.",
+  "shots": [
+    {
+      "name": "준비 — QA-PROD · QA-MAT · QA-SUPP · QA-WH · 담당자 한 명으로 발주서(발주확정) 10 × 100 · 1000 × 10 을 API 로 만든다",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:800",
+        "js:(async()=>{const a=window.__api;const all=(await a('GET','/items')).body;const items=['QA-PROD','QA-MAT'].map((c)=>all.find((i)=>i.code===c));const sup=(await a('GET','/partners')).body.find((p)=>p.code==='QA-SUPP');const wh=(await a('GET','/warehouses')).body.find((w)=>w.code==='QA-WH');const emp=(await a('GET','/employees')).body.find((e)=>e.name);const r=await a('POST','/purchase-orders',{partnerId:sup.id,orderDate:(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(),taxable:true,employeeId:emp.id,warehouseId:wh.id,order:true,lines:[{itemId:items[0].id,quantity:10,unitPrice:100},{itemId:items[1].id,quantity:1000,unitPrice:10}]});if(r.status>=300)return 'PO '+r.status+' '+JSON.stringify(r.body);const o=r.body;sessionStorage.setItem('ptpPoId',o.id);sessionStorage.setItem('ptpEmpId',emp.id);sessionStorage.setItem('ptpEmpName',emp.name);sessionStorage.setItem('ptpEmpCode',emp.code);sessionStorage.setItem('ptpPoDoc',o.orderNo);sessionStorage.setItem('ptpItem1',items[0].code);sessionStorage.setItem('ptpPoShort',o.orderDate.slice(2).replace(/-/g,'/')+'-'+Number(o.orderNo.split('-').pop()));sessionStorage.setItem('ptpPoLong',o.orderDate.replace(/-/g,'/')+' -'+Number(o.orderNo.split('-').pop()));return o.status})()",
+        "expect:!!sessionStorage.getItem('ptpPoId')"
+      ]
+    },
+    {
+      "name": "발주서조회 — 머리에 [새로고침] · 흐름 안내가 없다. '조회' → 생성한 전표 창: 잔량 10 · 1,000, 생성한 전표 빈칸. [신규(F2)] → 잔량으로 찬 구매입력 창, 첫 줄 4 로 저장 → 창이 다시 그려져 6 · 빈칸 · '구매' · 일자-No.",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='새로고침')&&!document.body.innerText.includes('발주요청 → 발주계획')",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('ptpPoShort'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('ptpPoShort')).cells[9].querySelector('a').click(); true",
+        "wait:2000",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const r=[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].map((t)=>[...t.cells].map((c)=>c.innerText.trim()));return d.innerText.includes('발주서조회 : '+sessionStorage.getItem('ptpPoLong'))&&h==='품목코드|품목명|규격|수량|잔량|생성한 전표|생성한 전표일자-No.'&&r.length===2&&r[0][3]==='10'&&r[0][4]==='10'&&r[0][5]===''&&r[1][3]==='1,000'&&r[1][4]==='1,000'&&r[1][6]===''})()",
+        "expect:(()=>{const b=[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].map((x)=>x.textContent.trim()).filter((t)=>t&&!['✕','□','❐'].includes(t));return b.join('|')==='신규(F2)|닫기'})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='신규(F2)').click(); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label')==='구매입력'",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const v=[...d.querySelectorAll('tbody input')].map((i)=>i.value);return v.includes('10')&&(v.includes('1000')||v.includes('1,000'))})()",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input')].some((i)=>i.value.includes(sessionStorage.getItem('ptpEmpName')))",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const q=[...d.querySelectorAll('tbody tr')[0].querySelectorAll('input')].find((i)=>i.value==='10');q.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(q,'4');q.dispatchEvent(new Event('input',{bubbles:true}));q.dispatchEvent(new Event('change',{bubbles:true}));q.blur();return true})()",
+        "wait:400",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim().startsWith('저장(F8)')).click(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label')==='생성한 전표'",
+        "js:(async()=>{const p=(await window.__api('GET','/purchases')).body;const list=Array.isArray(p)?p:(p.content??[]);const mine=list.filter((x)=>(x.lines??[]).some((l)=>String(l.sourceOrderId)===sessionStorage.getItem('ptpPoId')));if(mine.length!==1)return 'purchases '+mine.length;const m=mine[0];sessionStorage.setItem('ptpBuyId',m.id);sessionStorage.setItem('ptpBuyLong',m.purchaseDate.replace(/-/g,'/')+' -'+Number(m.docNo.split('-').pop()));return m.docNo})()",
+        "expect:(async()=>{const p=(await window.__api('GET','/purchases')).body;const list=Array.isArray(p)?p:(p.content??[]);const m=list.find((x)=>String(x.id)===sessionStorage.getItem('ptpBuyId'));const q=m.lines.map((l)=>Number(l.quantity)).sort((a,b)=>a-b).join(',');return m.purchaseDate===(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})()&&String(m.employeeId)===sessionStorage.getItem('ptpEmpId')&&q==='4,1000'})()",
+        "expect:(()=>{const r=[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].map((t)=>[...t.cells].map((c)=>c.innerText.trim()));const no=sessionStorage.getItem('ptpBuyLong');return r.length===2&&r[0][4]==='6'&&r[0][5]==='구매'&&r[0][6]===no&&r[1][4]===''&&r[1][5]==='구매'&&r[1][6]===no})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog]')"
+      ]
+    },
+    {
+      "name": "구매조회 — 번호 다음 체크박스 열, 그 구매의 [불러온전표] 는 주황 꼬리표 '조회'",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "wait:2000",
+        "expect:!!document.querySelector('thead input[type=checkbox][aria-label=\"전체 선택\"]')",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ptpBuyLong')));if(!tr)return false;const b=tr.cells[tr.cells.length-1].querySelector('button');return !!tr.cells[1].querySelector('input[type=checkbox]')&&b.textContent.trim()==='조회'&&b.className.includes('ec-tag-warn')})()"
+      ]
+    },
+    {
+      "name": "구매입력 [발주] 불러오기 — 담은 발주의 담당자가 머리 담당자로 찬다(비어 있을 때). 저장하지 않는다",
+      "path": "/sales/buy",
+      "steps": [
+        "wait:1500",
+        "js:(()=>{const x=document.querySelector('input.code[placeholder=\"담당자\"]').closest('.ec-code').querySelector('button[title=\"선택 해제\"]');if(x)x.click();return true})()",
+        "wait:400",
+        "expect:document.querySelector('input.code[placeholder=\"담당자\"]').value===''",
+        "clicklast:발주",
+        "wait:2500",
+        "js:(async()=>{const find=()=>[...document.querySelectorAll('tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ptpPoDoc'))&&t.querySelector('input[type=checkbox]'));let tr=find();for(let k=0;k<30&&!tr;k++){await new Promise((r)=>setTimeout(r,500));tr=find()}if(!tr)return 'no row: '+document.body.innerText.slice(-300);const cb=tr.querySelector('input[type=checkbox]');if(!cb.checked)cb.click();return true})()",
+        "click:선택 담기",
+        "wait:800",
+        "expect:document.querySelector('input.code[placeholder=\"담당자\"]').value===sessionStorage.getItem('ptpEmpCode')"
+      ]
+    },
+    {
+      "name": "지우기 — 구매를 지우면 생성한 전표 창 잔량이 10 · 1,000 으로 돌아온다. 발주도 지운다",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:1500",
+        "js:(async()=>{const r=await window.__api('DELETE','/purchases/'+sessionStorage.getItem('ptpBuyId'));return r.status})()",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('ptpPoShort')).cells[9].querySelector('a').click(); true",
+        "wait:2000",
+        "expect:(()=>{const r=[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].map((t)=>[...t.cells].map((c)=>c.innerText.trim()));return r.length===2&&r[0][4]==='10'&&r[0][5]===''&&r[1][4]==='1,000'&&r[1][5]===''})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "js:(async()=>{const r=await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('ptpPoId'));return r.status})()",
+        "expect:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body;return !o.some((x)=>String(x.id)===sessionStorage.getItem('ptpPoId'))})()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const b=sessionStorage.getItem('ptpBuyId');const o=sessionStorage.getItem('ptpPoId');if(b)await fetch('/api/purchases/'+b,{method:'DELETE',headers:H});if(o)await fetch('/api/purchase-orders/'+o,{method:'DELETE',headers:H});['ptpBuyId','ptpPoId'].forEach((k)=>sessionStorage.removeItem(k));return true})()"
+  ]
+}

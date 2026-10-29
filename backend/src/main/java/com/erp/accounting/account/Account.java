@@ -57,6 +57,18 @@ public class Account extends BaseTimeEntity {
     @Builder.Default
     private boolean partnerAggregate = false;
 
+    /**
+     * 거래처별집계구분 창의 ☑부서별집계 · ☑프로젝트별집계 — 거래처별일 때 잔액실사(거래처별)가 거래처 안을 부서 · 프로젝트로도 나눈다
+     * (원본 잔액조정입력 1089 외상매출금 '거래처별/부서별/프로젝트별', 2026-10-29 데이터이관 QA 루프 73). 처음엔 둘 다 켜져 있다.
+     */
+    @Column(name = "aggregate_by_dept", nullable = false)
+    @Builder.Default
+    private boolean aggregateByDept = true;
+
+    @Column(name = "aggregate_by_project", nullable = false)
+    @Builder.Default
+    private boolean aggregateByProject = true;
+
     /** 상위계정 — 계정 나무. null 이면 맨 위. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")

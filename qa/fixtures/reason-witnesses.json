@@ -386,22 +386,6 @@
   ],
   "in": "backend"
  },
- "프로젝트그룹1": {
-  "claim": "프로젝트를 그룹으로 묶는 마스터가 없다",
-  "absent": [
-   "ProjectGroup",
-   "projectGroupId"
-  ],
-  "in": "backend"
- },
- "프로젝트그룹2": {
-  "claim": "프로젝트를 그룹으로 묶는 마스터가 없다",
-  "absent": [
-   "ProjectGroup",
-   "projectGroupId"
-  ],
-  "in": "backend"
- },
  "월별채권증감내역|정렬/소계기준": {
   "claim": "거래처마다 다섯 줄 + 끝 [누계] 로 고정이라 따로 묶을 것이 없다",
   "present": [
@@ -3132,13 +3116,13 @@
   ]
  },
  "발주서입력|추가문자형식1": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "A/S접수입력|&nbsp;": {
@@ -3182,243 +3166,243 @@
   "in": "both"
  },
  "발주서입력|추가문자형식2": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가문자형식3": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가문자형식4": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가문자형식5": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가숫자형식1": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가숫자형식2": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가숫자형식3": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가숫자형식4": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가숫자형식5": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가장문형식1": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가일자형식1": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가일자형식2": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가일자형식3": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가코드형식코드1": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가코드형식명1": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가코드형식코드2": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가코드형식명2": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가코드형식코드3": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|추가코드형식명3": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|금액1": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|금액2": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|적요1": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|적요2": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "발주서입력|적요3": {
-  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 추가항목을 읽는다",
+  "claim": "우리 추가항목은 이름을 회사가 지어 붙인다 — 원본처럼 [추가문자형식1] 이라는 이름의 칸으로 설 일이 없다. 발주서 화면은 그 줄 추가항목(PURCHASE_ORDER_LINE)을 읽는다",
   "absent": [
    "추가문자형식"
   ],
-  "in": "both",
+  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
   "present": [
-   "CustomFieldsPanel"
+   "entityType: 'PURCHASE_ORDER_LINE'"
   ]
  },
  "매출계획입력|금액": {

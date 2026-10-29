@@ -57,7 +57,7 @@ public final class BillingContractDtos {
             BillingUnit u = l.getBillingUnit();
             List<ProductLink> ps = l.getProducts().stream()
                     .map((p) -> ProductLink.of(
-                            p.getItem(), p.getQuantity(), p.getUnitPrice(), p.getSupplyAmount(), p.getVatAmount())).toList();
+                            p.getItem(), p.getSpec(), p.getQuantity(), p.getUnitPrice(), p.getSupplyAmount(), p.getVatAmount())).toList();
             return new LineResponse(l.getId(), l.getLineNo(), l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
                     l.getBillMonths(), l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
                     u != null ? u.getId() : null, u != null ? u.getCode() : null, u != null ? u.getName() : null, l.getRemark(), ps);

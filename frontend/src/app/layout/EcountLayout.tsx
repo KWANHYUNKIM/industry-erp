@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
 import { api } from '../../api/client'
@@ -17,7 +17,8 @@ import { ecAlert } from '../../components/EcDialog'
 interface Leaf { label: string; to?: string }
 interface Group { label: string; children: Leaf[] }
 type SideNode = Leaf | Group
-interface Tab { label: string; nodes: SideNode[] }
+/** home — 2단을 누르면 처음 여는 화면(원본 실측, 없으면 첫 화면). open — 처음부터 펼쳐 두는 묶음(지금 화면이 든 묶음은 늘 펼친다). */
+interface Tab { label: string; nodes: SideNode[]; home?: string; open?: string[] }
 interface TopMenu { label: string; tabs: Tab[] }
 
 const isGroup = (n: SideNode): n is Group => 'children' in n
@@ -102,7 +103,6 @@ const MENU: TopMenu[] = [
       { label: '환경설정', nodes: [{ label: '기능설정', to: '/settings/preferences' }, { label: '기본값설정', to: '/settings/defaults' }] },
       { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }, { label: '사용자정의필드', to: '/settings/custom-fields' }, { label: '디자인 시스템', to: '/settings/design-system' }] },
       { label: '보안관리', nodes: [{ label: '보안설정', to: '/settings/security' }] },
-      { label: '인쇄서식', nodes: [{ label: '인쇄용 결재라인', to: '/settings/print-sign' }] },
       { label: '다운로드', nodes: [{ label: '엑셀자료올리기기능', to: '/settings/download' }] },
     ],
   },
@@ -111,16 +111,15 @@ const MENU: TopMenu[] = [
     tabs: [
       {
         label: '기초등록',
+        home: '/inventory/items',
         nodes: [
-          { label: '품목등록', to: '/inventory/items' },
-          { label: '창고등록', to: '/inventory/warehouses' },
           { label: '거래처등록', to: '/sales/partners' },
+          { label: '창고등록', to: '/inventory/warehouses' },
           { label: '부서등록', to: '/groupware/org' },
+          { label: '프로젝트등록', to: '/inventory/projects' },
+          { label: '품목등록', to: '/inventory/items' },
           { label: '관리항목등록', to: '/inventory/manage-items' },
-          { label: '단가적용순서설정', to: '/inventory/price-order' },
-          { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' },
-          { label: '특별단가등록', to: '/sales/special-price' },
-          { label: '품목별단가', to: '/inventory/item-prices' },
+          { label: '단가관리', children: [{ label: '단가적용순서설정', to: '/inventory/price-order' }, { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' }, { label: '특별단가등록', to: '/sales/special-price' }, { label: '품목별단가', to: '/inventory/item-prices' }] },
           /* 원본 사이트맵 차례: … 품목별단가 · 사원(담당)등록(E010110 — 우리에게 없음) · 인쇄용결재라인등록(재고) E040111 · 외화등록 · 각종코드변경 */
           { label: '인쇄용결재라인등록(재고)', to: '/inventory/print-sign' },
           { label: '외화등록', to: '/settings/currencies' },
@@ -131,9 +130,10 @@ const MENU: TopMenu[] = [
         // (견적서·주문서·판매·판매일괄회계반영·출하지시서·출하). 현황류는 여기가 아니라 출력물 탭에 있다.
         // 우리 화면 하나가 원본의 조회·입력을 겸하는 경우가 많아, 없는 이름은 만들지 않고 있는 것만 건다.
         label: '영업관리',
+        home: '/sales/sales-list',
         nodes: [
-          { label: '견적서', children: [{ label: '견적서조회', to: '/sales/quotations' }] },
-          { label: '주문서', children: [{ label: '주문서조회', to: '/sales/orders' }, { label: '주문서현황', to: '/sales/order-status' }, { label: '주문서출고처리', to: '/sales/order-release' }] },
+          { label: '견적서', children: [{ label: '견적서조회', to: '/sales/quotations' }, { label: '견적서입력', to: '/sales/quotation-entry' }, { label: '견적서현황', to: '/sales/quotations?view=status' }, { label: '미주문현황', to: '/sales/unordered' }] },
+          { label: '주문서', children: [{ label: '주문서조회', to: '/sales/orders' }, { label: '주문서입력', to: '/sales/order-entry' }, { label: '주문서현황', to: '/sales/order-status' }, { label: '주문서출고처리', to: '/sales/order-release' }, { label: '미판매현황', to: '/sales/unsold' }] },
           {
             label: '판매',
             children: [
@@ -167,12 +167,13 @@ const MENU: TopMenu[] = [
             ],
           },
           { label: '판매일괄회계반영', children: [{ label: '판매일괄회계반영', to: '/sales/accounting-reflection?view=batch' }] },
-          { label: '출하지시서', children: [{ label: '출하지시서조회', to: '/sales/shipment-order' }] },
+          { label: '출하지시서', children: [{ label: '출하지시서조회', to: '/sales/shipment-order' }, { label: '출하지시서입력', to: '/sales/shipment-order-entry' }, { label: '출하지시서현황', to: '/sales/shipment-order-status' }] },
           {
             label: '출하',
             children: [
               { label: '출하조회', to: '/sales/shipment-inquiry' },
               { label: '출하입력', to: '/sales/shipment-entry' },
+              { label: '출하현황', to: '/sales/shipment' },
             ],
           },
           { label: '특별단가등록', to: '/sales/special-price' },
@@ -181,6 +182,7 @@ const MENU: TopMenu[] = [
       {
         // 원본 구매관리도 묶음이다(발주요청·발주계획·단가요청·발주서·구매·구매일괄회계반영).
         label: '구매관리',
+        home: '/sales/purchase-list',
         nodes: [
           { label: '발주요청', children: [{ label: '발주요청조회', to: '/sales/purchase-requests' }, { label: '발주요청입력', to: '/sales/purchase-request-input' }, { label: '발주요청현황', to: '/sales/purchase-request-status' }] },
           { label: '발주계획', children: [{ label: '발주계획조회', to: '/sales/purchase-plans' }, { label: '발주계획입력', to: '/sales/purchase-plan-input' }, { label: '발주계획현황', to: '/sales/purchase-plan-status' }] },
@@ -224,6 +226,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '생산/외주',
+        home: '/production/receipt-inquiry',
         nodes: [
           { label: 'BOM(소요량)조회', to: '/production/bom' },
           /* 원본 BOM(소요량) 묶음: BOM(소요량)조회 · BOM(소요량)현황 · 소요량계산(2026-10-02 loginaa 실측). */
@@ -275,7 +278,7 @@ const MENU: TopMenu[] = [
       },
       /* 원본 기타이동 탭(2026-10-20 loginaa 실측): 창고이동 · 자가사용 · 불량처리 · 재고조정 · 기타이동현황 다섯 묶음.
          창고이동조회 · 입력은 아직 기타이동 화면(창고이동 탭 · 등록 창)이 맡는다 — 원본은 여러 줄 전표 · 수정이 되는 별도 화면. */
-      { label: '기타이동', nodes: [
+      { label: '기타이동', open: ['기타이동현황'], nodes: [
         { label: '창고이동', children: [{ label: '창고이동조회', to: '/inventory/transfer' }, { label: '창고이동입력', to: '/inventory/transfer?new=1' }, { label: '창고이동현황', to: '/inventory/transfer-status' }] },
         /* 원본 기타이동 탭의 [자가사용] 묶음 — 조회 · 입력 · 현황(2026-10-12 실측). 입력은 예전엔 기타이동 화면의 탭 속 창뿐이었다. */
         { label: '자가사용', children: [{ label: '자가사용조회', to: '/inventory/self-use' }, { label: '자가사용입력', to: '/inventory/self-use-input' }, { label: '자가사용현황', to: '/inventory/self-use-status' }] },
@@ -284,7 +287,7 @@ const MENU: TopMenu[] = [
         { label: '재고조정', children: [{ label: '재고조정진행단계', to: '/inventory/staged-progress' }, { label: '재고실사조회', to: '/inventory/stocktake-list' }, { label: '재고조정조회', to: '/inventory/adjust-list' }, { label: '재고실사현황', to: '/inventory/stocktake-status' }, { label: '재고조정현황', to: '/inventory/adjust-status' }] },
         { label: '기타이동현황', children: [{ label: '대체사용현황', to: '/inventory/substitute-status' }, { label: '폐기현황', to: '/inventory/disposal-status' }, { label: '불량률파악보고서', to: '/quality/defect-report' }] }] },
       /* 원본 쇼핑몰관리 탭 = [기초등록] 쇼핑몰등록 · 쇼핑몰품목코드연결 + [주문관리] 일곱 화면(2026-10-20 실측). */
-      { label: '쇼핑몰관리', nodes: [
+      { label: '쇼핑몰관리', open: ['주문관리'], nodes: [
         { label: '기초등록', children: [{ label: '쇼핑몰등록', to: '/sales/mall-accounts' }, { label: '쇼핑몰품목코드연결', to: '/sales/mall-item-mappings' }] },
         { label: '주문관리', children: [{ label: '주문관리진행단계', to: '/sales/mall' }, { label: '주문확인처리', to: '/sales/mall/confirm' }, { label: '배송처리', to: '/sales/mall/ship' }, { label: '취소처리', to: '/sales/mall/cancel' }, { label: '반품처리', to: '/sales/mall/return' }, { label: '교환처리', to: '/sales/mall/exchange' }, { label: 'ERP전송', to: '/sales/mall/erp-send' }] }] },
       {
@@ -292,6 +295,7 @@ const MENU: TopMenu[] = [
         // 우리가 영업관리·구매관리·재고관리에 흩어 두었던 '현황' 화면들이 원본에서는 전부 여기 모인다.
         label: '출력물',
         nodes: [
+          { label: '커뮤니케이션센터', to: '/groupware/messages' },
           { label: '증빙센터', to: '/accounting/evidence-center' },
           {
             label: '재고현황',
@@ -411,18 +415,20 @@ const MENU: TopMenu[] = [
       {
         /* 원본 사이트맵(2026-10-13): A/S접수(입력 · 조회 · 현황) · A/S수리(입력 · 조회 · 현황 · 소모현황) 두 묶음. */
         label: 'A/S관리',
+        home: '/quality/as', open: ['A/S수리'],
         nodes: [
           { label: 'A/S접수', children: [{ label: 'A/S접수입력', to: '/quality/as-entry' }, { label: 'A/S접수조회', to: '/quality/as' }, { label: 'A/S접수현황', to: '/quality/as-status' }] },
           { label: 'A/S수리', children: [{ label: 'A/S수리입력', to: '/quality/as-repair-entry' }, { label: 'A/S수리조회', to: '/quality/as-repair-list' }, { label: 'A/S수리현황', to: '/quality/as-repair-status' }, { label: 'A/S소모현황', to: '/quality/as-consumption' }] },
         ],
       },
-      { label: '시리얼/로트No.', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '시리얼/로트No.내역조회', to: '/quality/lot-tx-list' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }, { label: '시리얼/로트No.재고조정', to: '/quality/lot-adjust' }, { label: '시리얼/로트No.재고수불부', to: '/quality/lot-ledger' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '품목vs시리얼재고수량비교', to: '/quality/lot-compare' }] },
+      { label: '시리얼/로트No.', home: '/quality/lot-tx-list', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '시리얼/로트No.내역조회', to: '/quality/lot-tx-list' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }, { label: '시리얼/로트No.재고조정', to: '/quality/lot-adjust' }, { label: '시리얼/로트No.재고수불부', to: '/quality/lot-ledger' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '품목vs시리얼재고수량비교', to: '/quality/lot-compare' }] },
       {
         /*
          * 원본 사이트맵(2026-10-14): 품질검사요청(입력 · 조회 · 현황 · 미검사현황) · 품질검사(유형등록 · 입력 · 조회 · 현황) 두 묶음.
          * 불량률파악보고서는 원본 재고 I › 기타이동현황 에 있다(우리도 거기 있다) — 여기서는 뺐다(라우트는 그대로).
          */
         label: '품질관리',
+        home: '/quality/inspection-request', open: ['품질검사'],
         nodes: [
           { label: '품질검사요청', children: [{ label: '품질검사요청입력', to: '/quality/inspection-request-entry' }, { label: '품질검사요청조회', to: '/quality/inspection-request' }, { label: '품질검사요청현황', to: '/quality/request-status' }, { label: '미검사현황', to: '/quality/uninspected' }] },
           { label: '품질검사', children: [{ label: '품질검사유형등록', to: '/quality/inspection-type' }, { label: '품질검사입력', to: '/quality/inspection-entry' }, { label: '품질검사조회', to: '/quality/inspection' }, { label: '품질검사현황', to: '/quality/inspection-status' }] },
@@ -430,18 +436,15 @@ const MENU: TopMenu[] = [
       },
       {
         label: '계획관리',
+        home: '/sales/sales-plan-list', open: ['프로젝트계획'],
         nodes: [
           /* 원본 매출계획 > [매출계획입력](E040624) — 따로 된 입력 화면(2026-10-14). 폼은 조회 창과 같은 features/salesplan. */
-          { label: '매출계획입력', to: '/sales/sales-plan-entry' },
           /* 원본 매출계획 > [매출계획조회](E040625) · 입력(E040624) — 여러 줄 전표(2026-10-04). */
-          { label: '매출계획조회', to: '/sales/sales-plan-list' },
           /* 원본 매출계획 > [매출계획현황](E040640) — 계획 줄 목록 + 달마다 계(2026-10-04). 예전 [매출계획 / 비교표] 한 화면 대신. */
-          { label: '매출계획현황', to: '/sales/sales-plan-status' },
           /* 원본 매출계획 > [매출계획비교표](E040626) — 기간 안 계획과 판매 전부를 표시조건으로 견주는 출력물(2026-10-04). */
-          { label: '매출계획비교표', to: '/sales/sales-plan-compare' },
           /* 원본 프로젝트계획 > [프로젝트계획조회](E040636) · [프로젝트계획/실적현황](E040637) — 2026-10-13. */
-          { label: '프로젝트계획조회', to: '/accounting/project-plan' },
-          { label: '프로젝트계획/실적현황', to: '/accounting/project-plan-status' },
+          { label: '매출계획', children: [{ label: '매출계획입력', to: '/sales/sales-plan-entry' }, { label: '매출계획조회', to: '/sales/sales-plan-list' }, { label: '매출계획현황', to: '/sales/sales-plan-status' }, { label: '매출계획비교표', to: '/sales/sales-plan-compare' }] },
+          { label: '프로젝트계획', children: [{ label: '프로젝트계획조회', to: '/accounting/project-plan' }, { label: '프로젝트계획/실적현황', to: '/accounting/project-plan-status' }] },
           { label: '생산계획(MPS)', to: '/production/planning' },
           /* 원본 생산/외주 탭의 표기는 [생산계획/MRP생성] 이다(사본 좌측 메뉴 실측). */
           { label: '생산계획/MRP생성', to: '/production/mrp' },
@@ -449,6 +452,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '이익관리',
+        home: '/accounting/daily-profit', open: ['월별이익'],
         nodes: [
           { label: '손익요약', to: '/accounting/profit' },
           { label: '품목별원가/이익', to: '/accounting/item-cost' },
@@ -471,10 +475,13 @@ const MENU: TopMenu[] = [
               { label: '일별이익현황', to: '/accounting/daily-profit' },
             ],
           },
+          /* 원본 2단에 없는 우리 화면(예전 회계 II › 프로젝트 — 2026-10-28 원본 2단 실측에 맞춰 그 2단을 빼며 여기로) */
+          { label: '프로젝트별 손익', to: '/accounting/project-profit' },
         ],
       },
       {
         label: '오더관리',
+        home: '/sales/order-stages',
         nodes: [
           { label: '오더관리(수주)', to: '/sales/orders' },
           /* 원본 오더관리 탭의 표기는 [오더관리유형등록] 이다(사본 좌측 메뉴 실측). */
@@ -486,6 +493,7 @@ const MENU: TopMenu[] = [
       {
         // 원본 WMS 탭(2026-10-20 실측) — 창고관리는 우리 로케이션 화면, 나머지는 연동 화면 틀
         label: 'WMS',
+        home: '/inventory/wms',
         nodes: [
           { label: 'WMS계정선택', to: '/inventory/wms/account' },
           { label: '창고관리', to: '/inventory/wms' },
@@ -541,6 +549,7 @@ const MENU: TopMenu[] = [
         /* 원본 회계 I › FastEntry(2026-10-14 loginaa) — 일반전표 · 지출결의서 · 입금보고서 · 가지급금정산서 · 자동생성전표조회 · 잔액조정입력(넷).
            예전에 여기 섞여 있던 현금예금입금 · 현금예금출금 · 계좌간이동·카드대금결제는 현금거래로, 비현금거래(대체전표)는 비현금거래로 옮겼다. */
         label: 'FastEntry',
+        open: ['잔액조정입력'],
         nodes: [
           { label: '일반전표', to: '/accounting/journal-entry' },
           { label: '지출결의서', to: '/accounting/vouchers' },
@@ -555,69 +564,11 @@ const MENU: TopMenu[] = [
       },
       {
         /* 원본 회계 I › 매출/매입거래(2026-10-13 loginaa) — 매출전표 I · 매입전표 I. */
-        label: '매출/매입거래',
+        label: '매출매입거래',
         nodes: [
           { label: '매출전표 I', to: '/accounting/sales-slip' },
           { label: '매입전표 I', to: '/accounting/purchase-slip' },
         ],
-      },
-      {
-        /* 원본 회계 I › 현금거래(2026-10-12 loginaa) — 현금예금입금 · 현금예금출금 두 묶음. */
-        label: '현금거래',
-        nodes: [
-          { label: '현금예금입금', children: [
-            { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },
-            { label: '매출처로부터', to: '/accounting/sales-collection' }, { label: '카드매출대금회수', to: '/accounting/card-sales-collection' },
-            { label: '일시적으로(입금)', to: '/accounting/temp-deposit' }, { label: '은행차입으로', to: '/accounting/bank-borrowing' }, { label: '기타입금', to: '/accounting/other-deposit' },
-          ] },
-          { label: '현금예금출금', children: [
-            { label: '지출결의서', to: '/accounting/vouchers' }, { label: '매입처로', to: '/accounting/purchase-payment' },
-            { label: '영수증으로', to: '/accounting/receipt-payment' }, { label: '법인카드대금결제', to: '/accounting/card-bill-payment' }, { label: '계좌간이동', to: '/accounting/account-transfer' },
-            { label: '일시적으로(출금)', to: '/accounting/temp-withdraw' }, { label: '은행으로', to: '/accounting/loan-repayment' }, { label: '기타출금', to: '/accounting/other-withdraw' },
-          ] },
-          /* 원본에 없는 우리 간편입력(현금예금 한 화면 · 계좌/카드 권한) — FastEntry 에서 옮겨 왔다. */
-          { label: '간편입력', children: [
-            { label: '현금예금입금', to: '/accounting/cash-deposit' }, { label: '현금예금출금', to: '/accounting/cash-withdraw' },
-            { label: '계좌간이동·카드대금결제', to: '/accounting/cash-details' },
-          ] },
-        ],
-      },
-      {
-        /* 원본 회계 I › 비현금거래(2026-10-13 loginaa) — 증빙만수령(일반영수증 · 신용카드전표 · 가지급금정산서) · 기타. */
-        label: '비현금거래',
-        nodes: [
-          { label: '증빙만수령', children: [
-            { label: '일반영수증', to: '/accounting/noncash-receipt' }, { label: '신용카드전표', to: '/accounting/noncash-card' },
-            { label: '가지급금정산서', to: '/accounting/vouchers?type=ADVANCE_SETTLEMENT' },
-          ] },
-          { label: '기타', to: '/accounting/noncash-other' },
-          { label: '비현금거래(대체전표)', to: '/accounting/non-cash' },
-        ],
-      },
-      {
-        label: '어음거래',
-        nodes: [
-          /* 원본 회계 I › 어음거래(2026-10-20 loginaa): 받을어음 9 · 지급어음 8. 받을어음증가 · 감소는 한 장 입력(C000014 · E010602).
-             거래처지급(E010603) · 지급어음증가 · 감소(E010604 · E010605)도 한 장 입력. 일괄감소 둘(E010621 · E010629)은 보유 어음 목록 → 입금보고서 · 지출결의서. */
-          { label: '받을어음', children: [
-            { label: '받을어음증가', to: '/accounting/notes-increase' }, { label: '받을어음감소', to: '/accounting/notes-decrease' },
-            { label: '받을어음조회', to: '/accounting/notes-list' }, { label: '받을어음거래내역', to: '/accounting/notes-ledger' },
-            { label: '받을어음증가현황', to: '/accounting/notes-in' }, { label: '받을어음감소현황', to: '/accounting/notes-out' },
-            { label: '받을어음거래처지급', to: '/accounting/notes-endorse' }, { label: '받을어음일괄감소', to: '/accounting/notes-batch-decrease' },
-            { label: '보유어음현황', to: '/accounting/notes-held' },
-          ] },
-          { label: '지급어음', children: [
-            { label: '지급어음증가', to: '/accounting/notes-pay-increase' }, { label: '지급어음감소', to: '/accounting/notes-pay-decrease' },
-            { label: '지급어음일괄감소', to: '/accounting/notes-pay-batch-decrease' },
-            { label: '지급어음조회', to: '/accounting/notes-pay-list' }, { label: '지급어음거래내역', to: '/accounting/notes-pay-ledger' },
-            { label: '지급어음증가현황', to: '/accounting/notes-pay-in' }, { label: '지급어음감소현황', to: '/accounting/notes-pay-out' },
-            { label: '미지급어음현황', to: '/accounting/notes-unpaid' },
-          ] },
-        ],
-      },
-      {
-        label: '고정자산',
-        nodes: [{ label: '고정자산·감가상각', to: '/accounting/fixed-assets' }, { label: '고정자산대장', to: '/accounting/fixed-asset-ledger' }, { label: '고정자산증가내역', to: '/accounting/fixed-asset-in' }, { label: '고정자산감소내역', to: '/accounting/fixed-asset-out' }, { label: '고정자산증감대장', to: '/accounting/fixed-asset-movement' }, { label: '고정자산수불부', to: '/accounting/fixed-asset-stock' }, { label: '고정자산전표조회', to: '/accounting/fixed-asset-slips' }, { label: '감가상각계산', to: '/accounting/depreciation-calc' }],
       },
       {
         label: '전자(세금)계산서',
@@ -642,6 +593,67 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        /* 원본 회계 I › 현금거래(2026-10-12 loginaa) — 현금예금입금 · 현금예금출금 두 묶음. */
+        label: '현금거래',
+        home: '/accounting/receipt-payment', open: ['현금예금입금'],
+        nodes: [
+          { label: '현금예금입금', children: [
+            { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },
+            { label: '매출처로부터', to: '/accounting/sales-collection' }, { label: '카드매출대금회수', to: '/accounting/card-sales-collection' },
+            { label: '일시적으로(입금)', to: '/accounting/temp-deposit' }, { label: '은행차입으로', to: '/accounting/bank-borrowing' }, { label: '기타입금', to: '/accounting/other-deposit' },
+          ] },
+          { label: '현금예금출금', children: [
+            { label: '지출결의서', to: '/accounting/vouchers' }, { label: '매입처로', to: '/accounting/purchase-payment' },
+            { label: '영수증으로', to: '/accounting/receipt-payment' }, { label: '법인카드대금결제', to: '/accounting/card-bill-payment' }, { label: '계좌간이동', to: '/accounting/account-transfer' },
+            { label: '일시적으로(출금)', to: '/accounting/temp-withdraw' }, { label: '은행으로', to: '/accounting/loan-repayment' }, { label: '기타출금', to: '/accounting/other-withdraw' },
+          ] },
+          /* 원본에 없는 우리 간편입력(현금예금 한 화면 · 계좌/카드 권한) — FastEntry 에서 옮겨 왔다. */
+          { label: '간편입력', children: [
+            { label: '현금예금입금', to: '/accounting/cash-deposit' }, { label: '현금예금출금', to: '/accounting/cash-withdraw' },
+            { label: '계좌간이동·카드대금결제', to: '/accounting/cash-details' },
+          ] },
+        ],
+      },
+      {
+        /* 원본 회계 I › 비현금거래(2026-10-13 loginaa) — 증빙만수령(일반영수증 · 신용카드전표 · 가지급금정산서) · 기타. */
+        label: '비현금거래',
+        home: '/accounting/noncash-card',
+        nodes: [
+          { label: '증빙만수령', children: [
+            { label: '일반영수증', to: '/accounting/noncash-receipt' }, { label: '신용카드전표', to: '/accounting/noncash-card' },
+            { label: '가지급금정산서', to: '/accounting/vouchers?type=ADVANCE_SETTLEMENT' },
+          ] },
+          { label: '기타', to: '/accounting/noncash-other' },
+          { label: '비현금거래(대체전표)', to: '/accounting/non-cash' },
+        ],
+      },
+      {
+        label: '어음거래',
+        open: ['지급어음'],
+        nodes: [
+          /* 원본 회계 I › 어음거래(2026-10-20 loginaa): 받을어음 9 · 지급어음 8. 받을어음증가 · 감소는 한 장 입력(C000014 · E010602).
+             거래처지급(E010603) · 지급어음증가 · 감소(E010604 · E010605)도 한 장 입력. 일괄감소 둘(E010621 · E010629)은 보유 어음 목록 → 입금보고서 · 지출결의서. */
+          { label: '받을어음', children: [
+            { label: '받을어음증가', to: '/accounting/notes-increase' }, { label: '받을어음감소', to: '/accounting/notes-decrease' },
+            { label: '받을어음거래처지급', to: '/accounting/notes-endorse' }, { label: '받을어음일괄감소', to: '/accounting/notes-batch-decrease' },
+            { label: '받을어음조회', to: '/accounting/notes-list' }, { label: '받을어음거래내역', to: '/accounting/notes-ledger' },
+            { label: '받을어음증가현황', to: '/accounting/notes-in' }, { label: '받을어음감소현황', to: '/accounting/notes-out' },
+            { label: '보유어음현황', to: '/accounting/notes-held' },
+          ] },
+          { label: '지급어음', children: [
+            { label: '지급어음증가', to: '/accounting/notes-pay-increase' }, { label: '지급어음감소', to: '/accounting/notes-pay-decrease' },
+            { label: '지급어음일괄감소', to: '/accounting/notes-pay-batch-decrease' },
+            { label: '지급어음조회', to: '/accounting/notes-pay-list' }, { label: '지급어음거래내역', to: '/accounting/notes-pay-ledger' },
+            { label: '지급어음증가현황', to: '/accounting/notes-pay-in' }, { label: '지급어음감소현황', to: '/accounting/notes-pay-out' },
+            { label: '미지급어음현황', to: '/accounting/notes-unpaid' },
+          ] },
+        ],
+      },
+      {
+        label: '고정자산',
+        nodes: [{ label: '고정자산·감가상각', to: '/accounting/fixed-assets' }, { label: '고정자산대장', to: '/accounting/fixed-asset-ledger' }, { label: '고정자산증가내역', to: '/accounting/fixed-asset-in' }, { label: '고정자산감소내역', to: '/accounting/fixed-asset-out' }, { label: '고정자산증감대장', to: '/accounting/fixed-asset-movement' }, { label: '고정자산수불부', to: '/accounting/fixed-asset-stock' }, { label: '고정자산전표조회', to: '/accounting/fixed-asset-slips' }, { label: '감가상각계산', to: '/accounting/depreciation-calc' }],
+      },
+      {
         label: '회계거래관리',
         nodes: [
           /* 원본 회계거래관리(2026-10-20 loginaa): 회계거래조회 · 전표인쇄 · 매출 · 매입(세금)계산서조회 · 지출결의서 · 입금보고서 · 가지급금정산서인쇄.
@@ -660,6 +672,7 @@ const MENU: TopMenu[] = [
       {
         label: '출력물',
         nodes: [
+          { label: '커뮤니케이션센터', to: '/groupware/messages' },
           {
             /* 원본 출력물 › 경영자료(2026-10-20 loginaa) 차례. 사용자정의보고서는 아직 없다(보고서 양식 설정이 먼저 — plans/회계1.md 남은 것). */
             label: '경영자료',
@@ -710,11 +723,11 @@ const MENU: TopMenu[] = [
               { label: '원가명세서', to: '/accounting/cost-statement' },
               { label: '계정명세서', to: '/accounting/account-detail' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
-            ],
-          },
               { label: '현금흐름표', to: '/accounting/cash-flow-statement' },
               { label: '이익잉여금처분계산서', to: '/accounting/retained-earnings-statement' },
               { label: '수입지출명세서', to: '/accounting/income-expense-statement' },
+            ],
+          },
           {
             /* 원본 출력물 › 기타(E010847 … E010705, 2026-10-20 실측) 차례. 전표인쇄 · 거래처중심입력은 회계거래관리 · 재고 쪽 화면을 같이 건다. */
             label: '기타',
@@ -757,42 +770,6 @@ const MENU: TopMenu[] = [
         ],
       },
       {
-        label: '수표관리',
-        nodes: [
-          { label: '수표관리(받은수표·발행수표)', to: '/accounting/checks' },
-          /* 원본 회계 II > 수표관리 > 수령수표의 현황(E060604). */
-          { label: '수령수표입금처리', to: '/accounting/checks-deposit' },
-          { label: '수령수표조회', to: '/accounting/checks-list' },
-          { label: '수령수표거래내역', to: '/accounting/checks-ledger' },
-          { label: '수령수표현황', to: '/accounting/checks-held' },
-          { label: '수령수표증가현황', to: '/accounting/checks-in' },
-          { label: '수령수표감소현황', to: '/accounting/checks-out' },
-          { label: '발행수표출금처리', to: '/accounting/checks-withdraw' },
-          { label: '발행수표조회', to: '/accounting/checks-issued-list' },
-          { label: '발행수표거래내역', to: '/accounting/checks-issued-ledger' },
-          { label: '발행수표현황', to: '/accounting/checks-issued' },
-          { label: '발행수표증가현황', to: '/accounting/checks-issued-in' },
-          { label: '발행수표감소현황', to: '/accounting/checks-issued-out' },
-        ],
-      },
-      {
-        label: '계약관리',
-        nodes: [
-          { label: '계약항목등록', to: '/accounting/contract-items' },
-          { label: '계약입력', to: '/accounting/billing-contracts/new' },
-          { label: '계약조회', to: '/accounting/billing-contracts' },
-          { label: '계약단가/수량일괄변경', to: '/accounting/contract-price-change' },
-          { label: '계약현황', to: '/accounting/contract-status' },
-          { label: '청구예정자료생성', to: '/accounting/contract-bills' },
-          { label: '청구예정자료인쇄', to: '/accounting/contract-bill-print' },
-          { label: '청구예정자료미생성현황', to: '/accounting/contract-unbilled' },
-          { label: '회계/판매일괄반영', to: '/accounting/contract-reflect' },
-          { label: '회계미반영현황(계약)', to: '/accounting/contract-unreflected' },
-          { label: '매출(세금)계산서현황(계약)', to: '/accounting/contract-invoices' },
-          { label: '계약관리·전자계약', to: '/accounting/contracts' },
-        ],
-      },
-      {
         label: '채무관리',
         nodes: [
           { label: '채무감소등록', to: '/accounting/bonds/ap/decrease-entry' },
@@ -811,14 +788,32 @@ const MENU: TopMenu[] = [
         ],
       },
       {
-        label: '전자계약',
+        label: '수표관리',
+        home: '/accounting/checks-list', open: ['발행수표'],
         nodes: [
-          { label: '계약서진행단계', to: '/accounting/e-contracts' },
-          { label: '계약서현황', to: '/accounting/e-contracts/status' },
+          { label: '수령수표', children: [
+            { label: '수령수표입금처리', to: '/accounting/checks-deposit' },
+            { label: '수령수표조회', to: '/accounting/checks-list' },
+            { label: '수령수표거래내역', to: '/accounting/checks-ledger' },
+            { label: '수령수표현황', to: '/accounting/checks-held' },
+            { label: '수령수표증가현황', to: '/accounting/checks-in' },
+            { label: '수령수표감소현황', to: '/accounting/checks-out' },
+          ] },
+          { label: '발행수표', children: [
+            { label: '발행수표출금처리', to: '/accounting/checks-withdraw' },
+            { label: '발행수표조회', to: '/accounting/checks-issued-list' },
+            { label: '발행수표거래내역', to: '/accounting/checks-issued-ledger' },
+            { label: '발행수표현황', to: '/accounting/checks-issued' },
+            { label: '발행수표증가현황', to: '/accounting/checks-issued-in' },
+            { label: '발행수표감소현황', to: '/accounting/checks-issued-out' },
+          ] },
+          /* 받은수표 · 발행수표를 한 화면에서 보는 우리 화면 — 원본 메뉴에 없다 */
+          { label: '수표관리(받은수표·발행수표)', to: '/accounting/checks' },
         ],
       },
       {
         label: '자금계획',
+        home: '/accounting/fund-plans/status', open: ['출력물'],
         nodes: [
           /* 원본 자금계획 탭(2026-10-12 실측): 계획전표조회 · 계획전표현황 · 출력물(추정자금일보 · 월보 · 연보). */
           { label: '계획전표조회', to: '/accounting/fund-plans' },
@@ -833,6 +828,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '예산관리',
+        home: '/accounting/budget/status',
         nodes: [
           { label: '월별예산조회', to: '/accounting/budget' },
           { label: '출력물', children: [
@@ -846,6 +842,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '수입비용',
+        home: '/accounting/import-cost/vouchers', open: ['수입비용출력물'],
         /* 원본 회계 II › 수입비용(輸入 — 미착품) 사이트맵 차례(2026-10-14 실측). 예전 '수입등록·수입비용현황'(/accounting/income, 收入)은
            원본 이 메뉴에 없는 화면이라 메뉴에서만 뺐다(라우트는 그대로 — 어디로 둘지 사용자 결정 대기, plans/회계2.md). */
         nodes: [
@@ -869,20 +866,14 @@ const MENU: TopMenu[] = [
         ],
       },
       {
-        label: '프로젝트',
-        nodes: [
-          { label: '프로젝트별 손익', to: '/accounting/project-profit' },
-          { label: '프로젝트계획', to: '/accounting/project-plan' },
-          { label: '프로젝트등록', to: '/groupware/project' },
-        ],
-      },
-      {
         label: '비용관리',
+        home: '/accounting/expense-items', open: ['비용내역', '비용현황'],
         nodes: [
           { label: '기본사항등록', children: [
             { label: '통제유형등록', to: '/accounting/expense-control-types' },
             { label: '비용등록', to: '/accounting/expense-items' },
             { label: '비용그룹등록', to: '/accounting/expense-groups' },
+            { label: '비용일괄등록', to: '/accounting/expense-bulk' },
           ] },
           { label: '비용내역', children: [
             { label: '비용내역입력', to: '/accounting/expense' },
@@ -890,7 +881,23 @@ const MENU: TopMenu[] = [
             { label: '전표별회계반영(비용)', to: '/accounting/expense-settle' },
           ] },
           { label: '비용현황', children: [{ label: '비용내역현황', to: '/accounting/expense-detail' }] },
-            { label: '비용일괄등록', to: '/accounting/expense-bulk' },
+        ],
+      },
+      {
+        label: '계약관리',
+        nodes: [
+          { label: '계약항목등록', to: '/accounting/contract-items' },
+          { label: '계약', children: [{ label: '계약입력', to: '/accounting/billing-contracts/new' }, { label: '계약조회', to: '/accounting/billing-contracts' }, { label: '계약단가/수량일괄변경', to: '/accounting/contract-price-change' }, { label: '계약현황', to: '/accounting/contract-status' }] },
+          { label: '청구예정자료', children: [{ label: '청구예정자료생성', to: '/accounting/contract-bills' }, { label: '청구예정자료인쇄', to: '/accounting/contract-bill-print' }, { label: '청구예정자료미생성현황', to: '/accounting/contract-unbilled' }] },
+          { label: '회계반영', children: [{ label: '회계/판매일괄반영', to: '/accounting/contract-reflect' }, { label: '회계미반영현황(계약)', to: '/accounting/contract-unreflected' }, { label: '매출(세금)계산서현황(계약)', to: '/accounting/contract-invoices' }] },
+          { label: '계약관리·전자계약', to: '/accounting/contracts' },
+        ],
+      },
+      {
+        label: '전자계약',
+        nodes: [
+          { label: '계약서진행단계', to: '/accounting/e-contracts' },
+          { label: '계약서현황', to: '/accounting/e-contracts/status' },
         ],
       },
     ],
@@ -900,6 +907,7 @@ const MENU: TopMenu[] = [
     tabs: [
       {
         label: '급여관리',
+        home: '/hr/payroll', open: ['기본사항등록', '근무기록', '4대보험신고'],
         nodes: [
           { label: '기본사항등록', children: [
             { label: '사원등록', to: '/hr/employees' },
@@ -927,6 +935,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '인사관리',
+        open: ['인사발령', '인사관리현황', '조직도관리'],
         nodes: [
           { label: '인사카드등록', to: '/hr/cards' },
           {
@@ -955,6 +964,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '일용근로급여관리',
+        home: '/hr/daily-payroll', open: ['일용근로 기본사항 등록', '일용근로 근무기록'],
         nodes: [
           { label: '일용근로 기본사항 등록', children: [
             { label: '일용근로 사원등록', to: '/hr/daily-workers' },
@@ -978,14 +988,8 @@ const MENU: TopMenu[] = [
         ],
       },
       {
-        label: '전자근로계약',
-        nodes: [
-          { label: '근로계약서진행단계', to: '/hr/contracts' },
-          { label: '근로계약현황', to: '/hr/contracts/status' },
-        ],
-      },
-      {
         label: '근태관리',
+        home: '/hr/leave-list', open: ['기본사항등록', '출/퇴근(사원)', '출력물'],
         nodes: [
           { label: '기본사항등록', children: [{ label: '근태항목등록', to: '/hr/attendance-kinds' }, { label: '휴가항목등록', to: '/hr/vacation-kinds' }, { label: '사원별휴가일수조회', to: '/hr/vacation-grants' }] },
           {
@@ -1007,6 +1011,13 @@ const MENU: TopMenu[] = [
           },
         ],
       },
+      {
+        label: '전자근로계약',
+        nodes: [
+          { label: '근로계약서진행단계', to: '/hr/contracts' },
+          { label: '근로계약현황', to: '/hr/contracts/status' },
+        ],
+      },
     ],
   },
   {
@@ -1019,6 +1030,7 @@ const MENU: TopMenu[] = [
     tabs: [
       {
         label: '원천징수',
+        open: ['지급명세서', '일용근로', '출력물'],
         nodes: [
           { label: '세무신고', children: [
             { label: '원천징수이행상황신고서', to: '/accounting/withholding' },
@@ -1056,6 +1068,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '기타원천세',
+        open: ['기타원천세', '조회/인쇄'],
         nodes: [
           { label: '소득자등록', to: '/accounting/other-withholding/payees' },
           { label: '기타원천세', children: [
@@ -1071,6 +1084,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '부가세',
+        home: '/accounting/vat/return',
         nodes: [
           { label: '신고전검토자료', children: [
             { label: '(세금)계산서발행/수령', to: '/accounting/vat/tax-voucher' },
@@ -1110,6 +1124,7 @@ const MENU: TopMenu[] = [
     tabs: [
       {
         label: '공유정보',
+        home: '/groupware/notice',
         nodes: [
           // 순서·묶음은 원본 공유정보 메뉴 트리 그대로다.
           // 사원연락처·조직도현황·외근현황은 예전에 원본도 '권한없음'이라 빼 두었는데 2026-10-03 원본이 열려 실측해 넣었다.
@@ -1160,6 +1175,7 @@ const MENU: TopMenu[] = [
       },
       {
         label: '전자결재',
+        home: '/groupware/approval/my', open: ['기초자료등록'],
         nodes: [
           { label: '기안서작성', to: '/groupware/approval/draft' },
           { label: '내결재관리', to: '/groupware/approval/my' },
@@ -1177,6 +1193,8 @@ const MENU: TopMenu[] = [
       },
       {
         label: '업무관리',
+        home: '/groupware/contract-board',
+        open: ['출/퇴근'],
         nodes: [
           // 원본 사이트맵 차례(2026-10-14): 예시 게시판들 → ECDrive → 업무일지 → 출/퇴근. 게시판은 회사가 만든 예시라 이름에 이모지가 붙는다.
           { label: '🔹 이카운트 AI 활용 예시 🔹', to: '/groupware/ai-guide' },
@@ -1235,45 +1253,20 @@ const MENU: TopMenu[] = [
               { label: '출퇴근/근태/일정현황(ID)', to: '/groupware/work-integrated' },
             ],
           },
-        ],
-      },
-      {
-        label: '고객관리',
-        nodes: [
-          // 원본 순서·묶음 그대로. '고객관리게시판'은 묶음이고 그 안에 게시판이 둘 있다
-          // (영업활동관리·상담이력관리). 상담이력관리는 원본에서도 권한없음이라 근거가 없어 넣지 않았다.
-          { label: '거래처등록', to: '/sales/partners' },
+          /* 원본 2단에 없는 우리 화면(예전 2단 고객관리 · 프로젝트 · 공용메일 · 회계 II 프로젝트 — 2026-10-28 원본 2단 실측에 맞춰 그 2단을 빼며 여기로). 원본 자리를 찾으면 옮긴다. */
           { label: '명함관리', to: '/groupware/cards' },
-          {
-            label: '고객관리게시판',
-            children: [
-              { label: '영업활동관리', to: '/groupware/crm' },
-            ],
-          },
-          { label: '거래처중심입력', to: '/sales/partner-entry' },
-          { label: '품목중심입력', to: '/sales/item-entry' },
-        ],
-      },
-      {
-        // 원본 프로젝트 탭은 묶음 없이 두 개다. '프로젝트' 항목은 여기에 없다
-        // (프로젝트 등록은 회계 II > 프로젝트에 있다).
-        label: '프로젝트',
-        nodes: [
+          { label: '영업활동관리', to: '/groupware/crm' },
           { label: '건설예정공정표', to: '/groupware/construction-schedule' },
           { label: 'SW개발일정관리', to: '/groupware/dev-schedule' },
-        ],
-      },
-      {
-        label: '공용메일',
-        nodes: [
           { label: '메일함(사내·공용)', to: '/groupware/mail' },
           { label: '쪽지(수발신내역)', to: '/groupware/messages' },
-          { label: '커뮤니케이션센터', to: '/groupware/messages' },
+          { label: '프로젝트 진척관리', to: '/groupware/project' },
         ],
       },
       {
         // 원본 사이트맵 그룹웨어 끝 묶음(2026-10-14). 이름에 '게시판' 이 붙어도 다목적 전표다(일자-No. + 격자 줄).
         label: '다목적관리',
+        home: '/groupware/sales-contract', open: ['월근태보고'],
         nodes: [
           { label: '*다목적게시판*', children: [{ label: '다목적 게시판 입력항목은', to: '/groupware/multi-input' }] },
           {
@@ -1424,6 +1417,45 @@ export default function EcountLayout() {
   const [alertCount, setAlertCount] = useState(0)               // 알림 배지
   const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
   const [noteCount, setNoteCount] = useState(0)
+  /* 머리 로고 자리 · 창 제목의 상호 — 로그인 때 받은 이름으로 시작해 회사정보(/company)를 다시 읽고,
+     회사정보 화면에서 저장하면(erp:company-updated) 바로 따라 바뀐다 */
+  const [brand, setBrand] = useState<string | null>(companyName)
+  /* 회사 로고(마크) — 있으면 머리 로고 자리에 상호 글자 대신 그림, 탭 아이콘도 그 그림(회사정보관리에서 올림).
+     그림은 인증이 필요한 /company/logo 라 blob 으로 받아 임시 URL 을 쓴다. */
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    let url: string | null = null
+    const showLogo = (has: boolean | undefined) => {
+      if (!has) { if (alive) setLogoUrl(null); return }
+      api.get('/company/logo', { responseType: 'blob' })
+        .then((r) => {
+          if (!alive) return
+          if (url) URL.revokeObjectURL(url)
+          url = URL.createObjectURL(r.data as Blob)
+          setLogoUrl(url)
+        })
+        .catch(() => { if (alive) setLogoUrl(null) })
+    }
+    api.get<{ name?: string; hasLogo?: boolean }>('/company')
+      .then((r) => { if (!alive) return; if (r.data?.name) setBrand(r.data.name); showLogo(r.data?.hasLogo) })
+      .catch(() => {})
+    const onUpdate = (e: Event) => {
+      const d = (e as CustomEvent<{ name?: string; hasLogo?: boolean }>).detail
+      if (d?.name) setBrand(d.name)
+      if (d && 'hasLogo' in d) showLogo(d.hasLogo)
+    }
+    window.addEventListener('erp:company-updated', onUpdate)
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); window.removeEventListener('erp:company-updated', onUpdate) }
+  }, [])
+  /* 탭 아이콘 — 로고가 있으면 그 그림, 없으면 처음 아이콘(index.html)으로 */
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')
+    if (!link) return
+    if (!link.dataset.defaultHref) { link.dataset.defaultHref = link.getAttribute('href') ?? ''; link.dataset.defaultType = link.type }
+    if (logoUrl) { link.href = logoUrl; link.removeAttribute('type') }
+    else { link.href = link.dataset.defaultHref ?? '/favicon.svg'; if (link.dataset.defaultType) link.type = link.dataset.defaultType }
+  }, [logoUrl])
   const [folders, setFolders] = useState<MyFolder[] | null>(null)  // MyPage 나만의 업무 폴더 (사용자별)                 // 쪽지 안 읽은 수
   const [userOpen, setUserOpen] = useState(false)               // 사용자 동그라미 → 이름·로그아웃
   // 휴대폰·태블릿(≤768px, 원본 실측) — ☰ 메뉴판과 ★ 즐겨찾기 · 앱 모음 펼침
@@ -1527,6 +1559,8 @@ export default function EcountLayout() {
   const topOk = (m: TopMenu) => m.tabs.some(tabOk)
   // 대메뉴/탭을 클릭했을 때 이동할 "접근 가능한" 첫 라우트 (권한 없는 첫 화면으로 튀지 않게)
   const firstAllowedTabRoute = (t: Tab) => tabLeaves(t).find((l) => l.to && canRoute(l.to))?.to
+  /** 2단을 누르면 여는 화면 — 원본이 정해 둔 처음 화면(home), 권한이 없으면 첫 화면. 1단도 첫 2단의 이 화면으로 간다. */
+  const tabRoute = (t: Tab) => (t.home && canRoute(t.home) ? t.home : firstAllowedTabRoute(t))
 
   // 메뉴검색: 입력값이 있으면 부분일치 결과(최대 12개). 권한 없는 항목은 제외.
   const menuMatches = menuQuery.trim()
@@ -1569,11 +1603,13 @@ export default function EcountLayout() {
       <ul className="ec-subnav">
         {menu.tabs.map((tab, i) => {
           if (!tabOk(tab)) return null
+          /* 키는 [1단:2단] 자리 — 이름으로 두면 같은 이름 2단이 둘일 때(2026-10-28 회계 II '전자계약') 1단을 오가며 다시 그릴 때
+             React 가 옛 li 를 못 지워 2단이 겹쳐 쌓였다. 2단을 누르면 원본처럼 왼쪽 메뉴 펼침을 처음 상태로 되돌린다. */
           return (
-            <li key={tab.label}>
+            <li key={`${NAV.indexOf(menu)}:${i}`}>
               <button
                 className={`ec-subnav-item${i === activeTabIdx ? ' active' : ''}`}
-                onClick={() => { const to = firstAllowedTabRoute(tab); if (to) gotoMenu(to, [NAV.indexOf(menu), i]) }}
+                onClick={() => { const to = tabRoute(tab); if (to) { setCollapsed({}); gotoMenu(to, [NAV.indexOf(menu), i]) } }}
               >
                 {tab.label}
               </button>
@@ -1586,11 +1622,18 @@ export default function EcountLayout() {
 
   /* 가장 길게 맞는 메뉴 하나만 켠다 — '/accounting/withholding' 과 '/accounting/withholding/pdf' 가 함께 켜지지 않게 */
   const bestLeafLen = Math.max(0, ...FLAT_MENU.map((f) => matchLength(f.to, location.pathname)))
-  function sidebarLeaf(leaf: Leaf) {
+
+  /* 창(탭) 제목 = 지금 화면 이름 - 상호 (원본도 탭 제목이 화면 이름이다). 메뉴에 없는 화면은 상호만 */
+  useEffect(() => {
+    const leaf = bestLeafLen > 0 ? FLAT_MENU.find((f) => matchLength(f.to, location.pathname) === bestLeafLen) : undefined
+    const site = brand || '제조 ERP'
+    document.title = leaf ? `${leaf.label} - ${site}` : site
+  }, [bestLeafLen, location.pathname, brand])
+  function sidebarLeaf(leaf: Leaf, key: number) {
     const on = !!leaf.to && bestLeafLen > 0 && matchLength(leaf.to, location.pathname) === bestLeafLen
     return (
       <button
-        key={leaf.label}
+        key={key}
         className={`ec-lnb-leaf${on ? ' active' : ''}${leaf.to ? '' : ' off'}`}
         onClick={() => openLeaf(leaf)}
       >
@@ -1618,7 +1661,7 @@ export default function EcountLayout() {
                 {on && m.tabs.length > 1 && (
                   <ul className="ec-drawer-tabs">
                     {m.tabs.map((t, ti) => tabOk(t) && (
-                      <li key={t.label}>
+                      <li key={ti}>
                         <button className={`ec-drawer-tab${ti === at.tab ? ' active' : ''}`} onClick={() => setDrawer({ top: idx, tab: ti })}>{t.label}</button>
                       </li>
                     ))}
@@ -1629,19 +1672,19 @@ export default function EcountLayout() {
           })}
         </div>
         <div className="ec-drawer-tree ec-lnb">
-          {tab.nodes.map((node) => {
-            if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node) : null
+          {tab.nodes.map((node, ni) => {
+            if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node, ni) : null
             const kids = node.children.filter(leafOk)
             if (kids.length === 0) return null
             // 왼쪽 메뉴와 같은 규칙 — 지금 화면이 든 묶음만 펼치고 칠한다. 접힌 상태도 왼쪽 메뉴와 같이 쓴다.
             const current = kids.some((c) => !!c.to && matchLength(c.to, location.pathname) > 0)
             const key = `${at.top}/${at.tab}/${node.label}`
-            const open = key in collapsed ? !collapsed[key] : current
+            const open = key in collapsed ? !collapsed[key] : current || !!tab.open?.includes(node.label)
             return (
-              <div key={node.label}>
+              <div key={ni}>
                 <button className={`ec-lnb-group${open ? ' open' : ''}${current ? ' current' : ''}`}
                         onClick={() => setCollapsed((c) => ({ ...c, [key]: open }))}>{node.label}</button>
-                {open && <div className="ec-lnb-leaves">{kids.map((c) => sidebarLeaf(c))}</div>}
+                {open && <div className="ec-lnb-leaves">{kids.map((c, ci) => sidebarLeaf(c, ci))}</div>}
               </div>
             )
           })}
@@ -1702,7 +1745,10 @@ export default function EcountLayout() {
 
       {/* ===== 머리 메뉴(1단) + 떠 있는 2단 메뉴 ===== */}
       <div className="ec-gnb" onMouseLeave={() => setHoverIdx(null)}>
-        <Link to="/" className="ec-logo"><b>제조</b><span className="tail">ERP</span></Link>
+        <Link to="/" className="ec-logo" title={brand ?? undefined}>
+          {logoUrl ? <img className="ec-logo-img" src={logoUrl} alt={brand ?? '회사 로고'} />
+            : brand ? <b className="ec-logo-name">{brand}</b> : <><b>제조</b><span className="tail">ERP</span></>}
+        </Link>
         {/* 휴대폰·태블릿에서만 — ☰ 메뉴판, ★ 즐겨찾기 */}
         <button className="ec-m-btn ec-m-menu" aria-label="메뉴" onClick={() => { setMPanel(null); setDrawer((d) => (d ? null : { top: topIdx, tab: tabIdx })) }}>☰</button>
         <button className="ec-m-btn ec-m-fav" aria-label="즐겨찾기" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'fav' ? null : 'fav')) }}>★</button>
@@ -1714,9 +1760,9 @@ export default function EcountLayout() {
                 <button
                   className={`ec-gnb-item${idx === topIdx ? ' active' : ''}`}
                   onClick={() => {
-                    const ti = m.tabs.findIndex((t) => !!firstAllowedTabRoute(t))
-                    const to = ti >= 0 ? firstAllowedTabRoute(m.tabs[ti]) : undefined
-                    if (to) gotoMenu(to, [idx, ti])
+                    const ti = m.tabs.findIndex((t) => !!tabRoute(t))
+                    const to = ti >= 0 ? tabRoute(m.tabs[ti]) : undefined
+                    if (to) { setCollapsed({}); gotoMenu(to, [idx, ti]) }
                   }}
                 >
                   {m.label}
@@ -1758,23 +1804,23 @@ export default function EcountLayout() {
       <div className="ec-body">
         {showLnb && (
           <aside className="ec-lnb">
-            {activeTab.nodes.map((node) => {
-              if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node) : null
+            {activeTab.nodes.map((node, ni) => {
+              if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node, ni) : null
               const visibleChildren = node.children.filter(leafOk)
               if (visibleChildren.length === 0) return null
               const key = `${topIdx}/${tabIdx}/${node.label}`
-              // 원본처럼 지금 화면이 든 묶음만 칠하고 기본으로 펼친다. 나머지는 접혀 있다가 누르면 펼친다.
+              // 원본처럼 지금 화면이 든 묶음을 칠하고 펼친다. 원본이 처음부터 펼쳐 두는 묶음(tab.open)도 펼친다. 나머지는 접혀 있다가 누르면 펼친다.
               const current = visibleChildren.some((c) => !!c.to && matchLength(c.to, location.pathname) > 0)
-              const open = key in collapsed ? !collapsed[key] : current
+              const open = key in collapsed ? !collapsed[key] : current || !!activeTab.open?.includes(node.label)
               return (
-                <div key={node.label}>
+                <div key={ni}>
                   <button
                     className={`ec-lnb-group${open ? ' open' : ''}${current ? ' current' : ''}`}
                     onClick={() => setCollapsed((c) => ({ ...c, [key]: open }))}
                   >
                     {node.label}
                   </button>
-                  {open && <div className="ec-lnb-leaves">{visibleChildren.map((c) => sidebarLeaf(c))}</div>}
+                  {open && <div className="ec-lnb-leaves">{visibleChildren.map((c, ci) => sidebarLeaf(c, ci))}</div>}
                 </div>
               )
             })}
@@ -1786,7 +1832,11 @@ export default function EcountLayout() {
               셸이 있는 화면은 셸이 이벤트를 먼저 잡고 전파를 끊으므로 여기까지 오지 않는다. */}
           <TableContextMenu containerRef={contentRef} toolbarRef={contentRef} />
           {canRoute(location.pathname) ? (
-            <Outlet />
+            /* 화면 조각(lazy)을 처음 받을 때 본문만 기다린다 — 바깥(router) Suspense 만 있으면 머리 · 메뉴까지 통째로
+               '불러오는 중' 으로 바뀌어, 처음 여는 화면이 한 번 빈 흰 화면으로 보였다(데이터이관 루프 19 · 출하입력). */
+            <Suspense fallback={<div className="p-[24px] text-ec-hint text-[13px]">화면을 불러오는 중…</div>}>
+              <Outlet />
+            </Suspense>
           ) : (
             <div className="p-[48px] text-center text-ec-hint">
               <div className="text-[40px] mb-[12px]">🔒</div>

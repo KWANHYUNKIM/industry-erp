@@ -31,8 +31,17 @@ public final class ShipmentDtos {
             /** 근거 출하지시서 줄 — 원본 출하입력 [출하지시] › 잔량적용으로 불러온 줄. 직접 친 줄은 null. */
             Long shipmentOrderLineId,
             /** 근거 주문 줄 — 수정 때 이어진 주문 줄을 그대로 둔다(그 출하의 근거 주문 줄만 받는다). */
-            Long orderLineId
-    ) {}
+            Long orderLineId,
+            /** 줄 규격(선택). 비우면(null) 품목 규격(불러온 줄이면 그 줄 규격), 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
+            /** 줄 품목명(선택). 원본 입력 화면은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007 · '포장김치1kg'). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
+    ) {
+        public ShipLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark,
+                               Long shipmentOrderLineId, Long orderLineId, String spec) {
+            this(itemId, quantity, unitPrice, remark, shipmentOrderLineId, orderLineId, spec, null);
+        }
+    }
 
     public record CreateShipmentRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
@@ -78,8 +87,8 @@ public final class ShipmentDtos {
     ) {
         static ShipLineResponse from(ShipmentLine l) {
             return new ShipLineResponse(
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
-                    l.getItem().getUnit(), l.getItem().getSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(),
+                    l.getItem().getUnit(), l.effectiveSpec(),
                     l.getQuantity(), l.getUnitPrice(), l.getAmount(), l.getRemark(),
                     l.getOrderLine() != null ? l.getOrderLine().getId() : null,
                     l.getShipmentOrderLine() != null ? l.getShipmentOrderLine().getId() : null);

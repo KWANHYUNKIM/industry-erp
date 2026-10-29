@@ -30,4 +30,7 @@ public interface StagedStockAdjustmentRepository extends JpaRepository<StagedSto
     @Query("select s from StagedStockAdjustment s join fetch s.item join fetch s.warehouse left join fetch s.adjustment " +
             "where s.slipNo = :slipNo order by s.id")
     List<StagedStockAdjustment> findSlip(@Param("slipNo") String slipNo);
+
+    /** 이 재고조정으로 맞춘 실사 줄들 — 조정을 지우면 조정 전으로 돌린다(StockAdjustmentService.delete). */
+    List<StagedStockAdjustment> findByAdjustment_Id(Long adjustmentId);
 }

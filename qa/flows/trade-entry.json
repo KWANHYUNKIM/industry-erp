@@ -22,6 +22,31 @@
       ]
     },
     {
+      "name": "판매입력 — 품목을 고른 뒤 품목명 칸을 고쳐 쓰면 저장되고(원본 판매 '포장김치1kg' ↔ 마스터 '포장김치', 2026-10-29) 다시 열어도 그 이름 · 🔍 로 품목 검색 칸으로 돌아간다",
+      "path": "/sales/sell",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right|1",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.cell[placeholder=\"품목 선택\"]|QA 포장김치1kg",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__nmSale', s.docNo); sessionStorage.setItem('__nmSaleId', String(s.id)); return s.lines[0].itemName })()",
+        "expect:fetch('/api/sales', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((l) => l.find((s) => s.docNo === sessionStorage.getItem('__nmSale'))?.lines[0].itemName === 'QA 포장김치1kg')",
+        "js:location.href = '/sales/sell?edit=' + sessionStorage.getItem('__nmSaleId'); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('tbody input')].some((i) => i.value === 'QA 포장김치1kg')",
+        "js:(() => { const b = [...document.querySelectorAll('tbody button[title=\"품목 다시 고르기\"]')][0]; b.click(); return true })()",
+        "wait:300",
+        "expect:![...document.querySelectorAll('tbody input')].some((i) => i.value === 'QA 포장김치1kg')",
+        "apidel:/sales|@__nmSale|docNo"
+      ]
+    },
+    {
       "name": "구매입력 — 같은 흐름(QA-MAT 은 구매단가가 0 이라 단가를 직접 넣는다)",
       "path": "/sales/buy",
       "steps": [
@@ -42,17 +67,16 @@
       ]
     },
     {
-      "name": "주문서 등록 — 매출처·품목을 코드도움으로(9회차까지 긴 드롭다운이었다)",
-      "path": "/sales/orders",
+      "name": "주문서 등록 — 거래처·품목을 코드도움으로(9회차까지 긴 드롭다운이었다)",
+      "path": "/sales/order-entry",
       "steps": [
-        "click:신규(F2)",
-        "click:매출처 선택",
+        "click:거래처 코드도움",
         "pickrow:QA-CUST",
-        "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
-        "set:[role=dialog] tbody input.text-right#0|2",
-        "set:[role=dialog] tbody input.text-right#1|1000",
-        "click:출하창고 선택",
+        "set:tbody input.text-right#0|2",
+        "set:tbody input.text-right#1|1000",
+        "click:출하창고 코드도움",
         "pickrow:QA-WH",
         "click:저장(F8)",
         "wait:1500",
@@ -60,6 +84,81 @@
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const o = (await (await fetch('/api/sales-orders', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__lastSO', o.orderNo); return o.orderNo })()",
         "apidel:/sales-orders|@__lastSO|orderNo"
       ]
+    },
+    {
+      "name": "판매입력 수정 창 — 일자 칸 잠김 · [Fn] 일자변경 → 새 날짜의 다음 번호(옛 번호 안 씀) · 안내 · 뒷정리",
+      "path": "/sales/sell",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/partners','/items','/warehouses'].map((p) => window.__api('GET', p))).then(([pa, it, wh]) => { const c = pa.body.find((x) => x.code === 'QA-CUST'), i = it.body.find((x) => x.code === 'QA-PROD'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0]; return window.__api('POST', '/sales', { saleDate: '2026-10-10', partnerId: c.id, warehouseId: w.id, remark: 'QA일자변경', lines: [{ itemId: i.id, quantity: 1, unitPrice: 1000 }] }) }).then((r) => { sessionStorage.setItem('__cd', r.body.id); sessionStorage.setItem('__cdNo', r.body.docNo); return r.status })",
+        "js:location.href = '/sales/sell?edit=' + sessionStorage.getItem('__cd'); true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:[...document.querySelectorAll('.ec-date select')][0]?.disabled === true",
+        "click:Fn",
+        "click:일자변경",
+        "js:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const el = dlg.querySelector('input[type=date]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '2026-10-20'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "js:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const b = [...dlg.querySelectorAll('button')].find((x) => x.textContent.trim() === '저장'); b.click(); return true })()",
+        "wait:1200",
+        "expect:/정상적으로 변경되었습니다/.test(document.body.innerText)",
+        "expect:window.__api('GET', '/sales').then((l) => { const x = l.body.find((y) => String(y.id) === sessionStorage.getItem('__cd')); sessionStorage.setItem('__cdNew', x.docNo); return /-20261020-\\d{4}$/.test(x.docNo) && x.docNo !== sessionStorage.getItem('__cdNo') })",
+        "expect:document.querySelector('input[aria-label=\"일자-No.\"]').value.startsWith('2026/10/20 -')",
+        "apidel:/sales|@__cdNew|docNo"
+      ]
+    },
+    {
+      "name": "구매입력 수정 창 — 일자 칸 잠김 · [Fn] 일자변경 → 새 날짜의 다음 번호(옛 번호 안 씀) · 안내 · 뒷정리",
+      "path": "/sales/buy",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/partners','/items','/warehouses'].map((p) => window.__api('GET', p))).then(([pa, it, wh]) => { const c = pa.body.find((x) => x.code === 'QA-SUPP'), i = it.body.find((x) => x.code === 'QA-MAT'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0]; return window.__api('POST', '/purchases', { purchaseDate: '2026-10-10', partnerId: c.id, warehouseId: w.id, remark: 'QA일자변경', lines: [{ itemId: i.id, quantity: 1, unitPrice: 1000 }] }) }).then((r) => { sessionStorage.setItem('__cd', r.body.id); sessionStorage.setItem('__cdNo', r.body.docNo); return r.status })",
+        "js:location.href = '/sales/buy?edit=' + sessionStorage.getItem('__cd'); true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:[...document.querySelectorAll('.ec-date select')][0]?.disabled === true",
+        "click:Fn",
+        "click:일자변경",
+        "js:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const el = dlg.querySelector('input[type=date]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '2026-10-20'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "js:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const b = [...dlg.querySelectorAll('button')].find((x) => x.textContent.trim() === '저장'); b.click(); return true })()",
+        "wait:1200",
+        "expect:/정상적으로 변경되었습니다/.test(document.body.innerText)",
+        "expect:window.__api('GET', '/purchases').then((l) => { const x = l.body.find((y) => String(y.id) === sessionStorage.getItem('__cd')); sessionStorage.setItem('__cdNew', x.docNo); return /-20261020-\\d{4}$/.test(x.docNo) && x.docNo !== sessionStorage.getItem('__cdNo') })",
+        "expect:document.querySelector('input[aria-label=\"일자-No.\"]').value.startsWith('2026/10/20 -')",
+        "apidel:/purchases|@__cdNew|docNo"
+      ]
+    },
+    {
+      "name": "판매입력 — 임의거래처(12341234)를 고르면 이름 칸이 열리고(기본 '임의거래처') 통화 자리 [거래처명] 도 같은 값, 고친 이름이 판매조회 거래처명(원본 2026-10-28)",
+      "path": "/sales/sell",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const l = await (await fetch('/api/partners', { headers: H })).json(); let p = (Array.isArray(l) ? l : l.content).find((x) => x.code === '12341234'); if (!p) { const r = await fetch('/api/partners', { method: 'POST', headers: H, body: JSON.stringify({ code: '12341234', name: '임의거래처', type: 'BOTH' }) }); p = await r.json(); sessionStorage.setItem('__anyMade', String(p.id)) } sessionStorage.setItem('__anyName', p.name); return p.code + ' ' + p.name })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "click:거래처 코드도움",
+        "pickrow:12341234",
+        "expect:document.querySelector('input.ec-input.name:not([readonly])')?.value === sessionStorage.getItem('__anyName')",
+        "expect:document.querySelector('input[aria-label=\"거래처명\"]')?.value === sessionStorage.getItem('__anyName')",
+        "set:input.ec-input.name:not([readonly])|QA임의상회",
+        "expect:document.querySelector('input[aria-label=\"거래처명\"]').value === 'QA임의상회'",
+        "click:출하창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right|1",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = (await (await fetch('/api/sales', { headers: H })).json()).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('__anySale', s.docNo); return s.docNo + ' ' + s.partnerName })()",
+        "expect:fetch('/api/sales', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((l) => l.find((s) => s.docNo === sessionStorage.getItem('__anySale'))?.partnerName === 'QA임의상회')",
+        "js:location.href = '/sales/sales-list'; true",
+        "wait:2500",
+        "expect:document.body.innerText.includes('QA임의상회')",
+        "apidel:/sales|@__anySale|docNo",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('__anyMade'); if (!id) return true; sessionStorage.removeItem('__anyMade'); return (await fetch('/api/partners/' + id, { method: 'DELETE', headers: H })).status })()"
+      ]
     }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('__anyMade'); if (!id) return true; sessionStorage.removeItem('__anyMade'); return (await fetch('/api/partners/' + id, { method: 'DELETE', headers: H })).status })()"
   ]
 }

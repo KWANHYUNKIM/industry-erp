@@ -1,6 +1,7 @@
 package com.erp.trade.shipmentorder;
 
 import com.erp.security.UserPrincipal;
+import com.erp.trade.sales.dto.SalesDtos.SalesResponse;
 import com.erp.trade.shipment.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.trade.shipmentorder.dto.ShipmentOrderDtos.SaveRequest;
 import com.erp.trade.shipmentorder.dto.ShipmentOrderDtos.ShipRequest;
@@ -39,6 +40,14 @@ public class ShipmentOrderController {
         return service.findUnshipped(from, to);
     }
 
+    /** 출하지시서입력 [판매] 검색창 — 출하지시서가 안 걸린 판매(일자까지). */
+    @GetMapping("/loadable-sales")
+    public List<SalesResponse> loadableSales(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.findLoadableSales(from, to);
+    }
+
     @GetMapping("/{id}")
     public ShipmentOrderResponse get(@PathVariable Long id) {
         return service.find(id);
@@ -53,6 +62,14 @@ public class ShipmentOrderController {
     @PutMapping("/{id}")
     public ShipmentOrderResponse update(@PathVariable Long id, @Valid @RequestBody SaveRequest req) {
         return service.update(id, req);
+    }
+
+    /** [Fn] → [일자변경]. 본문 {"date":"yyyy-MM-dd"}. */
+    @PostMapping("/{id}/change-date")
+    public ShipmentOrderResponse changeDate(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        String d = body.get("date");
+        if (d == null || d.isBlank()) throw com.erp.common.ApiException.badRequest("변경일자를 입력하세요.");
+        return service.changeDate(id, LocalDate.parse(d));
     }
 
     @PatchMapping("/{id}/status")

@@ -12,8 +12,10 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import TradeEntry from './TradeEntry'
-import Modal from '../../components/Modal'
+import Modal, { ModalWindow } from '../../components/Modal'
 
+/** 불러온 전표가 있는 구매의 [불러온전표] 주황 꼬리표(원본 실측: 바탕 --ec-tag-warn · 흰 글자 · 둥글기 6 — QuotationPage GEN_TAG 와 같다). */
+const SRC_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
 interface NormalDoc {
@@ -464,7 +466,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * 회계반영여부 · 인쇄 · 불러온전표 열 개에서 끝나고 합계줄이 없다(구매조회는 같은 날 재고1c 실측 — 프로젝트명 · 공급가액 ·
    * 부가세 · 담당 · 세금계산서 열과 합계줄을 뺐다. 세금계산서는 매입(세금)계산서 화면에서 만든다).
    */
-  const colCount = 10
+  /* 구매조회는 번호 다음에 체크박스 열이 있다 — [선택삭제] 가 그것을 쓴다(2026-10-28 원본 실측). */
+  const colCount = isSales ? 10 : 11
 
   /**
    * 원본은 일자와 전표번호를 '2026/08/03 -1' 로 한 칸에 적는다(게시글의 '일자-No.'와 같은 규칙).
@@ -668,8 +671,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
               title="전체 선택 / 해제"
               onClick={() => setSelected(selected.size === shown.length ? new Set() : new Set(shown.map((d) => d.id)))}
             >
-              {shown.length > 0 && selected.size === shown.length ? '☑' : ''}
+              {isSales && shown.length > 0 && selected.size === shown.length ? '☑' : ''}
             </th>
+            {!isSales && (
+              <th className="w-[28px] text-center">
+                <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && selected.size === shown.length}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(shown.map((d) => d.id)) : new Set())} />
+              </th>
+            )}
             {/*
               여기까지가 원본 판매조회의 열이고 순서도 같다(실측 폭 70·279·304·715·201·140·201·154·101·101).
               원본은 일자와 번호를 '2026/08/03 -1' 처럼 한 칸에 적는다 — 게시글의 '일자-No.'와 같은 규칙이다.
@@ -711,6 +720,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 >
                   {i + 1}
                 </td>
+                {!isSales && (
+                  <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" aria-label="선택" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} />
+                  </td>
+                )}
                 {/* 원본: 일자-No 는 링크 색 (25,53,140) · 보통 굵기 · 본문 글꼴이다(2026-09-21 구매조회 실측). */}
                 <td style={{ color: 'rgb(25, 53, 140)' }}>
                   {openId === d.id ? '▾ ' : '▸ '}
@@ -741,9 +755,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                       if (nos.length === 0) return ''
                       return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
                     }
-                    /* 원본 구매조회 [불러온전표] 는 줄마다 '조회' 링크 — 누르면 '불러온 전표' 창(2026-10-21 실측). */
+                    /* 원본 구매조회 [불러온전표] 는 줄마다 '조회' 링크 — 누르면 '불러온 전표' 창(2026-10-21 실측).
+                       발주 등에서 불러와 만든 구매는 주황 꼬리표 '조회'(2026-10-28 실측, 꼬리표 값은 QuotationPage GEN_TAG). */
                     return (
-                      <button type="button" className="ec-link"
+                      <button type="button" className={nos.length > 0 ? SRC_TAG : 'ec-link'}
                               onClick={(e) => { e.stopPropagation(); setSourceDoc(d) }}>
                         조회
                       </button>
@@ -831,12 +846,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       {popupOpen && (
         /* 원본 창은 바깥을 눌러도 닫히지 않는다 — 고치던 것이 날아가지 않게 [닫기] · ✕ 로만 닫는다. */
         <div className="ec-modal-back">
-          <div role="dialog" aria-modal="true" aria-label={popupTitle} className="ec-modal w-[max(960px,50vw)]">
-            <div className="ec-modal-bar">
-              <span className="name">{popupTitle}</span>
-              <button type="button" className="close" aria-label="닫기" title="닫기" onClick={() => closePopup(false)}>✕</button>
-            </div>
-            <div className="ec-modal-body">
+          <ModalWindow title={popupTitle} onClose={() => closePopup(false)} className="w-[max(960px,50vw)]">
               {/* 원본 판매입력(수정) 머리 오른쪽 [확인취소] — 이 회사는 전표상태관리유형이 꺼져 있어 원본도 이 알림만 띄운다(plans 재고1:80). */}
               {isSales && popupId != null && !popupCopied && (
                 <div className="flex justify-end mb-[6px]">
@@ -852,8 +862,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 docs: rawDocs,
                 onReturn: () => { const id = popupId; closePopup(false); navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?returnFrom=${id}`) },
               }} />
-            </div>
-          </div>
+          </ModalWindow>
         </div>
       )}
       {/*

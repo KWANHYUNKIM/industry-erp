@@ -6,6 +6,8 @@ import CodePickerField from '../../../components/CodePickerField'
 import { periodOf } from '../../../utils/periods'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../../api/client'
+import { timeText } from '../../../utils/displayPrefs'
+import { useDisplayPrefs } from '../../preference/displayPrefsStore'
 
 export interface WorkHistoryLine {
   workDate: string; employeeId: number; employeeCode: string; employeeName: string; departmentId: number | null; departmentName: string | null
@@ -32,12 +34,11 @@ const ACTIONS = ['신규', '수정', '삭제'] as const
 
 const slash = (d: string) => d.replace(/-/g, '/')
 const slipNo = (r: { slipDate: string; slipNo: number }) => `${slash(r.slipDate)} -${r.slipNo}`
-/** '2026/10/13 오전 8:17:42' — 원본 H 창 작업일시. */
-function actedAt(iso: string) {
+/** '2026/10/13 오전 8:17:42' — 원본 H 창 작업일시. 시각은 기본값설정 12/24시간제를 따른다. */
+function actedAt(iso: string, clock24: boolean) {
   const d = new Date(iso)
-  const h = d.getHours()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${timeText(d, clock24, true)}`
 }
 
 /**
@@ -55,6 +56,7 @@ function actedAt(iso: string) {
  * 없는 것: 부서계층그룹 · 프로젝트(근무 전표 줄에 프로젝트가 없다) · 수정순(한 전표뿐이라 순서 차이를 못 쟀다) · 삭제취소.
  */
 export default function WorkHistoryView() {
+  const { clock24 } = useDisplayPrefs()
   const [range, setRange] = useState(periodOf('금월(~오늘)')!)
   const [shownRange, setShownRange] = useState(range)
   const [rows, setRows] = useState<WorkHistoryRow[]>([])
@@ -256,7 +258,7 @@ export default function WorkHistoryView() {
               <tr key={h.id}>
                 <td className="text-center">{i + 1}</td>
                 <td className="text-center">{h.worker}</td>
-                <td className="text-center">{actedAt(h.actedAt)}</td>
+                <td className="text-center">{actedAt(h.actedAt, clock24)}</td>
                 <td className="text-center">{h.action}</td>
               </tr>
             ))}

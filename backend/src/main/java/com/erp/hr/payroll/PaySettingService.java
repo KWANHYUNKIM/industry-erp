@@ -55,8 +55,8 @@ public class PaySettingService {
     @Transactional
     public PayItemResponse createItem(PayItemRequest req) {
         String code = req.code().trim().toUpperCase();
-        if (itemRepository.existsByCode(code)) {
-            throw ApiException.conflict("이미 등록된 항목코드입니다: " + code);
+        if (itemRepository.existsByKindAndCode(req.kind(), code)) {
+            throw ApiException.conflict("이미 등록된 코드입니다.");
         }
         PayItem i = PayItem.builder()
                 .code(code)

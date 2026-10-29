@@ -1,0 +1,20 @@
+{
+  "about": "창고이동입력 머리(원본 2026-10-22 실측 비교) — 넓은 창(1100) · 2열 고정 머리 · 일자는 연/월 셀렉트 + 일 칸 직접 입력 · 값을 채워도 받는창고 칸 · 격자 열 폭이 안 움직인다. node qa/shot.mjs qa/flows/transfer-entry-header.json — 저장하지 않는다.",
+  "shots": [
+    {
+      "name": "창고이동입력 — 일 칸에 22 를 치면 그 일자 · 보내는창고/품목을 골라도 받는창고 위치와 격자 열 폭이 그대로",
+      "path": "/inventory/transfer?new=1",
+      "steps": [
+        "wait:1800",
+        "expect:(() => { const w = document.querySelector('.ec-modal'); return w && w.getBoundingClientRect().width > 900 && !!w.querySelector('.ec-date') && !w.querySelector('input[type=date]:not(.ec-date *)') })()",
+        "js:(() => { const w = document.querySelector('.ec-modal'); const r = (t) => [...w.querySelectorAll('.ec-form > li')].find((l) => l.innerText.includes(t)).getBoundingClientRect(); sessionStorage.setItem('tsPos', JSON.stringify([r('받는창고').top, r('받는창고').left, [...w.querySelectorAll('thead th')].map((t) => Math.round(t.getBoundingClientRect().width))])); return sessionStorage.getItem('tsPos') })()",
+        "js:(() => { const el = document.querySelector('.ec-modal .ec-date input[inputmode=numeric]'); el.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '22'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); return true })()",
+        "wait:300",
+        "expect:document.querySelector('.ec-modal .ec-date input[inputmode=numeric]').value === '22'",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const d = document.querySelector('.ec-modal'); const code = async (n, v) => { const el = d.querySelectorAll('input.ec-input.code')[n]; el.focus(); set(el, v); await W(150); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await W(300) }; await code(1, 'WH-01'); await code(3, 'ITM-0005'); return true })()",
+        "wait:400",
+        "expect:(() => { const w = document.querySelector('.ec-modal'); const r = (t) => [...w.querySelectorAll('.ec-form > li')].find((l) => l.innerText.includes(t)).getBoundingClientRect(); const b = JSON.parse(sessionStorage.getItem('tsPos')); const now = [...w.querySelectorAll('thead th')].map((t) => Math.round(t.getBoundingClientRect().width)); return r('받는창고').top === b[0] && r('받는창고').left === b[1] && JSON.stringify(now) === JSON.stringify(b[2]) })()"
+      ]
+    }
+  ]
+}

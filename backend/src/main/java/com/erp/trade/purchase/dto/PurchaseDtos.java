@@ -22,12 +22,13 @@ public final class PurchaseDtos {
 
     public record PurchaseLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            /* 음수는 반품 줄이다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 으로 연다(2026-10-28 loginaa). 0 은 서비스가 막는다. */
+            @NotNull(message = "수량을 입력하세요.") BigDecimal quantity,
             @NotNull(message = "단가를 입력하세요.") @PositiveOrZero(message = "단가를 입력하세요.") BigDecimal unitPrice,
             @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
             String remark,
             /** 시리얼/로트 번호 (선택) */
-            @Size(max = 60, message = "입력한 글자가 너무 깁니다. 60자까지 넣을 수 있습니다.")
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String lotNo,
             /** 부대비용 (선택). 합계에는 더하지 않는다. */
             @PositiveOrZero(message = "부대비용은 0 이상이어야 합니다.")
@@ -39,36 +40,51 @@ public final class PurchaseDtos {
              * 원본 구매입력 격자의 [공급가액] 칸은 고칠 수 있다 — 2026-10-06 loginaa 실측: 3 × 333.5 에서 1,009 로 고치면
              * 부가세 101 · 합계 1,110 으로 저장되고 단가 333.5 는 그대로 남는다. 수량·단가를 다시 바꾸면 화면이 새로 계산한다.
              */
-            @PositiveOrZero(message = "공급가액은 0 이상이어야 합니다.")
+            /* 반품(음수 수량) 줄의 공급가액은 음수다. */
             BigDecimal supplyAmount,
             /**
              * 부가세를 손으로 고친 값(선택, 과세 전표에서만). 비우면 공급가액 × 10% 를 원 단위로 반올림.
              * 원본 구매입력 격자의 [부가세] 칸도 고칠 수 있다 — 2026-10-06 loginaa: 1,001 줄의 부가세를 99 로 고치면
              * 합계 1,100 으로 저장되고 다시 열어도 99. 공급가액을 바꾸면 화면이 부가세를 다시 계산한다.
              */
-            @PositiveOrZero(message = "부가세는 0 이상이어야 합니다.")
+            /* 반품 줄의 부가세는 음수다. */
             BigDecimal vatAmount,
             /** 외자 전표의 외화 단가(선택). 외화금액을 비우면 수량 × 외화단가. */
             @PositiveOrZero(message = "외화단가는 0 이상이어야 합니다.")
             BigDecimal foreignPrice,
             /** 외자 전표의 외화금액(선택). 원화 공급가액 = round(외화금액 × 환율). */
-            @PositiveOrZero(message = "외화금액은 0 이상이어야 합니다.")
+            /* 반품 줄의 외화금액은 음수다. */
             BigDecimal foreignAmount,
             /** 줄 환율(선택). 비우면 머리 환율. */
             @PositiveOrZero(message = "환율은 0 이상이어야 합니다.")
-            BigDecimal lineRate
-    ) {}
+            BigDecimal lineRate,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
+            /** 줄 품목명(선택). 원본 입력 화면은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007 · '포장김치1kg'). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
+    ) {
+        public PurchaseLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String lotNo,
+                                   BigDecimal extraCost, Long sourceOrderId, BigDecimal supplyAmount, BigDecimal vatAmount,
+                                   BigDecimal foreignPrice, BigDecimal foreignAmount, BigDecimal lineRate, String spec) {
+            this(itemId, quantity, unitPrice, remark, lotNo, extraCost, sourceOrderId, supplyAmount, vatAmount,
+                    foreignPrice, foreignAmount, lineRate, spec, null);
+        }
+        /** 규격 없이 만드는 호출(서버 안에서 전표를 옮겨 담는 곳) — 품목 규격으로 채워진다. */
+        public PurchaseLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String lotNo,
+                                   BigDecimal extraCost, Long sourceOrderId, BigDecimal supplyAmount, BigDecimal vatAmount,
+                                   BigDecimal foreignPrice, BigDecimal foreignAmount, BigDecimal lineRate) {
+            this(itemId, quantity, unitPrice, remark, lotNo, extraCost, sourceOrderId, supplyAmount, vatAmount,
+                    foreignPrice, foreignAmount, lineRate, null);
+        }
+    }
 
     public record CreatePurchaseRequest(
             Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             LocalDate purchaseDate,
             Boolean taxable,
-            /**
-             * 원본 [구매구분] — 일반(false) · 반품(true). 안 주면 일반.
-             * 반품이면 서버가 수량·금액을 음수로 뒤집어 저장한다. 화면은 양수로 적는다.
-             */
-            Boolean returnSlip,
             @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
             /** 귀속 프로젝트 (선택) */
@@ -107,7 +123,7 @@ public final class PurchaseDtos {
             PurchaseOrder src = l.getSourceOrder();
             return new PurchaseLineResponse(
                     l.getId(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.getItem().getSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(), l.effectiveSpec(),
                     l.getItem().getCategory(),
                     l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
@@ -165,7 +181,7 @@ public final class PurchaseDtos {
             boolean vatBySlip,
             /** 과세 전표인가. 원본 일괄회계반영의 [부가세유형] (과세 · 면세). */
             boolean taxable,
-            /** 원본 [거래구분]이 반품인가. 수량·금액이 음수로 저장돼 있다. */
+            /** 반품 전표인가 — 줄이 전부 음수 수량(Purchase.isReturnSlip, 저장 칸 없음). 원본 입력에는 거래구분 칸이 없다. */
             boolean returnSlip,
             /** 외자 전표의 통화코드 · 머리 환율. 내자면 null. */
             String currencyCode, BigDecimal exchangeRate,
@@ -196,7 +212,7 @@ public final class PurchaseDtos {
             return new PurchaseResponse(
                     p.getId(), p.getDocNo(),
                     p.getPartner() != null ? p.getPartner().getId() : null,
-                    p.getPartner() != null ? p.getPartner().getName() : null,
+                    p.displayPartnerName(),
                     p.getWarehouse().getId(), p.getWarehouse().getName(),
                     p.getPurchaseDate(),
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),

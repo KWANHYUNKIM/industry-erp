@@ -98,10 +98,7 @@ export function defaultCodeColumns(label: string, items: CodeItem[], kinds?: Map
   return [{ ...code, width: 466 }, { ...name, width: 466 }]
 }
 
-export default function CodeSearchModal({
-  open, label, title, items, columns, value, onPick, onClose, emptyLabel,
-  multiple, picked = [], onToggle, onClearAll, onApply, initialQuery = '', onNew, plain, hideNew, employeeSearch, onApplyMany,
-}: {
+type CodeSearchProps = {
   open: boolean
   /** 대상 이름(거래처 · 창고 …). 창 제목 기본값은 `${label}검색`. */
   label: string
@@ -128,7 +125,23 @@ export default function CodeSearchModal({
   /** 사원검색 꼴(인사발령입력 2026-10-22 실측) — [퇴사자포함] · Search(F3) 조건 판 · 체크칸 + 번호 · [적용(F8)] 여러 개 고름. */
   employeeSearch?: boolean
   onApplyMany?: (items: CodeItem[]) => void
-}) {
+}
+
+/**
+ * 창 안의 상태(검색칸 · 쪽 · [사용중단포함] · 조건 판 …)는 <b>열 때마다 새로</b> 시작한다 — 닫힌 동안에는 본문을 아예 안 그린다.
+ * 예전에는 닫혀도 컴포넌트가 남아 지난번 검색칸 글자를 들고 있다가, 같은 줄을 다시 쓸 때(저장 뒤 다음 전표의 같은 줄 —
+ * 입력 격자 줄은 key 가 줄 번호라 같은 칸이 그대로 남는다) 친 글자가 그 뒤에 붙었다: 2번째 전표 'C003C003',
+ * 3번째 'C004C004C004' → '조회 결과가 없습니다'(2026-10-28 데이터이관 QA 38회, 구매입력 줄 품목). 원본은 늘 친 글자 그대로다.
+ */
+export default function CodeSearchModal(props: CodeSearchProps) {
+  if (!props.open) return null
+  return <CodeSearchBody {...props} />
+}
+
+function CodeSearchBody({
+  open, label, title, items, columns, value, onPick, onClose, emptyLabel,
+  multiple, picked = [], onToggle, onClearAll, onApply, initialQuery = '', onNew, plain, hideNew, employeeSearch, onApplyMany,
+}: CodeSearchProps) {
   const [q, setQ] = useState(initialQuery)
   const [withStopped, setWithStopped] = useState(false)
   const [page, setPage] = useState(1)
@@ -142,7 +155,8 @@ export default function CodeSearchModal({
   const [draft, setDraft] = useState(EMP_COND0)
   const [cond, setCond] = useState<typeof EMP_COND0 | null>(null)
   const [many, setMany] = useState<string[]>([])
-  useEffect(() => { if (open) setQ(initialQuery) }, [open, initialQuery])
+  // 열린 채로 화면이 검색어를 바꿔 넘기면 따라간다(처음 값은 위 useState 가 받는다)
+  useEffect(() => { setQ(initialQuery) }, [initialQuery])
   const wantsKinds = open && !columns && /창고/.test(label)
   useEffect(() => {
     if (!wantsKinds) return
@@ -170,8 +184,7 @@ export default function CodeSearchModal({
       return !needle || `${i.code ?? ''} ${i.name} ${i.sub ?? ''} ${i.alias ?? ''} ${i.extra ?? ''}`.toLowerCase().includes(needle)
     })
   }, [items, q, withStopped, cond, employeeSearch])
-  useEffect(() => { setPage(1) }, [q, withStopped, open, cond])
-  useEffect(() => { if (open) { setMany([]); setPanel(false); setCond(null); setDraft(EMP_COND0); setPanelTab('기본') } }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPage(1) }, [q, withStopped, cond])
   const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
   const cur = Math.min(page, pages)
   const rows = shown.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE)
@@ -200,7 +213,6 @@ export default function CodeSearchModal({
   const span = cols.length + (multiple || employeeSearch ? 1 : 0)
   // #root 끝에 띄운다(격자 규칙이 `#root table` 이라 body 로는 못 뺀다) — 입력 격자 칸(🔍) 안에 그려지면 `.ec-grid-input tbody tr { height: 41px }` · `td { padding: 0 }` 같은
   // 바깥 격자 규칙이 창 안 격자에도 걸려 머리 41 · 줄 41 이 됐다(품목검색, 2026-10-14). React 이벤트는 그대로 부모로 간다.
-  if (!open) return null
   return createPortal(
     <Modal open={open} title={title ?? `${label}검색`} width={960} onClose={onClose}>
       <div className="flex justify-end items-center gap-[5px] mb-[9px]">
@@ -229,7 +241,16 @@ export default function CodeSearchModal({
           placeholder="입력 후 [Enter]"
           onChange={(e) => setQ(e.target.value)}
           // <form> 안에 놓이면 Enter 가 바깥 폼을 제출해 버린다 — 막는다
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (!multiple && !employeeSearch && shown.length === 1) onPick(shown[0]) } }}
+          // 걸린 것이 여럿이어도 코드가 친 글자와 똑같은 것이 하나면 그것을 고른다(코드칸 직접 입력과 같다 — 창고 '100' 이 1001 에도 걸려 첫 Enter 가 헛돌았다)
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            if (multiple || employeeSearch) return
+            const low = q.trim().toLowerCase()
+            const exact = low ? shown.filter((i) => (i.code ?? '').trim().toLowerCase() === low) : []
+            if (exact.length === 1) onPick(exact[0])
+            else if (shown.length === 1) onPick(shown[0])
+          }}
         />}
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => { if (employeeSearch) { setPanel((v) => !v); return } searchRef.current?.focus() }}>Search(F3)</button>
         {!bare && (

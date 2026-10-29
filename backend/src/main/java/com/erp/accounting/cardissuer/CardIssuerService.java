@@ -23,6 +23,8 @@ public class CardIssuerService {
     private final AccountRepository accountRepository;
     private final CardIssuerRepository repository;
     private final com.erp.accounting.paymentagency.PaymentAgencyRepository paymentAgencyRepository;
+    /** 카드사를 거래처 코드도움에 내놓는 짝 거래처 — 원본 견적 11/05-2 의 거래처가 카드사 00001 국민카드사다. */
+    private final com.erp.trade.partner.PartnerService partnerService;
 
     @Transactional(readOnly = true)
     public List<CardIssuerResponse> findAll() {
@@ -46,6 +48,7 @@ public class CardIssuerService {
                 .searchKeyword(req.searchKeyword())
                 .active(true)
                 .build();
+        linkPartner(c);
         return CardIssuerResponse.from(repository.save(c));
     }
 
@@ -61,12 +64,22 @@ public class CardIssuerService {
         if (req.active() != null) {
             c.setActive(req.active());
         }
+        linkPartner(c);
         return CardIssuerResponse.from(c);
     }
 
     @Transactional
     public void delete(Long id) {
-        repository.delete(get(id));
+        CardIssuer c = get(id);
+        com.erp.trade.partner.BusinessPartner linked = c.getPartner();
+        repository.delete(c);
+        repository.flush();
+        partnerService.retireLinked(linked);
+    }
+
+    private void linkPartner(CardIssuer c) {
+        c.setPartner(partnerService.syncLinked(c.getPartner(), com.erp.trade.partner.PartnerService.LINKED_CARD_ISSUER,
+                c.getCode(), c.getName(), c.getSearchKeyword(), c.isActive()));
     }
 
     private CardIssuer get(Long id) {

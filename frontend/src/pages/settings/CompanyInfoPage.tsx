@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useShortcut } from '../../utils/useShortcut'
 
@@ -36,6 +36,53 @@ export default function CompanyInfoPage() {
   const [addrOpen, setAddrOpen] = useState(false)
   const [addrZip, setAddrZip] = useState('')
   const [addrRoad, setAddrRoad] = useState('')
+  /** 회사 로고(마크) — 있으면 머리 로고 자리 · 탭 아이콘에 상호 글자 대신 나온다. 그림은 /company/logo 를 blob 으로 받는다. */
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [logoBusy, setLogoBusy] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const showLogo = async (has: boolean | undefined) => {
+    setLogoUrl((old) => { if (old) URL.revokeObjectURL(old); return null })
+    if (!has) return
+    try {
+      const r = await api.get('/company/logo', { responseType: 'blob' })
+      setLogoUrl(URL.createObjectURL(r.data as Blob))
+    } catch { /* 그림이 없으면 글자 그대로 */ }
+  }
+  const tellLayout = (hasLogo: boolean) =>
+    window.dispatchEvent(new CustomEvent('erp:company-updated', { detail: { hasLogo } }))
+  async function uploadLogo(file: File | undefined) {
+    if (!file) return
+    setError(''); setOk('')
+    if (file.size > 512 * 1024) { setError('로고 그림은 512KB 까지 올릴 수 있습니다.'); return }
+    setLogoBusy(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      await api.post('/company/logo', fd)
+      await showLogo(true)
+      tellLayout(true)
+      setOk('로고가 저장되었습니다.')
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLogoBusy(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+  async function removeLogo() {
+    setError(''); setOk('')
+    setLogoBusy(true)
+    try {
+      await api.delete('/company/logo')
+      await showLogo(false)
+      tellLayout(false)
+      setOk('로고를 지웠습니다.')
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLogoBusy(false)
+    }
+  }
 
   // 저장(F8) — 버튼 라벨이 약속한 단축키. 저장 중이면 안 먹는다.
   useShortcut('F8', save, !saving)
@@ -54,7 +101,8 @@ export default function CompanyInfoPage() {
   async function load() {
     setLoading(true)
     try {
-      const r = await api.get<CompanyForm | null>('/company')
+      const r = await api.get<(CompanyForm & { hasLogo?: boolean }) | null>('/company')
+      void showLogo(r.data?.hasLogo)
       if (r.data) {
         // null 필드를 빈문자열로 정규화
         const merged = { ...EMPTY }
@@ -80,6 +128,8 @@ export default function CompanyInfoPage() {
     setSaving(true)
     try {
       await api.put('/company', form)
+      // 머리 로고 자리 · 창 제목이 상호를 따라가게 틀(EcountLayout)에 알린다
+      window.dispatchEvent(new CustomEvent('erp:company-updated', { detail: { name: form.name.trim() } }))
       setOk('회사정보가 저장되었습니다.')
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -135,8 +185,8 @@ export default function CompanyInfoPage() {
               <tr>
                 <th style={thStyle}>우편번호</th>
                 <td style={tdStyle} colSpan={3}>
-                  <input className="ec-input" value={form.zipcode} onChange={(e) => set('zipcode', e.target.value)} style={{ width: 100 }} />
-                  <button type="button" className="ec-btn" style={{ marginLeft: 6 }} onClick={openAddrSearch}>주소검색</button>
+                  <input className="ec-input w-[100px]" value={form.zipcode} onChange={(e) => set('zipcode', e.target.value)} />
+                  <button type="button" className="ec-btn ml-[6px]" onClick={openAddrSearch}>주소검색</button>
                 </td>
               </tr>
               <tr>
@@ -144,6 +194,19 @@ export default function CompanyInfoPage() {
                 <td style={tdStyle} colSpan={3}>
                   <input className="ec-input" value={form.address} onChange={(e) => set('address', e.target.value)} style={{ width: '60%', marginRight: 6 }} />
                   <input className="ec-input" value={form.addressDetail} onChange={(e) => set('addressDetail', e.target.value)} placeholder="상세주소" style={{ width: '30%' }} />
+                </td>
+              </tr>
+              <tr>
+                <th style={thStyle}>로고</th>
+                <td style={tdStyle} colSpan={3}>
+                  <div className="flex items-center gap-[6px]">
+                    {logoUrl ? <img className="ec-company-logo" src={logoUrl} alt="회사 로고" /> : <span className="text-ec-hint">없음 — 머리에 상호가 나옵니다</span>}
+                    <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon" className="hidden"
+                           aria-label="로고 그림 파일" onChange={(e) => void uploadLogo(e.target.files?.[0])} />
+                    <button type="button" className="ec-btn" disabled={logoBusy} onClick={() => fileRef.current?.click()}>{logoUrl ? '바꾸기' : '올리기'}</button>
+                    {logoUrl && <button type="button" className="ec-btn" disabled={logoBusy} onClick={() => void removeLogo()}>지우기</button>}
+                    <span className="text-ec-hint">png · jpg · gif · webp · svg · ico, 512KB 까지. 머리 로고 자리 · 브라우저 탭 아이콘에 나옵니다.</span>
+                  </div>
                 </td>
               </tr>
             </tbody>

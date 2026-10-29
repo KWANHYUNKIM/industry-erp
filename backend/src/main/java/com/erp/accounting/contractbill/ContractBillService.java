@@ -197,7 +197,7 @@ public class ContractBillService {
         }
         var c = ls.get(0).getContractLine().getContract();
         SalesDtos.SalesResponse sale = salesService.create(new SalesDtos.CreateSalesRequest(partnerId, req.warehouseId(),
-                req.saleDate() != null ? req.saleDate() : LocalDate.now(), req.taxable(), false, null,
+                req.saleDate() != null ? req.saleDate() : LocalDate.now(), req.taxable(), null,
                 c.getProject() != null ? c.getProject().getId() : null, null, false, lines), username);
         for (ContractBillLine l : ls) l.setSalesId(sale.id());
         return sale.id();

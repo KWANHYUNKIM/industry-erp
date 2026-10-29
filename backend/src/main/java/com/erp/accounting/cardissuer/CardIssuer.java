@@ -59,4 +59,9 @@ public class CardIssuer extends BaseTimeEntity {
     /** 원본 <b>[검색창내용]</b>. 부르는 이름으로 찾는다(거래처와 같다). */
     @Column(name = "search_keyword", length = 100)
     private String searchKeyword;
+
+    /** 거래처 코드도움에 이 카드사를 거래처로 내놓는 짝 거래처(PartnerService.syncLinked — BusinessPartner.linkedKind). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private com.erp.trade.partner.BusinessPartner partner;
 }

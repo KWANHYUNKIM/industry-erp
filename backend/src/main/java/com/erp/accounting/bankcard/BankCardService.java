@@ -49,6 +49,8 @@ public class BankCardService {
     private final JournalService journalService;
     private final DocumentNoGenerator docNoGenerator;
     private final com.erp.settings.currency.CurrencyService currencyService;
+    /** 계좌 · 카드를 거래처 코드도움에 내놓는 짝 거래처(원본은 거래처와 한 이름공간). */
+    private final com.erp.trade.partner.PartnerService partnerService;
 
     // ── 계좌 마스터 ────────────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ public class BankCardService {
                 .transferRemark1(req.transferRemark1())
                 .transferRemark2(req.transferRemark2())
                 .build();
+        linkPartner(b);
         return BankAccountResponse.from(bankAccountRepository.save(b));
     }
 
@@ -105,6 +108,7 @@ public class BankCardService {
         if (req.transferRemark1() != null) b.setTransferRemark1(blankToNull(req.transferRemark1()));
         if (req.transferRemark2() != null) b.setTransferRemark2(blankToNull(req.transferRemark2()));
         // 잔액은 입출금으로만 움직인다. 여기서 openingBalance 로 덮어쓰면 수불과 어긋난다.
+        linkPartner(b);
         return BankAccountResponse.from(b);
     }
 
@@ -113,8 +117,10 @@ public class BankCardService {
     public void deleteAccount(Long id) {
         BankAccount b = bankAccount(id);
         try {
+            com.erp.trade.partner.BusinessPartner linked = b.getPartner();
             bankAccountRepository.delete(b);
             bankAccountRepository.flush();
+            partnerService.retireLinked(linked);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             throw ApiException.conflict("거래가 있는 계좌는 삭제할 수 없습니다. 사용중단하세요: " + (b.getName() != null ? b.getName() : b.getAccountNo()));
         }
@@ -150,6 +156,7 @@ public class BankCardService {
                 .remark(req.remark())
                 .build();
         applyCardRegister(c, req);
+        linkPartner(c);
         return CreditCardResponse.from(cardRepository.save(c));
     }
 
@@ -172,6 +179,7 @@ public class BankCardService {
         c.setActive(req.active() == null || req.active());
         c.setRemark(req.remark());
         applyCardRegister(c, req);
+        linkPartner(c);
         return CreditCardResponse.from(c);
     }
 
@@ -196,11 +204,27 @@ public class BankCardService {
     public void deleteCard(Long id) {
         CreditCard c = card(id);
         try {
+            com.erp.trade.partner.BusinessPartner linked = c.getPartner();
             cardRepository.delete(c);
             cardRepository.flush();
+            partnerService.retireLinked(linked);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             throw ApiException.conflict("사용내역이 있는 카드는 삭제할 수 없습니다. 사용중단하세요: " + c.getCardName());
         }
+    }
+
+    /** 계좌를 거래처 코드도움에 — 코드(없으면 계좌번호) · 계좌명(없으면 은행 계좌번호). */
+    private void linkPartner(BankAccount b) {
+        String name = b.getName() != null && !b.getName().isBlank() ? b.getName()
+                : (b.getBankName() + " " + b.getAccountNo()).trim();
+        b.setPartner(partnerService.syncLinked(b.getPartner(), com.erp.trade.partner.PartnerService.LINKED_BANK,
+                b.getCode() != null ? b.getCode() : b.getAccountNo(), name, b.getSearchText(), b.isActive()));
+    }
+
+    /** 카드를 거래처 코드도움에 — 코드(없으면 카드번호) · 카드명. */
+    private void linkPartner(CreditCard c) {
+        c.setPartner(partnerService.syncLinked(c.getPartner(), com.erp.trade.partner.PartnerService.LINKED_CARD,
+                c.getCode() != null ? c.getCode() : c.getCardNo(), c.getCardName(), c.getSearchText(), c.isActive()));
     }
 
     private static String blankToNull(String v) {
@@ -258,11 +282,8 @@ public class BankCardService {
         }
 
         BigDecimal delta = req.deposit() ? req.amount() : req.amount().negate();
+        // 원본처럼 잔액을 넘는 출금도 받는다(마이너스 통장) — 2026-10-29 loginaa 지출결의서 실측.
         BigDecimal after = b.getBalance().add(delta);
-        if (after.signum() < 0) {
-            throw ApiException.badRequest(String.format("계좌 잔액이 부족합니다. 잔액 %s, 출금 %s",
-                    b.getBalance().toPlainString(), req.amount().toPlainString()));
-        }
         b.setBalance(after);
 
         LocalDate date = req.txnDate() != null ? req.txnDate() : LocalDate.now();
@@ -298,11 +319,7 @@ public class BankCardService {
         if (!b.isActive()) {
             throw ApiException.badRequest("사용중지된 계좌입니다: " + b.getBankName() + " " + b.getAccountNo());
         }
-        BigDecimal after = b.getBalance().add(deposit ? amount : amount.negate());
-        if (after.signum() < 0) {
-            throw ApiException.badRequest(String.format("계좌 잔액이 부족합니다. 잔액 %s, 출금 %s",
-                    b.getBalance().toPlainString(), amount.toPlainString()));
-        }
+        BigDecimal after = b.getBalance().add(deposit ? amount : amount.negate());   // 음수 허용(원본)
         b.setBalance(after);
 
         BankTransaction t = BankTransaction.builder()
@@ -337,14 +354,54 @@ public class BankCardService {
     }
 
     /**
+     * 일반전표 줄의 계좌 — 계좌의 계정(보통예금 1039 등) 줄 거래처가 그 계좌의 짝 거래처면 통장 잔액을 움직인다
+     * (원본 일반전표 11/28-1: 보통예금 줄 거래처 = 계좌 1122334455, 2026-10-29 데이터이관 QA 루프 70~71). 지출결의서 · 입금보고서처럼
+     * 분개는 일반전표가 이미 만들었으니 잔액과 입출금 내역만 이 전표에 묶어 남긴다. 차변이면 입금, 대변이면 출금.
+     *
+     * <p>고칠 때는 이 전표가 이미 움직인 것과 새 줄이 같으면 그대로 두고, 다르면 지난 이동을 되돌린 뒤 다시 넣는다.
+     * 수입(입금보고서)이 만든 일반전표는 수입이 계좌를 움직이므로 건드리지 않는다.
+     */
+    @Transactional
+    public void syncJournalBank(JournalEntry e, String username) {
+        if (e == null || e.getId() == null || incomeRepository.existsByJournalEntryId(e.getId())) return;
+        record Move(Long bankId, boolean deposit, BigDecimal amount, String memo) {
+            String key() { return bankId + "|" + deposit + "|" + amount.stripTrailingZeros().toPlainString(); }
+        }
+        List<Move> planned = new java.util.ArrayList<>();
+        for (com.erp.accounting.journal.JournalLine l : e.getLines()) {
+            if (l.getPartner() == null || l.getPartner().getLinkedKind() == null) continue;
+            BankAccount b = bankAccountRepository.findByPartnerId(l.getPartner().getId()).orElse(null);
+            if (b == null || b.getGlAccount() == null || !b.getGlAccount().getId().equals(l.getAccount().getId())) continue;
+            boolean deposit = l.getDebit().signum() > 0;
+            BigDecimal amt = deposit ? l.getDebit() : l.getCredit();
+            if (amt.signum() == 0) continue;
+            String memo = l.getDescription() != null && !l.getDescription().isBlank() ? l.getDescription() : e.getDescription();
+            planned.add(new Move(b.getId(), deposit, amt, memo != null ? memo : "일반전표 " + e.getDocNo()));
+        }
+        List<BankTransaction> done = txnRepository.findByJournalEntryId(e.getId());
+        List<String> want = planned.stream().map(Move::key).sorted().toList();
+        List<String> have = done.stream().map(t -> t.getBankAccount().getId() + "|" + t.isDeposit() + "|"
+                + t.getAmount().stripTrailingZeros().toPlainString()).sorted().toList();
+        if (want.equals(have)) return;
+        reverseExternal(e, "일반전표 수정 " + e.getDocNo(), username);
+        for (Move m : planned) recordExternal(m.bankId(), m.deposit(), m.amount(), e.getEntryDate(), m.memo(), e, username);
+    }
+
+    /** 일반전표를 지울 때 — 그 전표가 움직인 통장 잔액을 되돌린다(수입이 만든 전표는 수입 쪽이 맡는다). */
+    @Transactional
+    public void syncJournalBankRemoved(JournalEntry e, String username) {
+        if (e == null || e.getId() == null || incomeRepository.existsByJournalEntryId(e.getId())) return;
+        reverseExternal(e, "일반전표 삭제 " + e.getDocNo(), username);
+    }
+
+    /**
      * 계좌입출금(이 화면에서 직접 넣은 것) 삭제 — QA 62~63회차. 잘못 넣으면 반대로 한 번 더 넣어야 했다.
      *
      * <p>다른 전표가 만든 입출금(계좌간이동·카드대금결제·간편전표 = 상대계정 없음, 수입의 계좌입금,
      * 어음 만기결제·할인 = 상대계정이 받을어음·지급어음)은 <b>그 전표에서</b> 지운다 — 여기서 지우면
      * 그 전표만 남아 장부가 어긋난다.
      *
-     * <p>줄을 지우고 그 뒤 줄들의 거래후 잔액을 그만큼 옮긴다. 입금을 지울 때 그 돈을 이미 썼으면
-     * (뒤 어느 시점 잔액이 음수가 되면) 막는다.
+     * <p>줄을 지우고 그 뒤 줄들의 거래후 잔액을 그만큼 옮긴다. 잔액이 음수가 되어도 지운다(원본은 마이너스 통장 허용).
      */
     @Transactional
     public void deleteTxn(Long id) {
@@ -359,12 +416,6 @@ public class BankCardService {
         BankAccount b = bankAccountRepository.findForUpdate(t.getBankAccount().getId())
                 .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다."));
         BigDecimal effect = t.isDeposit() ? t.getAmount() : t.getAmount().negate();
-        BigDecimal later = txnRepository.minBalanceAfterLater(b.getId(), t.getId());
-        if (b.getBalance().subtract(effect).signum() < 0 || (later != null && later.subtract(effect).signum() < 0)) {
-            throw ApiException.badRequest(String.format(
-                    "%s 의 입금 %s 을(를) 그 뒤에 이미 써서 지우면 잔액이 음수가 됩니다 — 뒤 출금부터 지우세요.",
-                    t.getTxnNo(), t.getAmount().stripTrailingZeros().toPlainString()));
-        }
         txnRepository.shiftBalanceAfterLater(b.getId(), t.getId(), effect);
         b.setBalance(b.getBalance().subtract(effect));
         JournalEntry entry = t.getJournalEntry();

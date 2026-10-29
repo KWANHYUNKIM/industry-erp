@@ -1,0 +1,46 @@
+{
+  "about": "팝업창 끌기 · 크기 조절 · 최대화(원본 jQuery UI dialog — 2026-10-28 loginaa 구매조회 '구매수정' 창 실측): 파란 제목줄(커서 move)을 잡고 끌면 창이 따라오고, 네 모서리 · 네 변 손잡이로 크기를 바꾸며 최소 200 × 155 아래로는 안 줄어든다. 제목줄은 화면 밖으로 다 나가지 않는다. [최대화] 는 본문 틀(.ec-frame) 가득 → 다시 누르면 앞 크기 · 위치. 공통 창 components/Modal(ModalWindow). node qa/shot.mjs qa/flows/modal-drag-resize.json",
+  "shots": [
+    {
+      "name": "기안서작성 '00 기본' 창 — 끌기 · 크기 · 최소 · 화면 밖 · 최대화 · 되돌리기",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:800",
+        "js:document.querySelector('tbody tr').click(); true",
+        "wait:500",
+        "expect:!!document.querySelector('[role=dialog].ec-modal-win') && getComputedStyle(document.querySelector('.ec-modal-win > .ec-modal-bar')).cursor === 'move' && document.querySelectorAll('.ec-modal-win > .ec-modal-grip').length === 8",
+        "expect:[...document.querySelectorAll('.ec-modal-win > .ec-modal-grip')].map((g) => getComputedStyle(g).cursor).join(',') === 'row-resize,row-resize,col-resize,col-resize,nw-resize,ne-resize,sw-resize,se-resize'",
+        "expect:[...document.querySelectorAll('.ec-modal-win > .ec-modal-bar > button')].map((b) => b.getAttribute('aria-label')).join(',') === '최대화,닫기'",
+        "js:(() => { window.__win = () => document.querySelector('.ec-modal-win'); window.__r = () => { const r = window.__win().getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) } }; window.__drag = (el, dx, dy, from) => { const r = el.getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2; const o = (t, cx, cy) => new PointerEvent(t, { bubbles: true, cancelable: true, button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 1, pointerType: 'mouse', clientX: cx, clientY: cy }); (from ?? el).dispatchEvent(o('pointerdown', x, y)); el.dispatchEvent(o('pointermove', x + dx / 2, y + dy / 2)); el.dispatchEvent(o('pointermove', x + dx, y + dy)); el.dispatchEvent(o('pointerup', x + dx, y + dy)) }; window.__r0 = window.__r(); return JSON.stringify(window.__r0) })()",
+        "js:(() => { const bar = window.__win().querySelector('.ec-modal-bar'); window.__drag(bar, -150, 60, bar.querySelector('.name')); return true })()",
+        "wait:200",
+        "expect:(() => { const a = window.__r0, b = window.__r(); window.__r1 = b; return Math.abs(b.x - (a.x - 150)) <= 1 && Math.abs(b.y - (a.y + 60)) <= 1 && Math.abs(b.w - a.w) <= 1 && getComputedStyle(window.__win()).position === 'fixed' })()",
+        "js:(() => { window.__drag(window.__win().querySelector('.ec-modal-grip.se'), 80, 50); return true })()",
+        "wait:200",
+        "expect:(() => { const a = window.__r1, b = window.__r(); window.__r2 = b; return Math.abs(b.w - (a.w + 80)) <= 1 && Math.abs(b.h - (a.h + 50)) <= 1 && b.x === a.x && b.y === a.y })()",
+        "expect:(() => { const w = window.__win(), body = w.querySelector('.ec-modal-body'); return Math.round(body.getBoundingClientRect().bottom) <= Math.round(w.getBoundingClientRect().bottom) && getComputedStyle(body).overflowY === 'auto' })()",
+        "js:(() => { window.__drag(window.__win().querySelector('.ec-modal-grip.nw'), 40, 30); return true })()",
+        "wait:200",
+        "expect:(() => { const a = window.__r2, b = window.__r(); return Math.abs(b.x - (a.x + 40)) <= 1 && Math.abs(b.y - (a.y + 30)) <= 1 && Math.abs(b.w - (a.w - 40)) <= 1 && Math.abs(b.h - (a.h - 30)) <= 1 })()",
+        "js:(() => { window.__drag(window.__win().querySelector('.ec-modal-grip.se'), -5000, -5000); return true })()",
+        "wait:200",
+        "expect:(() => { const b = window.__r(); window.__r3 = b; return b.w === 200 && b.h === 155 })()",
+        "js:(() => { const bar = window.__win().querySelector('.ec-modal-bar'); window.__drag(bar, 10000, 10000, bar.querySelector('.name')); return true })()",
+        "wait:200",
+        "expect:(() => { const r = window.__win().querySelector('.ec-modal-bar').getBoundingClientRect(); return r.left <= innerWidth - 40 + 1 && r.bottom <= innerHeight + 1 && !!document.querySelector('[role=dialog].ec-modal-win') })()",
+        "js:(() => { const bar = window.__win().querySelector('.ec-modal-bar'); window.__drag(bar, -20000, -20000, bar.querySelector('.name')); return true })()",
+        "wait:200",
+        "expect:(() => { const r = window.__win().getBoundingClientRect(); window.__r4 = window.__r(); return r.right >= 40 - 1 && r.top >= 0 })()",
+        "js:window.__win().querySelector('.ec-modal-bar > button[aria-label=최대화]').click(); true",
+        "wait:200",
+        "expect:(() => { const f = document.querySelector('.ec-frame').getBoundingClientRect(), b = window.__r(); return Math.abs(b.x - f.left) <= 1 && Math.abs(b.y - f.top) <= 1 && Math.abs(b.w - f.width) <= 1 && Math.abs(b.h - f.height) <= 1 && !!window.__win().querySelector('.ec-modal-bar > button[aria-label=\"이전 크기로\"]') })()",
+        "js:window.__win().querySelector('.ec-modal-bar > button[aria-label=\"이전 크기로\"]').click(); true",
+        "wait:200",
+        "expect:JSON.stringify(window.__r()) === JSON.stringify(window.__r4) && !!window.__win().querySelector('.ec-modal-bar > button[aria-label=최대화]')",
+        "js:window.__win().querySelector('.ec-modal-bar > button[aria-label=닫기]').click(); true",
+        "wait:200",
+        "expect:!document.querySelector('[role=dialog].ec-modal-win')"
+      ]
+    }
+  ]
+}

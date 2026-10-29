@@ -1,0 +1,18 @@
+{
+  "about": "관리 > 근태현황(E020715) [구분] 사용자지정집계 — 원본 2026-10-20 실측: 라인별 · 사용자지정집계, 집계조건 · 집계대상 · 기타 □가로보기 □비율표시 □코드포함, 비교기간(사용안함 · 전년/전월/전주/전일동일기간). 공용 CustomAggregate. 근태용 집계조건 목록은 원본 재기 필요.",
+  "shots": [
+    {
+      "name": "근태현황 — 사원 / 근태 집계 → 머리 '사원|근태', 끝 합계 · 전월동일기간이면 머리 두 줄",
+      "path": "/hr/attendance-kind-status",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '사용자지정집계').click(); await W(400); const sel = document.querySelector('select[aria-label=\"집계조건1\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, 'emp'); sel.dispatchEvent(new Event('change', { bubbles: true })); await W(300); [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '근태').querySelector('input').click(); await W(400); return true })()",
+        "expect:[...document.querySelectorAll('table.ec-report thead th')].map((t) => t.innerText.trim()).join('|') === '사원|근태'",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '전월동일기간').querySelector('input').click(); await W(2500); return true })()",
+        "expect:document.querySelectorAll('table.ec-report thead tr').length === 2",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '라인별').click();true",
+        "expect:!document.querySelector('table.ec-report') && document.body.innerText.includes('근태종류')"
+      ]
+    }
+  ]
+}

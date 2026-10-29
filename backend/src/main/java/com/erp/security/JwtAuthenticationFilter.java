@@ -1,16 +1,20 @@
 package com.erp.security;
 
 import com.erp.settings.company.CompanyAccessService;
+import com.erp.tenant.StartupGate;
 import com.erp.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.lang.NonNull;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -28,6 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
     private final CompanyAccessService companyAccessService;
+    private final StartupGate startupGate;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -36,6 +41,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String token = resolveToken(request);
+        // 기동이 덜 끝났으면 토큰이 맞는지 가릴 수 없다 — 401(=로그아웃) 이 아니라 503(=잠시 뒤 다시)
+        if (token != null && !startupGate.isReady()) {
+            unavailable(response);
+            return;
+        }
         boolean tenantSet = false;
         try {
             // 로그인 뒤에 회사가 중지되거나 사용기한이 지나면 토큰이 살아 있어도 인증하지 않는다(→ 401 → 로그인 화면,
@@ -56,11 +66,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             filterChain.doFilter(request, response);
+        } catch (UsernameNotFoundException e) {
+            // 토큰은 맞는데 사용자가 없다 — 진짜 401. 인증 없이 보내면 EntryPoint 가 401 을 낸다.
+            SecurityContextHolder.clearContext();
+            if (!response.isCommitted()) filterChain.doFilter(request, response);
+        } catch (DataAccessException | CannotCreateTransactionException e) {
+            // DB 가 잠시 못 받는 상태(마이그레이션 잠금 · 연결 풀 · 재기동). 예전엔 예외가 /error 로 넘어가 401 이 됐다.
+            SecurityContextHolder.clearContext();
+            if (!response.isCommitted()) unavailable(response);
         } finally {
             if (tenantSet) {
                 TenantContext.clear();   // 스레드 풀에 테넌트가 눌어붙지 않도록
             }
         }
+    }
+
+    private void unavailable(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        response.setHeader("Retry-After", "3");
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write("{\"status\":503,\"message\":\"서버가 준비 중입니다. 잠시 뒤 다시 시도하세요.\"}");
     }
 
     /** 회사 정보가 없는 옛 토큰은 본사 것이다(TenantContext.set(null) 이 본사로 가던 것과 같다). */

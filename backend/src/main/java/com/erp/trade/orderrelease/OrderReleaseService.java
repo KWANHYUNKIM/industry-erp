@@ -60,7 +60,7 @@ public class OrderReleaseService {
                             o.getPartner().getId(), o.getPartner().getName(),
                             o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                             o.getProject() != null ? o.getProject().getId() : null,
-                            l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(),
+                            l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.effectiveSpec(),
                             l.getQuantity(), done, rest, o.getDueDate(), o.getRemark(), o.getUpdatedAt());
                 }))
                 .filter(p -> p.remainQty().signum() > 0)
@@ -93,8 +93,8 @@ public class OrderReleaseService {
                     // [추가수량] = 주문수량 − 다른 처리 건이 낸 수량(이 건을 빼고 낼 수 있는 만큼).
                     BigDecimal others = released.getOrDefault(ol.getId(), BigDecimal.ZERO).subtract(l.getQuantity());
                     return new DetailLine(ol.getItem().getId(), l.getQuantity(), ol.getUnitPrice(),
-                            ol.getItem().getCode(), ol.getItem().getName(),
-                            l.getId(), ol.getItem().getSpec(), ol.getQuantity().subtract(others));
+                            ol.getItem().getCode(), ol.effectiveItemName(),
+                            l.getId(), ol.effectiveSpec(), ol.getQuantity().subtract(others));
                 }).toList(),
                 o.getPartner().getName(), o.getWarehouse() != null ? o.getWarehouse().getName() : null);
     }
@@ -192,7 +192,7 @@ public class OrderReleaseService {
     }
 
     private static String itemLabel(SalesOrderLine l) {
-        String spec = l.getItem().getSpec();
-        return l.getItem().getName() + (spec == null || spec.isBlank() ? "" : "[" + spec + "]");
+        String spec = l.effectiveSpec();
+        return l.effectiveItemName() + (spec == null || spec.isBlank() ? "" : "[" + spec + "]");
     }
 }

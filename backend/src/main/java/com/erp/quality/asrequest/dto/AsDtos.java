@@ -20,14 +20,16 @@ public final class AsDtos {
     public record AsLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             /* 원본은 0 · 빈칸만 막고(빨간 테두리) 음수는 받는다(2026-10-13 실측: -1 저장 → 합계줄 -1). */
-            @NotNull(message = "수량을 입력하세요.") BigDecimal quantity
+            @NotNull(message = "수량을 입력하세요.") BigDecimal quantity,
+            /** 원본 격자 [새로운 항목 추가] — 줄 적요. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String note
     ) {}
 
     public record AsLineResponse(Long id, int lineNo, Long itemId, String itemCode, String itemName, String itemSpec,
-                                 BigDecimal quantity) {
+                                 BigDecimal quantity, String note) {
         public static AsLineResponse from(com.erp.quality.asrequest.AsRequestLine l) {
             return new AsLineResponse(l.getId(), l.getLineNo(), l.getItem().getId(), l.getItem().getCode(),
-                    l.getItem().getName(), l.getItem().getSpec(), l.getQuantity());
+                    l.getItem().getName(), l.getItem().getSpec(), l.getQuantity(), l.getNote());
         }
     }
 
@@ -50,7 +52,9 @@ public final class AsDtos {
             /** 원본 격자의 품목 줄. */
             List<@jakarta.validation.Valid AsLineRequest> lines,
             /** 원본 입력 창의 [접수진행상태] — 새 접수도 고를 수 있다(기본 000 접수). null 이면 접수. */
-            AsStatus status
+            AsStatus status,
+            /** 원본 머리 [새로운 항목 추가] 한 줄 글. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String extraNote
     ) {}
 
     /**
@@ -71,7 +75,8 @@ public final class AsDtos {
             LocalDate scheduledDate,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String repairNote,
-            LocalDate doneDate
+            LocalDate doneDate,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String extraNote
     ) {}
 
     public record AsResponse(
@@ -100,7 +105,9 @@ public final class AsDtos {
              */
             String createdBy, LocalDateTime createdAt, LocalDateTime updatedAt,
             /** 원본 A/S접수 품목 격자와 그 [수량] 합계줄. */
-            List<AsLineResponse> lines, BigDecimal totalQuantity
+            List<AsLineResponse> lines, BigDecimal totalQuantity,
+            /** 원본 머리 [새로운 항목 추가]. */
+            String extraNote
     ) {
         public static AsResponse from(AsRequest a) {
             return new AsResponse(
@@ -123,7 +130,8 @@ public final class AsDtos {
                     a.getCreatedBy(), a.getCreatedAt(), a.getUpdatedAt(),
                     a.getLines().stream().map(AsLineResponse::from).toList(),
                     a.getLines().stream().map(com.erp.quality.asrequest.AsRequestLine::getQuantity)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add));
+                            .reduce(BigDecimal.ZERO, BigDecimal::add),
+                    a.getExtraNote());
         }
     }
 }

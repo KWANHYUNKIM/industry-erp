@@ -50,7 +50,7 @@ public class ShipmentService {
         BusinessPartner p = sh.getPartner();
         changeHistory.recordSlip(HISTORY_TARGET, sh.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot("출하", sh.getShipDate(), sh.getShipNo(),
                 p != null ? p.getCode() : null, p != null ? p.getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), sh.getLines().size()),
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.effectiveItemName(), first.effectiveSpec(), sh.getLines().size()),
                 sh.getEmployee() != null ? sh.getEmployee().getCode() : null,
                 sh.getEmployee() != null ? sh.getEmployee().getName() : null,
                 sh.getStatus() != null ? sh.getStatus().getDisplayName() : null));
@@ -183,7 +183,7 @@ public class ShipmentService {
                 BigDecimal remain = soLine.getQuantity().subtract(soShipped.getOrDefault(soLine.getId(), BigDecimal.ZERO));
                 if (asked.compareTo(remain) > 0) {
                     throw ApiException.badRequest(String.format("출하수량이 잔량을 초과합니다. 품목=%s, 잔량=%s, 요청=%s",
-                            soLine.getItem().getName(), remain.stripTrailingZeros().toPlainString(),
+                            soLine.effectiveItemName(), remain.stripTrailingZeros().toPlainString(),
                             asked.stripTrailingZeros().toPlainString()));
                 }
             }
@@ -195,7 +195,7 @@ public class ShipmentService {
                 BigDecimal remain = remaining(orderLine, orderCommitted);
                 if (asked.compareTo(remain) > 0) {
                     throw ApiException.badRequest(String.format("출하수량이 잔량을 초과합니다. 품목=%s, 잔량=%s, 요청=%s",
-                            orderLine.getItem().getName(), remain.toPlainString(), asked.toPlainString()));
+                            orderLine.effectiveItemName(), remain.toPlainString(), asked.toPlainString()));
                 }
             }
 
@@ -207,6 +207,9 @@ public class ShipmentService {
                     .unitPrice(unitPrice)
                     .amount(amount)
                     .remark(lr.remark())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim()
+                            : soLine != null ? soLine.effectiveItemName() : orderLine != null ? orderLine.effectiveItemName() : item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build());
 
             totalQty = totalQty.add(lr.quantity());
@@ -277,7 +280,7 @@ public class ShipmentService {
             if (t.qty().compareTo(remain) > 0) {
                 throw ApiException.badRequest(String.format(
                         "출하수량이 잔량을 초과합니다. 품목=%s, 잔량=%s, 요청=%s",
-                        line.getItem().getName(), remain.toPlainString(), t.qty().toPlainString()));
+                        line.effectiveItemName(), remain.toPlainString(), t.qty().toPlainString()));
             }
 
             BigDecimal amount = t.qty().multiply(line.getUnitPrice());
@@ -287,6 +290,8 @@ public class ShipmentService {
                     .quantity(t.qty())
                     .unitPrice(line.getUnitPrice())
                     .amount(amount)
+                    .itemName(line.effectiveItemName())
+                    .spec(line.effectiveSpec())
                     // 주문에서 만든 출하는 줄 적요가 비어 나간다 — 주문 라인에
                     // 적요 칸이 없어 이어받을 것이 없다. 출하 화면에서 직접 적는다.
                     .build());
@@ -411,6 +416,8 @@ public class ShipmentService {
                     .unitPrice(price)
                     .amount(amount)
                     .remark(e.getKey().getRemark())
+                    .itemName(e.getKey().effectiveItemName())
+                    .spec(e.getKey().effectiveSpec())
                     .build());
             totalQty = totalQty.add(e.getValue());
             totalAmount = totalAmount.add(amount);

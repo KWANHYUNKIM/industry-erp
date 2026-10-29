@@ -50,7 +50,7 @@ export default function CodePickerField({
    * 안 고르면 전체라는 뜻은 [전체] 지우기 항목(emptyLabel)이 말해 준다.
    */
   label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
-  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain, hideNew, showCode, invalid,
+  hideLabel, multiple, values, onChangeMulti, fill, pair, nameValue, onNameChange, columns, popupTitle, onNew, plain, hideNew, showCode, invalid,
   employeeSearch, onPickMany,
 }: {
   /** 빈 필수칸 — 칸 줄을 원본 has-error 빨간 테두리(`.ec-invalid`)로 두른다. 보통 useRequired 훅의 on(키, 채워졌나). */
@@ -87,6 +87,12 @@ export default function CodePickerField({
    * 코드를 직접 쳐서 넣는 사용자가 있어 코드칸이 앞에 따로 있다.
    */
   pair?: boolean
+  /**
+   * pair 의 명칭칸을 고칠 수 있게 연다 — 원본 [임의거래처](12341234)를 고르면 거래처 이름 칸이 열린다(2026-10-28 실측).
+   * 주면 명칭칸이 이 값을 보이고, 고친 글자를 onNameChange 로 넘긴다(비면 고른 항목 이름).
+   */
+  nameValue?: string
+  onNameChange?: (name: string) => void
   /** 다중 선택 — 원본의 tags-input 에 해당. values/onChangeMulti 와 함께 쓴다. */
   multiple?: boolean
   values?: string[]
@@ -119,10 +125,10 @@ export default function CodePickerField({
    * 그 검색어로 목록 창을 연다. 없으면 빈 목록 창. 예전엔 코드칸이 읽기 전용이라 먼저 창부터 열렸다.
    */
   const [typed, setTyped] = useState<string | null>(null)
-  function submitTyped() {
+  function submitTyped(blurOnly = false) {
     const needle = (typed ?? '').trim()
     setTyped(null)
-    if (!needle) { setOpen(true); return }
+    if (!needle) { if (!blurOnly) setOpen(true); return }
     const low = needle.toLowerCase()
     // 직접 쳐서 Enter 할 때는 사용 중인 것만 맞춘다 — 사용중단은 창에서 [사용중단포함] 을 켜야 보인다(원본 동작을 가정, 미실측)
     const hits = items.filter((i) => !i.stopped && `${i.code ?? ''} ${i.name}`.toLowerCase().includes(low))
@@ -130,6 +136,8 @@ export default function CodePickerField({
     const exact = hits.filter((i) => (i.code ?? '').trim().toLowerCase() === low)
     if (exact.length === 1) { pick(exact[0]); return }
     if (hits.length === 1) { pick(hits[0]); return }
+    // Tab 으로 떠날 때는 딱 하나 걸린 경우만 채운다 — 여럿이거나 없으면 창을 띄우지 않고 원래 값으로 돌아간다
+    if (blurOnly) return
     // 아무것도 안 걸리면 바꾸려던 이전 값은 무효 — 비운다(안 비우면 창을 닫았을 때 옛 값으로 저장된다)
     if (hits.length === 0 && value) onChange?.('', null)
     setQ(needle)
@@ -161,6 +169,20 @@ export default function CodePickerField({
     setOpen(false)
     setQ('')
   }
+  /*
+   * 창에서 고른 뒤 포커스를 이 칸으로 돌린다 — 창이 닫히면 포커스가 body 로 떨어져, 출하입력 머리에서 담당자를 코드 + Enter 로
+   * 고른 다음 Tab · 출하창고 코드 + Enter 가 아무 데도 안 갔다(두 번째에야 됐다, 2026-10-29 QA). 칸에서 Enter 나 글자를 치면 창이 열린다.
+   */
+  const fieldRef = useRef<HTMLInputElement>(null)
+  const pickFromPopup = (item: CodeItem | null) => {
+    pick(item)
+    requestAnimationFrame(() => fieldRef.current?.focus())
+  }
+  const openByKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled || e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.key === 'Enter') { e.preventDefault(); setOpen(true); return }
+    if (e.key.length === 1 && e.key !== ' ') { e.preventDefault(); setQ(e.key); setOpen(true) }
+  }
 
   /** 다중 선택 — 체크만 하고 팝업은 열어 둔다(여러 개를 연달아 고르는 게 목적이므로). */
   function toggle(item: CodeItem) {
@@ -185,6 +207,7 @@ export default function CodePickerField({
         /* 전표 코드칸: [코드][🔍][명칭][×] — 원본 .control > .form-control-code */
         <div className={invalid ? 'ec-code ec-invalid' : 'ec-code'}>
           <input
+            ref={fieldRef}
             className="ec-input code"
             disabled={disabled}
             value={typed ?? selected?.code ?? ''}
@@ -192,8 +215,8 @@ export default function CodePickerField({
             onChange={(e) => setTyped(e.target.value)}
             // <form> 안에서 Enter 가 바깥 폼을 제출하지 않게 막는다
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitTyped() } }}
-            // 고르지 않고 떠나면 친 글자를 버리고 원래 값으로 돌아간다
-            onBlur={() => setTyped(null)}
+            // Tab 으로 떠나도 코드가 정확히 하나를 가리키면 그것을 고른다. 아니면 친 글자를 버리고 원래 값으로 돌아간다
+            onBlur={() => { if (typed !== null) submitTyped(true) }}
             style={{ background: disabled ? '#f4f5f7' : undefined }}
           />
           <button
@@ -207,13 +230,14 @@ export default function CodePickerField({
           </button>
           <input
             className="ec-input name"
-            readOnly
+            readOnly={!onNameChange}
             disabled={disabled}
-            value={selected?.name ?? ''}
+            value={onNameChange ? (nameValue ?? selected?.name ?? '') : (selected?.name ?? '')}
+            onChange={onNameChange ? (e) => onNameChange(e.target.value) : undefined}
             placeholder=""
-            onClick={(e) => !disabled && openFrom(e)}
+            onClick={(e) => !disabled && !onNameChange && openFrom(e)}
             title={selected ? `${selected.code ?? ''} ${selected.name}`.trim() : ''}
-            style={{ background: disabled ? '#f4f5f7' : '#fff', cursor: disabled ? 'default' : 'pointer' }}
+            style={{ background: disabled ? '#f4f5f7' : '#fff', cursor: disabled ? 'default' : onNameChange ? 'text' : 'pointer' }}
           />
           {!!selected && !disabled && (
             <button type="button" className="ec-btn" onClick={clearAll} title="선택 해제" style={{ color: 'var(--ec-danger)' }}>
@@ -224,8 +248,10 @@ export default function CodePickerField({
       ) : (
       <div className={invalid ? 'ec-invalid' : undefined} style={{ display: 'flex', width: fill ? '100%' : undefined }}>
         <input
+          ref={fieldRef}
           className="ec-input ec-pick-input"
           readOnly
+          onKeyDown={multiple ? undefined : openByKey}
           disabled={disabled}
           value={display}
           placeholder={placeholder ?? label}
@@ -267,7 +293,7 @@ export default function CodePickerField({
         value={value}
         emptyLabel={emptyLabel}
         initialQuery={q}
-        onPick={pick}
+        onPick={pickFromPopup}
         onClose={() => { setOpen(false); setQ('') }}
         multiple={multiple}
         picked={picked}

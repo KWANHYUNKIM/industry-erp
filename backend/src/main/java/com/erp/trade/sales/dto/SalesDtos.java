@@ -23,12 +23,13 @@ public final class SalesDtos {
 
     public record SalesLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            /* 음수는 반품 줄이다 — 원본 판매 [반품처리] 가 수량 -30 · 공급가액 -60,000 으로 연다(2026-10-28 loginaa). 0 은 서비스가 막는다. */
+            @NotNull(message = "수량을 입력하세요.") BigDecimal quantity,
             @NotNull(message = "단가를 입력하세요.") @PositiveOrZero(message = "단가를 입력하세요.") BigDecimal unitPrice,
             @Size(max = 255, message = "비고는 255자까지 넣을 수 있습니다.")
             String remark,
             /** 시리얼/로트 번호 (선택) */
-            @Size(max = 60, message = "입력한 글자가 너무 깁니다. 60자까지 넣을 수 있습니다.")
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String lotNo,
             /** 부대비용 (선택). 합계에는 더하지 않는다. */
             @PositiveOrZero(message = "부대비용은 0 이상이어야 합니다.")
@@ -40,28 +41,39 @@ public final class SalesDtos {
              * 원본 판매입력 격자의 [공급가액] 칸은 고칠 수 있다 — 2026-10-06 loginaa 실측: 3 × 333.5 에서 1,009 로 고치면
              * 부가세 101 · 합계 1,110 으로 저장되고 단가 333.5 는 그대로 남는다. 수량·단가를 다시 바꾸면 화면이 새로 계산한다.
              */
-            @PositiveOrZero(message = "공급가액은 0 이상이어야 합니다.")
+            /* 반품(음수 수량) 줄의 공급가액은 음수다. */
             BigDecimal supplyAmount,
             /**
              * 부가세를 손으로 고친 값(선택, 과세 전표에서만). 비우면 공급가액 × 10% 를 원 단위로 반올림.
              * 원본 판매입력 격자의 [부가세] 칸도 고칠 수 있다 — 2026-10-06 loginaa: 1,001 줄의 부가세를 99 로 고치면
              * 합계 1,100 으로 저장되고 다시 열어도 99. 공급가액을 바꾸면 화면이 부가세를 다시 계산한다.
              */
-            @PositiveOrZero(message = "부가세는 0 이상이어야 합니다.")
-            BigDecimal vatAmount
-    ) {}
+            /* 반품 줄의 부가세는 음수다. */
+            BigDecimal vatAmount,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
+            /** 줄 품목명(선택). 원본 입력 화면은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007 · '포장김치1kg'). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
+    ) {
+        public SalesLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String lotNo,
+                                BigDecimal extraCost, Long sourceOrderId, BigDecimal supplyAmount, BigDecimal vatAmount, String spec) {
+            this(itemId, quantity, unitPrice, remark, lotNo, extraCost, sourceOrderId, supplyAmount, vatAmount, spec, null);
+        }
+        /** 규격 없이 만드는 호출(서버 안에서 전표를 옮겨 담는 곳) — 품목 규격으로 채워진다. */
+        public SalesLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String lotNo,
+                                BigDecimal extraCost, Long sourceOrderId, BigDecimal supplyAmount, BigDecimal vatAmount) {
+            this(itemId, quantity, unitPrice, remark, lotNo, extraCost, sourceOrderId, supplyAmount, vatAmount, null);
+        }
+    }
 
     public record CreateSalesRequest(
             Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             LocalDate saleDate,
             /** 과세 여부 (true=부가세 10%, false=면세) */
             Boolean taxable,
-            /**
-             * 원본 [거래구분] — 일반(false) · 반품(true). 안 주면 일반.
-             * 반품이면 서버가 수량·금액을 음수로 뒤집어 저장한다. 화면은 양수로 적는다.
-             */
-            Boolean returnSlip,
             @Size(max = 500, message = "비고는 500자까지 넣을 수 있습니다.")
             String remark,
             /** 귀속 프로젝트 (선택). 프로젝트별 손익 집계의 재료가 된다. */
@@ -84,9 +96,9 @@ public final class SalesDtos {
     ) {
         /** 금액조정 없는 전표(판매입력 · A/S · 쇼핑몰 주문). */
         public CreateSalesRequest(Long partnerId, Long warehouseId, LocalDate saleDate, Boolean taxable,
-                                  Boolean returnSlip, String remark, Long projectId, Long employeeId,
+                                  String remark, Long projectId, Long employeeId,
                                   Boolean vatBySlip, List<SalesLineRequest> lines) {
-            this(partnerId, warehouseId, saleDate, taxable, returnSlip, remark, projectId, employeeId,
+            this(partnerId, null, warehouseId, saleDate, taxable, remark, projectId, employeeId,
                     vatBySlip, lines, null, null, null);
         }
     }
@@ -110,7 +122,7 @@ public final class SalesDtos {
             SalesOrder src = l.getSourceOrder();
             return new SalesLineResponse(
                     l.getId(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(), l.getItem().getSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(), l.effectiveSpec(),
                     l.getItem().getCategory(),
                     l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                     l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
@@ -155,7 +167,7 @@ public final class SalesDtos {
             boolean vatBySlip,
             /** 과세 전표인가. 원본 일괄회계반영의 [부가세유형] (과세 · 면세). */
             boolean taxable,
-            /** 원본 [거래구분]이 반품인가. 수량·금액이 음수로 저장돼 있다. */
+            /** 반품 전표인가 — 줄이 전부 음수 수량(Sales.isReturnSlip, 저장 칸 없음). 원본 입력에는 거래구분 칸이 없다. */
             boolean returnSlip,
             /** 원본 [거래구분] 표시값 — 일반 · 반품. */
             String tradeKindName,
@@ -182,7 +194,7 @@ public final class SalesDtos {
         public static SalesResponse from(Sales s) {
             return new SalesResponse(
                     s.getId(), s.getDocNo(),
-                    s.getPartner() != null ? s.getPartner().getId() : null, s.getPartner() != null ? s.getPartner().getName() : "",
+                    s.getPartner() != null ? s.getPartner().getId() : null, s.getPartner() != null ? s.displayPartnerName() : "",
                     s.getWarehouse().getId(), s.getWarehouse().getName(),
                     s.getSaleDate(),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),

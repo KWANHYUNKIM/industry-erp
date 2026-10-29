@@ -38,14 +38,17 @@ public final class CompanyInfoDtos {
     public record CompanyInfoResponse(
             Long id, String name, String ceo, String bizRegNo, String corpRegNo,
             String bizType, String bizItem, String tel, String fax, String email,
-            String zipcode, String address, String addressDetail
+            String zipcode, String address, String addressDetail,
+            /** 로고가 있으면 true — 그림은 GET /api/company/logo. logoVersion 은 바꿀 때마다 새 값. */
+            boolean hasLogo, Long logoVersion
     ) {
         public static CompanyInfoResponse from(CompanyInfo c) {
             if (c == null) return null;
             return new CompanyInfoResponse(
                     c.getId(), c.getName(), c.getCeo(), c.getBizRegNo(), c.getCorpRegNo(),
                     c.getBizType(), c.getBizItem(), c.getTel(), c.getFax(), c.getEmail(),
-                    c.getZipcode(), c.getAddress(), c.getAddressDetail());
+                    c.getZipcode(), c.getAddress(), c.getAddressDetail(),
+                    c.getLogo() != null && c.getLogo().length > 0, c.getLogoVersion());
         }
     }
 }

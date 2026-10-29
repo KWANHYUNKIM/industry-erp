@@ -213,6 +213,13 @@ public class ExportService {
             e.setKrwAmount(foreignTotal);
             return;
         }
+        // Invoice 는 수출 서류라 고시환율이 없어도 저장한다(원본 이카운트: 통화 달러 · 환율 0 으로 저장됨).
+        // 그때는 환율 · 원화를 0 으로 둔다. 원화 환산(회계 · 채권)은 고시가 있어야 하는 기존 규칙 그대로다.
+        if (!currencyService.hasRate(currency.getId(), invoiceDate)) {
+            e.setAppliedRate(BigDecimal.ZERO);
+            e.setKrwAmount(BigDecimal.ZERO);
+            return;
+        }
         // 원화 환산: 고시단위·직전 고시 적용 규칙은 CurrencyService 가 소유한다.
         ConversionResponse converted = currencyService.convert(currency.getId(), foreignTotal, invoiceDate);
         e.setAppliedRate(converted.appliedRate());

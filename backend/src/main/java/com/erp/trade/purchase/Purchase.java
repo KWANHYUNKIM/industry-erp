@@ -38,6 +38,15 @@ public class Purchase extends BaseTimeEntity {
     @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 
+    /** 저장 때 거래처명 — 임의거래처는 화면에서 고친 이름(원본 실측 2026-10-28). 옛 전표는 거래처 이름으로 백필. */
+    @Column(name = "partner_name", length = 200)
+    private String partnerName;
+
+    /** 화면에 찍을 거래처명 — 전표에 남긴 이름, 없으면 거래처 마스터 이름. */
+    public String displayPartnerName() {
+        return partnerName != null ? partnerName : (partner != null ? partner.getName() : null);
+    }
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;
@@ -102,16 +111,12 @@ public class Purchase extends BaseTimeEntity {
     private boolean taxable = true;
 
     /**
-     * 원본 [거래구분] — <b>일반 · 반품</b>. 네 화면이 이 구분을 조건으로 든다
-     * (판매·구매일괄회계반영, 구매단가일괄변경, 일별이익현황의 [반품만]·[반품제외]).
-     *
-     * <p>반품은 그 거래의 <b>반대</b>다. 그래서 저장할 때 라인 수량과 전표 금액을
-     * <b>음수로 뒤집어</b> 둔다 — 재고·채권·이익을 읽는 쪽이 아무것도 안 바꿔도 맞는다.
-     * 화면에서는 되돌려받는 수량을 양수로 적는다(원본도 그렇다).
+     * 반품 전표인가 — <b>줄이 전부 음수 수량</b>인 전표. 저장하는 칸은 없다(판매 {@code Sales.isReturnSlip} 과 같다).
+     * 원본 구매입력에도 거래구분 칸이 없고 반품은 음수 수량으로 적는다. 예전 return_slip 칸(V177)은 V483 에서 지웠다.
      */
-    @Column(name = "return_slip", nullable = false)
-    @Builder.Default
-    private boolean returnSlip = false;
+    public boolean isReturnSlip() {
+        return !lines.isEmpty() && lines.stream().allMatch(l -> l.getQuantity() != null && l.getQuantity().signum() < 0);
+    }
 
     /** 외자(수입) 전표의 통화코드(외화등록). null 이면 내자. 금액 열은 늘 원화다. */
     @Column(name = "currency_code", length = 10)

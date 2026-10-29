@@ -60,14 +60,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
-    api
-      .get<User>('/auth/me')
-      .then(async (res) => {
-        setUser(res.data)
-        await loadPermissions()
-      })
-      .catch(() => tokenStore.clear())
-      .finally(() => setLoading(false))
+    // 재기동 중(502 · 503 · 네트워크 오류)에는 토큰을 지우지 않는다 — 401 일 때만 로그아웃. 잠시 뒤 다시 시도한다.
+    let cancelled = false
+    const restore = async () => {
+      for (let i = 0; i < 20 && !cancelled; i++) {
+        try {
+          const res = await api.get<User>('/auth/me')
+          setUser(res.data)
+          await loadPermissions()
+          return
+        } catch (e) {
+          if ((e as { response?: { status?: number } }).response?.status === 401) {
+            tokenStore.clear()
+            return
+          }
+          await new Promise((r) => setTimeout(r, 3000))
+        }
+      }
+    }
+    restore().finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [])
 
   async function login(companyCode: string, username: string, password: string) {

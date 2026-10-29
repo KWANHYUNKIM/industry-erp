@@ -1,5 +1,5 @@
 {
-  "about": "거래이력조회(재고) E040716 · 구매 수정 창 [H] (원본 2026-10-21 loginaa 실측: 구매조회 [신규(F2)](우리는 구매입력 화면으로 넘어감) (주)구로 · 포장재(C004) 1 × 50 = 55 저장 → 2026/10/21 -4 → 수량 2 · 110 저장 → [H] '이력' 창 머리 [2026/10/21 -4] · [No.][작업자ID][작업일시(요일 없음)][전표상태 확인][진행상태 확인][상태] 신규 · 수정, 보안 · 발송이력 없음 · [닫기]. 구매 수정 창 아래 단추는 … 삭제 · 보내기 · H — [최종이력] 없음. [삭제] '전표를 삭제하겠습니까? - 구매'. 거래이력조회 [메뉴] 구매 · 최종이력만 끔 → 삭제 · 수정 · 신규 세 줄(00010 · (주)구로 · 포장재 [30cm*40cm] · P01 · 김현수 · GUEST · 확인 · H)). node qa/shot.mjs qa/flows/purchase-trade-history.json",
+  "about": "거래이력조회(재고) E040716 · 구매 수정 창 [H] (원본 2026-10-21 loginaa 실측: 구매조회 [신규(F2)](목록 위 '구매입력' 창) (주)구로 · 포장재(C004) 1 × 50 = 55 저장 → 2026/10/21 -4 → 수량 2 · 110 저장 → [H] '이력' 창 머리 [2026/10/21 -4] · [No.][작업자ID][작업일시(요일 없음)][전표상태 확인][진행상태 확인][상태] 신규 · 수정, 보안 · 발송이력 없음 · [닫기]. 구매 수정 창 아래 단추는 … 삭제 · 보내기 · H — [최종이력] 없음. [삭제] '전표를 삭제하겠습니까? - 구매'. 거래이력조회 [메뉴] 구매 · 최종이력만 끔 → 삭제 · 수정 · 신규 세 줄(00010 · (주)구로 · 포장재 [30cm*40cm] · P01 · 김현수 · GUEST · 확인 · H)). node qa/shot.mjs qa/flows/purchase-trade-history.json",
   "shots": [
     {
       "name": "준비 — QAJ1P · QAJ1-Z12(API)",
@@ -9,13 +9,13 @@
       ]
     },
     {
-      "name": "구매조회 [신규(F2)] → 구매입력 화면(/sales/buy, 원본은 창) — 1 × 50 저장",
+      "name": "구매조회 [신규(F2)] → 목록 위 '구매입력' 창(원본 E040304) — 1 × 50 저장",
       "path": "/sales/purchase-list",
       "steps": [
         "wait:2000",
         "js:(() => { window.confirm = () => true; [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '신규(F2)').click(); return true })()",
         "wait:1500",
-        "expect:location.pathname === '/sales/buy'",
+        "expect:location.pathname === '/sales/purchase-list' && !!document.querySelector('[role=dialog]')",
         "clicklast:거래처 코드도움",
         "pickrow:QAJ1P",
         "clicklast:입고창고 코드도움",
@@ -42,7 +42,7 @@
         "set:[role=dialog] tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
         "js:[...window.__dlg().querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
         "wait:2000",
-        "expect:!document.querySelector('[role=dialog]') && window.__row().innerText.includes('1109')",
+        "expect:!document.querySelector('[role=dialog]') && window.__row().innerText.includes('110')",
         "js:window.__row().querySelector('button.ec-link').click(); true",
         "wait:1000",
         "expect:![...window.__dlg().querySelectorAll('button')].some((b) => b.textContent.trim() === '최종이력')",

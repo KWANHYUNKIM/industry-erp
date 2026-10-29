@@ -1,0 +1,21 @@
+{
+  "about": "매출계획입력 줄 품목 — 사용중단 품목도 코드를 치고 Enter → 창 [사용중단포함] 을 켜면 찾혀 고를 수 있다(판매 · 구매입력과 같은 규칙, 데이터이관 QA B: 원본 매출계획 11/23-1 F001 · 11/05-1 J001 이 사용중단 품목). 저장하지 않는다.",
+  "shots": [
+    {
+      "name": "사용중단 품목 Enter → 사용중단포함 → 고름",
+      "path": "/sales/sales-plan-entry",
+      "steps": [
+        "wait:2500",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const all = await (await fetch('/api/items', { headers: H })).json(); const it = all.find((x) => x.active === false); if (!it) return false; sessionStorage.setItem('spsCode', it.code); return true })()",
+        "js:(() => { const i = document.querySelector('input.code[placeholder=\"품목\"]'); i.focus(); const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(i, sessionStorage.getItem('spsCode')); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:600",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '사용중단포함').click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('spsCode')))",
+        "js:[...document.querySelectorAll('[role=dialog] tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('spsCode'))).querySelector('a, button, td').click(); true",
+        "wait:400",
+        "expect:document.querySelector('input.code[placeholder=\"품목\"]').value === sessionStorage.getItem('spsCode')"
+      ]
+    }
+  ]
+}

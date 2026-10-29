@@ -1,19 +1,27 @@
 {
-  "about": "영업 한 바퀴를 화면으로 — 견적 작성 → [다른전표생성] › 주문서 › 1장라인별(주문서입력 창 저장) → 주문에 이어 출하(API) → 출하지시서에서 출하완료 → 주문이 완료로. node qa/shot.mjs qa/flows/sales-cycle.json — 만든 전표는 끝에 지운다. 견적 목록은 번호를 원본처럼 '2026/10/01 -5' 로 적는다(견적서조회 E040202 2026-10-14 실측 — 저장 뒤 말 없음, [생성한전표] '조회' 에 주문서 번호).",
+  "about": "영업 한 바퀴를 화면으로 — 견적서입력(큰 화면) 작성 → [다른전표생성] › 주문서 › 1장라인별(주문서입력 창 저장) → 주문에 이어 출하(API) → 출하지시서에서 출하완료 → 주문이 완료로. node qa/shot.mjs qa/flows/sales-cycle.json — 만든 전표는 끝에 지운다. 견적 목록은 번호를 원본처럼 '2026/10/01 -5' 로 적는다(견적서조회 E040202 2026-10-14 실측 — 저장 뒤 말 없음, [생성한전표] '조회' 에 주문서 번호).",
   "shots": [
     {
-      "name": "견적서입력 → 말 없이 목록에 한 줄, [진행상태] 진행중 · 고른 줄 [다른전표생성] › 주문서 1장라인별 → 주문서입력 창(출하창고 골라 저장, 말 없이 닫힘)",
+      "name": "견적서입력(큰 화면) → 저장하면 말 없이 빈 칸",
+      "path": "/sales/quotation-entry",
+      "steps": [
+        "wait:1500",
+        "click:거래처 코드도움",
+        "pickrow:QA-CUST",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1000",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:location.pathname === '/sales/quotation-entry' && !document.querySelector('tbody tr input.text-right')?.value"
+      ]
+    },
+    {
+      "name": "견적서조회 — 방금 저장한 견적이 진행중 · 고른 줄 [다른전표생성] › 주문서 1장라인별 → 주문서입력(출하창고 골라 저장)",
       "path": "/sales/quotations",
       "steps": [
-        "click:신규(F2)",
-        "js:document.querySelector('.ec-modal button[title=\"거래처 선택\"]').click(); true",
-        "pickrow:QA-CUST",
-        "js:document.querySelector('.ec-modal button[title=\"품목 선택\"]').click(); true",
-        "pickrow:QA-PROD",
-        "set:.ec-modal tbody tr:has(button[title=\"품목 선택\"]) input.text-right#0|2",
-        "set:.ec-modal tbody tr:has(button[title=\"품목 선택\"]) input.text-right#1|1000",
-        "click:저장(F8)",
-        "expect:!document.querySelector('.ec-modal')",
+        "wait:1500",
         "js:fetch('/api/quotations',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const q=d.filter((x)=>x.partnerName&&x.lines[0]&&x.lines[0].itemCode==='QA-PROD').sort((a,b)=>b.id-a.id)[0];sessionStorage.setItem('qaQuote',q.quoteNo);sessionStorage.setItem('qaQuoteStatus',q.statusName);const [, dd, n]=q.quoteNo.split('-');sessionStorage.setItem('qaQuoteRow',dd.slice(0,4)+'/'+dd.slice(4,6)+'/'+dd.slice(6)+' -'+Number(n));return true})",
         "expect:sessionStorage.getItem('qaQuoteStatus') === '진행중'",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow')))",
@@ -21,8 +29,8 @@
         "click:다른전표생성",
         "js:[...document.querySelectorAll('[role=menu] button')].find((b) => b.textContent.trim() === '1장라인별').click(); true",
         "wait:1500",
-        "expect:document.querySelector('[role=dialog]') && location.pathname === '/sales/orders'",
-        "click:출하창고 선택",
+        "expect:location.pathname === '/sales/order-entry' && document.body.innerText.includes('주문서입력')",
+        "click:출하창고 코드도움",
         "pickrow:QA-WH",
         "click:저장(F8)",
         "wait:1500",

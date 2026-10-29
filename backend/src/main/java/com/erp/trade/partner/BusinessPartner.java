@@ -258,4 +258,13 @@ public class BusinessPartner extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * 이 거래처가 <b>계좌 · 카드 · 카드사</b>를 거래처 코드로 쓰려고 회계 쪽이 만든 짝인가 — 원본은 계좌 1122334455 · 카드
+     * 1111222233334444 · 카드사 00001 을 전표 머리 거래처(견적서입력)와 일반전표 줄 거래처에서 거래처처럼 고른다(2026-10-29 데이터이관 QA
+     * 루프 70~72, 거래처 · 카드사 · 결제대행사가 한 이름공간). 계좌 · 카드 · 카드사를 저장할 때 회계가 PartnerService.syncLinked 로 맞춘다.
+     * BANK · CARD · CARD_ISSUER, 보통 거래처는 null. 거래처등록 목록에는 안 보인다.
+     */
+    @Column(name = "linked_kind", length = 20)
+    private String linkedKind;
 }

@@ -79,6 +79,14 @@ public class SalesOrderController {
         return salesOrderService.update(id, req);
     }
 
+    /** [Fn] → [일자변경]. 본문 {"date":"yyyy-MM-dd"}. */
+    @PostMapping("/{id}/change-date")
+    public SalesOrderResponse changeDate(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        String d = body.get("date");
+        if (d == null || d.isBlank()) throw com.erp.common.ApiException.badRequest("변경일자를 입력하세요.");
+        return salesOrderService.changeDate(id, java.time.LocalDate.parse(d));
+    }
+
     @PatchMapping("/{id}/status")
     public SalesOrderResponse updateStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest req) {
         return salesOrderService.updateStatus(id, req.status());

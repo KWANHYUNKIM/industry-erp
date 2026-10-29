@@ -85,6 +85,10 @@ public class AsRequest extends BaseTimeEntity {
     @Column(length = 500)
     private String repairNote;
 
+    /** 원본 머리 [새로운 항목 추가] 한 줄 글(자리표시 '다양한 내역을 입력해보세요'). */
+    @Column(name = "extra_note", length = 200)
+    private String extraNote;
+
     @Column(length = 50)
     private String createdBy;
 

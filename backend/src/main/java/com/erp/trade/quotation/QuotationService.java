@@ -86,6 +86,7 @@ public class QuotationService {
                 .quoteDate(quoteDate)
                 .validUntil(req.validUntil())
                 .partner(partner)
+                .partnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()))
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
@@ -114,6 +115,7 @@ public class QuotationService {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 견적을 낼 수 없습니다: " + partner.getName());
         }
         q.setPartner(partner);
+        q.setPartnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()));
         if (req.quoteDate() != null) q.setQuoteDate(req.quoteDate());
         q.setValidUntil(req.validUntil());
         q.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
@@ -122,6 +124,19 @@ public class QuotationService {
         q.setRemark(req.remark());
         q.getLines().clear();
         fillLines(q, req.lines(), req.taxable() == null || req.taxable());
+        changeHistory.recordSlip(HISTORY_TARGET, q.getId(), ChangeHistoryService.UPDATED, snapshot(q));
+        return QuotationResponse.from(q);
+    }
+
+    /** 일자변경(원본 [Fn] → [일자변경]) — 새 날짜의 다음 번호로 견적번호를 다시 매긴다. 재고 수불 없음. (원본 견적서는 미실측 — 판매로 잼) */
+    @Transactional
+    public QuotationResponse changeDate(Long id, LocalDate newDate) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        Quotation q = get(id);
+        if (newDate.equals(q.getQuoteDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+        q.setQuoteDate(newDate);
+        q.setQuoteNo(generateQuoteNo(newDate));
+        quotationRepository.flush();
         changeHistory.recordSlip(HISTORY_TARGET, q.getId(), ChangeHistoryService.UPDATED, snapshot(q));
         return QuotationResponse.from(q);
     }
@@ -137,8 +152,8 @@ public class QuotationService {
         Item first = q.getLines().isEmpty() ? null : q.getLines().get(0).getItem();
         return new SlipSnapshot("견적서", q.getQuoteDate(), q.getQuoteNo(),
                 q.getPartner() != null ? q.getPartner().getCode() : null,
-                q.getPartner() != null ? q.getPartner().getName() : null,
-                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), first.getSpec(), q.getLines().size()),
+                q.displayPartnerName(),
+                first == null ? null : ChangeHistoryService.itemSummary(q.getLines().get(0).effectiveItemName(), q.getLines().get(0).effectiveSpec(), q.getLines().size()),
                 q.getEmployee() != null ? q.getEmployee().getCode() : null,
                 q.getEmployee() != null ? q.getEmployee().getName() : null,
                 q.getStatus() != null ? q.getStatus().getDisplayName() : null);
@@ -155,7 +170,9 @@ public class QuotationService {
             BigDecimal vat = taxable ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
             q.addLine(QuotationLine.builder()
                     .item(item).quantity(lr.quantity()).unitPrice(lr.unitPrice())
-                    .supplyAmount(supply).vatAmount(vat).build());
+                    .supplyAmount(supply).vatAmount(vat).remark(lr.remark())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
             totalSupply = totalSupply.add(supply);
             totalVat = totalVat.add(vat);
         }
@@ -189,7 +206,7 @@ public class QuotationService {
         Quotation q = get(id);
         SalesOrderResponse order = q.getConvertedOrderId() == null ? null : salesOrderService.findOne(q.getConvertedOrderId());
         return q.getLines().stream().map(l -> new QuotationDtos.GeneratedSlipRow(
-                l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(),
+                l.getItem().getCode(), l.effectiveItemName(), l.effectiveSpec(),
                 l.getQuantity(), order == null ? l.getQuantity() : BigDecimal.ZERO,
                 order == null ? null : "주문서",
                 order == null ? null : order.orderDate(),

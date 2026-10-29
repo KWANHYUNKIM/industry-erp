@@ -1,0 +1,23 @@
+{
+  "about": "잔액조정입력 [조정] → '잔액실사(계정별)' 실잔액 칸에 '-' 부터 치면 칸이 비워지던 것(데이터이관 QA 루프 77) — '-' 가 글자로 남고 '-66044000' 이 음수로 들어간다. 저장하지 않고 닫는다. node qa/shot.mjs qa/flows/balance-adjust-minus.json",
+  "shots": [
+    {
+      "name": "실잔액 '-' → '-66044000'",
+      "path": "/accounting/balance-adjust",
+      "steps": [
+        "wait:1500",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[1]?.innerText.trim() === '8109'); [...tr.querySelectorAll('button')].find((x) => x.innerText.trim() === '조정').click(); return true })()",
+        "wait:800",
+        "js:(() => { const el = document.querySelector('[aria-label=\"1 실잔액\"]'); el.focus(); el.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); /* 창이 포커스 없는 headless 에선 focus 이벤트가 안 온다 */ const set = (v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set('-'); return true })()",
+        "wait:200",
+        "expect:document.querySelector('[aria-label=\"1 실잔액\"]').value === '-'",
+        "js:(() => { const el = document.querySelector('[aria-label=\"1 실잔액\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '-66044000'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:200",
+        "js:(() => { const el = document.querySelector('[aria-label=\"1 실잔액\"]'); el.blur(); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); return true })()",
+        "wait:200",
+        "expect:document.querySelector('[aria-label=\"1 실잔액\"]').value === '-66,044,000'",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.innerText.trim() === '닫기')?.click() ?? true"
+      ]
+    }
+  ]
+}

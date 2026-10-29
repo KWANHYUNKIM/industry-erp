@@ -1,0 +1,32 @@
+{
+  "about": "구매반품 — 구매 1건(API)을 구매입력 ?returnFrom= ([반품처리])으로 연다. 원본 구매 [반품처리] 는 아직 못 쟀다 — 판매(2026-10-28 loginaa 실측: 같은 머리 · 일자 오늘 · 줄 수량 음수 · 적요 없음 · 거래구분 칸 없음)와 같다고 둔다. 저장하면 줄이 전부 음수라 서버가 반품 전표로 적고, 재고가 나가고 채무가 준다. 만든 전표는 끝에 지운다. node qa/shot.mjs qa/flows/purchase-return.json",
+  "shots": [
+    {
+      "name": "구매 2개 만들기(API) — 재고 · 채무 처음 값",
+      "path": "/sales/buy",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/partners','/items','/warehouses','/stock','/ledger/partner-balances?asOf=2099-12-31'].map((p) => window.__api('GET', p))).then(([pa, it, wh, st, bl]) => { const s = pa.body.find((x) => x.code === 'QA-SUPP'), i = it.body.find((x) => x.code === 'QA-MAT'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0]; const st0 = st.body.filter((x) => x.itemId === i.id && x.warehouseId === w.id).reduce((a, x) => a + Number(x.quantity), 0); const ap0 = bl.body.find((b) => b.partnerId === s.id)?.payable ?? 0; sessionStorage.setItem('prS', JSON.stringify({ sId: s.id, iId: i.id, wId: w.id, st0, ap0 })); return window.__api('POST', '/purchases', { purchaseDate: '2026-10-01', partnerId: s.id, warehouseId: w.id, remark: 'QA 구매반품 근거', lines: [{ itemId: i.id, quantity: 2, unitPrice: 1000 }] }) }).then((r) => { sessionStorage.setItem('prBuy', r.body.docNo); sessionStorage.setItem('prBuyId', r.body.id); return r.status })",
+        "expect:!!sessionStorage.getItem('prBuyId')"
+      ]
+    },
+    {
+      "name": "[반품처리] → 일자 오늘 · 줄 수량 -2 · 적요 빈칸 · 거래구분 칸 없음 → 저장",
+      "path": "/sales/buy",
+      "steps": [
+        "js:location.href = '/sales/buy?returnFrom=' + sessionStorage.getItem('prBuyId'); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('input.cell')].some((x) => x.value === '-2')",
+        "expect:![...document.querySelectorAll('select')].some((s) => s.options[s.selectedIndex]?.text === '반품')",
+        "expect:![...document.querySelectorAll('.title')].some((t) => t.textContent.trim() === '거래구분')",
+        "click:저장(F8)",
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = async (u) => (await fetch(u, { headers: H })).json(); const S = JSON.parse(sessionStorage.getItem('prS')); const p = (await g('/api/purchases')).filter((x) => x.partnerId === S.sId && Number(x.totalAmount) === -2200).sort((a, b) => b.id - a.id)[0]; const st = (await g('/api/stock')).filter((x) => x.itemId === S.iId && x.warehouseId === S.wId).reduce((a, x) => a + Number(x.quantity), 0); const ap = (await g('/api/ledger/partner-balances?asOf=2099-12-31')).find((b) => b.partnerId === S.sId)?.payable ?? 0; sessionStorage.setItem('prRet', p?.docNo ?? ''); sessionStorage.setItem('prOut', JSON.stringify({ rs: p?.returnSlip, rm: p?.remark ?? '', q: p?.lines.map((l) => Number(l.quantity)).join(','), dst: st - S.st0, dap: ap - S.ap0 })); return sessionStorage.getItem('prOut') })()",
+        "expect:/^PO-/.test(sessionStorage.getItem('prRet'))",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('prOut')); return x.rs === true && x.rm === '' && x.q === '-2' && x.dst === 0 && x.dap === 0 })()",
+        "apidel:/purchases|@prRet|docNo",
+        "apidel:/purchases|@prBuy|docNo"
+      ]
+    }
+  ]
+}

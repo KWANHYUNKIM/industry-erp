@@ -13,7 +13,7 @@ import com.erp.common.BaseTimeEntity;
  * 공제 항목은 taxable 을 쓰지 않는다.
  */
 @Entity
-@Table(name = "pay_items")
+@Table(name = "pay_items", uniqueConstraints = @UniqueConstraint(name = "uk_pay_items_kind_code", columnNames = {"kind", "code"}))
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -26,7 +26,7 @@ public class PayItem extends BaseTimeEntity {
     private Long id;
 
     /** 항목코드 (예: MEAL, OVERTIME) */
-    @Column(nullable = false, unique = true, length = 30)
+    @Column(nullable = false, length = 30)
     private String code;
 
     @Column(nullable = false, length = 50)

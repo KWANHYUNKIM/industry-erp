@@ -9,6 +9,9 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import { formatDays } from '../../utils/dayCount'
 import { useDeptGroups } from '../../utils/deptGroups'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
+import { COMPARE_PERIODS, comparePeriodOf, type ComparePeriod } from '../../utils/periods'
+import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { vacationFetchRange } from '../../utils/vacationFetchRange'
 
 /**
@@ -78,7 +81,23 @@ const days = (n: number) => formatDays(n, 2)
 /** 원본 근태현황 ▾ 기간 빠른선택(2026-10-20 실측) — 현황 묶음의 [전월+금월] 대신 금년 · 전년 · 종료일. */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '금년', '전년', '종료일'] as const
 
+/**
+ * 원본 [구분](2026-10-20 실측): 라인별 · 사용자지정집계. 사용자지정집계를 고르면 집계조건1~5 · 집계대상 · 기타 □가로보기 □비율표시 □코드포함 +
+ * 비교기간(사용안함 · 전년/전월/전주/전일동일기간). 판은 급여·인원현황과 같은 공용 부품이다.
+ * <b>원본 재기 필요</b>: 집계조건검색 창의 근태용 항목 목록 · 집계대상 목록은 못 쟀다 — 줄이 들고 있는 값(부서 · 직급 · 사원 · 근태항목 · 휴가항목 · 근태그룹)과 [근태] 일수로만 둔다.
+ */
+const MODES = ['라인별', '사용자지정집계'] as const
+const AGG_DIMS: AggDim[] = [
+  { key: 'dept', label: '부서', group: '사원정보' }, { key: 'jobTitle', label: '직급', group: '사원정보', codeLabel: null },
+  { key: 'emp', label: '사원', group: '사원정보', codeLabel: '사원번호' },
+  { key: 'kind', label: '근태항목', group: '근태정보' }, { key: 'vk', label: '휴가항목', group: '근태정보' }, { key: 'group', label: '근태그룹', group: '근태정보' },
+]
+const AGG_TARGETS: AggTarget[] = [{ key: 'days', label: '근태', format: (n) => formatDays(n, 2) }]
+
 export default function AttendanceKindStatusPage() {
+  const [mode, setMode] = useState<typeof MODES[number]>('라인별')
+  const [agg, setAgg] = useState<AggState>(EMPTY_AGG)
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
   /*
    * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
    * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다 —
@@ -142,12 +161,14 @@ export default function AttendanceKindStatusPage() {
   const [stConfirmed, setStConfirmed] = useState(true)
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('없음')
 
+  const cmpRange = mode === '사용자지정집계' ? comparePeriodOf(from, to, compare) : null
+
   async function load() {
     setLoading(true)
     setError('')
     try {
       /* 기준일자가 올해 밖이면(1월의 [전월]) 올해 것만 받아서는 늘 빈 표다 — 그 해들을 묻는다. */
-      const range = vacationFetchRange(from, to)
+      const range = vacationFetchRange(cmpRange && cmpRange.from < from ? cmpRange.from : from, to)
       const res = await api.get<Vacation[]>('/hr/vacations', { params: range ?? {} })
       setRows([...res.data].sort((a, b) =>
         (a.startDate < b.startDate ? 1 : a.startDate > b.startDate ? -1 : b.id - a.id)))
@@ -159,7 +180,7 @@ export default function AttendanceKindStatusPage() {
   }
 
   /* 기간이 다른 해로 넘어가면 다시 받는다 — 같은 해 안에서는 받아 둔 것을 화면이 거른다. */
-  const fetchKey = JSON.stringify(vacationFetchRange(from, to))
+  const fetchKey = JSON.stringify(vacationFetchRange(cmpRange && cmpRange.from < from ? cmpRange.from : from, to))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [fetchKey])
 
@@ -168,11 +189,12 @@ export default function AttendanceKindStatusPage() {
     setDept([]); setEmp([]); setKind([]); setVkCond([]); setGroupCond([]); setReason('')
     setDeptGroup(''); setDayCond('')
     setStAll(false); setStPending(false); setStConfirmed(true); setSubtotal('없음')
+    setMode('라인별'); setAgg(EMPTY_AGG); setCompare('사용안함')
   }
 
   /** 원본 [기준일자] — 그 근태를 <b>올린 날</b>(전표일자)이 구간에 드나. */
-  const shown = useMemo(() => rows.filter((r) => {
-    if (r.docDate < from || r.docDate > to) return false
+  const filterRows = (f: string, t: string) => rows.filter((r) => {
+    if (r.docDate < f || r.docDate > t) return false
     /* 원본 [근태일자] — 그날 근태가 <b>걸쳐 있나</b>. 사흘짜리 휴가는 가운데 날로도 걸려야 한다. */
     if (dayCond && (r.startDate > dayCond || r.endDate < dayCond)) return false
     if (dept.length && !dept.includes(r.department ?? '')) return false
@@ -192,8 +214,28 @@ export default function AttendanceKindStatusPage() {
     if (employment === 'ACTIVE' && !r.active) return false
     if (employment === 'RESIGNED' && r.active) return false
     return true
-  }), [rows, from, to, dept, deptGroup, inGroup, dayCond, emp, kind, vkCond, groupCond, kindMaster, reason,
-    stAll, stPending, stConfirmed, employment])
+  })
+  const filterDeps = [rows, dept, deptGroup, inGroup, dayCond, emp, kind, vkCond, groupCond, kindMaster, reason, stAll, stPending, stConfirmed, employment]
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => filterRows(from, to), [from, to, ...filterDeps])
+  /** 사용자지정집계 — 줄을 집계 기록(조건마다 코드 · 이름, 값 근태 일수)으로. 비교기간은 같은 조건을 그 구간에 건다. */
+  const recordsOf = (rs: Vacation[]): AggRecord[] => rs.map((r) => {
+    const km = kindMaster.find((k) => k.name === r.type)
+    const vk = vkMaster.find((v) => v.id === km?.vacationKindId)
+    const grp = groupMaster.find((g) => g.name === km?.kindGroup)
+    return {
+      dims: {
+        dept: { code: r.department ?? '', name: r.department ?? '' }, jobTitle: { code: r.jobTitle ?? '', name: r.jobTitle ?? '' },
+        emp: { code: r.empCode ?? '', name: r.empName }, kind: { code: km?.code ?? '', name: r.type },
+        vk: { code: vk?.code ?? '', name: vk?.name ?? '' }, group: { code: grp?.code ?? '', name: grp?.name ?? km?.kindGroup ?? '' },
+      },
+      values: { 근태: r.days },
+    }
+  })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const aggRecords = useMemo(() => recordsOf(shown), [shown, vkMaster, groupMaster])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cmpRecords = useMemo(() => (cmpRange ? recordsOf(filterRows(cmpRange.from, cmpRange.to)) : []), [cmpRange?.from, cmpRange?.to, vkMaster, groupMaster, ...filterDeps])
 
   const totalDays = shown.reduce((n, r) => n + r.days, 0)
 
@@ -218,6 +260,24 @@ export default function AttendanceKindStatusPage() {
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
       >
+        <EcCond label="구분">
+          <div className="ec-pills">
+            {MODES.map((m) => (
+              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`} onClick={() => setMode(m)}>{m}</button>
+            ))}
+          </div>
+          {mode === '사용자지정집계' && <CustomAggregateConds dims={AGG_DIMS} targets={AGG_TARGETS} value={agg} onChange={setAgg} />}
+          {mode === '사용자지정집계' && (
+            <span className="inline-flex flex-wrap items-center gap-[8px] mt-[4px]">
+              <span className="inline-block w-[70px] rounded-ec bg-ec-disabled px-[6px] text-ec-label">비교기간</span>
+              {COMPARE_PERIODS.map((k) => (
+                <label key={k} className="inline-flex items-center gap-[3px]">
+                  <input type="radio" name="ak-compare" checked={compare === k} onChange={() => setCompare(k)} /> {k}
+                </label>
+              ))}
+            </span>
+          )}
+        </EcCond>
         {/*
           원본 근태현황의 조건 이름과 차례는 <b>사원 · 부서</b> 다(사본 실측).
           우리는 [부서명]·[사원명] 으로 이름도 다르고 앞뒤도 뒤집혀 있었다.
@@ -314,6 +374,12 @@ export default function AttendanceKindStatusPage() {
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
+      {mode === '사용자지정집계' ? (<>
+        <EcReportHead title="근태현황" period={reportPeriod(from, to)} />
+        <CustomAggregateTable dims={AGG_DIMS} targets={AGG_TARGETS} records={aggRecords} agg={agg} name="근태현황"
+                              compare={cmpRange ? { records: cmpRecords, labels: [reportPeriod(from, to), reportPeriod(cmpRange.from, cmpRange.to)] } : undefined} />
+        <EcReportFoot />
+      </>) : (<>
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -392,6 +458,7 @@ export default function AttendanceKindStatusPage() {
           </>
         )
       })()}
+      </>)}
     </EcListShell>
   )
 }

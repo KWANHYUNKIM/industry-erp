@@ -38,12 +38,14 @@ public class DocumentNoGenerator {
     public String next(String prefix, String table, String noColumn, String dateColumn, LocalDate date) {
         // table/noColumn/dateColumn 은 호출부의 상수만 들어온다 (사용자 입력 아님).
         // 남은 행의 max 는 번호표가 생기기 전 전표를 따라잡는 데만 쓴다(nextSeq 의 GREATEST).
+        // 번호의 날짜 부분까지 맞춰 센다 — 일자변경([Fn])은 일자를 새 날로 바꾼 뒤 번호를 매기는데, 그 사이 자동 flush 로
+        // 옛 번호(QT-20261022-0003)를 단 그 전표가 새 날(10/24)의 행으로 잡혀 max=3 → -0004 가 됐다(2026-10-29 QA).
         Object max = em.createNativeQuery(
                         "select coalesce(max(cast(split_part(" + noColumn + ", '-', 3) as integer)), 0)"
                                 + " from " + table
                                 + " where " + dateColumn + " = :date and " + noColumn + " like :prefix")
                 .setParameter("date", date)
-                .setParameter("prefix", prefix + "%")
+                .setParameter("prefix", prefix + date.format(YMD) + "-%")
                 .getSingleResult();
         int seq = nextSeq(table + ":" + prefix, date, ((Number) max).intValue());
         return prefix + date.format(YMD) + "-" + String.format("%04d", seq);

@@ -201,6 +201,7 @@ public class SalesOrderService {
         SalesOrder order = SalesOrder.builder()
                 .orderNo(generateOrderNo(orderDate))
                 .partner(partner)
+                .partnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()))
                 .orderDate(orderDate)
                 .dueDate(req.dueDate())
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
@@ -239,6 +240,7 @@ public class SalesOrderService {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 주문을 받을 수 없습니다: " + partner.getName());
         }
         order.setPartner(partner);
+        order.setPartnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()));
         order.setDueDate(req.dueDate());
         order.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         order.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
@@ -253,6 +255,23 @@ public class SalesOrderService {
         return SalesOrderResponse.from(order);
     }
 
+    /** 일자변경(원본 [Fn] → [일자변경]) — 새 날짜의 다음 번호로 주문번호를 다시 매긴다. 수정과 같이 출하가 있으면 막는다. 재고 수불 없음. */
+    @Transactional
+    public SalesOrderResponse changeDate(Long id, LocalDate newDate) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        SalesOrder order = salesOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id));
+        if (shipmentRepository.existsBySalesOrderId(id)) {
+            throw ApiException.conflict("출하가 있어 일자를 바꿀 수 없습니다. 먼저 출하를 지우세요: " + order.getOrderNo());
+        }
+        if (newDate.equals(order.getOrderDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+        order.setOrderDate(newDate);
+        order.setOrderNo(generateOrderNo(newDate));
+        salesOrderRepository.flush();
+        changeHistory.recordSlip(HISTORY_TARGET, order.getId(), ChangeHistoryService.UPDATED, snapshot(order));
+        return SalesOrderResponse.from(order);
+    }
+
     /** [H] · 거래이력조회(재고) 메뉴 '주문서' 의 대상 글자. */
     public static final String HISTORY_TARGET = "SALES_ORDER";
 
@@ -261,8 +280,8 @@ public class SalesOrderService {
         Item first = o.getLines().isEmpty() ? null : o.getLines().get(0).getItem();
         return new SlipSnapshot("주문서", o.getOrderDate(), o.getOrderNo(),
                 o.getPartner() != null ? o.getPartner().getCode() : null,
-                o.getPartner() != null ? o.getPartner().getName() : null,
-                first == null ? null : ChangeHistoryService.itemSummary(first.getName(), first.getSpec(), o.getLines().size()),
+                o.displayPartnerName(),
+                first == null ? null : ChangeHistoryService.itemSummary(o.getLines().get(0).effectiveItemName(), o.getLines().get(0).effectiveSpec(), o.getLines().size()),
                 o.getEmployee() != null ? o.getEmployee().getCode() : null,
                 o.getEmployee() != null ? o.getEmployee().getName() : null,
                 o.getStatus() != null ? o.getStatus().getDisplayName() : null);
@@ -283,6 +302,9 @@ public class SalesOrderService {
                     .unitPrice(lr.unitPrice())
                     .supplyAmount(supply)
                     .vatAmount(vat)
+                    .remark(lr.remark())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build());
 
             totalSupply = totalSupply.add(supply);
@@ -440,11 +462,11 @@ public class SalesOrderService {
                 }
             }
             if (slips.isEmpty()) {
-                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), it.getSpec(),
+                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), line.effectiveSpec(),
                         line.getQuantity(), remaining, null, null, null));
             }
             for (String[] x : slips) {
-                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), it.getSpec(),
+                rows.add(new SalesOrderDtos.GeneratedSlipRow(it.getCode(), it.getName(), line.effectiveSpec(),
                         line.getQuantity(), remaining, x[0], LocalDate.parse(x[1]), x[2]));
             }
         }

@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import EcSlipShell from '../../components/EcSlipShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcNumInput from '../../components/EcNumInput'
+import EcDateField from '../../components/EcDateField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
@@ -27,6 +28,12 @@ export interface PurchaseLineSeed {
   itemId: string; partnerId: string; quantity: string; unitPrice: string
   /** 원본 줄 열 [발주요청] · [No] / [발주계획] · [No.] — 베껴 온 앞 전표 줄. */
   sourceLineId?: number | null; sourceNo?: string; sourceDate?: string
+  /** 줄 규격 — null · 없음 = 품목 규격을 따라감, '' = 일부러 비움. */
+  spec?: string | null
+  /** 줄 품목명 — null · 없음 = 품목 이름을 따라감. 원본 발주서입력은 품목을 고른 뒤 이름 칸을 고쳐 쓴다. */
+  name?: string | null
+  /** 줄 적요 — 원본 발주서입력 줄 열 [새로운 항목 추가](purchase_order_lines.remark). */
+  remark?: string
 }
 type LineForm = PurchaseLineSeed
 const emptyLine = (): LineForm => ({ itemId: '', partnerId: '', quantity: '', unitPrice: '' })
@@ -42,6 +49,8 @@ export const copyLine = (o: PurchaseOrder, l: PurchaseOrderLine): LineForm => {
     sourceLineId: rl.id,
     sourceNo: o.orderNo,
     sourceDate: o.orderDate,
+    spec: rl.spec ?? null,
+    name: rl.itemName ?? null,
   }
 }
 export const copyLines = (orders: PurchaseOrder[]): LineForm[] => orders.flatMap((o) => o.lines.map((l) => copyLine(o, l)))
@@ -138,17 +147,29 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
   const [applied, setApplied] = useState(Boolean(seed?.lines.length))
   const [projectId, setProjectId] = useState(editing?.projectId ? String(editing.projectId) : '')
   const [currency, setCurrency] = useState(editing?.currency ?? 'KRW')
+  /**
+   * 외화 — 원본 발주서입력은 통화 '달러 [100]' 을 고르면 옆에 환율 칸(1,052)이 생기고 격자가 단가 · 외화금액 · 원화금액이 된다
+   * (공급가액 · 부가세 열이 없다, 2026-10-29 loginaa 발주서 2026/11/12-1 실측). 원화금액은 구매입력 외자와 같이 round(외화금액 × 환율), 고칠 수 없다.
+   */
+  const fx = currency !== 'KRW'
+  const [exchangeRate, setExchangeRate] = useState(editing?.exchangeRate != null ? String(editing.exchangeRate) : '')
   const [taxable, setTaxable] = useState(editing?.taxable ?? true)
+  /** 머리 적요 — 원본 발주서입력 머리 [새로운 항목 추가](purchase_orders.remark). */
+  const [headRemark, setHeadRemark] = useState(editing?.remark ?? '')
   const [whMissing, setWhMissing] = useState(false)
   const [lines, setLines] = useState<LineForm[]>(() => {
     const got: LineForm[] = ((editing?.lines ?? []) as RequestLine[]).map((l) => ({
       itemId: String(l.itemId),
       partnerId: String(l.partnerId ?? editing?.partnerId ?? ''),
       quantity: String(l.quantity),
-      unitPrice: String(l.unitPrice),
+      /* 외화 발주서의 단가 칸은 외화단가다. */
+      unitPrice: String(editing?.currency && editing.currency !== 'KRW' && l.foreignPrice != null ? l.foreignPrice : l.unitPrice),
       sourceLineId: l.sourceLineId ?? null,
       sourceNo: l.sourceOrderNo ?? undefined,
       sourceDate: l.sourceOrderDate ?? undefined,
+      spec: l.spec ?? null,
+      name: l.itemName ?? null,
+      remark: l.remark ?? '',
     }))
     if (got.length === 0 && seed?.lines.length) got.push(...seed.lines)
     return [...got, ...Array.from({ length: Math.max(1, MIN_ROWS - got.length) }, emptyLine)]
@@ -175,17 +196,28 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
     setLine(i, {
       itemId,
       partnerId: it?.supplierId ? String(it.supplierId) : lines[i].partnerId,
-      unitPrice: pp > 0 ? String(pp) : '',
+      /* 구매단가는 원화다 — 외화 발주서에는 싣지 않는다. */
+      unitPrice: pp > 0 && !fx ? String(pp) : '',
+      name: null,
+      spec: null, // 품목을 새로 고르면 규격도 품목 규격으로 다시 채운다(원본)
     })
   }
 
   const filled = lines.filter((l) => l.itemId)
+  const rate = Number(exchangeRate) || 0
   const calc = lines.map((l) => {
+    if (fx) {
+      /* 서버와 같은 셈 — 외화금액 = 수량 × 외화단가(소수 둘째 자리), 원화금액 = round(외화금액 × 환율), 부가세 없음. */
+      const foreign = Math.round((Number(l.quantity) || 0) * (Number(l.unitPrice) || 0) * 100) / 100
+      const supply = roundWon(foreign * rate)
+      return { supply, vat: 0, total: supply, foreign }
+    }
     const supply = lineSupply(Number(l.quantity) || 0, Number(l.unitPrice) || 0)
     const vat = taxable ? roundWon(supply * 0.1) : 0
-    return { supply, vat, total: supply + vat }
+    return { supply, vat, total: supply + vat, foreign: 0 }
   })
-  const sum = (k: 'supply' | 'vat' | 'total') => calc.reduce((a, c) => a + c[k], 0)
+  const sum = (k: 'supply' | 'vat' | 'total' | 'foreign') => calc.reduce((a, c) => a + c[k], 0)
+  const fxNum = (n: number) => n.toLocaleString('ko-KR', { maximumFractionDigits: 2 })
   const qtySum = lines.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
 
   /*
@@ -271,13 +303,18 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
       warehouseId: warehouseId ? Number(warehouseId) : null,
       projectId: projectId ? Number(projectId) : null,
       currency,
-      remark: editing?.remark ?? null,
+      exchangeRate: fx ? rate : null,
+      remark: order ? (headRemark.trim() || null) : (editing?.remark ?? null),
       lines: filled.map((l) => ({
         itemId: Number(l.itemId),
         quantity: Number(l.quantity) || 0,
         unitPrice: l.unitPrice === '' ? null : Number(l.unitPrice),
+        ...(fx ? { foreignPrice: Number(l.unitPrice) || 0 } : {}),
         partnerId: headParty ? (headPartnerId ? Number(headPartnerId) : null) : l.partnerId ? Number(l.partnerId) : null,
         sourceLineId: l.sourceLineId ?? null,
+        spec: l.spec ?? undefined,
+        itemName: l.name ?? undefined,
+        remark: order ? (l.remark?.trim() || null) : undefined,
       })),
       plan: plan || undefined,
       order: order || undefined,
@@ -313,8 +350,8 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
   /** 원본 발주계획입력은 저장 뒤 비울 때 입고될창고를 남긴다(2026-10-13 실측) — [다시 작성]은 다 비운다. */
   const reset = (keepWarehouse = false) => {
     setOrderDate(today()); setDueDate(today()); setEmployeeId(''); if (!keepWarehouse) setWarehouseId(''); setProjectId('')
-    setCurrency('KRW'); setTaxable(true); setWhMissing(false); setLines(Array.from({ length: MIN_ROWS }, emptyLine)); setError('')
-    setApplied(false); setPriceSrc(false); setHeadPartnerId(''); setValidUntil(today())
+    setCurrency('KRW'); setExchangeRate(''); setTaxable(true); setWhMissing(false); setLines(Array.from({ length: MIN_ROWS }, emptyLine)); setError('')
+    setApplied(false); setPriceSrc(false); setHeadPartnerId(''); setValidUntil(today()); setHeadRemark('')
   }
 
   const body = (
@@ -322,23 +359,23 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
       <div className="ec-form mb-[8px] grid grid-cols-2 gap-x-[24px] gap-y-[6px] mobile:grid-cols-1">
         <label className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">{plan ? '일자' : '일자-No.'}</span>
-          <input type="date" className="ec-input w-[150px]" value={orderDate} onChange={(e) => setOrderDate(e.target.value)}
-            /* 원본 수정 창도 일자를 잠근다 — 번호가 일자에 묶여 있다. */
-            disabled={isEdit} />
+          {/* 원본: 연 셀렉트 / 월 셀렉트 / 일 칸. 수정 창은 일자를 잠근다 — 번호가 일자에 묶여 있다. */}
+          <EcDateField value={orderDate} onChange={setOrderDate} disabled={isEdit} />
           {isEdit && <span className="text-ec-hint">{dateNo(editing!.orderDate, editing!.orderNo)}</span>}
         </label>
         {headParty && (
           <div className="flex items-center gap-[8px]">
             <span className="w-[93px] shrink-0 text-ec-label">거래처</span>
-            <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="거래처"
-              value={headPartnerId} onChange={setHeadPartnerId} items={partnerPicks} />
+            <div className="w-[240px]"><CodePickerField label="거래처" hideLabel pair fill emptyLabel="선택 안 함"
+              value={headPartnerId} onChange={setHeadPartnerId} items={partnerPicks} /></div>
           </div>
         )}
         <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">담당자</span>
-          <CodePickerField label="담당자" hideLabel width={240} emptyLabel="선택 안 함" placeholder="담당자"
+          {/* 머리 코드칸은 원본처럼 코드를 쳐서 Enter 로 고른다(P01 · 100) — 하나면 바로, 여럿이면 코드도움 창. */}
+          <div className="w-[240px]"><CodePickerField label="담당자" hideLabel pair fill emptyLabel="선택 안 함"
             value={employeeId} onChange={setEmployeeId}
-            items={pickers.employees.map((x) => ({ ...x, value: String(x.id) }))} />
+            items={pickers.employees.map((x) => ({ ...x, value: String(x.id) }))} /></div>
         </div>
         <label className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">거래유형</span>
@@ -350,32 +387,47 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
         {!priceRequest && <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">{plan ? '입고될창고' : order ? '입고창고' : '창고'}</span>
           <div className={`inline-block${whMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={whMissing || undefined}>
-            <CodePickerField label="창고" hideLabel width={240} emptyLabel="선택 안 함" placeholder={plan ? '입고될창고' : '창고'}
+            <div className="w-[240px]"><CodePickerField label={plan ? '입고될창고' : '창고'} hideLabel pair fill emptyLabel="선택 안 함"
               value={warehouseId} onChange={(v) => { setWarehouseId(v); if (v) setWhMissing(false) }}
-              items={pickers.warehouses} />
+              items={pickers.warehouses} /></div>
           </div>
         </div>}
         <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">프로젝트</span>
-          <CodePickerField label="프로젝트" hideLabel width={240} emptyLabel="선택 안 함" placeholder="프로젝트"
-            value={projectId} onChange={setProjectId} items={pickers.projects} />
+          <div className="w-[240px]"><CodePickerField label="프로젝트" hideLabel pair fill emptyLabel="선택 안 함"
+            value={projectId} onChange={setProjectId} items={pickers.projects} /></div>
         </div>
-        <label className="flex items-center gap-[8px]">
+        <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">통화</span>
-          <select className="ec-input w-[240px]" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className={`ec-input ${fx ? 'w-[146px]' : 'w-[240px]'}`} aria-label="통화" value={currency}
+            onChange={(e) => {
+              setCurrency(e.target.value)
+              /* 원본: 외화를 고르면 환율 칸에 그 통화의 환율이 찬다(외화등록 최근 환율). 내자로 돌리면 칸이 없어진다. */
+              const c = currencies.find((x) => x.code === e.target.value)
+              setExchangeRate(c?.latestRate ? String(c.latestRate) : '')
+            }}>
             <option value="KRW">내자</option>
-            {currencies.filter((c) => c.code !== 'KRW').map((c) => <option key={c.id} value={c.code}>{c.code} {c.name}</option>)}
+            {currencies.filter((c) => c.code !== 'KRW' && (c.active || c.code === currency)).map((c) => <option key={c.id} value={c.code}>{c.name} [{c.code}]</option>)}
           </select>
-        </label>
+          {fx && <EcNumInput className="ec-input w-[90px] text-right" aria-label="환율" placeholder="환율"
+            value={exchangeRate} onValue={setExchangeRate} />}
+        </div>
         {priceRequest ? (
           <label className="flex items-center gap-[8px]">
             <span className="w-[93px] shrink-0 text-ec-label">유효기간</span>
-            <input type="date" className="ec-input w-[150px]" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+            <EcDateField value={validUntil} onChange={setValidUntil} />
           </label>
         ) : (
           <label className="flex items-center gap-[8px]">
             <span className="w-[93px] shrink-0 text-ec-label">납기일자</span>
-            <input type="date" className="ec-input w-[150px]" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <EcDateField value={dueDate} onChange={setDueDate} />
+          </label>
+        )}
+        {order && (
+          <label className="flex items-center gap-[8px]">
+            <span className="w-[93px] shrink-0 text-ec-label">적요</span>
+            <input className="ec-input w-[240px]" aria-label="머리 적요" placeholder="새로운 항목 추가" maxLength={500}
+              value={headRemark} onChange={(e) => setHeadRemark(e.target.value)} />
           </label>
         )}
       </div>
@@ -417,9 +469,11 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
             {stocks && <th className="w-[80px] text-right">창고수량</th>}
             <th className="w-[80px] text-right">수량</th>
             <th className="w-[100px] text-right">단가</th>
-            <th className="w-[100px] text-right">공급가액</th>
-            <th className="w-[80px] text-right">부가세</th>
-            {!plan && !headParty && <th className="w-[100px] text-right">합계</th>}
+            {fx && <th className="w-[100px] text-right">외화금액</th>}
+            <th className="w-[100px] text-right">{fx ? '원화금액' : '공급가액'}</th>
+            {!fx && <th className="w-[80px] text-right">부가세</th>}
+            {!plan && !headParty && !fx && <th className="w-[100px] text-right">합계</th>}
+            {order && <th className="w-[150px]">적요</th>}
             {srcHead && <th className="w-[90px] text-center">{srcHead[0]}</th>}
             {srcHead && <th className="w-[50px] text-center">{srcHead[1]}</th>}
           </tr>
@@ -430,22 +484,29 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td>
                 <CodePickerField label="품목" hideLabel fill placeholder="품목코드" emptyLabel="선택 해제"
-                  value={l.itemId} onChange={(v) => pickItem(i, v)} items={itemPicks} />
+                  showCode value={l.itemId} onChange={(v) => pickItem(i, v)} items={itemPicks} />
               </td>
-              <td>{itemOf(l.itemId)?.name ?? ''}</td>
+              <td>
+                {/* 원본 발주서입력: 품목을 고르면 품목명 칸에서 줄마다 이름을 고쳐 쓴다(비우면 품목 이름). */}
+                {l.itemId && <input className="ec-input w-full" value={l.name ?? itemOf(l.itemId)?.name ?? ''} maxLength={200}
+                                    onChange={(e) => setLine(i, { name: e.target.value })} />}
+              </td>
               {!headParty && <td>
                 <CodePickerField label="거래처" hideLabel fill placeholder="거래처코드" emptyLabel="선택 해제"
                   value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })} items={partnerPicks} />
               </td>}
               {!headParty && <td>{partnerOf(l.partnerId)?.name ?? ''}</td>}
-              <td>{itemOf(l.itemId)?.spec ?? ''}</td>
+              <td><input className="ec-input w-full" value={l.spec ?? itemOf(l.itemId)?.spec ?? ''} maxLength={200} disabled={!l.itemId} onChange={(e) => setLine(i, { spec: e.target.value })} /></td>
               {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockAll(l.itemId).toLocaleString('ko-KR') : ''}</td>}
               {stocks && <td className="text-right text-ec-hint">{l.itemId ? stockWh(l.itemId).toLocaleString('ko-KR') : ''}</td>}
               <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
               <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
+              {fx && <td className="text-right">{l.itemId ? fxNum(calc[i].foreign) : ''}</td>}
               <td className="text-right">{l.itemId ? won(calc[i].supply) : ''}</td>
-              <td className="text-right">{l.itemId ? won(calc[i].vat) : ''}</td>
-              {!plan && !headParty && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
+              {!fx && <td className="text-right">{l.itemId ? won(calc[i].vat) : ''}</td>}
+              {!plan && !headParty && !fx && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
+              {order && <td><input className="ec-input w-full" aria-label="줄 적요" placeholder="새로운 항목 추가" maxLength={200} disabled={!l.itemId}
+                value={l.remark ?? ''} onChange={(e) => setLine(i, { remark: e.target.value })} /></td>}
               {srcHead && <td className="text-center">{srcDate(l.sourceDate)}</td>}
               {srcHead && <td className="text-center">{srcNo(l.sourceNo)}</td>}
             </tr>
@@ -456,9 +517,11 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
             <td colSpan={(stocks ? 8 : 6) - (headParty ? 2 : 0)}></td>
             <td className="text-right">{qtySum.toLocaleString('ko-KR')}</td>
             <td></td>
+            {fx && <td className="text-right">{fxNum(sum('foreign'))}</td>}
             <td className="text-right">{won(sum('supply'))}</td>
-            <td className="text-right">{won(sum('vat'))}</td>
-            {!plan && !headParty && <td className="text-right">{won(sum('total'))}</td>}
+            {!fx && <td className="text-right">{won(sum('vat'))}</td>}
+            {!plan && !headParty && !fx && <td className="text-right">{won(sum('total'))}</td>}
+            {order && <td></td>}
             {srcHead && <td colSpan={2}></td>}
           </tr>
         </tfoot>

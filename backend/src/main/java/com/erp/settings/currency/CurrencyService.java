@@ -110,6 +110,12 @@ public class CurrencyService {
                 amount, krw);
     }
 
+    /** 그날(또는 직전) 고시환율이 있는가. 고시 없이도 저장하는 서류(수출 Invoice)가 환산 전에 묻는다. */
+    @Transactional(readOnly = true)
+    public boolean hasRate(Long currencyId, LocalDate baseDate) {
+        return rateRepository.findLatest(currencyId, baseDate != null ? baseDate : LocalDate.now()).isPresent();
+    }
+
     /** 다른 모듈(수출·은행계좌)이 통화를 붙일 때 쓴다 — 리포지토리를 직접 주입하지 않게(CLAUDE.md 4.2). */
     @Transactional(readOnly = true)
     public Currency get(Long id) {

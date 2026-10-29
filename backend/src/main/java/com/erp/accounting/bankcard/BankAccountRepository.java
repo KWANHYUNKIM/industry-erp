@@ -21,4 +21,7 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from BankAccount b where b.id = :id")
     Optional<BankAccount> findForUpdate(Long id);
+
+    /** 이 짝 거래처의 계좌(일반전표 보통예금 줄 거래처 → 통장). */
+    Optional<BankAccount> findByPartnerId(Long partnerId);
 }

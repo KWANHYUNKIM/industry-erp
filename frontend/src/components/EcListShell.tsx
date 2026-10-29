@@ -95,7 +95,8 @@ const CONDS = '.ec-cond, .ec-search-conds'
 /** 조건 판 안에서 화면이 둔 [검색(F8)] · [다시작성] 단추를 알아보는 글자 */
 const SEARCH_RE = /^검색(\(F8\))?$/
 const RESET_RE = /^다시\s?작성$/
-const condsOf = (root: HTMLElement | null) => root?.querySelector<HTMLElement>(CONDS) ?? null
+const condsOf = (root: HTMLElement | null) =>
+  [...(root?.querySelectorAll<HTMLElement>(CONDS) ?? [])].find((el) => !el.closest('[role="dialog"]')) ?? null
 const condButton = (root: HTMLElement | null, re: RegExp) =>
   [...(condsOf(root)?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((b) => re.test(b.textContent?.trim() ?? '')) ?? null
 const isCheck = (f: Element) => f instanceof HTMLInputElement && (f.type === 'checkbox' || f.type === 'radio')

@@ -78,7 +78,7 @@ public class PurchaseOrderService {
         changeHistory.recordSlip(HISTORY_TARGET, po.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot(menu, po.getOrderDate(), po.getOrderNo(),
                 po.getPartner() != null ? po.getPartner().getCode() : null,
                 po.getPartner() != null ? po.getPartner().getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), po.getLines().size()),
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.effectiveItemName(), first.effectiveSpec(), po.getLines().size()),
                 po.getEmployee() != null ? po.getEmployee().getCode() : null,
                 po.getEmployee() != null ? po.getEmployee().getName() : null,
                 status.getDisplayName()));
@@ -113,11 +113,49 @@ public class PurchaseOrderService {
                         po.getPartner() != null ? po.getPartner().getId() : null, po.getPartner() != null ? po.getPartner().getName() : null, po.getStatus().getDisplayName(),
                         po.getWarehouse() != null ? po.getWarehouse().getId() : null,
                         po.getProject() != null ? po.getProject().getId() : null,
-                        itemId, l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                        l.getQuantity(), used, rest, l.getUnitPrice()));
+                        itemId, l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
+                        l.getQuantity(), used, rest, l.getUnitPrice(),
+                        po.getEmployee() != null ? po.getEmployee().getId() : null, l.effectiveSpec(),
+                        po.isForeign() ? po.getCurrency() : null, po.isForeign() ? po.getExchangeRate() : null,
+                        po.isForeign() ? l.getForeignPrice() : null));
             }
         }
         return out;
+    }
+
+    /**
+     * 발주서조회 [진행상태] '생성한 전표' 창 — 발주 줄마다 잔량(발주 − 구매)과 이 발주에서 만든 구매 전표.
+     * 구매 줄은 발주 헤더만 가리키므로 품목으로 맞추고 같은 품목이 두 줄이면 위 줄부터 채운다(미구매 잔량과 같은 규칙).
+     * 구매 전표는 품목이 같은 첫 발주 줄에만 붙인다(주문서조회 [생성한전표] 와 같은 꼴).
+     */
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderDtos.GeneratedSlipRow> generatedSlips(Long id) {
+        PurchaseOrder po = get(id);
+        List<com.erp.trade.purchase.PurchaseLine> bought = purchaseLineRepository.findGeneratedByOrder(id);
+        java.util.Map<Long, BigDecimal> pool = new java.util.HashMap<>();
+        for (var l : bought) pool.merge(l.getItem().getId(), l.getQuantity(), BigDecimal::add);
+        java.util.Set<Long> shown = new java.util.HashSet<>();
+        List<PurchaseOrderDtos.GeneratedSlipRow> rows = new java.util.ArrayList<>();
+        for (PurchaseOrderLine line : po.getLines()) {
+            Item it = line.getItem();
+            BigDecimal left = pool.getOrDefault(it.getId(), BigDecimal.ZERO);
+            BigDecimal used = left.min(line.getQuantity()).max(BigDecimal.ZERO);
+            pool.put(it.getId(), left.subtract(used));
+            BigDecimal remaining = line.getQuantity().subtract(used);
+            List<com.erp.trade.purchase.PurchaseLine> mine = shown.add(it.getId())
+                    ? bought.stream().filter(b -> b.getItem().getId().equals(it.getId())).toList()
+                    : List.of();
+            if (mine.isEmpty()) {
+                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), line.effectiveItemName(), line.effectiveSpec(),
+                        line.getQuantity(), remaining, line.getUnitPrice(), null, null, null, null));
+            }
+            for (var b : mine) {
+                rows.add(new PurchaseOrderDtos.GeneratedSlipRow(line.getId(), it.getId(), it.getCode(), line.effectiveItemName(), line.effectiveSpec(),
+                        line.getQuantity(), remaining, line.getUnitPrice(),
+                        "구매", b.getPurchase().getPurchaseDate(), b.getPurchase().getDocNo(), b.getPurchase().getId()));
+            }
+        }
+        return rows;
     }
 
     @Transactional(readOnly = true)
@@ -213,11 +251,11 @@ public class PurchaseOrderService {
 
     /**
      * 머리 거래처 — 발주요청 · 발주계획은 <b>비워도 된다</b>(원본 E040315 실측: 거래처 칸은 줄마다, 비워 두고 저장되고 조회 거래처도 빈칸).
-     * 발주서 · 단가요청은 거래처가 머리에 하나라 꼭 있어야 한다.
+     * 발주서도 비워 저장된다(원본 발주서 2026/11/28-1 실측). 단가요청만 거래처가 꼭 있어야 한다.
      */
     private BusinessPartner headPartner(Long partnerId, PurchaseOrderStatus kind) {
         if (partnerId == null) {
-            if (kind == PurchaseOrderStatus.REQUESTED || kind == PurchaseOrderStatus.PLANNED) return null;
+            if (kind == PurchaseOrderStatus.REQUESTED || kind == PurchaseOrderStatus.PLANNED || kind == PurchaseOrderStatus.ORDERED) return null;
             throw ApiException.badRequest("매입처를 선택하세요.");
         }
         BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(partnerId)
@@ -252,6 +290,7 @@ public class PurchaseOrderService {
                 .warehouse(warehouse)
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .currency(currency)
+                .exchangeRate(foreignRate(currency, req.exchangeRate()))
                 /*
                  * 발주요청 · 발주계획 · 발주서는 <b>다른 전표</b>다(원본 E040315 실측) — 다음 전표는 앞 전표를 베껴 새로 만들고
                  * 앞 전표의 상태는 그대로 둔다. 발주계획입력(E040316)은 계획, 발주서입력은 바로 발주확정(구매 [발주] 잔량적용 대상).
@@ -272,7 +311,10 @@ public class PurchaseOrderService {
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build();
+            applyForeign(po, line, lr);
             linkSource(line, lr.sourceLineId());
             po.addLine(line);
         }
@@ -306,6 +348,7 @@ public class PurchaseOrderService {
         po.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         po.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
         po.setCurrency((req.currency() == null || req.currency().isBlank()) ? "KRW" : req.currency().trim());
+        po.setExchangeRate(foreignRate(po.getCurrency(), req.exchangeRate()));
         if (req.taxable() != null) po.setTaxable(req.taxable());
         po.setRemark(req.remark());
         if (po.getStatus() == PurchaseOrderStatus.PRICE_REQUESTED) po.setPriceValidUntil(req.priceValidUntil());
@@ -321,7 +364,10 @@ public class PurchaseOrderService {
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .item(item).quantity(lr.quantity()).inputQuantity(lr.quantity()).planCalcDate(po.getOrderDate()).unitPrice(unitPrice)
                     .partner(linePartner).remark(lr.remark())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .build();
+            applyForeign(po, line, lr);
             linkSource(line, lr.sourceLineId());
             po.addLine(line);
         }
@@ -348,7 +394,12 @@ public class PurchaseOrderService {
                 .findFirst()
                 .orElseThrow(() -> ApiException.badRequest("발주서 " + po.getOrderNo() + " 에 없는 라인입니다. lineId=" + lineId));
         if (req.quantity() != null) line.setQuantity(req.quantity());
-        if (req.unitPrice() != null) line.setUnitPrice(req.unitPrice());
+        if (po.isForeign() && line.getForeignPrice() != null) {
+            /* 외화 줄은 격자 단가가 외화단가다 — 외화금액을 다시 매기고 원화는 recalculate 가 환율로. */
+            if (req.unitPrice() != null) line.setForeignPrice(req.unitPrice());
+            if (req.quantity() != null || req.unitPrice() != null)
+                line.setForeignAmount(line.getQuantity().multiply(line.getForeignPrice()).setScale(2, RoundingMode.HALF_UP));
+        } else if (req.unitPrice() != null) line.setUnitPrice(req.unitPrice());
         if (req.closed() != null) line.setPlanClosed(req.closed());
         if (Boolean.TRUE.equals(req.calculated())) line.setPlanCalcDate(LocalDate.now());
         recalculate(po);
@@ -489,15 +540,16 @@ public class PurchaseOrderService {
         if (po.getPartner() == null) throw ApiException.badRequest("거래처가 없는 발주서는 입고할 수 없습니다.");
         List<PurchaseLineRequest> lines = po.getLines().stream()
                 // 입고전환으로 생긴 라인은 이 발주서가 근거전표다 — 구매입력에서 [불러온 전표]로 보인다.
-                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null, null, null, null))
+                .map(l -> new PurchaseLineRequest(l.getItem().getId(), l.getQuantity(), l.getUnitPrice(), l.getRemark(), null, null, po.getId(), null, null,
+                        po.isForeign() ? l.getForeignPrice() : null, po.isForeign() ? l.getForeignAmount() : null, null,
+                        l.effectiveSpec(), l.effectiveItemName()))
                 .toList();
         LocalDate purchaseDate = req.purchaseDate() != null ? req.purchaseDate() : LocalDate.now();
         CreatePurchaseRequest purchaseReq = new CreatePurchaseRequest(
-                po.getPartner().getId(), req.warehouseId(), purchaseDate, po.getTaxable(),
-                Boolean.FALSE,  // 발주서 입고전환은 늘 일반 구매다
+                po.getPartner().getId(), null, req.warehouseId(), purchaseDate, po.getTaxable(),
                 "발주 " + po.getOrderNo() + " 입고", null, null,
                 null,   // 거래별부가세계산: 발주서가 라인별로 계산해 둔 값을 그대로 승계한다
-                null, null,   // 통화 · 환율: 내자
+                po.isForeign() ? po.getCurrency() : null, po.isForeign() ? po.getExchangeRate() : null,   // 통화 · 환율: 외화 발주서면 그대로 잇는다
                 lines);
 
         PurchaseResponse purchase = purchaseService.create(purchaseReq, username);
@@ -526,7 +578,18 @@ public class PurchaseOrderService {
     private void recalculate(PurchaseOrder po) {
         BigDecimal totalSupply = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;
+        boolean foreign = po.isForeign() && po.getExchangeRate() != null;
         for (PurchaseOrderLine l : po.getLines()) {
+            if (foreign && l.getForeignAmount() != null) {
+                /* 외화 줄 — 원화금액 = round(외화금액 × 환율), 부가세 없음(구매 외자와 같다 — 수입 부가세는 세관에서 따로). */
+                BigDecimal supply = l.getForeignAmount().multiply(po.getExchangeRate()).setScale(0, RoundingMode.HALF_UP);
+                l.setSupplyAmount(supply);
+                l.setVatAmount(BigDecimal.ZERO);
+                /* 원화 단가 — 미구매 · 단가 열이 원화로 본다. */
+                if (l.getQuantity().signum() != 0) l.setUnitPrice(supply.divide(l.getQuantity(), 2, RoundingMode.HALF_UP));
+                totalSupply = totalSupply.add(supply);
+                continue;
+            }
             BigDecimal supply = VatAllocator.lineSupply(l.getQuantity(), l.getUnitPrice());
             BigDecimal vat = po.getTaxable()
                     ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP)
@@ -539,6 +602,22 @@ public class PurchaseOrderService {
         po.setSupplyAmount(totalSupply);
         po.setVatAmount(totalVat);
         po.setTotalAmount(totalSupply.add(totalVat));
+    }
+
+    /** 외화 발주서의 환율 — 내자면 null, 외화면 0 보다 커야 한다(구매 외자 전표와 같은 규칙: 원화금액이 환율로 정해진다). */
+    private static BigDecimal foreignRate(String currency, BigDecimal rate) {
+        if (currency == null || currency.isBlank() || "KRW".equals(currency)) return null;
+        if (rate == null || rate.signum() <= 0) throw ApiException.badRequest("외화 발주서는 환율을 입력하세요.");
+        return rate;
+    }
+
+    /** 외화 발주서 줄 — 외화단가(비우면 단가 칸 값) · 외화금액(비우면 수량 × 외화단가). 내자면 비운다. */
+    private static void applyForeign(PurchaseOrder po, PurchaseOrderLine line, OrderLineRequest lr) {
+        if (!po.isForeign()) { line.setForeignPrice(null); line.setForeignAmount(null); return; }
+        BigDecimal fp = lr.foreignPrice() != null ? lr.foreignPrice() : (lr.unitPrice() != null ? lr.unitPrice() : BigDecimal.ZERO);
+        line.setForeignPrice(fp);
+        line.setForeignAmount(lr.foreignAmount() != null ? lr.foreignAmount()
+                : lr.quantity().multiply(fp).setScale(2, RoundingMode.HALF_UP));
     }
 
     private void expect(PurchaseOrder po, PurchaseOrderStatus required, String message) {

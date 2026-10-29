@@ -1,0 +1,28 @@
+{
+  "about": "저장 중 두 번 저장 막기(묶음 M, 2026-10-28 회사 0005 에서 [복사] 뒤 [저장] 을 두 번 눌러 같은 구매가 두 건 생겼다) — node qa/shot.mjs qa/flows/double-save-guard.json. 회사 0001 · QA 기본자료(QA-SUPP · QA-WH · QA-MAT). 같은 틱에 [저장(F8)] 두 번 + F8 한 번을 넣어도 전표는 한 건만 생긴다. 만든 전표는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "구매입력 — 줄 하나 넣고 [저장(F8)] 을 같은 틱에 두 번 + F8 → 구매가 한 건만 생긴다",
+      "path": "/sales/buy",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = await (await fetch('/api/purchases', { headers: H })).json(); const max = l.reduce((m, d) => Math.max(m, d.id), 0); sessionStorage.setItem('__dsMax', String(max)); return max })()",
+        "click:거래처 코드도움",
+        "pickrow:QA-SUPP",
+        "click:입고창고 코드도움",
+        "pickrow:QA-WH",
+        "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-MAT",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|1",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|500",
+        "js:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith('저장(F8)')); b.click(); b.click(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F8', bubbles: true })); return true })()",
+        "wait:3000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const max = Number(sessionStorage.getItem('__dsMax')); const l = (await (await fetch('/api/purchases', { headers: H })).json()).filter((d) => d.id > max); sessionStorage.setItem('__dsNew', JSON.stringify(l.map((d) => d.id))); return l.map((d) => d.docNo).join(',') })()",
+        "expect:JSON.parse(sessionStorage.getItem('__dsNew') || '[]').length === 1",
+        "expect:!document.querySelector('tbody tr input.text-right')?.value"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ids = JSON.parse(sessionStorage.getItem('__dsNew') || '[]'); for (const id of ids) await fetch('/api/purchases/' + id, { method: 'DELETE', headers: H }); return 'deleted ' + ids.length })()"
+  ]
+}

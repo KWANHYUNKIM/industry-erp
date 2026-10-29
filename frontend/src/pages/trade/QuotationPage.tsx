@@ -1,4 +1,3 @@
-import { resolveSpecialPrice } from '../../features/price/specialPrice'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
@@ -6,7 +5,6 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
 import CodePickerField from '../../components/CodePickerField'
-import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
@@ -15,14 +13,9 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
-import { partnerCodeItems } from '../../utils/codeItems'
-import { lineSupply } from '../../utils/lineSupply'
-import EcNumInput from '../../components/EcNumInput'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
-import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => ymd(new Date())
 
 /**
  * 원본 견적서조회(E040202) 위 알약 — '전체 · 결재중 · 미확인 · 확인 ▸ 진행중 – 완료'(2026-10-14 loginaa 실측, C-Portal 은 견적에 없다).
@@ -39,8 +32,6 @@ interface GeneratedRow { itemCode: string; itemName: string; spec: string | null
 /** 생성한전표가 있으면 원본처럼 주황 꼬리표(2026-10-14 실측: 바탕 rgb(246, 136, 45) · 흰 글자 · 여백 0.9px 1.8px · 높이 16.3). */
 const GEN_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
 
-interface LineForm { itemId: string; quantity: string; unitPrice: string }
-const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '' })
 
 /** 견적서 — 영업 흐름의 시작점. 작성→발송→수주전환. 부가세 10% 자동. */
 export default function QuotationPage() {
@@ -69,10 +60,7 @@ export default function QuotationPage() {
   /** 하단 [진행상태변경 ▴] · [다른전표생성 ▴] 메뉴 — 버튼 위로 뜬다. */
   const [menuAt, setMenuAt] = useState<{ kind: 'status' | 'gen'; left: number; bottom: number } | null>(null)
   const [generated, setGenerated] = useState<{ quote: Quotation; rows: GeneratedRow[] } | null>(null)
-  /** 견적서수정 — [일자-No.] 로 연 견적. */
-  const [editing, setEditing] = useState<Quotation | null>(null)
   const [error, setError] = useState('')
-  const [showForm, setShowForm] = useState(false)
   /*
    * 원본 견적서조회는 <b>기준일자</b>를 들고 [최근30일(+1개월)] 로 열린다(사본 실측 —
    * 달 스핀박스가 06·08 셋이라 한 달 뒤까지 본다). 견적은 <b>앞으로</b>의 일이라
@@ -401,7 +389,7 @@ export default function QuotationPage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel="신규(F2)"
-      onNew={() => { setEditing(null); setShowForm(true) }}
+      onNew={() => navigate('/sales/quotation-entry')}
       /* 원본 차례(2026-10-14 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 다른전표생성 · 전자결재 · 선택삭제 · Excel(표시형식) · 이력조회 · 웹자료올리기 — 바깥 발송 · 결재는 뺀다. */
       actions={[
         { label: '진행상태변경', onClick: () => openMenu('status', '진행상태변경'), selected: picked.size },
@@ -725,7 +713,7 @@ export default function QuotationPage() {
           ) : shown.flatMap((q) => q.lines.map((l) => ({ q, l }))).map(({ q, l }, i) => (
             <tr key={`${q.id}-${l.id}`}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td><a className="cursor-pointer" onClick={() => { setEditing(q); setShowForm(true) }}>{dateNo(q)}</a></td>
+              <td><a className="cursor-pointer" onClick={() => navigate(`/sales/quotation-entry?edit=${q.id}`)}>{dateNo(q)}</a></td>
               <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
               <td className="text-right">{won(l.quantity)}</td>
               <td className="text-right">{won(l.unitPrice)}</td>
@@ -765,7 +753,7 @@ export default function QuotationPage() {
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="text-center"><input type="checkbox" aria-label="선택" checked={picked.has(q.id)} onChange={() => pick(q.id)} /></td>
               {/* 원본은 [일자-No.] 를 누르면 그 견적이 든 입력 창이 뜬다. */}
-              <td><a className="cursor-pointer" onClick={() => { setEditing(q); setShowForm(true) }}>{dateNo(q)}</a></td>
+              <td><a className="cursor-pointer" onClick={() => navigate(`/sales/quotation-entry?edit=${q.id}`)}>{dateNo(q)}</a></td>
               <td>{q.partnerName}</td>
               <td>{q.employeeName ?? ''}</td>
               {/* 원본 '포장재 [30cm*40cm]' · '코카콜라 [355ml] 외 1건' — 첫 품목에 규격을 대괄호로. */}
@@ -781,227 +769,7 @@ export default function QuotationPage() {
       </table>
       ))}
 
-      {showForm && <QuotationForm key={editing?.id ?? 'new'} editing={editing} items={items} partners={partners} warehouses={warehouses} projects={projects} employees={genEmps}
-        onClose={() => { setShowForm(false); setEditing(null) }}
-        onSaved={() => { setShowForm(false); setEditing(null); load() }} />}
     </EcListShell>
   )
 }
 
-/**
- * 견적서입력 · 견적서수정 창 — 원본 견적서입력(E040201) 2026-10-14 loginaa 실측.
- * 머리: 일자 · 거래처 · (담당자) · 출하창고 · (거래유형 · 통화) · 프로젝트. 격자: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 합계.
- * 품목을 고르면 수량은 비어 있고 단가는 품목 출고단가(없으면 0). 3 × 1,001 → 공급가액 3,003 · 부가세 300 · 합계 3,303.
- * 줄 없이 저장하면 '알림' 창의 '그리드(표)에 최소 1줄 이상 입력되어야 합니다.', 출하창고는 비워도 저장된다. 저장하면 말 없이 새 창이 된다.
- * 수정 창 하단: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · H · 최종이력 — 삭제 확인 '전표를 삭제하겠습니까?\n- 견적서', 지우면 말 없이 목록에서 빠진다.
- */
-function QuotationForm({ editing, items, partners, warehouses, projects, employees, onClose, onSaved }: {
-  editing: Quotation | null
-  items: Item[]; partners: Partner[]
-  warehouses: { id: number; code: string; name: string; active?: boolean }[]
-  projects: { id: number; code: string; name: string }[]
-  employees: { id: number; code: string; name: string }[]
-  onClose: () => void; onSaved: () => void
-}) {
-  const init = () => ({
-    partnerId: editing ? String(editing.partnerId) : '',
-    quoteDate: editing?.quoteDate ?? today(),
-    warehouse: editing?.warehouseId ? String(editing.warehouseId) : '',
-    project: editing?.projectId ? String(editing.projectId) : '',
-    employee: editing?.employeeId ? String(editing.employeeId) : '',
-    validUntil: editing?.validUntil ?? '',
-    lines: editing && editing.lines.length
-      ? [...editing.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) })), emptyLine(), emptyLine()]
-      : [emptyLine(), emptyLine(), emptyLine()],
-  })
-  const [partnerId, setPartnerId] = useState(init().partnerId)
-  const [quoteDate, setQuoteDate] = useState(init().quoteDate)
-  /* 원본 견적서의 [출하창고]·[프로젝트]. 판매전표는 이미 물고 있는데 견적만 없었다. */
-  const [fWarehouse, setFWarehouse] = useState(init().warehouse)
-  const [fProject, setFProject] = useState(init().project)
-  /* 원본 견적서의 [담당자](2026-10-23 재고1 QA) — 견적서조회 [사원(담당)명] 이 이 값이다. */
-  const [fEmployee, setFEmployee] = useState(init().employee)
-  const [validUntil, setValidUntil] = useState(init().validUntil)
-  const [lines, setLines] = useState<LineForm[]>(init().lines)
-  const [saving, setSaving] = useState(false)
-  /** 수정 창 [H] · [최종이력] — QuotationService.HISTORY_TARGET 'QUOTATION'. */
-  const [slipHistory, setSlipHistory] = useState<'H' | 'last' | null>(null)
-  const [error, setError] = useState('')
-  const [partnerMissing, setPartnerMissing] = useState(false)
-
-  function reset() {
-    const v = init()
-    setPartnerId(v.partnerId); setQuoteDate(v.quoteDate); setFWarehouse(v.warehouse); setFProject(v.project); setFEmployee(v.employee)
-    setValidUntil(v.validUntil); setLines(v.lines); setError(''); setPartnerMissing(false)
-  }
-  function setLine(i: number, patch: Partial<LineForm>) {
-    setLines((ls) => {
-      const next = ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l))
-      /* 원본 격자는 빈 줄이 늘 남아 있다 — 마지막 줄에 품목을 넣으면 빈 줄을 하나 더 붙인다. */
-      return next[next.length - 1].itemId ? [...next, emptyLine()] : next
-    })
-  }
-  function pickItem(i: number, itemId: string) {
-    const it = items.find((x) => String(x.id) === itemId)
-    setLine(i, { itemId, unitPrice: it ? String(it.unitPrice ?? 0) : '' })
-    // 거래처의 특별단가가 있으면 덮는다(50회차 — 견적서는 특별단가를 몰랐다).
-    void resolveSpecialPrice('SALES', itemId, partnerId).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
-  }
-  /** 거래처를 고르면 담긴 품목의 특별단가를 다시 찾는다 — 품목을 먼저 담아도 걸리게(49회차와 같은 까닭). */
-  function choosePartner(v: string) {
-    setPartnerId(v); setPartnerMissing(false)
-    lines.forEach((l, i) => {
-      if (l.itemId) void resolveSpecialPrice('SALES', l.itemId, v).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
-    })
-  }
-
-  const calc = lines.map((l) => lineSupply(Number(l.quantity) || 0, Number(l.unitPrice) || 0))
-  /*
-   * 부가세는 <b>줄마다</b> 원 단위로 반올림해 더한다 — 서버(QuotationService)가 그렇게 저장한다.
-   * ÷10 으로 재는 것은 ×0.1 의 부동소수 오차(…4999)를 피하려는 것이다.
-   */
-  const vats = calc.map((c) => Math.round(c / 10))
-  const supply = calc.reduce((a, b) => a + b, 0)
-  const vat = vats.reduce((a, b) => a + b, 0)
-  const qtySum = lines.reduce((a, l) => a + (l.itemId ? Number(l.quantity) || 0 : 0), 0)
-
-  async function save() {
-    setError('')
-    const payload = lines
-      .filter((l) => l.itemId)
-      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity) || 0, unitPrice: Number(l.unitPrice) || 0 }))
-    if (payload.length === 0) {
-      return ecAlert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n'
-        + `${quoteDate.replace(/-/g, '')} 견적서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
-    }
-    /* 거래처가 비면 원본 입력 화면들처럼 글 없이 그 칸만 빨갛게(판매 · 주문서와 같다). */
-    if (!partnerId) { setPartnerMissing(true); return }
-    setSaving(true)
-    try {
-      const body = { partnerId: Number(partnerId), quoteDate,
-        warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
-        projectId: fProject ? Number(fProject) : undefined,
-        employeeId: fEmployee ? Number(fEmployee) : undefined,
-        validUntil: validUntil || undefined, taxable: true, lines: payload }
-      if (editing) await api.put(`/quotations/${editing.id}`, body)
-      else await api.post('/quotations', body)
-      onSaved()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function removeThis() {
-    if (!editing || !(await ecConfirm('전표를 삭제하겠습니까?\n- 견적서'))) return
-    try { await api.delete(`/quotations/${editing.id}`); onSaved() }
-    catch (err) { void ecAlert(extractErrorMessage(err)) }
-  }
-
-  const th = 'w-[90px] bg-ec-page'
-  return (
-    <Modal open title={editing ? '견적서수정' : '견적서입력'} width={960} onClose={onClose}>
-      <div>
-        {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-        <table className="w-full text-left mb-[8px]">
-          <tbody>
-            <tr>
-              <th className={th}>일자-No.</th>
-              <td>
-                <input type="date" className="ec-input w-[150px]" value={quoteDate} onChange={(e) => setQuoteDate(e.target.value)} />
-                {editing && <span className="ml-[6px] text-ec-label">{editing.quoteNo.split('-').pop()?.replace(/^0+/, '-')}</span>}
-              </td>
-              <th className={th}>거래처</th>
-              <td className={partnerMissing ? 'ec-invalid' : undefined}>
-                <CodePickerField label="거래처" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="거래처"
-                                 value={partnerId} onChange={choosePartner}
-                                 items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'), true)} />
-              </td>
-            </tr>
-            <tr>
-              <th className={th}>담당자</th>
-              <td>
-                <CodePickerField label="담당자" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="담당자"
-                                 value={fEmployee} onChange={setFEmployee}
-                                 items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-              </td>
-              <th className={th}>출하창고</th>
-              <td>
-                <CodePickerField label="출하창고" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="출하창고"
-                                 value={fWarehouse} onChange={setFWarehouse}
-                                 items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, stopped: w.active === false }))} />
-              </td>
-            </tr>
-            <tr>
-              <th className={th}>프로젝트</th>
-              <td>
-                <CodePickerField label="프로젝트" hideLabel pair width={240} emptyLabel="선택 안 함" placeholder="프로젝트"
-                                 value={fProject} onChange={setFProject}
-                                 items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-              </td>
-              <th className={th}>유효기간</th>
-              <td><input type="date" className="ec-input w-[150px]" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table className="w-full text-left">
-          <thead><tr>
-            <th className="w-[37px]"></th><th>품목코드 · 품목명</th><th className="w-[141px]">규격</th>
-            <th className="w-[100px] text-right">수량</th><th className="w-[129px] text-right">단가</th>
-            <th className="w-[129px] text-right">공급가액</th><th className="w-[129px] text-right">부가세</th><th className="w-[119px] text-right">합계</th>
-          </tr></thead>
-          <tbody>
-            {lines.map((l, i) => {
-              const it = items.find((x) => String(x.id) === l.itemId)
-              return (
-                <tr key={i}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
-                  <td>
-                    <CodePickerField label="품목" hideLabel fill placeholder="품목코드" emptyLabel="선택 해제"
-                                     value={l.itemId} onChange={(v) => pickItem(i, v)}
-                                     items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, alias: x.searchKeyword, sub: x.spec, stopped: x.active === false }))} />
-                  </td>
-                  <td>{it?.spec ?? ''}</td>
-                  <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
-                  <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
-                  <td className="text-right">{l.itemId ? won(calc[i]) : ''}</td>
-                  <td className="text-right">{l.itemId ? won(vats[i]) : ''}</td>
-                  <td className="text-right">{l.itemId ? won(calc[i] + vats[i]) : ''}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="font-bold bg-ec-page">
-              <td colSpan={3}></td>
-              <td className="text-right">{won(qtySum)}</td>
-              <td></td>
-              <td className="text-right">{won(supply)}</td>
-              <td className="text-right">{won(vat)}</td>
-              <td className="text-right">{won(supply + vat)}</td>
-            </tr>
-          </tfoot>
-        </table>
-        {/* 추가항목(사용자정의) — Self-Customizing › 사용자정의필드의 [견적서] 정의가 있으면 여기 뜬다(저장된 견적만). */}
-        {editing && <div className="pt-[6px]"><CustomFieldsPanel entityType="QUOTE" entityId={editing.id} /></div>}
-        <div className="flex gap-[6px] mt-[10px]">
-          <button className="ec-btn ec-btn-primary" onClick={() => void save()} disabled={saving}>저장(F8)</button>
-          <button className="ec-btn" onClick={reset}>다시 작성</button>
-          <button className="ec-btn" onClick={onClose}>{editing ? '닫기' : '리스트'}</button>
-          {editing && <button className="ec-btn" onClick={() => void removeThis()}>삭제</button>}
-          {editing && <button className="ec-btn" onClick={() => setSlipHistory('H')}>H</button>}
-          {editing && <button className="ec-btn" onClick={() => setSlipHistory('last')}>최종이력</button>}
-        </div>
-      </div>
-      {/* 원본 견적서 [H](2026-10-21 실측): 판매와 같은 꼴 — 머리 '[20261021-4]', 전표상태 '확인' · 진행상태 '진행중' · 행위, 보안 · 발송이력 */}
-      {slipHistory === 'H' && editing && (
-        <SlipHistoryModal target="QUOTATION" id={editing.id} withSections confirmLabel="확인"
-                          head={`[${editing.quoteDate.replace(/-/g, '')}-${Number(editing.quoteNo.split('-').pop()) || editing.quoteNo}]`}
-                          onClose={() => setSlipHistory(null)} />
-      )}
-      {slipHistory === 'last' && editing && <SlipLastHistoryModal target="QUOTATION" id={editing.id} onClose={() => setSlipHistory(null)} />}
-    </Modal>
-  )
-}

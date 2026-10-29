@@ -120,7 +120,7 @@ export function MenuButton({
 export default function EcSlipShell({
   title, formTabs = [], activeFormTab, onFormTab,
   relatedTabs = [], onAddTab,
-  tempSave, savedAt, options = [], actions = [], help, children,
+  tempSave, savedAt, options = [], actions: rawActions = [], busy = false, help, children,
 }: {
   title: string
   /** 양식 탭 (원본: 기본(수정불가) / 적요). 캐럿으로 양식 목록이 열린다. */
@@ -138,9 +138,17 @@ export default function EcSlipShell({
   options?: SlipMenuItem[]
   /** 푸터 버튼줄 */
   actions?: SlipAction[]
+  /**
+   * 저장 요청이 도는 중 — 저장(submit) · 저장/전표(F7) 단추를 흐리게 하고 F8 · F7 을 막는다(utils/useSubmitting).
+   * 같은 틱 두 번 누름은 화면의 onSubmit 이 ref 로 막는다. 이건 그다음 렌더부터 보이는 표시다.
+   */
+  busy?: boolean
   help?: ReactNode
   children: ReactNode
 }) {
+  const actions = busy
+    ? rawActions.map((a) => (a.submit || a.label.includes('F7') ? { ...a, disabled: true, disabledReason: undefined } : a))
+    : rawActions
   const [helpOpen, setHelpOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
   const [optionOpen, setOptionOpen] = useState(false)

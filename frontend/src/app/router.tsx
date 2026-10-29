@@ -177,10 +177,10 @@ const BondPartnerLedgerPrintPage = lazy(() => import('../pages/accounting/BondPa
 const BondDecreasePage = lazy(() => import('../pages/accounting/BondDecreasePage'))
 const BondBalanceAnalysisPage = lazy(() => import('../pages/accounting/BondBalanceAnalysisPage'))
 const ContractPage = lazy(() => import('../pages/accounting/ContractPage'))
-const ContractItemPage = lazy(() => import('../pages/accounting/ContractItemPage'))
-const BillingContractEntryPage = lazy(() => import('../pages/accounting/BillingContractEntryPage'))
 const EContractProgressPage = lazy(() => import('../pages/accounting/EContractProgressPage'))
 const EContractStatusPage = lazy(() => import('../pages/accounting/EContractStatusPage'))
+const ContractItemPage = lazy(() => import('../pages/accounting/ContractItemPage'))
+const BillingContractEntryPage = lazy(() => import('../pages/accounting/BillingContractEntryPage'))
 const BillingContractListPage = lazy(() => import('../pages/accounting/BillingContractListPage'))
 const ContractBillPage = lazy(() => import('../pages/accounting/ContractBillPage'))
 const ContractPriceChangePage = lazy(() => import('../pages/accounting/ContractPriceChangePage'))
@@ -265,8 +265,10 @@ const MailPage = lazy(() => import('../pages/groupware/MailPage'))
 const ShortMessagePage = lazy(() => import('../pages/groupware/ShortMessagePage'))
 const OrgChartPage = lazy(() => import('../pages/groupware/OrgChartPage'))
 const SalesOrderPage = lazy(() => import('../pages/trade/SalesOrderPage'))
+const SalesOrderEntry = lazy(() => import('../pages/trade/SalesOrderEntry'))
 const OrderReleasePage = lazy(() => import('../pages/trade/OrderReleasePage'))
 const QuotationPage = lazy(() => import('../pages/trade/QuotationPage'))
+const QuotationEntry = lazy(() => import('../pages/trade/QuotationEntry'))
 const PurchaseOrderPage = lazy(() => import('../pages/trade/PurchaseOrderPage'))
 const PayablePage = lazy(() => import('../pages/trade/PayablePage'))
 const TradeInquiryPage = lazy(() => import('../pages/trade/TradeInquiryPage'))
@@ -336,6 +338,7 @@ const SalesDiscountPage = lazy(() => import('../pages/trade/SalesDiscountPage'))
 const PurchaseStatusPage = lazy(() => import('../pages/trade/PurchaseStatusPage'))
 const PurchaseDiscountPage = lazy(() => import('../pages/trade/PurchaseDiscountPage'))
 const ShipmentOrderPage = lazy(() => import('../pages/trade/ShipmentOrderPage'))
+const ShipmentOrderEntry = lazy(() => import('../pages/trade/ShipmentOrderEntry'))
 const ShipmentOrderStatusPage = lazy(() => import('../pages/trade/ShipmentOrderStatusPage'))
 const ShipmentPage = lazy(() => import('../pages/trade/ShipmentPage'))
 const ShipmentInquiryPage = lazy(() => import('../pages/trade/ShipmentInquiryPage'))
@@ -574,6 +577,7 @@ export default function AppRouter() {
         <Route path="/sales/ledger-receivable" element={<LedgerPage side="AR" />} />
         <Route path="/sales/ledger-payable" element={<LedgerPage side="AP" />} />
         <Route path="/sales/orders" element={<SalesOrderPage />} />
+        <Route path="/sales/order-entry" element={<SalesOrderEntry />} />
         <Route path="/sales/order-release" element={<OrderReleasePage />} />
         <Route path="/sales/order-status" element={<SalesOrderStatusPage />} />
         <Route path="/sales/trade-history" element={<TradeHistoryPage />} />
@@ -591,6 +595,7 @@ export default function AppRouter() {
         <Route path="/sales/sales-plan-status" element={<SalesPlanStatusPage />} />
         <Route path="/sales/unordered" element={<UnorderedStatusPage />} />
         <Route path="/sales/quotations" element={<QuotationPage />} />
+        <Route path="/sales/quotation-entry" element={<QuotationEntry />} />
         <Route path="/sales/purchase-orders" element={<PurchaseOrderPage />} />
         <Route path="/sales/purchase-order-input" element={<PurchaseOrderInputPage />} />
         <Route path="/sales/payable" element={<PayablePage />} />
@@ -628,6 +633,7 @@ export default function AppRouter() {
         <Route path="/sales/price-request-progress" element={<PriceRequestProgressPage />} />
         <Route path="/sales/purchase-discount" element={<PurchaseDiscountPage />} />
         <Route path="/sales/shipment-order" element={<ShipmentOrderPage />} />
+        <Route path="/sales/shipment-order-entry" element={<ShipmentOrderEntry />} />
         <Route path="/sales/shipment-order-status" element={<ShipmentOrderStatusPage />} />
         <Route path="/sales/shipment" element={<ShipmentPage />} />
         <Route path="/sales/shipment-inquiry" element={<ShipmentInquiryPage />} />
@@ -694,6 +700,8 @@ export default function AppRouter() {
         <Route path="/accounting/notes-endorse" element={<NoteEntryPage key="endorse" mode="endorse" />} />
         <Route path="/accounting/notes-batch-decrease" element={<NoteBatchDecreasePage key="recv" receivable />} />
         <Route path="/accounting/notes-pay-batch-decrease" element={<NoteBatchDecreasePage key="pay" receivable={false} />} />
+        <Route path="/accounting/notes-pay-increase" element={<NoteEntryPage key="pay-increase" mode="pay-increase" />} />
+        <Route path="/accounting/notes-pay-decrease" element={<NoteEntryPage key="pay-decrease" mode="pay-decrease" />} />
         <Route path="/accounting/notes-list" element={<NoteListPage type="RECEIVABLE" />} />
         <Route path="/accounting/notes-pay-list" element={<NoteListPage type="PAYABLE" />} />
         <Route path="/accounting/notes-ledger" element={<NoteLedgerPage type="RECEIVABLE" />} />
@@ -708,8 +716,6 @@ export default function AppRouter() {
         <Route path="/accounting/budget/status" element={<BudgetReportPage variant="status" />} />
         <Route path="/accounting/budget/compare" element={<BudgetReportPage variant="compare" />} />
         <Route path="/accounting/budget/control-ledger" element={<BudgetReportPage variant="controlLedger" />} />
-        <Route path="/accounting/notes-pay-increase" element={<NoteEntryPage key="pay-increase" mode="pay-increase" />} />
-        <Route path="/accounting/notes-pay-decrease" element={<NoteEntryPage key="pay-decrease" mode="pay-decrease" />} />
         <Route path="/accounting/budget/ledger" element={<BudgetReportPage variant="ledger" />} />
         <Route path="/accounting/budget/control-compare" element={<BudgetReportPage variant="controlCompare" />} />
         <Route path="/accounting/cash-plan" element={<CashPlanPage />} />
@@ -870,12 +876,12 @@ export default function AppRouter() {
         <Route path="/accounting/checks-held" element={<CheckHoldingPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued" element={<CheckHoldingPage type="ISSUED" />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />
+        <Route path="/accounting/e-contracts" element={<EContractProgressPage />} />
+        <Route path="/accounting/e-contracts/status" element={<EContractStatusPage />} />
         <Route path="/accounting/contract-items" element={<ContractItemPage />} />
         <Route path="/accounting/billing-contracts/new" element={<BillingContractEntryPage />} />
         <Route path="/accounting/billing-contracts" element={<BillingContractListPage />} />
         <Route path="/accounting/contract-bills" element={<ContractBillPage />} />
-        <Route path="/accounting/e-contracts" element={<EContractProgressPage />} />
-        <Route path="/accounting/e-contracts/status" element={<EContractStatusPage />} />
         <Route path="/accounting/contract-price-change" element={<ContractPriceChangePage />} />
         <Route path="/accounting/contract-status" element={<ContractStatusReportPage />} />
         <Route path="/accounting/contract-unbilled" element={<ContractUnbilledPage />} />

@@ -2,7 +2,9 @@ package com.erp.settings.preference;
 
 import com.erp.settings.preference.dto.PreferenceDtos.PreferenceRequest;
 import com.erp.settings.preference.dto.PreferenceDtos.PreferenceResponse;
+import com.erp.common.ApiException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.erp.settings.preference.dto.PreferenceDtos;
@@ -35,7 +37,16 @@ public class PreferenceService {
         if (req.lotUse() != null) p.setLotUse(req.lotUse());
         if (req.approvalRequired() != null) p.setApprovalRequired(req.approvalRequired());
         if (req.priceHide() != null) p.setPriceHide(req.priceHide());
+        if (req.zeroDisplay() != null) p.setZeroDisplay(req.zeroDisplay());
+        if (req.clock24() != null) p.setClock24(req.clock24());
+        if (req.printAlign() != null) p.setPrintAlign(oneOf(req.printAlign(), "인쇄정렬", "LEFT", "CENTER", "RIGHT"));
+        if (req.printOrientation() != null) p.setPrintOrientation(oneOf(req.printOrientation(), "인쇄방향", "PORTRAIT", "LANDSCAPE"));
 
         return PreferenceResponse.from(preferenceRepository.save(p));
+    }
+
+    private static String oneOf(String v, String label, String... allowed) {
+        for (String a : allowed) if (a.equals(v)) return v;
+        throw new ApiException(HttpStatus.BAD_REQUEST, label + " 값이 올바르지 않습니다.");
     }
 }

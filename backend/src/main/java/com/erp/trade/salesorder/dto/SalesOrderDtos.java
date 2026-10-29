@@ -20,11 +20,26 @@ public final class SalesOrderDtos {
     public record OrderLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
-    ) {}
+            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice,
+            /* 줄 적요 — 원본 주문서입력 줄 열 '적요'. */
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.") String remark,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
+            /** 줄 품목명(선택). 원본 입력 화면은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007 · '포장김치1kg'). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
+    ) {
+        public OrderLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String spec) {
+            this(itemId, quantity, unitPrice, remark, spec, null);
+        }
+        public OrderLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark) {
+            this(itemId, quantity, unitPrice, remark, null);
+        }
+    }
 
     public record CreateSalesOrderRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             LocalDate orderDate,
             LocalDate dueDate,
             /* 원본 수주의 [창고]·[프로젝트]·[담당자]. 수주 시점에 안 정했을 수 있어 필수가 아니다. */
@@ -45,6 +60,8 @@ public final class SalesOrderDtos {
      */
     public record UpdateSalesOrderRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             LocalDate dueDate,
             Long warehouseId,
             Long projectId,
@@ -71,13 +88,15 @@ public final class SalesOrderDtos {
              * 없던 것은 <b>줄</b>이지 파일이 아니었다 — 품목 마스터의 값을 실기만 하면 된다.
              */
             String spec,
-            BigDecimal quantity, BigDecimal shippedQty, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount
+            BigDecimal quantity, BigDecimal shippedQty, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
+            String remark
     ) {
         static OrderLineResponse from(SalesOrderLine l) {
             return new OrderLineResponse(
-                    l.getId(), l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getItem().getSpec(),
-                    l.getQuantity(), l.getShippedQty(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount());
+                    l.getId(), l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
+                    l.effectiveSpec(),
+                    l.getQuantity(), l.getShippedQty(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                    l.getRemark());
         }
     }
 
@@ -128,10 +147,10 @@ public final class SalesOrderDtos {
             BigDecimal shipped = committed != null ? committed : BigDecimal.ZERO;
             return new UnshippedLineResponse(
                     o.getId(), o.getOrderNo(), l.getId(),
-                    o.getPartner().getId(), o.getPartner().getName(),
+                    o.getPartner().getId(), o.displayPartnerName(),
                     o.getOrderDate(), o.getDueDate(),
                     o.getStatus(), o.getStatus().getDisplayName(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
                     orderQty, shipped, orderQty.subtract(shipped),
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                     o.getWarehouse() != null ? o.getWarehouse().getName() : null,
@@ -140,7 +159,7 @@ public final class SalesOrderDtos {
                     o.getEmployee() != null ? o.getEmployee().getId() : null,
                     o.getEmployee() != null ? o.getEmployee().getName() : null,
                     o.getRemark(), shipNos,
-                    l.getItem().getSpec(), o.getCreatedBy());
+                    l.effectiveSpec(), o.getCreatedBy());
         }
     }
 
@@ -189,10 +208,10 @@ public final class SalesOrderDtos {
             BigDecimal price = l.getUnitPrice() != null ? l.getUnitPrice() : BigDecimal.ZERO;
             return new UnsoldLineResponse(
                     o.getId(), o.getOrderNo(), l.getId(),
-                    o.getPartner().getId(), o.getPartner().getName(),
+                    o.getPartner().getId(), o.displayPartnerName(),
                     o.getOrderDate(), o.getDueDate(),
                     o.getStatus(), o.getStatus().getDisplayName(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
                     orderQty, soldQty, unsold,
                     price, unsold.multiply(price),
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
@@ -201,7 +220,7 @@ public final class SalesOrderDtos {
                     o.getProject() != null ? o.getProject().getName() : null,
                     o.getEmployee() != null ? o.getEmployee().getId() : null,
                     o.getEmployee() != null ? o.getEmployee().getName() : null,
-                    o.getRemark(), l.getItem().getSpec(), o.getCreatedBy(),
+                    o.getRemark(), l.effectiveSpec(), o.getCreatedBy(),
                     o.getVatAmount() != null && o.getVatAmount().signum() > 0);
         }
     }
@@ -248,7 +267,7 @@ public final class SalesOrderDtos {
         public static SalesOrderResponse from(SalesOrder o) {
             return new SalesOrderResponse(
                     o.getId(), o.getOrderNo(),
-                    o.getPartner().getId(), o.getPartner().getName(),
+                    o.getPartner().getId(), o.displayPartnerName(),
                     o.getOrderDate(), o.getDueDate(),
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                     o.getWarehouse() != null ? o.getWarehouse().getName() : null,

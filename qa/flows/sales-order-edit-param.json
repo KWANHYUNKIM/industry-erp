@@ -1,5 +1,5 @@
 {
-  "about": "주문서조회 ?edit=<id> — 그룹웨어 일정관리 납기 막대가 주문 하나를 바로 '주문수정' 창으로 연다. 기본 기간(최근30일) 밖인 120일 전 주문을 API 로 만들고, 주소로 열어 창 제목 · 거래처 · 품목 줄이 그 주문인지, 주소에서 edit 가 지워졌는지 본 뒤 지운다. CDP_PORT=<포트> node qa/shot.mjs qa/flows/sales-order-edit-param.json",
+  "about": "주문서조회 ?edit=<id> — 그룹웨어 일정관리 납기 막대가 주문 하나를 바로 주문서입력(수정) 화면으로 연다. 기본 기간(최근30일) 밖인 120일 전 주문을 API 로 만들고, 주소로 열어 창 제목 · 거래처 · 품목 줄이 그 주문인지, 주소에서 edit 가 지워졌는지 본 뒤 지운다. CDP_PORT=<포트> node qa/shot.mjs qa/flows/sales-order-edit-param.json",
   "shots": [
     {
       "name": "기간 밖 주문을 ?edit 로 연다",
@@ -9,8 +9,7 @@
         "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const p = (await (await fetch('/api/partners', { headers: H })).json()).find((x) => x.type === 'CUSTOMER' || x.type === 'BOTH'); const it = (await (await fetch('/api/items', { headers: H })).json()).find((x) => x.active !== false); const d = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10); const r = await (await fetch('/api/sales-orders', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: p.id, orderDate: d, dueDate: d, taxable: true, remark: 'QA재고1 edit-param', lines: [{ itemId: it.id, quantity: 3, unitPrice: 1000 }] }) })).json(); sessionStorage.setItem('soe-id', String(r.id)); sessionStorage.setItem('soe-partner', p.name); return r.id })()",
         "js:(() => { history.pushState(null, '', '/sales/orders?edit=' + sessionStorage.getItem('soe-id')); dispatchEvent(new PopStateEvent('popstate')); return true })()",
         "wait:2500",
-        "expect:(() => document.body.innerText.includes('주문수정') && [...document.querySelectorAll('input')].some((i) => i.value.includes(sessionStorage.getItem('soe-partner'))))()",
-        "expect:(() => !location.search.includes('edit='))()",
+        "expect:(() => document.body.innerText.includes('주문서입력(수정)') && location.pathname === '/sales/order-entry' && [...document.querySelectorAll('input')].some((i) => i.value.includes(sessionStorage.getItem('soe-partner'))))()",
         "expect:(() => [...document.querySelectorAll('input')].some((i) => i.value === 'QA재고1 edit-param'))()",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; return (await fetch('/api/sales-orders/' + sessionStorage.getItem('soe-id'), { method: 'DELETE', headers: H })).ok })()"
       ]

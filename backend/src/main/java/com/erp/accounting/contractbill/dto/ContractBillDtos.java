@@ -119,7 +119,7 @@ public final class ContractBillDtos {
                     cl.getBillingUnit() != null ? cl.getBillingUnit().getName() : null, l.getRemark(),
                     l.getSalesId(), cl.getProducts().stream()
                             .map((p) -> com.erp.accounting.contractitem.dto.ContractItemDtos.ProductLink.of(
-                                    p.getItem(), p.getQuantity(), p.getUnitPrice(), p.getSupplyAmount(), p.getVatAmount())).toList());
+                                    p.getItem(), p.getSpec(), p.getQuantity(), p.getUnitPrice(), p.getSupplyAmount(), p.getVatAmount())).toList());
         }
     }
 

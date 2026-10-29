@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { ecConfirm } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import { useLocation, useNavigate } from 'react-router-dom'
 import SimpleAdjustDialog from '../../features/stockadjust/components/SimpleAdjustDialog'
@@ -32,14 +33,18 @@ const pill = (on: boolean): React.CSSProperties => ({
  *
  * <p>우리 단계별재고조정 한 건이 실사 전표 한 장이다. 진행단계는 [실사 · 조정] 알약 둘이고 <b>지금 단계</b>가 파랗다 —
  * 원본에서 조정까지 끝난 줄은 '조정'만 파랬다. 반려된 건은 조정으로 못 가 실사가 마지막이다.
- * 담당자는 실사를 올린 사람(requester)이다. [이력] 열은 전표 변경 이력 창인데 우리는 이력을 따로 남기지 않는다.
+ * 담당자는 실사 전표 머리의 [담당자]다(2026-10-28 실측 — 로그인 계정이 아니다). [이력] 열은 전표 변경 이력 창인데 우리는 이력을 따로 남기지 않는다.
  */
 /** 단계별재고조정을 반영하면 서버가 적요 앞에 이 말을 붙여 재고조정을 만든다 — 그것은 단계별 줄이 이미 맡는다. */
 const STAGED_PREFIX = '단계별조정 '
+/** 원본 줄 [조정] → '조정' 확인 창 문구(2026-10-28 실측). */
+const ADJUST_CONFIRM = '재고조정전표를 생성하시겠습니까?\n재고조정 시, 실사입력된 전표만 조정이 됩니다.\n조정대상을 선택하려면, [재고조정]버튼을 눌러 진행해야 합니다.'
 /** 표 한 줄 — 단계별 실사 한 건이거나, 간편재고조정 한 건. */
 interface Row {
   key: string; date: string; no: string; person: string; itemId: number; itemName: string
   warehouseId: number; warehouseName: string; book: number; actual: number; diff: number; applied: boolean
+  /** 단계별 실사 전표 번호 — 간편재고조정 줄은 없다. */
+  slip?: string
 }
 
 export default function StagedProgressPage() {
@@ -52,8 +57,9 @@ export default function StagedProgressPage() {
   /* 단계별재고실사 저장 뒤 돌아오면 원본 알림 '요청된 [단계별재고실사] 작업이 완료되었습니다.' 를 띄운다. */
   const location = useLocation()
   const [notice, setNotice] = useState((location.state as { notice?: string } | null)?.notice ?? '')
-  /* [실사] 알약을 누른 줄 — 그 아래 [조회 · 현황] 이 뜬다. */
+  /* [실사] 알약을 누른 줄 — 그 아래 [조회 · 현황] 이 뜬다. [조정] 알약을 누른 줄 — 그 아래 [조정] 이 뜬다. */
   const [menuFor, setMenuFor] = useState<string | null>(null)
+  const [adjustFor, setAdjustFor] = useState<string | null>(null)
   const navigate = useNavigate()
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -66,7 +72,13 @@ export default function StagedProgressPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  /*
+   * 마지막으로 보낸 조회만 표에 쓴다. 처음 조회(금년)가 기간을 바꾼 뒤의 조회보다 늦게 오면 옛 기간 표로 덮어써서
+   * 방금 넣은 실사가 [검색(F8)] 을 다시 누를 때까지 안 보였다(QA 루프 15 · 흐름 staged-row-adjust-undo 에서 재현).
+   */
+  const loadSeq = useRef(0)
   async function load() {
+    const my = ++loadSeq.current
     setLoading(true)
     setError('')
     try {
@@ -74,12 +86,13 @@ export default function StagedProgressPage() {
         api.get<StagedAdjustment[]>('/staged-adjustments', { params: { from, to } }),
         api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to, type: 'ADJUST' } }),
       ])
+      if (my !== loadSeq.current) return
       setStaged(r.data)
       setQuick(q.data.rows.filter((a) => !(a.reason ?? '').startsWith(STAGED_PREFIX)))
     } catch (e) {
-      setError(extractErrorMessage(e))
+      if (my === loadSeq.current) setError(extractErrorMessage(e))
     } finally {
-      setLoading(false)
+      if (my === loadSeq.current) setLoading(false)
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,7 +104,9 @@ export default function StagedProgressPage() {
    * (2026-10-12 실측: C001 본사창고 348 → 350 → '2026/10/12 · (담당자 빈칸) · 포장김치 · 실사 조정 · 본사창고 · 348 · 350 · 2').
    */
   const rows = useMemo<Row[]>(() => [
-    ...staged.map((r) => ({ key: `s${r.id}`, date: r.requestDate, no: r.adjustNo, person: r.requester ?? '', itemId: r.itemId,
+    ...staged.map((r) => ({ key: `s${r.id}`, date: r.requestDate, no: r.adjustNo, slip: r.slipNo,
+      /* 원본 [담당자]는 실사 전표에서 고른 담당자다(박태선, 2026-10-28 실측) — 비우면 빈칸. */
+      person: r.employeeId != null ? empName.get(r.employeeId) ?? '' : '', itemId: r.itemId,
       itemName: r.itemName, warehouseId: r.warehouseId, warehouseName: r.warehouseName,
       /*
        * 원본은 조정 안 한 실사 줄의 [장부수량] · [차이]를 비운다(2026-10-13 실측). [재고조정]을 켜고 저장한 실사는
@@ -113,6 +128,22 @@ export default function StagedProgressPage() {
     .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.no.localeCompare(a.no))),
   [rows, from, to, warehouse, item, person, adjusted])
   const people = useMemo(() => [...new Set(rows.map((r) => r.person).filter(Boolean))].sort(), [rows])
+  /**
+   * 원본 줄 [조정] 알약 → '조정' → 확인 창 → <b>그 실사 전표만</b> 조정전표를 만든다 → 알림(2026-10-28 loginaa 실측).
+   * 창고 · 기준일자로 고르는 버튼줄 [재고조정] 과 다르다.
+   */
+  async function adjustSlip(slipNo: string) {
+    setAdjustFor(null)
+    if (!(await ecConfirm(ADJUST_CONFIRM))) return
+    try {
+      await api.post(`/staged-adjustments/slips/${encodeURIComponent(slipNo)}/adjust`)
+      setNotice('요청된 [단계별재고조정] 작업이 완료되었습니다.')
+      setError('')
+      await load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '재고조정진행단계', [shown.length])
 
@@ -187,11 +218,18 @@ export default function StagedProgressPage() {
               <td>{r.person}</td>
               <td>{r.itemName}</td>
               <td className="text-center whitespace-nowrap relative">
-                <button type="button" style={pill(false)} onClick={() => setMenuFor(menuFor === r.key ? null : r.key)}>실사</button>
-                <span style={pill(true)}>조정</span>
+                <button type="button" style={pill(false)} onClick={() => { setAdjustFor(null); setMenuFor(menuFor === r.key ? null : r.key) }}>실사</button>
+                {/* 간편재고조정 줄은 이미 조정이라 메뉴가 없다(원본 미실측). */}
+                <button type="button" style={pill(true)} onClick={() => { setMenuFor(null); setAdjustFor(r.slip && adjustFor !== r.key ? r.key : null) }}>조정</button>
+                {adjustFor === r.key && r.slip && (
+                  <span className="absolute left-1/2 top-full z-10 bg-ec-panel border border-ec-line border-solid rounded-ec p-[4px] flex flex-col">
+                    <button type="button" className="ec-btn ec-btn-sm" onClick={() => void adjustSlip(r.slip!)}>조정</button>
+                  </span>
+                )}
                 {menuFor === r.key && (
                   <span className="absolute left-1/2 top-full z-10 bg-ec-panel border border-ec-line border-solid rounded-ec p-[4px] flex flex-col">
-                    <button type="button" className="ec-btn ec-btn-sm" onClick={() => navigate('/inventory/stocktake-list')}>조회</button>
+                    {/* 원본 [조회] 는 재고실사조회 창을 그 실사 전표 날짜로 걸러 연다(2026-10-28 실측). */}
+                    <button type="button" className="ec-btn ec-btn-sm" onClick={() => navigate('/inventory/stocktake-list', { state: { from: r.date, to: r.date } })}>조회</button>
                     <button type="button" className="ec-btn ec-btn-sm" onClick={() => navigate('/inventory/stocktake-status')}>현황</button>
                   </span>
                 )}

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ecAlert } from './EcDialog'
+import EcDateField from './EcDateField'
 import EcPeriodPicks, {
   COMPARE_PERIODS, INQUIRY_PICKS, comparePeriodOf, type ComparePeriod, type PeriodRange,
 } from './EcPeriodPicks'
@@ -64,8 +65,15 @@ export default function EcStatusPanel({
   fiscalStart,
   single,
   dateLabel = '기준일자',
+  ecDate,
+  maxDate,
+  lead,
   children,
 }: {
+  /** 한 날짜(ecDate) 화면의 마지막 날 — 원본 창고별재고현황은 오늘까지만 고른다. */
+  maxDate?: string
+  /** 기준일자 줄 <b>앞</b>에 설 조건 — 원본 창고별재고현황은 [구분] 이 기준일자보다 위다(2026-10-29 실측). */
+  lead?: ReactNode
   /**
    * [구분] 토글. 안 주면 그 줄을 그리지 않는다.
    *
@@ -105,6 +113,8 @@ export default function EcStatusPanel({
   single?: boolean
   /** 라벨을 바꿔야 하는 화면(예: '기준일(영업주기)'). */
   dateLabel?: string
+  /** 한 날짜 화면에서 브라우저 날짜칸 대신 원본 모양(연 선택 / 월 선택 / 일 칸 + 달력)을 쓴다. */
+  ecDate?: boolean
   /**
    * [데이터 보기형식] — 표 · 그래프. 원본 현황 17종에 공통으로 있는 줄이다.
    * 안 주면 그 줄을 그리지 않는다(그래프로 보여 줄 집계가 없는 화면).
@@ -189,6 +199,8 @@ export default function EcStatusPanel({
         </EcCond>
       )}
 
+      {lead}
+
       {/*
         기간 빠른선택([금일][전일][금월] …)은 기준일자와 한 줄에 둔다. 예전엔 라벨 없는 줄을 따로
         썼는데, 조건을 가로로 늘어놓자 그 줄이 엉뚱한 칸에 끼어 어느 조건의 버튼인지 알 수 없었다.
@@ -197,11 +209,15 @@ export default function EcStatusPanel({
         {pickedLabel && (
           <span className="text-[12px] text-ec-blue mr-[6px]">{pickedLabel}</span>
         )}
+        {ecDate && single ? (
+          <EcDateField value={from} max={maxDate} onChange={(v) => { setPickedLabel(''); onPeriod({ from: v, to: v }) }} />
+        ) : (
         <input type="date" className="ec-input" value={from}
                onChange={(e) => {
                  setPickedLabel('')
                  onPeriod(single ? { from: e.target.value, to: e.target.value } : { from: e.target.value, to })
                }} style={{ width: 140 }} />
+        )}
         {!single && (
           <>
             <span className="text-ec-label">~</span>

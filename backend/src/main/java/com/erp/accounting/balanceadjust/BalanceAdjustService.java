@@ -11,6 +11,8 @@ import com.erp.accounting.journal.JournalLineRepository;
 import com.erp.accounting.journal.JournalSourceType;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.trade.partner.BusinessPartner;
+import com.erp.trade.partner.PartnerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +41,8 @@ public class BalanceAdjustService {
     private final JournalLineRepository lineRepository;
     private final AccountRepository accountRepository;
     private final DocumentNoGenerator docNoGenerator;
+    /** 잔액실사(거래처별) 줄의 거래처 — accounting → trade(허용 간선) */
+    private final PartnerService partnerService;
 
     static boolean debitSide(AccountDivision d) {
         return d == AccountDivision.ASSET || d == AccountDivision.EXPENSE;
@@ -52,6 +56,24 @@ public class BalanceAdjustService {
     /** 줄의 조정금액(계정 쪽 부호) */
     private static BigDecimal diffOf(JournalLine l) {
         return signed(l.getAccount().getDivision(), l.getDebit(), l.getCredit());
+    }
+
+    /**
+     * 계정의 묶음 방식 — 거래처별집계구분이 거래처별이면 거래처(+ ☑부서별 · ☑프로젝트별), 없음이면 예전처럼 부서 · 프로젝트(잔액실사(계정별)).
+     */
+    record Mode(boolean partner, boolean dept, boolean proj) {
+        static Mode of(Account a) {
+            return a.isPartnerAggregate() ? new Mode(true, a.isAggregateByDept(), a.isAggregateByProject()) : new Mode(false, true, true);
+        }
+        String key(Long pt, Long d, Long p) {
+            return (partner && pt != null ? pt : "") + ":" + (dept && d != null ? d : "") + ":" + (proj && p != null ? p : "");
+        }
+    }
+
+    /** 원본 격자 글자 — '거래처별/부서별/프로젝트별'(1089 외상매출금) · '계정별'(현금 · 상품). */
+    static String aggregationLabel(Account a) {
+        if (!a.isPartnerAggregate()) return "계정별";
+        return "거래처별" + (a.isAggregateByDept() ? "/부서별" : "") + (a.isAggregateByProject() ? "/프로젝트별" : "");
     }
 
     @Transactional(readOnly = true)
@@ -71,73 +93,108 @@ public class BalanceAdjustService {
             if (!a.isActive() && s == null) continue;
             BigDecimal bal = s == null ? BigDecimal.ZERO : signed(a.getDivision(), s[0], s[1]);
             boolean dr = debitSide(a.getDivision());
-            rows.add(new AccountBalanceRow(a.getId(), a.getCode(), a.getName(), a.getDivision().name(), "계정별",
+            rows.add(new AccountBalanceRow(a.getId(), a.getCode(), a.getName(), a.getDivision().name(), aggregationLabel(a),
                     dr ? bal : BigDecimal.ZERO, dr ? BigDecimal.ZERO : bal,
-                    adjusted.getOrDefault(a.getId(), List.of())));
+                    adjusted.getOrDefault(a.getId(), List.of()),
+                    a.isPartnerAggregate(), a.isAggregateByDept(), a.isAggregateByProject()));
         }
         rows.sort(Comparator.comparing(AccountBalanceRow::code));
         return rows;
     }
 
+    /**
+     * '거래처별집계구분' 창 [저장] — ○없음 ◉거래처별 · ☑부서별집계 · ☑프로젝트별집계(원본 2026-10-29 실측). 계정등록의
+     * [거래처별집계구분](partner_aggregate)과 같은 값이다.
+     */
+    @Transactional
+    public void setAggregation(Long accountId, AggregationRequest req) {
+        Account a = account(accountId);
+        a.setPartnerAggregate(req.byPartner());
+        a.setAggregateByDept(req.byDept());
+        a.setAggregateByProject(req.byProject());
+    }
+
+    /** 기준일자까지 묶음별 장부잔액(계정 쪽 부호). exclude 전표(고치는 중인 잔액조정)는 뺀다. parts 에 묶음 → [거래처, 부서, 프로젝트]. */
+    private Map<String, BigDecimal> bookOf(Account a, Mode m, LocalDate asOf, long exclude, Map<String, Long[]> parts) {
+        Map<String, BigDecimal> book = new LinkedHashMap<>();
+        List<Object[]> rs = m.partner() ? adjustRepository.sumByPartnerDeptProject(a.getId(), asOf, exclude)
+                : adjustRepository.sumByDeptProject(a.getId(), asOf, exclude);
+        int o = m.partner() ? 1 : 0;
+        for (Object[] r : rs) {
+            Long pt = m.partner() ? (Long) r[0] : null, d = (Long) r[o], p = (Long) r[o + 1];
+            String k = m.key(pt, d, p);
+            book.merge(k, signed(a.getDivision(), (BigDecimal) r[o + 2], (BigDecimal) r[o + 3]), BigDecimal::add);
+            parts.putIfAbsent(k, new Long[]{m.partner() ? pt : null, m.dept() ? d : null, m.proj() ? p : null});
+        }
+        return book;
+    }
+
+    private AuditGroupRow group(Long pt, Long d, Long p, BigDecimal book, BigDecimal actual, String memo) {
+        BusinessPartner bp = pt == null ? null : partnerService.get(pt);
+        return new AuditGroupRow(pt, bp == null ? null : bp.getCode(), bp == null ? null : bp.getName(), d, p, book, actual, memo);
+    }
+
     @Transactional(readOnly = true)
     public AuditResponse audit(LocalDate asOf, Long accountId, Long entryId) {
         Account a = account(accountId);
+        Mode m = Mode.of(a);
+        Map<String, Long[]> parts = new HashMap<>();
+        Map<String, BigDecimal> book = bookOf(a, m, asOf, entryId == null ? 0L : entryId, parts);
         Map<String, AuditGroupRow> groups = new LinkedHashMap<>();
-        groups.put(key(null, null), new AuditGroupRow(null, null, BigDecimal.ZERO, BigDecimal.ZERO, null));
-        for (Object[] r : adjustRepository.sumByDeptProject(accountId, asOf, entryId == null ? 0L : entryId)) {
-            Long d = (Long) r[0], p = (Long) r[1];
-            BigDecimal bal = signed(a.getDivision(), (BigDecimal) r[2], (BigDecimal) r[3]);
-            groups.put(key(d, p), new AuditGroupRow(d, p, bal, bal, null));
+        if (!m.partner()) groups.put(m.key(null, null, null), group(null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, null));
+        for (Map.Entry<String, BigDecimal> b : book.entrySet()) {
+            // 거래처별은 잔액이 남은 묶음만 — 다 갚은 거래처까지 늘어서면 실사할 줄을 찾을 수 없다(없는 거래처는 빈 줄로 더한다)
+            if (m.partner() && b.getValue().signum() == 0) continue;
+            Long[] k = parts.get(b.getKey());
+            groups.put(b.getKey(), group(k[0], k[1], k[2], b.getValue(), b.getValue(), null));
         }
         if (entryId != null) {
             JournalEntry e = adjustment(entryId);
             for (JournalLine l : e.getLines()) {
                 if (!l.getAccount().getId().equals(accountId)) continue;
-                String k = key(l.getDepartmentId(), l.getProjectId());
-                AuditGroupRow g = groups.getOrDefault(k, new AuditGroupRow(l.getDepartmentId(), l.getProjectId(), BigDecimal.ZERO, BigDecimal.ZERO, null));
-                groups.put(k, new AuditGroupRow(g.departmentId(), g.projectId(), g.bookAmount(), g.bookAmount().add(diffOf(l)), l.getDescription()));
+                Long pt = l.getPartner() == null ? null : l.getPartner().getId();
+                String k = m.key(pt, l.getDepartmentId(), l.getProjectId());
+                BigDecimal bk = book.getOrDefault(k, BigDecimal.ZERO);
+                AuditGroupRow g = groups.get(k);
+                if (g == null) g = group(m.partner() ? pt : null, m.dept() ? l.getDepartmentId() : null,
+                        m.proj() ? l.getProjectId() : null, bk, bk, null);
+                groups.put(k, new AuditGroupRow(g.partnerId(), g.partnerCode(), g.partnerName(), g.departmentId(), g.projectId(),
+                        g.bookAmount(), g.bookAmount().add(diffOf(l)), l.getDescription()));
             }
         }
-        return new AuditResponse(asOf, a.getId(), a.getCode(), a.getName(), new ArrayList<>(groups.values()));
+        return new AuditResponse(asOf, a.getId(), a.getCode(), a.getName(), new ArrayList<>(groups.values()),
+                m.partner(), m.dept(), m.proj());
     }
 
     @Transactional
     public AdjustmentRow save(SaveRequest req, String username) {
         if (req.asOf() == null) throw ApiException.badRequest("기준일자를 입력 바랍니다.");
         Account a = account(req.accountId());
+        Mode m = Mode.of(a);
         JournalEntry old = req.replaceEntryId() == null ? null : adjustment(req.replaceEntryId());
-        Map<String, BigDecimal> book = new HashMap<>();
-        for (Object[] r : adjustRepository.sumByDeptProject(a.getId(), req.asOf(), old == null ? 0L : old.getId())) {
-            book.put(key((Long) r[0], (Long) r[1]), signed(a.getDivision(), (BigDecimal) r[2], (BigDecimal) r[3]));
-        }
+        Map<String, Long[]> parts = new HashMap<>();
+        Map<String, BigDecimal> book = bookOf(a, m, req.asOf(), old == null ? 0L : old.getId(), parts);
         Set<String> seen = new HashSet<>();
         List<JournalLine> lines = new ArrayList<>();
         String firstMemo = null;
         for (SaveRow row : req.rows() == null ? List.<SaveRow>of() : req.rows()) {
-            String k = key(row.departmentId(), row.projectId());
+            String k = m.key(row.partnerId(), row.departmentId(), row.projectId());
             BigDecimal bk = book.getOrDefault(k, BigDecimal.ZERO);
             BigDecimal actual = row.actualAmount() != null ? row.actualAmount()
                     : (req.zeroUnchanged() && book.containsKey(k) ? BigDecimal.ZERO : null);
             if (actual == null || !seen.add(k)) continue;
             BigDecimal diff = actual.subtract(bk);
             if (diff.signum() == 0) continue;
-            boolean toDebit = debitSide(a.getDivision()) == (diff.signum() > 0);
             String memo = row.memo() == null || row.memo().isBlank() ? null : row.memo().trim();
             if (firstMemo == null) firstMemo = memo;
-            lines.add(JournalLine.builder().account(a)
-                    .debit(toDebit ? diff.abs() : BigDecimal.ZERO).credit(toDebit ? BigDecimal.ZERO : diff.abs())
-                    .description(memo).departmentId(row.departmentId()).projectId(row.projectId())
-                    .adjustActual(actual).build());
+            lines.add(adjustLine(a, diff, memo, m.partner() ? row.partnerId() : null,
+                    m.dept() ? row.departmentId() : null, m.proj() ? row.projectId() : null, actual));
         }
         if (req.zeroUnchanged()) {   // 화면에 안 보낸 묶음도 0 으로
             for (Map.Entry<String, BigDecimal> b : book.entrySet()) {
                 if (seen.contains(b.getKey()) || b.getValue().signum() == 0) continue;
-                Long[] dp = unkey(b.getKey());
-                BigDecimal diff = b.getValue().negate();
-                boolean toDebit = debitSide(a.getDivision()) == (diff.signum() > 0);
-                lines.add(JournalLine.builder().account(a)
-                        .debit(toDebit ? diff.abs() : BigDecimal.ZERO).credit(toDebit ? BigDecimal.ZERO : diff.abs())
-                        .departmentId(dp[0]).projectId(dp[1]).adjustActual(BigDecimal.ZERO).build());
+                Long[] k = parts.get(b.getKey());
+                lines.add(adjustLine(a, b.getValue().negate(), null, k[0], k[1], k[2], BigDecimal.ZERO));
             }
         }
         if (lines.isEmpty()) throw ApiException.badRequest("변경된정보가 없습니다.");
@@ -156,6 +213,15 @@ public class BalanceAdjustService {
         e.setDescription(firstMemo);
         lines.forEach(e::addLine);
         return rowOf(entryRepository.save(e));
+    }
+
+    /** 조정 줄 — 차이를 계정의 차대 쪽에(차변 쪽 계정에서 늘면 차변). 거래처별이면 줄 거래처가 그 거래처다. */
+    private JournalLine adjustLine(Account a, BigDecimal diff, String memo, Long partnerId, Long d, Long p, BigDecimal actual) {
+        boolean toDebit = debitSide(a.getDivision()) == (diff.signum() > 0);
+        return JournalLine.builder().account(a)
+                .debit(toDebit ? diff.abs() : BigDecimal.ZERO).credit(toDebit ? BigDecimal.ZERO : diff.abs())
+                .description(memo).partner(partnerId == null ? null : partnerService.get(partnerId))
+                .departmentId(d).projectId(p).adjustActual(actual).build();
     }
 
     @Transactional(readOnly = true)
@@ -209,12 +275,5 @@ public class BalanceAdjustService {
     private Account account(Long id) {
         if (id == null) throw ApiException.badRequest("계정을 입력 바랍니다.");
         return accountRepository.findById(id).orElseThrow(() -> ApiException.notFound("계정을 찾을 수 없습니다. id=" + id));
-    }
-
-    private static String key(Long d, Long p) { return (d == null ? "" : d) + ":" + (p == null ? "" : p); }
-
-    private static Long[] unkey(String k) {
-        String[] s = k.split(":", -1);
-        return new Long[]{s[0].isEmpty() ? null : Long.valueOf(s[0]), s[1].isEmpty() ? null : Long.valueOf(s[1])};
     }
 }

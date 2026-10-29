@@ -267,9 +267,12 @@ for (const schema of ['public', ...tenants]) {
   eq(`${schema}: 재고 잔량 = 재고이동 합`, drift.join(' / ') || '없음', '없음')
 
   // 대차평형. 한쪽만 쓰는 분개가 끼면 시산표가 영영 안 맞는다.
+  // 잔액조정(BALANCE_ADJUST)은 뺀다 — 기초 채권 · 채무 · 계정 잔액을 맞추는 한쪽 전표(차변만 또는 대변만)라
+  // 원본 이카운트도 대차가 다르다(회사 0005 GL-20260930-0001 = 원본 기초채권 잔액조정).
   const unbalanced = psql(`
     select je.doc_no || ': 차변 ' || sum(l.debit) || ' vs 대변 ' || sum(l.credit)
     from ${schema}.journal_entries je join ${schema}.journal_lines l on l.entry_id = je.id
+    where je.source_type <> 'BALANCE_ADJUST'
     group by je.id, je.doc_no having sum(l.debit) <> sum(l.credit)`).map((r) => r[0])
   eq(`${schema}: 회계전표 대차평형`, unbalanced.join(' / ') || '없음', '없음')
 

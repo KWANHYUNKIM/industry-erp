@@ -38,6 +38,15 @@ public class Sales extends BaseTimeEntity {
     @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 
+    /** 저장 때 거래처명 — 임의거래처는 화면에서 고친 이름(원본 실측 2026-10-28). 옛 전표는 거래처 이름으로 백필. */
+    @Column(name = "partner_name", length = 200)
+    private String partnerName;
+
+    /** 화면에 찍을 거래처명 — 전표에 남긴 이름, 없으면 거래처 마스터 이름. */
+    public String displayPartnerName() {
+        return partnerName != null ? partnerName : (partner != null ? partner.getName() : null);
+    }
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;
@@ -124,16 +133,16 @@ public class Sales extends BaseTimeEntity {
     private boolean taxable = true;
 
     /**
-     * 원본 [거래구분] — <b>일반 · 반품</b>. 네 화면이 이 구분을 조건으로 든다
-     * (판매·구매일괄회계반영, 구매단가일괄변경, 일별이익현황의 [반품만]·[반품제외]).
+     * 반품 전표인가 — <b>줄이 전부 음수 수량</b>인 전표. 저장하는 칸은 없다.
      *
-     * <p>반품은 그 거래의 <b>반대</b>다. 그래서 저장할 때 라인 수량과 전표 금액을
-     * <b>음수로 뒤집어</b> 둔다 — 재고·채권·이익을 읽는 쪽이 아무것도 안 바꿔도 맞는다.
-     * 화면에서는 되돌려받는 수량을 양수로 적는다(원본도 그렇다).
+     * <p>원본 판매입력 · 구매입력에는 거래구분 칸이 없고, 반품은 일반 전표에 음수 수량으로 적는다
+     * (판매 [반품처리] = 같은 머리 · 수량 · 금액 음수, 2026-10-28 loginaa 실측). 그 전표를 조건으로 거르는
+     * 화면(일괄회계반영 [거래구분] · 구매단가일괄변경 [구매구분] · 일별이익 [반품만] · 매출계획)만 이 값을 본다.
+     * 예전 return_slip 칸(V177)은 V483 에서 지웠다 — 남아 있던 반품 전표는 전부 줄이 음수라 이 값과 같았다.
      */
-    @Column(name = "return_slip", nullable = false)
-    @Builder.Default
-    private boolean returnSlip = false;
+    public boolean isReturnSlip() {
+        return !lines.isEmpty() && lines.stream().allMatch(l -> l.getQuantity() != null && l.getQuantity().signum() < 0);
+    }
 
     /**
      * 판매입력 II 로 만든 전표인가. 원본은 이 전표를 판매조회에서 열면 창 제목이 '판매입력 II(수정)' 이고

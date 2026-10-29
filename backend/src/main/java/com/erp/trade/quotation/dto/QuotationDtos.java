@@ -20,11 +20,26 @@ public final class QuotationDtos {
     public record QuoteLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
-    ) {}
+            @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice,
+            /* 줄 적요 — 원본 견적서입력 줄 열 '적요'. */
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.") String remark,
+            /** 줄 규격(선택). 비우면(null) 품목 규격, 빈 글자는 일부러 비운 것. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String spec,
+            /** 줄 품목명(선택). 원본은 품목을 고른 뒤 이름 칸을 고쳐 쓸 수 있다(임의품목 Z00007). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
+    ) {
+        public QuoteLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark) {
+            this(itemId, quantity, unitPrice, remark, null, null);
+        }
+        public QuoteLineRequest(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String remark, String spec) {
+            this(itemId, quantity, unitPrice, remark, spec, null);
+        }
+    }
 
     public record CreateQuotationRequest(
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /** 임의거래처(12341234)일 때 화면에서 고친 거래처명(선택). 그 밖의 거래처면 서버가 마스터 이름을 남긴다. */
+            @Size(max = 200, message = "거래처명은 200자까지 넣을 수 있습니다.") String partnerName,
             /* 원본 견적서의 [창고]·[프로젝트]. 견적 시점에는 안 정했을 수 있어 필수가 아니다. */
             Long warehouseId,
             Long projectId,
@@ -55,14 +70,16 @@ public final class QuotationDtos {
              * 그 열을 지어내야 한다 - 품목 마스터가 진작 들고 있는데 응답이 안 싣고 있었다.
              */
             String spec,
-            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount, BigDecimal vatAmount,
+            String remark
     ) {
         public static QuoteLineResponse from(QuotationLine l) {
             return new QuoteLineResponse(
                     l.getId(), l.getLineNo(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getUnit(),
-                    l.getItem().getSpec(),
-                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount());
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.getItem().getUnit(),
+                    l.effectiveSpec(),
+                    l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                    l.getRemark());
         }
     }
 
@@ -86,7 +103,7 @@ public final class QuotationDtos {
         public static QuotationResponse from(Quotation q) {
             return new QuotationResponse(
                     q.getId(), q.getQuoteNo(), q.getQuoteDate(), q.getValidUntil(),
-                    q.getPartner().getId(), q.getPartner().getName(),
+                    q.getPartner().getId(), q.displayPartnerName(),
                     q.getWarehouse() != null ? q.getWarehouse().getId() : null,
                     q.getWarehouse() != null ? q.getWarehouse().getName() : null,
                     q.getProject() != null ? q.getProject().getId() : null,

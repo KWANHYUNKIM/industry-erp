@@ -126,6 +126,28 @@
   color: #222;
 }
 .ec-logo > b { color: var(--ec-blue); font-weight: 900; }
+/* 회사 로고 그림 — 머리 줄 높이에 맞춰 줄인다(가로는 비율대로, 너무 긴 그림은 상호 칸 폭까지) */
+.ec-logo > .ec-logo-img {
+  display: block;
+  align-self: center;
+  height: var(--ec-logo-h);
+  max-width: 260px;
+  object-fit: contain;
+}
+/* 회사정보관리 로고 칸의 미리보기 — 머리와 같은 높이 */
+.ec-company-logo {
+  height: var(--ec-logo-h);
+  max-width: 260px;
+  object-fit: contain;
+}
+/* 상호를 로고 자리에 — 긴 상호는 말줄임 */
+.ec-logo > .ec-logo-name {
+  max-width: 260px;
+  overflow: hidden;
+  font-size: 17px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .ec-gnb-menu {
   display: flex;
   align-items: center;
@@ -556,6 +578,7 @@
   padding: 0 0 0 9px;
   font-size: var(--ec-fs);
 }
+.ec-modal-bar > .max,
 .ec-modal-bar > .close {
   width: 36px;
   height: 31px;
@@ -566,9 +589,55 @@
   font-size: 14px;
   cursor: pointer;
 }
+.ec-modal-bar > .max {
+  border-radius: 0;
+}
 .ec-modal-body {
   padding: 10px;
 }
+/* 끌기 · 크기 조절(components/Modal ModalWindow) — 처음 잡는 순간 고정 배치(left · top · width · height 는 창이 인라인으로) */
+.ec-modal-win {
+  position: relative;
+}
+.ec-modal-win > .ec-modal-bar {
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.ec-modal.is-free {
+  position: fixed;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+}
+.ec-modal.is-free > .ec-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.ec-modal-grip {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+.ec-modal-grip.n, .ec-modal-grip.s { left: 0; right: 0; height: var(--ec-modal-grip); cursor: row-resize; }
+.ec-modal-grip.e, .ec-modal-grip.w { top: 0; bottom: 0; width: var(--ec-modal-grip); cursor: col-resize; }
+.ec-modal-grip.n { top: var(--ec-modal-grip-out); }
+.ec-modal-grip.s { bottom: var(--ec-modal-grip-out); }
+.ec-modal-grip.e { right: var(--ec-modal-grip-out); }
+.ec-modal-grip.w { left: var(--ec-modal-grip-out); }
+.ec-modal-grip.nw, .ec-modal-grip.ne, .ec-modal-grip.sw, .ec-modal-grip.se {
+  width: var(--ec-modal-grip-corner);
+  height: var(--ec-modal-grip-corner);
+  z-index: 2;
+}
+.ec-modal-grip.nw { top: var(--ec-modal-grip-out); left: var(--ec-modal-grip-out); cursor: nw-resize; }
+.ec-modal-grip.ne { top: var(--ec-modal-grip-out); right: var(--ec-modal-grip-out); cursor: ne-resize; }
+.ec-modal-grip.sw { bottom: var(--ec-modal-grip-out); left: var(--ec-modal-grip-out); cursor: sw-resize; }
+.ec-modal-grip.se { bottom: var(--ec-modal-grip-out); right: var(--ec-modal-grip-out); cursor: se-resize; }
+/* 최대화(본문 틀 가득) 중에는 손잡이 · 끌기 없음 — 되돌린 뒤 다시 */
+.ec-modal.is-max .ec-modal-grip { display: none; }
+.ec-modal.is-max > .ec-modal-bar { cursor: default; }
 /* 저장 실패 같은 오류 한 줄 */
 .ec-error {
   margin: 0 0 10px;
@@ -908,6 +977,17 @@
     width: 100% !important;
     max-width: 100%;
   }
+  /* 휴대폰에서는 끌기 · 크기 조절 · 최대화가 없다 — PC 에서 옮긴 뒤 폭을 줄여도 화면 가득으로 돌아온다 */
+  .ec-modal.is-free {
+    position: relative;
+    left: auto !important;
+    top: auto !important;
+    height: auto !important;
+    display: block;
+  }
+  .ec-modal-win > .ec-modal-bar { cursor: default; }
+  .ec-modal-bar > .max,
+  .ec-modal-grip { display: none; }
 }
 
 /* 하단 버튼줄 안쪽 묶음 — PC 에서는 줄바꿈, 휴대폰에서는 한 줄 + ⌄ 펼침 */

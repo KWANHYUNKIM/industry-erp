@@ -53,6 +53,11 @@ public interface PurchaseLineRepository extends JpaRepository<PurchaseLine, Long
         BigDecimal getAmount();
     }
 
+    /** 발주서조회 [진행상태] '생성한 전표' 창 — 이 발주를 근거로 만든 구매 줄(일자 · 번호 차례). */
+    @Query("select l from PurchaseLine l join fetch l.purchase p join fetch l.item " +
+            "where l.sourceOrder.id = :orderId order by p.purchaseDate, p.id, l.id")
+    List<PurchaseLine> findGeneratedByOrder(@Param("orderId") Long orderId);
+
     /** 이 발주를 근거로 만든 구매 라인이 있나. 발주 삭제 가능 여부를 본다. */
     boolean existsBySourceOrderId(Long sourceOrderId);
 }

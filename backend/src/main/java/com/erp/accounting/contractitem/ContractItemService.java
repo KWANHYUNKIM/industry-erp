@@ -95,8 +95,17 @@ public class ContractItemService {
             i.getProducts().clear();
             int no = 1;
             for (ContractItemDtos.ProductLink p : req.products()) {
-                i.getProducts().add(ContractItemProduct.builder().contractItem(i).lineNo(no++).item(itemService.get(p.itemId()))
+                i.getProducts().add(ContractItemProduct.builder().contractItem(i).lineNo(no++).item(itemService.get(p.itemId())).spec(p.spec() == null || p.spec().isBlank() ? null : p.spec().trim())
                         .quantity(p.quantity()).unitPrice(p.unitPrice()).supplyAmount(p.supplyOrDefault()).vatAmount(p.vatOrDefault()).build());
+            }
+        }
+        if (req.qtyPrices() != null) {
+            i.getQtyPrices().clear();
+            int no = 1;
+            for (ContractItemDtos.QtyPrice q : req.qtyPrices().stream()
+                    .sorted(java.util.Comparator.comparing(ContractItemDtos.QtyPrice::minQuantity)).toList()) {
+                i.getQtyPrices().add(ContractItemQtyPrice.builder().contractItem(i).lineNo(no++)
+                        .minQuantity(q.minQuantity()).unitPrice(q.unitPrice()).vatIncluded(q.vatIncluded()).build());
             }
         }
     }

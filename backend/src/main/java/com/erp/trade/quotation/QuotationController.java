@@ -44,6 +44,14 @@ public class QuotationController {
         return service.update(id, req);
     }
 
+    /** [Fn] → [일자변경]. 본문 {"date":"yyyy-MM-dd"}. */
+    @PostMapping("/{id}/change-date")
+    public QuotationResponse changeDate(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        String d = body.get("date");
+        if (d == null || d.isBlank()) throw com.erp.common.ApiException.badRequest("변경일자를 입력하세요.");
+        return service.changeDate(id, java.time.LocalDate.parse(d));
+    }
+
     /** 하단 [진행상태변경] — 미확인 · 진행중 · 완료. */
     @PatchMapping("/{id}/status")
     public QuotationResponse updateStatus(@PathVariable Long id,

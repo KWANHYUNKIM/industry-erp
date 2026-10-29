@@ -290,6 +290,8 @@ export interface Partner {
   taxReportCode: string | null
   /** 원본 [통화] — 외화등록 통화 코드. 비면 내자. */
   currencyCode: string | null
+  /** 계좌 · 카드 · 카드사의 짝 거래처면 BANK · CARD · CARD_ISSUER — 코드도움에만 나오고 거래처등록 목록에는 안 보인다. */
+  linkedKind?: 'BANK' | 'CARD' | 'CARD_ISSUER' | null
   salesTaxType: string | null
   purchaseTaxType: string | null
   creditDays: number | null
@@ -1158,6 +1160,8 @@ export interface StockTransfer {
   employeeId: number | null
   reason: string | null
   createdBy: string | null
+  /** 머리 적요 — 원본 창고이동입력 머리 [새로운 항목 추가]. */
+  remark?: string | null
 }
 
 // ===== 외화 (통화 마스터 · 고시환율) =====
@@ -1651,6 +1655,8 @@ export interface StagedAdjustment {
   slipNo: string
   adjustmentNo: string | null
   adjustmentDate: string | null
+  /** 실사 전표 머리 [담당자](사원 id) — 이름은 사원 목록에서 붙인다. */
+  employeeId: number | null
 }
 
 export interface StockAdjustment {
@@ -2208,6 +2214,8 @@ export interface QuoteLine {
   unitPrice: number
   supplyAmount: number
   vatAmount: number
+  /** 줄 적요(원본 견적서입력 줄 열 '적요'). */
+  remark?: string | null
 }
 
 export interface Quotation {
@@ -2270,6 +2278,9 @@ export interface PurchaseOrderLine {
   /** 단가요청 진행단계의 수취단가 · 확정단가(요청단가는 unitPrice). */
   receivedPrice?: number | null
   confirmedPrice?: number | null
+  /** 외화 발주서 줄의 외화단가 · 외화금액(내자는 null). 원화금액은 supplyAmount. */
+  foreignPrice?: number | null
+  foreignAmount?: number | null
 }
 
 export interface PurchaseOrder {
@@ -2292,6 +2303,8 @@ export interface PurchaseOrder {
   projectId: number | null
   projectName: string | null
   currency: string | null
+  /** 외화 발주서의 환율(원본 통화 옆 칸). 내자면 null. */
+  exchangeRate?: number | null
   status: PurchaseOrderStatus
   statusName: string
   supplyAmount: number
@@ -3149,6 +3162,20 @@ export interface Project {
   createdBy: string | null
   /** 원본 프로젝트리스트의 [사용] */
   active: boolean
+  group1: string | null
+  group2: string | null
+  extraText1: string | null
+  extraText2: string | null
+  extraText3: string | null
+  extraNum1: number | null
+  extraNum2: number | null
+  extraNum3: number | null
+  extraLong1: string | null
+  extraLong2: string | null
+  extraLong3: string | null
+  extraDate1: string | null
+  extraDate2: string | null
+  extraDate3: string | null
 }
 
 export interface ProjectProfitRow {

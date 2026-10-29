@@ -1,0 +1,37 @@
+{
+  "about": "단계별재고실사 음수 실사수량 — 재고 마이너스 허용을 켜고 실사 -3 + [재고조정] 저장 → 실사일자의 재고조정 조정후 -3, 수불 변동량 = -3 - 조정전. 삭제로 되돌리고 환경설정 값을 원래대로 복원. QA 품목 QAJ1ST1 을 2091-02 에 쓴다.",
+  "shots": [
+    {
+      "name": "실사 -3 [재고조정] (마이너스 허용)",
+      "path": "/inventory/stocktake",
+      "steps": [
+        "allowapi:400: /api/staged-adjustments/slips",
+        "allowapi:409: /api/items",
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const p=(await window.__api('GET','/preferences')).body;sessionStorage.setItem('stPref',JSON.stringify(p));const r=await window.__api('PUT','/preferences',{...p,negativeStock:true});return r.status})()",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find(x=>x.code==='QAJ1ST1')||(await window.__api('POST','/items',{code:'QAJ1ST1',name:'QA재고1-실사',unit:'EA',category:'MERCHANDISE',unitPrice:0,safetyStock:0})).body;const wh=(await window.__api('GET','/warehouses')).body.find(w=>w.code==='WH-01');sessionStorage.setItem('st',JSON.stringify({item:it.id,wh:wh.id,whCode:wh.code}));return it.id+' '+wh.code})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "set:input[aria-label=일자]|2091-02-02",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('st'));const set=(el,v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}))};const go=(el,v)=>{set(el,v);el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))};go(document.querySelector('input[placeholder=\"창고\"]'),s.whCode);await new Promise(r=>setTimeout(r,400));go(document.querySelectorAll('input[placeholder=\"품목\"]')[0],'QAJ1ST1');await new Promise(r=>setTimeout(r,400));return document.querySelector('[data-line=\"1\"]').innerText.includes('QA재고1-실사')})()",
+        "set:input[aria-label='1번째 줄 수량']|-3",
+        "js:document.querySelector('input[aria-label=재고조정]').click();true",
+        "click:저장(F8)",
+        "wait:1500",
+        "expect:location.pathname==='/inventory/staged-progress'&&!document.body.innerText.includes('수량을 입력하세요')",
+        "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('st'));const a=(await window.__api('GET','/stock-adjustments?from=2091-02-02&to=2091-02-02&type=ADJUST')).body.rows.filter(x=>x.itemId===s.item);const q=(await window.__api('GET','/staged-adjustments?from=2091-02-02&to=2091-02-02')).body.filter(x=>x.itemId===s.item);sessionStorage.setItem('stSlip',q[0]?.slipNo||'');return a.length===1&&Number(a[0].afterQty)===-3&&Number(a[0].quantityChange)===-3-Number(a[0].beforeQty)&&a[0].adjustDate==='2091-02-02'&&q.length===1&&Number(q[0].actualQty)===-3})()",
+        "js:location.assign('/inventory/stocktake?slip='+encodeURIComponent(sessionStorage.getItem('stSlip')));window.confirm=()=>true;true",
+        "wait:2500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.confirm=()=>true;true",
+        "click:삭제",
+        "wait:1500",
+        "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('st'));const a=(await window.__api('GET','/stock-adjustments?from=2091-02-02&to=2091-02-02&type=ADJUST')).body.rows.filter(x=>x.itemId===s.item);const q=(await window.__api('GET','/staged-adjustments?from=2091-02-02&to=2091-02-02')).body.filter(x=>x.itemId===s.item);return a.length===0&&q.length===0})()",
+        "js:(async()=>{const p=JSON.parse(sessionStorage.getItem('stPref'));const r=await window.__api('PUT','/preferences',p);const s=JSON.parse(sessionStorage.getItem('st'));const d=await window.__api('DELETE','/items/'+s.item);sessionStorage.setItem('stDel',String(d.status));return r.status})()",
+        "expect:['200','204','409'].includes(sessionStorage.getItem('stDel'))"
+      ]
+    }
+  ]
+}

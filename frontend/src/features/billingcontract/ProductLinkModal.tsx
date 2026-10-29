@@ -18,12 +18,12 @@ export function SetTag({ set, label, onClick }: { set: boolean; label: string; o
   )
 }
 
-/** 품목코드 칸이 고르는 품목 — 고르면 품목명 · 규격 · 단가(품목 단가)가 채워진다. */
+/** 품목코드 칸이 고르는 품목 — 고르면 품목명 · 단가(품목 단가)가 채워진다. 규격은 원본처럼 비워 두고 사용자가 친다(2026-10-29 QA C4). */
 export interface ProductOption { id: number; code: string; name: string; spec: string | null; unitPrice: number }
 
-interface Row { itemId: string; quantity: string; unitPrice: string; supply: string; vat: string }
+interface Row { itemId: string; spec: string; quantity: string; unitPrice: string; supply: string; vat: string }
 const MIN_ROWS = 5
-const empty = (): Row => ({ itemId: '', quantity: '', unitPrice: '', supply: '', vat: '' })
+const empty = (): Row => ({ itemId: '', spec: '', quantity: '', unitPrice: '', supply: '', vat: '' })
 const num = (s: string) => Number(String(s).replace(/,/g, '')) || 0
 const qty = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const supplyOf = (q: string, p: string) => String(Math.round(num(q) * num(p)))
@@ -47,7 +47,7 @@ export default function ProductLinkModal({ open, value, products, onApply, onClo
   const [rows, setRows] = useState<Row[]>([])
   useEffect(() => {
     if (!open) return
-    const rs: Row[] = value.map((p) => ({ itemId: String(p.itemId), quantity: String(Number(p.quantity)), unitPrice: String(Number(p.unitPrice)),
+    const rs: Row[] = value.map((p) => ({ itemId: String(p.itemId), spec: p.spec ?? '', quantity: String(Number(p.quantity)), unitPrice: String(Number(p.unitPrice)),
       supply: String(Number(p.supplyAmount ?? 0)), vat: String(Number(p.vatAmount ?? 0)) }))
     while (rs.length < MIN_ROWS) rs.push(empty())
     setRows(rs)
@@ -78,7 +78,7 @@ export default function ProductLinkModal({ open, value, products, onApply, onClo
   function apply() {
     onApply(filled.map((r) => {
       const p = byId(r.itemId)
-      return { itemId: Number(r.itemId), itemCode: p?.code ?? null, itemName: p?.name ?? null, spec: p?.spec ?? null,
+      return { itemId: Number(r.itemId), itemCode: p?.code ?? null, itemName: p?.name ?? null, spec: r.spec.trim() || null,
         quantity: num(r.quantity), unitPrice: num(r.unitPrice), supplyAmount: num(r.supply), vatAmount: num(r.vat) }
     }))
   }
@@ -104,7 +104,7 @@ export default function ProductLinkModal({ open, value, products, onApply, onClo
                   <td className="text-center text-ec-hint">{i + 1}</td>
                   <td><GridCode title="품목검색" codeHead="품목코드" nameHead="품목명" items={items} value={r.itemId} onPick={(v) => pick(i, v)} /></td>
                   <td>{p?.name ?? ''}</td>
-                  <td>{p?.spec ?? ''}</td>
+                  <td>{r.itemId && <input className="ec-input w-full" aria-label={`${i + 1}행 규격`} value={r.spec} onChange={(e) => setRow(i, { spec: e.target.value })} />}</td>
                   <td>{r.itemId && <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}행 수량`} value={r.quantity} onValue={(v) => setRow(i, { quantity: v })} />}</td>
                   <td>{r.itemId && <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}행 단가`} value={r.unitPrice} onValue={(v) => setRow(i, { unitPrice: v })} />}</td>
                   <td>{r.itemId && <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}행 공급가액`} value={r.supply} onValue={(v) => setRow(i, { supply: v })} />}</td>

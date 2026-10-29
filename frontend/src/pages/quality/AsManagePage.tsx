@@ -14,7 +14,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useShortcut } from '../../utils/useShortcut'
 import AsReceiptScreen from '../../features/as/AsReceiptForm'
 import { useRequired } from '../../utils/useRequired'
-import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, asReceiptCheck, blankAsDraft, emptyAsLines,
+import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, asReceiptCheck, blankAsDraft, emptyAsLine, emptyAsLines,
   type AsFormLine, type AsReceiptDraft, type AsStatus } from '../../features/as/AsReceiptForm'
 import { ecConfirm } from '../../components/EcDialog'
 
@@ -35,7 +35,7 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 
 /* 접수진행상태 · 입력 칸은 features/as/AsReceiptForm 에 있다(메뉴의 A/S접수입력 화면과 같이 쓴다). */
 
-interface AsLine { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }
+interface AsLine { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number; note: string | null }
 interface AsRow {
   /** 원본은 [거래처] 없이도 접수를 받는다 — partnerId 가 비고 partnerName 은 '' 다. */
   id: number; asNo: string; partnerId: number | null; partnerName: string; itemId: number; itemName: string
@@ -53,6 +53,8 @@ interface AsRow {
   /** 원본 A/S접수 품목 격자와 [수량] 합계. */
   lines: AsLine[]
   totalQuantity: number
+  /** 원본 머리 [새로운 항목 추가]. */
+  extraNote: string | null
 }
 
 const today = () => ymd(new Date())
@@ -185,8 +187,8 @@ export default function AsManagePage() {
     setF({ receiptDate: r.receiptDate, partnerId: r.partnerId ? String(r.partnerId) : '', charge: r.charge ?? '',
       warehouseId: r.warehouseId ? String(r.warehouseId) : '', status: r.status,
       scheduledDate: r.scheduledDate ?? '', projectId: r.projectId ? String(r.projectId) : '',
-      title: r.title ?? '', symptom: r.symptom ?? '' })
-    setLines([...r.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity) })), { itemId: '', quantity: '' }])
+      title: r.title ?? '', symptom: r.symptom ?? '', extraNote: r.extraNote ?? '' })
+    setLines([...r.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), note: l.note ?? '' })), emptyAsLine()])
     setOpen(true)
   }
   /* 원본 수정 창 [복사] — 같은 내용으로 새 접수 창을 연다(일자는 오늘, 진행상태는 접수). */
@@ -440,10 +442,10 @@ export default function AsManagePage() {
               <tr key={`${r.id}-d`}>
                 <td colSpan={11} className="bg-ec-page py-[8px] px-[14px]">
                   <table className="w-full max-w-[640px]">
-                    <thead><tr><th className="w-[34px]"></th><th className="w-[120px]">품목코드</th><th>품목명</th><th className="w-[80px] text-right">수량</th></tr></thead>
+                    <thead><tr><th className="w-[34px]"></th><th className="w-[120px]">품목코드</th><th>품목명</th><th className="w-[80px] text-right">수량</th><th>새로운 항목 추가</th></tr></thead>
                     <tbody>
                       {r.lines.map((l) => (
-                        <tr key={l.id}><td className="text-center">{l.lineNo}</td><td>{l.itemCode}</td><td>{l.itemName}{l.itemSpec ? ` [${l.itemSpec}]` : ''}</td><td className="text-right">{won(Number(l.quantity))}</td></tr>
+                        <tr key={l.id}><td className="text-center">{l.lineNo}</td><td>{l.itemCode}</td><td>{l.itemName}{l.itemSpec ? ` [${l.itemSpec}]` : ''}</td><td className="text-right">{won(Number(l.quantity))}</td><td>{l.note ?? ''}</td></tr>
                       ))}
                     </tbody>
                   </table>

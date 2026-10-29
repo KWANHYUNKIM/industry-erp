@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react'
 import Modal from '../../../components/Modal'
 import { extractErrorMessage } from '../../../api/client'
 import type { Attendance } from '../../../types/api'
+import { timeText } from '../../../utils/displayPrefs'
+import { useDisplayPrefs } from '../../preference/displayPrefsStore'
 
 /** 시 고르기 — 원본은 '오전 2' 꼴(2026-10-14 실측). 0 ~ 11 오전, 12 ~ 23 오후(12 는 '오후 12'). */
 const HOURS = Array.from({ length: 24 }, (_, h) => ({ value: h, label: `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 && h >= 12 ? 12 : h % 12}` }))
 const MINUTES = Array.from({ length: 60 }, (_, m) => String(m).padStart(2, '0'))
 const pad = (n: number) => String(n).padStart(2, '0')
-/** 머리의 지금 시각 — 원본 '오전 2:47:52'. */
-const clockText = (d: Date) => `${d.getHours() < 12 ? '오전' : '오후'} ${d.getHours() % 12 === 0 && d.getHours() >= 12 ? 12 : d.getHours() % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 
 /**
  * 출/퇴근기록부(ID) E070305 — 달력의 날짜 칸을 누르면 뜨는 '출/퇴근기록부' 창(원본 960 × 458, 2026-10-14 실측).
@@ -30,6 +30,8 @@ export default function AttendanceRecordModal({ date, userName, record, onClose,
   onSubmit: (body: AttendanceRecordBody) => Promise<void>
 }) {
   const [now, setNow] = useState(() => new Date())
+  // 머리의 지금 시각 — 원본 '오전 2:47:52'(기본값설정 12/24시간제)
+  const { clock24 } = useDisplayPrefs()
   const [place, setPlace] = useState('사무실')
   const [outside, setOutside] = useState(false)
   const [hour, setHour] = useState(0)
@@ -64,7 +66,7 @@ export default function AttendanceRecordModal({ date, userName, record, onClose,
 
   return (
     <Modal open={!!date} title="출/퇴근기록부" width={960} error={error} onClose={onClose}>
-      <div className="text-right text-[12px] text-ec-label mb-[6px]" aria-label="지금 시각">{clockText(now)}</div>
+      <div className="text-right text-[12px] text-ec-label mb-[6px]" aria-label="지금 시각">{timeText(now, clock24, true)}</div>
       <ul className="ec-form mb-[10px]">
         <li className="full">
           <div className="title">사용자</div>

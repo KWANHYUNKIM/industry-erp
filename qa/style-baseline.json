@@ -660,7 +660,7 @@
   "palette": 0
  },
  "pages/inventory/TransferPage.tsx": {
-  "inline": 17,
+  "inline": 15,
   "color": 1,
   "palette": 0
  },
@@ -1015,7 +1015,7 @@
   "palette": 0
  },
  "pages/trade/PurchaseOrderPage.tsx": {
-  "inline": 27,
+  "inline": 26,
   "color": 3,
   "palette": 0
  },
@@ -1050,8 +1050,8 @@
   "palette": 0
  },
  "pages/trade/SalesOrderPage.tsx": {
-  "inline": 16,
-  "color": 1,
+  "inline": 4,
+  "color": 0,
   "palette": 0
  },
  "pages/trade/SalesOrderStatusPage.tsx": {
@@ -1100,7 +1100,7 @@
   "palette": 0
  },
  "pages/trade/TradeEntry.tsx": {
-  "inline": 42,
+  "inline": 41,
   "color": 13,
   "palette": 0
  },

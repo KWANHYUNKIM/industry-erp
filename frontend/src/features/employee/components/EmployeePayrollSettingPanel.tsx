@@ -121,7 +121,9 @@ export const AUTO_CALC_NOTICE = '자동계산 선택 시 보수월액은 수당 
  * <p>원본에 있으나 아직 두지 않은 칸: 우편번호 · 주소 · 외국어성명 · 주민등록번호 · 급여통장(기본 탭에 있다),
  * 사원구분 · 세무신고사업장 · 사업자단위과세 · 감면소득(감면코드 코드도움이 원본에서 안 열려 못 쟀다).
  */
-export default function EmployeePayrollSettingPanel({ value, onChange, onNotice }: {
+export default function EmployeePayrollSettingPanel({ value, onChange, onNotice, pensionInvalid }: {
+  /** 국민연금 '기준소득월액기준' 인데 기준소득월액이 빈 채 저장했을 때 그 칸을 빨갛게(원본 2026-10-14 실측, 글 없음) */
+  pensionInvalid?: boolean
   value: PayrollSettingForm
   onChange: (v: PayrollSettingForm) => void
   /** 원본은 건강 · 고용보험 '자동계산' 을 고르면 알림 창을 띄운다 */
@@ -191,8 +193,10 @@ export default function EmployeePayrollSettingPanel({ value, onChange, onNotice 
           {value.pensionMode === 'AUTO' && (
             <div className="mt-[4px] flex items-center gap-[6px]">
               <span className="shrink-0">기준소득월액</span>
-              <EcNumInput className="ec-input w-full text-right" placeholder="기준소득월액"
-                          value={value.pensionBaseAmount} onValue={(v) => set('pensionBaseAmount', v)} />
+              <div className={`w-full ${pensionInvalid && !value.pensionBaseAmount.trim() ? 'ec-invalid' : ''}`}>
+                <EcNumInput className="ec-input w-full text-right" placeholder="기준소득월액"
+                            value={value.pensionBaseAmount} onValue={(v) => set('pensionBaseAmount', v)} />
+              </div>
             </div>
           )}
         </div>

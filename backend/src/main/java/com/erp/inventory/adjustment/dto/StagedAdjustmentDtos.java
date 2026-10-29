@@ -51,7 +51,9 @@ public final class StagedAdjustmentDtos {
             String reason, StagedStatus status, String statusName,
             String requester, String handler,
             /** 실사 전표 번호(줄들이 같이 쓴다) · 이 줄로 맞춘 재고조정(없으면 null — 원본 [조정전표] 빈칸). */
-            String slipNo, String adjustmentNo, LocalDate adjustmentDate
+            String slipNo, String adjustmentNo, LocalDate adjustmentDate,
+            /** 실사 전표 머리 [담당자](사원 id) — 원본 진행단계 · 재고실사조회 [담당자]. 이름은 화면이 사원 목록에서 붙인다(inventory 는 hr 을 모른다). */
+            Long employeeId
     ) {
         public static StagedResponse from(StagedStockAdjustment s) {
             BigDecimal diff = s.getActualQty().subtract(s.getBookQty());
@@ -66,7 +68,8 @@ public final class StagedAdjustmentDtos {
                     s.getRequester(), s.getHandler(),
                     s.getSlipNo(),
                     s.getAdjustment() != null ? s.getAdjustment().getAdjustNo() : null,
-                    s.getAdjustment() != null ? s.getAdjustment().getAdjustDate() : null);
+                    s.getAdjustment() != null ? s.getAdjustment().getAdjustDate() : null,
+                    s.getEmployeeId());
         }
     }
 

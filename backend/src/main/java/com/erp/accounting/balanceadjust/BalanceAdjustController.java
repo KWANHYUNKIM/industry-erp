@@ -33,6 +33,12 @@ public class BalanceAdjustController {
         return service.audit(asOf, accountId, entryId);
     }
 
+    /** '거래처별집계구분' 창 [저장] — 계정의 ○없음 ◉거래처별 · ☑부서별집계 · ☑프로젝트별집계. */
+    @PutMapping("/aggregation/{accountId}")
+    public void setAggregation(@PathVariable Long accountId, @RequestBody AggregationRequest req) {
+        service.setAggregation(accountId, req);
+    }
+
     @PostMapping
     public AdjustmentRow save(@RequestBody SaveRequest req, @AuthenticationPrincipal UserPrincipal principal) {
         return service.save(req, principal.getUsername());

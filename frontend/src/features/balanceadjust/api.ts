@@ -7,9 +7,18 @@ import { api } from '../../api/client'
 export interface AccountBalanceRow {
   accountId: number; code: string; name: string; division: string; aggregation: string
   debitAmount: number; creditAmount: number; adjustmentIds: number[]
+  /** 거래처별집계구분 창 — ◉거래처별(아니면 ○없음) · ☑부서별집계 · ☑프로젝트별집계 */
+  byPartner: boolean; byDept: boolean; byProject: boolean
 }
-export interface AuditGroupRow { departmentId: number | null; projectId: number | null; bookAmount: number; actualAmount: number; memo: string | null }
-export interface AuditResponse { asOf: string; accountId: number; accountCode: string; accountName: string; rows: AuditGroupRow[] }
+export interface AuditGroupRow {
+  partnerId: number | null; partnerCode: string | null; partnerName: string | null
+  departmentId: number | null; projectId: number | null; bookAmount: number; actualAmount: number; memo: string | null
+}
+/** byPartner 면 '잔액실사(거래처별)' 창, 아니면 '잔액실사(계정별)'. */
+export interface AuditResponse {
+  asOf: string; accountId: number; accountCode: string; accountName: string; rows: AuditGroupRow[]
+  byPartner: boolean; byDept: boolean; byProject: boolean
+}
 export interface AdjustmentRow {
   entryId: number; docNo: string; entryDate: string; accountId: number | null; accountCode: string | null; accountName: string | null
   bookAmount: number; actualAmount: number; memo: string | null; createdBy: string | null
@@ -18,7 +27,7 @@ export interface StatusRow {
   entryDate: string; accountCode: string; accountName: string; partnerName: string | null; departmentId: number | null; projectId: number | null
   afterDebit: number | null; afterCredit: number | null; diffDebit: number | null; diffCredit: number | null; memo: string | null
 }
-export interface SaveRow { departmentId: number | null; projectId: number | null; actualAmount: number | null; memo: string | null }
+export interface SaveRow { partnerId: number | null; departmentId: number | null; projectId: number | null; actualAmount: number | null; memo: string | null }
 
 export const fetchAccounts = (asOf: string, dept = 0, proj = 0) =>
   api.get<AccountBalanceRow[]>('/journals/balance-adjustments/accounts', { params: { asOf, dept, proj } }).then((r) => r.data)
@@ -26,6 +35,8 @@ export const fetchAudit = (asOf: string, accountId: number, entryId?: number) =>
   api.get<AuditResponse>('/journals/balance-adjustments/audit', { params: { asOf, accountId, entryId } }).then((r) => r.data)
 export const saveAdjustment = (body: { asOf: string; accountId: number; zeroUnchanged: boolean; rows: SaveRow[]; replaceEntryId?: number | null }) =>
   api.post<AdjustmentRow>('/journals/balance-adjustments', body).then((r) => r.data)
+export const saveAggregation = (accountId: number, body: { byPartner: boolean; byDept: boolean; byProject: boolean }) =>
+  api.put(`/journals/balance-adjustments/aggregation/${accountId}`, body)
 export const fetchAdjustments = (from: string, to: string) =>
   api.get<AdjustmentRow[]>('/journals/balance-adjustments', { params: { from, to } }).then((r) => r.data)
 export const fetchAdjustStatus = (from: string, to: string) =>

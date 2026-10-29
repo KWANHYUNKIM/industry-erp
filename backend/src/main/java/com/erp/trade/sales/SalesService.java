@@ -172,8 +172,8 @@ public class SalesService {
                         ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 rows.add(new SalesDiscountRow(
-                        s.getSaleDate(), s.getDocNo(), s.getPartner() != null ? s.getPartner().getName() : null,
-                        l.getItem().getCode(), l.getItem().getName(),
+                        s.getSaleDate(), s.getDocNo(), s.displayPartnerName(),
+                        l.getItem().getCode(), l.effectiveItemName(),
                         s.getWarehouse() != null ? s.getWarehouse().getName() : null,
                         s.getProject() != null ? s.getProject().getName() : null,
                         s.getEmployee() != null ? s.getEmployee().getName() : null,
@@ -244,6 +244,34 @@ public class SalesService {
         return SalesResponse.from(sales);
     }
 
+    /**
+     * 일자변경(원본 [Fn] → [일자변경]). 일자를 바꾸고 <b>새 날짜의 다음 번호로 전표번호를 다시 매긴다</b>
+     * (원본: 10/28-7 → 10/20-5, 옛 번호는 다시 쓰지 않는다). 재고 수불은 옛 일자로 되돌리고 새 일자로 다시 반영한다.
+     * 수정 가능한 전표(확인 · 회계반영 · 세금계산서 전)만 — 그 밖은 수정과 같은 이유로 거부.
+     */
+    @Transactional
+    public SalesResponse changeDate(Long id, LocalDate newDate, String username) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        Sales sales = getSales(id);
+        ensureEditable(sales, "일자변경");
+        if (newDate.equals(sales.getSaleDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+
+        revertStock(sales, "일자변경 원복", username);
+        sales.setSaleDate(newDate);
+        sales.setDocNo(generateDocNo(newDate));
+        for (SalesLine l : sales.getLines()) {
+            boolean back = l.getQuantity().signum() < 0;
+            stockService.applyDelta(l.getItem(), sales.getWarehouse(), l.getQuantity().negate(),
+                    back ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND,
+                    l.getUnitPrice(), newDate,
+                    (back ? "판매반품 " : "판매 ") + sales.getDocNo(), username);
+        }
+        salesRepository.flush();
+        syncLots(sales);
+        changeHistory.recordSlip(HISTORY_TARGET, sales.getId(), ChangeHistoryService.UPDATED, snapshot(sales));
+        return SalesResponse.from(sales);
+    }
+
     /** [H] · 거래이력조회의 대상 글자 — 화면 EcHistoryButton target 과 같다. */
     public static final String HISTORY_TARGET = "SALES";
 
@@ -255,12 +283,13 @@ public class SalesService {
         String items = null;
         if (!s.getLines().isEmpty()) {
             Item first = s.getLines().get(0).getItem();
-            items = first.getName() + (first.getSpec() == null || first.getSpec().isBlank() ? "" : " [" + first.getSpec() + "]");
+            String firstSpec = s.getLines().get(0).effectiveSpec();
+            items = first.getName() + (firstSpec == null || firstSpec.isBlank() ? "" : " [" + firstSpec + "]");
             if (s.getLines().size() > 1) items += " 외 " + (s.getLines().size() - 1) + "건";
         }
         return new SlipSnapshot("판매", s.getSaleDate(), s.getDocNo(),
                 s.getPartner() != null ? s.getPartner().getCode() : null,
-                s.getPartner() != null ? s.getPartner().getName() : null,
+                s.displayPartnerName(),
                 items,
                 s.getEmployee() != null ? s.getEmployee().getCode() : null,
                 s.getEmployee() != null ? s.getEmployee().getName() : null,
@@ -273,7 +302,7 @@ public class SalesService {
     /** 로트No. 를 든 줄을 시리얼/로트 내역에 남긴다 — 나간 수량만큼 −(반품이면 줄 수량이 음수라 +). */
     private void syncLots(Sales s) {
         lotService.replaceDocument(LOT_DOC_TYPE, s.getId(), s.getDocNo(), s.getSaleDate(),
-                s.getPartner() != null ? s.getPartner().getName() : null,
+                s.displayPartnerName(),
                 s.getLines().stream()
                         .map(l -> new LotService.DocLine(l.getItem(), s.getWarehouse(), l.getLotNo(), l.getQuantity().negate()))
                         .toList());
@@ -563,18 +592,21 @@ public class SalesService {
     }
 
     private void applyContent(Sales sales, CreateSalesRequest req, String username) {
+        sales.setPartnerName(TradeMasters.partnerNameSnapshot(sales.getPartner(), req.partnerName()));
         boolean taxable = req.taxable() == null || req.taxable();
         // 전표의 성질로 남긴다. 안 남기면 나중에 '부가세가 0이면 면세' 로 되짚어야 하고,
         // 반올림으로 부가세가 0 이 된 과세 전표를 면세로 오인한다.
         sales.setTaxable(taxable);
         /*
-         * 원본 [거래구분] — 일반 · 반품. 반품은 판매의 <b>반대</b>다: 물건이 창고로 돌아오고
-         * 채권이 준다. 그래서 <b>여기서 한 번</b> 부호를 뒤집어 저장한다 — 수량도 금액도 음수다.
-         * 읽는 쪽(재고·채권·이익·현황)은 아무것도 안 바꿔도 맞는다. 화면은 되돌려받는 수량을
-         * 양수로 적는다(원본도 그렇다).
+         * 원본은 반품을 <b>음수 수량</b>의 판매로 적는다 — 판매 [반품처리] 가 같은 머리로 수량 -30 · 공급가액 -60,000 ·
+         * 부가세 -6,000 인 판매입력을 연다(2026-10-28 loginaa 실측, 거래구분 칸 없음). 음수 줄은 그대로 받는다.
+         * 줄이 전부 음수면 반품 전표다(Sales.isReturnSlip — 저장 칸 없이 줄에서 읽는다).
          */
-        boolean isReturn = Boolean.TRUE.equals(req.returnSlip());
-        sales.setReturnSlip(isReturn);
+        com.erp.trade.TradeQuantities.require(req.lines().stream().map(SalesLineRequest::quantity).toList());
+        for (SalesLineRequest lr : req.lines()) {
+            com.erp.trade.TradeQuantities.requireSameSign(lr.quantity(), lr.supplyAmount(), "공급가액");
+            com.erp.trade.TradeQuantities.requireSameSign(lr.quantity(), lr.vatAmount(), "부가세");
+        }
         sales.setRemark(req.remark());
         sales.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         sales.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
@@ -583,17 +615,16 @@ public class SalesService {
         // 전표 합계를 알아야 반올림할 수 있기 때문이다. 규칙은 VatAllocator 에 모아 뒀다.
         boolean vatBySlip = Boolean.TRUE.equals(req.vatBySlip());
         sales.setVatBySlip(vatBySlip);
-        BigDecimal sign = isReturn ? BigDecimal.ONE.negate() : BigDecimal.ONE;
         List<BigDecimal> supplies = req.lines().stream()
                 .map(lr -> (lr.supplyAmount() != null
                         ? lr.supplyAmount().setScale(0, RoundingMode.HALF_UP)
-                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign))
+                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())))
                 .toList();
         List<BigDecimal> vats = new java.util.ArrayList<>(VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip));
         // 손으로 고친 부가세는 그 줄에 그대로 쓴다(면세 전표는 0 이 원칙이라 무시한다).
         for (int i = 0; taxable && i < req.lines().size(); i++) {
             BigDecimal typedVat = req.lines().get(i).vatAmount();
-            if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP).multiply(sign));
+            if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP));
         }
 
         BigDecimal totalSupply = BigDecimal.ZERO;
@@ -615,11 +646,13 @@ public class SalesService {
 
             SalesLine line = SalesLine.builder()
                     .item(item)
-                    .quantity(lr.quantity().multiply(sign))
+                    .quantity(lr.quantity())
                     .unitPrice(lr.unitPrice())
                     .supplyAmount(supply)
                     .vatAmount(vat)
                     .remark(lr.remark())
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec())
                     .lotNo(lr.lotNo())
                     .extraCost(lr.extraCost())
                     .sourceOrder(lr.sourceOrderId() == null ? null
@@ -634,13 +667,14 @@ public class SalesService {
 
             /*
              * 재고 감소(출고). 재고 부족 시 예외 → 전체 롤백.
-             * 반품이면 반대다 — 되돌려받은 물건이 창고로 들어온다.
+             * 음수(반품) 줄이면 반대다 — 되돌려받은 물건이 창고로 들어온다. 이름표는 줄의 부호를 따른다.
              */
+            boolean back = line.getQuantity().signum() < 0;
             stockService.applyDelta(item, sales.getWarehouse(),
-                    lr.quantity().multiply(sign).negate(),
-                    isReturn ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND,
+                    line.getQuantity().negate(),
+                    back ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND,
                     lr.unitPrice(), sales.getSaleDate(),
-                    (isReturn ? "판매반품 " : "판매 ") + sales.getDocNo(), username);
+                    (back ? "판매반품 " : "판매 ") + sales.getDocNo(), username);
         }
 
         /*
@@ -650,7 +684,7 @@ public class SalesService {
         BigDecimal dSupply = nzWon(req.discountSupply());
         BigDecimal dVat = taxable ? nzWon(req.discountVat()) : BigDecimal.ZERO;
         if (dSupply.signum() != 0 || dVat.signum() != 0) {
-            if (isReturn) throw ApiException.badRequest("반품 전표에는 금액조정(할인)을 넣을 수 없습니다.");
+            if (sales.isReturnSlip()) throw ApiException.badRequest("반품 전표에는 금액조정(할인)을 넣을 수 없습니다.");
             if (dSupply.add(dVat).compareTo(totalSupply.add(totalVat)) > 0) {
                 throw ApiException.badRequest("할인 합계가 거래 합계보다 큽니다.");
             }

@@ -20,12 +20,16 @@ import { findDataTable } from '../../utils/tableExport'
 import { useShortcut } from '../../utils/useShortcut'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { useSubmitting } from '../../utils/useSubmitting'
 import { ErrTip } from '../../components/GridCode'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
+import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
+import { isAnyPartner } from '../../utils/anyPartner'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -62,6 +66,22 @@ export interface TradeEntryPopup {
   onReturn: () => void
   /** 조회 화면이 이미 받아 둔 전표 목록(응답 그대로). 창을 열 때마다 2MB 넘는 목록을 다시 받지 않는다. */
   docs: (SalesDoc | PurchaseDoc)[]
+  /**
+   * 새 전표를 이 값으로 채워 연다 — 발주서조회 '생성한 전표' 창 [신규(F2)] 가 그 발주의 잔량으로 구매입력을 띄운다
+   * (2026-10-28 원본 실측: 거래처 · 담당자 · 입고창고 · 줄(품목 · 잔량 · 단가) · 불러온 전표No., 일자는 오늘).
+   */
+  prefill?: TradeEntryPrefill
+}
+
+export interface TradeEntryPrefill {
+  partnerId: number | null
+  employeeId: number | null
+  warehouseId: number | null
+  projectId: number | null
+  /** 외화 발주서에서 왔으면 그 통화 · 환율 — 구매가 외자 전표로 열린다(줄 unitPrice 는 외화단가). */
+  currencyCode?: string | null
+  exchangeRate?: number | null
+  lines: { itemId: number; quantity: number; unitPrice: number; sourceOrderId: number; sourceDocType: string; sourceDocDate: string; sourceDocNo: string; itemName?: string | null }[]
 }
 
 interface LineInput {
@@ -70,6 +90,13 @@ interface LineInput {
   unitPrice: string
   /** 외자 구매의 줄 환율. 비우면 머리 환율. (외자일 때 unitPrice 는 외화단가다) */
   lineRate: string
+  /**
+   * 줄 규격 — 원본은 줄마다 따로 저장한다(품목을 고르면 품목 규격으로 채우되 줄에서 고치거나 비울 수 있다).
+   * null = 아직 안 건드림(품목 규격을 따라간다), 빈 글자 = 일부러 비움.
+   */
+  spec: string | null
+  /** 줄 품목명 — null = 품목 이름을 따라감. 원본은 품목을 고른 뒤 이름 칸을 고쳐 쓴다(구매 '포장김치1kg' ↔ 마스터 '포장김치'). */
+  name: string | null
   /** 시리얼/로트 (원본 serial_cd) */
   lotNo: string
   /** 부대비용 (원본 cust_amt). 합계 금액에는 더하지 않는다. */
@@ -138,7 +165,7 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const emptyLine = (): LineInput => ({
-  itemId: '', quantity: '', unitPrice: '', lineRate: '', lotNo: '', extraCost: '', remark: '',
+  itemId: '', quantity: '', unitPrice: '', lineRate: '', spec: null, name: null, lotNo: '', extraCost: '', remark: '',
   supplyOverride: '', supplyBase: '', vatOverride: '', vatBase: '',
   qcRequest: false,
   sourceOrderId: '', sourceDocType: '', sourceDocDate: '', sourceDocNo: '', checked: false,
@@ -178,7 +205,8 @@ const CFG = {
     counterpartLabel: '구매',
     /** 근거전표 불러오기 — 판매는 수주(주문서) */
     loadLabel: '주문',
-    loadTitle: '주문 불러오기 (미판매 잔량)',
+    /* 원본 판매입력 [주문] 창 제목(2026-10-28 실측). 전표 단위 목록 — 줄 단위는 [라인별]. */
+    loadTitle: '주문서검색창(조회)',
     cashLabel: '현금수금',
     cashTo: '/sales/collection',
     /** 푸터 [리스트] — 원본은 이 버튼으로 조회 화면을 연다 */
@@ -221,6 +249,10 @@ interface UnsoldLite {
   orderNo: string
   orderLineId: number
   orderDate: string
+  dueDate: string | null
+  employeeId: number | null
+  employeeName: string | null
+  spec: string | null
   partnerId: number
   partnerName: string
   warehouseId: number | null
@@ -246,7 +278,7 @@ interface ReleaseDetail {
   projectId: number | null
   employeeId: number | null
   taxable: boolean
-  lines: { itemId: number; quantity: number; unitPrice: number }[]
+  lines: { itemId: number; quantity: number; unitPrice: number; itemName?: string | null }[]
 }
 
 /** 근거전표(수주·발주서) 라인 — 불러오기 팝업의 한 행. */
@@ -263,6 +295,12 @@ interface LoadableLine {
   /** 근거전표의 창고·프로젝트 — 담을 때 전표 머리에 이어받는다(없으면 null). */
   warehouseId: number | null
   projectId: number | null
+  /** 근거전표의 담당자 — 원본 구매입력 [발주] · 판매입력 [주문] 불러오기 둘 다 머리 담당자를 채운다(2026-10-28 실측). */
+  employeeId: number | null
+  /** 주문서검색창의 [사원(담당)명] · [납기일자] · 품목 규격 — 판매만 싣는다. */
+  employeeName?: string | null
+  dueDate?: string | null
+  spec?: string | null
   statusName: string
   itemId: number
   itemCode: string
@@ -273,6 +311,25 @@ interface LoadableLine {
   /** 담을 수량 — 판매는 미판매 잔량(주문 − 판매), 구매는 발주 잔량 */
   restQty: number
   unitPrice: number
+  /** 외화 발주서의 통화 · 환율 · 줄 외화단가 — 담으면 구매가 외자 전표가 된다. 내자는 null. */
+  currencyCode?: string | null
+  exchangeRate?: number | null
+  foreignPrice?: number | null
+}
+
+/**
+ * 주문서검색창 알약 — 원본 '전체 · 결재중 · C-Portal · 미확인 · 확인 · 진행중 · 완료'(2026-10-28 실측).
+ * 결재 · C-Portal 은 우리에게 그 경로가 없어 늘 비어 있다(주문서조회 SalesOrderPage 와 같은 잣대).
+ */
+type OrderLoadTab = 'ALL' | 'APPROVAL' | 'CPORTAL' | 'RECEIVED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED'
+const ORDER_LOAD_TABS: [OrderLoadTab, string][] = [
+  ['ALL', '전체'], ['APPROVAL', '결재중'], ['CPORTAL', 'C-Portal'], ['RECEIVED', '미확인'],
+  ['CONFIRMED', '확인'], ['IN_PROGRESS', '진행중'], ['COMPLETED', '완료'],
+]
+const ORDER_STATUS_LABEL: Record<string, string> = { RECEIVED: '미확인', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소' }
+const ORDER_TAB_MATCH: Record<OrderLoadTab, (s: string) => boolean> = {
+  ALL: () => true, APPROVAL: () => false, CPORTAL: () => false, RECEIVED: (s) => s === 'RECEIVED',
+  CONFIRMED: (s) => s === 'IN_PROGRESS' || s === 'COMPLETED', IN_PROGRESS: (s) => s === 'IN_PROGRESS', COMPLETED: (s) => s === 'COMPLETED',
 }
 
 /** 선택 컬럼 — 원본에서 `hide` 로 깔려 있다가 [열 선택]으로 켜는 열들. */
@@ -338,14 +395,11 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   // ── 헤더 항목 ──────────────────────────────────────────
   const [date, setDate] = useState(today())
   const [partnerId, setPartnerId] = useState('')
+  /** 임의거래처(12341234)에 고친 거래처명 — 고른 거래처 id 와 같이 들어 다른 거래처를 고르면 저절로 버려진다. */
+  const [anyName, setAnyName] = useState<{ id: string; name: string } | null>(null)
   const [employeeId, setEmployeeId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [taxable, setTaxable] = useState(true)
-  /**
-   * 원본 [거래구분] — 일반 · 반품. 되돌려받는(되돌려주는) 수량은 <b>양수로</b> 적는다.
-   * 부호를 뒤집는 것은 서버가 저장할 때 한 번만 한다.
-   */
-  const [returnSlip, setReturnSlip] = useState(false)
   /** [반품처리] 베끼기는 한 번만 한다 — 사람이 고친 뒤 다시 덮어쓰면 안 된다. */
   const returnLoaded = useRef(false)
   const [foreign, setForeign] = useState(false)          // 통화: 내자/외자
@@ -458,10 +512,25 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
    */
   const [loadQuery, setLoadQuery] = useState('')
   const [loadOnlyPartner, setLoadOnlyPartner] = useState(true)
+  /*
+   * 판매 [주문] = 원본 '주문서검색창(조회)'(2026-10-28 실측): 전표 단위 목록 · 알약 · [라인별 ▾] 로 줄 단위.
+   * 주문 전표의 합계 · 진행상태 · 줄 수는 주문서 목록에서 가져온다(미판매 응답은 남은 줄만 싣는다).
+   */
+  const [loadByLine, setLoadByLine] = useState(false)
+  const [loadDocPicked, setLoadDocPicked] = useState<Record<number, boolean>>({})
+  const [loadTab, setLoadTab] = useState<OrderLoadTab>('ALL')
+  const [loadOrderMeta, setLoadOrderMeta] = useState<Map<number, { total: number; status: string; lineCount: number }>>(new Map())
   /** 방금 저장한 전표 — 연결전표 탭·회계전표연결은 이게 있어야 열린다(원본도 저장 전엔 hidden). */
   const [savedDoc, setSavedDoc] = useState<{ id: number; docNo: string } | null>(null)
+  /** 저장 요청이 도는 동안 두 번째 저장을 막는다(2026-10-28 [복사] 뒤 두 번 눌러 같은 구매가 두 건 생겼다). */
+  const submitting = useSubmitting()
   /** 수정 중인 전표. 있으면 저장이 POST 가 아니라 PUT 이 된다. */
   const [editing, setEditing] = useState<{ id: number; docNo: string } | null>(null)
+  /* [Fn] → [일자변경] 작은 창 — 원본: 수정 창의 일자 칸은 잠겨 있고 이 창에서만 바꾼다(2026-10-28 21시 실측). */
+  const [dateChgOpen, setDateChgOpen] = useState(false)
+  const [dateChgTo, setDateChgTo] = useState('')
+  const [fnOpen, setFnOpen] = useState(false)
+  const dateChangedRef = useRef(false)
   /** 수정 창 [복사] 를 누른 뒤 — 같은 내용을 새 전표로 쓴다. 불러오기 효과가 그 전표를 다시 펼치지 않게 막는다. */
   const copiedRef = useRef(false)
   const [verifyResult, setVerifyResult] = useState<string[] | null>(null)
@@ -581,7 +650,9 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
    * 반올림으로 부가세가 0 이 된 과세 전표를 면세로 바꿔 놓고 저장하는 일이 생겼다.
    */
   /*
-   * [반품처리] 로 넘어온 경우 — 그 전표를 베껴 담고 거래구분을 반품으로 둔다.
+   * [반품처리] 로 넘어온 경우 — 원본(2026-10-28 loginaa 판매 수정 창 [반품처리] 실측)처럼 새 입력 창을 같은 머리
+   * (일자 오늘 · 거래처 · 담당자 · 출하창고)로 열고 줄 수량을 <b>음수</b>로 담는다(-30 → 공급가액 -60,000 · 부가세 -6,000).
+   * 적요는 비우고 거래구분은 일반 그대로다 — 원본 판매입력에는 거래구분 칸이 없고, 줄이 전부 음수면 서버가 반품 전표로 적는다.
    * 근거전표(sourceOrderId)는 <b>안 옮긴다</b>. 반품은 그 수주를 다시 채우는 것이 아니라
    * 되돌려주는 것이라, 옮기면 수주 잔량이 엉뚱하게 줄어든다.
    */
@@ -592,24 +663,51 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     returnLoaded.current = true
     setDate(today())
     setPartnerId(d.partnerId != null ? String(d.partnerId) : '')
+    setAnyName(d.partnerId != null ? { id: String(d.partnerId), name: d.partnerName ?? '' } : null)
     setWarehouseId(String(d.warehouseId))
     setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
     setTaxable(d.taxable)
     setVatBySlip(d.vatBySlip)
-    setReturnSlip(true)
-    setRemark(`반품 (근거전표 ${d.docNo})`)
+    setRemark('')
     setLines([
       ...d.lines.map((l) => ({
         ...emptyLine(),
         itemId: String(l.itemId),
-        quantity: String(Math.abs(l.quantity)),
+        quantity: String(-Math.abs(l.quantity)),
         unitPrice: String(l.unitPrice),
+        spec: l.spec ?? null,
+        name: l.itemName ?? null,
         lotNo: l.lotNo ?? '',
         remark: l.remark ?? '',
       })),
       emptyLine(),
     ])
   }, [returnFromId, editing, docs])
+
+  /* 발주서조회 '생성한 전표' [신규(F2)] — 그 발주의 잔량으로 채운다. loadRefs 의 창고 기본값은 prev 를 지키므로 덮이지 않는다. */
+  useEffect(() => {
+    const pf = popup?.prefill
+    if (!pf || editId) return
+    setPartnerId(pf.partnerId != null ? String(pf.partnerId) : '')
+    setEmployeeId(pf.employeeId != null ? String(pf.employeeId) : '')
+    if (pf.warehouseId != null) setWarehouseId(String(pf.warehouseId))
+    setProjectId(pf.projectId != null ? String(pf.projectId) : '')
+    if (mode === 'purchase' && pf.currencyCode) {
+      setForeign(true); setCurrencyCode(pf.currencyCode)
+      if (pf.exchangeRate != null) setExchangeRate(String(pf.exchangeRate))
+    }
+    setLines([
+      ...pf.lines.map((l) => ({
+        ...emptyLine(),
+        itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice), name: l.itemName ?? null,
+        sourceOrderId: String(l.sourceOrderId), sourceDocType: l.sourceDocType,
+        sourceDocDate: l.sourceDocDate, sourceDocNo: l.sourceDocNo,
+      })),
+      emptyLine(),
+    ])
+    setCols((c) => ({ ...c, srcNo: true }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!fromReleaseId || releaseLoaded.current) return
@@ -633,6 +731,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           itemId: String(l.itemId),
           quantity: String(l.quantity),
           unitPrice: String(l.unitPrice),
+          name: l.itemName ?? null,
           sourceOrderId: String(rr.orderId),
           sourceDocType: '주문서',
           sourceDocDate: rr.orderDate,
@@ -656,12 +755,11 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setEditing({ id: d.id, docNo: d.docNo })
     setDate((d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate)
     setPartnerId(d.partnerId != null ? String(d.partnerId) : '')
+    setAnyName(d.partnerId != null ? { id: String(d.partnerId), name: d.partnerName ?? '' } : null)
     setWarehouseId(String(d.warehouseId))
     setEmployeeId(d.employeeId != null ? String(d.employeeId) : '')
     setProjectId((d as SalesDoc).projectId != null ? String((d as SalesDoc).projectId) : '')
     setTaxable(d.taxable)
-    // 반품 전표는 수량이 음수로 저장돼 있다. 화면에는 원본처럼 양수로 되돌려 보여 준다.
-    setReturnSlip(d.returnSlip)
     setVatBySlip(d.vatBySlip)
     setRemark(d.remark ?? '')
     const fxDoc = mode === 'purchase' && !!(d as PurchaseDoc).currencyCode
@@ -672,18 +770,20 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       ...d.lines.map((l) => ({
         ...emptyLine(),
         itemId: String(l.itemId),
-        quantity: String(Math.abs(l.quantity)),
+        quantity: String(l.quantity),
         unitPrice: fxDoc && l.foreignPrice != null ? String(l.foreignPrice) : String(l.unitPrice),
         lineRate: fxDoc && l.lineRate != null && l.lineRate !== (d as PurchaseDoc).exchangeRate ? String(l.lineRate) : '',
+        spec: l.spec ?? null,
+        name: l.itemName ?? null,
         lotNo: l.lotNo ?? '',
         extraCost: l.extraCost != null ? String(l.extraCost) : '',
         // 저장된 공급가액이 수량 × 단가와 다르면 손으로 고친 값이다 — 다시 저장해도 남도록 들고 온다.
-        ...(!fxDoc && Math.abs(Number(l.supplyAmount)) !== lineSupply(Math.abs(l.quantity), Number(l.unitPrice))
-          ? { supplyOverride: String(Math.abs(Number(l.supplyAmount))), supplyBase: `${Math.abs(l.quantity)}|${l.unitPrice}` }
+        ...(!fxDoc && Number(l.supplyAmount) !== lineSupply(l.quantity, Number(l.unitPrice))
+          ? { supplyOverride: String(Number(l.supplyAmount)), supplyBase: `${l.quantity}|${l.unitPrice}` }
           : {}),
         // 부가세도 같다 — 줄마다 계산하는 전표에서 공급가액 × 10% 와 다르면 손으로 고친 값이다.
-        ...(d.taxable && !d.vatBySlip && Math.abs(Number(l.vatAmount)) !== roundWon(Math.abs(Number(l.supplyAmount)) * 0.1)
-          ? { vatOverride: String(Math.abs(Number(l.vatAmount))), vatBase: String(Math.abs(Number(l.supplyAmount))) }
+        ...(d.taxable && !d.vatBySlip && Number(l.vatAmount) !== roundWon(Number(l.supplyAmount) * 0.1)
+          ? { vatOverride: String(Number(l.vatAmount)), vatBase: String(Number(l.supplyAmount)) }
           : {}),
         remark: l.remark ?? '',
         sourceOrderId: l.sourceOrderId != null ? String(l.sourceOrderId) : '',
@@ -726,6 +826,10 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, custom: { ...l.custom, [key]: value } } : l)))
 
   const usablePartners = useMemo(() => partners.filter(cfg.canUse), [partners, cfg])
+  const chosenPartner = partners.find((p) => String(p.id) === partnerId)
+  const anyPartner = isAnyPartner(chosenPartner)
+  /** 임의거래처 이름 칸의 값 — 고친 것이 없으면 마스터 이름('임의거래처'). */
+  const anyPartnerName = anyPartner ? (anyName?.id === partnerId ? anyName.name : chosenPartner?.name ?? '') : ''
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
   const codeItems = useMemo(
     () => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.spec, stopped: !i.active })),
@@ -733,6 +837,22 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   )
 
   /** 재고 조회는 [재고불러오기]를 눌렀을 때만 한다 — 화면을 열 때마다 전 품목 재고를 끌어올 필요는 없다. */
+  /** [일자변경] 저장 — 서버가 새 날짜의 다음 번호로 전표번호를 다시 매긴다. */
+  async function changeDate() {
+    if (!editing) return
+    if (!dateChgTo || dateChgTo === date) { void ecAlert('변경일자를 기존일자와 다르게 입력하세요.'); return }
+    try {
+      const res = await api.post<SalesDoc | PurchaseDoc>(mode === 'sales' ? `/sales/${editing.id}/change-date` : `/purchases/${editing.id}/change-date`, { date: dateChgTo })
+      setEditing({ id: editing.id, docNo: res.data.docNo })
+      setDate(dateChgTo)
+      dateChangedRef.current = true
+      setDateChgOpen(false)
+      void ecAlert('정상적으로 변경되었습니다.')
+    } catch (err) {
+      void ecAlert(extractErrorMessage(err))
+    }
+  }
+
   async function loadMyItems() {
     try {
       const r = await api.get<MyItem[]>('/my-items')
@@ -874,6 +994,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   function updateLine(idx: number, field: keyof LineInput, value: string | boolean) {
     setLines((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
+      // 품목을 새로 고르면 규격도 새 품목 규격으로 다시 채운다(원본). 고친 규격은 같은 품목에서만 남는다.
+      if (field === 'itemId') next[idx] = { ...next[idx], spec: null, name: null }
       if (field === 'itemId' && value) {
         const it = itemById.get(String(value))
         if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: basePriceOf(it) }
@@ -888,7 +1010,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   }
   const lotCell = (l: LineInput, idx: number) => (
     <td>
-      <input className="cell" value={l.lotNo} disabled={!l.itemId}
+      <input className="cell" value={l.lotNo} maxLength={500} disabled={!l.itemId}
              onChange={(e) => updateLine(idx, 'lotNo', e.target.value)} />
     </td>
   )
@@ -921,20 +1043,32 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   async function openLoadSource() {
     setLoadOpen(true)
     setLoadPicked({})
+    setLoadDocPicked({})
+    setLoadByLine(false)
+    setLoadTab('ALL')
     setLoadQuery('')
     setLoadRows(null)
     try {
       const rows: LoadableLine[] = []
       if (mode === 'sales') {
-        const r = await api.get<UnsoldLite[]>('/sales-orders/unsold')
+        /* 원본은 판매 일자보다 늦은 주문을 띄우지 않는다(10/28 판매에 11월 주문 0건, 2026-10-28 실측) — to=판매 일자. */
+        const r = await api.get<UnsoldLite[]>('/sales-orders/unsold', { params: { to: date } })
         r.data.forEach((l) => rows.push({
           key: `${l.orderId}-${l.orderLineId}`, orderId: l.orderId, docType: '주문서',
           docNo: l.orderNo, date: l.orderDate,
           partnerId: l.partnerId, partnerName: l.partnerName, statusName: l.statusName,
-          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null,
+          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null, employeeId: l.employeeId ?? null,
+          employeeName: l.employeeName ?? null, dueDate: l.dueDate ?? null, spec: l.spec ?? null,
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
           orderedQty: l.orderQty, doneQty: l.soldQty, restQty: l.unsoldQty, unitPrice: l.unitPrice,
         }))
+        const from = rows.reduce((m, x) => (x.date < m ? x.date : m), date)
+        const meta = new Map<number, { total: number; status: string; lineCount: number }>()
+        if (rows.length > 0) {
+          const o = await api.get<{ id: number; status: string; totalAmount: number; lines: unknown[] }[]>('/sales-orders', { params: { from, to: date } })
+          o.data.forEach((x) => meta.set(x.id, { total: x.totalAmount, status: x.status, lineCount: x.lines?.length ?? 0 }))
+        }
+        setLoadOrderMeta(meta)
       } else {
         /*
          * 미구매 잔량(발주 − 이미 구매)으로 담는다. 예전엔 발주수량 전체를 담아 100 중 60 을 입고한 뒤
@@ -946,6 +1080,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           warehouseId: number | null; projectId: number | null
           itemId: number; itemCode: string; itemName: string; unit: string
           orderQty: number; boughtQty: number; restQty: number; unitPrice: number
+          employeeId: number | null; spec: string | null
+          currencyCode: string | null; exchangeRate: number | null; foreignPrice: number | null
         }[]>('/purchase-orders/unpurchased')
         /*
          * 원본 [발주] 검색창은 <b>발주서</b>만 띄운다 — 발주요청 · 발주계획은 다른 전표다(2026-10-20 실측).
@@ -955,9 +1091,11 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           key: `${l.orderId}-${l.orderLineId}`, orderId: l.orderId, docType: '발주서',
           docNo: l.orderNo, date: l.orderDate,
           partnerId: l.partnerId, partnerName: l.partnerName, statusName: l.statusName,
-          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null,
+          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null, employeeId: l.employeeId ?? null,
           itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
           orderedQty: l.orderQty, doneQty: l.boughtQty, restQty: l.restQty, unitPrice: l.unitPrice,
+          spec: l.spec ?? null,
+          currencyCode: l.currencyCode ?? null, exchangeRate: l.exchangeRate ?? null, foreignPrice: l.foreignPrice ?? null,
         }))
       }
       rows.sort((a, b) => b.date.localeCompare(a.date) || b.docNo.localeCompare(a.docNo))
@@ -978,6 +1116,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       ...d.lines.map((ln) => ({
         ...emptyLine(),
         itemId: String(ln.itemId), quantity: String(ln.quantity), unitPrice: String(ln.unitPrice),
+        spec: ln.spec ?? null,
+        name: ln.itemName ?? null,
         remark: ln.remark ?? '',
       })),
       emptyLine(),
@@ -991,19 +1131,104 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   /** 고른 근거전표 라인을 명세에 담는다. 거래처가 섞이면 막는다 — 한 전표는 한 거래처다. */
   const loadShown = (loadRows ?? []).filter((r) => {
     if (loadOnlyPartner && partnerId && String(r.partnerId) !== partnerId) return false
+    // 판매 일자보다 늦은 주문은 뺀다(원본 실측) — 창을 연 뒤 일자를 바꿔도 따른다.
+    if (mode === 'sales' && r.date > date) return false
     const q = loadQuery.trim().toLowerCase()
-    return !q || [r.docNo, r.partnerName, r.itemCode, r.itemName].some((v) => (v ?? '').toLowerCase().includes(q))
+    return !q || [r.docNo, r.partnerName, r.itemCode, r.itemName, r.employeeName].some((v) => (v ?? '').toLowerCase().includes(q))
   })
 
+  /** 주문서검색창의 전표 단위 줄 — 남은 줄을 주문 하나로 묶는다(최근 것부터, loadRows 차례 그대로). */
+  const orderDocs = (() => {
+    const by = new Map<number, LoadableLine[]>()
+    loadShown.forEach((r) => { const g = by.get(r.orderId); if (g) g.push(r); else by.set(r.orderId, [r]) })
+    return [...by.entries()].map(([orderId, ls]) => {
+      const m = loadOrderMeta.get(orderId)
+      const status = m?.status ?? (ls[0].statusName === '진행중' ? 'IN_PROGRESS' : ls[0].statusName === '완료' ? 'COMPLETED' : 'RECEIVED')
+      return {
+        orderId, lines: ls, first: ls[0], status,
+        total: m?.total ?? ls.reduce((a, x) => a + x.orderedQty * x.unitPrice, 0),
+        // 판매로 이어진 주문 — 다 판 줄은 미판매 응답에서 빠지므로 줄 수가 줄었거나 판 수량이 있으면.
+        created: ls.some((x) => x.doneQty > 0) || (m != null && m.lineCount > ls.length),
+        lineCount: m?.lineCount ?? ls.length,
+      }
+    })
+  })()
+  const loadDocsShown = orderDocs.filter((d) => ORDER_TAB_MATCH[loadTab](d.status))
+
+  /** 근거전표 줄 단위 표 — 구매 [발주] 창과 판매 주문서검색창 [라인별] 이 같이 쓴다. */
+  const loadLineTable = (
+  <div className="max-h-[360px] overflow-y-auto border border-ec-line border-solid">
+    <table className="w-full text-left">
+      <thead>
+        <tr>
+          <th className="w-[30px]" />
+          <th>{mode === 'sales' ? '주문No.' : '발주No.'}</th>
+          <th className="w-[90px]">일자</th>
+          <th>거래처</th>
+          <th>품목</th>
+          <th className="w-[70px] text-right">{mode === 'sales' ? '주문' : '발주'}</th>
+          <th className="w-[60px] text-right">{mode === 'sales' ? '판매' : '입고'}</th>
+          <th className="w-[70px] text-right">담을수량</th>
+          <th className="w-[80px] text-right">단가</th>
+          <th className="w-[70px]">상태</th>
+        </tr>
+      </thead>
+      <tbody>
+        {loadShown.map((r) => (
+          <tr
+            key={r.key}
+            onClick={() => setLoadPicked((p) => ({ ...p, [r.key]: !p[r.key] }))}
+            style={{ cursor: 'pointer', background: loadPicked[r.key] ? 'var(--ec-blue-light)' : undefined }}
+          >
+            <td className="text-center">
+              <input type="checkbox" readOnly checked={!!loadPicked[r.key]} />
+            </td>
+            <td>{r.docNo}</td>
+            <td>{dateText(r.date)}</td>
+            <td>{r.partnerName}</td>
+            <td>{r.itemName}</td>
+            <td className="text-right">{won(r.orderedQty)}</td>
+            <td className="text-right text-ec-hint">{won(r.doneQty)}</td>
+            <td className="text-right font-bold">{won(r.restQty)}</td>
+            <td className="text-right">{won(r.unitPrice)}</td>
+            <td className="text-ec-hint">{r.statusName}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  )
+
+  /** [잔량적용(F8)] — 전표 단위면 체크한 주문의 남은 줄 전부, [라인별] 이면 체크한 줄. */
   function applyLoadPicked() {
-    const picked = (loadRows ?? []).filter((r) => loadPicked[r.key])
-    if (picked.length === 0) return flash('담을 행을 체크하세요.')
+    const byDoc = mode === 'sales' && !loadByLine
+    const picked = byDoc
+      ? loadDocsShown.filter((d) => loadDocPicked[d.orderId]).flatMap((d) => d.lines)
+      : (loadRows ?? []).filter((r) => loadPicked[r.key])
+    if (picked.length === 0) return flash(byDoc ? '담을 주문을 체크하세요.' : '담을 행을 체크하세요.')
     const partnerIds = [...new Set(picked.map((r) => r.partnerId))]
     if (partnerIds.length > 1) return flash('거래처가 다른 행은 한 전표에 담을 수 없습니다.')
     if (partnerId && String(partnerIds[0]) !== partnerId) {
       return flash('지금 전표의 거래처와 다릅니다. 거래처를 비우거나 같은 거래처 행을 고르세요.')
     }
+    /*
+     * 외화 발주서를 담으면 구매도 외자 — 통화 · 환율을 이어받고 단가 칸에는 외화단가를 싣는다(구매 외자 줄과 같은 꼴).
+     * 통화가 다른 발주(내자 · 외화 섞임 포함)는 한 전표에 담을 수 없다 — 원화금액을 정할 환율이 하나여야 한다.
+     */
+    const curs = [...new Set(picked.map((r) => r.currencyCode ?? ''))]
+    if (curs.length > 1) return flash('통화가 다른 발주는 한 전표에 담을 수 없습니다. 통화별로 나눠 담으세요.')
+    const fxCur = curs[0]
+    if (mode === 'purchase' && lines.some((l) => l.itemId) && (fxCur ? !(foreign && currencyCode === fxCur) : foreign)) {
+      return flash('지금 전표의 통화와 다른 발주입니다. 통화가 같은 발주를 고르세요.')
+    }
     if (!partnerId) setPartnerId(String(partnerIds[0]))
+    if (mode === 'purchase' && fxCur) {
+      setForeign(true); setCurrencyCode(fxCur)
+      const r0 = picked.find((r) => r.exchangeRate != null)?.exchangeRate
+      if (r0 != null) setExchangeRate(String(r0))
+    } else if (mode === 'purchase' && foreign) {
+      setForeign(false); setCurrencyCode('')
+    }
 
     /*
      * 근거전표의 프로젝트·창고도 이어받는다. 예전엔 거래처만 받아서, 수주를 불러와 만든 판매가
@@ -1022,6 +1247,13 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
      * 창고는 화면을 열 때 기본값(마지막에 쓴 창고 등)이 이미 차 있어서 "비었으면 채운다" 로는 안 바뀐다 —
      * 주문은 본사창고인데 QA창고에서 출하하는 판매가 만들어졌다. 주문들의 창고가 하나면 그것으로 바꾸고 알린다.
      */
+    /*
+     * 원본은 발주의 담당자(P01 김현수) · 주문의 담당자(S04)가 머리에 찬다 — 이미 고른 담당자도 <b>덮어쓴다</b>
+     * (주문 → 판매 Z20 → S04, 견적 → 주문 Z20 → Z12, 2026-10-28 루프 26 실측). 불러온 전표에 담당자가 없을 때는 미실측 — 그대로 둔다.
+     * 일자는 머리 값 그대로다(원본도 판매입력의 처음 일자 '오늘' 이 그대로 남았다).
+     */
+    const emp = picked.find((r) => r.employeeId != null)?.employeeId
+    if (emp != null) setEmployeeId(String(emp))
     const whIds = [...new Set(picked.map((r) => r.warehouseId).filter((x): x is number => x != null))]
     const whNote = whIds.length === 1 && warehouseId !== String(whIds[0])
     if (whNote) setWarehouseId(String(whIds[0]))
@@ -1032,7 +1264,9 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
         ...emptyLine(),
         itemId: String(r.itemId),
         quantity: String(r.restQty),
-        unitPrice: String(r.unitPrice),
+        unitPrice: String(fxCur && r.foreignPrice != null ? r.foreignPrice : r.unitPrice),
+        spec: r.spec ?? null,
+        name: r.itemName ?? null,
         // 적요에 "SO-… 불러옴" 이라고 적던 것을 근거전표 3열로 옮겼다. 적요는 사람 몫으로 비워 둔다.
         sourceOrderId: String(r.orderId),
         sourceDocType: r.docType,
@@ -1070,6 +1304,18 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       if (e.key !== 'F8' || e.repeat) return
       e.preventDefault(); e.stopPropagation()
       applyAmountAdjust()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  })
+
+  /* 주문서검색창 [잔량적용(F8)] — 위 금액조정 창과 같은 이유로 capture 단계에서 받아 저장(F8)을 막는다. */
+  useEffect(() => {
+    if (!loadOpen || mode !== 'sales') return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F8' || e.repeat) return
+      e.preventDefault(); e.stopPropagation()
+      applyLoadPicked()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
@@ -1125,7 +1371,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       const revenue = computed[idx].supply
       const cost = unitCost === null ? null : unitCost * qty
       return {
-        name: itemById.get(l.itemId)?.name ?? '',
+        name: l.name ?? itemById.get(l.itemId)?.name ?? '',
         code: itemById.get(l.itemId)?.code ?? '',
         qty,
         unitPrice: num(l.unitPrice),
@@ -1237,9 +1483,9 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     if (fx && !currencyCode) msgs.push('외자 전표는 외화(통화)를 선택해야 합니다.')
     lines.forEach((l, i) => {
       if (!l.itemId) return
-      if (num(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
+      if (num(l.quantity) === 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
       if (num(l.unitPrice) <= 0) msgs.push(`${i + 1}행: 단가가 0입니다.`)
-      if (mode === 'sales' && stocks.length > 0) {
+      if (mode === 'sales' && stocks.length > 0 && num(l.quantity) > 0) {
         const have = stockWhOf(l.itemId)
         if (have < num(l.quantity)) {
           msgs.push(`${i + 1}행: ${itemById.get(l.itemId)?.name} 창고재고 ${won(have)} < 출고 ${won(num(l.quantity))}`)
@@ -1255,7 +1501,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
 
   // ── 임시저장 (원본은 주기적으로 자동 저장하고 푸터에 시각을 찍는다) ──
   const snapshot = () => JSON.stringify({
-    date, partnerId, employeeId, warehouseId, taxable, returnSlip, foreign, exchangeRate, currencyCode, projectId, remark, customValues, lines,
+    date, partnerId, employeeId, warehouseId, taxable, foreign, exchangeRate, currencyCode, projectId, remark, customValues, lines,
   })
   function applyTemp() {
     const raw = localStorage.getItem(tempKey)
@@ -1264,7 +1510,6 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       const s = JSON.parse(raw)
       setDate(s.date ?? today()); setPartnerId(s.partnerId ?? ''); setEmployeeId(s.employeeId ?? '')
       setWarehouseId(s.warehouseId ?? ''); setTaxable(s.taxable ?? true); setForeign(s.foreign ?? false); setCurrencyCode(s.currencyCode ?? '')
-      setReturnSlip(s.returnSlip ?? false)
       setExchangeRate(s.exchangeRate ?? '0'); setProjectId(s.projectId ?? ''); setRemark(s.remark ?? '')
       setCustomValues(s.customValues ?? {}); setLines(Array.isArray(s.lines) && s.lines.length ? s.lines : emptyLines())
       setHasTemp(false)
@@ -1317,14 +1562,17 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     setError(''); setQtyErr(null)
     // 요청에 실을 줄과 그 줄의 원본(추가항목 값이 붙어 있다)을 같은 순서로 들고 간다.
     // 원본 판매입력 · 구매입력은 단가 0 인 줄도 저장한다(2026-10-21 실측, 합계 0 / 칸은 빈칸).
-    const keptLines = lines.filter((l) => l.itemId && num(l.quantity) > 0 && num(l.unitPrice) >= 0)
+    // 음수 수량은 반품 줄이다(원본 [반품처리] 가 -30 으로 연다) — 0 만 뺀다.
+    const keptLines = lines.filter((l) => l.itemId && num(l.quantity) !== 0 && num(l.unitPrice) >= 0)
     const validLines = keptLines
       .map((l) => ({
         itemId: Number(l.itemId),
         quantity: num(l.quantity),
-        unitPrice: fx ? roundWon(fxAmountOf(l) * lineRateOf(l) / Math.max(num(l.quantity), 1e-9)) : num(l.unitPrice),
+        unitPrice: fx ? roundWon(fxAmountOf(l) * lineRateOf(l) / (num(l.quantity) || 1e-9)) : num(l.unitPrice),
         ...(fx ? { foreignPrice: num(l.unitPrice), foreignAmount: fxAmountOf(l), lineRate: num(l.lineRate) > 0 ? num(l.lineRate) : undefined } : {}),
         remark: l.remark.trim() || undefined,
+        spec: l.spec ?? undefined,
+        itemName: l.name ?? undefined,
         lotNo: l.lotNo.trim() || undefined,
         extraCost: l.extraCost ? num(l.extraCost) : undefined,
         sourceOrderId: l.sourceOrderId ? Number(l.sourceOrderId) : undefined,
@@ -1335,7 +1583,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
      * 원본 차례(2026-10-21 E040205 실측): 빈 격자 → '알림' 창, 품목만 고른 줄 → 그 [수량] 칸 말풍선.
      * 원본은 거래처가 비어도 저장된다 — 우리 전표는 거래처가 필수라(스키마) 그 검사는 뒤에 남긴다.
      */
-    const noQty = lines.findIndex((l) => l.itemId && !(num(l.quantity) > 0))
+    const noQty = lines.findIndex((l) => l.itemId && num(l.quantity) === 0)
     if (noQty >= 0) return setQtyErr(noQty)
     if (validLines.length === 0) {
       void ecAlert(`아래의 경우 처리가 불가능합니다.
@@ -1355,12 +1603,12 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     const dateKey = mode === 'sales' ? 'saleDate' : 'purchaseDate'
     const body = {
       partnerId: partnerId ? Number(partnerId) : null,
+      partnerName: anyPartner ? anyPartnerName : null,
       warehouseId: Number(warehouseId),
       vatBySlip,
       [dateKey]: date,
       // 외자도 고른 거래유형 그대로 보낸다 — 부가세 0 은 서버가 통화코드로 정한다(원본 수입 구매도 '부가세율 적용')
       taxable,
-      returnSlip,
       ...(fx ? { currencyCode, exchangeRate: num(exchangeRate) } : {}),
       remark: remark || undefined,
       projectId: projectId ? Number(projectId) : undefined,
@@ -1479,8 +1727,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       // 원본 판매입력 · 구매입력은 저장하면 말 없이 빈 칸으로 돌아간다(2026-10-21 E040205 · 10-20 E040303 실측).
       // 번호는 판매조회 · 구매조회에서 본다 — QA 흐름도 안내 글 대신 API 로 번호를 찾는다.
       reset(true)
-      // 판매입력은 저장 뒤 [거래처] 도 비운다 — 출하창고는 남는다(2026-10-22 원본 E040205 실측). 구매입력은 못 잼.
-      if (mode === 'sales' && !popup) setPartnerId('')
+      // 저장 뒤 [거래처] 도 비운다 — 창고는 남는다(판매 2026-10-22 원본 E040205 · 구매 2026-10-28 E040303 실측).
+      if (!popup) setPartnerId('')
       /* 목록을 아직 안 받았으면 저장했다고 새로 받을 까닭이 없다 — 볼 자리가 안 열려 있다. */
       if (docsAsked.current) void loadDocs()
       const afterSaveTo = afterSaveRef.current
@@ -1562,6 +1810,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
   }
 
   function saveAndPrintSlip() {
+    if (submitting.isBusy()) return   // 저장 중에 인쇄창만 하나 더 열리지 않게
     printWinRef.current = openPrintWindow()
     if (!printWinRef.current) return
     afterSaveRef.current = SLIP_PRINT_AFTER_SAVE
@@ -1571,6 +1820,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
 
   /** 원본에 있으나 아직 백엔드가 없는 버튼. 지우지 않고 사유를 붙여 비활성으로 남긴다. */
   const todo = (why: string) => ({ disabled: true, title: why })
+  /** 주문을 담은 판매 — 툴바에서 주문 · 구매 · 전표 바코드 · 전표불러오기를 감춘다. 줄을 비우면(다시 작성) 돌아온다. */
+  const orderLoaded = mode === 'sales' && lines.some((l) => l.itemId && l.sourceOrderId)
 
   const partnerDocs = docs.filter((d) => String(d.partnerId) === partnerId)
 
@@ -1668,7 +1919,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
     ...(cashAction ? [{ ...cashAction, menu: undefined }] : []),
     { label: '이전', onClick: () => popup.onMove('prev') },
     { label: '다음', onClick: () => popup.onMove('next') },
-    { label: '닫기', onClick: () => popup.onClose(false) },
+    { label: '닫기', onClick: () => popup.onClose(dateChangedRef.current) },
     { label: '삭제', onClick: () => void deleteInPopup() },
     { label: '보내기', disabled: true, disabledReason: '메일 · 팩스 보내기는 아직 없습니다.' },
     // 원본 구매 수정 창은 [H] 하나뿐 — [최종이력] 이 없다(2026-10-21 loginaa 구매 2026/10/21 -4 실측).
@@ -1694,7 +1945,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
   }
 
   return (
-    <form ref={formRef} onSubmit={submit}>
+    <form ref={formRef} onSubmit={submitting.wrap(submit)}>
       <EcSlipShell
         title={popup ? (editing ? `${cfg.title}(수정)` : cfg.title) : editing ? `${cfg.title} — ${editing.docNo} 수정` : cfg.title}
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
@@ -1724,6 +1975,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           { label: '입력값 초기화', onClick: () => reset(false) },
         ]}
         actions={popupActions ?? footerActions}
+        busy={submitting.busy}
         help={
           <ul className="pl-[16px] m-0">
             <li>이 화면은 이카운트 <b>판매입력(ESD006M)</b> 구조를 따릅니다 — 헤더 항목 폼 · 금액조정 합계 · 명세 그리드 · 하단 버튼줄.</li>
@@ -1743,7 +1995,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         <ul className={`ec-form${mode === 'sales' && !adjust ? ' [&>li>.title]:basis-[120px]' : ''}`}>
           <li>
             <div className="title">일자</div>
-            <div className="form"><EcDateField value={date} onChange={setDate} /></div>
+            <div className="form"><EcDateField value={date} onChange={setDate} disabled={!!editing} /></div>
           </li>
           <li>
             <div className="title">{cfg.partnerLabel}<span className="req">*</span></div>
@@ -1752,6 +2004,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 label={cfg.partnerLabel} hideLabel pair
                 value={partnerId} onChange={choosePartner}
                 items={partnerCodeItems(usablePartners, true)}
+                {...(anyPartner ? { nameValue: anyPartnerName, onNameChange: (n: string) => setAnyName({ id: partnerId, name: n }) } : {})}
               />
             </div>
           </li>
@@ -1784,29 +2037,6 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               </select>
             </div>
           </li>
-          {/*
-            원본 [거래구분] — 일반 · 반품. 네 화면(판매·구매일괄회계반영, 구매단가일괄변경,
-            일별이익현황)이 이 구분을 조건으로 든다.
-            반품은 그 거래의 반대다 — 판매반품은 물건이 창고로 돌아오고 채권이 준다.
-            여기서는 되돌려받는 수량을 <b>양수로</b> 적는다. 부호는 서버가 뒤집는다.
-          */}
-          {!isAdjust && (
-          <li>
-            <div className="title">거래구분</div>
-            <div className="form">
-              <select className="ec-input" value={returnSlip ? 'R' : 'N'}
-                      onChange={(e) => setReturnSlip(e.target.value === 'R')} style={{ width: 100 }}>
-                <option value="N">일반</option>
-                <option value="R">반품</option>
-              </select>
-              {returnSlip && (
-                <span className="ml-[8px] text-[11.5px] text-ec-danger">
-                  {mode === 'sales' ? '되돌려받는' : '되돌려보내는'} 수량을 양수로 적으세요. {mode === 'sales' ? '재고가 늘고 채권이 줄어듭니다.' : '재고가 줄고 채무가 줄어듭니다.'}
-                </span>
-              )}
-            </div>
-          </li>
-          )}
           <li>
             <div className="title">통화</div>
             <div className="form">
@@ -1814,6 +2044,13 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 <option value="D">내자</option>
                 <option value="F">외자</option>
               </select>
+              {/* 원본 판매입력: 임의거래처를 고르면 통화 자리에 [거래처명] 칸이 하나 더 생기고 이름 칸과 같은 값을 든다(2026-10-28 실측) */}
+              {anyPartner && (
+                <input
+                  className="ec-input w-[150px]" aria-label="거래처명" placeholder="거래처명"
+                  value={anyPartnerName} onChange={(e) => setAnyName({ id: partnerId, name: e.target.value })}
+                />
+              )}
               {mode === 'purchase' && foreign && (
                 <select
                   className="ec-input w-[120px]" aria-label="외화" value={currencyCode}
@@ -1857,7 +2094,18 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           <li>
             <div className="title">{cfg.docNoLabel}</div>
             <div className="form">
-              <input className="ec-input" readOnly value="(저장 시 자동채번)" style={{ width: 170, background: '#f4f5f7', color: 'var(--ec-text-hint)' }} />
+              <input className="ec-input" readOnly aria-label="일자-No." value={editing ? `${date.replace(/-/g, '/')} -${editing.docNo.split('-').pop()?.replace(/^0+/, '') ?? ''}` : '(저장 시 자동채번)'} style={{ width: 170, background: '#f4f5f7', color: 'var(--ec-text-hint)' }} />
+              {editing && (
+                <span className="relative inline-block ml-[4px]">
+                  <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFnOpen((o) => !o)}>Fn</button>
+                  {fnOpen && (
+                    <span className="absolute left-0 top-full z-20 bg-white border border-ec-line rounded-ec min-w-[90px]">
+                      <button type="button" className="ec-btn ec-btn-sm w-full"
+                              onClick={() => { setFnOpen(false); setDateChgTo(date); setDateChgOpen(true) }}>일자변경</button>
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
           </li>
           <li className="wide">
@@ -1995,8 +2243,9 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             )}
           </span>
           <button type="button" className="ec-btn ec-btn-sm" {...todo('BOM 소요량 전개는 [생산] 모듈에서 씁니다.')}>소요</button>
-          <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openLoadSource()}>{cfg.loadLabel}</button>
-          <button type="button" className="ec-btn ec-btn-sm" {...todo(`${cfg.counterpartLabel}전표 불러오기는 아직 연결되지 않았습니다.`)}>{cfg.counterpartLabel}</button>
+          {/* 주문을 담은 판매는 원본 툴바에서 주문 · 구매 · 불러온전표 · 전표 바코드 · 전표불러오기가 빠진다(2026-10-28 실측). */}
+          {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openLoadSource()}>{cfg.loadLabel}</button>}
+          {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" {...todo(`${cfg.counterpartLabel}전표 불러오기는 아직 연결되지 않았습니다.`)}>{cfg.counterpartLabel}</button>}
           <button type="button" className="ec-btn ec-btn-sm" {...todo('보류 전표 기능은 아직 없습니다.')}>보류</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setToolbarExpanded(true); setAdjustOn(true) }}>할인</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadStocks()}>재고불러오기</button>
@@ -2009,7 +2258,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               style={{ width: 170, height: 23 }}
             />
           )}
-          <button type="button" className="ec-btn ec-btn-sm" {...todo('전표 단위 바코드 출력은 아직 없습니다.')}>전표 바코드</button>
+          {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" {...todo('전표 단위 바코드 출력은 아직 없습니다.')}>전표 바코드</button>}
           <button type="button" className="ec-btn ec-btn-sm" onClick={verify}>검증</button>
           {mode === 'sales' && (
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openProfit()}>이익계산</button>
@@ -2019,7 +2268,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             <b>구매입력은 이 버튼이 [할인] 바로 뒤에 있다</b>(사본 실측) — 한 컴포넌트가
             두 화면을 겸해서 둘 다 맞출 수 없다. 더 많은 버튼을 가진 판매입력에 맞췄다.
           */}
-          <button type="button" className="ec-btn ec-btn-sm" onClick={() => { ensureDocs(); setSlipLoadOpen(true) }}>전표불러오기</button>
+          {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => { ensureDocs(); setSlipLoadOpen(true) }}>전표불러오기</button>}
           {/*
             판매입력 II 는 [전표불러오기] 다음이 [금액조정] · [거래별계산] 이다(2026-10-13 실측).
             할인을 [적용] 하면 버튼이 주황(원본 btn-warning 246·136·45 — 토큰 --ec-bg-tag)으로 바뀐다.
@@ -2265,14 +2514,25 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                       {it?.code ?? ''}
                     </td>
                     <td className="pad">
-                      <CodePickerField
-                        label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
-                        value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)}
-                        items={codeItems}
-                      />
+                      {l.itemId ? (
+                        /* 원본 판매입력 · 구매입력: 품목을 고르면 품목명 칸이 글자 칸이 되어 줄마다 이름을 고쳐 쓴다. 고르기 전에는 검색 칸. */
+                        <div className="flex">
+                          <input className="cell" placeholder="품목 선택" value={l.name ?? it?.name ?? ''} maxLength={200}
+                                 onChange={(e) => updateLine(idx, 'name', e.target.value)} />
+                          <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기"
+                                  onClick={() => updateLine(idx, 'itemId', '')}>🔍</button>
+                        </div>
+                      ) : (
+                        <CodePickerField
+                          label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
+                          value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)}
+                          items={codeItems}
+                        />
+                      )}
                     </td>
-                    <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">
-                      {it?.spec ?? ''}
+                    <td className="pad">
+                      <input className="cell" value={l.spec ?? it?.spec ?? ''} maxLength={200} disabled={!l.itemId}
+                             onChange={(e) => updateLine(idx, 'spec', e.target.value)} />
                     </td>
                     {!lotAfterQty && lotCell(l, idx)}
                     {cols.stockAll && (
@@ -2496,6 +2756,22 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
 
       {/* ── 열 선택 ──────────────────────────────────────── */}
       {/* ── 현금수금(판매) — 원본 '매출처로부터' 입금 창 ───────────────── */}
+      <Modal error={null} open={dateChgOpen} title="일자변경" width={360} onClose={() => setDateChgOpen(false)}>
+        <div className="ec-form">
+          <div className="flex items-center gap-[8px] mb-[6px]">
+            <span className="w-[70px]">기존일자</span>
+            <input className="ec-input" readOnly aria-label="기존일자" value={date} />
+          </div>
+          <div className="flex items-center gap-[8px] mb-[6px]">
+            <span className="w-[70px]">변경일자</span>
+            <EcDateField value={dateChgTo} onChange={setDateChgTo} />
+          </div>
+          <div className="flex gap-[4px] mt-[8px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void changeDate()}>저장</button>
+            <button type="button" className="ec-btn" onClick={() => setDateChgOpen(false)}>닫기</button>
+          </div>
+        </div>
+      </Modal>
       <Modal error={cashMsg} open={cashOpen} title={mode === 'sales' ? '매출처로부터' : '매입처로'} width={520} onClose={() => setCashOpen(false)}>
         <div className="ec-form">
           <label className="block mb-[6px]">전표일자
@@ -2640,20 +2916,55 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       </Modal>
 
       {/* ── 근거전표 불러오기 (원본 [주문]/[발주]) ────────── */}
-      <Modal error={error} open={loadOpen} title={cfg.loadTitle} width={840} onClose={() => setLoadOpen(false)}>
+      <Modal error={error} open={loadOpen} title={cfg.loadTitle} width={mode === 'sales' ? 960 : 840} onClose={() => setLoadOpen(false)}>
         {loadRows === null ? (
           <p className="text-[12.5px] text-ec-hint m-0">불러오는 중…</p>
+        ) : mode === 'sales' ? (
+          /*
+           * 원본 판매입력 [주문] = '주문서검색창(조회)'(2026-10-28 loginaa 실측): 알약 전체 · 결재중 · C-Portal · 미확인 · 확인 · 진행중 · 완료,
+           * 머리 검색칸, 전표 단위 열 일자-No. · 거래처명 · 사원(담당)명 · 품목명(요약) · 납기일자 · 주문금액합계 · 진행상태 · 생성한전표 · 인쇄,
+           * 아래 라인별 ▾ · 잔량적용(F8) · 전체적용 · 신규(F2) · 리스트 · 닫기. 판매 일자보다 늦은 주문은 없다.
+           */
+          <SourceDocSearch
+            tabs={ORDER_LOAD_TABS} tab={loadTab} onTab={setLoadTab}
+            query={loadQuery} onQuery={setLoadQuery}
+            date2Label="납기일자" totalLabel="주문금액합계"
+            docs={loadDocsShown.map((d) => ({
+              key: d.orderId, dateNo: dateNo(d.first.date, d.first.docNo), partnerName: d.first.partnerName,
+              employeeName: d.first.employeeName ?? '',
+              itemSummary: `${d.first.itemName}${d.first.spec ? ` [${d.first.spec}]` : ''}${d.lineCount > 1 ? ` 외 ${d.lineCount - 1}건` : ''}`,
+              date2: dateText(d.first.dueDate ?? '') || '', total: d.total,
+              statusLabel: ORDER_STATUS_LABEL[d.status] ?? d.first.statusName, created: d.created,
+            }))}
+            picked={loadDocPicked} onPicked={setLoadDocPicked}
+            createdTitle="생성한 전표는 주문서조회의 [생성한전표] 에서 봅니다."
+            byLine={loadByLine} onToggleByLine={() => setLoadByLine((v) => !v)}
+            lineView={(
+              <>
+                {partnerId && (
+                  <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[6px]">
+                    <input type="checkbox" checked={loadOnlyPartner} onChange={(e) => setLoadOnlyPartner(e.target.checked)} />
+                    이 전표 거래처만
+                  </label>
+                )}
+                {loadLineTable}
+              </>
+            )}
+            onApply={applyLoadPicked}
+            applyAllTitle="주문 수량 전체를 담는 [전체적용] 은 원본 동작을 아직 재지 않았습니다."
+            onNew={() => window.open('/sales/order-entry', '_blank')}
+            onList={() => window.open('/sales/orders', '_blank')}
+            onClose={() => setLoadOpen(false)}
+          />
         ) : loadRows.length === 0 ? (
-          <p className="text-[12.5px] text-ec-hint m-0">
-            {mode === 'sales' ? '미판매 잔량이 있는 주문이 없습니다.' : '아직 입고되지 않은 발주서가 없습니다.'}
-          </p>
+          <p className="text-[12.5px] text-ec-hint m-0">아직 입고되지 않은 발주서가 없습니다.</p>
         ) : (
           <>
             <p className="text-[12px] text-ec-label mt-0">
               담을 행을 체크하고 [선택 담기]를 누르면 품목·수량·단가가 명세로 들어갑니다.
             </p>
             <div className="flex items-center gap-[10px] mb-[6px]">
-              <input className="ec-input" style={{ width: 260 }} placeholder={`${mode === 'sales' ? '주문No.' : '발주No.'} · 거래처 · 품목 찾기`}
+              <input className="ec-input" style={{ width: 260 }} placeholder="발주No. · 거래처 · 품목 찾기"
                      value={loadQuery} onChange={(e) => setLoadQuery(e.target.value)} />
               {partnerId && (
                 <label className="text-[12.5px] inline-flex items-center gap-[4px]">
@@ -2663,46 +2974,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               )}
               <span className="ml-auto text-[12px] text-ec-hint">{loadShown.length.toLocaleString()} / {loadRows.length.toLocaleString()}줄 · 최근 것부터</span>
             </div>
-            <div className="max-h-[360px] overflow-y-auto border border-ec-line border-solid">
-              <table className="w-full text-left">
-                <thead>
-                  <tr>
-                    <th className="w-[30px]" />
-                    <th>{mode === 'sales' ? '주문No.' : '발주No.'}</th>
-                    <th className="w-[90px]">일자</th>
-                    <th>거래처</th>
-                    <th>품목</th>
-                    <th className="w-[70px] text-right">{mode === 'sales' ? '주문' : '발주'}</th>
-                    <th className="w-[60px] text-right">{mode === 'sales' ? '판매' : '입고'}</th>
-                    <th className="w-[70px] text-right">담을수량</th>
-                    <th className="w-[80px] text-right">단가</th>
-                    <th className="w-[70px]">상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loadShown.map((r) => (
-                    <tr
-                      key={r.key}
-                      onClick={() => setLoadPicked((p) => ({ ...p, [r.key]: !p[r.key] }))}
-                      style={{ cursor: 'pointer', background: loadPicked[r.key] ? 'var(--ec-blue-light)' : undefined }}
-                    >
-                      <td className="text-center">
-                        <input type="checkbox" readOnly checked={!!loadPicked[r.key]} />
-                      </td>
-                      <td>{r.docNo}</td>
-                      <td>{dateText(r.date)}</td>
-                      <td>{r.partnerName}</td>
-                      <td>{r.itemName}</td>
-                      <td className="text-right">{won(r.orderedQty)}</td>
-                      <td className="text-right text-ec-hint">{won(r.doneQty)}</td>
-                      <td className="text-right font-bold">{won(r.restQty)}</td>
-                      <td className="text-right">{won(r.unitPrice)}</td>
-                      <td className="text-ec-hint">{r.statusName}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {loadLineTable}
             <div className="flex items-center gap-[8px] mt-[8px]">
               <span className="text-[12.5px] text-ec-label">
                 선택 <b className="text-ec-blue">{Object.values(loadPicked).filter(Boolean).length}</b>건

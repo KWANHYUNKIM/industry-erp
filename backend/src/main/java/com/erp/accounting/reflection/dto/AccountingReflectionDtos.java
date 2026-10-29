@@ -5,6 +5,7 @@ import com.erp.trade.sales.Sales;
 import com.erp.trade.settlement.Settlement;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -125,15 +126,15 @@ public final class AccountingReflectionDtos {
                     s.getProject() != null ? s.getProject().getName() : null,
                     s.getEmployee() != null ? s.getEmployee().getName() : null,
                     s.getPartner() != null ? s.getPartner().getManager() : null,
-                    summarize(s.getLines().stream().map(l -> l.getItem().getName()).toList()),
+                    summarize(s.getLines().stream().map(l -> l.effectiveItemName()).toList()),
                     s.getSupplyAmount(), s.getVatAmount(), s.getTotalAmount(),
                     s.isTaxable() ? "과세" : "면세",
                     s.isReturnSlip() ? "반품" : "일반",
                     s.isAccountingReflected(),
                     null, null, s.getCreatedBy(), s.getCreatedAt(), s.getRemark(),
                     s.getLines().stream().map(l -> new SlipLine(
-                            l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
-                            l.getItem().getSpec(),
+                            l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(),
+                            l.effectiveSpec(),
                             l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                             l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
                             l.getQuantity(), l.getUnitPrice(),
@@ -168,15 +169,15 @@ public final class AccountingReflectionDtos {
                     p.getProject() != null ? p.getProject().getName() : null,
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
                     p.getPartner() != null ? p.getPartner().getManager() : null,
-                    summarize(p.getLines().stream().map(l -> l.getItem().getName()).toList()),
+                    summarize(p.getLines().stream().map(l -> l.effectiveItemName()).toList()),
                     p.getSupplyAmount(), p.getVatAmount(), p.getTotalAmount(),
                     p.isTaxable() ? "과세" : "면세",
                     p.isReturnSlip() ? "반품" : "일반",
                     p.isAccountingReflected(),
                     null, null, p.getCreatedBy(), p.getCreatedAt(), p.getRemark(),
                     p.getLines().stream().map(l -> new SlipLine(
-                            l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(),
-                            l.getItem().getSpec(),
+                            l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(),
+                            l.effectiveSpec(),
                             l.getItem().getCategory() != null ? l.getItem().getCategory().getDisplayName() : null,
                             l.getSourceOrder() != null ? l.getSourceOrder().getOrderNo() : null,
                             l.getQuantity(), l.getUnitPrice(),
@@ -253,8 +254,8 @@ public final class AccountingReflectionDtos {
             Long departmentId,
             Long projectId,
             Long partnerId,
-            @jakarta.validation.constraints.Size(max = 200, message = "적요는 200자까지입니다.") String note,
-            @jakarta.validation.constraints.Size(max = 30, message = "부가세유형은 30자까지입니다.") String vatType,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.") String note,
+            @Size(max = 30, message = "부가세유형은 30자까지입니다.") String vatType,
             /** 창에서 고친 공급가액. 비우면 판매 금액 그대로. */
             BigDecimal supplyAmount
     ) {}

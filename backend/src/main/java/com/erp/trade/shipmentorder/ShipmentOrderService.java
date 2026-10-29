@@ -3,12 +3,16 @@ package com.erp.trade.shipmentorder;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.hr.employee.EmployeeService;
+import com.erp.inventory.item.Item;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.warehouse.WarehouseService;
 import com.erp.trade.TradeMasters;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.trade.partner.BusinessPartnerRepository;
+import com.erp.trade.sales.Sales;
+import com.erp.trade.sales.SalesService;
+import com.erp.trade.sales.dto.SalesDtos.SalesResponse;
 import com.erp.trade.shipment.ShipmentService;
 import com.erp.trade.shipment.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.trade.shipmentorder.dto.ShipmentOrderDtos.LineRequest;
@@ -50,6 +54,8 @@ public class ShipmentOrderService {
     private final EmployeeService employeeService;
     private final ProjectService projectService;
     private final ShipmentService shipmentService;
+    private final ShipmentOrderLineRepository lineRepository;
+    private final SalesService salesService;
     private final DocumentNoGenerator docNoGenerator;
     private final com.erp.common.history.ChangeHistoryService changeHistory;
 
@@ -61,7 +67,7 @@ public class ShipmentOrderService {
         BusinessPartner p = o.getPartner();
         changeHistory.recordSlip(HISTORY_TARGET, o.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot("출하지시서", o.getOrderDate(), o.getOrderNo(),
                 p != null ? p.getCode() : null, p != null ? p.getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), o.getLines().size()),
+                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.effectiveItemName(), first.effectiveSpec(), o.getLines().size()),
                 o.getEmployee() != null ? o.getEmployee().getCode() : null,
                 o.getEmployee() != null ? o.getEmployee().getName() : null,
                 o.getStatus() != null ? o.getStatus().getDisplayName() : null));
@@ -96,7 +102,7 @@ public class ShipmentOrderService {
             if (remain.signum() <= 0) continue;
             ShipmentOrder o = l.getShipmentOrder();
             out.add(new UnshippedLine(o.getId(), o.getOrderNo(), o.getOrderDate(), l.getId(),
-                    l.getItem().getId(), l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(),
+                    l.getItem().getId(), l.getItem().getCode(), l.effectiveItemName(), l.effectiveSpec(),
                     l.getItem().getUnit(), l.getQuantity(), remain,
                     o.getWarehouse() != null ? o.getWarehouse().getId() : null,
                     o.getWarehouse() != null ? o.getWarehouse().getName() : null,
@@ -107,6 +113,23 @@ public class ShipmentOrderService {
                     o.getDueDate(), l.getRemark()));
         }
         return out;
+    }
+
+    /**
+     * 출하지시서입력 [판매] — 원본 '판매검색창(조회)'. 아직 출하지시서가 안 걸린 판매, 출하지시서 일자까지(늦은 판매는 빠진다).
+     * 원본은 오늘 생긴 판매 2건만 보였다(루프 27) — 기간을 안 주면 일자 한 달 전부터로 본다(추정).
+     */
+    @Transactional(readOnly = true)
+    public List<SalesResponse> findLoadableSales(LocalDate from, LocalDate to) {
+        LocalDate end = to != null ? to : LocalDate.now();
+        Set<Long> linked = new HashSet<>(lineRepository.findLinkedSalesIds());
+        return salesService.findAll(from != null ? from : end.minusMonths(1), end).stream()
+                .filter(s -> !linked.contains(s.id()))
+                .toList();
+    }
+
+    private Sales salesOf(Long salesId) {
+        return salesId == null ? null : salesService.get(salesId);
     }
 
     @Transactional
@@ -120,8 +143,11 @@ public class ShipmentOrderService {
                 .build();
         applyHeader(o, req, date);
         for (LineRequest lr : req.lines()) {
-            o.addLine(ShipmentOrderLine.builder().item(itemService.getUsable(lr.itemId()))
-                    .quantity(lr.quantity()).remark(lr.remark()).build());
+            Item item = itemService.getUsable(lr.itemId());
+            o.addLine(ShipmentOrderLine.builder().item(item)
+                    .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId()))
+                    .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
         }
         o.setTotalQuantity(total(o));
         ShipmentOrder savedOne = repository.save(o);
@@ -143,18 +169,41 @@ public class ShipmentOrderService {
         for (LineRequest lr : req.lines()) {
             ShipmentOrderLine line = lr.id() != null ? byId.get(lr.id()) : null;
             if (line == null) {
-                added.add(ShipmentOrderLine.builder().item(itemService.getUsable(lr.itemId()))
-                        .quantity(lr.quantity()).remark(lr.remark()).build());
+                Item item = itemService.getUsable(lr.itemId());
+                added.add(ShipmentOrderLine.builder().item(item)
+                        .quantity(lr.quantity()).remark(lr.remark()).sales(salesOf(lr.salesId()))
+                        .itemName(lr.itemName() != null && !lr.itemName().isBlank() ? lr.itemName().trim() : item.getName())
+                    .spec(lr.spec() != null ? lr.spec() : item.getSpec()).build());
                 continue;
             }
             keep.add(line.getId());
-            if (!line.getItem().getId().equals(lr.itemId())) line.setItem(itemService.getUsable(lr.itemId()));
+            if (!line.getItem().getId().equals(lr.itemId())) {
+                line.setItem(itemService.getUsable(lr.itemId()));
+                line.setItemName(line.getItem().getName());
+                if (lr.spec() == null) line.setSpec(line.getItem().getSpec());
+            }
+            if (lr.itemName() != null && !lr.itemName().isBlank()) line.setItemName(lr.itemName().trim());
+            if (lr.spec() != null) line.setSpec(lr.spec());
             line.setQuantity(lr.quantity());
             line.setRemark(lr.remark());
+            if (lr.salesId() != null) line.setSales(salesOf(lr.salesId()));
         }
         o.getLines().removeIf(l -> !keep.contains(l.getId()));
         added.forEach(o::addLine);
         o.setTotalQuantity(total(o));
+        repository.flush();
+        recordHistory(o, com.erp.common.history.ChangeHistoryService.UPDATED);
+        return respond(o);
+    }
+
+    /** 일자변경(원본 [Fn] → [일자변경]) — 새 날짜의 다음 번호로 지시서번호를 다시 매긴다. 재고 수불 없음. */
+    @Transactional
+    public ShipmentOrderResponse changeDate(Long id, LocalDate newDate) {
+        if (newDate == null) throw ApiException.badRequest("변경일자를 입력하세요.");
+        ShipmentOrder o = load(id);
+        if (newDate.equals(o.getOrderDate())) throw ApiException.badRequest("기존일자와 같은 날짜입니다.");
+        o.setOrderDate(newDate);
+        o.setOrderNo(docNoGenerator.next("SI-", "shipment_orders", "order_no", "order_date", newDate));
         repository.flush();
         recordHistory(o, com.erp.common.history.ChangeHistoryService.UPDATED);
         return respond(o);
@@ -199,7 +248,7 @@ public class ShipmentOrderService {
                 BigDecimal remain = l.getQuantity().subtract(shipped.getOrDefault(l.getId(), BigDecimal.ZERO));
                 if (sl.quantity().compareTo(remain) > 0) {
                     throw ApiException.badRequest(String.format("출하수량이 잔량을 초과합니다. 품목=%s, 잔량=%s, 요청=%s",
-                            l.getItem().getName(), remain.stripTrailingZeros().toPlainString(),
+                            l.effectiveItemName(), remain.stripTrailingZeros().toPlainString(),
                             sl.quantity().stripTrailingZeros().toPlainString()));
                 }
                 qty.put(l, sl.quantity());

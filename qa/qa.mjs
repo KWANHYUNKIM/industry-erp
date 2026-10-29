@@ -1093,7 +1093,7 @@ async function scenarioSalesPlanScope(f) {
    */
   await must('POST', '/sales', {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: `${year}-05-11`,
-    returnSlip: true, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 10000 }],
+    lines: [{ itemId: f.product.id, quantity: -1, unitPrice: 10000 }],
   })
   const amtOf = (list, id) => Number(list.find((r) => r.id === id)?.actualAmount ?? 0)
   const all = await must('GET', `/sales-plans/comparison?year=${year}&saleFlag=전체`)
@@ -1653,7 +1653,7 @@ async function scenarioPurchaseOrder(f) {
   eq('[원본] 세금계산서 없는 판매는 미청구금액이 합계만큼 는다', (await unb(f.customer.id)) - unb0, 1101)
   const back = await must('POST', '/sales', {
     saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
-    returnSlip: true, lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
+    lines: [{ itemId: f.product.id, quantity: -3, unitPrice: 333.5 }],
   })
   eq('[일관성] 같은 값 반품은 -1,101 (음수도 크기를 반올림)', Number(back.totalAmount), -1101)
   eq('[일관성] 반품 뒤 채권이 처음으로 돌아온다', (await arOf(f.customer.id)) - ar0, 0)
@@ -1703,8 +1703,8 @@ async function scenarioPurchaseOrder(f) {
   eq('[원본] 단가는 333.5 그대로', Number(typed.lines[0].unitPrice), 333.5)
   eq('[일관성] 채권도 고친 합계 1,110 만큼', (await arOf(f.customer.id)) - ar1, 1110)
   const typedBack = await must('POST', '/sales', {
-    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true, returnSlip: true,
-    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, supplyAmount: 1009 }],
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: -3, unitPrice: 333.5, supplyAmount: -1009 }],
   })
   eq('[일관성] 같은 값 반품은 -1,009/-101/-1,110', amt(typedBack), '-1009/-101/-1110')
   const typedP = await must('POST', '/purchases', {
@@ -2010,9 +2010,13 @@ async function scenarioBankCard() {
   })
   eq('출금 후 잔액 = 입금 후 - 출금액', Number(withdraw.balanceAfter), Number(deposit.balanceAfter) - 200_000)
 
-  await rejects('잔액보다 많은 출금은 거부', 'POST', '/bank-cards/transactions', {
+  // 원본처럼 잔액을 넘는 출금도 받는다(마이너스 통장) — 넣고 바로 지워 잔액을 되돌린다
+  const over = await must('POST', '/bank-cards/transactions', {
     bankAccountId: bank.id, deposit: false, amount: Number(withdraw.balanceAfter) + 1, counterAccountId: cash.id,
-  }, '잔액이 부족')
+    txnDate: '2026-07-14', description: 'QA 잔액초과출금',
+  })
+  eq('잔액보다 많은 출금은 마이너스 잔액으로', Number(over.balanceAfter), -1)
+  await must('DELETE', `/bank-cards/transactions/${over.id}`)
 
   const usage = await must('POST', '/bank-cards/usages', {
     cardId: card.id, merchant: 'QA가맹점', expenseAccountId: welfare.id,
@@ -3446,8 +3450,6 @@ async function scenarioCashDetail() {
 
   await rejects('같은 계좌로는 이동 불가', 'POST', '/cash-details/account-transfers',
     { fromAccountId: from.id, toAccountId: from.id, amount: 1_000 }, '같을 수 없습니다')
-  await rejects('잔액보다 많은 이동은 거부', 'POST', '/cash-details/account-transfers',
-    { fromAccountId: from.id, toAccountId: to.id, amount: 999_999_999 }, '잔액이 부족')
 
   // ── 카드대금 결제: 카드사용 때 잡은 미지급금을 결제계좌에서 갚는다
   const cardNo = `${P}5310-****-****-0002`
@@ -10109,8 +10111,8 @@ async function scenarioSlipPriceBulk(f) {
  * <p>우리에겐 반품 개념이 아예 없어서, 되돌려받은 물건을 다시 '판매' 로 적거나 아무 데도
  * 안 적었다. 어느 쪽이든 재고와 채권이 실제와 어긋난다.
  *
- * <p>반품은 그 거래의 <b>반대</b>다. 저장할 때 수량·금액을 음수로 뒤집으므로,
- * 읽는 쪽(재고·채권·현황)은 아무것도 안 바꿔도 맞는다 — 그것을 여기서 잰다.
+ * <p>반품은 그 거래의 <b>반대</b>다. 원본처럼 일반 전표에 음수 수량으로 적고(입력 화면에 거래구분 칸 없음),
+ * 줄이 전부 음수인 전표를 위 네 화면이 반품으로 거른다 — 재고 · 채권 · 조건이 맞는지 여기서 잰다.
  */
 async function scenarioReturnSlip(f) {
   section('■ 거래구분 — 일반 · 반품')
@@ -10138,24 +10140,23 @@ async function scenarioReturnSlip(f) {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-20',
     lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 1000 }],
   })
-  eq('안 주면 일반 거래다', sale.returnSlip, false)
+  eq('양수 줄이면 일반 거래다', sale.returnSlip, false)
   eq('거래구분 표시값도 일반', sale.tradeKindName, '일반')
   eq('판매하면 재고가 준다', await stockOf(f.product.id), stock0 - 10)
   eq('판매 금액은 양수', Number(sale.totalAmount), 11000)
   eq('채권이 는다', await arOf(), ar0 + 11000)
 
   /*
-   * 반품. 화면은 <b>되돌려받는 수량을 양수로</b> 적는다(원본도 그렇다) —
-   * 부호를 뒤집는 것은 서버가 한 번만 한다.
+   * 반품. 원본처럼 일반 판매에 <b>음수 수량</b>으로 적는다(입력 화면에 거래구분 칸 없음, 2026-10-28 loginaa
+   * [반품처리]). 줄이 전부 음수면 서버가 반품 전표로 읽는다(저장 칸 없음).
    */
   const ret = await must('POST', '/sales', {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-07-21',
-    returnSlip: true,
-    lines: [{ itemId: f.product.id, quantity: 4, unitPrice: 1000 }],
+    lines: [{ itemId: f.product.id, quantity: -4, unitPrice: 1000 }],
   })
-  eq('반품으로 저장된다', ret.returnSlip, true)
+  eq('줄이 전부 음수면 반품 전표로 읽힌다', ret.returnSlip, true)
   eq('거래구분 표시값은 반품', ret.tradeKindName, '반품')
-  // 저장은 음수다 — 읽는 쪽이 아무것도 안 바꿔도 맞게 하려고 여기서 한 번 뒤집는다
+  // 적은 그대로 음수로 저장된다 — 읽는 쪽(재고 · 채권)은 부호만 따른다
   eq('반품 전표의 금액은 음수', Number(ret.totalAmount), -4400)
   eq('반품 라인 수량도 음수', Number(ret.lines[0].quantity), -4)
   eq('되돌려받은 물건이 창고로 들어온다', await stockOf(f.product.id), stock0 - 10 + 4)
@@ -10183,8 +10184,7 @@ async function scenarioReturnSlip(f) {
 
   const pRet = await must('POST', '/purchases', {
     partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-21',
-    returnSlip: true,
-    lines: [{ itemId: f.material.id, quantity: 3, unitPrice: 500 }],
+    lines: [{ itemId: f.material.id, quantity: -3, unitPrice: 500 }],
   })
   eq('구매반품도 음수로 저장된다', Number(pRet.totalAmount), -1650)
   eq('되돌려주는 물건이 창고에서 나간다', await stockOf(f.material.id), pStock0 + 10 - 3)
@@ -10192,13 +10192,12 @@ async function scenarioReturnSlip(f) {
 
   /*
    * 재고보다 많이 되돌려줄 수는 없다. 반품도 <b>같은 재고 규칙</b>을 지난다 —
-   * 부호만 뒤집었지 따로 난 길이 아니다.
+   * 음수 줄일 뿐 따로 난 길이 아니다.
    */
   await rejects('재고보다 많이 되돌려줄 수 없다', 'POST', '/purchases',
     {
       partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-21',
-      returnSlip: true,
-      lines: [{ itemId: f.material.id, quantity: 999999, unitPrice: 500 }],
+      lines: [{ itemId: f.material.id, quantity: -999999, unitPrice: 500 }],
     }, '재고가 부족합니다')
 
   /*
@@ -10228,15 +10227,15 @@ async function scenarioReturnSlip(f) {
 
   /*
    * 원본 구매조회의 <b>[반품처리]</b> — 그 전표를 근거로 반품 전표를 <b>새로</b> 만든다.
-   * 화면은 구매입력을 [거래구분: 반품]으로 열어 라인을 담아 주고, 저장은 평범한 등록이다.
+   * 화면은 구매입력을 같은 머리 · 음수 수량으로 열어 주고, 저장은 평범한 등록이다.
    * 여기서 재는 것은 <b>원 전표가 손대지 않고 그대로 남는가</b>이다 —
    * 원 전표의 수량을 깎으면 애초에 그만큼만 산 것이 되어 이력이 사라진다.
    */
   const beforeBuy = (await must('GET', '/purchases')).find((x) => x.id === buy.id)
   const partial = await must('POST', '/purchases', {
     partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-22',
-    returnSlip: true, remark: `반품 (근거전표 ${buy.docNo})`,
-    lines: [{ itemId: f.material.id, quantity: 2, unitPrice: 500 }],
+    remark: `반품 (근거전표 ${buy.docNo})`,
+    lines: [{ itemId: f.material.id, quantity: -2, unitPrice: 500 }],
   })
   eq('일부만 되돌려줄 수 있다', Number(partial.lines[0].quantity), -2)
   const afterBuy = (await must('GET', '/purchases')).find((x) => x.id === buy.id)
@@ -10896,6 +10895,13 @@ async function main() {
   }
   if (cmd === 'password-history') {
     await scenarioPasswordHistory()
+    console.log(`\n통과 ${pass} / 실패 ${fail}`)
+    process.exit(fail ? 1 : 0)
+  }
+  if (cmd === 'return-slip') {   // 반품(음수 수량 일반 전표)만 빠르게 — 거래구분 · 매출계획 반품구분 · 반품 반올림
+    await scenarioReturnSlip(fixtures)
+    await scenarioSalesPlanScope(fixtures)
+    await scenarioPurchaseOrder(fixtures)
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
     process.exit(fail ? 1 : 0)
   }

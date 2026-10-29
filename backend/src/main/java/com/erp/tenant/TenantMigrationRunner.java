@@ -38,6 +38,7 @@ public class TenantMigrationRunner implements ApplicationRunner {
     private final CompanyRepository companyRepository;
     private final DataSource dataSource;
     private final TenantSeeder tenantSeeder;
+    private final StartupGate startupGate;
 
     /** 본사 Flyway 와 같은 값(spring.flyway.out-of-order). 기본 false — 공유 개발 서버만 qa/restart-backend.sh 가 true 로 띄운다.
      *  여럿이 마이그레이션 번호를 받아 커밋하는 차례가 엇갈리면(V391 이 V392 뒤에 들어옴) 기동이 거절되던 것. */
@@ -46,6 +47,14 @@ public class TenantMigrationRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        try {
+            migrateAll();
+        } finally {
+            startupGate.markReady();   // 실패해도 서버는 연다(회사 하나가 깨졌다고 모두를 막지 않는다)
+        }
+    }
+
+    private void migrateAll() {
         List<Company> companies;
         try {
             companies = companyRepository.findAll();
