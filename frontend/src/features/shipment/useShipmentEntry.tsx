@@ -184,8 +184,10 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
 
   async function openPicker() {
     try {
-      const res = await api.get<SoLite[]>('/shipment-orders', { params: { from: '2000-01-01', to: '2999-12-31' } })
-      setOrders(res.data.filter((o) => o.status === 'IN_PROGRESS')); setPicked(null); setPickOpen(true)
+      /* 원본 판매입력 [주문] 과 같다 — 잔량이 남은 지시서만, 출하 일자보다 늦은 지시서는 빼고(to=출하 일자).
+       * 다 나간 지시서(10/17-1 처럼 잔량 0)가 '진행중' 으로 또 떴다(2026-10-29 QA). */
+      const res = await api.get<SoLite[]>('/shipment-orders', { params: { from: '2000-01-01', to: head.shipDate || ymd(new Date()) } })
+      setOrders(res.data.filter((o) => o.status === 'IN_PROGRESS' && o.lines.some((l) => l.unshippedQty > 0))); setPicked(null); setPickOpen(true)
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   /** 잔량적용(F8) — 지시서 줄의 미출하 잔량을 격자에 채우고 머리를 지시서에서 받는다. */
