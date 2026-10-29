@@ -109,6 +109,10 @@ public class Employee extends BaseTimeEntity {
     @Column(name = "foreign_name2", length = 100)
     private String foreignName2;
 
+    /** 원본 [주민등록번호] — 기본 탭 성명 아래 칸, 필수 아님. 개인정보라 급여를 못 보는 사람에게는 가린다(maskSalary). */
+    @Column(name = "resident_no", length = 20)
+    private String residentNo;
+
     /** 원본 [세대주여부] — 세대주 · 세대원 · 세대주의 배우자(원본 처음 값 세대주). */
     @Column(length = 20)
     private String household;

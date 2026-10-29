@@ -18,7 +18,7 @@ import com.erp.trade.salesorder.SalesOrderRepository;
 import com.erp.trade.salesorder.SalesOrderService;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.warehouse.WarehouseService;
-import com.erp.hr.employee.EmployeeService;
+import com.erp.inventory.salesrep.SalesRepService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,7 +60,7 @@ public class ShipmentService {
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
     private final WarehouseService warehouseService;
-    private final EmployeeService employeeService;
+    private final SalesRepService salesRepService;
     private final DocumentNoGenerator docNoGenerator;
     private final com.erp.inventory.project.ProjectService projectService;
     private final com.erp.trade.shipmentorder.ShipmentOrderLineRepository shipmentOrderLineRepository;
@@ -145,7 +145,7 @@ public class ShipmentService {
         // 비워 두면 그 화면에서 통째로 빠진다.
         shipment.setDueDate(req.dueDate() != null ? req.dueDate() : shipDate);
         shipment.setWarehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null);
-        shipment.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
+        shipment.setEmployee(req.employeeId() != null ? salesRepService.getUsable(req.employeeId()) : null);
         shipment.setContact(req.contact());
         shipment.setPostalCode(req.postalCode());
         // 배송지를 안 주면 거래처 주소를 기본으로 채운다. 대개 그리로 보내고,

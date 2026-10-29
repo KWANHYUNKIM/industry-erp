@@ -101,6 +101,7 @@ public class EmployeeService {
                 .foreignName1(blankToNull(req.foreignName1()))
                 .foreignName2(blankToNull(req.foreignName2()))
                 .household(blankToNull(req.household()))
+                .residentNo(blankToNull(req.residentNo()))
                 .zipcode(blankToNull(req.zipcode()))
                 .address(req.address())
                 .bankCode(req.bankCode())
@@ -152,6 +153,7 @@ public class EmployeeService {
         if (req.foreignName1() != null) e.setForeignName1(blankToNull(req.foreignName1()));
         if (req.foreignName2() != null) e.setForeignName2(blankToNull(req.foreignName2()));
         if (req.household() != null) e.setHousehold(blankToNull(req.household()));
+        if (req.residentNo() != null) e.setResidentNo(blankToNull(req.residentNo()));
         if (req.zipcode() != null) e.setZipcode(blankToNull(req.zipcode()));
         e.setAddress(req.address());
         e.setBankCode(req.bankCode());

@@ -42,7 +42,7 @@ public class ShipmentOrder extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    private com.erp.hr.employee.Employee employee;
+    private com.erp.inventory.salesrep.SalesRep employee;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "warehouse_id")

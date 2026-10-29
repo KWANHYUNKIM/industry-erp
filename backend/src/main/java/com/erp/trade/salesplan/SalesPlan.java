@@ -58,7 +58,7 @@ public class SalesPlan extends BaseTimeEntity {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    private com.erp.hr.employee.Employee employee;
+    private com.erp.inventory.salesrep.SalesRep employee;
 
     /**
      * 예상매출일자. 원본 매출계획입력 머리의 날짜다.

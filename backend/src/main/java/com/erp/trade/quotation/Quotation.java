@@ -3,7 +3,7 @@ package com.erp.trade.quotation;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.inventory.warehouse.Warehouse;
 import com.erp.inventory.project.Project;
-import com.erp.hr.employee.Employee;
+import com.erp.inventory.salesrep.SalesRep;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -74,7 +74,7 @@ public class Quotation extends BaseTimeEntity {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    private Employee employee;
+    private SalesRep employee;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

@@ -5,7 +5,6 @@ import com.erp.hr.employee.dto.EmployeeDtos.AssignmentResponse;
 import com.erp.hr.employee.dto.EmployeeDtos.AssignmentSlipRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.CreateAssignmentRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;
-import com.erp.hr.employee.dto.EmployeePerformanceDtos.PerformanceSummary;
 import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +16,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDate;
 import java.util.List;
 import com.erp.hr.employee.dto.EmployeeDtos;
-import com.erp.hr.employee.dto.EmployeePerformanceDtos;
 
 /**
  * 사원 마스터. 급여관리 기초등록의 사원등록에 대응.
@@ -30,15 +28,6 @@ public class EmployeeController {
 
     private final EmployeeService employeeService;
     private final EmployeeProfileService profileService;
-    private final EmployeePerformanceService performanceService;
-
-    /** 담당자별 실적: 전표에 붙은 담당 사원으로 판매·구매를 집계한다(입력 계정이 아니다). */
-    @GetMapping("/performance")
-    public PerformanceSummary performance(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return performanceService.performance(from, to);
-    }
 
     @GetMapping
     public List<EmployeeResponse> list(@AuthenticationPrincipal UserPrincipal principal) {

@@ -9,7 +9,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import com.erp.common.BaseTimeEntity;
-import com.erp.hr.employee.Employee;
+import com.erp.inventory.salesrep.SalesRep;
 import com.erp.inventory.project.Project;
 import com.erp.inventory.warehouse.Warehouse;
 
@@ -80,7 +80,7 @@ public class Purchase extends BaseTimeEntity {
     /** 담당 사원. createdBy(입력 계정)와 다르다 — 실적은 담당자에게 붙는다. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    private Employee employee;
+    private SalesRep employee;
 
     /** 회계반영 여부 (구매 전표 → 회계 분개 반영 완료) */
     @Column(nullable = false)

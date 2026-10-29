@@ -71,7 +71,7 @@ public final class MenuPermissionCatalog {
         Map<String, String> m = new LinkedHashMap<>();
         // 재고 마스터
         put(m, "INV_MASTER", "/api/items", "/api/item-groups", "/api/warehouses",
-                "/api/management-items", "/api/lots");
+                "/api/management-items", "/api/lots", "/api/sales-reps");
         put(m, "PARTNER", "/api/partners", "/api/partner-groups", "/api/business-cards",
                 "/api/crm-activities");
         put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/sales-plans", "/api/quotations", "/api/shipments", "/api/shipment-orders",

@@ -13,7 +13,7 @@ import java.util.List;
 import com.erp.common.BaseTimeEntity;
 import com.erp.inventory.warehouse.Warehouse;
 import com.erp.inventory.project.Project;
-import com.erp.hr.employee.Employee;
+import com.erp.inventory.salesrep.SalesRep;
 
 /**
  * 주문서(수주). 매출처로부터 받은 주문. 판매입력의 전 단계(미판매 관리).
@@ -74,7 +74,7 @@ public class SalesOrder extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    private Employee employee;
+    private SalesRep employee;
 
     /** 원본 주문서의 [통화] — 내자(비어 있음) 또는 외화등록의 통화 코드. 다른전표생성 입력 창의 [통화] 직접입력이 정한다(2026-10-22 실측). */
     @Column(name = "currency_code", length = 10)

@@ -18,7 +18,7 @@ import com.erp.trade.partner.BusinessPartnerRepository;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.warehouse.WarehouseService;
-import com.erp.hr.employee.EmployeeService;
+import com.erp.inventory.salesrep.SalesRepService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +43,7 @@ public class QuotationService {
     /* 다른 모듈의 값은 그 모듈이 공개한 service 를 거친다(CLAUDE.md 4.2). */
     private final WarehouseService warehouseService;
     private final ProjectService projectService;
-    private final EmployeeService employeeService;
+    private final SalesRepService salesRepService;
     private final SalesOrderService salesOrderService;
     private final DocumentNoGenerator docNoGenerator;
     private final ChangeHistoryService changeHistory;
@@ -89,7 +89,7 @@ public class QuotationService {
                 .partnerName(TradeMasters.partnerNameSnapshot(partner, req.partnerName()))
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
-                .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
+                .employee(req.employeeId() == null ? null : salesRepService.get(req.employeeId()))
                 .status(QuotationStatus.IN_PROGRESS)
                 .remark(req.remark())
                 .createdBy(username)
@@ -120,7 +120,7 @@ public class QuotationService {
         q.setValidUntil(req.validUntil());
         q.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         q.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
-        q.setEmployee(req.employeeId() == null ? null : employeeService.get(req.employeeId()));
+        q.setEmployee(req.employeeId() == null ? null : salesRepService.get(req.employeeId()));
         q.setRemark(req.remark());
         q.getLines().clear();
         fillLines(q, req.lines(), req.taxable() == null || req.taxable());
