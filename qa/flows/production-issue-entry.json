@@ -1,0 +1,33 @@
+{
+  "about": "생산불출입력 화면(원본 E040404 — 창이 아니라 입력 화면, 2026-10-30 생산불출 등록 창에서 옮김). node qa/shot.mjs qa/flows/production-issue-entry.json — 머리 일자 · 담당자 · 보내는창고 · 받는공장 · 프로젝트, 격자 품목코드 칸에 코드 + Enter, 받는공장 비면 '받는공장을 입력바랍니다.' 로 저장 안 됨. 저장하지 않는다.",
+  "shots": [
+    {
+      "name": "생산불출입력 — 화면(창 아님) · 원본 머리 다섯 칸 · 격자 열 차례 · 품목코드 칸 코드 + Enter 로 품목명이 찬다 · 받는공장 없이 저장하면 원본 글",
+      "path": "/production/issue-entry",
+      "steps": [
+        "wait:1500",
+        "expect:!document.querySelector('[role=dialog]') && /생산불출입력/.test(document.querySelector('.ec-slip .ec-slip-title').innerText)",
+        "expect:JSON.stringify([...document.querySelectorAll('.ec-slip .ec-form > li .title')].map((t) => t.textContent.trim())) === JSON.stringify(['일자', '담당자', '보내는창고', '받는공장', '프로젝트'])",
+        "expect:(() => { const h = [...document.querySelectorAll('.ec-slip table thead th')].map((t) => t.textContent.trim()); const i = (n) => h.indexOf(n); return i('불러온 전표일자') > 0 && i('불러온 전표일자') < i('작업지시품목코드') && i('작업지시품목코드') < i('품목코드') && i('품목코드') < i('품목명') && i('품목명') < i('수량') && i('수량') < i('적요') })()",
+        "expect:['찾기(F3)', '정렬', 'My품목', '작업지시서', '전표불러오기', '재고불러오기', '바코드', '검증'].every((t) => [...document.querySelectorAll('.ec-slip .ec-toolbar button')].some((b) => b.textContent.trim() === t)) && ['저장(F8)', '다시 작성', '리스트'].every((t) => [...document.querySelectorAll('.ec-slip-footer button')].some((b) => b.textContent.trim() === t))",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const el = document.querySelector('.ec-slip input[aria-label=\"품목검색\"]'); el.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'ITM-0001'); el.dispatchEvent(new Event('input', { bubbles: true })); await W(150); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await W(500); return true })()",
+        "expect:(() => { const tr = document.querySelector('.ec-slip table tbody tr'); const h = [...document.querySelectorAll('.ec-slip table thead th')].map((t) => t.textContent.trim()); return tr.querySelector('input[aria-label=\"품목검색\"]').value === 'ITM-0001' && tr.cells[h.indexOf('품목명')].innerText.trim() !== '' })()",
+        "set:.ec-slip input[aria-label=\"1번째 줄 수량\"]|1",
+        "click:저장(F8)",
+        "wait:600",
+        "expect:location.pathname === '/production/issue-entry' && document.querySelector('.ec-slip .ec-alert-danger')?.innerText.includes('받는공장을 입력바랍니다.')",
+        "click:리스트",
+        "wait:1200",
+        "expect:location.pathname === '/production/issue'"
+      ]
+    },
+    {
+      "name": "생산불출조회 [신규(F2)] 와 옛 주소 ?new=1 은 생산불출입력 화면으로 간다",
+      "path": "/production/issue?new=1",
+      "steps": [
+        "wait:1500",
+        "expect:location.pathname === '/production/issue-entry' && !!document.querySelector('.ec-slip')"
+      ]
+    }
+  ]
+}

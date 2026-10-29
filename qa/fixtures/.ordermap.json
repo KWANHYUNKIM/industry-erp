@@ -349,7 +349,7 @@
  ],
  [
   "생산불출입력",
-  "production/IssuePage.tsx"
+  "production/IssueEntryPage.tsx"
  ],
  [
   "판매입력II",

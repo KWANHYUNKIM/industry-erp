@@ -660,7 +660,7 @@
   "palette": 0
  },
  "pages/inventory/TransferPage.tsx": {
-  "inline": 15,
+  "inline": 14,
   "color": 1,
   "palette": 0
  },
@@ -705,8 +705,8 @@
   "palette": 0
  },
  "pages/production/IssuePage.tsx": {
-  "inline": 20,
-  "color": 2,
+  "inline": 15,
+  "color": 0,
   "palette": 0
  },
  "pages/production/IssueStatusPage.tsx": {

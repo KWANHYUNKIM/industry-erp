@@ -277,6 +277,7 @@ const ExportStatusPage = lazy(() => import('../pages/trade/ExportStatusPage'))
 const MallPage = lazy(() => import('../pages/trade/MallPage'))
 const PlanningPage = lazy(() => import('../pages/production/PlanningPage'))
 const TransferPage = lazy(() => import('../pages/inventory/TransferPage'))
+const TransferEntryPage = lazy(() => import('../pages/inventory/TransferEntryPage'))
 const StockMoveListPage = lazy(() => import('../pages/inventory/StockMoveListPage'))
 const SelfUseInputPage = lazy(() => import('../pages/inventory/SelfUseInputPage'))
 const AdjustListPage = lazy(() => import('../pages/inventory/AdjustListPage'))
@@ -299,6 +300,7 @@ const BorPage = lazy(() => import('../pages/production/BorPage'))
 const WoStatusPage = lazy(() => import('../pages/production/WoStatusPage'))
 const WoEfficiencyPage = lazy(() => import('../pages/production/WoEfficiencyPage'))
 const IssuePage = lazy(() => import('../pages/production/IssuePage'))
+const IssueEntryPage = lazy(() => import('../pages/production/IssueEntryPage'))
 const WorkResultPage = lazy(() => import('../pages/production/WorkResultPage'))
 const WorkProcessPage = lazy(() => import('../pages/production/WorkProcessPage'))
 const CostBuildPage = lazy(() => import('../pages/accounting/CostBuildPage'))
@@ -507,6 +509,7 @@ export default function AppRouter() {
         <Route path="/inventory/disposal-status" element={<StockMoveStatusPage kind="DISPOSAL" />} />
         <Route path="/inventory/adjust-status" element={<StockMoveStatusPage kind="ADJUST" />} />
         <Route path="/inventory/transfer" element={<TransferPage />} />
+        <Route path="/inventory/transfer-entry" element={<TransferEntryPage />} />
         <Route path="/inventory/stocktake" element={<StocktakePage />} />
         <Route path="/inventory/wms" element={<WmsPage />} />
         {/* WMS — 바깥 WMS 연동 화면들(틀만, WmsFramePage 머리말) */}
@@ -549,6 +552,7 @@ export default function AppRouter() {
         <Route path="/production/wo-status" element={<WoStatusPage />} />
         <Route path="/production/wo-efficiency" element={<WoEfficiencyPage />} />
         <Route path="/production/issue" element={<IssuePage />} />
+        <Route path="/production/issue-entry" element={<IssueEntryPage />} />
         <Route path="/production/issue-status" element={<IssueStatusPage />} />
         <Route path="/production/work-result" element={<WorkResultPage />} />
         <Route path="/production/work-result-list" element={<WorkResultInquiryPage />} />

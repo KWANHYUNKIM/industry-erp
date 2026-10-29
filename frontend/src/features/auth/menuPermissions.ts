@@ -19,6 +19,7 @@ const RULES: Rule[] = [
   ['/inventory/stock-analysis', 'STOCK_MOVE'],
   ['/inventory/executive-report', 'STOCK_MOVE'],
   ['/inventory/transfer', 'STOCK_MOVE'],
+  ['/inventory/transfer-entry', 'STOCK_MOVE'],
   ['/inventory/stocktake', 'STOCK_MOVE'],
   ['/inventory/staged-adjustment', 'STOCK_MOVE'],
   ['/inventory/staged-progress', 'STOCK_MOVE'],

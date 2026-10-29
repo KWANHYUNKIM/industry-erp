@@ -250,7 +250,7 @@ const MENU: TopMenu[] = [
               { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
             ],
           },
-          { label: '생산불출', children: [{ label: '생산불출조회', to: '/production/issue' }, { label: '생산불출입력', to: '/production/issue?new=1' }, { label: '생산불출현황', to: '/production/issue-status' }] },
+          { label: '생산불출', children: [{ label: '생산불출조회', to: '/production/issue' }, { label: '생산불출입력', to: '/production/issue-entry' }, { label: '생산불출현황', to: '/production/issue-status' }] },
           { label: '작업', children: [{ label: '작업내역입력', to: '/production/work-result' }, { label: '작업내역조회', to: '/production/work-result-list' }, { label: '작업내역현황', to: '/production/work-result-status' }] },
           {
             label: '생산입고',
@@ -278,9 +278,9 @@ const MENU: TopMenu[] = [
         ],
       },
       /* 원본 기타이동 탭(2026-10-20 loginaa 실측): 창고이동 · 자가사용 · 불량처리 · 재고조정 · 기타이동현황 다섯 묶음.
-         창고이동조회 · 입력은 아직 기타이동 화면(창고이동 탭 · 등록 창)이 맡는다 — 원본은 여러 줄 전표 · 수정이 되는 별도 화면. */
+         창고이동조회는 기타이동 화면(창고이동 탭)이, 창고이동입력은 따로 있는 입력 화면이 맡는다(원본 — 수정만 창 '창고이동수정'). */
       { label: '기타이동', home: '/inventory/transfer', open: ['기타이동현황'], nodes: [
-        { label: '창고이동', children: [{ label: '창고이동조회', to: '/inventory/transfer' }, { label: '창고이동입력', to: '/inventory/transfer?new=1' }, { label: '창고이동현황', to: '/inventory/transfer-status' }] },
+        { label: '창고이동', children: [{ label: '창고이동조회', to: '/inventory/transfer' }, { label: '창고이동입력', to: '/inventory/transfer-entry' }, { label: '창고이동현황', to: '/inventory/transfer-status' }] },
         /* 원본 기타이동 탭의 [자가사용] 묶음 — 조회 · 입력 · 현황(2026-10-12 실측). 입력은 예전엔 기타이동 화면의 탭 속 창뿐이었다. */
         { label: '자가사용', children: [{ label: '자가사용조회', to: '/inventory/self-use' }, { label: '자가사용입력', to: '/inventory/self-use-input' }, { label: '자가사용현황', to: '/inventory/self-use-status' }] },
         { label: '불량처리', children: [{ label: '불량처리조회', to: '/inventory/defect' }, { label: '불량처리입력', to: '/inventory/defect-input' }, { label: '불량처리현황', to: '/inventory/defect-status' }] },
