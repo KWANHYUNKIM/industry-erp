@@ -100,7 +100,7 @@ public class BorService {
         for (BorOperation o : ops) {
             BigDecimal base = o.getBaseQty() == null || o.getBaseQty().signum() == 0
                     ? BigDecimal.ONE : o.getBaseQty();
-            sum = sum.add(o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP).multiply(qty));
+            sum = sum.add(o.hoursOrZero().divide(base, 6, java.math.RoundingMode.HALF_UP).multiply(qty));
         }
         return sum.setScale(3, java.math.RoundingMode.HALF_UP);
     }
@@ -121,7 +121,7 @@ public class BorService {
         for (BorOperation o : ops) {
             BigDecimal base = o.getBaseQty() == null || o.getBaseQty().signum() == 0
                     ? BigDecimal.ONE : o.getBaseQty();
-            BigDecimal hoursPerUnit = o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP);
+            BigDecimal hoursPerUnit = o.hoursOrZero().divide(base, 6, java.math.RoundingMode.HALF_UP);
             BigDecimal rate = o.getProcess().getCostPerHr() != null
                     ? o.getProcess().getCostPerHr() : BigDecimal.ZERO;
             sum = sum.add(hoursPerUnit.multiply(rate));
@@ -147,7 +147,7 @@ public class BorService {
         for (BorOperation o : ops) {
             BigDecimal base = o.getBaseQty() == null || o.getBaseQty().signum() == 0
                     ? BigDecimal.ONE : o.getBaseQty();
-            BigDecimal hoursPerUnit = o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP);
+            BigDecimal hoursPerUnit = o.hoursOrZero().divide(base, 6, java.math.RoundingMode.HALF_UP);
             BigDecimal rate = o.getProcess().getCostPerHr() != null
                     ? o.getProcess().getCostPerHr() : BigDecimal.ZERO;
             hours = hours.add(hoursPerUnit);
@@ -184,7 +184,7 @@ public class BorService {
         for (BorOperation o : borRepository.findActiveByProduct(productId)) {
             BigDecimal base = o.getBaseQty() == null || o.getBaseQty().signum() == 0
                     ? BigDecimal.ONE : o.getBaseQty();
-            BigDecimal h = o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP);
+            BigDecimal h = o.hoursOrZero().divide(base, 6, java.math.RoundingMode.HALF_UP);
             m.merge(o.getProcess().getId(), h, BigDecimal::add);
         }
         return m;

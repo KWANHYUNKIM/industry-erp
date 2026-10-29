@@ -39,7 +39,7 @@ interface BorRow {
   processName: string
   seq: number
   workName: string
-  hoursPerUnit: number
+  hoursPerUnit: number | null
   active: boolean
 }
 
@@ -176,7 +176,7 @@ export default function TimeCalcPage() {
     const item = itemOf.get(id)
     const qty = (Number(l.qty) || 0) + (Number(l.extraQty) || 0)
     const ops = opsOf.get(id) ?? []
-    const perUnit = ops.reduce((n, o) => n + o.hoursPerUnit, 0)
+    const perUnit = ops.reduce((n, o) => n + (o.hoursPerUnit ?? 0), 0)
     return {
       line: l,
       item,
@@ -308,8 +308,8 @@ export default function TimeCalcPage() {
                       └ {o.seq}. {o.workName} <span className="text-ec-hint">({o.processName})</span>
                     </td>
                     <td colSpan={2}></td>
-                    <td className="text-right text-ec-label">{o.hoursPerUnit.toFixed(4)}</td>
-                    <td className="text-right text-ec-label">{hhmm(o.hoursPerUnit * r.qty)}</td>
+                    <td className="text-right text-ec-label">{o.hoursPerUnit == null ? '' : o.hoursPerUnit.toFixed(4)}</td>
+                    <td className="text-right text-ec-label">{o.hoursPerUnit == null ? '' : hhmm(o.hoursPerUnit * r.qty)}</td>
                     <td></td>
                   </tr>
                 ))}

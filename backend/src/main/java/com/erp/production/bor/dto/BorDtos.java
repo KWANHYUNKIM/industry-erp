@@ -22,7 +22,7 @@ public final class BorDtos {
             @NotBlank(message = "작업명을 입력하세요.") String workName,
             /** 이 작업시간이 몇 개 기준인가. 안 주면 1개 기준. */
             @Positive(message = "생산수량은 0보다 커야 합니다.") BigDecimal baseQty,
-            @NotNull(message = "작업시간을 입력하세요.")
+            /** 비워 둘 수 있다 — 원본은 빈칸으로 둔다. */
             @PositiveOrZero(message = "작업시간은 0 이상이어야 합니다.") BigDecimal workHours,
             /** 원본 [작업기준품목] — 이 작업이 다루는 품목. 완제품과 다를 수 있다. 안 정해도 된다. */
             Long workItemId,
@@ -42,7 +42,7 @@ public final class BorDtos {
             String workName,
             BigDecimal baseQty,
             BigDecimal workHours,
-            /** 1개당 작업시간(H) = 작업시간 ÷ 생산수량. 화면이 매번 나누지 않게 서버가 낸다. */
+            /** 1개당 작업시간(H) = 작업시간 ÷ 생산수량. 화면이 매번 나누지 않게 서버가 낸다. 작업시간이 비었으면 null. */
             BigDecimal hoursPerUnit,
             /** 원본 [작업기준품목코드]·[작업기준품목명]·[작업량]. 안 정했으면 null. */
             Long workItemId, String workItemCode, String workItemName,
@@ -60,7 +60,7 @@ public final class BorDtos {
                     o.getProduct().getCategory() != null ? o.getProduct().getCategory().getDisplayName() : null,
                     o.getProcess().getId(), o.getProcess().getCode(), o.getProcess().getName(),
                     o.getSeq(), o.getWorkName(), o.getBaseQty(), o.getWorkHours(),
-                    o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP),
+                    o.getWorkHours() == null ? null : o.getWorkHours().divide(base, 6, java.math.RoundingMode.HALF_UP),
                     o.getWorkItem() != null ? o.getWorkItem().getId() : null,
                     o.getWorkItem() != null ? o.getWorkItem().getCode() : null,
                     o.getWorkItem() != null ? o.getWorkItem().getName() : null,
