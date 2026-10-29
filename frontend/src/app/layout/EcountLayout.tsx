@@ -19,14 +19,15 @@ interface Group { label: string; children: Leaf[] }
 type SideNode = Leaf | Group
 /** home — 2단을 누르면 처음 여는 화면(원본 실측, 없으면 첫 화면). open — 처음부터 펼쳐 두는 묶음(지금 화면이 든 묶음은 늘 펼친다). */
 interface Tab { label: string; nodes: SideNode[]; home?: string; open?: string[] }
-interface TopMenu { label: string; tabs: Tab[] }
+/** home — 1단을 누르면 처음 여는 화면(원본 2026-10-28 실측 '1단 기본'). 없으면 첫 2단의 처음 화면. */
+interface TopMenu { label: string; tabs: Tab[]; home?: string }
 
 const isGroup = (n: SideNode): n is Group => 'children' in n
 
 /** 대메뉴 > 탭 > (그룹 >) 리프.
- *  회계 I·회계 II·관리·세무·그룹웨어·재고 II·데이터센터의 탭 구성은 이카운트 사이트맵을 따랐고,
- *  실제 페이지가 있는 메뉴만 실었다. MyPage·Self-Customizing·재고 I 은 이카운트 트리 자료가 없어
- *  기존 그룹을 탭으로 그대로 승격만 해두었다. */
+ *  2단 · 묶음 · 화면의 차례와 처음 펼친 묶음 · 처음 여는 화면은 원본 사이트맵과 좌측 메뉴 실측
+ *  (plans/데이터이관/원본-메뉴-2단.md, 2026-10-28 · 10-30 loginaa)을 따랐고, 실제 페이지가 있는 메뉴만 실었다.
+ *  원본에 없는 우리 화면은 다른 메뉴로 닿지 않을 때만 그 2단 맨 끝(묶음 밖)에 둔다. */
 const MENU: TopMenu[] = [
   {
     label: 'MyPage',
@@ -97,6 +98,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: 'Self-Customizing',
+    home: '/settings/preferences',
     tabs: [
       { label: '정보관리', nodes: [{ label: '회사정보관리', to: '/settings/company' }] },
       { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '역할·권한관리', to: '/roles' }, { label: '회사관리', to: '/companies' }] },
@@ -108,6 +110,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: '재고 I',
+    home: '/sales/sales-list',
     tabs: [
       {
         label: '기초등록',
@@ -119,8 +122,9 @@ const MENU: TopMenu[] = [
           { label: '프로젝트등록', to: '/inventory/projects' },
           { label: '품목등록', to: '/inventory/items' },
           { label: '관리항목등록', to: '/inventory/manage-items' },
-          { label: '단가관리', children: [{ label: '단가적용순서설정', to: '/inventory/price-order' }, { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' }, { label: '특별단가등록', to: '/sales/special-price' }, { label: '품목별단가', to: '/inventory/item-prices' }] },
-          /* 원본 사이트맵 차례: … 품목별단가 · 사원(담당)등록(E010110 — 우리에게 없음) · 인쇄용결재라인등록(재고) E040111 · 외화등록 · 각종코드변경 */
+                    /* 원본 단가관리 차례(2026-10-30 사이트맵): 단가적용순서설정 · 특별단가등록 · 거래처특별단가그룹등록 · 품목별단가 */
+          { label: '단가관리', children: [{ label: '단가적용순서설정', to: '/inventory/price-order' }, { label: '특별단가등록', to: '/sales/special-price' }, { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' }, { label: '품목별단가', to: '/inventory/item-prices' }] },
+          /* 원본 사이트맵 차례: … 단가관리 · 사원(담당)등록(E010110 — 우리에게 없음) · 인쇄용결재라인등록(재고) E040111 · 외화등록 · 각종코드변경(E040113 — 우리에게 없음) */
           { label: '인쇄용결재라인등록(재고)', to: '/inventory/print-sign' },
           { label: '외화등록', to: '/settings/currencies' },
         ],
@@ -131,6 +135,8 @@ const MENU: TopMenu[] = [
         // 우리 화면 하나가 원본의 조회·입력을 겸하는 경우가 많아, 없는 이름은 만들지 않고 있는 것만 건다.
         label: '영업관리',
         home: '/sales/sales-list',
+        /* 원본 영업관리 좌측 메뉴(2026-10-28 · 10-30 loginaa 사이트맵): 견적서 · 주문서 · 판매 · 출하지시서 · 출하 · 판매일괄회계반영 ·
+           영업관리현황 일곱 묶음. 처음 펼친 묶음은 판매(판매조회가 든 묶음)뿐이다. 현황류는 출력물 탭에도 그대로 둔다(원본도 두 곳에 있다). */
         nodes: [
           { label: '견적서', children: [{ label: '견적서조회', to: '/sales/quotations' }, { label: '견적서입력', to: '/sales/quotation-entry' }, { label: '견적서현황', to: '/sales/quotations?view=status' }, { label: '미주문현황', to: '/sales/unordered' }] },
           { label: '주문서', children: [{ label: '주문서조회', to: '/sales/orders' }, { label: '주문서입력', to: '/sales/order-entry' }, { label: '주문서현황', to: '/sales/order-status' }, { label: '주문서출고처리', to: '/sales/order-release' }, { label: '미판매현황', to: '/sales/unsold' }] },
@@ -140,33 +146,12 @@ const MENU: TopMenu[] = [
               { label: '판매조회', to: '/sales/sales-list' },
               { label: '판매입력', to: '/sales/sell' },
               { label: '판매입력 II', to: '/sales/sell2' },
-              { label: '거래처중심입력', to: '/sales/partner-entry' },
-              { label: '품목중심입력', to: '/sales/item-entry' },
               { label: '판매단가일괄변경', to: '/sales/sales-price-bulk' },
-              /*
-               * 원본 영업관리 탭 실측(사본 '판매현황' 의 메뉴트리): 판매조회 · 판매입력 ·
-               * 판매입력 II · 판매단가일괄변경 · <b>판매현황 · 수금현황 · 판매할인현황 ·
-               * 회계미반영현황 (판매) · 거래처별채권</b> · 거래명세서인쇄 · 결제내역조회 ·
-               * 결제내역자료비교 · 판매일괄회계반영.
-               *
-               * <p>이 다섯이 우리에겐 <b>출력물 탭에만</b> 있었다. 구매관리 탭에는 짝이 되는
-               * 다섯(구매현황·지급현황·구매할인현황·회계미반영현황 (구매)·거래처별채무)이
-               * 이미 들어 있어서, <b>같은 자리인데 영업만 비어 있었다</b> —
-               * 구매에서 되던 일이 판매에서 안 되면 사람은 자기가 잘못 찾는 줄 안다.
-               * 출력물 탭에도 그대로 둔다(원본도 두 곳에 있다).
-               */
               { label: '판매현황', to: '/sales/sales-status' },
-              { label: '수금현황', to: '/sales/collection' },
-              { label: '판매할인현황', to: '/sales/sales-discount' },
-              { label: '회계미반영현황 (판매)', to: '/sales/accounting-reflection?kind=sales&view=unposted' },
-              { label: '거래처별채권', to: '/sales/ledger-receivable' },
-              { label: '거래명세서인쇄', to: '/sales/statement' },
               { label: '결제내역조회', to: '/sales/payment-history' },
               { label: '결제내역자료비교', to: '/sales/payment-compare' },
-              { label: '수금/지급', to: '/sales/settlement' },
             ],
           },
-          { label: '판매일괄회계반영', children: [{ label: '판매일괄회계반영', to: '/sales/accounting-reflection?view=batch' }] },
           { label: '출하지시서', children: [{ label: '출하지시서조회', to: '/sales/shipment-order' }, { label: '출하지시서입력', to: '/sales/shipment-order-entry' }, { label: '출하지시서현황', to: '/sales/shipment-order-status' }] },
           {
             label: '출하',
@@ -176,13 +161,26 @@ const MENU: TopMenu[] = [
               { label: '출하현황', to: '/sales/shipment' },
             ],
           },
-          { label: '특별단가등록', to: '/sales/special-price' },
+          { label: '판매일괄회계반영', children: [{ label: '판매일괄회계반영', to: '/sales/accounting-reflection?view=batch' }, { label: '매출(세금)계산서조회(재고)', to: '/sales/sales-tax-list' }] },
+          {
+            label: '영업관리현황',
+            children: [
+              { label: '거래명세서인쇄', to: '/sales/statement' },
+              { label: '미출하현황', to: '/sales/unshipped' },
+              { label: '거래처별채권', to: '/sales/ledger-receivable' },
+              { label: '수금현황', to: '/sales/collection' },
+              { label: '판매할인현황', to: '/sales/sales-discount' },
+              { label: '회계미반영현황 (판매)', to: '/sales/accounting-reflection?kind=sales&view=unposted' },
+              { label: '매출(세금)계산서현황(재고)', to: '/sales/sales-tax-status' },
+            ],
+          },
         ],
       },
       {
         // 원본 구매관리도 묶음이다(발주요청·발주계획·단가요청·발주서·구매·구매일괄회계반영).
         label: '구매관리',
         home: '/sales/purchase-list',
+        /* 처음 펼친 묶음은 구매(구매조회가 든 묶음)뿐이다(2026-10-28 실측). */
         nodes: [
           { label: '발주요청', children: [{ label: '발주요청조회', to: '/sales/purchase-requests' }, { label: '발주요청입력', to: '/sales/purchase-request-input' }, { label: '발주요청현황', to: '/sales/purchase-request-status' }] },
           { label: '발주계획', children: [{ label: '발주계획조회', to: '/sales/purchase-plans' }, { label: '발주계획입력', to: '/sales/purchase-plan-input' }, { label: '발주계획현황', to: '/sales/purchase-plan-status' }] },
@@ -215,13 +213,19 @@ const MENU: TopMenu[] = [
               { label: '구매단가일괄변경', to: '/sales/purchase-price-bulk' },
             ],
           },
-          // 원본은 이 넷을 '구매' 묶음 밖, 구매관리 바로 아래에 둔다(출력물 쪽에도 같은 메뉴가 또 있다).
-          { label: '지급현황', to: '/sales/payment' },
-          { label: '구매할인현황', to: '/sales/purchase-discount' },
-          { label: '회계미반영현황 (구매)', to: '/sales/accounting-reflection?kind=purchase&view=unposted' },
-          { label: '거래처별채무', to: '/sales/ledger-payable' },
           // 원본 구매일괄회계반영 › 구매일괄회계반영 · 매입(세금)계산서조회(재고)(2026-10-13 실측)
           { label: '구매일괄회계반영', children: [{ label: '구매일괄회계반영', to: '/sales/accounting-reflection?kind=purchase&view=batch' }, { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' }] },
+          // 원본 구매관리현황 묶음(2026-10-30 사이트맵) — 출력물 › 구매관리현황에도 같은 화면이 또 있다.
+          {
+            label: '구매관리현황',
+            children: [
+              { label: '거래처별채무', to: '/sales/ledger-payable' },
+              { label: '지급현황', to: '/sales/payment' },
+              { label: '구매할인현황', to: '/sales/purchase-discount' },
+              { label: '회계미반영현황 (구매)', to: '/sales/accounting-reflection?kind=purchase&view=unposted' },
+              { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
+            ],
+          },
         ],
       },
       {
@@ -274,7 +278,7 @@ const MENU: TopMenu[] = [
       },
       /* 원본 기타이동 탭(2026-10-20 loginaa 실측): 창고이동 · 자가사용 · 불량처리 · 재고조정 · 기타이동현황 다섯 묶음.
          창고이동조회 · 입력은 아직 기타이동 화면(창고이동 탭 · 등록 창)이 맡는다 — 원본은 여러 줄 전표 · 수정이 되는 별도 화면. */
-      { label: '기타이동', open: ['기타이동현황'], nodes: [
+      { label: '기타이동', home: '/inventory/transfer', open: ['기타이동현황'], nodes: [
         { label: '창고이동', children: [{ label: '창고이동조회', to: '/inventory/transfer' }, { label: '창고이동입력', to: '/inventory/transfer?new=1' }, { label: '창고이동현황', to: '/inventory/transfer-status' }] },
         /* 원본 기타이동 탭의 [자가사용] 묶음 — 조회 · 입력 · 현황(2026-10-12 실측). 입력은 예전엔 기타이동 화면의 탭 속 창뿐이었다. */
         { label: '자가사용', children: [{ label: '자가사용조회', to: '/inventory/self-use' }, { label: '자가사용입력', to: '/inventory/self-use-input' }, { label: '자가사용현황', to: '/inventory/self-use-status' }] },
@@ -407,6 +411,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: '재고 II',
+    home: '/accounting/daily-profit',
     tabs: [
       {
         /* 원본 사이트맵(2026-10-13): A/S접수(입력 · 조회 · 현황) · A/S수리(입력 · 조회 · 현황 · 소모현황) 두 묶음. */
@@ -417,7 +422,15 @@ const MENU: TopMenu[] = [
           { label: 'A/S수리', children: [{ label: 'A/S수리입력', to: '/quality/as-repair-entry' }, { label: 'A/S수리조회', to: '/quality/as-repair-list' }, { label: 'A/S수리현황', to: '/quality/as-repair-status' }, { label: 'A/S소모현황', to: '/quality/as-consumption' }] },
         ],
       },
-      { label: '시리얼/로트No.', home: '/quality/lot-tx-list', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '시리얼/로트No.내역조회', to: '/quality/lot-tx-list' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }, { label: '시리얼/로트No.재고조정', to: '/quality/lot-adjust' }, { label: '시리얼/로트No.재고수불부', to: '/quality/lot-ledger' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '품목vs시리얼재고수량비교', to: '/quality/lot-compare' }] },
+      {
+        /* 원본 시리얼/로트No. 탭(2026-10-28 실측 · plans/재고2.md 사이트맵): 두 묶음, 둘 다 펼쳐 둔다. 처음 화면은 내역조회. */
+        label: '시리얼/로트No.',
+        home: '/quality/lot-tx-list', open: ['시리얼/로트No. 재고조정'],
+        nodes: [
+          { label: '시리얼/로트No.등록', children: [{ label: '시리얼/로트No.등록', to: '/quality/serial-lot' }, { label: '시리얼/로트No.내역조회', to: '/quality/lot-tx-list' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }] },
+          { label: '시리얼/로트No. 재고조정', children: [{ label: '시리얼/로트No.재고조정', to: '/quality/lot-adjust' }, { label: '시리얼/로트No.재고수불부', to: '/quality/lot-ledger' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '품목vs시리얼재고수량비교', to: '/quality/lot-compare' }] },
+        ],
+      },
       {
         /*
          * 원본 사이트맵(2026-10-14): 품질검사요청(입력 · 조회 · 현황 · 미검사현황) · 품질검사(유형등록 · 입력 · 조회 · 현황) 두 묶음.
@@ -441,17 +454,16 @@ const MENU: TopMenu[] = [
           /* 원본 프로젝트계획 > [프로젝트계획조회](E040636) · [프로젝트계획/실적현황](E040637) — 2026-10-13. */
           { label: '매출계획', children: [{ label: '매출계획입력', to: '/sales/sales-plan-entry' }, { label: '매출계획조회', to: '/sales/sales-plan-list' }, { label: '매출계획현황', to: '/sales/sales-plan-status' }, { label: '매출계획비교표', to: '/sales/sales-plan-compare' }] },
           { label: '프로젝트계획', children: [{ label: '프로젝트계획조회', to: '/accounting/project-plan' }, { label: '프로젝트계획/실적현황', to: '/accounting/project-plan-status' }] },
+          /* 원본 계획관리는 위 두 묶음뿐이다(2026-10-28 실측). 생산계획/MRP생성은 원본처럼 재고 I › 생산/외주에만 둔다.
+             생산계획(MPS)은 원본 메뉴에 없는 우리 화면이라 끝에 둔다. */
           { label: '생산계획(MPS)', to: '/production/planning' },
-          /* 원본 생산/외주 탭의 표기는 [생산계획/MRP생성] 이다(사본 좌측 메뉴 실측). */
-          { label: '생산계획/MRP생성', to: '/production/mrp' },
         ],
       },
       {
         label: '이익관리',
         home: '/accounting/daily-profit', open: ['월별이익'],
+        /* 원본 이익관리(2026-10-28 실측): 월별이익 · 일별이익 두 묶음, 둘 다 펼친다. 처음 화면은 일별이익현황. */
         nodes: [
-          { label: '손익요약', to: '/accounting/profit' },
-          { label: '품목별원가/이익', to: '/accounting/item-cost' },
           {
             label: '월별이익',
             children: [
@@ -471,7 +483,9 @@ const MENU: TopMenu[] = [
               { label: '일별이익현황', to: '/accounting/daily-profit' },
             ],
           },
-          /* 원본 2단에 없는 우리 화면(예전 회계 II › 프로젝트 — 2026-10-28 원본 2단 실측에 맞춰 그 2단을 빼며 여기로) */
+          /* 원본 이익관리에 없는 우리 화면 — 손익요약 · 품목별원가/이익(예전 이 탭 맨 앞), 프로젝트별 손익(예전 회계 II › 프로젝트). 원본 자리를 찾으면 옮긴다. */
+          { label: '손익요약', to: '/accounting/profit' },
+          { label: '품목별원가/이익', to: '/accounting/item-cost' },
           { label: '프로젝트별 손익', to: '/accounting/project-profit' },
         ],
       },
@@ -479,8 +493,7 @@ const MENU: TopMenu[] = [
         label: '오더관리',
         home: '/sales/order-stages',
         nodes: [
-          { label: '오더관리(수주)', to: '/sales/orders' },
-          /* 원본 오더관리 탭의 표기는 [오더관리유형등록] 이다(사본 좌측 메뉴 실측). */
+          /* 원본 오더관리 탭은 이 둘뿐이다(2026-10-28 실측). 표기는 [오더관리유형등록](사본 좌측 메뉴 실측). */
           { label: '오더관리유형등록', to: '/sales/order-types' },
           { label: '오더관리진행단계', to: '/sales/order-stages' },
         ],
@@ -647,7 +660,19 @@ const MENU: TopMenu[] = [
       },
       {
         label: '고정자산',
-        nodes: [{ label: '고정자산·감가상각', to: '/accounting/fixed-assets' }, { label: '고정자산대장', to: '/accounting/fixed-asset-ledger' }, { label: '고정자산증가내역', to: '/accounting/fixed-asset-in' }, { label: '고정자산감소내역', to: '/accounting/fixed-asset-out' }, { label: '고정자산증감대장', to: '/accounting/fixed-asset-movement' }, { label: '고정자산수불부', to: '/accounting/fixed-asset-stock' }, { label: '고정자산전표조회', to: '/accounting/fixed-asset-slips' }, { label: '감가상각계산', to: '/accounting/depreciation-calc' }],
+        /* 원본 고정자산(2026-10-28 실측 · plans/회계1/E010610.md 사이트맵): 고정자산등록 · 고정자산증가 · 고정자산감소 · 고정자산전표조회 ·
+           고정자산관련출력물(대장 · 증가내역 · 감소내역 · 증감대장 · 수불부 · 감가상각계산, 펼쳐 둔다). 원본 처음 화면은 고정자산증가인데
+           우리는 증가 · 감소가 고정자산등록 화면의 창이라 따로 된 메뉴가 없다 — 고정자산등록이 처음 화면이다. */
+        open: ['고정자산관련출력물'],
+        nodes: [
+          { label: '고정자산등록', to: '/accounting/fixed-assets' },
+          { label: '고정자산전표조회', to: '/accounting/fixed-asset-slips' },
+          { label: '고정자산관련출력물', children: [
+            { label: '고정자산대장', to: '/accounting/fixed-asset-ledger' }, { label: '고정자산증가내역', to: '/accounting/fixed-asset-in' },
+            { label: '고정자산감소내역', to: '/accounting/fixed-asset-out' }, { label: '고정자산증감대장', to: '/accounting/fixed-asset-movement' },
+            { label: '고정자산수불부', to: '/accounting/fixed-asset-stock' }, { label: '감가상각계산', to: '/accounting/depreciation-calc' },
+          ] },
+        ],
       },
       {
         label: '회계거래관리',
@@ -745,6 +770,8 @@ const MENU: TopMenu[] = [
   },
   {
     label: '회계 II',
+    /* 원본 1단 기본(2026-10-28)은 수입비용전표검색 — 그 계정이 마지막에 본 화면일 수도 있다(미확인). */
+    home: '/accounting/import-cost/vouchers',
     tabs: [
       {
         label: '채권관리',
@@ -760,8 +787,9 @@ const MENU: TopMenu[] = [
           { label: '거래처채권집계관리대장', to: '/accounting/bonds/ar/partner-summary' },
           { label: '거래처채권관리대장인쇄', to: '/accounting/bonds/ar/partner-ledger-print' },
           { label: '채권잔액분석표', to: '/accounting/bonds/ar/balance-analysis' },
+          /* 원본 채권관리는 위 열 화면뿐이다(2026-10-28 실측). 아래는 원본에 없는 우리 화면 — 다른 메뉴로 닿지 않아 끝에 둔다.
+             채권/채무현황(기준일자)은 재고 I › 출력물 › 기타의 [채권/채무현황] 으로 닿는다. */
           { label: '채권·채무현황', to: '/sales/ledger' },
-          { label: '채권/채무현황(기준일자)', to: '/sales/ar-ap-status' },
           { label: '거래처관리대장', to: '/sales/partner-ledger' },
         ],
       },
@@ -778,8 +806,9 @@ const MENU: TopMenu[] = [
           { label: '거래처채무집계관리대장', to: '/accounting/bonds/ap/partner-summary' },
           { label: '거래처채무관리대장인쇄', to: '/accounting/bonds/ap/partner-ledger-print' },
           { label: '채무잔액분석표', to: '/accounting/bonds/ap/balance-analysis' },
+          /* 원본 채무관리도 위 열 화면뿐이다. 아래 둘은 원본에 없는 우리 화면(지급현황은 재고 I › 구매관리 › 구매관리현황으로 닿는다).
+             수금/지급(정산)은 예전 영업관리 › 판매 끝에도 있었다 — 원본 판매 묶음에 없어 여기만 남겼다. */
           { label: '미지급현황(연령분석)', to: '/sales/payable' },
-          { label: '지급현황', to: '/sales/payment' },
           { label: '수금/지급(정산)', to: '/sales/settlement' },
         ],
       },
@@ -900,6 +929,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: '관리',
+    home: '/hr/payroll',
     tabs: [
       {
         label: '급여관리',
@@ -914,19 +944,21 @@ const MENU: TopMenu[] = [
             { label: '프로젝트등록', to: '/inventory/projects' },
             // 원본 인쇄용결재라인등록(관리) E090102 — 회계 · 재고 · 관리 알약 중 [관리] 가 켜진 채로 연다(화면은 회계1 의 E010106 과 같다)
             { label: '인쇄용결재라인등록(관리)', to: '/hr/print-sign' },
-            { label: '담당자별 실적', to: '/hr/performance' },
           ] },
           { label: '근무기록', children: [
             { label: '근무입력', to: '/hr/work-input' },
             { label: '근무조회', to: '/hr/work-list' },
           ] },
-          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '사원별급여조회', to: '/hr/payroll/by-employee' }, { label: '급여현황', to: '/hr/payroll/status' }, { label: '근무확정현황', to: '/hr/payroll/work-confirms' }, { label: '급여이체현황', to: '/hr/payroll/transfer-status' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
+          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '사원별급여조회', to: '/hr/payroll/by-employee' }, { label: '급여현황', to: '/hr/payroll/status' }, { label: '근무확정현황', to: '/hr/payroll/work-confirms' }, { label: '급여이체현황', to: '/hr/payroll/transfer-status' }] },
           { label: '4대보험신고', children: [
             { label: '4대보험취득신고입력', to: '/hr/insurance/acquire' },
             { label: '4대보험상실신고입력', to: '/hr/insurance/loss' },
             { label: '피부양자자격신고입력', to: '/hr/insurance/dependent' },
             { label: '4대보험신고', to: '/hr/insurance/reports' },
           ] },
+          /* 원본 급여관리 묶음에 없는 우리 화면 — 예전엔 기본사항등록 · 급여작업 묶음 끝에 섞여 있었다(2026-10-28 실측에 맞춰 묶음 밖 끝으로). */
+          { label: '담당자별 실적', to: '/hr/performance' },
+          { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' },
         ],
       },
       {
@@ -979,8 +1011,9 @@ const MENU: TopMenu[] = [
             { label: '일용근로 급여현황', to: '/hr/daily-payroll/status' },
             { label: '일용근로 근무확정현황', to: '/hr/daily-payroll/work-confirms' },
             { label: '일용근로 급여이체현황', to: '/hr/daily-payroll/transfer-status' },
-            { label: '일용근로 출역/지급(분개)', to: '/hr/daily-wage' },
           ] },
+          /* 원본 일용근로 급여작업 묶음에 없는 우리 화면(2026-10-28 실측에 맞춰 묶음 밖 끝으로) */
+          { label: '일용근로 출역/지급(분개)', to: '/hr/daily-wage' },
         ],
       },
       {
@@ -1018,10 +1051,11 @@ const MENU: TopMenu[] = [
   },
   {
     label: '세무',
+    home: '/accounting/vat/return',
     /*
      * 원본 사이트맵(2026-10-03 loginaa) 차례 그대로: 원천징수 · 기타원천세 · 부가세 · 법인세.
      * 묶음 이름도 원본 것(세무신고 · 퇴직정산 · 출력물 · 신고전검토자료 …). 원본에 있는데 아직 없는 화면은 넣지 않는다.
-     * 원본에 없는 우리 화면 셋(근로소득원천징수영수증 · 매입매출·부가세 · 법인세 신고서)은 가장 가까운 묶음 끝에 둔다.
+     * 원본에 없는 우리 화면 셋(근로소득원천징수영수증 · 매입매출·부가세 · 법인세 신고서)은 그 2단 맨 끝(묶음 밖)에 둔다.
      */
     tabs: [
       {
@@ -1058,8 +1092,9 @@ const MENU: TopMenu[] = [
             { label: '원천세신고자료비교표', to: '/accounting/withholding/comparison' },
             { label: '연말정산검토표 I', to: '/accounting/withholding/year-end-review-1' },
             { label: '연말정산검토표 II', to: '/accounting/withholding/year-end-review-2' },
-            { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           ] },
+          /* 원본 원천징수 › 출력물에 없는 우리 화면(2026-10-28 실측에 맞춰 묶음 밖 끝으로) */
+          { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
         ],
       },
       {
@@ -1095,7 +1130,6 @@ const MENU: TopMenu[] = [
             { label: '부가세Checklist', to: '/accounting/vat/checklist' },
             { label: '전표vs매출매입자료비교', to: '/accounting/vat/journal-compare' },
             { label: '사업용신용카드 자료비교', to: '/accounting/vat/card-compare' },
-            { label: '매입매출·부가세', to: '/accounting/vat' },
           ] },
           { label: '부가세신고서(일반)', children: [
             { label: '부가세신고서(일반)', to: '/accounting/vat/return' },
@@ -1103,6 +1137,8 @@ const MENU: TopMenu[] = [
           ] },
           { label: '과세자료전산매체', to: '/accounting/vat/media-files' },
           { label: '세무증명서류', to: '/accounting/vat/tax-certificate' },
+          /* 원본 신고전검토자료 묶음에 없는 우리 화면(2026-10-28 실측에 맞춰 묶음 밖 끝으로) */
+          { label: '매입매출·부가세', to: '/accounting/vat' },
         ],
       },
       {
@@ -1117,6 +1153,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: '그룹웨어',
+    home: '/groupware/approval/my',
     tabs: [
       {
         label: '공유정보',
@@ -1756,8 +1793,10 @@ export default function EcountLayout() {
                 <button
                   className={`ec-gnb-item${idx === topIdx ? ' active' : ''}`}
                   onClick={() => {
-                    const ti = m.tabs.findIndex((t) => !!tabRoute(t))
-                    const to = ti >= 0 ? tabRoute(m.tabs[ti]) : undefined
+                    // 원본은 1단마다 처음 여는 화면이 따로 있다(재고 I → 판매조회 · 세무 → 부가세신고서(일반) …) — 그 화면이 든 2단을 켠다.
+                    const hi = m.home && canRoute(m.home) ? m.tabs.findIndex((t) => tabLeaves(t).some((l) => l.to === m.home)) : -1
+                    const ti = hi >= 0 ? hi : m.tabs.findIndex((t) => !!tabRoute(t))
+                    const to = hi >= 0 ? m.home : ti >= 0 ? tabRoute(m.tabs[ti]) : undefined
                     if (to) { setCollapsed({}); gotoMenu(to, [idx, ti]) }
                   }}
                 >

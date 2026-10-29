@@ -154,6 +154,7 @@ const RULES: Rule[] = [
   ['/accounting/fixed-asset-out', 'FIXED_ASSET'],
   ['/accounting/fixed-asset-movement', 'FIXED_ASSET'],
   ['/accounting/fixed-asset-slips', 'FIXED_ASSET'],
+  ['/accounting/fixed-asset-stock', 'FIXED_ASSET'],
   ['/accounting/depreciation-calc', 'FIXED_ASSET'],
   ['/accounting/budget', 'FINANCE'],
   ['/accounting/contracts', 'FINANCE'],
