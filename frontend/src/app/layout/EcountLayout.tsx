@@ -1420,18 +1420,42 @@ export default function EcountLayout() {
   /* 머리 로고 자리 · 창 제목의 상호 — 로그인 때 받은 이름으로 시작해 회사정보(/company)를 다시 읽고,
      회사정보 화면에서 저장하면(erp:company-updated) 바로 따라 바뀐다 */
   const [brand, setBrand] = useState<string | null>(companyName)
+  /* 회사 로고(마크) — 있으면 머리 로고 자리에 상호 글자 대신 그림, 탭 아이콘도 그 그림(회사정보관리에서 올림).
+     그림은 인증이 필요한 /company/logo 라 blob 으로 받아 임시 URL 을 쓴다. */
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
-    api.get<{ name?: string }>('/company')
-      .then((r) => { if (alive && r.data?.name) setBrand(r.data.name) })
+    let url: string | null = null
+    const showLogo = (has: boolean | undefined) => {
+      if (!has) { if (alive) setLogoUrl(null); return }
+      api.get('/company/logo', { responseType: 'blob' })
+        .then((r) => {
+          if (!alive) return
+          if (url) URL.revokeObjectURL(url)
+          url = URL.createObjectURL(r.data as Blob)
+          setLogoUrl(url)
+        })
+        .catch(() => { if (alive) setLogoUrl(null) })
+    }
+    api.get<{ name?: string; hasLogo?: boolean }>('/company')
+      .then((r) => { if (!alive) return; if (r.data?.name) setBrand(r.data.name); showLogo(r.data?.hasLogo) })
       .catch(() => {})
     const onUpdate = (e: Event) => {
-      const name = (e as CustomEvent<{ name?: string }>).detail?.name
-      if (name) setBrand(name)
+      const d = (e as CustomEvent<{ name?: string; hasLogo?: boolean }>).detail
+      if (d?.name) setBrand(d.name)
+      if (d && 'hasLogo' in d) showLogo(d.hasLogo)
     }
     window.addEventListener('erp:company-updated', onUpdate)
-    return () => { alive = false; window.removeEventListener('erp:company-updated', onUpdate) }
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); window.removeEventListener('erp:company-updated', onUpdate) }
   }, [])
+  /* 탭 아이콘 — 로고가 있으면 그 그림, 없으면 처음 아이콘(index.html)으로 */
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')
+    if (!link) return
+    if (!link.dataset.defaultHref) { link.dataset.defaultHref = link.getAttribute('href') ?? ''; link.dataset.defaultType = link.type }
+    if (logoUrl) { link.href = logoUrl; link.removeAttribute('type') }
+    else { link.href = link.dataset.defaultHref ?? '/favicon.svg'; if (link.dataset.defaultType) link.type = link.dataset.defaultType }
+  }, [logoUrl])
   const [folders, setFolders] = useState<MyFolder[] | null>(null)  // MyPage 나만의 업무 폴더 (사용자별)                 // 쪽지 안 읽은 수
   const [userOpen, setUserOpen] = useState(false)               // 사용자 동그라미 → 이름·로그아웃
   // 휴대폰·태블릿(≤768px, 원본 실측) — ☰ 메뉴판과 ★ 즐겨찾기 · 앱 모음 펼침
@@ -1722,7 +1746,8 @@ export default function EcountLayout() {
       {/* ===== 머리 메뉴(1단) + 떠 있는 2단 메뉴 ===== */}
       <div className="ec-gnb" onMouseLeave={() => setHoverIdx(null)}>
         <Link to="/" className="ec-logo" title={brand ?? undefined}>
-          {brand ? <b className="ec-logo-name">{brand}</b> : <><b>제조</b><span className="tail">ERP</span></>}
+          {logoUrl ? <img className="ec-logo-img" src={logoUrl} alt={brand ?? '회사 로고'} />
+            : brand ? <b className="ec-logo-name">{brand}</b> : <><b>제조</b><span className="tail">ERP</span></>}
         </Link>
         {/* 휴대폰·태블릿에서만 — ☰ 메뉴판, ★ 즐겨찾기 */}
         <button className="ec-m-btn ec-m-menu" aria-label="메뉴" onClick={() => { setMPanel(null); setDrawer((d) => (d ? null : { top: topIdx, tab: tabIdx })) }}>☰</button>

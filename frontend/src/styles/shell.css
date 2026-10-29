@@ -126,6 +126,20 @@
   color: #222;
 }
 .ec-logo > b { color: var(--ec-blue); font-weight: 900; }
+/* 회사 로고 그림 — 머리 줄 높이에 맞춰 줄인다(가로는 비율대로, 너무 긴 그림은 상호 칸 폭까지) */
+.ec-logo > .ec-logo-img {
+  display: block;
+  align-self: center;
+  height: var(--ec-logo-h);
+  max-width: 260px;
+  object-fit: contain;
+}
+/* 회사정보관리 로고 칸의 미리보기 — 머리와 같은 높이 */
+.ec-company-logo {
+  height: var(--ec-logo-h);
+  max-width: 260px;
+  object-fit: contain;
+}
 /* 상호를 로고 자리에 — 긴 상호는 말줄임 */
 .ec-logo > .ec-logo-name {
   max-width: 260px;

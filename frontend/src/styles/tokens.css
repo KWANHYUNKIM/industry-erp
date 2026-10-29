@@ -129,6 +129,7 @@
   /* ── 틀 치수 ── */
   --ec-bookbar-h: 26px;
   --ec-gnb-h: 46px;
+  --ec-logo-h: 30px;                        /* 머리 로고 그림 높이(회사 로고 — 머리 줄 46 안) */
   --ec-lnb-w: 209px;
   --ec-footer-h: 38px;
   --ec-footer-gap: 9px;                     /* 격자 끝 → 하단 버튼줄 (원본 .contents 아래 여백) */

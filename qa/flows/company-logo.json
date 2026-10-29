@@ -1,0 +1,21 @@
+{
+  "about": "회사정보관리 로고(마크) — 그림을 올리면 머리 로고 자리 · 탭 아이콘이 그 그림, 지우면 다시 상호 글자. QA 로고(1px png)는 API 로 올리고 지운다.",
+  "shots": [
+    {
+      "name": "로고 올리기 → 머리 · 탭 아이콘 → 지우기",
+      "path": "/settings/company",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('th')].some((t) => t.innerText.trim() === '로고') && !document.querySelector('.ec-logo-img')",
+        "js:(async () => { const b = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0)); const f = new File([b], 'qa-logo.png', { type: 'image/png' }); const inp = document.querySelector('[aria-label=\"로고 그림 파일\"]'); const dt = new DataTransfer(); dt.items.add(f); inp.files = dt.files; inp.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:1500",
+        "expect:document.body.innerText.includes('로고가 저장되었습니다.') && !!document.querySelector('.ec-company-logo')",
+        "expect:!!document.querySelector('.ec-logo .ec-logo-img') && document.querySelector('link[rel~=\"icon\"]').href.startsWith('blob:')",
+        "expect:Math.abs(document.querySelector('.ec-logo .ec-logo-img').getBoundingClientRect().height - 30) < 0.5",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '지우기').click(); true",
+        "wait:1200",
+        "expect:document.body.innerText.includes('로고를 지웠습니다.') && !document.querySelector('.ec-logo-img') && !!document.querySelector('.ec-logo-name') && !document.querySelector('link[rel~=\"icon\"]').href.startsWith('blob:')"
+      ]
+    }
+  ]
+}

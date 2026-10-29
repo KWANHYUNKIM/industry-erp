@@ -160,6 +160,8 @@ const OWNED_HERE = new Map([
   ['Item|laborStdCost', '품목등록 [원가] 탭 노무비표준원가 — expenseStdCost 와 같다'],
   ['Item|subcontractStdCost', '품목등록 [원가] 탭 외주비표준원가 — expenseStdCost 와 같다'],
   ['Check|outRemark', '수표내역입력 <b>감소</b> 줄의 [적요] — 요청 이름은 DirectEditLine.remark 이고 서비스가 감소 줄일 때 outRemark 에 적는다(BankCheckService.decreaseDirect · 감소 줄 수정). 증가 줄의 remark 와 같은 칸을 쓰므로 이름이 다르다'],
+  ['CompanyInfo|hasLogo', '회사정보관리 로고 — POST · DELETE /api/company/logo(그림 파일)로 바꾼다. PUT /company 요청에는 칸이 없다'],
+  ['CompanyInfo|logoVersion', '로고를 바꿀 때 서버가 매기는 값(화면이 같은 그림을 다시 받을지 고른다)'],
   ['Partner|linkedKind', '계좌 · 카드 · 카드사의 짝 거래처 표시 — 회계가 계좌 · 카드 · 카드사를 저장할 때 PartnerService.syncLinked 로 매긴다. 거래처등록 창에는 칸이 없다(2026-10-29 데이터이관 QA 루프 72)'],
   ['OrderNumber|completed', '오더관리진행단계(E040904) [전체단계완료] — 확인 \'선택한 오더관리번호를 종결 하겠습니까?\' 뒤 POST …/complete(CompleteOrderNumbersRequest)가 완료로 바꾼다. 등록 · 수정 창에는 칸이 없다'],
   ['ProjectPlan|planRevenue', '프로젝트계획(E040636) 항목 01 판매 계획 줄 [금액] 의 합 — 계획 입력 창(POST · PUT /project-plans/…/lines)이 바꾸고 서버가 다시 적는다(원본 등록 창 판에는 금액 칸이 없다, 2026-10-14 실측)'],
