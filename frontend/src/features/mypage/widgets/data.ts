@@ -1,5 +1,5 @@
 import { api } from '../../../api/client'
-import type { JournalEntry, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../../types/api'
+import type { Item, JournalEntry, PartnerBalance, PurchaseDoc, SalesDoc, StockRow } from '../../../types/api'
 import { bankLabel } from '../../../utils/bankLabel'
 import { dateNo } from '../../../utils/dateNo'
 import { dateText } from '../../../utils/dateText'
@@ -14,25 +14,23 @@ import type { FetchArgs, Row } from './types'
 
 const nameSpec = (name: string, spec?: string | null) => (spec ? `${name}[${spec}]` : name)
 const get = <T>(url: string, params?: Record<string, unknown>) => api.get<T>(url, { params }).then((r) => r.data)
-const dayBefore = (d: string) => {
-  const x = new Date(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10)))
-  x.setDate(x.getDate() - 1)
-  return ymd(x)
+
+/**
+ * 품목 마스터 — 전표 줄에는 품목그룹 · 대표품목이 없어 품목에서 붙인다(재고현황 화면 CurrentStockPage 와 같은 출처).
+ * 검색조건 [품목그룹1] 은 품목의 품목그룹(itemGroupName)이다 — 전표 줄의 itemCategoryName 은 품목구분(원재료 · 제품 …)이라 다르다.
+ * [품목그룹2] · [품목그룹3] 은 우리 품목에 칸이 없어 걸리지 않는다(catalog FILTER 에 없음).
+ */
+async function itemMaster(): Promise<{ byId: Map<number, Item>; groupOf: (code: string | null | undefined) => string }> {
+  const list = await get<Item[]>('/items').catch(() => [] as Item[])
+  const byId = new Map(list.map((i) => [i.id, i]))
+  const byCode = new Map(list.map((i) => [i.code, i.itemGroupName ?? '']))
+  return { byId, groupOf: (code) => (code ? byCode.get(code) ?? '' : '') }
 }
 
-// ── 재고 ──
-export async function stockRows({ to, kind }: FetchArgs): Promise<Row[]> {
-  const list = await get<StockRow[]>('/stock', { asOf: to })
-  // 원본 재고현황 위젯은 품목별 — 창고를 합친 총재고. 안전재고는 품목에 하나라 합친 수와 견준다
-  const by = new Map<number, Row>()
-  for (const s of list) {
-    const r = by.get(s.itemId) ?? { itemCode: s.itemCode, item: nameSpec(s.itemName, s.spec), qty: 0, warehouse: s.warehouseName, safety: s.safetyStock }
-    r.qty = Number(r.qty) + s.quantity
-    if (r.warehouse !== s.warehouseName) r.warehouse = ''
-    by.set(s.itemId, r)
-  }
-  const rows = [...by.values()]
-  return kind === '안전재고미만품목별' ? rows.filter((r) => Number(r.qty) < Number(r.safety ?? 0)) : rows
+/** 행마다 품목그룹1 을 붙인다(itemCode 열로 찾는다) */
+async function withItemGroup(rows: Promise<Row[]>): Promise<Row[]> {
+  const [r, m] = await Promise.all([rows, itemMaster()])
+  return r.map((x) => ({ ...x, itemGroup: m.groupOf(String(x.itemCode ?? '')) }))
 }
 
 /** 입고단가 — 품목별 마지막 구매단가(생산불출현황 · 생산입고현황 화면과 같은 출처) */
@@ -41,143 +39,217 @@ async function itemPrices(): Promise<Map<number, number>> {
   return new Map(list.map((p) => [p.itemId, Number(p.unitPrice)]))
 }
 
-export async function stockRowsPriced(a: FetchArgs): Promise<Row[]> {
-  const [rows, list, price] = await Promise.all([stockRows(a), get<StockRow[]>('/stock', { asOf: a.to }), itemPrices()])
-  const idOf = new Map(list.map((s) => [s.itemCode, s.itemId]))
-  return rows.map((r) => {
-    const p = price.get(idOf.get(String(r.itemCode)) ?? -1) ?? 0
-    return { ...r, price: p, amount: p * Number(r.qty) }
-  })
+// ── 재고 ──
+/**
+ * 재고현황 — 원본 위젯은 품목별: 창고를 합친 총재고. 금액 = 품목마다 수량 × 입고단가.
+ * [대표품목으로 합산] 처음 값 '*품목관계기준' 이면 형제 품목을 대표품목(parentItemId) 한 줄로 모은다
+ * (재고현황 화면 CurrentStockPage 의 rollUp 과 같은 셈 — 안전재고는 형제 것을 더해 합친 수와 견준다). '개별품목기준' 이면 품목마다.
+ */
+export async function stockRowsPriced({ to, kind, settings }: FetchArgs): Promise<Row[]> {
+  const [list, m, price] = await Promise.all([get<StockRow[]>('/stock', { asOf: to }), itemMaster(), itemPrices()])
+  const byRep = settings.extra?.rollup !== '개별품목기준'
+  interface G { itemCode: string; item: string; qty: number; amount: number; safety: number; warehouse: string; itemGroup: string; headPrice: number | null; seen: Set<number> }
+  const by = new Map<number, G>()
+  for (const s of list) {
+    const id = byRep ? m.byId.get(s.itemId)?.parentItemId ?? s.itemId : s.itemId
+    const h = m.byId.get(id)
+    const g: G = by.get(id) ?? {
+      itemCode: h?.code ?? s.itemCode, item: h ? nameSpec(h.name, h.spec) : nameSpec(s.itemName, s.spec),
+      qty: 0, amount: 0, safety: 0, warehouse: s.warehouseName, itemGroup: h?.itemGroupName ?? '', headPrice: price.get(id) ?? null, seen: new Set<number>(),
+    }
+    g.qty += s.quantity
+    g.amount += s.quantity * (price.get(s.itemId) ?? 0)
+    if (!g.seen.has(s.itemId)) { g.seen.add(s.itemId); g.safety += Number(s.safetyStock ?? 0) }
+    if (g.warehouse !== s.warehouseName) g.warehouse = ''
+    by.set(id, g)
+  }
+  const rows = [...by.values()].map((g) => ({
+    itemCode: g.itemCode, item: g.item, qty: g.qty, safety: g.safety, warehouse: g.warehouse, itemGroup: g.itemGroup,
+    amount: Math.round(g.amount),
+    // 입고단가 — 대표품목의 단가, 대표품목에 단가가 없으면 금액 ÷ 수량
+    price: g.headPrice ?? (g.qty ? Math.round(g.amount / g.qty) : 0),
+  }))
+  return kind === '안전재고미만품목별' ? rows.filter((r) => r.qty < r.safety) : rows
 }
 
 export async function salesRows({ from, to }: FetchArgs): Promise<Row[]> {
-  const docs = await get<SalesDoc[]>('/sales', { from, to })
+  const [docs, m] = await Promise.all([get<SalesDoc[]>('/sales', { from, to }), itemMaster()])
   return docs.flatMap((d) => d.lines.map((l) => ({
     date: dateText(d.saleDate), dateNo: dateNo(d.saleDate, d.docNo), item: nameSpec(l.itemName, l.spec), itemCode: l.itemCode,
     qty: l.quantity, price: l.unitPrice, supply: l.supplyAmount, vat: l.vatAmount, total: l.supplyAmount + l.vatAmount,
-    partner: d.partnerName, employee: d.employeeName ?? '', warehouse: d.warehouseName, itemGroup: l.itemCategoryName ?? '', remark: l.remark ?? d.remark ?? '',
+    partner: d.partnerName, employee: d.employeeName ?? '', warehouse: d.warehouseName, itemGroup: m.groupOf(l.itemCode), remark: l.remark ?? d.remark ?? '',
   })))
 }
 
 export async function purchaseRows({ from, to }: FetchArgs): Promise<Row[]> {
-  const docs = await get<PurchaseDoc[]>('/purchases', { from, to })
+  const [docs, m] = await Promise.all([get<PurchaseDoc[]>('/purchases', { from, to }), itemMaster()])
   return docs.flatMap((d) => d.lines.map((l) => ({
     dateNo: dateNo(d.purchaseDate, d.docNo), date: dateText(d.purchaseDate), partner: d.partnerName, remark: l.remark ?? d.remark ?? '',
     item: nameSpec(l.itemName, l.spec), itemCode: l.itemCode, qty: l.quantity, price: l.unitPrice, amount: l.supplyAmount, vat: l.vatAmount,
-    employee: d.employeeName ?? '', warehouse: d.warehouseName, itemGroup: l.itemCategoryName ?? '',
+    employee: d.employeeName ?? '', warehouse: d.warehouseName, itemGroup: m.groupOf(l.itemCode),
   })))
 }
 
-interface UnsoldLine {
-  orderNo: string; orderDate: string; dueDate: string | null; partnerName: string; itemName: string; spec: string | null; itemCode: string
-  orderQty: number; unsoldQty: number; unitPrice: number; unsoldAmount: number; warehouseName: string; remark: string | null; statusName: string
-}
-export async function unsoldRows({ from, to }: FetchArgs): Promise<Row[]> {
-  const list = await get<UnsoldLine[]>('/sales-orders/unsold', { from, to })
-  return list.map((l) => ({
-    dateNo: dateNo(l.orderDate, l.orderNo), item: nameSpec(l.itemName, l.spec), itemCode: l.itemCode, qty: l.orderQty, restQty: l.unsoldQty,
-    supply: l.unsoldAmount, partner: l.partnerName, remark: l.remark ?? '', due: dateText(l.dueDate), vat: Math.round(l.unsoldAmount * 0.1),
-    warehouse: l.warehouseName, status: l.statusName,
-  }))
+/**
+ * 진행상태 — 원본 [설정] 의 전체 · 결재중 · 미확인 · 확인 · 확인-진행중(미판매 · 미구매 · 미출하).
+ * 우리 주문서 · 발주서 · 출하지시서에는 결재 · 확인 칸이 따로 없어 API 가 주는 상태 이름(statusName)으로 맞춘다:
+ *   결재중      — 결재를 거쳐 저장되는 주문 · 발주 · 출하지시가 아직 없다 → 늘 0건
+ *   미확인      — 주문서 '접수' · 발주서 '발주요청 · 발주계획 · 단가요청 · 단가확정'(발주확정 전)
+ *   확인        — 주문서 '진행중 · 완료' · 발주서 '발주확정 · 입고전환' · 출하지시서 '진행중 · 완료'
+ *   확인-진행중 — 확인 가운데 '완료' 가 아닌 것
+ * '취소' 는 전체에서만 보인다.
+ */
+const UNCONFIRMED = new Set(['접수', '발주요청', '발주계획', '단가요청', '단가확정'])
+const CONFIRMED = new Set(['진행중', '완료', '발주확정', '입고전환'])
+function byProgress(rows: Row[], progress: string | undefined): Row[] {
+  const st = (r: Row) => String(r.status ?? '')
+  switch (progress) {
+    case '결재중': return []
+    case '미확인': return rows.filter((r) => UNCONFIRMED.has(st(r)))
+    case '확인': return rows.filter((r) => CONFIRMED.has(st(r)))
+    case '확인-진행중': return rows.filter((r) => CONFIRMED.has(st(r)) && st(r) !== '완료')
+    default: return rows
+  }
 }
 
-interface PoLine { id: number; itemName: string; itemCode: string; spec: string | null; quantity: number; vatAmount: number; remark: string | null; itemCategoryName?: string | null }
+interface UnsoldLine {
+  orderLineId: number; orderNo: string; orderDate: string; dueDate: string | null; partnerName: string; itemName: string; spec: string | null; itemCode: string
+  orderQty: number; unsoldQty: number; unitPrice: number; unsoldAmount: number; warehouseName: string; remark: string | null; statusName: string
+}
+interface SoLine { lineId: number; quantity: number; vatAmount: number }
+/** 미판매부가세 — 주문서 줄의 부가세를 미판매수량만큼 나눈다(미구매부가세와 같은 셈). 면세 줄은 주문서 부가세가 0 이라 0 */
+export async function unsoldRows({ from, to, settings }: FetchArgs): Promise<Row[]> {
+  const [list, orders, m] = await Promise.all([
+    get<UnsoldLine[]>('/sales-orders/unsold', { from, to }),
+    get<{ lines: SoLine[] }[]>('/sales-orders', { from, to }),
+    itemMaster(),
+  ])
+  const line = new Map(orders.flatMap((o) => o.lines).map((l) => [l.lineId, l]))
+  const rows = list.map((l) => {
+    const o = line.get(l.orderLineId)
+    return {
+      dateNo: dateNo(l.orderDate, l.orderNo), item: nameSpec(l.itemName, l.spec), itemCode: l.itemCode, qty: l.orderQty, restQty: l.unsoldQty,
+      supply: l.unsoldAmount, partner: l.partnerName, remark: l.remark ?? '', due: dateText(l.dueDate),
+      vat: o && Number(o.quantity) ? Math.round((Number(o.vatAmount) * Number(l.unsoldQty)) / Number(o.quantity)) : 0,
+      warehouse: l.warehouseName, status: l.statusName, itemGroup: m.groupOf(l.itemCode),
+    }
+  })
+  return byProgress(rows, settings.extra?.progress)
+}
+
+interface PoLine { id: number; itemName: string; itemCode: string; spec: string | null; quantity: number; vatAmount: number; remark: string | null }
 interface Po { orderNo: string; orderDate: string; dueDate: string | null; partnerName: string; warehouseName: string; remark: string | null; statusName: string; lines: PoLine[] }
-export async function unpurchasedRows({ from, to }: FetchArgs): Promise<Row[]> {
-  const [pos, rest] = await Promise.all([
+export async function unpurchasedRows({ from, to, settings }: FetchArgs): Promise<Row[]> {
+  const [pos, rest, m] = await Promise.all([
     get<Po[]>('/purchase-orders', { from, to }),
     get<{ orderLineId: number; restQty: number }[]>('/purchase-orders/unpurchased', { from, to }),
+    itemMaster(),
   ])
   const left = new Map(rest.map((r) => [r.orderLineId, Number(r.restQty)]))
-  return pos.flatMap((o) => o.lines.filter((l) => (left.get(l.id) ?? 0) > 0).map((l) => {
+  return byProgress(pos.flatMap((o) => o.lines.filter((l) => (left.get(l.id) ?? 0) > 0).map((l) => {
     const q = left.get(l.id)!
     return {
       dateNo: dateNo(o.orderDate, o.orderNo), item: nameSpec(l.itemName, l.spec), itemCode: l.itemCode, qty: l.quantity, restQty: q,
       due: dateText(o.dueDate), partner: o.partnerName, remark: l.remark ?? o.remark ?? '',
-      vat: l.quantity ? Math.round((l.vatAmount * q) / l.quantity) : 0, warehouse: o.warehouseName, itemGroup: l.itemCategoryName ?? '', status: o.statusName,
+      vat: l.quantity ? Math.round((l.vatAmount * q) / l.quantity) : 0, warehouse: o.warehouseName, itemGroup: m.groupOf(l.itemCode), status: o.statusName,
     }
-  }))
+  })), settings.extra?.progress)
 }
 
 interface UnshippedLine {
   orderNo: string; orderDate: string; itemName: string; itemCode: string; spec: string | null; quantity: number; unshippedQty: number
   warehouseName: string; partnerName: string; remark: string | null; dueDate: string | null; statusName: string
 }
-export async function unshippedRows({ from, to }: FetchArgs): Promise<Row[]> {
-  const list = await get<UnshippedLine[]>('/shipment-orders/unshipped', { from, to })
-  return list.map((l) => ({
+export async function unshippedRows({ from, to, settings }: FetchArgs): Promise<Row[]> {
+  const list = await withItemGroup(get<UnshippedLine[]>('/shipment-orders/unshipped', { from, to }).then((x) => x.map((l) => ({
     dateNo: dateNo(l.orderDate, l.orderNo), item: nameSpec(l.itemName, l.spec), itemCode: l.itemCode, qty: l.quantity, restQty: l.unshippedQty,
     warehouse: l.warehouseName, partner: l.partnerName, remark: l.remark ?? '', due: dateText(l.dueDate), status: l.statusName,
-  }))
+  }))))
+  return byProgress(list, settings.extra?.progress)
 }
 
 interface Issue { issueNo: string; issueDate: string; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; warehouseName: string; toWarehouseName: string | null; qty: number; note: string | null }
 export async function issueRows({ from, to }: FetchArgs): Promise<Row[]> {
   const [list, price] = await Promise.all([get<Issue[]>('/material-issues', { from, to }), itemPrices()])
-  return list.map((m) => ({
+  return withItemGroup(Promise.resolve(list.map((m) => ({
     dateNo: dateNo(m.issueDate, m.issueNo), outWh: m.warehouseName, inWh: m.toWarehouseName ?? '', item: nameSpec(m.itemName, m.itemSpec), itemCode: m.itemCode,
     qty: m.qty, amount: Math.round(Number(m.qty) * (price.get(m.itemId) ?? 0)), remark: m.note ?? '', warehouse: m.warehouseName,
-  }))
+  }))))
 }
 
 interface Prod { prodNo: string; productionDate: string; productId: number; productCode: string; productName: string; productSpec: string | null; warehouseName: string; fromWarehouseName: string | null; producedQty: number; note: string | null }
 export async function receiptRows({ from, to }: FetchArgs): Promise<Row[]> {
   const [list, price] = await Promise.all([get<Prod[]>('/productions', { from, to }), itemPrices()])
-  return list.map((p) => ({
+  return withItemGroup(Promise.resolve(list.map((p) => ({
     dateNo: dateNo(p.productionDate, p.prodNo), outWh: p.fromWarehouseName ?? '', inWh: p.warehouseName, item: nameSpec(p.productName, p.productSpec), itemCode: p.productCode,
     qty: p.producedQty, amount: Math.round(Number(p.producedQty) * (price.get(p.productId) ?? 0)), remark: p.note ?? '', warehouse: p.warehouseName,
-  }))
+  }))))
 }
 
-interface Settlement { type: 'RECEIPT' | 'PAYMENT'; partnerId: number; amount: number }
+interface Movement { partnerId: number; code: string; name: string; manager: string | null; opening: number; stockAmount: number; accountingAmount: number; settledAmount: number; otherDiff: number; closing: number }
+interface Settlement { type: 'RECEIPT' | 'PAYMENT'; partnerId: number; amount: number; method: string | null; settleDate: string }
+interface SubcontractRow { partnerId: number | null; total: number; journalId: number | null }
 /**
- * 거래처별채권 · 채무 — 채권/채무월별현황 화면(MonthlyArApPage)과 같은 셈: 기초 = 기간 전날 잔액, 증가 = 판매(구매)전표,
- * 감소 = 수금(지급) 정산, 잔액 = 기간 끝 잔액. 기타할인등차액은 그 사이에 설명되지 않는 차이(회계전표 · 어음 등)다.
+ * 거래처별채권 · 채무 — 거래처관리대장(LedgerPage, /sales/ledger-receivable · payable)과 같은 출처 GET /ledger/partner-movements:
+ * 기초 · 재고매출(매입) · 회계매출(매입) · 수금(지급)합계 · 기타할인등차액 · 잔액을 서버가 이미 나눠 준다(기타할인등차액은 그 화면과 같은 나머지).
+ * 그 위에 원본 열을 더 쪼갠다:
+ *   수금(지급)현금 — 기간 안 수금(지급) 전표 가운데 결제수단이 '어음' 이 아닌 것(현금 · 계좌이체 · 카드)
+ *   수금(지급)어음 — 합계 − 현금. 정산전표의 '어음' + 회계전표가 외상매출금(매입금)을 직접 줄인 것(받을어음 · 지급어음 · 수표 · 상계)
+ *   외주비(채무)   — 외주비일괄회계반영으로 회계전표가 된 외주 생산입고(합계금액). 그 전표가 외상매입금을 올려 회계매입에 들어 있던 몫이라
+ *                   회계매입에서 뺀다 — 기초 + 재고매입 + 외주비 + 회계매입 − 지급합계 + 기타 = 잔액은 그대로 맞는다.
+ *   담당자코드     — 거래처의 담당자(이름)를 사원(담당) 목록에서 찾아 그 코드
+ *   미청구액       — 기간 끝 잔액 API 의 미청구금액
  */
 export async function arApRows({ from, to }: FetchArgs, side: 'AR' | 'AP'): Promise<Row[]> {
-  const [open, close, docs, st] = await Promise.all([
-    get<PartnerBalance[]>('/ledger/partner-balances', { asOf: dayBefore(from) }),
+  const ar = side === 'AR'
+  const [moves, close, st, reps, sub] = await Promise.all([
+    get<Movement[]>('/ledger/partner-movements', { from, to, side }),
     get<PartnerBalance[]>('/ledger/partner-balances', { asOf: to }),
-    side === 'AR' ? get<SalesDoc[]>('/sales', { from, to }) : get<PurchaseDoc[]>('/purchases', { from, to }),
-    get<Settlement[]>('/settlements', { from, to }),
+    get<Settlement[]>('/settlements').catch(() => [] as Settlement[]),
+    get<{ code: string; name: string }[]>('/sales-reps/all').catch(() => [] as { code: string; name: string }[]),
+    ar ? Promise.resolve([] as SubcontractRow[]) : get<SubcontractRow[]>('/accounting-reflection/subcontract', { from, to }).catch(() => [] as SubcontractRow[]),
   ])
-  const bal = (b: PartnerBalance | undefined) => (b ? (side === 'AR' ? b.receivable : b.payable) : 0)
-  const openOf = new Map(open.map((b) => [b.partnerId, bal(b)]))
-  const inc = new Map<number, number>()
-  for (const d of docs) inc.set(d.partnerId as number, (inc.get(d.partnerId as number) ?? 0) + d.totalAmount)
-  const dec = new Map<number, number>()
-  for (const s of st) if (s.type === (side === 'AR' ? 'RECEIPT' : 'PAYMENT')) dec.set(s.partnerId, (dec.get(s.partnerId) ?? 0) + Number(s.amount))
-  return close.map((b) => {
-    const o = openOf.get(b.partnerId) ?? 0
-    const i = inc.get(b.partnerId) ?? 0
-    const d = dec.get(b.partnerId) ?? 0
-    const end = bal(b)
+  const unbilled = new Map(close.map((b) => [b.partnerId, ar ? b.unbilledReceivable : b.unbilledPayable]))
+  const repCode = new Map(reps.map((r) => [r.name, r.code]))
+  const cash = new Map<number, number>()
+  for (const x of st) {
+    if (x.type !== (ar ? 'RECEIPT' : 'PAYMENT') || x.settleDate < from || x.settleDate > to || (x.method ?? '').includes('어음')) continue
+    cash.set(x.partnerId, (cash.get(x.partnerId) ?? 0) + Number(x.amount))
+  }
+  const outsource = new Map<number, number>()
+  for (const x of sub) if (x.partnerId != null && x.journalId != null) outsource.set(x.partnerId, (outsource.get(x.partnerId) ?? 0) + Number(x.total))
+  return moves.map((m) => {
+    const c = cash.get(m.partnerId) ?? 0
+    const o = outsource.get(m.partnerId) ?? 0
     return {
-      manager: b.manager ?? '', partnerCode: b.code, partner: b.name, open: o, inc: i, settle: d, diff: o + i - d - end, balance: end,
-      unbilled: side === 'AR' ? b.unbilledReceivable : b.unbilledPayable,
+      managerCode: m.manager ? repCode.get(m.manager) ?? '' : '', manager: m.manager ?? '', partnerCode: m.code, partner: m.name,
+      open: m.opening, inc: m.stockAmount, outsource: o, acc: Number(m.accountingAmount) - o,
+      bill: Number(m.settledAmount) - c, cash: c, settle: m.settledAmount, diff: m.otherDiff, balance: m.closing,
+      unbilled: unbilled.get(m.partnerId) ?? 0,
     }
-  }).filter((r) => r.open || r.inc || r.settle || r.balance)
+  })
 }
 
-interface OrderNo { orderNo: string; name: string; orderTypeId: number | null; orderTypeName: string | null; createdDate: string }
+interface OrderNo { orderNo: string; name: string; orderTypeId: number | null; orderTypeName: string | null; createdDate: string; completed: boolean }
 interface OrderType { id: number; steps: { seq: number; stageName: string }[] }
 export async function orderStageRows({ from, to }: FetchArgs): Promise<Row[]> {
   const [list, types] = await Promise.all([get<OrderNo[]>('/order-numbers', { from, to }), get<OrderType[]>('/order-types')])
-  const steps = new Map(types.map((t) => [t.id, [...t.steps].sort((a, b) => a.seq - b.seq).map((s) => s.stageName).join(' › ')]))
+  // 단계 이름을 '|' 로 이어 둔다 — catalog 의 진행단계 칸이 알약으로 편다
+  const steps = new Map(types.map((t) => [t.id, [...t.steps].sort((a, b) => a.seq - b.seq).map((s) => s.stageName).join('|')]))
   return list.map((o) => ({
     orderNo: o.orderNo, name: o.name, typeName: o.orderTypeName ?? '', date: dateText(o.createdDate),
-    stages: o.orderTypeId != null ? steps.get(o.orderTypeId) ?? '' : '', detail: '보기',
+    stages: o.orderTypeId != null ? steps.get(o.orderTypeId) ?? '' : '', completed: o.completed ? 1 : 0, detail: '보기',
   }))
 }
 
 interface AsRow { asNo: string; receiptDate: string; statusName: string; warehouseName: string | null; charge: string | null; partnerName: string | null; title: string | null; itemCode: string | null; itemName: string | null; itemSpec: string | null; lines?: { quantity: number }[] }
 export async function asRows({ from, to }: FetchArgs): Promise<Row[]> {
   const list = await get<AsRow[]>('/as-requests', { from, to })
-  return list.map((a) => ({
+  return withItemGroup(Promise.resolve(list.map((a) => ({
     dateNo: dateNo(a.receiptDate, a.asNo), status: a.statusName, warehouse: a.warehouseName ?? '', employee: a.charge ?? '', partner: a.partnerName ?? '',
     title: a.title ?? '', itemCode: a.itemCode ?? '', item: a.itemName ? nameSpec(a.itemName, a.itemSpec) : '',
     qty: (a.lines ?? []).reduce((t, l) => t + Number(l.quantity), 0),
-  }))
+  }))))
 }
 
 interface Repair { repairNo: string; repairDate: string; title: string | null; partnerName: string | null; repairTypeName: string | null; charge: string | null; content: string | null; saleAmount: number; lines: { itemName: string; itemCode: string }[] }

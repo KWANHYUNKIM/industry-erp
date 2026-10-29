@@ -19,6 +19,7 @@ const n = (key: string, label: string, more: Partial<ColumnDef> = {}): ColumnDef
 /** 종류 → 묶을 열. 월별 · 일별은 일자 열을 잘라 묶는다 */
 const LINE_KINDS = ['품목별', '거래처별', '담당자별', '월별', '일별', '라인별']
 const lineKindKey = (date: string) => ({ 품목별: 'item', 거래처별: 'partner', 담당자별: 'employee', 수리담당자별: 'employee', 월별: date, 일별: date })
+/** 검색조건 → 열. 품목그룹1 은 품목 마스터의 품목그룹(data.ts itemMaster). 품목그룹2 · 3 은 우리 품목에 칸이 없어 걸리지 않는다 */
 const FILTER = { 창고: 'warehouse', 품목그룹1: 'itemGroup' }
 
 const progressSelect = { key: 'progress', label: '진행상태', options: PROGRESS }
@@ -54,7 +55,7 @@ export const REGISTRY: WidgetDef[] = [
     },
     table: {
       columns: [c('itemCode', '품목코드'), c('item', '품명 및 규격'), n('qty', '총재고수량'), n('price', '입고단가'), n('amount', '금액')],
-      fetch: d.stockRowsPriced, filterKey: { 창고: 'warehouse' },
+      fetch: d.stockRowsPriced, filterKey: FILTER,
     },
   },
   {
@@ -99,18 +100,18 @@ export const REGISTRY: WidgetDef[] = [
     table: {
       columns: [c('dateNo', '일자-No.'), c('item', '품목명[규격]'), n('qty', '수량'), n('restQty', '미출하수량'), c('warehouse', '창고명'), c('partner', '거래처명'),
         c('remark', '적요'), c('due', '출하예정일')],
-      fetch: d.unshippedRows, kindKey: { 품목별: 'item' }, filterKey: { 창고: 'warehouse' },
+      fetch: d.unshippedRows, kindKey: { 품목별: 'item' }, filterKey: FILTER,
     },
   },
   {
     id: 'issue', title: '생산불출현황', group: '재고', icons: ALL, to: '/production/issue-status', newTo: '/production/issue',
     fields: { kinds: ['라인별', '품목별'], conditions: CONDITIONS, periods: P, defaultSort: 'dateNo', forms: ['기본'] },
-    table: { columns: productionCols, fetch: d.issueRows, kindKey: { 품목별: 'item' }, filterKey: { 창고: 'warehouse' } },
+    table: { columns: productionCols, fetch: d.issueRows, kindKey: { 품목별: 'item' }, filterKey: FILTER },
   },
   {
     id: 'receipt', title: '생산입고현황', group: '재고', icons: ALL, to: '/production/receipt-status', newTo: '/production/receipt-bom',
     fields: { kinds: ['라인별', '품목별'], conditions: CONDITIONS, periods: P, defaultSort: 'dateNo', forms: ['기본'] },
-    table: { columns: productionCols, fetch: d.receiptRows, kindKey: { 품목별: 'item' }, filterKey: { 창고: 'warehouse' } },
+    table: { columns: productionCols, fetch: d.receiptRows, kindKey: { 품목별: 'item' }, filterKey: FILTER },
   },
   {
     id: 'receivable', title: '거래처별채권', group: '재고', icons: ALL, to: '/sales/receivable-status', newTo: '/sales/sell',
@@ -126,7 +127,15 @@ export const REGISTRY: WidgetDef[] = [
     id: 'orderStage', title: '오더관리진행단계', group: '재고', icons: ALL, to: '/sales/order-stages', newTo: '/sales/order-stages',
     fields: { periods: P, defaultPeriod: '금월(~오늘)', defaultRows: 6, forms: ['기본'] },
     table: {
-      columns: [c('orderNo', '오더관리번호'), c('name', '오더관리명'), c('typeName', '오더관리유형명'), c('date', '기준일자'), c('stages', '진행단계'),
+      columns: [c('orderNo', '오더관리번호'), c('name', '오더관리명'), c('typeName', '오더관리유형명'), c('date', '기준일자'),
+        // 원본 '구매 (1)' 알약 — 단계마다 연결 전표 수. 우리 전표에는 오더관리번호 칸이 없어 오더관리진행단계 화면처럼 (0)
+        c('stages', '진행단계', { cell: (r) => (
+          <div className="ec-pills">
+            {String(r.stages ?? '').split('|').filter(Boolean).map((s, k) => (
+              <span key={k} className={`ec-pill no-ec${!r.completed && k === 0 ? ' active' : ''}`}>{s} (0)</span>
+            ))}
+          </div>
+        ) }),
         c('detail', '상세', { link: () => '/sales/order-stages' })],
       fetch: d.orderStageRows,
     },
@@ -137,7 +146,7 @@ export const REGISTRY: WidgetDef[] = [
     table: {
       columns: [c('dateNo', '일자-No.'), c('status', '진행상태'), c('warehouse', '창고명'), c('employee', '담당자명'), c('partner', '거래처명'), c('title', '제목'),
         c('itemCode', '품목코드'), c('item', '품목명[규격]'), n('qty', '수량')],
-      fetch: d.asRows, kindKey: lineKindKey('dateNo'), filterKey: { 창고: 'warehouse' },
+      fetch: d.asRows, kindKey: lineKindKey('dateNo'), filterKey: FILTER,
     },
   },
   {
