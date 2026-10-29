@@ -79,6 +79,26 @@ const rejects = async (label, method, path, body, expectSubstring) => {
 
 const section = (t) => console.log(`\n${t}`)
 
+// ── 환경설정 '재고 마이너스 허용' — 돌기 전 값을 기억해 두고 끝나면 되돌린다 ────────────
+
+let negativeStockBeforeRun = null
+
+async function setNegativeStock(on) {
+  const p = await must('GET', '/preferences')
+  if (negativeStockBeforeRun === null) negativeStockBeforeRun = Boolean(p.negativeStock)
+  if (Boolean(p.negativeStock) !== on) await must('PUT', '/preferences', { ...p, negativeStock: on })
+}
+
+async function restoreNegativeStock() {
+  if (negativeStockBeforeRun !== null) await setNegativeStock(negativeStockBeforeRun)
+}
+
+/** process.exit 전에 설정을 되돌린다 — 바로 exit 하면 켜 두었던 회사의 값이 꺼진 채 남는다. */
+async function finish(code) {
+  await restoreNegativeStock().catch((e) => console.error(`재고 마이너스 허용 되돌리기 실패: ${e.message}`))
+  process.exit(code)
+}
+
 // ── 시드 (있으면 재사용 → 여러 번 돌려도 안전) ──────────────────────────────
 
 const findBy = (list, key, value) => list.find((x) => x[key] === value)
@@ -1828,6 +1848,41 @@ async function scenarioLotRequiredProduction(f) {
 }
 
 /** 기타이동 — 자가사용·불량처리(차감) / 재고조정(실사 차이만큼 증감) */
+/**
+ * 재고 마이너스 허용을 <b>켠</b> 회사 — 원본(loginaa)처럼 재고를 넘는 자가사용 · 판매도 저장되고 재고가 그만큼 음수가 된다
+ * (a303733b). 지우면 처음 재고로 돌아온다. 이 시나리오 밖에서는 main 이 끈 채로 돌린다(막는 쪽 단언을 위해).
+ */
+async function scenarioNegativeStockAllowed(f) {
+  section('■ 재고 마이너스 허용 — 켜면 재고를 넘게 빼도 저장되고 음수로 남는다')
+  const stockOf = async (itemId) => {
+    const r = (await must('GET', '/stock')).find((x) => x.itemId === itemId && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  await setNegativeStock(true)
+  try {
+    const m0 = await stockOf(f.material.id)
+    const over = await call('POST', '/stock-adjustments', {
+      type: 'SELF_USE', itemId: f.material.id, warehouseId: f.warehouse.id, quantity: m0 + 5, reason: 'QA 마이너스',
+    })
+    eq('허용이면 현재고보다 많은 자가사용도 저장된다', over.status, 200)
+    eq('재고가 넘친 만큼 음수가 된다', await stockOf(f.material.id), -5)
+    if (over.data?.id) await must('DELETE', `/stock-adjustments/${over.data.id}`)
+    eq('자가사용을 지우면 처음 재고로', await stockOf(f.material.id), m0)
+
+    const p0 = await stockOf(f.product.id)
+    const sale = await call('POST', '/sales', {
+      partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2091-08-01', taxable: true,
+      lines: [{ itemId: f.product.id, quantity: p0 + 3, unitPrice: 10000 }],
+    })
+    eq('허용이면 재고보다 많이 팔아도 저장된다', sale.status < 300, true)
+    eq('판매한 만큼 재고가 음수가 된다', await stockOf(f.product.id), -3)
+    if (sale.data?.id) await must('DELETE', `/sales/${sale.data.id}`)
+    eq('판매를 지우면 처음 재고로', await stockOf(f.product.id), p0)
+  } finally {
+    await setNegativeStock(false)
+  }
+}
+
 async function scenarioAdjustment(f) {
   section('■ 시나리오 8. 기타이동 (자가사용 · 불량처리 · 재고조정)')
 
@@ -3099,7 +3154,7 @@ async function scenarioPaySetting() {
   eq('직책수당은 과세 항목', position.taxable, true)
 
   await rejects('중복 항목코드는 거부', 'POST', '/pay-settings/items',
-    { code: 'MEAL', name: '중복 식대', kind: 'ALLOWANCE' }, '이미 등록된 항목코드')
+    { code: 'MEAL', name: '중복 식대', kind: 'ALLOWANCE' }, '이미 등록된 코드')
 
   // ── 세율/세액등록(4대보험 요율) — 아무도 안 쓰는 2099년에 정했다가 되돌린다(실제 급여 연도는 건드리지 않는다)
   {
@@ -10883,32 +10938,41 @@ async function main() {
   token = login.data.token
   console.log(`로그인: ${login.data.user.name} (${login.data.user.roles.join(',')})`)
 
+  /*
+   * 재고를 넘게 빼면 막는지 재는 단언(자가사용 · 불출 · 판매 · 생산입고 · 반품 · 여러 줄 전부 되돌림)은
+   * 환경설정 '재고 마이너스 허용' 이 <b>꺼져 있을 때</b>의 동작이다(a303733b — 기본은 막고, 켜면 원본처럼 받는다).
+   * 누가 이 회사에서 그 값을 켜 두면 그 단언들이 저장해 버리고 재고를 수백만 음수로 남겼다(2026-10-29).
+   * 그래서 돌기 전에 끄고 끝나면 원래 값으로 되돌린다. 켰을 때의 동작은 scenarioNegativeStockAllowed 가 잰다.
+   */
+  await setNegativeStock(false)
+
   const fixtures = await seed()
   if (cmd === 'seed') {
     console.log('\n시드 완료.')
+    await restoreNegativeStock()
     return
   }
   if (cmd === 'importcost') {   // 수입비용(輸入)만 빠르게
     await scenarioImportCost()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
-    process.exit(fail ? 1 : 0)
+    await finish(fail ? 1 : 0)
   }
   if (cmd === 'password-history') {
     await scenarioPasswordHistory()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
-    process.exit(fail ? 1 : 0)
+    await finish(fail ? 1 : 0)
   }
   if (cmd === 'return-slip') {   // 반품(음수 수량 일반 전표)만 빠르게 — 거래구분 · 매출계획 반품구분 · 반품 반올림
     await scenarioReturnSlip(fixtures)
     await scenarioSalesPlanScope(fixtures)
     await scenarioPurchaseOrder(fixtures)
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
-    process.exit(fail ? 1 : 0)
+    await finish(fail ? 1 : 0)
   }
   if (cmd === 'slip-history') {   // 거래이력조회(재고) 전표 이력만 빠르게
     await scenarioSlipHistory(fixtures)
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
-    process.exit(fail ? 1 : 0)
+    await finish(fail ? 1 : 0)
   }
   // 생산 쪽만 빨리 돌린다(node qa/qa.mjs production) — 전체는 수천 건을 만들고 오래 걸린다.
   if (cmd === 'production') {
@@ -10929,7 +10993,7 @@ async function main() {
     await scenarioMrpRuns(fixtures)
     await scenarioLotRequiredProduction(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // 견적서만(node qa/qa.mjs quotation) — 시나리오 6(진행상태변경 · 수정 · 생성한전표 · 주문서 만들기)과 창고 · 프로젝트 승계.
@@ -10937,7 +11001,7 @@ async function main() {
     await scenarioQuotation(fixtures)
     await scenarioQuotationWarehouseProject(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // 의료기기공급내역보고만(node qa/qa.mjs medical) — 판매에서 불러와 저장 · 고침 · 지움.
@@ -10945,28 +11009,28 @@ async function main() {
     await scenarioUdiSupplyShape(fixtures)
     await scenarioMedicalSupplyEntries(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // 연말정산만(node qa/qa.mjs yearend) — 대상자 · 종전 · 공제 · 계산처리(원본 사례 C 숫자) · 선택삭제.
   if (cmd === 'yearend') {
     await scenarioYearEndSettlement()
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // 중도정산만(node qa/qa.mjs midterm) — 퇴직처리 → 대상자 → 원천징수연월 → 계산처리 → 퇴사 거두면 같이 지워짐.
   if (cmd === 'midterm') {
     await scenarioMidTermSettlement()
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   // A/S 소모 쪽만(node qa/qa.mjs as) — 수리 · 판매연결전표 · 소모현황.
   if (cmd === 'as') {
     await scenarioAsConsumption(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
-    process.exit(fail > 0 ? 1 : 0)
+    await finish(fail > 0 ? 1 : 0)
   }
 
   await scenarioShipment(fixtures)
@@ -10986,6 +11050,7 @@ async function main() {
   await scenarioQuotation(fixtures)
   await scenarioPurchaseOrder(fixtures)
   await scenarioAdjustment(fixtures)
+  await scenarioNegativeStockAllowed(fixtures)
   await scenarioLotRequired(fixtures)
   await scenarioDailyWorkTax()
   await scenarioWithholding()
@@ -11145,9 +11210,10 @@ async function main() {
   console.log(`통과 ${pass} · 실패 ${fail}`)
   if (fail > 0) {
     console.log('\n실패가 있습니다. 위 ❌ 항목을 확인하세요.')
-    process.exit(1)
+    await finish(1)
   }
   console.log('전부 통과했습니다.')
+  await restoreNegativeStock()
 }
 
 /**
@@ -12401,7 +12467,7 @@ function checkDeadAssertions() {
     dead.length ? dead.join(' / ') : '없음', '없음')
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(`\n중단: ${e.message}`)
-  process.exit(2)
+  await finish(2)
 })
