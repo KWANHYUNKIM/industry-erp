@@ -40,14 +40,18 @@ public final class StockTransferDtos {
             @NotNull(message = "받는창고를 선택하세요.") Long toWarehouseId,
             Long projectId,
             Long employeeId,
-            @NotEmpty(message = "품목을 한 줄 이상 입력하세요.") List<@Valid TransferLineRequest> lines
+            @NotEmpty(message = "품목을 한 줄 이상 입력하세요.") List<@Valid TransferLineRequest> lines,
+            /** 머리 적요 — 원본 머리 [새로운 항목 추가]. */
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.") String remark
     ) {}
 
     public record TransferLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
-            String reason
+            String reason,
+            /** 줄 품목명(선택). 비우면 품목 마스터 이름. */
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String itemName
     ) {}
 
     public record TransferResponse(
@@ -62,6 +66,8 @@ public final class StockTransferDtos {
             BigDecimal quantity,
             Long projectId, String projectName, Long employeeId,
             String reason, String createdBy,
+            /** 머리 적요(원본 [새로운 항목 추가]). */
+            String remark,
             /**
              * 원본 조건 [최초작성일자] · [최종작업일자], 그리고 [기타]의 <b>수정일자순(정렬)</b>.
              * StockTransfer 는 BaseTimeEntity 를 물려받아 두 칸을 진작 채우고 있었다.
@@ -71,7 +77,7 @@ public final class StockTransferDtos {
         public static TransferResponse from(StockTransfer t) {
             return new TransferResponse(
                     t.getId(), t.getTransferNo(), t.getLineNo(), t.getTransferDate(),
-                    t.getItem().getId(), t.getItem().getCode(), t.getItem().getName(), t.getItem().getUnit(),
+                    t.getItem().getId(), t.getItem().getCode(), t.effectiveItemName(), t.getItem().getUnit(),
                     t.getItem().getSpec(),
                     t.getItem().getCategory(),
                     t.getItem().getCategory() != null ? t.getItem().getCategory().getDisplayName() : null,
@@ -81,7 +87,7 @@ public final class StockTransferDtos {
                     t.getProject() != null ? t.getProject().getId() : null,
                     t.getProject() != null ? t.getProject().getName() : null,
                     t.getEmployeeId(),
-                    t.getReason(), t.getCreatedBy(),
+                    t.getReason(), t.getCreatedBy(), t.getRemark(),
                     t.getCreatedAt(), t.getUpdatedAt());
         }
     }

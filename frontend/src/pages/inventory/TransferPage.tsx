@@ -475,8 +475,9 @@ function slipNoText(date: string, no: string) {
   return `${date.replaceAll('-', '/')} -${Number.isFinite(seq) && seq > 0 ? seq : no}`
 }
 
-interface SlipLine { itemId: string; quantity: string; reason: string }
-const blankLine = (): SlipLine => ({ itemId: '', quantity: '', reason: '' })
+/** name — 줄 품목명(null = 품목 이름을 따라감). 원본은 품목을 고른 뒤 이름 칸을 고쳐 쓴다('포장김치1kg'). */
+interface SlipLine { itemId: string; quantity: string; reason: string; name: string | null }
+const blankLine = (): SlipLine => ({ itemId: '', quantity: '', reason: '', name: null })
 
 /**
  * 창고이동입력 / 창고이동수정 (원본 E040501). 머리: 일자 · 담당자 · 보내는창고 · 받는창고 · 프로젝트,
@@ -500,9 +501,11 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
     employeeId: head?.employeeId ? String(head.employeeId) : '',
     fromWarehouseId: head ? String(head.fromWarehouseId) : '',
     toWarehouseId: head ? String(head.toWarehouseId) : '',
+    /** 머리 적요 — 원본 머리 끝 [새로운 항목 추가](stock_transfers.remark). */
+    remark: head?.remark ?? '',
   })
   const [lines, setLines] = useState<SlipLine[]>(() => {
-    const ls = (slip ?? []).map((r) => ({ itemId: String(r.itemId), quantity: String(r.quantity), reason: r.reason ?? '' }))
+    const ls: SlipLine[] = (slip ?? []).map((r) => ({ itemId: String(r.itemId), quantity: String(r.quantity), reason: r.reason ?? '', name: r.itemName ?? null }))
     while (ls.length < 5) ls.push(blankLine())
     return ls
   })
@@ -512,15 +515,16 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
     return [...kept, ...picked.map((m) => ({ ...blankLine(), itemId: String(m.itemId) })), blankLine()]
   }))
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
+  /* 품목을 새로 고르면 이름도 품목 이름으로 다시 채운다(원본) */
   const setLine = (i: number, k: keyof SlipLine, v: string) =>
-    setLines((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)))
+    setLines((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v, ...(k === 'itemId' ? { name: null } : {}) } : l)))
   const itemOf = (id: string) => items.find((it) => String(it.id) === id)
   const filled = lines.filter((l) => l.itemId || l.quantity)
   const total = filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
   const whItems = warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))
 
   function reset() {
-    setForm({ transferDate: today(), projectId: '', employeeId: '', fromWarehouseId: form.fromWarehouseId, toWarehouseId: form.toWarehouseId })
+    setForm({ transferDate: today(), projectId: '', employeeId: '', fromWarehouseId: form.fromWarehouseId, toWarehouseId: form.toWarehouseId, remark: '' })
     setLines(Array.from({ length: 5 }, blankLine))
   }
 
@@ -540,7 +544,8 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
       toWarehouseId: Number(form.toWarehouseId),
       projectId: form.projectId ? Number(form.projectId) : undefined,
       employeeId: form.employeeId ? Number(form.employeeId) : undefined,
-      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), reason: l.reason || undefined })),
+      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), reason: l.reason || undefined, itemName: l.name ?? undefined })),
+      remark: form.remark.trim() || null,
     }
     try {
       const res = head
@@ -600,6 +605,13 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
                              items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
           </div>
         </li>
+        <li>
+          <div className="title">적요</div>
+          <div className="form">
+            <input className="ec-input w-full" aria-label="머리 적요" placeholder="새로운 항목 추가" maxLength={500}
+                   value={form.remark} onChange={(e) => set('remark', e.target.value)} />
+          </div>
+        </li>
       </ul>
       {/* 원본 창고이동입력 도구줄(2026-10-21 실측): 찾기(F3) · 정렬 · My품목 · 주문 · 구매 · 생산 · 발주요청 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기 */}
       <EcGridToolbar tableRef={tableRef} slipKinds={['주문', '구매', '생산', '발주요청']} onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
@@ -635,7 +647,16 @@ function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, items, 
                                    value={l.itemId} onChange={(v) => setLine(i, 'itemId', v)}
                                    items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, alias: x.searchKeyword, sub: x.spec }))} />
                 </td>
-                <td className="truncate">{it ? `${it.name}${it.spec ? ` [${it.spec}]` : ''}` : ''}</td>
+                {/* 원본: 품목을 고르면 품목명 칸이 글자 칸이 되어 줄마다 이름을 고쳐 쓴다(규격은 뒤에 흐리게). */}
+                <td>
+                  {it && (
+                    <div className="flex items-center gap-[4px]">
+                      <input className="ec-input w-full" aria-label={`${i + 1}번째 줄 품목명`} maxLength={200}
+                             value={l.name ?? it.name} onChange={(e) => setLine(i, 'name', e.target.value)} />
+                      {it.spec && <span className="text-ec-hint whitespace-nowrap">[{it.spec}]</span>}
+                    </div>
+                  )}
+                </td>
                 <td>
                   <input className="ec-input text-right" type="number" step="any" aria-label={`${i + 1}번째 줄 수량`}
                          value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} style={{ width: 90 }} />

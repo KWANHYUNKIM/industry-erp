@@ -1158,6 +1158,8 @@ export interface StockTransfer {
   employeeId: number | null
   reason: string | null
   createdBy: string | null
+  /** 머리 적요 — 원본 창고이동입력 머리 [새로운 항목 추가]. */
+  remark?: string | null
 }
 
 // ===== 외화 (통화 마스터 · 고시환율) =====

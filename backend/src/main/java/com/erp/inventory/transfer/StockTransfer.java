@@ -73,6 +73,22 @@ public class StockTransfer extends BaseTimeEntity {
     @Column(length = 300)
     private String reason;
 
+    /**
+     * 줄 품목명. 원본 창고이동입력은 품목을 고른 뒤 이름 칸을 고쳐 쓴다(0005 이동 줄 '포장김치1kg', 2026-10-29 QA).
+     * 저장 때 품목 이름으로 채운다. 비어 있으면(null — 옛 줄) 품목 이름으로 본다.
+     */
+    @Column(name = "item_name", length = 200)
+    private String itemName;
+
+    /** 머리 적요 — 원본 머리 [새로운 항목 추가]. 전표 머리라 일자 · 창고처럼 줄마다 같은 값을 든다. */
+    @Column(length = 500)
+    private String remark;
+
+    /** 화면 · 출력물에 보일 품목명 — 줄에 저장된 값, 옛 줄(null)이면 품목 이름. */
+    public String effectiveItemName() {
+        return itemName != null ? itemName : (getItem() == null ? null : getItem().getName());
+    }
+
     @Column(length = 50)
     private String createdBy;
 }

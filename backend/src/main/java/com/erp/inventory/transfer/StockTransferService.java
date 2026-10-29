@@ -42,7 +42,7 @@ public class StockTransferService {
         StockTransfer first = rows.get(0);
         changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
                 com.erp.common.history.ChangeHistoryService.SlipSnapshot.confirmed("창고이동", first.getTransferDate(), first.getTransferNo(),
-                        com.erp.common.history.ChangeHistoryService.itemSummary(first.getItem().getName(), first.getItem().getSpec(), rows.size())));
+                        com.erp.common.history.ChangeHistoryService.itemSummary(first.effectiveItemName(), first.getItem().getSpec(), rows.size())));
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +99,7 @@ public class StockTransferService {
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .employeeId(req.employeeId())
                 .reason(req.reason())
+                .itemName(item.getName())
                 .createdBy(username)
                 .build();
         StockTransfer savedOne = transferRepository.save(transfer);
@@ -214,6 +215,7 @@ public class StockTransferService {
                 .orElseThrow(() -> ApiException.notFound("받는창고를 찾을 수 없습니다. id=" + req.toWarehouseId()));
         var project = req.projectId() == null ? null : projectService.get(req.projectId());
         String note = noteOf(transferNo, from, to);
+        String remark = req.remark() == null || req.remark().isBlank() ? null : req.remark().trim();
 
         List<StockTransfer> saved = new ArrayList<>();
         int lineNo = 0;
@@ -232,6 +234,8 @@ public class StockTransferService {
                 t.setProject(project);
                 t.setEmployeeId(req.employeeId());
                 t.setReason(line.reason());
+                t.setItemName(nameOf(line, item));
+                t.setRemark(remark);
                 saved.add(t);
                 continue;
             }
@@ -246,12 +250,19 @@ public class StockTransferService {
                     .project(project)
                     .employeeId(req.employeeId())
                     .reason(line.reason())
+                    .itemName(nameOf(line, item))
+                    .remark(remark)
                     .createdBy(username)
                     .build()));
         }
         if (reuse.size() > lineNo) transferRepository.deleteAll(reuse.subList(lineNo, reuse.size()));
         transferRepository.flush();
         return saved.stream().map(TransferResponse::from).toList();
+    }
+
+    /** 줄 품목명 — 비우면 품목 마스터 이름. */
+    private static String nameOf(TransferLineRequest line, Item item) {
+        return line.itemName() != null && !line.itemName().isBlank() ? line.itemName().trim() : item.getName();
     }
 
     private String generateNo(LocalDate date) {
