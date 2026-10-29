@@ -46,8 +46,8 @@ public final class ContractItemDtos {
             BigDecimal supplyAmount,
             BigDecimal vatAmount
     ) {
-        public static ProductLink of(com.erp.inventory.item.Item i, BigDecimal quantity, BigDecimal unitPrice, BigDecimal supply, BigDecimal vat) {
-            return new ProductLink(i.getId(), i.getCode(), i.getName(), i.getSpec(), quantity, unitPrice, supply, vat);
+        public static ProductLink of(com.erp.inventory.item.Item i, String spec, BigDecimal quantity, BigDecimal unitPrice, BigDecimal supply, BigDecimal vat) {
+            return new ProductLink(i.getId(), i.getCode(), i.getName(), spec, quantity, unitPrice, supply, vat);
         }
 
         public BigDecimal supplyOrDefault() {
@@ -75,7 +75,7 @@ public final class ContractItemDtos {
     ) {
         public static ContractItemResponse from(ContractItem i) {
             java.util.List<ProductLink> ps = i.getProducts().stream()
-                    .map((p) -> ProductLink.of(p.getItem(), p.getQuantity(), p.getUnitPrice(), p.getSupplyAmount(), p.getVatAmount())).toList();
+                    .map((p) -> ProductLink.of(p.getItem(), p.getSpec(), p.getQuantity(), p.getUnitPrice(), p.getSupplyAmount(), p.getVatAmount())).toList();
             return new ContractItemResponse(i.getId(), i.getCode(), i.getName(), i.getUnitPrice(), i.isVatIncluded(),
                     i.getBillingCycle(), i.getBillingCycle().getDisplayName(),
                     i.getSalesAccount() != null ? i.getSalesAccount().getId() : null,

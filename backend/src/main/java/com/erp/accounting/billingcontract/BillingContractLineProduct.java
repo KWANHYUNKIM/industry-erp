@@ -37,6 +37,10 @@ public class BillingContractLineProduct {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal quantity;
 
+    /** 규격 — 사용자가 친 글(품목 규격을 자동으로 찍지 않는다, 계약항목 품목연결과 같다). */
+    @Column(length = 100)
+    private String spec;
+
     @Column(name = "unit_price", nullable = false, precision = 18, scale = 2)
     private BigDecimal unitPrice;
 

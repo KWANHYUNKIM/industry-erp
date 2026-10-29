@@ -240,7 +240,7 @@ public class BillingContractService {
             if (l.products() != null) {
                 int pn = 1;
                 for (var p : l.products()) {
-                    line.getProducts().add(BillingContractLineProduct.builder().contractLine(line).lineNo(pn++).item(productItemService.get(p.itemId()))
+                    line.getProducts().add(BillingContractLineProduct.builder().contractLine(line).lineNo(pn++).item(productItemService.get(p.itemId())).spec(p.spec() == null || p.spec().isBlank() ? null : p.spec().trim())
                             .quantity(p.quantity()).unitPrice(p.unitPrice()).supplyAmount(p.supplyOrDefault()).vatAmount(p.vatOrDefault()).build());
                 }
             }
