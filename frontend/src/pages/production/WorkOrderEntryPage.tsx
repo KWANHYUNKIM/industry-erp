@@ -139,7 +139,7 @@ export default function WorkOrderEntryPage() {
       api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data.filter((w) => w.active))),
       api.get<{ id: number; code: string; name: string }[]>('/partners').then((r) => setPartners(r.data)),
       api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)),
-      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees')
+      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/sales-reps')
         .then((r) => setEmployees(r.data.filter((e) => e.active !== false))),
     ]).catch((e) => setError(extractErrorMessage(e)))
   }, [])

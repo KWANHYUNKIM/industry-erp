@@ -575,7 +575,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   // ── 로딩 ──────────────────────────────────────────────
   async function loadRefs() {
     api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
-    api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+    api.get<EmployeeMaster[]>('/sales-reps').then((r) => setEmployees(r.data)).catch(() => {})
     api.get<CustomFieldDef[]>('/custom-fields/defs', { params: { entityType: cfg.entityType } })
       .then((r) => setCustomDefs(r.data.filter((d) => d.active)))
       .catch(() => setCustomDefs([]))

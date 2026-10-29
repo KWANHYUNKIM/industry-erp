@@ -51,7 +51,7 @@ export default function QuotationPage() {
   const [genEmps, setGenEmps] = useState<{ id: number; code: string; name: string }[]>([])
   const [genCurrencies, setGenCurrencies] = useState<Currency[]>([])
   useEffect(() => {
-    api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees').then((r) => setGenEmps(r.data.filter((e) => e.active !== false))).catch(() => setGenEmps([]))
+    api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/sales-reps').then((r) => setGenEmps(r.data.filter((e) => e.active !== false))).catch(() => setGenEmps([]))
     api.get<Currency[]>('/currencies').then((r) => setGenCurrencies(r.data.filter((c) => c.active))).catch(() => setGenCurrencies([]))
   }, [])
   const [tab, setTab] = useState<Tab>('ALL')

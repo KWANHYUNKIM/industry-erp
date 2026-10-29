@@ -20,7 +20,7 @@ export default function EmployeePerformancePage() {
 
   function load() {
     setError('')
-    api.get<PerformanceSummary>('/employees/performance', { params: { from, to } })
+    api.get<PerformanceSummary>('/sales/rep-performance', { params: { from, to } })
       .then((r) => setSummary(r.data))
       .catch((e) => { setSummary(null); setError(extractErrorMessage(e)) })
   }

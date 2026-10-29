@@ -2070,6 +2070,8 @@ export interface EmployeeMaster {
   foreignName1: string | null
   foreignName2: string | null
   household: string | null
+  /** 원본 사원등록 [주민등록번호] — 필수 아님(급여를 못 보는 사람에게는 null) */
+  residentNo?: string | null
   /** 원본 사원등록 [우편번호] */
   zipcode: string | null
   address: string | null
@@ -3757,4 +3759,20 @@ export interface WithholdingPaymentStatement {
   smallCount: number
   smallGross: number
   rows: WithholdingStatementRow[]
+}
+
+/** 재고 I › 기초등록 › 사원(담당)등록(E010110) — 전표 [담당자] 마스터(/sales-reps). 관리 사원(EmployeeMaster)과 다른 마스터다. */
+export interface SalesRep {
+  id: number
+  code: string
+  name: string
+  searchKeyword: string | null
+  remark: string | null
+  phone: string | null
+  email: string | null
+  extra3: string | null
+  extra4: string | null
+  extra5: string | null
+  extra6: string | null
+  active: boolean
 }

@@ -53,11 +53,13 @@ export interface CondPickers {
    * 화면은 String(row.projectId) === 값 으로 거른다.
    */
   projects: CondPickerItem[]
-  /** 사원(담당자·거래처관리담당자). 값은 사원명. */
+  /** 사원(담당) — 재고 I › 기초등록 › 사원(담당)등록(/sales-reps). 전표의 [담당자] · 거래처관리담당자. 값은 이름. */
   employees: CondPickerItem[]
+  /** 관리 › 사원등록의 인사 사원(/employees). 회계 계약 · 청구처럼 인사 사원 id 를 드는 화면만. 값은 이름. */
+  staff: CondPickerItem[]
 }
 
-const EMPTY: CondPickers = { partners: [], warehouses: [], items: [], projects: [], employees: [] }
+const EMPTY: CondPickers = { partners: [], warehouses: [], items: [], projects: [], employees: [], staff: [] }
 
 /**
  * @param want 받을 것만 고른다. 품목이 수천 건인 회사에서 모든 화면이 품목을 받으면
@@ -114,9 +116,18 @@ export function useCondPickers(
     }
 
     if (need.has('employees')) {
-      jobs.push(api.get<{ id: number; code: string; name: string; department?: string | null; active?: boolean }[]>('/employees')
+      // 사원(담당) — 원본 전표 [담당자] 코드도움은 관리 사원(2019-001 …)이 아니라 이 마스터를 띄운다
+      jobs.push(api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/sales-reps')
         .then((r) => ({
           employees: r.data.filter((e) => e.active !== false)
+            .map((e) => ({ id: e.id, value: e.name, code: e.code, name: e.name })),
+        }))
+        .catch(() => ({})))
+    }
+    if (need.has('staff')) {
+      jobs.push(api.get<{ id: number; code: string; name: string; department?: string | null; active?: boolean }[]>('/employees')
+        .then((r) => ({
+          staff: r.data.filter((e) => e.active !== false)
             .map((e) => ({ id: e.id, value: e.name, code: e.code, name: e.name, sub: e.department })),
         }))
         .catch(() => ({})))

@@ -183,7 +183,7 @@ export default function WorkOrderPage() {
     try {
       const [o, emp] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders', { params: { from: from || undefined, to: to || undefined } }),
-        api.get<{ id: number; code: string; name: string }[]>('/employees'),
+        api.get<{ id: number; code: string; name: string }[]>('/sales-reps'),
       ])
       setOrders(o.data)
       setEmployees(emp.data)

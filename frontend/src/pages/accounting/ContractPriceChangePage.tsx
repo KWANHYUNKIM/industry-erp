@@ -52,7 +52,7 @@ export default function ContractPriceChangePage() {
   const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const pickers = useCondPickers(['employees'])
+  const pickers = useCondPickers(['staff'])
   const dp = useDeptProjectItems()
   const tableRef = useRef<HTMLTableElement>(null)
 
@@ -70,7 +70,7 @@ export default function ContractPriceChangePage() {
     .filter((r) => r.foreignCurrency === foreign)
     .filter(() => progress !== 'done'), [rows, filter, foreign, progress])
   useTableColumnCheck(tableRef, '계약단가/수량일괄변경', [shown.length])
-  const empName = (id: number | null) => (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
+  const empName = (id: number | null) => (id == null ? '' : pickers.staff.find((e) => e.id === id)?.name ?? '')
   const deptName = (id: number | null) => (id == null ? '' : dp.departments.find((d) => d.value === String(id))?.name ?? '')
   const value = (r: PriceChangeLine, k: keyof Edit) => edits[r.lineId]?.[k] ?? String(Number(r[k]))
   const setEdit = (r: PriceChangeLine, patch: Partial<Edit>) =>

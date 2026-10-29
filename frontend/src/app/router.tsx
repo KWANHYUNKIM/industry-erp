@@ -371,6 +371,7 @@ const PayItemListPage = lazy(() => import('../pages/hr/PayItemListPage'))
 const PayGroupListPage = lazy(() => import('../pages/hr/PayGroupListPage'))
 const DepartmentListPage = lazy(() => import('../pages/hr/DepartmentListPage'))
 const ProjectListPage = lazy(() => import('../pages/inventory/ProjectListPage'))
+const SalesRepPage = lazy(() => import('../pages/inventory/SalesRepPage'))
 const WorkInputPage = lazy(() => import('../pages/hr/WorkInputPage'))
 const WorkListPage = lazy(() => import('../pages/hr/WorkListPage'))
 const PayLedgerPage = lazy(() => import('../pages/hr/PayLedgerPage'))
@@ -1071,6 +1072,7 @@ export default function AppRouter() {
         <Route path="/hr/pay-groups" element={<PayGroupListPage />} />
         <Route path="/hr/departments" element={<DepartmentListPage />} />
         <Route path="/inventory/projects" element={<ProjectListPage />} />
+        <Route path="/inventory/sales-reps" element={<SalesRepPage />} />
         <Route path="/hr/work-input" element={<WorkInputPage />} />
         <Route path="/hr/work-list" element={<WorkListPage />} />
         <Route path="/hr/records" element={<HrRecordPage />} />

@@ -197,7 +197,7 @@ export default function WoProgressPage() {
         api.get<Production[]>('/productions', { params: period }),
         api.get<WorkResult[]>('/work-results'),
         api.get<Bom[]>('/boms'),
-        api.get<{ id: number; name: string }[]>('/employees'),
+        api.get<{ id: number; name: string }[]>('/sales-reps'),
         api.get<{ name: string; manager: string | null }[]>('/partners'),
         /* 원본 격자의 [생산공정]·[현재고]. 둘 다 이미 있는 자료인데 안 받아 오고 있었다. */
         api.get<BorRow[]>('/bor'),

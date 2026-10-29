@@ -131,7 +131,7 @@ export default function QuotationEntry() {
   useEffect(() => {
     void loadMyItems()
     api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
-    api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data.filter((e) => e.active !== false))).catch(() => {})
+    api.get<EmployeeMaster[]>('/sales-reps').then((r) => setEmployees(r.data.filter((e) => e.active !== false))).catch(() => {})
     void (async () => {
       const [p, w, i] = await Promise.all([api.get<Partner[]>('/partners'), api.get<Warehouse[]>('/warehouses'), api.get<Item[]>('/items')])
       setPartners(p.data); setWarehouses(w.data); setItems(i.data)

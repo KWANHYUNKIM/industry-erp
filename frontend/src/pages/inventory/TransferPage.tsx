@@ -168,7 +168,7 @@ export default function TransferPage() {
         api.get<Warehouse[]>('/warehouses'),
         api.get<StockRow[]>('/stock'),
         api.get<CodeRow[]>('/projects'),
-        api.get<CodeRow[]>('/employees'),
+        api.get<CodeRow[]>('/sales-reps'),
       ])
       setTransfers(t.data)
       setAdjustments(a.data.rows)

@@ -7,7 +7,7 @@
       "steps": [
         "click:거래처 코드도움",
         "pickrow:QA-CUST",
-        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const e = (await (await fetch('/api/employees', { headers: H })).json()).filter((x) => x.active !== false && x.code); sessionStorage.setItem('o2sEmpA', e[0].code); sessionStorage.setItem('o2sEmpB', e[1].code); return e[0].code + ' / ' + e[1].code })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const e = (await (await fetch('/api/sales-reps', { headers: H })).json()).filter((x) => x.active !== false && x.code); sessionStorage.setItem('o2sEmpA', e[0].code); sessionStorage.setItem('o2sEmpB', e[1].code); return e[0].code + ' / ' + e[1].code })()",
         "click:담당자 코드도움",
         "pickrow:@o2sEmpA",
         "js:document.querySelector('input[placeholder=\"품목 선택\"]').click(); true",

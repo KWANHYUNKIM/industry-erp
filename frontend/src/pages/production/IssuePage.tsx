@@ -277,7 +277,7 @@ export default function IssuePage() {
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
         api.get<WorkOrder[]>('/work-orders/options'),
-        api.get<EmployeeLite[]>('/employees'),
+        api.get<EmployeeLite[]>('/sales-reps'),
         api.get<Project[]>('/projects'),
       ])
       setItems(it.data)

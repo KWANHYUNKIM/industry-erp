@@ -31,7 +31,9 @@ const REGISTER: [RegExp, string][] = [
   [/거래처|납품처|구매처|매출처|매입처|외주처|고객/, '/sales/partners'],
   [/품목|제품|자재|원재료|부품/, '/inventory/items'],
   [/창고|공장|공정/, '/inventory/warehouses'],
-  [/사원|담당|직원/, '/hr/employees'],
+  // 원본 전표 [담당자] 코드도움의 [신규(F2)] 는 재고 I › 기초등록 › 사원(담당)등록을 연다(관리 사원등록과 다른 마스터)
+  [/담당/, '/inventory/sales-reps'],
+  [/사원|직원/, '/hr/employees'],
   [/계정/, '/accounting/accounts'],
   [/프로젝트/, '/inventory/projects'],
   [/부서/, '/hr/departments'],

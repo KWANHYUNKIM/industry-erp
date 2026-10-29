@@ -78,7 +78,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
     Promise.all([
       api.get<Partner[]>('/partners'), api.get<Item[]>('/items'),
       api.get<{ id: number; code: string; name: string }[]>('/warehouses'),
-      api.get<{ id: number; name: string; code?: string }[]>('/employees'),
+      api.get<{ id: number; name: string; code?: string }[]>('/sales-reps'),
       api.get<{ id: number; code: string; name: string }[]>('/projects'),
     ]).then(([p, i, w, e, pj]) => { setPartners(p.data); setItems(i.data); setWarehouses(w.data); setEmployees(e.data); setProjects(pj.data) })
       .catch((err) => void ecAlert(extractErrorMessage(err)))

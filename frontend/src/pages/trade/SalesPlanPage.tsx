@@ -216,7 +216,7 @@ export default function SalesPlanPage() {
         api.get<CodeRow[]>('/warehouses'),
         api.get<CodeRow[]>('/partners'),
         api.get<CodeRow[]>('/projects'),
-        api.get<CodeRow[]>('/employees'),
+        api.get<CodeRow[]>('/sales-reps'),
       ])
       setRows(c.data)
       setItems(i.data)

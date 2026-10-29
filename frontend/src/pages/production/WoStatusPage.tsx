@@ -187,7 +187,7 @@ export default function WoStatusPage() {
          * 흔해서 지시를 기간으로 자르면 그 실적이 갈 곳을 잃는다.
          */
         api.get<Row[]>('/work-orders', { params: period }),
-        api.get<{ id: number; name: string }[]>('/employees'),
+        api.get<{ id: number; name: string }[]>('/sales-reps'),
       ])
       const sorted = [...res.data].sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id))
       setRows(sorted)

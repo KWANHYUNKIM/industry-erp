@@ -124,7 +124,8 @@ const MENU: TopMenu[] = [
           { label: '관리항목등록', to: '/inventory/manage-items' },
                     /* 원본 단가관리 차례(2026-10-30 사이트맵): 단가적용순서설정 · 특별단가등록 · 거래처특별단가그룹등록 · 품목별단가 */
           { label: '단가관리', children: [{ label: '단가적용순서설정', to: '/inventory/price-order' }, { label: '특별단가등록', to: '/sales/special-price' }, { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' }, { label: '품목별단가', to: '/inventory/item-prices' }] },
-          /* 원본 사이트맵 차례: … 단가관리 · 사원(담당)등록(E010110 — 우리에게 없음) · 인쇄용결재라인등록(재고) E040111 · 외화등록 · 각종코드변경(E040113 — 우리에게 없음) */
+          /* 원본 사이트맵 차례: … 단가관리 · 사원(담당)등록 E010110 · 인쇄용결재라인등록(재고) E040111 · 외화등록 · 각종코드변경(E040113 — 우리에게 없음) */
+          { label: '사원(담당)등록', to: '/inventory/sales-reps' },
           { label: '인쇄용결재라인등록(재고)', to: '/inventory/print-sign' },
           { label: '외화등록', to: '/settings/currencies' },
         ],
@@ -549,6 +550,7 @@ const MENU: TopMenu[] = [
           { label: '결제대행사등록', to: '/accounting/payment-agencies' },
           /* 원본 사이트맵 차례: … 결제대행사등록 · 추가항목유형등록 · 사원(담당)등록 · 계정등록(E010107) · 각종코드변경 · 외화등록 */
           { label: '추가항목유형등록', to: '/accounting/extra-field-types' },
+          { label: '사원(담당)등록', to: '/inventory/sales-reps' },
           { label: '계정등록', to: '/accounting/accounts' },
           { label: '각종코드변경', to: '/accounting/code-change' },
           { label: '외화등록', to: '/settings/currencies' },

@@ -211,7 +211,7 @@ export default function PurchaseOrderPage() {
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data.filter((p) => p.type !== 'CUSTOMER'))).catch(() => {})
     api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data)).catch(() => {})
     api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
-    api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+    api.get<EmployeeMaster[]>('/sales-reps').then((r) => setEmployees(r.data)).catch(() => {})
     api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data)).catch(() => {})
   }, [])
 

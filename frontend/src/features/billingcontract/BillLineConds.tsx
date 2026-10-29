@@ -57,7 +57,7 @@ export function BillLineConds({ rows, filter, set, full, vatAll, currency = full
   /** 칸 차례 — 계약현황(E060912)은 거래처 · 계약 · 계약항목 · 청구단위 · 담당자 · 프로젝트 · 부서 · 부가세유형. */
   order?: CondKey[]
 }) {
-  const pickers = useCondPickers(full ? ['employees'] : [])
+  const pickers = useCondPickers(full ? ['staff'] : [])
   const dp = useDeptProjectItems()
   const opts = (f: (r: BillCondRow) => [string, string] | null) => {
     const m = new Map<string, string>()
@@ -68,7 +68,7 @@ export function BillLineConds({ rows, filter, set, full, vatAll, currency = full
   const items = useMemo(() => opts((r) => [String(r.itemId), r.itemName]), [rows])
   const partners = useMemo(() => opts((r) => [String(r.partnerId), r.partnerName]), [rows])
   const units = useMemo(() => opts((r) => (r.billingUnitId != null ? [String(r.billingUnitId), r.billingUnitName ?? ''] : null)), [rows])
-  const employees = useMemo(() => pickers.employees.filter((e) => e.id != null).map((e) => ({ value: String(e.id), code: e.code ?? undefined, name: e.name })), [pickers.employees])
+  const employees = useMemo(() => pickers.staff.filter((e) => e.id != null).map((e) => ({ value: String(e.id), code: e.code ?? undefined, name: e.name })), [pickers.staff])
 
   const conds: Record<CondKey, ReactNode> = {
     contract: <EcCond key="contract" label="계약" pick><CodePickerField label="계약" hideLabel width={220} emptyLabel="계약" value={filter.contract} onChange={(v) => set({ contract: v })} items={contracts} /></EcCond>,
