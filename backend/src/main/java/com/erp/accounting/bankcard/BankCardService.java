@@ -361,6 +361,47 @@ public class BankCardService {
     }
 
     /**
+     * 일반전표 줄의 계좌 — 계좌의 계정(보통예금 1039 등) 줄 거래처가 그 계좌의 짝 거래처면 통장 잔액을 움직인다
+     * (원본 일반전표 11/28-1: 보통예금 줄 거래처 = 계좌 1122334455, 2026-10-29 데이터이관 QA 루프 70~71). 지출결의서 · 입금보고서처럼
+     * 분개는 일반전표가 이미 만들었으니 잔액과 입출금 내역만 이 전표에 묶어 남긴다. 차변이면 입금, 대변이면 출금.
+     *
+     * <p>고칠 때는 이 전표가 이미 움직인 것과 새 줄이 같으면 그대로 두고, 다르면 지난 이동을 되돌린 뒤 다시 넣는다.
+     * 수입(입금보고서)이 만든 일반전표는 수입이 계좌를 움직이므로 건드리지 않는다.
+     */
+    @Transactional
+    public void syncJournalBank(JournalEntry e, String username) {
+        if (e == null || e.getId() == null || incomeRepository.existsByJournalEntryId(e.getId())) return;
+        record Move(Long bankId, boolean deposit, BigDecimal amount, String memo) {
+            String key() { return bankId + "|" + deposit + "|" + amount.stripTrailingZeros().toPlainString(); }
+        }
+        List<Move> planned = new java.util.ArrayList<>();
+        for (com.erp.accounting.journal.JournalLine l : e.getLines()) {
+            if (l.getPartner() == null || l.getPartner().getLinkedKind() == null) continue;
+            BankAccount b = bankAccountRepository.findByPartnerId(l.getPartner().getId()).orElse(null);
+            if (b == null || b.getGlAccount() == null || !b.getGlAccount().getId().equals(l.getAccount().getId())) continue;
+            boolean deposit = l.getDebit().signum() > 0;
+            BigDecimal amt = deposit ? l.getDebit() : l.getCredit();
+            if (amt.signum() == 0) continue;
+            String memo = l.getDescription() != null && !l.getDescription().isBlank() ? l.getDescription() : e.getDescription();
+            planned.add(new Move(b.getId(), deposit, amt, memo != null ? memo : "일반전표 " + e.getDocNo()));
+        }
+        List<BankTransaction> done = txnRepository.findByJournalEntryId(e.getId());
+        List<String> want = planned.stream().map(Move::key).sorted().toList();
+        List<String> have = done.stream().map(t -> t.getBankAccount().getId() + "|" + t.isDeposit() + "|"
+                + t.getAmount().stripTrailingZeros().toPlainString()).sorted().toList();
+        if (want.equals(have)) return;
+        reverseExternal(e, "일반전표 수정 " + e.getDocNo(), username);
+        for (Move m : planned) recordExternal(m.bankId(), m.deposit(), m.amount(), e.getEntryDate(), m.memo(), e, username);
+    }
+
+    /** 일반전표를 지울 때 — 그 전표가 움직인 통장 잔액을 되돌린다(수입이 만든 전표는 수입 쪽이 맡는다). */
+    @Transactional
+    public void syncJournalBankRemoved(JournalEntry e, String username) {
+        if (e == null || e.getId() == null || incomeRepository.existsByJournalEntryId(e.getId())) return;
+        reverseExternal(e, "일반전표 삭제 " + e.getDocNo(), username);
+    }
+
+    /**
      * 계좌입출금(이 화면에서 직접 넣은 것) 삭제 — QA 62~63회차. 잘못 넣으면 반대로 한 번 더 넣어야 했다.
      *
      * <p>다른 전표가 만든 입출금(계좌간이동·카드대금결제·간편전표 = 상대계정 없음, 수입의 계좌입금,

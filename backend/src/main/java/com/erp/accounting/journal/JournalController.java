@@ -32,6 +32,8 @@ public class JournalController {
     private final JournalQueryService service;
     private final JournalService journalService;
     private final JournalCodeChangeService codeChangeService;
+    /** 일반전표 저장 · 수정 · 삭제 — 보통예금 줄 계좌의 통장 잔액까지 함께 */
+    private final ManualJournalService manualJournalService;
 
     /** 각종코드변경(E010111) [변경] — 바꾼 줄 수를 돌려준다. */
     @PostMapping("/code-change")
@@ -44,7 +46,7 @@ public class JournalController {
     public ResponseEntity<JournalEntryResponse> createManual(
             @Valid @RequestBody CreateJournalRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        var entry = journalService.createManual(req, principal.getUsername());
+        var entry = manualJournalService.create(req, principal.getUsername());
         return ResponseEntity.ok(JournalEntryResponse.from(entry));
     }
 
@@ -53,7 +55,7 @@ public class JournalController {
     public JournalEntryResponse updateManual(@PathVariable Long id,
                                              @Valid @RequestBody CreateJournalRequest req,
                                              @AuthenticationPrincipal UserPrincipal principal) {
-        return JournalEntryResponse.from(journalService.updateManual(id, req, principal.getUsername()));
+        return JournalEntryResponse.from(manualJournalService.update(id, req, principal.getUsername()));
     }
 
     /** 회계 I › 매출/매입거래 › 매출전표 I · 매입전표 I */
@@ -96,8 +98,8 @@ public class JournalController {
 
     /** 수동전표 삭제 (업무전표 생성분은 회계반영취소로만) */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        journalService.deleteManual(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        manualJournalService.delete(id, principal.getUsername());
         return ResponseEntity.noContent().build();
     }
 
