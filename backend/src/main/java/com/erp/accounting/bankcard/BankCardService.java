@@ -282,11 +282,8 @@ public class BankCardService {
         }
 
         BigDecimal delta = req.deposit() ? req.amount() : req.amount().negate();
+        // 원본처럼 잔액을 넘는 출금도 받는다(마이너스 통장) — 2026-10-29 loginaa 지출결의서 실측.
         BigDecimal after = b.getBalance().add(delta);
-        if (after.signum() < 0) {
-            throw ApiException.badRequest(String.format("계좌 잔액이 부족합니다. 잔액 %s, 출금 %s",
-                    b.getBalance().toPlainString(), req.amount().toPlainString()));
-        }
         b.setBalance(after);
 
         LocalDate date = req.txnDate() != null ? req.txnDate() : LocalDate.now();
@@ -322,11 +319,7 @@ public class BankCardService {
         if (!b.isActive()) {
             throw ApiException.badRequest("사용중지된 계좌입니다: " + b.getBankName() + " " + b.getAccountNo());
         }
-        BigDecimal after = b.getBalance().add(deposit ? amount : amount.negate());
-        if (after.signum() < 0) {
-            throw ApiException.badRequest(String.format("계좌 잔액이 부족합니다. 잔액 %s, 출금 %s",
-                    b.getBalance().toPlainString(), amount.toPlainString()));
-        }
+        BigDecimal after = b.getBalance().add(deposit ? amount : amount.negate());   // 음수 허용(원본)
         b.setBalance(after);
 
         BankTransaction t = BankTransaction.builder()
@@ -408,8 +401,7 @@ public class BankCardService {
      * 어음 만기결제·할인 = 상대계정이 받을어음·지급어음)은 <b>그 전표에서</b> 지운다 — 여기서 지우면
      * 그 전표만 남아 장부가 어긋난다.
      *
-     * <p>줄을 지우고 그 뒤 줄들의 거래후 잔액을 그만큼 옮긴다. 입금을 지울 때 그 돈을 이미 썼으면
-     * (뒤 어느 시점 잔액이 음수가 되면) 막는다.
+     * <p>줄을 지우고 그 뒤 줄들의 거래후 잔액을 그만큼 옮긴다. 잔액이 음수가 되어도 지운다(원본은 마이너스 통장 허용).
      */
     @Transactional
     public void deleteTxn(Long id) {
@@ -424,12 +416,6 @@ public class BankCardService {
         BankAccount b = bankAccountRepository.findForUpdate(t.getBankAccount().getId())
                 .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다."));
         BigDecimal effect = t.isDeposit() ? t.getAmount() : t.getAmount().negate();
-        BigDecimal later = txnRepository.minBalanceAfterLater(b.getId(), t.getId());
-        if (b.getBalance().subtract(effect).signum() < 0 || (later != null && later.subtract(effect).signum() < 0)) {
-            throw ApiException.badRequest(String.format(
-                    "%s 의 입금 %s 을(를) 그 뒤에 이미 써서 지우면 잔액이 음수가 됩니다 — 뒤 출금부터 지우세요.",
-                    t.getTxnNo(), t.getAmount().stripTrailingZeros().toPlainString()));
-        }
         txnRepository.shiftBalanceAfterLater(b.getId(), t.getId(), effect);
         b.setBalance(b.getBalance().subtract(effect));
         JournalEntry entry = t.getJournalEntry();

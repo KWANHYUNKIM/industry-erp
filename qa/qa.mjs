@@ -2010,9 +2010,13 @@ async function scenarioBankCard() {
   })
   eq('출금 후 잔액 = 입금 후 - 출금액', Number(withdraw.balanceAfter), Number(deposit.balanceAfter) - 200_000)
 
-  await rejects('잔액보다 많은 출금은 거부', 'POST', '/bank-cards/transactions', {
+  // 원본처럼 잔액을 넘는 출금도 받는다(마이너스 통장) — 넣고 바로 지워 잔액을 되돌린다
+  const over = await must('POST', '/bank-cards/transactions', {
     bankAccountId: bank.id, deposit: false, amount: Number(withdraw.balanceAfter) + 1, counterAccountId: cash.id,
-  }, '잔액이 부족')
+    txnDate: '2026-07-14', description: 'QA 잔액초과출금',
+  })
+  eq('잔액보다 많은 출금은 마이너스 잔액으로', Number(over.balanceAfter), -1)
+  await must('DELETE', `/bank-cards/transactions/${over.id}`)
 
   const usage = await must('POST', '/bank-cards/usages', {
     cardId: card.id, merchant: 'QA가맹점', expenseAccountId: welfare.id,
@@ -3446,8 +3450,6 @@ async function scenarioCashDetail() {
 
   await rejects('같은 계좌로는 이동 불가', 'POST', '/cash-details/account-transfers',
     { fromAccountId: from.id, toAccountId: from.id, amount: 1_000 }, '같을 수 없습니다')
-  await rejects('잔액보다 많은 이동은 거부', 'POST', '/cash-details/account-transfers',
-    { fromAccountId: from.id, toAccountId: to.id, amount: 999_999_999 }, '잔액이 부족')
 
   // ── 카드대금 결제: 카드사용 때 잡은 미지급금을 결제계좌에서 갚는다
   const cardNo = `${P}5310-****-****-0002`
