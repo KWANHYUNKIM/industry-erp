@@ -195,7 +195,8 @@ export default function WorkResultInquiryPage() {
   const itemLabel = (ls: Row[]) => {
     const f = ls.find((x) => x.workItemName)
     if (!f) return ''
-    return `${f.workItemName}${f.workItemSpec ? `[${f.workItemSpec}]` : ''}${ls.length > 1 ? ` 외 ${ls.length - 1}건` : ''}`
+    // 원본 칸 이름은 '작업품목명[규격명]' 이지만 찍히는 값은 품목명뿐이다('인텔 코어 I7-3770K 외 1건', 2026-10-30 실측) — 규격은 붙이지 않는다
+    return `${f.workItemName}${ls.length > 1 ? ` 외 ${ls.length - 1}건` : ''}`
   }
 
   const totals = useMemo(() => shown.reduce(
@@ -393,7 +394,7 @@ export default function WorkResultInquiryPage() {
                 </td>
                 <td>{dateNo(r.workDate, r.resultNo)}</td>
                 <td className={r.warehouseName ? undefined : 'text-ec-off'}>{r.warehouseName ?? ''}</td>
-                {/* 원본은 '작업품목명[규격명]' + 줄이 여럿이면 ' 외 n건'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
+                {/* 원본은 작업품목명(규격 없이) + 줄이 여럿이면 ' 외 n건'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
                 <td>{label}</td>
                 {/* 원본 작업수량은 소수 둘째 자리(27.00). */}
                 <td className="text-right">{fmt2(ls.reduce((n, x) => n + x.goodQty + x.defectQty, 0))}</td>
