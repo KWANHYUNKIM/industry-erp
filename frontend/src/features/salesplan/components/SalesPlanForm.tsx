@@ -50,7 +50,7 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
   /** 창으로 띄웠을 때 오류를 창의 오류 줄(Modal error)로 올린다. 없으면 폼 위에 직접 그린다. */
   onError?: (message: string) => void
 }) {
-  const pickers = useCondPickers(['items', 'partners', 'warehouses', 'employees', 'projects'])
+  const pickers = useCondPickers(['items', 'partners', 'warehouses', 'employees', 'projects'], { withStopped: true })
   const [f, setF] = useState({ expectedDate: ymd(new Date()), warehouseId: '', projectId: '' })
   const [lines, setLines] = useState<LineForm[]>(emptyLines())
   const [error, setErrorRaw] = useState('')
