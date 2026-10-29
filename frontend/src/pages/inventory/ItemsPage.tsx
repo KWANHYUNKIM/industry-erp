@@ -76,8 +76,12 @@ const emptyForm = {
   udiDi: '',
   managementItemId: '',
   itemGroupId: '',
+  /** 원본 [품목정보] 의 [생산공정] — 공정 id 를 쉼표로 이어 든다(태그 여러 개). */
+  productionProcessIds: '',
 }
 type ItemForm = typeof emptyForm
+/** [생산공정] 칸의 쉼표로 이은 id → 숫자 목록. */
+const procIds = (v: string): number[] => v.split(',').filter(Boolean).map(Number)
 
 
 /** 창의 칸 한 줄(이름표 + 입력). */
@@ -145,18 +149,23 @@ export default function ItemsPage() {
   const [image, setImage] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
 
+  /** 원본 [생산공정] 후보 — 공정등록. inventory 는 production 을 모르므로 이름은 이 목록에서 붙인다. */
+  const [processes, setProcesses] = useState<{ id: number; code: string; name: string; active: boolean }[]>([])
+
   async function load() {
     // 등록·수정·삭제 뒤 load() 를 부른다 — 그때 품목명·규격 자동완성의 옛 후보도 버린다.
     clearItemSuggestCache()
     setLoading(true)
     try {
-      const [i, c, m, g, pt] = await Promise.all([
+      const [i, c, m, g, pt, pr] = await Promise.all([
         api.get<Item[]>('/items'),
         api.get<CodeOption[]>('/meta/item-categories'),
         api.get<ManagementItem[]>('/management-items'),
         api.get<GroupMaster[]>('/item-groups'),
         api.get<Partner[]>('/partners'),
+        api.get<{ id: number; code: string; name: string; active: boolean }[]>('/processes'),
       ])
+      setProcesses(pr.data)
       setItems(i.data)
       setCategories(c.data)
       setMgmtItems(m.data)
@@ -223,6 +232,7 @@ export default function ItemsPage() {
       udiDi: item.udiDi ?? '',
       managementItemId: item.managementItemId != null ? String(item.managementItemId) : '',
       itemGroupId: item.itemGroupId != null ? String(item.itemGroupId) : '',
+      productionProcessIds: (item.productionProcessIds ?? []).join(','),
       remark: item.remark ?? '',
       vatRateSales: String(item.vatRateSales ?? 10),
       vatRatePurchase: String(item.vatRatePurchase ?? 10),
@@ -304,6 +314,7 @@ export default function ItemsPage() {
       active: form.active === 'Y',
       managementItemId: form.managementItemId ? Number(form.managementItemId) : null,
       itemGroupId: form.itemGroupId ? Number(form.itemGroupId) : null,
+      productionProcessIds: procIds(form.productionProcessIds),
       supplierId: form.supplierId ? Number(form.supplierId) : null,
       imageFileId: image ? image.id : null,
       /* 숫자는 숫자로, 'Y'/'N' 은 참/거짓으로 바꿔 보낸다 — 서버는 문자열을 안 받는다. */
@@ -776,6 +787,23 @@ export default function ItemsPage() {
                                  value={form.itemGroupId} onChange={(v) => set('itemGroupId', v)}
                                  items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
                                  onNew={() => setGroupOpen(true)} />
+              </Field>
+              {/* 원본 [품목정보] 의 [생산공정] — 공정을 고르는 태그(A001 → 조립). BOR 목록이 이 값을 정한 품목을 보인다. */}
+              <Field label="생산공정" wide>
+                <div className="flex flex-wrap items-center gap-[4px]">
+                  {procIds(form.productionProcessIds).map((id) => (
+                    <button key={id} type="button" className="ec-btn ec-btn-sm" title="빼기"
+                            onClick={() => set('productionProcessIds', procIds(form.productionProcessIds).filter((x) => x !== id).join(','))}>
+                      {processes.find((x) => x.id === id)?.name ?? id} ×
+                    </button>
+                  ))}
+                  <select className="ec-input w-[160px]" value="" aria-label="생산공정 추가"
+                          onChange={(e) => { if (e.target.value) set('productionProcessIds', [...procIds(form.productionProcessIds), Number(e.target.value)].join(',')) }}>
+                    <option value="">생산공정 추가</option>
+                    {processes.filter((x) => x.active && !procIds(form.productionProcessIds).includes(x.id))
+                      .map((x) => <option key={x.id} value={x.id}>{x.code} {x.name}</option>)}
+                  </select>
+                </div>
               </Field>
               <Field label="적요" wide>
                 <input className={inputCls} placeholder="적요" value={form.remark} onChange={(e) => set('remark', e.target.value)} />

@@ -78,6 +78,8 @@ public class ItemUsageRepository {
             String table = (String) fk[0];
             String column = (String) fk[1];
             if (table.equals("items") && !column.equals("parent_item_id")) continue;
+            // 품목 자신의 칸([생산공정] 태그, V510) — 품목과 같이 지워진다(ON DELETE CASCADE). 쓰인 곳이 아니다.
+            if (table.equals("item_production_processes")) continue;
             boolean stock = STOCK_TABLES.contains(table);
             String sql = "select distinct \"" + column + "\" from \"" + table + "\" where \"" + column + "\" in (:ids)";
             if (table.equals("stock_transactions")) {

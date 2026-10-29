@@ -128,6 +128,18 @@ public class Item extends BaseTimeEntity {
         priceF = v[5]; priceG = v[6]; priceH = v[7]; priceI = v[8]; priceJ = v[9];
     }
 
+    /**
+     * 생산공정 — 원본 품목등록 [품목정보] 의 태그 칸(A001 → 조립). 공정 id 만 든다 —
+     * inventory 는 production 을 참조할 수 없다(CLAUDE.md 4.1, Warehouse.processId 와 같다). 이름은 화면이 붙인다.
+     * BOR 목록이 이 값을 정한 품목만 보인다.
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "item_production_processes", joinColumns = @JoinColumn(name = "item_id"))
+    @Column(name = "process_id")
+    @org.hibernate.annotations.BatchSize(size = 500)
+    @Builder.Default
+    private java.util.Set<Long> productionProcessIds = new java.util.LinkedHashSet<>();
+
     /** 안전재고 (이 수량 미만이면 경고) */
     @Column(nullable = false, precision = 18, scale = 2)
     @Builder.Default

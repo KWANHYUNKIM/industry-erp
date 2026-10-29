@@ -53,13 +53,6 @@
   ],
   "in": "both"
  },
- "공정등록|작업코드등록": {
-  "claim": "줄마다가 아니라 화면 위 버튼 하나로 연다",
-  "present": [
-   "작업코드등록"
-  ],
-  "file": "production/ProcessPage.tsx"
- },
  "거래처관리대장 I|사용중단포함": {
   "claim": "조건 판의 체크박스로 둔다 — 버튼이 아니다",
   "present": [
@@ -142,14 +135,6 @@
    "Scale"
   ],
   "in": "backend/src/main/java/com/erp/settings/currency/Currency.java"
- },
- "품목등록|생산공정": {
-  "claim": "품목 마스터에 공정을 매어 두지 않는다 — 공정은 작업지시가 든다",
-  "absent": [
-   "process",
-   "Process"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
  "발주서|발송여부": {
   "claim": "전표를 거래처에 내보내는 기능이 없다",

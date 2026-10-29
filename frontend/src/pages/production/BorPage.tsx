@@ -34,9 +34,10 @@ interface BorRow {
   seq: number
   workName: string
   baseQty: number
-  workHours: number
-  /** 1개당 작업시간(H) = 작업시간 ÷ 생산수량. 서버가 낸다. */
-  hoursPerUnit: number
+  /** 비워 둘 수 있다 — 원본은 빈칸으로 둔다(V509). */
+  workHours: number | null
+  /** 1개당 작업시간(H) = 작업시간 ÷ 생산수량. 서버가 낸다. 작업시간이 비었으면 null. */
+  hoursPerUnit: number | null
   /** 원본 [작업기준품목코드]·[작업기준품목명]·[작업량]. 안 정했으면 null. */
   workItemId: number | null
   workItemCode: string | null
@@ -77,6 +78,8 @@ export default function BorPage() {
    * 같은 상태</b>라 같은 칸이 화면에 두 번 서 있었다 — 한쪽에 치면 다른 쪽이 같이 변했다.
    */
   const [itemCond, setItemCond] = useState('')
+  /** BOR 없는 품목 중 [생산공정]을 안 정한 것까지 보인다. 꺼 두면 원본처럼 생산공정을 정한 품목만. */
+  const [allItems, setAllItems] = useState(false)
   const [processCond, setProcessCond] = useState('')
   const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
   const [showForm, setShowForm] = useState(false)
@@ -118,7 +121,7 @@ export default function BorPage() {
       productId: String(r.productId), processId: String(r.processId),
       seq: String(r.seq), workName: r.workName,
       workItemId: r.workItemId ? String(r.workItemId) : '', workQty: r.workQty != null ? String(r.workQty) : '',
-      baseQty: String(r.baseQty), workHours: String(r.workHours), remark: r.remark ?? '',
+      baseQty: String(r.baseQty), workHours: r.workHours == null ? '' : String(r.workHours), remark: r.remark ?? '',
     })
     setShowForm(true)
   }
@@ -131,7 +134,7 @@ export default function BorPage() {
       seq: Number(form.seq), workName: form.workName,
       workItemId: form.workItemId ? Number(form.workItemId) : undefined,
       workQty: form.workQty ? Number(form.workQty) : undefined,
-      baseQty: Number(form.baseQty || 1), workHours: Number(form.workHours || 0),
+      baseQty: Number(form.baseQty || 1), workHours: form.workHours === '' ? null : Number(form.workHours),
       remark: form.remark || null, active: true,
     }
     try {
@@ -169,15 +172,21 @@ export default function BorPage() {
   const noBor = useMemo(() => {
     if (keyword || itemCond || processCond || useTab === '사용중단') return []
     const has = new Set(rows.map((r) => r.productId))
-    /* 원본은 제품 · 반제품 · 상품만 보인다 — 원재료·부재료는 만드는 품목이 아니라 BOR 을 달 일이 없다. */
-    return items.filter((i) => i.active && !has.has(i.id) && i.category !== 'RAW_MATERIAL' && i.category !== 'SUB_MATERIAL')
+    /*
+     * 원본은 품목등록에 [생산공정]을 정한 품목만 BOR 없이도 한 줄 보인다(2026-10-29 데이터이관 QA 79회 —
+     * A001 조립 · C001 포장 · E001 조립 …). [품목 전부] 를 켜면 예전처럼 제품 · 반제품 · 상품을 다 보인다
+     * (원재료·부재료는 만드는 품목이 아니라 BOR 을 달 일이 없다).
+     */
+    return items.filter((i) => i.active && !has.has(i.id) && (allItems
+      ? i.category !== 'RAW_MATERIAL' && i.category !== 'SUB_MATERIAL'
+      : (i.productionProcessIds ?? []).length > 0))
       .sort((a, b) => a.code.localeCompare(b.code))
-  }, [rows, items, keyword, itemCond, processCond, useTab])
+  }, [rows, items, keyword, itemCond, processCond, useTab, allItems])
 
   /** 품목별 1개당 표준시간 합. 원본은 품목 아래에 작업을 늘어놓으므로 소계가 뜻을 갖는다. */
   const perProduct = useMemo(() => {
     const m = new Map<number, number>()
-    for (const r of shown) m.set(r.productId, (m.get(r.productId) ?? 0) + r.hoursPerUnit)
+    for (const r of shown) m.set(r.productId, (m.get(r.productId) ?? 0) + (r.hoursPerUnit ?? 0))
     return m
   }, [shown])
 
@@ -284,6 +293,12 @@ export default function BorPage() {
           원본은 이 칸을 <b>[생산수량]</b> 이라 부른다 — 우리 표의 열 이름도 [생산수량] 인데
           조건에서만 [로트수량] 이라 불러 같은 값이 두 이름으로 서 있었다.
         */}
+        <EcCond label="BOR 없는 품목">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={allItems} onChange={(e) => setAllItems(e.target.checked)} />
+            품목 전부(생산공정을 안 정한 것까지)
+          </label>
+        </EcCond>
         <EcCond label="생산수량" span={2}>
           <input className="ec-input text-right" type="number" value={lotSize}
                  onChange={(e) => setLotSize(e.target.value)} style={{ width: 100 }} />
@@ -346,14 +361,15 @@ export default function BorPage() {
                   {/* 원본 실측: 왼쪽이다 — 세는 수가 아니라 차례를 적는 칸이라 자릿수를 맞출 일이 없다. */}
                   <td>{r.seq}</td>
                   <td>{r.workName}</td>
-                  <td className="text-right">{r.workHours.toLocaleString('ko-KR')}</td>
+                  {/* 비워 저장한 작업시간은 원본처럼 빈칸 — 0 · 0.0000 · 00:00 을 지어내지 않는다. */}
+                  <td className="text-right">{r.workHours == null ? '' : r.workHours.toLocaleString('ko-KR')}</td>
                   <td style={{ fontFamily: 'monospace', color: r.workItemCode ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.workItemCode ?? ''}</td>
                   <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>{r.workItemName ?? ''}</td>
                   <td style={{ textAlign: 'right', color: r.workQty != null ? undefined : 'var(--ec-text-off)' }}>
                     {r.workQty != null ? r.workQty.toLocaleString('ko-KR') : '-'}
                   </td>
-                  <td className="text-right text-ec-label">{r.hoursPerUnit.toFixed(4)}</td>
-                  <td className="text-right font-bold">{hhmm(r.hoursPerUnit * lot)}</td>
+                  <td className="text-right text-ec-label">{r.hoursPerUnit == null ? '' : r.hoursPerUnit.toFixed(4)}</td>
+                  <td className="text-right font-bold">{r.hoursPerUnit == null ? '' : hhmm(r.hoursPerUnit * lot)}</td>
                   <td className="text-center">
                     <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
                     <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
