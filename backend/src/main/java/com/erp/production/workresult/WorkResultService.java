@@ -29,6 +29,7 @@ public class WorkResultService {
     private final WorkResultRepository workResultRepository;
     private final WorkOrderRepository workOrderRepository;
     private final ProcessRepository processRepository;
+    private final com.erp.production.processoperation.ProcessOperationRepository operationRepository;
     private final ResourceRepository resourceRepository;
     private final ResourceService resourceService;
     private final BorService borService;
@@ -45,6 +46,7 @@ public class WorkResultService {
         if (rows.isEmpty()) return;
         WorkResult first = rows.get(0);
         com.erp.inventory.item.Item it = first.getWorkItem() != null ? first.getWorkItem()
+                : first.getProduct() != null ? first.getProduct()
                 : first.getWorkOrder() != null ? first.getWorkOrder().getProduct() : null;
         changeHistory.recordSlipByNo(HISTORY_TARGET, first.getId(), action,
                 com.erp.common.history.ChangeHistoryService.SlipSnapshot.of("작업내역", first.getWorkDate(), first.getResultNo(),
@@ -71,7 +73,7 @@ public class WorkResultService {
         java.util.List<WorkResultResponse> out = new java.util.ArrayList<>();
         for (WorkResultLine line : req.lines()) {
             out.add(create(new CreateWorkResultRequest(
-                    line.workOrderId(), line.process(), line.workItemId(), line.resourceId(),
+                    line.workOrderId(), line.productId(), line.operationId(), line.process(), line.workItemId(), line.resourceId(),
                     req.warehouseId(), line.worker(), line.goodQty(), line.defectQty(),
                     line.workTimeMin(), workDate, req.projectId(), line.note()), no, username));
         }
@@ -95,10 +97,31 @@ public class WorkResultService {
                     .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + req.workOrderId()));
         }
 
-        // 입력한 공정명이 공정 마스터에 있으면 실제 관계로 연결한다(자유입력이면 문자열만 남는다)
-        ProductionProcess processMaster = processRepository.findByName(req.process()).orElse(null);
+        /*
+         * 원본 [작업] — 작업코드를 고르면 공정은 그 작업코드의 공정이다. 안 고르면 공정명을 받는다
+         * (공정명이 공정 마스터에 있으면 실제 관계로 연결하고, 자유입력이면 문자열만 남는다).
+         */
+        com.erp.production.processoperation.ProcessOperation operation = null;
+        if (req.operationId() != null) {
+            operation = operationRepository.findById(req.operationId())
+                    .orElseThrow(() -> ApiException.notFound("작업코드를 찾을 수 없습니다. id=" + req.operationId()));
+        }
+        String processName = operation != null ? operation.getProcess().getName()
+                : req.process() != null ? req.process().trim() : "";
+        if (processName.isEmpty()) {
+            throw ApiException.badRequest("작업을 입력하세요.");
+        }
+        ProductionProcess processMaster = operation != null ? operation.getProcess()
+                : processRepository.findByName(processName).orElse(null);
 
-        ProductionResource resource = resolveResource(req.resourceId(), processMaster);
+        /*
+         * 원본 [생산품목] — 작업지시 없이 줄에서 바로 고른다. 작업지시를 고르면 그 지시의 생산품목이다
+         * (지시와 다른 품목을 적으면 같은 작업이 두 품목으로 갈린다).
+         */
+        com.erp.inventory.item.Item product = workOrder != null ? workOrder.getProduct()
+                : req.productId() != null ? itemService.getUsable(req.productId()) : null;
+
+        ProductionResource resource = resolveResource(req.resourceId(), operation, processMaster);
 
         // 생산공장. inventory 의 공개 service 를 거친다 — 리포지토리를 직접 주입하면
         // 그 모듈의 규칙을 우회하게 된다(CLAUDE.md 4.2).
@@ -118,7 +141,9 @@ public class WorkResultService {
                 /* 채번은 DocumentNoGenerator 로만 한다 — count()+1 은 삭제·동시성에서 겹친다. */
                 .resultNo(resultNo)
                 .workItem(workItem)
-                .process(req.process())
+                .product(product)
+                .operation(operation)
+                .process(processName)
                 .processMaster(processMaster)
                 .resource(resource)
                 .warehouse(warehouse)
@@ -142,13 +167,14 @@ public class WorkResultService {
      *
      * <p>기준 수량은 <b>양품+불량</b>이다. 불량도 만드느라 시간을 쓴 것이라
      * 양품만 세면 불량이 많은 날일수록 '표준보다 오래 걸림' 으로 부풀려진다.
-     * 작업지시(=생산품목)나 공정 마스터 연결이 없으면 표준을 말할 수 없어 null.
+     * 생산품목(줄의 것, 없으면 작업지시의 것)이나 공정 마스터 연결이 없으면 표준을 말할 수 없어 null.
      */
     private Integer standardOf(WorkResult wr) {
-        if (wr.getWorkOrder() == null || wr.getProcessMaster() == null) return null;
+        com.erp.inventory.item.Item product = wr.getProduct() != null ? wr.getProduct()
+                : wr.getWorkOrder() != null ? wr.getWorkOrder().getProduct() : null;
+        if (product == null || wr.getProcessMaster() == null) return null;
         BigDecimal qty = wr.getGoodQty().add(wr.getDefectQty());
-        return borService.standardMinutes(
-                wr.getWorkOrder().getProduct().getId(), wr.getProcessMaster().getId(), qty);
+        return borService.standardMinutes(product.getId(), wr.getProcessMaster().getId(), qty);
     }
 
     @Transactional
@@ -163,20 +189,32 @@ public class WorkResultService {
     }
 
     /**
-     * 투입자원. 자원등록의 [대상작업]이 정해져 있으면 <b>그 공정에서만</b> 쓸 수 있다.
+     * 투입자원. 자원등록의 [대상작업](작업코드)이 정해져 있으면 <b>그 작업에서만</b> 쓸 수 있다.
+     * 작업코드 없이 공정명만 적은 줄이면 대상작업 중 하나가 그 공정의 것이면 된다.
      *
      * <p>절단기로 검사를 했다고 적히면 "이 공정을 어느 설비로 돌렸나" 가 뜻을 잃는다.
      * 대상작업을 안 정한 자원(범용 설비)은 아무 공정에나 쓸 수 있다.
      */
-    private ProductionResource resolveResource(Long resourceId, ProductionProcess processMaster) {
+    private ProductionResource resolveResource(Long resourceId,
+                                               com.erp.production.processoperation.ProcessOperation operation,
+                                               ProductionProcess processMaster) {
         if (resourceId == null) return null;
         // 사용중지한 설비로 새 작업을 올릴 수는 없다 — 원본은 코드도움에 띄우지도 않는다.
         ProductionResource r = resourceService.getUsable(resourceId);
-        if (r.getProcess() != null && processMaster != null
-                && !r.getProcess().getId().equals(processMaster.getId())) {
+        var targets = r.getOperations();
+        if (targets.isEmpty()) return r;
+        boolean fits = operation != null
+                ? targets.stream().anyMatch(o -> o.getId().equals(operation.getId()))
+                : processMaster == null
+                        || targets.stream().anyMatch(o -> o.getProcess().getId().equals(processMaster.getId()));
+        if (!fits) {
+            String names = targets.stream()
+                    .map(o -> o.getName() + "(" + o.getProcess().getName() + ")")
+                    .collect(java.util.stream.Collectors.joining(", "));
+            String here = operation != null ? operation.getName() + "(" + processMaster.getName() + ") 작업"
+                    : processMaster.getName() + " 공정";
             throw ApiException.badRequest(String.format(
-                    "'%s' 은(는) %s 공정 전용입니다. %s 공정에는 쓸 수 없습니다.",
-                    r.getName(), r.getProcess().getName(), processMaster.getName()));
+                    "'%s' 은(는) %s 전용입니다. %s에는 쓸 수 없습니다.", r.getName(), names, here));
         }
         return r;
     }

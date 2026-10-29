@@ -1,6 +1,6 @@
 package com.erp.production.resource;
 
-import com.erp.production.process.ProductionProcess;
+import com.erp.production.processoperation.ProcessOperation;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -59,12 +59,16 @@ public class ProductionResource extends BaseTimeEntity {
     private com.erp.inventory.warehouse.Warehouse warehouse;
 
     /**
-     * 대상작업 — 이 설비로 하는 공정. 원본 [대상작업] 열(MT0_JOB).
-     * BOR 의 작업이 그 공정을 가리키므로, 이 값이 있어야 "이 작업은 어느 설비로 하나" 에 답한다.
+     * 대상작업 — 이 설비로 하는 작업코드들. 원본 [대상작업] 열(MT0_JOB)은 작업코드를 <b>여러 개</b> 고르는
+     * 태그다(2026-10-29 데이터이관 QA 79회: 00001 분쇄기 → 분쇄). 예전에는 공정 하나였다(V508 이 옮김).
+     * 비어 있으면 아무 작업에나 쓰는 범용 설비다.
      */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "process_id")
-    private ProductionProcess process;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "production_resource_operations",
+            joinColumns = @JoinColumn(name = "resource_id"),
+            inverseJoinColumns = @JoinColumn(name = "operation_id"))
+    @Builder.Default
+    private java.util.Set<ProcessOperation> operations = new java.util.LinkedHashSet<>();
 
     @Column(nullable = false)
     @Builder.Default

@@ -10,6 +10,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { ecConfirm } from '../../components/EcDialog'
+import { minToHours, fmt2 } from '../../utils/workHours'
 
 /**
  * 생산관리 > 작업 > 작업내역조회 (/api/work-results).
@@ -35,6 +36,8 @@ interface Row {
   resultNo: string
   workOrderNo: string | null
   process: string
+  /** 원본 [작업] — 작업코드명. 공정명만 적은 줄이면 null. */
+  operationName: string | null
   /** 원본 [작업품목명[규격명]]. 옛 자료에는 없다. */
   workItemCode: string | null
   workItemName: string | null
@@ -67,7 +70,9 @@ const num = (n: number) => n.toLocaleString('ko-KR')
  * 원본 작업내역조회 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 작업내역서로 찍는다.
  * 작업내역에는 금액이 없다. 0 으로 채워 그리면 "0원짜리 거래" 로 읽히므로 금액 칸을 안 그린다.
  */
-async function printOne(r: Row) {
+/** 한 전표(결과번호)를 작업내역서 한 장으로 — 줄마다 작업품목 한 줄. */
+async function printOne(ls: Row[]) {
+  const r = ls[0]
   await printDocuments([{
     title: '작업내역서',
     docNo: r.resultNo,
@@ -78,17 +83,17 @@ async function printOne(r: Row) {
     customer: { label: '', name: '' },
     extra: [
       { label: '생산공장', value: r.warehouseName },
-      { label: '작업(공정)', value: r.process },
+      { label: '작업(공정)', value: r.operationName ?? r.process },
       { label: '생산품목', value: r.productName },
       { label: '자원', value: r.resourceName },
       { label: '담당자', value: r.worker },
-      { label: '작업시간(분)', value: String(r.workTimeMin) },
+      { label: '작업시간(H)', value: fmt2(minToHours(ls.reduce((n, x) => n + x.workTimeMin, 0))) },
     ],
     remark: r.note,
-    lines: [{
-      itemCode: r.workItemCode, itemName: r.workItemName ?? r.process, spec: r.workItemSpec,
-      quantity: r.goodQty + r.defectQty, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
-    }],
+    lines: ls.map((x) => ({
+      itemCode: x.workItemCode, itemName: x.workItemName ?? x.operationName ?? x.process, spec: x.workItemSpec,
+      quantity: x.goodQty + x.defectQty, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+    })),
   }])
 }
 
@@ -176,14 +181,35 @@ export default function WorkResultInquiryPage() {
    workItemCategory, workItemGroup, productCategory, productGroup, mgmt.groupOptions,
    projectCond, noteCond, authorCond, byUpdated])
 
+  /*
+   * 원본 작업내역조회는 <b>전표 한 장이 한 줄</b>이다 — [작업품목명[규격명]] 이 '인텔 코어 I7-3770K 외 1건',
+   * 작업수량 · 작업시간은 그 전표 줄의 합(2026-10-29 데이터이관 QA 79회). 줄마다 한 줄씩 펴던 것을 묶는다.
+   */
+  const slips = useMemo(() => {
+    const m = new Map<string, Row[]>()
+    for (const r of shown) {
+      const k = r.resultNo || `#${r.id}`
+      const ls = m.get(k)
+      if (ls) ls.push(r); else m.set(k, [r])
+    }
+    return [...m.values()].map((ls) => [...ls].sort((a, b) => a.id - b.id))
+  }, [shown])
+  const itemLabel = (ls: Row[]) => {
+    const f = ls.find((x) => x.workItemName)
+    if (!f) return ''
+    return `${f.workItemName}${f.workItemSpec ? `[${f.workItemSpec}]` : ''}${ls.length > 1 ? ` 외 ${ls.length - 1}건` : ''}`
+  }
+
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ qty: s.qty + r.goodQty + r.defectQty, time: s.time + r.workTimeMin }),
     { qty: 0, time: 0 },
   ), [shown])
 
-  const toggle = (id: number) => setChecked((prev) => {
+  /** 전표 한 장을 고르면 그 줄이 다 골라진다 — 선택삭제가 전표째 지운다. */
+  const toggle = (ids: number[]) => setChecked((prev) => {
     const next = new Set(prev)
-    if (next.has(id)) next.delete(id); else next.add(id)
+    const on = ids.every((id) => next.has(id))
+    for (const id of ids) { if (on) next.delete(id); else next.add(id) }
     return next
   })
   const allOn = shown.length > 0 && shown.every((r) => checked.has(r.id))
@@ -315,11 +341,11 @@ export default function WorkResultInquiryPage() {
       </ul>
 
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        {shown.length}건
+        {slips.length}건
         <span className="my-0 mx-[6px] text-ec-off">|</span>
         작업수량 <b className="text-ec-navy text-[14px]">{num(totals.qty)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        작업시간 <b className="text-ec-navy text-[14px]">{num(totals.time)}</b>분
+        작업시간 <b className="text-ec-navy text-[14px]">{fmt2(minToHours(totals.time))}</b>H
       </div>
 
       <div className="overflow-x-auto">
@@ -362,36 +388,39 @@ export default function WorkResultInquiryPage() {
               <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
               <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r) => (
+            ) : slips.map((ls) => {
+              const r = ls[0]
+              const ids = ls.map((x) => x.id)
+              const label = itemLabel(ls)
+              return (
               <tr key={r.id}>
                 <td className="text-center">
-                  <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
+                  <input type="checkbox" checked={ids.every((id) => checked.has(id))} onChange={() => toggle(ids)} />
                 </td>
                 <td>{dateNo(r.workDate, r.resultNo)}</td>
-                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
-                {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
-                <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>
-                  {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
-                </td>
-                <td>{r.process}</td>
+                <td className={r.warehouseName ? undefined : 'text-ec-off'}>{r.warehouseName ?? ''}</td>
+                {/* 원본은 '작업품목명[규격명]' + 줄이 여럿이면 ' 외 n건'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
+                <td>{label}</td>
+                <td>{r.operationName ?? r.process}</td>
                 <td>{r.productName ? `[${r.productCode}] ${r.productName}` : ''}</td>
-                <td style={{ color: r.resourceName ? undefined : 'var(--ec-text-off)' }}>{r.resourceName ?? ''}</td>
+                <td className={r.resourceName ? undefined : 'text-ec-off'}>{r.resourceName ?? ''}</td>
                 <td>{r.worker ?? ''}</td>
-                <td className="text-right font-semibold text-ec-navy">{num(r.goodQty + r.defectQty)}</td>
-                <td className="text-right">{num(r.workTimeMin)}</td>
-                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.workOrderNo ?? ''}</td>
+                <td className="text-right font-semibold text-ec-navy">{num(ls.reduce((n, x) => n + x.goodQty + x.defectQty, 0))}</td>
+                <td className="text-right">{fmt2(minToHours(ls.reduce((n, x) => n + x.workTimeMin, 0)))}</td>
+                <td className={`font-mono ${r.workOrderNo ? 'text-ec-label' : 'text-ec-off'}`}>{r.workOrderNo ?? ''}</td>
                 <td className="text-ec-hint">{r.note ?? ''}</td>
                 <td className="text-center">
-                  <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+                  <button onClick={() => printOne(ls)} className="text-ec-blue bg-transparent border-0 cursor-pointer text-[12px]">인쇄</button>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
-              <td colSpan={8} className="text-right">합계 ({shown.length}건)</td>
+              <td colSpan={8} className="text-right">합계 ({slips.length}건)</td>
               <td className="text-right">{num(totals.qty)}</td>
-              <td className="text-right">{num(totals.time)}</td>
+              <td className="text-right">{fmt2(minToHours(totals.time))}</td>
               {/* 작업지시서 · 적요 · 인쇄 */}
               <td colSpan={3}></td>
             </tr>

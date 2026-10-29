@@ -6,8 +6,8 @@ import com.erp.production.resource.dto.ResourceDtos.CreateResourceRequest;
 import com.erp.production.resource.dto.ResourceDtos.ResourceResponse;
 import com.erp.production.resource.dto.ResourceDtos.UpdateResourceRequest;
 import com.erp.inventory.warehouse.WarehouseService;
-import com.erp.production.process.ProductionProcess;
-import com.erp.production.process.ProcessRepository;
+import com.erp.production.processoperation.ProcessOperation;
+import com.erp.production.processoperation.ProcessOperationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -22,13 +22,13 @@ import com.erp.production.resource.dto.ResourceDtos;
 public class ResourceService {
 
     private final ResourceRepository resourceRepository;
-    private final ProcessRepository processRepository;
+    private final ProcessOperationRepository operationRepository;
     private final ProcessService processService;
     private final WarehouseService warehouseService;
 
     @Transactional(readOnly = true)
     public List<ResourceResponse> findAll() {
-        return resourceRepository.findAll(Sort.by(Sort.Direction.ASC, "code")).stream()
+        return resourceRepository.findAllWithOperations().stream()
                 .map(ResourceResponse::from)
                 .toList();
     }
@@ -46,7 +46,7 @@ public class ResourceService {
                 .unit(req.unit())
                 .costPerHr(req.costPerHr() != null ? req.costPerHr() : BigDecimal.ZERO)
                 .warehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null)
-                .process(processOf(req.processId()))
+                .operations(operationsOf(req.operationIds()))
                 .active(true)
                 .build();
         return ResourceResponse.from(resourceRepository.save(r));
@@ -68,18 +68,29 @@ public class ResourceService {
         }
         // 위치·대상작업은 null 로 지울 수 있어야 한다(자리를 비우거나 작업을 뗀다).
         r.setWarehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null);
-        r.setProcess(processOf(req.processId()));
+        r.getOperations().clear();
+        r.getOperations().addAll(operationsOf(req.operationIds()));
         if (req.active() != null) {
             r.setActive(req.active());
         }
         return ResourceResponse.from(r);
     }
 
-    /** 대상작업(공정). 없는 id 를 주면 조용히 무시하지 않고 알린다. */
-    /** 사용중지한 공정에 설비를 새로 붙일 수는 없다. 안 정할 수는 있다. */
-    private ProductionProcess processOf(Long processId) {
-        if (processId == null) return null;
-        return processService.getUsable(processId);
+    /**
+     * 대상작업(작업코드 여러 개). 없는 id 를 주면 조용히 무시하지 않고 알린다.
+     * 사용중지한 공정의 작업코드에 설비를 새로 붙일 수는 없다. 안 정할 수는 있다(범용 설비).
+     */
+    private java.util.Set<ProcessOperation> operationsOf(List<Long> ids) {
+        java.util.Set<ProcessOperation> out = new java.util.LinkedHashSet<>();
+        if (ids == null) return out;
+        for (Long id : ids) {
+            if (id == null) continue;
+            ProcessOperation o = operationRepository.findById(id)
+                    .orElseThrow(() -> ApiException.notFound("작업코드를 찾을 수 없습니다. id=" + id));
+            processService.getUsable(o.getProcess().getId());
+            out.add(o);
+        }
+        return out;
     }
 
     @Transactional

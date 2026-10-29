@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -33,17 +34,19 @@ interface ProductionResource {
   costPerHr: number
   warehouseId: number | null
   warehouseName: string | null
-  processId: number | null
-  processName: string | null
+  /** 대상작업 — 작업코드 id · 작업명(같은 차례). 원본은 작업코드를 여러 개 고르는 태그다. 비었으면 범용 설비. */
+  operationIds: number[]
+  operationNames: string[]
   active: boolean
 }
 
 interface WarehouseRow { id: number; code: string; name: string }
-interface ProcessRow { id: number; code: string; name: string; workcenter: string | null }
+/** 작업코드(공정등록 › 작업코드등록). 대상작업 후보. */
+interface OperationRow { id: number; code: string; name: string; processName: string; active: boolean }
 
 const TYPES = ['설비', '인력', '외주']
 const inputCls = 'ec-input w-full'
-const emptyForm = { code: '', name: '', type: '설비', capacity: '', unit: '시간/일', costPerHr: '', warehouseId: '', processId: '' }
+const emptyForm = { code: '', name: '', type: '설비', capacity: '', unit: '시간/일', costPerHr: '', warehouseId: '', operationIds: [] as number[] }
 
 export default function ResourcePage() {
   const [rows, setRows] = useState<ProductionResource[]>([])
@@ -53,7 +56,12 @@ export default function ResourcePage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([])
-  const [processes, setProcesses] = useState<ProcessRow[]>([])
+  const [operations, setOperations] = useState<OperationRow[]>([])
+  /**
+   * 원본 자원등록 목록은 <b>자원코드 · 자원명 · 위치 · 대상작업</b> 네 칸뿐이다(2026-10-29 데이터이관 QA 79회).
+   * 우리가 더 든 구분 · 가용능력 · 단위 · 시간당비용은 지우지 않고 접어 둔다 — [열 더 보기] 로 편다.
+   */
+  const [showExtra, setShowExtra] = useState(false)
   const [checked, setChecked] = useState<Set<number>>(new Set())
   /*
    * <b>여기 적혀 있던 말이 틀렸다.</b> "원본에는 사용중단된 자원을 볼지 고르는 자리가 없다"
@@ -75,11 +83,11 @@ export default function ResourcePage() {
       const [res, w, pr] = await Promise.all([
         api.get<ProductionResource[]>('/resources'),
         api.get<WarehouseRow[]>('/warehouses'),
-        api.get<ProcessRow[]>('/processes'),
+        api.get<OperationRow[]>('/process-operations'),
       ])
       setRows(res.data)
       setWarehouses(w.data)
-      setProcesses(pr.data)
+      setOperations(pr.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -101,7 +109,7 @@ export default function ResourcePage() {
         unit: form.unit,
         costPerHr: form.costPerHr === '' ? 0 : Number(form.costPerHr),
         warehouseId: form.warehouseId ? Number(form.warehouseId) : null,
-        processId: form.processId ? Number(form.processId) : null,
+        operationIds: form.operationIds,
       })
       setForm(emptyForm)
       setShowForm(false)
@@ -125,7 +133,7 @@ export default function ResourcePage() {
     .filter((r) => useTab === '전체' || (useTab === '사용' ? r.active : !r.active))
     .filter((r) => !keyword || r.name.includes(keyword) || r.code.includes(keyword))
     .filter((r) => !locCond || (r.warehouseName ?? '').includes(locCond))
-    .filter((r) => !opCond || (r.processName ?? '').includes(opCond))
+    .filter((r) => !opCond || r.operationNames.some((n) => n.includes(opCond)))
 
   /*
    * 사본 자원등록의 격자는 <b>자원코드·자원명·위치·대상작업</b> 네 칸에 정렬 표시를 단다.
@@ -136,9 +144,12 @@ export default function ResourcePage() {
     자원코드: (r) => r.code,
     자원명: (r) => r.name,
     위치: (r) => r.warehouseName,
-    대상작업: (r) => r.processName,
+    대상작업: (r) => r.operationNames.join(', ') || null,
   })
   const shown = sort.sorted
+  /* [열 더 보기] 로 칸이 변하는 표라 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '자원등록', [])
 
   const toggle = (id: number) => setChecked((prev) => {
     const next = new Set(prev)
@@ -163,7 +174,7 @@ export default function ResourcePage() {
       for (const r of targets) {
         await api.put(`/resources/${r.id}`, {
           name: r.name, type: r.type, capacity: r.capacity, unit: r.unit,
-          costPerHr: r.costPerHr, warehouseId: r.warehouseId, processId: r.processId,
+          costPerHr: r.costPerHr, warehouseId: r.warehouseId, operationIds: r.operationIds,
           active: reviving,
         })
       }
@@ -201,6 +212,10 @@ export default function ResourcePage() {
         <span>작업</span>
         <input className="ec-input" value={opCond} onChange={(e) => setOpCond(e.target.value)}
                placeholder="작업명 일부" style={{ width: 150 }} />
+        <label className="ml-auto flex items-center gap-[4px]">
+          <input type="checkbox" checked={showExtra} onChange={(e) => setShowExtra(e.target.checked)} />
+          열 더 보기(구분 · 가용능력 · 단위 · 시간당비용)
+        </label>
       </div>
 
       <div className="ec-pills" style={{ marginBottom: 8, alignItems: 'center' }}>
@@ -249,13 +264,26 @@ export default function ResourcePage() {
                                value={form.warehouseId} onChange={(v) => setForm({ ...form, warehouseId: v })}
                                items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
             </div>
-            <div>
+            <div className="sm:col-span-6">
+              {/* 원본 [대상작업] — 작업코드를 여러 개 고르는 태그(00001 분쇄기 → 분쇄). 안 고르면 아무 작업에나 쓰는 범용 설비. */}
               <label className="mb-1 block text-sm text-ec-label">대상작업</label>
-              <select className={inputCls} value={form.processId}
-                      onChange={(e) => setForm({ ...form, processId: e.target.value })}>
-                <option value="">(안 정함)</option>
-                {processes.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
-              </select>
+              <div className="flex flex-wrap items-center gap-[4px]">
+                {form.operationIds.map((id) => {
+                  const o = operations.find((x) => x.id === id)
+                  return (
+                    <button key={id} type="button" className="ec-btn ec-btn-sm" title="빼기"
+                            onClick={() => setForm({ ...form, operationIds: form.operationIds.filter((x) => x !== id) })}>
+                      {o ? o.name : id} ×
+                    </button>
+                  )
+                })}
+                <select className="ec-input w-[200px]" value=""
+                        onChange={(e) => { const id = Number(e.target.value); if (id) setForm({ ...form, operationIds: [...form.operationIds, id] }) }}>
+                  <option value="">작업코드 추가</option>
+                  {operations.filter((o) => o.active && !form.operationIds.includes(o.id))
+                    .map((o) => <option key={o.id} value={o.id}>{o.code} {o.name} ({o.processName})</option>)}
+                </select>
+              </div>
             </div>
           </div>
           <div className="mt-[12px] flex justify-end">
@@ -264,7 +292,7 @@ export default function ResourcePage() {
         </form>
       )}</Modal>
 
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th className="w-[34px] text-center">
@@ -275,19 +303,21 @@ export default function ResourcePage() {
             <th className="cursor-pointer" onClick={() => sort.toggle('자원명')}>자원명 {sort.mark('자원명')}</th>
             <th className="cursor-pointer" onClick={() => sort.toggle('위치')}>위치 {sort.mark('위치')}</th>
             <th className="cursor-pointer" onClick={() => sort.toggle('대상작업')}>대상작업 {sort.mark('대상작업')}</th>
-            <th className="text-center">구분</th>
-            <th className="text-right">가용능력</th>
-            <th>단위</th>
-            <th className="text-right">시간당비용</th>
+            {showExtra && (<>
+              <th className="text-center">구분</th>
+              <th className="text-right">가용능력</th>
+              <th>단위</th>
+              <th className="text-right">시간당비용</th>
+            </>)}
             <th className="w-[80px] text-center">사용구분</th>
             <th className="w-[60px] text-center">관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={showExtra ? 11 : 7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={showExtra ? 11 : 7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id} style={{ color: r.active ? undefined : 'var(--ec-text-hint)' }}>
               <td className="text-center">
@@ -296,11 +326,13 @@ export default function ResourcePage() {
               <td>{r.code}</td>
               <td>{r.name}</td>
               <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? '안 정함'}</td>
-              <td style={{ color: r.processName ? undefined : 'var(--ec-text-off)' }}>{r.processName ?? '안 정함'}</td>
-              <td className="text-center">{r.type}</td>
-              <td className="text-right">{r.capacity.toLocaleString()}</td>
-              <td>{r.unit ?? ''}</td>
-              <td className="text-right">{r.costPerHr.toLocaleString()}</td>
+              <td className={r.operationNames.length ? undefined : 'text-ec-off'}>{r.operationNames.length ? r.operationNames.join(', ') : '안 정함'}</td>
+              {showExtra && (<>
+                <td className="text-center">{r.type}</td>
+                <td className="text-right">{r.capacity.toLocaleString()}</td>
+                <td>{r.unit ?? ''}</td>
+                <td className="text-right">{r.costPerHr.toLocaleString()}</td>
+              </>)}
               <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
                 {r.active ? '사용' : '사용중단'}
               </td>

@@ -74,6 +74,25 @@ public class WorkResult extends BaseTimeEntity {
     @JoinColumn(name = "work_item_id")
     private com.erp.inventory.item.Item workItem;
 
+    /**
+     * 생산품목 — 원본 작업내역입력 격자의 [생산품목코드]·[생산품목명].
+     *
+     * <p>원본은 작업지시 없이 줄마다 바로 고른다. 작업지시를 고르면 그 지시의 생산품목이 들어온다.
+     * 예전 줄은 V506 이 작업지시의 생산품목을 옮겨 적었다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
+    private com.erp.inventory.item.Item product;
+
+    /**
+     * 작업 — 원본 격자의 [작업]. 그 생산품목이 거치는 공정의 작업코드(공정등록 › 작업코드등록) 중 하나다.
+     * 고르면 {@link #process} 와 {@link #processMaster} 는 그 작업코드의 공정으로 채운다.
+     * 예전 줄과 공정명만 적은 줄은 null.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "operation_id")
+    private com.erp.production.processoperation.ProcessOperation operation;
+
     /** 작업자 */
     @Column(length = 50)
     private String worker;
@@ -88,7 +107,7 @@ public class WorkResult extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal defectQty = BigDecimal.ZERO;
 
-    /** 작업시간(분) */
+    /** 작업시간(분). 화면은 원본처럼 시간(H)으로 받고 보인다 — 분으로 두는 까닭은 BOR 표준시간 · 효율현황이 분으로 센다. */
     @Column(nullable = false)
     @Builder.Default
     private Integer workTimeMin = 0;
