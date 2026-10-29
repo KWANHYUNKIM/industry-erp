@@ -208,7 +208,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     void Promise.all([
       api.get<Item[]>('/items').then((r) => setItems(r.data.filter((i) => i.active))),
       api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data)),
-      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/sales-reps')
+      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees')
         .then((r) => setEmployees(r.data.filter((e) => e.active !== false))),
       api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)),
       api.get<{ id: number; code: string; name: string; active: boolean }[]>('/processes')
