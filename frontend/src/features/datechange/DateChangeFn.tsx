@@ -36,14 +36,15 @@ export default function DateChangeFn({ date, onSubmit }: { date: string; onSubmi
           </span>
         )}
       </span>
-      <Modal error={null} open={open} title="일자변경" width={360} onClose={() => setOpen(false)}>
-        <div className="ec-form">
-          <div className="flex items-center gap-[8px] mb-[6px]">
-            <span className="w-[70px]">기존일자</span>
+      <Modal error={null} open={open} title="일자변경" width={420} onClose={() => setOpen(false)}>
+        {/* .ec-form 은 2열 격자라 줄이 창 반쪽에 끼어 이름표가 한 글자씩 접히고 일 칸이 창 밖으로 잘렸다(2026-10-29 QA) — 1열로. */}
+        <div className="ec-form grid-cols-1">
+          <div className="flex flex-nowrap items-center gap-[8px] mb-[6px]">
+            <span className="w-[70px] shrink-0 whitespace-nowrap">기존일자</span>
             <input className="ec-input" readOnly aria-label="기존일자" value={date} />
           </div>
-          <div className="flex items-center gap-[8px] mb-[6px]">
-            <span className="w-[70px]">변경일자</span>
+          <div className="flex flex-nowrap items-center gap-[8px] mb-[6px]">
+            <span className="w-[70px] shrink-0 whitespace-nowrap">변경일자</span>
             <EcDateField value={to} onChange={setTo} />
           </div>
           <div className="flex gap-[4px] mt-[8px]">
