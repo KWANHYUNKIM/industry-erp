@@ -227,53 +227,49 @@ const MENU: TopMenu[] = [
       {
         label: '생산/외주',
         home: '/production/receipt-inquiry',
+        /* 원본 생산/외주 좌측 메뉴(2026-10-30 loginaa 실측): 아홉 묶음 나무. 생산계획/MRP생성만 묶음 없는 화면.
+           처음 펼친 묶음은 생산입고 · 생산/외주현황(지금 화면이 든 묶음은 늘 펼친다). */
+        open: ['생산입고', '생산/외주현황'],
         nodes: [
-          { label: 'BOM(소요량)조회', to: '/production/bom' },
-          /* 원본 BOM(소요량) 묶음: BOM(소요량)조회 · BOM(소요량)현황 · 소요량계산(2026-10-02 loginaa 실측). */
-          { label: 'BOM(소요량)현황', to: '/production/bom-status' },
-          { label: '소요량계산', to: '/production/requirement-calc' },
-          { label: '공정등록', to: '/production/process' },
-          { label: '자원등록', to: '/production/resource' },
-          { label: 'BOR(작업소요시간)', to: '/production/bor' },
-          { label: '소요시간계산', to: '/production/time-calc' },
-          /* 원본 차례: BOM(소요량) · 공정 · 생산계획/MRP생성 · 작업지시서 … (2026-10-02 loginaa 좌측 메뉴 실측). */
+          { label: 'BOM(소요량)', children: [{ label: 'BOM(소요량)조회', to: '/production/bom' }, { label: 'BOM(소요량)현황', to: '/production/bom-status' }, { label: '소요량계산', to: '/production/requirement-calc' }] },
+          { label: '공정', children: [{ label: '공정등록', to: '/production/process' }, { label: '자원등록', to: '/production/resource' }, { label: 'BOR(작업소요시간)', to: '/production/bor' }, { label: '소요시간계산', to: '/production/time-calc' }] },
           { label: '생산계획/MRP생성', to: '/production/mrp' },
-          { label: '작업지시서조회', to: '/production/work-orders' },
-          { label: '작업지시서입력', to: '/production/work-order-entry' },
-          { label: '작업지시서현황', to: '/production/wo-status' },
-          { label: '작업지시서작업처리', to: '/production/wo-work' },
-          { label: '작업지시서별진행현황', to: '/production/wo-progress' },
-          { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
-          { label: '생산불출조회', to: '/production/issue' },
-          { label: '생산불출현황', to: '/production/issue-status' },
-          { label: '작업내역입력', to: '/production/work-result' },
-          { label: '작업내역조회', to: '/production/work-result-list' },
-          { label: '작업내역현황', to: '/production/work-result-status' },
-          { label: '생산입고 I', to: '/production/receipt-bom' },
-          { label: '생산입고 II', to: '/production/receipt-manual' },
-          { label: '생산입고 III', to: '/production/receipt-qr' },
-          { label: '생산입고조회', to: '/production/receipt-inquiry' },
-          { label: '생산입고현황', to: '/production/receipt-status' },
-          /*
-           * 원본 생산/외주 탭 실측(사본 좌측 메뉴): … 생산입고/소모현황 I ·
-           * <b>지급현황 · 외주비할인현황 · 거래처별채무 · 외주비회계반영</b>.
-           *
-           * <p>외주는 남에게 맡겨 만드는 것이라 <b>사고 나서 돈을 주는</b> 흐름이 따라붙는다.
-           * 그 셋이 우리에겐 구매관리·출력물 탭에만 있어서, 외주를 보다가 "얼마 줬나" 를
-           * 보려면 탭을 옮겨야 했다. 원본처럼 여기에도 둔다.
-           *
-           * <p>[외주비일괄회계반영]은 2026-10-02 에 만들었다(loginaa 실측) — 생산입고 I·II 의
-           * 외주비합계·부가세를 외주처별 매입전표로 넘긴다.
-           */
-          /* 원본 차례(2026-10-02 실측): … 생산입고현황 · [외주비회계반영] 외주비일괄회계반영 · [생산/외주현황] 생산입고/소모현황 I ·
-             거래처별채무 · 지급현황 · 외주비할인현황 · 매입(세금)계산서현황(재고). */
-          { label: '외주비일괄회계반영', to: '/production/subcontract-reflection' },
-          { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
-          { label: '거래처별채무', to: '/sales/ledger-payable' },
-          { label: '지급현황', to: '/sales/payment' },
-          { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
-          { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' },
-          { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
+          {
+            label: '작업지시서',
+            children: [
+              { label: '작업지시서조회', to: '/production/work-orders' },
+              { label: '작업지시서입력', to: '/production/work-order-entry' },
+              { label: '작업지시서현황', to: '/production/wo-status' },
+              { label: '작업지시서작업처리', to: '/production/wo-work' },
+              { label: '작업지시서별진행현황', to: '/production/wo-progress' },
+              { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
+            ],
+          },
+          { label: '생산불출', children: [{ label: '생산불출조회', to: '/production/issue' }, { label: '생산불출입력', to: '/production/issue?new=1' }, { label: '생산불출현황', to: '/production/issue-status' }] },
+          { label: '작업', children: [{ label: '작업내역입력', to: '/production/work-result' }, { label: '작업내역조회', to: '/production/work-result-list' }, { label: '작업내역현황', to: '/production/work-result-status' }] },
+          {
+            label: '생산입고',
+            children: [
+              { label: '생산입고조회', to: '/production/receipt-inquiry' },
+              { label: '생산입고 I', to: '/production/receipt-bom' },
+              { label: '생산입고 II', to: '/production/receipt-manual' },
+              { label: '생산입고 III', to: '/production/receipt-qr' },
+              { label: '생산입고현황', to: '/production/receipt-status' },
+            ],
+          },
+          /* 외주는 남에게 맡겨 만드는 것이라 사고 나서 돈을 주는 흐름이 따라붙는다 — 원본처럼 채무 · 지급도 이 탭에 둔다.
+             [외주비일괄회계반영]은 생산입고 I·II 의 외주비합계·부가세를 외주처별 매입전표로 넘긴다(2026-10-02). */
+          { label: '외주비회계반영', children: [{ label: '외주비일괄회계반영', to: '/production/subcontract-reflection' }, { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' }] },
+          {
+            label: '생산/외주현황',
+            children: [
+              { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
+              { label: '거래처별채무', to: '/sales/ledger-payable' },
+              { label: '지급현황', to: '/sales/payment' },
+              { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+              { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
+            ],
+          },
         ],
       },
       /* 원본 기타이동 탭(2026-10-20 loginaa 실측): 창고이동 · 자가사용 · 불량처리 · 재고조정 · 기타이동현황 다섯 묶음.

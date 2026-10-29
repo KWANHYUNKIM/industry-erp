@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -198,7 +199,10 @@ export default function IssuePage() {
   /** 원본 [품목그룹1]. 품목 마스터에 붙는 값이라 마스터를 받아 itemId 로 잇는다. */
   const mgmt = useItemMgmt()
   const condPickers = useCondPickers(['warehouses', 'items', 'employees'])
-  const [showForm, setShowForm] = useState(false)
+  /** 원본 [생산불출] 묶음의 생산불출입력 — 메뉴가 ?new=1 로 열면 입력 창부터 띄운다(창고이동입력과 같은 방식). */
+  const [params] = useSearchParams()
+  const [showForm, setShowForm] = useState(() => params.get('new') === '1')
+  useEffect(() => { if (params.get('new') === '1') setShowForm(true) }, [params])
   const [form, setForm] = useState(emptyForm)
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
   const setLine = (key: number, patch: Partial<FormLine>) =>
