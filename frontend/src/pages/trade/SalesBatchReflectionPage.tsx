@@ -199,8 +199,16 @@ function SalesBatch() {
     if (picked.length === 0) { void ecAlert('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
     setSlipError(''); setQueue(picked); setSlipVat(vatOf(picked[0])); initSlip(picked[0])
   }
+  /** '매출전표 I' 창 적요 기본값 — 품목명 + 규격('포장김치1kg', 원본 11/28-4 실측 2026-10-29), 줄이 여럿이면 '… 외 n건'. */
+  function noteOf(r: Row) {
+    const all = r.slips.flatMap((s) => s.lines ?? [])
+    const ls = r.lineIds ? all.filter((l) => r.lineIds!.includes(l.lineId ?? -1)) : all.filter((l) => !l.reflected)
+    if (ls.length === 0) return r.items
+    const first = `${ls[0].itemName}${ls[0].spec ?? ''}`
+    return ls.length > 1 ? `${first} 외 ${ls.length - 1}건` : first
+  }
   function initSlip(r: Row) {
-    setSlipForm({ date: r.date, dept: '', project: '', partner: String(r.partnerId), note: r.items })
+    setSlipForm({ date: r.date, dept: '', project: '', partner: String(r.partnerId), note: noteOf(r) })
   }
 
   /** '매출전표 I' 창 [저장(F8)] — 그 줄의 판매전표를 분개로 넘긴다. 조정이 있으면 원본 확인 글을 먼저 띄운다. 저장하면 말 없이 닫힌다. */
@@ -217,7 +225,7 @@ function SalesBatch() {
         departmentId: slipForm.dept ? Number(slipForm.dept) : undefined,
         projectId: slipForm.project ? Number(slipForm.project) : undefined,
         partnerId: slipForm.partner && slipForm.partner !== String(r.partnerId) ? Number(slipForm.partner) : undefined,
-        note: slipForm.note && slipForm.note !== r.items ? slipForm.note : undefined,
+        note: slipForm.note && slipForm.note !== noteOf(r) ? slipForm.note : undefined,
         vatType: slipVat, supplyAmount: a.adj ? a.supply : undefined })
       const rest = queue.slice(1)
       setQueue(rest)

@@ -500,8 +500,9 @@ public class JournalService {
         LocalDate date = spec.entryDate() != null ? spec.entryDate()
                 : spec.sales().stream().map(Sales::getSaleDate).max(LocalDate::compareTo).orElse(first.getSaleDate());
         String vatType = spec.vatType() != null && !spec.vatType().isBlank() ? spec.vatType().trim() : allTaxable ? "세금계산서" : "계산서";
-        /* 적요 — 창의 기본값은 품목요약('코카콜라 외 1건'). 고쳤으면 그 글. */
-        String firstName = picked.get(0).getItem().getName();
+        /* 적요 — 창의 기본값은 품목명 + 규격('포장김치1kg', 원본 11/28-4 실측 2026-10-29), 줄이 여럿이면 '… 외 n건'. 고쳤으면 그 글. */
+        SalesLine head = picked.get(0);
+        String firstName = head.effectiveItemName() + (head.effectiveSpec() != null ? head.effectiveSpec() : "");
         String summary = picked.size() == 1 ? firstName : firstName + " 외 " + (picked.size() - 1) + "건";
         String lineDesc = spec.note() != null && !spec.note().isBlank() ? spec.note().trim() : summary;
 
