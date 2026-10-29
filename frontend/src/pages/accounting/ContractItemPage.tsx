@@ -129,8 +129,8 @@ export default function ContractItemPage() {
       onSearchChange={setQuick}
       onSearch={() => setApplied(cond)}
       onReset={() => setCond(blankCond())}
+      onNew={() => { if (form) return; setInvalid(new Set()); setForm(blank()) }}
       actions={[
-        { label: '신규(F2)', primary: true, onClick: () => { setInvalid(new Set()); setForm(blank()) } },
         { label: '사용중단/재사용', onClick: () => setMenuOpen((v) => !v) },
         { label: 'Excel' },
       ]}

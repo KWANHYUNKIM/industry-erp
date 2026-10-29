@@ -1,0 +1,28 @@
+{
+  "about": "계약항목리스트 — F2 로 [신규] 창, 수량별단가 [설정](원본 창 미실측: 수량 이상 · 적용단가 · VAT포함 줄) 10 이상 50,000 → 저장 → 목록 [수량별단가] 50,000(원본 00003 정수기 렌탈비 50,000) · 다시 열면 남음. 매출계정 칸 옆에 계정명. 만든 항목은 지운다.",
+  "shots": [
+    {
+      "name": "F2 → 수량별단가 설정 → 저장 → 목록",
+      "path": "/accounting/contract-items",
+      "steps": [
+        "wait:2000",
+        "js:window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true }))",
+        "wait:500",
+        "expect:!!document.querySelector('input[aria-label=\"계약항목코드\"]') && !!document.querySelector('input[aria-label=\"매출계정명\"]')",
+        "set:input[aria-label=\"계약항목코드\"]|QAQ01",
+        "set:input[aria-label=\"계약항목명\"]|QA 수량별단가",
+        "js:(() => { const li = document.querySelector('input[aria-label=\"수량별단가\"]').closest('li'); [...li.querySelectorAll('a')].find((a) => a.innerText.trim() === '설정').click(); return true })()",
+        "wait:500",
+        "set:input[aria-label=\"1행 수량\"]|10",
+        "set:input[aria-label=\"1행 적용단가\"]|50000",
+        "click:적용(F8)",
+        "wait:300",
+        "expect:document.querySelector('input[aria-label=\"수량별단가\"]').value === '50,000'",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QAQ01')); return !!tr && tr.cells[6].innerText.trim() === '50,000' })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/contract-items', { headers: H }).then((x) => x.json()); const a = r.find((x) => x.code === 'QAQ01'); if (!a) return false; const ok = Number(a.qtyPrice) === 50000 && a.qtyPrices.length === 1 && Number(a.qtyPrices[0].minQuantity) === 10; const d = await fetch('/api/contract-items/' + a.id, { method: 'DELETE', headers: H }); return ok && (d.status === 204 || d.status === 200) })()"
+      ]
+    }
+  ]
+}
