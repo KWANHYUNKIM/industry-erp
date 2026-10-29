@@ -5,6 +5,7 @@ import { downloadStoredFile, formatBytes } from '../utils/fileDownload'
 import EcFileDrop from './EcFileDrop'
 import { ymd } from './EcPeriodPicks'
 import { ecConfirm } from './EcDialog'
+import { shrinkImage } from '../utils/imageResize'
 
 /**
  * 전표 하나에 붙은 증빙(첨부파일)을 보고 등록·삭제하는 재사용 패널.
@@ -51,7 +52,7 @@ export default function EvidencePanel({
     setError(''); setBusy(true)
     try {
       const fd = new FormData()
-      if (file) fd.append('file', file)
+      if (file) fd.append('file', await shrinkImage(file, { maxEdge: 2400 }))
       await api.post('/evidence-attachments', fd, {
         params: {
           entityType, entityId,

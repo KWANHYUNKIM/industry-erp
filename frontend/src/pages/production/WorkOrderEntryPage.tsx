@@ -15,6 +15,7 @@ import { downloadStoredFile } from '../../utils/fileDownload'
 import type { Item, Warehouse, WorkOrder } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
+import { shrinkImage } from '../../utils/imageResize'
 
 /**
  * 재고 I &gt; 생산/외주 &gt; <b>작업지시서입력</b>.
@@ -63,7 +64,7 @@ export default function WorkOrderEntryPage() {
     setUploading(true); setError('')
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', fd)
       setAttachment({ id: r.data.id, name: r.data.name })
     } catch (err) {
@@ -138,7 +139,7 @@ export default function WorkOrderEntryPage() {
       api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data.filter((w) => w.active))),
       api.get<{ id: number; code: string; name: string }[]>('/partners').then((r) => setPartners(r.data)),
       api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)),
-      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees')
+      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/sales-reps')
         .then((r) => setEmployees(r.data.filter((e) => e.active !== false))),
     ]).catch((e) => setError(extractErrorMessage(e)))
   }, [])

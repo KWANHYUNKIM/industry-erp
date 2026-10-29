@@ -18,6 +18,7 @@ import { clearItemSuggestCache } from '../../features/item/api/itemSuggest'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
 import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
+import { shrinkImage } from '../../utils/imageResize'
 
 const inputCls = 'ec-input w-full'
 
@@ -231,7 +232,7 @@ export default function ItemsPage() {
     setError('')
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', fd)
       setImage({ id: r.data.id, name: r.data.name })
     } catch (err) {

@@ -27,6 +27,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { PostLinkField, SlipLinkField } from '../../features/workpost/components/LinkFields'
 import { slipHistoryTime } from '../../features/sliphistory/SlipHistoryModal'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
+import { shrinkImage } from '../../utils/imageResize'
 
 const today = () => ymd(new Date())
 
@@ -615,7 +616,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     setError('')
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', fd)
       setAttachment({ id: r.data.id, name: r.data.name })
     } catch (err) {

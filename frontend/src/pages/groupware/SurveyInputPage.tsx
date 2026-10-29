@@ -11,6 +11,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import { useShortcut } from '../../utils/useShortcut'
 import type { QuestionType, SurveyDoc } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import { shrinkImage } from '../../utils/imageResize'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사입력 (이카운트 E070256)
@@ -128,7 +129,7 @@ export default function SurveyInputPage() {
     setError('')
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', fd)
       setAttachment({ id: r.data.id, name: r.data.name })
     } catch (err) {

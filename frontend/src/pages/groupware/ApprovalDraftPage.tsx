@@ -15,6 +15,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
 import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
 import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
+import { shrinkImage } from '../../utils/imageResize'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -212,7 +213,7 @@ export default function ApprovalDraftPage() {
     setError('')
     try {
       const form = new FormData()
-      form.append('file', file)
+      form.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', form)
       setAttachment({ id: r.data.id, name: r.data.name })
     } catch (err) {

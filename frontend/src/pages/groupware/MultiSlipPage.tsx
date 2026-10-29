@@ -13,6 +13,7 @@ import { MenuButton } from '../../components/EcSlipShell'
 import EcFileDrop from '../../components/EcFileDrop'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import { exportTableToXlsx } from '../../utils/excel'
+import { shrinkImage } from '../../utils/imageResize'
 
 /**
  * 그룹웨어 › 다목적관리 — '다목적 전표' 넷(2026-10-14 loginaa 실측, .claude/skills/ecount-diff/plans/그룹웨어/E200276.md).
@@ -397,7 +398,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
     setUploading(true)
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', fd)
       setAttachment({ id: r.data.id, name: r.data.name })
       setDirty(true)

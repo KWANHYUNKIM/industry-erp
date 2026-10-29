@@ -10,6 +10,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Department } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
+import { shrinkImage } from '../../utils/imageResize'
 
 interface DailyWorker {
   id: number; code: string; name: string; foreigner: boolean; nationality: string | null
@@ -274,7 +275,7 @@ export default function DailyWorkerListPage() {
                     <input ref={attachRef} type="file" className="hidden" onChange={async (e) => {
                       const f = e.target.files?.[0]; e.target.value = ''
                       if (!f) return
-                      const fd = new FormData(); fd.append('file', f)
+                      const fd = new FormData(); fd.append('file', await shrinkImage(f))
                       try { const r = await api.post<{ id: number; name: string }>('/files', fd); set({ attachmentFileId: String(r.data.id), attachmentName: r.data.name }) }
                       catch (err) { setFormError(extractErrorMessage(err)) }
                     }} />

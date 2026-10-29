@@ -19,6 +19,7 @@ import EcFileDrop from '../../components/EcFileDrop'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import EcRichBody from '../../components/EcRichBody'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
+import { shrinkImage } from '../../utils/imageResize'
 
 const WORKLOG_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '종료일', '최근3일+7일'] as const
 
@@ -134,7 +135,7 @@ export default function WorkLogPage() {
     setError('')
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', fd)
       setF('attachment', { id: r.data.id, name: r.data.name })
     } catch (err) { setError(extractErrorMessage(err)) } finally { setUploading(false) }
