@@ -1138,8 +1138,9 @@ th.ec-empty {
  * 화면이 조건 줄에 인라인 display 를 준 곳이 있어 !important 로 덮는다.
  */
 .ec-list-body { position: relative; }
-.ec-list-body.conds-closed :is(.ec-cond, .ec-search-conds) { display: none !important; }
-.ec-list-body.conds-open :is(.ec-cond, .ec-search-conds) {
+/* 창(Modal) 안의 .ec-cond 는 입력 칸이다 — 조건 판으로 접거나 띄우지 않는다(계약항목등록 창이 빈 채로 떴음) */
+.ec-list-body.conds-closed :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) { display: none !important; }
+.ec-list-body.conds-open :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) {
   position: absolute !important;
   top: 0;
   left: 0;
