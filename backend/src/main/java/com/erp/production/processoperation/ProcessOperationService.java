@@ -21,6 +21,23 @@ public class ProcessOperationService {
     private final ProcessRepository processRepository;
     private final ProcessService processService;
 
+    /**
+     * 투입자원유형. 원본에서 잰 값은 '기계' 하나다(2026-10-29) — 나머지 갈래는 원본에서 못 봤다.
+     * 자원등록의 [구분](설비 · 인력 · 외주)과 같은 세 갈래로 둔다.
+     */
+    public static final List<String> RESOURCE_TYPES = List.of("기계", "인력", "외주");
+    /** 작업기준품목. 원본 실측 생산품 · 소모품. */
+    public static final List<String> BASE_ITEMS = List.of("생산품", "소모품");
+
+    private static String pick(String v, List<String> allowed, String label) {
+        if (v == null || v.isBlank()) return null;
+        String t = v.trim();
+        if (!allowed.contains(t)) {
+            throw ApiException.badRequest(label + "은(는) " + String.join(" · ", allowed) + " 중 하나입니다: " + t);
+        }
+        return t;
+    }
+
     @Transactional(readOnly = true)
     public List<OperationResponse> findAll() {
         return repository.findAllWithProcess().stream().map(OperationResponse::from).toList();
@@ -37,6 +54,8 @@ public class ProcessOperationService {
                 .code(code)
                 .name(req.name().trim())
                 .seq(req.seq() != null ? req.seq() : 0)
+                .resourceType(pick(req.resourceType(), RESOURCE_TYPES, "투입자원유형"))
+                .baseItem(pick(req.baseItem(), BASE_ITEMS, "작업기준품목"))
                 .active(req.active() == null || req.active())
                 .build();
         return OperationResponse.from(repository.save(o));
@@ -56,6 +75,9 @@ public class ProcessOperationService {
         if (req.seq() != null) {
             o.setSeq(req.seq());
         }
+        // 비워 보내면 지운다 — 고치는 창이 늘 두 칸을 같이 보낸다.
+        o.setResourceType(pick(req.resourceType(), RESOURCE_TYPES, "투입자원유형"));
+        o.setBaseItem(pick(req.baseItem(), BASE_ITEMS, "작업기준품목"));
         if (req.active() != null) {
             o.setActive(req.active());
         }

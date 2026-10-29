@@ -17,19 +17,28 @@ public final class ProcessOperationDtos {
             @Size(max = 100, message = "작업명은 100자까지 넣을 수 있습니다.")
             @NotBlank(message = "작업명을 입력하세요.") String name,
             Integer seq,
+            /** 투입자원유형 — 기계 · 인력 · 외주. 비우면 안 정한 것. */
+            @Size(max = 20, message = "투입자원유형은 20자까지 넣을 수 있습니다.")
+            String resourceType,
+            /** 작업기준품목 — 생산품 · 소모품. 비우면 안 정한 것. */
+            @Size(max = 20, message = "작업기준품목은 20자까지 넣을 수 있습니다.")
+            String baseItem,
             Boolean active
     ) {}
 
     public record OperationResponse(
             Long id,
             Long processId, String processCode, String processName,
-            String code, String name, Integer seq, boolean active
+            String code, String name, Integer seq,
+            String resourceType, String baseItem,
+            boolean active
     ) {
         public static OperationResponse from(ProcessOperation o) {
             return new OperationResponse(
                     o.getId(),
                     o.getProcess().getId(), o.getProcess().getCode(), o.getProcess().getName(),
-                    o.getCode(), o.getName(), o.getSeq(), o.isActive());
+                    o.getCode(), o.getName(), o.getSeq(),
+                    o.getResourceType(), o.getBaseItem(), o.isActive());
         }
     }
 }

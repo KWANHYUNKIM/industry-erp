@@ -40,6 +40,17 @@ public class ProcessOperation extends BaseTimeEntity {
     @Builder.Default
     private Integer seq = 0;
 
+    /**
+     * 투입자원유형 — 원본 작업코드등록의 열(실측 값 '기계'). 기계 · 인력 · 외주 중 하나
+     * ({@link ProcessOperationService#RESOURCE_TYPES}). 안 정할 수 있다.
+     */
+    @Column(name = "resource_type", length = 20)
+    private String resourceType;
+
+    /** 작업기준품목 — 원본 작업코드등록의 열. 생산품 · 소모품 중 하나. 안 정할 수 있다. */
+    @Column(name = "base_item", length = 20)
+    private String baseItem;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
