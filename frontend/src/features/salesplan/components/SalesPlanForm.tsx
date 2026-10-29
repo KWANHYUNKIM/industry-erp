@@ -59,13 +59,8 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
   const tableRef = useRef<HTMLTableElement>(null)
   const nameOf = (list: { value: string; name: string }[], id: string) => list.find((x) => x.value === id)?.name ?? ''
 
-  /* 원본: 품목을 고르면 [단가] 에 품목의 출고단가(우리 items.unitPrice)가 차고 예상매출액은 수량 × 단가(수량이 비면 0). */
-  const [prices, setPrices] = useState<Map<string, number>>(new Map())
-  useEffect(() => {
-    api.get<{ id: number; unitPrice?: number | null }[]>('/items')
-      .then((r) => setPrices(new Map(r.data.map((x) => [String(x.id), Number(x.unitPrice ?? 0)]))))
-      .catch(() => undefined)
-  }, [])
+  /* 원본: 품목을 골라도 [단가] 는 비어 있다(2026-10-29 데이터이관 QA B9 — 원본 11/23-1 F001 수량 0 · 단가 0 · 예상매출액 16,000).
+     예상매출액은 손으로 치거나, 수량 · 단가를 치면 수량 × 단가. */
 
   function reset() {
     setError('')
@@ -177,7 +172,7 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
               <td><CodePickerField label="담당자" hideLabel fill emptyLabel="지우기" placeholder="담당자" value={l.employeeId}
                                    onChange={(v) => setLine(i, { employeeId: v })} items={pickers.employees} /></td>
               <td className="[&_.name]:hidden [&_button.ec-btn]:hidden"><CodePickerField label="품목" hideLabel fill pair emptyLabel="지우기" placeholder="품목" value={l.itemId}
-                                   onChange={(v) => setLine(i, v ? { itemId: v, unitPrice: String(prices.get(v) ?? 0) } : { itemId: v })} items={pickers.items} /></td>
+                                   onChange={(v) => setLine(i, { itemId: v })} items={pickers.items} /></td>
               <td>{nameOf(pickers.items, l.itemId)}</td>
               <td><input className="ec-input w-full text-right" aria-label="수량" value={l.planQty} disabled={!l.itemId} onChange={(e) => setLine(i, { planQty: e.target.value })} /></td>
               <td><input className="ec-input w-full text-right" aria-label="단가" value={l.unitPrice} disabled={!l.itemId} onChange={(e) => setLine(i, { unitPrice: e.target.value })} /></td>

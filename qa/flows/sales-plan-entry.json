@@ -1,5 +1,5 @@
 {
-  "about": "매출계획입력(E040624) 따로 된 입력 화면 — 2026-10-14: 메뉴 [매출계획입력] 이 조회의 창이 아니라 입력 화면을 연다(폼은 features/salesplan/components/SalesPlanForm, 조회 [신규(F2)] · 수정 창과 같은 부품). 빈 저장 '자료를 입력 바랍니다.', 품목 코드칸에 코드를 쳐 Enter → 단가가 차고 수량 2 → 예상매출액 = 2 × 단가, 저장하면 안내 없이 빈 입력. 조회에 생기고, 지운다.",
+  "about": "매출계획입력(E040624) 따로 된 입력 화면 — 2026-10-14: 메뉴 [매출계획입력] 이 조회의 창이 아니라 입력 화면을 연다(폼은 features/salesplan/components/SalesPlanForm, 조회 [신규(F2)] · 수정 창과 같은 부품). 빈 저장 '자료를 입력 바랍니다.', 품목 코드칸에 코드를 쳐 Enter → 단가는 빈칸(원본 B9: 품목 단가를 미리 채우지 않음) → 단가 1,000 · 수량 2 → 예상매출액 = 2 × 단가, 저장하면 안내 없이 빈 입력. 조회에 생기고, 지운다.",
   "shots": [
     {
       "name": "빈 저장 막힘 → ITM-0001 코드 Enter × 2 저장 → 빈 입력 → 조회에 생김 → 지움",
@@ -13,7 +13,8 @@
         "set:input.code[placeholder=\"품목\"]|ITM-0001",
         "js:document.querySelector('input.code[placeholder=\"품목\"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))",
         "wait:600",
-        "expect:document.querySelector('input.code[placeholder=\"품목\"]').value === 'ITM-0001' && Number(document.querySelector('input[aria-label=\"단가\"]').value) > 0",
+        "expect:document.querySelector('input.code[placeholder=\"품목\"]').value === 'ITM-0001' && document.querySelector('input[aria-label=\"단가\"]').value === ''",
+        "set:input[aria-label=\"단가\"]|1000",
         "set:input[aria-label=\"수량\"]|2",
         "js:(() => { const p = Number(document.querySelector('input[aria-label=\"단가\"]').value); sessionStorage.setItem('spe', JSON.stringify({ price: p })); return 'price ' + p })()",
         "expect:Number(document.querySelector('input[aria-label=\"예상매출액\"]').value) === 2 * JSON.parse(sessionStorage.getItem('spe')).price",
