@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { ecAlert } from '../components/EcDialog'
 import { useAuth } from '../features/auth/AuthContext'
 import type { PartnerBalance, ProfitSummary, PurchaseDoc, SalesDoc, StockRow, VatSummary } from '../types/api'
 import { dateText } from '../utils/dateText'
+import { bottomRow, MIN_H, MIN_W, normalize, place, twoColumns, type GridItem } from '../utils/gridLayout'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const STORAGE_KEY = 'mypage-widgets-v1'
+/** 옛 저장값 — 위젯 id 순서만 있었다. 처음 한 번 두 단 배치로 옮긴다 */
+const LEGACY_KEY = 'mypage-widgets-v1'
+/** 지금 저장값 — 위젯마다 {id, x, y, w, h}(칸 수) */
+const STORAGE_KEY = 'mypage-grid-v1'
 
 /** 대시보드에 쌓이는 데이터 묶음 */
 /**
@@ -31,66 +36,53 @@ interface WidgetDef {
   id: string
   title: string
   group: string
+  /** 새창 — 그 메뉴 화면 */
   to?: string
+  /** 신규 — 그 메뉴의 입력 화면 */
+  newTo?: string
   render: (d: DashData) => ReactNode
 }
 
-/** 이카운트 위젯 패널 (제목바 + 우측 아이콘 + 본문). 편집모드면 이동/삭제 컨트롤 표시 */
-function Widget({ def, edit, busy, refreshable, onRefresh, onMove, onRemove, children }: {
+type GripDir = 'e' | 'se' | 's' | 'sw' | 'w'
+const GRIPS: GripDir[] = ['e', 'se', 's', 'sw', 'w']
+
+/**
+ * 이카운트 위젯 패널 (제목바 + 우측 아이콘 + 본문). 원본 아이콘 차례: 새창 · 새로고침 · 신규 · ⋮([설정] [삭제]).
+ * 제목바를 끌면 옮겨지고, 테두리 손잡이(e · se · s · sw · w)를 끌면 크기가 바뀐다 — 손잡이는 마우스를 올려야 보인다.
+ */
+function Widget({ def, busy, refreshable, onRefresh, onNew, onRemove, onHeadDown, children }: {
   def: WidgetDef
-  edit: boolean
   busy: boolean
   refreshable: boolean
   onRefresh: () => void
-  onMove: (dir: -1 | 1) => void
+  onNew: () => void
   onRemove: () => void
+  onHeadDown: (e: ReactPointerEvent) => void
   children: ReactNode
 }) {
-  // ⋮ 옵션 드롭다운 (숨기기·좌우 이동) — 편집모드가 아니어도 위젯 단위로 조작
   const [menuOpen, setMenuOpen] = useState(false)
+  const openWindow = () => { if (def.to) window.open(def.to, '_blank', 'popup,width=1200,height=800') }
   return (
-    <div className={`ec-widget${edit ? ' editing' : ''}`}>
-      <div className="ec-widget-head">
+    <div className="ec-widget">
+      <div className="ec-widget-head" onPointerDown={onHeadDown}>
         <span className="name">{def.title}</span>
-        <div className="tools">
-          {edit ? (
+        <div className="tools" onPointerDown={(e) => e.stopPropagation()}>
+          <button title={def.to ? '새창' : '새창으로 열 화면이 없는 위젯입니다'} disabled={!def.to} onClick={openWindow}>⧉</button>
+          <button
+            title={refreshable ? '새로고침' : '새로고침할 데이터가 없는 위젯입니다'}
+            disabled={!refreshable}
+            className={busy ? 'spin' : undefined}
+            onClick={() => { if (refreshable && !busy) onRefresh() }}
+          >⟳</button>
+          <button title={def.newTo ? '신규' : '신규 입력이 없는 위젯입니다'} disabled={!def.newTo} onClick={onNew}>＋</button>
+          <button title="옵션" onClick={() => setMenuOpen((v) => !v)}>⋮</button>
+          {menuOpen && (
             <>
-              <button title="왼쪽으로" onClick={() => onMove(-1)}>◀</button>
-              <button title="오른쪽으로" onClick={() => onMove(1)}>▶</button>
-              <button title="제거" className="danger" onClick={onRemove}>✕</button>
-            </>
-          ) : (
-            <>
-              {def.to && <Link to={def.to} title="이동">↗</Link>}
-              <button
-                title={refreshable ? '새로고침' : '새로고침할 데이터가 없는 위젯입니다'}
-                disabled={!refreshable}
-                className={busy ? 'spin' : undefined}
-                onClick={() => { if (refreshable && !busy) onRefresh() }}
-              >⟳</button>
-              <button title="옵션" onClick={() => setMenuOpen((v) => !v)}>⋮</button>
-              {menuOpen && (
-                <>
-                  <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
-                  <div className="ec-menu">
-                    {[
-                      { label: '⟳ 새로고침', run: () => { if (refreshable) onRefresh() }, disabled: !refreshable },
-                      { label: '◀ 왼쪽으로 이동', run: () => onMove(-1) },
-                      { label: '▶ 오른쪽으로 이동', run: () => onMove(1) },
-                      { label: '✕ 위젯 숨기기', run: onRemove, danger: true },
-                    ].map((m) => (
-                      <button
-                        key={m.label}
-                        disabled={m.disabled}
-                        className={m.danger ? 'danger' : undefined}
-                        onClick={() => { setMenuOpen(false); m.run() }}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
+              <div className="ec-menu">
+                <button onClick={() => { setMenuOpen(false); ecAlert(`[${def.title}] 위젯은 설정할 항목이 없습니다.`) }}>설정</button>
+                <button className="danger" onClick={() => { setMenuOpen(false); onRemove() }}>삭제</button>
+              </div>
             </>
           )}
         </div>
@@ -103,7 +95,7 @@ function Widget({ def, edit, busy, refreshable, onRefresh, onMove, onRemove, chi
 // ===== 위젯 정의 =====
 const REGISTRY: WidgetDef[] = [
   {
-    id: 'stock', title: '재고현황', group: '재고', to: '/inventory/current',
+    id: 'stock', title: '재고현황', group: '재고', to: '/inventory/current', newTo: '/inventory/items',
     render: (d) => (
       <>
         <table className="ec-grid">
@@ -156,7 +148,7 @@ const REGISTRY: WidgetDef[] = [
     ),
   },
   {
-    id: 'sales', title: '판매현황', group: '영업·구매', to: '/sales/sell',
+    id: 'sales', title: '판매현황', group: '재고', to: '/sales/sell', newTo: '/sales/sell',
     render: (d) => (
       <table className="ec-grid">
         <thead><tr><th>전표번호</th><th>일자</th><th>거래처</th><th className="text-right">합계금액</th></tr></thead>
@@ -176,7 +168,7 @@ const REGISTRY: WidgetDef[] = [
     ),
   },
   {
-    id: 'purchases', title: '구매현황', group: '영업·구매', to: '/sales/buy',
+    id: 'purchases', title: '구매현황', group: '재고', to: '/sales/buy', newTo: '/sales/buy',
     render: (d) => (
       <table className="ec-grid">
         <thead><tr><th>전표번호</th><th>일자</th><th>거래처</th><th className="text-right">합계금액</th></tr></thead>
@@ -265,22 +257,52 @@ const REGISTRY: WidgetDef[] = [
 ]
 
 const DEFAULT_IDS = ['stock', 'balances', 'sales', 'purchases', 'vat', 'profit', 'shortcuts', 'buildStatus']
-const GROUPS = ['재고', '영업·구매', '회계', '공통']
+/** 원본 My위젯선택 분류 차례 */
+const GROUPS = ['재고', '회계', '공통', '게시판']
+/** 처음 높이(칸) — 표 여섯 줄이 스크롤 없이 들어가게 */
+const DEFAULT_H: Record<string, number> = { stock: 6, balances: 6, sales: 5, purchases: 5, vat: 4, profit: 3, shortcuts: 4, buildStatus: 4 }
+const heightOf = (id: string) => DEFAULT_H[id] ?? 5
+/** My위젯선택에서 더한 위젯의 폭 — 원본 전자결재 · 공지사항(w13) */
+const NEW_W = 13
+const MOBILE = '(max-width: 768px)'
+const DRAG_TYPE = 'application/x-ec-widget'
 
-function loadOrder(): string[] {
+const known = (id: string) => REGISTRY.some((w) => w.id === id)
+const byPos = (a: GridItem, b: GridItem) => a.y - b.y || a.x - b.x
+const gridVars = (g: { x: number; y: number; w: number; h: number }) =>
+  ({ '--gx': g.x, '--gy': g.y, '--gw': g.w, '--gh': g.h }) as CSSProperties
+
+function loadStored(): GridItem[] | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    return (JSON.parse(raw) as GridItem[]).filter((it) => it && known(it.id) && [it.x, it.y, it.w, it.h].every(Number.isFinite))
+  } catch {
+    return null
+  }
+}
+
+function legacyOrder(): string[] {
+  try {
+    const raw = localStorage.getItem(LEGACY_KEY)
     if (!raw) return DEFAULT_IDS
-    const ids = JSON.parse(raw) as string[]
-    const valid = ids.filter((id) => REGISTRY.some((w) => w.id === id))
+    const valid = (JSON.parse(raw) as string[]).filter(known)
     return valid.length ? valid : DEFAULT_IDS
   } catch {
     return DEFAULT_IDS
   }
 }
 
+/** 끄는 동안의 모습 — layout: 놓으면 될 배치, float: 손을 따라가는 위젯(칸 단위 소수), ph: 자리표시를 그릴 위젯 */
+interface Preview {
+  layout: GridItem[]
+  float?: GridItem
+  ph: string
+}
+
 export default function MyPageDashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [stock, setStock] = useState<StockRow[]>([])
   const [balances, setBalances] = useState<PartnerBalance[]>([])
   const [vat, setVat] = useState<VatSummary | null>(null)
@@ -288,11 +310,44 @@ export default function MyPageDashboard() {
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
 
-  const [order, setOrder] = useState<string[]>(loadOrder)
-  const [edit, setEdit] = useState(false)
+  const [stored, setStored] = useState<GridItem[] | null>(loadStored)
+  const [pick, setPick] = useState(false)
   const [busy, setBusy] = useState<Set<string>>(new Set())  // 새로고침 중인 위젯 id
 
-  // 위젯 id별 데이터 재조회 함수 — ⟳/⋮ 새로고침이 이 맵을 재사용한다
+  // 격자 — 한 칸은 토큰(--ec-grid-unit)에서 읽고, 열 수는 판 폭 ÷ 한 칸
+  const gridRef = useRef<HTMLDivElement>(null)
+  const [unit, setUnit] = useState(60)
+  const [cols, setCols] = useState(0)
+  const [preview, setPreview] = useState<Preview | null>(null)
+  const [dragNew, setDragNew] = useState<string | null>(null)
+  const dropCell = useRef('')
+
+  useEffect(() => {
+    const el = gridRef.current
+    if (!el) return
+    const u = parseFloat(getComputedStyle(el).getPropertyValue('--ec-grid-unit')) || 60
+    setUnit(u)
+    const ro = new ResizeObserver(() => setCols(Math.max(MIN_W, Math.floor(el.clientWidth / u))))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // 저장된 배치는 그대로 두고 지금 판 폭에 맞춘 모습만 만든다 — 판이 다시 넓어지면 원래대로 돌아온다
+  const layout = useMemo(() => {
+    if (!cols) return []
+    return normalize(stored ?? twoColumns(legacyOrder(), cols, heightOf), cols)
+  }, [stored, cols])
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
+  const colsRef = useRef(cols)
+  colsRef.current = cols
+
+  const commit = (next: GridItem[]) => {
+    setStored(next)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  }
+
+  // 위젯 id별 데이터 재조회 함수 — ⟳ 새로고침이 이 맵을 재사용한다
   const loaders = useMemo<Record<string, () => Promise<void>>>(() => ({
     stock: () => api.get<StockRow[]>('/stock').then((r) => setStock(r.data)),
     balances: () => api.get<PartnerBalance[]>('/ledger/partner-balances').then((r) => setBalances(r.data)),
@@ -322,10 +377,6 @@ export default function MyPageDashboard() {
     }
   }
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(order))
-  }, [order])
-
   const data: DashData = useMemo(() => ({
     stock, balances, vat, profit, sales, purchases,
     belowCount: stock.filter((s) => s.belowSafety).length,
@@ -333,81 +384,184 @@ export default function MyPageDashboard() {
     totalPayable: balances.reduce((a, b) => a + b.payable, 0),
   }), [stock, balances, vat, profit, sales, purchases])
 
-  function move(id: string, dir: -1 | 1) {
-    setOrder((o) => {
-      const i = o.indexOf(id)
-      const j = i + dir
-      if (i < 0 || j < 0 || j >= o.length) return o
-      const next = [...o]
-      ;[next[i], next[j]] = [next[j], next[i]]
-      return next
-    })
+  /**
+   * 제목바(옮기기) · 손잡이(크기)를 누르고 끈다. 위젯은 손을 그대로 따라가고, 놓일 자리(60px 칸에 맞춘 곳)는
+   * 점선 자리표시로 보인다. 나머지 위젯은 미리 비켜 선다 — 손을 떼면 그 배치로 저장한다.
+   */
+  function begin(e: ReactPointerEvent, id: string, dir?: GripDir) {
+    if (e.button !== 0 || window.matchMedia(MOBILE).matches) return
+    const orig = layoutRef.current.find((it) => it.id === id)
+    if (!orig) return
+    e.preventDefault()
+    e.stopPropagation()
+    const sx = e.clientX
+    const sy = e.clientY
+    let last: Preview | null = null
+    const move = (ev: PointerEvent) => {
+      const dx = (ev.clientX - sx) / unit
+      const dy = (ev.clientY - sy) / unit
+      const c = colsRef.current
+      const f: GridItem = { ...orig }
+      if (!dir) {
+        f.x = Math.max(0, Math.min(orig.x + dx, c - orig.w))
+        f.y = Math.max(0, orig.y + dy)
+      } else {
+        if (dir === 'e' || dir === 'se') f.w = Math.max(MIN_W, Math.min(orig.w + dx, c - orig.x))
+        if (dir === 'w' || dir === 'sw') {
+          f.x = Math.max(0, Math.min(orig.x + dx, orig.x + orig.w - MIN_W))
+          f.w = orig.x + orig.w - f.x
+        }
+        if (dir !== 'e' && dir !== 'w') f.h = Math.max(MIN_H, orig.h + dy)
+      }
+      const x = Math.round(f.x)
+      // 왼쪽 손잡이는 오른쪽 변을 붙박아 둔다 — x · w 를 따로 반올림하면 오른쪽 변이 한 칸 흔들린다
+      const w = dir === 'w' || dir === 'sw' ? orig.x + orig.w - x : Math.round(f.w)
+      const snapped = { id, x, y: Math.round(f.y), w, h: Math.round(f.h) }
+      last = { layout: place(layoutRef.current, snapped, c), float: f, ph: id }
+      setPreview(last)
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      if (last) commit(last.layout)
+      setPreview(null)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
   }
-  const removeWidget = (id: string) => setOrder((o) => o.filter((x) => x !== id))
-  const addWidget = (id: string) => setOrder((o) => (o.includes(id) ? o : [...o, id]))
-  const reset = () => setOrder(DEFAULT_IDS)
 
-  const placed = order.map((id) => REGISTRY.find((w) => w.id === id)).filter((w): w is WidgetDef => !!w)
+  // My위젯선택에서 끌어 온 위젯 — 손 아래 칸에 자리표시를 띄우고, 놓으면 그 자리에 넣는다
+  function onGridDragOver(e: DragEvent) {
+    if (!dragNew || !gridRef.current || !cols) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    const r = gridRef.current.getBoundingClientRect()
+    const x = Math.floor((e.clientX - r.left) / unit)
+    const y = Math.max(0, Math.floor((e.clientY - r.top) / unit))
+    const w = Math.min(NEW_W, cols)
+    const cand = { id: dragNew, x: Math.max(0, Math.min(x, cols - w)), y, w, h: heightOf(dragNew) }
+    // dragover 는 쉬지 않고 온다 — 칸이 바뀔 때만 다시 쌓는다
+    const cell = `${cand.x},${cand.y}`
+    if (preview && dropCell.current === cell) return
+    dropCell.current = cell
+    setPreview({ layout: place(layout, cand, cols), ph: dragNew })
+  }
+  function onGridDrop(e: DragEvent) {
+    if (!dragNew) return
+    e.preventDefault()
+    if (preview) commit(preview.layout)
+    setPreview(null)
+    setDragNew(null)
+  }
+  function onGridDragLeave(e: DragEvent) {
+    if (dragNew && !gridRef.current?.contains(e.relatedTarget as Node | null)) setPreview(null)
+  }
+
+  const removeWidget = (id: string) => commit(layout.filter((it) => it.id !== id))
+  const addWidget = (id: string) => {
+    if (!cols || layout.some((it) => it.id === id)) return
+    commit(place(layout, { id, x: 0, y: bottomRow(layout), w: Math.min(NEW_W, cols), h: heightOf(id) }, cols))
+  }
+  const reset = () => { if (cols) commit(twoColumns(DEFAULT_IDS, cols, heightOf)) }
+
+  const shown = preview?.layout ?? layout
+  // DOM 차례는 저장된 배치의 위 → 아래(휴대폰에서 이 차례로 쌓인다). 끄는 동안에는 바꾸지 않는다
+  const placed = [...layout].sort(byPos)
+    .map((it) => REGISTRY.find((w) => w.id === it.id))
+    .filter((w): w is WidgetDef => !!w)
+  const phItem = preview ? shown.find((it) => it.id === preview.ph) : undefined
+  const floatBottom = preview?.float ? Math.ceil(preview.float.y + preview.float.h) : 0
+  const rows = Math.max(bottomRow(shown), floatBottom, 2) + (preview ? 2 : 0)
 
   return (
     <div>
       <div className="flex items-center mb-[10px]">
-        <div style={{ fontSize: 12, color: '#5a6472' }}>
+        <div className="text-[12px] text-ec-label">
           <b className="text-ec-text text-[14px]">MyPage</b> &nbsp; {user?.name}님, 환영합니다.
         </div>
         <div className="ml-auto flex gap-[6px]">
-          <button className={`ec-btn${edit ? ' ec-btn-primary' : ''}`} onClick={() => setEdit((v) => !v)}>
-            {edit ? '완료' : 'My위젯선택'}
-          </button>
-          {edit && <button className="ec-btn" onClick={reset}>위젯 초기화</button>}
+          <button className={`ec-btn${pick ? ' ec-btn-primary' : ''}`} onClick={() => setPick((v) => !v)}>My위젯선택</button>
         </div>
       </div>
 
-      {/* 위젯 선택 카탈로그 (편집모드) */}
-      {edit && (
-        <div style={{ border: '1px solid var(--ec-blue)', background: '#f5f8ff', borderRadius: 3, padding: 12, marginBottom: 12 }}>
-          <div style={{ fontSize: 12, color: '#5a6472', marginBottom: 8 }}>표시할 위젯을 선택하세요. 각 위젯의 ◀▶로 위치를 옮기고 ✕로 제거합니다.</div>
-          {GROUPS.map((g) => (
-            <div key={g} className="mb-[8px]">
-              <div className="text-[11.5px] font-bold text-ec-navy mb-[4px]">{g}</div>
-              <div className="flex flex-wrap gap-[6px]">
-                {REGISTRY.filter((w) => w.group === g).map((w) => {
-                  const on = order.includes(w.id)
-                  return (
-                    <button key={w.id} className="ec-btn" onClick={() => (on ? removeWidget(w.id) : addWidget(w.id))}
-                      style={{ background: on ? 'var(--ec-blue-light)' : '#fff', color: on ? 'var(--ec-blue-dark)' : 'var(--ec-label)', fontWeight: on ? 700 : 400 }}>
-                      {on ? '☑' : '☐'} {w.title}
-                    </button>
-                  )
-                })}
-              </div>
+      <div className="ec-wpage">
+        <div
+          ref={gridRef}
+          className={`ec-wgrid${preview ? ' dragging' : ''}`}
+          style={{ '--rows': rows } as CSSProperties}
+          onDragOver={onGridDragOver}
+          onDrop={onGridDrop}
+          onDragLeave={onGridDragLeave}
+        >
+          {placed.length === 0 && !preview && (
+            <div className="ec-wgrid-empty">
+              표시할 위젯이 없습니다. <b>My위젯선택</b>에서 위젯을 끌어다 놓으세요.
             </div>
-          ))}
+          )}
+          {phItem && <div className="ec-wgrid-ph" style={gridVars(phItem)} />}
+          {placed.map((w) => {
+            const active = preview?.float?.id === w.id
+            const g = active ? preview!.float! : shown.find((it) => it.id === w.id)
+            if (!g) return null
+            return (
+              <div key={w.id} className={`ec-wgrid-item${active ? ' active' : ''}`} style={gridVars(g)}>
+                <Widget
+                  def={w}
+                  busy={busy.has(w.id)}
+                  refreshable={!!loaders[w.id]}
+                  onRefresh={() => refreshWidget(w.id)}
+                  onNew={() => { if (w.newTo) navigate(w.newTo) }}
+                  onRemove={() => removeWidget(w.id)}
+                  onHeadDown={(e) => begin(e, w.id)}
+                >
+                  {w.render(data)}
+                </Widget>
+                {GRIPS.map((d) => (
+                  <div key={d} className={`ec-wgrid-grip ${d}`} onPointerDown={(e) => begin(e, w.id, d)} />
+                ))}
+              </div>
+            )
+          })}
         </div>
-      )}
 
-      {placed.length === 0 ? (
-        <div style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 40, border: '1px dashed var(--ec-border)', borderRadius: 3 }}>
-          표시할 위젯이 없습니다. <b>My위젯선택</b>에서 위젯을 추가하세요.
-        </div>
-      ) : (
-        <div className="ec-widgets">
-          {placed.map((w) => (
-            <Widget
-              key={w.id}
-              def={w}
-              edit={edit}
-              busy={busy.has(w.id)}
-              refreshable={!!loaders[w.id]}
-              onRefresh={() => refreshWidget(w.id)}
-              onMove={(dir) => move(w.id, dir)}
-              onRemove={() => removeWidget(w.id)}
-            >
-              {w.render(data)}
-            </Widget>
-          ))}
-        </div>
-      )}
+        {/* My위젯선택 — 원본 문구 · 분류. 항목을 끌어 격자에 놓거나 눌러서 맨 아래에 더한다(놓인 것은 눌러서 뺀다) */}
+        {pick && (
+          <div className="ec-wpick">
+            <div className="ec-wpick-head">
+              <span className="name">My위젯선택</span>
+              <button className="ec-btn ec-btn-sm" onClick={reset}>위젯 초기화</button>
+            </div>
+            <div className="ec-wpick-hint">메뉴를 드래그하여 원하는 위치에 놓으시기 바랍니다.</div>
+            {GROUPS.map((g) => {
+              const list = REGISTRY.filter((w) => w.group === g)
+              return (
+                <div key={g} className="ec-wpick-group">
+                  <div className="name">{g}</div>
+                  {list.length === 0 && <div className="none">추가할 위젯이 없습니다.</div>}
+                  {list.map((w) => {
+                    const on = layout.some((it) => it.id === w.id)
+                    return (
+                      <button
+                        key={w.id}
+                        className={`ec-wpick-item${on ? ' on' : ''}`}
+                        title={on ? '눌러서 홈에서 뺍니다' : '끌어다 놓거나 눌러서 더합니다'}
+                        draggable={!on}
+                        onDragStart={(e) => { e.dataTransfer.setData(DRAG_TYPE, w.id); e.dataTransfer.effectAllowed = 'copy'; setDragNew(w.id) }}
+                        onDragEnd={() => { setDragNew(null); setPreview(null) }}
+                        onClick={() => (on ? removeWidget(w.id) : addWidget(w.id))}
+                      >
+                        {on ? '☑' : '☐'} {w.title}
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

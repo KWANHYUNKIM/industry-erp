@@ -649,12 +649,91 @@
 }
 
 /* ── MyPage 위젯 — ec56 MyPage 실측 ──
-   흰 판 · 머리카락 테두리 · 둥글기 20 · 사이 9 / 제목 15px 700(구분선 없음) · 머리 여백 8.1 13.5 4.5 · 본문 여백 9 13.5 13.5 */
-.ec-widgets {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+   흰 판 · 머리카락 테두리 · 둥글기 20 / 제목 15px 700(구분선 없음) · 머리 여백 8.1 13.5 4.5 · 본문 여백 9 13.5 13.5
+   격자는 원본 gridstack(2026-10-30): 한 칸 60 · 사이 10 · 자리는 --gx/--gy/--gw/--gh(칸 수)로 받는다 */
+.ec-wpage {
+  display: flex;
+  align-items: flex-start;
 }
+.ec-wgrid {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--rows) * var(--ec-grid-unit));
+}
+.ec-wgrid.dragging { user-select: none; }
+.ec-wgrid-item,
+.ec-wgrid-ph {
+  position: absolute;
+  left: calc(var(--gx) * var(--ec-grid-unit));
+  top: calc(var(--gy) * var(--ec-grid-unit));
+  width: calc(var(--gw) * var(--ec-grid-unit) - var(--ec-grid-gap));
+  height: calc(var(--gh) * var(--ec-grid-unit) - var(--ec-grid-gap));
+}
+.ec-wgrid-item { transition: left .15s, top .15s, width .15s, height .15s; }
+.ec-wgrid-item.active { z-index: 5; opacity: .85; transition: none; }
+.ec-wgrid-item > .ec-widget { height: 100%; min-height: 0; }
+.ec-wgrid-ph {
+  border: 1px dashed var(--ec-blue);
+  border-radius: var(--ec-radius-panel);
+  background: var(--ec-blue-wash);
+}
+.ec-wgrid-empty {
+  padding: 40px;
+  border: 1px dashed var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+  color: var(--ec-text-hint);
+  text-align: center;
+}
+/* 크기 손잡이 e · se · s · sw · w — 원본 ui-resizable-autohide: 마우스를 올려야 보인다 */
+.ec-wgrid-grip { position: absolute; z-index: 2; display: none; }
+.ec-wgrid-item:hover > .ec-wgrid-grip,
+.ec-wgrid-item.active > .ec-wgrid-grip { display: block; }
+.ec-wgrid-grip.e, .ec-wgrid-grip.w { top: 0; bottom: 0; width: var(--ec-modal-grip); cursor: e-resize; }
+.ec-wgrid-grip.w { left: var(--ec-modal-grip-out); cursor: w-resize; }
+.ec-wgrid-grip.e { right: var(--ec-modal-grip-out); }
+.ec-wgrid-grip.s { left: 0; right: 0; bottom: var(--ec-modal-grip-out); height: var(--ec-modal-grip); cursor: s-resize; }
+.ec-wgrid-grip.sw { left: var(--ec-modal-grip-out); bottom: var(--ec-modal-grip-out); width: var(--ec-modal-grip-corner); height: var(--ec-modal-grip-corner); cursor: sw-resize; z-index: 3; }
+.ec-wgrid-grip.se {
+  right: 4px;
+  bottom: 4px;
+  width: var(--ec-grid-grip-se);
+  height: var(--ec-grid-grip-se);
+  z-index: 3;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 0 50%, var(--ec-icon) 50% 58%, transparent 58% 70%, var(--ec-icon) 70% 78%, transparent 78% 90%, var(--ec-icon) 90%);
+}
+/* My위젯선택 — 오른쪽 판. 항목을 끌어 격자에 놓는다 */
+.ec-wpick {
+  flex: none;
+  width: var(--ec-wpick-w);
+  margin-left: var(--ec-grid-gap);
+  padding: 9px 13.5px 13.5px;
+  background: var(--ec-bg-panel);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+}
+.ec-wpick-head { display: flex; align-items: center; margin-bottom: 6px; }
+.ec-wpick-head > .name { font-size: 15px; font-weight: 700; line-height: 28px; color: var(--ec-ink); }
+.ec-wpick-head > .ec-btn { margin-left: auto; }
+.ec-wpick-hint { margin-bottom: 9px; color: var(--ec-text-hint); font-size: var(--ec-fs); }
+.ec-wpick-group { margin-bottom: 9px; }
+.ec-wpick-group > .name { margin-bottom: 3px; color: var(--ec-navy); font-size: var(--ec-fs); font-weight: 700; }
+.ec-wpick-group > .none { padding: 3px 9px; color: var(--ec-text-off); font-size: var(--ec-fs); }
+.ec-wpick-item {
+  display: block;
+  width: 100%;
+  padding: 4.5px 9px;
+  border: 0;
+  border-radius: var(--ec-radius);
+  background: none;
+  color: var(--ec-text);
+  font-size: var(--ec-fs);
+  text-align: left;
+  cursor: grab;
+}
+.ec-wpick-item:hover { background: var(--ec-blue-wash); }
+.ec-wpick-item.on { color: var(--ec-blue); font-weight: 700; cursor: pointer; }
 .ec-widget {
   display: flex;
   flex-direction: column;
@@ -663,13 +742,11 @@
   border: var(--ec-hair) solid var(--ec-line);
   border-radius: var(--ec-radius-panel);
 }
-.ec-widget.editing {
-  border: 1px dashed var(--ec-blue);
-}
 .ec-widget-head {
   display: flex;
   align-items: center;
   padding: 8.1px 13.5px 4.5px;
+  cursor: move;
 }
 .ec-widget-head > .name {
   font-size: 15px;
@@ -679,6 +756,7 @@
 }
 .ec-widget-head > .tools {
   position: relative;
+  cursor: default;
   margin-left: auto;
   display: flex;
   align-items: center;
@@ -703,6 +781,8 @@
 .ec-widget-head > .tools > .spin { color: var(--ec-blue); transform: rotate(360deg); transition: transform .6s; }
 .ec-widget-body {
   flex: 1;
+  min-height: 0;
+  overflow: auto;
   padding: 9px 13.5px 13.5px;
 }
 .danger,
@@ -964,10 +1044,19 @@
     flex-wrap: wrap;
   }
 
-  /* MyPage 위젯 — 한 줄에 하나 */
-  .ec-widgets {
-    grid-template-columns: minmax(0, 1fr);
+  /* MyPage 위젯 — 한 줄에 하나, 폭 전부. 크기 조절 · 끌기 없음(높이는 칸 수 그대로) */
+  .ec-wpage { flex-direction: column; align-items: stretch; }
+  .ec-wgrid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ec-grid-gap);
+    height: auto;
   }
+  .ec-wgrid-item { position: static; width: auto; transition: none; }
+  .ec-wgrid-grip,
+  .ec-wgrid-ph { display: none !important; }
+  .ec-widget-head { cursor: default; }
+  .ec-wpick { width: auto; margin: var(--ec-grid-gap) 0 0; }
 
   /* 팝업창 — 화면 폭에 맞춘다 */
   .ec-modal-back {

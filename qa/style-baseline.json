@@ -685,8 +685,8 @@
   "palette": 0
  },
  "pages/MyPageDashboard.tsx": {
-  "inline": 21,
-  "color": 21,
+  "inline": 19,
+  "color": 17,
   "palette": 0
  },
  "pages/production/BomPage.tsx": {

@@ -142,6 +142,12 @@
   --ec-modal-grip-out: -5px;
   --ec-modal-keep: 40px;                    /* 창을 옆으로 밀어도 화면 안에 남기는 폭 — 제목줄을 다시 잡을 수 있게(원본 미실측) */
 
+  /* ── MyPage 위젯 격자(원본 gridstack — 2026-10-30 loginaa 홈 실측) ── */
+  --ec-grid-unit: 60px;                     /* 한 칸 — 가로 w15 → 900 · 세로 h10 → 590(사이 포함) */
+  --ec-grid-gap: 10px;                      /* 위젯 사이 — 높이 h·60 − 10 */
+  --ec-grid-grip-se: 12px;                  /* 오른쪽 아래 빗금 손잡이(원본 ui-icon-gripsmall-diagonal-se) */
+  --ec-wpick-w: 240px;                      /* My위젯선택 판 폭(원본 미실측) */
+
   /* ── 옛 이름(화면 코드가 아직 쓴다) → 새 토큰 ── */
   --ec-blue-dark: var(--ec-navy);
   --ec-blue-light: #d3daf7;
