@@ -60,7 +60,7 @@
         "expect:[...document.querySelectorAll('tbody tr')][0].innerText.includes(sessionStorage.getItem('prfShort'))",
         "js:[...document.querySelectorAll('tbody a')].find((a)=>a.textContent.trim()===sessionStorage.getItem('prfShort')).click(); true",
         "wait:800",
-        "expect:document.querySelector('[role=dialog]').innerText.includes('발주요청입력(수정)')&&document.querySelector('[role=dialog] .ec-date select').disabled",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('발주요청입력(수정)')&&document.querySelector('[role=dialog] .ec-date-sel').disabled",
         "set:[role=dialog] tbody input.text-right#0|5",
         "click:저장(F8)",
         "wait:1200",

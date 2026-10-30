@@ -806,16 +806,198 @@ main table,
   color: var(--ec-icon);
 }
 
-/* 연/월/일 3분할 일자칸 (.wrapper-datepicker) */
-.ec-date {
+/* 연/월/일 3분할 일자칸 (.wrapper-datepicker) — components/ui/EcDateInput.
+   [2026 ▾] / [09 ▾] / [30] [달력]. 숨긴 진짜 date 칸(.ec-date-native)이 값 · 이벤트를 맡는다. */
+.ec-date,
+.ec-date-range {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  vertical-align: middle;
+  font-size: var(--ec-fs);
+  color: var(--ec-text-hint);
+}
+.ec-date-range { gap: 4px; }
+.ec-date-native {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.ec-date-sel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 0 4.5px 0 5.4px;
+  cursor: pointer;
+  color: var(--ec-text);
+}
+.ec-date-sel.y { width: var(--ec-date-year-w); }
+.ec-date-sel.m { width: var(--ec-date-month-w); }
+.ec-date-sel > .ec-icon { color: var(--ec-text-hint); }
+.ec-date-sel:disabled,
+.ec-date-day:disabled,
+.ec-date.is-locked .ec-date-day { background: var(--ec-bg-disabled); cursor: default; }
+.ec-date-day {
+  width: var(--ec-date-day-w);
+  padding: 0;
+  text-align: center;
+}
+.ec-date-cal {
+  width: var(--ec-ctl-h);
+  padding: 0;
+  justify-content: center;
+  color: var(--ec-blue);
+}
+.ec-date-cal:disabled { color: var(--ec-text-off); }
+
+/* 떠 있는 판(연 · 월 목록, 달력) — body 에 그린다. 자리는 실행 중에 재고 그때 보인다. */
+.ec-float {
+  position: fixed;
+  z-index: 1000;
+  visibility: hidden;
+  background: var(--ec-bg-panel);
+  box-shadow: var(--ec-shadow-pop);
+  font-size: var(--ec-fs);
+  color: var(--ec-text);
+}
+.ec-date-list {
+  max-height: calc(var(--ec-date-list-item-h) * 12 + 8px);
+  overflow-y: auto;
+  padding: 4px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius);
+}
+.ec-date-list > ul { margin: 0; padding: 0; list-style: none; }
+.ec-date-list li {
   display: flex;
   align-items: center;
-  gap: 2px;
-  font-size: 12px;
-  color: #5a626e;
+  height: var(--ec-date-list-item-h);
+  padding: 0 9px 0 3px;
+  border-radius: var(--ec-radius);
+  white-space: nowrap;
+  cursor: pointer;
 }
-.ec-date select.ec-input {
-  padding: 0 2px;
+.ec-date-list li > .mark { display: inline-flex; width: 13px; }
+.ec-date-list li:hover { background: var(--ec-bg-row-hover); }
+.ec-date-list li.on { background: var(--ec-blue); color: #fff; }
+
+/* 달력 판 — 둥글기 14 · 날 칸 31×27 · 둥글기 10 · 글자 12. 기간이면 두 달 나란히, 가운데 세로선. */
+.ec-cal {
+  padding: 9px 9px 6px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-cal-radius);
+  user-select: none;
+}
+.ec-cal-months { display: flex; }
+.ec-cal.two .ec-cal-month + .ec-cal-month {
+  margin-left: 9px;
+  padding-left: 9px;
+  border-left: var(--ec-hair) solid var(--ec-line);
+}
+.ec-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  margin-bottom: 4px;
+}
+.ec-cal-head > .nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--ec-radius);
+  background: none;
+  color: var(--ec-text-hint);
+  cursor: pointer;
+}
+.ec-cal-head > .nav:first-child { margin-right: auto; }
+.ec-cal-head > .nav:last-child { margin-left: auto; }
+.ec-cal-head > .nav[hidden] { display: inline-flex; visibility: hidden; }
+.ec-cal-head > .nav:hover { background: var(--ec-bg-row-hover); }
+.ec-cal-sel {
+  height: 22px;
+  padding: 0 2px 0 6px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-bg-panel);
+  font-size: var(--ec-fs);
+  color: var(--ec-text);
+}
+.ec-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, var(--ec-cal-cell-w));
+  grid-auto-rows: var(--ec-cal-cell-h);
+}
+.ec-cal-grid > .wd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ec-ink);
+}
+.ec-cal-grid > .day {
+  position: relative;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ec-radius);
+  background: none;
+  font-size: var(--ec-fs);
+  color: var(--ec-cal-weekday);
+  cursor: pointer;
+}
+.ec-cal-grid > .day.sun { color: var(--ec-cal-sun); }
+.ec-cal-grid > .day.sat { color: var(--ec-cal-sat); }
+.ec-cal-grid > .day.other { color: var(--ec-cal-other); }
+.ec-cal-grid > .day:hover { background: var(--ec-bg-row-hover); }
+.ec-cal-grid > .day.band { border-radius: 0; background: var(--ec-cal-range); }
+.ec-cal-grid > .day.band.other { background: none; }
+.ec-cal-grid > .day.on { background: var(--ec-blue); color: #fff; }
+.ec-cal-grid > .day:disabled { color: var(--ec-text-off); cursor: default; background: none; }
+.ec-cal-grid > .day.today::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ec-cal-today);
+}
+.ec-cal-foot {
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+}
+.ec-cal-today {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font-size: var(--ec-fs);
+  color: var(--ec-text);
+  cursor: pointer;
+}
+.ec-cal-today::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ec-cal-today);
 }
 
 /* 그리드 툴바 (.wrapper-toolbar.toolbar-collapse) */

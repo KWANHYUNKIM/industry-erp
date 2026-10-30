@@ -163,6 +163,21 @@
   --ec-chat-w: 360px;                       /* 1:1 대화 창(원본 미실측) */
   --ec-sms-warn-bg: rgb(253, 224, 224);     /* SMS 창 위 경고띠 */
 
+  /* ── 일자칸 · 달력 판(원본 .wrapper-datepicker · 달력 단추 — 2026-10-30 loginaa 판매조회 조건 판 실측, plans/데이터이관/원본-아이콘-달력.md) ── */
+  --ec-date-year-w: 64px;                   /* [2026 ▾] */
+  --ec-date-month-w: 48px;                  /* [09 ▾] */
+  --ec-date-day-w: 28px;                    /* [30] 일 칸(원본 ~24 + 여백) */
+  --ec-date-list-item-h: 17px;              /* 연 · 월 펼침 목록 한 줄 */
+  --ec-cal-radius: 14px;                    /* 달력 판 둥글기 */
+  --ec-cal-cell-w: 31px;                    /* 날 칸 31×27 · 둥글기 10 · 글자 12 */
+  --ec-cal-cell-h: 27px;
+  --ec-cal-weekday: #666666;                /* 평일 */
+  --ec-cal-sun: #ff3c3c;                    /* 일요일 */
+  --ec-cal-sat: #049cdb;                    /* 토요일 */
+  --ec-cal-other: #c5cbd3;                  /* 앞뒤 달 날짜(옅은 회색) */
+  --ec-cal-range: #dbeafe;                  /* 기간 사이 날 띠 */
+  --ec-cal-today: rgb(246, 136, 45);        /* '오늘' 앞 주황 점 */
+
   /* ── 옛 이름(화면 코드가 아직 쓴다) → 새 토큰 ── */
   --ec-blue-dark: var(--ec-navy);
   --ec-blue-light: #d3daf7;

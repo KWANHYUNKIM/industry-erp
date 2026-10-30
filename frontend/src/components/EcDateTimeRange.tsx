@@ -1,3 +1,4 @@
+import EcDateInput from './ui/EcDateInput'
 /**
  * 날짜/시간 범위 칸 — 원본 A/S 관리 입력 창(2026-10-22 실측): `2026 ▾ 10 ▾ 월 22 📅 오전 04 ▾ 05 ▾ ~ 오전 04 ▾ 05 ▾`.
  * 처음 값은 오늘 · 지금 시각(시작 · 끝이 같다). 시 목록은 '오전 00 ~ 오전 11 · 오후 12 ~ 오후 23', 분 목록은 00 ~ 59(1분 단위).
@@ -26,24 +27,15 @@ export default function EcDateTimeRange({ value, onChange, label = '날짜/시�
   const v = /^\d{4}-\d\d-\d\d \d\d:\d\d~\d\d:\d\d$/.test(value) ? value : defaultRange()
   const [y, m, d] = [v.slice(0, 4), v.slice(5, 7), v.slice(8, 10)]
   const [h1, m1, h2, m2] = [Number(v.slice(11, 13)), v.slice(14, 16), Number(v.slice(17, 19)), v.slice(20, 22)]
-  const years = Array.from({ length: 11 }, (_, k) => new Date().getFullYear() - 5 + k)
   const put = (p: { y?: string; m?: string; d?: string; h1?: number; m1?: string; h2?: number; m2?: string }) =>
     onChange(`${p.y ?? y}-${p.m ?? m}-${p.d ?? d} ${pad(p.h1 ?? h1)}:${p.m1 ?? m1}~${pad(p.h2 ?? h2)}:${p.m2 ?? m2}`)
   const hours = Array.from({ length: 24 }, (_, k) => k)
   const mins = Array.from({ length: 60 }, (_, k) => pad(k))
   return (
     <span className="inline-flex items-center gap-[4px] flex-wrap" role="group" aria-label={label}>
-      <select className="ec-input w-[70px]" aria-label="년" value={y} onChange={(e) => put({ y: e.target.value })}>
-        {years.map((x) => <option key={x} value={x}>{x}</option>)}
-      </select>
-      <select className="ec-input w-[52px]" aria-label="월" value={m} onChange={(e) => put({ m: e.target.value })}>
-        {Array.from({ length: 12 }, (_, k) => pad(k + 1)).map((x) => <option key={x} value={x}>{Number(x)}</option>)}
-      </select>
-      월
-      <input className="ec-input w-[40px] text-center" aria-label="일" value={String(Number(d))}
-             onChange={(e) => { const n = Number(e.target.value.replace(/\D/g, '')); if (n >= 1 && n <= 31) put({ d: pad(n) }) }} />
-      <input type="date" className="ec-input w-[30px]" aria-label="달력" value={`${y}-${m}-${d}`}
-             onChange={(e) => { if (e.target.value) put({ y: e.target.value.slice(0, 4), m: e.target.value.slice(5, 7), d: e.target.value.slice(8, 10) }) }} />
+      {/* 날짜 — 원본 [2026 ▾] / [10 ▾] / [21] [달력] (components/ui/EcDateInput) */}
+      <EcDateInput aria-label={`${label} 일자`} value={`${y}-${m}-${d}`}
+                   onChange={(e) => { const v = e.target.value; if (v) put({ y: v.slice(0, 4), m: v.slice(5, 7), d: v.slice(8, 10) }) }} />
       <select className="ec-input w-[84px]" aria-label="시작 시" value={h1} onChange={(e) => put({ h1: Number(e.target.value) })}>
         {hours.map((x) => <option key={x} value={x}>{hourLabel(x)}</option>)}
       </select>

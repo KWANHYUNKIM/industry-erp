@@ -5,6 +5,7 @@ import EcBadge from '../../components/ui/EcBadge'
 import EcButton from '../../components/ui/EcButton'
 import EcEmptyRow from '../../components/ui/EcEmptyRow'
 import EcIcon, { EC_ICON_NAMES } from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 디자인 시스템 견본 — 토큰과 부품을 한 화면에 모아 본다(큰 회사의 Storybook 자리).
@@ -81,6 +82,9 @@ export default function DesignSystemPage() {
   const v = useTokenValues(ALL)
   const [pill, setPill] = useState(0)
   const [modal, setModal] = useState(false)
+  const [day, setDay] = useState('2026-10-30')
+  const [from, setFrom] = useState('2026-10-01')
+  const [to, setTo] = useState('2026-10-30')
 
   return (
     <div>
@@ -133,6 +137,19 @@ export default function DesignSystemPage() {
             <EcButton>저장(F8)</EcButton>
             <EcButton className="ec-btn-arrow"><EcIcon name="caret-up" size={10} glyph="▴" /></EcButton>
           </div>
+        </div>
+      </Section>
+
+      <Section title="일자칸 · 달력 — EcDateInput · EcDateRange" note="원본 [2026 ▾] / [09 ▾] / [30] [달력]. <input type=&quot;date&quot;> 자리에 그대로 끼운다(값 'YYYY-MM-DD', onChange 의 e.target.value). 달력: 일요일 --ec-cal-sun · 토요일 --ec-cal-sat · 평일 --ec-cal-weekday, 날 칸 31×27 · 둥글기 10, 기간은 두 달 나란히 + --ec-cal-range 띠, '오늘' 주황 점."
+               code={`<EcDateInput aria-label="일자" value={date} onChange={(e) => setDate(e.target.value)} />
+<EcDateRange from={{ 'aria-label': '시작', value: from, onChange: (e) => setFrom(e.target.value) }}
+             to={{ 'aria-label': '끝', value: to, onChange: (e) => setTo(e.target.value) }} />`}>
+        <div className="flex items-center flex-wrap gap-[12px]">
+          <EcDateInput aria-label="견본 일자" value={day} onChange={(e) => setDay(e.target.value)} />
+          <EcDateRange from={{ 'aria-label': '견본 시작', value: from, onChange: (e) => setFrom(e.target.value) }}
+                       to={{ 'aria-label': '견본 끝', value: to, onChange: (e) => setTo(e.target.value) }} />
+          <EcDateInput aria-label="막힌 일자" value={day} disabled />
+          <span className="text-ec-label">값: {day} · {from} ~ {to}</span>
         </div>
       </Section>
 

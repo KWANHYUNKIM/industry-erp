@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import type { EntityCustomFields } from '../types/api'
+import EcDateInput from './ui/EcDateInput'
 
 /**
  * 특정 전표(entityType, entityId)의 사용자정의(추가 형식) 필드를 조회·편집·저장하는 재사용 패널.
@@ -53,7 +54,7 @@ export default function CustomFieldsPanel({ entityType, entityId }: { entityType
                 {(d.options ?? '').split(',').map((o) => o.trim()).filter(Boolean).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : d.fieldType === 'DATE' ? (
-              <input type="date" className="ec-input" value={form[d.fieldKey] ?? ''} onChange={(e) => set(d.fieldKey, e.target.value)} style={{ width: 150 }} />
+              <EcDateInput className="ec-input" value={form[d.fieldKey] ?? ''} onChange={(e) => set(d.fieldKey, e.target.value)} />
             ) : d.fieldType === 'NUMBER' ? (
               <input type="number" step="any" className="ec-input text-right" value={form[d.fieldKey] ?? ''} onChange={(e) => set(d.fieldKey, e.target.value)} style={{ width: 130 }} />
             ) : (

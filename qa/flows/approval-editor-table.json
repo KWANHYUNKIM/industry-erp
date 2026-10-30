@@ -60,7 +60,7 @@
         "js:[...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === 'QA그룹웨어-편집기').click(); true",
         "wait:600",
         "expect:(() => { const d = document.querySelector('[role=dialog]'); const ed = d && d.querySelector('[aria-label=\"본문\"][contenteditable]'); const t = ed && ed.querySelector('table'); return !!t && t.rows[0].cells[0].colSpan === 2 && Math.round(ed.getBoundingClientRect().width) === 700 })()",
-        "expect:(() => { const d = document.querySelector('[role=dialog]'); const titles = [...d.querySelectorAll('.ec-form > li > .title')].map((x) => x.textContent.replace('*', '').trim()); return ['일자', '제목', '결재라인', '구분', '출력양식', '결재문서', '첨부', '라벨'].every((n) => titles.includes(n)) && !titles.includes('부서') && d.querySelectorAll('.ec-date select').length === 2 && d.querySelector('[aria-label=\"출력양식\"]').value === '기본양식(결재문서 별도 인쇄)' })()",
+        "expect:(() => { const d = document.querySelector('[role=dialog]'); const titles = [...d.querySelectorAll('.ec-form > li > .title')].map((x) => x.textContent.replace('*', '').trim()); return ['일자', '제목', '결재라인', '구분', '출력양식', '결재문서', '첨부', '라벨'].every((n) => titles.includes(n)) && !titles.includes('부서') && d.querySelectorAll('.ec-date-sel').length === 2 && d.querySelector('[aria-label=\"출력양식\"]').value === '기본양식(결재문서 별도 인쇄)' })()",
         "expect:(() => { const d = document.querySelector('[role=dialog]'); const t = [...d.querySelectorAll('button')].map((b) => b.textContent.trim()); return ['저장/결재(F7)', '임시저장/미리보기', '양식샘플보기', 'My도장/서명', '닫기'].every((n) => t.includes(n)) && ['undo', 'redo'].length === 2 && !!d.querySelector('[aria-label=\"실행 취소\"]') && !!d.querySelector('[data-tool=\"dimension\"]') })()"
       ]
     }

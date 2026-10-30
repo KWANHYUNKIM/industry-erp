@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import Modal from './Modal'
 import type { CodeItem } from './CodePickerField'
 import { api } from '../api/client'
+import { EcDateRange } from './ui/EcDateInput'
 
 /**
  * 코드도움 창 — 원본 '거래처검색' · '창고검색' · '사원검색' 의 꼴(2026-10-13 loginaa 구매입력에서 실측, plans/공용.md).
@@ -289,8 +290,7 @@ function CodeSearchBody({
                 <li key={k}><span className="title">{l}</span>
                   <div className="form flex items-center gap-[6px]">
                     {draft[`${k}On` as 'hireOn'] && <>
-                      <input type="date" className="ec-input w-[130px]" aria-label={`${l} 시작`} value={draft[`${k}From` as 'hireFrom']} onChange={(e) => setDraft({ ...draft, [`${k}From`]: e.target.value })} />~
-                      <input type="date" className="ec-input w-[130px]" aria-label={`${l} 끝`} value={draft[`${k}To` as 'hireTo']} onChange={(e) => setDraft({ ...draft, [`${k}To`]: e.target.value })} />
+                      <EcDateRange from={{ className: "ec-input w-[130px]", 'aria-label': `${l} 시작`, value: draft[`${k}From` as 'hireFrom'], onChange: (e) => setDraft({ ...draft, [`${k}From`]: e.target.value }) }} to={{ className: "ec-input w-[130px]", 'aria-label': `${l} 끝`, value: draft[`${k}To` as 'hireTo'], onChange: (e) => setDraft({ ...draft, [`${k}To`]: e.target.value }) }} />
                     </>}
                     <label className="inline-flex items-center gap-[4px]"><input type="checkbox" checked={draft[`${k}On` as 'hireOn']} onChange={(e) => setDraft({ ...draft, [`${k}On`]: e.target.checked })} />사용</label>
                   </div></li>

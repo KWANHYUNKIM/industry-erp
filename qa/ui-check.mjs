@@ -7899,8 +7899,9 @@ console.log('\n■ 날짜 입력칸이 기본 날짜를 그리나')
   const bad = []
   for (const f of walk(join('frontend', 'src')).filter((x) => x.endsWith('.tsx'))) {
     const src = readFileSync(f, 'utf8')
-    for (const el of src.match(/<input\b[\s\S]*?\/>/g) ?? []) {
-      if (/type="date"/.test(el) && /value=\{dateText\(/.test(el)) bad.push(f.split(sep).pop())
+    // 일자칸은 대개 components/ui/EcDateInput · EcDateRange(안에 숨긴 type=date 가 값을 받는다) — 같은 규칙이다
+    for (const el of src.match(/<(?:input|EcDateInput|EcDateRange)\b[\s\S]*?\/>/g) ?? []) {
+      if ((/type="date"/.test(el) || /^<EcDate/.test(el)) && /value[=:] *\{?dateText\(/.test(el)) bad.push(f.split(sep).pop())
     }
   }
   eq('날짜 입력칸 value 에 dateText 를 안 쓴다', [...new Set(bad)].join(', ') || '없음', '없음')
