@@ -23,6 +23,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { useSubmitting } from '../../utils/useSubmitting'
 import { SlipHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 주문서입력 — 원본 영업관리 &gt; 주문서 &gt; <b>주문서입력</b>(2026-10-28 진행자 실측). 판매입력(TradeEntry)과 같은 큰 입력 화면이다.
@@ -666,7 +667,7 @@ export default function SalesOrderEntry() {
           <button type="button" className="ec-btn ec-btn-sm" {...todo('거래처별 지난 주문 보기는 아직 없습니다 — 주문서조회에서 거래처 조건으로 봅니다.')}>거래내역보기(주문)</button>
           <span className="relative inline-flex">
             <button type="button" className="ec-btn ec-btn-sm" onClick={applyMyItems}>My품목{myItems.length > 0 ? ` (${myItems.length})` : ''}</button>
-            <button type="button" className="ec-btn ec-btn-sm ec-btn-arrow" aria-label="My품목 목록" onClick={() => setMyItemsOpen((v) => !v)}>▾</button>
+            <button type="button" className="ec-btn ec-btn-sm ec-btn-arrow" aria-label="My품목 목록" onClick={() => setMyItemsOpen((v) => !v)}><EcIcon name="caret-down" size={10} glyph="▾" /></button>
             {myItemsOpen && (
               <div className="ec-menu absolute top-full left-0 z-30 mt-[2px] min-w-[280px] p-[6px]">
                 {myItems.length === 0 ? (
@@ -677,7 +678,7 @@ export default function SalesOrderEntry() {
                             onClick={() => { addItemLine(String(m.itemId), m.defaultQty, m.unitPrice); setMyItemsOpen(false) }}>
                       {m.itemCode} {m.itemName} · {m.defaultQty}
                     </button>
-                    <button type="button" className="ec-btn ec-btn-sm" title="My품목에서 빼기" onClick={() => void toggleMyItem(String(m.itemId), m.defaultQty)}>✕</button>
+                    <button type="button" className="ec-btn ec-btn-sm" title="My품목에서 빼기" onClick={() => void toggleMyItem(String(m.itemId), m.defaultQty)}><EcIcon name="close" size={12} glyph="✕" /></button>
                   </div>
                 ))}
               </div>
@@ -745,7 +746,7 @@ export default function SalesOrderEntry() {
                         /* 원본: 품목을 고르면 품목명 칸이 글자 칸이 되어 줄마다 이름을 고쳐 쓴다(임의품목 Z00007). 고르기 전에는 검색 칸. */
                         <div className="flex">
                           <input className="cell" placeholder="품목 선택" value={l.name ?? it?.name ?? ''} maxLength={200} onChange={(e) => updateLine(idx, 'name', e.target.value)} />
-                          <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기" onClick={() => updateLine(idx, 'itemId', '')}>🔍</button>
+                          <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기" onClick={() => updateLine(idx, 'itemId', '')}><EcIcon name="search" /></button>
                         </div>
                       ) : (
                         <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제" value={l.itemId}
@@ -764,7 +765,7 @@ export default function SalesOrderEntry() {
                     <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                     <td className="pad text-right font-semibold text-ec-text">{l.itemId ? won(computed[idx].total) : ''}</td>
                     <td className="text-center">
-                      {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint">✕</button>}
+                      {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint"><EcIcon name="close" size={12} glyph="✕" /></button>}
                     </td>
                   </tr>
                 )

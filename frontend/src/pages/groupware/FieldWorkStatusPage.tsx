@@ -11,6 +11,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import FieldWorkFormModal, { type FieldWorkUser } from '../../features/fieldwork/components/FieldWorkFormModal'
 import EcSortSubtotalModal, { sortBySubtotal, showsItem, type SortSubtotal } from '../../components/EcSortSubtotalModal'
 import { subtotalLabel } from '../../components/EcSubtotalDetailModal'
+import EcIcon from '../../components/ui/EcIcon'
 
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 외근조회와 같다). */
 /** 원본 빠른선택(2026-10-03 실측): 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · <b>최근30일</b>. */
@@ -306,7 +307,7 @@ export default function FieldWorkStatusPage() {
           </ul>
           <div className="flex flex-wrap items-center gap-[6px] mt-[8px]">
             <span className="relative">
-              <button type="button" className="ec-btn" aria-label="양식" onClick={() => setFormMenu((m) => !m)}>{form} ▾</button>
+              <button type="button" className="ec-btn" aria-label="양식" onClick={() => setFormMenu((m) => !m)}>{form} <EcIcon name="caret-down" size={10} glyph="▾" /></button>
               {formMenu && (
                 <div className="absolute top-full left-0 mt-[2px] z-[41] min-w-[124px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
                   {FORMS.map((f) => (

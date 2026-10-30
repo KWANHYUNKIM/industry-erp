@@ -10,6 +10,7 @@ import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { matrixToXlsx } from '../../utils/excel'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사조회 (이카운트 E070257)
@@ -549,7 +550,7 @@ function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () =>
       <div className="flex gap-[6px] mt-[10px]">
         <span className="ec-btn-group relative">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => print(true)}>인쇄</button>
-          <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="인쇄 펼치기" onClick={() => setPrintMenu((m) => !m)}>▴</button>
+          <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="인쇄 펼치기" onClick={() => setPrintMenu((m) => !m)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
           {printMenu && (
             <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
               <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"

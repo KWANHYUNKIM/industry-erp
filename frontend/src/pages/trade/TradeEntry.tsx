@@ -30,6 +30,7 @@ import { ErrTip } from '../../components/GridCode'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 import { isAnyPartner } from '../../utils/anyPartner'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -2209,7 +2210,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               type="button" className="ec-btn ec-btn-sm ec-btn-arrow"
               aria-label="My품목 목록" onClick={() => setMyItemsOpen((v) => !v)}
             >
-              ▾
+              <EcIcon name="caret-down" size={10} glyph="▾" />
             </button>
             {myItemsOpen && (
               <div
@@ -2235,7 +2236,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                       type="button" className="ec-btn ec-btn-sm" title="My품목에서 빼기"
                       onClick={() => void toggleMyItem(String(m.itemId), m.defaultQty)}
                     >
-                      ✕
+                      <EcIcon name="close" size={12} glyph="✕" />
                     </button>
                   </div>
                 ))}
@@ -2520,7 +2521,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                           <input className="cell" placeholder="품목 선택" value={l.name ?? it?.name ?? ''} maxLength={200}
                                  onChange={(e) => updateLine(idx, 'name', e.target.value)} />
                           <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기"
-                                  onClick={() => updateLine(idx, 'itemId', '')}>🔍</button>
+                                  onClick={() => updateLine(idx, 'itemId', '')}><EcIcon name="search" /></button>
                         </div>
                       ) : (
                         <CodePickerField
@@ -2657,7 +2658,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                       {l.itemId && (
                         <button type="button" onClick={() => removeLine(idx)} className="no-ec"
                                 style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}>
-                          ✕
+                          <EcIcon name="close" size={12} glyph="✕" />
                         </button>
                       )}
                     </td>

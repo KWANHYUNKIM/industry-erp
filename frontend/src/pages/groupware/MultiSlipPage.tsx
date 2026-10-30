@@ -14,6 +14,7 @@ import EcFileDrop from '../../components/EcFileDrop'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import { exportTableToXlsx } from '../../utils/excel'
 import { shrinkImage } from '../../utils/imageResize'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 그룹웨어 › 다목적관리 — '다목적 전표' 넷(2026-10-14 loginaa 실측, .claude/skills/ecount-diff/plans/그룹웨어/E200276.md).
@@ -648,7 +649,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
 
       <Modal open={open} error={error} title={`${cfg.title}입력${editing ? '(수정)' : ''}`} width={cfg.width} onClose={() => void close()}>
         <div className="flex justify-end gap-[4px] mb-[6px]">
-          <button type="button" className="ec-btn">{cfg.title} ▾</button>
+          <button type="button" className="ec-btn">{cfg.title} <EcIcon name="caret-down" size={10} glyph="▾" /></button>
           <button type="button" className="ec-btn">Option</button>
           <button type="button" className="ec-btn">도움말</button>
         </div>

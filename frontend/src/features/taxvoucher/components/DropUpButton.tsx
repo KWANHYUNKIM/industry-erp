@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import EcIcon from '../../../components/ui/EcIcon'
 
 /**
  * 원본 '단추 + ▴/▾' 묶음 — 세무 창들(2026-10-22 loginaa 실측)이 쓴다: [저장(F8) ▴(저장/내용유지 · 저장/신규)],
@@ -25,7 +26,7 @@ export default function DropUpButton({ label, primary, down, items, checked, onC
   return (
     <span ref={ref} className="ec-btn-group relative">
       <button type="button" className={`ec-btn${primary ? ' ec-btn-primary' : ''}`} onClick={() => (onClick ? onClick() : setOpen((v) => !v))}>{label}</button>
-      <button type="button" className={`ec-btn ec-btn-arrow${primary ? ' ec-btn-primary' : ''}`} aria-label="펼침" onClick={() => setOpen((v) => !v)}>{arrow}</button>
+      <button type="button" className={`ec-btn ec-btn-arrow${primary ? ' ec-btn-primary' : ''}`} aria-label="펼침" onClick={() => setOpen((v) => !v)}>{arrow === '▾' ? <EcIcon name="caret-down" size={10} glyph="▾" /> : arrow === '▴' ? <EcIcon name="caret-up" size={10} glyph="▴" /> : arrow}</button>
       {open && (
         <div className={`ec-menu absolute left-0 ${down ? 'top-[28px]' : 'bottom-[28px]'}`}>
           {items.map((it) => (

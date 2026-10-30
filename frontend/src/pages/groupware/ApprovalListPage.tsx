@@ -14,6 +14,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useShortcut } from '../../utils/useShortcut'
 import { requireSelection } from '../../components/EcDialog'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
@@ -386,7 +387,7 @@ export default function ApprovalListPage({
   return (
     <div className="flex flex-col min-h-[100%]">
       <div className="flex items-center mb-[8px]">
-        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-ec-star mr-[4px]"><EcIcon name="star-outline" size={13} glyph="☆" /></span>
         <span className="text-[15px] font-extrabold text-ec-text">{title}</span>
         <div className="ml-auto flex items-center gap-[4px] relative">
           <input

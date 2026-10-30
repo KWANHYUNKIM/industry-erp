@@ -3,6 +3,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import type { InsuranceWorkplace } from './types'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 사업장관리 — 원본 4대보험 입력의 사업장 🔍 [신규(F2)] · 4대보험신고 [사업장관리](2026-10-14 실측).
@@ -101,7 +102,7 @@ export default function WorkplaceModal({ onClose, startNew }: { onClose: () => v
           {edit !== 'new' && (
             <span className="ec-btn-group relative">
               <button className="ec-btn" onClick={toggle}>{edit.active ? '사용중단' : '재사용'}</button>
-              <button className="ec-btn ec-btn-arrow" aria-label="펼침" onClick={() => setMenu((v) => !v)}>▴</button>
+              <button className="ec-btn ec-btn-arrow" aria-label="펼침" onClick={() => setMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
               {menu && <div className="ec-menu absolute bottom-[28px] left-0"><button onClick={remove}>삭제</button></div>}
             </span>
           )}

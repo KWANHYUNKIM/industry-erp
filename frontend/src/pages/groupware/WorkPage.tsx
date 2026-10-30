@@ -28,6 +28,7 @@ import { PostLinkField, SlipLinkField } from '../../features/workpost/components
 import { slipHistoryTime } from '../../features/sliphistory/SlipHistoryModal'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 import { shrinkImage } from '../../utils/imageResize'
+import EcIcon from '../../components/ui/EcIcon'
 
 const today = () => ymd(new Date())
 
@@ -1100,7 +1101,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                     ) : Array.from({ length: aggSlots }, (_, i) => i).map((i) => (
                       <span key={i} className="inline-flex items-center gap-[4px] w-full">
                         <span className="ec-pill no-ec">{`집계조건${i + 1}`}</span>
-                        <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" title={`집계조건${i + 1} 검색`} onClick={() => setAggPick(i)}>🔍</button>
+                        <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" title={`집계조건${i + 1} 검색`} onClick={() => setAggPick(i)}><EcIcon name="search" /></button>
                         <input className="ec-input flex-1" readOnly placeholder={`집계조건${i + 1}`} value={agg[i]} onClick={() => setAggPick(i)} />
                         {agg[i] && <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" title="지우기" onClick={() => setAgg((a) => { const n = [...a]; n[i] = ''; return [...n.filter(Boolean), ...n.filter((x) => !x)] })}>×</button>}
                       </span>
@@ -1621,7 +1622,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               <div className="form gap-[4px]">
                 <div className="flex-1 flex items-center gap-[4px] ec-input">
                   <button type="button" aria-label={`${t} 회의록 검색`} className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint"
-                          onClick={() => { setLinkTab('전체'); setLinkPickFor(i) }}>🔍</button>
+                          onClick={() => { setLinkTab('전체'); setLinkPickFor(i) }}><EcIcon name="search" /></button>
                   <span className={`flex-1 truncate ${form.links[i] == null ? 'text-ec-hint' : ''}`}>
                     {form.links[i] == null ? `${t} 회의록` : meetingTitle(form.links[i])}
                   </span>
@@ -1638,7 +1639,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               <div className="title">주 차 구분</div>
               <div className="form gap-[4px] relative">
                 <span className="ec-input w-[80px]">{form.weekNo ?? ''}</span>
-                <button type="button" aria-label="주차검색" className="ec-btn" onClick={() => setWeekMenu((v) => !v)}>🔍</button>
+                <button type="button" aria-label="주차검색" className="ec-btn" onClick={() => setWeekMenu((v) => !v)}><EcIcon name="search" /></button>
                 <span className="ec-input flex-1">{form.weekNo ? `${form.weekNo}주차` : ''}</span>
                 {weekMenu && (
                   <>
@@ -1973,7 +1974,7 @@ function NameChips({ names, placeholder, onPick, onRemove }: {
 }) {
   return (
     <div className="flex-1 flex items-center gap-[4px] flex-wrap ec-input min-h-[26px] h-auto">
-      <button type="button" aria-label={`${placeholder} 검색`} className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" onClick={onPick}>🔍</button>
+      <button type="button" aria-label={`${placeholder} 검색`} className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" onClick={onPick}><EcIcon name="search" /></button>
       {names.length === 0 && <span className="text-ec-hint cursor-pointer" onClick={onPick}>{placeholder}</span>}
       {names.map((n) => (
         <span key={n} className="inline-flex items-center px-[6px] rounded-ec bg-ec-blue-wash text-ec-navy">

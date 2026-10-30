@@ -1,4 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react'
+import EcIcon from './ui/EcIcon'
 
 /**
  * 화면 안 '알림' 창 — 브라우저 기본 alert · confirm 대신(원본 이카운트도 화면 안 창이다).
@@ -96,7 +97,7 @@ export function EcDialogHost() {
       <div role="alertdialog" aria-modal="true" aria-label="알림" className="ec-modal w-[385px]">
         <div className="ec-modal-bar">
           <span className="name">알림</span>
-          <button className="close" aria-label="닫기" onClick={() => close(top, top.kind === 'alert')}>✕</button>
+          <button className="close" aria-label="닫기" onClick={() => close(top, top.kind === 'alert')}><EcIcon name="close" size={12} glyph="✕" /></button>
         </div>
         <div className="ec-modal-body flex flex-col min-h-[229px]">
           <p className="flex-1 m-0 whitespace-pre-line break-words leading-[18px]">{top.message}</p>

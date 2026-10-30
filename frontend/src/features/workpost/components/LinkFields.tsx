@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
 import { dateText } from '../../../utils/dateText'
+import EcIcon from '../../../components/ui/EcIcon'
 
 /**
  * 업무관리 예시 게시판 입력 창의 연결 칸 두 가지(2026-10-22 loginaa 실측).
@@ -10,7 +11,7 @@ import { dateText } from '../../../utils/dateText'
 function LinkBox({ placeholder, value, onOpen, onClear }: { placeholder: string; value: string; onOpen: () => void; onClear: () => void }) {
   return (
     <div className="flex-1 flex items-center gap-[4px] ec-input">
-      <button type="button" aria-label={`${placeholder} 검색`} title={`${placeholder} 검색`} className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" onClick={onOpen}>🔍</button>
+      <button type="button" aria-label={`${placeholder} 검색`} title={`${placeholder} 검색`} className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint" onClick={onOpen}><EcIcon name="search" /></button>
       <span className={`flex-1 truncate ${value ? '' : 'text-ec-hint'}`}>{value || placeholder}</span>
       {value && (
         <button type="button" aria-label={`${placeholder} 지우기`} className="no-ec bg-transparent border-0 p-0 cursor-pointer" onClick={onClear}>×</button>

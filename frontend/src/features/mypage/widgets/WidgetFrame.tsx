@@ -1,5 +1,6 @@
 import { useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import type { WidgetDef } from './types'
+import EcIcon from '../../../components/ui/EcIcon'
 
 /**
  * 위젯 판(제목바 + 오른쪽 아이콘 + 본문). 원본 아이콘 차례: 새창 · 새로고침 · 신규 · ⋮([설정] [삭제]).
@@ -42,7 +43,7 @@ export default function WidgetFrame({ def, title, busy, onRefresh, onNew, onSett
               )}
             </>
           ) : (
-            <button title="삭제" onClick={onRemove}>✕</button>
+            <button title="삭제" onClick={onRemove}><EcIcon name="close" size={12} glyph="✕" /></button>
           )}
         </div>
       </div>

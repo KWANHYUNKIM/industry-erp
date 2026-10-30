@@ -9,6 +9,7 @@ import {
   type ApprovalGroup,
 } from '../groups'
 import { ecConfirm } from '../../../components/EcDialog'
+import EcIcon from '../../../components/ui/EcIcon'
 
 /** 원본 [사용중단/재사용 ▲] — 펴는 항목을 넘겨받는다(목록: 사용중단 · 재사용, 수정 창: 사용중단 · 삭제). */
 function DropUp({ label, items, disabled, onPick }: {
@@ -20,7 +21,7 @@ function DropUp({ label, items, disabled, onPick }: {
   const [open, setOpen] = useState(false)
   return (
     <span className="relative">
-      <button type="button" className="ec-btn disabled:opacity-45" disabled={disabled} onClick={() => setOpen((v) => !v)}>{label} ▴</button>
+      <button type="button" className="ec-btn disabled:opacity-45" disabled={disabled} onClick={() => setOpen((v) => !v)}>{label} <EcIcon name="caret-up" size={10} glyph="▴" /></button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
@@ -241,7 +242,7 @@ export function ApprovalGroupField({ value, onChange, className = 'w-[240px]' }:
         <input className="ec-input name cursor-pointer" readOnly aria-label="구분" placeholder="구분"
                value={value?.name ?? ''} title={value?.code ? `${value.code} ${value.name ?? ''}` : ''}
                onClick={() => setOpen(true)} />
-        <button type="button" className="ec-btn" title="구분 코드도움" aria-label="구분검색" onClick={() => setOpen(true)}>🔍</button>
+        <button type="button" className="ec-btn" title="구분 코드도움" aria-label="구분검색" onClick={() => setOpen(true)}><EcIcon name="search" /></button>
         {!!value?.name && (
           <button type="button" className="ec-btn text-ec-danger" title="선택 해제" onClick={() => onChange(null)}>×</button>
         )}

@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext'
 import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { Icon } from './icons'
 import CodePickerField from '../../components/CodePickerField'
+import EcIcon from '../../components/ui/EcIcon'
 
 /*
  * 앱바 창 안쪽들 — 원본 2026-10-30 loginaa 캡처(같은 폴더 02~11)대로.
@@ -31,7 +32,7 @@ export function AiWindow() {
   return (
     <div className="ec-ai">
       <div className="side">
-        <button type="button" className={side === 'custom' ? 'on' : ''} onClick={() => setSide('custom')}>사용자정의 ▾</button>
+        <button type="button" className={side === 'custom' ? 'on' : ''} onClick={() => setSide('custom')}>사용자정의 <EcIcon name="caret-down" size={10} glyph="▾" /></button>
         <button type="button" className={side === 'ecount' ? 'on' : ''} onClick={() => setSide('ecount')}>ECOUNT AI 업무</button>
       </div>
       <div className="main">
@@ -283,7 +284,7 @@ export function NoteWindow({ initialTab = 'todo', onClose }: { initialTab?: Note
             {tab === 'todo' && <button type="button" className="ec-btn" onClick={complete}>완료</button>}
             <button type="button" className="ec-btn" onClick={() => void remove()}>선택삭제</button>
             <span className="relative">
-              <button type="button" className="ec-btn" onClick={() => setLabelOpen((o) => !o)}>라벨변경 ▾</button>
+              <button type="button" className="ec-btn" onClick={() => setLabelOpen((o) => !o)}>라벨변경 <EcIcon name="caret-down" size={10} glyph="▾" /></button>
               {labelOpen && (
                 <span className="ec-appbar-sub block bottom-[30px] top-auto translate-y-0 left-0 right-auto">
                   <button type="button" onClick={() => void relabel(true)}>예정</button>
@@ -481,7 +482,7 @@ export function SmsWindow({ onClose }: { onClose: () => void }) {
                 : targets.map((t, i) => (
                   <tr key={t.phone}>
                     <td className="text-center">{i + 1}</td><td>{t.name}</td><td>{t.phone}</td>
-                    <td><button type="button" className="ec-link" aria-label="빼기" onClick={() => setTargets((ts) => ts.filter((x) => x !== t))}>✕</button></td>
+                    <td><button type="button" className="ec-link" aria-label="빼기" onClick={() => setTargets((ts) => ts.filter((x) => x !== t))}><EcIcon name="close" size={12} glyph="✕" /></button></td>
                   </tr>
                 ))}
             </tbody>

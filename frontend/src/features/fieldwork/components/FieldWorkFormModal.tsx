@@ -7,6 +7,7 @@ import type { FieldWork } from '../../../types/api'
 import { useShortcut } from '../../../utils/useShortcut'
 import VehiclePicker from './VehiclePicker'
 import { ecConfirm } from '../../../components/EcDialog'
+import EcIcon from '../../../components/ui/EcIcon'
 
 export interface FieldWorkUser { id: number; name: string; username: string }
 
@@ -141,7 +142,7 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
           <div className="title">이동수단</div>
           <div className="form">
             <input className="ec-input w-[160px]" placeholder="이동수단" value={form.vehicleNo} onChange={(e) => set('vehicleNo', e.target.value)} />
-            <button type="button" className="ec-btn ec-btn-sm" aria-label="이동수단검색" onClick={() => setPickerOpen(true)}>🔍</button>
+            <button type="button" className="ec-btn ec-btn-sm" aria-label="이동수단검색" onClick={() => setPickerOpen(true)}><EcIcon name="search" /></button>
             <input className="ec-input flex-1" placeholder="이동수단명" value={form.vehicleName} onChange={(e) => set('vehicleName', e.target.value)} />
           </div>
           {/*

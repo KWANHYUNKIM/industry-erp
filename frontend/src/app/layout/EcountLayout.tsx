@@ -7,6 +7,7 @@ import AppBar, { APP_ITEMS } from '../../features/appbar/AppBar'
 import { Icon } from '../../features/appbar/icons'
 import { openAppBarPanel } from '../../components/AppBarPanel'
 import TableContextMenu from '../../components/TableContextMenu'
+import EcIcon from '../../components/ui/EcIcon'
 import { ecAlert } from '../../components/EcDialog'
 
 /** 이카운트 v5 실제 레이아웃 재현:
@@ -1671,7 +1672,7 @@ export default function EcountLayout() {
       {/* 휴대폰 폭에서 ★ 를 누르면 이 줄이 머리 아래를 덮는 판이 된다(shell.css .ec-bookbar.m-open, 원본 wrapper-frame-bookmark) */}
       <div className={`ec-bookbar${mPanel === 'fav' ? ' m-open' : ''}`}>
         <div className="ec-bookbar-search">
-          <span className="icon">🔍</span>
+          <span className="icon"><EcIcon name="search" size={12} /></span>
           <input
             placeholder="메뉴검색"
             value={menuQuery}
@@ -1706,9 +1707,9 @@ export default function EcountLayout() {
         {/* 지금 화면을 담거나 뺀다. 메뉴에 없는 화면은 이름을 붙일 수 없어 담지 않는다. */}
         <button className={`ec-bookbar-star${bookmarked ? ' on' : ''}`} title={bookmarked ? '북마크에서 빼기' : '이 화면을 북마크에 담기'}
                 onClick={toggleBookmark} disabled={!currentLeaf}>
-          {bookmarked ? '★' : '☆'}
+          {bookmarked ? <EcIcon name="star" size={13} glyph="★" /> : <EcIcon name="star-outline" size={13} glyph="☆" />}
         </button>
-        <span className="ec-bookbar-pin">📌</span>
+        <span className="ec-bookbar-pin"><EcIcon name="pin" size={13} /></span>
       </div>
 
       {/* ===== 머리 메뉴(1단) + 떠 있는 2단 메뉴 ===== */}
@@ -1719,7 +1720,7 @@ export default function EcountLayout() {
         </Link>
         {/* 휴대폰·태블릿에서만 — ☰ 메뉴판, ★ 즐겨찾기 */}
         <button className="ec-m-btn ec-m-menu" aria-label="메뉴" onClick={() => { setMPanel(null); setDrawer((d) => (d ? null : { top: topIdx, tab: tabIdx })) }}>☰</button>
-        <button className="ec-m-btn ec-m-fav" aria-label="즐겨찾기" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'fav' ? null : 'fav')) }}>★</button>
+        <button className="ec-m-btn ec-m-fav" aria-label="즐겨찾기" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'fav' ? null : 'fav')) }}><EcIcon name="star" glyph="★" /></button>
         <ul className="ec-gnb-menu">
           {NAV.map((m, idx) => {
             if (!topOk(m)) return null

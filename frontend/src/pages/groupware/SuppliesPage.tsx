@@ -19,6 +19,7 @@ import LabelMasterModal from '../../features/board/components/LabelMasterModal'
 import LabelChip from '../../features/board/components/LabelChip'
 import type { BoardLabel } from '../../features/board/labels'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 그룹웨어 > 사내관리 > 공용품관리 (이카운트 E070204)
@@ -447,7 +448,7 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
               <div className="title">라벨</div>
               {/* 원본 [라벨] 🔍 — '라벨검색창' 에서 라벨코드를 누르면 채워진다. */}
               <div className="form">
-                <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 검색" onClick={() => setLabelWin('form')}>🔍</button>
+                <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 검색" onClick={() => setLabelWin('form')}><EcIcon name="search" /></button>
                 <input className="ec-input flex-1" placeholder="라벨" aria-label="라벨" value={form.label}
                        onChange={(e) => set('label', e.target.value)} />
               </div>
@@ -676,7 +677,7 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => step(1)}>다음 ›</button>
             {/* 일간 · 월간 · 공용품별 셋 다 있다(실측) */}
             <span className="relative">
-              <button type="button" className="ec-btn ec-btn-sm" aria-label="날짜 고르기" onClick={() => setPickOpen((o) => !o)}>📅</button>
+              <button type="button" className="ec-btn ec-btn-sm" aria-label="날짜 고르기" onClick={() => setPickOpen((o) => !o)}><EcIcon name="calendar" /></button>
               {pickOpen && (
                 <span className="absolute top-full left-0 z-30 mt-[4px] shadow-lg">
                   <EcMonthCalendar value={ymd(cursor)}

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import EcIcon from './ui/EcIcon'
 
 /**
  * 일자칸 — 이카운트 `.wrapper-datepicker` 를 옮긴 것.
@@ -108,7 +109,7 @@ export default function EcDateField({
           else el.click()
         }}
       >
-        📅
+        <EcIcon name="calendar" />
       </button>
       <input
         ref={nativeRef}

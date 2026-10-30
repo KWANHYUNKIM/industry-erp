@@ -10,6 +10,7 @@ import {
   applyBorder, cellsIn, coverRect, deleteCols, deleteRows, gridOf, insertCol, insertRow, mergeCells,
   newTableHtml, splitCell, type BorderKind,
 } from '../editor/tableGrid'
+import EcIcon from '../../../components/ui/EcIcon'
 
 type Cell = HTMLTableCellElement
 /** 끌어서 고른 칸 · 고른 글상자/그림 표시 — 저장할 때는 뺀다. */
@@ -623,7 +624,7 @@ function ToolDrop({ name, title, icon, open, onToggle, onMain, disabled, childre
         {icon}
       </button>
       <button type="button" className="ec-ed-caret" title={title} aria-label={`${title} 펼치기`} aria-expanded={open}
-              disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={onToggle}>▾</button>
+              disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={onToggle}><EcIcon name="caret-down" size={10} glyph="▾" /></button>
       {open && (
         <div className="ec-ed-panel" role="menu" aria-label={title}
              onMouseDown={(e) => { if (!(e.target as HTMLElement).closest('input, select, label')) e.preventDefault() }}>

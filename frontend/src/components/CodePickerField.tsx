@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import CodeSearchModal, { type CodeColumn } from './CodeSearchModal'
+import EcIcon from './ui/EcIcon'
 
 /**
  * 코드도움 — 이카운트의 `code.openpopup` 패턴.
@@ -226,7 +227,7 @@ export default function CodePickerField({
             onClick={openFrom}
             title={`${label} 코드도움`}
           >
-            🔍
+            <EcIcon name="search" />
           </button>
           <input
             className="ec-input name"
@@ -262,13 +263,13 @@ export default function CodePickerField({
         />
         <button
           type="button"
-          className="ec-btn"
+          className="ec-btn text-ec-icon"
           disabled={disabled}
           onClick={openFrom}
           title={`${label} 선택`}
           style={{ marginLeft: -1, padding: '0 7px' }}
         >
-          🔍
+          <EcIcon name="search" />
         </button>
         {(multiple ? picked.length > 0 : !!selected) && !disabled && (
           <button

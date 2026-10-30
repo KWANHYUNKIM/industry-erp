@@ -7,6 +7,7 @@ import { findDataTable } from '../utils/tableExport'
 import Modal from './Modal'
 import TableContextMenu from './TableContextMenu'
 import { INQUIRY_PICKS, periodOf } from '../utils/periods'
+import EcIcon from './ui/EcIcon'
 
 /**
  * 인쇄 시점에 기본 결재란을 가져온다. 셸이 뜰 때마다 미리 부르면 인쇄하지 않는 화면에서도
@@ -69,7 +70,7 @@ function FooterButton({ a }: { a: BottomAction }) {
   return (
     <span className="ec-btn-group relative">
       <button className={cls} onClick={a.menuOnly ? () => setOpen((v) => !v) : a.onClick} disabled={a.disabled}>{a.label}</button>
-      <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} onClick={() => setOpen((v) => !v)}>▴</button>
+      <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} onClick={() => setOpen((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
       {open && (
         <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
           {a.menu.map((m) => (
@@ -492,7 +493,7 @@ export default function EcListShell({
               <button className="ec-btn ec-btn-primary ec-btn-sm" onClick={searchConds}>검색(F8)</button>
               {picks.length > 0 && (
                 <button className="ec-btn ec-btn-primary ec-btn-sm ec-btn-arrow" aria-label="기간 빠른선택"
-                        onClick={() => setPicksOpen((v) => !v)}>▾</button>
+                        onClick={() => setPicksOpen((v) => !v)}><EcIcon name="caret-down" size={10} glyph="▾" /></button>
               )}
               {picksOpen && (
                 <div className="ec-menu ec-search-picks">

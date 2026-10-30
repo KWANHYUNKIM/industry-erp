@@ -19,6 +19,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
 import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
 import { shrinkImage } from '../../utils/imageResize'
+import EcIcon from '../../components/ui/EcIcon'
 
 const inputCls = 'ec-input w-full'
 
@@ -1002,7 +1003,7 @@ export default function ItemsPage() {
                 <button type="button" className="ec-btn" onClick={copyAsNew}>복사</button>
                 <span className="ec-btn-group relative">
                   <button type="button" className="ec-btn" onClick={() => toggleOne()}>사용중단/재사용</button>
-                  <button type="button" className="ec-btn ec-btn-arrow" aria-label="사용중단/재사용 더보기" onClick={() => setEditMenu((v) => !v)}>▴</button>
+                  <button type="button" className="ec-btn ec-btn-arrow" aria-label="사용중단/재사용 더보기" onClick={() => setEditMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
                   {editMenu && (
                     <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
                       <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"

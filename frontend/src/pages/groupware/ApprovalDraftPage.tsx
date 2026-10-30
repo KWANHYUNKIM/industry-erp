@@ -23,6 +23,7 @@ import LeaveInputPage from '../hr/LeaveInputPage'
 
 import EcDateField from '../../components/EcDateField'
 import { MenuButton } from '../../components/EcSlipShell'
+import EcIcon from '../../components/ui/EcIcon'
 
 const TITLE = '기안서작성'
 /** 원본 [출력양식] 고를 거리 — 처음 값은 '기본양식(결재문서 별도 인쇄)'(2026-10-30 실측). */
@@ -337,7 +338,7 @@ export default function ApprovalDraftPage() {
   return (
     <div className="flex flex-col min-h-[100%]">
       <div className="flex items-center mb-[8px]">
-        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-ec-star mr-[4px]"><EcIcon name="star-outline" size={13} glyph="☆" /></span>
         <span className="text-[15px] font-extrabold text-ec-text">{TITLE}</span>
         <div className="ml-auto flex items-center gap-[4px] relative">
           <input

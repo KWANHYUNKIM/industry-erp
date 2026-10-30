@@ -11,6 +11,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
 
 interface Form { kind: CertificateKind | ''; employeeId: string; purpose: string; issueDate: string }
 /** 원본 '====' 은 재직증명서 판으로 그린다(2026-10-14 실측). */
@@ -270,7 +271,7 @@ export default function CertificatePage() {
           {/* 원본 신규: 저장(F8)▴ · 다시 작성 · 닫기 / 수정: 저장(F8)▴ · 다시 작성 · 삭제 · 닫기. ▴ 메뉴는 '저장/전표(F7)' 하나. */}
           <span className="ec-btn-group relative">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
-            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기" onClick={() => setSaveMenu((v) => !v)}>▴</button>
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기" onClick={() => setSaveMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
             {saveMenu && (
               <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[120px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
                 <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"

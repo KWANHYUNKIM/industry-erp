@@ -3,6 +3,7 @@ import Modal from '../../../components/Modal'
 import NumCheck from '../../../components/NumCheck'
 import { ecConfirm, requireSelection } from '../../../components/EcDialog'
 import { api, extractErrorMessage } from '../../../api/client'
+import EcIcon from '../../../components/ui/EcIcon'
 
 /** 계산식리스트 한 줄 — 서버 DailyPayItemDtos.FormulaResponse. id 가 null 이면 기본 '2010/01 ~' 줄(자동 계산식). */
 export interface FormulaRow { id: number | null; applyMonth: string; formula: string }
@@ -187,7 +188,7 @@ export default function DailyPayFormulaDialogs({ item, kindLabel, allowanceNames
             <button type="button" className="ec-btn" onClick={() => setDraft(original ? open(original) : blankDraft())}>다시 작성</button>
             {(draft.id != null || draft.base) && (
               <>
-                <button type="button" className="ec-btn" onClick={() => setMenu(menu === 'edit' ? null : 'edit')}>사용중단/재사용 ▾</button>
+                <button type="button" className="ec-btn" onClick={() => setMenu(menu === 'edit' ? null : 'edit')}>사용중단/재사용 <EcIcon name="caret-down" size={10} glyph="▾" /></button>
                 <button type="button" className="ec-btn" onClick={() => setDraft(null)}>리스트</button>
               </>
             )}

@@ -20,6 +20,7 @@ import ScheduleCategoryModal, { type ScheduleCategory } from '../../features/sch
 import NameChips from '../../features/schedule/components/NameChips'
 import { EcHistoryModal } from '../../components/EcHistory'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
 
 interface ScheduleEvent {
   id: number
@@ -571,7 +572,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                          const hit = categories.find((c) => c.code === code.trim())
                          if (hit) set('category', hit.name)
                        }} />
-                <button type="button" className="ec-btn" aria-label="일정구분검색" onClick={() => setShowCategories(true)}>🔍</button>
+                <button type="button" className="ec-btn" aria-label="일정구분검색" onClick={() => setShowCategories(true)}><EcIcon name="search" /></button>
                 <input className="ec-input flex-1 min-w-0" aria-label="일정구분" maxLength={30} value={form.category}
                        onChange={(e) => { set('category', e.target.value); setCategoryCode(categories.find((c) => c.name === e.target.value.trim())?.code ?? '') }} />
               </span>
@@ -595,7 +596,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
             <div className="title">라벨</div>
             <div className="form flex gap-[4px]">
               {/* 원본 [라벨] 🔍 → '라벨검색'(라벨코드 · 라벨명 · 색상) — 고른 라벨이 달력 칸의 칩이 된다. */}
-              <button type="button" className="ec-btn" aria-label="라벨검색" onClick={() => setShowLabels(true)}>🔍</button>
+              <button type="button" className="ec-btn" aria-label="라벨검색" onClick={() => setShowLabels(true)}><EcIcon name="search" /></button>
               <input className="ec-input w-full" placeholder="라벨" list="schedule-labels" value={form.labelText}
                      onChange={(e) => set('labelText', e.target.value)} />
               <datalist id="schedule-labels">

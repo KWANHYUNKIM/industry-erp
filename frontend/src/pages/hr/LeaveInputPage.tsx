@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import GridFindButton from '../../components/GridFindButton'
 import type { EmployeeMaster } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 관리 > 근태관리 > 근태입력.
@@ -413,7 +414,7 @@ export default function LeaveInputPage({ onClose }: { onClose?: () => void } = {
                 <td className="text-center">
                   {lines.length > 1 && (
                     <button type="button" onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
-                            style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}>✕</button>
+                            style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}><EcIcon name="close" size={12} glyph="✕" /></button>
                   )}
                 </td>
               </tr>

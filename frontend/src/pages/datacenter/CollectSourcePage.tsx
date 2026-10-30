@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useShortcut } from '../../utils/useShortcut'
 import type { CollectData, CollectDocType } from '../../types/api'
 import NumCheck from '../../components/NumCheck'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 데이터센터 › 수집데이터등록 (이카운트 C001401)
@@ -62,10 +63,10 @@ function DocPicker({ value, disabled, onChange }: { value: CollectDocType | ''; 
   const groups = [...new Set(hits.map((d) => d.sub))].map((sub) => ({ sub, docs: hits.filter((d) => d.sub === sub) }))
   return (
     <div className="flex flex-1 items-center">
-      <button type="button" className="ec-btn ec-btn-sm shrink-0" title="수신문서 검색" disabled={disabled} onClick={() => { setQ(''); setOpen(true) }}>🔍</button>
+      <button type="button" className="ec-btn ec-btn-sm shrink-0" title="수신문서 검색" disabled={disabled} onClick={() => { setQ(''); setOpen(true) }}><EcIcon name="search" /></button>
       <input className="ec-input w-full" placeholder="수신문서" readOnly disabled={disabled} value={name}
              onClick={() => !disabled && setOpen(true)} />
-      {value && !disabled && <button type="button" className="ec-btn ec-btn-sm shrink-0" title="지우기" onClick={() => onChange('')}>✕</button>}
+      {value && !disabled && <button type="button" className="ec-btn ec-btn-sm shrink-0" title="지우기" onClick={() => onChange('')}><EcIcon name="close" size={12} glyph="✕" /></button>}
       <Modal open={open} title="수신문서검색" onClose={() => setOpen(false)} width={780}>
         <div className="flex items-center justify-between mb-[6px]">
           <b>수신문서검색</b>

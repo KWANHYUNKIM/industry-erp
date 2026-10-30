@@ -10,6 +10,7 @@ import GridFindButton from '../../components/GridFindButton'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { EcHistoryModal } from '../../components/EcHistory'
 import { matrixToXlsx } from '../../utils/excel'
+import EcIcon from '../../components/ui/EcIcon'
 
 /** 원본 BOM등록 창이 더 보내 주는 값 — 생산수량 · 생산공정, 줄의 입력수량(생산수량 기준) · 생산공정 · 위치 · 적요(V427). */
 type BomLineX = BomLine & {
@@ -52,7 +53,7 @@ function MenuButton({ label, items }: { label: string; items: { label: string; r
   const [open, setOpen] = useState(false)
   return (
     <span className="relative inline-block" onMouseLeave={() => setOpen(false)}>
-      <button type="button" className="ec-btn ec-btn-sm" onClick={() => setOpen((v) => !v)}>{label} ▾</button>
+      <button type="button" className="ec-btn ec-btn-sm" onClick={() => setOpen((v) => !v)}>{label} <EcIcon name="caret-down" size={10} glyph="▾" /></button>
       {open && (
         <span className="absolute right-0 top-full z-20 flex flex-col min-w-[96px] bg-white border border-ec-line rounded-ec py-[3px] text-left">
           {items.map((m) => (

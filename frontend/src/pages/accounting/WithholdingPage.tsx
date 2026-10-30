@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingReceipt, WithholdingReturn, WithholdingStatement } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import EcIcon from '../../components/ui/EcIcon'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -312,7 +313,7 @@ function ReturnForm({ form, onChange, returns }: { form: FormState; onChange: (f
               <input className="ec-input ec-pick-input flex-1 min-w-0 cursor-pointer" readOnly placeholder="급여대장"
                      value={form.payLedgerIds.map((id) => ledgerLabels[id] ?? `#${id}`).join(', ')}
                      onClick={() => setLedgerOpen(true)} />
-              <button type="button" className="ec-btn" title="급여대장검색" onClick={() => setLedgerOpen(true)}>🔍</button>
+              <button type="button" className="ec-btn" title="급여대장검색" onClick={() => setLedgerOpen(true)}><EcIcon name="search" /></button>
               {form.payLedgerIds.length > 0 && (
                 <button type="button" className="ec-btn text-ec-danger" title="선택 해제" onClick={() => set({ payLedgerIds: [] })}>×</button>
               )}
@@ -335,7 +336,7 @@ function ReturnForm({ form, onChange, returns }: { form: FormState; onChange: (f
               <input className="ec-input ec-pick-input flex-1 min-w-0 cursor-pointer" readOnly placeholder="신고서(귀속 - 지급)"
                      value={refundReturn ? `${refundReturn.attributionMonth.replace('-', '/')}-${refundReturn.payMonth.replace('-', '/')}` : ''}
                      onClick={() => setRefundOpen(true)} />
-              <button type="button" className="ec-btn" title="원천세신고서검색" onClick={() => setRefundOpen(true)}>🔍</button>
+              <button type="button" className="ec-btn" title="원천세신고서검색" onClick={() => setRefundOpen(true)}><EcIcon name="search" /></button>
               {refundReturn && (
                 <button type="button" className="ec-btn text-ec-danger" title="선택 해제" onClick={() => set({ prevRefundReturnId: null })}>×</button>
               )}

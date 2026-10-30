@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import EcIcon from './ui/EcIcon'
 
 /** 이카운트풍 중앙 팝업(모달). 신규/등록 폼을 인라인 대신 이 안에 띄운다.
  *  배경 클릭·ESC 로 닫힌다.
@@ -177,8 +178,8 @@ export function ModalWindow({
         <span className="name">{title}</span>
         {tools}
         <button type="button" className="max" aria-label={restore !== undefined ? '이전 크기로' : '최대화'}
-                title={restore !== undefined ? '이전 크기로' : '최대화'} onClick={toggleMax}>{restore !== undefined ? '❐' : '□'}</button>
-        <button type="button" className="close" aria-label="닫기" title={esc ? '닫기(ESC)' : '닫기'} onClick={onClose}>✕</button>
+                title={restore !== undefined ? '이전 크기로' : '최대화'} onClick={toggleMax}>{restore !== undefined ? <EcIcon name="restore" size={12} glyph="❐" /> : <EcIcon name="maximize" size={12} glyph="□" />}</button>
+        <button type="button" className="close" aria-label="닫기" title={esc ? '닫기(ESC)' : '닫기'} onClick={onClose}><EcIcon name="close" size={12} glyph="✕" /></button>
       </div>
       <div className="ec-modal-body">{children}</div>
       {GRIPS.map((d) => <div key={d} className={`ec-modal-grip ${d}`} aria-hidden="true" onPointerDown={(e) => begin(e, d)} />)}
