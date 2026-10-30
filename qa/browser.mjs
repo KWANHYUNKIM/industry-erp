@@ -35,11 +35,12 @@ export async function login(username = process.env.ERP_USER ?? 'admin', password
  * 동시에 돌리면 두 번째 Chrome 은 포트를 못 잡고, 두 번째 스크립트는 같은 포트의 <b>남의 Chrome</b> 에 붙어 그 화면을 몰았다.
  */
 /**
- * 지난 실행이 남긴 erp-cdp-* 프로필 중 6시간 넘은 것을 지운다(지금 도는 다른 작업자의 프로필은 건드리지 않게 넉넉히).
+ * 지난 실행이 남긴 erp-cdp-* 프로필 중 1시간 넘은 것을 지운다(지금 도는 다른 작업자의 프로필은 건드리지 않게 — 시험 하나가 1시간을 넘지 않는다).
+ * 6시간이던 것을 줄였다: 10-30 오후 작업자 셋이 돌자 6시간 안에 49벌이 다시 쌓여 C: 가 2.1GB 까지 찼다.
  * 잡혀 있는 폴더는 건너뛴다.
  */
 function sweepStaleProfiles() {
-  const cut = Date.now() - 6 * 3600_000
+  const cut = Date.now() - 3600_000
   let names = []
   try { names = readdirSync(tmpdir()).filter((n) => n.startsWith('erp-cdp-')) } catch { return }
   for (const n of names) {
