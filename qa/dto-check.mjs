@@ -182,6 +182,8 @@ const OWNED_HERE = new Map([
   ['Lot|useYn', '시리얼/로트No.등록 목록 · 수정 창 [사용중단/재사용] 전용 자리(POST /lots/use)에서 정한다 — 원본 생성 · 수정 창에는 사용구분 칸이 없다(2026-10-13 실측, plans/재고2/E040617.md)'],
   ['Bill|salesCreated', '청구예정자료의 판매생성여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다(2026-10-13 실측)'],
   ['Bill|accountingReflected', '청구예정자료의 회계반영여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다'],
+  ['ScheduleEvent|labelText', '라벨은 labelCode 로 정한다 — 이름은 서버가 라벨 마스터에서 붙여 준다(원본 일정관리 2026-10-30 실측: 라벨수정이 이미 넣은 일정의 칩을 바꾼다)'],
+  ['ScheduleEvent|labelColor', '라벨 색은 라벨 마스터의 것 — 일정이 들지 않는다(labelCode 로 정한다)'],
   ['ScheduleEvent|repeatGroup', '반복설정으로 펼쳐 넣을 때 서버가 묶음 값을 매긴다 — 등록 요청의 repeat 에서 나온다(원본 E070201 반복설정 창)'],
   ['ScheduleEvent|repeatRule', '등록 요청 repeat.summary(원본 요약보기 글)를 서버가 펼친 줄마다 찍는다 — 우리는 고칠 때 반복을 다시 펼치지 않는다'],
   ['SupplyUsage|repeatGroup', '공용품관리 반복설정으로 펼쳐 넣을 때 서버가 묶음 값을 매긴다 — 등록 요청의 repeat 에서 나온다(원본 E070204 반복설정 창, 2026-10-13 실측)'],

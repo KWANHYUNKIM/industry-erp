@@ -3,8 +3,10 @@ import { api } from '../../../api/client'
 import { ymd } from '../../../utils/periods'
 import type { WidgetBodyProps } from './types'
 import { WLink } from './actions'
+import LabelChip from '../../board/components/LabelChip'
 
-interface ScheduleEvent { id: number; eventDate: string; title: string; category: string | null; startTime: string | null }
+/** labelText · labelColor — 원본 [라벨](마스터 코드로 붙고 이름 · 색은 서버가 붙인다). */
+interface ScheduleEvent { id: number; eventDate: string; title: string; category: string | null; startTime: string | null; labelText?: string | null; labelColor?: string | null }
 
 /** 원본 [설정] 상세일정 표시줄수 — 표시안함 · 1~10건, 기본 2건 */
 export const DETAIL_ROWS = ['표시안함', ...Array.from({ length: 10 }, (_, i) => `${i + 1}건`)]
@@ -58,7 +60,10 @@ export default function CalendarWidget({ settings, tick }: WidgetBodyProps) {
               <span className="n">{d.getDate()}</span>
               {list.slice(0, max).map((e) => (
                 // 원본: 일정 글자를 누르면 메인 위에 '일정조회' 창([수정] [인쇄])
-                <WLink key={e.id} className="ec-wcal-ev" to={{ kind: 'schedule', viewId: e.id }} title={e.title}>{e.title}</WLink>
+                // 원본 위젯도 달력처럼 라벨 칩(흰 글자) + 제목(2026-10-30 실측 'A.text-bold > span.label.mr-5')
+                <WLink key={e.id} className="ec-wcal-ev" to={{ kind: 'schedule', viewId: e.id }} title={e.title}>
+                  {e.labelText && <LabelChip name={e.labelText} color={e.labelColor} light={false} className="mr-[4.5px]" />}{e.title}
+                </WLink>
               ))}
               {list.length > max && max > 0 && <span className="more">+{list.length - max}</span>}
               {max === 0 && list.length > 0 && <span className="more">{list.length}건</span>}

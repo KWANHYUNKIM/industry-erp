@@ -1,0 +1,64 @@
+{
+  "about": "일정관리 [라벨] 색 칩 — 원본 E070201 2026-10-30 실측. 일정은 라벨 마스터의 코드로 붙고, 달력 칸 칩은 라벨 이름 · 라벨 색 바탕 · 늘 흰 글자(#00ffff 같은 밝은 색도). 라벨수정에서 이름 · 색을 바꾸면 이미 넣은 일정의 칩도 따라 바뀐다. 머리 [라벨] 거르기: 펼치면 전체 · 라벨없음 · 라벨마다 칩, 아무것도 안 고르고 ↵ 하면 '1개 이상 선택해야 합니다.', 고른 라벨만 남는다. 일정조회의 [라벨]도 칩. 시험 라벨 · 일정은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/schedule-label-color.json",
+  "shots": [
+    {
+      "name": "준비 — 시험 라벨 · 일정",
+      "path": "/groupware/schedule",
+      "steps": [
+        "wait:600",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const evs = await (await fetch('/api/schedule-events', { headers: H })).json(); for (const e of evs.filter((x) => x.title.startsWith('QA라벨-'))) await fetch('/api/schedule-events/' + e.id, { method: 'DELETE', headers: H }); const ls = await (await fetch('/api/schedule-labels', { headers: H })).json(); for (const l of ls.filter((x) => x.code === 'QALC1')) await fetch('/api/schedule-labels/' + l.id, { method: 'DELETE', headers: H }); const lab = await (await fetch('/api/schedule-labels', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QALC1', name: 'QA색칩', color: '#00ffff' }) })).json(); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const base = { eventDate: day, category: '회의', shared: true, sharers: '전체' }; const a = await (await fetch('/api/schedule-events', { method: 'POST', headers: H, body: JSON.stringify({ ...base, title: 'QA라벨-칩', labelCode: 'QALC1' }) })).json(); const b = await (await fetch('/api/schedule-events', { method: 'POST', headers: H, body: JSON.stringify({ ...base, title: 'QA라벨-없음' }) })).json(); sessionStorage.setItem('qaLab', JSON.stringify({ label: lab.id, evs: [a.id, b.id] })); return a.labelCode + ' ' + a.labelText + ' ' + a.labelColor })()"
+      ]
+    },
+    {
+      "name": "달력 칸 칩 — 라벨 이름 · 라벨 색 · 흰 글자",
+      "path": "/groupware/schedule",
+      "steps": [
+        "wait:900",
+        "expect:(() => { const b = [...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA라벨-칩'); const c = b?.querySelector('.ec-label-chip'); return !!c && c.textContent === 'QA색칩' && getComputedStyle(c).backgroundColor === 'rgb(0, 255, 255)' && getComputedStyle(c).color === 'rgb(255, 255, 255)' })()",
+        "expect:(() => { const b = [...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA라벨-없음'); return !!b && !b.querySelector('.ec-label-chip') })()",
+        "js:[...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA라벨-칩').click(); true",
+        "wait:400",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '일정조회'); const c = d?.querySelector('.ec-label-chip'); return !!c && c.textContent === 'QA색칩' && getComputedStyle(c).color === 'rgb(255, 255, 255)' })()"
+      ]
+    },
+    {
+      "name": "라벨수정(이름 · 색) — 이미 넣은 일정의 칩이 따라 바뀐다",
+      "path": "/groupware/schedule",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const { label } = JSON.parse(sessionStorage.getItem('qaLab')); const r = await fetch('/api/schedule-labels/' + label, { method: 'PUT', headers: H, body: JSON.stringify({ name: 'QA색칩2', color: '#ff0000' }) }); return 'put ' + r.status })()"
+      ]
+    },
+    {
+      "name": "바뀐 칩 · [라벨] 거르기",
+      "path": "/groupware/schedule",
+      "steps": [
+        "wait:900",
+        "expect:(() => { const c = [...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA라벨-칩')?.querySelector('.ec-label-chip'); return !!c && c.textContent === 'QA색칩2' && getComputedStyle(c).backgroundColor === 'rgb(255, 0, 0)' && getComputedStyle(c).color === 'rgb(255, 255, 255)' })()",
+        "js:[...document.querySelectorAll('.ec-page-head button')].find((b) => b.textContent.trim() === '라벨').click(); true",
+        "wait:300",
+        "expect:(() => { const m = document.querySelector('[role=menu][aria-label=\"라벨 거르기\"]'); return !!m && m.querySelector('input[aria-label=\"전체\"]') && [...m.querySelectorAll('.ec-label-chip')][0]?.textContent === '라벨없음' && [...m.querySelectorAll('.ec-label-chip')].some((c) => c.textContent === 'QA색칩2') && [...m.querySelectorAll('input[type=checkbox]')].every((i) => !i.checked) })()",
+        "js:document.querySelector('[role=menu] button[aria-label=\"적용\"]').click(); true",
+        "wait:300",
+        "expect:document.body.innerText.includes('1개 이상 선택해야 합니다.')",
+        "js:[...document.querySelectorAll('[role=dialog] button, [role=alertdialog] button')].find((b) => b.textContent.trim() === '확인')?.click(); true",
+        "wait:200",
+        "js:document.querySelector('[role=menu] input[aria-label=\"QA색칩2\"]').click(); true",
+        "js:document.querySelector('[role=menu] button[aria-label=\"적용\"]').click(); true",
+        "wait:300",
+        "expect:!document.querySelector('[role=menu][aria-label=\"라벨 거르기\"]') && !![...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA라벨-칩') && ![...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA라벨-없음')",
+        "js:[...document.querySelectorAll('.ec-page-head button')].find((b) => b.textContent.trim() === '라벨').click(); true",
+        "wait:200",
+        "js:document.querySelector('[role=menu] input[aria-label=\"QA색칩2\"]').click(); document.querySelector('[role=menu] input[aria-label=\"라벨없음\"]').click(); document.querySelector('[role=menu] button[aria-label=\"적용\"]').click(); true",
+        "wait:300",
+        "expect:![...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA라벨-칩') && !![...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA라벨-없음')"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/schedule",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const { label, evs } = JSON.parse(sessionStorage.getItem('qaLab')); for (const id of evs) await fetch('/api/schedule-events/' + id, { method: 'DELETE', headers: H }); const r = await fetch('/api/schedule-labels/' + label, { method: 'DELETE', headers: H }); return 'del ' + r.status })()"
+      ]
+    }
+  ]
+}

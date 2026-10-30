@@ -49,5 +49,16 @@ export function labelIsLight(color?: string | null): boolean {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/.exec(c)
   if (!m) return false
   const [r, g, b] = m.slice(1).map((h) => parseInt(h, 16))
-  return (r * 299 + g * 587 + b * 114) / 1000 >= 200
+  // 일정관리 [라벨] 거르기(2026-10-30 실측): [다른색] #ff0000 · #ff9900 은 검정 글자, #00ffff · #00ff00 · #bbbbbb 는 흰 글자 —
+  // 팔레트에서 잰 검정 글자 칸(#f35c4e …)처럼 빨강 성분이 아주 센 색이 검정이다.
+  return r >= 0xc8 || (r * 299 + g * 587 + b * 114) / 1000 >= 200
+}
+
+/**
+ * 일정관리 '일정조회' 창의 라벨 칩 글자색(2026-10-30 실측, 인라인 color) — 칩 바탕의 빨강 성분이 절반 넘으면 검정.
+ * #ff0000 · #ff9900 · #826358 · #88a3f9 → 검정, #00ffff · #000000 → 흰. 달력 칸 · 거르기 판과 규칙이 다르다.
+ */
+export function viewLabelLight(color?: string | null): boolean {
+  const m = /^#([0-9a-f]{2})[0-9a-f]{4}$/i.exec((color ?? '').trim())
+  return !!m && parseInt(m[1], 16) >= 0x80
 }

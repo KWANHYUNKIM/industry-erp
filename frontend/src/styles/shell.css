@@ -922,13 +922,11 @@
 .ec-wcal-day.out { color: var(--ec-text-off); }
 .ec-wcal-day.today { background: var(--ec-blue-wash); }
 .ec-wcal-day > .n { font-size: var(--ec-fs); }
+/* 원본 위젯 일정 줄(2026-10-30 실측 'A.text-bold') — 바탕 없이 굵은 링크색 글자, 앞에 라벨 칩 */
 .ec-wcal-ev {
   overflow: hidden;
-  padding: 0 4px;
-  border-left: 3px solid var(--ec-blue);
-  border-radius: var(--ec-radius);
-  background: var(--ec-blue-wash);
-  color: var(--ec-text);
+  color: var(--ec-navy);
+  font-weight: 700;
   white-space: nowrap;
   text-overflow: ellipsis;
   text-decoration: none;

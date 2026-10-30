@@ -16,6 +16,8 @@ import RepeatModal from '../../features/schedule/components/RepeatModal'
 import RepeatScopeModal, { type RepeatScope } from '../../features/schedule/components/RepeatScopeModal'
 import LabelMasterModal from '../../features/board/components/LabelMasterModal'
 import LabelChip from '../../features/board/components/LabelChip'
+import { viewLabelLight } from '../../features/board/labels'
+import LabelFilter from '../../features/schedule/components/LabelFilter'
 import ScheduleCategoryModal, { type ScheduleCategory } from '../../features/schedule/components/ScheduleCategoryModal'
 import NameChips from '../../features/schedule/components/NameChips'
 import { EcHistoryModal } from '../../components/EcHistory'
@@ -33,8 +35,13 @@ interface ScheduleEvent {
   owner: string | null
   location: string | null
   attendees: string | null
-  /** 원본 [라벨] — 일정구분을 가로지르는 표시('급함·대외비'). */
+  /**
+   * 원본 [라벨] — 라벨 마스터의 코드로 붙고(labelCode), 이름 · 색은 서버가 마스터에서 붙여 준다.
+   * 라벨수정에서 이름 · 색을 바꾸면 이미 넣은 일정의 칩도 따라 바뀐다(2026-10-30 실측).
+   */
+  labelCode?: string | null
   labelText: string | null
+  labelColor?: string | null
   remark: string | null
   createdBy: string | null
   /** 원본 [공유자] — 이름 콤마 구분 또는 '전체'. */
@@ -279,7 +286,11 @@ export default function SchedulePage({ popup }: { popup?: { viewId?: number } } 
   }, [rows])
   const loadLabels = () => api.get<ScheduleLabel[]>('/schedule-labels').then((r) => setLabels(r.data)).catch(() => {})
   useEffect(() => { void loadLabels(); void loadCategories() }, [])
-  const labelColor = (name: string | null) => labels.find((l) => l.name === name)?.color ?? null
+  /**
+   * 머리 [라벨] 거르기 — 원본 quickLabel(2026-10-30 실측). 펼치면 [전체] + 라벨없음 · 라벨마다(칩) 체크, 아래 [↵ 적용][+ 라벨조회][× 닫기].
+   * 처음엔 아무것도 안 걸려 다 보인다. 하나도 안 고르고 적용하면 '1개 이상 선택해야 합니다.'. 고른 코드('' = 라벨없음)만 달력에 남는다.
+   */
+  const [labelPick, setLabelPick] = useState<Set<string> | null>(null)
 
   /**
    * 다른 캘린더 — 휴가확인용은 휴가(근태)를 '사원/휴가종류' 로 시작일~종료일 날마다(원본 '신문섭/예비군' 사흘),
@@ -352,8 +363,11 @@ export default function SchedulePage({ popup }: { popup?: { viewId?: number } } 
     setError('')
     if (!form.title.trim()) return setError('일정 제목을 입력하세요.')
     if (form.startTime && form.endTime && form.endTime < form.startTime) return setError('종료시간이 시작시간보다 빠릅니다.')
-    const { sharersAll, ...rest } = form
-    const body = { ...rest, sharers: sharersAll ? '전체' : form.sharers }
+    const { sharersAll, labelText, ...rest } = form
+    // 일정에는 라벨코드로 붙는다 — 칸에 적힌 라벨명을 마스터에서 찾아 코드로 보낸다(빈 칸이면 라벨 없음).
+    const labelCode = labelText.trim() ? labels.find((l) => l.name === labelText.trim())?.code : ''
+    if (labelCode == null) return setError('라벨을 찾을 수 없습니다. [라벨] 🔍 에서 고르세요.')
+    const body = { ...rest, labelCode, sharers: sharersAll ? '전체' : form.sharers }
     // 원본: 참석자에게 같은 시간 일정이 이미 있으면 'OO님의 공유일정이 존재합니다. 저장 하겠습니까?' 를 묻는다.
     const clash = attendeeClash()
     if (clash && !(await ecConfirm(`${clash}님의 공유일정이 존재합니다.\n저장 하겠습니까?`))) return
@@ -366,7 +380,7 @@ export default function SchedulePage({ popup }: { popup?: { viewId?: number } } 
           ...body,
           startTime: form.startTime || undefined, endTime: form.endTime || undefined,
           owner: form.owner || undefined, location: form.location || undefined,
-          attendees: form.attendees || undefined, labelText: form.labelText || undefined,
+          attendees: form.attendees || undefined, labelCode: labelCode || undefined,
           remark: form.remark || undefined, sharers: body.sharers || undefined,
           repeat: repeat ? { ...repeat, summary: repeatSummary(repeat) } : undefined,
         })
@@ -445,6 +459,7 @@ export default function SchedulePage({ popup }: { popup?: { viewId?: number } } 
   /** 캘린더 고르기와 검색창 — 두 양식이 같이 쓴다. */
   const inCalendar = rows
     .filter((r) => cals.has(r.shared === false ? 'PERSONAL' : 'SHARED'))
+    .filter((r) => !labelPick || labelPick.has(r.labelText ? (r.labelCode ?? '') : ''))
     .filter((r) => !keyword
       || r.title.includes(keyword)
       || (r.owner ?? '').includes(keyword)
@@ -458,7 +473,7 @@ export default function SchedulePage({ popup }: { popup?: { viewId?: number } } 
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !placeCond || (r.location ?? '').includes(placeCond))
     .filter((r) => !kindCond || (r.category ?? '') === kindCond)
-    .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
+    .filter((r) => !labelCond || (r.labelCode ?? '') === labelCond)
     .filter((r) => !bodyCond || (r.remark ?? '').includes(bodyCond))
 
   const timeText = (r: ScheduleEvent) =>
@@ -510,17 +525,19 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
   const eventLine = (r: ScheduleEvent) => (
     <button key={r.id} type="button" title={lineText(r)} onClick={() => setViewing(r)}
             className="no-ec flex items-center gap-[4px] w-full bg-transparent border-0 p-0 cursor-pointer text-left text-ec-ink">
-      {r.labelText && <LabelChip name={r.labelText} color={labelColor(r.labelText)} />}
+      {r.labelText && <LabelChip name={r.labelText} color={r.labelColor} light={false} />}
       <span className="truncate">{lineText(r)}</span>
     </button>
   )
 
-  const viewPicker = (
-    <div className="flex justify-end mb-[6px]">
+  /** 원본 머리: [월간양식 ▾][라벨] 검색칸 · Search(F3) · Option · 도움말. */
+  const headTools = (
+    <>
       <select className="ec-input w-[140px]" aria-label="양식" value={view} onChange={(e) => setView(e.target.value as View)}>
         {VIEWS.map((v) => <option key={v}>{v}</option>)}
       </select>
-    </div>
+      <LabelFilter labels={labels} value={labelPick} onApply={setLabelPick} onManage={() => setShowLabels(true)} />
+    </>
   )
 
   const calRow = ([k, label]: [CalKey, string]) => (
@@ -552,6 +569,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
   return (
     <EcListShell
       title="일정관리"
+      headExtra={headTools}
       search={keyword}
       onSearchChange={setKeyword}
       onNew={() => openNew()}
@@ -698,7 +716,9 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                 </tr>
                 <tr>
                   <th className="bg-ec-page">장소</th><td>{viewing.location ?? ''}</td>
-                  <th className="bg-ec-page">라벨</th><td>{viewing.labelText ?? ''}</td>
+                  <th className="bg-ec-page">라벨</th>
+                  {/* 원본 일정조회의 라벨은 칩이다. 글자색은 칸 색마다 흰 · 검정(viewLabelLight). */}
+                  <td>{viewing.labelText && <LabelChip name={viewing.labelText} color={viewing.labelColor} light={viewLabelLight(viewing.labelColor)} />}</td>
                 </tr>
                 <tr><th className="bg-ec-page">날짜/시간</th><td colSpan={3}>{timeText(viewing)}</td></tr>
                 <tr><th className="bg-ec-page">참석자</th><td colSpan={3}>{viewing.attendees ?? ''}</td></tr>
@@ -738,7 +758,6 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
 
       {error && !showForm && !viewing && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {viewPicker}
 
       {isMonth ? (
         <div className="flex gap-[10px] items-start">
@@ -786,7 +805,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                                         className={`no-ec flex items-center w-full border-0 py-[3.6px] px-[0.9px] cursor-pointer text-left text-ec-ink ${r.startTime ? 'bg-transparent' : 'bg-ec-calendar'}`}>
                                   {/* 원본: 시간 없는(종일) 일정은 캘린더 색 막대, 시간 있는 일정은 그 색 점(7.19 동그라미) */}
                                   {r.startTime && <span className="inline-block shrink-0 w-[7.1875px] h-[7.1875px] mr-[4.5px] rounded-full bg-ec-calendar" />}
-                                  {view === '월간양식' && r.labelText && <LabelChip name={r.labelText} color={labelColor(r.labelText)} className="mr-[4.5px]" />}
+                                  {view === '월간양식' && r.labelText && <LabelChip name={r.labelText} color={r.labelColor} light={false} className="mr-[4.5px]" />}
                                   <b className="truncate">{r.title}</b>
                                 </button>
                               ))}
@@ -892,7 +911,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
               <EcCond label="라벨">
                 <select className="ec-input w-[120px]" value={labelCond} onChange={(e) => setLabelCond(e.target.value)}>
                   <option value="">전체</option>
-                  {[...new Set(rows.map((r) => r.labelText).filter(Boolean))].map((l) => <option key={l as string}>{l}</option>)}
+                  {labels.map((l) => <option key={l.id} value={l.code}>{l.name}</option>)}
                 </select>
               </EcCond>
               <EcCond label="본문">
@@ -941,8 +960,9 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
       )}
       {showCategories && <ScheduleCategoryModal onClose={() => { setShowCategories(false); void loadCategories() }}
                                                 onPick={(c) => { setCategoryCode(c.code); set('category', c.name); setShowCategories(false); void loadCategories() }} />}
-      {showLabels && <LabelMasterModal board="SCHEDULE" endpoint="/schedule-labels" title="라벨검색"
-                                       onClose={() => { setShowLabels(false); void loadLabels() }} />}
+      {showLabels && <LabelMasterModal board="SCHEDULE" endpoint="/schedule-labels" title={showForm ? '라벨검색' : '라벨조회'}
+                                       onPick={showForm ? (l) => { set('labelText', l.name); setShowLabels(false); void loadLabels() } : undefined}
+                                       onClose={() => { setShowLabels(false); void loadLabels(); void load() }} />}
     </EcListShell>
   )
 }
