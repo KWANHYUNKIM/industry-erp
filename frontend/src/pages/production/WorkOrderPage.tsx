@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { Fragment, useEffect, useState, useRef } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -10,12 +10,15 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { printDocuments } from '../../utils/printDocument'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import EcIcon from '../../components/ui/EcIcon'
+import WorkOrderEntryPage from './WorkOrderEntryPage'
+import ProductionSlipWindow from './ProductionSlipWindow'
 
 
 /**
@@ -23,13 +26,17 @@ import { EcDateRange } from '../../components/ui/EcDateInput'
  * 결재중·미확인·확인은 결재/확인 흐름이 작업지시에 없어 만들지 않는다 —
  * 눌러도 늘 빈 목록인 탭은 있는 것만 못하다.
  */
-/** 원본 탭 [전체 · 결재중 · 미확인 · 확인] — 진행상태. */
-const CONF_TABS = ['전체', '결재중', '미확인', '확인'] as const
-const CONF_OF: Record<string, string> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
-const TABS = ['전체', '진행중', '완료'] as const
+/**
+ * 원본 알약은 한 줄이다(2026-10-31 loginad): 전체 · 결재중 · 미확인 · 확인 ▸ 진행중 ▸ 완료 — 확인 뒤가 화살표로 이어진 단계다.
+ * 결재중 · 미확인 · 확인은 확인상태로, 진행중 · 완료는 진행상태로 거른다(예전 두 줄 알약과 같은 기준).
+ */
+const TABS = ['전체', '결재중', '미확인', '확인', '진행중', '완료'] as const
 type Tab = typeof TABS[number]
+const CONF_OF: Record<string, string> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
 /** 원본 탭은 진행중 · 완료 둘뿐이다(2026-10-22 실측) — 우리 PLANNED(아직 만든 것 없음)도 진행중이다. */
 const TAB_STATUS: Record<string, string[]> = { 진행중: ['PLANNED', 'IN_PROGRESS'], 완료: ['COMPLETED'] }
+/** 원본 조건 판 아래 줄의 기간 빠른선택 — 조회 묶음 끝에 [최근30일(+1개월)] 이 있다(2026-10-31 loginad). */
+const PICKS = [...INQUIRY_PICKS, '최근30일(+1개월)'] as const
 
 /**
  * 원본 작업지시서조회의 마지막 세 열은 그 지시의 현황으로 가는 <b>바로가기</b>다
@@ -93,32 +100,33 @@ export default function WorkOrderPage() {
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  /* 입력은 원본처럼 따로 있는 [작업지시서입력] 화면이 맡는다(여러 품목 한 전표). */
-  const navigate = useNavigate()
+  /*
+   * 입력은 [작업지시서입력] 이 맡는다(여러 품목 한 전표). 원본은 [신규(F2)] · 일자-No. 를 누르면 화면을 옮기지 않고
+   * 목록 위에 '작업지시서입력' 창을 띄운다(2026-10-31 loginad). entry 가 null 이면 창이 닫혀 있다.
+   */
+  const [entry, setEntry] = useState<{ editNo: string | null } | null>(null)
   const [tab, setTab] = useState<Tab>('전체')
-  const [confTab, setConfTab] = useState<(typeof CONF_TABS)[number]>('전체')
   /** 고른 줄(번호 칸의 체크) — [진행상태변경] 이 이 전표들을 바꾼다. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
-  const [statusPick, setStatusPick] = useState(false)
-  /** 원본 [진행상태변경] › 진행상태 [진행중][완료] — 종결(완료)하거나 되살린다. */
+  /** 원본 [진행상태변경▲] › 진행상태 [진행중][완료] — 종결(완료)하거나 되살린다. */
   async function changeProgress(completed: boolean) {
     const nos = [...new Set(orders.filter((x) => checked.has(x.id)).map((x) => x.orderNo))]
-    if (nos.length === 0) { setError('바꿀 줄을 고르세요.'); return }
+    if (nos.length === 0) { void ecAlert(NO_SELECTION_MESSAGE); return }
     try {
       await api.post('/work-orders/slips/progress', { orderNos: nos, completed })
-      setChecked(new Set()); setStatusPick(false); setError('')
+      setChecked(new Set()); setError('')
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
     }
   }
-  /** 원본 [진행상태변경] — 고른 작업지시서를 미확인 ↔ 확인. 확인한 지시서는 확인취소를 먼저 해야 고치거나 지울 수 있다. */
+  /** 원본 [진행상태변경▲] › 확인상태 — 고른 작업지시서를 미확인 ↔ 확인. 확인한 지시서는 확인취소를 먼저 해야 고치거나 지울 수 있다. */
   async function changeStatus(status: 'CONFIRMED' | 'UNCONFIRMED') {
     const nos = [...new Set(orders.filter((x) => checked.has(x.id)).map((x) => x.orderNo))]
-    if (nos.length === 0) { setError('바꿀 줄을 고르세요.'); return }
+    if (nos.length === 0) { void ecAlert(NO_SELECTION_MESSAGE); return }
     try {
       await api.post('/work-orders/slips/status', { orderNos: nos, status })
-      setChecked(new Set()); setStatusPick(false); setError('')
+      setChecked(new Set()); setError('')
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -173,6 +181,12 @@ export default function WorkOrderPage() {
   const [editedFrom, setEditedFrom] = useState('')
   const [editedTo, setEditedTo] = useState('')
   const [byUpdated, setByUpdated] = useState(false)
+  /*
+   * 원본(loginad) 조건 판의 발송여부 · 오더관리번호 · 최종수정자 · 입력경로 · 삭제구분은 우리 작업지시에 그 값이 없어 칸을 두지 않는다
+   * (거르지 않는 칸은 두지 않는다 — qa/ui-check 1-q · 조건 예외 NO_FIELD_ON 에 이유).
+   */
+  /** 원본 조건 판의 접힌 줄(▾) — 펼치면 거래처그룹1 · 품목구분 · 품목그룹1 이 나온다. */
+  const [moreConds, setMoreConds] = useState(false)
   const mgmt = useItemMgmt()
   const pgroups = usePartnerGroups()
   const pmgr = usePartnerManagers()
@@ -204,8 +218,7 @@ export default function WorkOrderPage() {
   const empName = (id: number | null) =>
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
-  const shown = orders.filter((o) => (tab === '전체' || TAB_STATUS[tab].includes(o.status))
-    && (confTab === '전체' || CONF_OF[confTab] === o.confirmStatus)
+  const shown = orders.filter((o) => (tab === '전체' || (TAB_STATUS[tab] ? TAB_STATUS[tab].includes(o.status) : CONF_OF[tab] === o.confirmStatus))
     && (!from || o.orderDate >= from) && (!to || o.orderDate <= to)
     && (!orderNoCond || o.orderNo.includes(orderNoCond))
     && (!whCond || String(o.warehouseId) === whCond)
@@ -238,54 +251,57 @@ export default function WorkOrderPage() {
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '작업지시서조회', [])
 
+  /** 고른 줄 체크 — 원본 첫 열은 체크박스만이다(번호 칸이 없다). */
+  const toggleRow = (id: number) => setChecked((c) => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const allChecked = shown.length > 0 && shown.every((o) => checked.has(o.id))
+
   return (
     <EcListShell
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="작업지시서조회"
-      onNew={() => navigate('/production/work-order-entry')}
-      actions={[{ label: '진행상태변경', onClick: () => setStatusPick((v) => !v), selected: checked.size },
-                { label: '인쇄' },
-                { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
-                { label: 'Excel' }]}
+      onNew={() => setEntry({ editNo: null })}
+      actions={[
+        /* 원본 [진행상태변경▲] — 확인상태(미확인 · 확인)와 진행상태(진행중 · 완료)를 고른다(2026-10-31 loginad). 고른 줄이 없으면 원본 알림. */
+        { label: '진행상태변경', menuOnly: true, selected: checked.size, menu: [
+          { label: '미확인', onClick: () => void changeStatus('UNCONFIRMED') },
+          { label: '확인', onClick: () => void changeStatus('CONFIRMED') },
+          { label: '진행중', onClick: () => void changeProgress(false) },
+          { label: '완료', onClick: () => void changeProgress(true) },
+        ] },
+        { label: '인쇄' },
+        { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked, selected: checked.size },
+        { label: 'Excel' }]}
     >
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
-      {statusPick && (
-        <div className="flex items-center gap-[6px] mb-[8px] py-[6px] px-[8px] border border-ec-line border-solid bg-white">
-          <span className="text-[12.5px]">고른 {checked.size}줄의 작업지시서를</span>
-          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void changeStatus('CONFIRMED')}>확인</button>
-          <button type="button" className="ec-btn" onClick={() => void changeStatus('UNCONFIRMED')}>확인취소</button>
-          <button type="button" className="ec-btn" onClick={() => void changeProgress(false)}>진행중</button>
-          <button type="button" className="ec-btn" onClick={() => void changeProgress(true)}>완료</button>
-          <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>취소</button>
-        </div>
-      )}
-      <div className="ec-pills" style={{ marginBottom: 6 }}>
-        {CONF_TABS.map((t) => (
-          <button key={t} type="button" className={`ec-pill no-ec${confTab === t ? ' active' : ''}`} onClick={() => setConfTab(t)}>{t}</button>
-        ))}
-      </div>
-      <div className="ec-pills" style={{ marginBottom: 8 }}>
+      <div className="ec-pills mb-[6px]">
         {TABS.map((t) => (
-          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
-                  onClick={() => setTab(t)}>{t}</button>
+          <Fragment key={t}>
+            {/* 확인 ▸ 진행중 ▸ 완료 — 원본은 확인 뒤를 화살표로 이은 단계로 그린다. */}
+            {(t === '진행중' || t === '완료') && <EcIcon name="chevron-right" size={12} glyph="▸" />}
+            <button type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
+          </Fragment>
         ))}
       </div>
 
-      {/* 원본 조건 차례: 작업지시No. · 창고 · 거래처 · 품목 */}
-      <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        {/* 원본 조건 첫째 <b>[기준일자]</b> — 단추는 조회 묶음(…·종료일)이다(사본 실측). */}
+      {/*
+        원본 조건 차례(2026-10-31 loginad): 기준일자 · 작업지시No. · 창고 · 거래처 · 품목 · 발송여부 · 납기일자 · 오더관리번호 · 담당자 ·
+        거래처관리담당자 · 적요 · 규격 · 최초작성자 · 최종수정자 · 최초작성일자 · 최종작업일자 · 입력경로 · 삭제구분 · 기타 · 양식.
+        거래처그룹1 · 품목구분 · 품목그룹1 은 접힌 줄(▾)을 펼치면 나온다(2026-09-08 loginaa 실측 31칸).
+      */}
+      <ul className="ec-cond mb-[8px]">
+        {/* 원본 조건 첫째 <b>[기준일자]</b> — 단추는 조회 묶음(…·종료일 · 최근30일(+1개월))이다. */}
         <EcCond label="기준일자">
           <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
-            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+            <EcPeriodPicks labels={PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="작업지시No.">
-          <input className="ec-input" value={orderNoCond} placeholder="작업지시No."
-                 onChange={(e) => setOrderNoCond(e.target.value)} style={{ width: 170 }} />
+          <input className="ec-input w-[170px]" value={orderNoCond} placeholder="작업지시No."
+                 onChange={(e) => setOrderNoCond(e.target.value)} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
@@ -295,28 +311,30 @@ export default function WorkOrderPage() {
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={condPickers.partners} />
         </EcCond>
-        {/* 원본 차례: 거래처 · <b>거래처그룹1</b> · (거래처그룹2·계층) · 품목 · 품목구분 · 품목그룹1 … */}
-        <EcCond label="거래처그룹1" pick>
-          <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
-                           value={partnerGroupCond} onChange={setPartnerGroupCond}
-                           items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
-        </EcCond>
+        {moreConds && (
+          <EcCond label="거래처그룹1" pick>
+            <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
+                             value={partnerGroupCond} onChange={setPartnerGroupCond}
+                             items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+        )}
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={condPickers.items} />
         </EcCond>
-        <EcCond label="품목구분" pick>
-          <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
-                           value={categoryCond} onChange={setCategoryCond}
-                           items={[...new Set(orders.map((o) => o.productCategoryName).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        <EcCond label="품목그룹1" pick>
-          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
-                           value={itemGroupCond} onChange={setItemGroupCond}
-                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        {/* 원본 차례: (품목그룹2·3·계층 · 발송여부) · 납기일자 · (오더관리번호) · 담당자 · 거래처관리담당자 · 적요 · 규격 … */}
+        {moreConds && <>
+          <EcCond label="품목구분" pick>
+            <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
+                             value={categoryCond} onChange={setCategoryCond}
+                             items={[...new Set(orders.map((o) => o.productCategoryName).filter(Boolean) as string[])].sort()
+                               .map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          <EcCond label="품목그룹1" pick>
+            <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                             value={itemGroupCond} onChange={setItemGroupCond}
+                             items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+        </>}
         <EcCond label="납기일자">
           <EcDateRange from={{ className: "ec-input", value: dueFrom, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, onChange: (e) => setDueTo(e.target.value) }} />
         </EcCond>
@@ -332,8 +350,8 @@ export default function WorkOrderPage() {
                            items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="적요">
-          <input className="ec-input" value={remarkCond}
-                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
+          <input className="ec-input w-[170px]" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} />
         </EcCond>
         <EcCond label="규격" pick>
           <CodePickerField label="규격" hideLabel width={150} emptyLabel="전체"
@@ -341,7 +359,6 @@ export default function WorkOrderPage() {
                            items={[...new Set(orders.map((o) => o.productSpec).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
-        {/* 원본 차례: 규격 · 최초작성자 · (최종수정자) · 최초작성일자 · 최종작업일자 · (입력경로 · 삭제구분) · 기타 · (제목) */}
         <EcCond label="최초작성자" pick>
           <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
                            value={authorCond} onChange={setAuthorCond}
@@ -360,44 +377,45 @@ export default function WorkOrderPage() {
             수정일자순(정렬)
           </label>
         </EcCond>
+        {/* 원본 [양식] — 적용양식 하나(작업지시No.)를 보인다. 양식을 고르게 하지 않는다. */}
+        <EcCond label="양식">
+          <select className="ec-input w-[170px]" aria-label="적용양식" defaultValue="작업지시No.">
+            <option>작업지시No.</option>
+          </select>
+        </EcCond>
+        {/* 원본 접힌 줄(▾) — 펼치면 숨은 조건이 나오고, 다시 누르면 접힌다. */}
+        <li className="full justify-center">
+          <button type="button" className="ec-btn ec-btn-sm" aria-expanded={moreConds}
+                  title={moreConds ? '조건 접기' : '조건 더 보기'} aria-label={moreConds ? '조건 접기' : '조건 더 보기'} onClick={() => setMoreConds((v) => !v)}>
+            <EcIcon name={moreConds ? 'chevron-up' : 'chevron-down'} size={12} glyph={moreConds ? '▴' : '▾'} />
+          </button>
+        </li>
       </ul>
-
-
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
+            {/* 원본 첫 열은 전체 고르기 체크박스뿐이다(번호 칸 없음, 2026-10-31 loginad). */}
+            <th className="w-[34px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={allChecked}
+                     onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((o) => o.id)))} />
+            </th>
             {/*
               원본 작업지시서조회의 첫 칸은 <b>[일자-No.]</b> 다 — 일자와 번호를 한 칸에 적는다.
-              우리는 번호를 맨 앞에, 일자를 저 뒤 [지시일] 로 따로 두어 <b>차례가 어긋나</b> 있었다.
-              작업지시서현황에서 이미 같은 방식으로 합쳐 두었으니 여기도 맞춘다.
             */}
             <th className="cursor-pointer w-[170px]" onClick={() => sort.toggle('지시번호')}>일자-No. {sort.mark('지시번호')}</th>
             {/* 원본 작업지시서조회의 이름은 [거래처명]·[담당자명]·[생산수량] 이다(사본 실측). */}
             <th>거래처명</th>
             <th className="w-[90px]">담당자명</th>
-            {/* 원본 차례는 거래처명 · 담당자명 · <b>납기일자</b> · 품목명[규격] · 지시수량 · 생산수량 이다. */}
             <th className="w-[100px]">납기일자</th>
-            {/*
-              원본 차례는 납기일자 <b>다음</b>이 [작업지시No.] 다(사본 실측).
-              [일자-No.] 와 다른 칸이다 — 그쪽은 <b>그날 몇 번째</b>인지(2026/07/16 -1)이고
-              이쪽은 전표번호 전체다. 우리는 [일자-No.] 한 칸에 날짜와 전표번호를 <b>붙여
-              찍고</b> 있어서, 원본을 쓰던 사람이 번호로 훑을 때 눈이 걸렸다.
-            */}
+            {/* [일자-No.] 는 그날 몇 번째인지(2026/07/16 -1), 이쪽은 전표번호 전체다. */}
             <th className="w-[150px]">작업지시No.</th>
             <th>품목명[규격]</th>
-            <th>창고</th>
+            {/* 원본 열에는 [창고] · [잔여] 가 없다(2026-10-31 loginad) — 지시수량 · 생산수량 · 진행상태로 본다. */}
             <th className="text-right">지시수량</th>
             <th className="text-right">생산수량</th>
-            <th className="text-right">잔여</th>
-            {/* 원본의 이름은 [상태]가 아니라 <b>[진행상태]</b> 다(사본 실측). */}
             <th className="text-center">진행상태</th>
-            {/*
-              원본은 여기를 <b>세 칸</b>으로 나눈다 — [작업지시서별불출현황]·[작업지시서별생산현황]·
-              [작업지시서별작업현황] 이 각각 55px 열이다(사본 실측). 우리는 셋을 한 칸([현황])에
-              가운뎃점으로 이어 붙여 두었어서, 열을 세어도 원본과 수가 달랐다.
-            */}
+            {/* 원본은 현황 바로가기를 <b>세 칸</b>으로 나눈다(각 55px). */}
             <th className="w-[56px] text-center">작업지시서별불출현황</th>
             <th className="w-[56px] text-center">작업지시서별생산현황</th>
             <th className="w-[56px] text-center">작업지시서별작업현황</th>
@@ -407,32 +425,29 @@ export default function WorkOrderPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={16} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={14} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={16} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={14} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : (
-            sort.sorted.map((o, idx) => (
+            sort.sorted.map((o) => (
               <tr key={o.id}>
-                <td className="text-center text-ec-hint whitespace-nowrap">
-                  <input type="checkbox" checked={checked.has(o.id)} style={{ marginRight: 3 }}
-                         onChange={() => setChecked((c) => { const n = new Set(c); if (n.has(o.id)) n.delete(o.id); else n.add(o.id); return n })} />
-                  {idx + 1}
+                <td className="text-center">
+                  <input type="checkbox" checked={checked.has(o.id)} onChange={() => toggleRow(o.id)} />
                 </td>
-                {/* 원본처럼 번호를 누르면 작업지시서입력으로 열어 고친다. */}
+                {/* 원본처럼 번호를 누르면 목록 위에 작업지시서입력 창을 띄워 고친다. */}
                 <td>
-                  <Link to={`/production/work-order-entry?no=${encodeURIComponent(o.orderNo)}`} style={{ color: 'var(--ec-blue)' }}>{dateNo(o)}</Link>
+                  <a href={`/production/work-order-entry?no=${encodeURIComponent(o.orderNo)}`} className="text-ec-blue"
+                     onClick={(e) => { e.preventDefault(); setEntry({ editNo: o.orderNo }) }}>{dateNo(o)}</a>
                 </td>
                 <td style={{ color: o.partnerName ? undefined : 'var(--ec-text-off)' }}>{o.partnerName ?? ''}</td>
                 <td style={{ color: o.employeeId ? undefined : 'var(--ec-text-off)' }}>{empName(o.employeeId)}</td>
-                {/* 원본은 이름과 규격을 한 칸에 적는다 — productSpec 은 응답에 오는데 안 쓰고 있었다. */}
                 <td style={{ color: o.dueDate ? undefined : 'var(--ec-text-off)' }}>{dateText(o.dueDate) || ''}</td>
                 <td className="text-ec-navy">{o.orderNo}</td>
                 <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
-                <td>{o.warehouseName}</td>
-                <td className="text-right">{o.plannedQty.toLocaleString()} {o.productUnit}</td>
+                {/* 원본 [지시수량] 은 수만 적는다(단위 없음). */}
+                <td className="text-right">{o.plannedQty.toLocaleString()}</td>
                 {/* 원본은 아직 생산하지 않은 지시의 [생산수량]을 빈칸으로 둔다(0 이 아니다, 2026-10-20 실측). */}
                 <td className="text-right">{Number(o.producedQty) ? o.producedQty.toLocaleString() : ''}</td>
-                <td className="text-right font-semibold">{o.remainingQty.toLocaleString()}</td>
                 <td className="text-center"><span style={{ color: statusColor(o.status), fontWeight: 600 }}>{o.statusName}</span></td>
                 {LINKS.map((l) => (
                   <td key={l.to} className="text-center whitespace-nowrap">
@@ -447,6 +462,15 @@ export default function WorkOrderPage() {
           )}
         </tbody>
       </table>
+      {entry && (
+        <ProductionSlipWindow
+          title={entry.editNo ? '작업지시서입력(수정)' : '작업지시서입력'}
+          popout={entry.editNo ? `/production/work-order-entry?no=${encodeURIComponent(entry.editNo)}` : '/production/work-order-entry'}
+          onClose={() => setEntry(null)}
+        >
+          <WorkOrderEntryPage popup={{ editNo: entry.editNo, onClose: (changed) => { setEntry(null); if (changed) void load() } }} />
+        </ProductionSlipWindow>
+      )}
     </EcListShell>
   )
 }

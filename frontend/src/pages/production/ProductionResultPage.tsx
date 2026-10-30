@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
-import GridCode from '../../components/GridCode'
+import GridCode, { ErrTip } from '../../components/GridCode'
+import GridFindButton from '../../components/GridFindButton'
 import CodePickerField from '../../components/CodePickerField'
 import EcDateField from '../../components/EcDateField'
-import EcSlipShell from '../../components/EcSlipShell'
+import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
@@ -15,7 +16,7 @@ import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesor
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item, Production, ProductionEntryType, ProductionMaterial, Warehouse, WorkOrder } from '../../types/api'
 import { subcontractCost, subcontractVat } from '../../utils/subcontractCost'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { shrinkImage } from '../../utils/imageResize'
 
@@ -45,7 +46,21 @@ const won = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { max
 const num = (s: string) => { const n = Number(s); return Number.isFinite(n) ? n : 0 }
 const today = () => ymd(new Date())
 
-const TITLES: Record<ProductionEntryType, string> = {
+const NOT_HERE = '이 기능은 이 ERP 에서 제공하지 않습니다.'
+/** 원본 툴바에 있으나 받쳐 줄 것이 없는 단추 — 흐리게 두고 까닭을 풍선말로(판매입력과 같은 방식). */
+const todo = (why: string) => ({ disabled: true, title: why })
+
+/**
+ * 생산입고조회 위에 떠 있는 창으로 열 때(원본 2026-10-31 loginad — [생산입고I] · 일자-No. 가 화면을 옮기지 않고 창을 띄운다).
+ * editNo 가 null 이면 새 전표, 있으면 그 전표를 고친다.
+ */
+export interface ProductionEntryPopup {
+  editNo: string | null
+  /** 창을 닫는다. changed 면 목록을 다시 읽는다(저장 · 삭제 뒤). */
+  onClose: (changed: boolean) => void
+}
+
+export const TITLES: Record<ProductionEntryType, string> = {
   I: '생산입고I-BOM기준소모',
   II: '생산입고II-소모품목 선택',
   III: '생산입고 III-소모품목 선택',
@@ -100,10 +115,17 @@ const BLANK_ROWS = 5
 /** 원본 격자 위 탭. I 은 [생산] 하나뿐이다(소모는 BOM 이 정한다). */
 const TABS = ['생산', '소모'] as const
 
-export default function ProductionResultPage({ type = 'I' }: { type?: ProductionEntryType }) {
+export default function ProductionResultPage({ type = 'I', popup }: { type?: ProductionEntryType; popup?: ProductionEntryPopup }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const editNo = params.get('no')
+  /** 창으로 열면 주소가 아니라 창이 고칠 전표를 든다([다시 작성] 이면 새 전표로). */
+  const [popupEditNo, setPopupEditNo] = useState(popup?.editNo ?? null)
+  const editNo = popup ? popupEditNo : params.get('no')
+  /** 창의 [저장/신규] — 저장하고 창을 닫지 않고 빈 입력으로 돌아간다. 창에서 저장한 것이 있으면 닫을 때 목록을 다시 읽는다. */
+  const keepOpenRef = useRef(false)
+  const savedRef = useRef(false)
+  /** 원본 [작업지시서] — 생산된공장이 비었으면 창 대신 그 칸 위에 말풍선 '생산된공장을 입력바랍니다.'(2026-10-31 loginad). */
+  const [factoryTip, setFactoryTip] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
 
   const [items, setItems] = useState<Item[]>([])
@@ -363,11 +385,14 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     setLines(Array.from({ length: BLANK_ROWS }, blankLine))
     setMats(Array.from({ length: BLANK_ROWS }, () => blankMat()))
     setTab('생산'); setError(''); setOk('')
-    if (editNo) navigate(location.pathname, { replace: true })
+    if (popup) setPopupEditNo(null)
+    else if (editNo) navigate(location.pathname, { replace: true })
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    const keepOpen = keepOpenRef.current
+    keepOpenRef.current = false
     setError(''); setOk('')
     if (filled.length === 0) return setError('생산품목을 한 줄 이상 넣으세요.')
     if (type !== 'III' && !fromWarehouseId) return setError('생산된공장을 입력바랍니다.')
@@ -423,6 +448,9 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         ? api.put<Production[]>(`/productions/slips/${encodeURIComponent(editNo)}`, body)
         : api.post<Production[]>('/productions/slips', body))
       // 원본 생산입고 I 은 저장하면 아무 말 없이 빈 입력으로 돌아간다(2026-10-20 실측). 번호는 생산입고조회에서 본다.
+      // 조회 위의 창이면 말 없이 닫히고 목록이 다시 읽힌다(판매조회의 판매입력 창과 같다). [저장/신규] 는 창을 남긴다.
+      if (popup && !keepOpen) { popup.onClose(true); return }
+      savedRef.current = true
       reset()
       api.get<WorkOrder[]>('/work-orders').then((x) => setOrders(x.data)).catch(() => {})
     } catch (err) {
@@ -436,7 +464,8 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     if (!editNo || !(await ecConfirm(`${editNo} 전표를 삭제합니다. 재고와 작업지시 진척이 되돌아갑니다.`))) return
     try {
       await api.delete(`/productions/slips/${encodeURIComponent(editNo)}`)
-      navigate('/production/receipt-inquiry')
+      if (popup) popup.onClose(true)
+      else navigate('/production/receipt-inquiry')
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -444,6 +473,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
 
   /* 칸이 화면(I·II·III)·탭 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const gridRef = useRef<HTMLDivElement>(null)
+  const prodTableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(gridRef, TITLES[type], [tab, lines.length, mats.length])
 
   const openOrders = orders.filter((o) => o.status !== 'COMPLETED' && Number(o.remainingQty) > 0)
@@ -454,7 +484,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
 
   const prodGrid = (
     <div className="overflow-x-auto">
-      <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: type === 'III' ? 1180 : 1240 }}>
+      <table ref={prodTableRef} className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: type === 'III' ? 1180 : 1240 }}>
         <colgroup>
           <col className="w-[30px]" />
           {type === 'III' && <col className="w-[150px]" />}
@@ -694,16 +724,36 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     </div>
   )
 
+  /*
+   * 원본 생산입고I 아래 줄(2026-10-31 loginad 실측): (보내기) · 저장(F8)▲ · 저장/전표(F7) · 닫기 · 웹자료올리기.
+   * ▲ 안은 작업지시서입력과 같은 넷으로 둔다(저장/신규 만 이어지고 나머지는 안내). 생산입고에는 회계전표 · 웹자료올리기가 없어 안내만 한다.
+   * 우리는 [다시 작성] 을 남긴다(원본 창에는 없다). 메뉴에서 연 화면(창이 아님)은 [닫기] 자리에 [리스트] 를 둔다.
+   */
+  const actions: SlipAction[] = [
+    {
+      label: saving ? '저장 중…' : '저장(F8)', primary: true, submit: true, disabled: saving,
+      menu: [
+        { label: '저장/전자결재', onClick: () => void ecAlert(NOT_HERE) },
+        { label: '건별저장', onClick: () => void ecAlert(NOT_HERE) },
+        { label: '저장/내용유지', onClick: () => void ecAlert(NOT_HERE) },
+        { label: '저장/신규', onClick: () => { keepOpenRef.current = true; formRef.current?.requestSubmit() } },
+      ],
+    },
+    { label: '저장/전표(F7)', onClick: () => void ecAlert(NOT_HERE) },
+    { label: '다시 작성', onClick: reset },
+    popup
+      ? { label: '닫기', onClick: () => popup.onClose(savedRef.current) }
+      : { label: '리스트', onClick: () => navigate('/production/receipt-inquiry') },
+    { label: '웹자료올리기', onClick: () => void ecAlert(NOT_HERE) },
+    ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }, { label: 'H', onClick: () => setHistoryOpen(true) }] : []),
+  ]
+  const formRef = useRef<HTMLFormElement>(null)
+
   return (
-    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <form ref={formRef} onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <EcSlipShell
-        title={TITLES[type] + (editNo ? ` (${editNo})` : '')}
-        actions={[
-          { label: saving ? '저장 중…' : '저장(F8)', primary: true, submit: true, disabled: saving },
-          { label: '다시 작성', onClick: reset },
-          { label: '리스트', onClick: () => navigate('/production/receipt-inquiry') },
-          ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }, { label: 'H', onClick: () => setHistoryOpen(true) }] : []),
-        ]}
+        title={TITLES[type] + (editNo && !popup ? ` (${editNo})` : '')}
+        actions={actions}
         help={
           <ul className="pl-[18px] m-0">
             <li>저장하면 <b>받는창고</b>로 생산품목이 들어오고, <b>생산된공장</b>에서 소모품목이 빠집니다.</li>
@@ -724,16 +774,17 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           <li>
             <div className="title">담당자</div>
             <div className="form">
-              <CodePickerField label="담당자" hideLabel pair value={employeeId} onChange={setEmployeeId}
+              <CodePickerField label="담당자" hideLabel pair plain popupTitle="사원검색" value={employeeId} onChange={setEmployeeId}
                                items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
           </li>
           {type !== 'III' && (
             <li>
               <div className="title">생산된공장<span className="req">*</span></div>
-              <div className="form">
+              <div className="form relative">
+                {factoryTip && !fromWarehouseId && <ErrTip msg="생산된공장을 입력바랍니다." />}
                 <CodePickerField label="생산된공장" hideLabel pair value={fromWarehouseId}
-                                 onChange={(v) => { setFromWarehouseId(v); setLines((ls) => ls.map((l) => (l.amountTouched ? l : recompute({ ...l, unitPrice: '' })))) }}
+                                 onChange={(v) => { setFactoryTip(false); setFromWarehouseId(v); setLines((ls) => ls.map((l) => (l.amountTouched ? l : recompute({ ...l, unitPrice: '' })))) }}
                                  items={factoryPicks} />
               </div>
             </li>
@@ -773,18 +824,25 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           </li>
         </ul>
 
-        <ul className="ec-tabs" style={{ marginTop: 10 }}>
+        {/* 원본 격자 위는 알약이다(2026-10-31 loginad 생산입고I — [생산] 하나). */}
+        <div className="ec-pills mt-[10px] mb-[6px]">
           {TABS.map((t) => (type === 'I' && t === '소모' ? null : (
-            <li key={t} className={`ec-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</li>
+            <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
           )))}
-        </ul>
+        </div>
 
         <div className="ec-toolbar">
           {tab === '생산' ? (
             <>
+              {/* 원본 툴바(2026-10-31 loginad 생산입고I): 찾기(F3) · 정렬 · My품목 · 주문 · 작업지시서 · 전표불러오기 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 */}
+              <GridFindButton tableRef={prodTableRef} />
+              <button type="button" className="ec-btn ec-btn-sm" {...todo('줄 정렬은 아직 없습니다.')}>정렬</button>
               <button type="button" className="ec-btn ec-btn-sm" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => setOrderOpen(true)}>주문</button>
-              <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setWoChecked([]); setWoOpen(true) }}>작업지시서</button>
+              <button type="button" className="ec-btn ec-btn-sm" onClick={() => {
+                if (type !== 'III' && !fromWarehouseId) { setFactoryTip(true); return }
+                setWoChecked([]); setWoOpen(true)
+              }}>작업지시서</button>
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSlipLoadOpen(true)}>전표불러오기</button>
               {type !== 'I' && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void explodeBom()}>BOM풀기</button>}
               {type !== 'I' && <select className="ec-input" value={bomLevel} title="BOM풀기 단계"
@@ -792,6 +850,10 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                   <option value="ONE">1단계</option>
                   <option value="ALL">전체</option>
                 </select>}
+              <button type="button" className="ec-btn ec-btn-sm" {...todo('생산품목 줄의 재고불러오기는 아직 없습니다.')}>재고불러오기</button>
+              <button type="button" className="ec-btn ec-btn-sm" {...todo('바코드로 줄 넣기는 생산입고에 아직 없습니다.')}>바코드</button>
+              <button type="button" className="ec-btn ec-btn-sm" {...todo('전표 단위 바코드 출력은 아직 없습니다.')}>전표 바코드</button>
+              <button type="button" className="ec-btn ec-btn-sm" {...todo('입력 검증은 저장할 때 합니다.')}>검증</button>
               <MyItemsNote note={myItems.note} />
             </>
           ) : (
