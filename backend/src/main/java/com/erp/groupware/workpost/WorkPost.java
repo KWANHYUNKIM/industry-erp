@@ -144,4 +144,12 @@ public class WorkPost extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "kanban_post_id")
     private WorkPost kanbanPost;
+
+    /**
+     * 답글(하위 글)이면 원글 id. 원본 🚗 2. 차량 증빙관리 · 🎧 상담 이력관리 목록은 원글 제목 뒤에 '[1]'(답글 수)을 달고
+     * [모두펼쳐보기] 로 그 아래에 편다(2026-10-30 실측). 답글은 한 단 — 답글에 단 답글도 원글에 붙는다.
+     * 원글은 id 만 든다(업무일지 parent_id 와 같은 방식) — 목록이 이 연결을 따라 지연로딩하지 않게.
+     */
+    @Column(name = "parent_id")
+    private Long parentId;
 }

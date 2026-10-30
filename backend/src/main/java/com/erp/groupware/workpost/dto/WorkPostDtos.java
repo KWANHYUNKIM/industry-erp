@@ -42,7 +42,9 @@ public final class WorkPostDtos {
             @Size(max = 100, message = "프로젝트는 100자까지 넣을 수 있습니다.") String project,
             Long kanbanPostId,
             /** 간판제작 입력 창 [완료일시](원본 처음 값 = 지금, 2026-10-20 실측). 비우면 저장한 때. 다른 게시판은 무시한다. */
-            LocalDateTime completedAt
+            LocalDateTime completedAt,
+            /** View [답글(F8)] — 답글을 달 원글 id. 게시판은 원글을 따른다. 안 주면 본문 글. */
+            Long parentId
     ) {}
 
     /**
@@ -150,7 +152,9 @@ public final class WorkPostDtos {
             String extraFields,
             /** 간판제작 [프로젝트] · [칸반연결](📅 프로젝트 진행현황 칸반 글 id). 다른 게시판은 null. */
             String project,
-            Long kanbanPostId
+            Long kanbanPostId,
+            /** 답글이면 원글 id. 본문 글은 null — 목록은 원글 제목 뒤에 '[답글 수]' 를 달고 [모두펼쳐보기] 로 그 아래에 편다. */
+            Long parentId
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
             var f = p.getAttachment();
@@ -173,7 +177,8 @@ public final class WorkPostDtos {
                     parseLinks(p.getMeetingLinks()),
                     p.getExtraFields(),
                     p.getProject(),
-                    p.getKanbanPost() != null ? p.getKanbanPost().getId() : null);
+                    p.getKanbanPost() != null ? p.getKanbanPost().getId() : null,
+                    p.getParentId());
         }
 
         /** '12,,,15' → [12, null, null, 15]. 빈 글자 · null 이면 빈 목록. */
