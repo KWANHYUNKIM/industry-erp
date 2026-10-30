@@ -379,10 +379,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [kanbanPosts, setKanbanPosts] = useState<WorkPost[]>([])
   const [signPosts, setSignPosts] = useState<WorkPost[]>([])
   const [signLabels, setSignLabels] = useState<BoardLabel[]>([])
-  /** 간판제작 [프로젝트] 코드도움의 프로젝트 마스터. */
+  /** [프로젝트] 코드도움의 프로젝트 마스터 — 간판제작 · 입력항목에 프로젝트가 있는 게시판(개발업무일지 · 현장공사일지). */
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   useEffect(() => {
-    if (board !== 'SIGN') return
+    if (board !== 'SIGN' && !BOARD_CFG[board].extras?.some((x) => x.type === 'project')) return
     api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => setProjects([]))
   }, [board])
   /** View 칸반 판에서 고른 카드 · [카드접기]. */
