@@ -104,6 +104,10 @@ export default function AdjustListPage() {
   function printPicked() {
     const sel = shown.filter((r) => picked.has(r.id))
     if (sel.length === 0) return ecAlert(NO_PICK)
+    printRows(sel)
+  }
+
+  function printRows(sel: StockAdjustment[]) {
     const win = openPrintWindow()
     if (!win) return
     const byNo = new Map<string, StockAdjustment[]>()
@@ -141,10 +145,9 @@ export default function AdjustListPage() {
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="재고조정조회"
-      searchable={false}
+      /* 원본처럼 머리 [입력 후 Enter] · [Search(F3)] — 조건 판은 접어 두고 Search(F3) 로 편다. 판 아래 [검색(F8)] · [다시작성] 은 셸이 단다(2026-10-31 loginad 실측). */
+      onReset={() => { setSort('전체'); setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setEmployee('') }}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setSort('전체'); setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setEmployee('') } },
         { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
         { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
         { label: '인쇄', onClick: printPicked },
@@ -180,6 +183,10 @@ export default function AdjustListPage() {
         </EcCond>
       </ul>
 
+      {/* 원본 표 위 알약 [전체] 하나(2026-10-31 loginad 실측). */}
+      <div className="ec-pills mb-[6px]" role="tablist" aria-label="리스트탭">
+        <button type="button" role="tab" aria-selected className="ec-pill no-ec active">전체</button>
+      </div>
       {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">자료가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -189,18 +196,20 @@ export default function AdjustListPage() {
                      onChange={() => setPicked(allPicked ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
             <th className="text-center">구분</th>
-            <th className="text-center">입력일자</th>
-            <th>창고</th>
-            <th>품목</th>
+            {/* 원본 열 이름(2026-10-31 loginad 실측): 구분 · 일자-No. · 창고명 · 품목명[규격] · 수량 · 담당자명 · 인쇄 */}
+            <th className="text-center">일자-No.</th>
+            <th>창고명</th>
+            <th>품목명[규격]</th>
             <th className="text-right">수량</th>
-            <th>담당자</th>
+            <th>담당자명</th>
+            <th className="w-[54px] text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td className="text-center text-ec-hint whitespace-nowrap">
@@ -215,6 +224,8 @@ export default function AdjustListPage() {
               {/* 원본은 장부 − 실사(늘린 조정이 음수)다 — 우리 증감의 반대 부호. */}
               <td className="text-right">{(-Number(r.quantityChange)).toLocaleString('ko-KR')}</td>
               <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
+              {/* 줄 [인쇄] — 그 전표 한 장을 [인쇄] 와 같은 재고조정전표 미리보기로. */}
+              <td className="text-center"><a className="cursor-pointer" onClick={() => printRows(rows.filter((x) => x.adjustNo === r.adjustNo))}>인쇄</a></td>
             </tr>
           ))}
         </tbody>

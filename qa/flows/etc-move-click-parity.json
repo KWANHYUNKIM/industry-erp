@@ -1,0 +1,63 @@
+{
+  "about": "기타이동 클릭 대조(2026-10-31 loginad 실측 차이 11건 중 화면 몫) — 창고이동조회 제목 · 탭 줄 없음 · 조건(품목 · 기타 · 최종수정자 · 발송여부 · ▾ 펼침) · 열 이름 · [신규(F2)] 가 같은 화면 위 창 '창고이동입력'(전표불러오기 → 메뉴검색), 재고조정조회 · 재고실사조회 · 재고조정진행단계는 머리 Search(F3) · 접힌 조건 판 · 알약 [전체] · 기본 기간 전월+금월(실사 · 진행단계). 자료는 만들지 않는다.",
+  "shots": [
+    {
+      "name": "창고이동조회 — 제목 · 탭 줄 · 조건 · 열 · 신규(F2) 창",
+      "path": "/inventory/transfer",
+      "steps": [
+        "wait:1500",
+        "expect:document.querySelector('.ec-page-title').innerText.trim() === '창고이동조회'",
+        "expect:![...document.querySelectorAll('button')].some((b) => /^자가사용 \\(\\d+\\)/.test(b.textContent.trim()))",
+        "expect:[...document.querySelectorAll('.ec-cond .title')].map((t) => t.innerText.trim()).join('|').startsWith('기준일자|창고|품목|프로젝트|기타|담당자|적요|최종수정자|발송여부')",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.replace(/[▲▼]/g, '').trim()).slice(1).join('|') === '일자-No.|보내는창고명|받는창고명|품목명[규격명]|수량|인쇄'",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '새로고침')",
+        "js:document.querySelector('button[aria-label=\"조건 더 보기\"]').click(); true",
+        "wait:300",
+        "expect:['오더관리번호','최초작성자','최초작성일자','최종작업일자','입력경로','삭제구분'].every((l) => [...document.querySelectorAll('.ec-cond .title')].some((t) => t.innerText.trim() === l))",
+        "click:신규(F2)",
+        "wait:800",
+        "expect:location.pathname === '/inventory/transfer' && /창고이동입력/.test([...document.querySelectorAll('[role=dialog]')].pop().innerText)",
+        "expect:['저장(F8)','저장/전표(F7)','다시 작성','닫기'].every((t) => [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].some((b) => b.textContent.trim() === t))",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '전표불러오기').click(); true",
+        "wait:500",
+        "expect:/메뉴검색/.test([...document.querySelectorAll('[role=dialog]')].pop().innerText)"
+      ]
+    },
+    {
+      "name": "재고조정조회 — Search(F3) · 접힌 조건 판 · 알약 전체 · 열 · 하단 단추",
+      "path": "/inventory/adjust-list",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('.ec-page-head button')].some((b) => b.textContent.trim() === 'Search(F3)') && !!document.querySelector('.ec-page-head input.ec-quick')",
+        "expect:!!document.querySelector('.ec-list-body.conds-closed')",
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.textContent.trim()).join('|') === '전체'",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '|구분|일자-No.|창고명|품목명[규격]|수량|담당자명|인쇄'",
+        "expect:['간편재고조정','단계별재고실사','인쇄','선택삭제','Excel','이력조회'].every((t) => [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === t))",
+        "click:Search(F3)",
+        "wait:400",
+        "expect:!!document.querySelector('.ec-list-body.conds-open') && [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '검색(F8)')"
+      ]
+    },
+    {
+      "name": "재고실사조회 — Search(F3) · 접힌 조건 판 · 알약 전체 · 기본 기간 전월+금월",
+      "path": "/inventory/stocktake-list",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('.ec-page-head button')].some((b) => b.textContent.trim() === 'Search(F3)') && !!document.querySelector('.ec-list-body.conds-closed')",
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.textContent.trim()).join('|') === '전체'",
+        "expect:(() => { const t = new Date(); const p = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const v = [...document.querySelectorAll('.ec-cond input[type=date]')].map((i) => i.value); return v[0] === p(new Date(t.getFullYear(), t.getMonth() - 1, 1)) && v[1] === p(new Date(t.getFullYear(), t.getMonth() + 1, 0)) })()"
+      ]
+    },
+    {
+      "name": "재고조정진행단계 — Search(F3) · 접힌 조건 판 · 알약 전체 · 기본 기간 전월+금월 · 이력 열",
+      "path": "/inventory/staged-progress",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('.ec-page-head button')].some((b) => b.textContent.trim() === 'Search(F3)') && !!document.querySelector('.ec-list-body.conds-closed')",
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.textContent.trim()).join('|') === '전체'",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '실사전표|담당자|품목|진행단계|창고명|장부수량|실사수량|차이|이력'",
+        "expect:(() => { const t = new Date(); const p = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const v = [...document.querySelectorAll('.ec-cond input[type=date]')].map((i) => i.value); return v[0] === p(new Date(t.getFullYear(), t.getMonth() - 1, 1)) && v[1] === p(new Date(t.getFullYear(), t.getMonth() + 1, 0)) })()"
+      ]
+    }
+  ]
+}

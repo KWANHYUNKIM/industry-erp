@@ -50,7 +50,8 @@ interface Row {
 
 export default function StagedProgressPage() {
   const pickers = useCondPickers(['warehouses', 'items', 'employees'])
-  const init = periodOf('금년')!
+  /* 기본 기간 — 2026-10-31 loginad 실측 2026/09/01 ~ 10/31(전월+금월). 10-03 loginaa 사본은 금년이었다. */
+  const init = periodOf('전월+금월')!
   /* 원본 [간편재고조정] — 품목 × 창고 재고 표에서 실사수량을 넣는 창(SimpleAdjustDialog). */
   const [simpleOpen, setSimpleOpen] = useState(false)
   /* 원본 [재고조정] — 단계별재고조정 창(StagedAdjustDialog). */
@@ -151,10 +152,10 @@ export default function StagedProgressPage() {
   return (
     <EcListShell
       title="재고조정진행단계"
-      searchable={false}
+      /* 원본처럼 머리 [입력 후 Enter] · [Search(F3)] — 조건 판은 접어 두고 Search(F3) 로 편다. 판 아래 [검색(F8)] · [다시작성] 은 셸이 단다(2026-10-31 loginad 실측). */
+      onSearch={load}
+      onReset={() => { setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson(''); setAdjusted('전체') }}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson(''); setAdjusted('전체') } },
         /* 원본 버튼줄 간편재고조정 · 단계별재고실사 · 재고조정(2026-10-12 실측). [재고조정]은 단계별재고조정 창을 연다(2026-10-13). */
         { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
         { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
@@ -193,6 +194,10 @@ export default function StagedProgressPage() {
         </EcCond>
       </ul>
 
+      {/* 원본 표 위 알약 [전체] 하나(2026-10-31 loginad 실측). */}
+      <div className="ec-pills mb-[6px]" role="tablist" aria-label="리스트탭">
+        <button type="button" role="tab" aria-selected className="ec-pill no-ec active">전체</button>
+      </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -204,13 +209,15 @@ export default function StagedProgressPage() {
             <th className="text-right">장부수량</th>
             <th className="text-right">실사수량</th>
             <th className="text-right">차이</th>
+            {/* 원본 [이력] 열 — 전표 변경 이력 창인데 우리는 실사 이력을 따로 남기지 않아 칸만 둔다. */}
+            <th className="text-center">이력</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.key}>
               <td className="text-center">{dateText(r.date)}</td>
@@ -237,6 +244,7 @@ export default function StagedProgressPage() {
               <td className="text-right">{num(r.book)}</td>
               <td className="text-right">{num(r.actual)}</td>
               <td className="text-right">{num(r.diff)}</td>
+              <td className="text-center" />
             </tr>
           ))}
         </tbody>

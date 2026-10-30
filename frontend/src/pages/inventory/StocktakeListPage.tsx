@@ -35,7 +35,8 @@ interface Line {
 /**
  * 재고 I &gt; 기타이동 &gt; 재고조정 &gt; <b>재고실사조회</b>(E040613) — 2026-10-03 loginaa 실측(빈 판).
  *
- * <p>조건: 구분(<b>전체</b> | 간편 | 단계별) · 기준일자(구간, 기본 <b>차월</b> — 다음 달 1일 ~ 말일, 빠른선택 끝에 전월+금월 · 종료일 · 차월) ·
+ * <p>조건: 구분(<b>전체</b> | 간편 | 단계별) · 기준일자(구간, 기본 <b>전월+금월</b> — 2026-10-31 loginad 실측 2026/09/01 ~ 10/31.
+ * 10-03 loginaa 사본은 차월이었다. 빠른선택 끝에 전월+금월 · 종료일 · 차월) ·
  * 창고 · 품목 · 담당자. 열: 구분 · 입력일자 · 창고명 · 담당자 · 품목명[규격명] · 수량 · 조정전표.
  *
  * <p>간편 = 간편재고조정이 남긴 <b>실사</b>(stocktakes) — 수량은 실사수량, 조정전표는 그때 만든 재고조정.
@@ -48,7 +49,7 @@ export default function StocktakeListPage() {
   const pickers = useCondPickers(['warehouses', 'items', 'employees'])
   /* 재고조정진행단계 [실사 › 조회] 는 그 실사 전표 날짜로 걸러 연다(2026-10-28 원본 실측). */
   const opened = useLocation().state as { from?: string; to?: string } | null
-  const init = opened?.from && opened?.to ? { from: opened.from, to: opened.to } : periodOf('차월')!
+  const init = opened?.from && opened?.to ? { from: opened.from, to: opened.to } : periodOf('전월+금월')!
   /* 원본 [간편재고조정] — 품목 × 창고 재고 표에서 실사수량을 넣는 창(SimpleAdjustDialog). */
   const [simpleOpen, setSimpleOpen] = useState(false)
   const [sort, setSort] = useState<'전체' | '간편' | '단계별'>('전체')
@@ -149,10 +150,9 @@ export default function StocktakeListPage() {
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="재고실사조회"
-      searchable={false}
+      /* 원본처럼 머리 [입력 후 Enter] · [Search(F3)] — 조건 판은 접어 두고 Search(F3) 로 편다. 판 아래 [검색(F8)] · [다시작성] 은 셸이 단다(2026-10-31 loginad 실측). */
+      onReset={() => { setSort('전체'); setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson('') }}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setSort('전체'); setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson('') } },
         /* 원본 버튼줄(2026-10-21 실측): 간편재고조정 · 단계별재고실사 · 선택삭제 · Excel · 이력조회 — 이력조회는 모양만. */
         { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
         { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
@@ -189,6 +189,10 @@ export default function StocktakeListPage() {
         </EcCond>
       </ul>
 
+      {/* 원본 표 위 알약 [전체] 하나(2026-10-31 loginad 실측). */}
+      <div className="ec-pills mb-[6px]" role="tablist" aria-label="리스트탭">
+        <button type="button" role="tab" aria-selected className="ec-pill no-ec active">전체</button>
+      </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>

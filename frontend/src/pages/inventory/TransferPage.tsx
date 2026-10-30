@@ -10,7 +10,8 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
-import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { INQUIRY_PICKS, QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcIcon from '../../components/ui/EcIcon'
 import EcBarChart from '../../components/EcBarChart'
 import NumCheck from '../../components/NumCheck'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
@@ -34,14 +35,27 @@ const TAB_TYPE: Record<Exclude<Tab, '창고이동'>, StockAdjustmentType> = {
  * 원본 기타이동현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
  * 우리는 기간 칸이 <b>아예 없어서</b> 이동·조정이 쌓이면 몇 해치가 한 표에 쏟아졌다.
  */
+/*
+ * 원본 창고이동조회(E040502)는 <b>최근30일(+1개월)</b>로 열린다(2026-10-31 loginad 실측 2026/10/01 ~ 2026/11/30 ·
+ * qa/fixtures/ecount-period-default.json). 기타이동 탭 화면(?tab=…)만 예전 금월(~오늘)을 쓴다.
+ */
 const initP = periodOf('금월(~오늘)')!
+const transferInitP = periodOf('최근30일(+1개월)')!
 
 export default function TransferPage() {
-  /* 재고조정조회의 [간편재고조정] 이 ?tab=재고조정 으로 연다. */
+  /* 재고조정조회의 [간편재고조정] 이 ?tab=재고조정 으로 열던 예전 기타이동 탭 화면. */
   const [params] = useSearchParams()
-  const [tab, setTab] = useState<Tab>(() => (TABS as readonly string[]).includes(params.get('tab') ?? '') ? params.get('tab') as Tab : '창고이동')
-  const [from, setFrom] = useState(initP.from)
-  const [to, setTo] = useState(initP.to)
+  /*
+   * 원본 메뉴 [창고이동조회] 는 제목 '창고이동조회' 에 <b>탭 줄이 없다</b>(2026-10-31 loginad 실측 — 알약 전체 · 결재중 · 미확인 · 확인만).
+   * 탭 줄(창고이동 · 자가사용 · … · 재고조정)은 ?tab= 으로 연 예전 기타이동 화면에만 남긴다(자가사용 · 불량처리는 따로 된 조회 화면이 있다).
+   */
+  const legacyTabs = (TABS as readonly string[]).includes(params.get('tab') ?? '')
+  const [tab, setTab] = useState<Tab>(() => legacyTabs ? params.get('tab') as Tab : '창고이동')
+  const [from, setFrom] = useState(legacyTabs ? initP.from : transferInitP.from)
+  const [to, setTo] = useState(legacyTabs ? initP.to : transferInitP.to)
+  /* 원본 조건 [품목] · ▾ 펼침(오더관리번호 …). */
+  const [itemCond, setItemCond] = useState('')
+  const [moreConds, setMoreConds] = useState(false)
   const [transfers, setTransfers] = useState<StockTransfer[]>([])
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -59,7 +73,7 @@ export default function TransferPage() {
   /* 원본 기타이동현황 조건 차례: 창고 · <b>프로젝트</b> · 품목 · <b>담당자</b> · 적요. */
   const [projCond, setProjCond] = useState('')
   const [empCond, setEmpCond] = useState('')
-  const pickers = useCondPickers(['warehouses'])
+  const pickers = useCondPickers(['warehouses', 'items'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   /*
@@ -222,6 +236,7 @@ export default function TransferPage() {
   const shownTransfers = transfers
     .filter((r) => (!from || r.transferDate >= from) && (!to || r.transferDate <= to))
     .filter((r) => !whCond || String(r.fromWarehouseId) === whCond || String(r.toWarehouseId) === whCond)
+    .filter((r) => !itemCond || String(r.itemId) === itemCond)
     .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !empCond || empName(r.employeeId) === empCond)
     .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond))
@@ -272,13 +287,15 @@ export default function TransferPage() {
 
   return (
     <EcListShell
-      title="기타이동"
+      title={legacyTabs ? '기타이동' : '창고이동조회'}
       search={keyword}
       onSearchChange={setKeyword}
-      newLabel={showForm && tab !== '창고이동' ? '입력닫기' : `${tab} 등록(F2)`}
-      onNew={() => { if (tab === '창고이동') navigate('/inventory/transfer-entry'); else { setEditSlip(null); setShowForm(true) } }}
+      /* 원본 창고이동조회 [신규(F2)] 는 같은 화면 위에 창 '창고이동입력' 을 띄운다(2026-10-31 loginad 실측) —
+         메뉴 [창고이동입력] 은 따로 된 입력 화면(/inventory/transfer-entry) 그대로. */
+      newLabel={!legacyTabs ? '신규(F2)' : showForm && tab !== '창고이동' ? '입력닫기' : `${tab} 등록(F2)`}
+      onNew={() => { setEditSlip(null); setCopying(false); setShowForm(true) }}
       actions={[
-        { label: '새로고침', onClick: load },
+        ...(legacyTabs ? [{ label: '새로고침', onClick: load }] : []),
         /* 원본 창고이동조회 버튼줄(2026-10-21 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 전자결재 · 선택삭제 · Excel · 이력조회.
            바깥 연동 · 단계가 없는 전표라 Email · 진행상태변경 · 보내기 · 바코드(품목) · 전자결재 · 이력조회 는 모양만. */
         ...(tab === '창고이동' ? [{ label: 'Email' }, { label: '진행상태변경', selected: picked.size }, { label: '보내기' }] : []),
@@ -289,7 +306,7 @@ export default function TransferPage() {
         ...(tab === '창고이동' ? [{ label: '이력조회' }] : []),
       ]}
     >
-      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
+      {legacyTabs && <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
           <button key={t} onClick={() => switchTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
@@ -297,7 +314,7 @@ export default function TransferPage() {
             fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({count(t)})</button>
         ))}
-      </div>
+      </div>}
 
       {/* 원본 조건 차례: <b>창고</b> · 프로젝트 · 품목 · 담당자 · 적요 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -305,7 +322,7 @@ export default function TransferPage() {
         <EcCond label="기준일자">
           <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
-            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+            <EcPeriodPicks labels={legacyTabs ? INQUIRY_PICKS : QUOTATION_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -313,11 +330,22 @@ export default function TransferPage() {
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={whCond} onChange={setWhCond} items={pickers.warehouses} />
         </EcCond>
+        {!legacyTabs && (
+          <EcCond label="품목" pick>
+            <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체" value={itemCond} onChange={setItemCond} items={pickers.items} />
+          </EcCond>
+        )}
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond}
                            items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
+        {/* 원본 [기타] ☐수정일자순 — 우리 전표에 수정일자를 따로 두지 않아 자리만(거르지 · 줄 세우지 않음). */}
+        {!legacyTabs && (
+          <EcCond label="기타">
+            <label className="inline-flex items-center gap-[3px] text-[12.5px]"><input type="checkbox" defaultChecked={false} /> 수정일자순</label>
+          </EcCond>
+        )}
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
                            value={empCond} onChange={setEmpCond}
@@ -328,14 +356,46 @@ export default function TransferPage() {
           <input className="ec-input" value={reasonCond} placeholder="적요"
                  onChange={(e) => setReasonCond(e.target.value)} style={{ width: 170 }} />
         </EcCond>
-        <EcCond label="데이터 보기형식">
+        {/*
+         * 원본 [적요] 다음 칸: 최종수정자 · 발송여부, ▾ 로 펼치면 오더관리번호 · 최초작성자 · 최초작성일자 · 최종작업일자 · 입력경로 · 삭제구분
+         * (2026-10-31 loginad 실측). 우리 창고이동 전표에 그 자료가 없어 <b>자리만</b> 둔다 — 거르지 않는다.
+         */}
+        {!legacyTabs && <>
+          <EcCond label="최종수정자">
+            <input className="ec-input w-[170px]" defaultValue="" aria-label="최종수정자" />
+          </EcCond>
+          <EcCond label="발송여부">
+            {(['전체', '미발송', '발송'] as const).map((v) => (
+              <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+                <input type="radio" name="transfer-sent" defaultChecked={v === '전체'} /> {v}
+              </label>
+            ))}
+          </EcCond>
+          <li className="full">
+            <button type="button" className="ec-btn ec-btn-sm" aria-expanded={moreConds} aria-label="조건 더 보기"
+                    onClick={() => setMoreConds((v) => !v)}><EcIcon name={moreConds ? 'chevron-up' : 'chevron-down'} size={12} /></button>
+          </li>
+          {moreConds && <>
+            <EcCond label="오더관리번호"><input className="ec-input w-[170px]" defaultValue="" aria-label="오더관리번호" /></EcCond>
+            <EcCond label="최초작성자"><input className="ec-input w-[170px]" defaultValue="" aria-label="최초작성자" /></EcCond>
+            <EcCond label="최초작성일자"><input className="ec-input w-[170px]" defaultValue="" aria-label="최초작성일자" /></EcCond>
+            <EcCond label="최종작업일자"><input className="ec-input w-[170px]" defaultValue="" aria-label="최종작업일자" /></EcCond>
+            <EcCond label="입력경로">
+              <select className="ec-input w-[170px]" defaultValue="" aria-label="입력경로"><option value="">전체</option></select>
+            </EcCond>
+            <EcCond label="삭제구분">
+              <select className="ec-input w-[170px]" defaultValue="" aria-label="삭제구분"><option value="">전체</option></select>
+            </EcCond>
+          </>}
+        </>}
+        {legacyTabs && <EcCond label="데이터 보기형식">
           <div className="ec-pills">
             {(['표', '그래프'] as const).map((v) => (
               <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
                       onClick={() => setView(v)}>{v}</button>
             ))}
           </div>
-        </EcCond>
+        </EcCond>}
       </ul>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -386,10 +446,10 @@ export default function TransferPage() {
                 <NumCheck head no="" label="전체 선택" on={transferSort.sorted.length > 0 && transferSort.sorted.every((r) => picked.has(r.transferNo))}
                           onChange={(v) => setPicked(v ? new Set(transferSort.sorted.map((r) => r.transferNo)) : new Set())} />
               </th>
-              <th className="w-[130px] cursor-pointer" onClick={() => transferSort.toggle('일자')}>이동번호 {transferSort.mark('일자')}</th>
+              <th className="w-[130px] cursor-pointer" onClick={() => transferSort.toggle('일자')}>일자-No. {transferSort.mark('일자')}</th>
               <th className="w-[120px]">보내는창고명</th>
               <th className="w-[120px]">받는창고명</th>
-              <th className="cursor-pointer" onClick={() => transferSort.toggle('품목명')}>품목 {transferSort.mark('품목명')}</th>
+              <th className="cursor-pointer" onClick={() => transferSort.toggle('품목명')}>품목명[규격명] {transferSort.mark('품목명')}</th>
               <th className="w-[90px] text-right">수량</th>
               <th className="w-[54px] text-center">인쇄</th>
             </tr>

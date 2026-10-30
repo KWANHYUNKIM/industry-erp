@@ -57,7 +57,7 @@
       "path": "/inventory/transfer",
       "steps": [
         "wait:1000",
-        "js:const b=[...document.querySelectorAll('button')].find(b=>/등록\\(F2\\)$/.test(b.textContent.trim())); if(b) b.click(); !!b",
+        "js:const b=[...document.querySelectorAll('button')].find(b=>/^신규\\(F2\\)$|등록\\(F2\\)$/.test(b.textContent.trim())); if(b) b.click(); !!b",
         "wait:500",
         "expect:[...document.querySelectorAll('.ec-toolbar button')].map(b=>b.textContent.trim()).join(',').includes('My품목,주문,구매,생산,발주요청,재고불러오기')"
       ]

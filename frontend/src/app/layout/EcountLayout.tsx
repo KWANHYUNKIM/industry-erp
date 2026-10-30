@@ -281,16 +281,17 @@ const MENU: TopMenu[] = [
           },
         ],
       },
-      /* 원본 기타이동 탭(2026-10-20 loginaa 실측): 창고이동 · 자가사용 · 불량처리 · 재고조정 · 기타이동현황 다섯 묶음.
+      /* 원본 기타이동 탭(2026-10-20 loginaa 실측): 창고이동 · 자가사용 · 불량처리 · 재고조정 네 묶음(10-31 loginad 실측 — 기타이동현황은 출력물에만).
          창고이동조회는 기타이동 화면(창고이동 탭)이, 창고이동입력은 따로 있는 입력 화면이 맡는다(원본 — 수정만 창 '창고이동수정'). */
-      { label: '기타이동', home: '/inventory/transfer', open: ['기타이동현황'], nodes: [
+      { label: '기타이동', home: '/inventory/transfer', open: ['창고이동'], nodes: [
         { label: '창고이동', children: [{ label: '창고이동조회', to: '/inventory/transfer' }, { label: '창고이동입력', to: '/inventory/transfer-entry' }, { label: '창고이동현황', to: '/inventory/transfer-status' }] },
         /* 원본 기타이동 탭의 [자가사용] 묶음 — 조회 · 입력 · 현황(2026-10-12 실측). 입력은 예전엔 기타이동 화면의 탭 속 창뿐이었다. */
         { label: '자가사용', children: [{ label: '자가사용조회', to: '/inventory/self-use' }, { label: '자가사용입력', to: '/inventory/self-use-input' }, { label: '자가사용현황', to: '/inventory/self-use-status' }] },
         { label: '불량처리', children: [{ label: '불량처리조회', to: '/inventory/defect' }, { label: '불량처리입력', to: '/inventory/defect-input' }, { label: '불량처리현황', to: '/inventory/defect-status' }] },
         /* 원본 [재고조정] 묶음 차례. 단계별재고실사 · 단계별재고조정은 원본처럼 재고조정진행단계의 버튼으로 연다. */
-        { label: '재고조정', children: [{ label: '재고조정진행단계', to: '/inventory/staged-progress' }, { label: '재고실사조회', to: '/inventory/stocktake-list' }, { label: '재고조정조회', to: '/inventory/adjust-list' }, { label: '재고실사현황', to: '/inventory/stocktake-status' }, { label: '재고조정현황', to: '/inventory/adjust-status' }] },
-        { label: '기타이동현황', children: [{ label: '대체사용현황', to: '/inventory/substitute-status' }, { label: '폐기현황', to: '/inventory/disposal-status' }, { label: '불량률파악보고서', to: '/quality/defect-report' }] }] },
+        { label: '재고조정', children: [{ label: '재고조정진행단계', to: '/inventory/staged-progress' }, { label: '재고실사조회', to: '/inventory/stocktake-list' }, { label: '재고조정조회', to: '/inventory/adjust-list' }, { label: '재고실사현황', to: '/inventory/stocktake-status' }, { label: '재고조정현황', to: '/inventory/adjust-status' }] }] },
+      /* 2026-10-31 loginad 실측: 기타이동 왼쪽 메뉴는 창고이동 · 자가사용 · 불량처리 · 재고조정 넷뿐이다 — 대체사용현황 · 폐기현황 ·
+         불량률파악보고서는 출력물 › 기타이동현황에만 있다(아래). 예전 [기타이동현황] 묶음은 뺐다. */
       /* 원본 쇼핑몰관리 탭 = [기초등록] 쇼핑몰등록 · 쇼핑몰품목코드연결 + [주문관리] 일곱 화면(2026-10-20 실측). */
       { label: '쇼핑몰관리', open: ['주문관리'], nodes: [
         { label: '기초등록', children: [{ label: '쇼핑몰등록', to: '/sales/mall-accounts' }, { label: '쇼핑몰품목코드연결', to: '/sales/mall-item-mappings' }] },

@@ -13,6 +13,8 @@
         "js:window.__row = () => { const s=JSON.parse(sessionStorage.getItem('stk')); const dn=s.date.replace(/-/g,'/')+' -'+Number(s.no.split('-').pop()); return [...document.querySelectorAll('tbody tr')].find((t)=>t.cells.length===8&&t.cells[1].innerText.trim()==='간편'&&t.cells[2].innerText.trim()===dn) }; true",
         "expect:(()=>{const s=JSON.parse(sessionStorage.getItem('stk'));const r=window.__row();return r&&r.cells[7].innerText.trim()===s.date.replace(/-/g,'/')+' -'+Number(s.adjNo.split('-').pop())})()",
         "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk'));return (await window.__api('DELETE','/stock-adjustments/'+s.adj)).status})()",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Search(F3)')?.click(); true",
+        "wait:400",
         "click:검색(F8)",
         "wait:1200",
         "expect:(()=>{const r=window.__row();return r&&r.cells[7].innerText.trim()===''})()",

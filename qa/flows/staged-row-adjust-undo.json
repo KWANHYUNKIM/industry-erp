@@ -23,6 +23,8 @@
         "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find(t=>t.innerText.includes('QA재고1-실사'));return tr.cells[6].innerText.trim()==='5'&&tr.cells[7].innerText.trim()!==''})()",
         "js:(async()=>(await window.__api('DELETE','/stock-adjustments/'+sessionStorage.getItem('sra-adj'))).status)()",
         "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('sra'));const g=(await window.__api('GET','/staged-adjustments/slips/'+encodeURIComponent(s.slip))).body.lines[0];return g.status==='REQUESTED'&&g.adjustmentNo===null&&g.handler===null})()",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Search(F3)')?.click(); true",
+        "wait:400",
         "click:검색(F8)",
         "wait:1200",
         "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find(t=>t.innerText.includes('QA재고1-실사'));return !!tr&&tr.cells[5].innerText.trim()===''&&tr.cells[7].innerText.trim()===''})()",

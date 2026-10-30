@@ -3,7 +3,7 @@
   "shots": [
     {
       "name": "폐기 — QA창고의 QA원자재 1개를 폐기하면 번호와 함께 '폐기 완료', 재고가 1 줄고, 목록의 [삭제]로 지우면 돌아온다(10회차까지 지울 길이 없었다)",
-      "path": "/inventory/transfer",
+      "path": "/inventory/transfer?tab=폐기",
       "steps": [
         "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const x=d.find((r)=>r.itemCode==='QA-MAT'&&r.warehouseName==='QA창고');sessionStorage.setItem('qaD0',String(x?x.quantity:0));return true})",
         "click:폐기",
@@ -24,15 +24,15 @@
       ]
     },
     {
-      "name": "창고이동입력 — 보내는창고 · 받는창고를 같게 하면 그 말을 입력 화면 안에(15회차까지 창 뒤 · 2026-10-30 창에서 화면으로)",
+      "name": "창고이동조회 [신규(F2)] — 같은 화면 위 창 '창고이동입력'(2026-10-31 loginad 실측), 보내는창고 · 받는창고를 같게 하면 그 말을 창 안에",
       "path": "/inventory/transfer",
       "steps": [
         "wait:1500",
-        "click:창고이동 등록",
+        "click:신규(F2)",
         "wait:800",
-        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const d = () => document.querySelector('.ec-slip'); const code = async (n, v) => { const el = d().querySelectorAll('input.ec-input.code')[n]; el.focus(); set(el, v); await W(150); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await W(300) }; /* 코드칸 차례: 담당자 · 보내는창고 · 받는창고 · 프로젝트 · 품목… */ await code(1, 'QA-WH2'); await code(2, 'QA-WH2'); await code(4, 'QA-MAT'); set(d().querySelector('input[aria-label=\"1번째 줄 수량\"]'), '1'); await W(200); return true })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const d = () => [...document.querySelectorAll('[role=dialog]')].pop(); const code = async (n, v) => { const el = d().querySelectorAll('input.ec-input.code')[n]; el.focus(); set(el, v); await W(150); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await W(300) }; /* 코드칸 차례: 담당자 · 보내는창고 · 받는창고 · 프로젝트 · 품목… */ await code(1, 'QA-WH2'); await code(2, 'QA-WH2'); await code(4, 'QA-MAT'); set(d().querySelector('input[aria-label=\"1번째 줄 수량\"]'), '1'); await W(200); return true })()",
         "click:저장(F8)",
-        "expect:location.pathname === '/inventory/transfer-entry' && document.querySelector('.ec-slip')?.innerText.includes('보내는창고와 받는창고가 같을 수 없습니다.')"
+        "expect:location.pathname === '/inventory/transfer' && /창고이동입력/.test([...document.querySelectorAll('[role=dialog]')].pop()?.innerText ?? '') && [...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('보내는창고와 받는창고가 같을 수 없습니다.')"
       ]
     }
   ]
