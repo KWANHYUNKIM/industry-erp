@@ -224,9 +224,9 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   // 🔹 이카운트 AI 활용 예시 🔹 (E200188): 게시글번호 · 제목 · 작성자명 · 첨부 · 조회, 알약 진행중 · 완료, 기본 기간 최근 1년, 라벨 없음.
   AI_GUIDE: { ...SAMPLE, period: 'yearBack', stages: null, labels: false, cols: ['no', 'title', 'writer'] },
   // 🏗️ 현장공사일지 (E200176): 게시글번호 · 현장명 · 제목 · 작성자명 · 전달자 · 공정 흐름. 입력 창 [공정 흐름] 처음 값 '측량'.
-  // 공정 이름은 2026-10-30 원본 목록 실측(지반조사 · 측량 · 땅파기(기초굴토) · 가설공사 — 예전 '기초굴토' · '가설' 은 줄여 적은 것).
+  // 공정 이름은 2026-10-30 원본 알약 실측: 지반조사 · 측량 · 기초굴토 · 가설 (글 제목의 '땅파기 (기초굴토)' · '가설공사' 는 제목일 뿐).
   SITE_LOG: {
-    ...SAMPLE, labels: true, stageLabel: '공정 흐름', stages: ['지반조사', '측량', '땅파기(기초굴토)', '가설공사'], defaultStage: '측량',
+    ...SAMPLE, labels: true, stageLabel: '공정 흐름', stages: ['지반조사', '측량', '기초굴토', '가설'], defaultStage: '측량',
     cols: ['no', 'x:현장명', 'title', 'writer', 'forward', 'stage'],
     extras: [{ name: '현장명', type: 'text' }, { name: '거래형1', type: 'post', board: 'SITE_STATUS' }, { name: '프로젝트', type: 'project' }],
   },
