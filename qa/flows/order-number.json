@@ -33,6 +33,7 @@
       "name": "번호를 손으로 넣기(00023_202610 꼴) · 중복은 '이미 등록된 코드입니다.' · 수정 창은 번호를 글자로만 · 지우기",
       "path": "/sales/order-stages",
       "steps": [
+        "allowapi:409: /api/order-numbers",
         "wait:1200",
         "click:신규(F2)",
         "wait:600",
