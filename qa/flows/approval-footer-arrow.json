@@ -1,0 +1,22 @@
+{
+  "about": "내결재관리 · 기안서통합관리 하단 ▲ 두 꼴(원본 2026-10-31) — [보내기 ▲] 한 단추(E Note · 대화방 · 사용자 · 북마크), [인쇄│▲] 갈라진 단추. node qa/shot.mjs qa/flows/approval-footer-arrow.json",
+  "shots": [
+    {
+      "name": "내결재관리 보내기 · 인쇄 ▲",
+      "path": "/groupware/approval/my",
+      "steps": [
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim().startsWith('보내기') && b.getAttribute('aria-haspopup') === 'menu' && !b.closest('.ec-btn-group'))",
+        "expect:!!document.querySelector('.ec-btn-group button[aria-label=\"인쇄 더보기\"]')",
+        "click:보내기",
+        "expect:[...document.querySelectorAll('[role=menuitem]')].map((b) => b.textContent.trim()).join(',') === 'E Note,대화방,사용자,북마크'"
+      ]
+    },
+    {
+      "name": "통합관리 인쇄 ▲",
+      "path": "/groupware/approval/all",
+      "steps": [
+        "expect:!!document.querySelector('.ec-btn-group button[aria-label=\"인쇄 더보기\"]')"
+      ]
+    }
+  ]
+}

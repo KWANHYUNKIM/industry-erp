@@ -19,6 +19,7 @@ import { EcDateRange } from '../../components/ui/EcDateInput'
 import { periodOf } from '../../utils/periods'
 import AppWindow from '../../features/appbar/AppWindow'
 import ApprovalDraftPage from './ApprovalDraftPage'
+import { FooterButton } from '../../components/EcListShell'
 import StampSignModal from '../../features/approval/components/StampSignModal'
 
 /**
@@ -708,7 +709,8 @@ export default function ApprovalListPage({
             <button className="ec-btn" onClick={() => setStampOpen(true)}>My도장/서명</button>
             {/* [보내기] · [결재/검토완료] · [인쇄] 는 [기안중] 알약에는 없다(원본 2026-10-30 — 기안중 → 진행중 으로 옮기면 셋이 생긴다). */}
             {!draftTab && (
-              <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void ecAlert('메일 · 팩스 보내기는 아직 없습니다.') }}>보내기</button>
+              /* 원본 [보내기 ▲] = 한 단추(menuOnly) — 펼침 E Note · 대화방 · 사용자 · 북마크(판매조회와 같음, 2026-10-31 기록). 이을 동작이 없어 '제공하지 않음' 안내. */
+              <FooterButton a={{ label: '보내기', menuOnly: true, menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: () => { if (requireSelection(selected.size)) void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(보내기 › ${l})`) } })) }} />
             )}
             {!draftTab && <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void approveSelected() }}>결재/검토완료</button>}
           </>
@@ -716,7 +718,7 @@ export default function ApprovalListPage({
           <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void deleteSelected() }}>선택삭제</button>
         )}
         <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void changeLabelSelected() }}>라벨변경</button>
-        {!draftTab && bottomActions.includes('인쇄') && <button className="ec-btn" onClick={() => doPrint()}>인쇄</button>}
+        {!draftTab && bottomActions.includes('인쇄') && <FooterButton a={{ label: '인쇄', onClick: () => doPrint(), menu: [{ label: '프린트문제해결', onClick: () => void ecAlert('이 기능은 이 ERP 에서 제공하지 않습니다.\n(프린트문제해결)') }] }} />}
         {bottomActions.includes('Excel') && <button className="ec-btn" onClick={() => { void doExcel() }}>Excel</button>}
       </div>
 
