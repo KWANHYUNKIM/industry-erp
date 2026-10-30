@@ -12,6 +12,7 @@ import com.erp.groupware.workspace.dto.WorkspaceDtos.SearchGroup;
 import com.erp.groupware.workspace.dto.WorkspaceDtos.SearchHit;
 import com.erp.groupware.workspace.dto.WorkspaceDtos.SearchResponse;
 import com.erp.auth.user.UserRepository;
+import com.erp.auth.permissionrequest.PermissionRequestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +56,7 @@ public class WorkspaceService {
     private final BusinessContractService contractService;
     private final UserNoteRepository noteRepository;
     private final UserRepository userRepository;
+    private final PermissionRequestService permissionRequestService;
 
     // ── 통합검색 ──────────────────────────────────────────────────────
 
@@ -117,6 +119,17 @@ public class WorkspaceService {
     @Transactional(readOnly = true)
     public NotificationResponse notifications(String username) {
         List<Notification> list = new ArrayList<>();
+
+        // 권한요청 — 마스터에게만(원본: 마스터로 로그인하면 오른쪽 아래에 권한요청 알림이 뜬다, 영상 1998)
+        User me = userRepository.findByUsername(username).orElse(null);
+        if (me != null && me.isMaster()) {
+            long waiting = permissionRequestService.countPending();
+            if (waiting > 0) {
+                list.add(new Notification("PERMISSION_REQUEST", "INFO", "권한요청",
+                        "승인을 기다리는 권한요청이 " + waiting + "건 있습니다.",
+                        (int) waiting, "/users/permission-requests"));
+            }
+        }
 
         int myApprovals = approvalService.list("pending", username, false).size();
         if (myApprovals > 0) {

@@ -36,6 +36,10 @@ public class ChatMessage extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
+    /** [보기] 단추가 여는 화면(권한요청 알림 → 권한승인대기현황). 사람이 쓴 메시지는 null. */
+    @Column(name = "link_to", length = 200)
+    private String linkTo;
+
     @Column(name = "sent_at", nullable = false)
     private LocalDateTime sentAt;
 
