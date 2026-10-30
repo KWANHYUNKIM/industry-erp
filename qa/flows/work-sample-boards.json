@@ -38,7 +38,7 @@
       "steps": [
         "wait:800",
         "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()).slice(1).join(',') === '게시글번호,현장명,제목,작성자명,전달자,공정 흐름,첨부,조회'",
-        "expect:[...document.querySelectorAll('.ec-pill')].map((p) => p.textContent.trim()).join(',') === '전체,지반조사,측량,기초굴토,가설'"
+        "expect:[...document.querySelectorAll('.ec-pill')].map((p) => p.textContent.trim()).join(',') === '전체,지반조사,측량,땅파기(기초굴토),가설공사'"
       ]
     },
     {

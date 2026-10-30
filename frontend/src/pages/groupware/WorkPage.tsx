@@ -130,7 +130,8 @@ type Col = 'no' | 'dateNo' | 'title' | 'writer' | 'forward' | 'stage' | 'postDat
  */
 type Extra = { name: string; type: 'text' | 'date' | 'range' | 'emp' | 'vehicle' | 'item' | 'partner' | 'project' | 'post' | 'slip'; board?: PostBoardCode; slip?: 'sales' | 'purchase' | 'quotation' }
 /** 원본 차량번호검색 창의 차량(코드 001 ~ 005 · 항목명). */
-const VEHICLES = [['001', '458노4836'], ['002', '981부8492'], ['003', '188마6153'], ['004', '269라2544'], ['005', '356서1147']] as const
+/** 2026-10-30 원본 차량 정보관리 목록 실측: 188머6153(예전 검색창 실측의 '188마' 는 잘못 옮겨 적은 것). */
+const VEHICLES = [['001', '458노4836'], ['002', '981부8492'], ['003', '188머6153'], ['004', '269라2544'], ['005', '356서1147']] as const
 /** 게시판 잇기 창 제목(이모지 + 게시판 이름 + '검색창'). */
 /** 게시판 잇기 창 [신규(F2)] · [리스트] 가 여는 그 게시판 화면(원본은 창 위에 창을 겹쳐 연다 — 우리는 새 탭). */
 const POST_BOARD_PATH: Partial<Record<PostBoardCode, string>> = {
@@ -216,8 +217,9 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   // 🔹 이카운트 AI 활용 예시 🔹 (E200188): 게시글번호 · 제목 · 작성자명 · 첨부 · 조회, 알약 진행중 · 완료, 기본 기간 최근 1년, 라벨 없음.
   AI_GUIDE: { ...SAMPLE, period: 'yearBack', stages: null, labels: false, cols: ['no', 'title', 'writer'] },
   // 🏗️ 현장공사일지 (E200176): 게시글번호 · 현장명 · 제목 · 작성자명 · 전달자 · 공정 흐름. 입력 창 [공정 흐름] 처음 값 '측량'.
+  // 공정 이름은 2026-10-30 원본 목록 실측(지반조사 · 측량 · 땅파기(기초굴토) · 가설공사 — 예전 '기초굴토' · '가설' 은 줄여 적은 것).
   SITE_LOG: {
-    ...SAMPLE, labels: true, stageLabel: '공정 흐름', stages: ['지반조사', '측량', '기초굴토', '가설'], defaultStage: '측량',
+    ...SAMPLE, labels: true, stageLabel: '공정 흐름', stages: ['지반조사', '측량', '땅파기(기초굴토)', '가설공사'], defaultStage: '측량',
     cols: ['no', 'x:현장명', 'title', 'writer', 'forward', 'stage'],
     extras: [{ name: '현장명', type: 'text' }, { name: '거래형1', type: 'post', board: 'SITE_STATUS' }, { name: '프로젝트', type: 'project' }],
   },
@@ -1387,7 +1389,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             <li className="wide">
               <div className="title">{stageLabel}</div>
               <div className="form">
-                <select className="ec-input w-[260px]" value={form.stage || firstStage} onChange={(e) => set('stage', e.target.value)}>
+                <select className="ec-input w-[260px]" aria-label={stageLabel} value={form.stage || firstStage} onChange={(e) => set('stage', e.target.value)}>
                   {cfg.stages!.map((st) => <option key={st} value={st}>{st}</option>)}
                 </select>
               </div>
