@@ -14,6 +14,11 @@ import java.util.Map;
 import com.erp.auth.workpermission.WorkPermissionService;
 import com.erp.auth.workpermission.dto.WorkPermissionDtos.MasterResponse;
 import com.erp.common.MenuPermissionCatalog;
+import com.erp.auth.auth.dto.AuthDtos.MyPasswordRequest;
+import com.erp.auth.auth.dto.AuthDtos.MyProfileRequest;
+import com.erp.auth.auth.dto.AuthDtos.MyProfileResponse;
+import com.erp.auth.user.UserService;
+import com.erp.auth.user.User;
 
 /**
  * 현재 로그인 사용자의 인가 정보. 프론트가 메뉴 노출·라우트 가드에 쓴다.
@@ -25,10 +30,31 @@ public class MeController {
 
     private final UserInputMemoryService memoryService;
     private final WorkPermissionService workPermissionService;
+    private final UserService userService;
 
-    public MeController(UserInputMemoryService memoryService, WorkPermissionService workPermissionService) {
+    public MeController(UserInputMemoryService memoryService, WorkPermissionService workPermissionService,
+                        UserService userService) {
         this.memoryService = memoryService;
         this.workPermissionService = workPermissionService;
+        this.userService = userService;
+    }
+
+    /** 사람 그림 › [개인정보수정] 창 — 본인 것만 읽고 고친다(사용자등록 권한이 없어도 된다). */
+    @GetMapping("/profile")
+    public MyProfileResponse profile(@AuthenticationPrincipal UserPrincipal principal) {
+        User u = userService.getByUsername(principal.getUsername());
+        return new MyProfileResponse(u.getUsername(), u.getName(), u.getEmail());
+    }
+
+    @PutMapping("/profile")
+    public MyProfileResponse updateProfile(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody MyProfileRequest req) {
+        var r = userService.updateOwnProfile(principal.getUsername(), req.name(), req.email());
+        return new MyProfileResponse(r.username(), r.name(), r.email());
+    }
+
+    @PutMapping("/password")
+    public void changePassword(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody MyPasswordRequest req) {
+        userService.changeOwnPassword(principal.getUsername(), req.currentPassword(), req.newPassword());
     }
 
     /** 마지막에 쓴 값 기억(예: 판매입력 머리). 계정마다 서버에 남아 다른 PC 에서도 이어진다. */

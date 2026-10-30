@@ -40,7 +40,7 @@ export const APP_ITEMS: AppItem[] = [
 /** 창으로 뜨는 것 — 제목은 원본 창 제목 */
 type WinKey = 'ai' | 'search' | 'notes' | 'notifications' | 'shortmsg' | 'sms' | 'timeline' | 'bookmark'
 const WIN_TITLE: Record<WinKey, string> = {
-  ai: '업무지원AI', search: '통합검색', notes: 'E Note', notifications: '알림', shortmsg: '쪽지', sms: 'SMS', timeline: '타임라인', bookmark: '북마크',
+  ai: '업무지원AI', search: '도움말', notes: 'E Note', notifications: '알림', shortmsg: '쪽지', sms: 'SMS', timeline: '타임라인', bookmark: '북마크',
 }
 const WIN_PAGE: Partial<Record<WinKey, string>> = { shortmsg: '/groupware/messages' }
 
@@ -48,15 +48,17 @@ const NOTE_SUB: { tab: NoteTab; label: string }[] = [
   { tab: 'todo', label: 'To Do' }, { tab: 'memo', label: 'Memo' }, { tab: 'files', label: '개인파일함' }, { tab: 'images', label: '이미지파일함' },
 ]
 
-/* 스마트지원 메뉴(원본 04) — 공지사항만 우리 화면이 있고, 나머지는 이카운트 고객센터 서비스다 */
+/* 스마트지원 메뉴 — 원본 2026-10-30 loginaa 다시 눌러 본 차례(2열): 전부 이카운트 고객센터 서비스라 우리 ERP 에는 없다(안내만) */
 const SMART: { icon: IconName; label: string; to?: string }[] = [
-  { icon: 'remote', label: '원격지원/상담 신청' }, { icon: 'phone', label: '전화상담' },
-  { icon: 'video', label: '동영상 강좌' }, { icon: 'book', label: '매뉴얼' },
-  { icon: 'megaphone', label: '공지사항', to: '/groupware/notice' }, { icon: 'list', label: '상담내역' },
-  { icon: 'spark', label: '신규기능' }, { icon: 'up', label: '서비스 업그레이드 안내' },
+  { icon: 'video', label: '온라인/동영상 문의' }, { icon: 'phone', label: '전화상담요청' },
+  { icon: 'remote', label: '원격지원' }, { icon: 'video', label: '동영상 강좌' },
+  { icon: 'spark', label: '브라우저 최적화' }, { icon: 'company', label: '방문교육' },
+  { icon: 'list', label: '집체교육' }, { icon: 'userpay', label: '서비스 신청/결제' },
+  { icon: 'gear', label: '정보변경' },
 ]
 
-export const EMAIL_NOTICE = '이카운트 웹메일 서비스를 사용하지 않는 회사입니다.\n\nWebmail 서비스 신청 후 이용 가능합니다.\n자세한 사항은 회사 관리자에게 문의해 주십시오.'
+/* 원본 [Email] 알림 글 그대로(2026-10-30 loginaa 다시 눌러 봄) */
+export const EMAIL_NOTICE = 'IMAP 기술을 적용한 이카운트 Webmail 서비스\n국내 최대용량, 최저가 수준의 가격 (10명 당 5천원, 20GB 제공)\n\nWebmail 서비스 추가 시 이용 가능합니다.\n마스터ID만 신청이 가능합니다. 마스터에게 문의바랍니다.'
 export const USERPAY_NOTICE = 'UserPay 서비스 대상자가 아닙니다.\nUserPay 서비스를 신청하시겠습니까?'
 
 const isDark = () => localStorage.getItem('ec-dark') === 'y'
@@ -183,7 +185,7 @@ export default function AppBar({ companyName, permOnly, onPermOnly }: {
       )}
 
       {win && (
-        <AppWindow title={WIN_TITLE[win]} onClose={() => setWin(null)} popout={WIN_PAGE[win]} front={front === 'win'} onFront={() => setFront('win')}>
+        <AppWindow title={win === 'notes' ? (NOTE_SUB.find((n) => n.tab === noteTab)?.label ?? WIN_TITLE.notes) : WIN_TITLE[win]} onClose={() => setWin(null)} popout={WIN_PAGE[win]} front={front === 'win'} onFront={() => setFront('win')}>
           {win === 'ai' ? <AiWindow />
             : win === 'search' ? <SearchWindow onClose={() => setWin(null)} />
             : win === 'notes' ? <NoteWindow key={noteTab} initialTab={noteTab} onClose={() => setWin(null)} />

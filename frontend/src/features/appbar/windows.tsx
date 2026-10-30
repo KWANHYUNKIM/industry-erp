@@ -32,8 +32,9 @@ export function AiWindow() {
   return (
     <div className="ec-ai">
       <div className="side">
-        <button type="button" className={side === 'custom' ? 'on' : ''} onClick={() => setSide('custom')}>사용자정의 <EcIcon name="caret-down" size={10} glyph="▾" /></button>
-        <button type="button" className={side === 'ecount' ? 'on' : ''} onClick={() => setSide('ecount')}>ECOUNT AI 업무</button>
+        {/* 원본 왼쪽 줄(2026-10-30 다시 눌러 봄): 'AI요약요청 ▾' 묶음 아래 '· ECOUNT AI요약' */}
+        <button type="button" className={side === 'custom' ? 'on' : ''} onClick={() => setSide('custom')}>AI요약요청 <EcIcon name="caret-down" size={10} glyph="▾" /></button>
+        <button type="button" className={side === 'ecount' ? 'on' : ''} onClick={() => setSide('ecount')}>· ECOUNT AI요약</button>
       </div>
       <div className="main">
         {'우리 회사 게시판에 등록된 자료를 기반으로\nAI가 내용을 요약하고 답변을 제공합니다.\n\n대화를 시작할 그룹이나 대화방을 선택해 주세요.'}
@@ -42,18 +43,27 @@ export function AiWindow() {
   )
 }
 
-/* ── 03 통합검색 ──────────────────────────────────────────────── */
+/* ── 03 통합검색 — 원본은 '도움말' 창이다(2026-10-30 loginaa 다시 눌러 봄: 머리 '도움말' · 큰 칸 · 알약 7 · [온라인 문의하기(F2)]) ──
+ * 원본 알약은 도움말 분류다. 우리에게는 도움말 글이 없어 [통합검색] 알약만 우리 자료(메뉴 · 전표 · 게시글 · 품목 · 거래처)를 찾고,
+ * 나머지 분류는 원본이 결과가 없을 때 보이는 안내를 그대로 낸다. */
 const SEARCH_TABS: { label: string; types: string[] | null }[] = [
   { label: '통합검색', types: null },
-  { label: '거래처/품목 열람', types: ['PARTNER', 'ITEM'] },
-  { label: '전표/게시글', types: ['SALES', 'PURCHASE', 'SALES_ORDER'] },
-  { label: '공통양식', types: [] },
-  { label: '거래처 담당자', types: [] },
-  { label: '공유문서함', types: [] },
-  { label: '전표 메모 검색', types: [] },
+  { label: '자주묻는질문 영상', types: [] },
+  { label: '온라인매뉴얼', types: [] },
+  { label: '동영상강좌', types: [] },
+  { label: '거래처중심입력', types: [] },
+  { label: '품목중심입력', types: [] },
+  { label: '전표 바코드 검색', types: [] },
 ]
 const RECENT_KEY = 'ec-recent-search'
 const readRecent = (): string[] => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') } catch { return [] } }
+/* 원본 '검색결과가 없습니다.' 아래 안내 네 줄 */
+const NO_RESULT_TIPS = [
+  '단어의 철자가 정확한지 확인 바랍니다.',
+  '한글을 영어로 혹은 영어를 한글로 입력했는지 확인합니다.',
+  '검색어의 단어 수를 줄이거나, 보다 일반적인 검색어로 다시 검색합니다.',
+  '두 단어 이상의 검색어인 경우, 띄어쓰기를 확인합니다.',
+]
 
 export function SearchWindow({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
@@ -62,17 +72,21 @@ export function SearchWindow({ onClose }: { onClose: () => void }) {
   const [result, setResult] = useState<WorkspaceSearch | null>(null)
   const [error, setError] = useState('')
   const [recent, setRecent] = useState<string[]>(readRecent)
-  const [manage, setManage] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const saveRecent = (next: string[]) => { setRecent(next); localStorage.setItem(RECENT_KEY, JSON.stringify(next)) }
+  const ask = () => void ecAlert('[온라인 문의하기] 는 이카운트 고객센터 서비스입니다.\n이 ERP 에서는 제공하지 않습니다.')
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'F2') { e.preventDefault(); ask() } }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   async function run(word = q) {
     const k = word.trim()
     setError('')
     if (!k) return setError('검색어를 입력하세요.')
     setQ(k)
-    setManage(false)
     saveRecent([k, ...recent.filter((r) => r !== k)].slice(0, 10))
     setBusy(true)
     try {
@@ -87,11 +101,13 @@ export function SearchWindow({ onClose }: { onClose: () => void }) {
 
   const types = SEARCH_TABS[tab].types
   const groups = result ? result.groups.filter((g) => !types || types.includes(g.type)) : []
+  /* 분류 알약은 원본처럼 누르면 바로 그 분류로 찾는다 — 우리에게 없는 분류라 늘 '결과 없음' */
+  const searched = !!result || tab > 0
   return (
     <div className="ec-appwin-panel">
-      <div className="ec-appwin-head"><span className="title">통합검색</span></div>
+      <div className="ec-appwin-head"><span className="title">도움말</span></div>
       <div className="ec-big-search">
-        <input value={q} autoFocus placeholder="검색할 메뉴 · 전표 · 게시글 · 품목 · 거래처를 입력하세요"
+        <input value={q} autoFocus placeholder="궁금한 점이 있다면 도움말을 검색해보세요"
                onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void run() }} />
         <button type="button" aria-label="검색" onClick={() => void run()}><Icon name="search" /></button>
       </div>
@@ -102,19 +118,7 @@ export function SearchWindow({ onClose }: { onClose: () => void }) {
       </div>
       {error && <p className="ec-alert ec-alert-danger">{error}</p>}
       <div className="ec-appwin-scroll">
-        {busy ? <p className="ec-appwin-empty">검색 중…</p> : manage ? (
-          recent.length === 0 ? <p className="ec-appwin-empty">최근 검색어가 없습니다.</p> : (
-            <>
-              {recent.map((r) => (
-                <div key={r} className="ec-appwin-row">
-                  <span onClick={() => void run(r)}>{r}</span>
-                  <button type="button" className="ec-btn ec-btn-sm ml-auto" onClick={() => saveRecent(recent.filter((x) => x !== r))}>삭제</button>
-                </div>
-              ))}
-              <button type="button" className="ec-btn ec-btn-sm" onClick={() => saveRecent([])}>전체삭제</button>
-            </>
-          )
-        ) : !result ? (
+        {busy ? <p className="ec-appwin-empty">검색 중…</p> : !searched ? (
           recent.length > 0 && (
             <div className="flex flex-wrap gap-[4px]">
               <span className="ec-appwin-hint mr-[4px]">최근검색</span>
@@ -122,7 +126,10 @@ export function SearchWindow({ onClose }: { onClose: () => void }) {
             </div>
           )
         ) : groups.length === 0 || groups.every((g) => g.total === 0) ? (
-          <p className="ec-appwin-empty">검색 결과가 없습니다.</p>
+          <div className="ec-search-none">
+            <p className="font-bold mb-[6px]">검색결과가 없습니다.</p>
+            <ul>{NO_RESULT_TIPS.map((t) => <li key={t}>{t}</li>)}</ul>
+          </div>
         ) : groups.filter((g) => g.total > 0).map((g) => (
           <div key={g.type} className="ec-search-group">
             <div className="name">{g.typeName}<span>{g.total}건</span></div>
@@ -137,7 +144,7 @@ export function SearchWindow({ onClose }: { onClose: () => void }) {
         ))}
       </div>
       <div className="ec-appwin-foot">
-        <button type="button" className={`ec-btn${manage ? ' ec-btn-primary' : ''}`} onClick={() => setManage((m) => !m)}>최근검색 관리</button>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={ask}>온라인 문의하기(F2)</button>
       </div>
     </div>
   )

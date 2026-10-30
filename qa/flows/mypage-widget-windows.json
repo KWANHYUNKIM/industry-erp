@@ -7,7 +7,7 @@
       "steps": [
         "js:(async()=>{const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then((r)=>r.json());localStorage.removeItem('mypage-grid-v1');localStorage.removeItem('mypage-widget-settings-v1');const p=await A('POST','/work-posts',{board:'NOTICE',title:'QA-위젯창-'+Date.now(),content:'MyPage 위젯 창 시험',notice:true});sessionStorage.setItem('qa-mypage-post',String(p.id));sessionStorage.setItem('qa-mypage-title',p.title);location.reload();return true})()",
         "wait:3000",
-        "js:(()=>{const w=[...document.querySelectorAll('.ec-wgrid-item')].find((x)=>x.querySelector('.ec-widget-head .name')?.innerText.includes('일정관리'));w.querySelector('button[title=\"새 글\"]').click();return true})()",
+        "js:(()=>{const w=[...document.querySelectorAll('.ec-wgrid-item')].find((x)=>x.querySelector('.ec-widget-head .name')?.innerText.includes('일정관리'));w.querySelector('button[aria-label=\"새 글\"]').click();return true})()",
         "wait:2500",
         "expect:location.pathname === '/' && [...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('일정관리등록'))",
         "js:(()=>{document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true})()",
@@ -24,7 +24,7 @@
         "expect:location.pathname === '/' && [...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('조회자 현황') && d.innerText.includes('미조회자'))",
         "js:(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true})()",
         "wait:1000",
-        "js:(()=>{window.__opened=0;const o=window.open;window.open=(...a)=>{window.__opened++;return null};const w=[...document.querySelectorAll('.ec-wgrid-item')].find((x)=>x.querySelector('.ec-widget-head .name')?.innerText.includes('전자결재'));w.querySelector('button[title=\"새창\"]').click();return true})()",
+        "js:(()=>{window.__opened=0;const o=window.open;window.open=(...a)=>{window.__opened++;return null};const w=[...document.querySelectorAll('.ec-wgrid-item')].find((x)=>x.querySelector('.ec-widget-head .name')?.innerText.includes('전자결재'));w.querySelector('button[aria-label=\"새창\"]').click();return true})()",
         "wait:3000",
         "expect:location.pathname === '/' && window.__opened === 0 && !!document.querySelector('.ec-pagewin') && document.querySelector('.ec-pagewin').innerText.includes('내결재관리')",
         "js:(()=>{document.querySelector('.ec-pagewin .ec-modal-bar button.close').click();return true})()",

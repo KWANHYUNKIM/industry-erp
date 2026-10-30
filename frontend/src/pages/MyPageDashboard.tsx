@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { useAuth } from '../features/auth/AuthContext'
 import { WidgetOpenContext, type WidgetPopup } from '../features/mypage/widgets/actions'
 import PageWindow, { menuLabel } from '../features/mypage/PageWindow'
 import PopupHost from '../features/mypage/PopupHost'
@@ -60,7 +59,6 @@ interface Preview {
 }
 
 export default function MyPageDashboard() {
-  const { user } = useAuth()
   const [stored, setStored] = useState<GridItem[] | null>(loadStored)
   const [pick, setPick] = useState(false)
   const [busy, setBusy] = useState<Set<string>>(new Set())  // 새로고침 중인 위젯 id
@@ -238,12 +236,6 @@ export default function MyPageDashboard() {
 
   return (
     <div>
-      <div className="flex items-center mb-[10px]">
-        <div className="text-[12px] text-ec-label">
-          <b className="text-ec-text text-[14px]">MyPage</b> &nbsp; {user?.name}님, 환영합니다.
-        </div>
-      </div>
-
       <div className="ec-wpage">
         {/* My위젯선택 — 원본처럼 왼쪽에서 밀려 나온다(본문 왼쪽 가장자리 손잡이). 항목을 끌어 격자에 놓거나 눌러서 맨 아래에 더한다(놓인 것은 눌러서 뺀다) */}
         <button type="button" className={`ec-wpick-handle${pick ? ' open' : ''}`} title="My위젯선택" onClick={() => setPick((v) => !v)}>{pick ? '‹' : '›'}</button>

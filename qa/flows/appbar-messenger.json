@@ -1,5 +1,5 @@
 {
-  "about": "오른쪽 앱바 · 메신저 — 원본 2026-10-30 loginaa 실측(.claude/skills/ecount-diff/plans/데이터이관/오른쪽앱바-메신저). 앱바 아이콘 17개가 원본 순서 · 이름(말풍선)대로 서고 [숨김 아이콘] 이 접었다 편다. 통합검색 · 쪽지 · 북마크 창이 원본 제목으로 뜨고, Email 은 웹메일 미신청 안내, 메신저는 '대화방' · '사용자'(부서 묶음) 목록에서 사람을 누르면 1:1 대화 창이 뜬다. 만드는 자료: 1:1 대화방 하나(같은 상대와는 늘 같은 방이라 다시 돌려도 안 쌓인다).",
+  "about": "오른쪽 앱바 · 메신저 — 원본 2026-10-30 loginaa 실측(.claude/skills/ecount-diff/plans/데이터이관/오른쪽앱바-메신저). 앱바 아이콘 17개가 원본 순서 · 이름(말풍선)대로 서고 [숨김 아이콘] 이 접었다 편다. 통합검색(원본 창 제목 '도움말') · 쪽지 · 북마크 창이 원본 제목으로 뜨고, Email 은 원본 Webmail 안내, 메신저는 '대화방' · '사용자'(부서 묶음) 목록에서 사람을 누르면 1:1 대화 창이 뜬다. 만드는 자료: 1:1 대화방 하나(같은 상대와는 늘 같은 방이라 다시 돌려도 안 쌓인다).",
   "shots": [
     {
       "name": "앱바 아이콘 순서 · 말풍선 이름 · 숨김 아이콘",
@@ -23,7 +23,7 @@
         "wait:2500",
         "js:document.querySelector('[data-app=search]').click()",
         "wait:500",
-        "expect:document.querySelector('.ec-appwin .ec-modal-bar .name')?.textContent === '통합검색' && document.querySelectorAll('.ec-appwin .ec-pill').length === 7",
+        "expect:document.querySelector('.ec-appwin .ec-modal-bar .name')?.textContent === '도움말' && document.querySelectorAll('.ec-appwin .ec-pill').length === 7 && document.querySelector('.ec-appwin').textContent.includes('온라인 문의하기(F2)')",
         "js:document.querySelector('.ec-appwin .ec-modal-bar .close').click()",
         "wait:300",
         "js:document.querySelector('[data-app=shortmsg]').click()",
@@ -38,7 +38,7 @@
         "wait:300",
         "js:document.querySelector('[data-app=email]').click()",
         "wait:400",
-        "expect:/웹메일/.test(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
+        "expect:/Webmail 서비스 추가 시 이용 가능합니다/.test(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
         "clicklast:확인",
         "wait:300",
         "expect:!document.querySelector('[role=alertdialog]')"

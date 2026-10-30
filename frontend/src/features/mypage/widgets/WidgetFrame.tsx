@@ -38,9 +38,9 @@ export default function WidgetFrame({ def, title, busy, onWindow, onRefresh, onN
       <div className="ec-widget-head" onPointerDown={onHeadDown}>
         <span className="name">{title}</span>
         <div className="tools" onPointerDown={(e) => e.stopPropagation()}>
-          {ic.window && <button title="새창" disabled={!def.to} onClick={onWindow}>⧉</button>}
+          {ic.window && <button title="이동" aria-label="새창" disabled={!def.to} onClick={onWindow}>⧉</button>}
           {ic.refresh && <button title="새로고침" className={busy ? 'spin' : undefined} onClick={() => { if (!busy) onRefresh() }}>⟳</button>}
-          {ic.new && <button title="새 글" disabled={!def.newTo && !def.pen} onClick={onNew}>✎</button>}
+          {ic.new && <button title="신규" aria-label="새 글" disabled={!def.newTo && !def.pen} onClick={onNew}>✎</button>}
           {ic.setting ? (
             <>
               <button title="옵션" className="ec-widget-grip" onPointerDown={gripDown} onClick={gripClick}>⋮</button>

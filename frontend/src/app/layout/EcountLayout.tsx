@@ -10,6 +10,7 @@ import TableContextMenu from '../../components/TableContextMenu'
 import EcIcon from '../../components/ui/EcIcon'
 import { ecAlert } from '../../components/EcDialog'
 import NoPermissionPage from '../../features/auth/components/NoPermissionPage'
+import UserMenu from '../../features/usermenu/UserMenu'
 
 /** 이카운트 v5 실제 레이아웃 재현:
  *  [최상단 북마크바]
@@ -1321,8 +1322,10 @@ const MENU: TopMenu[] = [
   },
   {
     label: '데이터센터',
+    /* 원본 1단 [데이터센터] → 수집데이터등록(C001401, 2026-10-30 loginaa 클릭 대조) */
+    home: '/datacenter/collect-sources',
     tabs: [
-      { label: '데이터수집', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }, { label: '수집데이터등록', to: '/datacenter/collect-sources' }] },
+      { label: '데이터수집', home: '/datacenter/collect-sources', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }, { label: '수집데이터등록', to: '/datacenter/collect-sources' }] },
       { label: '데이터내보내기', nodes: [{ label: '데이터내보내기', to: '/datacenter/export' }, { label: '의료기기공급내역보고', to: '/datacenter/medical-device-report' }] },
     ],
   },
@@ -1478,7 +1481,6 @@ export default function EcountLayout() {
     else { link.href = link.dataset.defaultHref ?? '/favicon.svg'; if (link.dataset.defaultType) link.type = link.dataset.defaultType }
   }, [logoUrl])
   const [folders, setFolders] = useState<MyFolder[] | null>(null)  // MyPage 나만의 업무 폴더 (사용자별)                 // 쪽지 안 읽은 수
-  const [userOpen, setUserOpen] = useState(false)               // 사용자 동그라미 → 이름·로그아웃
   // 휴대폰·태블릿(≤768px, 원본 실측) — ☰ 메뉴판과 ★ 즐겨찾기 · 앱 모음 펼침
   const [drawer, setDrawer] = useState<{ top: number; tab: number } | null>(null)
   const [mPanel, setMPanel] = useState<'fav' | 'apps' | null>(null)
@@ -1531,6 +1533,8 @@ export default function EcountLayout() {
   const [topIdx, tabIdx] = useMemo(() => resolveActive(here, menuPin, NAV), [here, menuPin, NAV])
   const activeTop = NAV[topIdx]
   const activeTab = activeTop.tabs[tabIdx]
+  /* 첫 화면(위젯) — 원본은 1단 어느 것도 켜지 않고 2단 · 왼쪽 메뉴 없이 위젯만 넓게 편다(2026-10-30 loginaa) */
+  const isHome = location.pathname === '/'
 
   // 권한에 따른 메뉴 노출 판정. 리프는 라우트 권한으로, 상위는 하위가 하나라도 보이면 보인다.
   // 회사관리(/companies)는 본사에서만 노출한다.
@@ -1668,7 +1672,7 @@ export default function EcountLayout() {
 
   // 화면이 하나뿐인 메뉴(MyPage)는 원본처럼 왼쪽 메뉴 없이 본문을 넓게 쓴다
   const leafCount = activeTab.nodes.reduce((n, node) => n + (isGroup(node) ? node.children.length : 1), 0)
-  const showLnb = leafCount > 1
+  const showLnb = leafCount > 1 && !isHome
 
   return (
     <div className="ec-shell">
@@ -1684,7 +1688,7 @@ export default function EcountLayout() {
             onBlur={() => window.setTimeout(() => setMenuQuery(''), 150)}
             onKeyDown={(e) => { if (e.key === 'Enter' && menuMatches[0]) gotoMenu(menuMatches[0].to) }}
           />
-          <button className="ec-chip" onClick={() => { setSitemapIdx(topIdx); setSitemapOpen(true) }}>사이트맵</button>
+          <button className="ec-chip" onClick={() => { setSitemapIdx(isHome ? 0 : topIdx); setSitemapOpen(true) }}>사이트맵</button>
           {menuMatches.length > 0 && (
             <div className="ec-popover" style={{ left: 0, right: 'auto', top: '100%', marginTop: 3, minWidth: 260, maxHeight: 320, overflowY: 'auto', padding: 4 }}>
               {menuMatches.map((x, i) => (
@@ -1702,7 +1706,8 @@ export default function EcountLayout() {
             </div>
           )}
         </div>
-        <span className="ec-bookbar-hint">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다 ★</span>
+        {/* 원본에서 이 글은 회사가 이름을 바꿔 둔 북마크다 — 누르면 품목등록 리스트(E040103)로 간다(2026-10-30 loginaa) */}
+        <NavLink to="/inventory/items" className="ec-bookbar-hint">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다 ★</NavLink>
         {bookmarks.map((b, i) => (
           <NavLink key={b.path + i} to={b.path} className={({ isActive }) => `ec-bookmark${isActive ? ' active' : ''}`}>
             {b.label}
@@ -1731,7 +1736,7 @@ export default function EcountLayout() {
             return (
               <li key={m.label} onMouseEnter={() => setHoverIdx(idx)}>
                 <button
-                  className={`ec-gnb-item${idx === topIdx ? ' active' : ''}`}
+                  className={`ec-gnb-item${idx === topIdx && !isHome ? ' active' : ''}`}
                   onClick={() => {
                     // 원본은 1단마다 처음 여는 화면이 따로 있다(재고 I → 판매조회 · 세무 → 부가세신고서(일반) …) — 그 화면이 든 2단을 켠다.
                     const hi = m.home && canRoute(m.home) ? m.tabs.findIndex((t) => tabLeaves(t).some((l) => l.to === m.home)) : -1
@@ -1747,20 +1752,11 @@ export default function EcountLayout() {
           })}
         </ul>
         {/* 다른 대메뉴에 마우스를 올리면 그 메뉴의 2단을, 아니면 지금 메뉴의 2단을 띄운다 */}
-        {hoverIdx !== null && hoverIdx !== topIdx ? subnav(NAV[hoverIdx], null) : subnav(activeTop, tabIdx)}
+        {hoverIdx !== null && (hoverIdx !== topIdx || isHome) ? subnav(NAV[hoverIdx], null) : isHome ? null : subnav(activeTop, tabIdx)}
 
         <div className="ec-gnb-right">
-          {companyName && <span className="ec-company">{companyName}</span>}
           <button className="ec-m-apps" aria-label="앱 모음" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'apps' ? null : 'apps')) }}>⋮⋮</button>
-          <button className="ec-avatar" title={user?.name} onClick={() => setUserOpen((o) => !o)}><EcIcon name="user" size={16} /></button>
-          {userOpen && (
-            <div className="ec-popover" onMouseLeave={() => setUserOpen(false)}>
-              <div className="font-bold text-ec-text">{user?.name}</div>
-              <div className="text-[11px] text-ec-hint mb-[8px]">{user?.roles.join(', ')}</div>
-              <button className="ec-btn w-full justify-center mb-[4px]" onClick={() => { setUserOpen(false); navigate('/mypage/folders') }}>My Page설정</button>
-              <button className="ec-btn" onClick={logout} style={{ width: '100%', justifyContent: 'center' }}>로그아웃</button>
-            </div>
-          )}
+          <UserMenu name={user?.name} onLogout={logout} />
         </div>
       </div>
 
@@ -1823,96 +1819,50 @@ export default function EcountLayout() {
                 onPermOnly={(on) => { setPermOnly(on); localStorage.setItem('ec-perm-only', on ? 'y' : 'n') }} />
       </div>
 
-      {/* 사이트맵 모달: 좌측 대메뉴 레일 + 선택한 메뉴의 탭 컬럼 */}
+      {/* 사이트맵 — 원본(2026-10-30 loginaa): 화면을 덮는 판, 왼쪽 파란 세로 줄에 1단, 오른쪽에 1단 전부를 차례로
+          (회색 제목 줄 + 2단 열 + 그 아래 묶음 · 화면). 왼쪽을 누르면 그 1단으로 내려간다. 오른쪽 위 ✕ 로 닫는다. */}
       {sitemapOpen && (
-        <div
-          onClick={() => setSitemapOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 80,
-            display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '48px 16px', overflow: 'auto',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ background: '#fff', borderRadius: 5, width: 1040, maxWidth: '96vw', boxShadow: '0 12px 34px rgba(0,0,0,.22)' }}
-          >
-            <div className="py-[12px] px-[16px] border-b border-b-ec-line-soft border-solid flex items-center">
-              <span className="font-extrabold text-[15px] text-ec-text">사이트맵 · 전체 메뉴</span>
-              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setSitemapOpen(false)}>닫기</button>
+        <div className="ec-sitemap-back" onClick={() => setSitemapOpen(false)}>
+          <div className="ec-sitemap" role="dialog" aria-label="사이트맵" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="ec-sitemap-close" aria-label="닫기" onClick={() => setSitemapOpen(false)}><EcIcon name="close" size={14} glyph="✕" /></button>
+            <div className="ec-sitemap-rail">
+              {NAV.map((m, i) => (
+                !topOk(m) ? null :
+                <button key={m.label} type="button" className={i === sitemapIdx ? 'on' : ''}
+                        onClick={() => { setSitemapIdx(i); document.getElementById(`ec-sitemap-${i}`)?.scrollIntoView({ block: 'start' }) }}>
+                  {m.label}
+                </button>
+              ))}
             </div>
-
-            <div className="flex min-h-[380px]">
-              {/* 좌측 대메뉴 레일 */}
-              <div className="w-[168px] shrink-0 border-r border-r-ec-line-soft border-solid py-[8px] px-0 bg-ec-page">
-                {NAV.map((m, i) => (
-                  !topOk(m) ? null :
-                  <button
-                    key={m.label}
-                    onMouseEnter={() => setSitemapIdx(i)}
-                    onClick={() => setSitemapIdx(i)}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
-                      background: i === sitemapIdx ? '#fff' : 'none', border: 0, cursor: 'pointer', fontSize: 13,
-                      color: i === sitemapIdx ? 'var(--ec-blue)' : 'var(--ec-text)',
-                      fontWeight: i === sitemapIdx ? 800 : 400,
-                      borderLeft: i === sitemapIdx ? '3px solid var(--ec-blue)' : '3px solid transparent',
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* 선택한 대메뉴의 탭 → 그룹 → 리프 */}
-              <div style={{
-                flex: 1, padding: 16, display: 'grid', gap: 16, alignContent: 'start',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
-              }}>
-                {NAV[sitemapIdx].tabs.map((tab) => (
-                  !tabOk(tab) ? null :
-                  <div key={tab.label}>
-                    <div style={{ fontWeight: 800, fontSize: 12.5, color: 'var(--ec-blue)', marginBottom: 6, paddingBottom: 4, borderBottom: '2px solid var(--ec-blue-light)' }}>
-                      {tab.label}
-                    </div>
-                    {tab.nodes.map((node) =>
-                      isGroup(node) ? (
-                        node.children.some(leafOk) ? (
-                        <div key={node.label} className="mb-[6px]">
-                          <div className="font-bold text-[11.5px] text-ec-hint mt-[4px] mx-0 mb-[2px]">{node.label}</div>
-                          {node.children.filter(leafOk).map((c) => (
-                            <button
-                              key={c.label} disabled={!c.to} onClick={() => c.to && gotoMenu(c.to)}
-                              style={{
-                                display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px 3px 12px',
-                                fontSize: 12, background: 'none', border: 0, borderRadius: 3,
-                                cursor: c.to ? 'pointer' : 'default', color: c.to ? 'var(--ec-text)' : '#b3b8bf',
-                              }}
-                              onMouseEnter={(e) => { if (c.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
-                            >
-                              {c.label}
-                            </button>
-                          ))}
-                        </div>
-                        ) : null
-                      ) : !leafOk(node) ? null : (
-                        <button
-                          key={node.label} disabled={!node.to} onClick={() => node.to && gotoMenu(node.to)}
-                          style={{
-                            display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px',
-                            fontSize: 12, background: 'none', border: 0, borderRadius: 3,
-                            cursor: node.to ? 'pointer' : 'default', color: node.to ? 'var(--ec-text)' : '#b3b8bf',
-                          }}
-                          onMouseEnter={(e) => { if (node.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
-                        >
-                          {node.label}
-                        </button>
-                      ),
-                    )}
+            <div className="ec-sitemap-body">
+              {NAV.map((m, mi) => (
+                !topOk(m) ? null :
+                <section key={m.label} id={`ec-sitemap-${mi}`}>
+                  <div className="ec-sitemap-top">{m.label}</div>
+                  <div className="ec-sitemap-cols">
+                    {m.tabs.map((tab) => (
+                      !tabOk(tab) ? null :
+                      <div key={tab.label} className="ec-sitemap-col">
+                        <div className="ec-sitemap-tab">{tab.label}</div>
+                        {tab.nodes.map((node) =>
+                          isGroup(node) ? (
+                            node.children.some(leafOk) ? (
+                              <div key={node.label} className="ec-sitemap-group">
+                                <div className="name">{node.label}</div>
+                                {node.children.filter(leafOk).map((c) => (
+                                  <button key={c.label} type="button" disabled={!c.to} onClick={() => c.to && gotoMenu(c.to)}>· {c.label}</button>
+                                ))}
+                              </div>
+                            ) : null
+                          ) : !leafOk(node) ? null : (
+                            <button key={node.label} type="button" className="leaf" disabled={!node.to} onClick={() => node.to && gotoMenu(node.to)}>{node.label}</button>
+                          ),
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </section>
+              ))}
             </div>
           </div>
         </div>
