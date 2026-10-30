@@ -289,12 +289,17 @@ export default function WarehousesPage() {
       )}</Modal>
 
       <div className="overflow-x-auto">
-      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
-      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
+      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다.
+          원본은 이 칸이 [Search(F3)] 판 안에 있다(loginad E040102 2026-10-31) — ec-search-conds 로 접어 둔다. */}
+      <div className="ec-search-conds flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>사용구분</span>
-        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
-          <option>전체</option><option>사용</option><option>중단</option>
-        </select>
+        {/* 원본은 ◯전체 ◉사용 ◯사용중단 라디오다. */}
+        {(['전체', '사용', '중단'] as const).map((v) => (
+          <label key={v} className="inline-flex items-center gap-[3px]">
+            <input type="radio" name="wh-use" checked={useCond === v} onChange={() => setUseCond(v)} />
+            {v === '중단' ? '사용중단' : v}
+          </label>
+        ))}
       </div>
 
         <table className="w-full text-left">
@@ -334,7 +339,7 @@ export default function WarehousesPage() {
                   {/* 원본은 코드·이름을 눌러 그 창고를 연다(사본 실측: 두 칸이 링크다). */}
                   <td>
                     <button type="button" onClick={() => openEdit(w)}
-                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
+                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
                       {w.code}
                     </button>
                   </td>

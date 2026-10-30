@@ -1,0 +1,20 @@
+{
+  "about": "창고등록리스트 [사용구분] 은 원본처럼 [Search(F3)] 판 안에 있다(loginad E040102 2026-10-31) — 표 위에 늘 펼쳐져 있던 것. 판에서 [사용구분] 을 바꾸면 목록이 걸러진다. node qa/shot.mjs qa/flows/warehouse-list-search-panel.json",
+  "shots": [
+    {
+      "name": "창고등록리스트 — 사용구분은 접혀 있다가 Search(F3) 로 열린다",
+      "path": "/inventory/warehouses",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const s = [...document.querySelectorAll('span')].find((x) => x.textContent.trim() === '사용구분' && !x.closest('[role=dialog]')); return !s || s.offsetParent === null })()",
+        "click:Search(F3)",
+        "wait:600",
+        "expect:(() => { const s = [...document.querySelectorAll('span')].find((x) => x.textContent.trim() === '사용구분' && !x.closest('[role=dialog]')); return !!s && s.offsetParent !== null })()",
+        "js:[...document.querySelectorAll('.ec-search-conds label')].find((l) => l.textContent.trim() === '전체').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:600",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.textContent.includes('QA-DW'))"
+      ]
+    }
+  ]
+}
