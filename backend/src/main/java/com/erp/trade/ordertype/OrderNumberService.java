@@ -26,27 +26,36 @@ public class OrderNumberService {
                 .map(OrderNumberResponse::from).toList();
     }
 
-    /** 원본 창이 열릴 때 번호 칸에 미리 찍는 다음 번호(00027). */
+    /**
+     * 원본 창이 열릴 때 번호 칸에 미리 찍는 다음 번호(00027). 다섯 자리 숫자 번호만 센다 —
+     * 손으로 넣은 00023_202610 · ABCDE 같은 번호는 차례를 흔들지 않는다.
+     */
     @Transactional(readOnly = true)
     public String nextNo() {
-        String max = orderNumberRepository.findMaxPlainNo();
-        int n = 0;
-        if (max != null) {
-            try {
-                n = Integer.parseInt(max);
-            } catch (NumberFormatException ignored) {
-                n = 0;
-            }
-        }
+        int n = orderNumberRepository.findPlainNos().stream()
+                .filter(no -> no.chars().allMatch(Character::isDigit))
+                .mapToInt(Integer::parseInt).max().orElse(0);
         return String.format("%05d", n + 1);
+    }
+
+    /** 원본 번호 칸 [Fn ▸ 중복확인]. */
+    @Transactional(readOnly = true)
+    public boolean exists(String orderNo) {
+        return orderNo != null && orderNumberRepository.existsByOrderNo(orderNo.trim());
     }
 
     @Transactional
     public OrderNumberResponse create(CreateOrderNumberRequest req) {
         OrderType type = orderTypeRepository.findById(req.orderTypeId())
                 .orElseThrow(() -> ApiException.badRequest("오더관리유형을 찾을 수 없습니다. id=" + req.orderTypeId()));
+        /* 원본(2026-10-30 실측): 신규 창의 번호 칸은 다음 번호가 미리 찍힌 채 고칠 수 있다(00023_202610 처럼).
+           비우면 다음 번호, 이미 있으면 원본 [중복확인] 의 '이미 등록된 코드입니다.' */
+        String no = req.orderNo() == null || req.orderNo().isBlank() ? nextNo() : req.orderNo().trim();
+        if (orderNumberRepository.existsByOrderNo(no)) {
+            throw ApiException.conflict("이미 등록된 코드입니다. (오더관리번호 " + no + ")");
+        }
         OrderNumber o = orderNumberRepository.save(OrderNumber.builder()
-                .orderNo(nextNo())
+                .orderNo(no)
                 .name(req.name().trim())
                 .orderType(type)
                 .createdDate(req.createdDate() != null ? req.createdDate() : LocalDate.now())
