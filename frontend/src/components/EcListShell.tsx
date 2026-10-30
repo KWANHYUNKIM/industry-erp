@@ -63,7 +63,7 @@ function FormPill({ current, up = false }: { current: string; up?: boolean }) {
 }
 
 /** 하단 버튼 하나 — menu 가 있으면 붙은 묶음(.ec-btn-group + ▴). */
-function FooterButton({ a }: { a: BottomAction }) {
+export function FooterButton({ a }: { a: BottomAction }) {
   const [open, setOpen] = useState(false)
   const cls = `ec-btn${a.primary ? ' ec-btn-primary' : ''}`
   if (!a.menu?.length) return <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>

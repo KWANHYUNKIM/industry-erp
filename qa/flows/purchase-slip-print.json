@@ -1,0 +1,61 @@
+{
+  "about": "구매조회 [인쇄] — 원본(loginad E040304 2026-10-31 실측)은 웹페이지 인쇄가 아니라 '구매전표' 인쇄 미리보기 창을 띄운다: '구 매 전 표' · 전표번호 [ 1 / 1 ] · DATE · 구매창고 · 구매처, 품목 격자(일자 · 품목명[규격명] · 수량(단위포함) · 단가 · 공급가액 · 부가세) · 총합계 · 아래 상자(수량 · 공급가액 · VAT · 합계 · 인 수), 아래 줄 [전자결재용 ⌄] [인쇄│▴] [Email│▴] [Excel] [닫기]. 두 줄을 골라 하단 [인쇄] 면 같은 창에 [Page 1/2]. 창 안 [인쇄] 는 전표 종이만 찍는다(body 아래 인쇄용 한 벌). 저장은 하지 않는다 — 시험 구매 하나를 API 로 만들고 끝에 지운다.",
+  "shots": [
+    {
+      "name": "준비 — QA-SUPP · QA-WH · QA-PROD 로 오늘 구매 2 × 100 을 API 로 만든다",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:800",
+        "js:(async()=>{const a=window.__api;const it=(await a('GET','/items')).body.find((i)=>i.code==='QA-PROD');const p=(await a('GET','/partners')).body.find((x)=>x.code==='QA-SUPP');const w=(await a('GET','/warehouses')).body.find((x)=>x.code==='QA-WH');const d=new Date();const today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await a('POST','/purchases',{partnerId:p.id,warehouseId:w.id,purchaseDate:today,taxable:true,remark:'QA전표인쇄',lines:[{itemId:it.id,quantity:2,unitPrice:100}]});if(r.status>=300)return 'POST '+r.status+' '+JSON.stringify(r.body);sessionStorage.setItem('slipBuyId',r.body.id);sessionStorage.setItem('slipBuyNo',today.replace(/-/g,'/')+' -'+Number(r.body.docNo.split('-').pop()));sessionStorage.setItem('slipItem',it.name);return r.body.docNo})()",
+        "expect:!!sessionStorage.getItem('slipBuyId')"
+      ]
+    },
+    {
+      "name": "줄 [인쇄] → '구매전표' 창: 제목 · 머리 · 품목 줄 · 총합계 · 아래 상자 · 아래 단추",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "wait:2500",
+        "js:window.print = () => { window.__printed = (window.__printed || 0) + 1 }; true",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('slipBuyNo')));[...tr.querySelectorAll('button')].find((b)=>b.textContent.trim()==='인쇄').click();return true})()",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label')==='구매전표'",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.innerText;return d.querySelector('.ec-slip-title').innerText.trim()==='구 매 전 표'&&t.includes(sessionStorage.getItem('slipBuyNo')+' [ 1 / 1 ]')&&t.includes('DATE')&&t.includes('구매창고')&&t.includes('구매처')})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelectorAll('.ec-slip-lines thead th')].map((x)=>x.innerText.trim()).join('|');const r=[...d.querySelectorAll('.ec-slip-lines tbody tr')].map((t)=>[...t.cells].map((c)=>c.innerText.trim()));return h==='일자|품목명[규격명]|수량(단위포함)|단가|공급가액|부가세'&&r[0][1].startsWith(sessionStorage.getItem('slipItem'))&&r[0][2].startsWith('2')&&r[0][3]==='100'&&r[0][4]==='200'&&r[0][5]==='20'&&r[1][0]==='총합계'&&r[1][1]==='2'&&r.length===12})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const f=[...d.querySelectorAll('.ec-slip-foot td, .ec-slip-foot th')].map((c)=>c.innerText.trim()).join('|');return f==='수량|2|공급가액|200|VAT|20|합계|220|인 수|인'})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const b=[...d.querySelectorAll('button')].map((x)=>x.textContent.trim()).filter((t)=>t&&!['✕','□','❐','▴'].includes(t));return ['Option','전자결재용 ⌄','인쇄','Email','Excel','닫기'].every((x)=>b.includes(x))})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='인쇄').click(); true",
+        "wait:300",
+        "expect:window.__printed===1&&document.body.lastElementChild&&!!document.querySelector('body > .ec-slip-print-out .ec-slip-page')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='전자결재용 ⌄').click(); true",
+        "wait:200",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-menu button')].find((b)=>b.textContent.trim()==='내자기본').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-slip-paper .ec-slip-sheet').length===2",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog]')&&!document.querySelector('.ec-slip-print-out')"
+      ]
+    },
+    {
+      "name": "두 줄 체크 → 하단 [인쇄] → 같은 창에 [Page 1/2], [›] 로 둘째 전표",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "wait:2500",
+        "js:(async()=>{const find=()=>[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells[1]&&t.cells[1].querySelector('input[type=checkbox]'));let rows=find();for(let k=0;k<30&&rows.length<2;k++){await new Promise((r)=>setTimeout(r,500));rows=find()}if(rows.length<2)return 'rows '+rows.length;rows.slice(0,2).forEach((t)=>t.cells[1].querySelector('input[type=checkbox]').click());return true})()",
+        "wait:300",
+        "js:[...document.querySelectorAll('button')].filter((b)=>!b.closest('table')&&b.textContent.trim()==='인쇄').pop().click(); true",
+        "wait:800",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return d.getAttribute('aria-label')==='구매전표'&&d.innerText.includes('[Page 1/2]')})()",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"다음\"]').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('[Page 2/2]')",
+        "expect:document.querySelectorAll('body > .ec-slip-print-out .ec-slip-page').length===2",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const id=sessionStorage.getItem('slipBuyId');if(id)await fetch('/api/purchases/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});sessionStorage.removeItem('slipBuyId');return true})()"
+  ]
+}

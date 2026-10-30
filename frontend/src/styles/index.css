@@ -1759,4 +1759,50 @@ th.ec-empty {
 /* 일정관리 위젯 일정 글자(누르면 '일정조회' 창) — 단추라서 글자를 왼쪽에 붙인다 */
 .ec-wcal-ev { text-align: left; cursor: pointer; font: inherit; }
 .ec-pill > .ec-wlink { color: inherit; }
+
+/*
+ * 전표 인쇄 미리보기(components/EcSlipPrintModal) — 원본 구매조회 [인쇄] '구매전표' 창 2026-10-31 loginad getComputedStyle 실측.
+ * 종이 651 · 제목 18px 700 밑줄 h30 · 머리 상자 검정 1px · 이름칸 바탕 rgb(247,247,247) · 12px h20(76/220 · 10 · 75/269) ·
+ * 품목 격자 회색 1px rgb(153,153,153) · 11px Dotum · 머리 700 h28 · 줄 h19 · 총합계 12px 700 · 아래 상자 검정 1px 12px h29.
+ */
+.ec-slip-preview { font-size: 12px; }
+.ec-slip-paper {
+  max-height: var(--ec-slip-paper-h);
+  overflow: auto;
+  background: var(--ec-bg-panel);
+}
+.ec-slip-page { width: 651px; margin: 0 auto; padding: 0 0 9px; color: var(--ec-ink); background: var(--ec-bg-panel); }
+.ec-slip-sheet { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; font-size: 12px; line-height: normal; }
+.ec-slip-title { height: 30px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }
+.ec-slip-head { display: flex; gap: 10px; margin: 5px 0 6px; }
+.ec-slip-head table { border-collapse: collapse; table-layout: fixed; }
+.ec-slip-head table:first-child { width: 297px; }
+.ec-slip-head table:last-child { flex: 1; }
+.ec-slip-head th,
+.ec-slip-head td { height: 20px; padding: 0 4px; border: 1px solid var(--ec-ink); font-size: 12px; text-align: left; white-space: nowrap; overflow: hidden; }
+.ec-slip-head th { width: 76px; background: var(--ec-bg-ledger-head); font-weight: 700; text-align: center; }
+.ec-slip-lines { width: 100%; border-collapse: collapse; table-layout: fixed; font-family: Dotum, "Apple SD Gothic Neo", Arial, sans-serif; font-size: 11px; }
+.ec-slip-lines th,
+.ec-slip-lines td { border: 1px solid var(--ec-line-ledger); padding: 0 2px; height: 19px; color: var(--ec-ink); overflow: hidden; }
+.ec-slip-lines th { height: 28px; background: var(--ec-bg-ledger-head); font-weight: 700; text-align: center; line-height: 1.1; }
+.ec-slip-lines tr.sum td { background: var(--ec-bg-ledger-head); font-weight: 700; }
+.ec-slip-lines tr.sum td:first-child { font-size: 12px; }
+.ec-slip-foot { width: 100%; margin-top: 6px; border-collapse: collapse; table-layout: fixed; }
+.ec-slip-foot th,
+.ec-slip-foot td { height: 29px; padding: 0 4px; border: 1px solid var(--ec-ink); font-size: 12px; text-align: right; }
+.ec-slip-foot th { width: 40px; font-weight: 700; text-align: center; white-space: nowrap; }
+.ec-slip-foot th:nth-of-type(2) { width: 63px; }
+.ec-slip-foot td:last-child { width: 106px; }
+.ec-slip-cut { margin: 18px 0; border-top: 1px dashed var(--ec-line-ledger); }
+/* 인쇄용 한 벌 — 화면에는 안 보이고, 인쇄할 때는 이것만 보인다(나머지 body 자식은 감춘다). */
+.ec-slip-print-out { display: none; }
+@media print {
+  body:has(> .ec-slip-print-out) > :not(.ec-slip-print-out) { display: none !important; }
+  body:has(> .ec-slip-print-out) { background: var(--ec-bg-panel); }
+  .ec-slip-print-out { display: block; }
+  .ec-slip-print-out .ec-slip-page { break-after: page; margin: 0; }
+  .ec-slip-print-out .ec-slip-page:last-child { break-after: auto; }
+  .ec-slip-print-out th,
+  .ec-slip-print-out tr.sum td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 } /* @layer components */
