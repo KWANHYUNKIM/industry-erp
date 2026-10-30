@@ -1,4 +1,6 @@
-import type { ApprovalDoc, ApprovalField, ApprovalStatus } from '../../../types/api'
+import { useState } from 'react'
+import type { ApprovalDoc, ApprovalField, ApprovalOutput, ApprovalStatus } from '../../../types/api'
+import { OutputChips, OutputViewWindow } from './ApprovalOutputs'
 import { RichBodyView } from './RichBodyEditor'
 import { looksLikeHtml } from '../bodyTemplate'
 
@@ -98,6 +100,8 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
 }) {
   const refs = doc.participants.filter((p) => p.role === 'REFERENCE')
   const shares = doc.participants.filter((p) => p.role === 'SHARE')
+  /** [결재문서] › '전표 출력물' 칩을 눌러 연 '출력물' 창 */
+  const [viewOutput, setViewOutput] = useState<ApprovalOutput | null>(null)
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
@@ -123,6 +127,12 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
                 <th className="bg-ec-page">상태</th>
                 <td style={{ color: statusColor(doc.status), fontWeight: 700 }}>{doc.deleted ? '삭제' : STATUS_LABEL[doc.status]}</td>
               </tr>
+              {(doc.outputs?.length ?? 0) > 0 && (
+                <tr>
+                  <th className="bg-ec-page">결재문서</th>
+                  <td colSpan={3}><OutputChips outputs={doc.outputs ?? []} onOpen={setViewOutput} /></td>
+                </tr>
+              )}
               {(refs.length > 0 || shares.length > 0) && (
                 <tr>
                   <th className="bg-ec-page">수신참조</th>
@@ -185,6 +195,8 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
           {canDelete && <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={() => onDelete(doc)}>삭제</button>}
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
+        {/* 이 판 안에 그려야 판(z 100) 위에 뜬다 — 바깥에 그리면 Modal(z 70)이 판 뒤로 숨는다. */}
+        {viewOutput && <OutputViewWindow output={viewOutput} onClose={() => setViewOutput(null)} />}
       </div>
     </div>
   )

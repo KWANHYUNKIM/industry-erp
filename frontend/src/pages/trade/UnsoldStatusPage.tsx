@@ -10,6 +10,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import type { ReportEmbedProps } from '../../utils/reportEmbed'
 
 /**
  * 영업관리 > 미판매현황 (이카운트 E040212)
@@ -88,7 +89,9 @@ function windowOf(date: string): { from: string; to: string } {
   return { from: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`, to: date }
 }
 
-export default function UnsoldStatusPage() {
+/** {@code embed} — 기안서 '전표 출력물' 창이 이 화면을 띄울 때(utils/reportEmbed). 메뉴로 열면 없다. */
+export default function UnsoldStatusPage({ embed }: { embed?: ReportEmbedProps } = {}) {
+  const c0 = embed?.conditions
   const navigate = useNavigate()
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
   const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
@@ -101,12 +104,16 @@ export default function UnsoldStatusPage() {
 
   /** 원본 [구분] — 품목별(품목으로 합침) / 라인별(주문 라인 그대로). */
   const [mode, setMode] = useState<'품목별' | '라인별'>('라인별')
-  const [cond, setCond] = useState({
+  // 출력물 창([자동갱신])이 넘긴 구분 — 처음 값은 위 글자 그대로 둔다(ui-check 가 기본 모드를 읽는다).
+  useEffect(() => { if (c0?.mode === '품목별') setMode('품목별') }, [c0])
+  const [cond, setCond] = useState(() => ({
     from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '',
     warehouse: '', project: '', employee: '', partnerMgr: '', remark: '', spec: '',
     status: '', createdBy: '', dueFrom: '', dueTo: '', orderQtyFrom: '', orderQtyTo: '',
     taxType: '',
-  })
+    // 출력물 창([자동갱신])이 넘긴 조건 — 아는 칸만 덮는다.
+    ...(c0?.cond && typeof c0.cond === 'object' ? (c0.cond as Record<string, string>) : {}),
+  }))
   /**
    * 원본 [정렬기준]·[데이터 보기형식] — 조건 판의 맨 끝 둘이다.
    * 미판매는 <b>어느 거래처의 수주가 얼마나 매출로 안 잡혔나</b> 를 보는 표라 거래처로 묶어 그린다.
@@ -132,6 +139,11 @@ export default function UnsoldStatusPage() {
 
   /* 기간을 서버로 보낸다 — 조건 판에 물어 놓고 전 기간을 받아 브라우저에서 걸렀다. */
   useEffect(() => { if (searched) load() }, [cond.from, cond.to])
+  /* 출력물 창 — 열자마자 찾고(autoSearch), 조건이 바뀔 때마다 알린다([자동갱신] 이 이 조건을 저장한다). */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (embed?.autoSearch) load() }, [])
+  const onConditions = embed?.onConditions
+  useEffect(() => { onConditions?.({ cond, mode }) }, [onConditions, cond, mode])
 
   const shown = rows
     /*

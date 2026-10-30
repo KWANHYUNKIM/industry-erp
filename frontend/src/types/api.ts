@@ -745,6 +745,19 @@ export interface ApprovalDoc {
   lines: ApprovalLine[]
   participants: ApprovalParticipant[]
   vouchers: ApprovalVoucher[]
+  /** [결재문서] › '전표 출력물'(V515) */
+  outputs?: ApprovalOutput[]
+}
+
+/** 기안서에 붙인 출력물 — SNAPSHOT 은 적용한 때의 사본(html), AUTO 는 조건(conditions)으로 열 때 다시 조회. */
+export interface ApprovalOutput {
+  id?: number
+  menuName: string
+  /** 적용한 때 'YYYY-MM-DDTHH:mm:ss' */
+  appliedAt: string
+  mode: 'SNAPSHOT' | 'AUTO'
+  html: string | null
+  conditions: Record<string, unknown> | null
 }
 
 // ===== 그룹웨어: 업무일지 =====

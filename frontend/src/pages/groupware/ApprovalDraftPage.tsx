@@ -8,7 +8,8 @@ import EcFileDrop from '../../components/EcFileDrop'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
-import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../types/api'
+import type { ApprovalDoc, ApprovalFormTemplate, ApprovalOutput, ApprovalPreset, MemberOption } from '../../types/api'
+import { OutputChips, OutputLinkMenu, OutputMenuWindow, OutputReportWindow, OutputViewWindow, type OutputWindowState } from '../../features/approval/components/ApprovalOutputs'
 import { ymd } from '../../components/EcPeriodPicks'
 import { ecConfirm } from '../../components/EcDialog'
 import { useShortcut } from '../../utils/useShortcut'
@@ -92,6 +93,9 @@ export default function ApprovalDraftPage() {
   const [labelText, setLabelText] = useState('')
   const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
+  /** [결재문서] › '전표 출력물' — 붙인 출력물(칩)과 지금 떠 있는 출력물 창. */
+  const [outputs, setOutputs] = useState<ApprovalOutput[]>(() => editOf?.outputs ?? [])
+  const [outputWin, setOutputWin] = useState<OutputWindowState>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -123,7 +127,7 @@ export default function ApprovalDraftPage() {
 
   // 버튼 라벨이 약속한 단축키들. 저장/결재는 처리 중이면 안 먹는다.
   useShortcut('F3', () => filterRows(search))
-  useShortcut('F7', () => void save(false), !saving && !attendanceOpen)
+  useShortcut('F7', () => void save(false), !saving && !attendanceOpen && !outputWin)
 
   async function doExcel() {
     const table = findDataTable(bodyRef.current)
@@ -190,6 +194,7 @@ export default function ApprovalDraftPage() {
     // 원본: 양식의 기본값설정 › 구분(휴가신청서 → 02 휴가신청서)으로 [구분] 칸이 열린다.
     setCategory(t.groupName ?? '')
     setFormData(initialFormData(t))
+    setOutputs([])
     // 공통양식 [기안내용] 서식(표)이 있으면 본문이 그 서식으로 열린다 — 원본은 양식이 본문 안의 표다.
     setBody(bodyHtmlOf(t.fieldSchema))
     setError('')
@@ -275,6 +280,7 @@ export default function ApprovalDraftPage() {
         approverIds,
         referenceUserIds: referenceIds,
         shareUserIds: shareIds,
+        outputs: outputs.map(({ menuName, appliedAt, mode, html, conditions }) => ({ menuName, appliedAt, mode, html, conditions })),
         temporary,
       }
       const res = editOf
@@ -497,7 +503,12 @@ export default function ApprovalDraftPage() {
                 <li className="wide">
                   <div className="title">결재문서</div>
                   <div className="form text-[12px]">
-                    <span className="text-ec-navy" title="저장한 뒤 [내결재관리]에서 판매·구매·비용 전표를 연결합니다.">전표 출력물</span>
+                    {/* 원본(2026-10-30): 붙인 출력물 칩이 링크 위에 쌓이고, 링크는 그대로 남아 더 붙일 수 있다. */}
+                    <div>
+                      <OutputChips outputs={outputs} onOpen={(o) => setOutputWin({ kind: 'view', output: o })}
+                                   onRemove={(i) => setOutputs((a) => a.filter((_, j) => j !== i))} />
+                      <OutputLinkMenu onPick={(m) => setOutputWin({ kind: 'report', menuName: m })} onAll={() => setOutputWin({ kind: 'menu' })} />
+                    </div>
                   </div>
                 </li>
                 <li className="wide">
@@ -585,6 +596,16 @@ export default function ApprovalDraftPage() {
             </div>
         )}
       </Modal>
+
+      {/* [결재문서] › '전표 출력물' 창들 — 작성 창 위에 겹쳐 뜬다. */}
+      {outputWin?.kind === 'report' && (
+        <OutputReportWindow menuName={outputWin.menuName} onClose={() => setOutputWin(null)}
+                            onApply={(o) => { setOutputs((a) => [...a, o]); setOutputWin(null) }} />
+      )}
+      {outputWin?.kind === 'menu' && (
+        <OutputMenuWindow onClose={() => setOutputWin(null)} onPick={(m) => setOutputWin({ kind: 'report', menuName: m })} />
+      )}
+      {outputWin?.kind === 'view' && <OutputViewWindow output={outputWin.output} onClose={() => setOutputWin(null)} />}
 
       {/* 결재문서 '근태관리' — 작성 창 위에 [근태입력] 창이 같이 뜬다(원본 캡처 12-휴가신청서-근태입력-같이뜸). */}
       <Modal open={attendanceOpen} title="근태입력" width={1100} onClose={() => setAttendanceOpen(false)}>

@@ -13,6 +13,7 @@ import type { Item, Partner, SalesDoc, Warehouse } from '../../types/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import { condStr, type ReportEmbedProps } from '../../utils/reportEmbed'
 
 /** 영업 > 판매현황 — 판매 전표를 품목라인 단위로 펼친 실제 매출 내역 (/api/sales 연동) */
 /*
@@ -65,11 +66,13 @@ interface Row {
   inputII: boolean
 }
 
-export default function SalesStatusPage() {
+/** {@code embed} — 기안서 '전표 출력물' 창이 이 화면을 띄울 때(utils/reportEmbed). 메뉴로 열면 없다. */
+export default function SalesStatusPage({ embed }: { embed?: ReportEmbedProps } = {}) {
+  const c0 = embed?.conditions
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [keyword, setKeyword] = useState('')
+  const [keyword, setKeyword] = useState(() => condStr(c0, 'keyword', ''))
   /*
    * 기준일자. 원본 판매현황의 **핵심 조건**인데 우리는 아예 없어서 전 기간을 통째로 뿌리고 있었다.
    * 전표가 쌓이면 못 쓴다. 기본은 원본과 같이 '금월(~오늘)'.
@@ -80,9 +83,9 @@ export default function SalesStatusPage() {
    * 지난달에 판 것이 안 보이니 "왜 이것밖에 안 되지" 가 되고, 원본과 대조할 때마다
    * 기간부터 맞춰야 했다.
    */
-  const [from, setFrom] = useState(() => periodOf('전월+금월')!.from)
+  const [from, setFrom] = useState(() => condStr(c0, 'from', periodOf('전월+금월')!.from))
   // 끝은 오늘이다 — 원본 머리 '2026/09/01 ~ 2026/10/22'(2026-10-22 실측, 달 끝 10/31 이 아니다).
-  const [to, setTo] = useState(() => periodOf('금일')!.to)
+  const [to, setTo] = useState(() => condStr(c0, 'to', periodOf('금일')!.to))
   /*
    * 원본 판매현황의 나머지 조건. 우리 데이터로 실제 거를 수 있는 것만 둔다 —
    * 값이 없는 조건칸을 만드는 건 5장 레시피가 금지한다.
@@ -90,14 +93,14 @@ export default function SalesStatusPage() {
    *   못 거르는 것: 내·외자구분 · 거래구분(일반/반품) — 우리 모델에 그 개념이 없다.
    * 시리얼/로트는 반복 1(V126 계열)에서, 관리항목은 반복 3(V127)에서 만든 것이 여기서 쓰인다.
    */
-  const [partnerId, setPartnerId] = useState('')
-  const [itemId, setItemId] = useState('')
-  const [warehouse, setWarehouse] = useState('')
-  const [project, setProject] = useState('')
-  const [lotNo, setLotNo] = useState('')
-  const [taxType, setTaxType] = useState<'전체' | '과세' | '면세'>('전체')
+  const [partnerId, setPartnerId] = useState(() => condStr(c0, 'partnerId', ''))
+  const [itemId, setItemId] = useState(() => condStr(c0, 'itemId', ''))
+  const [warehouse, setWarehouse] = useState(() => condStr(c0, 'warehouse', ''))
+  const [project, setProject] = useState(() => condStr(c0, 'project', ''))
+  const [lotNo, setLotNo] = useState(() => condStr(c0, 'lotNo', ''))
+  const [taxType, setTaxType] = useState<'전체' | '과세' | '면세'>(() => condStr(c0, 'taxType', '전체') as '전체' | '과세' | '면세')
   /** 원본 판매현황 조건의 [거래구분] — 전체 · 일반 · 반품. */
-  const [tradeKind, setTradeKind] = useState<'전체' | '일반' | '반품'>('전체')
+  const [tradeKind, setTradeKind] = useState<'전체' | '일반' | '반품'>(() => condStr(c0, 'tradeKind', '전체') as '전체' | '일반' | '반품')
   /*
    * 원본 판매현황(E040207)의 <b>접힌 줄</b>을 펼쳐 드러난 조건들. 사본에는 열넷이라
    * 적혀 있었는데 원본은 <b>스물일곱</b>이다 — '현황 화면은 다시 안 재도 된다' 고
@@ -128,7 +131,9 @@ export default function SalesStatusPage() {
    * 그 모습을 보여 준다: 일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 창고명.
    */
   const [mode, setMode] = useState<Mode>('현황')
-  const [lineKind, setLineKind] = useState<LineKind>('라인별')
+  // 출력물 창([자동갱신])이 넘긴 메뉴 — 처음 값은 위 글자 그대로 둔다(ui-check 가 기본 모드를 읽는다).
+  useEffect(() => { if (c0?.mode === '집계') setMode('집계') }, [c0])
+  const [lineKind, setLineKind] = useState<LineKind>(() => condStr(c0, 'lineKind', '라인별') as LineKind)
   /** 원본은 [거래구분] 아래 조건을 회색 띠(10.8px) 밑에 접어 둔다 — 띠를 누르면 펼친다(2026-10-20 실측). */
   const [more, setMore] = useState(false)
   /** 원본 숨은 조건 [진행상태] — 전체 · 결재중 · 미확인 · 확인. 판매 confirmStatus(IN_APPROVAL · UNCONFIRMED · CONFIRMED)로 거른다. */
@@ -199,6 +204,11 @@ export default function SalesStatusPage() {
    * 안 보내, 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
   useEffect(() => { load() }, [from, to, compare])
+  /* 출력물 창 — 조건이 바뀔 때마다 알린다([자동갱신] 이 이 조건을 저장한다). */
+  const onConditions = embed?.onConditions
+  useEffect(() => {
+    onConditions?.({ from, to, partnerId, itemId, warehouse, project, lotNo, taxType, tradeKind, keyword, mode, lineKind })
+  }, [onConditions, from, to, partnerId, itemId, warehouse, project, lotNo, taxType, tradeKind, keyword, mode, lineKind])
 
   useEffect(() => {
     // 조건에 쓸 마스터. 못 받아도 화면은 뜬다 — 조건만 비어 보인다.

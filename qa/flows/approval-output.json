@@ -1,0 +1,61 @@
+{
+  "about": "기안서작성 [결재문서] › '전표 출력물'(원본 2026-10-30 loginaa 실측 — plans/데이터이관/원본-전자결재.md '결재문서 › 전표 출력물') — '00 기본' 양식 → '전표 출력물' 링크 → 작은 메뉴(판매현황 · 미판매현황 · 전체메뉴) → [판매현황] 창(보고서) [적용] → 칩 '출력물 [판매현황]YYYY/MM/DD 오전 hh:mm:ss' → 칩을 누르면 '출력물' 창에 사본 → [전체메뉴] '출력물' 창(구분1 · 구분2 · 메뉴) → 임시저장 → 서버에 outputs 1건(SNAPSHOT) → 내결재관리 기안중 줄로 다시 열면 칩이 그대로 → 끝에 문서를 지운다(회사 0001). node qa/shot.mjs qa/flows/approval-output.json",
+  "shots": [
+    {
+      "name": "판매현황 출력물 적용 → 임시저장",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:1200",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.cells[0]?.textContent.trim() === '00').cells[1].click(); true",
+        "wait:500",
+        "setnear:제목|QA그룹웨어- 전표출력물 시험",
+        "js:sessionStorage.setItem('qaOutT', 'QA그룹웨어- 전표출력물 시험'); true",
+        "js:[...document.querySelectorAll('[role=button]')].find((x) => x.textContent.trim() === '전표 출력물').click(); true",
+        "wait:200",
+        "expect:[...document.querySelectorAll('.ec-menu[role=menu] button')].map((b) => b.textContent.trim()).join('|') === '판매현황|미판매현황|전체메뉴'",
+        "js:[...document.querySelectorAll('.ec-menu[role=menu] button')].find((b) => b.textContent.trim() === '판매현황').click(); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '자동갱신') && !!document.querySelector('.ec-report-frame')",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '적용').pop().click(); true",
+        "wait:400",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '자동갱신')",
+        "expect:(() => { const c = document.querySelector('[data-testid=approval-outputs]'); return !!c && c.innerText.includes('출력물') && /\\[판매현황\\]\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d{1,2}:\\d{2}:\\d{2}/.test(c.innerText) })()",
+        "js:document.querySelector('[data-testid=approval-outputs] .ec-link').click(); true",
+        "wait:300",
+        "expect:(() => { const v = document.querySelector('[data-testid=approval-output-view]'); return !!v && v.innerText.includes('판매현황') && v.innerText.includes('회사명') && !!v.querySelector('table') && !v.querySelector('input') })()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
+        "wait:200",
+        "expect:!document.querySelector('[data-testid=approval-output-view]') && !!document.querySelector('input[placeholder=\"제목\"]')",
+        "js:[...document.querySelectorAll('[role=button]')].find((x) => x.textContent.trim() === '전표 출력물').click(); true",
+        "js:[...document.querySelectorAll('.ec-menu[role=menu] button')].find((b) => b.textContent.trim() === '전체메뉴').click(); true",
+        "wait:300",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => [...x.querySelectorAll('th')].map((h) => h.textContent.trim()).join('|') === '구분1|구분2|메뉴'); return !!t && t.innerText.includes('재고 I') && t.innerText.includes('영업관리') && t.innerText.includes('미판매현황') })()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); true",
+        "wait:200",
+        "click:임시저장/미리보기",
+        "wait:1000",
+        "expect:location.pathname === '/groupware/approval/my'",
+        "expect:fetch('/api/approvals?scope=drafted', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((ds) => { const d = ds.find((x) => x.title === 'QA그룹웨어- 전표출력물 시험' && !x.deleted); return !!d && d.outputs.length === 1 && d.outputs[0].menuName === '판매현황' && d.outputs[0].mode === 'SNAPSHOT' && d.outputs[0].html.includes('판매현황') && d.outputs[0].html.includes('<table') && !d.outputs[0].html.includes('no-ec') })"
+      ]
+    },
+    {
+      "name": "다시 열면 칩이 그대로 · 사본이 뜬다",
+      "path": "/groupware/approval/my",
+      "steps": [
+        "wait:1500",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p) => p.textContent.trim() === '기안중').click(); true",
+        "wait:600",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 전표출력물 시험')); [...tr.querySelectorAll('a')].find((a) => /^\\d{4}\\/\\d{2}\\/\\d{2}-\\d+$/.test(a.textContent.trim())).click(); return true })()",
+        "wait:1200",
+        "expect:document.querySelector('input[placeholder=\"제목\"]')?.value === 'QA그룹웨어- 전표출력물 시험'",
+        "expect:/\\[판매현황\\]\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d{1,2}:\\d{2}:\\d{2}/.test(document.querySelector('[data-testid=approval-outputs]')?.innerText ?? '')",
+        "js:document.querySelector('[data-testid=approval-outputs] .ec-link').click(); true",
+        "wait:300",
+        "expect:(() => { const v = document.querySelector('[data-testid=approval-output-view]'); return !!v && v.innerText.includes('판매현황') && !!v.querySelector('table') })()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ds = await (await fetch('/api/approvals?scope=drafted', { headers: H })).json(); let n = 0; for (const d of ds.filter((x) => x.title === 'QA그룹웨어- 전표출력물 시험' && !x.deleted)) { await fetch('/api/approvals/' + d.id, { method: 'DELETE', headers: H }); n++ } return 'cleanup ' + n })()"
+  ]
+}
