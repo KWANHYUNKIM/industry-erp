@@ -69,7 +69,7 @@
         "expect:!document.querySelector('.ec-noperm')",
         "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Excel').click()",
         "wait:800",
-        "expect:/권한이 없습니다.s*마스터에게 문의 바랍니다.s*- 구매·발주 업무권한 (외부전송)/.test(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
+        "expect:((t) => t.includes('권한이 없습니다.') && t.includes('마스터에게 문의 바랍니다.') && t.includes('- 구매·발주 업무권한 (외부전송)'))(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
         "clicklast:확인",
         "wait:300"
       ]
@@ -93,6 +93,7 @@
       "name": "사용중지한 아이디 로그인 — 500 이 아니라 401 안내",
       "path": "/users",
       "steps": [
+        "allowapi:401: /api/auth/login",
         "wait:1500",
         "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const u = (await A('GET', '/users')).find((x) => x.username === 'qaperm'); await A('PATCH', '/users/' + u.id, { enabled: false }); const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyCode: '0001', username: 'qaperm', password: 'qaperm1234' }) }); const j = await r.json(); sessionStorage.setItem('qa-perm-ok', String(r.status === 401 && /사용이 중지된 아이디/.test(j.message))); return true })()",
         "expect:sessionStorage.getItem('qa-perm-ok') === 'true'"
