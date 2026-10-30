@@ -1,0 +1,16 @@
+{
+  "about": "거래처리스트 조회 조건(상호(이름) · 종사업장번호 · 대표자명 …)은 머리에 검색칸이 있어 접어 두고 [Search(F3)] 로 편다(CLAUDE.md 10.2) — 조건 줄에 ec-search-conds 가 빠져 늘 펼쳐져 있던 것(2026-10-31). node qa/shot.mjs qa/flows/partner-list-search-panel.json",
+  "shots": [
+    {
+      "name": "거래처리스트 — 조건은 접혀 있다가 Search(F3) 로 열린다",
+      "path": "/sales/partners",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const l = [...document.querySelectorAll('label')].find((x) => x.textContent.trim() === '종사업장번호' && !x.closest('[role=dialog]')); return !l || l.offsetParent === null })()",
+        "click:Search(F3)",
+        "wait:600",
+        "expect:(() => { const l = [...document.querySelectorAll('label')].find((x) => x.textContent.trim() === '종사업장번호' && !x.closest('[role=dialog]')); return !!l && l.offsetParent !== null })()"
+      ]
+    }
+  ]
+}

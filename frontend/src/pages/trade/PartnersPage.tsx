@@ -505,8 +505,8 @@ export default function PartnersPage() {
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
 
-      {/* 원본 거래처검색 조건 판. 이름은 원본 그대로 쓴다. */}
-      <div className="flex flex-wrap gap-[6px] items-center mb-[8px]">
+      {/* 원본 거래처검색 조건 판. 이름은 원본 그대로 쓴다. 머리에 검색칸이 있어 접어 두고 [Search(F3)] 로 편다(ec-search-conds). */}
+      <div className="ec-search-conds flex flex-wrap gap-[6px] items-center mb-[8px]">
         {(Object.keys(cond) as (keyof typeof cond)[])
           /* 날짜 둘은 아래에서 따로 그린다 — 안내 글이 붙고, 이름표가 정적이어야 검사가 본다. */
           .filter((k) => !k.endsWith('일자'))
@@ -535,7 +535,7 @@ export default function PartnersPage() {
           '상호(이름)': '', 종사업장번호: '', 대표자명: '', 업태: '', 종목: '', 전화: '',
           Email: '', 주소1: '', 검색창내용: '',
           영업단가그룹: '', 구매단가그룹: '', 최초작성일자: '', 최종수정일자: '',
-        })}>조건 지우기</button>
+        })}>다시작성</button>
       </div>
 
       <Modal error={error} open={showForm} title="거래처등록" onClose={() => { if (!dupPartner) setShowForm(false) }}>{(
