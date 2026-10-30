@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ChatMessage, ChatRoom, EmployeeMaster, User } from '../../types/api'
 import { useAuth } from '../auth/AuthContext'
@@ -222,6 +223,7 @@ export default function Messenger({ companyName, alertCount, onOpenNotices, onOp
 /** 1:1 · 여럿 대화 창 안 — 메시지 목록 + 입력. 열려 있는 동안 4초마다 새 메시지만 받는다. */
 export function ChatRoomView({ room, onLeft, onRead, onChanged }: { room: ChatRoom; onLeft: () => void; onRead: () => void; onChanged: (r: ChatRoom) => void }) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const meId = user?.id ?? null
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [text, setText] = useState('')
@@ -323,7 +325,10 @@ export function ChatRoomView({ room, onLeft, onRead, onChanged }: { room: ChatRo
               {m.system ? <div className="ec-chat-sys">{m.content}</div> : (
                 <div className={`ec-chat-msg${m.senderId === meId ? ' mine' : ''}`}>
                   {m.senderId !== meId && <span className="from">{m.senderName}</span>}
-                  <div className="line"><span className="bubble">{m.content}</span><span className="time">{m.sentAt.slice(11, 16)}</span></div>
+                  <div className="line"><span className="bubble">{m.content}
+                    {/* 권한요청 알림 — 원본 메신저 [보기] 로 요청 내역(권한승인대기현황)을 연다 */}
+                    {m.linkTo && <button type="button" className="ec-btn ec-btn-sm ec-chat-view" onClick={() => navigate(m.linkTo!)}>보기</button>}
+                  </span><span className="time">{m.sentAt.slice(11, 16)}</span></div>
                 </div>
               )}
             </div>

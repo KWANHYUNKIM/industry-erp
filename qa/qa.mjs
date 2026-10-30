@@ -4406,10 +4406,10 @@ async function scenarioPayrollReadGuard() {
   section('■ 급여 조회 권한')
 
   const P2 = `${P}READGUARD`
-  const asUser = async (username, password, path) => {
+  const asUser = async (username, password, path, extra = {}) => {
     const login = await call('POST', '/auth/login', { companyCode: '0001', username, password })
     if (!login.ok) return { status: login.status, data: login.data }
-    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${login.data.token}` } })
+    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${login.data.token}`, ...extra } })
     return { status: res.status }
   }
 
@@ -4431,16 +4431,22 @@ async function scenarioPayrollReadGuard() {
   eq('PAYROLL 이 있으면 읽는다',
     (await asUser(`${P2.toLowerCase()}pay`, 'qatest1234', '/payslips?month=2027-01')).status, 200)
 
-  // 나머지 조회는 v1 정책대로 열려 있어야 한다 — 급여만 막은 것이지 전체를 막은 게 아니다
-  eq('다른 조회는 그대로 열려 있다',
-    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/items')).status, 200)
+  // 업무권한(2026-10-30): 조회도 그 업무에 들어갈 수 있어야 한다 — 화면 머리 없이 부르면 API 경로의 업무로 막힌다.
+  // 다만 들어갈 수 있는 화면(공용 화면 '-' 포함)이 곁다리로 읽는 것은 통과(판매입력의 품목 코드도움 같은 것).
+  eq('권한 없는 업무의 조회는 막힌다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/items')).status, 403)
+  eq('공용 화면이 곁다리로 읽는 조회는 통과한다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/items', { 'X-Erp-Menu': '/', 'X-Erp-Work': '-' })).status, 200)
+  eq('급여는 곁다리로도 못 읽는다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/payslips?month=2027-01', { 'X-Erp-Menu': '/', 'X-Erp-Work': '-' })).status, 403)
 
   // 사원 목록은 담당자 드롭다운으로 여기저기 쓰여 막을 수 없다. 대신 급여 칸만 가린다 —
   // 안 그러면 급여명세를 막아 놔도 사원 목록으로 기본급이 그대로 새어 나간다.
   const rowsOf = async (username) => {
     const login = await call('POST', '/auth/login', { companyCode: '0001', username, password: 'qatest1234' })
+    // 사원 목록은 담당자 드롭다운으로 곁다리로 읽는다 — 공용 화면 머리로 부른다(업무권한 곁다리 조회)
     const res = await fetch(`${BASE}/employees`, {
-      headers: { Authorization: `Bearer ${login.data.token}` },
+      headers: { Authorization: `Bearer ${login.data.token}`, 'X-Erp-Menu': '/', 'X-Erp-Work': '-' },
     })
     return res.json()
   }
@@ -11052,6 +11058,13 @@ async function main() {
   if (cmd === 'importcost') {   // 수입비용(輸入)만 빠르게
     await scenarioImportCost()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
+    await finish(fail ? 1 : 0)
+  }
+  if (cmd === 'work-permission') {   // 업무권한(조회 막기 · 곁다리 조회 · 쓰기 403)만 빠르게
+    await scenarioPayrollReadGuard()
+    await scenarioNoPermission()
+    console.log(`
+통과 ${pass} / 실패 ${fail}`)
     await finish(fail ? 1 : 0)
   }
   if (cmd === 'password-history') {

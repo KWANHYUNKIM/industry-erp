@@ -5,7 +5,9 @@ import EcountLayout from './layout/EcountLayout'
 import LoginPage from '../pages/LoginPage'
 const MyPageDashboard = lazy(() => import('../pages/MyPageDashboard'))
 const UsersPage = lazy(() => import('../pages/UsersPage'))
-const RolesPage = lazy(() => import('../pages/RolesPage'))
+const PermissionGroupsPage = lazy(() => import('../pages/PermissionGroupsPage'))
+const PermissionRequestsPage = lazy(() => import('../pages/PermissionRequestsPage'))
+const MastersPage = lazy(() => import('../pages/MastersPage'))
 const CompaniesPage = lazy(() => import('../pages/CompaniesPage'))
 const ItemsPage = lazy(() => import('../pages/inventory/ItemsPage'))
 const WarehousesPage = lazy(() => import('../pages/inventory/WarehousesPage'))
@@ -1108,7 +1110,11 @@ export default function AppRouter() {
         <Route path="/hr/daily-wage" element={<DailyWagePage />} />
 
         <Route path="/users" element={<UsersPage />} />
-        <Route path="/roles" element={<RolesPage />} />
+        {/* 옛 역할·권한관리 → 원본 사용자관리 LNB(사용자등록 · 권한그룹 설정 · 권한승인대기현황 · 관리자설정) */}
+        <Route path="/roles" element={<Navigate to="/users/permission-groups" replace />} />
+        <Route path="/users/permission-groups" element={<PermissionGroupsPage />} />
+        <Route path="/users/permission-requests" element={<PermissionRequestsPage />} />
+        <Route path="/users/masters" element={<MastersPage />} />
         <Route path="/companies" element={<CompaniesPage />} />
       </Route>
 

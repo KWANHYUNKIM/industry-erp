@@ -1,11 +1,27 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { api, tokenStore } from '../../api/client'
+import { api, setPermissionHooks, tokenStore } from '../../api/client'
+import { ecAlert } from '../../components/EcDialog'
 import type { LoginResponse, User } from '../../types/api'
 import { permForRoute } from './menuPermissions'
+
+/** 업무 하나의 풀린 권한(서버 MeController.WorkAccess). menus = 예외(메뉴): 화면 경로 → 진입 여부. */
+export interface WorkAccess {
+  mode: 'ALLOW' | 'DENY' | 'EXC_ACTION' | 'EXC_MENU'
+  create: boolean
+  update: boolean
+  delete: boolean
+  export: boolean
+  menus: Record<string, boolean>
+}
+
+export type WorkAction = 'create' | 'update' | 'delete' | 'export'
 
 interface MyPermissions {
   admin: boolean
   codes: string[]
+  works?: Record<string, WorkAccess>
+  workNames?: Record<string, string>
+  masterOnly?: string[]
 }
 
 interface AuthContextValue {
@@ -23,9 +39,20 @@ interface AuthContextValue {
   isAdmin: boolean
   /** 이 권한 코드를 가졌는지 (관리자는 항상 true) */
   can: (code: string | null) => boolean
-  /** 이 라우트에 접근 가능한지 (메뉴 노출·라우트 가드) */
+  /** 이 라우트에 접근 가능한지 (메뉴 노출·라우트 가드) — 업무권한 + 예외(메뉴) */
   canRoute: (path: string) => boolean
+  /** 이 업무에서 이 행위(입력 · 수정 · 삭제 · 외부전송)를 할 수 있는지 — 예외(행위) */
+  canAct: (code: string | null, action: WorkAction) => boolean
+  /** 업무 이름(자물쇠 화면 '(판매) 업무 권한이 없습니다.') */
+  workName: (code: string) => string
+  /** 마스터 전용 업무(사용자관리) — 자물쇠 화면에 [권한요청] 이 없다 */
+  isMasterOnly: (code: string | null) => boolean
+  /** 권한을 다시 읽는다(승인 뒤 새로고침 없이) */
+  reloadPermissions: () => Promise<void>
 }
+
+/* 모든 요청에 화면 업무(X-Erp-Work)를 싣고, 행위 권한 거부는 원본 알림으로 — api/client 에 끼운다 */
+setPermissionHooks({ workOf: permForRoute, onDenied: (m) => void ecAlert(m) })
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
@@ -112,14 +139,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function canRoute(path: string) {
-    return can(permForRoute(path))
+    const code = permForRoute(path)
+    if (!can(code)) return false
+    if (code == null || perms.admin) return true
+    return perms.works?.[code]?.menus?.[path] !== false
   }
+
+  function canAct(code: string | null, action: WorkAction) {
+    if (code == null || perms.admin) return true
+    const w = perms.works?.[code]
+    return !!w && w.mode !== 'DENY' && w[action]
+  }
+
+  const workName = (code: string) => perms.workNames?.[code] ?? code
+  const isMasterOnly = (code: string | null) => !!code && (perms.masterOnly ?? []).includes(code)
 
   return (
     <AuthContext.Provider
       value={{
         user, loading, login, logout, hasRole,
-        isAdmin: perms.admin, can, canRoute,
+        isAdmin: perms.admin, can, canRoute, canAct, workName, isMasterOnly,
+        reloadPermissions: loadPermissions,
         companyCode: company?.code ?? null,
         companyName: company?.name ?? null,
         isHost: company?.code === '0001',

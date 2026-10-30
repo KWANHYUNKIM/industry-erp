@@ -15,6 +15,10 @@ export interface User {
   employeeId: number | null
   enabled: boolean
   roles: string[]
+  /** 기본권한 — 업무모든권한(ALL) · 업무권한없음(NONE) · 권한그룹(GROUP) */
+  basePermission: 'ALL' | 'NONE' | 'GROUP'
+  /** 마스터(관리자설정) */
+  master: boolean
 }
 
 export interface Role {
@@ -3402,6 +3406,8 @@ export interface ChatMessage {
   sentAt: string
   /** 참여·퇴장 같은 시스템 안내 */
   system: boolean
+  /** [보기] 가 여는 화면 — 권한요청 알림처럼 서버가 보낸 메시지만 */
+  linkTo?: string | null
 }
 
 // ── 설문조사 (그룹웨어 > 공유정보 > 설문조사) ───────────────────────────────

@@ -39,6 +39,10 @@ function stubbed(kind: Pending['kind']): ((m: string) => unknown) | null {
 function push(kind: Pending['kind'], message: unknown): Promise<boolean> {
   const stub = stubbed(kind)
   if (stub) return Promise.resolve(kind === 'confirm' ? Boolean(stub.call(window, String(message ?? ''))) : (stub.call(window, String(message ?? '')), true))
+  /* 같은 알림이 이미 떠 있으면 또 띄우지 않는다 — 권한 거부는 api/client 가 띄우고 화면도 같은 글을 띄운다. */
+  if (kind === 'alert' && queue.some((p) => p.kind === 'alert' && p.message === String(message ?? ''))) {
+    return Promise.resolve(true)
+  }
   return new Promise((resolve) => {
     queue = [...queue, { id: ++seq, kind, message: String(message ?? ''), resolve }]
     emit()

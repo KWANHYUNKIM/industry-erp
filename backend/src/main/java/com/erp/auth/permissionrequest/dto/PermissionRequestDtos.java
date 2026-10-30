@@ -19,7 +19,7 @@ public final class PermissionRequestDtos {
 
     /** 자물쇠 화면 [권한요청] — 사유는 비워도 된다(원본 영상 1998). */
     public record CreatePermissionRequest(
-            @NotBlank(message = "업무가 없습니다.") String workCode,
+            @NotBlank(message = "업무가 없습니다.") @Size(max = 50) String workCode,
             @Size(max = 200) String menuPath,
             @Size(max = 100) String menuName,
             @Size(max = 500, message = "사유는 500자까지 넣을 수 있습니다.") String reason) {}

@@ -875,11 +875,6 @@
   "palette": 0
  },
  "pages/quality/UninspectedPage.tsx": {
-  "inline": 7,
-  "color": 2,
-  "palette": 0
- },
- "pages/RolesPage.tsx": {
   "inline": 6,
   "color": 3,
   "palette": 0

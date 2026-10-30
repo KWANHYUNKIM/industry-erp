@@ -9,6 +9,7 @@ import { openAppBarPanel } from '../../components/AppBarPanel'
 import TableContextMenu from '../../components/TableContextMenu'
 import EcIcon from '../../components/ui/EcIcon'
 import { ecAlert } from '../../components/EcDialog'
+import NoPermissionPage from '../../features/auth/components/NoPermissionPage'
 
 /** 이카운트 v5 실제 레이아웃 재현:
  *  [최상단 북마크바]
@@ -103,7 +104,7 @@ const MENU: TopMenu[] = [
     home: '/settings/preferences',
     tabs: [
       { label: '정보관리', nodes: [{ label: '회사정보관리', to: '/settings/company' }] },
-      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '역할·권한관리', to: '/roles' }, { label: '회사관리', to: '/companies' }] },
+      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '권한그룹 설정', to: '/users/permission-groups' }, { label: '권한승인대기현황', to: '/users/permission-requests' }, { label: '관리자설정', to: '/users/masters' }, { label: '회사관리', to: '/companies' }] },
       { label: '환경설정', nodes: [{ label: '기능설정', to: '/settings/preferences' }, { label: '기본값설정', to: '/settings/defaults' }] },
       { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }, { label: '사용자정의필드', to: '/settings/custom-fields' }, { label: '디자인 시스템', to: '/settings/design-system' }] },
       { label: '보안관리', nodes: [{ label: '보안설정', to: '/settings/security' }] },
@@ -1533,8 +1534,9 @@ export default function EcountLayout() {
 
   // 권한에 따른 메뉴 노출 판정. 리프는 라우트 권한으로, 상위는 하위가 하나라도 보이면 보인다.
   // 회사관리(/companies)는 본사에서만 노출한다.
+  /* 지금 연 화면은 권한이 없어도(자물쇠 화면) 메뉴에 남아 켜져 있다 — 원본 실측 */
   const leafOk = (l: Leaf) =>
-    (l.to === '/companies' ? isHost : true) && (!permOnly || !l.to || canRoute(l.to))
+    (l.to === '/companies' ? isHost : true) && (!permOnly || !l.to || canRoute(l.to) || matchLength(l.to, here) > 0)
   const nodeOk = (n: SideNode) => (isGroup(n) ? n.children.some(leafOk) : leafOk(n))
   const tabOk = (t: Tab) => t.nodes.some(nodeOk)
   const topOk = (m: TopMenu) => m.tabs.some(tabOk)
@@ -1592,12 +1594,14 @@ export default function EcountLayout() {
   /* 같은 길이로 둘이 걸리면(탭 없이 연 설정 화면 — 공통양식등록 · 결재설정) 메뉴 차례로 앞의 것 하나만 켠다 */
   const activeLeafTo = bestLeafLen > 0 ? FLAT_MENU.find((f) => matchLength(f.to, here) === bestLeafLen)?.to : undefined
 
+  const locked = !canRoute(location.pathname)
   /* 창(탭) 제목 = 지금 화면 이름 - 상호 (원본도 탭 제목이 화면 이름이다). 메뉴에 없는 화면은 상호만 */
   useEffect(() => {
     const leaf = activeLeafTo ? FLAT_MENU.find((f) => f.to === activeLeafTo) : undefined
     const site = brand || '제조 ERP'
-    document.title = leaf ? `${leaf.label} - ${site}` : site
-  }, [activeLeafTo, brand])
+    /* 막힌 화면은 원본처럼 창 제목이 '권한없음' */
+    document.title = !locked ? (leaf ? `${leaf.label} - ${site}` : site) : '권한없음'
+  }, [activeLeafTo, brand, locked])
   function sidebarLeaf(leaf: Leaf, key: number) {
     const on = !!leaf.to && leaf.to === activeLeafTo
     return (
@@ -1748,7 +1752,7 @@ export default function EcountLayout() {
         <div className="ec-gnb-right">
           {companyName && <span className="ec-company">{companyName}</span>}
           <button className="ec-m-apps" aria-label="앱 모음" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'apps' ? null : 'apps')) }}>⋮⋮</button>
-          <button className="ec-avatar" title={user?.name} onClick={() => setUserOpen((o) => !o)}>👤</button>
+          <button className="ec-avatar" title={user?.name} onClick={() => setUserOpen((o) => !o)}><EcIcon name="user" size={16} /></button>
           {userOpen && (
             <div className="ec-popover" onMouseLeave={() => setUserOpen(false)}>
               <div className="font-bold text-ec-text">{user?.name}</div>
@@ -1809,15 +1813,8 @@ export default function EcountLayout() {
               <Outlet />
             </Suspense>
           ) : (
-            <div className="p-[48px] text-center text-ec-hint">
-              <div className="text-[40px] mb-[12px]">🔒</div>
-              <div className="text-[16px] font-bold text-ec-text mb-[6px]">
-                접근 권한이 없습니다
-              </div>
-              <div className="text-[13px]">
-                이 메뉴에 대한 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.
-              </div>
-            </div>
+            <NoPermissionPage key={location.pathname} path={location.pathname}
+                              menuName={activeLeafTo ? FLAT_MENU.find((f) => f.to === activeLeafTo)?.label : undefined} />
           )}
         </div>
 

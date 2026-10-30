@@ -115,6 +115,8 @@
   padding: 0 9px 0 8px;
   background: var(--ec-bg-shell);
 }
+/* 왼쪽 위 글자 표지 — 원본 머리 로고 자리 · 높이에 맞춘 평범한 글자(그림 · 그러데이션 · 기울임 없음).
+   원본 로고(그림)는 베끼지 않는다. 회사 로고 그림을 올리면 그 그림, 없으면 상호, 그것도 없으면 '제조 ERP'. */
 .ec-logo {
   display: flex;
   align-items: baseline;
@@ -123,7 +125,8 @@
   font-weight: 900;
   letter-spacing: -0.5px;
   text-decoration: none;
-  color: #222;
+  white-space: nowrap;
+  color: var(--ec-blue);
 }
 .ec-logo > b { color: var(--ec-blue); font-weight: 900; }
 /* 회사 로고 그림 — 머리 줄 높이에 맞춰 줄인다(가로는 비율대로, 너무 긴 그림은 상호 칸 폭까지) */
@@ -144,8 +147,7 @@
 .ec-logo > .ec-logo-name {
   max-width: 260px;
   overflow: hidden;
-  font-size: 17px;
-  white-space: nowrap;
+  font-weight: 700;
   text-overflow: ellipsis;
 }
 .ec-gnb-menu {
@@ -1501,5 +1503,36 @@ html.ec-dark canvas { filter: invert(1) hue-rotate(180deg); }
   .ec-appwin-back.at-side { justify-content: center; padding: 10px 6px; }
   .ec-sms { flex-direction: column; }
   .ec-sms-phone { width: auto; }
+
+/* ── 막힌 화면(업무 권한 없음) — 원본 2026-10-30 loginaa 실측(plans/데이터이관/원본-업무권한.md §1) ── */
+.ec-noperm { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  min-height: 420px; padding: 48px 20px; color: var(--ec-text); }
+.ec-noperm-lock { width: 72px; height: 72px; margin-bottom: 18px; fill: var(--ec-text-off); stroke: var(--ec-text-off); }
+.ec-noperm-lock .hole { fill: var(--ec-bg-panel); stroke: none; }
+.ec-noperm-title { font-size: 18px; font-weight: 700; margin: 0 0 8px; }
+.ec-noperm-title .work { color: var(--ec-blue); }
+.ec-noperm-sub { font-size: 14px; color: var(--ec-text-hint); margin: 0 0 18px; }
+.ec-noperm-masters { font-size: 16px; font-weight: 700; margin: 0 0 22px; }
+.ec-noperm-masters .names { color: var(--ec-blue); }
+.ec-noperm-ask { min-width: 96px; }
+/* 관리자설정 — 마스터 이름 칩, 오른쪽 (−) 로 뺀다(원본 영상 2531) */
+.ec-master-chip { display: inline-flex; align-items: center; gap: 4px; height: var(--ec-ctl-h); padding: 0 9px;
+  border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius); color: var(--ec-blue); }
+.ec-master-chip .x { border: 0; background: none; color: var(--ec-danger); cursor: pointer; font-weight: 700; }
+/* 권한승인대기현황 [승인] — 마우스를 올리면 개별권한 / 권한그룹(원본 영상 1514) */
+.ec-approve-hover { position: relative; display: inline-block; }
+.ec-approve-menu { display: none; position: absolute; top: 100%; left: 0; z-index: 20; min-width: 130px; padding: 4px 0;
+  background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius); text-align: left; }
+.ec-approve-hover:hover .ec-approve-menu, .ec-approve-hover:focus-within .ec-approve-menu { display: block; }
+.ec-approve-menu > button { display: block; width: 100%; padding: 4px 10px; border: 0; background: none; text-align: left; cursor: pointer; }
+.ec-approve-menu > button:hover { background: var(--ec-bg-row-hover); }
+.ec-approve-menu > button:disabled { color: var(--ec-text-off); cursor: default; }
+.ec-chat-view { display: block; margin-top: 6px; }
+/* 권한요청 알림 — 마스터 화면 오른쪽 아래에 뜨는 작은 알림창(원본 영상 1998 · 1514) */
+.ec-perm-toast { position: fixed; right: 64px; bottom: 20px; z-index: 60; width: 280px; padding: 12px 14px;
+  background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius-panel); }
+.ec-perm-toast .head { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 6px; }
+.ec-perm-toast .head button { border: 0; background: none; cursor: pointer; color: var(--ec-text-hint); }
+.ec-perm-toast .body { margin-bottom: 8px; }
   .ec-ai > .side { width: 120px; }
 }

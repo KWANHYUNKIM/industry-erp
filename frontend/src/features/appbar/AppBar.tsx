@@ -79,12 +79,21 @@ export default function AppBar({ companyName, permOnly, onPermOnly }: {
   const [alertCount, setAlertCount] = useState(0)
   const [chatCount, setChatCount] = useState(0)
   const [noteCount, setNoteCount] = useState(0)
+  const [permToast, setPermToast] = useState<NotificationResponse['notifications'][number] | null>(null)
+  const closeToast = () => { if (permToast) sessionStorage.setItem('ec-perm-req-seen', String(permToast.count)); setPermToast(null) }
 
   useEffect(() => { document.documentElement.classList.toggle('ec-dark', dark) }, [dark])
 
   /* 안 읽은 수 — 창을 열지 않아도 새 것을 알아야 하므로 30초마다 센다. 창을 닫거나 화면을 옮기면 바로 다시 센다. */
   const count = useCallback(() => {
-    api.get<NotificationResponse>('/workspace/notifications').then((r) => setAlertCount(r.data.total)).catch(() => setAlertCount(0))
+    api.get<NotificationResponse>('/workspace/notifications').then((r) => {
+      setAlertCount(r.data.total)
+      /* 권한요청이 새로 늘었으면 오른쪽 아래 알림창(마스터만 받는 알림이다) */
+      const req = r.data.notifications.find((n) => n.type === 'PERMISSION_REQUEST')
+      const seen = Number(sessionStorage.getItem('ec-perm-req-seen') ?? '0')
+      if (req && req.count > seen) setPermToast(req)
+      if (!req) sessionStorage.setItem('ec-perm-req-seen', '0')
+    }).catch(() => setAlertCount(0))
     api.get<{ unread: number }>('/chat/unread-count').then((r) => setChatCount(r.data.unread)).catch(() => setChatCount(0))
     api.get<{ unread: number }>('/short-messages/unread-count').then((r) => setNoteCount(r.data.unread)).catch(() => setNoteCount(0))
   }, [])
@@ -190,6 +199,13 @@ export default function AppBar({ companyName, permOnly, onPermOnly }: {
         <AppWindow title="Messenger" kind="ec-messenger" front={front === 'messenger'} onFront={() => setFront('messenger')} onClose={() => { setMessenger(false); setChat(null) }}>
           <Messenger companyName={companyName} alertCount={alertCount} onOpenNotices={() => { setWin('notifications'); setFront('win') }} onOpenChat={(r) => { setChat(r); setFront('chat') }} />
         </AppWindow>
+      )}
+      {permToast && (
+        <div className="ec-perm-toast" role="status" aria-label="권한요청 알림">
+          <div className="head"><span>{permToast.title}</span><button type="button" aria-label="닫기" onClick={closeToast}>✕</button></div>
+          <div className="body">{permToast.message}</div>
+          <button type="button" className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => { closeToast(); navigate(permToast.to) }}>보기</button>
+        </div>
       )}
       {chat && (
         <AppWindow title={chat.title} kind="ec-chat" side front={front === 'chat'} onFront={() => setFront('chat')} onClose={() => { setChat(null); countChat() }}>
