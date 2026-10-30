@@ -2,7 +2,9 @@ import CalendarWidget, { DETAIL_ROWS } from './CalendarWidget'
 import FlowchartWidget from './FlowchartWidget'
 import * as d from './data'
 import { APPROVAL_SCOPES } from './data'
-import { CONDITIONS, PERIODS, PROGRESS, type ColumnDef, type Icons, type WidgetDef } from './types'
+import { WLink } from './actions'
+import { ecAlert } from '../../../components/EcDialog'
+import { CONDITIONS, PERIODS, PROGRESS, type ColumnDef, type Icons, type Row, type WidgetDef } from './types'
 
 /**
  * My위젯선택 목록 — 원본 묶음 재고(13) · 회계(3) · 공통 · 게시판 차례 그대로(plans/MyPage-위젯.md).
@@ -34,16 +36,66 @@ const arCols = (ar: boolean) => [
   n('settle', ar ? '수금합계' : '지급합계'), n('diff', '기타할인등차액'), n('balance', '잔액'), n('unbilled', '미청구액'),
 ]
 
-const boardCols = [
+/**
+ * 게시판 위젯 열 — 원본 홈 공지사항(2026-10-30 실측): 제목 → '공지사항View' 창, 작성자 이름 → '쪽지1:1 대화' 창,
+ * 조회는 숫자가 아니라 'R' 이고 누르면 '조회자 현황'(미조회자 · 조회자). 셋 다 메인 위에 창으로 뜬다.
+ */
+const boardCols = (code: string, page: string) => [
   c('no', '번호', { off: true }),
-  c('title', '제목', { cell: (r) => <>{r.notice ? <span className="ec-widget-tag">공지</span> : null}{r.title}</> }),
-  c('date', '작성일'), c('writer', '작성자'), c('status', '진행상태', { off: true }), n('views', '조회'), c('attach', '첨부', { off: true }),
+  c('title', '제목', { cell: (r) => (
+    <>{r.notice ? <span className="ec-widget-tag">공지</span> : null}
+      <WLink to={{ kind: 'board', board: code, title: page, postId: Number(r.id) }}>{r.title}</WLink></>
+  ) }),
+  c('date', '작성일'),
+  c('writer', '작성자', { cell: (r) => (r.writerId ? <WLink to={{ kind: 'chat', username: String(r.writerId) }}>{r.writer}</WLink> : r.writer) }),
+  c('status', '진행상태', { off: true }),
+  n('views', '조회', { cell: (r) => <WLink to={{ kind: 'board', board: code, title: page, postId: Number(r.id), readers: true }} title={`조회 ${r.views ?? 0}`}>R</WLink> }),
+  c('attach', '첨부', { off: true }),
 ]
-const board = (id: string, code: string, title: string, to: string): WidgetDef => ({
-  id, title, group: '게시판', icons: ALL, to, newTo: to,
+/** page — 그 게시판 화면(WorkPage)의 이름. 입력 · View 창 제목이 '공지사항입력' · '공지사항View' 처럼 이것으로 선다 */
+const board = (id: string, code: string, title: string, to: string, page = title): WidgetDef => ({
+  id, title, group: '게시판', icons: ALL, to, newTo: to, pen: { kind: 'board', board: code, title: page },
   fields: { selects: [{ key: 'mode', label: '구분', options: ['공지글 알림', '게시글리스트'], def: '게시글리스트' }], defaultRows: 6, noSort: true },
-  table: { columns: boardCols, fetch: (a) => d.boardRows(code, a), rowClass: (r) => (r.notice ? 'notice' : undefined) },
+  table: { columns: boardCols(code, page), fetch: (a) => d.boardRows(code, a), rowClass: (r) => (r.notice ? 'notice' : undefined) },
 })
+
+/**
+ * 오더관리 단계 → 그 단계 전표의 입력 · 조회 화면. 단계 이름은 회사가 정하는 것이라(오더관리단계등록) 이름에 든 말로 고른다.
+ * 원본 홈 오더관리진행단계(2026-10-30): 진행 중인 단계의 ✎ → 그 입력 창(구매 → 구매입력), 대기 단계를 누르면 알림.
+ */
+const STAGE_SCREENS: [string, string, string][] = [
+  ['견적', '/sales/quotation-entry', '/sales/quotations'],
+  ['주문', '/sales/order-entry', '/sales/orders'],
+  ['발주', '/sales/purchase-order-input', '/sales/purchase-orders'],
+  ['출하', '/sales/shipment-order-entry', '/sales/shipment-order'],
+  ['구매', '/sales/buy', '/sales/purchase-list'],
+  ['판매', '/sales/sell', '/sales/sales-list'],
+  ['생산', '/production/receipt-bom', '/production/receipt-inquiry'],
+]
+const stageScreens = (name: string) => STAGE_SCREENS.find(([k]) => name.includes(k))
+const WAITING = '대기 중인 단계는 처리할 수 없습니다\n단계가 진행중, 완료일 경우에만 처리 가능합니다.\n진행단계를 확인 바랍니다.'
+
+function StagePills({ r }: { r: Row }) {
+  const stages = String(r.stages ?? '').split('|').filter(Boolean)
+  return (
+    <div className="ec-pills">
+      {stages.map((s, k) => {
+        // 우리 전표에는 아직 오더관리번호 칸이 없어 단계마다 (0) — 첫 단계만 진행중으로 본다
+        const live = !r.completed && k === 0
+        const sc = stageScreens(s)
+        return (
+          <span key={k} className={`ec-pill no-ec${live ? ' active' : ''}`}>
+            {live && sc
+              ? <WLink to={{ kind: 'page', path: sc[2] }}>{s} (0)</WLink>
+              : <button type="button" className="ec-wlink" onClick={() => void ecAlert(WAITING)}>{s} (0)</button>}
+            {live && sc && <> <WLink to={{ kind: 'page', path: sc[1] }} title="입력">✎</WLink></>}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 
 export const REGISTRY: WidgetDef[] = [
   // ── 재고 ──
@@ -124,19 +176,16 @@ export const REGISTRY: WidgetDef[] = [
     table: { columns: arCols(false), fetch: (a) => d.arApRows(a, 'AP'), kindKey: { 담당자별: 'manager' } },
   },
   {
-    id: 'orderStage', title: '오더관리진행단계', group: '재고', icons: ALL, to: '/sales/order-stages', newTo: '/sales/order-stages',
+    id: 'orderStage', title: '오더관리진행단계', group: '재고', icons: ALL, to: '/sales/order-stages', newTo: '/sales/order-stages', pen: { kind: 'order' },
     fields: { periods: P, defaultPeriod: '금월(~오늘)', defaultRows: 6, forms: ['기본'] },
     table: {
-      columns: [c('orderNo', '오더관리번호'), c('name', '오더관리명'), c('typeName', '오더관리유형명'), c('date', '기준일자'),
+      // 원본: 오더관리번호 · 오더관리명 → 그 번호의 '오더관리번호등록' 창, [보기] → '오더관리번호별 상세내역' 창
+      columns: [c('orderNo', '오더관리번호', { cell: (r) => <WLink to={{ kind: 'order', orderId: Number(r.id) }}>{r.orderNo}</WLink> }),
+        c('name', '오더관리명', { cell: (r) => <WLink to={{ kind: 'order', orderId: Number(r.id) }}>{r.name}</WLink> }),
+        c('typeName', '오더관리유형명'), c('date', '기준일자'),
         // 원본 '구매 (1)' 알약 — 단계마다 연결 전표 수. 우리 전표에는 오더관리번호 칸이 없어 오더관리진행단계 화면처럼 (0)
-        c('stages', '진행단계', { cell: (r) => (
-          <div className="ec-pills">
-            {String(r.stages ?? '').split('|').filter(Boolean).map((s, k) => (
-              <span key={k} className={`ec-pill no-ec${!r.completed && k === 0 ? ' active' : ''}`}>{s} (0)</span>
-            ))}
-          </div>
-        ) }),
-        c('detail', '상세', { link: () => '/sales/order-stages' })],
+        c('stages', '진행단계', { cell: (r) => <StagePills r={r} /> }),
+        c('detail', '상세', { cell: (r) => <WLink to={{ kind: 'order', orderId: Number(r.id), detail: true }}>보기</WLink> })],
       fetch: d.orderStageRows,
     },
   },
@@ -187,7 +236,7 @@ export const REGISTRY: WidgetDef[] = [
   },
   // ── 공통 ──
   {
-    id: 'schedule', title: '일정관리', group: '공통', icons: ALL, to: '/groupware/schedule', newTo: '/groupware/schedule',
+    id: 'schedule', title: '일정관리', group: '공통', icons: ALL, to: '/groupware/schedule', newTo: '/groupware/schedule', pen: { kind: 'schedule' },
     fields: { forms: ['기본', '일간', '월간양식', '월간', '사용자별'], noRows: true, selects: [{ key: 'detail', label: '상세일정 표시줄수', options: DETAIL_ROWS, def: '2건' }] },
     render: (p) => <CalendarWidget {...p} />,
   },
@@ -195,8 +244,12 @@ export const REGISTRY: WidgetDef[] = [
     id: 'approval', title: '전자결재', group: '공통', icons: ALL, to: '/groupware/approval/my', newTo: '/groupware/approval/draft',
     fields: { forms: ['기본'], noSort: true, selects: [{ key: 'menu', label: '메뉴', options: Object.keys(APPROVAL_SCOPES) }] },
     table: {
-      columns: [c('date', '기안일자'), c('title', '제목'), c('drafter', '기안자'), c('approver', '결재자'), c('status', '진행상태'),
-        c('view', '결재', { link: () => '/groupware/approval/my' }), n('vouchers', '연결전표', { off: true }), c('attach', '첨부', { off: true })],
+      // 원본: 제목 · [보기] → 기안서 보기 창, [복사] → 기안서작성 창(그 기안서를 복사해 채움). 기안중(임시저장) 줄은 복사가 빈칸
+      columns: [c('date', '기안일자'), c('title', '제목', { cell: (r) => <WLink to={{ kind: 'approval', id: Number(r.id) }}>{r.title}</WLink> }),
+        c('drafter', '기안자'), c('approver', '결재자'), c('status', '진행상태'),
+        c('view', '결재', { cell: (r) => <WLink to={{ kind: 'approval', id: Number(r.id) }}>보기</WLink> }),
+        c('copy', '기안서복사', { cell: (r) => (r.status === '기안중' ? null : <WLink to={{ kind: 'approval', id: Number(r.id), copy: true }}>복사</WLink>) }),
+        n('vouchers', '연결전표', { off: true }), c('attach', '첨부', { off: true })],
       fetch: d.approvalRows, caption: (s) => `◎ ${s.extra?.menu ?? '내 기안문서'}`,
     },
   },
@@ -226,7 +279,7 @@ export const REGISTRY: WidgetDef[] = [
   },
   // ── 게시판 — 게시판 하나가 위젯 하나 ──
   board('board-notice', 'NOTICE', '공지사항', '/groupware/notice'),
-  board('board-work', 'WORK', '업무일지', '/groupware/work'),
+  board('board-work', 'WORK', '업무일지', '/groupware/work', 'WORK'),
   board('board-shared', 'SHARED', '공유정보/업무관리 게시판 20개까지', '/groupware/shared-board'),
   board('board-meeting', 'MEETING', '팀별회의록 게시판', '/groupware/meeting-board'),
   board('board-minutes', 'MINUTES', '통합회의록', '/groupware/minutes-board'),

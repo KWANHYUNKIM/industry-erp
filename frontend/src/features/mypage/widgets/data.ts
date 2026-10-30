@@ -230,14 +230,14 @@ export async function arApRows({ from, to }: FetchArgs, side: 'AR' | 'AP'): Prom
   })
 }
 
-interface OrderNo { orderNo: string; name: string; orderTypeId: number | null; orderTypeName: string | null; createdDate: string; completed: boolean }
+interface OrderNo { id: number; orderNo: string; name: string; orderTypeId: number | null; orderTypeName: string | null; createdDate: string; completed: boolean }
 interface OrderType { id: number; steps: { seq: number; stageName: string }[] }
 export async function orderStageRows({ from, to }: FetchArgs): Promise<Row[]> {
   const [list, types] = await Promise.all([get<OrderNo[]>('/order-numbers', { from, to }), get<OrderType[]>('/order-types')])
   // 단계 이름을 '|' 로 이어 둔다 — catalog 의 진행단계 칸이 알약으로 편다
   const steps = new Map(types.map((t) => [t.id, [...t.steps].sort((a, b) => a.seq - b.seq).map((s) => s.stageName).join('|')]))
   return list.map((o) => ({
-    orderNo: o.orderNo, name: o.name, typeName: o.orderTypeName ?? '', date: dateText(o.createdDate),
+    id: o.id, orderNo: o.orderNo, name: o.name, typeName: o.orderTypeName ?? '', date: dateText(o.createdDate),
     stages: o.orderTypeId != null ? steps.get(o.orderTypeId) ?? '' : '', completed: o.completed ? 1 : 0, detail: '보기',
   }))
 }
@@ -354,7 +354,7 @@ export async function approvalRows({ settings }: FetchArgs): Promise<Row[]> {
   }))
 }
 
-interface Post { id: number; postNo: string | number | null; postDate: string; title: string; writerName: string | null; statusName: string | null; viewCount: number; attachmentName: string | null; notice: boolean }
+interface Post { id: number; postNo: string | number | null; postDate: string; title: string; writer: string | null; writerName: string | null; statusName: string | null; viewCount: number; attachmentName: string | null; notice: boolean }
 export async function boardRows(board: string, { settings }: FetchArgs): Promise<Row[]> {
   const list = await get<Post[]>('/work-posts', { board })
   const onlyNotice = settings.extra?.mode === '공지글 알림'
@@ -362,7 +362,7 @@ export async function boardRows(board: string, { settings }: FetchArgs): Promise
     // 공지 글은 위로(원본 '공지' 딱지 · 노란 바탕)
     .sort((a, b) => Number(b.notice) - Number(a.notice) || b.postDate.localeCompare(a.postDate))
     .map((p) => ({
-      no: p.postNo ?? '', title: p.title, date: dateText(p.postDate), writer: p.writerName ?? '', status: p.statusName ?? '', views: p.viewCount,
+      id: p.id, writerId: p.writer ?? '', no: p.postNo ?? '', title: p.title, date: dateText(p.postDate), writer: p.writerName ?? '', status: p.statusName ?? '', views: p.viewCount,
       attach: p.attachmentName ?? '', notice: p.notice ? 1 : 0,
     }))
 }

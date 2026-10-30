@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { WidgetPopup } from './actions'
 
 /**
  * MyPage 홈 위젯 — 원본 ec56 My위젯선택 실측(2026-10-30, .claude/skills/ecount-diff/plans/MyPage-위젯.md).
@@ -113,8 +114,10 @@ export interface WidgetDef {
   icons: Icons
   /** 새창 — 그 메뉴 화면 */
   to?: string
-  /** 신규 — 그 메뉴의 입력 화면 */
+  /** 신규 — 그 메뉴의 입력 화면(펜이 따로 창을 갖지 않으면 이 화면을 창으로 띄운다) */
   newTo?: string
+  /** 펜(새 글) — 메인 위에 띄울 입력 창(원본: 일정관리등록 · 공지사항입력 · 오더관리번호등록) */
+  pen?: WidgetPopup
   /** 새로 올릴 때 크기(칸) — 원본 w8 h4, E Note 만 w10 */
   w?: number
   h?: number

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { api } from '../../../api/client'
 import { ymd } from '../../../utils/periods'
 import type { WidgetBodyProps } from './types'
+import { WLink } from './actions'
 
 interface ScheduleEvent { id: number; eventDate: string; title: string; category: string | null; startTime: string | null }
 
@@ -11,7 +11,7 @@ export const DETAIL_ROWS = ['표시안함', ...Array.from({ length: 10 }, (_, i)
 
 /**
  * 일정관리 위젯 — 원본 홈 기본 위젯(0,0,15,10). 머리 '‹ 2026/10 › 일정관리' + 월 달력(일~토),
- * 칸마다 일정 알약(제목). 하루에 보이는 수는 [설정] 상세일정 표시줄수, 넘치면 '+n'.
+ * 칸마다 일정 알약(제목) — 누르면 '일정조회' 창. 하루에 보이는 수는 [설정] 상세일정 표시줄수, 넘치면 '+n'.
  */
 export default function CalendarWidget({ settings, tick }: WidgetBodyProps) {
   const [events, setEvents] = useState<ScheduleEvent[]>([])
@@ -57,7 +57,8 @@ export default function CalendarWidget({ settings, tick }: WidgetBodyProps) {
             <div key={key} className={`ec-wcal-day${out ? ' out' : ''}${key === today ? ' today' : ''}${d.getDay() === 0 ? ' sun' : ''}`}>
               <span className="n">{d.getDate()}</span>
               {list.slice(0, max).map((e) => (
-                <Link key={e.id} className="ec-wcal-ev" to="/groupware/schedule" title={e.title}>{e.title}</Link>
+                // 원본: 일정 글자를 누르면 메인 위에 '일정조회' 창([수정] [인쇄])
+                <WLink key={e.id} className="ec-wcal-ev" to={{ kind: 'schedule', viewId: e.id }} title={e.title}>{e.title}</WLink>
               ))}
               {list.length > max && max > 0 && <span className="more">+{list.length - max}</span>}
               {max === 0 && list.length > 0 && <span className="more">{list.length}건</span>}

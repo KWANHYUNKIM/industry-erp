@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useAuth } from '../features/auth/AuthContext'
+import { WidgetOpenContext, type WidgetPopup } from '../features/mypage/widgets/actions'
+import PageWindow, { menuLabel } from '../features/mypage/PageWindow'
+import PopupHost from '../features/mypage/PopupHost'
+import ApprovalViewer from '../features/mypage/ApprovalViewer'
+import ChatWithWindow from '../features/mypage/ChatWithWindow'
+import type { PostBoardCode } from './groupware/WorkPage'
 import { DEFAULT_LAYOUT, headTitle, REGISTRY } from '../features/mypage/widgets/catalog'
 import { loadAllSettings, saveAllSettings } from '../features/mypage/widgets/store'
 import TableWidget from '../features/mypage/widgets/TableWidget'
@@ -11,6 +16,11 @@ import { bottomRow, fitWidth, MIN_H, MIN_W, normalize, place, type GridItem } fr
 
 /** 배치 — 위젯마다 {id, x, y, w, h}(칸 수). 위젯 [설정] 값은 나란히 mypage-widget-settings-v1 */
 const STORAGE_KEY = 'mypage-grid-v1'
+
+/* 위젯 [펜] · 본문 클릭이 숨긴 채 빌려 쓰는 화면들(그 화면의 입력 · 조회 창만 보인다 — features/mypage/PopupHost) */
+const SchedulePage = lazy(() => import('./groupware/SchedulePage'))
+const WorkPage = lazy(() => import('./groupware/WorkPage'))
+const OrderStagePage = lazy(() => import('./trade/OrderStagePage'))
 
 type GripDir = 'e' | 'se' | 's' | 'sw' | 'w'
 const GRIPS: GripDir[] = ['e', 'se', 's', 'sw', 'w']
@@ -51,7 +61,6 @@ interface Preview {
 
 export default function MyPageDashboard() {
   const { user } = useAuth()
-  const navigate = useNavigate()
   const [stored, setStored] = useState<GridItem[] | null>(loadStored)
   const [pick, setPick] = useState(false)
   const [busy, setBusy] = useState<Set<string>>(new Set())  // 새로고침 중인 위젯 id
@@ -59,6 +68,8 @@ export default function MyPageDashboard() {
   const [settings, setSettings] = useState<Record<string, WidgetSettings>>(loadAllSettings)
   const [editing, setEditing] = useState<WidgetDef | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
+  /** 메인 위에 띄운 창과 그것을 연 위젯 — 닫히면 그 위젯만 다시 읽는다(원본: 화면을 옮기지 않는다) */
+  const [pop, setPop] = useState<{ widget: string; p: WidgetPopup } | null>(null)
 
   // 격자 — 한 칸은 토큰(--ec-grid-unit)에서 읽고, 열 수는 판 폭 ÷ 한 칸
   const gridRef = useRef<HTMLDivElement>(null)
@@ -98,6 +109,30 @@ export default function MyPageDashboard() {
     setTicks((t) => ({ ...t, [id]: (t[id] ?? 0) + 1 }))
     setBusy((s) => new Set(s).add(id))
     setTimeout(() => setBusy((s) => { const n = new Set(s); n.delete(id); return n }), 600)
+  }
+
+  const closePop = () => {
+    if (pop) refreshWidget(pop.widget)
+    setPop(null)
+  }
+
+  /** 창 하나 — 메뉴 화면(새창) · 입력/조회 창(펜 · 본문 클릭) · 기안서 보기 · 1:1 대화 */
+  function popupView() {
+    if (!pop) return null
+    const p = pop.p
+    const hidden = (node: ReactNode) => (
+      <PopupHost key={JSON.stringify(p)} onClose={closePop}><Suspense fallback={null}>{node}</Suspense></PopupHost>
+    )
+    switch (p.kind) {
+      case 'page': return <PageWindow key={p.path} path={p.path} state={p.state} title={p.title} onClose={closePop} />
+      case 'schedule': return hidden(<SchedulePage popup={{ viewId: p.viewId }} />)
+      case 'board': return hidden(<WorkPage board={p.board as PostBoardCode} title={p.title} popup={{ postId: p.postId, readers: p.readers }} />)
+      case 'order': return hidden(<OrderStagePage popup={{ orderId: p.orderId, detail: p.detail }} />)
+      case 'approval':
+        return <ApprovalViewer key={`${p.id}-${p.copy}`} id={p.id} copy={p.copy} onClose={closePop}
+                               onCopy={(d) => setPop({ widget: pop.widget, p: { kind: 'page', path: '/groupware/approval/draft', title: '기안서작성', state: { copyFrom: d } } })} />
+      case 'chat': return <ChatWithWindow key={p.username} username={p.username} onClose={() => setPop(null)} />
+    }
   }
 
   function saveSettings(id: string, v: WidgetSettings) {
@@ -268,12 +303,17 @@ export default function MyPageDashboard() {
             if (!g) return null
             return (
               <div key={w.id} className={`ec-wgrid-item${active ? ' active' : ''}`} style={gridVars(g)}>
+                <WidgetOpenContext.Provider value={(p) => setPop({ widget: w.id, p })}>
                 <WidgetFrame
                   def={w}
                   title={headTitle(w, settings[w.id] ?? {})}
                   busy={busy.has(w.id)}
+                  onWindow={() => { if (w.to) setPop({ widget: w.id, p: { kind: 'page', path: w.to, title: menuLabel(w.to, w.title) } }) }}
                   onRefresh={() => refreshWidget(w.id)}
-                  onNew={() => { if (w.newTo) navigate(w.newTo) }}
+                  onNew={() => {
+                    const p: WidgetPopup | undefined = w.pen ?? (w.newTo ? { kind: 'page', path: w.newTo } : undefined)
+                    if (p) setPop({ widget: w.id, p })
+                  }}
                   onSetting={() => setEditing(w)}
                   onRemove={() => removeWidget(w.id)}
                   onHeadDown={(e) => begin(e, w.id)}
@@ -282,6 +322,7 @@ export default function MyPageDashboard() {
                     ? <TableWidget def={w} settings={settings[w.id] ?? {}} tick={ticks[w.id] ?? 0} />
                     : w.render?.({ settings: settings[w.id] ?? {}, tick: ticks[w.id] ?? 0 })}
                 </WidgetFrame>
+                </WidgetOpenContext.Provider>
                 {GRIPS.map((d) => (
                   <div key={d} className={`ec-wgrid-grip ${d}`} onPointerDown={(e) => begin(e, w.id, d)} />
                 ))}
@@ -291,6 +332,7 @@ export default function MyPageDashboard() {
         </div>
 
       </div>
+      {popupView()}
       {editing && (
         <WidgetSettingsModal def={editing} value={settings[editing.id] ?? {}} onSave={(v) => saveSettings(editing.id, v)} onClose={() => setEditing(null)} />
       )}

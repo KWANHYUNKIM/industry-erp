@@ -27,8 +27,8 @@ export default function AppWindow({
   title: string
   onClose: () => void
   children: ReactNode
-  /** 창 모양 — 앱바 창(ec-appwin) · 메신저(ec-messenger) · 대화(ec-chat) */
-  kind?: 'ec-appwin' | 'ec-messenger' | 'ec-chat'
+  /** 창 모양 — 앱바 창(ec-appwin) · 메신저(ec-messenger) · 대화(ec-chat) · 메뉴 화면 하나(ec-pagewin, MyPage 위젯 [새창]) */
+  kind?: 'ec-appwin' | 'ec-messenger' | 'ec-chat' | 'ec-pagewin'
   /** 오른쪽에 붙여 띄운다(메신저 옆 대화 창) */
   side?: boolean
   /** [새창] 으로 열 전체 화면 주소 */

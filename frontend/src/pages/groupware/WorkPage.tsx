@@ -320,8 +320,15 @@ function parseExtra(json?: string | null): Record<string, string> {
  *
  * <p>보내기·업무지원AI·라벨·이력조회는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도
  * 아무 일 없는 버튼은 있는 것만 못하다.
+ *
+ * <p>{@code popup} — MyPage 게시판 위젯이 이 화면을 숨긴 채(features/mypage/PopupHost) 창 하나만 띄울 때(원본 2026-10-30 홈 실측):
+ * postId 가 없으면 펜(새 글) → '공지사항입력', 있으면 제목 → '공지사항View', readers 면 R → '조회자 현황'.
  */
-export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: PostBoardCode; title?: string } = {}) {
+export default function WorkPage({ board = 'WORK', title = 'WORK', popup }: {
+  board?: PostBoardCode
+  title?: string
+  popup?: { postId?: number; readers?: boolean }
+} = {}) {
   const cfg = BOARD_CFG[board]
   /** 서버가 stage 를 적는 게시판(공지사항의 '기본'은 화면에서만 붙이는 이름이라 뺀다). */
   const namedStages = NAMED_STAGE_BOARDS.has(board)
@@ -528,6 +535,17 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   }
 
   useEffect(() => { load() }, [board])
+
+  /* MyPage 위젯에서 부른 창 — 처음 한 번만 연다(글은 목록을 받은 뒤에 찾는다) */
+  const popupDone = useRef(false)
+  useEffect(() => {
+    if (!popup || popupDone.current) return
+    if (popup.postId == null) { popupDone.current = true; openNew(); return }
+    if (popup.readers) { popupDone.current = true; void openReaders({ id: popup.postId } as WorkPost); return }
+    const post = rows.find((r) => r.id === popup.postId)
+    if (post) { popupDone.current = true; openView(post) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   /**
    * View 창을 연다. <b>열 때만</b> 조회수를 올린다 — 목록을 부르는 것만으로 올리면

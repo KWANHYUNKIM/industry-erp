@@ -195,7 +195,11 @@ function defaultTimes(now = new Date()) {
  */
 interface UserRow { id: number; name: string }
 
-export default function SchedulePage() {
+/**
+ * {@code popup} — MyPage 일정관리 위젯이 이 화면을 숨긴 채(features/mypage/PopupHost) 창 하나만 띄울 때.
+ * viewId 가 없으면 원본 펜(새 글)처럼 '일정관리등록', 있으면 그 일정의 '일정조회'.
+ */
+export default function SchedulePage({ popup }: { popup?: { viewId?: number } } = {}) {
   const { user, isAdmin } = useAuth()
   const [view, setView] = useState<View>('월간양식')
   /** 달력 칸을 쓰는 두 양식 — 월간양식은 일정구분 칩을 붙이고, 월간은 붙이지 않는다(2026-10-03 실측). */
@@ -264,6 +268,15 @@ export default function SchedulePage() {
     catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { void load() }, [])
+  /* MyPage 위젯에서 부른 창 — 처음 한 번만 연다 */
+  const popupDone = useRef(false)
+  useEffect(() => {
+    if (!popup || popupDone.current) return
+    if (popup.viewId == null) { popupDone.current = true; openNew(); return }
+    const ev = rows.find((r) => r.id === popup.viewId)
+    if (ev) { popupDone.current = true; setViewing(ev) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
   const loadLabels = () => api.get<ScheduleLabel[]>('/schedule-labels').then((r) => setLabels(r.data)).catch(() => {})
   useEffect(() => { void loadLabels(); void loadCategories() }, [])
   const labelColor = (name: string | null) => labels.find((l) => l.name === name)?.color ?? null

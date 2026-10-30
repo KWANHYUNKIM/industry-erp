@@ -159,6 +159,8 @@
   --ec-app-red: #e2533b;                    /* E Note */
   --ec-appwin-w: 780px;                     /* 앱바 창 폭(쪽지 · 북마크 · 타임라인 …) */
   --ec-appwin-h: 470px;
+  --ec-pagewin-w: 1100px;                   /* MyPage 위젯 [새창] 이 띄우는 메뉴 화면 창(원본 미실측 — 본문 틀에 가깝게) */
+  --ec-pagewin-h: 78vh;
   --ec-messenger-w: 330px;                  /* Messenger 창 */
   --ec-messenger-h: 395px;
   --ec-chat-w: 360px;                       /* 1:1 대화 창(원본 미실측) */

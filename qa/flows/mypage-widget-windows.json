@@ -1,0 +1,39 @@
+{
+  "about": "MyPage(/) 위젯 클릭 — 원본(2026-10-30 loginaa 홈 실측)처럼 화면을 옮기지 않고 메인 위에 창을 띄운다. 일정관리 [새 글(펜)] → '일정관리등록' 창(주소는 그대로 /) → 닫기, 공지사항 제목 → '공지사항View' 창, R → '조회자 현황' 창, 전자결재 [새창] → 내결재관리 화면 창(브라우저 창 아님). 시험용 공지 글 하나를 API 로 만들고 끝에 지운다.",
+  "shots": [
+    {
+      "name": "펜 → 일정관리등록 창 · 공지 제목 → View 창 · R → 조회자 현황 · 새창 → 화면 창",
+      "path": "/",
+      "steps": [
+        "js:(async()=>{const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then((r)=>r.json());localStorage.removeItem('mypage-grid-v1');localStorage.removeItem('mypage-widget-settings-v1');const p=await A('POST','/work-posts',{board:'NOTICE',title:'QA-위젯창-'+Date.now(),content:'MyPage 위젯 창 시험',notice:true});sessionStorage.setItem('qa-mypage-post',String(p.id));sessionStorage.setItem('qa-mypage-title',p.title);location.reload();return true})()",
+        "wait:3000",
+        "js:(()=>{const w=[...document.querySelectorAll('.ec-wgrid-item')].find((x)=>x.querySelector('.ec-widget-head .name')?.innerText.includes('일정관리'));w.querySelector('button[title=\"새 글\"]').click();return true})()",
+        "wait:2500",
+        "expect:location.pathname === '/' && [...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('일정관리등록'))",
+        "js:(()=>{document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true})()",
+        "wait:1000",
+        "expect:!document.querySelector('.ec-popup-host') && ![...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('일정관리등록'))",
+        "js:(()=>{const t=sessionStorage.getItem('qa-mypage-title');const b=[...document.querySelectorAll('.ec-wgrid-item .ec-wlink')].find((x)=>x.innerText.trim()===t);if(!b)return 'no title link';b.click();return true})()",
+        "wait:2500",
+        "expect:location.pathname === '/' && [...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('공지사항View') && d.innerText.includes(sessionStorage.getItem('qa-mypage-title')))",
+        "js:(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true})()",
+        "wait:1000",
+        "expect:!document.querySelector('.ec-popup-host')",
+        "js:(()=>{const t=sessionStorage.getItem('qa-mypage-title');const tr=[...document.querySelectorAll('.ec-wgrid-item tbody tr')].find((x)=>x.innerText.includes(t));[...tr.querySelectorAll('.ec-wlink')].find((x)=>x.innerText.trim()==='R').click();return true})()",
+        "wait:2000",
+        "expect:location.pathname === '/' && [...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('조회자 현황') && d.innerText.includes('미조회자'))",
+        "js:(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true})()",
+        "wait:1000",
+        "js:(()=>{window.__opened=0;const o=window.open;window.open=(...a)=>{window.__opened++;return null};const w=[...document.querySelectorAll('.ec-wgrid-item')].find((x)=>x.querySelector('.ec-widget-head .name')?.innerText.includes('전자결재'));w.querySelector('button[title=\"새창\"]').click();return true})()",
+        "wait:3000",
+        "expect:location.pathname === '/' && window.__opened === 0 && !!document.querySelector('.ec-pagewin') && document.querySelector('.ec-pagewin').innerText.includes('내결재관리')",
+        "js:(()=>{document.querySelector('.ec-pagewin .ec-modal-bar button.close').click();return true})()",
+        "wait:800",
+        "expect:!document.querySelector('.ec-pagewin')"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const id=sessionStorage.getItem('qa-mypage-post');if(id)await fetch('/api/work-posts/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});sessionStorage.removeItem('qa-mypage-post');localStorage.removeItem('mypage-grid-v1');localStorage.removeItem('mypage-widget-settings-v1');return true})()"
+  ]
+}

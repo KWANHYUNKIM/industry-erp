@@ -60,14 +60,19 @@ const initP = periodOf('최근30일(+1개월)')!
 const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 const emptyForm = (): Form => ({ name: '', orderTypeId: '', createdDate: today(), remarks1: '', remarks2: '', searchKeyword: '' })
 
-export default function OrderStagePage() {
+/**
+ * {@code popup} — MyPage 오더관리진행단계 위젯이 이 화면을 숨긴 채(features/mypage/PopupHost) 창 하나만 띄울 때(원본 2026-10-30 홈 실측):
+ * orderId 가 없으면 펜(새 글) → '오더관리번호등록', 있으면 오더관리번호 · 명 → 그 번호의 '오더관리번호등록', detail 이면 [보기] → '오더관리번호별 상세내역'.
+ * 위젯은 기간이 달라(금월) 기간 없이 받는다.
+ */
+export default function OrderStagePage({ popup }: { popup?: { orderId?: number; detail?: boolean } } = {}) {
   const [rows, setRows] = useState<OrderNo[]>([])
   const [types, setTypes] = useState<OrderType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [from, setFrom] = useState(initP.from)
-  const [to, setTo] = useState(initP.to)
+  const [from, setFrom] = useState(popup ? '' : initP.from)
+  const [to, setTo] = useState(popup ? '' : initP.to)
   const [orderNoCond, setOrderNoCond] = useState('')
   const [byUpdated, setByUpdated] = useState(false)
   const [searchKeywordCond, setSearchKeywordCond] = useState('')
@@ -102,6 +107,19 @@ export default function OrderStagePage() {
     }
   }
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from, to])
+
+  /* MyPage 위젯에서 부른 창 — 처음 한 번만 연다(번호는 목록을 받은 뒤에 찾는다) */
+  const popupDone = useRef(false)
+  useEffect(() => {
+    if (!popup || popupDone.current) return
+    if (popup.orderId == null) { popupDone.current = true; void openNew(); return }
+    const o = rows.find((r) => r.id === popup.orderId)
+    if (!o) return
+    popupDone.current = true
+    if (popup.detail) setDetails([o.id])
+    else openEdit(o)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   const stepsOf = useMemo(() => new Map(types.map((t) => [t.id, t.steps])), [types])
 
