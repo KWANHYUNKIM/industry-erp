@@ -156,6 +156,7 @@
   --ec-app-teal: #12a39a;                   /* 스마트지원 */
   --ec-app-green: #2fa84f;                  /* 새창열기 · 쪽지 · SMS */
   --ec-app-orange: #f08a24;                 /* 알림 · Email · 북마크 · 메신저 '대화방' 배지 */
+  --ec-find-hit: #f6882d;                   /* 설정 화면 [입력 후 Enter] 찾은 이름(원본 text-warning-inverse · 둥글기 6) */
   --ec-app-red: #e2533b;                    /* E Note */
   --ec-appwin-w: 780px;                     /* 앱바 창 폭(쪽지 · 북마크 · 타임라인 …) */
   --ec-appwin-h: 470px;

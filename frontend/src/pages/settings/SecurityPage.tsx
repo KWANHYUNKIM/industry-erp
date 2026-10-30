@@ -78,8 +78,9 @@ function EditDialog({ policy, error, onError, onClose, onSaved }: {
   }
   useShortcut('F8', save, !saving)
 
+  // 창 제목은 원본 창 이름 「비밀번호」(2026-10-30 클릭 대조 — 예전엔 묶음 이름 '로그인관리')
   return (
-    <Modal open title="로그인관리" onClose={onClose} error={error} width={960}>
+    <Modal open title="비밀번호" onClose={onClose} error={error} width={960}>
       <div className="pb-[10px] mb-[10px]">
         <div className="mb-[2px]">⊙ 비밀번호설정</div>
         <div className="pl-[13px] mb-[6px]">사용자 등록·비밀번호 변경 때 비밀번호가 이 길이보다 짧으면 저장하지 않습니다.</div>

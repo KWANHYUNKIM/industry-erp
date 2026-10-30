@@ -15,7 +15,8 @@ import { useShortcut } from '../../utils/useShortcut'
  * <p><b>우리 ERP 가 실제로 가진 설정만 싣는다.</b> 원본 항목은 수십 개지만(영업주기 · 편집제한일자 · 전표자동생성 …)
  * 우리에게 그 동작이 없는 것을 줄로 그리면 바꿔도 아무 일이 없는 칸이 된다(옛 화면의 '(미적용)' 토글 다섯이 그랬다).
  * 고정값인 것(국가 · 부가세율 · 채권/채무 계정 · 부서/프로젝트별관리 · 단가 vat 별도 · 회계반영 수동 · 로트No. 선택입력)은
- * 값만 보이고 누를 수 없다 — 코드에서 그 동작을 확인한 것만(2026-10-13 원본 C000113 여섯 탭 실측과 대조).
+ * 코드에서 그 동작을 확인한 것만 싣는다(2026-10-13 원본 C000113 여섯 탭 실측과 대조). 이름을 누르면 원본과 같은 제목의 창이
+ * 읽기 전용으로 뜬다(2026-10-30 클릭 대조 — 원본은 모든 줄 이름이 창을 띄운다. 창 제목 · 설명은 원본 글, EcSettingSheet).
  */
 
 const TABS = ['공통', '회계', '재고', '관리', '그룹웨어', '데이터센터'] as const
@@ -32,12 +33,13 @@ function sheetOf(p: Preference): Record<TabKey, SheetSection[]> {
       title: '공통설정',
       groups: [
         { title: '국가 및 통화', rows: [
-          { label: '국가', value: '대한민국' },
-          { label: '표준시간', value: '(UTC +09:00) 서울' },
-          { label: '기본통화', value: '원' },
+          { label: '국가', value: '대한민국', desc: 'ERP 사용시 표준이 되는 국가를 선택합니다.' },
+          { label: '표준시간', value: '(UTC +09:00) 서울', desc: 'ERP 사용시 표준시간을 선택합니다.' },
+          { label: '기본통화', value: '원', desc: '기본으로 사용할 통화를 설정합니다.' },
         ] },
         { title: '부가세', rows: [
-          { label: '재고-부가세', value: '매출 : 10 % / 매입 : 10 %' },
+          { label: '재고-부가세', value: '매출 : 10 % / 매입 : 10 %', popup: '부가세설정-재고',
+            desc: '매출과 매입전표 입력 시 적용할 부가세율을 선택합니다.' },
         ] },
       ],
     }],
@@ -48,8 +50,8 @@ function sheetOf(p: Preference): Record<TabKey, SheetSection[]> {
         { title: '기본', rows: [{ label: '회계연도 시작월', value: `${Number(p.fiscalStart)}월`, editable: true }] },
         // 회계전표 줄(JournalLine)이 부서 · 프로젝트를 늘 받는다 — 끌 수 없다.
         { title: '관리여부', rows: [
-          { label: '(회계)부서별관리', value: '사용' },
-          { label: '(회계)프로젝트별관리', value: '사용' },
+          { label: '(회계)부서별관리', value: '사용', desc: '회계관련 출력물을 부서/프로젝트별로 입력 및 조회할 경우 사용합니다.' },
+          { label: '(회계)프로젝트별관리', value: '사용', desc: '회계관련 출력물을 부서/프로젝트별로 입력 및 조회할 경우 사용합니다.' },
         ] },
       ],
     }],
@@ -57,25 +59,27 @@ function sheetOf(p: Preference): Record<TabKey, SheetSection[]> {
       title: '재고 공통설정',
       groups: [
         // 판매 · 구매 전표가 프로젝트를 받는다(trade Sales/Purchase.project).
-        { title: '기본', rows: [{ label: '(재고)프로젝트별관리', value: '사용' }] },
+        { title: '기본', rows: [{ label: '(재고)프로젝트별관리', value: '사용', popup: '(재고)프로젝트별관리',
+          desc: '재고관련 출력물을 프로젝트별로 입력 및 조회하고자 할 경우 사용합니다.' }] },
         // 재고가 0 아래로 내려가도 판매 · 생산이 저장되는가(StockService · NegativeStockPolicy). 원본 줄 이름은 아직 못 잼.
         { title: '재고수량', rows: [{ label: '재고 마이너스 허용', value: p.negativeStock ? '사용' : '사용안함', editable: true }] },
         { title: '채권채무관리', rows: [
-          { label: '채권계정', value: '외상매출금' },
-          { label: '채무계정', value: '외상매입금' },
+          { label: '채권계정', value: '외상매출금', desc: '선택되어있는 계정을 채권으로 인식합니다.' },
+          { label: '채무계정', value: '외상매입금', desc: '선택되어있는 계정을 채무로 인식합니다.' },
         ] },
         // 공급가액 = 수량 × 단가(VatAllocator.lineSupply) — 단가는 늘 부가세 별도다.
-        { title: '단가(vat포함)', rows: [
+        { title: '단가(vat포함)', solo: true, rows: [
           { label: '영업관리', value: '사용안함' },
           { label: '구매관리', value: '사용안함' },
         ] },
         // 저장만으로 회계전표가 생기지 않는다 — [회계반영] 을 따로 누른다.
-        { title: '전표자동생성(회계반영)', rows: [
+        { title: '전표자동생성(회계반영)', popup: '회계반영체크기본값', rows: [
           { label: '판매', value: '사용안함' },
           { label: '구매', value: '사용안함' },
         ] },
         // 판매 · 구매 줄의 로트No. 는 비워도 저장된다(SalesLine.lotNo nullable).
-        { title: '입력항목설정(시리얼/로트No.)', rows: [{ label: '필수입력여부', value: '선택입력' }] },
+        { title: '입력항목설정(시리얼/로트No.)', popup: '시리얼/로트No.', rows: [{ label: '필수입력여부', value: '선택입력',
+          desc: '입력화면에서 시리얼/로트No. 필수 입력여부를 설정합니다.' }] },
       ],
     }],
     관리: [],
