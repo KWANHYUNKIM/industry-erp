@@ -1458,46 +1458,128 @@ th.ec-empty {
 .ec-list-body { position: relative; }
 /* 창(Modal) 안의 .ec-cond 는 입력 칸이다 — 조건 판으로 접거나 띄우지 않는다(계약항목등록 창이 빈 채로 떴음) */
 .ec-list-body.conds-closed :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) { display: none !important; }
-.ec-list-body.conds-open :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) {
-  position: absolute !important;
-  top: 0;
+/*
+ * 2026-10-30 판매조회 E040206 재실측(.wrapper-header-search): 상자 <b>하나</b> — 1px #dee2e6 · 네 모서리 20 · 그림자,
+ * 제목 줄 바로 아래(머리 아래 6px 틈을 덮는다)에서 창 바닥 근처까지. 맨 위 탭 줄 36 · 조건(ul 여백 9 9 0, 줄 36, 이름표 114) ·
+ * 아래 줄 44.6(#f7f8f9, 여백 3.6 7.2). 예전에는 조건 판과 아래 줄이 따로 떠 그림자가 둘이었고 판이 60vh 에서 잘렸다.
+ * 셸이 상자(.ec-search-panel)를 깔고, 화면의 조건 · 셸의 탭 줄 · 아래 줄을 그 위에 얹는다(EcListShell).
+ */
+.ec-search-panel {
+  position: absolute;
+  top: -6px;
   left: 0;
   right: 0;
+  z-index: 29;
+  height: calc(var(--ec-sp-bar, 0px) + 6px + 45.6px);
+  background: var(--ec-bg-panel);
+  border: 1px solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+  box-shadow: var(--ec-shadow-pop);
+  pointer-events: none;
+}
+.ec-search-tabs {
+  position: absolute;
+  top: -5px;
+  left: 1px;
+  right: 1px;
+  z-index: 30;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px 0 0;
+  border-bottom: var(--ec-hair) solid var(--ec-line);
+}
+.ec-search-tabs > button {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ec-pill-text);
+}
+.ec-search-tabs > button.on {
+  height: 100%;
+  padding: 0 11.7px;
+  border-bottom: 1.5px solid var(--ec-blue);
+  color: var(--ec-blue);
+  font-weight: 700;
+}
+.ec-search-tabs > .ec-search-tab-add {
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border: 1px solid var(--ec-line);
+  border-radius: 50%;
+  line-height: 1;
+}
+.ec-list-body.conds-open :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) {
+  position: absolute !important;
+  top: -5px;
+  left: 1px;
+  right: 1px;
   z-index: 30;
   margin: 0 !important;
-  max-height: 60vh;
+  max-height: var(--ec-sp-max, 60vh);
   overflow-y: auto;
-  padding: 9px;
-  background: var(--ec-bg-panel);
-  border: var(--ec-hair) solid var(--ec-line);
-  border-bottom: 0;
+  padding: 9px 9px 0;
+  background: transparent;
+  border: 0;
   border-radius: var(--ec-radius-panel) var(--ec-radius-panel) 0 0;
-  box-shadow: var(--ec-shadow-pop);
+  box-shadow: none;
+}
+/* 셸이 탭 줄을 그리면 조건은 그 아래에서 시작한다 */
+.ec-list-body.conds-open.sp-tabs :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) {
+  top: 31px;
+  border-radius: 0;
 }
 .ec-list-body.conds-open .ec-cond { grid-template-columns: minmax(0, 1fr); }
+/* 판 안의 조건 줄 — 한 줄 36 · li 여백 0 2.7 · 이름표 114(여백 2.7 2.7 2.7 9) · 칸 여백 2.7 (원본 실측). 휴대폰은 아래 @media 의 93 */
+.ec-list-body.conds-open .ec-cond > li:not(.ec-cond-tabs) {
+  min-height: 36px;
+  padding: 0 2.7px;
+}
+@media (min-width: 769px) {
+  .ec-list-body.conds-open .ec-cond > li > .title {
+    flex-basis: 114px;
+    padding: 2.7px 2.7px 2.7px 9px;
+  }
+}
+.ec-list-body.conds-open .ec-cond > li > .form { padding: 2.7px; }
 .ec-list-body.conds-open .ec-search-conds {
   display: flex !important;
   flex-wrap: wrap;
   justify-content: flex-start !important;
   gap: 8px 12px !important;
+  padding-bottom: 9px;
 }
-/* 판 아래의 [검색(F8)] 줄 — 회색 · 높이 44(원본 header-search-btn-group) */
+/* 판 아래의 [검색(F8)] 줄 — 회색 · 높이 44.6 · 여백 3.6 7.2 · 아래 모서리 20(원본 header-search-btn-group) */
 .ec-search-bar {
   position: absolute;
-  left: 0;
-  right: 0;
+  top: var(--ec-sp-bar, 0px);
+  left: 1px;
+  right: 1px;
   z-index: 30;
   display: flex;
   align-items: center;
   gap: 5px;
-  min-height: 44px;
-  padding: 0 9px;
+  height: 44.6px;
+  padding: 3.6px 7.2px;
   background: var(--ec-bg-page);
-  border: var(--ec-hair) solid var(--ec-line);
-  border-top: 0;
-  border-radius: 0 0 var(--ec-radius-panel) var(--ec-radius-panel);
-  box-shadow: var(--ec-shadow-pop);
+  border-radius: 0 0 calc(var(--ec-radius-panel) - 1px) calc(var(--ec-radius-panel) - 1px);
 }
+/* 아래 줄의 기간 빠른선택 · [설정] · [다시작성] — 테두리 없는 sm 단추(투명 · h21 · '금일' 폭 48) */
+.ec-search-bar .ec-btn-flat {
+  height: 21px;
+  padding: 0 11.7px;
+  background: transparent;
+  border-color: transparent;
+}
+/* 휴대폰(≤768): 늘어선 기간 빠른선택은 한 줄에 안 들어간다(폭 375 에서 868) — ▾ 펼침으로만 고른다 */
+@media (max-width: 768px) {
+  .ec-search-bar .ec-search-pick { display: none; }
+}
+/* 판이 열리면 머리의 빠른 검색칸은 사라진다 — [Search(F3)] [Option] [도움말] 만 남는다(원본) */
+.ec-page-head.conds-open .ec-quick { display: none; }
 /* 떠 있는 판에서는 셸의 줄이 [검색(F8)] · [다시작성] · 기간 빠른선택(▾)을 맡는다 — 화면이 판 안에 둔 같은 단추는 감춘다 */
 .ec-list-body.conds-open [data-shell-dup] { display: none !important; }
 /* ▾ 기간 빠른선택 — [검색(F8)] 아래로 펼친다 */

@@ -1,0 +1,25 @@
+{
+  "about": "목록 머리 [Search(F3)] 조건 판(원본 판매조회 E040206, 2026-10-30 잼): 상자 하나(1px · 둥글기 20) · 맨 위 탭 [기본][+] · 한 줄에 조건 하나(이름표 114) · 기준일자 처음 값 오늘−30 ~ 오늘+30 · 아래 줄 [검색(F8)│▾] 금일 … 금년 [설정] [다시작성] · 열리면 머리 검색칸이 감춰짐 · 다시 누르면 닫힘. 저장하는 것 없음. node qa/shot.mjs qa/flows/search-f3-panel.json",
+  "shots": [
+    {
+      "name": "판매조회 Search(F3) 조건 판",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:1200",
+        "expect:document.querySelector('.ec-list-body').dataset.conds === 'closed' && !!document.querySelector('.ec-page-head .ec-quick').offsetParent",
+        "click:Search(F3)",
+        "wait:500",
+        "expect:document.querySelector('.ec-list-body').dataset.conds === 'open'",
+        "expect:(() => { const p = getComputedStyle(document.querySelector('.ec-search-panel')); return p.borderTopWidth === '1px' && p.borderTopLeftRadius === '20px' && p.borderBottomLeftRadius === '20px' && p.boxShadow !== 'none' })()",
+        "expect:[...document.querySelectorAll('.ec-search-tabs button')].map((b) => b.textContent.trim()).join('|') === '기본|+'",
+        "expect:(() => { const lis = [...document.querySelectorAll('.conds-open .ec-cond > li')]; const xs = new Set(lis.map((l) => Math.round(l.getBoundingClientRect().x))); const t = lis[0].querySelector('.title').getBoundingClientRect(); return xs.size === 1 && Math.round(t.width) === 114 && lis[0].querySelector('.title').textContent.trim() === '기준일자' })()",
+        "expect:(() => { const d = (n) => { const t = new Date(); t.setDate(t.getDate() + n); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0') }; const v = [...document.querySelectorAll('.conds-open .ec-cond > li')][0].querySelectorAll('input[type=date]'); return v[0].value === d(-30) && v[1].value === d(30) })()",
+        "expect:[...document.querySelectorAll('.ec-search-bar button')].map((b) => b.textContent.trim() || '▾').join('|') === '검색(F8)|▾|금일|전일|금주(~오늘)|전주|금월(~오늘)|전월|종료일|최근30일(+1개월)|금년|설정|다시작성'",
+        "expect:!document.querySelector('.ec-page-head .ec-quick').offsetParent",
+        "click:Search(F3)",
+        "wait:300",
+        "expect:document.querySelector('.ec-list-body').dataset.conds === 'closed' && !!document.querySelector('.ec-page-head .ec-quick').offsetParent"
+      ]
+    }
+  ]
+}
