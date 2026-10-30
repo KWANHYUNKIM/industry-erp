@@ -1720,7 +1720,7 @@ export default function EcountLayout() {
       <div className="ec-gnb" onMouseLeave={() => setHoverIdx(null)}>
         <Link to="/" className="ec-logo" title={brand ?? undefined}>
           {logoUrl ? <img className="ec-logo-img" src={logoUrl} alt={brand ?? '회사 로고'} />
-            : brand ? <b className="ec-logo-name">{brand}</b> : <><b>제조</b><span className="tail">ERP</span></>}
+            : <span className="ec-logo-name">{brand ?? '제조 ERP'}</span>}
         </Link>
         {/* 휴대폰·태블릿에서만 — ☰ 메뉴판, ★ 즐겨찾기 */}
         <button className="ec-m-btn ec-m-menu" aria-label="메뉴" onClick={() => { setMPanel(null); setDrawer((d) => (d ? null : { top: topIdx, tab: tabIdx })) }}>☰</button>

@@ -119,16 +119,15 @@
    원본 로고(그림)는 베끼지 않는다. 회사 로고 그림을 올리면 그 그림, 없으면 상호, 그것도 없으면 '제조 ERP'. */
 .ec-logo {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   margin-right: 14px;
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
+  font-size: var(--ec-logo-fs);
+  font-weight: 700;
+  line-height: var(--ec-logo-h);
   text-decoration: none;
   white-space: nowrap;
   color: var(--ec-blue);
 }
-.ec-logo > b { color: var(--ec-blue); font-weight: 900; }
 /* 회사 로고 그림 — 머리 줄 높이에 맞춰 줄인다(가로는 비율대로, 너무 긴 그림은 상호 칸 폭까지) */
 .ec-logo > .ec-logo-img {
   display: block;
@@ -907,8 +906,7 @@
   .ec-subnav,
   .ec-lnb,
   .ec-appbar,
-  .ec-company,
-  .ec-logo > .tail {
+  .ec-company {
     display: none;
   }
   .ec-gnb {
