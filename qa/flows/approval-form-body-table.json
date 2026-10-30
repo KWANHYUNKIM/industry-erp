@@ -27,7 +27,7 @@
       "path": "/groupware/approval/settings?tab=공통양식등록",
       "steps": [
         "wait:1000",
-        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent === 'QA그룹웨어-본문표').click(); true",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === 'QA그룹웨어-본문표').click(); true",
         "wait:600",
         "expect:(() => { const ed = document.querySelector('[aria-label=\"기안내용\"][contenteditable]'); const t = ed && ed.querySelector('table'); if (!t) return false; const td = [...t.querySelectorAll('td')].find((x) => x.textContent.trim() === '소속'); const cs = getComputedStyle(td); return t.querySelectorAll('tr').length === 4 && t.rows[0].cells[0].colSpan === 2 && cs.borderTopWidth === '1px' && cs.borderTopColor === 'rgb(0, 0, 0)' && ed.innerText.includes('승인하여 주시기 바랍니다') })()",
         "click:HTML",

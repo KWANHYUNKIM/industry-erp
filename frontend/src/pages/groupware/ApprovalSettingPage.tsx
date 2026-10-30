@@ -402,7 +402,7 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete, onCancel 
               양식코드는 바꿀 수 없습니다(기안서 {template.documentCount}건이 이 코드를 가리킵니다).
             </div>
           )}
-          <button type="button" className={`ec-btn mt-[10px]${showInputs ? ' ec-btn-primary' : ''}`} onClick={() => setShowInputs((v) => !v)}>
+          <button type="button" className={`ec-btn mt-[10px]${showInputs ? ' ec-btn-primary' : ''}`} onClick={() => setShowInputs(true)}>
             상단 입력설정
           </button>
         </div>
@@ -456,8 +456,8 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete, onCancel 
       {showPerms && <UserPermissionModal value={userPerms} onClose={() => setShowPerms(false)}
                                          onApply={(v) => { setUserPerms(v); setShowPerms(false) }} />}
 
-      {showInputs && <>
-      <div className="text-[12.5px] font-bold text-ec-label mt-[12px] mb-[4px]">상단 입력항목</div>
+      {showInputs && <Modal open title="상단 입력설정" width={780} onClose={() => setShowInputs(false)}>
+      <div className="text-[14px] font-bold mb-[8px]">상단 입력설정</div>
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -504,7 +504,11 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete, onCancel 
         </tbody>
       </table>
       <button className="ec-btn mt-[6px]" onClick={() => setFields((fs) => [...fs, { key: '', label: '', type: 'text', required: false }])}>+ 항목 추가</button>
-      </>}
+      <div className="flex gap-[6px] mt-[14px]">
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => setShowInputs(false)}>적용(F8)</button>
+        <button type="button" className="ec-btn" onClick={() => setShowInputs(false)}>닫기</button>
+      </div>
+      </Modal>}
 
       {/* 원본 단추줄: 저장(F8) · 취소 · 리스트 · 닫기 · 삭제 */}
       <div className="flex gap-[6px] mt-[10px]">
