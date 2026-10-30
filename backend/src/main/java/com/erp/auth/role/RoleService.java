@@ -5,6 +5,7 @@ import com.erp.auth.role.dto.RoleDtos.CreateRoleRequest;
 import com.erp.auth.role.dto.RoleDtos.RoleResponse;
 import com.erp.auth.role.dto.RoleDtos.UpdateRoleRequest;
 import com.erp.auth.user.UserRepository;
+import com.erp.auth.workpermission.WorkPermissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -23,13 +24,14 @@ import com.erp.auth.role.dto.RoleDtos;
 public class RoleService {
 
     private final RoleRepository roleRepository;
-    private final PermissionRepository permissionRepository;
     private final UserRepository userRepository;
+    private final WorkPermissionService workPermissionService;
 
     @Transactional(readOnly = true)
     public List<RoleResponse> list() {
         return roleRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
-                .map(r -> RoleResponse.from(r, userRepository.countByRoles_Id(r.getId())))
+                .map(r -> RoleResponse.from(r, userRepository.countByRoles_Id(r.getId()),
+                        workPermissionService.groupAllowedCodes(r.getId())))
                 .toList();
     }
 
@@ -43,10 +45,10 @@ public class RoleService {
                 .name(name)
                 .displayName(req.displayName().trim())
                 .description(req.description())
-                .permissions(resolvePermissions(req.permissionCodes()))
                 .build();
-        Role saved = roleRepository.save(role);
-        return RoleResponse.from(saved, 0);
+        Role saved = roleRepository.saveAndFlush(role);
+        workPermissionService.setGroupAllowedCodes(saved, req.permissionCodes());
+        return RoleResponse.from(saved, 0, workPermissionService.groupAllowedCodes(saved.getId()));
     }
 
     @Transactional
@@ -55,9 +57,11 @@ public class RoleService {
                 .orElseThrow(() -> ApiException.notFound("역할을 찾을 수 없습니다. id=" + id));
         role.setDisplayName(req.displayName().trim());
         role.setDescription(req.description());
-        // ADMIN 은 코드로 전권 바이패스라 권한 목록이 의미 없지만, 편집을 막지는 않는다.
-        role.setPermissions(resolvePermissions(req.permissionCodes()));
-        return RoleResponse.from(role, userRepository.countByRoles_Id(id));
+        // permissionCodes 를 안 주면(권한그룹 설정 화면의 이름 고치기) 업무권한은 그대로 둔다.
+        if (req.permissionCodes() != null) {
+            workPermissionService.setGroupAllowedCodes(role, req.permissionCodes());
+        }
+        return RoleResponse.from(role, userRepository.countByRoles_Id(id), workPermissionService.groupAllowedCodes(id));
     }
 
     @Transactional
@@ -72,17 +76,5 @@ public class RoleService {
             throw ApiException.conflict("이 역할을 가진 사용자가 " + users + "명 있어 삭제할 수 없습니다. 먼저 사용자의 역할을 바꾸세요.");
         }
         roleRepository.delete(role);
-    }
-
-    private Set<Permission> resolvePermissions(Set<String> codes) {
-        if (codes == null || codes.isEmpty()) {
-            return new HashSet<>();
-        }
-        Set<Permission> perms = new HashSet<>();
-        for (String code : codes) {
-            perms.add(permissionRepository.findById(code)
-                    .orElseThrow(() -> ApiException.badRequest("존재하지 않는 권한 코드입니다: " + code)));
-        }
-        return perms;
     }
 }

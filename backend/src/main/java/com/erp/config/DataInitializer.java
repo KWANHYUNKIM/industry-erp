@@ -18,6 +18,7 @@ import com.erp.inventory.item.ItemRepository;
 import com.erp.auth.role.PermissionRepository;
 import com.erp.auth.role.RoleRepository;
 import com.erp.auth.user.UserRepository;
+import com.erp.auth.workpermission.WorkPermissionService;
 import com.erp.inventory.warehouse.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,7 @@ public class DataInitializer implements CommandLineRunner {
     private final AccountRepository accountRepository;
     private final PermissionRepository permissionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final WorkPermissionService workPermissionService;
 
     @Override
     @Transactional
@@ -188,9 +190,8 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     /**
-     * 권한 카탈로그를 MenuPermissionCatalog 기준으로 시드하고, 기본 역할에 초기 권한을 부여한다.
-     * ADMIN 은 코드로 전권 바이패스하므로 부여하지 않는다. MANAGER·STAFF 는 현행 동작(모든 메뉴
-     * 접근)을 유지하도록 전체 권한을 준다 — 단 관리자가 이미 손을 댄 역할은 건드리지 않는다(멱등).
+     * 권한 카탈로그를 MenuPermissionCatalog 기준으로 시드하고, 기본 권한그룹(MANAGER · STAFF)에 업무권한이 하나도 없으면
+     * 사용자관리 빼고 전부 권한있음을 준다(멱등 — 마스터가 손댄 그룹은 건드리지 않는다). ADMIN 은 마스터라 줄이 필요 없다.
      */
     private void seedPermissions(Role manager, Role staff) {
         for (MenuPermissionCatalog.Perm p : MenuPermissionCatalog.ALL) {
@@ -199,19 +200,8 @@ public class DataInitializer implements CommandLineRunner {
                             .code(p.code()).name(p.name()).category(p.category()).sort(p.sort())
                             .build()));
         }
-        // 사용자·권한 관리(USER_MANAGE)는 ADMIN 전용(바이패스)으로 남긴다. 기본 역할엔 주지 않는다.
-        List<Permission> defaults = permissionRepository.findAll().stream()
-                .filter(p -> !"USER_MANAGE".equals(p.getCode()))
-                .toList();
-        grantAllIfEmpty(manager, defaults);
-        grantAllIfEmpty(staff, defaults);
-    }
-
-    private void grantAllIfEmpty(Role role, List<Permission> perms) {
-        if (role.getPermissions().isEmpty()) {
-            role.setPermissions(new HashSet<>(perms));
-            roleRepository.save(role);
-            log.info("역할 {} 에 기본 권한 {}개 부여", role.getName(), perms.size());
-        }
+        permissionRepository.flush();
+        workPermissionService.grantAllIfEmpty(manager);
+        workPermissionService.grantAllIfEmpty(staff);
     }
 }

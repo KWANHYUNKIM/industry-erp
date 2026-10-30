@@ -1,6 +1,5 @@
 package com.erp.auth.role.dto;
 
-import com.erp.auth.role.Permission;
 import com.erp.auth.role.Role;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
@@ -21,11 +20,8 @@ public final class RoleDtos {
             long userCount,
             List<String> permissionCodes
     ) {
-        public static RoleResponse from(Role role, long userCount) {
-            List<String> codes = role.getPermissions().stream()
-                    .map(Permission::getCode)
-                    .sorted()
-                    .toList();
+        /** codes — 그룹에서 진입할 수 있는 업무(work_permissions 에서 푼 값, WorkPermissionService.groupAllowedCodes). */
+        public static RoleResponse from(Role role, long userCount, List<String> codes) {
             return new RoleResponse(
                     role.getId(),
                     role.getName(),

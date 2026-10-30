@@ -29,6 +29,16 @@ public class GlobalExceptionHandler {
         }
     }
 
+    /** 업무권한 거부 — 본문에 permission{work, workName, kind, action, menu} 를 더 싣는다. */
+    private record PermissionErrorResponse(int status, String message, LocalDateTime timestamp,
+                                           PermissionDeniedException.Detail permission) {}
+
+    @ExceptionHandler(PermissionDeniedException.class)
+    public ResponseEntity<PermissionErrorResponse> handlePermission(PermissionDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new PermissionErrorResponse(403, e.getMessage(), LocalDateTime.now(), e.getDetail()));
+    }
+
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponse> handleApi(ApiException e) {
         return ResponseEntity.status(e.getStatus())

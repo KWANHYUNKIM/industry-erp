@@ -156,6 +156,7 @@ function resolveEntity(stem) {
  * 한 화면에서만 서버가 채우는 값은 여기 적는다.
  */
 const OWNED_HERE = new Map([
+  ['User|basePermission', '기본권한은 사용자등록 [권한] 탭이 따로 정한다(PUT /work-permissions/users/{id}/base) — 원본도 [권한] 탭 저장이 따로다'],
   ['Item|expenseStdCost', '품목등록 [원가] 탭 경비표준원가 — 원본 창에서 잠긴 칸(0, 2026-10-20 C000029 실측). 원가 쪽이 채운다'],
   ['Item|laborStdCost', '품목등록 [원가] 탭 노무비표준원가 — expenseStdCost 와 같다'],
   ['Item|subcontractStdCost', '품목등록 [원가] 탭 외주비표준원가 — expenseStdCost 와 같다'],
