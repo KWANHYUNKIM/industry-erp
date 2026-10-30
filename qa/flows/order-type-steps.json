@@ -1,0 +1,41 @@
+{
+  "about": "재고 II > 오더관리 > 오더관리유형등록(E040901) 2026-10-30 원본 실측: [신규(F2)] 창의 유형코드는 다음 P#### 번호(P0001 꼴)로 미리 찍힌다. 처리단계 줄마다 처리메뉴(구매 · 판매(거래명세서) …) · 불러오기 기준(앞 단계 — '처리단계1(구매)'). 저장하면 목록 [1단계] · [2단계] 칸에 처리메뉴 이름. 코드 눌러 다시 열면 불러오기 기준 그대로, 창 [사용중단/재사용 ▲] › [삭제] '삭제하겠습니까?' → 사라짐. 조건 줄은 접혀 있다(Search(F3)).",
+  "shots": [
+    {
+      "name": "유형 등록(처리단계 2줄) → 목록 → 다시 열기 → 삭제",
+      "path": "/sales/order-types",
+      "steps": [
+        "wait:1200",
+        "expect:(() => { const c = document.querySelector('.ec-cond'); return !c || c.offsetParent === null })()",
+        "click:신규(F2)",
+        "wait:600",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const v = d.querySelector('input[placeholder=유형코드]').value; sessionStorage.setItem('otcode', v); return d.innerText.includes('처리단계10') && /^P\\d{4}$/.test(v) })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelector('input[placeholder=유형명]'); const s = Date.now().toString().slice(-5); sessionStorage.setItem('otname', 'QA유형흐름' + s); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'QA유형흐름' + s); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:([...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"처리단계1 처리메뉴 선택\"]').click(), true)",
+        "wait:400",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const tr = [...d.querySelectorAll('tr')].find((x) => [...x.cells].some((td) => td.innerText.trim() === '구매')); tr.click(); return !!tr })()",
+        "wait:400",
+        "js:([...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"처리단계2 처리메뉴 선택\"]').click(), true)",
+        "wait:400",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const tr = [...d.querySelectorAll('tr')].find((x) => [...x.cells].some((td) => td.innerText.trim() === '판매(거래명세서)')); tr.click(); return !!tr })()",
+        "wait:400",
+        "choose:select[aria-label=\"처리단계2 불러오기 기준\"]|처리단계1(구매)",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:(() => { const n = sessionStorage.getItem('otname'); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes(n)); return !!r && r.cells[3].innerText.trim() === '구매' && r.cells[4].innerText.trim() === '판매(거래명세서)' && !document.querySelector('[role=dialog]') })()",
+        "js:(() => { const n = sessionStorage.getItem('otname'); [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes(n)).querySelector('a').click(); return true })()",
+        "wait:500",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.innerText.includes('오더관리유형수정') && d.querySelector('select[aria-label=\"처리단계2 불러오기 기준\"]').value === '1' })()",
+        "clicklast:사용중단/재사용 ▲",
+        "js:([...document.querySelectorAll('.ec-menu button')].find((b) => b.textContent.trim() === '삭제').click(), true)",
+        "expect:[...document.querySelectorAll('[role=alertdialog]')].some((d) => d.innerText.includes('삭제하겠습니까?'))",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:(() => !document.querySelector('tbody').innerText.includes(sessionStorage.getItem('otname')))()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const n = sessionStorage.getItem('otname'); if (!n) return true; const t = (await (await fetch('/api/order-types', { headers: H })).json()).find((x) => x.name === n); if (t) await fetch('/api/order-types/' + t.id, { method: 'DELETE', headers: H }); return true })()"
+  ]
+}

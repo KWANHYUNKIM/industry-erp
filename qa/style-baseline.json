@@ -954,11 +954,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/trade/OrderTypePage.tsx": {
-  "inline": 13,
-  "color": 2,
-  "palette": 0
- },
  "pages/trade/PartnerLedgerPage.tsx": {
   "inline": 7,
   "color": 2,

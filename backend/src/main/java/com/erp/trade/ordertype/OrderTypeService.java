@@ -51,7 +51,10 @@ public class OrderTypeService {
                 .active(true)
                 .build();
         OrderType saved = orderTypeRepository.save(t);
-        return OrderTypeResponse.from(saved, replaceSteps(saved, req.stageIds(), req.stageCharges()));
+        List<OrderTypeStep> steps = req.steps() != null
+                ? replaceStepRows(saved, req.steps())
+                : replaceSteps(saved, req.stageIds(), req.stageCharges());
+        return OrderTypeResponse.from(saved, steps);
     }
 
     @Transactional
@@ -68,9 +71,11 @@ public class OrderTypeService {
             t.setActive(req.active());
         }
         // 단계를 안 주면 그대로 둔다(이름만 고치는 수정이 단계를 날리면 안 된다).
-        List<OrderTypeStep> steps = req.stageIds() == null
-                ? stepRepository.findByTypeWithStage(id)
-                : replaceSteps(t, req.stageIds(), req.stageCharges());
+        List<OrderTypeStep> steps = req.steps() != null
+                ? replaceStepRows(t, req.steps())
+                : req.stageIds() == null
+                        ? stepRepository.findByTypeWithStage(id)
+                        : replaceSteps(t, req.stageIds(), req.stageCharges());
         return OrderTypeResponse.from(t, steps);
     }
 
@@ -124,6 +129,51 @@ public class OrderTypeService {
                     .orderType(type).seq(seq++).stage(stage).charge(charge).build()));
         }
         return saved;
+    }
+
+    /**
+     * 원본 [오더관리유형수정] 창의 처리단계 줄로 갈아 끼운다(2026-10-30 실측).
+     *
+     * <p>줄마다 [처리메뉴](어느 입력 화면인가)와 [불러오기 기준](앞 단계 하나)을 든다.
+     * 불러오기 기준은 <b>자기보다 앞 단계</b>만 된다 — 원본 고르기 칸이 앞 단계만 내놓는다.
+     * 처리메뉴 없는 줄은 옛 진행단계(stageId)를 다시 저장할 때만 받는다.
+     */
+    private List<OrderTypeStep> replaceStepRows(OrderType type, List<OrderTypeDtos.OrderTypeStepRequest> rows) {
+        stepRepository.deleteByOrderType_Id(type.getId());
+        stepRepository.flush(); // 위 replaceSteps 와 같은 까닭 — (order_type_id, seq) 유니크
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        if (rows.size() > MAX_STEPS) {
+            throw ApiException.badRequest("단계는 최대 " + MAX_STEPS + "개까지입니다.");
+        }
+        List<OrderTypeStep> saved = new java.util.ArrayList<>();
+        int seq = 1;
+        for (OrderTypeDtos.OrderTypeStepRequest r : rows) {
+            String menu = blankToNull(r.procMenu());
+            OrderStage stage = null;
+            if (menu == null) {
+                if (r.stageId() == null) {
+                    throw ApiException.badRequest("처리단계" + seq + "의 처리메뉴를 고르세요.");
+                }
+                stage = stageRepository.findById(r.stageId())
+                        .orElseThrow(() -> ApiException.badRequest("진행단계를 찾을 수 없습니다. id=" + r.stageId()));
+            }
+            Integer src = r.sourceSeq();
+            if (src != null && (src < 1 || src >= seq)) {
+                throw ApiException.badRequest("처리단계" + seq + "의 불러오기 기준은 앞 단계 중에서 고르세요.");
+            }
+            saved.add(stepRepository.save(OrderTypeStep.builder()
+                    .orderType(type).seq(seq++).stage(stage)
+                    .procMenu(menu).procMenuName(menu == null ? null : blankToNull(r.procMenuName()))
+                    .sourceSeq(src).charge(blankToNull(r.charge()))
+                    .build()));
+        }
+        return saved;
+    }
+
+    private static String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v.trim();
     }
 
     private OrderType getOrderType(Long id) {

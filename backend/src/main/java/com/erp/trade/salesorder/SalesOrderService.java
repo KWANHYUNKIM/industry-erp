@@ -345,7 +345,9 @@ public class SalesOrderService {
         if (order.getOrderType() == null) {
             throw ApiException.badRequest("오더유형을 먼저 지정하세요. 유형이 있어야 다음 단계를 알 수 있습니다.");
         }
-        List<OrderTypeStep> steps = orderTypeStepRepository.findByTypeWithStage(order.getOrderType().getId());
+        /* 처리메뉴로 정한 단계(2026-10-30 원본처럼)에는 진행단계 마스터가 없다 — 수주의 진행단계로 짚을 수 있는 것만 센다. */
+        List<OrderTypeStep> steps = orderTypeStepRepository.findByTypeWithStage(order.getOrderType().getId())
+                .stream().filter(st -> st.getStage() != null).toList();
         if (steps.isEmpty()) {
             throw ApiException.badRequest(
                     "이 유형에 진행단계가 없습니다. 오더관리유형리스트에서 단계를 먼저 정하세요: "

@@ -2,6 +2,7 @@ package com.erp.trade.ordertype.dto;
 
 import com.erp.trade.ordertype.OrderType;
 import com.erp.trade.ordertype.OrderTypeStep;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
@@ -28,6 +29,11 @@ public final class OrderTypeDtos {
              * 아래에 담당자를 적는다 — 2026-09-01 E040901 실측). 안 주거나 짧으면 그 단계는 빈다.
              */
             List<String> stageCharges,
+            /**
+             * 원본 [오더관리유형수정] 창의 처리단계 줄(2026-10-30 실측) — 줄마다 처리메뉴 · 불러오기 기준 · 담당자.
+             * 주면 stageIds · stageCharges 대신 이것으로 단계를 갈아 끼운다.
+             */
+            @Valid List<OrderTypeStepRequest> steps,
             Boolean useInInput,
             /** 원본 [처리메뉴] — 이 유형을 고를 수 있는 입력 화면의 경로. 안 주면 어디서나. */
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
@@ -45,6 +51,8 @@ public final class OrderTypeDtos {
             List<Long> stageIds,
             /** 단계마다의 담당자. stageIds 와 같은 차례. */
             List<String> stageCharges,
+            /** 처리단계 줄(처리메뉴 · 불러오기 기준 · 담당자). 주면 stageIds 대신 이것으로 갈아 끼운다. */
+            @Valid List<OrderTypeStepRequest> steps,
             Boolean useInInput,
             /** 원본 [처리메뉴]. 안 주면 어디서나 쓴다는 뜻이다. */
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
@@ -54,14 +62,41 @@ public final class OrderTypeDtos {
             Boolean active
     ) {}
 
-    /** 단계 한 칸. 원본의 [n단계] 칸에 들어가는 값이다. */
+    /**
+     * 처리단계 한 줄(원본 [오더관리유형수정] 창). 차례는 목록 차례 그대로 1, 2, 3 … 이다.
+     *
+     * @param sourceSeq 원본 [불러오기 기준] — 앞 단계 순번(1부터). 자기보다 앞이어야 한다.
+     * @param stageId   옛 진행단계 마스터 id — 처리메뉴 없이 옛 단계를 그대로 다시 저장할 때만.
+     */
+    public record OrderTypeStepRequest(
+            @Size(max = 200, message = "처리메뉴는 200자까지 넣을 수 있습니다.") String procMenu,
+            @Size(max = 50, message = "처리메뉴 이름은 50자까지 넣을 수 있습니다.") String procMenuName,
+            Integer sourceSeq,
+            @Size(max = 50, message = "담당자는 50자까지 넣을 수 있습니다.") String charge,
+            Long stageId
+    ) {}
+
+    /**
+     * 단계 한 칸. 원본의 [n단계] 칸에 들어가는 값이다.
+     *
+     * <p>{@code stageName} 은 <b>화면에 찍을 이름</b>이다 — 처리메뉴 이름(구매 · 판매(거래명세서)),
+     * 처리메뉴가 없는 옛 줄이면 진행단계 마스터 이름. 진행단계 화면 · MyPage 위젯이 이 이름을 그대로 찍는다.
+     */
     public record OrderTypeStepResponse(int seq, Long stageId, String stageCode, String stageName,
             /** 원본 격자가 단계 열 아래에 적는 [담당자]. 안 정했으면 null. */
-            String charge) {
+            String charge,
+            /** 원본 [처리메뉴] — 화면 경로. 옛 줄이면 null. */
+            String procMenu,
+            String procMenuName,
+            /** 원본 [불러오기 기준] — 앞 단계 순번. 없으면 null. */
+            Integer sourceSeq) {
         public static OrderTypeStepResponse from(OrderTypeStep s) {
             return new OrderTypeStepResponse(
-                    s.getSeq(), s.getStage().getId(), s.getStage().getCode(), s.getStage().getName(),
-                    s.getCharge());
+                    s.getSeq(),
+                    s.getStage() != null ? s.getStage().getId() : null,
+                    s.getStage() != null ? s.getStage().getCode() : null,
+                    s.displayName(),
+                    s.getCharge(), s.getProcMenu(), s.getProcMenuName(), s.getSourceSeq());
         }
     }
 
