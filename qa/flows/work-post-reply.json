@@ -1,5 +1,5 @@
 {
-  "about": "업무관리 게시판 답글(하위 글) — 원본 🚗 2. 차량 증빙관리 · 🎧 상담 이력관리 목록은 원글 제목 뒤 '[1]'(답글 수), [모두펼쳐보기] 로 그 아래 하위 글(2026-10-30 loginaa 실측). 신규(F2) [일자] 지난해 5/14 로 원글 → 기본 기간(전년) 목록에 보임 → 제목 눌러 View [답글(F8)] → 제목이 원글 그대로 채워진 입력 창 → 제목 바꿔 저장 → 원글 줄 '[1]' · 답글은 따로 줄을 서지 않음 → [모두펼쳐보기] → '↳ 답글' 줄 → 원글 [선택삭제] '답변이 있는 글은 삭제할 수 없습니다.' → 답글 View [삭제] → 원글 [선택삭제]. node qa/shot.mjs qa/flows/work-post-reply.json",
+  "about": "업무관리 게시판 답글(하위 글) — 원본 🚗 2. 차량 증빙관리 · 🎧 상담 이력관리 목록은 원글 제목 뒤 '[1]'(답글 수), [모두펼쳐보기] 로 그 아래 하위 글(2026-10-30 loginaa 실측). 신규(F2) [일자] 지난해 5/14 로 원글 → 기본 기간(전년) 목록에 보임 → 제목 눌러 View [답글(F8)] → 제목이 원글 그대로 채워진 입력 창 → 제목 바꿔 저장 → 원글 줄 '[1]' · 답글은 따로 줄을 서지 않음 → [모두펼쳐보기] → '↳ 답글' 줄(행번호 이어짐 · 체크칸 · 게시글번호 빈 칸 · 본문은 안 폄) → 답글 체크 [진행상태변경] 완료 → 답글만 완료 → View 머리 일시가 [일자] → 원글 [선택삭제] '답변이 있는 글은 삭제할 수 없습니다.' → 답글 View [삭제] → 원글 [선택삭제]. node qa/shot.mjs qa/flows/work-post-reply.json",
   "shots": [
     {
       "name": "차량 증빙관리 — 원글 · 답글 '[1]' · 모두펼쳐보기 · 원글 삭제 막힘 · 지움",
@@ -30,7 +30,20 @@
         "expect:![...document.querySelectorAll('tbody button')].some((x) => x.textContent.trim() === 'QA그룹웨어-증빙 답글')",
         "click:모두펼쳐보기",
         "wait:300",
-        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-증빙 답글')); return !!tr && tr.innerText.includes('↳') && tr.previousElementSibling.previousElementSibling.innerText.includes('QA그룹웨어-증빙 원글') })()",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-증빙 답글')); const p = tr && tr.previousElementSibling; return !!tr && tr.innerText.includes('↳') && p.innerText.includes('QA그룹웨어-증빙 원글') && Number(tr.cells[0].innerText.trim()) === Number(p.cells[0].innerText.trim()) + 1 && !!tr.cells[0].querySelector('input[type=checkbox]') && tr.cells[1].innerText.trim() === '' })()",
+        "expect:![...document.querySelectorAll('tbody td')].some((td) => td.colSpan > 3)",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-증빙 답글')).cells[0].querySelector('input[type=checkbox]').click(); true",
+        "wait:200",
+        "click:진행상태변경",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=menu][aria-label=\"진행상태변경\"] [role=menuitem]')].find((b) => b.textContent.trim() === '완료').click(); true",
+        "wait:1500",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-증빙 답글')); const p = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-증빙 원글')); return !!tr && tr.innerText.includes('완료') && !p.innerText.includes('완료') })()",
+        "js:[...document.querySelectorAll('tbody button')].find((x) => x.textContent.trim() === 'QA그룹웨어-증빙 원글').click(); true",
+        "wait:500",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes(`${new Date().getFullYear() - 1}/05/14 (`)",
+        "clicklast:닫기",
+        "wait:300",
         "js:[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-증빙 원글')).cells[0].click(); true",
         "click:선택삭제",
         "wait:400",

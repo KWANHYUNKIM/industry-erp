@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { exportTableToXlsx } from '../../utils/excel'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
@@ -80,14 +80,21 @@ const splitNames = (v: string | null | undefined) => (v ?? '').split(',').map((x
 
 const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 
-/** 원본 View 머리줄의 작성 일시: '2026/10/03 (토) 오후 12:53:08'. */
-function stampText(iso?: string | null) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const h = d.getHours()
+/**
+ * 원본 View 머리줄의 일시: '2025/01/14 (화) 오전 10:49:55' — 날짜는 글의 [일자](입력한 때가 아니다, 차량 증빙관리 2026-10-30 실측).
+ * 우리는 일자를 날짜로만 들고 있어 시각은 작성 시각을 붙인다. postDate 를 안 주면 작성 일시 그대로.
+ */
+function stampText(iso?: string | null, postDate?: string | null) {
+  const d = iso ? new Date(iso) : null
+  const ok = !!d && !Number.isNaN(d.getTime())
+  const day = postDate && /^\d{4}-\d\d-\d\d$/.test(postDate) ? postDate : ok ? ymd(d!) : ''
+  if (!day) return ''
+  const [y, m, dd] = day.split('-').map(Number)
+  const wd = WEEK[new Date(y, m - 1, dd).getDay()]
+  if (!ok) return `${dateText(day)} (${wd})`
+  const h = d!.getHours()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${dateText(ymd(d))} (${WEEK[d.getDay()]}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${dateText(day)} (${wd}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d!.getMinutes())}:${pad(d!.getSeconds())}`
 }
 
 /** forwardAll: 원본 [전달자] 의 '전체'(켬) / '선택'(이름을 고른다). */
@@ -719,12 +726,12 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
    * 회사가 정한 이름(통합게시판 · 팀별회의록 · 간판제작)은 stage 로, WORK 는 진행중/완료(status)로 보낸다.
    */
   function openStageMenu() {
-    if (shown.every((r) => !selected.has(r.id))) return setError('상태를 바꿀 글을 고르세요. 행번호 칸을 누르면 선택됩니다.')
+    if (pickedRows().length === 0) return setError('상태를 바꿀 글을 고르세요. 행번호 칸을 누르면 선택됩니다.')
     setStageMenu((v) => !v)
   }
   async function changeStatusSelected(target: string) {
     setStageMenu(false)
-    const targets = shown.filter((r) => selected.has(r.id))
+    const targets = pickedRows()
     for (const r of targets) {
       try {
         // enum 값은 IN_PROGRESS 다. 'ONGOING' 을 보내면 400 이 난다(직접 시험해서 잡았다).
@@ -770,14 +777,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     return ls.length === 0 ? labelFilter.has(NO_LABEL) : ls.some((l) => labelFilter.has(l))
   }
   function openLabels() {
-    const targets = rows.filter((r) => selected.has(r.id))
+    const targets = pickedRows()
     // 하나만 골랐으면 그 글의 라벨을 켜 두고 연다 — 고칠 때 지금 값에서 시작한다.
     setLabelPick(new Set(targets.length === 1 ? targets[0].labels ?? [] : []))
     setLabelOpen(true)
   }
   const togglePick = (l: string) => setLabelPick((p) => { const n = new Set(p); if (n.has(l)) n.delete(l); else n.add(l); return n })
   async function applyLabels() {
-    const targets = rows.filter((r) => selected.has(r.id))
+    const targets = pickedRows()
     for (const r of targets) {
       try { await api.patch(`/work-posts/${r.id}/labels`, { labels: knownLabels.filter((l) => labelPick.has(l)) }) }
       catch (err) { setError(extractErrorMessage(err)) }
@@ -796,7 +803,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 
   /** 원본 [선택삭제] */
   async function deleteSelected() {
-    const targets = shown.filter((r) => selected.has(r.id))
+    const targets = pickedRows()
     if (targets.length === 0) return setError('지울 글을 고르세요. 행번호 칸을 누르면 선택됩니다.')
     setConfirmIds(targets.map((r) => r.id))
   }
@@ -814,7 +821,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(r.title)}</title>
 <style>body{font-family:sans-serif;font-size:12px;padding:24px}h1{font-size:14px;margin:0 0 8px}
 .meta{margin-bottom:12px}.body{white-space:pre-wrap;border-top:1px solid;padding-top:12px}</style></head>
-<body><h1>${escapeHtml(`${r.postNo} | ${r.title} | ${r.writerName ?? r.writer} | ${stampText(r.createdAt)}`)}</h1>
+<body><h1>${escapeHtml(`${r.postNo} | ${r.title} | ${r.writerName ?? r.writer} | ${stampText(r.createdAt, r.postDate)}`)}</h1>
 <div class="meta">일자-No. ${escapeHtml(dateNoOf(r))}${r.attachmentName ? ` · 첨부 ${escapeHtml(r.attachmentName)}` : ''}</div>
 <div class="body">${isHtml(r.content) ? sanitizeHtml(r.content) : escapeHtml(r.content)}</div></body></html>`)
   }
@@ -855,6 +862,17 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     applied.byUpdated && (a.updatedAt ?? '') !== (b.updatedAt ?? '') ? ((a.updatedAt ?? '') < (b.updatedAt ?? '') ? 1 : -1) : newestFirst(a, b)
   const numbered = [...shown].sort(byOrder)
   const pinned = shown.filter((r) => r.notice).sort(byOrder)
+  /**
+   * 번호 붙은 줄 — 원글, [모두펼쳐보기] 면 그 아래 답글 줄(원본 차량 증빙관리 2026-10-30: 답글 줄도 행번호 · 체크칸이 있고
+   * 번호가 이어진다 1 원글 · 2 원글 · 3 그 답글 …, 본문은 펴지 않는다). 답글이 이미 따로 줄을 섰으면 또 펴지 않는다.
+   */
+  const shownIds = new Set(shown.map((r) => r.id))
+  const listed: { r: WorkPost; reply: boolean }[] = numbered.flatMap((r) => [
+    { r, reply: false },
+    ...(opened && r.parentId == null ? (repliesOf.get(r.id) ?? []).filter((c) => !shownIds.has(c.id)).map((c) => ({ r: c, reply: true })) : []),
+  ])
+  /** [진행상태변경] · [라벨변경] · [선택삭제] 가 다루는 글 — 화면에 줄이 선 글 중 고른 것(답글 줄 포함). */
+  const pickedRows = () => listed.map((x) => x.r).filter((r) => selected.has(r.id))
   /** 게시판마다 [완료일] 열이 붙었다 빠졌다 한다 — 머리 · 본문 · 빈 줄 칸 수를 개발 모드에서 본다. */
   const gridRef = useRef<HTMLDivElement>(null)
   useTableColumnCheck(gridRef, `${board} 게시판`, [shown.length, opened, loading, board])
@@ -886,7 +904,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               const v = ex[c.slice(2).split('|')[0]] ?? ''
               return <td key={c} className={`${bg}${/^\d{4}-\d\d-\d\d$/.test(v) ? ' text-center' : ''}`}>{/^\d{4}-\d\d-\d\d$/.test(v) ? dateText(v) : v}</td>
             }
-            const text = c === 'no' ? r.postNo : c === 'dateNo' ? dateNoOf(r) : c === 'writer' ? (r.writerName ?? r.writer)
+            const text = c === 'no' ? (reply ? '' : r.postNo) : c === 'dateNo' ? dateNoOf(r) : c === 'writer' ? (r.writerName ?? r.writer)
               : c === 'forward' ? (r.forwardTo ?? '') : c === 'postDate' ? dateText(r.postDate) : statusOf(r)
             return <td key={c} className={`${bg}${c === 'stage' ? ' text-ec-navy' : ''}${c === 'postDate' || c === 'dateNo' ? ' text-center' : ''}`}>{text}</td>
           })}
@@ -906,7 +924,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     }
     return (
       <>
-        <td className={bg}>{r.postNo}</td>
+        {/* 답글 줄의 게시글번호는 원본도 빈 칸 */}
+        <td className={bg}>{reply ? '' : r.postNo}</td>
         {/* 원본 [라벨] 칩 — 제목 앞(여백 3.6 4.5 2.7 · 둥글기 10 · 오른쪽 4.5, 실측) */}
         <td className={bg}>{titleCell}</td>
         {cfg.minutes ? (
@@ -1289,8 +1308,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                 * 번호 칸만 눌러 고르게 해 두었더니 고를 줄 몰라 '리스트에 선택된 자료가 없습니다' 에서 막혔다).
                 */}
               <th className="w-[52px] text-center">
-                <input type="checkbox" aria-label="전체선택" checked={shown.length > 0 && selected.size === shown.length}
-                       onChange={() => setSelected(selected.size === shown.length ? new Set() : new Set(shown.map((r) => r.id)))} />
+                <input type="checkbox" aria-label="전체선택" checked={listed.length > 0 && listed.every((x) => selected.has(x.r.id))}
+                       onChange={() => setSelected(listed.every((x) => selected.has(x.r.id)) ? new Set() : new Set(listed.map((x) => x.r.id)))} />
               </th>
               {/* 원본 컬럼 순서: 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회 */}
               {cfg.cols ? cfg.cols.map((c) => (
@@ -1329,43 +1348,20 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                     {cells(r, true)}
                   </tr>
                 ))}
-                {numbered.map((r, i) => (
-                  <Fragment key={r.id}>
-                    <tr>
-                      <td className={`text-center cursor-pointer select-none ${selected.has(r.id)
-                            ? 'bg-ec-blue-wash text-ec-navy font-bold' : 'bg-ec-stripe text-ec-hint'}`}
-                          title="눌러서 이 글을 고릅니다"
-                          onClick={() => toggleSelect(r.id)}>
-                        <span className="inline-flex items-center gap-[4px]">
-                          {i + 1}
-                          <input type="checkbox" aria-label={`${r.postNo} 선택`} checked={selected.has(r.id)}
-                                 onClick={(e) => e.stopPropagation()} onChange={() => toggleSelect(r.id)} />
-                        </span>
-                      </td>
-                      {cells(r, false)}
-                    </tr>
-                    {opened && (
-                      <tr>
-                        <td colSpan={colCount} className="bg-ec-page px-[14px] py-[10px]">
-                          <EcRichBody content={r.content} className="text-[12px] text-ec-ink min-h-[20px]" />
-                        </td>
-                      </tr>
-                    )}
-                    {/* [모두펼쳐보기] — 원글 아래에 하위 글(답글) 줄을 '↳' 로 들여 편다(원본 차량 증빙관리 · 상담 이력관리). */}
-                    {opened && r.parentId == null && (repliesOf.get(r.id) ?? []).map((c) => (
-                      <Fragment key={`reply-${c.id}`}>
-                        <tr>
-                          <td className="bg-ec-stripe" />
-                          {cells(c, false, true)}
-                        </tr>
-                        <tr>
-                          <td colSpan={colCount} className="bg-ec-page pl-[32px] pr-[14px] py-[10px]">
-                            <EcRichBody content={c.content} className="text-[12px] text-ec-ink min-h-[20px]" />
-                          </td>
-                        </tr>
-                      </Fragment>
-                    ))}
-                  </Fragment>
+                {listed.map(({ r, reply }, i) => (
+                  <tr key={reply ? `reply-${r.id}` : r.id}>
+                    <td className={`text-center cursor-pointer select-none ${selected.has(r.id)
+                          ? 'bg-ec-blue-wash text-ec-navy font-bold' : 'bg-ec-stripe text-ec-hint'}`}
+                        title="눌러서 이 글을 고릅니다"
+                        onClick={() => toggleSelect(r.id)}>
+                      <span className="inline-flex items-center gap-[4px]">
+                        {i + 1}
+                        <input type="checkbox" aria-label={reply ? `답글 ${r.title} 선택` : `${r.postNo} 선택`} checked={selected.has(r.id)}
+                               onClick={(e) => e.stopPropagation()} onChange={() => toggleSelect(r.id)} />
+                      </span>
+                    </td>
+                    {cells(r, false, reply)}
+                  </tr>
                 ))}
               </>
             )}
@@ -1692,7 +1688,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         {viewing && (
           <>
             <div className="bg-ec-page rounded-ec px-[12px] py-[8px] text-[12px] font-bold text-ec-ink">
-              {viewing.postNo} | {viewing.title} | {viewing.writerName ?? viewing.writer} | {stampText(viewing.createdAt)}
+              {viewing.postNo} | {viewing.title} | {viewing.writerName ?? viewing.writer} | {stampText(viewing.createdAt, viewing.postDate)}
             </div>
             <ul className="ec-form border-0 mb-[6px]">
               <li className="wide"><div className="title">일자-No.</div><div className="form text-ec-navy">{dateNoOf(viewing)}</div></li>

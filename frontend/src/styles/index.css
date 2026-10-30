@@ -1383,6 +1383,8 @@ th.ec-empty {
   line-height: 1;
   white-space: nowrap;
 }
+/* 원본 'label label-light' — 밝은 색 라벨은 검정 글자(차량 증빙관리 · 진행현황 칸반 실측). 어느 색이 밝은 쪽인지는 features/board/labels.ts labelIsLight */
+.ec-label-chip.ec-label-light { color: var(--ec-ink); }
 /* 조직도현황(E090220) — 부서 상자 나무. 실측: 머리 rgb(27,61,161) 흰 12px 700 · 위 모서리 10 · 여백 6.3 4.5 · 상자 폭 161 · 사람 줄 여백 4.5 0 */
 .ec-org-chart { display: flex; gap: 27px; align-items: flex-start; }
 .ec-org-node { display: flex; flex-direction: column; align-items: center; }
