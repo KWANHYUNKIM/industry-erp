@@ -7,7 +7,9 @@ import EcBarChart from '../../components/EcBarChart'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
+import { loadSupplierParty, type DocParty } from '../../utils/printDocument'
+import EcSlipPrintModal, { type SlipPrintDoc } from '../../components/EcSlipPrintModal'
+import { quoteSlip } from '../../utils/slipLetter'
 import type { Currency, Item, Partner, Quotation, QuotationStatus } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
@@ -248,27 +250,21 @@ export default function QuotationPage() {
 
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
 
-  /** 견적서 서식 인쇄 — 거래명세서와 같은 템플릿을 쓴다(제목·유효기간만 다르다). */
-  async function printQuote(q: Quotation) {
+  /**
+   * 견적서 [인쇄] — 원본은 새 창이 아니라 목록 위 '견적서' 인쇄 미리보기 창이다(2026-10-31 loginad C000071 실측 — 머리 · 금액 줄 ·
+   * 품목 격자 · 아래 상자, [✓내자기본 ⌄] [인쇄│▴] [Email│▴] [PDF] [Excel(표시형식)] [닫기]). 줄 [인쇄] 는 그 견적 하나, 하단 [인쇄] 는 고른 견적들.
+   */
+  const [slipDocs, setSlipDocs] = useState<SlipPrintDoc[] | null>(null)
+  const toSlip = (q: Quotation) => {
     const p = partners.find((x) => x.id === q.partnerId)
-    await printDocuments([{
-      title: '견 적 서',
-      docNo: q.quoteNo,
-      docDate: q.quoteDate,
-      supplier: company ?? { label: '공급자', name: '(회사정보 미등록)' },
-      customer: {
-        label: '수신처', name: q.partnerName,
-        bizRegNo: p?.bizRegNo, ceo: p?.ceoName, bizType: p?.bizType, bizItem: p?.bizItem,
-        tel: p?.phone, address: p?.address,
-      },
-      extra: [{ label: '유효기간', value: q.validUntil }, { label: '담당', value: q.employeeName }],
-      remark: q.remark,
-      lines: q.lines.map((l) => ({
-        itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
-        quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount,
-      })),
-      footNote: '아래와 같이 견적합니다.',
-    }])
+    return quoteSlip({ key: q.id, dateNo: dateNo(q), partnerName: q.partnerName, partnerTel: p?.phone, partnerFax: p?.fax,
+      employeeName: q.employeeName, validUntil: q.validUntil, supplyAmount: q.supplyAmount, vatAmount: q.vatAmount,
+      totalAmount: q.totalAmount, lines: q.lines }, company)
+  }
+  function printQuote(q: Quotation) { setSlipDocs([toSlip(q)]) }
+  function printChecked() {
+    const list = shown.filter((q) => picked.has(q.id))
+    if (list.length) setSlipDocs(list.map(toSlip))
   }
 
   /**
@@ -400,13 +396,14 @@ export default function QuotationPage() {
         /* 2026-10-30 클릭 대조: [Email] 원본은 알림('데모에서는 …') · [바코드(품목)] 고른 줄 없으면 원본 알림 · [이력조회] '견적서 이력조회' 창. */
         { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
         { label: '진행상태변경', onClick: () => openMenu('status', '진행상태변경') },
-        { label: '인쇄' },
+        { label: '인쇄', onClick: printChecked, selected: picked.size },
         { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: picked.size },
         { label: '다른전표생성', onClick: () => openMenu('gen', '다른전표생성'), selected: picked.size },
         { label: '선택삭제', onClick: removeChecked, selected: picked.size },
         { label: 'Excel' },
         { label: '이력조회', onClick: () => setHistoryWin(true) },
       ]}>
+      {slipDocs && <EcSlipPrintModal title="견적서" docs={slipDocs} forms={['내자기본']} width={726} pdf excelLabel="Excel(표시형식)" onClose={() => setSlipDocs(null)} />}
       {historyWin && <SlipMenuHistoryModal menu="견적서" statusLabel="확인" onClose={() => setHistoryWin(false)} />}
       {menuAt && (
         <>
@@ -763,7 +760,7 @@ export default function QuotationPage() {
               <td className="text-right">{won(q.totalAmount)}</td>
               <td className="text-center text-ec-navy">{q.statusName}</td>
               <td className="text-center"><a className={`cursor-pointer${q.convertedOrderId ? ` ${GEN_TAG}` : ''}`} onClick={() => void openGenerated(q)}>조회</a></td>
-              <td className="text-center"><a className="cursor-pointer" onClick={() => void printQuote(q)}>인쇄</a></td>
+              <td className="text-center"><a className="cursor-pointer" onClick={() => printQuote(q)}>인쇄</a></td>
             </tr>
           ))}
         </tbody>

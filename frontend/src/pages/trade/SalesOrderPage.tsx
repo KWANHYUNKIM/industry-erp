@@ -12,7 +12,9 @@ import Modal from '../../components/Modal'
 import EcPeriodPicks, { ORDER_LIST_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcCond } from '../../components/EcStatusPanel'
 import { dateText } from '../../utils/dateText'
-import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
+import { loadSupplierParty, type DocParty } from '../../utils/printDocument'
+import EcSlipPrintModal, { type SlipPrintDoc } from '../../components/EcSlipPrintModal'
+import { orderSlip } from '../../utils/slipLetter'
 import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import { EcDateRange } from '../../components/ui/EcDateInput'
@@ -171,25 +173,21 @@ export default function SalesOrderPage() {
     catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
-  /** 줄의 [인쇄] — 원본 '주 문 서' 양식(수신 · 납기일자 · 일련번호 · 담당자 · 금액 한글 · 품목코드 · 품목명[규격] …). */
-  async function printOrder(o: SalesOrder) {
+  /**
+   * 주문서 [인쇄] — 원본은 목록 위 '주문서' 인쇄 미리보기 창이다(2026-10-31 loginad C000072 실측 — 수 신 · 참 조 · TEL/FAX · 결제조건 ·
+   * 유효기간 · 납기일자 | 로고 · 일련번호 · 담당자, 금액 줄, 품목 격자(총합계에 수량), [✓내자기본 ⌄] [인쇄│▴] [Email│▴] [Excel] [닫기]).
+   */
+  const [slipDocs, setSlipDocs] = useState<SlipPrintDoc[] | null>(null)
+  const toSlip = (o: SalesOrder) => {
     const p = partners.find((x) => x.id === o.partnerId)
-    await printDocuments([{
-      title: '주 문 서',
-      docNo: dateNo(o.orderDate, o.orderNo),
-      docDate: o.orderDate,
-      supplier: company ?? { label: '공급자', name: '(회사정보 미등록)' },
-      customer: {
-        label: '수신', name: o.partnerName,
-        bizRegNo: p?.bizRegNo, ceo: p?.ceoName, bizType: p?.bizType, bizItem: p?.bizItem, tel: p?.phone, address: p?.address,
-      },
-      extra: [{ label: '납기일자', value: dateText(o.dueDate) }, { label: '담당자', value: o.employeeName }],
-      remark: o.remark,
-      lines: o.lines.map((l) => ({
-        itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit,
-        quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount,
-      })),
-    }])
+    return orderSlip({ key: o.id, dateNo: dateNo(o.orderDate, o.orderNo), partnerName: o.partnerName, partnerTel: p?.phone, partnerFax: p?.fax,
+      employeeName: o.employeeName, dueDate: o.dueDate, supplyAmount: o.supplyAmount, vatAmount: o.vatAmount,
+      totalAmount: o.totalAmount, lines: o.lines }, company)
+  }
+  function printOrder(o: SalesOrder) { setSlipDocs([toSlip(o)]) }
+  function printChecked() {
+    const list = shown.filter((o) => checked.has(o.id))
+    if (list.length) setSlipDocs(list.map(toSlip))
   }
 
   const shownRows = orders
@@ -224,11 +222,12 @@ export default function SalesOrderPage() {
       onNew={() => navigate('/sales/order-entry')}
       /* 원본 차례: 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드 · 다른전표생성 · 전자결재 · 선택삭제 · Excel · 이력조회 — 바깥 발송 · 결재는 뺀다. */
       actions={[{ label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
-        { label: '진행상태변경', onClick: openStatusMenu }, { label: '인쇄' },
+        { label: '진행상태변경', onClick: openStatusMenu }, { label: '인쇄', onClick: printChecked, selected: checked.size },
         { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size },
         { label: '선택삭제', onClick: removeChecked, selected: checked.size }, { label: 'Excel' },
         { label: '이력조회', onClick: () => setHistoryWin(true) }]}
     >
+      {slipDocs && <EcSlipPrintModal title="주문서" docs={slipDocs} forms={['내자기본']} width={726} onClose={() => setSlipDocs(null)} />}
       {historyWin && <SlipMenuHistoryModal menu="주문서" statusLabel="확인" onClose={() => setHistoryWin(false)} />}
       {statusMenu && (
         <>
@@ -351,7 +350,7 @@ export default function SalesOrderPage() {
               <td className="text-right">{won(o.totalAmount)}</td>
               <td className="text-center text-ec-navy">{STATUS_LABEL[o.status]}</td>
               <td className="text-center"><a className="cursor-pointer" onClick={() => openGenerated(o)}>조회</a></td>
-              <td className="text-center"><a className="cursor-pointer" onClick={() => void printOrder(o)}>인쇄</a></td>
+              <td className="text-center"><a className="cursor-pointer" onClick={() => printOrder(o)}>인쇄</a></td>
             </tr>
           ))}
         </tbody>

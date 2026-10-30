@@ -1793,6 +1793,19 @@ th.ec-empty {
 .ec-slip-foot th { width: 40px; font-weight: 700; text-align: center; white-space: nowrap; }
 .ec-slip-foot th:nth-of-type(2) { width: 63px; }
 .ec-slip-foot td:last-child { width: 106px; }
+/* 견적서 · 주문서 머리(원본 C000071 · C000072): 다섯 칸 75 · 220 · 10 · 75 · 나머지, 줄 22, 로고 칸 세 줄, 금액 줄 굵은 테두리 2px h27 */
+.ec-slip-letter { width: 100%; margin: 6px 0; border-collapse: collapse; table-layout: fixed; }
+.ec-slip-letter th,
+.ec-slip-letter td { height: 22px; padding: 0 4px; border: 1px solid var(--ec-ink); font-size: 12px; text-align: left; overflow: hidden; }
+.ec-slip-letter th { background: var(--ec-bg-ledger-head); font-weight: 700; text-align: center; white-space: nowrap; }
+.ec-slip-letter td.gap { border: 0; }
+.ec-slip-letter td.none { border: 0; }
+.ec-slip-letter td.notice { vertical-align: middle; }
+.ec-slip-letter td.logo { text-align: center; font-size: 20px; font-weight: 700; }
+.ec-slip-amount { display: flex; justify-content: space-between; align-items: center; height: 27px; margin: 0 0 6px; padding: 0 18px; border: 2px solid var(--ec-ink); font-weight: 700; }
+.ec-slip-foot.is-letter th { width: 51px; font-weight: 400; background: var(--ec-bg-ledger-head); }
+.ec-slip-foot.is-letter td { height: 26px; }
+.ec-slip-foot.is-letter td:last-child { width: auto; }
 .ec-slip-cut { margin: 18px 0; border-top: 1px dashed var(--ec-line-ledger); }
 /* 인쇄용 한 벌 — 화면에는 안 보이고, 인쇄할 때는 이것만 보인다(나머지 body 자식은 감춘다). */
 .ec-slip-print-out { display: none; }
