@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import Modal from '../../components/Modal'
 import { periodOf } from '../../components/EcPeriodPicks'
@@ -48,23 +48,32 @@ export const PULLS = {
   'A/S접수': { url: '/as-requests', toDocs: nested('asNo', 'receiptDate') },
 } as const
 export type PullKind = keyof typeof PULLS
+/** 창 제목 — 원본 자가사용입력 [주문] 은 '주문서검색창(조회)'(2026-10-30 실측), 단추 이름과 다르다. */
+const PULL_TITLE: Partial<Record<PullKind, string>> = { 주문: '주문서', 발주: '발주서' }
 
 /** 불러오기 단추 하나와 검색창. <code>onApply</code> 가 고른 전표의 줄을 받는다. */
 export function DocPullButton({ kind, onApply }: { kind: PullKind; onApply: (lines: PulledLine[]) => void }) {
   const [open, setOpen] = useState(false)
+  return (<>
+    <button type="button" className="ec-btn ec-btn-sm" onClick={() => setOpen(true)}>{kind}</button>
+    {open && <DocPullModal kind={kind} onApply={onApply} onClose={() => setOpen(false)} />}
+  </>)
+}
+
+/** '<종류>검색창(조회)' 창만 — [전표불러오기] 메뉴검색처럼 단추 없이 여는 곳이 쓴다. 열릴 때 최근30일(+1개월) 전표를 받는다. */
+export function DocPullModal({ kind, onApply, onClose }: { kind: PullKind; onApply: (lines: PulledLine[]) => void; onClose: () => void }) {
   const [rows, setRows] = useState<PullDoc[]>([])
   const [pick, setPick] = useState<number | null>(null)
   const [error, setError] = useState('')
+  const setOpen = (v: boolean) => { if (!v) onClose() }
 
-  async function show() {
-    setOpen(true); setPick(null); setRows([]); setError('')
+  useEffect(() => {
     const r = periodOf('최근30일(+1개월)')!
     const c = PULLS[kind]
-    try {
-      const data = (await api.get<Row[]>(c.url, { params: { from: r.from, to: r.to } })).data
-      setRows(c.toDocs(data).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id))
-    } catch (e) { setError(extractErrorMessage(e)) }
-  }
+    api.get<Row[]>(c.url, { params: { from: r.from, to: r.to } })
+      .then(({ data }) => setRows(c.toDocs(data).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)))
+      .catch((e) => setError(extractErrorMessage(e)))
+  }, [kind])
   function apply() {
     const d = rows.find((x) => x.id === pick)
     if (!d) return
@@ -73,8 +82,7 @@ export function DocPullButton({ kind, onApply }: { kind: PullKind; onApply: (lin
   }
 
   return (<>
-    <button type="button" className="ec-btn ec-btn-sm" onClick={() => void show()}>{kind}</button>
-    <Modal error={error} open={open} title={`${kind}검색창(조회)`} onClose={() => setOpen(false)} width={760}>
+    <Modal error={error} open title={`${PULL_TITLE[kind] ?? kind}검색창(조회)`} onClose={() => setOpen(false)} width={760}>
       <table className="w-full text-left">
         <thead><tr>
           <th className="w-[34px]"></th><th className="text-center">일자-No.</th><th>거래처명</th><th>품목명(요약)</th>

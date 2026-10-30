@@ -108,6 +108,9 @@ public final class StockAdjustmentDtos {
              */
             @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String handling,
+            /* 원본 자가사용입력 머리 [새로운 항목 추가] — 전표 비고(2026-10-30 클릭 대조). */
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
+            String headerNote,
             @jakarta.validation.constraints.NotEmpty(message = "품목을 입력하세요.")
             List<@jakarta.validation.Valid SlipLine> lines
     ) {}
@@ -136,6 +139,8 @@ public final class StockAdjustmentDtos {
             Long projectId, String projectName,
             /** 불량처리의 [처리방법] — 줄마다 같은 값이라 첫 줄 것. */
             String handling,
+            /** 머리 [새로운 항목 추가] — 줄마다 같은 값이라 첫 줄 것. */
+            String headerNote,
             List<AdjustmentResponse> lines
     ) {
         public static SlipResponse of(List<StockAdjustment> rows) {
@@ -145,7 +150,7 @@ public final class StockAdjustmentDtos {
                     h.getWarehouse().getId(), h.getWarehouse().getName(),
                     h.getProject() != null ? h.getProject().getId() : null,
                     h.getProject() != null ? h.getProject().getName() : null,
-                    h.getHandling(),
+                    h.getHandling(), h.getHeaderNote(),
                     rows.stream().map(AdjustmentResponse::from).toList());
         }
     }

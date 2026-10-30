@@ -109,6 +109,10 @@ public class StockAdjustment extends BaseTimeEntity {
     @Column(name = "handling", length = 30)
     private String handling;
 
+    /** 원본 자가사용입력 머리 <b>[새로운 항목 추가]</b>(전표 비고) — 전표 한 장의 값이라 줄마다 같은 값을 적는다. */
+    @Column(name = "header_note", length = 300)
+    private String headerNote;
+
     @Column(length = 50)
     private String createdBy;
 }

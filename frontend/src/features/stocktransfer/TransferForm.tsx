@@ -170,7 +170,12 @@ export function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, 
         </li>
       </ul>
       {/* 원본 창고이동입력 도구줄(2026-10-21 실측): 찾기(F3) · 정렬 · My품목 · 주문 · 구매 · 생산 · 발주요청 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기 */}
-      <EcGridToolbar tableRef={tableRef} slipKinds={['주문', '구매', '생산', '발주요청']} onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
+      <EcGridToolbar tableRef={tableRef} slipKinds={['주문', '구매', '생산', '발주요청']} onMyItems={myItems.pick} myItemsBusy={myItems.busy}
+                     onPull={(pulled) => setLines((ls) => {
+                       /* 원본: 고른 전표의 품목 · 수량이 빈 줄 자리에 들어온다(2026-10-30 클릭 대조). */
+                       const kept = ls.filter((l) => l.itemId || l.quantity)
+                       return [...kept, ...pulled.map((p) => ({ ...blankLine(), itemId: String(p.itemId), quantity: String(p.quantity) })), blankLine()]
+                     })}>
         <MyItemsNote note={myItems.note} />
       </EcGridToolbar>
       <table ref={tableRef} className="w-full text-left table-fixed min-w-[960px]">

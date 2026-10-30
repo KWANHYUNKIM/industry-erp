@@ -1731,6 +1731,8 @@ export interface StockAdjustmentSlip {
   projectName: string | null
   /** 불량처리의 [처리방법](폐기 · 품목대체 · 정상사용). */
   handling?: string | null
+  /** 자가사용 머리 [새로운 항목 추가](전표 비고). */
+  headerNote?: string | null
   lines: StockAdjustment[]
 }
 

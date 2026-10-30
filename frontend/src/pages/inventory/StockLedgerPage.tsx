@@ -256,7 +256,8 @@ export default function StockLedgerPage() {
       if (kw && !r.itemName.includes(kw) && !r.warehouseName.includes(kw) && !(r.note ?? '').includes(kw)) return false
       // 원본 '거래내역없는품목제외' — 변동량이 0 인 행은 원장을 지저분하게만 한다.
       if (excludeNoTx && r.quantityChange === 0) return false
-      if (!withTransfers && !filters.warehouseId && (r.note ?? '').startsWith('창고이동')) return false
+      /* 생산불출도 창고 → 공정 창고로 옮기는 것이라 같이 가린다(적요 '생산불출 …' · '생산불출 입고 …', 2026-10-30 클릭 대조). */
+      if (!withTransfers && !filters.warehouseId && /^(창고이동|생산불출)/.test(r.note ?? '')) return false
       /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
       if (!withUntracked && untracked.has(r.itemId)) return false
       if (!withInactive && inactive.has(r.itemId)) return false
@@ -383,7 +384,7 @@ export default function StockLedgerPage() {
         </EcCond>
         {/*
           원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). [생산불출/창고이동포함]은 2026-10-20 에
-          적요의 '창고이동' 머리로 가린다(생산불출은 아직 못 가린다).
+          적요의 '창고이동' · '생산불출' 머리로 가린다.
         */}
         {/* 원본 차례: [대표품목으로 합산] 다음이 [단가표시], 그다음이 [기타] 다. */}
         <EcCond label="단가표시">
