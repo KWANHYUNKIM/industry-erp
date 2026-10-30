@@ -220,8 +220,8 @@
   "palette": 0
  },
  "pages/accounting/DailyProfitPage.tsx": {
-  "inline": 8,
-  "color": 4,
+  "inline": 2,
+  "color": 1,
   "palette": 0
  },
  "pages/accounting/DayMonthSheetPage.tsx": {

@@ -1,0 +1,37 @@
+{
+  "about": "일별이익현황 조건 판 · 보고서 머리(원본 loginad E040806, 2026-10-31 실측): 판이 열린 채 시작(머리에 검색칸 없음) · 탭 [기본][전체][+] · 한 줄에 조건 하나(기본 탭 차례 구분 · 기준일자 · 창고 · 프로젝트 · 거래처 · 품목 · 판매액 · 원가 · 기타 · 거래구분) · 라디오(품목별 · 선입선출(판매) · 공급가액 · 전체) · 기준일자 앞 [금월(~오늘)▾] · 판 아래 줄 [검색(F8)] 금일 … 종료일 설정 다시 작성. [전체] 탭에만 거래처그룹1 등. [검색(F8)] 뒤 판이 접히고 머리에 입력칸 · Search(F3), 큰 제목 '품목별이익현황' · 회사명 · [P.1], 색 요약 줄 없음 · 표 숫자 검정, 하단 [인쇄] [Excel] [이익이 안 나올 경우]. 저장하는 것 없음.",
+  "shots": [
+    {
+      "name": "처음 판 열림 · 라디오 · 검색 뒤 판 접힘 · 제목 · 요약 줄 없음",
+      "path": "/accounting/daily-profit",
+      "steps": [
+        "wait:2500",
+        "expect:!document.querySelector('.ec-list-body').dataset.conds && !!document.querySelector('.ec-cond').offsetParent && !document.querySelector('.ec-page-head .ec-quick')",
+        "expect:[...document.querySelectorAll('.ec-cond-tabs button')].map((b) => b.textContent.trim()).join('|') === '기본|전체|+'",
+        "expect:(() => { const lis = [...document.querySelectorAll('.ec-cond > li')].filter((l) => l.querySelector(':scope > .title')); const xs = new Set(lis.map((l) => Math.round(l.getBoundingClientRect().x))); return xs.size === 1 && lis.map((l) => l.querySelector('.title').textContent.trim()).join('|') === '구분|기준일자|창고|프로젝트|거래처|품목|판매액|원가|기타|거래구분' })()",
+        "expect:!document.querySelector('.ec-cond .ec-pill')",
+        "expect:['품목별', '선입선출(판매)', '공급가액'].every((t) => [...document.querySelectorAll('.ec-cond label')].some((l) => l.innerText.trim() === t && l.querySelector('input[type=radio]').checked))",
+        "expect:document.querySelector('select[aria-label=\"기준일자 빠른선택\"]').value === '금월(~오늘)'",
+        "expect:(() => { const li = [...document.querySelectorAll('.ec-cond > li')].pop(); return [...li.querySelectorAll('button')].map((b) => b.textContent.trim()).join('|') === '검색(F8)|금일|전일|금주(~오늘)|전주|금월(~오늘)|전월|종료일|설정|다시 작성' })()",
+        "expect:!document.querySelector('.ec-report-title')",
+        "click:전체",
+        "wait:300",
+        "expect:['거래처그룹1', '품목구분', '품목그룹1', '담당자', '거래처관리담당자', '거래유형'].every((t) => [...document.querySelectorAll('.ec-cond .title')].some((x) => x.textContent.trim() === t))",
+        "click:기본",
+        "wait:300",
+        "expect:![...document.querySelectorAll('.ec-cond .title')].some((x) => x.textContent.trim() === '거래처그룹1')",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:document.querySelector('.ec-list-body').dataset.conds === 'closed' && !!document.querySelector('.ec-page-head .ec-quick') && [...document.querySelectorAll('.ec-page-head button')].some((b) => b.textContent.trim() === 'Search(F3)')",
+        "expect:document.querySelector('.ec-report-title').textContent.trim() === '품목별이익현황' && document.querySelector('.ec-report-meta').textContent.includes('회사명 :') && document.querySelector('.ec-report-foot').textContent.includes('[P.1]')",
+        "expect:!/(줄|라인) [\\d,]+ ?\\| ?판매액/.test(document.body.innerText)",
+        "expect:![...document.querySelectorAll('.ec-list-body table td')].some((td) => td.style.color || /text-ec-(blue|success|danger|label|hint)/.test(td.className))",
+        "expect:[...document.querySelectorAll('.ec-footer-btns > *')].map((b) => b.textContent.trim()).join('|') === '인쇄|Excel|이익이 안 나올 경우'",
+        "click:Search(F3)",
+        "wait:500",
+        "expect:document.querySelector('.ec-list-body').dataset.conds === 'open' && [...document.querySelectorAll('.ec-search-bar button')].map((b) => b.textContent.trim() || '▾').join('|') === '검색(F8)|▾|금일|전일|금주(~오늘)|전주|금월(~오늘)|전월|종료일|설정|다시작성'",
+        "expect:![...document.querySelectorAll('.ec-cond > li')].pop().offsetParent"
+      ]
+    }
+  ]
+}

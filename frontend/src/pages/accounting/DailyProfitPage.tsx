@@ -1,11 +1,13 @@
-import { useRef, useEffect, useMemo, useState } from 'react'
+import { Fragment, useRef, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { costOf, sumExtraCost, type CostBasis } from '../../utils/costBasis'
-import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import { EcCond, EcCondTabs } from '../../components/EcStatusPanel'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import { EcDateRange } from '../../components/ui/EcDateInput'
+import { ecAlert } from '../../components/EcDialog'
 import { COMPARE_PERIODS, comparePeriodOf, type ComparePeriod } from '../../utils/periods'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
@@ -55,6 +57,14 @@ import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcRep
  */
 type Mode = '라인별' | '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별' | '사용자지정집계' | '일자별'
 const MODES = ['라인별', '품목별', '거래처별', '품목별거래처별', '거래처별품목별', '사용자지정집계', '일자별'] as const
+/**
+ * 검색 뒤 표 위 큰 제목 — 원본 품목별은 '품목별이익현황'(2026-10-31 loginad 실측). 나머지 셋은 월별이익현황(2026-10-13 실측)과 같은 이름으로 둔다.
+ * 라인별 · 일자별 · 사용자지정집계는 아직 못 재어 화면 이름을 쓴다.
+ */
+const REPORT_TITLE: Record<Mode, string> = {
+  라인별: '일별이익현황', 품목별: '품목별이익현황', 거래처별: '거래처별이익현황',
+  품목별거래처별: '품목/거래처별이익현황', 거래처별품목별: '거래처/품목별이익현황', 사용자지정집계: '일별이익현황', 일자별: '일별이익현황',
+}
 
 /**
  * [구분] <b>사용자지정집계</b> — 원본 E040806 집계조건검색 창(2026-10-13 실측):
@@ -135,6 +145,11 @@ export default function DailyProfitPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [whyOpen, setWhyOpen] = useState(false)
+  /* 원본은 조건 판이 열린 채 시작하고 [검색(F8)] 을 눌러야 보고서가 선다. 자료는 열 때부터 받아 둔다. */
+  const [shown, setShown] = useState(false)
+  const [condTab, setCondTab] = useState<'기본' | '전체'>('기본')
+  /** 기준일자 앞 [금월(~오늘)▾] — 원본 기본값. */
+  const [pickLabel, setPickLabel] = useState('금월(~오늘)')
 
   /*
    * 화면을 열었을 때 켜져 있는 [구분]. 원본은 <b>[품목별]</b> 이다
@@ -385,11 +400,12 @@ export default function DailyProfitPage() {
   /** 판매부대비용과 그것을 뺀 이익. 규칙은 utils/costBasis 에 못 박아 뒀다. */
   const extraTotals = sumExtraCost(lines.map((l) => ({ profit: l.profit, extraCost: l.extraCost })))
 
-  const unknownCost = lines.length - known.length
   const allUnknown = lines.length > 0 && known.length === 0
 
+  /* 처음 값으로 — 구분은 원본 기본 [품목별](예전엔 '라인별' 로 돌려 처음 화면과 달랐다). */
   const reset = () => {
-    setMode('라인별'); setBasis('선입선출(판매)'); setWithVat(false)
+    setMode('품목별'); setBasis('선입선출(판매)'); setWithVat(false); setPickLabel('금월(~오늘)')
+    setWithUntracked(false); setSignBox(false); setAgg(EMPTY_AGG); setCompare('사용안함')
     setCond({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '',
       partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
     setTradeKind('전체')
@@ -425,184 +441,195 @@ export default function DailyProfitPage() {
   const tableRef = useRef<HTMLDivElement>(null)
   useTableColumnCheck(tableRef, '일별이익현황', [mode, basis, withVat, rows.length])
 
+  /*
+   * 조건 칸 — 2026-10-31 loginad E040806 실측: 한 줄에 하나, 이름표 왼쪽 · 칸 오른쪽, 고르기는 라디오(◉).
+   * 원본 [기본] 탭 차례: 구분 · 기준일자 · 창고 · 프로젝트 · 거래처 · 품목 · 판매액 · 원가 · 기타 · 거래구분 · 정렬/소계기준.
+   * [전체] 탭(2026-09-08 실측 스물다섯)은 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 · 거래처관리담당자 · 거래유형이 더 있고 차례가 다르다 —
+   * 그 여섯은 [전체] 탭에만 둔다(거르기는 그대로 산다). 아래 글은 [전체] 차례로 적고, [기본] 은 BASIC_ORDER 로 다시 세운다.
+   */
+  const radios = <T extends string>(name: string, opts: readonly (readonly [T, string])[], value: T, set: (v: T) => void) => (
+    <span className="inline-flex flex-wrap items-center gap-x-[12px] gap-y-[4px]">
+      {opts.map(([v, label]) => (
+        <label key={label} className="inline-flex items-center gap-[3px]">
+          <input type="radio" name={name} checked={value === v} onChange={() => set(v)} /> {label}
+        </label>
+      ))}
+    </span>
+  )
+  const reportTitle = REPORT_TITLE[mode]
+
   return (
     <EcListShell
       title="일별이익현황"
       searchable={false}
+      onReset={reset}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
         /*
-         * 원본에도 같은 이름의 버튼이 있다. 이익이 0 으로 나오는 까닭은 대개 정해져 있어서,
-         * 화면 어딘가에 적어 두지 않으면 "자료가 없나" 하고 되돌아 나가게 된다.
-         * 원본 안내문을 옮긴 것이 아니라 <b>우리 계산 규칙</b>을 적은 것이다.
+         * 원본 하단(검색 뒤): [인쇄│▲] [Excel] [이익이 안 나올 경우]. [검색(F8)] · [다시 작성] 은 조건 판 아래 줄에 있다.
+         * [이익이 안 나올 경우] 는 원본 안내문이 아니라 우리 계산 규칙을 적은 창이다.
          */
-        // 원본 차례: 인쇄 · Excel · 이익이 안 나올 경우 (사본 실측)
         { label: '인쇄' },
         { label: 'Excel' },
         { label: '이익이 안 나올 경우', onClick: () => setWhyOpen(true) },
-        { label: '다시 작성', onClick: reset },
       ]}
       signLine={signBox}
     >
-      <EcStatusPanel
-        from={cond.from} to={cond.to}
-        onPeriod={(r) => setC({ from: r.from, to: r.to })}
-        picks={INQUIRY_PICKS}
-      >
-        <EcCond label="구분">
-          <div className="ec-pills">
-            {MODES.map((m) => (
-              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
-                      onClick={() => setMode(m)}>
-                {m}
-              </button>
-            ))}
-          </div>
-          {mode === '사용자지정집계' && <CustomAggregateConds dims={PROFIT_DIMS} targets={PROFIT_TARGETS} value={agg} onChange={setAgg} />}
-          {mode === '사용자지정집계' && (
-            <span className="inline-flex flex-wrap items-center gap-[8px] mt-[4px]">
-              <span className="inline-block w-[70px] rounded-ec bg-ec-disabled px-[6px] text-ec-label">비교기간</span>
-              {COMPARE_PERIODS.map((k) => (
-                <label key={k} className="inline-flex items-center gap-[3px]">
-                  <input type="radio" name="dp-compare" checked={compare === k} onChange={() => setCompare(k)} /> {k}
-                </label>
-              ))}
-            </span>
-          )}
-        </EcCond>
-        <EcCond label="창고" pick>
-          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
-                           value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
-                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
-        </EcCond>
+      <ul className="ec-cond mb-[8px] grid-cols-1 [&>li]:col-span-full">
+        <EcCondTabs tab={condTab} onTab={setCondTab} />
+        {(() => {
+          const CONDS: Record<string, ReactNode> = {
+            구분: (
+              <EcCond label="구분">
+                {radios('dp-mode', MODES.map((m) => [m, m] as const), mode, setMode)}
+                {mode === '사용자지정집계' && <CustomAggregateConds dims={PROFIT_DIMS} targets={PROFIT_TARGETS} value={agg} onChange={setAgg} />}
+                {mode === '사용자지정집계' && (
+                  <span className="inline-flex flex-wrap items-center gap-[8px] mt-[4px]">
+                    <span className="inline-block w-[70px] rounded-ec bg-ec-disabled px-[6px] text-ec-label">비교기간</span>
+                    {COMPARE_PERIODS.map((k) => (
+                      <label key={k} className="inline-flex items-center gap-[3px]">
+                        <input type="radio" name="dp-compare" checked={compare === k} onChange={() => setCompare(k)} /> {k}
+                      </label>
+                    ))}
+                  </span>
+                )}
+              </EcCond>
+            ),
+            기준일자: (
+              <EcCond label="기준일자">
+                {/* 원본: [금월(~오늘)▾] 2026/10/01 ~ 2026/10/31 📅 — 빠른선택 단추줄은 판 아래 줄에 있다. */}
+                <select className="ec-input w-[120px]" aria-label="기준일자 빠른선택" value={pickLabel}
+                        onChange={(e) => {
+                          setPickLabel(e.target.value)
+                          const r = periodOf(e.target.value, new Date(), undefined, { from: cond.from, to: cond.to })
+                          if (r) setC({ from: r.from || cond.from, to: r.to })
+                        }}>
+                  {INQUIRY_PICKS.map((l) => <option key={l} value={l}>{l}</option>)}
+                </select>
+                <EcDateRange from={{ className: 'ec-input', value: cond.from, onChange: (e) => setC({ from: e.target.value }) }}
+                             to={{ className: 'ec-input', value: cond.to, onChange: (e) => setC({ to: e.target.value }) }} />
+              </EcCond>
+            ),
+            창고: (
+              <EcCond label="창고" pick>
+                <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
+                                 value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
+                                 items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+              </EcCond>
+            ),
+            거래처: (
+              <EcCond label="거래처" pick>
+                <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                                 value={cond.partner} onChange={(v) => setC({ partner: v })}
+                                 items={pickers.partners} />
+              </EcCond>
+            ),
+            거래처그룹1: (
+              <EcCond label="거래처그룹1" pick>
+                <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                                 value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                                 items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+              </EcCond>
+            ),
+            품목: (
+              <EcCond label="품목" pick>
+                <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                                 value={cond.item} onChange={(v) => setC({ item: v })}
+                                 items={pickers.items} />
+              </EcCond>
+            ),
+            품목구분: (
+              <EcCond label="품목구분" pick>
+                <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                                 value={cond.category} onChange={(v) => setC({ category: v })}
+                                 items={[...new Set(sales.flatMap((d) => d.lines.map((l) => l.itemCategoryName))
+                                   .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+              </EcCond>
+            ),
+            품목그룹1: (
+              <EcCond label="품목그룹1" pick>
+                <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                                 value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                                 items={mgmtItems.groupOptions.map((g) => ({ value: g, name: g }))} />
+              </EcCond>
+            ),
+            프로젝트: (
+              <EcCond label="프로젝트" pick>
+                <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                                 value={cond.project} onChange={(v) => setC({ project: v })}
+                                 items={pickers.projects} />
+              </EcCond>
+            ),
+            담당자: (
+              <EcCond label="담당자" pick>
+                <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                                 value={cond.employee} onChange={(v) => setC({ employee: v })}
+                                 items={[...new Set(sales.map((d) => d.employeeName).filter(Boolean) as string[])].sort()
+                                   .map((n) => ({ value: n, name: n }))} />
+              </EcCond>
+            ),
+            거래처관리담당자: (
+              <EcCond label="거래처관리담당자" pick>
+                <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                                 value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
+                                 items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+              </EcCond>
+            ),
+            거래유형: (
+              <EcCond label="거래유형">
+                {radios('dp-tax', [['', '전체'], ['과세', '과세'], ['면세', '면세']] as const, cond.taxType as '' | '과세' | '면세', (v) => setC({ taxType: v }))}
+              </EcCond>
+            ),
+            판매액: (
+              <EcCond label="판매액">
+                {radios('dp-vat', [['n', '공급가액'], ['y', '공급가액+VAT']] as const, withVat ? 'y' : 'n', (v) => setWithVat(v === 'y'))}
+              </EcCond>
+            ),
+            /* 원본 넷째 [입고단가(품목) - VAT 제외] 대신 우리 [최종구매가] — 우리 입고단가는 이미 VAT 별도라 같은 값이 된다(ui-check NO_OPTION). */
+            원가: (
+              <EcCond label="원가">
+                {radios('dp-basis', (['선입선출(판매)', '월별원가', '입고단가(품목)', '최종구매가'] as const).map((b) => [b, b] as const), basis, setBasis)}
+              </EcCond>
+            ),
+            거래구분: (
+              <EcCond label="거래구분">
+                {radios('dp-trade', (['전체', '반품만', '반품제외'] as const).map((k) => [k, k] as const), tradeKind, setTradeKind)}
+              </EcCond>
+            ),
+            /* 원본 [기타] — ☐결재방표시 ☐수량관리제외품목포함, 한 줄(기본 둘 다 꺼짐, 사본 실측). */
+            기타: (
+              <EcCond label="기타">
+                <span className="inline-flex flex-wrap items-center gap-x-[12px]">
+                  <label className="inline-flex items-center gap-[3px]">
+                    <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+                  </label>
+                  <label className="inline-flex items-center gap-[3px]">
+                    <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+                  </label>
+                </span>
+              </EcCond>
+            ),
+          }
+          const BASIC_ORDER = ['구분', '기준일자', '창고', '프로젝트', '거래처', '품목', '판매액', '원가', '기타', '거래구분']
+          return (condTab === '기본' ? BASIC_ORDER : Object.keys(CONDS)).map((k) => <Fragment key={k}>{CONDS[k]}</Fragment>)
+        })()}
         {/*
-          원본 [전체] 탭 차례(2026-09-08 실측, 스물다섯): 구분 · 기준일자 · 창고 ·
-          (창고계층그룹) · 거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) ·
-          품목 · <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 프로젝트 ·
-          (프로젝트그룹1/2) · <b>담당자 · 거래처관리담당자 · 거래유형</b> · 판매액 · 원가 ·
-          거래구분 · 기타 · 정렬/소계기준.
-          <b>[기본] 탭은 스물둘</b>이고 차례가 다르다(프로젝트가 창고 다음, 거래구분이
-          기타 다음). 조건이 더 많은 [전체] 쪽에 맞춘다 — 월별이익현황과 같은 규칙이다.
+          판 아래 줄(원본): [검색(F8)] 금일 전일 금주(~오늘) 전주 금월(~오늘) 전월 종료일 설정 다시 작성.
+          검색 뒤 판이 접히고 [Search(F3)] 로 다시 펴면 셸이 같은 줄을 그리므로 이 줄은 감춘다(셸이 이 단추들을 눌러 쓴다).
         */}
-        <EcCond label="거래처" pick>
-          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
-                           value={cond.partner} onChange={(v) => setC({ partner: v })}
-                           items={pickers.partners} />
-        </EcCond>
-        <EcCond label="거래처그룹1" pick>
-          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
-                           value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
-                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
-        </EcCond>
-        <EcCond label="품목" pick>
-          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
-                           value={cond.item} onChange={(v) => setC({ item: v })}
-                           items={pickers.items} />
-        </EcCond>
-        <EcCond label="품목구분" pick>
-          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
-                           value={cond.category} onChange={(v) => setC({ category: v })}
-                           items={[...new Set(sales.flatMap((d) => d.lines.map((l) => l.itemCategoryName))
-                             .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        <EcCond label="품목그룹1" pick>
-          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
-                           value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
-                           items={mgmtItems.groupOptions.map((g) => ({ value: g, name: g }))} />
-        </EcCond>
-        <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
-                           value={cond.project} onChange={(v) => setC({ project: v })}
-                           items={pickers.projects} />
-        </EcCond>
-        <EcCond label="담당자" pick>
-          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
-                           value={cond.employee} onChange={(v) => setC({ employee: v })}
-                           items={[...new Set(sales.map((d) => d.employeeName).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        <EcCond label="거래처관리담당자" pick>
-          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
-                           value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
-                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        <EcCond label="거래유형">
-          <div className="ec-pills">
-            {['', '과세', '면세'].map((v) => (
-              <button key={v || 'all'} type="button"
-                      className={'ec-pill no-ec' + (cond.taxType === v ? ' active' : '')}
-                      onClick={() => setC({ taxType: v })}>{v || '전체'}</button>
-            ))}
-          </div>
-        </EcCond>
-        <EcCond label="판매액">
-          <div className="ec-pills">
-            {([['공급가액', false], ['공급가액+VAT', true]] as const).map(([label, v]) => (
-              <button key={label} type="button" className={`ec-pill no-ec${withVat === v ? ' active' : ''}`}
-                      onClick={() => setWithVat(v)}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </EcCond>
-        {/* 원본 조건의 [거래구분]. 반품 전표는 수량·금액이 음수라 이익에서 저절로 빠진다. */}
-        <EcCond label="원가">
-          <div className="ec-pills">
-            {(['선입선출(판매)', '월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
-              <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
-                      onClick={() => setBasis(b)}>
-                {b}
-              </button>
-            ))}
-          </div>
-        </EcCond>
-        <EcCond label="거래구분">
-          <div className="ec-pills">
-            {(['전체', '반품만', '반품제외'] as const).map((k) => (
-              <button key={k} type="button" className={`ec-pill no-ec${tradeKind === k ? ' active' : ''}`}
-                      onClick={() => setTradeKind(k)}>{k}</button>
-            ))}
-          </div>
-        </EcCond>
-        {/* 원본 [기타] — 결재방표시와 같은 줄에 선다(사본 실측). */}
-        <EcCond label="수량관리제외품목포함">
-          <label className="text-[12.5px] flex items-center gap-[4px]">
-            <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
-            재고수량을 안 세는 품목도
-          </label>
-        </EcCond>
-        <EcCond label="결재방표시">
-          <label className="text-[12.5px] flex items-center gap-[4px]">
-            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
-            인쇄물에 결재란(도장칸)을 찍는다
-          </label>
-        </EcCond>
-      </EcStatusPanel>
+        <li className="full mt-[4px] -mb-[9px] gap-[4px] px-[7.2px] py-[3.6px] bg-ec-page rounded-b-ec-panel [.conds-open_&]:hidden">
+          <button type="button" className="ec-btn ec-btn-primary ec-btn-sm" onClick={() => { setShown(true); load() }}>검색(F8)</button>
+          <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={cond.from} currentTo={cond.to}
+                         onPick={(r) => setC({ from: r.from, to: r.to })} onPickLabel={setPickLabel} />
+          <button type="button" className="ec-btn ec-btn-sm ec-btn-flat" onClick={() => void ecAlert('기간 빠른선택 설정은 지원하지 않습니다.')}>설정</button>
+          <button type="button" className="ec-btn ec-btn-sm ec-btn-flat" onClick={reset}>다시 작성</button>
+        </li>
+      </ul>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {unknownCost > 0 && (
-        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
-          <b>{num(unknownCost)}</b>개 라인의 {basis} 를 찾지 못했습니다. 그 줄의 원가·이익은 <b>'—'</b> 로 두고
-          합계에서도 뺐습니다 — 0 으로 채우면 이익이 매출 전액으로 부풀어 오릅니다.
-        </p>
-      )}
-
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        {mode === '라인별' ? '라인' : '줄'} <b className="text-ec-text">{num(rows.length)}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        판매액 <b className="text-ec-blue text-[14px]">{won(totals.revenue)}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        원가 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        이익 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
-          {allUnknown ? '—' : won(totals.profit)}
-        </b>
-        {!allUnknown && <span className="text-ec-hint"> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
-      </div>
-
-      {mode === '사용자지정집계' ? (<>
-        <EcReportHead title="일별이익현황" period={reportPeriod(cond.from, cond.to)} />
+      {/* 원본은 [검색(F8)] 을 눌러야 보고서가 선다 — 제목 · 회사명 · 격자 · [P.1]. 색 요약 줄은 원본에 없다. */}
+      {shown && (mode === '사용자지정집계' ? (<>
+        <EcReportHead title="일별이익현황" period={reportPeriod(cond.from, cond.to)} sign={signBox} />
         {cmpRange && dateAxis ? (
           <p className="ec-alert ec-alert-danger">집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.</p>
         ) : (
@@ -610,7 +637,9 @@ export default function DailyProfitPage() {
                                 compare={cmpRange ? { records: cmpRecords, labels: [reportPeriod(cond.from, cond.to), reportPeriod(cmpRange.from, cmpRange.to)] } : undefined} />
         )}
         <EcReportFoot />
-      </>) : (
+      </>) : (<>
+      {/* 원본(검색 뒤): 큰 굵은 제목 '품목별이익현황'(구분마다 이름) · 왼쪽 '회사명 : …' · 격자 · 아래 '[P.1]'. */}
+      <EcReportHead title={reportTitle} period={reportPeriod(cond.from, cond.to)} sign={signBox} />
       <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
@@ -642,27 +671,23 @@ export default function DailyProfitPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={colCount} className="text-center text-ec-ink">불러오는 중…</td></tr>
+              <tr><td colSpan={colCount} className="ec-empty">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={colCount} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r) => {
-              const color = r.profit === null ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : r.profit < 0 ? 'var(--ec-danger)' : undefined
+              /* 원본 격자의 숫자는 모두 검정이다(월별이익현황과 같다) — 판매금액 파랑 · 이익 초록/빨강을 칠하지 않는다. */
               return (
                 <tr key={r.key}>
-                  {heads.map((h, hi) => (
-                    <td key={h} style={hi === 0 && (mode === '품목별' || mode === '품목별거래처별') ? { fontFamily: 'monospace' } : undefined}>
-                      {[r.c1, r.c2, r.c3, r.c4][hi]}
-                    </td>
-                  ))}
+                  {heads.map((h, hi) => <td key={h}>{[r.c1, r.c2, r.c3, r.c4][hi]}</td>)}
                   {(mode === '일자별' || mode === '거래처별') && (
-                    <td className="text-right text-ec-hint">{num(r.count)}</td>
+                    <td className="text-right">{num(r.count)}</td>
                   )}
                   <td className="text-right">{num(r.qty)}</td>
-                  <td className="text-right text-ec-label">
+                  <td className="text-right">
                     {per(r.revenue, r.qty) === null ? '—' : won(Math.round(per(r.revenue, r.qty) as number))}
                   </td>
-                  <td className="text-right text-ec-blue">{won(r.revenue)}</td>
-                  <td className="text-right text-ec-label">
+                  <td className="text-right">{won(r.revenue)}</td>
+                  <td className="text-right">
                     {per(r.cost, r.qty) === null ? '—' : won(Math.round(per(r.cost, r.qty) as number))}
                   </td>
                   <td className="text-right">{r.cost === null ? '—' : won(r.cost)}</td>
@@ -670,8 +695,8 @@ export default function DailyProfitPage() {
                   <td className="text-right">
                     {per(r.profit, r.qty) === null ? '—' : won(Math.round(per(r.profit, r.qty) as number))}
                   </td>
-                  <td className="text-right" style={{ color }}>{r.profit === null ? '—' : won(r.profit)}</td>
-                  <td className="text-right" style={{ color }}>{r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}</td>
+                  <td className="text-right">{r.profit === null ? '—' : won(r.profit)}</td>
+                  <td className="text-right">{r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}</td>
                 </tr>
               )
             })}
@@ -697,7 +722,8 @@ export default function DailyProfitPage() {
           )}
         </table>
       </div>
-      )}
+      <EcReportFoot />
+      </>))}
       <Modal error={error} open={whyOpen} title="이익이 안 나올 경우" onClose={() => setWhyOpen(false)}>{(
         <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
           이익 = 판매액 − (판매수량 × 원가단가) 입니다. 원가단가를 못 찾으면 이익 칸이 비거나
@@ -708,6 +734,7 @@ export default function DailyProfitPage() {
             <li>[최종구매가]·[입고단가(품목)]는 그 품목을 <b>사 본 적이 있어야</b> 값이 잡힙니다.</li>
             <li>기간에 판매 전표가 없으면 줄 자체가 없습니다 — [기준일자]를 넓혀 보세요.</li>
             <li>[구분]이 품목별인데 전표에 품목이 없으면(수동 금액 전표) 그 줄은 빠집니다.</li>
+            <li>원가를 못 찾은 줄은 원가 · 이익을 <b>'—'</b> 로 두고 합계에서도 뺍니다 — 0 으로 채우면 이익이 매출 전액으로 부풀어 오릅니다.</li>
           </ol>
         </div>
       )}</Modal>

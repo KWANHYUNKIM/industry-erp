@@ -43,9 +43,13 @@ export function EcCond({ label, pick, span, children }: {
 /**
  * 조건 판 맨 위 탭 [기본] [전체] [+] — 원본 이익관리 현황(실제원가현황 · 차이분석 · 월별이익현황, 2026-10-22 실측)은
  * [전체] 가 [기본] 과 같은 칸을 보인다. [+] 는 My탭(개인 탭)이라 두지 않고 안내만 한다. `.ec-cond` 의 첫 칸으로 둔다.
+ * `tab` · `onTab` 을 주면 화면이 탭을 쥔다(탭마다 칸 차례 · 수가 다른 화면).
  */
-export function EcCondTabs() {
-  const [tab, setTab] = useState<'기본' | '전체'>('기본')
+export function EcCondTabs({ tab: ctl, onTab }: { tab?: '기본' | '전체'; onTab?: (t: '기본' | '전체') => void } = {}) {
+  const [own, setOwn] = useState<'기본' | '전체'>('기본')
+  /* 화면이 탭마다 다른 칸을 보이면(일별이익현황 — [전체] 에만 거래처그룹1 …) 탭을 화면이 쥔다. */
+  const tab = ctl ?? own
+  const setTab = onTab ?? setOwn
   return (
     <li className="full ec-cond-tabs" aria-label="조건 탭">
       {(['기본', '전체'] as const).map((t) => (
