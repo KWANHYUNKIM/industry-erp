@@ -1439,8 +1439,10 @@ export default function EcountLayout() {
   const [sitemapOpen, setSitemapOpen] = useState(false)         // 사이트맵 모달
   const [sitemapIdx, setSitemapIdx] = useState(0)               // 사이트맵 좌측 레일 선택
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({}) // 사이드바 그룹 접힘
-  /* 앱바 [권한있는메뉴만보기] — 켜면(기본) 권한 없는 메뉴를 숨기고, 끄면 모두 보인다(권한 없는 화면은 열어도 🔒 안내). 원본 미실측 */
-  const [permOnly, setPermOnly] = useState(() => localStorage.getItem('ec-perm-only') !== 'n')
+  /* 앱바 [권한있는메뉴만보기] — 켜면 권한 없는 메뉴를 숨기고, 끄면(기본) 모두 보인다(권한 없는 화면은 열면 🔒 자물쇠 화면).
+     기본이 꺼짐인 근거: 원본은 권한 없는 사용자에게도 왼쪽 · 위 메뉴가 그대로 보이고 누르면 자물쇠 화면이다
+     (2026-10-30 loginaa 데모 사용자의 사용자관리 · 결재설정, 영상 1998 · 1514 의 판매입력 · 매출전표 I). */
+  const [permOnly, setPermOnly] = useState(() => localStorage.getItem('ec-perm-only') === 'y')
   /* 머리 로고 자리 · 창 제목의 상호 — 로그인 때 받은 이름으로 시작해 회사정보(/company)를 다시 읽고,
      회사정보 화면에서 저장하면(erp:company-updated) 바로 따라 바뀐다 */
   const [brand, setBrand] = useState<string | null>(companyName)

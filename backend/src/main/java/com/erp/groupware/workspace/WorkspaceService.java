@@ -125,8 +125,10 @@ public class WorkspaceService {
         if (me != null && me.isMaster()) {
             long waiting = permissionRequestService.countPending();
             if (waiting > 0) {
+                // 본문은 원본 알림 글 그대로 — 가장 최근 요청 '박은우/박은우 님이 판매입력 접근 권한을 요청합니다.'(영상 1998)
+                String latest = permissionRequestService.latestPendingText();
                 list.add(new Notification("PERMISSION_REQUEST", "INFO", "권한요청",
-                        "승인을 기다리는 권한요청이 " + waiting + "건 있습니다.",
+                        waiting > 1 ? latest + " (대기 " + waiting + "건)" : latest,
                         (int) waiting, "/users/permission-requests"));
             }
         }

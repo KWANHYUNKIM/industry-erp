@@ -1,6 +1,7 @@
 import { tableToMatrix } from './tableExport'
 import { escapeHtml } from './escapeHtml'
 import { ecAlert } from '../components/EcDialog'
+import { exportAllowed } from './exportGuard'
 
 const PRINT_CSS = `
   * { box-sizing: border-box; }
@@ -64,6 +65,7 @@ export function signModuleOf(path: string): 'ACCOUNTING' | 'INVENTORY' | 'MANAGE
  * 아무 일도 일어나지 않는다.</b> 그래서 창부터 열어 두고(빈 '준비 중' 문서) 내용은 나중에 채운다.
  */
 export function openPrintWindow(): Window | null {
+  if (!exportAllowed()) return null   // 외부전송 권한없음 — 알림은 문지기(utils/exportGuard)가 띄웠다
   const win = window.open('', '_blank', 'width=1024,height=768')
   if (!win) {
     void ecAlert('팝업이 차단되어 인쇄창을 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.')

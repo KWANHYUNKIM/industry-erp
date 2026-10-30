@@ -161,6 +161,15 @@ public class WorkPermissionService {
         return userWorks(userId);
     }
 
+    /** 업무 하나의 개별 줄을 지워 기본권한(권한그룹)을 따르게 한다 — 권한승인 › 권한그룹(그룹을 바꿔도 개별 줄이 이기면 안 열린다). */
+    @Transactional
+    public void clearUserWork(Long userId, String workCode) {
+        repository.findByUser_Id(userId).stream()
+                .filter(x -> x.getWorkCode().equals(workCode))
+                .forEach(repository::delete);
+        repository.flush();
+    }
+
     /** 기본권한 · 권한그룹. GROUP 이면 사용자의 ADMIN 아닌 역할을 그 그룹 하나로 바꾼다. */
     @Transactional
     public UserWorksResponse saveBase(Long userId, BasePermission base, Long groupId) {

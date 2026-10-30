@@ -24,6 +24,7 @@ interface PermissionRequest {
   reason: string | null
   status: Status
   processedByName: string | null
+  processedByUsername: string | null
   processedAt: string | null
   approveKind: Kind | null
   groupId: number | null
@@ -31,11 +32,12 @@ interface PermissionRequest {
 }
 
 const STATUS_LABEL: Record<Status, string> = { PENDING: '대기', APPROVED: '승인', REJECTED: '반려' }
-const dt = (v: string | null) => (v ? `${dateText(v.slice(0, 10))} ${v.slice(11, 16)}` : '')
+const dt = (v: string | null) => (v ? `${dateText(v.slice(0, 10))} ${v.slice(11, 19)}` : '')
 
 /**
- * Self-Customizing › 사용자관리 › 권한승인대기현황 — 원본 영상 1514 · 2000.
- * 조회조건 기준일자 · 사용자 ID · 승인여부. [승인] 에 마우스를 올리면 개별권한 / 권한그룹 → 그 업무의 권한 창이 '모든 권한' 으로 열리고
+ * Self-Customizing › 사용자관리 › 권한승인대기현황 — 원본 영상 1514 · 1998 · 2000.
+ * 머리 빠른 검색 · Search(F3)(조건은 접혀서 시작) — 조회조건 기준일자 · 사용자 ID · 승인여부.
+ * 열(원본): 구분 · 요청일자 · 아이디 · 성명 · 요청메뉴 · 요청행위 · 사유 · 승인여부 · 승인ID · 승인일자. 구분은 '메뉴', 요청행위는 '접근'. [승인] 에 마우스를 올리면 개별권한 / 권한그룹 → 그 업무의 권한 창이 '모든 권한' 으로 열리고
  * [상세 권한 설정] 으로 입력 · 수정 · 삭제 · 외부전송을 줄인다. 저장하면 승인. [반려] 는 반려.
  * 요청자 · 승인자 모두 메신저로 결과를 받는다(서버 PermissionRequestMessenger).
  */
@@ -75,8 +77,7 @@ export default function PermissionRequestsPage() {
   }
 
   return (
-    <EcListShell title="권한승인대기현황" searchable={false} onSearch={() => void load()}
-                 actions={[{ label: '검색(F8)', primary: true, onClick: () => void load() }]}>
+    <EcListShell title="권한승인대기현황" search={user} onSearchChange={setUser} onSearch={() => void load()}>
       <div className="ec-cond mb-[6px]">
         <div className="flex flex-wrap gap-[10px] items-center">
           <span className="flex gap-[4px] items-center">기준일자
@@ -100,29 +101,36 @@ export default function PermissionRequestsPage() {
       <table className="w-full">
         <thead>
           <tr>
-            <th className="w-[130px]">요청일시</th>
-            <th className="w-[140px]">사용자</th>
-            <th>메뉴(업무)</th>
+            <th className="w-[50px]">구분</th>
+            <th className="w-[150px]">요청일자</th>
+            <th className="w-[90px]">아이디</th>
+            <th className="w-[90px]">성명</th>
+            <th>요청메뉴</th>
+            <th className="w-[70px]">요청행위</th>
             <th>사유</th>
             <th className="w-[150px] text-center">승인여부</th>
-            <th className="w-[90px]">처리자</th>
-            <th className="w-[130px]">처리일시</th>
+            <th className="w-[90px]">승인ID</th>
+            <th className="w-[150px]">승인일자</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => (
             <tr key={r.id} data-request={r.id}>
+              <td>메뉴</td>
               <td>{dt(r.requestedAt)}</td>
-              <td>{r.requesterName}({r.requesterUsername})</td>
+              <td>{r.requesterUsername}</td>
+              <td>{r.requesterName}</td>
               <td>{r.menuName ? `${r.menuName} (${r.workName})` : r.workName}</td>
+              <td>접근</td>
               <td>{r.reason ?? ''}</td>
               <td className="text-center">
                 {r.status === 'PENDING' ? (
                   <span className="inline-flex gap-[4px]">
                     <span className="ec-approve-hover">
                       <button type="button" className="ec-btn ec-btn-sm ec-btn-primary">승인</button>
+                      {/* 권한그룹 승인은 기본권한이 권한그룹인 사람만(서버가 groupId 를 비운다) */}
                       <span className="ec-approve-menu" role="menu">
                         <button type="button" role="menuitem" onClick={() => setApproving({ req: r, kind: 'USER' })}>개별권한</button>
                         <button type="button" role="menuitem" disabled={!r.groupId}
@@ -137,7 +145,7 @@ export default function PermissionRequestsPage() {
                   </span>
                 )}
               </td>
-              <td>{r.processedByName ?? ''}</td>
+              <td>{r.processedByUsername ?? ''}</td>
               <td>{dt(r.processedAt)}</td>
             </tr>
           ))}
@@ -175,9 +183,11 @@ function ApproveWindow({ req, kind, onClose, onDone }: { req: PermissionRequest;
     }
   }
 
-  const who = kind === 'USER' ? `${req.requesterName}(${req.requesterUsername})` : `권한그룹 ${req.groupName ?? ''}`
+  // 원본(영상 1514): 창 제목 '개별권한설정', 오른쪽 위 '설정대상 : 권해수 (권해수)'
+  const who = kind === 'USER' ? `${req.requesterName} (${req.requesterUsername})` : `${req.groupName ?? ''}`
   return (
-    <Modal open title={`${kind === 'USER' ? '개별권한' : '권한그룹'} 설정 - ${who}`} onClose={onClose} width={460} error={error}>
+    <Modal open title={kind === 'USER' ? '개별권한설정' : '권한그룹설정'} onClose={onClose} width={460} error={error}>
+      <div className="text-right font-bold mb-[6px]" data-testid="approve-target">설정대상 : {who}</div>
       <table className="w-full">
         <thead><tr><th>업무</th><th className="w-[200px]">권한</th></tr></thead>
         <tbody>

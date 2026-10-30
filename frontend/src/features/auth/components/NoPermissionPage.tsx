@@ -13,7 +13,7 @@ export const REQUEST_SENT = '권한요청을 보냈습니다.\n마스터가 승�
 /**
  * 막힌 화면(메뉴 진입 권한 없음) — 원본 2026-10-30 loginaa 실측(plans/데이터이관/원본-업무권한.md §1).
  * 본문 틀 가운데: 회색 자물쇠 · '(결재설정) 업무 권한이 없습니다.'(괄호 안 파란 글자) · '서비스를 이용하려면 회사 마스터에게 문의 바랍니다.'
- * · '우리회사마스터 : a , b , c'(파란 이름, 큰 글씨) · 파란 [권한요청]. 마스터 전용 메뉴(사용자관리)에는 [권한요청] 이 없다.
+ * · '우리회사마스터 : a , b , c'(파란 이름, 큰 글씨 — 넷 이상이면 '권성희 , 노수민 , 전예진 외 3명', 영상 1514) · 파란 [권한요청]. 마스터 전용 메뉴(사용자관리)에는 [권한요청] 이 없다.
  * 왼쪽 · 위 메뉴는 그대로(EcountLayout 이 본문 자리에만 이것을 그린다).
  */
 export default function NoPermissionPage({ path, menuName }: { path: string; menuName?: string }) {
@@ -38,7 +38,7 @@ export default function NoPermissionPage({ path, menuName }: { path: string; men
       </p>
       <p className="ec-noperm-sub">서비스를 이용하려면 회사 마스터에게 문의 바랍니다.</p>
       <p className="ec-noperm-masters">
-        우리회사마스터 : <span className="names">{masters.map((m) => m.name).join(' , ')}</span>
+        우리회사마스터 : <span className="names">{masters.slice(0, 3).map((m) => m.name).join(' , ')}{masters.length > 3 ? ` 외 ${masters.length - 3}명` : ''}</span>
       </p>
       {code && !isMasterOnly(code) && (
         <button type="button" className="ec-btn ec-btn-primary ec-noperm-ask" onClick={() => setAsking(true)}>권한요청</button>
@@ -50,7 +50,7 @@ export default function NoPermissionPage({ path, menuName }: { path: string; men
   )
 }
 
-/** [권한요청] 작은 창 — 사유(선택) + [확인]. 원본 영상 1998 · 2000. */
+/** [권한요청] 창 '권한요청사유' — 사유(선택) + [확인] [닫기]. 원본 영상 1998 · 2000. */
 function PermissionRequestWindow({ code, path, menuName, onClose }: {
   code: string; path: string; menuName?: string; onClose: () => void
 }) {
@@ -73,12 +73,11 @@ function PermissionRequestWindow({ code, path, menuName, onClose }: {
   }
 
   return (
-    <Modal open title="권한요청" onClose={onClose} width={420} error={error}>
-      <div className="ec-form">
-        <label className="block mb-[6px]" htmlFor="perm-req-reason">사유</label>
-        <textarea id="perm-req-reason" aria-label="사유" className="ec-input w-full h-[90px]" maxLength={500}
-                  value={reason} onChange={(e) => setReason(e.target.value)} placeholder="필요하면 사유를 적어 주세요." />
-      </div>
+    <Modal open title="권한요청사유" onClose={onClose} width={400} error={error}>
+      {/* 원본(영상 1998): 머리 '권한요청사유' · 그 아래 '📄 권한요청사유' 한 줄 · 창 폭 그대로의 큰 글칸 · [확인] [닫기] */}
+      <div className="font-bold mb-[6px] text-left" id="perm-req-reason-label">권한요청사유</div>
+      <textarea id="perm-req-reason" aria-label="사유" aria-describedby="perm-req-reason-label" className="ec-input w-full h-[250px]"
+                maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
       <div className="mt-[10px] flex gap-[4px]">
         <button type="button" className="ec-btn ec-btn-primary" disabled={saving} onClick={() => void submit()}>확인</button>
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>

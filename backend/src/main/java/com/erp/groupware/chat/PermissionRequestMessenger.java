@@ -1,6 +1,7 @@
 package com.erp.groupware.chat;
 
 import com.erp.auth.permissionrequest.PermissionRequestEvents;
+import com.erp.auth.permissionrequest.PermissionRequestService;
 import com.erp.auth.user.User;
 import com.erp.auth.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +26,9 @@ public class PermissionRequestMessenger {
     @EventListener
     public void onRequested(PermissionRequestEvents.Requested e) {
         User requester = userService.get(e.requesterId());
-        String text = "[권한요청] " + requester.getName() + "(" + requester.getUsername() + ") 님이 ("
-                + e.workName() + ") 업무 권한을 요청했습니다."
-                + (e.menuName() != null ? "\n메뉴 : " + e.menuName() : "")
-                + (e.reason() != null ? "\n사유 : " + e.reason() : "");
+        // 원본 메신저 글: '박은우/박은우 님이 판매입력 접근 권한을 요청합니다.' + [보기] — 사유는 [보기](권한승인대기현황)에서 본다.
+        String text = PermissionRequestService.requestText(requester.getName(), requester.getUsername(),
+                e.menuName(), e.workName());
         for (Long masterId : e.masterIds()) {
             chatService.notify(requester, userService.get(masterId), text, REQUESTS_PAGE);
         }

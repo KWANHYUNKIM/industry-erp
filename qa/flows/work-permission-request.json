@@ -38,17 +38,17 @@
       "path": "/users/permission-requests",
       "steps": [
         "wait:3000",
-        "expect:/권한요청/.test(document.querySelector('.ec-perm-toast')?.textContent ?? '')",
-        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const rooms = await fetch('/api/chat/rooms', { headers: H }).then((r) => r.json()); const room = rooms.find((r) => r.direct && r.members.some((m) => m.name === 'QA권한시험')); const ms = await fetch('/api/chat/rooms/' + room.id + '/messages', { headers: H }).then((r) => r.json()); const m = ms.filter((x) => /\\[권한요청\\]/.test(x.content)).pop(); sessionStorage.setItem('qa-perm-msg', m && m.linkTo === '/users/permission-requests' && /사유 : 판매조회로/.test(m.content) ? 'ok' : JSON.stringify(m)); return true })()",
+        "expect:/QA권한시험\\/qaperm 님이 판매조회 접근 권한을 요청합니다\\./.test(document.querySelector('.ec-perm-toast')?.textContent ?? '')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const rooms = await fetch('/api/chat/rooms', { headers: H }).then((r) => r.json()); const room = rooms.find((r) => r.direct && r.members.some((m) => m.name === 'QA권한시험')); const ms = await fetch('/api/chat/rooms/' + room.id + '/messages', { headers: H }).then((r) => r.json()); const m = ms.filter((x) => /접근 권한을 요청합니다/.test(x.content)).pop(); sessionStorage.setItem('qa-perm-msg', m && m.linkTo === '/users/permission-requests' && m.content === 'QA권한시험/qaperm 님이 판매조회 접근 권한을 요청합니다.' ? 'ok' : JSON.stringify(m)); return true })()",
         "expect:sessionStorage.getItem('qa-perm-msg') === 'ok'",
-        "set:[aria-label=\"사용자 ID\"]|qaperm",
-        "click:검색",
+        "set:input.ec-quick|qaperm",
+        "click:Search(F3)",
         "wait:1200",
         "expect:document.querySelectorAll('tr[data-request]').length === 1",
-        "expect:/판매조회 \\(영업·판매·수주\\)/.test(document.querySelector('tr[data-request]').textContent) && /판매조회로 매출을/.test(document.querySelector('tr[data-request]').textContent)",
+        "expect:((c) => c[0] === '메뉴' && c[2] === 'qaperm' && c[3] === 'QA권한시험' && c[4] === '판매조회 (영업·판매·수주)' && c[5] === '접근' && c[6].startsWith('판매조회로 매출을'))([...document.querySelector('tr[data-request]').cells].map((x) => x.textContent))",
         "js:document.querySelector('tr[data-request] .ec-approve-menu button').click()",
         "wait:600",
-        "expect:document.querySelector('[aria-label=\"모든 권한\"]')?.checked === true",
+        "expect:document.querySelector('[aria-label=\"모든 권한\"]')?.checked === true && [...document.querySelectorAll('[role=dialog]')].pop().textContent.includes('개별권한설정') && document.querySelector('[data-testid=approve-target]')?.textContent === '설정대상 : QA권한시험 (qaperm)'",
         "click:상세 권한 설정",
         "wait:300",
         "expect:['입력', '수정', '삭제', '외부전송'].every((a) => document.querySelector('[aria-label=\"' + a + ' 허용\"]')?.checked)",
@@ -57,7 +57,7 @@
         "expect:/저장되었습니다/.test(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
         "clicklast:확인",
         "wait:1200",
-        "expect:/승인\\(개별권한\\)/.test(document.querySelector('tr[data-request]').textContent) && /시스템 관리자/.test(document.querySelector('tr[data-request]').textContent)"
+        "expect:/승인\\(개별권한\\)/.test(document.querySelector('tr[data-request]').textContent) && document.querySelector('tr[data-request]').cells[8].textContent === 'admin'"
       ]
     },
     {
@@ -94,13 +94,13 @@
         "js:window.confirm = () => true",
         "set:[aria-label=\"사용자 ID\"]|qaperm",
         "choose:[aria-label=\"승인여부\"]|대기",
-        "click:검색",
+        "click:Search(F3)",
         "wait:1200",
         "expect:document.querySelectorAll('tr[data-request]').length === 1 && /구매·발주/.test(document.querySelector('tr[data-request]').textContent)",
         "click:반려",
         "wait:1200",
         "choose:[aria-label=\"승인여부\"]|전체",
-        "click:검색",
+        "click:Search(F3)",
         "wait:1200",
         "expect:[...document.querySelectorAll('tr[data-request]')].some((tr) => /구매·발주/.test(tr.textContent) && /반려/.test(tr.textContent))"
       ]

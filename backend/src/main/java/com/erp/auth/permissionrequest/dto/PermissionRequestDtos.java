@@ -32,7 +32,9 @@ public final class PermissionRequestDtos {
             Long id, LocalDateTime requestedAt,
             Long requesterId, String requesterUsername, String requesterName,
             String workCode, String workName, String menuPath, String menuName, String reason,
-            PermissionRequestStatus status, String processedByName, LocalDateTime processedAt, ApproveKind approveKind,
+            PermissionRequestStatus status, String processedByName,
+            /** 승인ID(원본 열 이름) */
+            String processedByUsername, LocalDateTime processedAt, ApproveKind approveKind,
             /** 요청자의 권한그룹(승인 › 권한그룹 이 바꿀 그룹). 없으면 null. */
             Long groupId, String groupName) {
 
@@ -41,7 +43,8 @@ public final class PermissionRequestDtos {
                     r.getRequester().getId(), r.getRequester().getUsername(), r.getRequester().getName(),
                     r.getWorkCode(), MenuPermissionCatalog.nameOf(r.getWorkCode()), r.getMenuPath(), r.getMenuName(),
                     r.getReason(), r.getStatus(),
-                    r.getProcessedBy() == null ? null : r.getProcessedBy().getName(), r.getProcessedAt(),
+                    r.getProcessedBy() == null ? null : r.getProcessedBy().getName(),
+                    r.getProcessedBy() == null ? null : r.getProcessedBy().getUsername(), r.getProcessedAt(),
                     r.getApproveKind(), groupId, groupName);
         }
     }

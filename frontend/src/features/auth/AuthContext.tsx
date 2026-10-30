@@ -3,6 +3,7 @@ import { api, setPermissionHooks, tokenStore } from '../../api/client'
 import { ecAlert } from '../../components/EcDialog'
 import type { LoginResponse, User } from '../../types/api'
 import { permForRoute } from './menuPermissions'
+import { setExportGuard } from '../../utils/exportGuard'
 
 /** 업무 하나의 풀린 권한(서버 MeController.WorkAccess). menus = 예외(메뉴): 화면 경로 → 진입 여부. */
 export interface WorkAccess {
@@ -150,6 +151,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const w = perms.works?.[code]
     return !!w && w.mode !== 'DENY' && w[action]
   }
+
+  /* 외부전송(인쇄 · Excel)은 화면에서 만들어 서버가 못 막는다 — 지금 화면 업무의 외부전송 권한을 utils 문지기에 끼운다 */
+  useEffect(() => {
+    setExportGuard(() => {
+      const code = permForRoute(window.location.pathname)
+      if (canAct(code, 'export')) return true
+      const name = code ? (perms.workNames?.[code] ?? code) : ''
+      void ecAlert(`권한이 없습니다.\n마스터에게 문의 바랍니다.\n- ${name} 업무권한 (외부전송)`)
+      return false
+    })
+  }) // eslint-disable-line react-hooks/exhaustive-deps
 
   const workName = (code: string) => perms.workNames?.[code] ?? code
   const isMasterOnly = (code: string | null) => !!code && (perms.masterOnly ?? []).includes(code)
