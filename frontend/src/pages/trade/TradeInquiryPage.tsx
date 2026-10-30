@@ -8,7 +8,7 @@ import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
+import { amountToKorean, loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
@@ -544,18 +544,42 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       totalQty: qty.toLocaleString(), supply: won(d.supplyAmount), vat: won(d.vatAmount), total: won(d.totalAmount),
     }
   }
+  /**
+   * 판매조회 [인쇄] — 원본은 '거래명세서' 인쇄 미리보기 창이다(2026-10-31 loginad E040206 실측: ✓내자기본 두 장 · 한 쪽 12 줄 ·
+   * 아래 상자는 그 쪽 합 · [ 쪽 / 쪽수 ]). 판매입력 II 의 할인은 품목 아래 '할인' 줄(2026-10-13 E040253 실측)이다.
+   */
+  function toStatement(d: NormalDoc): SlipPrintDoc {
+    const p = partners.find((x) => x.id === d.partnerId)
+    const md = d.date.slice(5).replace('-', '/')
+    const lines = d.discountSupply || d.discountVat
+      ? [...d.lines.map((l) => ({ name: l.spec ? `${l.itemName} [${l.spec}]` : l.itemName, unit: l.unit ?? '', q: Number(l.quantity), up: Number(l.unitPrice), sp: Number(l.supplyAmount), v: Number(l.vatAmount) })),
+        { name: '할인', unit: '', q: 1, up: -(d.discountSupply ?? 0), sp: -(d.discountSupply ?? 0), v: -(d.discountVat ?? 0) }]
+      : d.lines.map((l) => ({ name: l.spec ? `${l.itemName} [${l.spec}]` : l.itemName, unit: l.unit ?? '', q: Number(l.quantity), up: Number(l.unitPrice), sp: Number(l.supplyAmount), v: Number(l.vatAmount) }))
+    return {
+      key: d.id, title: '거래명세서', docNo: dateNo(d), date: d.date.replace(/-/g, '/'), right: [],
+      lines: lines.map((l) => ({
+        date: md, name: l.name, qty: `${l.q.toLocaleString()}${l.unit}`, unitPrice: won(l.up), supply: won(l.sp), vat: won(l.v),
+        num: { qty: l.q, supply: l.sp, vat: l.v },
+      })),
+      totalQty: lines.reduce((a, l) => a + l.q, 0).toLocaleString(), supply: won(d.supplyAmount), vat: won(d.vatAmount), total: won(d.totalAmount),
+      statement: {
+        to: { name: d.partnerName, address: p?.address ?? '', tel: p?.phone ?? '' },
+        supplier: { docNo: dateNo(d), tel: company?.tel ?? '', bizRegNo: company?.bizRegNo ?? '', ceo: company?.ceo ?? '',
+          name: company?.name ?? '', address: company?.address ?? '' },
+        amountKorean: amountToKorean(d.totalAmount),
+      },
+    }
+  }
+  const slipOf = (d: NormalDoc) => (isSales ? toStatement(d) : toSlip(d))
   /** 하단 [인쇄] — 고른 전표들을 한 창에서 쪽으로 넘겨 본다(원본 [Page 1/2]). 고른 줄이 없으면 셸이 원본 알림을 띄운다. */
   function printSelected() {
     const picked = shown.filter((d) => selected.has(d.id))
-    if (picked.length) setSlipDocs(picked.map(toSlip))
+    if (picked.length) setSlipDocs(picked.map(slipOf))
   }
 
   /** 행의 [인쇄] — 그 전표 하나만 인쇄한다(원본 목록에도 행마다 인쇄가 있다). */
   function printOne(d: NormalDoc) {
-    if (!isSales) { setSlipDocs([toSlip(d)]); return }
-    setOpenId(d.id)
-    // 상세가 펼쳐진 뒤에 인쇄해야 품목까지 같이 나온다.
-    window.setTimeout(() => window.print(), 100)
+    setSlipDocs([slipOf(d)])
   }
   useTableColumnCheck(listRef, `${cfg.title} 목록`, [isSales, shown.length])
 
@@ -594,7 +618,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           { label: '확인', onClick: () => void confirmSelected('confirm') },
         ] },
         { label: '보내기', menuOnly: true, menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
-        { label: '인쇄', menu: [{ label: '프린트문제해결', onClick: notHere('프린트문제해결') }] },
+        { label: '인쇄', onClick: printSelected, selected: selected.size, menu: [{ label: '프린트문제해결', onClick: notHere('프린트문제해결') }] },
         { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: selected.size, menu: [
           { label: '바코드(전표)', onClick: notHere('바코드(전표)') },
           { label: '바코드(시리얼/로트No.)', onClick: notHere('바코드(시리얼/로트No.)') },
@@ -622,7 +646,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {slipDocs && <EcSlipPrintModal title="구매전표" docs={slipDocs} onClose={() => setSlipDocs(null)} />}
+      {slipDocs && (isSales
+        ? <EcSlipPrintModal title="거래명세서" docs={slipDocs} forms={['내자기본']} width={782} onClose={() => setSlipDocs(null)} />
+        : <EcSlipPrintModal title="구매전표" docs={slipDocs} onClose={() => setSlipDocs(null)} />)}
       {historyMenu && (
         <SlipMenuHistoryModal menu={historyMenu} title={historyMenu === '판매II' ? '판매 II 이력조회' : '판매 이력조회'}
                               noLabel="전표번호" itemLabel="품목명" onClose={() => setHistoryMenu(null)} />
