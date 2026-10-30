@@ -6,14 +6,14 @@
       "path": "/accounting/non-cash",
       "steps": [
         "wait:800",
-        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = document.body.innerText.includes('앞 5,000건만'); return !!b && b.disabled === !banner })()",
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = /앞 5,000(건|장)만/.test(document.body.innerText); return !!b && b.disabled === !banner })()",
         "set:input[type=date]#0|2000-01-01",
         "set:input[type=date]#1|2099-12-31",
         "wait:2500",
-        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = document.body.innerText.includes('앞 5,000건만'); return !!b && b.disabled === !banner })()",
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = /앞 5,000(건|장)만/.test(document.body.innerText); return !!b && b.disabled === !banner })()",
         "js:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); if (b && !b.disabled) b.click(); return true })()",
         "wait:4000",
-        "expect:!document.body.innerText.includes('앞 5,000건만')"
+        "expect:!/앞 5,000(건|장)만/.test(document.body.innerText)"
       ]
     },
     {
@@ -21,14 +21,14 @@
       "path": "/accounting/journals",
       "steps": [
         "wait:800",
-        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = document.body.innerText.includes('앞 5,000건만'); return !!b && b.disabled === !banner })()",
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = /앞 5,000(건|장)만/.test(document.body.innerText); return !!b && b.disabled === !banner })()",
         "set:input[type=date]#0|2000-01-01",
         "set:input[type=date]#1|2099-12-31",
         "wait:2500",
-        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = document.body.innerText.includes('앞 5,000건만'); return !!b && b.disabled === !banner })()",
+        "expect:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); const banner = /앞 5,000(건|장)만/.test(document.body.innerText); return !!b && b.disabled === !banner })()",
         "js:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.startsWith('오천건이상조회')); if (b && !b.disabled) b.click(); return true })()",
         "wait:4000",
-        "expect:!document.body.innerText.includes('앞 5,000건만')"
+        "expect:!/앞 5,000(건|장)만/.test(document.body.innerText)"
       ]
     }
   ]

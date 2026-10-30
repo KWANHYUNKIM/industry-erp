@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../api/client'
 import EcListShell from '../components/EcListShell'
 import { ecAlert, ecConfirm } from '../components/EcDialog'
 import Modal from '../components/Modal'
+import { EcDateRange } from '../components/ui/EcDateInput'
 import { dateText } from '../utils/dateText'
 import { ymd } from '../utils/periods'
 import { ACTIONS } from '../features/auth/workPermissions'
@@ -78,11 +79,10 @@ export default function PermissionRequestsPage() {
                  actions={[{ label: '검색(F8)', primary: true, onClick: () => void load() }]}>
       <div className="ec-cond mb-[6px]">
         <div className="flex flex-wrap gap-[10px] items-center">
-          <label className="flex gap-[4px] items-center">기준일자
-            <input type="date" className="ec-input" aria-label="기준일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
-            ~
-            <input type="date" className="ec-input" aria-label="기준일자 끝" value={to} onChange={(e) => setTo(e.target.value)} />
-          </label>
+          <span className="flex gap-[4px] items-center">기준일자
+            <EcDateRange from={{ 'aria-label': '기준일자 시작', value: from, onChange: (e) => setFrom(e.target.value) }}
+                         to={{ 'aria-label': '기준일자 끝', value: to, onChange: (e) => setTo(e.target.value) }} />
+          </span>
           <label className="flex gap-[4px] items-center">사용자 ID
             <input className="ec-input w-[140px]" aria-label="사용자 ID" value={user} onChange={(e) => setUser(e.target.value)} />
           </label>
