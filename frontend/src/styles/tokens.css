@@ -183,6 +183,17 @@
   --ec-cal-range: #dbeafe;                  /* 기간 사이 날 띠 */
   --ec-cal-today: rgb(246, 136, 45);        /* '오늘' 앞 주황 점 */
 
+  /* ── 로그인 화면(login.ecount.com 2026-10-30 실측, plans/데이터이관/클릭대조/대조-로그인.md) ── */
+  --ec-login-bg: rgb(251, 252, 253);        /* 화면 바탕 */
+  --ec-login-blue: rgb(50, 80, 185);        /* [로그인] · 체크칸 테두리 · 칸 그림 · 오른쪽 알약 — 틀의 --ec-blue 보다 짙다 */
+  --ec-login-w: 400px;                      /* 가운데 판 폭 */
+  --ec-login-field-h: 42px;                 /* 칸 한 줄(밑줄까지) — 줄 사이 10 */
+  --ec-login-ph: rgb(206, 212, 218);        /* 칸 안 흐린 글자(회사코드 · 아이디 · 비밀번호) */
+  --ec-login-err: rgb(169, 68, 66);         /* 빈 칸으로 [로그인] — 칸 그림 */
+  --ec-login-err-line: rgb(219, 170, 169);  /*   밑줄 */
+  --ec-login-err-bg: rgba(169, 68, 66, 0.05); /* 바탕 */
+  --ec-login-err-ph: rgba(169, 68, 66, 0.3);  /* 흐린 글자 */
+
   /* ── 옛 이름(화면 코드가 아직 쓴다) → 새 토큰 ── */
   --ec-blue-dark: var(--ec-navy);
   --ec-blue-light: #d3daf7;

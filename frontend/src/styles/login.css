@@ -1,0 +1,249 @@
+/*
+ * 로그인 화면 — login.ecount.com 과 같게(2026-10-30 실측, plans/데이터이관/클릭대조/대조-로그인.md).
+ * 값은 tokens.css 의 --ec-login-* 에서 온다. LoginPage 가 이 파일을 불러온다.
+ * index.css 가 층 순서를 먼저 정하므로 여기 @layer components 는 같은 층에 붙는다(유틸리티가 이긴다).
+ *
+ *   PC   : 가운데 400 판(로고 60 · 칸 셋 · 체크 둘 · [로그인] · 아래 링크 줄), 오른쪽 끝에 알약 셋 + 도움 목록
+ *   ≤768 : 판이 화면 폭(여백 20), 알약 셋이 [로그인] 아래 글자 줄로, 도움 목록은 숨기고, 링크 줄은 바닥에
+ */
+@layer components {
+  .ec-login {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    background: var(--ec-login-bg);
+    font-family: Arial, "Apple SD Gothic Neo", Gulim, sans-serif;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--ec-ink);
+  }
+  /* 판은 위치를 잡지 않는다 — 안의 오른쪽 목록(.ec-login-side)이 화면(.ec-login) 오른쪽 끝에 붙도록 */
+  .ec-login-contents { width: var(--ec-login-w); }
+  .ec-login-logo {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    color: var(--ec-navy);
+  }
+  .ec-login-form { margin-top: 40px; }
+  .ec-login-field {
+    position: relative;
+    height: var(--ec-login-field-h);
+    margin-top: 10px;
+    border-bottom: 1px solid var(--ec-line);
+    border-radius: 5px 5px 0 0;
+    color: var(--ec-login-blue);
+  }
+  .ec-login-field:first-child { margin-top: 0; }
+  .ec-login-field > svg {
+    position: absolute;
+    left: 11px;
+    top: 13px;
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    pointer-events: none;
+  }
+  .ec-login-field > input {
+    display: block;
+    width: 100%;
+    height: 37px;
+    margin-top: 2px;
+    padding: 13px 10px 8px 38px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--ec-text);
+  }
+  .ec-login-field > input::placeholder { color: var(--ec-login-ph); }
+  .ec-login-field.has-error {
+    border-bottom-color: var(--ec-login-err-line);
+    background: var(--ec-login-err-bg);
+    color: var(--ec-login-err);
+  }
+  .ec-login-field.has-error > input::placeholder { color: var(--ec-login-err-ph); }
+
+  .ec-login-option {
+    display: flex;
+    justify-content: flex-end;
+    height: 25px;
+    margin-top: 20px;
+  }
+  .ec-login-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    margin-left: 10px;
+    cursor: pointer;
+    line-height: 12px;
+    color: var(--ec-ink);
+  }
+  .ec-login-check > input {
+    appearance: none;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border: 1px solid var(--ec-login-blue);
+    border-radius: 30%;
+    background: var(--ec-bg-panel);
+    cursor: pointer;
+  }
+  .ec-login-check > input:checked {
+    background: var(--ec-login-blue)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.2l2.6 2.6L12 5.4' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      center / 100% no-repeat;
+  }
+
+  .ec-login-submit {
+    display: block;
+    width: 100%;
+    height: 38px;
+    margin-top: 30px;
+    padding: 10px;
+    border: 1px solid var(--ec-login-blue);
+    border-radius: var(--ec-radius);
+    background: var(--ec-login-blue);
+    color: var(--ec-bg-panel);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 16px;
+    cursor: pointer;
+  }
+  .ec-login-submit:disabled { opacity: 0.6; cursor: default; }
+
+  /* 아래 링크 줄 — 비밀번호 찾기 | 개인정보처리방침 | 한국 (한국어) ▾ */
+  .ec-login-links {
+    display: flex;
+    justify-content: center;
+    margin-top: 90px;
+    height: 18px;
+  }
+  .ec-login-links > li { display: flex; align-items: center; position: relative; }
+  .ec-login-links > li + li::before {
+    content: "";
+    width: 1px;
+    height: 10px;
+    margin: 0 10px;
+    background: var(--ec-line);
+  }
+  .ec-login-links button {
+    border: 0;
+    padding: 0;
+    background: none;
+    font: inherit;
+    color: var(--ec-text-hint);
+    cursor: pointer;
+  }
+  .ec-login-links .is-bold { font-weight: 700; }
+  .ec-login-lang { display: inline-flex; align-items: center; gap: 3px; }
+  .ec-login-lang > svg { width: 9px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+  .ec-login-lang-menu {
+    position: absolute;
+    left: 21px;
+    bottom: 100%;
+    z-index: 10;
+    width: 191px;
+    padding: 5px 0;
+    border: 1px solid var(--ec-line);
+    border-radius: var(--ec-radius);
+    background: var(--ec-bg-panel);
+    box-shadow: var(--ec-shadow-pop);
+  }
+  .ec-login-lang-menu > button {
+    display: block;
+    width: 100%;
+    height: 28px;
+    padding: 0 12px;
+    text-align: left;
+    color: var(--ec-ink);
+  }
+  .ec-login-lang-menu > button:hover { background: var(--ec-bg-page); }
+
+  /* 오른쪽 끝 — 알약 셋(파랑) + 도움 목록(회색 글자 + 그림) */
+  .ec-login-side {
+    position: absolute;
+    top: 0;
+    right: 20px;
+    bottom: 0;
+    width: 146px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+  }
+  .ec-login-family { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .ec-login-family > button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 23px;
+    padding: 0 10px 0 12px;
+    border: 0;
+    border-radius: 10px 5px 5px 10px;
+    background: var(--ec-login-blue);
+    color: var(--ec-bg-panel);
+    font: inherit;
+    cursor: pointer;
+  }
+  .ec-login-family > button > span:last-child { font-size: 13px; }
+  .ec-login-help { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; margin-top: 36px; }
+  .ec-login-help > button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 5px 0 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--ec-text-hint);
+    cursor: pointer;
+  }
+  .ec-login-help > button > svg { width: 16px; height: 16px; fill: var(--ec-login-blue); }
+
+  @media (max-width: 768px) {
+    .ec-login { display: block; }
+    .ec-login-contents {
+      width: auto;
+      min-height: calc(100vh - 40px);
+      display: flex;
+      flex-direction: column;
+    }
+    .ec-login-logo { height: 50px; margin-top: 80px; font-size: 26px; }
+    .ec-login-side {
+      position: static;
+      width: auto;
+      display: block;
+      margin-top: 30px;
+    }
+    .ec-login-family { display: block; }
+    .ec-login-family > button {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      height: 33px;
+      padding: 0;
+      border-radius: 0;
+      border-bottom: 1px solid var(--ec-line);
+      background: var(--ec-login-bg);
+      color: var(--ec-text-muted);
+    }
+    .ec-login-family > button:last-child { border-bottom: 0; }
+    .ec-login-help { display: none; }
+    .ec-login-links { margin-top: auto; padding-top: 30px; height: auto; }
+  }
+}
