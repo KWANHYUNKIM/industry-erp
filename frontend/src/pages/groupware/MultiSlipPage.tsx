@@ -338,15 +338,23 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   useEffect(() => { void load() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const need = new Set(cfg.cols.map((c) => c.master).filter(Boolean))
-    if (need.has('emp') || need.has('staff')) api.get<{ code: string; name: string; department: string | null }[]>('/employees')
+    /* [사번] · [담당자](emp) = 사원(담당) 마스터(/sales-reps), 관리 사원(/employees) 이 아니다. 근거(loginaa 실측):
+     * 다목적 게시판 [담당자] D01 → 장지현 · 채권회수 [담당자] AS05 → 최혁순(E200276.md) — 둘 다 원본 사원(담당) 코드(우리 0005 sales_reps 에 그대로).
+     * 영업자별 계약상황 원본 자료의 사번 S02 · S03 도 사원(담당) 코드이고, 줄의 이름(박영업 · 오영업)이 지금 이름(정재원 · 천우석)과 다른 것은
+     * 줄이 저장 때 이름을 글자로 남기기(스냅숏) 때문이다 — 채권회수 AS05 도 10-14 엔 나수리, 10-21 엔 최혁순으로 떴다.
+     * 월근태 [이름](staff) 은 원본도 인사 사원 '사원검색'(사원번호 · 사원명 · 부서명) 이라 /employees 그대로. */
+    if (need.has('emp')) api.get<{ code: string; name: string }[]>('/sales-reps')
+      .then((r) => setMasters((m) => ({ ...m, emp: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })) }))).catch(() => {})
+    if (need.has('staff')) api.get<{ code: string; name: string; department: string | null }[]>('/employees')
       .then((r) => setMasters((m) => ({ ...m,
-        emp: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })),
         staff: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name, sub: x.department ?? '' })) }))).catch(() => {})
     if (need.has('dept')) api.get<{ code: string; name: string }[]>('/departments')
       .then((r) => setMasters((m) => ({ ...m, dept: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })) }))).catch(() => {})
     if (need.has('partner') || need.has('partnerCode')) api.get<{ code: string; name: string; bizRegNo: string | null }[]>('/partners')
       .then((r) => setMasters((m) => ({ ...m,
-        partner: r.data.filter((x) => x.bizRegNo).map((x) => ({ value: x.bizRegNo!, code: x.bizRegNo, name: x.name })),
+        // [사업자번호] 칸 — 사업자번호가 빈 거래처는 거래처코드로(원본 자료 123123112312 일카운트는 우리에 코드로만 있다),
+        // 거래처코드 · 이름으로도 찾는다(alias, 데이터이관 2026-10-30: 코드를 치면 '조회 결과가 없습니다' 였다).
+        partner: r.data.map((x) => ({ value: x.bizRegNo || x.code, code: x.bizRegNo || x.code, name: x.name, alias: x.code })),
         partnerCode: r.data.map((x) => ({ value: x.code, code: x.code, name: x.name })) }))).catch(() => {})
   }, [cfg])
 
@@ -431,7 +439,10 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
   }
   function pickCode(i: number, col: InCol, v: string) {
     const item = masters[col.master!].find((x) => x.value === v)
-    setLines((ls) => ls.map((l, j) => (j === i ? { ...l, [col.key]: v, ...(col.nameKey ? { [col.nameKey]: item?.name ?? '' } : {}) } : l)))
+    // [사번] · [담당자] 는 마스터에 없는 코드도 받는다(GridCode free) — 이름은 옆 이름 칸에 친 글자를 그대로 두고,
+    // 이름 칸이 따로 없는 칸(채권회수 [담당자], showName)은 친 글자가 이름이다.
+    const name = item ? item.name : !v ? '' : col.master === 'emp' ? (col.showName ? v : null) : ''
+    setLines((ls) => ls.map((l, j) => (j === i ? { ...l, [col.key]: v, ...(col.nameKey && name != null ? { [col.nameKey]: name } : {}) } : l)))
     setDirty(true)
   }
   function insertLine(i: number) {
@@ -523,6 +534,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
       const [title, codeHead, nameHead, subHead] = MASTER_TITLE[c.master!]
       return <GridCode title={title} codeHead={codeHead} nameHead={nameHead} subHead={subHead} items={masters[c.master!]} value={v}
                        showName={c.showName} onPick={(x) => pickCode(i, c, x)}
+                       free={c.master === 'emp'} freeName={c.nameKey ? l[c.nameKey] : undefined}
                        emptyEnterNext={c.key === 'contractCode' ? 1 : cfg.board === 'BOND_COLLECT' && c.key === 'managerCode' ? 2 : undefined} />
     }
     if (c.kind === 'calc') return <input className="ec-input w-full text-right" aria-label={c.head} value={v} readOnly disabled />

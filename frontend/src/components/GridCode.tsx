@@ -18,7 +18,7 @@ export function ErrTip({ msg }: { msg: string }) {
  * F2 · 빈 칸 Enter 도 창을 연다. 이름은 옆 열이 그린다.
  * (회계 I 지출결의서 · 입금보고서 화면 안의 같은 칸을 공용으로 꺼낸 것이다.)
  */
-export default function GridCode({ title, codeHead, nameHead, subHead, items, value, onPick, err, showName = false, emptyEnterNext }: {
+export default function GridCode({ title, codeHead, nameHead, subHead, items, value, onPick, err, showName = false, emptyEnterNext, free = false, freeName }: {
   title: string; codeHead: string; nameHead: string; items: CodeItem[]
   /** 창에 셋째 열(item.sub)을 더한다 — 원본 월근태 '사원검색' 창의 [부서명]. 없으면 두 열 그대로. */
   subHead?: string
@@ -28,6 +28,11 @@ export default function GridCode({ title, codeHead, nameHead, subHead, items, va
   /** 빈 칸 Enter 가 창을 열지 않고 다음 칸으로 간다 — 값은 건너뛸 칸 수 + 1(1 = 바로 다음 칸). 원본 영업자별 계약상황 [계약코드] ·
    *  채권회수 상황판 [담당자](거래처를 건너뛰고 목표금액으로, 2026-10-21 실측). 없으면 창을 연다. */
   emptyEnterNext?: number
+  /** 마스터에 없는 코드도 친 글자 그대로 받는다(onPick(친 글자)) — 원본 다목적관리 [사번] · [담당자] 는 줄에 코드 · 이름을 글자로 남긴다
+   *  (데이터이관 2026-10-30: 원본 자료 S02 박영업 · 담당자 나수리). 맞는 것이 하나면 그대로 고르고, 여럿이면 창. 칸에는 저장된 글자를 보인다. */
+  free?: boolean
+  /** free + showName — 칸에 보일 저장된 이름(줄의 스냅숏). 마스터의 지금 이름보다 앞선다. */
+  freeName?: string
 }) {
   const selected = items.find((x) => x.value === value) ?? null
   const [typed, setTyped] = useState<string | null>(null)
@@ -46,18 +51,22 @@ export default function GridCode({ title, codeHead, nameHead, subHead, items, va
     const low = n.toLowerCase()
     // 정확히 같은 코드가 있어도 다른 코드 · 이름에 함께 걸리면 고르지 않고 창 — 원본 일반전표 거래처 '00001'
     // → 00001 · 0000000000001 · SG00001 창(2026-10-21 실측, CodePickerField pair 와 같은 규칙).
-    const hits = items.filter((x) => `${x.code ?? ''} ${x.name}`.toLowerCase().includes(low))
+    const hits = items.filter((x) => `${x.code ?? ''} ${x.name} ${x.alias ?? ''}`.toLowerCase().includes(low))
     // 원본(2026-10-21 채권회수 [담당자] AS05 Enter 실측): 하나만 맞아 채우면 빈 Enter 와 같은 칸으로 넘어간다(거래처를 건너뜀).
     if (hits.length === 1) { onPick(hits[0].value); if (el && emptyEnterNext) goNext(el, emptyEnterNext); return }
+    if (free && hits.length === 0) { onPick(n); if (el && emptyEnterNext) goNext(el, emptyEnterNext); return }
     setQ(n)
     setOpen(true)
   }
+  const shown = free
+    ? (showName ? (freeName || selected?.name || value) : value)
+    : ((showName ? selected?.name : selected?.code) ?? '')
 
   return (
     <span className="relative block">
       <input className={`ec-input w-full${err ? ' outline outline-1 outline-ec-danger' : ''}`} aria-label={title}
              placeholder={codeHead}
-             value={typed ?? (showName ? selected?.name : selected?.code) ?? ''}
+             value={typed ?? shown}
              onChange={(e) => { setTyped(e.target.value); if (!e.target.value) onPick('') }}
              onKeyDown={(e) => {
                if (e.key === 'Enter') { e.preventDefault(); submit(e.currentTarget) }
