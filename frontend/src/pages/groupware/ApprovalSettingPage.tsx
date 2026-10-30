@@ -16,7 +16,16 @@ import { originalFormFor } from '../../features/approval/templates'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../types/api'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
+
+/** 원본 공통양식리스트 [Option](2026-10-30 E070107 클릭 대조) — 양식작성서비스 · 리스트설정. 받쳐 줄 기능이 없어 안내만 한다. */
+const FORM_OPTION_MENU = [
+  { label: '양식작성서비스', onClick: () => void ecAlert('양식작성서비스(양식 대행 작성)는 지원하지 않습니다.') },
+  { label: '리스트설정', onClick: () => void ecAlert('리스트설정은 지원하지 않습니다.') },
+]
+/** 원본 조건 판의 결재문서 구분 — 우리 양식은 결재문서(근태관리 …)가 있으면 '결재전표', 없으면 '기타'. 출력물을 다는 양식은 아직 없다. */
+const DOC_KINDS = ['결재전표', '결재출력물', '기타'] as const
+type DocKind = (typeof DOC_KINDS)[number]
 
 // 원본 전자결재 > 기초자료등록 아래의 두 화면 이름 그대로다(공통양식등록 · 결재설정).
 const TABS = ['공통양식등록', '결재설정'] as const
@@ -56,7 +65,26 @@ export default function ApprovalSettingPage() {
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3000) }
   /** 기안서작성 맨 위 '00 기본'(BASIC)은 제품이 심는 양식이라 원본 공통양식리스트에 없다(2026-10-03 실측). */
   const companyTemplates = templates.filter((t) => t.code !== 'BASIC')
-  const tsort = useTableSort(companyTemplates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
+  /*
+   * 원본 [Search(F3)] 조건 판(2026-10-30 E070107 클릭 대조): 양식명 · 정렬순서 · 구분 · 결재전표 · 결재출력물 · 기타 · 수정일자순(정렬).
+   * 판 아래 [검색(F8)] [다시 작성] 은 셸(EcListShell)이 붙인다. 조건은 고르는 즉시 걸린다.
+   */
+  const [condName, setCondName] = useState('')
+  const [condOrder, setCondOrder] = useState('')
+  const [condGroup, setCondGroup] = useState('')
+  const [condKinds, setCondKinds] = useState<Set<DocKind>>(() => new Set(DOC_KINDS))
+  /** 수정일자순 — 양식에 수정일이 실려 오지 않아 나중에 만든(고친) 것부터(id 내림차순)로 갈음한다 */
+  const [byModified, setByModified] = useState(false)
+  const resetConds = () => { setCondName(''); setCondOrder(''); setCondGroup(''); setCondKinds(new Set(DOC_KINDS)); setByModified(false) }
+  const kindOf = (t: ApprovalFormTemplateAdmin): DocKind => (approvalDocOf(t.fieldSchema) ? '결재전표' : '기타')
+  const condTemplates = companyTemplates.filter((t) =>
+    (!condName.trim() || t.name.includes(condName.trim()))
+    && (!condOrder.trim() || String(t.sortOrder) === condOrder.trim())
+    && (!condGroup || ((t as WithGroup).groupName ?? '') === condGroup)
+    && condKinds.has(kindOf(t)))
+  const groupNames = [...new Set(companyTemplates.map((t) => (t as WithGroup).groupName).filter(Boolean))].sort() as string[]
+  const tsort = useTableSort(byModified ? [...condTemplates].sort((a, b) => b.id - a.id) : condTemplates,
+    { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name, 구분: (t) => (t as WithGroup).groupName ?? '' })
   const [quickOpen, setQuickOpen] = useState(false)
   const [quickName, setQuickName] = useState('')
   const [quickCopy, setQuickCopy] = useState('')
@@ -133,6 +161,8 @@ export default function ApprovalSettingPage() {
       title={tab === '공통양식등록' ? '공통양식리스트' : tab}
       newLabel={tab === '공통양식등록' ? '신규(F2)' : '결재선 추가(F2)'}
       onNew={() => (tab === '공통양식등록' ? openQuickNew() : setEditingPreset('new'))}
+      optionMenu={tab === '공통양식등록' ? FORM_OPTION_MENU : undefined}
+      onReset={tab === '공통양식등록' ? resetConds : undefined}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
@@ -140,6 +170,27 @@ export default function ApprovalSettingPage() {
       {loading ? <p className="ec-empty">불러오는 중…</p>
         : tab === '공통양식등록' ? (
           <>
+            <div className="ec-search-conds flex items-center flex-wrap gap-[4px] mb-[6px]">
+              <label className="text-[12.5px] text-ec-label">양식명</label>
+              <input className="ec-input w-[160px]" aria-label="양식명" value={condName} onChange={(e) => setCondName(e.target.value)} />
+              <label className="text-[12.5px] text-ec-label ml-[8px]">정렬순서</label>
+              <input className="ec-input w-[70px] text-right" aria-label="정렬순서" inputMode="numeric" value={condOrder}
+                     onChange={(e) => setCondOrder(e.target.value.replace(/\D/g, ''))} />
+              <label className="text-[12.5px] text-ec-label ml-[8px]">구분</label>
+              <CodePickerField label="구분" hideLabel width={150} emptyLabel="전체" value={condGroup} onChange={setCondGroup}
+                               items={groupNames.map((g) => ({ value: g, name: g }))} />
+              {DOC_KINDS.map((k) => (
+                <label key={k} className="flex items-center gap-[3px] ml-[8px]">
+                  <input type="checkbox" checked={condKinds.has(k)}
+                         onChange={(e) => setCondKinds((cur) => { const n = new Set(cur); if (e.target.checked) n.add(k); else n.delete(k); return n })} />
+                  {k}
+                </label>
+              ))}
+              <label className="flex items-center gap-[3px] ml-[8px]">
+                <input type="checkbox" checked={byModified} onChange={(e) => setByModified(e.target.checked)} />
+                수정일자순(정렬)
+              </label>
+            </div>
             {editing && (
               <TemplateForm
                 key={`${editing === 'new' ? 'new' : editing.id}-${formKey}`}
@@ -161,12 +212,12 @@ export default function ApprovalSettingPage() {
                 <tr>
                   <th className="w-[160px] text-center cursor-pointer text-ec-navy" onClick={() => tsort.toggle('정렬순서')}>정렬순서 {tsort.mark('정렬순서')}</th>
                   <th className="cursor-pointer text-ec-navy" onClick={() => tsort.toggle('양식명')}>양식명 {tsort.mark('양식명')}</th>
-                  <th className="w-[200px] text-ec-navy">구분 ▼</th>
+                  <th className="w-[200px] cursor-pointer text-ec-navy" onClick={() => tsort.toggle('구분')}>구분 {tsort.mark('구분')}</th>
                   <th className="w-[150px]">결재문서</th>
                 </tr>
               </thead>
               <tbody>
-                {companyTemplates.length === 0 ? (
+                {tsort.sorted.length === 0 ? (
                   <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                 ) : tsort.sorted.map((t) => (
                   <tr key={t.id}>

@@ -5,25 +5,25 @@ import ApprovalFormFields from '../../features/approval/components/ApprovalFormF
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
-import { exportTableToXlsx } from '../../utils/excel'
-import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalFormTemplate, ApprovalOutput, ApprovalPreset, MemberOption } from '../../types/api'
 import { OutputChips, OutputLinkMenu, OutputMenuWindow, OutputReportWindow, OutputViewWindow, type OutputWindowState } from '../../features/approval/components/ApprovalOutputs'
 import { ymd } from '../../components/EcPeriodPicks'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
 import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
 import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
 import { shrinkImage } from '../../utils/imageResize'
 import RichBodyEditor from '../../features/approval/components/RichBodyEditor'
-import { approvalDocOf, bodyHtmlOf, formFieldsOf, looksLikeHtml, sanitizeHtml } from '../../features/approval/bodyTemplate'
+import { APPROVAL_DOCS, approvalDocOf, bodyHtmlOf, formFieldsOf, looksLikeHtml, sanitizeHtml } from '../../features/approval/bodyTemplate'
 import LeaveInputPage from '../hr/LeaveInputPage'
 
 import EcDateField from '../../components/EcDateField'
 import { MenuButton } from '../../components/EcSlipShell'
 import EcIcon from '../../components/ui/EcIcon'
+import StampSignModal from '../../features/approval/components/StampSignModal'
+import { useAuth } from '../../features/auth/AuthContext'
 
 const TITLE = '기안서작성'
 /** 원본 [출력양식] 고를 거리 — 처음 값은 '기본양식(결재문서 별도 인쇄)'(2026-10-30 실측). */
@@ -70,7 +70,25 @@ export default function ApprovalDraftPage() {
   const [selected, setSelected] = useState<ApprovalFormTemplate | null>(null)
   /** 원본: 결재문서가 '근태관리' 인 양식(휴가신청서)을 열면 [근태입력] 창이 같이 뜬다(2026-10-30 실측). */
   const [attendanceOpen, setAttendanceOpen] = useState(false)
-  const sort = useTableSort(templates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
+  /*
+   * 원본 [Search(F3)] 조건 판(2026-10-30 E070103 클릭 대조): 양식명 · 정렬순서 · 구분 · 결재전표 + [검색(F8)] [다시 작성].
+   * 검색칸이 빈 채로 [Search(F3)] 를 누르면 판이 펴진다(다른 목록과 같다). 조건은 고르는 즉시 걸린다.
+   */
+  const [condOpen, setCondOpen] = useState(false)
+  const { user, companyCode } = useAuth()
+  const [stampOpen, setStampOpen] = useState(false)
+  const [condName, setCondName] = useState('')
+  const [condOrder, setCondOrder] = useState('')
+  const [condGroup, setCondGroup] = useState('')
+  const [condDoc, setCondDoc] = useState('')
+  const resetConds = () => { setCondName(''); setCondOrder(''); setCondGroup(''); setCondDoc('') }
+  const condTemplates = templates.filter((t) =>
+    (!condName || t.name.includes(condName.trim()))
+    && (!condOrder.trim() || String(t.sortOrder) === condOrder.trim())
+    && (!condGroup || (t.groupName ?? '') === condGroup)
+    && (!condDoc || (approvalDocOf(t.fieldSchema) || '기안서') === condDoc))
+  const groupNames = [...new Set(templates.map((t) => t.groupName).filter(Boolean))].sort() as string[]
+  const sort = useTableSort(condTemplates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name, 구분: (t) => t.groupName ?? '' })
 
   const [draftDate, setDraftDate] = useState(today())
   const [title, setTitle] = useState('')
@@ -127,20 +145,9 @@ export default function ApprovalDraftPage() {
   }
 
   // 버튼 라벨이 약속한 단축키들. 저장/결재는 처리 중이면 안 먹는다.
-  useShortcut('F3', () => filterRows(search))
+  const searchF3 = () => (search.trim() ? filterRows(search) : setCondOpen((v) => !v))
+  useShortcut('F3', searchF3)
   useShortcut('F7', () => void save(false), !saving && !attendanceOpen && !outputWin)
-
-  async function doExcel() {
-    const table = findDataTable(bodyRef.current)
-    if (!table) return flash('이 화면에는 내보낼 표가 없습니다.')
-    if (!(await exportTableToXlsx(table, TITLE))) flash('내보낼 자료가 없습니다.')
-  }
-
-  function doPrint() {
-    const table = findDataTable(bodyRef.current)
-    if (!table) return flash('이 화면에는 인쇄할 표가 없습니다.')
-    if (!printTable(table, TITLE)) flash('인쇄할 자료가 없습니다.')
-  }
 
   useEffect(() => {
     api.get<MemberOption[]>('/meta/users').then((r) => setMembers(r.data)).catch(() => {})
@@ -349,26 +356,40 @@ export default function ApprovalDraftPage() {
             onKeyDown={(e) => { if (e.key === 'Enter') filterRows(search) }}
             style={{ width: 140 }}
           />
-          <button className="ec-btn ec-btn-primary" onClick={() => filterRows(search)}>Search(F3)</button>
+          <button className="ec-btn ec-btn-primary" onClick={searchF3}>Search(F3)</button>
           <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
           <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
 
+          {/* 원본 [Option] 은 [리스트설정] 하나(2026-10-30 E070103 클릭 대조) — 목록 열 디자이너는 두지 않아 안내만 한다. */}
           {optionOpen && (
             <>
-              <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
-                {[
-                  { label: 'Excel 내려받기', run: () => { void doExcel() } },
-                  { label: '인쇄', run: () => doPrint() },
-                  { label: '검색조건 초기화', run: () => { setSearch(''); filterRows('') } },
-                ].map((m) => (
-                  <button key={m.label} onClick={() => { setOptionOpen(false); m.run() }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', fontSize: 12, background: 'none', border: 0, cursor: 'pointer' }}>{m.label}</button>
-                ))}
+              <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
+              <div className="ec-menu" role="menu">
+                <button type="button" onClick={() => { setOptionOpen(false); void ecAlert('리스트설정은 지원하지 않습니다.') }}>리스트설정</button>
               </div>
             </>
           )}
         </div>
       </div>
+
+      {condOpen && (
+        <div className="ec-search-conds flex items-center flex-wrap gap-[4px] mb-[6px]">
+          <label className="text-[12.5px] text-ec-label">양식명</label>
+          <input className="ec-input w-[160px]" aria-label="양식명" value={condName} onChange={(e) => setCondName(e.target.value)} />
+          <label className="text-[12.5px] text-ec-label ml-[8px]">정렬순서</label>
+          <input className="ec-input w-[70px] text-right" aria-label="정렬순서" inputMode="numeric" value={condOrder} onChange={(e) => setCondOrder(e.target.value.replace(/\D/g, ''))} />
+          <label className="text-[12.5px] text-ec-label ml-[8px]">구분</label>
+          <CodePickerField label="구분" hideLabel width={150} emptyLabel="전체" value={condGroup} onChange={setCondGroup}
+                           items={groupNames.map((g) => ({ value: g, name: g }))} />
+          <label className="text-[12.5px] text-ec-label ml-[8px]">결재전표</label>
+          <CodePickerField label="결재전표" hideLabel width={130} emptyLabel="전체" value={condDoc} onChange={setCondDoc}
+                           items={['기안서', ...APPROVAL_DOCS].map((d) => ({ value: d, name: d }))} />
+          <div className="basis-full flex items-center gap-[4px] mt-[4px]">
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-sm" onClick={() => setCondOpen(false)}>검색(F8)</button>
+            <button type="button" className="ec-btn ec-btn-sm" onClick={resetConds}>다시 작성</button>
+          </div>
+        </div>
+      )}
 
       {error && !selected && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
@@ -390,7 +411,7 @@ export default function ApprovalDraftPage() {
               <th className="w-[90px] text-center cursor-pointer text-ec-navy" onClick={() => sort.toggle('정렬순서')}>정렬순서 {sort.mark('정렬순서')}</th>
               <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('양식명')}>양식명 {sort.mark('양식명')}</th>
               {/* 원본은 [구분] 200 · [결재문서] 150 이다. */}
-              <th className="w-[200px] cursor-pointer text-ec-navy">구분 ▼</th>
+              <th className="w-[200px] cursor-pointer text-ec-navy" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
               <th className="w-[150px]">결재문서</th>
             </tr>
           </thead>
@@ -582,13 +603,8 @@ export default function ApprovalDraftPage() {
                 >
                   양식샘플보기
                 </button>
-                <button
-                  className="ec-btn"
-                  title="도장·서명 이미지는 아직 없습니다. 인쇄 결재란은 [인쇄용결재라인등록]에서 씁니다."
-                  disabled
-                >
-                  My도장/서명
-                </button>
+                {/* 원본 [My도장/서명] → '도장/서명올리기' 창(내결재관리 하단과 같은 창) */}
+                <button className="ec-btn" onClick={() => setStampOpen(true)}>My도장/서명</button>
                 <button className="ec-btn" onClick={() => setSelected(null)}>닫기</button>
                 {missing.length > 0 && (
                   <span className="text-[11.5px] text-ec-danger ml-[4px]">미입력 필수: {missing.join(', ')}</span>
@@ -607,6 +623,8 @@ export default function ApprovalDraftPage() {
         <OutputMenuWindow onClose={() => setOutputWin(null)} onPick={(m) => setOutputWin({ kind: 'report', menuName: m })} />
       )}
       {outputWin?.kind === 'view' && <OutputViewWindow output={outputWin.output} onClose={() => setOutputWin(null)} />}
+
+      {stampOpen && user && <StampSignModal user={`${companyCode ?? ''}:${user.username}`}onClose={() => setStampOpen(false)} />}
 
       {/* 결재문서 '근태관리' — 작성 창 위에 [근태입력] 창이 같이 뜬다(원본 캡처 12-휴가신청서-근태입력-같이뜸). */}
       <Modal open={attendanceOpen} title="근태입력" width={1100} onClose={() => setAttendanceOpen(false)}>

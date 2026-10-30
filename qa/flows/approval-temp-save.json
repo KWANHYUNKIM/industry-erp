@@ -43,7 +43,7 @@
         "wait:400",
         "expect:(() => { const t = [...document.querySelectorAll('button')].map((b) => b.innerText.trim()); return t.includes('저장/결재(F7)') && !t.includes('기안서복사') })()",
         "click:닫기",
-        "js:[...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험')).cells[0].click(); true",
+        "js:[...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA그룹웨어- 임시저장 시험')).cells[0].querySelector('input[type=checkbox]').click(); true",
         "js:window.__qaMsg = []; window.confirm = (m) => { window.__qaMsg.push(m); return true }; true",
         "click:선택삭제",
         "wait:1200",

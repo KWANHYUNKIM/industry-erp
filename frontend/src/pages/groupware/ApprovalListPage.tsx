@@ -16,6 +16,8 @@ import { requireSelection } from '../../components/EcDialog'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { periodOf } from '../../utils/periods'
+import StampSignModal from '../../features/approval/components/StampSignModal'
 
 /**
  * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
@@ -34,6 +36,22 @@ const actedText = (iso: string) => {
 const TABS_MINE = [...COMMON_TABS, '수신참조'] as const
 const TABS_ALL = [...COMMON_TABS, '삭제'] as const
 type Tab = (typeof TABS_MINE)[number] | (typeof TABS_ALL)[number]
+
+/** [라벨] 단추의 '라벨없음' — 라벨을 달지 않은 문서만 */
+const LABEL_NONE = '(라벨없음)'
+
+/**
+ * 원본 [Option](2026-10-30 E070105 · E070108 클릭 대조) — 검색항목설정 · 양식설정 · 조건양식설정.
+ * 검색항목 · 양식 디자이너는 두지 않아 다른 현황 화면(이익관리 VariancePage)처럼 안내만 한다.
+ */
+const OPTION_MENU = [
+  { label: '검색항목설정', onClick: () => void ecAlert('검색항목설정은 지원하지 않습니다.') },
+  { label: '양식설정', onClick: () => void ecAlert('양식설정은 지원하지 않습니다(양식 하나).') },
+  { label: '조건양식설정', onClick: () => void ecAlert('조건양식설정은 지원하지 않습니다.') },
+]
+
+/** 원본 내결재관리 조건 판 [검색(F8)] 옆 ▾ 기간 빠른선택(2026-10-30 실측) */
+const MINE_PICKS = ['최근30일(+1개월)', '전월+금월'] as const
 
 const TAB_STATUS: Record<Exclude<Tab, '전체' | '삭제' | '수신참조'>, ApprovalStatus> = {
   기안중: 'DRAFTING',
@@ -60,7 +78,7 @@ export default function ApprovalListPage({
   scope: 'mine' | 'all'
   bottomActions?: string[]
 }) {
-  const { user } = useAuth()
+  const { user, companyCode } = useAuth()
   const navigate = useNavigate()
   const [rows, setRows] = useState<ApprovalDoc[]>([])
   /*
@@ -116,6 +134,8 @@ export default function ApprovalListPage({
    *   [삭제]    — 기안일자 · 제목 · 구분 · 기안자 · 결재자 · 결재 · 작업자 · 작업일시(지운 때)
    */
   const delView = isAll && tab === '삭제'
+  /** 내결재관리 [기안중] 알약 — 하단 [보내기] · [결재/검토완료] · [인쇄] 가 없다 */
+  const draftTab = !isAll && tab === '기안중'
   const colCount = delView ? 9 : isAll ? 12 : 10
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -141,6 +161,10 @@ export default function ApprovalListPage({
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  /** 머리 [라벨] 단추의 목록 · 조건 판 [검색(F8)] ▾ · [My도장/서명] 창 */
+  const [labelOpen, setLabelOpen] = useState(false)
+  const [picksOpen, setPicksOpen] = useState(false)
+  const [stampOpen, setStampOpen] = useState(false)
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -211,7 +235,7 @@ export default function ApprovalListPage({
     .filter((r) => !formType || catOf(r) === formType)
     .filter((r) => !dept || (r.department ?? '') === dept)
     .filter((r) => !project || String(r.projectId ?? '') === project)
-    .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
+    .filter((r) => !labelCond || (labelCond === LABEL_NONE ? !r.labelText : (r.labelText ?? '') === labelCond))
     .filter((r) => !drafterCond || r.drafterName.includes(drafterCond))
     .filter((r) => !contentCond || (r.content ?? '').includes(contentCond))
     .filter((r) => !titleCond || r.title.includes(titleCond))
@@ -249,6 +273,13 @@ export default function ApprovalListPage({
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   const labels = [...new Set(rows.map((r) => r.labelText).filter(Boolean))].sort() as string[]
   const approvers = [...new Set(rows.flatMap((r) => (r.lines ?? []).map((l) => l.approverName)))].sort()
+
+  /** 조건 판 [다시 작성] — 칸을 처음 값으로(기간은 오늘 −30일 ~ +30일). */
+  function resetConds() {
+    setFrom(ymd(new Date(Date.now() - 30 * 86400000))); setTo(ymd(new Date(Date.now() + 30 * 86400000)))
+    setDocNoCond(''); setFormType(''); setDrafterCond(''); setTitleCond(''); setContentCond('')
+    setLineCond(''); setDept(''); setProject(''); setAttachCond('전체'); setLabelCond(''); setPage(1)
+  }
 
   const isMyTurn = (d: ApprovalDoc) =>
     !d.deleted && d.status === 'IN_PROGRESS' && d.currentApproverName === user?.name
@@ -391,6 +422,26 @@ export default function ApprovalListPage({
         <span className="text-ec-star mr-[4px]"><EcIcon name="star-outline" size={13} glyph="☆" /></span>
         <span className="text-[15px] font-extrabold text-ec-text">{title}</span>
         <div className="ml-auto flex items-center gap-[4px] relative">
+          {/* 원본 검색칸 왼쪽 [라벨] — 라벨없음 · 쓰고 있는 라벨(긴급 …), 고르면 그 라벨 문서만(2026-10-30 클릭 대조). 다시 누르면 푼다. */}
+          <span className="relative">
+            <button type="button" className={`ec-btn${labelCond ? ' ec-btn-primary' : ''}`} aria-haspopup="menu" aria-expanded={labelOpen}
+                    onClick={() => setLabelOpen((v) => !v)}>
+              {labelCond === LABEL_NONE ? '라벨없음' : labelCond || '라벨'}
+            </button>
+            {labelOpen && (
+              <>
+                <div className="ec-backdrop-clear" onClick={() => setLabelOpen(false)} />
+                <div className="ec-menu left-0 right-auto" role="menu">
+                  {[LABEL_NONE, ...labels].map((v) => (
+                    <button key={v} type="button" role="menuitemcheckbox" aria-checked={labelCond === v}
+                            onClick={() => { setLabelOpen(false); setPage(1); setLabelCond((c) => (c === v ? '' : v)) }}>
+                      {labelCond === v ? '✓ ' : ''}{v === LABEL_NONE ? '라벨없음' : v}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </span>
           <input
             className="ec-input"
             placeholder="입력 후 [Enter]"
@@ -406,14 +457,10 @@ export default function ApprovalListPage({
 
           {optionOpen && (
             <>
-              <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
-                {[
-                  { label: 'Excel', run: () => { void doExcel() } },   // 원본 버튼 이름 그대로
-                  { label: '인쇄', run: () => doPrint() },
-                  { label: '검색조건 초기화', run: () => { setSearch(''); filterRows('') } },
-                ].map((m) => (
-                  <button key={m.label} onClick={() => { setOptionOpen(false); m.run() }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', fontSize: 12, background: 'none', border: 0, cursor: 'pointer' }}>{m.label}</button>
+              <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
+              <div className="ec-menu" role="menu">
+                {OPTION_MENU.map((m) => (
+                  <button key={m.label} type="button" onClick={() => { setOptionOpen(false); m.onClick() }}>{m.label}</button>
                 ))}
               </div>
             </>
@@ -487,8 +534,31 @@ export default function ApprovalListPage({
         <label className="text-[12.5px] text-ec-label ml-[8px]">라벨</label>
         <select className="ec-input" value={labelCond} onChange={(e) => setLabelCond(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>
+          <option value={LABEL_NONE}>라벨없음</option>
           {labels.map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
+        {/* 원본 판 아래 줄: [검색(F8)│▾ 기간 빠른선택](내결재관리) · [다시 작성]. 우리 조건은 고르는 즉시 걸려 [검색(F8)] 은 판을 접는다. */}
+        <div className="basis-full flex items-center gap-[4px] mt-[4px]">
+          <span className="ec-btn-group relative">
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-sm" onClick={() => { setPage(1); setCondOpen(false) }}>검색(F8)</button>
+            {!isAll && (
+              <button type="button" className="ec-btn ec-btn-primary ec-btn-sm ec-btn-arrow" aria-label="기간 빠른선택"
+                      onClick={() => setPicksOpen((v) => !v)}><EcIcon name="caret-down" size={10} glyph="▾" /></button>
+            )}
+            {picksOpen && (
+              <div className="ec-menu ec-search-picks">
+                {MINE_PICKS.map((l) => (
+                  <button key={l} type="button" onClick={() => {
+                    setPicksOpen(false)
+                    const r = periodOf(l)
+                    if (r) { setFrom(r.from); setTo(r.to); setPage(1) }
+                  }}>{l}</button>
+                ))}
+              </div>
+            )}
+          </span>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={resetConds}>다시 작성</button>
+        </div>
       </div>}
 
       {/* 원본: 쪽번호(한 쪽 15줄)는 왼쪽, 기안일자 기간은 오른쪽 — 표 바로 위 */}
@@ -512,11 +582,11 @@ export default function ApprovalListPage({
                        checked={pageRows.length > 0 && pageRows.every((d) => selected.has(d.id))}
                        onChange={(e) => setSelected(e.target.checked ? new Set(pageRows.map((d) => d.id)) : new Set())} />
               </th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
+              <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
               <th>제목</th>
               {isAll && !delView && <th className="text-center">ERP전표(건)</th>}
-              {isAll && <th className="cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>}
-              <th className="cursor-pointer" onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
+              {isAll && <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>}
+              <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
               <th>결재자</th>
               {!delView && <th className="text-center">진행상태</th>}
               <th className="text-center">결재</th>
@@ -603,18 +673,19 @@ export default function ApprovalListPage({
             <button className="ec-btn ec-btn-primary" onClick={() => navigate('/groupware/approval/draft')}>
               신규(F2)
             </button>
-            <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void approveSelected() }}>결재/검토완료</button>
+            <button className="ec-btn" onClick={() => setStampOpen(true)}>My도장/서명</button>
+            {/* [보내기] · [결재/검토완료] · [인쇄] 는 [기안중] 알약에는 없다(원본 2026-10-30 — 기안중 → 진행중 으로 옮기면 셋이 생긴다). */}
+            {!draftTab && (
+              <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void ecAlert('메일 · 팩스 보내기는 아직 없습니다.') }}>보내기</button>
+            )}
+            {!draftTab && <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void approveSelected() }}>결재/검토완료</button>}
           </>
         ) : (
           <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void deleteSelected() }}>선택삭제</button>
         )}
         <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void changeLabelSelected() }}>라벨변경</button>
-        {bottomActions.map((a) => {
-          const onClick = a.includes('Excel') || a.includes('엑셀') ? () => { void doExcel() }
-            : a.includes('인쇄') || a.includes('출력') ? () => doPrint()
-            : undefined
-          return <button key={a} className="ec-btn" onClick={onClick}>{a}</button>
-        })}
+        {!draftTab && bottomActions.includes('인쇄') && <button className="ec-btn" onClick={() => doPrint()}>인쇄</button>}
+        {bottomActions.includes('Excel') && <button className="ec-btn" onClick={() => { void doExcel() }}>Excel</button>}
       </div>
 
       {detail && (
@@ -630,6 +701,8 @@ export default function ApprovalListPage({
           onSubmit={isMine(detail) && !detail.deleted && detail.status === 'DRAFTING' ? submitDraft : undefined}
         />
       )}
+
+      {stampOpen && user && <StampSignModal user={`${companyCode ?? ""}:${user.username}`} onClose={() => setStampOpen(false)} />}
 
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -14,14 +14,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/price"
  },
- "내결재관리|My도장/서명": {
-  "claim": "결재 도장 이미지를 만들지 않는다",
-  "absent": [
-   "stampImage",
-   "signatureImage"
-  ],
-  "in": "backend"
- },
  "거래처리스트|H": {
   "claim": "거래처 마스터의 변경이력을 남기지 않는다",
   "absent": [
