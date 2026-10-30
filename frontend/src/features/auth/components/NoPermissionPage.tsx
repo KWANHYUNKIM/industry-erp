@@ -28,10 +28,12 @@ export default function NoPermissionPage({ path, menuName }: { path: string; men
 
   return (
     <div className="ec-noperm" data-testid="no-permission">
-      <svg className="ec-noperm-lock" viewBox="0 0 64 64" aria-hidden="true">
-        <rect x="12" y="28" width="40" height="30" rx="5" />
-        <path d="M20 28v-8a12 12 0 0 1 24 0v8" fill="none" strokeWidth="6" />
-        <circle cx="32" cy="42" r="4" className="hole" />
+      {/* 원본 자물쇠(영상 2000 · 1998 · 1514 프레임): 굵은 고리 + 둥근 몸통, 몸통 가운데 흰 동그라미 안에 '−' */}
+      <svg className="ec-noperm-lock" viewBox="0 0 95 116" aria-hidden="true">
+        <path d="M22 54V34a25.5 25.5 0 0 1 51 0v20" fill="none" strokeWidth="13" />
+        <rect x="0" y="48" width="95" height="68" rx="12" />
+        <circle cx="47.5" cy="82" r="16" className="hole" />
+        <rect x="39" y="79.5" width="17" height="5" rx="2" />
       </svg>
       <p className="ec-noperm-title">
         <span className="work">({code ? workName(code) : (menuName ?? '')})</span> 업무 권한이 없습니다.
