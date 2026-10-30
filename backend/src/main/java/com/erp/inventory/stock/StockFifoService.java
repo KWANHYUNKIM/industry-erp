@@ -59,22 +59,34 @@ public class StockFifoService {
 
     private record Walk(List<SaleCost> sales, Map<Long, Deque<BigDecimal[]>> layers) {}
 
+    /** 걸음에 쓰는 수불 한 줄 — 엔티티 대신 필요한 칸만 든다(38만 줄을 엔티티로 올리면 힙이 터진다). */
+    private record Move(long id, long itemId, long warehouseId, BigDecimal quantityChange, BigDecimal unitPrice, String note) {}
+
+    private List<Move> moves(LocalDate to) {
+        List<Move> all = new ArrayList<>();
+        try (java.util.stream.Stream<Object[]> s = transactionRepository.streamFifoMoves(to)) {
+            s.forEach(r -> all.add(new Move(((Number) r[0]).longValue(), ((Number) r[1]).longValue(),
+                    ((Number) r[2]).longValue(), (BigDecimal) r[3], (BigDecimal) r[4], (String) r[5])));
+        }
+        return all;
+    }
+
     private Walk walk(LocalDate to) {
-        List<StockTransaction> all = transactionRepository.findUpToWithItem(to);
+        List<Move> all = moves(to);
 
         /* 1) 되돌림 줄과 그 앞선 짝을 지운다. */
-        Map<String, Deque<StockTransaction>> applied = new HashMap<>();
+        Map<String, Deque<Move>> applied = new HashMap<>();
         Set<Long> dropped = new HashSet<>();
-        for (StockTransaction t : all) {
-            String note = t.getNote() == null ? "" : t.getNote();
+        for (Move t : all) {
+            String note = t.note() == null ? "" : t.note();
             Matcher m = DOC.matcher(note);
             if (!m.find()) continue;
-            String key = m.group(1) + "#" + t.getItem().getId() + "#" + t.getWarehouse().getId();
+            String key = m.group(1) + "#" + t.itemId() + "#" + t.warehouseId();
             if (isRevert(note)) {
-                Deque<StockTransaction> stack = applied.get(key);
-                StockTransaction prev = stack == null ? null : stack.pollLast();
-                dropped.add(t.getId());
-                if (prev != null) dropped.add(prev.getId());
+                Deque<Move> stack = applied.get(key);
+                Move prev = stack == null ? null : stack.pollLast();
+                dropped.add(t.id());
+                if (prev != null) dropped.add(prev.id());
             } else {
                 applied.computeIfAbsent(key, k -> new ArrayDeque<>()).add(t);
             }
@@ -84,17 +96,17 @@ public class StockFifoService {
         Map<Long, Deque<BigDecimal[]>> layers = new HashMap<>();
         Map<Long, BigDecimal> lastPrice = new HashMap<>();
         Map<String, BigDecimal[]> out = new LinkedHashMap<>();
-        for (StockTransaction t : all) {
-            if (dropped.contains(t.getId())) continue;
-            String note = t.getNote() == null ? "" : t.getNote();
+        for (Move t : all) {
+            if (dropped.contains(t.id())) continue;
+            String note = t.note() == null ? "" : t.note();
             if (note.startsWith("창고이동")) continue;
-            Long itemId = t.getItem().getId();
-            BigDecimal q = t.getQuantityChange();
+            Long itemId = t.itemId();
+            BigDecimal q = t.quantityChange();
             if (q == null || q.signum() == 0) continue;
             Deque<BigDecimal[]> qd = layers.computeIfAbsent(itemId, k -> new ArrayDeque<>());
             if (q.signum() > 0) {
-                BigDecimal price = note.startsWith("판매반품") ? lastPrice.getOrDefault(itemId, nz(t.getUnitPrice()))
-                        : t.getUnitPrice() != null ? t.getUnitPrice() : lastPrice.getOrDefault(itemId, BigDecimal.ZERO);
+                BigDecimal price = note.startsWith("판매반품") ? lastPrice.getOrDefault(itemId, nz(t.unitPrice()))
+                        : t.unitPrice() != null ? t.unitPrice() : lastPrice.getOrDefault(itemId, BigDecimal.ZERO);
                 qd.addLast(new BigDecimal[]{q, price});
                 lastPrice.put(itemId, price);
             } else {

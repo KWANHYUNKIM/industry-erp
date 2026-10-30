@@ -5,6 +5,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
@@ -13,10 +15,17 @@ import java.util.List;
 
 public interface StockTransactionRepository extends JpaRepository<StockTransaction, Long> {
 
-    /** 선입선출 원가 — 그 날까지의 모든 움직임을 일어난 차례로. */
-    @Query("select t from StockTransaction t join fetch t.item join fetch t.warehouse " +
+    /**
+     * 선입선출 원가 — 그 날까지의 모든 움직임을 일어난 차례로. 반환: [id, itemId, warehouseId, quantityChange, unitPrice, note].
+     *
+     * <p><b>엔티티가 아니라 걸음에 쓰는 여섯 칸만</b> 흘려 받는다(2026-10-31). 예전에는 품목 · 창고째 엔티티로 다 꺼냈는데,
+     * 회사 0001 의 수불 38만 9천 줄에서 한 번에 1분 반 · 힙 수백 MB 를 먹고, 일별이익 · 일별재고 화면이 겹치자
+     * 힙 1.5GB 를 넘겨 서버가 OOM 으로 죽었다. 차례(일자 · id)와 거르는 조건은 그대로다 — 품목 · 창고는 FK 라 줄이 같다.
+     */
+    @QueryHints(@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_FETCH_SIZE, value = "5000"))
+    @Query("select t.id, t.item.id, t.warehouse.id, t.quantityChange, t.unitPrice, t.note from StockTransaction t " +
             "where t.transactionDate <= :to order by t.transactionDate asc, t.id asc")
-    java.util.List<StockTransaction> findUpToWithItem(@Param("to") java.time.LocalDate to);
+    java.util.stream.Stream<Object[]> streamFifoMoves(@Param("to") java.time.LocalDate to);
 
     /** 최근 입출고 이력 (품목/창고 함께 로딩, 최신순) */
     @Query(value = "select t from StockTransaction t " +
