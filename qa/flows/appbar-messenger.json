@@ -1,0 +1,67 @@
+{
+  "about": "오른쪽 앱바 · 메신저 — 원본 2026-10-30 loginaa 실측(.claude/skills/ecount-diff/plans/데이터이관/오른쪽앱바-메신저). 앱바 아이콘 17개가 원본 순서 · 이름(말풍선)대로 서고 [숨김 아이콘] 이 접었다 편다. 통합검색 · 쪽지 · 북마크 창이 원본 제목으로 뜨고, Email 은 웹메일 미신청 안내, 메신저는 '대화방' · '사용자'(부서 묶음) 목록에서 사람을 누르면 1:1 대화 창이 뜬다. 만드는 자료: 1:1 대화방 하나(같은 상대와는 늘 같은 방이라 다시 돌려도 안 쌓인다).",
+  "shots": [
+    {
+      "name": "앱바 아이콘 순서 · 말풍선 이름 · 숨김 아이콘",
+      "path": "/sales/sell",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-appbar .ec-appbar-btn')].map((b) => b.querySelector('.ec-appbar-tip').textContent).join(',') === '다크모드로보기,업무지원AI,통합검색,스마트지원,새창열기,E Note,알림,쪽지,메신저,SMS,Email,권한있는메뉴만보기,원격지원,타임라인,북마크,UserPay,숨김 아이콘'",
+        "expect:document.querySelectorAll('.ec-appbar .ec-appbar-btn > svg').length === 17",
+        "js:document.querySelector('[data-app=hide]').click()",
+        "wait:300",
+        "expect:document.querySelectorAll('.ec-appbar .ec-appbar-btn').length === 1",
+        "js:document.querySelector('[data-app=hide]').click()",
+        "wait:300",
+        "expect:document.querySelectorAll('.ec-appbar .ec-appbar-btn').length === 17"
+      ]
+    },
+    {
+      "name": "통합검색 · 쪽지 · 북마크 창 · Email 안내",
+      "path": "/sales/sell",
+      "steps": [
+        "wait:2500",
+        "js:document.querySelector('[data-app=search]').click()",
+        "wait:500",
+        "expect:document.querySelector('.ec-appwin .ec-modal-bar .name')?.textContent === '통합검색' && document.querySelectorAll('.ec-appwin .ec-pill').length === 7",
+        "js:document.querySelector('.ec-appwin .ec-modal-bar .close').click()",
+        "wait:300",
+        "js:document.querySelector('[data-app=shortmsg]').click()",
+        "wait:1500",
+        "expect:document.querySelector('.ec-appwin .ec-modal-bar .name')?.textContent === '쪽지' && [...document.querySelectorAll('.ec-appwin th')].some((th) => th.textContent === '연결전표')",
+        "js:document.querySelector('.ec-appwin .ec-modal-bar .close').click()",
+        "wait:300",
+        "js:document.querySelector('[data-app=bookmark]').click()",
+        "wait:1000",
+        "expect:document.querySelector('.ec-appwin .ec-modal-bar .name')?.textContent === '북마크'",
+        "js:document.querySelector('.ec-appwin .ec-modal-bar .close').click()",
+        "wait:300",
+        "js:document.querySelector('[data-app=email]').click()",
+        "wait:400",
+        "expect:/웹메일/.test(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
+        "clicklast:확인",
+        "wait:300",
+        "expect:!document.querySelector('[role=alertdialog]')"
+      ]
+    },
+    {
+      "name": "메신저 — 부서 묶음 사용자 목록 → 1:1 대화 창",
+      "path": "/sales/sell",
+      "steps": [
+        "wait:2500",
+        "js:document.querySelector('[data-app=messenger]').click()",
+        "wait:1800",
+        "expect:document.querySelector('.ec-messenger .ec-modal-bar .name')?.textContent === 'Messenger' && /대화방/.test(document.querySelector('.ec-messenger').textContent) && document.querySelectorAll('.ec-messenger .ec-msg-grp').length >= 1",
+        "expect:document.querySelector('.ec-messenger select[aria-label=상태]')?.value === '온라인'",
+        "js:document.querySelector('.ec-messenger .ec-msg-user.off')?.click()",
+        "wait:1800",
+        "expect:!!document.querySelector('.ec-chat textarea[aria-label=메시지]')",
+        "js:document.querySelector('.ec-chat .ec-modal-bar .close').click()",
+        "wait:300",
+        "js:document.querySelector('.ec-messenger .ec-modal-bar .close').click()",
+        "wait:300",
+        "expect:!document.querySelector('.ec-messenger')"
+      ]
+    }
+  ]
+}

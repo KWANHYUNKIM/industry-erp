@@ -3,9 +3,10 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAuth } from '../../features/auth/AuthContext'
 import { api } from '../../api/client'
 import { myFolders, MY_FOLDERS_EVENT, type MyFolder } from '../../features/mypage/api'
-import AppBarPanel, { type PanelKind } from '../../components/AppBarPanel'
+import AppBar, { APP_ITEMS } from '../../features/appbar/AppBar'
+import { Icon } from '../../features/appbar/icons'
+import { openAppBarPanel } from '../../components/AppBarPanel'
 import TableContextMenu from '../../components/TableContextMenu'
-import type { NotificationResponse } from '../../types/api'
 import { ecAlert } from '../../components/EcDialog'
 
 /** 이카운트 v5 실제 레이아웃 재현:
@@ -1334,39 +1335,6 @@ const MENU: TopMenu[] = [
  */
 interface Bookmark { id: number | null; label: string; path: string; sortOrder: number }
 
-/*
- * 우측 세로 앱바 아이콘. 이름은 <b>원본 그대로</b> 쓴다(사본 172장 전부의 상단바에 있다).
- * to 면 라우트 이동, print 면 화면 인쇄, newWindow 면 지금 화면을 새 창으로, 나머지는 안내.
- *
- * <p>다크모드로보기·업무지원AI·원격지원은 아직 안내만 띄운다.
- * 다크모드는 색이 화면마다 인라인으로 박혀 있어(토큰 사용 1,069곳 vs 하드코딩 4,716곳)
- * 토큰만 바꾸면 <b>절반만 어두워진다.</b> 흰 배경에 흰 글씨가 되는 화면이 생기느니
- * 안내를 띄우는 편이 낫다. 색을 토큰으로 모으는 것이 먼저다.
- */
-interface AppIcon { icon: string; title: string; to?: string; print?: boolean; newWindow?: boolean; panel?: PanelKind }
-const APPS: AppIcon[] = [
-  { icon: '🌙', title: '다크모드로보기' },
-  { icon: '🤖', title: '업무지원AI' },
-  { icon: '🔍', title: '통합검색', panel: 'search' },
-  { icon: '🎧', title: '원격지원' },
-  { icon: '➕', title: '빠른등록' },
-  { icon: '📄', title: 'ECDrive 문서', to: '/groupware/drive' },
-  { icon: '🔔', title: '알림', panel: 'notifications' },
-  { icon: '💬', title: '메신저', panel: 'messenger' },
-  /*
-   * 원본 앱바의 [쪽지]. 우리는 아이콘만 두고 <b>아무 데도 안 갔다</b> — 눌러도 아무 일이
-   * 없는 아이콘은 고장으로 읽힌다. 쪽지 화면은 진작 있다(그룹웨어 > 쪽지(수발신내역)).
-   */
-  { icon: '📨', title: '쪽지', to: '/groupware/messages' },
-  { icon: '📝', title: 'E Note', panel: 'notes' },
-  { icon: '🖨️', title: '화면 인쇄', print: true },
-  { icon: '🗗', title: '새창열기', newWindow: true },
-  { icon: '📊', title: '데이터 내보내기', to: '/datacenter/export' },
-  { icon: '🕒', title: '타임라인' },
-  { icon: '📌', title: '화면 고정' },
-  { icon: '⚙️', title: '환경설정', to: '/settings/preferences' },
-]
-
 const tabLeaves = (tab: Tab): Leaf[] => tab.nodes.flatMap((n) => (isGroup(n) ? n.children : [n]))
 
 /** 경로가 메뉴 항목에 해당하면 그 항목의 길이(구체성)를, 아니면 0을 돌려준다.
@@ -1447,11 +1415,8 @@ export default function EcountLayout() {
   const [sitemapOpen, setSitemapOpen] = useState(false)         // 사이트맵 모달
   const [sitemapIdx, setSitemapIdx] = useState(0)               // 사이트맵 좌측 레일 선택
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({}) // 사이드바 그룹 접힘
-  const [appNotice, setAppNotice] = useState('')                // 앱바 안내 토스트
-  const [panel, setPanel] = useState<PanelKind | null>(null)    // 앱바에서 연 패널
-  const [alertCount, setAlertCount] = useState(0)               // 알림 배지
-  const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
-  const [noteCount, setNoteCount] = useState(0)
+  /* 앱바 [권한있는메뉴만보기] — 켜면(기본) 권한 없는 메뉴를 숨기고, 끄면 모두 보인다(권한 없는 화면은 열어도 🔒 안내). 원본 미실측 */
+  const [permOnly, setPermOnly] = useState(() => localStorage.getItem('ec-perm-only') !== 'n')
   /* 머리 로고 자리 · 창 제목의 상호 — 로그인 때 받은 이름으로 시작해 회사정보(/company)를 다시 읽고,
      회사정보 화면에서 저장하면(erp:company-updated) 바로 따라 바뀐다 */
   const [brand, setBrand] = useState<string | null>(companyName)
@@ -1497,45 +1462,6 @@ export default function EcountLayout() {
   const [drawer, setDrawer] = useState<{ top: number; tab: number } | null>(null)
   const [mPanel, setMPanel] = useState<'fav' | 'apps' | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)               // 본문 영역(표 우클릭 메뉴가 감시)
-
-  // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
-  useEffect(() => {
-    api.get<NotificationResponse>('/workspace/notifications')
-      .then((r) => setAlertCount(r.data.total))
-      .catch(() => setAlertCount(0))
-  }, [panel])
-
-  // 메신저 미읽음. 패널을 열지 않아도 새 메시지를 알아야 하므로 주기적으로 센다.
-  // 패널이 열려 있을 때는 패널 자신이 폴링하므로 여기서는 닫힌 동안만 돈다.
-  useEffect(() => {
-    const count = () => api.get<{ unread: number }>('/chat/unread-count')
-      .then((r) => setChatCount(r.data.unread))
-      .catch(() => setChatCount(0))
-    count()
-    if (panel === 'messenger') return
-    const t = window.setInterval(count, 30000)
-    return () => window.clearInterval(t)
-  }, [panel])
-
-  /*
-   * 쪽지 안 읽은 수. 서버가 세어 주는데(/short-messages/unread-count) 아무도 안 물어봐서
-   * <b>새 쪽지가 와도 아이콘이 그대로였다.</b> 메신저와 같은 주기로 센다.
-   */
-  useEffect(() => {
-    const count = () => api.get<{ unread: number }>('/short-messages/unread-count')
-      .then((r) => setNoteCount(r.data.unread))
-      .catch(() => setNoteCount(0))
-    count()
-    const t = window.setInterval(count, 30000)
-    return () => window.clearInterval(t)
-  }, [location.pathname])
-
-  /* 화면 안의 버튼(근태조회 [메신저]·설문조사조회 [대화방])이 <b>같은 창을</b> 열어 달라고 알린다. */
-  useEffect(() => {
-    const open = (e: Event) => setPanel((e as CustomEvent<PanelKind>).detail)
-    window.addEventListener('ec:open-panel', open)
-    return () => window.removeEventListener('ec:open-panel', open)
-  }, [])
 
   // 상단 북마크바. 아무것도 담지 않은 사람에게는 서버가 기본 여섯을 내려 준다.
   useEffect(() => {
@@ -1588,7 +1514,7 @@ export default function EcountLayout() {
   // 권한에 따른 메뉴 노출 판정. 리프는 라우트 권한으로, 상위는 하위가 하나라도 보이면 보인다.
   // 회사관리(/companies)는 본사에서만 노출한다.
   const leafOk = (l: Leaf) =>
-    (l.to === '/companies' ? isHost : true) && (!l.to || canRoute(l.to))
+    (l.to === '/companies' ? isHost : true) && (!permOnly || !l.to || canRoute(l.to))
   const nodeOk = (n: SideNode) => (isGroup(n) ? n.children.some(leafOk) : leafOk(n))
   const tabOk = (t: Tab) => t.nodes.some(nodeOk)
   const topOk = (m: TopMenu) => m.tabs.some(tabOk)
@@ -1615,20 +1541,6 @@ export default function EcountLayout() {
   function openLeaf(leaf: Leaf) {
     if (leaf.to) gotoMenu(leaf.to, [topIdx, tabIdx])
     else void ecAlert(`[${leaf.label}] 메뉴는 준비 중입니다.`)
-  }
-
-  // 앱바 아이콘 클릭: 라우트가 있으면 이동, 인쇄면 화면 인쇄, 나머지는 안내
-  function onApp(app: AppIcon) {
-    if (app.panel) return setPanel(app.panel)
-    if (app.to) return navigate(app.to)
-    if (app.print) return window.print()
-    // 원본 [새창열기] — 지금 화면을 그대로 새 창에. 두 화면을 나란히 놓고 보라는 것이다.
-    if (app.newWindow) {
-      window.open(window.location.href, '_blank', 'noopener,noreferrer')
-      return
-    }
-    setAppNotice(`${app.title} 기능은 준비 중입니다.`)
-    window.setTimeout(() => setAppNotice(''), 2200)
   }
 
   // 2단 메뉴 — 머리 메뉴 아래 떠 있는 흰 알약 판(styles/shell.css .ec-subnav)
@@ -1829,9 +1741,9 @@ export default function EcountLayout() {
       {drawer && mobileDrawer(drawer)}
       {mPanel === 'apps' && (
         <div className="ec-m-panel ec-m-apps-grid">
-          {APPS.map((a, i) => (
-            <button key={i} className="ec-appbar-btn" title={a.title} onClick={() => { setMPanel(null); onApp(a) }}>
-              {a.icon}<span>{a.title}</span>
+          {APP_ITEMS.filter((a) => a.key !== 'hide').map((a) => (
+            <button key={a.key} type="button" className="ec-appbar-btn" data-tone={a.tone} onClick={() => { setMPanel(null); openAppBarPanel(a.key) }}>
+              <Icon name={a.icon} /><span>{a.label}</span>
             </button>
           ))}
         </div>
@@ -1887,36 +1799,10 @@ export default function EcountLayout() {
           )}
         </div>
 
-        {/* 오른쪽 세로 앱바 */}
-        <div className="ec-appbar">
-          {APPS.map((a, i) => (
-            <button key={i} className="ec-appbar-btn" title={a.title} onClick={() => onApp(a)}>
-              {a.icon}
-              {((a.panel === 'notifications' && alertCount > 0)
-                || (a.panel === 'messenger' && chatCount > 0)
-                || (a.title === '쪽지' && noteCount > 0)) && (
-                <span className="ec-appbar-badge">{a.panel === 'messenger' ? (chatCount > 99 ? '99+' : chatCount)
-                  : a.title === '쪽지' ? (noteCount > 99 ? '99+' : noteCount)
-                    : alertCount}</span>
-              )}
-            </button>
-          ))}
-        </div>
+        {/* 오른쪽 세로 앱바 + 앱바 창(features/appbar) — 창은 화면에 고정 배치라 앱바가 숨는 휴대폰 폭에서도 뜬다 */}
+        <AppBar companyName={brand} permOnly={permOnly}
+                onPermOnly={(on) => { setPermOnly(on); localStorage.setItem('ec-perm-only', on ? 'y' : 'n') }} />
       </div>
-
-      {/* 앱바 패널: 통합검색 · 알림 · E Note */}
-      {panel && <AppBarPanel kind={panel} onClose={() => setPanel(null)} />}
-
-      {/* 앱바 안내 토스트 */}
-      {appNotice && (
-        <div style={{
-          position: 'fixed', right: 56, bottom: 20, zIndex: 70,
-          background: '#2b3444', color: '#fff', fontSize: 12.5, padding: '8px 12px',
-          borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,.22)',
-        }}>
-          {appNotice}
-        </div>
-      )}
 
       {/* 사이트맵 모달: 좌측 대메뉴 레일 + 선택한 메뉴의 탭 컬럼 */}
       {sitemapOpen && (

@@ -1,18 +1,13 @@
 {
  "app/layout/EcountLayout.tsx": {
-  "inline": 12,
-  "color": 9,
+  "inline": 11,
+  "color": 6,
   "palette": 0
  },
  "app/layout/Layout.tsx": {
   "inline": 0,
   "color": 0,
   "palette": 3
- },
- "components/AppBarPanel.tsx": {
-  "inline": 12,
-  "color": 11,
-  "palette": 0
  },
  "components/CodePickerField.tsx": {
   "inline": 8,
@@ -72,11 +67,6 @@
  "components/GroupMasterModal.tsx": {
   "inline": 8,
   "color": 5,
-  "palette": 0
- },
- "components/MessengerPanel.tsx": {
-  "inline": 21,
-  "color": 15,
   "palette": 0
  },
  "components/Modal.tsx": {

@@ -148,6 +148,21 @@
   --ec-grid-grip-se: 12px;                  /* 오른쪽 아래 빗금 손잡이(원본 ui-icon-gripsmall-diagonal-se) */
   --ec-wpick-w: 240px;                      /* My위젯선택 판 폭(원본 미실측) */
 
+  /* ── 오른쪽 앱바 · 앱바 창(2026-10-30 loginaa 캡처 — 색은 캡처에서 눈으로 뽑았다, getComputedStyle 미실측) ── */
+  --ec-app-ink: #142444;                    /* 다크모드 · UserPay · 숨김 */
+  --ec-app-blue: #2f6fe4;                   /* 통합검색 · 메신저 · 권한 · 원격 · 타임라인 */
+  --ec-app-sky: #3fa9f5;                    /* 업무지원AI */
+  --ec-app-teal: #12a39a;                   /* 스마트지원 */
+  --ec-app-green: #2fa84f;                  /* 새창열기 · 쪽지 · SMS */
+  --ec-app-orange: #f08a24;                 /* 알림 · Email · 북마크 · 메신저 '대화방' 배지 */
+  --ec-app-red: #e2533b;                    /* E Note */
+  --ec-appwin-w: 780px;                     /* 앱바 창 폭(쪽지 · 북마크 · 타임라인 …) */
+  --ec-appwin-h: 470px;
+  --ec-messenger-w: 330px;                  /* Messenger 창 */
+  --ec-messenger-h: 395px;
+  --ec-chat-w: 360px;                       /* 1:1 대화 창(원본 미실측) */
+  --ec-sms-warn-bg: rgb(253, 224, 224);     /* SMS 창 위 경고띠 */
+
   /* ── 옛 이름(화면 코드가 아직 쓴다) → 새 토큰 ── */
   --ec-blue-dark: var(--ec-navy);
   --ec-blue-light: #d3daf7;

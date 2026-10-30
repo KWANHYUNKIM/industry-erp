@@ -90,6 +90,7 @@ export function ModalWindow({
   className = '',
   esc = false,
   onDragEnd,
+  tools,
 }: {
   title: string
   onClose: () => void
@@ -99,6 +100,8 @@ export function ModalWindow({
   /** ESC 로 닫히는 창이면 닫기 단추 풍선말에 그렇게 적는다(닫는 일은 부르는 쪽이 한다). */
   esc?: boolean
   onDragEnd?: () => void
+  /** 제목줄 [최대화] 앞에 더 둘 단추(앱바 창의 새창 · 고정 · 새로고침 — 단추에 className="tool"). */
+  tools?: ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [geo, setGeo] = useState<Geo | null>(null)
@@ -172,6 +175,7 @@ export function ModalWindow({
     >
       <div className="ec-modal-bar" onPointerDown={(e) => begin(e, 'move')}>
         <span className="name">{title}</span>
+        {tools}
         <button type="button" className="max" aria-label={restore !== undefined ? '이전 크기로' : '최대화'}
                 title={restore !== undefined ? '이전 크기로' : '최대화'} onClick={toggleMax}>{restore !== undefined ? '❐' : '□'}</button>
         <button type="button" className="close" aria-label="닫기" title={esc ? '닫기(ESC)' : '닫기'} onClick={onClose}>✕</button>
