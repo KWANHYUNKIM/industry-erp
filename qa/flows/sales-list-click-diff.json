@@ -1,0 +1,64 @@
+{
+  "about": "판매조회 클릭 대조(2026-10-31 loginad E040206 판매 QA): 하단 [Email│▲] [진행상태변경 ▲] [보내기 ▲] [인쇄│▲] [바코드(품목)│▲] 전자결재 선택삭제 [Excel(표시형식)│▲] [이력조회 ▲] — │▲ 는 갈라진 묶음, 글자 ▲ 는 한 단추. 목록 맨 앞 열은 전체선택 체크박스(번호 열 없음). [Option] 업무설정 · 검색항목설정 · 양식설정 ▶(기본(수정불가) · 신규양식추가) · 조건양식설정 · 문서발송내역 · 판매조회(OLD). [도움말] 큰 창 '도움말' — 검색칸 · 탭 통합검색 · 자주묻는질문 영상 · 온라인매뉴얼 · 동영상강좌. 조건 판 회계반영여부 · 판매구분 알약. 저장하는 것 없음. node qa/shot.mjs qa/flows/sales-list-click-diff.json",
+  "shots": [
+    {
+      "name": "판매조회 — 하단 단추 모양 · 맨 앞 체크박스 열",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:1500",
+        "js:(() => { window.__msgs = []; window.alert = (m) => { window.__msgs.push(m) }; return true })()",
+        "expect:(() => { const f = document.querySelector('.ec-footer-btns'); const row = [...f.children].map((c) => c.classList.contains('ec-btn-group') ? c.querySelector('button').textContent.trim() + '|▲' : c.textContent.replace(/▴/g, '').trim()); return row.join(' / ') === '신규(F2) / Email|▲ / 진행상태변경 / 보내기 / 인쇄|▲ / 바코드(품목)|▲ / 전자결재 / 선택삭제 / Excel(표시형식)|▲ / 이력조회' })()",
+        "expect:(() => { const f = document.querySelector('.ec-footer-btns'); return ['진행상태변경', '보내기', '이력조회'].every((l) => { const b = [...f.querySelectorAll('button')].find((x) => x.textContent.replace(/▴/g, '').trim() === l); return b && !b.nextElementSibling?.classList.contains('ec-btn-arrow') && !!b.querySelector('svg, span') }) })()",
+        "expect:(() => { const th = document.querySelector('.ec-list-grid thead th'); return !!th.querySelector('input[type=checkbox]') && th.textContent.trim() === '' })()",
+        "expect:(() => { const td = document.querySelector('.ec-list-grid tbody tr td'); return td.classList.contains('ec-empty') || !!td.querySelector('input[type=checkbox]') })()",
+        "js:(() => { [...document.querySelectorAll('.ec-footer-btns button')].find((b) => b.textContent.replace(/▴/g, '').trim() === '보내기').click(); return true })()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('.ec-footer-btns .ec-menu button')].map((b) => b.textContent.trim()).join('|') === 'E Note|대화방|사용자|북마크'",
+        "js:(() => { document.querySelector('.ec-backdrop-clear').click(); return true })()",
+        "wait:200",
+        "js:(() => { document.querySelector('[aria-label=\"Excel(표시형식) 더보기\"]').click(); return true })()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('.ec-footer-btns .ec-menu button')].map((b) => b.textContent.trim()).join('|') === 'Excel(데이터)'",
+        "js:(() => { document.querySelector('.ec-backdrop-clear').click(); return true })()"
+      ]
+    },
+    {
+      "name": "판매조회 — Option 메뉴 · 양식설정 ▶",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:1500",
+        "click:Option",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-page-head .ec-menu[role=menu] > button, .ec-page-head .ec-menu[role=menu] > div > button')].map((b) => b.textContent.replace(/[▸▾]/g, '').trim()).join('|') === '업무설정|검색항목설정|양식설정|조건양식설정|문서발송내역|판매조회(OLD)'",
+        "click:양식설정",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-page-head .ec-menu .ec-menu button')].map((b) => b.textContent.trim()).join('|') === '기본(수정불가)|신규양식추가'"
+      ]
+    },
+    {
+      "name": "판매조회 — 도움말 큰 창",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:1500",
+        "click:도움말",
+        "wait:400",
+        "expect:(() => { const d = document.querySelector('[role=dialog][aria-label=\"도움말\"]'); return !!d && Math.round(d.getBoundingClientRect().width) >= 900 && !!d.querySelector('input[placeholder^=\"궁금한 점이\"]') })()",
+        "expect:[...document.querySelectorAll('[role=dialog] [role=tab]')].map((b) => b.textContent.trim()).join('|') === '통합검색|자주묻는질문 영상|온라인매뉴얼|동영상강좌'"
+      ]
+    },
+    {
+      "name": "판매조회 — 조건 판 회계반영여부 · 판매구분 알약",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:1500",
+        "click:Search(F3)",
+        "wait:500",
+        "expect:(() => { const li = (t) => [...document.querySelectorAll('.ec-cond > li')].find((l) => l.querySelector('.title')?.textContent.trim() === t); const p = (t) => [...(li(t)?.querySelectorAll('.ec-pill') ?? [])].map((b) => b.textContent.trim()).join('|'); return p('회계반영여부') === '전체|미청구|청구' && p('판매구분') === '전체|판매|판매 II' })()",
+        "expect:(() => { const ts = [...document.querySelectorAll('.ec-cond > li .title')].map((t) => t.textContent.trim()); return ts.indexOf('회계반영여부') + 1 === ts.indexOf('판매구분') && ts.indexOf('판매구분') + 1 === ts.indexOf('적요') })()",
+        "js:(() => { document.querySelector('button[title=\"거래유형 선택\"]').click(); return true })()",
+        "wait:400",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const heads = [...d.querySelectorAll('thead th')].map((t) => t.textContent.trim()).filter(Boolean).join('|'); const codes = [...d.querySelectorAll('tbody tr')].map((r) => r.cells[1]?.textContent.trim()).join('|'); const btns = [...d.querySelectorAll('button')].map((b) => b.textContent.trim()); return d.getAttribute('aria-label') === '거래유형(영업)검색' && heads === '거래유형코드|거래유형명' && codes === '11|12' && btns.includes('적용(F8)') && btns.includes('Fn') && !btns.includes('신규(F2)') })()"
+      ]
+    }
+  ]
+}

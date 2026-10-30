@@ -49,6 +49,25 @@ interface NormalDoc {
   lines: TradeLine[]
   /** 판매입력 II [금액조정] 의 할인(감소). 머리 금액은 이미 뺀 값이다 — 명세서에는 '할인' 줄로 따로 보인다. */
   discountSupply?: number; discountVat?: number
+  /** 판매입력 II 로 만든 전표 — 원본 조건 [판매구분](판매 · 판매 II)이 이것으로 거른다. */
+  inputII?: boolean
+}
+
+/** 원본에 있으나 우리에게 받쳐 줄 것이 없는 단추 · 메뉴 — Email · 바코드와 같은 안내(SlipMenuHistoryModal EMAIL_NOT_HERE). */
+const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
+
+/**
+ * 조건 판의 알약 고르기(원본 회계반영여부 · 판매구분). 원본의 내.외자구분 · 발송여부 · 채권번호 · 최종수정자 · 입력경로 · 삭제구분은
+ * 판매 전표에 그 값이 없어 칸을 두지 않는다(자료 없음 — 거르지 않음, qa/ui-check 조건 예외 · 진행판).
+ */
+function CondPills<T extends string>({ options, value, onChange }: { options: readonly T[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div className="ec-pills">
+      {options.map((o) => (
+        <button key={o} type="button" className={`ec-pill no-ec${value === o ? ' active' : ''}`} onClick={() => onChange(o)}>{o}</button>
+      ))}
+    </div>
+  )
 }
 
 // 판매조회 탭 (이카운트). '결재중'은 전자결재 진행중, '확인/미확인'은 확인상태.
@@ -61,6 +80,11 @@ const TAB_STATUS: Record<Exclude<SalesTab, '전체'>, SalesConfirmStatus> = {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
+/** 판매조회 조건 [거래유형] 창의 줄 — 원본 '거래유형(영업)검색'(2026-10-31 loginad 실측). */
+const SALES_TRADE_TYPES = [
+  { value: '11', code: '11', name: '부가세율 적용' },
+  { value: '12', code: '12', name: '부가세율 미적용' },
+]
 /*
  * 2026-09-09 원본 격자 실측(E040206 판매조회 · E040304 구매조회) — 두 화면 모두
  * 그 열을 <b>[거래처명]</b> 이라 부른다. 우리는 [매출처]·[매입처] 로 갈라 적고 있었는데,
@@ -127,6 +151,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [updTo, setUpdTo] = useState('')
   const [whCond, setWhCond] = useState('')
   const [typeCond, setTypeCond] = useState('')
+  /**
+   * 판매조회 [거래유형] — 원본은 코드도움 '거래유형(영업)검색' 창에서 코드로 여럿 고른다(2026-10-31 loginad 실측: 11 부가세율 적용 · 12 부가세율 미적용,
+   * 체크칸 + 번호 · Fn · [적용(F8)] [닫기] · TIP). 거르는 기준은 예전 이름 고르기와 같다 — 과세면 11, 아니면 12(tradeTypeOf).
+   */
+  const [typeCodes, setTypeCodes] = useState<string[]>([])
   const [projectCond, setProjectCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   /** 목록의 [거래유형명]과 같은 규칙 — 부가세가 있으면 과세다(전표 입력과 같다). */
@@ -179,6 +208,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         discountSupply: Number((d as SalesDoc).discountSupply ?? 0), discountVat: Number((d as SalesDoc).discountVat ?? 0),
         accountingReflected: d.accountingReflected,
         projectName: d.projectName,
+        inputII: !!(d as SalesDoc).inputII,
         // 라인은 그대로 넘긴다. 필드를 골라 담으면 백엔드가 늘린 것을 화면이 못 본다.
         lines: d.lines,
       }))))
@@ -355,6 +385,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [specCond, setSpecCond] = useState('')
   const [reflectedCond, setReflectedCond] = useState<'전체' | '반영' | '미반영'>('전체')
   const [remarkCond, setRemarkCond] = useState('')
+  /** 원본 [판매구분] 전체 · 판매 · 판매 II — 판매입력 · 판매입력 II 중 어디서 만든 전표인가(응답 inputII). */
+  const [kindCond, setKindCond] = useState<'전체' | '판매' | '판매 II'>('전체')
 
   const shown = useMemo(() => docs
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
@@ -378,6 +410,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !whCond || String(d.warehouseId) === whCond)
     .filter((d) => !itemCond || d.lines.some((l) => String(l.itemId) === itemCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
+    .filter((d) => typeCodes.length === 0 || typeCodes.includes(tradeTypeOf(d) === '부가세율 적용' ? '11' : '12'))
     .filter((d) => !projectCond || String(d.projectId ?? '') === projectCond)
     /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
     /* 전표 안의 <b>어느 줄이든</b> 그 오더에서 왔으면 걸린다(품목·규격과 같은 규칙). */
@@ -387,6 +420,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => reflectedCond === '전체' || (reflectedCond === '반영') === d.accountingReflected)
     /* 원본 [적요]. 응답에 진작 실려 오는데 거를 자리가 없었다. */
     .filter((d) => !remarkCond || (d.remark ?? '').includes(remarkCond))
+    .filter((d) => !isSales || kindCond === '전체' || (kindCond === '판매 II') === !!d.inputII)
     .filter((d) => !from || d.date >= from)
     .filter((d) => !to || d.date <= to)
     .filter((d) => !isSales || tab === '전체' || d.confirmStatus === TAB_STATUS[tab])
@@ -394,7 +428,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, orderNoCond, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo, madeFrom, madeTo, partnerMgrCond, partners])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, typeCodes, from, to, tab, isSales, byUpdated, orderNoCond, specCond, reflectedCond, remarkCond, kindCond, authorCond, updFrom, updTo, madeFrom, madeTo, partnerMgrCond, partners])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -535,30 +569,40 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       // 셸에는 이미 그 자리가 있었는데 이 화면이 onNew 를 안 넘겨 비어 있었다.
       // 구매조회 [신규(F2)] 도 목록 위 '구매입력' 창이다(2026-10-22 원본 E040304 실측, 아래 [현금지급]).
       onNew={newDoc}
-      /*
-       * 원본 버튼 실측(사본 · 판매조회/구매조회):
-       *   신규(F2) · 진행상태변경 · 보내기 · 바코드(품목) · 선택삭제 · 이력조회
-       * 보내기·바코드·이력조회는 받쳐 줄 것이 없어 만들지 않는다 —
-       * 눌러도 아무 일 없는 버튼은 있는 것만 못하다. [신규(F2)] 는 위 onNew 가 이미 맡는다.
-       */
+      /* 원본 판매조회 [Option](2026-10-31 판매 QA): 업무설정 · 검색항목설정 · 양식설정 ▶ · 조건양식설정 · 문서발송내역 · 판매조회(OLD). 우리에게 없는 설정이라 안내만. */
+      optionMenu={isSales ? [
+        { label: '업무설정', onClick: notHere('업무설정') },
+        { label: '검색항목설정', onClick: notHere('검색항목설정') },
+        { label: '양식설정', sub: [
+          { label: '기본(수정불가)', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+          { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+        ] },
+        { label: '조건양식설정', onClick: notHere('조건양식설정') },
+        { label: '문서발송내역', onClick: notHere('문서발송내역') },
+        { label: '판매조회(OLD)', onClick: notHere('판매조회(OLD)') },
+      ] : undefined}
       actions={isSales ? [
         /*
-         * 원본 판매조회 하단(2026-10-20 실측): 신규(F2) · Email · 진행상태변경 ▴(미확인 · 확인) · 보내기 · 인쇄 · 바코드(품목) ·
-         * 전자결재 · 선택삭제 · Excel(표시형식) · 이력조회. Email · 보내기 · 바코드 · 전자결재 · 이력조회는 받쳐 줄 것이 없어 두지 않는다.
-         * [회계반영] · [거래내역보기(판매)] 는 원본 판매조회에 없다(회계반영은 판매일괄회계반영 화면).
+         * 원본 판매조회 하단(2026-10-31 loginad E040206 실측): 신규(F2) · [Email│▲ 카카오톡] · [진행상태변경 ▲] · [보내기 ▲] ·
+         * [인쇄│▲ 프린트문제해결] · [바코드(품목)│▲ 바코드(전표) · 바코드(시리얼/로트No.)] · 전자결재 · 선택삭제 ·
+         * [Excel(표시형식)│▲ Excel(데이터)] · [이력조회 ▲]. │▲ 는 갈라진 단추, 글자 ▲ 는 한 단추(EcListShell FooterButton).
+         * 보내기(E Note · 대화방 · 사용자 · 북마크 — 작업지시서조회 QA) · 전자결재 · 카카오톡 · 바코드는 받쳐 줄 것이 없어 안내만.
          */
-        /* 2026-10-30 클릭 대조: [진행상태변경] 글자도 메뉴를 연다(원본 — 고른 줄 없음 알림은 고를 때), [Email] · [바코드(품목)] 알림,
-           [이력조회 ▴] 판매 이력조회 · 판매 II 이력조회 창. */
-        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE), menu: [{ label: '카카오톡', onClick: notHere('카카오톡') }] },
         { label: '진행상태변경', menuOnly: true, menu: [
           { label: '미확인', onClick: () => void confirmSelected('unconfirm') },
           { label: '확인', onClick: () => void confirmSelected('confirm') },
         ] },
-        { label: '인쇄' },
-        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: selected.size },
+        { label: '보내기', menuOnly: true, menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
+        { label: '인쇄', menu: [{ label: '프린트문제해결', onClick: notHere('프린트문제해결') }] },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: selected.size, menu: [
+          { label: '바코드(전표)', onClick: notHere('바코드(전표)') },
+          { label: '바코드(시리얼/로트No.)', onClick: notHere('바코드(시리얼/로트No.)') },
+        ] },
+        { label: '전자결재', onClick: notHere('전자결재') },
         { label: '선택삭제', onClick: () => void deleteSelected(), selected: selected.size },
-        { label: 'Excel' },
-        { label: '이력조회', onClick: () => setHistoryMenu('판매'), menu: [
+        { label: 'Excel(표시형식)', menu: [{ label: 'Excel(데이터)' }] },
+        { label: '이력조회', menuOnly: true, menu: [
           { label: '판매 이력조회', onClick: () => setHistoryMenu('판매') },
           { label: '판매 II 이력조회', onClick: () => setHistoryMenu('판매II') },
         ] },
@@ -620,7 +664,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
             {/* 기간 빠른선택 — 판 아래 줄(EcListShell)이 이 단추 글자로 줄을 짓고 눌러 준다. 판 안에서는 감춰진다(data-shell-dup).
                 원본 판 아래 줄: 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · 최근30일(+1개월) · 금년(2026-10-30 실측) */}
-            {ORDER_LIST_PICKS.map((l) => (
+            {/* 판매조회 판 아래 줄에는 [금년] 이 없다(2026-10-31 loginad 판매 QA) — 구매조회는 그대로 */}
+            {ORDER_LIST_PICKS.filter((l) => !isSales || l !== '금년').map((l) => (
               <button key={l} type="button" className="ec-btn ec-btn-sm ec-btn-pick" onClick={() => {
                 const r = periodOf(l, new Date(), undefined, { from, to })
                 if (!r) return
@@ -634,10 +679,21 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             거래처 · 품목</b> · 발송여부. 우리는 거래처·담당자·창고·품목·거래유형 차례였다.
           */}
           <EcCond label="거래유형" pick>
+            {isSales ? (
+              <CodePickerField label="거래유형" hideLabel fill width={130} emptyLabel="전체" multiple checkApply hideNew
+                               popupTitle="거래유형(영업)검색" value="" onChange={() => {}}
+                               values={typeCodes} onChangeMulti={(v) => setTypeCodes(v)}
+                               columns={[
+                                 { head: '거래유형코드', width: 160, cell: (i) => i.code, link: true },
+                                 { head: '거래유형명', cell: (i) => i.name, link: true },
+                               ]}
+                               items={SALES_TRADE_TYPES} />
+            ) : (
             <CodePickerField label="거래유형" hideLabel fill width={130} emptyLabel="전체"
                              value={typeCond} onChange={setTypeCond}
                              items={[...new Set(docs.map(tradeTypeOf))].sort()
                                .map((n) => ({ value: n, name: n }))} />
+            )}
           </EcCond>
           {/*
             목록에 열로 있는 값은 걸러 낼 수도 있어야 한다. 원본 조회의 조건이 그것이다.
@@ -702,12 +758,25 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                                .map((n) => ({ value: n, name: n }))} />
           </EcCond>
           {/* 원본 차례: [거래처관리담당자] 다음이 <b>[회계반영여부]</b> 다. */}
+          {/* 원본 판매조회는 알약 [전체] [미청구] [청구](2026-10-31 loginad 판매 QA) — 미청구 = 회계 미반영, 청구 = 반영. 구매조회는 그대로 고르기. */}
           <EcCond label="회계반영여부">
+          {isSales ? (
+            <CondPills options={['전체', '미청구', '청구'] as const}
+                       value={reflectedCond === '반영' ? '청구' : reflectedCond === '미반영' ? '미청구' : '전체'}
+                       onChange={(v) => setReflectedCond(v === '청구' ? '반영' : v === '미청구' ? '미반영' : '전체')} />
+          ) : (
           <select className="ec-input" value={reflectedCond} style={{ width: 90 }}
                   onChange={(e) => setReflectedCond(e.target.value as '전체' | '반영' | '미반영')}>
             <option>전체</option><option>반영</option><option>미반영</option>
           </select>
+          )}
           </EcCond>
+          {/* 원본 차례: [회계반영여부] 다음이 [판매구분](전체 · 판매 · 판매 II). 판매입력 II 로 만든 전표인가(inputII)로 거른다. */}
+          {isSales && (
+            <EcCond label="판매구분">
+              <CondPills options={['전체', '판매', '판매 II'] as const} value={kindCond} onChange={setKindCond} />
+            </EcCond>
+          )}
           {/* 원본 차례: [판매구분] 다음이 <b>[적요]</b> 다. 전표 적요로 좁힌다. */}
           <EcCond label="적요">
             <input className="ec-input w-full" value={remarkCond} placeholder="적요 일부"
@@ -746,14 +815,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       <table ref={listRef} className="w-full text-left ec-list-grid">
         <thead>
           <tr>
-            {/* 원본 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 전표 입력 그리드와 같은 규칙. */}
-            <th
-              style={{ width: 34, cursor: shown.length > 0 ? 'pointer' : 'default' }}
-              title="전체 선택 / 해제"
-              onClick={() => setSelected(selected.size === shown.length ? new Set() : new Set(shown.map((d) => d.id)))}
-            >
-              {isSales && shown.length > 0 && selected.size === shown.length ? '☑' : ''}
-            </th>
+            {/*
+              판매조회 1열은 전체선택 체크박스 · 줄마다 체크박스, 번호 열은 없다(2026-10-31 loginad 판매 QA).
+              구매조회는 번호(눌러서 고름) 다음에 체크박스 열이다(2026-10-28 원본 실측) — 그대로.
+            */}
+            {isSales ? (
+              <th className="w-[28px] text-center">
+                <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && selected.size === shown.length}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(shown.map((d) => d.id)) : new Set())} />
+              </th>
+            ) : (
+              <th
+                style={{ width: 34, cursor: shown.length > 0 ? 'pointer' : 'default' }}
+                title="전체 선택 / 해제"
+                onClick={() => setSelected(selected.size === shown.length ? new Set() : new Set(shown.map((d) => d.id)))}
+              />
+            )}
             {!isSales && (
               <th className="w-[28px] text-center">
                 <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && selected.size === shown.length}
@@ -788,6 +865,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <Fragment key={d.id}>
               <tr className={i % 2 ? 'ec-list-alt' : undefined}
                   onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>
+                {isSales ? (
+                  <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" aria-label="선택" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} />
+                  </td>
+                ) : (
                 <td
                   style={{
                     textAlign: 'center',
@@ -801,6 +883,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 >
                   {i + 1}
                 </td>
+                )}
                 {!isSales && (
                   <td className="text-center" onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" aria-label="선택" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} />

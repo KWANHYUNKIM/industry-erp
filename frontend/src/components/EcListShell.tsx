@@ -40,9 +40,23 @@ export interface BottomAction {
    * 붙은 ▴ 펼침 — 원본 [입금보고서작성 ▴] 의 [채권만감소] 처럼 같은 버튼에 딸린 다른 동작(채권감소등록 E060402 실측).
    * 펼침은 위로 열린다(버튼줄이 화면 바닥에 있다).
    */
-  menu?: { label: string; onClick: () => void }[]
-  /** 버튼 전체가 펼침을 연다(원본 마스터 리스트 [사용중단/재사용 ▴] 2026-10-22 실측 — 글자를 눌러도 사용중단 · 삭제 · 재사용이 위로 펴진다). 없으면 글자는 onClick. */
+  menu?: { label: string; onClick?: () => void }[]
+  /**
+   * 버튼 전체가 펼침을 연다(원본 마스터 리스트 [사용중단/재사용 ▴] 2026-10-22 실측 — 글자를 눌러도 사용중단 · 삭제 · 재사용이 위로 펴진다). 없으면 글자는 onClick.
+   * 모양도 다르다(2026-10-31 loginad 판매조회 E040206 실측): 펼침만 하는 [진행상태변경 ▲] · [보내기 ▲] · [이력조회 ▲] 는 <b>한 단추 안에</b>
+   * 글자와 ▲ 가 있고(btn-arrow, ▲ 앞 여백 6), 글자가 따로 일하는 [Email│▲] · [인쇄│▲] · [바코드(품목)│▲] · [Excel(표시형식)│▲] 만 갈라진다.
+   */
   menuOnly?: boolean
+}
+
+/**
+ * [Option] 펼침의 한 줄. sub 가 있으면 줄 끝에 ▶ 가 붙고 옆으로 한 단 더 펴진다
+ * (원본 판매조회 [양식설정 ▶] → 기본(수정불가)(지금 양식 · 파란 바탕) · 신규양식추가, 2026-10-31 loginad 실측).
+ */
+export interface OptionItem {
+  label: string
+  onClick?: () => void
+  sub?: { label: string; onClick: () => void; active?: boolean }[]
 }
 
 /** 조건 판 아래 줄의 [양식 ⌄] — ✓ 지금 양식 · 기본(수정불가)(빨간 글자) · 신규양식추가(원본 이익관리 현황 2026-10-22 실측). 메뉴는 위로 펴진다. */
@@ -62,23 +76,38 @@ function FormPill({ current, up = false }: { current: string; up?: boolean }) {
   )
 }
 
-/** 하단 버튼 하나 — menu 가 있으면 붙은 묶음(.ec-btn-group + ▴). */
+/**
+ * 하단 버튼 하나 — menu 가 있으면 ▲ 펼침. 펼침 판은 원본 dropdown-menu(Option 과 같은 .ec-menu)이고 위로 열린다(버튼줄이 바닥에 있다).
+ * menuOnly 면 한 단추 [글자 ▲], 아니면 붙은 묶음 [글자│▲](.ec-btn-group).
+ */
 export function FooterButton({ a }: { a: BottomAction }) {
   const [open, setOpen] = useState(false)
   const cls = `ec-btn${a.primary ? ' ec-btn-primary' : ''}`
   if (!a.menu?.length) return <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>
+  const caret = <EcIcon name="caret-up" size={10} glyph="▴" />
+  const menu = open && (
+    <>
+      <div className="ec-backdrop-clear" onClick={() => setOpen(false)} />
+      <div className="ec-menu top-auto right-auto bottom-full left-0 mb-[2px] rounded-ec" role="menu">
+        {a.menu.map((m) => (
+          <button key={m.label} type="button" role="menuitem" onClick={() => { setOpen(false); m.onClick?.() }}>{m.label}</button>
+        ))}
+      </div>
+    </>
+  )
+  if (a.menuOnly) return (
+    <span className="relative inline-flex">
+      <button className={cls} onClick={() => setOpen((v) => !v)} disabled={a.disabled} aria-haspopup="menu">
+        {a.label}<span className="ml-[5.4px] inline-flex" aria-hidden>{caret}</span>
+      </button>
+      {menu}
+    </span>
+  )
   return (
     <span className="ec-btn-group relative">
-      <button className={cls} onClick={a.menuOnly ? () => setOpen((v) => !v) : a.onClick} disabled={a.disabled}>{a.label}</button>
-      <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} onClick={() => setOpen((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
-      {open && (
-        <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
-          {a.menu.map((m) => (
-            <button key={m.label} type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"
-                    onClick={() => { setOpen(false); m.onClick() }}>{m.label}</button>
-          ))}
-        </div>
-      )}
+      <button className={cls} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>
+      <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} aria-haspopup="menu" onClick={() => setOpen((v) => !v)}>{caret}</button>
+      {menu}
     </span>
   )
 }
@@ -143,6 +172,69 @@ function restoreFields(el: HTMLElement, first: WeakMap<Element, string | boolean
   }
 }
 
+/** 도움말 창 통합검색 줄 — 화면이 help 를 안 주면 이 공용 안내가 나온다. */
+const HELP_ITEMS: { q: string; a: string }[] = [
+  { q: 'Search(F3) 는 무엇을 하나요?', a: '검색칸이 비어 있으면 조회 조건 판을 펴고, 낱말을 넣으면 그 낱말이 든 줄만 남깁니다.' },
+  { q: '표를 Excel 로 내려받을 수 있나요?', a: '하단 [Excel] 을 누르면 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.' },
+  { q: '목록을 인쇄할 수 있나요?', a: '하단 [인쇄] 를 누르면 화면의 표를 인쇄용 서식으로 출력합니다.' },
+  { q: 'Option 에는 무엇이 있나요?', a: '화면마다 다릅니다. 이 ERP 에 없는 설정 항목은 누르면 안내만 나옵니다.' },
+  { q: '표에서 오른쪽 단추를 누르면 무엇이 나오나요?', a: '맨 위에 등록 · 수정 · 삭제, 이어서 행 상세 · 복사, 이 값으로 검색, 열 숨기기, 화면 기능이 나옵니다. 흐린 줄은 그 화면에 없는 기능입니다. Shift+우클릭은 브라우저 기본 메뉴입니다.' },
+]
+/** 원본 도움말 창 탭(2026-10-31 loginad 판매조회 실측) — 통합검색 말고는 이카운트 고객지원 자료라 우리는 안내만. */
+const HELP_TABS = ['통합검색', '자주묻는질문 영상', '온라인매뉴얼', '동영상강좌'] as const
+
+/**
+ * 도움말 창 — 원본(2026-10-31 loginad 판매조회 E040206 실측)은 화면 위에 뜨는 큰 창(960×756) '도움말':
+ * 굵은 제목 · 둥근 검색칸(돋보기 오른쪽) · 탭 알약 [통합검색] [자주묻는질문 영상] [온라인매뉴얼] [동영상강좌] · 질문 줄(28) · 쪽번호.
+ */
+function HelpWindow({ help, onClose }: { help?: ReactNode; onClose: () => void }) {
+  const [tab, setTab] = useState<(typeof HELP_TABS)[number]>('통합검색')
+  const [q, setQ] = useState('')
+  const [openQ, setOpenQ] = useState<string | null>(null)
+  const needle = q.trim().toLowerCase()
+  const items = HELP_ITEMS.filter((i) => !needle || `${i.q} ${i.a}`.toLowerCase().includes(needle))
+  return (
+    <Modal open title="도움말" width={960} onClose={onClose}>
+      <div className="px-[9px] pb-[9px]">
+        <div className="text-[14px] font-bold mb-[9px]">도움말</div>
+        <div className="relative mb-[9px]">
+          <input className="ec-input w-full h-[40px] text-[14px] pl-[15px] pr-[40px]" value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder="궁금한 점이 있다면 도움말을 검색해보세요" aria-label="도움말 검색" />
+          <span className="absolute right-[13px] top-1/2 -translate-y-1/2 inline-flex text-ec-ink" aria-hidden><EcIcon name="search" /></span>
+        </div>
+        <div className="flex gap-[3px] mb-[9px]" role="tablist">
+          {HELP_TABS.map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={tab === t}
+                    className={`no-ec h-[34px] px-[20px] border-0 rounded-ec text-[14px] cursor-pointer ${tab === t ? 'bg-ec-blue text-white' : 'bg-transparent text-ec-navy'}`}
+                    onClick={() => setTab(t)}>{t}</button>
+          ))}
+        </div>
+        {tab !== '통합검색' ? (
+          <div className="py-[40px] text-center text-ec-ink">이카운트 고객지원 자료({tab})는 이 ERP 에서 제공하지 않습니다.</div>
+        ) : help && !needle ? (
+          <div className="leading-[1.7] px-[20px] py-[6px]">{help}</div>
+        ) : (
+          <ul className="list-none m-0 px-[20px] py-[6px]">
+            {items.length === 0 && <li className="py-[20px] text-center text-ec-ink">검색 결과가 없습니다.</li>}
+            {items.map((i) => (
+              <li key={i.q} className="min-h-[28px]">
+                <button type="button" className="no-ec flex items-center gap-[12px] min-h-[28px] w-full border-0 bg-transparent text-left text-[14px] text-ec-ink cursor-pointer"
+                        onClick={() => setOpenQ(openQ === i.q ? null : i.q)}>
+                  <span className="inline-flex text-ec-icon" aria-hidden><EcIcon name="search" size={12} /></span>{i.q}
+                </button>
+                {openQ === i.q && <div className="pl-[24px] pb-[6px] text-[12px] text-ec-label">{i.a}</div>}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="text-center mt-[9px]">
+          <nav className="ec-paging" aria-label="쪽"><button type="button" className="active" aria-current="page">1</button></nav>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 /** 이카운트 목록 화면 쉘: ☆제목 + 우측 검색툴바 + 본문 + 하단 액션툴바 */
 export default function EcListShell({
   title, search, onSearchChange, onSearch, newLabel = '신규(F2)', onNew,
@@ -201,7 +293,7 @@ export default function EcListShell({
    * [Option] 을 눌렀을 때 뜨는 줄. 주지 않으면 공용 셋(Excel 내려받기 · 인쇄 · 검색조건 초기화).
    * 원본이 화면마다 다른 것을 띄우는 곳만 준다(지출증빙현황 E030402 — '계정설정' 하나, 2026-10-20 실측).
    */
-  optionMenu?: { label: string; onClick: () => void }[]
+  optionMenu?: OptionItem[]
   /**
    * 조건 판 아래 줄 맨 앞의 [양식 ⌄](원본 이익관리 · 현황 화면 2026-10-22 실측: ✓ 지금 양식 · 기본(수정불가)(빨간 글자) · 신규양식추가).
    * 양식 디자이너는 두지 않아 고르기만 하고 안내한다.
@@ -213,6 +305,7 @@ export default function EcListShell({
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [localSearch, setLocalSearch] = useState('')
   const [optionOpen, setOptionOpen] = useState(false)
+  const [optionSub, setOptionSub] = useState<string | null>(null)   // [Option] 안에서 펴진 ▶ 줄
   const [helpOpen, setHelpOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [notice, setNotice] = useState('')
@@ -398,7 +491,11 @@ export default function EcListShell({
     }
     // 고른 줄이 없으면 잠그지 않고 원본 알림을 띄운다(BottomAction.selected) — 우클릭 메뉴도 같은 동작
     if (a.selected === 0) handler = () => { void ecAlert(NO_SELECTION_MESSAGE) }
-    return { ...a, onClick: handler }
+    // ▲ 펼침 줄도 onClick 이 없으면 같은 기본 동작([Excel(표시형식)│▲] 의 [Excel(데이터)])
+    const menu = a.menu?.map((m) => m.onClick ? m : {
+      ...m, onClick: EXCEL_LABELS.some((l) => m.label.includes(l)) ? doExcel : PRINT_LABELS.some((l) => m.label.includes(l)) ? doPrint : undefined,
+    })
+    return { ...a, onClick: handler, menu }
   })
   footerSearchRef.current = resolved.find((a) => SEARCH_RE.test(a.label.trim()))?.onClick
 
@@ -469,14 +566,30 @@ export default function EcListShell({
 
           {optionOpen && (
             <>
-              <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
-              <div className="ec-menu">
-                {(optionMenu?.map((m) => ({ label: m.label, run: async () => m.onClick() })) ?? [
-                  { label: 'Excel 내려받기', run: doExcel },
-                  { label: '인쇄', run: doPrint },
-                  { label: '검색조건 초기화', run: async () => { setLocalSearch(''); filterRows('') } },
-                ]).map((m) => (
-                  <button key={m.label} onClick={() => { setOptionOpen(false); void m.run() }}>
+              <div className="ec-backdrop-clear" onClick={() => { setOptionOpen(false); setOptionSub(null) }} />
+              <div className="ec-menu rounded-ec" role="menu">
+                {(optionMenu ?? [
+                  { label: 'Excel 내려받기', onClick: () => void doExcel() },
+                  { label: '인쇄', onClick: () => void doPrint() },
+                  { label: '검색조건 초기화', onClick: () => { setLocalSearch(''); filterRows('') } },
+                ] as OptionItem[]).map((m) => m.sub ? (
+                  <div key={m.label} className="relative" onMouseEnter={() => setOptionSub(m.label)}>
+                    <button type="button" role="menuitem" aria-haspopup="menu" className="no-ec flex w-full items-center justify-between gap-[9px] min-h-[27px] py-[4.5px] pl-[9px] pr-[4.5px] border-0 rounded-ec bg-transparent text-ec-text text-[12px] text-left cursor-pointer hover:text-ec-navy"
+                            onClick={() => setOptionSub((v) => v === m.label ? null : m.label)}>
+                      {m.label}<span aria-hidden className="inline-flex -rotate-90"><EcIcon name="caret-down" size={10} glyph="▸" /></span>
+                    </button>
+                    {optionSub === m.label && (
+                      <div className="ec-menu top-0 right-full mr-[2px] rounded-ec" role="menu">
+                        {m.sub.map((x) => (
+                          <button key={x.label} type="button" role="menuitem" className={x.active ? 'bg-ec-blue text-white hover:text-white' : undefined}
+                                  onClick={() => { setOptionOpen(false); setOptionSub(null); x.onClick() }}>{x.label}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button key={m.label} type="button" role="menuitem" onMouseEnter={() => setOptionSub(null)}
+                          onClick={() => { setOptionOpen(false); setOptionSub(null); m.onClick?.() }}>
                     {m.label}
                   </button>
                 ))}
@@ -578,22 +691,7 @@ export default function EcListShell({
         </Modal>
       )}
 
-      <Modal open={helpOpen} title={`${title} · 도움말`} width={420} onClose={() => setHelpOpen(false)}>
-        <div className="leading-[1.7]">
-          {help ?? (
-            <ul className="pl-[16px] m-0">
-              <li><b>Search(F3)</b> — 목록에서 입력한 낱말이 포함된 행만 추립니다.</li>
-              <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
-              <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>
-              <li><b>Option</b> — 내려받기·인쇄·검색조건 초기화를 모아둔 메뉴입니다.</li>
-              <li><b>표 우클릭</b> — 맨 위에 <b>등록·수정·삭제</b>가 있습니다. 이어서 행 상세·복사,
-                이 값으로 검색, 열 숨기기(다시 조회하면 원래대로), 화면 기능이 나옵니다.
-                수정·삭제가 흐리게 보이면 그 화면에 해당 기능이 없다는 뜻입니다.
-                Shift+우클릭은 브라우저 기본 메뉴입니다.</li>
-            </ul>
-          )}
-        </div>
-      </Modal>
+      {helpOpen && <HelpWindow help={help} onClose={() => setHelpOpen(false)} />}
     </div>
   )
 }

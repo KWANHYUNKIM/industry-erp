@@ -1655,15 +1655,6 @@
   ],
   "in": "backend"
  },
- "판매조회|판매구분": {
-  "claim": "판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다",
-  "absent": [
-   "salesType",
-   "salesKind",
-   "salesDivision"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/sales/Sales.java"
- },
  "집계표|판매구분": {
   "claim": "판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다",
   "absent": [

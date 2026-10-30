@@ -46,7 +46,7 @@
         "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim().startsWith('확인')).click(); return true })()",
         "wait:500",
         "expect:!!window.__row() && ![...window.__row().cells].some((c) => /^(확인|확인취소|발행)$/.test(c.textContent.trim()))",
-        "js:(() => { window.__row().cells[0].click(); return true })()",
+        "js:(() => { window.__row().cells[0].querySelector('input[type=checkbox]').click(); return true })()",
         "click:선택삭제",
         "wait:2000",
         "expect:window.__msgs.includes('선택한 전표를 삭제 하겠습니까?') && !window.__row()",
