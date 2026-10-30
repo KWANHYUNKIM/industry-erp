@@ -31,6 +31,7 @@ import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphisto
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 import { isAnyPartner } from '../../utils/anyPartner'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -2776,7 +2777,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       <Modal error={cashMsg} open={cashOpen} title={mode === 'sales' ? '매출처로부터' : '매입처로'} width={520} onClose={() => setCashOpen(false)}>
         <div className="ec-form">
           <label className="block mb-[6px]">전표일자
-            <input className="ec-input ml-[8px]" type="date" value={cashForm.date} onChange={(e) => setCashForm((c) => ({ ...c, date: e.target.value }))} /></label>
+            <EcDateInput className="ec-input ml-[8px]" value={cashForm.date} onChange={(e) => setCashForm((c) => ({ ...c, date: e.target.value }))} /></label>
           {/* 원본 창 차례: 전표일자 · 부서 · 프로젝트 · 입금계좌 · 거래처 · 금액 · 수수료 · 적요(2026-10-06 실측). */}
           <div className="flex items-center gap-[8px] mb-[6px]">부서
             <CodePickerField

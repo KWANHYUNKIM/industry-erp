@@ -11,6 +11,7 @@ import type { ExportOrder, ExportSummary } from '../../types/api'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** 원본 빠른선택(2026-10-04 실측) — 전월이 없고 이번기수(~전월)가 있다. */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '종료일', '이번기수(~전월)'] as const
@@ -124,9 +125,7 @@ export default function ExportStatusPage() {
       <label className="inline-flex items-center gap-[3px] mr-[6px]">
         <input type="checkbox" aria-label={`${label} 사용안함`} checked={!use} onChange={(e) => setUse(!e.target.checked)} /> 사용안함
       </label>
-      <input type="date" className="ec-input w-[145px]" value={a} disabled={!use} onChange={(e) => setA(e.target.value)} />
-      <span>~</span>
-      <input type="date" className="ec-input w-[145px]" value={b} disabled={!use} onChange={(e) => setB(e.target.value)} />
+      <EcDateRange from={{ className: "ec-input w-[145px]", value: a, disabled: !use, onChange: (e) => setA(e.target.value) }} to={{ className: "ec-input w-[145px]", value: b, disabled: !use, onChange: (e) => setB(e.target.value) }} />
     </span>
   )
 
@@ -155,9 +154,7 @@ export default function ExportStatusPage() {
           </span>
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

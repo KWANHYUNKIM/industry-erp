@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { fetchAdjustStatus, slashDate, won, type StatusRow } from '../../features/balanceadjust/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '최근30일'] as const
 
@@ -61,9 +62,7 @@ export default function BalanceAdjustStatusPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자" span={2}>
-          <input type="date" className="ec-input w-[145px]" aria-label="시작일" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="종료일" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "시작일", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "종료일", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="부서" pick><CodePickerField label="부서" hideLabel width={220} value={dept} onChange={setDept} items={departments} /></EcCond>
         <EcCond label="프로젝트" pick><CodePickerField label="프로젝트" hideLabel width={220} value={proj} onChange={setProj} items={projects} /></EcCond>

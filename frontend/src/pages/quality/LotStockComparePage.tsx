@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Lot, StockRow } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II > 시리얼/로트No. > 품목vs시리얼재고수량비교 (이카운트 E041018)
@@ -110,7 +111,7 @@ export default function LotStockComparePage() {
         </EcCond>
         <EcCond label="기준일자">
           <div className="flex items-center gap-[6px] flex-wrap">
-            <input type="date" className="ec-input w-[150px]" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+            <EcDateInput className="ec-input w-[150px]" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </div>
         </EcCond>

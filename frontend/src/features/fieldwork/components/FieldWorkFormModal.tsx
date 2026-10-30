@@ -8,6 +8,7 @@ import { useShortcut } from '../../../utils/useShortcut'
 import VehiclePicker from './VehiclePicker'
 import { ecConfirm } from '../../../components/EcDialog'
 import EcIcon from '../../../components/ui/EcIcon'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 export interface FieldWorkUser { id: number; name: string; username: string }
 
@@ -121,7 +122,7 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
       <ul className="ec-form mb-[10px]">
         <li>
           <div className="title">일자</div>
-          <div className="form"><input type="date" className="ec-input w-[150px]" value={form.workDate} onChange={(e) => set('workDate', e.target.value)} /></div>
+          <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.workDate} onChange={(e) => set('workDate', e.target.value)} /></div>
         </li>
         <li>
           <div className="title">이동시간</div>

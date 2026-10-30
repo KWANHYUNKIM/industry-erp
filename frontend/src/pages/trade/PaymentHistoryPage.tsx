@@ -8,6 +8,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { INQUIRY_PICKS } from '../../utils/periods'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { useNavigate } from 'react-router-dom'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업 > <b>결제내역조회</b> — 거래처별 수금/지급 결제 이력.
@@ -210,11 +211,7 @@ export default function PaymentHistoryPage() {
             <option value="">사용안함</option>
             <option value="Y">사용</option>
           </select>
-          <input type="date" className="ec-input w-[130px]" disabled={!cond.slipUse}
-                 value={cond.slipFrom} onChange={(e) => setC({ slipFrom: e.target.value })} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[130px]" disabled={!cond.slipUse}
-                 value={cond.slipTo} onChange={(e) => setC({ slipTo: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[130px]", disabled: !cond.slipUse, value: cond.slipFrom, onChange: (e) => setC({ slipFrom: e.target.value }) }} to={{ className: "ec-input w-[130px]", disabled: !cond.slipUse, value: cond.slipTo, onChange: (e) => setC({ slipTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="결제상태">
           <input className="ec-input w-[200px]" placeholder="결제상태" value={cond.status} onChange={(e) => setC({ status: e.target.value })} />

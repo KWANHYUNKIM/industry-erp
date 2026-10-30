@@ -15,6 +15,7 @@ import EcBarChart from '../../components/EcBarChart'
 import NumCheck from '../../components/NumCheck'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { TransferForm, SlipPrint, slipNoText, type StockTransfer, type CodeRow } from '../../features/stocktransfer/TransferForm'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -302,11 +303,7 @@ export default function TransferPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -537,7 +534,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
       <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{label} 등록</div>
       <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="일자">
-          <input className="ec-input" type="date" value={form.adjustDate} onChange={(e) => set('adjustDate', e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={form.adjustDate} onChange={(e) => set('adjustDate', e.target.value)} />
         </Field>
         <Field label="품목 *">
           <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"

@@ -7,6 +7,7 @@ import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 증빙센터 (이카운트 E040730)
@@ -129,14 +130,10 @@ export default function EvidenceCenterPage() {
 
       <div className="flex flex-wrap gap-[10px] items-end border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
         <label className="text-[12.5px]">{label('전표일자')}
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         </label>
         <label className="text-[12.5px]">{label('증빙일자')}
-          <input type="date" className="ec-input" value={evidenceFrom} onChange={(e) => setEvidenceFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={evidenceTo} onChange={(e) => setEvidenceTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: evidenceFrom, onChange: (e) => setEvidenceFrom(e.target.value) }} to={{ className: "ec-input", value: evidenceTo, onChange: (e) => setEvidenceTo(e.target.value) }} />
         </label>
         <label className="text-[12.5px]">{label('메뉴')}
           <select className="ec-input" value={entityType} onChange={(e) => setEntityType(e.target.value)} style={{ width: 100 }}>

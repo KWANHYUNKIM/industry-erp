@@ -14,6 +14,7 @@ import { ymd } from '../../utils/periods'
 import { lotShownQty, lotTxEditable } from '../../utils/lotQty'
 import { useShortcut } from '../../utils/useShortcut'
 import LotTxEntryModal from '../../features/lot/components/LotTxEntryModal'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const qty2 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -175,9 +176,7 @@ export default function LotAdjustPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="유효기한">
-          <input type="date" className="ec-input w-[145px]" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={expTo} onChange={(e) => setExpTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: expFrom, onChange: (e) => setExpFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: expTo, onChange: (e) => setExpTo(e.target.value) }} />
         </EcCond>
         <EcCond label="시리얼/로트No.">
           <input className="ec-input w-[200px]" value={lotNo} onChange={(e) => setLotNo(e.target.value)} />

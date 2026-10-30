@@ -11,6 +11,7 @@ import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
 import { won } from '../../features/billingcontract/types'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface StatusLine {
   lineId: number; contractId: number; contractDate: string; docNo: number; contractCode: string; contractName: string | null
@@ -96,9 +97,7 @@ export default function ContractStatusReportPage() {
 
   const range = (label: string, a: string, b: string, setA: (v: string) => void, setB: (v: string) => void) => (
     <EcCond label={label}>
-      <input type="date" className="ec-input w-[145px]" aria-label={`${label} 시작`} value={a} onChange={(e) => setA(e.target.value)} />
-      <span className="mx-[4px]">~</span>
-      <input type="date" className="ec-input w-[145px]" aria-label={`${label} 끝`} value={b} onChange={(e) => setB(e.target.value)} />
+      <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': `${label} 시작`, value: a, onChange: (e) => setA(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': `${label} 끝`, value: b, onChange: (e) => setB(e.target.value) }} />
     </EcCond>
   )
   const radio = <T extends string>(name: string, cur: T, on: (v: T) => void, opts: readonly (readonly [T, string])[]) => opts.map(([v, n]) => (
@@ -120,9 +119,7 @@ export default function ContractStatusReportPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]" onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void load() } }}>
         <EcCond label="계약일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="계약일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="계약일자 끝" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "계약일자 시작", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "계약일자 끝", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to); void load(r.from, r.to) }} /></span>
         </EcCond>
         {range('청구시작일', startFrom, startTo, setStartFrom, setStartTo)}

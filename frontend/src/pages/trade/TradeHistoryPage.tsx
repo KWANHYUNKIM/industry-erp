@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { dateNo } from '../../utils/dateNo'
 import { SlipHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import { EcHistoryModal } from '../../components/EcHistory'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 I › 출력물 › 기타 › 거래이력조회(재고) (E040716) — 전표 <b>작업 이력</b>.
@@ -125,9 +126,7 @@ export default function TradeHistoryPage() {
                         onChange={() => { setKind('master'); setMenus([]); setRows(null); setMasterRows(null) }} /> 기초코드</label>
         </EcCond>
         <EcCond label="작업일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

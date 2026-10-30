@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { ecAlert } from '../../components/EcDialog'
 import { InvoiceSummarySheet, loadVatSheet, type AccountOpt, type CompanyInfo, type Sheet } from './VatReturnPage'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface MediaRow {
   id: number; year: number; monthFrom: number; monthTo: number; omittedFrom: number | null; omittedTo: number | null
@@ -294,8 +295,7 @@ export default function VatMediaFilePage() {
               <select className="ec-input w-full" disabled><option>{[company?.name, company?.bizRegNo].filter(Boolean).join(' ')}</option></select>
             </EcCond>
             <EcCond label="신고작성일자" span={2}>
-              <input type="date" className="ec-input w-[150px]" aria-label="신고작성일자" value={form.reportDate}
-                     onChange={(e) => set({ reportDate: e.target.value })} />
+              <EcDateInput className="ec-input w-[150px]" aria-label="신고작성일자" value={form.reportDate} onChange={(e) => set({ reportDate: e.target.value })} />
             </EcCond>
           </ul>
           <div className="flex gap-[6px] mt-[12px]">

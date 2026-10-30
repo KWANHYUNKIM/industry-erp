@@ -12,6 +12,7 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 I › 영업관리 › 출하지시서조회(E040221) · 출하지시서입력(E040220) — 2026-10-20 loginaa 실측(plans/재고1/E040221.md).
@@ -184,9 +185,7 @@ export default function ShipmentOrderPage() {
     >
       <ul className="ec-cond">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="출하지시No.">
           <input className="ec-input w-[170px]" value={noCond} onChange={(e) => setNoCond(e.target.value)} />
@@ -214,9 +213,7 @@ export default function ShipmentOrderPage() {
           </div>
         </EcCond>
         <EcCond label="출하예정일">
-          <input type="date" className="ec-input w-[140px]" value={dueCond[0]} onChange={(e) => setDueCond([e.target.value, dueCond[1]])} />
-          <span className="mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={dueCond[1]} onChange={(e) => setDueCond([dueCond[0], e.target.value])} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: dueCond[0], onChange: (e) => setDueCond([e.target.value, dueCond[1]]) }} to={{ className: "ec-input w-[140px]", value: dueCond[1], onChange: (e) => setDueCond([dueCond[0], e.target.value]) }} />
         </EcCond>
         <EcCond label="규격" pick>
           <CodePickerField label="규격" hideLabel width={170} emptyLabel="전체" value={specCond} onChange={setSpecCond}
@@ -236,14 +233,10 @@ export default function ShipmentOrderPage() {
                            items={[...new Set(rows.map((s) => s.createdBy).filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input w-[140px]" value={made[0]} onChange={(e) => setMade([e.target.value, made[1]])} />
-          <span className="mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={made[1]} onChange={(e) => setMade([made[0], e.target.value])} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: made[0], onChange: (e) => setMade([e.target.value, made[1]]) }} to={{ className: "ec-input w-[140px]", value: made[1], onChange: (e) => setMade([made[0], e.target.value]) }} />
         </EcCond>
         <EcCond label="최종작업일자">
-          <input type="date" className="ec-input w-[140px]" value={edited[0]} onChange={(e) => setEdited([e.target.value, edited[1]])} />
-          <span className="mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={edited[1]} onChange={(e) => setEdited([edited[0], e.target.value])} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: edited[0], onChange: (e) => setEdited([e.target.value, edited[1]]) }} to={{ className: "ec-input w-[140px]", value: edited[1], onChange: (e) => setEdited([edited[0], e.target.value]) }} />
         </EcCond>
         <EcCond label="기타">
           <label className="flex items-center gap-[4px]">

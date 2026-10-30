@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { PROJECT_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Project {
   id: number
@@ -179,9 +180,7 @@ export default function ConstructionSchedulePage() {
             {/* 원본 조건 이름은 [계획시작일] 이다 — 우리가 '착수예정일' 이라 달리 적고 있었다. */}
             <th style={{ ...th, width: 110 }}>계획시작일</th>
             <td colSpan={3}>
-              <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span className="my-0 mx-[6px] text-ec-label">~</span>
-              <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+              <EcDateRange from={{ className: inputCls, value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: inputCls, value: to, onChange: (e) => setTo(e.target.value) }} />
               <span className="ml-[10px] inline-flex gap-[3px] flex-wrap">
                 <EcPeriodPicks labels={PROJECT_PICKS} currentFrom={from}
                                onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -191,9 +190,7 @@ export default function ConstructionSchedulePage() {
           <tr>
             <th style={{ ...th, width: 110 }}>계획종료일</th>
             <td colSpan={3}>
-              <input type="date" className={inputCls} value={endFrom} onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
-              <span className="my-0 mx-[6px] text-ec-label">~</span>
-              <input type="date" className={inputCls} value={endTo} onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+              <EcDateRange from={{ className: inputCls, value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: inputCls, value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
             </td>
           </tr>
           <tr>
@@ -216,9 +213,9 @@ export default function ConstructionSchedulePage() {
             <tbody>
               <tr>
                 <th style={th}>착수예정일</th>
-                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} /></td>
                 <th style={th}>완료예정일</th>
-                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} /></td>
               </tr>
               <tr>
                 <th style={th}>공정명 *</th>

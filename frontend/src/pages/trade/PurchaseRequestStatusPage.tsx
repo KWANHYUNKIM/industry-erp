@@ -14,6 +14,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 구매관리 > 발주 파이프라인 현황 — 한 컴포넌트를 진입 상태만 바꿔 재사용한다.
@@ -475,11 +476,7 @@ export default function PurchaseRequestStatusPage({
                  onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>
         <EcCond label="납기일자">
-          <input type="date" className="ec-input" value={cond.dueFrom}
-                 onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input" value={cond.dueTo}
-                 onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: cond.dueFrom, onChange: (e) => setC({ dueFrom: e.target.value }) }} to={{ className: "ec-input", value: cond.dueTo, onChange: (e) => setC({ dueTo: e.target.value }) }} />
         </EcCond>
         {/*
           원본 <b>단가요청현황</b>의 [유효기간] — 그 단가가 언제까지 유효한 건인지다.
@@ -487,11 +484,7 @@ export default function PurchaseRequestStatusPage({
           납기일자와 <b>다른 값</b>이다 — 물건이 오는 날과 값이 살아 있는 날은 따로다.
         */}
         <EcCond label="유효기간">
-          <input type="date" className="ec-input" value={cond.validFrom}
-                 onChange={(e) => setC({ validFrom: e.target.value })} style={{ width: 140 }} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input" value={cond.validTo}
-                 onChange={(e) => setC({ validTo: e.target.value })} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: cond.validFrom, onChange: (e) => setC({ validFrom: e.target.value }) }} to={{ className: "ec-input", value: cond.validTo, onChange: (e) => setC({ validTo: e.target.value }) }} />
         </EcCond>
         {/* 원본 차례: 납기일자 · <b>창고 · 거래처</b> · 품목 (사본 실측) — 우리는 뒤바뀌어 있었다. */}
         <EcCond label="창고" pick>

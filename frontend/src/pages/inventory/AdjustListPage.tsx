@@ -14,6 +14,7 @@ import Modal from '../../components/Modal'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { adjustSlipHtml } from '../../utils/adjustSlipDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** [이력조회] 한 줄(GET /stock-adjustments/histories). 거래처 · 담당자는 id 만 온다. */
 interface HistoryRow {
@@ -163,9 +164,7 @@ export default function AdjustListPage() {
           ))}
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -228,9 +227,7 @@ export default function AdjustListPage() {
           ))}
         </div>
         <div className="flex items-center gap-[4px] mb-[6px] flex-wrap">
-          <input type="date" className="ec-input w-[145px]" value={histFrom} onChange={(e) => setHistFrom(e.target.value)} />
-          <span>~</span>
-          <input type="date" className="ec-input w-[145px]" value={histTo} onChange={(e) => setHistTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: histFrom, onChange: (e) => setHistFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: histTo, onChange: (e) => setHistTo(e.target.value) }} />
           <EcPeriodPicks labels={['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일']} currentFrom={histFrom}
             onPick={(r) => { setHistFrom(r.from); setHistTo(r.to) }} />
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void loadHist()}>검색(F8)</button>

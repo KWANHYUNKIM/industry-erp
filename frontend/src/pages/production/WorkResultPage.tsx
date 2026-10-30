@@ -12,6 +12,7 @@ import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { minToHours, hoursToMin, fmt2 } from '../../utils/workHours'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 작업 > 작업내역입력 (/api/work-results).
@@ -372,7 +373,7 @@ export default function WorkResultPage() {
             <div>
               {/* 원본 머리의 이름은 [일자]다(사본 실측). */}
               <label className="mb-1 block text-sm text-ec-label">일자</label>
-              <input type="date" className={inputCls} value={form.workDate} onChange={(e) => setForm({ ...form, workDate: e.target.value })} />
+              <EcDateInput className={inputCls} value={form.workDate} onChange={(e) => setForm({ ...form, workDate: e.target.value })} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">생산공장</label>

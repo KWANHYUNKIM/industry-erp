@@ -7,6 +7,7 @@ import type { Partner, ShortMessage, User } from '../../types/api'
 import { shiftMonths, ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 그룹웨어 > 쪽지 (이카운트 E010851 쪽지수발신내역 · C000663 커뮤니케이션센터 — 원본 DOM 이 같은 화면이다)
@@ -156,9 +157,7 @@ export default function ShortMessagePage() {
 
       <div className="flex flex-wrap gap-[10px] items-end border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
         <label className="text-[12.5px]">{label('발송일자')}
-          <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: inputCls, value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: inputCls, value: to, onChange: (e) => setTo(e.target.value) }} />
         </label>
         <div className="flex gap-[3px]">
           <button className="ec-btn" onClick={() => preset('today')}>금일</button>

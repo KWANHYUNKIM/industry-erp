@@ -9,6 +9,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import type { AccountDivision, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
@@ -146,7 +147,7 @@ export default function ArApAgingPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="조회일자">
-          <input type="date" className="ec-input" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} style={{ width: 145 }} />
+          <EcDateInput className="ec-input" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} />
           <span className="ml-[6px]">
             {PICKS.map((l) => (
               <button key={l} type="button" className="ec-btn" style={{ marginRight: 4 }} onClick={() => setAsOf(pickDate(l))}>{l}</button>

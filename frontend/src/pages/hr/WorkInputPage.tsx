@@ -9,6 +9,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import GridFindButton from '../../components/GridFindButton'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface Row { workDate: string; employeeId: string; payItemId: string; quantity: string }
 const blank = (): Row => ({ workDate: '', employeeId: '', payItemId: '', quantity: '' })
@@ -125,7 +126,7 @@ export default function WorkInputPage() {
           <span className="title">일자</span>
           <div className="form">
             {editDate ? <span>{slipDate.replace(/-/g, '/')} -{editNo}</span>
-              : <input type="date" className="ec-input w-[150px]" value={slipDate} onChange={(e) => setSlipDate(e.target.value)} />}
+              : <EcDateInput className="ec-input w-[150px]" value={slipDate} onChange={(e) => setSlipDate(e.target.value)} />}
           </div>
         </li>
       </ul>
@@ -167,8 +168,7 @@ export default function WorkInputPage() {
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>
                   {(() => { const bad = dateMissing && !r.workDate && !!(r.employeeId || r.payItemId || r.quantity)
-                    return <input type="date" className={`ec-input w-full ${bad ? 'border-ec-danger' : ''}`} aria-invalid={bad} title={bad ? '근무일자를 확인바랍니다.' : undefined}
-                                  value={r.workDate} onChange={(e) => edit(i, { workDate: e.target.value })} /> })()}
+                    return <EcDateInput className={`ec-input w-full ${bad ? 'border-ec-danger' : ''}`} aria-invalid={bad} title={bad ? '근무일자를 확인바랍니다.' : undefined} value={r.workDate} onChange={(e) => edit(i, { workDate: e.target.value })} /> })()}
                 </td>
                 <td>
                   <CodePickerField label="사원" hideLabel fill placeholder="사원" emptyLabel="선택 해제"

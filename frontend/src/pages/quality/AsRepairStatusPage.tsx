@@ -13,6 +13,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { dateNo } from '../../utils/dateNo'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 import { ecAlert } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
@@ -203,9 +204,7 @@ export default function AsRepairStatusPage() {
           </span>
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -214,9 +213,7 @@ export default function AsRepairStatusPage() {
           <label className="inline-flex items-center gap-[3px] mr-[8px] text-[12.5px]">
             <input type="checkbox" checked={!useReceipt} onChange={(e) => setUseReceipt(!e.target.checked)} /> 사용안함
           </label>
-          <input type="date" className="ec-input" value={recFrom} disabled={!useReceipt} onChange={(e) => setRecFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={recTo} disabled={!useReceipt} onChange={(e) => setRecTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: recFrom, disabled: !useReceipt, onChange: (e) => setRecFrom(e.target.value) }} to={{ className: "ec-input", value: recTo, disabled: !useReceipt, onChange: (e) => setRecTo(e.target.value) }} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체" value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />

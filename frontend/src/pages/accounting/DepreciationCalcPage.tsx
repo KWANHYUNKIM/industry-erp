@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface Calc {
   id: number; fiscalTerm: number; periodFrom: string; periodTo: string; itemCount: number; totalAmount: number
@@ -290,7 +291,7 @@ export default function DepreciationCalcPage() {
         {slip && (
           <div>
             <label className="flex items-center gap-[8px] mb-[8px]">전표일자
-              <input className="ec-input w-[140px]" type="date" name="entryDate" value={slip.date} onChange={(e) => setSlip({ ...slip, date: e.target.value })} />
+              <EcDateInput className="ec-input w-[140px]" name="entryDate" value={slip.date} onChange={(e) => setSlip({ ...slip, date: e.target.value })} />
               <span className="ml-[16px]">구분</span><span>일반전표</span>
             </label>
             <table className="w-full">

@@ -8,6 +8,7 @@ import { EcCond } from '../../../components/EcStatusPanel'
 import { periodOf, ymd } from '../../../utils/periods'
 import { useCondPickers } from '../../../utils/useCondPickers'
 import type { Item, StockRow, Warehouse } from '../../../types/api'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /**
  * 원본 <b>간편재고조정</b> 창 — 재고조정조회 · 재고실사조회 · 재고조정진행단계의 [간편재고조정] (2026-10-13 loginaa 실측).
@@ -133,7 +134,7 @@ export default function SimpleAdjustDialog({ open, onClose, onDone }: { open: bo
       <Modal open={open} title="간편재고조정" onClose={onClose} width={1100} error={entry ? null : error}>
         <ul className="ec-cond mb-[8px]">
           <EcCond label="기준일자">
-            <input type="date" className="ec-input w-[145px]" value={date} onChange={(e) => setDate(e.target.value)} />
+            <EcDateInput className="ec-input w-[145px]" value={date} onChange={(e) => setDate(e.target.value)} />
           </EcCond>
           <EcCond label="창고" pick>
             <CodePickerField label="창고" hideLabel width={220} emptyLabel="전체" value={warehouse} onChange={setWarehouse}

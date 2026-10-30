@@ -5,6 +5,7 @@ import { EcCond } from '../../../components/EcStatusPanel'
 import { ecConfirm } from '../../../components/EcDialog'
 import { api, extractErrorMessage } from '../../../api/client'
 import { ymd } from '../../../components/EcPeriodPicks'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /**
  * 재고 II › 계획관리 › 프로젝트계획조회(E040636)의 창 셋 — 2026-10-14 loginaa 실측(plans/재고2/E040636.md).
@@ -177,12 +178,10 @@ export function PlanHeadWindow({ open, planId, projects, onClose, onChanged, onO
           </div>
         </EcCond>
         <EcCond label="시작일" span={2}>
-          <input type="date" className="ec-input w-[140px]" aria-label="시작일" value={form.startDate}
-                 onChange={(e) => e.target.value && set('startDate', e.target.value)} />
+          <EcDateInput className="ec-input w-[140px]" aria-label="시작일" value={form.startDate} onChange={(e) => e.target.value && set('startDate', e.target.value)} />
         </EcCond>
         <EcCond label="완료일" span={2}>
-          <input type="date" className="ec-input w-[140px]" aria-label="완료일" value={form.endDate}
-                 onChange={(e) => e.target.value && set('endDate', e.target.value)} />
+          <EcDateInput className="ec-input w-[140px]" aria-label="완료일" value={form.endDate} onChange={(e) => e.target.value && set('endDate', e.target.value)} />
         </EcCond>
         <EcCond label="적요" span={2}>
           <input className="ec-input w-full" aria-label="적요" value={form.remark} onChange={(e) => set('remark', e.target.value)} />

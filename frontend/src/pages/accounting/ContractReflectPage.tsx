@@ -14,6 +14,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
 import { VAT_TYPES, won, type BillLineView } from '../../features/billingcontract/types'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /* 원본 버튼줄 글자 그대로(2026-10-13 실측). */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '말일', '전월+금월'] as const
@@ -205,9 +206,7 @@ export default function ContractReflectPage() {
           <label className="inline-flex items-center gap-[3px]"><input type="radio" name="reflect-kind" checked={kind === 'sales'} onChange={() => setKind('sales')} /> 판매반영</label>
         </EcCond>
         <EcCond label="청구자료생성일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="청구자료생성일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="청구자료생성일자 끝" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "청구자료생성일자 시작", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "청구자료생성일자 끝", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
         </EcCond>
         <BillLineConds rows={rows} filter={filter} set={set} full vatAll={false} />

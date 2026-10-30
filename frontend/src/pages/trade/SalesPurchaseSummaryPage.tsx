@@ -9,6 +9,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업관리 > 판매구매집계표 (이카운트 E040725)
@@ -506,9 +507,7 @@ export default function SalesPurchaseSummaryPage() {
         {/* 원본 첫째 조건은 [기준일자]다 — 우리는 [기간]이라 적고 있었다(2026-09-08 실측). */}
         <div className="flex items-center">
           <span style={{ ...label, width: 66 }}>기준일자</span>
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span className="my-0 mx-[6px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         </div>
         {/*
           원본 [집계조건] — <b>기준일자 바로 다음</b>이다. 우리는 [집계기준]이라 부르며

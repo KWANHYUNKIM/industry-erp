@@ -15,6 +15,7 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { weekOfYear } from '../../utils/statusAggregate'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 작업지시서현황 — 작업지시 진행 현황 (/api/work-orders).
@@ -406,11 +407,7 @@ export default function WoStatusPage() {
         </EcCond>
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -429,11 +426,7 @@ export default function WoStatusPage() {
           적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
         */}
         <EcCond label="납기일자">
-          <input type="date" className="ec-input" value={dueFrom}
-                 onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={dueTo}
-                 onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: dueFrom, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, onChange: (e) => setDueTo(e.target.value) }} />
         </EcCond>
         {/* 마스터를 고르는 조건은 직접 입력이 아니라 코드도움이다 — 다른 화면과 같은 규칙. */}
         <EcCond label="창고" pick>

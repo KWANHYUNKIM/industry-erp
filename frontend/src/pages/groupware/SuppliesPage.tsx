@@ -20,6 +20,7 @@ import LabelChip from '../../features/board/components/LabelChip'
 import type { BoardLabel } from '../../features/board/labels'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 그룹웨어 > 사내관리 > 공용품관리 (이카운트 E070204)
@@ -412,7 +413,7 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
             <li className="wide">
               <div className="title">날짜/시간</div>
               <div className="form">
-                <input type="date" className="ec-input w-[150px]" value={form.date} onChange={(e) => set('date', e.target.value)} />
+                <EcDateInput className="ec-input w-[150px]" value={form.date} onChange={(e) => set('date', e.target.value)} />
                 <input type="time" className="ec-input w-[110px]" value={form.start} disabled={form.allDay}
                        onChange={(e) => set('start', e.target.value)} />
                 <span className="text-ec-label">~</span>
@@ -569,9 +570,7 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
       {/* 원본 차례: 기준일자 · 시간 · 사용자 · 공용물품 · 라벨 · 제목 · 적요 · 반납여부 · 전체시간표시 — 접어 두고 [Search(F3)] 로 편다 */}
       <ul className="ec-cond mb-[6px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[130px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[130px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[130px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[130px]", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="시간">
           <input type="time" className="ec-input w-[110px]" value={timeCond} onChange={(e) => setTimeCond(e.target.value)} />

@@ -12,6 +12,7 @@ import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
 import { shrinkImage } from '../../utils/imageResize'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface DailyWorker {
   id: number; code: string; name: string; foreigner: boolean; nationality: string | null
@@ -288,13 +289,13 @@ export default function DailyWorkerListPage() {
     '입사일자': <Fragment key="입사일자">
                 <li>
                   <span className="title">입사일자</span>
-                  <div className="form"><input type="date" className="ec-input w-[150px]" value={form.hireDate} onChange={(e) => set({ hireDate: e.target.value })} /></div>
+                  <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.hireDate} onChange={(e) => set({ hireDate: e.target.value })} /></div>
                 </li>
     </Fragment>,
     '퇴사일자': <Fragment key="퇴사일자">
                 <li>
                   <span className="title">퇴사일자</span>
-                  <div className="form"><input type="date" className="ec-input w-[150px]" value={form.resignDate} onChange={(e) => set({ resignDate: e.target.value })} /></div>
+                  <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.resignDate} onChange={(e) => set({ resignDate: e.target.value })} /></div>
                 </li>
     </Fragment>,
     '우편번호': text('우편번호', 'zipcode', true),
@@ -458,7 +459,7 @@ export default function DailyWorkerListPage() {
                             </label>
                           ))}
                         </span>
-                      ) : t === 'date' ? <input type="date" className="ec-input w-[150px]" value={form[k]} onChange={(e) => set({ [k]: e.target.value } as Partial<Form>)} />
+                      ) : t === 'date' ? <EcDateInput className="ec-input w-[150px]" value={form[k]} onChange={(e) => set({ [k]: e.target.value } as Partial<Form>)} />
                         : <input className={`ec-input w-full${t === 'num' ? ' text-right' : ''}`} inputMode={t === 'num' ? 'decimal' : undefined} value={form[k]}
                                  onChange={(e) => set({ [k]: t === 'num' ? e.target.value.replace(/[^0-9.-]/g, '') : e.target.value } as Partial<Form>)} />}
                     </div>

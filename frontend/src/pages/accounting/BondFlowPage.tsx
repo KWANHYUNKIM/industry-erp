@@ -9,6 +9,7 @@ import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_FLOW_PICKS, byPartnerName } from '../../features/bond/ledger'
 import { dateNo, flatten, sideWord, won, type BondDirection, type BondRow, type BondSide } from '../../features/bond/types'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 회계 II › 채권관리 › <b>채권증가현황</b>(E060406) · <b>채권감소현황</b> · 채무관리의 같은 둘 — 2026-10-12 loginaa 실측.
@@ -178,18 +179,14 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
           </EcCond>
         )}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={BOND_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         {inc && (
           <EcCond label={`${word} 만기일자`}>
-            <input type="date" className="ec-input w-[145px]" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} />
-            <span className="my-0 mx-[4px]">~</span>
-            <input type="date" className="ec-input w-[145px]" value={dueTo} onChange={(e) => setDueTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input w-[145px]", value: dueFrom, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: dueTo, onChange: (e) => setDueTo(e.target.value) }} />
           </EcCond>
         )}
         <EcCond label="거래처" pick>

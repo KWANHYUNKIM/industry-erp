@@ -29,6 +29,7 @@ import { slipHistoryTime } from '../../features/sliphistory/SlipHistoryModal'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 import { shrinkImage } from '../../utils/imageResize'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 
@@ -1124,9 +1125,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             <li className="wide">
               <div className="title">게시일</div>
               <div className="form gap-[4px]">
-                <input type="date" className="ec-input w-[140px]" value={cond.from} onChange={(e) => setCond((c) => ({ ...c, from: e.target.value }))} />
-                ~
-                <input type="date" className="ec-input w-[140px]" value={cond.to} onChange={(e) => setCond((c) => ({ ...c, to: e.target.value }))} />
+                <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.from, onChange: (e) => setCond((c) => ({ ...c, from: e.target.value })) }} to={{ className: "ec-input w-[140px]", value: cond.to, onChange: (e) => setCond((c) => ({ ...c, to: e.target.value })) }} />
               </div>
             </li>
             {!rep && <li className="wide">
@@ -1143,9 +1142,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             {!rep && <li className="wide">
               <div className="title">완료일</div>
               <div className="form gap-[4px]">
-                <input type="date" className="ec-input w-[140px]" value={cond.doneFrom} onChange={(e) => setCond((c) => ({ ...c, doneFrom: e.target.value }))} />
-                ~
-                <input type="date" className="ec-input w-[140px]" value={cond.doneTo} onChange={(e) => setCond((c) => ({ ...c, doneTo: e.target.value }))} />
+                <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.doneFrom, onChange: (e) => setCond((c) => ({ ...c, doneFrom: e.target.value })) }} to={{ className: "ec-input w-[140px]", value: cond.doneTo, onChange: (e) => setCond((c) => ({ ...c, doneTo: e.target.value })) }} />
               </div>
             </li>}
             <li className="wide">
@@ -1425,8 +1422,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           <li className="wide">
             <div className="title">일자</div>
             <div className="form">
-              <input type="date" className="ec-input w-[140px]" aria-label="일자" value={form.postDate}
-                     disabled={editId != null} onChange={(e) => set('postDate', e.target.value)} />
+              <EcDateInput className="ec-input w-[140px]" aria-label="일자" value={form.postDate} disabled={editId != null} onChange={(e) => set('postDate', e.target.value)} />
             </div>
           </li>
           {cfg.minutes && titleRow}

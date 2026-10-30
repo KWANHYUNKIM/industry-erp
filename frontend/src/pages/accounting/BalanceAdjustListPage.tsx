@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { adjustNo, deleteAdjustments, fetchAdjustments, slashDate, won, type AdjustmentRow } from '../../features/balanceadjust/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월', '이번기수', '직전기수', '종료일'] as const
 
@@ -91,9 +92,7 @@ export default function BalanceAdjustListPage({ audit = false }: { audit?: boole
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자" span={2}>
-          <input type="date" className="ec-input w-[145px]" aria-label="시작일" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="종료일" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "시작일", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "종료일", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="계정"><input className="ec-input w-[220px]" placeholder="계정" value={account} onChange={(e) => setAccount(e.target.value)} /></EcCond>
         <EcCond label="금액">

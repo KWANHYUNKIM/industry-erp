@@ -15,6 +15,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { requireSelection } from '../../components/EcDialog'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
@@ -440,9 +441,7 @@ export default function ApprovalListPage({
       {condOpen && <div className="flex items-center flex-wrap gap-[4px] mb-[6px] ec-search-conds">
         {/* 두 화면 모두 [기준일자] — 기안서통합관리를 사본에서 [일자] 로 봤으나 2026-10-30 원본은 [기준일자]였다. */}
         <label className="text-[12.5px] text-ec-label">{dateLabel}</label>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         {/* 원본 조건 차례(2026-10-30 기안서통합관리 실측): 기준일자 · 기안서No. · 구분 · 기안자 · 제목 · 내용 — 그 뒤는 예전에 잰 더보기 칸. */}
         <label className="text-[12.5px] text-ec-label ml-[8px]">기안서No.</label>
         <input className="ec-input" value={docNoCond} onChange={(e) => setDocNoCond(e.target.value)}

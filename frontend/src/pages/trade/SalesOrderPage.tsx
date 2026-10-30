@@ -14,6 +14,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { dateText } from '../../utils/dateText'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 /**
@@ -274,9 +275,7 @@ export default function SalesOrderPage() {
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={ORDER_LIST_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

@@ -6,6 +6,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Project {
   id: number
@@ -135,15 +136,11 @@ export default function SwSchedulePage() {
           <tr>
             <th style={{ ...th, width: 110 }}>계획시작일</th>
             <td>
-              <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span className="my-0 mx-[6px] text-ec-label">~</span>
-              <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+              <EcDateRange from={{ className: inputCls, value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: inputCls, value: to, onChange: (e) => setTo(e.target.value) }} />
             </td>
             <th style={{ ...th, width: 110 }}>계획종료일</th>
             <td>
-              <input type="date" className={inputCls} value={endFrom} onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
-              <span className="my-0 mx-[6px] text-ec-label">~</span>
-              <input type="date" className={inputCls} value={endTo} onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+              <EcDateRange from={{ className: inputCls, value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: inputCls, value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
             </td>
           </tr>
           <tr>
@@ -162,9 +159,9 @@ export default function SwSchedulePage() {
             <tbody>
               <tr>
                 <th style={th}>착수일</th>
-                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} /></td>
                 <th style={th}>목표일</th>
-                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} /></td>
               </tr>
               <tr>
                 <th style={th}>작업/기능명 *</th>

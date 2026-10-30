@@ -13,6 +13,7 @@ import { purchaseRequestDocument } from '../../features/purchaserequest/purchase
 import Modal from '../../components/Modal'
 import { printDocuments } from '../../utils/printDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 날짜 모양 — 연도를 두 자리로 찍는다(26/10/12-2 · 25/07/12, 2026-10-03 실측). */
@@ -197,9 +198,7 @@ export default function PurchaseRequestListPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={SELF_USE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

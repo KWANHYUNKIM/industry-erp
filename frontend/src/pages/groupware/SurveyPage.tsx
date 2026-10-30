@@ -11,6 +11,7 @@ import { matrixToXlsx } from '../../utils/excel'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사조회 (이카운트 E070257)
@@ -183,14 +184,10 @@ export default function SurveyPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 차례: <b>작성일 · 설문종료일</b> · 설문대상구분 · 제목 · 작성자 · 게시글번호 */}
         <EcCond label="작성일">
-          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="설문종료일">
-          <input type="date" className="ec-input" value={endFrom} onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={endTo} onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: "ec-input", value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
         </EcCond>
         <EcCond label="설문대상구분">
           <div className="ec-pills">
@@ -354,8 +351,7 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
             )}
 
             {q.type === 'DATE' && (
-              <input type="date" className="ec-input" style={{ width: 150, marginLeft: 12 }}
-                value={(values[q.id] ?? [])[0] ?? ''} onChange={(e) => set(q.id, e.target.value ? [e.target.value] : [])} />
+              <EcDateInput className="ec-input" value={(values[q.id] ?? [])[0] ?? ''} onChange={(e) => set(q.id, e.target.value ? [e.target.value] : [])} />
             )}
 
             {q.type === 'SCALE' && (
@@ -395,7 +391,7 @@ function ViewModal({ survey: r, onClose, onResult, onParticipants, onFinish, onA
   const canAnswer = r.status === 'OPEN' && !r.expired && !r.answeredByMe
   return (
     <Modal open title="설문조사" width={780} onClose={onClose}>
-      <a className="cursor-pointer text-[12px]" onClick={onParticipants}>설문대상자({r.targetCount}) 👤</a>
+      <a className="cursor-pointer text-[12px]" onClick={onParticipants}>설문대상자({r.targetCount}) <EcIcon name="user" size={12} /></a>
       <div className="mt-[8px] mb-[12px] bg-ec-panel border border-ec-line border-solid rounded-[20px] overflow-hidden">
         <div className="bg-ec-disabled font-bold py-[10px] px-[9px]">{periodOf(r)}</div>
         <div className="whitespace-pre-wrap py-[10px] px-[9px] min-h-[24px]">{r.headerText ?? ''}</div>

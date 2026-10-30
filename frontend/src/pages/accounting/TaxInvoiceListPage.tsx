@@ -13,6 +13,7 @@ import type { PaperParty, PaperVoucher } from '../../features/taxvoucher/compone
 import TradeDetailModal from '../../features/taxvoucher/components/TradeDetailModal'
 import TaxInvoicePaperModal from '../../features/taxvoucher/components/TaxInvoicePaperModal'
 import TaxVoucherForm, { voucherFormOf, type PartnerOpt, type Voucher, type VoucherForm } from '../../features/taxvoucher/components/TaxVoucherForm'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 type Side = '매출' | '매입'
 type Status = '전체' | '결재중' | '미확인' | '확인'
@@ -128,9 +129,7 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <EcPeriodPicks labels={SALES_TAX_LIST_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
         </EcCond>
         <EcCond label="회계전표No.">

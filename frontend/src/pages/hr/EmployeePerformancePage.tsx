@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PerformanceSummary } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -33,9 +34,7 @@ export default function EmployeePerformancePage() {
   return (
     <EcListShell title="담당자별 실적" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <div className="flex items-center gap-[6px] mb-[8px]">
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
         <span className="ml-[8px] text-[12px] text-ec-hint">
           전표의 <b>담당 사원</b> 기준입니다(전표를 입력한 계정이 아닙니다). 담당자를 지정하지 않은 전표는 '미지정'으로 모입니다.

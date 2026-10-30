@@ -14,6 +14,7 @@ import type { SectionProps } from '../../features/managementsummary/shared'
 import FundDailyPage from './FundDailyPage'
 import VatBookPage from './VatBookPage'
 import EcIcon from '../../components/ui/EcIcon'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const AGG_KIND = '계정별원장 (집계)'
 const AGG_MESSAGE = '계정별원장(집계)의 대상으로 설정된 계정이 없습니다.\n(옵션 > 계정설정에서 설정을 변경할 수 있습니다.)\n진행하겠습니까?'
@@ -94,9 +95,7 @@ export default function ManagementSummaryPage() {
     >
       <ul className="ec-cond mb-2">
         <EcCond label="조회일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-1">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-1.5">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

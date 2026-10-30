@@ -15,6 +15,7 @@ import Modal from '../../components/Modal'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { useShipmentEntry, type ShipmentRes } from '../../features/shipment/useShipmentEntry'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업 > 출하조회 (E040226) — 전표(출하) 단위 조회. 행 클릭 시 품목 상세 펼침.
@@ -339,14 +340,10 @@ export default function ShipmentInquiryPage() {
         </EcCond>
         {/* 원본 [최초작성일자]·[최종수정일시] — 이번에 응답에 실어 물을 수 있게 됐다. */}
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="최종수정일시">
-          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
         </EcCond>
         {/* 원본 [기타] — 이 화면에서는 체크 하나뿐이다. 없는 것을 지어내지 않는다. */}
         <EcCond label="기타">

@@ -20,6 +20,7 @@ import NumCheck from '../../components/NumCheck'
 import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
 import { shrinkImage } from '../../utils/imageResize'
 import EcIcon from '../../components/ui/EcIcon'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const inputCls = 'ec-input w-full'
 
@@ -751,14 +752,10 @@ export default function ItemsPage() {
           <label><input type="checkbox" checked={cond.shared} onChange={(e) => setC({ shared: e.target.checked })} /> C-Portal공유</label>
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input w-[140px]" value={cond.createdFrom} onChange={(e) => setC({ createdFrom: e.target.value })} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={cond.createdTo} onChange={(e) => setC({ createdTo: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.createdFrom, onChange: (e) => setC({ createdFrom: e.target.value }) }} to={{ className: "ec-input w-[140px]", value: cond.createdTo, onChange: (e) => setC({ createdTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="최종수정일자">
-          <input type="date" className="ec-input w-[140px]" value={cond.updatedFrom} onChange={(e) => setC({ updatedFrom: e.target.value })} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={cond.updatedTo} onChange={(e) => setC({ updatedTo: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.updatedFrom, onChange: (e) => setC({ updatedFrom: e.target.value }) }} to={{ className: "ec-input w-[140px]", value: cond.updatedTo, onChange: (e) => setC({ updatedTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="사용구분">
           {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (

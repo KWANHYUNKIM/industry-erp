@@ -11,6 +11,7 @@ import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { AccountDivision, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { lineInDeptProject } from '../../utils/deptProject'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -280,9 +281,7 @@ export default function AccountLedgerPage() {
           ))}
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-1">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-1.5">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} fiscalStart={fiscalStart ?? undefined} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

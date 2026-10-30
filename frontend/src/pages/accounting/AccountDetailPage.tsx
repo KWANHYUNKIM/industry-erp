@@ -9,6 +9,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -167,7 +168,7 @@ export default function AccountDetailPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} style={{ width: 145 }} />
+          <EcDateInput className="ec-input" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} />
           <span className="ml-[6px]">
             {PICKS.map((l) => (
               <button key={l} type="button" className="ec-btn" style={{ marginRight: 4 }} onClick={() => setAsOf(pickDate(l, fiscalStart))}>{l}</button>

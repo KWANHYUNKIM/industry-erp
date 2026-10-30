@@ -838,12 +838,13 @@ main table,
   gap: 2px;
   padding: 0 4.5px 0 5.4px;
   cursor: pointer;
+  user-select: none;
   color: var(--ec-text);
 }
 .ec-date-sel.y { width: var(--ec-date-year-w); }
 .ec-date-sel.m { width: var(--ec-date-month-w); }
 .ec-date-sel > .ec-icon { color: var(--ec-text-hint); }
-.ec-date-sel:disabled,
+.ec-date-sel[aria-disabled],
 .ec-date-day:disabled,
 .ec-date.is-locked .ec-date-day { background: var(--ec-bg-disabled); cursor: default; }
 .ec-date-day {
@@ -852,12 +853,15 @@ main table,
   text-align: center;
 }
 .ec-date-cal {
+  display: inline-flex;
+  align-items: center;
   width: var(--ec-ctl-h);
   padding: 0;
   justify-content: center;
   color: var(--ec-blue);
+  cursor: pointer;
 }
-.ec-date-cal:disabled { color: var(--ec-text-off); }
+.ec-date-cal[aria-disabled] { color: var(--ec-text-off); cursor: default; }
 
 /* 떠 있는 판(연 · 월 목록, 달력) — body 에 그린다. 자리는 실행 중에 재고 그때 보인다. */
 .ec-float {

@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import EcDateField from '../../components/EcDateField'
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Emp { id: number; code: string; name: string; department: string | null; hireDate: string | null; resignDate: string | null; resignReason?: string | null }
 interface Company { name: string | null; bizRegNo: string | null }
@@ -174,17 +175,13 @@ export default function RetiredEmployeePage() {
                            items={depts.map((d) => ({ value: d, name: d }))} />
         </EcCond>
         <EcCond label="입사일자">
-          <input type="date" className="ec-input w-[145px]" value={hireFrom} disabled={!useHire} onChange={(e) => setHireFrom(e.target.value)} />
-          <span className="mx-1">~</span>
-          <input type="date" className="ec-input w-[145px]" value={hireTo} disabled={!useHire} onChange={(e) => setHireTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: hireFrom, disabled: !useHire, onChange: (e) => setHireFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: hireTo, disabled: !useHire, onChange: (e) => setHireTo(e.target.value) }} />
           <label className="ml-2 inline-flex items-center gap-[3px]">
             <input type="checkbox" checked={useHire} onChange={(e) => setUseHire(e.target.checked)} /> 사용
           </label>
         </EcCond>
         <EcCond label="퇴사일자">
-          <input type="date" className="ec-input w-[145px]" value={resignFrom} disabled={!useResign} onChange={(e) => setResignFrom(e.target.value)} />
-          <span className="mx-1">~</span>
-          <input type="date" className="ec-input w-[145px]" value={resignTo} disabled={!useResign} onChange={(e) => setResignTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: resignFrom, disabled: !useResign, onChange: (e) => setResignFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: resignTo, disabled: !useResign, onChange: (e) => setResignTo(e.target.value) }} />
           <label className="ml-2 inline-flex items-center gap-[3px]">
             <input type="checkbox" checked={useResign} onChange={(e) => setUseResign(e.target.checked)} /> 사용
           </label>

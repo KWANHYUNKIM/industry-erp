@@ -9,6 +9,7 @@ import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPer
 import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { VAT_TYPES, won, type BillingContractRow } from '../../features/billingcontract/types'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 회계 II › 계약관리 › 계약 › <b>계약조회</b>(E060903) — 2026-10-13 loginaa 실측.
@@ -102,9 +103,7 @@ export default function BillingContractListPage() {
       </div>
       <ul className="ec-cond mb-[8px]">
         <EcCond label="계약일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
         </EcCond>
         <EcCond label="거래처" pick><CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} /></EcCond>

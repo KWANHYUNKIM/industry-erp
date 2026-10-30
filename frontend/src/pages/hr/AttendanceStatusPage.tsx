@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { useDeptGroups } from '../../utils/deptGroups'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 관리 > 근태관리 > 근태현황 (= 이카운트 출/퇴근현황(ID), E070306)
@@ -124,11 +125,7 @@ export default function AttendanceStatusPage() {
           <tr>
             <th style={th}>기간</th>
             <td colSpan={3}>
-              <input type="date" className="ec-input" value={from} disabled={allDates}
-                     onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span className="my-0 mx-[6px] text-ec-label">~</span>
-              <input type="date" className="ec-input" value={to} disabled={allDates}
-                     onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+              <EcDateRange from={{ className: "ec-input", value: from, disabled: allDates, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, disabled: allDates, onChange: (e) => setTo(e.target.value) }} />
               <label className="ml-[12px] text-[12px]">
                 <input type="checkbox" checked={allDates} onChange={(e) => setAllDates(e.target.checked)} /> 모든날짜검색
               </label>

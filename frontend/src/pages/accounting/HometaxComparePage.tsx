@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface PartnerOpt { id: number; code: string; name: string; bizRegNo: string | null }
@@ -92,9 +93,7 @@ export default function HometaxComparePage() {
       {!entries && (
         <ul className="ec-cond mb-[8px]">
           <EcCond label="기준일자">
-            <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-            ~
-            <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           </EcCond>
           <EcCond label="매입/매출구분">
             {(['매출', '매입'] as VatSide[]).map((s) => (

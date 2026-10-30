@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import EcSortSubtotalModal, { emptySortSubtotal, showsItem, withSubtotals, type SortSubtotal } from '../../../components/EcSortSubtotalModal'
 import { ecAlert } from '../../../components/EcDialog'
 import { isHoliday, koreanDateTime, monthToToday, slashDate, type EmployeeCommuteLine } from '../types'
+import { EcDateRange } from '../../../components/ui/EcDateInput'
 
 type Tri = 'all' | 'a' | 'b'
 /** 정렬/소계기준 창(2026-10-22 출/퇴근현황 실측): 기준 없음 · 일자 · 사원명, 처음은 셋 다 없음 · 합계 표시. 소계/합계 표시항목은 근무시간(시간단위). */
@@ -99,9 +100,7 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
           </div>
         </li>
         <EcCond label="기간">
-          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: range.from, onChange: (e) => setRange({ ...range, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", value: range.to, onChange: (e) => setRange({ ...range, to: e.target.value }) }} />
         </EcCond>
         <EcCond label="사원명">
           <CodePickerField label="사원명" hideLabel fill multiple placeholder="사원명" values={empCond} onChangeMulti={(v) => setEmpCond(v)}

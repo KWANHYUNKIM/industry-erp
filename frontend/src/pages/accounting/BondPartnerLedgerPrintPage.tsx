@@ -10,6 +10,7 @@ import { BOND_STATUS_PICKS } from '../../features/bond/ledger'
 import { flatten, signed, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
 import { ecAlert } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서리스트 · 거래처리스트와 같은 글). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
@@ -105,9 +106,7 @@ export default function BondPartnerLedgerPrintPage({ side }: { side: BondSide })
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={BOND_STATUS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

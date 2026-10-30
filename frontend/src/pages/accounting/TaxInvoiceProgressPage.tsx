@@ -14,6 +14,7 @@ import {
   bucketOf, INVOICE_TYPES, salesInvoiceOf, type Bucket, type InvoiceMark, type InvoiceType, type SalesInvoice,
 } from '../../utils/salesInvoice'
 import { ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface Row { e: JournalEntry; inv: SalesInvoice; bucket: Bucket }
@@ -185,9 +186,7 @@ export default function TaxInvoiceProgressPage() {
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="회계전표No.">
           <input className="ec-input w-full" placeholder="회계전표No." value={docCond} onChange={(e) => setDocCond(e.target.value)} />

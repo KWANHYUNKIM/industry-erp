@@ -20,6 +20,7 @@ import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import EcRichBody from '../../components/EcRichBody'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 import { shrinkImage } from '../../utils/imageResize'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const WORKLOG_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '종료일', '최근3일+7일'] as const
 
@@ -350,9 +351,7 @@ ${isHtml(r.content) ? `<div>${sanitizeHtml(r.content)}</div>` : `<pre>${escapeHt
             <li className="wide">
               <div className="title">업무보고일</div>
               <div className="form">
-                <input type="date" className="ec-input w-[150px]" value={cond.from} onChange={(e) => setC('from', e.target.value)} />
-                <span className="text-ec-label">~</span>
-                <input type="date" className="ec-input w-[150px]" value={cond.to} onChange={(e) => setC('to', e.target.value)} />
+                <EcDateRange from={{ className: "ec-input w-[150px]", value: cond.from, onChange: (e) => setC('from', e.target.value) }} to={{ className: "ec-input w-[150px]", value: cond.to, onChange: (e) => setC('to', e.target.value) }} />
               </div>
             </li>
             <li className="wide">
@@ -503,7 +502,7 @@ ${isHtml(r.content) ? `<div>${sanitizeHtml(r.content)}</div>` : `<pre>${escapeHt
         <ul className="ec-form mb-[10px]">
           <li>
             <div className="title">업무보고일</div>
-            <div className="form"><input type="date" className="ec-input w-[150px]" value={form.reportDate} onChange={(e) => setF('reportDate', e.target.value)} /></div>
+            <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.reportDate} onChange={(e) => setF('reportDate', e.target.value)} /></div>
           </li>
           <li>
             <div className="title">부서</div>

@@ -11,6 +11,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { dateNo } from '../../utils/dateNo'
 import { ecConfirm } from '../../components/EcDialog'
 import SalesPlanForm, { type SalesPlanDoc as Doc, type SalesPlanRow as PlanRow } from '../../features/salesplan/components/SalesPlanForm'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -97,9 +98,7 @@ export default function SalesPlanListPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

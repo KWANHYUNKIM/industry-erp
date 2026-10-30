@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import { useNavigate } from 'react-router-dom'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 작업지시서작업처리.
@@ -314,8 +315,7 @@ export default function WorkProcessPage() {
         </EcCond>
         {/* 원본 조건의 [납기일자]·[생산공장]·[작업]. 처리할 줄이 많으면 이것 없이는 눈으로 훑게 된다. */}
         <EcCond label="납기일자" pick>
-          <input type="date" className="ec-input" value={dueDate}
-                 onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
+          <EcDateInput className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </EcCond>
         {/*
           원본 [잔량기준] — <b>작업지시서 · 직전작업</b> 2단이고 [작업지시서]가 켜진 채 뜬다.

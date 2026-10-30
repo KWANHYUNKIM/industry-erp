@@ -10,6 +10,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 
@@ -123,7 +124,7 @@ export default function CrmPage() {
           <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">영업활동 등록</div>
           <div className="flex gap-[12px] flex-wrap items-end">
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">일자</div>
-              <input className="ec-input" type="date" value={form.activityDate} onChange={(e) => set('activityDate', e.target.value)} style={{ width: 140 }} /></label>
+              <EcDateInput className="ec-input" value={form.activityDate} onChange={(e) => set('activityDate', e.target.value)} /></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">고객사 *</div>
               <CodePickerField label="고객사" hideLabel width={200} emptyLabel="선택 안 함" placeholder="선택하세요"
                                value={form.partnerId} onChange={(v) => set('partnerId', v)}

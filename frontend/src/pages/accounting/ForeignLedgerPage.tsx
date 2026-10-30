@@ -8,6 +8,7 @@ import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPer
 import { useAuth } from '../../features/auth/AuthContext'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const num = (n: number | null | undefined, frac = 0) =>
   n == null || Number(n) === 0 ? '' : Number(n).toLocaleString('ko-KR', { minimumFractionDigits: frac, maximumFractionDigits: frac })
@@ -106,9 +107,7 @@ export default function ForeignLedgerPage() {
           <label><input type="radio" name="fx-mode" checked={mode === 'DETAIL'} onChange={() => setMode('DETAIL')} /> 건별</label>
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="기준일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="기준일자 끝" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "기준일자 시작", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "기준일자 끝", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

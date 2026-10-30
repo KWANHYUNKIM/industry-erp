@@ -10,6 +10,7 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /* 원본 [계정 계] · [합계] 줄(2026-10-03 실측): 바탕 회색 243 · 굵게 — 출력물 합계줄 토큰 --ec-report-stripe 로 그린다. */
@@ -261,9 +262,7 @@ export default function FundDailyPage({ variant = 'daily', embed }: { variant?: 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={flow ? FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

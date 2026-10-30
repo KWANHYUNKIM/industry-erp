@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ecAlert } from '../../components/EcDialog'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { ymd } from '../../utils/periods'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 회계 I › 기초등록 › <b>각종코드변경</b>(원본 E010111) — 2026-10-13 loginaa 실측(plans/회계1/E010111.md).
@@ -84,9 +85,7 @@ export default function CodeChangePage() {
       </div>
       <ul className="ec-form">
         <EcCond label="기준일자" span={2}>
-          <input type="date" className="ec-input w-[145px]" aria-label="시작일자" value={f.from} onChange={(e) => set({ from: e.target.value })} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="종료일자" value={f.to} onChange={(e) => set({ to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "시작일자", value: f.from, onChange: (e) => set({ from: e.target.value }) }} to={{ className: "ec-input w-[145px]", 'aria-label': "종료일자", value: f.to, onChange: (e) => set({ to: e.target.value }) }} />
         </EcCond>
         {kind !== 'PROJECT' && kind !== 'PARTNER' && (
           <EcCond label="프로젝트" pick span={2}>

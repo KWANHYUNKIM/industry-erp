@@ -7,6 +7,7 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** 서버 한 줄 — [표시조건1 · 2] 로 묶은 칸과 예상매출(계획) · 매출(판매 공급가액). */
 interface Row {
@@ -97,9 +98,7 @@ export default function SalesPlanComparePage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

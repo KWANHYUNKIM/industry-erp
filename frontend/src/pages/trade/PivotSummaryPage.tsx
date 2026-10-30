@@ -11,6 +11,7 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
 import { periodOf } from '../../utils/periods'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업관리 > 집계표 (이카운트 E040710)
@@ -280,9 +281,7 @@ export default function PivotSummaryPage() {
           ))}
         </div>
         <span className="text-[12.5px] text-ec-label">기준일자</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-        <span className="text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         <div className="flex gap-[2px]">
           {(['partner', 'item'] as const).map((g) => (
             <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{

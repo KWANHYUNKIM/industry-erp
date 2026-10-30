@@ -12,6 +12,7 @@ import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcRepor
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 import { CheckSortModal, SortHead, arrange, sortSetup, useHeadSort, type SortSetup } from '../../features/bankcheck/components/CheckSortSetup'
 import type { SortValue } from '../../utils/useTableSort'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 소계 · 합계줄 모양(2026-10-02 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -129,7 +130,7 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 145 }} />
+          <EcDateInput className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>

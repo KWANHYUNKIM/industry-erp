@@ -15,6 +15,7 @@ import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphisto
 import { exportTableToXlsx } from '../../utils/excel'
 import { shrinkImage } from '../../utils/imageResize'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 그룹웨어 › 다목적관리 — '다목적 전표' 넷(2026-10-14 loginaa 실측, .claude/skills/ecount-diff/plans/그룹웨어/E200276.md).
@@ -555,9 +556,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
             <li className="wide">
               <div className="title">일자</div>
               <div className="form gap-[4px]">
-                <input type="date" className="ec-input w-[140px]" value={cond.from} onChange={(e) => setCond((c) => ({ ...c, from: e.target.value }))} />
-                ~
-                <input type="date" className="ec-input w-[140px]" value={cond.to} onChange={(e) => setCond((c) => ({ ...c, to: e.target.value }))} />
+                <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.from, onChange: (e) => setCond((c) => ({ ...c, from: e.target.value })) }} to={{ className: "ec-input w-[140px]", value: cond.to, onChange: (e) => setCond((c) => ({ ...c, to: e.target.value })) }} />
               </div>
             </li>
           </ul>
@@ -680,7 +679,7 @@ function MultiSlipBoardView({ cfg }: { cfg: BoardCfg }) {
               </select>
               /
               <input className="ec-input w-[44px] text-center" aria-label="일" value={String(Number(day))} onChange={(e) => setYmd(year, month, e.target.value.replace(/\D/g, ''))} />
-              <input type="date" className="ec-input w-[30px]" aria-label="달력" value={date} onChange={(e) => { if (e.target.value) { setDate(e.target.value); setDirty(true) } }} />
+              <EcDateInput className="ec-input w-[30px]" aria-label="달력" value={date} onChange={(e) => { if (e.target.value) { setDate(e.target.value); setDirty(true) } }} />
               {editing && <span>- {editing.slipNo}</span>}
             </div>
           </li>

@@ -12,6 +12,7 @@ import { bankLabel } from '../../utils/bankLabel'
 import {
   amt, fetchActualMoves, filterPlans, monthEnd, planDec, planInc, slash, type ActualMove, type PlanFilter,
 } from '../../features/fundplan/forecast'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 회계 II › 자금계획 › 출력물 › <b>추정자금월보</b>(E020521) · <b>추정자금연보</b>(E020522) — 2026-10-12 loginaa 실측.
@@ -125,9 +126,7 @@ export default function FundForecastPage({ variant }: { variant: 'daily' | 'mont
         <EcCond label="조회일자">
           {daily ? (
             <>
-              <input type="date" className="ec-input w-[145px]" aria-label="조회 시작일" value={from} onChange={(e) => e.target.value && setFrom(e.target.value)} />
-              <span className="my-0 mx-[4px]">~</span>
-              <input type="date" className="ec-input w-[145px]" aria-label="조회 끝일" value={to} onChange={(e) => e.target.value && setTo(e.target.value)} />
+              <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "조회 시작일", value: from, onChange: (e) => e.target.value && setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "조회 끝일", value: to, onChange: (e) => e.target.value && setTo(e.target.value) }} />
             </>
           ) : yearly ? (
             <>
@@ -152,7 +151,7 @@ export default function FundForecastPage({ variant }: { variant: 'daily' | 'mont
           </span>
         </EcCond>
         <EcCond label="실적기준일">
-          <input type="date" className="ec-input w-[145px]" aria-label="실적기준일" value={base} onChange={(e) => e.target.value && setBase(e.target.value)} />
+          <EcDateInput className="ec-input w-[145px]" aria-label="실적기준일" value={base} onChange={(e) => e.target.value && setBase(e.target.value)} />
         </EcCond>
         <EcCond label="부서" pick>
           <CodePickerField label="부서" hideLabel width={220} value={dept} onChange={setDept} items={masters.departments} />

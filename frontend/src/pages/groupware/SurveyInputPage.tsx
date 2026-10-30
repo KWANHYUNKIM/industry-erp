@@ -12,6 +12,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import type { QuestionType, SurveyDoc } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
 import { shrinkImage } from '../../utils/imageResize'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사입력 (이카운트 E070256)
@@ -224,7 +225,7 @@ export default function SurveyInputPage() {
         <li className="wide">
           <div className="title">설문종료일</div>
           <div className="form">
-            <input type="date" className="ec-input w-[140px]" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <EcDateInput className="ec-input w-[140px]" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             <input type="time" className="ec-input w-[110px]" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
           </div>
         </li>

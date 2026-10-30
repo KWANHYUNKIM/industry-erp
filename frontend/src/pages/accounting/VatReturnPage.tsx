@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import type { JournalEntry } from '../../types/api'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 export interface AccountOpt { code: string; detailCategory: string | null }
@@ -695,10 +696,10 @@ export default function VatReturnPage() {
               </div>
             </EcCond>
             <EcCond label="신고작성일자" span={2}>
-              <input type="date" className="ec-input w-[150px]" value={form.reportDate} onChange={(e) => set({ reportDate: e.target.value })} />
+              <EcDateInput className="ec-input w-[150px]" value={form.reportDate} onChange={(e) => set({ reportDate: e.target.value })} />
             </EcCond>
             <EcCond label="납부기한" span={2}>
-              <input type="date" className="ec-input w-[150px]" value={form.dueDate} onChange={(e) => set({ dueDate: e.target.value })} />
+              <EcDateInput className="ec-input w-[150px]" value={form.dueDate} onChange={(e) => set({ dueDate: e.target.value })} />
             </EcCond>
             {([['taxAgent', '세무대리인 여부'], ['closure', '폐업신고 여부']] as const).map(([key, l]) => (
               <EcCond key={key} label={l} span={2}>

@@ -9,6 +9,7 @@ import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 type SideCond = '전체' | VatSide
@@ -181,9 +182,7 @@ export function JournalVatCompareView({ init }: { init?: JvcInit }) {
       {!entries && (
         <ul className="ec-cond mb-[8px]">
           <EcCond label="조회일자">
-            <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-            ~
-            <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           </EcCond>
           <EcCond label="계정명">
             <CodePickerField label="계정명" hideLabel multiple width={360} emptyLabel="" values={accountIds}

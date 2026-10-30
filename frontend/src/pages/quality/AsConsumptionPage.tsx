@@ -11,6 +11,7 @@ import { subtotalBy } from '../../utils/subtotalBy'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const fullDateNo = (date: string, no: string) => `${date.replace(/-/g, '/')}-${Number(no.split('-').pop()) || no.split('-').pop()}`
 
@@ -214,8 +215,7 @@ export default function AsConsumptionPage() {
           </span>
         </EcCond>
         <EcCond label="접수일자" span={2}>
-          <input type="date" className="ec-input" value={recvFrom} onChange={(e) => setRecvFrom(e.target.value)} /> ~
-          <input type="date" className="ec-input" value={recvTo} onChange={(e) => setRecvTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input", value: recvFrom, onChange: (e) => setRecvFrom(e.target.value) }} to={{ className: "ec-input", value: recvTo, onChange: (e) => setRecvTo(e.target.value) }} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"

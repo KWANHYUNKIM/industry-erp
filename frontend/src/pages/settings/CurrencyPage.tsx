@@ -6,6 +6,7 @@ import type { Currency, CurrencyConversion, ExchangeRate } from '../../types/api
 import { ymd } from '../../components/EcPeriodPicks'
 import { useTableSort } from '../../utils/useTableSort'
 import { dateText } from '../../utils/dateText'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -287,7 +288,7 @@ function Converter({ currencies, onError }: { currencies: Currency[]; onError: (
           <input className="ec-input" type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 130, textAlign: 'right' }} />
         </Field>
         <Field label="기준일">
-          <input className="ec-input" type="date" value={baseDate} onChange={(e) => setBaseDate(e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={baseDate} onChange={(e) => setBaseDate(e.target.value)} />
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={convert}>원화 환산</button>
         {result && (
@@ -386,7 +387,7 @@ function RateForm({ currencies, onError, onSaved }: {
           </select>
         </Field>
         <Field label="고시일 *">
-          <input className="ec-input" type="date" value={form.rateDate} onChange={(e) => set('rateDate', e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={form.rateDate} onChange={(e) => set('rateDate', e.target.value)} />
         </Field>
         <Field label={`환율 (${selected ? selected.unit : 1}${selected ? selected.code : ''} 당 원화) *`}>
           <input className="ec-input" type="number" step="any" value={form.rate} onChange={(e) => set('rate', e.target.value)} style={{ width: 140, textAlign: 'right' }} placeholder="1385.50" />

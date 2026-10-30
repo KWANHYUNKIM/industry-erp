@@ -10,6 +10,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { PartnerBalance } from '../../types/api'
 import EcPeriodPicks, { periodOf, BALANCE_PICKS, STOCK_PICKS } from '../../components/EcPeriodPicks'
 import type { LedgerBasis } from '../../utils/partnerRollup'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 영업 > 채권/채무현황 (이카운트 E040703) · 채권현황 (E040721)
@@ -243,7 +244,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
             {(Object.keys(MODE_LABEL) as Mode[]).map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
           </select></label>
         <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">기준일자</div>
-          <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 150 }} /></label>
+          <EcDateInput className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} /></label>
         {/*
           원본 기간 빠른선택 실측(2026-09-02):
           금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·<b>말일</b>.

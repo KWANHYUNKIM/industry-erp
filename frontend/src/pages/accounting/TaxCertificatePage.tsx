@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { loadVatSheet, type AccountOpt, type VatReturnRow } from './VatReturnPage'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface CompanyInfo {
   name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; address?: string; addressDetail?: string
@@ -100,7 +101,7 @@ export default function TaxCertificatePage() {
           <input type="month" className="ec-input w-[150px]" value={toYm} onChange={(e) => setToYm(e.target.value)} />
         </EcCond>
         <EcCond label="발행일자">
-          <input type="date" className="ec-input w-[150px]" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[150px]" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
         </EcCond>
         <li className="full">
           <div className="form">

@@ -10,6 +10,7 @@ import GridFindButton from '../../components/GridFindButton'
 import type { EmployeeMaster } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 관리 > 근태관리 > 근태입력.
@@ -251,11 +252,9 @@ export default function LeaveInputPage({ onClose }: { onClose?: () => void } = {
                 {types.map((t) => <option key={t}>{t}</option>)}
               </select></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">기간</div>
-              <input type="date" className="ec-input" value={bulkForm.startDate} style={{ width: 140 }}
-                     onChange={(e) => setBulkForm((f) => ({ ...f, startDate: e.target.value }))} /></label>
+              <EcDateInput className="ec-input" value={bulkForm.startDate} onChange={(e) => setBulkForm((f) => ({ ...f, startDate: e.target.value }))} /></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">~</div>
-              <input type="date" className="ec-input" value={bulkForm.endDate} style={{ width: 140 }}
-                     onChange={(e) => setBulkForm((f) => ({ ...f, endDate: e.target.value }))} /></label>
+              <EcDateInput className="ec-input" value={bulkForm.endDate} onChange={(e) => setBulkForm((f) => ({ ...f, endDate: e.target.value }))} /></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">근태(일)</div>
               <input type="number" step="any" className="ec-input" value={bulkForm.days} style={{ width: 80, textAlign: 'right' }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, days: e.target.value }))} /></label>
@@ -291,8 +290,7 @@ export default function LeaveInputPage({ onClose }: { onClose?: () => void } = {
 
       <div className="flex items-center gap-[6px] mb-[8px]">
         <span className="text-[12.5px] text-ec-label">일자</span>
-        <input className="ec-input" type="date" value={baseDate}
-               onChange={(e) => changeBaseDate(e.target.value)} style={{ width: 150 }} />
+        <EcDateInput className="ec-input" value={baseDate} onChange={(e) => changeBaseDate(e.target.value)} />
         <span className="text-[11.5px] text-ec-hint">
           여러 사원의 근태를 한 번에 넣습니다. 출퇴근 시각은 [출/퇴근기록부(ID)]에서 다룹니다.
         </span>
@@ -317,8 +315,7 @@ export default function LeaveInputPage({ onClose }: { onClose?: () => void } = {
           <li className="wide">
             <span className="title">기간</span>
             <div className="form flex items-center gap-[6px]">
-              <input type="date" className="ec-input w-[150px]" value={cm.from} onChange={(e) => setCm({ ...cm, from: e.target.value })} /> ~
-              <input type="date" className="ec-input w-[150px]" value={cm.to} onChange={(e) => setCm({ ...cm, to: e.target.value })} />
+              <EcDateRange from={{ className: "ec-input w-[150px]", value: cm.from, onChange: (e) => setCm({ ...cm, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", value: cm.to, onChange: (e) => setCm({ ...cm, to: e.target.value }) }} />
             </div>
           </li>
           <li className="wide">
@@ -381,8 +378,7 @@ export default function LeaveInputPage({ onClose }: { onClose?: () => void } = {
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>
                   {/* 원본은 근태일자 하나 — 여러 날은 줄을 나눠 넣는다(근태일괄입력의 기간은 그대로 한 줄로 간다) */}
-                  <input className="ec-input" type="date" value={l.startDate}
-                         onChange={(e) => setLine(l.key, { startDate: e.target.value, endDate: e.target.value })} />
+                  <EcDateInput className="ec-input" value={l.startDate} onChange={(e) => setLine(l.key, { startDate: e.target.value, endDate: e.target.value })} />
                 </td>
                 <td>
                   {/* 원본 [사원] — 사원등록의 사원 코드도움(사원번호 · 사원명) */}

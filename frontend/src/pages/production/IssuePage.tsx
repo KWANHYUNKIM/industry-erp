@@ -10,6 +10,7 @@ import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
 /** 원본 탭 [전체 · 결재중 · 미확인 · 확인] — 진행상태. */
@@ -292,11 +293,7 @@ export default function IssuePage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -353,14 +350,10 @@ export default function IssuePage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="최종작업일자">
-          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
         </EcCond>
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">

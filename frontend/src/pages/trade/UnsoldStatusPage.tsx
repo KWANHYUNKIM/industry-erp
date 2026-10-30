@@ -11,6 +11,7 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import type { ReportEmbedProps } from '../../utils/reportEmbed'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업관리 > 미판매현황 (이카운트 E040212)
@@ -262,11 +263,7 @@ export default function UnsoldStatusPage({ embed }: { embed?: ReportEmbedProps }
           미판매수량 · 오더관리번호 · <b>적요</b> · 수량 · … · <b>규격 · 진행상태 · 작성자</b>.
         */}
         <EcCond label="품목별납기일자">
-          <input type="date" className="ec-input" value={cond.dueFrom}
-                 onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={cond.dueTo}
-                 onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: cond.dueFrom, onChange: (e) => setC({ dueFrom: e.target.value }) }} to={{ className: "ec-input", value: cond.dueTo, onChange: (e) => setC({ dueTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={180} emptyLabel="전체"

@@ -7,6 +7,7 @@ import type { CorporateTaxChecklist, CorporateTaxCheckMemo } from '../../types/a
 import { ymd } from '../../components/EcPeriodPicks'
 import { EcReportFoot } from '../../components/EcReportFrame'
 import { loadVatSheet, type AccountOpt, type VatReturnRow } from './VatReturnPage'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const mm = (m: number) => `${String(m).padStart(2, '0')}월`
@@ -327,8 +328,7 @@ function MemoFormModal({ year, section, memo, onClose, onSaved }: {
     <Modal open title="메모등록" width={540} onClose={onClose} error={error}>
       <ul className="ec-form">
         <EcCond label="날짜">
-          <input type="date" className="ec-input w-[150px]" value={form.memoDate}
-                 onChange={(e) => setForm({ ...form, memoDate: e.target.value })} />
+          <EcDateInput className="ec-input w-[150px]" value={form.memoDate} onChange={(e) => setForm({ ...form, memoDate: e.target.value })} />
         </EcCond>
         <EcCond label="제목" span="full">
           <input className="ec-input w-full" placeholder="제목" value={form.title} autoFocus

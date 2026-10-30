@@ -8,6 +8,7 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import EcBarChart from '../../components/EcBarChart'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 회계 > 비용내역현황.
@@ -176,17 +177,11 @@ export default function ExpenseDetailPage() {
           둘째 기간 [사용일자]는 [사용] 체크로 켠다(비용내역조회와 같은 모양).
         */}
         <span className="text-[12.5px] text-ec-text">기준일자</span>
-        <input type="date" className="ec-input" value={from}
-               onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="my-0 mx-[2px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={to}
-               onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
           onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
         <span className="text-[12.5px] text-ec-text">사용일자</span>
-        <input type="date" className="ec-input w-[140px]" aria-label="사용일자부터" value={useFrom} disabled={!useUse} onChange={(e) => setUseFrom(e.target.value)} />
-        <span className="my-0 mx-[2px] text-ec-hint">~</span>
-        <input type="date" className="ec-input w-[140px]" aria-label="사용일자까지" value={useTo} disabled={!useUse} onChange={(e) => setUseTo(e.target.value)} />
+        <EcDateRange from={{ className: "ec-input w-[140px]", 'aria-label': "사용일자부터", value: useFrom, disabled: !useUse, onChange: (e) => setUseFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", 'aria-label': "사용일자까지", value: useTo, disabled: !useUse, onChange: (e) => setUseTo(e.target.value) }} />
         <label className="inline-flex items-center gap-[3px] text-[12.5px]">
           <input type="checkbox" checked={useUse} onChange={(e) => setUseUse(e.target.checked)} /> 사용
         </label>

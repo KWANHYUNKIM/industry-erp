@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import { ecAlert } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /** 데이터센터 > 데이터내보내기 — 실제 API 데이터를 CSV/Excel/JSON 으로 추출 */
 interface ItemRes { code: string; name: string; spec: string | null; unit: string; categoryName: string; unitPrice: number; safetyStock: number; active: boolean }
@@ -221,9 +222,9 @@ export default function DataExportPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
         <label className="text-[12.5px]">기간&nbsp;
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <EcDateInput className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} />
           &nbsp;~&nbsp;
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateInput className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
         <label className="text-[12.5px]">형식&nbsp;
           <select className="ec-input" value={format} onChange={(e) => setFormat(e.target.value as typeof format)}>

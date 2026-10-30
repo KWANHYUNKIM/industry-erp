@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { ContractStatus, EmploymentContract } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 type Pill = '전체' | '진행중' | '취소' | '완료'
 /** 원본 진행상태 — 우리 발송 = 진행중, 해지 = 취소, 서명완료 = 완료. 작성(발송 전)은 이 현황에 없다. */
@@ -86,9 +87,7 @@ export default function ContractStatusPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: range.from, onChange: (e) => setRange({ ...range, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", value: range.to, onChange: (e) => setRange({ ...range, to: e.target.value }) }} />
         </EcCond>
         <EcCond label="계약서명"><input className="ec-input w-full" placeholder="계약서명" value={nameCond} onChange={(e) => setNameCond(e.target.value)} /></EcCond>
         <li className="flex flex-wrap items-center gap-[6px]">

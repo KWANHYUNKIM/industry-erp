@@ -10,6 +10,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 > 창고이동현황 (이카운트 E040505)
@@ -336,14 +337,10 @@ export default function TransferStatusPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={cond.madeFrom} onChange={(e) => setC({ madeFrom: e.target.value })} style={{ width: 140 }} />
-          <span className="my-0 mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input" value={cond.madeTo} onChange={(e) => setC({ madeTo: e.target.value })} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: cond.madeFrom, onChange: (e) => setC({ madeFrom: e.target.value }) }} to={{ className: "ec-input", value: cond.madeTo, onChange: (e) => setC({ madeTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="최종작업일자">
-          <input type="date" className="ec-input" value={cond.editedFrom} onChange={(e) => setC({ editedFrom: e.target.value })} style={{ width: 140 }} />
-          <span className="my-0 mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input" value={cond.editedTo} onChange={(e) => setC({ editedTo: e.target.value })} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: cond.editedFrom, onChange: (e) => setC({ editedFrom: e.target.value }) }} to={{ className: "ec-input", value: cond.editedTo, onChange: (e) => setC({ editedTo: e.target.value }) }} />
         </EcCond>
       </EcStatusPanel>
 

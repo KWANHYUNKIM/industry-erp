@@ -9,6 +9,7 @@ import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
 import { won, type BillLineView } from '../../features/billingcontract/types'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /* 원본 버튼줄 글자 그대로(2026-10-13 실측). '이번기수' · '직전기수' 는 회계연도 시작월을 몰라 1월 기준이다. */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '이번기수', '직전기수', '종료일'] as const
@@ -55,9 +56,7 @@ export default function ContractUnreflectedPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="청구자료생성일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="청구자료생성일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="청구자료생성일자 끝" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "청구자료생성일자 시작", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "청구자료생성일자 끝", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
         </EcCond>
         <BillLineConds rows={rows} filter={filter} set={set} full={false} vatAll />

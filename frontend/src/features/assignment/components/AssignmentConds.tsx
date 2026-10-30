@@ -5,6 +5,7 @@ import { periodOf } from '../../../components/EcPeriodPicks'
 import { api } from '../../../api/client'
 import type { Department, EmployeeMaster } from '../../../types/api'
 import { ASSIGNMENT_KINDS, type AssignmentLine } from '../types'
+import { EcDateRange } from '../../../components/ui/EcDateInput'
 
 /**
  * 인사발령조회 · 인사발령현황의 조건 판 (원본 E020602 · E020720, 2026-10-03 loginaa 실측).
@@ -68,18 +69,12 @@ export default function AssignmentConds({ value, onChange, lines }: {
   return (
     <>
       <EcCond label="기준일자">
-        <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => set({ range: { ...range, from: e.target.value } })} />
-        ~
-        <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => set({ range: { ...range, to: e.target.value } })} />
+        <EcDateRange from={{ className: "ec-input w-[150px]", value: range.from, onChange: (e) => set({ range: { ...range, from: e.target.value } }) }} to={{ className: "ec-input w-[150px]", value: range.to, onChange: (e) => set({ range: { ...range, to: e.target.value } }) }} />
       </EcCond>
       <EcCond label="발령일자">
         {value.useAssignDate && (
           <>
-            <input type="date" className="ec-input w-[150px]" aria-label="발령일자 시작" value={assignRange.from}
-                   onChange={(e) => set({ assignRange: { ...assignRange, from: e.target.value } })} />
-            ~
-            <input type="date" className="ec-input w-[150px]" aria-label="발령일자 끝" value={assignRange.to}
-                   onChange={(e) => set({ assignRange: { ...assignRange, to: e.target.value } })} />
+            <EcDateRange from={{ className: "ec-input w-[150px]", 'aria-label': "발령일자 시작", value: assignRange.from, onChange: (e) => set({ assignRange: { ...assignRange, from: e.target.value } }) }} to={{ className: "ec-input w-[150px]", 'aria-label': "발령일자 끝", value: assignRange.to, onChange: (e) => set({ assignRange: { ...assignRange, to: e.target.value } }) }} />
           </>
         )}
         <label className="inline-flex items-center gap-[4px] ml-[6px]">

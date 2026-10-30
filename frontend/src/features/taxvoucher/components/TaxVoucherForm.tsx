@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import { ecConfirm } from '../../../components/EcDialog'
 import EcHistoryButton from '../../../components/EcHistory'
 import DropUpButton from './DropUpButton'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 export type Side = 'SALES' | 'PURCHASE'
 export interface PartnerOpt { id: number; code: string; name: string; bizRegNo?: string | null; ceoName?: string | null; address?: string | null; bizType?: string | null; bizItem?: string | null }
@@ -106,8 +107,7 @@ export default function TaxVoucherForm({ initial, partners, onClose, onSaved }: 
       <Modal open error={shownError} title={title} width={780} onClose={onClose}>
         <ul className="ec-form [&>li>.title]:basis-[100px]">
           <EcCond label="전표일자" span={2}>
-            <input type="date" className="ec-input w-[150px]" value={form.entryDate} disabled={!!form.id}
-                   onChange={(e) => set({ entryDate: e.target.value })} />
+            <EcDateInput className="ec-input w-[150px]" value={form.entryDate} disabled={!!form.id} onChange={(e) => set({ entryDate: e.target.value })} />
             {form.id && <span>- {form.entryNo}</span>}
           </EcCond>
           <EcCond label="부가세유형" span={2}>

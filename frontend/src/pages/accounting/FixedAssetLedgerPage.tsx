@@ -9,6 +9,7 @@ import EcPeriodPicks, { PRICE_REQUEST_PICKS, periodOf } from '../../components/E
 import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcReportFrame'
 import Modal from '../../components/Modal'
 import { dateNo } from '../../utils/dateNo'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 소계 · 합계줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게 · 앞 네 칸(계정명 · 코드 · 이름 · 취득일자)을 묶는다. */
@@ -120,7 +121,7 @@ export default function FixedAssetLedgerPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="조회일자">
-          <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 145 }} />
+          <EcDateInput className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={PRICE_REQUEST_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>

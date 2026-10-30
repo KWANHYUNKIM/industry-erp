@@ -7,6 +7,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { lastDay, monthRange, slashYm } from '../../features/dailypay/report'
 import { SortTh, sortRows, type SortState } from '../../features/dailypay/components/SortTh'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Row { payMonth: string; seq: number; paidMonth: string; payDate: string | null; workerId: number; workerCode: string; workerName: string; departmentId: number | null; payItem: string; days: number }
 
@@ -80,9 +81,7 @@ export default function DailyWorkConfirmStatusPage() {
         <EcCond label="지급일">
           {usePayDate && (
             <>
-              <input type="date" className="ec-input w-[150px]" aria-label="지급일 시작" value={payDateRange.from} onChange={(e) => setPayDateRange({ ...payDateRange, from: e.target.value })} />
-              ~
-              <input type="date" className="ec-input w-[150px]" aria-label="지급일 끝" value={payDateRange.to} onChange={(e) => setPayDateRange({ ...payDateRange, to: e.target.value })} />
+              <EcDateRange from={{ className: "ec-input w-[150px]", 'aria-label': "지급일 시작", value: payDateRange.from, onChange: (e) => setPayDateRange({ ...payDateRange, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", 'aria-label': "지급일 끝", value: payDateRange.to, onChange: (e) => setPayDateRange({ ...payDateRange, to: e.target.value }) }} />
             </>
           )}
           <label className="inline-flex items-center gap-[4px] ml-[6px]">

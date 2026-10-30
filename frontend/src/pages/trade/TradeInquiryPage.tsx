@@ -13,6 +13,7 @@ import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } fr
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import TradeEntry from './TradeEntry'
 import Modal, { ModalWindow } from '../../components/Modal'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** 불러온 전표가 있는 구매의 [불러온전표] 주황 꼬리표(원본 실측: 바탕 --ec-tag-warn · 흰 글자 · 둥글기 6 — QuotationPage GEN_TAG 와 같다). */
 const SRC_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
@@ -562,9 +563,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             예전 주석에는 "원본은 [일자]라고 부른다" 고만 적혀 있었는데, 판매 쪽은 아니었다.
           */}
           <span>{dateLabel}</span>
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span>~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           {/*
             원본 판매조회 조건 차례 실측(사본): 기준일자 · <b>거래유형 · 창고 · 프로젝트 ·
             거래처 · 품목</b> · 발송여부. 우리는 거래처·담당자·창고·품목·거래유형 차례였다.
@@ -636,17 +635,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                              .map((n) => ({ value: n, name: n }))} />
           {/* 원본 차례: [작성자]·[최종수정자] 다음이 <b>[최초작성일자]</b>, 그다음이 [최종수정일시] 다. */}
           <span className="text-[12.5px] text-ec-label ml-[8px]">최초작성일자</span>
-          <input type="date" className="ec-input" value={madeFrom} style={{ width: 130 }}
-                 onChange={(e) => setMadeFrom(e.target.value)} />
-          <span className="text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={madeTo} style={{ width: 130 }}
-                 onChange={(e) => setMadeTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
           <span className="text-[12.5px] text-ec-label ml-[8px]">{updatedLabel}</span>
-          <input type="date" className="ec-input" value={updFrom} style={{ width: 130 }}
-                 onChange={(e) => setUpdFrom(e.target.value)} />
-          <span className="text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={updTo} style={{ width: 130 }}
-                 onChange={(e) => setUpdTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input", value: updFrom, onChange: (e) => setUpdFrom(e.target.value) }} to={{ className: "ec-input", value: updTo, onChange: (e) => setUpdTo(e.target.value) }} />
           {/*
             원본 조건 판 <b>[기타]</b>. 2026-09-07 에 켜져 있는 원본(E040206 판매조회)을 열어
             재 보니 [기타] 안에는 <b>[수정일자순(정렬)] 하나</b>가 들어 있다 —

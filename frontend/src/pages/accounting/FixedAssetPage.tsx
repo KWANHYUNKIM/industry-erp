@@ -7,6 +7,7 @@ import type { DepreciationMethod, FixedAsset } from '../../types/api'
 import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -114,11 +115,7 @@ export default function FixedAssetPage() {
       */}
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label flex-wrap">
         <span>기간</span>
-        <input type="date" className="ec-input" value={pFrom}
-               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input" value={pTo}
-               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: pFrom, onChange: (e) => setPFrom(e.target.value) }} to={{ className: "ec-input", value: pTo, onChange: (e) => setPTo(e.target.value) }} />
         <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={pFrom}
                        onPick={(r) => { setPFrom(r.from); setPTo(r.to) }} />
       </div>
@@ -325,7 +322,7 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
           </select>
         </Field>
         <Field label="취득일 *">
-          <input className="ec-input w-[140px]" name="acquisitionDate" type="date" value={form.acquisitionDate} onChange={(e) => set('acquisitionDate', e.target.value)} />
+          <EcDateInput className="ec-input w-[140px]" name="acquisitionDate" value={form.acquisitionDate} onChange={(e) => set('acquisitionDate', e.target.value)} />
         </Field>
         <Field label="취득가액(공급가액) *">
           <input className="ec-input w-[130px] text-right" name="acquisitionCost" type="number" step="any" value={form.acquisitionCost} onChange={(e) => set('acquisitionCost', e.target.value)} />
@@ -451,7 +448,7 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
       <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{asset.assetNo} {asset.name}</div>
       <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="전표일자">
-          <input className="ec-input w-[140px]" name="disposalDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[140px]" name="disposalDate" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <div className="text-[12.5px] pb-[5px] flex gap-[8px]">
           <label><input type="radio" name="disposalType" checked={type === 'SALE'} onChange={() => setType('SALE')} /> 매각</label>
@@ -543,7 +540,7 @@ function IncreaseForm({ asset, accounts, onError, onSaved }: {
       <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{asset.assetNo} {asset.name}</div>
       <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="전표일자">
-          <input className="ec-input w-[140px]" name="slipDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[140px]" name="slipDate" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="수량">
           <input className="ec-input w-[80px] text-right" name="quantity" type="number" step="any" value={qtyText} onChange={(e) => setQtyText(e.target.value)} />

@@ -9,6 +9,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import { useCondPickers } from '../../utils/useCondPickers'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 재고 I &gt; 기타이동 &gt; 재고조정 &gt; 재고조정진행단계 [단계별재고실사](E040650) — 2026-10-21 loginaa 실측.
@@ -117,8 +118,7 @@ export default function StocktakePage() {
         <div className="flex gap-[12px] flex-wrap items-center">
           <label className="flex items-center gap-[6px]">
             <span className="w-[60px]">일자</span>
-            <input className="ec-input" type="date" aria-label="일자" value={date} disabled={Boolean(slipNo)}
-                   onChange={(e) => setDate(e.target.value)} />
+            <EcDateInput className="ec-input" aria-label="일자" value={date} disabled={Boolean(slipNo)} onChange={(e) => setDate(e.target.value)} />
           </label>
           <label className="flex items-center gap-[6px]">
             <span className="w-[60px]">창고</span>

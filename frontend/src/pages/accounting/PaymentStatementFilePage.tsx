@@ -5,6 +5,7 @@ import { ErrTip } from '../../components/GridCode'
 import { EcCond } from '../../components/EcStatusPanel'
 import { historyTime, type HistoryRow } from '../../components/EcHistory'
 import { api, extractErrorMessage } from '../../api/client'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 type Kind = 'BATCH' | 'LABOR' | 'RETIREMENT' | 'RESIDENT_OTHER' | 'RESIDENT_BUSINESS' | 'NONRESIDENT' | 'INTEREST_DIVIDEND' | 'MEDICAL'
 type Basis = 'ATTRIBUTION' | 'PAYMENT'
@@ -245,8 +246,7 @@ export default function PaymentStatementFilePage() {
               </select>
             </EcCond>
             <EcCond label="신고일자">
-              <input type="date" className="ec-input w-[150px]" value={form.reportDate}
-                     onChange={(e) => setForm({ ...form, reportDate: e.target.value })} />
+              <EcDateInput className="ec-input w-[150px]" value={form.reportDate} onChange={(e) => setForm({ ...form, reportDate: e.target.value })} />
             </EcCond>
             <EcCond label="담당자 부서명">
               <div className={`relative w-full ${tip === 'dept' && !form.managerDept.trim() ? 'ec-invalid' : ''}`}>

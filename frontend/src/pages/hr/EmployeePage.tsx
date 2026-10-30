@@ -19,6 +19,7 @@ import EmployeePayrollSettingPanel, {
 import { ecConfirm } from '../../components/EcDialog'
 import { ymd } from '../../utils/periods'
 import { useRequired } from '../../utils/useRequired'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const inputCls = 'ec-input w-full'
 
@@ -393,10 +394,10 @@ export default function EmployeePage() {
                 </div>
               </Field>
               <Field label="생년월일">
-                <input type="date" className={inputCls} value={form.birthDate} onChange={set('birthDate')} />
+                <EcDateInput className={inputCls} value={form.birthDate} onChange={set('birthDate')} />
               </Field>
               <Field label="입사일자">
-                <input type="date" className={inputCls} value={form.hireDate} onChange={set('hireDate')} />
+                <EcDateInput className={inputCls} value={form.hireDate} onChange={set('hireDate')} />
               </Field>
               {/* 원본 [입사구분] 코드도움 — 100 신입 · 200 경력 */}
               <Field label="입사구분">
@@ -420,7 +421,7 @@ export default function EmployeePage() {
                                    ...(form.duty && !['팀원', '팀장'].includes(form.duty) ? [{ value: form.duty, name: form.duty }] : [])]} />
               </Field>
               <Field label="퇴사일자">
-                <input type="date" className={inputCls} value={form.resignDate} onChange={set('resignDate')} />
+                <EcDateInput className={inputCls} value={form.resignDate} onChange={set('resignDate')} />
               </Field>
               <Field label="퇴사사유">
                 <input className={inputCls} value={form.resignReason} onChange={set('resignReason')} placeholder="퇴사사유" />

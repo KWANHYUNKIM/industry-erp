@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Modal from '../../../components/Modal'
 import { DEFAULT_ROWS, kindOf, ROW_CHOICES, visibleColumns } from './store'
 import { type WidgetDef, type WidgetSettings } from './types'
+import { EcDateRange } from '../../../components/ui/EcDateInput'
 
 /**
  * 위젯 [설정] 창 — 원본 표 위젯 설정 창의 칸 차례(2026-10-30 실측):
@@ -97,9 +98,7 @@ export default function WidgetSettingsModal({ def, value, onSave, onClose }: {
               </select>
               {period === '직접설정' && (
                 <>
-                  <input type="date" className="ec-input" value={s.from ?? ''} onChange={(e) => set({ from: e.target.value })} />
-                  ~
-                  <input type="date" className="ec-input" value={s.to ?? ''} onChange={(e) => set({ to: e.target.value })} />
+                  <EcDateRange from={{ className: "ec-input", value: s.from ?? '', onChange: (e) => set({ from: e.target.value }) }} to={{ className: "ec-input", value: s.to ?? '', onChange: (e) => set({ to: e.target.value }) }} />
                 </>
               )}
             </div>

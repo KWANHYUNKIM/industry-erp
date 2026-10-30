@@ -6,6 +6,7 @@ import CodePickerField from '../../../components/CodePickerField'
 import { periodOf } from '../../../utils/periods'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../../api/client'
+import EcDateInput, { EcDateRange } from '../../../components/ui/EcDateInput'
 
 export interface WorkHistoryLine {
   workDate: string; workerId: number; workerCode: string; workerName: string
@@ -127,9 +128,7 @@ export default function DailyWorkHistoryView() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="작업일자">
-          <input type="date" className="ec-input w-[150px]" aria-label="작업일자 시작" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" aria-label="작업일자 끝" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", 'aria-label': "작업일자 시작", value: range.from, onChange: (e) => setRange({ ...range, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", 'aria-label': "작업일자 끝", value: range.to, onChange: (e) => setRange({ ...range, to: e.target.value }) }} />
         </EcCond>
         <EcCond label="작업시간">
           {useTime && (
@@ -216,7 +215,7 @@ export default function DailyWorkHistoryView() {
               <li className="wide">
                 <span className="title">일자</span>
                 <div className="form flex items-center gap-[4px]">
-                  <input type="date" className="ec-input w-[150px]" aria-label="일자" value={view.slipDate} disabled /> -{view.slipNo}
+                  <EcDateInput className="ec-input w-[150px]" aria-label="일자" value={view.slipDate} disabled /> -{view.slipNo}
                 </div>
               </li>
             </ul>
@@ -289,9 +288,7 @@ function DateCondField({ label, value, onChange }: { label: string; value: DateC
       </select>
       {value.mode === '직접입력' && (
         <span className="flex items-center gap-[4px] mt-[4px]">
-          <input type="date" className="ec-input w-[150px]" aria-label={`${label} 시작`} value={value.from} onChange={(e) => onChange({ ...value, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" aria-label={`${label} 끝`} value={value.to} onChange={(e) => onChange({ ...value, to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", 'aria-label': `${label} 시작`, value: value.from, onChange: (e) => onChange({ ...value, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", 'aria-label': `${label} 끝`, value: value.to, onChange: (e) => onChange({ ...value, to: e.target.value }) }} />
         </span>
       )}
     </EcCond>

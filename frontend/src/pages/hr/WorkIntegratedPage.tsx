@@ -8,6 +8,7 @@ import { dateText } from '../../utils/dateText'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { useDeptGroups } from '../../utils/deptGroups'
 import { periodOf } from '../../components/EcPeriodPicks'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 관리 > 출퇴근/근태/일정 통합현황 (이카운트 E070315)
@@ -205,9 +206,7 @@ export default function WorkIntegratedPage() {
       </div>
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         <button className="ec-btn" onClick={load}>조회</button>
         {/*
           원본 조건 [사원명]·[부서]·[상태]·[일정구분].

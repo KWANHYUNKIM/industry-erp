@@ -6,6 +6,7 @@ import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMetho
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -63,9 +64,7 @@ export default function IncomePage() {
       </div>
 
       <div className="flex items-center gap-[6px] mb-[8px]">
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
         {tab === '수입등록' && <button className="ec-btn" onClick={() => setShowForm(true)}>+ 수입등록</button>}
         <span className="ml-[8px] text-[12px] text-ec-hint">
@@ -235,7 +234,7 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
             <tbody>
               <tr>
                 <th className="w-[90px] bg-ec-page">수입일</th>
-                <td><input type="date" className="ec-input" value={incomeDate} onChange={(e) => setIncomeDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className="ec-input" value={incomeDate} onChange={(e) => setIncomeDate(e.target.value)} /></td>
                 <th className="w-[70px] bg-ec-page">부서</th>
                 <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} style={{ width: 130 }} /></td>
               </tr>

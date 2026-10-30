@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { Partner, SalesDoc, PurchaseDoc, Project } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 그룹웨어 > 공유정보 > 조건별검색 (이카운트 E070203)
@@ -135,9 +136,7 @@ export default function ConditionSearchPage() {
           <tr>
             <th style={th}>기준일자</th>
             <td colSpan={3}>
-              <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span className="my-0 mx-[6px] text-ec-label">~</span>
-              <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+              <EcDateRange from={{ className: inputCls, value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: inputCls, value: to, onChange: (e) => setTo(e.target.value) }} />
               <span className="ml-[8px]">
                 <button className="ec-btn ec-btn-sm" onClick={() => preset(0, 'range')}>금일</button>
                 <button className="ec-btn ec-btn-sm" style={{ marginLeft: 3 }} onClick={() => preset(7, 'range')}>최근7일</button>

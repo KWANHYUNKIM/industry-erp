@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { ecAlert } from '../../components/EcDialog'
 import type { LocationStock, WmsOverview } from '../../types/api'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II > WMS — 바깥 WMS 연동 화면들의 틀(2026-10-20 loginaa 실측).
@@ -143,15 +144,11 @@ function PlanStatus({ dir }: { dir: '입고' | '출고' }) {
           <label className="inline-flex items-center gap-[3px] text-[12.5px]"><input type="checkbox" /> 라인별</label>
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
         </EcCond>
         <EcCond label="품목별납기일자">
-          <input type="date" className="ec-input w-[145px]" />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" />
+          <EcDateRange from={{ className: "ec-input w-[145px]" }} to={{ className: "ec-input w-[145px]" }} />
         </EcCond>
         {['창고', '거래처', '품목코드', '담당자', '거래처관리담당자', '유형'].map((l) => (
           <EcCond key={l} label={l} pick><input className="ec-input w-[200px]" /></EcCond>
@@ -187,7 +184,7 @@ function AdjustScreen() {
   return (
     <EcListShell title="WMS재고조정" actions={[{ label: '조정', primary: true, onClick: notLinked }]}>
       <ul className="ec-cond mb-[8px]">
-        <EcCond label="기준일자"><input type="date" className="ec-input w-[145px]" value={base} onChange={(e) => setBase(e.target.value)} /></EcCond>
+        <EcCond label="기준일자"><EcDateInput className="ec-input w-[145px]" value={base} onChange={(e) => setBase(e.target.value)} /></EcCond>
         {['위치', '재고번호', '품목코드'].map((l) => <EcCond key={l} label={l} pick><input className="ec-input w-[200px]" /></EcCond>)}
       </ul>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -281,9 +278,7 @@ function HistoryScreen() {
           ))}
         </EcCond>
         <EcCond label="작업일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={HISTORY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
         </EcCond>
         <EcCond label="전표일자"><label className="inline-flex items-center gap-[3px] text-[12.5px]"><input type="checkbox" /> 사용</label></EcCond>

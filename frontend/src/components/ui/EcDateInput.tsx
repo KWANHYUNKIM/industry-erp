@@ -85,13 +85,30 @@ function Floating({ anchor, onClose, children, className }: {
   return createPortal(<div ref={ref} className={`ec-float ${className}`}>{children}</div>, document.body)
 }
 
+/**
+ * 칸 안의 누름 단추(연 ▾ · 월 ▾ · 달력)는 &lt;button&gt; 이 아니라 role=button 인 span 이다 — 일자칸 하나가 단추 셋을 더해
+ * 창 안 단추를 글자로 세는 곳(QA 흐름 '[role=dialog] button' → '출근,닫기' · 하단 버튼줄 찾기)이 어긋나지 않게.
+ * 키보드는 Enter · Space 로 누른다.
+ */
+function pressable(disabled: boolean, onPress: () => void) {
+  return {
+    role: 'button' as const,
+    tabIndex: disabled ? -1 : 0,
+    'aria-disabled': disabled || undefined,
+    onClick: () => { if (!disabled) onPress() },
+    onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+      if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPress() }
+    },
+  }
+}
+
 /** [2026 ▾] · [09 ▾] — 원본 자체 목록. 현재 값은 파란 띠 + ✓, 열면 그 줄이 보이게 굴린다. */
 function DropSel({ value, options, onPick, disabled, label, className }: {
   value: number | null; options: { v: number; t: string }[]; onPick: (v: number) => void
   disabled?: boolean; label: string; className: string
 }) {
   const [open, setOpen] = useState(false)
-  const btn = useRef<HTMLButtonElement>(null)
+  const btn = useRef<HTMLSpanElement>(null)
   const list = useRef<HTMLUListElement>(null)
   useEffect(() => {
     if (open) list.current?.querySelector<HTMLElement>('.on')?.scrollIntoView({ block: 'center' })
@@ -99,11 +116,11 @@ function DropSel({ value, options, onPick, disabled, label, className }: {
   const cur = options.find((o) => o.v === value)
   return (
     <>
-      <button ref={btn} type="button" className={`ec-input ec-date-sel ${className}`} disabled={disabled}
-              aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <span ref={btn} {...pressable(!!disabled, () => setOpen((o) => !o))} className={`ec-input ec-date-sel ${className}`}
+            aria-label={label} aria-haspopup="listbox" aria-expanded={open}>
         <span>{cur?.t ?? ''}</span>
         <EcIcon name="caret-down" size={10} />
-      </button>
+      </span>
       {open && (
         <Floating anchor={btn.current} className="ec-date-list" onClose={() => setOpen(false)}>
           <ul ref={list} role="listbox" aria-label={label}>
@@ -222,7 +239,7 @@ export default function EcDateInput(props: EcDateInputProps) {
   const max = maxP == null ? undefined : String(maxP)
   const native = useRef<HTMLInputElement | null>(null)
   const dayRef = useRef<HTMLInputElement>(null)
-  const calBtn = useRef<HTMLButtonElement>(null)
+  const calBtn = useRef<HTMLSpanElement>(null)
   const [inner, setInner] = useState(defaultValue ?? '')
   const [dayDraft, setDayDraft] = useState<string | null>(null)
   const [cal, setCal] = useState(false)
@@ -305,10 +322,9 @@ export default function EcDateInput(props: EcDateInputProps) {
         onBlur={commitDay}
       />
       {!noCalendar && (
-        <button ref={calBtn} type="button" className="ec-btn ec-date-cal" aria-label={`${label} 달력`} title="달력"
-                disabled={locked} onClick={() => setCal((o) => !o)}>
+        <span ref={calBtn} {...pressable(!!locked, () => setCal((o) => !o))} className="ec-btn ec-date-cal" aria-label={`${label} 달력`} title="달력">
           <EcIcon name="calendar" size={13} />
-        </button>
+        </span>
       )}
       {cal && (
         <EcCalendarPanel anchor={calBtn.current} value={cur} min={min} max={max} onClose={() => setCal(false)}
@@ -326,7 +342,7 @@ export default function EcDateInput(props: EcDateInputProps) {
 export function EcDateRange({ from, to, className }: { from: EcDateInputProps; to: EcDateInputProps; className?: string }) {
   const a = useRef<HTMLInputElement | null>(null)
   const b = useRef<HTMLInputElement | null>(null)
-  const btn = useRef<HTMLButtonElement>(null)
+  const btn = useRef<HTMLSpanElement>(null)
   const [cal, setCal] = useState(false)
   const [step, setStep] = useState<0 | 1>(0)
   const [fv, setFv] = useState(from.value ?? from.defaultValue ?? '')
@@ -346,10 +362,10 @@ export function EcDateRange({ from, to, className }: { from: EcDateInputProps; t
       <span className="sep">~</span>
       <EcDateInput {...to} noCalendar ref={join(to.ref, b)}
                    onChange={(e) => { setTv(e.target.value); to.onChange?.(e) }} />
-      <button ref={btn} type="button" className="ec-btn ec-date-cal" aria-label={`${from['aria-label'] ?? '기간'} 달력`} title="달력"
-              disabled={locked} onClick={() => { setStep(0); setCal((o) => !o) }}>
+      <span ref={btn} {...pressable(!!locked, () => { setStep(0); setCal((o) => !o) })} className="ec-btn ec-date-cal"
+            aria-label={`${from['aria-label'] ?? '기간'} 달력`} title="달력">
         <EcIcon name="calendar" size={13} />
-      </button>
+      </span>
       {cal && (
         <EcCalendarPanel anchor={btn.current} from={curF} to={curT} min={from.min == null ? undefined : String(from.min)} max={to.max == null ? undefined : String(to.max)} onClose={() => setCal(false)}
                          onPick={(v) => {

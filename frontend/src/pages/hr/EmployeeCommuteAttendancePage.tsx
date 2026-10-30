@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { isHoliday, koreanDateTime, monthToToday, slashDate, type EmployeeCommuteLine } from '../../features/employeecommute/types'
 import { ymd } from '../../utils/periods'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Vacation { empCode: string | null; type: string; startDate: string; endDate: string; days: number; reason: string | null; status: string }
 interface Kind { code: string; name: string; vacationKindName: string | null; vacationKindId: number | null; kindGroup: string | null }
@@ -126,9 +127,7 @@ export default function EmployeeCommuteAttendancePage() {
     <EcListShell title="출퇴근/근태현황(사원)" searchable={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기간">
-          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: range.from, onChange: (e) => setRange({ ...range, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", value: range.to, onChange: (e) => setRange({ ...range, to: e.target.value }) }} />
         </EcCond>
         <EcCond label="사원명">
           <CodePickerField label="사원명" hideLabel fill multiple placeholder="사원명" values={empCond} onChangeMulti={(v) => setEmpCond(v)}

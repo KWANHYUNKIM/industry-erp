@@ -13,6 +13,7 @@ import { weekOfYear } from '../../utils/statusAggregate'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 import type { QualityInspectionRequest } from '../../types/api'
 import { ecAlert } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const qty = (n: number) => n.toLocaleString('ko-KR')
 /** 집계 판의 수량은 소수 둘째 자리까지(원본 '1.00'). */
@@ -290,9 +291,7 @@ export default function QualityRequestStatusPage() {
           </div>
         </EcCond>
         <EcCond label="일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

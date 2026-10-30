@@ -21,6 +21,7 @@ import NameChips from '../../features/schedule/components/NameChips'
 import { EcHistoryModal } from '../../components/EcHistory'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface ScheduleEvent {
   id: number
@@ -607,7 +608,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
           <li className="wide">
             <div className="title">날짜/시간</div>
             <div className="form">
-              <input type="date" className="ec-input w-[150px]" value={form.eventDate} onChange={(e) => set('eventDate', e.target.value)} />
+              <EcDateInput className="ec-input w-[150px]" value={form.eventDate} onChange={(e) => set('eventDate', e.target.value)} />
               <input type="time" className="ec-input w-[110px]" value={form.startTime} onChange={(e) => set('startTime', e.target.value)} />
               <span className="text-ec-label">~</span>
               <input type="time" className="ec-input w-[110px]" value={form.endTime} onChange={(e) => set('endTime', e.target.value)} />
@@ -861,9 +862,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
             <ul className="ec-cond mb-[6px]">
               {/* 원본 조건 첫째 [기준일자] — 구간이다. 달력의 하루 고르기는 이 안에서 더 좁힌다. */}
               <EcCond label="기준일자">
-                <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-                <span className="my-0 mx-[4px] text-ec-label">~</span>
-                <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+                <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
               </EcCond>
               <EcCond label="제목">
                 <input className="ec-input w-[160px]" value={titleCond} placeholder="제목" onChange={(e) => setTitleCond(e.target.value)} />

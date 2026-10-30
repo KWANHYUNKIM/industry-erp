@@ -11,6 +11,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { ecConfirm } from '../../components/EcDialog'
 import { minToHours, fmt2 } from '../../utils/workHours'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 작업 > 작업내역조회 (/api/work-results).
@@ -250,9 +251,7 @@ export default function WorkResultInquiryPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본은 이 줄을 <b>[기준일자]</b> 라 부른다(2026-09-08 실측). [작업일자]는 우리가 붙인 이름이었다. */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px] inline-flex gap-[3px]">
             {STATUS_PICKS.slice(0, 4).map((label) => (
               <button key={label} type="button" className="ec-btn"

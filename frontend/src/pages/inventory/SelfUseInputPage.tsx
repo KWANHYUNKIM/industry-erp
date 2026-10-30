@@ -16,6 +16,7 @@ import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/Slip
 import { useRequired } from '../../utils/useRequired'
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 type Line = { itemId: string; quantity: string; kind: string }
 type Grid = 'defect' | 'normal'
@@ -251,8 +252,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
 
         <ul className="ec-form mb-[8px]">
           <EcCond label="일자">
-            <input type="date" className="ec-input w-[150px]" value={date} disabled={editing}
-                   onChange={(e) => setDate(e.target.value)} />
+            <EcDateInput className="ec-input w-[150px]" value={date} disabled={editing} onChange={(e) => setDate(e.target.value)} />
             {editing && adjustNo && <span className="ml-[6px]">-{Number(adjustNo.split('-').pop()) || ''}</span>}
           </EcCond>
           {selfUse && (

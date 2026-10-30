@@ -6,6 +6,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 생산계획/MRP생성 — 주차별 소요량 대비 계획수량 (/api/production-plans).
@@ -230,11 +231,7 @@ export default function MrpPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 차례는 <b>[생성일자]가 먼저</b>고 그다음이 [생산계획기간] 이다(사본 실측). */}
         <EcCond label="생성일자">
-          <input type="date" className="ec-input" value={madeFrom}
-                 onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={madeTo}
-                 onChange={(e) => setMadeTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="생산계획기간">
           {/* 계획주차는 2026-W28 같은 문자열이라 주차 입력으로 받는다 — 날짜로 받으면 되레 어긋난다. */}
@@ -452,9 +449,7 @@ function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo, source
     <Modal open title={mode === 'PLAN' ? '생산계획현황' : 'MRP현황'} error={err} width={1400} onClose={onClose}>
       <div className="flex items-center gap-[6px] mb-[8px] flex-wrap">
         <span className="text-[12.5px]">대상기간</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => void run()}>적용(F8)</button>
         {mode === 'PLAN' && (
           <span className="ml-auto flex items-center gap-[6px]">
@@ -726,12 +721,10 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
       <table className="w-full text-left">
         <tbody>
           <tr><th className="w-[130px]">생성일자</th>
-            <td><input type="date" className="ec-input" value={runDate} onChange={(e) => setRunDate(e.target.value)} style={{ width: 150 }} /></td></tr>
+            <td><EcDateInput className="ec-input" value={runDate} onChange={(e) => setRunDate(e.target.value)} /></td></tr>
           <tr><th>생산계획기간</th>
             <td>
-              <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-              <span className="my-0 mx-[4px]">~</span>
-              <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
+              <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
             </td></tr>
           <tr><th>생산계획대상-전표</th>
             <td className="text-[12.5px] flex gap-[10px] items-center flex-wrap">

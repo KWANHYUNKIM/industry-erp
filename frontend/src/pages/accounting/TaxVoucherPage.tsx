@@ -10,6 +10,7 @@ import { type PaperParty } from '../../features/taxvoucher/components/TaxInvoice
 import TaxInvoicePaperModal from '../../features/taxvoucher/components/TaxInvoicePaperModal'
 import TaxVoucherForm, { PURCHASE_TYPES, SALES_TYPES, newVoucherForm, voucherFormOf,
   type PartnerOpt, type Side, type Voucher, type VoucherForm } from '../../features/taxvoucher/components/TaxVoucherForm'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '금년', '전년', '직전분기', '직전반기', '종료일'] as const
 
@@ -95,9 +96,7 @@ export default function TaxVoucherPage() {
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="조회일자">
-          <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="거래처">
           <CodePickerField label="거래처" hideLabel fill value={partnerCond} onChange={(v) => setPartnerCond(v)} items={partnerItems} />

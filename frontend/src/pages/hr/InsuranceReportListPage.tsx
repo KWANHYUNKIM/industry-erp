@@ -10,6 +10,7 @@ import type { EmployeeMaster } from '../../types/api'
 import { insuranceEmployeeColumns } from '../../features/insurance/employeeColumns'
 import WorkplaceModal from '../../features/insurance/WorkplaceModal'
 import { INSURANCE_FORM_NAMES, INSURANCE_INPUT_PATHS, type InsuranceKind, type InsuranceReport } from '../../features/insurance/types'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 관리 › 급여관리 › 4대보험신고(원본 N001768, 2026-10-14 실측).
@@ -98,8 +99,7 @@ export default function InsuranceReportListPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자" span={2}>
-          <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} /> ~
-          <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="사원" span={2}>
           <CodePickerField label="사원" hideLabel fill plain placeholder="사원" value={employeeId}

@@ -10,6 +10,7 @@ import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { PARTNER_LEDGER_PICKS } from '../../utils/periods'
 import { useRequired } from '../../utils/useRequired'
 import type { JournalEntry, SalesDoc, PurchaseDoc, TradeLine } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -381,9 +382,7 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
       <ul className="ec-cond mb-[8px]">
         <EcCond label="채권채무구분">{radios(`pb${kind}-side`, ['전체', '채권', '채무'] as const, sideCond, setSideCond)}</EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={PARTNER_LEDGER_PICKS} currentFrom={from} onPick={(r) => { if (r.from) setFrom(r.from); setTo(r.to) }} />
           </span>

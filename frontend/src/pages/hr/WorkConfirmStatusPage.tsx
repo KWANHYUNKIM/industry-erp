@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface ConfirmRow { payMonth: string; employeeId: number; employeeName: string; payItemId: number; payItemName: string; unit: string; quantity: number }
 
@@ -103,9 +104,7 @@ export default function WorkConfirmStatusPage() {
         <EcCond label="지급일">
           {usePayDate && (
             <>
-              <input type="date" className="ec-input w-[150px]" aria-label="지급일 시작" value={payDate.from} onChange={(e) => setPayDate({ ...payDate, from: e.target.value })} />
-              ~
-              <input type="date" className="ec-input w-[150px]" aria-label="지급일 끝" value={payDate.to} onChange={(e) => setPayDate({ ...payDate, to: e.target.value })} />
+              <EcDateRange from={{ className: "ec-input w-[150px]", 'aria-label': "지급일 시작", value: payDate.from, onChange: (e) => setPayDate({ ...payDate, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", 'aria-label': "지급일 끝", value: payDate.to, onChange: (e) => setPayDate({ ...payDate, to: e.target.value }) }} />
             </>
           )}
           <label className="inline-flex items-center gap-[4px] ml-[6px]">

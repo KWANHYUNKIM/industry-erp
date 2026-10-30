@@ -14,6 +14,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -477,8 +478,8 @@ export default function QuotationPage() {
                 <td>
                   <label className="mr-[12px]"><input type="radio" name={`gen-${f}`} checked={!genDirect[f]} onChange={() => setGenDirect((d) => ({ ...d, [f]: false }))} /> 기본입력</label>
                   <label className="mr-[12px]"><input type="radio" name={`gen-${f}`} checked={!!genDirect[f]} onChange={() => setGenDirect((d) => ({ ...d, [f]: true }))} /> 직접입력</label>
-                  {genDirect[f] && f === '일자' && <input type="date" className="ec-input" value={genVal.date} onChange={(e) => setGenVal((v) => ({ ...v, date: e.target.value }))} />}
-                  {genDirect[f] && f === '납기일자' && <input type="date" className="ec-input" value={genVal.due} onChange={(e) => setGenVal((v) => ({ ...v, due: e.target.value }))} />}
+                  {genDirect[f] && f === '일자' && <EcDateInput className="ec-input" value={genVal.date} onChange={(e) => setGenVal((v) => ({ ...v, date: e.target.value }))} />}
+                  {genDirect[f] && f === '납기일자' && <EcDateInput className="ec-input" value={genVal.due} onChange={(e) => setGenVal((v) => ({ ...v, due: e.target.value }))} />}
                   {genDirect[f] && f === '거래처' && (
                     <CodePickerField label="거래처" hideLabel width={200} emptyLabel="" value={genVal.partner} onChange={(v) => setGenVal((x) => ({ ...x, partner: v }))}
                                      items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />)}
@@ -563,11 +564,7 @@ export default function QuotationPage() {
         </EcCond>
         {/* 원본 조건 차례의 첫째 <b>[기준일자]</b>. 단추는 원본대로 종료일 다음에 최근30일(+1개월). */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -635,8 +632,7 @@ export default function QuotationPage() {
         </EcCond>
         {/* 표에 [유효기간] 열을 찍으면서 "이 날짜까지 유효한 것" 을 고를 수가 없었다. */}
         <EcCond label="유효기간">
-          <input className="ec-input" type="date" style={{ width: 140 }} value={validCond}
-                 onChange={(e) => setValidCond(e.target.value)} />
+          <EcDateInput className="ec-input" value={validCond} onChange={(e) => setValidCond(e.target.value)} />
         </EcCond>
         {/* 원본 펼친 판의 뒤쪽 칸 — [진행상태] 다음이 [작성자]다(2026-09-09 실측). */}
         <EcCond label="작성자">
@@ -646,11 +642,7 @@ export default function QuotationPage() {
         {/* 원본 차례: [작성자] 다음이 [최종수정자]·[최초작성일자]·<b>[최종수정일시]</b> 다. */}
         <EcCond label="최종수정일시">
           <div className="flex items-center gap-[4px]">
-            <input className="ec-input" type="date" style={{ width: 140 }} value={upFrom}
-                   onChange={(e) => setUpFrom(e.target.value)} />
-            <span className="text-ec-hint">~</span>
-            <input className="ec-input" type="date" style={{ width: 140 }} value={upTo}
-                   onChange={(e) => setUpTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input", value: upFrom, onChange: (e) => setUpFrom(e.target.value) }} to={{ className: "ec-input", value: upTo, onChange: (e) => setUpTo(e.target.value) }} />
           </div>
         </EcCond>
         {/* 원본 차례: [발송여부] 다음이 [기타] 다(2026-09-07 실측). */}

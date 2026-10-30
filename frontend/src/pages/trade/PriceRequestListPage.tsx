@@ -14,6 +14,7 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 import Modal from '../../components/Modal'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 단가를 회신받은 발주서 — 단가확정 뒤로만 발주확정 · 입고전환이 있다(PurchaseOrderService). */
@@ -122,9 +123,7 @@ export default function PriceRequestListPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -141,9 +140,7 @@ export default function PriceRequestListPage() {
             {VALID_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
           {validOpt !== '사용안함' && (<>
-            <input type="date" className="ec-input" value={validFrom} onChange={(e) => { setValidFrom(e.target.value); setValidOpt('직접입력') }} style={{ width: 145, marginLeft: 6 }} />
-            <span className="my-0 mx-[4px]">~</span>
-            <input type="date" className="ec-input" value={validTo} onChange={(e) => { setValidTo(e.target.value); setValidOpt('직접입력') }} style={{ width: 145 }} />
+            <EcDateRange from={{ className: "ec-input", value: validFrom, onChange: (e) => { setValidFrom(e.target.value); setValidOpt('직접입력') } }} to={{ className: "ec-input", value: validTo, onChange: (e) => { setValidTo(e.target.value); setValidOpt('직접입력') } }} />
           </>)}
         </EcCond>
         <EcCond label="내.외자구분">

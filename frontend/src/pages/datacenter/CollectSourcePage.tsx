@@ -8,6 +8,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import type { CollectData, CollectDocType } from '../../types/api'
 import NumCheck from '../../components/NumCheck'
 import EcIcon from '../../components/ui/EcIcon'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 데이터센터 › 수집데이터등록 (이카운트 C001401)
@@ -204,12 +205,10 @@ export default function CollectSourcePage() {
         <EcCond label="최초작성자"><input className="ec-input w-[180px]" placeholder="최초작성자" value={cond.createdBy} onChange={(e) => setD('createdBy', e.target.value)} /></EcCond>
         <EcCond label="최종수정자"><input className="ec-input w-[180px]" placeholder="최종수정자" value={cond.updatedBy} onChange={(e) => setD('updatedBy', e.target.value)} /></EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={cond.madeFrom} onChange={(e) => setD('madeFrom', e.target.value)} /> ~
-          <input type="date" className="ec-input" value={cond.madeTo} onChange={(e) => setD('madeTo', e.target.value)} />
+          <EcDateRange from={{ className: "ec-input", value: cond.madeFrom, onChange: (e) => setD('madeFrom', e.target.value) }} to={{ className: "ec-input", value: cond.madeTo, onChange: (e) => setD('madeTo', e.target.value) }} />
         </EcCond>
         <EcCond label="최종작업일자">
-          <input type="date" className="ec-input" value={cond.workedFrom} onChange={(e) => setD('workedFrom', e.target.value)} /> ~
-          <input type="date" className="ec-input" value={cond.workedTo} onChange={(e) => setD('workedTo', e.target.value)} />
+          <EcDateRange from={{ className: "ec-input", value: cond.workedFrom, onChange: (e) => setD('workedFrom', e.target.value) }} to={{ className: "ec-input", value: cond.workedTo, onChange: (e) => setD('workedTo', e.target.value) }} />
         </EcCond>
         <EcCond label="기타"><label className="flex items-center gap-[4px]"><input type="checkbox" checked={cond.byUpdated} onChange={(e) => setD('byUpdated', e.target.checked)} /> 수정일자순(정렬)</label></EcCond>
       </ul>

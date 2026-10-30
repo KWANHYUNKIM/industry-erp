@@ -5,6 +5,7 @@ import { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { useRequired } from '../../utils/useRequired'
 import type { Item, Partner, Warehouse } from '../../types/api'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II › A/S관리 › A/S수리 › <b>A/S수리입력</b>(E040605) 의 머리 칸 · 품목 격자.
@@ -111,7 +112,7 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
   return (<>
     <ul className="ec-form">
       <li><div className="title">일자</div><div className="form">
-        <input type="date" className="ec-input w-[150px]" value={f.repairDate} disabled={editing} onChange={(e) => setFv('repairDate', e.target.value)} />
+        <EcDateInput className="ec-input w-[150px]" value={f.repairDate} disabled={editing} onChange={(e) => setFv('repairDate', e.target.value)} />
       </div></li>
       <li><div className="title">거래처</div><div className="form">
         <CodePickerField label="거래처" hideLabel fill emptyLabel="" placeholder="거래처" value={f.partnerId} onChange={(v) => setFv('partnerId', v)}

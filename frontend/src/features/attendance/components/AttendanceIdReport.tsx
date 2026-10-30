@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import type { Attendance } from '../../../types/api'
 import { useShortcut } from '../../../utils/useShortcut'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
+import { EcDateRange } from '../../../components/ui/EcDateInput'
 
 /**
  * 그룹웨어 › 업무관리 › 출/퇴근 의 (ID) 현황 넷 — 출/퇴근현황(ID) E070306 · 지각현황(ID) E070307 · 일별근무시간(ID) E070309 ·
@@ -211,9 +212,7 @@ export default function AttendanceIdReport({ kind }: { kind: AttendanceIdKind })
       <li key="기간" className="wide">
         <div className="title">기간</div>
         <div className="form">
-          <input type="date" className="ec-input w-[140px]" aria-label="기간 부터" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" aria-label="기간 까지" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", 'aria-label': "기간 부터", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", 'aria-label': "기간 까지", value: to, onChange: (e) => setTo(e.target.value) }} />
         </div>
       </li>,
       text('사원명', empName, setEmpName),

@@ -10,6 +10,7 @@ import EcPeriodPicks, { periodOf, ORDER_STAGE_PICKS } from '../../components/EcP
 import { ecConfirm, requireSelection } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고2 > 오더관리 > 오더관리진행단계(E040904).
@@ -240,9 +241,7 @@ export default function OrderStagePage() {
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
           <div className="flex items-center gap-[6px] flex-wrap">
-            <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <span className="text-ec-label">~</span>
-            <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
             <EcPeriodPicks labels={ORDER_STAGE_PICKS} currentFrom={from}
                            onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </div>
@@ -364,7 +363,7 @@ export default function OrderStagePage() {
                                  .map((t) => ({ value: String(t.id), code: t.code, name: t.name }))} />
             </span>
             <label>생성일자</label>
-            <input type="date" className="ec-input w-[150px]" value={form.createdDate} onChange={set('createdDate')} />
+            <EcDateInput className="ec-input w-[150px]" value={form.createdDate} onChange={set('createdDate')} />
             <label>적요1</label>
             <input className="ec-input w-full" placeholder="적요1" value={form.remarks1} onChange={set('remarks1')} />
             <label>적요2</label>

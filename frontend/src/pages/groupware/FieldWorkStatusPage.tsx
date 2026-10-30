@@ -12,6 +12,7 @@ import FieldWorkFormModal, { type FieldWorkUser } from '../../features/fieldwork
 import EcSortSubtotalModal, { sortBySubtotal, showsItem, type SortSubtotal } from '../../components/EcSortSubtotalModal'
 import { subtotalLabel } from '../../components/EcSubtotalDetailModal'
 import EcIcon from '../../components/ui/EcIcon'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 외근조회와 같다). */
 /** 원본 빠른선택(2026-10-03 실측): 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · <b>최근30일</b>. */
@@ -238,9 +239,7 @@ export default function FieldWorkStatusPage() {
       <>
         <div className="title">일자</div>
         <div className="form">
-          <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
         </div>
       </>
     ),

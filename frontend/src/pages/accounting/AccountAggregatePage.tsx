@@ -9,6 +9,7 @@ import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 회계집계표 원본 빠른선택 — 금일 … 전월 · 금년 · 전년 · 종료일 · 최근30일(기본). */
@@ -207,9 +208,7 @@ export default function AccountAggregatePage() {
           {check('코드포함', withCode, setWithCode)}
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-1">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-1.5">
             <EcPeriodPicks labels={AGG_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

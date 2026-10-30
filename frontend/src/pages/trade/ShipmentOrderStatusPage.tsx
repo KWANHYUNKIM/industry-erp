@@ -9,6 +9,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업관리 > 출력물 > <b>출하지시서현황</b>.
@@ -270,11 +271,7 @@ export default function ShipmentOrderStatusPage() {
                  onChange={(e) => setShipNo(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="출하예정일">
-          <input type="date" className="ec-input" value={dueFrom}
-                 onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input" value={dueTo}
-                 onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: dueFrom, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, onChange: (e) => setDueTo(e.target.value) }} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"

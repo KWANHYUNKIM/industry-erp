@@ -8,6 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 interface Ledger { payMonth: string; name: string; payDate: string | null }
@@ -275,9 +276,7 @@ export default function PayrollStatusPage() {
         <EcCond label="지급일">
           {usePayDate && (
             <>
-              <input type="date" className="ec-input w-[150px]" aria-label="지급일 시작" value={payDate.from} onChange={(e) => setPayDate({ ...payDate, from: e.target.value })} />
-              ~
-              <input type="date" className="ec-input w-[150px]" aria-label="지급일 끝" value={payDate.to} onChange={(e) => setPayDate({ ...payDate, to: e.target.value })} />
+              <EcDateRange from={{ className: "ec-input w-[150px]", 'aria-label': "지급일 시작", value: payDate.from, onChange: (e) => setPayDate({ ...payDate, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", 'aria-label': "지급일 끝", value: payDate.to, onChange: (e) => setPayDate({ ...payDate, to: e.target.value }) }} />
             </>
           )}
           <label className="inline-flex items-center gap-[4px] ml-[6px]">

@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { SimplePaymentKind, SimplePaymentSheet, SimplePaymentStatement } from '../../types/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -204,8 +205,7 @@ export function StatementListPage({ daily }: { daily: boolean }) {
               </select>
             </EcCond>
             <EcCond label="신고일자">
-              <input type="date" className="ec-input w-[150px]" value={form.reportDate}
-                     onChange={(e) => setForm({ ...form, reportDate: e.target.value })} />
+              <EcDateInput className="ec-input w-[150px]" value={form.reportDate} onChange={(e) => setForm({ ...form, reportDate: e.target.value })} />
             </EcCond>
             <EcCond label="담당자 부서명" span={2}>
               <input className="ec-input w-full" placeholder="담당자 부서명" value={form.managerDept}

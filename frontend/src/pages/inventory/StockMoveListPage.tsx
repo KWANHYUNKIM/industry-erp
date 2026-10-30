@@ -12,6 +12,7 @@ import EcPeriodPicks, { QUOTATION_PICKS, SELF_USE_PICKS, periodOf } from '../../
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { StockAdjustment, StockAdjustmentSlip } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated: boolean }
 
@@ -158,9 +159,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={selfUse ? SELF_USE_PICKS : QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

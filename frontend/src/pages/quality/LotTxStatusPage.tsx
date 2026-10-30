@@ -11,6 +11,7 @@ import { dateNo } from '../../utils/dateNo'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.내역현황</b> (이카운트 E040639)
@@ -182,22 +183,14 @@ export default function LotTxStatusPage() {
         </EcCond>
         <EcCond label="기준일자">
           <div className="flex items-center gap-[6px] flex-wrap">
-            <input type="date" className="ec-input" value={from}
-                   onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-            <span className="text-ec-label">~</span>
-            <input type="date" className="ec-input" value={to}
-                   onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+            <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
                            onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </div>
         </EcCond>
         <EcCond label="유효기한">
           <div className="flex items-center gap-[6px]">
-            <input type="date" className="ec-input" value={expFrom}
-                   onChange={(e) => setExpFrom(e.target.value)} style={{ width: 140 }} />
-            <span className="text-ec-label">~</span>
-            <input type="date" className="ec-input" value={expTo}
-                   onChange={(e) => setExpTo(e.target.value)} style={{ width: 140 }} />
+            <EcDateRange from={{ className: "ec-input", value: expFrom, onChange: (e) => setExpFrom(e.target.value) }} to={{ className: "ec-input", value: expTo, onChange: (e) => setExpTo(e.target.value) }} />
           </div>
         </EcCond>
         <EcCond label="시리얼/로트No." pick>

@@ -13,6 +13,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 작업지시서효율현황 — 계획(지시수량) 대비 실적 효율
@@ -356,11 +357,7 @@ export default function WoEfficiencyPage() {
             <input type="checkbox" checked={useDue} onChange={(e) => setUseDue(e.target.checked)} />
             사용
           </label>
-          <input type="date" className="ec-input" value={dueFrom} disabled={!useDue}
-                 onChange={(e) => setDueFrom(e.target.value)} style={{ width: 150 }} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input" value={dueTo} disabled={!useDue}
-                 onChange={(e) => setDueTo(e.target.value)} style={{ width: 150 }} />
+          <EcDateRange from={{ className: "ec-input", value: dueFrom, disabled: !useDue, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, disabled: !useDue, onChange: (e) => setDueTo(e.target.value) }} />
         </EcCond>
         <EcCond label="작업지시No." pick>
           <input className="ec-input" placeholder="작업지시번호 일부" value={orderNo}

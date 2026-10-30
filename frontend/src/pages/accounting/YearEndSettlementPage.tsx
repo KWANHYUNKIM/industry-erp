@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { yearEndApi, type Settlement, type SettlementKind } from '../../features/yearend/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { CandidateModal, InstallmentModal, ReceiptModal, SettlementFormModal } from '../../features/yearend/components/SettlementModals'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 type Emp = { id: number; code: string; name: string; resignDate?: string | null }
 type Company = { name?: string; bizRegNo?: string }
@@ -131,9 +132,7 @@ export default function YearEndSettlementPage({ kind = 'YEAR_END' }: { kind?: Se
         {mid && (
           <EcCond label="퇴사일자">
             <span className="inline-flex items-center gap-[4px]">
-              <input type="date" className="ec-input w-[145px]" aria-label="퇴사일자 시작" value={resignFrom} onChange={(e) => setResignFrom(e.target.value)} />
-              ~
-              <input type="date" className="ec-input w-[145px]" aria-label="퇴사일자 끝" value={resignTo} onChange={(e) => setResignTo(e.target.value)} />
+              <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "퇴사일자 시작", value: resignFrom, onChange: (e) => setResignFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "퇴사일자 끝", value: resignTo, onChange: (e) => setResignTo(e.target.value) }} />
             </span>
           </EcCond>
         )}

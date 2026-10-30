@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingReceipt, WithholdingReturn, WithholdingStatement } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -293,8 +294,7 @@ function ReturnForm({ form, onChange, returns }: { form: FormState; onChange: (f
       <li className="wide">
         <div className="title">신고일자</div>
         <div className="form">
-          <input type="date" className="ec-input w-[150px]" value={form.reportDate}
-                 onChange={(e) => set({ reportDate: e.target.value })} />
+          <EcDateInput className="ec-input w-[150px]" value={form.reportDate} onChange={(e) => set({ reportDate: e.target.value })} />
         </div>
       </li>
       <li className="wide">

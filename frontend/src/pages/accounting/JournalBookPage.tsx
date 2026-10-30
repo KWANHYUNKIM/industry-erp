@@ -12,6 +12,7 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import SortSubtotalModal from '../../features/ledgersort/SortSubtotalModal'
 import { applySortSubtotal, defaultSortSetting, showTotal } from '../../features/ledgersort/sortSubtotal'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** [정렬/소계기준] 고를 열 — 원본 기준 목록은 코드도움이 자동화로 안 열려 못 잼(2026-10-22), 분개장 열 그대로 둔다. */
 const SORT_KEYS = [
@@ -124,9 +125,7 @@ export default function JournalBookPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

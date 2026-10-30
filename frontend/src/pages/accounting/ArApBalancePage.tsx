@@ -9,6 +9,7 @@ import { EcReportHead, reportDate } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /*
  * 원본 [담당자 계] · [합계] 줄(2026-10-03 실측)은 바탕 (243,243,243) · 굵게 — 출력물 공통의 tr.ec-total(index.css)과 같다.
@@ -197,7 +198,7 @@ export default function ArApBalancePage() {
           ))}
         </EcCond>
         <EcCond label="조회일자">
-          <input type="date" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} className="ec-input w-[145px]" />
+          <EcDateInput value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} className="ec-input w-[145px]" />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}
