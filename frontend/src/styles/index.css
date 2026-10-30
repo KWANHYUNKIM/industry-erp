@@ -1471,4 +1471,9 @@ th.ec-empty {
 .ec-taxform td.n { color: var(--ec-ink); text-align: right; }
 .ec-taxform td.c { color: var(--ec-ink); }
 .ec-taxform .tf-title { font-size: 24px; font-weight: 700; letter-spacing: 6px; }
+
+/* 선 아이콘(components/ui/EcIcon) — 글자 기준선에 얹고 색은 글자색을 따른다 */
+.ec-icon { display: inline-block; flex: none; vertical-align: -0.15em; }
+/* 예전 글자 기호(▾ · ✕)를 크기 0 글자로 남긴다 — 단추 글자로 찾는 흐름이 그대로 맞는다(보이지 않고 폭도 없다) */
+.ec-icon-glyph { font-size: 0; line-height: 0; }
 } /* @layer components */
