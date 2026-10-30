@@ -124,7 +124,7 @@ export default function ApprovalListPage({
   const [schemas, setSchemas] = useState<Record<number, ApprovalField[]>>({})
   // 원본 하단 버튼줄의 [결재/검토완료]·[라벨변경]은 **고른 문서에 한꺼번에** 하는 동작이다.
   // 그러려면 행을 고를 수 있어야 하는데 우리 목록엔 그 방법이 없었다.
-  // 고르는 방식은 판매조회·전표입력과 같다 — 회색 행번호 칸을 누른다.
+  // 원본처럼 줄 앞 체크박스로 고른다(머리 체크박스 = 지금 쪽 전체).
   const [selected, setSelected] = useState<Set<number>>(new Set())
   /** 원본 목록은 한 쪽 15줄이다(2026-10-03 실측 — 1 2 3 / 3). */
   const [page, setPage] = useState(1)
@@ -236,6 +236,7 @@ export default function ApprovalListPage({
   const PAGE_SIZE = 15
   const pages = Math.max(1, Math.ceil(sort.sorted.length / PAGE_SIZE))
   const curPage = Math.min(page, pages)
+  const pageRows = sort.sorted.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE)
 
   /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
   const formTypes = [...new Set(rows.map(catOf).filter(Boolean))].sort()
@@ -279,7 +280,7 @@ export default function ApprovalListPage({
     const skipped = selected.size - targets.length
     if (targets.length === 0) {
       flash(selected.size === 0
-        ? '결재할 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.'
+        ? '결재할 문서를 고르세요. 줄 앞 체크박스로 고릅니다.'
         : '고른 문서 중 지금 내 차례인 것이 없습니다.')
       return
     }
@@ -303,7 +304,7 @@ export default function ApprovalListPage({
   async function changeLabelSelected() {
     const targets = filtered.filter((d) => selected.has(d.id))
     if (targets.length === 0) {
-      flash('라벨을 바꿀 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.')
+      flash('라벨을 바꿀 문서를 고르세요. 줄 앞 체크박스로 고릅니다.')
       return
     }
     const next = window.prompt(`${targets.length}건의 라벨을 무엇으로 바꿀까요? (비우면 라벨을 뗍니다)`, '')
@@ -331,7 +332,7 @@ export default function ApprovalListPage({
     const targets = filtered.filter((d) => selected.has(d.id) && !d.deleted)
     if (targets.length === 0) {
       flash(selected.size === 0
-        ? '지울 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.'
+        ? '지울 문서를 고르세요. 줄 앞 체크박스로 고릅니다.'
         : '고른 문서 중 지울 수 있는 것이 없습니다.')
       return
     }
@@ -426,7 +427,7 @@ export default function ApprovalListPage({
       <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
           <button
-            key={t} type="button" onClick={() => { setTab(t); setPage(1) }}
+            key={t} type="button" onClick={() => { setTab(t); setPage(1); setSelected(new Set()) }}
             className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
           >
             {t}
@@ -505,15 +506,11 @@ export default function ApprovalListPage({
         <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
-              {/* 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 다른 목록과 같은 규칙. */}
-              <th
-                style={{ width: 34, cursor: filtered.length > 0 ? 'pointer' : 'default' }}
-                title="전체 선택 / 해제"
-                onClick={() => setSelected(
-                  selected.size === filtered.length ? new Set() : new Set(filtered.map((d) => d.id)),
-                )}
-              >
-                {filtered.length > 0 && selected.size === filtered.length ? '☑' : ''}
+              {/* 원본 1열은 체크박스다(2026-10-30 기안서통합관리 실측) — 머리 체크박스 = 지금 쪽 전체 선택. */}
+              <th className="w-[34px] text-center">
+                <input type="checkbox" aria-label="전체 선택"
+                       checked={pageRows.length > 0 && pageRows.every((d) => selected.has(d.id))}
+                       onChange={(e) => setSelected(e.target.checked ? new Set(pageRows.map((d) => d.id)) : new Set())} />
               </th>
               <th className="cursor-pointer" onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
               <th>제목</th>
@@ -535,22 +532,12 @@ export default function ApprovalListPage({
           <tbody>
             {loading ? (
               <tr><td colSpan={colCount} className="ec-empty">불러오는 중…</td></tr>
-            ) : filtered.length === 0 ? (
+            ) : pageRows.length === 0 ? (
               <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : sort.sorted.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE).map((r, i0) => { const i = (curPage - 1) * PAGE_SIZE + i0; return (
+            ) : pageRows.map((r) => (
               <tr key={r.id} style={{ opacity: r.deleted ? 0.55 : 1 }}>
-                <td
-                  style={{
-                    textAlign: 'center',
-                    background: selected.has(r.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
-                    color: selected.has(r.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
-                    fontWeight: selected.has(r.id) ? 700 : 400,
-                    cursor: 'pointer', userSelect: 'none',
-                  }}
-                  title="눌러서 이 문서를 고릅니다"
-                  onClick={() => toggleSelect(r.id)}
-                >
-                  {i + 1}
+                <td className="text-center">
+                  <input type="checkbox" aria-label="선택" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} />
                 </td>
                 <td className="whitespace-nowrap">
                   {/* 원본: 기안중(임시저장) 줄의 [기안일자] 는 링크 — 같은 작성 창이 [삭제] 와 함께 열려 고쳐 다시 저장한다(같은 번호). */}
@@ -558,7 +545,11 @@ export default function ApprovalListPage({
                     ? <a onClick={() => navigate('/groupware/approval/draft', { state: { editOf: r } })} className="text-ec-navy cursor-pointer">{r.draftNo}</a>
                     : r.draftNo}
                 </td>
-                <td><a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a></td>
+                <td>
+                  {/* 원본: 라벨은 제목 앞 작은 옅은 배지(label label-light mr-5) — 2026-10-30 실측 */}
+                  {r.labelText && <span className="ec-label-chip bg-ec-disabled text-ec-ink mr-[5px]">{r.labelText}</span>}
+                  <a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a>
+                </td>
                 {isAll && !delView && <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>}
                 {/* 원본 [구분]은 기안서의 구분(휴가신청서 · 지출결의서)이다 — 구분 없는 문서(비품 구매 신청서)는 빈칸. 양식 이름은 칸 풍선으로. */}
                 {isAll && <td title={r.formTypeName}>{catOf(r)}</td>}
@@ -594,7 +585,7 @@ export default function ApprovalListPage({
                 {/* 원본 작업일시 '2026/10/14 오전 0:02:16' — 지운 때(서버가 지운 문서는 lastActedAt 에 deletedAt 을 싣는다) */}
                 {delView && <td>{r.lastActedAt ? actedText(r.lastActedAt) : ''}</td>}
               </tr>
-            )})}
+            ))}
           </tbody>
         </table>
       </div>

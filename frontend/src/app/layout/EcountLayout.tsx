@@ -1339,9 +1339,26 @@ const tabLeaves = (tab: Tab): Leaf[] => tab.nodes.flatMap((n) => (isGroup(n) ? n
 
 /** 경로가 메뉴 항목에 해당하면 그 항목의 길이(구체성)를, 아니면 0을 돌려준다.
  *  세그먼트 경계로 끊어야 '/'가 모든 경로를, '/sales/pay'가 '/sales/payment'를 삼키지 않는다. */
-function matchLength(to: string, pathname: string): number {
-  if (to === '/') return pathname === '/' ? 1 : 0
-  return pathname === to || pathname.startsWith(`${to}/`) ? to.length : 0
+function matchLength(to: string, here: string): number {
+  /*
+   * 메뉴 주소에 '?tab=…' 이 붙은 것(공통양식등록 · 결재설정 · 근로소득원천징수영수증)이 있다. 예전엔 경로만 견줘서
+   * 그런 메뉴는 한 번도 안 걸렸고, 대메뉴가 MyPage(맨 앞)로 떨어져 왼쪽 메뉴까지 MyPage 가 떴다.
+   * 이제 here(경로 + 검색어)의 검색어가 메뉴의 것을 모두 담으면 그 메뉴 주소 길이만큼, 그 키가 아예 없으면
+   * (탭을 안 고르고 들어온 같은 화면) 경로 길이 −1 로 약하게 건다 — 검색어 없는 같은 경로 메뉴가 있으면 그쪽이 이긴다.
+   */
+  const [path, query = ''] = here.split('?')
+  const [toPath, toQuery] = to.split('?')
+  if (toPath === '/') return path === '/' && !toQuery ? 1 : 0
+  if (!(path === toPath || path.startsWith(`${toPath}/`))) return 0
+  if (!toQuery) return toPath.length
+  const want = new URLSearchParams(toQuery)
+  const have = new URLSearchParams(query)
+  let missing = false
+  for (const [k, v] of want) {
+    if (!have.has(k)) missing = true
+    else if (have.get(k) !== v) return 0
+  }
+  return missing ? Math.max(1, toPath.length - 1) : to.length
 }
 
 const BASE_MENU = MENU
@@ -1409,6 +1426,8 @@ export default function EcountLayout() {
   const { user, logout, canRoute, isHost, companyName } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  /** 메뉴와 견줄 지금 주소 — 경로 + 검색어('?tab=공통양식등록'). matchLength 참고. */
+  const here = location.pathname + location.search
   const [hoverIdx, setHoverIdx] = useState<number | null>(null) // 대메뉴 호버 시 뜨는 탭바
   const [menuQuery, setMenuQuery] = useState('')                // 메뉴검색 입력값
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])    // 상단 북마크바 (사용자별)
@@ -1478,11 +1497,11 @@ export default function EcountLayout() {
   const currentLeaf = useMemo(() => {
     let best: FlatItem | null = null
     for (const f of FLAT_MENU) {
-      if (matchLength(f.to, location.pathname) > 0
+      if (matchLength(f.to, here) > 0
           && (!best || f.to.length > best.to.length)) best = f
     }
     return best
-  }, [location.pathname])
+  }, [here])
   const bookmarked = !!currentLeaf && bookmarks.some((b) => b.path === currentLeaf.to)
 
   async function toggleBookmark() {
@@ -1507,7 +1526,7 @@ export default function EcountLayout() {
   const NAV = useMemo(() => withMyFolders(folders), [folders])
 
   const menuPin = (location.state as { menuPin?: [number, number] } | null)?.menuPin
-  const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname, menuPin, NAV), [location.pathname, menuPin, NAV])
+  const [topIdx, tabIdx] = useMemo(() => resolveActive(here, menuPin, NAV), [here, menuPin, NAV])
   const activeTop = NAV[topIdx]
   const activeTab = activeTop.tabs[tabIdx]
 
@@ -1568,16 +1587,18 @@ export default function EcountLayout() {
   }
 
   /* 가장 길게 맞는 메뉴 하나만 켠다 — '/accounting/withholding' 과 '/accounting/withholding/pdf' 가 함께 켜지지 않게 */
-  const bestLeafLen = Math.max(0, ...FLAT_MENU.map((f) => matchLength(f.to, location.pathname)))
+  const bestLeafLen = Math.max(0, ...FLAT_MENU.map((f) => matchLength(f.to, here)))
+  /* 같은 길이로 둘이 걸리면(탭 없이 연 설정 화면 — 공통양식등록 · 결재설정) 메뉴 차례로 앞의 것 하나만 켠다 */
+  const activeLeafTo = bestLeafLen > 0 ? FLAT_MENU.find((f) => matchLength(f.to, here) === bestLeafLen)?.to : undefined
 
   /* 창(탭) 제목 = 지금 화면 이름 - 상호 (원본도 탭 제목이 화면 이름이다). 메뉴에 없는 화면은 상호만 */
   useEffect(() => {
-    const leaf = bestLeafLen > 0 ? FLAT_MENU.find((f) => matchLength(f.to, location.pathname) === bestLeafLen) : undefined
+    const leaf = activeLeafTo ? FLAT_MENU.find((f) => f.to === activeLeafTo) : undefined
     const site = brand || '제조 ERP'
     document.title = leaf ? `${leaf.label} - ${site}` : site
-  }, [bestLeafLen, location.pathname, brand])
+  }, [activeLeafTo, brand])
   function sidebarLeaf(leaf: Leaf, key: number) {
-    const on = !!leaf.to && bestLeafLen > 0 && matchLength(leaf.to, location.pathname) === bestLeafLen
+    const on = !!leaf.to && leaf.to === activeLeafTo
     return (
       <button
         key={key}
@@ -1624,7 +1645,7 @@ export default function EcountLayout() {
             const kids = node.children.filter(leafOk)
             if (kids.length === 0) return null
             // 왼쪽 메뉴와 같은 규칙 — 지금 화면이 든 묶음만 펼치고 칠한다. 접힌 상태도 왼쪽 메뉴와 같이 쓴다.
-            const current = kids.some((c) => !!c.to && matchLength(c.to, location.pathname) > 0)
+            const current = kids.some((c) => !!c.to && matchLength(c.to, here) > 0)
             const key = `${at.top}/${at.tab}/${node.label}`
             const open = key in collapsed ? !collapsed[key] : current || !!tab.open?.includes(node.label)
             return (
@@ -1759,7 +1780,7 @@ export default function EcountLayout() {
               if (visibleChildren.length === 0) return null
               const key = `${topIdx}/${tabIdx}/${node.label}`
               // 원본처럼 지금 화면이 든 묶음을 칠하고 펼친다. 원본이 처음부터 펼쳐 두는 묶음(tab.open)도 펼친다. 나머지는 접혀 있다가 누르면 펼친다.
-              const current = visibleChildren.some((c) => !!c.to && matchLength(c.to, location.pathname) > 0)
+              const current = visibleChildren.some((c) => !!c.to && matchLength(c.to, here) > 0)
               const open = key in collapsed ? !collapsed[key] : current || !!activeTab.open?.includes(node.label)
               return (
                 <div key={ni}>
